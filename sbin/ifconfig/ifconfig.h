@@ -294,7 +294,7 @@ uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
  */
 struct ifmediareq *ifmedia_getstate(if_ctx *ctx);
 
-void print_vhid(const struct ifaddrs *, const char *);
+void print_vhid(const struct ifaddrs *);
 
 void ifcreate_ioctl(if_ctx *ctx, struct ifreq *ifr);
 

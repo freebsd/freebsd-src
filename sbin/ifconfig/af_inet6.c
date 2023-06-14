@@ -356,7 +356,7 @@ in6_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 		print_lifetime("vltime", lifetime.ia6t_expire, &now);
 	}
 
-	print_vhid(ifa, " ");
+	print_vhid(ifa);
 
 	putchar('\n');
 }

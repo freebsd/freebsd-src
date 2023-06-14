@@ -144,7 +144,7 @@ in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 			printf(" broadcast %s", inet_ntoa(sin->sin_addr));
 	}
 
-	print_vhid(ifa, " ");
+	print_vhid(ifa);
 
 	putchar('\n');
 }

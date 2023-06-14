@@ -151,7 +151,7 @@ ifclonecreate(if_ctx *ctx, void *arg __unused)
 }
 
 static void
-clone_create(if_ctx *ctx, const char *cmd __unused, int d __unused)
+clone_create(if_ctx *ctx __unused, const char *cmd __unused, int d __unused)
 {
 	callback_register(ifclonecreate, NULL);
 }
