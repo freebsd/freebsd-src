@@ -68,15 +68,14 @@ ATF_TC_BODY(positivetests, tc)
 ATF_TC_WITHOUT_HEAD(negativetests);
 ATF_TC_BODY(negativetests, tc)
 {
-	int retval;
 	uint64_t num;
 
-	ATF_CHECK_ERRNO(EINVAL, retval = expand_number("", &num));
-	ATF_CHECK_ERRNO(EINVAL, retval = expand_number("x", &num));
-	ATF_CHECK_ERRNO(EINVAL, retval = expand_number("1bb", &num));
-	ATF_CHECK_ERRNO(EINVAL, retval = expand_number("1x", &num));
-	ATF_CHECK_ERRNO(EINVAL, retval = expand_number("1kx", &num));
-	ATF_CHECK_ERRNO(ERANGE, retval = expand_number("16E", &num));
+	ATF_CHECK_ERRNO(EINVAL, expand_number("", &num));
+	ATF_CHECK_ERRNO(EINVAL, expand_number("x", &num));
+	ATF_CHECK_ERRNO(EINVAL, expand_number("1bb", &num));
+	ATF_CHECK_ERRNO(EINVAL, expand_number("1x", &num));
+	ATF_CHECK_ERRNO(EINVAL, expand_number("1kx", &num));
+	ATF_CHECK_ERRNO(ERANGE, expand_number("16E", &num));
 }
 
 ATF_TP_ADD_TCS(tp)
