@@ -1071,6 +1071,8 @@ extern struct pmc_driverstats pmc_stats;
 #if	defined(HWPMC_DEBUG)
 #include <sys/ktr.h>
 
+#define	__pmcdbg_used		/* unused variable annotation */
+
 /* debug flags, major flag groups */
 struct pmc_debugflags {
 	int	pdb_CPU;
@@ -1187,6 +1189,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_CLO	       12 /* close */
 
 #else
+#define	__pmcdbg_used			__unused
 #define	PMCDBG0(M, N, L, F)		/* nothing */
 #define	PMCDBG1(M, N, L, F, p1)
 #define	PMCDBG2(M, N, L, F, p1, p2)
