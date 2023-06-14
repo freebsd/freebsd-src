@@ -3622,6 +3622,40 @@ pmc_do_op_pmcdetach(struct thread *td, struct pmc_op_pmcattach a)
 	return (error);
 }
 
+/*
+ * Main body of PMC_OP_PMCRELEASE.
+ */
+static int
+pmc_do_op_pmcrelease(pmc_id_t pmcid)
+{
+	struct pmc_owner *po;
+	struct pmc *pm;
+	int error;
+
+	/*
+	 * Find PMC pointer for the named PMC.
+	 *
+	 * Use pmc_release_pmc_descriptor() to switch off the
+	 * PMC, remove all its target threads, and remove the
+	 * PMC from its owner's list.
+	 *
+	 * Remove the owner record if this is the last PMC
+	 * owned.
+	 *
+	 * Free up space.
+	 */
+	error = pmc_find_pmc(pmcid, &pm);
+	if (error != 0)
+		return (error);
+
+	po = pm->pm_owner;
+	pmc_release_pmc_descriptor(pm);
+	pmc_maybe_remove_owner(po);
+	pmc_destroy_pmc_descriptor(pm);
+
+	return (error);
+}
+
 static int
 pmc_syscall_handler(struct thread *td, void *syscall_args)
 {
@@ -4205,41 +4239,17 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	break;
 
 	/*
-	 * Release an allocated PMC
+	 * Release an allocated PMC.
 	 */
-
 	case PMC_OP_PMCRELEASE:
 	{
-		pmc_id_t pmcid;
-		struct pmc *pm;
-		struct pmc_owner *po;
 		struct pmc_op_simple sp;
 
-		/*
-		 * Find PMC pointer for the named PMC.
-		 *
-		 * Use pmc_release_pmc_descriptor() to switch off the
-		 * PMC, remove all its target threads, and remove the
-		 * PMC from its owner's list.
-		 *
-		 * Remove the owner record if this is the last PMC
-		 * owned.
-		 *
-		 * Free up space.
-		 */
-
-		if ((error = copyin(arg, &sp, sizeof(sp))) != 0)
+		error = copyin(arg, &sp, sizeof(sp));
+		if (error != 0)
 			break;
 
-		pmcid = sp.pm_pmcid;
-
-		if ((error = pmc_find_pmc(pmcid, &pm)) != 0)
-			break;
-
-		po = pm->pm_owner;
-		pmc_release_pmc_descriptor(pm);
-		pmc_maybe_remove_owner(po);
-		pmc_destroy_pmc_descriptor(pm);
+		error = pmc_do_op_pmcrelease(sp.pm_pmcid);
 	}
 	break;
 
