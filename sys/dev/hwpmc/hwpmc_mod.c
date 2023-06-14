@@ -567,7 +567,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 
  done:
 	free(tmpflags, M_PMC);
-	return error;
+	return (error);
 }
 
 static int
@@ -595,7 +595,7 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	free(newstr, M_PMC);
 
-	return error;
+	return (error);
 }
 #endif
 
@@ -820,11 +820,11 @@ pmc_rdtsc(void)
 {
 #if defined(__i386__) || defined(__amd64__)
 	if (__predict_true(amd_feature & AMDID_RDTSCP))
-		return rdtscp();
+		return (rdtscp());
 	else
-		return rdtsc();
+		return (rdtsc());
 #else
-	return get_cyclecount();
+	return (get_cyclecount());
 #endif
 }
 
@@ -1197,10 +1197,10 @@ pmc_attach_process(struct proc *p, struct pmc *pm)
 	 */
 
 	if ((pm->pm_flags & PMC_PP_ENABLE_MSR_ACCESS) != 0)
-		return EPERM;
+		return (EPERM);
 
 	if ((pm->pm_flags & PMC_F_DESCENDANTS) == 0)
-		return pmc_attach_one_process(p, pm);
+		return (pmc_attach_one_process(p, pm));
 
 	/*
 	 * Traverse all child processes, attaching them to
@@ -1232,7 +1232,7 @@ pmc_attach_process(struct proc *p, struct pmc *pm)
 
  done:
 	sx_sunlock(&proctree_lock);
-	return error;
+	return (error);
 }
 
 /*
@@ -1258,10 +1258,10 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 	    pm, ri, p, p->p_pid, p->p_comm, flags);
 
 	if ((pp = pmc_find_process_descriptor(p, 0)) == NULL)
-		return ESRCH;
+		return (ESRCH);
 
 	if (pp->pp_pmcs[ri].pp_pmc != pm)
-		return EINVAL;
+		return (EINVAL);
 
 	pmc_unlink_target_process(pm, pp);
 
@@ -1279,7 +1279,7 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 		__LINE__, pp->pp_refcnt, pp));
 
 	if (pp->pp_refcnt != 0)	/* still a target of some PMC */
-		return 0;
+		return (0);
 
 	pmc_remove_process_descriptor(pp);
 
@@ -1290,7 +1290,7 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 	p->p_flag &= ~P_HWPMC;
 	PROC_UNLOCK(p);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1308,7 +1308,7 @@ pmc_detach_process(struct proc *p, struct pmc *pm)
 	    PMC_TO_ROWINDEX(pm), p, p->p_pid, p->p_comm);
 
 	if ((pm->pm_flags & PMC_F_DESCENDANTS) == 0)
-		return pmc_detach_one_process(p, pm, PMC_FLAG_REMOVE);
+		return (pmc_detach_one_process(p, pm, PMC_FLAG_REMOVE));
 
 	/*
 	 * Traverse all children, detaching them from this PMC.  We
@@ -1342,7 +1342,7 @@ pmc_detach_process(struct proc *p, struct pmc *pm)
 	if (LIST_EMPTY(&pm->pm_targets))
 		pm->pm_flags &= ~PMC_F_ATTACH_DONE;
 
-	return 0;
+	return (0);
 }
 
 
@@ -2341,7 +2341,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -2369,7 +2369,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 	PMCDBG4(OWN,ALL,1, "allocate-owner proc=%p (%d, %s) pmc-owner=%p",
 	    p, p->p_pid, p->p_comm, po);
 
-	return po;
+	return (po);
 }
 
 static void
@@ -2526,7 +2526,7 @@ pmc_find_thread_descriptor(struct pmc_process *pp, struct thread *td,
 		free(ptnew, M_PMC);
 	}
 
-	return pt;
+	return (pt);
 }
 
 /*
@@ -2629,8 +2629,7 @@ pmc_find_process_descriptor(struct proc *p, uint32_t mode)
 
 	if (ppnew != NULL)
 		free(ppnew, M_PMC);
-
-	return pp;
+	return (pp);
 }
 
 /*
@@ -2688,7 +2687,7 @@ pmc_find_owner_descriptor(struct proc *p)
 	PMCDBG5(OWN,FND,1, "find-owner proc=%p (%d, %s) hindex=0x%x -> "
 	    "pmc-owner=%p", p, p->p_pid, p->p_comm, hindex, po);
 
-	return po;
+	return (po);
 }
 
 /*
@@ -2708,7 +2707,7 @@ pmc_allocate_pmc_descriptor(void)
 	pmc->pm_pcpu_state = malloc(sizeof(struct pmc_pcpu_state)*mp_ncpus, M_PMC, M_WAITOK|M_ZERO);
 	PMCDBG1(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
-	return pmc;
+	return (pmc);
 }
 
 /*
@@ -2937,7 +2936,7 @@ pmc_register_owner(struct proc *p, struct pmc *pmc)
 
 	if ((po = pmc_find_owner_descriptor(p)) == NULL)
 		if ((po = pmc_allocate_owner_descriptor(p)) == NULL)
-			return ENOMEM;
+			return (ENOMEM);
 
 	KASSERT(pmc->pm_owner == NULL,
 	    ("[pmc,%d] attempting to own an initialized PMC", __LINE__));
@@ -2955,7 +2954,7 @@ pmc_register_owner(struct proc *p, struct pmc *pmc)
 	PMCDBG2(PMC,REG,1, "register-owner pmc-owner=%p pmc=%p",
 	    po, pmc);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -2968,7 +2967,7 @@ pmc_register_owner(struct proc *p, struct pmc *pmc)
 int
 pmc_getrowdisp(int ri)
 {
-	return pmc_pmcdisp[ri];
+	return (pmc_pmcdisp[ri]);
 }
 
 /*
@@ -3018,12 +3017,11 @@ pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 	 */
 	if ((pp = pmc_find_process_descriptor(p, 0)) != NULL)
 		if (pp->pp_pmcs[ri].pp_pmc)
-			return EEXIST;
+			return (EEXIST);
 
 	PMCDBG4(PMC,ALR,2, "can-allocate-rowindex proc=%p (%d, %s) ri=%d ok",
 	    p, p->p_pid, p->p_comm, ri);
-
-	return 0;
+	return (0);
 }
 
 /*
@@ -3059,16 +3057,14 @@ pmc_can_allocate_row(int ri, enum pmc_mode mode)
 	if (!PMC_ROW_DISP_IS_FREE(ri) &&
 	    !(disp == PMC_DISP_THREAD && PMC_ROW_DISP_IS_THREAD(ri)) &&
 	    !(disp == PMC_DISP_STANDALONE && PMC_ROW_DISP_IS_STANDALONE(ri)))
-		return EBUSY;
+		return (EBUSY);
 
 	/*
 	 * All OK
 	 */
 
 	PMCDBG2(PMC,ALR,2, "can-allocate-row ri=%d mode=%d ok", ri, mode);
-
-	return 0;
-
+	return (0);
 }
 
 /*
@@ -3088,7 +3084,7 @@ pmc_find_pmc_descriptor_in_process(struct pmc_owner *po, pmc_id_t pmcid)
 	    if (pm->pm_id == pmcid)
 		    return pm;
 
-	return NULL;
+	return (NULL);
 }
 
 static int
@@ -3111,26 +3107,26 @@ pmc_find_pmc(pmc_id_t pmcid, struct pmc **pmc)
 		 */
 		if ((pp = pmc_find_process_descriptor(curthread->td_proc,
 		    PMC_FLAG_NONE)) == NULL) {
-			return ESRCH;
+			return (ESRCH);
 		} else {
 			opm = pp->pp_pmcs[PMC_ID_TO_ROWINDEX(pmcid)].pp_pmc;
 			if (opm == NULL)
-				return ESRCH;
+				return (ESRCH);
 			if ((opm->pm_flags & (PMC_F_ATTACHED_TO_OWNER|
 			    PMC_F_DESCENDANTS)) != (PMC_F_ATTACHED_TO_OWNER|
 			    PMC_F_DESCENDANTS))
-				return ESRCH;
+				return (ESRCH);
 			po = opm->pm_owner;
 		}
 	}
 
 	if ((pm = pmc_find_pmc_descriptor_in_process(po, pmcid)) == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	PMCDBG2(PMC,FND,2, "find-pmc id=%d -> pmc=%p", pmcid, pm);
 
 	*pmc = pm;
-	return 0;
+	return (0);
 }
 
 /*
@@ -3296,7 +3292,7 @@ pmc_stop(struct pmc *pm)
 	 */
 
 	if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
-		return 0;
+		return (0);
 
 	/*
 	 * A system-mode PMC.  Move to the CPU associated with
@@ -3313,7 +3309,7 @@ pmc_stop(struct pmc *pm)
 	    ("[pmc,%d] illegal cpu=%d", __LINE__, cpu));
 
 	if (!pmc_cpu_is_active(cpu))
-		return ENXIO;
+		return (ENXIO);
 
 	pmc_select_cpu(cpu);
 
@@ -5468,7 +5464,7 @@ pmc_mdep_alloc(int nclasses)
 
 	/* Add base class. */
 	pmc_soft_initialize(md);
-	return md;
+	return (md);
 }
 
 void
@@ -5557,7 +5553,7 @@ pmc_initialize(void)
 			printf("hwpmc: kernel version (0x%x) does not match "
 			    "module version (0x%x).\n", pmc_kernel_version,
 			    PMC_VERSION);
-		return EPROGMISMATCH;
+		return (EPROGMISMATCH);
 	}
 
 	/*
@@ -5982,5 +5978,5 @@ load (struct module *module __unused, int cmd, void *arg __unused)
 		break;
 	}
 
-	return error;
+	return (error);
 }
