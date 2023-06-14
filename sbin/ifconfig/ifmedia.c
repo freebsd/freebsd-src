@@ -179,10 +179,11 @@ setifmediacallback(if_ctx *ctx, void *arg)
 {
 	struct ifmediareq *ifmr = (struct ifmediareq *)arg;
 	static bool did_it = false;
+	struct ifreq ifr = {};
 
 	if (!did_it) {
 		ifr.ifr_media = ifmr->ifm_current;
-		if (ioctl_ctx(ctx, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
+		if (ioctl_ctx_ifr(ctx, SIOCSIFMEDIA, &ifr) < 0)
 			err(1, "SIOCSIFMEDIA (media)");
 		free(ifmr);
 		did_it = true;
@@ -208,11 +209,9 @@ setmedia(if_ctx *ctx, const char *val, int d __unused)
 	 */
 	subtype = get_media_subtype(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr->ifm_current & IFM_IMASK) |
+	ifmr->ifm_current = (ifmr->ifm_current & IFM_IMASK) |
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
 
-	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
 }
 
@@ -240,18 +239,15 @@ domediaopt(if_ctx *ctx, const char *val, bool clear)
 
 	options = get_media_options(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-	ifr.ifr_media = ifmr->ifm_current;
 	if (clear)
-		ifr.ifr_media &= ~options;
+		ifmr->ifm_current &= ~options;
 	else {
 		if (options & IFM_HDX) {
-			ifr.ifr_media &= ~IFM_FDX;
+			ifmr->ifm_current &= ~IFM_FDX;
 			options &= ~IFM_HDX;
 		}
-		ifr.ifr_media |= options;
+		ifmr->ifm_current |= options;
 	}
-	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
 }
 
@@ -267,10 +263,8 @@ setmediainst(if_ctx *ctx, const char *val, int d __unused)
 	if (inst < 0 || inst > (int)IFM_INST_MAX)
 		errx(1, "invalid media instance: %s", val);
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr->ifm_current & ~IFM_IMASK) | inst << IFM_ISHIFT;
+	ifmr->ifm_current = (ifmr->ifm_current & ~IFM_IMASK) | inst << IFM_ISHIFT;
 
-	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
 }
 
@@ -284,10 +278,8 @@ setmediamode(if_ctx *ctx, const char *val, int d __unused)
 
 	mode = get_media_mode(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr->ifm_current & ~IFM_MMASK) | mode;
+	ifmr->ifm_current = (ifmr->ifm_current & ~IFM_MMASK) | mode;
 
-	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
 }
 

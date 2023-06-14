@@ -251,7 +251,6 @@ struct option {
 void	opt_register(struct option *);
 
 extern	ifconfig_handle_t *lifh;
-extern	struct ifreq ifr;
 extern	int allmedia;
 extern	int exit_code;
 extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
