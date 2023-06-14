@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 2023 Netflix, Inc
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" mpi3mr driver man page.
+.\"
+.Dd June 14, 2023
+.Dt MPI3MR 4
+.Os
+.Sh NAME
+.Nm mpi3mr
+.Nd "Broadcom MPIMR 3.0 IT/IR 24Gb/s SAS Tri-Mode RAID PCIe 4.0 driver"
+.Sh SYNOPSIS
+.\" To compile this driver into the kernel, place these lines in the kernel
+.\" configuration file:
+.\" .Bd -ragged -offset indent
+.\" .Cd "device pci"
+.\" .Cd "device scbus"
+.\" .Cd "device mpi3mr"
+.\" .Ed
+.\" .Pp
+The driver can be loaded as a module at boot time by placing this line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mpi3mr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom Ltd. MPIMR 3.0 IT/IR PCIe 4 controller.
+.Sh HARDWARE
+These controllers are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Broadcom Ltd. SAS 4116 Tri-Mode RAID Adapter
+.It
+Broadcom Ltd. 9670W-16i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9670-24i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9660-16i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9620-16i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9600-24i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9600-16i 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9600W-16e 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9600-16e 24G PCIe 4.0 Tri-Mode RAID Adapters
+.It
+Broadcom Ltd. 9600-8i8e 24G PCIe 4.0 Tri-Mode RAID Adapters
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr mpr 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Sumit Saxena Aq Mt sumit.saxena@broadcom.com ,
+and
+.An Chandrakanth Patil Aq Mt chandrakanth.patil@broadcom.com .
+This manual page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
