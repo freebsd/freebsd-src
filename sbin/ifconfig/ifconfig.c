@@ -85,14 +85,6 @@ static const char rcsid[] =
 
 ifconfig_handle_t *lifh;
 
-/*
- * Since "struct ifreq" is composed of various union members, callers
- * should pay special attention to interpret the value.
- * (.e.g. little/big endian difference in the structure.)
- */
-struct	ifreq ifr;
-
-//char	name[IFNAMSIZ];
 #ifdef WITHOUT_NETLINK
 static char	*descr = NULL;
 static size_t	descrlen = 64;
