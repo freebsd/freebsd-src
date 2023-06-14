@@ -185,7 +185,7 @@ static const struct printer printers[] = {
 #ifdef DLT_LOOP
 	{ null_if_print,	DLT_LOOP },
 #endif
-#ifdef DLT_PFLOG
+#if defined(DLT_PFLOG) && defined(HAVE_NET_IF_PFLOG_H)
 	{ pflog_if_print,	DLT_PFLOG },
 #endif
 #ifdef DLT_PKTAP
