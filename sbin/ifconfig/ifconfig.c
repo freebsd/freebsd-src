@@ -101,7 +101,7 @@ static int	setaddr;
 static int	setmask;
 static int	doalias;
 static int	clearaddr;
-int	newaddr = 1;
+static int	newaddr = 1;
 
 int	exit_code = 0;
 
