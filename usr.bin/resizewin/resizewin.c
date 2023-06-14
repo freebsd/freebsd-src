@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	if (tcsetattr(fd, TCSAFLUSH, &new) == -1)
 		exit(1);
 
-	if (write(fd, query, sizeof(query)) != sizeof(query)) {
+	if (write(fd, query, sizeof(query) - 1) != sizeof(query) - 1) {
 		error = 1;
 		goto out;
 	}
