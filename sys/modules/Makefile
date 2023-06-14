@@ -259,6 +259,7 @@ SUBDIR=	\
 	${_mlx5ib} \
 	mmc \
 	mmcsd \
+	${_mpi3mr} \
 	${_mpr} \
 	${_mps} \
 	mpt \
@@ -627,6 +628,11 @@ _rtwnfw=	rtwnfw
 	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
 	${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
+.endif
+
+# This has only been tested on amd64 and arm64
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "arm64"
+_mpi3mr=mpi3mr
 .endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "arm64" || ${MACHINE_ARCH:Mpowerpc64*}
