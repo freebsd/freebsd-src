@@ -822,6 +822,7 @@ list_interfaces_ioctl(if_ctx *ctx)
 			continue;
 		if (!group_member(ifa->ifa_name, args->matchgroup, args->nogroup))
 			continue;
+		ctx->ifname = cp;
 		/*
 		 * Are we just listing the interfaces?
 		 */
