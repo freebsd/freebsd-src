@@ -109,13 +109,13 @@ struct deferred_opt_list {
  * as well.
  */
 
-inline uint64_t
+static inline uint64_t
 rack_to_usec_ts(struct timeval *tv)
 {
 	return ((tv->tv_sec * HPTS_USEC_IN_SEC) + tv->tv_usec);
 }
 
-inline uint32_t
+static inline uint32_t
 rack_ts_to_msec(uint64_t ts)
 {
 	return((uint32_t)(ts / HPTS_MSEC_IN_SEC));
