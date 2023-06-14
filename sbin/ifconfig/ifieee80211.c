@@ -3694,7 +3694,7 @@ printmimo(const struct ieee80211_mimo_info *mi)
 	int r = 0;
 
 	for (i = 0; i < IEEE80211_MAX_CHAINS; i++) {
-		if (mi->ch[i].rssi != 0) {
+		if (mi->ch[i].rssi[0] != 0) {
 			r = 1;
 			break;
 		}
