@@ -1230,7 +1230,7 @@ top:
 }
 
 static void
-setifaddr(if_ctx *ctx, const char *addr, int param)
+setifaddr(if_ctx *ctx, const char *addr, int param __unused)
 {
 	const struct afswtch *afp = ctx->afp;
 
@@ -1279,10 +1279,10 @@ settunnel(if_ctx *ctx, const char *src, const char *dst)
 }
 
 static void
-deletetunnel(if_ctx *ctx, const char *vname, int param)
+deletetunnel(if_ctx *ctx, const char *vname __unused, int param __unused)
 {
 
-	if (ioctl(ctx->io_s, SIOCDIFPHYADDR, &ifr) < 0)
+	if (ioctl_ctx(ctx, SIOCDIFPHYADDR, &ifr) < 0)
 		err(1, "SIOCDIFPHYADDR");
 }
 
@@ -1335,7 +1335,7 @@ setifbroadaddr(if_ctx *ctx, const char *addr, int dummy __unused)
 }
 
 static void
-notealias(if_ctx *ctx, const char *addr, int param)
+notealias(if_ctx *ctx, const char *addr __unused, int param)
 {
 	const struct afswtch *afp = ctx->afp;
 
@@ -1515,11 +1515,11 @@ setifpcp(if_ctx *ctx, const char *val, int arg __unused)
 }
 
 static void
-disableifpcp(if_ctx *ctx, const char *val, int arg __unused)
+disableifpcp(if_ctx *ctx, const char *val __unused, int arg __unused)
 {
 
 	ifr.ifr_lan_pcp = IFNET_PCP_NONE;
-	if (ioctl(ctx->io_s, SIOCSLANPCP, (caddr_t)&ifr) == -1)
+	if (ioctl_ctx(ctx, SIOCSLANPCP, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSLANPCP");
 }
 
@@ -1569,7 +1569,7 @@ setifdescr(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-unsetifdescr(if_ctx *ctx, const char *val, int value)
+unsetifdescr(if_ctx *ctx, const char *val __unused, int value __unused)
 {
 	setifdescr(ctx, "", 0);
 }
@@ -1858,7 +1858,7 @@ printb(const char *s, unsigned v, const char *bits)
 }
 
 void
-print_vhid(const struct ifaddrs *ifa, const char *s)
+print_vhid(const struct ifaddrs *ifa)
 {
 	struct if_data *ifd;
 
