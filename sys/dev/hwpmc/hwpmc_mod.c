@@ -237,16 +237,21 @@ static void	pmc_log_all_process_mappings(struct pmc_owner *po);
 static void	pmc_log_kernel_mappings(struct pmc *pm);
 static void	pmc_log_process_mappings(struct pmc_owner *po, struct proc *p);
 static void	pmc_maybe_remove_owner(struct pmc_owner *po);
+static void	pmc_post_callchain_callback(void);
+static void	pmc_process_allproc(struct pmc *pm);
 static void	pmc_process_csw_in(struct thread *td);
 static void	pmc_process_csw_out(struct thread *td);
 static void	pmc_process_exit(void *arg, struct proc *p);
 static void	pmc_process_fork(void *arg, struct proc *p1,
     struct proc *p2, int n);
+static void	pmc_process_proccreate(struct proc *p);
 static void	pmc_process_samples(int cpu, ring_type_t soft);
-static void	pmc_release_pmc_descriptor(struct pmc *pmc);
+static void	pmc_process_threadcreate(struct thread *td);
+static void	pmc_process_threadexit(struct thread *td);
 static void	pmc_process_thread_add(struct thread *td);
 static void	pmc_process_thread_delete(struct thread *td);
 static void	pmc_process_thread_userret(struct thread *td);
+static void	pmc_release_pmc_descriptor(struct pmc *pmc);
 static void	pmc_remove_owner(struct pmc_owner *po);
 static void	pmc_remove_process_descriptor(struct pmc_process *pp);
 static int	pmc_start(struct pmc *pm);
@@ -257,16 +262,11 @@ static void	pmc_thread_descriptor_pool_drain(void);
 static void	pmc_thread_descriptor_pool_free(struct pmc_thread *pt);
 static void	pmc_unlink_target_process(struct pmc *pmc,
     struct pmc_process *pp);
-static int generic_switch_in(struct pmc_cpu *pc, struct pmc_process *pp);
-static int generic_switch_out(struct pmc_cpu *pc, struct pmc_process *pp);
 
+static int	generic_switch_in(struct pmc_cpu *pc, struct pmc_process *pp);
+static int	generic_switch_out(struct pmc_cpu *pc, struct pmc_process *pp);
 static struct pmc_mdep *pmc_generic_cpu_initialize(void);
-static void pmc_generic_cpu_finalize(struct pmc_mdep *md);
-static void pmc_post_callchain_callback(void);
-static void pmc_process_threadcreate(struct thread *td);
-static void pmc_process_threadexit(struct thread *td);
-static void pmc_process_proccreate(struct proc *p);
-static void pmc_process_allproc(struct pmc *pm);
+static void	pmc_generic_cpu_finalize(struct pmc_mdep *md);
 
 /*
  * Kernel tunables and sysctl(8) interface.
