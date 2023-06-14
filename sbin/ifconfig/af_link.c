@@ -101,9 +101,11 @@ print_lladdr(struct sockaddr_dl *sdl)
 }
 
 static void
-print_pcp(int s)
+print_pcp(if_ctx *ctx)
 {
-	if (ioctl(s, SIOCGLANPCP, (caddr_t)&ifr) == 0 &&
+	struct ifreq ifr = {};
+
+	if (ioctl_ctx_ifr(ctx, SIOCGLANPCP, &ifr) == 0 &&
 	    ifr.ifr_lan_pcp != IFNET_PCP_NONE)
 		printf("\tpcp %d\n", ifr.ifr_lan_pcp);
 }
@@ -159,7 +161,7 @@ link_status(if_ctx *ctx, const struct ifaddrs *ifa)
 
 	print_ether((const struct ether_addr *)&ifr.ifr_addr.sa_data, "hwaddr");
 pcp:
-	print_pcp(ctx->io_s);
+	print_pcp(ctx);
 }
 
 #else
@@ -196,7 +198,7 @@ link_status_nl(if_ctx *ctx, if_link_t *link, if_addr_t *ifa __unused)
 		}
 	}
 	if (convert_iftype(link->ifi_type) == IFT_ETHER)
-		print_pcp(ctx->io_s);
+		print_pcp(ctx);
 }
 #endif
 

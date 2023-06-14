@@ -354,15 +354,14 @@ status_nl(if_ctx *ctx, struct iface *iface)
 	printf("flags=%x", link->ifi_flags);
 	print_bits("IFF", &link->ifi_flags, 1, IFFBITS, nitems(IFFBITS));
 
-	print_metric(ctx->io_s);
+	print_metric(ctx);
 	printf(" mtu %d\n", link->ifla_mtu);
 
 	if (link->ifla_ifalias != NULL)
 		printf("\tdescription: %s\n", link->ifla_ifalias);
 
 	/* TODO: convert to netlink */
-	strlcpy(ifr.ifr_name, link->ifla_ifname, sizeof(ifr.ifr_name));
-	print_ifcap(args, ctx->io_s);
+	print_ifcap(ctx);
 	tunnel_status(ctx);
 
 	if (args->allfamilies | (args->afp != NULL && args->afp->af_af == AF_LINK)) {

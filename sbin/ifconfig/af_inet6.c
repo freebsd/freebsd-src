@@ -291,7 +291,7 @@ print_lifetime(const char *prepend, time_t px_time, struct timespec *now)
 
 #ifdef WITHOUT_NETLINK
 static void
-in6_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
+in6_status(if_ctx *ctx, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in6 *sin, null_sin = {};
 	struct in6_ifreq ifr6;
@@ -303,7 +303,7 @@ in6_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 	if (sin == NULL)
 		return;
 
-	strlcpy(ifr6.ifr_name, ifr.ifr_name, sizeof(ifr.ifr_name));
+	strlcpy(ifr6.ifr_name, ctx->ifname, sizeof(ifr6.ifr_name));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		warn("socket(AF_INET6,SOCK_DGRAM)");
 		return;
