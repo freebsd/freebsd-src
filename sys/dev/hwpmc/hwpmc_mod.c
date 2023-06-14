@@ -210,7 +210,8 @@ static int	pmc_attach_process(struct proc *p, struct pmc *pm);
 static struct pmc *pmc_allocate_pmc_descriptor(void);
 static struct pmc_owner *pmc_allocate_owner_descriptor(struct proc *p);
 static int	pmc_attach_one_process(struct proc *p, struct pmc *pm);
-static int	pmc_can_allocate_rowindex(struct proc *p, unsigned int ri,
+static bool	pmc_can_allocate_row(int ri, enum pmc_mode mode);
+static bool	pmc_can_allocate_rowindex(struct proc *p, unsigned int ri,
     int cpu);
 static int	pmc_can_attach(struct pmc *pm, struct proc *p);
 static void	pmc_capture_user_callchain(int cpu, int soft,
@@ -2904,7 +2905,7 @@ pmc_getrowdisp(int ri)
  *   - the current process has already allocated a PMC at index 'ri'
  *     via OP_ALLOCATE.
  */
-static int
+static bool
 pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 {
 	struct pmc *pm;
@@ -2927,10 +2928,10 @@ pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 			if (PMC_TO_ROWINDEX(pm) == ri) {
 				mode = PMC_TO_MODE(pm);
 				if (PMC_IS_VIRTUAL_MODE(mode))
-					return (EEXIST);
+					return (false);
 				if (PMC_IS_SYSTEM_MODE(mode) &&
 				    PMC_TO_CPU(pm) == cpu)
-					return (EEXIST);
+					return (false);
 			}
 		}
 	}
@@ -2941,18 +2942,18 @@ pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 	 */
 	if ((pp = pmc_find_process_descriptor(p, 0)) != NULL)
 		if (pp->pp_pmcs[ri].pp_pmc != NULL)
-			return (EEXIST);
+			return (false);
 
 	PMCDBG4(PMC,ALR,2, "can-allocate-rowindex proc=%p (%d, %s) ri=%d ok",
 	    p, p->p_pid, p->p_comm, ri);
-	return (0);
+	return (true);
 }
 
 /*
  * Check if a given PMC at row index 'ri' can be currently used in
  * mode 'mode'.
  */
-static int
+static bool
 pmc_can_allocate_row(int ri, enum pmc_mode mode)
 {
 	enum pmc_disp disp;
@@ -2979,13 +2980,13 @@ pmc_can_allocate_row(int ri, enum pmc_mode mode)
 	if (!PMC_ROW_DISP_IS_FREE(ri) &&
 	    !(disp == PMC_DISP_THREAD && PMC_ROW_DISP_IS_THREAD(ri)) &&
 	    !(disp == PMC_DISP_STANDALONE && PMC_ROW_DISP_IS_STANDALONE(ri)))
-		return (EBUSY);
+		return (false);
 
 	/*
 	 * All OK
 	 */
 	PMCDBG2(PMC,ALR,2, "can-allocate-row ri=%d mode=%d ok", ri, mode);
-	return (0);
+	return (true);
 }
 
 /*
@@ -3281,6 +3282,248 @@ static const char *pmc_op_to_name[] = {
 	sx_downgrade(&pmc_sx);			\
 	is_sx_downgraded = true;		\
 } while (0)
+
+/*
+ * Main body of PMC_OP_PMCALLOCATE.
+ */
+static int
+pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
+{
+	struct proc *p;
+	struct pmc *pmc;
+	struct pmc_binding pb;
+	struct pmc_classdep *pcd;
+	struct pmc_hw *phw;
+	enum pmc_mode mode;
+	enum pmc_class class;
+	uint32_t caps;
+	u_int cpu;
+	int adjri, n;
+	int error;
+
+	class = pa->pm_class;
+	caps  = pa->pm_caps;
+	mode  = pa->pm_mode;
+	cpu   = pa->pm_cpu;
+
+	p = td->td_proc;
+
+	/* Requested mode must exist. */
+	if ((mode != PMC_MODE_SS && mode != PMC_MODE_SC &&
+	     mode != PMC_MODE_TS && mode != PMC_MODE_TC))
+		return (EINVAL);
+
+	/* Requested CPU must be valid. */
+	if (cpu != PMC_CPU_ANY && cpu >= pmc_cpu_max())
+		return (EINVAL);
+
+	/*
+	 * Virtual PMCs should only ask for a default CPU.
+	 * System mode PMCs need to specify a non-default CPU.
+	 */
+	if ((PMC_IS_VIRTUAL_MODE(mode) && cpu != PMC_CPU_ANY) ||
+	    (PMC_IS_SYSTEM_MODE(mode) && cpu == PMC_CPU_ANY))
+		return (EINVAL);
+
+	/*
+	 * Check that an inactive CPU is not being asked for.
+	 */
+	if (PMC_IS_SYSTEM_MODE(mode) && !pmc_cpu_is_active(cpu))
+		return (ENXIO);
+
+	/*
+	 * Refuse an allocation for a system-wide PMC if this process has been
+	 * jailed, or if this process lacks super-user credentials and the
+	 * sysctl tunable 'security.bsd.unprivileged_syspmcs' is zero.
+	 */
+	if (PMC_IS_SYSTEM_MODE(mode)) {
+		if (jailed(td->td_ucred))
+			return (EPERM);
+		if (!pmc_unprivileged_syspmcs) {
+			error = priv_check(td, PRIV_PMC_SYSTEM);
+			if (error != 0)
+				return (error);
+		}
+	}
+
+	/*
+	 * Look for valid values for 'pm_flags'.
+	 */
+	if ((pa->pm_flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
+	    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) != 0)
+		return (EINVAL);
+
+	/* PMC_F_USERCALLCHAIN is only valid with PMC_F_CALLCHAIN. */
+	if ((pa->pm_flags & (PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) ==
+	    PMC_F_USERCALLCHAIN)
+		return (EINVAL);
+
+	/* PMC_F_USERCALLCHAIN is only valid for sampling mode. */
+	if ((pa->pm_flags & PMC_F_USERCALLCHAIN) != 0 && mode != PMC_MODE_TS &&
+	    mode != PMC_MODE_SS)
+		return (EINVAL);
+
+	/* Process logging options are not allowed for system PMCs. */
+	if (PMC_IS_SYSTEM_MODE(mode) &&
+	    (pa->pm_flags & (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT)) != 0)
+		return (EINVAL);
+
+	/*
+	 * All sampling mode PMCs need to be able to interrupt the CPU.
+	 */
+	if (PMC_IS_SAMPLING_MODE(mode))
+		caps |= PMC_CAP_INTERRUPT;
+
+	/* A valid class specifier should have been passed in. */
+	pcd = pmc_class_to_classdep(class);
+	if (pcd == NULL)
+		return (EINVAL);
+
+	/* The requested PMC capabilities should be feasible. */
+	if ((pcd->pcd_caps & caps) != caps)
+		return (EOPNOTSUPP);
+
+	PMCDBG4(PMC,ALL,2, "event=%d caps=0x%x mode=%d cpu=%d", pa->pm_ev,
+	    caps, mode, cpu);
+
+	pmc = pmc_allocate_pmc_descriptor();
+	pmc->pm_id    = PMC_ID_MAKE_ID(cpu, pa->pm_mode, class, PMC_ID_INVALID);
+	pmc->pm_event = pa->pm_ev;
+	pmc->pm_state = PMC_STATE_FREE;
+	pmc->pm_caps  = caps;
+	pmc->pm_flags = pa->pm_flags;
+
+	/* XXX set lower bound on sampling for process counters */
+	if (PMC_IS_SAMPLING_MODE(mode)) {
+		/*
+		 * Don't permit requested sample rate to be less than
+		 * pmc_mincount.
+		 */
+		if (pa->pm_count < MAX(1, pmc_mincount))
+			log(LOG_WARNING, "pmcallocate: passed sample "
+			    "rate %ju - setting to %u\n",
+			    (uintmax_t)pa->pm_count,
+			    MAX(1, pmc_mincount));
+		pmc->pm_sc.pm_reloadcount = MAX(MAX(1, pmc_mincount),
+		    pa->pm_count);
+	} else
+		pmc->pm_sc.pm_initial = pa->pm_count;
+
+	/* switch thread to CPU 'cpu' */
+	pmc_save_cpu_binding(&pb);
+
+#define	PMC_IS_SHAREABLE_PMC(cpu, n)				\
+	(pmc_pcpu[(cpu)]->pc_hwpmcs[(n)]->phw_state &		\
+	 PMC_PHW_FLAG_IS_SHAREABLE)
+#define	PMC_IS_UNALLOCATED(cpu, n)				\
+	(pmc_pcpu[(cpu)]->pc_hwpmcs[(n)]->phw_pmc == NULL)
+
+	if (PMC_IS_SYSTEM_MODE(mode)) {
+		pmc_select_cpu(cpu);
+		for (n = pcd->pcd_ri; n < md->pmd_npmc; n++) {
+			pcd = pmc_ri_to_classdep(md, n, &adjri);
+
+			if (!pmc_can_allocate_row(n, mode) ||
+			    !pmc_can_allocate_rowindex(p, n, cpu))
+				continue;
+			if (!PMC_IS_UNALLOCATED(cpu, n) &&
+			    !PMC_IS_SHAREABLE_PMC(cpu, n))
+				continue;
+
+			if (pcd->pcd_allocate_pmc(cpu, adjri, pmc, pa) == 0) {
+				/* Success. */
+				break;
+			}
+		}
+	} else {
+		/* Process virtual mode */
+		for (n = pcd->pcd_ri; n < md->pmd_npmc; n++) {
+			pcd = pmc_ri_to_classdep(md, n, &adjri);
+
+			if (!pmc_can_allocate_row(n, mode) ||
+			    !pmc_can_allocate_rowindex(p, n, PMC_CPU_ANY))
+				continue;
+
+			if (pcd->pcd_allocate_pmc(td->td_oncpu, adjri, pmc,
+			    pa) == 0) {
+				/* Success. */
+				break;
+			}
+		}
+	}
+
+#undef	PMC_IS_UNALLOCATED
+#undef	PMC_IS_SHAREABLE_PMC
+
+	pmc_restore_cpu_binding(&pb);
+
+	if (n == md->pmd_npmc) {
+		pmc_destroy_pmc_descriptor(pmc);
+		return (EINVAL);
+	}
+
+	/* Fill in the correct value in the ID field. */
+	pmc->pm_id = PMC_ID_MAKE_ID(cpu, mode, class, n);
+
+	PMCDBG5(PMC,ALL,2, "ev=%d class=%d mode=%d n=%d -> pmcid=%x",
+	    pmc->pm_event, class, mode, n, pmc->pm_id);
+
+	/* Process mode PMCs with logging enabled need log files. */
+	if ((pmc->pm_flags & (PMC_F_LOG_PROCEXIT | PMC_F_LOG_PROCCSW)) != 0)
+		pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
+
+	/* All system mode sampling PMCs require a log file. */
+	if (PMC_IS_SAMPLING_MODE(mode) && PMC_IS_SYSTEM_MODE(mode))
+		pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
+
+	/*
+	 * Configure global pmc's immediately.
+	 */
+	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pmc))) {
+		pmc_save_cpu_binding(&pb);
+		pmc_select_cpu(cpu);
+
+		phw = pmc_pcpu[cpu]->pc_hwpmcs[n];
+		pcd = pmc_ri_to_classdep(md, n, &adjri);
+
+		if ((phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) == 0 ||
+		    (error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
+			(void)pcd->pcd_release_pmc(cpu, adjri, pmc);
+			pmc_destroy_pmc_descriptor(pmc);
+			pmc_restore_cpu_binding(&pb);
+			return (EPERM);
+		}
+
+		pmc_restore_cpu_binding(&pb);
+	}
+
+	pmc->pm_state = PMC_STATE_ALLOCATED;
+	pmc->pm_class = class;
+
+	/*
+	 * Mark row disposition.
+	 */
+	if (PMC_IS_SYSTEM_MODE(mode))
+		PMC_MARK_ROW_STANDALONE(n);
+	else
+		PMC_MARK_ROW_THREAD(n);
+
+	/*
+	 * Register this PMC with the current thread as its owner.
+	 */
+	error = pmc_register_owner(p, pmc);
+	if (error != 0) {
+		pmc_release_pmc_descriptor(pmc);
+		pmc_destroy_pmc_descriptor(pmc);
+		return (error);
+	}
+
+	/*
+	 * Return the allocated index.
+	 */
+	pa->pm_pmcid = pmc->pm_id;
+	return (0);
+}
 
 /*
  * Main body of PMC_OP_PMCATTACH.
@@ -3833,269 +4076,17 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	/*
 	 * Allocate a PMC.
 	 */
-
 	case PMC_OP_PMCALLOCATE:
 	{
-		int adjri, n;
-		u_int cpu;
-		uint32_t caps;
-		struct pmc *pmc;
-		enum pmc_mode mode;
-		struct pmc_hw *phw;
-		struct pmc_binding pb;
-		struct pmc_classdep *pcd;
 		struct pmc_op_pmcallocate pa;
 
-		if ((error = copyin(arg, &pa, sizeof(pa))) != 0)
+		error = copyin(arg, &pa, sizeof(pa));
+		if (error != 0)
 			break;
 
-		caps = pa.pm_caps;
-		mode = pa.pm_mode;
-		cpu  = pa.pm_cpu;
-
-		if ((mode != PMC_MODE_SS  &&  mode != PMC_MODE_SC  &&
-		     mode != PMC_MODE_TS  &&  mode != PMC_MODE_TC) ||
-		    (cpu != (u_int) PMC_CPU_ANY && cpu >= pmc_cpu_max())) {
-			error = EINVAL;
+		error = pmc_do_op_pmcallocate(td, &pa);
+		if (error != 0)
 			break;
-		}
-
-		/*
-		 * Virtual PMCs should only ask for a default CPU.
-		 * System mode PMCs need to specify a non-default CPU.
-		 */
-
-		if ((PMC_IS_VIRTUAL_MODE(mode) && cpu != (u_int) PMC_CPU_ANY) ||
-		    (PMC_IS_SYSTEM_MODE(mode) && cpu == (u_int) PMC_CPU_ANY)) {
-			error = EINVAL;
-			break;
-		}
-
-		/*
-		 * Check that an inactive CPU is not being asked for.
-		 */
-
-		if (PMC_IS_SYSTEM_MODE(mode) && !pmc_cpu_is_active(cpu)) {
-			error = ENXIO;
-			break;
-		}
-
-		/*
-		 * Refuse an allocation for a system-wide PMC if this
-		 * process has been jailed, or if this process lacks
-		 * super-user credentials and the sysctl tunable
-		 * 'security.bsd.unprivileged_syspmcs' is zero.
-		 */
-
-		if (PMC_IS_SYSTEM_MODE(mode)) {
-			if (jailed(curthread->td_ucred)) {
-				error = EPERM;
-				break;
-			}
-			if (!pmc_unprivileged_syspmcs) {
-				error = priv_check(curthread,
-				    PRIV_PMC_SYSTEM);
-				if (error)
-					break;
-			}
-		}
-
-		/*
-		 * Look for valid values for 'pm_flags'
-		 */
-
-		if ((pa.pm_flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
-		    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN |
-		    PMC_F_USERCALLCHAIN)) != 0) {
-			error = EINVAL;
-			break;
-		}
-
-		/* PMC_F_USERCALLCHAIN is only valid with PMC_F_CALLCHAIN */
-		if ((pa.pm_flags & (PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) ==
-		    PMC_F_USERCALLCHAIN) {
-			error = EINVAL;
-			break;
-		}
-
-		/* PMC_F_USERCALLCHAIN is only valid for sampling mode */
-		if (pa.pm_flags & PMC_F_USERCALLCHAIN &&
-			mode != PMC_MODE_TS && mode != PMC_MODE_SS) {
-			error = EINVAL;
-			break;
-		}
-
-		/* process logging options are not allowed for system PMCs */
-		if (PMC_IS_SYSTEM_MODE(mode) && (pa.pm_flags &
-		    (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT))) {
-			error = EINVAL;
-			break;
-		}
-
-		/*
-		 * All sampling mode PMCs need to be able to interrupt the
-		 * CPU.
-		 */
-		if (PMC_IS_SAMPLING_MODE(mode))
-			caps |= PMC_CAP_INTERRUPT;
-
-		/* A valid class specifier should have been passed in. */
-		pcd = pmc_class_to_classdep(pa.pm_class);
-		if (pcd == NULL) {
-			error = EINVAL;
-			break;
-		}
-
-		/* The requested PMC capabilities should be feasible. */
-		if ((pcd->pcd_caps & caps) != caps) {
-			error = EOPNOTSUPP;
-			break;
-		}
-
-		PMCDBG4(PMC,ALL,2, "event=%d caps=0x%x mode=%d cpu=%d",
-		    pa.pm_ev, caps, mode, cpu);
-
-		pmc = pmc_allocate_pmc_descriptor();
-		pmc->pm_id    = PMC_ID_MAKE_ID(cpu,pa.pm_mode,pa.pm_class,
-		    PMC_ID_INVALID);
-		pmc->pm_event = pa.pm_ev;
-		pmc->pm_state = PMC_STATE_FREE;
-		pmc->pm_caps  = caps;
-		pmc->pm_flags = pa.pm_flags;
-
-		/* XXX set lower bound on sampling for process counters */
-		if (PMC_IS_SAMPLING_MODE(mode)) {
-			/*
-			 * Don't permit requested sample rate to be
-			 * less than pmc_mincount.
-			 */
-			if (pa.pm_count < MAX(1, pmc_mincount))
-				log(LOG_WARNING, "pmcallocate: passed sample "
-				    "rate %ju - setting to %u\n",
-				    (uintmax_t)pa.pm_count,
-				    MAX(1, pmc_mincount));
-			pmc->pm_sc.pm_reloadcount = MAX(MAX(1, pmc_mincount),
-			    pa.pm_count);
-		} else
-			pmc->pm_sc.pm_initial = pa.pm_count;
-
-		/* switch thread to CPU 'cpu' */
-		pmc_save_cpu_binding(&pb);
-
-#define	PMC_IS_SHAREABLE_PMC(cpu, n)				\
-	(pmc_pcpu[(cpu)]->pc_hwpmcs[(n)]->phw_state &		\
-	 PMC_PHW_FLAG_IS_SHAREABLE)
-#define	PMC_IS_UNALLOCATED(cpu, n)				\
-	(pmc_pcpu[(cpu)]->pc_hwpmcs[(n)]->phw_pmc == NULL)
-
-		if (PMC_IS_SYSTEM_MODE(mode)) {
-			pmc_select_cpu(cpu);
-			for (n = pcd->pcd_ri; n < (int) md->pmd_npmc; n++) {
-				pcd = pmc_ri_to_classdep(md, n, &adjri);
-				if (pmc_can_allocate_row(n, mode) == 0 &&
-				    pmc_can_allocate_rowindex(
-					    curthread->td_proc, n, cpu) == 0 &&
-				    (PMC_IS_UNALLOCATED(cpu, n) ||
-				     PMC_IS_SHAREABLE_PMC(cpu, n)) &&
-				    pcd->pcd_allocate_pmc(cpu, adjri, pmc,
-					&pa) == 0)
-					break;
-			}
-		} else {
-			/* Process virtual mode */
-			for (n = pcd->pcd_ri; n < (int) md->pmd_npmc; n++) {
-				pcd = pmc_ri_to_classdep(md, n, &adjri);
-				if (pmc_can_allocate_row(n, mode) == 0 &&
-				    pmc_can_allocate_rowindex(
-					    curthread->td_proc, n,
-					    PMC_CPU_ANY) == 0 &&
-				    pcd->pcd_allocate_pmc(curthread->td_oncpu,
-					adjri, pmc, &pa) == 0)
-					break;
-			}
-		}
-
-#undef	PMC_IS_UNALLOCATED
-#undef	PMC_IS_SHAREABLE_PMC
-
-		pmc_restore_cpu_binding(&pb);
-
-		if (n == (int) md->pmd_npmc) {
-			pmc_destroy_pmc_descriptor(pmc);
-			pmc = NULL;
-			error = EINVAL;
-			break;
-		}
-
-		/* Fill in the correct value in the ID field */
-		pmc->pm_id = PMC_ID_MAKE_ID(cpu,mode,pa.pm_class,n);
-
-		PMCDBG5(PMC,ALL,2, "ev=%d class=%d mode=%d n=%d -> pmcid=%x",
-		    pmc->pm_event, pa.pm_class, mode, n, pmc->pm_id);
-
-		/* Process mode PMCs with logging enabled need log files */
-		if (pmc->pm_flags & (PMC_F_LOG_PROCEXIT | PMC_F_LOG_PROCCSW))
-			pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
-
-		/* All system mode sampling PMCs require a log file */
-		if (PMC_IS_SAMPLING_MODE(mode) && PMC_IS_SYSTEM_MODE(mode))
-			pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
-
-		/*
-		 * Configure global pmc's immediately
-		 */
-
-		if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pmc))) {
-
-			pmc_save_cpu_binding(&pb);
-			pmc_select_cpu(cpu);
-
-			phw = pmc_pcpu[cpu]->pc_hwpmcs[n];
-			pcd = pmc_ri_to_classdep(md, n, &adjri);
-
-			if ((phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) == 0 ||
-			    (error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
-				(void)pcd->pcd_release_pmc(cpu, adjri, pmc);
-				pmc_destroy_pmc_descriptor(pmc);
-				pmc = NULL;
-				pmc_restore_cpu_binding(&pb);
-				error = EPERM;
-				break;
-			}
-
-			pmc_restore_cpu_binding(&pb);
-		}
-
-		pmc->pm_state    = PMC_STATE_ALLOCATED;
-		pmc->pm_class	= pa.pm_class;
-
-		/*
-		 * mark row disposition
-		 */
-
-		if (PMC_IS_SYSTEM_MODE(mode))
-			PMC_MARK_ROW_STANDALONE(n);
-		else
-			PMC_MARK_ROW_THREAD(n);
-
-		/*
-		 * Register this PMC with the current thread as its owner.
-		 */
-
-		if ((error =
-		    pmc_register_owner(curthread->td_proc, pmc)) != 0) {
-			pmc_release_pmc_descriptor(pmc);
-			pmc_destroy_pmc_descriptor(pmc);
-			pmc = NULL;
-			break;
-		}
-
-
-		/*
-		 * Return the allocated index.
-		 */
-
-		pa.pm_pmcid = pmc->pm_id;
 
 		error = copyout(&pa, arg, sizeof(pa));
 	}
