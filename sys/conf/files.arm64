@@ -267,6 +267,8 @@ dev/hyperv/utilities/vmbus_heartbeat.c		optional hyperv acpi
 dev/hyperv/utilities/vmbus_ic.c			optional hyperv acpi
 dev/hyperv/utilities/vmbus_shutdown.c		optional hyperv acpi
 dev/hyperv/utilities/hv_kvp.c			optional hyperv acpi
+dev/hyperv/input/hv_kbd.c			optional hyperv acpi
+dev/hyperv/input/hv_kbdc.c			optional hyperv acpi
 dev/hyperv/netvsc/hn_nvs.c			optional hyperv acpi
 dev/hyperv/netvsc/hn_rndis.c			optional hyperv acpi
 dev/hyperv/netvsc/if_hn.c			optional hyperv acpi
