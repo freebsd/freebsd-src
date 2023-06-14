@@ -1062,10 +1062,8 @@ main(int argc, CHAR16 *argv[])
 	 */
 	boot_howto_to_env(howto);
 
-	if (efi_copy_init()) {
-		printf("failed to allocate staging area\n");
+	if (efi_copy_init())
 		return (EFI_BUFFER_TOO_SMALL);
-	}
 
 	if ((s = getenv("fail_timeout")) != NULL)
 		fail_timeout = strtol(s, NULL, 10);
