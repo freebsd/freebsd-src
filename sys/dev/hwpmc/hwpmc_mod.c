@@ -3656,6 +3656,110 @@ pmc_do_op_pmcrelease(pmc_id_t pmcid)
 	return (error);
 }
 
+/*
+ * Main body of PMC_OP_PMCRW.
+ */
+static int
+pmc_do_op_pmcrw(const struct pmc_op_pmcrw *prw, pmc_value_t *valp)
+{
+	struct pmc_binding pb;
+	struct pmc_classdep *pcd;
+	struct pmc *pm;
+	u_int cpu, ri, adjri;
+	int error;
+
+	PMCDBG2(PMC,OPS,1, "rw id=%d flags=0x%x", prw->pm_pmcid, prw->pm_flags);
+
+	/* Must have at least one flag set. */
+	if ((prw->pm_flags & (PMC_F_OLDVALUE | PMC_F_NEWVALUE)) == 0)
+		return (EINVAL);
+
+	/* Locate PMC descriptor. */
+	error = pmc_find_pmc(prw->pm_pmcid, &pm);
+	if (error != 0)
+		return (error);
+
+	/* Can't read a PMC that hasn't been started. */
+	if (pm->pm_state != PMC_STATE_ALLOCATED &&
+	    pm->pm_state != PMC_STATE_STOPPED &&
+	    pm->pm_state != PMC_STATE_RUNNING)
+		return (EINVAL);
+
+	/* Writing a new value is allowed only for 'STOPPED' PMCs. */
+	if (pm->pm_state == PMC_STATE_RUNNING &&
+	    (prw->pm_flags & PMC_F_NEWVALUE) != 0)
+		return (EBUSY);
+
+	if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm))) {
+		/*
+		 * If this PMC is attached to its owner (i.e., the process
+		 * requesting this operation) and is running, then attempt to
+		 * get an upto-date reading from hardware for a READ. Writes
+		 * are only allowed when the PMC is stopped, so only update the
+		 * saved value field.
+		 *
+		 * If the PMC is not running, or is not attached to its owner,
+		 * read/write to the savedvalue field.
+		 */
+
+		ri = PMC_TO_ROWINDEX(pm);
+		pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+		mtx_pool_lock_spin(pmc_mtxpool, pm);
+		cpu = curthread->td_oncpu;
+
+		if ((prw->pm_flags & PMC_F_OLDVALUE) != 0) {
+			if ((pm->pm_flags & PMC_F_ATTACHED_TO_OWNER) &&
+			    (pm->pm_state == PMC_STATE_RUNNING)) {
+				error = (*pcd->pcd_read_pmc)(cpu, adjri, pm,
+				    valp);
+			} else {
+				*valp = pm->pm_gv.pm_savedvalue;
+			}
+		}
+
+		if ((prw->pm_flags & PMC_F_NEWVALUE) != 0)
+			pm->pm_gv.pm_savedvalue = prw->pm_value;
+
+		mtx_pool_unlock_spin(pmc_mtxpool, pm);
+	} else { /* System mode PMCs */
+		cpu = PMC_TO_CPU(pm);
+		ri  = PMC_TO_ROWINDEX(pm);
+		pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+		if (!pmc_cpu_is_active(cpu))
+			return (ENXIO);
+
+		/* Move this thread to CPU 'cpu'. */
+		pmc_save_cpu_binding(&pb);
+		pmc_select_cpu(cpu);
+		critical_enter();
+
+		/* Save old value. */
+		if ((prw->pm_flags & PMC_F_OLDVALUE) != 0)
+			error = (*pcd->pcd_read_pmc)(cpu, adjri, pm, valp);
+
+		/* Write out new value. */
+		if (error == 0 && (prw->pm_flags & PMC_F_NEWVALUE) != 0)
+			error = (*pcd->pcd_write_pmc)(cpu, adjri, pm,
+			    prw->pm_value);
+
+		critical_exit();
+		pmc_restore_cpu_binding(&pb);
+		if (error != 0)
+			return (error);
+	}
+
+#ifdef HWPMC_DEBUG
+	if ((prw->pm_flags & PMC_F_NEWVALUE) != 0)
+		PMCDBG3(PMC,OPS,2, "rw id=%d new %jx -> old %jx",
+		    ri, prw->pm_value, *valp);
+	else
+		PMCDBG2(PMC,OPS,2, "rw id=%d -> old %jx", ri, *valp);
+#endif
+	return (error);
+}
+
 static int
 pmc_syscall_handler(struct thread *td, void *syscall_args)
 {
@@ -4253,136 +4357,31 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	}
 	break;
 
-
 	/*
 	 * Read and/or write a PMC.
 	 */
-
 	case PMC_OP_PMCRW:
 	{
-		int adjri;
-		struct pmc *pm;
-		uint32_t cpu, ri;
-		pmc_value_t oldvalue;
-		struct pmc_binding pb;
 		struct pmc_op_pmcrw prw;
-		struct pmc_classdep *pcd;
 		struct pmc_op_pmcrw *pprw;
+		pmc_value_t oldvalue;
 
 		PMC_DOWNGRADE_SX();
 
-		if ((error = copyin(arg, &prw, sizeof(prw))) != 0)
+		error = copyin(arg, &prw, sizeof(prw));
+		if (error != 0)
 			break;
 
-		PMCDBG2(PMC,OPS,1, "rw id=%d flags=0x%x", prw.pm_pmcid,
-		    prw.pm_flags);
-
-		/* must have at least one flag set */
-		if ((prw.pm_flags & (PMC_F_OLDVALUE|PMC_F_NEWVALUE)) == 0) {
-			error = EINVAL;
+		error = pmc_do_op_pmcrw(&prw, &oldvalue);
+		if (error != 0)
 			break;
+
+		/* Return old value if requested. */
+		if ((prw.pm_flags & PMC_F_OLDVALUE) != 0) {
+			pprw = arg;
+			error = copyout(&oldvalue, &pprw->pm_value,
+			    sizeof(prw.pm_value));
 		}
-
-		/* locate pmc descriptor */
-		if ((error = pmc_find_pmc(prw.pm_pmcid, &pm)) != 0)
-			break;
-
-		/* Can't read a PMC that hasn't been started. */
-		if (pm->pm_state != PMC_STATE_ALLOCATED &&
-		    pm->pm_state != PMC_STATE_STOPPED &&
-		    pm->pm_state != PMC_STATE_RUNNING) {
-			error = EINVAL;
-			break;
-		}
-
-		/* writing a new value is allowed only for 'STOPPED' pmcs */
-		if (pm->pm_state == PMC_STATE_RUNNING &&
-		    (prw.pm_flags & PMC_F_NEWVALUE)) {
-			error = EBUSY;
-			break;
-		}
-
-		if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm))) {
-
-			/*
-			 * If this PMC is attached to its owner (i.e.,
-			 * the process requesting this operation) and
-			 * is running, then attempt to get an
-			 * upto-date reading from hardware for a READ.
-			 * Writes are only allowed when the PMC is
-			 * stopped, so only update the saved value
-			 * field.
-			 *
-			 * If the PMC is not running, or is not
-			 * attached to its owner, read/write to the
-			 * savedvalue field.
-			 */
-
-			ri = PMC_TO_ROWINDEX(pm);
-			pcd = pmc_ri_to_classdep(md, ri, &adjri);
-
-			mtx_pool_lock_spin(pmc_mtxpool, pm);
-			cpu = curthread->td_oncpu;
-
-			if (prw.pm_flags & PMC_F_OLDVALUE) {
-				if ((pm->pm_flags & PMC_F_ATTACHED_TO_OWNER) &&
-				    (pm->pm_state == PMC_STATE_RUNNING))
-					error = (*pcd->pcd_read_pmc)(cpu, adjri,
-					    pm, &oldvalue);
-				else
-					oldvalue = pm->pm_gv.pm_savedvalue;
-			}
-			if (prw.pm_flags & PMC_F_NEWVALUE)
-				pm->pm_gv.pm_savedvalue = prw.pm_value;
-
-			mtx_pool_unlock_spin(pmc_mtxpool, pm);
-
-		} else { /* System mode PMCs */
-			cpu = PMC_TO_CPU(pm);
-			ri  = PMC_TO_ROWINDEX(pm);
-			pcd = pmc_ri_to_classdep(md, ri, &adjri);
-
-			if (!pmc_cpu_is_active(cpu)) {
-				error = ENXIO;
-				break;
-			}
-
-			/* move this thread to CPU 'cpu' */
-			pmc_save_cpu_binding(&pb);
-			pmc_select_cpu(cpu);
-
-			critical_enter();
-			/* save old value */
-			if (prw.pm_flags & PMC_F_OLDVALUE) {
-				if ((error = (*pcd->pcd_read_pmc)(cpu, adjri,
-				    pm, &oldvalue)))
-					goto error;
-			}
-			/* write out new value */
-			if (prw.pm_flags & PMC_F_NEWVALUE)
-				error = (*pcd->pcd_write_pmc)(cpu, adjri, pm,
-				    prw.pm_value);
-		error:
-			critical_exit();
-			pmc_restore_cpu_binding(&pb);
-			if (error)
-				break;
-		}
-
-		pprw = (struct pmc_op_pmcrw *) arg;
-
-#ifdef	HWPMC_DEBUG
-		if (prw.pm_flags & PMC_F_NEWVALUE)
-			PMCDBG3(PMC,OPS,2, "rw id=%d new %jx -> old %jx",
-			    ri, prw.pm_value, oldvalue);
-		else if (prw.pm_flags & PMC_F_OLDVALUE)
-			PMCDBG2(PMC,OPS,2, "rw id=%d -> old %jx", ri, oldvalue);
-#endif
-		/* return old value if requested */
-		if (prw.pm_flags & PMC_F_OLDVALUE)
-			if ((error = copyout(&oldvalue, &pprw->pm_value,
-				 sizeof(prw.pm_value))))
-				break;
 	}
 	break;
 
