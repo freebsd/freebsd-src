@@ -4997,16 +4997,14 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	    p->p_comm);
 
 	/*
-	 * Since this code is invoked by the last thread in an exiting
-	 * process, we would have context switched IN at some prior
-	 * point.  However, with PREEMPTION, kernel mode context
-	 * switches may happen any time, so we want to disable a
-	 * context switch OUT till we get any PMCs targeting this
-	 * process off the hardware.
+	 * Since this code is invoked by the last thread in an exiting process,
+	 * we would have context switched IN at some prior point. However, with
+	 * PREEMPTION, kernel mode context switches may happen any time, so we
+	 * want to disable a context switch OUT till we get any PMCs targeting
+	 * this process off the hardware.
 	 *
-	 * We also need to atomically remove this process'
-	 * entry from our target process hash table, using
-	 * PMC_FLAG_REMOVE.
+	 * We also need to atomically remove this process' entry from our
+	 * target process hash table, using PMC_FLAG_REMOVE.
 	 */
 	PMCDBG3(PRC,EXT,1, "process-exit proc=%p (%d, %s)", p, p->p_pid,
 	    p->p_comm);
@@ -5014,117 +5012,108 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	critical_enter(); /* no preemption */
 
 	cpu = curthread->td_oncpu;
-	if ((pp = pmc_find_process_descriptor(p, PMC_FLAG_REMOVE)) != NULL) {
 
-		PMCDBG2(PRC,EXT,2,
-		    "process-exit proc=%p pmc-process=%p", p, pp);
+	pp = pmc_find_process_descriptor(p, PMC_FLAG_REMOVE);
+	if (pp == NULL) {
+		critical_exit();
+		goto out;
+	}
 
-		/*
-		 * The exiting process could the target of
-		 * some PMCs which will be running on
-		 * currently executing CPU.
-		 *
-		 * We need to turn these PMCs off like we
-		 * would do at context switch OUT time.
-		 */
-		for (ri = 0; ri < md->pmd_npmc; ri++) {
-			/*
-			 * Pick up the pmc pointer from hardware
-			 * state similar to the CSW_OUT code.
-			 */
-			pm = NULL;
-
-			pcd = pmc_ri_to_classdep(md, ri, &adjri);
-
-			(void)(*pcd->pcd_get_config)(cpu, adjri, &pm);
-
-			PMCDBG2(PRC,EXT,2, "ri=%d pm=%p", ri, pm);
-
-			if (pm == NULL || !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
-				continue;
-
-			PMCDBG4(PRC,EXT,2, "ppmcs[%d]=%p pm=%p "
-			    "state=%d", ri, pp->pp_pmcs[ri].pp_pmc,
-			    pm, pm->pm_state);
-
-			KASSERT(PMC_TO_ROWINDEX(pm) == ri,
-			    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
-			    __LINE__, PMC_TO_ROWINDEX(pm), ri));
-			KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
-			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p",
-			    __LINE__, pm, ri, pp->pp_pmcs[ri].pp_pmc));
-			KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
-			    ("[pmc,%d] bad runcount ri %d rc %ju",
-			    __LINE__, ri,
-			    (uintmax_t)counter_u64_fetch(pm->pm_runcount)));
-
-			/*
-			 * Change desired state, and then stop if not
-			 * stalled. This two-step dance should avoid
-			 * race conditions where an interrupt re-enables
-			 * the PMC after this code has already checked
-			 * the pm_stalled flag.
-			 */
-			if (pm->pm_pcpu_state[cpu].pps_cpustate) {
-				pm->pm_pcpu_state[cpu].pps_cpustate = 0;
-				if (!pm->pm_pcpu_state[cpu].pps_stalled) {
-					(void)pcd->pcd_stop_pmc(cpu, adjri, pm);
-
-					if (PMC_TO_MODE(pm) == PMC_MODE_TC) {
-						pcd->pcd_read_pmc(cpu, adjri,
-						    pm, &newvalue);
-						tmp = newvalue -
-						    PMC_PCPU_SAVED(cpu, ri);
-
-						mtx_pool_lock_spin(pmc_mtxpool,
-						    pm);
-						pm->pm_gv.pm_savedvalue += tmp;
-						pp->pp_pmcs[ri].pp_pmcval +=
-						    tmp;
-						mtx_pool_unlock_spin(
-						    pmc_mtxpool, pm);
-					}
-				}
-			}
-
-			KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
-			    ("[pmc,%d] runcount is %d", __LINE__, ri));
-
-			counter_u64_add(pm->pm_runcount, -1);
-			(void)pcd->pcd_config_pmc(cpu, adjri, NULL);
-		}
-
-		/*
-		 * Inform the MD layer of this pseudo "context switch
-		 * out"
-		 */
-		(void)md->pmd_switch_out(pmc_pcpu[cpu], pp);
-
-		critical_exit(); /* ok to be pre-empted now */
-
-		/*
-		 * Unlink this process from the PMCs that are
-		 * targeting it.  This will send a signal to
-		 * all PMC owner's whose PMCs are orphaned.
-		 *
-		 * Log PMC value at exit time if requested.
-		 */
-		for (ri = 0; ri < md->pmd_npmc; ri++) {
-			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
-				if ((pm->pm_flags & PMC_F_NEEDS_LOGFILE) != 0 &&
-				    PMC_IS_COUNTING_MODE(PMC_TO_MODE(pm))) {
-					pmclog_process_procexit(pm, pp);
-				}
-				pmc_unlink_target_process(pm, pp);
-			}
-		}
-		free(pp, M_PMC);
-	} else
-		critical_exit(); /* pp == NULL */
+	PMCDBG2(PRC,EXT,2, "process-exit proc=%p pmc-process=%p", p, pp);
 
 	/*
-	 * If the process owned PMCs, free them up and free up
-	 * memory.
+	 * The exiting process could be the target of some PMCs which will be
+	 * running on currently executing CPU.
+	 *
+	 * We need to turn these PMCs off like we would do at context switch
+	 * OUT time.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+		/*
+		 * Pick up the pmc pointer from hardware state similar to the
+		 * CSW_OUT code.
+		 */
+		pm = NULL;
+		pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+		(void)(*pcd->pcd_get_config)(cpu, adjri, &pm);
+
+		PMCDBG2(PRC,EXT,2, "ri=%d pm=%p", ri, pm);
+
+		if (pm == NULL || !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
+			continue;
+
+		PMCDBG4(PRC,EXT,2, "ppmcs[%d]=%p pm=%p state=%d", ri,
+		    pp->pp_pmcs[ri].pp_pmc, pm, pm->pm_state);
+
+		KASSERT(PMC_TO_ROWINDEX(pm) == ri,
+		    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)", __LINE__,
+		    PMC_TO_ROWINDEX(pm), ri));
+		KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
+		    ("[pmc,%d] pm %p != pp_pmcs[%d] %p", __LINE__, pm, ri,
+		    pp->pp_pmcs[ri].pp_pmc));
+		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+		    ("[pmc,%d] bad runcount ri %d rc %ju", __LINE__, ri,
+		    (uintmax_t)counter_u64_fetch(pm->pm_runcount)));
+
+		/*
+		 * Change desired state, and then stop if not stalled. This
+		 * two-step dance should avoid race conditions where an
+		 * interrupt re-enables the PMC after this code has already
+		 * checked the pm_stalled flag.
+		 */
+		if (pm->pm_pcpu_state[cpu].pps_cpustate) {
+			pm->pm_pcpu_state[cpu].pps_cpustate = 0;
+			if (!pm->pm_pcpu_state[cpu].pps_stalled) {
+				(void)pcd->pcd_stop_pmc(cpu, adjri, pm);
+
+				if (PMC_TO_MODE(pm) == PMC_MODE_TC) {
+					pcd->pcd_read_pmc(cpu, adjri, pm,
+					    &newvalue);
+					tmp = newvalue - PMC_PCPU_SAVED(cpu, ri);
+
+					mtx_pool_lock_spin(pmc_mtxpool, pm);
+					pm->pm_gv.pm_savedvalue += tmp;
+					pp->pp_pmcs[ri].pp_pmcval += tmp;
+					mtx_pool_unlock_spin(pmc_mtxpool, pm);
+				}
+			}
+		}
+
+		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+		    ("[pmc,%d] runcount is %d", __LINE__, ri));
+
+		counter_u64_add(pm->pm_runcount, -1);
+		(void)pcd->pcd_config_pmc(cpu, adjri, NULL);
+	}
+
+	/*
+	 * Inform the MD layer of this pseudo "context switch out".
+	 */
+	(void)md->pmd_switch_out(pmc_pcpu[cpu], pp);
+
+	critical_exit(); /* ok to be pre-empted now */
+
+	/*
+	 * Unlink this process from the PMCs that are targeting it. This will
+	 * send a signal to all PMC owner's whose PMCs are orphaned.
+	 *
+	 * Log PMC value at exit time if requested.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
+			if ((pm->pm_flags & PMC_F_NEEDS_LOGFILE) != 0 &&
+			    PMC_IS_COUNTING_MODE(PMC_TO_MODE(pm))) {
+				pmclog_process_procexit(pm, pp);
+			}
+			pmc_unlink_target_process(pm, pp);
+		}
+	}
+	free(pp, M_PMC);
+
+out:
+	/*
+	 * If the process owned PMCs, free them up and free up memory.
 	 */
 	if ((po = pmc_find_owner_descriptor(p)) != NULL) {
 		pmc_remove_owner(po);
