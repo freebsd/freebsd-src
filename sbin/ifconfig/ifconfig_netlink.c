@@ -123,7 +123,7 @@ nl_init_socket(struct snl_state *ss)
 }
 
 int
-ifconfig_wrapper_nl(if_ctx *ctx, int iscreate,
+ifconfig_nl(if_ctx *ctx, int iscreate,
     const struct afswtch *uafp)
 {
 	struct snl_state ss = {};
@@ -131,9 +131,10 @@ ifconfig_wrapper_nl(if_ctx *ctx, int iscreate,
 	nl_init_socket(&ss);
 	ctx->io_ss = &ss;
 
-	int error = ifconfig(ctx, iscreate, uafp);
+	int error = ifconfig_ioctl(ctx, iscreate, uafp);
 
 	snl_free(&ss);
+	ctx->io_ss = NULL;
 
 	return (error);
 }
@@ -447,7 +448,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 		} else if (args->argc == 0)
 			status_nl(ctx, iface);
 		else
-			ifconfig(ctx, 0, args->afp);
+			ifconfig_ioctl(ctx, 0, args->afp);
 	}
 	if (args->namesonly)
 		printf("\n");

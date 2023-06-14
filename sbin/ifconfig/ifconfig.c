@@ -111,8 +111,8 @@ static char ifname_to_print[IFNAMSIZ]; /* Helper for printifnamemaybe() */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
 
 #ifdef WITHOUT_NETLINK
-static void list_interfaces_ioctl(struct ifconfig_args *args);
-static	void status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
+static void list_interfaces_ioctl(if_ctx *ctx);
+static	void status(if_ctx *ctx, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
 #endif
 static _Noreturn void usage(void);
@@ -422,12 +422,12 @@ printifnamemaybe(void)
 }
 
 static void
-list_interfaces(struct ifconfig_args *args)
+list_interfaces(if_ctx *ctx)
 {
 #ifdef WITHOUT_NETLINK
-	list_interfaces_ioctl(args);
+	list_interfaces_ioctl(ctx);
 #else
-	list_interfaces_nl(args);
+	list_interfaces_nl(ctx->args);
 #endif
 }
 
@@ -571,19 +571,12 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 }
 
 static int
-ifconfig_wrapper(struct ifconfig_args *args, int iscreate,
-    const struct afswtch *uafp)
+ifconfig(if_ctx *ctx, int iscreate, const struct afswtch *uafp)
 {
-	struct ifconfig_context ctx = {
-		.args = args,
-		.io_s = -1,
-		.ifname = args->ifname,
-	};
-
 #ifdef WITHOUT_NETLINK
-	return (ifconfig(&ctx, iscreate, uafp));
+	return (ifconfig_ioctl(ctx, iscreate, uafp));
 #else
-	return (ifconfig_wrapper_nl(&ctx, iscreate, uafp));
+	return (ifconfig_nl(ctx, iscreate, uafp));
 #endif
 }
 
@@ -616,6 +609,11 @@ main(int ac, char *av[])
 	struct ifconfig_args _args = {};
 	struct ifconfig_args *args = &_args;
 
+	struct ifconfig_context ctx = {
+		.args = args,
+		.io_s = -1,
+	};
+
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
 
 	lifh = ifconfig_open();
@@ -647,6 +645,7 @@ main(int ac, char *av[])
 	if (!args->all && !args->namesonly) {
 		/* not listing, need an argument */
 		args->ifname = args_pop(args);
+		ctx.ifname = args->ifname;
 
 		/* check and maybe load support for this interface */
 		ifmaybeload(args, args->ifname);
@@ -662,7 +661,7 @@ main(int ac, char *av[])
 				if (isnametoolong(args->ifname))
 					errx(1, "%s: cloning name too long",
 					    args->ifname);
-				ifconfig_wrapper(args, 1, NULL);
+				ifconfig(&ctx, 1, NULL);
 				exit(exit_code);
 			}
 #ifdef JAIL
@@ -675,7 +674,7 @@ main(int ac, char *av[])
 				if (isnametoolong(args->ifname))
 					errx(1, "%s: interface name too long",
 					    args->ifname);
-				ifconfig_wrapper(args, 0, NULL);
+				ifconfig(&ctx, 0, NULL);
 				exit(exit_code);
 			}
 #endif
@@ -714,14 +713,14 @@ main(int ac, char *av[])
 			if (!(((flags & IFF_CANTCONFIG) != 0) ||
 				(args->downonly && (flags & IFF_UP) != 0) ||
 				(args->uponly && (flags & IFF_UP) == 0)))
-				ifconfig_wrapper(args, 0, args->afp);
+				ifconfig(&ctx, 0, args->afp);
 		}
 		goto done;
 	}
 
 	args->allfamilies = args->afp == NULL;
 
-	list_interfaces(args);
+	list_interfaces(&ctx);
 
 done:
 	freeformat();
@@ -771,13 +770,14 @@ match_afp(const struct afswtch *afp, int sa_family, const struct sockaddr_dl *sd
 }
 
 static void
-list_interfaces_ioctl(struct ifconfig_args *args)
+list_interfaces_ioctl(if_ctx *ctx)
 {
 	struct ifa_queue q = TAILQ_HEAD_INITIALIZER(q);
 	struct ifaddrs *ifap, *sifap, *ifa;
 	struct ifa_order_elt *cur, *tmp;
 	char *namecp = NULL;
 	int ifindex;
+	struct ifconfig_args *args = ctx->args;
 
 	if (getifaddrs(&ifap) != 0)
 		err(EXIT_FAILURE, "getifaddrs");
@@ -840,9 +840,9 @@ list_interfaces_ioctl(struct ifconfig_args *args)
 		ifindex++;
 
 		if (args->argc > 0)
-			ifconfig_wrapper(args, 0, args->afp);
+			ifconfig(ctx, 0, args->afp);
 		else
-			status(args, sdl, ifa);
+			status(ctx, sdl, ifa);
 	}
 	if (args->namesonly)
 		printf("\n");
@@ -1089,7 +1089,7 @@ addifaddr(if_ctx *ctx, const struct afswtch *afp)
 }
 
 int
-ifconfig(if_ctx *orig_ctx, int iscreate, const struct afswtch *uafp)
+ifconfig_ioctl(if_ctx *orig_ctx, int iscreate, const struct afswtch *uafp)
 {
 	const struct afswtch *afp, *nafp;
 	const struct cmd *p;
@@ -1717,11 +1717,12 @@ print_description(int s)
  * specified, show only it; otherwise, show them all.
  */
 static void
-status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
+status(if_ctx *ctx, const struct sockaddr_dl *sdl,
 	struct ifaddrs *ifa)
 {
 	struct ifaddrs *ift;
-	int s;
+	int s, old_s;
+	struct ifconfig_args *args = ctx->args;
 	bool allfamilies = args->afp == NULL;
 	char *ifname = ifa->ifa_name;
 
@@ -1735,12 +1736,8 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 	s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0);
 	if (s < 0)
 		err(1, "socket(family %u,SOCK_DGRAM)", ifr.ifr_addr.sa_family);
-
-	struct ifconfig_context _ctx = {
-		.io_s = s,
-		.ifname = ifname,
-	};
-	struct ifconfig_context *ctx = &_ctx;
+	old_s = ctx->io_s;
+	ctx->io_s = s;
 
 	printf("%s: ", ifname);
 	printb("flags", ifa->ifa_flags, IFFBITS);
@@ -1794,6 +1791,7 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 		sfp_status(ctx);
 
 	close(s);
+	ctx->io_s = old_s;
 	return;
 }
 #endif
