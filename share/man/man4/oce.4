@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2012
+.Dd June 13, 2023
 .Dt OCE 4
 .Os
 .Sh NAME
@@ -57,6 +57,12 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_oce_load="YES"
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver may not be present in
+.Fx 15.0
+and later.
 .Sh DESCRIPTION
 Emulex OneConnect adapters come in various skews and with
 different combinations of NIC, FCoE and iSCSI functions.
