@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2015
+.Dd June 15, 2023
 .Dt SYSCALL_MODULE 9
 .Os
 .Sh NAME
@@ -78,10 +78,10 @@ event handler when it is called.
 .El
 .Pp
 The syscall number assigned to the module can be retrieved using the
-.Xr modstat 3
+.Xr modstat 2
 and
-.Xr modfind 3
-library functions in libc.
+.Xr modfind 2
+system calls.
 The MACRO
 .Fn SYSCALL_MODULE_HELPER
 includes
