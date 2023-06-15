@@ -51,11 +51,6 @@ struct trapframe {
 	uint64_t tf_x[30];
 };
 
-struct arm64_frame {
-	struct arm64_frame	*f_frame;
-	u_long			f_retaddr;
-};
-
 /*
  * Signal frame, pushed onto the user stack.
  */
