@@ -15,9 +15,9 @@ MAN=	bhyve.8 bhyve_config.5
 BHYVE_SYSDIR?=${SRCTOP}
 
 SRCS=	\
+	acpi.c			\
 	acpi_device.c		\
 	atkbdc.c		\
-	acpi.c			\
 	audio.c			\
 	basl.c			\
 	bhyvegc.c		\
@@ -27,14 +27,15 @@ SRCS=	\
 	config.c		\
 	console.c		\
 	crc16.c			\
-	ctl_util.c		\
 	ctl_scsi_all.c		\
+	ctl_util.c		\
 	e820.c			\
 	fwctl.c			\
 	gdb.c			\
 	hda_codec.c		\
 	inout.c			\
 	ioapic.c		\
+	iov.c			\
 	kernemu_dev.c		\
 	mem.c			\
 	mevent.c		\
@@ -44,13 +45,14 @@ SRCS=	\
 	pci_ahci.c		\
 	pci_e82545.c		\
 	pci_emul.c		\
-	pci_hda.c		\
 	pci_fbuf.c		\
+	pci_hda.c		\
 	pci_hostbridge.c	\
 	pci_irq.c		\
 	pci_lpc.c		\
 	pci_nvme.c		\
 	pci_passthru.c		\
+	pci_uart.c		\
 	pci_virtio_9p.c		\
 	pci_virtio_block.c	\
 	pci_virtio_console.c	\
@@ -58,7 +60,6 @@ SRCS=	\
 	pci_virtio_net.c	\
 	pci_virtio_rnd.c	\
 	pci_virtio_scsi.c	\
-	pci_uart.c		\
 	pci_xhci.c		\
 	pctestdev.c		\
 	pm.c			\
@@ -71,17 +72,16 @@ SRCS=	\
 	rtc.c			\
 	smbiostbl.c		\
 	sockstream.c		\
+	spinup_ap.c		\
 	task_switch.c		\
 	tpm_device.c		\
 	uart_emul.c		\
 	usb_emul.c		\
 	usb_mouse.c		\
-	virtio.c		\
 	vga.c			\
+	virtio.c		\
 	vmgenc.c		\
-	xmsr.c			\
-	spinup_ap.c		\
-	iov.c
+	xmsr.c
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 SRCS+=	snapshot.c
