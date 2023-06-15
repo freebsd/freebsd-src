@@ -448,7 +448,7 @@ struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen,
     struct tidx *tstate);
 
 void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
-void fill_unreach6_code(u_short *codep, char *str);
+uint16_t get_unreach6_code(const char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 

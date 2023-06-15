@@ -1203,8 +1203,8 @@ static struct _s_x icmpcodes[] = {
       { NULL, 0 }
 };
 
-static void
-fill_reject_code(u_short *codep, char *str)
+static uint16_t
+get_reject_code(const char *str)
 {
 	int val;
 	char *s;
@@ -1214,8 +1214,7 @@ fill_reject_code(u_short *codep, char *str)
 		val = match_token(icmpcodes, str);
 	if (val < 0)
 		errx(EX_DATAERR, "unknown ICMP unreachable code ``%s''", str);
-	*codep = val;
-	return;
+	return (val);
 }
 
 static void
@@ -3965,23 +3964,20 @@ arg_or_targ(const char *arg, const char *action)
 	return (arg1);
 }
 
-static void
-fill_divert_port(ipfw_insn *cmd, char *arg, const char *action)
+static uint16_t
+get_divert_port(const char *arg, const char *action)
 {
 	uint32_t arg1 = arg_or_targ_relaxed(arg, action);
 
-	if (arg1 != (uint32_t)(-1)) {
-		cmd->arg1 = arg1;
-		return;
-	}
+	if (arg1 != (uint32_t)(-1))
+		return (arg1);
 
 	struct servent *s;
 	setservent(1);
 	s = getservbyname(arg, "divert");
-	if (s != NULL)
-		cmd->arg1 = ntohs(s->s_port);
-	else
+	if (s == NULL)
 		errx(EX_DATAERR, "illegal divert/tee port");
+	return (ntohs(s->s_port));
 }
 
 /*
@@ -4143,7 +4139,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_UNREACH:
 		action->opcode = O_REJECT;
 		NEED1("missing reject code");
-		fill_reject_code(&action->arg1, *av);
+		action->arg1 = get_reject_code(*av);
 		av++;
 		if (action->arg1 == ICMP_UNREACH_NEEDFRAG && isdigit(**av)) {
 			uint16_t mtu;
@@ -4161,7 +4157,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_UNREACH6:
 		action->opcode = O_UNREACH6;
 		NEED1("missing unreach code");
-		fill_unreach6_code(&action->arg1, *av);
+		action->arg1 = get_unreach6_code(*av);
 		av++;
 		break;
 
@@ -4206,12 +4202,12 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		break;
 	case TOK_DIVERT:
 		action->opcode = O_DIVERT;
-		fill_divert_port(action, av[0], *(av - 1));
+		action->arg1 = get_divert_port(av[0], *(av - 1));
 		av++;
 		break;
 	case TOK_TEE:
 		action->opcode = O_TEE;
-		fill_divert_port(action, av[0], *(av - 1));
+		action->arg1 = get_divert_port(av[0], *(av - 1));
 		av++;
 		break;
 	case TOK_CALL:
