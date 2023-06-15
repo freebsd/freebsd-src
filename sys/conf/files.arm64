@@ -119,17 +119,17 @@ dev/iommu/iommu_gas.c				optional iommu
 crypto/armv8/armv8_crypto.c			optional armv8crypto
 armv8_crypto_wrap.o				optional armv8crypto	\
 	dependency	"$S/crypto/armv8/armv8_crypto_wrap.c"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} -march=armv8-a+crypto ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${CFLAGS:M-march=*:S/^$/-march=armv8-a/}+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"armv8_crypto_wrap.o"
 aesv8-armx.o					optional armv8crypto | ossl	\
 	dependency	"$S/crypto/openssl/aarch64/aesv8-armx.S"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} -march=armv8-a+crypto ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${CFLAGS:M-march=*:S/^$/-march=armv8-a/}+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesv8-armx.o"
 ghashv8-armx.o					optional armv8crypto	\
 	dependency	"$S/crypto/openssl/aarch64/ghashv8-armx.S"	\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} -march=armv8-a+crypto ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${CFLAGS:M-march=*:S/^$/-march=armv8-a/}+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"ghashv8-armx.o"
 
