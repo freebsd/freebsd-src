@@ -1,6 +1,7 @@
-#	$NetBSD: Makefile,v 1.2 1995/03/25 18:04:51 glass Exp $
-# $FreeBSD$
+.include <src.opts.mk>
 
 PROG=	asa
+HAS_TESTS=
+SUBDIR.${MK_TESTS}=	tests
 
 .include <bsd.prog.mk>
