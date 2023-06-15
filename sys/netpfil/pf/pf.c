@@ -321,8 +321,6 @@ static int		 pf_check_proto_cksum(struct mbuf *, int, int,
 			    u_int8_t, sa_family_t);
 static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
-static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
-			    struct pf_addr_wrap *);
 static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
 			    bool, u_int8_t);
 static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
@@ -2429,7 +2427,7 @@ pf_calc_skip_steps(struct pf_krulequeue *rules)
 		PF_SET_SKIP_STEPS(i);
 }
 
-static int
+int
 pf_addr_wrap_neq(struct pf_addr_wrap *aw1, struct pf_addr_wrap *aw2)
 {
 	if (aw1->type != aw2->type)
@@ -4014,19 +4012,19 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		else if (! pf_match_eth_addr(e->ether_dhost, &r->dst)) {
 			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
 			    "dst");
-			r = TAILQ_NEXT(r, entries);
+			r = r->skip[PFE_SKIP_DST_ADDR].ptr;
 		}
 		else if (src != NULL && PF_MISMATCHAW(&r->ipsrc.addr, src, af,
 		    r->ipsrc.neg, kif, M_GETFIB(m))) {
 			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
 			    "ip_src");
-			r = TAILQ_NEXT(r, entries);
+			r = r->skip[PFE_SKIP_SRC_IP_ADDR].ptr;
 		}
 		else if (dst != NULL && PF_MISMATCHAW(&r->ipdst.addr, dst, af,
 		    r->ipdst.neg, kif, M_GETFIB(m))) {
 			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
 			    "ip_dst");
-			r = TAILQ_NEXT(r, entries);
+			r = r->skip[PFE_SKIP_DST_IP_ADDR].ptr;
 		}
 		else if (r->match_tag && !pf_match_eth_tag(m, r, &tag,
 		    mtag ? mtag->tag : 0)) {

@@ -697,7 +697,9 @@ struct pf_keth_rule {
 #define PFE_SKIP_PROTO		2
 #define PFE_SKIP_SRC_ADDR	3
 #define PFE_SKIP_DST_ADDR	4
-#define PFE_SKIP_COUNT		5
+#define PFE_SKIP_SRC_IP_ADDR	5
+#define PFE_SKIP_DST_IP_ADDR	6
+#define PFE_SKIP_COUNT		7
 	union pf_keth_rule_ptr	 skip[PFE_SKIP_COUNT];
 
 	TAILQ_ENTRY(pf_keth_rule)	entries;
@@ -2215,6 +2217,8 @@ extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
 extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
 extern void			 pf_print_state(struct pf_kstate *);
 extern void			 pf_print_flags(u_int8_t);
+extern int			 pf_addr_wrap_neq(struct pf_addr_wrap *,
+				    struct pf_addr_wrap *);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
 				    u_int8_t);
 extern u_int16_t		 pf_proto_cksum_fixup(struct mbuf *, u_int16_t,
