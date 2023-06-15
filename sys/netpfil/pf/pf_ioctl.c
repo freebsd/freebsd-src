@@ -843,6 +843,12 @@ pf_eth_calc_skip_steps(struct pf_keth_ruleq *rules)
 			PF_SET_SKIP_STEPS(PFE_SKIP_SRC_ADDR);
 		if (memcmp(&cur->dst, &prev->dst, sizeof(cur->dst)) != 0)
 			PF_SET_SKIP_STEPS(PFE_SKIP_DST_ADDR);
+		if (cur->ipsrc.neg != prev->ipsrc.neg ||
+		    pf_addr_wrap_neq(&cur->ipsrc.addr, &prev->ipsrc.addr))
+			PF_SET_SKIP_STEPS(PFE_SKIP_SRC_IP_ADDR);
+		if (cur->ipdst.neg != prev->ipdst.neg ||
+		    pf_addr_wrap_neq(&cur->ipdst.addr, &prev->ipdst.addr))
+			PF_SET_SKIP_STEPS(PFE_SKIP_DST_IP_ADDR);
 
 		prev = cur;
 		cur = TAILQ_NEXT(cur, entries);
