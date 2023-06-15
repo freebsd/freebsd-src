@@ -210,8 +210,8 @@ SRCS+=	dso_dlfcn.c dso_err.c dso_lib.c
 # ec
 SRCS+=	curve25519.c curve448.c curve448_tables.c ec2_oct.c ec2_smpl.c
 SRCS+=	ec_ameth.c ec_asn1.c ec_backend.c ec_check.c ec_curve.c ec_cvt.c
-SRCS+=	ec_err.c ec_key.c ec_kmeth.c ec_lib.c ec_mult.c ec_oct.c ec_pmeth.c
-SRCS+=	ec_print.c ecdh_kdf.c ecdh_ossl.c ecdsa_ossl.c ecdsa_sign.c
+SRCS+=	ec_deprecated.c ec_err.c ec_key.c ec_kmeth.c ec_lib.c ec_mult.c ec_oct.c
+SRCS+=	ec_pmeth.c ec_print.c ecdh_kdf.c ecdh_ossl.c ecdsa_ossl.c ecdsa_sign.c
 SRCS+=	ecdsa_vrf.c eck_prn.c ecp_mont.c ecp_nist.c
 SRCS+=	ecp_oct.c ecp_smpl.c ecx_backend.c ecx_key.c ecx_meth.c eddsa.c
 SRCS+=	f_generic.c f_impl32.c f_impl64.c scalar.c
