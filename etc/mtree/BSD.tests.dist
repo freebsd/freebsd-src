@@ -886,6 +886,8 @@
     usr.bin
         apply
         ..
+        asa
+        ..
         awk
         ..
         basename

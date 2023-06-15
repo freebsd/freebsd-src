@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 static void asa(FILE *);
@@ -71,15 +72,22 @@ main(int argc, char *argv[])
 		asa(stdin);
 	else {
 		while ((fn = *argv++) != NULL) {
-                        if ((fp = fopen(fn, "r")) == NULL) {
-				warn("%s", fn);
-				exval = 1;
-				continue;
-                        }
-			asa(fp);
-			fclose(fp);
+			if (strcmp(fn, "-") == 0) {
+				asa(stdin);
+			} else {
+				if ((fp = fopen(fn, "r")) == NULL) {
+					warn("%s", fn);
+					exval = 1;
+					continue;
+				}
+				asa(fp);
+				fclose(fp);
+			}
 		}
 	}
+
+	if (fflush(stdout) != 0)
+		err(1, "stdout");
 
 	exit(exval);
 }
@@ -140,4 +148,7 @@ asa(FILE *f)
 
 		putchar('\n');
 	}
+
+	if (ferror(stdout) != 0)
+		err(1, "stdout");
 }
