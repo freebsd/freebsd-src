@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -54,7 +55,8 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	}
 
 	value = get_config_value_node(nvl, "version");
-	if (value == NULL || strcmp(value, "2.0")) {
+	assert(value != NULL);
+	if (strcmp(value, "2.0")) {
 		warnx("%s: unsupported tpm version %s", __func__, value);
 		error = EINVAL;
 		goto err_out;
