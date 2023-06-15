@@ -72,7 +72,7 @@ uint8_t
 dtrace_fuword8_nocheck(void *addr)
 */
 ENTRY(dtrace_fuword8_nocheck)
-	ldrb	w0, [x0]
+	ldtrb	w0, [x0]
 	RET
 END(dtrace_fuword8_nocheck)
 
@@ -81,7 +81,7 @@ uint16_t
 dtrace_fuword16_nocheck(void *addr)
 */
 ENTRY(dtrace_fuword16_nocheck)
-	ldrh	w0, [x0]
+	ldtrh	w0, [x0]
 	RET
 END(dtrace_fuword16_nocheck)
 
@@ -90,7 +90,7 @@ uint32_t
 dtrace_fuword32_nocheck(void *addr)
 */
 ENTRY(dtrace_fuword32_nocheck)
-	ldr	w0, [x0]
+	ldtr	w0, [x0]
 	RET
 END(dtrace_fuword32_nocheck)
 
@@ -99,7 +99,7 @@ uint64_t
 dtrace_fuword64_nocheck(void *addr)
 */
 ENTRY(dtrace_fuword64_nocheck)
-	ldr	x0, [x0]
+	ldtr	x0, [x0]
 	RET
 END(dtrace_fuword64_nocheck)
 
@@ -110,7 +110,8 @@ dtrace_copy(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 ENTRY(dtrace_copy)
 	cbz	x2, 2f		/* If len == 0 then skip loop */
 1:
-	ldrb	w4, [x0], #1	/* Load from uaddr */
+	ldtrb	w4, [x0]	/* Load from uaddr */
+	add	x0, x0, #1
 	strb	w4, [x1], #1	/* Store in kaddr */
 	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
@@ -126,8 +127,9 @@ XXX: Check for flags?
 */
 ENTRY(dtrace_copystr)
 	cbz     x2, 2f          /* If len == 0 then skip loop */
- 
-1:	ldrb    w4, [x0], #1    /* Load from uaddr */
+1:
+	ldtrb	w4, [x0]	/* Load from uaddr */
+	add	x0, x0, #1
 	strb    w4, [x1], #1    /* Store in kaddr */
 	cbz     w4, 2f          /* If == 0 then break */
 	sub     x2, x2, #1      /* len-- */
