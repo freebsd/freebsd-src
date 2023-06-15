@@ -133,7 +133,7 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 			break;
 
 		pc = dtrace_fuword64((void *)(fp +
-		    offsetof(struct arm64_frame, f_retaddr)));
+		    offsetof(struct unwind_state, pc)));
 		fp = dtrace_fuword64((void *)fp);
 
 		if (fp == oldfp) {
