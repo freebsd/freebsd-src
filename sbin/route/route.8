@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2023
+.Dd June 16, 2023
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -442,7 +442,9 @@ Lockless immutable radix, re-created on every rtable change,
 tailored for a small FIB with <1000 routes.
 .It dpdk_lpm
 DPDK DIR24-8-based lookups, lockless datastructure, optimized
-for a large FIB.
+for large FIBs.
+DIR24-8 relies on a large flat lookup table (64 MB with IPv4) which is
+directly indexed by the more significant portion of the lookup key.
 In order to use the dpdk_lpm algorithm one or both of the
 following kernel modules must be loaded via
 .Xr loader.conf 5 :
@@ -451,6 +453,16 @@ following kernel modules must be loaded via
 DPDK implementation for IPv4.
 .It dpdk_lpm6.ko
 DPDK implementation for IPv6.
+.El
+.It dxr
+IPv4 only, lockless, compressed lookup structure
+(below 2.5 Bytes per IPv4 prefix for large BGP FIBs)
+which easily fits into modern CPU cache hierarchies,
+lookup throughput scales linearly with CPU cores.
+Loadable as a kernel module at runtime or via
+.Xr loader.conf 5 :
+.Bl -tag -width fib_dxr.ko -compact
+.It fib_dxr.ko
 .El
 .El
 .Pp
