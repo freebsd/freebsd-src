@@ -173,6 +173,39 @@ class TestAddRule(BaseTest):
                 },
                 id="test_comment",
             ),
+            pytest.param(
+                {
+                    "in": "add tcp-setmss 123 ip from any to 1.2.3.4",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_EACTION, idx=1, name="tcp-setmss"),
+                        ],
+                        "insns": [
+                            InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
+                            Insn(IpFwOpcode.O_EXTERNAL_ACTION, arg1=1),
+                            Insn(IpFwOpcode.O_EXTERNAL_DATA, arg1=123),
+                        ],
+                    },
+                },
+                id="test_eaction_tcp-setmss",
+            ),
+            pytest.param(
+                {
+                    "in": "add eaction ntpv6 AAA ip from any to 1.2.3.4",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_EACTION, idx=1, name="ntpv6"),
+                            NTlv(0, idx=2, name="AAA"),
+                        ],
+                        "insns": [
+                            InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
+                            Insn(IpFwOpcode.O_EXTERNAL_ACTION, arg1=1),
+                            Insn(IpFwOpcode.O_EXTERNAL_INSTANCE, arg1=2),
+                        ],
+                    },
+                },
+                id="test_eaction_ntp",
+            ),
         ],
     )
     def test_add_rule(self, rule):

@@ -90,6 +90,11 @@ class BaseTlv(object):
         for obj in self.obj_list:
             obj.print_obj(prepend)
 
+    def print_obj_hex(self, prepend=""):
+        print(prepend)
+        print()
+        print(" ".join(["x{:02X}".format(b) for b in bytes(self)]))
+
     @classmethod
     def _validate(cls, data):
         if len(data) < sizeof(IpFwObjTlv):
@@ -487,6 +492,7 @@ rule_attrs = prepare_attrs_map(
             [
                 AttrDescr(IpFwTlvType.IPFW_TLV_TBL_NAME, NTlv),
                 AttrDescr(IpFwTlvType.IPFW_TLV_STATE_NAME, NTlv),
+                AttrDescr(IpFwTlvType.IPFW_TLV_EACTION, NTlv),
             ],
             True,
         ),
