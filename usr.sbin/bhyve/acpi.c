@@ -91,9 +91,6 @@ static FILE *dsdt_fp;
 static int dsdt_indent_level;
 static int dsdt_error;
 
-static struct basl_table *rsdt;
-static struct basl_table *xsdt;
-
 struct basl_fio {
 	int	fd;
 	FILE	*fp;
@@ -532,10 +529,7 @@ build_fadt(struct vmctx *const ctx)
 	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_DSDT,
 	    offsetof(ACPI_TABLE_FADT, XDsdt), sizeof(fadt.XDsdt)));
 
-	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_FADT,
-	    ACPI_RSDT_ENTRY_SIZE));
-	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_FADT,
-	    ACPI_XSDT_ENTRY_SIZE));
+	BASL_EXEC(basl_table_register_to_rsdt(table));
 
 	return (0);
 }
@@ -557,10 +551,7 @@ build_hpet(struct vmctx *const ctx)
 	hpet.Flags = ACPI_HPET_PAGE_PROTECT4;
 	BASL_EXEC(basl_table_append_content(table, &hpet, sizeof(hpet)));
 
-	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_HPET,
-	    ACPI_RSDT_ENTRY_SIZE));
-	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_HPET,
-	    ACPI_XSDT_ENTRY_SIZE));
+	BASL_EXEC(basl_table_register_to_rsdt(table));
 
 	return (0);
 }
@@ -635,10 +626,7 @@ build_madt(struct vmctx *const ctx)
 	BASL_EXEC(basl_table_append_bytes(table, &madt_lapic_nmi,
 	    sizeof(madt_lapic_nmi)));
 
-	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_MADT,
-	    ACPI_RSDT_ENTRY_SIZE));
-	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_MADT,
-	    ACPI_XSDT_ENTRY_SIZE));
+	BASL_EXEC(basl_table_register_to_rsdt(table));
 
 	return (0);
 }
@@ -663,10 +651,7 @@ build_mcfg(struct vmctx *const ctx)
 	BASL_EXEC(basl_table_append_bytes(table, &mcfg_allocation,
 	    sizeof(mcfg_allocation)));
 
-	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_MCFG,
-	    ACPI_RSDT_ENTRY_SIZE));
-	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_MCFG,
-	    ACPI_XSDT_ENTRY_SIZE));
+	BASL_EXEC(basl_table_register_to_rsdt(table));
 
 	return (0);
 }
@@ -709,19 +694,6 @@ build_rsdp(struct vmctx *const ctx)
 }
 
 static int
-build_rsdt(struct vmctx *const ctx)
-{
-	BASL_EXEC(
-	    basl_table_create(&rsdt, ctx, ACPI_SIG_RSDT, BASL_TABLE_ALIGNMENT));
-
-	/* Header */
-	BASL_EXEC(basl_table_append_header(rsdt, ACPI_SIG_RSDT, 1, 1));
-	/* Pointers (added by other build_XXX funcs) */
-
-	return (0);
-}
-
-static int
 build_spcr(struct vmctx *const ctx)
 {
 	ACPI_TABLE_SPCR spcr;
@@ -744,23 +716,7 @@ build_spcr(struct vmctx *const ctx)
 	spcr.TerminalType = ACPI_SPCR_TERMINAL_TYPE_VT_UTF8;
 	BASL_EXEC(basl_table_append_content(table, &spcr, sizeof(spcr)));
 
-	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_SPCR,
-	    ACPI_RSDT_ENTRY_SIZE));
-	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_SPCR,
-	    ACPI_XSDT_ENTRY_SIZE));
-
-	return (0);
-}
-
-static int
-build_xsdt(struct vmctx *const ctx)
-{
-	BASL_EXEC(
-	    basl_table_create(&xsdt, ctx, ACPI_SIG_XSDT, BASL_TABLE_ALIGNMENT));
-
-	/* Header */
-	BASL_EXEC(basl_table_append_header(xsdt, ACPI_SIG_XSDT, 1, 1));
-	/* Pointers (added by other build_XXX funcs) */
+	BASL_EXEC(basl_table_register_to_rsdt(table));
 
 	return (0);
 }
@@ -790,7 +746,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	if (getenv("BHYVE_ACPI_KEEPTMPS"))
 		basl_keep_temps = 1;
 
-	BASL_EXEC(basl_init());
+	BASL_EXEC(basl_init(ctx));
 
 	BASL_EXEC(basl_make_templates());
 
@@ -802,8 +758,6 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	 * first table after XSDT.
 	 */
 	BASL_EXEC(build_rsdp(ctx));
-	BASL_EXEC(build_rsdt(ctx));
-	BASL_EXEC(build_xsdt(ctx));
 	BASL_EXEC(build_fadt(ctx));
 	BASL_EXEC(build_madt(ctx));
 	BASL_EXEC(build_hpet(ctx));

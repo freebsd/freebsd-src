@@ -67,7 +67,7 @@ void basl_fill_gas(ACPI_GENERIC_ADDRESS *gas, uint8_t space_id,
     uint8_t bit_width, uint8_t bit_offset, uint8_t access_width,
     uint64_t address);
 int basl_finish(void);
-int basl_init(void);
+int basl_init(struct vmctx *ctx);
 int basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
     const uint32_t start, const uint32_t len);
 int basl_table_add_length(struct basl_table *const table, const uint32_t off,
@@ -97,3 +97,5 @@ int basl_table_append_pointer(struct basl_table *table,
     const uint8_t src_signature[ACPI_NAMESEG_SIZE], uint8_t size);
 int basl_table_create(struct basl_table **table, struct vmctx *ctx,
     const uint8_t *name, uint32_t alignment);
+/* Adds the table to RSDT and XSDT */
+int basl_table_register_to_rsdt(struct basl_table *table);
