@@ -81,6 +81,9 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (fflush(stdout) != 0)
+		err(1, "stdout");
+
 	exit(exval);
 }
 
@@ -140,4 +143,7 @@ asa(FILE *f)
 
 		putchar('\n');
 	}
+
+	if (ferror(stdout) != 0)
+		err(1, "stdout");
 }
