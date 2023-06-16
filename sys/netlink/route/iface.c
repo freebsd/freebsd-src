@@ -253,6 +253,33 @@ dump_sa(struct nl_writer *nw, int attr, const struct sockaddr *sa)
         return (nlattr_add(nw, attr, addr_len, addr_data));
 }
 
+static bool
+dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
+{
+	int off = nlattr_add_nested(nw, IFLAF_CAPS);
+	uint32_t active_caps[roundup2(IFCAP_B_SIZE, 32) / 32] = {};
+	uint32_t all_caps[roundup2(IFCAP_B_SIZE, 32) / 32] = {};
+
+	MPASS(sizeof(active_caps) >= 8);
+	MPASS(sizeof(all_caps) >= 8);
+
+	if (off == 0)
+		return (false);
+
+	active_caps[0] = (uint32_t)if_getcapabilities(ifp);
+	all_caps[0] = (uint32_t)if_getcapenable(ifp);
+	active_caps[1] = (uint32_t)if_getcapabilities2(ifp);
+	all_caps[1] = (uint32_t)if_getcapenable2(ifp);
+
+	nlattr_add_u32(nw, NLA_BITSET_SIZE, IFCAP_B_SIZE);
+	nlattr_add(nw, NLA_BITSET_MASK, sizeof(all_caps), all_caps);
+	nlattr_add(nw, NLA_BITSET_VALUE, sizeof(active_caps), active_caps);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
 /*
  * Dumps interface state, properties and metrics.
  * @nw: message writer
@@ -320,6 +347,7 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
 	int off = nlattr_add_nested(nw, IFLA_FREEBSD);
 	if (off != 0) {
 		get_hwaddr(nw, ifp);
+		dump_iface_caps(nw, ifp);
 
 		nlattr_set_len(nw, off);
 	}

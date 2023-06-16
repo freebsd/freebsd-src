@@ -186,12 +186,14 @@ struct snl_parsed_link {
 	uint32_t			ifla_promiscuity;
 	struct rtnl_link_stats64	*ifla_stats64;
 	struct nlattr			*iflaf_orig_hwaddr;
+	struct snl_attr_bitset		iflaf_caps;
 };
 
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_link, _field)
 static const struct snl_attr_parser _nla_p_link_fbsd[] = {
 	{ .type = IFLAF_ORIG_HWADDR, .off = _OUT(iflaf_orig_hwaddr), .cb = snl_attr_dup_nla },
+	{ .type = IFLAF_CAPS, .off = _OUT(iflaf_caps), .cb = snl_attr_get_bitset_c },
 };
 SNL_DECLARE_ATTR_PARSER(_link_fbsd_parser, _nla_p_link_fbsd);
 

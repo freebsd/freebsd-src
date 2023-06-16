@@ -151,6 +151,7 @@ enum {
 	IFLAF_UNSPEC		= 0,
 	IFLAF_ORIG_IFNAME	= 1,	/* string, original interface name at creation */
 	IFLAF_ORIG_HWADDR	= 2,	/* binary, original hardware address */
+	IFLAF_CAPS		= 3,	/* bitset, interface capabilities */
 	__IFLAF_MAX
 };
 #define IFLAF_MAX (__IFLAF_MAX - 1)
