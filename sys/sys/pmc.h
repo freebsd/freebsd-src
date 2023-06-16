@@ -1080,7 +1080,11 @@ extern struct pmc_driverstats pmc_stats;
 
 #define	__pmcdbg_used		/* unused variable annotation */
 
-/* debug flags, major flag groups */
+/*
+ * Debug flags, major flag groups.
+ *
+ * Please keep the DEBUGGING section of the hwpmc(4) man page in sync.
+ */
 struct pmc_debugflags {
 	int	pdb_CPU;
 	int	pdb_CSW;
