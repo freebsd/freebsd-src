@@ -210,14 +210,10 @@ static struct pmap_large_md_page *
 _pa_to_pmdp(vm_paddr_t pa)
 {
 	struct vm_phys_seg *seg;
-	int segind;
 
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
-		if (pa >= seg->start && pa < seg->end)
-			return ((struct pmap_large_md_page *)seg->md_first +
-			    pmap_l2_pindex(pa) - pmap_l2_pindex(seg->start));
-	}
+	if ((seg = vm_phys_paddr_to_seg(pa)) != NULL)
+		return ((struct pmap_large_md_page *)seg->md_first +
+		    pmap_l2_pindex(pa) - pmap_l2_pindex(seg->start));
 	return (NULL);
 }
 

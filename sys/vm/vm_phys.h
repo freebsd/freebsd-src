@@ -42,6 +42,8 @@
 
 #ifdef _KERNEL
 
+#include <vm/_vm_phys.h>
+
 extern vm_paddr_t phys_avail[];
 
 /* Domains must be dense (non-sparse) and zero-based. */
@@ -71,14 +73,14 @@ int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
 void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
 vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
+int vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
+    u_long npages, vm_paddr_t low, vm_paddr_t high);
 void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 void vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
     int *locality);
-vm_page_t vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low,
-    vm_paddr_t high, u_long alignment, vm_paddr_t boundary, int options);
 bool vm_phys_unfree_page(vm_page_t m);
 int vm_phys_mem_affinity(int f, int t);
 void vm_phys_early_add_seg(vm_paddr_t start, vm_paddr_t end);
@@ -104,6 +106,48 @@ vm_phys_domain(vm_paddr_t pa)
 #else
 	return (0);
 #endif
+}
+
+/*
+ * Find the segind for the first segment at or after the given physical address.
+ */
+static inline int
+vm_phys_lookup_segind(vm_paddr_t pa)
+{
+	u_int hi, lo, mid;
+
+	lo = 0;
+	hi = vm_phys_nsegs;
+	while (lo != hi) {
+		/*
+		 * for i in [0, lo), segs[i].end <= pa
+		 * for i in [hi, nsegs), segs[i].end > pa
+		 */
+		mid = lo + (hi - lo) / 2;
+		if (vm_phys_segs[mid].end <= pa)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return (lo);
+}
+
+/*
+ * Find the segment corresponding to the given physical address.
+ */
+static inline struct vm_phys_seg *
+vm_phys_paddr_to_seg(vm_paddr_t pa)
+{
+	struct vm_phys_seg *seg;
+	int segind;
+
+	segind = vm_phys_lookup_segind(pa);
+	if (segind < vm_phys_nsegs) {
+		seg = &vm_phys_segs[segind];
+		if (pa >= seg->start)
+			return (seg);
+	}
+	return (NULL);
 }
 
 #endif	/* _KERNEL */
