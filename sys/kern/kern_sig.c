@@ -1744,7 +1744,7 @@ killpg1_sendsig(struct proc *p, bool notself, struct killpg1_ctx *arg)
 
 /*
  * Common code for kill process group/broadcast kill.
- * cp is calling process.
+ * td is the calling thread, as usual.
  */
 static int
 killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
