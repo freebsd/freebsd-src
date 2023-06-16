@@ -1916,21 +1916,22 @@ static enum dbg_status ecore_dbg_dev_init(struct ecore_hwfn *p_hwfn,
 	return DBG_STATUS_OK;
 }
 
-static struct dbg_bus_block* get_dbg_bus_block_desc(struct ecore_hwfn *p_hwfn,
+static const struct dbg_bus_block *get_dbg_bus_block_desc(struct ecore_hwfn *p_hwfn,
 														  enum block_id block_id)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 
-	return (struct dbg_bus_block *)&dbg_bus_blocks[block_id * MAX_CHIP_IDS + dev_data->chip_id];
+	return (const struct dbg_bus_block *)&dbg_bus_blocks[block_id * MAX_CHIP_IDS + dev_data->chip_id];
 }
 
 /* Returns OSAL_NULL for signature line, latency line and non-existing lines */
-static struct dbg_bus_line* get_dbg_bus_line_desc(struct ecore_hwfn *p_hwfn,
+static const struct dbg_bus_line *get_dbg_bus_line_desc(struct ecore_hwfn *p_hwfn,
 														enum block_id block_id)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct dbg_bus_block_data *block_bus;
-	struct dbg_bus_block *block_desc;
+	const struct dbg_bus_block *block_desc;
+	u32 index;
 
 	block_bus = &dev_data->bus.blocks[block_id];
 	block_desc = get_dbg_bus_block_desc(p_hwfn, block_id);
@@ -1940,7 +1941,9 @@ static struct dbg_bus_line* get_dbg_bus_line_desc(struct ecore_hwfn *p_hwfn,
 		block_bus->line_num >= NUM_DBG_LINES(block_desc))
 		return OSAL_NULL;
 
-	return (struct dbg_bus_line *)&dbg_bus_lines[block_desc->lines_offset + block_bus->line_num - NUM_EXTRA_DBG_LINES(block_desc)];
+	index = block_desc->lines_offset + block_bus->line_num - NUM_EXTRA_DBG_LINES(block_desc);
+
+	return (const struct dbg_bus_line *)&dbg_bus_lines[index];
 }
 
 /* Reads the FW info structure for the specified Storm from the chip,
@@ -2729,7 +2732,7 @@ static bool ecore_is_mode_match(struct ecore_hwfn *p_hwfn,
 	u8 tree_val;
 
 	/* Get next element from modes tree buffer */
-	tree_val = ((u8 *)s_dbg_arrays[BIN_BUF_DBG_MODE_TREE].ptr)[(*modes_buf_offset)++];
+	tree_val = ((const u8 *)s_dbg_arrays[BIN_BUF_DBG_MODE_TREE].ptr)[(*modes_buf_offset)++];
 
 	switch (tree_val) {
 	case INIT_MODE_OP_NOT:
@@ -3989,7 +3992,7 @@ static u32 ecore_grc_dump_static_debug(struct ecore_hwfn *p_hwfn,
 	/* Dump all static debug lines for each relevant block */
 	for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 		struct block_defs *block = s_block_defs[block_id];
-		struct dbg_bus_block *block_desc;
+		const struct dbg_bus_block *block_desc;
 		u32 block_dwords;
 
 		if (block->dbg_client_id[dev_data->chip_id] == MAX_DBG_BUS_CLIENTS)
@@ -4893,12 +4896,12 @@ static u32 ecore_fw_asserts_dump(struct ecore_hwfn *p_hwfn,
 
 enum dbg_status ecore_dbg_set_bin_ptr(const u8 * const bin_ptr)
 {
-	struct bin_buffer_hdr *buf_array = (struct bin_buffer_hdr *)bin_ptr;
+	const struct bin_buffer_hdr *buf_array = (const struct bin_buffer_hdr *)bin_ptr;
 	u8 buf_id;
 
 	/* convert binary data to debug arrays */
 	for (buf_id = 0; buf_id < MAX_BIN_DBG_BUFFER_TYPE; buf_id++) {
-		s_dbg_arrays[buf_id].ptr = (u32 *)(bin_ptr + buf_array[buf_id].offset);
+		s_dbg_arrays[buf_id].ptr = (const u32 *)(bin_ptr + buf_array[buf_id].offset);
 		s_dbg_arrays[buf_id].size_in_dwords = BYTES_TO_DWORDS(buf_array[buf_id].length);
 	}
 
@@ -5113,7 +5116,7 @@ enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct block_defs *block = s_block_defs[block_id];
 	struct dbg_bus_block_data *block_bus;
-	struct dbg_bus_block *block_desc;
+	const struct dbg_bus_block *block_desc;
 
 	block_bus = &dev_data->bus.blocks[block_id];
 	block_desc = get_dbg_bus_block_desc(p_hwfn, block_id);
@@ -5574,7 +5577,7 @@ static enum dbg_status ecore_config_dbg_block_framing_mode(struct ecore_hwfn *p_
 	u32 block_id;
 
 	if (!bus->hw_dwords && bus->num_enabled_blocks) {
-		struct dbg_bus_line *line_desc;
+		const struct dbg_bus_line *line_desc;
 		u8 hw_dwords;
 
 		/* Choose either 4 HW dwords (128-bit mode) or 8 HW dwords
