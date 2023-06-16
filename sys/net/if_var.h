@@ -573,9 +573,11 @@ void if_setdname(if_t ifp, const char *name);
 const char *if_name(if_t ifp);
 int if_setname(if_t ifp, const char *name);
 int if_rename(if_t ifp, char *new_name);
+const char *if_getdescr(if_t ifp);
 void if_setdescr(if_t ifp, char *descrbuf);
 char *if_allocdescr(size_t sz, int malloc_flag);
 void if_freedescr(char *descrbuf);
+void if_setlastchange(if_t ifp);
 int if_getalloctype(const if_t ifp);
 int if_gettype(const if_t ifp);
 int if_setdev(if_t ifp, void *dev);
@@ -633,6 +635,7 @@ void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 int if_transmit(if_t ifp, struct mbuf *m);
 void if_init(if_t ifp, void *ctx);
+int if_ioctl(if_t ifp, u_long cmd, void *data);
 int if_resolvemulti(if_t ifp, struct sockaddr **, struct sockaddr *);
 uint64_t if_getcounter(if_t ifp, ift_counter counter);
 struct label *if_getmaclabel(if_t ifp);
@@ -676,6 +679,14 @@ struct if_iter {
 if_t	if_iter_start(struct if_iter *);
 if_t	if_iter_next(struct if_iter *);
 void	if_iter_finish(struct if_iter *);
+
+struct ifa_iter {
+	void *context[4];
+};
+
+struct ifaddr *ifa_iter_start(if_t ifp, struct ifa_iter *iter);
+struct ifaddr *ifa_iter_next(struct ifa_iter *iter);
+void ifa_iter_finish(struct ifa_iter *iter);
 
 /* Functions */
 void if_setinitfn(if_t ifp, if_init_fn_t);

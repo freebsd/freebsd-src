@@ -201,7 +201,7 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 		if (rtnh == NULL)
 			return;
 		rtnh->rtnh_flags = 0;
-		rtnh->rtnh_ifindex = wn[i].nh->nh_ifp->if_index;
+		rtnh->rtnh_ifindex = if_getindex(wn[i].nh->nh_ifp);
 		rtnh->rtnh_hops = wn[i].weight;
 		dump_rc_nhop_gw(nw, wn[i].nh);
 		uint32_t rtflags = nhop_get_rtflags(wn[i].nh);
@@ -256,7 +256,7 @@ dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtm
 		nlattr_add_u32(nw, NL_RTA_EXPIRES, nh_expire - time_uptime);
 
 	/* In any case, fill outgoing interface */
-	nlattr_add_u32(nw, NL_RTA_OIF, nh->nh_ifp->if_index);
+	nlattr_add_u32(nw, NL_RTA_OIF, if_getindex(nh->nh_ifp));
 
 	if (rnd->rnd_weight != RT_DEFAULT_WEIGHT)
 		nlattr_add_u32(nw, NL_RTA_WEIGHT, rnd->rnd_weight);
