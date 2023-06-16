@@ -3825,7 +3825,7 @@ scan_and_wait(if_ctx *ctx)
 				perror("read(PF_ROUTE)");
 				break;
 			}
-			rtm = (struct rt_msghdr *) buf;
+			rtm = (struct rt_msghdr *)(void *)buf;
 			if (rtm->rtm_version != RTM_VERSION)
 				break;
 			ifan = (struct if_announcemsghdr *) rtm;
