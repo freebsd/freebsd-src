@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2018
+.Dd June 16, 2023
 .Dt ACPICONF 8
 .Os
 .Sh NAME
@@ -81,27 +81,30 @@ or
 before and after entering the given sleep state.
 .Pp
 The
+.Pa /etc/rc.suspend
+and
 .Pa /etc/rc.resume
-script uses the
+scripts use the
 .Xr rcorder 8
 utility to call scripts in
 .Pa /etc/rc.d/
 and the
 .Va $local_startup
-directories that have a "resume" KEYWORD.
-Called scripts are supplied with single "resume"
-command line argument. See
+directories that have a "suspend" or "resume" KEYWORD, respectively.
+Called scripts are supplied with a single "suspend" / "resume"
+command line argument.
+See
 .Xr rc.conf 5
 for more information about
 .Va $local_startup .
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
+.Xr rc.conf 5 ,
 .Xr acpidump 8 ,
 .Xr apm 8 ,
 .Xr apmd 8 ,
 .Xr devd 8 ,
-.Xr rc.conf 5 ,
 .Xr rcorder 8
 .Sh HISTORY
 The
