@@ -57,7 +57,7 @@ static void	print_src_dst(netdissect_options *,
 		    const struct pfsync_state_peer *, uint8_t);
 static void	print_state(netdissect_options *, union pfsync_state_union *, int);
 
-u_int
+void
 pfsync_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
     register const u_char *p)
 {
@@ -78,7 +78,7 @@ out:
 		hex_print(ndo, "\n\t", p, caplen);
 	}
 	fn_print_char(ndo, '\n');
-	return (caplen);
+	return;
 }
 
 void
