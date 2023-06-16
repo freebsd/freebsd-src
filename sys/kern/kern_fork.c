@@ -957,7 +957,8 @@ fork1(struct thread *td, struct fork_req *fr)
 	if (sx_slock_sig(&pg->pg_killsx) != 0) {
 		error = ERESTART;
 		goto fail2;
-	} else if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
+	} else if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0 ||
+	    atomic_load_int(&p1->p_killpg_cnt) != 0)) {
 		/*
 		 * Either the process was moved to other process
 		 * group, or there is pending signal.  sx_slock_sig()
