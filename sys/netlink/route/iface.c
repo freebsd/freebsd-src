@@ -120,11 +120,11 @@ struct if_state {
 };
 
 static void
-get_operstate_ether(struct ifnet *ifp, struct if_state *pstate)
+get_operstate_ether(if_t ifp, struct if_state *pstate)
 {
 	struct ifmediareq ifmr = {};
 	int error;
-	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (void *)&ifmr);
+	error = if_ioctl(ifp, SIOCGIFMEDIA, (void *)&ifmr);
 
 	if (error != 0) {
 		NL_LOG(LOG_DEBUG, "error calling SIOCGIFMEDIA on %s: %d",
@@ -136,7 +136,7 @@ get_operstate_ether(struct ifnet *ifp, struct if_state *pstate)
 	case IFM_ETHER:
 		if (ifmr.ifm_status & IFM_ACTIVE) {
 			pstate->ifla_carrier = 1;
-			if (ifp->if_flags & IFF_MONITOR)
+			if (if_getflags(ifp) & IFF_MONITOR)
 				pstate->ifla_operstate = IF_OPER_DORMANT;
 			else
 				pstate->ifla_operstate = IF_OPER_UP;
@@ -146,7 +146,7 @@ get_operstate_ether(struct ifnet *ifp, struct if_state *pstate)
 }
 
 static bool
-get_stats(struct nl_writer *nw, struct ifnet *ifp)
+get_stats(struct nl_writer *nw, if_t ifp)
 {
 	struct rtnl_link_stats64 *stats;
 
@@ -158,34 +158,34 @@ get_stats(struct nl_writer *nw, struct ifnet *ifp)
 	nla->nla_len = nla_len;
 	stats = (struct rtnl_link_stats64 *)(nla + 1);
 
-	stats->rx_packets = ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS);
-	stats->tx_packets = ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS);
-	stats->rx_bytes = ifp->if_get_counter(ifp, IFCOUNTER_IBYTES);
-	stats->tx_bytes = ifp->if_get_counter(ifp, IFCOUNTER_OBYTES);
-	stats->rx_errors = ifp->if_get_counter(ifp, IFCOUNTER_IERRORS);
-	stats->tx_errors = ifp->if_get_counter(ifp, IFCOUNTER_OERRORS);
-	stats->rx_dropped = ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS);
-	stats->tx_dropped = ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
-	stats->multicast = ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS);
-	stats->rx_nohandler = ifp->if_get_counter(ifp, IFCOUNTER_NOPROTO);
+	stats->rx_packets = if_getcounter(ifp, IFCOUNTER_IPACKETS);
+	stats->tx_packets = if_getcounter(ifp, IFCOUNTER_OPACKETS);
+	stats->rx_bytes = if_getcounter(ifp, IFCOUNTER_IBYTES);
+	stats->tx_bytes = if_getcounter(ifp, IFCOUNTER_OBYTES);
+	stats->rx_errors = if_getcounter(ifp, IFCOUNTER_IERRORS);
+	stats->tx_errors = if_getcounter(ifp, IFCOUNTER_OERRORS);
+	stats->rx_dropped = if_getcounter(ifp, IFCOUNTER_IQDROPS);
+	stats->tx_dropped = if_getcounter(ifp, IFCOUNTER_OQDROPS);
+	stats->multicast = if_getcounter(ifp, IFCOUNTER_IMCASTS);
+	stats->rx_nohandler = if_getcounter(ifp, IFCOUNTER_NOPROTO);
 
 	return (true);
 }
 
 static void
-get_operstate(struct ifnet *ifp, struct if_state *pstate)
+get_operstate(if_t ifp, struct if_state *pstate)
 {
 	pstate->ifla_operstate = IF_OPER_UNKNOWN;
 	pstate->ifla_carrier = 0; /* no carrier */
 
-	switch (ifp->if_type) {
+	switch (if_gettype(ifp)) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
 		get_operstate_ether(ifp, pstate);
 		break;
 	default:
 		/* Map admin state to the operstate */
-		if (ifp->if_flags & IFF_UP) {
+		if (if_getflags(ifp) & IFF_UP) {
 			pstate->ifla_operstate = IF_OPER_UP;
 			pstate->ifla_carrier = 1;
 		} else
@@ -195,7 +195,7 @@ get_operstate(struct ifnet *ifp, struct if_state *pstate)
 }
 
 static void
-get_hwaddr(struct nl_writer *nw, struct ifnet *ifp)
+get_hwaddr(struct nl_writer *nw, if_t ifp)
 {
 	struct ifreq ifr = {};
 
@@ -206,9 +206,9 @@ get_hwaddr(struct nl_writer *nw, struct ifnet *ifp)
 }
 
 static unsigned
-ifp_flags_to_netlink(const struct ifnet *ifp)
+ifp_flags_to_netlink(const if_t ifp)
 {
-        return (ifp->if_flags | ifp->if_drv_flags);
+        return (if_getflags(ifp) | if_getdrvflags(ifp));
 }
 
 #define LLADDR_CONST(s) ((const void *)((s)->sdl_data + (s)->sdl_nlen))
@@ -290,7 +290,7 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
  * This function is called without epoch and MAY sleep.
  */
 static bool
-dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
+dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
     int if_flags_mask)
 {
         struct ifinfomsg *ifinfo;
@@ -303,8 +303,8 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
         ifinfo = nlmsg_reserve_object(nw, struct ifinfomsg);
         ifinfo->ifi_family = AF_UNSPEC;
         ifinfo->__ifi_pad = 0;
-        ifinfo->ifi_type = ifp->if_type;
-        ifinfo->ifi_index = ifp->if_index;
+        ifinfo->ifi_type = if_gettype(ifp);
+        ifinfo->ifi_index = if_getindex(ifp);
         ifinfo->ifi_flags = ifp_flags_to_netlink(ifp);
         ifinfo->ifi_change = if_flags_mask;
 
@@ -328,20 +328,20 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
                 dump_sa(nw, IFLA_ADDRESS, ifa->ifa_addr);
         }
 
-        if ((ifp->if_broadcastaddr != NULL)) {
-		nlattr_add(nw, IFLA_BROADCAST, ifp->if_addrlen,
-		    ifp->if_broadcastaddr);
+        if ((if_getbroadcastaddr(ifp) != NULL)) {
+		nlattr_add(nw, IFLA_BROADCAST, if_getaddrlen(ifp),
+		    if_getbroadcastaddr(ifp));
         }
 
-        nlattr_add_u32(nw, IFLA_MTU, ifp->if_mtu);
+        nlattr_add_u32(nw, IFLA_MTU, if_getmtu(ifp));
 /*
         nlattr_add_u32(nw, IFLA_MIN_MTU, 60);
         nlattr_add_u32(nw, IFLA_MAX_MTU, 9000);
         nlattr_add_u32(nw, IFLA_GROUP, 0);
 */
 
-	if (ifp->if_description != NULL)
-		nlattr_add_string(nw, IFLA_IFALIAS, ifp->if_description);
+	if (if_getdescr(ifp) != NULL)
+		nlattr_add_string(nw, IFLA_IFALIAS, if_getdescr(ifp));
 
 	/* Store FreeBSD-specific attributes */
 	int off = nlattr_add_nested(nw, IFLA_FREEBSD);
@@ -354,7 +354,7 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
 
 	get_stats(nw, ifp);
 
-	uint32_t val = (ifp->if_flags & IFF_PROMISC) != 0;
+	uint32_t val = (if_getflags(ifp) & IFF_PROMISC) != 0;
         nlattr_add_u32(nw, IFLA_PROMISCUITY, val);
 
 	ifc_dump_ifp_nl(ifp, nw);
@@ -412,13 +412,13 @@ static const struct nlattr_parser nla_p_if[] = {
 NL_DECLARE_STRICT_PARSER(ifmsg_parser, struct ifinfomsg, check_ifmsg, nlf_p_if, nla_p_if);
 
 static bool
-match_iface(struct ifnet *ifp, void *_arg)
+match_iface(if_t ifp, void *_arg)
 {
 	struct nl_parsed_link *attrs = (struct nl_parsed_link *)_arg;
 
-	if (attrs->ifi_index != 0 && attrs->ifi_index != ifp->if_index)
+	if (attrs->ifi_index != 0 && attrs->ifi_index != if_getindex(ifp))
 		return (false);
-	if (attrs->ifi_type != 0 && attrs->ifi_index != ifp->if_type)
+	if (attrs->ifi_type != 0 && attrs->ifi_index != if_gettype(ifp))
 		return (false);
 	if (attrs->ifla_ifname != NULL && strcmp(attrs->ifla_ifname, if_name(ifp)))
 		return (false);
@@ -428,7 +428,7 @@ match_iface(struct ifnet *ifp, void *_arg)
 }
 
 static int
-dump_cb(struct ifnet *ifp, void *_arg)
+dump_cb(if_t ifp, void *_arg)
 {
 	struct netlink_walkargs *wa = (struct netlink_walkargs *)_arg;
 	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0))
@@ -448,7 +448,7 @@ static int
 rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct epoch_tracker et;
-        struct ifnet *ifp;
+        if_t ifp;
 	int error = 0;
 
 	struct nl_parsed_link attrs = {};
@@ -529,7 +529,7 @@ static int
 rtnl_handle_dellink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct epoch_tracker et;
-        struct ifnet *ifp;
+        if_t ifp;
 	int error;
 
 	struct nl_parsed_link attrs = {};
@@ -609,7 +609,7 @@ static int
 modify_link(struct nlmsghdr *hdr, struct nl_parsed_link *lattrs,
     struct nlattr_bmask *bm, struct nlpcb *nlp, struct nl_pstate *npt)
 {
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	struct epoch_tracker et;
 
 	if (lattrs->ifi_index == 0 && lattrs->ifla_ifname == NULL) {
@@ -948,7 +948,7 @@ export_cache_info(struct nl_writer *nw, struct ifaddr *ifa)
            ('IFA_CACHEINFO', {'ifa_preferred': 4294967295, 'ifa_valid': 4294967295, 'cstamp': 63745746, 'tstamp': 63745746})],
  */
 static bool
-dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
+dump_iface_addr(struct nl_writer *nw, if_t ifp, struct ifaddr *ifa,
     const struct nlmsghdr *hdr)
 {
         struct ifaddrmsg *ifamsg;
@@ -966,9 +966,9 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
         ifamsg->ifa_prefixlen = get_sa_plen(ifa->ifa_netmask);
         ifamsg->ifa_flags = 0; // ifa_flags is useless
         ifamsg->ifa_scope = ifa_get_scope(ifa);
-        ifamsg->ifa_index = ifp->if_index;
+        ifamsg->ifa_index = if_getindex(ifp);
 
-	if ((ifp->if_flags & IFF_POINTOPOINT) && sa_dst != NULL && sa_dst->sa_family != 0) {
+	if ((if_getflags(ifp) & IFF_POINTOPOINT) && sa_dst != NULL && sa_dst->sa_family != 0) {
 		/* P2P interface may have IPv6 LL with no dst address */
 		dump_sa(nw, IFA_ADDRESS, sa_dst);
 		dump_sa(nw, IFA_LOCAL, sa);
@@ -983,7 +983,7 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
 			dump_sa(nw, IFA_LOCAL, sa);
 #endif
 	}
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		dump_sa(nw, IFA_BROADCAST, ifa->ifa_broadaddr);
 
         nlattr_add_string(nw, IFA_LABEL, if_name(ifp));
@@ -1027,11 +1027,13 @@ enomem:
 }
 
 static int
-dump_iface_addrs(struct netlink_walkargs *wa, struct ifnet *ifp)
+dump_iface_addrs(struct netlink_walkargs *wa, if_t ifp)
 {
         struct ifaddr *ifa;
+	struct ifa_iter it;
+	int error = 0;
 
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	for (ifa = ifa_iter_start(ifp, &it); ifa != NULL; ifa = ifa_iter_next(&it)) {
 		if (wa->family != 0 && wa->family != ifa->ifa_addr->sa_family)
 			continue;
 		if (ifa->ifa_addr->sa_family == AF_LINK)
@@ -1039,18 +1041,21 @@ dump_iface_addrs(struct netlink_walkargs *wa, struct ifnet *ifp)
 		if (prison_if(wa->cred, ifa->ifa_addr) != 0)
 			continue;
 		wa->count++;
-		if (!dump_iface_addr(wa->nw, ifp, ifa, &wa->hdr))
-			return (ENOMEM);
+		if (!dump_iface_addr(wa->nw, ifp, ifa, &wa->hdr)) {
+			error = ENOMEM;
+			break;
+		}
 		wa->dumped++;
 	}
+	ifa_iter_finish(&it);
 
-	return (0);
+	return (error);
 }
 
 static int
 rtnl_handle_getaddr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 {
-        struct ifnet *ifp;
+        if_t ifp;
 	int error = 0;
 
 	struct nl_parsed_ifa attrs = {};
@@ -1078,11 +1083,14 @@ rtnl_handle_getaddr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 		else
 			error = dump_iface_addrs(&wa, ifp);
 	} else {
-		CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		struct if_iter it;
+
+		for (ifp = if_iter_start(&it); ifp != NULL; ifp = if_iter_next(&it)) {
 			error = dump_iface_addrs(&wa, ifp);
 			if (error != 0)
 				break;
 		}
+		if_iter_finish(&it);
 	}
 
 	NL_LOG(LOG_DEBUG2, "End dump, iterated %d dumped %d", wa.count, wa.dumped);
@@ -1098,7 +1106,7 @@ rtnl_handle_getaddr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 #ifdef INET
 static int
 handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
-    struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
+    if_t ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	int plen = attrs->ifa_prefixlen;
 	int if_flags = if_getflags(ifp);
@@ -1182,7 +1190,7 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 
 static int
 handle_deladdr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
-    struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
+    if_t ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)attrs->ifa_local;
 
@@ -1203,7 +1211,7 @@ handle_deladdr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 #ifdef INET6
 static int
 handle_newaddr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
-    struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
+    if_t ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct sockaddr_in6 *addr, *dst;
 
@@ -1266,7 +1274,7 @@ handle_newaddr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 
 static int
 handle_deladdr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
-    struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
+    if_t ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)attrs->ifa_local;
 
@@ -1297,7 +1305,7 @@ rtnl_handle_addr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 		return (error);
 
 	NET_EPOCH_ENTER(et);
-	struct ifnet *ifp = ifnet_byindex_ref(attrs.ifa_index);
+	if_t ifp = ifnet_byindex_ref(attrs.ifa_index);
 	NET_EPOCH_EXIT(et);
 
 	if (ifp == NULL) {
@@ -1386,7 +1394,7 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 }
 
 static void
-rtnl_handle_ifevent(struct ifnet *ifp, int nlmsg_type, int if_flags_mask)
+rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
 {
 	struct nlmsghdr hdr = { .nlmsg_type = nlmsg_type };
 	struct nl_writer nw = {};
@@ -1403,28 +1411,28 @@ rtnl_handle_ifevent(struct ifnet *ifp, int nlmsg_type, int if_flags_mask)
 }
 
 static void
-rtnl_handle_ifattach(void *arg, struct ifnet *ifp)
+rtnl_handle_ifattach(void *arg, if_t ifp)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
 }
 
 static void
-rtnl_handle_ifdetach(void *arg, struct ifnet *ifp)
+rtnl_handle_ifdetach(void *arg, if_t ifp)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_DELLINK, 0);
 }
 
 static void
-rtnl_handle_iflink(void *arg, struct ifnet *ifp)
+rtnl_handle_iflink(void *arg, if_t ifp)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
 }
 
 void
-rtnl_handle_ifnet_event(struct ifnet *ifp, int if_flags_mask)
+rtnl_handle_ifnet_event(if_t ifp, int if_flags_mask)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, if_flags_mask);

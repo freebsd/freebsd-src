@@ -4327,6 +4327,12 @@ if_getidxgen(const if_t ifp)
 	return (ifp->if_idxgen);
 }
 
+const char *
+if_getdescr(if_t ifp)
+{
+	return (ifp->if_description);
+}
+
 void
 if_setdescr(if_t ifp, char *descrbuf)
 {
@@ -4355,6 +4361,12 @@ int
 if_getalloctype(const if_t ifp)
 {
 	return (ifp->if_alloctype);
+}
+
+void
+if_setlastchange(if_t ifp)
+{
+	getmicrotime(&ifp->if_lastchange);
 }
 
 /*
@@ -4714,6 +4726,38 @@ if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg)
 	return (count);
 }
 
+struct ifaddr *
+ifa_iter_start(if_t ifp, struct ifa_iter *iter)
+{
+	struct ifaddr *ifa;
+
+	NET_EPOCH_ASSERT();
+
+	bzero(iter, sizeof(*iter));
+	ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
+	if (ifa != NULL)
+		iter->context[0] = CK_STAILQ_NEXT(ifa, ifa_link);
+	else
+		iter->context[0] = NULL;
+	return (ifa);
+}
+
+struct ifaddr *
+ifa_iter_next(struct ifa_iter *iter)
+{
+	struct ifaddr *ifa = iter->context[0];
+
+	if (ifa != NULL)
+		iter->context[0] = CK_STAILQ_NEXT(ifa, ifa_link);
+	return (ifa);
+}
+
+void
+ifa_iter_finish(struct ifa_iter *iter)
+{
+	/* Nothing to do here for now. */
+}
+
 int
 if_setsoftc(if_t ifp, void *softc)
 {
@@ -4823,6 +4867,12 @@ if_resolvemulti(if_t ifp, struct sockaddr **srcs, struct sockaddr *dst)
 		return (EOPNOTSUPP);
 
 	return (ifp->if_resolvemulti(ifp, srcs, dst));
+}
+
+int
+if_ioctl(if_t ifp, u_long cmd, void *data)
+{
+	return (ifp->if_ioctl(ifp, cmd, data));
 }
 
 struct mbuf *
