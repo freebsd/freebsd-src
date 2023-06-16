@@ -14,8 +14,12 @@ MACHINE_CPU = amd64 sse2 sse mmx
 MACHINE_CPU = arm
 . elif ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
-. elif ${MACHINE_CPUARCH} == "powerpc"
+. elif ${MACHINE_ARCH} == "powerpc"
 MACHINE_CPU = aim
+. elif ${MACHINE_ARCH} == "powerpc64"
+MACHINE_CPU = aim altivec
+. elif ${MACHINE_ARCH} == "powerpc64le"
+MACHINE_CPU = aim altivec vsx vsx2
 . elif ${MACHINE_CPUARCH} == "riscv"
 MACHINE_CPU = riscv
 . endif
@@ -277,7 +281,9 @@ MACHINE_CPU += amd64 sse2 sse mmx
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke softfp
 .  elif ${CPUTYPE} == "g4"
-MACHINE_CPU = altivec
+MACHINE_CPU = aim altivec
+.  else
+MACHINE_CPU= aim
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc64"
 .  if ${CPUTYPE} == "e5500"
@@ -289,10 +295,10 @@ MACHINE_CPU = altivec vsx vsx2
 .  elif ${CPUTYPE} == power9
 MACHINE_CPU = altivec vsx vsx2 vsx3
 .  else
-MACHINE_CPU = altivec
+MACHINE_CPU = aim altivec
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc64le"
-MACHINE_CPU = altivec vsx vsx2
+MACHINE_CPU = aim altivec vsx vsx2
 .  if ${CPUTYPE} == power9
 MACHINE_CPU += vsx3
 .  endif
