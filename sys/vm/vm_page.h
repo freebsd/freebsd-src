@@ -683,8 +683,6 @@ int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mold);
 int vm_page_sbusied(vm_page_t m);
-vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
-    vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);
 vm_page_bits_t vm_page_set_dirty(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);

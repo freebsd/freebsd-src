@@ -2627,7 +2627,7 @@ vm_page_zone_release(void *arg, void **store, int cnt)
  *	span a hole (or discontiguity) in the physical address space.  Both
  *	"alignment" and "boundary" must be a power of two.
  */
-vm_page_t
+static vm_page_t
 vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
     u_long alignment, vm_paddr_t boundary, int options)
 {
@@ -3028,10 +3028,9 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
     int desired_runs)
 {
 	struct vm_domain *vmd;
-	vm_paddr_t curr_low;
-	vm_page_t m_run, _m_runs[NRUNS], *m_runs;
+	vm_page_t bounds[2], m_run, _m_runs[NRUNS], *m_runs;
 	u_long count, minalign, reclaimed;
-	int error, i, min_reclaim, nruns, options, req_class;
+	int error, i, min_reclaim, nruns, options, req_class, segind;
 	bool ret;
 
 	KASSERT(npages > 0, ("npages is 0"));
@@ -3098,16 +3097,17 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 		 * Find the highest runs that satisfy the given constraints
 		 * and restrictions, and record them in "m_runs".
 		 */
-		curr_low = low;
 		count = 0;
-		for (;;) {
-			m_run = vm_phys_scan_contig(domain, npages, curr_low,
-			    high, alignment, boundary, options);
-			if (m_run == NULL)
-				break;
-			curr_low = VM_PAGE_TO_PHYS(m_run) + ptoa(npages);
-			m_runs[RUN_INDEX(count, nruns)] = m_run;
-			count++;
+		segind = vm_phys_lookup_segind(low);
+		while ((segind = vm_phys_find_range(bounds, segind, domain,
+		    npages, low, high)) != -1) {
+			while ((m_run = vm_page_scan_contig(npages, bounds[0],
+			    bounds[1], alignment, boundary, options))) {
+				bounds[0] = m_run + npages;
+				m_runs[RUN_INDEX(count, nruns)] = m_run;
+				count++;
+			}
+			segind++;
 		}
 
 		/*
