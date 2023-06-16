@@ -473,28 +473,6 @@ PMCs, then the
 driver will reject allocation requests for process-private PMCs that
 request counting of hardware events that cannot be counted separately
 for each logical CPU.
-.Ss Intel Pentium-Pro Handling
-Writing a value to the PMC MSRs found in Intel Pentium-Pro style PMCs
-(found in
-.Tn "Intel Pentium Pro" ,
-.Tn "Pentium II" ,
-.Tn "Pentium III" ,
-.Tn "Pentium M"
-and
-.Tn "Celeron"
-processors) will replicate bit 31 of the
-value being written into the upper 8 bits of the MSR,
-bringing down the usable width of these PMCs to 31 bits.
-For process-virtual PMCs, the
-.Nm
-driver implements a workaround in software and makes the corrected 64
-bit count available via the
-.Dv PMC_OP_RW
-operation.
-Processes that intend to use RDPMC instructions directly or
-that intend to write values larger than 2^31 into these PMCs with
-.Dv PMC_OP_RW
-need to be aware of this hardware limitation.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "hwpmc: [class/npmc/capabilities]..."
