@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_strings.h>
 #include <net/if_types.h>
 #include <net/route.h>
 
@@ -1585,6 +1586,8 @@ unsetifdescr(if_ctx *ctx, const char *val __unused, int value __unused)
 	setifdescr(ctx, "", 0);
 }
 
+#ifdef WITHOUT_NETLINK
+
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
@@ -1656,7 +1659,7 @@ print_ifcap_nv(if_ctx *ctx)
 		Perror("ioctl (SIOCGIFCAP)");
 }
 
-void
+static void
 print_ifcap(if_ctx *ctx)
 {
 	struct ifreq ifr = {};
@@ -1675,6 +1678,7 @@ print_ifcap(if_ctx *ctx)
 		}
 	}
 }
+#endif
 
 void
 print_ifstatus(if_ctx *ctx)

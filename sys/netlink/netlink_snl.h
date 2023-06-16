@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netlink/netlink.h>
+#include <netlink/netlink_bitset.h>
 
 #define _roundup2(x, y)         (((x)+((y)-1))&(~((y)-1)))
 
@@ -732,7 +733,7 @@ snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla,
 }
 
 static inline bool
-snl_attr_dup_nla(struct snl_state *ss __unused, struct nlattr *nla,
+snl_attr_dup_nla(struct snl_state *ss, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
 	void *ptr = snl_allocz(ss, nla->nla_len);
@@ -771,6 +772,90 @@ snl_attr_dup_struct(struct snl_state *ss, struct nlattr *nla,
 		return (true);
 	}
 	return (false);
+}
+
+struct snl_attr_bit {
+	uint32_t	bit_index;
+	char		*bit_name;
+	int		bit_value;
+};
+
+struct snl_attr_bits {
+	uint32_t num_bits;
+	struct snl_attr_bit **bits;
+};
+
+#define	_OUT(_field)	offsetof(struct snl_attr_bit, _field)
+static const struct snl_attr_parser _nla_p_bit[] = {
+	{ .type = NLA_BITSET_BIT_INDEX, .off = _OUT(bit_index), .cb = snl_attr_get_uint32 },
+	{ .type = NLA_BITSET_BIT_NAME, .off = _OUT(bit_name), .cb = snl_attr_dup_string },
+	{ .type = NLA_BITSET_BIT_VALUE, .off = _OUT(bit_value), .cb = snl_attr_get_flag },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_nla_bit_parser, sizeof(struct snl_attr_bit), _nla_p_bit, NULL);
+
+struct snl_attr_bitset {
+	uint32_t		nla_bitset_size;
+	uint32_t		*nla_bitset_mask;
+	uint32_t		*nla_bitset_value;
+	struct snl_attr_bits	bits;
+};
+
+#define	_OUT(_field)	offsetof(struct snl_attr_bitset, _field)
+static const struct snl_attr_parser _nla_p_bitset[] = {
+	{ .type = NLA_BITSET_SIZE, .off = _OUT(nla_bitset_size), .cb = snl_attr_get_uint32 },
+	{ .type = NLA_BITSET_BITS, .off = _OUT(bits), .cb = snl_attr_get_parray, .arg = &_nla_bit_parser },
+	{ .type = NLA_BITSET_VALUE, .off = _OUT(nla_bitset_mask), .cb = snl_attr_dup_nla },
+	{ .type = NLA_BITSET_MASK, .off = _OUT(nla_bitset_value), .cb = snl_attr_dup_nla },
+};
+
+static inline bool
+_cb_p_bitset(struct snl_state *ss __unused, void *_target)
+{
+	struct snl_attr_bitset *target = _target;
+
+	uint32_t sz_bytes = _roundup2(target->nla_bitset_size, 32) / 8;
+
+	if (target->nla_bitset_mask != NULL) {
+		struct nlattr *nla = (struct nlattr *)target->nla_bitset_mask;
+		uint32_t data_len = NLA_DATA_LEN(nla);
+
+		if (data_len != sz_bytes || _roundup2(data_len, 4) != data_len)
+			return (false);
+		target->nla_bitset_mask = (uint32_t *)NLA_DATA(nla);
+	}
+
+	if (target->nla_bitset_value != NULL) {
+		struct nlattr *nla = (struct nlattr *)target->nla_bitset_value;
+		uint32_t data_len = NLA_DATA_LEN(nla);
+
+		if (data_len != sz_bytes || _roundup2(data_len, 4) != data_len)
+			return (false);
+		target->nla_bitset_value = (uint32_t *)NLA_DATA(nla);
+	}
+	return (true);
+}
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_nla_bitset_parser,
+		sizeof(struct snl_attr_bitset),
+		_nla_p_bitset, _cb_p_bitset);
+
+/*
+ * Parses the compact bitset representation.
+ */
+static inline bool
+snl_attr_get_bitset_c(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *_target)
+{
+	const struct snl_hdr_parser *p = &_nla_bitset_parser;
+	struct snl_attr_bitset *target = _target;
+
+	/* Assumes target points to the beginning of the structure */
+	if (!snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), p, _target))
+		return (false);
+	if (target->nla_bitset_mask == NULL || target->nla_bitset_value == NULL)
+		return (false);
+	return (true);
 }
 
 static inline void
@@ -1184,6 +1269,7 @@ snl_send_msgs(struct snl_writer *nw)
 
 static const struct snl_hdr_parser *snl_all_core_parsers[] = {
 	&snl_errmsg_parser, &snl_donemsg_parser,
+	&_nla_bit_parser, &_nla_bitset_parser,
 };
 
 #endif
