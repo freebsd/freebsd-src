@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2022
+.Dd June 10, 2023
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -153,8 +153,10 @@ in use:
 .It Sy firstboot , nojail , nojailvnet , nostart
 Used by
 .Xr rc 8 .
-.It Sy resume
+.It Sy suspend , resume
 Used by
+.Nm /etc/rc.suspend
+and
 .Nm /etc/rc.resume
 (see
 .Xr acpiconf 8 )
