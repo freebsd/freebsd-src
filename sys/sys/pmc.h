@@ -1069,6 +1069,12 @@ extern struct pmc_cpu **pmc_pcpu;
 extern struct pmc_driverstats pmc_stats;
 
 #if	defined(HWPMC_DEBUG)
+
+/* HWPMC_DEBUG without KTR will compile but is a no-op. */
+#if !defined(KTR) || !defined(KTR_COMPILE) || ((KTR_COMPILE & KTR_SUBSYS) == 0)
+#error "HWPMC_DEBUG requires KTR and KTR_COMPILE=KTR_SUBSYS -- see ktr(4)"
+#endif
+
 #include <sys/ktr.h>
 
 #define	__pmcdbg_used		/* unused variable annotation */
