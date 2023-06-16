@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2023
+.Dd June 16, 2023
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -281,14 +281,15 @@ Non-disabled hardware counters in such a row may be used
 for satisfying system scope allocation requests.
 No process scope PMCs will use hardware counters in this row.
 .El
-.Sh PROGRAMMING API
-The recommended way for application programs to use the facilities of
-the
-.Nm
-driver is using the API provided by the
+.Sh COMPATIBILITY
+The API and ABI documented in this manual page may change in the future.
+This interface is intended to be consumed by the
 .Xr pmc 3
-library.
-.Pp
+library; other consumers are unsupported.
+Applications targeting PMCs should use the
+.Xr pmc 3
+library API.
+.Sh PROGRAMMING API
 The
 .Nm
 driver operates using a system call number that is dynamically
@@ -519,16 +520,6 @@ The value for tunable
 .Va kern.hwpmc.nsamples
 was negative or greater than 65535.
 .El
-.Sh COMPATIBILITY
-The
-.Nm
-driver is
-.Ud
-The API and ABI documented in this manual page may change in
-the future.
-The recommended method of accessing this driver is using the
-.Xr pmc 3
-API.
 .Sh ERRORS
 A command issued to the
 .Nm

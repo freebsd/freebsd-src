@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2023
+.Dd June 16, 2023
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -542,11 +542,7 @@ In order to ease forward compatibility with future versions of the
 driver, applications are urged to dynamically link with the
 .Nm pmc
 library.
-.Pp
-The
-.Nm pmc
-API is
-.Ud
+Doing otherwise is unsupported.
 .Sh SEE ALSO
 .Xr pmc.atom 3 ,
 .Xr pmc.core 3 ,
