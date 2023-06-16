@@ -100,7 +100,10 @@ static const char *ifcap_bit_names[] = {
 	IFCAP_RXTLS4_NAME,
 	IFCAP_RXTLS6_NAME,
 };
+
+#ifdef IFCAP_B_SIZE
 _Static_assert(sizeof(ifcap_bit_names) >= IFCAP_B_SIZE * sizeof(char *),
     "ifcap bit names missing from ifcap_bit_names");
+#endif
 
 #endif
