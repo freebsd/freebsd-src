@@ -1246,7 +1246,7 @@ vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
 	struct vm_phys_seg *end_seg, *seg;
 
 	KASSERT(npages > 0, ("npages is zero"));
-	KASSERT(domain >= 0 && domain < vm_ndomain, ("domain out of range"));
+	KASSERT(domain >= 0 && domain < vm_ndomains, ("domain out of range"));
 	end_seg = &vm_phys_segs[vm_phys_nsegs];
 	for (seg = &vm_phys_segs[segind]; seg < end_seg; seg++) {
 		if (seg->domain != domain)
