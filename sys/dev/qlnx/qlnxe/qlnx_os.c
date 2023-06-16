@@ -445,17 +445,12 @@ qlnx_num_tx_compl(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 {
 	u16 hw_bd_cons;
 	u16 ecore_cons_idx;
-	uint16_t diff;
 
 	hw_bd_cons = le16toh(*txq->hw_cons_ptr);
 
 	ecore_cons_idx = ecore_chain_get_cons_idx(&txq->tx_pbl);
-	if (hw_bd_cons < ecore_cons_idx) {
-		diff = (1 << 16) - (ecore_cons_idx - hw_bd_cons);
-	} else {
-		diff = hw_bd_cons - ecore_cons_idx;
-	}
-	return diff;
+
+	return (hw_bd_cons - ecore_cons_idx);
 }
 
 static void
@@ -2946,11 +2941,7 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 	while (hw_bd_cons !=
 		(ecore_cons_idx = ecore_chain_get_cons_idx(&txq->tx_pbl))) {
-		if (hw_bd_cons < ecore_cons_idx) {
-			diff = (1 << 16) - (ecore_cons_idx - hw_bd_cons);
-		} else {
-			diff = hw_bd_cons - ecore_cons_idx;
-		}
+		diff = hw_bd_cons - ecore_cons_idx;
 		if ((diff > TX_RING_SIZE) ||
 			QL_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_DIFF)){
 			QL_RESET_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_DIFF);
