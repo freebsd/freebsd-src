@@ -542,7 +542,7 @@ ecore_ll2_lb_rxq_handler(struct ecore_hwfn *p_hwfn,
 	struct ecore_ll2_rx_queue *p_rx = &p_ll2_conn->rx_queue;
 	u16 packet_length = 0, parse_flags = 0, vlan = 0;
 	struct ecore_ll2_rx_packet *p_pkt = OSAL_NULL;
-	u32 num_ooo_add_to_peninsula = 0, cid;
+	u32 cid;
 	union core_rx_cqe_union *cqe = OSAL_NULL;
 	u16 cq_new_idx = 0, cq_old_idx = 0;
 	struct ecore_ooo_buffer	*p_buffer;
@@ -669,7 +669,6 @@ ecore_ll2_lb_rxq_handler(struct ecore_hwfn *p_hwfn,
 						     iscsi_ooo->ooo_isle);
 				break;
 			case TCP_EVENT_ADD_PEN:
-				num_ooo_add_to_peninsula++;
 				ecore_ooo_put_ready_buffer(p_hwfn->p_ooo_info,
 							   p_buffer, true);
 				break;
