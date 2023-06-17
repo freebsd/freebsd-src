@@ -880,7 +880,7 @@ hifn_set_retry(struct hifn_softc *sc)
 }
 
 /*
- * Resets the board.  Values in the regesters are left as is
+ * Resets the board.  Values in the registers are left as is
  * from the reset (i.e. initial values are assigned elsewhere).
  */
 static void
