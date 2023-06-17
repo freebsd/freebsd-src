@@ -297,6 +297,22 @@ dev/qlnx/qlnxe/ecore_sp_commands.c optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
 dev/qlnx/qlnxe/ecore_spq.c	optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_sriov.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_vf.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_ll2.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_iwarp.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_rdma.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_roce.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_ooo.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/qlnx_rdma.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
 dev/qlnx/qlnxe/qlnx_ioctl.c	optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
 dev/qlnx/qlnxe/qlnx_os.c	optional	qlnxe pci \
