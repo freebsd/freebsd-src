@@ -1712,7 +1712,7 @@ completes in order to verify the checksums of all blocks which have been
 resilvered.
 This is enabled by default and strongly recommended.
 .
-.It Sy zfs_rebuild_vdev_limit Ns = Ns Sy 33554432 Ns B Po 32MB Pc Pq ulong
+.It Sy zfs_rebuild_vdev_limit Ns = Ns Sy 67108864 Ns B Po 64 MiB Pc Pq ulong
 Maximum amount of I/O that can be concurrently issued for a sequential
 resilver per leaf device, given in bytes.
 .
@@ -1831,6 +1831,13 @@ When we cross this limit from above it is because we are issuing verification I/
 In this case (unless the metadata scan is done) we stop issuing verification I/O
 and start scanning metadata again until we get to the hard limit.
 .
+.It Sy zfs_scan_report_txgs Ns = Ns Sy 0 Ns | Ns 1 Pq uint
+When reporting resilver throughput and estimated completion time use the
+performance observed over roughly the last
+.Sy zfs_scan_report_txgs
+TXGs.
+When set to zero performance is calculated over the time between checkpoints.
+.
 .It Sy zfs_scan_strict_mem_lim Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Enforce tight memory limits on pool scans when a sequential scan is in progress.
 When disabled, the memory limit may be exceeded by fast disks.
@@ -1839,7 +1846,7 @@ When disabled, the memory limit may be exceeded by fast disks.
 Freezes a scrub/resilver in progress without actually pausing it.
 Intended for testing/debugging.
 .
-.It Sy zfs_scan_vdev_limit Ns = Ns Sy 4194304 Ns B Po 4MB Pc Pq int
+.It Sy zfs_scan_vdev_limit Ns = Ns Sy 16777216 Ns B Po 16 MiB Pc Pq int
 Maximum amount of data that can be concurrently issued at once for scrubs and
 resilvers per leaf device, given in bytes.
 .

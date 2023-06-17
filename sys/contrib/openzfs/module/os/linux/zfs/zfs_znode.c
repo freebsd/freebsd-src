@@ -134,6 +134,9 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 	zp->z_acl_cached = NULL;
 	zp->z_xattr_cached = NULL;
 	zp->z_xattr_parent = 0;
+	zp->z_sync_writes_cnt = 0;
+	zp->z_async_writes_cnt = 0;
+
 	return (0);
 }
 
@@ -151,9 +154,12 @@ zfs_znode_cache_destructor(void *buf, void *arg)
 	rw_destroy(&zp->z_xattr_lock);
 	zfs_rangelock_fini(&zp->z_rangelock);
 
-	ASSERT(zp->z_dirlocks == NULL);
-	ASSERT(zp->z_acl_cached == NULL);
-	ASSERT(zp->z_xattr_cached == NULL);
+	ASSERT3P(zp->z_dirlocks, ==, NULL);
+	ASSERT3P(zp->z_acl_cached, ==, NULL);
+	ASSERT3P(zp->z_xattr_cached, ==, NULL);
+
+	ASSERT0(atomic_load_32(&zp->z_sync_writes_cnt));
+	ASSERT0(atomic_load_32(&zp->z_async_writes_cnt));
 }
 
 static int
@@ -540,7 +546,9 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	ASSERT3P(zp->z_xattr_cached, ==, NULL);
 	zp->z_unlinked = B_FALSE;
 	zp->z_atime_dirty = B_FALSE;
+#if !defined(HAVE_FILEMAP_RANGE_HAS_PAGE)
 	zp->z_is_mapped = B_FALSE;
+#endif
 	zp->z_is_ctldir = B_FALSE;
 	zp->z_suspended = B_FALSE;
 	zp->z_sa_hdl = NULL;
@@ -549,6 +557,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zp->z_blksz = blksz;
 	zp->z_seq = 0x7A4653;
 	zp->z_sync_cnt = 0;
+	zp->z_sync_writes_cnt = 0;
+	zp->z_async_writes_cnt = 0;
 
 	zfs_znode_sa_init(zfsvfs, zp, db, obj_type, hdl);
 
@@ -1628,7 +1638,7 @@ zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
 	 * Zero partial page cache entries.  This must be done under a
 	 * range lock in order to keep the ARC and page cache in sync.
 	 */
-	if (zp->z_is_mapped) {
+	if (zn_has_cached_data(zp, off, off + len - 1)) {
 		loff_t first_page, last_page, page_len;
 		loff_t first_page_offset, last_page_offset;
 

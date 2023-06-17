@@ -37,7 +37,7 @@ tests = ['alloc_class_001_pos', 'alloc_class_002_neg', 'alloc_class_003_pos',
     'alloc_class_004_pos', 'alloc_class_005_pos', 'alloc_class_006_pos',
     'alloc_class_007_pos', 'alloc_class_008_pos', 'alloc_class_009_pos',
     'alloc_class_010_pos', 'alloc_class_011_neg', 'alloc_class_012_pos',
-    'alloc_class_013_pos']
+    'alloc_class_013_pos', 'alloc_class_014_neg', 'alloc_class_015_pos']
 tags = ['functional', 'alloc_class']
 
 [tests/functional/arc]
@@ -407,7 +407,7 @@ tests = ['zpool_import_001_pos', 'zpool_import_002_pos',
     'import_cachefile_mirror_detached',
     'import_cachefile_paths_changed',
     'import_cachefile_shared_device',
-    'import_devices_missing',
+    'import_devices_missing', 'import_log_missing',
     'import_paths_changed',
     'import_rewind_config_changed',
     'import_rewind_device_replaced']
@@ -431,6 +431,7 @@ tests = ['zpool_initialize_attach_detach_add_remove',
     'zpool_initialize_start_and_cancel_neg',
     'zpool_initialize_start_and_cancel_pos',
     'zpool_initialize_suspend_resume',
+    'zpool_initialize_uninit',
     'zpool_initialize_unsupported_vdevs',
     'zpool_initialize_verify_checksums',
     'zpool_initialize_verify_initialized']
@@ -456,7 +457,8 @@ tests = ['zpool_replace_001_neg', 'replace-o_ashift', 'replace_prop_ashift']
 tags = ['functional', 'cli_root', 'zpool_replace']
 
 [tests/functional/cli_root/zpool_resilver]
-tests = ['zpool_resilver_bad_args', 'zpool_resilver_restart']
+tests = ['zpool_resilver_bad_args', 'zpool_resilver_restart',
+    'zpool_resilver_concurrent']
 tags = ['functional', 'cli_root', 'zpool_resilver']
 
 [tests/functional/cli_root/zpool_scrub]
@@ -669,7 +671,8 @@ tests = ['migration_001_pos', 'migration_002_pos', 'migration_003_pos',
 tags = ['functional', 'migration']
 
 [tests/functional/mmap]
-tests = ['mmap_write_001_pos', 'mmap_read_001_pos', 'mmap_seek_001_pos']
+tests = ['mmap_mixed', 'mmap_read_001_pos', 'mmap_seek_001_pos',
+    'mmap_write_001_pos', 'mmap_sync_001_pos']
 tags = ['functional', 'mmap']
 
 [tests/functional/mount]
@@ -823,9 +826,9 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send-c_mixed_compression', 'send-c_stream_size_estimate',
     'send-c_embedded_blocks', 'send-c_resume', 'send-cpL_varied_recsize',
     'send-c_recv_dedup', 'send-L_toggle',
-    'send_encrypted_incremental.ksh', 'send_encrypted_hierarchy',
-    'send_encrypted_props', 'send_encrypted_truncated_files',
-    'send_freeobjects', 'send_realloc_files',
+    'send_encrypted_incremental.ksh', 'send_encrypted_freeobjects',
+    'send_encrypted_hierarchy', 'send_encrypted_props',
+    'send_encrypted_truncated_files', 'send_freeobjects', 'send_realloc_files',
     'send_realloc_encrypted_files', 'send_spill_block', 'send_holds',
     'send_hole_birth', 'send_mixed_raw', 'send-wR_encrypted_zvol',
     'send_partial_dataset', 'send_invalid', 'send_doall',

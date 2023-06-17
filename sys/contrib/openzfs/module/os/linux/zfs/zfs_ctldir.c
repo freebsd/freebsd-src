@@ -468,7 +468,9 @@ zfsctl_inode_alloc(zfsvfs_t *zfsvfs, uint64_t id,
 	zp->z_atime_dirty = B_FALSE;
 	zp->z_zn_prefetch = B_FALSE;
 	zp->z_is_sa = B_FALSE;
+#if !defined(HAVE_FILEMAP_RANGE_HAS_PAGE)
 	zp->z_is_mapped = B_FALSE;
+#endif
 	zp->z_is_ctldir = B_TRUE;
 	zp->z_sa_hdl = NULL;
 	zp->z_blksz = 0;
@@ -478,6 +480,8 @@ zfsctl_inode_alloc(zfsvfs_t *zfsvfs, uint64_t id,
 	zp->z_pflags = 0;
 	zp->z_mode = 0;
 	zp->z_sync_cnt = 0;
+	zp->z_sync_writes_cnt = 0;
+	zp->z_async_writes_cnt = 0;
 	ip->i_generation = 0;
 	ip->i_ino = id;
 	ip->i_mode = (S_IFDIR | S_IRWXUGO);
