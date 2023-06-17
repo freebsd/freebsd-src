@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #define	OP_RT_SP	(1UL << 8)	/* Use sp for RT otherwise xzr */
 #define	OP_RN_SP	(1UL << 9)	/* Use sp for RN otherwise xzr */
 #define	OP_RM_SP	(1UL << 10)	/* Use sp for RM otherwise xzr */
+#define	OP_SHIFT_ROR	(1UL << 11)	/* Use ror shift type */
 
 static const char *w_reg[] = {
 	"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7",
@@ -69,7 +70,7 @@ static const char *x_reg[] = {
 };
 
 static const char *shift_2[] = {
-	"lsl", "lsr", "asr", "rsv"
+	"lsl", "lsr", "asr", "ror"
 };
 
 /*
@@ -232,6 +233,28 @@ static struct arm64_insn arm64_i[] = {
 	    TYPE_01, 0 },			/* negs shifted register */
 	{ "subs", "SF(1)|1101011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
 	    TYPE_01, 0 },			/* subs shifted register */
+	{ "mvn", "SF(1)|0101010|SHIFT(2)|1|RM(5)|IMM(6)|11111|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* mvn shifted register */
+	{ "orn", "SF(1)|0101010|SHIFT(2)|1|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* orn shifted register */
+	{ "mov", "SF(1)|0101010000|RM(5)|000000|11111|RD(5)",
+	    TYPE_01, 0 },			/* mov register */
+	{ "orr", "SF(1)|0101010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* orr shifted register */
+	{ "and", "SF(1)|0001010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* and shifted register */
+	{ "tst", "SF(1)|1101010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|11111",
+	    TYPE_01, OP_SHIFT_ROR },		/* tst shifted register */
+	{ "ands", "SF(1)|1101010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* ands shifted register */
+	{ "bic", "SF(1)|0001010|SHIFT(2)|1|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* bic shifted register */
+	{ "bics", "SF(1)|1101010|SHIFT(2)|1|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* bics shifted register */
+	{ "eon", "SF(1)|1001010|SHIFT(2)|1|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* eon shifted register */
+	{ "eor", "SF(1)|1001010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, OP_SHIFT_ROR },		/* eor shifted register */
 	{ NULL, NULL }
 };
 
@@ -420,6 +443,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	int pre;
 	/* Indicate if x31 register should be printed as sp or xzr */
 	int rm_sp, rt_sp, rd_sp, rn_sp;
+	/* Indicate if shift type ror is supported */
+	bool has_shift_ror;
 
 	/* Initialize defaults, all are 0 except SF indicating 64bit access */
 	shift = rd = rm = rn = imm = idx = option = amount = scale = 0;
@@ -464,6 +489,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	rd_sp = i_ptr->special_ops & OP_RD_SP;
 	rn_sp = i_ptr->special_ops & OP_RN_SP;
 
+	has_shift_ror = i_ptr->special_ops & OP_SHIFT_ROR;
+
 	/* Print opcode by type */
 	switch (i_ptr->type) {
 	case TYPE_01:
@@ -478,6 +505,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		rn_absent = arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		rm_absent = arm64_disasm_read_token(i_ptr, insn, "RM", &rm);
 		arm64_disasm_read_token(i_ptr, insn, "SHIFT", &shift);
+
+		/*
+		 * if shift type is RESERVED for shifted register instruction,
+		 * print undefined
+		 */
+		if (shift == 3 && !has_shift_ror)
+			goto undefined;
 
 		di->di_printf("%s\t", i_ptr->name);
 
