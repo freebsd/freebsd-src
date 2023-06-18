@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 
 #include "dpaa2_types.h"
+#include "dpaa2_buf.h"
 #include "dpaa2_bp.h"
 
 /*
@@ -318,16 +319,16 @@ CTASSERT(sizeof(struct dpaa2_fd) == DPAA2_FD_SIZE);
 struct dpaa2_fa {
 	uint32_t		 magic;
 	struct dpaa2_buf	*buf;
+#ifdef __notyet__
 	union {
 		struct { /* Tx frame annotation */
 			struct dpaa2_ni_tx_ring *tx;
 		};
-#ifdef __notyet__
 		struct { /* Rx frame annotation */
 			uint64_t		 _notused;
 		};
-#endif
 	};
+#endif
 } __packed;
 CTASSERT(sizeof(struct dpaa2_fa) <= DPAA2_FA_SIZE);
 
