@@ -117,10 +117,17 @@ show()
 		exit 1
 		;;
 	esac
+	requireds=`env -i make -f ${srcdir}/share/mk/src.opts.mk \
+	    -V '${__REQUIRED_OPTIONS:ts,}'`
 	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
+		case ,${requireds}, in
+		*,${opt},*)
+			continue
+			;;
+		esac
 		case ${val} in
 		yes)
 			echo ${yes_prefix}_${opt}
