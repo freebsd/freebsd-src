@@ -76,9 +76,7 @@ __DEFAULT_YES_OPTIONS = \
     BSNMP \
     BZIP2 \
     CALENDAR \
-    CAPSICUM \
     CAROOT \
-    CASPER \
     CCD \
     CDDL \
     CLANG \
@@ -217,6 +215,8 @@ __DEFAULT_NO_OPTIONS = \
     ZONEINFO_LEAPSECONDS_SUPPORT \
 
 __REQUIRED_OPTIONS = \
+    CAPSICUM \
+    CASPER
 
 # LEFT/RIGHT. Left options which default to "yes" unless their corresponding
 # RIGHT option is disabled.
