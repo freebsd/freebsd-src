@@ -202,6 +202,8 @@ dev/axgbe/xgbe-phy-v1.c				optional axa fdt
 dev/cpufreq/cpufreq_dt.c			optional cpufreq fdt
 
 dev/dpaa2/dpaa2_bp.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_buf.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_channel.c			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_cmd_if.m			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_con.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_console.c			optional soc_nxp_ls dpaa2 fdt
@@ -216,6 +218,7 @@ dev/dpaa2/dpaa2_ni.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_rc.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_swp.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_swp_if.m			optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_types.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/memac_mdio_acpi.c			optional soc_nxp_ls dpaa2 acpi
 dev/dpaa2/memac_mdio_common.c			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
 dev/dpaa2/memac_mdio_fdt.c			optional soc_nxp_ls dpaa2 fdt

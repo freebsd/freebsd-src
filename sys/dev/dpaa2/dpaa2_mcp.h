@@ -29,7 +29,6 @@
 #define	_DPAA2_MCP_H
 
 #include <sys/rman.h>
-#include <sys/condvar.h>
 #include <sys/mutex.h>
 
 #include "dpaa2_types.h"

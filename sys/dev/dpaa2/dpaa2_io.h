@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2022 Dmitry Salychev
+ * Copyright © 2021-2023 Dmitry Salychev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,7 @@
 
 #include "dpaa2_types.h"
 #include "dpaa2_mcp.h"
+#include "dpaa2_swp.h"
 
 /* Maximum resources per DPIO: 3 SYS_MEM + 1 DPMCP. */
 #define DPAA2_IO_MAX_RESOURCES	4
@@ -74,8 +75,6 @@ struct dpaa2_io_attr {
  * (CDAN) on a particular WQ channel.
  */
 struct dpaa2_io_notif_ctx {
-	void (*poll)(void *);
-
 	device_t		 io_dev;
 	void			*channel;
 	uint64_t		 qman_ctx;
@@ -98,6 +97,9 @@ struct dpaa2_io_softc {
 	int			 irq_rid[DPAA2_IO_MSI_COUNT];
 	struct resource		*irq_resource;
 	void			*intr; /* interrupt handle */
+
+	int			 cpu;
+	cpuset_t		 cpu_mask;
 };
 
 extern struct resource_spec dpaa2_io_spec[];

@@ -78,7 +78,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/condvar.h>
 #include <sys/lock.h>
 
 #include <machine/bus.h>
@@ -298,8 +297,9 @@ dpaa2_swp_init_portal(struct dpaa2_swp **swp, struct dpaa2_swp_desc *desc,
 	    & p->eqcr.pi_ci_mask;
 	p->eqcr.available = p->eqcr.pi_ring_size;
 
-	/* Initialize the portal with an IRQ threshold and timeout of 0us. */
-	dpaa2_swp_set_irq_coalescing(p, p->dqrr.ring_size - 1, 0);
+	/* TODO: sysctl(9) for the IRQ timeout? */
+	/* Initialize the portal with an IRQ threshold and timeout of 120us. */
+	dpaa2_swp_set_irq_coalescing(p, p->dqrr.ring_size - 1, 120);
 
 	*swp = p;
 
@@ -724,16 +724,13 @@ dpaa2_swp_pull(struct dpaa2_swp *swp, uint16_t chan_id, struct dpaa2_buf *buf,
 	uint16_t flags;
 	int i, error;
 
-	KASSERT(swp != NULL, ("%s: swp is NULL", __func__));
 	KASSERT(frames_n != 0u, ("%s: cannot pull zero frames", __func__));
 	KASSERT(frames_n <= 16u, ("%s: too much frames to pull", __func__));
-	KASSERT(buf->type == DPAA2_BUF_STORE, ("%s: not channel storage "
-	    "buffer", __func__));
 
 	cmd.numf = frames_n - 1;
 	cmd.tok = DPAA2_SWP_VDQCR_TOKEN;
 	cmd.dq_src = chan_id;
-	cmd.rsp_addr = (uint64_t) buf->store.paddr;
+	cmd.rsp_addr = (uint64_t)buf->paddr;
 
 	/* Dequeue command type */
 	cmd.verb &= ~(1 << QB_VDQCR_VERB_DCT0_SHIFT);
@@ -763,10 +760,10 @@ dpaa2_swp_pull(struct dpaa2_swp *swp, uint16_t chan_id, struct dpaa2_buf *buf,
 	}
 
 	/* Let's sync before reading VDQ response from QBMan. */
-	bus_dmamap_sync(buf->store.dmat, buf->store.dmap, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(buf->dmat, buf->dmap, BUS_DMASYNC_POSTREAD);
 
 	/* Read VDQ response from QBMan. */
-	msg = (struct dpaa2_dq *) buf->store.vaddr;
+	msg = (struct dpaa2_dq *)buf->vaddr;
 	for (i = 1; i <= CMD_SPIN_ATTEMPTS; i++) {
 		if ((msg->fdr.desc.stat & DPAA2_DQ_STAT_VOLATILE) &&
 		    (msg->fdr.desc.tok == DPAA2_SWP_VDQCR_TOKEN)) {

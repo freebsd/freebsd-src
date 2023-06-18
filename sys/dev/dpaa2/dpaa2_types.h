@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2022 Dmitry Salychev
+ * Copyright © 2021-2023 Dmitry Salychev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,9 +28,17 @@
 #ifndef	_DPAA2_TYPES_H
 #define	_DPAA2_TYPES_H
 
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #include <machine/atomic.h>
+#include <machine/bus.h>
 
 #define DPAA2_MAGIC	((uint32_t) 0xD4AA2C0Du)
+
+#define DPAA2_MAX_CHANNELS	 16 /* CPU cores */
+#define DPAA2_MAX_TCS		 8  /* Traffic classes */
 
 /**
  * @brief Types of the DPAA2 devices.
@@ -51,55 +59,66 @@ enum dpaa2_dev_type {
 };
 
 /**
- * @brief Types of the DPAA2 buffers.
+ * @brief Types of the DPNI queues.
  */
-enum dpaa2_buf_type {
-	DPAA2_BUF_RX = 75,	/* Rx buffer */
-	DPAA2_BUF_TX,		/* Tx buffer */
-	DPAA2_BUF_STORE		/* Channel storage, key configuration */
-};
-
-/**
- * @brief DMA-mapped buffer (for Rx/Tx buffers, channel storage, etc.).
- */
-struct dpaa2_buf {
-	enum dpaa2_buf_type		 type;
-	union {
-		struct {
-			bus_dma_tag_t	 dmat; /* DMA tag for this buffer */
-			bus_dmamap_t	 dmap;
-			bus_addr_t	 paddr;
-			void		*vaddr;
-
-			struct mbuf	*m; /* associated mbuf */
-		} rx;
-		struct {
-			bus_dma_tag_t	 dmat; /* DMA tag for this buffer */
-			bus_dmamap_t	 dmap;
-			bus_addr_t	 paddr;
-			void		*vaddr;
-
-			struct mbuf	*m; /* associated mbuf */
-			uint64_t	 idx;
-
-			/* for scatter/gather table */
-			bus_dma_tag_t	 sgt_dmat;
-			bus_dmamap_t	 sgt_dmap;
-			bus_addr_t	 sgt_paddr;
-			void		*sgt_vaddr;
-		} tx;
-		struct {
-			bus_dma_tag_t	 dmat; /* DMA tag for this buffer */
-			bus_dmamap_t	 dmap;
-			bus_addr_t	 paddr;
-			void		*vaddr;
-		} store;
-	};
+enum dpaa2_ni_queue_type {
+	DPAA2_NI_QUEUE_RX = 0,
+	DPAA2_NI_QUEUE_TX,
+	DPAA2_NI_QUEUE_TX_CONF,
+	DPAA2_NI_QUEUE_RX_ERR
 };
 
 struct dpaa2_atomic {
 	volatile int counter;
 };
+
+/**
+ * @brief Tx ring.
+ *
+ * fq:		Parent (TxConf) frame queue.
+ * fqid:	ID of the logical Tx queue.
+ * br:		Ring buffer for mbufs to transmit.
+ * lock:	Lock for the ring buffer.
+ */
+struct dpaa2_ni_tx_ring {
+	struct dpaa2_ni_fq	*fq;
+	uint32_t		 fqid;
+	uint32_t		 txid; /* Tx ring index */
+
+	struct buf_ring		*br;
+	struct mtx		 lock;
+} __aligned(CACHE_LINE_SIZE);
+
+/**
+ * @brief Frame Queue is the basic queuing structure used by the QMan.
+ *
+ * It comprises a list of frame descriptors (FDs), so it can be thought of
+ * as a queue of frames.
+ *
+ * NOTE: When frames on a FQ are ready to be processed, the FQ is enqueued
+ *	 onto a work queue (WQ).
+ *
+ * fqid:	Frame queue ID, can be used to enqueue/dequeue or execute other
+ *		commands on the queue through DPIO.
+ * txq_n:	Number of configured Tx queues.
+ * tx_fqid:	Frame queue IDs of the Tx queues which belong to the same flowid.
+ *		Note that Tx queues are logical queues and not all management
+ *		commands are available on these queue types.
+ * qdbin:	Queue destination bin. Can be used with the DPIO enqueue
+ *		operation based on QDID, QDBIN and QPRI. Note that all Tx queues
+ *		with the same flowid have the same destination bin.
+ */
+struct dpaa2_ni_fq {
+	struct dpaa2_channel	*chan;
+	uint32_t		 fqid;
+	uint16_t		 flowid;
+	uint8_t			 tc;
+	enum dpaa2_ni_queue_type type;
+
+	/* Optional fields (for TxConf queue). */
+	struct dpaa2_ni_tx_ring	 tx_rings[DPAA2_MAX_TCS];
+	uint32_t		 tx_qdbin;
+} __aligned(CACHE_LINE_SIZE);
 
 /* Handy wrappers over atomic operations. */
 #define DPAA2_ATOMIC_XCHG(a, val) \
@@ -109,8 +128,8 @@ struct dpaa2_atomic {
 #define DPAA2_ATOMIC_ADD(a, val) \
 	(atomic_add_acq_int(&(a)->counter, (val)))
 
-/* Convert DPAA2 type to/from string. */
-const char		*dpaa2_ttos(enum dpaa2_dev_type type);
-enum dpaa2_dev_type	 dpaa2_stot(const char *str);
+const char *dpaa2_ttos(enum dpaa2_dev_type);
+enum dpaa2_dev_type dpaa2_stot(const char *);
+void dpaa2_dmamap_oneseg_cb(void *, bus_dma_segment_t *, int, int);
 
 #endif /* _DPAA2_TYPES_H */
