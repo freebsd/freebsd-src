@@ -1397,22 +1397,55 @@ getifflags(const char *ifname, int us, bool err_ok)
  * Make a private copy so we can avoid that.
  */
 static void
+clearifflags(if_ctx *ctx, const char *vname, int value)
+{
+	struct ifreq		my_ifr;
+	int flags;
+
+	flags = getifflags(ctx->ifname, ctx->io_s, false);
+	flags &= ~value;
+	memset(&my_ifr, 0, sizeof(my_ifr));
+	strlcpy(my_ifr.ifr_name, ctx->ifname, sizeof(my_ifr.ifr_name));
+	my_ifr.ifr_flags = flags & 0xffff;
+	my_ifr.ifr_flagshigh = flags >> 16;
+	if (ioctl(ctx->io_s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
+		Perror(vname);
+}
+
+static void
 setifflags(if_ctx *ctx, const char *vname, int value)
 {
 	struct ifreq		my_ifr;
 	int flags;
 
 	flags = getifflags(ctx->ifname, ctx->io_s, false);
-	if (value < 0) {
-		value = -value;
-		flags &= ~value;
-	} else
-		flags |= value;
+	flags |= value;
 	memset(&my_ifr, 0, sizeof(my_ifr));
 	strlcpy(my_ifr.ifr_name, ctx->ifname, sizeof(my_ifr.ifr_name));
 	my_ifr.ifr_flags = flags & 0xffff;
 	my_ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(ctx->io_s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
+		Perror(vname);
+}
+
+void
+clearifcap(if_ctx *ctx, const char *vname, int value)
+{
+	struct ifreq ifr = {};
+	int flags;
+
+	if (ioctl_ctx_ifr(ctx, SIOCGIFCAP, &ifr) < 0) {
+ 		Perror("ioctl (SIOCGIFCAP)");
+ 		exit(1);
+ 	}
+	flags = ifr.ifr_curcap;
+	flags &= ~value;
+	flags &= ifr.ifr_reqcap;
+	/* Check for no change in capabilities. */
+	if (ifr.ifr_curcap == flags)
+		return;
+	ifr.ifr_reqcap = flags;
+	if (ioctl_ctx(ctx, SIOCSIFCAP, &ifr) < 0)
 		Perror(vname);
 }
 
@@ -1427,11 +1460,7 @@ setifcap(if_ctx *ctx, const char *vname, int value)
  		exit(1);
  	}
 	flags = ifr.ifr_curcap;
-	if (value < 0) {
-		value = -value;
-		flags &= ~value;
-	} else
-		flags |= value;
+	flags |= value;
 	flags &= ifr.ifr_reqcap;
 	/* Check for no change in capabilities. */
 	if (ifr.ifr_curcap == flags)
@@ -1972,17 +2001,17 @@ ifmaybeload(struct ifconfig_args *args, const char *name)
 
 static struct cmd basic_cmds[] = {
 	DEF_CMD("up",		IFF_UP,		setifflags),
-	DEF_CMD("down",		-IFF_UP,	setifflags),
-	DEF_CMD("arp",		-IFF_NOARP,	setifflags),
+	DEF_CMD("down",		IFF_UP,		clearifflags),
+	DEF_CMD("arp",		IFF_NOARP,	clearifflags),
 	DEF_CMD("-arp",		IFF_NOARP,	setifflags),
 	DEF_CMD("debug",	IFF_DEBUG,	setifflags),
-	DEF_CMD("-debug",	-IFF_DEBUG,	setifflags),
+	DEF_CMD("-debug",	IFF_DEBUG,	clearifflags),
 	DEF_CMD_ARG("description",		setifdescr),
 	DEF_CMD_ARG("descr",			setifdescr),
 	DEF_CMD("-description",	0,		unsetifdescr),
 	DEF_CMD("-descr",	0,		unsetifdescr),
 	DEF_CMD("promisc",	IFF_PPROMISC,	setifflags),
-	DEF_CMD("-promisc",	-IFF_PPROMISC,	setifflags),
+	DEF_CMD("-promisc",	IFF_PPROMISC,	clearifflags),
 	DEF_CMD("add",		IFF_UP,		notealias),
 	DEF_CMD("alias",	IFF_UP,		notealias),
 	DEF_CMD("-alias",	-IFF_UP,	notealias),
@@ -1991,7 +2020,7 @@ static struct cmd basic_cmds[] = {
 #ifdef notdef
 #define	EN_SWABIPS	0x1000
 	DEF_CMD("swabips",	EN_SWABIPS,	setifflags),
-	DEF_CMD("-swabips",	-EN_SWABIPS,	setifflags),
+	DEF_CMD("-swabips",	EN_SWABIPS,	clearifflags),
 #endif
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
@@ -2004,64 +2033,64 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG("-vnet",			setifrvnet),
 #endif
 	DEF_CMD("link0",	IFF_LINK0,	setifflags),
-	DEF_CMD("-link0",	-IFF_LINK0,	setifflags),
+	DEF_CMD("-link0",	IFF_LINK0,	clearifflags),
 	DEF_CMD("link1",	IFF_LINK1,	setifflags),
-	DEF_CMD("-link1",	-IFF_LINK1,	setifflags),
+	DEF_CMD("-link1",	IFF_LINK1,	clearifflags),
 	DEF_CMD("link2",	IFF_LINK2,	setifflags),
-	DEF_CMD("-link2",	-IFF_LINK2,	setifflags),
+	DEF_CMD("-link2",	IFF_LINK2,	clearifflags),
 	DEF_CMD("monitor",	IFF_MONITOR,	setifflags),
-	DEF_CMD("-monitor",	-IFF_MONITOR,	setifflags),
+	DEF_CMD("-monitor",	IFF_MONITOR,	clearifflags),
 	DEF_CMD("mextpg",	IFCAP_MEXTPG,	setifcap),
-	DEF_CMD("-mextpg",	-IFCAP_MEXTPG,	setifcap),
+	DEF_CMD("-mextpg",	IFCAP_MEXTPG,	clearifcap),
 	DEF_CMD("staticarp",	IFF_STATICARP,	setifflags),
-	DEF_CMD("-staticarp",	-IFF_STATICARP,	setifflags),
+	DEF_CMD("-staticarp",	IFF_STATICARP,	clearifflags),
 	DEF_CMD("stickyarp",	IFF_STICKYARP,	setifflags),
-	DEF_CMD("-stickyarp",	-IFF_STICKYARP,	setifflags),
+	DEF_CMD("-stickyarp",	IFF_STICKYARP,	clearifflags),
 	DEF_CMD("rxcsum6",	IFCAP_RXCSUM_IPV6,	setifcap),
-	DEF_CMD("-rxcsum6",	-IFCAP_RXCSUM_IPV6,	setifcap),
+	DEF_CMD("-rxcsum6",	IFCAP_RXCSUM_IPV6,	clearifcap),
 	DEF_CMD("txcsum6",	IFCAP_TXCSUM_IPV6,	setifcap),
-	DEF_CMD("-txcsum6",	-IFCAP_TXCSUM_IPV6,	setifcap),
+	DEF_CMD("-txcsum6",	IFCAP_TXCSUM_IPV6,	clearifcap),
 	DEF_CMD("rxcsum",	IFCAP_RXCSUM,	setifcap),
-	DEF_CMD("-rxcsum",	-IFCAP_RXCSUM,	setifcap),
+	DEF_CMD("-rxcsum",	IFCAP_RXCSUM,	clearifcap),
 	DEF_CMD("txcsum",	IFCAP_TXCSUM,	setifcap),
-	DEF_CMD("-txcsum",	-IFCAP_TXCSUM,	setifcap),
+	DEF_CMD("-txcsum",	IFCAP_TXCSUM,	clearifcap),
 	DEF_CMD("netcons",	IFCAP_NETCONS,	setifcap),
-	DEF_CMD("-netcons",	-IFCAP_NETCONS,	setifcap),
+	DEF_CMD("-netcons",	IFCAP_NETCONS,	clearifcap),
 	DEF_CMD_ARG("pcp",			setifpcp),
 	DEF_CMD("-pcp", 0,			disableifpcp),
 	DEF_CMD("polling",	IFCAP_POLLING,	setifcap),
-	DEF_CMD("-polling",	-IFCAP_POLLING,	setifcap),
+	DEF_CMD("-polling",	IFCAP_POLLING,	clearifcap),
 	DEF_CMD("tso6",		IFCAP_TSO6,	setifcap),
-	DEF_CMD("-tso6",	-IFCAP_TSO6,	setifcap),
+	DEF_CMD("-tso6",	IFCAP_TSO6,	clearifcap),
 	DEF_CMD("tso4",		IFCAP_TSO4,	setifcap),
-	DEF_CMD("-tso4",	-IFCAP_TSO4,	setifcap),
+	DEF_CMD("-tso4",	IFCAP_TSO4,	clearifcap),
 	DEF_CMD("tso",		IFCAP_TSO,	setifcap),
-	DEF_CMD("-tso",		-IFCAP_TSO,	setifcap),
+	DEF_CMD("-tso",		IFCAP_TSO,	clearifcap),
 	DEF_CMD("toe",		IFCAP_TOE,	setifcap),
-	DEF_CMD("-toe",		-IFCAP_TOE,	setifcap),
+	DEF_CMD("-toe",		IFCAP_TOE,	clearifcap),
 	DEF_CMD("lro",		IFCAP_LRO,	setifcap),
-	DEF_CMD("-lro",		-IFCAP_LRO,	setifcap),
+	DEF_CMD("-lro",		IFCAP_LRO,	clearifcap),
 	DEF_CMD("txtls",	IFCAP_TXTLS,	setifcap),
-	DEF_CMD("-txtls",	-IFCAP_TXTLS,	setifcap),
+	DEF_CMD("-txtls",	IFCAP_TXTLS,	clearifcap),
 	DEF_CMD_SARG("rxtls",	IFCAP2_RXTLS4_NAME "," IFCAP2_RXTLS6_NAME,
 	    setifcapnv),
 	DEF_CMD_SARG("-rxtls",	"-"IFCAP2_RXTLS4_NAME ",-" IFCAP2_RXTLS6_NAME,
 	    setifcapnv),
 	DEF_CMD("wol",		IFCAP_WOL,	setifcap),
-	DEF_CMD("-wol",		-IFCAP_WOL,	setifcap),
+	DEF_CMD("-wol",		IFCAP_WOL,	clearifcap),
 	DEF_CMD("wol_ucast",	IFCAP_WOL_UCAST,	setifcap),
-	DEF_CMD("-wol_ucast",	-IFCAP_WOL_UCAST,	setifcap),
+	DEF_CMD("-wol_ucast",	IFCAP_WOL_UCAST,	clearifcap),
 	DEF_CMD("wol_mcast",	IFCAP_WOL_MCAST,	setifcap),
-	DEF_CMD("-wol_mcast",	-IFCAP_WOL_MCAST,	setifcap),
+	DEF_CMD("-wol_mcast",	IFCAP_WOL_MCAST,	clearifcap),
 	DEF_CMD("wol_magic",	IFCAP_WOL_MAGIC,	setifcap),
-	DEF_CMD("-wol_magic",	-IFCAP_WOL_MAGIC,	setifcap),
+	DEF_CMD("-wol_magic",	IFCAP_WOL_MAGIC,	clearifcap),
 	DEF_CMD("txrtlmt",	IFCAP_TXRTLMT,	setifcap),
-	DEF_CMD("-txrtlmt",	-IFCAP_TXRTLMT,	setifcap),
+	DEF_CMD("-txrtlmt",	IFCAP_TXRTLMT,	clearifcap),
 	DEF_CMD("txtlsrtlmt",	IFCAP_TXTLS_RTLMT,	setifcap),
-	DEF_CMD("-txtlsrtlmt",	-IFCAP_TXTLS_RTLMT,	setifcap),
+	DEF_CMD("-txtlsrtlmt",	IFCAP_TXTLS_RTLMT,	clearifcap),
 	DEF_CMD("hwrxtstmp",	IFCAP_HWRXTSTMP,	setifcap),
-	DEF_CMD("-hwrxtstmp",	-IFCAP_HWRXTSTMP,	setifcap),
-	DEF_CMD("normal",	-IFF_LINK0,	setifflags),
+	DEF_CMD("-hwrxtstmp",	IFCAP_HWRXTSTMP,	clearifcap),
+	DEF_CMD("normal",	IFF_LINK0,	clearifflags),
 	DEF_CMD("compress",	IFF_LINK0,	setifflags),
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),
 	DEF_CMD_ARG("mtu",			setifmtu),

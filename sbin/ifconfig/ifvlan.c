@@ -286,15 +286,15 @@ static struct cmd vlan_cmds[] = {
 	/* XXX For compatibility.  Should become DEF_CMD() some day. */
 	DEF_CMD_OPTARG("-vlandev",			unsetvlandev),
 	DEF_CMD("vlanmtu",	IFCAP_VLAN_MTU,		setifcap),
-	DEF_CMD("-vlanmtu",	-IFCAP_VLAN_MTU,	setifcap),
+	DEF_CMD("-vlanmtu",	IFCAP_VLAN_MTU,		clearifcap),
 	DEF_CMD("vlanhwtag",	IFCAP_VLAN_HWTAGGING,	setifcap),
-	DEF_CMD("-vlanhwtag",	-IFCAP_VLAN_HWTAGGING,	setifcap),
+	DEF_CMD("-vlanhwtag",	IFCAP_VLAN_HWTAGGING,	clearifcap),
 	DEF_CMD("vlanhwfilter",	IFCAP_VLAN_HWFILTER,	setifcap),
-	DEF_CMD("-vlanhwfilter", -IFCAP_VLAN_HWFILTER,	setifcap),
-	DEF_CMD("-vlanhwtso",	-IFCAP_VLAN_HWTSO,	setifcap),
+	DEF_CMD("-vlanhwfilter", IFCAP_VLAN_HWFILTER,	clearifcap),
+	DEF_CMD("-vlanhwtso",	IFCAP_VLAN_HWTSO,	clearifcap),
 	DEF_CMD("vlanhwtso",	IFCAP_VLAN_HWTSO,	setifcap),
 	DEF_CMD("vlanhwcsum",	IFCAP_VLAN_HWCSUM,	setifcap),
-	DEF_CMD("-vlanhwcsum",	-IFCAP_VLAN_HWCSUM,	setifcap),
+	DEF_CMD("-vlanhwcsum",	IFCAP_VLAN_HWCSUM,	clearifcap),
 };
 static struct afswtch af_vlan = {
 	.af_name	= "af_vlan",
