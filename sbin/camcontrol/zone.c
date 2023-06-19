@@ -138,7 +138,6 @@ zone_rz_print(uint8_t *data_ptr, uint32_t valid_len, int ata_format,
 	struct scsi_report_zones_desc *desc = NULL;
 	uint32_t hdr_len, len;
 	uint64_t max_lba, next_lba = 0;
-	int more_data = 0;
 	zone_print_status status = ZONE_PRINT_OK;
 	char tmpstr[80];
 	int field_widths[ZONE_NUM_FIELDS];
@@ -168,7 +167,6 @@ zone_rz_print(uint8_t *data_ptr, uint32_t valid_len, int ata_format,
 	}
 
 	if (hdr_len > (valid_len + sizeof(*hdr))) {
-		more_data = 1;
 		status = ZONE_PRINT_MORE_DATA;
 	}
 
@@ -592,7 +590,7 @@ restart_report:
 			    /*retry_count*/ retry_count,
 			    /*flags*/ CAM_DIR_NONE | CAM_DEV_QFRZDIS,
 			    /*tag_action*/ task_attr,
-			    /*protocol*/ AP_PROTO_NON_DATA,
+			    /*protocol*/ protocol,
 			    /*ata_flags*/ AP_FLAG_BYT_BLOK_BYTES |
 					  AP_FLAG_TLEN_NO_DATA,
 			    /*features*/ features,
