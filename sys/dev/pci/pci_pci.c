@@ -1321,7 +1321,7 @@ static int
 pcib_alloc_pcie_irq(struct pcib_softc *sc)
 {
 	device_t dev;
-	int count, error, rid;
+	int count, error, mem_rid, rid;
 
 	rid = -1;
 	dev = sc->dev;
@@ -1333,9 +1333,17 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 	 */
 	count = pci_msix_count(dev);
 	if (count == 1) {
-		error = pci_alloc_msix(dev, &count);
-		if (error == 0)
-			rid = 1;
+		mem_rid = pci_msix_table_bar(dev);
+		sc->pcie_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &mem_rid, RF_ACTIVE);
+		if (sc->pcie_mem == NULL) {
+			device_printf(dev,
+			    "Failed to allocate BAR for MSI-X table\n");
+		} else {
+			error = pci_alloc_msix(dev, &count);
+			if (error == 0)
+				rid = 1;
+		}
 	}
 
 	if (rid < 0 && pci_msi_count(dev) > 0) {
@@ -1383,7 +1391,12 @@ pcib_release_pcie_irq(struct pcib_softc *sc)
 	error = bus_free_resource(dev, SYS_RES_IRQ, sc->pcie_irq);
 	if (error)
 		return (error);
-	return (pci_release_msi(dev));
+	error = pci_release_msi(dev);
+	if (error)
+		return (error);
+	if (sc->pcie_mem != NULL)
+		error = bus_free_resource(dev, SYS_RES_MEMORY, sc->pcie_mem);
+	return (error);
 }
 
 static void
