@@ -2062,7 +2062,7 @@ regdomain_sort(const void *a, const void *b)
 	const struct ieee80211_channel *cb = b;
 
 	return ca->ic_freq == cb->ic_freq ?
-	    (ca->ic_flags & CHAN_ALL) - (cb->ic_flags & CHAN_ALL) :
+	    (int)(ca->ic_flags & CHAN_ALL) - (int)(cb->ic_flags & CHAN_ALL) :
 	    ca->ic_freq - cb->ic_freq;
 #undef CHAN_ALL
 }
