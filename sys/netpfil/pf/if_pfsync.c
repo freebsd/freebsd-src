@@ -281,6 +281,8 @@ struct pfsync_softc {
 #define	PFSYNC_BUNLOCK(sc)	mtx_unlock(&(sc)->sc_bulk_mtx)
 #define	PFSYNC_BLOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_bulk_mtx, MA_OWNED)
 
+#define PFSYNC_DEFER_TIMEOUT	20
+
 static const char pfsyncname[] = "pfsync";
 static MALLOC_DEFINE(M_PFSYNC, pfsyncname, "pfsync(4) data");
 VNET_DEFINE_STATIC(struct pfsync_softc	*, pfsyncif) = NULL;
@@ -293,6 +295,8 @@ VNET_DEFINE_STATIC(struct pfsyncstats, pfsyncstats);
 #define	V_pfsyncstats		VNET(pfsyncstats)
 VNET_DEFINE_STATIC(int, pfsync_carp_adj) = CARP_MAXSKEW;
 #define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
+VNET_DEFINE_STATIC(unsigned int, pfsync_defer_tmo) = PFSYNC_DEFER_TIMEOUT;
+#define	V_pfsync_defer_tmo	VNET(pfsync_defer_tmo)
 
 static void	pfsync_timeout(void *);
 static void	pfsync_push(struct pfsync_bucket *);
@@ -317,6 +321,8 @@ SYSCTL_INT(_net_pfsync, OID_AUTO, carp_demotion_factor, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(pfsync_carp_adj), 0, "pfsync's CARP demotion factor adjustment");
 SYSCTL_ULONG(_net_pfsync, OID_AUTO, pfsync_buckets, CTLFLAG_RDTUN,
     &pfsync_buckets, 0, "Number of pfsync hash buckets");
+SYSCTL_UINT(_net_pfsync, OID_AUTO, defer_delay, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(pfsync_defer_tmo), 0, "Deferred packet timeout (in ms)");
 
 static int	pfsync_clone_create(struct if_clone *, int, caddr_t);
 static void	pfsync_clone_destroy(struct ifnet *);
@@ -358,7 +364,6 @@ static struct pfsync_bucket	*pfsync_get_bucket(struct pfsync_softc *,
 		    struct pf_kstate *);
 
 #define PFSYNC_MAX_BULKTRIES	12
-#define PFSYNC_DEFER_TIMEOUT	((20 * hz) / 1000)
 
 VNET_DEFINE(struct if_clone *, pfsync_cloner);
 #define	V_pfsync_cloner	VNET(pfsync_cloner)
@@ -1882,7 +1887,8 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 
 	TAILQ_INSERT_TAIL(&b->b_deferrals, pd, pd_entry);
 	callout_init_mtx(&pd->pd_tmo, &b->b_mtx, CALLOUT_RETURNUNLOCKED);
-	callout_reset(&pd->pd_tmo, PFSYNC_DEFER_TIMEOUT, pfsync_defer_tmo, pd);
+	callout_reset(&pd->pd_tmo, (V_pfsync_defer_tmo * hz) / 1000,
+	    pfsync_defer_tmo, pd);
 
 	pfsync_push(b);
 	PFSYNC_BUCKET_UNLOCK(b);
