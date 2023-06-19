@@ -3837,7 +3837,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	u_int8_t returned_format, returned_type;
 	unsigned int i;
 	int c, error = 0;
-	int mads = 0, lists_specified = 0;
+	int mads = 0;
 	bool summary = false, quiet = false, list_type_set = false;
 	bool get_length = true, use_12byte = false, first_pass = true;
 	bool hex_format = false;
@@ -3876,11 +3876,9 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		}
 		case 'G':
 			list_format |= SRDD10_GLIST;
-			lists_specified++;
 			break;
 		case 'P':
 			list_format |= SRDD10_PLIST;
-			lists_specified++;
 			break;
 		case 'q':
 			quiet = true;
@@ -3916,7 +3914,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	/*
 	 * This implies a summary, and was the previous behavior.
 	 */
-	if (lists_specified == 0)
+	if ((list_format & ~SRDD10_DLIST_FORMAT_MASK) == 0)
 		summary = true;
 
 	ccb = cam_getccb(device);
@@ -4215,7 +4213,7 @@ next_batch:
 	if (first_pass) {
 		fprintf(stderr, "Got %d defect", num_returned);
 
-		if ((lists_specified == 0) || (num_returned == 0)) {
+		if (!summary || (num_returned == 0)) {
 			fprintf(stderr, "s.\n");
 			goto defect_bailout;
 		} else if (num_returned == 1)
