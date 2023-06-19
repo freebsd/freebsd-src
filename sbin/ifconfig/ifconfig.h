@@ -255,6 +255,7 @@ extern	int allmedia;
 extern	int exit_code;
 extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
 
+void	clearifcap(if_ctx *ctx, const char *, int value);
 void	setifcap(if_ctx *ctx, const char *, int value);
 void	setifcapnv(if_ctx *ctx, const char *vname, const char *arg);
 
