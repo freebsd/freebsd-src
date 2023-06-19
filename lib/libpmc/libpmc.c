@@ -1091,11 +1091,6 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 			assert(pmc_config.pm_ev < PMC_EVENT_FIRST);
 			goto found;
 		}
-
-		/* Otherwise, reset any changes */
-		pmc_config.pm_ev = 0;
-		pmc_config.pm_caps = 0;
-		pmc_config.pm_class = 0;
 	}
 	free(spec_copy);
 	spec_copy = NULL;
