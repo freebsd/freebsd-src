@@ -67,6 +67,8 @@ static struct cdevsw mpi3mr_cdevsw = {
 	.d_name =	"mpi3mr",
 };
 
+static struct mpi3mr_mgmt_info mpi3mr_mgmt_info;
+
 static int
 mpi3mr_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {

@@ -75,7 +75,6 @@
 
 int mpi3mr_app_attach(struct mpi3mr_softc *);
 void mpi3mr_app_detach(struct mpi3mr_softc *);
-static struct mpi3mr_mgmt_info mpi3mr_mgmt_info;
 
 enum mpi3mr_ioctl_adp_state {
 	MPI3MR_IOCTL_ADP_STATE_UNKNOWN		= 0,
