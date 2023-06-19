@@ -1262,13 +1262,12 @@ compare_tid(const void *p1, const void *p2)
  */
 
 static const int sorted_state[] = {
-	0,	/* not used		*/
-	3,	/* sleep		*/
-	1,	/* ABANDONED (WAIT)	*/
-	6,	/* run			*/
-	5,	/* start		*/
-	2,	/* zombie		*/
-	4	/* stop			*/
+	[SIDL] =	3,	/* being created	*/
+	[SRUN] =	1,	/* running/runnable	*/
+	[SSLEEP] =	6,	/* sleeping		*/
+	[SSTOP] =	5,	/* stopped/suspended	*/
+	[SZOMB] =	2,	/* zombie		*/
+	[SWAIT] =	4,	/* intr			*/
 };
 
 
