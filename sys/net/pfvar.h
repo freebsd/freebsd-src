@@ -2361,13 +2361,13 @@ u_int8_t	 pf_get_wscale(struct mbuf *, int, u_int16_t, sa_family_t);
 struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,
 		    const struct pf_addr *, const struct pf_addr *,
 		    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
-		    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
-		    u_int16_t, int);
+		    u_int8_t, u_int16_t, u_int16_t, u_int8_t, bool,
+		    u_int16_t, u_int16_t, int);
 void		 pf_send_tcp(const struct pf_krule *, sa_family_t,
 			    const struct pf_addr *, const struct pf_addr *,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
-			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
-			    u_int16_t, int);
+			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, bool,
+			    u_int16_t, u_int16_t, int);
 
 void			 pf_syncookies_init(void);
 void			 pf_syncookies_cleanup(void);
