@@ -1256,9 +1256,9 @@ compare_tid(const void *p1, const void *p2)
  *	distinct keys.  The keys (in descending order of importance) are:
  *	percent cpu, cpu ticks, state, resident set size, total virtual
  *	memory usage.  The process states are ordered as follows (from least
- *	to most important):  WAIT, zombie, sleep, stop, start, run.  The
- *	array declaration below maps a process state index into a number
- *	that reflects this ordering.
+ *	to most important):  run, zombie, idle, interrupt wait, stop, sleep.
+ *	The array declaration below maps a process state index into a
+ *	number that reflects this ordering.
  */
 
 static const int sorted_state[] = {
