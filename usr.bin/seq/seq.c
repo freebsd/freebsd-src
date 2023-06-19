@@ -198,13 +198,9 @@ main(int argc, char *argv[])
 	 * equal, it means the exit condition of the loop held true due to a
 	 * rounding error and we still need to print 'last'.
 	 */
-	if (asprintf(&cur_print, fmt, cur) < 0) {
-		err(1, "asprintf");
-	}
-	if (asprintf(&last_print, fmt, last) < 0) {
-		err(1, "asprintf");
-	}
-	if (asprintf(&prev_print, fmt, prev) < 0) {
+	if (asprintf(&cur_print, fmt, cur) < 0 ||
+	    asprintf(&last_print, fmt, last) < 0 ||
+	    asprintf(&prev_print, fmt, prev) < 0) {
 		err(1, "asprintf");
 	}
 	if (strcmp(cur_print, last_print) == 0 &&
