@@ -36,14 +36,15 @@
 
 #ifdef _KERNEL
 
-#define	PF_TAG_ROUTE_TO			0x01
-#define	PF_TAG_DUMMYNET			0x02
-#define	PF_TAG_TRANSLATE_LOCALHOST	0x04
-#define	PF_PACKET_LOOPED		0x08
-#define	PF_FASTFWD_OURS_PRESENT		0x10
-#define	PF_REASSEMBLED			0x20
-#define	PF_DUPLICATED			0x40
-#define	PF_TAG_SYNCOOKIE_RECREATED	0x80
+/* pf_mtag -> flags */
+#define	PF_MTAG_FLAG_ROUTE_TO			0x01
+#define	PF_MTAG_FLAG_DUMMYNET			0x02
+#define	PF_MTAG_FLAG_TRANSLATE_LOCALHOST	0x04
+#define	PF_MTAG_FLAG_PACKET_LOOPED		0x08
+#define	PF_MTAG_FLAG_FASTFWD_OURS_PRESENT	0x10
+/*						0x20 unused */
+#define	PF_MTAG_FLAG_DUPLICATED			0x40
+#define	PF_MTAG_FLAG_SYNCOOKIE_RECREATED	0x80
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */

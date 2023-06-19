@@ -898,8 +898,8 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 		m->m_pkthdr.len = plen;
 	}
 
-	if ((mtag = m_tag_get(PF_REASSEMBLED, sizeof(struct pf_fragment_tag),
-	    M_NOWAIT)) == NULL)
+	if ((mtag = m_tag_get(PACKET_TAG_PF_REASSEMBLED,
+	    sizeof(struct pf_fragment_tag), M_NOWAIT)) == NULL)
 		goto fail;
 	ftag = (struct pf_fragment_tag *)(mtag + 1);
 	ftag->ft_hdrlen = hdrlen;
