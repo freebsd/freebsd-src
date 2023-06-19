@@ -2104,7 +2104,6 @@ struct ata_pass_32 {
 #define	WRITE_VERIFY_10		0x2E
 #define	VERIFY_10		0x2F
 #define	SYNCHRONIZE_CACHE	0x35
-#define	READ_DEFECT_DATA_10	0x37
 #define	WRITE_BUFFER            0x3B
 #define	READ_BUFFER             0x3C
 #define	CHANGE_DEFINITION	0x40
