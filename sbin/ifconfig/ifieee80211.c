@@ -2069,7 +2069,7 @@ regdomain_sort(const void *a, const void *b)
 
 static const struct ieee80211_channel *
 chanlookup(const struct ieee80211_channel chans[], int nchans,
-	int freq, int flags)
+	int freq, uint32_t flags)
 {
 	int i;
 
@@ -2084,7 +2084,7 @@ chanlookup(const struct ieee80211_channel chans[], int nchans,
 }
 
 static int
-chanfind(const struct ieee80211_channel chans[], int nchans, unsigned int flags)
+chanfind(const struct ieee80211_channel chans[], int nchans, uint32_t flags)
 {
 	for (int i = 0; i < nchans; i++) {
 		const struct ieee80211_channel *c = &chans[i];
@@ -2098,7 +2098,7 @@ chanfind(const struct ieee80211_channel chans[], int nchans, unsigned int flags)
  * Check channel compatibility.
  */
 static int
-checkchan(const struct ieee80211req_chaninfo *avail, int freq, int flags)
+checkchan(const struct ieee80211req_chaninfo *avail, int freq, uint32_t flags)
 {
 	flags &= ~REQ_FLAGS;
 	/*
