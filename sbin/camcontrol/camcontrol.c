@@ -126,8 +126,8 @@ typedef enum {
 			/* unused 0x00000080 */
 			/* unused 0x00000100 */
 			/* unused 0x00000200 */
-	CAM_ARG_PLIST		= 0x00000400,
-	CAM_ARG_GLIST		= 0x00000800,
+			/* unused 0x00000400 */
+			/* unused 0x00000800 */
 	CAM_ARG_GET_SERIAL	= 0x00001000,
 	CAM_ARG_GET_STDINQ	= 0x00002000,
 	CAM_ARG_GET_XFERRATE	= 0x00004000,
@@ -3849,13 +3849,19 @@ readdefects(struct cam_device *device, int argc, char **argv,
 			scsi_nv_status status;
 			int entry_num = 0;
 
+			if (list_type_set) {
+				warnx("%s: -f specified twice", __func__);
+				error = 1;
+				goto defect_bailout;
+			}
+
 			status = scsi_get_nv(defect_list_type_map,
 			    sizeof(defect_list_type_map) /
 			    sizeof(defect_list_type_map[0]), optarg,
 			    &entry_num, SCSI_NV_FLAG_IG_CASE);
 
 			if (status == SCSI_NV_FOUND) {
-				list_format = defect_list_type_map[
+				list_format |= defect_list_type_map[
 				    entry_num].value;
 				list_type_set = true;
 			} else {
@@ -3869,10 +3875,12 @@ readdefects(struct cam_device *device, int argc, char **argv,
 			break;
 		}
 		case 'G':
-			arglist |= CAM_ARG_GLIST;
+			list_format |= SRDD10_GLIST;
+			lists_specified++;
 			break;
 		case 'P':
-			arglist |= CAM_ARG_PLIST;
+			list_format |= SRDD10_PLIST;
+			lists_specified++;
 			break;
 		case 'q':
 			quiet = true;
@@ -3903,16 +3911,6 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		error = 1;
 		warnx("no defect list format specified");
 		goto defect_bailout;
-	}
-
-	if (arglist & CAM_ARG_PLIST) {
-		list_format |= SRDD10_PLIST;
-		lists_specified++;
-	}
-
-	if (arglist & CAM_ARG_GLIST) {
-		list_format |= SRDD10_GLIST;
-		lists_specified++;
 	}
 
 	/*
