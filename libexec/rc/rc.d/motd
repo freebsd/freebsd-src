@@ -38,10 +38,10 @@ motd_start()
 			# Otherwise, create an empty template file.
 			install -c -o root -g wheel -m ${PERMS} /dev/null "${TEMPLATE}"
 		fi
-		# Provide compatibility symlink:
-		if [ ! -h "${COMPAT_MOTD}" ]; then
-			ln -sF "${TARGET}" "${COMPAT_MOTD}"
-		fi
+	fi
+	# Provide compatibility symlink:
+	if [ ! -h "${COMPAT_MOTD}" ]; then
+		ln -sF "${TARGET}" "${COMPAT_MOTD}"
 	fi
 
 	T=`mktemp -t motd`
