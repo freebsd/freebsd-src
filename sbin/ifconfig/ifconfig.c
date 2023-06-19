@@ -501,7 +501,7 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 			args->printkeys = true;
 			break;
 		case 'l':	/* scan interface names only */
-			args->namesonly++;
+			args->namesonly = true;
 			break;
 		case 'm':	/* show media choices in status */
 			args->supmedia = true;
