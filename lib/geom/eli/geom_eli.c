@@ -1363,6 +1363,12 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 		return;
 	}
 
+	/*
+	 * The previous eli_genkey() set cached_passphrase, we do not want
+	 * to use that for the new passphrase so always prompt for it
+	 */
+	memset(cached_passphrase, 0, sizeof(cached_passphrase));
+
 	/* Generate key for Master Key decryption. */
 	if (eli_genkey_single(req, md, key, false) == NULL) {
 		explicit_bzero(key, sizeof(key));
