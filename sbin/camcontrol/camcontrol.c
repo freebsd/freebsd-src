@@ -3923,18 +3923,23 @@ readdefects(struct cam_device *device, int argc, char **argv,
 
 	ccb = cam_getccb(device);
 
-retry_12byte:
-
 	/*
-	 * We start off asking for just the header to determine how much
-	 * defect data is available.  Some Hitachi drives return an error
-	 * if you ask for more data than the drive has.  Once we know the
-	 * length, we retry the command with the returned length.
+	 * We start off asking for just the header to determine how much defect
+	 * data is available.  Some Hitachi drives return an error if you ask
+	 * for more data than the drive has.  Once we know the length, we retry
+	 * the command with the returned length.  When we're retrying the with
+	 * 12-byte command, we're always changing to the 12-byte command and
+	 * need to get the length. Simplify the logic below by always setting
+	 * use_12byte in this case with this slightly more complex logic here.
 	 */
-	if (!use_12byte)
+	if (!use_12byte) {
 		dlist_length = sizeof(*hdr10);
-	else
+	} else  {
+retry_12byte:
+		get_length = true;
+		use_12byte = true;
 		dlist_length = sizeof(*hdr12);
+	}
 
 retry:
 	if (defect_list != NULL) {
@@ -4058,8 +4063,6 @@ next_batch:
 			 && (returned_length > 0)) {
 				if (!use_12byte
 				 && (returned_length >= max_possible_size)) {
-					get_length = true;
-					use_12byte = true;
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4075,8 +4078,6 @@ next_batch:
 				 * byte command.
 				 */
 				if (!use_12byte) {
-					get_length = true;
-					use_12byte = true;
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4091,8 +4092,6 @@ next_batch:
 				 * byte command.
 				 */
 				if (!use_12byte) {
-					get_length = true;
-					use_12byte = true;
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4108,8 +4107,6 @@ next_batch:
 					if (!use_12byte
 					 && (returned_length >=
 					     max_possible_size)) {
-						get_length = true;
-						use_12byte = true;
 						goto retry_12byte;
 					}
 					dlist_length = returned_length +
@@ -4127,8 +4124,6 @@ next_batch:
 		} else {
 			if (!use_12byte
 			 && (returned_length >= max_possible_size)) {
-				get_length = true;
-				use_12byte = true;
 				goto retry_12byte;
 			}
 			dlist_length = returned_length + hdr_size;
