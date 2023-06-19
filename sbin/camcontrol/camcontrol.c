@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/sbuf.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
