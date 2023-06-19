@@ -553,17 +553,31 @@ fbsdrun_addcpu(struct vcpu_info *vi)
 	assert(error == 0);
 }
 
-static int
+static void
 fbsdrun_deletecpu(int vcpu)
 {
+	static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
+	static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
 
+	pthread_mutex_lock(&resetcpu_mtx);
 	if (!CPU_ISSET(vcpu, &cpumask)) {
 		fprintf(stderr, "Attempting to delete unknown cpu %d\n", vcpu);
 		exit(4);
 	}
 
-	CPU_CLR_ATOMIC(vcpu, &cpumask);
-	return (CPU_EMPTY(&cpumask));
+	CPU_CLR(vcpu, &cpumask);
+
+	if (vcpu != BSP) {
+		pthread_cond_signal(&resetcpu_cond);
+		pthread_mutex_unlock(&resetcpu_mtx);
+		pthread_exit(NULL);
+		/* NOTREACHED */
+	}
+
+	while (!CPU_EMPTY(&cpumask)) {
+		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
+	}
+	pthread_mutex_unlock(&resetcpu_mtx);
 }
 
 static int
@@ -818,9 +832,6 @@ fail:
 	return (VMEXIT_ABORT);
 }
 
-static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
-
 static int
 vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
@@ -833,19 +844,6 @@ vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 	how = vme->u.suspended.how;
 
 	fbsdrun_deletecpu(vcpuid);
-
-	if (vcpuid != BSP) {
-		pthread_mutex_lock(&resetcpu_mtx);
-		pthread_cond_signal(&resetcpu_cond);
-		pthread_mutex_unlock(&resetcpu_mtx);
-		pthread_exit(NULL);
-	}
-
-	pthread_mutex_lock(&resetcpu_mtx);
-	while (!CPU_EMPTY(&cpumask)) {
-		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
-	}
-	pthread_mutex_unlock(&resetcpu_mtx);
 
 	switch (how) {
 	case VM_SUSPEND_RESET:
