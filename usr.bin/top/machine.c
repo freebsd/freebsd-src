@@ -1261,7 +1261,7 @@ compare_tid(const void *p1, const void *p2)
  *	that reflects this ordering.
  */
 
-static int sorted_state[] = {
+static const int sorted_state[] = {
 	0,	/* not used		*/
 	3,	/* sleep		*/
 	1,	/* ABANDONED (WAIT)	*/
