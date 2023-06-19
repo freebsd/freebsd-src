@@ -3895,6 +3895,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 				warnx("invalid starting offset %s", optarg);
 				goto defect_bailout;
 			}
+			use_12byte = true;
 			break;
 		}
 		case 'X':
