@@ -88,6 +88,7 @@ SRCS=	\
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 SRCS+=	snapshot.c
+SRCS+=	migration.c
 .endif
 
 CFLAGS.kernemu_dev.c+=	-I${SRCTOP}/sys/amd64

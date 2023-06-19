@@ -41,6 +41,11 @@
 .Op Fl -force-poweroff
 .Op Fl -checkpoint= Ns Ar <filename>
 .Op Fl -suspend= Ns Ar <filename>
+.Oo
+.Fl -migrate= Ns Ar host Ns Op Cm \&: Ns Ar port
+|
+.Fl -migrate-live= Ns Ar host Ns Op Cm \&: Ns Ar port
+.Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -85,6 +90,20 @@ Save a snapshot of a virtual machine similar to
 .Fl -checkpoint .
 The virtual machine will terminate after the snapshot has been
 saved.
+.It Fl -migrate= Ns Ar host Ns Op Cm \&: Ns Ar port
+Warm migrate the virtual machine to a
+.Ar host
+on the specified
+.Ar port .
+The default migration port is 24983.
+The virtual machine will be destroyed after the migration finishes.
+.It Fl -migrate-live= Ns Ar host Ns Op Cm \&: Ns Ar port
+Live migrate the virtual machine to a
+.Ar host
+on the specified
+.Ar port .
+The default migration port is 24983.
+The virtual machine will be destroyed after the migration finishes.
 .El
 .Sh EXIT STATUS
 .Ex -std
