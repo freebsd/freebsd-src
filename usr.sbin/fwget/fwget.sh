@@ -7,7 +7,7 @@
 # Copyright 2023 Bjoern A. Zeeb
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions 
+# modification, are permitted providing that the following conditions
 # are met:
 # 1. Redistributions of source code must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
@@ -27,12 +27,12 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-: ${LIBEXEC_PATH:="/usr/libexec/fwget"}
+: "${LIBEXEC_PATH:='/usr/libexec/fwget'}"
 
 usage()
 {
 	cat <<EOF
-Usage: `basename $0` [options] [subsystem]
+Usage: $(basename "$0") [options] [subsystem]
 
 Supported subsystems
   pci
@@ -46,7 +46,7 @@ EOF
 
 log()
 {
-	echo $@
+	echo "$@"
 }
 
 log_verbose()
@@ -55,7 +55,7 @@ log_verbose()
 		return
 	fi
 
-	echo $@
+	echo "$@"
 }
 
 addpkg()
@@ -99,15 +99,15 @@ fi
 
 # Fail early on unsupported subsystem
 for subsystem in ${subsystems}; do
-	if [ ! -f ${LIBEXEC_PATH}/${subsystem} ]; then
+	if [ ! -f "${LIBEXEC_PATH}"/"${subsystem}" ]; then
 		usage
 	fi
-	. ${LIBEXEC_PATH}/${subsystem}
+	. "${LIBEXEC_PATH}"/"${subsystem}"
 done
 
 packages=""
 for subsystem in ${subsystems}; do
-	${subsystem}_search_packages
+	"${subsystem}"_search_packages
 done
 
 case "${packages}" in
@@ -122,4 +122,4 @@ if [ "${DRY_RUN}" = "y" ]; then
 	exit 0
 fi
 
-pkg install -qy ${packages}
+pkg install -qy "${packages}"
