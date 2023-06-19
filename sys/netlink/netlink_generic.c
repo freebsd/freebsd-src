@@ -296,6 +296,7 @@ SYSINIT(genl_load_all, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, genl_load_all, NULL)
 static void
 genl_unload(void *u __unused)
 {
+	netlink_unregister_proto(NETLINK_GENERIC);
 	EVENTHANDLER_DEREGISTER(genl_family_event, family_event_tag);
 	genl_unregister_family(CTRL_FAMILY_NAME);
 	NET_EPOCH_WAIT();
