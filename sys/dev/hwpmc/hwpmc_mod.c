@@ -3296,13 +3296,14 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	struct pmc_hw *phw;
 	enum pmc_mode mode;
 	enum pmc_class class;
-	uint32_t caps;
+	uint32_t caps, flags;
 	u_int cpu;
 	int adjri, n;
 	int error;
 
 	class = pa->pm_class;
 	caps  = pa->pm_caps;
+	flags = pa->pm_flags;
 	mode  = pa->pm_mode;
 	cpu   = pa->pm_cpu;
 
@@ -3349,23 +3350,23 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	/*
 	 * Look for valid values for 'pm_flags'.
 	 */
-	if ((pa->pm_flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
+	if ((flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
 	    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) != 0)
 		return (EINVAL);
 
 	/* PMC_F_USERCALLCHAIN is only valid with PMC_F_CALLCHAIN. */
-	if ((pa->pm_flags & (PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) ==
+	if ((flags & (PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) ==
 	    PMC_F_USERCALLCHAIN)
 		return (EINVAL);
 
 	/* PMC_F_USERCALLCHAIN is only valid for sampling mode. */
-	if ((pa->pm_flags & PMC_F_USERCALLCHAIN) != 0 && mode != PMC_MODE_TS &&
+	if ((flags & PMC_F_USERCALLCHAIN) != 0 && mode != PMC_MODE_TS &&
 	    mode != PMC_MODE_SS)
 		return (EINVAL);
 
 	/* Process logging options are not allowed for system PMCs. */
 	if (PMC_IS_SYSTEM_MODE(mode) &&
-	    (pa->pm_flags & (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT)) != 0)
+	    (flags & (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT)) != 0)
 		return (EINVAL);
 
 	/*
@@ -3391,7 +3392,7 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	pmc->pm_event = pa->pm_ev;
 	pmc->pm_state = PMC_STATE_FREE;
 	pmc->pm_caps  = caps;
-	pmc->pm_flags = pa->pm_flags;
+	pmc->pm_flags = flags;
 
 	/* XXX set lower bound on sampling for process counters */
 	if (PMC_IS_SAMPLING_MODE(mode)) {
