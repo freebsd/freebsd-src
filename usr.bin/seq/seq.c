@@ -88,14 +88,14 @@ main(int argc, char *argv[])
 {
 	const char *sep, *term;
 	struct lconv *locale;
-	char pad, *fmt, *cur_print, *last_print;
-	double first, last, incr, last_shown_value, cur, step;
+	char pad, *fmt, *cur_print, *last_print, *prev_print;
+	double first, last, incr, prev, cur, step;
 	int c, errflg, equalize;
 
 	pad = ZERO;
 	fmt = NULL;
 	first = 1.0;
-	last = incr = last_shown_value = 0.0;
+	last = incr = prev = 0.0;
 	c = errflg = equalize = 0;
 	sep = "\n";
 	term = NULL;
@@ -186,7 +186,7 @@ main(int argc, char *argv[])
 	    cur = first + incr * step++) {
 		printf(fmt, cur);
 		fputs(sep, stdout);
-		last_shown_value = cur;
+		prev = cur;
 	}
 
 	/*
@@ -194,10 +194,9 @@ main(int argc, char *argv[])
 	 *
 	 * We might have, so check if the printable version of the last
 	 * computed value ('cur') and desired 'last' value are equal.  If they
-	 * are equal after formatting truncation, but 'cur' and
-	 * 'last_shown_value' are not equal, it means the exit condition of the
-	 * loop held true due to a rounding error and we still need to print
-	 * 'last'.
+	 * are equal after formatting truncation, but 'cur' and 'prev' are not
+	 * equal, it means the exit condition of the loop held true due to a
+	 * rounding error and we still need to print 'last'.
 	 */
 	if (asprintf(&cur_print, fmt, cur) < 0) {
 		err(1, "asprintf");
@@ -205,12 +204,17 @@ main(int argc, char *argv[])
 	if (asprintf(&last_print, fmt, last) < 0) {
 		err(1, "asprintf");
 	}
-	if (strcmp(cur_print, last_print) == 0 && cur != last_shown_value) {
+	if (asprintf(&prev_print, fmt, prev) < 0) {
+		err(1, "asprintf");
+	}
+	if (strcmp(cur_print, last_print) == 0 &&
+	    strcmp(cur_print, prev_print) != 0) {
 		fputs(last_print, stdout);
 		fputs(sep, stdout);
 	}
 	free(cur_print);
 	free(last_print);
+	free(prev_print);
 
 	if (term != NULL)
 		fputs(term, stdout);
