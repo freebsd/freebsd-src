@@ -49,7 +49,8 @@ v4_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
-		"pass in proto icmp"
+		"pass in proto icmp" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -121,7 +122,8 @@ v6_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
-		"pass in proto icmp6"
+		"pass in proto icmp6" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -189,7 +191,8 @@ label_body()
 
 	pft_set_rules alcatraz "block all" \
 		"pass in proto tcp label bar" \
-		"pass in proto icmp label foo"
+		"pass in proto icmp label foo" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -255,7 +258,8 @@ multilabel_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
-		"pass in proto icmp label foo label bar"
+		"pass in proto icmp label foo label bar" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -289,7 +293,8 @@ multilabel_body()
 		--replyif ${epair}a
 
 	pft_set_rules alcatraz "block all" \
-		"pass in proto icmp label foo label bar"
+		"pass in proto icmp label foo label bar" \
+		"set skip on lo"
 
 	# Reestablish state
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
@@ -333,7 +338,8 @@ gateway_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
-		"pass in reply-to (${epair}b 192.0.2.1) proto icmp"
+		"pass in reply-to (${epair}b 192.0.2.1) proto icmp" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -475,7 +481,8 @@ interface_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
-		"pass in proto icmp"
+		"pass in proto icmp" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all
@@ -535,7 +542,8 @@ id_body()
 
 	pft_set_rules alcatraz "block all" \
 		"pass in proto tcp" \
-		"pass in proto icmp"
+		"pass in proto icmp" \
+		"set skip on lo"
 
 	# Sanity check & establish state
 	# Note: use pft_ping so we always use the same ID, so pf considers all

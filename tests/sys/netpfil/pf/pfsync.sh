@@ -149,6 +149,7 @@ defer_body()
 	route add -net 203.0.113.0/24 198.51.100.1
 
 	# Enable pf
+	jexec alcatraz sysctl net.pf.filter_local=0
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
 		"set skip on ${epair_sync}a" \
