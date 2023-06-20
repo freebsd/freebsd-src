@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 	(* ((uint32_t *) &(PS)->ps_saved))
 
 #define	PMCLOG_INITIALIZE_READER(LE,A)	LE = (uint32_t *) &(A)
+#define	PMCLOG_SKIP32(LE)		(LE)++
 #define	PMCLOG_READ32(LE,V) 		do {				\
 		(V)  = *(LE)++;						\
 	} while (0)
@@ -257,7 +258,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
     struct pmclog_ev *ev)
 {
 	int evlen, pathlen;
-	uint32_t h, *le, npc, noop;
+	uint32_t h, *le, npc;
 	enum pmclog_parser_state e;
 	struct pmclog_parse_state *ps;
 	struct pmclog_header *ph;
@@ -340,13 +341,13 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_MAP_IN:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_map_in);
 		PMCLOG_READ32(le,ev->pl_u.pl_mi.pl_pid);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mi.pl_start);
 		PMCLOG_READSTRING(le, ev->pl_u.pl_mi.pl_pathname, pathlen);
 		break;
 	case PMCLOG_TYPE_MAP_OUT:
 		PMCLOG_READ32(le,ev->pl_u.pl_mo.pl_pid);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_start);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_end);
 		break;
@@ -354,7 +355,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READ64(le,ev->pl_u.pl_a.pl_rate);
 
 		/*
@@ -385,7 +386,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_ad.pl_evname,PMC_NAME_MAX);
 		break;
 	case PMCLOG_TYPE_PMCATTACH:
@@ -431,7 +432,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_tid);
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_pid);
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		memcpy(ev->pl_u.pl_tc.pl_tdname, le, MAXCOMLEN+1);
 		break;
 	case PMCLOG_TYPE_THR_EXIT:
