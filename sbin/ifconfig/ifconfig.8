@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2023
+.Dd June 20, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -509,6 +509,9 @@ This action does not automatically disable routes using the interface.
 .It Cm group Ar groupname
 Assign the interface to a
 .Dq group .
+The
+.Ar groupname
+may not be longer than 15 characters and must not end in a digit.
 Any interface can be in multiple groups.
 .Pp
 Cloned interfaces are members of their interface family group by default.
