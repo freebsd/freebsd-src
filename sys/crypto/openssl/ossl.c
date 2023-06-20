@@ -301,7 +301,8 @@ ossl_newsession(device_t dev, crypto_session_t cses,
 		error = ossl_newsession_cipher(s, csp);
 		break;
 	case CSP_MODE_AEAD:
-		error = ossl_newsession_cipher(s, csp);
+		if (csp->csp_cipher_alg != CRYPTO_CHACHA20_POLY1305)
+			error = ossl_newsession_cipher(s, csp);
 		break;
 	default:
 		__assert_unreachable();
