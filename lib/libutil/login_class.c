@@ -380,6 +380,37 @@ setclasscontext(const char *classname, unsigned int flags)
 }
 
 
+/*
+ * Private function setting umask from the login class.
+ */
+static void
+setclassumask(login_cap_t *lc, const struct passwd *pwd)
+{
+	/*
+	 * Make it unlikely that someone would input our default sentinel
+	 * indicating no specification.
+	 */
+	const rlim_t def_val = INT64_MIN + 1, err_val = INT64_MIN;
+	const rlim_t val = login_getcapnum(lc, "umask", def_val, err_val);
+
+	if (val != def_val) {
+		if (val < 0 || val > UINT16_MAX) {
+			/* We get here also on 'err_val'. */
+			syslog(LOG_WARNING,
+			    "%s%s%sLogin class '%s': "
+			    "Invalid umask specification: '%s'",
+			    pwd ? "Login '" : "",
+			    pwd ? pwd->pw_name : "",
+			    pwd ? "': " : "",
+			    lc->lc_class,
+			    login_getcapstr(lc, "umask", "", ""));
+		} else {
+			const mode_t mode = val;
+
+			umask(mode);
+		}
+	}
+}
 
 /*
  * Private function which takes care of processing
@@ -393,32 +424,8 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd, unsigned long flags)
 	if (flags & LOGIN_SETRESOURCES)
 	    setclassresources(lc);
 	/* See if there's a umask override */
-	if (flags & LOGIN_SETUMASK) {
-	    /*
-	     * Make it unlikely that someone would input our default sentinel
-	     * indicating no specification.
-	     */
-	    const rlim_t def_val = INT64_MIN + 1, err_val = INT64_MIN;
-	    const rlim_t val = login_getcapnum(lc, "umask", def_val, err_val);
-
-	    if (val != def_val) {
-		if (val < 0 || val > UINT16_MAX) {
-		    /* We get here also on 'err_val'. */
-		    syslog(LOG_WARNING,
-			"%s%s%sLogin class '%s': "
-			"Invalid umask specification: '%s'",
-			pwd ? "Login '" : "",
-			pwd ? pwd->pw_name : "",
-			pwd ? "': " : "",
-			lc->lc_class,
-			login_getcapstr(lc, "umask", "", ""));
-		} else {
-		    const mode_t mode = val;
-
-		    umask(mode);
-		}
-	    }
-	}
+	if (flags & LOGIN_SETUMASK)
+	    setclassumask(lc, pwd);
 	/* Set paths */
 	if (flags & LOGIN_SETPATH)
 	    setclassenvironment(lc, pwd, 1);
