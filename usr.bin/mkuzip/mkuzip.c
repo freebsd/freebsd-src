@@ -128,7 +128,6 @@ int main(int argc, char **argv)
 	uint64_t offset, last_offset;
 	struct cloop_header hdr;
 	struct mkuz_conveyor *cvp;
-        void *c_ctx;
 	struct mkuz_blk_info *chit;
 	size_t ncpusz, ncpu, magiclen;
 	double st, et;
@@ -255,7 +254,7 @@ int main(int argc, char **argv)
 		errx(1, "maximal compressed cluster size %zu greater than MAXPHYS %zu",
 		    cfs.cbound_blksz, (size_t)MAXPHYS);
 
-	c_ctx = cfs.handler->f_init(&comp_level);
+	cfs.handler->f_init(&comp_level);
 	cfs.comp_level = comp_level;
 
 	cfs.iname = argv[0];
