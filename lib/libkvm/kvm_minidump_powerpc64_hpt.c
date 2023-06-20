@@ -253,9 +253,6 @@ static int
 ppc64mmu_hpt_init(kvm_t *kd)
 {
 	struct hpt_data *data;
-	struct minidumphdr *hdr;
-
-	hdr = &kd->vmst->hdr;
 
 	/* Alloc MMU data */
 	data = _kvm_malloc(kd, sizeof(*data));
