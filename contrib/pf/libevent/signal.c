@@ -144,7 +144,7 @@ evsignal_del(struct event *ev)
 
 	evsignal = EVENT_SIGNAL(ev);
 
-	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));
+	return (sigaction(evsignal, (struct sigaction *)SIG_DFL, NULL));
 }
 
 static void
