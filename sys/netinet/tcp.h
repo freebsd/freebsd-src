@@ -336,6 +336,7 @@ struct tcphdr {
 #define	TCPI_OPT_ECN		0x08
 #define	TCPI_OPT_TOE		0x10
 #define	TCPI_OPT_TFO		0x20
+#define	TCPI_OPT_ACE		0x40
 
 /* Maximum length of log ID. */
 #define TCP_LOG_ID_LEN	64
