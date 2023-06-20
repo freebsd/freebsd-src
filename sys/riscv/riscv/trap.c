@@ -291,8 +291,8 @@ do_trap_supervisor(struct trapframe *frame)
 		return;
 #endif
 
-	CTR3(KTR_TRAP, "do_trap_supervisor: curthread: %p, sepc: %lx, frame: %p",
-	    curthread, frame->tf_sepc, frame);
+	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%lx, stval=%lx", __func__,
+	    exception, frame->tf_sepc, frame->tf_stval);
 
 	switch (exception) {
 	case SCAUSE_LOAD_ACCESS_FAULT:
@@ -365,8 +365,8 @@ do_trap_user(struct trapframe *frame)
 	}
 	intr_enable();
 
-	CTR3(KTR_TRAP, "do_trap_user: curthread: %p, sepc: %lx, frame: %p",
-	    curthread, frame->tf_sepc, frame);
+	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%lx, stval=%lx", __func__,
+	    exception, frame->tf_sepc, frame->tf_stval);
 
 	switch (exception) {
 	case SCAUSE_LOAD_ACCESS_FAULT:

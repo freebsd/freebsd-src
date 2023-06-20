@@ -163,6 +163,9 @@ riscv_cpu_intr(struct trapframe *frame)
 
 	active_irq = frame->tf_scause & SCAUSE_CODE;
 
+	CTR3(KTR_TRAP, "%s: irq=%d, umode=%d", __func__, active_irq,
+	    TRAPF_USERMODE(frame));
+
 	switch (active_irq) {
 	case IRQ_SOFTWARE_USER:
 	case IRQ_SOFTWARE_SUPERVISOR:
