@@ -760,6 +760,52 @@ login_getcapnum(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
     return val;
 }
 
+/*
+ * Extract a string capability expected to hold a specific value from a list.
+ *
+ * 'values' must be a NULL-terminated array of strings listing the possible
+ * values.
+ *
+ * A non-negative return code indicates success, and is the index of the value
+ * in 'values' the capability is set to.
+ *
+ * Negative return codes indicate an error:
+ * -4: 'lc' or 'cap' insufficiently initialized or not valid.
+ * -3: System error (allocation failure).
+ * -2: Capability not found or not a string.
+ * -1: Capability has a string value, but not one listed in 'values'.
+ */
+int
+login_getcapenum(login_cap_t *lc, const char *cap, const char * const *values)
+{
+    int ret, i;
+    char *cand;
+    const char * const *val;
+
+    if (lc == NULL || lc->lc_cap == NULL || cap == NULL || *cap == '\0')
+	return (-4);
+
+    ret = cgetstr(lc->lc_cap, cap, &cand);
+
+    if (ret == -1)
+	/* Cap not found. */
+	return (-2);
+    else if (ret < 0)
+	/* System error (normally, allocation failure). */
+	return (-3);
+
+    ret = -1;
+
+    for (i = 0, val = values; *val != NULL; val++)
+	if (strcmp(cand, *val) == 0) {
+	    ret = i;
+	    break;
+	}
+
+    free(cand);
+    return (ret);
+}
+
 
 
 /*
