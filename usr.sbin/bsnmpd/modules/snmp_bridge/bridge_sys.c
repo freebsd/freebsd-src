@@ -1223,7 +1223,7 @@ bridge_getinfo_bif_ports(struct bridge_if *bif)
 int
 bridge_update_memif(struct bridge_if *bif)
 {
-	int added, updated;
+	int updated;
 	uint32_t i;
 	int32_t buf_len;
 	struct ifbreq *b_req_buf, *b_req;
@@ -1234,7 +1234,7 @@ bridge_update_memif(struct bridge_if *bif)
 	if ((buf_len = bridge_port_get_iflist(bif, &b_req_buf)) < 0)
 		return (-1);
 
-	added = updated = 0;
+	updated = 0;
 
 #define	BP_FOUND	0x01
 	for (i = 0; i < buf_len / sizeof(struct ifbreq); i++) {
@@ -1249,7 +1249,6 @@ bridge_update_memif(struct bridge_if *bif)
 		if ((bp = bridge_port_find(m_if->index, bif)) == NULL &&
 		    (bp = bridge_new_port(m_if, bif)) != NULL) {
 			bp->status = RowStatus_active;
-			added++;
 		}
 
 		if (bp != NULL) {
