@@ -179,7 +179,7 @@ int
 main(int argc, char **argv)
 {
 	int c, i;
-	int tflag = 0, hflag = 0, cflag = 0, wflag = 0, nflag = 0;
+	int hflag = 0, cflag = 0, wflag = 0, nflag = 0;
 	int count = 0, waittime = 0;
 	char *memf = NULL, *nlistf = NULL;
 	struct devstat_match *matches;
@@ -239,7 +239,6 @@ main(int argc, char **argv)
 				oflag++;
 				break;
 			case 't':
-				tflag++;
 				if (devstat_buildmatch(optarg, &matches,
 						       &num_matches) != 0)
 					errx(1, "%s", devstat_errbuf);
