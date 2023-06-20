@@ -13807,7 +13807,7 @@ nomore:
 			}
 		case EPERM:
 			tp->t_softerror = error;
-			/* Fall through */
+			/* FALLTHROUGH */
 		case EHOSTDOWN:
 		case EHOSTUNREACH:
 		case ENETDOWN:

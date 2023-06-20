@@ -1952,7 +1952,7 @@ UP_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, str
 				RmGlobalIPAddresses(sm, assoc, direction);
 				break;
 			}
-		/* fall through to default */
+		/* FALLTHROUGH */
 	default:
 		sctp_ResetTimeOut(la,assoc, SN_U_T(la));
 		return (SN_NAT_PKT);  /* forward packet */

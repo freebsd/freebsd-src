@@ -1928,7 +1928,7 @@ tcp_log_state_change(struct tcpcb *tp, int state)
 	case TCP_LOG_STATE_CLEAR:
 		while ((log_entry = STAILQ_FIRST(&tp->t_logs)) != NULL)
 			tcp_log_remove_log_head(tp, log_entry);
-		/* Fall through */
+		/* FALLTHROUGH */
 
 	case TCP_LOG_STATE_OFF:
 		tp->_t_logstate = TCP_LOG_STATE_OFF;
