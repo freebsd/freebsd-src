@@ -530,7 +530,6 @@ MPConfigTableHeader( u_int32_t pap )
 {
     mpcth_t	cth;
     int		x;
-    int		totalSize;
     int		c;
     int		oldtype, entrytype;
     u_int8_t	*entry;
@@ -573,8 +572,6 @@ MPConfigTableHeader( u_int32_t pap )
 
     printf( "  extended table length:\t%d\n", cth->extended_table_length );
     printf( "  extended table checksum:\t%d\n", cth->extended_table_checksum );
-
-    totalSize = cth->base_table_length - sizeof( struct MPCTH );
 
     puts( SEP_LINE );
 
