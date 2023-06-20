@@ -25,6 +25,7 @@
 .Nm login_getcapbool ,
 .Nm login_getcaplist ,
 .Nm login_getcapnum ,
+.Nm login_getcapenum ,
 .Nm login_getcapstr ,
 .Nm login_getcapsize ,
 .Nm login_getcaptime ,
@@ -60,6 +61,8 @@
 .Fn login_getcaptime "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft rlim_t
 .Fn login_getcapnum "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
+.Ft int
+.Fn login_getcapenum "login_cap_t *lc" "const char *cap" "const char * const *values"
 .Ft rlim_t
 .Fn login_getcapsize "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft int
@@ -459,6 +462,31 @@ If the given capability tag cannot be found, the
 parameter is returned, and if an error occurs, the
 .Fa error
 parameter is returned.
+.It Fn login_getcapenum
+This function returns whether the searched capability is a string with value
+among a predefined set passed in argument
+.Fa values
+as a NULL-terminated array of strings.
+.Pp
+A non-negative value indicates a match and is the index of the capability's
+value in array
+.Fa values .
+Other possible return values are:
+.Bl -tag -width "-4"
+.It -4
+Returned if
+.Fa lc
+or
+.Fa cap
+are insufficiently initialized or invalid.
+.It -3
+Returned on allocation failure (out of memory).
+.It -2
+Returned if the capability isn't specified or its value is not a string.
+.It -1
+Returned if the capability is specified and a string but its value is not among
+.Fa values .
+.El
 .It Fn login_getcapsize
 .Fn login_getcapsize
 returns a value representing a size (typically, file or memory)
