@@ -105,7 +105,6 @@ init_cache_(struct configuration *config)
 
 	struct configuration_entry *config_entry;
 	size_t	size, i;
-	int res;
 
 	TRACE_IN(init_cache_);
 
@@ -120,14 +119,14 @@ init_cache_(struct configuration *config)
 	    	 * We should register common entries now - multipart entries
 	    	 * would be registered automatically during the queries.
 	    	 */
-		res = register_cache_entry(retval, (struct cache_entry_params *)
+		register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->positive_cache_params);
 		config_entry->positive_cache_entry = find_cache_entry(retval,
 			config_entry->positive_cache_params.cep.entry_name);
 		assert(config_entry->positive_cache_entry !=
 			INVALID_CACHE_ENTRY);
 
-		res = register_cache_entry(retval, (struct cache_entry_params *)
+		register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->negative_cache_params);
 		config_entry->negative_cache_entry = find_cache_entry(retval,
 			config_entry->negative_cache_params.cep.entry_name);

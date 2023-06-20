@@ -159,11 +159,9 @@ static struct cache_policy_item_ *
 cache_queue_policy_get_next_item(struct cache_policy_ *policy,
 	struct cache_policy_item_ *item)
 {
-	struct cache_queue_policy_ *queue_policy;
 	struct cache_queue_policy_item_	*queue_item;
 
 	TRACE_IN(cache_queue_policy_get_next_item);
-	queue_policy = (struct cache_queue_policy_ *)policy;
 	queue_item = (struct cache_queue_policy_item_ *)item;
 
 	TRACE_OUT(cache_queue_policy_get_next_item);
@@ -174,11 +172,9 @@ static struct cache_policy_item_ *
 cache_queue_policy_get_prev_item(struct cache_policy_ *policy,
 	struct cache_policy_item_ *item)
 {
-	struct cache_queue_policy_ *queue_policy;
 	struct cache_queue_policy_item_	*queue_item;
 
 	TRACE_IN(cache_queue_policy_get_prev_item);
-	queue_policy = (struct cache_queue_policy_ *)policy;
 	queue_item = (struct cache_queue_policy_item_ *)item;
 
 	TRACE_OUT(cache_queue_policy_get_prev_item);
