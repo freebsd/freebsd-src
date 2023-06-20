@@ -1555,14 +1555,14 @@ mt_getdensity(int argc, char **argv, char *xml_str,
     struct mt_status_data *status_data)
 {
 	int retval = 0;
-	int verbose = 0, xml_dump = 0;
+	int xml_dump = 0;
 	struct mt_status_entry *density_root = NULL;
 	int c;
 
 	while ((c = getopt(argc, argv, "vx")) != -1) {
 		switch (c) {
 		case 'v':
-			verbose = 1;
+			/* Ignore. */
 			break;
 		case 'x':
 			xml_dump = 1;
