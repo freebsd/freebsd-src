@@ -268,9 +268,6 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 int
 yp_check(struct svc_req *req)
 {
-	struct sockaddr_in	*caller;
-
-	caller = svc_getcaller(req->rq_xprt);
 	/*
 	 * We might want to know who we allow here.
 	 */
