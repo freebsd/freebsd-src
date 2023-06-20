@@ -295,8 +295,8 @@ VNET_DEFINE_STATIC(struct pfsyncstats, pfsyncstats);
 #define	V_pfsyncstats		VNET(pfsyncstats)
 VNET_DEFINE_STATIC(int, pfsync_carp_adj) = CARP_MAXSKEW;
 #define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
-VNET_DEFINE_STATIC(unsigned int, pfsync_defer_tmo) = PFSYNC_DEFER_TIMEOUT;
-#define	V_pfsync_defer_tmo	VNET(pfsync_defer_tmo)
+VNET_DEFINE_STATIC(unsigned int, pfsync_defer_timeout) = PFSYNC_DEFER_TIMEOUT;
+#define	V_pfsync_defer_timeout	VNET(pfsync_defer_timeout)
 
 static void	pfsync_timeout(void *);
 static void	pfsync_push(struct pfsync_bucket *);
@@ -322,7 +322,7 @@ SYSCTL_INT(_net_pfsync, OID_AUTO, carp_demotion_factor, CTLFLAG_VNET | CTLFLAG_R
 SYSCTL_ULONG(_net_pfsync, OID_AUTO, pfsync_buckets, CTLFLAG_RDTUN,
     &pfsync_buckets, 0, "Number of pfsync hash buckets");
 SYSCTL_UINT(_net_pfsync, OID_AUTO, defer_delay, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(pfsync_defer_tmo), 0, "Deferred packet timeout (in ms)");
+    &VNET_NAME(pfsync_defer_timeout), 0, "Deferred packet timeout (in ms)");
 
 static int	pfsync_clone_create(struct if_clone *, int, caddr_t);
 static void	pfsync_clone_destroy(struct ifnet *);
@@ -1887,7 +1887,7 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 
 	TAILQ_INSERT_TAIL(&b->b_deferrals, pd, pd_entry);
 	callout_init_mtx(&pd->pd_tmo, &b->b_mtx, CALLOUT_RETURNUNLOCKED);
-	callout_reset(&pd->pd_tmo, (V_pfsync_defer_tmo * hz) / 1000,
+	callout_reset(&pd->pd_tmo, (V_pfsync_defer_timeout * hz) / 1000,
 	    pfsync_defer_tmo, pd);
 
 	pfsync_push(b);
