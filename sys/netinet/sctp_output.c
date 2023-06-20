@@ -5041,7 +5041,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			break;
 		case SCTP_HAS_NAT_SUPPORT:
 			*nat_friendly = 1;
-			/* fall through */
+			/* FALLTHROUGH */
 		case SCTP_PRSCTP_SUPPORTED:
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
 				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error prsctp/nat support %d\n", plen);

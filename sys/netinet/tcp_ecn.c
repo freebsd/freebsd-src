@@ -318,10 +318,10 @@ tcp_ecn_input_segment(struct tcpcb *tp, uint16_t thflags, int tlen, int pkts, in
 				switch (tcp_ecn_get_ace(thflags)) {
 				case 0b010:
 					/* nonECT SYN or SYN,ACK */
-					/* Fallthrough */
+					/* FALLTHROUGH */
 				case 0b011:
 					/* ECT1 SYN or SYN,ACK */
-					/* Fallthrough */
+					/* FALLTHROUGH */
 				case 0b100:
 					/* ECT0 SYN or SYN,ACK */
 					tp->t_scep = 5;
@@ -467,9 +467,9 @@ tcp_ecn_syncache_socket(struct tcpcb *tp, struct syncache *sc)
 			tp->t_flags2 |= TF2_ECN_PERMIT;
 			break;
 		case SCF_ACE_N:
-			/* Fallthrough */
+			/* FALLTHROUGH */
 		case SCF_ACE_0:
-			/* Fallthrough */
+			/* FALLTHROUGH */
 		case SCF_ACE_1:
 			tp->t_flags2 |= TF2_ACE_PERMIT;
 			tp->t_scep = 5;
