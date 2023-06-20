@@ -5309,7 +5309,7 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
     Elf_Addr *dtv;
     Elf_Addr tlsstart, tlsend;
     size_t post_size;
-    size_t dtvsize, i, tls_init_align;
+    size_t dtvsize, i, tls_init_align __unused;
 
     assert(tcbsize >= TLS_TCB_SIZE);
     tls_init_align = MAX(obj_main->tlsalign, 1);
