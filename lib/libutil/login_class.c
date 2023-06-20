@@ -380,6 +380,11 @@ setclasscontext(const char *classname, unsigned int flags)
 }
 
 
+static const char * const inherit_enum[] = {
+    "inherit",
+    NULL
+};
+
 /*
  * Private function setting umask from the login class.
  */
@@ -391,7 +396,13 @@ setclassumask(login_cap_t *lc, const struct passwd *pwd)
 	 * indicating no specification.
 	 */
 	const rlim_t def_val = INT64_MIN + 1, err_val = INT64_MIN;
-	const rlim_t val = login_getcapnum(lc, "umask", def_val, err_val);
+	rlim_t val;
+
+	/* If value is "inherit", nothing to change. */
+	if (login_getcapenum(lc, "umask", inherit_enum) == 0)
+		return;
+
+	val = login_getcapnum(lc, "umask", def_val, err_val);
 
 	if (val != def_val) {
 		if (val < 0 || val > UINT16_MAX) {
