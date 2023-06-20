@@ -1583,7 +1583,6 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 	ACPI_NFIT_SYSTEM_ADDRESS *sysaddr;
 	ACPI_NFIT_MEMORY_MAP *mmap;
 	ACPI_NFIT_INTERLEAVE *ileave;
-	ACPI_NFIT_SMBIOS *smbios;
 	ACPI_NFIT_CONTROL_REGION *ctlreg;
 	ACPI_NFIT_DATA_REGION *datareg;
 	ACPI_NFIT_FLUSH_ADDRESS *fladdr;
@@ -1661,7 +1660,6 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		}
 		break;
 	case ACPI_NFIT_TYPE_SMBIOS:
-		smbios = (ACPI_NFIT_SMBIOS *)nfit;
 		/* XXX smbios->Data[x] output is not supported */
 		break;
 	case ACPI_NFIT_TYPE_CONTROL_REGION:
