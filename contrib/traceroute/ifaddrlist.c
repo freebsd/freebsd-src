@@ -73,7 +73,7 @@ ifaddrlist(register struct ifaddrlist **ipaddrp, register char *errbuf)
 #ifdef HAVE_SOCKADDR_SA_LEN
 	size_t n;
 #endif
-	register struct ifreq *ifrp, *ifend, *ifnext, *mp;
+	register struct ifreq *ifrp, *ifend, *ifnext;
 	register struct sockaddr_in *sin;
 	register struct ifaddrlist *al;
 	struct ifconf ifc;
@@ -106,7 +106,6 @@ ifaddrlist(register struct ifaddrlist **ipaddrp, register char *errbuf)
 	ifend = (struct ifreq *)((char *)ibuf + ifc.ifc_len);
 
 	al = ifaddrlist;
-	mp = NULL;
 	nipaddr = 0;
 	for (; ifrp < ifend; ifrp = ifnext) {
 #ifdef HAVE_SOCKADDR_SA_LEN
