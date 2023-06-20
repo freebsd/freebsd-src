@@ -230,7 +230,8 @@ multiwanlocal_body()
 		"block in"	\
 		"block out"	\
 		"pass out quick route-to (${epair_cl_two}a 203.0.113.129) inet proto tcp from 203.0.113.128 to any port 7" \
-		"pass out on ${epair_cl_one}a inet proto tcp from any to any port 7"
+		"pass out on ${epair_cl_one}a inet proto tcp from any to any port 7" \
+		"set skip on lo"
 
 	# This should work
 	result=$(jexec client nc -N -w 1 192.0.2.2 7 | wc -c)

@@ -101,7 +101,7 @@ set_skip_dynamic_body()
 	vnet_mkjail alcatraz
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz "set skip on epair" \
-		"block"
+		"block on ! lo"
 
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a 192.0.2.2/24 up

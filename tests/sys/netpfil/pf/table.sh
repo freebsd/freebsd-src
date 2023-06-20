@@ -52,7 +52,8 @@ v4_counters_body()
 	    "table <foo> counters { 192.0.2.1 }" \
 	    "block all" \
 	    "pass in from <foo> to any" \
-	    "pass out from any to <foo>"
+	    "pass out from any to <foo>" \
+	    "set skip on lo"
 
 	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
 
@@ -91,7 +92,8 @@ v6_counters_body()
 	    "table <foo6> counters { 2001:db8:42::1 }" \
 	    "block all" \
 	    "pass in from <foo6> to any" \
-	    "pass out from any to <foo6>"
+	    "pass out from any to <foo6>" \
+	    "set skip on lo"
 
 	atf_check -s exit:0 -o ignore ping -6 -c 3 2001:db8:42::2
 

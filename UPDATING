@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230619:
+	To enable pf rdr rules for connections initiated from the host, pf
+	filter rules can be optionally enabled for packets delivered
+	locally. This can change the behavior of rules which match packets
+	delivered to lo0. To enable this feature:
+
+		sysctl net.pf.filter_local=1
+		service pf restart
+
+	When enabled, its best to ensure that packets delivered locally are not
+	filtered, e.g. by adding a 'skip on lo' rule.
+
 20230613:
 	Improvements to libtacplus(8) mean that tacplus.conf(5) now
 	follows POSIX shell syntax rules. This may cause TACACS+

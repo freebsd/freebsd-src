@@ -55,11 +55,10 @@ firewall_config()
 		jexec ${jname} ipfw -q -f flush
 		jexec ${jname} /bin/sh $cwd/ipfw.rule
 	elif [ ${fw} == "pf" ]; then
+		jexec ${jname} sysctl net.pf.filter_local=1
 		jexec ${jname} pfctl -e
 		jexec ${jname} pfctl -F all
 		jexec ${jname} pfctl -f $cwd/pf.rule
-		jexec ${jname} pfilctl link -o pf:default-out inet-local
-		jexec ${jname} pfilctl link -o pf:default-out6 inet6-local
 	elif [ ${fw} == "ipf" ]; then
 		jexec ${jname} ipf -E
 		jexec ${jname} ipf -Fa -f $cwd/ipf.rule
