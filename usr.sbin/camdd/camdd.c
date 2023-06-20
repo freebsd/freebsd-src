@@ -2748,11 +2748,8 @@ bailout:
 int
 camdd_get_next_lba_len(struct camdd_dev *dev, uint64_t *lba, ssize_t *len)
 {
-	struct camdd_dev_pass *pass_dev;
 	uint32_t num_blocks;
 	int retval = 0;
-
-	pass_dev = &dev->dev_spec.pass;
 
 	*lba = dev->next_io_pos_bytes / dev->sector_size;
 	*len = dev->blocksize;
@@ -2810,15 +2807,11 @@ camdd_queue(struct camdd_dev *dev, struct camdd_buf *read_buf)
 {
 	struct camdd_buf *buf = NULL;
 	struct camdd_buf_data *data;
-	struct camdd_dev_pass *pass_dev;
 	size_t new_len;
 	struct camdd_buf_data *rb_data;
 	int is_write = dev->write_dev;
 	int eof_flush_needed = 0;
 	int retval = 0;
-	int error;
-
-	pass_dev = &dev->dev_spec.pass;
 
 	/*
 	 * If we've gotten EOF or our partner has, we should not continue
@@ -2839,7 +2832,7 @@ camdd_queue(struct camdd_dev *dev, struct camdd_buf *read_buf)
 		if (is_write) {
 			read_buf->status = CAMDD_STATUS_EOF;
 			
-			error = camdd_complete_peer_buf(dev, read_buf);
+			camdd_complete_peer_buf(dev, read_buf);
 		}
 		goto bailout;
 	}
@@ -2908,7 +2901,7 @@ camdd_queue(struct camdd_dev *dev, struct camdd_buf *read_buf)
 
 			if (len == 0) {
 				dev->flags |= CAMDD_DEV_FLAG_EOF;
-				error = camdd_complete_peer_buf(dev, read_buf);
+				camdd_complete_peer_buf(dev, read_buf);
 				goto bailout;
 			}
 		}
