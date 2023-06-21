@@ -255,6 +255,9 @@ from other means.
 .It "timezone	string		Default value of $TZ environment variable."
 .It "umask	number		Initial umask. Should always have a leading 0 to"
 ensure octal interpretation.
+Special value
+.Ql inherit
+explicitly indicates not to change the umask.
 .It "welcome	file	/etc/motd	File containing welcome message."
 .El
 .Sh AUTHENTICATION
