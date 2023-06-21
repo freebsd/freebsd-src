@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2021
+.Dd June 21, 2023
 .Dt M4 1
 .Os
 .Sh NAME
@@ -41,13 +41,13 @@
 .Nd macro language processor
 .Sh SYNOPSIS
 .Nm
-.Op Fl EgPs
+.Op Fl EGgPs
 .Oo
 .Sm off
 .Fl D Ar name Op No = Ar value
 .Sm on
 .Oc
-.Op Fl d Ar flags
+.Op Fl d Oo Oo +- Oc Ns Ar flags Oc
 .Op Fl I Ar dirname
 .Op Fl o Ar filename
 .Op Fl t Ar macro
@@ -98,15 +98,14 @@ recognized as special when not followed by an open parenthesis.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl D Ns Ar name Ns Op = Ns Ar value
+.It Fl D Ns Ar name Ns Oo = Ns Ar value Oc , Fl -define Ns = Ns Ar name Ns Oo = Ns Ar value Oc
 Define the symbol
 .Ar name
 to have some value (or
 .Dv NULL ) .
-.It Fl d Ar "flags"
-Set trace flags.
-.Ar flags
-may hold the following:
+.It Fl d Oo Oo +|- Oc Ns Ar flags Oc , Fl -debug Ns = Ns Oo Oo +|- Oc Ns Ar flags Oc
+Set or unset trace flags.
+The trace flags are as follows:
 .Bl -tag -width Ds
 .It Ar a
 print macro arguments.
@@ -128,9 +127,21 @@ number macro expansions.
 turn on all options.
 .El
 .Pp
+If
+.Qq +
+or
+.Qq -
+is used, the specified flags are added to or removed from the set of
+active trace flags, respectively; otherwise, the specified flags
+replace the set of active trace flags.
+.Pp
+Specifying this option without an argument is equivalent to specifying
+it with the argument
+.Qq aeq .
+.Pp
 By default, trace is set to
 .Qq eq .
-.It Fl E
+.It Fl E , Fl -fatal-warnings
 Set warnings to be fatal.
 When a single
 .Fl E
@@ -144,38 +155,51 @@ flags are specified, execution will halt upon issuing the
 first warning and
 .Nm
 will exit with a non-zero exit status.
-This behaviour matches GNU-m4 1.4.9 and later.
-.It Fl g
-Activate GNU-m4 compatibility mode.
-In this mode, translit handles simple character
-ranges (e.g., a-z), regular expressions mimic emacs behavior,
-multiple m4wrap calls are handled as a stack,
+This behavior matches GNU m4 1.4.9 and later.
+.It Fl G , Fl -traditional
+Disable GNU compatibility mode (see
+.Fl g
+below).
+.It Fl g , Fl -gnu
+Enable GNU compatibility mode.
+In this mode,
+.Ic translit
+handles simple character ranges (e.g.,
+.Sq a-z ) ,
+regular expressions mimic Emacs behavior,
+multiple
+.Ic m4wrap
+calls are handled as a stack,
 the number of diversions is unlimited,
 empty names for macro definitions are allowed,
-and eval understands
+.Ic undivert
+can be used to include files,
+and
+.Ic eval
+understands
 .Sq 0rbase:value
 numbers.
-.It Fl I Ar "dirname"
+.It Fl I Ar dirname , Fl -include Ns = Ns Ar dirname
 Add directory
 .Ar dirname
 to the include path.
-.It Fl o Ar filename
+.It Fl o Ar filename , Fl -error-output Ns = Ns Ar filename
 Send trace output to
 .Ar filename .
-.It Fl P
+.It Fl P , Fl -prefix-builtins
 Prefix all built-in macros with
 .Sq m4_ .
 For example, instead of writing
 .Ic define ,
 use
 .Ic m4_define .
-.It Fl s
+.It Fl s , Fl -synclines
 Output line synchronization directives, suitable for
 .Xr cpp 1 .
-.It Fl t Ar macro
+.It Fl t Ar macro , Fl -trace Ns = Ns Ar macro
 Turn tracing on for
 .Ar macro .
-.It Fl "U" Ns Ar "name"
+.It Fl U Ns Ar name , Fl -undefine Ns = Ns Ar name
 Undefine the symbol
 .Ar name .
 .El
@@ -474,7 +498,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl dEgIPot
+.Op Fl dEGgIPot
 and the macros
 .Ic builtin ,
 .Ic esyscmd ,

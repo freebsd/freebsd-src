@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -59,6 +60,22 @@ __FBSDID("$FreeBSD$");
 #include "stdd.h"
 #include "extern.h"
 #include "pathnames.h"
+
+static const char *shortopts = "+D:d::EGgI:o:Pst:U:";
+static const struct option longopts[] = {
+	{ "define",		required_argument,	NULL,	'D' },
+	{ "debug",		optional_argument,	NULL,	'd' },
+	{ "fatal-warnings",	no_argument,		NULL,	'E' },
+	{ "traditional",	no_argument,		NULL,	'G' },
+	{ "gnu",		no_argument,		NULL,	'g' },
+	{ "include",		required_argument,	NULL,	'I' },
+	{ "error-output",	required_argument,	NULL,	'o' },
+	{ "prefix-builtins",	no_argument,		NULL,	'P' },
+	{ "synclines",		no_argument,		NULL,	's' },
+	{ "trace",		required_argument,	NULL,	't' },
+	{ "undefine",		required_argument,	NULL,	'U' },
+	{ NULL, 0, NULL, 0 },
+};
 
 stae *mstack;			/* stack of m4 machine         */
 char *sstack;			/* shadow stack, for string space extension */
@@ -188,7 +205,7 @@ main(int argc, char *argv[])
 	outfile = NULL;
 	resizedivs(MAXOUT);
 
-	while ((c = getopt(argc, argv, "gst:d:D:EU:o:I:P")) != -1)
+	while ((c = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1)
 		switch(c) {
 
 		case 'D':               /* define something..*/
@@ -214,11 +231,14 @@ main(int argc, char *argv[])
 		case 'U':               /* undefine...       */
 			macro_popdef(optarg);
 			break;
+		case 'G':
+			mimic_gnu = 0;
+			break;
 		case 'g':
 			mimic_gnu = 1;
 			break;
 		case 'd':
-			set_trace_flags(optarg);
+			set_trace_flags(optarg ? optarg : "aeq");
 			break;
 		case 's':
 			synch_lines = 1;
