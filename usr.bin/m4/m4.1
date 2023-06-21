@@ -41,7 +41,7 @@
 .Nd macro language processor
 .Sh SYNOPSIS
 .Nm
-.Op Fl EgPs
+.Op Fl EGgPs
 .Oo
 .Sm off
 .Fl D Ar name Op No = Ar value
@@ -156,8 +156,12 @@ first warning and
 .Nm
 will exit with a non-zero exit status.
 This behaviour matches GNU-m4 1.4.9 and later.
+.It Fl G , Fl -traditional
+Disable GNU compatibility mode (see
+.Fl g
+below).
 .It Fl g , Fl -gnu
-Activate GNU-m4 compatibility mode.
+Enable GNU compatibility mode.
 In this mode, translit handles simple character
 ranges (e.g., a-z), regular expressions mimic emacs behavior,
 multiple m4wrap calls are handled as a stack,
@@ -485,7 +489,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl dEgIPot
+.Op Fl dEGgIPot
 and the macros
 .Ic builtin ,
 .Ic esyscmd ,
