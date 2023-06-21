@@ -61,11 +61,12 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-static const char *shortopts = "+D:d::EgI:o:Pst:U:";
+static const char *shortopts = "+D:d::EGgI:o:Pst:U:";
 static const struct option longopts[] = {
 	{ "define",		required_argument,	NULL,	'D' },
 	{ "debug",		optional_argument,	NULL,	'd' },
 	{ "fatal-warnings",	no_argument,		NULL,	'E' },
+	{ "traditional",	no_argument,		NULL,	'G' },
 	{ "gnu",		no_argument,		NULL,	'g' },
 	{ "include",		required_argument,	NULL,	'I' },
 	{ "error-output",	required_argument,	NULL,	'o' },
@@ -229,6 +230,9 @@ main(int argc, char *argv[])
 			break;
 		case 'U':               /* undefine...       */
 			macro_popdef(optarg);
+			break;
+		case 'G':
+			mimic_gnu = 0;
 			break;
 		case 'g':
 			mimic_gnu = 1;
