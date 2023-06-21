@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 26, 2023
+.Dd June 21, 2023
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -493,6 +493,7 @@ action:
 Packet is silently dropped.
 .It Ar return
 A TCP RST is returned for blocked TCP packets,
+an SCTP ABORT chunk is returned for blocked SCTP packets,
 an ICMP UNREACHABLE is returned for blocked UDP packets,
 and all other packets are silently dropped.
 .El
@@ -517,6 +518,7 @@ actions are possible:
 Incoming packet is silently dropped.
 .It Ar return
 Incoming packet is dropped and TCP RST is returned for TCP packets,
+an SCTP ABORT chunk is returned for blocked SCTP packets,
 an ICMP UNREACHABLE is returned for UDP packets,
 and no response is sent for other packets.
 .El
@@ -1267,8 +1269,8 @@ A stateful connection is automatically created to track packets matching
 such a rule as long as they are not blocked by the filtering section of
 .Nm pf.conf .
 The translation engine modifies the specified address and/or port in the
-packet, recalculates IP, TCP and UDP checksums as necessary, and passes it to
-the packet filter for evaluation.
+packet, recalculates IP, TCP and UDP checksums as necessary, and passes
+it to the packet filter for evaluation.
 .Pp
 Since translation occurs before filtering the filter
 engine will see packets as they look after any
@@ -1404,6 +1406,7 @@ and layer 4 (see
 .Xr icmp 4 ,
 .Xr icmp6 4 ,
 .Xr tcp 4 ,
+.Xr sctp 4 ,
 .Xr udp 4 )
 headers.
 In addition, packets may also be
@@ -1453,7 +1456,8 @@ can be overridden by specifying a message as a code or number.
 .It Ar return
 This causes a TCP RST to be returned for
 .Xr tcp 4
-packets and an ICMP UNREACHABLE for UDP and other packets.
+packets, an SCTP ABORT for SCTP
+and an ICMP UNREACHABLE for UDP and other packets.
 .El
 .Pp
 Options returning ICMP packets currently have no effect if
@@ -1654,6 +1658,7 @@ Common protocols are
 .Xr icmp 4 ,
 .Xr icmp6 4 ,
 .Xr tcp 4 ,
+.Xr sctp 4 ,
 and
 .Xr udp 4 .
 For a list of all the protocol name to number mappings used by
@@ -2853,6 +2858,14 @@ reference to an anchor name containing
 characters will require double quote
 .Pq Sq \&"
 characters around the anchor name.
+.Sh SCTP CONSIDERATIONS
+.Xr pf 4
+supports
+.Xr sctp 4
+connections.
+It can match ports, track state and NAT SCTP traffic.
+However, it will not alter port numbers during nat or rdr translations.
+Doing so would break SCTP multihoming.
 .Sh TRANSLATION EXAMPLES
 This example maps incoming requests on port 80 to port 8080, on
 which a daemon is running (because, for example, it is not run as root,
@@ -3319,6 +3332,7 @@ Service name database.
 .Xr pf 4 ,
 .Xr pfsync 4 ,
 .Xr tcp 4 ,
+.Xr sctp 4 ,
 .Xr udp 4 ,
 .Xr hosts 5 ,
 .Xr pf.os 5 ,
