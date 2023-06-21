@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230621:
+	13.1-RELEASE-p8	FreeBSD-EN-23:05.tzdata
+			FreeBSD-EN-23:06.loader
+			FreeBSD-EN-23:07.mpr
+			FreeBSD-SA-23:04.pam_krb5
+
+	Timezone database information update [EN-23:05.tzdata]
+
+	x86 kernel console configuration [EN-23:06.loader]
+
+	Fix mpr(4) failure to initialize devices [EN-23:07.mpr]
+
+	Fix network authentication attack via pam_krb5 [SA-23:04.pam_krb5]
+
 20230216:
 	13.1-RELEASE-p7 FreeBSD-SA-23:03.openssl
 
