@@ -55,6 +55,7 @@ struct ratelimit {
 	struct callout			rl_gc;
 	LIST_HEAD(, ratelimit_entry)	rl_table[RATELIMIT_SIZE];
 	size_t				rl_table_num;
+	bool				rl_initialized;
 };
 
 static void	precompute_key(uint8_t *,
@@ -102,7 +103,8 @@ cookie_deinit(void)
 #ifdef INET6
 	ratelimit_deinit(&ratelimit_v6);
 #endif
-	uma_zdestroy(ratelimit_zone);
+	if (ratelimit_zone != NULL)
+		uma_zdestroy(ratelimit_zone);
 }
 
 void
@@ -350,16 +352,21 @@ ratelimit_init(struct ratelimit *rl)
 	for (i = 0; i < RATELIMIT_SIZE; i++)
 		LIST_INIT(&rl->rl_table[i]);
 	rl->rl_table_num = 0;
+	rl->rl_initialized = true;
 }
 
 static void
 ratelimit_deinit(struct ratelimit *rl)
 {
+	if (!rl->rl_initialized)
+		return;
 	mtx_lock(&rl->rl_mtx);
 	callout_stop(&rl->rl_gc);
 	ratelimit_gc(rl, true);
 	mtx_unlock(&rl->rl_mtx);
 	mtx_destroy(&rl->rl_mtx);
+
+	rl->rl_initialized = false;
 }
 
 static void
