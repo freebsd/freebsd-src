@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2020
+.Dd June 21, 2023
 .Dt SCTP 4
 .Os
 .Sh NAME
@@ -299,12 +299,13 @@ This option lets the caller set it to a smaller value.
 Note that while the user can change this value, if the P-MTU
 is smaller than the value set by the user, then the P-MTU
 value will override any user setting.
-.It Dv SCTP_DELAYED_ACK_TIME
+.It Dv SCTP_DELAYED_SACK
 This option lets the user both set and get the
-delayed ack time (in milliseconds) that
+delayed ack time (in milliseconds) and the ack frequency that
 .Tn SCTP
 is using.
-The default is 200 milliseconds.
+The default delayed ack time is 200 milliseconds and the default
+ack frequency is 2.
 .It Dv SCTP_PARTIAL_DELIVERY_POINT
 .Tn SCTP
 at times may need to start delivery of a
