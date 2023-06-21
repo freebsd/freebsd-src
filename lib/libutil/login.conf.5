@@ -247,7 +247,21 @@ for details.
 .It "nologin	file		If the file exists it will be displayed and"
 the login session will be terminated.
 .It "path	path	/bin /usr/bin	Default search path."
-.It "priority	number		Initial priority (nice) level."
+.It "priority	number	0	Initial priority level."
+A value in the nice range
+.Pq -20 to 20 included ,
+extended below with the 32 real-time class priorities
+.Po
+so -52 maps to priority 0 in the real-time class, -51 to 1, and so on until -21
+which maps to 31; see
+.Xr rtprio 1
+.Pc
+and above with the 32 idle class priorities
+.Po
+so 21 maps to priority 0 in the idle class, 22 to 1, and so on until 52 which
+maps to 31; see
+.Xr idprio 1
+.Pc .
 .It "requirehome 	bool	false	Require a valid home directory to login."
 .It "setenv	list		A comma-separated list of environment variables and"
 values to which they are to be set.
