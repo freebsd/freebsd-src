@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <atf-c.h>
@@ -363,12 +364,39 @@ ATF_TC_BODY(event, tc)
 	test42(fd[0]);
 }
 
+ATF_TC_WITHOUT_HEAD(selfgetpeername);
+ATF_TC_BODY(selfgetpeername, tc)
+{
+	struct sockaddr_un sun;
+	const char *name;
+	socklen_t len;
+	int sd;
+
+	name = "selfgetpeername";
+
+	sd = socket(PF_UNIX, SOCK_DGRAM, 0);
+	ATF_REQUIRE(sd != -1);
+
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_len = sizeof(sun);
+	sun.sun_family = AF_UNIX;
+	snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", name);
+	ATF_REQUIRE(bind(sd, (struct sockaddr *)&sun, sizeof(sun)) == 0);
+	ATF_REQUIRE(connect(sd, (struct sockaddr *)&sun, sizeof(sun)) == 0);
+
+	len = sizeof(sun);
+	ATF_REQUIRE(getpeername(sd, (struct sockaddr *)&sun, &len) == 0);
+	ATF_REQUIRE(strcmp(sun.sun_path, name) == 0);
+
+	ATF_REQUIRE(close(sd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, basic);
 	ATF_TP_ADD_TC(tp, one2many);
 	ATF_TP_ADD_TC(tp, event);
+	ATF_TP_ADD_TC(tp, selfgetpeername);
 
 	return (atf_no_error());
 }
