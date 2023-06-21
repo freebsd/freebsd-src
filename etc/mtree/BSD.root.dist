@@ -96,6 +96,8 @@
         ..
         ssl
         ..
+	sysctl.conf.d
+	..
         syslog.d
         ..
         zfs
