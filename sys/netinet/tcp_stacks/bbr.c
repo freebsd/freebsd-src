@@ -13377,6 +13377,11 @@ send:
 	 * the pointer in case of a stack switch.
 	 */
 	tp->snd_up = tp->snd_una;
+	/*
+	 * Put TCP length in extended header, and then checksum extended
+	 * header and data.
+	 */
+	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
@@ -13396,11 +13401,6 @@ send:
 	}
 #endif
 
-	/*
-	 * Put TCP length in extended header, and then checksum extended
-	 * header and data.
-	 */
-	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #ifdef INET6
 	if (isipv6) {
 		/*
