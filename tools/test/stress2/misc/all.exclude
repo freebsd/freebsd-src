@@ -69,6 +69,8 @@ syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	2022
 syzkaller55.sh		panic: Counter goes negative					20220525
 syzkaller59.sh		Page fault							20220625
 syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
+syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
+syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
 truss3.sh		WiP								20200915
 
 # Test not to run for other reasons:
