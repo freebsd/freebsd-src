@@ -890,16 +890,16 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	unp2 = unp_pcb_lock_peer(unp);
 	if (unp2 != NULL) {
 		if (unp2->unp_addr != NULL)
-			sa = (struct sockaddr *) unp2->unp_addr;
+			sa = (struct sockaddr *)unp2->unp_addr;
 		else
 			sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
-		UNP_PCB_UNLOCK(unp2);
+		unp_pcb_unlock_pair(unp, unp2);
 	} else {
 		sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
+		UNP_PCB_UNLOCK(unp);
 	}
-	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
 
