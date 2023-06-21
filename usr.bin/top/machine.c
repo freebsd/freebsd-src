@@ -1267,6 +1267,7 @@ static const int sorted_state[] = {
 	[SSLEEP] =	6,	/* sleeping		*/
 	[SSTOP] =	5,	/* stopped/suspended	*/
 	[SZOMB] =	2,	/* zombie		*/
+	[SWAIT] =	4,	/* intr			*/
 	[SLOCK] =	7,	/* blocked on lock	*/
 };
 
