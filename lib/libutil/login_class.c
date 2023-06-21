@@ -462,8 +462,14 @@ static void
 setclasspriority(login_cap_t * const lc, struct passwd const * const pwd)
 {
 	const rlim_t def_val = LOGIN_DEFPRI, err_val = INT64_MIN;
-	rlim_t p = login_getcapnum(lc, "priority", def_val, err_val);
+	rlim_t p;
 	int rc;
+
+	/* If value is "inherit", nothing to change. */
+	if (login_getcapenum(lc, "priority", inherit_enum) == 0)
+		return;
+
+	p = login_getcapnum(lc, "priority", def_val, err_val);
 
 	if (p == err_val) {
 		/* Invariant: 'lc' != NULL. */
