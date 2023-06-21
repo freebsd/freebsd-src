@@ -155,19 +155,28 @@ flags are specified, execution will halt upon issuing the
 first warning and
 .Nm
 will exit with a non-zero exit status.
-This behaviour matches GNU-m4 1.4.9 and later.
+This behaviour matches GNU m4 1.4.9 and later.
 .It Fl G , Fl -traditional
 Disable GNU compatibility mode (see
 .Fl g
 below).
 .It Fl g , Fl -gnu
 Enable GNU compatibility mode.
-In this mode, translit handles simple character
-ranges (e.g., a-z), regular expressions mimic emacs behavior,
-multiple m4wrap calls are handled as a stack,
+In this mode,
+.Ic translit
+handles simple character ranges (e.g.,
+.Sq a-z ) ,
+regular expressions mimic Emacs behavior,
+multiple
+.Ic m4wrap
+calls are handled as a stack,
 the number of diversions is unlimited,
 empty names for macro definitions are allowed,
-and eval understands
+.Ic undivert
+can be used to include files,
+and
+.Ic eval
+understands
 .Sq 0rbase:value
 numbers.
 .It Fl I Ar dirname , Fl -include Ns = Ns Ar dirname
