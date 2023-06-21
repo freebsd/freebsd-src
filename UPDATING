@@ -17,6 +17,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20230621:
+	12.4-RELEASE-p3	FreeBSD-EN-23:05.tzdata
+			FreeBSD-EN-23:07.mpr
+			FreeBSD-SA-23:04.pam_krb5
+			FreeBSD-SA-23:05.openssh
+
+	Timezone database information update [EN-23:05.tzdata]
+
+	Fix mpr(4) failure to initialize devices [EN-23:07.mpr]
+
+	Fix network authentication attack via pam_krb5 [SA-23:04.pam_krb5]
+
+	Fix ssh-add not honoring per-hop destination constraints [SA-23:05.openssh]
+
 20230216:
 	12.4-RELEASE-p2 FreeBSD-SA-23:02.openssh
 			FreeBSD-SA-23:03.openssl
