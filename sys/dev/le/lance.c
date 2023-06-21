@@ -202,6 +202,8 @@ lance_attach(struct lance_softc *sc)
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
+
+	gone_in(15, "le: 10/100 NIC no longer needed for Qemu/MIPS");
 }
 
 void
