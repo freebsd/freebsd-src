@@ -51,6 +51,13 @@ Comments can also exist at the end of a line,
 as seen in the
 .Sx EXAMPLES
 section, below.
+.Pp
+For kernel modules loaded via
+.Xr rc.subr 8
+system ,
+additional module-specific settings can be applied
+by adding a file in the same format named
+.Pf /etc/sysctl.d/<module name>.conf .
 .Sh FILES
 .Bl -tag -width /etc/rc.d/sysctl_lastload -compact
 .It Pa /etc/rc.d/sysctl
@@ -69,6 +76,9 @@ Initial settings for
 .It Pa /etc/sysctl.conf.local
 Machine-specific settings for sites with a common
 .Pa /etc/sysctl.conf .
+.It Pa /etc/sysctl.conf.d
+Module specific settings for kernel modules loaded via
+.Xr rc.subr 8 .
 .El
 .Sh EXAMPLES
 To turn off logging of programs that exit due to fatal signals you may use

@@ -1970,6 +1970,9 @@ load_kld()
 			return 1
 		else
 			info "$1 kernel module loaded."
+			if [ -f "/etc/sysctl.conf.d/$1.conf" ]; then
+				sysctl -f "/etc/sysctl.conf.d/$1.conf"
+			fi
 		fi
 	else
 		debug "load_kld: $1 kernel module already loaded."
