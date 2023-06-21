@@ -80,11 +80,6 @@
 .Op Fl o Ar var Ns Cm = Ns Ar value
 .Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
 .Op Fl r Ar file
-.Oo Fl R
-.Sm off
-.Ar host Op Cm \&: Ar port
-.Sm on
-.Oc
 .Sm off
 .Oo Fl s\~
 .Ar slot Cm \&, Ar emulation Op Cm \&, Ar conf
@@ -281,13 +276,6 @@ and
 .Fl l
 options.
 The count of vCPUs and memory configuration are read from the snapshot.
-.It Fl R Ar host Ns Op Cm \&: Ns Ar port
-Receive migration from a source guest.
-Await for a connection from
-.Ar host
-on the specified
-.Ar port
-and resume execution. The default migration port is 24983.
 .It Fl S
 Wire guest memory.
 .It Fl s Cm help
