@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef BHYVE_SNAPSHOT
 #include "snapshot.h"
-#include "migration.h"
 #endif
 
 #define	MB	(1UL << 20)
@@ -88,7 +87,6 @@ usage(bool cpu_intel)
 	"       [--destroy]\n"
 #ifdef BHYVE_SNAPSHOT
 	"       [--checkpoint=<filename> | --suspend=<filename>]\n"
-	"       [--migrate=<host>[:<port>] | --migrate-live=<host>[:<port>]]\n"
 #endif
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
@@ -301,7 +299,6 @@ static int run;
 static int get_cpu_topology;
 #ifdef BHYVE_SNAPSHOT
 static int vm_suspend_opt;
-static int vm_migrate_live;
 #endif
 
 /*
@@ -592,8 +589,6 @@ enum {
 #ifdef BHYVE_SNAPSHOT
 	SET_CHECKPOINT_FILE,
 	SET_SUSPEND_FILE,
-	MIGRATE_VM,
-	MIGRATE_VM_LIVE,
 #endif
 };
 
@@ -1461,8 +1456,6 @@ setup_options(bool cpu_intel)
 #ifdef BHYVE_SNAPSHOT
 		{ "checkpoint", 	REQ_ARG, 0,	SET_CHECKPOINT_FILE},
 		{ "suspend", 		REQ_ARG, 0,	SET_SUSPEND_FILE},
-		{ "migrate", 		REQ_ARG, 0,	MIGRATE_VM},
-		{ "migrate-live", 	REQ_ARG, 0,	MIGRATE_VM_LIVE},
 #endif
 	};
 
@@ -1750,42 +1743,7 @@ snapshot_request(const char *vmname, char *file, bool suspend)
 
 	return (send_message(vmname, nvl));
 }
-
-static int
-migration_request(const char *vmname, const char *migrate_vm, bool live)
-{
-	nvlist_t *nvl;
-	char *hostname, *pos;
-	int rc;
-	unsigned int port = DEFAULT_MIGRATION_PORT;
-
-	hostname = strdup(migrate_vm);
-
-	if ((pos = strchr(hostname, ':')) != NULL) {
-		*pos = '\0';
-		pos = pos + 1;
-
-		rc = sscanf(pos, "%u", &port);
-
-		if (rc <= 0) {
-			fprintf(stderr, "Could not parse the port\n");
-			free(hostname);
-			return (EINVAL);
-		}
-	}
-
-	nvl = nvlist_create(0);
-	nvlist_add_string(nvl, "cmd", "migrate");
-	nvlist_add_string(nvl, "hostname", hostname);
-	nvlist_add_number(nvl, "port", port);
-	nvlist_add_bool(nvl, "live", live);
-
-	free(hostname);
-
-	return (send_message(vmname, nvl));
-}
-
-#endif /* BHYVE_SNAPSHOT */
+#endif
 
 int
 main(int argc, char *argv[])
@@ -1805,7 +1763,7 @@ main(int argc, char *argv[])
 	struct tm tm;
 	struct option *opts;
 #ifdef BHYVE_SNAPSHOT
-	char *checkpoint_file = NULL, *migrate_host = NULL;
+	char *checkpoint_file = NULL;
 #endif
 
 	cpu_intel = cpu_vendor_intel();
@@ -1973,14 +1931,6 @@ main(int argc, char *argv[])
 
 			checkpoint_file = optarg;
 			vm_suspend_opt = (ch == SET_SUSPEND_FILE);
-			break;
-		case MIGRATE_VM:
-		case MIGRATE_VM_LIVE:
-			if (migrate_host != NULL)
-				usage(cpu_intel);
-			
-			migrate_host = optarg;
-			vm_migrate_live = (ch == MIGRATE_VM_LIVE);
 			break;
 #endif
 		default:
@@ -2464,9 +2414,6 @@ main(int argc, char *argv[])
 #ifdef BHYVE_SNAPSHOT
 	if (!error && checkpoint_file)
 		error = snapshot_request(vmname, checkpoint_file, vm_suspend_opt);
-	
-	if (!error && migrate_host)
-		error = migration_request(vmname, migrate_host, vm_migrate_live);
 #endif
 
 	free (opts);

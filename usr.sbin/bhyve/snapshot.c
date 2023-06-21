@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
-#include "migration.h"
 #include "mptbl.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
@@ -1399,40 +1398,6 @@ vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
 	return (error);
 }
 IPC_COMMAND(ipc_cmd_set, checkpoint, vm_do_checkpoint);
-
-static int
-vm_do_migrate(struct vmctx __unused *ctx, const nvlist_t *nvl)
-{
-	size_t len;
-	struct migrate_req req;
-
-	if (!nvlist_exists_string(nvl, "hostname") ||
-		!nvlist_exists_number(nvl, "port"))
-			return (EINVAL);
-
-	memset(&req, 0, sizeof(struct migrate_req));
-	req.port = nvlist_get_number(nvl, "port");
-
-	len = strlen(nvlist_get_string(nvl, "hostname"));
-	if (len > MAXHOSTNAMELEN - 1) {
-		EPRINTLN("Hostname length %lu bigger than maximum allowed %d",
-			len, MAXHOSTNAMELEN - 1);
-		return (EINVAL);
-	}
-
-	strlcpy(req.host, nvlist_get_string(nvl, "hostname"), MAXHOSTNAMELEN);
-
-	printf("%s: IP address used for migration: %s;\n"
-		"Port used for migration: %d\n",
-		__func__,
-		req.host,
-		req.port);
-
-	// return (vm_send_migrate_req(ctx, req, nvlist_get_bool(nvl, "live")));
-	EPRINTLN("Migration operation not implemented yet\n");
-	return (EOPNOTSUPP);
-}
-IPC_COMMAND(ipc_cmd_set, migrate, vm_do_migrate);
 
 void
 init_snapshot(void)
