@@ -15265,6 +15265,11 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		to.to_tsecr = tp->ts_recent;
 		to.to_flags = TOF_TS;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	/* TCP-MD5 (RFC2385). */
+	if (tp->t_flags & TF_SIGNATURE)
+		to.to_flags |= TOF_SIGNATURE;
+#endif
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
@@ -15397,6 +15402,24 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (to.to_flags & TOF_SIGNATURE) {
+		/*
+		 * Calculate MD5 signature and put it into the place
+		 * determined before.
+		 * NOTE: since TCP options buffer doesn't point into
+		 * mbuf's data, calculate offset and use it.
+		 */
+		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
+						       (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
+			/*
+			 * Do not send segment if the calculation of MD5
+			 * digest has failed.
+			 */
+			goto failed;
+		}
+	}
+#endif
 #ifdef INET6
 	if (rack->r_is_v6) {
 		if (tp->t_port) {
@@ -15734,6 +15757,11 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 		to.to_tsecr = tp->ts_recent;
 		to.to_flags = TOF_TS;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	/* TCP-MD5 (RFC2385). */
+	if (tp->t_flags & TF_SIGNATURE)
+		to.to_flags |= TOF_SIGNATURE;
+#endif
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
@@ -15880,6 +15908,24 @@ again:
 			flags |= TH_ECE;
 	}
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (to.to_flags & TOF_SIGNATURE) {
+		/*
+		 * Calculate MD5 signature and put it into the place
+		 * determined before.
+		 * NOTE: since TCP options buffer doesn't point into
+		 * mbuf's data, calculate offset and use it.
+		 */
+		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
+						       (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
+			/*
+			 * Do not send segment if the calculation of MD5
+			 * digest has failed.
+			 */
+			goto failed;
+		}
+	}
+#endif
 #ifdef INET6
 	if (rack->r_is_v6) {
 		if (tp->t_port) {
@@ -17521,7 +17567,7 @@ send:
 		/* TCP-MD5 (RFC2385). */
 		if (tp->t_flags & TF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
-#endif				/* TCP_SIGNATURE */
+#endif
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
@@ -18047,6 +18093,15 @@ send:
 		if (udp)
 			udp = (struct udphdr *)(cpto + ((uint8_t *)rack->r_ctl.fsb.udp - rack->r_ctl.fsb.tcp_ip_hdr));
 	}
+	if (optlen) {
+		bcopy(opt, th + 1, optlen);
+		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
+	}
+	/*
+	 * Put TCP length in extended header, and then checksum extended
+	 * header and data.
+	 */
+	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
 		/*
@@ -18065,15 +18120,6 @@ send:
 		}
 	}
 #endif
-	if (optlen) {
-		bcopy(opt, th + 1, optlen);
-		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
-	}
-	/*
-	 * Put TCP length in extended header, and then checksum extended
-	 * header and data.
-	 */
-	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #ifdef INET6
 	if (isipv6) {
 		/*
