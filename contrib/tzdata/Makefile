@@ -35,22 +35,14 @@ DATAFORM=		main
 
 LOCALTIME=	Factory
 
-# The POSIXRULES macro controls interpretation of nonstandard and obsolete
-# POSIX-like TZ settings like TZ='EET-2EEST' that lack DST transition rules.
-# Such a setting uses the rules in a template file to determine
-# "spring forward" and "fall back" days and times; the environment
-# variable itself specifies UT offsets of standard and daylight saving time.
-#
+# The POSIXRULES macro controls interpretation of POSIX-like TZ
+# settings like TZ='EET-2EEST' that lack DST transition rules.
 # If POSIXRULES is '-', no template is installed; this is the default.
-#
 # Any other value for POSIXRULES is obsolete and should not be relied on, as:
 # * It does not work correctly in popular implementations such as GNU/Linux.
 # * It does not work even in tzcode, except for historical timestamps
 #   that precede the last explicit transition in the POSIXRULES file.
 #   Hence it typically does not work for current and future timestamps.
-# In short, software should avoid ruleless settings like TZ='EET-2EEST'
-# and so should not depend on the value of POSIXRULES.
-#
 # If, despite the above, you want a template for handling these settings,
 # you can change the line below (after finding the timezone you want in the
 # one of the $(TDATA) source files, or adding it to a source file).
@@ -63,7 +55,7 @@ LOCALTIME=	Factory
 POSIXRULES=	-
 
 # Also see TZDEFRULESTRING below, which takes effect only
-# if the time zone files cannot be accessed.
+# if POSIXRULES is '-' or if the template file cannot be accessed.
 
 
 # Installation locations.
@@ -211,7 +203,7 @@ LDLIBS=
 #  -DHAVE_DECL_ENVIRON if <unistd.h> declares 'environ'
 #  -DHAVE_DECL_TIMEGM=0 if <time.h> does not declare timegm
 #  -DHAVE_DIRECT_H if mkdir needs <direct.h> (MS-Windows)
-#  -DHAVE_GENERIC=0 if _Generic does not work*
+#  -DHAVE__GENERIC=0 if _Generic does not work*
 #  -DHAVE_GETRANDOM if getrandom works (e.g., GNU/Linux),
 #	-DHAVE_GETRANDOM=0 to avoid using getrandom
 #  -DHAVE_GETTEXT if gettext works (e.g., GNU/Linux, FreeBSD, Solaris),
@@ -220,7 +212,7 @@ LDLIBS=
 #  -DHAVE_INCOMPATIBLE_CTIME_R if your system's time.h declares
 #	ctime_r and asctime_r incompatibly with the POSIX standard
 #	(Solaris when _POSIX_PTHREAD_SEMANTICS is not defined).
-#  -DHAVE_INTTYPES_H=0 if <inttypes.h> does not work*
+#  -DHAVE_INTTYPES_H=0 if <inttypes.h> does not work*+
 #  -DHAVE_LINK=0 if your system lacks a link function
 #  -DHAVE_LOCALTIME_R=0 if your system lacks a localtime_r function
 #  -DHAVE_LOCALTIME_RZ=0 if you do not want zdump to use localtime_rz
@@ -229,22 +221,24 @@ LDLIBS=
 #  -DHAVE_POSIX_DECLS=0 if your system's include files do not declare
 #	functions like 'link' or variables like 'tzname' required by POSIX
 #  -DHAVE_SETENV=0 if your system lacks the setenv function
-#  -DHAVE_SNPRINTF=0 if your system lacks the snprintf function
+#  -DHAVE_SNPRINTF=0 if your system lacks the snprintf function+
 #  -DHAVE_STDCKDINT_H=0 if neither <stdckdint.h> nor substitutes like
 #	__builtin_add_overflow work*
-#  -DHAVE_STDINT_H=0 if <stdint.h> does not work*
+#  -DHAVE_STDINT_H=0 if <stdint.h> does not work*+
 #  -DHAVE_STRFTIME_L if <time.h> declares locale_t and strftime_l
 #  -DHAVE_STRDUP=0 if your system lacks the strdup function
-#  -DHAVE_STRTOLL=0 if your system lacks the strtoll function
+#  -DHAVE_STRTOLL=0 if your system lacks the strtoll function+
 #  -DHAVE_SYMLINK=0 if your system lacks the symlink function
 #  -DHAVE_SYS_STAT_H=0 if <sys/stat.h> does not work*
 #  -DHAVE_TZSET=0 if your system lacks a tzset function
 #  -DHAVE_UNISTD_H=0 if <unistd.h> does not work*
 #  -DHAVE_UTMPX_H=0 if <utmpx.h> does not work*
 #  -Dlocale_t=XXX if your system uses XXX instead of locale_t
+#  -DPORT_TO_C89 if tzcode should also run on C89 platforms+
 #  -DRESERVE_STD_EXT_IDS if your platform reserves standard identifiers
 #	with external linkage, e.g., applications cannot define 'localtime'.
 #  -Dssize_t=long on hosts like MS-Windows that lack ssize_t
+#  -DSUPPORT_C89 if the tzcode library should support C89 callers+
 #  -DSUPPRESS_TZDIR to not prepend TZDIR to file names; this has
 #	security implications and is not recommended for general use
 #  -DTHREAD_SAFE to make localtime.c thread-safe, as POSIX requires;
@@ -256,7 +250,13 @@ LDLIBS=
 #  -DTZ_DOMAINDIR=\"/path\" to use "/path" for gettext directory;
 #	the default is system-supplied, typically "/usr/lib/locale"
 #  -DTZDEFRULESTRING=\",date/time,date/time\" to default to the specified
-#	DST transitions if the time zone files cannot be accessed
+#	DST transitions for POSIX-style TZ strings lacking them,
+#	in the usual case where POSIXRULES is '-'.  If not specified,
+#	TZDEFRULESTRING defaults to US rules for future DST transitions.
+#	This mishandles some past timestamps, as US DST rules have changed.
+#	It also mishandles settings like TZ='EET-2EEST' for eastern Europe,
+#	as Europe and US DST rules differ.
+#  -DTZNAME_MAXIMUM=N to limit time zone abbreviations to N bytes (default 255)
 #  -DUNINIT_TRAP if reading uninitialized storage can cause problems
 #	other than simply getting garbage data
 #  -DUSE_LTZ=0 to build zdump with the system time zone library
@@ -273,6 +273,8 @@ LDLIBS=
 #  $(GCC_DEBUG_FLAGS) if you are using recent GCC and want lots of checking
 #
 # * Options marked "*" can be omitted if your compiler is C23 compatible.
+# * Options marked "+" are obsolescent and are planned to be removed
+#   once the code assumes C99 or later.
 #
 # Select instrumentation via "make GCC_INSTRUMENT='whatever'".
 GCC_INSTRUMENT = \
@@ -363,7 +365,7 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 #	-DNETBSD_INSPIRED=0
 # to the end of the "CFLAGS=" line.  Otherwise, the functions
 # "localtime_rz", "mktime_z", "tzalloc", and "tzfree" are added to the
-# time library, and if STD_INSPIRED is also defined the functions
+# time library, and if STD_INSPIRED is also defined to nonzero the functions
 # "posix2time_z" and "time2posix_z" are added as well.
 # The functions ending in "_z" (or "_rz") are like their unsuffixed
 # (or suffixed-by-"_r") counterparts, except with an extra first
@@ -455,16 +457,13 @@ SAFE_CHARSET3=	'abcdefghijklmnopqrstuvwxyz{|}~'
 SAFE_CHARSET=	$(SAFE_CHARSET1)$(SAFE_CHARSET2)$(SAFE_CHARSET3)
 SAFE_CHAR=	'[]'$(SAFE_CHARSET)'-]'
 
-# These characters are Latin-1, and so are likely to be displayable
-# even in editors with limited character sets.
-UNUSUAL_OK_LATIN_1 = «°±»½¾×
-# This IPA symbol is represented in Unicode as the composition of
-# U+0075 and U+032F, and U+032F is not considered alphabetic by some
-# grep implementations that do not grok composition.
-UNUSUAL_OK_IPA = u̯
+# These non-alphabetic, non-ASCII printable characters are Latin-1,
+# and so are likely displayable even in editors like XEmacs 21
+# that have limited display capabilities.
+UNUSUAL_OK_LATIN_1 = ¡¢£¤¥¦§¨©«¬®¯°±²³´¶·¸¹»¼½¾¿×÷
 # Non-ASCII non-letters that OK_CHAR allows, as these characters are
 # useful in commentary.
-UNUSUAL_OK_CHARSET= $(UNUSUAL_OK_LATIN_1)$(UNUSUAL_OK_IPA)
+UNUSUAL_OK_CHARSET= $(UNUSUAL_OK_LATIN_1)
 
 # Put this in a bracket expression to match spaces.
 s = [:space:]
@@ -833,7 +832,7 @@ check_slashed_abbrs: $(TDATA_TO_CHECK)
 
 CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 
-check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
+check_sorted: backward backzone
 		$(AWK) '/^Link/ {printf "%.5d %s\n", g, $$3} !/./ {g++}' \
 		  backward | LC_ALL=C sort -cu
 		$(AWK) '/^Zone/ {print $$2}' backzone | LC_ALL=C sort -cu
