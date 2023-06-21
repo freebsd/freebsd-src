@@ -99,14 +99,16 @@ static __inline bool
 vmbus_txbr_empty(const struct vmbus_txbr *tbr)
 {
 
-	return (tbr->txbr_windex == tbr->txbr_rindex ? true : false);
+	return (atomic_load_acq_32(&tbr->txbr_windex) ==
+	    atomic_load_acq_32(&tbr->txbr_rindex) ? true : false);
 }
 
 static __inline bool
 vmbus_rxbr_empty(const struct vmbus_rxbr *rbr)
 {
 
-	return (rbr->rxbr_windex == rbr->rxbr_rindex ? true : false);
+	return (atomic_load_acq_32(&rbr->rxbr_windex) ==
+	    atomic_load_acq_32(&rbr->rxbr_rindex) ? true : false);
 }
 
 static __inline int
