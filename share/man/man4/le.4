@@ -36,7 +36,7 @@
 .\"	from: @(#)le.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2020
+.Dd June 21, 2023
 .Dt LE 4
 .Os
 .Sh NAME
@@ -64,6 +64,12 @@ numbers have to be specified in
 .Cd hint.le.0.port="0x280"
 .Cd hint.le.0.irq="10"
 .Cd hint.le.0.drq="0"
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver may not be present in
+.Fx 15.0
+and later.
 .Sh DESCRIPTION
 The
 .Nm
