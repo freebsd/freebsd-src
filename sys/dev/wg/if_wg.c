@@ -2984,39 +2984,27 @@ static inline bool wg_run_selftests(void) { return true; }
 static int
 wg_module_init(void)
 {
-	int ret = ENOMEM;
-
+	int ret;
 	osd_method_t methods[PR_MAXMETHOD] = {
 		[PR_METHOD_REMOVE] = wg_prison_remove,
 	};
 
 	if ((wg_packet_zone = uma_zcreate("wg packet", sizeof(struct wg_packet),
 	     NULL, NULL, NULL, NULL, 0, 0)) == NULL)
-		goto free_none;
+		return (ENOMEM);
 	ret = crypto_init();
 	if (ret != 0)
-		goto free_zone;
+		return (ret);
 	ret = cookie_init();
 	if (ret != 0)
-		goto free_crypto;
+		return (ret);
 
 	wg_osd_jail_slot = osd_jail_register(NULL, methods);
 
-	ret = ENOTRECOVERABLE;
 	if (!wg_run_selftests())
-		goto free_all;
+		return (ENOTRECOVERABLE);
 
 	return (0);
-
-free_all:
-	osd_jail_deregister(wg_osd_jail_slot);
-	cookie_deinit();
-free_crypto:
-	crypto_deinit();
-free_zone:
-	uma_zdestroy(wg_packet_zone);
-free_none:
-	return (ret);
 }
 
 static void
@@ -3034,10 +3022,12 @@ wg_module_deinit(void)
 	VNET_LIST_RUNLOCK();
 	NET_EPOCH_WAIT();
 	MPASS(LIST_EMPTY(&wg_list));
-	osd_jail_deregister(wg_osd_jail_slot);
+	if (wg_osd_jail_slot != 0)
+		osd_jail_deregister(wg_osd_jail_slot);
 	cookie_deinit();
 	crypto_deinit();
-	uma_zdestroy(wg_packet_zone);
+	if (wg_packet_zone != NULL)
+		uma_zdestroy(wg_packet_zone);
 }
 
 static int
