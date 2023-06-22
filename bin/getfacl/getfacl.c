@@ -157,6 +157,7 @@ print_acl(char *path, acl_type_t type, int hflag, int iflag, int nflag,
 	acl_text = acl_to_text_np(acl, 0, flags);
 	if (!acl_text) {
 		warn("%s: acl_to_text_np() failed", path);
+		(void)acl_free(acl);
 		return(-1);
 	}
 
