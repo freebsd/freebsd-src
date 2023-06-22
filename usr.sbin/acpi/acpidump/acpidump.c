@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage(progname);
 
-	while ((c = getopt(argc, argv, "dhtvf:o:")) != -1) {
+	while ((c = getopt(argc, argv, "dhtvsf:o:")) != -1) {
 		switch (c) {
 		case 'd':
 			dflag = 1;
@@ -81,6 +81,9 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			dsdt_output_file = optarg;
+			break;
+		case 's':
+			dflag = 2;
 			break;
 		case 'h':
 		default:
@@ -136,7 +139,11 @@ main(int argc, char *argv[])
 	if (dflag) {
 		if (vflag)
 			warnx("disassembling DSDT, iasl messages follow");
-		aml_disassemble(rsdt, sdt);
+		if (dflag == 1) {
+			aml_disassemble(rsdt, sdt);
+		} else {
+			aml_disassemble_separate(rsdt, sdt);
+		}
 		if (vflag)
 			warnx("iasl processing complete");
 	}

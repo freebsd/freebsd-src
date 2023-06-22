@@ -2644,6 +2644,22 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 }
 
 void
+aml_disassemble_separate(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
+{
+	ACPI_TABLE_HEADER *ssdt = NULL;
+
+	aml_disassemble(NULL, dsdp);
+	if (rsdt != NULL) {
+		for (;;) {
+			ssdt = sdt_from_rsdt(rsdt, "SSDT", ssdt);
+			if (ssdt == NULL)
+				break;
+			aml_disassemble(NULL, ssdt);
+		}
+	}
+}
+
+void
 sdt_print_all(ACPI_TABLE_HEADER *rsdp)
 {
 	acpi_handle_rsdt(rsdp);
