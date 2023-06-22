@@ -44,4 +44,7 @@ PPPPACKAGE=	ppp
 
 CFLAGS+= -I${SRCTOP}/usr.bin/wall
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>
