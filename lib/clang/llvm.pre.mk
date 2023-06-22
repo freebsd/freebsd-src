@@ -1,4 +1,3 @@
-
 # $FreeBSD$
 
 LLVM_BASE=	${SRCTOP}/contrib/llvm-project
