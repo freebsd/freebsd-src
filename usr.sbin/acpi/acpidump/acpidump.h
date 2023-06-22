@@ -144,6 +144,7 @@ void	 sdt_print_all(ACPI_TABLE_HEADER *);
 
 /* Disassemble the AML in the DSDT */
 void	 aml_disassemble(ACPI_TABLE_HEADER *, ACPI_TABLE_HEADER *);
+void	 aml_disassemble_separate(ACPI_TABLE_HEADER *, ACPI_TABLE_HEADER *);
 
 /* Routines for accessing tables in physical memory */
 ACPI_TABLE_RSDP *acpi_find_rsd_ptr(void);
