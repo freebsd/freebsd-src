@@ -749,7 +749,7 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 				if (tmp != NULL)
 					break;
 			}
-			KASSERT(i != PCTRIE_COUNT,
+			KASSERT(tmp != NULL,
 			    ("%s: invalid node configuration", __func__));
 			if (parent == NULL)
 				pctrie_root_store(ptree, tmp, PCTRIE_LOCKED);

@@ -773,13 +773,14 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			rnode->rn_count--;
 			if (rnode->rn_count > 1)
 				return (m);
-			for (i = 0; i < VM_RADIX_COUNT; i++)
-				if (vm_radix_node_load(&rnode->rn_child[i],
-				    LOCKED) != NULL)
+			for (i = 0; i < VM_RADIX_COUNT; i++) {
+				tmp = vm_radix_node_load(&rnode->rn_child[i],
+				    LOCKED);
+				if (tmp != NULL)
 					break;
-			KASSERT(i != VM_RADIX_COUNT,
+			}
+			KASSERT(tmp != NULL,
 			    ("%s: invalid node configuration", __func__));
-			tmp = vm_radix_node_load(&rnode->rn_child[i], LOCKED);
 			if (parent == NULL)
 				vm_radix_root_store(rtree, tmp, LOCKED);
 			else {
