@@ -48,7 +48,6 @@ struct zfield {
 	uint64_t arcstats_prefetch_metadata;
 	uint64_t zfetchstats;
 	uint64_t arcstats_l2;
-	uint64_t vdev_cache_stats;
 };
 
 static struct zarcstats {
@@ -99,7 +98,6 @@ labelzarc(void)
 	L(arcstats.prefetch_metadata);
 	L(zfetchstats);
 	L(arcstats.l2);
-	L(vdev_cache_stats);
 #undef L
 	dslabel(12, 0, 18);
 }
@@ -128,7 +126,6 @@ domode(struct zarcstats *delta, struct zarcrates *rate)
 	DO(arcstats_prefetch_metadata);
 	DO(zfetchstats);
 	DO(arcstats_l2);
-	DO(vdev_cache_stats);
 	DO(arcstats);
 	DO(arcstats_demand_data);
 	DO(arcstats_demand_metadata);
@@ -136,7 +133,6 @@ domode(struct zarcstats *delta, struct zarcrates *rate)
 	DO(arcstats_prefetch_metadata);
 	DO(zfetchstats);
 	DO(arcstats_l2);
-	DO(vdev_cache_stats);
 #undef DO
 }
 
@@ -165,7 +161,6 @@ showzarc(void)
 	E(arcstats_prefetch_metadata);
 	E(zfetchstats);
 	E(arcstats_l2);
-	E(vdev_cache_stats);
 #undef DO
 #undef E
 #undef MISSES
@@ -233,10 +228,6 @@ getinfo(struct zarcstats *ls)
 		ls->hits.arcstats_l2);
 	GETSYSCTL("kstat.zfs.misc.arcstats.l2_misses",
 		ls->misses.arcstats_l2);
-	GETSYSCTL("kstat.zfs.misc.vdev_cache_stats.hits",
-		ls->hits.vdev_cache_stats);
-	GETSYSCTL("kstat.zfs.misc.vdev_cache_stats.misses",
-		ls->misses.vdev_cache_stats);
 }
 
 void
