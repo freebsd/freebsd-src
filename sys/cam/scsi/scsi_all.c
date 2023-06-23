@@ -977,7 +977,7 @@ static struct asc_table_entry asc_table[] = {
 	 *
 	 * SCSI ASC/ASCQ Assignments
 	 * Numeric Sorted Listing
-	 * as of  8/12/15
+	 * as of  Sat Mar 25 2023 at 04:30 (using old columns)
 	 *
 	 * D - DIRECT ACCESS DEVICE (SBC-2)                   device column key
 	 * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
@@ -1072,6 +1072,12 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x00, 0x21, SS_RDEF,	/* XXX TBD */
 	    "Atomic command aborted due to ACA") },
+	/* D              */
+	{ SST(0x00, 0x22, SS_RDEF,	/* XXX TBD */
+	    "Deferred microcode is pending") },
+	/* D              */
+	{ SST(0x00, 0x23, SS_RDEF,	/* XXX TBD */
+	    "Overlapping atomic command in progress") },
 	/* D   W O   BK   */
 	{ SST(0x01, 0x00, SS_RDEF,
 	    "No index/sector signal") },
@@ -1273,30 +1279,39 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x0B, 0x09, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - device statistics notification available") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High critical temperature limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low critical temperature limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High operating temperature limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0D, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low operating temperature limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0E, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High citical humidity limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x0F, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low citical humidity limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x10, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High operating humidity limit exceeded") },
-	/* DTLPWROMAEBKVF */
+	/* DTLPWROMAEBKV  */
 	{ SST(0x0B, 0x11, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low operating humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x12, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Microcode security at risk") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x13, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Microcode digital signature validation failure") },
+	/* D              */
+	{ SST(0x0B, 0x14, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Physical element status change") },
 	/*  T   R         */
 	{ SST(0x0C, 0x00, SS_RDEF,
 	    "Write error") },
@@ -1657,6 +1672,15 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x20, 0x0C, SS_FATAL | EINVAL,
 	    "Illegal command when not in append-only mode") },
+	/* D              */
+	{ SST(0x20, 0x0D, SS_FATAL | EINVAL,
+	    "Not an administrative logical unit") },
+	/* D              */
+	{ SST(0x20, 0x0E, SS_FATAL | EINVAL,
+	    "Not a subsidiary logical unit") },
+	/* D              */
+	{ SST(0x20, 0x0F, SS_FATAL | EINVAL,
+	    "Not a conglomerate logical unit") },
 	/* DT  WRO   BK   */
 	{ SST(0x21, 0x00, SS_FATAL | EINVAL,
 	    "Logical block address out of range") },
@@ -1681,6 +1705,12 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x21, 0x07, SS_RDEF,	/* XXX TBD */
 	    "Read boundary violation") },
+	/* D              */
+	{ SST(0x21, 0x08, SS_FATAL | EINVAL,
+	    "Misaligned write command") },
+	/* D              */
+	{ SST(0x21, 0x09, SS_FATAL | EINVAL,
+	    "Attempt to access gap zone") },
 	/* D              */
 	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
 	    "Illegal function (use 20 00, 24 00, or 26 00)") },
@@ -1744,6 +1774,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT   R MAEBKV  */
 	{ SST(0x24, 0x08, SS_RDEF,	/* XXX TBD */
 	    "Invalid XCDB") },
+	/* D              */
+	{ SST(0x24, 0x09, SS_FATAL | EINVAL,
+	    "Invalid fast format") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x25, 0x00, SS_FATAL | ENXIO | SSQ_LOST,
 	    "Logical unit not supported") },
@@ -1807,6 +1840,15 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x26, 0x13, SS_RDEF,	/* XXX TBD */
 	    "Application tag mode page is invalid") },
+	/*  T             */
+	{ SST(0x26, 0x14, SS_RDEF,	/* XXX TBD */
+	    "Tape stream mirroring prevented") },
+	/*  T              */
+	{ SST(0x26, 0x15, SS_FATAL | EINVAL,
+	    "Copy source or copy destination not authorized") },
+	/* D              */
+	{ SST(0x26, 0x16, SS_FATAL | EINVAL,
+	    "Fast copy not possible") },
 	/* DT  WRO   BK   */
 	{ SST(0x27, 0x00, SS_FATAL | EACCES,
 	    "Write protected") },
@@ -1935,6 +1977,9 @@ static struct asc_table_entry asc_table[] = {
 	/*  T     M    V  */
 	{ SST(0x2A, 0x15, SS_RDEF,	/* XXX TBD */
 	    "Medium removal prevention preempted") },
+	/* D              */
+	{ SST(0x2A, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Zone reset write pointer recommended") },
 	/* DTLPWRO    K   */
 	{ SST(0x2B, 0x00, SS_RDEF,
 	    "Copy cannot execute since host cannot disconnect") },
@@ -1989,6 +2034,15 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x2C, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Unwritten data in zone") },
+	/* D              */
+	{ SST(0x2C, 0x11, SS_FATAL | EINVAL,
+	    "Descriptor format sense data required") },
+	/* D              */
+	{ SST(0x2C, 0x12, SS_FATAL | EINVAL,
+	    "Zone is inactive") },
+	/* DTPEROMAEBKVF  */
+	{ SST(0x2C, 0x13, SS_FATAL | EINVAL,
+	    "Well known logical unit access required") },
 	/*  T             */
 	{ SST(0x2D, 0x00, SS_RDEF,
 	    "Overwrite error on update in place") },
@@ -2136,6 +2190,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x38, 0x07, SS_RDEF,	/* XXX TBD */
 	    "Thin provisioning soft threshold reached") },
+	/* D              */
+	{ SST(0x38, 0x08, SS_NOP | SSQ_PRINT_SENSE,
+	    "Depopulation interrupted") },
 	/* DTL WROMAE K   */
 	{ SST(0x39, 0x00, SS_RDEF,
 	    "Saving parameters not supported") },
@@ -2238,6 +2295,9 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x3B, 0x1C, SS_RDEF,	/* XXX TBD */
 	    "Too many logical objects on partition to support operation") },
+	/*        M       */
+	{ SST(0x3B, 0x20, SS_RDEF,	/* XXX TBD */
+	    "Element static information changed") },
 	/* DTLPWROMAE K   */
 	{ SST(0x3D, 0x00, SS_RDEF,
 	    "Invalid bits in IDENTIFY message") },
@@ -2329,6 +2389,14 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x3F, 0x17, SS_RDEF,	/* XXX TBD */
 	    "Zone transition to full") },
 	/* D              */
+	{ SST(0x3F, 0x18, SS_RDEF,	/* XXX TBD */
+	    "Bind completed") },
+	/* D              */
+	{ SST(0x3F, 0x19, SS_RDEF,	/* XXX TBD */
+	    "Bind redirected") },
+	/* D              */
+	{ SST(0x3F, 0x1A, SS_RDEF,	/* XXX TBD */
+	    "Subsidiary binding changed") },
 	{ SST(0x40, 0x00, SS_RDEF,
 	    "RAM failure") },		/* deprecated - use 40 NN instead */
 	/* DTLPWROMAEBKVF */
@@ -2587,6 +2655,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x55, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Maximum number of streams open") },
+	/* D              */
+	{ SST(0x55, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Insufficient resources to bind") },
 	/*      R         */
 	{ SST(0x57, 0x00, SS_RDEF,
 	    "Unable to recover table-of-contents") },
@@ -3010,6 +3081,12 @@ static struct asc_table_entry asc_table[] = {
 	/* DT        B    */
 	{ SST(0x67, 0x0B, SS_RDEF,	/* XXX TBD */
 	    "ATA device feature not enabled") },
+	/* D              */
+	{ SST(0x67, 0x0C, SS_FATAL | EIO,
+	    "Command rejected") },
+	/* D              */
+	{ SST(0x67, 0x0D, SS_FATAL | EINVAL,
+	    "Explicit bind not allowed") },
 	/*         A      */
 	{ SST(0x68, 0x00, SS_RDEF,
 	    "Logical unit not configured") },
@@ -3070,6 +3147,15 @@ static struct asc_table_entry asc_table[] = {
 	/*      R         */
 	{ SST(0x6F, 0x07, SS_RDEF,	/* XXX TBD */
 	    "Conflict in binding NONCE recording") },
+	/*      R         */
+	{ SST(0x6F, 0x08, SS_FATAL | EPERM,
+	    "Insufficient permission") },
+	/*      R         */
+	{ SST(0x6F, 0x09, SS_FATAL | EINVAL,
+	    "Invalid drive-host pairing server") },
+	/*      R         */
+	{ SST(0x6F, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Drive-host pairing suspended") },
 	/*  T             */
 	{ SST(0x70, 0x00, SS_RDEF,
 	    "Decompression exception short: ASCQ = Algorithm ID") },
