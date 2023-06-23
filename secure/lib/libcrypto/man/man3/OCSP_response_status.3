@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_RESPONSE_STATUS 3"
-.TH OCSP_RESPONSE_STATUS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OCSP_RESPONSE_STATUS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OCSP_response_status, OCSP_response_get1_basic, OCSP_response_create, OCSP_RESPONSE_free, OCSP_RESPID_set_by_name, OCSP_RESPID_set_by_key, OCSP_RESPID_match, OCSP_basic_sign, OCSP_basic_sign_ctx \- OCSP response functions
+OCSP_response_status, OCSP_response_get1_basic, OCSP_response_create,
+OCSP_RESPONSE_free, OCSP_RESPID_set_by_name,
+OCSP_RESPID_set_by_key_ex, OCSP_RESPID_set_by_key, OCSP_RESPID_match_ex,
+OCSP_RESPID_match, OCSP_basic_sign, OCSP_basic_sign_ctx
+\&\- OCSP response functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -151,7 +155,11 @@ OCSP_response_status, OCSP_response_get1_basic, OCSP_response_create, OCSP_RESPO
 \& void OCSP_RESPONSE_free(OCSP_RESPONSE *resp);
 \&
 \& int OCSP_RESPID_set_by_name(OCSP_RESPID *respid, X509 *cert);
+\& int OCSP_RESPID_set_by_key_ex(OCSP_RESPID *respid, X509 *cert,
+\&                               OSSL_LIB_CTX *libctx, const char *propq);
 \& int OCSP_RESPID_set_by_key(OCSP_RESPID *respid, X509 *cert);
+\& int OCSP_RESPID_match_ex(OCSP_RESPID *respid, X509 *cert, OSSL_LIB_CTX *libctx,
+\&                          const char *propq);
 \& int OCSP_RESPID_match(OCSP_RESPID *respid, X509 *cert);
 \&
 \& int OCSP_basic_sign(OCSP_BASICRESP *brsp, X509 *signer, EVP_PKEY *key,
@@ -162,48 +170,59 @@ OCSP_response_status, OCSP_response_get1_basic, OCSP_response_create, OCSP_RESPO
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBOCSP_response_status()\fR returns the \s-1OCSP\s0 response status of \fBresp\fR. It returns
-one of the values: \fB\s-1OCSP_RESPONSE_STATUS_SUCCESSFUL\s0\fR,
-\&\fB\s-1OCSP_RESPONSE_STATUS_MALFORMEDREQUEST\s0\fR,
-\&\fB\s-1OCSP_RESPONSE_STATUS_INTERNALERROR\s0\fR, \fB\s-1OCSP_RESPONSE_STATUS_TRYLATER\s0\fR
-\&\fB\s-1OCSP_RESPONSE_STATUS_SIGREQUIRED\s0\fR, or \fB\s-1OCSP_RESPONSE_STATUS_UNAUTHORIZED\s0\fR.
+\&\fBOCSP_response_status()\fR returns the \s-1OCSP\s0 response status of \fIresp\fR. It returns
+one of the values: \fI\s-1OCSP_RESPONSE_STATUS_SUCCESSFUL\s0\fR,
+\&\fI\s-1OCSP_RESPONSE_STATUS_MALFORMEDREQUEST\s0\fR,
+\&\fI\s-1OCSP_RESPONSE_STATUS_INTERNALERROR\s0\fR, \fI\s-1OCSP_RESPONSE_STATUS_TRYLATER\s0\fR
+\&\fI\s-1OCSP_RESPONSE_STATUS_SIGREQUIRED\s0\fR, or \fI\s-1OCSP_RESPONSE_STATUS_UNAUTHORIZED\s0\fR.
 .PP
-\&\fBOCSP_response_get1_basic()\fR decodes and returns the \fB\s-1OCSP_BASICRESP\s0\fR structure
-contained in \fBresp\fR.
+\&\fBOCSP_response_get1_basic()\fR decodes and returns the \fI\s-1OCSP_BASICRESP\s0\fR structure
+contained in \fIresp\fR.
 .PP
-\&\fBOCSP_response_create()\fR creates and returns an \fB\s-1OCSP_RESPONSE\s0\fR structure for
-\&\fBstatus\fR and optionally including basic response \fBbs\fR.
+\&\fBOCSP_response_create()\fR creates and returns an \fI\s-1OCSP_RESPONSE\s0\fR structure for
+\&\fIstatus\fR and optionally including basic response \fIbs\fR.
 .PP
-\&\fBOCSP_RESPONSE_free()\fR frees up \s-1OCSP\s0 response \fBresp\fR.
+\&\fBOCSP_RESPONSE_free()\fR frees up \s-1OCSP\s0 response \fIresp\fR.
 .PP
 \&\fBOCSP_RESPID_set_by_name()\fR sets the name of the \s-1OCSP_RESPID\s0 to be the same as the
-subject name in the supplied X509 certificate \fBcert\fR for the \s-1OCSP\s0 responder.
+subject name in the supplied X509 certificate \fIcert\fR for the \s-1OCSP\s0 responder.
 .PP
-\&\fBOCSP_RESPID_set_by_key()\fR sets the key of the \s-1OCSP_RESPID\s0 to be the same as the
-key in the supplied X509 certificate \fBcert\fR for the \s-1OCSP\s0 responder. The key is
-stored as a \s-1SHA1\s0 hash.
+\&\fBOCSP_RESPID_set_by_key_ex()\fR sets the key of the \s-1OCSP_RESPID\s0 to be the same as the
+key in the supplied X509 certificate \fIcert\fR for the \s-1OCSP\s0 responder. The key is
+stored as a \s-1SHA1\s0 hash. To calculate the hash the \s-1SHA1\s0 algorithm is fetched using
+the library ctx \fIlibctx\fR and the property query string \fIpropq\fR (see
+\&\*(L"\s-1ALGORITHM FETCHING\*(R"\s0 in \fBcrypto\fR\|(7) for further information).
+.PP
+\&\fBOCSP_RESPID_set_by_key()\fR does the same as \fBOCSP_RESPID_set_by_key_ex()\fR except
+that the default library context is used with an empty property query string.
 .PP
 Note that an \s-1OCSP_RESPID\s0 can only have one of the name, or the key set. Calling
 \&\fBOCSP_RESPID_set_by_name()\fR or \fBOCSP_RESPID_set_by_key()\fR will clear any existing
 setting.
 .PP
-\&\fBOCSP_RESPID_match()\fR tests whether the \s-1OCSP_RESPID\s0 given in \fBrespid\fR matches
-with the X509 certificate \fBcert\fR.
+\&\fBOCSP_RESPID_match_ex()\fR tests whether the \s-1OCSP_RESPID\s0 given in \fIrespid\fR matches
+with the X509 certificate \fIcert\fR based on the \s-1SHA1\s0 hash. To calculate the hash
+the \s-1SHA1\s0 algorithm is fetched using the library ctx \fIlibctx\fR and the property
+query string \fIpropq\fR (see \*(L"\s-1ALGORITHM FETCHING\*(R"\s0 in \fBcrypto\fR\|(7) for further
+information).
 .PP
-\&\fBOCSP_basic_sign()\fR signs \s-1OCSP\s0 response \fBbrsp\fR using certificate \fBsigner\fR, private key
-\&\fBkey\fR, digest \fBdgst\fR and additional certificates \fBcerts\fR. If the \fBflags\fR option
-\&\fB\s-1OCSP_NOCERTS\s0\fR is set then no certificates will be included in the response. If the
-\&\fBflags\fR option \fB\s-1OCSP_RESPID_KEY\s0\fR is set then the responder is identified by key \s-1ID\s0
-rather than by name. \fBOCSP_basic_sign_ctx()\fR also signs \s-1OCSP\s0 response \fBbrsp\fR but
-uses the parameters contained in digest context \fBctx\fR.
+\&\fBOCSP_RESPID_match()\fR does the same as \fBOCSP_RESPID_match_ex()\fR except that the
+default library context is used with an empty property query string.
+.PP
+\&\fBOCSP_basic_sign()\fR signs \s-1OCSP\s0 response \fIbrsp\fR using certificate \fIsigner\fR, private key
+\&\fIkey\fR, digest \fIdgst\fR and additional certificates \fIcerts\fR. If the \fIflags\fR option
+\&\fI\s-1OCSP_NOCERTS\s0\fR is set then no certificates will be included in the response. If the
+\&\fIflags\fR option \fI\s-1OCSP_RESPID_KEY\s0\fR is set then the responder is identified by key \s-1ID\s0
+rather than by name. \fBOCSP_basic_sign_ctx()\fR also signs \s-1OCSP\s0 response \fIbrsp\fR but
+uses the parameters contained in digest context \fIctx\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBOCSP_RESPONSE_status()\fR returns a status value.
 .PP
-\&\fBOCSP_response_get1_basic()\fR returns an \fB\s-1OCSP_BASICRESP\s0\fR structure pointer or
-\&\fB\s-1NULL\s0\fR if an error occurred.
+\&\fBOCSP_response_get1_basic()\fR returns an \fI\s-1OCSP_BASICRESP\s0\fR structure pointer or
+\&\fI\s-1NULL\s0\fR if an error occurred.
 .PP
-\&\fBOCSP_response_create()\fR returns an \fB\s-1OCSP_RESPONSE\s0\fR structure pointer or \fB\s-1NULL\s0\fR
+\&\fBOCSP_response_create()\fR returns an \fI\s-1OCSP_RESPONSE\s0\fR structure pointer or \fI\s-1NULL\s0\fR
 if an error occurred.
 .PP
 \&\fBOCSP_RESPONSE_free()\fR does not return a value.
@@ -217,7 +236,7 @@ or 0 otherwise.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fBOCSP_response_get1_basic()\fR is only called if the status of a response is
-\&\fB\s-1OCSP_RESPONSE_STATUS_SUCCESSFUL\s0\fR.
+\&\fI\s-1OCSP_RESPONSE_STATUS_SUCCESSFUL\s0\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBcrypto\fR\|(7)
@@ -236,9 +255,9 @@ functions were added in OpenSSL 1.1.0a.
 The \fBOCSP_basic_sign_ctx()\fR function was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

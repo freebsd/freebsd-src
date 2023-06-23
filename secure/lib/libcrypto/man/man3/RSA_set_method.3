@@ -133,27 +133,35 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_SET_METHOD 3"
-.TH RSA_SET_METHOD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RSA_SET_METHOD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_set_default_method, RSA_get_default_method, RSA_set_method, RSA_get_method, RSA_PKCS1_OpenSSL, RSA_flags, RSA_new_method \- select RSA method
+RSA_set_default_method, RSA_get_default_method, RSA_set_method,
+RSA_get_method, RSA_PKCS1_OpenSSL, RSA_flags,
+RSA_new_method \- select RSA method
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& void RSA_set_default_method(const RSA_METHOD *meth);
 \&
-\& RSA_METHOD *RSA_get_default_method(void);
+\& const RSA_METHOD *RSA_get_default_method(void);
 \&
 \& int RSA_set_method(RSA *rsa, const RSA_METHOD *meth);
 \&
-\& RSA_METHOD *RSA_get_method(const RSA *rsa);
+\& const RSA_METHOD *RSA_get_method(const RSA *rsa);
 \&
-\& RSA_METHOD *RSA_PKCS1_OpenSSL(void);
+\& const RSA_METHOD *RSA_PKCS1_OpenSSL(void);
 \&
 \& int RSA_flags(const RSA *rsa);
 \&
@@ -161,6 +169,9 @@ RSA_set_default_method, RSA_get_default_method, RSA_set_method, RSA_get_method, 
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the \s-1OSSL_PROVIDER\s0 APIs.
+.PP
 An \fB\s-1RSA_METHOD\s0\fR specifies the functions that OpenSSL uses for \s-1RSA\s0
 operations. By modifying the method, alternative implementations such as
 hardware accelerators may be used. \s-1IMPORTANT:\s0 See the \s-1NOTES\s0 section for
@@ -264,7 +275,7 @@ the default method is used.
 \&                       const unsigned char *m, unsigned int m_length,
 \&                       const unsigned char *sigbuf, unsigned int siglen,
 \&                       const RSA *rsa);
-\&     /* keygen. If NULL builtin RSA key generation will be used */
+\&     /* keygen. If NULL built\-in RSA key generation will be used */
 \&     int (*rsa_keygen)(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
 \&
 \& } RSA_METHOD;
@@ -303,13 +314,15 @@ not currently exist).
 \&\fBRSA_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 The \fBRSA_null_method()\fR, which was a partial attempt to avoid patent issues,
 was replaced to always return \s-1NULL\s0 in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

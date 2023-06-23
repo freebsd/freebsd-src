@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET1_VERIFY_CERT_STORE 3"
-.TH SSL_CTX_SET1_VERIFY_CERT_STORE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET1_VERIFY_CERT_STORE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set0_verify_cert_store, SSL_CTX_set1_verify_cert_store, SSL_CTX_set0_chain_cert_store, SSL_CTX_set1_chain_cert_store, SSL_set0_verify_cert_store, SSL_set1_verify_cert_store, SSL_set0_chain_cert_store, SSL_set1_chain_cert_store, SSL_CTX_get0_verify_cert_store, SSL_CTX_get0_chain_cert_store, SSL_get0_verify_cert_store, SSL_get0_chain_cert_store \- set certificate verification or chain store
+SSL_CTX_set0_verify_cert_store, SSL_CTX_set1_verify_cert_store,
+SSL_CTX_set0_chain_cert_store, SSL_CTX_set1_chain_cert_store,
+SSL_set0_verify_cert_store, SSL_set1_verify_cert_store,
+SSL_set0_chain_cert_store, SSL_set1_chain_cert_store,
+SSL_CTX_get0_verify_cert_store, SSL_CTX_get0_chain_cert_store,
+SSL_get0_verify_cert_store, SSL_get0_chain_cert_store \- set certificate
+verification or chain store
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -193,6 +199,9 @@ the server's certificate chain and a \s-1SSL/TLS\s0 server will use it to verify
 any client certificate chain.
 .PP
 The chain store is used to build the certificate chain.
+Details of the chain building and checking process are described in
+\&\*(L"Certification Path Building\*(R" in \fBopenssl\-verification\-options\fR\|(1) and
+\&\*(L"Certification Path Validation\*(R" in \fBopenssl\-verification\-options\fR\|(1).
 .PP
 If the mode \fB\s-1SSL_MODE_NO_AUTO_CHAIN\s0\fR is set or a certificate chain is
 configured already (for example using the functions such as
@@ -211,6 +220,7 @@ versions of OpenSSL.
 All these functions return 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_add_extra_chain_cert\fR\|(3)
 \&\fBSSL_CTX_set0_chain\fR\|(3)
 \&\fBSSL_CTX_set1_chain\fR\|(3)
@@ -229,7 +239,7 @@ These functions were added in OpenSSL 1.0.2.
 .IX Header "COPYRIGHT"
 Copyright 2013\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

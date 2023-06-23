@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_ADD1_CHAIN_CERT 3"
-.TH SSL_CTX_ADD1_CHAIN_CERT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_ADD1_CHAIN_CERT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set0_chain, SSL_CTX_set1_chain, SSL_CTX_add0_chain_cert, SSL_CTX_add1_chain_cert, SSL_CTX_get0_chain_certs, SSL_CTX_clear_chain_certs, SSL_set0_chain, SSL_set1_chain, SSL_add0_chain_cert, SSL_add1_chain_cert, SSL_get0_chain_certs, SSL_clear_chain_certs, SSL_CTX_build_cert_chain, SSL_build_cert_chain, SSL_CTX_select_current_cert, SSL_select_current_cert, SSL_CTX_set_current_cert, SSL_set_current_cert \- extra chain certificate processing
+SSL_CTX_set0_chain, SSL_CTX_set1_chain, SSL_CTX_add0_chain_cert,
+SSL_CTX_add1_chain_cert, SSL_CTX_get0_chain_certs, SSL_CTX_clear_chain_certs,
+SSL_set0_chain, SSL_set1_chain, SSL_add0_chain_cert, SSL_add1_chain_cert,
+SSL_get0_chain_certs, SSL_clear_chain_certs, SSL_CTX_build_cert_chain,
+SSL_build_cert_chain, SSL_CTX_select_current_cert,
+SSL_select_current_cert, SSL_CTX_set_current_cert, SSL_set_current_cert \- extra
+chain certificate processing
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -183,8 +189,9 @@ certificate of \fBctx\fR.
 current certificate of \fBctx\fR.  (This is implemented by calling
 \&\fBSSL_CTX_set0_chain()\fR with \fBsk\fR set to \fB\s-1NULL\s0\fR).
 .PP
-\&\fBSSL_CTX_build_cert_chain()\fR builds the certificate chain for \fBctx\fR normally
-this uses the chain store or the verify store if the chain store is not set.
+\&\fBSSL_CTX_build_cert_chain()\fR builds the certificate chain for \fBctx\fR.
+Normally this uses the chain store
+or the verify store if the chain store is not set.
 If the function is successful the built chain will replace any existing chain.
 The \fBflags\fR parameter can be set to \fB\s-1SSL_BUILD_CHAIN_FLAG_UNTRUSTED\s0\fR to use
 existing chain certificates as untrusted CAs, \fB\s-1SSL_BUILD_CHAIN_FLAG_NO_ROOT\s0\fR
@@ -194,6 +201,8 @@ sanity checking and rearranging them if necessary), the flag
 \&\fB\s-1SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR\s0\fR ignores any errors during verification:
 if flag \fB\s-1SSL_BUILD_CHAIN_FLAG_CLEAR_ERROR\s0\fR is also set verification errors
 are cleared from the error queue.
+Details of the chain building process are described in
+\&\*(L"Certification Path Building\*(R" in \fBopenssl\-verification\-options\fR\|(1).
 .PP
 Each of these functions operates on the \fIcurrent\fR end entity
 (i.e. server or client) certificate. This is the last certificate loaded or
@@ -268,15 +277,16 @@ a verification error occurs then 2 is returned.
 All other functions return 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_add_extra_chain_cert\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 These functions were added in OpenSSL 1.0.2.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

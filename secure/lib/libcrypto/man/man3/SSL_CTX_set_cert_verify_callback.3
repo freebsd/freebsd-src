@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CERT_VERIFY_CALLBACK 3"
-.TH SSL_CTX_SET_CERT_VERIFY_CALLBACK 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_CERT_VERIFY_CALLBACK 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,24 +156,48 @@ SSL_CTX_set_cert_verify_callback \- set peer certificate verification procedure
 the time when \fBSSL_new\fR\|(3) is called.
 .SH "NOTES"
 .IX Header "NOTES"
-Whenever a certificate is verified during a \s-1SSL/TLS\s0 handshake, a verification
-function is called. If the application does not explicitly specify a
-verification callback function, the built-in verification function is used.
+When a peer certificate has been received during a \s-1SSL/TLS\s0 handshake,
+a verification function is called regardless of the verification mode.
+If the application does not explicitly specify a verification callback function,
+the built-in verification function is used.
 If a verification callback \fIcallback\fR is specified via
 \&\fBSSL_CTX_set_cert_verify_callback()\fR, the supplied callback function is called
-instead. By setting \fIcallback\fR to \s-1NULL,\s0 the default behaviour is restored.
+instead with the arguments callback(X509_STORE_CTX *x509_store_ctx, void *arg).
+The argument \fIarg\fR is specified by the application when setting \fIcallback\fR.
+By setting \fIcallback\fR to \s-1NULL,\s0 the default behaviour is restored.
 .PP
-When the verification must be performed, \fIcallback\fR will be called with
-the arguments callback(X509_STORE_CTX *x509_store_ctx, void *arg). The
-argument \fIarg\fR is specified by the application when setting \fIcallback\fR.
+\&\fIcallback\fR should return 1 to indicate verification success
+and 0 to indicate verification failure.
+In server mode, a return value of 0 leads to handshake failure.
+In client mode, the behaviour is as follows.
+All values, including 0, are ignored
+if the verification mode is \fB\s-1SSL_VERIFY_NONE\s0\fR.
+Otherwise, when the return value is less than or equal to 0, the handshake will
+fail.
 .PP
-\&\fIcallback\fR should return 1 to indicate verification success and 0 to
-indicate verification failure. If \s-1SSL_VERIFY_PEER\s0 is set and \fIcallback\fR
-returns 0, the handshake will fail. As the verification procedure may
-allow the connection to continue in the case of failure (by always
-returning 1) the verification result must be set in any case using the
-\&\fBerror\fR member of \fIx509_store_ctx\fR so that the calling application
-will be informed about the detailed result of the verification procedure!
+In client mode \fIcallback\fR may also call the \fBSSL_set_retry_verify\fR\|(3)
+function on the \fB\s-1SSL\s0\fR object set in the \fIx509_store_ctx\fR ex data (see
+\&\fBSSL_get_ex_data_X509_STORE_CTX_idx\fR\|(3)) and return 1. This would be
+typically done in case the certificate verification was not yet able
+to succeed. This makes the handshake suspend and return control to the
+calling application with \fB\s-1SSL_ERROR_WANT_RETRY_VERIFY\s0\fR. The app can for
+instance fetch further certificates or cert status information needed for
+the verification. Calling \fBSSL_connect\fR\|(3) again resumes the connection
+attempt by retrying the server certificate verification step.
+This process may even be repeated if need be.
+.PP
+In any case a viable verification result value must be reflected
+in the \fBerror\fR member of \fIx509_store_ctx\fR,
+which can be done using \fBX509_STORE_CTX_set_error\fR\|(3).
+This is particularly important in case
+the \fIcallback\fR allows the connection to continue (by returning 1).
+Note that the verification status in the store context is a possibly durable
+indication of the chain's validity!
+This gets recorded in the \s-1SSL\s0 session (and thus also in session tickets)
+and the validity of the originally presented chain is then visible
+on resumption, even though no chain is presented int that case.
+Moreover, the calling application will be informed about the detailed result of
+the verification procedure and may elect to base further decisions on it.
 .PP
 Within \fIx509_store_ctx\fR, \fIcallback\fR has access to the \fIverify_callback\fR
 function set using \fBSSL_CTX_set_verify\fR\|(3).
@@ -197,13 +221,15 @@ the \fBverify_callback\fR function.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_CTX_set_verify\fR\|(3),
+\&\fBX509_STORE_CTX_set_error\fR\|(3),
 \&\fBSSL_get_verify_result\fR\|(3),
+\&\fBSSL_set_retry_verify\fR\|(3),
 \&\fBSSL_CTX_load_verify_locations\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

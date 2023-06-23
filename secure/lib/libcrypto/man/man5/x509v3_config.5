@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509V3_CONFIG 5"
-.TH X509V3_CONFIG 5 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509V3_CONFIG 5 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,119 +142,169 @@
 x509v3_config \- X509 V3 certificate extension configuration format
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-Several of the OpenSSL utilities can add extensions to a certificate or
-certificate request based on the contents of a configuration file.
+Several OpenSSL commands can add extensions to a certificate or
+certificate request based on the contents of a configuration file
+and \s-1CLI\s0 options such as \fB\-addext\fR.
+The syntax of configuration files is described in \fBconfig\fR\|(5).
+The commands typically have an option to specify the name of the configuration
+file, and a section within that file; see the documentation of the
+individual command for details.
 .PP
-Typically the application will contain an option to point to an extension
-section. Each line of the extension section takes the form:
+This page uses \fBextensions\fR as the name of the section, when needed
+in examples.
+.PP
+Each entry in the extension section takes the form:
 .PP
 .Vb 1
-\& extension_name=[critical,] extension_options
+\& name = [critical, ]value(s)
 .Ve
 .PP
-If \fBcritical\fR is present then the extension will be critical.
+If \fBcritical\fR is present then the extension will be marked as critical.
 .PP
-The format of \fBextension_options\fR depends on the value of \fBextension_name\fR.
+If multiple entries are processed for the same extension name,
+later entries override earlier ones with the same name.
 .PP
-There are four main types of extension: \fIstring\fR extensions, \fImulti-valued\fR
-extensions, \fIraw\fR and \fIarbitrary\fR extensions.
+The format of \fBvalues\fR depends on the value of \fBname\fR, many have a
+type-value pairing where the type and value are separated by a colon.
+There are four main types of extension:
+.PP
+.Vb 4
+\& string
+\& multi\-valued
+\& raw
+\& arbitrary
+.Ve
+.PP
+Each is described in the following paragraphs.
 .PP
 String extensions simply have a string which contains either the value itself
 or how it is obtained.
 .PP
-For example:
-.PP
-.Vb 1
-\& nsComment="This is a Comment"
-.Ve
-.PP
 Multi-valued extensions have a short form and a long form. The short form
-is a list of names and values:
+is a comma-separated list of names and values:
 .PP
 .Vb 1
-\& basicConstraints=critical,CA:true,pathlen:1
+\& basicConstraints = critical, CA:true, pathlen:1
 .Ve
 .PP
 The long form allows the values to be placed in a separate section:
 .PP
-.Vb 1
-\& basicConstraints=critical,@bs_section
+.Vb 2
+\& [extensions]
+\& basicConstraints = critical, @basic_constraints
 \&
-\& [bs_section]
-\&
-\& CA=true
-\& pathlen=1
+\& [basic_constraints]
+\& CA = true
+\& pathlen = 1
 .Ve
 .PP
 Both forms are equivalent.
 .PP
-The syntax of raw extensions is governed by the extension code: it can
-for example contain data in multiple sections. The correct syntax to
-use is defined by the extension code itself: check out the certificate
-policies extension for an example.
+If an extension is multi-value and a field value must contain a comma the long
+form must be used otherwise the comma would be misinterpreted as a field
+separator. For example:
 .PP
-If an extension type is unsupported then the \fIarbitrary\fR extension syntax
-must be used, see the \s-1ARBITRARY EXTENSIONS\s0 section for more details.
+.Vb 1
+\& subjectAltName = URI:ldap://somehost.com/CN=foo,OU=bar
+.Ve
+.PP
+will produce an error but the equivalent form:
+.PP
+.Vb 2
+\& [extensions]
+\& subjectAltName = @subject_alt_section
+\&
+\& [subject_alt_section]
+\& subjectAltName = URI:ldap://somehost.com/CN=foo,OU=bar
+.Ve
+.PP
+is valid.
+.PP
+OpenSSL does not support multiple occurrences of the same field within a
+section. In this example:
+.PP
+.Vb 2
+\& [extensions]
+\& subjectAltName = @alt_section
+\&
+\& [alt_section]
+\& email = steve@example.com
+\& email = steve@example.org
+.Ve
+.PP
+will only recognize the last value.  To specify multiple values append a
+numeric identifier, as shown here:
+.PP
+.Vb 2
+\& [extensions]
+\& subjectAltName = @alt_section
+\&
+\& [alt_section]
+\& email.1 = steve@example.com
+\& email.2 = steve@example.org
+.Ve
+.PP
+The syntax of raw extensions is defined by the source code that parses
+the extension but should be documened.
+See \*(L"Certificate Policies\*(R" for an example of a raw extension.
+.PP
+If an extension type is unsupported, then the \fIarbitrary\fR extension syntax
+must be used, see the \*(L"\s-1ARBITRARY EXTENSIONS\*(R"\s0 section for more details.
 .SH "STANDARD EXTENSIONS"
 .IX Header "STANDARD EXTENSIONS"
-The following sections describe each supported extension in detail.
-.SS "Basic Constraints."
-.IX Subsection "Basic Constraints."
-This is a multi valued extension which indicates whether a certificate is
-a \s-1CA\s0 certificate. The first (mandatory) name is \fB\s-1CA\s0\fR followed by \fB\s-1TRUE\s0\fR or
+The following sections describe the syntax of each supported extension.
+They do not define the semantics of the extension.
+.SS "Basic Constraints"
+.IX Subsection "Basic Constraints"
+This is a multi-valued extension which indicates whether a certificate is
+a \s-1CA\s0 certificate. The first value is \fB\s-1CA\s0\fR followed by \fB\s-1TRUE\s0\fR or
 \&\fB\s-1FALSE\s0\fR. If \fB\s-1CA\s0\fR is \fB\s-1TRUE\s0\fR then an optional \fBpathlen\fR name followed by a
 nonnegative value can be included.
 .PP
 For example:
 .PP
 .Vb 1
-\& basicConstraints=CA:TRUE
+\& basicConstraints = CA:TRUE
 \&
-\& basicConstraints=CA:FALSE
+\& basicConstraints = CA:FALSE
 \&
-\& basicConstraints=critical,CA:TRUE, pathlen:0
+\& basicConstraints = critical, CA:TRUE, pathlen:1
 .Ve
 .PP
-A \s-1CA\s0 certificate \fBmust\fR include the basicConstraints value with the \s-1CA\s0 field
-set to \s-1TRUE.\s0 An end user certificate must either set \s-1CA\s0 to \s-1FALSE\s0 or exclude the
-extension entirely. Some software may require the inclusion of basicConstraints
-with \s-1CA\s0 set to \s-1FALSE\s0 for end entity certificates.
-.PP
-The pathlen parameter indicates the maximum number of CAs that can appear
-below this one in a chain. So if you have a \s-1CA\s0 with a pathlen of zero it can
-only be used to sign end user certificates and not further CAs.
-.SS "Key Usage."
-.IX Subsection "Key Usage."
-Key usage is a multi valued extension consisting of a list of names of the
-permitted key usages.
-.PP
-The supported names are: digitalSignature, nonRepudiation, keyEncipherment,
-dataEncipherment, keyAgreement, keyCertSign, cRLSign, encipherOnly
-and decipherOnly.
+A \s-1CA\s0 certificate \fImust\fR include the \fBbasicConstraints\fR name with the \fB\s-1CA\s0\fR
+parameter set to \fB\s-1TRUE\s0\fR. An end-user certificate must either have \fB\s-1CA:FALSE\s0\fR
+or omit the extension entirely.
+The \fBpathlen\fR parameter specifies the maximum number of CAs that can appear
+below this one in a chain. A \fBpathlen\fR of zero means the \s-1CA\s0 cannot sign
+any sub-CA's, and can only sign end-entity certificates.
+.SS "Key Usage"
+.IX Subsection "Key Usage"
+Key usage is a multi-valued extension consisting of a list of names of
+the permitted key usages.  The defined values are: \f(CW\*(C`digitalSignature\*(C'\fR,
+\&\f(CW\*(C`nonRepudiation\*(C'\fR, \f(CW\*(C`keyEncipherment\*(C'\fR, \f(CW\*(C`dataEncipherment\*(C'\fR, \f(CW\*(C`keyAgreement\*(C'\fR,
+\&\f(CW\*(C`keyCertSign\*(C'\fR, \f(CW\*(C`cRLSign\*(C'\fR, \f(CW\*(C`encipherOnly\*(C'\fR, and \f(CW\*(C`decipherOnly\*(C'\fR.
 .PP
 Examples:
 .PP
 .Vb 1
-\& keyUsage=digitalSignature, nonRepudiation
+\& keyUsage = digitalSignature, nonRepudiation
 \&
-\& keyUsage=critical, keyCertSign
+\& keyUsage = critical, keyCertSign
 .Ve
-.SS "Extended Key Usage."
-.IX Subsection "Extended Key Usage."
-This extensions consists of a list of usages indicating purposes for which
-the certificate public key can be used for,
-.PP
-These can either be object short names or the dotted numerical form of OIDs.
-While any \s-1OID\s0 can be used only certain values make sense. In particular the
-following \s-1PKIX, NS\s0 and \s-1MS\s0 values are meaningful:
+.SS "Extended Key Usage"
+.IX Subsection "Extended Key Usage"
+This extension consists of a list of values indicating purposes for which
+the certificate public key can be used.
+Each value can be either a short text name or an \s-1OID.\s0
+The following text names, and their intended meaning, are known:
 .PP
 .Vb 10
-\& Value                  Meaning
-\& \-\-\-\-\-                  \-\-\-\-\-\-\-
-\& serverAuth             SSL/TLS Web Server Authentication.
-\& clientAuth             SSL/TLS Web Client Authentication.
-\& codeSigning            Code signing.
-\& emailProtection        E\-mail Protection (S/MIME).
+\& Value                  Meaning according to RFC 5280 etc.
+\& \-\-\-\-\-                  \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+\& serverAuth             SSL/TLS WWW Server Authentication
+\& clientAuth             SSL/TLS WWW Client Authentication
+\& codeSigning            Code Signing
+\& emailProtection        E\-mail Protection (S/MIME)
 \& timeStamping           Trusted Timestamping
 \& OCSPSigning            OCSP Signing
 \& ipsecIKE               ipsec Internet Key Exchange
@@ -264,255 +314,311 @@ following \s-1PKIX, NS\s0 and \s-1MS\s0 values are meaningful:
 \& msEFS                  Microsoft Encrypted File System
 .Ve
 .PP
-Examples:
-.PP
-.Vb 2
-\& extendedKeyUsage=critical,codeSigning,1.2.3.4
-\& extendedKeyUsage=serverAuth,clientAuth
-.Ve
-.SS "Subject Key Identifier."
-.IX Subsection "Subject Key Identifier."
-This is really a string extension and can take two possible values. Either
-the word \fBhash\fR which will automatically follow the guidelines in \s-1RFC3280\s0
-or a hex string giving the extension value to include. The use of the hex
-string is strongly discouraged.
-.PP
-Example:
-.PP
-.Vb 1
-\& subjectKeyIdentifier=hash
-.Ve
-.SS "Authority Key Identifier."
-.IX Subsection "Authority Key Identifier."
-The authority key identifier extension permits two options. keyid and issuer:
-both can take the optional value \*(L"always\*(R".
-.PP
-If the keyid option is present an attempt is made to copy the subject key
-identifier from the parent certificate. If the value \*(L"always\*(R" is present
-then an error is returned if the option fails.
-.PP
-The issuer option copies the issuer and serial number from the issuer
-certificate. This will only be done if the keyid option fails or
-is not included unless the \*(L"always\*(R" flag will always include the value.
-.PP
-Example:
-.PP
-.Vb 1
-\& authorityKeyIdentifier=keyid,issuer
-.Ve
-.SS "Subject Alternative Name."
-.IX Subsection "Subject Alternative Name."
-The subject alternative name extension allows various literal values to be
-included in the configuration file. These include \fBemail\fR (an email address)
-\&\fB\s-1URI\s0\fR a uniform resource indicator, \fB\s-1DNS\s0\fR (a \s-1DNS\s0 domain name), \fB\s-1RID\s0\fR (a
-registered \s-1ID: OBJECT IDENTIFIER\s0), \fB\s-1IP\s0\fR (an \s-1IP\s0 address), \fBdirName\fR
-(a distinguished name) and otherName.
-.PP
-The email option include a special 'copy' value. This will automatically
-include any email addresses contained in the certificate subject name in
-the extension.
-.PP
-The \s-1IP\s0 address used in the \fB\s-1IP\s0\fR options can be in either IPv4 or IPv6 format.
-.PP
-The value of \fBdirName\fR should point to a section containing the distinguished
-name to use as a set of name value pairs. Multi values AVAs can be formed by
-prefacing the name with a \fB+\fR character.
-.PP
-otherName can include arbitrary data associated with an \s-1OID:\s0 the value
-should be the \s-1OID\s0 followed by a semicolon and the content in standard
-\&\fBASN1_generate_nconf\fR\|(3) format.
+While \s-1IETF RFC 5280\s0 says that \fBid-kp-serverAuth\fR and \fBid-kp-clientAuth\fR
+are only for \s-1WWW\s0 use, in practice they are used for all kinds of \s-1TLS\s0 clients
+and servers, and this is what OpenSSL assumes as well.
 .PP
 Examples:
 .PP
-.Vb 5
-\& subjectAltName=email:copy,email:my@other.address,URI:http://my.url.here/
-\& subjectAltName=IP:192.168.7.1
-\& subjectAltName=IP:13::17
-\& subjectAltName=email:my@other.address,RID:1.2.3.4
-\& subjectAltName=otherName:1.2.3.4;UTF8:some other identifier
+.Vb 1
+\& extendedKeyUsage = critical, codeSigning, 1.2.3.4
 \&
-\& subjectAltName=dirName:dir_sect
+\& extendedKeyUsage = serverAuth, clientAuth
+.Ve
+.SS "Subject Key Identifier"
+.IX Subsection "Subject Key Identifier"
+The \s-1SKID\s0 extension specification has a value with three choices.
+If the value is the word \fBnone\fR then no \s-1SKID\s0 extension will be included.
+If the value is the word \fBhash\fR, or by default for the \fBx509\fR, \fBreq\fR, and
+\&\fBca\fR apps, the process specified in \s-1RFC 5280\s0 section 4.2.1.2. (1) is followed:
+The keyIdentifier is composed of the 160\-bit \s-1SHA\-1\s0 hash of the value of the \s-1BIT
+STRING\s0 subjectPublicKey (excluding the tag, length, and number of unused bits).
+.PP
+Otherwise, the value must be a hex string (possibly with \f(CW\*(C`:\*(C'\fR separating bytes)
+to output directly, however, this is strongly discouraged.
+.PP
+Example:
+.PP
+.Vb 1
+\& subjectKeyIdentifier = hash
+.Ve
+.SS "Authority Key Identifier"
+.IX Subsection "Authority Key Identifier"
+The \s-1AKID\s0 extension specification may have the value \fBnone\fR
+indicating that no \s-1AKID\s0 shall be included.
+Otherwise it may have the value \fBkeyid\fR or \fBissuer\fR
+or both of them, separated by \f(CW\*(C`,\*(C'\fR.
+Either or both can have the option \fBalways\fR,
+indicated by putting a colon \f(CW\*(C`:\*(C'\fR between the value and this option.
+For self-signed certificates the \s-1AKID\s0 is suppressed unless \fBalways\fR is present.
+By default the \fBx509\fR, \fBreq\fR, and \fBca\fR apps behave as if
+\&\*(L"none\*(R" was given for self-signed certificates and \*(L"keyid, issuer\*(R" otherwise.
+.PP
+If \fBkeyid\fR is present, an attempt is made to
+copy the subject key identifier (\s-1SKID\s0) from the issuer certificate except if
+the issuer certificate is the same as the current one and it is not self-signed.
+The hash of the public key related to the signing key is taken as fallback
+if the issuer certificate is the same as the current certificate.
+If \fBalways\fR is present but no value can be obtained, an error is returned.
+.PP
+If \fBissuer\fR is present, and in addition it has the option \fBalways\fR specified
+or \fBkeyid\fR is not present,
+then the issuer \s-1DN\s0 and serial number are copied from the issuer certificate.
+.PP
+Examples:
+.PP
+.Vb 1
+\& authorityKeyIdentifier = keyid, issuer
+\&
+\& authorityKeyIdentifier = keyid, issuer:always
+.Ve
+.SS "Subject Alternative Name"
+.IX Subsection "Subject Alternative Name"
+This is a multi-valued extension that supports several types of name
+identifier, including
+\&\fBemail\fR (an email address),
+\&\fB\s-1URI\s0\fR (a uniform resource indicator),
+\&\fB\s-1DNS\s0\fR (a \s-1DNS\s0 domain name),
+\&\fB\s-1RID\s0\fR (a registered \s-1ID: OBJECT IDENTIFIER\s0),
+\&\fB\s-1IP\s0\fR (an \s-1IP\s0 address),
+\&\fBdirName\fR (a distinguished name),
+and \fBotherName\fR.
+The syntax of each is described in the following paragraphs.
+.PP
+The \fBemail\fR option has two special values.
+\&\f(CW\*(C`copy\*(C'\fR will automatically include any email addresses
+contained in the certificate subject name in the extension.
+\&\f(CW\*(C`move\*(C'\fR will automatically move any email addresses
+from the certificate subject name to the extension.
+.PP
+The \s-1IP\s0 address used in the \fB\s-1IP\s0\fR option can be in either IPv4 or IPv6 format.
+.PP
+The value of \fBdirName\fR is specifies the configuration section containing
+the distinguished name to use, as a set of name-value pairs.
+Multi-valued AVAs can be formed by prefacing the name with a \fB+\fR character.
+.PP
+The value of \fBotherName\fR can include arbitrary data associated with an \s-1OID\s0;
+the value should be the \s-1OID\s0 followed by a semicolon and the content in specified
+using the syntax in \fBASN1_generate_nconf\fR\|(3).
+.PP
+Examples:
+.PP
+.Vb 1
+\& subjectAltName = email:copy, email:my@example.com, URI:http://my.example.com/
+\&
+\& subjectAltName = IP:192.168.7.1
+\&
+\& subjectAltName = IP:13::17
+\&
+\& subjectAltName = email:my@example.com, RID:1.2.3.4
+\&
+\& subjectAltName = otherName:1.2.3.4;UTF8:some other identifier
+\&
+\& [extensions]
+\& subjectAltName = dirName:dir_sect
 \&
 \& [dir_sect]
-\& C=UK
-\& O=My Organization
-\& OU=My Unit
-\& CN=My Name
+\& C = UK
+\& O = My Organization
+\& OU = My Unit
+\& CN = My Name
 .Ve
-.SS "Issuer Alternative Name."
-.IX Subsection "Issuer Alternative Name."
-The issuer alternative name option supports all the literal options of
-subject alternative name. It does \fBnot\fR support the email:copy option because
-that would not make sense. It does support an additional issuer:copy option
-that will copy all the subject alternative name values from the issuer
-certificate (if possible).
+.PP
+Non-ASCII Email Address conforming the syntax defined in Section 3.3 of \s-1RFC 6531\s0
+are provided as otherName.SmtpUTF8Mailbox. According to \s-1RFC 8398,\s0 the email
+address should be provided as UTF8String. To enforce the valid representation in
+the certificate, the SmtpUTF8Mailbox should be provided as follows
+.PP
+.Vb 3
+\& subjectAltName=@alts
+\& [alts]
+\& otherName = 1.3.6.1.5.5.7.8.9;FORMAT:UTF8,UTF8String:nonasciiname.example.com
+.Ve
+.SS "Issuer Alternative Name"
+.IX Subsection "Issuer Alternative Name"
+This extension supports most of the options of subject alternative name;
+it does not support \fBemail:copy\fR.
+It also adds \fBissuer:copy\fR as an allowed value, which copies any subject
+alternative names from the issuer certificate, if possible.
 .PP
 Example:
 .PP
 .Vb 1
 \& issuerAltName = issuer:copy
 .Ve
-.SS "Authority Info Access."
-.IX Subsection "Authority Info Access."
-The authority information access extension gives details about how to access
-certain information relating to the \s-1CA.\s0 Its syntax is accessOID;location
-where \fIlocation\fR has the same syntax as subject alternative name (except
-that email:copy is not supported). accessOID can be any valid \s-1OID\s0 but only
-certain values are meaningful, for example \s-1OCSP\s0 and caIssuers.
+.SS "Authority Info Access"
+.IX Subsection "Authority Info Access"
+This extension gives details about how to retrieve information that
+related to the certificate that the \s-1CA\s0 makes available. The syntax is
+\&\fBaccess_id;location\fR, where \fBaccess_id\fR is an object identifier
+(although only a few values are well-known) and \fBlocation\fR has the same
+syntax as subject alternative name (except that \fBemail:copy\fR is not supported).
 .PP
-Example:
+Possible values for access_id include \fB\s-1OCSP\s0\fR (\s-1OCSP\s0 responder),
+\&\fBcaIssuers\fR (\s-1CA\s0 Issuers),
+\&\fBad_timestamping\fR (\s-1AD\s0 Time Stamping),
+\&\fB\s-1AD_DVCS\s0\fR (ad dvcs),
+\&\fBcaRepository\fR (\s-1CA\s0 Repository).
 .PP
-.Vb 2
-\& authorityInfoAccess = OCSP;URI:http://ocsp.my.host/
-\& authorityInfoAccess = caIssuers;URI:http://my.ca/ca.html
+Examples:
+.PP
+.Vb 1
+\& authorityInfoAccess = OCSP;URI:http://ocsp.example.com/,caIssuers;URI:http://myca.example.com/ca.cer
+\&
+\& authorityInfoAccess = OCSP;URI:http://ocsp.example.com/
 .Ve
 .SS "\s-1CRL\s0 distribution points"
 .IX Subsection "CRL distribution points"
-This is a multi-valued extension whose options can be either in name:value pair
-using the same form as subject alternative name or a single value representing
-a section name containing all the distribution point fields.
+This is a multi-valued extension whose values can be either a name-value
+pair using the same form as subject alternative name or a single value
+specifying the section name containing all the distribution point values.
 .PP
-For a name:value pair a new DistributionPoint with the fullName field set to
-the given value both the cRLissuer and reasons fields are omitted in this case.
+When a name-value pair is used, a DistributionPoint extension will
+be set with the given value as the fullName field as the distributionPoint
+value, and the reasons and cRLIssuer fields will be omitted.
 .PP
-In the single option case the section indicated contains values for each
-field. In this section:
+When a single option is used, the value specifies the section, and that
+section can have the following items:
+.IP "fullname" 4
+.IX Item "fullname"
+The full name of the distribution point, in the same format as the subject
+alternative name.
+.IP "relativename" 4
+.IX Item "relativename"
+The value is taken as a distinguished name fragment that is set as the
+value of the nameRelativeToCRLIssuer field.
+.IP "CRLIssuer" 4
+.IX Item "CRLIssuer"
+The value must in the same format as the subject alternative name.
+.IP "reasons" 4
+.IX Item "reasons"
+A multi-value field that contains the reasons for revocation. The recognized
+values are: \f(CW\*(C`keyCompromise\*(C'\fR, \f(CW\*(C`CACompromise\*(C'\fR, \f(CW\*(C`affiliationChanged\*(C'\fR,
+\&\f(CW\*(C`superseded\*(C'\fR, \f(CW\*(C`cessationOfOperation\*(C'\fR, \f(CW\*(C`certificateHold\*(C'\fR,
+\&\f(CW\*(C`privilegeWithdrawn\*(C'\fR, and \f(CW\*(C`AACompromise\*(C'\fR.
 .PP
-If the name is \*(L"fullname\*(R" the value field should contain the full name
-of the distribution point in the same format as subject alternative name.
-.PP
-If the name is \*(L"relativename\*(R" then the value field should contain a section
-name whose contents represent a \s-1DN\s0 fragment to be placed in this field.
-.PP
-The name \*(L"CRLIssuer\*(R" if present should contain a value for this field in
-subject alternative name format.
-.PP
-If the name is \*(L"reasons\*(R" the value field should consist of a comma
-separated field containing the reasons. Valid reasons are: \*(L"keyCompromise\*(R",
-\&\*(L"CACompromise\*(R", \*(L"affiliationChanged\*(R", \*(L"superseded\*(R", \*(L"cessationOfOperation\*(R",
-\&\*(L"certificateHold\*(R", \*(L"privilegeWithdrawn\*(R" and \*(L"AACompromise\*(R".
+Only one of \fBfullname\fR or \fBrelativename\fR should be specified.
 .PP
 Simple examples:
 .PP
-.Vb 2
-\& crlDistributionPoints=URI:http://myhost.com/myca.crl
-\& crlDistributionPoints=URI:http://my.com/my.crl,URI:http://oth.com/my.crl
+.Vb 1
+\& crlDistributionPoints = URI:http://example.com/myca.crl
+\&
+\& crlDistributionPoints = URI:http://example.com/myca.crl, URI:http://example.org/my.crl
 .Ve
 .PP
 Full distribution point example:
 .PP
-.Vb 1
-\& crlDistributionPoints=crldp1_section
+.Vb 2
+\& [extensions]
+\& crlDistributionPoints = crldp1_section
 \&
 \& [crldp1_section]
-\&
-\& fullname=URI:http://myhost.com/myca.crl
-\& CRLissuer=dirName:issuer_sect
-\& reasons=keyCompromise, CACompromise
+\& fullname = URI:http://example.com/myca.crl
+\& CRLissuer = dirName:issuer_sect
+\& reasons = keyCompromise, CACompromise
 \&
 \& [issuer_sect]
-\& C=UK
-\& O=Organisation
-\& CN=Some Name
+\& C = UK
+\& O = Organisation
+\& CN = Some Name
 .Ve
 .SS "Issuing Distribution Point"
 .IX Subsection "Issuing Distribution Point"
-This extension should only appear in CRLs. It is a multi valued extension
+This extension should only appear in CRLs. It is a multi-valued extension
 whose syntax is similar to the \*(L"section\*(R" pointed to by the \s-1CRL\s0 distribution
-points extension with a few differences.
-.PP
-The names \*(L"reasons\*(R" and \*(L"CRLissuer\*(R" are not recognized.
-.PP
-The name \*(L"onlysomereasons\*(R" is accepted which sets this field. The value is
-in the same format as the \s-1CRL\s0 distribution point \*(L"reasons\*(R" field.
-.PP
-The names \*(L"onlyuser\*(R", \*(L"onlyCA\*(R", \*(L"onlyAA\*(R" and \*(L"indirectCRL\*(R" are also accepted
-the values should be a boolean value (\s-1TRUE\s0 or \s-1FALSE\s0) to indicate the value of
-the corresponding field.
+points extension. The following names have meaning:
+.IP "fullname" 4
+.IX Item "fullname"
+The full name of the distribution point, in the same format as the subject
+alternative name.
+.IP "relativename" 4
+.IX Item "relativename"
+The value is taken as a distinguished name fragment that is set as the
+value of the nameRelativeToCRLIssuer field.
+.IP "onlysomereasons" 4
+.IX Item "onlysomereasons"
+A multi-value field that contains the reasons for revocation. The recognized
+values are: \f(CW\*(C`keyCompromise\*(C'\fR, \f(CW\*(C`CACompromise\*(C'\fR, \f(CW\*(C`affiliationChanged\*(C'\fR,
+\&\f(CW\*(C`superseded\*(C'\fR, \f(CW\*(C`cessationOfOperation\*(C'\fR, \f(CW\*(C`certificateHold\*(C'\fR,
+\&\f(CW\*(C`privilegeWithdrawn\*(C'\fR, and \f(CW\*(C`AACompromise\*(C'\fR.
+.IP "onlyuser, onlyCA, onlyAA, indirectCRL" 4
+.IX Item "onlyuser, onlyCA, onlyAA, indirectCRL"
+The value for each of these names is a boolean.
 .PP
 Example:
 .PP
-.Vb 1
-\& issuingDistributionPoint=critical, @idp_section
+.Vb 2
+\& [extensions]
+\& issuingDistributionPoint = critical, @idp_section
 \&
 \& [idp_section]
-\&
-\& fullname=URI:http://myhost.com/myca.crl
-\& indirectCRL=TRUE
-\& onlysomereasons=keyCompromise, CACompromise
-\&
-\& [issuer_sect]
-\& C=UK
-\& O=Organisation
-\& CN=Some Name
+\& fullname = URI:http://example.com/myca.crl
+\& indirectCRL = TRUE
+\& onlysomereasons = keyCompromise, CACompromise
 .Ve
-.SS "Certificate Policies."
-.IX Subsection "Certificate Policies."
-This is a \fIraw\fR extension. All the fields of this extension can be set by
-using the appropriate syntax.
+.SS "Certificate Policies"
+.IX Subsection "Certificate Policies"
+This is a \fIraw\fR extension that supports all of the defined fields of the
+certificate extension.
 .PP
-If you follow the \s-1PKIX\s0 recommendations and just using one \s-1OID\s0 then you just
-include the value of that \s-1OID.\s0 Multiple OIDs can be set separated by commas,
-for example:
+Policies without qualifiers are specified by giving the \s-1OID.\s0
+Multiple policies are comma-separated. For example:
 .PP
 .Vb 1
-\& certificatePolicies= 1.2.4.5, 1.1.3.4
+\& certificatePolicies = 1.2.4.5, 1.1.3.4
 .Ve
 .PP
-If you wish to include qualifiers then the policy \s-1OID\s0 and qualifiers need to
-be specified in a separate section: this is done by using the \f(CW@section\fR syntax
-instead of a literal \s-1OID\s0 value.
+To include policy qualifiers, use the \*(L"@section\*(R" syntax to point to a
+section that specifies all the information.
 .PP
 The section referred to must include the policy \s-1OID\s0 using the name
-policyIdentifier, cPSuri qualifiers can be included using the syntax:
+\&\fBpolicyIdentifier\fR. cPSuri qualifiers can be included using the syntax:
 .PP
 .Vb 1
-\& CPS.nnn=value
+\& CPS.nnn = value
 .Ve
+.PP
+where \f(CW\*(C`nnn\*(C'\fR is a number.
 .PP
 userNotice qualifiers can be set using the syntax:
 .PP
 .Vb 1
-\& userNotice.nnn=@notice
+\& userNotice.nnn = @notice
 .Ve
 .PP
 The value of the userNotice qualifier is specified in the relevant section.
-This section can include explicitText, organization and noticeNumbers
+This section can include \fBexplicitText\fR, \fBorganization\fR, and \fBnoticeNumbers\fR
 options. explicitText and organization are text strings, noticeNumbers is a
 comma separated list of numbers. The organization and noticeNumbers options
-(if included) must \s-1BOTH\s0 be present. If you use the userNotice option with \s-1IE5\s0
-then you need the 'ia5org' option at the top level to modify the encoding:
-otherwise it will not be interpreted properly.
+(if included) must \s-1BOTH\s0 be present. Some software might require
+the \fBia5org\fR option at the top level; this changes the encoding from
+Displaytext to IA5String.
 .PP
 Example:
 .PP
-.Vb 1
-\& certificatePolicies=ia5org,1.2.3.4,1.5.6.7.8,@polsect
+.Vb 2
+\& [extensions]
+\& certificatePolicies = ia5org, 1.2.3.4, 1.5.6.7.8, @polsect
 \&
 \& [polsect]
-\&
 \& policyIdentifier = 1.3.5.8
-\& CPS.1="http://my.host.name/"
-\& CPS.2="http://my.your.name/"
-\& userNotice.1=@notice
+\& CPS.1 = "http://my.host.example.com/"
+\& CPS.2 = "http://my.your.example.com/"
+\& userNotice.1 = @notice
 \&
 \& [notice]
-\&
-\& explicitText="Explicit Text Here"
-\& organization="Organisation Name"
-\& noticeNumbers=1,2,3,4
+\& explicitText = "Explicit Text Here"
+\& organization = "Organisation Name"
+\& noticeNumbers = 1, 2, 3, 4
 .Ve
 .PP
-The \fBia5org\fR option changes the type of the \fIorganization\fR field. In \s-1RFC2459\s0
-it can only be of type DisplayText. In \s-1RFC3280\s0 IA5String is also permissible.
-Some software (for example some versions of \s-1MSIE\s0) may require ia5org.
-.PP
-\&\s-1ASN1\s0 type of explicitText can be specified by prepending \fB\s-1UTF8\s0\fR,
-\&\fB\s-1BMP\s0\fR or \fB\s-1VISIBLE\s0\fR prefix followed by colon. For example:
+The character encoding of explicitText can be specified by prefixing the
+value with \fB\s-1UTF8\s0\fR, \fB\s-1BMP\s0\fR, or \fB\s-1VISIBLE\s0\fR followed by colon. For example:
 .PP
 .Vb 2
 \& [notice]
-\& explicitText="UTF8:Explicit Text Here"
+\& explicitText = "UTF8:Explicit Text Here"
 .Ve
 .SS "Policy Constraints"
 .IX Subsection "Policy Constraints"
@@ -536,24 +642,25 @@ Example:
 .Ve
 .SS "Name Constraints"
 .IX Subsection "Name Constraints"
-The name constraints extension is a multi-valued extension. The name should
+This is a multi-valued extension. The name should
 begin with the word \fBpermitted\fR or \fBexcluded\fR followed by a \fB;\fR. The rest of
-the name and the value follows the syntax of subjectAltName except email:copy
+the name and the value follows the syntax of subjectAltName except
+\&\fBemail:copy\fR
 is not supported and the \fB\s-1IP\s0\fR form should consist of an \s-1IP\s0 addresses and
 subnet mask separated by a \fB/\fR.
 .PP
 Examples:
 .PP
 .Vb 1
-\& nameConstraints=permitted;IP:192.168.0.0/255.255.0.0
+\& nameConstraints = permitted;IP:192.168.0.0/255.255.0.0
 \&
-\& nameConstraints=permitted;email:.somedomain.com
+\& nameConstraints = permitted;email:.example.com
 \&
-\& nameConstraints=excluded;email:.com
+\& nameConstraints = excluded;email:.com
 .Ve
 .SS "\s-1OCSP\s0 No Check"
 .IX Subsection "OCSP No Check"
-The \s-1OCSP\s0 No Check extension is a string extension but its value is ignored.
+This is a string extension. It is parsed, but ignored.
 .PP
 Example:
 .PP
@@ -578,18 +685,11 @@ Example:
 .IX Header "DEPRECATED EXTENSIONS"
 The following extensions are non standard, Netscape specific and largely
 obsolete. Their use in new applications is discouraged.
-.SS "Netscape String extensions."
-.IX Subsection "Netscape String extensions."
+.SS "Netscape String extensions"
+.IX Subsection "Netscape String extensions"
 Netscape Comment (\fBnsComment\fR) is a string extension containing a comment
 which will be displayed when the certificate is viewed in some browsers.
-.PP
-Example:
-.PP
-.Vb 1
-\& nsComment = "Some Random Comment"
-.Ve
-.PP
-Other supported extensions in this category are: \fBnsBaseUrl\fR,
+Other extensions of this type are: \fBnsBaseUrl\fR,
 \&\fBnsRevocationUrl\fR, \fBnsCaRevocationUrl\fR, \fBnsRenewalUrl\fR, \fBnsCaPolicyUrl\fR
 and \fBnsSslServerName\fR.
 .SS "Netscape Certificate Type"
@@ -614,13 +714,12 @@ The first way is to use the word \s-1ASN1\s0 followed by the extension content
 using the same syntax as \fBASN1_generate_nconf\fR\|(3).
 For example:
 .PP
-.Vb 1
-\& 1.2.3.4=critical,ASN1:UTF8String:Some random data
-\&
-\& 1.2.3.4=ASN1:SEQUENCE:seq_sect
+.Vb 3
+\& [extensions]
+\& 1.2.3.4 = critical, ASN1:UTF8String:Some random data
+\& 1.2.3.4.1 = ASN1:SEQUENCE:seq_sect
 \&
 \& [seq_sect]
-\&
 \& field1 = UTF8:field1
 \& field2 = UTF8:field2
 .Ve
@@ -629,8 +728,8 @@ It is also possible to use the word \s-1DER\s0 to include the raw encoded data i
 extension.
 .PP
 .Vb 2
-\& 1.2.3.4=critical,DER:01:02:03:04
-\& 1.2.3.4=DER:01020304
+\& 1.2.3.4 = critical, DER:01:02:03:04
+\& 1.2.3.4.1 = DER:01020304
 .Ve
 .PP
 The value following \s-1DER\s0 is a hex dump of the \s-1DER\s0 encoding of the extension
@@ -638,7 +737,7 @@ Any extension can be placed in this form to override the default behaviour.
 For example:
 .PP
 .Vb 1
-\& basicConstraints=critical,DER:00:01:02:03
+\& basicConstraints = critical, DER:00:01:02:03
 .Ve
 .SH "WARNINGS"
 .IX Header "WARNINGS"
@@ -648,57 +747,16 @@ purposes prohibited by their extensions because a specific application does
 not recognize or honour the values of the relevant extensions.
 .PP
 The \s-1DER\s0 and \s-1ASN1\s0 options should be used with caution. It is possible to create
-totally invalid extensions if they are not used carefully.
-.SH "NOTES"
-.IX Header "NOTES"
-If an extension is multi-value and a field value must contain a comma the long
-form must be used otherwise the comma would be misinterpreted as a field
-separator. For example:
-.PP
-.Vb 1
-\& subjectAltName=URI:ldap://somehost.com/CN=foo,OU=bar
-.Ve
-.PP
-will produce an error but the equivalent form:
-.PP
-.Vb 1
-\& subjectAltName=@subject_alt_section
-\&
-\& [subject_alt_section]
-\& subjectAltName=URI:ldap://somehost.com/CN=foo,OU=bar
-.Ve
-.PP
-is valid.
-.PP
-Due to the behaviour of the OpenSSL \fBconf\fR library the same field name
-can only occur once in a section. This means that:
-.PP
-.Vb 1
-\& subjectAltName=@alt_section
-\&
-\& [alt_section]
-\&
-\& email=steve@here
-\& email=steve@there
-.Ve
-.PP
-will only recognize the last value. This can be worked around by using the form:
-.PP
-.Vb 1
-\& [alt_section]
-\&
-\& email.1=steve@here
-\& email.2=steve@there
-.Ve
+invalid extensions if they are not used carefully.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBreq\fR\|(1), \fBca\fR\|(1), \fBx509\fR\|(1),
+\&\fBopenssl\-req\fR\|(1), \fBopenssl\-ca\fR\|(1), \fBopenssl\-x509\fR\|(1),
 \&\fBASN1_generate_nconf\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2004\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

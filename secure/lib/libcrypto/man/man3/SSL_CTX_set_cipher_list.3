@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CIPHER_LIST 3"
-.TH SSL_CTX_SET_CIPHER_LIST 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_CIPHER_LIST 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_cipher_list, SSL_set_cipher_list, SSL_CTX_set_ciphersuites, SSL_set_ciphersuites \&\- choose list of available SSL_CIPHERs
+SSL_CTX_set_cipher_list,
+SSL_set_cipher_list,
+SSL_CTX_set_ciphersuites,
+SSL_set_ciphersuites,
+OSSL_default_cipher_list,
+OSSL_default_ciphersuites
+\&\- choose list of available SSL_CIPHERs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -150,12 +156,15 @@ SSL_CTX_set_cipher_list, SSL_set_cipher_list, SSL_CTX_set_ciphersuites, SSL_set_
 \&
 \& int SSL_CTX_set_ciphersuites(SSL_CTX *ctx, const char *str);
 \& int SSL_set_ciphersuites(SSL *s, const char *str);
+\&
+\& const char *OSSL_default_cipher_list(void);
+\& const char *OSSL_default_ciphersuites(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBSSL_CTX_set_cipher_list()\fR sets the list of available ciphers (TLSv1.2 and below)
 for \fBctx\fR using the control string \fBstr\fR. The format of the string is described
-in \fBciphers\fR\|(1). The list of ciphers is inherited by all
+in \fBopenssl\-ciphers\fR\|(1). The list of ciphers is inherited by all
 \&\fBssl\fR objects created from \fBctx\fR. This function does not impact TLSv1.3
 ciphersuites. Use \fBSSL_CTX_set_ciphersuites()\fR to configure those.
 .PP
@@ -184,13 +193,17 @@ An empty list is permissible. The default value for the this setting is:
 .PP
 \&\fBSSL_set_ciphersuites()\fR is the same as \fBSSL_CTX_set_ciphersuites()\fR except it
 configures the ciphersuites for \fBssl\fR.
+.PP
+\&\fBOSSL_default_cipher_list()\fR returns the default cipher string for TLSv1.2
+(and earlier) ciphers. \fBOSSL_default_ciphersuites()\fR returns the default
+cipher string for TLSv1.3 ciphersuites.
 .SH "NOTES"
 .IX Header "NOTES"
-The control string \fBstr\fR for \fBSSL_CTX_set_cipher_list()\fR and
-\&\fBSSL_set_cipher_list()\fR should be universally usable and not depend
-on details of the library configuration (ciphers compiled in). Thus no
-syntax checking takes place. Items that are not recognized, because the
-corresponding ciphers are not compiled in or because they are mistyped,
+The control string \fBstr\fR for \fBSSL_CTX_set_cipher_list()\fR, \fBSSL_set_cipher_list()\fR,
+\&\fBSSL_CTX_set_ciphersuites()\fR and \fBSSL_set_ciphersuites()\fR should be universally
+usable and not depend on details of the library configuration (ciphers compiled
+in). Thus no syntax checking takes place. Items that are not recognized, because
+the corresponding ciphers are not compiled in or because they are mistyped,
 are simply ignored. Failure is only flagged if no ciphers could be collected
 at all.
 .PP
@@ -201,7 +214,7 @@ additional restrictions apply. All ciphers have additional requirements.
 \&\s-1ADH\s0 ciphers don't need a certificate, but DH-parameters must have been set.
 All other ciphers need a corresponding certificate and key.
 .PP
-A \s-1RSA\s0 cipher can only be chosen, when a \s-1RSA\s0 certificate is available.
+An \s-1RSA\s0 cipher can only be chosen, when an \s-1RSA\s0 certificate is available.
 \&\s-1RSA\s0 ciphers using \s-1DHE\s0 need a certificate and key and additional DH-parameters
 (see \fBSSL_CTX_set_tmp_dh_callback\fR\|(3)).
 .PP
@@ -214,6 +227,10 @@ client only supports export \s-1RSA\s0 ciphers with an asymmetric key length
 of 512 bits and the server is not configured to use temporary \s-1RSA\s0
 keys), the \*(L"no shared cipher\*(R" (\s-1SSL_R_NO_SHARED_CIPHER\s0) error is generated
 and the handshake will fail.
+.PP
+\&\fBOSSL_default_cipher_list()\fR and \fBOSSL_default_ciphersuites()\fR replace
+\&\s-1SSL_DEFAULT_CIPHER_LIST\s0 and \s-1TLS_DEFAULT_CIPHERSUITES,\s0 respectively. The
+cipher list defines are deprecated as of 3.0.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBSSL_CTX_set_cipher_list()\fR and \fBSSL_set_cipher_list()\fR return 1 if any cipher
@@ -226,12 +243,15 @@ ciphersuite list was configured, and 0 otherwise.
 \&\fBssl\fR\|(7), \fBSSL_get_ciphers\fR\|(3),
 \&\fBSSL_CTX_use_certificate\fR\|(3),
 \&\fBSSL_CTX_set_tmp_dh_callback\fR\|(3),
-\&\fBciphers\fR\|(1)
+\&\fBopenssl\-ciphers\fR\|(1)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBOSSL_default_cipher_list()\fR and \fBOSSL_default_ciphersites()\fR are new in 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

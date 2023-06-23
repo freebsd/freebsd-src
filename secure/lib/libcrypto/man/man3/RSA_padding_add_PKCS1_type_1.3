@@ -133,18 +133,29 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_PADDING_ADD_PKCS1_TYPE_1 3"
-.TH RSA_PADDING_ADD_PKCS1_TYPE_1 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RSA_PADDING_ADD_PKCS1_TYPE_1 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1, RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2, RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP, RSA_padding_add_PKCS1_OAEP_mgf1, RSA_padding_check_PKCS1_OAEP_mgf1, RSA_padding_add_SSLv23, RSA_padding_check_SSLv23, RSA_padding_add_none, RSA_padding_check_none \- asymmetric encryption padding
+RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1,
+RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2,
+RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP,
+RSA_padding_add_PKCS1_OAEP_mgf1, RSA_padding_check_PKCS1_OAEP_mgf1,
+RSA_padding_add_none, RSA_padding_check_none \- asymmetric encryption
+padding
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
 \& int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
 \&                                  const unsigned char *f, int fl);
 \&
@@ -175,12 +186,6 @@ RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1, RSA_padding_add_PK
 \&                                       const unsigned char *p, int pl,
 \&                                       const EVP_MD *md, const EVP_MD *mgf1md);
 \&
-\& int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
-\&                            const unsigned char *f, int fl);
-\&
-\& int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
-\&                              const unsigned char *f, int fl, int rsa_len);
-\&
 \& int RSA_padding_add_none(unsigned char *to, int tlen,
 \&                          const unsigned char *f, int fl);
 \&
@@ -189,6 +194,9 @@ RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1, RSA_padding_add_PK
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the \s-1EVP PKEY\s0 APIs.
+.PP
 The \fBRSA_padding_xxx_xxx()\fR functions are called from the \s-1RSA\s0 encrypt,
 decrypt, sign and verify functions. Normally they should not be called
 from application programs.
@@ -213,9 +221,6 @@ The following encoding methods are implemented:
 .IP "\s-1PKCS1_OAEP\s0" 4
 .IX Item "PKCS1_OAEP"
 \&\s-1PKCS\s0 #1 v2.0 EME-OAEP
-.IP "SSLv23" 4
-.IX Item "SSLv23"
-\&\s-1PKCS\s0 #1 EME\-PKCS1\-v1_5 with SSL-specific modification
 .IP "none" 4
 .IX Item "none"
 simply copy the data
@@ -266,11 +271,14 @@ including \s-1PKCS1_OAEP.\s0
 \&\fBRSA_private_decrypt\fR\|(3),
 \&\fBRSA_sign\fR\|(3), \fBRSA_verify\fR\|(3),
 \&\s-1\fBRAND\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

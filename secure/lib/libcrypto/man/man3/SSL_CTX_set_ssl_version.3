@@ -133,33 +133,41 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SSL_VERSION 3"
-.TH SSL_CTX_SET_SSL_VERSION 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_SSL_VERSION 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_ssl_version, SSL_set_ssl_method, SSL_get_ssl_method \&\- choose a new TLS/SSL method
+SSL_CTX_set_ssl_version, SSL_CTX_get_ssl_method, SSL_set_ssl_method, SSL_get_ssl_method
+\&\- choose a new TLS/SSL method
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
 \& int SSL_CTX_set_ssl_version(SSL_CTX *ctx, const SSL_METHOD *method);
+\& const SSL_METHOD *SSL_CTX_get_ssl_method(const SSL_CTX *ctx);
+\&
 \& int SSL_set_ssl_method(SSL *s, const SSL_METHOD *method);
 \& const SSL_METHOD *SSL_get_ssl_method(const SSL *ssl);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBSSL_CTX_set_ssl_version()\fR sets a new default \s-1TLS/SSL\s0 \fBmethod\fR for \s-1SSL\s0 objects
-newly created from this \fBctx\fR. \s-1SSL\s0 objects already created with
-\&\fBSSL_new\fR\|(3) are not affected, except when
-\&\fBSSL_clear\fR\|(3) is being called.
+newly created from this \fBctx\fR.  Most of the configuration attached to the
+\&\s-1SSL_CTX\s0 object is retained, with the exception of the configured \s-1TLS\s0 ciphers,
+which are reset to the default values.  \s-1SSL\s0 objects already created from this
+\&\s-1SSL_CTX\s0 with \fBSSL_new\fR\|(3) are not affected, except when \fBSSL_clear\fR\|(3) is
+being called, as described below.
+.PP
+\&\fBSSL_CTX_get_ssl_method()\fR returns the \s-1SSL_METHOD\s0 which was used to construct the
+\&\s-1SSL_CTX.\s0
 .PP
 \&\fBSSL_set_ssl_method()\fR sets a new \s-1TLS/SSL\s0 \fBmethod\fR for a particular \fBssl\fR
 object. It may be reset, when \fBSSL_clear()\fR is called.
 .PP
-\&\fBSSL_get_ssl_method()\fR returns a function pointer to the \s-1TLS/SSL\s0 method
+\&\fBSSL_get_ssl_method()\fR returns a pointer to the \s-1TLS/SSL\s0 method
 set in \fBssl\fR.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -169,6 +177,11 @@ The available \fBmethod\fR choices are described in
 When \fBSSL_clear\fR\|(3) is called and no session is connected to
 an \s-1SSL\s0 object, the method of the \s-1SSL\s0 object is reset to the method currently
 set in the corresponding \s-1SSL_CTX\s0 object.
+.PP
+\&\fBSSL_CTX_set_version()\fR has unusual semantics and no clear use case;
+it would usually be preferable to create a new \s-1SSL_CTX\s0 object than to
+try to reuse an existing one in this fashion.  Its usage is considered
+deprecated.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The following return values can occur for \fBSSL_CTX_set_ssl_version()\fR
@@ -178,16 +191,22 @@ The new choice failed, check the error stack to find out the reason.
 .IP "1" 4
 .IX Item "1"
 The operation succeeded.
+.PP
+\&\fBSSL_CTX_get_ssl_method()\fR and \fBSSL_get_ssl_method()\fR always return non-NULL
+pointers.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBSSL_CTX_new\fR\|(3), \fBSSL_new\fR\|(3),
 \&\fBSSL_clear\fR\|(3), \fBssl\fR\|(7),
 \&\fBSSL_set_connect_state\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBSSL_CTX_set_ssl_version()\fR was deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

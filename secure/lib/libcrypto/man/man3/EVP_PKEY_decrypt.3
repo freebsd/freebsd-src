@@ -133,19 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_DECRYPT 3"
-.TH EVP_PKEY_DECRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_DECRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_decrypt_init, EVP_PKEY_decrypt \- decrypt using a public key algorithm
+EVP_PKEY_decrypt_init, EVP_PKEY_decrypt_init_ex,
+EVP_PKEY_decrypt \- decrypt using a public key algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
 \& int EVP_PKEY_decrypt_init(EVP_PKEY_CTX *ctx);
+\& int EVP_PKEY_decrypt_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
 \& int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx,
 \&                      unsigned char *out, size_t *outlen,
 \&                      const unsigned char *in, size_t inlen);
@@ -153,28 +155,36 @@ EVP_PKEY_decrypt_init, EVP_PKEY_decrypt \- decrypt using a public key algorithm
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBEVP_PKEY_decrypt_init()\fR function initializes a public key algorithm
-context using key \fBpkey\fR for a decryption operation.
+context using key \fIpkey\fR for a decryption operation.
+.PP
+The \fBEVP_PKEY_decrypt_init_ex()\fR function initializes a public key algorithm
+context using key \fIpkey\fR for a decryption operation and sets the
+algorithm specific \fIparams\fR.
 .PP
 The \fBEVP_PKEY_decrypt()\fR function performs a public key decryption operation
-using \fBctx\fR. The data to be decrypted is specified using the \fBin\fR and
-\&\fBinlen\fR parameters. If \fBout\fR is \fB\s-1NULL\s0\fR then the maximum size of the output
-buffer is written to the \fBoutlen\fR parameter. If \fBout\fR is not \fB\s-1NULL\s0\fR then
-before the call the \fBoutlen\fR parameter should contain the length of the
-\&\fBout\fR buffer, if the call is successful the decrypted data is written to
-\&\fBout\fR and the amount of data written to \fBoutlen\fR.
+using \fIctx\fR. The data to be decrypted is specified using the \fIin\fR and
+\&\fIinlen\fR parameters. If \fIout\fR is \s-1NULL\s0 then the minimum required size of
+the output buffer is written to the \fI*outlen\fR parameter.
+.PP
+If \fIout\fR is not \s-1NULL\s0 then before the call the \fI*outlen\fR parameter must
+contain the length of the \fIout\fR buffer. If the call is successful the
+decrypted data is written to \fIout\fR and the amount of the decrypted data
+written to \fI*outlen\fR, otherwise an error is returned.
 .SH "NOTES"
 .IX Header "NOTES"
 After the call to \fBEVP_PKEY_decrypt_init()\fR algorithm specific control
 operations can be performed to set any appropriate parameters for the
-operation.
+operation.  These operations can be included in the \fBEVP_PKEY_decrypt_init_ex()\fR
+call.
 .PP
 The function \fBEVP_PKEY_decrypt()\fR can be called more than once on the same
 context if several operations are performed using the same parameters.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBEVP_PKEY_decrypt_init()\fR and \fBEVP_PKEY_decrypt()\fR return 1 for success and 0
-or a negative value for failure. In particular a return value of \-2
-indicates the operation is not supported by the public key algorithm.
+\&\fBEVP_PKEY_decrypt_init()\fR, \fBEVP_PKEY_decrypt_init_ex()\fR and \fBEVP_PKEY_decrypt()\fR
+return 1 for success and 0 or a negative value for failure. In particular a
+return value of \-2 indicates the operation is not supported by the public key
+algorithm.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Decrypt data using \s-1OAEP\s0 (for \s-1RSA\s0 keys):
@@ -198,7 +208,7 @@ Decrypt data using \s-1OAEP\s0 (for \s-1RSA\s0 keys):
 \&     /* Error occurred */
 \& if (EVP_PKEY_decrypt_init(ctx) <= 0)
 \&     /* Error */
-\& if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_OAEP_PADDING) <= 0)
+\& if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0)
 \&     /* Error */
 \&
 \& /* Determine buffer length */
@@ -228,9 +238,9 @@ Decrypt data using \s-1OAEP\s0 (for \s-1RSA\s0 keys):
 These functions were added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

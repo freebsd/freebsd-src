@@ -133,21 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_SET_MARK 3"
-.TH ERR_SET_MARK 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ERR_SET_MARK 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_set_mark, ERR_pop_to_mark \- set marks and pop errors until mark
+ERR_set_mark, ERR_clear_last_mark, ERR_pop_to_mark
+\&\- set mark, clear mark and pop errors until mark
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/err.h>
 \&
 \& int ERR_set_mark(void);
-\&
 \& int ERR_pop_to_mark(void);
+\& int ERR_clear_last_mark(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -156,17 +157,19 @@ is one.
 .PP
 \&\fBERR_pop_to_mark()\fR will pop the top of the error stack until a mark is found.
 The mark is then removed.  If there is no mark, the whole stack is removed.
+.PP
+\&\fBERR_clear_last_mark()\fR removes the last mark added if there is one.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBERR_set_mark()\fR returns 0 if the error stack is empty, otherwise 1.
 .PP
-\&\fBERR_pop_to_mark()\fR returns 0 if there was no mark in the error stack, which
-implies that the stack became empty, otherwise 1.
+\&\fBERR_clear_last_mark()\fR and \fBERR_pop_to_mark()\fR return 0 if there was no mark in the
+error stack, which implies that the stack became empty, otherwise 1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2003\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2003\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

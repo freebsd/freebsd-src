@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_STRING_TABLE_ADD 3"
-.TH ASN1_STRING_TABLE_ADD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ASN1_STRING_TABLE_ADD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ASN1_STRING_TABLE, ASN1_STRING_TABLE_add, ASN1_STRING_TABLE_get, ASN1_STRING_TABLE_cleanup \- ASN1_STRING_TABLE manipulation functions
+ASN1_STRING_TABLE, ASN1_STRING_TABLE_add, ASN1_STRING_TABLE_get,
+ASN1_STRING_TABLE_cleanup \- ASN1_STRING_TABLE manipulation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,7 +150,7 @@ ASN1_STRING_TABLE, ASN1_STRING_TABLE_add, ASN1_STRING_TABLE_get, ASN1_STRING_TAB
 \&
 \& int ASN1_STRING_TABLE_add(int nid, long minsize, long maxsize,
 \&                           unsigned long mask, unsigned long flags);
-\& ASN1_STRING_TABLE * ASN1_STRING_TABLE_get(int nid);
+\& ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid);
 \& void ASN1_STRING_TABLE_cleanup(void);
 .Ve
 .SH "DESCRIPTION"
@@ -161,16 +162,16 @@ ASN1_STRING_TABLE, ASN1_STRING_TABLE_add, ASN1_STRING_TABLE_get, ASN1_STRING_TAB
 .SS "Functions"
 .IX Subsection "Functions"
 \&\fBASN1_STRING_TABLE_add()\fR adds a new \fB\s-1ASN1_STRING_TABLE\s0\fR item into the
-local \s-1ASN1\s0 string table based on the \fBnid\fR along with other parameters.
+local \s-1ASN1\s0 string table based on the \fInid\fR along with other parameters.
 .PP
 If the item is already in the table, fields of \fB\s-1ASN1_STRING_TABLE\s0\fR are
-updated (depending on the values of those parameters, e.g., \fBminsize\fR
-and \fBmaxsize\fR >= 0, \fBmask\fR and \fBflags\fR != 0). If the \fBnid\fR is standard,
+updated (depending on the values of those parameters, e.g., \fIminsize\fR
+and \fImaxsize\fR >= 0, \fImask\fR and \fIflags\fR != 0). If the \fInid\fR is standard,
 a copy of the standard \fB\s-1ASN1_STRING_TABLE\s0\fR is created and updated with
 other parameters.
 .PP
 \&\fBASN1_STRING_TABLE_get()\fR searches for an \fB\s-1ASN1_STRING_TABLE\s0\fR item based
-on \fBnid\fR. It will search the local table first, then the standard one.
+on \fInid\fR. It will search the local table first, then the standard one.
 .PP
 \&\fBASN1_STRING_TABLE_cleanup()\fR frees all \fB\s-1ASN1_STRING_TABLE\s0\fR items added
 by \fBASN1_STRING_TABLE_add()\fR.
@@ -179,7 +180,7 @@ by \fBASN1_STRING_TABLE_add()\fR.
 \&\fBASN1_STRING_TABLE_add()\fR returns 1 on success, 0 if an error occurred.
 .PP
 \&\fBASN1_STRING_TABLE_get()\fR returns a valid \fB\s-1ASN1_STRING_TABLE\s0\fR structure
-or \fB\s-1NULL\s0\fR if nothing is found.
+or \s-1NULL\s0 if nothing is found.
 .PP
 \&\fBASN1_STRING_TABLE_cleanup()\fR does not return a value.
 .SH "SEE ALSO"
@@ -187,9 +188,9 @@ or \fB\s-1NULL\s0\fR if nothing is found.
 \&\fBERR_get_error\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

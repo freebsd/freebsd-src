@@ -133,58 +133,98 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_VERIFY_CERT 3"
-.TH X509_VERIFY_CERT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_VERIFY_CERT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_verify_cert \- discover and verify X509 certificate chain
+X509_build_chain,
+X509_verify_cert,
+X509_STORE_CTX_verify \- build and verify X509 certificate chain
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
-\& #include <openssl/x509.h>
+\& #include <openssl/x509_vfy.h>
 \&
+\& STACK_OF(X509) *X509_build_chain(X509 *target, STACK_OF(X509) *certs,
+\&                                  X509_STORE *store, int with_self_signed,
+\&                                  OSSL_LIB_CTX *libctx, const char *propq);
 \& int X509_verify_cert(X509_STORE_CTX *ctx);
+\& int X509_STORE_CTX_verify(X509_STORE_CTX *ctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBX509_verify_cert()\fR function attempts to discover and validate a
-certificate chain based on parameters in \fBctx\fR. A complete description of
-the process is contained in the \fBverify\fR\|(1) manual page.
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-If a complete chain can be built and validated this function returns 1,
-otherwise it return zero, in exceptional circumstances it can also
-return a negative code.
+\&\fBX509_build_chain()\fR builds a certificate chain starting from \fItarget\fR
+using the optional list of intermediate \s-1CA\s0 certificates \fIcerts\fR.
+If \fIstore\fR is \s-1NULL\s0 it builds the chain as far down as possible, ignoring errors.
+Else the chain must reach a trust anchor contained in \fIstore\fR.
+It internally uses a \fBX509_STORE_CTX\fR structure associated with the library
+context \fIlibctx\fR and property query string \fIpropq\fR, both of which may be \s-1NULL.\s0
+In case there is more than one possibility for the chain, only one is taken.
 .PP
-If the function fails additional error information can be obtained by
-examining \fBctx\fR using, for example \fBX509_STORE_CTX_get_error()\fR.
-.SH "NOTES"
-.IX Header "NOTES"
+On success it returns a pointer to a new stack of (up_ref'ed) certificates
+starting with \fItarget\fR and followed by all available intermediate certificates.
+A self-signed trust anchor is included only if \fItarget\fR is the trust anchor
+of \fIwith_self_signed\fR is 1.
+If a non-NULL stack is returned the caller is responsible for freeing it.
+.PP
+The \fBX509_verify_cert()\fR function attempts to discover and validate a
+certificate chain based on parameters in \fIctx\fR.
+The verification context, of type \fBX509_STORE_CTX\fR, can be constructed
+using \fBX509_STORE_CTX_new\fR\|(3) and \fBX509_STORE_CTX_init\fR\|(3).
+It usually includes a target certificate to be verified,
+a set of certificates serving as trust anchors,
+a list of non-trusted certificates that may be helpful for chain construction,
+flags such as X509_V_FLAG_X509_STRICT, and various other optional components
+such as a callback function that allows customizing the verification outcome.
+A complete description of the certificate verification process is contained in
+the \fBopenssl\-verification\-options\fR\|(1) manual page.
+.PP
 Applications rarely call this function directly but it is used by
 OpenSSL internally for certificate validation, in both the S/MIME and
 \&\s-1SSL/TLS\s0 code.
 .PP
 A negative return value from \fBX509_verify_cert()\fR can occur if it is invoked
-incorrectly, such as with no certificate set in \fBctx\fR, or when it is called
-twice in succession without reinitialising \fBctx\fR for the second call.
-A negative return value can also happen due to internal resource problems or if
-a retry operation is requested during internal lookups (which never happens
-with standard lookup methods).
-Applications must check for <= 0 return value on error.
-.SH "BUGS"
-.IX Header "BUGS"
-This function uses the header \fBx509.h\fR as opposed to most chain verification
-functions which use \fBx509_vfy.h\fR.
+incorrectly, such as with no certificate set in \fIctx\fR, or when it is called
+twice in succession without reinitialising \fIctx\fR for the second call.
+A negative return value can also happen due to internal resource problems
+or because an internal inconsistency has been detected.
+Applications must interpret any return value <= 0 as an error.
+.PP
+The \fBX509_STORE_CTX_verify()\fR behaves like \fBX509_verify_cert()\fR except that its
+target certificate is the first element of the list of untrusted certificates
+in \fIctx\fR unless a target certificate is set explicitly.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBX509_build_chain()\fR returns \s-1NULL\s0 on error, else a stack of certificates.
+.PP
+Both \fBX509_verify_cert()\fR and \fBX509_STORE_CTX_verify()\fR
+return 1 if a complete chain can be built and validated,
+otherwise they return 0, and in exceptional circumstances (such as malloc
+failure and internal errors) they can also return a negative code.
+.PP
+If a complete chain can be built and validated both functions return 1.
+If the certificate must be rejected on the basis of the data available
+or any required certificate status data is not available they return 0.
+If no definite answer possible they usually return a negative code.
+.PP
+On error or failure additional error information can be obtained by
+examining \fIctx\fR using, for example, \fBX509_STORE_CTX_get_error\fR\|(3).  Even if
+verification indicated success, the stored error code may be different from
+X509_V_OK, likely because a verification callback function has waived the error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBX509_STORE_CTX_new\fR\|(3), \fBX509_STORE_CTX_init\fR\|(3),
 \&\fBX509_STORE_CTX_get_error\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBX509_build_chain()\fR and \fBX509_STORE_CTX_verify()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,18 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "BF_ENCRYPT 3"
-.TH BF_ENCRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BF_ENCRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BF_set_key, BF_encrypt, BF_decrypt, BF_ecb_encrypt, BF_cbc_encrypt, BF_cfb64_encrypt, BF_ofb64_encrypt, BF_options \- Blowfish encryption
+BF_set_key, BF_encrypt, BF_decrypt, BF_ecb_encrypt, BF_cbc_encrypt,
+BF_cfb64_encrypt, BF_ofb64_encrypt, BF_options \- Blowfish encryption
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/blowfish.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& void BF_set_key(BF_KEY *key, int len, const unsigned char *data);
 \&
 \& void BF_ecb_encrypt(const unsigned char *in, unsigned char *out,
@@ -165,6 +172,10 @@ BF_set_key, BF_encrypt, BF_decrypt, BF_ecb_encrypt, BF_cbc_encrypt, BF_cfb64_enc
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated. Applications should
+instead use \fBEVP_EncryptInit_ex\fR\|(3), \fBEVP_EncryptUpdate\fR\|(3) and
+\&\fBEVP_EncryptFinal_ex\fR\|(3) or the equivalently named decrypt functions.
+.PP
 This library implements the Blowfish cipher, which was invented and described
 by Counterpane (see http://www.counterpane.com/blowfish.html ).
 .PP
@@ -239,11 +250,14 @@ functions directly.
 .IX Header "SEE ALSO"
 \&\fBEVP_EncryptInit\fR\|(3),
 \&\fBdes_modes\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

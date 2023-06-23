@@ -133,18 +133,32 @@
 .\" ========================================================================
 .\"
 .IX Title "DES_RANDOM_KEY 3"
-.TH DES_RANDOM_KEY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DES_RANDOM_KEY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DES_random_key, DES_set_key, DES_key_sched, DES_set_key_checked, DES_set_key_unchecked, DES_set_odd_parity, DES_is_weak_key, DES_ecb_encrypt, DES_ecb2_encrypt, DES_ecb3_encrypt, DES_ncbc_encrypt, DES_cfb_encrypt, DES_ofb_encrypt, DES_pcbc_encrypt, DES_cfb64_encrypt, DES_ofb64_encrypt, DES_xcbc_encrypt, DES_ede2_cbc_encrypt, DES_ede2_cfb64_encrypt, DES_ede2_ofb64_encrypt, DES_ede3_cbc_encrypt, DES_ede3_cfb64_encrypt, DES_ede3_ofb64_encrypt, DES_cbc_cksum, DES_quad_cksum, DES_string_to_key, DES_string_to_2keys, DES_fcrypt, DES_crypt \- DES encryption
+DES_random_key, DES_set_key, DES_key_sched, DES_set_key_checked,
+DES_set_key_unchecked, DES_set_odd_parity, DES_is_weak_key,
+DES_ecb_encrypt, DES_ecb2_encrypt, DES_ecb3_encrypt, DES_ncbc_encrypt,
+DES_cfb_encrypt, DES_ofb_encrypt, DES_pcbc_encrypt, DES_cfb64_encrypt,
+DES_ofb64_encrypt, DES_xcbc_encrypt, DES_ede2_cbc_encrypt,
+DES_ede2_cfb64_encrypt, DES_ede2_ofb64_encrypt, DES_ede3_cbc_encrypt,
+DES_ede3_cfb64_encrypt, DES_ede3_ofb64_encrypt,
+DES_cbc_cksum, DES_quad_cksum, DES_string_to_key, DES_string_to_2keys,
+DES_fcrypt, DES_crypt \- DES encryption
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/des.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& void DES_random_key(DES_cblock *ret);
 \&
 \& int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule);
@@ -223,6 +237,10 @@ DES_random_key, DES_set_key, DES_key_sched, DES_set_key_checked, DES_set_key_unc
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated. Applications should
+instead use \fBEVP_EncryptInit_ex\fR\|(3), \fBEVP_EncryptUpdate\fR\|(3) and
+\&\fBEVP_EncryptFinal_ex\fR\|(3) or the equivalently named decrypt functions.
+.PP
 This library contains a fast implementation of the \s-1DES\s0 encryption
 algorithm.
 .PP
@@ -248,11 +266,8 @@ and is not a weak or semi-weak key.  If the parity is wrong, then \-1
 is returned.  If the key is a weak key, then \-2 is returned.  If an
 error is returned, the key schedule is not generated.
 .PP
-\&\fBDES_set_key()\fR works like
-\&\fBDES_set_key_checked()\fR if the \fIDES_check_key\fR flag is nonzero,
-otherwise like \fBDES_set_key_unchecked()\fR.  These functions are available
-for compatibility; it is recommended to use a function that does not
-depend on a global variable.
+\&\fBDES_set_key()\fR works like \fBDES_set_key_checked()\fR and remains for
+backward compatibility.
 .PP
 \&\fBDES_set_odd_parity()\fR sets the parity of the passed \fIkey\fR to odd.
 .PP
@@ -415,8 +430,11 @@ Single-key \s-1DES\s0 is insecure due to its short key size.  \s-1ECB\s0 mode is
 not suitable for most applications; see \fBdes_modes\fR\|(7).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBDES_set_key()\fR, \fBDES_key_sched()\fR, \fBDES_set_key_checked()\fR and \fBDES_is_weak_key()\fR
+\&\fBDES_set_key()\fR, \fBDES_key_sched()\fR, and \fBDES_set_key_checked()\fR
 return 0 on success or negative values on error.
+.PP
+\&\fBDES_is_weak_key()\fR returns 1 if the passed key is a weak key, 0 if it
+is ok.
 .PP
 \&\fBDES_cbc_cksum()\fR and \fBDES_quad_cksum()\fR return 4\-byte integer representing the
 last 4 bytes of the checksum of the input.
@@ -429,6 +447,8 @@ to a static buffer on success; otherwise they return \s-1NULL.\s0
 \&\fBEVP_EncryptInit\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 The requirement that the \fBsalt\fR parameter to \fBDES_crypt()\fR and \fBDES_fcrypt()\fR
 be two \s-1ASCII\s0 characters was first enforced in
 OpenSSL 1.1.0.  Previous versions tried to use the letter uppercase \fBA\fR
@@ -436,9 +456,9 @@ if both character were not present, and could crash when given non-ASCII
 on some platforms.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

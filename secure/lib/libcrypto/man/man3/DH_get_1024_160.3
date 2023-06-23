@@ -133,40 +133,70 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_GET_1024_160 3"
-.TH DH_GET_1024_160 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_GET_1024_160 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_get_1024_160, DH_get_2048_224, DH_get_2048_256, BN_get0_nist_prime_192, BN_get0_nist_prime_224, BN_get0_nist_prime_256, BN_get0_nist_prime_384, BN_get0_nist_prime_521, BN_get_rfc2409_prime_768, BN_get_rfc2409_prime_1024, BN_get_rfc3526_prime_1536, BN_get_rfc3526_prime_2048, BN_get_rfc3526_prime_3072, BN_get_rfc3526_prime_4096, BN_get_rfc3526_prime_6144, BN_get_rfc3526_prime_8192 \&\- Create standardized public primes or DH pairs
+DH_get_1024_160,
+DH_get_2048_224,
+DH_get_2048_256,
+BN_get0_nist_prime_192,
+BN_get0_nist_prime_224,
+BN_get0_nist_prime_256,
+BN_get0_nist_prime_384,
+BN_get0_nist_prime_521,
+BN_get_rfc2409_prime_768,
+BN_get_rfc2409_prime_1024,
+BN_get_rfc3526_prime_1536,
+BN_get_rfc3526_prime_2048,
+BN_get_rfc3526_prime_3072,
+BN_get_rfc3526_prime_4096,
+BN_get_rfc3526_prime_6144,
+BN_get_rfc3526_prime_8192
+\&\- Create standardized public primes or DH pairs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 4
+.Vb 1
 \& #include <openssl/dh.h>
-\& DH *DH_get_1024_160(void)
-\& DH *DH_get_2048_224(void)
-\& DH *DH_get_2048_256(void)
 \&
-\& const BIGNUM *BN_get0_nist_prime_192(void)
-\& const BIGNUM *BN_get0_nist_prime_224(void)
-\& const BIGNUM *BN_get0_nist_prime_256(void)
-\& const BIGNUM *BN_get0_nist_prime_384(void)
-\& const BIGNUM *BN_get0_nist_prime_521(void)
+\& const BIGNUM *BN_get0_nist_prime_192(void);
+\& const BIGNUM *BN_get0_nist_prime_224(void);
+\& const BIGNUM *BN_get0_nist_prime_256(void);
+\& const BIGNUM *BN_get0_nist_prime_384(void);
+\& const BIGNUM *BN_get0_nist_prime_521(void);
 \&
-\& BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_2048(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_3072(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn)
-\& BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn)
+\& BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_2048(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_3072(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn);
+\& BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& #include <openssl/dh.h>
+\&
+\& DH *DH_get_1024_160(void);
+\& DH *DH_get_2048_224(void);
+\& DH *DH_get_2048_256(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBDH_get_1024_160()\fR, \fBDH_get_2048_224()\fR, and \fBDH_get_2048_256()\fR each return
-a \s-1DH\s0 object for the \s-1IETF RFC 5114\s0 value.
+a \s-1DH\s0 object for the \s-1IETF RFC 5114\s0 value. These functions are deprecated.
+Applications should instead use \fBEVP_PKEY_CTX_set_dh_rfc5114()\fR and
+\&\fBEVP_PKEY_CTX_set_dhx_rfc5114()\fR as described in \fBEVP_PKEY_CTX_ctrl\fR\|(3) or
+by setting the \fB\s-1OSSL_PKEY_PARAM_GROUP_NAME\s0\fR as specified in
+\&\*(L"\s-1DH\s0 parameters\*(R" in \s-1\fBEVP_PKEY\-DH\s0\fR\|(7)) to one of \*(L"dh_1024_160\*(R", \*(L"dh_2048_224\*(R" or
+\&\*(L"dh_2048_256\*(R".
 .PP
 \&\fBBN_get0_nist_prime_192()\fR, \fBBN_get0_nist_prime_224()\fR, \fBBN_get0_nist_prime_256()\fR,
 \&\fBBN_get0_nist_prime_384()\fR, and \fBBN_get0_nist_prime_521()\fR functions return
@@ -181,11 +211,15 @@ is not \s-1NULL,\s0 the \s-1BIGNUM\s0 will be set into that location as well.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 Defined above.
+.SH "HISTORY"
+.IX Header "HISTORY"
+The functions \fBDH_get_1024_160()\fR, \fBDH_get_2048_224()\fR and \fBDH_get_2048_256()\fR were
+deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

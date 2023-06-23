@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_VERIFYINIT 3"
-.TH EVP_VERIFYINIT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_VERIFYINIT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_VerifyInit_ex, EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal \&\- EVP signature verification functions
+EVP_VerifyInit_ex,
+EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal_ex, EVP_VerifyFinal
+\&\- EVP signature verification functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,6 +149,9 @@ EVP_VerifyInit_ex, EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal \&\- EVP si
 \&
 \& int EVP_VerifyInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
 \& int EVP_VerifyUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
+\& int EVP_VerifyFinal_ex(EVP_MD_CTX *ctx, const unsigned char *sigbuf,
+\&                        unsigned int siglen, EVP_PKEY *pkey,
+\&                        OSSL_LIB_CTX *libctx, const char *propq);
 \& int EVP_VerifyFinal(EVP_MD_CTX *ctx, unsigned char *sigbuf, unsigned int siglen,
 \&                     EVP_PKEY *pkey);
 \&
@@ -157,26 +162,31 @@ EVP_VerifyInit_ex, EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal \&\- EVP si
 The \s-1EVP\s0 signature verification routines are a high-level interface to digital
 signatures.
 .PP
-\&\fBEVP_VerifyInit_ex()\fR sets up verification context \fBctx\fR to use digest
-\&\fBtype\fR from \s-1ENGINE\s0 \fBimpl\fR. \fBctx\fR must be created by calling
+\&\fBEVP_VerifyInit_ex()\fR sets up verification context \fIctx\fR to use digest
+\&\fItype\fR from \s-1ENGINE\s0 \fIimpl\fR. \fIctx\fR must be created by calling
 \&\fBEVP_MD_CTX_new()\fR before calling this function.
 .PP
-\&\fBEVP_VerifyUpdate()\fR hashes \fBcnt\fR bytes of data at \fBd\fR into the
-verification context \fBctx\fR. This function can be called several times on the
-same \fBctx\fR to include additional data.
+\&\fBEVP_VerifyUpdate()\fR hashes \fIcnt\fR bytes of data at \fId\fR into the
+verification context \fIctx\fR. This function can be called several times on the
+same \fIctx\fR to include additional data.
 .PP
-\&\fBEVP_VerifyFinal()\fR verifies the data in \fBctx\fR using the public key \fBpkey\fR
-and against the \fBsiglen\fR bytes at \fBsigbuf\fR.
+\&\fBEVP_VerifyFinal_ex()\fR verifies the data in \fIctx\fR using the public key
+\&\fIpkey\fR and \fIsiglen\fR bytes in \fIsigbuf\fR.
+The library context \fIlibctx\fR and property query \fIpropq\fR are used when creating
+a context to use with the key \fIpkey\fR.
 .PP
-\&\fBEVP_VerifyInit()\fR initializes verification context \fBctx\fR to use the default
-implementation of digest \fBtype\fR.
+\&\fBEVP_VerifyFinal()\fR is similar to \fBEVP_VerifyFinal_ex()\fR but uses default
+values of \s-1NULL\s0 for the library context \fIlibctx\fR and the property query \fIpropq\fR.
+.PP
+\&\fBEVP_VerifyInit()\fR initializes verification context \fIctx\fR to use the default
+implementation of digest \fItype\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBEVP_VerifyInit_ex()\fR and \fBEVP_VerifyUpdate()\fR return 1 for success and 0 for
 failure.
 .PP
-\&\fBEVP_VerifyFinal()\fR returns 1 for a correct signature, 0 for failure and \-1 if some
-other error occurred.
+\&\fBEVP_VerifyFinal_ex()\fR and \fBEVP_VerifyFinal()\fR return 1 for a correct
+signature, 0 for failure and a negative value if some other error occurred.
 .PP
 The error codes can be obtained by \fBERR_get_error\fR\|(3).
 .SH "NOTES"
@@ -212,12 +222,15 @@ The previous two bugs are fixed in the newer EVP_DigestVerify*() function.
 \&\fBEVP_DigestInit\fR\|(3),
 \&\fBevp\fR\|(7), \s-1\fBHMAC\s0\fR\|(3), \s-1\fBMD2\s0\fR\|(3),
 \&\s-1\fBMD5\s0\fR\|(3), \s-1\fBMDC2\s0\fR\|(3), \s-1\fBRIPEMD160\s0\fR\|(3),
-\&\s-1\fBSHA1\s0\fR\|(3), \fBdgst\fR\|(1)
+\&\s-1\fBSHA1\s0\fR\|(3), \fBopenssl\-dgst\fR\|(1)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The function \fBEVP_VerifyFinal_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

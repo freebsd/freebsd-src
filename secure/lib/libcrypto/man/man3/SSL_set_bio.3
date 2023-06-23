@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SET_BIO 3"
-.TH SSL_SET_BIO 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_SET_BIO 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -199,10 +199,8 @@ and no references are consumed for the \fBwbio\fR.
 If the \fBrbio\fR and \fBwbio\fR parameters are different and the \fBwbio\fR
 is the same as the
 previously set value and the old \fBrbio\fR and \fBwbio\fR values were different
-to each
-other then one reference is consumed for the \fBrbio\fR and one reference
-is consumed
-for the \fBwbio\fR.
+to each other, then one reference is consumed for the \fBrbio\fR and one
+reference is consumed for the \fBwbio\fR.
 .PP
 Because of this complexity, this function should be avoided;
 use \fBSSL_set0_rbio()\fR and \fBSSL_set0_wbio()\fR instead.
@@ -219,9 +217,9 @@ use \fBSSL_set0_rbio()\fR and \fBSSL_set0_wbio()\fR instead.
 \&\fBSSL_set0_rbio()\fR and \fBSSL_set0_wbio()\fR were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

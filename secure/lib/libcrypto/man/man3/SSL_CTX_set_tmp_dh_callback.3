@@ -133,18 +133,32 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TMP_DH_CALLBACK 3"
-.TH SSL_CTX_SET_TMP_DH_CALLBACK 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_TMP_DH_CALLBACK 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_tmp_dh_callback, SSL_CTX_set_tmp_dh, SSL_set_tmp_dh_callback, SSL_set_tmp_dh \- handle DH keys for ephemeral key exchange
+SSL_CTX_set_dh_auto, SSL_set_dh_auto, SSL_CTX_set0_tmp_dh_pkey,
+SSL_set0_tmp_dh_pkey, SSL_CTX_set_tmp_dh_callback, SSL_CTX_set_tmp_dh,
+SSL_set_tmp_dh_callback, SSL_set_tmp_dh
+\&\- handle DH keys for ephemeral key exchange
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
+\& long SSL_CTX_set_dh_auto(SSL_CTX *ctx, int onoff);
+\& long SSL_set_dh_auto(SSL *s, int onoff);
+\& int SSL_CTX_set0_tmp_dh_pkey(SSL_CTX *ctx, EVP_PKEY *dhpkey);
+\& int SSL_set0_tmp_dh_pkey(SSL *s, EVP_PKEY *dhpkey);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
 \& void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx,
 \&                                  DH *(*tmp_dh_callback)(SSL *ssl, int is_export,
 \&                                                         int keylength));
@@ -153,36 +167,23 @@ SSL_CTX_set_tmp_dh_callback, SSL_CTX_set_tmp_dh, SSL_set_tmp_dh_callback, SSL_se
 \& void SSL_set_tmp_dh_callback(SSL *ctx,
 \&                              DH *(*tmp_dh_callback)(SSL *ssl, int is_export,
 \&                                                     int keylength));
-\& long SSL_set_tmp_dh(SSL *ssl, DH *dh)
+\& long SSL_set_tmp_dh(SSL *ssl, DH *dh);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_set_tmp_dh_callback()\fR sets the callback function for \fBctx\fR to be
-used when a \s-1DH\s0 parameters are required to \fBtmp_dh_callback\fR.
-The callback is inherited by all \fBssl\fR objects created from \fBctx\fR.
+The functions described on this page are relevant for servers only.
 .PP
-\&\fBSSL_CTX_set_tmp_dh()\fR sets \s-1DH\s0 parameters to be used to be \fBdh\fR.
-The key is inherited by all \fBssl\fR objects created from \fBctx\fR.
+Some ciphersuites may use ephemeral Diffie-Hellman (\s-1DH\s0) key exchange. In these
+cases, the session data is negotiated using the ephemeral/temporary \s-1DH\s0 key and
+the key supplied and certified by the certificate chain is only used for
+signing. Anonymous ciphers (without a permanent server key) also use ephemeral
+\&\s-1DH\s0 keys.
 .PP
-\&\fBSSL_set_tmp_dh_callback()\fR sets the callback only for \fBssl\fR.
-.PP
-\&\fBSSL_set_tmp_dh()\fR sets the parameters only for \fBssl\fR.
-.PP
-These functions apply to \s-1SSL/TLS\s0 servers only.
-.SH "NOTES"
-.IX Header "NOTES"
-When using a cipher with \s-1RSA\s0 authentication, an ephemeral \s-1DH\s0 key exchange
-can take place. Ciphers with \s-1DSA\s0 keys always use ephemeral \s-1DH\s0 keys as well.
-In these cases, the session data are negotiated using the
-ephemeral/temporary \s-1DH\s0 key and the key supplied and certified
-by the certificate chain is only used for signing.
-Anonymous ciphers (without a permanent server key) also use ephemeral \s-1DH\s0 keys.
-.PP
-Using ephemeral \s-1DH\s0 key exchange yields forward secrecy, as the connection
-can only be decrypted, when the \s-1DH\s0 key is known. By generating a temporary
+Using ephemeral \s-1DH\s0 key exchange yields forward secrecy as the connection
+can only be decrypted when the \s-1DH\s0 key is known. By generating a temporary
 \&\s-1DH\s0 key inside the server application that is lost when the application
 is left, it becomes impossible for an attacker to decrypt past sessions,
-even if he gets hold of the normal (certified) key, as this key was
+even if they get hold of the normal (certified) key, as this key was
 only used for signing.
 .PP
 In order to perform a \s-1DH\s0 key exchange the server must use a \s-1DH\s0 group
@@ -190,80 +191,66 @@ In order to perform a \s-1DH\s0 key exchange the server must use a \s-1DH\s0 gro
 a new \s-1DH\s0 key during the negotiation.
 .PP
 As generating \s-1DH\s0 parameters is extremely time consuming, an application
-should not generate the parameters on the fly but supply the parameters.
-\&\s-1DH\s0 parameters can be reused, as the actual key is newly generated during
-the negotiation. The risk in reusing \s-1DH\s0 parameters is that an attacker
-may specialize on a very often used \s-1DH\s0 group. Applications should therefore
-generate their own \s-1DH\s0 parameters during the installation process using the
-openssl \fBdhparam\fR\|(1) application. This application
-guarantees that \*(L"strong\*(R" primes are used.
+should not generate the parameters on the fly. \s-1DH\s0 parameters can be reused, as
+the actual key is newly generated during the negotiation.
 .PP
-Files dh2048.pem, and dh4096.pem in the 'apps' directory of the current
-version of the OpenSSL distribution contain the '\s-1SKIP\s0' \s-1DH\s0 parameters,
-which use safe primes and were generated verifiably pseudo-randomly.
-These files can be converted into C code using the \fB\-C\fR option of the
-\&\fBdhparam\fR\|(1) application. Generation of custom \s-1DH\s0
-parameters during installation should still be preferred to stop an
-attacker from specializing on a commonly used group. File dh1024.pem
-contains old parameters that must not be used by applications.
+Typically applications should use well know \s-1DH\s0 parameters that have built-in
+support in OpenSSL. The macros \fBSSL_CTX_set_dh_auto()\fR and \fBSSL_set_dh_auto()\fR
+configure OpenSSL to use the default built-in \s-1DH\s0 parameters for the \fB\s-1SSL_CTX\s0\fR
+and \fB\s-1SSL\s0\fR objects respectively. Passing a value of 1 in the \fIonoff\fR parameter
+switches the feature on, and passing a value of 0 switches it off. The default
+setting is off.
 .PP
-An application may either directly specify the \s-1DH\s0 parameters or
-can supply the \s-1DH\s0 parameters via a callback function.
+If \*(L"auto\*(R" \s-1DH\s0 parameters are switched on then the parameters will be selected to
+be consistent with the size of the key associated with the server's certificate.
+If there is no certificate (e.g. for \s-1PSK\s0 ciphersuites), then it it will be
+consistent with the size of the negotiated symmetric cipher key.
 .PP
-Previous versions of the callback used \fBis_export\fR and \fBkeylength\fR
-parameters to control parameter generation for export and non-export
-cipher suites. Modern servers that do not support export cipher suites
-are advised to either use \fBSSL_CTX_set_tmp_dh()\fR or alternatively, use
-the callback but ignore \fBkeylength\fR and \fBis_export\fR and simply
-supply at least 2048\-bit parameters in the callback.
+Applications may supply their own \s-1DH\s0 parameters instead of using the built-in
+values. This approach is discouraged and applications should in preference use
+the built-in parameter support described above. Applications wishing to supply
+their own \s-1DH\s0 parameters should call \fBSSL_CTX_set0_tmp_dh_pkey()\fR or
+\&\fBSSL_set0_tmp_dh_pkey()\fR to supply the parameters for the \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR
+respectively. The parameters should be supplied in the \fIdhpkey\fR argument as
+an \fB\s-1EVP_PKEY\s0\fR containg \s-1DH\s0 parameters. Ownership of the \fIdhpkey\fR value is
+passed to the \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR object as a result of this call, and so the
+caller should not free it if the function call is succesful.
+.PP
+The deprecated macros \fBSSL_CTX_set_tmp_dh()\fR and \fBSSL_set_tmp_dh()\fR do the same
+thing as \fBSSL_CTX_set0_tmp_dh_pkey()\fR and \fBSSL_set0_tmp_dh_pkey()\fR except that the
+\&\s-1DH\s0 parameters are supplied in a \fB\s-1DH\s0\fR object instead in the \fIdh\fR argument, and
+ownership of the \fB\s-1DH\s0\fR object is retained by the application. Applications
+should use \*(L"auto\*(R" parameters instead, or call \fBSSL_CTX_set0_tmp_dh_pkey()\fR or
+\&\fBSSL_set0_tmp_dh_pkey()\fR as appropriate.
+.PP
+An application may instead specify the \s-1DH\s0 parameters via a callback function
+using the functions \fBSSL_CTX_set_tmp_dh_callback()\fR or \fBSSL_set_tmp_dh_callback()\fR
+to set the callback for the \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR object respectively. These
+functions are deprecated. Applications should instead use \*(L"auto\*(R" parameters, or
+specify the parameters via \fBSSL_CTX_set0_tmp_dh_pkey()\fR or \fBSSL_set0_tmp_dh_pkey()\fR
+as appropriate.
+.PP
+The callback will be invoked during a connection when \s-1DH\s0 parameters are
+required. The \fB\s-1SSL\s0\fR object for the current connection is supplied as an
+argument. Previous versions of OpenSSL used the \fBis_export\fR and \fBkeylength\fR
+arguments to control parameter generation for export and non-export
+cipher suites. Modern OpenSSL does not support export ciphersuites and so these
+arguments are unused and can be ignored by the callback. The callback should
+return the parameters to be used in a \s-1DH\s0 object. Ownership of the \s-1DH\s0 object is
+retained by the application and should later be freed.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSSL_CTX_set_tmp_dh_callback()\fR and \fBSSL_set_tmp_dh_callback()\fR do not return
-diagnostic output.
-.PP
-\&\fBSSL_CTX_set_tmp_dh()\fR and \fBSSL_set_tmp_dh()\fR do return 1 on success and 0
-on failure. Check the error queue to find out the reason of failure.
-.SH "EXAMPLES"
-.IX Header "EXAMPLES"
-Setup \s-1DH\s0 parameters with a key length of 2048 bits. (Error handling
-partly left out.)
-.PP
-Command-line parameter generation:
-.PP
-.Vb 1
-\& $ openssl dhparam \-out dh_param_2048.pem 2048
-.Ve
-.PP
-Code for setting up parameters during server initialization:
-.PP
-.Vb 1
-\& SSL_CTX ctx = SSL_CTX_new();
-\&
-\& DH *dh_2048 = NULL;
-\& FILE *paramfile = fopen("dh_param_2048.pem", "r");
-\&
-\& if (paramfile) {
-\&     dh_2048 = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
-\&     fclose(paramfile);
-\& } else {
-\&     /* Error. */
-\& }
-\& if (dh_2048 == NULL)
-\&     /* Error. */
-\& if (SSL_CTX_set_tmp_dh(ctx, dh_2048) != 1)
-\&     /* Error. */
-\& ...
-.Ve
+All of these functions/macros return 1 for success or 0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_CTX_set_cipher_list\fR\|(3),
 \&\fBSSL_CTX_set_options\fR\|(3),
-\&\fBciphers\fR\|(1), \fBdhparam\fR\|(1)
+\&\fBopenssl\-ciphers\fR\|(1), \fBopenssl\-dhparam\fR\|(1)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

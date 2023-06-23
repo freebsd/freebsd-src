@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CERT_CB 3"
-.TH SSL_CTX_SET_CERT_CB 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_CERT_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,27 +148,25 @@ SSL_CTX_set_cert_cb, SSL_set_cert_cb \- handle certificate callback function
 \& void SSL_CTX_set_cert_cb(SSL_CTX *c, int (*cert_cb)(SSL *ssl, void *arg),
 \&                          void *arg);
 \& void SSL_set_cert_cb(SSL *s, int (*cert_cb)(SSL *ssl, void *arg), void *arg);
-\&
-\& int (*cert_cb)(SSL *ssl, void *arg);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_set_cert_cb()\fR and \fBSSL_set_cert_cb()\fR sets the \fBcert_cb()\fR callback,
-\&\fBarg\fR value is pointer which is passed to the application callback.
+\&\fBSSL_CTX_set_cert_cb()\fR and \fBSSL_set_cert_cb()\fR sets the \fIcert_cb\fR callback,
+\&\fIarg\fR value is pointer which is passed to the application callback.
 .PP
-When \fBcert_cb()\fR is \s-1NULL,\s0 no callback function is used.
+When \fIcert_cb\fR is \s-1NULL,\s0 no callback function is used.
 .PP
-\&\fBcert_cb()\fR is the application defined callback. It is called before a
+\&\fIcert_cb\fR is the application defined callback. It is called before a
 certificate will be used by a client or server. The callback can then inspect
-the passed \fBssl\fR structure and set or clear any appropriate certificates. If
+the passed \fIssl\fR structure and set or clear any appropriate certificates. If
 the callback is successful it \fB\s-1MUST\s0\fR return 1 even if no certificates have
 been set. A zero is returned on error which will abort the handshake with a
 fatal internal error alert. A negative return value will suspend the handshake
 and the handshake function will return immediately.
 \&\fBSSL_get_error\fR\|(3) will return \s-1SSL_ERROR_WANT_X509_LOOKUP\s0 to
 indicate, that the handshake was suspended. The next call to the handshake
-function will again lead to the call of \fBcert_cb()\fR. It is the job of the
-\&\fBcert_cb()\fR to store information about the state of the last call,
+function will again lead to the call of \fIcert_cb\fR. It is the job of the
+\&\fIcert_cb\fR to store information about the state of the last call,
 if required to continue.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -205,9 +203,9 @@ support it will \fBnot\fR be used.
 \&\fBSSL_clear\fR\|(3), \fBSSL_free\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2014\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

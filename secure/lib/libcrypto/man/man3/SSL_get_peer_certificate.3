@@ -133,23 +133,27 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_PEER_CERTIFICATE 3"
-.TH SSL_GET_PEER_CERTIFICATE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_GET_PEER_CERTIFICATE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_get_peer_certificate \- get the X509 certificate of the peer
+SSL_get_peer_certificate,
+SSL_get0_peer_certificate,
+SSL_get1_peer_certificate \- get the X509 certificate of the peer
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
 \& X509 *SSL_get_peer_certificate(const SSL *ssl);
+\& X509 *SSL_get0_peer_certificate(const SSL *ssl);
+\& X509 *SSL_get1_peer_certificate(const SSL *ssl);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_get_peer_certificate()\fR returns a pointer to the X509 certificate the
+These functions return a pointer to the X509 certificate the
 peer presented. If the peer did not present a certificate, \s-1NULL\s0 is returned.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -163,9 +167,15 @@ That a certificate is returned does not indicate information about the
 verification state, use \fBSSL_get_verify_result\fR\|(3)
 to check the verification state.
 .PP
-The reference count of the X509 object is incremented by one, so that it
-will not be destroyed when the session containing the peer certificate is
-freed. The X509 object must be explicitly freed using \fBX509_free()\fR.
+The reference count of the X509 object returned by \fBSSL_get1_peer_certificate()\fR
+is incremented by one, so that it will not be destroyed when the session
+containing the peer certificate is freed. The X509 object must be explicitly
+freed using \fBX509_free()\fR.
+.PP
+The reference count of the X509 object returned by \fBSSL_get0_peer_certificate()\fR
+is not incremented, and must not be freed.
+.PP
+\&\fBSSL_get_peer_certificate()\fR is an alias of \fBSSL_get1_peer_certificate()\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The following return values can occur:
@@ -179,11 +189,15 @@ The return value points to the certificate presented by the peer.
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_get_verify_result\fR\|(3),
 \&\fBSSL_CTX_set_verify\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBSSL_get0_peer_certificate()\fR and \fBSSL_get1_peer_certificate()\fR were added in 3.0.0.
+\&\fBSSL_get_peer_certificate()\fR was deprecated in 3.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

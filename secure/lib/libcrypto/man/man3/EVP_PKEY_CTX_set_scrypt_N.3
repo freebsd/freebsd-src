@@ -133,13 +133,18 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_SET_SCRYPT_N 3"
-.TH EVP_PKEY_CTX_SET_SCRYPT_N 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_CTX_SET_SCRYPT_N 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_CTX_set1_scrypt_salt, EVP_PKEY_CTX_set_scrypt_N, EVP_PKEY_CTX_set_scrypt_r, EVP_PKEY_CTX_set_scrypt_p, EVP_PKEY_CTX_set_scrypt_maxmem_bytes \&\- EVP_PKEY scrypt KDF support functions
+EVP_PKEY_CTX_set1_scrypt_salt,
+EVP_PKEY_CTX_set_scrypt_N,
+EVP_PKEY_CTX_set_scrypt_r,
+EVP_PKEY_CTX_set_scrypt_p,
+EVP_PKEY_CTX_set_scrypt_maxmem_bytes
+\&\- EVP_PKEY scrypt KDF support functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -161,7 +166,7 @@ EVP_PKEY_CTX_set1_scrypt_salt, EVP_PKEY_CTX_set_scrypt_N, EVP_PKEY_CTX_set_scryp
 .IX Header "DESCRIPTION"
 These functions are used to set up the necessary data to use the
 scrypt \s-1KDF.\s0
-For more information on scrypt, see \fBscrypt\fR\|(7).
+For more information on scrypt, see \s-1\fBEVP_KDF\-SCRYPT\s0\fR\|(7).
 .PP
 \&\fBEVP_PKEY_CTX_set1_scrypt_salt()\fR sets the \fBsaltlen\fR bytes long salt
 value.
@@ -184,11 +189,12 @@ set by using the parameters \*(L"N\*(R", \*(L"r\*(R", \*(L"p\*(R" and \*(L"maxme
 respectively.
 .SH "NOTES"
 .IX Header "NOTES"
+There is a newer generic \s-1API\s0 for KDFs, \s-1\fBEVP_KDF\s0\fR\|(3), which is
+preferred over the \s-1EVP_PKEY\s0 method.
+.PP
 The scrypt \s-1KDF\s0 also uses \fBEVP_PKEY_CTX_set1_pbe_pass()\fR as well as
 the value from the string controls \*(L"pass\*(R" and \*(L"hexpass\*(R".
 See \fBEVP_PKEY_CTX_set1_pbe_pass\fR\|(3).
-.PP
-All the functions described here are implemented as macros.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 All these functions return 1 for success and 0 or a negative value for
@@ -197,15 +203,19 @@ In particular a return value of \-2 indicates the operation is not
 supported by the public key algorithm.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBscrypt\fR\|(7),
+\&\s-1\fBEVP_KDF\s0\fR\|(3)
 \&\fBEVP_PKEY_CTX_new\fR\|(3),
 \&\fBEVP_PKEY_CTX_ctrl_str\fR\|(3),
 \&\fBEVP_PKEY_derive\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of the functions described here were converted from macros to functions in
+OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

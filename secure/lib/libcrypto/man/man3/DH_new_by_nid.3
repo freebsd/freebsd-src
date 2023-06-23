@@ -133,40 +133,54 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_NEW_BY_NID 3"
-.TH DH_NEW_BY_NID 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_NEW_BY_NID 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_new_by_nid, DH_get_nid \- get or find DH named parameters
+DH_new_by_nid, DH_get_nid \- create or get DH named parameters
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 3
+.Vb 1
 \& #include <openssl/dh.h>
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& DH *DH_new_by_nid(int nid);
-\& int *DH_get_nid(const DH *dh);
+\&
+\& int DH_get_nid(const DH *dh);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBDH_new_by_nid()\fR creates and returns a \s-1DH\s0 structure containing named parameters
 \&\fBnid\fR. Currently \fBnid\fR must be \fBNID_ffdhe2048\fR, \fBNID_ffdhe3072\fR,
-\&\fBNID_ffdhe4096\fR, \fBNID_ffdhe6144\fR or \fBNID_ffdhe8192\fR.
+\&\fBNID_ffdhe4096\fR, \fBNID_ffdhe6144\fR, \fBNID_ffdhe8192\fR,
+\&\fBNID_modp_1536\fR, \fBNID_modp_2048\fR, \fBNID_modp_3072\fR,
+\&\fBNID_modp_4096\fR, \fBNID_modp_6144\fR or \fBNID_modp_8192\fR.
 .PP
 \&\fBDH_get_nid()\fR determines if the parameters contained in \fBdh\fR match
-any named set. It returns the \s-1NID\s0 corresponding to the matching parameters or
-\&\fBNID_undef\fR if there is no match.
+any named safe prime group. It returns the \s-1NID\s0 corresponding to the matching
+parameters or \fBNID_undef\fR if there is no match.
+This function is deprecated.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBDH_new_by_nid()\fR returns a set of \s-1DH\s0 parameters or \fB\s-1NULL\s0\fR if an error occurred.
 .PP
-\&\fBDH_get_nid()\fR returns the \s-1NID\s0 of the matching set of parameters or
-\&\fBNID_undef\fR if there is no match.
+\&\fBDH_get_nid()\fR returns the \s-1NID\s0 of the matching set of parameters for p and g
+and optionally q, otherwise it returns \fBNID_undef\fR if there is no match.
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

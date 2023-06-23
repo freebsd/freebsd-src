@@ -133,18 +133,23 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DIGESTVERIFYINIT 3"
-.TH EVP_DIGESTVERIFYINIT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_DIGESTVERIFYINIT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_DigestVerifyInit, EVP_DigestVerifyUpdate, EVP_DigestVerifyFinal, EVP_DigestVerify \- EVP signature verification functions
+EVP_DigestVerifyInit_ex, EVP_DigestVerifyInit, EVP_DigestVerifyUpdate,
+EVP_DigestVerifyFinal, EVP_DigestVerify \- EVP signature verification functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& int EVP_DigestVerifyInit_ex(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+\&                             const char *mdname, OSSL_LIB_CTX *libctx,
+\&                             const char *props, EVP_PKEY *pkey,
+\&                             const OSSL_PARAM params[]);
 \& int EVP_DigestVerifyInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
 \&                          const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
 \& int EVP_DigestVerifyUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
@@ -156,25 +161,81 @@ EVP_DigestVerifyInit, EVP_DigestVerifyUpdate, EVP_DigestVerifyFinal, EVP_DigestV
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \s-1EVP\s0 signature routines are a high-level interface to digital signatures.
+Input data is digested first before the signature verification takes place.
 .PP
-\&\fBEVP_DigestVerifyInit()\fR sets up verification context \fBctx\fR to use digest
-\&\fBtype\fR from \s-1ENGINE\s0 \fBe\fR and public key \fBpkey\fR. \fBctx\fR must be created
-with \fBEVP_MD_CTX_new()\fR before calling this function. If \fBpctx\fR is not \s-1NULL,\s0 the
-\&\s-1EVP_PKEY_CTX\s0 of the verification operation will be written to \fB*pctx\fR: this
-can be used to set alternative verification options. Note that any existing
-value in \fB*pctx\fR is overwritten. The \s-1EVP_PKEY_CTX\s0 value returned must not be freed
-directly by the application if \fBctx\fR is not assigned an \s-1EVP_PKEY_CTX\s0 value before
-being passed to \fBEVP_DigestVerifyInit()\fR (which means the \s-1EVP_PKEY_CTX\s0 is created
-inside \fBEVP_DigestVerifyInit()\fR and it will be freed automatically when the
-\&\s-1EVP_MD_CTX\s0 is freed).
+\&\fBEVP_DigestVerifyInit_ex()\fR sets up verification context \fBctx\fR to use a
+digest with the name \fBmdname\fR and public key \fBpkey\fR. The name of the digest to
+be used is passed to the provider of the signature algorithm in use. How that
+provider interprets the digest name is provider specific. The provider may
+implement that digest directly itself or it may (optionally) choose to fetch it
+(which could result in a digest from a different provider being selected). If
+the provider supports fetching the digest then it may use the \fBprops\fR argument
+for the properties to be used during the fetch. Finally, the passed parameters
+\&\fIparams\fR, if not \s-1NULL,\s0 are set on the context before returning.
 .PP
-No \fB\s-1EVP_PKEY_CTX\s0\fR will be created by \fBEVP_DigestSignInit()\fR if the passed \fBctx\fR
-has already been assigned one via \fBEVP_MD_CTX_set_pkey_ctx\fR\|(3). See also \s-1\fBSM2\s0\fR\|(7).
+The \fIpkey\fR algorithm is used to fetch a \fB\s-1EVP_SIGNATURE\s0\fR method implicitly, to
+be used for the actual signing. See \*(L"Implicit fetch\*(R" in \fBprovider\fR\|(7) for
+more information about implicit fetches.
+.PP
+The OpenSSL default and legacy providers support fetching digests and can fetch
+those digests from any available provider. The OpenSSL \s-1FIPS\s0 provider also
+supports fetching digests but will only fetch digests that are themselves
+implemented inside the \s-1FIPS\s0 provider.
+.PP
+\&\fBctx\fR must be created with \fBEVP_MD_CTX_new()\fR before calling this function. If
+\&\fBpctx\fR is not \s-1NULL,\s0 the \s-1EVP_PKEY_CTX\s0 of the verification operation will be
+written to \fB*pctx\fR: this can be used to set alternative verification options.
+Note that any existing value in \fB*pctx\fR is overwritten. The \s-1EVP_PKEY_CTX\s0 value
+returned must not be freed directly by the application if \fBctx\fR is not assigned
+an \s-1EVP_PKEY_CTX\s0 value before being passed to \fBEVP_DigestVerifyInit_ex()\fR
+(which means the \s-1EVP_PKEY_CTX\s0 is created inside
+\&\fBEVP_DigestVerifyInit_ex()\fR and it will be freed automatically when the
+\&\s-1EVP_MD_CTX\s0 is freed). If the \s-1EVP_PKEY_CTX\s0 to be used is created by
+EVP_DigestVerifyInit_ex then it will use the \fB\s-1OSSL_LIB_CTX\s0\fR specified
+in \fIlibctx\fR and the property query string specified in \fIprops\fR.
+.PP
+No \fB\s-1EVP_PKEY_CTX\s0\fR will be created by \fBEVP_DigestVerifyInit_ex()\fR if the
+passed \fBctx\fR has already been assigned one via \fBEVP_MD_CTX_set_pkey_ctx\fR\|(3).
+See also \s-1\fBSM2\s0\fR\|(7).
+.PP
+Not all digests can be used for all key types. The following combinations apply.
+.IP "\s-1DSA\s0" 4
+.IX Item "DSA"
+Supports \s-1SHA1, SHA224, SHA256, SHA384\s0 and \s-1SHA512\s0
+.IP "\s-1ECDSA\s0" 4
+.IX Item "ECDSA"
+Supports \s-1SHA1, SHA224, SHA256, SHA384, SHA512\s0 and \s-1SM3\s0
+.IP "\s-1RSA\s0 with no padding" 4
+.IX Item "RSA with no padding"
+Supports no digests (the digest \fBtype\fR must be \s-1NULL\s0)
+.IP "\s-1RSA\s0 with X931 padding" 4
+.IX Item "RSA with X931 padding"
+Supports \s-1SHA1, SHA256, SHA384\s0 and \s-1SHA512\s0
+.IP "All other \s-1RSA\s0 padding types" 4
+.IX Item "All other RSA padding types"
+Support \s-1SHA1, SHA224, SHA256, SHA384, SHA512, MD5, MD5_SHA1, MD2, MD4, MDC2,
+SHA3\-224, SHA3\-256, SHA3\-384, SHA3\-512\s0
+.IP "Ed25519 and Ed448" 4
+.IX Item "Ed25519 and Ed448"
+Support no digests (the digest \fBtype\fR must be \s-1NULL\s0)
+.IP "\s-1HMAC\s0" 4
+.IX Item "HMAC"
+Supports any digest
+.IP "\s-1CMAC,\s0 Poly1305 and Siphash" 4
+.IX Item "CMAC, Poly1305 and Siphash"
+Will ignore any digest provided.
+.PP
+If RSA-PSS is used and restrictions apply then the digest must match.
+.PP
+\&\fBEVP_DigestVerifyInit()\fR works in the same way as
+\&\fBEVP_DigestVerifyInit_ex()\fR except that the \fBmdname\fR parameter will be
+inferred from the supplied digest \fBtype\fR, and \fBprops\fR will be \s-1NULL.\s0 Where
+supplied the \s-1ENGINE\s0 \fBe\fR will be used for the signature verification and digest
+algorithm implementations. \fBe\fR may be \s-1NULL.\s0
 .PP
 \&\fBEVP_DigestVerifyUpdate()\fR hashes \fBcnt\fR bytes of data at \fBd\fR into the
 verification context \fBctx\fR. This function can be called several times on the
-same \fBctx\fR to include additional data. This function is currently implemented
-using a macro.
+same \fBctx\fR to include additional data.
 .PP
 \&\fBEVP_DigestVerifyFinal()\fR verifies the data in \fBctx\fR against the signature in
 \&\fBsig\fR of length \fBsiglen\fR.
@@ -218,26 +279,36 @@ The call to \fBEVP_DigestVerifyFinal()\fR internally finalizes a copy of the dig
 context. This means that \fBEVP_VerifyUpdate()\fR and \fBEVP_VerifyFinal()\fR can
 be called later to digest and verify additional data.
 .PP
-Since only a copy of the digest context is ever finalized, the context must
-be cleaned up after use by calling \fBEVP_MD_CTX_free()\fR or a memory leak
-will occur.
+\&\fBEVP_DigestVerifyInit()\fR and \fBEVP_DigestVerifyInit_ex()\fR functions can be called
+multiple times on a context and the parameters set by previous calls should be
+preserved if the \fIpkey\fR parameter is \s-1NULL.\s0 The call then just resets the state
+of the \fIctx\fR.
+.PP
+Ignoring failure returns of \fBEVP_DigestVerifyInit()\fR and \fBEVP_DigestVerifyInit_ex()\fR
+functions can lead to subsequent undefined behavior when calling
+\&\fBEVP_DigestVerifyUpdate()\fR, \fBEVP_DigestVerifyFinal()\fR, or \fBEVP_DigestVerify()\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBEVP_DigestSignInit\fR\|(3),
 \&\fBEVP_DigestInit\fR\|(3),
 \&\fBevp\fR\|(7), \s-1\fBHMAC\s0\fR\|(3), \s-1\fBMD2\s0\fR\|(3),
 \&\s-1\fBMD5\s0\fR\|(3), \s-1\fBMDC2\s0\fR\|(3), \s-1\fBRIPEMD160\s0\fR\|(3),
-\&\s-1\fBSHA1\s0\fR\|(3), \fBdgst\fR\|(1),
+\&\s-1\fBSHA1\s0\fR\|(3), \fBopenssl\-dgst\fR\|(1),
 \&\s-1\fBRAND\s0\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
 \&\fBEVP_DigestVerifyInit()\fR, \fBEVP_DigestVerifyUpdate()\fR and \fBEVP_DigestVerifyFinal()\fR
 were added in OpenSSL 1.0.0.
+.PP
+\&\fBEVP_DigestVerifyInit_ex()\fR was added in OpenSSL 3.0.
+.PP
+\&\fBEVP_DigestVerifyUpdate()\fR was converted from a macro to a function in OpenSSL
+3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

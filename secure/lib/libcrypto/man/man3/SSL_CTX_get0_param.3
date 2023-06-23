@@ -133,22 +133,30 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_GET0_PARAM 3"
-.TH SSL_CTX_GET0_PARAM 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_GET0_PARAM 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_get0_param, SSL_get0_param, SSL_CTX_set1_param, SSL_set1_param \- get and set verification parameters
+SSL_CTX_get0_param, SSL_get0_param, SSL_CTX_set1_param, SSL_set1_param,
+SSL_CTX_set_purpose, SSL_CTX_set_trust, SSL_set_purpose, SSL_set_trust \-
+get and set verification parameters
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& X509_VERIFY_PARAM *SSL_CTX_get0_param(SSL_CTX *ctx)
-\& X509_VERIFY_PARAM *SSL_get0_param(SSL *ssl)
-\& int SSL_CTX_set1_param(SSL_CTX *ctx, X509_VERIFY_PARAM *vpm)
-\& int SSL_set1_param(SSL *ssl, X509_VERIFY_PARAM *vpm)
+\& X509_VERIFY_PARAM *SSL_CTX_get0_param(SSL_CTX *ctx);
+\& X509_VERIFY_PARAM *SSL_get0_param(SSL *ssl);
+\& int SSL_CTX_set1_param(SSL_CTX *ctx, X509_VERIFY_PARAM *vpm);
+\& int SSL_set1_param(SSL *ssl, X509_VERIFY_PARAM *vpm);
+\&
+\& int SSL_CTX_set_purpose(SSL_CTX *ctx, int purpose);
+\& int SSL_set_purpose(SSL *ssl, int purpose);
+\&
+\& int SSL_CTX_set_trust(SSL_CTX *ctx, int trust);
+\& int SSL_set_trust(SSL *ssl, int trust);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -158,6 +166,14 @@ pointer must not be freed by the calling application.
 .PP
 \&\fBSSL_CTX_set1_param()\fR and \fBSSL_set1_param()\fR set the verification parameters
 to \fBvpm\fR for \fBctx\fR or \fBssl\fR.
+.PP
+The functions \fBSSL_CTX_set_purpose()\fR and \fBSSL_set_purpose()\fR are shorthands which
+set the purpose parameter on the verification parameters object. These functions
+are equivalent to calling \fBX509_VERIFY_PARAM_set_purpose()\fR directly.
+.PP
+The functions \fBSSL_CTX_set_trust()\fR and \fBSSL_set_trust()\fR are similarly shorthands
+which set the trust parameter on the verification parameters object. These
+functions are equivalent to calling \fBX509_VERIFY_PARAM_set_trust()\fR directly.
 .SH "NOTES"
 .IX Header "NOTES"
 Typically parameters are retrieved from an \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR structure
@@ -168,8 +184,9 @@ them to suit its needs: for example to add a hostname check.
 \&\fBSSL_CTX_get0_param()\fR and \fBSSL_get0_param()\fR return a pointer to an
 \&\fBX509_VERIFY_PARAM\fR structure.
 .PP
-\&\fBSSL_CTX_set1_param()\fR and \fBSSL_set1_param()\fR return 1 for success and 0
-for failure.
+\&\fBSSL_CTX_set1_param()\fR, \fBSSL_set1_param()\fR, \fBSSL_CTX_set_purpose()\fR,
+\&\fBSSL_set_purpose()\fR, \fBSSL_CTX_set_trust()\fR and \fBSSL_set_trust()\fR return 1 for success
+and 0 for failure.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Check hostname matches \*(L"www.foo.com\*(R" in peer certificate:
@@ -180,15 +197,16 @@ Check hostname matches \*(L"www.foo.com\*(R" in peer certificate:
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBX509_VERIFY_PARAM_set_flags\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 These functions were added in OpenSSL 1.0.2.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

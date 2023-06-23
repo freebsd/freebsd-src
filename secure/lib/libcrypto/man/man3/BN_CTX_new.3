@@ -133,20 +133,23 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_CTX_NEW 3"
-.TH BN_CTX_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BN_CTX_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_CTX_new, BN_CTX_secure_new, BN_CTX_free \- allocate and free BN_CTX structures
+BN_CTX_new_ex, BN_CTX_new, BN_CTX_secure_new_ex, BN_CTX_secure_new, BN_CTX_free
+\&\- allocate and free BN_CTX structures
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bn.h>
 \&
+\& BN_CTX *BN_CTX_new_ex(OSSL_LIB_CTX *ctx);
 \& BN_CTX *BN_CTX_new(void);
 \&
+\& BN_CTX *BN_CTX_secure_new_ex(OSSL_LIB_CTX *ctx);
 \& BN_CTX *BN_CTX_secure_new(void);
 \&
 \& void BN_CTX_free(BN_CTX *c);
@@ -158,10 +161,17 @@ library functions. Since dynamic memory allocation to create \fB\s-1BIGNUM\s0\fR
 is rather expensive when used in conjunction with repeated subroutine
 calls, the \fB\s-1BN_CTX\s0\fR structure is used.
 .PP
-\&\fBBN_CTX_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure.
-\&\fBBN_CTX_secure_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure
+\&\fBBN_CTX_new_ex()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure for the given
+library context \fBctx\fR. The <ctx> value may be \s-1NULL\s0 in which case the default
+library context will be used. \fBBN_CTX_new()\fR is the same as \fBBN_CTX_new_ex()\fR except
+that the default library context is always used.
+.PP
+\&\fBBN_CTX_secure_new_ex()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure
 but uses the secure heap (see \fBCRYPTO_secure_malloc\fR\|(3)) to hold the
-\&\fB\s-1BIGNUM\s0\fRs.
+\&\fB\s-1BIGNUM\s0\fRs for the given library context \fBctx\fR. The <ctx> value may be \s-1NULL\s0 in
+which case the default library context will be used. \fBBN_CTX_secure_new()\fR is the
+same as \fBBN_CTX_secure_new_ex()\fR except that the default library context is always
+used.
 .PP
 \&\fBBN_CTX_free()\fR frees the components of the \fB\s-1BN_CTX\s0\fR and the structure itself.
 Since \fBBN_CTX_start()\fR is required in order to obtain \fB\s-1BIGNUM\s0\fRs from the
@@ -205,9 +215,9 @@ replace use of BN_CTX_init with BN_CTX_new instead:
 \&\fBBN_CTX_init()\fR was removed in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,26 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_LOOKUP 3"
-.TH X509_LOOKUP 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_LOOKUP 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_LOOKUP, X509_LOOKUP_TYPE, X509_LOOKUP_new, X509_LOOKUP_free, X509_LOOKUP_init, X509_LOOKUP_shutdown, X509_LOOKUP_set_method_data, X509_LOOKUP_get_method_data, X509_LOOKUP_ctrl, X509_LOOKUP_load_file, X509_LOOKUP_add_dir, X509_LOOKUP_get_store, X509_LOOKUP_by_subject, X509_LOOKUP_by_issuer_serial, X509_LOOKUP_by_fingerprint, X509_LOOKUP_by_alias \&\- OpenSSL certificate lookup mechanisms
+X509_LOOKUP, X509_LOOKUP_TYPE,
+X509_LOOKUP_new, X509_LOOKUP_free, X509_LOOKUP_init,
+X509_LOOKUP_shutdown,
+X509_LOOKUP_set_method_data, X509_LOOKUP_get_method_data,
+X509_LOOKUP_ctrl_ex, X509_LOOKUP_ctrl,
+X509_LOOKUP_load_file_ex, X509_LOOKUP_load_file,
+X509_LOOKUP_add_dir,
+X509_LOOKUP_add_store_ex, X509_LOOKUP_add_store,
+X509_LOOKUP_load_store_ex, X509_LOOKUP_load_store,
+X509_LOOKUP_get_store,
+X509_LOOKUP_by_subject_ex, X509_LOOKUP_by_subject,
+X509_LOOKUP_by_issuer_serial, X509_LOOKUP_by_fingerprint,
+X509_LOOKUP_by_alias
+\&\- OpenSSL certificate lookup mechanisms
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -157,18 +170,33 @@ X509_LOOKUP, X509_LOOKUP_TYPE, X509_LOOKUP_new, X509_LOOKUP_free, X509_LOOKUP_in
 \& int X509_LOOKUP_set_method_data(X509_LOOKUP *ctx, void *data);
 \& void *X509_LOOKUP_get_method_data(const X509_LOOKUP *ctx);
 \&
+\& int X509_LOOKUP_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
+\&                         char **ret, OSSL_LIB_CTX *libctx, const char *propq);
 \& int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc,
 \&                      long argl, char **ret);
+\& int X509_LOOKUP_load_file_ex(X509_LOOKUP *ctx, char *name, long type,
+\&                              OSSL_LIB_CTX *libctx, const char *propq);
 \& int X509_LOOKUP_load_file(X509_LOOKUP *ctx, char *name, long type);
+\& int X509_LOOKUP_load_file_ex(X509_LOOKUP *ctx, char *name, long type,
+\&                              OSSL_LIB_CTX *libctx, const char *propq);
 \& int X509_LOOKUP_add_dir(X509_LOOKUP *ctx, char *name, long type);
+\& int X509_LOOKUP_add_store_ex(X509_LOOKUP *ctx, char *uri, OSSL_LIB_CTX *libctx,
+\&                              const char *propq);
+\& int X509_LOOKUP_add_store(X509_LOOKUP *ctx, char *uri);
+\& int X509_LOOKUP_load_store_ex(X509_LOOKUP *ctx, char *uri, OSSL_LIB_CTX *libctx,
+\&                               const char *propq);
+\& int X509_LOOKUP_load_store(X509_LOOKUP *ctx, char *uri);
 \&
 \& X509_STORE *X509_LOOKUP_get_store(const X509_LOOKUP *ctx);
 \&
+\& int X509_LOOKUP_by_subject_ex(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
+\&                               const X509_NAME *name, X509_OBJECT *ret,
+\&                               OSSL_LIB_CTX *libctx, const char *propq);
 \& int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
-\&                            X509_NAME *name, X509_OBJECT *ret);
+\&                            const X509_NAME *name, X509_OBJECT *ret);
 \& int X509_LOOKUP_by_issuer_serial(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
-\&                                  X509_NAME *name, ASN1_INTEGER *serial,
-\&                                  X509_OBJECT *ret);
+\&                                  const X509_NAME *name,
+\&                                  const ASN1_INTEGER *serial, X509_OBJECT *ret);
 \& int X509_LOOKUP_by_fingerprint(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
 \&                                const unsigned char *bytes, int len,
 \&                                X509_OBJECT *ret);
@@ -185,7 +213,7 @@ to enable lookup in that store.
 \&\fBX509_LOOKUP_new()\fR creates a new \fBX509_LOOKUP\fR using the given lookup
 \&\fImethod\fR.
 It can also be created by calling \fBX509_STORE_add_lookup\fR\|(3), which
-will associate an \fBX509_STORE\fR with the lookup mechanism.
+will associate a \fBX509_STORE\fR with the lookup mechanism.
 .PP
 \&\fBX509_LOOKUP_init()\fR initializes the internal state and resources as
 needed by the given \fBX509_LOOKUP\fR to do its work.
@@ -195,27 +223,33 @@ the given \fBX509_LOOKUP\fR.
 .PP
 \&\fBX509_LOOKUP_free()\fR destructs the given \fBX509_LOOKUP\fR.
 .PP
-\&\fBX509_LOOKUP_set_method_data()\fR associates a pointer to application data
-to the given \fBX509_LOOKUP\fR.
+\&\fBX509_LOOKUP_set_method_data()\fR and \fBX509_LOOKUP_get_method_data()\fR
+associates and retrieves a pointer to application data to and from the
+given \fBX509_LOOKUP\fR, respectively.
 .PP
-\&\fBX509_LOOKUP_get_method_data()\fR retrieves a pointer to application data
-from the given \fBX509_LOOKUP\fR.
-.PP
-\&\fBX509_LOOKUP_ctrl()\fR is used to set or get additional data to or from an
-\&\fBX509_LOOKUP\fR structure or its associated \fBX509_LOOKUP_METHOD\fR\|(3).
+\&\fBX509_LOOKUP_ctrl_ex()\fR is used to set or get additional data to or from
+a \fBX509_LOOKUP\fR structure or its associated \fBX509_LOOKUP_METHOD\fR\|(3).
 The arguments of the control command are passed via \fIargc\fR and \fIargl\fR,
-its return value via \fI*ret\fR.
+its return value via \fI*ret\fR. The library context \fIlibctx\fR and property
+query \fIpropq\fR are used when fetching algorithms from providers.
 The meaning of the arguments depends on the \fIcmd\fR number of the
 control command. In general, this function is not called directly, but
 wrapped by a macro call, see below.
 The control \fIcmd\fRs known to OpenSSL are discussed in more depth
 in \*(L"Control Commands\*(R".
 .PP
-\&\fBX509_LOOKUP_load_file()\fR passes a filename to be loaded immediately
-into the associated \fBX509_STORE\fR.
+\&\fBX509_LOOKUP_ctrl()\fR is similar to \fBX509_LOOKUP_ctrl_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_LOOKUP_load_file_ex()\fR passes a filename to be loaded immediately
+into the associated \fBX509_STORE\fR. The library context \fIlibctx\fR and property
+query \fIpropq\fR are used when fetching algorithms from providers.
 \&\fItype\fR indicates what type of object is expected.
 This can only be used with a lookup using the implementation
 \&\fBX509_LOOKUP_file\fR\|(3).
+.PP
+\&\fBX509_LOOKUP_load_file()\fR is similar to \fBX509_LOOKUP_load_file_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
 .PP
 \&\fBX509_LOOKUP_add_dir()\fR passes a directory specification from which
 certificates and CRLs are loaded on demand into the associated
@@ -224,39 +258,46 @@ certificates and CRLs are loaded on demand into the associated
 This can only be used with a lookup using the implementation
 \&\fBX509_LOOKUP_hash_dir\fR\|(3).
 .PP
-\&\fBX509_LOOKUP_load_file()\fR, \fBX509_LOOKUP_add_dir()\fR,
-\&\fBX509_LOOKUP_add_store()\fR, and \fBX509_LOOKUP_load_store()\fR are implemented
-as macros that use \fBX509_LOOKUP_ctrl()\fR.
+\&\fBX509_LOOKUP_add_store_ex()\fR passes a \s-1URI\s0 for a directory-like structure
+from which containers with certificates and CRLs are loaded on demand
+into the associated \fBX509_STORE\fR. The library context \fIlibctx\fR and property
+query \fIpropq\fR are used when fetching algorithms from providers.
 .PP
-\&\fBX509_LOOKUP_by_subject()\fR, \fBX509_LOOKUP_by_issuer_serial()\fR,
-\&\fBX509_LOOKUP_by_fingerprint()\fR, and \fBX509_LOOKUP_by_alias()\fR look up
-certificates and CRLs in the \fBX509_STORE\fR\|(3) associated with the
-\&\fBX509_LOOKUP\fR using different criteria, where the looked up object is
-stored in \fIret\fR.
+\&\fBX509_LOOKUP_add_store()\fR is similar to \fBX509_LOOKUP_add_store_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_LOOKUP_load_store_ex()\fR passes a \s-1URI\s0 for a single container from
+which certificates and CRLs are immediately loaded into the associated
+\&\fBX509_STORE\fR. The library context \fIlibctx\fR and property query \fIpropq\fR are used
+when fetching algorithms from providers.
+These functions can only be used with a lookup using the
+implementation \fBX509_LOOKUP_store\fR\|(3).
+.PP
+\&\fBX509_LOOKUP_load_store()\fR is similar to \fBX509_LOOKUP_load_store_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_LOOKUP_load_file_ex()\fR, \fBX509_LOOKUP_load_file()\fR,
+\&\fBX509_LOOKUP_add_dir()\fR,
+\&\fBX509_LOOKUP_add_store_ex()\fR \fBX509_LOOKUP_add_store()\fR,
+\&\fBX509_LOOKUP_load_store_ex()\fR and \fBX509_LOOKUP_load_store()\fR are
+implemented as macros that use \fBX509_LOOKUP_ctrl()\fR.
+.PP
+\&\fBX509_LOOKUP_by_subject_ex()\fR, \fBX509_LOOKUP_by_subject()\fR,
+\&\fBX509_LOOKUP_by_issuer_serial()\fR, \fBX509_LOOKUP_by_fingerprint()\fR, and
+\&\fBX509_LOOKUP_by_alias()\fR look up certificates and CRLs in the \fBX509_STORE\fR\|(3)
+associated with the \fBX509_LOOKUP\fR using different criteria, where the looked up
+object is stored in \fIret\fR.
 Some of the underlying \fBX509_LOOKUP_METHOD\fRs will also cache objects
 matching the criteria in the associated \fBX509_STORE\fR, which makes it
 possible to handle cases where the criteria have more than one hit.
-.SS "File Types"
-.IX Subsection "File Types"
-\&\fBX509_LOOKUP_load_file()\fR and \fBX509_LOOKUP_add_dir()\fR take a \fItype\fR,
-which can be one of the following:
-.IP "\fBX509_FILETYPE_PEM\fR" 4
-.IX Item "X509_FILETYPE_PEM"
-The file or files that are loaded are expected to be in \s-1PEM\s0 format.
-.IP "\fBX509_FILETYPE_ASN1\fR" 4
-.IX Item "X509_FILETYPE_ASN1"
-The file or files that are loaded are expected to be in raw \s-1DER\s0 format.
-.IP "\fBX509_FILETYPE_DEFAULT\fR" 4
-.IX Item "X509_FILETYPE_DEFAULT"
-The default certificate file or directory is used.  In this case,
-\&\fIname\fR is ignored.
 .SS "Control Commands"
 .IX Subsection "Control Commands"
-The \fBX509_LOOKUP_METHOD\fRs built into OpenSSL recognise the following
+The \fBX509_LOOKUP_METHOD\fRs built into OpenSSL recognize the following
 \&\fBX509_LOOKUP_ctrl()\fR \fIcmd\fRs:
 .IP "\fBX509_L_FILE_LOAD\fR" 4
 .IX Item "X509_L_FILE_LOAD"
-This is the command that \fBX509_LOOKUP_load_file()\fR uses.
+This is the command that \fBX509_LOOKUP_load_file_ex()\fR and
+\&\fBX509_LOOKUP_load_file()\fR use.
 The filename is passed in \fIargc\fR, and the type in \fIargl\fR.
 .IP "\fBX509_L_ADD_DIR\fR" 4
 .IX Item "X509_L_ADD_DIR"
@@ -265,15 +306,17 @@ The directory specification is passed in \fIargc\fR, and the type in
 \&\fIargl\fR.
 .IP "\fBX509_L_ADD_STORE\fR" 4
 .IX Item "X509_L_ADD_STORE"
-This is the command that \fBX509_LOOKUP_add_store()\fR uses.
+This is the command that \fBX509_LOOKUP_add_store_ex()\fR and
+\&\fBX509_LOOKUP_add_store()\fR use.
 The \s-1URI\s0 is passed in \fIargc\fR.
 .IP "\fBX509_L_LOAD_STORE\fR" 4
 .IX Item "X509_L_LOAD_STORE"
-This is the command that \fBX509_LOOKUP_load_store()\fR uses.
+This is the command that \fBX509_LOOKUP_load_store_ex()\fR and
+\&\fBX509_LOOKUP_load_store()\fR use.
 The \s-1URI\s0 is passed in \fIargc\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBX509_LOOKUP_new()\fR returns an \fBX509_LOOKUP\fR pointer when successful,
+\&\fBX509_LOOKUP_new()\fR returns a \fBX509_LOOKUP\fR pointer when successful,
 or \s-1NULL\s0 on error.
 .PP
 \&\fBX509_LOOKUP_init()\fR and \fBX509_LOOKUP_shutdown()\fR return 1 on success, or
@@ -287,22 +330,30 @@ Otherwise, it returns what the control function in the
 error.
 .IX Xref "509_LOOKUP_METHOD"
 .PP
-\&\fBX509_LOOKUP_get_store()\fR returns an \fBX509_STORE\fR pointer if there is
+\&\fBX509_LOOKUP_get_store()\fR returns a \fBX509_STORE\fR pointer if there is
 one, otherwise \s-1NULL.\s0
 .PP
-\&\fBX509_LOOKUP_by_subject()\fR, \fBX509_LOOKUP_by_issuer_serial()\fR,
-\&\fBX509_LOOKUP_by_fingerprint()\fR, and \fBX509_LOOKUP_by_alias()\fR all return 0
-if there is no \fBX509_LOOKUP_METHOD\fR or that method doesn't implement
-the corresponding function.
+\&\fBX509_LOOKUP_by_subject_ex()\fR, \fBX509_LOOKUP_by_subject()\fR,
+\&\fBX509_LOOKUP_by_issuer_serial()\fR, \fBX509_LOOKUP_by_fingerprint()\fR, and
+\&\fBX509_LOOKUP_by_alias()\fR all return 0 if there is no \fBX509_LOOKUP_METHOD\fR or that
+method doesn't implement the corresponding function.
 Otherwise, it returns what the corresponding function in the
 \&\fBX509_LOOKUP_METHOD\fR returns, which is usually 1 on success and 0 in
 error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBX509_LOOKUP_METHOD\fR\|(3), \fBX509_STORE\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The functions \fBX509_LOOKUP_by_subject_ex()\fR and
+\&\fBX509_LOOKUP_ctrl_ex()\fR were added in OpenSSL 3.0.
+.PP
+The macros \fBX509_LOOKUP_load_file_ex()\fR,
+\&\fBX509_LOOKUP_load_store_ex()\fR and 509_LOOKUP_add_store_ex() were
+added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

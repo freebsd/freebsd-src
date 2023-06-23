@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SECURITY_LEVEL 3"
-.TH SSL_CTX_SET_SECURITY_LEVEL 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_SECURITY_LEVEL 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -209,7 +209,9 @@ parameters offering below 80 bits of security are excluded. As a result \s-1RSA,
 DSA\s0 and \s-1DH\s0 keys shorter than 1024 bits and \s-1ECC\s0 keys shorter than 160 bits
 are prohibited. All export cipher suites are prohibited since they all offer
 less than 80 bits of security. \s-1SSL\s0 version 2 is prohibited. Any cipher suite
-using \s-1MD5\s0 for the \s-1MAC\s0 is also prohibited.
+using \s-1MD5\s0 for the \s-1MAC\s0 is also prohibited. Note that signatures using \s-1SHA1\s0
+and \s-1MD5\s0 are also forbidden at this level as they have less than 80 security
+bits.
 .IP "\fBLevel 2\fR" 4
 .IX Item "Level 2"
 Security level set to 112 bits of security. As a result \s-1RSA, DSA\s0 and \s-1DH\s0 keys
@@ -271,10 +273,11 @@ key size or the \s-1DH\s0 parameter size will abort the handshake with a fatal
 alert.
 .PP
 Attempts to set certificates or parameters with insufficient security are
-also blocked. For example trying to set a certificate using a 512 bit \s-1RSA\s0
-key using \fBSSL_CTX_use_certificate()\fR at level 1. Applications which do not
-check the return values for errors will misbehave: for example it might
-appear that a certificate is not set at all because it had been rejected.
+also blocked. For example trying to set a certificate using a 512 bit \s-1RSA\s0 key
+or a certificate with a signature with \s-1SHA1\s0 digest at level 1 using
+\&\fBSSL_CTX_use_certificate()\fR. Applications which do not check the return values
+for errors will misbehave: for example it might appear that a certificate is
+not set at all because it had been rejected.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBSSL_CTX_set_security_level()\fR and \fBSSL_set_security_level()\fR do not return values.
@@ -290,14 +293,17 @@ to the security callback or \s-1NULL\s0 if the callback is not set.
 .PP
 \&\fBSSL_CTX_get0_security_ex_data()\fR and \fBSSL_get0_security_ex_data()\fR return the extra
 data pointer or \s-1NULL\s0 if the ex data is not set.
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBssl\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
 These functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2014\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

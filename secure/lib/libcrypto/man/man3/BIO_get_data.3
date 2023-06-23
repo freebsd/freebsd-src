@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_GET_DATA 3"
-.TH BIO_GET_DATA 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_GET_DATA 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_set_data, BIO_get_data, BIO_set_init, BIO_get_init, BIO_set_shutdown, BIO_get_shutdown \- functions for managing BIO state information
+BIO_set_data, BIO_get_data, BIO_set_init, BIO_get_init, BIO_set_shutdown,
+BIO_get_shutdown \- functions for managing BIO state information
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -181,15 +182,15 @@ associated with this \s-1BIO,\s0 or \s-1NULL\s0 if none has been set.
 \&\fBBIO_get_shutdown()\fR returns the stat of the \s-1BIO\s0's shutdown (i.e. \s-1BIO_CLOSE\s0) flag.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-bio, BIO_meth_new
+\&\fBbio\fR\|(7), \fBBIO_meth_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The functions described here were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

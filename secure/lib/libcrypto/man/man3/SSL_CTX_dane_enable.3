@@ -133,13 +133,18 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_DANE_ENABLE 3"
-.TH SSL_CTX_DANE_ENABLE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_DANE_ENABLE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_dane_enable, SSL_CTX_dane_mtype_set, SSL_dane_enable, SSL_dane_tlsa_add, SSL_get0_dane_authority, SSL_get0_dane_tlsa, SSL_CTX_dane_set_flags, SSL_CTX_dane_clear_flags, SSL_dane_set_flags, SSL_dane_clear_flags \&\- enable DANE TLS authentication of the remote TLS server in the local TLS client
+SSL_CTX_dane_enable, SSL_CTX_dane_mtype_set, SSL_dane_enable,
+SSL_dane_tlsa_add, SSL_get0_dane_authority, SSL_get0_dane_tlsa,
+SSL_CTX_dane_set_flags, SSL_CTX_dane_clear_flags,
+SSL_dane_set_flags, SSL_dane_clear_flags
+\&\- enable DANE TLS authentication of the remote TLS server in the local
+TLS client
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -150,10 +155,10 @@ SSL_CTX_dane_enable, SSL_CTX_dane_mtype_set, SSL_dane_enable, SSL_dane_tlsa_add,
 \&                            uint8_t mtype, uint8_t ord);
 \& int SSL_dane_enable(SSL *s, const char *basedomain);
 \& int SSL_dane_tlsa_add(SSL *s, uint8_t usage, uint8_t selector,
-\&                       uint8_t mtype, unsigned const char *data, size_t dlen);
+\&                       uint8_t mtype, const unsigned char *data, size_t dlen);
 \& int SSL_get0_dane_authority(SSL *s, X509 **mcert, EVP_PKEY **mspki);
 \& int SSL_get0_dane_tlsa(SSL *s, uint8_t *usage, uint8_t *selector,
-\&                        uint8_t *mtype, unsigned const char **data,
+\&                        uint8_t *mtype, const unsigned char **data,
 \&                        size_t *dlen);
 \& unsigned long SSL_CTX_dane_set_flags(SSL_CTX *ctx, unsigned long flags);
 \& unsigned long SSL_CTX_dane_clear_flags(SSL_CTX *ctx, unsigned long flags);
@@ -268,7 +273,7 @@ Applications that need long-term access to this field need to copy the content.
 optional \s-1DANE\s0 verification features.
 \&\fBSSL_CTX_dane_clear_flags()\fR and \fBSSL_dane_clear_flags()\fR can be used to disable
 the same features.
-The \fBflags\fR argument is a bit mask of the features to enable or disable.
+The \fBflags\fR argument is a bit-mask of the features to enable or disable.
 The \fBflags\fR set for an \fB\s-1SSL_CTX\s0\fR context are copied to each \fB\s-1SSL\s0\fR handle
 associated with that context at the time the handle is created.
 Subsequent changes in the context's \fBflags\fR have no effect on the \fBflags\fR set
@@ -478,6 +483,7 @@ or unsupported parameters) disable peer authentication by calling
 \&\fBSSL_set_verify\fR\|(3) with \fBmode\fR equal to \fB\s-1SSL_VERIFY_NONE\s0\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_new\fR\|(3),
 \&\fBSSL_add1_host\fR\|(3),
 \&\fBSSL_set_hostflags\fR\|(3),
@@ -500,9 +506,9 @@ or unsupported parameters) disable peer authentication by calling
 These functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_ERROR_STRING 3"
-.TH ERR_ERROR_STRING 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ERR_ERROR_STRING 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_error_string, ERR_error_string_n, ERR_lib_error_string, ERR_func_error_string, ERR_reason_error_string \- obtain human\-readable error message
+ERR_error_string, ERR_error_string_n, ERR_lib_error_string,
+ERR_func_error_string, ERR_reason_error_string \- obtain human\-readable
+error message
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,8 +151,13 @@ ERR_error_string, ERR_error_string_n, ERR_lib_error_string, ERR_func_error_strin
 \& void ERR_error_string_n(unsigned long e, char *buf, size_t len);
 \&
 \& const char *ERR_lib_error_string(unsigned long e);
-\& const char *ERR_func_error_string(unsigned long e);
 \& const char *ERR_reason_error_string(unsigned long e);
+.Ve
+.PP
+Deprecated in OpenSSL 3.0:
+.PP
+.Vb 1
+\& const char *ERR_func_error_string(unsigned long e);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -169,14 +176,13 @@ For \fBERR_error_string_n()\fR, \fIbuf\fR may not be \fB\s-1NULL\s0\fR.
 The string will have the following format:
 .PP
 .Vb 1
-\& error:[error code]:[library name]:[function name]:[reason string]
+\& error:[error code]:[library name]::[reason string]
 .Ve
 .PP
-\&\fIerror code\fR is an 8 digit hexadecimal number, \fIlibrary name\fR,
-\&\fIfunction name\fR and \fIreason string\fR are \s-1ASCII\s0 text.
+\&\fIerror code\fR is an 8 digit hexadecimal number, \fIlibrary name\fR and
+\&\fIreason string\fR are \s-1ASCII\s0 text.
 .PP
-\&\fBERR_lib_error_string()\fR, \fBERR_func_error_string()\fR and
-\&\fBERR_reason_error_string()\fR return the library name, function
+\&\fBERR_lib_error_string()\fR and \fBERR_reason_error_string()\fR return the library
 name and reason string respectively.
 .PP
 If there is no text string registered for the given error code,
@@ -189,18 +195,22 @@ all error codes currently in the queue.
 \&\fBERR_error_string()\fR returns a pointer to a static buffer containing the
 string if \fIbuf\fR \fB== \s-1NULL\s0\fR, \fIbuf\fR otherwise.
 .PP
-\&\fBERR_lib_error_string()\fR, \fBERR_func_error_string()\fR and
-\&\fBERR_reason_error_string()\fR return the strings, and \fB\s-1NULL\s0\fR if
-none is registered for the error code.
+\&\fBERR_lib_error_string()\fR and \fBERR_reason_error_string()\fR return the strings,
+and \fB\s-1NULL\s0\fR if none is registered for the error code.
+.PP
+\&\fBERR_func_error_string()\fR returns \s-1NULL.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3),
 \&\fBERR_print_errors\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBERR_func_error_string()\fR became deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

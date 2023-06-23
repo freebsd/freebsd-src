@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_NEW 3"
-.TH SSL_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -193,8 +193,8 @@ The subset of settings in \fIs\fR that are duplicated are:
 .IX Item "any Mode set via SSL_set_mode"
 .IP "any minimum or maximum protocol settings set via \fBSSL_set_min_proto_version\fR\|(3) or \fBSSL_set_max_proto_version\fR\|(3) (Note: Only from OpenSSL 1.1.1h and above)" 4
 .IX Item "any minimum or maximum protocol settings set via SSL_set_min_proto_version or SSL_set_max_proto_version (Note: Only from OpenSSL 1.1.1h and above)"
-.IP "any Verify mode, callback or depth set via \fBSSL_set_verify\fR\|(3) or \fBSSL_set_verify_depth\fR\|(3) or any configured X509 verification parameters" 4
-.IX Item "any Verify mode, callback or depth set via SSL_set_verify or SSL_set_verify_depth or any configured X509 verification parameters"
+.IP "any verify mode, callback or depth set via \fBSSL_set_verify\fR\|(3) or \fBSSL_set_verify_depth\fR\|(3) or any configured X509 verification parameters" 4
+.IX Item "any verify mode, callback or depth set via SSL_set_verify or SSL_set_verify_depth or any configured X509 verification parameters"
 .IP "any msg callback or info callback set via \fBSSL_set_msg_callback\fR\|(3) or \fBSSL_set_info_callback\fR\|(3)" 4
 .IX Item "any msg callback or info callback set via SSL_set_msg_callback or SSL_set_info_callback"
 .IP "any default password callback set via \fBSSL_set_default_passwd_cb\fR\|(3)" 4
@@ -244,9 +244,9 @@ The return value points to an allocated \s-1SSL\s0 structure.
 \&\fBssl\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

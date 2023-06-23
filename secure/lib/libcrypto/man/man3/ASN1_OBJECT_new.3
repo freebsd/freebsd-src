@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_OBJECT_NEW 3"
-.TH ASN1_OBJECT_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ASN1_OBJECT_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,21 +150,21 @@ ASN1_OBJECT_new, ASN1_OBJECT_free \- object allocation functions
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \s-1ASN1_OBJECT\s0 allocation routines, allocate and free an
-\&\s-1ASN1_OBJECT\s0 structure, which represents an \s-1ASN1 OBJECT IDENTIFIER.\s0
+The \fB\s-1ASN1_OBJECT\s0\fR allocation routines, allocate and free an
+\&\fB\s-1ASN1_OBJECT\s0\fR structure, which represents an \s-1ASN1 OBJECT IDENTIFIER.\s0
 .PP
-\&\fBASN1_OBJECT_new()\fR allocates and initializes an \s-1ASN1_OBJECT\s0 structure.
+\&\fBASN1_OBJECT_new()\fR allocates and initializes an \fB\s-1ASN1_OBJECT\s0\fR structure.
 .PP
-\&\fBASN1_OBJECT_free()\fR frees up the \fB\s-1ASN1_OBJECT\s0\fR structure \fBa\fR.
-If \fBa\fR is \s-1NULL,\s0 nothing is done.
+\&\fBASN1_OBJECT_free()\fR frees up the \fB\s-1ASN1_OBJECT\s0\fR structure \fIa\fR.
+If \fIa\fR is \s-1NULL,\s0 nothing is done.
 .SH "NOTES"
 .IX Header "NOTES"
-Although \fBASN1_OBJECT_new()\fR allocates a new \s-1ASN1_OBJECT\s0 structure it
+Although \fBASN1_OBJECT_new()\fR allocates a new \fB\s-1ASN1_OBJECT\s0\fR structure it
 is almost never used in applications. The \s-1ASN1\s0 object utility functions
 such as \fBOBJ_nid2obj()\fR are used instead.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-If the allocation fails, \fBASN1_OBJECT_new()\fR returns \fB\s-1NULL\s0\fR and sets an error
+If the allocation fails, \fBASN1_OBJECT_new()\fR returns \s-1NULL\s0 and sets an error
 code that can be obtained by \fBERR_get_error\fR\|(3).
 Otherwise it returns a pointer to the newly allocated structure.
 .PP
@@ -176,7 +176,7 @@ Otherwise it returns a pointer to the newly allocated structure.
 .IX Header "COPYRIGHT"
 Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

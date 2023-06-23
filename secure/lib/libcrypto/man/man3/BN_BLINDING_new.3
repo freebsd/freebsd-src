@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_BLINDING_NEW 3"
-.TH BN_BLINDING_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BN_BLINDING_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_BLINDING_new, BN_BLINDING_free, BN_BLINDING_update, BN_BLINDING_convert, BN_BLINDING_invert, BN_BLINDING_convert_ex, BN_BLINDING_invert_ex, BN_BLINDING_is_current_thread, BN_BLINDING_set_current_thread, BN_BLINDING_lock, BN_BLINDING_unlock, BN_BLINDING_get_flags, BN_BLINDING_set_flags, BN_BLINDING_create_param \- blinding related BIGNUM functions
+BN_BLINDING_new, BN_BLINDING_free, BN_BLINDING_update, BN_BLINDING_convert,
+BN_BLINDING_invert, BN_BLINDING_convert_ex, BN_BLINDING_invert_ex,
+BN_BLINDING_is_current_thread, BN_BLINDING_set_current_thread,
+BN_BLINDING_lock, BN_BLINDING_unlock, BN_BLINDING_get_flags,
+BN_BLINDING_set_flags, BN_BLINDING_create_param \- blinding related BIGNUM functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -159,8 +163,8 @@ BN_BLINDING_new, BN_BLINDING_free, BN_BLINDING_update, BN_BLINDING_convert, BN_B
 \& void BN_BLINDING_set_current_thread(BN_BLINDING *b);
 \& int BN_BLINDING_lock(BN_BLINDING *b);
 \& int BN_BLINDING_unlock(BN_BLINDING *b);
-\& unsigned long BN_BLINDING_get_flags(const BN_BLINDING *);
-\& void BN_BLINDING_set_flags(BN_BLINDING *, unsigned long);
+\& unsigned long BN_BLINDING_get_flags(const BN_BLINDING *b);
+\& void BN_BLINDING_set_flags(BN_BLINDING *b, unsigned long flags);
 \& BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
 \&                                       const BIGNUM *e, BIGNUM *m, BN_CTX *ctx,
 \&                                       int (*bn_mod_exp)(BIGNUM *r,
@@ -246,9 +250,9 @@ parameters or \s-1NULL\s0 on error.
 deprecates \fBBN_BLINDING_set_thread_id()\fR and \fBBN_BLINDING_get_thread_id()\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2005\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2005\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

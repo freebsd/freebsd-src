@@ -133,13 +133,20 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_VERIFY 3"
-.TH SSL_CTX_SET_VERIFY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_VERIFY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_get_ex_data_X509_STORE_CTX_idx, SSL_CTX_set_verify, SSL_set_verify, SSL_CTX_set_verify_depth, SSL_set_verify_depth, SSL_verify_cb, SSL_verify_client_post_handshake, SSL_set_post_handshake_auth, SSL_CTX_set_post_handshake_auth \&\- set peer certificate verification parameters
+SSL_get_ex_data_X509_STORE_CTX_idx,
+SSL_CTX_set_verify, SSL_set_verify,
+SSL_CTX_set_verify_depth, SSL_set_verify_depth,
+SSL_verify_cb,
+SSL_verify_client_post_handshake,
+SSL_set_post_handshake_auth,
+SSL_CTX_set_post_handshake_auth
+\&\- set various SSL/TLS parameters for peer certificate verification
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -173,6 +180,21 @@ no special \fBcallback\fR was set before, the default callback for the underlyin
 \&\fBSSL_new\fR\|(3). Within the callback function,
 \&\fBSSL_get_ex_data_X509_STORE_CTX_idx\fR can be called to get the data index
 of the current \s-1SSL\s0 object that is doing the verification.
+.PP
+In client mode \fBverify_callback\fR may also call the \fBSSL_set_retry_verify\fR\|(3)
+function on the \fB\s-1SSL\s0\fR object set in the \fIx509_store_ctx\fR ex data (see
+\&\fBSSL_get_ex_data_X509_STORE_CTX_idx\fR\|(3)) and return 1.
+This would be typically done in case the certificate verification was not yet
+able to succeed.
+This makes the handshake suspend and return control to the calling application
+with \fB\s-1SSL_ERROR_WANT_RETRY_VERIFY\s0\fR.
+The application can for instance fetch further certificates or cert status
+information needed for the verification.
+Calling \fBSSL_connect\fR\|(3) again resumes the connection attempt by retrying the
+server certificate verification step.
+This process may even be repeated if need be.
+Note that the handshake may still be aborted if a subsequent invocation of the
+callback (e.g., at a lower depth, or for a separate error condition) returns 0.
 .PP
 \&\fBSSL_CTX_set_verify_depth()\fR sets the maximum \fBdepth\fR for the certificate chain
 verification that shall be allowed for \fBctx\fR.
@@ -464,9 +486,9 @@ The \s-1SSL_VERIFY_POST_HANDSHAKE\s0 option, and the \fBSSL_verify_client_post_h
 and \fBSSL_set_post_handshake_auth()\fR functions were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

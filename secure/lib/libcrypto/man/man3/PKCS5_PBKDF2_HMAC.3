@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS5_PBKDF2_HMAC 3"
-.TH PKCS5_PBKDF2_HMAC 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PKCS5_PBKDF2_HMAC 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -172,9 +172,8 @@ be \s-1NULL\s0 terminated.
 equal to 1. \s-1RFC 2898\s0 suggests an iteration count of at least 1000. Any
 \&\fBiter\fR less than 1 is treated as a single iteration.
 .PP
-\&\fBdigest\fR is the message digest function used in the derivation. Values include
-any of the EVP_* message digests. \s-1\fBPKCS5_PBKDF2_HMAC_SHA1\s0()\fR calls
-\&\s-1\fBPKCS5_PBKDF2_HMAC\s0()\fR with \fBEVP_sha1()\fR.
+\&\fBdigest\fR is the message digest function used in the derivation.
+\&\s-1\fBPKCS5_PBKDF2_HMAC_SHA1\s0()\fR calls \s-1\fBPKCS5_PBKDF2_HMAC\s0()\fR with \fBEVP_sha1()\fR.
 .PP
 The derived key will be written to \fBout\fR. The size of the \fBout\fR buffer
 is specified via \fBkeylen\fR.
@@ -200,9 +199,9 @@ It will simply be treated as a byte sequence.
 \&\fBpassphrase\-encoding\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2014\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

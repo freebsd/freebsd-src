@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_SET_RAND_METHOD 3"
-.TH RAND_SET_RAND_METHOD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RAND_SET_RAND_METHOD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,7 +144,13 @@ RAND_set_rand_method, RAND_get_rand_method, RAND_OpenSSL \- select RAND method
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rand.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& RAND_METHOD *RAND_OpenSSL(void);
 \&
 \& int RAND_set_rand_method(const RAND_METHOD *meth);
@@ -153,6 +159,10 @@ RAND_set_rand_method, RAND_get_rand_method, RAND_OpenSSL \- select RAND method
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBRAND_set_DRBG_type\fR\|(3),
+\&\s-1\fBEVP_RAND\s0\fR\|(3) and \s-1\fBEVP_RAND\s0\fR\|(7).
+.PP
 A \fB\s-1RAND_METHOD\s0\fR specifies the functions that OpenSSL uses for random number
 generation.
 .PP
@@ -160,7 +170,8 @@ generation.
 This implementation ensures that the \s-1PRNG\s0 state is unique for each thread.
 .PP
 If an \fB\s-1ENGINE\s0\fR is loaded that provides the \s-1RAND API,\s0 however, it will
-be used instead of the method returned by \fBRAND_OpenSSL()\fR.
+be used instead of the method returned by \fBRAND_OpenSSL()\fR.  This is deprecated
+in OpenSSL 3.0.
 .PP
 \&\fBRAND_set_rand_method()\fR makes \fBmeth\fR the method for \s-1PRNG\s0 use.  If an
 \&\s-1ENGINE\s0 was providing the method, it will be released first.
@@ -190,14 +201,20 @@ Each pointer may be \s-1NULL\s0 if the function is not implemented.
 methods.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\s-1\fBEVP_RAND\s0\fR\|(3),
+\&\fBRAND_set_DRBG_type\fR\|(3),
 \&\fBRAND_bytes\fR\|(3),
 \&\fBENGINE_by_id\fR\|(3),
+\&\s-1\fBEVP_RAND\s0\fR\|(7),
 \&\s-1\fBRAND\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

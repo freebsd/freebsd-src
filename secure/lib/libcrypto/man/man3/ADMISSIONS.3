@@ -133,13 +133,44 @@
 .\" ========================================================================
 .\"
 .IX Title "ADMISSIONS 3"
-.TH ADMISSIONS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ADMISSIONS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ADMISSIONS, ADMISSIONS_get0_admissionAuthority, ADMISSIONS_get0_namingAuthority, ADMISSIONS_get0_professionInfos, ADMISSIONS_set0_admissionAuthority, ADMISSIONS_set0_namingAuthority, ADMISSIONS_set0_professionInfos, ADMISSION_SYNTAX, ADMISSION_SYNTAX_get0_admissionAuthority, ADMISSION_SYNTAX_get0_contentsOfAdmissions, ADMISSION_SYNTAX_set0_admissionAuthority, ADMISSION_SYNTAX_set0_contentsOfAdmissions, NAMING_AUTHORITY, NAMING_AUTHORITY_get0_authorityId, NAMING_AUTHORITY_get0_authorityURL, NAMING_AUTHORITY_get0_authorityText, NAMING_AUTHORITY_set0_authorityId, NAMING_AUTHORITY_set0_authorityURL, NAMING_AUTHORITY_set0_authorityText, PROFESSION_INFO, PROFESSION_INFOS, PROFESSION_INFO_get0_addProfessionInfo, PROFESSION_INFO_get0_namingAuthority, PROFESSION_INFO_get0_professionItems, PROFESSION_INFO_get0_professionOIDs, PROFESSION_INFO_get0_registrationNumber, PROFESSION_INFO_set0_addProfessionInfo, PROFESSION_INFO_set0_namingAuthority, PROFESSION_INFO_set0_professionItems, PROFESSION_INFO_set0_professionOIDs, PROFESSION_INFO_set0_registrationNumber \&\- Accessors and settors for ADMISSION_SYNTAX
+ADMISSIONS,
+ADMISSIONS_get0_admissionAuthority,
+ADMISSIONS_get0_namingAuthority,
+ADMISSIONS_get0_professionInfos,
+ADMISSIONS_set0_admissionAuthority,
+ADMISSIONS_set0_namingAuthority,
+ADMISSIONS_set0_professionInfos,
+ADMISSION_SYNTAX,
+ADMISSION_SYNTAX_get0_admissionAuthority,
+ADMISSION_SYNTAX_get0_contentsOfAdmissions,
+ADMISSION_SYNTAX_set0_admissionAuthority,
+ADMISSION_SYNTAX_set0_contentsOfAdmissions,
+NAMING_AUTHORITY,
+NAMING_AUTHORITY_get0_authorityId,
+NAMING_AUTHORITY_get0_authorityURL,
+NAMING_AUTHORITY_get0_authorityText,
+NAMING_AUTHORITY_set0_authorityId,
+NAMING_AUTHORITY_set0_authorityURL,
+NAMING_AUTHORITY_set0_authorityText,
+PROFESSION_INFO,
+PROFESSION_INFOS,
+PROFESSION_INFO_get0_addProfessionInfo,
+PROFESSION_INFO_get0_namingAuthority,
+PROFESSION_INFO_get0_professionItems,
+PROFESSION_INFO_get0_professionOIDs,
+PROFESSION_INFO_get0_registrationNumber,
+PROFESSION_INFO_set0_addProfessionInfo,
+PROFESSION_INFO_set0_namingAuthority,
+PROFESSION_INFO_set0_professionItems,
+PROFESSION_INFO_set0_professionOIDs,
+PROFESSION_INFO_set0_registrationNumber
+\&\- Accessors and settors for ADMISSION_SYNTAX
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 5
@@ -272,9 +303,9 @@ structure and must not be freed.
 \&\fBd2i_X509\fR\|(3),
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

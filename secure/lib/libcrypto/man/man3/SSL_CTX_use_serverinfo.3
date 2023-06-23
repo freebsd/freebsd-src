@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_USE_SERVERINFO 3"
-.TH SSL_CTX_USE_SERVERINFO 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_USE_SERVERINFO 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_use_serverinfo_ex, SSL_CTX_use_serverinfo, SSL_CTX_use_serverinfo_file \&\- use serverinfo extension
+SSL_CTX_use_serverinfo_ex,
+SSL_CTX_use_serverinfo,
+SSL_CTX_use_serverinfo_file
+\&\- use serverinfo extension
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -195,7 +198,7 @@ must be in a format as described above for \fBSSL_CTX_use_serverinfo_ex()\fR.  E
 .PP
 If more than one certificate (\s-1RSA/DSA\s0) is installed using
 \&\fBSSL_CTX_use_certificate()\fR, the serverinfo extension will be loaded into the
-last certificate installed.  If e.g. the last item was a \s-1RSA\s0 certificate, the
+last certificate installed.  If e.g. the last item was an \s-1RSA\s0 certificate, the
 loaded serverinfo extension data will be loaded for that certificate.  To
 use the serverinfo extension for multiple certificates,
 \&\fBSSL_CTX_use_serverinfo()\fR needs to be called multiple times, once \fBafter\fR
@@ -205,11 +208,14 @@ each time a certificate is loaded via a call to \fBSSL_CTX_use_certificate()\fR.
 On success, the functions return 1.
 On failure, the functions return 0.  Check out the error stack to find out
 the reason.
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBssl\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2013\-2017 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

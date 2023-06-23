@@ -133,18 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "CTLOG_STORE_NEW 3"
-.TH CTLOG_STORE_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CTLOG_STORE_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CTLOG_STORE_new, CTLOG_STORE_free, CTLOG_STORE_load_default_file, CTLOG_STORE_load_file \- Create and populate a Certificate Transparency log list
+CTLOG_STORE_new_ex,
+CTLOG_STORE_new, CTLOG_STORE_free,
+CTLOG_STORE_load_default_file, CTLOG_STORE_load_file \-
+Create and populate a Certificate Transparency log list
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ct.h>
 \&
+\& CTLOG_STORE *CTLOG_STORE_new_ex(OSSL_LIB_CTX *libctx, const char *propq);
 \& CTLOG_STORE *CTLOG_STORE_new(void);
 \& void CTLOG_STORE_free(CTLOG_STORE *store);
 \&
@@ -157,13 +161,19 @@ A \s-1CTLOG_STORE\s0 is a container for a list of CTLOGs (Certificate Transparen
 logs). The list can be loaded from one or more files and then searched by LogID
 (see \s-1RFC 6962,\s0 Section 3.2, for the definition of a LogID).
 .PP
-\&\fBCTLOG_STORE_new()\fR creates an empty list of \s-1CT\s0 logs. This is then populated
-by \fBCTLOG_STORE_load_default_file()\fR or \fBCTLOG_STORE_load_file()\fR.
-\&\fBCTLOG_STORE_load_default_file()\fR loads from the default file, which is named
-\&\*(L"ct_log_list.cnf\*(R" in \s-1OPENSSLDIR\s0 (see the output of version). This can be
-overridden using an environment variable named \*(L"\s-1CTLOG_FILE\*(R".\s0
-\&\fBCTLOG_STORE_load_file()\fR loads from a caller-specified file path instead.
-Both of these functions append any loaded \s-1CT\s0 logs to the \s-1CTLOG_STORE.\s0
+\&\fBCTLOG_STORE_new_ex()\fR creates an empty list of \s-1CT\s0 logs associated with
+the library context \fIlibctx\fR and the property query string \fIpropq\fR.
+.PP
+\&\fBCTLOG_STORE_new()\fR does the same thing as \fBCTLOG_STORE_new_ex()\fR but with
+the default library context and property query string.
+.PP
+The \s-1CTLOG_STORE\s0 is then populated by \fBCTLOG_STORE_load_default_file()\fR or
+\&\fBCTLOG_STORE_load_file()\fR. \fBCTLOG_STORE_load_default_file()\fR loads from the default
+file, which is named \fIct_log_list.cnf\fR in \s-1OPENSSLDIR\s0 (see the output of
+\&\fBopenssl\-version\fR\|(1)). This can be overridden using an environment variable
+named \fB\s-1CTLOG_FILE\s0\fR. \fBCTLOG_STORE_load_file()\fR loads from a caller-specified file
+path instead. Both of these functions append any loaded \s-1CT\s0 logs to the
+\&\s-1CTLOG_STORE.\s0
 .PP
 The expected format of the file is:
 .PP
@@ -198,12 +208,13 @@ all \s-1CT\s0 logs in the file are successfully parsed and loaded, 0 otherwise.
 \&\fBSSL_CTX_set_ctlog_list_file\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-These functions were added in OpenSSL 1.1.0.
+CTLOG_STORE_new_ex was added in OpenSSL 3.0. All other functions were
+added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_S_MEM 3"
-.TH BIO_S_MEM 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_S_MEM 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_s_secmem, BIO_s_mem, BIO_set_mem_eof_return, BIO_get_mem_data, BIO_set_mem_buf, BIO_get_mem_ptr, BIO_new_mem_buf \- memory BIO
+BIO_s_secmem,
+BIO_s_mem, BIO_set_mem_eof_return, BIO_get_mem_data, BIO_set_mem_buf,
+BIO_get_mem_ptr, BIO_new_mem_buf \- memory BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -148,10 +150,10 @@ BIO_s_secmem, BIO_s_mem, BIO_set_mem_eof_return, BIO_get_mem_data, BIO_set_mem_b
 \& const BIO_METHOD *BIO_s_mem(void);
 \& const BIO_METHOD *BIO_s_secmem(void);
 \&
-\& BIO_set_mem_eof_return(BIO *b, int v)
-\& long BIO_get_mem_data(BIO *b, char **pp)
-\& BIO_set_mem_buf(BIO *b, BUF_MEM *bm, int c)
-\& BIO_get_mem_ptr(BIO *b, BUF_MEM **pp)
+\& BIO_set_mem_eof_return(BIO *b, int v);
+\& long BIO_get_mem_data(BIO *b, char **pp);
+\& BIO_set_mem_buf(BIO *b, BUF_MEM *bm, int c);
+\& BIO_get_mem_ptr(BIO *b, BUF_MEM **pp);
 \&
 \& BIO *BIO_new_mem_buf(const void *buf, int len);
 .Ve
@@ -289,9 +291,9 @@ Extract the \s-1BUF_MEM\s0 structure from a memory \s-1BIO\s0 and then free up t
 .Ve
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

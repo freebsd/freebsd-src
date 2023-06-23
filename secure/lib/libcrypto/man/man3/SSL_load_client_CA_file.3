@@ -133,29 +133,42 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_LOAD_CLIENT_CA_FILE 3"
-.TH SSL_LOAD_CLIENT_CA_FILE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_LOAD_CLIENT_CA_FILE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_load_client_CA_file, SSL_add_file_cert_subjects_to_stack, SSL_add_dir_cert_subjects_to_stack \&\- load certificate names
+SSL_load_client_CA_file_ex, SSL_load_client_CA_file,
+SSL_add_file_cert_subjects_to_stack,
+SSL_add_dir_cert_subjects_to_stack,
+SSL_add_store_cert_subjects_to_stack
+\&\- load certificate names
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
+\& STACK_OF(X509_NAME) *SSL_load_client_CA_file_ex(const char *file,
+\&                                                 OSSL_LIB_CTX *libctx,
+\&                                                 const char *propq);
 \& STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file);
 \&
 \& int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
-\&                                         const char *file)
+\&                                         const char *file);
 \& int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
-\&                                        const char *dir)
+\&                                        const char *dir);
+\& int SSL_add_store_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
+\&                                          const char *store);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_load_client_CA_file()\fR reads certificates from \fIfile\fR and returns
-a \s-1STACK_OF\s0(X509_NAME) with the subject names found.
+\&\fBSSL_load_client_CA_file_ex()\fR reads certificates from \fIfile\fR and returns
+a \s-1STACK_OF\s0(X509_NAME) with the subject names found. The library context \fIlibctx\fR
+and property query \fIpropq\fR are used when fetching algorithms from providers.
+.PP
+\&\fBSSL_load_client_CA_file()\fR is similar to \fBSSL_load_client_CA_file_ex()\fR
+but uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
 .PP
 \&\fBSSL_add_file_cert_subjects_to_stack()\fR reads certificates from \fIfile\fR,
 and adds their subject name to the already existing \fIstack\fR.
@@ -163,6 +176,10 @@ and adds their subject name to the already existing \fIstack\fR.
 \&\fBSSL_add_dir_cert_subjects_to_stack()\fR reads certificates from every
 file in the directory \fIdir\fR, and adds their subject name to the
 already existing \fIstack\fR.
+.PP
+\&\fBSSL_add_store_cert_subjects_to_stack()\fR loads certificates from the
+\&\fIstore\fR \s-1URI,\s0 and adds their subject name to the already existing
+\&\fIstack\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fBSSL_load_client_CA_file()\fR reads a file of \s-1PEM\s0 formatted certificates and
@@ -198,12 +215,17 @@ Load names of CAs from file and use it as a client \s-1CA\s0 list:
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7),
+\&\fBossl_store\fR\|(7),
 \&\fBSSL_CTX_set_client_CA_list\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBSSL_load_client_CA_file_ex()\fR and \fBSSL_add_store_cert_subjects_to_stack()\fR
+were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

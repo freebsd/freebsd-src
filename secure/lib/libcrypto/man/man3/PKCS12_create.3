@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12_CREATE 3"
-.TH PKCS12_CREATE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PKCS12_CREATE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-PKCS12_create \- create a PKCS#12 structure
+PKCS12_create, PKCS12_create_ex \- create a PKCS#12 structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -148,35 +148,43 @@ PKCS12_create \- create a PKCS#12 structure
 \& PKCS12 *PKCS12_create(const char *pass, const char *name, EVP_PKEY *pkey,
 \&                       X509 *cert, STACK_OF(X509) *ca,
 \&                       int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
+\& PKCS12 *PKCS12_create_ex(const char *pass, const char *name, EVP_PKEY *pkey,
+\&                          X509 *cert, STACK_OF(X509) *ca, int nid_key, int nid_cert,
+\&                          int iter, int mac_iter, int keytype,
+\&                          OSSL_LIB_CTX *ctx, const char *propq);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBPKCS12_create()\fR creates a PKCS#12 structure.
 .PP
-\&\fBpass\fR is the passphrase to use. \fBname\fR is the \fBfriendlyName\fR to use for
-the supplied certificate and key. \fBpkey\fR is the private key to include in
-the structure and \fBcert\fR its corresponding certificates. \fBca\fR, if not \fB\s-1NULL\s0\fR
+\&\fIpass\fR is the passphrase to use. \fIname\fR is the \fBfriendlyName\fR to use for
+the supplied certificate and key. \fIpkey\fR is the private key to include in
+the structure and \fIcert\fR its corresponding certificates. \fIca\fR, if not \fB\s-1NULL\s0\fR
 is an optional set of certificates to also include in the structure.
 .PP
-\&\fBnid_key\fR and \fBnid_cert\fR are the encryption algorithms that should be used
+\&\fInid_key\fR and \fInid_cert\fR are the encryption algorithms that should be used
 for the key and certificate respectively. The modes
-\&\s-1GCM, CCM, XTS,\s0 and \s-1OCB\s0 are unsupported. \fBiter\fR is the encryption algorithm
-iteration count to use and \fBmac_iter\fR is the \s-1MAC\s0 iteration count to use.
-\&\fBkeytype\fR is the type of key.
+\&\s-1GCM, CCM, XTS,\s0 and \s-1OCB\s0 are unsupported. \fIiter\fR is the encryption algorithm
+iteration count to use and \fImac_iter\fR is the \s-1MAC\s0 iteration count to use.
+\&\fIkeytype\fR is the type of key.
+.PP
+\&\fBPKCS12_create_ex()\fR is identical to \fBPKCS12_create()\fR but allows for a library context
+\&\fIctx\fR and property query \fIpropq\fR to be used to select algorithm implementations.
 .SH "NOTES"
 .IX Header "NOTES"
-The parameters \fBnid_key\fR, \fBnid_cert\fR, \fBiter\fR, \fBmac_iter\fR and \fBkeytype\fR
+The parameters \fInid_key\fR, \fInid_cert\fR, \fIiter\fR, \fImac_iter\fR and \fIkeytype\fR
 can all be set to zero and sensible defaults will be used.
 .PP
-These defaults are: 40 bit \s-1RC2\s0 encryption for certificates, triple \s-1DES\s0
-encryption for private keys, a key iteration count of \s-1PKCS12_DEFAULT_ITER\s0
-(currently 2048) and a \s-1MAC\s0 iteration count of 1.
+These defaults are: \s-1AES\s0 password based encryption (\s-1PBES2\s0 with \s-1PBKDF2\s0 and
+\&\s-1AES\-256\-CBC\s0) for private keys and certificates, the \s-1PBKDF2\s0 and \s-1MAC\s0 key
+derivation iteration count of \fB\s-1PKCS12_DEFAULT_ITER\s0\fR (currently 2048), and
+\&\s-1MAC\s0 algorithm \s-1HMAC\s0 with \s-1SHA2\-256.\s0
 .PP
 The default \s-1MAC\s0 iteration count is 1 in order to retain compatibility with
 old software which did not interpret \s-1MAC\s0 iteration counts. If such compatibility
-is not required then \fBmac_iter\fR should be set to \s-1PKCS12_DEFAULT_ITER.\s0
+is not required then \fImac_iter\fR should be set to \s-1PKCS12_DEFAULT_ITER.\s0
 .PP
-\&\fBkeytype\fR adds a flag to the store private key. This is a non standard extension
+\&\fIkeytype\fR adds a flag to the store private key. This is a non standard extension
 that is only currently interpreted by \s-1MSIE.\s0 If set to zero the flag is omitted,
 if set to \fB\s-1KEY_SIG\s0\fR the key can be used for signing only, if set to \fB\s-1KEY_EX\s0\fR
 it can be used for signing and encryption. This option was useful for old
@@ -184,18 +192,18 @@ export grade software which could use signing only keys of arbitrary size but
 had restrictions on the permissible sizes of keys which could be used for
 encryption.
 .PP
-If a certificate contains an \fBalias\fR or \fBkeyid\fR then this will be
+If a certificate contains an \fIalias\fR or \fIkeyid\fR then this will be
 used for the corresponding \fBfriendlyName\fR or \fBlocalKeyID\fR in the
 \&\s-1PKCS12\s0 structure.
 .PP
-Either \fBpkey\fR, \fBcert\fR or both can be \fB\s-1NULL\s0\fR to indicate that no key or
+Either \fIpkey\fR, \fIcert\fR or both can be \fB\s-1NULL\s0\fR to indicate that no key or
 certificate is required. In previous versions both had to be present or
 a fatal error is returned.
 .PP
-\&\fBnid_key\fR or \fBnid_cert\fR can be set to \-1 indicating that no encryption
+\&\fInid_key\fR or \fInid_cert\fR can be set to \-1 indicating that no encryption
 should be used.
 .PP
-\&\fBmac_iter\fR can be set to \-1 and the \s-1MAC\s0 will then be omitted entirely.
+\&\fImac_iter\fR can be set to \-1 and the \s-1MAC\s0 will then be omitted entirely.
 .PP
 \&\fBPKCS12_create()\fR makes assumptions regarding the encoding of the given pass
 phrase.
@@ -203,15 +211,25 @@ See \fBpassphrase\-encoding\fR\|(7) for more information.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBPKCS12_create()\fR returns a valid \fB\s-1PKCS12\s0\fR structure or \s-1NULL\s0 if an error occurred.
+.SH "CONFORMING TO"
+.IX Header "CONFORMING TO"
+\&\s-1IETF RFC 7292\s0 (<https://tools.ietf.org/html/rfc7292>)
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBd2i_PKCS12\fR\|(3),
 \&\fBpassphrase\-encoding\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBPKCS12_create_ex()\fR was added in OpenSSL 3.0.
+.PP
+The defaults for encryption algorithms, \s-1MAC\s0 algorithm, and the \s-1MAC\s0 key
+derivation iteration count were changed in OpenSSL 3.0 to more modern
+standards.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

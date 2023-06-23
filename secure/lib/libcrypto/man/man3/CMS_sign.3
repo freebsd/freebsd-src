@@ -133,32 +133,41 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_SIGN 3"
-.TH CMS_SIGN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_sign \- create a CMS SignedData structure
+CMS_sign, CMS_sign_ex \- create a CMS SignedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
+\& CMS_ContentInfo *CMS_sign_ex(X509 *signcert, EVP_PKEY *pkey,
+\&                              STACK_OF(X509) *certs, BIO *data,
+\&                              unsigned int flags, OSSL_LIB_CTX *ctx,
+\&                              const char *propq);
 \& CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 \&                           BIO *data, unsigned int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCMS_sign()\fR creates and returns a \s-1CMS\s0 SignedData structure. \fBsigncert\fR is
-the certificate to sign with, \fBpkey\fR is the corresponding private key.
-\&\fBcerts\fR is an optional additional set of certificates to include in the \s-1CMS\s0
-structure (for example any intermediate CAs in the chain). Any or all of
-these parameters can be \fB\s-1NULL\s0\fR, see \fB\s-1NOTES\s0\fR below.
+\&\fBCMS_sign_ex()\fR creates and returns a \s-1CMS\s0 SignedData structure.
+\&\fIsigncert\fR is the certificate to sign with, \fIpkey\fR is the corresponding
+private key. \fIcerts\fR is an optional additional set of certificates to include
+in the \s-1CMS\s0 structure (for example any intermediate CAs in the chain). The
+library context \fIlibctx\fR and the property query \fIpropq\fR are used when
+retrieving algorithms from providers. Any or all of these parameters can be
+\&\fB\s-1NULL\s0\fR, see \fB\s-1NOTES\s0\fR below.
 .PP
 The data to be signed is read from \s-1BIO\s0 \fBdata\fR.
 .PP
 \&\fBflags\fR is an optional set of flags.
+.PP
+\&\fBCMS_sign()\fR is similar to \fBCMS_sign_ex()\fR but uses default values of \s-1NULL\s0
+for the library context \fIlibctx\fR and the property query \fIpropq\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 Any of the following flags (ored together) can be passed in the \fBflags\fR
@@ -193,7 +202,8 @@ omitted.
 If present the SMIMECapabilities attribute indicates support for the following
 algorithms in preference order: 256 bit \s-1AES,\s0 Gost R3411\-94, Gost 28147\-89, 192
 bit \s-1AES, 128\s0 bit \s-1AES,\s0 triple \s-1DES, 128\s0 bit \s-1RC2, 64\s0 bit \s-1RC2, DES\s0 and 40 bit \s-1RC2.\s0
-If any of these algorithms is not available then it will not be included: for example the \s-1GOST\s0 algorithms will not be included if the \s-1GOST ENGINE\s0 is
+If any of these algorithms is not available then it will not be included:
+for example the \s-1GOST\s0 algorithms will not be included if the \s-1GOST ENGINE\s0 is
 not loaded.
 .PP
 OpenSSL will by default identify signing certificates using issuer name
@@ -239,8 +249,9 @@ structure if streaming is not enabled.
 Some attributes such as counter signatures are not supported.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBCMS_sign()\fR returns either a valid CMS_ContentInfo structure or \s-1NULL\s0 if an error
-occurred. The error can be obtained from \fBERR_get_error\fR\|(3).
+\&\fBCMS_sign_ex()\fR and \fBCMS_sign()\fR return either a valid CMS_ContentInfo
+structure or \s-1NULL\s0 if an error occurred. The error can be obtained from
+\&\fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBCMS_verify\fR\|(3)
@@ -248,11 +259,13 @@ occurred. The error can be obtained from \fBERR_get_error\fR\|(3).
 .IX Header "HISTORY"
 The \fB\s-1CMS_STREAM\s0\fR flag is only supported for detached data in OpenSSL 0.9.8,
 it is supported for embedded data in OpenSSL 1.0.0 and later.
+.PP
+The \fBCMS_sign_ex()\fR method was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

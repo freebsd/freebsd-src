@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_WANT 3"
-.TH SSL_WANT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_WANT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup, SSL_want_async, SSL_want_async_job, SSL_want_client_hello_cb \- obtain state information TLS/SSL I/O operation
+SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write,
+SSL_want_x509_lookup, SSL_want_retry_verify, SSL_want_async, SSL_want_async_job,
+SSL_want_client_hello_cb \- obtain state information TLS/SSL I/O operation
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -150,6 +152,7 @@ SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup,
 \& int SSL_want_read(const SSL *ssl);
 \& int SSL_want_write(const SSL *ssl);
 \& int SSL_want_x509_lookup(const SSL *ssl);
+\& int SSL_want_retry_verify(const SSL *ssl);
 \& int SSL_want_async(const SSL *ssl);
 \& int SSL_want_async_job(const SSL *ssl);
 \& int SSL_want_client_hello_cb(const SSL *ssl);
@@ -182,40 +185,42 @@ There is no data to be written or to be read.
 .IX Item "SSL_WRITING"
 There are data in the \s-1SSL\s0 buffer that must be written to the underlying
 \&\fB\s-1BIO\s0\fR layer in order to complete the actual SSL_*() operation.
-A call to \fBSSL_get_error\fR\|(3) should return
-\&\s-1SSL_ERROR_WANT_WRITE.\s0
+A call to \fBSSL_get_error\fR\|(3) should return \fB\s-1SSL_ERROR_WANT_WRITE\s0\fR.
 .IP "\s-1SSL_READING\s0" 4
 .IX Item "SSL_READING"
 More data must be read from the underlying \fB\s-1BIO\s0\fR layer in order to
 complete the actual SSL_*() operation.
-A call to \fBSSL_get_error\fR\|(3) should return
-\&\s-1SSL_ERROR_WANT_READ.\s0
+A call to \fBSSL_get_error\fR\|(3) should return \fB\s-1SSL_ERROR_WANT_READ\s0\fR.
 .IP "\s-1SSL_X509_LOOKUP\s0" 4
 .IX Item "SSL_X509_LOOKUP"
 The operation did not complete because an application callback set by
 \&\fBSSL_CTX_set_client_cert_cb()\fR has asked to be called again.
-A call to \fBSSL_get_error\fR\|(3) should return
-\&\s-1SSL_ERROR_WANT_X509_LOOKUP.\s0
+A call to \fBSSL_get_error\fR\|(3) should return \fB\s-1SSL_ERROR_WANT_X509_LOOKUP\s0\fR.
+.IP "\s-1SSL_RETRY_VERIFY\s0" 4
+.IX Item "SSL_RETRY_VERIFY"
+The operation did not complete because a certificate verification callback
+has asked to be called again via \fBSSL_set_retry_verify\fR\|(3).
+A call to \fBSSL_get_error\fR\|(3) should return \fB\s-1SSL_ERROR_WANT_RETRY_VERIFY\s0\fR.
 .IP "\s-1SSL_ASYNC_PAUSED\s0" 4
 .IX Item "SSL_ASYNC_PAUSED"
 An asynchronous operation partially completed and was then paused. See
 \&\fBSSL_get_all_async_fds\fR\|(3). A call to \fBSSL_get_error\fR\|(3) should return
-\&\s-1SSL_ERROR_WANT_ASYNC.\s0
+\&\fB\s-1SSL_ERROR_WANT_ASYNC\s0\fR.
 .IP "\s-1SSL_ASYNC_NO_JOBS\s0" 4
 .IX Item "SSL_ASYNC_NO_JOBS"
 The asynchronous job could not be started because there were no async jobs
 available in the pool (see \fBASYNC_init_thread\fR\|(3)). A call to \fBSSL_get_error\fR\|(3)
-should return \s-1SSL_ERROR_WANT_ASYNC_JOB.\s0
+should return \fB\s-1SSL_ERROR_WANT_ASYNC_JOB\s0\fR.
 .IP "\s-1SSL_CLIENT_HELLO_CB\s0" 4
 .IX Item "SSL_CLIENT_HELLO_CB"
 The operation did not complete because an application callback set by
 \&\fBSSL_CTX_set_client_hello_cb()\fR has asked to be called again.
-A call to \fBSSL_get_error\fR\|(3) should return
-\&\s-1SSL_ERROR_WANT_CLIENT_HELLO_CB.\s0
+A call to \fBSSL_get_error\fR\|(3) should return \fB\s-1SSL_ERROR_WANT_CLIENT_HELLO_CB\s0\fR.
 .PP
-\&\fBSSL_want_nothing()\fR, \fBSSL_want_read()\fR, \fBSSL_want_write()\fR, \fBSSL_want_x509_lookup()\fR,
-\&\fBSSL_want_async()\fR, \fBSSL_want_async_job()\fR, and \fBSSL_want_client_hello_cb()\fR return
-1, when the corresponding condition is true or 0 otherwise.
+\&\fBSSL_want_nothing()\fR, \fBSSL_want_read()\fR, \fBSSL_want_write()\fR,
+\&\fBSSL_want_x509_lookup()\fR, \fBSSL_want_retry_verify()\fR,
+\&\fBSSL_want_async()\fR, \fBSSL_want_async_job()\fR, and \fBSSL_want_client_hello_cb()\fR
+return 1 when the corresponding condition is true or 0 otherwise.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_get_error\fR\|(3)
@@ -225,9 +230,9 @@ The \fBSSL_want_client_hello_cb()\fR function and the \s-1SSL_CLIENT_HELLO_CB\s0
 were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

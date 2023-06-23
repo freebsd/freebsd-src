@@ -519,3 +519,29 @@ OPENSSL_1_1_1e {
         SSL_sendfile;
     local: *;
 } OPENSSL_1_1_1a;
+
+OPENSSL_3_0_9 {
+    global:
+        OSSL_default_cipher_list;
+        OSSL_default_ciphersuites;
+        SSL_CTX_load_verify_dir;
+        SSL_CTX_load_verify_file;
+        SSL_CTX_load_verify_store;
+        SSL_CTX_new_ex;
+        SSL_CTX_set0_tmp_dh_pkey;
+        SSL_CTX_set_async_callback;
+        SSL_CTX_set_async_callback_arg;
+        SSL_CTX_set_default_verify_store;
+        SSL_CTX_set_tlsext_ticket_key_evp_cb;
+        SSL_add_store_cert_subjects_to_stack;
+        SSL_get0_peer_certificate;
+        SSL_get1_peer_certificate;
+        SSL_get_async_status;
+        SSL_group_to_name;
+        SSL_load_client_CA_file_ex;
+        SSL_new_session_ticket;
+        SSL_set0_tmp_dh_pkey;
+        SSL_set_async_callback;
+        SSL_set_async_callback_arg;
+        SSL_trace;
+} OPENSSL_1_1_1e;

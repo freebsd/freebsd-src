@@ -133,18 +133,33 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CIPHER_METH_NEW 3"
-.TH EVP_CIPHER_METH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_CIPHER_METH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_CIPHER_meth_new, EVP_CIPHER_meth_dup, EVP_CIPHER_meth_free, EVP_CIPHER_meth_set_iv_length, EVP_CIPHER_meth_set_flags, EVP_CIPHER_meth_set_impl_ctx_size, EVP_CIPHER_meth_set_init, EVP_CIPHER_meth_set_do_cipher, EVP_CIPHER_meth_set_cleanup, EVP_CIPHER_meth_set_set_asn1_params, EVP_CIPHER_meth_set_get_asn1_params, EVP_CIPHER_meth_set_ctrl, EVP_CIPHER_meth_get_init, EVP_CIPHER_meth_get_do_cipher, EVP_CIPHER_meth_get_cleanup, EVP_CIPHER_meth_get_set_asn1_params, EVP_CIPHER_meth_get_get_asn1_params, EVP_CIPHER_meth_get_ctrl \- Routines to build up EVP_CIPHER methods
+EVP_CIPHER_meth_new, EVP_CIPHER_meth_dup, EVP_CIPHER_meth_free,
+EVP_CIPHER_meth_set_iv_length, EVP_CIPHER_meth_set_flags,
+EVP_CIPHER_meth_set_impl_ctx_size, EVP_CIPHER_meth_set_init,
+EVP_CIPHER_meth_set_do_cipher, EVP_CIPHER_meth_set_cleanup,
+EVP_CIPHER_meth_set_set_asn1_params, EVP_CIPHER_meth_set_get_asn1_params,
+EVP_CIPHER_meth_set_ctrl, EVP_CIPHER_meth_get_init,
+EVP_CIPHER_meth_get_do_cipher, EVP_CIPHER_meth_get_cleanup,
+EVP_CIPHER_meth_get_set_asn1_params, EVP_CIPHER_meth_get_get_asn1_params,
+EVP_CIPHER_meth_get_ctrl
+\&\- Routines to build up EVP_CIPHER methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 3
 \& EVP_CIPHER *EVP_CIPHER_meth_new(int cipher_type, int block_size, int key_len);
 \& EVP_CIPHER *EVP_CIPHER_meth_dup(const EVP_CIPHER *cipher);
 \& void EVP_CIPHER_meth_free(EVP_CIPHER *cipher);
@@ -193,6 +208,9 @@ EVP_CIPHER_meth_new, EVP_CIPHER_meth_dup, EVP_CIPHER_meth_free, EVP_CIPHER_meth_
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the \s-1OSSL_PROVIDER\s0 APIs.
+.PP
 The \fB\s-1EVP_CIPHER\s0\fR type is a structure for symmetric cipher method
 implementation.
 .PP
@@ -210,8 +228,8 @@ behaviours in the particular \fBcipher\fR.
 With the exception of cipher modes, of which only one may be present,
 several flags can be or'd together.
 The available flags are:
-.IP "\s-1EVP_CIPH_STREAM_CIPHER, EVP_CIPH_ECB_MODE EVP_CIPH_CBC_MODE, EVP_CIPH_CFB_MODE, EVP_CIPH_OFB_MODE, EVP_CIPH_CTR_MODE, EVP_CIPH_GCM_MODE, EVP_CIPH_CCM_MODE, EVP_CIPH_XTS_MODE, EVP_CIPH_WRAP_MODE, EVP_CIPH_OCB_MODE\s0" 4
-.IX Item "EVP_CIPH_STREAM_CIPHER, EVP_CIPH_ECB_MODE EVP_CIPH_CBC_MODE, EVP_CIPH_CFB_MODE, EVP_CIPH_OFB_MODE, EVP_CIPH_CTR_MODE, EVP_CIPH_GCM_MODE, EVP_CIPH_CCM_MODE, EVP_CIPH_XTS_MODE, EVP_CIPH_WRAP_MODE, EVP_CIPH_OCB_MODE"
+.IP "\s-1EVP_CIPH_STREAM_CIPHER, EVP_CIPH_ECB_MODE EVP_CIPH_CBC_MODE, EVP_CIPH_CFB_MODE, EVP_CIPH_OFB_MODE, EVP_CIPH_CTR_MODE, EVP_CIPH_GCM_MODE, EVP_CIPH_CCM_MODE, EVP_CIPH_XTS_MODE, EVP_CIPH_WRAP_MODE, EVP_CIPH_OCB_MODE, EVP_CIPH_SIV_MODE\s0" 4
+.IX Item "EVP_CIPH_STREAM_CIPHER, EVP_CIPH_ECB_MODE EVP_CIPH_CBC_MODE, EVP_CIPH_CFB_MODE, EVP_CIPH_OFB_MODE, EVP_CIPH_CTR_MODE, EVP_CIPH_GCM_MODE, EVP_CIPH_CCM_MODE, EVP_CIPH_XTS_MODE, EVP_CIPH_WRAP_MODE, EVP_CIPH_OCB_MODE, EVP_CIPH_SIV_MODE"
 The cipher mode.
 .IP "\s-1EVP_CIPH_VARIABLE_LENGTH\s0" 4
 .IX Item "EVP_CIPH_VARIABLE_LENGTH"
@@ -264,6 +282,11 @@ Signals that the length of the input buffer for encryption /
 decryption is to be understood as the number of bits instead of
 bytes for this implementation.
 This is only useful for \s-1CFB1\s0 ciphers.
+.IP "\s-1EVP_CIPH_FLAG_CTS\s0" 4
+.IX Item "EVP_CIPH_FLAG_CTS"
+Indicates that the cipher uses ciphertext stealing. This is currently
+used to indicate that the cipher is a one shot that only allows a single call to
+\&\fBEVP_CipherUpdate()\fR.
 .IP "\s-1EVP_CIPH_FLAG_CUSTOM_CIPHER\s0" 4
 .IX Item "EVP_CIPH_FLAG_CUSTOM_CIPHER"
 This indicates that the implementation takes care of everything,
@@ -329,15 +352,19 @@ All EVP_CIPHER_meth_get_*() functions return pointers to their
 respective \fBcipher\fR function.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-EVP_EncryptInit
+\&\fBEVP_EncryptInit\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 The functions described here were added in OpenSSL 1.1.0.
+The \fB\s-1EVP_CIPHER\s0\fR structure created with these functions became reference
+counted in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

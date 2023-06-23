@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_GET0_TYPE 3"
-.TH CMS_GET0_TYPE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_GET0_TYPE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -157,7 +157,8 @@ an \s-1ASN1_OBJECT\s0 pointer. An application can then decide how to process the
 CMS_ContentInfo structure based on this value.
 .PP
 \&\fBCMS_set1_eContentType()\fR sets the embedded content type of a CMS_ContentInfo
-structure. It should be called with \s-1CMS\s0 functions (such as CMS_sign, CMS_encrypt)
+structure. It should be called with \s-1CMS\s0 functions (such as \fBCMS_sign\fR\|(3),
+\&\fBCMS_encrypt\fR\|(3))
 with the \fB\s-1CMS_PARTIAL\s0\fR
 flag and \fBbefore\fR the structure is finalised, otherwise the results are
 undefined.
@@ -209,9 +210,9 @@ error can be obtained from \fBERR_get_error\fR\|(3).
 \&\fBERR_get_error\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,18 +133,32 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_GET0_KEY 3"
-.TH RSA_GET0_KEY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RSA_GET0_KEY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_set0_key, RSA_set0_factors, RSA_set0_crt_params, RSA_get0_key, RSA_get0_factors, RSA_get0_crt_params, RSA_get0_n, RSA_get0_e, RSA_get0_d, RSA_get0_p, RSA_get0_q, RSA_get0_dmp1, RSA_get0_dmq1, RSA_get0_iqmp, RSA_get0_pss_params, RSA_clear_flags, RSA_test_flags, RSA_set_flags, RSA_get0_engine, RSA_get_multi_prime_extra_count, RSA_get0_multi_prime_factors, RSA_get0_multi_prime_crt_params, RSA_set0_multi_prime_params, RSA_get_version \&\- Routines for getting and setting data in an RSA object
+RSA_set0_key, RSA_set0_factors, RSA_set0_crt_params, RSA_get0_key,
+RSA_get0_factors, RSA_get0_crt_params,
+RSA_get0_n, RSA_get0_e, RSA_get0_d, RSA_get0_p, RSA_get0_q,
+RSA_get0_dmp1, RSA_get0_dmq1, RSA_get0_iqmp, RSA_get0_pss_params,
+RSA_clear_flags,
+RSA_test_flags, RSA_set_flags, RSA_get0_engine, RSA_get_multi_prime_extra_count,
+RSA_get0_multi_prime_factors, RSA_get0_multi_prime_crt_params,
+RSA_set0_multi_prime_params, RSA_get_version
+\&\- Routines for getting and setting data in an RSA object
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 10
 \& int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d);
 \& int RSA_set0_factors(RSA *r, BIGNUM *p, BIGNUM *q);
 \& int RSA_set0_crt_params(RSA *r, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqmp);
@@ -177,6 +191,10 @@ RSA_set0_key, RSA_set0_factors, RSA_set0_crt_params, RSA_get0_key, RSA_get0_fact
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_get_bn_param\fR\|(3) for any methods that
+return a \fB\s-1BIGNUM\s0\fR. Refer to \s-1\fBEVP_PKEY\-DH\s0\fR\|(7) for more infomation.
+.PP
 An \s-1RSA\s0 object contains the components for the public and private key,
 \&\fBn\fR, \fBe\fR, \fBd\fR, \fBp\fR, \fBq\fR, \fBdmp1\fR, \fBdmq1\fR and \fBiqmp\fR.  \fBn\fR is
 the modulus common to both public and private key, \fBe\fR is the public
@@ -266,6 +284,9 @@ triplets in \s-1RSA\s0 object \fBr\fR and assign the new set of triplets into it
 \&\fBRSA_get0_dmp1()\fR, \fBRSA_get0_dmq1()\fR, and \fBRSA_get0_iqmp()\fR
 return the respective value.
 .PP
+\&\fBRSA_get0_pss_params()\fR returns a \fB\s-1RSA_PSS_PARAMS\s0\fR pointer, or \s-1NULL\s0 if
+there is none.
+.PP
 \&\fBRSA_get0_multi_prime_factors()\fR and \fBRSA_get0_multi_prime_crt_params()\fR return
 1 on success or 0 on failure.
 .PP
@@ -293,11 +314,13 @@ The
 and \fBRSA_get_version()\fR functions were added in OpenSSL 1.1.1.
 .PP
 Other functions described here were added in OpenSSL 1.1.0.
+.PP
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

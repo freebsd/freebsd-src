@@ -133,26 +133,39 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3"
-.TH SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_tlsext_ticket_key_cb \- set a callback for session ticket processing
+SSL_CTX_set_tlsext_ticket_key_evp_cb,
+SSL_CTX_set_tlsext_ticket_key_cb
+\&\- set a callback for session ticket processing
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/tls1.h>
 \&
-\& long SSL_CTX_set_tlsext_ticket_key_cb(SSL_CTX sslctx,
+\& int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX sslctx,
+\&     int (*cb)(SSL *s, unsigned char key_name[16],
+\&               unsigned char iv[EVP_MAX_IV_LENGTH],
+\&               EVP_CIPHER_CTX *ctx, EVP_MAC_CTX *hctx, int enc));
+.Ve
+.PP
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
+\& int SSL_CTX_set_tlsext_ticket_key_cb(SSL_CTX sslctx,
 \&     int (*cb)(SSL *s, unsigned char key_name[16],
 \&               unsigned char iv[EVP_MAX_IV_LENGTH],
 \&               EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc));
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_set_tlsext_ticket_key_cb()\fR sets a callback function \fIcb\fR for handling
+\&\fBSSL_CTX_set_tlsext_ticket_key_evp_cb()\fR sets a callback function \fIcb\fR for handling
 session tickets for the ssl context \fIsslctx\fR. Session tickets, defined in
 \&\s-1RFC5077\s0 provide an enhanced session resumption capability where the server
 implementation is not required to maintain per session state. It only applies
@@ -175,7 +188,8 @@ ticket information or it starts a full \s-1TLS\s0 handshake to create a new sess
 ticket.
 .PP
 Before the callback function is started \fIctx\fR and \fIhctx\fR have been
-initialised with \fBEVP_CIPHER_CTX_reset\fR\|(3) and \fBHMAC_CTX_reset\fR\|(3) respectively.
+initialised with \fBEVP_CIPHER_CTX_reset\fR\|(3) and \fBEVP_MAC_CTX_new\fR\|(3)
+respectively.
 .PP
 For new sessions tickets, when the client doesn't present a session ticket, or
 an attempted retrieval of the ticket failed, or a renew option was indicated,
@@ -186,12 +200,13 @@ library expects that the function will set an arbitrary \fIname\fR, initialize
 The \fIname\fR is 16 characters long and is used as a key identifier.
 .PP
 The \fIiv\fR length is the length of the \s-1IV\s0 of the corresponding cipher. The
-maximum \s-1IV\s0 length is \fB\s-1EVP_MAX_IV_LENGTH\s0\fR bytes defined in \fBevp.h\fR.
+maximum \s-1IV\s0 length is \fB\s-1EVP_MAX_IV_LENGTH\s0\fR bytes defined in \fI<openssl/evp.h>\fR.
 .PP
 The initialization vector \fIiv\fR should be a random value. The cipher context
 \&\fIctx\fR should use the initialisation vector \fIiv\fR. The cipher context can be
-set using \fBEVP_EncryptInit_ex\fR\|(3). The hmac context can be set using
-\&\fBHMAC_Init_ex\fR\|(3).
+set using \fBEVP_EncryptInit_ex\fR\|(3). The hmac context and digest can be set using
+\&\fBEVP_MAC_CTX_set_params\fR\|(3) with the \fB\s-1OSSL_MAC_PARAM_KEY\s0\fR and
+\&\fB\s-1OSSL_MAC_PARAM_DIGEST\s0\fR parameters respectively.
 .PP
 When the client presents a session ticket, the callback function with be called
 with \fIenc\fR set to 0 indicating that the \fIcb\fR function should retrieve a set
@@ -199,8 +214,9 @@ of parameters. In this case \fIname\fR and \fIiv\fR have already been parsed out
 the session ticket. The OpenSSL library expects that the \fIname\fR will be used
 to retrieve a cryptographic parameters and that the cryptographic context
 \&\fIctx\fR will be set with the retrieved parameters and the initialization vector
-\&\fIiv\fR. using a function like \fBEVP_DecryptInit_ex\fR\|(3). The \fIhctx\fR needs to be
-set using \fBHMAC_Init_ex\fR\|(3).
+\&\fIiv\fR. using a function like \fBEVP_DecryptInit_ex\fR\|(3). The key material and
+digest for \fIhctx\fR need to be set using \fBEVP_MAC_CTX_set_params\fR\|(3) with the
+\&\fB\s-1OSSL_MAC_PARAM_KEY\s0\fR and \fB\s-1OSSL_MAC_PARAM_DIGEST\s0\fR parameters respectively.
 .PP
 If the \fIname\fR is still valid but a renewal of the ticket is required the
 callback function should return 2. The library will call the callback again
@@ -229,6 +245,14 @@ a new set of parameters.
 .IP "less than 0" 4
 .IX Item "less than 0"
 This indicates an error.
+.PP
+The \fBSSL_CTX_set_tlsext_ticket_key_cb()\fR function is identical to
+\&\fBSSL_CTX_set_tlsext_ticket_key_evp_cb()\fR except that it takes a deprecated
+\&\s-1HMAC_CTX\s0 pointer instead of an \s-1EVP_MAC_CTX\s0 one.
+Before this callback function is started \fIhctx\fR will have been
+initialised with \fBEVP_MAC_CTX_new\fR\|(3) and the digest set with
+\&\fBEVP_MAC_CTX_set_params\fR\|(3).
+The \fIhctx\fR key material can be set using \fBHMAC_Init_ex\fR\|(3).
 .SH "NOTES"
 .IX Header "NOTES"
 Session resumption shortcuts the \s-1TLS\s0 so that the client certificate
@@ -255,13 +279,14 @@ Returns 1 to indicate the callback function was set and 0 otherwise.
 Reference Implementation:
 .PP
 .Vb 2
-\& SSL_CTX_set_tlsext_ticket_key_cb(SSL, ssl_tlsext_ticket_key_cb);
+\& SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL, ssl_tlsext_ticket_key_cb);
 \& ...
 \&
 \& static int ssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[16],
 \&                                     unsigned char *iv, EVP_CIPHER_CTX *ctx,
-\&                                     HMAC_CTX *hctx, int enc)
+\&                                     EVP_MAC_CTX *hctx, int enc)
 \& {
+\&     OSSL_PARAM params[3];
 \&     your_type_t *key; /* something that you need to implement */
 \&
 \&     if (enc) { /* create new session */
@@ -282,8 +307,17 @@ Reference Implementation:
 \&         }
 \&         memcpy(key_name, key\->name, 16);
 \&
-\&         EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key\->aes_key, iv);
-\&         HMAC_Init_ex(&hctx, key\->hmac_key, 32, EVP_sha256(), NULL);
+\&         if (EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key\->aes_key,
+\&                                iv) == 0)
+\&            return \-1; /* error in cipher initialisation */
+\&
+\&         params[0] = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY,
+\&                                                       key\->hmac_key, 32);
+\&         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+\&                                                      "sha256", 0);
+\&         params[2] = OSSL_PARAM_construct_end();
+\&         if (EVP_MAC_CTX_set_params(hctx, params) == 0)
+\&            return \-1; /* error in mac initialisation */
 \&
 \&         return 1;
 \&
@@ -294,8 +328,17 @@ Reference Implementation:
 \&         if (key == NULL || key\->expire < t)
 \&             return 0;
 \&
-\&         HMAC_Init_ex(&hctx, key\->hmac_key, 32, EVP_sha256(), NULL);
-\&         EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key\->aes_key, iv);
+\&         params[0] = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
+\&                                                       key\->hmac_key, 32);
+\&         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+\&                                                      "sha256", 0);
+\&         params[2] = OSSL_PARAM_construct_end();
+\&         if (EVP_MAC_CTX_set_params(hctx, params) == 0)
+\&            return \-1; /* error in mac initialisation */
+\&
+\&         if (EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key\->aes_key,
+\&                                iv) == 0)
+\&            return \-1; /* error in cipher initialisation */
 \&
 \&         if (key\->expire < t \- RENEW_TIME) { /* RENEW_TIME: implement */
 \&             /*
@@ -316,11 +359,17 @@ Reference Implementation:
 \&\fBSSL_CTX_sess_number\fR\|(3),
 \&\fBSSL_CTX_sess_set_get_cb\fR\|(3),
 \&\fBSSL_CTX_set_session_id_context\fR\|(3),
+.SH "HISTORY"
+.IX Header "HISTORY"
+The \fBSSL_CTX_set_tlsext_ticket_key_cb()\fR function was deprecated in OpenSSL 3.0.
+.PP
+The \fBSSL_CTX_set_tlsext_ticket_key_evp_cb()\fR function was introduced in
+OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2014\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

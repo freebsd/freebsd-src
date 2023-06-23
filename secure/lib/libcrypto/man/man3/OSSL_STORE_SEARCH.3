@@ -133,13 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_STORE_SEARCH 3"
-.TH OSSL_STORE_SEARCH 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OSSL_STORE_SEARCH 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OSSL_STORE_SEARCH, OSSL_STORE_SEARCH_by_name, OSSL_STORE_SEARCH_by_issuer_serial, OSSL_STORE_SEARCH_by_key_fingerprint, OSSL_STORE_SEARCH_by_alias, OSSL_STORE_SEARCH_free, OSSL_STORE_SEARCH_get_type, OSSL_STORE_SEARCH_get0_name, OSSL_STORE_SEARCH_get0_serial, OSSL_STORE_SEARCH_get0_bytes, OSSL_STORE_SEARCH_get0_string, OSSL_STORE_SEARCH_get0_digest \&\- Type and functions to create OSSL_STORE search criteria
+OSSL_STORE_SEARCH,
+OSSL_STORE_SEARCH_by_name,
+OSSL_STORE_SEARCH_by_issuer_serial,
+OSSL_STORE_SEARCH_by_key_fingerprint,
+OSSL_STORE_SEARCH_by_alias,
+OSSL_STORE_SEARCH_free,
+OSSL_STORE_SEARCH_get_type,
+OSSL_STORE_SEARCH_get0_name,
+OSSL_STORE_SEARCH_get0_serial,
+OSSL_STORE_SEARCH_get0_bytes,
+OSSL_STORE_SEARCH_get0_string,
+OSSL_STORE_SEARCH_get0_digest
+\&\- Type and functions to create OSSL_STORE search criteria
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -251,27 +263,27 @@ and the actual alias is retrieved with \fBOSSL_STORE_SEARCH_get0_string()\fR.
 \&\fBOSSL_STORE_SEARCH_by_issuer_serial()\fR,
 \&\fBOSSL_STORE_SEARCH_by_key_fingerprint()\fR,
 and \fBOSSL_STORE_SEARCH_by_alias()\fR
-return a \fB\s-1OSSL_STORE_SEARCH\s0\fR pointer on success, or \fB\s-1NULL\s0\fR on failure.
+return a \fB\s-1OSSL_STORE_SEARCH\s0\fR pointer on success, or \s-1NULL\s0 on failure.
 .PP
 \&\fBOSSL_STORE_SEARCH_get_type()\fR returns the criterion type of the given
 \&\fB\s-1OSSL_STORE_SEARCH\s0\fR.
 There is no error value.
 .PP
 \&\fBOSSL_STORE_SEARCH_get0_name()\fR returns a \fBX509_NAME\fR pointer on success,
-or \fB\s-1NULL\s0\fR when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
+or \s-1NULL\s0 when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
 .PP
 \&\fBOSSL_STORE_SEARCH_get0_serial()\fR returns a \fB\s-1ASN1_INTEGER\s0\fR pointer on success,
-or \fB\s-1NULL\s0\fR when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
+or \s-1NULL\s0 when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
 .PP
 \&\fBOSSL_STORE_SEARCH_get0_bytes()\fR returns a \fBconst unsigned char\fR pointer and
-sets \fB*length\fR to the strings length on success, or \fB\s-1NULL\s0\fR when the given
+sets \fI*length\fR to the strings length on success, or \s-1NULL\s0 when the given
 \&\fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
 .PP
 \&\fBOSSL_STORE_SEARCH_get0_string()\fR returns a \fBconst char\fR pointer on success,
-or \fB\s-1NULL\s0\fR when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
+or \s-1NULL\s0 when the given \fB\s-1OSSL_STORE_SEARCH\s0\fR was of a different type.
 .PP
 \&\fBOSSL_STORE_SEARCH_get0_digest()\fR returns a \fBconst \s-1EVP_MD\s0\fR pointer.
-\&\fB\s-1NULL\s0\fR is a valid value and means that the store loader default will
+\&\s-1NULL\s0 is a valid value and means that the store loader default will
 be used when applicable.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
@@ -292,9 +304,9 @@ and \fBOSSL_STORE_SEARCH_get0_string()\fR
 were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

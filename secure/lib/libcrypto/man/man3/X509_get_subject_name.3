@@ -133,42 +133,73 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET_SUBJECT_NAME 3"
-.TH X509_GET_SUBJECT_NAME 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_GET_SUBJECT_NAME 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_get_subject_name, X509_set_subject_name, X509_get_issuer_name, X509_set_issuer_name, X509_REQ_get_subject_name, X509_REQ_set_subject_name, X509_CRL_get_issuer, X509_CRL_set_issuer_name \- get and set issuer or subject names
+X509_NAME_hash_ex, X509_NAME_hash,
+X509_get_subject_name, X509_set_subject_name, X509_subject_name_hash,
+X509_get_issuer_name, X509_set_issuer_name, X509_issuer_name_hash,
+X509_REQ_get_subject_name, X509_REQ_set_subject_name,
+X509_CRL_get_issuer, X509_CRL_set_issuer_name \-
+get X509_NAME hashes or get and set issuer or subject names
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
+\& unsigned long X509_NAME_hash_ex(const X509_NAME *x, OSSL_LIB_CTX *libctx,
+\&                                 const char *propq, int *ok);
+\&
 \& X509_NAME *X509_get_subject_name(const X509 *x);
-\& int X509_set_subject_name(X509 *x, X509_NAME *name);
+\& int X509_set_subject_name(X509 *x, const X509_NAME *name);
+\& unsigned long X509_subject_name_hash(X509 *x);
 \&
 \& X509_NAME *X509_get_issuer_name(const X509 *x);
-\& int X509_set_issuer_name(X509 *x, X509_NAME *name);
+\& int X509_set_issuer_name(X509 *x, const X509_NAME *name);
+\& unsigned long X509_issuer_name_hash(X509 *x);
 \&
 \& X509_NAME *X509_REQ_get_subject_name(const X509_REQ *req);
-\& int X509_REQ_set_subject_name(X509_REQ *req, X509_NAME *name);
+\& int X509_REQ_set_subject_name(X509_REQ *req, const X509_NAME *name);
 \&
 \& X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl);
-\& int X509_CRL_set_issuer_name(X509_CRL *x, X509_NAME *name);
+\& int X509_CRL_set_issuer_name(X509_CRL *x, const X509_NAME *name);
+.Ve
+.PP
+The following macro has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& #define X509_NAME_hash(x) X509_NAME_hash_ex(x, NULL, NULL, NULL)
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBX509_get_subject_name()\fR returns the subject name of certificate \fBx\fR. The
+\&\fBX509_NAME_hash_ex()\fR returns a hash value of name \fIx\fR or 0 on failure,
+using any given library context \fIlibctx\fR and property query \fIpropq\fR.
+The \fIok\fR result argument may be \s-1NULL\s0
+or else is used to return 1 for success and 0 for failure.
+Failure may happen on malloc error or if no \s-1SHA1\s0 implementation is available.
+.PP
+\&\fBX509_NAME_hash()\fR returns a hash value of name \fIx\fR or 0 on failure,
+using the default library context and default property query.
+.PP
+\&\fBX509_get_subject_name()\fR returns the subject name of certificate \fIx\fR. The
 returned value is an internal pointer which \fB\s-1MUST NOT\s0\fR be freed.
 .PP
-\&\fBX509_set_subject_name()\fR sets the issuer name of certificate \fBx\fR to
-\&\fBname\fR. The \fBname\fR parameter is copied internally and should be freed
+\&\fBX509_set_subject_name()\fR sets the issuer name of certificate \fIx\fR to
+\&\fIname\fR. The \fIname\fR parameter is copied internally and should be freed
 up when it is no longer needed.
 .PP
-\&\fBX509_get_issuer_name()\fR and \fBX509_set_issuer_name()\fR are identical to
-\&\fBX509_get_subject_name()\fR and \fBX509_set_subject_name()\fR except the get and
-set the issuer name of \fBx\fR.
+\&\fBX509_subject_name_hash()\fR returns a hash value of the subject name of
+certificate \fIx\fR.
+.PP
+\&\fBX509_get_issuer_name()\fR, \fBX509_set_issuer_name()\fR, and \fBX509_issuer_name_hash()\fR
+are identical to
+\&\fBX509_get_subject_name()\fR, \fBX509_set_subject_name()\fR, and \fBX509_subject_name_hash()\fR
+except they relate to the issuer name of \fIx\fR.
 .PP
 Similarly \fBX509_REQ_get_subject_name()\fR, \fBX509_REQ_set_subject_name()\fR,
 \&\fBX509_CRL_get_issuer()\fR and \fBX509_CRL_set_issuer_name()\fR get or set the subject
@@ -178,8 +209,19 @@ or issuer names of certificate requests of CRLs respectively.
 \&\fBX509_get_subject_name()\fR, \fBX509_get_issuer_name()\fR, \fBX509_REQ_get_subject_name()\fR
 and \fBX509_CRL_get_issuer()\fR return an \fBX509_NAME\fR pointer.
 .PP
+\&\fBX509_NAME_hash_ex()\fR, \fBX509_NAME_hash()\fR,
+\&\fBX509_subject_name_hash()\fR and \fBX509_issuer_name_hash()\fR
+return the first four bytes of the \s-1SHA1\s0 hash value,
+converted to \fBunsigned long\fR in little endian order,
+or 0 on failure.
+.PP
 \&\fBX509_set_subject_name()\fR, \fBX509_set_issuer_name()\fR, \fBX509_REQ_set_subject_name()\fR
 and \fBX509_CRL_set_issuer_name()\fR return 1 for success and 0 for failure.
+.SH "BUGS"
+.IX Header "BUGS"
+In case \fBX509_NAME_hash()\fR, \fBX509_subject_name_hash()\fR, or \fBX509_issuer_name_hash()\fR
+returns 0 it remains unclear if this is the real hash value or due to failure.
+Better use \fBX509_NAME_hash_ex()\fR instead.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBd2i_X509\fR\|(3),
@@ -204,11 +246,13 @@ earlier versions.
 .PP
 \&\fBX509_CRL_get_issuer()\fR is a function in OpenSSL 1.1.0. It was previously
 added in OpenSSL 1.0.0 as a macro.
+.PP
+\&\fBX509_NAME_hash()\fR was turned into a macro and deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

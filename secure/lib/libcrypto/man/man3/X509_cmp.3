@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_CMP 3"
-.TH X509_CMP 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_CMP 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_cmp, X509_NAME_cmp, X509_issuer_and_serial_cmp, X509_issuer_name_cmp, X509_subject_name_cmp, X509_CRL_cmp, X509_CRL_match \&\- compare X509 certificates and related values
+X509_cmp, X509_NAME_cmp,
+X509_issuer_and_serial_cmp, X509_issuer_name_cmp, X509_subject_name_cmp,
+X509_CRL_cmp, X509_CRL_match
+\&\- compare X509 certificates and related values
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -159,16 +162,20 @@ This set of functions are used to compare X509 objects, including X509
 certificates, X509 \s-1CRL\s0 objects and various values in an X509 certificate.
 .PP
 The \fBX509_cmp()\fR function compares two \fBX509\fR objects indicated by parameters
-\&\fBa\fR and \fBb\fR. The comparison is based on the \fBmemcmp\fR result of the hash
+\&\fIa\fR and \fIb\fR. The comparison is based on the \fBmemcmp\fR result of the hash
 values of two \fBX509\fR objects and the canonical (\s-1DER\s0) encoding values.
 .PP
 The \fBX509_NAME_cmp()\fR function compares two \fBX509_NAME\fR objects indicated by
-parameters \fBa\fR and \fBb\fR. The comparison is based on the \fBmemcmp\fR result of
-the canonical (\s-1DER\s0) encoding values of the two objects. \fBi2d_X509_NAME\fR\|(3)
-has a more detailed description of the \s-1DER\s0 encoding of the \fBX509_NAME\fR structure.
+parameters \fIa\fR and \fIb\fR. The comparison is based on the \fBmemcmp\fR result of the
+canonical (\s-1DER\s0) encoding values of the two objects using \fBi2d_X509_NAME\fR\|(3).
+This procedure adheres to the matching rules for Distinguished Names (\s-1DN\s0)
+given in \s-1RFC 4517\s0 section 4.2.15 and \s-1RFC 5280\s0 section 7.1.
+In particular, the order of Relative Distinguished Names (RDNs) is relevant.
+On the other hand, if an \s-1RDN\s0 is multi-valued, i.e., it contains a set of
+AttributeValueAssertions (AVAs), its members are effectively not ordered.
 .PP
 The \fBX509_issuer_and_serial_cmp()\fR function compares the serial number and issuer
-values in the given \fBX509\fR objects \fBa\fR and \fBb\fR.
+values in the given \fBX509\fR objects \fIa\fR and \fIb\fR.
 .PP
 The \fBX509_issuer_name_cmp()\fR, \fBX509_subject_name_cmp()\fR and \fBX509_CRL_cmp()\fR functions
 are effectively wrappers of the \fBX509_NAME_cmp()\fR function. These functions compare
@@ -181,12 +188,12 @@ The \fBX509_CRL_match()\fR function compares two \fBX509_CRL\fR objects. Unlike 
 of just the issuer name.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-Like common memory comparison functions, the \fBX509\fR comparison functions return
-an integer less than, equal to, or greater than zero if object \fBa\fR is found to
-be less than, to match, or be greater than object \fBb\fR, respectively.
+The \fBX509\fR comparison functions return \fB\-1\fR, \fB0\fR, or \fB1\fR if object \fIa\fR is
+found to be less than, to match, or be greater than object \fIb\fR, respectively.
 .PP
 \&\fBX509_NAME_cmp()\fR, \fBX509_issuer_and_serial_cmp()\fR, \fBX509_issuer_name_cmp()\fR,
-\&\fBX509_subject_name_cmp()\fR and \fBX509_CRL_cmp()\fR may return \fB\-2\fR to indicate an error.
+\&\fBX509_subject_name_cmp()\fR, \fBX509_CRL_cmp()\fR, and \fBX509_CRL_match()\fR
+may return \fB\-2\fR to indicate an error.
 .SH "NOTES"
 .IX Header "NOTES"
 These functions in fact utilize the underlying \fBmemcmp\fR of the C library to do
@@ -201,7 +208,7 @@ circumstances, which could cause confusion for the applications.
 \&\fBi2d_X509_NAME\fR\|(3), \fBi2d_X509\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

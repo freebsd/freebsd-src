@@ -133,34 +133,74 @@
 .\" ========================================================================
 .\"
 .IX Title "EC_GROUP_NEW 3"
-.TH EC_GROUP_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EC_GROUP_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EC_GROUP_get_ecparameters, EC_GROUP_get_ecpkparameters, EC_GROUP_new, EC_GROUP_new_from_ecparameters, EC_GROUP_new_from_ecpkparameters, EC_GROUP_free, EC_GROUP_clear_free, EC_GROUP_new_curve_GFp, EC_GROUP_new_curve_GF2m, EC_GROUP_new_by_curve_name, EC_GROUP_set_curve, EC_GROUP_get_curve, EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, EC_GROUP_set_curve_GF2m, EC_GROUP_get_curve_GF2m, EC_get_builtin_curves \- Functions for creating and destroying EC_GROUP objects
+EC_GROUP_get_ecparameters,
+EC_GROUP_get_ecpkparameters,
+EC_GROUP_new_from_params,
+EC_GROUP_new_from_ecparameters,
+EC_GROUP_new_from_ecpkparameters,
+EC_GROUP_new,
+EC_GROUP_free,
+EC_GROUP_clear_free,
+EC_GROUP_new_curve_GFp,
+EC_GROUP_new_curve_GF2m,
+EC_GROUP_new_by_curve_name_ex,
+EC_GROUP_new_by_curve_name,
+EC_GROUP_set_curve,
+EC_GROUP_get_curve,
+EC_GROUP_set_curve_GFp,
+EC_GROUP_get_curve_GFp,
+EC_GROUP_set_curve_GF2m,
+EC_GROUP_get_curve_GF2m,
+EC_get_builtin_curves,
+OSSL_EC_curve_nid2name \-
+Functions for creating and destroying EC_GROUP objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ec.h>
 \&
-\& EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
-\& EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
-\& EC_GROUP *EC_GROUP_new_from_ecpkparameters(const ECPKPARAMETERS *params)
+\& EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
+\&                                    OSSL_LIB_CTX *libctx, const char *propq);
+\& EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params);
+\& EC_GROUP *EC_GROUP_new_from_ecpkparameters(const ECPKPARAMETERS *params);
 \& void EC_GROUP_free(EC_GROUP *group);
-\& void EC_GROUP_clear_free(EC_GROUP *group);
 \&
 \& EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
 \&                                  const BIGNUM *b, BN_CTX *ctx);
 \& EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a,
 \&                                   const BIGNUM *b, BN_CTX *ctx);
+\& EC_GROUP *EC_GROUP_new_by_curve_name_ex(OSSL_LIB_CTX *libctx, const char *propq,
+\&                                         int nid);
 \& EC_GROUP *EC_GROUP_new_by_curve_name(int nid);
 \&
 \& int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
 \&                        const BIGNUM *b, BN_CTX *ctx);
 \& int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
 \&                        BN_CTX *ctx);
+\&
+\& ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group,
+\&                                         ECPARAMETERS *params);
+\& ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
+\&                                             ECPKPARAMETERS *params);
+\&
+\& size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
+\& const char *OSSL_EC_curve_nid2name(int nid);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
+\& EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
+\& void EC_GROUP_clear_free(EC_GROUP *group);
+\&
 \& int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p,
 \&                            const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 \& int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p,
@@ -169,11 +209,6 @@ EC_GROUP_get_ecparameters, EC_GROUP_get_ecpkparameters, EC_GROUP_new, EC_GROUP_n
 \&                             const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 \& int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p,
 \&                             BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
-\&
-\& ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group, ECPARAMETERS *params)
-\& ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group, ECPKPARAMETERS *params)
-\&
-\& size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -190,23 +225,38 @@ curve equation is modified to:
 .PP
 y^2 + xy = x^3 + ax^2 + b (where b != 0)
 .PP
-Operations in a binary field are performed relative to an \fBirreducible
-polynomial\fR. All such curves with OpenSSL use a trinomial or a pentanomial for
-this parameter.
+Operations in a binary field are performed relative to an
+\&\fBirreducible polynomial\fR. All such curves with OpenSSL use a trinomial or a
+pentanomial for this parameter.
 .PP
-A new curve can be constructed by calling \fBEC_GROUP_new()\fR, using the
-implementation provided by \fBmeth\fR (see \fBEC_GFp_simple_method\fR\|(3)). It is then
-necessary to call \fBEC_GROUP_set_curve()\fR to set the curve parameters.
-\&\fBEC_GROUP_new_from_ecparameters()\fR will create a group from the specified
-\&\fBparams\fR and \fBEC_GROUP_new_from_ecpkparameters()\fR will create a group from the
-specific \s-1PK\s0 \fBparams\fR.
+Although deprecated since OpenSSL 3.0 and should no longer be used,
+a new curve can be constructed by calling \fBEC_GROUP_new()\fR, using the
+implementation provided by \fImeth\fR (see \fBEC_GFp_simple_method\fR\|(3)) and
+associated with the library context \fIctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)).
+The \fIctx\fR parameter may be \s-1NULL\s0 in which case the default library context is
+used.
+It is then necessary to call \fBEC_GROUP_set_curve()\fR to set the curve parameters.
+Applications should instead use one of the other EC_GROUP_new_* constructors.
 .PP
-\&\fBEC_GROUP_set_curve()\fR sets the curve parameters \fBp\fR, \fBa\fR and \fBb\fR. For a curve
-over Fp \fBp\fR is the prime for the field. For a curve over F2^m \fBp\fR represents
+\&\fBEC_GROUP_new_from_params()\fR creates a group with parameters specified by \fIparams\fR.
+The library context \fIlibctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)) and property query string
+\&\fIpropq\fR are used to fetch algorithms from providers.
+\&\fIparams\fR may be either a list of explicit params or a named group,
+The values for \fIctx\fR and \fIpropq\fR may be \s-1NULL.\s0
+The \fIparams\fR that can be used are described in
+\&\fB\s-1EVP_PKEY\-EC\s0\fR(7).
+.PP
+\&\fBEC_GROUP_new_from_ecparameters()\fR will create a group from the
+specified \fIparams\fR and
+\&\fBEC_GROUP_new_from_ecpkparameters()\fR will create a group from the specific \s-1PK\s0
+\&\fIparams\fR.
+.PP
+\&\fBEC_GROUP_set_curve()\fR sets the curve parameters \fIp\fR, \fIa\fR and \fIb\fR. For a curve
+over Fp \fIp\fR is the prime for the field. For a curve over F2^m \fIp\fR represents
 the irreducible polynomial \- each bit represents a term in the polynomial.
 Therefore, there will either be three or five bits set dependent on whether the
 polynomial is a trinomial or a pentanomial.
-In either case, \fBa\fR and \fBb\fR represents the coefficients a and b from the
+In either case, \fIa\fR and \fIb\fR represents the coefficients a and b from the
 relevant equation introduced above.
 .PP
 \&\fBEC_group_get_curve()\fR obtains the previously set curve parameters.
@@ -226,13 +276,13 @@ An appropriate default implementation method will be used.
 Whilst the library can be used to create any curve using the functions described
 above, there are also a number of predefined curves that are available. In order
 to obtain a list of all of the predefined curves, call the function
-\&\fBEC_get_builtin_curves()\fR. The parameter \fBr\fR should be an array of
-EC_builtin_curve structures of size \fBnitems\fR. The function will populate the
-\&\fBr\fR array with information about the builtin curves. If \fBnitems\fR is less than
-the total number of curves available, then the first \fBnitems\fR curves will be
+\&\fBEC_get_builtin_curves()\fR. The parameter \fIr\fR should be an array of
+EC_builtin_curve structures of size \fInitems\fR. The function will populate the
+\&\fIr\fR array with information about the built-in curves. If \fInitems\fR is less than
+the total number of curves available, then the first \fInitems\fR curves will be
 returned. Otherwise the total number of curves will be provided. The return
 value is the total number of curves available (whether that number has been
-populated in \fBr\fR or not). Passing a \s-1NULL\s0 \fBr\fR, or setting \fBnitems\fR to 0 will
+populated in \fIr\fR or not). Passing a \s-1NULL\s0 \fIr\fR, or setting \fInitems\fR to 0 will
 do nothing other than return the total number of curves available.
 The EC_builtin_curve structure is defined as follows:
 .PP
@@ -243,37 +293,71 @@ The EC_builtin_curve structure is defined as follows:
 \&        } EC_builtin_curve;
 .Ve
 .PP
-Each EC_builtin_curve item has a unique integer id (\fBnid\fR), and a human
+Each EC_builtin_curve item has a unique integer id (\fInid\fR), and a human
 readable comment string describing the curve.
 .PP
-In order to construct a builtin curve use the function
-\&\fBEC_GROUP_new_by_curve_name()\fR and provide the \fBnid\fR of the curve to
-be constructed.
+In order to construct a built-in curve use the function
+\&\fBEC_GROUP_new_by_curve_name_ex()\fR and provide the \fInid\fR of the curve to
+be constructed, the associated library context to be used in \fIctx\fR (see
+\&\s-1\fBOSSL_LIB_CTX\s0\fR\|(3)) and any property query string in \fIpropq\fR. The \fIctx\fR value
+may be \s-1NULL\s0 in which case the default library context is used. The \fIpropq\fR
+value may also be \s-1NULL.\s0
+.PP
+\&\fBEC_GROUP_new_by_curve_name()\fR is the same as
+\&\fBEC_GROUP_new_by_curve_name_ex()\fR except that the default library context
+is always used along with a \s-1NULL\s0 property query string.
 .PP
 \&\fBEC_GROUP_free()\fR frees the memory associated with the \s-1EC_GROUP.\s0
-If \fBgroup\fR is \s-1NULL\s0 nothing is done.
+If \fIgroup\fR is \s-1NULL\s0 nothing is done.
 .PP
-\&\fBEC_GROUP_clear_free()\fR destroys any sensitive data held within the \s-1EC_GROUP\s0 and
-then frees its memory. If \fBgroup\fR is \s-1NULL\s0 nothing is done.
+\&\fBEC_GROUP_clear_free()\fR is deprecated: it was meant to destroy any sensitive data
+held within the \s-1EC_GROUP\s0 and then free its memory, but since all the data stored
+in the \s-1EC_GROUP\s0 is public anyway, this function is unnecessary.
+Its use can be safely replaced with \fBEC_GROUP_free()\fR.
+If \fIgroup\fR is \s-1NULL\s0 nothing is done.
+.PP
+\&\fBOSSL_EC_curve_nid2name()\fR converts a curve \fInid\fR into the corresponding name.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 All EC_GROUP_new* functions return a pointer to the newly constructed group, or
 \&\s-1NULL\s0 on error.
 .PP
-\&\fBEC_get_builtin_curves()\fR returns the number of builtin curves that are available.
+\&\fBEC_get_builtin_curves()\fR returns the number of built-in curves that are
+available.
 .PP
 \&\fBEC_GROUP_set_curve_GFp()\fR, \fBEC_GROUP_get_curve_GFp()\fR, \fBEC_GROUP_set_curve_GF2m()\fR,
 \&\fBEC_GROUP_get_curve_GF2m()\fR return 1 on success or 0 on error.
+.PP
+\&\fBOSSL_EC_curve_nid2name()\fR returns a character string constant, or \s-1NULL\s0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBcrypto\fR\|(7), \fBEC_GROUP_copy\fR\|(3),
 \&\fBEC_POINT_new\fR\|(3), \fBEC_POINT_add\fR\|(3), \fBEC_KEY_new\fR\|(3),
-\&\fBEC_GFp_simple_method\fR\|(3), \fBd2i_ECPKParameters\fR\|(3)
+\&\fBEC_GFp_simple_method\fR\|(3), \fBd2i_ECPKParameters\fR\|(3),
+\&\s-1\fBOSSL_LIB_CTX\s0\fR\|(3), \s-1\fBEVP_PKEY\-EC\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+.IP "\(bu" 2
+\&\fBEC_GROUP_new()\fR was deprecated in OpenSSL 3.0.
+.Sp
+\&\fBEC_GROUP_new_by_curve_name_ex()\fR and \fBEC_GROUP_new_from_params()\fR were
+added in OpenSSL 3.0.
+.IP "\(bu" 2
+\&\fBEC_GROUP_clear_free()\fR was deprecated in OpenSSL 3.0; use \fBEC_GROUP_free()\fR
+instead.
+.IP "\(bu" 2
+
+.Sp
+.Vb 3
+\& EC_GROUP_set_curve_GFp(), EC_GROUP_get_curve_GFp(),
+\& EC_GROUP_set_curve_GF2m() and EC_GROUP_get_curve_GF2m() were deprecated in
+\& OpenSSL 3.0; use EC_GROUP_set_curve() and EC_GROUP_get_curve() instead.
+.Ve
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

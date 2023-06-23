@@ -133,13 +133,42 @@
 .\" ========================================================================
 .\"
 .IX Title "PEM_READ_BIO_PRIVATEKEY 3"
-.TH PEM_READ_BIO_PRIVATEKEY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PEM_READ_BIO_PRIVATEKEY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-pem_password_cb, PEM_read_bio_PrivateKey, PEM_read_PrivateKey, PEM_write_bio_PrivateKey, PEM_write_bio_PrivateKey_traditional, PEM_write_PrivateKey, PEM_write_bio_PKCS8PrivateKey, PEM_write_PKCS8PrivateKey, PEM_write_bio_PKCS8PrivateKey_nid, PEM_write_PKCS8PrivateKey_nid, PEM_read_bio_PUBKEY, PEM_read_PUBKEY, PEM_write_bio_PUBKEY, PEM_write_PUBKEY, PEM_read_bio_RSAPrivateKey, PEM_read_RSAPrivateKey, PEM_write_bio_RSAPrivateKey, PEM_write_RSAPrivateKey, PEM_read_bio_RSAPublicKey, PEM_read_RSAPublicKey, PEM_write_bio_RSAPublicKey, PEM_write_RSAPublicKey, PEM_read_bio_RSA_PUBKEY, PEM_read_RSA_PUBKEY, PEM_write_bio_RSA_PUBKEY, PEM_write_RSA_PUBKEY, PEM_read_bio_DSAPrivateKey, PEM_read_DSAPrivateKey, PEM_write_bio_DSAPrivateKey, PEM_write_DSAPrivateKey, PEM_read_bio_DSA_PUBKEY, PEM_read_DSA_PUBKEY, PEM_write_bio_DSA_PUBKEY, PEM_write_DSA_PUBKEY, PEM_read_bio_Parameters, PEM_write_bio_Parameters, PEM_read_bio_DSAparams, PEM_read_DSAparams, PEM_write_bio_DSAparams, PEM_write_DSAparams, PEM_read_bio_DHparams, PEM_read_DHparams, PEM_write_bio_DHparams, PEM_write_DHparams, PEM_read_bio_X509, PEM_read_X509, PEM_write_bio_X509, PEM_write_X509, PEM_read_bio_X509_AUX, PEM_read_X509_AUX, PEM_write_bio_X509_AUX, PEM_write_X509_AUX, PEM_read_bio_X509_REQ, PEM_read_X509_REQ, PEM_write_bio_X509_REQ, PEM_write_X509_REQ, PEM_write_bio_X509_REQ_NEW, PEM_write_X509_REQ_NEW, PEM_read_bio_X509_CRL, PEM_read_X509_CRL, PEM_write_bio_X509_CRL, PEM_write_X509_CRL, PEM_read_bio_PKCS7, PEM_read_PKCS7, PEM_write_bio_PKCS7, PEM_write_PKCS7 \- PEM routines
+pem_password_cb,
+PEM_read_bio_PrivateKey_ex, PEM_read_bio_PrivateKey,
+PEM_read_PrivateKey_ex, PEM_read_PrivateKey,
+PEM_write_bio_PrivateKey_ex, PEM_write_bio_PrivateKey,
+PEM_write_bio_PrivateKey_traditional,
+PEM_write_PrivateKey_ex, PEM_write_PrivateKey,
+PEM_write_bio_PKCS8PrivateKey, PEM_write_PKCS8PrivateKey,
+PEM_write_bio_PKCS8PrivateKey_nid, PEM_write_PKCS8PrivateKey_nid,
+PEM_read_bio_PUBKEY_ex, PEM_read_bio_PUBKEY,
+PEM_read_PUBKEY_ex, PEM_read_PUBKEY,
+PEM_write_bio_PUBKEY_ex, PEM_write_bio_PUBKEY,
+PEM_write_PUBKEY_ex, PEM_write_PUBKEY,
+PEM_read_bio_RSAPrivateKey, PEM_read_RSAPrivateKey,
+PEM_write_bio_RSAPrivateKey, PEM_write_RSAPrivateKey,
+PEM_read_bio_RSAPublicKey, PEM_read_RSAPublicKey, PEM_write_bio_RSAPublicKey,
+PEM_write_RSAPublicKey, PEM_read_bio_RSA_PUBKEY, PEM_read_RSA_PUBKEY,
+PEM_write_bio_RSA_PUBKEY, PEM_write_RSA_PUBKEY, PEM_read_bio_DSAPrivateKey,
+PEM_read_DSAPrivateKey, PEM_write_bio_DSAPrivateKey, PEM_write_DSAPrivateKey,
+PEM_read_bio_DSA_PUBKEY, PEM_read_DSA_PUBKEY, PEM_write_bio_DSA_PUBKEY,
+PEM_write_DSA_PUBKEY, PEM_read_bio_Parameters_ex, PEM_read_bio_Parameters,
+PEM_write_bio_Parameters, PEM_read_bio_DSAparams, PEM_read_DSAparams,
+PEM_write_bio_DSAparams, PEM_write_DSAparams, PEM_read_bio_DHparams,
+PEM_read_DHparams, PEM_write_bio_DHparams, PEM_write_DHparams,
+PEM_read_bio_X509, PEM_read_X509, PEM_write_bio_X509, PEM_write_X509,
+PEM_read_bio_X509_AUX, PEM_read_X509_AUX, PEM_write_bio_X509_AUX,
+PEM_write_X509_AUX, PEM_read_bio_X509_REQ, PEM_read_X509_REQ,
+PEM_write_bio_X509_REQ, PEM_write_X509_REQ, PEM_write_bio_X509_REQ_NEW,
+PEM_write_X509_REQ_NEW, PEM_read_bio_X509_CRL, PEM_read_X509_CRL,
+PEM_write_bio_X509_CRL, PEM_write_X509_CRL, PEM_read_bio_PKCS7, PEM_read_PKCS7,
+PEM_write_bio_PKCS7, PEM_write_PKCS7 \- PEM routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,41 +176,107 @@ pem_password_cb, PEM_read_bio_PrivateKey, PEM_read_PrivateKey, PEM_write_bio_Pri
 \&
 \& typedef int pem_password_cb(char *buf, int size, int rwflag, void *u);
 \&
+\& EVP_PKEY *PEM_read_bio_PrivateKey_ex(BIO *bp, EVP_PKEY **x,
+\&                                      pem_password_cb *cb, void *u,
+\&                                      OSSL_LIB_CTX *libctx, const char *propq);
 \& EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x,
 \&                                   pem_password_cb *cb, void *u);
+\& EVP_PKEY *PEM_read_PrivateKey_ex(FILE *fp, EVP_PKEY **x, pem_password_cb *cb,
+\&                                  void *u, OSSL_LIB_CTX *libctx,
+\&                                  const char *propq);
 \& EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x,
 \&                               pem_password_cb *cb, void *u);
-\& int PEM_write_bio_PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
+\& int PEM_write_bio_PrivateKey_ex(BIO *bp, const EVP_PKEY *x,
+\&                                 const EVP_CIPHER *enc,
+\&                                 unsigned char *kstr, int klen,
+\&                                 pem_password_cb *cb, void *u,
+\&                                 OSSL_LIB_CTX *libctx, const char *propq);
+\& int PEM_write_bio_PrivateKey(BIO *bp, const EVP_PKEY *x, const EVP_CIPHER *enc,
 \&                              unsigned char *kstr, int klen,
 \&                              pem_password_cb *cb, void *u);
 \& int PEM_write_bio_PrivateKey_traditional(BIO *bp, EVP_PKEY *x,
 \&                                          const EVP_CIPHER *enc,
 \&                                          unsigned char *kstr, int klen,
 \&                                          pem_password_cb *cb, void *u);
+\& int PEM_write_PrivateKey_ex(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
+\&                             unsigned char *kstr, int klen,
+\&                             pem_password_cb *cb, void *u,
+\&                             OSSL_LIB_CTX *libctx, const char *propq);
 \& int PEM_write_PrivateKey(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
 \&                          unsigned char *kstr, int klen,
 \&                          pem_password_cb *cb, void *u);
-\&
 \& int PEM_write_bio_PKCS8PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
 \&                                   char *kstr, int klen,
 \&                                   pem_password_cb *cb, void *u);
 \& int PEM_write_PKCS8PrivateKey(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
 \&                               char *kstr, int klen,
 \&                               pem_password_cb *cb, void *u);
-\& int PEM_write_bio_PKCS8PrivateKey_nid(BIO *bp, EVP_PKEY *x, int nid,
+\& int PEM_write_bio_PKCS8PrivateKey_nid(BIO *bp, const EVP_PKEY *x, int nid,
 \&                                       char *kstr, int klen,
 \&                                       pem_password_cb *cb, void *u);
-\& int PEM_write_PKCS8PrivateKey_nid(FILE *fp, EVP_PKEY *x, int nid,
+\& int PEM_write_PKCS8PrivateKey_nid(FILE *fp, const EVP_PKEY *x, int nid,
 \&                                   char *kstr, int klen,
 \&                                   pem_password_cb *cb, void *u);
 \&
+\& EVP_PKEY *PEM_read_bio_PUBKEY_ex(BIO *bp, EVP_PKEY **x,
+\&                                  pem_password_cb *cb, void *u,
+\&                                  OSSL_LIB_CTX *libctx, const char *propq);
 \& EVP_PKEY *PEM_read_bio_PUBKEY(BIO *bp, EVP_PKEY **x,
 \&                               pem_password_cb *cb, void *u);
+\& EVP_PKEY *PEM_read_PUBKEY_ex(FILE *fp, EVP_PKEY **x,
+\&                              pem_password_cb *cb, void *u,
+\&                              OSSL_LIB_CTX *libctx, const char *propq);
 \& EVP_PKEY *PEM_read_PUBKEY(FILE *fp, EVP_PKEY **x,
 \&                           pem_password_cb *cb, void *u);
+\& int PEM_write_bio_PUBKEY_ex(BIO *bp, EVP_PKEY *x,
+\&                             OSSL_LIB_CTX *libctx, const char *propq);
 \& int PEM_write_bio_PUBKEY(BIO *bp, EVP_PKEY *x);
+\& int PEM_write_PUBKEY_ex(FILE *fp, EVP_PKEY *x,
+\&                         OSSL_LIB_CTX *libctx, const char *propq);
 \& int PEM_write_PUBKEY(FILE *fp, EVP_PKEY *x);
 \&
+\& EVP_PKEY *PEM_read_bio_Parameters_ex(BIO *bp, EVP_PKEY **x,
+\&                                      OSSL_LIB_CTX *libctx, const char *propq);
+\& EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
+\& int PEM_write_bio_Parameters(BIO *bp, const EVP_PKEY *x);
+\&
+\& X509 *PEM_read_bio_X509(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
+\& X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
+\& int PEM_write_bio_X509(BIO *bp, X509 *x);
+\& int PEM_write_X509(FILE *fp, X509 *x);
+\&
+\& X509 *PEM_read_bio_X509_AUX(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
+\& X509 *PEM_read_X509_AUX(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
+\& int PEM_write_bio_X509_AUX(BIO *bp, X509 *x);
+\& int PEM_write_X509_AUX(FILE *fp, X509 *x);
+\&
+\& X509_REQ *PEM_read_bio_X509_REQ(BIO *bp, X509_REQ **x,
+\&                                 pem_password_cb *cb, void *u);
+\& X509_REQ *PEM_read_X509_REQ(FILE *fp, X509_REQ **x,
+\&                             pem_password_cb *cb, void *u);
+\& int PEM_write_bio_X509_REQ(BIO *bp, X509_REQ *x);
+\& int PEM_write_X509_REQ(FILE *fp, X509_REQ *x);
+\& int PEM_write_bio_X509_REQ_NEW(BIO *bp, X509_REQ *x);
+\& int PEM_write_X509_REQ_NEW(FILE *fp, X509_REQ *x);
+\&
+\& X509_CRL *PEM_read_bio_X509_CRL(BIO *bp, X509_CRL **x,
+\&                                 pem_password_cb *cb, void *u);
+\& X509_CRL *PEM_read_X509_CRL(FILE *fp, X509_CRL **x,
+\&                             pem_password_cb *cb, void *u);
+\& int PEM_write_bio_X509_CRL(BIO *bp, X509_CRL *x);
+\& int PEM_write_X509_CRL(FILE *fp, X509_CRL *x);
+\&
+\& PKCS7 *PEM_read_bio_PKCS7(BIO *bp, PKCS7 **x, pem_password_cb *cb, void *u);
+\& PKCS7 *PEM_read_PKCS7(FILE *fp, PKCS7 **x, pem_password_cb *cb, void *u);
+\& int PEM_write_bio_PKCS7(BIO *bp, PKCS7 *x);
+\& int PEM_write_PKCS7(FILE *fp, PKCS7 *x);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 10
 \& RSA *PEM_read_bio_RSAPrivateKey(BIO *bp, RSA **x,
 \&                                 pem_password_cb *cb, void *u);
 \& RSA *PEM_read_RSAPrivateKey(FILE *fp, RSA **x,
@@ -224,10 +319,6 @@ pem_password_cb, PEM_read_bio_PrivateKey, PEM_read_PrivateKey, PEM_write_bio_Pri
 \&                          pem_password_cb *cb, void *u);
 \& int PEM_write_bio_DSA_PUBKEY(BIO *bp, DSA *x);
 \& int PEM_write_DSA_PUBKEY(FILE *fp, DSA *x);
-\&
-\& EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
-\& int PEM_write_bio_Parameters(BIO *bp, const EVP_PKEY *x);
-\&
 \& DSA *PEM_read_bio_DSAparams(BIO *bp, DSA **x, pem_password_cb *cb, void *u);
 \& DSA *PEM_read_DSAparams(FILE *fp, DSA **x, pem_password_cb *cb, void *u);
 \& int PEM_write_bio_DSAparams(BIO *bp, DSA *x);
@@ -237,40 +328,13 @@ pem_password_cb, PEM_read_bio_PrivateKey, PEM_read_PrivateKey, PEM_write_bio_Pri
 \& DH *PEM_read_DHparams(FILE *fp, DH **x, pem_password_cb *cb, void *u);
 \& int PEM_write_bio_DHparams(BIO *bp, DH *x);
 \& int PEM_write_DHparams(FILE *fp, DH *x);
-\&
-\& X509 *PEM_read_bio_X509(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
-\& X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
-\& int PEM_write_bio_X509(BIO *bp, X509 *x);
-\& int PEM_write_X509(FILE *fp, X509 *x);
-\&
-\& X509 *PEM_read_bio_X509_AUX(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
-\& X509 *PEM_read_X509_AUX(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
-\& int PEM_write_bio_X509_AUX(BIO *bp, X509 *x);
-\& int PEM_write_X509_AUX(FILE *fp, X509 *x);
-\&
-\& X509_REQ *PEM_read_bio_X509_REQ(BIO *bp, X509_REQ **x,
-\&                                 pem_password_cb *cb, void *u);
-\& X509_REQ *PEM_read_X509_REQ(FILE *fp, X509_REQ **x,
-\&                             pem_password_cb *cb, void *u);
-\& int PEM_write_bio_X509_REQ(BIO *bp, X509_REQ *x);
-\& int PEM_write_X509_REQ(FILE *fp, X509_REQ *x);
-\& int PEM_write_bio_X509_REQ_NEW(BIO *bp, X509_REQ *x);
-\& int PEM_write_X509_REQ_NEW(FILE *fp, X509_REQ *x);
-\&
-\& X509_CRL *PEM_read_bio_X509_CRL(BIO *bp, X509_CRL **x,
-\&                                 pem_password_cb *cb, void *u);
-\& X509_CRL *PEM_read_X509_CRL(FILE *fp, X509_CRL **x,
-\&                             pem_password_cb *cb, void *u);
-\& int PEM_write_bio_X509_CRL(BIO *bp, X509_CRL *x);
-\& int PEM_write_X509_CRL(FILE *fp, X509_CRL *x);
-\&
-\& PKCS7 *PEM_read_bio_PKCS7(BIO *bp, PKCS7 **x, pem_password_cb *cb, void *u);
-\& PKCS7 *PEM_read_PKCS7(FILE *fp, PKCS7 **x, pem_password_cb *cb, void *u);
-\& int PEM_write_bio_PKCS7(BIO *bp, PKCS7 *x);
-\& int PEM_write_PKCS7(FILE *fp, PKCS7 *x);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page that have a \fI\s-1TYPE\s0\fR of \fB\s-1DH\s0\fR, \fB\s-1DSA\s0\fR
+and \fB\s-1RSA\s0\fR are deprecated. Applications should use \fBOSSL_ENCODER_to_bio\fR\|(3) and
+\&\fBOSSL_DECODER_from_bio\fR\|(3) instead.
+.PP
 The \s-1PEM\s0 functions read or write structures in \s-1PEM\s0 format. In
 this sense \s-1PEM\s0 format is simply base64 encoded data surrounded
 by header lines.
@@ -279,13 +343,23 @@ For more details about the meaning of arguments see the
 \&\fB\s-1PEM FUNCTION ARGUMENTS\s0\fR section.
 .PP
 Each operation has four functions associated with it. For
-brevity the term "\fB\s-1TYPE\s0\fR functions" will be used below to collectively
-refer to the \fBPEM_read_bio_TYPE()\fR, \fBPEM_read_TYPE()\fR,
-\&\fBPEM_write_bio_TYPE()\fR, and \fBPEM_write_TYPE()\fR functions.
+brevity the term "\fB\f(BI\s-1TYPE\s0\fB\fR functions" will be used below to collectively
+refer to the \fBPEM_read_bio_\f(BI\s-1TYPE\s0\fB\fR(), \fBPEM_read_\f(BI\s-1TYPE\s0\fB\fR(),
+\&\fBPEM_write_bio_\f(BI\s-1TYPE\s0\fB\fR(), and \fBPEM_write_\f(BI\s-1TYPE\s0\fB\fR() functions.
 .PP
-The \fBPrivateKey\fR functions read or write a private key in \s-1PEM\s0 format using an
-\&\s-1EVP_PKEY\s0 structure. The write routines use PKCS#8 private key format and are
-equivalent to \fBPEM_write_bio_PKCS8PrivateKey()\fR.The read functions transparently
+Some operations have additional variants that take a library context \fIlibctx\fR
+and a property query string \fIpropq\fR. The \fBX509\fR, \fBX509_REQ\fR and \fBX509_CRL\fR
+objects may have an associated library context or property query string but
+there are no variants of these functions that take a library context or property
+query string parameter. In this case it is possible to set the appropriate
+library context or property query string by creating an empty \fBX509\fR,
+\&\fBX509_REQ\fR or \fBX509_CRL\fR object using \fBX509_new_ex\fR\|(3), \fBX509_REQ_new_ex\fR\|(3)
+or \fBX509_CRL_new_ex\fR\|(3) respectively. Then pass the empty object as a parameter
+to the relevant \s-1PEM\s0 function. See the \*(L"\s-1EXAMPLES\*(R"\s0 section below.
+.PP
+The \fBPrivateKey\fR functions read or write a private key in \s-1PEM\s0 format using
+an \s-1EVP_PKEY\s0 structure. The write routines use PKCS#8 private key format and are
+equivalent to \fBPEM_write_bio_PKCS8PrivateKey()\fR. The read functions transparently
 handle traditional and PKCS#8 format encrypted and unencrypted keys.
 .PP
 \&\fBPEM_write_bio_PrivateKey_traditional()\fR writes out a private key in the
@@ -294,16 +368,16 @@ be used for compatibility with legacy programs.
 .PP
 \&\fBPEM_write_bio_PKCS8PrivateKey()\fR and \fBPEM_write_PKCS8PrivateKey()\fR write a private
 key in an \s-1EVP_PKEY\s0 structure in PKCS#8 EncryptedPrivateKeyInfo format using
-PKCS#5 v2.0 password based encryption algorithms. The \fBcipher\fR argument
+PKCS#5 v2.0 password based encryption algorithms. The \fIcipher\fR argument
 specifies the encryption algorithm to use: unlike some other \s-1PEM\s0 routines the
 encryption is applied at the PKCS#8 level and not in the \s-1PEM\s0 headers. If
-\&\fBcipher\fR is \s-1NULL\s0 then no encryption is used and a PKCS#8 PrivateKeyInfo
+\&\fIcipher\fR is \s-1NULL\s0 then no encryption is used and a PKCS#8 PrivateKeyInfo
 structure is used instead.
 .PP
 \&\fBPEM_write_bio_PKCS8PrivateKey_nid()\fR and \fBPEM_write_PKCS8PrivateKey_nid()\fR
 also write out a private key as a PKCS#8 EncryptedPrivateKeyInfo however
 it uses PKCS#5 v1.5 or PKCS#12 encryption algorithms instead. The algorithm
-to use is specified in the \fBnid\fR parameter and should be the \s-1NID\s0 of the
+to use is specified in the \fInid\fR parameter and should be the \s-1NID\s0 of the
 corresponding \s-1OBJECT IDENTIFIER\s0 (see \s-1NOTES\s0 section).
 .PP
 The \fB\s-1PUBKEY\s0\fR functions process a public key using an \s-1EVP_PKEY\s0
@@ -371,36 +445,36 @@ structure.
 .IX Header "PEM FUNCTION ARGUMENTS"
 The \s-1PEM\s0 functions have many common arguments.
 .PP
-The \fBbp\fR \s-1BIO\s0 parameter (if present) specifies the \s-1BIO\s0 to read from
+The \fIbp\fR \s-1BIO\s0 parameter (if present) specifies the \s-1BIO\s0 to read from
 or write to.
 .PP
-The \fBfp\fR \s-1FILE\s0 parameter (if present) specifies the \s-1FILE\s0 pointer to
+The \fIfp\fR \s-1FILE\s0 parameter (if present) specifies the \s-1FILE\s0 pointer to
 read from or write to.
 .PP
-The \s-1PEM\s0 read functions all take an argument \fB\s-1TYPE\s0 **x\fR and return
-a \fB\s-1TYPE\s0 *\fR pointer. Where \fB\s-1TYPE\s0\fR is whatever structure the function
-uses. If \fBx\fR is \s-1NULL\s0 then the parameter is ignored. If \fBx\fR is not
-\&\s-1NULL\s0 but \fB*x\fR is \s-1NULL\s0 then the structure returned will be written
-to \fB*x\fR. If neither \fBx\fR nor \fB*x\fR is \s-1NULL\s0 then an attempt is made
-to reuse the structure at \fB*x\fR (but see \s-1BUGS\s0 and \s-1EXAMPLES\s0 sections).
-Irrespective of the value of \fBx\fR a pointer to the structure is always
+The \s-1PEM\s0 read functions all take an argument \fI\f(BI\s-1TYPE\s0\fI **x\fR and return
+a \fI\f(BI\s-1TYPE\s0\fI *\fR pointer. Where \fI\f(BI\s-1TYPE\s0\fI\fR is whatever structure the function
+uses. If \fIx\fR is \s-1NULL\s0 then the parameter is ignored. If \fIx\fR is not
+\&\s-1NULL\s0 but \fI*x\fR is \s-1NULL\s0 then the structure returned will be written
+to \fI*x\fR. If neither \fIx\fR nor \fI*x\fR is \s-1NULL\s0 then an attempt is made
+to reuse the structure at \fI*x\fR (but see \s-1BUGS\s0 and \s-1EXAMPLES\s0 sections).
+Irrespective of the value of \fIx\fR a pointer to the structure is always
 returned (or \s-1NULL\s0 if an error occurred).
 .PP
-The \s-1PEM\s0 functions which write private keys take an \fBenc\fR parameter
+The \s-1PEM\s0 functions which write private keys take an \fIenc\fR parameter
 which specifies the encryption algorithm to use, encryption is done
 at the \s-1PEM\s0 level. If this parameter is set to \s-1NULL\s0 then the private
 key is written in unencrypted form.
 .PP
-The \fBcb\fR argument is the callback to use when querying for the pass
+The \fIcb\fR argument is the callback to use when querying for the pass
 phrase used for encrypted \s-1PEM\s0 structures (normally only private keys).
 .PP
-For the \s-1PEM\s0 write routines if the \fBkstr\fR parameter is not \s-1NULL\s0 then
-\&\fBklen\fR bytes at \fBkstr\fR are used as the passphrase and \fBcb\fR is
+For the \s-1PEM\s0 write routines if the \fIkstr\fR parameter is not \s-1NULL\s0 then
+\&\fIklen\fR bytes at \fIkstr\fR are used as the passphrase and \fIcb\fR is
 ignored.
 .PP
-If the \fBcb\fR parameters is set to \s-1NULL\s0 and the \fBu\fR parameter is not
-\&\s-1NULL\s0 then the \fBu\fR parameter is interpreted as a null terminated string
-to use as the passphrase. If both \fBcb\fR and \fBu\fR are \s-1NULL\s0 then the
+If the \fIcb\fR parameters is set to \s-1NULL\s0 and the \fIu\fR parameter is not
+\&\s-1NULL\s0 then the \fIu\fR parameter is interpreted as a \s-1NUL\s0 terminated string
+to use as the passphrase. If both \fIcb\fR and \fIu\fR are \s-1NULL\s0 then the
 default callback routine is used which will typically prompt for the
 passphrase on the current terminal with echoing turned off.
 .PP
@@ -412,18 +486,29 @@ routine has the following form:
 \& int cb(char *buf, int size, int rwflag, void *u);
 .Ve
 .PP
-\&\fBbuf\fR is the buffer to write the passphrase to. \fBsize\fR is the maximum
-length of the passphrase (i.e. the size of buf). \fBrwflag\fR is a flag
+\&\fIbuf\fR is the buffer to write the passphrase to. \fIsize\fR is the maximum
+length of the passphrase (i.e. the size of buf). \fIrwflag\fR is a flag
 which is set to 0 when reading and 1 when writing. A typical routine
 will ask the user to verify the passphrase (for example by prompting
-for it twice) if \fBrwflag\fR is 1. The \fBu\fR parameter has the same
-value as the \fBu\fR parameter passed to the \s-1PEM\s0 routine. It allows
+for it twice) if \fIrwflag\fR is 1. The \fIu\fR parameter has the same
+value as the \fIu\fR parameter passed to the \s-1PEM\s0 routine. It allows
 arbitrary data to be passed to the callback by the application
 (for example a window handle in a \s-1GUI\s0 application). The callback
-\&\fBmust\fR return the number of characters in the passphrase or \-1 if
-an error occurred.
+\&\fImust\fR return the number of characters in the passphrase or \-1 if
+an error occurred. The passphrase can be arbitrary data; in the case where it
+is a string, it is not \s-1NUL\s0 terminated. See the \*(L"\s-1EXAMPLES\*(R"\s0 section below.
+.PP
+Some implementations may need to use cryptographic algorithms during their
+operation. If this is the case and \fIlibctx\fR and \fIpropq\fR parameters have been
+passed then any algorithm fetches will use that library context and property
+query string. Otherwise the default library context and property query string
+will be used.
 .SH "NOTES"
 .IX Header "NOTES"
+The \s-1PEM\s0 reading functions will skip any extraneous content or \s-1PEM\s0 data of
+a different type than they expect. This allows for example having a certificate
+(or multiple certificates) and a key in the \s-1PEM\s0 format in a single file.
+.PP
 The old \fBPrivateKey\fR write routines are retained for compatibility.
 New applications should write private keys using the
 \&\fBPEM_write_bio_PKCS8PrivateKey()\fR or \fBPEM_write_PKCS8PrivateKey()\fR routines
@@ -443,7 +528,7 @@ this:
 \& PEM_read_bio_X509(bp, &x, 0, NULL);
 .Ve
 .PP
-this is a bug because an attempt will be made to reuse the data at \fBx\fR
+this is a bug because an attempt will be made to reuse the data at \fIx\fR
 which is an uninitialised pointer.
 .PP
 These functions make no assumption regarding the pass phrase received from the
@@ -472,15 +557,15 @@ cipher encoded as a set of hexadecimal digits. After those two lines is
 the base64\-encoded encrypted data.
 .PP
 The encryption key is derived using \fBEVP_BytesToKey()\fR. The cipher's
-initialization vector is passed to \fBEVP_BytesToKey()\fR as the \fBsalt\fR
+initialization vector is passed to \fBEVP_BytesToKey()\fR as the \fIsalt\fR
 parameter. Internally, \fB\s-1PKCS5_SALT_LEN\s0\fR bytes of the salt are used
 (regardless of the size of the initialization vector). The user's
-password is passed to \fBEVP_BytesToKey()\fR using the \fBdata\fR and \fBdatal\fR
+password is passed to \fBEVP_BytesToKey()\fR using the \fIdata\fR and \fIdatal\fR
 parameters. Finally, the library uses an iteration count of 1 for
 \&\fBEVP_BytesToKey()\fR.
 .PP
-The \fBkey\fR derived by \fBEVP_BytesToKey()\fR along with the original initialization
-vector is then used to decrypt the encrypted data. The \fBiv\fR produced by
+The \fIkey\fR derived by \fBEVP_BytesToKey()\fR along with the original initialization
+vector is then used to decrypt the encrypted data. The \fIiv\fR produced by
 \&\fBEVP_BytesToKey()\fR is not utilized or needed, and \s-1NULL\s0 should be passed to
 the function.
 .PP
@@ -490,8 +575,8 @@ The pseudo code to derive the key would look similar to:
 \& EVP_CIPHER* cipher = EVP_des_ede3_cbc();
 \& EVP_MD* md = EVP_md5();
 \&
-\& unsigned int nkey = EVP_CIPHER_key_length(cipher);
-\& unsigned int niv = EVP_CIPHER_iv_length(cipher);
+\& unsigned int nkey = EVP_CIPHER_get_key_length(cipher);
+\& unsigned int niv = EVP_CIPHER_get_iv_length(cipher);
 \& unsigned char key[nkey];
 \& unsigned char iv[niv];
 \&
@@ -511,14 +596,15 @@ an existing structure. Therefore, the following:
 \& PEM_read_bio_X509(bp, &x, 0, NULL);
 .Ve
 .PP
-where \fBx\fR already contains a valid certificate, may not work, whereas:
+where \fIx\fR already contains a valid certificate, may not work, whereas:
 .PP
 .Vb 2
 \& X509_free(x);
 \& x = PEM_read_bio_X509(bp, NULL, 0, NULL);
 .Ve
 .PP
-is guaranteed to work.
+is guaranteed to work. It is always acceptable for \fIx\fR to contain a newly
+allocated, empty \fBX509\fR object (for example allocated via \fBX509_new_ex\fR\|(3)).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The read routines return either a pointer to the structure read or \s-1NULL\s0
@@ -529,6 +615,18 @@ The write routines return 1 for success or 0 for failure.
 .IX Header "EXAMPLES"
 Although the \s-1PEM\s0 routines take several arguments in almost all applications
 most of them are set to 0 or \s-1NULL.\s0
+.PP
+To read a certificate with a library context in \s-1PEM\s0 format from a \s-1BIO:\s0
+.PP
+.Vb 1
+\& X509 *x = X509_new_ex(libctx, NULL);
+\&
+\& if (x == NULL)
+\&     /* Error */
+\&
+\& if (PEM_read_bio_X509(bp, &x, 0, NULL) == NULL)
+\&     /* Error */
+.Ve
 .PP
 Read a certificate in \s-1PEM\s0 format from a \s-1BIO:\s0
 .PP
@@ -612,11 +710,30 @@ Skeleton pass phrase callback:
 The old Netscape certificate sequences were no longer documented
 in OpenSSL 1.1.0; applications should use the \s-1PKCS7\s0 standard instead
 as they will be formally deprecated in a future releases.
+.PP
+\&\fBPEM_read_bio_PrivateKey_ex()\fR, \fBPEM_read_PrivateKey_ex()\fR,
+\&\fBPEM_read_bio_PUBKEY_ex()\fR, \fBPEM_read_PUBKEY_ex()\fR and
+\&\fBPEM_read_bio_Parameters_ex()\fR were introduced in OpenSSL 3.0.
+.PP
+The functions \fBPEM_read_bio_RSAPrivateKey()\fR, \fBPEM_read_RSAPrivateKey()\fR,
+\&\fBPEM_write_bio_RSAPrivateKey()\fR, \fBPEM_write_RSAPrivateKey()\fR,
+\&\fBPEM_read_bio_RSAPublicKey()\fR, \fBPEM_read_RSAPublicKey()\fR,
+\&\fBPEM_write_bio_RSAPublicKey()\fR, \fBPEM_write_RSAPublicKey()\fR,
+\&\fBPEM_read_bio_RSA_PUBKEY()\fR, \fBPEM_read_RSA_PUBKEY()\fR,
+\&\fBPEM_write_bio_RSA_PUBKEY()\fR, \fBPEM_write_RSA_PUBKEY()\fR,
+\&\fBPEM_read_bio_DSAPrivateKey()\fR, \fBPEM_read_DSAPrivateKey()\fR,
+\&\fBPEM_write_bio_DSAPrivateKey()\fR, \fBPEM_write_DSAPrivateKey()\fR,
+\&\fBPEM_read_bio_DSA_PUBKEY()\fR, \fBPEM_read_DSA_PUBKEY()\fR,
+\&\fBPEM_write_bio_DSA_PUBKEY()\fR, \fBPEM_write_DSA_PUBKEY()\fR;
+\&\fBPEM_read_bio_DSAparams()\fR, \fBPEM_read_DSAparams()\fR,
+\&\fBPEM_write_bio_DSAparams()\fR, \fBPEM_write_DSAparams()\fR,
+\&\fBPEM_read_bio_DHparams()\fR, \fBPEM_read_DHparams()\fR,
+\&\fBPEM_write_bio_DHparams()\fR and \fBPEM_write_DHparams()\fR were deprecated in 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_BUFFER 3"
-.TH BIO_F_BUFFER 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_F_BUFFER 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_get_buffer_num_lines, BIO_set_read_buffer_size, BIO_set_write_buffer_size, BIO_set_buffer_size, BIO_set_buffer_read_data, BIO_f_buffer \&\- buffering BIO
+BIO_get_buffer_num_lines,
+BIO_set_read_buffer_size,
+BIO_set_write_buffer_size,
+BIO_set_buffer_size,
+BIO_set_buffer_read_data,
+BIO_f_buffer
+\&\- buffering BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -203,12 +209,13 @@ source/sink \s-1BIO\s0 is non blocking.
 .IX Header "RETURN VALUES"
 \&\fBBIO_f_buffer()\fR returns the buffering \s-1BIO\s0 method.
 .PP
-\&\fBBIO_get_buffer_num_lines()\fR returns the number of lines buffered (may be 0).
+\&\fBBIO_get_buffer_num_lines()\fR returns the number of lines buffered (may be 0) or
+a negative value in case of errors.
 .PP
 \&\fBBIO_set_read_buffer_size()\fR, \fBBIO_set_write_buffer_size()\fR and \fBBIO_set_buffer_size()\fR
-return 1 if the buffer was successfully resized or 0 for failure.
+return 1 if the buffer was successfully resized or <=0 for failure.
 .PP
-\&\fBBIO_set_buffer_read_data()\fR returns 1 if the data was set correctly or 0 if
+\&\fBBIO_set_buffer_read_data()\fR returns 1 if the data was set correctly or <=0 if
 there was an error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
@@ -219,9 +226,9 @@ there was an error.
 \&\fBBIO_ctrl\fR\|(3).
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

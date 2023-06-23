@@ -133,13 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "EC_GROUP_COPY 3"
-.TH EC_GROUP_COPY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EC_GROUP_COPY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor, EC_GROUP_copy, EC_GROUP_dup, EC_GROUP_method_of, EC_GROUP_set_generator, EC_GROUP_get0_generator, EC_GROUP_get_order, EC_GROUP_get_cofactor, EC_GROUP_set_curve_name, EC_GROUP_get_curve_name, EC_GROUP_set_asn1_flag, EC_GROUP_get_asn1_flag, EC_GROUP_set_point_conversion_form, EC_GROUP_get_point_conversion_form, EC_GROUP_get0_seed, EC_GROUP_get_seed_len, EC_GROUP_set_seed, EC_GROUP_get_degree, EC_GROUP_check, EC_GROUP_check_discriminant, EC_GROUP_cmp, EC_GROUP_get_basis_type, EC_GROUP_get_trinomial_basis, EC_GROUP_get_pentanomial_basis \&\- Functions for manipulating EC_GROUP objects
+EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor,
+EC_GROUP_copy, EC_GROUP_dup, EC_GROUP_method_of, EC_GROUP_set_generator,
+EC_GROUP_get0_generator, EC_GROUP_get_order, EC_GROUP_get_cofactor,
+EC_GROUP_set_curve_name, EC_GROUP_get_curve_name, EC_GROUP_set_asn1_flag,
+EC_GROUP_get_asn1_flag, EC_GROUP_set_point_conversion_form,
+EC_GROUP_get_point_conversion_form, EC_GROUP_get0_seed,
+EC_GROUP_get_seed_len, EC_GROUP_set_seed, EC_GROUP_get_degree,
+EC_GROUP_check, EC_GROUP_check_named_curve,
+EC_GROUP_check_discriminant, EC_GROUP_cmp,
+EC_GROUP_get_basis_type, EC_GROUP_get_trinomial_basis,
+EC_GROUP_get_pentanomial_basis, EC_GROUP_get0_field,
+EC_GROUP_get_field_type
+\&\- Functions for manipulating EC_GROUP objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,8 +159,6 @@ EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor, EC_GROUP_copy,
 \&
 \& int EC_GROUP_copy(EC_GROUP *dst, const EC_GROUP *src);
 \& EC_GROUP *EC_GROUP_dup(const EC_GROUP *src);
-\&
-\& const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *group);
 \&
 \& int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
 \&                            const BIGNUM *order, const BIGNUM *cofactor);
@@ -159,6 +169,7 @@ EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor, EC_GROUP_copy,
 \& int EC_GROUP_order_bits(const EC_GROUP *group);
 \& int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor, BN_CTX *ctx);
 \& const BIGNUM *EC_GROUP_get0_cofactor(const EC_GROUP *group);
+\& const BIGNUM *EC_GROUP_get0_field(const EC_GROUP *group);
 \&
 \& void EC_GROUP_set_curve_name(EC_GROUP *group, int nid);
 \& int EC_GROUP_get_curve_name(const EC_GROUP *group);
@@ -169,22 +180,34 @@ EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor, EC_GROUP_copy,
 \& void EC_GROUP_set_point_conversion_form(EC_GROUP *group, point_conversion_form_t form);
 \& point_conversion_form_t EC_GROUP_get_point_conversion_form(const EC_GROUP *group);
 \&
-\& unsigned char *EC_GROUP_get0_seed(const EC_GROUP *x);
-\& size_t EC_GROUP_get_seed_len(const EC_GROUP *);
-\& size_t EC_GROUP_set_seed(EC_GROUP *, const unsigned char *, size_t len);
+\& unsigned char *EC_GROUP_get0_seed(const EC_GROUP *group);
+\& size_t EC_GROUP_get_seed_len(const EC_GROUP *group);
+\& size_t EC_GROUP_set_seed(EC_GROUP *group, const unsigned char *, size_t len);
 \&
 \& int EC_GROUP_get_degree(const EC_GROUP *group);
 \&
 \& int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx);
+\& int EC_GROUP_check_named_curve(const EC_GROUP *group, int nist_only,
+\&                                BN_CTX *ctx);
 \&
 \& int EC_GROUP_check_discriminant(const EC_GROUP *group, BN_CTX *ctx);
 \&
 \& int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ctx);
 \&
-\& int EC_GROUP_get_basis_type(const EC_GROUP *);
-\& int EC_GROUP_get_trinomial_basis(const EC_GROUP *, unsigned int *k);
-\& int EC_GROUP_get_pentanomial_basis(const EC_GROUP *, unsigned int *k1,
+\& int EC_GROUP_get_basis_type(const EC_GROUP *group);
+\& int EC_GROUP_get_trinomial_basis(const EC_GROUP *group, unsigned int *k);
+\& int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
 \&                                    unsigned int *k2, unsigned int *k3);
+\&
+\& int EC_GROUP_get_field_type(const EC_GROUP *group);
+.Ve
+.PP
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *group);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -194,6 +217,7 @@ EC_GROUP_get0_order, EC_GROUP_order_bits, EC_GROUP_get0_cofactor, EC_GROUP_copy,
 \&\s-1EC_GROUP\s0 object.
 .PP
 \&\fBEC_GROUP_method_of()\fR obtains the \s-1EC_METHOD\s0 of \fBgroup\fR.
+This function was deprecated in OpenSSL 3.0, since \s-1EC_METHOD\s0 is no longer a public concept.
 .PP
 \&\fBEC_GROUP_set_generator()\fR sets curve parameters that must be agreed by all participants using the curve. These
 parameters include the \fBgenerator\fR, the \fBorder\fR and the \fBcofactor\fR. The \fBgenerator\fR is a well defined point on the
@@ -246,7 +270,7 @@ point_conversion_form_t is an enum defined as follows:
 For \s-1POINT_CONVERSION_UNCOMPRESSED\s0 the point is encoded as an octet signifying the \s-1UNCOMPRESSED\s0 form has been used followed by
 the octets for x, followed by the octets for y.
 .PP
-For any given x co-ordinate for a point on a curve it is possible to derive two possible y values. For
+For any given x coordinate for a point on a curve it is possible to derive two possible y values. For
 \&\s-1POINT_CONVERSION_COMPRESSED\s0 the point is encoded as an octet signifying that the \s-1COMPRESSED\s0 form has been used \s-1AND\s0 which of
 the two possible solutions for y has been used, followed by the octets for x.
 .PP
@@ -265,16 +289,31 @@ built-in curves within the library provide seed values that can be obtained. It 
 \&\fBEC_GROUP_set_seed()\fR and passing a pointer to a memory block, along with the length of the seed. Again, the \s-1EC\s0 library will not use
 this seed value, although it will be preserved in any \s-1ASN1\s0 based communications.
 .PP
-\&\fBEC_GROUP_get_degree()\fR gets the degree of the field. For Fp fields this will be the number of bits in p.  For F2^m fields this will be
-the value m.
+\&\fBEC_GROUP_get_degree()\fR gets the degree of the field.
+For Fp fields this will be the number of bits in p.
+For F2^m fields this will be the value m.
+.PP
+\&\fBEC_GROUP_get_field_type()\fR identifies what type of field the \s-1EC_GROUP\s0 structure supports,
+which will be either F2^m or Fp.
 .PP
 The function \fBEC_GROUP_check_discriminant()\fR calculates the discriminant for the curve and verifies that it is valid.
 For a curve defined over Fp the discriminant is given by the formula 4*a^3 + 27*b^2 whilst for F2^m curves the discriminant is
 simply b. In either case for the curve to be valid the discriminant must be non zero.
 .PP
-The function \fBEC_GROUP_check()\fR performs a number of checks on a curve to verify that it is valid. Checks performed include
+The function \fBEC_GROUP_check()\fR behaves in the following way:
+For the OpenSSL default provider it performs a number of checks on a curve to verify that it is valid. Checks performed include
 verifying that the discriminant is non zero; that a generator has been defined; that the generator is on the curve and has
-the correct order.
+the correct order. For the OpenSSL \s-1FIPS\s0 provider it uses \fBEC_GROUP_check_named_curve()\fR to conform to SP800\-56Ar3.
+.PP
+The function \fBEC_GROUP_check_named_curve()\fR determines if the group's domain parameters match one of the built-in curves supported by the library.
+The curve name is returned as a \fB\s-1NID\s0\fR if it matches. If the group's domain parameters have been modified then no match will be found.
+If the curve name of the given group is \fBNID_undef\fR (e.g. it has been created by using explicit parameters with no curve name),
+then this method can be used to lookup the name of the curve that matches the group domain parameters. The built-in curves contain
+aliases, so that multiple \s-1NID\s0's can map to the same domain parameters. For such curves it is unspecified which of the aliases will be
+returned if the curve name of the given group is NID_undef.
+If \fBnist_only\fR is 1 it will only look for \s-1NIST\s0 approved curves, otherwise it searches all built-in curves.
+This function may be passed a \s-1BN_CTX\s0 object in the \fBctx\fR parameter.
+The \fBctx\fR parameter may be \s-1NULL.\s0
 .PP
 \&\fBEC_GROUP_cmp()\fR compares \fBa\fR and \fBb\fR to determine whether they represent the same curve or not.
 .PP
@@ -316,9 +355,17 @@ The following functions return 1 on success or 0 on error: \fBEC_GROUP_copy()\fR
 .PP
 \&\fBEC_GROUP_get_degree()\fR returns the degree for \fBgroup\fR or 0 if the operation is not supported by the underlying group implementation.
 .PP
+\&\fBEC_GROUP_get_field_type()\fR returns either \fBNID_X9_62_prime_field\fR for prime curves
+or \fBNID_X9_62_characteristic_two_field\fR for binary curves;
+these values are defined in the \fI<openssl/obj_mac.h>\fR header file.
+.PP
+\&\fBEC_GROUP_check_named_curve()\fR returns the nid of the matching named curve, otherwise it returns 0 for no match, or \-1 on error.
+.PP
 \&\fBEC_GROUP_get0_order()\fR returns an internal pointer to the group order.
 \&\fBEC_GROUP_order_bits()\fR returns the number of bits in the group order.
 \&\fBEC_GROUP_get0_cofactor()\fR returns an internal pointer to the group cofactor.
+\&\fBEC_GROUP_get0_field()\fR returns an internal pointer to the group field. For curves over \s-1GF\s0(p), this is the modulus; for curves
+over \s-1GF\s0(2^m), this is the irreducible polynomial defining the field.
 .PP
 \&\fBEC_GROUP_get0_seed()\fR returns a pointer to the seed that was used to generate the parameter b, or \s-1NULL\s0 if the seed is not
 specified. \fBEC_GROUP_get_seed_len()\fR returns the length of the seed or 0 if the seed is not specified.
@@ -328,18 +375,23 @@ specified. \fBEC_GROUP_get_seed_len()\fR returns the length of the seed or 0 if 
 .PP
 \&\fBEC_GROUP_cmp()\fR returns 0 if the curves are equal, 1 if they are not equal, or \-1 on error.
 .PP
-\&\fBEC_GROUP_get_basis_type()\fR returns the values NID_X9_62_tpBasis or NID_X9_62_ppBasis (as defined in <openssl/obj_mac.h>) for a
+\&\fBEC_GROUP_get_basis_type()\fR returns the values NID_X9_62_tpBasis or NID_X9_62_ppBasis (as defined in \fI<openssl/obj_mac.h>\fR) for a
 trinomial or pentanomial respectively. Alternatively in the event of an error a 0 is returned.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBcrypto\fR\|(7), \fBEC_GROUP_new\fR\|(3),
 \&\fBEC_POINT_new\fR\|(3), \fBEC_POINT_add\fR\|(3), \fBEC_KEY_new\fR\|(3),
 \&\fBEC_GFp_simple_method\fR\|(3), \fBd2i_ECPKParameters\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBEC_GROUP_method_of()\fR was deprecated in OpenSSL 3.0.
+\&\fBEC_GROUP_get0_field()\fR, \fBEC_GROUP_check_named_curve()\fR and \fBEC_GROUP_get_field_type()\fR were added in OpenSSL 3.0.
+\&\fBEC_GROUP_get0_order()\fR, \fBEC_GROUP_order_bits()\fR and \fBEC_GROUP_get0_cofactor()\fR were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

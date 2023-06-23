@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_READ_AHEAD 3"
-.TH SSL_CTX_SET_READ_AHEAD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_READ_AHEAD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_read_ahead, SSL_CTX_get_read_ahead, SSL_set_read_ahead, SSL_get_read_ahead, SSL_CTX_get_default_read_ahead \&\- manage whether to read as many input bytes as possible
+SSL_CTX_set_read_ahead, SSL_CTX_get_read_ahead,
+SSL_set_read_ahead, SSL_get_read_ahead,
+SSL_CTX_get_default_read_ahead
+\&\- manage whether to read as many input bytes as possible
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -196,7 +199,7 @@ and non zero otherwise.
 .IX Header "COPYRIGHT"
 Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12_PARSE 3"
-.TH PKCS12_PARSE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PKCS12_PARSE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -157,10 +157,14 @@ If successful the private key will be written to \fB*pkey\fR, the corresponding
 certificate to \fB*cert\fR and any additional certificates to \fB*ca\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-The parameters \fBpkey\fR and \fBcert\fR cannot be \fB\s-1NULL\s0\fR. \fBca\fR can be <\s-1NULL\s0> in
-which case additional certificates will be discarded. \fB*ca\fR can also be a
-valid \s-1STACK\s0 in which case additional certificates are appended to \fB*ca\fR. If
-\&\fB*ca\fR is \fB\s-1NULL\s0\fR a new \s-1STACK\s0 will be allocated.
+Each of the parameters \fBpkey\fR, \fBcert\fR, and \fBca\fR can be \s-1NULL\s0 in which case
+the private key, the corresponding certificate, or the additional certificates,
+respectively, will be discarded.
+If any of \fBpkey\fR and \fBcert\fR is non-NULL the variable it points to is
+initialized.
+If \fBca\fR is non-NULL and \fB*ca\fR is \s-1NULL\s0 a new \s-1STACK\s0 will be allocated.
+If \fBca\fR is non-NULL and \fB*ca\fR is a valid \s-1STACK\s0
+then additional certificates are appended in the given order to \fB*ca\fR.
 .PP
 The \fBfriendlyName\fR and \fBlocalKeyID\fR attributes (if present) on each
 certificate will be stored in the \fBalias\fR and \fBkeyid\fR attributes of the
@@ -195,9 +199,9 @@ Attributes currently cannot be stored in the private key \fB\s-1EVP_PKEY\s0\fR s
 \&\fBpassphrase\-encoding\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

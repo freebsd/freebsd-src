@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_SIGN 3"
-.TH X509_SIGN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_sign, X509_sign_ctx, X509_verify, X509_REQ_sign, X509_REQ_sign_ctx, X509_REQ_verify, X509_CRL_sign, X509_CRL_sign_ctx, X509_CRL_verify \- sign or verify certificate, certificate request or CRL signature
+X509_sign, X509_sign_ctx,
+X509_REQ_sign, X509_REQ_sign_ctx,
+X509_CRL_sign, X509_CRL_sign_ctx \-
+sign certificate, certificate request, or CRL signature
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,29 +150,22 @@ X509_sign, X509_sign_ctx, X509_verify, X509_REQ_sign, X509_REQ_sign_ctx, X509_RE
 \&
 \& int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
 \& int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
-\& int X509_verify(X509 *a, EVP_PKEY *r);
 \&
 \& int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md);
 \& int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx);
-\& int X509_REQ_verify(X509_REQ *a, EVP_PKEY *r);
 \&
 \& int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md);
 \& int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx);
-\& int X509_CRL_verify(X509_CRL *a, EVP_PKEY *r);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBX509_sign()\fR signs certificate \fBx\fR using private key \fBpkey\fR and message
-digest \fBmd\fR and sets the signature in \fBx\fR. \fBX509_sign_ctx()\fR also signs
-certificate \fBx\fR but uses the parameters contained in digest context \fBctx\fR.
+\&\fBX509_sign()\fR signs certificate \fIx\fR using private key \fIpkey\fR and message
+digest \fImd\fR and sets the signature in \fIx\fR. \fBX509_sign_ctx()\fR also signs
+certificate \fIx\fR but uses the parameters contained in digest context \fIctx\fR.
 .PP
-\&\fBX509_verify()\fR verifies the signature of certificate \fBx\fR using public key
-\&\fBpkey\fR. Only the signature is checked: no other checks (such as certificate
-chain validity) are performed.
-.PP
-\&\fBX509_REQ_sign()\fR, \fBX509_REQ_sign_ctx()\fR, \fBX509_REQ_verify()\fR,
-\&\fBX509_CRL_sign()\fR, \fBX509_CRL_sign_ctx()\fR and \fBX509_CRL_verify()\fR sign and verify
-certificate requests and CRLs respectively.
+\&\fBX509_REQ_sign()\fR, \fBX509_REQ_sign_ctx()\fR,
+\&\fBX509_CRL_sign()\fR, and \fBX509_CRL_sign_ctx()\fR
+sign certificate requests and CRLs, respectively.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fBX509_sign_ctx()\fR is used where the default parameters for the corresponding
@@ -184,44 +180,29 @@ normally a problem because modifying the signed portion will invalidate the
 signature and signing will always update the encoding.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBX509_sign()\fR, \fBX509_sign_ctx()\fR, \fBX509_REQ_sign()\fR, \fBX509_REQ_sign_ctx()\fR,
-\&\fBX509_CRL_sign()\fR and \fBX509_CRL_sign_ctx()\fR return the size of the signature
+All functions return the size of the signature
 in bytes for success and zero for failure.
-.PP
-\&\fBX509_verify()\fR, \fBX509_REQ_verify()\fR and \fBX509_CRL_verify()\fR return 1 if the
-signature is valid and 0 if the signature check fails. If the signature
-could not be checked at all because it was invalid or some other error
-occurred then \-1 is returned.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBd2i_X509\fR\|(3),
 \&\fBERR_get_error\fR\|(3),
-\&\fBX509_CRL_get0_by_serial\fR\|(3),
-\&\fBX509_get0_signature\fR\|(3),
-\&\fBX509_get_ext_d2i\fR\|(3),
-\&\fBX509_get_extension_flags\fR\|(3),
-\&\fBX509_get_pubkey\fR\|(3),
-\&\fBX509_get_subject_name\fR\|(3),
-\&\fBX509_get_version\fR\|(3),
 \&\fBX509_NAME_add_entry_by_txt\fR\|(3),
-\&\fBX509_NAME_ENTRY_get_object\fR\|(3),
-\&\fBX509_NAME_get_index_by_NID\fR\|(3),
-\&\fBX509_NAME_print_ex\fR\|(3),
 \&\fBX509_new\fR\|(3),
-\&\fBX509V3_get_d2i\fR\|(3),
-\&\fBX509_verify_cert\fR\|(3)
+\&\fBX509_verify_cert\fR\|(3),
+\&\fBX509_verify\fR\|(3),
+\&\fBX509_REQ_verify_ex\fR\|(3), \fBX509_REQ_verify\fR\|(3),
+\&\fBX509_CRL_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBX509_sign()\fR, \fBX509_REQ_sign()\fR and \fBX509_CRL_sign()\fR functions are
 available in all versions of OpenSSL.
 .PP
 The \fBX509_sign_ctx()\fR, \fBX509_REQ_sign_ctx()\fR
-and \fBX509_CRL_sign_ctx()\fR functions were added OpenSSL 1.0.1.
+and \fBX509_CRL_sign_ctx()\fR functions were added in OpenSSL 1.0.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

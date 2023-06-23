@@ -133,19 +133,28 @@
 .\" ========================================================================
 .\"
 .IX Title "CTLOG_NEW 3"
-.TH CTLOG_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CTLOG_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CTLOG_new, CTLOG_new_from_base64, CTLOG_free, CTLOG_get0_name, CTLOG_get0_log_id, CTLOG_get0_public_key \- encapsulates information about a Certificate Transparency log
+CTLOG_new_ex, CTLOG_new, CTLOG_new_from_base64,
+CTLOG_new_from_base64_ex, CTLOG_free,
+CTLOG_get0_name, CTLOG_get0_log_id, CTLOG_get0_public_key \-
+encapsulates information about a Certificate Transparency log
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ct.h>
 \&
+\& CTLOG *CTLOG_new_ex(EVP_PKEY *public_key, const char *name,
+\&                     OSSL_LIB_CTX *libctx, const char *propq);
 \& CTLOG *CTLOG_new(EVP_PKEY *public_key, const char *name);
+\&
+\& int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
+\&                              const char *name, OSSL_LIB_CTX *libctx,
+\&                              const char *propq);
 \& int CTLOG_new_from_base64(CTLOG ** ct_log,
 \&                           const char *pkey_base64, const char *name);
 \& void CTLOG_free(CTLOG *log);
@@ -156,14 +165,24 @@ CTLOG_new, CTLOG_new_from_base64, CTLOG_free, CTLOG_get0_name, CTLOG_get0_log_id
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCTLOG_new()\fR returns a new \s-1CTLOG\s0 that represents the Certificate Transparency
-(\s-1CT\s0) log with the given public key. A name must also be provided that can be
-used to help users identify this log. Ownership of the public key is
-transferred.
+\&\fBCTLOG_new_ex()\fR returns a new \s-1CTLOG\s0 that represents the Certificate
+Transparency (\s-1CT\s0) log with the given public key and associates it with the
+library context \fIlibctx\fR and property query string \fIpropq\fR. A name must also
+be provided that can be used to help users identify this log. Ownership of the
+public key is transferred.
 .PP
-\&\fBCTLOG_new_from_base64()\fR also creates a new \s-1CTLOG,\s0 but takes the public key in
-base64\-encoded \s-1DER\s0 form and sets the ct_log pointer to point to the new \s-1CTLOG.\s0
-The base64 will be decoded and the public key parsed.
+\&\fBCTLOG_new()\fR does the same thing as \fBCTLOG_new_ex()\fR but with the default
+library context and the default property query string.
+.PP
+\&\fBCTLOG_new_from_base64_ex()\fR also creates a new \s-1CTLOG,\s0 but takes the
+public key in base64\-encoded \s-1DER\s0 form and sets the ct_log pointer to point to
+the new \s-1CTLOG.\s0 The base64 will be decoded and the public key parsed. The \s-1CTLOG\s0
+will be associated with the given library context \fIlibctx\fR and property query
+string \fIpropq\fR.
+.PP
+\&\fBCTLOG_new_from_base64()\fR does the same thing as
+\&\fBCTLOG_new_from_base64_ex()\fR except that the default library context and
+property query string are used.
 .PP
 Regardless of whether \fBCTLOG_new()\fR or \fBCTLOG_new_from_base64()\fR is used, it is the
 caller's responsibility to pass the \s-1CTLOG\s0 to \fBCTLOG_free()\fR once it is no longer
@@ -190,12 +209,13 @@ the string remains with the \s-1CTLOG.\s0
 \&\fBct\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
-These functions were added in OpenSSL 1.1.0.
+The functions \fBCTLOG_new_ex()\fR and \fBCTLOG_new_from_base64_ex()\fR
+were added in OpenSSL 3.0. All other functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

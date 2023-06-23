@@ -133,13 +133,20 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_DIGEST 3"
-.TH X509_DIGEST 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_DIGEST 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_digest, X509_CRL_digest, X509_pubkey_digest, X509_NAME_digest, X509_REQ_digest, PKCS7_ISSUER_AND_SERIAL_digest \&\- get digest of various objects
+X509_digest,
+X509_digest_sig,
+X509_CRL_digest,
+X509_pubkey_digest,
+X509_NAME_digest,
+X509_REQ_digest,
+PKCS7_ISSUER_AND_SERIAL_digest
+\&\- get digest of various objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,6 +154,8 @@ X509_digest, X509_CRL_digest, X509_pubkey_digest, X509_NAME_digest, X509_REQ_dig
 \&
 \& int X509_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
 \&                 unsigned int *len);
+\& ASN1_OCTET_STRING *X509_digest_sig(const X509 *cert,
+\&                                    EVP_MD **md_used, int *md_is_fallback);
 \&
 \& int X509_CRL_digest(const X509_CRL *data, const EVP_MD *type, unsigned char *md,
 \&                     unsigned int *len);
@@ -168,27 +177,46 @@ X509_digest, X509_CRL_digest, X509_pubkey_digest, X509_NAME_digest, X509_REQ_dig
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBX509_pubkey_digest()\fR returns a digest of the \s-1DER\s0 representation of the public
-key in the specified X509 \fBdata\fR object.
-All other functions described here return a digest of the \s-1DER\s0 representation
-of their entire \fBdata\fR objects.
+\&\fBX509_digest_sig()\fR calculates a digest of the given certificate \fIcert\fR
+using the same hash algorithm as in its signature, if the digest
+is an integral part of the certificate signature algorithm identifier.
+Otherwise, a fallback hash algorithm is determined as follows:
+\&\s-1SHA512\s0 if the signature alorithm is \s-1ED25519,
+SHAKE256\s0 if it is \s-1ED448,\s0 otherwise \s-1SHA256.\s0
+The output parmeters are assigned as follows.
+Unless \fImd_used\fR is \s-1NULL,\s0 the hash algorithm used is provided
+in \fI*md_used\fR and must be freed by the caller (if it is not \s-1NULL\s0).
+Unless \fImd_is_fallback\fR is \s-1NULL,\s0
+the \fI*md_is_fallback\fR is set to 1 if the hash algorithm used is a fallback,
+otherwise to 0.
 .PP
-The \fBtype\fR parameter specifies the digest to
-be used, such as \fBEVP_sha1()\fR. The \fBmd\fR is a pointer to the buffer where the
+\&\fBX509_pubkey_digest()\fR returns a digest of the \s-1DER\s0 representation of the public
+key in the specified X509 \fIdata\fR object.
+.PP
+All other functions described here return a digest of the \s-1DER\s0 representation
+of their entire \fIdata\fR objects.
+.PP
+The \fItype\fR parameter specifies the digest to
+be used, such as \fBEVP_sha1()\fR. The \fImd\fR is a pointer to the buffer where the
 digest will be copied and is assumed to be large enough; the constant
-\&\fB\s-1EVP_MAX_MD_SIZE\s0\fR is suggested. The \fBlen\fR parameter, if not \s-1NULL,\s0 points
+\&\fB\s-1EVP_MAX_MD_SIZE\s0\fR is suggested. The \fIlen\fR parameter, if not \s-1NULL,\s0 points
 to a place where the digest size will be stored.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-All functions described here return 1 for success and 0 for failure.
+\&\fBX509_digest_sig()\fR returns an \s-1ASN1_OCTET_STRING\s0 pointer on success, else \s-1NULL.\s0
+.PP
+All other functions described here return 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBEVP_sha1\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The \fBX509_digest_sig()\fR function was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

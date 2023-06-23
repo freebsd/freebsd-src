@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_PSK_CLIENT_CALLBACK 3"
-.TH SSL_CTX_SET_PSK_CLIENT_CALLBACK 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_PSK_CLIENT_CALLBACK 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_psk_client_cb_func, SSL_psk_use_session_cb_func, SSL_CTX_set_psk_client_callback, SSL_set_psk_client_callback, SSL_CTX_set_psk_use_session_callback, SSL_set_psk_use_session_callback \&\- set PSK client callback
+SSL_psk_client_cb_func,
+SSL_psk_use_session_cb_func,
+SSL_CTX_set_psk_client_callback,
+SSL_set_psk_client_callback,
+SSL_CTX_set_psk_use_session_callback,
+SSL_set_psk_use_session_callback
+\&\- set PSK client callback
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -230,11 +236,11 @@ the pre-shared key to use during the connection setup phase.
 .PP
 The callback is set using functions \fBSSL_CTX_set_psk_client_callback()\fR
 or \fBSSL_set_psk_client_callback()\fR. The callback function is given the
-connection in parameter \fBssl\fR, a \fB\s-1NULL\s0\fR\-terminated \s-1PSK\s0 identity hint
+connection in parameter \fBssl\fR, a \fB\s-1NUL\s0\fR\-terminated \s-1PSK\s0 identity hint
 sent by the server in parameter \fBhint\fR, a buffer \fBidentity\fR of
-length \fBmax_identity_len\fR bytes where the resulting
-\&\fB\s-1NUL\s0\fR\-terminated identity is to be stored, and a buffer \fBpsk\fR of
-length \fBmax_psk_len\fR bytes where the resulting pre-shared key is to
+length \fBmax_identity_len\fR bytes (including the \fB\s-1NUL\s0\fR\-terminator) where the
+resulting \fB\s-1NUL\s0\fR\-terminated identity is to be stored, and a buffer \fBpsk\fR
+of length \fBmax_psk_len\fR bytes where the resulting pre-shared key is to
 be stored.
 .PP
 The callback for use in TLSv1.2 will also work in TLSv1.3 although it is
@@ -278,6 +284,7 @@ The SSL_psk_use_session_cb_func callback should return 1 on success or 0 on
 failure. In the event of failure the connection setup fails.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_set_psk_find_session_callback\fR\|(3),
 \&\fBSSL_set_psk_find_session_callback\fR\|(3)
 .SH "HISTORY"
@@ -286,9 +293,9 @@ failure. In the event of failure the connection setup fails.
 were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,75 +133,167 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_PUT_ERROR 3"
-.TH ERR_PUT_ERROR 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ERR_PUT_ERROR 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_put_error, ERR_add_error_data, ERR_add_error_vdata \- record an error
+ERR_raise, ERR_raise_data,
+ERR_put_error, ERR_add_error_data, ERR_add_error_vdata,
+ERR_add_error_txt, ERR_add_error_mem_bio
+\&\- record an error
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/err.h>
 \&
-\& void ERR_put_error(int lib, int func, int reason, const char *file, int line);
+\& void ERR_raise(int lib, int reason);
+\& void ERR_raise_data(int lib, int reason, const char *fmt, ...);
 \&
 \& void ERR_add_error_data(int num, ...);
 \& void ERR_add_error_vdata(int num, va_list arg);
+\& void ERR_add_error_txt(const char *sep, const char *txt);
+\& void ERR_add_error_mem_bio(const char *sep, BIO *bio);
+.Ve
+.PP
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& void ERR_put_error(int lib, int func, int reason, const char *file, int line);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+\&\fBERR_raise()\fR adds a new error to the thread's error queue.  The
+error occurred in the library \fBlib\fR for the reason given by the
+\&\fBreason\fR code.  Furthermore, the name of the file, the line, and name
+of the function where the error occurred is saved with the error
+record.
+.PP
+\&\fBERR_raise_data()\fR does the same thing as \fBERR_raise()\fR, but also lets the
+caller specify additional information as a format string \fBfmt\fR and an
+arbitrary number of values, which are processed with \fBBIO_snprintf\fR\|(3).
+.PP
 \&\fBERR_put_error()\fR adds an error code to the thread's error queue. It
 signals that the error of reason code \fBreason\fR occurred in function
 \&\fBfunc\fR of library \fBlib\fR, in line number \fBline\fR of \fBfile\fR.
 This function is usually called by a macro.
 .PP
 \&\fBERR_add_error_data()\fR associates the concatenation of its \fBnum\fR string
-arguments with the error code added last.
+arguments as additional data with the error code added last.
 \&\fBERR_add_error_vdata()\fR is similar except the argument is a \fBva_list\fR.
+Multiple calls to these functions append to the current top of the error queue.
+The total length of the string data per error is limited to 4096 characters.
+.PP
+\&\fBERR_add_error_txt()\fR appends the given text string as additional data to the
+last error queue entry, after inserting the optional separator string if it is
+not \s-1NULL\s0 and the top error entry does not yet have additional data.
+In case the separator is at the end of the text it is not appended to the data.
+The \fBsep\fR argument may be for instance \*(L"\en\*(R" to insert a line break when needed.
+If the associated data would become more than 4096 characters long
+(which is the limit given above)
+it is split over sufficiently many new copies of the last error queue entry.
+.PP
+\&\fBERR_add_error_mem_bio()\fR is the same as \fBERR_add_error_txt()\fR except that
+the text string is taken from the given memory \s-1BIO.\s0
+It appends '\e0' to the \s-1BIO\s0 contents if not already NUL-terminated.
 .PP
 \&\fBERR_load_strings\fR\|(3) can be used to register
 error strings so that the application can a generate human-readable
 error messages for the error code.
 .SS "Reporting errors"
 .IX Subsection "Reporting errors"
-Each sub-library has a specific macro \fBXXXerr()\fR that is used to report
-errors. Its first argument is a function code \fB\s-1XXX_F_...\s0\fR, the second
-argument is a reason code \fB\s-1XXX_R_...\s0\fR. Function codes are derived
-from the function names; reason codes consist of textual error
+\fIOpenSSL library reports\fR
+.IX Subsection "OpenSSL library reports"
+.PP
+Each OpenSSL sub-library has library code \fB\s-1ERR_LIB_XXX\s0\fR and has its own set
+of reason codes \fB\s-1XXX_R_...\s0\fR.  These are both passed in combination to
+\&\fBERR_raise()\fR and \fBERR_raise_data()\fR, and the combination ultimately produces
+the correct error text for the reported error.
+.PP
+All these macros and the numbers they have as values are specific to
+OpenSSL's libraries.  OpenSSL reason codes normally consist of textual error
 descriptions. For example, the function \fBssl3_read_bytes()\fR reports a
 \&\*(L"handshake failure\*(R" as follows:
 .PP
 .Vb 1
-\& SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_SSL_HANDSHAKE_FAILURE);
+\& ERR_raise(ERR_LIB_SSL, SSL_R_SSL_HANDSHAKE_FAILURE);
 .Ve
 .PP
-Function and reason codes should consist of uppercase characters,
-numbers and underscores only. The error file generation script translates
-function codes into function names by looking in the header files
-for an appropriate function name, if none is found it just uses
-the capitalized form such as \*(L"\s-1SSL3_READ_BYTES\*(R"\s0 in the above example.
+There are two exceptions:
+.IP "\fB\s-1ERR_LIB_SYS\s0\fR" 4
+.IX Item "ERR_LIB_SYS"
+This \*(L"library code\*(R" indicates that a system error is being reported.  In
+this case, the reason code given to \fBERR_raise()\fR and \fBERR_raise_data()\fR \fImust\fR
+be \fBerrno\fR\|(3).
+.Sp
+.Vb 1
+\& ERR_raise(ERR_LIB_SYS, errno);
+.Ve
+.IP "\fB\s-1ERR_R_XXX\s0\fR" 4
+.IX Item "ERR_R_XXX"
+This set of error codes is considered global, and may be used in combination
+with any sub-library code.
+.Sp
+.Vb 1
+\& ERR_raise(ERR_LIB_RSA, ERR_R_PASSED_INVALID_ARGUMENT);
+.Ve
 .PP
-The trailing section of a reason code (after the \*(L"_R_\*(R") is translated
-into lowercase and underscores changed to spaces.
+\fIOther pieces of software\fR
+.IX Subsection "Other pieces of software"
 .PP
-Although a library will normally report errors using its own specific
-XXXerr macro, another library's macro can be used. This is normally
-only done when a library wants to include \s-1ASN1\s0 code which must use
-the \fBASN1err()\fR macro.
+Other pieces of software that may want to use OpenSSL's error reporting
+system, such as engines or applications, must normally get their own
+numbers.
+.IP "\(bu" 4
+To get a \*(L"library\*(R" code, call \fBERR_get_next_error_library\fR\|(3); this gives
+the calling code a dynamic number, usable for the duration of the process.
+.IP "\(bu" 4
+Reason codes for each such \*(L"library\*(R" are determined or generated by the
+authors of that code.  They must be numbers in the range 1 to 524287 (in
+other words, they must be nonzero unsigned 18 bit integers).
+.PP
+The exceptions mentioned in \*(L"OpenSSL library reports\*(R" above are valid for
+other pieces of software, i.e. they may use \fB\s-1ERR_LIB_SYS\s0\fR to report system
+errors:
+.PP
+.Vb 1
+\& ERR_raise(ERR_LIB_SYS, errno);
+.Ve
+.PP
+\&... and they may use \fB\s-1ERR_R_XXX\s0\fR macros together with their own \*(L"library\*(R"
+code.
+.PP
+.Vb 1
+\& int app_lib_code = ERR_get_next_error_library();
+\&
+\& /* ... */
+\&
+\& ERR_raise(app_lib_code, ERR_R_PASSED_INVALID_ARGUMENT);
+.Ve
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBERR_put_error()\fR and \fBERR_add_error_data()\fR return
-no values.
+\&\fBERR_raise()\fR, \fBERR_raise_data()\fR, \fBERR_put_error()\fR,
+\&\fBERR_add_error_data()\fR, \fBERR_add_error_vdata()\fR
+\&\fBERR_add_error_txt()\fR, and \fBERR_add_error_mem_bio()\fR
+return no values.
+.SH "NOTES"
+.IX Header "NOTES"
+\&\fBERR_raise()\fR, \fBERR_raise()\fR and \fBERR_put_error()\fR are implemented as macros.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBERR_load_strings\fR\|(3)
+\&\fBERR_load_strings\fR\|(3), \fBERR_get_next_error_library\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+ERR_raise, ERR_raise_data, \fBERR_add_error_txt()\fR and \fBERR_add_error_mem_bio()\fR
+were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

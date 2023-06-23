@@ -133,33 +133,40 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_SIGN 3"
-.TH PKCS7_SIGN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PKCS7_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-PKCS7_sign \- create a PKCS#7 signedData structure
+PKCS7_sign_ex, PKCS7_sign
+\&\- create a PKCS#7 signedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/pkcs7.h>
 \&
+\& PKCS7 *PKCS7_sign_ex(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+\&                      BIO *data, int flags, OSSL_LIB_CTX *libctx,
+\&                      const char *propq);
 \& PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 \&                   BIO *data, int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBPKCS7_sign()\fR creates and returns a PKCS#7 signedData structure.
+\&\fBPKCS7_sign_ex()\fR creates and returns a PKCS#7 signedData structure.
 \&\fIsigncert\fR is the certificate to sign with, \fIpkey\fR is the corresponding
 private key. \fIcerts\fR is an optional set of extra certificates to include
 in the PKCS#7 structure (for example any intermediate CAs in the chain).
+The library context \fIlibctx\fR and property query \fIpropq\fR are used when
+retrieving algorithms from providers.
 .PP
 The data to be signed is read from \s-1BIO\s0 \fIdata\fR.
 .PP
 \&\fIflags\fR is an optional set of flags.
 .PP
 Any of the following flags (ored together) can be passed in the \fIflags\fR
+parameter.
 .PP
 Many S/MIME clients expect the signed content to include valid \s-1MIME\s0 headers. If
 the \fB\s-1PKCS7_TEXT\s0\fR flag is set \s-1MIME\s0 headers for type \f(CW\*(C`text/plain\*(C'\fR are prepended
@@ -199,8 +206,7 @@ way data can be signed in a single pass.
 .PP
 If the \fB\s-1PKCS7_PARTIAL\s0\fR flag is set a partial \fB\s-1PKCS7\s0\fR structure is output to
 which additional signers and capabilities can be added before finalization.
-.SH "NOTES"
-.IX Header "NOTES"
+.PP
 If the flag \fB\s-1PKCS7_STREAM\s0\fR is set the returned \fB\s-1PKCS7\s0\fR structure is \fBnot\fR
 complete and outputting its contents via a function that does not properly
 finalize the \fB\s-1PKCS7\s0\fR structure will give unpredictable results.
@@ -224,27 +230,33 @@ PKCS#7 structure is output.
 .PP
 In versions of OpenSSL before 1.0.0 the \fIsigncert\fR and \fIpkey\fR parameters must
 not be \s-1NULL.\s0
+.PP
+\&\fBPKCS7_sign()\fR is like \fBPKCS7_sign_ex()\fR except that it uses default values of
+\&\s-1NULL\s0 for the library context \fIlibctx\fR and the property query \fIpropq\fR.
+This is retained for \s-1API\s0 backward compatibility.
 .SH "BUGS"
 .IX Header "BUGS"
 Some advanced attributes such as counter signatures are not supported.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBPKCS7_sign()\fR returns either a valid \s-1PKCS7\s0 structure or \s-1NULL\s0 if an error
-occurred.  The error can be obtained from \fBERR_get_error\fR\|(3).
+\&\fBPKCS7_sign_ex()\fR and \fBPKCS7_sign()\fR return either a valid \s-1PKCS7\s0 structure
+or \s-1NULL\s0 if an error occurred.  The error can be obtained from \fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBPKCS7_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+The function \fBPKCS7_sign_ex()\fR was added in OpenSSL 3.0.
+.PP
 The \fB\s-1PKCS7_PARTIAL\s0\fR flag, and the ability for \fIcerts\fR, \fIsigncert\fR,
 and \fIpkey\fR parameters to be \s-1NULL\s0 were added in OpenSSL 1.0.0.
 .PP
 The \fB\s-1PKCS7_STREAM\s0\fR flag was added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

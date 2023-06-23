@@ -133,13 +133,35 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_ASN1_METHOD 3"
-.TH EVP_PKEY_ASN1_METHOD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_ASN1_METHOD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_ASN1_METHOD, EVP_PKEY_asn1_new, EVP_PKEY_asn1_copy, EVP_PKEY_asn1_free, EVP_PKEY_asn1_add0, EVP_PKEY_asn1_add_alias, EVP_PKEY_asn1_set_public, EVP_PKEY_asn1_set_private, EVP_PKEY_asn1_set_param, EVP_PKEY_asn1_set_free, EVP_PKEY_asn1_set_ctrl, EVP_PKEY_asn1_set_item, EVP_PKEY_asn1_set_siginf, EVP_PKEY_asn1_set_check, EVP_PKEY_asn1_set_public_check, EVP_PKEY_asn1_set_param_check, EVP_PKEY_asn1_set_security_bits, EVP_PKEY_asn1_set_set_priv_key, EVP_PKEY_asn1_set_set_pub_key, EVP_PKEY_asn1_set_get_priv_key, EVP_PKEY_asn1_set_get_pub_key, EVP_PKEY_get0_asn1 \&\- manipulating and registering EVP_PKEY_ASN1_METHOD structure
+EVP_PKEY_ASN1_METHOD,
+EVP_PKEY_asn1_new,
+EVP_PKEY_asn1_copy,
+EVP_PKEY_asn1_free,
+EVP_PKEY_asn1_add0,
+EVP_PKEY_asn1_add_alias,
+EVP_PKEY_asn1_set_public,
+EVP_PKEY_asn1_set_private,
+EVP_PKEY_asn1_set_param,
+EVP_PKEY_asn1_set_free,
+EVP_PKEY_asn1_set_ctrl,
+EVP_PKEY_asn1_set_item,
+EVP_PKEY_asn1_set_siginf,
+EVP_PKEY_asn1_set_check,
+EVP_PKEY_asn1_set_public_check,
+EVP_PKEY_asn1_set_param_check,
+EVP_PKEY_asn1_set_security_bits,
+EVP_PKEY_asn1_set_set_priv_key,
+EVP_PKEY_asn1_set_set_pub_key,
+EVP_PKEY_asn1_set_get_priv_key,
+EVP_PKEY_asn1_set_get_pub_key,
+EVP_PKEY_get0_asn1
+\&\- manipulating and registering EVP_PKEY_ASN1_METHOD structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -158,7 +180,7 @@ EVP_PKEY_ASN1_METHOD, EVP_PKEY_asn1_new, EVP_PKEY_asn1_copy, EVP_PKEY_asn1_free,
 \&
 \& void EVP_PKEY_asn1_set_public(EVP_PKEY_ASN1_METHOD *ameth,
 \&                               int (*pub_decode) (EVP_PKEY *pk,
-\&                                                  X509_PUBKEY *pub),
+\&                                                  const X509_PUBKEY *pub),
 \&                               int (*pub_encode) (X509_PUBKEY *pub,
 \&                                                  const EVP_PKEY *pk),
 \&                               int (*pub_cmp) (const EVP_PKEY *a,
@@ -271,7 +293,7 @@ The methods are the underlying implementations of a particular public
 key algorithm present by the \fB\s-1EVP_PKEY\s0\fR object.
 .PP
 .Vb 5
-\& int (*pub_decode) (EVP_PKEY *pk, X509_PUBKEY *pub);
+\& int (*pub_decode) (EVP_PKEY *pk, const X509_PUBKEY *pub);
 \& int (*pub_encode) (X509_PUBKEY *pub, const EVP_PKEY *pk);
 \& int (*pub_cmp) (const EVP_PKEY *a, const EVP_PKEY *b);
 \& int (*pub_print) (BIO *out, const EVP_PKEY *pkey, int indent,
@@ -286,7 +308,7 @@ They're called by \fBX509_PUBKEY_get0\fR\|(3) and \fBX509_PUBKEY_set\fR\|(3).
 The \fBpub_cmp()\fR method is called when two public keys are to be
 compared.
 It \s-1MUST\s0 return 1 when the keys are equal, 0 otherwise.
-It's called by \fBEVP_PKEY_cmp\fR\|(3).
+It's called by \fBEVP_PKEY_eq\fR\|(3).
 .PP
 The \fBpub_print()\fR method is called to print a public key in humanly
 readable text to \fBout\fR, indented \fBindent\fR spaces.
@@ -317,10 +339,10 @@ It's called by \fBEVP_PKEY_print_private\fR\|(3).
 .Ve
 .PP
 The \fBpkey_size()\fR method returns the key size in bytes.
-It's called by \fBEVP_PKEY_size\fR\|(3).
+It's called by \fBEVP_PKEY_get_size\fR\|(3).
 .PP
 The \fBpkey_bits()\fR method returns the key size in bits.
-It's called by \fBEVP_PKEY_bits\fR\|(3).
+It's called by \fBEVP_PKEY_get_bits\fR\|(3).
 .PP
 .Vb 8
 \& int (*param_decode) (EVP_PKEY *pkey,
@@ -350,7 +372,7 @@ It's called by \fBEVP_PKEY_copy_parameters\fR\|(3).
 The \fBparam_cmp()\fR method compares the parameters of keys \fBa\fR and \fBb\fR.
 It \s-1MUST\s0 return 1 when the keys are equal, 0 when not equal, or a
 negative number on error.
-It's called by \fBEVP_PKEY_cmp_parameters\fR\|(3).
+It's called by \fBEVP_PKEY_parameters_eq\fR\|(3).
 .PP
 The \fBparam_print()\fR method prints the private key parameters in humanly
 readable text to \fBout\fR, indented \fBindent\fR spaces.
@@ -385,8 +407,8 @@ It's called by \fBEVP_PKEY_free\fR\|(3), \fBEVP_PKEY_set_type\fR\|(3),
 .PP
 The \fBpkey_ctrl()\fR method adds extra algorithm specific control.
 It's called by \fBEVP_PKEY_get_default_digest_nid\fR\|(3),
-\&\fBEVP_PKEY_set1_tls_encodedpoint\fR\|(3),
-\&\fBEVP_PKEY_get1_tls_encodedpoint\fR\|(3), \fBPKCS7_SIGNER_INFO_set\fR\|(3),
+\&\fBEVP_PKEY_set1_encoded_public_key\fR\|(3),
+\&\fBEVP_PKEY_get1_encoded_public_key\fR\|(3), \fBPKCS7_SIGNER_INFO_set\fR\|(3),
 \&\fBPKCS7_RECIP_INFO_set\fR\|(3), ...
 .PP
 .Vb 3
@@ -482,6 +504,18 @@ The \fBset_priv_key()\fR and \fBset_pub_key()\fR methods are used to set the raw
 public key data for an \s-1EVP_PKEY.\s0 They \s-1MUST\s0 return 0 on error, or 1 on success.
 They are called by \fBEVP_PKEY_new_raw_private_key\fR\|(3), and
 \&\fBEVP_PKEY_new_raw_public_key\fR\|(3) respectively.
+.PP
+.Vb 2
+\& size_t (*dirty) (const EVP_PKEY *pk);
+\& void *(*export_to) (const EVP_PKEY *pk, EVP_KEYMGMT *keymgmt);
+.Ve
+.PP
+\&\fBdirty_cnt()\fR returns the internal key's dirty count.
+This can be used to synchronise different copies of the same keys.
+.PP
+The \fBexport_to()\fR method exports the key material from the given key to
+a provider, through the \s-1\fBEVP_KEYMGMT\s0\fR\|(3) interface, if that provider
+supports importing key material.
 .SS "Functions"
 .IX Subsection "Functions"
 \&\fBEVP_PKEY_asn1_new()\fR creates and returns a new \fB\s-1EVP_PKEY_ASN1_METHOD\s0\fR
@@ -543,11 +577,16 @@ or 1 on success.
 .PP
 \&\fBEVP_PKEY_get0_asn1()\fR returns \s-1NULL\s0 on error, or a pointer to a constant
 \&\fB\s-1EVP_PKEY_ASN1_METHOD\s0\fR object otherwise.
+.SH "HISTORY"
+.IX Header "HISTORY"
+The signature of the \fIpub_decode\fR functional argument of
+\&\fBEVP_PKEY_asn1_set_public()\fR has changed in OpenSSL 3.0 so its \fIpub\fR
+parameter is now constified.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SESSION_CACHE_MODE 3"
-.TH SSL_CTX_SET_SESSION_CACHE_MODE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_SESSION_CACHE_MODE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -230,6 +230,11 @@ prevents these additions to the internal cache as well.
 .IX Item "SSL_SESS_CACHE_NO_INTERNAL"
 Enable both \s-1SSL_SESS_CACHE_NO_INTERNAL_LOOKUP\s0 and
 \&\s-1SSL_SESS_CACHE_NO_INTERNAL_STORE\s0 at the same time.
+.IP "\s-1SSL_SESS_CACHE_UPDATE_TIME\s0" 4
+.IX Item "SSL_SESS_CACHE_UPDATE_TIME"
+Updates the timestamp of the session when it is used, increasing the lifespan
+of the session. The session timeout applies to last use, rather then creation
+time.
 .PP
 The default mode is \s-1SSL_SESS_CACHE_SERVER.\s0
 .SH "RETURN VALUES"
@@ -250,9 +255,9 @@ The default mode is \s-1SSL_SESS_CACHE_SERVER.\s0
 \&\fBSSL_CTX_flush_sessions\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

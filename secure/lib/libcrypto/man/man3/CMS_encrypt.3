@@ -133,28 +133,33 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_ENCRYPT 3"
-.TH CMS_ENCRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_ENCRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_encrypt \- create a CMS envelopedData structure
+CMS_encrypt_ex, CMS_encrypt \- create a CMS envelopedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
+\& CMS_ContentInfo *CMS_encrypt_ex(STACK_OF(X509) *certs, BIO *in,
+\&                                 const EVP_CIPHER *cipher, unsigned int flags,
+\&                                 OSSL_LIB_CTX *libctx, const char *propq);
 \& CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *in,
 \&                              const EVP_CIPHER *cipher, unsigned int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCMS_encrypt()\fR creates and returns a \s-1CMS\s0 EnvelopedData structure. \fBcerts\fR
-is a list of recipient certificates. \fBin\fR is the content to be encrypted.
-\&\fBcipher\fR is the symmetric cipher to use. \fBflags\fR is an optional set of flags.
-.SH "NOTES"
-.IX Header "NOTES"
+\&\fBCMS_encrypt_ex()\fR creates and returns a \s-1CMS\s0 EnvelopedData or
+AuthEnvelopedData structure. \fIcerts\fR is a list of recipient certificates.
+\&\fIin\fR is the content to be encrypted. \fIcipher\fR is the symmetric cipher to use.
+\&\fIflags\fR is an optional set of flags. The library context \fIlibctx\fR and the
+property query \fIpropq\fR are used internally when retrieving algorithms from
+providers.
+.PP
 Only certificates carrying \s-1RSA,\s0 Diffie-Hellman or \s-1EC\s0 keys are supported by this
 function.
 .PP
@@ -162,7 +167,9 @@ function.
 because most clients will support it.
 .PP
 The algorithm passed in the \fBcipher\fR parameter must support \s-1ASN1\s0 encoding of
-its parameters.
+its parameters. If the cipher mode is \s-1GCM,\s0 then an AuthEnvelopedData structure
+containing \s-1MAC\s0 is used. Otherwise an EnvelopedData structure is used. Currently
+the \s-1AES\s0 variants with \s-1GCM\s0 mode are the only supported \s-1AEAD\s0 algorithms.
 .PP
 Many browsers implement a \*(L"sign and encrypt\*(R" option which is simply an S/MIME
 envelopedData containing an S/MIME signed message. This can be readily produced
@@ -195,8 +202,7 @@ finalization.
 The data being encrypted is included in the CMS_ContentInfo structure, unless
 \&\fB\s-1CMS_DETACHED\s0\fR is set in which case it is omitted. This is rarely used in
 practice and is not supported by \fBSMIME_write_CMS()\fR.
-.SH "NOTES"
-.IX Header "NOTES"
+.PP
 If the flag \fB\s-1CMS_STREAM\s0\fR is set the returned \fBCMS_ContentInfo\fR structure is
 \&\fBnot\fR complete and outputting its contents via a function that does not
 properly finalize the \fBCMS_ContentInfo\fR structure will give unpredictable
@@ -213,21 +219,27 @@ and \fBCMS_add0_recipient_key()\fR.
 .PP
 The parameter \fBcerts\fR may be \s-1NULL\s0 if \fB\s-1CMS_PARTIAL\s0\fR is set and recipients
 added later using \fBCMS_add1_recipient_cert()\fR or \fBCMS_add0_recipient_key()\fR.
+.PP
+\&\fBCMS_encrypt()\fR is similar to \fBCMS_encrypt_ex()\fR but uses default values
+of \s-1NULL\s0 for the library context \fIlibctx\fR and the property query \fIpropq\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBCMS_encrypt()\fR returns either a CMS_ContentInfo structure or \s-1NULL\s0 if an error
-occurred. The error can be obtained from \fBERR_get_error\fR\|(3).
+\&\fBCMS_encrypt_ex()\fR and \fBCMS_encrypt()\fR return either a CMS_ContentInfo
+structure or \s-1NULL\s0 if an error occurred. The error can be obtained from
+\&\fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBCMS_decrypt\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+The function \fBCMS_encrypt_ex()\fR was added in OpenSSL 3.0.
+.PP
 The \fB\s-1CMS_STREAM\s0\fR flag was first supported in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

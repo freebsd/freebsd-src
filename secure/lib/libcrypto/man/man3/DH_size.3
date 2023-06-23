@@ -133,55 +133,70 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_SIZE 3"
-.TH DH_SIZE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_SIZE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_size, DH_bits, DH_security_bits \- get Diffie\-Hellman prime size and security bits
+DH_size, DH_bits, DH_security_bits \- get Diffie\-Hellman prime size and
+security bits
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dh.h>
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& int DH_bits(const DH *dh);
 \&
 \& int DH_size(const DH *dh);
-\&
-\& int DH_bits(const DH *dh);
 \&
 \& int DH_security_bits(const DH *dh);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBDH_size()\fR returns the Diffie-Hellman prime size in bytes. It can be used
-to determine how much memory must be allocated for the shared secret
-computed by \fBDH_compute_key\fR\|(3).
+The functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_get_bits\fR\|(3),
+\&\fBEVP_PKEY_get_security_bits\fR\|(3) and \fBEVP_PKEY_get_size\fR\|(3).
 .PP
 \&\fBDH_bits()\fR returns the number of significant bits.
 .PP
 \&\fBdh\fR and \fBdh\->p\fR must not be \fB\s-1NULL\s0\fR.
 .PP
+\&\fBDH_size()\fR returns the Diffie-Hellman prime size in bytes. It can be used
+to determine how much memory must be allocated for the shared secret
+computed by \fBDH_compute_key\fR\|(3).
+.PP
 \&\fBDH_security_bits()\fR returns the number of security bits of the given \fBdh\fR
 key. See \fBBN_security_bits\fR\|(3).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBDH_size()\fR returns the prime size of Diffie-Hellman in bytes.
+\&\fBDH_bits()\fR returns the number of bits in the key, or \-1 if
+\&\fBdh\fR doesn't hold any key parameters.
 .PP
-\&\fBDH_bits()\fR returns the number of bits in the key.
+\&\fBDH_size()\fR returns the prime size of Diffie-Hellman in bytes, or \-1 if
+\&\fBdh\fR doesn't hold any key parameters.
 .PP
-\&\fBDH_security_bits()\fR returns the number of security bits.
+\&\fBDH_security_bits()\fR returns the number of security bits, or \-1 if
+\&\fBdh\fR doesn't hold any key parameters.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBEVP_PKEY_get_bits\fR\|(3),
 \&\fBDH_new\fR\|(3), \fBDH_generate_key\fR\|(3),
 \&\fBBN_num_bits\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \fBDH_bits()\fR function was added in OpenSSL 1.1.0.
+All functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

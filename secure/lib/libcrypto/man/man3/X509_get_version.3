@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET_VERSION 3"
-.TH X509_GET_VERSION 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_GET_VERSION 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_get_version, X509_set_version, X509_REQ_get_version, X509_REQ_set_version, X509_CRL_get_version, X509_CRL_set_version \- get or set certificate, certificate request or CRL version
+X509_get_version, X509_set_version, X509_REQ_get_version, X509_REQ_set_version,
+X509_CRL_get_version, X509_CRL_set_version \- get or set certificate,
+certificate request or CRL version
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -157,16 +159,18 @@ X509_get_version, X509_set_version, X509_REQ_get_version, X509_REQ_set_version, 
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBX509_get_version()\fR returns the numerical value of the version field of
-certificate \fBx\fR. Note: this is defined by standards (X.509 et al) to be one
-less than the certificate version. So a version 3 certificate will return 2 and
-a version 1 certificate will return 0.
+certificate \fBx\fR. These correspond to the constants \fBX509_VERSION_1\fR,
+\&\fBX509_VERSION_2\fR, and \fBX509_VERSION_3\fR. Note: the values of these constants
+are defined by standards (X.509 et al) to be one less than the certificate
+version. So \fBX509_VERSION_3\fR has value 2 and \fBX509_VERSION_1\fR has value 0.
 .PP
 \&\fBX509_set_version()\fR sets the numerical value of the version field of certificate
 \&\fBx\fR to \fBversion\fR.
 .PP
 Similarly \fBX509_REQ_get_version()\fR, \fBX509_REQ_set_version()\fR,
 \&\fBX509_CRL_get_version()\fR and \fBX509_CRL_set_version()\fR get and set the version
-number of certificate requests and CRLs.
+number of certificate requests and CRLs. They use constants
+\&\fBX509_REQ_VERSION_1\fR, \fBX509_CRL_VERSION_1\fR, and \fBX509_CRL_VERSION_2\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 The version field of certificates, certificate requests and CRLs has a
@@ -203,9 +207,9 @@ return 1 for success and 0 for failure.
 functions in OpenSSL 1.1.0, in previous versions they were macros.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

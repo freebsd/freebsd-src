@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EC_POINT_ADD 3"
-.TH EC_POINT_ADD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EC_POINT_ADD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -152,13 +152,20 @@ EC_POINT_add, EC_POINT_dbl, EC_POINT_invert, EC_POINT_is_at_infinity, EC_POINT_i
 \& int EC_POINT_is_at_infinity(const EC_GROUP *group, const EC_POINT *p);
 \& int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point, BN_CTX *ctx);
 \& int EC_POINT_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx);
+\& int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n,
+\&                  const EC_POINT *q, const BIGNUM *m, BN_CTX *ctx);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 7
 \& int EC_POINT_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx);
 \& int EC_POINTs_make_affine(const EC_GROUP *group, size_t num,
 \&                           EC_POINT *points[], BN_CTX *ctx);
 \& int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n, size_t num,
 \&                   const EC_POINT *p[], const BIGNUM *m[], BN_CTX *ctx);
-\& int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n,
-\&                  const EC_POINT *q, const BIGNUM *m, BN_CTX *ctx);
 \& int EC_GROUP_precompute_mult(EC_GROUP *group, BN_CTX *ctx);
 \& int EC_GROUP_have_precompute_mult(const EC_GROUP *group);
 .Ve
@@ -176,19 +183,24 @@ EC_POINT_is_on_curve tests whether the supplied point is on the curve or not.
 EC_POINT_cmp compares the two supplied points and tests whether or not they are equal.
 .PP
 The functions EC_POINT_make_affine and EC_POINTs_make_affine force the internal representation of the \s-1EC_POINT\s0(s) into the affine
-co-ordinate system. In the case of EC_POINTs_make_affine the value \fBnum\fR provides the number of points in the array \fBpoints\fR to be
-forced.
+coordinate system. In the case of EC_POINTs_make_affine the value \fBnum\fR provides the number of points in the array \fBpoints\fR to be
+forced. These functions were deprecated in OpenSSL 3.0 and should no longer be used.
+Modern versions automatically perform this conversion when needed.
 .PP
-EC_POINT_mul is a convenient interface to EC_POINTs_mul: it calculates the value generator * \fBn\fR + \fBq\fR * \fBm\fR and stores the result in \fBr\fR.
+EC_POINT_mul calculates the value generator * \fBn\fR + \fBq\fR * \fBm\fR and stores the result in \fBr\fR.
 The value \fBn\fR may be \s-1NULL\s0 in which case the result is just \fBq\fR * \fBm\fR (variable point multiplication). Alternatively, both \fBq\fR and \fBm\fR may be \s-1NULL,\s0 and \fBn\fR non-NULL, in which case the result is just generator * \fBn\fR (fixed point multiplication).
 When performing a single fixed or variable point multiplication, the underlying implementation uses a constant time algorithm, when the input scalar (either \fBn\fR or \fBm\fR) is in the range [0, ec_group_order).
 .PP
+Although deprecated in OpenSSL 3.0 and should no longer be used,
 EC_POINTs_mul calculates the value generator * \fBn\fR + \fBq[0]\fR * \fBm[0]\fR + ... + \fBq[num\-1]\fR * \fBm[num\-1]\fR. As for EC_POINT_mul the value \fBn\fR may be \s-1NULL\s0 or \fBnum\fR may be zero.
 When performing a fixed point multiplication (\fBn\fR is non-NULL and \fBnum\fR is 0) or a variable point multiplication (\fBn\fR is \s-1NULL\s0 and \fBnum\fR is 1), the underlying implementation uses a constant time algorithm, when the input scalar (either \fBn\fR or \fBm[0]\fR) is in the range [0, ec_group_order).
+Modern versions should instead use \fBEC_POINT_mul()\fR, combined (if needed) with \fBEC_POINT_add()\fR in such rare circumstances.
 .PP
 The function EC_GROUP_precompute_mult stores multiples of the generator for faster point multiplication, whilst
 EC_GROUP_have_precompute_mult tests whether precomputation has already been done. See \fBEC_GROUP_copy\fR\|(3) for information
-about the generator.
+about the generator. Precomputation functionality was deprecated in OpenSSL 3.0.
+Users of \fBEC_GROUP_precompute_mult()\fR and \fBEC_GROUP_have_precompute_mult()\fR should
+switch to named curves which OpenSSL has hardcoded lookup tables for.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The following functions return 1 on success or 0 on error: EC_POINT_add, EC_POINT_dbl, EC_POINT_invert, EC_POINT_make_affine,
@@ -206,11 +218,16 @@ EC_GROUP_have_precompute_mult return 1 if a precomputation has been done, or 0 i
 \&\fBcrypto\fR\|(7), \fBEC_GROUP_new\fR\|(3), \fBEC_GROUP_copy\fR\|(3),
 \&\fBEC_POINT_new\fR\|(3), \fBEC_KEY_new\fR\|(3),
 \&\fBEC_GFp_simple_method\fR\|(3), \fBd2i_ECPKParameters\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBEC_POINT_make_affine()\fR, \fBEC_POINTs_make_affine()\fR, \fBEC_POINTs_mul()\fR,
+\&\fBEC_GROUP_precompute_mult()\fR, and \fBEC_GROUP_have_precompute_mult()\fR
+were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

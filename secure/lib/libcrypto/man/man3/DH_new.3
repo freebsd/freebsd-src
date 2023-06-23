@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_NEW 3"
-.TH DH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,7 +144,13 @@ DH_new, DH_free \- allocate and free DH objects
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dh.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& DH* DH_new(void);
 \&
 \& void DH_free(DH *dh);
@@ -167,12 +173,18 @@ a pointer to the newly allocated structure.
 .IX Header "SEE ALSO"
 \&\fBDH_new\fR\|(3), \fBERR_get_error\fR\|(3),
 \&\fBDH_generate_parameters\fR\|(3),
-\&\fBDH_generate_key\fR\|(3)
+\&\fBDH_generate_key\fR\|(3),
+\&\s-1\fBEVP_PKEY\-DH\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
+For replacement see \s-1\fBEVP_PKEY\-DH\s0\fR\|(7).
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,18 +133,34 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_MD_METH_NEW 3"
-.TH EVP_MD_METH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_MD_METH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_MD_meth_dup, EVP_MD_meth_new, EVP_MD_meth_free, EVP_MD_meth_set_input_blocksize, EVP_MD_meth_set_result_size, EVP_MD_meth_set_app_datasize, EVP_MD_meth_set_flags, EVP_MD_meth_set_init, EVP_MD_meth_set_update, EVP_MD_meth_set_final, EVP_MD_meth_set_copy, EVP_MD_meth_set_cleanup, EVP_MD_meth_set_ctrl, EVP_MD_meth_get_input_blocksize, EVP_MD_meth_get_result_size, EVP_MD_meth_get_app_datasize, EVP_MD_meth_get_flags, EVP_MD_meth_get_init, EVP_MD_meth_get_update, EVP_MD_meth_get_final, EVP_MD_meth_get_copy, EVP_MD_meth_get_cleanup, EVP_MD_meth_get_ctrl \&\- Routines to build up EVP_MD methods
+EVP_MD_meth_new, EVP_MD_meth_dup, EVP_MD_meth_free,
+EVP_MD_meth_set_input_blocksize,
+EVP_MD_meth_set_result_size, EVP_MD_meth_set_app_datasize,
+EVP_MD_meth_set_flags, EVP_MD_meth_set_init, EVP_MD_meth_set_update,
+EVP_MD_meth_set_final, EVP_MD_meth_set_copy, EVP_MD_meth_set_cleanup,
+EVP_MD_meth_set_ctrl, EVP_MD_meth_get_input_blocksize,
+EVP_MD_meth_get_result_size, EVP_MD_meth_get_app_datasize,
+EVP_MD_meth_get_flags, EVP_MD_meth_get_init, EVP_MD_meth_get_update,
+EVP_MD_meth_get_final, EVP_MD_meth_get_copy, EVP_MD_meth_get_cleanup,
+EVP_MD_meth_get_ctrl
+\&\- Routines to build up legacy EVP_MD methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 3
 \& EVP_MD *EVP_MD_meth_new(int md_type, int pkey_type);
 \& void EVP_MD_meth_free(EVP_MD *md);
 \& EVP_MD *EVP_MD_meth_dup(const EVP_MD *md);
@@ -183,15 +199,20 @@ EVP_MD_meth_dup, EVP_MD_meth_new, EVP_MD_meth_free, EVP_MD_meth_set_input_blocks
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the \s-1OSSL_PROVIDER\s0 APIs.
+.PP
 The \fB\s-1EVP_MD\s0\fR type is a structure for digest method implementation.
 It can also have associated public/private key signing and verifying
 routines.
 .PP
 \&\fBEVP_MD_meth_new()\fR creates a new \fB\s-1EVP_MD\s0\fR structure.
+These \fB\s-1EVP_MD\s0\fR structures are reference counted.
 .PP
 \&\fBEVP_MD_meth_dup()\fR creates a copy of \fBmd\fR.
 .PP
-\&\fBEVP_MD_meth_free()\fR destroys a \fB\s-1EVP_MD\s0\fR structure.
+\&\fBEVP_MD_meth_free()\fR decrements the reference count for the \fB\s-1EVP_MD\s0\fR structure.
+If the reference count drops to 0 then the structure is freed.
 .PP
 \&\fBEVP_MD_meth_set_input_blocksize()\fR sets the internal input block size
 for the method \fBmd\fR to \fBblocksize\fR bytes.
@@ -252,7 +273,7 @@ computations after the method's private data structure has been copied
 from one \fB\s-1EVP_MD_CTX\s0\fR to another.  If all that's needed is to copy
 the data, there is no need for this copy function.
 Note that the copy function is passed two \fB\s-1EVP_MD_CTX\s0 *\fR, the private
-data structure is then available with \fBEVP_MD_CTX_md_data()\fR.
+data structure is then available with \fBEVP_MD_CTX_get0_md_data()\fR.
 This copy function is called by \fBEVP_MD_CTX_copy()\fR and
 \&\fBEVP_MD_CTX_copy_ex()\fR.
 .PP
@@ -260,7 +281,7 @@ This copy function is called by \fBEVP_MD_CTX_copy()\fR and
 cleanup before the method's private data structure is cleaned out and
 freed.
 Note that the cleanup function is passed a \fB\s-1EVP_MD_CTX\s0 *\fR, the
-private data structure is then available with \fBEVP_MD_CTX_md_data()\fR.
+private data structure is then available with \fBEVP_MD_CTX_get0_md_data()\fR.
 This cleanup function is called by \fBEVP_MD_CTX_reset()\fR and
 \&\fBEVP_MD_CTX_free()\fR.
 .PP
@@ -289,13 +310,18 @@ respective \fBmd\fR function.
 \&\fBEVP_DigestInit\fR\|(3), \fBEVP_SignInit\fR\|(3), \fBEVP_VerifyInit\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 The \fB\s-1EVP_MD\s0\fR structure was openly available in OpenSSL before version
-1.1.  The functions described here were added in OpenSSL 1.1.
+1.1.
+The functions described here were added in OpenSSL 1.1.
+The \fB\s-1EVP_MD\s0\fR structure created with these functions became reference
+counted in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

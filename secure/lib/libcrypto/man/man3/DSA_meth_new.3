@@ -133,18 +133,32 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_METH_NEW 3"
-.TH DSA_METH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_METH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DSA_meth_new, DSA_meth_free, DSA_meth_dup, DSA_meth_get0_name, DSA_meth_set1_name, DSA_meth_get_flags, DSA_meth_set_flags, DSA_meth_get0_app_data, DSA_meth_set0_app_data, DSA_meth_get_sign, DSA_meth_set_sign, DSA_meth_get_sign_setup, DSA_meth_set_sign_setup, DSA_meth_get_verify, DSA_meth_set_verify, DSA_meth_get_mod_exp, DSA_meth_set_mod_exp, DSA_meth_get_bn_mod_exp, DSA_meth_set_bn_mod_exp, DSA_meth_get_init, DSA_meth_set_init, DSA_meth_get_finish, DSA_meth_set_finish, DSA_meth_get_paramgen, DSA_meth_set_paramgen, DSA_meth_get_keygen, DSA_meth_set_keygen \- Routines to build up DSA methods
+DSA_meth_new, DSA_meth_free, DSA_meth_dup, DSA_meth_get0_name,
+DSA_meth_set1_name, DSA_meth_get_flags, DSA_meth_set_flags,
+DSA_meth_get0_app_data, DSA_meth_set0_app_data, DSA_meth_get_sign,
+DSA_meth_set_sign, DSA_meth_get_sign_setup, DSA_meth_set_sign_setup,
+DSA_meth_get_verify, DSA_meth_set_verify, DSA_meth_get_mod_exp,
+DSA_meth_set_mod_exp, DSA_meth_get_bn_mod_exp, DSA_meth_set_bn_mod_exp,
+DSA_meth_get_init, DSA_meth_set_init, DSA_meth_get_finish, DSA_meth_set_finish,
+DSA_meth_get_paramgen, DSA_meth_set_paramgen, DSA_meth_get_keygen,
+DSA_meth_set_keygen \- Routines to build up DSA methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& DSA_METHOD *DSA_meth_new(const char *name, int flags);
 \&
 \& void DSA_meth_free(DSA_METHOD *dsam);
@@ -215,10 +229,13 @@ DSA_meth_new, DSA_meth_free, DSA_meth_dup, DSA_meth_get0_name, DSA_meth_set1_nam
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications and extension implementations should instead use the
+\&\s-1OSSL_PROVIDER\s0 APIs.
+.PP
 The \fB\s-1DSA_METHOD\s0\fR type is a structure used for the provision of custom \s-1DSA\s0
 implementations. It provides a set of functions used by OpenSSL for the
-implementation of the various \s-1DSA\s0 capabilities. See the dsa page for more
-information.
+implementation of the various \s-1DSA\s0 capabilities.
 .PP
 \&\fBDSA_meth_new()\fR creates a new \fB\s-1DSA_METHOD\s0\fR structure. It should be given a
 unique \fBname\fR and a set of \fBflags\fR. The \fBname\fR should be a \s-1NULL\s0 terminated
@@ -331,12 +348,14 @@ set.
 \&\fBDSA_sign\fR\|(3), \fBDSA_size\fR\|(3), \fBDSA_get0_pqg\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+The functions described here were deprecated in OpenSSL 3.0.
+.PP
 The functions described here were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.
