@@ -1,5 +1,14 @@
 # $FreeBSD$
 
+# ensure libc functions are tested, not clang's builtins
+CFLAGS+=	-fno-builtin
+
+ATF_TESTS_C+=		ffs_test
+ATF_TESTS_C+=		ffsl_test
+ATF_TESTS_C+=		ffsll_test
+ATF_TESTS_C+=		fls_test
+ATF_TESTS_C+=		flsl_test
+ATF_TESTS_C+=		flsll_test
 ATF_TESTS_C+=		memcmp_test
 ATF_TESTS_C+=		memset_s_test
 ATF_TESTS_C+=		stpncpy_test
