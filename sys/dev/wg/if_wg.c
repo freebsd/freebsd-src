@@ -2996,7 +2996,8 @@ wg_module_init(void)
 	ret = crypto_init();
 	if (ret != 0)
 		goto free_zone;
-	if (cookie_init() != 0)
+	ret = cookie_init();
+	if (ret != 0)
 		goto free_crypto;
 
 	wg_osd_jail_slot = osd_jail_register(NULL, methods);
