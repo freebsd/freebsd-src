@@ -414,7 +414,9 @@ smmu_pmap_pinit(struct smmu_pmap *pmap)
 	pmap->sp_l0_paddr = VM_PAGE_TO_PHYS(m);
 	pmap->sp_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->sp_l0_paddr);
 
+#ifdef INVARIANTS
 	pmap->sp_resident_count = 0;
+#endif
 	mtx_init(&pmap->sp_mtx, "smmu pmap", NULL, MTX_DEF);
 
 	return (1);
