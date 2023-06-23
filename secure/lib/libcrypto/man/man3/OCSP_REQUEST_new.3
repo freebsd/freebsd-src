@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_REQUEST_NEW 3"
-.TH OCSP_REQUEST_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OCSP_REQUEST_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OCSP_REQUEST_new, OCSP_REQUEST_free, OCSP_request_add0_id, OCSP_request_sign, OCSP_request_add1_cert, OCSP_request_onereq_count, OCSP_request_onereq_get0 \- OCSP request functions
+OCSP_REQUEST_new, OCSP_REQUEST_free, OCSP_request_add0_id, OCSP_request_sign,
+OCSP_request_add1_cert, OCSP_request_onereq_count,
+OCSP_request_onereq_get0 \- OCSP request functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -196,7 +198,7 @@ or \fB\s-1NULL\s0\fR if an error occurred.
 for failure.
 .PP
 \&\fBOCSP_request_onereq_count()\fR returns the total number of \fB\s-1OCSP_ONEREQ\s0\fR
-structures in \fBreq\fR.
+structures in \fBreq\fR and \-1 on error.
 .PP
 \&\fBOCSP_request_onereq_get0()\fR returns a pointer to an \fB\s-1OCSP_ONEREQ\s0\fR structure
 or \fB\s-1NULL\s0\fR if the index value is out or range.
@@ -240,9 +242,9 @@ Create an \fB\s-1OCSP_REQUEST\s0\fR structure for certificate \fBcert\fR with is
 \&\fBOCSP_sendreq_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

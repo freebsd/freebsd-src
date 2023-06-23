@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_BN2BIN 3"
-.TH BN_BN2BIN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BN_BN2BIN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_bn2binpad, BN_bn2bin, BN_bin2bn, BN_bn2lebinpad, BN_lebin2bn, BN_bn2hex, BN_bn2dec, BN_hex2bn, BN_dec2bn, BN_print, BN_print_fp, BN_bn2mpi, BN_mpi2bn \- format conversions
+BN_bn2binpad,
+BN_bn2bin, BN_bin2bn, BN_bn2lebinpad, BN_lebin2bn,
+BN_bn2nativepad, BN_native2bn, BN_bn2hex, BN_bn2dec, BN_hex2bn, BN_dec2bn,
+BN_print, BN_print_fp, BN_bn2mpi, BN_mpi2bn \- format conversions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -151,6 +154,9 @@ BN_bn2binpad, BN_bn2bin, BN_bin2bn, BN_bn2lebinpad, BN_lebin2bn, BN_bn2hex, BN_b
 \&
 \& int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen);
 \& BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret);
+\&
+\& int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen);
+\& BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret);
 \&
 \& char *BN_bn2hex(const BIGNUM *a);
 \& char *BN_bn2dec(const BIGNUM *a);
@@ -180,6 +186,11 @@ BN_num_bytes(\fBa\fR) an error is returned.
 .PP
 \&\fBBN_bn2lebinpad()\fR and \fBBN_lebin2bn()\fR are identical to \fBBN_bn2binpad()\fR and
 \&\fBBN_bin2bn()\fR except the buffer is in little-endian format.
+.PP
+\&\fBBN_bn2nativepad()\fR and \fBBN_native2bn()\fR are identical to \fBBN_bn2binpad()\fR and
+\&\fBBN_bin2bn()\fR except the buffer is in native format, i.e. most significant
+byte first on big-endian platforms, and least significant byte first on
+little-endian platforms.
 .PP
 \&\fBBN_bn2hex()\fR and \fBBN_bn2dec()\fR return printable strings containing the
 hexadecimal and decimal encoding of \fBa\fR respectively. For negative
@@ -216,10 +227,10 @@ if \fBret\fR is \s-1NULL.\s0
 \&\fBBN_bn2bin()\fR returns the length of the big-endian number placed at \fBto\fR.
 \&\fBBN_bin2bn()\fR returns the \fB\s-1BIGNUM\s0\fR, \s-1NULL\s0 on error.
 .PP
-\&\fBBN_bn2binpad()\fR returns the number of bytes written or \-1 if the supplied
+\&\fBBN_bn2binpad()\fR, \fBBN_bn2lebinpad()\fR, and \fBBN_bn2nativepad()\fR return the number of bytes written or \-1 if the supplied
 buffer is too small.
 .PP
-\&\fBBN_bn2hex()\fR and \fBBN_bn2dec()\fR return a null-terminated string, or \s-1NULL\s0
+\&\fBBN_bn2hex()\fR and \fBBN_bn2dec()\fR return a NUL-terminated string, or \s-1NULL\s0
 on error. \fBBN_hex2bn()\fR and \fBBN_dec2bn()\fR return the number of characters
 used in parsing, or 0 on error, in which
 case no new \fB\s-1BIGNUM\s0\fR will be created.
@@ -237,9 +248,9 @@ The error codes can be obtained by \fBERR_get_error\fR\|(3).
 \&\fBBN_num_bytes\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

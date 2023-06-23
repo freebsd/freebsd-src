@@ -133,18 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "MD5 3"
-.TH MD5 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH MD5 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-MD2, MD4, MD5, MD2_Init, MD2_Update, MD2_Final, MD4_Init, MD4_Update, MD4_Final, MD5_Init, MD5_Update, MD5_Final \- MD2, MD4, and MD5 hash functions
+MD2, MD4, MD5, MD2_Init, MD2_Update, MD2_Final, MD4_Init, MD4_Update,
+MD4_Final, MD5_Init, MD5_Update, MD5_Final \- MD2, MD4, and MD5 hash functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/md2.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& unsigned char *MD2(const unsigned char *d, unsigned long n, unsigned char *md);
 \&
 \& int MD2_Init(MD2_CTX *c);
@@ -153,7 +160,13 @@ MD2, MD4, MD5, MD2_Init, MD2_Update, MD2_Final, MD4_Init, MD4_Update, MD4_Final,
 \&
 \&
 \& #include <openssl/md4.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& unsigned char *MD4(const unsigned char *d, unsigned long n, unsigned char *md);
 \&
 \& int MD4_Init(MD4_CTX *c);
@@ -162,7 +175,13 @@ MD2, MD4, MD5, MD2_Init, MD2_Update, MD2_Final, MD4_Init, MD4_Update, MD4_Final,
 \&
 \&
 \& #include <openssl/md5.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& unsigned char *MD5(const unsigned char *d, unsigned long n, unsigned char *md);
 \&
 \& int MD5_Init(MD5_CTX *c);
@@ -171,6 +190,10 @@ MD2, MD4, MD5, MD2_Init, MD2_Update, MD2_Final, MD4_Init, MD4_Update, MD4_Final,
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_DigestInit_ex\fR\|(3), \fBEVP_DigestUpdate\fR\|(3)
+and \fBEVP_DigestFinal_ex\fR\|(3).
+.PP
 \&\s-1MD2, MD4,\s0 and \s-1MD5\s0 are cryptographic hash functions with a 128 bit output.
 .PP
 \&\s-1\fBMD2\s0()\fR, \s-1\fBMD4\s0()\fR, and \s-1\fBMD5\s0()\fR compute the \s-1MD2, MD4,\s0 and \s-1MD5\s0 message digest
@@ -199,8 +222,8 @@ etc. instead of calling the hash functions directly.
 .SH "NOTE"
 .IX Header "NOTE"
 \&\s-1MD2, MD4,\s0 and \s-1MD5\s0 are recommended only for compatibility with existing
-applications. In new applications, \s-1SHA\-1\s0 or \s-1RIPEMD\-160\s0 should be
-preferred.
+applications. In new applications, hashes from the \s-1SHA\-2\s0 or \s-1SHA\-3\s0 family
+should be preferred.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\s-1\fBMD2\s0()\fR, \s-1\fBMD4\s0()\fR, and \s-1\fBMD5\s0()\fR return pointers to the hash value.
@@ -213,12 +236,15 @@ success, 0 otherwise.
 \&\s-1RFC 1319, RFC 1320, RFC 1321\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBEVP_DigestInit\fR\|(3)
+\&\fBEVP_DigestInit\fR\|(3), \s-1\fBEVP_MD\-SHA2\s0\fR\|(7), \s-1\fBEVP_MD\-SHA3\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

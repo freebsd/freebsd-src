@@ -133,75 +133,93 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_MALLOC 3"
-.TH OPENSSL_MALLOC 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OPENSSL_MALLOC 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OPENSSL_malloc_init, OPENSSL_malloc, OPENSSL_zalloc, OPENSSL_realloc, OPENSSL_free, OPENSSL_clear_realloc, OPENSSL_clear_free, OPENSSL_cleanse, CRYPTO_malloc, CRYPTO_zalloc, CRYPTO_realloc, CRYPTO_free, OPENSSL_strdup, OPENSSL_strndup, OPENSSL_memdup, OPENSSL_strlcpy, OPENSSL_strlcat, OPENSSL_hexstr2buf, OPENSSL_buf2hexstr, OPENSSL_hexchar2int, CRYPTO_strdup, CRYPTO_strndup, OPENSSL_mem_debug_push, OPENSSL_mem_debug_pop, CRYPTO_mem_debug_push, CRYPTO_mem_debug_pop, CRYPTO_clear_realloc, CRYPTO_clear_free, CRYPTO_get_mem_functions, CRYPTO_set_mem_functions, CRYPTO_get_alloc_counts, CRYPTO_set_mem_debug, CRYPTO_mem_ctrl, CRYPTO_mem_leaks, CRYPTO_mem_leaks_fp, CRYPTO_mem_leaks_cb, OPENSSL_MALLOC_FAILURES, OPENSSL_MALLOC_FD \&\- Memory allocation functions
+OPENSSL_malloc_init,
+OPENSSL_malloc, OPENSSL_zalloc, OPENSSL_realloc, OPENSSL_free,
+OPENSSL_clear_realloc, OPENSSL_clear_free, OPENSSL_cleanse,
+CRYPTO_malloc, CRYPTO_zalloc, CRYPTO_realloc, CRYPTO_free,
+OPENSSL_strdup, OPENSSL_strndup,
+OPENSSL_memdup, OPENSSL_strlcpy, OPENSSL_strlcat,
+CRYPTO_strdup, CRYPTO_strndup,
+OPENSSL_mem_debug_push, OPENSSL_mem_debug_pop,
+CRYPTO_mem_debug_push, CRYPTO_mem_debug_pop,
+CRYPTO_clear_realloc, CRYPTO_clear_free,
+CRYPTO_malloc_fn, CRYPTO_realloc_fn, CRYPTO_free_fn,
+CRYPTO_get_mem_functions, CRYPTO_set_mem_functions,
+CRYPTO_get_alloc_counts,
+CRYPTO_set_mem_debug, CRYPTO_mem_ctrl,
+CRYPTO_mem_leaks, CRYPTO_mem_leaks_fp, CRYPTO_mem_leaks_cb,
+OPENSSL_MALLOC_FAILURES,
+OPENSSL_MALLOC_FD
+\&\- Memory allocation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/crypto.h>
 \&
-\& int OPENSSL_malloc_init(void)
+\& int OPENSSL_malloc_init(void);
 \&
-\& void *OPENSSL_malloc(size_t num)
-\& void *OPENSSL_zalloc(size_t num)
-\& void *OPENSSL_realloc(void *addr, size_t num)
-\& void OPENSSL_free(void *addr)
-\& char *OPENSSL_strdup(const char *str)
-\& char *OPENSSL_strndup(const char *str, size_t s)
+\& void *OPENSSL_malloc(size_t num);
+\& void *OPENSSL_zalloc(size_t num);
+\& void *OPENSSL_realloc(void *addr, size_t num);
+\& void OPENSSL_free(void *addr);
+\& char *OPENSSL_strdup(const char *str);
+\& char *OPENSSL_strndup(const char *str, size_t s);
 \& size_t OPENSSL_strlcat(char *dst, const char *src, size_t size);
 \& size_t OPENSSL_strlcpy(char *dst, const char *src, size_t size);
-\& void *OPENSSL_memdup(void *data, size_t s)
-\& void *OPENSSL_clear_realloc(void *p, size_t old_len, size_t num)
-\& void OPENSSL_clear_free(void *str, size_t num)
+\& void *OPENSSL_memdup(void *data, size_t s);
+\& void *OPENSSL_clear_realloc(void *p, size_t old_len, size_t num);
+\& void OPENSSL_clear_free(void *str, size_t num);
 \& void OPENSSL_cleanse(void *ptr, size_t len);
 \&
-\& unsigned char *OPENSSL_hexstr2buf(const char *str, long *len);
-\& char *OPENSSL_buf2hexstr(const unsigned char *buffer, long len);
-\& int OPENSSL_hexchar2int(unsigned char c);
-\&
-\& void *CRYPTO_malloc(size_t num, const char *file, int line)
-\& void *CRYPTO_zalloc(size_t num, const char *file, int line)
-\& void *CRYPTO_realloc(void *p, size_t num, const char *file, int line)
-\& void CRYPTO_free(void *str, const char *, int)
-\& char *CRYPTO_strdup(const char *p, const char *file, int line)
-\& char *CRYPTO_strndup(const char *p, size_t num, const char *file, int line)
+\& void *CRYPTO_malloc(size_t num, const char *file, int line);
+\& void *CRYPTO_zalloc(size_t num, const char *file, int line);
+\& void *CRYPTO_realloc(void *p, size_t num, const char *file, int line);
+\& void CRYPTO_free(void *str, const char *, int);
+\& char *CRYPTO_strdup(const char *p, const char *file, int line);
+\& char *CRYPTO_strndup(const char *p, size_t num, const char *file, int line);
 \& void *CRYPTO_clear_realloc(void *p, size_t old_len, size_t num,
-\&                            const char *file, int line)
-\& void CRYPTO_clear_free(void *str, size_t num, const char *, int)
+\&                            const char *file, int line);
+\& void CRYPTO_clear_free(void *str, size_t num, const char *, int);
 \&
-\& void CRYPTO_get_mem_functions(
-\&         void *(**m)(size_t, const char *, int),
-\&         void *(**r)(void *, size_t, const char *, int),
-\&         void (**f)(void *, const char *, int))
-\& int CRYPTO_set_mem_functions(
-\&         void *(*m)(size_t, const char *, int),
-\&         void *(*r)(void *, size_t, const char *, int),
-\&         void (*f)(void *, const char *, int))
+\& typedef void *(*CRYPTO_malloc_fn)(size_t num, const char *file, int line);
+\& typedef void *(*CRYPTO_realloc_fn)(void *addr, size_t num, const char *file,
+\&                                    int line);
+\& typedef void (*CRYPTO_free_fn)(void *addr, const char *file, int line);
+\& void CRYPTO_get_mem_functions(CRYPTO_malloc_fn *malloc_fn,
+\&                               CRYPTO_realloc_fn *realloc_fn,
+\&                               CRYPTO_free_fn *free_fn);
+\& int CRYPTO_set_mem_functions(CRYPTO_malloc_fn malloc_fn,
+\&                              CRYPTO_realloc_fn realloc_fn,
+\&                              CRYPTO_free_fn free_fn);
 \&
-\& void CRYPTO_get_alloc_counts(int *m, int *r, int *f)
-\&
-\& int CRYPTO_set_mem_debug(int onoff)
+\& void CRYPTO_get_alloc_counts(int *mcount, int *rcount, int *fcount);
 \&
 \& env OPENSSL_MALLOC_FAILURES=... <application>
 \& env OPENSSL_MALLOC_FD=... <application>
-\&
-\& int CRYPTO_mem_ctrl(int mode);
-\&
-\& int OPENSSL_mem_debug_push(const char *info)
-\& int OPENSSL_mem_debug_pop(void);
-\&
-\& int CRYPTO_mem_debug_push(const char *info, const char *file, int line);
-\& int CRYPTO_mem_debug_pop(void);
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
 \& int CRYPTO_mem_leaks(BIO *b);
 \& int CRYPTO_mem_leaks_fp(FILE *fp);
 \& int CRYPTO_mem_leaks_cb(int (*cb)(const char *str, size_t len, void *u),
 \&                         void *u);
+\&
+\& int CRYPTO_set_mem_debug(int onoff);
+\& int CRYPTO_mem_ctrl(int mode);
+\& int OPENSSL_mem_debug_push(const char *info);
+\& int OPENSSL_mem_debug_pop(void);
+\& int CRYPTO_mem_debug_push(const char *info, const char *file, int line);
+\& int CRYPTO_mem_debug_pop(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -238,61 +256,17 @@ equivalent C functions, except that memory is allocated by calling the
 \&\fBOPENSSL_strlcat()\fR and \fBOPENSSL_strnlen()\fR are equivalents of the common C
 library functions and are provided for portability.
 .PP
-\&\fBOPENSSL_hexstr2buf()\fR parses \fBstr\fR as a hex string and returns a
-pointer to the parsed value. The memory is allocated by calling
-\&\fBOPENSSL_malloc()\fR and should be released by calling \fBOPENSSL_free()\fR.
-If \fBlen\fR is not \s-1NULL,\s0 it is filled in with the output length.
-Colons between two-character hex \*(L"bytes\*(R" are ignored.
-An odd number of hex digits is an error.
-.PP
-\&\fBOPENSSL_buf2hexstr()\fR takes the specified buffer and length, and returns
-a hex string for value, or \s-1NULL\s0 on error.
-\&\fBBuffer\fR cannot be \s-1NULL\s0; if \fBlen\fR is 0 an empty string is returned.
-.PP
-\&\fBOPENSSL_hexchar2int()\fR converts a character to the hexadecimal equivalent,
-or returns \-1 on error.
-.PP
 If no allocations have been done, it is possible to \*(L"swap out\*(R" the default
-implementations for \fBOPENSSL_malloc()\fR, OPENSSL_realloc and \fBOPENSSL_free()\fR
-and replace them with alternate versions (hooks).
+implementations for \fBOPENSSL_malloc()\fR, \fBOPENSSL_realloc()\fR and \fBOPENSSL_free()\fR
+and replace them with alternate versions.
 \&\fBCRYPTO_get_mem_functions()\fR function fills in the given arguments with the
 function pointers for the current implementations.
 With \fBCRYPTO_set_mem_functions()\fR, you can specify a different set of functions.
-If any of \fBm\fR, \fBr\fR, or \fBf\fR are \s-1NULL,\s0 then the function is not changed.
-.PP
-The default implementation can include some debugging capability (if enabled
-at build-time).
-This adds some overhead by keeping a list of all memory allocations, and
-removes items from the list when they are free'd.
-This is most useful for identifying memory leaks.
-\&\fBCRYPTO_set_mem_debug()\fR turns this tracking on and off.  In order to have
-any effect, is must be called before any of the allocation functions
-(e.g., \fBCRYPTO_malloc()\fR) are called, and is therefore normally one of the
-first lines of \fBmain()\fR in an application.
-\&\fBCRYPTO_mem_ctrl()\fR provides fine-grained control of memory leak tracking.
-To enable tracking call \fBCRYPTO_mem_ctrl()\fR with a \fBmode\fR argument of
-the \fB\s-1CRYPTO_MEM_CHECK_ON\s0\fR.
-To disable tracking call \fBCRYPTO_mem_ctrl()\fR with a \fBmode\fR argument of
-the \fB\s-1CRYPTO_MEM_CHECK_OFF\s0\fR.
-.PP
-While checking memory, it can be useful to store additional context
-about what is being done.
-For example, identifying the field names when parsing a complicated
-data structure.
-\&\fBOPENSSL_mem_debug_push()\fR (which calls \fBCRYPTO_mem_debug_push()\fR)
-attaches an identifying string to the allocation stack.
-This must be a global or other static string; it is not copied.
-\&\fBOPENSSL_mem_debug_pop()\fR removes identifying state from the stack.
-.PP
-At the end of the program, calling \fBCRYPTO_mem_leaks()\fR or
-\&\fBCRYPTO_mem_leaks_fp()\fR will report all \*(L"leaked\*(R" memory, writing it
-to the specified \s-1BIO\s0 \fBb\fR or \s-1FILE\s0 \fBfp\fR. These functions return 1 if
-there are no leaks, 0 if there are leaks and \-1 if an error occurred.
-.PP
-\&\fBCRYPTO_mem_leaks_cb()\fR does the same as \fBCRYPTO_mem_leaks()\fR, but instead
-of writing to a given \s-1BIO,\s0 the callback function is called for each
-output string with the string, length, and userdata \fBu\fR as the callback
-parameters.
+If any of \fBmalloc_fn\fR, \fBrealloc_fn\fR, or \fBfree_fn\fR are \s-1NULL,\s0 then
+the function is not changed.
+While it's permitted to swap out only a few and not all the functions
+with \fBCRYPTO_set_mem_functions()\fR, it's recommended to swap them all out
+at once.
 .PP
 If the library is built with the \f(CW\*(C`crypto\-mdebug\*(C'\fR option, then one
 function, \fBCRYPTO_get_alloc_counts()\fR, and two additional environment
@@ -314,12 +288,12 @@ other allocations (until the program exits or crashes) have a 25% chance of
 failing.
 .PP
 If the variable \fB\s-1OPENSSL_MALLOC_FD\s0\fR is parsed as a positive integer, then
-it is taken as an open file descriptor, and a record of all allocations is
-written to that descriptor.  If an allocation will fail, and the platform
-supports it, then a backtrace will be written to the descriptor.  This can
-be useful because a malloc may fail but not be checked, and problems will
-only occur later.  The following example in classic shell syntax shows how
-to use this (will not work on all platforms):
+it is taken as an open file descriptor. This is used in conjunction with
+\&\fB\s-1OPENSSL_MALLOC_FAILURES\s0\fR described above. For every allocation it will log
+details about how many allocations there have been so far, what percentage
+chance there is for this allocation failing, and whether it has actually failed.
+The following example in classic shell syntax shows how to use this (will not
+work on all platforms):
 .PP
 .Vb 5
 \&  OPENSSL_MALLOC_FAILURES=\*(Aq200;@10\*(Aq
@@ -334,38 +308,36 @@ to use this (will not work on all platforms):
 \&\fBCRYPTO_free()\fR, \fBCRYPTO_clear_free()\fR and \fBCRYPTO_get_mem_functions()\fR
 return no value.
 .PP
-\&\fBCRYPTO_mem_leaks()\fR, \fBCRYPTO_mem_leaks_fp()\fR and \fBCRYPTO_mem_leaks_cb()\fR return 1 if
-there are no leaks, 0 if there are leaks and \-1 if an error occurred.
-.PP
 \&\fBOPENSSL_malloc()\fR, \fBOPENSSL_zalloc()\fR, \fBOPENSSL_realloc()\fR,
 \&\fBOPENSSL_clear_realloc()\fR,
 \&\fBCRYPTO_malloc()\fR, \fBCRYPTO_zalloc()\fR, \fBCRYPTO_realloc()\fR,
 \&\fBCRYPTO_clear_realloc()\fR,
-\&\fBOPENSSL_buf2hexstr()\fR, \fBOPENSSL_hexstr2buf()\fR,
 \&\fBOPENSSL_strdup()\fR, and \fBOPENSSL_strndup()\fR
 return a pointer to allocated memory or \s-1NULL\s0 on error.
 .PP
-\&\fBCRYPTO_set_mem_functions()\fR and \fBCRYPTO_set_mem_debug()\fR
-return 1 on success or 0 on failure (almost
+\&\fBCRYPTO_set_mem_functions()\fR returns 1 on success or 0 on failure (almost
 always because allocations have already happened).
 .PP
-\&\fBCRYPTO_mem_ctrl()\fR returns \-1 if an error occurred, otherwise the
-previous value of the mode.
-.PP
-\&\fBOPENSSL_mem_debug_push()\fR and \fBOPENSSL_mem_debug_pop()\fR
-return 1 on success or 0 on failure.
-.SH "NOTES"
-.IX Header "NOTES"
-While it's permitted to swap out only a few and not all the functions
-with \fBCRYPTO_set_mem_functions()\fR, it's recommended to swap them all out
-at once.  \fIThis applies specially if OpenSSL was built with the
-configuration option\fR \f(CW\*(C`crypto\-mdebug\*(C'\fR \fIenabled.  In case, swapping out
-only, say, the \f(BImalloc()\fI implementation is outright dangerous.\fR
+\&\fBCRYPTO_mem_leaks()\fR, \fBCRYPTO_mem_leaks_fp()\fR, \fBCRYPTO_mem_leaks_cb()\fR,
+\&\fBCRYPTO_set_mem_debug()\fR, and \fBCRYPTO_mem_ctrl()\fR are deprecated and are no-ops that
+always return \-1.
+\&\fBOPENSSL_mem_debug_push()\fR, \fBOPENSSL_mem_debug_pop()\fR,
+\&\fBCRYPTO_mem_debug_push()\fR, and \fBCRYPTO_mem_debug_pop()\fR
+are deprecated and are no-ops that always return 0.
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBOPENSSL_mem_debug_push()\fR, \fBOPENSSL_mem_debug_pop()\fR,
+\&\fBCRYPTO_mem_debug_push()\fR, \fBCRYPTO_mem_debug_pop()\fR,
+\&\fBCRYPTO_mem_leaks()\fR, \fBCRYPTO_mem_leaks_fp()\fR,
+\&\fBCRYPTO_mem_leaks_cb()\fR, \fBCRYPTO_set_mem_debug()\fR, \fBCRYPTO_mem_ctrl()\fR
+were deprecated in OpenSSL 3.0.
+The memory-leak checking has been deprecated in OpenSSL 3.0 in favor of
+clang's memory and leak sanitizer.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

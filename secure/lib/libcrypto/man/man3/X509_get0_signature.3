@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET0_SIGNATURE 3"
-.TH X509_GET0_SIGNATURE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_GET0_SIGNATURE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_get0_signature, X509_REQ_set0_signature, X509_REQ_set1_signature_algo, X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature,  X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid,  X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set \- signature information
+X509_get0_signature, X509_REQ_set0_signature, X509_REQ_set1_signature_algo,
+X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature,
+X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid,
+X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set \- signature information
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -261,9 +264,9 @@ The \fBX509_REQ_set0_signature()\fR and \fBX509_REQ_set1_signature_algo()\fR
 were added in OpenSSL 1.1.1e.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

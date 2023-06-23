@@ -133,13 +133,18 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_SSL 3"
-.TH BIO_F_SSL 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_F_SSL 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_do_handshake, BIO_f_ssl, BIO_set_ssl, BIO_get_ssl, BIO_set_ssl_mode, BIO_set_ssl_renegotiate_bytes, BIO_get_num_renegotiates, BIO_set_ssl_renegotiate_timeout, BIO_new_ssl, BIO_new_ssl_connect, BIO_new_buffer_ssl_connect, BIO_ssl_copy_session_id, BIO_ssl_shutdown \- SSL BIO
+BIO_do_handshake,
+BIO_f_ssl, BIO_set_ssl, BIO_get_ssl, BIO_set_ssl_mode,
+BIO_set_ssl_renegotiate_bytes,
+BIO_get_num_renegotiates, BIO_set_ssl_renegotiate_timeout, BIO_new_ssl,
+BIO_new_ssl_connect, BIO_new_buffer_ssl_connect, BIO_ssl_copy_session_id,
+BIO_ssl_shutdown \- SSL BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 2
@@ -225,12 +230,15 @@ chain and calling \fBSSL_shutdown()\fR on its internal \s-1SSL\s0
 pointer.
 .PP
 \&\fBBIO_do_handshake()\fR attempts to complete an \s-1SSL\s0 handshake on the
-supplied \s-1BIO\s0 and establish the \s-1SSL\s0 connection. It returns 1
-if the connection was established successfully. A zero or negative
-value is returned if the connection could not be established, the
-call \fBBIO_should_retry()\fR should be used for non blocking connect BIOs
-to determine if the call should be retried. If an \s-1SSL\s0 connection has
-already been established this call has no effect.
+supplied \s-1BIO\s0 and establish the \s-1SSL\s0 connection.
+For non-SSL BIOs the connection is done typically at \s-1TCP\s0 level.
+If domain name resolution yields multiple \s-1IP\s0 addresses all of them are tried
+after \fBconnect()\fR failures.
+The function returns 1 if the connection was established successfully.
+A zero or negative value is returned if the connection could not be established.
+The call \fBBIO_should_retry()\fR should be used for nonblocking connect BIOs
+to determine if the call should be retried.
+If a connection has already been established this call has no effect.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\s-1SSL\s0 BIOs are exceptional in that if the underlying transport
@@ -298,9 +306,6 @@ unencrypted example in \fBBIO_s_connect\fR\|(3).
 \&     exit(1);
 \& }
 \&
-\& /* Don\*(Aqt want any retries */
-\& SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-\&
 \& /* XXX We might want to do other things with ssl here */
 \&
 \& /* An empty host part means the loopback address */
@@ -360,7 +365,6 @@ a client and also echoes the request to standard output.
 \&     exit(1);
 \& }
 \&
-\& SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 \& bbio = BIO_new(BIO_f_buffer());
 \& sbio = BIO_push(bbio, sbio);
 \& acpt = BIO_new_accept("4433");
@@ -374,13 +378,22 @@ a client and also echoes the request to standard output.
 \& BIO_set_accept_bios(acpt, sbio);
 \& out = BIO_new_fp(stdout, BIO_NOCLOSE);
 \&
-\& /* Setup accept BIO */
+\& /* First call to BIO_do_accept() sets up accept BIO */
 \& if (BIO_do_accept(acpt) <= 0) {
 \&     fprintf(stderr, "Error setting up accept BIO\en");
 \&     ERR_print_errors_fp(stderr);
 \&     exit(1);
 \& }
-\&
+.Ve
+.PP
+/* Second call to \fBBIO_do_accept()\fR waits for incoming connection */
+ if (BIO_do_accept(acpt) <= 0) {
+    fprintf(stderr, \*(L"Error accepting connection\en\*(R");
+    ERR_print_errors_fp(stderr);
+    \fBexit\fR\|(1);
+ }
+.PP
+.Vb 3
 \& /* We only want one connection so remove and free accept BIO */
 \& sbio = BIO_pop(acpt);
 \& BIO_free_all(acpt);
@@ -421,9 +434,9 @@ included workarounds for this bug (e.g. freeing BIOs more than once) should
 be modified to handle this fix or they may free up an already freed \s-1BIO.\s0
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

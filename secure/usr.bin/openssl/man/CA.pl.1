@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CA.PL 1"
-.TH CA.PL 1 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CA.PL 1 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -157,98 +157,122 @@ CA.pl \- friendlier interface for OpenSSL certificate programs
 \&\fB\-signcert\fR |
 \&\fB\-crl\fR |
 \&\fB\-newca\fR
-[\fB\-extra\-cmd\fR extra\-params]
+[\fB\-extra\-\f(BIcmd\fB\fR \fIparameter\fR]
 .PP
-\&\fB\s-1CA\s0.pl\fR \fB\-pkcs12\fR [\fB\-extra\-pkcs12\fR extra\-params] [\fBcertname\fR]
+\&\fB\s-1CA\s0.pl\fR \fB\-pkcs12\fR [\fIcertname\fR]
 .PP
-\&\fB\s-1CA\s0.pl\fR \fB\-verify\fR [\fB\-extra\-verify\fR extra\-params] \fBcertfile\fR...
+\&\fB\s-1CA\s0.pl\fR \fB\-verify\fR \fIcertfile\fR ...
 .PP
-\&\fB\s-1CA\s0.pl\fR \fB\-revoke\fR [\fB\-extra\-ca\fR extra\-params] \fBcertfile\fR [\fBreason\fR]
+\&\fB\s-1CA\s0.pl\fR \fB\-revoke\fR \fIcertfile\fR [\fIreason\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fB\s-1CA\s0.pl\fR script is a perl script that supplies the relevant command line
-arguments to the \fBopenssl\fR command for some common certificate operations.
+arguments to the \fBopenssl\fR\|(1) command for some common certificate operations.
 It is intended to simplify the process of certificate creation and management
 by the use of some simple options.
+.PP
+The script is intended as a simple front end for the \fBopenssl\fR\|(1) program for
+use by a beginner. Its behaviour isn't always what is wanted. For more control
+over the behaviour of the certificate commands call the \fBopenssl\fR\|(1) command
+directly.
+.PP
+Most of the filenames mentioned below can be modified by editing the
+\&\fB\s-1CA\s0.pl\fR script.
+.PP
+Under some environments it may not be possible to run the \fB\s-1CA\s0.pl\fR script
+directly (for example Win32) and the default configuration file location may
+be wrong. In this case the command:
+.PP
+.Vb 1
+\& perl \-S CA.pl
+.Ve
+.PP
+can be used and the \fB\s-1OPENSSL_CONF\s0\fR environment variable can be set to point to
+the correct path of the configuration file.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
-.IP "\fB?\fR, \fB\-h\fR, \fB\-help\fR" 4
-.IX Item "?, -h, -help"
+.IP "\fB\-?\fR, \fB\-h\fR, \fB\-help\fR" 4
+.IX Item "-?, -h, -help"
 Prints a usage message.
 .IP "\fB\-newcert\fR" 4
 .IX Item "-newcert"
 Creates a new self signed certificate. The private key is written to the file
-\&\*(L"newkey.pem\*(R" and the request written to the file \*(L"newreq.pem\*(R".
-This argument invokes \fBopenssl req\fR command.
+\&\fInewkey.pem\fR and the request written to the file \fInewreq.pem\fR.
+Invokes \fBopenssl\-req\fR\|(1).
 .IP "\fB\-newreq\fR" 4
 .IX Item "-newreq"
 Creates a new certificate request. The private key is written to the file
-\&\*(L"newkey.pem\*(R" and the request written to the file \*(L"newreq.pem\*(R".
-Executes \fBopenssl req\fR command below the hood.
+\&\fInewkey.pem\fR and the request written to the file \fInewreq.pem\fR.
+Executes \fBopenssl\-req\fR\|(1) under the hood.
 .IP "\fB\-newreq\-nodes\fR" 4
 .IX Item "-newreq-nodes"
 Is like \fB\-newreq\fR except that the private key will not be encrypted.
-Uses \fBopenssl req\fR command.
+Uses \fBopenssl\-req\fR\|(1).
 .IP "\fB\-newca\fR" 4
 .IX Item "-newca"
 Creates a new \s-1CA\s0 hierarchy for use with the \fBca\fR program (or the \fB\-signcert\fR
 and \fB\-xsign\fR options). The user is prompted to enter the filename of the \s-1CA\s0
 certificates (which should also contain the private key) or by hitting \s-1ENTER\s0
 details of the \s-1CA\s0 will be prompted for. The relevant files and directories
-are created in a directory called \*(L"demoCA\*(R" in the current directory.
-\&\fBopenssl req\fR and \fBopenssl ca\fR commands are get invoked.
+are created in a directory called \fIdemoCA\fR in the current directory.
+Uses \fBopenssl\-req\fR\|(1) and \fBopenssl\-ca\fR\|(1).
+.Sp
+If the \fIdemoCA\fR directory already exists then the \fB\-newca\fR command will not
+overwrite it and will do nothing. This can happen if a previous call using
+the \fB\-newca\fR option terminated abnormally. To get the correct behaviour
+delete the directory if it already exists.
 .IP "\fB\-pkcs12\fR" 4
 .IX Item "-pkcs12"
 Create a PKCS#12 file containing the user certificate, private key and \s-1CA\s0
 certificate. It expects the user certificate and private key to be in the
-file \*(L"newcert.pem\*(R" and the \s-1CA\s0 certificate to be in the file demoCA/cacert.pem,
-it creates a file \*(L"newcert.p12\*(R". This command can thus be called after the
+file \fInewcert.pem\fR and the \s-1CA\s0 certificate to be in the file \fIdemoCA/cacert.pem\fR,
+it creates a file \fInewcert.p12\fR. This command can thus be called after the
 \&\fB\-sign\fR option. The PKCS#12 file can be imported directly into a browser.
 If there is an additional argument on the command line it will be used as the
 \&\*(L"friendly name\*(R" for the certificate (which is typically displayed in the browser
 list box), otherwise the name \*(L"My Certificate\*(R" is used.
-Delegates work to \fBopenssl pkcs12\fR command.
+Delegates work to \fBopenssl\-pkcs12\fR\|(1).
 .IP "\fB\-sign\fR, \fB\-signcert\fR, \fB\-xsign\fR" 4
 .IX Item "-sign, -signcert, -xsign"
-Calls the \fBca\fR program to sign a certificate request. It expects the request
-to be in the file \*(L"newreq.pem\*(R". The new certificate is written to the file
-\&\*(L"newcert.pem\*(R" except in the case of the \fB\-xsign\fR option when it is written
-to standard output. Leverages \fBopenssl ca\fR command.
+Calls the \fBopenssl\-ca\fR\|(1) command to sign a certificate request. It expects the
+request to be in the file \fInewreq.pem\fR. The new certificate is written to the
+file \fInewcert.pem\fR except in the case of the \fB\-xsign\fR option when it is
+written to standard output.
 .IP "\fB\-signCA\fR" 4
 .IX Item "-signCA"
 This option is the same as the \fB\-sign\fR option except it uses the
 configuration file section \fBv3_ca\fR and so makes the signed request a
 valid \s-1CA\s0 certificate. This is useful when creating intermediate \s-1CA\s0 from
-a root \s-1CA.\s0  Extra params are passed on to \fBopenssl ca\fR command.
+a root \s-1CA.\s0  Extra params are passed to \fBopenssl\-ca\fR\|(1).
 .IP "\fB\-signcert\fR" 4
 .IX Item "-signcert"
 This option is the same as \fB\-sign\fR except it expects a self signed certificate
-to be present in the file \*(L"newreq.pem\*(R".
-Extra params are passed on to \fBopenssl x509\fR and \fBopenssl ca\fR commands.
+to be present in the file \fInewreq.pem\fR.
+Extra params are passed to \fBopenssl\-x509\fR\|(1) and \fBopenssl\-ca\fR\|(1).
 .IP "\fB\-crl\fR" 4
 .IX Item "-crl"
-Generate a \s-1CRL.\s0 Executes \fBopenssl ca\fR command.
-.IP "\fB\-revoke certfile [reason]\fR" 4
+Generate a \s-1CRL.\s0 Executes \fBopenssl\-ca\fR\|(1).
+.IP "\fB\-revoke\fR \fIcertfile\fR [\fIreason\fR]" 4
 .IX Item "-revoke certfile [reason]"
 Revoke the certificate contained in the specified \fBcertfile\fR. An optional
 reason may be specified, and must be one of: \fBunspecified\fR,
 \&\fBkeyCompromise\fR, \fBCACompromise\fR, \fBaffiliationChanged\fR, \fBsuperseded\fR,
 \&\fBcessationOfOperation\fR, \fBcertificateHold\fR, or \fBremoveFromCRL\fR.
-Leverages \fBopenssl ca\fR command.
+Leverages \fBopenssl\-ca\fR\|(1).
 .IP "\fB\-verify\fR" 4
 .IX Item "-verify"
-Verifies certificates against the \s-1CA\s0 certificate for \*(L"demoCA\*(R". If no
+Verifies certificates against the \s-1CA\s0 certificate for \fIdemoCA\fR. If no
 certificates are specified on the command line it tries to verify the file
-\&\*(L"newcert.pem\*(R".  Invokes \fBopenssl verify\fR command.
-.IP "\fB\-extra\-req\fR | \fB\-extra\-ca\fR | \fB\-extra\-pkcs12\fR | \fB\-extra\-x509\fR | \fB\-extra\-verify\fR <extra\-params>" 4
-.IX Item "-extra-req | -extra-ca | -extra-pkcs12 | -extra-x509 | -extra-verify <extra-params>"
-The purpose of these parameters is to allow optional parameters to be supplied
-to \fBopenssl\fR that this command executes. The \fB\-extra\-cmd\fR are specific to the
-option being used and the \fBopenssl\fR command getting invoked. For example
-when this command invokes \fBopenssl req\fR extra parameters can be passed on
-with the \fB\-extra\-req\fR parameter. The
-\&\fBopenssl\fR commands being invoked per option are documented below.
-Users should consult \fBopenssl\fR command documentation for more information.
+\&\fInewcert.pem\fR.  Invokes \fBopenssl\-verify\fR\|(1).
+.IP "\fB\-extra\-\f(BIcmd\fB\fR \fIparameter\fR" 4
+.IX Item "-extra-cmd parameter"
+For each option \fBextra\-\f(BIcmd\fB\fR, pass \fIparameter\fR to the \fBopenssl\fR\|(1)
+sub-command with the same name as \fIcmd\fR, if that sub-command is invoked.
+For example, if \fBopenssl\-req\fR\|(1) is invoked, the \fIparameter\fR given with
+\&\fB\-extra\-req\fR will be passed to it.
+For multi-word parameters, either repeat the option or quote the \fIparameters\fR
+so it looks like one word to your shell.
+See the individual command documentation for more information.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create a \s-1CA\s0 hierarchy:
@@ -266,76 +290,28 @@ the request and finally create a PKCS#12 file containing it.
 \& CA.pl \-sign
 \& CA.pl \-pkcs12 "My Test Certificate"
 .Ve
-.SH "DSA CERTIFICATES"
-.IX Header "DSA CERTIFICATES"
-Although the \fB\s-1CA\s0.pl\fR creates \s-1RSA\s0 CAs and requests it is still possible to
-use it with \s-1DSA\s0 certificates and requests using the \fBreq\fR\|(1) command
-directly. The following example shows the steps that would typically be taken.
+.SH "ENVIRONMENT"
+.IX Header "ENVIRONMENT"
+The environment variable \fB\s-1OPENSSL\s0\fR may be used to specify the name of
+the OpenSSL program. It can be a full pathname, or a relative one.
 .PP
-Create some \s-1DSA\s0 parameters:
-.PP
-.Vb 1
-\& openssl dsaparam \-out dsap.pem 1024
-.Ve
-.PP
-Create a \s-1DSA CA\s0 certificate and private key:
-.PP
-.Vb 1
-\& openssl req \-x509 \-newkey dsa:dsap.pem \-keyout cacert.pem \-out cacert.pem
-.Ve
-.PP
-Create the \s-1CA\s0 directories and files:
-.PP
-.Vb 1
-\& CA.pl \-newca
-.Ve
-.PP
-enter cacert.pem when prompted for the \s-1CA\s0 filename.
-.PP
-Create a \s-1DSA\s0 certificate request and private key (a different set of parameters
-can optionally be created first):
-.PP
-.Vb 1
-\& openssl req \-out newreq.pem \-newkey dsa:dsap.pem
-.Ve
-.PP
-Sign the request:
-.PP
-.Vb 1
-\& CA.pl \-sign
-.Ve
-.SH "NOTES"
-.IX Header "NOTES"
-Most of the filenames mentioned can be modified by editing the \fB\s-1CA\s0.pl\fR script.
-.PP
-If the demoCA directory already exists then the \fB\-newca\fR command will not
-overwrite it and will do nothing. This can happen if a previous call using
-the \fB\-newca\fR option terminated abnormally. To get the correct behaviour
-delete the demoCA directory if it already exists.
-.PP
-Under some environments it may not be possible to run the \fB\s-1CA\s0.pl\fR script
-directly (for example Win32) and the default configuration file location may
-be wrong. In this case the command:
-.PP
-.Vb 1
-\& perl \-S CA.pl
-.Ve
-.PP
-can be used and the \fB\s-1OPENSSL_CONF\s0\fR environment variable changed to point to
-the correct path of the configuration file.
-.PP
-The script is intended as a simple front end for the \fBopenssl\fR program for use
-by a beginner. Its behaviour isn't always what is wanted. For more control over the
-behaviour of the certificate commands call the \fBopenssl\fR command directly.
+The environment variable \fB\s-1OPENSSL_CONFIG\s0\fR may be used to specify a
+configuration option and value to the \fBreq\fR and \fBca\fR commands invoked by
+this script. It's value should be the option and pathname, as in
+\&\f(CW\*(C`\-config /path/to/conf\-file\*(C'\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBx509\fR\|(1), \fBca\fR\|(1), \fBreq\fR\|(1), \fBpkcs12\fR\|(1),
+\&\fBopenssl\fR\|(1),
+\&\fBopenssl\-x509\fR\|(1),
+\&\fBopenssl\-ca\fR\|(1),
+\&\fBopenssl\-req\fR\|(1),
+\&\fBopenssl\-pkcs12\fR\|(1),
 \&\fBconfig\fR\|(5)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

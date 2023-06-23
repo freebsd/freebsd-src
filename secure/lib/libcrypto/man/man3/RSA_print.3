@@ -133,50 +133,84 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_PRINT 3"
-.TH RSA_PRINT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RSA_PRINT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_print, RSA_print_fp, DSAparams_print, DSAparams_print_fp, DSA_print, DSA_print_fp, DHparams_print, DHparams_print_fp \- print cryptographic parameters
+RSA_print, RSA_print_fp,
+DSAparams_print, DSAparams_print_fp, DSA_print, DSA_print_fp,
+DHparams_print, DHparams_print_fp \- print cryptographic parameters
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
-\&
-\& int RSA_print(BIO *bp, RSA *x, int offset);
-\& int RSA_print_fp(FILE *fp, RSA *x, int offset);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
+\& int RSA_print(BIO *bp, const RSA *x, int offset);
+\& int RSA_print_fp(FILE *fp, const RSA *x, int offset);
 \&
 \& #include <openssl/dsa.h>
-\&
-\& int DSAparams_print(BIO *bp, DSA *x);
-\& int DSAparams_print_fp(FILE *fp, DSA *x);
-\& int DSA_print(BIO *bp, DSA *x, int offset);
-\& int DSA_print_fp(FILE *fp, DSA *x, int offset);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
+\& int DSAparams_print(BIO *bp, const DSA *x);
+\& int DSAparams_print_fp(FILE *fp, const DSA *x);
+\& int DSA_print(BIO *bp, const DSA *x, int offset);
+\& int DSA_print_fp(FILE *fp, const DSA *x, int offset);
 \&
 \& #include <openssl/dh.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
 \& int DHparams_print(BIO *bp, DH *x);
-\& int DHparams_print_fp(FILE *fp, DH *x);
+\& int DHparams_print_fp(FILE *fp, const DH *x);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_print_params\fR\|(3) and
+\&\fBEVP_PKEY_print_private\fR\|(3).
+.PP
 A human-readable hexadecimal output of the components of the \s-1RSA\s0
 key, \s-1DSA\s0 parameters or key or \s-1DH\s0 parameters is printed to \fBbp\fR or \fBfp\fR.
 .PP
 The output lines are indented by \fBoffset\fR spaces.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-These functions return 1 on success, 0 on error.
+\&\fBDSAparams_print()\fR, \fBDSAparams_print_fp()\fR, \fBDSA_print()\fR, and \fBDSA_print_fp()\fR
+return 1 for success and 0 or a negative value for failure.
+.PP
+\&\fBDHparams_print()\fR and \fBDHparams_print_fp()\fR return 1 on success, 0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBBN_bn2bin\fR\|(3)
+.Vb 3
+\& L<EVP_PKEY_print_params(3)>,
+\& L<EVP_PKEY_print_private(3)>,
+\& L<BN_bn2bin(3)>
+.Ve
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

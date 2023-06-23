@@ -133,18 +133,40 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_SET1_RSA 3"
-.TH EVP_PKEY_SET1_RSA 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_SET1_RSA 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY, EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY, EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH, EVP_PKEY_assign_EC_KEY, EVP_PKEY_assign_POLY1305, EVP_PKEY_assign_SIPHASH, EVP_PKEY_get0_hmac, EVP_PKEY_get0_poly1305, EVP_PKEY_get0_siphash, EVP_PKEY_type, EVP_PKEY_id, EVP_PKEY_base_id, EVP_PKEY_set_alias_type, EVP_PKEY_set1_engine, EVP_PKEY_get0_engine \- EVP_PKEY assignment functions
+EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY,
+EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY,
+EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY,
+EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH,
+EVP_PKEY_assign_EC_KEY, EVP_PKEY_assign_POLY1305, EVP_PKEY_assign_SIPHASH,
+EVP_PKEY_get0_hmac, EVP_PKEY_get0_poly1305, EVP_PKEY_get0_siphash,
+EVP_PKEY_get0, EVP_PKEY_type, EVP_PKEY_get_id, EVP_PKEY_get_base_id,
+EVP_PKEY_set1_engine, EVP_PKEY_get0_engine,
+EVP_PKEY_id, EVP_PKEY_base_id \-
+EVP_PKEY assignment functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& int EVP_PKEY_get_id(const EVP_PKEY *pkey);
+\& int EVP_PKEY_get_base_id(const EVP_PKEY *pkey);
+\& int EVP_PKEY_type(int type);
+\&
+\& #define EVP_PKEY_id EVP_PKEY_get_id
+\& #define EVP_PKEY_base_id EVP_PKEY_get_base_id
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
 \& int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key);
 \& int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key);
 \& int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key);
@@ -158,10 +180,11 @@ EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EV
 \& const unsigned char *EVP_PKEY_get0_hmac(const EVP_PKEY *pkey, size_t *len);
 \& const unsigned char *EVP_PKEY_get0_poly1305(const EVP_PKEY *pkey, size_t *len);
 \& const unsigned char *EVP_PKEY_get0_siphash(const EVP_PKEY *pkey, size_t *len);
-\& RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey);
-\& DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey);
-\& DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey);
-\& EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey);
+\& const RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey);
+\& const DSA *EVP_PKEY_get0_DSA(const EVP_PKEY *pkey);
+\& const DH *EVP_PKEY_get0_DH(const EVP_PKEY *pkey);
+\& const EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
+\& void *EVP_PKEY_get0(const EVP_PKEY *pkey);
 \&
 \& int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key);
 \& int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key);
@@ -170,75 +193,130 @@ EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EV
 \& int EVP_PKEY_assign_POLY1305(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
 \& int EVP_PKEY_assign_SIPHASH(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
 \&
-\& int EVP_PKEY_id(const EVP_PKEY *pkey);
-\& int EVP_PKEY_base_id(const EVP_PKEY *pkey);
-\& int EVP_PKEY_type(int type);
-\& int EVP_PKEY_set_alias_type(EVP_PKEY *pkey, int type);
-\&
 \& ENGINE *EVP_PKEY_get0_engine(const EVP_PKEY *pkey);
 \& int EVP_PKEY_set1_engine(EVP_PKEY *pkey, ENGINE *engine);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+\&\fBEVP_PKEY_get_base_id()\fR returns the type of \fIpkey\fR. For example
+an \s-1RSA\s0 key will return \fB\s-1EVP_PKEY_RSA\s0\fR.
+.PP
+\&\fBEVP_PKEY_get_id()\fR returns the actual \s-1NID\s0 associated with \fIpkey\fR
+only if the \fIpkey\fR type isn't implemented just in a \fBprovider\fR\|(7).
+Historically keys using the same algorithm could use different NIDs.
+For example an \s-1RSA\s0 key could use the NIDs corresponding to
+the NIDs \fBNID_rsaEncryption\fR (equivalent to \fB\s-1EVP_PKEY_RSA\s0\fR) or
+\&\fBNID_rsa\fR (equivalent to \fB\s-1EVP_PKEY_RSA2\s0\fR). The use of
+alternative non-standard NIDs is now rare so \fB\s-1EVP_PKEY_RSA2\s0\fR et al are not
+often seen in practice.
+\&\fBEVP_PKEY_get_id()\fR returns \-1 (\fB\s-1EVP_PKEY_KEYMGMT\s0\fR) if the \fIpkey\fR is
+only implemented in a \fBprovider\fR\|(7).
+.PP
+\&\fBEVP_PKEY_type()\fR returns the underlying type of the \s-1NID\s0 \fItype\fR. For example
+EVP_PKEY_type(\s-1EVP_PKEY_RSA2\s0) will return \fB\s-1EVP_PKEY_RSA\s0\fR.
+.PP
 \&\fBEVP_PKEY_set1_RSA()\fR, \fBEVP_PKEY_set1_DSA()\fR, \fBEVP_PKEY_set1_DH()\fR and
-\&\fBEVP_PKEY_set1_EC_KEY()\fR set the key referenced by \fBpkey\fR to \fBkey\fR.
-.PP
-\&\fBEVP_PKEY_get1_RSA()\fR, \fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR and
-\&\fBEVP_PKEY_get1_EC_KEY()\fR return the referenced key in \fBpkey\fR or
-\&\fB\s-1NULL\s0\fR if the key is not of the correct type.
-.PP
-\&\fBEVP_PKEY_get0_hmac()\fR, \fBEVP_PKEY_get0_poly1305()\fR, \fBEVP_PKEY_get0_siphash()\fR,
-\&\fBEVP_PKEY_get0_RSA()\fR, \fBEVP_PKEY_get0_DSA()\fR, \fBEVP_PKEY_get0_DH()\fR
-and \fBEVP_PKEY_get0_EC_KEY()\fR also return the referenced key in \fBpkey\fR or \fB\s-1NULL\s0\fR
-if the key is not of the correct type but the reference count of the
-returned key is \fBnot\fR incremented and so must not be freed up after use.
+\&\fBEVP_PKEY_set1_EC_KEY()\fR set the key referenced by \fIpkey\fR to \fIkey\fR. These
+functions are deprecated. Applications should instead use
+\&\fBEVP_PKEY_fromdata\fR\|(3).
 .PP
 \&\fBEVP_PKEY_assign_RSA()\fR, \fBEVP_PKEY_assign_DSA()\fR, \fBEVP_PKEY_assign_DH()\fR,
 \&\fBEVP_PKEY_assign_EC_KEY()\fR, \fBEVP_PKEY_assign_POLY1305()\fR and
-\&\fBEVP_PKEY_assign_SIPHASH()\fR also set the referenced key to \fBkey\fR
-however these use the supplied \fBkey\fR internally and so \fBkey\fR
-will be freed when the parent \fBpkey\fR is freed.
+\&\fBEVP_PKEY_assign_SIPHASH()\fR set the referenced key to \fIkey\fR however these use
+the supplied \fIkey\fR internally and so \fIkey\fR will be freed when the parent
+\&\fIpkey\fR is freed. These macros are deprecated. Applications should instead read
+an \s-1EVP_PKEY\s0 directly using the \s-1OSSL_DECODER\s0 APIs (see
+\&\fBOSSL_DECODER_CTX_new_for_pkey\fR\|(3)), or construct an \s-1EVP_PKEY\s0 from data using
+\&\fBEVP_PKEY_fromdata\fR\|(3).
 .PP
-\&\fBEVP_PKEY_base_id()\fR returns the type of \fBpkey\fR. For example
-an \s-1RSA\s0 key will return \fB\s-1EVP_PKEY_RSA\s0\fR.
+\&\fBEVP_PKEY_get1_RSA()\fR, \fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR and
+\&\fBEVP_PKEY_get1_EC_KEY()\fR return the referenced key in \fIpkey\fR or \s-1NULL\s0 if the
+key is not of the correct type. The returned key must be freed after use.
+These functions are deprecated. Applications should instead use the \s-1EVP_PKEY\s0
+directly where possible. If access to the low level key parameters is required
+then applications should use \fBEVP_PKEY_get_params\fR\|(3) and other similar
+functions. To write an \s-1EVP_PKEY\s0 out use the \s-1OSSL_ENCODER\s0 APIs (see
+\&\fBOSSL_ENCODER_CTX_new_for_pkey\fR\|(3)).
 .PP
-\&\fBEVP_PKEY_id()\fR returns the actual \s-1OID\s0 associated with \fBpkey\fR. Historically keys
-using the same algorithm could use different OIDs. For example an \s-1RSA\s0 key could
-use the OIDs corresponding to the NIDs \fBNID_rsaEncryption\fR (equivalent to
-\&\fB\s-1EVP_PKEY_RSA\s0\fR) or \fBNID_rsa\fR (equivalent to \fB\s-1EVP_PKEY_RSA2\s0\fR). The use of
-alternative non-standard OIDs is now rare so \fB\s-1EVP_PKEY_RSA2\s0\fR et al are not
-often seen in practice.
+\&\fBEVP_PKEY_get0_hmac()\fR, \fBEVP_PKEY_get0_poly1305()\fR, \fBEVP_PKEY_get0_siphash()\fR,
+\&\fBEVP_PKEY_get0_RSA()\fR, \fBEVP_PKEY_get0_DSA()\fR, \fBEVP_PKEY_get0_DH()\fR and
+\&\fBEVP_PKEY_get0_EC_KEY()\fR return the referenced key in \fIpkey\fR or \s-1NULL\s0 if the
+key is not of the correct type. The reference count of the returned key is
+\&\fBnot\fR incremented and so the key must not be freed after use. These functions
+are deprecated. Applications should instead use the \s-1EVP_PKEY\s0 directly where
+possible. If access to the low level key parameters is required then
+applications should use \fBEVP_PKEY_get_params\fR\|(3) and other similar functions.
+To write an \s-1EVP_PKEY\s0 out use the \s-1OSSL_ENCODER\s0 APIs (see
+\&\fBOSSL_ENCODER_CTX_new_for_pkey\fR\|(3)). \fBEVP_PKEY_get0()\fR returns a pointer to the
+legacy key or \s-1NULL\s0 if the key is not legacy.
 .PP
-\&\fBEVP_PKEY_type()\fR returns the underlying type of the \s-1NID\s0 \fBtype\fR. For example
-EVP_PKEY_type(\s-1EVP_PKEY_RSA2\s0) will return \fB\s-1EVP_PKEY_RSA\s0\fR.
+Note that if an \s-1EVP_PKEY\s0 was not constructed using one of the deprecated
+functions such as \fBEVP_PKEY_set1_RSA()\fR, \fBEVP_PKEY_set1_DSA()\fR, \fBEVP_PKEY_set1_DH()\fR
+or \fBEVP_PKEY_set1_EC_KEY()\fR, or via the similarly named \fBEVP_PKEY_assign\fR macros
+described above then the internal key will be managed by a provider (see
+\&\fBprovider\fR\|(7)). In that case the key returned by \fBEVP_PKEY_get1_RSA()\fR,
+\&\fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR, \fBEVP_PKEY_get1_EC_KEY()\fR,
+\&\fBEVP_PKEY_get0_hmac()\fR, \fBEVP_PKEY_get0_poly1305()\fR, \fBEVP_PKEY_get0_siphash()\fR,
+\&\fBEVP_PKEY_get0_RSA()\fR, \fBEVP_PKEY_get0_DSA()\fR, \fBEVP_PKEY_get0_DH()\fR or
+\&\fBEVP_PKEY_get0_EC_KEY()\fR will be a cached copy of the provider's key. Subsequent
+updates to the provider's key will not be reflected back in the cached copy, and
+updates made by an application to the returned key will not be reflected back in
+the provider's key. Subsequent calls to \fBEVP_PKEY_get1_RSA()\fR,
+\&\fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR and \fBEVP_PKEY_get1_EC_KEY()\fR will always
+return the cached copy returned by the first call.
 .PP
-\&\fBEVP_PKEY_get0_engine()\fR returns a reference to the \s-1ENGINE\s0 handling \fBpkey\fR.
+\&\fBEVP_PKEY_get0_engine()\fR returns a reference to the \s-1ENGINE\s0 handling \fIpkey\fR. This
+function is deprecated. Applications should use providers instead of engines
+(see \fBprovider\fR\|(7) for details).
 .PP
-\&\fBEVP_PKEY_set1_engine()\fR sets the \s-1ENGINE\s0 handling \fBpkey\fR to \fBengine\fR. It
+\&\fBEVP_PKEY_set1_engine()\fR sets the \s-1ENGINE\s0 handling \fIpkey\fR to \fIengine\fR. It
 must be called after the key algorithm and components are set up.
-If \fBengine\fR does not include an \fB\s-1EVP_PKEY_METHOD\s0\fR for \fBpkey\fR an
-error occurs.
+If \fIengine\fR does not include an \fB\s-1EVP_PKEY_METHOD\s0\fR for \fIpkey\fR an
+error occurs. This function is deprecated. Applications should use providers
+instead of engines (see \fBprovider\fR\|(7) for details).
+.SH "WARNINGS"
+.IX Header "WARNINGS"
+The following functions are only reliable with \fB\s-1EVP_PKEY\s0\fRs that have
+been assigned an internal key with EVP_PKEY_assign_*():
 .PP
-\&\fBEVP_PKEY_set_alias_type()\fR allows modifying a \s-1EVP_PKEY\s0 to use a
-different set of algorithms than the default. This is currently used
-to support \s-1SM2\s0 keys, which use an identical encoding to \s-1ECDSA.\s0
+\&\fBEVP_PKEY_get_id()\fR, \fBEVP_PKEY_get_base_id()\fR, \fBEVP_PKEY_type()\fR
+.PP
+For \s-1EVP_PKEY\s0 key type checking purposes, \fBEVP_PKEY_is_a\fR\|(3) is more generic.
+.PP
+For purposes of retrieving the name of the \fB\s-1EVP_PKEY\s0\fR the function
+\&\fBEVP_PKEY_get0_type_name\fR\|(3) is more generally useful.
+.PP
+The keys returned from the functions \fBEVP_PKEY_get0_RSA()\fR, \fBEVP_PKEY_get0_DSA()\fR,
+\&\fBEVP_PKEY_get0_DH()\fR and \fBEVP_PKEY_get0_EC_KEY()\fR were changed to have a \*(L"const\*(R"
+return type in OpenSSL 3.0. As described above the keys returned may be cached
+copies of the key held in a provider. Due to this, and unlike in earlier
+versions of OpenSSL, they should be considered read-only copies of the key.
+Updates to these keys will not be reflected back in the provider side key. The
+\&\fBEVP_PKEY_get1_RSA()\fR, \fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR and
+\&\fBEVP_PKEY_get1_EC_KEY()\fR functions were not changed to have a \*(L"const\*(R" return type
+in order that applications can \*(L"free\*(R" the return value. However applications
+should still consider them as read-only copies.
 .SH "NOTES"
 .IX Header "NOTES"
 In accordance with the OpenSSL naming convention the key obtained
-from or assigned to the \fBpkey\fR using the \fB1\fR functions must be
-freed as well as \fBpkey\fR.
+from or assigned to the \fIpkey\fR using the \fB1\fR functions must be
+freed as well as \fIpkey\fR.
 .PP
 \&\fBEVP_PKEY_assign_RSA()\fR, \fBEVP_PKEY_assign_DSA()\fR, \fBEVP_PKEY_assign_DH()\fR,
 \&\fBEVP_PKEY_assign_EC_KEY()\fR, \fBEVP_PKEY_assign_POLY1305()\fR
 and \fBEVP_PKEY_assign_SIPHASH()\fR are implemented as macros.
 .PP
+\&\fBEVP_PKEY_assign_EC_KEY()\fR looks at the curve name id to determine if
+the passed \fB\s-1EC_KEY\s0\fR is an \s-1\fBSM2\s0\fR\|(7) key, and will set the \fB\s-1EVP_PKEY\s0\fR
+type to \fB\s-1EVP_PKEY_SM2\s0\fR in that case, instead of \fB\s-1EVP_PKEY_EC\s0\fR.
+.PP
 Most applications wishing to know a key type will simply call
-\&\fBEVP_PKEY_base_id()\fR and will not care about the actual type:
+\&\fBEVP_PKEY_get_base_id()\fR and will not care about the actual type:
 which will be identical in almost all cases.
 .PP
 Previous versions of this document suggested using EVP_PKEY_type(pkey\->type)
 to determine the type of a key. Since \fB\s-1EVP_PKEY\s0\fR is now opaque this
-is no longer possible: the equivalent is EVP_PKEY_base_id(pkey).
+is no longer possible: the equivalent is EVP_PKEY_get_base_id(pkey).
 .PP
 \&\fBEVP_PKEY_set1_engine()\fR is typically used by an \s-1ENGINE\s0 returning an \s-1HSM\s0
 key as part of its routine to load a private key.
@@ -248,35 +326,44 @@ key as part of its routine to load a private key.
 \&\fBEVP_PKEY_set1_EC_KEY()\fR return 1 for success or 0 for failure.
 .PP
 \&\fBEVP_PKEY_get1_RSA()\fR, \fBEVP_PKEY_get1_DSA()\fR, \fBEVP_PKEY_get1_DH()\fR and
-\&\fBEVP_PKEY_get1_EC_KEY()\fR return the referenced key or \fB\s-1NULL\s0\fR if
+\&\fBEVP_PKEY_get1_EC_KEY()\fR return the referenced key or \s-1NULL\s0 if
 an error occurred.
 .PP
 \&\fBEVP_PKEY_assign_RSA()\fR, \fBEVP_PKEY_assign_DSA()\fR, \fBEVP_PKEY_assign_DH()\fR,
 \&\fBEVP_PKEY_assign_EC_KEY()\fR, \fBEVP_PKEY_assign_POLY1305()\fR
 and \fBEVP_PKEY_assign_SIPHASH()\fR return 1 for success and 0 for failure.
 .PP
-\&\fBEVP_PKEY_base_id()\fR, \fBEVP_PKEY_id()\fR and \fBEVP_PKEY_type()\fR return a key
+\&\fBEVP_PKEY_get_base_id()\fR, \fBEVP_PKEY_get_id()\fR and \fBEVP_PKEY_type()\fR return a key
 type or \fBNID_undef\fR (equivalently \fB\s-1EVP_PKEY_NONE\s0\fR) on error.
 .PP
 \&\fBEVP_PKEY_set1_engine()\fR returns 1 for success and 0 for failure.
-.PP
-\&\fBEVP_PKEY_set_alias_type()\fR returns 1 for success and 0 for error.
-.SH "EXAMPLES"
-.IX Header "EXAMPLES"
-After loading an \s-1ECC\s0 key, it is possible to convert it to using \s-1SM2\s0
-algorithms with EVP_PKEY_set_alias_type:
-.PP
-.Vb 1
-\& EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
-.Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBEVP_PKEY_new\fR\|(3)
+\&\fBEVP_PKEY_new\fR\|(3), \s-1\fBSM2\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The \fBEVP_PKEY_id()\fR and \fBEVP_PKEY_base_id()\fR functions were renamed to
+include \f(CW\*(C`get\*(C'\fR in their names in OpenSSL 3.0, respectively. The old names
+are kept as non-deprecated alias macros.
+.PP
+EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY,
+EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY,
+EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY,
+EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH,
+EVP_PKEY_assign_EC_KEY, EVP_PKEY_assign_POLY1305, EVP_PKEY_assign_SIPHASH,
+EVP_PKEY_get0_hmac, EVP_PKEY_get0_poly1305, EVP_PKEY_get0_siphash,
+EVP_PKEY_set1_engine and EVP_PKEY_get0_engine were deprecated in OpenSSL 3.0.
+.PP
+The return value from EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH,
+EVP_PKEY_get0_EC_KEY were made const in OpenSSL 3.0.
+.PP
+The function \fBEVP_PKEY_set_alias_type()\fR was previously documented on this page.
+It was removed in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

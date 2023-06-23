@@ -133,18 +133,23 @@
 .\" ========================================================================
 .\"
 .IX Title "CONF_MODULES_LOAD_FILE 3"
-.TH CONF_MODULES_LOAD_FILE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CONF_MODULES_LOAD_FILE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CONF_modules_load_file, CONF_modules_load \- OpenSSL configuration functions
+CONF_get1_default_config_file,
+CONF_modules_load_file_ex, CONF_modules_load_file, CONF_modules_load
+\&\- OpenSSL configuration functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/conf.h>
 \&
+\& char *CONF_get1_default_config_file(void);
+\& int CONF_modules_load_file_ex(OSSL_LIB_CTX *libctx, const char *filename,
+\&                               const char *appname, unsigned long flags);
 \& int CONF_modules_load_file(const char *filename, const char *appname,
 \&                            unsigned long flags);
 \& int CONF_modules_load(const CONF *cnf, const char *appname,
@@ -152,11 +157,24 @@ CONF_modules_load_file, CONF_modules_load \- OpenSSL configuration functions
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The function \fBCONF_modules_load_file()\fR configures OpenSSL using file
-\&\fBfilename\fR and application name \fBappname\fR. If \fBfilename\fR is \s-1NULL\s0
-the standard OpenSSL configuration file is used. If \fBappname\fR is
-\&\s-1NULL\s0 the standard OpenSSL application name \fBopenssl_conf\fR is used.
-The behaviour can be customized using \fBflags\fR.
+The function \fBCONF_get1_default_config_file()\fR determines the default
+configuration file pathname as follows.
+If the \fB\s-1OPENSSL_CONF\s0\fR environment variable is set its value is returned.
+Else the function returns the path obtained using
+\&\fBX509_get_default_cert_area\fR\|(3) with the filename \f(CW"openssl.cnf"\fR appended.
+The caller is responsible for freeing any string returned.
+.PP
+The function \fBCONF_modules_load_file_ex()\fR configures OpenSSL using
+library context \fBlibctx\fR file \fBfilename\fR and application name \fBappname\fR.
+If \fBfilename\fR is \s-1NULL\s0 the standard OpenSSL configuration file is used
+as determined by calling \fBCONF_get1_default_config_file()\fR.
+If \fBappname\fR is \s-1NULL\s0 the standard OpenSSL application name \fBopenssl_conf\fR is
+used.
+The behaviour can be customized using \fBflags\fR. Note that, the error suppressing
+can be overriden by \fBconfig_diagnostics\fR as described in \fBconfig\fR\|(5).
+.PP
+\&\fBCONF_modules_load_file()\fR is the same as \fBCONF_modules_load_file_ex()\fR but
+has a \s-1NULL\s0 library context.
 .PP
 \&\fBCONF_modules_load()\fR is identical to \fBCONF_modules_load_file()\fR except it
 reads configuration information from \fBcnf\fR.
@@ -176,8 +194,8 @@ returns success.
 This is used by default in \fBOPENSSL_init_crypto\fR\|(3) to ignore any errors in
 the default system-wide configuration file, as having all OpenSSL applications
 fail to start when there are potentially minor issues in the file is too risky.
-Applications calling \fBCONF_modules_load_file\fR explicitly should not generally
-set this flag.
+Applications calling \fBCONF_modules_load_file_ex\fR explicitly should not
+generally set this flag.
 .PP
 If \fB\s-1CONF_MFLAGS_NO_DSO\s0\fR is set configuration module loading from DSOs is
 disabled.
@@ -189,10 +207,10 @@ return an error.
 \&\fB\s-1CONF_MFLAGS_DEFAULT_SECTION\s0\fR if set and \fBappname\fR is not \s-1NULL\s0 will use the
 default section pointed to by \fBopenssl_conf\fR if \fBappname\fR does not exist.
 .PP
-By using \fBCONF_modules_load_file()\fR with appropriate flags an application can
-customise application configuration to best suit its needs. In some cases the
-use of a configuration file is optional and its absence is not an error: in
-this case \fB\s-1CONF_MFLAGS_IGNORE_MISSING_FILE\s0\fR would be set.
+By using \fBCONF_modules_load_file_ex()\fR with appropriate flags an
+application can customise application configuration to best suit its needs.
+In some cases the use of a configuration file is optional and its absence is not
+an error: in this case \fB\s-1CONF_MFLAGS_IGNORE_MISSING_FILE\s0\fR would be set.
 .PP
 Errors during configuration may also be handled differently by different
 applications. For example in some cases an error may simply print out a warning
@@ -213,7 +231,7 @@ Load a configuration file and print out any errors and exit (missing file
 considered fatal):
 .PP
 .Vb 5
-\& if (CONF_modules_load_file(NULL, NULL, 0) <= 0) {
+\& if (CONF_modules_load_file_ex(libctx, NULL, NULL, 0) <= 0) {
 \&     fprintf(stderr, "FATAL: error loading configuration file\en");
 \&     ERR_print_errors_fp(stderr);
 \&     exit(1);
@@ -224,8 +242,8 @@ Load default configuration file using the section indicated by \*(L"myapp\*(R",
 tolerate missing files, but exit on other errors:
 .PP
 .Vb 6
-\& if (CONF_modules_load_file(NULL, "myapp",
-\&                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+\& if (CONF_modules_load_file_ex(NULL, NULL, "myapp",
+\&                               CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
 \&     fprintf(stderr, "FATAL: error loading configuration file\en");
 \&     ERR_print_errors_fp(stderr);
 \&     exit(1);
@@ -236,8 +254,8 @@ Load custom configuration file and section, only print warnings on error,
 missing configuration file ignored:
 .PP
 .Vb 5
-\& if (CONF_modules_load_file("/something/app.cnf", "myapp",
-\&                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+\& if (CONF_modules_load_file_ex(NULL, "/something/app.cnf", "myapp",
+\&                               CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
 \&     fprintf(stderr, "WARNING: error loading configuration file\en");
 \&     ERR_print_errors_fp(stderr);
 \& }
@@ -255,7 +273,7 @@ Load and parse configuration file manually, custom error handling:
 \&     fprintf(stderr, "Error opening configuration file\en");
 \&     /* Other missing configuration file behaviour */
 \& } else {
-\&     cnf = NCONF_new(NULL);
+\&     cnf = NCONF_new_ex(libctx, NULL);
 \&     if (NCONF_load_fp(cnf, fp, &eline) == 0) {
 \&         fprintf(stderr, "Error on line %ld of configuration file\en", eline);
 \&         ERR_print_errors_fp(stderr);
@@ -271,12 +289,14 @@ Load and parse configuration file manually, custom error handling:
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBconfig\fR\|(5), \fBOPENSSL_config\fR\|(3)
+\&\fBconfig\fR\|(5),
+\&\fBOPENSSL_config\fR\|(3),
+\&\fBNCONF_new_ex\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2004\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

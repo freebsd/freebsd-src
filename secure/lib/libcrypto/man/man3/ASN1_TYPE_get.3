@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_TYPE_GET 3"
-.TH ASN1_TYPE_GET 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ASN1_TYPE_GET 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ASN1_TYPE_get, ASN1_TYPE_set, ASN1_TYPE_set1, ASN1_TYPE_cmp, ASN1_TYPE_unpack_sequence, ASN1_TYPE_pack_sequence \- ASN1_TYPE utility functions
+ASN1_TYPE_get, ASN1_TYPE_set, ASN1_TYPE_set1, ASN1_TYPE_cmp, ASN1_TYPE_unpack_sequence, ASN1_TYPE_pack_sequence \- ASN1_TYPE utility
+functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -156,43 +157,44 @@ ASN1_TYPE_get, ASN1_TYPE_set, ASN1_TYPE_set1, ASN1_TYPE_cmp, ASN1_TYPE_unpack_se
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-These functions allow an \s-1ASN1_TYPE\s0 structure to be manipulated. The
-\&\s-1ASN1_TYPE\s0 structure can contain any \s-1ASN.1\s0 type or constructed type
+These functions allow an \fB\s-1ASN1_TYPE\s0\fR structure to be manipulated. The
+\&\fB\s-1ASN1_TYPE\s0\fR structure can contain any \s-1ASN.1\s0 type or constructed type
 such as a \s-1SEQUENCE:\s0 it is effectively equivalent to the \s-1ASN.1 ANY\s0 type.
 .PP
-\&\fBASN1_TYPE_get()\fR returns the type of \fBa\fR.
+\&\fBASN1_TYPE_get()\fR returns the type of \fIa\fR or 0 if it fails.
 .PP
-\&\fBASN1_TYPE_set()\fR sets the value of \fBa\fR to \fBtype\fR and \fBvalue\fR. This
-function uses the pointer \fBvalue\fR internally so it must \fBnot\fR be freed
+\&\fBASN1_TYPE_set()\fR sets the value of \fIa\fR to \fItype\fR and \fIvalue\fR. This
+function uses the pointer \fIvalue\fR internally so it must \fBnot\fR be freed
 up after the call.
 .PP
-\&\fBASN1_TYPE_set1()\fR sets the value of \fBa\fR to \fBtype\fR a copy of \fBvalue\fR.
+\&\fBASN1_TYPE_set1()\fR sets the value of \fIa\fR to \fItype\fR a copy of \fIvalue\fR.
 .PP
-\&\fBASN1_TYPE_cmp()\fR compares \s-1ASN.1\s0 types \fBa\fR and \fBb\fR and returns 0 if
+\&\fBASN1_TYPE_cmp()\fR compares \s-1ASN.1\s0 types \fIa\fR and \fIb\fR and returns 0 if
 they are identical and nonzero otherwise.
 .PP
 \&\fBASN1_TYPE_unpack_sequence()\fR attempts to parse the \s-1SEQUENCE\s0 present in
-\&\fBt\fR using the \s-1ASN.1\s0 structure \fBit\fR. If successful it returns a pointer
-to the \s-1ASN.1\s0 structure corresponding to \fBit\fR which must be freed by the
+\&\fIt\fR using the \s-1ASN.1\s0 structure \fIit\fR. If successful it returns a pointer
+to the \s-1ASN.1\s0 structure corresponding to \fIit\fR which must be freed by the
 caller. If it fails it return \s-1NULL.\s0
 .PP
-\&\fBASN1_TYPE_pack_sequence()\fR attempts to encode the \s-1ASN.1\s0 structure \fBs\fR
-corresponding to \fBit\fR into an \s-1ASN1_TYPE.\s0 If successful the encoded
-\&\s-1ASN1_TYPE\s0 is returned. If \fBt\fR and \fB*t\fR are not \s-1NULL\s0 the encoded type
-is written to \fBt\fR overwriting any existing data. If \fBt\fR is not \s-1NULL\s0
-but \fB*t\fR is \s-1NULL\s0 the returned \s-1ASN1_TYPE\s0 is written to \fB*t\fR.
+\&\fBASN1_TYPE_pack_sequence()\fR attempts to encode the \s-1ASN.1\s0 structure \fIs\fR
+corresponding to \fIit\fR into an \fB\s-1ASN1_TYPE\s0\fR. If successful the encoded
+\&\fB\s-1ASN1_TYPE\s0\fR is returned. If \fIt\fR and \fI*t\fR are not \s-1NULL\s0 the encoded type
+is written to \fIt\fR overwriting any existing data. If \fIt\fR is not \s-1NULL\s0
+but \fI*t\fR is \s-1NULL\s0 the returned \fB\s-1ASN1_TYPE\s0\fR is written to \fI*t\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-The type and meaning of the \fBvalue\fR parameter for \fBASN1_TYPE_set()\fR and
-\&\fBASN1_TYPE_set1()\fR is determined by the \fBtype\fR parameter.
-If \fBtype\fR is V_ASN1_NULL \fBvalue\fR is ignored. If \fBtype\fR is V_ASN1_BOOLEAN
-then the boolean is set to \s-1TRUE\s0 if \fBvalue\fR is not \s-1NULL.\s0 If \fBtype\fR is
-V_ASN1_OBJECT then value is an \s-1ASN1_OBJECT\s0 structure. Otherwise \fBtype\fR
-is and \s-1ASN1_STRING\s0 structure. If \fBtype\fR corresponds to a primitive type
-(or a string type) then the contents of the \s-1ASN1_STRING\s0 contain the content
-octets of the type. If \fBtype\fR corresponds to a constructed type or
-a tagged type (V_ASN1_SEQUENCE, V_ASN1_SET or V_ASN1_OTHER) then the
-\&\s-1ASN1_STRING\s0 contains the entire \s-1ASN.1\s0 encoding verbatim (including tag and
+The type and meaning of the \fIvalue\fR parameter for \fBASN1_TYPE_set()\fR and
+\&\fBASN1_TYPE_set1()\fR is determined by the \fItype\fR parameter.
+If \fItype\fR is \fBV_ASN1_NULL\fR \fIvalue\fR is ignored. If \fItype\fR is
+\&\fBV_ASN1_BOOLEAN\fR
+then the boolean is set to \s-1TRUE\s0 if \fIvalue\fR is not \s-1NULL.\s0 If \fItype\fR is
+\&\fBV_ASN1_OBJECT\fR then value is an \fB\s-1ASN1_OBJECT\s0\fR structure. Otherwise \fItype\fR
+is and \fB\s-1ASN1_STRING\s0\fR structure. If \fItype\fR corresponds to a primitive type
+(or a string type) then the contents of the \fB\s-1ASN1_STRING\s0\fR contain the content
+octets of the type. If \fItype\fR corresponds to a constructed type or
+a tagged type (\fBV_ASN1_SEQUENCE\fR, \fBV_ASN1_SET\fR or \fBV_ASN1_OTHER\fR) then the
+\&\fB\s-1ASN1_STRING\s0\fR contains the entire \s-1ASN.1\s0 encoding verbatim (including tag and
 length octets).
 .PP
 \&\fBASN1_TYPE_cmp()\fR may not return zero if two types are equivalent but have
@@ -208,7 +210,7 @@ unparsable type which returns \s-1NULL\s0) for types which do \fBnot\fR match. S
 applications should handle the case of two absent values separately.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBASN1_TYPE_get()\fR returns the type of the \s-1ASN1_TYPE\s0 argument.
+\&\fBASN1_TYPE_get()\fR returns the type of the \fB\s-1ASN1_TYPE\s0\fR argument.
 .PP
 \&\fBASN1_TYPE_set()\fR does not return a value.
 .PP
@@ -219,13 +221,13 @@ applications should handle the case of two absent values separately.
 \&\fBASN1_TYPE_unpack_sequence()\fR returns a pointer to an \s-1ASN.1\s0 structure or
 \&\s-1NULL\s0 on failure.
 .PP
-\&\fBASN1_TYPE_pack_sequence()\fR return an \s-1ASN1_TYPE\s0 structure if it succeeds or
+\&\fBASN1_TYPE_pack_sequence()\fR return an \fB\s-1ASN1_TYPE\s0\fR structure if it succeeds or
 \&\s-1NULL\s0 on failure.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,27 +133,34 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_NEW 3"
-.TH BIO_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_new, BIO_up_ref, BIO_free, BIO_vfree, BIO_free_all \&\- BIO allocation and freeing functions
+BIO_new_ex, BIO_new, BIO_up_ref, BIO_free, BIO_vfree, BIO_free_all
+\&\- BIO allocation and freeing functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO *  BIO_new(const BIO_METHOD *type);
-\& int    BIO_up_ref(BIO *a);
-\& int    BIO_free(BIO *a);
-\& void   BIO_vfree(BIO *a);
-\& void   BIO_free_all(BIO *a);
+\& BIO *BIO_new_ex(OSSL_LIB_CTX *libctx, const BIO_METHOD *type);
+\& BIO *BIO_new(const BIO_METHOD *type);
+\& int BIO_up_ref(BIO *a);
+\& int BIO_free(BIO *a);
+\& void BIO_vfree(BIO *a);
+\& void BIO_free_all(BIO *a);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBBIO_new()\fR function returns a new \s-1BIO\s0 using method \fBtype\fR.
+The \fBBIO_new_ex()\fR function returns a new \s-1BIO\s0 using method \fBtype\fR associated with
+the library context \fIlibctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)). The library context may be
+\&\s-1NULL\s0 to indicate the default library context.
+.PP
+The \fBBIO_new()\fR is the same as \fBBIO_new_ex()\fR except the default library context is
+always used.
 .PP
 \&\fBBIO_up_ref()\fR increments the reference count associated with the \s-1BIO\s0 object.
 .PP
@@ -170,7 +177,7 @@ occurs freeing up an individual \s-1BIO\s0 in the chain.
 If \fBa\fR is \s-1NULL\s0 nothing is done.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBBIO_new()\fR returns a newly created \s-1BIO\s0 or \s-1NULL\s0 if the call fails.
+\&\fBBIO_new_ex()\fR and \fBBIO_new()\fR return a newly created \s-1BIO\s0 or \s-1NULL\s0 if the call fails.
 .PP
 \&\fBBIO_up_ref()\fR and \fBBIO_free()\fR return 1 for success and 0 for failure.
 .PP
@@ -185,6 +192,8 @@ on it other than the discarded return value.
 .SH "HISTORY"
 .IX Header "HISTORY"
 \&\fBBIO_set()\fR was removed in OpenSSL 1.1.0 as \s-1BIO\s0 type is now opaque.
+.PP
+\&\fBBIO_new_ex()\fR was added in OpenSSL 3.0.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create a memory \s-1BIO:\s0
@@ -194,9 +203,9 @@ Create a memory \s-1BIO:\s0
 .Ve
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

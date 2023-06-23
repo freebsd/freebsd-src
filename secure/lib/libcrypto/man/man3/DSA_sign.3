@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_SIGN 3"
-.TH DSA_SIGN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,7 +144,13 @@ DSA_sign, DSA_sign_setup, DSA_verify \- DSA signatures
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
 \& int DSA_sign(int type, const unsigned char *dgst, int len,
 \&              unsigned char *sigret, unsigned int *siglen, DSA *dsa);
 \&
@@ -155,6 +161,10 @@ DSA_sign, DSA_sign_setup, DSA_verify \- DSA signatures
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_sign_init\fR\|(3), \fBEVP_PKEY_sign\fR\|(3),
+\&\fBEVP_PKEY_verify_init\fR\|(3) and \fBEVP_PKEY_verify\fR\|(3).
+.PP
 \&\fBDSA_sign()\fR computes a digital signature on the \fBlen\fR byte message
 digest \fBdgst\fR using the private key \fBdsa\fR and places its \s-1ASN.1 DER\s0
 encoding at \fBsigret\fR. The length of the signature is places in
@@ -185,18 +195,21 @@ signature and \-1 on error. The error codes can be obtained by
 \&\fBERR_get_error\fR\|(3).
 .SH "CONFORMING TO"
 .IX Header "CONFORMING TO"
-\&\s-1US\s0 Federal Information Processing Standard \s-1FIPS 186\s0 (Digital Signature
+\&\s-1US\s0 Federal Information Processing Standard \s-1FIPS186\-4\s0 (Digital Signature
 Standard, \s-1DSS\s0), \s-1ANSI X9.30\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBDSA_new\fR\|(3), \fBERR_get_error\fR\|(3), \fBRAND_bytes\fR\|(3),
 \&\fBDSA_do_sign\fR\|(3),
 \&\s-1\fBRAND\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

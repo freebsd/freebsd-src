@@ -133,13 +133,26 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET0_CA_LIST 3"
-.TH SSL_CTX_SET0_CA_LIST 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET0_CA_LIST 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_client_CA_list, SSL_set_client_CA_list, SSL_get_client_CA_list, SSL_CTX_get_client_CA_list, SSL_CTX_add_client_CA, SSL_add_client_CA, SSL_set0_CA_list, SSL_CTX_set0_CA_list, SSL_get0_CA_list, SSL_CTX_get0_CA_list, SSL_add1_to_CA_list, SSL_CTX_add1_to_CA_list, SSL_get0_peer_CA_list \&\- get or set CA list
+SSL_CTX_set_client_CA_list,
+SSL_set_client_CA_list,
+SSL_get_client_CA_list,
+SSL_CTX_get_client_CA_list,
+SSL_CTX_add_client_CA,
+SSL_add_client_CA,
+SSL_set0_CA_list,
+SSL_CTX_set0_CA_list,
+SSL_get0_CA_list,
+SSL_CTX_get0_CA_list,
+SSL_add1_to_CA_list,
+SSL_CTX_add1_to_CA_list,
+SSL_get0_peer_CA_list
+\&\- get or set CA list
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -299,9 +312,9 @@ Scan all certificates in \fBCAfile\fR and list them as acceptable CAs:
 \&\fBSSL_CTX_load_verify_locations\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

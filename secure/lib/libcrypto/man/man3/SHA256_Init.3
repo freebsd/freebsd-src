@@ -133,53 +133,65 @@
 .\" ========================================================================
 .\"
 .IX Title "SHA256_INIT 3"
-.TH SHA256_INIT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SHA256_INIT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SHA1, SHA1_Init, SHA1_Update, SHA1_Final, SHA224, SHA224_Init, SHA224_Update, SHA224_Final, SHA256, SHA256_Init, SHA256_Update, SHA256_Final, SHA384, SHA384_Init, SHA384_Update, SHA384_Final, SHA512, SHA512_Init, SHA512_Update, SHA512_Final \- Secure Hash Algorithm
+SHA1, SHA1_Init, SHA1_Update, SHA1_Final, SHA224, SHA224_Init, SHA224_Update,
+SHA224_Final, SHA256, SHA256_Init, SHA256_Update, SHA256_Final, SHA384,
+SHA384_Init, SHA384_Update, SHA384_Final, SHA512, SHA512_Init, SHA512_Update,
+SHA512_Final \- Secure Hash Algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/sha.h>
 \&
+\& unsigned char *SHA1(const unsigned char *data, size_t count, unsigned char *md_buf);
+\& unsigned char *SHA224(const unsigned char *data, size_t count, unsigned char *md_buf);
+\& unsigned char *SHA256(const unsigned char *data, size_t count, unsigned char *md_buf);
+\& unsigned char *SHA384(const unsigned char *data, size_t count, unsigned char *md_buf);
+\& unsigned char *SHA512(const unsigned char *data, size_t count, unsigned char *md_buf);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 3
 \& int SHA1_Init(SHA_CTX *c);
 \& int SHA1_Update(SHA_CTX *c, const void *data, size_t len);
 \& int SHA1_Final(unsigned char *md, SHA_CTX *c);
-\& unsigned char *SHA1(const unsigned char *d, size_t n,
-\&                     unsigned char *md);
 \&
 \& int SHA224_Init(SHA256_CTX *c);
 \& int SHA224_Update(SHA256_CTX *c, const void *data, size_t len);
 \& int SHA224_Final(unsigned char *md, SHA256_CTX *c);
-\& unsigned char *SHA224(const unsigned char *d, size_t n,
-\&                       unsigned char *md);
 \&
 \& int SHA256_Init(SHA256_CTX *c);
 \& int SHA256_Update(SHA256_CTX *c, const void *data, size_t len);
 \& int SHA256_Final(unsigned char *md, SHA256_CTX *c);
-\& unsigned char *SHA256(const unsigned char *d, size_t n,
-\&                       unsigned char *md);
 \&
 \& int SHA384_Init(SHA512_CTX *c);
 \& int SHA384_Update(SHA512_CTX *c, const void *data, size_t len);
 \& int SHA384_Final(unsigned char *md, SHA512_CTX *c);
-\& unsigned char *SHA384(const unsigned char *d, size_t n,
-\&                       unsigned char *md);
 \&
 \& int SHA512_Init(SHA512_CTX *c);
 \& int SHA512_Update(SHA512_CTX *c, const void *data, size_t len);
 \& int SHA512_Final(unsigned char *md, SHA512_CTX *c);
-\& unsigned char *SHA512(const unsigned char *d, size_t n,
-\&                       unsigned char *md);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-Applications should use the higher level functions
-\&\fBEVP_DigestInit\fR\|(3) etc. instead of calling the hash
-functions directly.
+All of the functions described on this page
+except for \s-1\fBSHA1\s0()\fR, \s-1\fBSHA224\s0()\fR, \s-1\fBSHA256\s0()\fR, \s-1\fBSHA384\s0()\fR and \s-1\fBSHA512\s0()\fR are deprecated.
+Applications should instead use \fBEVP_DigestInit_ex\fR\|(3), \fBEVP_DigestUpdate\fR\|(3)
+and \fBEVP_DigestFinal_ex\fR\|(3), or the quick one-shot function \fBEVP_Q_digest\fR\|(3).
+\&\s-1\fBSHA1\s0()\fR, \s-1\fBSHA224\s0()\fR, \s-1\fBSHA256\s0()\fR, \s-1\fBSHA384\s0()\fR, and \s-1\fBSHA256\s0()\fR
+can continue to be used. They can also be replaced by, e.g.,
+.PP
+.Vb 1
+\&    (EVP_Q_digest(d, n, md, NULL, NULL, "SHA256", NULL) ? md : NULL)
+.Ve
 .PP
 \&\s-1SHA\-1\s0 (Secure Hash Algorithm) is a cryptographic hash function with a
 160 bit output.
@@ -222,12 +234,16 @@ Standard),
 \&\s-1ANSI X9.30\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBEVP_Q_digest\fR\|(3),
 \&\fBEVP_DigestInit\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions except SHA*() were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

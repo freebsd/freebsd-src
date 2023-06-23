@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_CLEANUP 3"
-.TH RAND_CLEANUP 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RAND_CLEANUP 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,10 +144,14 @@ RAND_cleanup \- erase the PRNG state
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rand.h>
-\&
-\& #if OPENSSL_API_COMPAT < 0x10100000L
-\& void RAND_cleanup(void)
-\& #endif
+.Ve
+.PP
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
+\& void RAND_cleanup(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -167,9 +171,9 @@ since no explicit initialisation or de-initialisation is necessary. See
 See \fBOPENSSL_init_crypto\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

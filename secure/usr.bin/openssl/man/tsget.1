@@ -133,40 +133,39 @@
 .\" ========================================================================
 .\"
 .IX Title "TSGET 1"
-.TH TSGET 1 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH TSGET 1 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-tsget, tsget \- Time Stamping HTTP/HTTPS client
+tsget \- Time Stamping HTTP/HTTPS client
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBtsget\fR
-\&\fB\-h\fR server_url
-[\fB\-e\fR extension]
-[\fB\-o\fR output]
+\&\fB\-h\fR \fIserver_url\fR
+[\fB\-e\fR \fIextension\fR]
+[\fB\-o\fR \fIoutput\fR]
 [\fB\-v\fR]
 [\fB\-d\fR]
-[\fB\-k\fR private_key.pem]
-[\fB\-p\fR key_password]
-[\fB\-c\fR client_cert.pem]
-[\fB\-C\fR CA_certs.pem]
-[\fB\-P\fR CA_path]
-[\fB\-r\fR file:file...]
-[\fB\-g\fR EGD_socket]
-[request]...
+[\fB\-k\fR \fIprivate_key.pem\fR]
+[\fB\-p\fR \fIkey_password\fR]
+[\fB\-c\fR \fIclient_cert.pem\fR]
+[\fB\-C\fR \fICA_certs.pem\fR]
+[\fB\-P\fR \fICA_path\fR]
+[\fB\-r\fR \fIfiles\fR]
+[\fB\-g\fR \fIEGD_socket\fR]
+[\fIrequest\fR ...]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBtsget\fR command can be used for sending a timestamp request, as
-specified in \fB\s-1RFC 3161\s0\fR, to a timestamp server over \s-1HTTP\s0 or \s-1HTTPS\s0 and storing
-the timestamp response in a file. This tool cannot be used for creating the
-requests and verifying responses, you can use the OpenSSL \fB\fBts\fB\|(1)\fR command to
-do that. \fBtsget\fR can send several requests to the server without closing
-the \s-1TCP\s0 connection if more than one requests are specified on the command
-line.
+This command can be used for sending a timestamp request, as specified
+in \s-1RFC 3161,\s0 to a timestamp server over \s-1HTTP\s0 or \s-1HTTPS\s0 and storing the
+timestamp response in a file. It cannot be used for creating the requests
+and verifying responses, you have to use \fBopenssl\-ts\fR\|(1) to do that. This
+command can send several requests to the server without closing the \s-1TCP\s0
+connection if more than one requests are specified on the command line.
 .PP
-The tool sends the following \s-1HTTP\s0 request for each timestamp request:
+This command sends the following \s-1HTTP\s0 request for each timestamp request:
 .PP
 .Vb 7
 \&        POST url HTTP/1.1
@@ -180,19 +179,19 @@ The tool sends the following \s-1HTTP\s0 request for each timestamp request:
 \&        ...binary request specified by the user...
 .Ve
 .PP
-\&\fBtsget\fR expects a response of type application/timestamp\-reply, which is
+It expects a response of type application/timestamp\-reply, which is
 written to a file without any interpretation.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
-.IP "\fB\-h\fR server_url" 4
+.IP "\fB\-h\fR \fIserver_url\fR" 4
 .IX Item "-h server_url"
 The \s-1URL\s0 of the \s-1HTTP/HTTPS\s0 server listening for timestamp requests.
-.IP "\fB\-e\fR extension" 4
+.IP "\fB\-e\fR \fIextension\fR" 4
 .IX Item "-e extension"
 If the \fB\-o\fR option is not given this argument specifies the extension of the
 output files. The base name of the output file will be the same as those of
-the input files. Default extension is '.tsr'. (Optional)
-.IP "\fB\-o\fR output" 4
+the input files. Default extension is \fI.tsr\fR. (Optional)
+.IP "\fB\-o\fR \fIoutput\fR" 4
 .IX Item "-o output"
 This option can be specified only when just one request is sent to the
 server. The timestamp response will be written to the given output file. '\-'
@@ -205,49 +204,47 @@ The name of the currently processed request is printed on standard
 error. (Optional)
 .IP "\fB\-d\fR" 4
 .IX Item "-d"
-Switches on verbose mode for the underlying \fBcurl\fR library. You can see
-detailed debug messages for the connection. (Optional)
-.IP "\fB\-k\fR private_key.pem" 4
+Switches on verbose mode for the underlying perl module WWW::Curl::Easy.
+You can see detailed debug messages for the connection. (Optional)
+.IP "\fB\-k\fR \fIprivate_key.pem\fR" 4
 .IX Item "-k private_key.pem"
 (\s-1HTTPS\s0) In case of certificate-based client authentication over \s-1HTTPS\s0
-<private_key.pem> must contain the private key of the user. The private key
+\&\fIprivate_key.pem\fR must contain the private key of the user. The private key
 file can optionally be protected by a passphrase. The \fB\-c\fR option must also
 be specified. (Optional)
-.IP "\fB\-p\fR key_password" 4
+.IP "\fB\-p\fR \fIkey_password\fR" 4
 .IX Item "-p key_password"
 (\s-1HTTPS\s0) Specifies the passphrase for the private key specified by the \fB\-k\fR
-argument. If this option is omitted and the key is passphrase protected \fBtsget\fR
-will ask for it. (Optional)
-.IP "\fB\-c\fR client_cert.pem" 4
+argument. If this option is omitted and the key is passphrase protected,
+it will be prompted for. (Optional)
+.IP "\fB\-c\fR \fIclient_cert.pem\fR" 4
 .IX Item "-c client_cert.pem"
 (\s-1HTTPS\s0) In case of certificate-based client authentication over \s-1HTTPS\s0
-<client_cert.pem> must contain the X.509 certificate of the user.  The \fB\-k\fR
+\&\fIclient_cert.pem\fR must contain the X.509 certificate of the user.  The \fB\-k\fR
 option must also be specified. If this option is not specified no
 certificate-based client authentication will take place. (Optional)
-.IP "\fB\-C\fR CA_certs.pem" 4
+.IP "\fB\-C\fR \fICA_certs.pem\fR" 4
 .IX Item "-C CA_certs.pem"
 (\s-1HTTPS\s0) The trusted \s-1CA\s0 certificate store. The certificate chain of the peer's
 certificate must include one of the \s-1CA\s0 certificates specified in this file.
 Either option \fB\-C\fR or option \fB\-P\fR must be given in case of \s-1HTTPS.\s0 (Optional)
-.IP "\fB\-P\fR CA_path" 4
+.IP "\fB\-P\fR \fICA_path\fR" 4
 .IX Item "-P CA_path"
 (\s-1HTTPS\s0) The path containing the trusted \s-1CA\s0 certificates to verify the peer's
-certificate. The directory must be prepared with the \fBc_rehash\fR
-OpenSSL utility. Either option \fB\-C\fR or option \fB\-P\fR must be given in case of
-\&\s-1HTTPS.\s0 (Optional)
-.IP "\fB\-rand\fR file:file..." 4
-.IX Item "-rand file:file..."
-The files containing random data for seeding the random number
-generator. Multiple files can be specified, the separator is \fB;\fR for
-MS-Windows, \fB,\fR for \s-1VMS\s0 and \fB:\fR for all other platforms. (Optional)
-.IP "\fB\-g\fR EGD_socket" 4
+certificate. The directory must be prepared with \fBopenssl\-rehash\fR\|(1). Either
+option \fB\-C\fR or option \fB\-P\fR must be given in case of \s-1HTTPS.\s0 (Optional)
+.IP "\fB\-r\fR \fIfiles\fR" 4
+.IX Item "-r files"
+See \*(L"Random State Options\*(R" in \fBopenssl\fR\|(1) for more information.
+.IP "\fB\-g\fR \fIEGD_socket\fR" 4
 .IX Item "-g EGD_socket"
 The name of an \s-1EGD\s0 socket to get random data from. (Optional)
-.IP "[request]..." 4
-.IX Item "[request]..."
-List of files containing \fB\s-1RFC 3161\s0\fR DER-encoded timestamp requests. If no
-requests are specified only one request will be sent to the server and it will be
-read from the standard input. (Optional)
+.IP "\fIrequest\fR ..." 4
+.IX Item "request ..."
+List of files containing \s-1RFC 3161\s0 DER-encoded timestamp requests. If no
+requests are specified only one request will be sent to the server and it will
+be read from the standard input.
+(Optional)
 .SH "ENVIRONMENT VARIABLES"
 .IX Header "ENVIRONMENT VARIABLES"
 The \fB\s-1TSGET\s0\fR environment variable can optionally contain default
@@ -255,28 +252,28 @@ arguments. The content of this variable is added to the list of command line
 arguments.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
-The examples below presume that \fBfile1.tsq\fR and \fBfile2.tsq\fR contain valid
+The examples below presume that \fIfile1.tsq\fR and \fIfile2.tsq\fR contain valid
 timestamp requests, tsa.opentsa.org listens at port 8080 for \s-1HTTP\s0 requests
 and at port 8443 for \s-1HTTPS\s0 requests, the \s-1TSA\s0 service is available at the /tsa
 absolute path.
 .PP
-Get a timestamp response for file1.tsq over \s-1HTTP,\s0 output is written to
-file1.tsr:
+Get a timestamp response for \fIfile1.tsq\fR over \s-1HTTP,\s0 output is written to
+\&\fIfile1.tsr\fR:
 .PP
 .Vb 1
 \&  tsget \-h http://tsa.opentsa.org:8080/tsa file1.tsq
 .Ve
 .PP
-Get a timestamp response for file1.tsq and file2.tsq over \s-1HTTP\s0 showing
-progress, output is written to file1.reply and file2.reply respectively:
+Get a timestamp response for \fIfile1.tsq\fR and \fIfile2.tsq\fR over \s-1HTTP\s0 showing
+progress, output is written to \fIfile1.reply\fR and \fIfile2.reply\fR respectively:
 .PP
 .Vb 2
 \&  tsget \-h http://tsa.opentsa.org:8080/tsa \-v \-e .reply \e
 \&        file1.tsq file2.tsq
 .Ve
 .PP
-Create a timestamp request, write it to file3.tsq, send it to the server and
-write the response to file3.tsr:
+Create a timestamp request, write it to \fIfile3.tsq\fR, send it to the server and
+write the response to \fIfile3.tsr\fR:
 .PP
 .Vb 3
 \&  openssl ts \-query \-data file3.txt \-cert | tee file3.tsq \e
@@ -284,7 +281,7 @@ write the response to file3.tsr:
 \&        \-o file3.tsr
 .Ve
 .PP
-Get a timestamp response for file1.tsq over \s-1HTTPS\s0 without client
+Get a timestamp response for \fIfile1.tsq\fR over \s-1HTTPS\s0 without client
 authentication:
 .PP
 .Vb 2
@@ -292,8 +289,8 @@ authentication:
 \&        \-C cacerts.pem file1.tsq
 .Ve
 .PP
-Get a timestamp response for file1.tsq over \s-1HTTPS\s0 with certificate-based
-client authentication (it will ask for the passphrase if client_key.pem is
+Get a timestamp response for \fIfile1.tsq\fR over \s-1HTTPS\s0 with certificate-based
+client authentication (it will ask for the passphrase if \fIclient_key.pem\fR is
 protected):
 .PP
 .Vb 2
@@ -313,13 +310,15 @@ example:
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBopenssl\fR\|(1), \fBts\fR\|(1), \fBcurl\fR\|(1),
-\&\fB\s-1RFC 3161\s0\fR
+\&\fBopenssl\fR\|(1),
+\&\fBopenssl\-ts\fR\|(1),
+WWW::Curl::Easy,
+<https://www.rfc\-editor.org/rfc/rfc3161.html>
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

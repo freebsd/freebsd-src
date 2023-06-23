@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_CIPHER 3"
-.TH BIO_F_CIPHER 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_F_CIPHER 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,10 +147,10 @@ BIO_f_cipher, BIO_set_cipher, BIO_get_cipher_status, BIO_get_cipher_ctx \- ciphe
 \& #include <openssl/evp.h>
 \&
 \& const BIO_METHOD *BIO_f_cipher(void);
-\& void BIO_set_cipher(BIO *b, const EVP_CIPHER *cipher,
-\&                     unsigned char *key, unsigned char *iv, int enc);
-\& int BIO_get_cipher_status(BIO *b)
-\& int BIO_get_cipher_ctx(BIO *b, EVP_CIPHER_CTX **pctx)
+\& int BIO_set_cipher(BIO *b, const EVP_CIPHER *cipher,
+\&                    const unsigned char *key, const unsigned char *iv, int enc);
+\& int BIO_get_cipher_status(BIO *b);
+\& int BIO_get_cipher_ctx(BIO *b, EVP_CIPHER_CTX **pctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -195,17 +195,17 @@ be achieved by preceding the cipher \s-1BIO\s0 with a buffering \s-1BIO.\s0
 .IX Header "RETURN VALUES"
 \&\fBBIO_f_cipher()\fR returns the cipher \s-1BIO\s0 method.
 .PP
-\&\fBBIO_set_cipher()\fR does not return a value.
+\&\fBBIO_set_cipher()\fR returns 1 for success and 0 for failure.
 .PP
-\&\fBBIO_get_cipher_status()\fR returns 1 for a successful decrypt and 0
+\&\fBBIO_get_cipher_status()\fR returns 1 for a successful decrypt and <=0
 for failure.
 .PP
-\&\fBBIO_get_cipher_ctx()\fR currently always returns 1.
+\&\fBBIO_get_cipher_ctx()\fR returns 1 for success and <=0 for failure.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

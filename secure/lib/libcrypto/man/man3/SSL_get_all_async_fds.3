@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_ALL_ASYNC_FDS 3"
-.TH SSL_GET_ALL_ASYNC_FDS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_GET_ALL_ASYNC_FDS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_waiting_for_async, SSL_get_all_async_fds, SSL_get_changed_async_fds \&\- manage asynchronous operations
+SSL_waiting_for_async,
+SSL_get_all_async_fds,
+SSL_get_changed_async_fds
+\&\- manage asynchronous operations
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 2
@@ -154,32 +157,32 @@ SSL_waiting_for_async, SSL_get_all_async_fds, SSL_get_changed_async_fds \&\- man
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBSSL_waiting_for_async()\fR determines whether an \s-1SSL\s0 connection is currently
-waiting for asynchronous operations to complete (see the \s-1SSL_MODE_ASYNC\s0 mode in
-\&\fBSSL_CTX_set_mode\fR\|(3)).
+waiting for asynchronous operations to complete (see the \fB\s-1SSL_MODE_ASYNC\s0\fR mode
+in \fBSSL_CTX_set_mode\fR\|(3)).
 .PP
 \&\fBSSL_get_all_async_fds()\fR returns a list of file descriptor which can be used in a
 call to \fBselect()\fR or \fBpoll()\fR to determine whether the current asynchronous
 operation has completed or not. A completed operation will result in data
 appearing as \*(L"read ready\*(R" on the file descriptor (no actual data should be read
-from the file descriptor). This function should only be called if the \s-1SSL\s0 object
-is currently waiting for asynchronous work to complete (i.e.
-\&\s-1SSL_ERROR_WANT_ASYNC\s0 has been received \- see \fBSSL_get_error\fR\|(3)). Typically the
-list will only contain one file descriptor. However, if multiple asynchronous
+from the file descriptor). This function should only be called if the \fB\s-1SSL\s0\fR
+object is currently waiting for asynchronous work to complete (i.e.
+\&\fB\s-1SSL_ERROR_WANT_ASYNC\s0\fR has been received \- see \fBSSL_get_error\fR\|(3)). Typically
+the list will only contain one file descriptor. However, if multiple asynchronous
 capable engines are in use then more than one is possible. The number of file
-descriptors returned is stored in \fB*numfds\fR and the file descriptors themselves
-are in \fB*fds\fR. The \fBfds\fR parameter may be \s-1NULL\s0 in which case no file
-descriptors are returned but \fB*numfds\fR is still populated. It is the callers
-responsibility to ensure sufficient memory is allocated at \fB*fds\fR so typically
-this function is called twice (once with a \s-1NULL\s0 \fBfds\fR parameter and once
+descriptors returned is stored in \fI*numfds\fR and the file descriptors themselves
+are in \fI*fds\fR. The \fIfds\fR parameter may be \s-1NULL\s0 in which case no file
+descriptors are returned but \fI*numfds\fR is still populated. It is the callers
+responsibility to ensure sufficient memory is allocated at \fI*fds\fR so typically
+this function is called twice (once with a \s-1NULL\s0 \fIfds\fR parameter and once
 without).
 .PP
 \&\fBSSL_get_changed_async_fds()\fR returns a list of the asynchronous file descriptors
 that have been added and a list that have been deleted since the last
-\&\s-1SSL_ERROR_WANT_ASYNC\s0 was received (or since the \s-1SSL\s0 object was created if no
-\&\s-1SSL_ERROR_WANT_ASYNC\s0 has been received). Similar to \fBSSL_get_all_async_fds()\fR it
-is the callers responsibility to ensure that \fB*addfd\fR and \fB*delfd\fR have
+\&\fB\s-1SSL_ERROR_WANT_ASYNC\s0\fR was received (or since the \fB\s-1SSL\s0\fR object was created if
+no \fB\s-1SSL_ERROR_WANT_ASYNC\s0\fR has been received). Similar to \fBSSL_get_all_async_fds()\fR
+it is the callers responsibility to ensure that \fI*addfd\fR and \fI*delfd\fR have
 sufficient memory allocated, although they may be \s-1NULL.\s0 The number of added fds
-and the number of deleted fds are stored in \fB*numaddfds\fR and \fB*numdelfds\fR
+and the number of deleted fds are stored in \fI*numaddfds\fR and \fI*numdelfds\fR
 respectively.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -190,14 +193,15 @@ for an async operation to complete and 0 otherwise.
 0 on error.
 .SH "NOTES"
 .IX Header "NOTES"
-On Windows platforms the openssl/async.h header is dependent on some
-of the types customarily made available by including windows.h. The
+On Windows platforms the \fI<openssl/async.h>\fR header is dependent on some
+of the types customarily made available by including \fI<windows.h>\fR. The
 application developer is likely to require control over when the latter
 is included, commonly as one of the first included headers. Therefore,
 it is defined as an application developer's responsibility to include
-windows.h prior to async.h.
+\&\fI<windows.h>\fR prior to \fI<openssl/async.h>\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_get_error\fR\|(3), \fBSSL_CTX_set_mode\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
@@ -205,9 +209,9 @@ The \fBSSL_waiting_for_async()\fR, \fBSSL_get_all_async_fds()\fR
 and \fBSSL_get_changed_async_fds()\fR functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

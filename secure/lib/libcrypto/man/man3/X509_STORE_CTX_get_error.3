@@ -133,55 +133,65 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_GET_ERROR 3"
-.TH X509_STORE_CTX_GET_ERROR 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_STORE_CTX_GET_ERROR 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE_CTX_get_error, X509_STORE_CTX_set_error, X509_STORE_CTX_get_error_depth, X509_STORE_CTX_set_error_depth, X509_STORE_CTX_get_current_cert, X509_STORE_CTX_set_current_cert, X509_STORE_CTX_get0_cert, X509_STORE_CTX_get1_chain, X509_verify_cert_error_string \- get or set certificate verification status information
+X509_STORE_CTX_get_error, X509_STORE_CTX_set_error,
+X509_STORE_CTX_get_error_depth, X509_STORE_CTX_set_error_depth,
+X509_STORE_CTX_get_current_cert, X509_STORE_CTX_set_current_cert,
+X509_STORE_CTX_get0_cert, X509_STORE_CTX_get1_chain,
+X509_verify_cert_error_string \- get or set certificate verification status
+information
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
-\& int   X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
+\& int   X509_STORE_CTX_get_error(const X509_STORE_CTX *ctx);
 \& void  X509_STORE_CTX_set_error(X509_STORE_CTX *ctx, int s);
-\& int   X509_STORE_CTX_get_error_depth(X509_STORE_CTX *ctx);
+\& int   X509_STORE_CTX_get_error_depth(const X509_STORE_CTX *ctx);
 \& void  X509_STORE_CTX_set_error_depth(X509_STORE_CTX *ctx, int depth);
-\& X509 *X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
+\& X509 *X509_STORE_CTX_get_current_cert(const X509_STORE_CTX *ctx);
 \& void  X509_STORE_CTX_set_current_cert(X509_STORE_CTX *ctx, X509 *x);
-\& X509 *X509_STORE_CTX_get0_cert(X509_STORE_CTX *ctx);
+\& X509 *X509_STORE_CTX_get0_cert(const X509_STORE_CTX *ctx);
 \&
-\& STACK_OF(X509) *X509_STORE_CTX_get1_chain(X509_STORE_CTX *ctx);
+\& STACK_OF(X509) *X509_STORE_CTX_get1_chain(const X509_STORE_CTX *ctx);
 \&
 \& const char *X509_verify_cert_error_string(long n);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-These functions are typically called after \fBX509_verify_cert()\fR has indicated
+These functions are typically called after certificate or chain verification
+using \fBX509_verify_cert\fR\|(3) or \fBX509_STORE_CTX_verify\fR\|(3) has indicated
 an error or in a verification callback to determine the nature of an error.
 .PP
-\&\fBX509_STORE_CTX_get_error()\fR returns the error code of \fBctx\fR, see
-the \fB\s-1ERROR CODES\s0\fR section for a full description of all error codes.
+\&\fBX509_STORE_CTX_get_error()\fR returns the error code of \fIctx\fR.
+See the \*(L"\s-1ERROR CODES\*(R"\s0 section for a full description of all error codes.
+It may return a code != X509_V_OK even if \fBX509_verify_cert()\fR did not indicate
+an error, likely because a verification callback function has waived the error.
 .PP
-\&\fBX509_STORE_CTX_set_error()\fR sets the error code of \fBctx\fR to \fBs\fR. For example
+\&\fBX509_STORE_CTX_set_error()\fR sets the error code of \fIctx\fR to \fIs\fR. For example
 it might be used in a verification callback to set an error based on additional
 checks.
 .PP
-\&\fBX509_STORE_CTX_get_error_depth()\fR returns the \fBdepth\fR of the error. This is a
+\&\fBX509_STORE_CTX_get_error_depth()\fR returns the \fIdepth\fR of the error. This is a
 nonnegative integer representing where in the certificate chain the error
 occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
 .PP
-\&\fBX509_STORE_CTX_set_error_depth()\fR sets the error \fBdepth\fR.
+\&\fBX509_STORE_CTX_set_error_depth()\fR sets the error \fIdepth\fR.
 This can be used in combination with \fBX509_STORE_CTX_set_error()\fR to set the
 depth at which an error condition was detected.
 .PP
-\&\fBX509_STORE_CTX_get_current_cert()\fR returns the certificate in \fBctx\fR which
-caused the error or \fB\s-1NULL\s0\fR if no certificate is relevant.
+\&\fBX509_STORE_CTX_get_current_cert()\fR returns the current certificate in
+\&\fIctx\fR. If an error occurred, the current certificate will be the one
+that is most closely related to the error, or possibly \s-1NULL\s0 if no such
+certificate is relevant.
 .PP
-\&\fBX509_STORE_CTX_set_current_cert()\fR sets the certificate \fBx\fR in \fBctx\fR which
+\&\fBX509_STORE_CTX_set_current_cert()\fR sets the certificate \fIx\fR in \fIctx\fR which
 caused the error.
 This value is not intended to remain valid for very long, and remains owned by
 the caller.
@@ -194,20 +204,19 @@ Once such a \fIsaved\fR certificate is no longer needed it can be freed with
 \&\fBX509_free\fR\|(3).
 .PP
 \&\fBX509_STORE_CTX_get0_cert()\fR retrieves an internal pointer to the
-certificate being verified by the \fBctx\fR.
+certificate being verified by the \fIctx\fR.
 .PP
 \&\fBX509_STORE_CTX_get1_chain()\fR returns a complete validate chain if a previous
-call to \fBX509_verify_cert()\fR is successful. If the call to \fBX509_verify_cert()\fR
-is \fBnot\fR successful the returned chain may be incomplete or invalid. The
-returned chain persists after the \fBctx\fR structure is freed, when it is
-no longer needed it should be free up using:
+verification is successful. Otherwise the returned chain may be incomplete or
+invalid.  The returned chain persists after the \fIctx\fR structure is freed.
+When it is no longer needed it should be free up using:
 .PP
 .Vb 1
 \& sk_X509_pop_free(chain, X509_free);
 .Ve
 .PP
 \&\fBX509_verify_cert_error_string()\fR returns a human readable error string for
-verification error \fBn\fR.
+verification error \fIn\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBX509_STORE_CTX_get_error()\fR returns \fBX509_V_OK\fR or an error code.
@@ -215,10 +224,10 @@ verification error \fBn\fR.
 \&\fBX509_STORE_CTX_get_error_depth()\fR returns a nonnegative error depth.
 .PP
 \&\fBX509_STORE_CTX_get_current_cert()\fR returns the certificate which caused the
-error or \fB\s-1NULL\s0\fR if no certificate is relevant to the error.
+error or \s-1NULL\s0 if no certificate is relevant to the error.
 .PP
 \&\fBX509_verify_cert_error_string()\fR returns a human readable error string for
-verification error \fBn\fR.
+verification error \fIn\fR.
 .SH "ERROR CODES"
 .IX Header "ERROR CODES"
 A list of error codes and messages is shown below.  Some of the
@@ -226,122 +235,150 @@ error codes are defined but currently never returned: these are described as
 \&\*(L"unused\*(R".
 .IP "\fBX509_V_OK: ok\fR" 4
 .IX Item "X509_V_OK: ok"
-the operation was successful.
+The operation was successful.
+.IP "\fBX509_V_ERR_UNSPECIFIED: unspecified certificate verification error\fR" 4
+.IX Item "X509_V_ERR_UNSPECIFIED: unspecified certificate verification error"
+Unspecified error; should not happen.
 .IP "\fBX509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: unable to get issuer certificate\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: unable to get issuer certificate"
-the issuer certificate of a locally looked up certificate could not be found.
+The issuer certificate of a locally looked up certificate could not be found.
 This normally means the list of trusted certificates is not complete.
+To allow any certificate (not only a self-signed one) in the trust store
+to terminate the chain the \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag may be set.
 .IP "\fBX509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate \s-1CRL\s0\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate CRL"
-the \s-1CRL\s0 of a certificate could not be found.
+The \s-1CRL\s0 of a certificate could not be found.
 .IP "\fBX509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE: unable to decrypt certificate's signature\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE: unable to decrypt certificate's signature"
-the certificate signature could not be decrypted. This means that the actual
+The certificate signature could not be decrypted. This means that the actual
 signature value could not be determined rather than it not matching the
 expected value, this is only meaningful for \s-1RSA\s0 keys.
 .IP "\fBX509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE: unable to decrypt \s-1CRL\s0's signature\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE: unable to decrypt CRL's signature"
-the \s-1CRL\s0 signature could not be decrypted: this means that the actual signature
+The \s-1CRL\s0 signature could not be decrypted: this means that the actual signature
 value could not be determined rather than it not matching the expected value.
 Unused.
 .IP "\fBX509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY: unable to decode issuer public key\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY: unable to decode issuer public key"
-the public key in the certificate SubjectPublicKeyInfo could not be read.
+The public key in the certificate \f(CW\*(C`SubjectPublicKeyInfo\*(C'\fR field could
+not be read.
 .IP "\fBX509_V_ERR_CERT_SIGNATURE_FAILURE: certificate signature failure\fR" 4
 .IX Item "X509_V_ERR_CERT_SIGNATURE_FAILURE: certificate signature failure"
-the signature of the certificate is invalid.
+The signature of the certificate is invalid.
 .IP "\fBX509_V_ERR_CRL_SIGNATURE_FAILURE: \s-1CRL\s0 signature failure\fR" 4
 .IX Item "X509_V_ERR_CRL_SIGNATURE_FAILURE: CRL signature failure"
-the signature of the certificate is invalid.
+The signature of the \s-1CRL\s0 is invalid.
 .IP "\fBX509_V_ERR_CERT_NOT_YET_VALID: certificate is not yet valid\fR" 4
 .IX Item "X509_V_ERR_CERT_NOT_YET_VALID: certificate is not yet valid"
-the certificate is not yet valid: the notBefore date is after the current time.
+The certificate is not yet valid: the \f(CW\*(C`notBefore\*(C'\fR date is after the
+current time.
 .IP "\fBX509_V_ERR_CERT_HAS_EXPIRED: certificate has expired\fR" 4
 .IX Item "X509_V_ERR_CERT_HAS_EXPIRED: certificate has expired"
-the certificate has expired: that is the notAfter date is before the current time.
+The certificate has expired: that is the \f(CW\*(C`notAfter\*(C'\fR date is before the
+current time.
 .IP "\fBX509_V_ERR_CRL_NOT_YET_VALID: \s-1CRL\s0 is not yet valid\fR" 4
 .IX Item "X509_V_ERR_CRL_NOT_YET_VALID: CRL is not yet valid"
-the \s-1CRL\s0 is not yet valid.
+The \s-1CRL\s0 is not yet valid.
 .IP "\fBX509_V_ERR_CRL_HAS_EXPIRED: \s-1CRL\s0 has expired\fR" 4
 .IX Item "X509_V_ERR_CRL_HAS_EXPIRED: CRL has expired"
-the \s-1CRL\s0 has expired.
+The \s-1CRL\s0 has expired.
 .IP "\fBX509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD: format error in certificate's notBefore field\fR" 4
 .IX Item "X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD: format error in certificate's notBefore field"
-the certificate notBefore field contains an invalid time.
+The certificate \f(CW\*(C`notBefore\*(C'\fR field contains an invalid time.
 .IP "\fBX509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD: format error in certificate's notAfter field\fR" 4
 .IX Item "X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD: format error in certificate's notAfter field"
-the certificate notAfter field contains an invalid time.
+The certificate \f(CW\*(C`notAfter\*(C'\fR field contains an invalid time.
 .IP "\fBX509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD: format error in \s-1CRL\s0's lastUpdate field\fR" 4
 .IX Item "X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD: format error in CRL's lastUpdate field"
-the \s-1CRL\s0 lastUpdate field contains an invalid time.
+The \s-1CRL\s0 \fBlastUpdate\fR field contains an invalid time.
 .IP "\fBX509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD: format error in \s-1CRL\s0's nextUpdate field\fR" 4
 .IX Item "X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD: format error in CRL's nextUpdate field"
-the \s-1CRL\s0 nextUpdate field contains an invalid time.
+The \s-1CRL\s0 \f(CW\*(C`nextUpdate\*(C'\fR field contains an invalid time.
 .IP "\fBX509_V_ERR_OUT_OF_MEM: out of memory\fR" 4
 .IX Item "X509_V_ERR_OUT_OF_MEM: out of memory"
-an error occurred trying to allocate memory. This should never happen.
-.IP "\fBX509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT: self signed certificate\fR" 4
-.IX Item "X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT: self signed certificate"
-the passed certificate is self signed and the same certificate cannot be found
+An error occurred trying to allocate memory.
+.IP "\fBX509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT: self-signed certificate\fR" 4
+.IX Item "X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT: self-signed certificate"
+The passed certificate is self-signed and the same certificate cannot be found
 in the list of trusted certificates.
-.IP "\fBX509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN: self signed certificate in certificate chain\fR" 4
-.IX Item "X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN: self signed certificate in certificate chain"
-the certificate chain could be built up using the untrusted certificates but
-the root could not be found locally.
+.IP "\fBX509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN: self-signed certificate in certificate chain\fR" 4
+.IX Item "X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN: self-signed certificate in certificate chain"
+The certificate chain could be built up using the untrusted certificates
+but no suitable trust anchor (which typically is a self-signed root certificate)
+could be found in the trust store.
 .IP "\fBX509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate"
-the issuer certificate could not be found: this occurs if the issuer certificate
+The issuer certificate could not be found: this occurs if the issuer certificate
 of an untrusted certificate cannot be found.
 .IP "\fBX509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate\fR" 4
 .IX Item "X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate"
-no signatures could be verified because the chain contains only one certificate
-and it is not self signed.
+No signatures could be verified because the chain contains only one certificate
+and it is not self-signed and the \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag is not set.
 .IP "\fBX509_V_ERR_CERT_CHAIN_TOO_LONG: certificate chain too long\fR" 4
 .IX Item "X509_V_ERR_CERT_CHAIN_TOO_LONG: certificate chain too long"
-the certificate chain length is greater than the supplied maximum depth. Unused.
+The certificate chain length is greater than the supplied maximum depth.
 .IP "\fBX509_V_ERR_CERT_REVOKED: certificate revoked\fR" 4
 .IX Item "X509_V_ERR_CERT_REVOKED: certificate revoked"
-the certificate has been revoked.
-.IP "\fBX509_V_ERR_INVALID_CA: invalid \s-1CA\s0 certificate\fR" 4
-.IX Item "X509_V_ERR_INVALID_CA: invalid CA certificate"
-a \s-1CA\s0 certificate is invalid. Either it is not a \s-1CA\s0 or its extensions are not
-consistent with the supplied purpose.
+The certificate has been revoked.
+.IP "\fBX509_V_ERR_NO_ISSUER_PUBLIC_KEY: issuer certificate doesn't have a public key\fR" 4
+.IX Item "X509_V_ERR_NO_ISSUER_PUBLIC_KEY: issuer certificate doesn't have a public key"
+The issuer certificate does not have a public key.
 .IP "\fBX509_V_ERR_PATH_LENGTH_EXCEEDED: path length constraint exceeded\fR" 4
 .IX Item "X509_V_ERR_PATH_LENGTH_EXCEEDED: path length constraint exceeded"
-the basicConstraints path-length parameter has been exceeded.
-.IP "\fBX509_V_ERR_INVALID_PURPOSE: unsupported certificate purpose\fR" 4
-.IX Item "X509_V_ERR_INVALID_PURPOSE: unsupported certificate purpose"
-the supplied certificate cannot be used for the specified purpose.
+The basicConstraints path-length parameter has been exceeded.
+.IP "\fBX509_V_ERR_INVALID_PURPOSE: unsuitable certificate purpose\fR" 4
+.IX Item "X509_V_ERR_INVALID_PURPOSE: unsuitable certificate purpose"
+The target certificate cannot be used for the specified purpose.
 .IP "\fBX509_V_ERR_CERT_UNTRUSTED: certificate not trusted\fR" 4
 .IX Item "X509_V_ERR_CERT_UNTRUSTED: certificate not trusted"
-the root \s-1CA\s0 is not marked as trusted for the specified purpose.
+The root \s-1CA\s0 is not marked as trusted for the specified purpose.
 .IP "\fBX509_V_ERR_CERT_REJECTED: certificate rejected\fR" 4
 .IX Item "X509_V_ERR_CERT_REJECTED: certificate rejected"
-the root \s-1CA\s0 is marked to reject the specified purpose.
+The root \s-1CA\s0 is marked to reject the specified purpose.
 .IP "\fBX509_V_ERR_SUBJECT_ISSUER_MISMATCH: subject issuer mismatch\fR" 4
 .IX Item "X509_V_ERR_SUBJECT_ISSUER_MISMATCH: subject issuer mismatch"
-the current candidate issuer certificate was rejected because its subject name
-did not match the issuer name of the current certificate. This is only set
-if issuer check debugging is enabled it is used for status notification and
-is \fBnot\fR in itself an error.
+The current candidate issuer certificate was rejected because its subject name
+did not match the issuer name of the current certificate.
 .IP "\fBX509_V_ERR_AKID_SKID_MISMATCH: authority and subject key identifier mismatch\fR" 4
 .IX Item "X509_V_ERR_AKID_SKID_MISMATCH: authority and subject key identifier mismatch"
-the current candidate issuer certificate was rejected because its subject key
+The current candidate issuer certificate was rejected because its subject key
 identifier was present and did not match the authority key identifier current
-certificate. This is only set if issuer check debugging is enabled it is used
-for status notification and is \fBnot\fR in itself an error.
+certificate.
 .IP "\fBX509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH: authority and issuer serial number mismatch\fR" 4
 .IX Item "X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH: authority and issuer serial number mismatch"
-the current candidate issuer certificate was rejected because its issuer name
+The current candidate issuer certificate was rejected because its issuer name
 and serial number was present and did not match the authority key identifier of
-the current certificate. This is only set if issuer check debugging is enabled
-it is used for status notification and is \fBnot\fR in itself an error.
-.IP "\fBX509_V_ERR_KEYUSAGE_NO_CERTSIGN:key usage does not include certificate signing\fR" 4
-.IX Item "X509_V_ERR_KEYUSAGE_NO_CERTSIGN:key usage does not include certificate signing"
-the current candidate issuer certificate was rejected because its keyUsage
-extension does not permit certificate signing. This is only set if issuer check
-debugging is enabled it is used for status notification and is \fBnot\fR in itself
-an error.
+the current certificate.
+.IP "\fBX509_V_ERR_KEYUSAGE_NO_CERTSIGN: key usage does not include certificate signing\fR" 4
+.IX Item "X509_V_ERR_KEYUSAGE_NO_CERTSIGN: key usage does not include certificate signing"
+The current candidate issuer certificate was rejected because its \f(CW\*(C`keyUsage\*(C'\fR
+extension does not permit certificate signing.
+.IP "\fBX509_V_ERR_UNABLE_TO_GET_CRL_ISSUER: unable to get \s-1CRL\s0 issuer certificate\fR" 4
+.IX Item "X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER: unable to get CRL issuer certificate"
+Unable to get \s-1CRL\s0 issuer certificate.
+.IP "\fBX509_V_ERR_UNHANDLED_CRITICAL_EXTENSION: unhandled critical extension\fR" 4
+.IX Item "X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION: unhandled critical extension"
+Unhandled critical extension.
+.IP "\fBX509_V_ERR_KEYUSAGE_NO_CRL_SIGN: key usage does not include \s-1CRL\s0 signing\fR" 4
+.IX Item "X509_V_ERR_KEYUSAGE_NO_CRL_SIGN: key usage does not include CRL signing"
+Key usage does not include \s-1CRL\s0 signing.
+.IP "\fBX509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION: unhandled critical \s-1CRL\s0 extension\fR" 4
+.IX Item "X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION: unhandled critical CRL extension"
+Unhandled critical \s-1CRL\s0 extension.
+.IP "\fBX509_V_ERR_INVALID_NON_CA: invalid non-CA certificate (has \s-1CA\s0 markings)\fR" 4
+.IX Item "X509_V_ERR_INVALID_NON_CA: invalid non-CA certificate (has CA markings)"
+Invalid non-CA certificate has \s-1CA\s0 markings.
+.IP "\fBX509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED: proxy path length constraint exceeded\fR" 4
+.IX Item "X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED: proxy path length constraint exceeded"
+Proxy path length constraint exceeded.
+.IP "\fBX509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE: key usage does not include digital signature\fR" 4
+.IX Item "X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE: key usage does not include digital signature"
+Key usage does not include digital signature, and therefore cannot sign
+certificates.
+.IP "\fBX509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED: proxy certificates not allowed, please set the appropriate flag\fR" 4
+.IX Item "X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED: proxy certificates not allowed, please set the appropriate flag"
+Proxy certificates not allowed unless the \fBX509_V_FLAG_ALLOW_PROXY_CERTS\fR flag
+is set.
 .IP "\fBX509_V_ERR_INVALID_EXTENSION: invalid or inconsistent certificate extension\fR" 4
 .IX Item "X509_V_ERR_INVALID_EXTENSION: invalid or inconsistent certificate extension"
 A certificate extension had an invalid value (for example an incorrect
@@ -355,12 +392,15 @@ occurs if policy processing is enabled.
 .IX Item "X509_V_ERR_NO_EXPLICIT_POLICY: no explicit policy"
 The verification flags were set to require and explicit policy but none was
 present.
-.IP "\fBX509_V_ERR_DIFFERENT_CRL_SCOPE: Different \s-1CRL\s0 scope\fR" 4
-.IX Item "X509_V_ERR_DIFFERENT_CRL_SCOPE: Different CRL scope"
+.IP "\fBX509_V_ERR_DIFFERENT_CRL_SCOPE: different \s-1CRL\s0 scope\fR" 4
+.IX Item "X509_V_ERR_DIFFERENT_CRL_SCOPE: different CRL scope"
 The only CRLs that could be found did not match the scope of the certificate.
-.IP "\fBX509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: Unsupported extension feature\fR" 4
-.IX Item "X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: Unsupported extension feature"
+.IP "\fBX509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: unsupported extension feature\fR" 4
+.IX Item "X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: unsupported extension feature"
 Some feature of a certificate extension is not supported. Unused.
+.IP "\fBX509_V_ERR_UNNESTED_RESOURCE: \s-1RFC 3779\s0 resource not subset of parent's resources\fR" 4
+.IX Item "X509_V_ERR_UNNESTED_RESOURCE: RFC 3779 resource not subset of parent's resources"
+See \s-1RFC 3779\s0 for details.
 .IP "\fBX509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation\fR" 4
 .IX Item "X509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation"
 A name constraint violation occurred in the permitted subtrees.
@@ -371,6 +411,10 @@ A name constraint violation occurred in the excluded subtrees.
 .IX Item "X509_V_ERR_SUBTREE_MINMAX: name constraints minimum and maximum not supported"
 A certificate name constraints extension included a minimum or maximum field:
 this is not supported.
+.IP "\fBX509_V_ERR_APPLICATION_VERIFICATION: application verification failure\fR" 4
+.IX Item "X509_V_ERR_APPLICATION_VERIFICATION: application verification failure"
+An application specific error. This will never be returned unless explicitly
+set by an application callback.
 .IP "\fBX509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE: unsupported name constraint type\fR" 4
 .IX Item "X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE: unsupported name constraint type"
 An unsupported name constraint type was encountered. OpenSSL currently only
@@ -380,37 +424,104 @@ supports directory name, \s-1DNS\s0 name, email and \s-1URI\s0 types.
 The format of the name constraint is not recognised: for example an email
 address format of a form not mentioned in \s-1RFC3280.\s0 This could be caused by
 a garbage extension or some new feature not currently supported.
+.IP "\fBX509_V_ERR_UNSUPPORTED_NAME_SYNTAX: unsupported or invalid name syntax\fR" 4
+.IX Item "X509_V_ERR_UNSUPPORTED_NAME_SYNTAX: unsupported or invalid name syntax"
+Unsupported or invalid name syntax.
 .IP "\fBX509_V_ERR_CRL_PATH_VALIDATION_ERROR: \s-1CRL\s0 path validation error\fR" 4
 .IX Item "X509_V_ERR_CRL_PATH_VALIDATION_ERROR: CRL path validation error"
 An error occurred when attempting to verify the \s-1CRL\s0 path. This error can only
 happen if extended \s-1CRL\s0 checking is enabled.
-.IP "\fBX509_V_ERR_APPLICATION_VERIFICATION: application verification failure\fR" 4
-.IX Item "X509_V_ERR_APPLICATION_VERIFICATION: application verification failure"
-an application specific error. This will never be returned unless explicitly
-set by an application.
+.IP "\fBX509_V_ERR_PATH_LOOP: path loop\fR" 4
+.IX Item "X509_V_ERR_PATH_LOOP: path loop"
+Path loop.
+.IP "\fBX509_V_ERR_HOSTNAME_MISMATCH: hostname mismatch\fR" 4
+.IX Item "X509_V_ERR_HOSTNAME_MISMATCH: hostname mismatch"
+Hostname mismatch.
+.IP "\fBX509_V_ERR_EMAIL_MISMATCH: email address mismatch\fR" 4
+.IX Item "X509_V_ERR_EMAIL_MISMATCH: email address mismatch"
+Email address mismatch.
+.IP "\fBX509_V_ERR_IP_ADDRESS_MISMATCH: \s-1IP\s0 address mismatch\fR" 4
+.IX Item "X509_V_ERR_IP_ADDRESS_MISMATCH: IP address mismatch"
+\&\s-1IP\s0 address mismatch.
+.IP "\fBX509_V_ERR_DANE_NO_MATCH: no matching \s-1DANE TLSA\s0 records\fR" 4
+.IX Item "X509_V_ERR_DANE_NO_MATCH: no matching DANE TLSA records"
+\&\s-1DANE TLSA\s0 authentication is enabled, but no \s-1TLSA\s0 records matched the
+certificate chain.
+This error is only possible in \fBopenssl\-s_client\fR\|(1).
+.IP "\fBX509_V_ERR_EE_KEY_TOO_SMALL: \s-1EE\s0 certificate key too weak\fR" 4
+.IX Item "X509_V_ERR_EE_KEY_TOO_SMALL: EE certificate key too weak"
+\&\s-1EE\s0 certificate key too weak.
+.IP "\fBX509_V_ERR_CA_KEY_TOO_SMALL: \s-1CA\s0 certificate key too weak\fR" 4
+.IX Item "X509_V_ERR_CA_KEY_TOO_SMALL: CA certificate key too weak"
+\&\s-1CA\s0 certificate key too weak.
+.IP "\fBX509_V_ERR_CA_MD_TOO_WEAK: \s-1CA\s0 signature digest algorithm too weak\fR" 4
+.IX Item "X509_V_ERR_CA_MD_TOO_WEAK: CA signature digest algorithm too weak"
+\&\s-1CA\s0 signature digest algorithm too weak.
+.IP "\fBX509_V_ERR_INVALID_CALL: invalid certificate verification context\fR" 4
+.IX Item "X509_V_ERR_INVALID_CALL: invalid certificate verification context"
+Invalid certificate verification context.
+.IP "\fBX509_V_ERR_STORE_LOOKUP: issuer certificate lookup error\fR" 4
+.IX Item "X509_V_ERR_STORE_LOOKUP: issuer certificate lookup error"
+Issuer certificate lookup error.
+.IP "\fBX509_V_ERR_NO_VALID_SCTS: certificate transparency required, but no valid SCTs found\fR" 4
+.IX Item "X509_V_ERR_NO_VALID_SCTS: certificate transparency required, but no valid SCTs found"
+Certificate Transparency required, but no valid SCTs found.
+.IP "\fBX509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION: proxy subject name violation\fR" 4
+.IX Item "X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION: proxy subject name violation"
+Proxy subject name violation.
+.IP "\fBX509_V_ERR_OCSP_VERIFY_NEEDED: \s-1OCSP\s0 verification needed\fR" 4
+.IX Item "X509_V_ERR_OCSP_VERIFY_NEEDED: OCSP verification needed"
+Returned by the verify callback to indicate an \s-1OCSP\s0 verification is needed.
+.IP "\fBX509_V_ERR_OCSP_VERIFY_FAILED: \s-1OCSP\s0 verification failed\fR" 4
+.IX Item "X509_V_ERR_OCSP_VERIFY_FAILED: OCSP verification failed"
+Returned by the verify callback to indicate \s-1OCSP\s0 verification failed.
+.IP "\fBX509_V_ERR_OCSP_CERT_UNKNOWN: \s-1OCSP\s0 unknown cert\fR" 4
+.IX Item "X509_V_ERR_OCSP_CERT_UNKNOWN: OCSP unknown cert"
+Returned by the verify callback to indicate that the certificate is not
+recognized by the \s-1OCSP\s0 responder.
+.IP "\fBX509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM: unsupported signature algorithm\fR" 4
+.IX Item "X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM: unsupported signature algorithm"
+Cannot find certificate signature algorithm.
+.IP "\fBX509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH: subject signature algorithm and issuer public key algorithm mismatch\fR" 4
+.IX Item "X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH: subject signature algorithm and issuer public key algorithm mismatch"
+The issuer's public key is not of the type required by the signature in
+the subject's certificate.
+.IP "\fBX509_V_ERR_SIGNATURE_ALGORITHM_INCONSISTENCY: cert info signature and signature algorithm mismatch\fR" 4
+.IX Item "X509_V_ERR_SIGNATURE_ALGORITHM_INCONSISTENCY: cert info signature and signature algorithm mismatch"
+The algorithm given in the certificate info is inconsistent
+ with the one used for the certificate signature.
+.IP "\fBX509_V_ERR_INVALID_CA: invalid \s-1CA\s0 certificate\fR" 4
+.IX Item "X509_V_ERR_INVALID_CA: invalid CA certificate"
+A \s-1CA\s0 certificate is invalid. Either it is not a \s-1CA\s0 or its extensions are not
+consistent with the supplied purpose.
 .SH "NOTES"
 .IX Header "NOTES"
 The above functions should be used instead of directly referencing the fields
 in the \fBX509_VERIFY_CTX\fR structure.
 .PP
 In versions of OpenSSL before 1.0 the current certificate returned by
-\&\fBX509_STORE_CTX_get_current_cert()\fR was never \fB\s-1NULL\s0\fR. Applications should
+\&\fBX509_STORE_CTX_get_current_cert()\fR was never \s-1NULL.\s0 Applications should
 check the return value before printing out any debugging information relating
 to the current certificate.
 .PP
 If an unrecognised error code is passed to \fBX509_verify_cert_error_string()\fR the
 numerical value of the unknown code is returned in a static buffer. This is not
 thread safe but will never happen unless an invalid code is passed.
+.SH "BUGS"
+.IX Header "BUGS"
+Previous versions of this documentation swapped the meaning of the
+\&\fBX509_V_ERR_UNABLE_TO_GET_ISSUER_CERT\fR and
+\&\fBX509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY\fR error codes.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBX509_verify_cert\fR\|(3),
+\&\fBX509_verify_cert\fR\|(3), \fBX509_STORE_CTX_verify\fR\|(3),
 \&\fBX509_up_ref\fR\|(3),
 \&\fBX509_free\fR\|(3).
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

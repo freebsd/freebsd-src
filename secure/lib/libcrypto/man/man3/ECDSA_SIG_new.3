@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "ECDSA_SIG_NEW 3"
-.TH ECDSA_SIG_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ECDSA_SIG_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ECDSA_SIG_get0, ECDSA_SIG_get0_r, ECDSA_SIG_get0_s, ECDSA_SIG_set0, ECDSA_SIG_new, ECDSA_SIG_free, ECDSA_size, ECDSA_sign, ECDSA_do_sign, ECDSA_verify, ECDSA_do_verify, ECDSA_sign_setup, ECDSA_sign_ex, ECDSA_do_sign_ex \- low\-level elliptic curve digital signature algorithm (ECDSA) functions
+ECDSA_SIG_new, ECDSA_SIG_free,
+ECDSA_SIG_get0, ECDSA_SIG_get0_r, ECDSA_SIG_get0_s, ECDSA_SIG_set0
+\&\- Functions for creating, destroying and manipulating ECDSA_SIG objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -151,97 +153,37 @@ ECDSA_SIG_get0, ECDSA_SIG_get0_r, ECDSA_SIG_get0_s, ECDSA_SIG_set0, ECDSA_SIG_ne
 \& const BIGNUM *ECDSA_SIG_get0_r(const ECDSA_SIG *sig);
 \& const BIGNUM *ECDSA_SIG_get0_s(const ECDSA_SIG *sig);
 \& int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
-\& int ECDSA_size(const EC_KEY *eckey);
-\&
-\& int ECDSA_sign(int type, const unsigned char *dgst, int dgstlen,
-\&                unsigned char *sig, unsigned int *siglen, EC_KEY *eckey);
-\& ECDSA_SIG *ECDSA_do_sign(const unsigned char *dgst, int dgst_len,
-\&                          EC_KEY *eckey);
-\&
-\& int ECDSA_verify(int type, const unsigned char *dgst, int dgstlen,
-\&                  const unsigned char *sig, int siglen, EC_KEY *eckey);
-\& int ECDSA_do_verify(const unsigned char *dgst, int dgst_len,
-\&                     const ECDSA_SIG *sig, EC_KEY* eckey);
-\&
-\& ECDSA_SIG *ECDSA_do_sign_ex(const unsigned char *dgst, int dgstlen,
-\&                             const BIGNUM *kinv, const BIGNUM *rp,
-\&                             EC_KEY *eckey);
-\& int ECDSA_sign_setup(EC_KEY *eckey, BN_CTX *ctx, BIGNUM **kinv, BIGNUM **rp);
-\& int ECDSA_sign_ex(int type, const unsigned char *dgst, int dgstlen,
-\&                   unsigned char *sig, unsigned int *siglen,
-\&                   const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-Note: these functions provide a low-level interface to \s-1ECDSA.\s0 Most
-applications should use the higher level \fB\s-1EVP\s0\fR interface such as
-\&\fBEVP_DigestSignInit\fR\|(3) or \fBEVP_DigestVerifyInit\fR\|(3) instead.
-.PP
 \&\fB\s-1ECDSA_SIG\s0\fR is an opaque structure consisting of two BIGNUMs for the
-\&\fBr\fR and \fBs\fR value of an \s-1ECDSA\s0 signature (see X9.62 or \s-1FIPS 186\-2\s0).
+\&\fIr\fR and \fIs\fR value of an Elliptic Curve Digital Signature Algorithm (\s-1ECDSA\s0) signature
+(see \s-1FIPS186\-4\s0 or X9.62).
+The \fB\s-1ECDSA_SIG\s0\fR object was mainly used by the deprecated low level functions described in
+\&\fBECDSA_sign\fR\|(3), it is still required in order to be able to set or get the values of
+\&\fIr\fR and \fIs\fR into or from a signature. This is mainly used for testing purposes as shown
+in the \*(L"\s-1EXAMPLES\*(R"\s0.
 .PP
-\&\fBECDSA_SIG_new()\fR allocates an empty \fB\s-1ECDSA_SIG\s0\fR structure. Note: before
-OpenSSL 1.1.0 the: the \fBr\fR and \fBs\fR components were initialised.
+\&\fBECDSA_SIG_new()\fR allocates an empty \fB\s-1ECDSA_SIG\s0\fR structure.
+Note: before OpenSSL 1.1.0, the \fIr\fR and \fIs\fR components were initialised.
 .PP
-\&\fBECDSA_SIG_free()\fR frees the \fB\s-1ECDSA_SIG\s0\fR structure \fBsig\fR.
+\&\fBECDSA_SIG_free()\fR frees the \fB\s-1ECDSA_SIG\s0\fR structure \fIsig\fR.
 .PP
-\&\fBECDSA_SIG_get0()\fR returns internal pointers the \fBr\fR and \fBs\fR values contained
-in \fBsig\fR and stores them in \fB*pr\fR and \fB*ps\fR, respectively.
-The pointer \fBpr\fR or \fBps\fR can be \s-1NULL,\s0 in which case the corresponding value
+\&\fBECDSA_SIG_get0()\fR returns internal pointers the \fIr\fR and \fIs\fR values contained
+in \fIsig\fR and stores them in \fI*pr\fR and \fI*ps\fR, respectively.
+The pointer \fIpr\fR or \fIps\fR can be \s-1NULL,\s0 in which case the corresponding value
 is not returned.
 .PP
-The values \fBr\fR, \fBs\fR can also be retrieved separately by the corresponding
+The values \fIr\fR, \fIs\fR can also be retrieved separately by the corresponding
 function \fBECDSA_SIG_get0_r()\fR and \fBECDSA_SIG_get0_s()\fR, respectively.
 .PP
-The \fBr\fR and \fBs\fR values can be set by calling \fBECDSA_SIG_set0()\fR and passing the
-new values for \fBr\fR and \fBs\fR as parameters to the function. Calling this
-function transfers the memory management of the values to the \s-1ECDSA_SIG\s0 object,
-and therefore the values that have been passed in should not be freed directly
-after this function has been called.
+Non-NULL \fIr\fR and \fIs\fR values can be set on the \fIsig\fR by calling
+\&\fBECDSA_SIG_set0()\fR. Calling this function transfers the memory management of the
+values to the \fB\s-1ECDSA_SIG\s0\fR object, and therefore the values that have been
+passed in should not be freed by the caller.
 .PP
 See \fBi2d_ECDSA_SIG\fR\|(3) and \fBd2i_ECDSA_SIG\fR\|(3) for information about encoding
 and decoding \s-1ECDSA\s0 signatures to/from \s-1DER.\s0
-.PP
-\&\fBECDSA_size()\fR returns the maximum length of a \s-1DER\s0 encoded \s-1ECDSA\s0 signature
-created with the private \s-1EC\s0 key \fBeckey\fR.
-.PP
-\&\fBECDSA_sign()\fR computes a digital signature of the \fBdgstlen\fR bytes hash value
-\&\fBdgst\fR using the private \s-1EC\s0 key \fBeckey\fR. The \s-1DER\s0 encoded signatures is
-stored in \fBsig\fR and its length is returned in \fBsig_len\fR. Note: \fBsig\fR must
-point to ECDSA_size(eckey) bytes of memory. The parameter \fBtype\fR is currently
-ignored. \fBECDSA_sign()\fR is wrapper function for \fBECDSA_sign_ex()\fR with \fBkinv\fR
-and \fBrp\fR set to \s-1NULL.\s0
-.PP
-\&\fBECDSA_do_sign()\fR is similar to \fBECDSA_sign()\fR except the signature is returned
-as a newly allocated \fB\s-1ECDSA_SIG\s0\fR structure (or \s-1NULL\s0 on error). \fBECDSA_do_sign()\fR
-is a wrapper function for \fBECDSA_do_sign_ex()\fR with \fBkinv\fR and \fBrp\fR set to
-\&\s-1NULL.\s0
-.PP
-\&\fBECDSA_verify()\fR verifies that the signature in \fBsig\fR of size \fBsiglen\fR is a
-valid \s-1ECDSA\s0 signature of the hash value \fBdgst\fR of size \fBdgstlen\fR using the
-public key \fBeckey\fR.  The parameter \fBtype\fR is ignored.
-.PP
-\&\fBECDSA_do_verify()\fR is similar to \fBECDSA_verify()\fR except the signature is
-presented in the form of a pointer to an \fB\s-1ECDSA_SIG\s0\fR structure.
-.PP
-The remaining functions utilise the internal \fBkinv\fR and \fBr\fR values used
-during signature computation. Most applications will never need to call these
-and some external \s-1ECDSA ENGINE\s0 implementations may not support them at all if
-either \fBkinv\fR or \fBr\fR is not \fB\s-1NULL\s0\fR.
-.PP
-\&\fBECDSA_sign_setup()\fR may be used to precompute parts of the signing operation.
-\&\fBeckey\fR is the private \s-1EC\s0 key and \fBctx\fR is a pointer to \fB\s-1BN_CTX\s0\fR structure
-(or \s-1NULL\s0). The precomputed values or returned in \fBkinv\fR and \fBrp\fR and can be
-used in a later call to \fBECDSA_sign_ex()\fR or \fBECDSA_do_sign_ex()\fR.
-.PP
-\&\fBECDSA_sign_ex()\fR computes a digital signature of the \fBdgstlen\fR bytes hash value
-\&\fBdgst\fR using the private \s-1EC\s0 key \fBeckey\fR and the optional pre-computed values
-\&\fBkinv\fR and \fBrp\fR. The \s-1DER\s0 encoded signature is stored in \fBsig\fR and its
-length is returned in \fBsig_len\fR. Note: \fBsig\fR must point to ECDSA_size(eckey)
-bytes of memory. The parameter \fBtype\fR is ignored.
-.PP
-\&\fBECDSA_do_sign_ex()\fR is similar to \fBECDSA_sign_ex()\fR except the signature is
-returned as a newly allocated \fB\s-1ECDSA_SIG\s0\fR structure (or \s-1NULL\s0 on error).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBECDSA_SIG_new()\fR returns \s-1NULL\s0 if the allocation fails.
@@ -250,98 +192,89 @@ returned as a newly allocated \fB\s-1ECDSA_SIG\s0\fR structure (or \s-1NULL\s0 o
 .PP
 \&\fBECDSA_SIG_get0_r()\fR and \fBECDSA_SIG_get0_s()\fR return the corresponding value,
 or \s-1NULL\s0 if it is unset.
-.PP
-\&\fBECDSA_size()\fR returns the maximum length signature or 0 on error.
-.PP
-\&\fBECDSA_sign()\fR, \fBECDSA_sign_ex()\fR and \fBECDSA_sign_setup()\fR return 1 if successful
-or 0 on error.
-.PP
-\&\fBECDSA_do_sign()\fR and \fBECDSA_do_sign_ex()\fR return a pointer to an allocated
-\&\fB\s-1ECDSA_SIG\s0\fR structure or \s-1NULL\s0 on error.
-.PP
-\&\fBECDSA_verify()\fR and \fBECDSA_do_verify()\fR return 1 for a valid
-signature, 0 for an invalid signature and \-1 on error.
-The error codes can be obtained by \fBERR_get_error\fR\|(3).
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
-Creating an \s-1ECDSA\s0 signature of a given \s-1SHA\-256\s0 hash value using the
-named curve prime256v1 (aka P\-256).
-.PP
-First step: create an \s-1EC_KEY\s0 object (note: this part is \fBnot\fR \s-1ECDSA\s0
-specific)
-.PP
-.Vb 3
-\& int ret;
-\& ECDSA_SIG *sig;
-\& EC_KEY *eckey;
-\&
-\& eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-\& if (eckey == NULL)
-\&     /* error */
-\& if (EC_KEY_generate_key(eckey) == 0)
-\&     /* error */
-.Ve
-.PP
-Second step: compute the \s-1ECDSA\s0 signature of a \s-1SHA\-256\s0 hash value
-using \fBECDSA_do_sign()\fR:
-.PP
-.Vb 3
-\& sig = ECDSA_do_sign(digest, 32, eckey);
-\& if (sig == NULL)
-\&     /* error */
-.Ve
-.PP
-or using \fBECDSA_sign()\fR:
+Extract signature \fIr\fR and \fIs\fR values from a \s-1ECDSA\s0 \fIsignature\fR
+of size \fIsignaturelen\fR:
 .PP
 .Vb 2
-\& unsigned char *buffer, *pp;
-\& int buf_len;
+\& ECDSA_SIG *obj;
+\& const BIGNUM *r, *s;
 \&
-\& buf_len = ECDSA_size(eckey);
-\& buffer = OPENSSL_malloc(buf_len);
-\& pp = buffer;
-\& if (ECDSA_sign(0, dgst, dgstlen, pp, &buf_len, eckey) == 0)
+\& /* Load a signature into the ECDSA_SIG object */
+\& obj = d2i_ECDSA_SIG(NULL, &signature, signaturelen);
+\& if (obj == NULL)
 \&     /* error */
-.Ve
-.PP
-Third step: verify the created \s-1ECDSA\s0 signature using \fBECDSA_do_verify()\fR:
-.PP
-.Vb 1
-\& ret = ECDSA_do_verify(digest, 32, sig, eckey);
-.Ve
-.PP
-or using \fBECDSA_verify()\fR:
-.PP
-.Vb 1
-\& ret = ECDSA_verify(0, digest, 32, buffer, buf_len, eckey);
-.Ve
-.PP
-and finally evaluate the return value:
-.PP
-.Vb 6
-\& if (ret == 1)
-\&     /* signature ok */
-\& else if (ret == 0)
-\&     /* incorrect signature */
-\& else
+\&
+\& r = ECDSA_SIG_get0_r(obj);
+\& s = ECDSA_SIG_get0_s(obj);
+\& if (r == NULL || s == NULL)
 \&     /* error */
+\&
+\& /* Use BN_bn2binpad() here to convert to r and s into byte arrays */
+\&
+\& /*
+\&  * Do not try to access I<r> or I<s> after calling ECDSA_SIG_free(),
+\&  * as they are both freed by this call.
+\&  */
+\& ECDSA_SIG_free(obj);
+.Ve
+.PP
+Convert \fIr\fR and \fIs\fR byte arrays into an \s-1ECDSA_SIG\s0 \fIsignature\fR of
+size \fIsignaturelen\fR:
+.PP
+.Vb 4
+\& ECDSA_SIG *obj = NULL;
+\& unsigned char *signature = NULL;
+\& size_t signaturelen;
+\& BIGNUM *rbn = NULL, *sbn = NULL;
+\&
+\& obj = ECDSA_SIG_new();
+\& if (obj == NULL)
+\&     /* error */
+\& rbn = BN_bin2bn(r, rlen, NULL);
+\& sbn = BN_bin2bn(s, slen, NULL);
+\& if (rbn == NULL || sbn == NULL)
+\&     /* error */
+\&
+\& if (!ECDSA_SIG_set0(obj, rbn, sbn))
+\&     /* error */
+\& /* Set these to NULL since they are now owned by obj */
+\& rbn = sbn = NULL;
+\&
+\& signaturelen = i2d_ECDSA_SIG(obj, &signature);
+\& if (signaturelen <= 0)
+\&     /* error */
+\&
+\& /*
+\&  * This signature could now be passed to L<EVP_DigestVerify(3)>
+\&  * or L<EVP_DigestVerifyFinal(3)>
+\&  */
+\&
+\& BN_free(rbn);
+\& BN_free(sbn);
+\& OPENSSL_free(signature);
+\& ECDSA_SIG_free(obj);
 .Ve
 .SH "CONFORMING TO"
 .IX Header "CONFORMING TO"
-\&\s-1ANSI X9.62, US\s0 Federal Information Processing Standard \s-1FIPS 186\-2\s0
+\&\s-1ANSI X9.62,
+US\s0 Federal Information Processing Standard \s-1FIPS186\-4\s0
 (Digital Signature Standard, \s-1DSS\s0)
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBEC_KEY_new\fR\|(3),
 \&\fBEVP_DigestSignInit\fR\|(3),
 \&\fBEVP_DigestVerifyInit\fR\|(3),
+\&\fBEVP_PKEY_sign\fR\|(3)
 \&\fBi2d_ECDSA_SIG\fR\|(3),
-\&\fBd2i_ECDSA_SIG\fR\|(3)
+\&\fBd2i_ECDSA_SIG\fR\|(3),
+\&\fBECDSA_sign\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2004\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

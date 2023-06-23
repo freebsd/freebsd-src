@@ -133,40 +133,57 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_LOAD_VERIFY_LOCATIONS 3"
-.TH SSL_CTX_LOAD_VERIFY_LOCATIONS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_LOAD_VERIFY_LOCATIONS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_load_verify_locations, SSL_CTX_set_default_verify_paths, SSL_CTX_set_default_verify_dir, SSL_CTX_set_default_verify_file \- set default locations for trusted CA certificates
+SSL_CTX_load_verify_dir, SSL_CTX_load_verify_file,
+SSL_CTX_load_verify_store, SSL_CTX_set_default_verify_paths,
+SSL_CTX_set_default_verify_dir, SSL_CTX_set_default_verify_file,
+SSL_CTX_set_default_verify_store, SSL_CTX_load_verify_locations
+\&\- set default locations for trusted CA certificates
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
-\&                                   const char *CApath);
+\& int SSL_CTX_load_verify_dir(SSL_CTX *ctx, const char *CApath);
+\& int SSL_CTX_load_verify_file(SSL_CTX *ctx, const char *CAfile);
+\& int SSL_CTX_load_verify_store(SSL_CTX *ctx, const char *CAstore);
 \&
 \& int SSL_CTX_set_default_verify_paths(SSL_CTX *ctx);
 \&
 \& int SSL_CTX_set_default_verify_dir(SSL_CTX *ctx);
-\&
 \& int SSL_CTX_set_default_verify_file(SSL_CTX *ctx);
+\& int SSL_CTX_set_default_verify_store(SSL_CTX *ctx);
+\&
+\& int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
+\&                                   const char *CApath);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_load_verify_locations()\fR specifies the locations for \fBctx\fR, at
-which \s-1CA\s0 certificates for verification purposes are located. The certificates
-available via \fBCAfile\fR and \fBCApath\fR are trusted.
+\&\fBSSL_CTX_load_verify_locations()\fR, \fBSSL_CTX_load_verify_dir()\fR,
+\&\fBSSL_CTX_load_verify_file()\fR, \fBSSL_CTX_load_verify_store()\fR specifies the
+locations for \fBctx\fR, at which \s-1CA\s0 certificates for verification purposes
+are located. The certificates available via \fBCAfile\fR, \fBCApath\fR and
+\&\fBCAstore\fR are trusted.
+.PP
+Details of the certificate verification and chain checking process are
+described in \*(L"Certification Path Validation\*(R" in \fBopenssl\-verification\-options\fR\|(1).
 .PP
 \&\fBSSL_CTX_set_default_verify_paths()\fR specifies that the default locations from
-which \s-1CA\s0 certificates are loaded should be used. There is one default directory
-and one default file. The default \s-1CA\s0 certificates directory is called \*(L"certs\*(R" in
-the default OpenSSL directory. Alternatively the \s-1SSL_CERT_DIR\s0 environment
-variable can be defined to override this location. The default \s-1CA\s0 certificates
-file is called \*(L"cert.pem\*(R" in the default OpenSSL directory. Alternatively the
-\&\s-1SSL_CERT_FILE\s0 environment variable can be defined to override this location.
+which \s-1CA\s0 certificates are loaded should be used. There is one default directory,
+one default file and one default store.
+The default \s-1CA\s0 certificates directory is called \fIcerts\fR in the default OpenSSL
+directory, and this is also the default store.
+Alternatively the \fB\s-1SSL_CERT_DIR\s0\fR environment variable can be defined to
+override this location.
+The default \s-1CA\s0 certificates file is called \fIcert.pem\fR in the default
+OpenSSL directory.
+Alternatively the \fB\s-1SSL_CERT_FILE\s0\fR environment variable can be defined to
+override this location.
 .PP
 \&\fBSSL_CTX_set_default_verify_dir()\fR is similar to
 \&\fBSSL_CTX_set_default_verify_paths()\fR except that just the default directory is
@@ -174,6 +191,10 @@ used.
 .PP
 \&\fBSSL_CTX_set_default_verify_file()\fR is similar to
 \&\fBSSL_CTX_set_default_verify_paths()\fR except that just the default file is
+used.
+.PP
+\&\fBSSL_CTX_set_default_verify_store()\fR is similar to
+\&\fBSSL_CTX_set_default_verify_paths()\fR except that just the default store is
 used.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -205,14 +226,15 @@ The certificates in \fBCApath\fR are only looked up when required, e.g. when
 building the certificate chain or when actually performing the verification
 of a peer certificate.
 .PP
-When looking up \s-1CA\s0 certificates, the OpenSSL library will first search the
-certificates in \fBCAfile\fR, then those in \fBCApath\fR. Certificate matching
-is done based on the subject name, the key identifier (if present), and the
-serial number as taken from the certificate to be verified. If these data
-do not match, the next certificate will be tried. If a first certificate
-matching the parameters is found, the verification process will be performed;
-no other certificates for the same parameters will be searched in case of
-failure.
+When looking up \s-1CA\s0 certificates for chain building, the OpenSSL library
+will search for suitable certificates first in \fBCAfile\fR, then in \fBCApath\fR.
+Details of the chain building process are described in
+\&\*(L"Certification Path Building\*(R" in \fBopenssl\-verification\-options\fR\|(1).
+.PP
+If \fBCAstore\fR is not \s-1NULL,\s0 it's a \s-1URI\s0 for to a store, which may
+represent a single container or a whole catalogue of containers.
+Apart from the \fBCAstore\fR not necessarily being a local file or
+directory, it's generally treated the same way as a \fBCApath\fR.
 .PP
 In server mode, when requesting a client certificate, the server must send
 the list of CAs of which it will accept client certificates. This list
@@ -279,9 +301,9 @@ for use as \fBCApath\fR:
 \&\fBSSL_CTX_set_client_CA_list\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

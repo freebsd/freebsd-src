@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_GET_ERROR 3"
-.TH ERR_GET_ERROR 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ERR_GET_ERROR 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_get_error, ERR_peek_error, ERR_peek_last_error, ERR_get_error_line, ERR_peek_error_line, ERR_peek_last_error_line, ERR_get_error_line_data, ERR_peek_error_line_data, ERR_peek_last_error_line_data \- obtain error code and data
+ERR_get_error, ERR_peek_error, ERR_peek_last_error,
+ERR_get_error_line, ERR_peek_error_line, ERR_peek_last_error_line,
+ERR_peek_error_func, ERR_peek_last_error_func,
+ERR_peek_error_data, ERR_peek_last_error_data,
+ERR_get_error_all, ERR_peek_error_all, ERR_peek_last_error_all,
+ERR_get_error_line_data, ERR_peek_error_line_data, ERR_peek_last_error_line_data
+\&\- obtain error code and data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,10 +155,32 @@ ERR_get_error, ERR_peek_error, ERR_peek_last_error, ERR_get_error_line, ERR_peek
 \& unsigned long ERR_peek_error(void);
 \& unsigned long ERR_peek_last_error(void);
 \&
-\& unsigned long ERR_get_error_line(const char **file, int *line);
 \& unsigned long ERR_peek_error_line(const char **file, int *line);
 \& unsigned long ERR_peek_last_error_line(const char **file, int *line);
 \&
+\& unsigned long ERR_peek_error_func(const char **func);
+\& unsigned long ERR_peek_last_error_func(const char **func);
+\&
+\& unsigned long ERR_peek_error_data(const char **data, int *flags);
+\& unsigned long ERR_peek_last_error_data(const char **data, int *flags);
+\&
+\& unsigned long ERR_get_error_all(const char **file, int *line,
+\&                                 const char **func,
+\&                                 const char **data, int *flags);
+\& unsigned long ERR_peek_error_all(const char **file, int *line,
+\&                                  const char **func,
+\&                                  const char **data, int *flags);
+\& unsigned long ERR_peek_last_error_all(const char **file, int *line,
+\&                                       const char *func,
+\&                                       const char **data, int *flags);
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 7
+\& unsigned long ERR_get_error_line(const char **file, int *line);
 \& unsigned long ERR_get_error_line_data(const char **file, int *line,
 \&                                       const char **data, int *flags);
 \& unsigned long ERR_peek_error_line_data(const char **file, int *line,
@@ -163,7 +191,7 @@ ERR_get_error, ERR_peek_error, ERR_peek_last_error, ERR_get_error_line, ERR_peek
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBERR_get_error()\fR returns the earliest error code from the thread's error
-queue and removes the entry. This function can be called repeatedly
+queue and removes the entry.  This function can be called repeatedly
 until there are no more error codes to return.
 .PP
 \&\fBERR_peek_error()\fR returns the earliest error code from the thread's
@@ -172,23 +200,52 @@ error queue without modifying it.
 \&\fBERR_peek_last_error()\fR returns the latest error code from the thread's
 error queue without modifying it.
 .PP
-See \s-1\fBERR_GET_LIB\s0\fR\|(3) for obtaining information about
-location and reason of the error, and
-\&\fBERR_error_string\fR\|(3) for human-readable error
-messages.
+See \s-1\fBERR_GET_LIB\s0\fR\|(3) for obtaining further specific information
+such as the reason of the error,
+and \fBERR_error_string\fR\|(3) for human-readable error messages.
 .PP
-\&\fBERR_get_error_line()\fR, \fBERR_peek_error_line()\fR and
-\&\fBERR_peek_last_error_line()\fR are the same as the above, but they
-additionally store the filename and line number where
-the error occurred in *\fBfile\fR and *\fBline\fR, unless these are \fB\s-1NULL\s0\fR.
+\&\fBERR_get_error_all()\fR is the same as \fBERR_get_error()\fR, but on success it
+additionally stores the filename, line number and function where the error
+occurred in *\fIfile\fR, *\fIline\fR and *\fIfunc\fR, and also extra text and flags
+in *\fIdata\fR, *\fIflags\fR.  If any of those parameters are \s-1NULL,\s0 it will not
+be changed.
+An unset filename is indicated as "\*(L", i.e. an empty string.
+An unset line number is indicated as 0.
+An unset function name is indicated as \*(R"", i.e. an empty string.
 .PP
-\&\fBERR_get_error_line_data()\fR, \fBERR_peek_error_line_data()\fR and
-\&\fBERR_peek_last_error_line_data()\fR store additional data and flags
-associated with the error code in *\fBdata\fR
-and *\fBflags\fR, unless these are \fB\s-1NULL\s0\fR. *\fBdata\fR contains a string
-if *\fBflags\fR&\fB\s-1ERR_TXT_STRING\s0\fR is true.
+A pointer returned this way by these functions and the ones below
+is valid until the respective entry is overwritten in the error queue.
 .PP
-An application \fB\s-1MUST NOT\s0\fR free the *\fBdata\fR pointer (or any other pointers
+\&\fBERR_peek_error_line()\fR and \fBERR_peek_last_error_line()\fR are the same as
+\&\fBERR_peek_error()\fR and \fBERR_peek_last_error()\fR, but on success they additionally
+store the filename and line number where the error occurred in *\fIfile\fR and
+*\fIline\fR, as far as they are not \s-1NULL.\s0
+An unset filename is indicated as "", i.e., an empty string.
+An unset line number is indicated as 0.
+.PP
+\&\fBERR_peek_error_func()\fR and \fBERR_peek_last_error_func()\fR are the same as
+\&\fBERR_peek_error()\fR and \fBERR_peek_last_error()\fR, but on success they additionally
+store the name of the function where the error occurred in *\fIfunc\fR, unless
+it is \s-1NULL.\s0
+An unset function name is indicated as "".
+.PP
+\&\fBERR_peek_error_data()\fR and \fBERR_peek_last_error_data()\fR are the same as
+\&\fBERR_peek_error()\fR and \fBERR_peek_last_error()\fR, but on success they additionally
+store additional data and flags associated with the error code in *\fIdata\fR
+and *\fIflags\fR, as far as they are not \s-1NULL.\s0
+Unset data is indicated as "".
+In this case the value given for the flag is irrelevant (and equals 0).
+*\fIdata\fR contains a string if *\fIflags\fR&\fB\s-1ERR_TXT_STRING\s0\fR is true.
+.PP
+\&\fBERR_peek_error_all()\fR and \fBERR_peek_last_error_all()\fR are combinations of all
+of the above.
+.PP
+\&\fBERR_get_error_line()\fR, \fBERR_get_error_line_data()\fR, \fBERR_peek_error_line_data()\fR
+and \fBERR_peek_last_error_line_data()\fR are older variants of \fBERR_get_error_all()\fR,
+\&\fBERR_peek_error_all()\fR and \fBERR_peek_last_error_all()\fR, and may give confusing
+results.  They should no longer be used and are therefore deprecated.
+.PP
+An application \fB\s-1MUST NOT\s0\fR free the *\fIdata\fR pointer (or any other pointers
 returned by these functions) with \fBOPENSSL_free()\fR as freeing is handled
 automatically by the error library.
 .SH "RETURN VALUES"
@@ -198,11 +255,20 @@ The error code, or 0 if there is no error in the queue.
 .IX Header "SEE ALSO"
 \&\fBERR_error_string\fR\|(3),
 \&\s-1\fBERR_GET_LIB\s0\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBERR_peek_error_func()\fR, \fBERR_peek_last_error_func()\fR,
+\&\fBERR_peek_error_data()\fR, \fBERR_peek_last_error_data()\fR,
+\&\fBERR_peek_error_all()\fR and \fBERR_peek_last_error_all()\fR
+were added in OpenSSL 3.0.
+.PP
+\&\fBERR_get_error_line()\fR, \fBERR_get_error_line_data()\fR, \fBERR_peek_error_line_data()\fR
+and \fBERR_peek_last_error_line_data()\fR became deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

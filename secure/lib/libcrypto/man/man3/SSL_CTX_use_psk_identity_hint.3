@@ -133,13 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_USE_PSK_IDENTITY_HINT 3"
-.TH SSL_CTX_USE_PSK_IDENTITY_HINT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_USE_PSK_IDENTITY_HINT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_psk_server_cb_func, SSL_psk_find_session_cb_func, SSL_CTX_use_psk_identity_hint, SSL_use_psk_identity_hint, SSL_CTX_set_psk_server_callback, SSL_set_psk_server_callback, SSL_CTX_set_psk_find_session_callback, SSL_set_psk_find_session_callback \&\- set PSK identity hint to use
+SSL_psk_server_cb_func,
+SSL_psk_find_session_cb_func,
+SSL_CTX_use_psk_identity_hint,
+SSL_use_psk_identity_hint,
+SSL_CTX_set_psk_server_callback,
+SSL_set_psk_server_callback,
+SSL_CTX_set_psk_find_session_callback,
+SSL_set_psk_find_session_callback
+\&\- set PSK identity hint to use
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -215,8 +223,7 @@ check to see if a callback has been set via \fBSSL_CTX_set_psk_server_callback()
 will default to \s-1SHA\-256\s0 for any returned \s-1PSK.\s0 TLSv1.3 early data exchanges are
 possible in \s-1PSK\s0 connections only with the \fBSSL_psk_find_session_cb_func\fR
 callback, and are not possible with the \fBSSL_psk_server_cb_func\fR callback.
-.SH "NOTES"
-.IX Header "NOTES"
+.PP
 A connection established via a TLSv1.3 \s-1PSK\s0 will appear as if session resumption
 has occurred so that \fBSSL_session_reused\fR\|(3) will return true.
 .SH "RETURN VALUES"
@@ -255,6 +262,7 @@ ensure safety from cross-protocol related output by not reusing PSKs between
 \&\s-1TLS 1.3\s0 and \s-1TLS 1.2.\*(R"\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_set_psk_use_session_callback\fR\|(3),
 \&\fBSSL_set_psk_use_session_callback\fR\|(3)
 .SH "HISTORY"
@@ -265,7 +273,7 @@ were added in OpenSSL 1.1.1.
 .IX Header "COPYRIGHT"
 Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

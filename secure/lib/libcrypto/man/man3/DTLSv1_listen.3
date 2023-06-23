@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "DTLSV1_LISTEN 3"
-.TH DTLSV1_LISTEN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DTLSV1_LISTEN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_stateless, DTLSv1_listen \&\- Statelessly listen for incoming connections
+SSL_stateless,
+DTLSv1_listen
+\&\- Statelessly listen for incoming connections
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -197,6 +199,23 @@ filled in with details of the peer that sent the ClientHello. If the underlying
 does not support this), then \fB*peer\fR will be cleared and the family set to
 \&\s-1AF_UNSPEC.\s0 Typically user code is expected to \*(L"connect\*(R" the underlying socket to
 the peer and continue the handshake in a connected state.
+.PP
+Warning: It is essential that the calling code connects the underlying socket to
+the peer after making use of \fBDTLSv1_listen()\fR. In the typical case where
+\&\fBBIO_s_datagram\fR\|(3) is used, the peer address is updated when receiving a
+datagram on an unconnected socket. If the socket is not connected, it can
+receive datagrams from any host on the network, which will cause subsequent
+outgoing datagrams transmitted by \s-1DTLS\s0 to be transmitted to that host. In other
+words, failing to call \fBBIO_connect()\fR or a similar OS-specific function on a
+socket means that any host on the network can cause outgoing \s-1DTLS\s0 traffic to be
+redirected to it by sending a datagram to the socket in question. This does not
+break the cryptographic protections of \s-1DTLS\s0 but may facilitate a
+denial-of-service attack or allow unencrypted information in the \s-1DTLS\s0 handshake
+to be learned by an attacker. This is due to the historical design of
+\&\fBBIO_s_datagram\fR\|(3); see \fBBIO_s_datagram\fR\|(3) for details on this issue.
+.PP
+Once a socket has been connected, \fBBIO_ctrl_set_connected\fR\|(3) should be used to
+inform the \s-1BIO\s0 that the socket is to be used in connected mode.
 .PP
 Prior to calling \fBDTLSv1_listen()\fR user code must ensure that cookie generation
 and verification callbacks have been set up using
@@ -256,9 +275,9 @@ The \fBDTLSv1_listen()\fR return codes were clarified in OpenSSL 1.1.0.
 The type of \*(L"peer\*(R" also changed in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

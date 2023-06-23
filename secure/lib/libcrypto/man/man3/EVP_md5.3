@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_MD5 3"
-.TH EVP_MD5 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_MD5 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_md5, EVP_md5_sha1 \&\- MD5 For EVP
+EVP_md5,
+EVP_md5_sha1
+\&\- MD5 For EVP
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -164,10 +166,16 @@ A hash algorithm of \s-1SSL\s0 v3 that combines \s-1MD5\s0 with \s-1SHA\-1\s0 as
 6101.\s0
 .Sp
 \&\s-1WARNING:\s0 this algorithm is not intended for non-SSL usage.
+.SH "NOTES"
+.IX Header "NOTES"
+Developers should be aware of the negative performance implications of
+calling these functions multiple times and should consider using
+\&\fBEVP_MD_fetch\fR\|(3) instead.
+See \*(L"Performance\*(R" in \fBcrypto\fR\|(7) for further information.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 These functions return a \fB\s-1EVP_MD\s0\fR structure that contains the
-implementation of the symmetric cipher. See \fBEVP_MD_meth_new\fR\|(3) for
+implementation of the message digest. See \fBEVP_MD_meth_new\fR\|(3) for
 details of the \fB\s-1EVP_MD\s0\fR structure.
 .SH "CONFORMING TO"
 .IX Header "CONFORMING TO"
@@ -178,9 +186,9 @@ details of the \fB\s-1EVP_MD\s0\fR structure.
 \&\fBEVP_DigestInit\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

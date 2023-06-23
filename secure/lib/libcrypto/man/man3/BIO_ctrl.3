@@ -133,13 +133,18 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_CTRL 3"
-.TH BIO_CTRL 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_CTRL 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_ctrl, BIO_callback_ctrl, BIO_ptr_ctrl, BIO_int_ctrl, BIO_reset, BIO_seek, BIO_tell, BIO_flush, BIO_eof, BIO_set_close, BIO_get_close, BIO_pending, BIO_wpending, BIO_ctrl_pending, BIO_ctrl_wpending, BIO_get_info_callback, BIO_set_info_callback, BIO_info_cb, BIO_get_ktls_send, BIO_get_ktls_recv \&\- BIO control operations
+BIO_ctrl, BIO_callback_ctrl, BIO_ptr_ctrl, BIO_int_ctrl, BIO_reset,
+BIO_seek, BIO_tell, BIO_flush, BIO_eof, BIO_set_close, BIO_get_close,
+BIO_pending, BIO_wpending, BIO_ctrl_pending, BIO_ctrl_wpending,
+BIO_get_info_callback, BIO_set_info_callback, BIO_info_cb, BIO_get_ktls_send,
+BIO_get_ktls_recv
+\&\- BIO control operations
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -214,23 +219,26 @@ sending. Otherwise, it returns zero.
 receiving. Otherwise, it returns zero.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBBIO_reset()\fR normally returns 1 for success and 0 or \-1 for failure. File
+\&\fBBIO_reset()\fR normally returns 1 for success and <=0 for failure. File
 BIOs are an exception, they return 0 for success and \-1 for failure.
 .PP
 \&\fBBIO_seek()\fR and \fBBIO_tell()\fR both return the current file position on success
 and \-1 for failure, except file BIOs which for \fBBIO_seek()\fR always return 0
 for success and \-1 for failure.
 .PP
-\&\fBBIO_flush()\fR returns 1 for success and 0 or \-1 for failure.
+\&\fBBIO_flush()\fR returns 1 for success and <=0 for failure.
 .PP
-\&\fBBIO_eof()\fR returns 1 if \s-1EOF\s0 has been reached 0 otherwise.
+\&\fBBIO_eof()\fR returns 1 if \s-1EOF\s0 has been reached, 0 if not, or negative values for failure.
 .PP
-\&\fBBIO_set_close()\fR always returns 1.
+\&\fBBIO_set_close()\fR returns 1 on success or <=0 for failure.
 .PP
-\&\fBBIO_get_close()\fR returns the close flag value: \s-1BIO_CLOSE\s0 or \s-1BIO_NOCLOSE.\s0
+\&\fBBIO_get_close()\fR returns the close flag value: \s-1BIO_CLOSE\s0 or \s-1BIO_NOCLOSE.\s0 It also
+returns other negative values if an error occurs.
 .PP
 \&\fBBIO_pending()\fR, \fBBIO_ctrl_pending()\fR, \fBBIO_wpending()\fR and \fBBIO_ctrl_wpending()\fR
-return the amount of pending data.
+return the amount of pending data. \fBBIO_pending()\fR and \fBBIO_wpending()\fR return
+negative value or 0 on error. \fBBIO_ctrl_pending()\fR and \fBBIO_ctrl_wpending()\fR return
+0 on error.
 .PP
 \&\fBBIO_get_ktls_send()\fR returns 1 if the \s-1BIO\s0 is using the Kernel \s-1TLS\s0 data-path for
 sending. Otherwise, it returns zero.
@@ -266,15 +274,18 @@ Some of the return values are ambiguous and care should be taken. In
 particular a return value of 0 can be returned if an operation is not
 supported, if an error occurred, if \s-1EOF\s0 has not been reached and in
 the case of \fBBIO_seek()\fR on a file \s-1BIO\s0 for a successful operation.
+.PP
+In older versions of OpenSSL the \fBBIO_ctrl_pending()\fR and
+\&\fBBIO_ctrl_wpending()\fR could return values greater than \s-1INT_MAX\s0 on error.
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \fBBIO_get_ktls_send()\fR and \fBBIO_get_ktls_recv()\fR functions were added in
-OpenSSL 3.0.0.
+The \fBBIO_get_ktls_send()\fR and \fBBIO_get_ktls_recv()\fR macros were added in
+OpenSSL 3.0. They were modified to never return \-1 in OpenSSL 3.0.4.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,18 +133,62 @@
 .\" ========================================================================
 .\"
 .IX Title "ENGINE_ADD 3"
-.TH ENGINE_ADD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ENGINE_ADD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ENGINE_get_DH, ENGINE_get_DSA, ENGINE_by_id, ENGINE_get_cipher_engine, ENGINE_get_default_DH, ENGINE_get_default_DSA, ENGINE_get_default_RAND, ENGINE_get_default_RSA, ENGINE_get_digest_engine, ENGINE_get_first, ENGINE_get_last, ENGINE_get_next, ENGINE_get_prev, ENGINE_new, ENGINE_get_ciphers, ENGINE_get_ctrl_function, ENGINE_get_digests, ENGINE_get_destroy_function, ENGINE_get_finish_function, ENGINE_get_init_function, ENGINE_get_load_privkey_function, ENGINE_get_load_pubkey_function, ENGINE_load_private_key, ENGINE_load_public_key, ENGINE_get_RAND, ENGINE_get_RSA, ENGINE_get_id, ENGINE_get_name, ENGINE_get_cmd_defns, ENGINE_get_cipher, ENGINE_get_digest, ENGINE_add, ENGINE_cmd_is_executable, ENGINE_ctrl, ENGINE_ctrl_cmd, ENGINE_ctrl_cmd_string, ENGINE_finish, ENGINE_free, ENGINE_get_flags, ENGINE_init, ENGINE_register_DH, ENGINE_register_DSA, ENGINE_register_RAND, ENGINE_register_RSA, ENGINE_register_all_complete, ENGINE_register_ciphers, ENGINE_register_complete, ENGINE_register_digests, ENGINE_remove, ENGINE_set_DH, ENGINE_set_DSA, ENGINE_set_RAND, ENGINE_set_RSA, ENGINE_set_ciphers, ENGINE_set_cmd_defns, ENGINE_set_ctrl_function, ENGINE_set_default, ENGINE_set_default_DH, ENGINE_set_default_DSA, ENGINE_set_default_RAND, ENGINE_set_default_RSA, ENGINE_set_default_ciphers, ENGINE_set_default_digests, ENGINE_set_default_string, ENGINE_set_destroy_function, ENGINE_set_digests, ENGINE_set_finish_function, ENGINE_set_flags, ENGINE_set_id, ENGINE_set_init_function, ENGINE_set_load_privkey_function, ENGINE_set_load_pubkey_function, ENGINE_set_name, ENGINE_up_ref, ENGINE_get_table_flags, ENGINE_cleanup, ENGINE_load_builtin_engines, ENGINE_register_all_DH, ENGINE_register_all_DSA, ENGINE_register_all_RAND, ENGINE_register_all_RSA, ENGINE_register_all_ciphers, ENGINE_register_all_digests, ENGINE_set_table_flags, ENGINE_unregister_DH, ENGINE_unregister_DSA, ENGINE_unregister_RAND, ENGINE_unregister_RSA, ENGINE_unregister_ciphers, ENGINE_unregister_digests \&\- ENGINE cryptographic module support
+ENGINE_get_DH, ENGINE_get_DSA,
+ENGINE_by_id, ENGINE_get_cipher_engine, ENGINE_get_default_DH,
+ENGINE_get_default_DSA,
+ENGINE_get_default_RAND,
+ENGINE_get_default_RSA, ENGINE_get_digest_engine, ENGINE_get_first,
+ENGINE_get_last, ENGINE_get_next, ENGINE_get_prev, ENGINE_new,
+ENGINE_get_ciphers, ENGINE_get_ctrl_function, ENGINE_get_digests,
+ENGINE_get_destroy_function, ENGINE_get_finish_function,
+ENGINE_get_init_function, ENGINE_get_load_privkey_function,
+ENGINE_get_load_pubkey_function, ENGINE_load_private_key,
+ENGINE_load_public_key, ENGINE_get_RAND, ENGINE_get_RSA, ENGINE_get_id,
+ENGINE_get_name, ENGINE_get_cmd_defns, ENGINE_get_cipher,
+ENGINE_get_digest, ENGINE_add, ENGINE_cmd_is_executable,
+ENGINE_ctrl, ENGINE_ctrl_cmd, ENGINE_ctrl_cmd_string,
+ENGINE_finish, ENGINE_free, ENGINE_get_flags, ENGINE_init,
+ENGINE_register_DH, ENGINE_register_DSA,
+ENGINE_register_RAND, ENGINE_register_RSA,
+ENGINE_register_all_complete, ENGINE_register_ciphers,
+ENGINE_register_complete, ENGINE_register_digests, ENGINE_remove,
+ENGINE_set_DH, ENGINE_set_DSA,
+ENGINE_set_RAND, ENGINE_set_RSA, ENGINE_set_ciphers,
+ENGINE_set_cmd_defns, ENGINE_set_ctrl_function, ENGINE_set_default,
+ENGINE_set_default_DH, ENGINE_set_default_DSA,
+ENGINE_set_default_RAND, ENGINE_set_default_RSA,
+ENGINE_set_default_ciphers, ENGINE_set_default_digests,
+ENGINE_set_default_string, ENGINE_set_destroy_function,
+ENGINE_set_digests, ENGINE_set_finish_function, ENGINE_set_flags,
+ENGINE_set_id, ENGINE_set_init_function, ENGINE_set_load_privkey_function,
+ENGINE_set_load_pubkey_function, ENGINE_set_name, ENGINE_up_ref,
+ENGINE_get_table_flags, ENGINE_cleanup,
+ENGINE_load_builtin_engines, ENGINE_register_all_DH,
+ENGINE_register_all_DSA,
+ENGINE_register_all_RAND,
+ENGINE_register_all_RSA, ENGINE_register_all_ciphers,
+ENGINE_register_all_digests, ENGINE_set_table_flags, ENGINE_unregister_DH,
+ENGINE_unregister_DSA,
+ENGINE_unregister_RAND, ENGINE_unregister_RSA, ENGINE_unregister_ciphers,
+ENGINE_unregister_digests
+\&\- ENGINE cryptographic module support
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/engine.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 4
 \& ENGINE *ENGINE_get_first(void);
 \& ENGINE *ENGINE_get_last(void);
 \& ENGINE *ENGINE_get_next(ENGINE *e);
@@ -254,15 +298,18 @@ ENGINE_get_DH, ENGINE_get_DSA, ENGINE_by_id, ENGINE_get_cipher_engine, ENGINE_ge
 \&                                  UI_METHOD *ui_method, void *callback_data);
 .Ve
 .PP
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
 .PP
-.Vb 3
-\& #if OPENSSL_API_COMPAT < 0x10100000L
-\& void ENGINE_cleanup(void)
-\& #endif
+.Vb 1
+\& void ENGINE_cleanup(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the provider APIs.
+.PP
 These functions create, manipulate, and use cryptographic modules in the
 form of \fB\s-1ENGINE\s0\fR objects. These objects act as containers for
 implementations of cryptographic algorithms, and support a
@@ -342,7 +389,7 @@ released on behalf of the caller.
 .PP
 To clarify a particular function's handling of references, one should
 always consult that function's documentation \*(L"man\*(R" page, or failing that
-the openssl/engine.h header file includes some hints.
+the \fI<openssl/engine.h>\fR header file includes some hints.
 .PP
 \&\fIFunctional references\fR
 .PP
@@ -433,7 +480,7 @@ acceleration hardware attached to the machine or some such thing. There are
 probably numerous other ways in which applications may prefer to handle
 things, so we will simply illustrate the consequences as they apply to a
 couple of simple cases and leave developers to consider these and the
-source code to openssl's builtin utilities as guides.
+source code to openssl's built-in utilities as guides.
 .PP
 If no \s-1ENGINE API\s0 functions are called within an application, then OpenSSL
 will not allocate any internal resources.  Prior to OpenSSL 1.1.0, however,
@@ -446,7 +493,7 @@ Here we'll assume an application has been configured by its user or admin
 to want to use the \*(L"\s-1ACME\*(R" ENGINE\s0 if it is available in the version of
 OpenSSL the application was compiled with. If it is available, it should be
 used by default for all \s-1RSA, DSA,\s0 and symmetric cipher operations, otherwise
-OpenSSL should use its builtin software as per usual. The following code
+OpenSSL should use its built-in software as per usual. The following code
 illustrates how to approach this;
 .PP
 .Vb 10
@@ -476,7 +523,7 @@ illustrates how to approach this;
 \& ENGINE_free(e);
 .Ve
 .PP
-\&\fIAutomatically using builtin \s-1ENGINE\s0 implementations\fR
+\&\fIAutomatically using built-in \s-1ENGINE\s0 implementations\fR
 .PP
 Here we'll assume we want to load and register all \s-1ENGINE\s0 implementations
 bundled with OpenSSL, such that for any cryptographic algorithm required by
@@ -525,7 +572,7 @@ calling \fBENGINE_init()\fR. The other class of commands consist of settings or
 operations that tweak certain behaviour or cause certain operations to take
 place, and these commands may work either before or after \fBENGINE_init()\fR, or
 in some cases both. \s-1ENGINE\s0 implementations should provide indications of
-this in the descriptions attached to builtin control commands and/or in
+this in the descriptions attached to built-in control commands and/or in
 external product documentation.
 .PP
 \&\fIIssuing control commands to an \s-1ENGINE\s0\fR
@@ -596,10 +643,10 @@ and input parameters of the control commands supported by an \s-1ENGINE\s0 using
 structural reference. Note that some control commands are defined by OpenSSL
 itself and it will intercept and handle these control commands on behalf of the
 \&\s-1ENGINE,\s0 i.e. the \s-1ENGINE\s0's \fBctrl()\fR handler is not used for the control command.
-openssl/engine.h defines an index, \s-1ENGINE_CMD_BASE,\s0 that all control commands
-implemented by ENGINEs should be numbered from. Any command value lower than
-this symbol is considered a \*(L"generic\*(R" command is handled directly by the
-OpenSSL core routines.
+\&\fI<openssl/engine.h>\fR defines an index, \s-1ENGINE_CMD_BASE,\s0 that all control
+commands implemented by ENGINEs should be numbered from. Any command value
+lower than this symbol is considered a \*(L"generic\*(R" command is handled directly
+by the OpenSSL core routines.
 .PP
 It is using these \*(L"core\*(R" control commands that one can discover the control
 commands implemented by a given \s-1ENGINE,\s0 specifically the commands:
@@ -753,6 +800,8 @@ structure on success or \s-1NULL\s0 if an error occurred.
 \&\fBRAND_bytes\fR\|(3), \fBconfig\fR\|(5)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 \&\fBENGINE_cleanup()\fR was deprecated in OpenSSL 1.1.0 by the automatic cleanup
 done by \fBOPENSSL_cleanup()\fR
 and should not be used.
@@ -760,7 +809,7 @@ and should not be used.
 .IX Header "COPYRIGHT"
 Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

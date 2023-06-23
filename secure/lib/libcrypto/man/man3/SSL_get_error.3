@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_ERROR 3"
-.TH SSL_GET_ERROR 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_GET_ERROR 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -161,6 +161,14 @@ used in the same thread that performed the \s-1TLS/SSL I/O\s0 operation, and no
 other OpenSSL function calls should appear in between.  The current
 thread's error queue must be empty before the \s-1TLS/SSL I/O\s0 operation is
 attempted, or \fBSSL_get_error()\fR will not work reliably.
+.SH "NOTES"
+.IX Header "NOTES"
+Some \s-1TLS\s0 implementations do not send a close_notify alert on shutdown.
+.PP
+On an unexpected \s-1EOF,\s0 versions before OpenSSL 3.0 returned
+\&\fB\s-1SSL_ERROR_SYSCALL\s0\fR, nothing was added to the error stack, and errno was 0.
+Since OpenSSL 3.0 the returned error is \fB\s-1SSL_ERROR_SSL\s0\fR with a meaningful
+error on the error stack.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The following return values can currently occur:
@@ -175,6 +183,9 @@ close_notify alert.
 No more data can be read.
 Note that \fB\s-1SSL_ERROR_ZERO_RETURN\s0\fR does not necessarily
 indicate that the underlying transport has been closed.
+.Sp
+This error can also appear when the option \fB\s-1SSL_OP_IGNORE_UNEXPECTED_EOF\s0\fR
+is set. See \fBSSL_CTX_set_options\fR\|(3) for more details.
 .IP "\s-1SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE\s0" 4
 .IX Item "SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE"
 The operation did not complete and can be retried later.
@@ -204,7 +215,9 @@ protocol level.
 It is safe to call \fBSSL_read()\fR or \fBSSL_read_ex()\fR when more data is available
 even when the call that set this error was an \fBSSL_write()\fR or \fBSSL_write_ex()\fR.
 However, if the call was an \fBSSL_write()\fR or \fBSSL_write_ex()\fR, it should be called
-again to continue sending the application data.
+again to continue sending the application data. If you get \fB\s-1SSL_ERROR_WANT_WRITE\s0\fR
+from \fBSSL_write()\fR or \fBSSL_write_ex()\fR then you should not do any other operation
+that could trigger \fB\s-1IO\s0\fR other than to repeat the previous \fBSSL_write()\fR call.
 .Sp
 For socket \fB\s-1BIO\s0\fRs (e.g. when \fBSSL_set_fd()\fR was used), \fBselect()\fR or
 \&\fBpoll()\fR on the underlying socket can be used to find out when the
@@ -276,17 +289,6 @@ A non-recoverable, fatal error in the \s-1SSL\s0 library occurred, usually a pro
 error.  The OpenSSL error queue contains more information on the error. If this
 error occurs then no further I/O operations should be performed on the
 connection and \fBSSL_shutdown()\fR must not be called.
-.SH "BUGS"
-.IX Header "BUGS"
-The \fB\s-1SSL_ERROR_SYSCALL\s0\fR with \fBerrno\fR value of 0 indicates unexpected \s-1EOF\s0 from
-the peer. This will be properly reported as \fB\s-1SSL_ERROR_SSL\s0\fR with reason
-code \fB\s-1SSL_R_UNEXPECTED_EOF_WHILE_READING\s0\fR in the OpenSSL 3.0 release because
-it is truly a \s-1TLS\s0 protocol error to terminate the connection without
-a \fBSSL_shutdown()\fR.
-.PP
-The issue is kept unfixed in OpenSSL 1.1.1 releases because many applications
-which choose to ignore this protocol error depend on the existing way of
-reporting the error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7)
@@ -296,9 +298,9 @@ The \s-1SSL_ERROR_WANT_ASYNC\s0 error code was added in OpenSSL 1.1.0.
 The \s-1SSL_ERROR_WANT_CLIENT_HELLO_CB\s0 error code was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

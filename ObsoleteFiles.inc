@@ -52,6 +52,54 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230623: OpenSSL 3.0.9
+OLD_LIBS+=lib/libcrypto.so.111
+OLD_FILES+=usr/include/openssl/rand_drbg.h
+OLD_FILES+=usr/lib/engines/capi.so
+OLD_FILES+=usr/lib/engines/padlock.so
+OLD_LIBS+=usr/lib/libssl.so.111
+OLD_DIRS+=usr/lib/engines
+OLD_FILES+=usr/share/man/man1/list.1
+OLD_FILES+=usr/share/man/man1/openssl-tsget.1
+OLD_FILES+=usr/share/man/man3/ECDH_get_ex_data.3
+OLD_FILES+=usr/share/man/man3/ECDH_get_ex_new_index.3
+OLD_FILES+=usr/share/man/man3/ECDH_set_ex_data.3
+OLD_FILES+=usr/share/man/man3/ERR_GET_FUNC.3
+OLD_FILES+=usr/share/man/man3/EVP_PKEY_CTX_hkdf_mode.3
+OLD_FILES+=usr/share/man/man3/EVP_PKEY_set_alias_type.3
+OLD_FILES+=usr/share/man/man3/EVP_aes.3
+OLD_FILES+=usr/share/man/man3/EVP_aria.3
+OLD_FILES+=usr/share/man/man3/EVP_camellia.3
+OLD_FILES+=usr/share/man/man3/EVP_des.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_bytes.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_cleanup_entropy_fn.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_cleanup_nonce_fn.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_free.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_generate.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get0_master.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get0_private.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get0_public.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get_entropy_fn.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get_ex_data.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get_ex_new_index.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_get_nonce_fn.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_instantiate.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_new.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_reseed.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_secure_new.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_callbacks.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_defaults.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_ex_data.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_reseed_defaults.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_reseed_interval.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_set_reseed_time_interval.3
+OLD_FILES+=usr/share/man/man3/RAND_DRBG_uninstantiate.3
+OLD_FILES+=usr/share/man/man3/RSA_padding_add_SSLv23.3
+OLD_FILES+=usr/share/man/man3/RSA_padding_check_SSLv23.3
+OLD_FILES+=usr/share/man/man7/RAND_DRBG.7
+OLD_FILES+=usr/share/man/man7/scrypt.7
+
 # 20230622: new clang import which bumps version from 15.0.7 to 16.0.1
 OLD_FILES+=usr/lib/clang/15.0.7/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/15.0.7/include/__clang_cuda_cmath.h

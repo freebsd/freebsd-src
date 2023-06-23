@@ -133,35 +133,43 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_SIGN 3"
-.TH EVP_PKEY_SIGN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_sign_init, EVP_PKEY_sign \- sign using a public key algorithm
+EVP_PKEY_sign_init, EVP_PKEY_sign_init_ex, EVP_PKEY_sign
+\&\- sign using a public key algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
 \& int EVP_PKEY_sign_init(EVP_PKEY_CTX *ctx);
+\& int EVP_PKEY_sign_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
 \& int EVP_PKEY_sign(EVP_PKEY_CTX *ctx,
 \&                   unsigned char *sig, size_t *siglen,
 \&                   const unsigned char *tbs, size_t tbslen);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBEVP_PKEY_sign_init()\fR function initializes a public key algorithm
-context using key \fBpkey\fR for a signing operation.
+\&\fBEVP_PKEY_sign_init()\fR initializes a public key algorithm context \fIctx\fR for
+signing using the algorithm given when the context was created
+using \fBEVP_PKEY_CTX_new\fR\|(3) or variants thereof.  The algorithm is used to
+fetch a \fB\s-1EVP_SIGNATURE\s0\fR method implicitly, see \*(L"Implicit fetch\*(R" in \fBprovider\fR\|(7)
+for more information about implicit fetches.
+.PP
+\&\fBEVP_PKEY_sign_init_ex()\fR is the same as \fBEVP_PKEY_sign_init()\fR but additionally
+sets the passed parameters \fIparams\fR on the context before returning.
 .PP
 The \fBEVP_PKEY_sign()\fR function performs a public key signing operation
-using \fBctx\fR. The data to be signed is specified using the \fBtbs\fR and
-\&\fBtbslen\fR parameters. If \fBsig\fR is \fB\s-1NULL\s0\fR then the maximum size of the output
-buffer is written to the \fBsiglen\fR parameter. If \fBsig\fR is not \fB\s-1NULL\s0\fR then
-before the call the \fBsiglen\fR parameter should contain the length of the
-\&\fBsig\fR buffer, if the call is successful the signature is written to
-\&\fBsig\fR and the amount of data written to \fBsiglen\fR.
+using \fIctx\fR. The data to be signed is specified using the \fItbs\fR and
+\&\fItbslen\fR parameters. If \fIsig\fR is \s-1NULL\s0 then the maximum size of the output
+buffer is written to the \fIsiglen\fR parameter. If \fIsig\fR is not \s-1NULL\s0 then
+before the call the \fIsiglen\fR parameter should contain the length of the
+\&\fIsig\fR buffer, if the call is successful the signature is written to
+\&\fIsig\fR and the amount of data written to \fIsiglen\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fBEVP_PKEY_sign()\fR does not hash the data to be signed, and therefore is
@@ -234,12 +242,15 @@ Sign data using \s-1RSA\s0 with PKCS#1 padding and \s-1SHA256\s0 digest:
 \&\fBEVP_PKEY_derive\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-These functions were added in OpenSSL 1.0.0.
+The \fBEVP_PKEY_sign_init()\fR and \fBEVP_PKEY_sign()\fR functions were added in
+OpenSSL 1.0.0.
+.PP
+The \fBEVP_PKEY_sign_init_ex()\fR function was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

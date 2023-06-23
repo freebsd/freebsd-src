@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_BYTES 3"
-.TH RAND_BYTES 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RAND_BYTES 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RAND_bytes, RAND_priv_bytes, RAND_pseudo_bytes \- generate random data
+RAND_bytes, RAND_priv_bytes, RAND_bytes_ex, RAND_priv_bytes_ex,
+RAND_pseudo_bytes \- generate random data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,14 +148,19 @@ RAND_bytes, RAND_priv_bytes, RAND_pseudo_bytes \- generate random data
 \&
 \& int RAND_bytes(unsigned char *buf, int num);
 \& int RAND_priv_bytes(unsigned char *buf, int num);
+\&
+\& int RAND_bytes_ex(OSSL_LIB_CTX *ctx, unsigned char *buf, size_t num,
+\&                   unsigned int strength);
+\& int RAND_priv_bytes_ex(OSSL_LIB_CTX *ctx, unsigned char *buf, size_t num,
+\&                        unsigned int strength);
 .Ve
 .PP
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
 .PP
-.Vb 3
-\& #if OPENSSL_API_COMPAT < 0x10100000L
+.Vb 1
 \& int RAND_pseudo_bytes(unsigned char *buf, int num);
-\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -166,7 +172,18 @@ be used for generating values that should remain private. If using the
 default \s-1RAND_METHOD,\s0 this function uses a separate \*(L"private\*(R" \s-1PRNG\s0
 instance so that a compromise of the \*(L"public\*(R" \s-1PRNG\s0 instance will not
 affect the secrecy of these private values, as described in \s-1\fBRAND\s0\fR\|(7)
-and \s-1\fBRAND_DRBG\s0\fR\|(7).
+and \s-1\fBEVP_RAND\s0\fR\|(7).
+.PP
+\&\fBRAND_bytes_ex()\fR and \fBRAND_priv_bytes_ex()\fR are the same as \fBRAND_bytes()\fR and
+\&\fBRAND_priv_bytes()\fR except that they both take additional \fIstrength\fR and
+\&\fIctx\fR parameters. The bytes genreated will have a security strength of at
+least \fIstrength\fR bits.
+The \s-1DRBG\s0 used for the operation is the public or private \s-1DRBG\s0 associated with
+the specified \fIctx\fR. The parameter can be \s-1NULL,\s0 in which case
+the default library context is used (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3).
+If the default \s-1RAND_METHOD\s0 has been changed then for compatibility reasons the
+\&\s-1RAND_METHOD\s0 will be used in preference and the \s-1DRBG\s0 of the library context
+ignored.
 .SH "NOTES"
 .IX Header "NOTES"
 By default, the OpenSSL \s-1CSPRNG\s0 supports a security level of 256 bits, provided it
@@ -198,18 +215,20 @@ obtained by \fBERR_get_error\fR\|(3).
 \&\fBRAND_priv_bytes\fR\|(3),
 \&\fBERR_get_error\fR\|(3),
 \&\s-1\fBRAND\s0\fR\|(7),
-\&\s-1\fBRAND_DRBG\s0\fR\|(7)
+\&\s-1\fBEVP_RAND\s0\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
 .IP "\(bu" 2
 \&\fBRAND_pseudo_bytes()\fR was deprecated in OpenSSL 1.1.0; use \fBRAND_bytes()\fR instead.
 .IP "\(bu" 2
 The \fBRAND_priv_bytes()\fR function was added in OpenSSL 1.1.1.
+.IP "\(bu" 2
+The \fBRAND_bytes_ex()\fR and \fBRAND_priv_bytes_ex()\fR functions were added in OpenSSL 3.0
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

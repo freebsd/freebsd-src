@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "PASSPHRASE-ENCODING 7"
-.TH PASSPHRASE-ENCODING 7 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PASSPHRASE-ENCODING 7 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-passphrase\-encoding \&\- How diverse parts of OpenSSL treat pass phrases character encoding
+passphrase\-encoding
+\&\- How diverse parts of OpenSSL treat pass phrases character encoding
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 In a modern world with all sorts of character encodings, the treatment of pass
@@ -228,7 +229,7 @@ Also note that the sub-sections below discuss human readable pass phrases.
 This is particularly relevant for PKCS#12 objects, where human readable pass
 phrases are assumed.
 For other objects, it's as legitimate to use any byte sequence (such as a
-sequence of bytes from `/dev/urandom` that's been saved away), which makes any
+sequence of bytes from \fI/dev/urandom\fR that's been saved away), which makes any
 character encoding discussion irrelevant; in such cases, simply use the same
 byte sequence as it is.
 .SS "Creating new objects"
@@ -238,7 +239,7 @@ encoded using \s-1UTF\-8.\s0
 This is default on most modern Unixes, but may involve an effort on other
 platforms.
 Specifically for Windows, setting the environment variable
-\&\f(CW\*(C`OPENSSL_WIN32_UTF8\*(C'\fR will have anything entered on [Windows] console prompt
+\&\fB\s-1OPENSSL_WIN32_UTF8\s0\fR will have anything entered on [Windows] console prompt
 converted to \s-1UTF\-8\s0 (command line and separately prompted pass phrases alike).
 .SS "Opening existing objects"
 .IX Subsection "Opening existing objects"
@@ -279,9 +280,9 @@ erroneous/non\-compliant encoding used by OpenSSL older than 1.1.0)
 \&\fBd2i_PKCS8PrivateKey_bio\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2018\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

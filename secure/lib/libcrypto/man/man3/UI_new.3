@@ -133,13 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "UI_NEW 3"
-.TH UI_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH UI_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-UI, UI_new, UI_new_method, UI_free, UI_add_input_string, UI_dup_input_string, UI_add_verify_string, UI_dup_verify_string, UI_add_input_boolean, UI_dup_input_boolean, UI_add_info_string, UI_dup_info_string, UI_add_error_string, UI_dup_error_string, UI_construct_prompt, UI_add_user_data, UI_dup_user_data, UI_get0_user_data, UI_get0_result, UI_get_result_length, UI_process, UI_ctrl, UI_set_default_method, UI_get_default_method, UI_get_method, UI_set_method, UI_OpenSSL, UI_null \- user interface
+UI,
+UI_new, UI_new_method, UI_free, UI_add_input_string, UI_dup_input_string,
+UI_add_verify_string, UI_dup_verify_string, UI_add_input_boolean,
+UI_dup_input_boolean, UI_add_info_string, UI_dup_info_string,
+UI_add_error_string, UI_dup_error_string, UI_construct_prompt,
+UI_add_user_data, UI_dup_user_data, UI_get0_user_data, UI_get0_result,
+UI_get_result_length,
+UI_process, UI_ctrl, UI_set_default_method, UI_get_default_method,
+UI_get_method, UI_set_method, UI_OpenSSL, UI_null \- user interface
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -173,7 +181,7 @@ UI, UI_new, UI_new_method, UI_free, UI_add_input_string, UI_dup_input_string, UI
 \& int UI_dup_error_string(UI *ui, const char *text);
 \&
 \& char *UI_construct_prompt(UI *ui_method,
-\&        const char *object_desc, const char *object_name);
+\&                           const char *phrase_desc, const char *object_name);
 \&
 \& void *UI_add_user_data(UI *ui, void *user_data);
 \& int UI_dup_user_data(UI *ui, void *user_data);
@@ -261,7 +269,7 @@ the possible answers (given through the \fIaction_desc\fR argument).
 .PP
 \&\fBUI_add_info_string()\fR and \fBUI_add_error_string()\fR add strings that are shown at
 the same time as the prompt for extra information or to show an error string.
-The difference between the two is only conceptual.  With the builtin method,
+The difference between the two is only conceptual.  With the built-in method,
 there's no technical difference between them.  Other methods may make a
 difference between them, however.
 .PP
@@ -278,16 +286,18 @@ as their UI_add counterparts, except that they make their own copies
 of all strings.
 .PP
 \&\fBUI_construct_prompt()\fR is a helper function that can be used to create
-a prompt from two pieces of information: an description and a name.
+a prompt from two pieces of information: a phrase description \fIphrase_desc\fR
+and an object name \fIobject_name\fR, where the latter may be \s-1NULL.\s0
 The default constructor (if there is none provided by the method used)
-creates a string "Enter \fIdescription\fR for \fIname\fR:\*(L".  With the
-description \*(R"pass phrase\*(L" and the filename \*(R"foo.key\*(L", that becomes
-\&\*(R"Enter pass phrase for foo.key:".  Other methods may create whatever
+creates a string "Enter \fIphrase_desc\fR for \fIobject_name\fR:\*(L"
+where the \*(R" for \fIobject_name\fR" part is left out if \fIobject_name\fR is \s-1NULL.\s0
+With the description \*(L"pass phrase\*(R" and the filename \*(L"foo.key\*(R", that becomes
+\&\*(L"Enter pass phrase for foo.key:\*(R".  Other methods may create whatever
 string and may include encodings that will be processed by the other
 method functions.
 .PP
 \&\fBUI_add_user_data()\fR adds a user data pointer for the method to use at any
-time.  The builtin \s-1UI\s0 method doesn't care about this info.  Note that several
+time.  The built-in \s-1UI\s0 method doesn't care about this info.  Note that several
 calls to this function doesn't add data, it replaces the previous blob
 with the one given as argument.
 .PP
@@ -333,7 +343,7 @@ are assumed to be encoded according to the current locale or (for
 Windows) code page.
 For applications having different demands, these strings need to be
 converted appropriately by the caller.
-For Windows, if the \s-1OPENSSL_WIN32_UTF8\s0 environment variable is set,
+For Windows, if the \fB\s-1OPENSSL_WIN32_UTF8\s0\fR environment variable is set,
 the built-in method \fBUI_OpenSSL()\fR will produce \s-1UTF\-8\s0 encoded strings
 instead.
 .SH "RETURN VALUES"
@@ -370,7 +380,7 @@ The \fBUI_dup_user_data()\fR function was added in OpenSSL 1.1.1.
 .IX Header "COPYRIGHT"
 Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.
