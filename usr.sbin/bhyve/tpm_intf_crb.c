@@ -184,6 +184,13 @@ tpm_crb_thread(void *const arg)
 
 	pthread_mutex_lock(&crb->mutex);
 	for (;;) {
+		/*
+		 * We're releasing the lock after wake up. Therefore, we have to
+		 * check the closing condition before and after going to sleep.
+		 */
+		if (crb->closing)
+			break;
+
 		pthread_cond_wait(&crb->cond, &crb->mutex);
 
 		if (crb->closing)
@@ -208,6 +215,16 @@ tpm_crb_thread(void *const arg)
 			break;
 		}
 
+		uint8_t cmd[TPM_CRB_DATA_BUFFER_SIZE];
+		memcpy(cmd, crb->regs.data_buffer, TPM_CRB_DATA_BUFFER_SIZE);
+
+		/*
+		 * A TPM command can take multiple seconds to execute. As we've
+		 * copied all required values and buffers at this point, we can
+		 * release the mutex.
+		 */
+		pthread_mutex_unlock(&crb->mutex);
+
 		/*
 		 * The command response buffer interface uses a single buffer
 		 * for sending a command to and receiving a response from the
@@ -221,10 +238,10 @@ tpm_crb_thread(void *const arg)
 		 * response.
 		 */
 		uint8_t rsp[TPM_CRB_DATA_BUFFER_SIZE] = { 0 };
-		crb->emul->execute_cmd(crb->emul_sc,
-		    &crb->regs.data_buffer[cmd_off], cmd_size, &rsp[rsp_off],
-		    rsp_size);
+		crb->emul->execute_cmd(crb->emul_sc, &cmd[cmd_off], cmd_size,
+		    &rsp[rsp_off], rsp_size);
 
+		pthread_mutex_lock(&crb->mutex);
 		memset(crb->regs.data_buffer, 0, TPM_CRB_DATA_BUFFER_SIZE);
 		memcpy(&crb->regs.data_buffer[rsp_off], &rsp[rsp_off], rsp_size);
 
