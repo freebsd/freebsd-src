@@ -1464,7 +1464,8 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 
 	if (__predict_false((so->so_state &
-	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+	    (SS_ISCONNECTING | SS_ISCONNECTED | SS_ISDISCONNECTING |
+	    SS_ISDISCONNECTED)) != 0))
 		return (EISCONN);
 
 	INP_HASH_WLOCK(&V_tcbinfo);
