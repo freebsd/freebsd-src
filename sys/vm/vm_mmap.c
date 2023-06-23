@@ -353,10 +353,12 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		 * the hint would fall in the potential heap space,
 		 * place it after the end of the largest possible heap.
 		 *
-		 * There should really be a pmap call to determine a reasonable
-		 * location.
+		 * For anonymous mappings within the address space of the
+		 * calling process, the absence of a hint is handled at a
+		 * lower level in order to implement different clustering
+		 * strategies for ASLR.
 		 */
-		if (addr == 0 ||
+		if (((flags & MAP_ANON) == 0 && addr == 0) ||
 		    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
 		    addr < round_page((vm_offset_t)vms->vm_daddr +
 		    lim_max(td, RLIMIT_DATA))))

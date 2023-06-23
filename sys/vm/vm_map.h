@@ -383,6 +383,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_CREATE_STACK_GAP_DN	0x00020000
 #define	MAP_VN_EXEC		0x00040000
 #define	MAP_SPLIT_BOUNDARY_MASK	0x00180000
+#define	MAP_NO_HINT		0x00200000
 
 #define	MAP_SPLIT_BOUNDARY_SHIFT 19
 
