@@ -129,7 +129,7 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  if ${CPUTYPE} == "e500"
 _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
-_CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH:Mpowerpc64*} != ""
 _CPUCFLAGS = -mcpu=${CPUTYPE}
