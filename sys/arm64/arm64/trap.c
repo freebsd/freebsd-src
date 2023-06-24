@@ -484,9 +484,8 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 		return;
 #endif
 
-	CTR4(KTR_TRAP,
-	    "do_el1_sync: curthread: %p, esr 0x%lx, elr: 0x%lx, frame: %p",
-	    td, esr, frame->tf_elr, frame);
+	CTR4(KTR_TRAP, "%s: exception=%lu, elr=0x%lx, esr=0x%lx",
+	    __func__, exception, frame->tf_elr, esr);
 
 	/*
 	 * Enable debug exceptions if we aren't already handling one. They will
@@ -598,9 +597,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	}
 	intr_enable();
 
-	CTR4(KTR_TRAP,
-	    "do_el0_sync: curthread: %p, esr 0x%lx, elr: 0x%lx, frame: %p",
-	    td, esr, frame->tf_elr, frame);
+	CTR4(KTR_TRAP, "%s: exception=%lu, elr=0x%lx, esr=0x%lx",
+	    __func__, exception, frame->tf_elr, esr);
 
 	switch (exception) {
 	case EXCP_FP_SIMD:
