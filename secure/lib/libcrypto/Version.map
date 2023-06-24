@@ -1084,9 +1084,6 @@ OPENSSL_1_1_0 {
         EC_GF2m_simple_method;
         EC_GFp_mont_method;
         EC_GFp_nist_method;
-        EC_GFp_nistp224_method;
-        EC_GFp_nistp256_method;
-        EC_GFp_nistp521_method;
         EC_GFp_simple_method;
         EC_GROUP_check;
         EC_GROUP_check_discriminant;
