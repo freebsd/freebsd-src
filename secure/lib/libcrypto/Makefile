@@ -215,11 +215,13 @@ SRCS+=	ec_pmeth.c ec_print.c ecdh_kdf.c ecdh_ossl.c ecdsa_ossl.c ecdsa_sign.c
 SRCS+=	ecdsa_vrf.c eck_prn.c ecp_mont.c ecp_nist.c
 SRCS+=	ecp_oct.c ecp_smpl.c ecx_backend.c ecx_key.c ecx_meth.c eddsa.c
 SRCS+=	f_generic.c f_impl32.c f_impl64.c scalar.c
-.if defined(ASM_aarch64)
+# see OPENSSL_NO_EC_NISTP_64_GCC_128 in configuration.h
+.if ${MACHINE_ABI:Mlittle-endian} && ${MACHINE_ABI:Mlong64}
 SRCS+=	ecp_nistp224.c ecp_nistp256.c ecp_nistp521.c ecp_nistputil.c
+.endif
+.if defined(ASM_aarch64)
 SRCS+=	ecp_nistz256-armv8.S ecp_nistz256.c
 .elif defined(ASM_amd64)
-SRCS+=	ecp_nistp224.c ecp_nistp256.c ecp_nistp521.c ecp_nistputil.c
 SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
 .elif defined(ASM_arm)
 SRCS+=	ecp_nistz256-armv4.S ecp_nistz256.c
