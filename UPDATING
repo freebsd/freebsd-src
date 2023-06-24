@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230623:
+	OpenSSL has been updated to version 3.0, including changes throughout
+	the base system.  It is important to rebuild third-party software
+	after upgrading.
+
 20230619:
 	To enable pf rdr rules for connections initiated from the host, pf
 	filter rules can be optionally enabled for packets delivered
