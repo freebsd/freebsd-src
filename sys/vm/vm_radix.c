@@ -181,18 +181,11 @@ vm_radix_slot(vm_pindex_t index, uint16_t level)
 	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
 }
 
-/* Trims the key after the specified level. */
+/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
 static __inline vm_pindex_t
 vm_radix_trimkey(vm_pindex_t index, uint16_t level)
 {
-	vm_pindex_t ret;
-
-	ret = index;
-	if (level > 0) {
-		ret >>= level * VM_RADIX_WIDTH;
-		ret <<= level * VM_RADIX_WIDTH;
-	}
-	return (ret);
+	return (index & -VM_RADIX_UNITLEVEL(level));
 }
 
 /*

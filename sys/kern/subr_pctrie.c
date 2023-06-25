@@ -156,18 +156,11 @@ pctrie_slot(uint64_t index, uint16_t level)
 	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
 }
 
-/* Trims the key after the specified level. */
+/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
 static __inline uint64_t
 pctrie_trimkey(uint64_t index, uint16_t level)
 {
-	uint64_t ret;
-
-	ret = index;
-	if (level > 0) {
-		ret >>= level * PCTRIE_WIDTH;
-		ret <<= level * PCTRIE_WIDTH;
-	}
-	return (ret);
+	return (index & -PCTRIE_UNITLEVEL(level));
 }
 
 /*
