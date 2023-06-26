@@ -171,7 +171,7 @@ static_inet()
 				;;
 			*)
 				static_routes="${static_routes} _default_fib${_fibnum}"
-				eval route__default_fib${fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
+				eval route__default_fib${_fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
 				;;
 			esac
 		done
@@ -247,8 +247,8 @@ static_inet6()
 			[Nn][Oo] | '')
 				;;
 			*)
-				ipv6_static_routes="${static_routes} _default_fib${_fibnum}"
-				eval ipv6_route__default_fib${fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
+				ipv6_static_routes="${ipv6_static_routes} _default_fib${_fibnum}"
+				eval ipv6_route__default_fib${_fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
 				;;
 			esac
 		done
