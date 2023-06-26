@@ -32,14 +32,12 @@
 #define	_DEV_HWPMC_PMC_EVENTS_H_
 
 /*
- * Note: Documentation on adding events can be found both in
- * the source tree at src/share/doc/papers/hwpmc/hwpmc.ms
- * as well as on-line at:
+ * Note: Documentation on adding events can be found online at:
  *
  * https://wiki.freebsd.org/PmcTools/PmcHardwareHowTo
  *
- * Please refer to those resources before you attempt to modify
- * this file or the hwpmc driver/subsystem.
+ * Please refer to this resource before you attempt to modify this file or the
+ * hwpmc driver/subsystem.
  */
 
 /* * PMC event codes.
