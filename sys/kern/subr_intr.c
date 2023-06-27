@@ -1720,6 +1720,14 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data)
 			return (i);
 		}
 	}
+	for (i = 0; i < irq_map_first_free_idx; i++) {
+		if (irq_map[i] == NULL) {
+			irq_map[i] = entry;
+			irq_map_first_free_idx = i + 1;
+			mtx_unlock(&irq_map_lock);
+			return (i);
+		}
+	}
 	mtx_unlock(&irq_map_lock);
 
 	/* XXX Expand irq_map table */
