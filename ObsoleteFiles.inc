@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230626: Only install sys/dev/nvme/nvme.h to /usr/include
+OLD_FILES+=usr/include/dev/nvme/nvme_private.h
+
 # 20230623: OpenSSL 3.0.9
 OLD_LIBS+=lib/libcrypto.so.111
 OLD_FILES+=usr/include/openssl/rand_drbg.h
