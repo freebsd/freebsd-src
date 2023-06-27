@@ -1074,7 +1074,6 @@ nat_foreach(nat_cb_t *f, void *arg, int sort)
 	struct nat44_cfg_nat *cfg;
 	size_t sz;
 	uint32_t i;
-	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(struct nat44_cfg_nat);
@@ -1097,7 +1096,7 @@ nat_foreach(nat_cb_t *f, void *arg, int sort)
 
 		cfg = (struct nat44_cfg_nat*)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(cfg, arg); /* Ignore errors for now */
+			(void)f(cfg, arg); /* Ignore errors for now */
 			cfg = (struct nat44_cfg_nat *)((caddr_t)cfg +
 			    olh->objsize);
 		}

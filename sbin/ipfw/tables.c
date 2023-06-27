@@ -1408,7 +1408,6 @@ guess_key_type(char *key, uint8_t *ptype)
 {
 	char *p;
 	struct in6_addr addr;
-	uint32_t kv;
 
 	if (ishexnumber(*key) != 0 || *key == ':') {
 		/* Remove / if exists */
@@ -1424,7 +1423,7 @@ guess_key_type(char *key, uint8_t *ptype)
 		} else {
 			/* Port or any other key */
 			/* Skip non-base 10 entries like 'fa1' */
-			kv = strtol(key, &p, 10);
+			(void)strtol(key, &p, 10);
 			if (*p == '\0') {
 				*ptype = IPFW_TABLE_NUMBER;
 				return (0);
@@ -1712,7 +1711,6 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 	ipfw_xtable_info *info;
 	size_t sz;
 	uint32_t i;
-	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(ipfw_xtable_info);
@@ -1737,7 +1735,7 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
 			if (g_co.use_set == 0 || info->set == g_co.use_set - 1)
-				error = f(info, arg);
+				(void)f(info, arg);
 			info = (ipfw_xtable_info *)((caddr_t)info +
 			    olh->objsize);
 		}
