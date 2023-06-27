@@ -1726,7 +1726,10 @@ void
 ipi_swi_handler(struct trapframe frame)
 {
 
-	intr_event_handle(clk_intr_event, &frame);
+#ifdef DEV_ACPI
+	if (!CK_SLIST_EMPTY(&clk_intr_event->ie_handlers))
+		intr_event_handle(clk_intr_event, &frame);
+#endif
 }
 
 /*
