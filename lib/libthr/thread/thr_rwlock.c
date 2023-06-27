@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "namespace.h"
 #include <pthread.h>
@@ -102,9 +103,11 @@ rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 
 	if (attr == NULL || *attr == NULL ||
 	    (*attr)->pshared == PTHREAD_PROCESS_PRIVATE) {
-		prwlock = calloc(1, sizeof(struct pthread_rwlock));
+		prwlock = aligned_alloc(CACHE_LINE_SIZE,
+		    roundup(sizeof(struct pthread_rwlock), CACHE_LINE_SIZE));
 		if (prwlock == NULL)
 			return (ENOMEM);
+		memset(prwlock, 0, sizeof(struct pthread_rwlock));
 		*rwlock = prwlock;
 	} else {
 		prwlock = __thr_pshared_offpage(rwlock, 1);
