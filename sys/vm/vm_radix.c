@@ -595,8 +595,9 @@ ascend:
 				    LOCKED);
 				if (vm_radix_isleaf(child)) {
 					m = vm_radix_topage(child);
-					if (m->pindex >= index)
-						return (m);
+					KASSERT(m->pindex >= index,
+					    ("vm_radix_lookup_ge: leaf<index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot < (VM_RADIX_COUNT - 1));
@@ -709,8 +710,9 @@ ascend:
 				    LOCKED);
 				if (vm_radix_isleaf(child)) {
 					m = vm_radix_topage(child);
-					if (m->pindex <= index)
-						return (m);
+					KASSERT(m->pindex <= index,
+					    ("vm_radix_lookup_le: leaf>index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot > 0);

@@ -560,8 +560,9 @@ ascend:
 				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
-					if (*m >= index)
-						return (m);
+					KASSERT(*m >= index,
+					    ("pctrie_lookup_ge: leaf < index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot < (PCTRIE_COUNT - 1));
@@ -677,8 +678,9 @@ ascend:
 				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
-					if (*m <= index)
-						return (m);
+					KASSERT(*m <= index,
+					    ("pctrie_lookup_le: leaf > index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot > 0);
