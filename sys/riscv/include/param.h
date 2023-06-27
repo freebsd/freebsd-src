@@ -50,9 +50,6 @@
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"riscv64"
 #endif
-#ifdef _KERNEL
-#define	MACHINE_ARCHES	"riscv64"
-#endif
 
 #ifdef SMP
 #ifndef MAXCPU
