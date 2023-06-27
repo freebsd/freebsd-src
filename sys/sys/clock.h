@@ -198,7 +198,9 @@ void clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts);
 /*
  * SWI for clock events
  */
+#ifdef DEV_ACPI
 extern struct	intr_event *clk_intr_event;
+#endif
 
 #endif /* _KERNEL */
 
