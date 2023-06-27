@@ -1,8 +1,8 @@
-make: "varmod.mk" line 96: To escape a dollar, use \$, not $$, at "$$:L} != """
-make: "varmod.mk" line 96: Invalid variable name ':', at "$:L} != """
-make: "varmod.mk" line 101: Dollar followed by nothing
-make: "varmod.mk" line 110: Missing delimiter ':' after modifier "P"
-make: "varmod.mk" line 111: Missing argument for ".error"
+make: "varmod.mk" line 98: To escape a dollar, use \$, not $$, at "$$:L} != """
+make: "varmod.mk" line 98: Invalid variable name ':', at "$:L} != """
+make: "varmod.mk" line 104: Dollar followed by nothing
+make: "varmod.mk" line 114: Missing delimiter ':' after modifier "P"
+make: "varmod.mk" line 116: Missing argument for ".error"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

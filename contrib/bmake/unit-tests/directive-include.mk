@@ -1,4 +1,4 @@
-# $NetBSD: directive-include.mk,v 1.11 2022/01/15 12:35:18 rillig Exp $
+# $NetBSD: directive-include.mk,v 1.12 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the .include directive, which includes another file.
 
@@ -22,6 +22,7 @@
 .  error
 .endif
 
+# expect+1: Could not find nonexistent.mk
 .include "nonexistent.mk"
 .include "/dev/null"		# size 0
 # including a directory technically succeeds, but shouldn't.
@@ -44,11 +45,14 @@ DEV=	null
 # would be empty, and the closing '"' would be in the trailing part of the
 # line, which is ignored as of 2021-12-03.
 DQUOT=	"
+# expect+1: Could not find "
 .include "${DQUOT}"
 
 # When the expression in a filename cannot be evaluated, the failing
 # expression is skipped and the file is included nevertheless.
 # FIXME: Add proper error handling, no file must be included here.
+# expect+2: Could not find nonexistent.mk
+# expect+1: Unknown modifier "Z"
 .include "nonexistent${:U123:Z}.mk"
 
 # The traditional include directive is seldom used.

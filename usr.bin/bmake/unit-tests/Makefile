@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.195 2023/05/10 18:26:24 sjg Exp $
+# $Id: Makefile,v 1.199 2023/06/20 17:27:20 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.335 2023/05/10 13:03:06 rillig Exp $
+# $NetBSD: Makefile,v 1.339 2023/06/20 09:25:34 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -199,6 +199,7 @@ TESTS+=		directive-ifndef
 TESTS+=		directive-ifnmake
 TESTS+=		directive-include
 TESTS+=		directive-include-fatal
+TESTS+=		directive-include-guard
 TESTS+=		directive-info
 TESTS+=		directive-misspellings
 TESTS+=		directive-sinclude
@@ -215,7 +216,6 @@ TESTS+=		export
 TESTS+=		export-all
 TESTS+=		export-env
 TESTS+=		export-variants
-TESTS+=		forsubst
 TESTS+=		gnode-submake
 TESTS+=		hanoi-include
 TESTS+=		impsrc
@@ -232,7 +232,6 @@ TESTS+=		lint
 TESTS+=		make-exported
 TESTS+=		meta-cmd-cmp
 TESTS+=		moderrs
-TESTS+=		modmatch
 TESTS+=		modmisc
 .if ${.MAKE.UID} > 0
 TESTS+=		objdir-writable
@@ -428,10 +427,14 @@ TESTS+=		varname-dot-make-meta-files
 .if ${.MAKE.PATH_FILEMON:Uno:Nktrace:N/dev*} == "" && ${TMPDIR:N/tmp*:N/var/tmp*} != ""
 # these tests will not work if TMPDIR is or is a subdir of
 # /tmp or /var/tmp
+.if ${.MAKE.PATH_FILEMON:N/dev/*} != "" || exists(${.MAKE.PATH_FILEMON})
 TESTS+=		varname-dot-make-meta-ignore_filter
 TESTS+=		varname-dot-make-meta-ignore_paths
 TESTS+=		varname-dot-make-meta-ignore_patterns
 TESTS+=		varname-dot-make-path_filemon
+.else
+.warning Skipping tests that require ${.MAKE.PATH_FILEMON}
+.endif
 .endif
 TESTS+=		varname-dot-make-meta-prefix
 TESTS+=		varname-dot-make-mode
@@ -542,6 +545,12 @@ FLAGS.varname-empty=		-dv '$${:U}=cmdline-u' '=cmdline-plain'
 # Some tests need extra postprocessing.
 SED_CMDS.deptgt-phony=	${STD_SED_CMDS.dd}
 SED_CMDS.dir=		${STD_SED_CMDS.dd}
+SED_CMDS.directive-include-guard= \
+	-e '/\.MAKEFLAGS/d' \
+	-e '/^Parsing line/d' \
+	-e '/^SetFilenameVars:/d' \
+	-e '/^ParseDependency/d' \
+	-e '/^ParseEOF:/d'
 SED_CMDS.export=	-e '/^[^=_A-Za-z0-9]*=/d'
 SED_CMDS.export-all=	${SED_CMDS.export}
 SED_CMDS.export-env=	${SED_CMDS.export}

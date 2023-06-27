@@ -420,7 +420,7 @@ op_build() {
 
 op_test() {
 	[ -x bmake ] || op_build
-	Bmake test "$@" || exit 1
+	Bmake test "$@" TEST_MAKE=$objdir/bmake || exit 1
 }
 
 op_clean() {

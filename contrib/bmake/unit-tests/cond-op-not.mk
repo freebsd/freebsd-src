@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-not.mk,v 1.7 2021/01/19 17:49:13 rillig Exp $
+# $NetBSD: cond-op-not.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the ! operator in .if conditions, which negates its argument.
 
@@ -26,6 +26,7 @@
 .endif
 
 .if !${:U}
+# expect+1: Not empty evaluates to true.
 .  info Not empty evaluates to true.
 .else
 .  info Not empty evaluates to false.
@@ -34,10 +35,12 @@
 .if !${:U }
 .  info Not space evaluates to true.
 .else
+# expect+1: Not space evaluates to false.
 .  info Not space evaluates to false.
 .endif
 
 .if !${:U0}
+# expect+1: Not 0 evaluates to true.
 .  info Not 0 evaluates to true.
 .else
 .  info Not 0 evaluates to false.
@@ -46,16 +49,19 @@
 .if !${:U1}
 .  info Not 1 evaluates to true.
 .else
+# expect+1: Not 1 evaluates to false.
 .  info Not 1 evaluates to false.
 .endif
 
 .if !${:Uword}
 .  info Not word evaluates to true.
 .else
+# expect+1: Not word evaluates to false.
 .  info Not word evaluates to false.
 .endif
 
 # A single exclamation mark is a parse error.
+# expect+1: Malformed conditional (!)
 .if !
 .  error
 .else

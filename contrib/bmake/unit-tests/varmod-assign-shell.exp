@@ -1,4 +1,4 @@
-make: "varmod-assign-shell.mk" line 27: warning: "echo output; false" returned non-zero status
+make: "varmod-assign-shell.mk" line 28: warning: "echo output; false" returned non-zero status
 Global: _ = # (empty)
 Var_Parse: ${ASSIGNED::!=echo output; ${:Ufalse}} (eval-keep-dollar-and-undefined)
 Evaluating modifier ${ASSIGNED::...} on value "previous" (eval-keep-dollar-and-undefined, regular)

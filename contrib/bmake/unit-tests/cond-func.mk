@@ -1,4 +1,4 @@
-# $NetBSD: cond-func.mk,v 1.12 2023/05/10 15:53:32 rillig Exp $
+# $NetBSD: cond-func.mk,v 1.13 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for those parts of the functions in .if conditions that are common
 # among several functions.
@@ -33,6 +33,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .endif
 
 # The argument of a function must not directly contain whitespace.
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A B)
 .  error
 .endif
@@ -48,9 +49,11 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 #
 # It's not entirely clear why these characters are forbidden.
 # The most plausible reason seems to be typo detection.
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A&B)
 .  error
 .endif
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A|B)
 .  error
 .endif
@@ -91,6 +94,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .if defined()
 .  error
 .else
+# expect+1: The empty variable is never defined.
 .  info The empty variable is never defined.
 .endif
 
@@ -100,6 +104,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .if defined
 .  error
 .else
+# expect+1: A plain function name is parsed as defined(...).
 .  info A plain function name is parsed as defined(...).
 .endif
 
@@ -107,6 +112,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 # is interpreted as 'defined(defined)', and the condition evaluates to true.
 defined=	# defined but empty
 .if defined
+# expect+1: A plain function name is parsed as defined(...).
 .  info A plain function name is parsed as defined(...).
 .else
 .  error
@@ -117,17 +123,19 @@ defined=	# defined but empty
 .if defined-var
 .  error
 .else
+# expect+1: Symbols may start with a function name.
 .  info Symbols may start with a function name.
 .endif
 
 defined-var=	# defined but empty
 .if defined-var
+# expect+1: Symbols may start with a function name.
 .  info Symbols may start with a function name.
 .else
 .  error
 .endif
 
-# Missing closing parenthesis when parsing the function argument.
+# expect+1: Missing closing parenthesis for defined()
 .if defined(
 .  error
 .else

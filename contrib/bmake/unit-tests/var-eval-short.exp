@@ -1,5 +1,5 @@
-make: "var-eval-short.mk" line 44: In the :@ modifier of "", the variable name "${FAIL}" must not contain a dollar
-make: "var-eval-short.mk" line 44: Malformed conditional (0 && ${:Uword:@${FAIL}@expr@})
+make: "var-eval-short.mk" line 46: In the :@ modifier of "", the variable name "${FAIL}" must not contain a dollar
+make: "var-eval-short.mk" line 46: Malformed conditional (0 && ${:Uword:@${FAIL}@expr@})
 CondParser_Eval: 0 && ${0:?${FAIL}then:${FAIL}else}
 Var_Parse: ${0:?${FAIL}then:${FAIL}else} (parse-only)
 Parsing modifier ${0:?...}
@@ -8,7 +8,7 @@ Modifier part: "${FAIL}then"
 Var_Parse: ${FAIL}else} (parse-only)
 Modifier part: "${FAIL}else"
 Result of ${0:?${FAIL}then:${FAIL}else} is "" (parse-only, defined)
-Parsing line 165: DEFINED=	defined
+Parsing line 167: DEFINED=	defined
 Global: DEFINED = defined
 CondParser_Eval: 0 && ${DEFINED:L:?${FAIL}then:${FAIL}else}
 Var_Parse: ${DEFINED:L:?${FAIL}then:${FAIL}else} (parse-only)
@@ -20,7 +20,7 @@ Modifier part: "${FAIL}then"
 Var_Parse: ${FAIL}else} (parse-only)
 Modifier part: "${FAIL}else"
 Result of ${DEFINED:?${FAIL}then:${FAIL}else} is "defined" (parse-only, regular)
-Parsing line 168: .MAKEFLAGS: -d0
+Parsing line 170: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 Global: .MAKEFLAGS =  -r -k -d cpv -d
 Global: .MAKEFLAGS =  -r -k -d cpv -d 0

@@ -1,8 +1,8 @@
-make: "directive-endif.mk" line 18: The .endif directive does not take arguments
-make: "directive-endif.mk" line 23: The .endif directive does not take arguments
-make: "directive-endif.mk" line 33: The .endif directive does not take arguments
+make: "directive-endif.mk" line 16: The .endif directive does not take arguments
+make: "directive-endif.mk" line 21: The .endif directive does not take arguments
+make: "directive-endif.mk" line 32: The .endif directive does not take arguments
 make: "directive-endif.mk" line 39: The .endif directive does not take arguments
-make: "directive-endif.mk" line 45: Unknown directive "endifx"
+make: "directive-endif.mk" line 44: Unknown directive "endifx"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

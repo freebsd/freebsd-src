@@ -1,6 +1,6 @@
-make: "opt-warnings-as-errors.mk" line 12: warning: message 1
+make: "opt-warnings-as-errors.mk" line 13: warning: message 1
 make: parsing warnings being treated as errors
-make: "opt-warnings-as-errors.mk" line 13: warning: message 2
+make: "opt-warnings-as-errors.mk" line 15: warning: message 2
 parsing continues
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
