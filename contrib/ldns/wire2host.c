@@ -59,7 +59,6 @@ ldns_wire2dname(ldns_rdf **dname, const uint8_t *wire, size_t max, size_t *pos)
 	uint16_t pointer_target;
 	uint8_t pointer_target_buf[2];
 	size_t dname_pos = 0;
-	size_t uncompressed_length = 0;
 	size_t compression_pos = 0;
 	uint8_t tmp_dname[LDNS_MAX_DOMAINLEN];
 	unsigned int pointer_count = 0;
@@ -120,7 +119,6 @@ ldns_wire2dname(ldns_rdf **dname, const uint8_t *wire, size_t max, size_t *pos)
 			return LDNS_STATUS_DOMAINNAME_OVERFLOW;
 		}
 		memcpy(&tmp_dname[dname_pos], &wire[*pos], label_size);
-		uncompressed_length += label_size + 1;
 		dname_pos += label_size;
 		*pos = *pos + label_size;
 
