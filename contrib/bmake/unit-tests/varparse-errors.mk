@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.8 2023/02/14 21:56:48 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of variable expressions.
 #
@@ -34,6 +34,7 @@ ERR_EVAL=	An evaluation error ${:Uvalue:C,.,\3,}.
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
+# expect+1: Unknown modifier "Z"
 VAR.${:U:Z}=	unknown modifier in the variable name
 .if ${VAR.} != "unknown modifier in the variable name"
 .  error
@@ -42,6 +43,7 @@ VAR.${:U:Z}=	unknown modifier in the variable name
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
+# expect+1: Unknown modifier "Z"
 VAR.${:U:Z}post=	unknown modifier with text in the variable name
 .if ${VAR.post} != "unknown modifier with text in the variable name"
 .  error
@@ -64,6 +66,8 @@ VAR.${:U:Z}post=	unknown modifier with text in the variable name
 #
 #.MAKEFLAGS: -dv
 IND=	${:OX}
+# expect+2: Undefined variable "${:U:OX"
+# expect+1: Undefined variable "${:U:OX"
 _:=	${:U:OX:U${IND}} ${:U:OX:U${IND}}
 #.MAKEFLAGS: -d0
 

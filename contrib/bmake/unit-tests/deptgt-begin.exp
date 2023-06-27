@@ -1,5 +1,5 @@
-make: "deptgt-begin.mk" line 17: warning: duplicate script for target ".BEGIN" ignored
-make: "deptgt-begin.mk" line 8: warning: using previous script for ".BEGIN" defined here
+make: "deptgt-begin.mk" line 19: warning: duplicate script for target ".BEGIN" ignored
+make: "deptgt-begin.mk" line 9: warning: using previous script for ".BEGIN" defined here
 : parse time
 : Making before-begin before .BEGIN.
 : .BEGIN

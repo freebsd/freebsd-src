@@ -1,9 +1,10 @@
-# $NetBSD: deptgt-begin.mk,v 1.6 2022/05/07 08:01:20 rillig Exp $
+# $NetBSD: deptgt-begin.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the special target .BEGIN in dependency declarations,
 # which is a container for commands that are run before any other
 # commands from the shell lines.
 
+# expect+2: warning: using previous script for ".BEGIN" defined here
 .BEGIN:
 	: $@
 
@@ -13,6 +14,7 @@
 # add its commands after this.
 #
 # There are several ways to resolve this situation, which are detailed below.
+# expect+2: warning: duplicate script for target ".BEGIN" ignored
 .BEGIN:
 	: Making another $@.
 

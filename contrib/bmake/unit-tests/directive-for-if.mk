@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-if.mk,v 1.1 2021/08/30 17:08:13 rillig Exp $
+# $NetBSD: directive-for-if.mk,v 1.2 2023/06/01 20:56:35 rillig Exp $
 #
 # Test for a .for directive that contains an .if directive.
 #
@@ -45,6 +45,9 @@
 # expanded to their bare textual value.
 .for directive in if ifdef ifndef
 .  ${directive} "1" != "0"
+# expect+3: if-less endif
+# expect+2: if-less endif
+# expect+1: if-less endif
 .  endif
 .endfor
 # In 2021, the above code does not generate an error message, even though the

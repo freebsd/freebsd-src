@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.13 2023/01/03 00:00:45 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.14 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -7,6 +7,7 @@
 
 # Just in case anyone tries to compile several special targets in a single
 # dependency line: That doesn't work, and make immediately rejects it.
+# expect+1: warning: Extra target '.PHONY' ignored
 .SUFFIXES .PHONY: .c.o
 
 # The following lines demonstrate how 'targets' is set and reset during
@@ -25,6 +26,7 @@ target1 target2: sources	# targets := [target1, target2]
 	: command1		# targets == [target1, target2]
 	: command2		# targets == [target1, target2]
 VAR=value			# targets := NULL
+# expect+1: Unassociated shell command ": command3		# parse error, since targets == NULL"
 	: command3		# parse error, since targets == NULL
 
 # In a dependency declaration, the list of targets can be empty.
@@ -43,6 +45,7 @@ ${:U}: empty-source
 # expansion would be to use the variable modifier '::=' to modify the
 # targets.  This in turn would be such an extreme and unreliable edge case
 # that nobody uses it.
+# expect+1: Unknown modifier "Z"
 $$$$$$$${:U:Z}:
 
 # expect+1: warning: Extra target 'ordinary' ignored

@@ -30,10 +30,12 @@ Pattern for ':M' is ":\:"
 ModifyWords: split ": :: :\:" into 3 words
 Result of ${VALUES:M${:U\:}\:} is "::"
 Comparing ":" != "::"
-make: "varmod-match-escape.mk" line 42: warning: XXX: Oops
+make: "varmod-match-escape.mk" line 43: warning: XXX: Oops
 Global: .MAKEFLAGS =  -r -k -d cv -d
 Global: .MAKEFLAGS =  -r -k -d cv -d 0
-make: "varmod-match-escape.mk" line 67: Dollar followed by nothing
+make: "varmod-match-escape.mk" line 69: Dollar followed by nothing
+make: "varmod-match-escape.mk" line 110: warning: Unfinished character list in pattern '[A-]' of modifier ':M'
+make: "varmod-match-escape.mk" line 110: warning: Unfinished character list in pattern '[^A-]' of modifier ':M'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

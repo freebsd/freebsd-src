@@ -1,4 +1,4 @@
-make: "var-scope-cmdline.mk" line 71: global
-make: "var-scope-cmdline.mk" line 80: makeflags
+make: "var-scope-cmdline.mk" line 72: global
+make: "var-scope-cmdline.mk" line 82: makeflags
 makeflags
 exit status 0

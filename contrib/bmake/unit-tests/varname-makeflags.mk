@@ -1,4 +1,4 @@
-# $NetBSD: varname-makeflags.mk,v 1.7 2023/02/25 19:24:07 rillig Exp $
+# $NetBSD: varname-makeflags.mk,v 1.8 2023/06/01 07:27:30 rillig Exp $
 #
 # Tests for the environment variable 'MAKEFLAGS', from which additional
 # command line arguments are read before the actual command line arguments.
@@ -96,7 +96,7 @@ dollars_stage_1:
 	#	$\		the value of the variable named '\'
 	#	{varname\}	a literal string
 	#
-	# Since the variable name '\' is not defined, the resulting value is
+	# Since the variable named '\' is not defined, the resulting value is
 	# '\{varname\}'.  Make doesn't handle isolated '$' characters in
 	# strings well, instead each '$' has to be part of a '$$' or be part
 	# of a subexpression like '${VAR}'.
@@ -135,9 +135,9 @@ dollars_stage_3:
 	@echo '$@: MAKEFLAGS=<'${MAKEFLAGS:Q}'>'
 
 
-# Demonstrates in which exact order the MAKEFLAGS are built together from the
-# parent MAKEFLAGS and the flags from the command line, in particular that
-# variable assignments are passed at the end, after the options.
+# Demonstrates in which exact order the MAKEFLAGS are built from the parent
+# MAKEFLAGS and the flags from the command line, in particular that variable
+# assignments are passed at the end, after the options.
 append_stage_0:
 	@echo '$@: MAKEFLAGS=<'${MAKEFLAGS:Q}'>'
 	@${MAKE} -Dbefore-0 -f ${MAKEFILE} append_stage_1 VAR0=value -Dafter-0

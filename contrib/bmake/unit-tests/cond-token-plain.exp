@@ -27,37 +27,37 @@ Comparing "var&&name" != "var&&name"
 CondParser_Eval: ${:Uvar}||name != "var||name"
 Comparing "var||name" != "var||name"
 CondParser_Eval: bare
-make: "cond-token-plain.mk" line 105: A bare word is treated like defined(...), and the variable 'bare' is not defined.
+make: "cond-token-plain.mk" line 106: A bare word is treated like defined(...), and the variable 'bare' is not defined.
 CondParser_Eval: VAR
-make: "cond-token-plain.mk" line 111: A bare word is treated like defined(...).
+make: "cond-token-plain.mk" line 113: A bare word is treated like defined(...).
 CondParser_Eval: V${:UA}R
-make: "cond-token-plain.mk" line 118: ok
+make: "cond-token-plain.mk" line 121: ok
 CondParser_Eval: V${UNDEF}AR
-make: "cond-token-plain.mk" line 126: Undefined variables in bare words expand to an empty string.
+make: "cond-token-plain.mk" line 130: Undefined variables in bare words expand to an empty string.
 CondParser_Eval: 0${:Ux00}
-make: "cond-token-plain.mk" line 134: Numbers can be composed from literals and variable expressions.
+make: "cond-token-plain.mk" line 139: Numbers can be composed from literals and variable expressions.
 CondParser_Eval: 0${:Ux01}
-make: "cond-token-plain.mk" line 138: Numbers can be composed from literals and variable expressions.
+make: "cond-token-plain.mk" line 144: Numbers can be composed from literals and variable expressions.
 CondParser_Eval: "" ==
-make: "cond-token-plain.mk" line 144: Missing right-hand side of operator '=='
+make: "cond-token-plain.mk" line 151: Missing right-hand side of operator '=='
 CondParser_Eval: == ""
-make: "cond-token-plain.mk" line 152: Malformed conditional (== "")
+make: "cond-token-plain.mk" line 160: Malformed conditional (== "")
 CondParser_Eval: \\
-make: "cond-token-plain.mk" line 167: The variable '\\' is not defined.
+make: "cond-token-plain.mk" line 176: The variable '\\' is not defined.
 CondParser_Eval: \\
-make: "cond-token-plain.mk" line 172: Now the variable '\\' is defined.
+make: "cond-token-plain.mk" line 182: Now the variable '\\' is defined.
 CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
 Comparing "unquoted"quoted" != "unquoted"quoted"
 CondParser_Eval: $$$$$$$$ != ""
-make: "cond-token-plain.mk" line 186: Malformed conditional ($$$$$$$$ != "")
+make: "cond-token-plain.mk" line 197: Malformed conditional ($$$$$$$$ != "")
 CondParser_Eval: left == right
-make: "cond-token-plain.mk" line 195: Malformed conditional (left == right)
+make: "cond-token-plain.mk" line 206: Malformed conditional (left == right)
 CondParser_Eval: ${0:?:} || left == right
 CondParser_Eval: 0
-make: "cond-token-plain.mk" line 201: Malformed conditional (${0:?:} || left == right)
+make: "cond-token-plain.mk" line 212: Malformed conditional (${0:?:} || left == right)
 CondParser_Eval: left == right || ${0:?:}
-make: "cond-token-plain.mk" line 206: Malformed conditional (left == right || ${0:?:})
-make: "cond-token-plain.mk" line 225: Malformed conditional (VAR.${IF_COUNT::+=1} != "")
+make: "cond-token-plain.mk" line 217: Malformed conditional (left == right || ${0:?:})
+make: "cond-token-plain.mk" line 236: Malformed conditional (VAR.${IF_COUNT::+=1} != "")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

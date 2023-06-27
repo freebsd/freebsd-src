@@ -1,4 +1,4 @@
-# $NetBSD: opt-warnings-as-errors.mk,v 1.5 2021/01/27 00:02:38 rillig Exp $
+# $NetBSD: opt-warnings-as-errors.mk,v 1.6 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the -W command line option, which turns warnings into errors.
 #
@@ -9,7 +9,9 @@
 
 .MAKEFLAGS: -W
 
+# expect+1: warning: message 1
 .warning message 1
+# expect+1: warning: message 2
 .warning message 2
 
 _!=	echo 'parsing continues' 1>&2

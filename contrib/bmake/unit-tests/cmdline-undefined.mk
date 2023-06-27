@@ -1,4 +1,4 @@
-# $NetBSD: cmdline-undefined.mk,v 1.2 2020/11/04 04:49:33 rillig Exp $
+# $NetBSD: cmdline-undefined.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for undefined variable expressions in the command line.
 
@@ -26,14 +26,26 @@ all:
 .MAKEFLAGS: MAKEFLAGS_ASSIGN='Undefined is $${UNDEFINED}.'
 .MAKEFLAGS: MAKEFLAGS_SUBST:='Undefined is $${UNDEFINED}.'
 
+# expect+2: From the command line: Undefined is .
+# expect+1: From the command line: Undefined is .
 .info From the command line: ${CMDLINE}
+# expect+2: From .MAKEFLAGS '=': Undefined is .
+# expect+1: From .MAKEFLAGS '=': Undefined is .
 .info From .MAKEFLAGS '=': ${MAKEFLAGS_ASSIGN}
+# expect+2: From .MAKEFLAGS ':=': Undefined is .
+# expect+1: From .MAKEFLAGS ':=': Undefined is .
 .info From .MAKEFLAGS ':=': ${MAKEFLAGS_SUBST}
 
 UNDEFINED?=	now defined
 
+# expect+2: From the command line: Undefined is now defined.
+# expect+1: From the command line: Undefined is now defined.
 .info From the command line: ${CMDLINE}
+# expect+2: From .MAKEFLAGS '=': Undefined is now defined.
+# expect+1: From .MAKEFLAGS '=': Undefined is now defined.
 .info From .MAKEFLAGS '=': ${MAKEFLAGS_ASSIGN}
+# expect+2: From .MAKEFLAGS ':=': Undefined is now defined.
+# expect+1: From .MAKEFLAGS ':=': Undefined is now defined.
 .info From .MAKEFLAGS ':=': ${MAKEFLAGS_SUBST}
 
 print-undefined:

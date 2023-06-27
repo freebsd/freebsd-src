@@ -1,4 +1,4 @@
-# $NetBSD: modmisc.mk,v 1.52 2020/12/20 19:29:06 rillig Exp $
+# $NetBSD: modmisc.mk,v 1.53 2023/06/16 07:20:45 rillig Exp $
 #
 # miscellaneous modifier tests
 
@@ -15,13 +15,9 @@ MOD_HOMES=	S,/home/,/homes/,
 MOD_OPT=	@d@$${exists($$d):?$$d:$${d:S,/usr,/opt,}}@
 MOD_SEP=	S,:, ,g
 
-all:	modvar modvarloop modsysv emptyvar undefvar
+all:	modvar modvarloop emptyvar undefvar
 all:	mod-quote
 all:	mod-break-many-words
-
-# See also sysv.mk.
-modsysv:
-	@echo "The answer is ${libfoo.a:L:libfoo.a=42}"
 
 # Demonstrates modifiers that are given indirectly from a variable.
 modvar:
@@ -60,6 +56,6 @@ undefvar:
 mod-quote:
 	@echo $@: new${.newline:Q}${.newline:Q}line
 
-# Cover the bmake_realloc in Str_Words.
+# Cover the bmake_realloc in Substring_Words.
 mod-break-many-words:
 	@echo $@: ${UNDEF:U:range=500:[#]}

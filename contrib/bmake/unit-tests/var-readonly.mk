@@ -1,4 +1,4 @@
-# $NetBSD: var-readonly.mk,v 1.1 2023/01/24 00:20:00 sjg Exp $
+# $NetBSD: var-readonly.mk,v 1.3 2023/06/19 15:37:48 sjg Exp $
 
 # the answer
 N = 42
@@ -9,6 +9,12 @@ N = 666
 .error N ($N) should be 42
 .endif
 
+# undef should fail
+.undef N
+.ifndef N
+.error N should not be undef'd
+.endif
+
 .NOREADONLY: N
 # now we can change it
 N = 69
@@ -17,4 +23,3 @@ N = 69
 .endif
 
 all:
-

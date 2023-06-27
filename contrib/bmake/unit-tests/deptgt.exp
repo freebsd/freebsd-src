@@ -1,17 +1,17 @@
-make: "deptgt.mk" line 10: warning: Extra target '.PHONY' ignored
-make: "deptgt.mk" line 28: Unassociated shell command ": command3		# parse error, since targets == NULL"
-Parsing line 34: ${:U}: empty-source
-ParseDependency(: empty-source)
-Parsing line 35: 	: command for empty targets list
-Parsing line 36: : empty-source
+make: "deptgt.mk" line 11: warning: Extra target '.PHONY' ignored
+make: "deptgt.mk" line 30: Unassociated shell command ": command3		# parse error, since targets == NULL"
+Parsing line 36: ${:U}: empty-source
 ParseDependency(: empty-source)
 Parsing line 37: 	: command for empty targets list
-Parsing line 38: .MAKEFLAGS: -d0
+Parsing line 38: : empty-source
+ParseDependency(: empty-source)
+Parsing line 39: 	: command for empty targets list
+Parsing line 40: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
-make: "deptgt.mk" line 46: Unknown modifier "Z"
-make: "deptgt.mk" line 49: warning: Extra target 'ordinary' ignored
-make: "deptgt.mk" line 52: warning: Extra target (ordinary) ignored
-make: "deptgt.mk" line 55: warning: Special and mundane targets don't mix. Mundane ones ignored
+make: "deptgt.mk" line 49: Unknown modifier "Z"
+make: "deptgt.mk" line 52: warning: Extra target 'ordinary' ignored
+make: "deptgt.mk" line 55: warning: Extra target (ordinary) ignored
+make: "deptgt.mk" line 58: warning: Special and mundane targets don't mix. Mundane ones ignored
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

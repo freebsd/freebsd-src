@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.21 2023/02/18 18:23:58 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.22 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -24,6 +24,7 @@
 # Evaluating the variable name lazily would require additional code in
 # Var_Parse and ParseVarname, it would be more useful and predictable
 # though.
+# expect+1: Malformed conditional (${${:Uvariable expression} == "literal":?bad:bad})
 .if ${${:Uvariable expression} == "literal":?bad:bad}
 .  error
 .else
@@ -41,6 +42,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # "Undefined variable" error message is generated.
 # The difference to the ':=' variable assignment is the additional
 # "Malformed conditional" error message.
+# expect+1: Malformed conditional (${${UNDEF} == "":?bad-cond:bad-cond})
 .if ${${UNDEF} == "":?bad-cond:bad-cond}
 .  error
 .else
@@ -63,6 +65,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # conditional therefore returns a parse error from Var_Parse, and this parse
 # error propagates to CondEvalExpression, where the "Malformed conditional"
 # comes from.
+# expect+1: Malformed conditional (${1 == == 2:?yes:no} != "")
 .if ${1 == == 2:?yes:no} != ""
 .  error
 .else
@@ -89,6 +92,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 .if "${1 == == 2:?yes:no}" != ""
 .  error
 .else
+# expect+1: warning: Oops, the parse error should have been propagated.
 .  warning Oops, the parse error should have been propagated.
 .endif
 .MAKEFLAGS: -d0
@@ -150,13 +154,18 @@ VAR=	value
 # instead of just saying that the whole condition is bad.
 STRING=		string
 NUMBER=		no		# not really a number
+# expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
+# expect+2: .
+# expect+1: Comparison with '>=' requires both operands 'no' and '10' to be numeric
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
 # The following situation occasionally occurs with MKINET6 or similar
 # variables.
 NUMBER=		# empty, not really a number either
+# expect+1: .
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
+# expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
 # CondParser_LeafToken handles [0-9-+] specially, treating them as a number.
@@ -164,8 +173,10 @@ PLUS=		+
 ASTERISK=	*
 EMPTY=		# empty
 # "true" since "+" is not the empty string.
+# expect+1: true
 .info ${${PLUS}		:?true:false}
 # "false" since the variable named "*" is not defined.
+# expect+1: false
 .info ${${ASTERISK}	:?true:false}
 # syntax error since the condition is completely blank.
 .info ${${EMPTY}	:?true:false}

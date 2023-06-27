@@ -1,0 +1,88 @@
+Parse_PushInput: file variable-ifndef.tmp, line 1
+Skipping 'variable-ifndef.tmp' because 'VARIABLE_IFNDEF' is defined
+Parse_PushInput: file variable-ifndef-reuse.tmp, line 1
+Skipping 'variable-ifndef-reuse.tmp' because 'VARIABLE_IFNDEF' is defined
+Parse_PushInput: file comments.tmp, line 1
+Skipping 'comments.tmp' because 'COMMENTS' is defined
+Parse_PushInput: file variable-if.tmp, line 1
+Skipping 'variable-if.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: file variable-if-reuse.tmp, line 1
+Skipping 'variable-if-reuse.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: file variable-if-triple-negation.tmp, line 1
+Parse_PushInput: file variable-if-triple-negation.tmp, line 1
+Parse_PushInput: file variable-ifdef-negated.tmp, line 1
+Parse_PushInput: file variable-ifdef-negated.tmp, line 1
+Parse_PushInput: file variable-name-mismatch.tmp, line 1
+Parse_PushInput: file variable-name-mismatch.tmp, line 1
+Parse_PushInput: file variable-name-exclamation.tmp, line 1
+Parse_PushInput: file variable-name-exclamation.tmp, line 1
+Parse_PushInput: file variable-name-exclamation-middle.tmp, line 1
+Parse_PushInput: file variable-name-exclamation-middle.tmp, line 1
+Parse_PushInput: file variable-name-parentheses.tmp, line 1
+Parse_PushInput: file variable-name-parentheses.tmp, line 1
+Parse_PushInput: file variable-ifndef-plus.tmp, line 1
+Parse_PushInput: file variable-ifndef-plus.tmp, line 1
+Parse_PushInput: file variable-if-plus.tmp, line 1
+Parse_PushInput: file variable-if-plus.tmp, line 1
+Parse_PushInput: file variable-ifndef-indirect.tmp, line 1
+Parse_PushInput: file variable-ifndef-indirect.tmp, line 1
+Parse_PushInput: file variable-if-indirect.tmp, line 1
+Parse_PushInput: file variable-if-indirect.tmp, line 1
+Parse_PushInput: file variable-assign-indirect.tmp, line 1
+Skipping 'variable-assign-indirect.tmp' because 'VARIABLE_ASSIGN_INDIRECT' is defined
+Parse_PushInput: file variable-assign-late.tmp, line 1
+Skipping 'variable-assign-late.tmp' because 'VARIABLE_ASSIGN_LATE' is defined
+Parse_PushInput: file variable-assign-nested.tmp, line 1
+Parse_PushInput: .for loop in variable-assign-nested.tmp, line 3
+Skipping 'variable-assign-nested.tmp' because 'VARIABLE_ASSIGN_NESTED' is defined
+Parse_PushInput: file variable-already-defined.tmp, line 1
+Skipping 'variable-already-defined.tmp' because 'VARIABLE_ALREADY_DEFINED' is defined
+Parse_PushInput: file variable-defined-then-undefined.tmp, line 1
+Parse_PushInput: file variable-defined-then-undefined.tmp, line 1
+Parse_PushInput: file variable-two-times.tmp, line 1
+Parse_PushInput: file variable-two-times.tmp, line 1
+Parse_PushInput: file variable-clash.tmp, line 1
+Skipping 'variable-clash.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: file variable-swapped.tmp, line 1
+Parse_PushInput: file variable-swapped.tmp, line 1
+Parse_PushInput: file variable-undef-between.tmp, line 1
+Parse_PushInput: file variable-undef-between.tmp, line 1
+Parse_PushInput: file variable-undef-inside.tmp, line 1
+Parse_PushInput: file variable-undef-inside.tmp, line 1
+Parse_PushInput: file variable-not-defined.tmp, line 1
+Parse_PushInput: file variable-not-defined.tmp, line 1
+Parse_PushInput: file if-elif.tmp, line 1
+Parse_PushInput: file if-elif.tmp, line 1
+Parse_PushInput: file if-elif-reuse.tmp, line 1
+Parse_PushInput: file if-elif-reuse.tmp, line 1
+Parse_PushInput: file if-else.tmp, line 1
+Parse_PushInput: file if-else.tmp, line 1
+Parse_PushInput: file if-else-reuse.tmp, line 1
+Parse_PushInput: file if-else-reuse.tmp, line 1
+Parse_PushInput: file inner-if-elif-else.tmp, line 1
+Skipping 'inner-if-elif-else.tmp' because 'INNER_IF_ELIF_ELSE' is defined
+Parse_PushInput: file target.tmp, line 1
+Skipping 'target.tmp' because '__target.tmp__' is defined
+Parse_PushInput: file target-sys.tmp, line 1
+Skipping 'target-sys.tmp' because '__<target-sys.tmp>__' is defined
+Parse_PushInput: file target-indirect.tmp, line 1
+Skipping 'target-indirect.tmp' because 'target-indirect.tmp' is defined
+Parse_PushInput: file target-indirect-PARSEFILE.tmp, line 1
+Skipping 'target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parse_PushInput: file target-indirect-PARSEFILE2.tmp, line 1
+Skipping 'target-indirect-PARSEFILE2.tmp' because '__target-indirect-PARSEFILE2.tmp__' is defined
+Parse_PushInput: file subdir/target-indirect-PARSEFILE.tmp, line 1
+Skipping 'subdir/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parse_PushInput: file target-indirect-PARSEDIR-PARSEFILE.tmp, line 1
+Skipping 'target-indirect-PARSEDIR-PARSEFILE.tmp' because '__target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parse_PushInput: file subdir/target-indirect-PARSEDIR-PARSEFILE.tmp, line 1
+Skipping 'subdir/target-indirect-PARSEDIR-PARSEFILE.tmp' because '__subdir/target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parse_PushInput: file target-unguarded.tmp, line 1
+Parse_PushInput: file target-unguarded.tmp, line 1
+Parse_PushInput: file target-plus.tmp, line 1
+Parse_PushInput: file target-plus.tmp, line 1
+Parse_PushInput: file target-already-defined.tmp, line 1
+Skipping 'target-already-defined.tmp' because 'target-already-defined' is defined
+Parse_PushInput: file target-name-exclamation.tmp, line 1
+Parse_PushInput: file target-name-exclamation.tmp, line 1
+exit status 0

@@ -1,3 +1,74 @@
+2023-06-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230622
+	Merge with NetBSD make, pick up
+	o optimize string matching for ':M' and ':N'
+	o warn about malformed patterns in ':M', ':N' and '.if make(...)'
+
+2023-06-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230621
+	Merge with NetBSD make, pick up
+	o more extensive tests for include guards
+	o parse.c: if a guard is already defined a file that uses the same
+	guard is still guarded by it.
+
+2023-06-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230620
+	Merge with NetBSD make, pick up
+	o allow guards to be targets as well as variables
+	The guard targets may include variable references like
+	__${.PARSEDIR:tA}/${.PARSEFILE}__
+
+2023-06-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230619
+	Merge with NetBSD make, pick up
+	o unit test for .undef of readOnly vars
+	o optimization for makefiles protected from multiple-inclusion
+	skip even opening the file after first include.
+	Initially this only handles makefiles guarded by a variable
+	target guards are next.
+
+2023-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230616
+	Merge with NetBSD make, pick up
+	o var.c: do not allow delete of readOnly variable
+
+2023-06-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230601
+	Merge with NetBSD make, pick up
+	o parse.c: .break takes no args
+	o lots of unit test updates
+
+2023-05-29  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: skip tests that require /dev/filemon
+	if it does not exists - issue a warning.
+
+2023-05-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230522
+	Fix building on darwin ppc
+
+	* os.sh (MACHINE): Darwin powerpc cannot use `uname -m`
+	also recent NetBSD uses x86_64 for MACHINE_ARCH so conform.
+
+2023-05-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230515
+
+	* Makefile (COPTS.filemon_ktrace.c): NetBSD 7 needs help to
+	compile filemon_ktrace.c
+
+2023-05-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230512
+	o sys.dirdeps.mk - broke after-import target
+
 2023-05-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230510

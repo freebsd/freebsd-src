@@ -1,4 +1,4 @@
-# $NetBSD: varmod.mk,v 1.7 2022/08/24 21:38:06 rillig Exp $
+# $NetBSD: varmod.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
 #
@@ -93,11 +93,14 @@ DOLLAR2=	${:U\$}
 # For compatibility, make does not print these error messages in normal mode.
 # Should it?
 .MAKEFLAGS: -dL
+# expect+2: To escape a dollar, use \$, not $$, at "$$:L} != """
+# expect+1: Invalid variable name ':', at "$:L} != """
 .if ${$$:L} != ""
 .  error
 .endif
 
 # A '$' followed by nothing is an error as well.
+# expect+1: Dollar followed by nothing
 .if ${:Uword:@word@${word}$@} != "word"
 .  error
 .endif
@@ -107,7 +110,9 @@ DOLLAR2=	${:U\$}
 # XXX: The .error should not be reached since the variable expression is
 # malformed, and this error should be propagated up to Cond_EvalLine.
 VAR=	STOP
+# expect+1: Missing delimiter ':' after modifier "P"
 .if ${VAR:P=RE} != "STORE"
+# expect+1: Missing argument for ".error"
 .  error
 .endif
 

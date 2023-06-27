@@ -2,12 +2,12 @@ CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
 Comparing "directive-include.mk null" != "directive-include.mk null"
 CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
 Comparing "directive-include.mk null" != "directive-include.mk null"
-make: "directive-include.mk" line 25: Could not find nonexistent.mk
-make: "directive-include.mk" line 47: Could not find "
-make: "directive-include.mk" line 52: Unknown modifier "Z"
-make: "directive-include.mk" line 52: Could not find nonexistent.mk
-make: "directive-include.mk" line 57: Cannot open /nonexistent
-make: "directive-include.mk" line 62: Invalid line type
+make: "directive-include.mk" line 26: Could not find nonexistent.mk
+make: "directive-include.mk" line 49: Could not find "
+make: "directive-include.mk" line 56: Unknown modifier "Z"
+make: "directive-include.mk" line 56: Could not find nonexistent.mk
+make: "directive-include.mk" line 61: Cannot open /nonexistent
+make: "directive-include.mk" line 66: Invalid line type
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

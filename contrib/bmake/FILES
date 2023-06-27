@@ -356,6 +356,8 @@ unit-tests/directive-ifnmake.exp
 unit-tests/directive-ifnmake.mk
 unit-tests/directive-include-fatal.exp
 unit-tests/directive-include-fatal.mk
+unit-tests/directive-include-guard.exp
+unit-tests/directive-include-guard.mk
 unit-tests/directive-include.exp
 unit-tests/directive-include.mk
 unit-tests/directive-info.exp
@@ -392,8 +394,6 @@ unit-tests/export-variants.exp
 unit-tests/export-variants.mk
 unit-tests/export.exp
 unit-tests/export.mk
-unit-tests/forsubst.exp
-unit-tests/forsubst.mk
 unit-tests/gnode-submake.exp
 unit-tests/gnode-submake.mk
 unit-tests/hanoi-include.exp
@@ -429,8 +429,6 @@ unit-tests/meta-cmd-cmp.mk
 unit-tests/meta-ignore.inc
 unit-tests/moderrs.exp
 unit-tests/moderrs.mk
-unit-tests/modmatch.exp
-unit-tests/modmatch.mk
 unit-tests/modmisc.exp
 unit-tests/modmisc.mk
 unit-tests/objdir-writable.exp

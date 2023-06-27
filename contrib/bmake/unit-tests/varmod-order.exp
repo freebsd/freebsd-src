@@ -1,26 +1,26 @@
 make: Bad modifier ":OX" for variable "WORDS"
-make: "varmod-order.mk" line 14: Undefined variable "${WORDS:OX"
+make: "varmod-order.mk" line 16: Undefined variable "${WORDS:OX"
 make: Bad modifier ":OxXX" for variable "WORDS"
-make: "varmod-order.mk" line 17: Undefined variable "${WORDS:Ox"
+make: "varmod-order.mk" line 21: Undefined variable "${WORDS:Ox"
 make: Unclosed variable expression, expecting '}' for modifier "O" of variable "WORDS" with value "eight five four nine one seven six ten three two"
 make: Unclosed variable expression, expecting '}' for modifier "On" of variable "NUMBERS" with value "1 2 3 4 5 6 7 8 9 10"
 make: Unclosed variable expression, expecting '}' for modifier "Onr" of variable "NUMBERS" with value "10 9 8 7 6 5 4 3 2 1"
 make: Bad modifier ":Oxn" for variable "NUMBERS"
-make: "varmod-order.mk" line 29: Malformed conditional (${NUMBERS:Oxn})
+make: "varmod-order.mk" line 33: Malformed conditional (${NUMBERS:Oxn})
 make: Bad modifier ":On_typo" for variable "NUMBERS"
-make: "varmod-order.mk" line 39: Malformed conditional (${NUMBERS:On_typo})
+make: "varmod-order.mk" line 44: Malformed conditional (${NUMBERS:On_typo})
 make: Bad modifier ":Onr_typo" for variable "NUMBERS"
-make: "varmod-order.mk" line 48: Malformed conditional (${NUMBERS:Onr_typo})
+make: "varmod-order.mk" line 54: Malformed conditional (${NUMBERS:Onr_typo})
 make: Bad modifier ":Orn_typo" for variable "NUMBERS"
-make: "varmod-order.mk" line 57: Malformed conditional (${NUMBERS:Orn_typo})
+make: "varmod-order.mk" line 64: Malformed conditional (${NUMBERS:Orn_typo})
 make: Bad modifier ":Onn" for variable "NUMBERS"
-make: "varmod-order.mk" line 68: Malformed conditional (${NUMBERS:Onn})
+make: "varmod-order.mk" line 76: Malformed conditional (${NUMBERS:Onn})
 make: Bad modifier ":Onrr" for variable "NUMBERS"
-make: "varmod-order.mk" line 77: Malformed conditional (${NUMBERS:Onrr})
+make: "varmod-order.mk" line 86: Malformed conditional (${NUMBERS:Onrr})
 make: Bad modifier ":Orrn" for variable "NUMBERS"
-make: "varmod-order.mk" line 86: Malformed conditional (${NUMBERS:Orrn})
+make: "varmod-order.mk" line 96: Malformed conditional (${NUMBERS:Orrn})
 make: Bad modifier ":On=Off" for variable "SWITCH"
-make: "varmod-order.mk" line 100: Malformed conditional (${SWITCH:On=Off} != "Off")
+make: "varmod-order.mk" line 111: Malformed conditional (${SWITCH:On=Off} != "Off")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

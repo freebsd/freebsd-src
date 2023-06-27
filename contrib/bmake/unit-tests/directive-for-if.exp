@@ -1,6 +1,6 @@
-make: "directive-for-if.mk" line 48: if-less endif
-make: "directive-for-if.mk" line 48: if-less endif
-make: "directive-for-if.mk" line 48: if-less endif
+make: "directive-for-if.mk" line 51: if-less endif
+make: "directive-for-if.mk" line 51: if-less endif
+make: "directive-for-if.mk" line 51: if-less endif
 VAR1
 VAR3
 make: Fatal errors encountered -- cannot continue

@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.47 2022/01/08 17:25:19 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.48 2023/06/01 07:44:10 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -116,7 +116,7 @@ Buf_EndsWith(const Buffer *buf, char ch)
 }
 
 void Buf_AddBytes(Buffer *, const char *, size_t);
-void Buf_AddBytesBetween(Buffer *, const char *, const char *);
+void Buf_AddRange(Buffer *, const char *, const char *);
 void Buf_AddStr(Buffer *, const char *);
 void Buf_AddInt(Buffer *, int);
 void Buf_AddFlag(Buffer *, bool, const char *);

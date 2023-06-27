@@ -1,5 +1,5 @@
 make: Unfinished modifier for "word214" ('=' missing)
-make: "varmod-sysv.mk" line 214: Malformed conditional (${word214:L:from${:D=}to})
+make: "varmod-sysv.mk" line 215: Malformed conditional (${word214:L:from${:D=}to})
 word                     modifier                 result                  
 ''                       =                        ""
 suffix                   =                        "suffix"

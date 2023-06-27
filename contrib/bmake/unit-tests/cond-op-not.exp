@@ -1,9 +1,9 @@
-make: "cond-op-not.mk" line 29: Not empty evaluates to true.
-make: "cond-op-not.mk" line 37: Not space evaluates to false.
-make: "cond-op-not.mk" line 41: Not 0 evaluates to true.
-make: "cond-op-not.mk" line 49: Not 1 evaluates to false.
-make: "cond-op-not.mk" line 55: Not word evaluates to false.
-make: "cond-op-not.mk" line 59: Malformed conditional (!)
+make: "cond-op-not.mk" line 30: Not empty evaluates to true.
+make: "cond-op-not.mk" line 39: Not space evaluates to false.
+make: "cond-op-not.mk" line 44: Not 0 evaluates to true.
+make: "cond-op-not.mk" line 53: Not 1 evaluates to false.
+make: "cond-op-not.mk" line 60: Not word evaluates to false.
+make: "cond-op-not.mk" line 65: Malformed conditional (!)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -1,11 +1,11 @@
-make: "directive-warning.mk" line 9: Unknown directive "warn"
 make: "directive-warning.mk" line 10: Unknown directive "warn"
-make: "directive-warning.mk" line 11: Unknown directive "warnin"
-make: "directive-warning.mk" line 12: Unknown directive "warnin"
-make: "directive-warning.mk" line 13: Missing argument for ".warning"
-make: "directive-warning.mk" line 14: warning: message
-make: "directive-warning.mk" line 15: Unknown directive "warnings"
-make: "directive-warning.mk" line 16: Unknown directive "warnings"
+make: "directive-warning.mk" line 12: Unknown directive "warn"
+make: "directive-warning.mk" line 14: Unknown directive "warnin"
+make: "directive-warning.mk" line 16: Unknown directive "warnin"
+make: "directive-warning.mk" line 18: Missing argument for ".warning"
+make: "directive-warning.mk" line 19: warning: message
+make: "directive-warning.mk" line 21: Unknown directive "warnings"
+make: "directive-warning.mk" line 23: Unknown directive "warnings"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

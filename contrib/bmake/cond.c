@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.344 2023/02/14 21:08:00 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.353 2023/06/23 05:21:10 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -92,7 +92,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.344 2023/02/14 21:08:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.353 2023/06/23 05:21:10 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -136,10 +136,10 @@ typedef struct CondParser {
 
 	/*
 	 * The plain '.if ${VAR}' evaluates to true if the value of the
-	 * expression has length > 0.  The other '.if' variants delegate
-	 * to evalBare instead, for example '.ifdef ${VAR}' is equivalent to
-	 * '.if defined(${VAR})', checking whether the variable named by the
-	 * expression '${VAR}' is defined.
+	 * expression has length > 0 and is not numerically zero.  The other
+	 * '.if' variants delegate to evalBare instead, for example '.ifdef
+	 * ${VAR}' is equivalent to '.if defined(${VAR})', checking whether
+	 * the variable named by the expression '${VAR}' is defined.
 	 */
 	bool plain;
 
@@ -173,7 +173,7 @@ typedef struct CondParser {
 	bool printedError;
 } CondParser;
 
-static CondResult CondParser_Or(CondParser *par, bool);
+static CondResult CondParser_Or(CondParser *, bool);
 
 unsigned int cond_depth = 0;	/* current .if nesting level */
 
@@ -295,10 +295,19 @@ static bool
 FuncMake(const char *targetPattern)
 {
 	StringListNode *ln;
+	bool warned = false;
 
-	for (ln = opts.create.first; ln != NULL; ln = ln->next)
-		if (Str_Match(ln->datum, targetPattern))
+	for (ln = opts.create.first; ln != NULL; ln = ln->next) {
+		StrMatchResult res = Str_Match(ln->datum, targetPattern);
+		if (res.error != NULL && !warned) {
+			warned = true;
+			Parse_Error(PARSE_WARNING,
+			    "%s in pattern argument '%s' to function 'make'",
+			    res.error, targetPattern);
+		}
+		if (res.matched)
 			return true;
+	}
 	return false;
 }
 
@@ -338,7 +347,7 @@ FuncCommands(const char *node)
 }
 
 /*
- * Convert the string into a floating-point number.  Accepted formats are
+ * Convert the string to a floating point number.  Accepted formats are
  * base-10 integer, base-16 integer and finite floating point numbers.
  */
 static bool
@@ -507,7 +516,7 @@ return_str:
  * ".if 0".
  */
 static bool
-EvalNotEmpty(CondParser *par, const char *value, bool quoted)
+EvalTruthy(CondParser *par, const char *value, bool quoted)
 {
 	double num;
 
@@ -631,7 +640,7 @@ CondParser_Comparison(CondParser *par, bool doEval)
 
 	if (!CondParser_ComparisonOp(par, &op)) {
 		/* Unknown operator, compare against an empty string or 0. */
-		t = ToToken(doEval && EvalNotEmpty(par, lhs.str, lhsQuoted));
+		t = ToToken(doEval && EvalTruthy(par, lhs.str, lhsQuoted));
 		goto done_lhs;
 	}
 
@@ -1123,6 +1132,7 @@ Cond_EvalLine(const char *line)
 
 		/* Return state for previous conditional */
 		cond_depth--;
+		Parse_GuardEndif();
 		return cond_states[cond_depth] & IFS_ACTIVE
 		    ? CR_TRUE : CR_FALSE;
 	}
@@ -1150,6 +1160,7 @@ Cond_EvalLine(const char *line)
 				Parse_Error(PARSE_FATAL, "if-less else");
 				return CR_TRUE;
 			}
+			Parse_GuardElse();
 
 			state = cond_states[cond_depth];
 			if (state == IFS_INITIAL) {
@@ -1185,6 +1196,7 @@ Cond_EvalLine(const char *line)
 			Parse_Error(PARSE_FATAL, "if-less elif");
 			return CR_TRUE;
 		}
+		Parse_GuardElse();
 		state = cond_states[cond_depth];
 		if (state & IFS_SEEN_ELSE) {
 			Parse_Error(PARSE_WARNING, "extra elif");
@@ -1232,6 +1244,69 @@ Cond_EvalLine(const char *line)
 
 	cond_states[cond_depth] = res == CR_TRUE ? IFS_ACTIVE : IFS_INITIAL;
 	return res;
+}
+
+static bool
+ParseVarnameGuard(const char **pp, const char **varname)
+{
+	const char *p = *pp;
+
+	if (ch_isalpha(*p) || *p == '_') {
+		while (ch_isalnum(*p) || *p == '_')
+			p++;
+		*varname = *pp;
+		*pp = p;
+		return true;
+	}
+	return false;
+}
+
+/* Extracts the multiple-inclusion guard from a conditional, if any. */
+Guard *
+Cond_ExtractGuard(const char *line)
+{
+	const char *p, *varname;
+	Substring dir;
+	enum GuardKind kind;
+	Guard *guard;
+
+	p = line + 1;		/* skip the '.' */
+	cpp_skip_hspace(&p);
+
+	dir.start = p;
+	while (ch_isalpha(*p))
+		p++;
+	dir.end = p;
+	cpp_skip_hspace(&p);
+
+	if (Substring_Equals(dir, "if")) {
+		if (skip_string(&p, "!defined(")) {
+			if (ParseVarnameGuard(&p, &varname)
+			    && strcmp(p, ")") == 0)
+				goto found_variable;
+		} else if (skip_string(&p, "!target(")) {
+			const char *arg_p = p;
+			free(ParseWord(&p, false));
+			if (strcmp(p, ")") == 0) {
+				char *target = ParseWord(&arg_p, true);
+				guard = bmake_malloc(sizeof(*guard));
+				guard->kind = GK_TARGET;
+				guard->name = target;
+				return guard;
+			}
+		}
+	} else if (Substring_Equals(dir, "ifndef")) {
+		if (ParseVarnameGuard(&p, &varname) && *p == '\0')
+			goto found_variable;
+	}
+	return NULL;
+
+found_variable:
+	kind = GK_VARIABLE;
+	guard = bmake_malloc(sizeof(*guard));
+	guard->kind = kind;
+	guard->name = bmake_strsedup(varname, p);
+	return guard;
 }
 
 void

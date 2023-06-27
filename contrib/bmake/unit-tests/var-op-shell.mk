@@ -1,4 +1,4 @@
-# $NetBSD: var-op-shell.mk,v 1.6 2022/01/10 20:32:29 rillig Exp $
+# $NetBSD: var-op-shell.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the != variable assignment operator, which runs its right-hand
 # side through the shell.
@@ -28,12 +28,14 @@ OUTPUT!=	true
 # '::!=', expression modifier ':!...!'), a failed command generates only a
 # warning, not an "error".  These "errors" are ignored in default mode, for
 # compatibility, but not in lint mode (-dL).
+# expect+1: warning: "echo "failed"; false" returned non-zero status
 OUTPUT!=	echo "failed"; false
 .if ${OUTPUT} != "failed"
 .  error
 .endif
 
 # A command with empty output may fail as well.
+# expect+1: warning: "false" returned non-zero status
 OUTPUT!=	false
 .if ${OUTPUT} != ""
 .  error
@@ -56,12 +58,14 @@ OUTPUT!=	echo "before"; false; echo "after"
 # This should result in a warning about "exited on a signal".
 # This used to be kill -14 (SIGALRM), but that stopped working on
 # Darwin18 after recent update.
+# expect+1: warning: "kill $$" exited on a signal
 OUTPUT!=	kill $$$$
 .if ${OUTPUT} != ""
 .  error
 .endif
 
 # A nonexistent command produces a non-zero exit status.
+# expect+1: warning: "/bin/no/such/command" returned non-zero status
 OUTPUT!=	/bin/no/such/command
 .if ${OUTPUT} != ""
 .  error

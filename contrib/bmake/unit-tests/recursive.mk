@@ -1,4 +1,4 @@
-# $NetBSD: recursive.mk,v 1.5 2021/03/15 12:15:03 rillig Exp $
+# $NetBSD: recursive.mk,v 1.6 2023/06/01 20:56:35 rillig Exp $
 #
 # In -dL mode, a variable may get expanded before it makes sense.
 # This would stop make from doing anything since the "recursive" error
@@ -33,6 +33,8 @@ AM_DEFAULT_VERBOSITY=	1
 # therefore that's acceptable.  In most practical cases, the missing
 # brace would be detected directly in the line where it is produced.
 MISSING_BRACE_INDIRECT:=	${:U\${MISSING_BRACE}
+# expect+1: Unclosed variable "MISSING_PAREN"
 UNCLOSED=	$(MISSING_PAREN
+# expect+1: Unclosed variable "MISSING_BRACE"
 UNCLOSED=	${MISSING_BRACE
 UNCLOSED=	${MISSING_BRACE_INDIRECT}

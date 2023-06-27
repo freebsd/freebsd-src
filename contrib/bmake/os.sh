@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.62 2023/01/17 18:30:21 sjg Exp $
+#	$Id: os.sh,v 1.63 2023/05/22 20:44:47 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -41,12 +41,16 @@ OSMAJOR=`IFS=.; set $OSREL; echo $1`
 MACHINE=`uname -m`
 MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
 
-# there is at least one case of `uname -p` outputting
-# a bunch of usless drivel
+# there is at least one case of `uname -p`
+# and even `uname -m` outputting usless info
+# fortunately not both together
+case "$MACHINE" in
+*[!A-Za-z0-9_-]*) MACHINE="$MACHINE_ARCH";;
+esac
 case "$MACHINE_ARCH" in
 unknown|*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
 esac
-        
+
 # we need this here, and it is not always available...
 Which() {
 	case "$1" in
@@ -87,7 +91,7 @@ AIX)	# everyone loves to be different...
 	PS_AXC=-e
 	SHARE_ARCH=$OS/$OSMAJOR.X
 	;;
-Darwin) # a bit like BSD
+Darwin) # this is more explicit (arm64 vs arm)
         HOST_ARCH=$MACHINE
         ;;
 SunOS)
@@ -140,10 +144,10 @@ SunOS)
 	esac
 	# NetBSD at least has good backward compatibility
 	# so NetBSD/i386 is good enough
+        # recent NetBSD uses x86_64 for MACHINE_ARCH
 	case $OS in
 	NetBSD)
 	        LOCALBASE=/usr/pkg
-		HOST_ARCH=$MACHINE
 		SHARE_ARCH=$OS/$HOST_ARCH
 		;;
 	OpenBSD)

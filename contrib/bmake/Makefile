@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.124 2023/02/25 20:27:44 sjg Exp $
+#	$Id: Makefile,v 1.125 2023/05/17 00:15:46 sjg Exp $
 
 PROG=	bmake
 
@@ -68,7 +68,9 @@ FILEMON_H ?= /usr/include/dev/filemon/filemon.h
 .if exists(${FILEMON_H}) && ${FILEMON_H:T} == "filemon.h"
 COPTS.filemon_dev.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 .endif
-.endif				# USE_FILEMON == dev
+.elif ${USE_FILEMON} == "ktrace"
+COPTS.filemon_ktrace.c += -Wno-error=unused-parameter
+.endif
 
 .endif				# USE_FILEMON
 

@@ -1,4 +1,4 @@
-# $Id: sys.dirdeps.mk,v 1.9 2023/05/11 20:05:42 sjg Exp $
+# $Id: sys.dirdeps.mk,v 1.12 2023/05/14 16:16:03 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -45,6 +45,7 @@ SRCTOP := ${SB_SRC:U${.PARSEDIR:tA:H:H}}
 .endif
 
 # fake SB if not using mk wrapper
+# SB documented at http://www.crufty.net/sjg/docs/sb-tools.htm
 .if !defined(SB)
 SB := ${SRCTOP:H}
 .export SB
@@ -53,6 +54,10 @@ SB := ${SRCTOP:H}
 .if empty(OBJROOT)
 OBJROOT := ${SB_OBJROOT:U${MAKEOBJDIRPREFIX:U${SB}/obj}/}
 .export OBJROOT
+.endif
+# we expect OBJROOT to end with / (- can work too)
+.if ${OBJROOT:M*[/-]} == ""
+OBJROOT := ${OBJROOT}/
 .endif
 
 .if empty(STAGE_ROOT)
@@ -65,9 +70,6 @@ STAGE_ROOT ?= ${OBJROOT}stage
 # it should be set by now.
 # TARGET_SPEC must not contain any '.'s.
 TARGET_SPEC_VARS ?= MACHINE
-
-.if !target(_tspec_env_done_)
-_tspec_env_done_: .NOTMAIN
 
 .if ${TARGET_SPEC:Uno:M*,*} != ""
 # deal with TARGET_SPEC from env
@@ -86,7 +88,6 @@ TARGET_SPEC=
 .endif
 .endfor
 .endif
-.endif
 
 # Now make sure we know what TARGET_SPEC is
 # as we may need it to find Makefile.depend*
@@ -98,6 +99,10 @@ TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 .endif
 
 .if ${TARGET_SPEC_VARS:[#]} > 1
+TARGET_SPEC_VARSr := ${TARGET_SPEC_VARS:[-1..1]}
+# alternatives might be
+# TARGET_OBJ_SPEC = ${TARGET_SPEC_VARSr:@v@${$v:U}@:ts/}
+# TARGET_OBJ_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts/}
 TARGET_OBJ_SPEC ?= ${TARGET_SPEC_VARS:@v@${$v:U}@:ts.}
 .else
 TARGET_OBJ_SPEC ?= ${MACHINE}
@@ -113,22 +118,37 @@ MACHINE0 := ${MACHINE}
 .export MACHINE0
 .endif
 
-.if ${MACHINE} == "host"
-OBJTOP = ${HOST_OBJTOP}
-.elif ${MACHINE} == "host32"
-OBJTOP = ${HOST_OBJTOP32}
-.endif
-
 MACHINE_OBJ.host = ${HOST_TARGET}
 MACHINE_OBJ.host32 = ${HOST_TARGET32}
 MACHINE_OBJ.${MACHINE} ?= ${TARGET_OBJ_SPEC}
 MACHINE_OBJDIR = ${MACHINE_OBJ.${MACHINE}}
-OBJTOP ?= ${OBJROOT}/${MACHINE_OBJDIR}
 
+# we likely want to override env for OBJTOP
+.if ${MACHINE} == "host"
+OBJTOP = ${HOST_OBJTOP}
+.elif ${MACHINE} == "host32"
+OBJTOP = ${HOST_OBJTOP32}
+.else
+OBJTOP = ${OBJROOT}${MACHINE_OBJDIR}
+.endif
+.if ${.MAKE.LEVEL} > 0
+# should not change from level 1 onwards
+# this only matters for cases like bmake/unit-tests
+# where we do ${MAKE} -r
+.export OBJTOP
+.endif
+
+.if ${MAKEOBJDIR:U:M*/*} == ""
 # we do not use MAKEOBJDIRPREFIX
+# though we may have used it above to initialize OBJROOT
 .undef MAKEOBJDIRPREFIX
-# we use this
-MAKEOBJDIR ?= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+# this is what we expected in env
+MAKEOBJDIR = $${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
+# export that but do not track
+.export-env MAKEOBJDIR
+# this what we need here
+MAKEOBJDIR = ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+.endif
 
 STAGE_MACHINE ?= ${MACHINE_OBJDIR}
 STAGE_OBJTOP ?= ${STAGE_ROOT}/${STAGE_MACHINE}

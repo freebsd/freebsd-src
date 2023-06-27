@@ -1,3 +1,49 @@
+2023-05-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk (beforegendirdeps): allow tasks to be done
+	at END but before gendirdeps
+
+2023-05-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230522
+
+	* host-target.mk: deal with garbage from uname -m on
+	Darwin ppc, also NetBSD appears to use x86_64 for MACHINE_ARCH
+	these days so just leave it be.
+	For Darwin arm and i386 use _HOST_MACHINE for _HOST_ARCH so we get
+	arm64 and x86_64 in HOST_TARGET.
+
+2023-05-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.vars.mk: M_mtime use :mtime or 'stat -f %m' for older
+	versions of bmake.
+
+	* dirdeps.mk (TARGET_SPEC_VARS.host):
+	While *most* projects need only DEP_MACHINE for host,
+	there is always an exception.  So we allow for
+	TARGET_SPEC_VARS.host to be a subset of TARGET_SPEC_VARS.
+	The default will *just work* for most projects.
+	We set DEP_TARGET_SPEC_VARS and hence DEP_TARGET_SPEC
+	based on DEP_MACHINE.
+	Allow for M_dep_qual_fixes.host to be different too
+	and take care to apply the right set.
+
+2023-05-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.dirdeps.mk: we *do* want to override OBJTOP
+	and if MAKEOBJDIR was not in env as we want it;
+	put it there - carefully.
+	Ensure OBJROOT ends in / or - (/ preferred)
+	Add more comments to explain what/why.
+
+2023-05-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230512
+
+	* dirdeps.mk: take care not to qualify "host" dirdeps
+
+	* sys.dirdeps.mk (OBJTOP): must use ?=
+
 2023-05-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* meta.autodep.mk: if LOCAL_DEPENDS_GUARD is "no"

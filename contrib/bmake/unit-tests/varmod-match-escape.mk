@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match-escape.mk,v 1.7 2021/04/03 11:08:40 rillig Exp $
+# $NetBSD: varmod-match-escape.mk,v 1.10 2023/06/23 04:56:54 rillig Exp $
 #
 # As of 2020-08-01, the :M and :N modifiers interpret backslashes differently,
 # depending on whether there was a variable expression somewhere before the
@@ -39,6 +39,7 @@ SPECIALS=	\: : \\ * \*
 #
 VALUES=		: :: :\:
 .if ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:}
+# expect+1: warning: XXX: Oops
 .  warning XXX: Oops
 .endif
 
@@ -64,6 +65,7 @@ VALUES=		: :: :\:
 
 # In lint mode, the case of a lonely '$' is covered with an error message.
 .MAKEFLAGS: -dL
+# expect+1: Dollar followed by nothing
 .if ${:U\$:M\$} != ""
 .  error
 .endif
@@ -75,11 +77,40 @@ VALUES=		: :: :\:
 #
 # TODO: Str_Match("a-z]", "[a-z]")
 # TODO: Str_Match("012", "[0-]]")
-# TODO: Str_Match("0]", "[0-]]")
-# TODO: Str_Match("1]", "[0-]]")
 # TODO: Str_Match("[", "[[]")
 # TODO: Str_Match("]", "[]")
 # TODO: Str_Match("]", "[[-]]")
+
+# Demonstrate an inconsistency between positive and negative character lists
+# when the range ends with the character ']'.
+#
+# 'A' begins the range, 'B' is in the middle of the range, ']' ends the range,
+# 'a' is outside the range.
+WORDS=		A A] A]] B B] B]] ] ]] ]]] a a] a]]
+# The ']' is part of the character range and at the same time ends the
+# character list.
+EXP.[A-]=	A B ]
+# The first ']' is part of the character range and at the same time ends the
+# character list.
+EXP.[A-]]=	A] B] ]]
+# The first ']' is part of the character range and at the same time ends the
+# character list.
+EXP.[A-]]]=	A]] B]] ]]]
+# For negative character lists, the ']' ends the character range but does not
+# end the character list.
+# XXX: This is unnecessarily inconsistent but irrelevant in practice as there
+# is no practical need for a character range that ends at ']'.
+EXP.[^A-]=	a
+EXP.[^A-]]=	a
+EXP.[^A-]]]=	a]
+
+.for pattern in [A-] [A-]] [A-]]] [^A-] [^A-]] [^A-]]]
+# expect+2: warning: Unfinished character list in pattern '[A-]' of modifier ':M'
+# expect+1: warning: Unfinished character list in pattern '[^A-]' of modifier ':M'
+.  if ${WORDS:M${pattern}} != ${EXP.${pattern}}
+.    warning ${pattern}: ${WORDS:M${pattern}} != ${EXP.${pattern}}
+.  endif
+.endfor
 
 # In brackets, the backslash is just an ordinary character.
 # Outside brackets, it is an escape character for a few special characters.

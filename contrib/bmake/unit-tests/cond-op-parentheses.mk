@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-parentheses.mk,v 1.6 2022/09/04 22:55:00 rillig Exp $
+# $NetBSD: cond-op-parentheses.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for parentheses in .if conditions, which group expressions to override
 # the precedence of the operators '!', '&&' and '||'.  Parentheses cannot be
@@ -40,6 +40,7 @@
 .endif
 
 # An unbalanced opening parenthesis is a parse error.
+# expect+1: Malformed conditional (()
 .if (
 .  error
 .else
@@ -53,6 +54,7 @@
 # TOK_TRUE, TOK_FALSE or TOK_ERROR.  In cond.c 1.241, the return type of that
 # function was changed to a properly restricted enum type, to prevent this bug
 # from occurring again.
+# expect+1: Malformed conditional ())
 .if )
 .  error
 .else

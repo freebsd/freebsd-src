@@ -1,4 +1,4 @@
-# $NetBSD: directive-for.mk,v 1.20 2023/05/10 13:03:06 rillig Exp $
+# $NetBSD: directive-for.mk,v 1.22 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the .for directive.
 #
@@ -11,8 +11,6 @@
 #
 # See also:
 #	varmod-loop.mk		The ':@var@...@' modifier
-
-# expect-all
 
 # A typical use case for a .for loop is to populate a variable with a list of
 # values depending on other variables.  In simple cases, the same effect can
@@ -87,9 +85,9 @@ var2=	value before
 .  warning After the .for loop, var2 must still have its original value.
 .endif
 
-# Until 2008-12-21, the values of the iteration variables were simply
-# inserted as plain text and then parsed as usual, which made it possible
-# to achieve all kinds of strange effects, such as generating '.if'
+# Before for.c 1.39 from 2008-12-21, the values of the iteration variables
+# were simply inserted as plain text and then parsed as usual, which made it
+# possible to achieve all kinds of strange effects, such as generating '.if'
 # directives or inserting '$' characters in random places, thereby changing
 # how following '$' are interpreted.
 #

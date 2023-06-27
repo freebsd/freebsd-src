@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-parse.mk,v 1.7 2022/02/09 21:09:24 rillig Exp $
+# $NetBSD: opt-debug-parse.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the -dp command line option, which adds debug logging about
 # makefile parsing.
@@ -17,6 +17,7 @@
     var \
     in \
     value
+# expect+1: trace with multi-line .for loop head
 .info trace with multi-line .for loop head
 .endfor
 
@@ -28,6 +29,8 @@
 # In .for loops with multiple variables, the variable details are included in
 # the stack trace, just as with a single variable.
 .for a b c in 1 2 3 ${:U4 5 6}
+# expect+2: trace
+# expect+1: trace
 .info trace
 .endfor
 

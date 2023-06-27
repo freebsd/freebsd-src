@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.57 2023/05/13 15:52:24 sjg Exp $
+# $Id: meta.autodep.mk,v 1.58 2023/05/25 22:33:23 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -210,7 +210,8 @@ _depend =
 .endif
 
 .if ${UPDATE_DEPENDFILE} == "yes"
-gendirdeps:	${_DEPENDFILE}
+gendirdeps:	beforegendirdeps .WAIT ${_DEPENDFILE}
+beforegendirdeps:
 .endif
 
 .if !target(${_DEPENDFILE})

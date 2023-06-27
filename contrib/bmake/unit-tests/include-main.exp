@@ -1,5 +1,5 @@
-make: "include-main.mk" line 14: main-before-ok
-make: "include-main.mk" line 21: main-before-for-ok
+make: "include-main.mk" line 15: main-before-ok
+make: "include-main.mk" line 23: main-before-for-ok
 make: "include-sub.inc" line 4: sub-before-ok
 make: "include-sub.inc" line 14: sub-before-for-ok
 Parsing line 5: .  info subsub-ok
@@ -7,11 +7,11 @@ make: "include-subsub.inc" line 5: subsub-ok
 	in .for loop from include-sub.inc:31 with i = include
 	in .for loop from include-sub.inc:30 with i = nested
 	in .for loop from include-sub.inc:29 with i = deeply
-	in include-main.mk:27
+	in include-main.mk:29
 Parsing line 6: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 make: "include-sub.inc" line 38: sub-after-ok
 make: "include-sub.inc" line 45: sub-after-for-ok
-make: "include-main.mk" line 30: main-after-ok
-make: "include-main.mk" line 37: main-after-for-ok
+make: "include-main.mk" line 33: main-after-ok
+make: "include-main.mk" line 41: main-after-for-ok
 exit status 0

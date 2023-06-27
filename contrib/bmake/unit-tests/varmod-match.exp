@@ -10,8 +10,16 @@ CondParser_Eval: ${:Ua \$ sign:M*$$*} != "\$"
 Comparing "$" != "$"
 CondParser_Eval: ${:Ua \$ sign any-asterisk:M*\$*} != "any-asterisk"
 Comparing "any-asterisk" != "any-asterisk"
-make: "varmod-match.mk" line 157: Unknown modifier "]"
-make: "varmod-match.mk" line 157: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
+make: "varmod-match.mk" line 162: warning: Unfinished character list in pattern '[' of modifier ':M'
+make: "varmod-match.mk" line 162: Unknown modifier "]"
+make: "varmod-match.mk" line 162: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
+make: "varmod-match.mk" line 205: warning: Unfinished character list in pattern 'a[' of modifier ':M'
+make: "varmod-match.mk" line 213: warning: Unfinished character list in pattern 'a[^' of modifier ':M'
+make: "varmod-match.mk" line 221: warning: Unfinished character list in pattern '[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 229: warning: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 238: warning: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 258: warning: Unfinished character range in pattern '[x-' of modifier ':M'
+make: "varmod-match.mk" line 270: warning: Unfinished character range in pattern '[^x-' of modifier ':M'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

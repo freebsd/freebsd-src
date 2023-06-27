@@ -1,22 +1,21 @@
-make: "cond-op.mk" line 50: Malformed conditional ("!word" == !word)
-make: "cond-op.mk" line 76: Malformed conditional (0 ${ERR::=evaluated})
-make: "cond-op.mk" line 80: A misplaced expression after 0 is not evaluated.
-make: "cond-op.mk" line 84: Malformed conditional (1 ${ERR::=evaluated})
-make: "cond-op.mk" line 88: A misplaced expression after 1 is not evaluated.
-make: "cond-op.mk" line 92: Parsing continues until here.
-make: "cond-op.mk" line 95: A B C   =>   (A || B) && C   A || B && C   A || (B && C)
-make: "cond-op.mk" line 102: 0 0 0   =>   0               0             0
-make: "cond-op.mk" line 102: 0 0 1   =>   0               0             0
-make: "cond-op.mk" line 102: 0 1 0   =>   0               0             0
-make: "cond-op.mk" line 102: 0 1 1   =>   1               1             1
-make: "cond-op.mk" line 102: 1 0 0   =>   0               1             1
-make: "cond-op.mk" line 102: 1 0 1   =>   1               1             1
-make: "cond-op.mk" line 102: 1 1 0   =>   0               1             1
-make: "cond-op.mk" line 102: 1 1 1   =>   1               1             1
-make: "cond-op.mk" line 113: Malformed conditional (1 &&)
-make: "cond-op.mk" line 121: Malformed conditional (0 &&)
-make: "cond-op.mk" line 129: Malformed conditional (1 ||)
-make: "cond-op.mk" line 138: Malformed conditional (0 ||)
+make: "cond-op.mk" line 51: Malformed conditional ("!word" == !word)
+make: "cond-op.mk" line 72: Malformed conditional (0 ${ERR::=evaluated})
+make: "cond-op.mk" line 77: A misplaced expression after 0 is not evaluated.
+make: "cond-op.mk" line 82: Malformed conditional (1 ${ERR::=evaluated})
+make: "cond-op.mk" line 87: A misplaced expression after 1 is not evaluated.
+make: "cond-op.mk" line 93: A B C   =>   (A || B) && C   A || B && C   A || (B && C)
+make: "cond-op.mk" line 108: 0 0 0   =>   0               0             0
+make: "cond-op.mk" line 108: 0 0 1   =>   0               0             0
+make: "cond-op.mk" line 108: 0 1 0   =>   0               0             0
+make: "cond-op.mk" line 108: 0 1 1   =>   1               1             1
+make: "cond-op.mk" line 108: 1 0 0   =>   0               1             1
+make: "cond-op.mk" line 108: 1 0 1   =>   1               1             1
+make: "cond-op.mk" line 108: 1 1 0   =>   0               1             1
+make: "cond-op.mk" line 108: 1 1 1   =>   1               1             1
+make: "cond-op.mk" line 120: Malformed conditional (1 &&)
+make: "cond-op.mk" line 129: Malformed conditional (0 &&)
+make: "cond-op.mk" line 138: Malformed conditional (1 ||)
+make: "cond-op.mk" line 148: Malformed conditional (0 ||)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

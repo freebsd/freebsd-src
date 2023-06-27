@@ -1,15 +1,15 @@
-make: "directive-info.mk" line 11: begin .info tests
-make: "directive-info.mk" line 12: Unknown directive "inf"
-make: "directive-info.mk" line 13: Missing argument for ".info"
-make: "directive-info.mk" line 14: message
-make: "directive-info.mk" line 15: indented message
-make: "directive-info.mk" line 16: Unknown directive "information"
-make: "directive-info.mk" line 17: Unknown directive "information"
-make: "directive-info.mk" line 22: Missing argument for ".info"
-make: "directive-info.mk" line 23: Missing argument for ".info"
-make: "directive-info.mk" line 26: Unknown directive "info-message"
-make: "directive-info.mk" line 27: no-target: no-source
-make: "directive-info.mk" line 35: expect line 35 for multi-line message
+make: "directive-info.mk" line 12: begin .info tests
+make: "directive-info.mk" line 14: Unknown directive "inf"
+make: "directive-info.mk" line 16: Missing argument for ".info"
+make: "directive-info.mk" line 18: message
+make: "directive-info.mk" line 20: indented message
+make: "directive-info.mk" line 22: Unknown directive "information"
+make: "directive-info.mk" line 24: Unknown directive "information"
+make: "directive-info.mk" line 30: Missing argument for ".info"
+make: "directive-info.mk" line 32: Missing argument for ".info"
+make: "directive-info.mk" line 36: Unknown directive "info-message"
+make: "directive-info.mk" line 38: no-target: no-source
+make: "directive-info.mk" line 47: expect line 35 for multi-line message
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

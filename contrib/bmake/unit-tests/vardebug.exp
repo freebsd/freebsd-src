@@ -54,11 +54,11 @@ Var_Parse: ${:Uvariable:unknown} (eval-defined)
 Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
 Result of ${:Uvariable} is "variable" (eval-defined, defined)
 Evaluating modifier ${:u...} on value "variable" (eval-defined, defined)
-make: "vardebug.mk" line 44: Unknown modifier "unknown"
+make: "vardebug.mk" line 46: Unknown modifier "unknown"
 Result of ${:unknown} is error (eval-defined, defined)
-make: "vardebug.mk" line 44: Malformed conditional (${:Uvariable:unknown})
+make: "vardebug.mk" line 46: Malformed conditional (${:Uvariable:unknown})
 Var_Parse: ${UNDEFINED} (eval-defined)
-make: "vardebug.mk" line 53: Malformed conditional (${UNDEFINED})
+make: "vardebug.mk" line 56: Malformed conditional (${UNDEFINED})
 Global: delete .SHELL (not found)
 Command: .SHELL = </path/to/shell>
 Command: .SHELL = overwritten ignored (read-only)

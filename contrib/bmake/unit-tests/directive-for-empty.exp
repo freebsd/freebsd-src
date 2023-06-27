@@ -1,9 +1,9 @@
-make: "directive-for-empty.mk" line 21: 2
-make: "directive-for-empty.mk" line 34: Missing argument for ".error"
-make: "directive-for-empty.mk" line 34: Missing argument for ".error"
-make: "directive-for-empty.mk" line 34: Missing argument for ".error"
+make: "directive-for-empty.mk" line 22: 2
+make: "directive-for-empty.mk" line 38: Missing argument for ".error"
+make: "directive-for-empty.mk" line 38: Missing argument for ".error"
+make: "directive-for-empty.mk" line 38: Missing argument for ".error"
 For: end for 1
-For: loop body:
+For: loop body with i = value:
 # The identifier 'empty' can only be used in conditions such as .if, .ifdef or
 # .elif.  In other lines the string 'empty(' must be preserved.
 CPPFLAGS+=	-Dmessage="empty(i)"

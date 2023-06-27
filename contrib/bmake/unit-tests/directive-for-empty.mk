@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-empty.mk,v 1.1 2022/05/23 22:33:56 rillig Exp $
+# $NetBSD: directive-for-empty.mk,v 1.2 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for .for loops containing conditions of the form 'empty(var:...)'.
 #
@@ -18,6 +18,7 @@
 # when in fact they aren't.
 .for i in 11 12 13
 .  if ${i:M*2*}
+# expect+1: 2
 .info 2
 .  endif
 .endfor
@@ -31,6 +32,9 @@
 # Asking for an empty iteration variable does not make sense as the .for loop
 # splits the iteration items into words, and such a word cannot be empty.
 .  if empty(i)
+# expect+3: Missing argument for ".error"
+# expect+2: Missing argument for ".error"
+# expect+1: Missing argument for ".error"
 .    error			# due to the leaky abstraction
 .  endif
 # The typical way of using 'empty' with variables from .for loops is pattern

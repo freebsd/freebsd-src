@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.280 2023/01/24 00:24:02 sjg Exp $	*/
+/*	$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.280 2023/01/24 00:24:02 sjg Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -668,8 +668,10 @@ DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
 	HashIter_InitSet(&hi, &dir->files);
 	while (HashIter_Next(&hi) != NULL) {
 		const char *base = hi.entry->key;
+		StrMatchResult res = Str_Match(base, pattern);
+		/* TODO: handle errors from res.error */
 
-		if (!Str_Match(base, pattern))
+		if (!res.matched)
 			continue;
 
 		/*
@@ -822,14 +824,14 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 }
 
 
-/* Expand the word in each of the directories from the path. */
+/* Expand the pattern in each of the directories from the path. */
 static void
-DirExpandPath(const char *word, SearchPath *path, StringList *expansions)
+DirExpandPath(const char *pattern, SearchPath *path, StringList *expansions)
 {
 	SearchPathNode *ln;
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
-		DirMatchFiles(word, dir, expansions);
+		DirMatchFiles(pattern, dir, expansions);
 	}
 }
 

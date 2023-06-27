@@ -1,4 +1,4 @@
-# $NetBSD: export-env.mk,v 1.4 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: export-env.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
 
 # our normal .export, subsequent changes affect the environment
 UT_TEST=	this
@@ -21,7 +21,3 @@ UT_LIT= literal ${UT_TEST}
 all:
 	@echo make:; ${UT_TEST UT_ENV UT_EXP UT_LIT:L:@v@echo $v=${$v};@}
 	@echo env:; ${UT_TEST UT_ENV UT_EXP UT_LIT:L:@v@echo $v=$${$v};@}
-
-
-
-

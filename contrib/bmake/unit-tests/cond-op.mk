@@ -1,4 +1,4 @@
-# $NetBSD: cond-op.mk,v 1.15 2021/12/10 23:12:44 rillig Exp $
+# $NetBSD: cond-op.mk,v 1.16 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for operators like &&, ||, ! in .if conditions.
 #
@@ -47,6 +47,7 @@
 # appear unquoted.  If any, it must be enclosed in quotes.
 # In any case, it is not interpreted as a negation of an unquoted string.
 # See CondParser_String.
+# expect+1: Malformed conditional ("!word" == !word)
 .if "!word" == !word
 .  error
 .endif
@@ -66,32 +67,29 @@
 # nevertheless, since CondParser_Or and CondParser_And asked for the expanded
 # next token, even though in this position of the condition, only comparison
 # operators, TOK_AND, TOK_OR or TOK_RPAREN are allowed.
-#
-#
-#
-#
-#
-#
 .undef ERR
+# expect+1: Malformed conditional (0 ${ERR::=evaluated})
 .if 0 ${ERR::=evaluated}
 .  error
 .endif
 .if ${ERR:Uundefined} == undefined
+# expect+1: A misplaced expression after 0 is not evaluated.
 .  info A misplaced expression after 0 is not evaluated.
 .endif
 
 .undef ERR
+# expect+1: Malformed conditional (1 ${ERR::=evaluated})
 .if 1 ${ERR::=evaluated}
 .  error
 .endif
 .if ${ERR:Uundefined} == undefined
+# expect+1: A misplaced expression after 1 is not evaluated.
 .  info A misplaced expression after 1 is not evaluated.
 .endif
 
-# Just in case that parsing should ever stop on the first error.
-.info Parsing continues until here.
 
 # Demonstration that '&&' has higher precedence than '||'.
+# expect+1: A B C   =>   (A || B) && C   A || B && C   A || (B && C)
 .info A B C   =>   (A || B) && C   A || B && C   A || (B && C)
 .for a in 0 1
 .  for b in 0 1
@@ -99,6 +97,14 @@
 .      for r1 in ${ ($a || $b) && $c :?1:0}
 .        for r2 in ${ $a || $b && $c :?1:0}
 .          for r3 in ${ $a || ($b && $c) :?1:0}
+# expect+8: 0 0 0   =>   0               0             0
+# expect+7: 0 0 1   =>   0               0             0
+# expect+6: 0 1 0   =>   0               0             0
+# expect+5: 0 1 1   =>   1               1             1
+# expect+4: 1 0 0   =>   0               1             1
+# expect+3: 1 0 1   =>   1               1             1
+# expect+2: 1 1 0   =>   0               1             1
+# expect+1: 1 1 1   =>   1               1             1
 .            info $a $b $c   =>   ${r1}               ${r2}             ${r3}
 .          endfor
 .        endfor
@@ -110,6 +116,7 @@
 # This condition is obviously malformed.  It is properly detected and also
 # was properly detected before 2021-01-19, but only because the left hand
 # side of the '&&' evaluated to true.
+# expect+1: Malformed conditional (1 &&)
 .if 1 &&
 .  error
 .else
@@ -118,6 +125,7 @@
 
 # This obviously malformed condition was not detected as such before cond.c
 # 1.238 from 2021-01-19.
+# expect+1: Malformed conditional (0 &&)
 .if 0 &&
 .  error
 .else
@@ -126,6 +134,7 @@
 
 # This obviously malformed condition was not detected as such before cond.c
 # 1.238 from 2021-01-19.
+# expect+1: Malformed conditional (1 ||)
 .if 1 ||
 .  error
 .else
@@ -135,6 +144,7 @@
 # This condition is obviously malformed.  It is properly detected and also
 # was properly detected before 2021-01-19, but only because the left hand
 # side of the '||' evaluated to false.
+# expect+1: Malformed conditional (0 ||)
 .if 0 ||
 .  error
 .else

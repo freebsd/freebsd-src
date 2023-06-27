@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-makeflags.mk,v 1.7 2023/02/25 19:24:07 rillig Exp $
+# $NetBSD: varname-dot-makeflags.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the special .MAKEFLAGS variable, which collects almost all
 # command line arguments and passes them on to any child processes via
@@ -7,8 +7,11 @@
 # See also:
 #	varname-dot-makeoverrides.mk
 
+# expect+1: MAKEFLAGS=<undefined>
 .info MAKEFLAGS=<${MAKEFLAGS:Uundefined}>
+# expect+1: .MAKEFLAGS=< -r -k>
 .info .MAKEFLAGS=<${.MAKEFLAGS}>
+# expect+1: .MAKEOVERRIDES=<>
 .info .MAKEOVERRIDES=<${.MAKEOVERRIDES:Uundefined}>
 
 # Append an option with argument, a plain option and a variable assignment.

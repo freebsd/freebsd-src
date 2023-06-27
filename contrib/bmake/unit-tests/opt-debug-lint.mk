@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-lint.mk,v 1.14 2021/03/14 10:57:12 rillig Exp $
+# $NetBSD: opt-debug-lint.mk,v 1.15 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the -dL command line option, which runs additional checks
 # to catch common mistakes, such as unclosed variable expressions.
@@ -16,6 +16,8 @@
 #
 # See also:
 #	cond-undef-lint.mk
+# expect+2: Malformed conditional ($X)
+# expect+1: Variable "X" is undefined
 .if $X
 .  error
 .endif
@@ -38,6 +40,8 @@
 # hoping for the caller to print an error message.  This resulted in the
 # well-known "Malformed conditional" error message, even though the
 # conditional was well-formed and the only error was an undefined variable.
+# expect+2: Malformed conditional (${UNDEF})
+# expect+1: Variable "UNDEF" is undefined
 .if ${UNDEF}
 .  error
 .endif
@@ -58,6 +62,8 @@ ${UNDEF}: ${UNDEF}
 
 # Since 2020-10-03, in lint mode the variable modifier must be separated
 # by colons.  See varparse-mod.mk.
+# expect+2: Missing delimiter ':' after modifier "L"
+# expect+1: Missing delimiter ':' after modifier "P"
 .if ${value:LPL} != "value"
 .  error
 .endif
@@ -66,6 +72,7 @@ ${UNDEF}: ${UNDEF}
 # variable modifier had to be separated by colons.  This was wrong though
 # since make always fell back trying to parse the indirect modifier as a
 # SysV modifier.
+# expect+1: Unknown modifier "${"
 .if ${value:${:UL}PL} != "LPL}"		# FIXME: "LPL}" is unexpected here.
 .  error ${value:${:UL}PL}
 .endif

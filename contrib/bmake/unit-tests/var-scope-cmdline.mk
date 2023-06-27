@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-cmdline.mk,v 1.2 2023/04/07 05:54:16 rillig Exp $
+# $NetBSD: var-scope-cmdline.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for variables specified on the command line.
 #
@@ -68,6 +68,7 @@
 
 # A normal global variable, without any cmdline variable nearby.
 VAR=	global
+# expect+1: global
 .info ${VAR}
 
 # The global variable is "overridden" by simply deleting it and then
@@ -77,6 +78,7 @@ VAR=	global
 #
 # See varmod-loop.mk for a non-obvious way to undefine a cmdline variable.
 .MAKEFLAGS: VAR=makeflags
+# expect+1: makeflags
 .info ${VAR}
 
 # If Var_SetWithFlags should ever forget to delete the global variable,

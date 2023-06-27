@@ -1,4 +1,4 @@
-# $NetBSD: parse.mk,v 1.4 2023/04/28 13:09:48 rillig Exp $
+# $NetBSD: parse.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
 #
 # Test those parts of the parsing that do not belong in any of the other
 # categories.
@@ -21,6 +21,7 @@
 # the expanded line's terminating '\0'.
 #
 # https://bugs.freebsd.org/265119
+# expect+1: Invalid line type
 one-target ${:U }
 
 
