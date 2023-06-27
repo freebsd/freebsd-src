@@ -195,23 +195,26 @@ int parse_disk_config(char *input)
 int
 scripted_editor(int argc, const char **argv)
 {
-	char *token;
-	int i, error = 0, len = 0;
+	FILE *fp;
+	char *input, *token;
+	size_t len;
+	int i, error = 0;
 
-	for (i = 1; i < argc; i++)
-		len += strlen(argv[i]) + 1;
-	char inputbuf[len], *input = inputbuf;
-	strcpy(input, argv[1]);
+	fp = open_memstream(&input, &len);
+	fputs(argv[1], fp);
 	for (i = 2; i < argc; i++) {
-		strcat(input, " ");
-		strcat(input, argv[i]);
+		fprintf(fp, " %s", argv[i]);
 	}
+	fclose(fp);
 
 	while ((token = strsep(&input, ";")) != NULL) {
 		error = parse_disk_config(token);
-		if (error != 0)
+		if (error != 0) {
+			free(input);
 			return (error);
+		}
 	}
+	free(input);
 
 	return (0);
 }
