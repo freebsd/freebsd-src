@@ -193,7 +193,6 @@ static void
 kvp_update_file(int pool)
 {
 	FILE *filep;
-	size_t bytes_written;
 
 	kvp_acquire_lock(pool);
 
@@ -204,7 +203,7 @@ kvp_update_file(int pool)
 		exit(EXIT_FAILURE);
 	}
 
-	bytes_written = fwrite(kvp_pools[pool].records,
+	fwrite(kvp_pools[pool].records,
 		sizeof(struct kvp_record),
 		kvp_pools[pool].num_records, filep);
 
@@ -1217,11 +1216,9 @@ kvp_op_enumerate(struct hv_kvp_msg *op_msg, void *data __unused)
 	char *key_name, *key_value;
 	int error = 0;
 	int op_pool;
-	int op;
 
 	assert(op_msg != NULL);
 
-	op = op_msg->hdr.kvp_hdr.operation;
 	op_pool = op_msg->hdr.kvp_hdr.pool;
 	op_msg->hdr.error = HV_S_OK;
 
@@ -1375,7 +1372,7 @@ main(int argc, char *argv[])
 	struct hv_kvp_msg *hv_kvp_dev_buf;
 	struct hv_kvp_msg *hv_msg;
 	struct pollfd hv_kvp_poll_fd[1];
-	int op, pool;
+	int op;
 	int hv_kvp_dev_fd, error, len, r;
 	int ch;
 
@@ -1488,11 +1485,10 @@ main(int argc, char *argv[])
 		/*
 		 * We will use the KVP header information to pass back
 		 * the error from this daemon. So, first save the op
-		 * and pool info to local variables.
+		 * to a local variable.
 		 */
 
 		op = hv_msg->hdr.kvp_hdr.operation;
-		pool = hv_msg->hdr.kvp_hdr.pool;
 
 		if (op < 0 || op >= HV_KVP_OP_COUNT ||
 		    kvp_op_hdlrs[op].kvp_op_exec == NULL) {
