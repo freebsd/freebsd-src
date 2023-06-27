@@ -1,5 +1,3 @@
-# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
-
 securitydir = $(includedir)/security
 
 security_HEADERS = \

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2023 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,8 +31,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $OpenPAM: openpam_set_option.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -85,6 +83,7 @@ openpam_set_option(pam_handle_t *pamh,
 		for (free(cur->optv[i]); i < cur->optc; ++i)
 			cur->optv[i] = cur->optv[i + 1];
 		cur->optv[i] = NULL;
+		--cur->optc;
 		RETURNC(PAM_SUCCESS);
 	}
 	if (asprintf(&opt, "%.*s=%s", (int)len, option, value) < 0)

@@ -1,5 +1,3 @@
-# $OpenPAM: Makefile.am 943 2019-02-20 13:23:51Z des $
-
 if WITH_TEST
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/lib/libpam \
@@ -14,6 +12,8 @@ TESTS += t_openpam_ctype
 TESTS += t_openpam_dispatch
 TESTS += t_openpam_readword
 TESTS += t_openpam_readlinev
+TESTS += t_openpam_straddch
+TESTS += t_openpam_subst
 TESTS += t_pam_env
 check_PROGRAMS = $(TESTS)
 

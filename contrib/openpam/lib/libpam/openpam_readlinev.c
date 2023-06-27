@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $OpenPAM: openpam_readlinev.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -59,7 +57,6 @@ openpam_readlinev(FILE *f, int *lineno, int *lenp)
 	wordvsize = MIN_WORDV_SIZE;
 	wordvlen = 0;
 	if ((wordv = malloc(wordvsize * sizeof *wordv)) == NULL) {
-		openpam_log(PAM_LOG_ERROR, "malloc(): %m");
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -70,7 +67,6 @@ openpam_readlinev(FILE *f, int *lineno, int *lenp)
 			wordvsize *= 2;
 			tmp = realloc(wordv, wordvsize * sizeof *wordv);
 			if (tmp == NULL) {
-				openpam_log(PAM_LOG_ERROR, "malloc(): %m");
 				errno = ENOMEM;
 				break;
 			}

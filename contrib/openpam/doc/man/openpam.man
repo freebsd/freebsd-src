@@ -1,6 +1,3 @@
-.\"
-.\" $OpenPAM: openpam.man 938 2017-04-30 21:34:42Z des $
-.\"
 .Sh DESCRIPTION
 These functions are OpenPAM extensions to the PAM API.
 Those named
