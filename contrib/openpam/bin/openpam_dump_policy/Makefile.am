@@ -1,5 +1,3 @@
-# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
-
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/lib/libpam
 
 noinst_PROGRAMS = openpam_dump_policy

@@ -1,1 +1,1 @@
-noinst_SCRIPTS = coverage.sh coverity.sh
+noinst_SCRIPTS = coverity.sh
