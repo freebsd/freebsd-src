@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "uefi-dplib.h"
 
 /* XXX STUBS -- this stuff doesn't work yet */
-#define StrToIpv4Address(str, unk, ipv4ptr, unk2)
-#define StrToIpv6Address(str, unk, ipv6ptr, unk2)
+#define StrToIpv4Address(str, unk, ipv4ptr, unk2)	(void)(str)
+#define StrToIpv6Address(str, unk, ipv6ptr, unk2)	(void)(str)
 
 /*
  * OK. Now this is evil. Can't typedef it again. Sure beats changing them all.
