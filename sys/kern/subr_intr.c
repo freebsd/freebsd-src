@@ -135,7 +135,7 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, int flags);
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc **irq_sources;
-u_int irq_next_free;
+static u_int irq_next_free;
 
 #ifdef SMP
 #ifdef EARLY_AP_STARTUP
