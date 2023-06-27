@@ -93,12 +93,28 @@ static __inline void pctrie_node_store(smr_pctnode_t *p, void *val,
     enum pctrie_access access);
 
 /*
+ * Return the position in the array for a given level.
+ */
+static __inline int
+pctrie_slot(uint64_t index, uint16_t level)
+{
+	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
+}
+
+/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
+static __inline uint64_t
+pctrie_trimkey(uint64_t index, uint16_t level)
+{
+	return (index & -PCTRIE_UNITLEVEL(level));
+}
+
+/*
  * Allocate a node.  Pre-allocation should ensure that the request
  * will always be satisfied.
  */
 static struct pctrie_node *
-pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
-    uint16_t count, uint16_t clevel)
+pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t index,
+    uint16_t clevel)
 {
 	struct pctrie_node *node;
 
@@ -116,8 +132,8 @@ pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
 		    PCTRIE_UNSERIALIZED);
 		node->pn_last = 0;
 	}
-	node->pn_owner = owner;
-	node->pn_count = count;
+	node->pn_owner = pctrie_trimkey(index, clevel + 1);
+	node->pn_count = 2;
 	node->pn_clev = clevel;
 	return (node);
 }
@@ -144,23 +160,6 @@ pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
 #endif
 	node->pn_last = last + 1;
 	freefn(ptree, node);
-}
-
-/*
- * Return the position in the array for a given level.
- */
-static __inline int
-pctrie_slot(uint64_t index, uint16_t level)
-{
-
-	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
-}
-
-/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
-static __inline uint64_t
-pctrie_trimkey(uint64_t index, uint16_t level)
-{
-	return (index & -PCTRIE_UNITLEVEL(level));
 }
 
 /*
@@ -376,8 +375,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			clev = pctrie_keydiff(*m, index);
-			tmp = pctrie_node_get(ptree, allocfn,
-			    pctrie_trimkey(index, clev + 1), 2, clev);
+			tmp = pctrie_node_get(ptree, allocfn, index, clev);
 			if (tmp == NULL)
 				return (ENOMEM);
 			/* These writes are not yet visible due to ordering. */
@@ -408,8 +406,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	newind = node->pn_owner;
 	clev = pctrie_keydiff(newind, index);
-	tmp = pctrie_node_get(ptree, allocfn,
-	    pctrie_trimkey(index, clev + 1), 2, clev);
+	tmp = pctrie_node_get(ptree, allocfn, index, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
 	slot = pctrie_slot(newind, clev);
