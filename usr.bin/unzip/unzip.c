@@ -59,6 +59,7 @@ static int		 C_opt;		/* match case-insensitively */
 static int		 c_opt;		/* extract to stdout */
 static const char	*d_arg;		/* directory */
 static int		 f_opt;		/* update existing files only */
+static char		*O_arg;		/* encoding */
 static int		 j_opt;		/* junk directories */
 static int		 L_opt;		/* lowercase names */
 static int		 n_opt;		/* never overwrite */
@@ -917,6 +918,9 @@ unzip(const char *fn)
 
 	ac(archive_read_support_format_zip(a));
 
+	if (O_arg)
+		ac(archive_read_set_format_option(a, "zip", "hdrcharset", O_arg));
+
 	if (P_arg)
 		archive_read_add_passphrase(a, P_arg);
 	else
@@ -999,7 +1003,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] [-P password] zipfile\n"
+"Usage: unzip [-aCcfjLlnopqtuvyZ1] [{-O|-I} encoding] [-d dir] [-x pattern] [-P password] zipfile\n"
 "             [member ...]\n");
 	exit(EXIT_FAILURE);
 }
@@ -1010,7 +1014,7 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "aCcd:fjLlnopP:qtuvx:yZ1")) != -1)
+	while ((opt = getopt(argc, argv, "aCcd:fI:jLlnO:opP:qtuvx:yZ1")) != -1)
 		switch (opt) {
 		case '1':
 			Z1_opt = 1;
@@ -1030,6 +1034,9 @@ getopts(int argc, char *argv[])
 		case 'f':
 			f_opt = 1;
 			break;
+		case 'I':
+		case 'O':
+			O_arg = optarg;
 		case 'j':
 			j_opt = 1;
 			break;
