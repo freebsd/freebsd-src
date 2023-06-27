@@ -57,6 +57,8 @@ CLEANFILES=	ncurses_def.h
 CFLAGS+=	-I${SRCDIR}
 CFLAGS+=	-I${NCURSES_DIR}/menu
 
+CWARNFLAGS.fty_enum.c= ${NO_WUNUSED_BUT_SET_VARIABLE}
+
 LIBADD+=	ncursesw
 
 INCS=	form.h
