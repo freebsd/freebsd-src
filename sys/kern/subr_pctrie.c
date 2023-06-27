@@ -229,6 +229,15 @@ pctrie_isleaf(struct pctrie_node *node)
 }
 
 /*
+ * Returns val with leaf bit set.
+ */
+static __inline void *
+pctrie_toleaf(uint64_t *val)
+{
+	return ((void *)((uintptr_t)val | PCTRIE_ISLEAF));
+}
+
+/*
  * Returns the associated val extracted from node.
  */
 static __inline uint64_t *
@@ -249,7 +258,7 @@ pctrie_addval(struct pctrie_node *node, uint64_t index, uint16_t clev,
 
 	slot = pctrie_slot(index, clev);
 	pctrie_node_store(&node->pn_child[slot],
-	    (void *)((uintptr_t)val | PCTRIE_ISLEAF), access);
+	    pctrie_toleaf(val), access);
 }
 
 /*
@@ -356,7 +365,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL) {
-		ptree->pt_root = (uintptr_t)val | PCTRIE_ISLEAF;
+		ptree->pt_root = (uintptr_t)pctrie_toleaf(val);
 		return (0);
 	}
 	parentp = (smr_pctnode_t *)&ptree->pt_root;
