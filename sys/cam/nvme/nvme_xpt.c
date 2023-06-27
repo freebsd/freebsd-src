@@ -802,19 +802,22 @@ nvme_announce_periph(struct cam_periph *periph)
 	xpt_action((union ccb*)&cts);
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
-	nvmex = &cts.xport_specific.nvme;
 
 	/* Ask the SIM for its base transfer speed */
 	xpt_path_inq(&cpi, periph->path);
 	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
 	sbuf_printf(&sb, "%s%d: nvme version %d.%d",
 	    periph->periph_name, periph->unit_number,
-	    NVME_MAJOR(nvmex->spec),
-	    NVME_MINOR(nvmex->spec));
-	if (nvmex->valid & CTS_NVME_VALID_LINK)
-		sbuf_printf(&sb, " x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
-		    nvmex->lanes, nvmex->max_lanes,
-		    nvmex->speed, nvmex->max_speed);
+	    NVME_MAJOR(cts.protocol_version),
+	    NVME_MINOR(cts.protocol_version));
+	if (cts.transport == XPORT_NVME) {
+		nvmex = &cts.proto_specific.nvme;
+		if (nvmex->valid & CTS_NVME_VALID_LINK)
+			sbuf_printf(&sb,
+			    " x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
+			    nvmex->lanes, nvmex->max_lanes,
+			    nvmex->speed, nvmex->max_speed);
+	}
 	sbuf_printf(&sb, "\n");
 	sbuf_finish(&sb);
 	sbuf_putbuf(&sb);
