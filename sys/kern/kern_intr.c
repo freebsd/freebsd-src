@@ -1109,7 +1109,9 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 			return (EINVAL);
 	} else {
 		error = intr_event_create(&ie, NULL, ieflags, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
+		    NULL, NULL, NULL, swi_assign_cpu,
+		    handler == NULL && name != NULL ? "%2$s swi%1$d:" : "swi%d",
+		    pri, name);
 		if (error)
 			return (error);
 		if (eventp != NULL)
