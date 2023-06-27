@@ -1,8 +1,5 @@
-dnl $OpenPAM: configure.ac 947 2019-02-24 20:18:17Z des $
-
-AC_PREREQ([2.62])
-AC_REVISION([$OpenPAM: configure.ac 947 2019-02-24 20:18:17Z des $])
-AC_INIT([OpenPAM], [20190224], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_PREREQ([2.69])
+AC_INIT([OpenPAM], [20230627], [des@des.no], [openpam], [https://openpam.org/])
 AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
@@ -10,13 +7,15 @@ AM_CONFIG_HEADER([config.h])
 
 # C compiler and features
 AC_LANG(C)
-AC_PROG_CC
+AC_PROG_CC([clang gcc cc])
 AC_PROG_CC_STDC
 AC_PROG_CPP
+AC_PROG_CXX([clang++ g++ c++])
 AC_GNU_SOURCE
 AC_C_CONST
 AC_C_RESTRICT
 AC_C_VOLATILE
+AX_COMPILER_VENDOR
 
 # libtool
 LT_PREREQ([2.2.6])
@@ -34,26 +33,26 @@ AC_DEFINE_UNQUOTED(LIB_MAJ, $LIB_MAJ, [OpenPAM library major number])
 
 AC_ARG_ENABLE([debug],
     AC_HELP_STRING([--enable-debug],
-	[turn debugging macros on]),
+        [turn debugging macros on]),
     AC_DEFINE(OPENPAM_DEBUG, 1, [Turn debugging macros on]))
 
 AC_ARG_ENABLE([unversioned-modules],
     AC_HELP_STRING([--disable-unversioned-modules],
-	[support loading of unversioned modules]),
+        [support loading of unversioned modules]),
     [AS_IF([test x"$enableval" = x"no"], [
-	AC_DEFINE(DISABLE_UNVERSIONED_MODULES,
-	    1,
-	    [Whether loading unversioned modules support is disabled])
+        AC_DEFINE(DISABLE_UNVERSIONED_MODULES,
+            1,
+            [Whether loading unversioned modules support is disabled])
     ])])
 
 AC_ARG_WITH([modules-dir],
     AC_HELP_STRING([--with-modules-dir=DIR],
-	[OpenPAM modules directory]),
+        [OpenPAM modules directory]),
     [AS_IF([test x"$withval" != x"no"], [
-	OPENPAM_MODULES_DIR="$withval"
-	AC_DEFINE_UNQUOTED(OPENPAM_MODULES_DIR, 
-	    "${OPENPAM_MODULES_DIR%/}",
-	    [OpenPAM modules directory])
+        OPENPAM_MODULES_DIR="$withval"
+        AC_DEFINE_UNQUOTED(OPENPAM_MODULES_DIR,
+            "${OPENPAM_MODULES_DIR%/}",
+            [OpenPAM modules directory])
     ])])
 AC_SUBST(OPENPAM_MODULES_DIR)
 AM_CONDITIONAL([CUSTOM_MODULES_DIR], [test x"$OPENPAM_MODULES_DIR" != x""])
@@ -125,6 +124,27 @@ AC_ARG_ENABLE([werror],
     AS_HELP_STRING([--enable-werror], [use -Werror (default is NO)]),
     [CFLAGS="${CFLAGS} -Werror"])
 
+AC_ARG_ENABLE([code-coverage],
+    AS_HELP_STRING([--enable-code-coverage],
+        [enable code coverage]))
+AS_IF([test x"$enable_code_coverage" = x"yes"], [
+    AM_COND_IF([WITH_TEST], [
+        AS_IF([test x"$ax_cv_c_compiler_vendor" = x"clang"], [
+            CFLAGS="${CFLAGS} -fprofile-instr-generate -fcoverage-mapping"
+            clang_code_coverage="yes"
+	    AC_SUBST([clang_ver], [${CC#clang}])
+        ], [
+            AC_MSG_ERROR([code coverage is only supported with clang])
+        ])
+        AC_DEFINE([WITH_CODE_COVERAGE], [1], [Define to 1 if code coverage is enabled])
+        AC_MSG_NOTICE([code coverage enabled])
+    ], [
+        AC_MSG_ERROR([code coverage requires unit tests])
+    ])
+])
+AM_CONDITIONAL([WITH_CODE_COVERAGE], [test x"$enable_code_coverage" = x"yes"])
+AM_CONDITIONAL([CLANG_CODE_COVERAGE], [test x"$clang_code_coverage" = x"yes"])
+
 AC_CONFIG_FILES([
     Makefile
     bin/Makefile
@@ -133,6 +153,7 @@ AC_CONFIG_FILES([
     bin/su/Makefile
     doc/Makefile
     doc/man/Makefile
+    freebsd/Makefile
     include/Makefile
     include/security/Makefile
     lib/Makefile
@@ -145,7 +166,5 @@ AC_CONFIG_FILES([
     modules/pam_unix/Makefile
     t/Makefile
 ])
-AC_CONFIG_FILES([mkpkgng],[chmod +x mkpkgng])
-AC_CONFIG_FILES([misc/coverage.sh],[chmod +x misc/coverage.sh])
 AC_CONFIG_FILES([misc/coverity.sh],[chmod +x misc/coverity.sh])
 AC_OUTPUT

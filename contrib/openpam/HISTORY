@@ -1,3 +1,14 @@
+OpenPAM Ximenia							2023-06-27
+
+ - BUGFIX: Fix race condition in openpam_ttyconv(3) when used with
+   expect scripts.
+
+ - BUGFIX: In openpam_set_option(3), when removing an option, properly
+   decrement the option count.
+
+ - BUGFIX: In openpam_subst(3), avoid incrementing past the end of the
+   template.
+============================================================================
 OpenPAM Tabebuia						2019-02-24
 
  - BUGFIX: Fix off-by-one bug in pam_getenv(3) which was introduced in

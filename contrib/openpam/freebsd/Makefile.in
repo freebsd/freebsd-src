@@ -1,0 +1,33 @@
+# $FreeBSD: portlint$
+
+PORTNAME=	@PACKAGE_TARNAME@
+PORTVERSION=	@PACKAGE_VERSION@
+CATEGORIES=	security devel
+MASTER_SITES=	#
+DISTFILES=	#
+
+MAINTAINER=	@PACKAGE_BUGREPORT@
+COMMENT=	BSD-licensed implementation of Pluggable Authentication Modules
+
+LICENSE=	BSD3CLAUSE
+
+USES=		gmake libtool pkgconfig
+USE_LDCONFIG=	yes
+GNU_CONFIGURE=	yes
+INSTALL_TARGET=	install-strip
+TEST_TARGET=	check
+
+DESCR=		${WRKDIR}/pkg-descr
+
+do-extract:
+	(cd @abs_top_srcdir@ && \
+	    ${GMAKE} distdir && ${MV} ${PKGNAME} ${WRKDIR})
+	(${CAT} ${WRKSRC}/README && ${ECHO} && \
+	    ${ECHO} "WWW: @PACKAGE_URL@") >${DESCR}
+
+post-stage:
+	(cd ${STAGEDIR} && \
+	    ${FIND} -s . -type f -or -type l | cut -c 2- | \
+	    ${SED} -E '/\/man\//s/([0-9])$$/\1.gz/') >>${TMPPLIST}
+
+.include <bsd.port.mk>
