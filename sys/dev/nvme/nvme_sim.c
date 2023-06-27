@@ -243,11 +243,13 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		/* XXX these should be something else maybe ? */
-		nvmep->valid = 1;
+		nvmep->valid = CTS_NVME_VALID_SPEC;
 		nvmep->spec = nvmex->spec;
 
 		cts->transport = XPORT_NVME;
+		cts->transport_version = nvmex->spec;
 		cts->protocol = PROTO_NVME;
+		cts->protocol_version = nvmex->spec;
 		cts->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
