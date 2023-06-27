@@ -120,10 +120,26 @@ static void vm_radix_node_store(smrnode_t *p, struct vm_radix_node *v,
     enum vm_radix_access access);
 
 /*
+ * Return the position in the array for a given level.
+ */
+static __inline int
+vm_radix_slot(vm_pindex_t index, uint16_t level)
+{
+	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
+}
+
+/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
+static __inline vm_pindex_t
+vm_radix_trimkey(vm_pindex_t index, uint16_t level)
+{
+	return (index & -VM_RADIX_UNITLEVEL(level));
+}
+
+/*
  * Allocate a radix node.
  */
 static struct vm_radix_node *
-vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
+vm_radix_node_get(vm_pindex_t index, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
@@ -141,8 +157,8 @@ vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 		    NULL, UNSERIALIZED);
 		rnode->rn_last = 0;
 	}
-	rnode->rn_owner = owner;
-	rnode->rn_count = count;
+	rnode->rn_owner = vm_radix_trimkey(index, clevel + 1);
+	rnode->rn_count = 2;
 	rnode->rn_clev = clevel;
 	return (rnode);
 }
@@ -169,23 +185,6 @@ vm_radix_node_put(struct vm_radix_node *rnode, int8_t last)
 	/* Off by one so a freshly zero'd node is not assigned to. */
 	rnode->rn_last = last + 1;
 	uma_zfree_smr(vm_radix_node_zone, rnode);
-}
-
-/*
- * Return the position in the array for a given level.
- */
-static __inline int
-vm_radix_slot(vm_pindex_t index, uint16_t level)
-{
-
-	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
-}
-
-/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
-static __inline vm_pindex_t
-vm_radix_trimkey(vm_pindex_t index, uint16_t level)
-{
-	return (index & -VM_RADIX_UNITLEVEL(level));
 }
 
 /*
@@ -416,8 +415,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			clev = vm_radix_keydiff(m->pindex, index);
-			tmp = vm_radix_node_get(vm_radix_trimkey(index,
-			    clev + 1), 2, clev);
+			tmp = vm_radix_node_get(index, clev);
 			if (tmp == NULL)
 				return (ENOMEM);
 			/* These writes are not yet visible due to ordering. */
@@ -447,7 +445,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	 */
 	newind = rnode->rn_owner;
 	clev = vm_radix_keydiff(newind, index);
-	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev + 1), 2, clev);
+	tmp = vm_radix_node_get(index, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
 	slot = vm_radix_slot(newind, clev);
