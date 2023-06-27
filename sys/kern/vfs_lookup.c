@@ -877,7 +877,7 @@ vfs_lookup_failifexists(struct nameidata *ndp)
  * Search a pathname.
  * This is a very central and rather complicated routine.
  *
- * The pathname is pointed to by ni_ptr and is of length ni_pathlen.
+ * The pathname is pointed to by cn_nameptr and is of length ni_pathlen.
  * The starting directory is taken from ni_startdir. The pathname is
  * descended until done, or a symbolic link is encountered. The variable
  * ni_more is clear if the path is completed; it is set to one if a
@@ -898,7 +898,7 @@ vfs_lookup_failifexists(struct nameidata *ndp)
  * Overall outline of lookup:
  *
  * dirloop:
- *	identify next component of name at ndp->ni_ptr
+ *	identify next component of name at ndp->ni_cnd.cn_nameptr
  *	handle degenerate case where name is null string
  *	if .. and crossing mount points and on mounted filesys, find parent
  *	call VOP_LOOKUP routine for next component name
