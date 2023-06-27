@@ -161,7 +161,7 @@ struct faultstate {
  * Return codes for internal fault routines.
  */
 enum fault_status {
-	FAULT_SUCCESS = 1,	/* Return success to user. */
+	FAULT_SUCCESS = 10000,	/* Return success to user. */
 	FAULT_FAILURE,		/* Return failure to user. */
 	FAULT_CONTINUE,		/* Continue faulting. */
 	FAULT_RESTART,		/* Restart fault. */
