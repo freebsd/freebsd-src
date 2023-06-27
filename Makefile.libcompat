@@ -45,11 +45,6 @@ _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
 
-_LC_INCDIRS=	\
-		include \
-		lib/ncurses/tinfo \
-		${_LC_LIBDIRS.yes}
-
 .if ${MK_FILE} != "no"
 _libmagic=	lib/libmagic
 .endif
