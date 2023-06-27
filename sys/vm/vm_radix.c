@@ -255,6 +255,15 @@ vm_radix_isleaf(struct vm_radix_node *rnode)
 }
 
 /*
+ * Returns page cast to radix node with leaf bit set.
+ */
+static __inline struct vm_radix_node *
+vm_radix_toleaf(vm_page_t page)
+{
+	return ((struct vm_radix_node *)((uintptr_t)page | VM_RADIX_ISLEAF));
+}
+
+/*
  * Returns the associated page extracted from rnode.
  */
 static __inline vm_page_t
@@ -275,7 +284,7 @@ vm_radix_addpage(struct vm_radix_node *rnode, vm_pindex_t index, uint16_t clev,
 
 	slot = vm_radix_slot(index, clev);
 	vm_radix_node_store(&rnode->rn_child[slot],
-	    (struct vm_radix_node *)((uintptr_t)page | VM_RADIX_ISLEAF), access);
+	    vm_radix_toleaf(page), access);
 }
 
 /*
@@ -325,7 +334,8 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 	KASSERT(rnode->rn_count <= VM_RADIX_COUNT,
 	    ("vm_radix_reclaim_allnodes_int: bad count in rnode %p", rnode));
 	for (slot = 0; rnode->rn_count != 0; slot++) {
-		child = vm_radix_node_load(&rnode->rn_child[slot], UNSERIALIZED);
+		child = vm_radix_node_load(&rnode->rn_child[slot],
+		    UNSERIALIZED);
 		if (child == NULL)
 			continue;
 		if (!vm_radix_isleaf(child))
@@ -395,7 +405,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	 */
 	rnode = vm_radix_root_load(rtree, LOCKED);
 	if (rnode == NULL) {
-		rtree->rt_root = (uintptr_t)page | VM_RADIX_ISLEAF;
+		rtree->rt_root = (uintptr_t)vm_radix_toleaf(page);
 		return (0);
 	}
 	parentp = (smrnode_t *)&rtree->rt_root;
@@ -764,7 +774,8 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			m = vm_radix_topage(tmp);
 			if (m->pindex != index)
 				return (NULL);
-			vm_radix_node_store(&rnode->rn_child[slot], NULL, LOCKED);
+			vm_radix_node_store(
+			    &rnode->rn_child[slot], NULL, LOCKED);
 			rnode->rn_count--;
 			if (rnode->rn_count > 1)
 				return (m);
@@ -838,7 +849,7 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 		if (m->pindex != index)
 			panic("%s: original replacing root key not found",
 			    __func__);
-		rtree->rt_root = (uintptr_t)newpage | VM_RADIX_ISLEAF;
+		rtree->rt_root = (uintptr_t)vm_radix_toleaf(newpage);
 		return (m);
 	}
 	for (;;) {
@@ -846,13 +857,11 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 		tmp = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 		if (vm_radix_isleaf(tmp)) {
 			m = vm_radix_topage(tmp);
-			if (m->pindex == index) {
-				vm_radix_node_store(&rnode->rn_child[slot],
-				    (struct vm_radix_node *)((uintptr_t)newpage |
-				    VM_RADIX_ISLEAF), LOCKED);
-				return (m);
-			} else
+			if (m->pindex != index)
 				break;
+			vm_radix_node_store(&rnode->rn_child[slot],
+			    vm_radix_toleaf(newpage), LOCKED);
+			return (m);
 		} else if (tmp == NULL || vm_radix_keybarr(tmp, index))
 			break;
 		rnode = tmp;
