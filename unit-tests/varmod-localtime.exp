@@ -1,13 +1,13 @@
-make: "varmod-localtime.mk" line 59: Invalid time value "-1"
-make: "varmod-localtime.mk" line 59: Malformed conditional (${:L:localtime=-1} != "")
-make: "varmod-localtime.mk" line 68: Invalid time value " 1"
-make: "varmod-localtime.mk" line 68: Malformed conditional (${:L:localtime= 1} != "")
-make: "varmod-localtime.mk" line 114: Invalid time value "10000000000000000000000000000000"
-make: "varmod-localtime.mk" line 114: Malformed conditional (${:L:localtime=10000000000000000000000000000000} != "")
-make: "varmod-localtime.mk" line 125: Invalid time value "error"
-make: "varmod-localtime.mk" line 125: Malformed conditional (${:L:localtime=error} != "")
-make: "varmod-localtime.mk" line 134: Invalid time value "100000S,1970,bad,"
-make: "varmod-localtime.mk" line 134: Malformed conditional (${%Y:L:localtime=100000S,1970,bad,} != "bad")
+make: "varmod-localtime.mk" line 61: Invalid time value "-1"
+make: "varmod-localtime.mk" line 61: Malformed conditional (${:L:localtime=-1} != "")
+make: "varmod-localtime.mk" line 72: Invalid time value " 1"
+make: "varmod-localtime.mk" line 72: Malformed conditional (${:L:localtime= 1} != "")
+make: "varmod-localtime.mk" line 120: Invalid time value "10000000000000000000000000000000"
+make: "varmod-localtime.mk" line 120: Malformed conditional (${:L:localtime=10000000000000000000000000000000} != "")
+make: "varmod-localtime.mk" line 133: Invalid time value "error"
+make: "varmod-localtime.mk" line 133: Malformed conditional (${:L:localtime=error} != "")
+make: "varmod-localtime.mk" line 144: Invalid time value "100000S,1970,bad,"
+make: "varmod-localtime.mk" line 144: Malformed conditional (${%Y:L:localtime=100000S,1970,bad,} != "bad")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

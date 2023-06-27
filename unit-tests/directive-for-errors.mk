@@ -1,8 +1,6 @@
-# $NetBSD: directive-for-errors.mk,v 1.5 2023/05/09 19:43:12 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.6 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for error handling in .for loops.
-
-# expect-all
 
 
 # A .for directive must be followed by whitespace, everything else results

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-assign-shell.mk,v 1.4 2022/01/10 20:32:29 rillig Exp $
+# $NetBSD: varmod-assign-shell.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the variable modifier '::!=', which assigns the output of a shell
 # command to the variable, but only if the command exited successfully.  This
@@ -24,6 +24,7 @@
 #	assignment operator '!=' is another unnecessary inconsistency.
 
 DIRECT=		previous
+# expect+1: warning: "echo output; false" returned non-zero status
 DIRECT!=	echo output; false
 
 ASSIGNED=	previous

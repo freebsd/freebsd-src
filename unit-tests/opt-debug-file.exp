@@ -1,6 +1,6 @@
-make: "opt-debug-file.mk" line 43: This goes to stderr only, once.
-make: "opt-debug-file.mk" line 45: This goes to stderr only, once.
-make: "opt-debug-file.mk" line 47: This goes to stderr, and in addition to the debug log.
+make: "opt-debug-file.mk" line 44: This goes to stderr only, once.
+make: "opt-debug-file.mk" line 47: This goes to stderr only, once.
+make: "opt-debug-file.mk" line 50: This goes to stderr, and in addition to the debug log.
 CondParser_Eval: ${:!cat opt-debug-file.debuglog!:Maddition:[#]} != 1
 Comparing 1.000000 != 1.000000
 make: Missing delimiter for modifier ':S'

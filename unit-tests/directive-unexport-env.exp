@@ -1,9 +1,9 @@
-make: "directive-unexport-env.mk" line 13: Unknown directive "unexport-en"
-make: "directive-unexport-env.mk" line 15: Unknown directive "unexport-environment"
+make: "directive-unexport-env.mk" line 14: Unknown directive "unexport-en"
+make: "directive-unexport-env.mk" line 17: Unknown directive "unexport-environment"
 Global: UT_EXPORTED = value
 Global: UT_UNEXPORTED = value
 Global: .MAKE.EXPORTED = UT_EXPORTED
-make: "directive-unexport-env.mk" line 21: The directive .unexport-env does not take arguments
+make: "directive-unexport-env.mk" line 24: The directive .unexport-env does not take arguments
 Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
 Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_EXPORTED"
 Result of ${.MAKE.EXPORTED:O} is "UT_EXPORTED"

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst.mk,v 1.9 2021/09/06 21:18:55 rillig Exp $
+# $NetBSD: varmod-subst.mk,v 1.12 2023/06/16 07:20:45 rillig Exp $
 #
 # Tests for the :S,from,to, variable modifier.
 
@@ -9,83 +9,117 @@ all: mod-subst-dollar
 
 WORDS=		sequences of letters
 
+# The empty pattern never matches anything.
 .if ${WORDS:S,,,} != ${WORDS}
-.  warning The empty pattern matches something.
+.  error
 .endif
 
+# The :S modifier flag '1' is applied exactly once.
 .if ${WORDS:S,e,*,1} != "s*quences of letters"
-.  warning The :S modifier flag '1' is not applied exactly once.
+.  error
 .endif
 
+# The :S modifier flag '1' is applied to the first occurrence, no matter if
+# the occurrence is in the first word or not.
 .if ${WORDS:S,f,*,1} != "sequences o* letters"
-.  warning The :S modifier flag '1' is only applied to the first word,\
-	 not to the first occurrence.
+.  error
 .endif
 
+# The :S modifier replaces every first match per word.
 .if ${WORDS:S,e,*,} != "s*quences of l*tters"
-.  warning The :S modifier does not replace every first match per word.
+.  error
 .endif
 
+# The :S modifier flag 'g' replaces every occurrence.
 .if ${WORDS:S,e,*,g} != "s*qu*nc*s of l*tt*rs"
-.  warning The :S modifier flag 'g' does not replace every occurrence.
+.  error
 .endif
 
+# The '^' in the search pattern anchors the pattern at the beginning of each
+# word, thereby matching a prefix.
 .if ${WORDS:S,^sequ,occurr,} != "occurrences of letters"
-.  warning The :S modifier fails for a short match anchored at the start.
+.  error
 .endif
 
+# The :S modifier with a '^' anchor replaces the whole word if that word is
+# exactly the pattern.
 .if ${WORDS:S,^of,with,} != "sequences with letters"
-.  warning The :S modifier fails for an exact match anchored at the start.
+.  error
 .endif
 
+# The :S modifier does not match if the pattern is longer than the word.
 .if ${WORDS:S,^office,does not match,} != ${WORDS}
-.  warning The :S modifier matches a too long pattern anchored at the start.
+.  warning
 .endif
 
+# The '$' in the search pattern anchors the pattern at the end of each word,
+# thereby matching a suffix.
 .if ${WORDS:S,f$,r,} != "sequences or letters"
-.  warning The :S modifier fails for a short match anchored at the end.
+.  error
 .endif
 
+# The :S modifier with a '$' anchor replaces at most one occurrence per word.
 .if ${WORDS:S,s$,,} != "sequence of letter"
-.  warning The :S modifier fails to replace one occurrence per word.
+.  error
 .endif
 
+# The :S modifier with a '$' anchor replaces the whole word if that word is
+# exactly the pattern.
 .if ${WORDS:S,of$,,} != "sequences letters"
-.  warning The :S modifier fails for an exact match anchored at the end.
+.  error
 .endif
 
+# The :S modifier with a '$' anchor and a pattern that is longer than a word
+# cannot match that word.
 .if ${WORDS:S,eof$,,} != ${WORDS}
-.  warning The :S modifier matches a too long pattern anchored at the end.
+.  warning
 .endif
 
+# The :S modifier with the '^' and '$' anchors matches an exact word.
 .if ${WORDS:S,^of$,,} != "sequences letters"
-.  warning The :S modifier does not match a word anchored at both ends.
+.  error
 .endif
 
+# The :S modifier with the '^' and '$' anchors does not match a word that
+# starts with the pattern but is longer than the pattern.
 .if ${WORDS:S,^o$,,} != ${WORDS}
-.  warning The :S modifier matches a prefix anchored at both ends.
+.  error
 .endif
 
+# The :S modifier with the '^' and '$' anchors does not match a word that ends
+# with the pattern but is longer than the pattern.
 .if ${WORDS:S,^f$,,} != ${WORDS}
-.  warning The :S modifier matches a suffix anchored at both ends.
+.  error
 .endif
 
+# The :S modifier with the '^' and '$' anchors does not match a word if the
+# pattern ends with the word but is longer than the word.
 .if ${WORDS:S,^eof$,,} != ${WORDS}
-.  warning The :S modifier matches a too long prefix anchored at both ends.
+.  error
 .endif
 
+# The :S modifier with the '^' and '$' anchors does not match a word if the
+# pattern starts with the word but is longer than the word.
 .if ${WORDS:S,^office$,,} != ${WORDS}
-.  warning The :S modifier matches a too long suffix anchored at both ends.
+.  error
 .endif
 
+# Except for the '^' and '$' anchors, the pattern does not contain any special
+# characters, so the '*' from the pattern would only match a literal '*' in a
+# word.
 .if ${WORDS:S,*,replacement,} != ${WORDS}
-.  error The '*' seems to be interpreted as a wildcard of some kind.
+.  error
 .endif
 
+# Except for the '^' and '$' anchors, the pattern does not contain any special
+# characters, so the '.' from the pattern would only match a literal '.' in a
+# word.
 .if ${WORDS:S,.,replacement,} != ${WORDS}
-.  error The '.' seems to be interpreted as a wildcard of some kind.
+.  error
 .endif
 
+# The '&' in the replacement is a placeholder for the text matched by the
+# pattern.
 .if ${:Uvalue:S,^val,&,} != "value"
 .  error
 .endif
@@ -98,6 +132,14 @@ WORDS=		sequences of letters
 .if ${:Uvalue:S,ue$,&-&-&,} != "value-ue-ue"
 .  error
 .endif
+
+
+# When a word is replaced with nothing, the remaining words are separated by a
+# single space, not two.
+.if ${1 2 3:L:S,2,,} != "1 3"
+.  error
+.endif
+
 
 mod-subst:
 	@echo $@:

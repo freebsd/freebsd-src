@@ -1,17 +1,17 @@
-make: "directive-for-errors.mk" line 11: Unknown directive "fori"
-make: "directive-for-errors.mk" line 12: warning: <>
-make: "directive-for-errors.mk" line 13: for-less endfor
-make: "directive-for-errors.mk" line 27: Unknown directive "for"
-make: "directive-for-errors.mk" line 28: warning: <>
-make: "directive-for-errors.mk" line 29: for-less endfor
-make: "directive-for-errors.mk" line 46: invalid character '$' in .for loop variable name
-make: "directive-for-errors.mk" line 54: no iteration variables in for
-make: "directive-for-errors.mk" line 66: Wrong number of words (5) in .for substitution list with 3 variables
-make: "directive-for-errors.mk" line 80: missing `in' in for
-make: "directive-for-errors.mk" line 91: Unknown modifier "Z"
-make: "directive-for-errors.mk" line 92: warning: Should not be reached.
-make: "directive-for-errors.mk" line 92: warning: Should not be reached.
-make: "directive-for-errors.mk" line 92: warning: Should not be reached.
+make: "directive-for-errors.mk" line 9: Unknown directive "fori"
+make: "directive-for-errors.mk" line 10: warning: <>
+make: "directive-for-errors.mk" line 11: for-less endfor
+make: "directive-for-errors.mk" line 25: Unknown directive "for"
+make: "directive-for-errors.mk" line 26: warning: <>
+make: "directive-for-errors.mk" line 27: for-less endfor
+make: "directive-for-errors.mk" line 44: invalid character '$' in .for loop variable name
+make: "directive-for-errors.mk" line 52: no iteration variables in for
+make: "directive-for-errors.mk" line 64: Wrong number of words (5) in .for substitution list with 3 variables
+make: "directive-for-errors.mk" line 78: missing `in' in for
+make: "directive-for-errors.mk" line 89: Unknown modifier "Z"
+make: "directive-for-errors.mk" line 90: warning: Should not be reached.
+make: "directive-for-errors.mk" line 90: warning: Should not be reached.
+make: "directive-for-errors.mk" line 90: warning: Should not be reached.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

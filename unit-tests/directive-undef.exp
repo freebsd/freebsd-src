@@ -1,6 +1,6 @@
-make: "directive-undef.mk" line 29: The .undef directive requires an argument
-make: "directive-undef.mk" line 86: Unknown modifier "Z"
-make: "directive-undef.mk" line 102: warning: UT_EXPORTED is still listed in .MAKE.EXPORTED even though spaceit is not exported anymore.
+make: "directive-undef.mk" line 30: The .undef directive requires an argument
+make: "directive-undef.mk" line 88: Unknown modifier "Z"
+make: "directive-undef.mk" line 105: warning: UT_EXPORTED is still listed in .MAKE.EXPORTED even though spaceit is not exported anymore.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

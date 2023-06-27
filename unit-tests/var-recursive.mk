@@ -1,4 +1,4 @@
-# $NetBSD: var-recursive.mk,v 1.4 2022/01/29 10:21:26 rillig Exp $
+# $NetBSD: var-recursive.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for variable expressions that refer to themselves and thus
 # cannot be evaluated.
@@ -17,6 +17,7 @@ all:
 .elif ${TEST} == direct
 
 DIRECT=	${DIRECT}	# Defining a recursive variable is not yet an error.
+# expect+1: still there
 .  info still there	# Therefore this line is printed.
 .  info ${DIRECT}	# But expanding the variable is an error.
 
@@ -32,6 +33,7 @@ INDIRECT2=	${INDIRECT1}
 # The variable refers to itself, but only in the branch of a condition that
 # is never satisfied and is thus not evaluated.
 CONDITIONAL=	${1:?ok:${CONDITIONAL}}
+# expect+1: ok
 .  info ${CONDITIONAL}
 
 .elif ${TEST} == short

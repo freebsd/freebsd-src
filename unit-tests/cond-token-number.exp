@@ -1,7 +1,7 @@
-make: "cond-token-number.mk" line 15: Malformed conditional (-0)
-make: "cond-token-number.mk" line 25: Malformed conditional (+0)
-make: "cond-token-number.mk" line 35: Malformed conditional (!-1)
-make: "cond-token-number.mk" line 45: Malformed conditional (!+1)
+make: "cond-token-number.mk" line 16: Malformed conditional (-0)
+make: "cond-token-number.mk" line 27: Malformed conditional (+0)
+make: "cond-token-number.mk" line 38: Malformed conditional (!-1)
+make: "cond-token-number.mk" line 49: Malformed conditional (!+1)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1
