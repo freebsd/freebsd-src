@@ -4018,7 +4018,14 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, uint32_t bus)
 
 	xpt_path_inq(&cpi, path);
 
-	if (cam_ccb_success((union ccb *)&cpi)) {
+	/*
+	 * Use the results of PATH_INQ to pick a transport.  Note that
+	 * the xpt bus (which uses XPORT_UNSPECIFIED) always uses
+	 * xport_default instead of a transport from
+	 * cam_xpt_port_set.
+	 */
+	if (cam_ccb_success((union ccb *)&cpi) &&
+	    cpi.transport != XPORT_UNSPECIFIED) {
 		struct xpt_xport **xpt;
 
 		SET_FOREACH(xpt, cam_xpt_xport_set) {
@@ -4027,11 +4034,11 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, uint32_t bus)
 				break;
 			}
 		}
-		if (new_bus->xport == NULL) {
+		if (new_bus->xport == &xport_default) {
 			xpt_print(path,
 			    "No transport found for %d\n", cpi.transport);
 			xpt_release_bus(new_bus);
-			free(path, M_CAMXPT);
+			xpt_free_path(path);
 			return (EINVAL);
 		}
 	}

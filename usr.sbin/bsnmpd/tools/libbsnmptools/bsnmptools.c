@@ -483,7 +483,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 int32_t
 parse_authentication(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
-	int32_t count, subopt;
+	int32_t /* count, */ subopt;
 	char *val, *option;
 	const char *const subopts[] = {
 		"proto",
@@ -492,7 +492,7 @@ parse_authentication(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 	};
 
 	assert(opt_arg != NULL);
-	count = 1;
+	/* count = 1; */
 	while ((subopt = getsubopt1(&opt_arg, subopts, &val, &option)) != EOF) {
 		switch (subopt) {
 		case 0:
@@ -530,7 +530,7 @@ parse_authentication(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			warnx("Unknown suboption - '%s'", suboptarg);
 			return (-1);
 		}
-		count += 1;
+		/* count += 1; */
 	}
 	return (2/* count */);
 }
@@ -538,7 +538,7 @@ parse_authentication(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 int32_t
 parse_privacy(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
-	int32_t count, subopt;
+	int32_t /* count, */ subopt;
 	char *val, *option;
 	const char *const subopts[] = {
 		"proto",
@@ -547,7 +547,7 @@ parse_privacy(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 	};
 
 	assert(opt_arg != NULL);
-	count = 1;
+	/* count = 1; */
 	while ((subopt = getsubopt1(&opt_arg, subopts, &val, &option)) != EOF) {
 		switch (subopt) {
 		case 0:
@@ -583,7 +583,7 @@ parse_privacy(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			warnx("Unknown suboption - '%s'", suboptarg);
 			return (-1);
 		}
-		count += 1;
+		/* count += 1; */
 	}
 	return (2/* count */);
 }
@@ -591,7 +591,7 @@ parse_privacy(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 int32_t
 parse_context(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
-	int32_t count, subopt;
+	int32_t /* count, */ subopt;
 	char *val, *option;
 	const char *const subopts[] = {
 		"context",
@@ -600,7 +600,7 @@ parse_context(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 	};
 
 	assert(opt_arg != NULL);
-	count = 1;
+	/* count = 1; */
 	while ((subopt = getsubopt1(&opt_arg, subopts, &val, &option)) != EOF) {
 		switch (subopt) {
 		case 0:
@@ -625,7 +625,7 @@ parse_context(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			warnx("Unknown suboption - '%s'", suboptarg);
 			return (-1);
 		}
-		count += 1;
+		/* count += 1; */
 	}
 	return (2/* count */);
 }
@@ -633,7 +633,7 @@ parse_context(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 int32_t
 parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
-	int32_t count, subopt, saved_errno;
+	int32_t /* count, */ subopt, saved_errno;
 	char *val, *option;
 	const char *const subopts[] = {
 		"engine",
@@ -644,7 +644,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 	};
 
 	assert(opt_arg != NULL);
-	count = 1;
+	/* count = 1; */
 	while ((subopt = getsubopt1(&opt_arg, subopts, &val, &option)) != EOF) {
 		switch (subopt) {
 		case 0:
@@ -697,7 +697,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			warnx("Unknown suboption - '%s'", suboptarg);
 			return (-1);
 		}
-		count += 1;
+		/* count += 1; */
 	}
 	return (2/* count */);
 }
