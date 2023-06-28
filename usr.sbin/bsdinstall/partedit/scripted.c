@@ -76,6 +76,8 @@ part_config(char *disk, const char *scheme, char *config)
 		scheme = default_scheme();
 
 	error = geom_gettree(&mesh);
+	if (error != 0)
+		return (-1);
 	if (provider_for_name(&mesh, disk) == NULL) {
 		fprintf(stderr, "GEOM provider %s not found\n", disk);
 		geom_deletetree(&mesh);
@@ -97,16 +99,22 @@ part_config(char *disk, const char *scheme, char *config)
 
 	if (strcmp(scheme, "MBR") == 0) {
 		struct gmesh submesh;
-		geom_gettree(&submesh);
-		gpart_create(provider_for_name(&submesh, disk),
-		    "freebsd", NULL, NULL, &disk, 0);
-		geom_deletetree(&submesh);
+
+		if (geom_gettree(&submesh) == 0) {
+			gpart_create(provider_for_name(&submesh, disk),
+			    "freebsd", NULL, NULL, &disk, 0);
+			geom_deletetree(&submesh);
+		}
 	} else {
-		disk= strdup(disk);
+		disk = strdup(disk);
 	}
 
 	geom_deletetree(&mesh);
 	error = geom_gettree(&mesh);
+	if (error != 0) {
+		free(disk);
+		return (-1);
+	}
 
 	/* Create partitions */
 	if (config == NULL) {
@@ -133,6 +141,10 @@ part_config(char *disk, const char *scheme, char *config)
 		    NULL, 0);
 		geom_deletetree(&mesh);
 		error = geom_gettree(&mesh);
+		if (error != 0) {
+			free(disk);
+			return (-1);
+		}
 		size = type = mount = NULL;
 	}
 
@@ -143,8 +155,8 @@ finished:
 	return (0);
 }
 
-static
-int parse_disk_config(char *input)
+static int
+parse_disk_config(char *input)
 {
 	char *ap;
 	char *disk = NULL, *scheme = NULL, *partconfig = NULL;
@@ -184,9 +196,11 @@ int parse_disk_config(char *input)
 
 	if (disk == NULL || strcmp(disk, "DEFAULT") == 0) {
 		struct gmesh mesh;
-		geom_gettree(&mesh);
-		disk = boot_disk_select(&mesh);
-		geom_deletetree(&mesh);
+
+		if (geom_gettree(&mesh) == 0) {
+			disk = boot_disk_select(&mesh);
+			geom_deletetree(&mesh);
+		}
 	}
 
 	return (part_config(disk, scheme, partconfig));

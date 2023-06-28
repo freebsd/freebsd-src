@@ -65,31 +65,37 @@ part_wizard(const char *fsreq)
 
 startwizard:
 	error = geom_gettree(&mesh);
+	if (error != 0)
+		return (1);
 
 	bsddialog_backtitle(&conf, "FreeBSD Installer");
-	error = geom_gettree(&mesh);
 	disk = boot_disk_select(&mesh);
-	if (disk == NULL)
+	if (disk == NULL) {
+		geom_deletetree(&mesh);
 		return (1);
+	}
 
 	bsddialog_clearterminal();
 	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	schemeroot = wizard_partition(&mesh, disk);
 	free(disk);
+	geom_deletetree(&mesh);
 	if (schemeroot == NULL)
 		return (1);
 
-	geom_deletetree(&mesh);
 	bsddialog_clearterminal();
 	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	error = geom_gettree(&mesh);
+	if (error != 0) {
+		free(schemeroot);
+		return (1);
+	}
 
 	error = wizard_makeparts(&mesh, schemeroot, fstype, 1);
+	free(schemeroot);
+	geom_deletetree(&mesh);
 	if (error)
 		goto startwizard;
-	free(schemeroot);
-
-	geom_deletetree(&mesh);
 
 	return (0);
 }
@@ -310,11 +316,13 @@ query:
 
 	if (strcmp(scheme, "MBR") == 0) {
 		struct gmesh submesh;
-		geom_gettree(&submesh);
-		gpart_create(provider_for_name(&submesh, disk),
-		    "freebsd", NULL, NULL, &retval,
-		    choice /* Non-interactive for "Entire Disk" */);
-		geom_deletetree(&submesh);
+
+		if (geom_gettree(&submesh) == 0) {
+			gpart_create(provider_for_name(&submesh, disk),
+			    "freebsd", NULL, NULL, &retval,
+			    choice /* Non-interactive for "Entire Disk" */);
+			geom_deletetree(&submesh);
+		}
 	} else {
 		retval = strdup(disk);
 	}
@@ -334,7 +342,7 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
 	struct gmesh submesh;
 	char swapsizestr[10], rootsizestr[10];
 	intmax_t swapsize, available;
-	int retval;
+	int error, retval;
 	struct bsddialog_conf conf;
 
 	if (strcmp(fstype, "zfs") == 0) {
@@ -381,12 +389,16 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
 	humanize_number(rootsizestr, 7, available - swapsize - 1024*1024,
 	    "B", HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
 
-	geom_gettree(&submesh);
+	error = geom_gettree(&submesh);
+	if (error != 0)
+		return (error);
 	pp = provider_for_name(&submesh, disk);
 	gpart_create(pp, fsname, rootsizestr, "/", NULL, 0);
 	geom_deletetree(&submesh);
 
-	geom_gettree(&submesh);
+	error = geom_gettree(&submesh);
+	if (error != 0)
+		return (error);
 	pp = provider_for_name(&submesh, disk);
 	gpart_create(pp, "freebsd-swap", swapsizestr, NULL, NULL, 0);
 	geom_deletetree(&submesh);
