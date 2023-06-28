@@ -3356,8 +3356,6 @@ pci_nvme_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	pci_nvme_reset(sc);
 
-	pci_lintr_request(pi);
-
 done:
 	return (error);
 }
