@@ -137,7 +137,8 @@ main(int argc, char *argv[])
 	struct stat st;
 	char *cp, *special;
 	intmax_t reserved;
-	int ch, i, rval;
+	int ch, rval;
+	size_t i;
 	char part_name;		/* partition name, default to full disk */
 
 	part_name = 'c';
@@ -153,9 +154,10 @@ main(int argc, char *argv[])
 			break;
 		case 'L':
 			volumelabel = optarg;
-			i = -1;
-			while (isalnum(volumelabel[++i]) ||
-			    volumelabel[i] == '_' || volumelabel[i] == '-');
+			for (i = 0; isalnum(volumelabel[i]) ||
+			    volumelabel[i] == '_' || volumelabel[i] == '-';
+			    i++)
+				continue;
 			if (volumelabel[i] != '\0') {
 				errx(1, "bad volume label. Valid characters "
 				    "are alphanumerics, dashes, and underscores.");
