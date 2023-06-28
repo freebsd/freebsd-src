@@ -17,13 +17,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2023
+.Dd June 28, 2023
 .Dt BECTL 8
 .Os
 .Sh NAME
 .Nm bectl
 .Nd Utility to manage boot environments on ZFS
 .Sh SYNOPSIS
+.Nm
+.Op Fl h\&?
 .Nm
 .Op Fl r Ar beroot
 .Cm activate
@@ -89,18 +91,14 @@
 .Brq Cm umount | unmount
 .Op Fl f
 .Ar beName
-.Pp
-.Nm
-.Op Fl h\&?
 .Sh DESCRIPTION
 The
 .Nm
 command is used to setup and interact with ZFS boot environments, which are
 bootable clones of datasets.
 .Pp
-Boot environments
-allow the system to be upgraded, while preserving the old system environment in
-a separate ZFS dataset.
+A boot environment allows the system to be upgraded, while preserving the
+pre-upgrade system environment.
 .Pp
 .Nm
 itself accepts an
@@ -119,9 +117,12 @@ one of the system's resident disks will require the
 .Fl r
 flag to work.
 .Pp
-The following commands are supported by
-.Nm :
+.Ss Supported Subcommands and Flags
 .Bl -tag -width activate
+.It Xo
+.Fl h |
+.Fl \&?
+Print usage information.
 .It Xo
 .Cm activate
 .Op Fl t | Fl T
@@ -194,7 +195,7 @@ See
 .Sx Boot Environment Structures
 for a discussion on different layouts.
 .Pp
-No new boot environment is created with this command.
+No new boot environment is created with this subcommand.
 .It Xo
 .Cm destroy
 .Op Fl \&Fo
@@ -321,18 +322,20 @@ arbitrary white space.
 .It Fl s
 Display all snapshots as well.
 .It Fl c Ar property
-Sort boot environments by given property name.
+Sort boot environments by the given ZFS dataset property.
 The following properties are supported:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
-.It name (default output)
+.It name (the default)
 .It creation
 .It origin
 .It used
-.It usedds
-.It usedsnap
-.It usedrefreserv
+.It usedbydataset
+.It usedbyrefreservation
+.It usedbysnapshots
 .El
+.Pp
+Short forms usedds, usedrefreserv and usedsnap are also supported.
 .It Fl C Ar property
 Same as the
 .Fl c
@@ -347,10 +350,28 @@ or
 .Fl a
 option is used.
 .It Cm mount Ar beName Op Ar mountpoint
-Temporarily mount the boot environment.
-Mount at the specified
+Mount the given boot environment.
+.Pp
+If a nonexistent
 .Ar mountpoint
-if provided.
+is given:
+.Nm
+will make the directory, including intermediate directories as required.
+.Pp
+If no
+.Ar mountpoint
+is given:
+.Nm
+will make a directory such as
+.Pa be_mount.c6Sf
+in
+.Pa /tmp .
+Randomness in the last four characters of the directory name will prevent
+mount point conflicts.
+Unmount of an environment, followed by mount of the same environment
+without giving a
+.Ar mountpoint ,
+will result in a different randomly-named mountpoint.
 .It Cm rename Ar origBeName newBeName
 Rename the given
 .Ar origBeName
@@ -374,14 +395,10 @@ Unmount the given boot environment, if it is mounted.
 Specifying
 .Fl f
 will force the unmount if busy.
+.Pp
+Unmount will not remove the mount point.
 .El
 .Pp
-.Nm
-prints usage information if
-.Fl h
-or
-.Fl \&?
-is specified.
 .Ss Boot Environment Structures
 The traditional
 .Fx
@@ -455,7 +472,7 @@ In this example,
 is excluded from the boot environment.
 .Pp
 .Nm
-commands that have their own
+subcommands that have their own
 .Fl r
 operate on this second,
 .Dq deep
@@ -474,6 +491,7 @@ flags.
 \" .El
 .Sh SEE ALSO
 .Xr libbe 3 ,
+.Xr zfsprops 7 ,
 .Xr beinstall.sh 8 ,
 .Xr jail 8 ,
 .Xr zfs 8 ,
