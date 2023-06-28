@@ -86,9 +86,6 @@ CWARNFLAGS+=	-Wdate-time
 .if ${WARNS} <= 6
 CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
 CWARNFLAGS.clang+=	-Wno-unused-const-variable
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000
-CWARNFLAGS.clang+=	-Wno-error=unused-but-set-variable
-.endif
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .endif
