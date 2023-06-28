@@ -1721,38 +1721,6 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	return (1);
 }
 
-bool
-extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
-{
-	uint64_t value;
-	int i;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
-			value = CPU_DESC_FIELD(user_cpu_desc, i);
-			*val = value >> field_shift;
-			return (true);
-		}
-	}
-
-	return (false);
-}
-
-bool
-get_kernel_reg(u_int reg, uint64_t *val)
-{
-	int i;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
-			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
-			return (true);
-		}
-	}
-
-	return (false);
-}
-
 /*
  * Compares two field values that may be signed or unsigned.
  * Returns:
@@ -1806,6 +1774,64 @@ update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
 	}
 
 	return (val);
+}
+
+bool
+extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
+{
+	uint64_t value;
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			value = CPU_DESC_FIELD(user_cpu_desc, i);
+			*val = value >> field_shift;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+bool
+get_kernel_reg(u_int reg, uint64_t *val)
+{
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+/*
+ * Fetch the specified register's value, ensuring that individual field values
+ * do not exceed those in the mask.
+ */
+bool
+get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
+{
+	struct mrs_field *fields;
+	uint64_t val;
+
+	for (int i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			val = CPU_DESC_FIELD(kern_cpu_desc, i);
+			*valp = 0;
+			fields = user_regs[i].fields;
+			for (int j = 0; fields[j].type != 0; j++) {
+				*valp |= update_lower_register(mask, val,
+				    fields[j].shift, 4, fields[j].sign);
+			}
+			return (true);
+		}
+	}
+
+	return (false);
 }
 
 void
