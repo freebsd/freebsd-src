@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2021
+.Dd June 28, 2023
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -247,6 +247,7 @@ the login session will be terminated.
 .It "requirehome 	bool	false	Require a valid home directory to login."
 .It "setenv	list		A comma-separated list of environment variables and"
 values to which they are to be set.
+Values containing commas must be quoted.
 .It "shell	prog		Session shell to execute rather than the"
 shell specified in the passwd file.
 The SHELL environment variable will
