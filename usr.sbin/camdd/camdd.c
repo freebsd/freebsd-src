@@ -95,14 +95,7 @@ typedef enum {
 typedef enum {
 	CAMDD_ARG_NONE		= 0x00000000,
 	CAMDD_ARG_VERBOSE	= 0x00000001,
-	CAMDD_ARG_DEVICE	= 0x00000002,
-	CAMDD_ARG_BUS		= 0x00000004,
-	CAMDD_ARG_TARGET	= 0x00000008,
-	CAMDD_ARG_LUN		= 0x00000010,
-	CAMDD_ARG_UNIT		= 0x00000020,
-	CAMDD_ARG_TIMEOUT	= 0x00000040,
 	CAMDD_ARG_ERR_RECOVER	= 0x00000080,
-	CAMDD_ARG_RETRIES	= 0x00000100
 } camdd_argmask;
 
 typedef enum {
@@ -444,8 +437,7 @@ static sig_atomic_t need_status = 0;
 #define	CAMDD_PASS_DEFAULT_DEPTH	6
 #define	CAMDD_PASS_RW_TIMEOUT		60 * 1000
 
-static int parse_btl(char *tstr, int *bus, int *target, int *lun,
-		     camdd_argmask *arglst);
+static int parse_btl(char *tstr, int *bus, int *target, int *lun);
 void camdd_free_dev(struct camdd_dev *dev);
 struct camdd_dev *camdd_alloc_dev(camdd_dev_type dev_type,
 				  struct kevent *new_ke, int num_ke,
@@ -500,8 +492,8 @@ void camdd_sig_handler(int sig);
 void camdd_print_status(struct camdd_dev *camdd_dev,
 			struct camdd_dev *other_dev,
 			struct timespec *start_time);
-int camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts,
-	     uint64_t max_io, int retry_count, int timeout);
+int camdd_rw(struct camdd_io_opts *io_opts, camdd_argmask arglist,
+	     int num_io_opts, uint64_t max_io, int retry_count, int timeout);
 int camdd_parse_io_opts(char *args, int is_write,
 			struct camdd_io_opts *io_opts);
 void usage(void);
@@ -516,7 +508,7 @@ void usage(void);
  * Returns the number of parsed components, or 0.
  */
 static int
-parse_btl(char *tstr, int *bus, int *target, int *lun, camdd_argmask *arglst)
+parse_btl(char *tstr, int *bus, int *target, int *lun)
 {
 	char *tmpstr;
 	int convs = 0;
@@ -527,17 +519,14 @@ parse_btl(char *tstr, int *bus, int *target, int *lun, camdd_argmask *arglst)
 	tmpstr = (char *)strtok(tstr, ":");
 	if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 		*bus = strtol(tmpstr, NULL, 0);
-		*arglst |= CAMDD_ARG_BUS;
 		convs++;
 		tmpstr = (char *)strtok(NULL, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 			*target = strtol(tmpstr, NULL, 0);
-			*arglst |= CAMDD_ARG_TARGET;
 			convs++;
 			tmpstr = (char *)strtok(NULL, ":");
 			if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 				*lun = strtol(tmpstr, NULL, 0);
-				*arglst |= CAMDD_ARG_LUN;
 				convs++;
 			}
 		}
@@ -3208,8 +3197,8 @@ camdd_print_status(struct camdd_dev *camdd_dev, struct camdd_dev *other_dev,
 }
 
 int
-camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
-	 int retry_count, int timeout)
+camdd_rw(struct camdd_io_opts *io_opts, camdd_argmask arglist, int num_io_opts,
+	 uint64_t max_io, int retry_count, int timeout)
 {
 	struct cam_device *new_cam_dev = NULL;
 	struct camdd_dev *devs[2];
@@ -3231,13 +3220,12 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 		switch (io_opts[i].dev_type) {
 		case CAMDD_DEV_PASS: {
 			if (isdigit(io_opts[i].dev_name[0])) {
-				camdd_argmask new_arglist = CAMDD_ARG_NONE;
 				int bus = 0, target = 0, lun = 0;
 				int rv;
 
 				/* device specified as bus:target[:lun] */
 				rv = parse_btl(io_opts[i].dev_name, &bus,
-				    &target, &lun, &new_arglist);
+				    &target, &lun);
 				if (rv < 2) {
 					warnx("numeric device specification "
 					     "must be either bus:target, or "
@@ -3246,9 +3234,8 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 					goto bailout;
 				}
 				/* default to 0 if lun was not specified */
-				if ((new_arglist & CAMDD_ARG_LUN) == 0) {
+				if (rv == 2) {
 					lun = 0;
-					new_arglist |= CAMDD_ARG_LUN;
 				}
 				new_cam_dev = cam_open_btl(bus, target, lun,
 				    O_RDWR, NULL);
@@ -3273,7 +3260,7 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 
 			devs[i] = camdd_probe_pass(new_cam_dev,
 			    /*io_opts*/ &io_opts[i],
-			    CAMDD_ARG_ERR_RECOVER, 
+			    arglist, 
 			    /*probe_retry_count*/ 3,
 			    /*probe_timeout*/ 5000,
 			    /*io_retry_count*/ retry_count,
@@ -3578,7 +3565,6 @@ main(int argc, char **argv)
 			if (retry_count < 0)
 				errx(1, "retry count %d is < 0",
 				     retry_count);
-			arglist |= CAMDD_ARG_RETRIES;
 			break;
 		case 'E':
 			arglist |= CAMDD_ARG_ERR_RECOVER;
@@ -3611,7 +3597,6 @@ main(int argc, char **argv)
 				errx(1, "invalid timeout %d", timeout);
 			/* Convert the timeout from seconds to ms */
 			timeout *= 1000;
-			arglist |= CAMDD_ARG_TIMEOUT;
 			break;
 		case 'v':
 			arglist |= CAMDD_ARG_VERBOSE;
@@ -3634,7 +3619,7 @@ main(int argc, char **argv)
 	if (timeout == 0)
 		timeout = CAMDD_PASS_RW_TIMEOUT;
 
-	error = camdd_rw(opt_list, 2, max_io, retry_count, timeout);
+	error = camdd_rw(opt_list, arglist, 2, max_io, retry_count, timeout);
 
 bailout:
 	free(opt_list);
