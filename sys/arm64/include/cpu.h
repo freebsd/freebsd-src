@@ -213,6 +213,7 @@ void	ptrauth_mp_start(uint64_t);
 void	update_special_regs(u_int);
 bool	extract_user_id_field(u_int, u_int, uint8_t *);
 bool	get_kernel_reg(u_int, uint64_t *);
+bool	get_kernel_reg_masked(u_int, uint64_t *, uint64_t);
 
 void	cpu_desc_init(void);
 
