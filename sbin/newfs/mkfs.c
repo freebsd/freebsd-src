@@ -1230,7 +1230,7 @@ ilog2(int val)
 static u_int32_t
 newfs_random(void)
 {
-	static int nextnum = 1;
+	static u_int32_t nextnum = 1;
 
 	if (Rflag)
 		return (nextnum++);
