@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mrsas/mrsas_ioctl.h>
 
 struct mrsas_passthru_cmd {
-	struct iovec *kern_sge;
+	struct mrsas_sge64 *kern_sge;
 	struct mrsas_softc *sc;
 	struct mrsas_mfi_cmd *cmd;
 	bus_dma_tag_t ioctl_data_tag;
@@ -112,8 +112,8 @@ mrsas_passthru_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 
 	for (i = 0; i < nseg; i++) {
-		cb->kern_sge[i].iov_base = PTRIN(segs[i].ds_addr);
-		cb->kern_sge[i].iov_len = segs[i].ds_len;
+		cb->kern_sge[i].phys_addr = htole64(segs[i].ds_addr);
+		cb->kern_sge[i].length = htole32(segs[i].ds_len);
 	}
 	cb->sge_count = nseg;
 
@@ -421,7 +421,7 @@ mrsas_user_command(struct mrsas_softc *sc, struct mfi_ioc_passthru *ioc)
 	bus_dma_tag_t ioctl_data_tag;
 	bus_dmamap_t ioctl_data_dmamap;
 	bus_addr_t ioctl_data_phys_addr;
-	struct iovec *kern_sge;
+	struct mrsas_sge64 *kern_sge;
 	int ret, ioctl_data_size;
 	char *ioctl_temp_data_mem;
 
@@ -457,11 +457,11 @@ mrsas_user_command(struct mrsas_softc *sc, struct mfi_ioc_passthru *ioc)
 	if (sizeof(bus_addr_t) == 8)
 		cmd->frame->hdr.flags |= MFI_FRAME_SGL64 | MFI_FRAME_SENSE64;
 
-	kern_sge = (struct iovec *)(&dcmd->sgl);
+	kern_sge = (struct mrsas_sge64 *)(&dcmd->sgl);
 
 	if (ioctl_data_size == 0) {
-		kern_sge[0].iov_base = 0;
-		kern_sge[0].iov_len = 0;
+		kern_sge[0].phys_addr = 0;
+		kern_sge[0].length = 0;
 	} else {
 		ioctl_temp_data_mem = malloc(ioc->buf_size, M_MRSAS, M_WAITOK);
 		if (ioctl_temp_data_mem == NULL) {
