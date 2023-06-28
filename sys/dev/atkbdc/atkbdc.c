@@ -106,9 +106,9 @@ static int wait_for_aux_data(atkbdc_softc_t *kbdc);
 static int wait_for_aux_ack(atkbdc_softc_t *kbdc);
 
 struct atkbdc_quirks {
-    const char* bios_vendor;
-    const char*	maker;
-    const char*	product;
+    const char *bios_vendor;
+    const char *maker;
+    const char *product;
     int		quirk;
 };
 
@@ -129,9 +129,9 @@ static int
 atkbdc_getquirks(void)
 {
     int i;
-    char* bios_vendor = kern_getenv("smbios.bios.vendor");
-    char* maker = kern_getenv("smbios.system.maker");
-    char* product = kern_getenv("smbios.system.product");
+    char *bios_vendor = kern_getenv("smbios.bios.vendor");
+    char *maker = kern_getenv("smbios.system.maker");
+    char *product = kern_getenv("smbios.system.product");
 
     for (i = 0; i < nitems(quirks); i++)
 	if (QUIRK_STR_MATCH(quirks[i].bios_vendor, bios_vendor) &&
