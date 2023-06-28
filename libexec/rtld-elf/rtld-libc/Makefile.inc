@@ -38,11 +38,21 @@ SRCS+=	errlst.c getcwd.c getprogname.c raise.c sigsetops.c sysctlnametomib.c \
 # errlst.c needs the errlst.h header from libc:
 CFLAGS.errlst.c+=-I${LIBC_SRCTOP}/include
 
-# Use the string and memory .o files from libc instead of rebuilding them (they
-# might be using optimized assembly and duplicating that logic here is awkward).
-_libc_string_objects=	bcmp bcopy bzero memset memchr memcmp memcpy memmove \
-    stpncpy strcat strchr strchrnul strcmp stpcpy strcpy strcspn strdup \
-    strlcat strlcpy strlen strncmp strncpy strrchr strsep strspn strstr strtok
+# use generic versions of string functions to avoid potential ifunc dispatch
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	bcopy.c bzero.c memchr.c memcmp.c memcpy.c memmove.c memset.c strcat.c \
+    strchr.c strchrnul.c strcmp.c strcpy.c strcspn.c strdup.c strlcat.c \
+    strlcpy.c strlen.c strncmp.c strncpy.c strrchr.c strsep.c strspn.c \
+    strstr.c strtok.c
+CFLAGS.memchr.c+=-Wno-cast-qual
+CFLAGS.strchr.c+=-Wno-cast-qual
+CFLAGS.strchrnul.c+=-Wno-cast-qual
+CFLAGS.strcspn.c+=-Wno-sign-compare
+CFLAGS.strrchr.c+=-Wno-cast-qual
+CFLAGS.strspn.c+=-Wno-sign-compare
+CFLAGS.strstr.c+=-Wno-cast-qual -Wno-sign-compare
+CFLAGS.strtok.c+=-Wno-cast-qual
+
 # Also use all the syscall .o files from libc_nossp_pic:
 _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     cerror geteuid getegid sigfastblock munmap mprotect \
@@ -71,7 +81,7 @@ _libc_other_objects+=syncicache
 # we don't accidentally pull in the interposing table or similar by linking
 # directly against libc_nossp_pic.a
 _rtld_libc_objs=
-.for _obj in ${_libc_other_objects} ${_libc_string_objects}
+.for _obj in ${_libc_other_objects}
 _rtld_libc_objs+=${_obj}.nossppico
 CLEANFILES+=${_obj}.nossppico
 # LDFLAGS+=	-Wl,--trace-symbol=${_obj}
