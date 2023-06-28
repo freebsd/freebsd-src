@@ -63,9 +63,10 @@ sigint_handler(int sig)
 	struct gmesh mesh;
 
 	/* Revert all changes and exit dialog-mode cleanly on SIGINT */
-	geom_gettree(&mesh);
-	gpart_revert_all(&mesh);
-	geom_deletetree(&mesh);
+	if (geom_gettree(&mesh) == 0) {
+		gpart_revert_all(&mesh);
+		geom_deletetree(&mesh);
+	}
 
 	bsddialog_end();
 
@@ -216,16 +217,17 @@ main(int argc, const char **argv)
 	
 	if (prompt == NULL) {
 		error = geom_gettree(&mesh);
-		if (validate_setup()) {
-			error = apply_changes(&mesh);
-		} else {
-			gpart_revert_all(&mesh);
-			error = -1;
+		if (error != 0) {
+			if (validate_setup()) {
+				error = apply_changes(&mesh);
+			} else {
+				gpart_revert_all(&mesh);
+				error = -1;
+			}
+			geom_deletetree(&mesh);
 		}
 	}
 
-	geom_deletetree(&mesh);
-	free(items);
 	bsddialog_end();
 
 	return (error);
