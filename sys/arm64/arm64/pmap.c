@@ -435,7 +435,7 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 #define	TLBI_VA(addr)			(((addr) >> TLBI_VA_SHIFT) & TLBI_VA_MASK)
 #define	TLBI_VA_L3_INCR			(L3_SIZE >> TLBI_VA_SHIFT)
 
-static int superpages_enabled = 1;
+static int __read_frequently superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
     "Are large page mappings enabled?");
@@ -4141,14 +4141,21 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
  * aligned, contiguous physical memory and (2) the 4KB page mappings must have
  * identical characteristics.
  */
-static void
+static bool
 pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
 	pt_entry_t all_l3e_AF, *firstl3, *l3, newl2, oldl3, pa;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	PMAP_ASSERT_STAGE1(pmap);
+
+	/*
+	 * Currently, this function only supports promotion on stage 1 pmaps
+	 * because it tests stage 1 specific fields and performs a break-
+	 * before-make sequence that is incorrect for stage 2 pmaps.
+	 */
+	if (pmap->pm_stage != PM_STAGE1 || !pmap_ps_enabled(pmap))
+		return (false);
 
 	/*
 	 * Examine the first L3E in the specified PTP.  Abort if this L3E is
@@ -4157,14 +4164,14 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t mpte,
 	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(PTE_TO_PHYS(pmap_load(l2)));
 	newl2 = pmap_load(firstl3);
 	if ((newl2 & ATTR_SW_NO_PROMOTE) != 0)
-		return;
+		return (false);
 	/* ... is not the first physical page within an L2 block */
 	if ((PTE_TO_PHYS(newl2) & L2_OFFSET) != 0 ||
 	    ((newl2 & ATTR_DESCR_MASK) != L3_PAGE)) { /* ... or is invalid */
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 		    " in pmap %p", va, pmap);
-		return;
+		return (false);
 	}
 
 	/*
@@ -4212,7 +4219,7 @@ setl2:
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 			    " in pmap %p", va, pmap);
-			return;
+			return (false);
 		}
 setl3:
 		if ((oldl3 & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) ==
@@ -4232,7 +4239,7 @@ setl3:
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 			    " in pmap %p", va, pmap);
-			return;
+			return (false);
 		}
 		all_l3e_AF &= oldl3;
 		pa -= PAGE_SIZE;
@@ -4263,7 +4270,7 @@ setl3:
 		CTR2(KTR_PMAP,
 		    "pmap_promote_l2: failure for va %#lx in pmap %p", va,
 		    pmap);
-		return;
+		return (false);
 	}
 
 	if ((newl2 & ATTR_SW_MANAGED) != 0)
@@ -4277,6 +4284,7 @@ setl3:
 	atomic_add_long(&pmap_l2_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,
 	    pmap);
+	return (true);
 }
 #endif /* VM_NRESERVLEVEL > 0 */
 
@@ -4681,17 +4689,13 @@ validate:
 
 #if VM_NRESERVLEVEL > 0
 	/*
-	 * Try to promote from level 3 pages to a level 2 superpage. This
-	 * currently only works on stage 1 pmaps as pmap_promote_l2 looks at
-	 * stage 1 specific fields and performs a break-before-make sequence
-	 * that is incorrect a stage 2 pmap.
+	 * If both the page table page and the reservation are fully
+	 * populated, then attempt promotion.
 	 */
 	if ((mpte == NULL || mpte->ref_count == NL3PG) &&
-	    pmap_ps_enabled(pmap) && pmap->pm_stage == PM_STAGE1 &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0) {
-		pmap_promote_l2(pmap, pde, va, mpte, &lock);
-	}
+	    vm_reserv_level_iffullpop(m) == 0)
+		(void)pmap_promote_l2(pmap, pde, va, mpte, &lock);
 #endif
 
 	rv = KERN_SUCCESS;
@@ -5096,18 +5100,17 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * attempt promotion.
 	 */
 	if ((mpte == NULL || mpte->ref_count == NL3PG) &&
-	    pmap_ps_enabled(pmap) && pmap->pm_stage == PM_STAGE1 &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
 		if (l2 == NULL)
 			l2 = pmap_pde(pmap, va, &lvl);
-		pmap_promote_l2(pmap, l2, va, mpte, lockp);
 
 		/*
 		 * If promotion succeeds, then the next call to this function
 		 * should not be given the unmapped PTP as a hint.
 		 */
-		mpte = NULL;
+		if (pmap_promote_l2(pmap, l2, va, mpte, lockp))
+			mpte = NULL;
 	}
 #endif
 
