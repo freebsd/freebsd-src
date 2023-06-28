@@ -2175,7 +2175,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 
 static void
 pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
-    uint32_t *eax)
+    uint32_t *valp)
 {
 	struct businfo *bi;
 	struct slotinfo *si;
@@ -2197,7 +2197,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 	if (pi == NULL || (bytes != 1 && bytes != 2 && bytes != 4) ||
 	    (coff & (bytes - 1)) != 0) {
 		if (in)
-			*eax = 0xffffffff;
+			*valp = 0xffffffff;
 		return;
 	}
 
@@ -2207,7 +2207,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 	 */
 	if (coff >= PCI_REGMAX + 1) {
 		if (in) {
-			*eax = 0xffffffff;
+			*valp = 0xffffffff;
 			/*
 			 * Extended capabilities begin at offset 256 in config
 			 * space. Absence of extended capabilities is signaled
@@ -2215,7 +2215,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 			 * offset 256.
 			 */
 			if (coff <= PCI_REGMAX + 4)
-				*eax = 0x00000000;
+				*valp = 0x00000000;
 		}
 		return;
 	}
@@ -2228,19 +2228,19 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 	if (in) {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgread != NULL) {
-			needcfg = pe->pe_cfgread(pi, coff, bytes, eax);
+			needcfg = pe->pe_cfgread(pi, coff, bytes, valp);
 		} else {
 			needcfg = 1;
 		}
 
 		if (needcfg)
-			*eax = CFGREAD(pi, coff, bytes);
+			*valp = CFGREAD(pi, coff, bytes);
 
-		pci_emul_hdrtype_fixup(bus, slot, coff, bytes, eax);
+		pci_emul_hdrtype_fixup(bus, slot, coff, bytes, valp);
 	} else {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgwrite != NULL &&
-		    (*pe->pe_cfgwrite)(pi, coff, bytes, *eax) == 0)
+		    (*pe->pe_cfgwrite)(pi, coff, bytes, *valp) == 0)
 			return;
 
 		/*
@@ -2269,7 +2269,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				pi->pi_bar[idx].addr = bar = 0;
 				break;
 			case PCIBAR_IO:
-				addr = *eax & mask;
+				addr = *valp & mask;
 				addr &= 0xffff;
 				bar = addr | pi->pi_bar[idx].lobits;
 				/*
@@ -2281,7 +2281,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				}
 				break;
 			case PCIBAR_MEM32:
-				addr = bar = *eax & mask;
+				addr = bar = *valp & mask;
 				bar |= pi->pi_bar[idx].lobits;
 				if (addr != pi->pi_bar[idx].addr) {
 					update_bar_address(pi, addr, idx,
@@ -2289,7 +2289,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				}
 				break;
 			case PCIBAR_MEM64:
-				addr = bar = *eax & mask;
+				addr = bar = *valp & mask;
 				bar |= pi->pi_bar[idx].lobits;
 				if (addr != (uint32_t)pi->pi_bar[idx].addr) {
 					update_bar_address(pi, addr, idx,
@@ -2298,7 +2298,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				break;
 			case PCIBAR_MEMHI64:
 				mask = ~(pi->pi_bar[idx - 1].size - 1);
-				addr = ((uint64_t)*eax << 32) & mask;
+				addr = ((uint64_t)*valp << 32) & mask;
 				bar = addr >> 32;
 				if (bar != pi->pi_bar[idx - 1].addr >> 32) {
 					update_bar_address(pi, addr, idx - 1,
@@ -2306,12 +2306,12 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				}
 				break;
 			case PCIBAR_ROM:
-				addr = bar = *eax & mask;
+				addr = bar = *valp & mask;
 				if (memen(pi) && romen(pi)) {
 					unregister_bar(pi, idx);
 				}
 				pi->pi_bar[idx].addr = addr;
-				pi->pi_bar[idx].lobits = *eax &
+				pi->pi_bar[idx].lobits = *valp &
 				    PCIM_BIOS_ENABLE;
 				/* romen could have changed it value */
 				if (memen(pi) && romen(pi)) {
@@ -2325,11 +2325,11 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 			pci_set_cfgdata32(pi, coff, bar);
 
 		} else if (pci_emul_iscap(pi, coff)) {
-			pci_emul_capwrite(pi, coff, bytes, *eax, 0, 0);
+			pci_emul_capwrite(pi, coff, bytes, *valp, 0, 0);
 		} else if (coff >= PCIR_COMMAND && coff < PCIR_REVID) {
-			pci_emul_cmdsts_write(pi, coff, *eax, bytes);
+			pci_emul_cmdsts_write(pi, coff, *valp, bytes);
 		} else {
-			CFGWRITE(pi, coff, *eax, bytes);
+			CFGWRITE(pi, coff, *valp, bytes);
 		}
 	}
 }
