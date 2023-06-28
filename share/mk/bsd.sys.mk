@@ -182,7 +182,6 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=logical-not-parentheses	\
 		-Wno-error=strict-aliasing		\
 		-Wno-error=uninitialized		\
-		-Wno-error=unused-but-set-variable	\
 		-Wno-error=unused-function		\
 		-Wno-error=unused-value
 .endif
