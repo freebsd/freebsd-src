@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230629:
+	The heuristic for detecting old chromebooks with an EC bug that requires
+	atkbdc driver workarounds has changed. There should be no functional
+	change, but if your old chromebook's keyboard stops working, please
+	file a PR and assign it to imp.
+
 20230623:
 	OpenSSL has been updated to version 3.0, including changes throughout
 	the base system.  It is important to rebuild third-party software
