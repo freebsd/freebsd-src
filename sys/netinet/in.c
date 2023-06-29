@@ -325,8 +325,8 @@ in_socktrim(struct sockaddr_in *ap)
  * Generic internet control operations (ioctl's).
  */
 int
-in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
-    struct thread *td)
+in_control_ioctl(u_long cmd, void *data, struct ifnet *ifp,
+    struct ucred *cred)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&ifr->ifr_addr;
@@ -337,8 +337,6 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
-
-	struct ucred *cred = (td != NULL) ? td->td_ucred : NULL;
 
 	/*
 	 * Filter out 4 ioctls we implement directly.  Forward the rest
@@ -439,6 +437,13 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 	NET_EPOCH_EXIT(et);
 
 	return (error);
+}
+
+int
+in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
+    struct thread *td)
+{
+	return (in_control_ioctl(cmd, data, ifp, td ? td->td_ucred : NULL));
 }
 
 static int

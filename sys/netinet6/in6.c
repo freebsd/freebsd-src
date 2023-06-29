@@ -249,8 +249,8 @@ struct in6_ndifreq32 {
 #endif
 
 int
-in6_control(struct socket *so, u_long cmd, void *data,
-    struct ifnet *ifp, struct thread *td)
+in6_control_ioctl(u_long cmd, void *data,
+    struct ifnet *ifp, struct ucred *cred)
 {
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
@@ -281,8 +281,8 @@ in6_control(struct socket *so, u_long cmd, void *data,
 	switch (cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NETINET_ADDRCTRL6);
+		if (cred != NULL) {
+			error = priv_check_cred(cred, PRIV_NETINET_ADDRCTRL6);
 			if (error)
 				return (error);
 		}
@@ -299,8 +299,8 @@ in6_control(struct socket *so, u_long cmd, void *data,
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
 	case SIOCSIFINFO_IN6:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NETINET_ND6);
+		if (cred != NULL) {
+			error = priv_check_cred(cred, PRIV_NETINET_ND6);
 			if (error)
 				return (error);
 		}
@@ -343,8 +343,8 @@ in6_control(struct socket *so, u_long cmd, void *data,
 
 	switch (cmd) {
 	case SIOCSSCOPE6:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NETINET_SCOPE6);
+		if (cred != NULL) {
+			error = priv_check_cred(cred, PRIV_NETINET_SCOPE6);
 			if (error)
 				return (error);
 		}
@@ -412,7 +412,7 @@ in6_control(struct socket *so, u_long cmd, void *data,
 			error = in6_setscope(&sa6->sin6_addr, ifp, NULL);
 		if (error != 0)
 			return (error);
-		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
+		if (cred != NULL && (error = prison_check_ip6(cred,
 		    &sa6->sin6_addr)) != 0)
 			return (error);
 		sx_xlock(&in6_control_sx);
@@ -457,8 +457,8 @@ in6_control(struct socket *so, u_long cmd, void *data,
 			goto out;
 		}
 
-		if (td != NULL) {
-			error = priv_check(td, (cmd == SIOCDIFADDR_IN6) ?
+		if (cred != NULL) {
+			error = priv_check_cred(cred, (cmd == SIOCDIFADDR_IN6) ?
 			    PRIV_NET_DELIFADDR : PRIV_NET_ADDIFADDR);
 			if (error)
 				goto out;
@@ -594,6 +594,13 @@ out:
 	if (ia != NULL)
 		ifa_free(&ia->ia_ifa);
 	return (error);
+}
+
+int
+in6_control(struct socket *so, u_long cmd, void *data,
+    struct ifnet *ifp, struct thread *td)
+{
+	return (in6_control_ioctl(cmd, data, ifp, td ? td->td_ucred : NULL));
 }
 
 static struct in6_multi_mship *
