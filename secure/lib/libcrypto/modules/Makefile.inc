@@ -11,6 +11,7 @@ CFLAGS+=	-I${LCRYPTO_SRC}/providers/implementations/include
 
 .include <bsd.endian.mk>
 
-.PATH: ${LCRYPTO_SRC}/providers
+.PATH:	${LCRYPTO_SRC}/providers \
+	${LCRYPTO_SRC}/providers/common
 
 WARNS?=		0
