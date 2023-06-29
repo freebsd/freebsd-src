@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -58,6 +60,32 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_util.h>
 
+
+static int
+linux_kern_fstat(struct thread *td, int fd, struct stat *sbp)
+{
+	struct vnode *vp;
+	struct file *fp;
+	int error;
+
+	AUDIT_ARG_FD(fd);
+
+	error = fget(td, fd, &cap_fstat_rights, &fp);
+	if (__predict_false(error != 0))
+		return (error);
+
+	AUDIT_ARG_FILE(td->td_proc, fp);
+
+	error = fo_stat(fp, sbp, td->td_ucred, td);
+	if (error == 0 && (vp = fp->f_vnode) != NULL)
+		translate_vnhook_major_minor(vp, sbp);
+	fdrop(fp, td);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrstat_error(sbp, error);
+#endif
+	return (error);
+}
 
 static int
 linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
@@ -77,7 +105,7 @@ linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
 	if ((error = namei(&nd)) != 0) {
 		if (error == ENOTDIR &&
 		    (nd.ni_resflags & NIRES_EMPTYPATH) != 0)
-			error = kern_fstat(td, fd, sbp);
+			error = linux_kern_fstat(td, fd, sbp);
 		return (error);
 	}
 	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED, td);
@@ -110,45 +138,6 @@ linux_kern_lstat(struct thread *td, const char *path, enum uio_seg pathseg,
 	    pathseg, sbp));
 }
 #endif
-
-static void
-translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
-{
-	struct file *fp;
-	struct vnode *vp;
-	struct mount *mp;
-	int major, minor;
-
-	/*
-	 * No capability rights required here.
-	 */
-	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, &cap_no_rights, &fp) != 0)
-		return;
-	vp = fp->f_vnode;
-	if (vp != NULL && vn_isdisk(vp)) {
-		buf->st_mode &= ~S_IFMT;
-		buf->st_mode |= S_IFBLK;
-	}
-	if (vp != NULL && rootdevmp != NULL) {
-		mp = vp->v_mount;
-		__compiler_membar();
-		if (mp != NULL && mp->mnt_vfc == rootdevmp->mnt_vfc)
-			buf->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
-	}
-	if (linux_vn_get_major_minor(vp, &major, &minor) == 0) {
-		buf->st_rdev = (major << 8 | minor);
-	} else if (fp->f_type == DTYPE_PTS) {
-		struct tty *tp = fp->f_data;
-
-		/* Convert the numbers for the slave device. */
-		if (linux_driver_get_major_minor(devtoname(tp->t_dev),
-					 &major, &minor) == 0) {
-			buf->st_rdev = (major << 8 | minor);
-		}
-	}
-	fdrop(fp, td);
-}
 
 /*
  * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
@@ -242,8 +231,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	struct stat buf;
 	int error;
 
-	error = kern_fstat(td, args->fd, &buf);
-	translate_fd_major_minor(td, args->fd, &buf);
+	error = linux_kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
@@ -634,8 +622,7 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	struct stat buf;
 	int error;
 
-	error = kern_fstat(td, args->fd, &buf);
-	translate_fd_major_minor(td, args->fd, &buf);
+	error = linux_kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
 
