@@ -1185,7 +1185,7 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 	if (dst != NULL)
 		req.ifra_dstaddr = *dst;
 
-	return (in_control(NULL, SIOCAIFADDR, &req, ifp, curthread));
+	return (in_control_ioctl(SIOCAIFADDR, &req, ifp, nlp_get_cred(nlp)));
 }
 
 static int
@@ -1204,7 +1204,7 @@ handle_deladdr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 
 	struct in_aliasreq req = { .ifra_addr = *addr };
 
-	return (in_control(NULL, SIOCDIFADDR, &req, ifp, curthread));
+	return (in_control_ioctl(SIOCDIFADDR, &req, ifp, nlp_get_cred(nlp)));
 }
 #endif
 
@@ -1269,7 +1269,7 @@ handle_newaddr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 	if (dst != NULL)
 		req.ifra_dstaddr = *dst;
 
-	return (in6_control(NULL, SIOCAIFADDR_IN6, &req, ifp, curthread));
+	return (in6_control_ioctl(SIOCAIFADDR_IN6, &req, ifp, nlp_get_cred(nlp)));
 }
 
 static int
@@ -1288,7 +1288,7 @@ handle_deladdr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 
 	struct in6_aliasreq req = { .ifra_addr = *addr };
 
-	return (in6_control(NULL, SIOCDIFADDR_IN6, &req, ifp, curthread));
+	return (in6_control_ioctl(SIOCDIFADDR_IN6, &req, ifp, nlp_get_cred(nlp)));
 }
 #endif
 

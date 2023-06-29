@@ -437,6 +437,7 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 
 struct rib_head;
 struct	ip_moptions;
+struct ucred;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
 struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);
@@ -458,6 +459,8 @@ int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
 int	in_control(struct socket *, u_long, void *, struct ifnet *,
 	    struct thread *);
+int	in_control_ioctl(u_long, void *, struct ifnet *,
+	    struct ucred *);
 int	in_addprefix(struct in_ifaddr *);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	in_ifscrub_all(void);
