@@ -29,26 +29,4 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "libc_private.h"
 #include "csu_common.h"
-
-void _start(char **, void (*)(void)) __dead2;
-
-/* The entry function. */
-void
-_start(char **ap, void (*cleanup)(void))
-{
-	int argc;
-	char **argv;
-	char **env;
-
-	argc = *(long *)(void *)ap;
-	argv = ap + 1;
-	env = ap + 2 + argc;
-#ifdef GCRT
-	__libc_start1_gcrt(argc, argv, env, cleanup, main, &eprol, &etext);
-__asm__("eprol:");
-#else
-	__libc_start1(argc, argv, env, cleanup, main);
-#endif
-}
