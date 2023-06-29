@@ -13,14 +13,14 @@ TARGET_SPEC_VARS?= MACHINE MACHINE_ARCH
 	${.MAKE.DEPENDFILE_PREFIX}
 
 # some corner cases
-BOOT_MACHINE_DIR.amd64 = boot/i386
+BOOT_MACHINE_DIR.amd64 = stand/i386
 
 .-include <site.sys.dirdeps.env.mk>
 
 ALL_MACHINE_LIST?= ${TARGET_MACHINE_LIST}
 
 .for m in ${ALL_MACHINE_LIST:O:u}
-BOOT_MACHINE_DIR.$m ?= boot/$m
+BOOT_MACHINE_DIR.$m ?= stand/$m
 .endfor
 
 HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
