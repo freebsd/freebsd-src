@@ -109,21 +109,37 @@ struct atkbdc_quirks {
     const char *bios_vendor;
     const char *maker;
     const char *product;
+    const char *version;
     int		quirk;
 };
 
+/* Old chromebooks running coreboot with i8042 emulation quirks */
+#define CHROMEBOOK_WORKAROUND \
+	(KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |	\
+	    KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT)
+
 static struct atkbdc_quirks quirks[] = {
-    {"coreboot", "System76", NULL, 0},
-    {"coreboot", "Purism", NULL, 0},
-    {"coreboot", NULL, NULL,
-	KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |
-	KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT},
+    /*
+     * Older chromebooks running coreboot have an EC that imperfectly emulates
+     * i8042 w/o fixes to its firmware.  Since we can't probe for the problem,
+     * include all chromebooks by matching 'Google_' in the bios version string
+     * or a maker of either 'Google' or 'GOOGLE'. This is imperfect, but catches
+     * all chromebooks while omitting non-Google systems from System76 and
+     * Purism.
+     */
+    {"coreboot", NULL, NULL, "Google_", CHROMEBOOK_WORKAROUND},
+    {"coreboot", "GOOGLE", NULL, NULL, CHROMEBOOK_WORKAROUND},
+    {"coreboot", "Google", NULL, NULL, CHROMEBOOK_WORKAROUND},
     /* KBDC hangs on Lenovo X120e and X121e after disabling AUX MUX */
-    {NULL, "LENOVO", NULL, KBDC_QUIRK_DISABLE_MUX_PROBE},
+    {NULL, "LENOVO", NULL, NULL, KBDC_QUIRK_DISABLE_MUX_PROBE},
 };
 
-#define QUIRK_STR_MATCH(s1, s2) (s1 == NULL || \
-    (s2 != NULL && !strcmp(s1, s2)))
+#define QUIRK_STR_EQUAL(s1, s2)					\
+	(s1 == NULL ||						\
+	(s2 != NULL && strcmp(s1, s2) == 0))
+#define QUIRK_STR_MATCH(s1, s2)					\
+	(s1 == NULL ||						\
+	(s2 != NULL && strncmp(s1, s2, strlen(s1)) == 0))
 
 static int
 atkbdc_getquirks(void)
@@ -132,11 +148,13 @@ atkbdc_getquirks(void)
     char *bios_vendor = kern_getenv("smbios.bios.vendor");
     char *maker = kern_getenv("smbios.system.maker");
     char *product = kern_getenv("smbios.system.product");
+    char *version = kern_getenv("smbios.bios.version");
 
     for (i = 0; i < nitems(quirks); i++)
-	if (QUIRK_STR_MATCH(quirks[i].bios_vendor, bios_vendor) &&
-	    QUIRK_STR_MATCH(quirks[i].maker, maker) &&
-	    QUIRK_STR_MATCH(quirks[i].product, product))
+	if (QUIRK_STR_EQUAL(quirks[i].bios_vendor, bios_vendor) &&
+	    QUIRK_STR_EQUAL(quirks[i].maker, maker) &&
+	    QUIRK_STR_EQUAL(quirks[i].product, product) &&
+	    QUIRK_STR_MATCH(quirks[i].version, version))
 		return (quirks[i].quirk);
 
     return (0);
