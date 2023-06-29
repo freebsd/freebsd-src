@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2018
+.Dd June 29, 2023
 .Dt DTRACE_TCP 4
 .Os
 .Sh NAME
@@ -317,7 +317,7 @@ tcp:::send
         printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
         printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
         printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
-        printf("\b)\\n");
+        printf("\\b)\\n");
 }
 
 tcp:::receive
@@ -333,7 +333,7 @@ tcp:::receive
         printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
         printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
         printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
-        printf("\b)\\n");
+        printf("\\b)\\n");
 }
 .Ed
 The following script logs TCP connection state changes as they occur:
