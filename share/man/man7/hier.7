@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2023
+.Dd June 29, 2023
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -54,6 +54,15 @@ compiled flattened device tree (FDT) files; see
 .Xr fdt 4
 and
 .Xr dtc 1
+.Pp
+.Bl -tag -width "overlays/" -compact
+.It Pa overlays/
+compiled flattened device tree (FDT) overlays; these can be applied using the
+.Va fdt_overlays
+setting in
+.Xr loader.conf 5
+.El
+.Pp
 .It Pa efi/
 mount point for the EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
@@ -65,11 +74,6 @@ and kernel modules
 .It Pa modules/
 third-party loadable kernel modules, such as those associated with
 .Xr ports 7
-.It Pa overlays/
-compiled flattened device tree (FDT) overlays; see
-.Xr fdt 4
-and
-.Xr dtc 1
 .It Pa zfs/
 .Xr zfs 8
 pool cache files
