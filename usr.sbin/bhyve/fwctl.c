@@ -66,13 +66,12 @@ __FBSDID("$FreeBSD$");
 /*
  * Back-end state-machine
  */
-enum state {
-	DORMANT,
+static enum state {
 	IDENT_WAIT,
 	IDENT_SEND,
 	REQ,
 	RESP
-} be_state = DORMANT;
+} be_state;
 
 static uint8_t sig[] = { 'B', 'H', 'Y', 'V' };
 static u_int ident_idx;
@@ -203,7 +202,8 @@ static void
 fget_data(uint32_t data, uint32_t len)
 {
 
-	*((uint32_t *) &fget_str[fget_cnt]) = data;
+	assert(fget_cnt + sizeof(uint32_t) <= sizeof(fget_str));
+	memcpy(&fget_str[fget_cnt], &data, sizeof(data));
 	fget_cnt += sizeof(uint32_t);
 }
 
@@ -347,7 +347,8 @@ static int
 fwctl_request_data(uint32_t value)
 {
 
-	/* Make sure remaining size is >= 0 */
+	/* Make sure remaining size is > 0 */
+	assert(rinfo.req_size > 0);
 	if (rinfo.req_size <= sizeof(uint32_t))
 		rinfo.req_size = 0;
 	else
@@ -445,6 +446,28 @@ fwctl_response(uint32_t *retval)
 	return (0);
 }
 
+static void
+fwctl_reset(void)
+{
+
+	switch (be_state) {
+	case RESP:
+		/* If a response was generated but not fully read, discard it. */
+		fwctl_response_done();
+		break;
+	case REQ:
+		/* Discard partially-received request. */
+		memset(&rinfo, 0, sizeof(rinfo));
+		break;
+	case IDENT_WAIT:
+	case IDENT_SEND:
+		break;
+	}
+
+	be_state = IDENT_SEND;
+	ident_idx = 0;
+}
+
 
 /*
  * i/o port handling.
@@ -472,18 +495,13 @@ fwctl_inb(void)
 static void
 fwctl_outw(uint16_t val)
 {
-	if (be_state == DORMANT) {
-		return;
-	}
-
 	if (val == 0) {
 		/*
 		 * The guest wants to read the signature. It's possible that the
 		 * guest is unaware of the fwctl state at this moment. For that
 		 * reason, reset the state machine unconditionally.
 		 */
-		be_state = IDENT_SEND;
-		ident_idx = 0;
+		fwctl_reset();
 	}
 }
 
