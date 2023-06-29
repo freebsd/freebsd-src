@@ -47,11 +47,9 @@ Additionally, for i386 systems:
 .Cd "device apic"
 .Ed
 .Pp
-To load the driver as a module at boot time, place the
-following line in
-.Xr rc.conf 5 :
+To load the driver as a module at boot time:
 .Bd -literal -offset indent
-kld_list="${kld_list} hwpmc"
+sysrc kld_list+="hwpmc"
 .Ed
 .Pp
 Alternatively, to compile this driver into the kernel:
