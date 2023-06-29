@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd June 29, 2023
 .Dt DTRACE_SCTP 4
 .Os
 .Sh NAME
@@ -150,20 +150,20 @@ A script that logs SCTP packets in real time:
 
 dtrace:::BEGIN
 {
-        printf(" %3s %15s:%-5s      %15s:%-5s\n", "CPU",
+        printf(" %3s %15s:%-5s      %15s:%-5s\\n", "CPU",
             "LADDR", "LPORT", "RADDR", "RPORT");
 }
 
 sctp:::send
 {
-        printf(" %3d %16s:%-5d -> %16s:%-5d\n", cpu,
+        printf(" %3d %16s:%-5d -> %16s:%-5d\\n", cpu,
             args[2]->ip_saddr, args[4]->sctp_sport,
             args[2]->ip_daddr, args[4]->sctp_dport);
 }
 
 sctp:::receive
 {
-        printf(" %3d %16s:%-5d <- %16s:%-5d\n", cpu,
+        printf(" %3d %16s:%-5d <- %16s:%-5d\\n", cpu,
             args[2]->ip_daddr, args[4]->sctp_dport,
             args[2]->ip_saddr, args[4]->sctp_sport);
 }
@@ -177,7 +177,7 @@ int last[int];
 
 dtrace:::BEGIN
 {
-        printf(" %3s %12s  %-25s    %-25s\n",
+        printf(" %3s %12s  %-25s    %-25s\\n",
             "CPU", "DELTA(us)", "OLD", "NEW");
 }
 
@@ -185,7 +185,7 @@ sctp:::state-change
 / last[args[1]->cs_cid] /
 {
         this->elapsed = (timestamp - last[args[1]->cs_cid]) / 1000;
-        printf(" %3d %12d  %-25s -> %-25s\n", cpu, this->elapsed,
+        printf(" %3d %12d  %-25s -> %-25s\\n", cpu, this->elapsed,
             sctp_state_string[args[5]->sctps_state],
             sctp_state_string[args[3]->sctps_state]);
         last[args[1]->cs_cid] = timestamp;
@@ -194,7 +194,7 @@ sctp:::state-change
 sctp:::state-change
 / last[args[1]->cs_cid] == 0 /
 {
-        printf(" %3d %12s  %-25s -> %-25s\n", cpu, "-",
+        printf(" %3d %12s  %-25s -> %-25s\\n", cpu, "-",
             sctp_state_string[args[5]->sctps_state],
             sctp_state_string[args[3]->sctps_state]);
         last[args[1]->cs_cid] = timestamp;
