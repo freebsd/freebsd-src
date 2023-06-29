@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2018
+.Dd June 28, 2023
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -78,6 +78,7 @@
 .Op Fl npro
 .Op Fl P Ns Ar file
 .Op Fl pcs | Fl npcs
+.Op Fl ps | Fl nps
 .Op Fl psl | Fl npsl
 .Op Fl \&sc | Fl nsc
 .Bk -words
@@ -421,6 +422,13 @@ all procedure calls will have a space inserted between
 the name and the `('.
 The default is
 .Fl npcs .
+.It Fl ps , nps
+If true
+.Pq Fl ps
+the pointer dereference operator (`->') is treated like any other
+binary operator.
+The default is
+.Fl nps .
 .It Fl psl , npsl
 If true
 .Pq Fl psl
