@@ -82,10 +82,12 @@ BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn)
  * RFC2312 specifies a generator of 22.
  */
 
+#ifndef FIPS_MODULE
 BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn)
 {
     return COPY_BN(bn, ossl_bignum_modp_1536_p);
 }
+#endif
 
 /*-
  * "2048-bit MODP Group" from RFC3526, Section 3.
