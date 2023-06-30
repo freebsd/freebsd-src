@@ -44,22 +44,25 @@ build-tools: mknodes mksyntax
 
 DEPENDOBJS+= mknodes mksyntax
 mknodes mksyntax: ${BUILD_TOOLS_META}
+builtins.c builtins.h: mkbuiltins
+syntax.c syntax.h: mksyntax
+nodes.c nodes.h: mknodes
 .endif
 
 .ORDER: builtins.c builtins.h
 builtins.h: .NOMETA
-builtins.c builtins.h: mkbuiltins builtins.def
+builtins.c builtins.h: builtins.def
 	sh ${.CURDIR}/mkbuiltins ${.CURDIR}
 
 
 .ORDER: nodes.c nodes.h
 nodes.h: .NOMETA
-nodes.c nodes.h: mknodes nodetypes nodes.c.pat
+nodes.c nodes.h: nodetypes nodes.c.pat
 	${BTOOLSPATH:U.}/mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 
 .ORDER: syntax.c syntax.h
 syntax.h: .NOMETA
-syntax.c syntax.h: mksyntax
+syntax.c syntax.h:
 	${BTOOLSPATH:U.}/mksyntax
 
 token.h: mktokens
