@@ -22,12 +22,13 @@ CLEANFILES= maketab proctab.c awkgram.tab.h
 awkgram.tab.h: awkgram.h
 	ln -sf ${.ALLSRC:M*.h} ${.TARGET}
 
-proctab.c: maketab awkgram.tab.h
+proctab.c: awkgram.tab.h
 	${BTOOLSPATH:U.}/maketab awkgram.tab.h > proctab.c
 
 .if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
 DEPENDOBJS+= maketab
 build-tools: maketab
+proctab.c: maketab
 maketab: awkgram.tab.h ${BUILD_TOOLS_META}
 .endif
 
