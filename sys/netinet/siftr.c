@@ -812,7 +812,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 * maximum pps throughput processing when SIFTR is loaded and enabled.
 	 */
 	microtime(&pn->tval);
-	TCP_PROBE1(siftr, &pn);
+	TCP_PROBE1(siftr, pn);
 
 }
 
