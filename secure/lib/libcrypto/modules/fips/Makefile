@@ -238,8 +238,7 @@ SRCS+=	keccak1600.c
 .endif
 
 # common
-SRCS+=	provider_err.c provider_ctx.c
-SRCS+=	provider_util.c capabilities.c bio_prov.c digest_to_nid.c \
+SRCS+=	capabilities.c bio_prov.c digest_to_nid.c \
 	securitycheck.c provider_seeding.c
 SRCS+=	securitycheck_fips.c
 
