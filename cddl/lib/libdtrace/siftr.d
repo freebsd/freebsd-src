@@ -27,9 +27,9 @@
  * Convert a SIFTR direction value to a string
  */
 #pragma D binding "1.12.1" SIFTR_IN
-inline int SIFTR_IN =	1;
+inline int SIFTR_IN =	0;
 #pragma D binding "1.12.1" SIFTR_OUT
-inline int SIFTR_OUT =	2;
+inline int SIFTR_OUT =	1;
 
 /* SIFTR direction strings. */
 #pragma D binding "1.12.1" siftr_dir_string
