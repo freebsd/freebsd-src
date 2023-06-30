@@ -86,7 +86,6 @@ static cpuset_t		suspcpus;
 static struct susppcb	**susppcbs;
 #endif
 
-static void		*acpi_alloc_wakeup_handler(void **);
 static void		acpi_stop_beep(void *);
 
 #ifdef SMP
