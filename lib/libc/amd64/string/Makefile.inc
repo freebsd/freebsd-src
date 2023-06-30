@@ -8,6 +8,7 @@ MDSRCS+= \
 	memmove.S \
 	memset.S \
 	strcat.S \
+	strchrnul.S \
 	strcmp.S \
 	strlen.S \
 	stpcpy.S
