@@ -2,11 +2,7 @@
 
 SHLIB_NAME?=	legacy.so
 
-SRCS=	legacyprov.c prov_running.c
-
-# common
-SRCS+=	provider_err.c provider_ctx.c
-SRCS+=	provider_util.c
+SRCS+=	legacyprov.c prov_running.c
 
 # ciphers
 SRCS+=	ciphercommon.c ciphercommon_hw.c ciphercommon_block.c \
