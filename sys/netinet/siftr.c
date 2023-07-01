@@ -160,6 +160,12 @@ struct pkt_node {
 		DIR_IN = 0,
 		DIR_OUT = 1,
 	}			direction;
+	/* IP version pkt_node relates to; either INP_IPV4 or INP_IPV6. */
+	uint8_t			ipver;
+	/* Local TCP port. */
+	uint16_t		tcp_localport;
+	/* Foreign TCP port. */
+	uint16_t		tcp_foreignport;
 	/* Congestion Window (bytes). */
 	uint32_t		snd_cwnd;
 	/* Sending Window (bytes). */
@@ -635,6 +641,9 @@ static inline void
 siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
     int ipver, int dir, int inp_locally_locked)
 {
+	pn->ipver = ipver;
+	pn->tcp_localport = inp->inp_lport;
+	pn->tcp_foreignport = inp->inp_fport;
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
