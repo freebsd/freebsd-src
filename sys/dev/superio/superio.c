@@ -303,6 +303,7 @@ const struct sio_device nct611x_devices[] = {
 const struct sio_device nct67xx_devices[] = {
 	{ .ldn = 0x8, .type = SUPERIO_DEV_WDT },
 	{ .ldn = 0x9, .type = SUPERIO_DEV_GPIO },
+	{ .ldn = 0xb, .type = SUPERIO_DEV_HWM },
 	{ .type = SUPERIO_DEV_NONE },
 };
 

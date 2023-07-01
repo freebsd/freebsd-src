@@ -275,6 +275,7 @@ SUBDIR=	\
 	mxge \
 	my \
 	${_nctgpio} \
+	${_ncthwm} \
 	${_neta} \
 	netlink \
 	${_netgraph} \
@@ -726,6 +727,7 @@ _lio=		lio
 _mana=		mana
 _mgb=		mgb
 _nctgpio=	nctgpio
+_ncthwm=	ncthwm
 _ntb=		ntb
 _ocs_fc=	ocs_fc
 _p2sb=		p2sb
