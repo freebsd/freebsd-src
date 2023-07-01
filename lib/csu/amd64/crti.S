@@ -31,13 +31,15 @@ __FBSDID("$FreeBSD$");
 	.globl	_init
 	.type	_init,@function
 _init:
-	subq	$8,%rsp
+	pushq	%rbp
+	movq	%rsp,%rbp
 
 	.section .fini,"ax",@progbits
 	.align	4
 	.globl	_fini
 	.type	_fini,@function
 _fini:
-	subq	$8,%rsp
+	pushq	%rbp
+	movq	%rsp,%rbp
 
 	.section .note.GNU-stack,"",%progbits
