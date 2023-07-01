@@ -49,6 +49,7 @@ typedef enum superio_dev_type {
 superio_vendor_t superio_vendor(device_t dev);
 uint16_t superio_devid(device_t dev);
 uint8_t superio_revid(device_t dev);
+int superio_extid(device_t dev);
 uint8_t superio_read(device_t dev, uint8_t reg);
 uint8_t superio_ldn_read(device_t dev, uint8_t ldn, uint8_t reg);
 void superio_write(device_t dev, uint8_t reg, uint8_t val);
