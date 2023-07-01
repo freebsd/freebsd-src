@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Return remainder after dividing two signed quads.
- *
- * XXX
- * If -1/2 should produce -1 on this machine, this code is wrong.
  */
 quad_t
 __moddi3(quad_t a, quad_t b)
