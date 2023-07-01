@@ -1041,13 +1041,14 @@ run_rc_command()
 			continue
 		fi
 					# if ${rcvar} is set, $1 is not "rcvar", "describe",
-					# "enable" or "delete", and ${rc_pid} is not set, run:
+					# "enable", "delete" or "status", and ${rc_pid} is
+					# not set, run:
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
 		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" \
 		    -a "$rc_arg" != "delete" -a "$rc_arg" != "enable" \
-		    -a "$rc_arg" != "describe" ] ||
+		    -a "$rc_arg" != "describe" -a "$rc_arg" != "status" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
