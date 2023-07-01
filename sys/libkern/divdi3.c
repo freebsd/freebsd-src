@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Divide two signed quads.
- * ??? if -1/2 should produce -1 on this machine, this code is wrong
  */
 quad_t
 __divdi3(quad_t a, quad_t b)
