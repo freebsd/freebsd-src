@@ -1200,6 +1200,32 @@ nct_attach(device_t dev)
 	pin_num   = 0;
 	sc->npins = 0;
 	for (g = 0, gp = sc->nctdevp->groups; g < sc->nctdevp->ngroups; g++, gp++) {
+
+		sc->grpmap[gp->grpnum] = gp;
+
+		/*
+		 * Caching input values is meaningless as an input can be changed at any
+		 * time by an external agent.  But outputs are controlled by this
+		 * driver, so it can cache their state.  Also, the hardware remembers
+		 * the output state of a pin when the pin is switched to input mode and
+		 * then back to output mode.  So, the cache stays valid.
+		 * The only problem is with pins that are in input mode at the attach
+		 * time.  For them the output state is not known until it is set by the
+		 * driver for the first time.
+		 * 'out' and 'out_known' bits form a tri-state output cache:
+		 * |-----+-----------+---------|
+		 * | out | out_known | cache   |
+		 * |-----+-----------+---------|
+		 * |   X |         0 | invalid |
+		 * |   0 |         1 |       0 |
+		 * |   1 |         1 |       1 |
+		 * |-----+-----------+---------|
+		 */
+		sc->cache.inv[gp->grpnum]       = nct_read_reg(sc, REG_INV, gp->grpnum);
+		sc->cache.ior[gp->grpnum]       = nct_read_reg(sc, REG_IOR, gp->grpnum);
+		sc->cache.out[gp->grpnum]       = nct_read_reg(sc, REG_DAT, gp->grpnum);
+		sc->cache.out_known[gp->grpnum] = ~sc->cache.ior[gp->grpnum];
+
 		sc->npins += gp->npins;
 		for (i = 0; i < gp->npins; i++, pin_num++) {
 			struct gpio_pin *pin;
@@ -1207,8 +1233,6 @@ nct_attach(device_t dev)
 			sc->pinmap[pin_num].group  = gp;
 			sc->pinmap[pin_num].grpnum = gp->grpnum;
 			sc->pinmap[pin_num].bit    = gp->pinbits[i];
-
-			sc->grpmap[gp->grpnum] = gp;
 
 			pin           = &sc->pins[pin_num];
 			pin->gp_pin   = pin_num;
@@ -1233,31 +1257,6 @@ nct_attach(device_t dev)
 		}
 	}
 	NCT_VERBOSE_PRINTF(dev, "%d pins available\n", sc->npins);
-
-	/*
-	 * Caching input values is meaningless as an input can be changed at any
-	 * time by an external agent.  But outputs are controlled by this
-	 * driver, so it can cache their state.  Also, the hardware remembers
-	 * the output state of a pin when the pin is switched to input mode and
-	 * then back to output mode.  So, the cache stays valid.
-	 * The only problem is with pins that are in input mode at the attach
-	 * time.  For them the output state is not known until it is set by the
-	 * driver for the first time.
-	 * 'out' and 'out_known' bits form a tri-state output cache:
-	 * |-----+-----------+---------|
-	 * | out | out_known | cache   |
-	 * |-----+-----------+---------|
-	 * |   X |         0 | invalid |
-	 * |   0 |         1 |       0 |
-	 * |   1 |         1 |       1 |
-	 * |-----+-----------+---------|
-	 */
-	for (g = 0, gp = sc->nctdevp->groups; g < sc->nctdevp->ngroups; g++, gp++) {
-		sc->cache.inv[gp->grpnum]       = nct_read_reg(sc, REG_INV, gp->grpnum);
-		sc->cache.ior[gp->grpnum]       = nct_read_reg(sc, REG_IOR, gp->grpnum);
-		sc->cache.out[gp->grpnum]       = nct_read_reg(sc, REG_DAT, gp->grpnum);
-		sc->cache.out_known[gp->grpnum] = ~sc->cache.ior[gp->grpnum];
-	}
 
 	GPIO_UNLOCK(sc);
 
