@@ -1051,7 +1051,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_ga9d6b0690"
+#define ZFS_META_ALIAS "zfs-2.2.0-FreeBSD_g009d3288"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1081,10 +1081,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ga9d6b0690"
+#define ZFS_META_RELEASE "FreeBSD_g009d3288"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.99"
+#define ZFS_META_VERSION "2.2.0"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
