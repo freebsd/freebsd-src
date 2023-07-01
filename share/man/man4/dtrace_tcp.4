@@ -346,12 +346,8 @@ in
 .Pa /usr/lib/dtrace/tcp.d .
 .It Vt u_int max_seg_size
 The maximum segment size for the flow, in bytes.
-.It Vt int smoothed_rtt
-The current smoothed RTT estimate for the flow, in units of TCP_RTT_SCALE * HZ,
-where TCP_RTT_SCALE is a define found in
-.Pa /usr/include/netinet/tcp_var.h ,
-and HZ is the kernel's tick timer.
-Divide by TCP_RTT_SCALE * HZ to get the RTT in secs.
+.It Vt uint32_t srtt
+The current smoothed RTT (SRTT) for the flow in microseconds.
 .It Vt u_char sack_enabled
 SACK enabled indicator. 1 if SACK enabled, 0 otherwise.
 .It Vt u_char snd_scale
@@ -360,9 +356,8 @@ The current window scaling factor for the sending window.
 The current window scaling factor for the receiving window.
 .It Vt u_int flags
 The current value of the t_flags for the flow.
-.It Vt int rxt_length
-The current retransmission timeout length for the flow, in units of HZ, where HZ
-is the kernel's tick timer.
+.It Vt uint32_t rto
+The current retransmission timeout (RTO) for the flow in microseconds.
 Divide by HZ to get the timeout length in seconds.
 .It Vt u_int snd_buf_hiwater
 The current size of the socket send buffer in bytes.
