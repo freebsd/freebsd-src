@@ -44,7 +44,6 @@ typedef struct siftrinfo {
 	struct timeval		tval;
 	uint8_t			direction;
 	uint8_t			ipver;
-	uint32_t		hash;
 	uint16_t		tcp_localport;
 	uint16_t		tcp_foreignport;
 	uint32_t		snd_cwnd;
@@ -74,7 +73,6 @@ typedef struct siftrinfo {
 translator siftrinfo_t < struct pkt_node *p > {
 	direction = 		p == NULL ? 0 : p->direction;
 	ipver =			p == NULL ? 0 : p->ipver;
-	hash = 			p == NULL ? 0 : p->hash;
 	tcp_localport =		p == NULL ? 0 : ntohs(p->tcp_localport);
 	tcp_foreignport =	p == NULL ? 0 : ntohs(p->tcp_foreignport);
 	snd_cwnd =		p == NULL ? 0 : p->snd_cwnd;
