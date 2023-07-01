@@ -278,7 +278,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
 
-CSTD=		c99
+CSTD=		gnu99
 
 .if ${CSTD} == "k&r"
 CFLAGS+=        -traditional
