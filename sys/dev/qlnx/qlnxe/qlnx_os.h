@@ -90,12 +90,6 @@
 #include <sys/smp.h>
 #include <sys/sched.h>
 
-#ifdef CONFIG_ECORE_SRIOV
-#include <sys/nv.h>
-#include <sys/iov_schema.h>
-#include <dev/pci/pci_iov.h>
-#endif /* #ifdef CONFIG_ECORE_SRIOV */
-
 static __inline int qlnx_ms_to_hz(int ms)
 {
 	int qlnx_hz;
