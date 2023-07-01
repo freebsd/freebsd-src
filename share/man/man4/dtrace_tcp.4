@@ -325,19 +325,18 @@ Hash of the packet that triggered the log message.
 The TCP port that the local host is communicating via.
 .It Vt uint16_t tcp_foreignport
 The TCP port that the foreign host is communicating via.
-.It Vt uint64_t snd_cwnd
+.It Vt uint32_t snd_cwnd
 The current congestion window (CWND) for the flow, in bytes.
-.It Vt u_long snd_wnd
+.It Vt uint32_t snd_wnd
 The current sending window for the flow, in bytes.
 The post scaled value is reported, except during the initial handshake (first
 few packets), during which time the unscaled value is reported.
-.It Vt u_long rcv_wnd
+.It Vt uint32_t rcv_wnd
 The current receive window for the flow, in bytes.
 The post scaled value is always reported.
-.It Vt u_long snd_bwnd
-The current bandwidth-controlled window for the flow, in bytes.
-This field is currently unused and reported as zero.
-.It Vt u_long snd_ssthresh
+.It Vt uint32_t t_flags2
+The current value of the t_flags2 for the flow.
+.It Vt uint32_t snd_ssthresh
 The slow start threshold (SSTHRESH) for the flow, in bytes.
 .It Vt int conn_state
 A TCP state.

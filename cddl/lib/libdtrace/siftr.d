@@ -47,11 +47,11 @@ typedef struct siftrinfo {
 	uint32_t		hash;
 	uint16_t		tcp_localport;
 	uint16_t		tcp_foreignport;
-	uint64_t		snd_cwnd;
-	u_long			snd_wnd;
-	u_long			rcv_wnd;
-	u_long			snd_bwnd;
-	u_long			snd_ssthresh;
+	uint32_t		snd_cwnd;
+	uint32_t		snd_wnd;
+	uint32_t		rcv_wnd;
+	uint32_t		t_flags2;
+	uint32_t		snd_ssthresh;
 	int			conn_state;
 	u_int			max_seg_size;
 	int			smoothed_rtt;
@@ -80,7 +80,7 @@ translator siftrinfo_t < struct pkt_node *p > {
 	snd_cwnd =		p == NULL ? 0 : p->snd_cwnd;
 	snd_wnd =		p == NULL ? 0 : p->snd_wnd;
 	rcv_wnd =		p == NULL ? 0 : p->rcv_wnd;
-	snd_bwnd =		p == NULL ? 0 : p->snd_bwnd;
+	t_flags2 =		p == NULL ? 0 : p->t_flags2;
 	snd_ssthresh =		p == NULL ? 0 : p->snd_ssthresh;
 	conn_state =		p == NULL ? 0 : p->conn_state;
 	max_seg_size = 		p == NULL ? 0 : p->max_seg_size;
