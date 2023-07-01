@@ -71,6 +71,7 @@ struct g_disk_softc {
 	char			led[64];
 	uint32_t		state;
 	struct mtx		 done_mtx;
+	bool                    flush_notsup_succeed;
 };
 
 static g_access_t g_disk_access;
@@ -539,7 +540,7 @@ g_disk_start(struct bio *bp)
 		g_trace(G_T_BIO, "g_disk_flushcache(%s)",
 		    bp->bio_to->name);
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
-			error = EOPNOTSUPP;
+			error = (sc->flush_notsup_succeed) ? 0 : EOPNOTSUPP;
 			break;
 		}
 		/*FALLTHROUGH*/
@@ -760,6 +761,10 @@ g_disk_create(void *arg, int flag)
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
 		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, dp, 0,
 		    g_disk_sysctl_flags, "A", "Report disk flags");
+		SYSCTL_ADD_BOOL(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flush_notsup_succeed",
+		    CTLFLAG_RWTUN, &sc->flush_notsup_succeed, sizeof(sc->flush_notsup_succeed),
+		    "Do not return EOPNOTSUPP if there is no cache to flush");
 	}
 	pp->private = sc;
 	dp->d_geom = gp;
