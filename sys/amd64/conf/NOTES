@@ -301,6 +301,7 @@ device		cpufreq
 # qlxgb: QLogic 3200 and 8200 series 10 Gigabit Ethernet & CNA Adapter
 # qlxgbe: QLogic 8300 series 10 Gigabit Ethernet & CNA Adapter
 # qlxge: QLogic 8100 series 10 Gigabit Ethernet & CNA Adapter
+# qlnxe: Cavium QLogic 41000/45000 series 10/25/40/100 Gigabit Ethernet & CNA Adapter
 # sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wpi:	Intel 3945ABG Wireless LAN controller
@@ -325,6 +326,7 @@ device		nfe		# nVidia nForce MCP on-board Ethernet
 device		qlxgb		# QLogic 3200/8200 Ethernet
 device		qlxgbe		# QLogic 8300 Ethernet
 device		qlxge		# QLogic 8100 Ethernet
+device		qlnxe		# QLogic 41000/45000 Ethernet
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
 device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
