@@ -480,8 +480,8 @@ qlnx_test_and_change_bit(long bit, volatile unsigned long *var)
 #define OSAL_TEST_AND_FLIP_BIT qlnx_test_and_change_bit
 #define OSAL_TEST_AND_CLEAR_BIT test_and_clear_bit
 #define OSAL_MEMCMP memcmp
-#define OSAL_SPIN_LOCK_IRQSAVE(x,y) {y=0; mtx_lock(x);}
-#define OSAL_SPIN_UNLOCK_IRQSAVE(x,y) {y= 0; mtx_unlock(x);}
+#define OSAL_SPIN_LOCK_IRQSAVE(x, y) { (void)y; mtx_lock(x); }
+#define OSAL_SPIN_UNLOCK_IRQSAVE(x, y) { (void)y; mtx_unlock(x); }
 
 static inline u32
 OSAL_CRC32(u32 crc, u8 *ptr, u32 length)
