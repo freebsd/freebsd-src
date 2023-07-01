@@ -110,7 +110,7 @@ LDFLAGS+=	-Wl,--no-dynamic-linker
 CLEANFILES+=	${LOADER}.efi
 
 ${LOADER}.efi: ${PROG}
-	if ${NM} ${.ALLSRC} | grep ' U '; then \
+	@if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
