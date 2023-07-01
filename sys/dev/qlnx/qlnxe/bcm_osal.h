@@ -93,7 +93,6 @@ extern int qlnx_pf_vf_msg(void *p_hwfn, uint16_t relative_vf_id);
 extern void qlnx_vf_flr_update(void *p_hwfn);
 
 #define nothing			do {} while(0)
-#ifdef ECORE_PACKAGE
 
 /* Memory Types */
 #define u8 uint8_t 
@@ -541,7 +540,5 @@ OSAL_CRC8(u8 * cdu_crc8_table, u8 * data_to_crc, int data_to_crc_len, u8 init_va
 
 #define OSAL_VF_FLR_UPDATE(p_hwfn) qlnx_vf_flr_update(p_hwfn)
 #define OSAL_IOV_VF_VPORT_STOP(p_hwfn, vf)
-
-#endif /* #ifdef ECORE_PACKAGE */
 
 #endif /* #ifdef __BCM_OSAL_ECORE_PACKAGE */
