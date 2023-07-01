@@ -68,6 +68,12 @@ __FBSDID("$FreeBSD$");
 #include "qlnx_rdma.h"
 #endif /* #ifdef QLNX_ENABLE_IWARP */
 
+#ifdef CONFIG_ECORE_SRIOV
+#include <sys/nv.h>
+#include <sys/iov_schema.h>
+#include <dev/pci/pci_iov.h>
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+
 #include <sys/smp.h>
 
 /*
