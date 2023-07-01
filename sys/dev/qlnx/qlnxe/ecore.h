@@ -94,9 +94,10 @@ enum ecore_nvm_cmd {
 #define CONFIG_ECORE_SRIOV
 #define CONFIG_ECORE_ROCE
 #define CONFIG_ECORE_IWARP
-#define CONFIG_ECORE_FCOE
-#define CONFIG_ECORE_ISCSI
 #define CONFIG_ECORE_LL2
+#define CONFIG_ECORE_RDMA
+#define ECORE_CONFIG_DIRECT_HWFN
+#define QLNX_ENABLE_IWARP
 #endif
 #endif
 
