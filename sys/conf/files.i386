@@ -140,6 +140,7 @@ isa/vga_isa.c			optional vga
 kern/imgact_aout.c		optional compat_aout
 kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
+libkern/divmoddi4.c		standard
 libkern/ffsll.c			standard
 libkern/flsll.c			standard
 libkern/memcmp.c		standard
@@ -149,6 +150,7 @@ libkern/qdivrem.c		standard
 libkern/strlen.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
+libkern/udivmoddi4.c		standard
 libkern/umoddi3.c		standard
 #
 # x86 real mode BIOS support, required by dpms/pci/vesa
