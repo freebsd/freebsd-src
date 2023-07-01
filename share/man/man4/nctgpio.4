@@ -1,11 +1,11 @@
 .\" $FreeBSD$
 .\"
-.Dd Jan 11, 2021
+.Dd Apr 18, 2023
 .Dt NCTGPIO 4
 .Os
 .Sh NAME
 .Nm nctgpio
-.Nd GPIO controller on Nuvoton and Winbond Super I/O
+.Nd GPIO controller on Nuvoton and Winbond Super I/Os
 .Sh SYNOPSIS
 .Cd "device gpio"
 .Cd "device nctgpio"
@@ -26,6 +26,16 @@ Nuvoton NCT5104D
 Nuvoton NCT5104D (PC-Engines APU)
 .It
 Nuvoton NCT5104D (PC-Engines APU3)
+.It
+Nuvoton NCT5585D
+.It
+Nuvoton NCT6116D
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6796D-E
+.It
+Winbond 83627DHG
 .El
 
 .Sh SEE ALSO
@@ -37,7 +47,7 @@ The driver first appeared in
 .Fx 11.0 .
 And the
 manual page first appeared in
-.Fx 13.0 .
+.Fx 14.0 .
 .Sh AUTHORS
 The driver was initially written by
 .An Daniel Wyatt Aq Mt daniel@dewyatt.com .
