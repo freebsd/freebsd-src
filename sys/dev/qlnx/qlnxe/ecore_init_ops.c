@@ -242,7 +242,7 @@ static void ecore_init_fill(struct ecore_hwfn *p_hwfn,
 
 static enum _ecore_status_t ecore_init_cmd_array(struct ecore_hwfn *p_hwfn,
 						 struct ecore_ptt *p_ptt,
-						 struct init_write_op *cmd,
+						 const struct init_write_op *cmd,
 						 bool b_must_dmae,
 						 bool b_can_dmae)
 {
@@ -253,14 +253,14 @@ static enum _ecore_status_t ecore_init_cmd_array(struct ecore_hwfn *p_hwfn,
 	u32 offset, output_len, input_len, max_size;
 #endif
 	struct ecore_dev *p_dev = p_hwfn->p_dev;
-	union init_array_hdr *hdr;
+	const union init_array_hdr *hdr;
 	const u32 *array_data;
 	enum _ecore_status_t rc = ECORE_SUCCESS;
 	u32 size;
 
 	array_data = p_dev->fw_data->arr_data;
 
-	hdr = (union init_array_hdr *) (array_data +
+	hdr = (const union init_array_hdr *) (array_data +
 					dmae_array_offset);
 	data = OSAL_LE32_TO_CPU(hdr->raw.data);
 	switch (GET_FIELD(data, INIT_ARRAY_RAW_HDR_TYPE)) {
@@ -326,7 +326,7 @@ static enum _ecore_status_t ecore_init_cmd_array(struct ecore_hwfn *p_hwfn,
 /* init_ops write command */
 static enum _ecore_status_t ecore_init_cmd_wr(struct ecore_hwfn *p_hwfn,
 					      struct ecore_ptt *p_ptt,
-					      struct init_write_op *p_cmd,
+					      const struct init_write_op *p_cmd,
 					      bool b_can_dmae)
 {
 	u32 data = OSAL_LE32_TO_CPU(p_cmd->data);
@@ -387,7 +387,7 @@ static OSAL_INLINE bool comp_or(u32 val, u32 expected_val)
 /* init_ops read/poll commands */
 static void ecore_init_cmd_rd(struct ecore_hwfn *p_hwfn,
 			      struct ecore_ptt *p_ptt,
-			      struct init_read_op *cmd)
+			      const struct init_read_op *cmd)
 {
 	bool (*comp_check)(u32 val, u32 expected_val);
 	u32 delay = ECORE_INIT_POLL_PERIOD_US, val;
@@ -442,7 +442,7 @@ static void ecore_init_cmd_rd(struct ecore_hwfn *p_hwfn,
 /* init_ops callbacks entry point */
 static enum _ecore_status_t ecore_init_cmd_cb(struct ecore_hwfn *p_hwfn,
 					      struct ecore_ptt *p_ptt,
-					      struct init_callback_op *p_cmd)
+					      const struct init_callback_op *p_cmd)
 {
 	enum _ecore_status_t rc;
 
@@ -486,7 +486,7 @@ static u8 ecore_init_cmd_mode_match(struct ecore_hwfn *p_hwfn,
 }
 
 static u32 ecore_init_cmd_mode(struct ecore_hwfn *p_hwfn,
-			       struct init_if_mode_op *p_cmd, int modes)
+			       const struct init_if_mode_op *p_cmd, int modes)
 {
 	u16 offset = OSAL_LE16_TO_CPU(p_cmd->modes_buf_offset);
 
@@ -497,7 +497,7 @@ static u32 ecore_init_cmd_mode(struct ecore_hwfn *p_hwfn,
 				 INIT_IF_MODE_OP_CMD_OFFSET);
 }
 
-static u32 ecore_init_cmd_phase(struct init_if_phase_op *p_cmd,
+static u32 ecore_init_cmd_phase(const struct init_if_phase_op *p_cmd,
 				u32 phase, u32 phase_id)
 {
 	u32 data = OSAL_LE32_TO_CPU(p_cmd->phase_data);
@@ -519,7 +519,7 @@ enum _ecore_status_t ecore_init_run(struct ecore_hwfn *p_hwfn,
 {
 	struct ecore_dev *p_dev = p_hwfn->p_dev;
 	u32 cmd_num, num_init_ops;
-	union init_op *init_ops;
+	const union init_op *init_ops;
 	bool b_dmae = false;
 	enum _ecore_status_t rc = ECORE_SUCCESS;
 
@@ -536,7 +536,7 @@ enum _ecore_status_t ecore_init_run(struct ecore_hwfn *p_hwfn,
 #endif
 
 	for (cmd_num = 0; cmd_num < num_init_ops; cmd_num++) {
-		union init_op *cmd = &init_ops[cmd_num];
+		const union init_op *cmd = &init_ops[cmd_num];
 		u32 data = OSAL_LE32_TO_CPU(cmd->raw.op_data);
 
 		switch (GET_FIELD(data, INIT_CALLBACK_OP_OP)) {
@@ -661,9 +661,9 @@ enum _ecore_status_t ecore_init_fw_data(struct ecore_dev *p_dev,
 	len = buf_hdr[BIN_BUF_INIT_CMD].length;
 	fw->init_ops_size = len / sizeof(struct init_raw_op);
 #else
-	fw->init_ops = (union init_op *)init_ops;
-	fw->arr_data = (u32 *)init_val;
-	fw->modes_tree_buf = (u8 *)modes_tree_buf;
+	fw->init_ops = (const union init_op *)init_ops;
+	fw->arr_data = (const u32 *)init_val;
+	fw->modes_tree_buf = (const u8 *)modes_tree_buf;
 	fw->init_ops_size = init_ops_size;
 #endif
 

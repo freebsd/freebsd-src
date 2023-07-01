@@ -586,7 +586,7 @@ struct ecore_fw_data {
 	struct fw_ver_info *fw_ver_info;
 #endif
 	const u8 *modes_tree_buf;
-	union init_op *init_ops;
+	const union init_op *init_ops;
 	const u32 *arr_data;
 	u32 init_ops_size;
 };
