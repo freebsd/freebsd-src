@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE
 .
-.Dd July 3, 2023
+.Dd August 5, 2023
 .Dt SIMD 7
 .Os
 .Sh NAME
@@ -49,34 +49,35 @@ the environment variable
 can be used to override this mechanism.
 .Pp
 Enhanced functions are present in the following architectures:
-.Bl -column FUNCTION_ aarch64_ arm_ amd64_ i386_ ppc64_ -offset indent
-.It Em FUNCTION Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64
-.It    bcmp     Ta            Ta        Ta    S      Ta    S
-.It    bcopy    Ta            Ta    S   Ta    S      Ta    S    Ta    SV
-.It    bzero    Ta            Ta    S   Ta    S      Ta    S
-.It    div      Ta            Ta        Ta    S      Ta    S
-.It    index    Ta    S
-.It    ldiv     Ta            Ta        Ta    S      Ta    S
-.It    lldiv    Ta            Ta        Ta    S
-.It    memcmp   Ta            Ta    S   Ta    S      Ta    S
-.It    memcpy   Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
-.It    memmove  Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
-.It    memset   Ta            Ta    S   Ta    S      Ta    S
-.It    rindex   Ta    S
-.It    stpcpy   Ta            Ta        Ta    S
-.It    strcat   Ta            Ta        Ta    S      Ta    S
-.It    strchr   Ta    S       Ta        Ta           Ta    S
-.It    strcmp   Ta            Ta    S   Ta    S      Ta    S
-.It    strcpy   Ta            Ta        Ta    S      Ta    S    Ta    S2
-.It    strlen   Ta            Ta    S   Ta    S134
-.It    strncmp  Ta            Ta    S   Ta           Ta    S
-.It    strncpy  Ta            Ta        Ta           Ta         Ta    S2
-.It    strrchr  Ta    S       Ta        Ta           Ta    S
-.It    swab     Ta            Ta        Ta           Ta    S
-.It    wcschr   Ta            Ta        Ta           Ta    S
-.It    wcscmp   Ta            Ta        Ta           Ta    S
-.It    wcslen   Ta            Ta        Ta           Ta    S
-.It    wmemchr  Ta            Ta        Ta           Ta    S
+.Bl -column FUNCTION__ aarch64_ arm_ amd64_ i386_ ppc64_ -offset indent
+.It Em FUNCTION  Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64
+.It    bcmp      Ta            Ta        Ta    S      Ta    S
+.It    bcopy     Ta            Ta    S   Ta    S      Ta    S    Ta    SV
+.It    bzero     Ta            Ta    S   Ta    S      Ta    S
+.It    div       Ta            Ta        Ta    S      Ta    S
+.It    index     Ta    S       Ta        Ta    S1
+.It    ldiv      Ta            Ta        Ta    S      Ta    S
+.It    lldiv     Ta            Ta        Ta    S
+.It    memcmp    Ta            Ta    S   Ta    S      Ta    S
+.It    memcpy    Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    memmove   Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    memset    Ta            Ta    S   Ta    S      Ta    S
+.It    rindex    Ta    S
+.It    stpcpy    Ta            Ta        Ta    S
+.It    strcat    Ta            Ta        Ta    S      Ta    S
+.It    strchr    Ta    S       Ta        Ta    S1     Ta    S
+.It    strchrnul Ta            Ta        Ta    S1
+.It    strcmp    Ta            Ta    S   Ta    S      Ta    S
+.It    strcpy    Ta            Ta        Ta    S      Ta    S    Ta    S2
+.It    strlen    Ta            Ta    S   Ta    S1
+.It    strncmp   Ta            Ta    S   Ta           Ta    S
+.It    strncpy   Ta            Ta        Ta           Ta         Ta    S2
+.It    strrchr   Ta    S       Ta        Ta           Ta    S
+.It    swab      Ta            Ta        Ta           Ta    S
+.It    wcschr    Ta            Ta        Ta           Ta    S
+.It    wcscmp    Ta            Ta        Ta           Ta    S
+.It    wcslen    Ta            Ta        Ta           Ta    S
+.It    wmemchr   Ta            Ta        Ta           Ta    S
 .El
 .Pp
 .Sy S Ns :\ scalar (non-SIMD),
