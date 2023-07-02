@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2023
+.Dd July 2, 2023
 .Dt DTRACE_TCP 4
 .Os
 .Sh NAME
@@ -319,10 +319,14 @@ Either
 for IPv4, or
 .Qq 2
 for IPv6.
-.It Vt uint16_t tcp_localport
+.It Vt uint16_t lport
 The TCP port that the local host is communicating via.
-.It Vt uint16_t tcp_foreignport
-The TCP port that the foreign host is communicating via.
+.It Vt uint16_t rport
+The TCP port that the remote host is communicating via.
+.It Vt string laddr
+The IPv4 or IPv6 address of the local host.
+.It Vt string raddr
+The IPv4 or IPv6 address of the remote host.
 .It Vt uint32_t snd_cwnd
 The current congestion window (CWND) for the flow, in bytes.
 .It Vt uint32_t snd_wnd
@@ -342,8 +346,8 @@ The valid TCP state values are given by the constants prefixed with
 .Ql TCPS_
 in
 .Pa /usr/lib/dtrace/tcp.d .
-.It Vt u_int max_seg_size
-The maximum segment size for the flow, in bytes.
+.It Vt uint32_t mss
+The maximum segment size (MSS) for the flow, in bytes.
 .It Vt uint32_t srtt
 The current smoothed RTT (SRTT) for the flow in microseconds.
 .It Vt u_char sack_enabled
@@ -352,7 +356,7 @@ SACK enabled indicator. 1 if SACK enabled, 0 otherwise.
 The current window scaling factor for the sending window.
 .It Vt u_char rcv_scale
 The current window scaling factor for the receiving window.
-.It Vt u_int flags
+.It Vt u_int t_flags
 The current value of the t_flags for the flow.
 .It Vt uint32_t rto
 The current retransmission timeout (RTO) for the flow in microseconds.
@@ -480,15 +484,15 @@ and SSTHRESH when a packet is sent or received:
 
 dtrace:::BEGIN
 {
-        printf(" %3s %5s %5s %10s %10s\\n",
-               "DIR", "LPORT", "RPORT", "CWND", "SSTHRESH");
+        printf(" %3s %16s:%-5s %16s:%-5s %10s %10s\\n",
+            "DIR", "LADDR", "LPORT", "RADDR", "RPORT", "CWND", "SSTHRESH");
 }
 
 tcp:::siftr
 {
-        printf(" %3s %5d %5d %10d %10d\\n",
+        printf(" %3s %16s:%-5d %16s:%-5d %10u %10u\\n",
             siftr_dir_string[args[0]->direction],
-            args[0]->tcp_localport, args[0]->tcp_foreignport,
+            args[0]->laddr, args[0]->lport, args[0]->raddr, args[0]->rport,
             args[0]->snd_cwnd, args[0]->snd_ssthresh);
 }
 .Ed

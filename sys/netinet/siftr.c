@@ -163,9 +163,13 @@ struct pkt_node {
 	/* IP version pkt_node relates to; either INP_IPV4 or INP_IPV6. */
 	uint8_t			ipver;
 	/* Local TCP port. */
-	uint16_t		tcp_localport;
+	uint16_t		lport;
 	/* Foreign TCP port. */
-	uint16_t		tcp_foreignport;
+	uint16_t		fport;
+	/* Local address. */
+	union in_dependaddr	laddr;
+	/* Foreign address. */
+	union in_dependaddr	faddr;
 	/* Congestion Window (bytes). */
 	uint32_t		snd_cwnd;
 	/* Sending Window (bytes). */
@@ -179,7 +183,7 @@ struct pkt_node {
 	/* Current state of the TCP FSM. */
 	int			conn_state;
 	/* Max Segment Size (bytes). */
-	u_int			max_seg_size;
+	uint32_t		mss;
 	/* Smoothed RTT (usecs). */
 	uint32_t		srtt;
 	/* Is SACK enabled? */
@@ -189,7 +193,7 @@ struct pkt_node {
 	/* Window scaling for recv window. */
 	u_char			rcv_scale;
 	/* TCP control block flags. */
-	u_int			flags;
+	u_int			t_flags;
 	/* Retransmission timeout (usec). */
 	uint32_t		rto;
 	/* Size of the TCP send buffer in bytes. */
@@ -223,7 +227,6 @@ struct flow_info
 #endif
 	uint16_t	lport;			/* local TCP port */
 	uint16_t	fport;			/* foreign TCP port */
-	uint8_t		ipver;			/* IP version */
 	uint32_t	key;			/* flowid of the connection */
 };
 
@@ -427,10 +430,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	    pkt_node->snd_scale,
 	    pkt_node->rcv_scale,
 	    pkt_node->conn_state,
-	    pkt_node->max_seg_size,
+	    pkt_node->mss,
 	    pkt_node->srtt,
 	    pkt_node->sack_enabled,
-	    pkt_node->flags,
+	    pkt_node->t_flags,
 	    pkt_node->rto,
 	    pkt_node->snd_buf_hiwater,
 	    pkt_node->snd_buf_cc,
@@ -642,8 +645,10 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
     int ipver, int dir, int inp_locally_locked)
 {
 	pn->ipver = ipver;
-	pn->tcp_localport = inp->inp_lport;
-	pn->tcp_foreignport = inp->inp_fport;
+	pn->lport = inp->inp_lport;
+	pn->fport = inp->inp_fport;
+	pn->laddr = inp->inp_inc.inc_ie.ie_dependladdr;
+	pn->faddr = inp->inp_inc.inc_ie.ie_dependfaddr;
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
@@ -652,10 +657,10 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->snd_scale = tp->snd_scale;
 	pn->rcv_scale = tp->rcv_scale;
 	pn->conn_state = tp->t_state;
-	pn->max_seg_size = tp->t_maxseg;
+	pn->mss = tp->t_maxseg;
 	pn->srtt = ((uint64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	pn->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
-	pn->flags = tp->t_flags;
+	pn->t_flags = tp->t_flags;
 	pn->rto = tp->t_rxtcur * tick;
 	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
 	pn->snd_buf_cc = sbused(&inp->inp_socket->so_snd);
@@ -796,7 +801,6 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 		info.lport = ntohs(inp->inp_lport);
 		info.fport = ntohs(inp->inp_fport);
 		info.key = hash_id;
-		info.ipver = INP_IPV4;
 
 		hash_node = siftr_new_hash_node(info, dir, ss);
 	}
@@ -946,7 +950,6 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 		info.lport = ntohs(inp->inp_lport);
 		info.fport = ntohs(inp->inp_fport);
 		info.key = hash_id;
-		info.ipver = INP_IPV6;
 
 		hash_node = siftr_new_hash_node(info, dir, ss);
 	}
