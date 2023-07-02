@@ -20,11 +20,11 @@ savecore_prestart()
 {
 	# Quit if we have no dump device
 	case ${dumpdev} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		debug 'No dump device. Quitting.'
 		return 1
 		;;
-	[Aa][Uu][Tt][Oo])
+	[Aa][Uu][Tt][Oo] | '')
 		if [ ! -L /dev/dumpdev ]; then
 			return 1
 		fi
