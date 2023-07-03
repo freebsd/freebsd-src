@@ -3851,7 +3851,7 @@ vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
 
 	if (error != 0) {
 		vrele(vp);
-		goto out;
+		return (error);
 	}
 
 	if (strlen(rpath) >= pathlen) {
