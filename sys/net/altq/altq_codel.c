@@ -289,16 +289,18 @@ codel_addq(struct codel *c, class_queue_t *q, struct mbuf *m)
 
 	if (qlen(q) < qlimit(q)) {
 		mtag = m_tag_locate(m, MTAG_CODEL, 0, NULL);
-		if (mtag == NULL)
+		if (mtag == NULL) {
 			mtag = m_tag_alloc(MTAG_CODEL, 0, sizeof(uint64_t),
 			    M_NOWAIT);
+			if (mtag != NULL)
+				m_tag_prepend(m, mtag);
+		}
 		if (mtag == NULL) {
 			m_freem(m);
 			return (-1);
 		}
 		enqueue_time = (uint64_t *)(mtag + 1);
 		*enqueue_time = read_machclk();
-		m_tag_prepend(m, mtag);
 		_addq(q, m);
 		return (0);
 	}
