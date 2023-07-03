@@ -288,6 +288,55 @@ prioritise_cleanup()
 	altq_cleanup
 }
 
+atf_test_case "codel_vlan" "cleanup"
+codel_vlan_head()
+{
+	atf_set descr 'Test double-pass through ALTQ with codel'
+	atf_set require.user root
+}
+
+codel_vlan_body()
+{
+	altq_init
+	is_altq_supported priq
+	is_altq_supported codel
+
+	j=altq_vlan_codel
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${j}a ${epair}a
+	va=$(jexec ${j}a ifconfig vlan create)
+	jexec ${j}a ifconfig ${epair}a up
+	jexec ${j}a ifconfig ${va} vlan 42 vlandev ${epair}a up
+	jexec ${j}a ifconfig ${va} inet 192.0.2.1/24
+
+	vnet_mkjail ${j}b ${epair}b
+	vb=$(jexec ${j}b ifconfig vlan create)
+	jexec ${j}b ifconfig ${epair}b up
+	jexec ${j}b ifconfig ${vb} vlan 42 vlandev ${epair}b up
+	jexec ${j}b ifconfig ${vb} inet 192.0.2.2/24
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}a ping -c 1 192.0.2.2
+
+	jexec ${j}a pfctl -e
+	pft_set_rules ${j}a \
+		"altq on ${epair}a priq bandwidth 10Mb queue { slow }" \
+		"queue slow priority 6 qlimit 50 priq ( default codel )" \
+		"altq on ${va} priq bandwidth 10Mb queue { vslow }" \
+		"queue vslow priority 6 qlimit 50 priq ( default codel )" \
+		"pass queue (slow)"
+
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}a ping -c 1 192.0.2.2
+}
+
+codel_vlan_cleanup()
+{
+	altq_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "hfsc"
@@ -295,4 +344,5 @@ atf_init_test_cases()
 	atf_add_test_case "cbq_vlan"
 	atf_add_test_case "codel_bridge"
 	atf_add_test_case "prioritise"
+	atf_add_test_case "codel_vlan"
 }
