@@ -28,7 +28,7 @@
 .\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2022
+.Dd July 3, 2023
 .Dt LOGGER 1
 .Os
 .Sh NAME
@@ -74,6 +74,8 @@ tries to send the message to all addresses.
 Log the process id of the logger process
 with each line.
 This flag is ignored and the process id is always logged.
+See also
+.Fl t .
 .It Fl s
 Log the message to standard error, as well as the system log.
 .It Fl f Ar file
@@ -153,6 +155,10 @@ and
 Mark every line in the log with the specified
 .Ar tag
 rather than the default of current login name.
+Use
+.Fl t Ar tag[N]
+to insert specific decimal process id instead of id of
+.Nm .
 .It Ar message
 Write the message to log; if not specified, and the
 .Fl f
