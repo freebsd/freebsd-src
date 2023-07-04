@@ -56,10 +56,11 @@ typedef	intptr_t word;		/* "word" used for optimal copy speed */
 void *
 #ifdef MEMCOPY
 memcpy
+(void *__restrict dst0, const void *__restrict src0, size_t length)
 #else
 memmove
-#endif
 (void *dst0, const void *src0, size_t length)
+#endif
 #else
 #include <strings.h>
 
@@ -67,12 +68,17 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
+#ifdef MEMCPY
+	if (length == 0)					/* nothing to do */
+		goto done;
+#else
+	if (length == 0 || dst0 == src0)		/* nothing to do */
+		goto done;
+#endif
+
 	char *dst = dst0;
 	const char *src = src0;
 	size_t t;
-
-	if (length == 0 || dst == src)		/* nothing to do */
-		goto done;
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
@@ -80,7 +86,9 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
+#ifndef MEMCPY
 	if ((unsigned long)dst < (unsigned long)src) {
+#endif
 		/*
 		 * Copy forward.
 		 */
@@ -105,6 +113,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
+#ifndef MEMCPY
 	} else {
 		/*
 		 * Copy backwards.  Otherwise essentially the same.
@@ -128,6 +137,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
+#endif
 done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return (dst0);
