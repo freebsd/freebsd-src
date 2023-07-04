@@ -1,45 +1,38 @@
-FreeBSD Source:
----------------
-This is the top level of the FreeBSD source directory.
+# Nobi Kernel
 
-FreeBSD is an operating system used to power modern servers, desktops, and embedded platforms.
-A large community has continually developed it for more than thirty years.
-Its advanced networking, security, and storage features have made FreeBSD the platform of choice for many of the busiest web sites and most pervasive embedded networking and storage devices.
+This is the source code for Nobi Kernel, a mobile operating system kernel that is based on the FreeBSD kernel. Nobi Kernel is used by Nobili OS, a mobile operating system that aims to provide a secure, stable, and user-friendly platform for mobile devices, such as smartphones, tablets, and wearables.
 
-For copyright information, please see [the file COPYRIGHT](COPYRIGHT) in this directory.
-Additional copyright information also exists for some sources in this tree - please see the specific source directories for more information.
+## Features
 
-The Makefile in this directory supports a number of targets for building components (or all) of the FreeBSD source tree.
-See build(7), config(8), [FreeBSD handbook on building userland](https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld), and [Handbook for kernels](https://docs.freebsd.org/en/books/handbook/kernelconfig/) for more information, including setting make(1) variables.
+- Compatible with most of the popular mobile hardware platforms, such as ARM, x86, and MIPS.
+- Supports various wireless technologies, such as Wi-Fi, Bluetooth, NFC, and 5G.
+- Respects the user's privacy and security, and does not collect or share any personal data without the user's consent.
+- Has a built-in firewall, antivirus, and encryption features to protect the user's device and data from malicious attacks.
+- Constantly updated and improved by a community of developers and users who contribute to its source code, bug reports, feedbacks, and suggestions.
+- Licensed under the FreeBSD License, which allows anyone to use, modify, distribute, or sell it without any restrictions or obligations.
 
-For information on the CPU architectures and platforms supported by FreeBSD, see the [FreeBSD
-website's Platforms page](https://www.freebsd.org/platforms/).
+## Installation
 
-Source Roadmap:
----------------
-| Directory | Description |
-| --------- | ----------- |
-| bin | System/user commands. |
-| cddl | Various commands and libraries under the Common Development and Distribution License. |
-| contrib | Packages contributed by 3rd parties. |
-| crypto | Cryptography stuff (see [crypto/README](crypto/README)). |
-| etc | Template files for /etc. |
-| gnu | Commands and libraries under the GNU General Public License (GPL) or Lesser General Public License (LGPL). Please see [gnu/COPYING](gnu/COPYING) and [gnu/COPYING.LIB](gnu/COPYING.LIB) for more information. |
-| include | System include files. |
-| kerberos5 | Kerberos5 (Heimdal) package. |
-| lib | System libraries. |
-| libexec | System daemons. |
-| release | Release building Makefile & associated tools. |
-| rescue | Build system for statically linked /rescue utilities. |
-| sbin | System commands. |
-| secure | Cryptographic libraries and commands. |
-| share | Shared resources. |
-| stand | Boot loader sources. |
-| sys | Kernel sources (see [sys/README.md](sys/README.md)). |
-| targets | Support for experimental `DIRDEPS_BUILD` |
-| tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
-| tools | Utilities for regression testing and miscellaneous tasks. |
-| usr.bin | User commands. |
-| usr.sbin | System administration commands. |
+To install the Nobi Kernel on your device, you will need to follow these steps:
 
-For information on synchronizing your source tree with one or more of the FreeBSD Project's development branches, please see [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/cutting-edge/#current-stable).
+- Download the latest version of the kernel from this repository or from the official website of Nobili OS, which is https://nobili-os.github.io/nobi-kernel/.
+- Extract the kernel file from the archive and copy it to your device's storage.
+- Boot your device into recovery mode and flash the kernel file using a compatible tool or app.
+- Reboot your device and enjoy Nobili OS.
+
+## Contribution
+
+To contribute to the development of the Nobi Kernel, you will need to follow these steps:
+
+- Fork this repository to your GitHub account and clone it to your local machine.
+- Make any changes or modifications to the kernel source code that you want. You can use your preferred text editor or IDE to edit the files in your local repository. You can also use git commands to add, commit, push, pull, branch, merge, and other operations on your repository.
+- Push your changes to your forked repository on GitHub and make a pull request to this repository. A pull request is a way of requesting that your changes be merged into the original repository. You will need to specify the branch that you want to merge from your forked repository and the branch that you want to merge into this repository. You will also need to provide a title and a description for your pull request, explaining what changes you made and why.
+- Wait for feedback or approval from the Nobi Kernel maintainers or contributors. They may review your pull request, comment on it, request changes, approve it, or reject it. You can follow the status and discussion of your pull request on GitHub. You may also need to make some revisions or updates to your pull request based on their feedback.
+
+## Support
+
+To get support for using or developing the Nobi Kernel, you can use these resources:
+
+- The official website of Nobili OS: https://nobili-os.github.io/nobi-kernel/
+- The official documentation of Nobili OS: https://nobili-os.github.io/nobi-kernel/docs
+- The official discussions of Nobili OS: https://github.com/nobili-os/nobi-kernel/discussions
