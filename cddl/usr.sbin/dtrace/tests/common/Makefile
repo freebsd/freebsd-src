@@ -32,6 +32,7 @@ TESTS_SUBDIRS+= aggs \
 		ip \
 		java_api \
 		json \
+		kinst \
 		lexer \
 		llquantize \
 		mdb \
