@@ -637,7 +637,7 @@ struct nct_device {
 	{
 		.devid   = 0xd282,
 		.descr   = "GPIO on Nuvoton NCT6112D/NCT6114D/NCT6116D",
-		.ngroups = 2,
+		.ngroups = 9,
 		.groups  = {
 			{
 				.grpnum      = 0,
@@ -646,7 +646,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x01,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe0, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe0,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xe0,
@@ -658,7 +658,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x02,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xe4,
@@ -670,7 +670,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x04,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xe8,
@@ -682,7 +682,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x08,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xec,
@@ -694,7 +694,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x10,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xf0,
@@ -706,7 +706,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x20,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xf4,
@@ -718,7 +718,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x40,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xf8,
@@ -730,7 +730,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x80,
 				.data_ldn    = 0x07,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xfc,
@@ -742,7 +742,7 @@ struct nct_device {
 				.enable_reg  = 0x30,
 				.enable_mask = 0x01,
 				.data_ldn    = 0x09,
-				.ppod_reg    = 0xe1, /* FIXME Need to check for this group. */
+				.ppod_reg    = 0xe1,
 				.caps        = NCT_GPIO_CAPS,
 				.npins       = 8,
 				.iobase      = 0xf0,
