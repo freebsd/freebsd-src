@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -67,6 +69,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h>
 #endif
 
 int (*dtrace_invop_jump_addr)(struct trapframe *);
@@ -128,30 +135,56 @@ cpu_fetch_syscall_args(struct thread *td)
 #include "../../kern/subr_syscall.c"
 
 static void
+print_with_symbol(const char *name, uint64_t value)
+{
+#ifdef DDB
+	c_db_sym_t sym;
+	db_expr_t sym_value;
+	db_expr_t offset;
+	const char *sym_name;
+#endif
+
+	printf("%7s: 0x%016lx", name, value);
+
+#ifdef DDB
+	if (value >= VM_MIN_KERNEL_ADDRESS) {
+		sym = db_search_symbol(value, DB_STGY_ANY, &offset);
+		if (sym != C_DB_SYM_NULL) {
+			db_symbol_values(sym, &sym_name, &sym_value);
+			printf(" (%s + 0x%lx)", sym_name, offset);
+		}
+	}
+#endif
+	printf("\n");
+}
+
+static void
 dump_regs(struct trapframe *frame)
 {
-	int n;
+	char name[6];
 	int i;
 
-	n = nitems(frame->tf_t);
-	for (i = 0; i < n; i++)
-		printf("t[%d] == 0x%016lx\n", i, frame->tf_t[i]);
+	for (i = 0; i < nitems(frame->tf_t); i++) {
+		snprintf(name, sizeof(name), "t[%d]", i);
+		print_with_symbol(name, frame->tf_t[i]);
+	}
 
-	n = nitems(frame->tf_s);
-	for (i = 0; i < n; i++)
-		printf("s[%d] == 0x%016lx\n", i, frame->tf_s[i]);
+	for (i = 0; i < nitems(frame->tf_s); i++) {
+		snprintf(name, sizeof(name), "s[%d]", i);
+		print_with_symbol(name, frame->tf_s[i]);
+	}
 
-	n = nitems(frame->tf_a);
-	for (i = 0; i < n; i++)
-		printf("a[%d] == 0x%016lx\n", i, frame->tf_a[i]);
+	for (i = 0; i < nitems(frame->tf_a); i++) {
+		snprintf(name, sizeof(name), "a[%d]", i);
+		print_with_symbol(name, frame->tf_a[i]);
+	}
 
-	printf("ra == 0x%016lx\n", frame->tf_ra);
-	printf("sp == 0x%016lx\n", frame->tf_sp);
-	printf("gp == 0x%016lx\n", frame->tf_gp);
-	printf("tp == 0x%016lx\n", frame->tf_tp);
-
-	printf("sepc == 0x%016lx\n", frame->tf_sepc);
-	printf("sstatus == 0x%016lx\n", frame->tf_sstatus);
+	print_with_symbol("ra", frame->tf_ra);
+	print_with_symbol("sp", frame->tf_sp);
+	print_with_symbol("gp", frame->tf_gp);
+	print_with_symbol("tp", frame->tf_tp);
+	print_with_symbol("sepc", frame->tf_sepc);
+	printf("sstatus: 0x%016lx\n", frame->tf_sstatus);
 }
 
 static void
