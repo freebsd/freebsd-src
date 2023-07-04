@@ -152,8 +152,7 @@ ENTRY(memset)
 	cmp	count, #128
 	b.lt	.Lnot_short
 
-	adrp	tmp2, dczva_line_size
-	add	tmp2, tmp2, :lo12:dczva_line_size
+	adrp	tmp2, dczva_line_size + :lo12:dczva_line_size
 	ldr	zva_len, [tmp2]
 	cbz	zva_len, .Lnot_short
 
