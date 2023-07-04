@@ -2832,7 +2832,8 @@ product LENOVO RTL8153_04	0x720c	USB 3.0 Ethernet
 product LENOVO TBT3LAN		0x3069	LAN port in Thinkpad TB3 dock
 product LENOVO USBCLAN		0x3062	LAN port in Thinkpad USB-C dock
 product LENOVO TBT3LANGEN2	0x3082  LAN port in Thinkpad TB3 dock gen2 
-product LENOVO USBCLANGEN2	0xa387  LAN port in Thinkpad UBS-C dock gen2
+product LENOVO USBCLANGEN2	0xa387  LAN port in Thinkpad USB-C dock gen2
+product LENOVO USBCLANHYBRID	0xa359  LAN port in Thinkpad Hybrid USB-C with USB-A dock
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
