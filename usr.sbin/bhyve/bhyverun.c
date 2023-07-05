@@ -1218,7 +1218,6 @@ main(int argc, char *argv[])
 	struct vcpu *bsp;
 	struct vmctx *ctx;
 	struct qemu_fwcfg_item *e820_fwcfg_item;
-	uint64_t rip;
 	size_t memsize;
 	const char *optstr, *value, *vmname;
 #ifdef BHYVE_SNAPSHOT
@@ -1538,9 +1537,6 @@ main(int argc, char *argv[])
 		}
 	}
 #endif
-
-	error = vm_get_register(bsp, VM_REG_GUEST_RIP, &rip);
-	assert(error == 0);
 
 	/*
 	 * build the guest tables, MP etc.
