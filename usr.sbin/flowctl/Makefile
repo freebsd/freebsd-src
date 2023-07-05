@@ -17,4 +17,6 @@ CFLAGS+= -DINET6
 CFLAGS+= -DINET
 .endif
 
+CFLAGS+= -Wno-error=unused-but-set-variable
+
 .include <bsd.prog.mk>
