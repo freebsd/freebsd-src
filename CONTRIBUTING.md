@@ -15,14 +15,14 @@ FreeBSD accepts source code contributions using one of several methods:
 - Direct access to the [Git repository](https://cgit.freebsd.org/src/)
 
 The preferred method depends on a few factors including the size or scope of
-the change. GitHub pull requests are preferred for relatively straightforward
+the change.  GitHub pull requests are preferred for relatively straightforward
 changes where the contributor already has a GitHub account.
 
 ## GitHub Pull Requests
 
 Presently, GitHub 'freebsd-src' repository is one of the publish-only services
 for the FreeBSD 'src' repository the project uses to promote collaboration and
-contribution. Pull requests that need little developer time, are generally
+contribution.  Pull requests that need little developer time, are generally
 small, and have limited scope should be submitted. Do not submit pull requests
 that are security-related, problem reports, works in progress, changes that are controversial
 and need discussion, or changes that require specialized review.
@@ -49,9 +49,9 @@ merge commit.
 
 More complex changes may be submitted as pull requests, but they may be closed
 if they are too large, too unwieldy, become inactive, need further discussion in
-the community, or need extensive revision. Please avoid creating large,
+the community, or need extensive revision.  Please avoid creating large,
 wide-ranging cleanup patches: they are too large and lack the focus needed for a
-good review. Misdirected patches may be redirected to a more appropriate forum
+good review.  Misdirected patches may be redirected to a more appropriate forum
 for the patch to be resolved.
 
 Please make sure that your submissions compile and work before submitting. If
