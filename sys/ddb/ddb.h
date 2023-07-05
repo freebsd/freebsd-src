@@ -85,21 +85,32 @@ int	DB_CALL(db_expr_t, db_expr_t *, int, db_expr_t[]);
  */
 extern vm_offset_t ksymtab, kstrtab, ksymtab_size, ksymtab_relbase;
 
-/*
- * There are three "command tables":
- * - One for simple commands; a list of these is displayed
- *   by typing 'help' at the debugger prompt.
- * - One for sub-commands of 'show'; to see this type 'show'
- *   without any arguments.
- * - The last one for sub-commands of 'show all'; type 'show all'
- *   without any argument to get a list.
- */
+/* Command tables contain a list of commands. */
 struct db_command;
 LIST_HEAD(db_command_table, db_command);
-extern struct db_command_table db_cmd_table;
-extern struct db_command_table db_show_table;
-extern struct db_command_table db_show_all_table;
-extern struct db_command_table db_show_active_table;
+
+#define	_DB_TABLE_NAME(table)	db_##table##_table
+
+#define	DB_DEFINE_TABLE(parent, name, table)				\
+	struct db_command_table _DB_TABLE_NAME(table) =			\
+	    LIST_HEAD_INITIALIZER(_DB_TABLE_NAME(table));		\
+	_DB_SET(parent, name, NULL, 0, &_DB_TABLE_NAME(table))
+
+#define	DB_DECLARE_TABLE(table)						\
+	extern struct db_command_table _DB_TABLE_NAME(table)
+
+/*
+ * Builtin command tables:
+ * - cmd: Top-level command table; a list of these is displayed
+ *   by typing 'help' at the debugger prompt.
+ * - show: Sub-commands of 'show'
+ * - show_all: Sub-commands of 'show all'
+ * - show_active: Sub-commands of 'show active'
+ */
+DB_DECLARE_TABLE(cmd);
+DB_DECLARE_TABLE(show);
+DB_DECLARE_TABLE(show_all);
+DB_DECLARE_TABLE(show_active);
 
 /*
  * Type signature for a function implementing a ddb command.
@@ -133,26 +144,36 @@ struct db_command {
  * in modules in which case they will be available only when
  * the module is loaded.
  */
-#define	_DB_SET(_suffix, _name, _func, list, _flag, _more)	\
-static struct db_command __CONCAT(_name,_suffix) = {		\
+#define	_DB_SET(_table, _name, _func, _flag, _more)		\
+static struct db_command db_##_table##_##_name##_cmd = {	\
 	.name	= __STRING(_name),				\
 	.fcn	= _func,					\
 	.flag	= _flag,					\
 	.more	= _more						\
 };								\
-static void __CONCAT(__CONCAT(_name,_suffix),_add)(void *arg __unused) \
-    { db_command_register(&list, &__CONCAT(_name,_suffix)); }	\
-SYSINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
-    __CONCAT(__CONCAT(_name,_suffix),_add), NULL);		\
-static void __CONCAT(__CONCAT(_name,_suffix),_del)(void *arg __unused) \
-    { db_command_unregister(&list, &__CONCAT(_name,_suffix)); }	\
-SYSUNINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
-    __CONCAT(__CONCAT(_name,_suffix),_del), NULL);
+								\
+static void							\
+db##_table##_##_name##_add(void *arg __unused)			\
+{								\
+	db_command_register(&_DB_TABLE_NAME(_table),		\
+	    &db_##_table##_##_name##_cmd);			\
+}								\
+SYSINIT(db_##_table##_##_name, SI_SUB_KLD, SI_ORDER_ANY,	\
+    db##_table##_##_name##_add, NULL);				\
+								\
+static void							\
+db##_table##_##_name##_del(void *arg __unused)			\
+{								\
+	db_command_unregister(&_DB_TABLE_NAME(_table),		\
+	    &db_##_table##_##_name##_cmd);			\
+}								\
+SYSUNINIT(db_##_table##_##_name, SI_SUB_KLD, SI_ORDER_ANY,	\
+    db##_table##_##_name##_del, NULL)
 
 /*
  * Like _DB_SET but also create the function declaration which
  * must be followed immediately by the body; e.g.
- *   _DB_FUNC(_cmd, panic, db_panic, db_cmd_table, 0, NULL)
+ *   DB_TABLE_COMMAND_FLAGS(_cmd, panic, db_panic, 0)
  *   {
  *	...panic implementation...
  *   }
@@ -160,38 +181,41 @@ SYSUNINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
  * This macro is mostly used to define commands placed in one of
  * the ddb command tables; see DB_COMMAND, etc. below.
  */
-#define	_DB_FUNC(_suffix, _name, _func, list, _flag, _more)	\
+#define	DB_TABLE_COMMAND_FLAGS(_table, _name, _func, _flag)	\
 static db_cmdfcn_t _func;					\
-_DB_SET(_suffix, _name, _func, list, _flag, _more);		\
+_DB_SET(_table, _name, _func, _flag, NULL);			\
 static void							\
 _func(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 
-/* common idom provided for backwards compatibility */
-#define	DB_FUNC(_name, _func, list, _flag, _more)		\
-	_DB_FUNC(_cmd, _name, _func, list, _flag, _more)
+#define	DB_TABLE_COMMAND(_table, _name, _func)			\
+	DB_TABLE_COMMAND_FLAGS(_table, _name, _func, 0)
+
+/* Wrappers around _DB_SET used for aliases. */
+#define	DB_TABLE_ALIAS_FLAGS(_table, _name, _func, _flag)	\
+	_DB_SET(_table, _name, _func, _flag, NULL)
+#define	DB_TABLE_ALIAS(_table, _name, _func)			\
+	DB_TABLE_ALIAS_FLAGS(_table, _name, _func, 0)
 
 #define	DB_COMMAND_FLAGS(cmd_name, func_name, flags) \
-	_DB_FUNC(_cmd, cmd_name, func_name, db_cmd_table, flags, NULL)
+	DB_TABLE_COMMAND_FLAGS(cmd, cmd_name, func_name, flags)
 #define	DB_COMMAND(cmd_name, func_name) \
 	DB_COMMAND_FLAGS(cmd_name, func_name, 0)
 #define	DB_ALIAS_FLAGS(alias_name, func_name, flags) \
-	_DB_SET(_cmd, alias_name, func_name, db_cmd_table, flags, NULL)
+	DB_TABLE_ALIAS_FLAGS(cmd, alias_name, func_name, flags)
 #define	DB_ALIAS(alias_name, func_name) \
 	DB_ALIAS_FLAGS(alias_name, func_name, 0)
 #define	DB_SHOW_COMMAND_FLAGS(cmd_name, func_name, flags) \
-	_DB_FUNC(_show, cmd_name, func_name, db_show_table, flags, NULL)
+	DB_TABLE_COMMAND_FLAGS(show, cmd_name, func_name, flags)
 #define	DB_SHOW_COMMAND(cmd_name, func_name) \
 	DB_SHOW_COMMAND_FLAGS(cmd_name, func_name, 0)
 #define	DB_SHOW_ALIAS_FLAGS(alias_name, func_name, flags) \
-	_DB_SET(_show, alias_name, func_name, db_show_table, flags, NULL)
+	DB_TABLE_ALIAS_FLAGS(show, alias_name, func_name, flags)
 #define	DB_SHOW_ALIAS(alias_name, func_name) \
 	DB_SHOW_ALIAS_FLAGS(alias_name, func_name, 0)
 #define	DB_SHOW_ALL_COMMAND(cmd_name, func_name)			\
-	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table,	\
-	    DB_CMD_MEMSAFE, NULL)
+	DB_TABLE_COMMAND_FLAGS(show_all, cmd_name, func_name, DB_CMD_MEMSAFE)
 #define	DB_SHOW_ALL_ALIAS(alias_name, func_name)			\
-	_DB_SET(_show_all, alias_name, func_name, db_show_all_table,	\
-	    DB_CMD_MEMSAFE, NULL)
+	DB_TABLE_ALIAS_FLAGS(show_all, alias_name, func_name, DB_CMD_MEMSAFE)
 
 extern db_expr_t db_maxoff;
 extern int db_indent;

@@ -166,7 +166,7 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 	return (0);
 }
 
-DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
+DB_SHOW_COMMAND(routetable, db_show_routetable)
 {
 	struct rib_head *rnh;
 	int error, i, lim;
@@ -204,7 +204,7 @@ DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
 	}
 }
 
-DB_SHOW_COMMAND_FLAGS(route, db_show_route_cmd, CS_OWN)
+DB_SHOW_COMMAND_FLAGS(route, db_show_route, CS_OWN)
 {
 	char abuf[INET6_ADDRSTRLEN], *buf, *end;
 	struct rib_head *rh;
