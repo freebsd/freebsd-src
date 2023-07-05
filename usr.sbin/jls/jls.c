@@ -384,7 +384,10 @@ print_jail(int pflags, int jflags)
 {
 	char *nname, *xo_nname;
 	char **param_values;
-	int i, jid, n, spc;
+	int i, jid, spc;
+#if (defined INET || defined INET6)
+	int n;
+#endif
 
 	jid = jailparam_get(params, nparams, jflags);
 	if (jid < 0)
@@ -402,7 +405,9 @@ print_jail(int pflags, int jflags)
 		    (char *)params[3].jp_value,
 		    *(int *)params[4].jp_value ? "DYING" : "ACTIVE");
 		xo_emit("{P:        }{:cpusetid/%d}\n", *(int *)params[5].jp_value);
+#if (defined INET || defined INET6)
 		n = 6;
+#endif
 #ifdef INET
 		if (ip4_ok && !strcmp(params[n].jp_name, "ip4.addr")) {
 			emit_ip_addr_list(AF_INET, "ipv4_addrs", params + n);
