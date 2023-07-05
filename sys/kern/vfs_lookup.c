@@ -1314,11 +1314,9 @@ good:
 				crosslkflags &= ~LK_SHARED;
 				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
 			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
-				vn_lock(dp, LK_UPGRADE | LK_RETRY);
-				if (VN_IS_DOOMED(dp)) {
-					error = ENOENT;
-					goto bad2;
-				}
+				error = vn_lock(dp, LK_UPGRADE);
+				if (error != 0)
+					goto bad_unlocked;
 				if (dp->v_mountedhere != mp) {
 					continue;
 				}
