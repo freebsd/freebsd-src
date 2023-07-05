@@ -31,7 +31,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-/*$FreeBSD$*/
 
 
 #include <sys/mman.h>
@@ -49,7 +48,7 @@
 /**
  *  Driver version
  */
-char libirdma_version[] = "1.1.11-k";
+char libirdma_version[] = "1.2.17-k";
 
 unsigned int irdma_dbg;
 

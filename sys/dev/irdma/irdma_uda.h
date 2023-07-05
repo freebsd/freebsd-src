@@ -53,7 +53,7 @@ struct irdma_ah_info {
 	u8 insert_vlan_tag;
 	u8 tc_tos;
 	u8 hop_ttl;
-	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr[ETHER_ADDR_LEN];
 	bool ah_valid:1;
 	bool ipv4_valid:1;
 	bool do_lpbk:1;

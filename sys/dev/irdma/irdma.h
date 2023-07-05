@@ -166,7 +166,7 @@ struct irdma_mcast_grp_ctx_entry_info {
 };
 
 struct irdma_mcast_grp_info {
-	u8 dest_mac_addr[ETH_ALEN];
+	u8 dest_mac_addr[ETHER_ADDR_LEN];
 	u16 vlan_id;
 	u16 hmc_fcn_id;
 	bool ipv4_valid:1;

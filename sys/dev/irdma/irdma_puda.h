@@ -71,7 +71,7 @@ struct irdma_puda_cmpl_info {
 	bool ipv4:1;
 	bool smac_valid:1;
 	bool vlan_valid:1;
-	u8 smac[ETH_ALEN];
+	u8 smac[ETHER_ADDR_LEN];
 };
 
 struct irdma_puda_send_info {
@@ -108,7 +108,7 @@ struct irdma_puda_buf {
 	bool smac_valid:1;
 	u32 seqnum;
 	u32 ah_id;
-	u8 smac[ETH_ALEN];
+	u8 smac[ETHER_ADDR_LEN];
 	struct irdma_sc_vsi *vsi;
 };
 

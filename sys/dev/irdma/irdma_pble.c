@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -56,8 +56,7 @@ irdma_destroy_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 		list_del(&chunk->list);
 		if (chunk->type == PBLE_SD_PAGED)
 			irdma_pble_free_paged_mem(chunk);
-		if (chunk->bitmapbuf)
-			irdma_prm_rem_bitmapmem(pble_rsrc->dev->hw, chunk);
+		bitmap_free(chunk->bitmapbuf);
 		kfree(chunk->chunkmem.va);
 	}
 	spin_lock_destroy(&pinfo->prm_lock);
@@ -289,7 +288,8 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 
 	irdma_debug(dev, IRDMA_DEBUG_PBLE,
 		    "pages = %d, unallocated_pble[%d] current_fpm_addr = %lx\n",
-		    pages, pble_rsrc->unallocated_pble, pble_rsrc->next_fpm_addr);
+		    pages, pble_rsrc->unallocated_pble,
+		    pble_rsrc->next_fpm_addr);
 	irdma_debug(dev, IRDMA_DEBUG_PBLE, "sd_entry_type = %d\n",
 		    sd_entry_type);
 	if (sd_entry_type == IRDMA_SD_TYPE_DIRECT)
@@ -303,14 +303,14 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	if (sd_entry_type == IRDMA_SD_TYPE_PAGED) {
 		ret_code = add_bp_pages(pble_rsrc, &info);
 		if (ret_code)
-			goto error;
+			goto err_bp_pages;
 		else
 			pble_rsrc->stats_paged_sds++;
 	}
 
 	ret_code = irdma_prm_add_pble_mem(&pble_rsrc->pinfo, chunk);
 	if (ret_code)
-		goto error;
+		goto err_bp_pages;
 
 	pble_rsrc->next_fpm_addr += chunk->size;
 	irdma_debug(dev, IRDMA_DEBUG_PBLE,
@@ -332,8 +332,8 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	return 0;
 
 error:
-	if (chunk->bitmapbuf)
-		irdma_prm_rem_bitmapmem(pble_rsrc->dev->hw, chunk);
+	bitmap_free(chunk->bitmapbuf);
+err_bp_pages:
 	kfree(chunk->chunkmem.va);
 
 	return ret_code;

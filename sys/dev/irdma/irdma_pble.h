@@ -101,7 +101,7 @@ struct irdma_add_page_info {
 struct irdma_chunk {
 	struct list_head list;
 	struct irdma_dma_info dmainfo;
-	void *bitmapbuf;
+	unsigned long *bitmapbuf;
 
 	u32 sizeofbitmap;
 	u64 size;
@@ -110,7 +110,6 @@ struct irdma_chunk {
 	u32 pg_cnt;
 	enum irdma_alloc_type type;
 	struct irdma_sc_dev *dev;
-	struct irdma_virt_mem bitmapmem;
 	struct irdma_virt_mem chunkmem;
 };
 
@@ -161,5 +160,4 @@ void irdma_pble_release_lock(struct irdma_hmc_pble_rsrc *pble_rsrc,
 			     unsigned long *flags);
 void irdma_pble_free_paged_mem(struct irdma_chunk *chunk);
 int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt);
-void irdma_prm_rem_bitmapmem(struct irdma_hw *hw, struct irdma_chunk *chunk);
 #endif /* IRDMA_PBLE_H */

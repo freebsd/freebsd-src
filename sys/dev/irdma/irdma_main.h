@@ -148,6 +148,11 @@ enum init_completion_state {
 	IP_ADDR_REGISTERED,  /* Last state of open */
 };
 
+struct ae_desc {
+	u16 id;
+	const char *desc;
+};
+
 struct irdma_rsrc_limits {
 	u32 qplimit;
 	u32 mrlimit;
@@ -176,8 +181,8 @@ struct irdma_cqp_request {
 	void (*callback_fcn)(struct irdma_cqp_request *cqp_request);
 	void *param;
 	struct irdma_cqp_compl_info compl_info;
+	bool request_done; /* READ/WRITE_ONCE macros operate on it */
 	bool waiting:1;
-	bool request_done:1;
 	bool dynamic:1;
 };
 
@@ -220,7 +225,7 @@ struct irdma_aeq {
 
 struct irdma_arp_entry {
 	u32 ip_addr[4];
-	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr[ETHER_ADDR_LEN];
 };
 
 struct irdma_msix_vector {
@@ -359,7 +364,7 @@ struct irdma_pci_f {
 struct irdma_device {
 	struct ib_device ibdev;
 	struct irdma_pci_f *rf;
-	struct ifnet *netdev;
+	if_t netdev;
 	struct notifier_block nb_netdevice_event;
 	struct irdma_handler *hdl;
 	struct workqueue_struct *cleanup_wq;
@@ -522,6 +527,7 @@ void irdma_put_cqp_request(struct irdma_cqp *cqp,
 int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx);
 int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx);
 void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx);
+const char *irdma_get_ae_desc(u16 ae_id);
 
 u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf);
 void irdma_port_ibevent(struct irdma_device *iwdev);
@@ -567,7 +573,7 @@ void irdma_gen_ae(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
 void irdma_copy_ip_ntohl(u32 *dst, __be32 *src);
 void irdma_copy_ip_htonl(__be32 *dst, u32 *src);
 u16 irdma_get_vlan_ipv4(u32 *addr);
-struct ifnet *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac);
+if_t irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac);
 struct ib_mr *irdma_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 				int acc, u64 *iova_start);
 int irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw);

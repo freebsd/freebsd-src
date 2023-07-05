@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -184,10 +184,6 @@ int irdma_hmc_sd_one(struct irdma_sc_dev *dev, u16 hmc_fn_id, u64 pa, u32 sd_idx
 		     bool setsd);
 int irdma_update_sds_noccq(struct irdma_sc_dev *dev,
 			   struct irdma_update_sds_info *info);
-struct irdma_vfdev *irdma_vfdev_from_fpm(struct irdma_sc_dev *dev,
-					 u16 hmc_fn_id);
-struct irdma_hmc_info *irdma_vf_hmcinfo_from_fpm(struct irdma_sc_dev *dev,
-						 u16 hmc_fn_id);
 int irdma_add_sd_table_entry(struct irdma_hw *hw,
 			     struct irdma_hmc_info *hmc_info, u32 sd_index,
 			     enum irdma_sd_entry_type type, u64 direct_mode_sz);
