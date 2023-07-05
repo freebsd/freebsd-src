@@ -926,7 +926,6 @@ vfs_lookup(struct nameidata *ndp)
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
-	int dpunlocked = 0;		/* dp has already been unlocked */
 	int relookup = 0;		/* do not consume the path component */
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
@@ -1342,10 +1341,8 @@ good:
 			vput(dp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
-		if (error != 0) {
-			dpunlocked = 1;
-			goto bad2;
-		}
+		if (error != 0)
+			goto bad_unlocked;
 		ndp->ni_vp = dp = tdp;
 	} while ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0);
 
@@ -1457,8 +1454,7 @@ bad2:
 			vrele(ndp->ni_dvp);
 	}
 bad:
-	if (!dpunlocked)
-		vput(dp);
+	vput(dp);
 bad_unlocked:
 	ndp->ni_vp = NULL;
 	return (error);
