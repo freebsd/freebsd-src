@@ -1263,7 +1263,7 @@ DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 		}
 	}
 }
-DB_SHOW_ALIAS_FLAGS(allchains, db_show_allchains, DB_CMD_MEMSAFE)
+DB_SHOW_ALIAS_FLAGS(allchains, db_show_allchains, DB_CMD_MEMSAFE);
 
 static void	print_waiters(struct turnstile *ts, int indent);
 
