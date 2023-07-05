@@ -94,7 +94,7 @@ static struct ktest_module_info _module_info = {			\
 };									\
 									\
 static moduledata_t _module_data = {					\
-        "__"  #_n  "_module",						\
+        #_n,								\
         ktest_default_modevent,						\
         &_module_info,							\
 };									\
@@ -102,6 +102,7 @@ static moduledata_t _module_data = {					\
 DECLARE_MODULE(ktest_##_n, _module_data, SI_SUB_PSEUDO, SI_ORDER_ANY);	\
 MODULE_VERSION(ktest_##_n, 1);						\
 MODULE_DEPEND(ktest_##_n, ktestmod, 1, 1, 1);				\
+MODULE_DEPEND(ktest_##_n, netlink, 1, 1, 1);				\
 
 #endif /* _KERNEL */
 

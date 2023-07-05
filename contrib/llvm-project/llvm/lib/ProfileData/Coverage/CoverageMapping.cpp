@@ -14,11 +14,10 @@
 #include "llvm/ProfileData/Coverage/CoverageMapping.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Object/BuildID.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingReader.h"
 #include "llvm/ProfileData/InstrProfReader.h"
 #include "llvm/Support/Debug.h"
@@ -33,6 +32,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -343,10 +343,49 @@ static Error handleMaybeNoDataFoundError(Error E) {
       });
 }
 
+Error CoverageMapping::loadFromFile(
+    StringRef Filename, StringRef Arch, StringRef CompilationDir,
+    IndexedInstrProfReader &ProfileReader, CoverageMapping &Coverage,
+    bool &DataFound, SmallVectorImpl<object::BuildID> *FoundBinaryIDs) {
+  auto CovMappingBufOrErr = MemoryBuffer::getFileOrSTDIN(
+      Filename, /*IsText=*/false, /*RequiresNullTerminator=*/false);
+  if (std::error_code EC = CovMappingBufOrErr.getError())
+    return createFileError(Filename, errorCodeToError(EC));
+  MemoryBufferRef CovMappingBufRef =
+      CovMappingBufOrErr.get()->getMemBufferRef();
+  SmallVector<std::unique_ptr<MemoryBuffer>, 4> Buffers;
+
+  SmallVector<object::BuildIDRef> BinaryIDs;
+  auto CoverageReadersOrErr = BinaryCoverageReader::create(
+      CovMappingBufRef, Arch, Buffers, CompilationDir,
+      FoundBinaryIDs ? &BinaryIDs : nullptr);
+  if (Error E = CoverageReadersOrErr.takeError()) {
+    E = handleMaybeNoDataFoundError(std::move(E));
+    if (E)
+      return createFileError(Filename, std::move(E));
+    return E;
+  }
+
+  SmallVector<std::unique_ptr<CoverageMappingReader>, 4> Readers;
+  for (auto &Reader : CoverageReadersOrErr.get())
+    Readers.push_back(std::move(Reader));
+  if (FoundBinaryIDs && !Readers.empty()) {
+    llvm::append_range(*FoundBinaryIDs,
+                       llvm::map_range(BinaryIDs, [](object::BuildIDRef BID) {
+                         return object::BuildID(BID);
+                       }));
+  }
+  DataFound |= !Readers.empty();
+  if (Error E = loadFromReaders(Readers, ProfileReader, Coverage))
+    return createFileError(Filename, std::move(E));
+  return Error::success();
+}
+
 Expected<std::unique_ptr<CoverageMapping>>
 CoverageMapping::load(ArrayRef<StringRef> ObjectFilenames,
                       StringRef ProfileFilename, ArrayRef<StringRef> Arches,
-                      StringRef CompilationDir) {
+                      StringRef CompilationDir,
+                      const object::BuildIDFetcher *BIDFetcher) {
   auto ProfileReaderOrErr = IndexedInstrProfReader::create(ProfileFilename);
   if (Error E = ProfileReaderOrErr.takeError())
     return createFileError(ProfileFilename, std::move(E));
@@ -354,35 +393,53 @@ CoverageMapping::load(ArrayRef<StringRef> ObjectFilenames,
   auto Coverage = std::unique_ptr<CoverageMapping>(new CoverageMapping());
   bool DataFound = false;
 
+  auto GetArch = [&](size_t Idx) {
+    if (Arches.empty())
+      return StringRef();
+    if (Arches.size() == 1)
+      return Arches.front();
+    return Arches[Idx];
+  };
+
+  SmallVector<object::BuildID> FoundBinaryIDs;
   for (const auto &File : llvm::enumerate(ObjectFilenames)) {
-    auto CovMappingBufOrErr = MemoryBuffer::getFileOrSTDIN(
-        File.value(), /*IsText=*/false, /*RequiresNullTerminator=*/false);
-    if (std::error_code EC = CovMappingBufOrErr.getError())
-      return createFileError(File.value(), errorCodeToError(EC));
-    StringRef Arch = Arches.empty() ? StringRef() : Arches[File.index()];
-    MemoryBufferRef CovMappingBufRef =
-        CovMappingBufOrErr.get()->getMemBufferRef();
-    SmallVector<std::unique_ptr<MemoryBuffer>, 4> Buffers;
-    auto CoverageReadersOrErr = BinaryCoverageReader::create(
-        CovMappingBufRef, Arch, Buffers, CompilationDir);
-    if (Error E = CoverageReadersOrErr.takeError()) {
-      E = handleMaybeNoDataFoundError(std::move(E));
-      if (E)
-        return createFileError(File.value(), std::move(E));
-      // E == success (originally a no_data_found error).
-      continue;
+    if (Error E =
+            loadFromFile(File.value(), GetArch(File.index()), CompilationDir,
+                         *ProfileReader, *Coverage, DataFound, &FoundBinaryIDs))
+      return std::move(E);
+  }
+
+  if (BIDFetcher) {
+    std::vector<object::BuildID> ProfileBinaryIDs;
+    if (Error E = ProfileReader->readBinaryIds(ProfileBinaryIDs))
+      return createFileError(ProfileFilename, std::move(E));
+
+    SmallVector<object::BuildIDRef> BinaryIDsToFetch;
+    if (!ProfileBinaryIDs.empty()) {
+      const auto &Compare = [](object::BuildIDRef A, object::BuildIDRef B) {
+        return std::lexicographical_compare(A.begin(), A.end(), B.begin(),
+                                            B.end());
+      };
+      llvm::sort(FoundBinaryIDs, Compare);
+      std::set_difference(
+          ProfileBinaryIDs.begin(), ProfileBinaryIDs.end(),
+          FoundBinaryIDs.begin(), FoundBinaryIDs.end(),
+          std::inserter(BinaryIDsToFetch, BinaryIDsToFetch.end()), Compare);
     }
 
-    SmallVector<std::unique_ptr<CoverageMappingReader>, 4> Readers;
-    for (auto &Reader : CoverageReadersOrErr.get())
-      Readers.push_back(std::move(Reader));
-    DataFound |= !Readers.empty();
-    if (Error E = loadFromReaders(Readers, *ProfileReader, *Coverage))
-      return createFileError(File.value(), std::move(E));
+    for (object::BuildIDRef BinaryID : BinaryIDsToFetch) {
+      std::optional<std::string> PathOpt = BIDFetcher->fetch(BinaryID);
+      if (!PathOpt)
+        continue;
+      std::string Path = std::move(*PathOpt);
+      StringRef Arch = Arches.size() == 1 ? Arches.front() : StringRef();
+      if (Error E = loadFromFile(Path, Arch, CompilationDir, *ProfileReader,
+                                 *Coverage, DataFound))
+        return std::move(E);
+    }
   }
-  // If no readers were created, either no objects were provided or none of them
-  // had coverage data. Return an error in the latter case.
-  if (!DataFound && !ObjectFilenames.empty())
+
+  if (!DataFound)
     return createFileError(
         join(ObjectFilenames.begin(), ObjectFilenames.end(), ", "),
         make_error<CoverageMapError>(coveragemap_error::no_data_found));
@@ -455,10 +512,10 @@ class SegmentBuilder {
 
   /// Emit segments for active regions which end before \p Loc.
   ///
-  /// \p Loc: The start location of the next region. If None, all active
+  /// \p Loc: The start location of the next region. If std::nullopt, all active
   /// regions are completed.
   /// \p FirstCompletedRegion: Index of the first completed region.
-  void completeRegionsUntil(Optional<LineColPair> Loc,
+  void completeRegionsUntil(std::optional<LineColPair> Loc,
                             unsigned FirstCompletedRegion) {
     // Sort the completed regions by end location. This makes it simple to
     // emit closing segments in sorted order.
@@ -557,7 +614,7 @@ class SegmentBuilder {
 
     // Complete any remaining active regions.
     if (!ActiveRegions.empty())
-      completeRegionsUntil(None, 0);
+      completeRegionsUntil(std::nullopt, 0);
   }
 
   /// Sort a nested sequence of regions from a single file.
@@ -676,25 +733,27 @@ static SmallBitVector gatherFileIDs(StringRef SourceFile,
 }
 
 /// Return the ID of the file where the definition of the function is located.
-static Optional<unsigned> findMainViewFileID(const FunctionRecord &Function) {
+static std::optional<unsigned>
+findMainViewFileID(const FunctionRecord &Function) {
   SmallBitVector IsNotExpandedFile(Function.Filenames.size(), true);
   for (const auto &CR : Function.CountedRegions)
     if (CR.Kind == CounterMappingRegion::ExpansionRegion)
       IsNotExpandedFile[CR.ExpandedFileID] = false;
   int I = IsNotExpandedFile.find_first();
   if (I == -1)
-    return None;
+    return std::nullopt;
   return I;
 }
 
 /// Check if SourceFile is the file that contains the definition of
-/// the Function. Return the ID of the file in that case or None otherwise.
-static Optional<unsigned> findMainViewFileID(StringRef SourceFile,
-                                             const FunctionRecord &Function) {
-  Optional<unsigned> I = findMainViewFileID(Function);
+/// the Function. Return the ID of the file in that case or std::nullopt
+/// otherwise.
+static std::optional<unsigned>
+findMainViewFileID(StringRef SourceFile, const FunctionRecord &Function) {
+  std::optional<unsigned> I = findMainViewFileID(Function);
   if (I && SourceFile == Function.Filenames[*I])
     return I;
-  return None;
+  return std::nullopt;
 }
 
 static bool isExpansion(const CountedRegion &R, unsigned FileID) {

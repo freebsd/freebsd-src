@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/pctrie.h>
 #include <sys/proc.h>	/* smr.h depends on struct thread. */
 #include <sys/smr.h>
@@ -92,12 +93,28 @@ static __inline void pctrie_node_store(smr_pctnode_t *p, void *val,
     enum pctrie_access access);
 
 /*
+ * Return the position in the array for a given level.
+ */
+static __inline int
+pctrie_slot(uint64_t index, uint16_t level)
+{
+	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
+}
+
+/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
+static __inline uint64_t
+pctrie_trimkey(uint64_t index, uint16_t level)
+{
+	return (index & -PCTRIE_UNITLEVEL(level));
+}
+
+/*
  * Allocate a node.  Pre-allocation should ensure that the request
  * will always be satisfied.
  */
 static struct pctrie_node *
-pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
-    uint16_t count, uint16_t clevel)
+pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t index,
+    uint16_t clevel)
 {
 	struct pctrie_node *node;
 
@@ -115,8 +132,8 @@ pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
 		    PCTRIE_UNSERIALIZED);
 		node->pn_last = 0;
 	}
-	node->pn_owner = owner;
-	node->pn_count = count;
+	node->pn_owner = pctrie_trimkey(index, clevel + 1);
+	node->pn_count = 2;
 	node->pn_clev = clevel;
 	return (node);
 }
@@ -143,30 +160,6 @@ pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
 #endif
 	node->pn_last = last + 1;
 	freefn(ptree, node);
-}
-
-/*
- * Return the position in the array for a given level.
- */
-static __inline int
-pctrie_slot(uint64_t index, uint16_t level)
-{
-
-	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
-}
-
-/* Trims the key after the specified level. */
-static __inline uint64_t
-pctrie_trimkey(uint64_t index, uint16_t level)
-{
-	uint64_t ret;
-
-	ret = index;
-	if (level > 0) {
-		ret >>= level * PCTRIE_WIDTH;
-		ret <<= level * PCTRIE_WIDTH;
-	}
-	return (ret);
 }
 
 /*
@@ -235,6 +228,15 @@ pctrie_isleaf(struct pctrie_node *node)
 }
 
 /*
+ * Returns val with leaf bit set.
+ */
+static __inline void *
+pctrie_toleaf(uint64_t *val)
+{
+	return ((void *)((uintptr_t)val | PCTRIE_ISLEAF));
+}
+
+/*
  * Returns the associated val extracted from node.
  */
 static __inline uint64_t *
@@ -255,25 +257,26 @@ pctrie_addval(struct pctrie_node *node, uint64_t index, uint16_t clev,
 
 	slot = pctrie_slot(index, clev);
 	pctrie_node_store(&node->pn_child[slot],
-	    (void *)((uintptr_t)val | PCTRIE_ISLEAF), access);
+	    pctrie_toleaf(val), access);
 }
 
 /*
- * Returns the slot where two keys differ.
+ * Returns the level where two keys differ.
  * It cannot accept 2 equal keys.
  */
 static __inline uint16_t
 pctrie_keydiff(uint64_t index1, uint64_t index2)
 {
-	uint16_t clev;
 
 	KASSERT(index1 != index2, ("%s: passing the same key value %jx",
 	    __func__, (uintmax_t)index1));
+	CTASSERT(sizeof(long long) >= sizeof(uint64_t));
 
-	index1 ^= index2;
-	for (clev = PCTRIE_LIMIT;; clev--)
-		if (pctrie_slot(index1, clev) != 0)
-			return (clev);
+	/*
+	 * From the highest-order bit where the indexes differ,
+	 * compute the highest level in the trie where they differ.
+	 */
+	return ((flsll(index1 ^ index2) - 1) / PCTRIE_WIDTH);
 }
 
 /*
@@ -361,7 +364,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL) {
-		ptree->pt_root = (uintptr_t)val | PCTRIE_ISLEAF;
+		ptree->pt_root = (uintptr_t)pctrie_toleaf(val);
 		return (0);
 	}
 	parentp = (smr_pctnode_t *)&ptree->pt_root;
@@ -372,8 +375,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			clev = pctrie_keydiff(*m, index);
-			tmp = pctrie_node_get(ptree, allocfn,
-			    pctrie_trimkey(index, clev + 1), 2, clev);
+			tmp = pctrie_node_get(ptree, allocfn, index, clev);
 			if (tmp == NULL)
 				return (ENOMEM);
 			/* These writes are not yet visible due to ordering. */
@@ -404,8 +406,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	newind = node->pn_owner;
 	clev = pctrie_keydiff(newind, index);
-	tmp = pctrie_node_get(ptree, allocfn,
-	    pctrie_trimkey(index, clev + 1), 2, clev);
+	tmp = pctrie_node_get(ptree, allocfn, index, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
 	slot = pctrie_slot(newind, clev);
@@ -565,8 +566,9 @@ ascend:
 				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
-					if (*m >= index)
-						return (m);
+					KASSERT(*m >= index,
+					    ("pctrie_lookup_ge: leaf < index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot < (PCTRIE_COUNT - 1));
@@ -682,8 +684,9 @@ ascend:
 				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
-					if (*m <= index)
-						return (m);
+					KASSERT(*m <= index,
+					    ("pctrie_lookup_le: leaf > index"));
+					return (m);
 				} else if (child != NULL)
 					goto descend;
 			} while (slot > 0);
@@ -747,7 +750,7 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 				if (tmp != NULL)
 					break;
 			}
-			KASSERT(i != PCTRIE_COUNT,
+			KASSERT(tmp != NULL,
 			    ("%s: invalid node configuration", __func__));
 			if (parent == NULL)
 				pctrie_root_store(ptree, tmp, PCTRIE_LOCKED);

@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -151,8 +151,7 @@ typedef struct _CpaCyKeyGenSslOpData {
      * The length field indicates the length of the label in bytes. To use this
      * field, the sslOp must be CPA_CY_KEY_SSL_OP_USER_DEFINED,
      * or otherwise it is ignored and can be set to NULL.
-	 * Implementation-specific limits
-     * may apply to this length. */
+     * Implementation-specific limits may apply to this length. */
 } CpaCyKeyGenSslOpData;
 
 /**
@@ -298,7 +297,7 @@ typedef enum _CpaCyKeyHKDFCipherSuite
 #define    CPA_CY_HKDF_SUBLABEL_FINISHED              ((Cpa16U)0x0008)
         /**< Bit for creation of key material for 'finished' sublabel */
 
-#define CPA_CY_HKDF_KEY_MAX_SECRET_SZ   ((Cpa8U)64)
+#define CPA_CY_HKDF_KEY_MAX_SECRET_SZ   ((Cpa8U)80)
         /** space in bytes PSK or (EC)DH */
 #define CPA_CY_HKDF_KEY_MAX_HMAC_SZ     ((Cpa8U)48)
         /** space in bytes of CPA_CY_SYM_HASH_SHA384 result */
@@ -346,7 +345,6 @@ typedef struct _CpaCyKeyGenHKDFExpandLabel
 
 /**
  *****************************************************************************
- * @file cpa_cy_key.h
  * @ingroup cpaCyKeyGen
  *      TLS data for key generation functions
  * @description
@@ -838,7 +836,6 @@ cpaCyKeyGenTls2(const CpaInstanceHandle instanceHandle,
 
 /**
  *****************************************************************************
- * @file cpa_cy_key.h
  * @ingroup cpaCyKeyGen
  *      TLS Key Generation Function version 3.
  * @description

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "host_syscall.h"
 #include "kboot.h"
 #include "stand.h"
+#include <smbios.h>
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -168,7 +169,7 @@ kboot_rsdp_from_efi(void)
 			return((vm_offset_t)strtoull(walker + 7, NULL, 0));
 		if (strncmp("ACPI=", walker, 5) == 0)
 			return((vm_offset_t)strtoull(walker + 5, NULL, 0));
-		walker += strcspn(walker, "\n");
+		walker += strcspn(walker, "\n") + 1;
 	}
 	return (0);
 }
@@ -193,6 +194,107 @@ bool
 has_acpi(void)
 {
 	return rsdp != 0;
+}
+
+/*
+ * SMBIOS support. We map the physical memory address we get into a VA in this
+ * address space with mmap with 64k pages. Once we're done, we cleanup any
+ * mappings we made.
+ */
+
+#define MAX_MAP	10
+#define PAGE	(64<<10)
+
+static struct mapping
+{
+	uintptr_t pa;
+	caddr_t va;
+} map[MAX_MAP];
+static int smbios_fd;
+static int nmap;
+
+caddr_t ptov(uintptr_t pa)
+{
+	caddr_t va;
+	uintptr_t pa2;
+	struct mapping *m = map;
+
+	pa2 = rounddown(pa, PAGE);
+	for (int i = 0; i < nmap; i++, m++) {
+		if (m->pa == pa2) {
+			return (m->va + pa - m->pa);
+		}
+	}
+	if (nmap == MAX_MAP)
+		panic("Too many maps for smbios");
+
+	/*
+	 * host_mmap returns small negative numbers on errors, can't return an
+	 * error here, so we have to panic. The Linux wrapper will set errno
+	 * based on this and then return HOST_MAP_FAILED. Since we're calling
+	 * the raw system call we have to do that ourselves.
+	 */
+	va = host_mmap(0, PAGE, HOST_PROT_READ, HOST_MAP_SHARED, smbios_fd, pa2);
+	if ((intptr_t)va < 0 && (intptr_t)va >= -511)
+		panic("smbios mmap offset %#jx failed", (uintmax_t)pa2);
+	m = &map[nmap++];
+	m->pa = pa2;
+	m->va = va;
+	return (m->va + pa - m->pa);
+}
+
+static void
+smbios_cleanup(void)
+{
+	for (int i = 0; i < nmap; i++) {
+		host_munmap(map[i].va, PAGE);
+	}
+}
+
+static vm_offset_t
+kboot_find_smbios(void)
+{
+	char buffer[512 + 1];
+	char *walker, *ep;
+
+	if (!file2str("/sys/firmware/efi/systab", buffer, sizeof(buffer)))
+		return (0);	/* Not an EFI system */
+	ep = buffer + strlen(buffer);
+	walker = buffer;
+	while (walker <= ep) {
+		if (strncmp("SMBIOS3=", walker, 8) == 0)
+			return((vm_offset_t)strtoull(walker + 8, NULL, 0));
+		if (strncmp("SMBIOS=", walker, 7) == 0)
+			return((vm_offset_t)strtoull(walker + 7, NULL, 0));
+		walker += strcspn(walker, "\n") + 1;
+	}
+	return (0);
+}
+
+static void
+find_smbios(void)
+{
+	char buf[40];
+	uintptr_t pa;
+	caddr_t va;
+
+	pa = kboot_find_smbios();
+	printf("SMBIOS at %#jx\n", (uintmax_t)pa);
+	if (pa == 0)
+		return;
+
+	snprintf(buf, sizeof(buf), "%#jx", (uintmax_t)pa);
+	setenv("hint.smbios.0.mem", buf, 1);
+	smbios_fd = host_open("/dev/mem", O_RDONLY, 0);
+	if (smbios_fd < 0) {
+		printf("Can't open /dev/mem to read smbios\n");
+		return;
+	}
+	va = ptov(pa);
+	printf("Start of smbios at pa %p va %p\n", (void *)pa, va);
+	smbios_detect(va);
+	smbios_cleanup();
+	host_close(smbios_fd);
 }
 
 static void
@@ -299,6 +401,8 @@ main(int argc, const char **argv)
 	 * Find acpi, if it exists
 	 */
 	find_acpi();
+
+	find_smbios();
 
 	interact();			/* doesn't return */
 
@@ -531,5 +635,6 @@ command_fdt(int argc, char *argv[])
 
 	return (command_fdt_internal(argc, argv));
 }
-        
+
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+

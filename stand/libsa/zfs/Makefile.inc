@@ -11,18 +11,13 @@
 .PATH:		${OZFS}/module/icp/algs/blake3
 ZFS_SRC=	zfs.c nvlist.c skein.c skein_block.c list.c
 ZFS_SRC+=	zfs_zstd.c
-ZFS_SRC+=	blake3.c blake3_generic.c blake3_impl_hack.c
+ZFS_SRC+=	blake3.c blake3_generic.c blake3_impl.c
 ZSTD_SRC+=	entropy_common.c error_private.c
 ZSTD_SRC+=	fse_decompress.c hist.c
 ZSTD_SRC+=	huf_decompress.c pool.c xxhash.c
 ZSTD_SRC+=	zstd_common.c
 ZSTD_SRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
 ZSTD_SRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
-
-# This is completely bogus: We should be able to omit this code completely.
-.if ${MACHINE_ARCH} == "aarch64"
-ZFS_SRC_AS =	b3_aarch64_sse2.S b3_aarch64_sse41.S
-.endif
 
 SRCS+=		${ZFS_SRC} ${ZSTD_SRC} ${ZFS_SRC_AS}
 
@@ -52,9 +47,9 @@ CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h -Wformat -Wall -I${OZFS}/inc
 	-DNEED_SOLARIS_BOOLEAN
 .endfor
 
-CFLAGS_EARLY.blake3.c+= ${ZFS_EARLY}
-CFLAGS_EARLY.blake3_generic.c+= ${ZFS_EARLY}
-CFLAGS_EARLY.blake3_impl_hack.c+= ${ZFS_EARLY}
+CFLAGS_EARLY.blake3.c+= ${ZFS_EARLY} -DOMIT_SIMD
+CFLAGS_EARLY.blake3_generic.c+= ${ZFS_EARLY} -DOMIT_SIMD
+CFLAGS_EARLY.blake3_impl.c+= ${ZFS_EARLY} -DOMIT_SIMD
 CFLAGS_EARLY.list.c+= ${ZFS_EARLY}
 CFLAGS_EARLY.zfs_zstd.c+= ${ZFS_EARLY}
 CFLAGS_EARLY.nvlist.c+= ${ZFS_EARLY}
@@ -73,9 +68,6 @@ CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
 		-I${SYSDIR}/crypto/skein			\
 		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 
-.for i in ${ZFS_SRC_AS}
-CFLAGS.$i+=	-DLOCORE
-.endfor
 #
 # ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
 # use of BMI instrucitons is broken in this environment, so avoid them.
@@ -86,24 +78,9 @@ CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 
 CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA
 
+CFLAGS.blake3_impl.c+= -I${OZFS}/module/icp/algs/blake3 -I${OZFS}/module/icp/include
+
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
 
-# To find blake3_impl.c in OpenZFS tree for our somehat ugly blake3_impl_hack.c
-# that's needed until the necessary tweaks can be upstreamed.
-# XXX the last import gutted all this since upstream changes broke this hack.
-CFLAGS.blake3_impl_hack.c+= -I${OZFS}/module/icp/algs/blake3 -I${OZFS}/module/icp/include
-
 CWARNFLAGS.zfs.c+= ${NO_WDANGLING_POINTER}
-
-# Needing to remove the -mgeneral-regs-only is a red flag that this is not quite
-# right. But it's needed at the moment due to the muddled upstream.
-b3_aarch64_sse2.o: b3_aarch64_sse2.S
-	${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC} \
-	    -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-b3_aarch64_sse41.o: b3_aarch64_sse41.S
-	${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC} \
-	     -o ${.TARGET}
-	${CTFCONVERT_CMD}

@@ -192,10 +192,10 @@ class_ri2unit(int class, int ri)
  * read a pmc register
  */
 
-CLASSDEP_FN3(dmc620_read_pmc, int, cpu, int, ri, pmc_value_t *, v)
+CLASSDEP_FN4(dmc620_read_pmc, int, cpu, int, ri, struct pmc *, pm,
+    pmc_value_t *, v)
 {
 	struct dmc620_descr *desc;
-	struct pmc *pm;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU value %d", __LINE__, cpu));
@@ -203,11 +203,6 @@ CLASSDEP_FN3(dmc620_read_pmc, int, cpu, int, ri, pmc_value_t *, v)
 	    ri));
 
 	desc = dmc620desc(class, cpu, ri);
-	pm = desc->pd_phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[dmc620,%d] No owner for HWPMC [cpu%d,pmc%d]", __LINE__,
-		cpu, ri));
 
 	PMCDBG3(MDP,REA,1,"%s id=%d class=%d", __func__, ri, class);
 
@@ -229,10 +224,10 @@ CLASSDEP_FN3(dmc620_read_pmc, int, cpu, int, ri, pmc_value_t *, v)
  * Write a pmc register.
  */
 
-CLASSDEP_FN3(dmc620_write_pmc, int, cpu, int, ri, pmc_value_t, v)
+CLASSDEP_FN4(dmc620_write_pmc, int, cpu, int, ri, struct pmc *, pm,
+    pmc_value_t, v)
 {
 	struct dmc620_descr *desc;
-	struct pmc *pm __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU value %d", __LINE__, cpu));
@@ -240,11 +235,6 @@ CLASSDEP_FN3(dmc620_write_pmc, int, cpu, int, ri, pmc_value_t, v)
 	    ri));
 
 	desc = dmc620desc(class, cpu, ri);
-	pm = desc->pd_phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[dmc620,%d] PMC not owned (cpu%d,pmc%d)", __LINE__,
-		cpu, ri));
 
 	PMCDBG4(MDP, WRI, 1, "%s cpu=%d ri=%d v=%jx", __func__, cpu, ri, v);
 
@@ -374,12 +364,10 @@ CLASSDEP_FN3(dmc620_release_pmc, int, cpu, int, ri, struct pmc *, pmc)
  * start a PMC.
  */
 
-CLASSDEP_FN2(dmc620_start_pmc, int, cpu, int, ri)
+CLASSDEP_FN3(dmc620_start_pmc, int, cpu, int, ri, struct pmc *, pm)
 {
 	struct dmc620_descr *desc;
-	struct pmc_hw *phw;
 	uint64_t control;
-	struct pmc *pm;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU value %d", __LINE__, cpu));
@@ -387,12 +375,6 @@ CLASSDEP_FN2(dmc620_start_pmc, int, cpu, int, ri)
 	    ri));
 
 	desc = dmc620desc(class, cpu, ri);
-	phw = desc->pd_phw;
-	pm  = phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[dmc620,%d] starting cpu%d,pmc%d with null pmc record", __LINE__,
-		cpu, ri));
 
 	PMCDBG3(MDP, STA, 1, "%s cpu=%d ri=%d", __func__, cpu, ri);
 
@@ -418,11 +400,9 @@ CLASSDEP_FN2(dmc620_start_pmc, int, cpu, int, ri)
  * Stop a PMC.
  */
 
-CLASSDEP_FN2(dmc620_stop_pmc, int, cpu, int, ri)
+CLASSDEP_FN3(dmc620_stop_pmc, int, cpu, int, ri, struct pmc *, pm)
 {
 	struct dmc620_descr *desc;
-	struct pmc_hw *phw;
-	struct pmc *pm;
 	uint64_t control;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -431,12 +411,6 @@ CLASSDEP_FN2(dmc620_stop_pmc, int, cpu, int, ri)
 	    ri));
 
 	desc = dmc620desc(class, cpu, ri);
-	phw = desc->pd_phw;
-	pm  = phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[dmc620,%d] cpu%d,pmc%d no PMC to stop", __LINE__,
-		cpu, ri));
 
 	PMCDBG2(MDP, STO, 1, "%s ri=%d", __func__, ri);
 
@@ -454,9 +428,8 @@ CLASSDEP_FN2(dmc620_stop_pmc, int, cpu, int, ri)
 CLASSDEP_FN4(dmc620_describe, int, cpu, int, ri, struct pmc_info *, pi,
     struct pmc **, ppmc)
 {
+	struct pmc_descr *pd;
 	struct pmc_hw *phw;
-	size_t copied;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU %d", __LINE__, cpu));
@@ -464,12 +437,10 @@ CLASSDEP_FN4(dmc620_describe, int, cpu, int, ri, struct pmc_info *, pi,
 	    ri));
 
 	phw = dmc620desc(class, cpu, ri)->pd_phw;
+	pd = &dmc620desc(class, cpu, ri)->pd_descr;
 
-	if ((error = copystr(dmc620desc(class, cpu, ri)->pd_descr.pd_name,
-	    pi->pm_name, PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
-	pi->pm_class = dmc620desc(class, cpu, ri)->pd_descr.pd_class;
+	strlcpy(pi->pm_name, pd->pd_name, sizeof(pi->pm_name));
+	pi->pm_class = pd->pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
@@ -567,10 +538,10 @@ dmc620_intr(struct trapframe *tf, int class, int unit, int i)
 
 	error = pmc_process_interrupt(PMC_HR, pm, tf);
 	if (error)
-		dmc620_stop_pmc(class, cpu, ri);
+		dmc620_stop_pmc(class, cpu, ri, pm);
 
 	/* Reload sampling count */
-	dmc620_write_pmc(class, cpu, ri, pm->pm_sc.pm_reloadcount);
+	dmc620_write_pmc(class, cpu, ri, pm, pm->pm_sc.pm_reloadcount);
 
 	return (0);
 }

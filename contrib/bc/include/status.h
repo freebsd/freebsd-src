@@ -60,6 +60,13 @@
 #endif // __FreeBSD__
 #endif // BC_TEST_FREEBSD
 
+// This is used by configure.sh to test for Mac OSX.
+#ifdef BC_TEST_APPLE
+#ifdef __APPLE__
+#error On Mac OSX without _DARWIN_C_SOURCE
+#endif // __APPLE__
+#endif // BC_TEST_APPLE
+
 // Windows has deprecated isatty() and the rest of these. Or doesn't have them.
 // So these are just fixes for Windows.
 #ifdef _WIN32

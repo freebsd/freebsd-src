@@ -829,7 +829,7 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
 	datalen = strlen(data) + 1;	/* +1 for the null */
-	(void)send(s2, data, sizeof(*data), MSG_EOR);
+	(void)send(s2, data, datalen, MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
 	close(s);
 	close(s2);

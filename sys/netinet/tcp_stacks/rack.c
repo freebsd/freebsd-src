@@ -320,15 +320,28 @@ static int32_t rack_hbp_thresh = 3;		/* what is the divisor max_rtt/min_rtt to d
 /* Part of pacing */
 static int32_t rack_max_per_above = 30;		/* When we go to increment stop if above 100+this% */
 
-/* Timely information */
-/* Combine these two gives the range of 'no change' to bw */
-/* ie the up/down provide the upper and lower bound */
+/* Timely information:
+ *
+ * Here we have various control parameters on how
+ * timely may change the multiplier. rack_gain_p5_ub
+ * is associated with timely but not directly influencing
+ * the rate decision like the other variables. It controls
+ * the way fill-cw interacts with timely and caps how much
+ * timely can boost the fill-cw b/w.
+ *
+ * The other values are various boost/shrink numbers as well
+ * as potential caps when adjustments are made to the timely
+ * gain (returned by rack_get_output_gain(). Remember too that
+ * the gain returned can be overriden by other factors such as
+ * probeRTT as well as fixed-rate-pacing.
+ */
+static int32_t rack_gain_p5_ub = 250;
 static int32_t rack_gp_per_bw_mul_up = 2;	/* 2% */
 static int32_t rack_gp_per_bw_mul_down = 4;	/* 4% */
 static int32_t rack_gp_rtt_maxmul = 3;		/* 3 x maxmin */
 static int32_t rack_gp_rtt_minmul = 1;		/* minrtt + (minrtt/mindiv) is lower rtt */
 static int32_t rack_gp_rtt_mindiv = 4;		/* minrtt + (minrtt * minmul/mindiv) is lower rtt */
-static int32_t rack_gp_decrease_per = 20;	/* 20% decrease in multiplier */
+static int32_t rack_gp_decrease_per = 80;	/* Beta value of timely decrease (.8) = 80 */
 static int32_t rack_gp_increase_per = 2;	/* 2% increase in multiplier */
 static int32_t rack_per_lower_bound = 50;	/* Don't allow to drop below this multiplier */
 static int32_t rack_per_upper_bound_ss = 0;	/* Don't allow SS to grow above this */
@@ -559,7 +572,7 @@ static int
 rack_do_syn_sent(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
     int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt, uint8_t iptos);
-static void rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts);
+static void rack_chk_req_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts);
 struct rack_sendmap *
 tcp_rack_output(struct tcpcb *tp, struct tcp_rack *rack,
     uint32_t tsused);
@@ -713,7 +726,7 @@ static void
 rack_log_gpset(struct tcp_rack *rack, uint32_t seq_end, uint32_t ack_end_t,
 	       uint32_t send_end_t, int line, uint8_t mode, struct rack_sendmap *rsm)
 {
-	if (tcp_bblogging_on(rack->rc_tp)) {
+	if (tcp_bblogging_on(rack->rc_tp) && (rack_verbose_logging != 0)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
@@ -1175,8 +1188,8 @@ rack_init_sysctls(void)
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "decrease", CTLFLAG_RW,
-	    &rack_gp_decrease_per, 20,
-	    "Rack timely decrease percentage of our GP multiplication factor");
+	    &rack_gp_decrease_per, 80,
+	    "Rack timely Beta value 80 = .8 (scaled by 100)");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "increase", CTLFLAG_RW,
@@ -1187,6 +1200,12 @@ rack_init_sysctls(void)
 	    OID_AUTO, "lowerbound", CTLFLAG_RW,
 	    &rack_per_lower_bound, 50,
 	    "Rack timely lowest percentage we allow GP multiplier to fall to");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_timely),
+	    OID_AUTO, "p5_upper", CTLFLAG_RW,
+	    &rack_gain_p5_ub, 250,
+	    "Profile 5 upper bound to timely gain");
+
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "upperboundss", CTLFLAG_RW,
@@ -1967,7 +1986,7 @@ rack_get_fixed_pacing_bw(struct tcp_rack *rack)
 static void
 rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t tim,
 	uint64_t data, uint8_t mod, uint16_t aux,
-	struct http_sendfile_track *cur)
+	struct tcp_sendfile_track *cur, int line)
 {
 #ifdef TCP_REQUEST_TRK
 	int do_log = 0;
@@ -1991,7 +2010,7 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 		 * All other less noisy logs here except the measure which
 		 * also needs to come out on the point and the log.
 		 */
-		do_log = tcp_bblogging_on(rack->rc_tp);		
+		do_log = tcp_bblogging_on(rack->rc_tp);
 	} else {
 		do_log = tcp_bblogging_point_on(rack->rc_tp, TCP_BBPOINT_REQ_LEVEL_LOGGING);
 	}
@@ -2004,6 +2023,7 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 		/* Convert our ms to a microsecond */
 		memset(&log, 0, sizeof(log));
 
+		log.u_bbr.cwnd_gain = line;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.rttProp = tim;
 		log.u_bbr.bw_inuse = cbw;
@@ -2049,8 +2069,10 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 			/* localtime = <delivered | applimited>*/
 			log.u_bbr.applimited = (uint32_t)(cur->localtime & 0x00000000ffffffff);
 			log.u_bbr.delivered = (uint32_t)((cur->localtime >> 32) & 0x00000000ffffffff);
-			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_http_info[0]);
-			log.u_bbr.bbr_substate = (uint8_t)(off / sizeof(struct http_sendfile_track));
+#ifdef TCP_REQUEST_TRK
+			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_tcpreq_info[0]);
+			log.u_bbr.bbr_substate = (uint8_t)(off / sizeof(struct tcp_sendfile_track));
+#endif
 			log.u_bbr.flex4 = (uint32_t)(rack->rc_tp->t_sndbytes - cur->sent_at_fs);
 			log.u_bbr.flex5 = (uint32_t)(rack->rc_tp->t_snd_rxt_bytes - cur->rxt_at_fs);
 			log.u_bbr.flex7 = (uint16_t)cur->hybrid_flags;
@@ -2082,6 +2104,60 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 	}
 #endif
 }
+
+#ifdef TCP_REQUEST_TRK
+static void
+rack_log_hybrid_sends(struct tcp_rack *rack, struct tcp_sendfile_track *cur, int line)
+{
+	if (tcp_bblogging_point_on(rack->rc_tp, TCP_BBPOINT_REQ_LEVEL_LOGGING)) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+		uint64_t off;
+
+		/* Convert our ms to a microsecond */
+		memset(&log, 0, sizeof(log));
+
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		log.u_bbr.cur_del_rate = rack->rc_tp->t_sndbytes;
+		log.u_bbr.delRate = cur->sent_at_fs;
+		log.u_bbr.rttProp = rack->rc_tp->t_snd_rxt_bytes;
+		log.u_bbr.bw_inuse = cur->rxt_at_fs;
+		log.u_bbr.cwnd_gain = line;
+		off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_tcpreq_info[0]);
+		log.u_bbr.bbr_substate = (uint8_t)(off / sizeof(struct tcp_sendfile_track));
+		/* start = < flex1 | flex2 > */
+		log.u_bbr.flex2 = (uint32_t)(cur->start & 0x00000000ffffffff);
+		log.u_bbr.flex1 = (uint32_t)((cur->start >> 32) & 0x00000000ffffffff);
+		/* end = < flex3 | flex4 > */
+		log.u_bbr.flex4 = (uint32_t)(cur->end & 0x00000000ffffffff);
+		log.u_bbr.flex3 = (uint32_t)((cur->end >> 32) & 0x00000000ffffffff);
+
+		/* localtime = <delivered | applimited>*/
+		log.u_bbr.applimited = (uint32_t)(cur->localtime & 0x00000000ffffffff);
+		log.u_bbr.delivered = (uint32_t)((cur->localtime >> 32) & 0x00000000ffffffff);
+		/* client timestamp = <lt_epoch | epoch>*/
+		log.u_bbr.epoch = (uint32_t)(cur->timestamp & 0x00000000ffffffff);
+		log.u_bbr.lt_epoch = (uint32_t)((cur->timestamp >> 32) & 0x00000000ffffffff);
+		/* now set all the flags in */
+		log.u_bbr.pkts_out = cur->hybrid_flags;
+		log.u_bbr.flex6 = cur->flags;
+		/*
+		 * Last send time  = <flex5 | pkt_epoch>  note we do not distinguish cases
+		 * where a false retransmit occurred so first_send  <-> lastsend may
+		 * include longer time then it actually took if we have a false rxt.
+		 */
+		log.u_bbr.pkt_epoch = (uint32_t)(rack->r_ctl.last_tmit_time_acked & 0x00000000ffffffff);
+		log.u_bbr.flex5 = (uint32_t)((rack->r_ctl.last_tmit_time_acked >> 32) & 0x00000000ffffffff);
+
+		log.u_bbr.flex8 = HYBRID_LOG_SENT_LOST;
+		tcp_log_event(rack->rc_tp, NULL,
+		    &rack->rc_inp->inp_socket->so_rcv,
+		    &rack->rc_inp->inp_socket->so_snd,
+		    TCP_HYBRID_PACING_LOG, 0,
+		    0, &log, false, NULL, __func__, __LINE__, &tv);
+	}
+}
+#endif
 
 static inline uint64_t
 rack_compensate_for_linerate(struct tcp_rack *rack, uint64_t bw)
@@ -2126,15 +2202,15 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		 * is in bw_rate_cap, but we need to look at
 		 * how long it is until we hit the deadline.
 		 */
-		struct http_sendfile_track *ent;
+		struct tcp_sendfile_track *ent;
 
-		ent = rack->r_ctl.rc_last_sft;
+      		ent = rack->r_ctl.rc_last_sft;
 		microuptime(&tv);
 		timenow = tcp_tv_to_lusectick(&tv);
 		if (timenow >= ent->deadline) {
 			/* No time left we do DGP only */
 			rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-					   0, 0, 0, HYBRID_LOG_OUTOFTIME, 0, ent);
+					   0, 0, 0, HYBRID_LOG_OUTOFTIME, 0, ent, __LINE__);
 			rack->r_ctl.bw_rate_cap = 0;
 			return;
 		}
@@ -2143,7 +2219,7 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		if (timeleft < HPTS_MSEC_IN_SEC) {
 			/* If there is less than a ms left just use DGPs rate */
 			rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-					   0, timeleft, 0, HYBRID_LOG_OUTOFTIME, 0, ent);
+					   0, timeleft, 0, HYBRID_LOG_OUTOFTIME, 0, ent, __LINE__);
 			rack->r_ctl.bw_rate_cap = 0;
 			return;
 		}
@@ -2153,13 +2229,13 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		 * Now ideally we want to use the end_seq to figure out how much more
 		 * but it might not be possible (only if we have the TRACK_FG_COMP on the entry..
 		 */
-		if (ent->flags & TCP_HTTP_TRACK_FLG_COMP) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_COMP) {
 			if (SEQ_GT(ent->end_seq, rack->rc_tp->snd_una))
 				lenleft = ent->end_seq - rack->rc_tp->snd_una;
 			else {
 				/* TSNH, we should catch it at the send */
 				rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-						   0, timeleft, 0, HYBRID_LOG_CAPERROR, 0, ent);
+						   0, timeleft, 0, HYBRID_LOG_CAPERROR, 0, ent, __LINE__);
 				rack->r_ctl.bw_rate_cap = 0;
 				return;
 			}
@@ -2178,7 +2254,7 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 			else {
 				/* TSNH, we should catch it at the send */
 				rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-						   0, timeleft, lengone, HYBRID_LOG_CAPERROR, 0, ent);
+						   0, timeleft, lengone, HYBRID_LOG_CAPERROR, 0, ent, __LINE__);
 				rack->r_ctl.bw_rate_cap = 0;
 				return;
 			}
@@ -2186,7 +2262,7 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		if (lenleft == 0) {
 			/* We have it all sent */
 			rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-					   0, timeleft, lenleft, HYBRID_LOG_ALLSENT, 0, ent);
+					   0, timeleft, lenleft, HYBRID_LOG_ALLSENT, 0, ent, __LINE__);
 			if (rack->r_ctl.bw_rate_cap)
 				goto normal_ratecap;
 			else
@@ -2210,10 +2286,10 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 			rack_log_type_pacing_sizes(rack->rc_tp, rack, rack->r_ctl.client_suggested_maxseg, orig_max, __LINE__, 5);
 		}
 		rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-				   calcbw, timeleft, lenleft, HYBRID_LOG_CAP_CALC, 0, ent);
+				   calcbw, timeleft, lenleft, HYBRID_LOG_CAP_CALC, 0, ent, __LINE__);
 		if ((calcbw > 0) && (*bw > calcbw)) {
 			rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-					   *bw, ent->deadline, lenleft, HYBRID_LOG_RATE_CAP, 0, ent);
+					   *bw, ent->deadline, lenleft, HYBRID_LOG_RATE_CAP, 0, ent, __LINE__);
 			*capped = 1;
 			*bw = calcbw;
 		}
@@ -2241,7 +2317,7 @@ normal_ratecap:
 		*bw = rack->r_ctl.bw_rate_cap;
 		rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
 				   *bw, 0, 0,
-				   HYBRID_LOG_RATE_CAP, 1, NULL);
+				   HYBRID_LOG_RATE_CAP, 1, NULL, __LINE__);
 	}
 }
 
@@ -2916,7 +2992,7 @@ rack_log_progress_event(struct tcp_rack *rack, struct tcpcb *tp, uint32_t tick, 
 static void
 rack_log_type_bbrsnd(struct tcp_rack *rack, uint32_t len, uint32_t slot, uint32_t cts, struct timeval *tv, int line)
 {
-	if (tcp_bblogging_on(rack->rc_tp)) {
+	if (rack_verbose_logging && tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
@@ -3116,7 +3192,7 @@ rack_log_alt_to_to_cancel(struct tcp_rack *rack,
 static void
 rack_log_to_processing(struct tcp_rack *rack, uint32_t cts, int32_t ret, int32_t timers)
 {
-	if (tcp_bblogging_on(rack->rc_tp)) {
+	if (rack_verbose_logging && tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
@@ -3819,15 +3895,30 @@ extra_boost:
 static uint32_t
 rack_get_decrease(struct tcp_rack *rack, uint32_t curper, int32_t rtt_diff)
 {
-	/*
+	/*-
 	 * norm_grad = rtt_diff / minrtt;
 	 * new_per = curper * (1 - B * norm_grad)
 	 *
-	 * B = rack_gp_decrease_per (default 10%)
+	 * B = rack_gp_decrease_per (default 80%)
 	 * rtt_dif = input var current rtt-diff
 	 * curper = input var current percentage
 	 * minrtt = from rack filter
 	 *
+	 * In order to do the floating point calculations above we
+	 * do an integer conversion. The code looks confusing so let me
+	 * translate it into something that use more variables and
+	 * is clearer for us humans :)
+	 *
+	 * uint64_t norm_grad, inverse, reduce_by, final_result;
+	 * uint32_t perf;
+	 *
+	 * norm_grad = (((uint64_t)rtt_diff * 1000000) /
+	 *             (uint64_t)get_filter_small(&rack->r_ctl.rc_gp_min_rtt));
+	 * inverse = ((uint64_t)rack_gp_decrease * (uint64_t)1000000) * norm_grad;
+	 * inverse /= 1000000;
+	 * reduce_by = (1000000 - inverse);
+	 * final_result = (cur_per * reduce_by) / 1000000;
+	 * perf = (uint32_t)final_result;
 	 */
 	uint64_t perf;
 
@@ -3852,7 +3943,7 @@ rack_decrease_highrtt(struct tcp_rack *rack, uint32_t curper, uint32_t rtt)
 	 * result = curper * (1 - (B * ( 1 -  ------          ))
 	 *                                     gp_srtt
 	 *
-	 * B = rack_gp_decrease_per (default 10%)
+	 * B = rack_gp_decrease_per (default .8 i.e. 80)
 	 * highrttthresh = filter_min * rack_gp_rtt_maxmul
 	 */
 	uint64_t perf;
@@ -3864,6 +3955,20 @@ rack_decrease_highrtt(struct tcp_rack *rack, uint32_t curper, uint32_t rtt)
 				     ((uint64_t)rack_gp_decrease_per * ((uint64_t)1000000 -
 					((uint64_t)highrttthresh * (uint64_t)1000000) /
 						    (uint64_t)rtt)) / 100)) /(uint64_t)1000000);
+	if (tcp_bblogging_on(rack->rc_tp)) {
+		uint64_t log1;
+
+		log1 = rtt;
+		log1 <<= 32;
+		log1 |= highrttthresh;
+		rack_log_timely(rack,
+				rack_gp_decrease_per,
+				(uint64_t)curper,
+				log1,
+				perf,
+				__LINE__,
+				15);
+	}
 	return (perf);
 }
 
@@ -3911,7 +4016,7 @@ rack_decrease_bw_mul(struct tcp_rack *rack, int timely_says, uint32_t rtt, int32
 		/* Sent in SS */
 		if (timely_says == 2) {
 			new_per = rack_decrease_highrtt(rack, rack->r_ctl.rack_per_of_gp_ss, rtt);
-			alt = rack_get_decrease(rack, rack->r_ctl.rack_per_of_gp_rec, rtt_diff);
+			alt = rack_get_decrease(rack, rack->r_ctl.rack_per_of_gp_ss, rtt_diff);
 			if (alt < new_per)
 				val = alt;
 			else
@@ -3944,7 +4049,7 @@ rack_decrease_bw_mul(struct tcp_rack *rack, int timely_says, uint32_t rtt, int32
 		/* Sent in CA */
 		if (timely_says == 2) {
 			new_per = rack_decrease_highrtt(rack, rack->r_ctl.rack_per_of_gp_ca, rtt);
-			alt = rack_get_decrease(rack, rack->r_ctl.rack_per_of_gp_rec, rtt_diff);
+			alt = rack_get_decrease(rack, rack->r_ctl.rack_per_of_gp_ca, rtt_diff);
 			if (alt < new_per)
 				val = alt;
 			else
@@ -5040,7 +5145,7 @@ rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 	    (rack->r_ctl.num_measurements >= rack->r_ctl.req_measurements)) {
 		/* We have enough measurements now */
 		rack->gp_ready = 1;
-		if ((rack->rc_always_pace && (rack->use_fixed_rate == 0)) ||
+		if (rack->dgp_on ||
 		    rack->rack_hibeta)
 			rack_set_cc_pacing(rack);
 		if (rack->defer_options)
@@ -6860,21 +6965,20 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * even a SACK should not disturb us (with
 		 * the exception of r_rr_config 3).
 		 */
-		if (rack->r_ctl.rc_hpts_flags & PACE_TMR_RACK) {
+		if ((rack->r_ctl.rc_hpts_flags & PACE_TMR_RACK) ||
+		    (IN_RECOVERY(tp->t_flags))) {
 			if (rack->r_rr_config != 3)
 				tp->t_flags2 |= TF2_DONT_SACK_QUEUE;
 			else if (rack->rc_pace_dnd) {
-				if (IN_RECOVERY(tp->t_flags)) {
-					/*
-					 * When DND is on, we only let a sack
-					 * interrupt us if we are not in recovery.
-					 *
-					 * If DND is off, then we never hit here
-					 * and let all sacks wake us up.
-					 *
-					 */
-					tp->t_flags2 |= TF2_DONT_SACK_QUEUE;
-				}
+				/*
+				 * When DND is on, we only let a sack
+				 * interrupt us if we are not in recovery.
+				 *
+				 * If DND is off, then we never hit here
+				 * and let all sacks wake us up.
+				 *
+				 */
+				tp->t_flags2 |= TF2_DONT_SACK_QUEUE;
 			}
 		}
 		/* For sack attackers we want to ignore sack */
@@ -7445,7 +7549,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 * the idle time (no responses to probes) reaches the maximum
 	 * backoff that we would use if retransmitting.
 	 */
-	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+	if (tp->t_rxtshift >= V_tcp_retries &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     TICKS_2_USEC(ticks - tp->t_rcvtime) >= RACK_REXMTVAL(tp) * tcp_totbackoff)) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
@@ -7491,7 +7595,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 			tp->t_flags &= ~TF_DELACK;
 		free(t_template, M_TEMP);
 	}
-	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
+	if (tp->t_rxtshift < V_tcp_retries)
 		tp->t_rxtshift++;
 out:
 	rack_log_to_event(rack, RACK_TO_FRM_PERSIST, NULL);
@@ -7783,10 +7887,10 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 		 */
 		tp->t_rxtshift++;
 	}
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
+	if (tp->t_rxtshift > V_tcp_retries) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 drop_it:
-		tp->t_rxtshift = TCP_MAXRXTSHIFT;
+		tp->t_rxtshift = V_tcp_retries;
 		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
 		/* XXXGL: previously t_softerror was casted to uint16_t */
 		MPASS(tp->t_softerror >= 0);
@@ -8364,7 +8468,7 @@ rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
 	/* First question is it a retransmission or new? */
 	if (seq_out == snd_max) {
 		/* Its new */
-		rack_chk_http_and_hybrid_on_out(rack, seq_out, len, cts);
+		rack_chk_req_and_hybrid_on_out(rack, seq_out, len, cts);
 again:
 		rsm = rack_alloc(rack);
 		if (rsm == NULL) {
@@ -10357,7 +10461,7 @@ rack_process_to_cumack(struct tcpcb *tp, struct tcp_rack *rack, register uint32_
 
 	rack->r_wanted_output = 1;
 	if (SEQ_GT(th_ack, tp->snd_una))
-	    rack->r_ctl.last_cumack_advance = acktime;
+		rack->r_ctl.last_cumack_advance = acktime;
 
 	/* Tend any TLP that has been marked for 1/2 the seq space (its old)  */
 	if ((rack->rc_last_tlp_acked_set == 1)&&
@@ -10484,6 +10588,7 @@ more:
 		}
 	}
 	/* Now do we consume the whole thing? */
+	rack->r_ctl.last_tmit_time_acked = rsm->r_tim_lastsent[(rsm->r_rtr_cnt - 1)];
 	if (SEQ_GEQ(th_ack, rsm->r_end)) {
 		/* Its all consumed. */
 		uint32_t left;
@@ -10619,16 +10724,43 @@ more:
 	/* The trim will move th_ack into r_start for us */
 	tqhash_trim(rack->r_ctl.tqh, th_ack);
 	/* Now do we need to move the mbuf fwd too? */
-	if (rsm->m) {
-		while (rsm->soff >= rsm->m->m_len) {
-			rsm->soff -= rsm->m->m_len;
-			rsm->m = rsm->m->m_next;
-			KASSERT((rsm->m != NULL),
-				(" nrsm:%p hit at soff:%u null m",
-				 rsm, rsm->soff));
+	{
+		struct mbuf *m;
+		uint32_t soff;
+
+		m = rsm->m;
+		soff = rsm->soff;
+		if (m) {
+			while (soff >= m->m_len) {
+				soff -= m->m_len;
+				KASSERT((m->m_next != NULL),
+					(" rsm:%p  off:%u soff:%u m:%p",
+					 rsm, rsm->soff, soff, m));
+				m = m->m_next;
+				if (m == NULL) {
+					/*
+					 * This is a fall-back that prevents a panic. In reality
+					 * we should be able to walk the mbuf's and find our place.
+					 * At this point snd_una has not been updated with the sbcut() yet
+					 * but tqhash_trim did update rsm->r_start so the offset calcuation
+					 * should work fine. This is undesirable since we will take cache
+					 * hits to access the socket buffer. And even more puzzling is that
+					 * it happens occasionally. It should not :(
+					 */
+					m = sbsndmbuf(&rack->rc_inp->inp_socket->so_snd,
+						      (rsm->r_start - tp->snd_una),
+						      &soff);
+					break;
+				}
+			}
+			/*
+			 * Now save in our updated values.
+			 */
+			rsm->m = m;
+			rsm->soff = soff;
+			rsm->orig_m_len = rsm->m->m_len;
+			rsm->orig_t_space = M_TRAILINGROOM(rsm->m);
 		}
-		rsm->orig_m_len = rsm->m->m_len;
-		rsm->orig_t_space = M_TRAILINGROOM(rsm->m);
 	}
 	if (rack->app_limited_needs_set &&
 	    SEQ_GEQ(th_ack, tp->gput_seq))
@@ -11516,7 +11648,7 @@ rack_check_bottom_drag(struct tcpcb *tp,
 			    (rack->r_ctl.num_measurements >= rack->r_ctl.req_measurements)) {
 				/* We have enough measurements now */
 				rack->gp_ready = 1;
-				if ((rack->rc_always_pace && (rack->use_fixed_rate == 0)) ||
+				if (rack->dgp_on ||
 				    rack->rack_hibeta)
 					rack_set_cc_pacing(rack);
 				if (rack->defer_options)
@@ -11552,12 +11684,12 @@ rack_check_bottom_drag(struct tcpcb *tp,
 #ifdef TCP_REQUEST_TRK
 static void
 rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
-		struct http_sendfile_track *cur, uint8_t mod, int line, int err)
+		struct tcp_sendfile_track *cur, uint8_t mod, int line, int err)
 {
 	int do_log;
 
 	do_log = tcp_bblogging_on(rack->rc_tp);
-	if (do_log == 0) { 
+	if (do_log == 0) {
 		if ((do_log = tcp_bblogging_point_on(rack->rc_tp, TCP_BBPOINT_REQ_LEVEL_LOGGING) )== 0)
 			return;
 		/* We only allow the three below with point logging on */
@@ -11565,7 +11697,7 @@ rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
 		    (mod != HYBRID_LOG_RULES_SET) &&
 		    (mod != HYBRID_LOG_REQ_COMP))
 			return;
-		
+
 	}
 	if (do_log) {
 		union tcp_log_stackspecific log;
@@ -11593,8 +11725,10 @@ rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
 			log.u_bbr.epoch = (uint32_t)(cur->deadline & 0x00000000ffffffff);
 			log.u_bbr.lt_epoch = (uint32_t)((cur->deadline >> 32) & 0x00000000ffffffff) ;
 			log.u_bbr.bbr_state = 1;
-			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_http_info[0]);
-			log.u_bbr.use_lt_bw = (uint8_t)(off / sizeof(struct http_sendfile_track));
+#ifdef TCP_REQUEST_TRK
+			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_tcpreq_info[0]);
+			log.u_bbr.use_lt_bw = (uint8_t)(off / sizeof(struct tcp_sendfile_track));
+#endif
 		} else {
 			log.u_bbr.flex2 = err;
 		}
@@ -11626,15 +11760,16 @@ rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
 static void
 rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 {
-	struct http_sendfile_track *rc_cur;
+	struct tcp_sendfile_track *rc_cur;
 	struct tcpcb *tp;
 	int err = 0;
 
-	rc_cur = tcp_http_find_req_for_seq(rack->rc_tp, seq);
+	rc_cur = tcp_req_find_req_for_seq(rack->rc_tp, seq);
 	if (rc_cur == NULL) {
 		/* If not in the beginning what about the end piece */
-		rack_log_hybrid(rack, seq, NULL, HYBRID_LOG_NO_RANGE, __LINE__, err);
-		rc_cur = tcp_http_find_req_for_seq(rack->rc_tp, (seq + len - 1));
+		if (rack->rc_hybrid_mode)
+			rack_log_hybrid(rack, seq, NULL, HYBRID_LOG_NO_RANGE, __LINE__, err);
+		rc_cur = tcp_req_find_req_for_seq(rack->rc_tp, (seq + len - 1));
 	} else {
 		err = 12345;
 	}
@@ -11644,10 +11779,15 @@ rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 		rack->r_ctl.client_suggested_maxseg = 0;
 		rack->rc_catch_up = 0;
 		rack->r_ctl.bw_rate_cap = 0;
-		rack_log_hybrid(rack, (seq + len - 1), NULL, HYBRID_LOG_NO_RANGE, __LINE__, err);
+		if (rack->rc_hybrid_mode)
+			rack_log_hybrid(rack, (seq + len - 1), NULL, HYBRID_LOG_NO_RANGE, __LINE__, err);
 		if (rack->r_ctl.rc_last_sft) {
 			rack->r_ctl.rc_last_sft = NULL;
 		}
+		return;
+	}
+	if ((rc_cur->hybrid_flags & TCP_HYBRID_PACING_WASSET) == 0) {
+		/* This entry was never setup for hybrid pacing on/off etc */
 		return;
 	}
 	/*
@@ -11661,7 +11801,8 @@ rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 	if ((rack->r_ctl.rc_last_sft != NULL) &&
 	    (rack->r_ctl.rc_last_sft == rc_cur)) {
 		/* Its already in place */
-		rack_log_hybrid(rack, seq, rc_cur, HYBRID_LOG_ISSAME, __LINE__, 0);
+		if (rack->rc_hybrid_mode)
+			rack_log_hybrid(rack, seq, rc_cur, HYBRID_LOG_ISSAME, __LINE__, 0);
 		return;
 	}
 	if (rack->rc_hybrid_mode == 0) {
@@ -11728,14 +11869,14 @@ rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 #endif
 
 static void
-rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts)
+rack_chk_req_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts)
 {
 #ifdef TCP_REQUEST_TRK
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 
 	ent = rack->r_ctl.rc_last_sft;
 	if ((ent == NULL) ||
-	    (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) ||
+	    (ent->flags == TCP_TRK_TRACK_FLG_EMPTY) ||
 	    (SEQ_GEQ(seq, ent->end_seq))) {
 		/* Time to update the track. */
 		rack_set_dgp_hybrid_mode(rack, seq, len);
@@ -11757,11 +11898,12 @@ rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len
 		 * way it will complete when all of it is acked.
 		 */
 		ent->end_seq = (seq + len);
-		rack_log_hybrid_bw(rack, seq, len, 0, 0, HYBRID_LOG_EXTEND, 0, ent);
+		if (rack->rc_hybrid_mode)
+			rack_log_hybrid_bw(rack, seq, len, 0, 0, HYBRID_LOG_EXTEND, 0, ent, __LINE__);
 	}
 	/* Now validate we have set the send time of this one */
-	if ((ent->flags & TCP_HTTP_TRACK_FLG_FSND) == 0) {
-		ent->flags |= TCP_HTTP_TRACK_FLG_FSND;
+	if ((ent->flags & TCP_TRK_TRACK_FLG_FSND) == 0) {
+		ent->flags |= TCP_TRK_TRACK_FLG_FSND;
 		ent->first_send = cts;
 		ent->sent_at_fs = rack->rc_tp->t_sndbytes;
 		ent->rxt_at_fs = rack->rc_tp->t_snd_rxt_bytes;
@@ -11908,9 +12050,9 @@ rack_adjust_sendmap_head(struct tcp_rack *rack, struct sockbuf *sb)
 
 #ifdef TCP_REQUEST_TRK
 static inline void
-rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
+rack_req_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 {
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	int i;
 
 	if ((rack->rc_hybrid_mode == 0) &&
@@ -11919,7 +12061,7 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 		 * Just do normal completions hybrid pacing is not on
 		 * and CLDL is off as well.
 		 */
-		tcp_http_check_for_comp(rack->rc_tp, th_ack);
+		tcp_req_check_for_comp(rack->rc_tp, th_ack);
 		return;
 	}
 	/*
@@ -11929,22 +12071,23 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 	 * need to find all entries that are completed by th_ack not
 	 * just a single entry and do our logging.
 	 */
-	ent = tcp_http_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
+	ent = tcp_req_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
 	while (ent != NULL) {
 		/*
 		 * We may be doing hybrid pacing or CLDL and need more details possibly
 		 * so we do it manually instead of calling
-		 * tcp_http_check_for_comp()
+		 * tcp_req_check_for_comp()
 		 */
 		uint64_t laa, tim, data, cbw, ftim;
 
 		/* Ok this ack frees it */
 		rack_log_hybrid(rack, th_ack,
 				ent, HYBRID_LOG_REQ_COMP, __LINE__, 0);
+		rack_log_hybrid_sends(rack, ent, __LINE__);
 		/* calculate the time based on the ack arrival */
 		data = ent->end - ent->start;
 		laa = tcp_tv_to_lusectick(&rack->r_ctl.act_rcv_time);
-		if (ent->flags & TCP_HTTP_TRACK_FLG_FSND) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_FSND) {
 			if (ent->first_send > ent->localtime)
 				ftim = ent->first_send;
 			else
@@ -11962,7 +12105,7 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 			cbw /= tim;
 		else
 			cbw = 0;
-		rack_log_hybrid_bw(rack, th_ack, cbw, tim, data, HYBRID_LOG_BW_MEASURE, 0, ent);
+		rack_log_hybrid_bw(rack, th_ack, cbw, tim, data, HYBRID_LOG_BW_MEASURE, 0, ent, __LINE__);
 		/*
 		 * Check to see if we are freeing what we are pointing to send wise
 		 * if so be sure to NULL the pointer so we know we are no longer
@@ -11971,11 +12114,11 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 		if (ent == rack->r_ctl.rc_last_sft)
 			rack->r_ctl.rc_last_sft = NULL;
 		/* Generate the log that the tcp_netflix call would have */
-		tcp_http_log_req_info(rack->rc_tp, ent,
-				      i, TCP_HTTP_REQ_LOG_FREED, 0, 0);
+		tcp_req_log_req_info(rack->rc_tp, ent,
+				      i, TCP_TRK_REQ_LOG_FREED, 0, 0);
 		/* Free it and see if there is another one */
-		tcp_http_free_a_slot(rack->rc_tp, ent);
-		ent = tcp_http_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
+		tcp_req_free_a_slot(rack->rc_tp, ent);
+		ent = tcp_req_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
 	}
 }
 #endif
@@ -12126,7 +12269,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (rack->r_ctl.rc_hpts_flags & PACE_TMR_RXT)
 			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 #ifdef TCP_REQUEST_TRK
-		rack_http_check_for_comp(rack, th->th_ack);
+		rack_req_check_for_comp(rack, th->th_ack);
 #endif
 	}
 	/*
@@ -12984,7 +13127,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 
 #ifdef TCP_REQUEST_TRK
-		rack_http_check_for_comp(rack, th->th_ack);
+		rack_req_check_for_comp(rack, th->th_ack);
 #endif
 	}
 	/*
@@ -14254,7 +14397,7 @@ rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line, u
 			if (fill_override)
 				rate_wanted = *fill_override;
 			else
-				rate_wanted = rack_get_output_bw(rack, bw_est, NULL, NULL);
+				rate_wanted = rack_get_gp_est(rack);
 			if (rate_wanted) {
 				/* We have something */
 				rack->r_ctl.rc_pace_max_segs = rack_get_pacing_len(rack,
@@ -14885,8 +15028,6 @@ rack_init(struct tcpcb *tp, void **ptr)
 	 */
 	rack->rc_new_rnd_needed = 1;
 	rack->r_ctl.rc_split_limit = V_tcp_map_split_limit;
-	rack->r_ctl.rc_saved_beta.beta = V_newreno_beta_ecn;
-	rack->r_ctl.rc_saved_beta.beta_ecn = V_newreno_beta_ecn;
 	/* We want abe like behavior as well */
 	rack->r_ctl.rc_saved_beta.newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 	rack->r_ctl.rc_reorder_fade = rack_reorder_fade;
@@ -14924,8 +15065,18 @@ rack_init(struct tcpcb *tp, void **ptr)
 	rack->rc_user_set_max_segs = rack_hptsi_segments;
 	rack->rc_force_max_seg = 0;
 	TAILQ_INIT(&rack->r_ctl.opt_list);
-	if (rack_hibeta_setting)
+	rack->r_ctl.rc_saved_beta.beta = V_newreno_beta_ecn;
+	rack->r_ctl.rc_saved_beta.beta_ecn = V_newreno_beta_ecn;
+	if (rack_hibeta_setting) {
 		rack->rack_hibeta = 1;
+		if ((rack_hibeta_setting >= 50) &&
+		    (rack_hibeta_setting <= 100)) {
+			rack->r_ctl.rc_saved_beta.beta = rack_hibeta_setting;
+			rack->r_ctl.saved_hibeta = rack_hibeta_setting;
+		}
+	} else {
+		rack->r_ctl.saved_hibeta = 50;
+	}
 	rack->r_ctl.rc_reorder_shift = rack_reorder_thresh;
 	rack->r_ctl.rc_pkt_delay = rack_pkt_delay;
 	rack->r_ctl.rc_tlp_cwnd_reduce = rack_lower_cwnd_at_tlp;
@@ -14941,7 +15092,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 		rack->rc_gp_no_rec_chg = 1;
 	if (rack_pace_every_seg && tcp_can_enable_pacing()) {
 		rack->rc_always_pace = 1;
-		if ((rack->gp_ready) && (rack->rc_always_pace && (rack->use_fixed_rate == 0)))
+		if (rack->rack_hibeta)
 			rack_set_cc_pacing(rack);
 	} else
 		rack->rc_always_pace = 0;
@@ -15571,12 +15722,12 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		uint8_t xx = 0;
 
 #ifdef TCP_REQUEST_TRK
-		struct http_sendfile_track *http_req;
+		struct tcp_sendfile_track *tcp_req;
 
 		if (SEQ_GT(ae->ack, tp->snd_una)) {
-			http_req = tcp_http_find_req_for_seq(tp, (ae->ack-1));
+			tcp_req = tcp_req_find_req_for_seq(tp, (ae->ack-1));
 		} else {
-			http_req = tcp_http_find_req_for_seq(tp, ae->ack);
+			tcp_req = tcp_req_find_req_for_seq(tp, ae->ack);
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
@@ -15618,29 +15769,29 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		/* Log the rcv time */
 		log.u_bbr.delRate = ae->timestamp;
 #ifdef TCP_REQUEST_TRK
-		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.applimited = tp->t_tcpreq_closed;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited |= tp->t_tcpreq_open;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_req;
-		if (http_req) {
+		log.u_bbr.applimited |= tp->t_tcpreq_req;
+		if (tcp_req) {
 			/* Copy out any client req info */
 			/* seconds */
-			log.u_bbr.pkt_epoch = (http_req->localtime / HPTS_USEC_IN_SEC);
+			log.u_bbr.pkt_epoch = (tcp_req->localtime / HPTS_USEC_IN_SEC);
 			/* useconds */
-			log.u_bbr.delivered = (http_req->localtime % HPTS_USEC_IN_SEC);
-			log.u_bbr.rttProp = http_req->timestamp;
-			log.u_bbr.cur_del_rate = http_req->start;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+			log.u_bbr.delivered = (tcp_req->localtime % HPTS_USEC_IN_SEC);
+			log.u_bbr.rttProp = tcp_req->timestamp;
+			log.u_bbr.cur_del_rate = tcp_req->start;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_OPEN) {
 				log.u_bbr.flex8 |= 1;
 			} else {
 				log.u_bbr.flex8 |= 2;
-				log.u_bbr.bw_inuse = http_req->end;
+				log.u_bbr.bw_inuse = tcp_req->end;
 			}
-			log.u_bbr.flex6 = http_req->start_seq;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_COMP) {
+			log.u_bbr.flex6 = tcp_req->start_seq;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_COMP) {
 				log.u_bbr.flex8 |= 4;
-				log.u_bbr.epoch = http_req->end_seq;
+				log.u_bbr.epoch = tcp_req->end_seq;
 			}
 		}
 #endif
@@ -16028,7 +16179,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				rack_process_to_cumack(tp, rack, ae->ack, cts, to,
 						       tcp_tv_to_lusectick(&rack->r_ctl.act_rcv_time));
 #ifdef TCP_REQUEST_TRK
-				rack_http_check_for_comp(rack, high_seq);
+				rack_req_check_for_comp(rack, high_seq);
 #endif
 				if (rack->rc_dsack_round_seen) {
 					/* Is the dsack round over? */
@@ -16665,12 +16816,12 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		union tcp_log_stackspecific log;
 		struct timeval ltv;
 #ifdef TCP_REQUEST_TRK
-		struct http_sendfile_track *http_req;
+		struct tcp_sendfile_track *tcp_req;
 
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
-			http_req = tcp_http_find_req_for_seq(tp, (th->th_ack-1));
+			tcp_req = tcp_req_find_req_for_seq(tp, (th->th_ack-1));
 		} else {
-			http_req = tcp_http_find_req_for_seq(tp, th->th_ack);
+			tcp_req = tcp_req_find_req_for_seq(tp, th->th_ack);
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
@@ -16711,29 +16862,29 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		/* Log the rcv time */
 		log.u_bbr.delRate = m->m_pkthdr.rcv_tstmp;
 #ifdef TCP_REQUEST_TRK
-		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.applimited = tp->t_tcpreq_closed;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited |= tp->t_tcpreq_open;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_req;
-		if (http_req) {
+		log.u_bbr.applimited |= tp->t_tcpreq_req;
+		if (tcp_req) {
 			/* Copy out any client req info */
 			/* seconds */
-			log.u_bbr.pkt_epoch = (http_req->localtime / HPTS_USEC_IN_SEC);
+			log.u_bbr.pkt_epoch = (tcp_req->localtime / HPTS_USEC_IN_SEC);
 			/* useconds */
-			log.u_bbr.delivered = (http_req->localtime % HPTS_USEC_IN_SEC);
-			log.u_bbr.rttProp = http_req->timestamp;
-			log.u_bbr.cur_del_rate = http_req->start;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+			log.u_bbr.delivered = (tcp_req->localtime % HPTS_USEC_IN_SEC);
+			log.u_bbr.rttProp = tcp_req->timestamp;
+			log.u_bbr.cur_del_rate = tcp_req->start;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_OPEN) {
 				log.u_bbr.flex8 |= 1;
 			} else {
 				log.u_bbr.flex8 |= 2;
-				log.u_bbr.bw_inuse = http_req->end;
+				log.u_bbr.bw_inuse = tcp_req->end;
 			}
-			log.u_bbr.flex6 = http_req->start_seq;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_COMP) {
+			log.u_bbr.flex6 = tcp_req->start_seq;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_COMP) {
 				log.u_bbr.flex8 |= 4;
-				log.u_bbr.epoch = http_req->end_seq;
+				log.u_bbr.epoch = tcp_req->end_seq;
 			}
 		}
 #endif
@@ -17204,6 +17355,19 @@ rack_log_pacing_delay_calc(struct tcp_rack *rack, uint32_t len, uint32_t slot,
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
+		if (rack_verbose_logging == 0) {
+			/*
+			 * We are not verbose screen out all but
+			 * ones we always want.
+			 */
+			if ((method != 2) &&
+			    (method != 3) &&
+			    (method != 7) &&
+			    (method != 14) &&
+			    (method != 20)) {
+				return;
+			}
+		}
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.flex1 = slot;
 		log.u_bbr.flex2 = len;
@@ -17307,6 +17471,60 @@ rack_get_pacing_len(struct tcp_rack *rack, uint64_t bw, uint32_t mss)
 	return (new_tso);
 }
 
+static uint64_t
+rack_arrive_at_discounted_rate(struct tcp_rack *rack, uint64_t window_input, uint32_t *rate_set, uint32_t *gain_b)
+{
+	uint64_t reduced_win;
+	uint32_t gain;
+
+	if (window_input < rc_init_window(rack)) {
+		/*
+		 * The cwnd is collapsed to
+		 * nearly zero, maybe because of a time-out?
+		 * Lets drop back to the lt-bw.
+		 */
+		reduced_win = rack_get_lt_bw(rack);
+		/* Set the flag so the caller knows its a rate and not a reduced window */
+		*rate_set = 1;
+		gain = 100;
+	} else if  (IN_RECOVERY(rack->rc_tp->t_flags)) {
+		/*
+		 * If we are in recover our cwnd needs to be less for
+		 * our pacing consideration.
+		 */
+		if (rack->rack_hibeta == 0) {
+			reduced_win = window_input / 2;
+			gain = 50;
+		} else {
+			reduced_win = window_input * rack->r_ctl.saved_hibeta;
+			reduced_win /= 100;
+			gain = rack->r_ctl.saved_hibeta;
+		}
+	} else {
+		/*
+		 * Apply Timely factor to increase/decrease the
+		 * amount we are pacing at.
+		 */
+		gain = rack_get_output_gain(rack, NULL);
+		if (gain > rack_gain_p5_ub) {
+			gain = rack_gain_p5_ub;
+		}
+		reduced_win = window_input * gain;
+		reduced_win /= 100;
+	}
+	if (gain_b != NULL)
+		*gain_b = gain;
+	/*
+	 * What is being returned here is a trimmed down
+	 * window values in all cases where rate_set is left
+	 * at 0. In one case we actually return the rate (lt_bw).
+	 * the "reduced_win" is returned as a slimmed down cwnd that
+	 * is then calculated by the caller into a rate when rate_set
+	 * is 0.
+	 */
+	return (reduced_win);
+}
+
 static int32_t
 pace_to_fill_cwnd(struct tcp_rack *rack, int32_t slot, uint32_t len, uint32_t segsiz, int *capped, uint64_t *rate_wanted, uint8_t non_paced)
 {
@@ -17331,12 +17549,21 @@ pace_to_fill_cwnd(struct tcp_rack *rack, int32_t slot, uint32_t len, uint32_t se
 	 * and the the smallest send window.
 	 */
 	fill_bw = min(rack->rc_tp->snd_cwnd, rack->r_ctl.cwnd_to_use);
+	if (rack->rc_fillcw_apply_discount) {
+		uint32_t rate_set = 0;
+
+		fill_bw = rack_arrive_at_discounted_rate(rack, fill_bw, &rate_set, NULL);
+		if (rate_set) {
+			goto at_lt_bw;
+		}
+	}
 	/* Take the rwnd if its smaller */
 	if (fill_bw > rack->rc_tp->snd_wnd)
 		fill_bw = rack->rc_tp->snd_wnd;
 	/* Now lets make it into a b/w */
 	fill_bw *= (uint64_t)HPTS_USEC_IN_SEC;
 	fill_bw /= (uint64_t)rack->r_ctl.rc_last_us_rtt;
+at_lt_bw:
 	if (rack->r_fill_less_agg) {
 		/*
 		 * We want the average of the rate_wanted
@@ -17404,8 +17631,9 @@ pace_to_fill_cwnd(struct tcp_rack *rack, int32_t slot, uint32_t len, uint32_t se
 		}
 	}
 	if (rack->r_ctl.bw_rate_cap && (fill_bw > rack->r_ctl.bw_rate_cap)) {
-		rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
-				   fill_bw, 0, 0, HYBRID_LOG_RATE_CAP, 2, NULL);
+		if (rack->rc_hybrid_mode)
+			rack_log_hybrid_bw(rack, rack->rc_tp->snd_max,
+					   fill_bw, 0, 0, HYBRID_LOG_RATE_CAP, 2, NULL, __LINE__);
 		fill_bw = rack->r_ctl.bw_rate_cap;
 	}
 	/*
@@ -17513,9 +17741,27 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 			   (rack->r_ctl.gp_bw == 0)) {
 			/* no way to yet do an estimate */
 			bw_est = rate_wanted = 0;
-		} else {
+		} else if (rack->dgp_on) {
 			bw_est = rack_get_bw(rack);
 			rate_wanted = rack_get_output_bw(rack, bw_est, rsm, &capped);
+		} else {
+			uint32_t gain, rate_set = 0;
+
+			rate_wanted = min(rack->rc_tp->snd_cwnd, rack->r_ctl.cwnd_to_use);
+			rate_wanted = rack_arrive_at_discounted_rate(rack, rate_wanted, &rate_set, &gain);
+			if (rate_set == 0) {
+				if (rate_wanted > rack->rc_tp->snd_wnd)
+					rate_wanted = rack->rc_tp->snd_wnd;
+				/* Now lets make it into a b/w */
+				rate_wanted *= (uint64_t)HPTS_USEC_IN_SEC;
+				rate_wanted /= (uint64_t)rack->r_ctl.rc_last_us_rtt;
+			}
+			bw_est = rate_wanted;
+			rack_log_pacing_delay_calc(rack, rack->rc_tp->snd_cwnd,
+						   rack->r_ctl.cwnd_to_use,
+						   rate_wanted, bw_est,
+						   rack->r_ctl.rc_last_us_rtt,
+						   88, __LINE__, NULL, gain);
 		}
 		if ((bw_est == 0) || (rate_wanted == 0) ||
 		    ((rack->gp_ready == 0) && (rack->use_fixed_rate == 0))) {
@@ -17534,16 +17780,16 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		 * means we may be off if we are larger than 1500 bytes
 		 * or smaller. But this just makes us more conservative.
 		 */
-		
+
 		oh =  (tp->t_maxseg - segsiz) + sizeof(struct tcphdr);
 		if (rack->r_is_v6) {
 #ifdef INET6
 			oh += sizeof(struct ip6_hdr);
-#endif			
+#endif
 		} else {
 #ifdef INET
 			oh += sizeof(struct ip);
-#endif			
+#endif
 		}
 		/* We add a fixed 14 for the ethernet header */
 		oh += 14;
@@ -17602,6 +17848,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		prev_fill = rack->r_via_fill_cw;
 		if ((rack->rc_pace_to_cwnd) &&
 		    (capped == 0) &&
+		    (rack->dgp_on == 1) &&
 		    (rack->use_fixed_rate == 0) &&
 		    (rack->in_probe_rtt == 0) &&
 		    (IN_FASTRECOVERY(rack->rc_tp->t_flags) == 0)) {
@@ -17652,8 +17899,8 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 				if (rack->r_ctl.crte) {
 					rack->rack_hdrw_pacing = 1;
 					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size_w_divisor(tp, rate_wanted, segsiz,
-									  pace_one, rack->r_ctl.crte,
-									  NULL, rack->r_ctl.pace_len_divisor);
+													   pace_one, rack->r_ctl.crte,
+													   NULL, rack->r_ctl.pace_len_divisor);
 					rack_log_hdwr_pacing(rack,
 							     rate_wanted, rack->r_ctl.crte->rate, __LINE__,
 							     err, 0);
@@ -17695,8 +17942,8 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 						 * do allow hardware pacing to be restarted.
 						 */
 						rack_log_hdwr_pacing(rack,
-							     bw_est, rack->r_ctl.crte->rate, __LINE__,
-							     0, 5);
+								     bw_est, rack->r_ctl.crte->rate, __LINE__,
+								     0, 5);
 						tcp_rel_pacing_rate(rack->r_ctl.crte, rack->rc_tp);
 						rack->r_ctl.crte = NULL;
 						rack->rack_attempt_hdwr_pace = 0;
@@ -17705,11 +17952,11 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 						goto done_w_hdwr;
 					}
 					nrte = tcp_chg_pacing_rate(rack->r_ctl.crte,
-									    rack->rc_tp,
-									    rack->rc_inp->inp_route.ro_nh->nh_ifp,
-									    rate_wanted,
-									    RS_PACING_GEQ,
-									    &err, &rack->r_ctl.crte_prev_rate);
+								   rack->rc_tp,
+								   rack->rc_inp->inp_route.ro_nh->nh_ifp,
+								   rate_wanted,
+								   RS_PACING_GEQ,
+								   &err, &rack->r_ctl.crte_prev_rate);
 					if (nrte == NULL) {
 						/*
 						 * Lost the rate, lets drop hardware pacing
@@ -17725,8 +17972,8 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 					} else if (nrte != rack->r_ctl.crte) {
 						rack->r_ctl.crte = nrte;
 						rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size_w_divisor(tp, rate_wanted,
-										 segsiz, pace_one, rack->r_ctl.crte,
-										 NULL, rack->r_ctl.pace_len_divisor);
+														   segsiz, pace_one, rack->r_ctl.crte,
+														   NULL, rack->r_ctl.pace_len_divisor);
 						rack_log_hdwr_pacing(rack,
 								     rate_wanted, rack->r_ctl.crte->rate, __LINE__,
 								     err, 2);
@@ -17747,7 +17994,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 						   98, __LINE__, NULL, 0);
 			slot = minslot;
 		}
-done_w_hdwr:
+	done_w_hdwr:
 		if (rack_limit_time_with_srtt &&
 		    (rack->use_fixed_rate == 0) &&
 		    (rack->rack_hdrw_pacing == 0)) {
@@ -18070,7 +18317,7 @@ rack_log_fsb(struct tcp_rack *rack, struct tcpcb *tp, struct socket *so, uint32_
 	     unsigned ipoptlen, int32_t orig_len, int32_t len, int error,
 	     int rsm_is_null, int optlen, int line, uint16_t mode)
 {
-	if (tcp_bblogging_on(rack->rc_tp)) {
+	if (rack_verbose_logging && tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
@@ -18500,6 +18747,11 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		to.to_tsecr = tp->ts_recent;
 		to.to_flags = TOF_TS;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	/* TCP-MD5 (RFC2385). */
+	if (tp->t_flags & TF_SIGNATURE)
+		to.to_flags |= TOF_SIGNATURE;
+#endif
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
@@ -18659,6 +18911,24 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	tcp_set_flags(th, flags);
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (to.to_flags & TOF_SIGNATURE) {
+		/*
+		 * Calculate MD5 signature and put it into the place
+		 * determined before.
+		 * NOTE: since TCP options buffer doesn't point into
+		 * mbuf's data, calculate offset and use it.
+		 */
+		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
+						       (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
+			/*
+			 * Do not send segment if the calculation of MD5
+			 * digest has failed.
+			 */
+			goto failed;
+		}
+	}
+#endif
 #ifdef INET6
 	if (rack->r_is_v6) {
 		if (tp->t_port) {
@@ -18826,7 +19096,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 #ifdef INET6
 	if (rack->r_is_v6) {
-		error = ip6_output(m, NULL,
+		error = ip6_output(m, inp->in6p_outputopts,
 				   &inp->inp_route6,
 				   ip_sendflag, NULL, NULL, inp);
 	}
@@ -18869,6 +19139,10 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 			rack->r_ctl.last_sent_tlp_seq = rsm->r_start;
 			rack->r_ctl.last_sent_tlp_len = rsm->r_end - rsm->r_start;
 		}
+		if (rack->r_ctl.rc_prr_sndcnt >= len)
+			rack->r_ctl.rc_prr_sndcnt -= len;
+		else
+			rack->r_ctl.rc_prr_sndcnt = 0;
 	}
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
@@ -19049,6 +19323,7 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 		m = NULL;
 		goto failed;
 	}
+	rack->r_ctl.cwnd_to_use = tp->snd_cwnd;
 	startseq = tp->snd_max;
 	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
 	inp = rack->rc_inp;
@@ -19060,6 +19335,11 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 		to.to_tsecr = tp->ts_recent;
 		to.to_flags = TOF_TS;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	/* TCP-MD5 (RFC2385). */
+	if (tp->t_flags & TF_SIGNATURE)
+		to.to_flags |= TOF_SIGNATURE;
+#endif
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
@@ -19199,6 +19479,24 @@ again:
 	}
 	tcp_set_flags(th, flags);
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (to.to_flags & TOF_SIGNATURE) {
+		/*
+		 * Calculate MD5 signature and put it into the place
+		 * determined before.
+		 * NOTE: since TCP options buffer doesn't point into
+		 * mbuf's data, calculate offset and use it.
+		 */
+		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
+						       (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
+			/*
+			 * Do not send segment if the calculation of MD5
+			 * digest has failed.
+			 */
+			goto failed;
+		}
+	}
+#endif
 #ifdef INET6
 	if (rack->r_is_v6) {
 		if (tp->t_port) {
@@ -19338,7 +19636,7 @@ again:
 		lgb = NULL;
 #ifdef INET6
 	if (rack->r_is_v6) {
-		error = ip6_output(m, NULL,
+		error = ip6_output(m, inp->in6p_outputopts,
 				   &inp->inp_route6,
 				   0, NULL, NULL, inp);
 	}
@@ -21085,7 +21383,7 @@ send:
 		/* TCP-MD5 (RFC2385). */
 		if (tp->t_flags & TF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
-#endif				/* TCP_SIGNATURE */
+#endif
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
@@ -21579,6 +21877,15 @@ send:
 		if (udp)
 			udp = (struct udphdr *)(cpto + ((uint8_t *)rack->r_ctl.fsb.udp - rack->r_ctl.fsb.tcp_ip_hdr));
 	}
+	if (optlen) {
+		bcopy(opt, th + 1, optlen);
+		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
+	}
+	/*
+	 * Put TCP length in extended header, and then checksum extended
+	 * header and data.
+	 */
+	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
 		/*
@@ -21597,15 +21904,6 @@ send:
 		}
 	}
 #endif
-	if (optlen) {
-		bcopy(opt, th + 1, optlen);
-		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
-	}
-	/*
-	 * Put TCP length in extended header, and then checksum extended
-	 * header and data.
-	 */
-	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #ifdef INET6
 	if (isipv6) {
 		/*
@@ -21792,11 +22090,7 @@ send:
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m,
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 				   inp->in6p_outputopts,
-#else
-				   NULL,
-#endif
 				   &inp->inp_route6,
 				   ((rsm || sack_rxmit) ? IP_NO_SND_TAG_RL : 0),
 				   NULL, NULL, inp);
@@ -22406,6 +22700,7 @@ rack_set_dgp(struct tcp_rack *rack)
 		if (tcp_can_enable_pacing() == 0)
 			return (EBUSY);
 	}
+	rack->rc_fillcw_apply_discount = 0;
 	rack->dgp_on = 1;
 	rack->rc_always_pace = 1;
 	rack->use_fixed_rate = 0;
@@ -22494,6 +22789,26 @@ rack_set_profile(struct tcp_rack *rack, int prof)
 		err = rack_set_dgp(rack);
 		if (err)
 			return (err);
+	} else if (prof == 5) {
+		err = rack_set_dgp(rack);
+		if (err)
+			return (err);
+		/*
+		 * By turning DGP off we change the rate
+		 * picked to be only the one the cwnd and rtt
+		 * get us.
+		 */
+		rack->dgp_on = 0;
+	} else if (prof == 6) {
+		err = rack_set_dgp(rack);
+		if (err)
+			return (err);
+		/*
+		 * Profile 6 tweaks DGP so that it will apply to
+		 * fill-cw the same settings that profile5 does
+		 * to replace DGP. It gets then the max(dgp-rate, fillcw(discounted).
+		 */
+		rack->rc_fillcw_apply_discount = 1;
 	} else if (prof == 0) {
 		/* This changes things back to the default settings */
 		rack->dgp_on = 0;
@@ -22510,7 +22825,7 @@ rack_set_profile(struct tcp_rack *rack, int prof)
 		}
 		if (rack_pace_every_seg && tcp_can_enable_pacing()) {
 			rack->rc_always_pace = 1;
-			if ((rack->gp_ready) && (rack->use_fixed_rate == 0))
+			if (rack->rack_hibeta)
 				rack_set_cc_pacing(rack);
 		} else
 			rack->rc_always_pace = 0;
@@ -22603,7 +22918,7 @@ static int
 process_hybrid_pacing(struct tcp_rack *rack, struct tcp_hybrid_req *hybrid)
 {
 #ifdef TCP_REQUEST_TRK
-	struct http_sendfile_track *sft;
+	struct tcp_sendfile_track *sft;
 	struct timeval tv;
 	tcp_seq seq;
 	int err;
@@ -22629,7 +22944,7 @@ process_hybrid_pacing(struct tcp_rack *rack, struct tcp_hybrid_req *hybrid)
 	rack->r_ctl.rc_fixed_pacing_rate_ca = 0;
 	rack->r_ctl.rc_fixed_pacing_rate_ss = 0;
 	/* Now allocate or find our entry that will have these settings */
-	sft = tcp_http_alloc_req_full(rack->rc_tp, &hybrid->req, tcp_tv_to_lusectick(&tv), 0);
+	sft = tcp_req_alloc_req_full(rack->rc_tp, &hybrid->req, tcp_tv_to_lusectick(&tv), 0);
 	if (sft == NULL) {
 		rack->rc_tp->tcp_hybrid_error++;
 		/* no space, where would it have gone? */
@@ -22662,7 +22977,7 @@ process_hybrid_pacing(struct tcp_rack *rack, struct tcp_hybrid_req *hybrid)
 		}
 	}
 	/* Now set in our flags */
-	sft->hybrid_flags = hybrid->hybrid_flags;
+	sft->hybrid_flags = hybrid->hybrid_flags | TCP_HYBRID_PACING_WASSET;
 	if (hybrid->hybrid_flags & TCP_HYBRID_PACING_CSPR)
 		sft->cspr = hybrid->cspr;
 	else
@@ -22731,10 +23046,25 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		break;
 	case TCP_RACK_HI_BETA:
 		RACK_OPTS_INC(tcp_rack_hi_beta);
-		if (optval)
+		if (optval > 0) {
 			rack->rack_hibeta = 1;
-		else
+			if ((optval >= 50) &&
+			    (optval <= 100)) {
+				/*
+				 * User wants to set a custom beta.
+				 */
+				rack->r_ctl.saved_hibeta = optval;
+				if (rack->rc_pacing_cc_set)
+					rack_undo_cc_pacing(rack);
+				rack->r_ctl.rc_saved_beta.beta = optval;
+			}
+			if (rack->rc_pacing_cc_set == 0)
+				rack_set_cc_pacing(rack);
+		} else {
 			rack->rack_hibeta = 0;
+			if (rack->rc_pacing_cc_set)
+				rack_undo_cc_pacing(rack);
+		}
 		break;
 	case TCP_RACK_PACING_BETA:
 		RACK_OPTS_INC(tcp_rack_beta);
@@ -23007,7 +23337,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 				break;
 			} else if (tcp_can_enable_pacing()) {
 				rack->rc_always_pace = 1;
-				if ((rack->gp_ready) && (rack->use_fixed_rate == 0))
+				if (rack->rack_hibeta)
 					rack_set_cc_pacing(rack);
 			}
 			else {
@@ -23103,7 +23433,10 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 	case TCP_RACK_PACE_MAX_SEG:
 		/* Max segments size in a pace in bytes */
 		RACK_OPTS_INC(tcp_rack_max_seg);
-		rack->rc_user_set_max_segs = optval;
+		if (optval <= MAX_USER_SET_SEG)
+			rack->rc_user_set_max_segs = optval;
+		else
+			rack->rc_user_set_max_segs = MAX_USER_SET_SEG;
 		rack_set_pace_segments(tp, rack, __LINE__, NULL);
 		break;
 	case TCP_RACK_PACE_RATE_REC:
@@ -23115,7 +23448,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		if (rack->r_ctl.rc_fixed_pacing_rate_ss == 0)
 			rack->r_ctl.rc_fixed_pacing_rate_ss = optval;
 		rack->use_fixed_rate = 1;
-		if (rack->rc_always_pace && rack->gp_ready && rack->rack_hibeta)
+		if (rack->rack_hibeta)
 			rack_set_cc_pacing(rack);
 		rack_log_pacing_delay_calc(rack,
 					   rack->r_ctl.rc_fixed_pacing_rate_ss,
@@ -23133,7 +23466,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		if (rack->r_ctl.rc_fixed_pacing_rate_rec == 0)
 			rack->r_ctl.rc_fixed_pacing_rate_rec = optval;
 		rack->use_fixed_rate = 1;
-		if (rack->rc_always_pace && rack->gp_ready && rack->rack_hibeta)
+		if (rack->rack_hibeta)
 			rack_set_cc_pacing(rack);
 		rack_log_pacing_delay_calc(rack,
 					   rack->r_ctl.rc_fixed_pacing_rate_ss,
@@ -23151,7 +23484,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		if (rack->r_ctl.rc_fixed_pacing_rate_rec == 0)
 			rack->r_ctl.rc_fixed_pacing_rate_rec = optval;
 		rack->use_fixed_rate = 1;
-		if (rack->rc_always_pace && rack->gp_ready && rack->rack_hibeta)
+		if (rack->rack_hibeta)
 			rack_set_cc_pacing(rack);
 		rack_log_pacing_delay_calc(rack,
 					   rack->r_ctl.rc_fixed_pacing_rate_ss,
@@ -23448,10 +23781,6 @@ static int
 rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 {
 	struct inpcb *inp = tptoinpcb(tp);
-#ifdef INET6
-	struct ip6_hdr *ip6;
-	int32_t mask, tclass;
-#endif
 #ifdef INET
 	struct ip *ip;
 #endif
@@ -23465,9 +23794,6 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		INP_WUNLOCK(inp);
 		return (EINVAL);
 	}
-#ifdef INET6
-	ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
-#endif
 #ifdef INET
 	ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
 #endif
@@ -23479,18 +23805,6 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case IPV6_USE_MIN_MTU:
 			tcp6_use_min_mtu(tp);
-			break;
-		case IPV6_TCLASS:
-			/*
-			 * The DSCP codepoint has changed, update the fsb
-			 * by overwriting any previous traffic class.
-			 */
-			if (inp->in6p_outputopts) {
-				mask = 0xfc;
-				tclass = inp->in6p_outputopts->ip6po_tclass;
-				ip6->ip6_flow &= htonl((~mask) << 20);
-				ip6->ip6_flow |= htonl((tclass & mask) << 20);
-			}
 			break;
 		}
 		INP_WUNLOCK(inp);

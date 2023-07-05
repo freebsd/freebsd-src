@@ -924,7 +924,7 @@ __CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
 
 static int
 __elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
-    const Elf_Phdr *phdr, u_long et_dyn_addr)
+    const Elf_Phdr *phdr)
 {
 	struct vmspace *vmspace;
 	const char *err_str;
@@ -939,9 +939,9 @@ __elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
 		if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0)
 			continue;
 
-		seg_addr = trunc_page(phdr[i].p_vaddr + et_dyn_addr);
+		seg_addr = trunc_page(phdr[i].p_vaddr + imgp->et_dyn_addr);
 		seg_size = round_page(phdr[i].p_memsz +
-		    phdr[i].p_vaddr + et_dyn_addr - seg_addr);
+		    phdr[i].p_vaddr + imgp->et_dyn_addr - seg_addr);
 
 		/*
 		 * Make the largest executable segment the official
@@ -1069,19 +1069,7 @@ static int
 __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
     const char *interp, u_long *addr, u_long *entry)
 {
-	char *path;
 	int error;
-
-	if (brand_info->emul_path != NULL &&
-	    brand_info->emul_path[0] != '\0') {
-		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		snprintf(path, MAXPATHLEN, "%s%s",
-		    brand_info->emul_path, interp);
-		error = __elfN(load_file)(imgp->proc, path, addr, entry);
-		free(path, M_TEMP);
-		if (error == 0)
-			return (0);
-	}
 
 	if (brand_info->interp_newpath != NULL &&
 	    (brand_info->interp_path == NULL ||
@@ -1118,7 +1106,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	char *interp;
 	Elf_Brandinfo *brand_info;
 	struct sysentvec *sv;
-	u_long addr, baddr, et_dyn_addr, entry, proghdr;
+	u_long addr, baddr, entry, proghdr;
 	u_long maxalign, maxsalign, mapsz, maxv, maxv1, anon_loc;
 	uint32_t fctl0;
 	int32_t osrel;
@@ -1247,7 +1235,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		goto ret;
 	}
 	sv = brand_info->sysvec;
-	et_dyn_addr = 0;
 	if (hdr->e_type == ET_DYN) {
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
 			uprintf("Cannot execute shared object\n");
@@ -1261,13 +1248,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (baddr == 0) {
 			if ((sv->sv_flags & SV_ASLR) == 0 ||
 			    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0)
-				et_dyn_addr = __elfN(pie_base);
+				imgp->et_dyn_addr = __elfN(pie_base);
 			else if ((__elfN(pie_aslr_enabled) &&
 			    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) == 0) ||
 			    (imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0)
-				et_dyn_addr = ET_DYN_ADDR_RAND;
+				imgp->et_dyn_addr = ET_DYN_ADDR_RAND;
 			else
-				et_dyn_addr = __elfN(pie_base);
+				imgp->et_dyn_addr = __elfN(pie_base);
 		}
 	}
 
@@ -1300,11 +1287,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((sv->sv_flags & SV_ASLR) == 0 ||
 	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
 	    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0) {
-		KASSERT(et_dyn_addr != ET_DYN_ADDR_RAND,
-		    ("et_dyn_addr == RAND and !ASLR"));
+		KASSERT(imgp->et_dyn_addr != ET_DYN_ADDR_RAND,
+		    ("imgp->et_dyn_addr == RAND and !ASLR"));
 	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 ||
 	    (__elfN(aslr_enabled) && hdr->e_type == ET_EXEC) ||
-	    et_dyn_addr == ET_DYN_ADDR_RAND) {
+	    imgp->et_dyn_addr == ET_DYN_ADDR_RAND) {
 		imgp->map_flags |= MAP_ASLR;
 		/*
 		 * If user does not care about sbrk, utilize the bss
@@ -1341,24 +1328,24 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = ENOEXEC;
 	}
 
-	if (error == 0 && et_dyn_addr == ET_DYN_ADDR_RAND) {
+	if (error == 0 && imgp->et_dyn_addr == ET_DYN_ADDR_RAND) {
 		KASSERT((map->flags & MAP_ASLR) != 0,
 		    ("ET_DYN_ADDR_RAND but !MAP_ASLR"));
 		error = __CONCAT(rnd_, __elfN(base))(map,
 		    vm_map_min(map) + mapsz + lim_max(td, RLIMIT_DATA),
 		    /* reserve half of the address space to interpreter */
-		    maxv / 2, maxalign, &et_dyn_addr);
+		    maxv / 2, maxalign, &imgp->et_dyn_addr);
 	}
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	if (error != 0)
 		goto ret;
 
-	error = __elfN(load_sections)(imgp, hdr, phdr, et_dyn_addr, NULL);
+	error = __elfN(load_sections)(imgp, hdr, phdr, imgp->et_dyn_addr, NULL);
 	if (error != 0)
 		goto ret;
 
-	error = __elfN(enforce_limits)(imgp, hdr, phdr, et_dyn_addr);
+	error = __elfN(enforce_limits)(imgp, hdr, phdr);
 	if (error != 0)
 		goto ret;
 
@@ -1382,7 +1369,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		map->anon_loc = addr;
 	}
 
-	entry = (u_long)hdr->e_entry + et_dyn_addr;
+	entry = (u_long)hdr->e_entry + imgp->et_dyn_addr;
 	imgp->entry_addr = entry;
 
 	if (interp != NULL) {
@@ -1401,7 +1388,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (error != 0)
 			goto ret;
 	} else
-		addr = et_dyn_addr;
+		addr = imgp->et_dyn_addr;
 
 	error = exec_map_stack(imgp);
 	if (error != 0)
@@ -1417,7 +1404,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}
 	elf_auxargs->execfd = -1;
-	elf_auxargs->phdr = proghdr + et_dyn_addr;
+	elf_auxargs->phdr = proghdr + imgp->et_dyn_addr;
 	elf_auxargs->phent = hdr->e_phentsize;
 	elf_auxargs->phnum = hdr->e_phnum;
 	elf_auxargs->pagesz = PAGE_SIZE;

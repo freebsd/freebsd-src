@@ -1,6 +1,6 @@
 %{
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,11 +39,12 @@ __FBSDID("$FreeBSD$");
 #ifdef DEBUG
 #define YYDEBUG 1
 #endif
+
+static struct cfjail *current_jail;
+static struct cfjail *global_jail;
 %}
 
 %union {
-	struct cfjail		*j;
-	struct cfparams		*pp;
 	struct cfparam		*p;
 	struct cfstrings	*ss;
 	struct cfstring		*s;
@@ -52,55 +54,68 @@ __FBSDID("$FreeBSD$");
 %token      PLEQ
 %token <cs> STR STR1 VAR VAR1
 
-%type <j>  jail
-%type <pp> param_l
 %type <p>  param name
 %type <ss> value
 %type <s>  string
 
+%pure-parser
+
+%lex-param { void *scanner }
+%parse-param { void *scanner }
+
 %%
 
 /*
- * A config file is a series of jails (containing parameters) and jail-less
- * parameters which really belong to a global pseudo-jail.
+ * A config file is a list of jails and parameters.  Parameters are
+ * added to the current jail, otherwise to a global pesudo-jail.
  */
 conf	:
-	;
 	| conf jail
-	;
 	| conf param ';'
 	{
-		struct cfjail *j;
+		if (!special_param($2, scanner)) {
+			struct cfjail *j = current_jail;
 
-		j = TAILQ_LAST(&cfjails, cfjails);
-		if (!j || strcmp(j->name, "*")) {
-			j = add_jail();
-			j->name = estrdup("*");
+			if (j == NULL) {
+				if (global_jail == NULL) {
+					global_jail = add_jail();
+					global_jail->name = estrdup("*");
+				}
+				j = global_jail;
+			}
+			TAILQ_INSERT_TAIL(&j->params, $2, tq);
 		}
-		TAILQ_INSERT_TAIL(&j->params, $2, tq);
 	}
 	| conf ';'
+	;
 
-jail	: STR '{' param_l '}'
+jail	: jail_name '{' conf '}'
 	{
-		$$ = add_jail();
-		$$->name = $1;
-		TAILQ_CONCAT(&$$->params, $3, tq);
-		free($3);
+		current_jail = current_jail->cfparent;
 	}
 	;
 
-param_l	:
+jail_name : STR
 	{
-		$$ = emalloc(sizeof(struct cfparams));
-		TAILQ_INIT($$);
+		struct cfjail *j = add_jail();
+
+		if (current_jail == NULL)
+			j->name = $1;
+		else {
+			/*
+			 * A nested jail definition becomes
+			 * a hierarchically-named sub-jail.
+			 */
+			size_t parentlen = strlen(current_jail->name);
+			j->name = emalloc(parentlen + strlen($1) + 2);
+			strcpy(j->name, current_jail->name);
+			j->name[parentlen++] = '.';
+			strcpy(j->name + parentlen, $1);
+			free($1);
+		}
+		j->cfparent = current_jail;
+		current_jail = j;
 	}
-	| param_l param ';'
-	{
-		$$ = $1;
-		TAILQ_INSERT_TAIL($$, $2, tq);
-	}
-	| param_l ';'
 	;
 
 /*
@@ -128,11 +143,10 @@ param	: name
 	{
 		$$ = $1;
 		TAILQ_CONCAT(&$$->val, $2, tq);
+		$$->flags |= PF_NAMEVAL;
 		free($2);
 	}
 	| error
-	{
-	}
 	;
 
 /*
@@ -216,3 +230,46 @@ string	: STR
 	;
 
 %%
+
+extern int YYLEX_DECL();
+
+static void
+YYERROR_DECL()
+{
+	if (!yyget_text(scanner))
+		warnx("%s line %d: %s",
+		    yyget_extra(scanner)->cfname, yyget_lineno(scanner), s);
+	else if (!yyget_text(scanner)[0])
+		warnx("%s: unexpected EOF",
+		    yyget_extra(scanner)->cfname);
+	else
+		warnx("%s line %d: %s: %s",
+		    yyget_extra(scanner)->cfname, yyget_lineno(scanner),
+		    yyget_text(scanner), s);
+}
+
+/* Handle special parameters (i.e. the include directive).
+ * Return true if the parameter was specially handled.
+ */
+static int
+special_param(struct cfparam *p, void *scanner)
+{
+	if ((p->flags & (PF_VAR | PF_APPEND | PF_NAMEVAL)) != PF_NAMEVAL
+	    || strcmp(p->name, ".include"))
+		return 0;
+	struct cfstring *s;
+	TAILQ_FOREACH(s, &p->val, tq) {
+		if (STAILQ_EMPTY(&s->vars))
+			include_config(scanner, s->s);
+		else {
+			warnx("%s line %d: "
+			    "variables not permitted in '.include' filename",
+			    yyget_extra(scanner)->cfname,
+			    yyget_lineno(scanner));
+			yyget_extra(scanner)->error = 1;
+		}
+	}
+	free_param_strings(p);
+	free(p);
+	return 1;
+}

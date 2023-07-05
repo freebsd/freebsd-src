@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Dmitry Chagin <dchagin@FreeBSD.org>
  *
@@ -192,10 +192,17 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+	case LINUX_SYS_linux_clone:
+		putchar('(');
+		print_mask_arg(sysdecode_linux_clone_flags, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
 	case LINUX_SYS_linux_kill:
 	case LINUX_SYS_linux_tkill:
 	case LINUX_SYS_linux_rt_sigqueueinfo:
-		print_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
 		putchar(',');
 		print_linux_signal(*ip);
 		ip++;
@@ -203,8 +210,8 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		break;
 	case LINUX_SYS_linux_tgkill:
 	case LINUX_SYS_linux_rt_tgsigqueueinfo:
-		print_number(ip, narg, c);
-		print_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
 		putchar(',');
 		print_linux_signal(*ip);
 		ip++;
@@ -394,10 +401,17 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+	case LINUX32_SYS_linux_clone:
+		putchar('(');
+		print_mask_arg(sysdecode_linux_clone_flags, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
 	case LINUX32_SYS_linux_kill:
 	case LINUX32_SYS_linux_tkill:
 	case LINUX32_SYS_linux_rt_sigqueueinfo:
-		print_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
 		putchar(',');
 		print_linux_signal(*ip);
 		ip++;
@@ -405,8 +419,8 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 		break;
 	case LINUX32_SYS_linux_tgkill:
 	case LINUX32_SYS_linux_rt_tgsigqueueinfo:
-		print_number(ip, narg, c);
-		print_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
+		print_decimal_number(ip, narg, c);
 		putchar(',');
 		print_linux_signal(*ip);
 		ip++;

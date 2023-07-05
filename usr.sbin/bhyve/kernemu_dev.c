@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright 2020 Conrad Meyer <cem@FreeBSD.org>.  All rights reserved.
  *
@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/tree.h>
 
-#include <amd64/include/vmm.h>
+#include <machine/vmm.h>
 #include <x86/include/apicreg.h>
 struct vm;
 struct vm_hpet_cap;

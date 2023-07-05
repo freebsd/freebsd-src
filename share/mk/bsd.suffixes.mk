@@ -55,7 +55,7 @@
 	${CTFCONVERT_CMD}
 
 .s.o:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+	${CC:N${CCACHE_BIN}} -x assembler ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 # XXX not -j safe

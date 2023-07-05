@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/cpu.h>
+#include <machine/fpe.h>
 #include <machine/intr.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
@@ -91,10 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/sbi.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
-
-#ifdef FPE
-#include <machine/fpe.h>
-#endif
 
 #ifdef FDT
 #include <contrib/libfdt/libfdt.h>
@@ -131,7 +128,7 @@ cpu_startup(void *dummy)
 {
 
 	sbi_print_version();
-	identify_cpu();
+	printcpuinfo(0);
 
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)realmem),
 	    ptoa((uintmax_t)realmem) / (1024 * 1024));
@@ -538,6 +535,11 @@ initriscv(struct riscv_bootparams *rvbp)
 	}
 	physmem_hardware_regions(mem_regions, mem_regions_sz);
 #endif
+
+	/*
+	 * Identify CPU/ISA features.
+	 */
+	identify_cpu(0);
 
 	/* Do basic tuning, hz etc */
 	init_param1();

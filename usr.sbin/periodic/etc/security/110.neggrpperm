@@ -54,7 +54,7 @@ then
 	    \( \( ! -perm +010 -and -perm +001 \) -or \
 	    \( ! -perm +020 -and -perm +002 \) -or \
 	    \( ! -perm +040 -and -perm +004 \) \) \
-	    -exec ls -liTd \{\} \+ | tee /dev/stderr | wc -l)
+	    -exec ls -lid -D "%FT%T" \{\} \+ | tee /dev/stderr | wc -l)
 	[ $n -gt 0 ] && rc=1 || rc=0
 fi
 

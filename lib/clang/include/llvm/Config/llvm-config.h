@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*===------- llvm/Config/llvm-config.h - llvm configuration -------*- C -*-===*/
 /*                                                                            */
 /* Part of the LLVM Project, under the Apache License v2.0 with LLVM          */
@@ -68,16 +67,16 @@
 #define LLVM_USE_PERF 0
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 15
+#define LLVM_VERSION_MAJOR 16
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 7
+#define LLVM_VERSION_PATCH 6
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "15.0.7"
+#define LLVM_VERSION_STRING "16.0.6"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
@@ -97,10 +96,10 @@
 #define LLVM_ENABLE_ZLIB 1
 
 /* Define if zstd compression is available */
-#define LLVM_ENABLE_ZSTD 0
+#define LLVM_ENABLE_ZSTD 1
 
-/* Define if LLVM was built with a dependency to the libtensorflow dynamic library */
-/* #undef LLVM_HAVE_TF_API */
+/* Define if LLVM is using tflite instead of libtensorflow */
+/* #undef LLVM_HAVE_TFLITE */
 
 /* Define to 1 if you have the <sysexits.h> header file. */
 #define HAVE_SYSEXITS_H 1
@@ -125,5 +124,8 @@
 
 /* Define to 1 if you have the DIA SDK installed, and to 0 if you don't. */
 #define LLVM_ENABLE_DIA_SDK 0
+
+/* Define if plugins enabled */
+/* #undef LLVM_ENABLE_PLUGINS */
 
 #endif

@@ -14,8 +14,12 @@ MACHINE_CPU = amd64 sse2 sse mmx
 MACHINE_CPU = arm
 . elif ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
-. elif ${MACHINE_CPUARCH} == "powerpc"
+. elif ${MACHINE_ARCH} == "powerpc"
 MACHINE_CPU = aim
+. elif ${MACHINE_ARCH} == "powerpc64"
+MACHINE_CPU = aim altivec
+. elif ${MACHINE_ARCH} == "powerpc64le"
+MACHINE_CPU = aim altivec vsx vsx2
 . elif ${MACHINE_CPUARCH} == "riscv"
 MACHINE_CPU = riscv
 . endif
@@ -125,7 +129,7 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  if ${CPUTYPE} == "e500"
 _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
-_CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH:Mpowerpc64*} != ""
 _CPUCFLAGS = -mcpu=${CPUTYPE}
@@ -276,6 +280,27 @@ MACHINE_CPU += amd64 sse2 sse mmx
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke softfp
+.  elif ${CPUTYPE} == "g4"
+MACHINE_CPU = aim altivec
+.  else
+MACHINE_CPU= aim
+.  endif
+. elif ${MACHINE_ARCH} == "powerpc64"
+.  if ${CPUTYPE} == "e5500"
+MACHINE_CPU = booke
+.  elif ${CPUTYPE} == power7
+MACHINE_CPU = altivec vsx
+.  elif ${CPUTYPE} == power8
+MACHINE_CPU = altivec vsx vsx2
+.  elif ${CPUTYPE} == power9
+MACHINE_CPU = altivec vsx vsx2 vsx3
+.  else
+MACHINE_CPU = aim altivec
+.  endif
+. elif ${MACHINE_ARCH} == "powerpc64le"
+MACHINE_CPU = aim altivec vsx vsx2
+.  if ${CPUTYPE} == power9
+MACHINE_CPU += vsx3
 .  endif
 ########## riscv
 . elif ${MACHINE_CPUARCH} == "riscv"

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -47,13 +47,13 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_writer
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 /*
  * The goal of this file is to provide convenient message writing KPI on top of
  * different storage methods (mbufs, uio, temporary memory chunks).
  *
- * The main KPI guarantee is the the (last) message always resides in the contiguous
+ * The main KPI guarantee is that the (last) message always resides in the contiguous
  *  memory buffer, so one is able to update the header after writing the entire message.
  *
  * This guarantee comes with a side effect of potentially reallocating underlying
@@ -69,7 +69,7 @@ _DECLARE_DEBUG(LOG_DEBUG);
  *
  * There are 3 types of storage:
  * * NS_WRITER_TYPE_MBUF (mbuf-based, most efficient, used when a single message
- *    fits in MCLBYTES)
+ *    fits in NLMBUFSIZE)
  * * NS_WRITER_TYPE_BUF (fallback, malloc-based, used when a single message needs
  *    to be larger than one supported by NS_WRITER_TYPE_MBUF)
  * * NS_WRITER_TYPE_LBUF (malloc-based, similar to NS_WRITER_TYPE_BUF, used for
@@ -78,6 +78,103 @@ _DECLARE_DEBUG(LOG_DEBUG);
  * Internally, KPI switches between different types of storage when memory requirements
  *  change. It happens transparently to the caller.
  */
+
+/*
+ * Uma zone for the mbuf-based Netlink storage
+ */
+static uma_zone_t	nlmsg_zone;
+
+static void
+nl_free_mbuf_storage(struct mbuf *m)
+{
+	uma_zfree(nlmsg_zone, m->m_ext.ext_buf);
+}
+
+static int
+nl_setup_mbuf_storage(void *mem, int size, void *arg, int how __unused)
+{
+	struct mbuf *m = (struct mbuf *)arg;
+
+	if (m != NULL)
+		m_extadd(m, mem, size, nl_free_mbuf_storage, NULL, NULL, 0, EXT_MOD_TYPE);
+
+	return (0);
+}
+
+static struct mbuf *
+nl_get_mbuf_flags(int size, int malloc_flags, int mbuf_flags)
+{
+	struct mbuf *m, *m_storage;
+
+	if (size <= MHLEN)
+		return (m_get2(size, malloc_flags, MT_DATA, mbuf_flags));
+
+	if (__predict_false(size > NLMBUFSIZE))
+		return (NULL);
+
+	m = m_gethdr(malloc_flags, MT_DATA);
+	if (m == NULL)
+		return (NULL);
+
+	m_storage = uma_zalloc_arg(nlmsg_zone, m, malloc_flags);
+	if (m_storage == NULL) {
+		m_free_raw(m);
+		return (NULL);
+	}
+
+	return (m);
+}
+
+static struct mbuf *
+nl_get_mbuf(int size, int malloc_flags)
+{
+	return (nl_get_mbuf_flags(size, malloc_flags, M_PKTHDR));
+}
+
+/*
+ * Gets a chain of Netlink mbufs.
+ * This is strip-down version of m_getm2()
+ */
+static struct mbuf *
+nl_get_mbuf_chain(int len, int malloc_flags)
+{
+	struct mbuf *m_chain = NULL, *m_tail = NULL;
+	int mbuf_flags = M_PKTHDR;
+
+	while (len > 0) {
+		int sz = len > NLMBUFSIZE ? NLMBUFSIZE: len;
+		struct mbuf *m = nl_get_mbuf_flags(sz, malloc_flags, mbuf_flags);
+
+		if (m == NULL) {
+			m_freem(m_chain);
+			return (NULL);
+		}
+
+		/* Book keeping. */
+		len -= M_SIZE(m);
+		if (m_tail != NULL)
+			m_tail->m_next = m;
+		else
+			m_chain = m;
+		m_tail = m;
+		mbuf_flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
+	}
+
+	return (m_chain);
+}
+
+void
+nl_init_msg_zone(void)
+{
+	nlmsg_zone = uma_zcreate("netlink", NLMBUFSIZE, nl_setup_mbuf_storage,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+}
+
+void
+nl_destroy_msg_zone(void)
+{
+	uma_zdestroy(nlmsg_zone);
+}
 
 
 typedef bool nlwriter_op_init(struct nl_writer *nw, int size, bool waitok);
@@ -122,7 +219,7 @@ nlmsg_write_socket_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 		return (true);
 	}
 
-	struct mbuf *m = m_getm2(NULL, datalen, nw->malloc_flag, MT_DATA, M_PKTHDR);
+	struct mbuf *m = nl_get_mbuf_chain(datalen, nw->malloc_flag);
 	if (__predict_false(m == NULL)) {
 		/* XXX: should we set sorcverr? */
 		free(buf, M_NETLINK);
@@ -145,7 +242,7 @@ nlmsg_write_group_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 		return (true);
 	}
 
-	struct mbuf *m = m_getm2(NULL, datalen, nw->malloc_flag, MT_DATA, M_PKTHDR);
+	struct mbuf *m = nl_get_mbuf_chain(datalen, nw->malloc_flag);
 	if (__predict_false(m == NULL)) {
 		free(buf, M_NETLINK);
 		return (false);
@@ -172,9 +269,8 @@ nlmsg_write_chain_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	}
 
 	if (*m0 == NULL) {
-		struct mbuf *m;
+		struct mbuf *m = nl_get_mbuf_chain(datalen, nw->malloc_flag);
 
-		m = m_getm2(NULL, datalen, nw->malloc_flag, MT_DATA, M_PKTHDR);
 		if (__predict_false(m == NULL)) {
 			free(buf, M_NETLINK);
 			return (false);
@@ -196,17 +292,16 @@ nlmsg_write_chain_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
  * This is the most efficient mechanism as it avoids double-copying.
  *
  * Allocates a single mbuf suitable to store up to @size bytes of data.
- * If size < MHLEN (around 160 bytes), allocates mbuf with pkghdr
- * If size <= MCLBYTES (2k), allocate a single mbuf cluster
- * Otherwise, return NULL.
+ * If size < MHLEN (around 160 bytes), allocates mbuf with pkghdr.
+ * If the size <= NLMBUFSIZE (2k), allocate mbuf+storage out of nlmsg_zone.
+ * Returns NULL on greater size or the allocation failure.
  */
 static bool
 nlmsg_get_ns_mbuf(struct nl_writer *nw, int size, bool waitok)
 {
-	struct mbuf *m;
-
 	int mflag = waitok ? M_WAITOK : M_NOWAIT;
-	m = m_get2(size, mflag, MT_DATA, M_PKTHDR);
+	struct mbuf *m = nl_get_mbuf(size, mflag);
+
 	if (__predict_false(m == NULL))
 		return (false);
 	nw->alloc_len = M_TRAILINGSPACE(m);
@@ -359,7 +454,7 @@ nlmsg_write_group_lbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 		return (true);
 	}
 
-	struct mbuf *m = m_getm2(NULL, datalen, nw->malloc_flag, MT_DATA, M_PKTHDR);
+	struct mbuf *m = nl_get_mbuf_chain(datalen, nw->malloc_flag);
 	if (__predict_false(m == NULL)) {
 		free(buf, M_NETLINK);
 		return (false);
@@ -428,7 +523,7 @@ nlmsg_get_buf(struct nl_writer *nw, int size, bool waitok, bool is_linux)
 	int type;
 
 	if (!is_linux) {
-		if (__predict_true(size <= MCLBYTES))
+		if (__predict_true(size <= NLMBUFSIZE))
 			type = NS_WRITER_TYPE_MBUF;
 		else
 			type = NS_WRITER_TYPE_BUF;
@@ -521,12 +616,12 @@ _nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
 
 	/* Calculated new buffer size and allocate it s*/
 	completed_len = (nw->hdr != NULL) ? (char *)nw->hdr - nw->data : nw->offset;
-	if (completed_len > 0 && required_len < MCLBYTES) {
+	if (completed_len > 0 && required_len < NLMBUFSIZE) {
 		/* We already ran out of space, use the largest effective size */
-		new_len = max(nw->alloc_len, MCLBYTES);
+		new_len = max(nw->alloc_len, NLMBUFSIZE);
 	} else {
-		if (nw->alloc_len < MCLBYTES)
-			new_len = MCLBYTES;
+		if (nw->alloc_len < NLMBUFSIZE)
+			new_len = NLMBUFSIZE;
 		else
 			new_len = nw->alloc_len * 2;
 		while (new_len < required_len)
@@ -691,3 +786,5 @@ _nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 
 	return (true);
 }
+
+#include <netlink/ktest_netlink_message_writer.h>

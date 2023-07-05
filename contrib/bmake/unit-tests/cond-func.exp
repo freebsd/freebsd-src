@@ -1,12 +1,12 @@
-make: "cond-func.mk" line 36: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 51: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 54: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 94: The empty variable is never defined.
-make: "cond-func.mk" line 103: A plain function name is parsed as defined(...).
-make: "cond-func.mk" line 110: A plain function name is parsed as defined(...).
-make: "cond-func.mk" line 120: Symbols may start with a function name.
-make: "cond-func.mk" line 125: Symbols may start with a function name.
-make: "cond-func.mk" line 131: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 37: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 53: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 57: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 98: The empty variable is never defined.
+make: "cond-func.mk" line 108: A plain function name is parsed as defined(...).
+make: "cond-func.mk" line 116: A plain function name is parsed as defined(...).
+make: "cond-func.mk" line 127: Symbols may start with a function name.
+make: "cond-func.mk" line 133: Symbols may start with a function name.
+make: "cond-func.mk" line 139: Missing closing parenthesis for defined()
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

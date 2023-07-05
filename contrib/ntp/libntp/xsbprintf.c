@@ -42,9 +42,9 @@ xvsbprintf(
 		size_t blen = (size_t)(pend - pbuf);
 		rc = vsnprintf(pbuf, blen, pfmt, va);
 		if (rc > 0) {
-		    if ((size_t)rc >= blen)
-			rc = 0;
-		    pbuf += rc;
+			if ((size_t)rc >= blen)
+				rc = 0;
+			pbuf += rc;
 		}
 		*pbuf = '\0'; /* fear of bad vsnprintf */
 		*ppbuf = pbuf;

@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2018 Kristof Provost <kp@FreeBSD.org>
 #
@@ -230,7 +230,8 @@ urpf_body()
 		--replyif ${epair_one}a
 
 	pft_set_rules alcatraz \
-		"block quick from urpf-failed"
+		"block quick from urpf-failed" \
+		"set skip on lo"
 	jexec alcatraz pfctl -e
 
 	# Correct source still works

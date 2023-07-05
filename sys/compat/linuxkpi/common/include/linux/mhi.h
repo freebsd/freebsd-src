@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Bjoern A. Zeeb
+ * Copyright (c) 2022-2023 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,6 +40,14 @@
 
 enum mhi_callback {
 	MHI_CB_SYS_ERROR,
+	MHI_CB_BW_REQ,
+	MHI_CB_EE_MISSION_MODE,
+	MHI_CB_EE_RDDM,
+	MHI_CB_FATAL_ERROR,
+	MHI_CB_IDLE,
+	MHI_CB_LPM_ENTER,
+	MHI_CB_LPM_EXIT,
+	MHI_CB_PENDING_DATA,
 };
 
 struct mhi_channel_config {
@@ -55,7 +63,7 @@ struct mhi_device {
 };
 
 struct mhi_controller_config {
-	struct mhi_channel_config	*ch_cfg;
+	const struct mhi_channel_config	*ch_cfg;
 	struct mhi_event_config		*event_cfg;
 
 	int	buf_len, max_channels, num_channels, num_events, use_bounce_buf;
@@ -71,6 +79,7 @@ struct mhi_controller {
 	const char			*fw_image;
 
 	bool				fbc_download;
+	size_t				rddm_size;
 	size_t				sbl_size;
 	size_t				seg_len;
 	size_t				reg_len;
@@ -93,7 +102,7 @@ struct mhi_controller {
 struct mhi_controller *linuxkpi_mhi_alloc_controller(void);
 void linuxkpi_mhi_free_controller(struct mhi_controller *);
 int linuxkpi_mhi_register_controller(struct mhi_controller *,
-    struct mhi_controller_config *);
+    const struct mhi_controller_config *);
 void linuxkpi_mhi_unregister_controller(struct mhi_controller *);
 
 /* -------------------------------------------------------------------------- */
@@ -115,7 +124,7 @@ mhi_free_controller(struct mhi_controller *mhi_ctrl)
 
 static inline int
 mhi_register_controller(struct mhi_controller *mhi_ctrl,
-    struct mhi_controller_config *cfg)
+    const struct mhi_controller_config *cfg)
 {
 
 	return (linuxkpi_mhi_register_controller(mhi_ctrl, cfg));
@@ -130,10 +139,11 @@ mhi_unregister_controller(struct mhi_controller *mhi_ctrl)
 
 /* -------------------------------------------------------------------------- */
 
-static __inline void
+static __inline int
 mhi_device_get_sync(struct mhi_device *mhi_dev)
 {
 	/* XXX TODO */
+	return (-1);
 }
 
 static __inline void
@@ -146,6 +156,13 @@ mhi_device_put(struct mhi_device *mhi_dev)
 
 static __inline int
 mhi_prepare_for_power_up(struct mhi_controller *mhi_ctrl)
+{
+	/* XXX TODO */
+	return (0);
+}
+
+static __inline int
+mhi_sync_power_up(struct mhi_controller *mhi_ctrl)
 {
 	/* XXX TODO */
 	return (0);
@@ -174,6 +191,13 @@ mhi_unprepare_after_power_down(struct mhi_controller *mhi_ctrl)
 
 static __inline int
 mhi_pm_suspend(struct mhi_controller *mhi_ctrl)
+{
+	/* XXX TODO */
+	return (0);
+}
+
+static __inline int
+mhi_pm_resume(struct mhi_controller *mhi_ctrl)
 {
 	/* XXX TODO */
 	return (0);

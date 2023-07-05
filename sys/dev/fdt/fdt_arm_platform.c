@@ -73,7 +73,7 @@ fdt_platform_probe(platform_t plat)
 }
 
 #if defined(SMP)
-static boolean_t
+static bool
 fdt_platform_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
 

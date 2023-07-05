@@ -65,6 +65,8 @@ extern "C" {
 #define LDNS_FMT_ZEROIZE_RRSIGS		(1 <<  9)
 #define LDNS_FMT_PAD_SOA_SERIAL		(1 << 10)
 #define LDNS_FMT_RFC3597		(1 << 11)	/* yes */
+/** Prints only answer section of packets and only rdata of RRs **/
+#define LDNS_FMT_SHORT			(1 << 12)
 
 #define LDNS_FMT_FLAGS_WITH_DATA			    2
 
@@ -76,11 +78,11 @@ extern "C" {
 /**
  * Output format specifier
  *
- * Determines how Packets, Resource Records and Resource record data fiels are
+ * Determines how Packets, Resource Records and Resource record data field are
  * formatted when printing or converting to string.
  * Currently it is only used to specify what aspects of a Resource Record are
  * annotated in the comment section of the textual representation the record.
- * This is speciefed with flags and potential exra data (such as for example
+ * This is specified with flags and potential extra data (such as for example
  * a lookup map of hashes to real names for annotation NSEC3 records).
  */
 struct ldns_struct_output_format
@@ -110,7 +112,7 @@ typedef struct ldns_struct_output_format_storage ldns_output_format_storage;
  */
 extern const ldns_output_format *ldns_output_format_nocomments;
 /**
- * Standard output format record that annotated only DNSKEY RR's with commenti
+ * Standard output format record that annotated only DNSKEY RR's with comment
  * text.
  */
 extern const ldns_output_format *ldns_output_format_onlykeyids;
@@ -514,6 +516,17 @@ ldns_status ldns_rr2buffer_str_fmt(ldns_buffer *output,
 ldns_status ldns_pkt2buffer_str(ldns_buffer *output, const ldns_pkt *pkt);
 
 /**
+ * Converts the list of EDNS options to presentation
+ * format (as char *) and appends it to the given buffer
+ *
+ * \param[in] output pointer to the buffer to append the data to
+ * \param[in] edns_list the list of EDNS options
+ * \return status
+ */
+ldns_status ldns_edns_option_list2buffer_str(ldns_buffer *output,
+        ldns_edns_option_list* edns_list);
+
+/**
  * Converts the data in the DNS packet to presentation
  * format (as char *) and appends it to the given buffer
  *
@@ -634,6 +647,25 @@ ldns_status ldns_rdf2buffer_str_long_str(ldns_buffer *output,
  * \return LDNS_STATUS_OK on success, and error status on failure
  */
 ldns_status ldns_rdf2buffer_str_hip(ldns_buffer *output,
+		const ldns_rdf *rdf);
+
+/** 
+ * Converts an LDNS_RDF_TYPE_AMTRELAY rdata element to presentation format for
+ * the precedence, D-bit, type and relay and adds it to the output buffer 
+ * \param[in] *rdf The rdata to convert
+ * \param[in] *output The buffer to add the data to
+ * \return LDNS_STATUS_OK on success, and error status on failure
+ */
+ldns_status ldns_rdf2buffer_str_amtrelay(ldns_buffer *output,
+		const ldns_rdf *rdf);
+
+/** 
+ * Converts an LDNS_RDF_TYPE_SVCPARAMS rdata element to presentation format.
+ * \param[in] *rdf The rdata to convert
+ * \param[in] *output The buffer to add the data to
+ * \return LDNS_STATUS_OK on success, and error status on failure
+ */
+ldns_status ldns_rdf2buffer_str_svcparams(ldns_buffer *output,
 		const ldns_rdf *rdf);
 
 /**

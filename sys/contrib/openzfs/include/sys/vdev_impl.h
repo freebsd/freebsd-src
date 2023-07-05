@@ -57,8 +57,6 @@ extern "C" {
  * Forward declarations that lots of things need.
  */
 typedef struct vdev_queue vdev_queue_t;
-typedef struct vdev_cache vdev_cache_t;
-typedef struct vdev_cache_entry vdev_cache_entry_t;
 struct abd;
 
 extern uint_t zfs_vdev_queue_depth_pct;
@@ -132,44 +130,24 @@ typedef const struct vdev_ops {
 /*
  * Virtual device properties
  */
-struct vdev_cache_entry {
-	struct abd	*ve_abd;
-	uint64_t	ve_offset;
-	clock_t		ve_lastused;
-	avl_node_t	ve_offset_node;
-	avl_node_t	ve_lastused_node;
-	uint32_t	ve_hits;
-	uint16_t	ve_missed_update;
-	zio_t		*ve_fill_io;
-};
-
-struct vdev_cache {
-	avl_tree_t	vc_offset_tree;
-	avl_tree_t	vc_lastused_tree;
-	kmutex_t	vc_lock;
-};
-
-typedef struct vdev_queue_class {
-	uint32_t	vqc_active;
-
-	/*
-	 * Sorted by offset or timestamp, depending on if the queue is
-	 * LBA-ordered vs FIFO.
-	 */
-	avl_tree_t	vqc_queued_tree;
+typedef union vdev_queue_class {
+	list_t		vqc_list;
+	avl_tree_t	vqc_tree;
 } vdev_queue_class_t;
 
 struct vdev_queue {
 	vdev_t		*vq_vdev;
 	vdev_queue_class_t vq_class[ZIO_PRIORITY_NUM_QUEUEABLE];
-	avl_tree_t	vq_active_tree;
 	avl_tree_t	vq_read_offset_tree;
 	avl_tree_t	vq_write_offset_tree;
-	avl_tree_t	vq_trim_offset_tree;
 	uint64_t	vq_last_offset;
 	zio_priority_t	vq_last_prio;	/* Last sent I/O priority. */
+	uint32_t	vq_cqueued;	/* Classes with queued I/Os. */
+	uint32_t	vq_cactive[ZIO_PRIORITY_NUM_QUEUEABLE];
+	uint32_t	vq_active;	/* Number of active I/Os. */
 	uint32_t	vq_ia_active;	/* Active interactive I/Os. */
 	uint32_t	vq_nia_credit;	/* Non-interactive I/Os credit. */
+	list_t		vq_active_list;	/* List of active I/Os. */
 	hrtime_t	vq_io_complete_ts; /* time last i/o completed */
 	hrtime_t	vq_io_delta_ts;
 	zio_t		vq_io_search; /* used as local for stack reduction */
@@ -277,6 +255,7 @@ struct vdev {
 	kthread_t	*vdev_open_thread; /* thread opening children	*/
 	kthread_t	*vdev_validate_thread; /* thread validating children */
 	uint64_t	vdev_crtxg;	/* txg when top-level was added */
+	uint64_t	vdev_root_zap;
 
 	/*
 	 * Top-level vdev state.
@@ -442,7 +421,6 @@ struct vdev {
 	boolean_t	vdev_resilver_deferred;  /* resilver deferred */
 	boolean_t	vdev_kobj_flag; /* kobj event record */
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
-	vdev_cache_t	vdev_cache;	/* physical block cache		*/
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/

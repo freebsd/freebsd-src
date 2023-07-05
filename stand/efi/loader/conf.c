@@ -80,22 +80,25 @@ struct netif_driver *netif_drivers[] = {
 };
 
 extern struct console efi_console;
+extern struct console eficom;
+#if defined(__aarch64__) && __FreeBSD_version < 1500000
+/* Hack for backward compatibility -- but only for a while */
 extern struct console comconsole;
-#if defined(__amd64__)
-extern struct console eficomconsole;
 #endif
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__)
+extern struct console comconsole;
 extern struct console nullconsole;
 extern struct console spinconsole;
 #endif
 
 struct console *consoles[] = {
 	&efi_console,
-#if defined(__amd64__)
-	&eficomconsole,
-#endif
+	&eficom,
+#if defined(__aarch64__) && __FreeBSD_version < 1500000
 	&comconsole,
-#if defined(__amd64__) || defined(__i386__)
+#endif
+#if defined(__amd64__)
+	&comconsole,
 	&nullconsole,
 	&spinconsole,
 #endif

@@ -108,9 +108,9 @@ efi_1t1_l3(vm_offset_t va)
 	if (*l0 == 0) {
 		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
-		*l0 = mphys | L0_TABLE;
+		*l0 = PHYS_TO_PTE(mphys) | L0_TABLE;
 	} else {
-		mphys = *l0 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l0);
 	}
 
 	l1 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
@@ -119,9 +119,9 @@ efi_1t1_l3(vm_offset_t va)
 	if (*l1 == 0) {
 		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
-		*l1 = mphys | L1_TABLE;
+		*l1 = PHYS_TO_PTE(mphys) | L1_TABLE;
 	} else {
-		mphys = *l1 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l1);
 	}
 
 	l2 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
@@ -130,9 +130,9 @@ efi_1t1_l3(vm_offset_t va)
 	if (*l2 == 0) {
 		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
-		*l2 = mphys | L2_TABLE;
+		*l2 = PHYS_TO_PTE(mphys) | L2_TABLE;
 	} else {
-		mphys = *l2 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l2);
 	}
 
 	l3 = (pt_entry_t *)PHYS_TO_DMAP(mphys);
@@ -220,7 +220,10 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		else
 			mode = VM_MEMATTR_DEVICE;
 
-		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
+		if (bootverbose) {
+			printf("MAP %lx mode %x pages %lu\n",
+			    p->md_phys, mode, p->md_pages);
+		}
 
 		l3_attr = ATTR_DEFAULT | ATTR_S1_IDX(mode) |
 		    ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_nG | L3_PAGE;

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
@@ -127,7 +128,8 @@ main(int argc, char *argv[])
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 #endif
-	int s;
+	int jailed, s;
+	size_t jailed_size;
 
 	if (modfind("nfscommon") < 0) {
 		/* Not present in kernel, try loading it */
@@ -326,10 +328,19 @@ main(int argc, char *argv[])
 #else
 	if (nfssvc(NFSSVC_NFSUSERDPORT | NFSSVC_NEWSTRUCT, &nargs) < 0) {
 		if (errno == EPERM) {
-			fprintf(stderr,
-			    "Can't start nfsuserd when already running");
-			fprintf(stderr,
-			    " If not running, use the -force option.\n");
+			jailed = 0;
+			jailed_size = sizeof(jailed);
+			sysctlbyname("security.jail.jailed", &jailed,
+			    &jailed_size, NULL, 0);
+			if (jailed != 0) {
+				fprintf(stderr, "Cannot start nfsuserd. "
+				    "allow.nfsd might not be configured\n");
+			} else {
+				fprintf(stderr, "Cannot start nfsuserd "
+				    "when already running.");
+				fprintf(stderr, " If not running, "
+				    "use the -force option.\n");
+			}
 		} else {
 			fprintf(stderr, "Can't do nfssvc() to add port\n");
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -12,6 +12,7 @@
 
 #include "../openbsd-compat/openbsd-compat.h"
 #include "mutator_aux.h"
+#include "dummy.h"
 
 extern int fido_hid_get_usage(const uint8_t *, size_t, uint32_t *);
 extern int fido_hid_get_report_len(const uint8_t *, size_t, size_t *, size_t *);
@@ -21,6 +22,7 @@ struct param {
 	int seed;
 	char uevent[MAXSTR];
 	struct blob report_descriptor;
+	struct blob netlink_wiredata;
 };
 
 /*
@@ -58,13 +60,14 @@ unpack(const uint8_t *ptr, size_t len)
 	    cbor.read != len ||
 	    cbor_isa_array(item) == false ||
 	    cbor_array_is_definite(item) == false ||
-	    cbor_array_size(item) != 3 ||
+	    cbor_array_size(item) != 4 ||
 	    (v = cbor_array_handle(item)) == NULL)
 		goto fail;
 
 	if (unpack_int(v[0], &p->seed) < 0 ||
 	    unpack_string(v[1], p->uevent) < 0 ||
-	    unpack_blob(v[2], &p->report_descriptor) < 0)
+	    unpack_blob(v[2], &p->report_descriptor) < 0 ||
+	    unpack_blob(v[3], &p->netlink_wiredata) < 0)
 		goto fail;
 
 	ok = 0;
@@ -83,19 +86,20 @@ fail:
 size_t
 pack(uint8_t *ptr, size_t len, const struct param *p)
 {
-	cbor_item_t *argv[3], *array = NULL;
+	cbor_item_t *argv[4], *array = NULL;
 	size_t cbor_alloc_len, cbor_len = 0;
 	unsigned char *cbor = NULL;
 
 	memset(argv, 0, sizeof(argv));
 
-	if ((array = cbor_new_definite_array(3)) == NULL ||
+	if ((array = cbor_new_definite_array(4)) == NULL ||
 	    (argv[0] = pack_int(p->seed)) == NULL ||
 	    (argv[1] = pack_string(p->uevent)) == NULL ||
-	    (argv[2] = pack_blob(&p->report_descriptor)) == NULL)
+	    (argv[2] = pack_blob(&p->report_descriptor)) == NULL ||
+	    (argv[3] = pack_blob(&p->netlink_wiredata)) == NULL)
 		goto fail;
 
-	for (size_t i = 0; i < 3; i++)
+	for (size_t i = 0; i < 4; i++)
 		if (cbor_array_push(array, argv[i]) == false)
 			goto fail;
 
@@ -107,7 +111,7 @@ pack(uint8_t *ptr, size_t len, const struct param *p)
 
 	memcpy(ptr, cbor, cbor_len);
 fail:
-	for (size_t i = 0; i < 3; i++)
+	for (size_t i = 0; i < 4; i++)
 		if (argv[i])
 			cbor_decref(&argv[i]);
 
@@ -132,6 +136,9 @@ pack_dummy(uint8_t *ptr, size_t len)
 	strlcpy(dummy.uevent, dummy_uevent, sizeof(dummy.uevent));
 	memcpy(&dummy.report_descriptor.body, &dummy_report_descriptor,
 	    dummy.report_descriptor.len);
+	dummy.netlink_wiredata.len = sizeof(dummy_netlink_wiredata);
+	memcpy(&dummy.netlink_wiredata.body, &dummy_netlink_wiredata,
+	    dummy.netlink_wiredata.len);
 
 	assert((blob_len = pack(blob, sizeof(blob), &dummy)) != 0);
 	if (blob_len > len)
@@ -168,12 +175,20 @@ static void
 manifest(const struct param *p)
 {
 	size_t ndevs, nfound;
-	fido_dev_info_t *devlist;
+	fido_dev_info_t *devlist = NULL, *devlist_set = NULL;
 	int16_t vendor_id, product_id;
+	fido_dev_io_t io;
+	fido_dev_transport_t t;
 
+	memset(&io, 0, sizeof(io));
+	memset(&t, 0, sizeof(t));
+	set_netlink_io_functions(fd_read, fd_write);
+	set_wire_data(p->netlink_wiredata.body, p->netlink_wiredata.len);
 	set_udev_parameters(p->uevent, &p->report_descriptor);
+
 	ndevs = uniform_random(64);
 	if ((devlist = fido_dev_info_new(ndevs)) == NULL ||
+	    (devlist_set = fido_dev_info_new(1)) == NULL ||
 	    fido_dev_info_manifest(devlist, ndevs, &nfound) != FIDO_OK)
 		goto out;
 	for (size_t i = 0; i < nfound; i++) {
@@ -185,15 +200,20 @@ manifest(const struct param *p)
 		product_id = fido_dev_info_product(di);
 		consume(&vendor_id, sizeof(vendor_id));
 		consume(&product_id, sizeof(product_id));
+		fido_dev_info_set(devlist_set, 0, fido_dev_info_path(di),
+		    fido_dev_info_manufacturer_string(di),
+		    fido_dev_info_product_string(di), &io, &t);
 	}
 out:
 	fido_dev_info_free(&devlist, ndevs);
+	fido_dev_info_free(&devlist_set, 1);
 }
 
 void
 test(const struct param *p)
 {
 	prng_init((unsigned int)p->seed);
+	fuzz_clock_reset();
 	fido_init(FIDO_DEBUG);
 	fido_set_log_handler(consume_str);
 
@@ -212,4 +232,7 @@ mutate(struct param *p, unsigned int seed, unsigned int flags) NO_MSAN
 		mutate_blob(&p->report_descriptor);
 		mutate_string(p->uevent);
 	}
+
+	if (flags & MUTATE_WIREDATA)
+		mutate_blob(&p->netlink_wiredata);
 }

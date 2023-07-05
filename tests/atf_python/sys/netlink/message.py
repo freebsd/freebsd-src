@@ -194,11 +194,32 @@ class StdNetlinkMessage(BaseNetlinkMessage):
             raise
         return self
 
+    def parse_child(self, data: bytes, attr_key, attr_map):
+        attrs, _ = self.parse_attrs(data, attr_map)
+        return NlAttrNested(attr_key, attrs)
+
+    def parse_child_array(self, data: bytes, attr_key, attr_map):
+        ret = []
+        off = 0
+        while len(data) - off >= 4:
+            nla_len, raw_nla_type = struct.unpack("@HH", data[off : off + 4])
+            if nla_len + off > len(data):
+                raise ValueError(
+                    "attr length {} > than the remaining length {}".format(
+                        nla_len, len(data) - off
+                    )
+                )
+            nla_type = raw_nla_type & 0x3FFF
+            val = self.parse_child(data[off + 4 : off + nla_len], nla_type, attr_map)
+            ret.append(val)
+            off += align4(nla_len)
+        return NlAttrNested(attr_key, ret)
+
     def parse_attrs(self, data: bytes, attr_map):
         ret = []
         off = 0
         while len(data) - off >= 4:
-            nla_len, raw_nla_type = struct.unpack("@HH", data[off:off + 4])
+            nla_len, raw_nla_type = struct.unpack("@HH", data[off : off + 4])
             if nla_len + off > len(data):
                 raise ValueError(
                     "attr length {} > than the remaining length {}".format(
@@ -208,16 +229,20 @@ class StdNetlinkMessage(BaseNetlinkMessage):
             nla_type = raw_nla_type & 0x3FFF
             if nla_type in attr_map:
                 v = attr_map[nla_type]
-                val = v["ad"].cls.from_bytes(data[off:off + nla_len], v["ad"].val)
+                val = v["ad"].cls.from_bytes(data[off : off + nla_len], v["ad"].val)
                 if "child" in v:
                     # nested
-                    attrs, _ = self.parse_attrs(
-                        data[off + 4:off + nla_len], v["child"]
-                    )
-                    val = NlAttrNested(v["ad"].val, attrs)
+                    child_data = data[off + 4 : off + nla_len]
+                    if v.get("is_array", False):
+                        # Array of nested attributes
+                        val = self.parse_child_array(
+                            child_data, v["ad"].val, v["child"]
+                        )
+                    else:
+                        val = self.parse_child(child_data, v["ad"].val, v["child"])
             else:
                 # unknown attribute
-                val = NlAttr(raw_nla_type, data[off + 4:off + nla_len])
+                val = NlAttr(raw_nla_type, data[off + 4 : off + nla_len])
             ret.append(val)
             off += align4(nla_len)
         return ret, off

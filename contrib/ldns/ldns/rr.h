@@ -36,9 +36,6 @@ extern "C" {
 /** The bytes TTL, CLASS and length use up in an rr */
 #define LDNS_RR_OVERHEAD	10
 
-/* The first fields are contiguous and can be referenced instantly */
-#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 259
-
 
 
 /**
@@ -159,7 +156,7 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_DNAME = 39,
 	/**  dnsind-kitchen-sink-02.txt */
 	LDNS_RR_TYPE_SINK = 40,
-	/**  Pseudo OPT record... */
+	/**  OPT record RFC 6891 */
 	LDNS_RR_TYPE_OPT = 41,
 	/**  RFC3123 */
 	LDNS_RR_TYPE_APL = 42,
@@ -180,7 +177,7 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAMS = 51,
 	LDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
-	LDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime */
+	LDNS_RR_TYPE_SMIMEA = 53, /* RFC 8162 */
 
 	LDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
 
@@ -194,6 +191,9 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_CDNSKEY = 60, /* RFC 7344 */
 	LDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+	LDNS_RR_TYPE_ZONEMD = 63, /* draft-ietf-dnsop-dns-zone-digest */
+	LDNS_RR_TYPE_SVCB = 64, /* draft-ietf-dnsop-svcb-https */
+	LDNS_RR_TYPE_HTTPS = 65, /* draft-ietf-dnsop-svcb-https */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
@@ -223,6 +223,10 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	LDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 	LDNS_RR_TYPE_AVC = 258, /* Cisco's DNS-AS RR, see www.dns-as.org */
+	LDNS_RR_TYPE_DOA = 259, /* draft-durand-doa-over-dns */
+
+	/** draft-ietf-mboned-driad-amt-discovery **/
+	LDNS_RR_TYPE_AMTRELAY = 260,
 
 	/** DNSSEC Trust Authorities */
 	LDNS_RR_TYPE_TA = 32768,
@@ -237,6 +241,9 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_COUNT = LDNS_RR_TYPE_LAST - LDNS_RR_TYPE_FIRST + 1
 };
 typedef enum ldns_enum_rr_type ldns_rr_type;
+
+/* The first fields are contiguous and can be referenced instantly */
+#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON (LDNS_RR_TYPE_AMTRELAY + 1)
 
 /**
  * Resource Record
@@ -520,7 +527,7 @@ void ldns_rr_set_class(ldns_rr *rr, ldns_rr_class rr_class);
  * \param[in] *rr the rr to operate on
  * \param[in] *f the rdf to set
  * \param[in] position the position the set the rdf
- * \return  the old value in the rr, NULL on failyre
+ * \return  the old value in the rr, NULL on failure
  */
 ldns_rdf* ldns_rr_set_rdf(ldns_rr *rr, const ldns_rdf *f, size_t position);
 
@@ -810,7 +817,7 @@ int ldns_rr_compare_wire(const ldns_buffer *rr1_buf, const ldns_buffer *rr2_buf)
 bool ldns_rr_compare_ds(const ldns_rr *rr1, const ldns_rr *rr2);
 
 /**
- * compares two rr listss.
+ * compares two rr lists.
  * \param[in] rrl1 the first one
  * \param[in] rrl2 the second one
  * \return 0 if equal

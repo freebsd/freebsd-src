@@ -6,10 +6,6 @@
 # modules.
 #
 # Exceptions:
-# o While UFS is buildable as a module, the current module lacks
-#   some features (ACL, GJOURNAL) that GENERIC includes.
-# o acpi as a module has been reported flakey and not well tested, so
-#   is included in the kernel.
 # o (non-loaded) random is included due to uncertainty...
 # o Many networking things are included
 #
@@ -45,7 +41,6 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
-options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
@@ -66,9 +61,6 @@ options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev

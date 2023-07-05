@@ -1,12 +1,12 @@
-# $NetBSD: cond-func.mk,v 1.11 2022/01/07 19:30:17 rillig Exp $
+# $NetBSD: cond-func.mk,v 1.13 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for those parts of the functions in .if conditions that are common
 # among several functions.
 #
-# The below test uses the function defined(...) since it has no side-effects,
-# the other functions (except empty(...)) would work equally well.  The
-# function empty is special because it uses a different parsing algorithm for
-# its argument.
+# The below test uses the 'defined' function since it has no side-effects.
+# The other functions would work equally well, except for 'empty', which
+# parses its argument differently from the other functions.
+#
 
 DEF=			defined
 ${:UA B}=		variable name with spaces
@@ -33,6 +33,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .endif
 
 # The argument of a function must not directly contain whitespace.
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A B)
 .  error
 .endif
@@ -48,9 +49,11 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 #
 # It's not entirely clear why these characters are forbidden.
 # The most plausible reason seems to be typo detection.
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A&B)
 .  error
 .endif
+# expect+1: Missing closing parenthesis for defined()
 .if !defined(A|B)
 .  error
 .endif
@@ -74,7 +77,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 
 # There may be spaces around the operators and parentheses, and even
 # inside the parentheses.  The spaces inside the parentheses are not
-# allowed for the empty() function (see cond-func-empty.mk), therefore
+# allowed for the 'empty' function (see cond-func-empty.mk), therefore
 # they are typically omitted for the other functions as well.
 .if ! defined ( DEF )
 .  error
@@ -91,6 +94,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .if defined()
 .  error
 .else
+# expect+1: The empty variable is never defined.
 .  info The empty variable is never defined.
 .endif
 
@@ -100,6 +104,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .if defined
 .  error
 .else
+# expect+1: A plain function name is parsed as defined(...).
 .  info A plain function name is parsed as defined(...).
 .endif
 
@@ -107,6 +112,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 # is interpreted as 'defined(defined)', and the condition evaluates to true.
 defined=	# defined but empty
 .if defined
+# expect+1: A plain function name is parsed as defined(...).
 .  info A plain function name is parsed as defined(...).
 .else
 .  error
@@ -117,17 +123,19 @@ defined=	# defined but empty
 .if defined-var
 .  error
 .else
+# expect+1: Symbols may start with a function name.
 .  info Symbols may start with a function name.
 .endif
 
 defined-var=	# defined but empty
 .if defined-var
+# expect+1: Symbols may start with a function name.
 .  info Symbols may start with a function name.
 .else
 .  error
 .endif
 
-# Missing closing parenthesis when parsing the function argument.
+# expect+1: Missing closing parenthesis for defined()
 .if defined(
 .  error
 .else

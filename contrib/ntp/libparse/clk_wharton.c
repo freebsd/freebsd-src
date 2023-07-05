@@ -9,20 +9,14 @@
 #include <config.h>
 #endif
 
+#include <ntp_types.h>
+
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_WHARTON_400A)
 /*
  * Support for WHARTON 400A Series clock + 404.2 serial interface.
- *
- * Copyright (C) 1999, 2000 by Philippe De Muyter <phdm@macqel.be>
- * 
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.
- * 
  */
 
 #include "ntp_fp.h"
-#include "ascii.h"
 #include "parse.h"
 
 #ifndef PARSESTREAM
@@ -32,6 +26,8 @@
 #include "sys/parsestreams.h"
 extern void printf (const char *, ...);
 #endif
+
+#include "ascii.h"
 
 /*
  * In private e-mail alastair@wharton.co.uk said :
@@ -173,7 +169,7 @@ clockformat_t   clock_wharton_400a =
 };
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_WHARTON_400A) */
-int clk_wharton_400a_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* not (REFCLOCK && CLOCK_PARSE && CLOCK_WHARTON_400A) */
 
 /*

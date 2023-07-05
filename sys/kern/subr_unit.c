@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 Poul-Henning Kamp
  * All rights reserved.
@@ -178,6 +178,12 @@ mtx_assert(struct mtx *mp, int flag)
  * For bitmaps the len field represents the number of allocated items.
  *
  * The bitmap is the same size as struct unr to optimize memory management.
+ *
+ * Two special ranges are not covered by unrs:
+ * - at the start of the allocator space, all elements in [low, low + first)
+ *   are allocated;
+ * - at the end of the allocator space, all elements in [high - last, high]
+ *   are free.
  */
 struct unr {
 	TAILQ_ENTRY(unr)	list;
@@ -192,7 +198,13 @@ struct unrb {
 CTASSERT((sizeof(struct unr) % sizeof(bitstr_t)) == 0);
 
 /* Number of bits we can store in the bitmap */
-#define NBITS (8 * sizeof(((struct unrb*)NULL)->map))
+#define NBITS (NBBY * sizeof(((struct unrb *)NULL)->map))
+
+static inline bool
+is_bitmap(struct unrhdr *uh, struct unr *up)
+{
+	return (up->ptr != uh && up->ptr != NULL);
+}
 
 /* Is the unrb empty in at least the first len bits? */
 static inline bool
@@ -211,6 +223,122 @@ ub_full(struct unrb *ub, int len)
 
 	bit_ffc(ub->map, len, &first_clear);
 	return (first_clear == -1);
+}
+
+/*
+ * start: ipos = -1, upos = NULL;
+ * end:   ipos = -1, upos = uh
+ */
+struct unrhdr_iter {
+	struct unrhdr *uh;
+	int ipos;
+	int upos_first_item;
+	void *upos;
+};
+
+void *
+create_iter_unr(struct unrhdr *uh)
+{
+	struct unrhdr_iter *iter;
+
+	iter = Malloc(sizeof(*iter));
+	iter->ipos = -1;
+	iter->uh = uh;
+	iter->upos = NULL;
+	iter->upos_first_item = -1;
+	return (iter);
+}
+
+static void
+next_iter_unrl(struct unrhdr *uh, struct unrhdr_iter *iter)
+{
+	struct unr *up;
+	struct unrb *ub;
+	u_int y;
+	int c;
+
+	if (iter->ipos == -1) {
+		if (iter->upos == uh)
+			return;
+		y = uh->low - 1;
+		if (uh->first == 0) {
+			up = TAILQ_FIRST(&uh->head);
+			if (up == NULL) {
+				iter->upos = uh;
+				return;
+			}
+			iter->upos = up;
+			if (up->ptr == NULL)
+				iter->upos = NULL;
+			else
+				iter->upos_first_item = uh->low;
+		}
+	} else {
+		y = iter->ipos;
+	}
+
+	up = iter->upos;
+
+	/* Special case for the compacted [low, first) run. */
+	if (up == NULL) {
+		if (y + 1 < uh->low + uh->first) {
+			iter->ipos = y + 1;
+			return;
+		}
+		up = iter->upos = TAILQ_FIRST(&uh->head);
+		iter->upos_first_item = uh->low + uh->first;
+	}
+
+	for (;;) {
+		if (y + 1 < iter->upos_first_item + up->len) {
+			if (up->ptr == uh) {
+				iter->ipos = y + 1;
+				return;
+			} else if (is_bitmap(uh, up)) {
+				ub = up->ptr;
+				bit_ffs_at(&ub->map[0],
+				    y + 1 - iter->upos_first_item,
+				    up->len, &c);
+				if (c != -1) {
+					iter->ipos = iter->upos_first_item + c;
+					return;
+				}
+			}
+		}
+		iter->upos_first_item += up->len;
+		y = iter->upos_first_item - 1;
+		up = iter->upos = TAILQ_NEXT((struct unr *)iter->upos, list);
+		if (iter->upos == NULL) {
+			iter->ipos = -1;
+			iter->upos = uh;
+			return;
+		}
+	}
+}
+
+/*
+ * returns -1 on end, otherwise the next element
+ */
+int
+next_iter_unr(void *handle)
+{
+	struct unrhdr *uh;
+	struct unrhdr_iter *iter;
+
+	iter = handle;
+	uh = iter->uh;
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
+	next_iter_unrl(uh, iter);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
+	return (iter->ipos);
+}
+
+void
+free_iter_unr(void *handle)
+{
+	Free(handle);
 }
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
@@ -233,7 +361,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 	z = 0;
 	TAILQ_FOREACH(up, &uh->head, list) {
 		z++;
-		if (up->ptr != uh && up->ptr != NULL) {
+		if (is_bitmap(uh, up)) {
 			ub = up->ptr;
 			KASSERT (up->len <= NBITS,
 			    ("UNR inconsistency: len %u max %zd (line %d)\n",
@@ -394,12 +522,6 @@ clear_unrhdr(struct unrhdr *uh)
 	init_unrhdr(uh, uh->low, uh->high, uh->mtx);
 
 	check_unrhdr(uh, __LINE__);
-}
-
-static __inline int
-is_bitmap(struct unrhdr *uh, struct unr *up)
-{
-	return (up->ptr != uh && up->ptr != NULL);
 }
 
 /*
@@ -920,15 +1042,18 @@ free_unr(struct unrhdr *uh, u_int item)
 		Free(p2);
 }
 
-#ifndef _KERNEL	/* USERLAND test driver */
+#ifdef _KERNEL
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+#endif
 
-/*
- * Simple stochastic test driver for the above functions.  The code resides
- * here so that it can access static functions and structures.
- */
+#if (defined(_KERNEL) && defined(DDB)) || !defined(_KERNEL)
 
-static bool verbose;
-#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
+#if !defined(_KERNEL)
+#define db_printf printf
+#endif
 
 static void
 print_unr(struct unrhdr *uh, struct unr *up)
@@ -936,21 +1061,21 @@ print_unr(struct unrhdr *uh, struct unr *up)
 	u_int x;
 	struct unrb *ub;
 
-	printf("  %p len = %5u ", up, up->len);
+	db_printf("  %p len = %5u ", up, up->len);
 	if (up->ptr == NULL)
-		printf("free\n");
+		db_printf("free\n");
 	else if (up->ptr == uh)
-		printf("alloc\n");
+		db_printf("alloc\n");
 	else {
 		ub = up->ptr;
-		printf("bitmap [");
+		db_printf("bitmap [");
 		for (x = 0; x < up->len; x++) {
 			if (bit_test(ub->map, x))
-				printf("#");
+				db_printf("#");
 			else
-				printf(" ");
+				db_printf(" ");
 		}
-		printf("]\n");
+		db_printf("]\n");
 	}
 }
 
@@ -960,12 +1085,12 @@ print_unrhdr(struct unrhdr *uh)
 	struct unr *up;
 	u_int x;
 
-	printf(
+	db_printf(
 	    "%p low = %u high = %u first = %u last = %u busy %u chunks = %u\n",
 	    uh, uh->low, uh->high, uh->first, uh->last, uh->busy, uh->alloc);
 	x = uh->low + uh->first;
 	TAILQ_FOREACH(up, &uh->head, list) {
-		printf("  from = %5u", x);
+		db_printf("  from = %5u", x);
 		print_unr(uh, up);
 		if (up->ptr == NULL || up->ptr == uh)
 			x += up->len;
@@ -973,6 +1098,47 @@ print_unrhdr(struct unrhdr *uh)
 			x += NBITS;
 	}
 }
+
+#endif
+
+#if defined(_KERNEL) && defined(DDB)
+DB_SHOW_COMMAND(unrhdr, unrhdr_print_unrhdr)
+{
+	if (!have_addr) {
+		db_printf("show unrhdr addr\n");
+		return;
+	}
+
+	print_unrhdr((struct unrhdr *)addr);
+}
+
+static void
+print_unrhdr_iter(struct unrhdr_iter *iter)
+{
+	db_printf("iter %p unrhdr %p ipos %d upos %p ufi %d\n",
+	    iter, iter->uh, iter->ipos, iter->upos, iter->upos_first_item);
+}
+
+DB_SHOW_COMMAND(unrhdr_iter, unrhdr_print_iter)
+{
+	if (!have_addr) {
+		db_printf("show unrhdr_iter addr\n");
+		return;
+	}
+
+	print_unrhdr_iter((struct unrhdr_iter *)addr);
+}
+#endif
+
+#ifndef _KERNEL	/* USERLAND test driver */
+
+/*
+ * Simple stochastic test driver for the above functions.  The code resides
+ * here so that it can access static functions and structures.
+ */
+
+static bool verbose;
+#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
 
 static void
 test_alloc_unr(struct unrhdr *uh, u_int i, char a[])
@@ -1010,10 +1176,93 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 	}
 }
 
-static void
-usage(char** argv)
+#define	TBASE	7
+#define	XSIZE	10
+#define	ISIZE	1000
+
+static int
+test_iter_compar(const void *a, const void *b)
 {
-	printf("%s [-h] [-r REPETITIONS] [-v]\n", argv[0]);
+	return (*(const int *)a - *(const int *)b);
+}
+
+static void
+test_iter_fill(int *vals, struct unrhdr *uh, int i, int v, int *res)
+{
+	int x;
+
+	vals[i] = v;
+	x = alloc_unr_specific(uh, v);
+	if (x != v) {
+		VPRINTF("alloc_unr_specific failed %d %d\n", x, v);
+		*res = 1;
+	}
+}
+
+static void
+test_iter(void)
+{
+	struct unrhdr *uh;
+	void *ihandle;
+	int vals[ISIZE];
+	int i, j, v, x, res;
+
+	res = 0;
+	uh = new_unrhdr(TBASE, INT_MAX, NULL);
+	for (i = 0; i < XSIZE; i++) {
+		vals[i] = i + TBASE;
+		x = alloc_unr_specific(uh, i + TBASE);
+		if (x != i + TBASE) {
+			VPRINTF("alloc_unr_specific failed %d %d\n", x,
+			    i + TBASE);
+			res = 1;
+		}
+	}
+	for (; i < ISIZE; i++) {
+		for (;;) {
+again:
+			v = arc4random_uniform(INT_MAX);
+			if (v < TBASE)
+				goto again;
+			for (j = 0; j < i; j++) {
+				if (v == vals[j] || v + 1 == vals[j])
+					goto again;
+			}
+			break;
+		}
+		test_iter_fill(vals, uh, i, v, &res);
+		i++, v++;
+		if (i < ISIZE)
+			test_iter_fill(vals, uh, i, v, &res);
+	}
+	qsort(vals, ISIZE, sizeof(vals[0]), test_iter_compar);
+
+	ihandle = create_iter_unr(uh);
+	i = 0;
+	while ((v = next_iter_unr(ihandle)) != -1) {
+		if (vals[i] != v) {
+			VPRINTF("iter %d: iter %d != val %d\n", i, v, vals[i]);
+			if (res == 0) {
+				if (verbose)
+					print_unrhdr(uh);
+				res = 1;
+			}
+		} else {
+			VPRINTF("iter %d: val %d\n", i, v);
+		}
+		i++;
+	}
+	free_iter_unr(ihandle);
+	clean_unrhdr(uh);
+	clear_unrhdr(uh);
+	delete_unrhdr(uh);
+	exit(res);
+}
+
+static void
+usage(char **argv)
+{
+	printf("%s [-h] [-i] [-r REPETITIONS] [-v]\n", argv[0]);
 }
 
 int
@@ -1025,11 +1274,16 @@ main(int argc, char **argv)
 	long reps = 1, m;
 	int ch;
 	u_int i;
+	bool testing_iter;
 
 	verbose = false;
+	testing_iter = false;
 
-	while ((ch = getopt(argc, argv, "hr:v")) != -1) {
+	while ((ch = getopt(argc, argv, "hir:v")) != -1) {
 		switch (ch) {
+		case 'i':
+			testing_iter = true;
+			break;
 		case 'r':
 			errno = 0;
 			reps = strtol(optarg, NULL, 0);
@@ -1050,6 +1304,10 @@ main(int argc, char **argv)
 	}
 
 	setbuf(stdout, NULL);
+
+	if (testing_iter)
+		test_iter();
+
 	uh = new_unrhdr(0, count - 1, NULL);
 	print_unrhdr(uh);
 

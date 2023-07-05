@@ -202,7 +202,7 @@ ATF_TC_BODY(6_cleartable, dummy)
 {
 	struct libalias *la = LibAliasInit(NULL);
 	struct ip  *po, *pi;
-	struct udphdr *ui, *uo;
+	struct udphdr *ui __unused, *uo;
 	uint16_t sport = 0x1234;
 	uint16_t dport = 0x5678;
 	uint16_t aport;

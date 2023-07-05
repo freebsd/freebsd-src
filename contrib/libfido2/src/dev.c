@@ -106,7 +106,7 @@ fido_dev_set_flags(fido_dev_t *dev, const fido_cbor_info_t *info)
 }
 
 static int
-fido_dev_open_tx(fido_dev_t *dev, const char *path)
+fido_dev_open_tx(fido_dev_t *dev, const char *path, int *ms)
 {
 	int r;
 
@@ -161,7 +161,8 @@ fido_dev_open_tx(fido_dev_t *dev, const char *path)
 		goto fail;
 	}
 
-	if (fido_tx(dev, CTAP_CMD_INIT, &dev->nonce, sizeof(dev->nonce)) < 0) {
+	if (fido_tx(dev, CTAP_CMD_INIT, &dev->nonce, sizeof(dev->nonce),
+	    ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -176,7 +177,7 @@ fail:
 }
 
 static int
-fido_dev_open_rx(fido_dev_t *dev, int ms)
+fido_dev_open_rx(fido_dev_t *dev, int *ms)
 {
 	fido_cbor_info_t	*info = NULL;
 	int			 reply_len;
@@ -241,7 +242,7 @@ fail:
 }
 
 static int
-fido_dev_open_wait(fido_dev_t *dev, const char *path, int ms)
+fido_dev_open_wait(fido_dev_t *dev, const char *path, int *ms)
 {
 	int r;
 
@@ -249,7 +250,7 @@ fido_dev_open_wait(fido_dev_t *dev, const char *path, int ms)
 	if (strcmp(path, FIDO_WINHELLO_PATH) == 0)
 		return (fido_winhello_open(dev));
 #endif
-	if ((r = fido_dev_open_tx(dev, path)) != FIDO_OK ||
+	if ((r = fido_dev_open_tx(dev, path, ms)) != FIDO_OK ||
 	    (r = fido_dev_open_rx(dev, ms)) != FIDO_OK)
 		return (r);
 
@@ -331,24 +332,21 @@ fido_dev_info_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 int
 fido_dev_open_with_info(fido_dev_t *dev)
 {
+	int ms = dev->timeout_ms;
+
 	if (dev->path == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-	return (fido_dev_open_wait(dev, dev->path, -1));
+	return (fido_dev_open_wait(dev, dev->path, &ms));
 }
 
 int
 fido_dev_open(fido_dev_t *dev, const char *path)
 {
+	int ms = dev->timeout_ms;
+
 #ifdef NFC_LINUX
-	/*
-	 * this is a hack to get existing applications up and running with nfc;
-	 * it will *NOT* be part of a libfido2 release. to support nfc in your
-	 * application, please change it to use fido_dev_open_with_info().
-	 */
-	if (strncmp(path, "/sys", strlen("/sys")) == 0 && strlen(path) > 4 &&
-	    path[strlen(path) - 4] == 'n' && path[strlen(path) - 3] == 'f' &&
-	    path[strlen(path) - 2] == 'c') {
+	if (strncmp(path, FIDO_NFC_PREFIX, strlen(FIDO_NFC_PREFIX)) == 0) {
 		dev->io_own = true;
 		dev->io = (fido_dev_io_t) {
 			fido_nfc_open,
@@ -363,7 +361,7 @@ fido_dev_open(fido_dev_t *dev, const char *path)
 	}
 #endif
 
-	return (fido_dev_open_wait(dev, path, -1));
+	return (fido_dev_open_wait(dev, path, &ms));
 }
 
 int
@@ -386,26 +384,31 @@ fido_dev_close(fido_dev_t *dev)
 int
 fido_dev_set_sigmask(fido_dev_t *dev, const fido_sigset_t *sigmask)
 {
-	if (dev->io_own || dev->io_handle == NULL || sigmask == NULL)
+	if (dev->io_handle == NULL || sigmask == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 #ifdef NFC_LINUX
-	if (dev->transport.rx == fido_nfc_rx)
+	if (dev->transport.rx == fido_nfc_rx && dev->io.read == fido_nfc_read)
 		return (fido_nfc_set_sigmask(dev->io_handle, sigmask));
 #endif
-	return (fido_hid_set_sigmask(dev->io_handle, sigmask));
+	if (dev->transport.rx == NULL && dev->io.read == fido_hid_read)
+		return (fido_hid_set_sigmask(dev->io_handle, sigmask));
+
+	return (FIDO_ERR_INVALID_ARGUMENT);
 }
 
 int
 fido_dev_cancel(fido_dev_t *dev)
 {
+	int ms = dev->timeout_ms;
+
 #ifdef USE_WINHELLO
 	if (dev->flags & FIDO_DEV_WINHELLO)
 		return (fido_winhello_cancel(dev));
 #endif
 	if (fido_dev_is_fido2(dev) == false)
 		return (FIDO_ERR_INVALID_ARGUMENT);
-	if (fido_tx(dev, CTAP_CMD_CANCEL, NULL, 0) < 0)
+	if (fido_tx(dev, CTAP_CMD_CANCEL, NULL, 0, &ms) < 0)
 		return (FIDO_ERR_TX);
 
 	return (FIDO_OK);
@@ -421,6 +424,7 @@ fido_dev_get_touch_begin(fido_dev_t *dev)
 	unsigned char	 cdh[SHA256_DIGEST_LENGTH];
 	fido_rp_t	 rp;
 	fido_user_t	 user;
+	int		 ms = dev->timeout_ms;
 	int		 r = FIDO_ERR_INTERNAL;
 
 	memset(&f, 0, sizeof(f));
@@ -430,7 +434,7 @@ fido_dev_get_touch_begin(fido_dev_t *dev)
 	memset(&user, 0, sizeof(user));
 
 	if (fido_dev_is_fido2(dev) == false)
-		return (u2f_get_touch_begin(dev));
+		return (u2f_get_touch_begin(dev, &ms));
 
 	if (SHA256((const void *)clientdata, strlen(clientdata), cdh) != cdh) {
 		fido_log_debug("%s: sha256", __func__);
@@ -465,7 +469,7 @@ fido_dev_get_touch_begin(fido_dev_t *dev)
 	}
 
 	if (cbor_build_frame(CTAP_CBOR_MAKECRED, argv, nitems(argv), &f) < 0 ||
-	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len) < 0) {
+	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len, &ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -490,9 +494,9 @@ fido_dev_get_touch_status(fido_dev_t *dev, int *touched, int ms)
 	*touched = 0;
 
 	if (fido_dev_is_fido2(dev) == false)
-		return (u2f_get_touch_status(dev, touched, ms));
+		return (u2f_get_touch_status(dev, touched, &ms));
 
-	switch ((r = fido_rx_cbor_status(dev, ms))) {
+	switch ((r = fido_rx_cbor_status(dev, &ms))) {
 	case FIDO_ERR_PIN_AUTH_INVALID:
 	case FIDO_ERR_PIN_INVALID:
 	case FIDO_ERR_PIN_NOT_SET:
@@ -544,6 +548,13 @@ fido_dev_set_transport_functions(fido_dev_t *dev, const fido_dev_transport_t *t)
 	return (FIDO_OK);
 }
 
+void *
+fido_dev_io_handle(const fido_dev_t *dev)
+{
+
+	return (dev->io_handle);
+}
+
 void
 fido_init(int flags)
 {
@@ -562,6 +573,7 @@ fido_dev_new(void)
 		return (NULL);
 
 	dev->cid = CTAP_CID_BROADCAST;
+	dev->timeout_ms = -1;
 	dev->io = (fido_dev_io_t) {
 		&fido_hid_open,
 		&fido_hid_close,
@@ -593,6 +605,7 @@ fido_dev_new_with_info(const fido_dev_info_t *di)
 	dev->io_own = di->transport.tx != NULL || di->transport.rx != NULL;
 	dev->transport = di->transport;
 	dev->cid = CTAP_CID_BROADCAST;
+	dev->timeout_ms = -1;
 
 	if ((dev->path = strdup(di->path)) == NULL) {
 		fido_log_debug("%s: strdup", __func__);
@@ -729,4 +742,15 @@ uint64_t
 fido_dev_maxmsgsize(const fido_dev_t *dev)
 {
 	return (dev->maxmsgsize);
+}
+
+int
+fido_dev_set_timeout(fido_dev_t *dev, int ms)
+{
+	if (ms < -1)
+		return (FIDO_ERR_INVALID_ARGUMENT);
+
+	dev->timeout_ms = ms;
+
+	return (FIDO_OK);
 }

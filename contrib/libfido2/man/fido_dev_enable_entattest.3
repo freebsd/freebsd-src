@@ -9,8 +9,9 @@
 .Nm fido_dev_enable_entattest ,
 .Nm fido_dev_toggle_always_uv ,
 .Nm fido_dev_force_pin_change ,
-.Nm fido_dev_set_pin_minlen
-.Nd FIDO 2.1 configuration authenticator API
+.Nm fido_dev_set_pin_minlen ,
+.Nm fido_dev_set_pin_minlen_rpid
+.Nd CTAP 2.1 configuration authenticator API
 .Sh SYNOPSIS
 .In fido.h
 .In fido/config.h
@@ -22,9 +23,11 @@
 .Fn fido_dev_force_pin_change "fido_dev_t *dev" "const char *pin"
 .Ft int
 .Fn fido_dev_set_pin_minlen "fido_dev_t *dev" "size_t len" "const char *pin"
+.Ft int
+.Fn fido_dev_set_pin_minlen_rpid "fido_dev_t *dev" "const char * const *rpid" "size_t n" "const char *pin"
 .Sh DESCRIPTION
 The functions described in this page allow configuration of a
-FIDO 2.1 authenticator.
+CTAP 2.1 authenticator.
 .Pp
 The
 .Fn fido_dev_enable_entattest
@@ -77,6 +80,24 @@ to
 .Fa len .
 Minimum PIN lengths may only be increased.
 .Pp
+The
+.Fn fido_dev_set_pin_minlen_rpid
+function sets the list of relying party identifiers
+.Pq RP IDs
+that are allowed to obtain the minimum PIN length of
+.Fa dev
+through the CTAP 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension.
+The list of RP identifiers is denoted by
+.Fa rpid ,
+a vector of
+.Fa n
+NUL-terminated UTF-8 strings.
+A copy of
+.Fa rpid
+is made, and no reference to it or its contents is kept.
+.Pp
 Configuration settings are reflected in the payload returned by the
 authenticator in response to a
 .Xr fido_dev_get_cbor_info 3
@@ -86,13 +107,15 @@ The error codes returned by
 .Fn fido_dev_enable_entattest ,
 .Fn fido_dev_toggle_always_uv ,
 .Fn fido_dev_force_pin_change ,
+.Fn fido_dev_set_pin_minlen ,
 and
-.Fn fido_dev_set_pin_minlen
+.Fn fido_dev_set_pin_minlen_rpid
 are defined in
 .In fido/err.h .
 On success,
 .Dv FIDO_OK
 is returned.
 .Sh SEE ALSO
+.Xr fido_cred_pin_minlen 3 ,
 .Xr fido_dev_get_cbor_info 3 ,
 .Xr fido_dev_reset 3

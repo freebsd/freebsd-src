@@ -29,12 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <time.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include "vary.h"
 
 struct trans {
-  int val;
+  int64_t val;
   const char *str;
 };
 
@@ -52,7 +53,7 @@ static struct trans trans_wday[] = {
 };
 
 static char digits[] = "0123456789";
-static int adjhour(struct tm *, char, int, int);
+static int adjhour(struct tm *, char, int64_t, int);
 
 static int
 domktime(struct tm *t, char type)
@@ -125,7 +126,7 @@ daysinmonth(const struct tm *t)
 
 
 static int
-adjyear(struct tm *t, char type, int val, int mk)
+adjyear(struct tm *t, char type, int64_t val, int mk)
 {
   switch (type) {
     case '+':
@@ -146,7 +147,7 @@ adjyear(struct tm *t, char type, int val, int mk)
 }
 
 static int
-adjmon(struct tm *t, char type, int val, int istext, int mk)
+adjmon(struct tm *t, char type, int64_t val, int istext, int mk)
 {
   int lmdays;
 
@@ -206,7 +207,7 @@ adjmon(struct tm *t, char type, int val, int istext, int mk)
 }
 
 static int
-adjday(struct tm *t, char type, int val, int mk)
+adjday(struct tm *t, char type, int64_t val, int mk)
 {
   int lmdays;
 
@@ -250,7 +251,7 @@ adjday(struct tm *t, char type, int val, int mk)
 }
 
 static int
-adjwday(struct tm *t, char type, int val, int istext, int mk)
+adjwday(struct tm *t, char type, int64_t val, int istext, int mk)
 {
   if (val < 0)
     return 0;
@@ -286,7 +287,7 @@ adjwday(struct tm *t, char type, int val, int istext, int mk)
 }
 
 static int
-adjhour(struct tm *t, char type, int val, int mk)
+adjhour(struct tm *t, char type, int64_t val, int mk)
 {
   if (val < 0)
     return 0;
@@ -331,7 +332,7 @@ adjhour(struct tm *t, char type, int val, int mk)
 }
 
 static int
-adjmin(struct tm *t, char type, int val, int mk)
+adjmin(struct tm *t, char type, int64_t val, int mk)
 {
   if (val < 0)
     return 0;
@@ -372,7 +373,7 @@ adjmin(struct tm *t, char type, int val, int mk)
 }
 
 static int
-adjsec(struct tm *t, char type, int val, int mk)
+adjsec(struct tm *t, char type, int64_t val, int mk)
 {
   if (val < 0)
     return 0;
@@ -419,7 +420,7 @@ vary_apply(const struct vary *v, struct tm *t)
   char which;
   char *arg;
   size_t len;
-  int val;
+  int64_t val;
 
   for (; v; v = v->next) {
     type = *v->arg;

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -33,6 +33,7 @@
 #include <net/if_types.h>
 #include <net/if_var.h>
 
+#include <netlink/netlink_bitset.h>
 #include <netlink/route/common.h>
 #include <netlink/route/ifaddrs.h>
 #include <netlink/route/interface.h>

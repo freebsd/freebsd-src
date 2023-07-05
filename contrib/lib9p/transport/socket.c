@@ -73,7 +73,6 @@ l9p_start_server(struct l9p_server *server, const char *host, const char *port)
 	struct kevent kev[2];
 	struct kevent event[2];
 	int err, kq, i, val, evs, nsockets = 0;
-	int sockets[2];
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -98,7 +97,6 @@ l9p_start_server(struct l9p_server *server, const char *host, const char *port)
 			continue;
 		}
 
-		sockets[nsockets] = s;
 		EV_SET(&kev[nsockets++], s, EVFILT_READ, EV_ADD | EV_ENABLE, 0,
 		    0, 0);
 		listen(s, 10);

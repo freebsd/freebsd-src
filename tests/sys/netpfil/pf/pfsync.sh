@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2018 Orange Business Services
 #
@@ -87,7 +87,7 @@ common_body()
 	sleep 2
 
 	if ! jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
-	    grep 198.51.100.2 ; then
+	    grep 198.51.100.254 ; then
 		atf_fail "state not found on synced host"
 	fi
 }
@@ -125,10 +125,6 @@ defer_body()
 {
 	pfsynct_init
 
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "Skip know failing test (likely related to https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=260460)"
-	fi
-
 	epair_sync=$(vnet_mkepair)
 	epair_in=$(vnet_mkepair)
 	epair_out=$(vnet_mkepair)
@@ -140,6 +136,9 @@ defer_body()
 	jexec alcatraz ifconfig ${epair_in}a 203.0.113.1/24 up
 	jexec alcatraz arp -s 203.0.113.2 00:01:02:03:04:05
 	jexec alcatraz sysctl net.inet.ip.forwarding=1
+
+	# Set a long defer delay
+	jexec alcatraz sysctl net.pfsync.defer_delay=2500
 
 	jexec alcatraz ifconfig pfsync0 \
 		syncdev ${epair_sync}a \
@@ -153,6 +152,7 @@ defer_body()
 	route add -net 203.0.113.0/24 198.51.100.1
 
 	# Enable pf
+	jexec alcatraz sysctl net.pf.filter_local=0
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
 		"set skip on ${epair_sync}a" \

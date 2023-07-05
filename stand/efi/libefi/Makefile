@@ -11,6 +11,7 @@ SRCS=	delay.c \
 	efi_console.c \
 	efi_driver_utils.c \
 	efichar.c \
+	eficom.c \
 	efienv.c \
 	efihttp.c \
 	efinet.c \
@@ -25,7 +26,7 @@ SRCS=	delay.c \
 .PATH:  ${SYSDIR}/teken
 SRCS+=  teken.c
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	time.c
 .elif ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "riscv"
 SRCS+=	time_event.c

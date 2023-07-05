@@ -1,4 +1,4 @@
-# $NetBSD: varmod-loop-delete.mk,v 1.2 2021/12/05 15:51:33 rillig Exp $
+# $NetBSD: varmod-loop-delete.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the variable modifier ':@', which as a side effect allows to
 # delete an arbitrary variable.
@@ -16,6 +16,7 @@ VAR=	${:U:@VAR@@} rest of the value
 
 # In an assignment, the scope is 'Global'.  Since the variable 'VAR' is
 # defined in the global scope, it deletes itself.
+# expect+1: Cannot delete variable "VAR" while it is used
 EVAL:=	${VAR}
 .if ${EVAL} != " rest of the value"
 .  error

@@ -119,7 +119,7 @@ keyacc_new_push(
 	)
 {
 	KeyAccT *	node = emalloc(sizeof(KeyAccT));
-	
+
 	memcpy(&node->addr, addr, sizeof(sockaddr_u));
 	node->subnetbits = subnetbits;
 	node->next = head;
@@ -219,7 +219,7 @@ keyacc_amatch(
 	 * other checks if we find object identity. But that use case is
 	 * too rare to care for it.
 	 */
-	
+
 	/* 2nd check: Address families must be the same. */
 	if (AF(a1) != AF(a2))
 		return FALSE;
@@ -284,8 +284,7 @@ init_auth(void)
 	 */
 	newalloc = authhashbuckets * sizeof(key_hash[0]);
 
-	key_hash = erealloc(key_hash, newalloc);
-	memset(key_hash, '\0', newalloc);
+	key_hash = emalloc_zero(newalloc);
 
 	INIT_DLIST(key_listhead, llink);
 
@@ -317,7 +316,7 @@ free_auth_mem(void)
 	cache_keyacclist = NULL;
 	for (alloc = authallocs; alloc != NULL; alloc = next_alloc) {
 		next_alloc = alloc->link;
-		free(alloc->mem);	
+		free(alloc->mem);
 	}
 	authfreekeys = NULL;
 	authnumfreekeys = 0;
@@ -458,7 +457,7 @@ auth_resize_hashtable(void)
 	newalloc = authhashbuckets * sizeof(key_hash[0]);
 
 	key_hash = erealloc(key_hash, newalloc);
-	memset(key_hash, '\0', newalloc);
+	zero_mem(key_hash, newalloc);
 
 	ITER_DLIST_BEGIN(key_listhead, sk, llink, symkey)
 		hash = KEYHASH(sk->keyid);
@@ -525,17 +524,17 @@ freesymkey(
 
 	authcache_flush_id(sk->keyid);
 	keyacc_all_free(sk->keyacclist);
-	
+
 	bucket = &key_hash[KEYHASH(sk->keyid)];
 	if (sk->secret != NULL) {
-		memset(sk->secret, '\0', sk->secretsize);
+		zero_mem(sk->secret, sk->secretsize);
 		free(sk->secret);
 	}
 	UNLINK_SLIST(unlinked, *bucket, sk, hlink, symkey);
 	DEBUG_ENSURE(sk == unlinked);
 	UNLINK_DLIST(sk, llink);
-	memset((char *)sk + offsetof(symkey, symkey_payload), '\0',
-	       sizeof(*sk) - offsetof(symkey, symkey_payload));
+	zero_mem((char *)sk + offsetof(symkey, symkey_payload),
+		 sizeof(*sk) - offsetof(symkey, symkey_payload));
 	LINK_SLIST(authfreekeys, sk, llink.f);
 	authnumkeys--;
 	authnumfreekeys++;
@@ -649,7 +648,7 @@ authtrust(
 	 * There are two conditions remaining. Either it does not
 	 * exist and is to be trusted or it does exist and is or is
 	 * not to be trusted.
-	 */	
+	 */
 	if (sk != NULL) {
 		/*
 		 * Key exists. If it is to be trusted, say so and update
@@ -719,17 +718,17 @@ authistrusted(
 
 	if (keyno == cache_keyid) {
 		return (KEY_TRUSTED & cache_flags) &&
-		    keyacc_contains(cache_keyacclist, sau, TRUE);
+			keyacc_contains(cache_keyacclist, sau, TRUE);
 	}
 
 	if (NULL != (sk = auth_findkey(keyno))) {
 		authkeyuncached++;
 		return (KEY_TRUSTED & sk->flags) &&
-		    keyacc_contains(sk->keyacclist, sau, TRUE);
+			keyacc_contains(sk->keyacclist, sau, TRUE);
 	}
-	
+
 	authkeynotfound++;
-	return FALSE;    
+	return FALSE;
 }
 
 /* Note: There are two locations below where 'strncpy()' is used. While
@@ -754,7 +753,7 @@ MD5auth_setkey(
 {
 	symkey *	sk;
 	u_char *	secret;
-	
+
 	DEBUG_ENSURE(keytype <= USHRT_MAX);
 	DEBUG_ENSURE(secretsize < 4 * 1024);
 	/*
@@ -800,7 +799,7 @@ MD5auth_setkey(
 	allocsymkey(keyno, 0, (u_short)keytype, 0,
 		    secretsize, secret, ka);
 #ifdef DEBUG
-	if (debug >= 4) {
+	if (debug >= 1) {
 		size_t	j;
 
 		printf("auth_setkey: key %d type %d len %d ", (int)keyno,
@@ -809,14 +808,14 @@ MD5auth_setkey(
 			printf("%02x", secret[j]);
 		}
 		printf("\n");
-	}	
+	}
 #endif
 }
 
 
 /*
  * auth_delkeys - delete non-autokey untrusted keys, and clear all info
- *                except the trusted bit of non-autokey trusted keys, in
+ *		  except the trusted bit of non-autokey trusted keys, in
  *		  preparation for rereading the keys file.
  */
 void
@@ -835,7 +834,7 @@ auth_delkeys(void)
 		 */
 		if (KEY_TRUSTED & sk->flags) {
 			if (sk->secret != NULL) {
-				memset(sk->secret, 0, sk->secretsize);
+				zero_mem(sk->secret, sk->secretsize);
 				free(sk->secret);
 				sk->secret = NULL; /* TALOS-CAN-0054 */
 			}
@@ -886,9 +885,9 @@ authencrypt(
 	 * consists of a single word with value zero.
 	 */
 	authencryptions++;
-	pkt[length / 4] = htonl(keyno);
+	pkt[length / KEY_MAC_LEN] = htonl(keyno);
 	if (0 == keyno) {
-		return 4;
+		return KEY_MAC_LEN;
 	}
 	if (!authhavekey(keyno)) {
 		return 0;
@@ -925,5 +924,97 @@ authdecrypt(
 
 	return MD5authdecrypt(cache_type,
 			      cache_secret, cache_secretsize,
-			      pkt, length, size);
+			      pkt, length, size, keyno);
+}
+
+/* password decoding helpers */
+static size_t
+pwdecode_plain(
+	u_char *	dst,
+	size_t 		dstlen,
+	const char *	src
+	)
+{
+	size_t		srclen = strlen(src);
+	if (srclen > dstlen) {
+		errno = ENOMEM;
+		return (size_t)-1;
+	}
+	memcpy(dst, src, srclen);
+	return srclen;
+}
+
+static size_t
+pwdecode_hex(
+	u_char *	dst,
+	size_t 		dstlen,
+	const char *	src
+	)
+{
+	static const char hex[] = "00112233445566778899AaBbCcDdEeFf";
+
+	size_t		srclen = strlen(src);
+	size_t		reslen = (srclen >> 1) + (srclen & 1);
+	u_char		tmp;
+	char		*ptr;
+	size_t		j;
+
+	if (reslen > dstlen) {
+		errno = ENOMEM;
+		reslen = (size_t)-1;
+	} else {
+		for (j = 0; j < srclen; ++j) {
+			tmp = *(const unsigned char*)(src + j);
+			ptr = strchr(hex, tmp);
+			if (ptr == NULL) {
+				errno = EINVAL;
+				reslen = (size_t)-1;
+				break;
+			}
+			tmp = (u_char)((ptr - hex) >> 1);
+			if (j & 1)
+				dst[j >> 1] |= tmp;
+			else
+				dst[j >> 1] = tmp << 4;
+		}
+	}
+	return reslen;
+}
+/*
+ * authdecodepw - decode plaintext or hex-encoded password to binary
+ * secret.  Returns size of secret in bytes or -1 on error.
+ */
+size_t
+authdecodepw(
+	u_char *	dst,
+	size_t 		dstlen,
+	const char *	src,
+	enum AuthPwdEnc	enc
+	)
+{
+	size_t		reslen;
+
+	if ( !(dst && dstlen && src)) {
+		errno  = EINVAL;
+		reslen = (size_t)-1;
+	} else {
+		switch (enc) {
+		case AUTHPWD_UNSPEC:
+			if (strlen(src) <= 20)
+				reslen = pwdecode_plain(dst, dstlen, src);
+			else
+				reslen = pwdecode_hex(dst, dstlen, src);
+			break;
+		case AUTHPWD_PLAIN:
+			reslen = pwdecode_plain(dst, dstlen, src);
+			break;
+		case AUTHPWD_HEX:
+			reslen = pwdecode_hex(dst, dstlen, src);
+			break;
+		default:
+			errno = EINVAL;
+			reslen = (size_t)-1;
+		}
+	}
+	return reslen;
 }

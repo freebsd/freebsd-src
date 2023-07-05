@@ -537,8 +537,8 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	for (pn = pd->pn_nodes; pn != NULL; pn = pn->pn_next)
 		if (pn->pn_type == pfstype_procdir)
 			pdn = pn;
-		else if (pn->pn_name[namelen] == '\0' &&
-		    bcmp(pname, pn->pn_name, namelen) == 0) {
+		else if (strncmp(pname, pn->pn_name, namelen) == 0 &&
+		    pn->pn_name[namelen] == '\0') {
 			pfs_unlock(pd);
 			goto got_pnode;
 		}

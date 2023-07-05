@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2019
+.Dd May 8, 2023
 .Dt EM 4
 .Os
 .Sh NAME
@@ -215,6 +215,9 @@ Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
+See
+.Xr iflib 4
+for per-instance variables.
 .Bl -tag -width indent
 .It Va hw.em.disable_crc_stripping
 Disable or enable hardware stripping of CRC field.
@@ -224,27 +227,12 @@ Default 0 (enabled).
 .It Va hw.em.eee_setting
 Disable or enable Energy Efficient Ethernet.
 Default 1 (disabled).
-.It Va hw.em.msix
-Enable or disable MSI-X style interrupts.
-Default 1 (enabled).
 .It Va hw.em.smart_pwr_down
 Enable or disable smart power down features on newer adapters.
 Default 0 (disabled).
 .It Va hw.em.sbp
 Show bad packets when in promiscuous mode.
 Default 0 (off).
-.It Va hw.em.rxd
-Number of receive descriptors allocated by the driver.
-The default value is 1024 for adapters newer than 82547,
-and 256 for older ones.
-The 82542 and 82543-based adapters can handle up to 256 descriptors,
-while others can have up to 4096.
-.It Va hw.em.txd
-Number of transmit descriptors allocated by the driver.
-The default value is 1024 for adapters newer than 82547,
-and 256 for older ones.
-The 82542 and 82543-based adapters can handle up to 256 descriptors,
-while others can have up to 4096.
 .It Va hw.em.rx_int_delay
 This value delays the generation of receive interrupts in units of
 1.024 microseconds.
@@ -264,6 +252,12 @@ If
 .Va hw.em.tx_int_delay
 is non-zero, this tunable limits the maximum delay in which a transmit
 interrupt is generated.
+.It Va hw.em.max_interrupt_rate
+Maximum interrupts per second.
+The default value is 8000.
+.It Va hw.em.rx_process_limit
+Maximum number of received packets to process at a time, -1 means unlimited.
+The default value is 100.
 .El
 .Sh FILES
 .Bl -tag -width /dev/led/em*

@@ -486,6 +486,9 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 	if (vd->vdev_isspare)
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_IS_SPARE, 1);
 
+	if (flags & VDEV_CONFIG_L2CACHE)
+		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASHIFT, vd->vdev_ashift);
+
 	if (!(flags & (VDEV_CONFIG_SPARE | VDEV_CONFIG_L2CACHE)) &&
 	    vd == vd->vdev_top) {
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_METASLAB_ARRAY,
@@ -571,6 +574,12 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			ASSERT(vd == vd->vdev_top);
 			fnvlist_add_uint64(nv, ZPOOL_CONFIG_VDEV_TOP_ZAP,
 			    vd->vdev_top_zap);
+		}
+
+		if (vd->vdev_ops == &vdev_root_ops && vd->vdev_root_zap != 0 &&
+		    spa_feature_is_active(vd->vdev_spa, SPA_FEATURE_AVZ_V2)) {
+			fnvlist_add_uint64(nv, ZPOOL_CONFIG_VDEV_ROOT_ZAP,
+			    vd->vdev_root_zap);
 		}
 
 		if (vd->vdev_resilver_deferred) {

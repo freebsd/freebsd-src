@@ -204,7 +204,7 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_int mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 34	AUE_MKDIRAT	STD	{
@@ -1357,8 +1357,8 @@
 221	AUE_EXECVE	STD	{
 		int linux_execve(
 		    char *path,
-		    char **argp,
-		    char **envp
+		    l_uintptr_t *argp,
+		    l_uintptr_t *envp
 		);
 	}
 222	AUE_MMAP	STD	{

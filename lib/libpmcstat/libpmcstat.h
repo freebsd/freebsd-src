@@ -98,7 +98,7 @@ struct pmcstat_args {
 #define	FLAG_READ_LOGFILE		0x00000200	/* -R file */
 #define	FLAG_DO_GPROF			0x00000400	/* -g */
 #define	FLAG_HAS_SAMPLESDIR		0x00000800	/* -D dir */
-#define	FLAG_HAS_KERNELPATH		0x00001000	/* -k kernel */
+/* was FLAG_HAS_KERNELPATH		0x00001000 */
 #define	FLAG_DO_PRINT			0x00002000	/* -o */
 #define	FLAG_DO_CALLGRAPHS		0x00004000	/* -G or -F */
 #define	FLAG_DO_ANNOTATE		0x00008000	/* -m */
@@ -121,7 +121,6 @@ struct pmcstat_args {
 	char	*pa_outputpath;		/* path to output log */
 	void	*pa_logparser;		/* log file parser */
 	const char	*pa_fsroot;	/* FS root where executables reside */
-	char	*pa_kernel;		/* pathname of the kernel */
 	const char	*pa_samplesdir;	/* directory for profile files */
 	const char	*pa_mapfilename;/* mapfile name */
 	FILE	*pa_graphfile;		/* where to send the callgraph */
@@ -337,7 +336,7 @@ struct pmcstat_image *
 int pmcstat_string_lookup_hash(pmcstat_interned_string _is);
 
 void pmcstat_process_elf_exec(struct pmcstat_process *_pp,
-    struct pmcstat_image *_image, uintfptr_t _entryaddr,
+    struct pmcstat_image *_image, uintptr_t _baseaddr, uintptr_t _dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats);
 
@@ -345,9 +344,9 @@ void pmcstat_image_link(struct pmcstat_process *_pp,
     struct pmcstat_image *_i, uintfptr_t _lpc);
 
 void pmcstat_process_aout_exec(struct pmcstat_process *_pp,
-    struct pmcstat_image *_image, uintfptr_t _entryaddr);
+    struct pmcstat_image *_image, uintptr_t _baseaddr);
 void pmcstat_process_exec(struct pmcstat_process *_pp,
-    pmcstat_interned_string _path, uintfptr_t _entryaddr,
+    pmcstat_interned_string _path, uintptr_t _baseaddr, uintptr_t _dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats);
 void pmcstat_image_determine_type(struct pmcstat_image *_image, struct pmcstat_args *args);

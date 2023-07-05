@@ -2,7 +2,8 @@
 
 .include <bsd.init.mk>
 
-MAN=	cli.lua.8 \
+MAN=	loader.conf.lua.5 \
+	cli.lua.8 \
 	color.lua.8 \
 	config.lua.8 \
 	core.lua.8 \

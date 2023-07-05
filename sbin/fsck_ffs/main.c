@@ -492,7 +492,7 @@ checkfilesys(char *filesys)
 	snapflush(std_checkblkavail);
 	if (cgheader_corrupt) {
 		printf("PHASE 5 SKIPPED DUE TO CORRUPT CYLINDER GROUP "
-		    "HEADER(S)\n");
+		    "HEADER(S)\n\n");
 	} else {
 		pass5();
 		IOstats("Pass5");
@@ -711,7 +711,10 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	}
 	free(sblock.fs_csp);
 	free(sblock.fs_si);
-	havesb = 0;
+	if (readsb() == 0) {
+		pwarn("CANNOT READ SNAPSHOT SUPERBLOCK\n");
+		return (0);
+	}
 	*filesys = snapname;
 	cmd.version = FFS_CMD_VERSION;
 	cmd.handle = fsreadfd;

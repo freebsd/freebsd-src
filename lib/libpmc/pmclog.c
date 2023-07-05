@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005-2007 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 	(* ((uint32_t *) &(PS)->ps_saved))
 
 #define	PMCLOG_INITIALIZE_READER(LE,A)	LE = (uint32_t *) &(A)
+#define	PMCLOG_SKIP32(LE)		(LE)++
 #define	PMCLOG_READ32(LE,V) 		do {				\
 		(V)  = *(LE)++;						\
 	} while (0)
@@ -257,7 +258,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
     struct pmclog_ev *ev)
 {
 	int evlen, pathlen;
-	uint32_t h, *le, npc, noop;
+	uint32_t h, *le, npc;
 	enum pmclog_parser_state e;
 	struct pmclog_parse_state *ps;
 	struct pmclog_header *ph;
@@ -340,13 +341,13 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_MAP_IN:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_map_in);
 		PMCLOG_READ32(le,ev->pl_u.pl_mi.pl_pid);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mi.pl_start);
 		PMCLOG_READSTRING(le, ev->pl_u.pl_mi.pl_pathname, pathlen);
 		break;
 	case PMCLOG_TYPE_MAP_OUT:
 		PMCLOG_READ32(le,ev->pl_u.pl_mo.pl_pid);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_start);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_end);
 		break;
@@ -354,14 +355,29 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READ64(le,ev->pl_u.pl_a.pl_rate);
-		ev->pl_u.pl_a.pl_evname = pmc_pmu_event_get_by_idx(ps->ps_cpuid, ev->pl_u.pl_a.pl_event);
-		if (ev->pl_u.pl_a.pl_evname != NULL)
-			break;
-		else if ((ev->pl_u.pl_a.pl_evname =
-		    _pmc_name_of_event(ev->pl_u.pl_a.pl_event, ps->ps_arch))
-		    == NULL) {
+
+		/*
+		 * Could be either a PMC event code or a PMU event index;
+		 * assume that their encodings don't overlap (i.e. no PMU event
+		 * table is more than 0x1000 entries) to distinguish them here.
+		 * Otherwise pmc_pmu_event_get_by_idx will go out of bounds if
+		 * given a PMC event code when it knows about that CPU.
+		 *
+		 * XXX: Ideally we'd have user flags to give us that context.
+		 */
+		if (ev->pl_u.pl_a.pl_event < PMC_EVENT_FIRST)
+			ev->pl_u.pl_a.pl_evname =
+			    pmc_pmu_event_get_by_idx(ps->ps_cpuid,
+				ev->pl_u.pl_a.pl_event);
+		else if (ev->pl_u.pl_a.pl_event <= PMC_EVENT_LAST)
+			ev->pl_u.pl_a.pl_evname =
+			    _pmc_name_of_event(ev->pl_u.pl_a.pl_event,
+				ps->ps_arch);
+		else
+			ev->pl_u.pl_a.pl_evname = NULL;
+		if (ev->pl_u.pl_a.pl_evname == NULL) {
 			printf("unknown event\n");
 			goto error;
 		}
@@ -370,7 +386,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_ad.pl_evname,PMC_NAME_MAX);
 		break;
 	case PMCLOG_TYPE_PMCATTACH:
@@ -393,7 +409,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_procexec);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pid);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pmcid);
-		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_entryaddr);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_baseaddr);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_dynaddr);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_x.pl_pathname,pathlen);
 		break;
 	case PMCLOG_TYPE_PROCEXIT:
@@ -415,7 +432,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_tid);
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_pid);
 		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_flags);
-		PMCLOG_READ32(le,noop);
+		PMCLOG_SKIP32(le);
 		memcpy(ev->pl_u.pl_tc.pl_tdname, le, MAXCOMLEN+1);
 		break;
 	case PMCLOG_TYPE_THR_EXIT:

@@ -1,4 +1,4 @@
-# $NetBSD: dep-colon-bug-cross-file.mk,v 1.4 2020/09/27 09:53:41 rillig Exp $
+# $NetBSD: dep-colon-bug-cross-file.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
 #
 # Until 2020-09-25, the very last dependency group of a top-level makefile
 # was not finished properly.  This made it possible to add further commands
@@ -28,6 +28,7 @@ PASS?=	1
 
 .if ${PASS} == 2
 all:
+# expect+1: warning: duplicate script for target "all" ignored
 	: pass 2
 .endif
 
@@ -37,5 +38,6 @@ PASS=	2
 .MAKEFLAGS: -f ${.PARSEDIR:q}/${.PARSEFILE:q}
 
 all:
+# expect+1: warning: using previous script for "all" defined here
 	: pass 1
 .endif

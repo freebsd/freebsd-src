@@ -32,7 +32,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 5, 2023
+.Dd May 22, 2023
 .Dt MKSNAP_FFS 8
 .Os
 .Sh NAME
@@ -70,17 +70,17 @@ or members of the
 group.
 .Sh EXAMPLES
 Create a snapshot of
-.Pa /usr/home
+.Pa /home
 file system and mount the snapshot elsewhere:
 .Bd -literal -offset indent
-mksnap_ffs /usr/home/.snap/snap1
-mdconfig -a -t vnode -o readonly -f /usr/home/.snap/snap1
+mksnap_ffs /home/.snap/snap1
+mdconfig -a -t vnode -o readonly -f /home/.snap/snap1
 mount -o ro /dev/md0 /mnt/
 .Ed
 .Pp
 Delete a snapshot:
 .Bd -literal -offset indent
-rm /usr/home/.snap/snap1
+rm /home/.snap/snap1
 .Ed
 .Sh SEE ALSO
 .Xr rm 1 ,

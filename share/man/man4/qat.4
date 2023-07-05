@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\" Copyright(c) 2007-2022 Intel Corporation
 .\" $FreeBSD$
-.Dd September 1, 2022
+.Dd May 4, 2023
 .Dt QAT 4
 .Os
 .Sh NAME
@@ -101,6 +101,61 @@ For details of usage and supported operations and algorithms refer to the
 documentation mentioned above and
 .Sx SEE ALSO
 section.
+.Sh SYSCTL_VARIABLES
+Following variables may be used to reconfigure the QAT device.\&
+For configuration persistence those variables may be set before loading the driver, either via
+.Xr kenv 1
+or
+.Xr loader.conf(5).
+The device specific configuration options are prefixed with
+.Va dev.qat.X\&.
+where X is the device number.
+The specific device needs to be in "down" state before changing the configuration.
+.Bl -tag -width indent
+.It Va state
+Show current state of the device. Override the device state. Possible values: "down", "up".
+
+NOTE: If the symmetric services are used for device the qat_ocf driver needs to be disabled prior the device
+reconfiguration.
+Following variable may be used to enable/disable the QAT cryptographic framework connectivity
+.Va dev.qat_ocf.0.enable\&.
+Enabled by default.
+.It Va cfg_services
+Override the device services enabled: symmetric, asymmetric, data compression.
+Possible values: "sym", "asym", "dc", "sym;dc", "asym;dc", "sym;asym".
+Default services configured are "sym;asym" for even and "dc" for odd devices.
+.It Va cfg_mode
+Override the device mode configuration for kernel space and user space instances.
+Possible values: "ks", "us", "ks;us".
+Default value "ks;us".
+.It Va num_user_processes
+Override the number of uio user space processes that can connect to the QAT device.
+Default: 2
+.El
+.Pp
+The following
+.Xr sysctl 8
+variables are read-only:
+.Bl -tag -width indent
+.It Va frequency
+QAT device frequency value.
+.It Va mmp_version
+QAT MMP Library revision number.
+.It Va hw_version
+QAT hardware revision number.
+.It Va fw_version
+QAT firmware revision number.
+.It Va dev_cfg
+Summary of device specific configuration.
+.It Va heartbeat
+QAT device heartbeat status. Value '1' indicates that the device is operational.
+'0' value means that the device is not responsive. Device requires restart.
+.It Va heartbeat_failed
+Number of QAT heartbeat failures received.
+.It Va heartbeat_sent
+Number of QAT heartbeat requests sent.
+.El
+
 .Sh COMPATIBILITY
 The
 .Nm

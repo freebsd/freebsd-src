@@ -2,7 +2,6 @@
  * System call names.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * $FreeBSD$
  */
 
 const char *linux_syscallnames[] = {
@@ -35,7 +34,7 @@ const char *linux_syscallnames[] = {
 	"linux_stime",			/* 25 = linux_stime */
 	"linux_ptrace",			/* 26 = linux_ptrace */
 	"linux_alarm",			/* 27 = linux_alarm */
-	"linux_fstat",			/* 28 = linux_fstat */
+	"#28",			/* 28 = fstat */
 	"linux_pause",			/* 29 = linux_pause */
 	"linux_utime",			/* 30 = linux_utime */
 	"#31",			/* 31 = stty */

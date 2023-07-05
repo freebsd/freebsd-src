@@ -115,8 +115,7 @@ smtp_init_crypto(int fd, int feature, struct smtp_features* features)
 
 	/* XXX clean up on error/close */
 	/* Init SSL library */
-	SSL_library_init();
-	SSL_load_error_strings();
+	OPENSSL_init_ssl(0, NULL);
 
 	// Allow any possible version
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/_iovec.h>
 #include <sys/cpuset.h>
-
-#include <x86/segments.h>
-#include <machine/specialreg.h>
 
 #include <capsicum_helpers.h>
 #include <errno.h>
@@ -721,16 +718,9 @@ vm_get_register_set(struct vcpu *vcpu, unsigned int count,
 }
 
 int
-vm_run(struct vcpu *vcpu, struct vm_exit *vmexit)
+vm_run(struct vcpu *vcpu, struct vm_run *vmrun)
 {
-	int error;
-	struct vm_run vmrun;
-
-	bzero(&vmrun, sizeof(vmrun));
-
-	error = vcpu_ioctl(vcpu, VM_RUN, &vmrun);
-	bcopy(&vmrun.vm_exit, vmexit, sizeof(struct vm_exit));
-	return (error);
+	return (vcpu_ioctl(vcpu, VM_RUN, vmrun));
 }
 
 int

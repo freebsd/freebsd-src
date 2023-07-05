@@ -1,5 +1,23 @@
 # News
 
+## 6.6.0
+
+This is a production release with two bug fixes and one change.
+
+The first bug fix is to fix the build on Mac OSX.
+
+The second bug was to remove printing a leading zero in scientific or
+engineering output modes.
+
+The change was that the implementation of `irand()` was improved to call the
+PRNG less.
+
+## 6.5.0
+
+This is a production release that fixes an infinite loop bug in `root()` and
+`cbrt()`, fixes a bug with `BC_LINE_LENGTH=0`, and adds the `fib()` function to
+the extended math library to calculate Fibonacci numbers.
+
 ## 6.4.0
 
 This is a production release that fixes a `read()`/`?` bug and adds features to

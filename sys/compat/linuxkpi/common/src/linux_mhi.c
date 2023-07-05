@@ -60,7 +60,7 @@ linuxkpi_mhi_free_controller(struct mhi_controller *mhi_ctrl)
 
 int
 linuxkpi_mhi_register_controller(struct mhi_controller *mhi_ctrl,
-    struct mhi_controller_config *cfg)
+    const struct mhi_controller_config *cfg)
 {
 
 	if (mhi_ctrl == NULL || cfg == NULL)

@@ -273,8 +273,8 @@ int mlx4_init_uar_table(struct mlx4_dev *dev)
 {
 	int num_reserved_uar = mlx4_get_num_reserved_uar(dev);
 
-	mlx4_dbg(dev, "uar_page_shift = %d", dev->uar_page_shift);
-	mlx4_dbg(dev, "Effective reserved_uars=%d", dev->caps.reserved_uars);
+	mlx4_dbg(dev, "uar_page_shift = %d\n", dev->uar_page_shift);
+	mlx4_dbg(dev, "Effective reserved_uars=%d\n", dev->caps.reserved_uars);
 
 	if (dev->caps.num_uars <= num_reserved_uar) {
 		mlx4_err(dev, "Only %d UAR pages (need more than %d)\n",

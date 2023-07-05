@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -10,7 +10,7 @@
 #include "fido.h"
 #include "fido/eddsa.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10101000L
+#if defined(LIBRESSL_VERSION_NUMBER)
 EVP_PKEY *
 EVP_PKEY_new_raw_public_key(int type, ENGINE *e, const unsigned char *key,
     size_t keylen)
@@ -37,7 +37,9 @@ EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, unsigned char *pub,
 
 	return (0);
 }
+#endif /* LIBRESSL_VERSION_NUMBER */
 
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3040000f
 int
 EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret, size_t siglen,
     const unsigned char *tbs, size_t tbslen)
@@ -52,23 +54,7 @@ EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret, size_t siglen,
 
 	return (0);
 }
-#endif /* LIBRESSL_VERSION_NUMBER || OPENSSL_VERSION_NUMBER < 0x10101000L */
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-EVP_MD_CTX *
-EVP_MD_CTX_new(void)
-{
-	fido_log_debug("%s: unimplemented", __func__);
-
-	return (NULL);
-}
-
-void
-EVP_MD_CTX_free(EVP_MD_CTX *ctx)
-{
-	(void)ctx;
-}
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* LIBRESSL_VERSION_NUMBER < 0x3040000f */
 
 static int
 decode_coord(const cbor_item_t *item, void *xy, size_t xy_len)
@@ -169,4 +155,66 @@ eddsa_pk_from_EVP_PKEY(eddsa_pk_t *pk, const EVP_PKEY *pkey)
 		return (FIDO_ERR_INTERNAL);
 
 	return (FIDO_OK);
+}
+
+int
+eddsa_verify_sig(const fido_blob_t *dgst, EVP_PKEY *pkey,
+    const fido_blob_t *sig)
+{
+	EVP_MD_CTX	*mdctx = NULL;
+	int		 ok = -1;
+
+	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_ED25519) {
+		fido_log_debug("%s: EVP_PKEY_base_id", __func__);
+		goto fail;
+	}
+
+	/* EVP_DigestVerify needs ints */
+	if (dgst->len > INT_MAX || sig->len > INT_MAX) {
+		fido_log_debug("%s: dgst->len=%zu, sig->len=%zu", __func__,
+		    dgst->len, sig->len);
+		return (-1);
+	}
+
+	if ((mdctx = EVP_MD_CTX_new()) == NULL) {
+		fido_log_debug("%s: EVP_MD_CTX_new", __func__);
+		goto fail;
+	}
+
+	if (EVP_DigestVerifyInit(mdctx, NULL, NULL, NULL, pkey) != 1) {
+		fido_log_debug("%s: EVP_DigestVerifyInit", __func__);
+		goto fail;
+	}
+
+	if (EVP_DigestVerify(mdctx, sig->ptr, sig->len, dgst->ptr,
+	    dgst->len) != 1) {
+		fido_log_debug("%s: EVP_DigestVerify", __func__);
+		goto fail;
+	}
+
+	ok = 0;
+fail:
+	EVP_MD_CTX_free(mdctx);
+
+	return (ok);
+}
+
+int
+eddsa_pk_verify_sig(const fido_blob_t *dgst, const eddsa_pk_t *pk,
+    const fido_blob_t *sig)
+{
+	EVP_PKEY	*pkey;
+	int		 ok = -1;
+
+	if ((pkey = eddsa_pk_to_EVP_PKEY(pk)) == NULL ||
+	    eddsa_verify_sig(dgst, pkey, sig) < 0) {
+		fido_log_debug("%s: eddsa_verify_sig", __func__);
+		goto fail;
+	}
+
+	ok = 0;
+fail:
+	EVP_PKEY_free(pkey);
+
+	return (ok);
 }

@@ -510,7 +510,8 @@ ichsmb_device_intr(void *cookie)
 			DBG("%d stat=0x%02x\n", count, status);
 		}
 #endif
-		status &= ~(ICH_HST_STA_INUSE_STS | ICH_HST_STA_HOST_BUSY);
+		status &= ~(ICH_HST_STA_INUSE_STS | ICH_HST_STA_HOST_BUSY |
+		    ICH_HST_STA_SMBALERT_STS);
 		if (status == 0)
 			break;
 
@@ -529,18 +530,6 @@ ichsmb_device_intr(void *cookie)
 			bus_write_1(sc->io_res,
 			    ICH_HST_STA, (status & ~ok_bits));
 			continue;
-		}
-
-		/* Handle SMBALERT interrupt */
-		if (status & ICH_HST_STA_SMBALERT_STS) {
-			static int smbalert_count = 16;
-			if (smbalert_count > 0) {
-				device_printf(dev, "SMBALERT# rec'd\n");
-				if (--smbalert_count == 0) {
-					device_printf(dev,
-					    "not logging anymore\n");
-				}
-			}
 		}
 
 		/* Check for bus error */

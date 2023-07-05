@@ -125,8 +125,7 @@ tarfs_io_read(struct tarfs_mount *tmp, bool raw, struct uio *uiop)
 		rl = vn_rangelock_rlock(tmp->vp, off, off + len);
 		error = vn_lock(tmp->vp, LK_SHARED);
 		if (error == 0) {
-			error = VOP_READ(tmp->vp, uiop,
-			    IO_DIRECT|IO_NODELOCKED,
+			error = VOP_READ(tmp->vp, uiop, IO_NODELOCKED,
 			    uiop->uio_td->td_ucred);
 			VOP_UNLOCK(tmp->vp);
 		}
@@ -426,8 +425,7 @@ tarfs_zread_zstd(struct tarfs_zio *zio, struct uio *uiop)
 			auio.uio_rw = UIO_READ;
 			auio.uio_resid = aiov.iov_len;
 			auio.uio_td = td;
-			error = VOP_READ(tmp->vp, &auio,
-			    IO_DIRECT | IO_NODELOCKED,
+			error = VOP_READ(tmp->vp, &auio, IO_NODELOCKED,
 			    td->td_ucred);
 			if (error != 0)
 				goto fail;

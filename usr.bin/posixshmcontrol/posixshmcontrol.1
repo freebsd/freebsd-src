@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2022
+.Dd May 25, 2023
 .Dt POSIXSHMCONTROL 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Sh SYNOPSIS
 .Nm
 .Ar create
+.Op Fl l Ar pagesize
 .Op Fl m Ar mode
 .Op Pa path \&...
 .Nm
@@ -79,10 +80,24 @@ for transient references.
 The following subcommands are provided:
 .Bl -tag -width truncate
 .It Ic create
-Create segments with the specified paths, if not exist.
+Create segments with the specified paths, if they do not already exist.
+.Pp
+The optional
+.Ar pagesize
+argument specifies the size of the virtual pages used to map the
+object with
+.Xr mmap 2 .
+By default, the system page size is used, but on some platforms a
+larger page size can be specified.
+The size of an object backed by large pages must be a multiple of the
+specified page size.
 The
+.Va hw.pagesizes
+sysctl variable lists the available page sizes.
+.Pp
+The optional numerical
 .Ar mode
-optional numerical argument specifies initial access mode.
+argument specifies the initial access mode.
 .It Ic rm
 Unlink the paths specified.
 .It Ic ls
@@ -138,12 +153,14 @@ and then enlarge it to 1M, use the sequence of commands
 .Xr hexdump 1 ,
 .Xr stat 1 ,
 .Xr ftruncate 2 ,
+.Xr mmap 2 ,
 .Xr read 2 ,
 .Xr shm_open 2 ,
 .Xr shm_unlink 2 ,
 .Xr stat 2 ,
 .Xr expand_number 3 ,
 .Xr humanize_number 3 ,
+.Xr shm_create_largepage 3 ,
 .Xr sysctl 3
 .Sh HISTORY
 The

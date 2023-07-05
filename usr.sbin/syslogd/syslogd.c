@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2018 Prodrive Technologies, https://prodrive-technologies.com/
  * Author: Ed Schouten <ed@FreeBSD.org>

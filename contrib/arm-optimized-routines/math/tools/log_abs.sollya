@@ -1,7 +1,7 @@
 // polynomial for approximating log(1+x)
 //
 // Copyright (c) 2019, Arm Limited.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 deg = 6; // poly degree
 // interval ~= 1/(2*N), where N is the table entries

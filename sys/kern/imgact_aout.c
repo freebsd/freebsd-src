@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1993, David Greenman
  * All rights reserved.
@@ -82,7 +82,6 @@ struct sysentvec aout_sysvec = {
 	.sv_szsigcode	= &szsigcode,
 	.sv_name	= "FreeBSD a.out",
 	.sv_coredump	= NULL,
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= AOUT32_USRSTACK,
@@ -132,7 +131,6 @@ struct sysentvec aout_sysvec = {
 	.sv_szsigcode	= &aout_szsigcode,
 	.sv_name	= "FreeBSD a.out",
 	.sv_coredump	= NULL,
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= AOUT32_MINUSER,
 	.sv_maxuser	= AOUT32_USRSTACK,

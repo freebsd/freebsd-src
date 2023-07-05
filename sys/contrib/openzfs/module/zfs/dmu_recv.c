@@ -1353,7 +1353,7 @@ corrective_read_done(zio_t *zio)
 	cr_cb_data_t *data = zio->io_private;
 	/* Corruption corrected; update error log if needed */
 	if (zio->io_error == 0)
-		spa_remove_error(data->spa, &data->zb);
+		spa_remove_error(data->spa, &data->zb, &zio->io_bp->blk_birth);
 	kmem_free(data, sizeof (cr_cb_data_t));
 	abd_free(zio->io_abd);
 }
@@ -1371,8 +1371,8 @@ do_corrective_recv(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	dnode_t *dn;
 	abd_t *abd = rrd->abd;
 	zio_cksum_t bp_cksum = bp->blk_cksum;
-	zio_flag_t flags = ZIO_FLAG_SPECULATIVE |
-	    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_RETRY | ZIO_FLAG_CANFAIL;
+	zio_flag_t flags = ZIO_FLAG_SPECULATIVE | ZIO_FLAG_DONT_RETRY |
+	    ZIO_FLAG_CANFAIL;
 
 	if (rwa->raw)
 		flags |= ZIO_FLAG_RAW;

@@ -25,6 +25,7 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 LINKS+=		${BINDIR}/llvm-symbolizer ${BINDIR}/llvm-addr2line
 

@@ -21,6 +21,7 @@
  * $FreeBSD$
  */
 
+#pragma D depends_on library ip.d
 #pragma D depends_on module kernel
 #pragma D depends_on module siftr
 #pragma D depends_on provider tcp
@@ -29,9 +30,9 @@
  * Convert a SIFTR direction value to a string
  */
 #pragma D binding "1.12.1" SIFTR_IN
-inline int SIFTR_IN =	1;
+inline int SIFTR_IN =	0;
 #pragma D binding "1.12.1" SIFTR_OUT
-inline int SIFTR_OUT =	2;
+inline int SIFTR_OUT =	1;
 
 /* SIFTR direction strings. */
 #pragma D binding "1.12.1" siftr_dir_string
@@ -44,22 +45,23 @@ typedef struct siftrinfo {
 	struct timeval		tval;
 	uint8_t			direction;
 	uint8_t			ipver;
-	uint32_t		hash;
-	uint16_t		tcp_localport;
-	uint16_t		tcp_foreignport;
-	uint64_t		snd_cwnd;
-	u_long			snd_wnd;
-	u_long			rcv_wnd;
-	u_long			snd_bwnd;
-	u_long			snd_ssthresh;
+	uint16_t		lport;
+	uint16_t		rport;
+	string 			laddr;
+	string 			raddr;
+	uint32_t		snd_cwnd;
+	uint32_t		snd_wnd;
+	uint32_t		rcv_wnd;
+	uint32_t		t_flags2;
+	uint32_t		snd_ssthresh;
 	int			conn_state;
-	u_int			max_seg_size;
-	int			smoothed_rtt;
+	uint32_t		mss;
+	uint32_t		srtt;
 	u_char			sack_enabled;
 	u_char			snd_scale;
 	u_char			rcv_scale;
-	u_int			flags;
-	int			rxt_length;
+	u_int			t_flags;
+	uint32_t		rto;
 	u_int			snd_buf_hiwater;
 	u_int			snd_buf_cc;
 	u_int			rcv_buf_hiwater;
@@ -74,22 +76,29 @@ typedef struct siftrinfo {
 translator siftrinfo_t < struct pkt_node *p > {
 	direction = 		p == NULL ? 0 : p->direction;
 	ipver =			p == NULL ? 0 : p->ipver;
-	hash = 			p == NULL ? 0 : p->hash;
-	tcp_localport =		p == NULL ? 0 : ntohs(p->tcp_localport);
-	tcp_foreignport =	p == NULL ? 0 : ntohs(p->tcp_foreignport);
+	lport =			p == NULL ? 0 : ntohs(p->lport);
+	rport =			p == NULL ? 0 : ntohs(p->fport);
+	laddr =			p == NULL ? "<unknown>" :
+	    p->ipver == INP_IPV4 ?
+	    inet_ntoa(&p->laddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->laddr.id6_addr);
+	raddr =			p == NULL ? "<unknown>" :
+	    p->ipver == INP_IPV4 ?
+	    inet_ntoa(&p->faddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->faddr.id6_addr);
 	snd_cwnd =		p == NULL ? 0 : p->snd_cwnd;
 	snd_wnd =		p == NULL ? 0 : p->snd_wnd;
 	rcv_wnd =		p == NULL ? 0 : p->rcv_wnd;
-	snd_bwnd =		p == NULL ? 0 : p->snd_bwnd;
+	t_flags2 =		p == NULL ? 0 : p->t_flags2;
 	snd_ssthresh =		p == NULL ? 0 : p->snd_ssthresh;
 	conn_state =		p == NULL ? 0 : p->conn_state;
-	max_seg_size = 		p == NULL ? 0 : p->max_seg_size;
-	smoothed_rtt =		p == NULL ? 0 : p->smoothed_rtt;
+	mss = 			p == NULL ? 0 : p->mss;
+	srtt =			p == NULL ? 0 : p->srtt;
 	sack_enabled = 		p == NULL ? 0 : p->sack_enabled;
 	snd_scale =		p == NULL ? 0 : p->snd_scale;
 	rcv_scale =		p == NULL ? 0 : p->rcv_scale;
-	flags =			p == NULL ? 0 : p->flags;
-	rxt_length = 		p == NULL ? 0 : p->rxt_length;
+	t_flags =		p == NULL ? 0 : p->t_flags;
+	rto =			p == NULL ? 0 : p->rto;
 	snd_buf_hiwater =	p == NULL ? 0 : p->snd_buf_hiwater;
 	snd_buf_cc = 		p == NULL ? 0 : p->snd_buf_cc;
 	rcv_buf_hiwater = 	p == NULL ? 0 : p->rcv_buf_hiwater;

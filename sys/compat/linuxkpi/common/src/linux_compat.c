@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
+#include <linux/utsname.h>
 #include <linux/list.h>
 #include <linux/kthread.h>
 #include <linux/kernel.h>
@@ -139,6 +140,7 @@ struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
 spinlock_t pci_lock;
+struct uts_namespace init_uts_ns;
 
 unsigned long linux_timer_hz_mask;
 
@@ -2145,6 +2147,20 @@ del_timer_sync(struct timer_list *timer)
 	return (1);
 }
 
+int
+timer_delete_sync(struct timer_list *timer)
+{
+
+	return (del_timer_sync(timer));
+}
+
+int
+timer_shutdown_sync(struct timer_list *timer)
+{
+
+	return (del_timer_sync(timer));
+}
+
 /* greatest common divisor, Euclid equation */
 static uint64_t
 lkpi_gcd_64(uint64_t a, uint64_t b)
@@ -2813,6 +2829,8 @@ linux_compat_init(void *arg)
 	 */
 	for (i = 0; i < MAXCPU; i++)
 		CPU_SET(i, &static_single_cpu_mask[i]);
+
+	strlcpy(init_uts_ns.name.release, osrelease, sizeof(init_uts_ns.name.release));
 }
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 

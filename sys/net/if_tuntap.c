@@ -1,6 +1,6 @@
 /*	$NetBSD: if_tun.c,v 1.14 1994/06/29 06:36:25 cgd Exp $	*/
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1999-2000 by Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -1341,7 +1341,7 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		dummy = ifmr->ifm_count;
 		ifmr->ifm_count = 1;
 		ifmr->ifm_status = IFM_AVALID;
-		ifmr->ifm_active = IFM_ETHER;
+		ifmr->ifm_active = IFM_ETHER | IFM_FDX | IFM_1000_T;
 		if (tp->tun_flags & TUN_OPEN)
 			ifmr->ifm_status |= IFM_ACTIVE;
 		ifmr->ifm_current = ifmr->ifm_active;

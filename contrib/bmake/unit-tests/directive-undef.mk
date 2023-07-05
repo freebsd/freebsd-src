@@ -1,4 +1,4 @@
-# $NetBSD: directive-undef.mk,v 1.12 2022/03/26 12:44:57 rillig Exp $
+# $NetBSD: directive-undef.mk,v 1.13 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the .undef directive.
 #
@@ -26,6 +26,7 @@
 # to delete the variable with the empty name, which never exists; see
 # varname-empty.mk.  Since var.c 1.737 from 2020-12-19, .undef complains
 # about a missing argument.
+# expect+1: The .undef directive requires an argument
 .undef
 
 
@@ -83,6 +84,7 @@ ${DOLLAR}=	dollar
 #
 # As of var.c 1.762, this doesn't happen though because the error handling
 # in Var_Parse and Var_Subst is not done properly.
+# expect+1: Unknown modifier "Z"
 .undef ${VARNAMES:L:Z}
 
 
@@ -99,6 +101,7 @@ UT_EXPORTED=	exported-value
 .  error
 .endif
 .if ${.MAKE.EXPORTED:MUT_EXPORTED}
+# expect+1: warning: UT_EXPORTED is still listed in .MAKE.EXPORTED even though spaceit is not exported anymore.
 .  warning UT_EXPORTED is still listed in .MAKE.EXPORTED even though $\
 	   it is not exported anymore.
 .endif

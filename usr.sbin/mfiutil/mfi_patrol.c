@@ -89,7 +89,7 @@ show_patrol(int ac __unused, char **av __unused)
 	int error, fd;
 	u_int i;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -199,7 +199,7 @@ start_patrol(int ac __unused, char **av __unused)
 {
 	int error, fd;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -225,7 +225,7 @@ stop_patrol(int ac __unused, char **av __unused)
 {
 	int error, fd;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -295,7 +295,7 @@ patrol_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

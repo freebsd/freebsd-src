@@ -7,6 +7,7 @@
 		eddsa_pk_to_EVP_PKEY;
 		es256_pk_free;
 		es256_pk_from_EC_KEY;
+		es256_pk_from_EVP_PKEY;
 		es256_pk_from_ptr;
 		es256_pk_new;
 		es256_pk_to_EVP_PKEY;
@@ -30,6 +31,7 @@
 		fido_assert_rp_id;
 		fido_assert_set_authdata;
 		fido_assert_set_authdata_raw;
+		fido_assert_set_clientdata;
 		fido_assert_set_clientdata_hash;
 		fido_assert_set_count;
 		fido_assert_set_extensions;
@@ -98,6 +100,8 @@
 		fido_cbor_info_transports_ptr;
 		fido_cbor_info_versions_len;
 		fido_cbor_info_versions_ptr;
+		fido_cred_attstmt_len;
+		fido_cred_attstmt_ptr;
 		fido_cred_authdata_len;
 		fido_cred_authdata_ptr;
 		fido_cred_authdata_raw_len;
@@ -137,19 +141,23 @@
 		fido_credman_rp_new;
 		fido_credman_set_dev_rk;
 		fido_cred_new;
+		fido_cred_pin_minlen;
 		fido_cred_prot;
 		fido_cred_pubkey_len;
 		fido_cred_pubkey_ptr;
 		fido_cred_rp_id;
 		fido_cred_rp_name;
+		fido_cred_set_attstmt;
 		fido_cred_set_authdata;
 		fido_cred_set_authdata_raw;
 		fido_cred_set_blob;
+		fido_cred_set_clientdata;
 		fido_cred_set_clientdata_hash;
 		fido_cred_set_extensions;
 		fido_cred_set_fmt;
 		fido_cred_set_id;
 		fido_cred_set_options;
+		fido_cred_set_pin_minlen;
 		fido_cred_set_prot;
 		fido_cred_set_rk;
 		fido_cred_set_rp;
@@ -193,6 +201,7 @@
 		fido_dev_info_product;
 		fido_dev_info_product_string;
 		fido_dev_info_ptr;
+		fido_dev_info_set;
 		fido_dev_info_vendor;
 		fido_dev_is_fido2;
 		fido_dev_major;
@@ -205,6 +214,8 @@
 		fido_dev_set_io_functions;
 		fido_dev_set_pin;
 		fido_dev_set_pin_minlen;
+		fido_dev_set_pin_minlen_rpid;
+		fido_dev_set_timeout;
 		fido_dev_set_transport_functions;
 		fido_dev_supports_cred_prot;
 		fido_dev_supports_credman;
@@ -230,10 +241,12 @@
 		fido_strerr;
 		rs256_pk_free;
 		rs256_pk_from_ptr;
+		rs256_pk_from_EVP_PKEY;
 		rs256_pk_from_RSA;
 		rs256_pk_new;
 		rs256_pk_to_EVP_PKEY;
 		prng_init;
+		fuzz_clock_reset;
 		set_netlink_io_functions;
 		set_udev_parameters;
 		uniform_random;

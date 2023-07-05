@@ -9,8 +9,6 @@
 #define CMAC_LENGTH	16
 
 
-const char * Version = "stub unit test Version string";
-
 /* Hacks into the key database. */
 extern struct key* key_ptr;
 extern int key_cnt;

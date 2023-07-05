@@ -2,7 +2,7 @@
 /*	NetBSD: qsphy.c,v 1.19 2000/02/02 23:34:57 thorpej Exp 	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.

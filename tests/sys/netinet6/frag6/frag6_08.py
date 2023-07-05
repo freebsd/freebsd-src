@@ -142,7 +142,7 @@ def main():
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
 		sys.exit(1)
-	sleep(75)
+	sleep(3)
 	sniffer2.setEnd()
 	sniffer2.join()
 	if not sniffer2.foundCorrectPacket:

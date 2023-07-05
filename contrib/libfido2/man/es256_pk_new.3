@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
@@ -9,9 +9,10 @@
 .Nm es256_pk_new ,
 .Nm es256_pk_free ,
 .Nm es256_pk_from_EC_KEY ,
+.Nm es256_pk_from_EVP_PKEY ,
 .Nm es256_pk_from_ptr ,
 .Nm es256_pk_to_EVP_PKEY
-.Nd FIDO 2 COSE ES256 API
+.Nd FIDO2 COSE ES256 API
 .Sh SYNOPSIS
 .In openssl/ec.h
 .In fido/es256.h
@@ -21,6 +22,8 @@
 .Fn es256_pk_free "es256_pk_t **pkp"
 .Ft int
 .Fn es256_pk_from_EC_KEY "es256_pk_t *pk" "const EC_KEY *ec"
+.Ft int
+.Fn es256_pk_from_EVP_PKEY "es256_pk_t *pk" "const EVP_PKEY *pkey"
 .Ft int
 .Fn es256_pk_from_ptr "es256_pk_t *pk" "const void *ptr" "size_t len"
 .Ft EVP_PKEY *
@@ -79,6 +82,16 @@ No references to
 are kept.
 .Pp
 The
+.Fn es256_pk_from_EVP_PKEY
+function fills
+.Fa pk
+with the contents of
+.Fa pkey .
+No references to
+.Fa pkey
+are kept.
+.Pp
+The
 .Fn es256_pk_from_ptr
 function fills
 .Fa pk
@@ -110,7 +123,8 @@ If an error occurs,
 returns NULL.
 .Sh RETURN VALUES
 The
-.Fn es256_pk_from_EC_KEY
+.Fn es256_pk_from_EC_KEY ,
+.Fn es256_pk_from_EVP_PKEY ,
 and
 .Fn es256_pk_from_ptr
 functions return

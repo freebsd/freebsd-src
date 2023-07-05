@@ -3861,12 +3861,13 @@ vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
 	 * name.
 	 */
 	VOP_UNLOCK(vp);
+	len = pathlen;
 	error = vn_fullpath_hardlink(vp, dvp, leaf_name, leaf_length,
 	    &rpath, &fbuf, &len);
 
 	if (error != 0) {
 		vrele(vp);
-		goto out;
+		return (error);
 	}
 
 	if (strlen(rpath) >= pathlen) {
@@ -4347,7 +4348,7 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
-	 FAILIFEXISTS | FOLLOW | EMPTYPATH | LOCKSHARED | WILLBEDIR | \
+	 FAILIFEXISTS | FOLLOW | EMPTYPATH | LOCKSHARED | ISRESTARTED | WILLBEDIR | \
 	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK | OPENREAD | \
 	 OPENWRITE | WANTIOCTLCAPS)
 
@@ -6238,7 +6239,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.pwd = pwdp;
 	pwd = pwd_get_smr();
 	*(fpl.pwd) = pwd;
-	ndp->ni_rootdir = pwd->pwd_rdir;
+	namei_setup_rootdir(ndp, cnp, pwd);
 	ndp->ni_topdir = pwd->pwd_jdir;
 
 	if (cnp->cn_pnbuf[0] == '/') {

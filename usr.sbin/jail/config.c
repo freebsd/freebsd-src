@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <err.h>
+#include <glob.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,20 +47,22 @@ __FBSDID("$FreeBSD$");
 
 #include "jailp.h"
 
+#define MAX_INCLUDE_DEPTH 32
+
 struct ipspec {
 	const char	*name;
 	unsigned	flags;
 };
 
-extern FILE *yyin;
-extern int yynerrs;
-
-extern int yyparse(void);
+extern int yylex_init_extra(struct cflex *extra, void *scanner);
+extern int yylex_destroy(void *scanner);
+extern int yyparse(void *scanner);
+extern int yyset_in(FILE *fp, void *scanner);
 
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
+static void parse_config(const char *fname, int is_stdin);
 static void free_param(struct cfparams *pp, struct cfparam *p);
-static void free_param_strings(struct cfparam *p);
 
 static const struct ipspec intparams[] = {
     [IP_ALLOW_DYING] =		{"allow.dying",		PF_INTERNAL | PF_BOOL},
@@ -127,7 +130,7 @@ static const struct ipspec intparams[] = {
  * Parse the jail configuration file.
  */
 void
-load_config(void)
+load_config(const char *cfname)
 {
 	struct cfjails wild;
 	struct cfparams opp;
@@ -138,16 +141,7 @@ load_config(void)
 	char *ep;
 	int did_self, jseq, pgen;
 
-	if (!strcmp(cfname, "-")) {
-		cfname = "STDIN";
-		yyin = stdin;
-	} else {
-		yyin = fopen(cfname, "r");
-		if (!yyin)
-			err(1, "%s", cfname);
-	}
-	if (yyparse() || yynerrs)
-		exit(1);
+	parse_config(cfname, !strcmp(cfname, "-"));
 
 	/* Separate the wildcard jails out from the actual jails. */
 	jseq = 0;
@@ -272,6 +266,67 @@ load_config(void)
 			free_param(&wj->params, p);
 		TAILQ_REMOVE(&wild, wj, tq);
 	}
+}
+
+void
+include_config(void *scanner, const char *cfname)
+{
+	static unsigned int depth;
+	glob_t g = {0};
+	const char *slash;
+	char *fullpath = NULL;
+
+	/* Simple sanity check for include loops. */
+	if (++depth > MAX_INCLUDE_DEPTH)
+		errx(1, "maximum include depth exceeded");
+	/* Base relative pathnames on the current config file. */
+	if (yyget_in(scanner) != stdin && cfname[0] != '/') {
+		const char *outer_cfname = yyget_extra(scanner)->cfname;
+		if ((slash = strrchr(outer_cfname, '/')) != NULL) {
+			size_t dirlen = (slash - outer_cfname) + 1;
+
+			fullpath = emalloc(dirlen + strlen(cfname) + 1);
+			strncpy(fullpath, outer_cfname, dirlen);
+			strcpy(fullpath + dirlen, cfname);
+			cfname = fullpath;
+		}
+	}
+	/*
+	 * Check if the include statement had a filename glob.
+	 * Globbing doesn't need to catch any files, but a non-glob
+	 * file needs to exist (enforced by parse_config).
+	 */
+	if (glob(cfname, GLOB_NOCHECK, NULL, &g) != 0)
+		errx(1, "%s: filename glob failed", cfname);
+	if (g.gl_flags & GLOB_MAGCHAR) {
+		for (size_t gi = 0; gi < g.gl_matchc; gi++)
+			parse_config(g.gl_pathv[gi], 0);
+	} else
+		parse_config(cfname, 0);
+	if (fullpath)
+		free(fullpath);
+	--depth;
+}
+
+static void
+parse_config(const char *cfname, int is_stdin)
+{
+	struct cflex cflex = {.cfname = cfname, .error = 0};
+	void *scanner;
+
+	yylex_init_extra(&cflex, &scanner);
+	if (is_stdin) {
+		cflex.cfname = "STDIN";
+		yyset_in(stdin, scanner);
+	} else {
+		FILE *yfp = fopen(cfname, "r");
+		if (!yfp)
+			err(1, "%s", cfname);
+		yyset_in(yfp, scanner);
+	}
+	if (yyparse(scanner) || cflex.error)
+		exit(1);
+	yylex_destroy(scanner);
 }
 
 /*
@@ -836,7 +891,7 @@ free_param(struct cfparams *pp, struct cfparam *p)
 	free(p);
 }
 
-static void
+void
 free_param_strings(struct cfparam *p)
 {
 	struct cfstring *s;

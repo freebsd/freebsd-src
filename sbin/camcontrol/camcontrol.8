@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2021
+.Dd June 1, 2023
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -377,9 +377,10 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is designed to provide a way for users to access and control the
+utility allows users to access and control the
 .Fx
-CAM subsystem.
+CAM subsystem described in
+.Xr cam 4 .
 .Pp
 The
 .Nm
@@ -2971,6 +2972,7 @@ that was created using this format string.
 .Xr cam 4 ,
 .Xr pass 4 ,
 .Xr xpt 4 ,
+.Xr diskinfo 8 ,
 .Xr trim 8 ,
 .Xr zonectl 8
 .Sh HISTORY

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1999 Marcel Moolenaar
  * All rights reserved.
@@ -57,7 +57,6 @@ int	linux_kernver(struct thread *td);
 #define	LINUX_XKERNVERSTR(x)	LINUX_KERNVERSTR(x)
 #define	LINUX_VERSION_STR	LINUX_XKERNVERSTR(LINUX_KVERSION.LINUX_KPATCHLEVEL.LINUX_KSUBLEVEL)
 
-extern int linux_debug;
 extern int linux_default_openfiles;
 extern int linux_default_stacksize;
 extern int linux_dummy_rlimits;

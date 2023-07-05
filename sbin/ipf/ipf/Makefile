@@ -6,6 +6,7 @@ SRCS=		${GENHDRS} ipf.c ipfcomp.c ipf_y.c ipf_l.c bpf_filter.c
 MAN=		ipfilter.4 ipfilter.5 ipf.8 ipf.4 ipf.5 ipl.4
 MLINKS=		ipf.5 ipf.conf.5 ipf.5 ipf6.conf.5
 CFLAGS+=	-I. -DIPFILTER_BPF -DHAS_SYS_MD5_H
+CFLAGS+=	-Wno-error=unused-but-set-variable
 
 GENHDRS=	ipf_l.h ipf_y.h
 CLEANFILES+=	${GENHDRS} ipf_y.c ipf_l.c

@@ -29,6 +29,7 @@
 #ifndef _TSLOG_H_
 #define	_TSLOG_H_
 
+#ifdef _KERNEL
 #ifdef TSLOG
 #include <sys/_types.h>
 #include <sys/pcpu.h>
@@ -66,4 +67,5 @@ void tslog_user(pid_t, pid_t, const char *, const char *);
 #define TSRAW_USER(a, b, c, d)		/* Timestamp logging disabled */
 #endif
 
+#endif /* _KERNEL */
 #endif /* _TSLOG_H_ */

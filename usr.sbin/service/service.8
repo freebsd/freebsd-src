@@ -48,6 +48,7 @@
 .Nm
 .Op Fl j Ar jail
 .Op Fl v
+.Op Fl E Ar var=value
 .Ar script
 .Ar command
 .Sh DESCRIPTION
@@ -67,6 +68,13 @@ the scripts using various criteria.
 .Pp
 The options are as follows:
 .Bl -tag -width F1
+.It Fl E Ar var=value
+Set the environment variable
+.Ar var
+to the specified
+.Ar value
+before starting the script.
+This option can be used multiple times.
 .It Fl e
 List services that are enabled.
 The list of scripts to check is compiled using
@@ -117,6 +125,9 @@ to
 which is how they are set in
 .Pa /etc/rc
 at boot time.
+If the
+.Fl E
+option is used, the corresponding variable is set accordingly.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -126,6 +137,7 @@ command:
 .Bd -literal -offset -ident
 service named status
 service -j dns named status
+service -E LC_ALL=C.UTF-8 named start
 service -rv
 .Ed
 .Pp

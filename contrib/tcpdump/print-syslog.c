@@ -15,17 +15,17 @@
  */
 
 /* \summary: Syslog protocol printer */
+/* specification: RFC 3164 (not RFC 5424) */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "extract.h"
 
-static const char tstr[] = "[|syslog]";
 
 /*
  * tokenlists and #defines taken from Ethereal - Network traffic analyzer
@@ -34,7 +34,7 @@ static const char tstr[] = "[|syslog]";
 
 #define SYSLOG_SEVERITY_MASK 0x0007  /* 0000 0000 0000 0111 */
 #define SYSLOG_FACILITY_MASK 0x03f8  /* 0000 0011 1111 1000 */
-#define SYSLOG_MAX_DIGITS 3 /* The maximum number if priority digits to read in. */
+#define SYSLOG_MAX_DIGITS 3 /* The maximum number of priority digits to read in. */
 
 static const struct tok syslog_severity_values[] = {
   { 0,      "emergency" },
@@ -78,69 +78,73 @@ static const struct tok syslog_facility_values[] = {
 
 void
 syslog_print(netdissect_options *ndo,
-             register const u_char *pptr, register u_int len)
+             const u_char *pptr, u_int len)
 {
     uint16_t msg_off = 0;
     uint16_t pri = 0;
     uint16_t facility,severity;
 
+    ndo->ndo_protocol = "syslog";
     /* extract decimal figures that are
      * encapsulated within < > tags
      * based on this decimal figure extract the
      * severity and facility values
      */
 
-    ND_TCHECK2(*pptr, 1);
-    if (*(pptr+msg_off) == '<') {
+    if (GET_U_1(pptr) != '<')
+        goto invalid;
+    msg_off++;
+
+    while (msg_off <= SYSLOG_MAX_DIGITS &&
+           GET_U_1(pptr + msg_off) >= '0' &&
+           GET_U_1(pptr + msg_off) <= '9') {
+        pri = pri * 10 + (GET_U_1(pptr + msg_off) - '0');
         msg_off++;
-        ND_TCHECK2(*(pptr + msg_off), 1);
-        while ( *(pptr+msg_off) >= '0' &&
-                *(pptr+msg_off) <= '9' &&
-                msg_off <= SYSLOG_MAX_DIGITS) {
-            pri = pri * 10 + (*(pptr+msg_off) - '0');
-            msg_off++;
-            ND_TCHECK2(*(pptr + msg_off), 1);
-        }
-        if (*(pptr+msg_off) != '>') {
-            ND_PRINT((ndo, "%s", tstr));
-            return;
-        }
-        msg_off++;
-    } else {
-        ND_PRINT((ndo, "%s", tstr));
-        return;
     }
+
+    if (GET_U_1(pptr + msg_off) != '>')
+        goto invalid;
+    msg_off++;
 
     facility = (pri & SYSLOG_FACILITY_MASK) >> 3;
     severity = pri & SYSLOG_SEVERITY_MASK;
 
     if (ndo->ndo_vflag < 1 )
     {
-        ND_PRINT((ndo, "SYSLOG %s.%s, length: %u",
+        ND_PRINT("SYSLOG %s.%s, length: %u",
                tok2str(syslog_facility_values, "unknown (%u)", facility),
                tok2str(syslog_severity_values, "unknown (%u)", severity),
-               len));
+               len);
         return;
     }
 
-    ND_PRINT((ndo, "SYSLOG, length: %u\n\tFacility %s (%u), Severity %s (%u)\n\tMsg: ",
+    ND_PRINT("SYSLOG, length: %u\n\tFacility %s (%u), Severity %s (%u)\n\tMsg: ",
            len,
            tok2str(syslog_facility_values, "unknown (%u)", facility),
            facility,
            tok2str(syslog_severity_values, "unknown (%u)", severity),
-           severity));
+           severity);
 
     /* print the syslog text in verbose mode */
-    for (; msg_off < len; msg_off++) {
-        ND_TCHECK2(*(pptr + msg_off), 1);
-        safeputchar(ndo, *(pptr + msg_off));
-    }
+    /*
+     * RFC 3164 Section 4.1.3: "There is no ending delimiter to this part.
+     * The MSG part of the syslog packet MUST contain visible (printing)
+     * characters."
+     *
+     * RFC 5424 Section 8.2: "This document does not impose any mandatory
+     * restrictions on the MSG or PARAM-VALUE content.  As such, they MAY
+     * contain control characters, including the NUL character."
+     *
+     * Hence, to aid in protocol debugging, print the full MSG without
+     * beautification to make it clear what was transmitted on the wire.
+     */
+    if (len > msg_off)
+        (void)nd_printn(ndo, pptr + msg_off, len - msg_off, NULL);
 
     if (ndo->ndo_vflag > 1)
         print_unknown_data(ndo, pptr, "\n\t", len);
-
     return;
 
-trunc:
-    ND_PRINT((ndo, "%s", tstr));
+invalid:
+    nd_print_invalid(ndo);
 }

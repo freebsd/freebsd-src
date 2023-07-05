@@ -1,0 +1,31 @@
+// polynomial for approximating erfc(x)*exp(x*x)
+//
+// Copyright (c) 2022-2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+deg = 15; // poly degree
+
+// interval bounds
+a = 0x1.0p-26;
+b = 2;
+
+f = proc(y) {
+  return erfc(y) * exp(y*y);
+};
+
+approx = proc(poly, d) {
+  return remez(1 - poly(x)/f(x), deg-d, [a;b], x^d/f(x), 1e-10);
+};
+
+poly = 0;
+for i from 0 to deg do {
+  p = roundcoefficients(approx(poly,i), [|D ...|]);
+  poly = poly + x^i*coeff(p,0);
+  print(i);
+};
+
+display = hexadecimal;
+print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 0 to deg do coeff(poly,i);

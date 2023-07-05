@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -293,7 +293,6 @@ cpaCyEcdhPointMultiply(const CpaInstanceHandle instanceHandle,
         CpaBoolean *pMultiplyStatus,
         CpaFlatBuffer *pXk,
         CpaFlatBuffer *pYk);
-
 
 /**
  *****************************************************************************

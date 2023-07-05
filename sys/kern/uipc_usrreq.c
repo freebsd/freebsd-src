@@ -885,26 +885,21 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	KASSERT(unp != NULL, ("uipc_peeraddr: unp == NULL"));
 
 	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	UNP_LINK_RLOCK();
-	/*
-	 * XXX: It seems that this test always fails even when connection is
-	 * established.  So, this else clause is added as workaround to
-	 * return PF_LOCAL sockaddr.
-	 */
-	unp2 = unp->unp_conn;
+
+	UNP_PCB_LOCK(unp);
+	unp2 = unp_pcb_lock_peer(unp);
 	if (unp2 != NULL) {
-		UNP_PCB_LOCK(unp2);
 		if (unp2->unp_addr != NULL)
-			sa = (struct sockaddr *) unp2->unp_addr;
+			sa = (struct sockaddr *)unp2->unp_addr;
 		else
 			sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
-		UNP_PCB_UNLOCK(unp2);
+		unp_pcb_unlock_pair(unp, unp2);
 	} else {
 		sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
+		UNP_PCB_UNLOCK(unp);
 	}
-	UNP_LINK_RUNLOCK();
 	return (0);
 }
 

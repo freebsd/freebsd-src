@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
@@ -55,7 +55,6 @@ typedef char		*l_caddr_t;
 typedef l_ulong		l_uintptr_t;
 typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
-typedef l_ushort	l_dev_t;
 typedef l_uint		l_gid_t;
 typedef l_ushort	l_gid16_t;
 typedef l_ulong		l_ino_t;
@@ -153,15 +152,13 @@ struct l_timespec64 {
 };
 
 struct l_newstat {
-	l_ushort	st_dev;
-	l_ushort	__pad1;
+	l_ulong		st_dev;
 	l_ulong		st_ino;
 	l_ushort	st_mode;
 	l_ushort	st_nlink;
 	l_ushort	st_uid;
 	l_ushort	st_gid;
-	l_ushort	st_rdev;
-	l_ushort	__pad2;
+	l_ulong		st_rdev;
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
@@ -172,7 +169,8 @@ struct l_newstat {
 	l_ulong		__unused5;
 };
 
-struct l_stat {
+/* __old_kernel_stat now */
+struct l_old_stat {
 	l_ushort	st_dev;
 	l_ulong		st_ino;
 	l_ushort	st_mode;
@@ -191,19 +189,18 @@ struct l_stat {
 };
 
 struct l_stat64 {
-	l_ushort	st_dev;
-	u_char		__pad0[10];
+	l_ulonglong	st_dev;
+	u_char		__pad0[4];
 	l_ulong		__st_ino;
 	l_uint		st_mode;
 	l_uint		st_nlink;
 	l_ulong		st_uid;
 	l_ulong		st_gid;
-	l_ushort	st_rdev;
-	u_char		__pad3[10];
+	l_ulonglong	st_rdev;
+	u_char		__pad3[4];
 	l_longlong	st_size;
 	l_ulong		st_blksize;
-	l_ulong		st_blocks;
-	l_ulong		__pad4;
+	l_ulonglong	st_blocks;
 	struct l_timespec	st_atim;
 	struct l_timespec	st_mtim;
 	struct l_timespec	st_ctim;

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001-2012 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
@@ -86,7 +86,6 @@ static cpuset_t		suspcpus;
 static struct susppcb	**susppcbs;
 #endif
 
-static void		*acpi_alloc_wakeup_handler(void **);
 static void		acpi_stop_beep(void *);
 
 #ifdef SMP

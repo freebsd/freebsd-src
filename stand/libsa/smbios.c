@@ -96,10 +96,47 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS3_SIG		"_SM3_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
-#define	SMBIOS_GET8(base, off)	(*(uint8_t *)((base) + (off)))
-#define	SMBIOS_GET16(base, off)	(*(uint16_t *)((base) + (off)))
-#define	SMBIOS_GET32(base, off)	(*(uint32_t *)((base) + (off)))
-#define	SMBIOS_GET64(base, off)	(*(uint64_t *)((base) + (off)))
+/*
+ * 5.1 General
+ *...
+ * NOTE The Entry Point Structure and all SMBIOS structures assume a
+ * little-endian ordering convention...
+ * ...
+ *
+ * We use memcpy to avoid unaligned access to memory. To normal memory, this is
+ * fine, but the memory we are using might be mmap'd /dev/mem which under Linux
+ * on aarch64 doesn't allow unaligned access. leXdec and friends can't be used
+ * because those can optimize to an unaligned load (which often is fine, but not
+ * for mmap'd /dev/mem which has special memory attributes).
+ */
+static inline uint8_t SMBIOS_GET8(const caddr_t base, int off) { return (base[off]); }
+
+static inline uint16_t
+SMBIOS_GET16(const caddr_t base, int off)
+{
+	uint16_t v;
+
+	memcpy(&v, base + off, sizeof(v));
+	return (le16toh(v));
+}
+
+static inline uint32_t
+SMBIOS_GET32(const caddr_t base, int off)
+{
+	uint32_t v;
+
+	memcpy(&v, base + off, sizeof(v));
+	return (le32toh(v));
+}
+
+static inline uint64_t
+SMBIOS_GET64(const caddr_t base, int off)
+{
+	uint64_t v;
+
+	memcpy(&v, base + off, sizeof(v));
+	return (le64toh(v));
+}
 
 #define	SMBIOS_GETLEN(base)	SMBIOS_GET8(base, 0x01)
 #define	SMBIOS_GETSTR(base)	((base) + SMBIOS_GETLEN(base))
@@ -195,7 +232,7 @@ smbios_setenv(const char *name, caddr_t addr, const int offset)
 #define	UUID_TYPE		uint32_t
 #define	UUID_STEP		sizeof(UUID_TYPE)
 #define	UUID_ALL_BITS		(UUID_SIZE / UUID_STEP)
-#define	UUID_GET(base, off)	(*(UUID_TYPE *)((base) + (off)))
+#define	UUID_GET(base, off)	SMBIOS_GET32(base, off)
 
 static void
 smbios_setuuid(const char *name, const caddr_t addr, const int ver __unused)
@@ -483,19 +520,23 @@ smbios_find_struct(int type)
 {
 	caddr_t		dmi;
 	size_t		i;
+	caddr_t		ep;
 
 	if (smbios.addr == NULL)
 		return (NULL);
 
+	ep = smbios.addr + smbios.length;
 	for (dmi = smbios.addr, i = 0;
-	     dmi < smbios.addr + smbios.length && i < smbios.count; i++) {
-		if (SMBIOS_GET8(dmi, 0) == type)
+	     dmi < ep && i < smbios.count; i++) {
+		if (SMBIOS_GET8(dmi, 0) == type) {
 			return dmi;
+		}
 		/* Find structure terminator. */
 		dmi = SMBIOS_GETSTR(dmi);
-		while (SMBIOS_GET16(dmi, 0) != 0)
+		while (SMBIOS_GET16(dmi, 0) != 0 && dmi < ep) {
 			dmi++;
-		dmi += 2;
+		}
+		dmi += 2;	/* For checksum */
 	}
 
 	return (NULL);

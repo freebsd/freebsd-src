@@ -1,4 +1,4 @@
-make: "varmod-loop-delete.mk" line 19: Cannot delete variable "VAR" while it is used
+make: "varmod-loop-delete.mk" line 20: Cannot delete variable "VAR" while it is used
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

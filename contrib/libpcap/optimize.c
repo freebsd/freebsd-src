@@ -3029,14 +3029,14 @@ dot_dump_edge(struct icode *ic, struct block *block, FILE *out)
  *
  * example DOT for BPF `ip src host 1.1.1.1' is:
     digraph BPF {
-    	block0 [shape=ellipse, id="block-0" label="BLOCK0\n\n(000) ldh      [12]\n(001) jeq      #0x800           jt 2	jf 5" tooltip="val[A]=0 val[X]=0"];
-    	block1 [shape=ellipse, id="block-1" label="BLOCK1\n\n(002) ld       [26]\n(003) jeq      #0x1010101       jt 4	jf 5" tooltip="val[A]=0 val[X]=0"];
-    	block2 [shape=ellipse, id="block-2" label="BLOCK2\n\n(004) ret      #68" tooltip="val[A]=0 val[X]=0", peripheries=2];
-    	block3 [shape=ellipse, id="block-3" label="BLOCK3\n\n(005) ret      #0" tooltip="val[A]=0 val[X]=0", peripheries=2];
-    	"block0":se -> "block1":n [label="T"];
-    	"block0":sw -> "block3":n [label="F"];
-    	"block1":se -> "block2":n [label="T"];
-    	"block1":sw -> "block3":n [label="F"];
+	block0 [shape=ellipse, id="block-0" label="BLOCK0\n\n(000) ldh      [12]\n(001) jeq      #0x800           jt 2	jf 5" tooltip="val[A]=0 val[X]=0"];
+	block1 [shape=ellipse, id="block-1" label="BLOCK1\n\n(002) ld       [26]\n(003) jeq      #0x1010101       jt 4	jf 5" tooltip="val[A]=0 val[X]=0"];
+	block2 [shape=ellipse, id="block-2" label="BLOCK2\n\n(004) ret      #68" tooltip="val[A]=0 val[X]=0", peripheries=2];
+	block3 [shape=ellipse, id="block-3" label="BLOCK3\n\n(005) ret      #0" tooltip="val[A]=0 val[X]=0", peripheries=2];
+	"block0":se -> "block1":n [label="T"];
+	"block0":sw -> "block3":n [label="F"];
+	"block1":se -> "block2":n [label="T"];
+	"block1":sw -> "block3":n [label="F"];
     }
  *
  *  After install graphviz on https://www.graphviz.org/, save it as bpf.dot

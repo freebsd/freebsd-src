@@ -1,7 +1,10 @@
-# $NetBSD: varmod-localtime.mk,v 1.8 2021/01/19 05:26:34 rillig Exp $
+# $NetBSD: varmod-localtime.mk,v 1.13 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the :localtime variable modifier, which formats a timestamp
 # using strftime(3) in local time.
+#
+# See also:
+#	varmod-gmtime.mk
 
 .if ${TZ:Uno:NEurope/Berlin:NUTC-1} != ""	# see unit-tests/Makefile
 .  error
@@ -41,20 +44,9 @@
 .endif
 
 
-# As of 2020-08-16, it is not possible to pass the seconds via a
-# variable expression.  This is because parsing of the :localtime
-# modifier stops at the '$' and returns to ApplyModifiers.
-#
-# There, a colon would be skipped but not a dollar.
-# Parsing therefore continues at the '$' of the ${:U159...}, looking
-# for an ordinary variable modifier.
-#
-# At this point, the ${:U} is expanded and interpreted as a variable
-# modifier, which results in the error message "Unknown modifier '1'".
-#
-# If ApplyModifier_Localtime were to pass its argument through
-# ParseModifierPart, this would work.
-.if ${%Y:L:localtime=${:U1593536400}} != "mtime=11593536400}"
+# Before var.c 1.1050 from 2023-05-09, it was not possible to pass the
+# seconds via a variable expression.
+.if ${%Y:L:localtime=${:U1593536400}} != "2020"
 .  error
 .endif
 
@@ -64,6 +56,8 @@
 # 1970.  Going back 50 years in the past is not a practical use case for
 # make.  Therefore, since var.c 1.631, negative time stamps produce a
 # parse error.
+# expect+2: Invalid time value "-1"
+# expect+1: Malformed conditional (${:L:localtime=-1} != "")
 .if ${:L:localtime=-1} != ""
 .  error
 .else
@@ -73,7 +67,11 @@
 
 # Spaces were allowed before var.c 1.631 from 2020-10-31 21:40:20, not
 # because it would make sense but just as a side-effect from using strtoul.
+# expect+2: Invalid time value " 1"
+# expect+1: Malformed conditional (${:L:localtime= 1} != "")
 .if ${:L:localtime= 1} != ""
+.  error
+.else
 .  error
 .endif
 
@@ -115,7 +113,10 @@
 # ULONG_MAX, which got converted to -1.  This resulted in a time stamp of
 # the second before 1970.
 #
-# Since var.c 1.631, the overflow is detected and produces a parse error.
+# Since var.c 1.631 from 2020-10-31, the overflow is detected and produces a
+# parse error.
+# expect+2: Invalid time value "10000000000000000000000000000000"
+# expect+1: Malformed conditional (${:L:localtime=10000000000000000000000000000000} != "")
 .if ${:L:localtime=10000000000000000000000000000000} != ""
 .  error
 .else
@@ -127,11 +128,21 @@
 # stopped after the '=', and the remaining string was parsed for more variable
 # modifiers.  Because of the unknown modifier 'e' from the 'error', the whole
 # variable value was discarded and thus not printed.
+# expect+2: Invalid time value "error"
+# expect+1: Malformed conditional (${:L:localtime=error} != "")
 .if ${:L:localtime=error} != ""
 .  error
 .else
 .  error
 .endif
 
+# Before var.c 1.1050 from 2023-05-09, the timestamp could be directly
+# followed by the next modifier, without a ':' separator.  This was the same
+# bug as for the ':L' and ':P' modifiers.
+# expect+2: Invalid time value "100000S,1970,bad,"
+# expect+1: Malformed conditional (${%Y:L:localtime=100000S,1970,bad,} != "bad")
+.if ${%Y:L:localtime=100000S,1970,bad,} != "bad"
+.  error
+.endif
 
 all:

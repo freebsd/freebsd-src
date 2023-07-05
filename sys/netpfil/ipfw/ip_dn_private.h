@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2010 Luigi Rizzo, Riccardo Panicucci, Universita` di Pisa
  * All rights reserved
@@ -376,7 +376,6 @@ struct dn_pkt_tag {
 	uint64_t output_time;	/* when the pkt is due for delivery*/
 	uint16_t if_index;
 	uint16_t if_idxgen;
-	struct _ip6dn_args ip6opt;	/* XXX ipv6 options	*/
 	uint16_t iphdr_off;	/* IP header offset for mtodo()	*/
 };
 

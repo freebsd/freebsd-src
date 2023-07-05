@@ -1,4 +1,4 @@
-# $NetBSD: directive-unexport.mk,v 1.7 2020/12/13 01:07:54 rillig Exp $
+# $NetBSD: directive-unexport.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the .unexport directive.
 #
@@ -15,7 +15,9 @@ UT_C=	c
 .export UT_A UT_B UT_C
 
 # Show the exported variables and their values.
+# expect+1: UT_A=a UT_B=b UT_C=c
 .info ${:!env|sort|grep '^UT_'!}
+# expect+1: UT_A UT_B UT_C
 .info ${.MAKE.EXPORTED}
 
 # XXX: Now try to unexport all of them.  The variables are still exported
@@ -24,6 +26,7 @@ UT_C=	c
 *=	asterisk
 .unexport *
 
+# expect+1: UT_A=a UT_B=b UT_C=c
 .info ${:!env|sort|grep '^UT_'!}
 .info ${.MAKE.EXPORTED}
 

@@ -526,29 +526,26 @@ _sbuf_mntoptions_helper(struct sbuf *sb, uint64_t f_flags)
 static int
 linprocfs_domtab(PFS_FILL_ARGS)
 {
-	struct nameidata nd;
-	const char *lep, *mntto, *mntfrom, *fstype;
+	const char *mntto, *mntfrom, *fstype;
 	char *dlep, *flep;
+	struct vnode *vp;
+	struct pwd *pwd;
 	size_t lep_len;
 	int error;
 	struct statfs *buf, *sp;
 	size_t count;
 
-	/* resolve symlinks etc. in the emulation tree prefix */
 	/*
-	 * Ideally, this would use the current chroot rather than some
-	 * hardcoded path.
+	 * Resolve emulation tree prefix
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
 	flep = NULL;
-	error = namei(&nd);
-	lep = linux_emul_path;
-	if (error == 0) {
-		if (vn_fullpath(nd.ni_vp, &dlep, &flep) == 0)
-			lep = dlep;
-		vrele(nd.ni_vp);
-	}
-	lep_len = strlen(lep);
+	pwd = pwd_hold(td);
+	vp = pwd->pwd_adir;
+	error = vn_fullpath_global(vp, &dlep, &flep);
+	pwd_drop(pwd);
+	if (error != 0)
+		return (error);
+	lep_len = strlen(dlep);
 
 	buf = NULL;
 	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
@@ -567,7 +564,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		}
 
 		/* determine mount point */
-		if (strncmp(mntto, lep, lep_len) == 0 && mntto[lep_len] == '/')
+		if (strncmp(mntto, dlep, lep_len) == 0 && mntto[lep_len] == '/')
 			mntto += lep_len;
 
 		sbuf_printf(sb, "%s %s %s ", mntfrom, mntto, fstype);
@@ -584,28 +581,25 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmountinfo(PFS_FILL_ARGS)
 {
-	struct nameidata nd;
 	const char *mntfrom, *mntto, *fstype;
-	const char *lep;
 	char *dlep, *flep;
 	struct statfs *buf, *sp;
 	size_t count, lep_len;
+	struct vnode *vp;
+	struct pwd *pwd;
 	int error;
 
 	/*
-	 * Ideally, this would use the current chroot rather than some
-	 * hardcoded path.
+	 * Resolve emulation tree prefix
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
 	flep = NULL;
-	error = namei(&nd);
-	lep = linux_emul_path;
-	if (error == 0) {
-		if (vn_fullpath(nd.ni_vp, &dlep, &flep) == 0)
-			lep = dlep;
-		vrele(nd.ni_vp);
-	}
-	lep_len = strlen(lep);
+	pwd = pwd_hold(td);
+	vp = pwd->pwd_adir;
+	error = vn_fullpath_global(vp, &dlep, &flep);
+	pwd_drop(pwd);
+	if (error != 0)
+		return (error);
+	lep_len = strlen(dlep);
 
 	buf = NULL;
 	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
@@ -620,7 +614,7 @@ linprocfs_doprocmountinfo(PFS_FILL_ARGS)
 			continue;
 		}
 
-		if (strncmp(mntto, lep, lep_len) == 0 && mntto[lep_len] == '/')
+		if (strncmp(mntto, dlep, lep_len) == 0 && mntto[lep_len] == '/')
 			mntto += lep_len;
 #if 0
 		/*

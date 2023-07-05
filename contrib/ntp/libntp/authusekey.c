@@ -10,11 +10,8 @@
 #include "ntp_stdlib.h"
 
 /*
- * Types of ascii representations for keys.  "Standard" means a 64 bit
- * hex number in NBS format, i.e. with the low order bit of each byte
- * a parity bit.  "NTP" means a 64 bit key in NTP format, with the
- * high order bit of each byte a parity bit.  "Ascii" means a 1-to-8
- * character string whose ascii representation is used as the key.
+ * Only used by ntp{q,dc} to set the key/algo/secret triple to use.
+ * Uses the same decoding scheme ntpd uses for keys in the key file.
  */
 int
 authusekey(
@@ -24,11 +21,14 @@ authusekey(
 	)
 {
 	size_t	len;
+	u_char	buf[AUTHPWD_MAXSECLEN];
 
-	len = strlen((const char *)str);
-	if (0 == len)
+	len = authdecodepw(buf, sizeof(buf), (const char*)str,
+			   AUTHPWD_UNSPEC);
+	if (len < 1 || len > sizeof(buf))
 		return 0;
 
-	MD5auth_setkey(keyno, keytype, str, len, NULL);
+	MD5auth_setkey(keyno, keytype, buf, len, NULL);
+	memset(buf, 0, sizeof(buf));
 	return 1;
 }

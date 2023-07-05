@@ -42,6 +42,7 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <limits.h>
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -68,6 +69,7 @@
 #include "time-internal.h"
 
 #include "regress.h"
+#include "regress_thread.h"
 
 #ifndef _WIN32
 #include "regress.gen.h"
@@ -88,10 +90,6 @@ static struct timeval tcalled;
 
 
 #define TEST1	"this is a test"
-
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
 
 #ifdef _WIN32
 #define write(fd,buf,len) send((fd),(buf),(int)(len),0)
@@ -196,7 +194,7 @@ multiple_write_cb(evutil_socket_t fd, short event, void *arg)
 	woff += len;
 
 	if (woff >= (int)sizeof(wbuf)) {
-		shutdown(fd, SHUT_WR);
+		shutdown(fd, EVUTIL_SHUT_WR);
 		if (usepersist)
 			event_del(ev);
 		return;
@@ -276,7 +274,7 @@ combined_write_cb(evutil_socket_t fd, short event, void *arg)
 	if (len == -1)
 		fprintf(stderr, "%s: write\n", __func__);
 	if (len <= 0) {
-		shutdown(fd, SHUT_WR);
+		shutdown(fd, EVUTIL_SHUT_WR);
 		return;
 	}
 
@@ -306,7 +304,7 @@ test_simpleread(void)
 		tt_fail_perror("write");
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
@@ -351,7 +349,7 @@ test_simpleread_multiple(void)
 		tt_fail_perror("write");
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	event_set(&one, pair[1], EV_READ, simpleread_multiple_cb, NULL);
 	if (event_add(&one, NULL) == -1)
@@ -389,7 +387,7 @@ record_event_cb(evutil_socket_t s, short what, void *ptr)
 }
 
 static void
-test_simpleclose(void *ptr)
+test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
@@ -471,6 +469,56 @@ end:
 		event_base_free(base);
 }
 
+static void
+test_simpleclose(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base      = data->base;
+	evutil_socket_t *pair        = data->pair;
+	const char *flags            = (const char *)data->setup_data;
+	int et                       = !!strstr(flags, "ET");
+	int persist                  = !!strstr(flags, "persist");
+	short events                 = EV_CLOSED | (et ? EV_ET : 0) | (persist ? EV_PERSIST : 0);
+	struct event *ev = NULL;
+	short got_event;
+
+	if (!(event_base_get_features(data->base) & EV_FEATURE_EARLY_CLOSE))
+		tt_skip();
+
+	/* XXX: should this code moved to regress_et.c ? */
+	if (et && !(event_base_get_features(data->base) & EV_FEATURE_ET))
+		tt_skip();
+
+	ev = event_new(base, pair[0], events, record_event_cb, &got_event);
+	tt_assert(ev);
+	tt_assert(!event_add(ev, NULL));
+
+	got_event = 0;
+	if (strstr(flags, "close")) {
+		tt_assert(!evutil_closesocket(pair[1]));
+		/* avoid closing in setup routines */
+		pair[1] = -1;
+	} else if (strstr(flags, "shutdown")) {
+		tt_assert(!shutdown(pair[1], EVUTIL_SHUT_WR));
+	} else {
+		tt_abort_msg("unknown flags");
+	}
+
+	/* w/o edge-triggerd but w/ persist it will not stop */
+	if (!et && persist) {
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 10000;
+		tt_assert(!event_base_loopexit(base, &tv));
+	}
+
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, !persist);
+	tt_int_op(got_event, ==, (events & ~EV_PERSIST));
+
+end:
+	if (ev)
+		event_free(ev);
+}
 
 static void
 test_multiple(void)
@@ -817,32 +865,81 @@ end:
 }
 
 #ifndef _WIN32
-static void signal_cb(evutil_socket_t fd, short event, void *arg);
 
 #define current_base event_global_current_base_
 extern struct event_base *current_base;
 
 static void
-child_signal_cb(evutil_socket_t fd, short event, void *arg)
+fork_signal_cb(evutil_socket_t fd, short events, void *arg)
 {
-	struct timeval tv;
-	int *pint = arg;
-
-	*pint = 1;
-
-	tv.tv_usec = 500000;
-	tv.tv_sec = 0;
-	event_loopexit(&tv);
+	event_del(arg);
 }
 
+int child_pair[2] = { -1, -1 };
+static void
+simple_child_read_cb(evutil_socket_t fd, short event, void *arg)
+{
+	char buf[256];
+	int len;
+
+	len = read(fd, buf, sizeof(buf));
+	if (write(child_pair[0], "", 1) < 0)
+		tt_fail_perror("write");
+
+	if (len) {
+		if (!called) {
+			if (event_add(arg, NULL) == -1)
+				exit(1);
+		}
+	} else if (called == 1)
+		test_ok = 1;
+
+	called++;
+}
+
+#define TEST_FORK_EXIT_SUCCESS 76
+static void fork_wait_check(int pid)
+{
+	int status;
+
+	TT_BLATHER(("Before waitpid"));
+
+#ifdef WNOWAIT
+	if ((waitpid(pid, &status, WNOWAIT) == -1 && errno == EINVAL) &&
+#else
+	if (
+#endif
+	    waitpid(pid, &status, 0) == -1) {
+		perror("waitpid");
+		exit(1);
+	}
+	TT_BLATHER(("After waitpid"));
+
+	if (WEXITSTATUS(status) != TEST_FORK_EXIT_SUCCESS) {
+		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
+		exit(1);
+	}
+}
 static void
 test_fork(void)
 {
-	int status, got_sigchld = 0;
-	struct event ev, sig_ev;
+	char c;
+	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
+
+	{
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, child_pair) == -1) {
+			fprintf(stderr, "%s: socketpair\n", __func__);
+			exit(1);
+		}
+
+		if (evutil_make_socket_nonblocking(child_pair[0]) == -1) {
+			fprintf(stderr, "fcntl(O_NONBLOCK)");
+			exit(1);
+		}
+	}
 
 	tt_assert(current_base);
 	evthread_make_base_notifiable(current_base);
@@ -851,12 +948,15 @@ test_fork(void)
 		tt_fail_perror("write");
 	}
 
-	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
+	event_set(&ev, pair[1], EV_READ, simple_child_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
-	evsignal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	evsignal_set(&sig_ev, SIGCHLD, fork_signal_cb, &sig_ev);
 	evsignal_add(&sig_ev, NULL);
+
+	evsignal_set(&existing_ev, SIGUSR2, fork_signal_cb, &existing_ev);
+	evsignal_add(&existing_ev, NULL);
 
 	event_base_assert_ok_(current_base);
 	TT_BLATHER(("Before fork"));
@@ -874,6 +974,11 @@ test_fork(void)
 
 		evsignal_del(&sig_ev);
 
+		evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
+		evsignal_add(&usr_ev, NULL);
+		kill(getpid(), SIGUSR1);
+		kill(getpid(), SIGUSR2);
+
 		called = 0;
 
 		event_dispatch();
@@ -883,50 +988,134 @@ test_fork(void)
 		/* we do not send an EOF; simple_read_cb requires an EOF
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
-		exit(test_ok != 0 || called != 2 ? -2 : 76);
+		exit(test_ok != 0 || called != 2 ? -2 : TEST_FORK_EXIT_SUCCESS);
 	}
 
-	/* wait for the child to read the data */
-	{
-		const struct timeval tv = { 0, 100000 };
-		evutil_usleep_(&tv);
+	/** wait until client read first message */
+	if (read(child_pair[1], &c, 1) < 0) {
+		tt_fail_perror("read");
 	}
-
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
 	}
 
-	TT_BLATHER(("Before waitpid"));
-	if (waitpid(pid, &status, 0) == -1) {
-		fprintf(stdout, "FAILED (fork)\n");
-		exit(1);
-	}
-	TT_BLATHER(("After waitpid"));
-
-	if (WEXITSTATUS(status) != 76) {
-		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
-		exit(1);
-	}
+	fork_wait_check(pid);
 
 	/* test that the current event loop still works */
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		fprintf(stderr, "%s: write\n", __func__);
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
+
+	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
+	evsignal_add(&usr_ev, NULL);
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR2);
 
 	event_dispatch();
 
-	if (!got_sigchld) {
-		fprintf(stdout, "FAILED (sigchld)\n");
-		exit(1);
-	}
-
 	evsignal_del(&sig_ev);
+	tt_int_op(test_ok, ==, 1);
 
 	end:
 	cleanup_test();
+	if (child_pair[0] != -1)
+		evutil_closesocket(child_pair[0]);
+	if (child_pair[1] != -1)
+		evutil_closesocket(child_pair[1]);
 }
+
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
+static void* del_wait_thread(void *arg)
+{
+	struct timeval tv_start, tv_end;
+
+	evutil_gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	evutil_gettimeofday(&tv_end, NULL);
+
+	test_timeval_diff_eq(&tv_start, &tv_end, 300);
+
+	end:
+	return NULL;
+}
+
+static void
+del_wait_cb(evutil_socket_t fd, short event, void *arg)
+{
+	struct timeval delay = { 0, 300*1000 };
+	TT_BLATHER(("Sleeping: %i", test_ok));
+	evutil_usleep_(&delay);
+	++test_ok;
+}
+
+static void
+test_del_wait(void)
+{
+	struct event ev;
+	THREAD_T thread;
+
+	setup_test("event_del will wait: ");
+
+	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
+	event_add(&ev, NULL);
+
+	THREAD_START(thread, del_wait_thread, NULL);
+
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
+	{
+		struct timeval delay = { 0, 30*1000 };
+		evutil_usleep_(&delay);
+	}
+
+	{
+		struct timeval tv_start, tv_end;
+		evutil_gettimeofday(&tv_start, NULL);
+		event_del(&ev);
+		evutil_gettimeofday(&tv_end, NULL);
+		test_timeval_diff_eq(&tv_start, &tv_end, 270);
+	}
+
+	THREAD_JOIN(thread);
+
+	tt_int_op(test_ok, ==, 1);
+
+	end:
+	;
+}
+
+static void null_cb(evutil_socket_t fd, short what, void *arg) {}
+static void* test_del_notify_thread(void *arg)
+{
+	event_dispatch();
+	return NULL;
+}
+static void
+test_del_notify(void)
+{
+	struct event ev;
+	THREAD_T thread;
+
+	test_ok = 1;
+
+	event_set(&ev, -1, EV_READ, null_cb, &ev);
+	event_add(&ev, NULL);
+
+	THREAD_START(thread, test_del_notify_thread, NULL);
+
+	{
+		struct timeval delay = { 0, 1000 };
+		evutil_usleep_(&delay);
+	}
+
+	event_del(&ev);
+	THREAD_JOIN(thread);
+}
+#endif
 
 static void
 signal_cb_sa(int sig)
@@ -1024,7 +1213,7 @@ test_immediatesignal(void)
 	test_ok = 0;
 	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_loop(EVLOOP_NONBLOCK);
 	evsignal_del(&ev);
 	cleanup_test();
@@ -1097,7 +1286,7 @@ test_signal_switchbase(void)
 
 	test_ok = 0;
 	/* can handle signal before loop is called */
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_base_loop(base2, EVLOOP_NONBLOCK);
 	if (is_kqueue) {
 		if (!test_ok)
@@ -1110,7 +1299,7 @@ test_signal_switchbase(void)
 
 		/* set base1 to handle signals */
 		event_base_loop(base1, EVLOOP_NONBLOCK);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		event_base_loop(base1, EVLOOP_NONBLOCK);
 		event_base_loop(base2, EVLOOP_NONBLOCK);
 	}
@@ -1139,7 +1328,7 @@ test_signal_assert(void)
 	 */
 	evsignal_del(&ev);
 
-	raise(SIGCONT);
+	kill(getpid(), SIGCONT);
 #if 0
 	/* only way to verify we were in evsig_handler() */
 	/* XXXX Now there's no longer a good way. */
@@ -1183,7 +1372,7 @@ test_signal_restore(void)
 	evsignal_add(&ev, NULL);
 	evsignal_del(&ev);
 
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	/* 1 == signal_cb, 2 == signal_cb_sa, we want our previous handler */
 	if (test_ok != 2)
 		test_ok = 0;
@@ -1198,7 +1387,7 @@ signal_cb_swp(int sig, short event, void *arg)
 {
 	called++;
 	if (called < 5)
-		raise(sig);
+		kill(getpid(), sig);
 	else
 		event_loopexit(NULL);
 }
@@ -1210,7 +1399,7 @@ timeout_cb_swp(evutil_socket_t fd, short event, void *arg)
 
 		called = 0;
 		evtimer_add((struct event *)arg, &tv);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		return;
 	}
 	test_ok = 0;
@@ -1248,18 +1437,14 @@ test_free_active_base(void *ptr)
 	struct event ev1;
 
 	base1 = event_init();
-	if (base1) {
-		event_assign(&ev1, base1, data->pair[1], EV_READ,
-			     dummy_read_cb, NULL);
-		event_add(&ev1, NULL);
-		event_base_free(base1);	 /* should not crash */
-	} else {
-		tt_fail_msg("failed to create event_base for test");
-	}
+	tt_assert(base1);
+	event_assign(&ev1, base1, data->pair[1], EV_READ, dummy_read_cb, NULL);
+	event_add(&ev1, NULL);
+	event_base_free(base1);	 /* should not crash */
 
 	base1 = event_init();
 	tt_assert(base1);
-	event_assign(&ev1, base1, 0, 0, dummy_read_cb, NULL);
+	event_assign(&ev1, base1, data->pair[0], 0, dummy_read_cb, NULL);
 	event_active(&ev1, EV_READ, 1);
 	event_base_free(base1);
 end:
@@ -1737,7 +1922,8 @@ static void send_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *sockp = arg;
 	(void) fd; (void) what;
-	(void) write(*sockp, "A", 1);
+	if (write(*sockp, "A", 1) < 0)
+		tt_fail_perror("write");
 }
 struct read_not_timeout_param
 {
@@ -1820,7 +2006,7 @@ test_event_base_new(void *ptr)
 		tt_abort_printf(("initial write fell short (%d of %d bytes)",
 				 len, towrite));
 
-	if (shutdown(data->pair[0], SHUT_WR))
+	if (shutdown(data->pair[0], EVUTIL_SHUT_WR))
 		tt_abort_perror("initial write shutdown");
 
 	base = event_base_new();
@@ -1967,60 +2153,48 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	if (n_read < 0) {
 		tt_fail_perror("read");
 		event_base_loopbreak(event_get_base(ev_other));
-		return;
 	} else {
 		event_add(ev_other, NULL);
 		++test_ok;
 	}
 }
-
 static void
-test_nonpersist_readd(void)
+test_nonpersist_readd(void *_data)
 {
 	struct event ev1, ev2;
+	struct basic_test_data *data = _data;
 
-	setup_test("Re-add nonpersistent events: ");
-	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
-	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
+	memset(&ev1, 0, sizeof(ev1));
+	memset(&ev2, 0, sizeof(ev2));
 
-	if (write(pair[0], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[0])");
-	}
+	tt_assert(!event_assign(&ev1, data->base, data->pair[0], EV_READ, re_add_read_cb, &ev2));
+	tt_assert(!event_assign(&ev2, data->base, data->pair[1], EV_READ, re_add_read_cb, &ev1));
 
-	if (write(pair[1], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[1])\n");
-	}
+	tt_int_op(write(data->pair[0], "Hello", 5), ==, 5);
+	tt_int_op(write(data->pair[1], "Hello", 5), ==, 5);
 
-	if (event_add(&ev1, NULL) == -1 ||
-	    event_add(&ev2, NULL) == -1) {
-		test_ok = 0;
-	}
-	if (test_ok != 0)
-		exit(1);
-	event_loop(EVLOOP_ONCE);
-	if (test_ok != 2)
-		exit(1);
+	tt_int_op(event_add(&ev1, NULL), ==, 0);
+	tt_int_op(event_add(&ev2, NULL), ==, 0);
+	tt_int_op(event_base_loop(data->base, EVLOOP_ONCE), ==, 0);
+	tt_int_op(test_ok, ==, 2);
+
 	/* At this point, we executed both callbacks.  Whichever one got
 	 * called first added the second, but the second then immediately got
 	 * deleted before its callback was called.  At this point, though, it
 	 * re-added the first.
 	 */
-	if (!readd_test_event_last_added) {
-		test_ok = 0;
-	} else if (readd_test_event_last_added == &ev1) {
-		if (!event_pending(&ev1, EV_READ, NULL) ||
-		    event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+	tt_assert(readd_test_event_last_added);
+	if (readd_test_event_last_added == &ev1) {
+		tt_assert(event_pending(&ev1, EV_READ, NULL) && !event_pending(&ev2, EV_READ, NULL));
 	} else {
-		if (event_pending(&ev1, EV_READ, NULL) ||
-		    !event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+		tt_assert(event_pending(&ev2, EV_READ, NULL) && !event_pending(&ev1, EV_READ, NULL));
 	}
 
-	event_del(&ev1);
-	event_del(&ev2);
-
-	cleanup_test();
+end:
+	if (event_initialized(&ev1))
+		event_del(&ev1);
+	if (event_initialized(&ev2))
+		event_del(&ev2);
 }
 
 struct test_pri_event {
@@ -2290,7 +2464,7 @@ end:
 static void
 evtag_fuzz(void *ptr)
 {
-	u_char buffer[4096];
+	unsigned char buffer[4096];
 	struct evbuffer *tmp = evbuffer_new();
 	struct timeval tv;
 	int i, j;
@@ -2649,7 +2823,7 @@ test_event_once(void *ptr)
 		tt_fail_perror("write");
 	}
 
-	shutdown(data->pair[1], SHUT_WR);
+	shutdown(data->pair[1], EVUTIL_SHUT_WR);
 
 	event_base_dispatch(data->base);
 
@@ -2733,14 +2907,46 @@ end:
 	}
 }
 
-#ifndef _WIN32
-/* You can't do this test on windows, since dup2 doesn't work on sockets */
-
 static void
 dfd_cb(evutil_socket_t fd, short e, void *data)
 {
 	*(int*)data = (int)e;
 }
+
+static void
+test_event_closed_fd_poll(void *arg)
+{
+	struct timeval tv;
+	struct event *e;
+	struct basic_test_data *data = (struct basic_test_data *)arg;
+	int i = 0;
+
+	if (strcmp(event_base_get_method(data->base), "poll")) {
+		tinytest_set_test_skipped_();
+		return;
+	}
+
+	e = event_new(data->base, data->pair[0], EV_READ, dfd_cb, &i);
+	tt_assert(e);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 500 * 1000;
+	event_add(e, &tv);
+	tt_assert(event_pending(e, EV_READ, NULL));
+	close(data->pair[0]);
+	data->pair[0] = -1; /** avoids double-close */
+	event_base_loop(data->base, EVLOOP_ONCE);
+	tt_int_op(i, ==, EV_READ);
+
+end:
+	if (e) {
+		event_del(e);
+		event_free(e);
+	}
+}
+
+#ifndef _WIN32
+/* You can't do this test on windows, since dup2 doesn't work on sockets */
 
 /* Regression test for our workaround for a fun epoll/linux related bug
  * where fd2 = dup(fd1); add(fd2); close(fd2); dup2(fd1,fd2); add(fd2)
@@ -2823,10 +3029,6 @@ static void *
 dummy_malloc(size_t len)
 {
 	char *mem = malloc(len+16);
-	if (mem == NULL) {
-		fprintf(stderr, "Unable to allocate memory in dummy_malloc()\n");
-		return NULL;
-	}
 	memcpy(mem, "{[<guardedram>]}", 16);
 	return mem+16;
 }
@@ -2910,6 +3112,7 @@ test_many_events(void *arg)
 		 * instance of that. */
 		sock[i] = socket(AF_INET, SOCK_DGRAM, 0);
 		tt_assert(sock[i] >= 0);
+		tt_assert(!evutil_make_socket_nonblocking(sock[i]));
 		called[i] = 0;
 		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
@@ -2963,7 +3166,7 @@ test_get_assignment(void *arg)
 	event_get_assignment(ev1, &b, &s, &what, &cb, &cb_arg);
 
 	tt_ptr_op(b, ==, base);
-	tt_int_op(s, ==, data->pair[1]);
+	tt_fd_op(s, ==, data->pair[1]);
 	tt_int_op(what, ==, EV_READ);
 	tt_ptr_op(cb, ==, dummy_read_cb);
 	tt_ptr_op(cb_arg, ==, str);
@@ -3149,6 +3352,46 @@ tabf_cb(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
+test_evmap_invalid_slots(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1 = NULL, *ev2 = NULL;
+	int e1, e2;
+#ifndef _WIN32
+	struct event *ev3 = NULL, *ev4 = NULL;
+	int e3, e4;
+#endif
+
+	ev1 = evsignal_new(base, -1, dummy_read_cb, (void *)base);
+	ev2 = evsignal_new(base, NSIG, dummy_read_cb, (void *)base);
+	tt_assert(ev1);
+	tt_assert(ev2);
+	e1 = event_add(ev1, NULL);
+	e2 = event_add(ev2, NULL);
+	tt_int_op(e1, !=, 0);
+	tt_int_op(e2, !=, 0);
+#ifndef _WIN32
+	ev3 = event_new(base, INT_MAX, EV_READ, dummy_read_cb, (void *)base);
+	ev4 = event_new(base, INT_MAX / 2, EV_READ, dummy_read_cb, (void *)base);
+	tt_assert(ev3);
+	tt_assert(ev4);
+	e3 = event_add(ev3, NULL);
+	e4 = event_add(ev4, NULL);
+	tt_int_op(e3, !=, 0);
+	tt_int_op(e4, !=, 0);
+#endif
+
+end:
+	event_free(ev1);
+	event_free(ev2);
+#ifndef _WIN32
+	event_free(ev3);
+	event_free(ev4);
+#endif
+}
+
+static void
 test_active_by_fd(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -3199,6 +3442,7 @@ test_active_by_fd(void *arg)
 	/* Trigger 2, 3, 4 */
 	event_base_active_by_fd(base, data->pair[0], EV_WRITE);
 	event_base_active_by_fd(base, data->pair[1], EV_READ);
+	event_base_active_by_fd(base, data->pair[1], EV_TIMEOUT);
 #ifndef _WIN32
 	event_base_active_by_signal(base, SIGHUP);
 #endif
@@ -3211,7 +3455,7 @@ test_active_by_fd(void *arg)
 	tt_int_op(e2, ==, EV_WRITE | 0x10000);
 	tt_int_op(e3, ==, EV_READ | 0x10000);
 	/* Mask out EV_WRITE here, since it could be genuinely writeable. */
-	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | 0x10000);
+	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | EV_TIMEOUT | 0x10000);
 #ifndef _WIN32
 	tt_int_op(es, ==, EV_SIGNAL | 0x10000);
 #endif
@@ -3246,17 +3490,18 @@ struct testcase_t main_testcases[] = {
 	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_num_events, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_max_events, TT_FORK|TT_NEED_BASE),
+	BASIC(evmap_invalid_slots, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
-	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
+	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_RETRIABLE),
 	BASIC(event_remove_timeout, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
 	{ "persistent_timeout_jump", test_persistent_timeout_jump, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "persistent_active_timeout", test_persistent_active_timeout,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	BASIC(priority_active_inversion, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
@@ -3266,8 +3511,35 @@ struct testcase_t main_testcases[] = {
 	LEGACY(simpleread, TT_ISOLATED),
 	LEGACY(simpleread_multiple, TT_ISOLATED),
 	LEGACY(simplewrite, TT_ISOLATED),
-	{ "simpleclose", test_simpleclose, TT_FORK, &basic_setup,
-	  NULL },
+	{ "simpleclose_rw", test_simpleclose_rw, TT_FORK, &basic_setup, NULL },
+	/* simpleclose */
+	{ "simpleclose_close", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close" },
+	{ "simpleclose_shutdown", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown" },
+	/* simpleclose_*_persist */
+	{ "simpleclose_close_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist" },
+	{ "simpleclose_shutdown_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist" },
+	/* simpleclose_*_et */
+	{ "simpleclose_close_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_ET" },
+	{ "simpleclose_shutdown_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_ET" },
+	/* simpleclose_*_persist_et */
+	{ "simpleclose_close_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist_ET" },
+	{ "simpleclose_shutdown_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist_ET" },
 	LEGACY(multiple, TT_ISOLATED),
 	LEGACY(persistent, TT_ISOLATED),
 	LEGACY(combined, TT_ISOLATED),
@@ -3275,13 +3547,16 @@ struct testcase_t main_testcases[] = {
 	LEGACY(loopbreak, TT_ISOLATED),
 	LEGACY(loopexit, TT_ISOLATED),
 	LEGACY(loopexit_multiple, TT_ISOLATED),
-	LEGACY(nonpersist_readd, TT_ISOLATED),
+	{ "nonpersist_readd", test_nonpersist_readd, TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_once_never", test_event_once_never, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
+	{ "event_closed_fd_poll", test_event_closed_fd_poll, TT_ISOLATED, &basic_setup,
+	  NULL },
+
 #ifndef _WIN32
 	{ "dup_fd", test_dup_fd, TT_ISOLATED, &basic_setup, NULL },
 #endif
@@ -3304,6 +3579,12 @@ struct testcase_t main_testcases[] = {
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
 #endif
+
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
+	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
+	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
+#endif
+
 	END_OF_TESTCASES
 };
 

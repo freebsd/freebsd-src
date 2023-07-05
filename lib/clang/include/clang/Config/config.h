@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* This generated file is for internal use. Do not include it from headers. */
 
 #ifdef CLANG_CONFIG_H
@@ -15,24 +14,6 @@
 /* Default linker to use. */
 #define CLANG_DEFAULT_LINKER ""
 
-/* Default C/ObjC standard to use. */
-/* #undef CLANG_DEFAULT_STD_C */
-/* Always #define something so that missing the config.h #include at use sites
- * becomes a compile error.
- */
-#ifndef CLANG_DEFAULT_STD_C
-#define CLANG_DEFAULT_STD_C LangStandard::lang_unspecified
-#endif
-
-/* Default C++/ObjC++ standard to use. */
-/* #undef CLANG_DEFAULT_STD_CXX */
-/* Always #define something so that missing the config.h #include at use sites
- * becomes a compile error.
- */
-#ifndef CLANG_DEFAULT_STD_CXX
-#define CLANG_DEFAULT_STD_CXX LangStandard::lang_unspecified
-#endif
-
 /* Default C++ stdlib to use. */
 #define CLANG_DEFAULT_CXX_STDLIB ""
 
@@ -48,14 +29,11 @@
 /* Default OpenMP runtime used by -fopenmp. */
 #define CLANG_DEFAULT_OPENMP_RUNTIME "libomp"
 
-/* Default architecture for OpenMP offloading to Nvidia GPUs. */
-#define CLANG_OPENMP_NVPTX_DEFAULT_ARCH "sm_35"
-
 /* Default architecture for SystemZ. */
 #define CLANG_SYSTEMZ_DEFAULT_ARCH "z10"
 
-/* Multilib suffix for libdir. */
-#define CLANG_LIBDIR_SUFFIX ""
+/* Multilib basename for libdir. */
+#define CLANG_INSTALL_LIBDIR_BASENAME "lib"
 
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
@@ -79,9 +57,6 @@
 /* Define if we have sys/resource.h (rlimits) */
 #define CLANG_HAVE_RLIMITS 1
 
-/* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING "LLVM 15.0.7"
-
 /* Linker version detected at compile time. */
 /* #undef HOST_LINK_VERSION */
 
@@ -101,8 +76,5 @@
 
 /* Spawn a new process clang.exe for the CC1 tool invocation, when necessary */
 #define CLANG_SPAWN_CC1 0
-
-/* Whether to enable opaque pointers by default */
-#define CLANG_ENABLE_OPAQUE_POINTERS_INTERNAL 1
 
 #endif

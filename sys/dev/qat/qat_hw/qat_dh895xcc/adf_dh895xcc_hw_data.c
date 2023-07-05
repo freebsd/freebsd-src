@@ -4,10 +4,11 @@
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include <adf_accel_devices.h>
-#include <adf_pf2vf_msg.h>
+#include <adf_pfvf_msg.h>
 #include <adf_common_drv.h>
 #include <adf_dev_err.h>
 #include <adf_gen2_hw_data.h>
+#include <adf_gen2_pfvf.h>
 #include "adf_dh895xcc_hw_data.h"
 #include "icp_qat_hw.h"
 #include "adf_heartbeat.h"
@@ -157,18 +158,6 @@ adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 			      "The configuration doesn't match any SKU");
 		*arb_map_config = NULL;
 	}
-}
-
-static uint32_t
-get_pf2vf_offset(uint32_t i)
-{
-	return ADF_DH895XCC_PF2VF_OFFSET(i);
-}
-
-static uint32_t
-get_vintmsk_offset(uint32_t i)
-{
-	return ADF_DH895XCC_VINTMSK_OFFSET(i);
 }
 
 static void
@@ -354,8 +343,6 @@ adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
-	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_arb_info = get_arb_info;
 	hw_data->get_admin_info = get_admin_info;
 	hw_data->get_errsou_offset = get_errsou_offset;
@@ -373,11 +360,8 @@ adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->exit_arb = adf_exit_arb;
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
-	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
-	hw_data->disable_vf2pf_comms = adf_pf_disable_vf2pf_comms;
 	hw_data->reset_device = adf_reset_sbr;
 	hw_data->restore_device = adf_dev_restore;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->get_accel_cap = dh895xcc_get_hw_cap;
 	hw_data->get_heartbeat_status = adf_get_heartbeat_status;
 	hw_data->get_ae_clock = get_ae_clock;
@@ -400,6 +384,7 @@ adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->post_reset = adf_dev_post_reset;
 
 	adf_gen2_init_hw_csr_info(&hw_data->csr_info);
+	adf_gen2_init_pf_pfvf_ops(&hw_data->csr_info.pfvf_ops);
 }
 
 void

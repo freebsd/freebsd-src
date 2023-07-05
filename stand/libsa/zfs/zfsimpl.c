@@ -133,6 +133,7 @@ static const char *features_for_read[] = {
 	"com.delphix:zpool_checkpoint",
 	"com.intel:allocation_classes",
 	"com.joyent:multi_vdev_crash_dump",
+	"com.klarasystems:vdev_zaps_v2",
 	"org.freebsd:zstd_compress",
 	"org.illumos:lz4_compress",
 	"org.illumos:sha512",
@@ -1365,19 +1366,6 @@ spa_find_by_name(const char *name)
 			return (spa);
 
 	return (NULL);
-}
-
-static spa_t *
-spa_find_by_dev(struct zfs_devdesc *dev)
-{
-
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (NULL);
-
-	if (dev->pool_guid == 0)
-		return (STAILQ_FIRST(&zfs_pools));
-
-	return (spa_find_by_guid(dev->pool_guid));
 }
 
 static spa_t *
@@ -3865,4 +3853,83 @@ done:
 	STAILQ_FOREACH_SAFE(entry, &on_cache, entry, tentry)
 		free(entry);
 	return (rc);
+}
+
+/*
+ * Return either a cached copy of the bootenv, or read each of the vdev children
+ * looking for the bootenv. Cache what's found and return the results. Returns 0
+ * when benvp is filled in, and some errno when not.
+ */
+static int
+zfs_get_bootenv_spa(spa_t *spa, nvlist_t **benvp)
+{
+	vdev_t *vd;
+	nvlist_t *benv = NULL;
+
+	if (spa->spa_bootenv == NULL) {
+		STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children,
+		    v_childlink) {
+			benv = vdev_read_bootenv(vd);
+
+			if (benv != NULL)
+				break;
+		}
+		spa->spa_bootenv = benv;
+	}
+	benv = spa->spa_bootenv;
+
+	if (benv == NULL)
+		return (ENOENT);
+
+	*benvp = benv;
+	return (0);
+}
+
+/*
+ * Store nvlist to pool label bootenv area. Also updates cached pointer in spa.
+ */
+static int
+zfs_set_bootenv_spa(spa_t *spa, nvlist_t *benv)
+{
+	vdev_t *vd;
+
+	STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children, v_childlink) {
+		vdev_write_bootenv(vd, benv);
+	}
+
+	spa->spa_bootenv = benv;
+	return (0);
+}
+
+/*
+ * Get bootonce value by key. The bootonce <key, value> pair is removed from the
+ * bootenv nvlist and the remaining nvlist is committed back to disk. This process
+ * the bootonce flag since we've reached the point in the boot that we've 'used'
+ * the BE. For chained boot scenarios, we may reach this point multiple times (but
+ * only remove it and return 0 the first time).
+ */
+static int
+zfs_get_bootonce_spa(spa_t *spa, const char *key, char *buf, size_t size)
+{
+	nvlist_t *benv;
+	char *result = NULL;
+	int result_size, rv;
+
+	if ((rv = zfs_get_bootenv_spa(spa, &benv)) != 0)
+		return (rv);
+
+	if ((rv = nvlist_find(benv, key, DATA_TYPE_STRING, NULL,
+	    &result, &result_size)) == 0) {
+		if (result_size == 0) {
+			/* ignore empty string */
+			rv = ENOENT;
+		} else if (buf != NULL) {
+			size = MIN((size_t)result_size + 1, size);
+			strlcpy(buf, result, size);
+		}
+		(void)nvlist_remove(benv, key, DATA_TYPE_STRING);
+		(void)zfs_set_bootenv_spa(spa, benv);
+	}
+
+	return (rv);
 }

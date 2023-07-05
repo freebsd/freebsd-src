@@ -416,8 +416,22 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 				continue;
 			if ((p2->p_treeflag & P_TREE_REAPER) != 0)
 				reap_kill_sched(&tracker, p2);
-			if (alloc_unr_specific(pids, p2->p_pid) != p2->p_pid)
+
+			/*
+			 * Handle possible pid reuse.  If we recorded
+			 * p2 as killed but its p_flag2 does not
+			 * confirm it, that means that the process
+			 * terminated and its id was reused by other
+			 * process in the reaper subtree.
+			 *
+			 * Unlocked read of p2->p_flag2 is fine, it is
+			 * our thread that set the tested flag.
+			 */
+			if (alloc_unr_specific(pids, p2->p_pid) != p2->p_pid &&
+			    (atomic_load_int(&p2->p_flag2) &
+			    (P2_REAPKILLED | P2_WEXIT)) != 0)
 				continue;
+
 			if (p2 == td->td_proc) {
 				if ((p2->p_flag & P_HADTHREADS) != 0 &&
 				    (p2->p_flag2 & P2_WEXIT) == 0) {
@@ -428,6 +442,11 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 					st = false;
 				}
 				PROC_LOCK(p2);
+				/*
+				 * sapblk ensures that only one thread
+				 * in the system sets this flag.
+				 */
+				p2->p_flag2 |= P2_REAPKILLED;
 				if (st)
 					r = thread_single(p2, SINGLE_NO_EXIT);
 				(void)pksignal(p2, w->rk->rk_sig, w->ksi);
@@ -445,6 +464,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 				PROC_LOCK(p2);
 				if ((p2->p_flag2 & P2_WEXIT) == 0) {
 					_PHOLD_LITE(p2);
+					p2->p_flag2 |= P2_REAPKILLED;
 					PROC_UNLOCK(p2);
 					w->target = p2;
 					taskqueue_enqueue(taskqueue_thread,
@@ -471,6 +491,9 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
     struct reap_kill_proc_work *w)
 {
 	struct unrhdr pids;
+	void *ihandle;
+	struct proc *p2;
+	int pid;
 
 	/*
 	 * pids records processes which were already signalled, to
@@ -486,6 +509,17 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
 	PROC_UNLOCK(td->td_proc);
 	while (reap_kill_subtree_once(td, p, reaper, &pids, w))
 	       ;
+
+	ihandle = create_iter_unr(&pids);
+	while ((pid = next_iter_unr(ihandle)) != -1) {
+		p2 = pfind(pid);
+		if (p2 != NULL) {
+			p2->p_flag2 &= ~P2_REAPKILLED;
+			PROC_UNLOCK(p2);
+		}
+	}
+	free_iter_unr(ihandle);
+
 out:
 	clean_unrhdr(&pids);
 	clear_unrhdr(&pids);

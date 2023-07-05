@@ -466,6 +466,20 @@ static inline int list_is_last(const struct list_head *list,
 	return list->next == head;
 }
 
+static inline size_t
+list_count_nodes(const struct list_head *list)
+{
+	const struct list_head *lh;
+	size_t count;
+
+	count = 0;
+	list_for_each(lh, list) {
+		count++;
+	}
+
+	return (count);
+}
+
 #define	hlist_entry(ptr, type, field)	container_of(ptr, type, field)
 
 #define	hlist_for_each(p, head)						\

@@ -55,12 +55,12 @@ noinst_DATA =			\
 ntp-wait: $(srcdir)/ntp-wait-opts
 
 $(srcdir)/ntp-wait-opts: $(srcdir)/ntp-wait-opts.def $(std_def_list)
-	$(run_ag) ntp-wait-opts.def
+	$(AM_V_GEN)$(run_ag) ntp-wait-opts.def
 
 ### Nroff
 
 $(srcdir)/ntp-wait.1ntp-waitman: $(srcdir)/ntp-wait-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntp-waitman -Tagman-cmd.tpl ntp-wait-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntp-waitman -Tagman-cmd.tpl ntp-wait-opts.def
 
 $(srcdir)/ntp-wait.man.in: $(srcdir)/ntp-wait.1ntp-waitman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp-wait.1ntp-waitman > $(srcdir)/ntp-wait.man.in+
@@ -69,7 +69,7 @@ $(srcdir)/ntp-wait.man.in: $(srcdir)/ntp-wait.1ntp-waitman $(top_srcdir)/sntp/sc
 ### Mdoc
 
 $(srcdir)/ntp-wait.1ntp-waitmdoc: $(srcdir)/ntp-wait-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntp-waitmdoc -Tagmdoc-cmd.tpl ntp-wait-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntp-waitmdoc -Tagmdoc-cmd.tpl ntp-wait-opts.def
 
 $(srcdir)/ntp-wait.mdoc.in: $(srcdir)/ntp-wait.1ntp-waitmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp-wait.1ntp-waitmdoc > $(srcdir)/ntp-wait.mdoc.in+
@@ -87,10 +87,10 @@ $(srcdir)/invoke-ntp-wait.menu: $(srcdir)/invoke-ntp-wait.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-ntp-wait.texi: ntp-wait-opts $(srcdir)/ntp-wait-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntp-wait-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntp-wait-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
 
-$(srcdir)/ntp-wait.html: $(srcdir)/invoke-ntp-wait.menu $(srcdir)/invoke-ntp-wait.texi $(srcdir)/ntp-wait.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntp-wait.html: $(srcdir)/invoke-ntp-wait.texi $(srcdir)/ntp-wait.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o ntp-wait.html ntp-wait.texi || true )

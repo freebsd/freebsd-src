@@ -572,15 +572,10 @@ void
 show(LOCKD_MSG *mp)
 {
 	static char hex[] = "0123456789abcdef";
-	struct fid *fidp;
-	fsid_t *fsidp;
 	size_t len;
 	u_int8_t *p, *t, buf[NFS_SMALLFH*3+1];
 
 	syslog(LOG_DEBUG, "process ID: %lu\n", (long)mp->lm_msg_ident.pid);
-
-	fsidp = (fsid_t *)&mp->lm_fh;
-	fidp = (struct fid *)((u_int8_t *)&mp->lm_fh + sizeof(fsid_t));
 
 	for (t = buf, p = (u_int8_t *)mp->lm_fh,
 	    len = mp->lm_fh_len;

@@ -1,5 +1,5 @@
 /*******************************************************************************
-SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+SPDX-License-Identifier: BSD-2-Clause
 
 Copyright (c) 2006-2009, Myricom Inc.
 All rights reserved.

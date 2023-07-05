@@ -75,21 +75,13 @@ static 	struct vlanreq params = {
 	.vlr_proto	= ETHERTYPE_VLAN,
 };
 
-static int
-getvlan(int s, struct ifreq *ifr, struct vlanreq *vreq)
-{
-	bzero((char *)vreq, sizeof(*vreq));
-	ifr->ifr_data = (caddr_t)vreq;
-
-	return ioctl(s, SIOCGETVLAN, (caddr_t)ifr);
-}
-
 static void
-vlan_status(int s)
+vlan_status(if_ctx *ctx)
 {
-	struct vlanreq		vreq;
+	struct vlanreq vreq = {};
+	struct ifreq ifr = { .ifr_data = (caddr_t)&vreq };
 
-	if (getvlan(s, &ifr, &vreq) == -1)
+	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) == -1)
 		return;
 	printf("\tvlan: %d", vreq.vlr_tag);
 	printf(" vlanproto: ");
@@ -103,7 +95,7 @@ vlan_status(int s)
 		default:
 			printf("0x%04x", vreq.vlr_proto);
 	}
-	if (ioctl(s, SIOCGVLANPCP, (caddr_t)&ifr) != -1)
+	if (ioctl_ctx_ifr(ctx, SIOCGVLANPCP, &ifr) != -1)
 		printf(" vlanpcp: %u", ifr.ifr_vlan_pcp);
 	printf(" parent interface: %s", vreq.vlr_parent[0] == '\0' ?
 	    "<none>" : vreq.vlr_parent);
@@ -158,7 +150,7 @@ vlan_parse_ethervid(const char *name)
 }
 
 static void
-vlan_create(int s, struct ifreq *ifr)
+vlan_create(if_ctx *ctx, struct ifreq *ifr)
 {
 	vlan_parse_ethervid(ifr->ifr_name);
 
@@ -172,11 +164,11 @@ vlan_create(int s, struct ifreq *ifr)
 			errx(1, "must specify a parent device for vlan create");
 		ifr->ifr_data = (caddr_t) &params;
 	}
-	ioctl_ifcreate(s, ifr);
+	ifcreate_ioctl(ctx, ifr);
 }
 
 static void
-vlan_cb(int s, void *arg)
+vlan_cb(if_ctx *ctx __unused, void *arg __unused)
 {
 	if ((params.vlr_tag != NOTAG) ^ (params.vlr_parent[0] != '\0'))
 		errx(1, "both vlan and vlandev must be specified");
@@ -192,10 +184,11 @@ vlan_set(int s, struct ifreq *ifr)
 	}
 }
 
-static
-DECL_CMD_FUNC(setvlantag, val, d)
+static void
+setvlantag(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct vlanreq vreq;
+	struct vlanreq vreq = {};
+	struct ifreq ifr = { .ifr_data = (caddr_t)&vreq };
 	u_long ul;
 	char *endp;
 
@@ -207,28 +200,30 @@ DECL_CMD_FUNC(setvlantag, val, d)
 	if (params.vlr_tag != ul)
 		errx(1, "value for vlan out of range");
 
-	if (getvlan(s, &ifr, &vreq) != -1) {
+	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) != -1) {
 		vreq.vlr_tag = params.vlr_tag;
 		memcpy(&params, &vreq, sizeof(params));
-		vlan_set(s, &ifr);
+		vlan_set(ctx->io_s, &ifr);
 	}
 }
 
-static
-DECL_CMD_FUNC(setvlandev, val, d)
+static void
+setvlandev(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct vlanreq vreq;
+	struct vlanreq vreq = {};
+	struct ifreq ifr = { .ifr_data = (caddr_t)&vreq };
 
 	strlcpy(params.vlr_parent, val, sizeof(params.vlr_parent));
 
-	if (getvlan(s, &ifr, &vreq) != -1)
-		vlan_set(s, &ifr);
+	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) != -1)
+		vlan_set(ctx->io_s, &ifr);
 }
 
-static
-DECL_CMD_FUNC(setvlanproto, val, d)
+static void
+setvlanproto(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct vlanreq vreq;
+	struct vlanreq vreq = {};
+	struct ifreq ifr = { .ifr_data = (caddr_t)&vreq };
 
 	if (strncasecmp(proto_8021Q, val,
 	    strlen(proto_8021Q)) == 0) {
@@ -239,18 +234,19 @@ DECL_CMD_FUNC(setvlanproto, val, d)
 	} else
 		errx(1, "invalid value for vlanproto");
 
-	if (getvlan(s, &ifr, &vreq) != -1) {
+	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) != -1) {
 		vreq.vlr_proto = params.vlr_proto;
 		memcpy(&params, &vreq, sizeof(params));
-		vlan_set(s, &ifr);
+		vlan_set(ctx->io_s, &ifr);
 	}
 }
 
-static
-DECL_CMD_FUNC(setvlanpcp, val, d)
+static void
+setvlanpcp(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	u_long ul;
 	char *endp;
+	struct ifreq ifr = {};
 
 	ul = strtoul(val, &endp, 0);
 	if (*endp != '\0')
@@ -258,25 +254,23 @@ DECL_CMD_FUNC(setvlanpcp, val, d)
 	if (ul > 7)
 		errx(1, "value for vlanpcp out of range");
 	ifr.ifr_vlan_pcp = ul;
-	if (ioctl(s, SIOCSVLANPCP, (caddr_t)&ifr) == -1)
+	if (ioctl_ctx_ifr(ctx, SIOCSVLANPCP, &ifr) == -1)
 		err(1, "SIOCSVLANPCP");
 }
 
-static
-DECL_CMD_FUNC(unsetvlandev, val, d)
+static void
+unsetvlandev(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
-	struct vlanreq		vreq;
+	struct vlanreq vreq = {};
+	struct ifreq ifr = { .ifr_data = (caddr_t)&vreq };
 
-	bzero((char *)&vreq, sizeof(struct vlanreq));
-	ifr.ifr_data = (caddr_t)&vreq;
-
-	if (ioctl(s, SIOCGETVLAN, (caddr_t)&ifr) == -1)
+	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) == -1)
 		err(1, "SIOCGETVLAN");
 
 	bzero((char *)&vreq.vlr_parent, sizeof(vreq.vlr_parent));
 	vreq.vlr_tag = 0;
 
-	if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
+	if (ioctl_ctx(ctx, SIOCSETVLAN, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETVLAN");
 }
 
@@ -292,15 +286,15 @@ static struct cmd vlan_cmds[] = {
 	/* XXX For compatibility.  Should become DEF_CMD() some day. */
 	DEF_CMD_OPTARG("-vlandev",			unsetvlandev),
 	DEF_CMD("vlanmtu",	IFCAP_VLAN_MTU,		setifcap),
-	DEF_CMD("-vlanmtu",	-IFCAP_VLAN_MTU,	setifcap),
+	DEF_CMD("-vlanmtu",	IFCAP_VLAN_MTU,		clearifcap),
 	DEF_CMD("vlanhwtag",	IFCAP_VLAN_HWTAGGING,	setifcap),
-	DEF_CMD("-vlanhwtag",	-IFCAP_VLAN_HWTAGGING,	setifcap),
+	DEF_CMD("-vlanhwtag",	IFCAP_VLAN_HWTAGGING,	clearifcap),
 	DEF_CMD("vlanhwfilter",	IFCAP_VLAN_HWFILTER,	setifcap),
-	DEF_CMD("-vlanhwfilter", -IFCAP_VLAN_HWFILTER,	setifcap),
-	DEF_CMD("-vlanhwtso",	-IFCAP_VLAN_HWTSO,	setifcap),
+	DEF_CMD("-vlanhwfilter", IFCAP_VLAN_HWFILTER,	clearifcap),
 	DEF_CMD("vlanhwtso",	IFCAP_VLAN_HWTSO,	setifcap),
+	DEF_CMD("-vlanhwtso",	IFCAP_VLAN_HWTSO,	clearifcap),
 	DEF_CMD("vlanhwcsum",	IFCAP_VLAN_HWCSUM,	setifcap),
-	DEF_CMD("-vlanhwcsum",	-IFCAP_VLAN_HWCSUM,	setifcap),
+	DEF_CMD("-vlanhwcsum",	IFCAP_VLAN_HWCSUM,	clearifcap),
 };
 static struct afswtch af_vlan = {
 	.af_name	= "af_vlan",

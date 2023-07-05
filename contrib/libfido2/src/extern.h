@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -51,6 +51,7 @@ cbor_item_t *cbor_encode_pubkey(const fido_blob_t *);
 cbor_item_t *cbor_encode_pubkey_list(const fido_blob_array_t *);
 cbor_item_t *cbor_encode_pubkey_param(int);
 cbor_item_t *cbor_encode_rp_entity(const fido_rp_t *);
+cbor_item_t *cbor_encode_str_array(const fido_str_array_t *);
 cbor_item_t *cbor_encode_user_entity(const fido_user_t *);
 cbor_item_t *es256_pk_encode(const es256_pk_t *, int);
 
@@ -86,7 +87,7 @@ int cbor_parse_reply(const unsigned char *, size_t, void *,
     int(*)(const cbor_item_t *, const cbor_item_t *, void *));
 int cbor_add_uv_params(fido_dev_t *, uint8_t, const fido_blob_t *,
     const es256_pk_t *, const fido_blob_t *, const char *, const char *,
-    cbor_item_t **, cbor_item_t **);
+    cbor_item_t **, cbor_item_t **, int *);
 void cbor_vector_free(cbor_item_t **, size_t);
 int cbor_array_append(cbor_item_t **, cbor_item_t *);
 int cbor_array_drop(cbor_item_t **, size_t);
@@ -130,14 +131,14 @@ int fido_winhello_manifest(fido_dev_info_t *, size_t, size_t *);
 int fido_winhello_open(fido_dev_t *);
 int fido_winhello_close(fido_dev_t *);
 int fido_winhello_cancel(fido_dev_t *);
-int fido_winhello_get_assert(fido_dev_t *, fido_assert_t *, const char *);
+int fido_winhello_get_assert(fido_dev_t *, fido_assert_t *, const char *, int);
 int fido_winhello_get_cbor_info(fido_dev_t *, fido_cbor_info_t *);
-int fido_winhello_make_cred(fido_dev_t *, fido_cred_t *, const char *);
+int fido_winhello_make_cred(fido_dev_t *, fido_cred_t *, const char *, int);
 
 /* generic i/o */
-int fido_rx_cbor_status(fido_dev_t *, int);
-int fido_rx(fido_dev_t *, uint8_t, void *, size_t, int);
-int fido_tx(fido_dev_t *, uint8_t, const void *, size_t);
+int fido_rx_cbor_status(fido_dev_t *, int *);
+int fido_rx(fido_dev_t *, uint8_t, void *, size_t, int *);
+int fido_tx(fido_dev_t *, uint8_t, const void *, size_t, int *);
 
 /* log */
 #ifdef FIDO_NO_DIAGNOSTIC
@@ -163,20 +164,28 @@ void fido_log_error(int, const char *, ...);
 #endif /* FIDO_NO_DIAGNOSTIC */
 
 /* u2f */
-int u2f_register(fido_dev_t *, fido_cred_t *, int);
-int u2f_authenticate(fido_dev_t *, fido_assert_t *, int);
-int u2f_get_touch_begin(fido_dev_t *);
-int u2f_get_touch_status(fido_dev_t *, int *, int);
+int u2f_register(fido_dev_t *, fido_cred_t *, int *);
+int u2f_authenticate(fido_dev_t *, fido_assert_t *, int *);
+int u2f_get_touch_begin(fido_dev_t *, int *);
+int u2f_get_touch_status(fido_dev_t *, int *, int *);
 
 /* unexposed fido ops */
 uint8_t fido_dev_get_pin_protocol(const fido_dev_t *);
-int fido_dev_authkey(fido_dev_t *, es256_pk_t *);
-int fido_dev_get_cbor_info_wait(fido_dev_t *, fido_cbor_info_t *, int);
+int fido_dev_authkey(fido_dev_t *, es256_pk_t *, int *);
+int fido_dev_get_cbor_info_wait(fido_dev_t *, fido_cbor_info_t *, int *);
 int fido_dev_get_uv_token(fido_dev_t *, uint8_t, const char *,
-    const fido_blob_t *, const es256_pk_t *, const char *, fido_blob_t *);
+    const fido_blob_t *, const es256_pk_t *, const char *, fido_blob_t *,
+    int *);
 uint64_t fido_dev_maxmsgsize(const fido_dev_t *);
-int fido_do_ecdh(fido_dev_t *, es256_pk_t **, fido_blob_t **);
-bool fido_dev_supports_permissions(const fido_dev_t *);
+int fido_do_ecdh(fido_dev_t *, es256_pk_t **, fido_blob_t **, int *);
+
+/* types */
+void fido_algo_array_free(fido_algo_array_t *);
+void fido_byte_array_free(fido_byte_array_t *);
+void fido_opt_array_free(fido_opt_array_t *);
+void fido_str_array_free(fido_str_array_t *);
+void fido_algo_free(fido_algo_t *);
+int fido_str_array_pack(fido_str_array_t *, const char * const *, size_t);
 
 /* misc */
 void fido_assert_reset_rx(fido_assert_t *);
@@ -189,16 +198,24 @@ int fido_check_flags(uint8_t, fido_opt_t, fido_opt_t);
 int fido_check_rp_id(const char *, const unsigned char *);
 int fido_get_random(void *, size_t);
 int fido_sha256(fido_blob_t *, const u_char *, size_t);
+int fido_time_now(struct timespec *);
+int fido_time_delta(const struct timespec *, int *);
 
 /* crypto */
-int fido_verify_sig_es256(const fido_blob_t *, const es256_pk_t *,
+int es256_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
+int rs256_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
+int eddsa_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
+int rs1_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
+int es256_pk_verify_sig(const fido_blob_t *, const es256_pk_t *,
     const fido_blob_t *);
-int fido_verify_sig_rs256(const fido_blob_t *, const rs256_pk_t *,
+int rs256_pk_verify_sig(const fido_blob_t *, const rs256_pk_t *,
     const fido_blob_t *);
-int fido_verify_sig_eddsa(const fido_blob_t *, const eddsa_pk_t *,
+int eddsa_pk_verify_sig(const fido_blob_t *, const eddsa_pk_t *,
     const fido_blob_t *);
 int fido_get_signed_hash(int, fido_blob_t *, const fido_blob_t *,
     const fido_blob_t *);
+int fido_get_signed_hash_tpm(fido_blob_t *, const fido_blob_t *,
+    const fido_blob_t *, const fido_attstmt_t *, const fido_attcred_t *);
 
 /* device manifest functions */
 int fido_hid_manifest(fido_dev_info_t *, size_t, size_t *);
@@ -232,6 +249,7 @@ uint32_t uniform_random(uint32_t);
 #define FIDO_DUMMY_USER_NAME	"dummy"
 #define FIDO_DUMMY_USER_ID	1
 #define FIDO_WINHELLO_PATH	"windows://hello"
+#define FIDO_NFC_PREFIX		"nfc:"
 
 #ifdef __cplusplus
 } /* extern "C" */

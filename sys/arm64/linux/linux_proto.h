@@ -2,7 +2,6 @@
  * System call prototypes.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * $FreeBSD$
  */
 
 #ifndef _LINUX_SYSPROTO_H_
@@ -163,7 +162,7 @@ struct linux_mknodat_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
 	char filename_l_[PADL_(const char *)]; const char * filename; char filename_r_[PADR_(const char *)];
 	char mode_l_[PADL_(l_int)]; l_int mode; char mode_r_[PADR_(l_int)];
-	char dev_l_[PADL_(l_uint)]; l_uint dev; char dev_r_[PADR_(l_uint)];
+	char dev_l_[PADL_(l_dev_t)]; l_dev_t dev; char dev_r_[PADR_(l_dev_t)];
 };
 struct linux_mkdirat_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
@@ -866,8 +865,8 @@ struct linux_clone_args {
 };
 struct linux_execve_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char argp_l_[PADL_(char **)]; char ** argp; char argp_r_[PADR_(char **)];
-	char envp_l_[PADL_(char **)]; char ** envp; char envp_r_[PADR_(char **)];
+	char argp_l_[PADL_(l_uintptr_t *)]; l_uintptr_t * argp; char argp_r_[PADR_(l_uintptr_t *)];
+	char envp_l_[PADL_(l_uintptr_t *)]; l_uintptr_t * envp; char envp_r_[PADR_(l_uintptr_t *)];
 };
 struct linux_mmap2_args {
 	char addr_l_[PADL_(l_ulong)]; l_ulong addr; char addr_r_[PADR_(l_ulong)];

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
@@ -69,7 +69,6 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
@@ -112,7 +111,6 @@ struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA57,
@@ -167,24 +165,23 @@ amd64_lower_shared_page(struct sysentvec *sv)
 	}
 }
 
-static boolean_t
+static bool
 freebsd_brand_info_la57_img_compat(struct image_params *imgp,
     int32_t *osrel __unused, uint32_t *fctl0)
 {
 	if ((imgp->proc->p_md.md_flags & P_MD_LA57) != 0)
-		return (TRUE);
+		return (true);
 	if (fctl0 == NULL || (*fctl0 & NT_FREEBSD_FCTL_LA48) != 0)
-		return (FALSE);
+		return (false);
 	if ((imgp->proc->p_md.md_flags & P_MD_LA48) != 0)
-		return (FALSE);
-	return (TRUE);
+		return (false);
+	return (true);
 }
 
 static Elf64_Brandinfo freebsd_brand_info_la48 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_la48,
 	.interp_newpath	= NULL,
@@ -196,7 +193,6 @@ static Elf64_Brandinfo freebsd_brand_info_la57 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_la57,
 	.interp_newpath	= NULL,
@@ -223,7 +219,6 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_la48,
 	.interp_newpath	= NULL,
@@ -238,7 +233,6 @@ static Elf64_Brandinfo kfreebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/lib/ld-kfreebsd-x86-64.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_la48,
 	.interp_newpath	= NULL,

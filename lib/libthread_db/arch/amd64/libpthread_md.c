@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 David Xu <davidxu@freebsd.org>
  * Copyright (c) 2004 Marcel Moolenaar

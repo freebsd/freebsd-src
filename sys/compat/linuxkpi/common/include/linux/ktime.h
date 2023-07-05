@@ -190,6 +190,7 @@ timespec64_to_ns(struct timespec64 *ts)
 #define	ktime_get_ts(ts)		getnanouptime(ts)
 #define	ktime_get_ts64(ts)		getnanouptime(ts)
 #define	ktime_get_raw_ts64(ts)		getnanouptime(ts)
+#define	ktime_get_real_ts64(ts)		getnanotime(ts)
 #define	getrawmonotonic64(ts)		getnanouptime(ts)
 
 static inline int64_t

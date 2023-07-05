@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 2005 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
@@ -778,6 +778,8 @@ extern struct umutex	_suspend_all_lock __hidden;
 extern int		_suspend_all_waiters __hidden;
 extern int		_suspend_all_cycle __hidden;
 extern struct pthread	*_single_thread __hidden;
+
+extern bool		_thr_after_fork __hidden;
 
 /*
  * Function prototype definitions.

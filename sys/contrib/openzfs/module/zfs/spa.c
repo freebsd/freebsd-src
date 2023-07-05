@@ -33,6 +33,7 @@
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
+ * Copyright (c) 2023 Hewlett Packard Enterprise Development LP.
  */
 
 /*
@@ -1608,16 +1609,16 @@ spa_unload_log_sm_metadata(spa_t *spa)
 {
 	void *cookie = NULL;
 	spa_log_sm_t *sls;
+	log_summary_entry_t *e;
+
 	while ((sls = avl_destroy_nodes(&spa->spa_sm_logs_by_txg,
 	    &cookie)) != NULL) {
 		VERIFY0(sls->sls_mscount);
 		kmem_free(sls, sizeof (spa_log_sm_t));
 	}
 
-	for (log_summary_entry_t *e = list_head(&spa->spa_log_summary);
-	    e != NULL; e = list_head(&spa->spa_log_summary)) {
+	while ((e = list_remove_head(&spa->spa_log_summary)) != NULL) {
 		VERIFY0(e->lse_mscount);
-		list_remove(&spa->spa_log_summary, e);
 		kmem_free(e, sizeof (log_summary_entry_t));
 	}
 
@@ -2387,7 +2388,7 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	 * When damaged consider it to be a metadata error since we cannot
 	 * trust the BP_GET_TYPE and BP_GET_LEVEL values.
 	 */
-	if (!zfs_blkptr_verify(spa, bp, B_FALSE, BLK_VERIFY_LOG)) {
+	if (!zfs_blkptr_verify(spa, bp, BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
 		atomic_inc_64(&sle->sle_meta_count);
 		return (0);
 	}
@@ -3084,6 +3085,12 @@ vdev_count_verify_zaps(vdev_t *vd)
 	spa_t *spa = vd->vdev_spa;
 	uint64_t total = 0;
 
+	if (spa_feature_is_active(vd->vdev_spa, SPA_FEATURE_AVZ_V2) &&
+	    vd->vdev_root_zap != 0) {
+		total++;
+		ASSERT0(zap_lookup_int(spa->spa_meta_objset,
+		    spa->spa_all_vdev_zaps, vd->vdev_root_zap));
+	}
 	if (vd->vdev_top_zap != 0) {
 		total++;
 		ASSERT0(zap_lookup_int(spa->spa_meta_objset,
@@ -6372,6 +6379,16 @@ spa_tryimport(nvlist_t *tryconfig)
 		spa->spa_config_source = SPA_CONFIG_SRC_SCAN;
 	}
 
+	/*
+	 * spa_import() relies on a pool config fetched by spa_try_import()
+	 * for spare/cache devices. Import flags are not passed to
+	 * spa_tryimport(), which makes it return early due to a missing log
+	 * device and missing retrieving the cache device and spare eventually.
+	 * Passing ZFS_IMPORT_MISSING_LOG to spa_tryimport() makes it fetch
+	 * the correct configuration regardless of the missing log device.
+	 */
+	spa->spa_import_flags |= ZFS_IMPORT_MISSING_LOG;
+
 	error = spa_load(spa, SPA_LOAD_TRYIMPORT, SPA_IMPORT_EXISTING);
 
 	/*
@@ -6858,9 +6875,11 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		if (!spa_feature_is_enabled(spa, SPA_FEATURE_DEVICE_REBUILD))
 			return (spa_vdev_exit(spa, NULL, txg, ENOTSUP));
 
-		if (dsl_scan_resilvering(spa_get_dsl(spa)))
+		if (dsl_scan_resilvering(spa_get_dsl(spa)) ||
+		    dsl_scan_resilver_scheduled(spa_get_dsl(spa))) {
 			return (spa_vdev_exit(spa, NULL, txg,
 			    ZFS_ERR_RESILVER_IN_PROGRESS));
+		}
 	} else {
 		if (vdev_rebuild_active(rvd))
 			return (spa_vdev_exit(spa, NULL, txg,
@@ -7098,7 +7117,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
  * Detach a device from a mirror or replacing vdev.
  *
  * If 'replace_done' is specified, only detach if the parent
- * is a replacing vdev.
+ * is a replacing or a spare vdev.
  */
 int
 spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
@@ -7405,6 +7424,10 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 	    vd->vdev_initialize_state != VDEV_INITIALIZE_ACTIVE) {
 		mutex_exit(&vd->vdev_initialize_lock);
 		return (SET_ERROR(ESRCH));
+	} else if (cmd_type == POOL_INITIALIZE_UNINIT &&
+	    vd->vdev_initialize_thread != NULL) {
+		mutex_exit(&vd->vdev_initialize_lock);
+		return (SET_ERROR(EBUSY));
 	}
 
 	switch (cmd_type) {
@@ -7416,6 +7439,9 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 		break;
 	case POOL_INITIALIZE_SUSPEND:
 		vdev_initialize_stop(vd, VDEV_INITIALIZE_SUSPENDED, vd_list);
+		break;
+	case POOL_INITIALIZE_UNINIT:
+		vdev_uninitialize(vd);
 		break;
 	default:
 		panic("invalid cmd_type %llu", (unsigned long long)cmd_type);
@@ -8150,6 +8176,7 @@ spa_scan_stop(spa_t *spa)
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == 0);
 	if (dsl_scan_resilvering(spa->spa_dsl_pool))
 		return (SET_ERROR(EBUSY));
+
 	return (dsl_scan_cancel(spa->spa_dsl_pool));
 }
 
@@ -8174,6 +8201,10 @@ spa_scan(spa_t *spa, pool_scan_func_t func)
 		spa_async_request(spa, SPA_ASYNC_RESILVER_DONE);
 		return (0);
 	}
+
+	if (func == POOL_SCAN_ERRORSCRUB &&
+	    !spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG))
+		return (SET_ERROR(ENOTSUP));
 
 	return (dsl_scan(spa->spa_dsl_pool, func));
 }
@@ -8321,7 +8352,8 @@ spa_async_thread(void *arg)
 	 * If any devices are done replacing, detach them.
 	 */
 	if (tasks & SPA_ASYNC_RESILVER_DONE ||
-	    tasks & SPA_ASYNC_REBUILD_DONE) {
+	    tasks & SPA_ASYNC_REBUILD_DONE ||
+	    tasks & SPA_ASYNC_DETACH_SPARE) {
 		spa_vdev_resilver_done(spa);
 	}
 
@@ -8665,6 +8697,11 @@ spa_avz_build(vdev_t *vd, uint64_t avz, dmu_tx_t *tx)
 {
 	spa_t *spa = vd->vdev_spa;
 
+	if (vd->vdev_root_zap != 0 &&
+	    spa_feature_is_active(spa, SPA_FEATURE_AVZ_V2)) {
+		VERIFY0(zap_add_int(spa->spa_meta_objset, avz,
+		    vd->vdev_root_zap, tx));
+	}
 	if (vd->vdev_top_zap != 0) {
 		VERIFY0(zap_add_int(spa->spa_meta_objset, avz,
 		    vd->vdev_top_zap, tx));
@@ -8920,12 +8957,12 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 			}
 
 			/* normalize the property name */
-			propname = zpool_prop_to_name(prop);
-			proptype = zpool_prop_get_type(prop);
-			if (prop == ZPOOL_PROP_INVAL &&
-			    zfs_prop_user(elemname)) {
+			if (prop == ZPOOL_PROP_INVAL) {
 				propname = elemname;
 				proptype = PROP_TYPE_STRING;
+			} else {
+				propname = zpool_prop_to_name(prop);
+				proptype = zpool_prop_get_type(prop);
 			}
 
 			if (nvpair_type(elem) == DATA_TYPE_STRING) {
@@ -9220,6 +9257,7 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 		brt_sync(spa, txg);
 		ddt_sync(spa, txg);
 		dsl_scan_sync(dp, tx);
+		dsl_errorscrub_sync(dp, tx);
 		svr_sync(spa, tx);
 		spa_sync_upgrades(spa, tx);
 

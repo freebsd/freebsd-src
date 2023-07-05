@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 Poul-Henning Kamp
  * Copyright (c) 1994,1997 John S. Dyson
@@ -1168,7 +1168,12 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	}
 
 	if (nswbuf == 0) {
-		nswbuf = min(nbuf / 4, 256);
+		/*
+		 * Pager buffers are allocated for short periods, so scale the
+		 * number of reserved buffers based on the number of CPUs rather
+		 * than amount of memory.
+		 */
+		nswbuf = min(nbuf / 4, 32 * mp_ncpus);
 		if (nswbuf < NSWBUF_MIN)
 			nswbuf = NSWBUF_MIN;
 	}
@@ -1196,6 +1201,7 @@ bufinit(void)
 	struct buf *bp;
 	int i;
 
+	TSENTER();
 	KASSERT(maxbcachebuf >= MAXBSIZE,
 	    ("maxbcachebuf (%d) must be >= MAXBSIZE (%d)\n", maxbcachebuf,
 	    MAXBSIZE));
@@ -1331,6 +1337,7 @@ bufinit(void)
 	buffreekvacnt = counter_u64_alloc(M_WAITOK);
 	bufdefragcnt = counter_u64_alloc(M_WAITOK);
 	bufkvaspace = counter_u64_alloc(M_WAITOK);
+	TSEXIT();
 }
 
 #ifdef INVARIANTS

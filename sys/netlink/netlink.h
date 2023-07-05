@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 Ng Peng Nam Sean
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
@@ -89,6 +89,7 @@ struct sockaddr_nl {
 #define NETLINK_EXT_ACK			11 /* Ack support for receiving additional TLVs in ack */
 #define NETLINK_GET_STRICT_CHK		12 /* Strict header checking */
 
+#define	NETLINK_MSG_INFO		257 /* (FreeBSD-specific) Receive message originator data in cmsg */
 
 /*
  * RFC 3549, 2.3.2 Netlink Message Header
@@ -181,6 +182,15 @@ enum nlmsgerr_attrs {
 	NLMSGERR_ATTR_POLICY	= 4, /* not supported */
 	__NLMSGERR_ATTR_MAX,
 	NLMSGERR_ATTR_MAX = __NLMSGERR_ATTR_MAX - 1
+};
+
+/* FreeBSD-specific debugging info */
+
+enum nlmsginfo_attrs {
+	NLMSGINFO_ATTR_UNUSED,
+	NLMSGINFO_ATTR_PROCESS_ID	= 1, /* u32, source process PID */
+	NLMSGINFO_ATTR_PORT_ID		= 2, /* u32, source socket nl_pid */
+	NLMSGINFO_ATTR_SEQ_ID		= 3, /* u32, source message seq_id */
 };
 
 

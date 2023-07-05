@@ -331,6 +331,12 @@ dcCompression_ProcessCallback(void *pRespMsg)
 			    (ICP_QAT_FW_COMN_STATUS_CMP_END_OF_LAST_BLK_FLAG_SET ==
 			     ICP_QAT_FW_COMN_RESP_CMP_END_OF_LAST_BLK_FLAG_GET(
 				 opStatus));
+		} else {
+			/* Check if returned data is a stored block
+			 * in compression direction
+			 */
+			pResults->dataUncompressed =
+			    ICP_QAT_FW_COMN_HDR_ST_BLK_FLAG_GET(hdrFlags);
 		}
 
 		/* Save the checksum for the next request */

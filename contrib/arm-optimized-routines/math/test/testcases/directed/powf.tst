@@ -1,7 +1,7 @@
 ; powf.tst - Directed test cases for powf
 ;
 ; Copyright (c) 2007-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=powf op1=7f800001 op2=7f800001 result=7fc00001 errno=0 status=i
 func=powf op1=7f800001 op2=ff800001 result=7fc00001 errno=0 status=i

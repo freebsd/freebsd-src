@@ -111,7 +111,7 @@ static int	ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev,
 static int	ext2_compute_sb_data(struct vnode * devvp,
 		    struct ext2fs * es, struct m_ext2fs * fs);
 
-static const char *ext2_opts[] = { "acls", "async", "noatime", "noclusterr", 
+static const char *ext2_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "multilabel",
     "suiddir", "nosymfollow", "sync", "union", NULL };
 
@@ -343,7 +343,7 @@ ext2_cg_location(struct m_ext2fs *fs, int number)
 	 * Godmar thinks: if the blocksize is greater than 1024, then
 	 * the superblock is logically part of block zero.
 	 */
-	logical_sb = fs->e2fs_bsize > SBSIZE ? 0 : 1;
+	logical_sb = fs->e2fs_bsize > SBLOCKSIZE ? 0 : 1;
 
 	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG) ||
 	    number < le32toh(fs->e2fs->e3fs_first_meta_bg))
@@ -760,9 +760,9 @@ ext2_reload(struct mount *mp, struct thread *td)
 	 * Step 2: re-read superblock from disk.
 	 * constants have been adjusted for ext2
 	 */
-	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
+	if ((error = bread(devvp, SBLOCK, SBLOCKBLKSIZE, NOCRED, &bp)) != 0)
 		return (error);
-	es = (struct ext2fs *)bp->b_data;
+	es = (struct ext2fs *)((char *)bp->b_data + SBLOCKOFFSET);
 	if (ext2_check_sb_compat(es, devvp->v_rdev, 0) != 0) {
 		brelse(bp);
 		return (EIO);		/* XXX needs translation */
@@ -774,10 +774,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 		brelse(bp);
 		return (error);
 	}
-#ifdef UNKLAR
-	if (fs->fs_sbsize < SBSIZE)
-		bp->b_flags |= B_INVAL;
-#endif
+
 	brelse(bp);
 
 	/*
@@ -852,6 +849,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	int32_t *lp;
 	int32_t e2fs_maxcontig;
 
+	bp = NULL;
+	ump = NULL;
+
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
 	g_topology_lock();
@@ -861,13 +861,16 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	if (error)
 		return (error);
 
-	/* XXX: should we check for some sectorsize or 512 instead? */
-	if (((SBSIZE % cp->provider->sectorsize) != 0) ||
-	    (SBSIZE < cp->provider->sectorsize)) {
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-		return (EINVAL);
+	if (PAGE_SIZE != SBLOCKBLKSIZE) {
+		printf("WARNING: Unsupported page size %d\n", PAGE_SIZE);
+		error = EINVAL;
+		goto out;
+	}
+	if (cp->provider->sectorsize > PAGE_SIZE) {
+		printf("WARNING: Device sectorsize(%d) is more than %d\n",
+		    cp->provider->sectorsize, PAGE_SIZE);
+		error = EINVAL;
+		goto out;
 	}
 
 	bo = &devvp->v_bufobj;
@@ -877,12 +880,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > maxphys)
 		mp->mnt_iosize_max = maxphys;
-
-	bp = NULL;
-	ump = NULL;
-	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
+	if ((error = bread(devvp, SBLOCK, SBLOCKBLKSIZE, NOCRED, &bp)) != 0)
 		goto out;
-	es = (struct ext2fs *)bp->b_data;
+	es = (struct ext2fs *)((char *)bp->b_data + SBLOCKOFFSET);
 	if (ext2_check_sb_compat(es, dev, ronly) != 0) {
 		error = EINVAL;		/* XXX needs translation */
 		goto out;
@@ -1377,8 +1377,12 @@ ext2_sbupdate(struct ext2mount *mp, int waitfor)
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		ext2_sb_csum_set(fs);
 
-	bp = getblk(mp->um_devvp, SBLOCK, SBSIZE, 0, 0, 0);
-	bcopy((caddr_t)es, bp->b_data, (u_int)sizeof(struct ext2fs));
+	error = bread(mp->um_devvp, SBLOCK, SBLOCKBLKSIZE, NOCRED, &bp);
+	if (error != 0)
+		return (error);
+
+	memcpy((char *)bp->b_data + SBLOCKOFFSET, (caddr_t)es,
+	    (u_int)sizeof(struct ext2fs));
 	if (waitfor == MNT_WAIT)
 		error = bwrite(bp);
 	else

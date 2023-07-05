@@ -1,8 +1,8 @@
 /*
  * strlen - calculate the length of a string.
  *
- * Copyright (c) 2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2020-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -11,7 +11,7 @@
  * Not MTE compatible.
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #define srcin	x0
 #define len	x0
@@ -36,6 +36,7 @@
 #define tmp	x2
 #define tmpw	w2
 #define synd	x3
+#define syndw	w3
 #define shift	x4
 
 /* For the first 32 bytes, NUL detection works on the principle that
@@ -110,7 +111,6 @@ ENTRY (__strlen_aarch64)
 	add	len, len, tmp1, lsr 3
 	ret
 
-	.p2align 3
 	/* Look for a NUL byte at offset 16..31 in the string.  */
 L(bytes16_31):
 	ldp	data1, data2, [srcin, 16]
@@ -138,6 +138,7 @@ L(bytes16_31):
 	add	len, len, tmp1, lsr 3
 	ret
 
+	nop
 L(loop_entry):
 	bic	src, srcin, 31
 
@@ -153,18 +154,12 @@ L(loop):
 	/* Low 32 bits of synd are non-zero if a NUL was found in datav1.  */
 	cmeq	maskv.16b, datav1.16b, 0
 	sub	len, src, srcin
-	tst	synd, 0xffffffff
-	b.ne	1f
+	cbnz	syndw, 1f
 	cmeq	maskv.16b, datav2.16b, 0
 	add	len, len, 16
 1:
 	/* Generate a bitmask and compute correct byte offset.  */
-#ifdef __AARCH64EB__
-	bic	maskv.8h, 0xf0
-#else
-	bic	maskv.8h, 0x0f, lsl 8
-#endif
-	umaxp	maskv.16b, maskv.16b, maskv.16b
+	shrn	maskv.8b, maskv.8h, 4
 	fmov	synd, maskd
 #ifndef __AARCH64EB__
 	rbit	synd, synd
@@ -172,8 +167,6 @@ L(loop):
 	clz	tmp, synd
 	add	len, len, tmp, lsr 2
 	ret
-
-        .p2align 4
 
 L(page_cross):
 	bic	src, srcin, 31

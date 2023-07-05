@@ -92,11 +92,11 @@
 
     <br><h4>Naming a Device</h4>
     <p>
-      The <i>GPSD</i> driver uses the same device name as the NMEA
-      driver, namely <tt>/dev/gps<i>u</i></tt>. There is a simple
-      reason for that: While the NMEA driver and the <i>GPSD</i>
-      driver can be active at the same time <b>for different
-      devices</b>, they cannot access the same device at a
+      By default, the <i>GPSD</i> driver uses the same device name as
+      the NMEA driver, namely <tt>/dev/gps<i>u</i></tt>. There is a
+      simple reason for that: While the NMEA driver and
+      the <i>GPSD</i> driver can be active at the same time <b>for
+      different devices</b>, they cannot access the same device at a
       time. Having the same name helps on that. It also eases
       migration from using NMEA directly to using <i>GPSD</i>, as no
       new links etc need to be created.
@@ -110,11 +110,18 @@
       identification. This makes the migration from the built-in NMEA
       driver a bit easier.
     </p>
+    <p>
+      The driver also honors <tt>device</tt> statements for
+      the <tt>timedata</tt> channel. (PPS is handled
+      inside <i>GPSD</i>, so there's no need for that.) This permits a
+      more natural way to specify the link between <i>GPSD</i>
+      and <i>NTPD</i>: Simply name the device as it was given
+      to <i>GPSD</i>.
+    </p>
     <p><b>Note:</b> <i>GPSD</i> (as of version 3.10) cannot use kernel
-      mode PPS on devices that are hot-plugged. This would require to
-      attach the PPS line discipline to the character special file,
-      which is not possible when running with root privileges already
-      dropped. This is not likely to change in the future.
+      mode PPS on devices that are hot-plugged or activated on demand.
+      This is not likely to change in the future.  Have a look
+      at <i>GPSD</i>'s <tt>-n</tt> (<i>nowait</i>) option.
     </p>
 
     <!-- --------------------------------------------------------- -->
@@ -168,7 +175,7 @@
 	    120s. Then it reverts to STI-only operation until the PPS
 	    is stable again for 40s, when strict mode is engaged
 	    again.
-	    <br><br><b>Important Notice: This is an expiremental
+	    <br><br><b>Important Notice: This is an experimental
 	    feature!</b><br>  Switching between strict and STI-only
 	    mode will cause changes in offset and jitter. Use this
 	    mode only if STI-only works fairly well with your setup,
@@ -209,7 +216,7 @@
       primary clock unit (u mod 128). A secondary unit processes only
       the PPS data from <i>GPSD</i> and needs the corresponding master
       unit to work<a href="#fn1" name="fn1bl"><sup>1</sup></a>. Use
-      the 'noselect' keyword on the primary unit if you are not
+      the '<tt>noselect</tt>' keyword on the primary unit if you are not
       interested in its data.
     </p><p>The secondary unit employs the usual precautions before
       feeding clock samples:</p>
@@ -225,7 +232,7 @@
       only be used if the GPS receiver can be trusted for the quality
       of its PPS signal<a href="fn2"
       name="fn2bl"><sup>2</sup></a>. The PPS flag gets cleared if no
-      PPS records can be aquired for some time. The unit also flushes
+      PPS records can be acquired for some time. The unit also flushes
       the sample buffer at this point to avoid the use of stale PPS
       data.</p>
     <p><b>Attention:</b> This unit uses its own PPS fudge value

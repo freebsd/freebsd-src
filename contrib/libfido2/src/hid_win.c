@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -103,7 +103,7 @@ fail:
 }
 
 static int
-get_int(HANDLE dev, int16_t *vendor_id, int16_t *product_id)
+get_id(HANDLE dev, int16_t *vendor_id, int16_t *product_id)
 {
 	HIDD_ATTRIBUTES attr;
 
@@ -121,14 +121,13 @@ get_int(HANDLE dev, int16_t *vendor_id, int16_t *product_id)
 }
 
 static int
-get_str(HANDLE dev, char **manufacturer, char **product)
+get_manufacturer(HANDLE dev, char **manufacturer)
 {
 	wchar_t	buf[512];
 	int	utf8_len;
 	int	ok = -1;
 
 	*manufacturer = NULL;
-	*product = NULL;
 
 	if (HidD_GetManufacturerString(dev, &buf, sizeof(buf)) == false) {
 		fido_log_debug("%s: HidD_GetManufacturerString", __func__);
@@ -151,6 +150,25 @@ get_str(HANDLE dev, char **manufacturer, char **product)
 		fido_log_debug("%s: WideCharToMultiByte", __func__);
 		goto fail;
 	}
+
+	ok = 0;
+fail:
+	if (ok < 0) {
+		free(*manufacturer);
+		*manufacturer = NULL;
+	}
+
+	return (ok);
+}
+
+static int
+get_product(HANDLE dev, char **product)
+{
+	wchar_t	buf[512];
+	int	utf8_len;
+	int	ok = -1;
+
+	*product = NULL;
 
 	if (HidD_GetProductString(dev, &buf, sizeof(buf)) == false) {
 		fido_log_debug("%s: HidD_GetProductString", __func__);
@@ -177,9 +195,7 @@ get_str(HANDLE dev, char **manufacturer, char **product)
 	ok = 0;
 fail:
 	if (ok < 0) {
-		free(*manufacturer);
 		free(*product);
-		*manufacturer = NULL;
 		*product = NULL;
 	}
 
@@ -313,9 +329,23 @@ copy_info(fido_dev_info_t *di, HDEVINFO devinfo, DWORD idx,
 		goto fail;
 	}
 
-	if (get_int(dev, &di->vendor_id, &di->product_id) < 0 ||
-	    get_str(dev, &di->manufacturer, &di->product) < 0) {
-		fido_log_debug("%s: get_int/get_str", __func__);
+	if (get_id(dev, &di->vendor_id, &di->product_id) < 0) {
+		fido_log_debug("%s: get_id", __func__);
+		goto fail;
+	}
+
+	if (get_manufacturer(dev, &di->manufacturer) < 0) {
+		fido_log_debug("%s: get_manufacturer", __func__);
+		di->manufacturer = strdup("");
+	}
+
+	if (get_product(dev, &di->product) < 0) {
+		fido_log_debug("%s: get_product", __func__);
+		di->product = strdup("");
+	}
+
+	if (di->manufacturer == NULL || di->product == NULL) {
+		fido_log_debug("%s: manufacturer/product", __func__);
 		goto fail;
 	}
 
@@ -424,7 +454,7 @@ fido_hid_close(void *handle)
 			fido_log_debug("%s: report_pending", __func__);
 			if (CancelIoEx(ctx->dev, &ctx->overlap) == 0)
 				fido_log_debug("%s CancelIoEx: 0x%lx",
-				    __func__, GetLastError());
+				    __func__, (u_long)GetLastError());
 		}
 		CloseHandle(ctx->overlap.hEvent);
 	}

@@ -238,7 +238,7 @@ elf64_exec(struct preloaded_file *fp)
 
 #ifdef EFI
 	if (copy_staging == COPY_STAGING_ENABLE) {
-		PT4 = (pml4_entry_t *)0x0000000040000000;
+		PT4 = (pml4_entry_t *)0x0000000040000000; /* 1G */
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 3,
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {

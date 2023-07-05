@@ -43,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -52,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_lro.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 
@@ -166,7 +169,8 @@ hn_nvs_conn_rxbuf(struct hn_softc *sc)
 	 * just share this RXBUF.
 	 */
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
-	    sc->hn_rxbuf_dma.hv_paddr, rxbuf_size, &sc->hn_rxbuf_gpadl);
+	    pmap_kextract((vm_offset_t)sc->hn_rxbuf), rxbuf_size,
+	    &sc->hn_rxbuf_gpadl);
 	if (error) {
 		if_printf(sc->hn_ifp, "rxbuf gpadl conn failed: %d\n",
 		    error);
@@ -235,7 +239,8 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 	 * Sub-channels just share this chimney sending buffer.
 	 */
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
-  	    sc->hn_chim_dma.hv_paddr, HN_CHIM_SIZE, &sc->hn_chim_gpadl);
+	    pmap_kextract((vm_offset_t)sc->hn_chim), HN_CHIM_SIZE,
+	    &sc->hn_chim_gpadl);
 	if (error) {
 		if_printf(sc->hn_ifp, "chim gpadl conn failed: %d\n", error);
 		goto cleanup;

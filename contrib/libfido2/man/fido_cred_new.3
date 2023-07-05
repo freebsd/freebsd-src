@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
@@ -8,6 +8,7 @@
 .Sh NAME
 .Nm fido_cred_new ,
 .Nm fido_cred_free ,
+.Nm fido_cred_pin_minlen ,
 .Nm fido_cred_prot ,
 .Nm fido_cred_fmt ,
 .Nm fido_cred_rp_id ,
@@ -24,6 +25,7 @@
 .Nm fido_cred_sig_ptr ,
 .Nm fido_cred_user_id_ptr ,
 .Nm fido_cred_x5c_ptr ,
+.Nm fido_cred_attstmt_ptr ,
 .Nm fido_cred_authdata_len ,
 .Nm fido_cred_authdata_raw_len ,
 .Nm fido_cred_clientdata_hash_len ,
@@ -34,18 +36,21 @@
 .Nm fido_cred_sig_len ,
 .Nm fido_cred_user_id_len ,
 .Nm fido_cred_x5c_len ,
+.Nm fido_cred_attstmt_len ,
 .Nm fido_cred_type ,
 .Nm fido_cred_flags ,
 .Nm fido_cred_sigcount
-.Nd FIDO 2 credential API
+.Nd FIDO2 credential API
 .Sh SYNOPSIS
 .In fido.h
 .Ft fido_cred_t *
 .Fn fido_cred_new "void"
 .Ft void
 .Fn fido_cred_free "fido_cred_t **cred_p"
+.Ft size_t
+.Fn fido_cred_pin_minlen "const fido_cred_t *cred"
 .Ft int
-.Fn fido_cred_prot "fido_cred_t *cred"
+.Fn fido_cred_prot "const fido_cred_t *cred"
 .Ft const char *
 .Fn fido_cred_fmt "const fido_cred_t *cred"
 .Ft const char *
@@ -76,6 +81,8 @@
 .Fn fido_cred_user_id_ptr "const fido_cred_t *cred"
 .Ft const unsigned char *
 .Fn fido_cred_x5c_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_attstmt_ptr "const fido_cred_t *cred"
 .Ft size_t
 .Fn fido_cred_authdata_len "const fido_cred_t *cred"
 .Ft size_t
@@ -96,6 +103,8 @@
 .Fn fido_cred_user_id_len "const fido_cred_t *cred"
 .Ft size_t
 .Fn fido_cred_x5c_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_attstmt_len "const fido_cred_t *cred"
 .Ft int
 .Fn fido_cred_type "const fido_cred_t *cred"
 .Ft uint8_t
@@ -103,7 +112,7 @@
 .Ft uint32_t
 .Fn fido_cred_sigcount "const fido_cred_t *cred"
 .Sh DESCRIPTION
-FIDO 2 credentials are abstracted in
+FIDO2 credentials are abstracted in
 .Em libfido2
 by the
 .Vt fido_cred_t
@@ -146,13 +155,35 @@ may be NULL, in which case
 .Fn fido_cred_free
 is a NOP.
 .Pp
-The
+If the CTAP 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension is enabled on
+.Fa cred ,
+then the
+.Fn fido_cred_pin_minlen
+function returns the minimum PIN length of
+.Fa cred .
+Otherwise,
+.Fn fido_cred_pin_minlen
+returns zero.
+See
+.Xr fido_cred_set_pin_minlen 3
+on how to enable this extension.
+.Pp
+If the CTAP 2.1
+.Dv FIDO_EXT_CRED_PROTECT
+extension is enabled on
+.Fa cred ,
+then the
 .Fn fido_cred_prot
 function returns the protection of
 .Fa cred .
+Otherwise,
+.Fn fido_cred_prot
+returns zero.
 See
 .Xr fido_cred_set_prot 3
-for the values understood by
+for the protection policies understood by
 .Em libfido2 .
 .Pp
 The
@@ -186,12 +217,14 @@ The
 .Fn fido_cred_pubkey_ptr ,
 .Fn fido_cred_sig_ptr ,
 .Fn fido_cred_user_id_ptr ,
+.Fn fido_cred_x5c_ptr ,
 and
-.Fn fido_cred_x5c_ptr
+.Fn fido_cred_attstmt_ptr
 functions return pointers to the CBOR-encoded and raw authenticator
 data, client data hash, ID, authenticator attestation GUID,
 .Dq largeBlobKey ,
-public key, signature, user ID, and x509 certificate parts of
+public key, signature, user ID, x509 certificate, and attestation
+statement parts of
 .Fa cred ,
 or NULL if the respective entry is not set.
 .Pp
@@ -205,11 +238,12 @@ The corresponding length can be obtained by
 .Fn fido_cred_pubkey_len ,
 .Fn fido_cred_sig_len ,
 .Fn fido_cred_user_id_len ,
+.Fn fido_cred_x5c_len ,
 and
-.Fn fido_cred_x5c_len .
+.Fn fido_cred_attstmt_len .
 .Pp
 The authenticator data, x509 certificate, and signature parts of a
-credential are typically passed to a FIDO 2 server for verification.
+credential are typically passed to a FIDO2 server for verification.
 .Pp
 The
 .Fn fido_cred_type
@@ -251,6 +285,8 @@ qualifier is invoked.
 .Sh SEE ALSO
 .Xr fido_cred_exclude 3 ,
 .Xr fido_cred_set_authdata 3 ,
+.Xr fido_cred_set_pin_minlen 3 ,
+.Xr fido_cred_set_prot 3 ,
 .Xr fido_cred_verify 3 ,
 .Xr fido_credman_metadata_new 3 ,
 .Xr fido_dev_largeblob_get 3 ,

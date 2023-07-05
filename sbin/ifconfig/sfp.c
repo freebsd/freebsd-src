@@ -55,15 +55,16 @@ static const char rcsid[] =
 #include "ifconfig.h"
 
 void
-sfp_status(int s, struct ifreq *ifr, int verbose)
+sfp_status(if_ctx *ctx)
 {
 	struct ifconfig_sfp_info info;
 	struct ifconfig_sfp_info_strings strings;
 	struct ifconfig_sfp_vendor_info vendor_info;
 	struct ifconfig_sfp_status status;
 	size_t channel_count;
+	int verbose = ctx->args->verbose;
 
-	if (ifconfig_sfp_get_sfp_info(lifh, name, &info) == -1)
+	if (ifconfig_sfp_get_sfp_info(lifh, ctx->ifname, &info) == -1)
 		return;
 
 	ifconfig_sfp_get_sfp_info_strings(&info, &strings);
@@ -73,7 +74,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	    ifconfig_sfp_physical_spec(&info, &strings),
 	    strings.sfp_conn);
 
-	if (ifconfig_sfp_get_sfp_vendor_info(lifh, name, &vendor_info) == -1)
+	if (ifconfig_sfp_get_sfp_vendor_info(lifh, ctx->ifname, &vendor_info) == -1)
 		return;
 
 	printf("\tvendor: %s PN: %s SN: %s DATE: %s\n",
@@ -93,7 +94,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 		}
 	}
 
-	if (ifconfig_sfp_get_sfp_status(lifh, name, &status) == 0) {
+	if (ifconfig_sfp_get_sfp_status(lifh, ctx->ifname, &status) == 0) {
 		if (ifconfig_sfp_id_is_qsfp(info.sfp_id) && verbose > 1)
 			printf("\tnominal bitrate: %u Mbps\n", status.bitrate);
 		printf("\tmodule temperature: %.2f C voltage: %.2f Volts\n",
@@ -112,7 +113,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	if (verbose > 2) {
 		struct ifconfig_sfp_dump dump;
 
-		if (ifconfig_sfp_get_sfp_dump(lifh, name, &dump) == -1)
+		if (ifconfig_sfp_get_sfp_dump(lifh, ctx->ifname, &dump) == -1)
 			return;
 
 		if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {

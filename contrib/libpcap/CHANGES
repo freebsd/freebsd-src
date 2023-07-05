@@ -1,3 +1,17 @@
+Friday, April 7, 2023 / The Tcpdump Group
+  Summary for 1.10.4 libpcap release
+    Source code:
+      Fix spaces before tabs in indentation.
+    rpcap:
+      Fix name of launchd service.
+    Documentation:
+      Document use of rpcapd with systemd, launchd, inetd, and xinetd.
+    Building and testing:
+      Require at least pkg-config 0.17.0, as we use --static.
+      Get rid of the remains of gnuc.h.
+      Require at least autoconf 2.69.
+      Update config.{guess,sub}, timestamps 2023-01-01,2023-01-21.
+
 Thursday, January 12, 2023 / The Tcpdump Group
   Summary for 1.10.3 libpcap release
     Source code:
@@ -1010,7 +1024,7 @@ Tue.	September 19, 2006. ken@xelerance.com. Summary for 0.9.5 libpcap release
 	Add support to build libpcap.lib and wpcap.dll under Cygnus and
 	 MingW32.
 
-Mon. 	September 5, 2005.  ken@xelerance.com. Summary for 0.9.4 libpcap release
+Mon.	September 5, 2005.  ken@xelerance.com. Summary for 0.9.4 libpcap release
 
 	Support for radiotap on Linux (Mike Kershaw)
 	Fixes for HP-UX
@@ -1021,7 +1035,7 @@ Mon. 	September 5, 2005.  ken@xelerance.com. Summary for 0.9.4 libpcap release
 	parts of the filter expression to look at the PPP headers and
 	headers in the PPP payload
 
-Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 0.9.3 libpcap release
+Tue.	July 5, 2005.  ken@xelerance.com. Summary for 0.9.3 libpcap release
 
 	Fixes for compiling on nearly every platform,
 		including improved 64bit support
@@ -1060,16 +1074,16 @@ Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 0.8 release
 
 Tuesday, February 25, 2003. fenner@research.att.com.  0.7.2 release
 
- 	Support link types that use 802.2 always, never, and sometimes.
- 	Don't decrease the size of the BPF buffer from the default.
- 	Support frame relay.
- 	Handle 32-bit timestamps in DLPI, and pass the right buffer size.
- 	Handle Linux systems with modern kernel but without
- 	 SOL_PACKET in the userland headers.
- 	Linux support for ARPHRD_RAWHDLC.
- 	Handle 32-bit timestamps in snoop.
- 	Support eg (Octane/O2xxx/O3xxx Gigabit) devices.
- 	Add new reserved DLT types.
+	Support link types that use 802.2 always, never, and sometimes.
+	Don't decrease the size of the BPF buffer from the default.
+	Support frame relay.
+	Handle 32-bit timestamps in DLPI, and pass the right buffer size.
+	Handle Linux systems with modern kernel but without
+	 SOL_PACKET in the userland headers.
+	Linux support for ARPHRD_RAWHDLC.
+	Handle 32-bit timestamps in snoop.
+	Support eg (Octane/O2xxx/O3xxx Gigabit) devices.
+	Add new reserved DLT types.
 
 Monday October 23, 2001. mcr@sandelman.ottawa.on.ca. Summary for 0.7 release
 

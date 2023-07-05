@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2020 Netflix, Inc
  *
@@ -39,6 +39,7 @@
 #include <x86/specialreg.h>
 
 #include <crypto/openssl/ossl.h>
+#include <crypto/openssl/ossl_aes_gcm.h>
 #include <crypto/openssl/ossl_cipher.h>
 
 /*
@@ -47,13 +48,19 @@
  * [0] = cpu_feature but with a few custom bits
  * [1] = cpu_feature2 but with AMD XOP in bit 11
  * [2] = cpu_stdext_feature
- * [3] = 0
+ * [3] = cpu_stdext_feature2
  */
 unsigned int OPENSSL_ia32cap_P[4];
 #define AESNI_CAPABLE	(OPENSSL_ia32cap_P[1]&(1<<(57-32)))
 
 ossl_cipher_setkey_t aesni_set_encrypt_key;
 ossl_cipher_setkey_t aesni_set_decrypt_key;
+
+#ifdef __amd64__
+int ossl_vaes_vpclmulqdq_capable(void);
+ossl_cipher_setkey_t ossl_aes_gcm_setkey_aesni;
+ossl_cipher_setkey_t ossl_aes_gcm_setkey_avx512;
+#endif
 
 void
 ossl_cpuid(struct ossl_softc *sc)
@@ -117,12 +124,32 @@ ossl_cpuid(struct ossl_softc *sc)
 		OPENSSL_ia32cap_P[1] &= ~(CPUID2_AVX | AMDID2_XOP | CPUID2_FMA);
 		OPENSSL_ia32cap_P[2] &= ~CPUID_STDEXT_AVX2;
 	}
+	OPENSSL_ia32cap_P[3] = cpu_stdext_feature2;
 
-	if (!AESNI_CAPABLE) {
-		sc->has_aes = false;
+	if (!AESNI_CAPABLE)
 		return;
-	}
+
 	sc->has_aes = true;
 	ossl_cipher_aes_cbc.set_encrypt_key = aesni_set_encrypt_key;
 	ossl_cipher_aes_cbc.set_decrypt_key = aesni_set_decrypt_key;
+
+#ifdef __amd64__
+	if (ossl_vaes_vpclmulqdq_capable()) {
+		ossl_cipher_aes_gcm.set_encrypt_key =
+		    ossl_aes_gcm_setkey_avx512;
+		ossl_cipher_aes_gcm.set_decrypt_key =
+		    ossl_aes_gcm_setkey_avx512;
+		sc->has_aes_gcm = true;
+	} else if ((cpu_feature2 &
+	    (CPUID2_AVX | CPUID2_PCLMULQDQ | CPUID2_MOVBE)) ==
+	    (CPUID2_AVX | CPUID2_PCLMULQDQ | CPUID2_MOVBE)) {
+		ossl_cipher_aes_gcm.set_encrypt_key = ossl_aes_gcm_setkey_aesni;
+		ossl_cipher_aes_gcm.set_decrypt_key = ossl_aes_gcm_setkey_aesni;
+		sc->has_aes_gcm = true;
+	} else {
+		sc->has_aes_gcm = false;
+	}
+#else
+	sc->has_aes_gcm = false;
+#endif
 }

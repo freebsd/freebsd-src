@@ -115,3 +115,12 @@ clean_dep   usr.sbin/config  mkoptions c
 
 # 20230401  54579376c05e    kqueue1 from syscall to C wrapper
 clean_dep   lib/libc        kqueue1 S
+
+# 20230623  b077aed33b7b    OpenSSL 3.0 update
+if [ -f "$OBJTOP"/secure/lib/libcrypto/aria.o ]; then
+	echo "Removing old OpenSSL 1.1.1 tree"
+	rm -rf "$OBJTOP"/secure/lib/libcrypto \
+	    "$OBJTOP"/secure/lib/libssl \
+	    "$OBJTOP"/obj-lib32/secure/lib/libcrypto \
+	    "$OBJTOP"/obj-lib32/secure/lib/libssl
+fi

@@ -1111,6 +1111,7 @@ pf_state_export_to_state(struct pfctl_state *ps, const struct pf_state_export *s
 	ps->id = s->id;
 	strlcpy(ps->ifname, s->ifname, sizeof(ps->ifname));
 	strlcpy(ps->orig_ifname, s->orig_ifname, sizeof(ps->orig_ifname));
+	strlcpy(ps->rt_ifname, s->rt_ifname, sizeof(ps->rt_ifname));
 	pf_state_key_export_to_state_key(&ps->key[0], &s->key[0]);
 	pf_state_key_export_to_state_key(&ps->key[1], &s->key[1]);
 	pf_state_peer_export_to_state_peer(&ps->src, &s->src);
@@ -1131,8 +1132,19 @@ pf_state_export_to_state(struct pfctl_state *ps, const struct pf_state_export *s
 	ps->key[0].af = s->af;
 	ps->key[1].af = s->af;
 	ps->direction = s->direction;
-	ps->state_flags = s->state_flags;
-	ps->sync_flags = s->sync_flags;
+	ps->state_flags = ntohs(s->state_flags);
+	ps->sync_flags = ntohs(s->sync_flags);
+	ps->qid = ntohs(s->qid);
+	ps->pqid = ntohs(s->pqid);
+	ps->dnpipe = ntohs(s->dnpipe);
+	ps->dnrpipe = ntohs(s->dnrpipe);
+	ps->rtableid = ntohl(s->rtableid);
+	ps->min_ttl = s->min_ttl;
+	ps->set_tos = s->set_tos;
+	ps->max_mss = ntohs(s->max_mss);
+	ps->rt = s->rt;
+	ps->set_prio[0] = s->set_prio[0];
+	ps->set_prio[1] = s->set_prio[1];
 }
 
 int

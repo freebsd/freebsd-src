@@ -40,8 +40,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/abi_compat.h>
 #include <dev/mrsas/mrsas.h>
 #include <dev/mrsas/mrsas_ioctl.h>
+
+struct mrsas_passthru_cmd {
+	struct mrsas_sge64 *kern_sge;
+	struct mrsas_softc *sc;
+	struct mrsas_mfi_cmd *cmd;
+	bus_dma_tag_t ioctl_data_tag;
+	bus_dmamap_t ioctl_data_dmamap;
+
+	u_int32_t error_code;
+	u_int32_t sge_count;
+	int complete;
+};
 
 /*
  * Function prototypes
@@ -61,6 +74,54 @@ extern void mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd);
 extern int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
+
+/*
+ * mrsas_data_load_cb:  Callback entry point
+ * input:                               Pointer to command packet as argument
+ *                                              Pointer to segment
+ *                                              Number of segments Error
+ *
+ * This is the callback function of the bus dma map load.  It builds the SG
+ * list.
+ */
+static void
+mrsas_passthru_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+        struct mrsas_passthru_cmd *cb = (struct mrsas_passthru_cmd *)arg;
+        struct mrsas_softc *sc = cb->sc;
+	int i = 0;
+
+	if (error) {
+		cb->error_code = error;
+		if (error == EFBIG) {
+			device_printf(sc->mrsas_dev, "mrsas_passthru_load_cb: "
+			    "error=%d EFBIG\n", error);
+			cb->complete = 1;
+			return;
+		} else {
+			device_printf(sc->mrsas_dev, "mrsas_passthru_load_cb: "
+			    "error=%d UNKNOWN\n", error);
+		}
+	}
+	if (nseg > MAX_IOCTL_SGE) {
+		cb->error_code = EFBIG;
+		device_printf(sc->mrsas_dev, "mrsas_passthru_load_cb: "
+		    "too many segments: %d\n", nseg);
+		cb->complete = 1;
+		return;
+	}
+
+	for (i = 0; i < nseg; i++) {
+		cb->kern_sge[i].phys_addr = htole64(segs[i].ds_addr);
+		cb->kern_sge[i].length = htole32(segs[i].ds_len);
+	}
+	cb->sge_count = nseg;
+
+	bus_dmamap_sync(cb->ioctl_data_tag, cb->ioctl_data_dmamap,
+            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	cb->complete = 1;
+}
 
 /*
  * mrsas_passthru:	Handle pass-through commands
@@ -343,6 +404,200 @@ out:
 
 	return (ret);
 }
+
+/**
+ * mrsas_user_command:    Handle user mode DCMD and buffer
+ * input:                 Adapter instance soft state
+ *                        argument pointer
+ *
+ * This function is called from mrsas_ioctl() DCMDs to firmware for mfiutil
+ */
+int
+mrsas_user_command(struct mrsas_softc *sc, struct mfi_ioc_passthru *ioc)
+{
+	struct mrsas_mfi_cmd *cmd;
+	struct mrsas_dcmd_frame *dcmd;
+	struct mrsas_passthru_cmd *passcmd;
+	bus_dma_tag_t ioctl_data_tag;
+	bus_dmamap_t ioctl_data_dmamap;
+	bus_addr_t ioctl_data_phys_addr;
+	struct mrsas_sge64 *kern_sge;
+	int ret, ioctl_data_size;
+	char *ioctl_temp_data_mem;
+
+	ret = 0;
+	ioctl_temp_data_mem = NULL;
+	passcmd = NULL;
+	ioctl_data_phys_addr = 0;
+	dcmd = NULL;
+	cmd = NULL;
+	ioctl_data_tag = NULL;
+	ioctl_data_dmamap = NULL;
+	ioctl_data_dmamap = NULL;
+
+	/* Get a command */
+	cmd = mrsas_get_mfi_cmd(sc);
+	if (!cmd) {
+		device_printf(sc->mrsas_dev,
+		    "Failed to get a free cmd for IOCTL\n");
+		return(ENOMEM);
+	}
+
+	/*
+	 * Frame is DCMD
+	 */
+	dcmd = (struct mrsas_dcmd_frame *)cmd->frame;
+	memcpy(dcmd, &ioc->ioc_frame, sizeof(struct mrsas_dcmd_frame));
+
+	ioctl_data_size = ioc->buf_size;
+
+	cmd->frame->hdr.context = cmd->index;
+	cmd->frame->hdr.pad_0 = 0;
+	cmd->frame->hdr.flags = MFI_FRAME_DIR_BOTH;
+	if (sizeof(bus_addr_t) == 8)
+		cmd->frame->hdr.flags |= MFI_FRAME_SGL64 | MFI_FRAME_SENSE64;
+
+	kern_sge = (struct mrsas_sge64 *)(&dcmd->sgl);
+
+	if (ioctl_data_size == 0) {
+		kern_sge[0].phys_addr = 0;
+		kern_sge[0].length = 0;
+	} else {
+		ioctl_temp_data_mem = malloc(ioc->buf_size, M_MRSAS, M_WAITOK);
+		if (ioctl_temp_data_mem == NULL) {
+			device_printf(sc->mrsas_dev, "Could not allocate "
+			    "%d memory for temporary passthrough ioctl\n",
+			    ioc->buf_size);
+		ret = ENOMEM;
+		goto out;
+		}
+
+		/* Copy in data from user space */
+		ret = copyin(ioc->buf, ioctl_temp_data_mem, ioc->buf_size);
+		if (ret) {
+			device_printf(sc->mrsas_dev, "IOCTL copyin failed!\n");
+			goto out;
+		}
+
+		/*
+		 * Allocate a temporary struct to hold parameters for the
+		 * callback
+		 */
+		passcmd = malloc(sizeof(struct mrsas_passthru_cmd), M_MRSAS,
+		    M_WAITOK);
+		if (passcmd == NULL) {
+			device_printf(sc->mrsas_dev, "Could not allocate "
+			    "memory for temporary passthrough cb struct\n");
+			ret = ENOMEM;
+			goto out;
+		}
+		passcmd->complete = 0;
+		passcmd->sc = sc;
+		passcmd->cmd = cmd;
+		passcmd->kern_sge = kern_sge;
+
+		/*
+		 * Create a dma tag for passthru buffers
+		 */
+		if (bus_dma_tag_create(sc->mrsas_parent_tag,   /* parent */
+		    1, 0,                   /* algnmnt, boundary */
+		    BUS_SPACE_MAXADDR,      /* lowaddr */
+		    BUS_SPACE_MAXADDR,      /* highaddr */
+		    NULL, NULL,             /* filter, filterarg */
+		    ioctl_data_size,        /* maxsize */
+		    MAX_IOCTL_SGE,          /* msegments */
+		    ioctl_data_size,        /* maxsegsize */
+		    BUS_DMA_ALLOCNOW,       /* flags */
+		    busdma_lock_mutex,      /* lockfunc */
+		    &sc->ioctl_lock,        /* lockarg */
+		    &ioctl_data_tag)) {
+			device_printf(sc->mrsas_dev,
+			   "Cannot allocate ioctl data tag %d\n",
+			    ioc->buf_size);
+			ret = ENOMEM;
+			goto out;
+		}
+
+		/* Create memmap */
+		if (bus_dmamap_create(ioctl_data_tag, 0, &ioctl_data_dmamap)) {
+			device_printf(sc->mrsas_dev, "Cannot create ioctl "
+			    "passthru dmamap\n");
+			ret = ENOMEM;
+			goto out;
+		}
+
+		passcmd->ioctl_data_tag = ioctl_data_tag;
+		passcmd->ioctl_data_dmamap = ioctl_data_dmamap;
+
+		/* Map data buffer into bus space */
+		if (bus_dmamap_load(ioctl_data_tag, ioctl_data_dmamap,
+		    ioctl_temp_data_mem, ioc->buf_size, mrsas_passthru_load_cb,
+		    passcmd, BUS_DMA_NOWAIT)) {
+			device_printf(sc->mrsas_dev, "Cannot load ioctl "
+			    "passthru data mem%s %d\n", curproc->p_comm, ioctl_data_size);
+			ret = ENOMEM;
+			goto out;
+		}
+
+		while (passcmd->complete == 0) {
+			pause("mrsas_passthru", hz);
+		}
+
+		cmd->frame->dcmd.sge_count = passcmd->sge_count;
+	}
+
+	/*
+	 * Set the sync_cmd flag so that the ISR knows not to complete this
+	 * cmd to the SCSI mid-layer
+	 */
+	cmd->sync_cmd = 1;
+	mrsas_issue_blocked_cmd(sc, cmd);
+	cmd->sync_cmd = 0;
+
+	if (ioctl_data_size != 0) {
+		bus_dmamap_sync(ioctl_data_tag, ioctl_data_dmamap,
+		    BUS_DMASYNC_POSTREAD);
+		/*
+		 * copy out the kernel buffers to user buffers
+		 */
+		ret = copyout(ioctl_temp_data_mem, ioc->buf, ioc->buf_size);
+		if (ret) {
+			device_printf(sc->mrsas_dev,
+			    "IOCTL copyout failed!\n");
+			goto out;
+		}
+	}
+
+	/*
+	 * Return command status to user space
+	 */
+	memcpy(&ioc->ioc_frame.cmd_status, &cmd->frame->hdr.cmd_status,
+	    sizeof(u_int8_t));
+
+out:
+	/*
+	 * Release temporary passthrough ioctl
+	 */
+	if (ioctl_temp_data_mem)
+		free(ioctl_temp_data_mem, M_MRSAS);
+	if (passcmd)
+		free(passcmd, M_MRSAS);
+
+	/*
+	 * Release data buffers
+	 */
+	if (ioctl_data_phys_addr) {
+		bus_dmamap_unload(ioctl_data_tag, ioctl_data_dmamap);
+		bus_dmamap_destroy(ioctl_data_tag, ioctl_data_dmamap);
+	}
+	if (ioctl_data_tag != NULL)
+		bus_dma_tag_destroy(ioctl_data_tag);
+	/* Free command */
+	mrsas_release_mfi_cmd(cmd);
+
+	return(ret);
+}
+
 
 /*
  * mrsas_alloc_mfi_cmds:	Allocates the command packets

@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ extern "C" {
  *      for this interface.
  *
  *****************************************************************************/
-#define CPA_CY_API_VERSION_NUM_MAJOR (2)
+#define CPA_CY_API_VERSION_NUM_MAJOR (3)
 
 /**
  *****************************************************************************
@@ -98,10 +98,43 @@ extern "C" {
  *      this interface.
  *
  *****************************************************************************/
-#define CPA_CY_API_VERSION_NUM_MINOR (3)
+#define CPA_CY_API_VERSION_NUM_MINOR (0)
 
 /**
  *****************************************************************************
+ * @file cpa_cy_common.h
+ * @ingroup cpa_cyCommon
+ *       CPA CY API version at least
+ * @description
+ *      The minimal supported CPA_CY API version. Allow to check if the API
+ *      version is equal or above some version to avoid compilation issues
+ *      with an older API version.
+ *
+ *****************************************************************************/
+#define CPA_CY_API_VERSION_AT_LEAST(major, minor)                              \
+    (CPA_CY_API_VERSION_NUM_MAJOR > major ||                                   \
+     (CPA_CY_API_VERSION_NUM_MAJOR == major &&                                 \
+      CPA_CY_API_VERSION_NUM_MINOR >= minor))
+
+/**
+ *****************************************************************************
+ * @file cpa_cy_common.h
+ * @ingroup cpa_cyCommon
+ *       CPA CY API version less than
+ * @description
+ *      The maximum supported CPA_CY API version. Allow to check if the API
+ *      version is below some version to avoid compilation issues with a newer
+ *      API version.
+ *
+ *****************************************************************************/
+#define CPA_CY_API_VERSION_LESS_THAN(major, minor)                             \
+    (CPA_CY_API_VERSION_NUM_MAJOR < major ||                                   \
+     (CPA_CY_API_VERSION_NUM_MAJOR == major &&                                 \
+      CPA_CY_API_VERSION_NUM_MINOR < minor))
+
+/**
+ *****************************************************************************
+ * @file cpa_cy_common.h
  * @ingroup cpaCyCommon
  *      Request priority
  * @description

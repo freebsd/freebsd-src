@@ -3746,33 +3746,33 @@ _Static_assert(_GENERIC_MAXDIRSIZ == sizeof(struct dirent),
     "(see _GENERIC_DIRLEN())");
 
 /*
- * Returns successive directory entries through some caller's provided buffer
+ * Returns successive directory entries through some caller's provided buffer.
  *
  * This function automatically refills the provided buffer with calls to
  * VOP_READDIR() (after MAC permission checks).
  *
- * 'td' is used for credentials and passed to uiomove(). 'dirbuf' is the
- * caller's buffer to fill and 'dirbuflen' its allocated size. 'dirbuf' must be
- * properly aligned to access 'struct dirent' structures and 'dirbuflen' must
- * be greater than GENERIC_MAXDIRSIZ to avoid VOP_READDIR() returning EINVAL
- * (the latter is not a strong guarantee (yet); but EINVAL will always be
- * returned if this requirement is not verified). '*dpp' points to the current
- * directory entry in the buffer and '*len' contains the remaining valid bytes
- * in 'dirbuf' after 'dpp' (including the pointed entry).
+ * 'td' is used for credentials and passed to uiomove().  'dirbuf' is the
+ * caller's buffer to fill and 'dirbuflen' its allocated size.  'dirbuf' must
+ * be properly aligned to access 'struct dirent' structures and 'dirbuflen'
+ * must be greater than GENERIC_MAXDIRSIZ to avoid VOP_READDIR() returning
+ * EINVAL (the latter is not a strong guarantee (yet); but EINVAL will always
+ * be returned if this requirement is not verified).  '*dpp' points to the
+ * current directory entry in the buffer and '*len' contains the remaining
+ * valid bytes in 'dirbuf' after 'dpp' (including the pointed entry).
  *
  * At first call (or when restarting the read), '*len' must have been set to 0,
- * '*off' to 0 (or any valid start offset) and '*eofflag' to 0. There are no
- * more entries as soon as '*len' is 0 after a call that returned 0. Calling
+ * '*off' to 0 (or any valid start offset) and '*eofflag' to 0.  There are no
+ * more entries as soon as '*len' is 0 after a call that returned 0.  Calling
  * again this function after such a condition is considered an error and EINVAL
- * will be returned. Other possible error codes are those of VOP_READDIR(),
+ * will be returned.  Other possible error codes are those of VOP_READDIR(),
  * EINTEGRITY if the returned entries do not pass coherency tests, or EINVAL
- * (bad call). All errors are unrecoverable, i.e., the state ('*len', '*off'
- * and '*eofflag') must be re-initialized before a subsequent call. On error or
- * at end of directory, '*dpp' is reset to NULL.
+ * (bad call).  All errors are unrecoverable, i.e., the state ('*len', '*off'
+ * and '*eofflag') must be re-initialized before a subsequent call.  On error
+ * or at end of directory, '*dpp' is reset to NULL.
  *
  * '*len', '*off' and '*eofflag' are internal state the caller should not
- * tamper with except as explained above. '*off' is the next directory offset
- * to read from to refill the buffer. '*eofflag' is set to 0 or 1 by the last
+ * tamper with except as explained above.  '*off' is the next directory offset
+ * to read from to refill the buffer.  '*eofflag' is set to 0 or 1 by the last
  * internal call to VOP_READDIR() that returned without error, indicating
  * whether it reached the end of the directory, and to 2 by this function after
  * all entries have been read.
@@ -3804,7 +3804,7 @@ vn_dir_next_dirent(struct vnode *vp, struct thread *td,
 
 		/*
 		 * The caller continued to call us after an error (we set dp to
-		 * NULL in a previous iteration). Bail out right now.
+		 * NULL in a previous iteration).  Bail out right now.
 		 */
 		if (__predict_false(dp == NULL))
 			return (EINVAL);
@@ -3894,6 +3894,97 @@ success:
 	error = 0;
 out:
 	*dpp = dp;
+	return (error);
+}
+
+/*
+ * Checks whether a directory is empty or not.
+ *
+ * If the directory is empty, returns 0, and if it is not, ENOTEMPTY.  Other
+ * values are genuine errors preventing the check.
+ */
+int
+vn_dir_check_empty(struct vnode *vp)
+{
+	struct thread *const td = curthread;
+	char *dirbuf;
+	size_t dirbuflen, len;
+	off_t off;
+	int eofflag, error;
+	struct dirent *dp;
+	struct vattr va;
+
+	ASSERT_VOP_LOCKED(vp, "vfs_emptydir");
+	VNPASS(vp->v_type == VDIR, vp);
+
+	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	if (error != 0)
+		return (error);
+
+	dirbuflen = max(DEV_BSIZE, GENERIC_MAXDIRSIZ);
+	if (dirbuflen < va.va_blocksize)
+		dirbuflen = va.va_blocksize;
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+	len = 0;
+	off = 0;
+	eofflag = 0;
+
+	for (;;) {
+		error = vn_dir_next_dirent(vp, td, dirbuf, dirbuflen,
+		    &dp, &len, &off, &eofflag);
+		if (error != 0)
+			goto end;
+
+		if (len == 0) {
+			/* EOF */
+			error = 0;
+			goto end;
+		}
+
+		/*
+		 * Skip whiteouts.  Unionfs operates on filesystems only and
+		 * not on hierarchies, so these whiteouts would be shadowed on
+		 * the system hierarchy but not for a union using the
+		 * filesystem of their directories as the upper layer.
+		 * Additionally, unionfs currently transparently exposes
+		 * union-specific metadata of its upper layer, meaning that
+		 * whiteouts can be seen through the union view in empty
+		 * directories.  Taking into account these whiteouts would then
+		 * prevent mounting another filesystem on such effectively
+		 * empty directories.
+		 */
+		if (dp->d_type == DT_WHT)
+			continue;
+
+		/*
+		 * Any file in the directory which is not '.' or '..' indicates
+		 * the directory is not empty.
+		 */
+		switch (dp->d_namlen) {
+		case 2:
+			if (dp->d_name[1] != '.') {
+				/* Can't be '..' (nor '.') */
+				error = ENOTEMPTY;
+				goto end;
+			}
+			/* FALLTHROUGH */
+		case 1:
+			if (dp->d_name[0] != '.') {
+				/* Can't be '..' nor '.' */
+				error = ENOTEMPTY;
+				goto end;
+			}
+			break;
+
+		default:
+			error = ENOTEMPTY;
+			goto end;
+		}
+	}
+
+end:
+	free(dirbuf, M_TEMP);
 	return (error);
 }
 

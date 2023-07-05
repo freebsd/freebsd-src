@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_nhop
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 /*
  * This file contains the logic to maintain kernel nexthops and
@@ -455,7 +455,7 @@ dump_nhop(const struct nhop_object *nh, uint32_t uidx, struct nlmsghdr *hdr,
 		nlattr_add_flag(nw, NHA_BLACKHOLE);
 		goto done;
 	}
-	nlattr_add_u32(nw, NHA_OIF, nh->nh_ifp->if_index);
+	nlattr_add_u32(nw, NHA_OIF, if_getindex(nh->nh_ifp));
 
 	switch (nh->gw_sa.sa_family) {
 #ifdef INET
@@ -476,7 +476,7 @@ dump_nhop(const struct nhop_object *nh, uint32_t uidx, struct nlmsghdr *hdr,
 
 	int off = nlattr_add_nested(nw, NHA_FREEBSD);
 	if (off != 0) {
-		nlattr_add_u32(nw, NHAF_AIF, nh->nh_aifp->if_index);
+		nlattr_add_u32(nw, NHAF_AIF, if_getindex(nh->nh_aifp));
 
 		if (uidx == 0) {
 			nlattr_add_u32(nw, NHAF_KID, nhop_get_idx(nh));
@@ -678,6 +678,19 @@ nlattr_get_nhg(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void 
 	return (error);
 }
 
+static void
+set_scope6(struct sockaddr *sa, if_t ifp)
+{
+#ifdef INET6
+	if (sa != NULL && sa->sa_family == AF_INET6 && ifp != NULL) {
+		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
+
+		if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr))
+			in6_set_unicast_scopeid(&sa6->sin6_addr, if_getindex(ifp));
+	}
+#endif
+}
+
 struct nl_parsed_nhop {
 	uint32_t	nha_id;
 	uint8_t		nha_blackhole;
@@ -721,7 +734,16 @@ static const struct nlattr_parser nla_p_nh[] = {
 };
 #undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(nhmsg_parser, struct nhmsg, nlf_p_nh, nla_p_nh);
+
+static bool
+post_p_nh(void *_attrs, struct nl_pstate *npt)
+{
+	struct nl_parsed_nhop *attrs = (struct nl_parsed_nhop *)_attrs;
+
+	set_scope6(attrs->nha_gw, attrs->nha_oif);
+	return (true);
+}
+NL_DECLARE_PARSER_EXT(nhmsg_parser, struct nhmsg, NULL, nlf_p_nh, nla_p_nh, post_p_nh);
 
 static bool
 eligible_nhg(const struct nhop_object *nh)
@@ -777,7 +799,7 @@ newnhg(struct unhop_ctl *ctl, struct nl_parsed_nhop *attrs, struct user_nhop *un
  * Returns 0 on success or errno.
  */
 int
-nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, struct ifnet *ifp,
+nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, if_t ifp,
     struct nl_pstate *npt)
 {
 #ifdef INET6
@@ -788,7 +810,7 @@ nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, struct ifnet *ifp
 				NLMSG_REPORT_ERR_MSG(npt, "interface not set");
 				return (EINVAL);
 			}
-			in6_set_unicast_scopeid(&gw6->sin6_addr, ifp->if_index);
+			in6_set_unicast_scopeid(&gw6->sin6_addr, if_getindex(ifp));
 		}
 	}
 #endif
@@ -886,7 +908,7 @@ rtnl_handle_newnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		}
 	}
 
-	NL_LOG(LOG_DEBUG, "IFINDEX %d", attrs.nha_oif ? attrs.nha_oif->if_index : 0);
+	NL_LOG(LOG_DEBUG, "IFINDEX %d", attrs.nha_oif ? if_getindex(attrs.nha_oif) : 0);
 
 	unhop = malloc(sizeof(struct user_nhop), M_NETLINK, M_NOWAIT | M_ZERO);
 	if (unhop == NULL) {

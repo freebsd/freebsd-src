@@ -251,7 +251,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
-#define	VV_READLINK	0x2000	/* fdescfs linux vnode */
+#define	VV_UNUSED01	0x2000	/* was: fdescfs linux vnode */
 #define	VV_UNREF	0x4000	/* vunref, do not drop lock in inactive() */
 #define	VV_CROSSLOCK	0x8000	/* vnode lock is shared w/ root mounted here */
 
@@ -1102,8 +1102,8 @@ struct dirent;
 int vn_dir_next_dirent(struct vnode *vp, struct thread *td,
     char *dirbuf, size_t dirbuflen,
     struct dirent **dpp, size_t *len, off_t *off, int *eofflag);
+int vn_dir_check_empty(struct vnode *vp);
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
-int vfs_emptydir(struct vnode *vp);
 
 int vfs_unixify_accmode(accmode_t *accmode);
 

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003-2007, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
@@ -76,7 +76,8 @@ typedef enum ring_type {
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
-	uintfptr_t	pm_entryaddr;
+	uintptr_t	pm_baseaddr;
+	uintptr_t	pm_dynaddr;
 };
 
 struct pmckern_map_in {

@@ -1,23 +1,28 @@
-/* Copyright 1988,1990,1993,1994 by Paul Vixie
+/*
+ * Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
+ */
+
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
  *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$Id: entry.c,v 1.3 1998/08/14 00:32:39 vixie Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]
@@ -42,12 +47,7 @@ typedef	enum ecode {
 #endif
 } ecode_e;
 
-static char	get_list(bitstr_t *, int, int, char *[], int, FILE *),
-		get_range(bitstr_t *, int, int, char *[], int, FILE *),
-		get_number(int *, int, char *[], int, FILE *);
-static int	set_element(bitstr_t *, int, int, int);
-
-static char *ecodes[] =
+static const char *ecodes[] =
 	{
 		"no error",
 		"bad minute",
@@ -66,6 +66,10 @@ static char *ecodes[] =
 #endif
 	};
 
+static char	get_list(bitstr_t *, int, int, const char *[], int, FILE *),
+		get_range(bitstr_t *, int, int, const char *[], int, FILE *),
+		get_number(int *, int, const char *[], int, FILE *);
+static int	set_element(bitstr_t *, int, int, int);
 
 void
 free_entry(entry *e)
@@ -86,7 +90,7 @@ free_entry(entry *e)
  * otherwise return a pointer to a new entry.
  */
 entry *
-load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
+load_entry(FILE *file, void (*error_func)(const char *), struct passwd *pw,
     char **envp)
 {
 	/* this function reads one crontab entry -- the next -- from a file.
@@ -105,6 +109,7 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 	ecode_e	ecode = e_none;
 	entry	*e;
 	int	ch;
+	int	len;
 	char	cmd[MAX_COMMAND];
 	char	envstr[MAX_ENVSTR];
 	char	**prev_env;
@@ -379,10 +384,9 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 	}
 	if (!env_get("SHELL", e->envp)) {
 		prev_env = e->envp;
-		sprintf(envstr, "SHELL=%s", _PATH_BSHELL);
-		e->envp = env_set(e->envp, envstr);
+		e->envp = env_set(e->envp, "SHELL=" _PATH_BSHELL);
 		if (e->envp == NULL) {
-			warn("env_set(%s)", envstr);
+			warn("env_set(%s)", "SHELL=" _PATH_BSHELL);
 			env_free(prev_env);
 			ecode = e_mem;
 			goto eof;
@@ -394,9 +398,10 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 #ifndef LOGIN_CAP
 	if (!env_get("HOME", e->envp)) {
 		prev_env = e->envp;
-		sprintf(envstr, "HOME=%s", pw->pw_dir);
-		e->envp = env_set(e->envp, envstr);
-		if (e->envp == NULL) {
+		len = snprintf(envstr, sizeof(envstr), "HOME=%s", pw->pw_dir);
+		if (len < (int)sizeof(envstr))
+			e->envp = env_set(e->envp, envstr);
+		if (len >= (int)sizeof(envstr) || e->envp == NULL) {
 			warn("env_set(%s)", envstr);
 			env_free(prev_env);
 			ecode = e_mem;
@@ -405,9 +410,10 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 	}
 #endif
 	prev_env = e->envp;
-	sprintf(envstr, "%s=%s", "LOGNAME", pw->pw_name);
-	e->envp = env_set(e->envp, envstr);
-	if (e->envp == NULL) {
+	len = snprintf(envstr, sizeof(envstr), "LOGNAME=%s", pw->pw_name);
+	if (len < (int)sizeof(envstr))
+		e->envp = env_set(e->envp, envstr);
+	if (len >= (int)sizeof(envstr) || e->envp == NULL) {
 		warn("env_set(%s)", envstr);
 		env_free(prev_env);
 		ecode = e_mem;
@@ -415,9 +421,10 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 	}
 #if defined(BSD)
 	prev_env = e->envp;
-	sprintf(envstr, "%s=%s", "USER", pw->pw_name);
-	e->envp = env_set(e->envp, envstr);
-	if (e->envp == NULL) {
+	len = snprintf(envstr, sizeof(envstr), "USER=%s", pw->pw_name);
+	if (len < (int)sizeof(envstr))
+		e->envp = env_set(e->envp, envstr);
+	if (len >= (int)sizeof(envstr) || e->envp == NULL) {
 		warn("env_set(%s)", envstr);
 		env_free(prev_env);
 		ecode = e_mem;
@@ -477,7 +484,6 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 	/* Everything up to the next \n or EOF is part of the command...
 	 * too bad we don't know in advance how long it will be, since we
 	 * need to malloc a string for it... so, we limit it to MAX_COMMAND.
-	 * XXX - should use realloc().
 	 */
 	ch = get_string(cmd, MAX_COMMAND, file, "\n");
 
@@ -512,10 +518,18 @@ load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
 }
 
 
+/*
+ * bits		one bit per flag, default=FALSE
+ * low, high	bounds, impl. offset for bitstr
+ * names	NULL or names for these elements
+ * ch		current character being processed
+ * file		file being read
+ */
 static char
-get_list(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
+get_list(bitstr_t *bits, int low, int high, const char *names[], int ch,
+    FILE *file)
 {
-	register int	done;
+	int done;
 
 	/* we know that we point to a non-blank character here;
 	 * must do a Skip_Blanks before we exit, so that the
@@ -554,14 +568,21 @@ get_list(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
 }
 
 
+/*
+ * bits		one bit per flag, default=FALSE
+ * low, high	bounds, impl. offset for bitstr
+ * names	NULL or names for these elements
+ * ch		current character being processed
+ * file		file being read
+ */
 static char
-get_range(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
+get_range(bitstr_t *bits, int low, int high, const char *names[], int ch,
+    FILE *file)
 {
 	/* range = number | number "-" number [ "/" number ]
 	 */
 
-	register int	i;
-	auto int	num1, num2, num3;
+	int i, num1, num2, num3;
 
 	Debug(DPARS|DEXT, ("get_range()...entering, exit won't show\n"))
 
@@ -626,7 +647,7 @@ get_range(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
 	/* range. set all elements from num1 to num2, stepping
 	 * by num3.  (the step is a downward-compatible extension
 	 * proposed conceptually by bob@acornrc, syntactically
-	 * designed then implmented by paul vixie).
+	 * designed then implemented by paul vixie).
 	 */
 	for (i = num1;  i <= num2;  i += num3)
 		if (EOF == set_element(bits, low, high, i))
@@ -636,8 +657,15 @@ get_range(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
 }
 
 
+/*
+ * numptr	where does the result go?
+ * low		offset applied to enum result
+ * names	symbolic names, if any, for enums
+ * ch		current character
+ * file		source
+ */
 static char
-get_number(int *numptr, int low, char *names[], int ch, FILE *file)
+get_number(int *numptr, int low, const char *names[], int ch, FILE *file)
 {
 	char	temp[MAX_TEMPSTR], *pc;
 	int	len, i, all_digits;

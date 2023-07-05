@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002-2006 Rice University
  * Copyright (c) 2007 Alan L. Cox <alc@cs.rice.edu>
@@ -898,13 +898,9 @@ vm_page_t
 vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 {
 	struct vm_phys_seg *seg;
-	int segind;
 
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
-		if (pa >= seg->start && pa < seg->end)
-			return (&seg->first_page[atop(pa - seg->start)]);
-	}
+	if ((seg = vm_phys_paddr_to_seg(pa)) != NULL)
+		return (&seg->first_page[atop(pa - seg->start)]);
 	return (NULL);
 }
 
@@ -1238,65 +1234,44 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 }
 
 /*
- * Scan physical memory between the specified addresses "low" and "high" for a
- * run of contiguous physical pages that satisfy the specified conditions, and
- * return the lowest page in the run.  The specified "alignment" determines
- * the alignment of the lowest physical page in the run.  If the specified
- * "boundary" is non-zero, then the run of physical pages cannot span a
- * physical address that is a multiple of "boundary".
- *
- * "npages" must be greater than zero.  Both "alignment" and "boundary" must
- * be a power of two.
+ * Identify the first address range within segment segind or greater
+ * that matches the domain, lies within the low/high range, and has
+ * enough pages.  Return -1 if there is none.
  */
-vm_page_t
-vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary, int options)
+int
+vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
+    u_long npages, vm_paddr_t low, vm_paddr_t high)
 {
-	vm_paddr_t pa_end;
-	vm_page_t m_end, m_run, m_start;
-	struct vm_phys_seg *seg;
-	int segind;
+	vm_paddr_t pa_end, pa_start;
+	struct vm_phys_seg *end_seg, *seg;
 
-	KASSERT(npages > 0, ("npages is 0"));
-	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
-	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	if (low >= high)
-		return (NULL);
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
+	KASSERT(npages > 0, ("npages is zero"));
+	KASSERT(domain >= 0 && domain < vm_ndomains, ("domain out of range"));
+	end_seg = &vm_phys_segs[vm_phys_nsegs];
+	for (seg = &vm_phys_segs[segind]; seg < end_seg; seg++) {
 		if (seg->domain != domain)
 			continue;
 		if (seg->start >= high)
-			break;
-		if (low >= seg->end)
+			return (-1);
+		pa_start = MAX(low, seg->start);
+		pa_end = MIN(high, seg->end);
+		if (pa_end - pa_start < ptoa(npages))
 			continue;
-		if (low <= seg->start)
-			m_start = seg->first_page;
-		else
-			m_start = &seg->first_page[atop(low - seg->start)];
-		if (high < seg->end)
-			pa_end = high;
-		else
-			pa_end = seg->end;
-		if (pa_end - VM_PAGE_TO_PHYS(m_start) < ptoa(npages))
-			continue;
-		m_end = &seg->first_page[atop(pa_end - seg->start)];
-		m_run = vm_page_scan_contig(npages, m_start, m_end,
-		    alignment, boundary, options);
-		if (m_run != NULL)
-			return (m_run);
+		bounds[0] = &seg->first_page[atop(pa_start - seg->start)];
+		bounds[1] = &seg->first_page[atop(pa_end - seg->start)];
+		return (seg - vm_phys_segs);
 	}
-	return (NULL);
+	return (-1);
 }
 
 /*
  * Search for the given physical page "m" in the free lists.  If the search
- * succeeds, remove "m" from the free lists and return TRUE.  Otherwise, return
- * FALSE, indicating that "m" is not in the free lists.
+ * succeeds, remove "m" from the free lists and return true.  Otherwise, return
+ * false, indicating that "m" is not in the free lists.
  *
  * The free page queues must be locked.
  */
-boolean_t
+bool
 vm_phys_unfree_page(vm_page_t m)
 {
 	struct vm_freelist *fl;
@@ -1319,12 +1294,12 @@ vm_phys_unfree_page(vm_page_t m)
 		if (pa >= seg->start)
 			m_set = &seg->first_page[atop(pa - seg->start)];
 		else
-			return (FALSE);
+			return (false);
 	}
 	if (m_set->order < order)
-		return (FALSE);
+		return (false);
 	if (m_set->order == VM_NFREEORDER)
-		return (FALSE);
+		return (false);
 	KASSERT(m_set->order < VM_NFREEORDER,
 	    ("vm_phys_unfree_page: page %p has unexpected order %d",
 	    m_set, m_set->order));
@@ -1350,7 +1325,7 @@ vm_phys_unfree_page(vm_page_t m)
 		vm_freelist_add(fl, m_tmp, order, 0);
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
-	return (TRUE);
+	return (true);
 }
 
 /*

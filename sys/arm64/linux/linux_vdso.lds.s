@@ -70,7 +70,7 @@ VERSION
 	global:
 		linux_platform;
 		kern_timekeep_base;
-		linux_vdso_sigcode;
+		__user_rt_sigreturn;
 	local: *;
 	};
 }

@@ -60,7 +60,7 @@ of usage is written.  It is also possible to evaluate all machine functions
 in a single invocation as explained in the section _Function_Sets_ later in
 this document.
 
-Ordinarily, a function's speed will be evaulated separately for each of
+Ordinarily, a function's speed will be evaluated separately for each of
 the four rounding modes, one after the other.  If the rounding mode is not
 supposed to have any affect on the results of a function--for instance,
 some operations do not require rounding--only the nearest/even rounding mode

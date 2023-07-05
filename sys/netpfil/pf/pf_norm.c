@@ -883,7 +883,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* Take protocol from first fragment header. */
 	m = m_getptr(m, hdrlen + offsetof(struct ip6_frag, ip6f_nxt), &off);
 	KASSERT(m, ("%s: short mbuf chain", __func__));
-	proto = *(mtod(m, caddr_t) + off);
+	proto = *(mtod(m, uint8_t *) + off);
 	m = *m0;
 
 	/* Delete frag6 header */
@@ -898,8 +898,8 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 		m->m_pkthdr.len = plen;
 	}
 
-	if ((mtag = m_tag_get(PF_REASSEMBLED, sizeof(struct pf_fragment_tag),
-	    M_NOWAIT)) == NULL)
+	if ((mtag = m_tag_get(PACKET_TAG_PF_REASSEMBLED,
+	    sizeof(struct pf_fragment_tag), M_NOWAIT)) == NULL)
 		goto fail;
 	ftag = (struct pf_fragment_tag *)(mtag + 1);
 	ftag->ft_hdrlen = hdrlen;
@@ -967,7 +967,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 		m = m_getptr(m, extoff + offsetof(struct ip6_ext, ip6e_nxt),
 		    &off);
 		KASSERT((m != NULL), ("pf_refragment6: short mbuf chain"));
-		proto = *(mtod(m, caddr_t) + off);
+		proto = *(mtod(m, uint8_t *) + off);
 		*(mtod(m, char *) + off) = IPPROTO_FRAGMENT;
 		m = *m0;
 	} else {
@@ -1576,10 +1576,8 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 void
 pf_normalize_tcp_cleanup(struct pf_kstate *state)
 {
-	if (state->src.scrub)
-		uma_zfree(V_pf_state_scrub_z, state->src.scrub);
-	if (state->dst.scrub)
-		uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
+	uma_zfree(V_pf_state_scrub_z, state->src.scrub);
+	uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
 }

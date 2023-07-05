@@ -1160,7 +1160,7 @@ vfs_domount_first(
 			error = ENOTDIR;
 	}
 	if (error == 0 && (fsflags & MNT_EMPTYDIR) != 0)
-		error = vfs_emptydir(vp);
+		error = vn_dir_check_empty(vp);
 	if (error == 0) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) == 0 && vp->v_mountedhere == NULL)

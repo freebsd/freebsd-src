@@ -158,20 +158,15 @@ extern boolean_t vdev_allocatable(vdev_t *vd);
 extern boolean_t vdev_accessible(vdev_t *vd, zio_t *zio);
 extern boolean_t vdev_is_spacemap_addressable(vdev_t *vd);
 
-extern void vdev_cache_init(vdev_t *vd);
-extern void vdev_cache_fini(vdev_t *vd);
-extern boolean_t vdev_cache_read(zio_t *zio);
-extern void vdev_cache_write(zio_t *zio);
-extern void vdev_cache_purge(vdev_t *vd);
-
 extern void vdev_queue_init(vdev_t *vd);
 extern void vdev_queue_fini(vdev_t *vd);
 extern zio_t *vdev_queue_io(zio_t *zio);
 extern void vdev_queue_io_done(zio_t *zio);
 extern void vdev_queue_change_io_priority(zio_t *zio, zio_priority_t priority);
 
-extern int vdev_queue_length(vdev_t *vd);
+extern uint32_t vdev_queue_length(vdev_t *vd);
 extern uint64_t vdev_queue_last_offset(vdev_t *vd);
+extern uint64_t vdev_queue_class_length(vdev_t *vq, zio_priority_t p);
 
 extern void vdev_config_dirty(vdev_t *vd);
 extern void vdev_config_clean(vdev_t *vd);

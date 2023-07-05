@@ -18,7 +18,6 @@ cxgbetool	A tool for the cxgbe(4) driver.
 cxgbtool	A tool for the cxgb(4) driver.
 drm		Tools specific to the DRM/KMS device drivers.
 editing		Editor modes and the like to help editing FreeBSD code.
-epfe 		Extract printing filter examples from printing.sgml.
 ether_reflect	An Ethernet packet reflector for low level testing.
 find-sb		Scan a disk for possible filesystem superblocks.
 gdb_regofs	A simple tool that prints out a register offset table
@@ -29,7 +28,6 @@ genericize	Turn a kernel config into something that can more easily
 		be diffed against the appropriate GENERIC.
 git		Tools to simplify the use of git by committers.
 hcomp		Compress header files by removing comments and whitespace.
-html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
 indent_wrapper	Tool for style(9) checking SVN/GIT patches.
@@ -46,7 +44,6 @@ kernxref	Shellscript to cross reference symbols in the LINT kernel.
 kttcp		An in-kernel version of the ttcp network performance tool
 man		Scripts useful for working on man pages.
 mctest		A multicast test program
-mid	 	Create a Message-ID database for mailing lists.
 mwl		Tools specific to the Marvell 88W8363 support
 ncpus		Count the number of processors
 netmap		Test applications for netmap(4)
@@ -55,7 +52,6 @@ npe		Tools specific to the Intel IXP4XXX NPE device
 pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
-portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.

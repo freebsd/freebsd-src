@@ -43,6 +43,7 @@
 #include <netipsec/key_var.h>
 #include <netipsec/ipsec.h>
 #include <arpa/inet.h>
+#include <netinet/udp.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -64,6 +65,10 @@ u_int32_t p_reqid;
 u_int p_key_enc_len, p_key_auth_len;
 caddr_t p_key_enc, p_key_auth;
 time_t p_lt_hard, p_lt_soft;
+u_int p_natt_type;
+struct addrinfo *p_natt_oai, *p_natt_oar;
+int p_natt_sport, p_natt_dport;
+int p_natt_fraglen;
 
 static int p_aiflags = 0, p_aifamily = PF_UNSPEC;
 
@@ -110,7 +115,7 @@ extern void yyerror(const char *);
 	/* SPD management */
 %token SPDADD SPDDELETE SPDDUMP SPDFLUSH
 %token F_POLICY PL_REQUESTS
-%token F_AIFLAGS
+%token F_AIFLAGS F_NATT F_NATT_MTU
 %token TAGGED
 
 %type <num> prefix protocol_spec upper_spec
@@ -521,6 +526,20 @@ extension
 		}
 	|	F_LIFETIME_HARD DECSTRING { p_lt_hard = $2; }
 	|	F_LIFETIME_SOFT DECSTRING { p_lt_soft = $2; }
+	|	F_NATT ipaddr BLCL DECSTRING ELCL ipaddr BLCL DECSTRING ELCL
+		{
+			p_natt_type = UDP_ENCAP_ESPINUDP;
+			p_natt_oai = $2;
+			p_natt_oar = $6;
+			if (p_natt_oai == NULL || p_natt_oar == NULL)
+				return (-1);
+			p_natt_sport = $4;
+			p_natt_dport = $8;
+		}
+	|	F_NATT_MTU DECSTRING
+		{
+			p_natt_fraglen = $2;
+		}
 	;
 
 	/* definition about command for SPD management */
@@ -787,6 +806,23 @@ setkeymsg0(struct sadb_msg *msg, unsigned type, unsigned satype, size_t l)
 	return 0;
 }
 
+static int
+setkeymsg_plen(struct addrinfo *s)
+{
+	switch (s->ai_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		return (sizeof(struct in_addr) << 3);
+#endif
+#ifdef INET6
+	case AF_INET6:
+		return (sizeof(struct in6_addr) << 3);
+#endif
+	default:
+		return (-1);
+	}
+}
+
 /* XXX NO BUFFER OVERRUN CHECK! BAD BAD! */
 static int
 setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
@@ -825,18 +861,9 @@ setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
@@ -954,18 +981,9 @@ setkeymsg_addr(unsigned type, unsigned satype, struct addrinfo *srcs,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
@@ -1020,6 +1038,9 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 	struct sadb_address m_addr;
 	struct sadb_x_sa_replay m_replay;
 	struct addrinfo *s, *d;
+	struct sadb_x_nat_t_type m_natt_type;
+	struct sadb_x_nat_t_port m_natt_port;
+	struct sadb_x_nat_t_frag m_natt_frag;
 	int n;
 	int plen;
 	struct sockaddr *sa;
@@ -1129,6 +1150,64 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 		memcpy(buf + l, &m_replay, len);
 		l += len;
 	}
+
+	if (p_natt_type != 0) {
+		len = sizeof(m_natt_type);
+		memset(&m_natt_type, 0, sizeof(m_natt_type));
+		m_natt_type.sadb_x_nat_t_type_len = PFKEY_UNIT64(len);
+		m_natt_type.sadb_x_nat_t_type_exttype = SADB_X_EXT_NAT_T_TYPE;
+		m_natt_type.sadb_x_nat_t_type_type = p_natt_type;
+		memcpy(buf + l, &m_natt_type, len);
+		l += len;
+
+		memset(&m_addr, 0, sizeof(m_addr));
+		m_addr.sadb_address_exttype = SADB_X_EXT_NAT_T_OAI;
+		sa = p_natt_oai->ai_addr;
+		salen = p_natt_oai->ai_addr->sa_len;
+		m_addr.sadb_address_len = PFKEY_UNIT64(sizeof(m_addr) +
+		    PFKEY_ALIGN8(salen));
+		m_addr.sadb_address_prefixlen = setkeymsg_plen(p_natt_oai);
+		setvarbuf(buf, &l, (struct sadb_ext *)&m_addr,
+		    sizeof(m_addr), (caddr_t)sa, salen);
+
+		len = sizeof(m_natt_port);
+		memset(&m_natt_port, 0, sizeof(m_natt_port));
+		m_natt_port.sadb_x_nat_t_port_len = PFKEY_UNIT64(len);
+		m_natt_port.sadb_x_nat_t_port_exttype = SADB_X_EXT_NAT_T_SPORT;
+		m_natt_port.sadb_x_nat_t_port_port = htons(p_natt_sport);
+		memcpy(buf + l, &m_natt_port, len);
+		l += len;
+
+		memset(&m_addr, 0, sizeof(m_addr));
+		m_addr.sadb_address_exttype = SADB_X_EXT_NAT_T_OAR;
+		sa = p_natt_oar->ai_addr;
+		salen = p_natt_oar->ai_addr->sa_len;
+		m_addr.sadb_address_len = PFKEY_UNIT64(sizeof(m_addr) +
+		    PFKEY_ALIGN8(salen));
+		m_addr.sadb_address_prefixlen = setkeymsg_plen(p_natt_oar);
+		setvarbuf(buf, &l, (struct sadb_ext *)&m_addr,
+		    sizeof(m_addr), (caddr_t)sa, salen);
+
+		len = sizeof(m_natt_port);
+		memset(&m_natt_port, 0, sizeof(m_natt_port));
+		m_natt_port.sadb_x_nat_t_port_len = PFKEY_UNIT64(len);
+		m_natt_port.sadb_x_nat_t_port_exttype = SADB_X_EXT_NAT_T_DPORT;
+		m_natt_port.sadb_x_nat_t_port_port = htons(p_natt_dport);
+		memcpy(buf + l, &m_natt_port, len);
+		l += len;
+
+		if (p_natt_fraglen != -1) {
+			len = sizeof(m_natt_frag);
+			memset(&m_natt_port, 0, sizeof(m_natt_frag));
+			m_natt_frag.sadb_x_nat_t_frag_len = PFKEY_UNIT64(len);
+			m_natt_frag.sadb_x_nat_t_frag_exttype =
+			    SADB_X_EXT_NAT_T_FRAG;
+			m_natt_frag.sadb_x_nat_t_frag_fraglen = p_natt_fraglen;
+			memcpy(buf + l, &m_natt_frag, len);
+			l += len;
+		}
+	}
+
 	l0 = l;
 	n = 0;
 
@@ -1140,18 +1219,9 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
@@ -1281,6 +1351,11 @@ parse_init(void)
 
 	p_aiflags = 0;
 	p_aifamily = PF_UNSPEC;
+
+	p_natt_type = 0;
+	p_natt_oai = p_natt_oar = NULL;
+	p_natt_sport = p_natt_dport = 0;
+	p_natt_fraglen = -1;
 }
 
 void

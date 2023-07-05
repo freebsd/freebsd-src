@@ -450,6 +450,8 @@
         ..
         ifconfig
         ..
+        ipfw
+        ..
         md5
         ..
         mdconfig
@@ -750,6 +752,8 @@
                 ..
             ..
         ..
+        compat32
+        ..
         devrandom
         ..
         dtrace
@@ -898,6 +902,8 @@
     usr.bin
         apply
         ..
+        asa
+        ..
         awk
             bugs-fixed
             ..
@@ -1034,6 +1040,8 @@
         ..
         du
         ..
+        factor
+        ..
         file2c
         ..
         file
@@ -1115,6 +1123,8 @@
         tr
         ..
         truncate
+        ..
+        tsort
         ..
         units
         ..

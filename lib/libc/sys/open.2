@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2023
+.Dd May 29, 2023
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -344,6 +344,7 @@ message
 using for
 .Dv EVFILT_VNODE
 .It Xr readlinkat 2
+.It Xr __acl_get_fd 2 , Xr __acl_aclcheck_fd 2
 .El
 But operations like
 .Xr read 2 ,

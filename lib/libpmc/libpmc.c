@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003-2008 Joseph Koshy
  * All rights reserved.
@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmc.h>
 #include <sys/syscall.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <err.h>
@@ -78,8 +79,7 @@ static int powerpc_allocate_pmc(enum pmc_event _pe, char* ctrspec,
 			     struct pmc_op_pmcallocate *_pmc_config);
 #endif /* __powerpc__ */
 
-#define PMC_CALL(cmd, params)				\
-	syscall(pmc_syscall, PMC_OP_##cmd, (params))
+#define PMC_CALL(op, params)	syscall(pmc_syscall, (op), (params))
 
 /*
  * Event aliases provide a way for the user to ask for generic events
@@ -1085,8 +1085,14 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_enabled()) {
-		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0)
+		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
+			/*
+			 * XXX: pmclog_get_event exploits this to disambiguate
+			 *      PMU from PMC event codes in PMCALLOCATE events.
+			 */
+			assert(pmc_config.pm_ev < PMC_EVENT_FIRST);
 			goto found;
+		}
 
 		/* Otherwise, reset any changes */
 		pmc_config.pm_ev = 0;
@@ -1152,7 +1158,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	}
 
 found:
-	if (PMC_CALL(PMCALLOCATE, &pmc_config) == 0) {
+	if (PMC_CALL(PMC_OP_PMCALLOCATE, &pmc_config) == 0) {
 		*pmcid = pmc_config.pm_pmcid;
 		retval = 0;
 	}
@@ -1171,7 +1177,7 @@ pmc_attach(pmc_id_t pmc, pid_t pid)
 	pmc_attach_args.pm_pmc = pmc;
 	pmc_attach_args.pm_pid = pid;
 
-	return (PMC_CALL(PMCATTACH, &pmc_attach_args));
+	return (PMC_CALL(PMC_OP_PMCATTACH, &pmc_attach_args));
 }
 
 int
@@ -1195,8 +1201,9 @@ pmc_configure_logfile(int fd)
 {
 	struct pmc_op_configurelog cla;
 
+	cla.pm_flags = 0;
 	cla.pm_logfd = fd;
-	if (PMC_CALL(CONFIGURELOG, &cla) < 0)
+	if (PMC_CALL(PMC_OP_CONFIGURELOG, &cla) < 0)
 		return (-1);
 	return (0);
 }
@@ -1220,7 +1227,7 @@ pmc_detach(pmc_id_t pmc, pid_t pid)
 
 	pmc_detach_args.pm_pmc = pmc;
 	pmc_detach_args.pm_pid = pid;
-	return (PMC_CALL(PMCDETACH, &pmc_detach_args));
+	return (PMC_CALL(PMC_OP_PMCDETACH, &pmc_detach_args));
 }
 
 int
@@ -1231,7 +1238,7 @@ pmc_disable(int cpu, int pmc)
 	ssa.pm_cpu = cpu;
 	ssa.pm_pmc = pmc;
 	ssa.pm_state = PMC_STATE_DISABLED;
-	return (PMC_CALL(PMCADMIN, &ssa));
+	return (PMC_CALL(PMC_OP_PMCADMIN, &ssa));
 }
 
 int
@@ -1242,7 +1249,7 @@ pmc_enable(int cpu, int pmc)
 	ssa.pm_cpu = cpu;
 	ssa.pm_pmc = pmc;
 	ssa.pm_state = PMC_STATE_FREE;
-	return (PMC_CALL(PMCADMIN, &ssa));
+	return (PMC_CALL(PMC_OP_PMCADMIN, &ssa));
 }
 
 /*
@@ -1354,13 +1361,13 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 int
 pmc_flush_logfile(void)
 {
-	return (PMC_CALL(FLUSHLOG,0));
+	return (PMC_CALL(PMC_OP_FLUSHLOG, 0));
 }
 
 int
 pmc_close_logfile(void)
 {
-	return (PMC_CALL(CLOSELOG,0));
+	return (PMC_CALL(PMC_OP_CLOSELOG, 0));
 }
 
 int
@@ -1368,7 +1375,7 @@ pmc_get_driver_stats(struct pmc_driverstats *ds)
 {
 	struct pmc_op_getdriverstats gms;
 
-	if (PMC_CALL(GETDRIVERSTATS, &gms) < 0)
+	if (PMC_CALL(PMC_OP_GETDRIVERSTATS, &gms) < 0)
 		return (-1);
 
 	/* copy out fields in the current userland<->library interface */
@@ -1389,7 +1396,7 @@ pmc_get_msr(pmc_id_t pmc, uint32_t *msr)
 	struct pmc_op_getmsr gm;
 
 	gm.pm_pmcid = pmc;
-	if (PMC_CALL(PMCGETMSR, &gm) < 0)
+	if (PMC_CALL(PMC_OP_PMCGETMSR, &gm) < 0)
 		return (-1);
 	*msr = gm.pm_msr;
 	return (0);
@@ -1419,7 +1426,7 @@ pmc_init(void)
 
 	/* check the kernel module's ABI against our compiled-in version */
 	abi_version = PMC_VERSION;
-	if (PMC_CALL(GETMODULEVERSION, &abi_version) < 0)
+	if (PMC_CALL(PMC_OP_GETMODULEVERSION, &abi_version) < 0)
 		return (pmc_syscall = -1);
 
 	/* ignore patch & minor numbers for the comparison */
@@ -1429,7 +1436,7 @@ pmc_init(void)
 	}
 
 	bzero(&op_cpu_info, sizeof(op_cpu_info));
-	if (PMC_CALL(GETCPUINFO, &op_cpu_info) < 0)
+	if (PMC_CALL(PMC_OP_GETCPUINFO, &op_cpu_info) < 0)
 		return (pmc_syscall = -1);
 
 	cpu_info.pm_cputype = op_cpu_info.pm_cputype;
@@ -1450,7 +1457,7 @@ pmc_init(void)
 	 * Get soft events list.
 	 */
 	soft_event_info.pm_class = PMC_CLASS_SOFT;
-	if (PMC_CALL(GETDYNEVENTINFO, &soft_event_info) < 0)
+	if (PMC_CALL(PMC_OP_GETDYNEVENTINFO, &soft_event_info) < 0)
 		return (pmc_syscall = -1);
 
 	/* Map soft events to static list. */
@@ -1832,7 +1839,7 @@ pmc_pmcinfo(int cpu, struct pmc_pmcinfo **ppmci)
 
 	pmci->pm_cpu  = cpu;
 
-	if (PMC_CALL(GETPMCINFO, pmci) < 0) {
+	if (PMC_CALL(PMC_OP_GETPMCINFO, pmci) < 0) {
 		free(pmci);
 		return (-1);
 	}
@@ -1851,7 +1858,7 @@ pmc_read(pmc_id_t pmc, pmc_value_t *value)
 	pmc_read_op.pm_flags = PMC_F_OLDVALUE;
 	pmc_read_op.pm_value = -1;
 
-	if (PMC_CALL(PMCRW, &pmc_read_op) < 0)
+	if (PMC_CALL(PMC_OP_PMCRW, &pmc_read_op) < 0)
 		return (-1);
 
 	*value = pmc_read_op.pm_value;
@@ -1864,7 +1871,7 @@ pmc_release(pmc_id_t pmc)
 	struct pmc_op_simple	pmc_release_args;
 
 	pmc_release_args.pm_pmcid = pmc;
-	return (PMC_CALL(PMCRELEASE, &pmc_release_args));
+	return (PMC_CALL(PMC_OP_PMCRELEASE, &pmc_release_args));
 }
 
 int
@@ -1876,7 +1883,7 @@ pmc_rw(pmc_id_t pmc, pmc_value_t newvalue, pmc_value_t *oldvaluep)
 	pmc_rw_op.pm_flags = PMC_F_NEWVALUE | PMC_F_OLDVALUE;
 	pmc_rw_op.pm_value = newvalue;
 
-	if (PMC_CALL(PMCRW, &pmc_rw_op) < 0)
+	if (PMC_CALL(PMC_OP_PMCRW, &pmc_rw_op) < 0)
 		return (-1);
 
 	*oldvaluep = pmc_rw_op.pm_value;
@@ -1891,7 +1898,7 @@ pmc_set(pmc_id_t pmc, pmc_value_t value)
 	sc.pm_pmcid = pmc;
 	sc.pm_count = value;
 
-	if (PMC_CALL(PMCSETCOUNT, &sc) < 0)
+	if (PMC_CALL(PMC_OP_PMCSETCOUNT, &sc) < 0)
 		return (-1);
 	return (0);
 }
@@ -1902,7 +1909,7 @@ pmc_start(pmc_id_t pmc)
 	struct pmc_op_simple	pmc_start_args;
 
 	pmc_start_args.pm_pmcid = pmc;
-	return (PMC_CALL(PMCSTART, &pmc_start_args));
+	return (PMC_CALL(PMC_OP_PMCSTART, &pmc_start_args));
 }
 
 int
@@ -1911,7 +1918,7 @@ pmc_stop(pmc_id_t pmc)
 	struct pmc_op_simple	pmc_stop_args;
 
 	pmc_stop_args.pm_pmcid = pmc;
-	return (PMC_CALL(PMCSTOP, &pmc_stop_args));
+	return (PMC_CALL(PMC_OP_PMCSTOP, &pmc_stop_args));
 }
 
 int
@@ -1938,7 +1945,7 @@ pmc_write(pmc_id_t pmc, pmc_value_t value)
 	pmc_write_op.pm_pmcid = pmc;
 	pmc_write_op.pm_flags = PMC_F_NEWVALUE;
 	pmc_write_op.pm_value = value;
-	return (PMC_CALL(PMCRW, &pmc_write_op));
+	return (PMC_CALL(PMC_OP_PMCRW, &pmc_write_op));
 }
 
 int
@@ -1947,5 +1954,5 @@ pmc_writelog(uint32_t userdata)
 	struct pmc_op_writelog wl;
 
 	wl.pm_userdata = userdata;
-	return (PMC_CALL(WRITELOG, &wl));
+	return (PMC_CALL(PMC_OP_WRITELOG, &wl));
 }

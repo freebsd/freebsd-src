@@ -6,12 +6,19 @@
 .Dt FIDO_INIT 3
 .Os
 .Sh NAME
-.Nm fido_init
-.Nd initialise the FIDO 2 library
+.Nm fido_init ,
+.Nm fido_set_log_handler
+.Nd initialise the FIDO2 library
 .Sh SYNOPSIS
 .In fido.h
+.Bd -literal
+typedef void fido_log_handler_t(const char *);
+.Ed
+.Pp
 .Ft void
 .Fn fido_init "int flags"
+.Ft void
+.Fn fido_set_log_handler "fido_log_handler_t *handler"
 .Sh DESCRIPTION
 The
 .Fn fido_init
@@ -43,8 +50,21 @@ then
 .Em libfido2
 will not fallback to U2F in
 .Xr fido_dev_open 3
-if a device claims to be FIDO2 but fails to respond to a
-FIDO2 command.
+if a device claims to support FIDO2 but fails to respond to
+a CTAP 2.0 greeting.
+.Pp
+The
+.Fn fido_set_log_handler
+function causes
+.Fa handler
+to be called for each log line generated in the context of the
+executing thread.
+Lines passed to
+.Fa handler
+include a trailing newline character and are not printed by
+.Em libfido2
+on
+.Em stderr .
 .Sh SEE ALSO
 .Xr fido_assert_new 3 ,
 .Xr fido_cred_new 3 ,

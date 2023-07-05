@@ -191,9 +191,11 @@ pos_out(void)
 
 	/* Read it. */
 	for (cnt = 0; cnt < out.offset; ++cnt) {
-		if ((n = read(out.fd, out.db, out.dbsz)) > 0)
+		before_io();
+		n = read(out.fd, out.db, out.dbsz);
+		after_io();
+		if (n > 0)
 			continue;
-
 		if (n == -1)
 			err(1, "%s", out.name);
 
@@ -208,7 +210,9 @@ pos_out(void)
 			err(1, "%s", out.name);
 
 		while (cnt++ < out.offset) {
+			before_io();
 			n = write(out.fd, out.db, out.dbsz);
+			after_io();
 			if (n == -1)
 				err(1, "%s", out.name);
 			if (n != out.dbsz)

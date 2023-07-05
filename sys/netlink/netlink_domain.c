@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 Ng Peng Nam Sean
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
@@ -30,6 +30,7 @@
  * This file contains socket and protocol bindings for netlink.
  */
 
+#include "opt_netlink.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -38,6 +39,7 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/mbuf.h>
+#include <sys/osd.h>
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/ck.h>
@@ -54,7 +56,7 @@
 #define	DEBUG_MOD_NAME	nl_domain
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 _Static_assert((NLP_MAX_GROUPS % 64) == 0,
     "NLP_MAX_GROUPS has to be multiple of 64");
@@ -83,6 +85,38 @@ SYSCTL_OID(_net_netlink, OID_AUTO, nl_maxsockbuf,
     CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, &nl_maxsockbuf, 0,
     sysctl_handle_nl_maxsockbuf, "LU",
     "Maximum Netlink socket buffer size");
+
+
+static unsigned int osd_slot_id = 0;
+
+void
+nl_osd_register(void)
+{
+	osd_slot_id = osd_register(OSD_THREAD, NULL, NULL);
+}
+
+void
+nl_osd_unregister(void)
+{
+	osd_deregister(OSD_THREAD, osd_slot_id);
+}
+
+struct nlpcb *
+_nl_get_thread_nlp(struct thread *td)
+{
+	return (osd_get(OSD_THREAD, &td->td_osd, osd_slot_id));
+}
+
+void
+nl_set_thread_nlp(struct thread *td, struct nlpcb *nlp)
+{
+	NLP_LOG(LOG_DEBUG2, nlp, "Set thread %p nlp to %p (slot %u)", td, nlp, osd_slot_id);
+	if (osd_set(OSD_THREAD, &td->td_osd, osd_slot_id, nlp) == 0)
+		return;
+	/* Failed, need to realloc */
+	void **rsv = osd_reserve(osd_slot_id);
+	osd_set_reserved(OSD_THREAD, &td->td_osd, osd_slot_id, rsv, nlp);
+}
 
 /*
  * Looks up a nlpcb struct based on the @portid. Need to claim nlsock_mtx.
@@ -144,6 +178,15 @@ nl_get_groups_compat(struct nlpcb *nlp)
 	return (groups_mask);
 }
 
+static void
+nl_send_one_group(struct mbuf *m, struct nlpcb *nlp, int num_messages,
+    int io_flags)
+{
+	if (__predict_false(nlp->nl_flags & NLF_MSG_INFO))
+		nl_add_msg_info(m);
+	nl_send_one(m, nlp, num_messages, io_flags);
+}
+
 /*
  * Broadcasts message @m to the protocol @proto group specified by @group_id
  */
@@ -180,7 +223,8 @@ nl_send_group(struct mbuf *m, int num_messages, int proto, int group_id)
 				struct mbuf *m_copy;
 				m_copy = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 				if (m_copy != NULL)
-					nl_send_one(m_copy, nlp_last, num_messages, io_flags);
+					nl_send_one_group(m_copy, nlp_last,
+					    num_messages, io_flags);
 				else {
 					NLP_LOCK(nlp_last);
 					if (nlp_last->nl_socket != NULL)
@@ -192,7 +236,7 @@ nl_send_group(struct mbuf *m, int num_messages, int proto, int group_id)
 		}
 	}
 	if (nlp_last != NULL)
-		nl_send_one(m, nlp_last, num_messages, io_flags);
+		nl_send_one_group(m, nlp_last, num_messages, io_flags);
 	else
 		m_freem(m);
 
@@ -296,6 +340,7 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 	nlp->nl_linux = is_linux;
 	nlp->nl_active = true;
 	nlp->nl_unconstrained_vnet = !jailed_without_vnet(so->so_cred);
+	nlp->nl_need_thread_setup = true;
 	NLP_LOCK_INIT(nlp);
 	refcount_init(&nlp->nl_refcount, 1);
 	nl_init_io(nlp);
@@ -589,6 +634,8 @@ nl_getoptflag(int sopt_name)
 		return (NLF_EXT_ACK);
 	case NETLINK_GET_STRICT_CHK:
 		return (NLF_STRICT);
+	case NETLINK_MSG_INFO:
+		return (NLF_MSG_INFO);
 	}
 
 	return (0);
@@ -630,11 +677,17 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
 		case NETLINK_GET_STRICT_CHK:
+		case NETLINK_MSG_INFO:
 			error = sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
 			if (error != 0)
 				break;
 
 			flag = nl_getoptflag(sopt->sopt_name);
+
+			if ((flag == NLF_MSG_INFO) && nlp->nl_linux) {
+				error = EINVAL;
+				break;
+			}
 
 			NLCTL_WLOCK(ctl);
 			if (optval != 0)
@@ -658,6 +711,7 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
 		case NETLINK_GET_STRICT_CHK:
+		case NETLINK_MSG_INFO:
 			NLCTL_RLOCK(ctl);
 			optval = (nlp->nl_flags & nl_getoptflag(sopt->sopt_name)) != 0;
 			NLCTL_RUNLOCK(ctl);

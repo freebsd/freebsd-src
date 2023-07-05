@@ -1,7 +1,7 @@
 /*	$NetBSD: ucom.c,v 1.40 2001/11/13 06:24:54 lukem Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001-2003, 2005, 2008
  *	Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.

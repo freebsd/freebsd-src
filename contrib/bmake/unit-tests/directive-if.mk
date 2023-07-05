@@ -1,4 +1,4 @@
-# $NetBSD: directive-if.mk,v 1.11 2022/01/23 21:48:59 rillig Exp $
+# $NetBSD: directive-if.mk,v 1.12 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the .if directive.
 #
@@ -10,10 +10,12 @@
 .if 0
 .  error
 .else
+# expect+1: 0 evaluates to false.
 .  info 0 evaluates to false.
 .endif
 
 .if 1
+# expect+1: 1 evaluates to true.
 .  info 1 evaluates to true.
 .else
 .  error
@@ -60,6 +62,7 @@
 # though, which are kept.  The quotes need not be balanced.  The next space
 # ends the word, and the remaining " || 1" is parsed as "or true".
 .if ${:Uplain"""""} == plain""""" || 1
+# expect+1: Quotes in plain words are probably a mistake.
 .  info Quotes in plain words are probably a mistake.
 # XXX: Accepting quotes in plain words is probably a mistake as well.
 .else
@@ -69,26 +72,31 @@
 .if0
 .  error
 .else
+# expect+1: Don't do this, always put a space after a directive.
 .  info Don't do this, always put a space after a directive.
 .endif
 
 .if${:U-3}
+# expect+1: Don't do this, always put a space after a directive.
 .  info Don't do this, always put a space after a directive.
 .else
 .  error
 .endif
 
 .if${:U-3}>-4
+# expect+1: Don't do this, always put a space around comparison operators.
 .  info Don't do this, always put a space around comparison operators.
 .else
 .  error
 .endif
 
 .if(1)
+# expect+1: Don't do this, always put a space after a directive.
 .  info Don't do this, always put a space after a directive.
 .endif
 
 .if!0
+# expect+1: Don't do this, always put a space after a directive.
 .  info Don't do this, always put a space after a directive.
 .endif
 

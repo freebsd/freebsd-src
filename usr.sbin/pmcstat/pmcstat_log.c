@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005-2007, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
@@ -459,10 +459,11 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_pc.pl_pcomm);
 			break;
 		case PMCLOG_TYPE_PROCEXEC:
-			PMCSTAT_PRINT_ENTRY("exec","0x%x %d %p \"%s\"",
+			PMCSTAT_PRINT_ENTRY("exec","0x%x %d %p %p \"%s\"",
 			    ev.pl_u.pl_x.pl_pmcid,
 			    ev.pl_u.pl_x.pl_pid,
-			    (void *) ev.pl_u.pl_x.pl_entryaddr,
+			    (void *)ev.pl_u.pl_x.pl_baseaddr,
+			    (void *)ev.pl_u.pl_x.pl_dynaddr,
 			    ev.pl_u.pl_x.pl_pathname);
 			break;
 		case PMCLOG_TYPE_PROCEXIT:
@@ -726,7 +727,7 @@ pmcstat_display_log(void)
 
 	pmcstat_refresh_top();
 
-	/* Reset everythings if delta mode. */
+	/* Reset everything if delta mode. */
 	if (args.pa_topmode == PMCSTAT_TOP_DELTA) {
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);

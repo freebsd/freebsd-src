@@ -30,7 +30,10 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-ENTRY(sigcode)
+	.section .rodata, "a", %progbits
+	.globl	sigcode
+	.align 2
+sigcode:
 	blr	x8
 	mov	x0, sp
 	add	x0, x0, #SF_UC
@@ -44,9 +47,9 @@ ENTRY(sigcode)
 	svc	0
 
 	b	1b
-END(sigcode)
 	/* This may be copied to the stack, keep it 16-byte aligned */
 	.align	3
+	.size sigcode, . - sigcode
 esigcode:
 
 	.data

@@ -38,12 +38,7 @@
 
 #include "fbt.h"
 
-#define	AARCH64_BRK		0xd4200000
-#define	AARCH64_BRK_IMM16_SHIFT	5
-#define	AARCH64_BRK_IMM16_VAL	(0x40d << AARCH64_BRK_IMM16_SHIFT)
-#define	FBT_PATCHVAL		(AARCH64_BRK | AARCH64_BRK_IMM16_VAL)
-#define	FBT_ENTRY	"entry"
-#define	FBT_RETURN	"return"
+#define	FBT_PATCHVAL	DTRACE_PATCHVAL
 #define	FBT_AFRAMES	4
 
 int
@@ -135,35 +130,25 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	 */
 	if (*instr == NOP_INSTR)
 		found = true;
-	if (!found) {
-		for (; instr < limit; instr++) {
+	for (; !found && instr < limit; instr++) {
+		/*
+		 * Functions start with "stp xt1, xt2, [xn, <const>]!" or
+		 * "sub sp, sp, <const>".
+		 *
+		 * Sometimes the compiler will have a sub instruction that is
+		 * not of the above type so don't stop if we see one.
+		 */
+		if ((*instr & LDP_STP_MASK) == STP_64) {
 			/*
-			 * Some functions start with
-			 * "stp xt1, xt2, [xn, <const>]!"
+			 * Assume any other store of this type means we are
+			 * past the function prologue.
 			 */
-			if ((*instr & LDP_STP_MASK) == STP_64) {
-				/*
-				 * Assume any other store of this type means we
-				 * are past the function prolog.
-				 */
-				if (((*instr >> ADDR_SHIFT) & ADDR_MASK) == 31)
-					found = true;
-				break;
-			}
-
-			/*
-			 * Some functions start with a "sub sp, sp, <const>"
-			 * Sometimes the compiler will have a sub instruction
-			 * that is not of the above type so don't stop if we
-			 * see one.
-			 */
-			if ((*instr & SUB_MASK) == SUB_INSTR &&
-			    ((*instr >> SUB_RD_SHIFT) & SUB_R_MASK) == 31 &&
-			    ((*instr >> SUB_RN_SHIFT) & SUB_R_MASK) == 31) {
+			if (((*instr >> ADDR_SHIFT) & ADDR_MASK) == 31)
 				found = true;
-				break;
-			}
-		}
+		} else if ((*instr & SUB_MASK) == SUB_INSTR &&
+		    ((*instr >> SUB_RD_SHIFT) & SUB_R_MASK) == 31 &&
+		    ((*instr >> SUB_RN_SHIFT) & SUB_R_MASK) == 31)
+			found = true;
 	}
 
 	if (!found)

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -77,9 +77,31 @@ struct nl_parsed_link {
 	uint32_t	ifi_change;
 };
 
+#if defined(NETLINK) || defined(NETLINK_MODULE)
+/* Provide optimized calls to the functions inside the same linking unit */
+
+int _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nl_pstate *npt);
+void _nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp);
+
+static inline int
+nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nl_pstate *npt)
+{
+	return (_nl_modify_ifp_generic(ifp, lattrs, bm, npt));
+}
+
+static inline void
+nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
+{
+	_nl_store_ifp_cookie(npt, ifp);
+}
+#else
+/* Provide access to the functions via netlink_glue.c */
 int nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
     const struct nlattr_bmask *bm, struct nl_pstate *npt);
 void nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp);
+#endif /* defined(NETLINK) || defined(NETLINK_MODULE) */
 
 
 typedef int rtnl_iface_create_f(struct nl_parsed_link *lattrs,

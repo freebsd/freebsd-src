@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
@@ -109,11 +109,9 @@ union pmc_md_pmc {
 	((PC) >= (uintptr_t) start_exceptions &&	\
 	 (PC) < (uintptr_t) end_exceptions)
 
-#define	PMC_IN_KERNEL_STACK(S,START,END)		\
-	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va) INKERNEL(va)
-
-#define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+#define	PMC_IN_KERNEL_STACK(va)	kstack_contains(curthread, (va), sizeof(va))
+#define	PMC_IN_KERNEL(va)	INKERNEL(va)
+#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAXUSER_ADDRESS)
 
 /* Build a fake kernel trapframe from current instruction pointer. */
 #define PMC_FAKE_TRAPFRAME(TF)						\

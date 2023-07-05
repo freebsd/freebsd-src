@@ -74,6 +74,10 @@ static void
 adf_enable_ring_irq(struct adf_etr_bank_data *bank, u32 ring)
 {
 	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
+	u32 enable_int_col_mask = 0;
+
+	if (csr_ops->get_int_col_ctl_enable_mask)
+		enable_int_col_mask = csr_ops->get_int_col_ctl_enable_mask();
 
 	mtx_lock(&bank->lock);
 	bank->irq_mask |= (1 << ring);
@@ -83,7 +87,8 @@ adf_enable_ring_irq(struct adf_etr_bank_data *bank, u32 ring)
 				      bank->irq_mask);
 	csr_ops->write_csr_int_col_ctl(bank->csr_addr,
 				       bank->bank_number,
-				       bank->irq_coalesc_timer);
+				       bank->irq_coalesc_timer |
+					   enable_int_col_mask);
 }
 
 static void
@@ -142,9 +147,10 @@ adf_handle_response(struct adf_etr_ring_data *ring, u32 quota)
 		ring->callback((u32 *)msg);
 		atomic_dec(ring->inflights);
 		*msg = ADF_RING_EMPTY_SIG;
-		ring->head = adf_modulo(ring->head + ADF_MSG_SIZE_TO_BYTES(
-							 ring->msg_size),
-					ADF_RING_SIZE_MODULO(ring->ring_size));
+		ring->head =
+		    adf_modulo(ring->head +
+				   ADF_MSG_SIZE_TO_BYTES(ring->msg_size),
+			       ADF_RING_SIZE_MODULO(ring->ring_size));
 		msg_counter++;
 		msg = (u32 *)((uintptr_t)ring->base_addr + ring->head);
 	}

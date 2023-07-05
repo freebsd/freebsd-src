@@ -1,8 +1,8 @@
-make: "cond-func-defined.mk" line 23: Missing closing parenthesis for defined()
-make: "cond-func-defined.mk" line 33: Missing closing parenthesis for defined()
-make: "cond-func-defined.mk" line 45: In .for loops, variable expressions for the loop variables are
-make: "cond-func-defined.mk" line 46: substituted at evaluation time.  There is no actual variable
-make: "cond-func-defined.mk" line 47: involved, even if it feels like it.
+make: "cond-func-defined.mk" line 24: Missing closing parenthesis for defined()
+make: "cond-func-defined.mk" line 34: Missing closing parenthesis for defined()
+make: "cond-func-defined.mk" line 47: In .for loops, variable expressions for the loop variables are
+make: "cond-func-defined.mk" line 49: substituted at evaluation time.  There is no actual variable
+make: "cond-func-defined.mk" line 51: involved, even if it feels like it.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

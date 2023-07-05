@@ -759,7 +759,7 @@ get_lock_matching_unlock(const struct file_lock *fl)
  * This routine makes the following assumptions:
  *    1) Nothing will adjust the lock list during a lookup
  *
- * This routine has an intersting quirk which bit me hard.
+ * This routine has an interesting quirk which bit me hard.
  * The conflicting_fl is the pointer to the conflicting lock.
  * However, to modify the "*pointer* to the conflicting lock" rather
  * that the "conflicting lock itself" one must pass in a "pointer to

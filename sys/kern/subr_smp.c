@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001, John Baldwin <jhb@FreeBSD.org>.
  *
@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 
 #include "opt_sched.h"
@@ -75,6 +76,9 @@ int mp_maxcpus = MAXCPU;
 
 volatile int smp_started;
 u_int mp_maxid;
+
+/* Array of CPU contexts saved during a panic. */
+struct pcb *stoppcbs;
 
 static SYSCTL_NODE(_kern, OID_AUTO, smp,
     CTLFLAG_RD | CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL,
@@ -177,6 +181,9 @@ mp_start(void *dummy)
 	/* Provide a default for most architectures that don't have SMT/HTT. */
 	if (mp_ncores < 0)
 		mp_ncores = mp_ncpus;
+
+	stoppcbs = mallocarray(mp_maxid + 1, sizeof(struct pcb), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	cpu_mp_announce();
 }
@@ -630,8 +637,6 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func, arg);
 }
 
-static struct cpu_group group[MAXCPU * MAX_CACHE_LEVELS + 1];
-
 static void
 smp_topo_fill(struct cpu_group *cg)
 {
@@ -647,7 +652,14 @@ struct cpu_group *
 smp_topo(void)
 {
 	char cpusetbuf[CPUSETBUFSIZ], cpusetbuf2[CPUSETBUFSIZ];
-	struct cpu_group *top;
+	static struct cpu_group *top = NULL;
+
+	/*
+	 * The first call to smp_topo() is guaranteed to occur
+	 * during the kernel boot while we are still single-threaded.
+	 */
+	if (top != NULL)
+		return (top);
 
 	/*
 	 * Check for a fake topology request for debugging purposes.
@@ -713,9 +725,14 @@ smp_topo(void)
 struct cpu_group *
 smp_topo_alloc(u_int count)
 {
+	static struct cpu_group *group = NULL;
 	static u_int index;
 	u_int curr;
 
+	if (group == NULL) {
+		group = mallocarray((mp_maxid + 1) * MAX_CACHE_LEVELS + 1,
+		    sizeof(*group), M_DEVBUF, M_WAITOK | M_ZERO);
+	}
 	curr = index;
 	index += count;
 	return (&group[curr]);
@@ -726,7 +743,7 @@ smp_topo_none(void)
 {
 	struct cpu_group *top;
 
-	top = &group[0];
+	top = smp_topo_alloc(1);
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
 	top->cg_mask = all_cpus;
@@ -780,9 +797,9 @@ smp_topo_1level(int share, int count, int flags)
 	int i;
 
 	cpu = 0;
-	top = &group[0];
 	packages = mp_ncpus / count;
-	top->cg_child = child = &group[1];
+	top = smp_topo_alloc(1 + packages);
+	top->cg_child = child = top + 1;
 	top->cg_level = CG_SHARE_NONE;
 	for (i = 0; i < packages; i++, child++)
 		cpu = smp_topo_addleaf(top, child, share, count, flags, cpu);
@@ -801,8 +818,9 @@ smp_topo_2level(int l2share, int l2count, int l1share, int l1count,
 	int j;
 
 	cpu = 0;
-	top = &group[0];
-	l2g = &group[1];
+	top = smp_topo_alloc(1 + mp_ncpus / (l2count * l1count) +
+	    mp_ncpus / l1count);
+	l2g = top + 1;
 	top->cg_child = l2g;
 	top->cg_level = CG_SHARE_NONE;
 	top->cg_children = mp_ncpus / (l2count * l1count);
@@ -975,7 +993,8 @@ quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
 
 	error = 0;
 	if ((prio & PDROP) == 0) {
-		gen = malloc(sizeof(u_int) * MAXCPU, M_TEMP, M_WAITOK);
+		gen = mallocarray(sizeof(u_int), mp_maxid + 1, M_TEMP,
+		    M_WAITOK);
 		for (cpu = 0; cpu <= mp_maxid; cpu++) {
 			if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
 				continue;

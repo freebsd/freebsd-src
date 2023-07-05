@@ -105,10 +105,12 @@ quad_t		__ashldi3(quad_t, qshift_t);
 quad_t		__ashrdi3(quad_t, qshift_t);
 int		__cmpdi2(quad_t a, quad_t b);
 quad_t		__divdi3(quad_t a, quad_t b);
+quad_t		__divmoddi4(quad_t a, quad_t b, quad_t *rem);
 quad_t		__lshrdi3(quad_t, qshift_t);
 quad_t		__moddi3(quad_t a, quad_t b);
 u_quad_t	__qdivrem(u_quad_t u, u_quad_t v, u_quad_t *rem);
 u_quad_t	__udivdi3(u_quad_t a, u_quad_t b);
+u_quad_t	__udivmoddi4(u_quad_t a, u_quad_t b, u_quad_t *rem);
 u_quad_t	__umoddi3(u_quad_t a, u_quad_t b);
 int		__ucmpdi2(u_quad_t a, u_quad_t b);
 

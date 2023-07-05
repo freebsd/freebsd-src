@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 Semihalf.
  * All rights reserved.
@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
-struct pcb stoppcbs[MAXCPU];
 
 /* # of Applications processors */
 volatile int mp_naps;

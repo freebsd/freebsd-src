@@ -209,7 +209,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
    @return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect(struct bufferevent *, struct sockaddr *, int);
+int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);
 
 struct evdns_base;
 /**
@@ -491,7 +491,7 @@ short bufferevent_get_enabled(struct bufferevent *bufev);
 
   (In other words, if reading or writing is disabled, or if the
   bufferevent's read or write operation has been suspended because
-  there's no data to write, or not enough banwidth, or so on, the
+  there's no data to write, or not enough bandwidth, or so on, the
   timeout isn't active.  The timeout only becomes active when we we're
   willing to actually read or write.)
 
@@ -518,6 +518,9 @@ int bufferevent_set_timeouts(struct bufferevent *bufev,
   On input, a bufferevent does not invoke the user read callback unless
   there is at least low watermark data in the buffer.	If the read buffer
   is beyond the high watermark, the bufferevent stops reading from the network.
+  But be aware that bufferevent input/read buffer can overrun high watermark
+  limit (typical example is openssl bufferevent), so you should not relay in
+  this.
 
   On output, the user write callback is invoked whenever the buffered data
   falls below the low watermark.  Filters that write to this bufev will try
@@ -561,6 +564,32 @@ void bufferevent_lock(struct bufferevent *bufev);
  */
 EVENT2_EXPORT_SYMBOL
 void bufferevent_unlock(struct bufferevent *bufev);
+
+
+/**
+ * Public interface to manually increase the reference count of a bufferevent
+ * this is useful in situations where a user may reference the bufferevent
+ * somewhere else (unknown to libevent)
+ *
+ * @param bufev the bufferevent to increase the refcount on
+ *
+ */
+EVENT2_EXPORT_SYMBOL
+void bufferevent_incref(struct bufferevent *bufev);
+
+/**
+ * Public interface to manually decrement the reference count of a bufferevent
+ *
+ * Warning: make sure you know what you're doing. This is mainly used in
+ * conjunction with bufferevent_incref(). This will free up all data associated
+ * with a bufferevent if the reference count hits 0.
+ *
+ * @param bufev the bufferevent to decrement the refcount on
+ *
+ * @return 1 if the bufferevent was freed, otherwise 0 (still referenced)
+ */
+EVENT2_EXPORT_SYMBOL
+int bufferevent_decref(struct bufferevent *bufev);
 
 /**
    Flags that can be passed into filters to let them know how to
@@ -773,7 +802,7 @@ void ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg);
    They are: socket-based bufferevents (normal and IOCP-based), and SSL-based
    bufferevents.
 
-   Return 0 on sucess, -1 on failure.
+   Return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_set_rate_limit(struct bufferevent *bev,
@@ -824,7 +853,7 @@ int bufferevent_rate_limit_group_set_cfg(
 
    The default min-share is currently 64 bytes.
 
-   Returns 0 on success, -1 on faulre.
+   Returns 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_rate_limit_group_set_min_share(

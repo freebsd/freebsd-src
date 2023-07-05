@@ -2,7 +2,7 @@
  *  pcap-linux.c: Packet capture interface to the Linux kernel
  *
  *  Copyright (c) 2000 Torsten Landschoff <torsten@debian.org>
- *  		       Sebastian Krahmer  <krahmer@cs.uni-potsdam.de>
+ *		       Sebastian Krahmer  <krahmer@cs.uni-potsdam.de>
  *
  *  License: BSD
  *
@@ -315,8 +315,8 @@ static const struct timeval netdown_timeout = {
  */
 static int	iface_get_id(int fd, const char *device, char *ebuf);
 static int	iface_get_mtu(int fd, const char *device, char *ebuf);
-static int 	iface_get_arptype(int fd, const char *device, char *ebuf);
-static int 	iface_bind(int fd, int ifindex, char *ebuf, int protocol);
+static int	iface_get_arptype(int fd, const char *device, char *ebuf);
+static int	iface_bind(int fd, int ifindex, char *ebuf, int protocol);
 static int	enter_rfmon_mode(pcap_t *handle, int sock_fd,
     const char *device);
 static int	iface_get_ts_types(const char *device, pcap_t *handle,
@@ -3498,7 +3498,7 @@ static int pcap_wait_for_frames_mmap(pcap_t *handle)
 	 * don't need to poll.
 	 */
 	for (;;) {
-	 	/*
+		/*
 		 * Yes, we do this even in non-blocking mode, as it's
 		 * the only way to get error indications from a
 		 * tpacket socket.

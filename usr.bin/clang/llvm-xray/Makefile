@@ -16,5 +16,6 @@ SRCS+=		xray-registry.cpp
 SRCS+=		xray-stacks.cpp
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 .include "../llvm.prog.mk"

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
@@ -8,6 +8,7 @@
 .Sh NAME
 .Nm fido_cred_set_authdata ,
 .Nm fido_cred_set_authdata_raw ,
+.Nm fido_cred_set_attstmt ,
 .Nm fido_cred_set_x509 ,
 .Nm fido_cred_set_sig ,
 .Nm fido_cred_set_id ,
@@ -17,12 +18,13 @@
 .Nm fido_cred_set_user ,
 .Nm fido_cred_set_extensions ,
 .Nm fido_cred_set_blob ,
+.Nm fido_cred_set_pin_minlen ,
 .Nm fido_cred_set_prot ,
 .Nm fido_cred_set_rk ,
 .Nm fido_cred_set_uv ,
 .Nm fido_cred_set_fmt ,
 .Nm fido_cred_set_type
-.Nd set parameters of a FIDO 2 credential
+.Nd set parameters of a FIDO2 credential
 .Sh SYNOPSIS
 .In fido.h
 .Bd -literal
@@ -36,6 +38,8 @@ typedef enum {
 .Fn fido_cred_set_authdata "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_cred_set_authdata_raw "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_cred_set_attstmt "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_cred_set_x509 "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
@@ -55,6 +59,8 @@ typedef enum {
 .Ft int
 .Fn fido_cred_set_blob "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
+.Fn fido_cred_set_pin_minlen "fido_cred_t *cred" "size_t len"
+.Ft int
 .Fn fido_cred_set_prot "fido_cred_t *cred" "int prot"
 .Ft int
 .Fn fido_cred_set_rk "fido_cred_t *cred" "fido_opt_t rk"
@@ -67,26 +73,28 @@ typedef enum {
 .Sh DESCRIPTION
 The
 .Nm
-set of functions define the various parameters of a FIDO 2
+set of functions define the various parameters of a FIDO2
 credential, allowing a
 .Fa fido_cred_t
 type to be prepared for a subsequent call to
 .Xr fido_dev_make_cred 3
 or
 .Xr fido_cred_verify 3 .
-For the complete specification of a FIDO 2 credential and the format
+For the complete specification of a FIDO2 credential and the format
 of its constituent parts, please refer to the Web Authentication
 (webauthn) standard.
 .Pp
 The
 .Fn fido_cred_set_authdata ,
+.Fn fido_cred_set_attstmt ,
 .Fn fido_cred_set_x509 ,
 .Fn fido_cred_set_sig ,
 .Fn fido_cred_set_id ,
 and
 .Fn fido_cred_set_clientdata_hash
-functions set the authenticator data, attestation certificate,
-signature, id, and client data hash parts of
+functions set the authenticator data, attestation statement,
+attestation certificate, attestation signature, id, and client
+data hash parts of
 .Fa cred
 to
 .Fa ptr ,
@@ -98,19 +106,33 @@ bytes.
 A copy of
 .Fa ptr
 is made, and no references to the passed pointer are kept.
+.Pp
 The authenticator data passed to
 .Fn fido_cred_set_authdata
 must be a CBOR-encoded byte string, as obtained from
 .Fn fido_cred_authdata_ptr .
 Alternatively, a raw binary blob may be passed to
 .Fn fido_cred_set_authdata_raw .
-.Pp
 An application calling
 .Fn fido_cred_set_authdata
 does not need to call
 .Fn fido_cred_set_id .
 The latter is meant to be used in contexts where the
 credential's authenticator data is not available.
+.Pp
+The attestation statement passed to
+.Fn fido_cred_set_attstmt
+must be a CBOR-encoded map, as obtained from
+.Fn fido_cred_attstmt_ptr .
+An application calling
+.Fn fido_cred_set_attstmt
+does not need to call
+.Fn fido_cred_set_x509
+or
+.Fn fido_cred_set_sig .
+The latter two are meant to be used in contexts where the
+credential's complete attestation statement is not available or
+required.
 .Pp
 The
 .Fn fido_cred_set_clientdata
@@ -183,6 +205,7 @@ At the moment, only the
 .Dv FIDO_EXT_CRED_BLOB ,
 .Dv FIDO_EXT_CRED_PROTECT ,
 .Dv FIDO_EXT_HMAC_SECRET ,
+.Dv FIDO_EXT_MINPINLEN ,
 and
 .Dv FIDO_EXT_LARGEBLOB_KEY
 extensions are supported.
@@ -205,8 +228,32 @@ which must be
 bytes long.
 .Pp
 The
+.Fn fido_cred_set_pin_minlen
+function enables the CTAP 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension on
+.Fa cred
+and sets the expected minimum PIN length of
+.Fa cred
+to
+.Fa len ,
+where
+.Fa len
+is greater than zero.
+If
+.Fa len
+is zero, the
+.Dv FIDO_EXT_MINPINLEN
+extension is disabled on
+.Fa cred .
+.Pp
+The
 .Fn fido_cred_set_prot
-function sets the protection of
+function enables the CTAP 2.1
+.Dv FIDO_EXT_CRED_PROTECT
+extension on
+.Fa cred
+and sets the protection of
 .Fa cred
 to the scalar
 .Fa prot .
@@ -278,15 +325,15 @@ Note that not all authenticators support COSE_RS256 or COSE_EDDSA.
 Use of the
 .Nm
 set of functions may happen in two distinct situations:
-when generating a new credential on a FIDO device, prior to
+when generating a new credential on a FIDO2 device, prior to
 .Xr fido_dev_make_cred 3
-(i.e, in the context of a FIDO client), or when validating
+(i.e, in the context of a FIDO2 client), or when validating
 a generated credential using
 .Xr fido_cred_verify 3
-(i.e, in the context of a FIDO server).
+(i.e, in the context of a FIDO2 server).
 .Pp
-For a complete description of the generation of a FIDO 2 credential
-and its verification, please refer to the FIDO 2 specification.
+For a complete description of the generation of a FIDO2 credential
+and its verification, please refer to the FIDO2 specification.
 A concrete utilisation example of the
 .Nm
 set of functions can be found in the

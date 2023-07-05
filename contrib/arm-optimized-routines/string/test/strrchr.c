@@ -2,7 +2,7 @@
  * strrchr test.
  *
  * Copyright (c) 2019-2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <stdint.h>

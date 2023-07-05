@@ -288,7 +288,7 @@ enum_pair_insert(struct enum_pairs *headp, int32_t enum_val, char *enum_str)
 /*
  * Insert an entry in a list - entries are lexicographicaly order by asn_oid.
  * Returns 1 on success, -1 if list is not initialized, 0 if a matching oid already
- * exists. Error cheking is left to calling function.
+ * exists. Error checking is left to calling function.
  */
 static int
 snmp_mapping_insert(struct snmp_mapping *headp, struct snmp_oid2str *entry)

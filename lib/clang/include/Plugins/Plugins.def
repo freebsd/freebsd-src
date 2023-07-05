@@ -1,4 +1,3 @@
-// $FreeBSD$
 /*===- lldb/source/Plugin/Plugins.def ---------------------------*- C++ -*-===*\
 |*                                                                            *|
 |* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
@@ -47,6 +46,7 @@ LLDB_PLUGIN(InstructionARM64)
 LLDB_PLUGIN(InstructionMIPS)
 LLDB_PLUGIN(InstructionMIPS64)
 LLDB_PLUGIN(InstructionPPC64)
+LLDB_PLUGIN(InstructionRISCV)
 LLDB_PLUGIN(InstrumentationRuntimeASan)
 LLDB_PLUGIN(InstrumentationRuntimeMainThreadChecker)
 LLDB_PLUGIN(InstrumentationRuntimeTSan)

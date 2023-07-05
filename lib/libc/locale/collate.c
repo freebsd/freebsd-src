@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
@@ -159,7 +159,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	}
 	if (sbuf.st_size < (COLLATE_FMT_VERSION_LEN +
 			    XLOCALE_DEF_VERSION_LEN +
-			    sizeof (info))) {
+			    sizeof (*info))) {
 		(void) _close(fd);
 		errno = EINVAL;
 		return (_LDP_ERROR);

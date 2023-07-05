@@ -1,3 +1,39 @@
+* Version 1.10.0 (2022-01-17)
+ ** hid_osx: handle devices with paths > 511 bytes; gh#462.
+ ** bio: fix CTAP2 canonical CBOR encoding in fido_bio_dev_enroll_*(); gh#480.
+ ** winhello: fallback to GetTopWindow() if GetForegroundWindow() fails.
+ ** winhello: fallback to hid_win.c if webauthn.dll isn't available.
+ ** New API calls:
+  - fido_dev_info_set;
+  - fido_dev_io_handle;
+  - fido_dev_new_with_info;
+  - fido_dev_open_with_info.
+ ** Cygwin and NetBSD build fixes.
+ ** Documentation and reliability fixes.
+ ** Support for TPM 2.0 attestation of COSE_ES256 credentials.
+
+* Version 1.9.0 (2021-10-27)
+ ** Enabled NFC support on Linux.
+ ** Added OpenSSL 3.0 compatibility.
+ ** Removed OpenSSL 1.0 compatibility.
+ ** Support for FIDO 2.1 "minPinLength" extension.
+ ** Support for COSE_EDDSA, COSE_ES256, and COSE_RS1 attestation.
+ ** Support for TPM 2.0 attestation.
+ ** Support for device timeouts; see fido_dev_set_timeout().
+ ** New API calls:
+  - es256_pk_from_EVP_PKEY;
+  - fido_cred_attstmt_len;
+  - fido_cred_attstmt_ptr;
+  - fido_cred_pin_minlen;
+  - fido_cred_set_attstmt;
+  - fido_cred_set_pin_minlen;
+  - fido_dev_set_pin_minlen_rpid;
+  - fido_dev_set_timeout;
+  - rs256_pk_from_EVP_PKEY.
+ ** Reliability and portability fixes.
+ ** Better handling of HID devices without identification strings; gh#381.
+ ** Fixed detection of Windows's native webauthn API; gh#382.
+
 * Version 1.8.0 (2021-07-22)
  ** Dropped 'Requires.private' entry from pkg-config file.
  ** Better support for FIDO 2.1 authenticators.

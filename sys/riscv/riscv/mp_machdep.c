@@ -88,8 +88,6 @@ static device_attach_t riscv64_cpu_attach;
 
 static int ipi_handler(void *);
 
-struct pcb stoppcbs[MAXCPU];
-
 extern uint32_t boot_hart;
 extern cpuset_t all_harts;
 
@@ -249,13 +247,6 @@ init_secondary(uint64_t hart)
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	schedinit_ap();
 
-	/*
-	 * Identify current CPU. This is necessary to setup
-	 * affinity registers and to provide support for
-	 * runtime chip identification.
-	 */
-	identify_cpu();
-
 	/* Enable software interrupts */
 	riscv_unmask_ipi();
 
@@ -283,6 +274,9 @@ init_secondary(uint64_t hart)
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
+
+	if (bootverbose)
+		printf("Secondary CPU %u fully online\n", cpuid);
 
 	/* Enter the scheduler */
 	sched_ap_entry();
@@ -403,7 +397,7 @@ cpu_mp_probe(void)
 }
 
 #ifdef FDT
-static boolean_t
+static bool
 cpu_check_mmu(u_int id __unused, phandle_t node, u_int addr_size __unused,
     pcell_t *reg __unused)
 {
@@ -412,12 +406,12 @@ cpu_check_mmu(u_int id __unused, phandle_t node, u_int addr_size __unused,
 	/* Check if this hart supports MMU. */
 	if (OF_getprop(node, "mmu-type", (void *)type, sizeof(type)) == -1 ||
 	    strncmp(type, "riscv,none", 10) == 0)
-		return (0);
+		return (false);
 
-	return (1);
+	return (true);
 }
 
-static boolean_t
+static bool
 cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	struct pcpu *pcpup;
@@ -428,7 +422,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	int error;
 
 	if (!cpu_check_mmu(id, node, addr_size, reg))
-		return (0);
+		return (false);
 
 	KASSERT(id < MAXCPU, ("Too many CPUs"));
 
@@ -449,7 +443,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	/* We are already running on this cpu */
 	if (hart == boot_hart)
-		return (1);
+		return (true);
 
 	/*
 	 * Rotate the CPU IDs to put the boot CPU as CPU 0.
@@ -462,7 +456,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	/* Check if we are able to start this cpu */
 	if (cpuid > mp_maxid)
-		return (0);
+		return (false);
 
 	/*
 	 * Depending on the SBI implementation, APs are waiting either in
@@ -477,7 +471,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 			/* Send a warning to the user and continue. */
 			printf("AP %u (hart %lu) failed to start, error %d\n",
 			    cpuid, hart, error);
-			return (0);
+			return (false);
 		}
 	}
 
@@ -493,7 +487,8 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
-	printf("Starting CPU %u (hart %lx)\n", cpuid, hart);
+	if (bootverbose)
+		printf("Starting CPU %u (hart %lx)\n", cpuid, hart);
 	atomic_store_32(&__riscv_boot_ap[hart], 1);
 
 	/* Wait for the AP to switch to its boot stack. */
@@ -503,7 +498,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	CPU_SET(cpuid, &all_cpus);
 	CPU_SET(hart, &all_harts);
 
-	return (1);
+	return (true);
 }
 #endif
 
@@ -511,6 +506,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 void
 cpu_mp_start(void)
 {
+	u_int cpu;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -526,12 +522,29 @@ cpu_mp_start(void)
 	case CPUS_UNKNOWN:
 		break;
 	}
+
+	CPU_FOREACH(cpu) {
+		/* Already identified. */
+		if (cpu == 0)
+			continue;
+
+		identify_cpu(cpu);
+	}
 }
 
 /* Introduce rest of cores to the world */
 void
 cpu_mp_announce(void)
 {
+	u_int cpu;
+
+	CPU_FOREACH(cpu) {
+		/* Already announced. */
+		if (cpu == 0)
+			continue;
+
+		printcpuinfo(cpu);
+	}
 }
 
 void

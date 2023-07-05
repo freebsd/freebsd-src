@@ -2251,12 +2251,12 @@ again:
 			if (nd->nd_flag & ND_NFSV3) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = newnfs_true;
-				*tl++ = 0;
+				txdr_hyper(dp->d_fileno, tl);
 			} else {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				*tl++ = newnfs_true;
+				*tl = txdr_unsigned(dp->d_fileno);
 			}
-			*tl = txdr_unsigned(dp->d_fileno);
 			(void) nfsm_strtom(nd, dp->d_name, nlen);
 			if (nd->nd_flag & ND_NFSV3) {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -2753,8 +2753,7 @@ again:
 			if (nd->nd_flag & ND_NFSV3) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = newnfs_true;
-				*tl++ = 0;
-				*tl = txdr_unsigned(dp->d_fileno);
+				txdr_hyper(dp->d_fileno, tl);
 				dirlen += nfsm_strtom(nd, dp->d_name, nlen);
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				txdr_hyper(*cookiep, tl);

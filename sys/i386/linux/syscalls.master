@@ -102,8 +102,8 @@
 11	AUE_EXECVE	STD {
 		int linux_execve(
 		    char *path,
-		    char **argp,
-		    char **envp
+		    l_uintptr_t *argp,
+		    l_uintptr_t *envp
 		);
 	}
 12	AUE_CHDIR	STD {
@@ -140,7 +140,7 @@
 18	AUE_STAT	STD {
 		int linux_stat(
 		    char *path,
-		    struct linux_stat *up
+		    struct l_old_stat *up
 		);
 	}
 19	AUE_LSEEK	STD {
@@ -191,12 +191,7 @@
 		    l_uint secs
 		);
 	}
-28	AUE_FSTAT	STD {
-		int linux_fstat(
-		    l_uint fd,
-		    struct linux_stat *up
-		);
-	}
+28	AUE_NULL	UNIMPL	fstat
 29	AUE_NULL	STD {
 		int linux_pause(void);
 	}
@@ -457,7 +452,7 @@
 84	AUE_LSTAT	STD {
 		int linux_lstat(
 		    char *path,
-		    struct l_stat *up
+		    struct l_old_stat *up
 		);
 	}
 85	AUE_READLINK	STD {
@@ -1638,7 +1633,7 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_int mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 298	AUE_FCHOWNAT	STD {

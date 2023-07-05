@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2016 Jared McNeill <jmcneill@invisible.ca>
  * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>

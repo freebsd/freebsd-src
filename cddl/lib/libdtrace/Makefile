@@ -131,6 +131,11 @@ SRCS+=		instr_size.c
 DSRCS+=		regs_riscv.d
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=		instr_size.c
+DSRCS+=		regs_aarch64.d
+.endif
+
 YFLAGS+=-d
 
 LIBADD=	ctf elf proc pthread rtld_db

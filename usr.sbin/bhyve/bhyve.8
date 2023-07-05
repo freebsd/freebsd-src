@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2022
+.Dd May 5, 2023
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -45,6 +45,15 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
+.Oo Fl f
+.Sm off
+.Ar name Cm \&,
+.Oo
+.Cm string No | Cm file
+.Oc
+.Cm \&= Ar data
+.Sm on
+.Oc
 .Oo
 .Sm off
 .Fl G\~
@@ -145,6 +154,16 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
+.It Fl f Ar name Ns Cm \&, Ns Oo Cm string Ns No | Ns Cm file Ns Oc Ns Cm \&= Ns Ar data
+Add a fw_cfg file
+.Ar name
+to the fw_cfg interface.
+If a
+.Cm string
+is specified, the fw_cfg file contains the string as data.
+If a
+.Cm file
+is specified, bhyve reads the file and adds the file content as fw_cfg data.
 .It Fl G Xo
 .Sm off
 .Oo Ar w Oc
@@ -463,6 +482,12 @@ if not explicitly specified.
 Disable emulation of guest trim requests via
 .Dv DIOCGDELETE
 requests.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 SCSI device backends:
@@ -480,6 +505,12 @@ are:
 .It Cm iid= Ns Ar IID
 Initiator ID to use when sending requests to specified CTL port.
 The default value is 0.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 9P device backends:
@@ -577,6 +608,12 @@ Add
 .Ar romfile
 as option ROM to the PCI device.
 The ROM will be loaded by firmware and should be capable of initializing the device.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 Guest memory must be wired using the
@@ -988,7 +1025,7 @@ Be sure to create a per-guest copy of the template VARS file from
 .Bd -literal -offset indent
 bhyve -c 2 -m 4g -w -H \\
   -s 0,hostbridge \\
-  -s 31,lpc -p com1,stdio \\
+  -s 31,lpc -l com1,stdio \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd
    uefivm
 .Ed

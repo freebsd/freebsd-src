@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
@@ -190,7 +190,6 @@ _gss_load_mech(void)
 	char		*p;
 	char		*name, *oid, *lib, *kobj;
 	struct _gss_mech_switch *m;
-	int		count;
 	void		*so;
 	const char	*(*prefix_fn)(void);
 
@@ -208,7 +207,6 @@ _gss_load_mech(void)
 		return;
 	}
 
-	count = 0;
 	while (fgets(buf, sizeof(buf), fp)) {
 		if (*buf == '#')
 			continue;
@@ -290,7 +288,6 @@ _gss_load_mech(void)
 		OPTSYM(pname_to_uid);
 
 		SLIST_INSERT_HEAD(&_gss_mechs, m, gm_link);
-		count++;
 		continue;
 
 	bad:

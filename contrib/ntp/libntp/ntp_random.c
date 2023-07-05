@@ -497,3 +497,18 @@ ntp_random( void )
 	}
 	return(i);
 }
+
+/*
+ * ntp_uurandom()
+ *
+ * Generate a Uniform-distributed Unity based random number. Replaces a
+ * few locations where the transformation was made in an ad-hoc style
+ * (and in one instance, wrong...)
+ *
+ * returns a number in [0.0 .. 1.0], both ends inclusive
+ */
+double
+ntp_uurandom( void )
+{
+	return (double)ntp_random() / 0x7FFFFFFFu;
+}

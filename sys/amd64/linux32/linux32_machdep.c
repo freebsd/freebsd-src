@@ -114,28 +114,6 @@ linux_copyout_rusage(struct rusage *ru, void *uaddr)
 	return (copyout(&lru, uaddr, sizeof(struct l_rusage)));
 }
 
-int
-linux_execve(struct thread *td, struct linux_execve_args *args)
-{
-	struct image_args eargs;
-	char *path;
-	int error;
-
-	if (!LUSECONVPATH(td)) {
-		error = freebsd32_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
-		    args->argp, args->envp);
-		LFREEPATH(path);
-	}
-	if (error == 0)
-		error = linux_common_execve(td, &eargs);
-	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
-	return (error);
-}
-
 CTASSERT(sizeof(struct l_iovec32) == 8);
 
 int
@@ -741,4 +719,22 @@ DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
 	    futex_xorl_smap : futex_xorl_nosmap);
+}
+
+int
+linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	LINUX_RATELIMIT_MSG_OPT1("PTRACE_PEEKUSER offset %ld not implemented; "
+	    "returning EINVAL", (uintptr_t)addr);
+	return (EINVAL);
+}
+
+int
+linux_ptrace_pokeuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	LINUX_RATELIMIT_MSG_OPT1("PTRACE_POKEUSER offset %ld "
+	    "not implemented; returning EINVAL", (uintptr_t)addr);
+	return (EINVAL);
 }

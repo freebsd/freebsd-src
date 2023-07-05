@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 The FreeBSD Foundation
  *
@@ -168,5 +168,6 @@ struct dnode_cursor *dnode_cursor_init(zfs_opt_t *, zfs_objset_t *,
     dnode_phys_t *, off_t, off_t);
 blkptr_t *dnode_cursor_next(zfs_opt_t *, struct dnode_cursor *, off_t);
 void dnode_cursor_finish(zfs_opt_t *, struct dnode_cursor *);
+uint64_t randomguid(void);
 
 #endif /* !_MAKEFS_ZFS_H_ */

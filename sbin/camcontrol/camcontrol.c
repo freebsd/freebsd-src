@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/sbuf.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,18 +124,21 @@ typedef enum {
 	CAM_ARG_LUN		= 0x00000010,
 	CAM_ARG_EJECT		= 0x00000020,
 	CAM_ARG_UNIT		= 0x00000040,
-	CAM_ARG_FORMAT_BLOCK	= 0x00000080,
-	CAM_ARG_FORMAT_BFI	= 0x00000100,
-	CAM_ARG_FORMAT_PHYS	= 0x00000200,
-	CAM_ARG_PLIST		= 0x00000400,
-	CAM_ARG_GLIST		= 0x00000800,
+			/* unused 0x00000080 */
+			/* unused 0x00000100 */
+			/* unused 0x00000200 */
+			/* unused 0x00000400 */
+			/* unused 0x00000800 */
 	CAM_ARG_GET_SERIAL	= 0x00001000,
 	CAM_ARG_GET_STDINQ	= 0x00002000,
 	CAM_ARG_GET_XFERRATE	= 0x00004000,
 	CAM_ARG_INQ_MASK	= 0x00007000,
+			/* unused 0x00008000 */
+			/* unused 0x00010000 */
 	CAM_ARG_TIMEOUT		= 0x00020000,
 	CAM_ARG_CMD_IN		= 0x00040000,
 	CAM_ARG_CMD_OUT		= 0x00080000,
+			/* unused 0x00100000 */
 	CAM_ARG_ERR_RECOVER	= 0x00200000,
 	CAM_ARG_RETRIES		= 0x00400000,
 	CAM_ARG_START_UNIT	= 0x00800000,
@@ -145,6 +149,7 @@ typedef enum {
 	CAM_ARG_DEBUG_XPT	= 0x10000000,
 	CAM_ARG_DEBUG_PERIPH	= 0x20000000,
 	CAM_ARG_DEBUG_PROBE	= 0x40000000,
+			/* unused 0x80000000 */
 } cam_argmask;
 
 struct camcontrol_opts {
@@ -1750,7 +1755,7 @@ scsi_cam_pass_16_send(struct cam_device *device, union ccb *ccb)
 
 	/*
 	 * Consider any non-CAM_REQ_CMP status as error and report it here,
-	 * unless caller set AP_FLAG_CHK_COND, in which case it is reponsible.
+	 * unless caller set AP_FLAG_CHK_COND, in which case it is responsible.
 	 */
 	if (!(ata_pass_16->flags & AP_FLAG_CHK_COND) &&
 	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -1788,7 +1793,7 @@ ata_cam_send(struct cam_device *device, union ccb *ccb)
 
 	/*
 	 * Consider any non-CAM_REQ_CMP status as error and report it here,
-	 * unless caller set AP_FLAG_CHK_COND, in which case it is reponsible.
+	 * unless caller set AP_FLAG_CHK_COND, in which case it is responsible.
 	 */
 	if (!(ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT) &&
 	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -3823,11 +3828,8 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	struct scsi_read_defect_data_hdr_10 *hdr10 = NULL;
 	struct scsi_read_defect_data_hdr_12 *hdr12 = NULL;
 	size_t hdr_size = 0, entry_size = 0;
-	int use_12byte = 0;
-	int hex_format = 0;
 	u_int8_t *defect_list = NULL;
 	u_int8_t list_format = 0;
-	int list_type_set = 0;
 	u_int32_t dlist_length = 0;
 	u_int32_t returned_length = 0, valid_len = 0;
 	u_int32_t num_returned = 0, num_valid = 0;
@@ -3835,11 +3837,11 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	u_int32_t starting_offset = 0;
 	u_int8_t returned_format, returned_type;
 	unsigned int i;
-	int summary = 0, quiet = 0;
 	int c, error = 0;
-	int lists_specified = 0;
-	int get_length = 1, first_pass = 1;
 	int mads = 0;
+	bool summary = false, quiet = false, list_type_set = false;
+	bool get_length = true, use_12byte = false, first_pass = true;
+	bool hex_format = false;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c){
@@ -3848,15 +3850,21 @@ readdefects(struct cam_device *device, int argc, char **argv,
 			scsi_nv_status status;
 			int entry_num = 0;
 
+			if (list_type_set) {
+				warnx("%s: -f specified twice", __func__);
+				error = 1;
+				goto defect_bailout;
+			}
+
 			status = scsi_get_nv(defect_list_type_map,
 			    sizeof(defect_list_type_map) /
 			    sizeof(defect_list_type_map[0]), optarg,
 			    &entry_num, SCSI_NV_FLAG_IG_CASE);
 
 			if (status == SCSI_NV_FOUND) {
-				list_format = defect_list_type_map[
+				list_format |= defect_list_type_map[
 				    entry_num].value;
-				list_type_set = 1;
+				list_type_set = true;
 			} else {
 				warnx("%s: %s %s option %s", __func__,
 				    (status == SCSI_NV_AMBIGUOUS) ?
@@ -3868,16 +3876,16 @@ readdefects(struct cam_device *device, int argc, char **argv,
 			break;
 		}
 		case 'G':
-			arglist |= CAM_ARG_GLIST;
+			list_format |= SRDD10_GLIST;
 			break;
 		case 'P':
-			arglist |= CAM_ARG_PLIST;
+			list_format |= SRDD10_PLIST;
 			break;
 		case 'q':
-			quiet = 1;
+			quiet = true;
 			break;
 		case 's':
-			summary = 1;
+			summary = true;
 			break;
 		case 'S': {
 			char *endptr;
@@ -3888,52 +3896,48 @@ readdefects(struct cam_device *device, int argc, char **argv,
 				warnx("invalid starting offset %s", optarg);
 				goto defect_bailout;
 			}
+			use_12byte = true;
 			break;
 		}
 		case 'X':
-			hex_format = 1;
+			hex_format = true;
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (list_type_set == 0) {
+	if (!list_type_set) {
 		error = 1;
 		warnx("no defect list format specified");
 		goto defect_bailout;
 	}
 
-	if (arglist & CAM_ARG_PLIST) {
-		list_format |= SRDD10_PLIST;
-		lists_specified++;
-	}
-
-	if (arglist & CAM_ARG_GLIST) {
-		list_format |= SRDD10_GLIST;
-		lists_specified++;
-	}
-
 	/*
 	 * This implies a summary, and was the previous behavior.
 	 */
-	if (lists_specified == 0)
-		summary = 1;
+	if ((list_format & ~SRDD10_DLIST_FORMAT_MASK) == 0)
+		summary = true;
 
 	ccb = cam_getccb(device);
 
-retry_12byte:
-
 	/*
-	 * We start off asking for just the header to determine how much
-	 * defect data is available.  Some Hitachi drives return an error
-	 * if you ask for more data than the drive has.  Once we know the
-	 * length, we retry the command with the returned length.
+	 * We start off asking for just the header to determine how much defect
+	 * data is available.  Some Hitachi drives return an error if you ask
+	 * for more data than the drive has.  Once we know the length, we retry
+	 * the command with the returned length.  When we're retrying the with
+	 * 12-byte command, we're always changing to the 12-byte command and
+	 * need to get the length. Simplify the logic below by always setting
+	 * use_12byte in this case with this slightly more complex logic here.
 	 */
-	if (use_12byte == 0)
+	if (!use_12byte) {
 		dlist_length = sizeof(*hdr10);
-	else
+	} else  {
+retry_12byte:
+		get_length = true;
+		use_12byte = true;
 		dlist_length = sizeof(*hdr12);
+	}
 
 retry:
 	if (defect_list != NULL) {
@@ -3979,7 +3983,7 @@ next_batch:
 
 	valid_len = ccb->csio.dxfer_len - ccb->csio.resid;
 
-	if (use_12byte == 0) {
+	if (!use_12byte) {
 		hdr10 = (struct scsi_read_defect_data_hdr_10 *)defect_list;
 		hdr_size = sizeof(*hdr10);
 		hdr_max = SRDDH10_MAX_LENGTH;
@@ -4033,8 +4037,8 @@ next_batch:
 	num_valid = min(returned_length, valid_len - hdr_size);
 	num_valid /= entry_size;
 
-	if (get_length != 0) {
-		get_length = 0;
+	if (get_length) {
+		get_length = false;
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
 		     CAM_SCSI_STATUS_ERROR) {
@@ -4055,10 +4059,8 @@ next_batch:
 			if ((sense_key == SSD_KEY_RECOVERED_ERROR)
 			 && (asc == 0x1c) && (ascq == 0x00)
 			 && (returned_length > 0)) {
-				if ((use_12byte == 0)
+				if (!use_12byte
 				 && (returned_length >= max_possible_size)) {
-					get_length = 1;
-					use_12byte = 1;
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4073,9 +4075,7 @@ next_batch:
 				 * command can support.  Retry with the 12
 				 * byte command.
 				 */
-				if (use_12byte == 0) {
-					get_length = 1;
-					use_12byte = 1;
+				if (!use_12byte) {
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4089,9 +4089,7 @@ next_batch:
 	 			 * error and no data.  Retry with the 12
 				 * byte command.
 				 */
-				if (use_12byte == 0) {
-					get_length = 1;
-					use_12byte = 1;
+				if (!use_12byte) {
 					goto retry_12byte;
 				}
 				dlist_length = returned_length + hdr_size;
@@ -4104,11 +4102,9 @@ next_batch:
 				if (returned_length == 0)
 					dlist_length = SRDD10_MAX_LENGTH;
 				else {
-					if ((use_12byte == 0)
+					if (!use_12byte
 					 && (returned_length >=
 					     max_possible_size)) {
-						get_length = 1;
-						use_12byte = 1;
 						goto retry_12byte;
 					}
 					dlist_length = returned_length +
@@ -4124,17 +4120,15 @@ next_batch:
 						CAM_EPF_ALL, stderr);
 			goto defect_bailout;
 		} else {
-			if ((use_12byte == 0)
+			if (!use_12byte
 			 && (returned_length >= max_possible_size)) {
-				get_length = 1;
-				use_12byte = 1;
 				goto retry_12byte;
 			}
 			dlist_length = returned_length + hdr_size;
 		}
-		if (summary != 0) {
+		if (summary) {
 			fprintf(stdout, "%u", num_returned);
-			if (quiet == 0) {
+			if (!quiet) {
 				fprintf(stdout, " defect%s",
 					(num_returned != 1) ? "s" : "");
 			}
@@ -4218,10 +4212,10 @@ next_batch:
 		goto defect_bailout;
 	}
 
-	if (first_pass != 0) {
+	if (first_pass) {
 		fprintf(stderr, "Got %d defect", num_returned);
 
-		if ((lists_specified == 0) || (num_returned == 0)) {
+		if (!summary || (num_returned == 0)) {
 			fprintf(stderr, "s.\n");
 			goto defect_bailout;
 		} else if (num_returned == 1)
@@ -4229,7 +4223,7 @@ next_batch:
 		else
 			fprintf(stderr, "s:\n");
 
-		first_pass = 0;
+		first_pass = false;
 	}
 
 	/*
@@ -4254,7 +4248,7 @@ next_batch:
 				       0 : 1;
 				sector &= ~SDD_EXT_PHYS_FLAG_MASK;
 			}
-			if (hex_format == 0)
+			if (!hex_format)
 				fprintf(stdout, "%d:%d:%d%s",
 					scsi_3btoul(dlist[i].cylinder),
 					dlist[i].head,
@@ -4290,7 +4284,7 @@ next_batch:
 				mads = (bfi & SDD_EXT_BFI_MADS) ? 1 : 0;
 				bfi &= ~SDD_EXT_BFI_FLAG_MASK;
 			}
-			if (hex_format == 0)
+			if (!hex_format)
 				fprintf(stdout, "%d:%d:%d%s",
 					scsi_3btoul(dlist[i].cylinder),
 					dlist[i].head,
@@ -4319,7 +4313,7 @@ next_batch:
 			(defect_list + hdr_size);
 
 		for (i = 0; i < num_valid; i++) {
-			if (hex_format == 0)
+			if (!hex_format)
 				fprintf(stdout, "%u\n",
 					scsi_4btoul(dlist[i].address));
 			else
@@ -4342,7 +4336,7 @@ next_batch:
 			(defect_list + hdr_size);
 
 		for (i = 0; i < num_valid; i++) {
-			if (hex_format == 0)
+			if (!hex_format)
 				fprintf(stdout, "%ju\n",
 					(uintmax_t)scsi_8btou64(
 					dlist[i].address));
@@ -4402,7 +4396,7 @@ mode_sense(struct cam_device *device, int *cdb_len, int dbd, int llbaa, int pc,
 retry:
 	/*
 	 * MODE SENSE(6) can't handle more then 255 bytes.  If there are more,
-	 * device must return error, so we should not get trucated data.
+	 * device must return error, so we should not get truncated data.
 	 */
 	if (*cdb_len == 6 && datalen > 255)
 		datalen = 255;

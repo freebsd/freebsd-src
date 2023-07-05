@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-This is an experimental build system.
+This is an alternate build system.
 For details see
 https://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
 Build commands can be seen from the top-level with:
@@ -33,4 +33,11 @@ The build hides commands executed unless
 is defined.
 .Pp
 Note that there is currently no mass install feature for this.
+This build is designed for producing packages, that can then be installed
+on a target system.
 .Pp
+The implementation in
+.Fx
+is incomplete.
+Completion would require leaf directories for building each kernel
+and package so that their dependencies can be tracked.

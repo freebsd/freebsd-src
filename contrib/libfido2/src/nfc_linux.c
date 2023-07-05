@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <libudev.h>
 #include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "fido.h"
@@ -218,15 +220,22 @@ tx_get_response(fido_dev_t *d, uint8_t count)
 }
 
 static int
-rx_apdu(fido_dev_t *d, uint8_t sw[2], unsigned char **buf, size_t *count, int ms)
+rx_apdu(fido_dev_t *d, uint8_t sw[2], unsigned char **buf, size_t *count, int *ms)
 {
 	uint8_t f[256 + 2];
+	struct timespec ts;
 	int n, ok = -1;
 
-	if ((n = d->io.read(d->io_handle, f, sizeof(f), ms)) < 2) {
+	if (fido_time_now(&ts) != 0)
+		goto fail;
+
+	if ((n = d->io.read(d->io_handle, f, sizeof(f), *ms)) < 2) {
 		fido_log_debug("%s: read", __func__);
 		goto fail;
 	}
+
+	if (fido_time_delta(&ts, ms) != 0)
+		goto fail;
 
 	if (fido_buf_write(buf, count, f, (size_t)(n - 2)) < 0) {
 		fido_log_debug("%s: fido_buf_write", __func__);
@@ -248,14 +257,14 @@ rx_msg(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
 	uint8_t sw[2];
 	const size_t bufsiz = count;
 
-	if (rx_apdu(d, sw, &buf, &count, ms) < 0) {
+	if (rx_apdu(d, sw, &buf, &count, &ms) < 0) {
 		fido_log_debug("%s: preamble", __func__);
 		return (-1);
 	}
 
 	while (sw[0] == SW1_MORE_DATA)
 		if (tx_get_response(d, sw[1]) < 0 ||
-		    rx_apdu(d, sw, &buf, &count, ms) < 0) {
+		    rx_apdu(d, sw, &buf, &count, &ms) < 0) {
 			fido_log_debug("%s: chain", __func__);
 			return (-1);
 		}
@@ -347,6 +356,7 @@ copy_info(fido_dev_info_t *di, struct udev *udev,
 	const char *name;
 	char *str;
 	struct udev_device *dev = NULL;
+	void *ctx = NULL;
 	int id, ok = -1;
 
 	memset(di, 0, sizeof(*di));
@@ -354,27 +364,35 @@ copy_info(fido_dev_info_t *di, struct udev *udev,
 	if ((name = udev_list_entry_get_name(udev_entry)) == NULL ||
 	    (dev = udev_device_new_from_syspath(udev, name)) == NULL)
 		goto fail;
-
-	if ((di->path = strdup(name)) == NULL ||
-	    (di->manufacturer = get_usb_attr(dev, "manufacturer")) == NULL ||
-	    (di->product = get_usb_attr(dev, "product")) == NULL)
+	if (asprintf(&di->path, "%s/%s", FIDO_NFC_PREFIX, name) == -1)
 		goto fail;
-
+	if ((di->manufacturer = get_usb_attr(dev, "manufacturer")) == NULL)
+		di->manufacturer = strdup("");
+	if ((di->product = get_usb_attr(dev, "product")) == NULL)
+		di->product = strdup("");
+	if (di->manufacturer == NULL || di->product == NULL)
+		goto fail;
 	/* XXX assumes USB for vendor/product info */
 	if ((str = get_usb_attr(dev, "idVendor")) != NULL &&
 	    (id = to_int(str, 16)) > 0 && id <= UINT16_MAX)
 		di->vendor_id = (int16_t)id;
 	free(str);
-
 	if ((str = get_usb_attr(dev, "idProduct")) != NULL &&
 	    (id = to_int(str, 16)) > 0 && id <= UINT16_MAX)
 		di->product_id = (int16_t)id;
 	free(str);
 
+	if ((ctx = fido_nfc_open(di->path)) == NULL) {
+		fido_log_debug("%s: fido_nfc_open", __func__);
+		goto fail;
+	}
+
 	ok = 0;
 fail:
 	if (dev != NULL)
 		udev_device_unref(dev);
+	if (ctx != NULL)
+		fido_nfc_close(ctx);
 
 	if (ok < 0) {
 		free(di->path);
@@ -532,7 +550,11 @@ fido_nfc_open(const char *path)
 	struct nfc_linux *ctx = NULL;
 	int idx;
 
-	if ((idx = sysnum_from_syspath(path)) < 0 ||
+	if (strncmp(path, FIDO_NFC_PREFIX, strlen(FIDO_NFC_PREFIX)) != 0) {
+		fido_log_debug("%s: bad prefix", __func__);
+		goto fail;
+	}
+	if ((idx = sysnum_from_syspath(path + strlen(FIDO_NFC_PREFIX))) < 0 ||
 	    (ctx = nfc_new((uint32_t)idx)) == NULL) {
 		fido_log_debug("%s: nfc_new", __func__);
 		goto fail;

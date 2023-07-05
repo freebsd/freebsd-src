@@ -91,7 +91,7 @@ class KtestLoader(object):
 
         ret = []
         for rx_msg in NetlinkMultipartIterator(self.nlsock, nlmsg_seq, self.family_id):
-            # test_msg.print_message()
+            # rx_msg.print_message()
             tst = {
                 "mod_name": rx_msg.get_nla(KtestAttrType.KTEST_ATTR_MOD_NAME).text,
                 "name": rx_msg.get_nla(KtestAttrType.KTEST_ATTR_TEST_NAME).text,

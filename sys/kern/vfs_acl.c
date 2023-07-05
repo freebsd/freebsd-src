@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1999-2006, 2016-2017 Robert N. M. Watson
  * All rights reserved.
@@ -436,7 +436,7 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->filedes);
-	error = getvnode(td, uap->filedes,
+	error = getvnode_path(td, uap->filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_GET), &fp);
 	if (error == 0) {
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
@@ -570,7 +570,7 @@ sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->filedes);
-	error = getvnode(td, uap->filedes,
+	error = getvnode_path(td, uap->filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_CHECK), &fp);
 	if (error == 0) {
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);

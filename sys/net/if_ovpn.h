@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021-2022 Rubicon Communications, LLC (Netgate)
  *
@@ -36,6 +36,7 @@
 
 enum ovpn_notif_type {
 	OVPN_NOTIF_DEL_PEER,
+	OVPN_NOTIF_ROTATE_KEY,
 };
 
 enum ovpn_del_reason {

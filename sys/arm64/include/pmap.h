@@ -155,15 +155,15 @@ int	pmap_pinit_stage(pmap_t, enum pmap_stage, int);
 bool	pmap_ps_enabled(pmap_t pmap);
 uint64_t pmap_to_ttbr0(pmap_t pmap);
 void	pmap_disable_promotion(vm_offset_t sva, vm_size_t size);
-#define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
+void	pmap_map_delete(pmap_t, vm_offset_t, vm_offset_t);
 
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(void *, vm_size_t);
 void	pmap_unmapbios(void *, vm_size_t);
 
-boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
-void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
+bool	pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, bool);
+void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, bool);
 
 bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
     pd_entry_t **, pt_entry_t **);

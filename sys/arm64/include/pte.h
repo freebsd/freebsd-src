@@ -51,6 +51,14 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_MASK_H		UINT64_C(0xfffc000000000000)
 #define	ATTR_MASK_L		UINT64_C(0x0000000000000fff)
 #define	ATTR_MASK		(ATTR_MASK_H | ATTR_MASK_L)
+
+#define BASE_MASK		~ATTR_MASK
+#define BASE_ADDR(x)		((x) & BASE_MASK)
+
+#define PTE_TO_PHYS(pte)	BASE_ADDR(pte)
+/* Convert a phys addr to the output address field of a PTE */
+#define PHYS_TO_PTE(pa)		(pa)
+
 /* Bits 58:55 are reserved for software */
 #define	ATTR_SW_UNUSED1		(1UL << 58)
 #define	ATTR_SW_NO_PROMOTE	(1UL << 57)

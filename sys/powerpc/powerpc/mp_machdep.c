@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2008 Marcel Moolenaar
  * All rights reserved.
@@ -66,7 +66,6 @@ volatile static int ap_awake;
 volatile static u_int ap_letgo;
 volatile static u_quad_t ap_timebase;
 static struct mtx ap_boot_mtx;
-struct pcb stoppcbs[MAXCPU];
 
 void
 machdep_ap_bootstrap(void)

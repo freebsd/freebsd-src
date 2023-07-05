@@ -398,10 +398,10 @@ get_usage(zpool_help_t idx)
 	case HELP_REOPEN:
 		return (gettext("\treopen [-n] <pool>\n"));
 	case HELP_INITIALIZE:
-		return (gettext("\tinitialize [-c | -s] [-w] <pool> "
+		return (gettext("\tinitialize [-c | -s | -u] [-w] <pool> "
 		    "[<device> ...]\n"));
 	case HELP_SCRUB:
-		return (gettext("\tscrub [-s | -p] [-w] <pool> ...\n"));
+		return (gettext("\tscrub [-s | -p] [-w] [-e] <pool> ...\n"));
 	case HELP_RESILVER:
 		return (gettext("\tresilver <pool> ...\n"));
 	case HELP_TRIM:
@@ -585,12 +585,13 @@ usage(boolean_t requested)
 }
 
 /*
- * zpool initialize [-c | -s] [-w] <pool> [<vdev> ...]
+ * zpool initialize [-c | -s | -u] [-w] <pool> [<vdev> ...]
  * Initialize all unused blocks in the specified vdevs, or all vdevs in the pool
  * if none specified.
  *
  *	-c	Cancel. Ends active initializing.
  *	-s	Suspend. Initializing can then be restarted with no flags.
+ *	-u	Uninitialize. Clears initialization state.
  *	-w	Wait. Blocks until initializing has completed.
  */
 int
@@ -606,12 +607,14 @@ zpool_do_initialize(int argc, char **argv)
 	struct option long_options[] = {
 		{"cancel",	no_argument,		NULL, 'c'},
 		{"suspend",	no_argument,		NULL, 's'},
+		{"uninit",	no_argument,		NULL, 'u'},
 		{"wait",	no_argument,		NULL, 'w'},
 		{0, 0, 0, 0}
 	};
 
 	pool_initialize_func_t cmd_type = POOL_INITIALIZE_START;
-	while ((c = getopt_long(argc, argv, "csw", long_options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "csuw", long_options,
+	    NULL)) != -1) {
 		switch (c) {
 		case 'c':
 			if (cmd_type != POOL_INITIALIZE_START &&
@@ -630,6 +633,15 @@ zpool_do_initialize(int argc, char **argv)
 				usage(B_FALSE);
 			}
 			cmd_type = POOL_INITIALIZE_SUSPEND;
+			break;
+		case 'u':
+			if (cmd_type != POOL_INITIALIZE_START &&
+			    cmd_type != POOL_INITIALIZE_UNINIT) {
+				(void) fprintf(stderr, gettext("-u cannot be "
+				    "combined with other options\n"));
+				usage(B_FALSE);
+			}
+			cmd_type = POOL_INITIALIZE_UNINIT;
 			break;
 		case 'w':
 			wait = B_TRUE;
@@ -657,8 +669,8 @@ zpool_do_initialize(int argc, char **argv)
 	}
 
 	if (wait && (cmd_type != POOL_INITIALIZE_START)) {
-		(void) fprintf(stderr, gettext("-w cannot be used with -c or "
-		    "-s\n"));
+		(void) fprintf(stderr, gettext("-w cannot be used with -c, -s"
+		    "or -u\n"));
 		usage(B_FALSE);
 	}
 
@@ -4272,13 +4284,17 @@ print_iostat_header(iostat_cbdata_t *cb)
  * by order of magnitude. Uses column_size to add padding.
  */
 static void
-print_stat_color(char *statbuf, unsigned int column_size)
+print_stat_color(const char *statbuf, unsigned int column_size)
 {
 	fputs("  ", stdout);
+	size_t len = strlen(statbuf);
+	while (len < column_size) {
+		fputc(' ', stdout);
+		column_size--;
+	}
 	if (*statbuf == '0') {
 		color_start(ANSI_GRAY);
 		fputc('0', stdout);
-		column_size--;
 	} else {
 		for (; *statbuf; statbuf++) {
 			if (*statbuf == 'K') color_start(ANSI_GREEN);
@@ -4293,8 +4309,6 @@ print_stat_color(char *statbuf, unsigned int column_size)
 		}
 	}
 	color_end();
-	for (; column_size > 0; column_size--)
-		fputc(' ', stdout);
 }
 
 /*
@@ -6939,6 +6953,17 @@ zpool_do_online(int argc, char **argv)
 		return (1);
 
 	for (i = 1; i < argc; i++) {
+		vdev_state_t oldstate;
+		boolean_t avail_spare, l2cache;
+		nvlist_t *tgt = zpool_find_vdev(zhp, argv[i], &avail_spare,
+		    &l2cache, NULL);
+		if (tgt == NULL) {
+			ret = 1;
+			continue;
+		}
+		uint_t vsc;
+		oldstate = ((vdev_stat_t *)fnvlist_lookup_uint64_array(tgt,
+		    ZPOOL_CONFIG_VDEV_STATS, &vsc))->vs_state;
 		if (zpool_vdev_online(zhp, argv[i], flags, &newstate) == 0) {
 			if (newstate != VDEV_STATE_HEALTHY) {
 				(void) printf(gettext("warning: device '%s' "
@@ -6952,6 +6977,17 @@ zpool_do_online(int argc, char **argv)
 					(void) printf(gettext("use 'zpool "
 					    "replace' to replace devices "
 					    "that are no longer present\n"));
+				if ((flags & ZFS_ONLINE_EXPAND)) {
+					(void) printf(gettext("%s: failed "
+					    "to expand usable space on "
+					    "unhealthy device '%s'\n"),
+					    (oldstate >= VDEV_STATE_DEGRADED ?
+					    "error" : "warning"), argv[i]);
+					if (oldstate >= VDEV_STATE_DEGRADED) {
+						ret = 1;
+						break;
+					}
+				}
 			}
 		} else {
 			ret = 1;
@@ -7273,8 +7309,9 @@ wait_callback(zpool_handle_t *zhp, void *data)
 }
 
 /*
- * zpool scrub [-s | -p] [-w] <pool> ...
+ * zpool scrub [-s | -p] [-w] [-e] <pool> ...
  *
+ *	-e	Only scrub blocks in the error log.
  *	-s	Stop.  Stops any in-progress scrub.
  *	-p	Pause. Pause in-progress scrub.
  *	-w	Wait.  Blocks until scrub has completed.
@@ -7290,14 +7327,21 @@ zpool_do_scrub(int argc, char **argv)
 	cb.cb_type = POOL_SCAN_SCRUB;
 	cb.cb_scrub_cmd = POOL_SCRUB_NORMAL;
 
+	boolean_t is_error_scrub = B_FALSE;
+	boolean_t is_pause = B_FALSE;
+	boolean_t is_stop = B_FALSE;
+
 	/* check options */
-	while ((c = getopt(argc, argv, "spw")) != -1) {
+	while ((c = getopt(argc, argv, "spwe")) != -1) {
 		switch (c) {
+		case 'e':
+			is_error_scrub = B_TRUE;
+			break;
 		case 's':
-			cb.cb_type = POOL_SCAN_NONE;
+			is_stop = B_TRUE;
 			break;
 		case 'p':
-			cb.cb_scrub_cmd = POOL_SCRUB_PAUSE;
+			is_pause = B_TRUE;
 			break;
 		case 'w':
 			wait = B_TRUE;
@@ -7309,11 +7353,21 @@ zpool_do_scrub(int argc, char **argv)
 		}
 	}
 
-	if (cb.cb_type == POOL_SCAN_NONE &&
-	    cb.cb_scrub_cmd == POOL_SCRUB_PAUSE) {
-		(void) fprintf(stderr, gettext("invalid option combination: "
-		    "-s and -p are mutually exclusive\n"));
+	if (is_pause && is_stop) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination :-s and -p are mutually exclusive\n"));
 		usage(B_FALSE);
+	} else {
+		if (is_error_scrub)
+			cb.cb_type = POOL_SCAN_ERRORSCRUB;
+
+		if (is_pause) {
+			cb.cb_scrub_cmd = POOL_SCRUB_PAUSE;
+		} else if (is_stop) {
+			cb.cb_type = POOL_SCAN_NONE;
+		} else {
+			cb.cb_scrub_cmd = POOL_SCRUB_NORMAL;
+		}
 	}
 
 	if (wait && (cb.cb_type == POOL_SCAN_NONE ||
@@ -7538,17 +7592,81 @@ secs_to_dhms(uint64_t total, char *buf)
 }
 
 /*
+ * Print out detailed error scrub status.
+ */
+static void
+print_err_scrub_status(pool_scan_stat_t *ps)
+{
+	time_t start, end, pause;
+	uint64_t total_secs_left;
+	uint64_t secs_left, mins_left, hours_left, days_left;
+	uint64_t examined, to_be_examined;
+
+	if (ps == NULL || ps->pss_error_scrub_func != POOL_SCAN_ERRORSCRUB) {
+		return;
+	}
+
+	(void) printf(gettext(" scrub: "));
+
+	start = ps->pss_error_scrub_start;
+	end = ps->pss_error_scrub_end;
+	pause = ps->pss_pass_error_scrub_pause;
+	examined = ps->pss_error_scrub_examined;
+	to_be_examined = ps->pss_error_scrub_to_be_examined;
+
+	assert(ps->pss_error_scrub_func == POOL_SCAN_ERRORSCRUB);
+
+	if (ps->pss_error_scrub_state == DSS_FINISHED) {
+		total_secs_left = end - start;
+		days_left = total_secs_left / 60 / 60 / 24;
+		hours_left = (total_secs_left / 60 / 60) % 24;
+		mins_left = (total_secs_left / 60) % 60;
+		secs_left = (total_secs_left % 60);
+
+		(void) printf(gettext("scrubbed %llu error blocks in %llu days "
+		    "%02llu:%02llu:%02llu on %s"), (u_longlong_t)examined,
+		    (u_longlong_t)days_left, (u_longlong_t)hours_left,
+		    (u_longlong_t)mins_left, (u_longlong_t)secs_left,
+		    ctime(&end));
+
+		return;
+	} else if (ps->pss_error_scrub_state == DSS_CANCELED) {
+		(void) printf(gettext("error scrub canceled on %s"),
+		    ctime(&end));
+		return;
+	}
+	assert(ps->pss_error_scrub_state == DSS_ERRORSCRUBBING);
+
+	/* Error scrub is in progress. */
+	if (pause == 0) {
+		(void) printf(gettext("error scrub in progress since %s"),
+		    ctime(&start));
+	} else {
+		(void) printf(gettext("error scrub paused since %s"),
+		    ctime(&pause));
+		(void) printf(gettext("\terror scrub started on %s"),
+		    ctime(&start));
+	}
+
+	double fraction_done = (double)examined / (to_be_examined + examined);
+	(void) printf(gettext("\t%.2f%% done, issued I/O for %llu error"
+	    " blocks"), 100 * fraction_done, (u_longlong_t)examined);
+
+	(void) printf("\n");
+}
+
+/*
  * Print out detailed scrub status.
  */
 static void
 print_scan_scrub_resilver_status(pool_scan_stat_t *ps)
 {
 	time_t start, end, pause;
-	uint64_t pass_scanned, scanned, pass_issued, issued, total;
+	uint64_t pass_scanned, scanned, pass_issued, issued, total_s, total_i;
 	uint64_t elapsed, scan_rate, issue_rate;
 	double fraction_done;
-	char processed_buf[7], scanned_buf[7], issued_buf[7], total_buf[7];
-	char srate_buf[7], irate_buf[7], time_buf[32];
+	char processed_buf[7], scanned_buf[7], issued_buf[7], total_s_buf[7];
+	char total_i_buf[7], srate_buf[7], irate_buf[7], time_buf[32];
 
 	printf("  ");
 	printf_color(ANSI_BOLD, gettext("scan:"));
@@ -7620,10 +7738,11 @@ print_scan_scrub_resilver_status(pool_scan_stat_t *ps)
 	pass_scanned = ps->pss_pass_exam;
 	issued = ps->pss_issued;
 	pass_issued = ps->pss_pass_issued;
-	total = ps->pss_to_examine;
+	total_s = ps->pss_to_examine;
+	total_i = ps->pss_to_examine - ps->pss_skipped;
 
 	/* we are only done with a block once we have issued the IO for it */
-	fraction_done = (double)issued / total;
+	fraction_done = (double)issued / total_i;
 
 	/* elapsed time for this pass, rounding up to 1 if it's 0 */
 	elapsed = time(NULL) - ps->pss_pass_start;
@@ -7632,26 +7751,25 @@ print_scan_scrub_resilver_status(pool_scan_stat_t *ps)
 
 	scan_rate = pass_scanned / elapsed;
 	issue_rate = pass_issued / elapsed;
-	uint64_t total_secs_left = (issue_rate != 0 && total >= issued) ?
-	    ((total - issued) / issue_rate) : UINT64_MAX;
-	secs_to_dhms(total_secs_left, time_buf);
 
 	/* format all of the numbers we will be reporting */
 	zfs_nicebytes(scanned, scanned_buf, sizeof (scanned_buf));
 	zfs_nicebytes(issued, issued_buf, sizeof (issued_buf));
-	zfs_nicebytes(total, total_buf, sizeof (total_buf));
-	zfs_nicebytes(scan_rate, srate_buf, sizeof (srate_buf));
-	zfs_nicebytes(issue_rate, irate_buf, sizeof (irate_buf));
+	zfs_nicebytes(total_s, total_s_buf, sizeof (total_s_buf));
+	zfs_nicebytes(total_i, total_i_buf, sizeof (total_i_buf));
 
 	/* do not print estimated time if we have a paused scrub */
-	if (pause == 0) {
-		(void) printf(gettext("\t%s scanned at %s/s, "
-		    "%s issued at %s/s, %s total\n"),
-		    scanned_buf, srate_buf, issued_buf, irate_buf, total_buf);
-	} else {
-		(void) printf(gettext("\t%s scanned, %s issued, %s total\n"),
-		    scanned_buf, issued_buf, total_buf);
+	(void) printf(gettext("\t%s / %s scanned"), scanned_buf, total_s_buf);
+	if (pause == 0 && scan_rate > 0) {
+		zfs_nicebytes(scan_rate, srate_buf, sizeof (srate_buf));
+		(void) printf(gettext(" at %s/s"), srate_buf);
 	}
+	(void) printf(gettext(", %s / %s issued"), issued_buf, total_i_buf);
+	if (pause == 0 && issue_rate > 0) {
+		zfs_nicebytes(issue_rate, irate_buf, sizeof (irate_buf));
+		(void) printf(gettext(" at %s/s"), irate_buf);
+	}
+	(void) printf(gettext("\n"));
 
 	if (is_resilver) {
 		(void) printf(gettext("\t%s resilvered, %.2f%% done"),
@@ -7664,16 +7782,16 @@ print_scan_scrub_resilver_status(pool_scan_stat_t *ps)
 	if (pause == 0) {
 		/*
 		 * Only provide an estimate iff:
-		 * 1) the time remaining is valid, and
+		 * 1) we haven't yet issued all we expected, and
 		 * 2) the issue rate exceeds 10 MB/s, and
 		 * 3) it's either:
 		 *    a) a resilver which has started repairs, or
 		 *    b) a scrub which has entered the issue phase.
 		 */
-		if (total_secs_left != UINT64_MAX &&
-		    issue_rate >= 10 * 1024 * 1024 &&
+		if (total_i >= issued && issue_rate >= 10 * 1024 * 1024 &&
 		    ((is_resilver && ps->pss_processed > 0) ||
 		    (is_scrub && issued > 0))) {
+			secs_to_dhms((total_i - issued) / issue_rate, time_buf);
 			(void) printf(gettext(", %s to go\n"), time_buf);
 		} else {
 			(void) printf(gettext(", no estimated "
@@ -7685,7 +7803,7 @@ print_scan_scrub_resilver_status(pool_scan_stat_t *ps)
 }
 
 static void
-print_rebuild_status_impl(vdev_rebuild_stat_t *vrs, char *vdev_name)
+print_rebuild_status_impl(vdev_rebuild_stat_t *vrs, uint_t c, char *vdev_name)
 {
 	if (vrs == NULL || vrs->vrs_state == VDEV_REBUILD_NONE)
 		return;
@@ -7697,17 +7815,20 @@ print_rebuild_status_impl(vdev_rebuild_stat_t *vrs, char *vdev_name)
 	uint64_t bytes_scanned = vrs->vrs_bytes_scanned;
 	uint64_t bytes_issued = vrs->vrs_bytes_issued;
 	uint64_t bytes_rebuilt = vrs->vrs_bytes_rebuilt;
-	uint64_t bytes_est = vrs->vrs_bytes_est;
+	uint64_t bytes_est_s = vrs->vrs_bytes_est;
+	uint64_t bytes_est_i = vrs->vrs_bytes_est;
+	if (c > offsetof(vdev_rebuild_stat_t, vrs_pass_bytes_skipped) / 8)
+		bytes_est_i -= vrs->vrs_pass_bytes_skipped;
 	uint64_t scan_rate = (vrs->vrs_pass_bytes_scanned /
 	    (vrs->vrs_pass_time_ms + 1)) * 1000;
 	uint64_t issue_rate = (vrs->vrs_pass_bytes_issued /
 	    (vrs->vrs_pass_time_ms + 1)) * 1000;
 	double scan_pct = MIN((double)bytes_scanned * 100 /
-	    (bytes_est + 1), 100);
+	    (bytes_est_s + 1), 100);
 
 	/* Format all of the numbers we will be reporting */
 	char bytes_scanned_buf[7], bytes_issued_buf[7];
-	char bytes_rebuilt_buf[7], bytes_est_buf[7];
+	char bytes_rebuilt_buf[7], bytes_est_s_buf[7], bytes_est_i_buf[7];
 	char scan_rate_buf[7], issue_rate_buf[7], time_buf[32];
 	zfs_nicebytes(bytes_scanned, bytes_scanned_buf,
 	    sizeof (bytes_scanned_buf));
@@ -7715,9 +7836,8 @@ print_rebuild_status_impl(vdev_rebuild_stat_t *vrs, char *vdev_name)
 	    sizeof (bytes_issued_buf));
 	zfs_nicebytes(bytes_rebuilt, bytes_rebuilt_buf,
 	    sizeof (bytes_rebuilt_buf));
-	zfs_nicebytes(bytes_est, bytes_est_buf, sizeof (bytes_est_buf));
-	zfs_nicebytes(scan_rate, scan_rate_buf, sizeof (scan_rate_buf));
-	zfs_nicebytes(issue_rate, issue_rate_buf, sizeof (issue_rate_buf));
+	zfs_nicebytes(bytes_est_s, bytes_est_s_buf, sizeof (bytes_est_s_buf));
+	zfs_nicebytes(bytes_est_i, bytes_est_i_buf, sizeof (bytes_est_i_buf));
 
 	time_t start = vrs->vrs_start_time;
 	time_t end = vrs->vrs_end_time;
@@ -7740,17 +7860,29 @@ print_rebuild_status_impl(vdev_rebuild_stat_t *vrs, char *vdev_name)
 
 	assert(vrs->vrs_state == VDEV_REBUILD_ACTIVE);
 
-	secs_to_dhms(MAX((int64_t)bytes_est - (int64_t)bytes_scanned, 0) /
-	    MAX(scan_rate, 1), time_buf);
+	(void) printf(gettext("\t%s / %s scanned"), bytes_scanned_buf,
+	    bytes_est_s_buf);
+	if (scan_rate > 0) {
+		zfs_nicebytes(scan_rate, scan_rate_buf, sizeof (scan_rate_buf));
+		(void) printf(gettext(" at %s/s"), scan_rate_buf);
+	}
+	(void) printf(gettext(", %s / %s issued"), bytes_issued_buf,
+	    bytes_est_i_buf);
+	if (issue_rate > 0) {
+		zfs_nicebytes(issue_rate, issue_rate_buf,
+		    sizeof (issue_rate_buf));
+		(void) printf(gettext(" at %s/s"), issue_rate_buf);
+	}
+	(void) printf(gettext("\n"));
 
-	(void) printf(gettext("\t%s scanned at %s/s, %s issued %s/s, "
-	    "%s total\n"), bytes_scanned_buf, scan_rate_buf,
-	    bytes_issued_buf, issue_rate_buf, bytes_est_buf);
 	(void) printf(gettext("\t%s resilvered, %.2f%% done"),
 	    bytes_rebuilt_buf, scan_pct);
 
 	if (vrs->vrs_state == VDEV_REBUILD_ACTIVE) {
-		if (scan_rate >= 10 * 1024 * 1024) {
+		if (bytes_est_s >= bytes_scanned &&
+		    scan_rate >= 10 * 1024 * 1024) {
+			secs_to_dhms((bytes_est_s - bytes_scanned) / scan_rate,
+			    time_buf);
 			(void) printf(gettext(", %s to go\n"), time_buf);
 		} else {
 			(void) printf(gettext(", no estimated "
@@ -7782,7 +7914,7 @@ print_rebuild_status(zpool_handle_t *zhp, nvlist_t *nvroot)
 		    ZPOOL_CONFIG_REBUILD_STATS, (uint64_t **)&vrs, &i) == 0) {
 			char *name = zpool_vdev_name(g_zfs, zhp,
 			    child[c], VDEV_NAME_TYPE_ID);
-			print_rebuild_status_impl(vrs, name);
+			print_rebuild_status_impl(vrs, i, name);
 			free(name);
 		}
 	}
@@ -7873,10 +8005,12 @@ print_scan_status(zpool_handle_t *zhp, nvlist_t *nvroot)
 {
 	uint64_t rebuild_end_time = 0, resilver_end_time = 0;
 	boolean_t have_resilver = B_FALSE, have_scrub = B_FALSE;
+	boolean_t have_errorscrub = B_FALSE;
 	boolean_t active_resilver = B_FALSE;
 	pool_checkpoint_stat_t *pcs = NULL;
 	pool_scan_stat_t *ps = NULL;
 	uint_t c;
+	time_t scrub_start = 0, errorscrub_start = 0;
 
 	if (nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_SCAN_STATS,
 	    (uint64_t **)&ps, &c) == 0) {
@@ -7887,14 +8021,23 @@ print_scan_status(zpool_handle_t *zhp, nvlist_t *nvroot)
 
 		have_resilver = (ps->pss_func == POOL_SCAN_RESILVER);
 		have_scrub = (ps->pss_func == POOL_SCAN_SCRUB);
+		scrub_start = ps->pss_start_time;
+		if (c > offsetof(pool_scan_stat_t,
+		    pss_pass_error_scrub_pause) / 8) {
+			have_errorscrub = (ps->pss_error_scrub_func ==
+			    POOL_SCAN_ERRORSCRUB);
+			errorscrub_start = ps->pss_error_scrub_start;
+		}
 	}
 
 	boolean_t active_rebuild = check_rebuilding(nvroot, &rebuild_end_time);
 	boolean_t have_rebuild = (active_rebuild || (rebuild_end_time > 0));
 
 	/* Always print the scrub status when available. */
-	if (have_scrub)
+	if (have_scrub && scrub_start > errorscrub_start)
 		print_scan_scrub_resilver_status(ps);
+	else if (have_errorscrub && errorscrub_start >= scrub_start)
+		print_err_scrub_status(ps);
 
 	/*
 	 * When there is an active resilver or rebuild print its status.
@@ -8836,7 +8979,7 @@ check_unsupp_fs(zfs_handle_t *zhp, void *unsupp_fs)
 		(*count)++;
 	}
 
-	zfs_iter_filesystems(zhp, 0, check_unsupp_fs, unsupp_fs);
+	zfs_iter_filesystems_v2(zhp, 0, check_unsupp_fs, unsupp_fs);
 
 	zfs_close(zhp);
 
@@ -9981,31 +10124,31 @@ get_callback_vdev(zpool_handle_t *zhp, char *vdevname, void *data)
 }
 
 static int
-get_callback_vdev_width_cb(void *zhp_data, nvlist_t *nv, void *data)
-{
-	zpool_handle_t *zhp = zhp_data;
-	zprop_get_cbdata_t *cbp = (zprop_get_cbdata_t *)data;
-	char *vdevname = zpool_vdev_name(g_zfs, zhp, nv,
-	    cbp->cb_vdevs.cb_name_flags);
-	int ret;
-
-	/* Adjust the column widths for the vdev properties */
-	ret = vdev_expand_proplist(zhp, vdevname, &cbp->cb_proplist);
-
-	return (ret);
-}
-
-static int
 get_callback_vdev_cb(void *zhp_data, nvlist_t *nv, void *data)
 {
 	zpool_handle_t *zhp = zhp_data;
 	zprop_get_cbdata_t *cbp = (zprop_get_cbdata_t *)data;
-	char *vdevname = zpool_vdev_name(g_zfs, zhp, nv,
-	    cbp->cb_vdevs.cb_name_flags);
+	char *vdevname;
+	const char *type;
 	int ret;
 
-	/* Display the properties */
+	/*
+	 * zpool_vdev_name() transforms the root vdev name (i.e., root-0) to the
+	 * pool name for display purposes, which is not desired. Fallback to
+	 * zpool_vdev_name() when not dealing with the root vdev.
+	 */
+	type = fnvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE);
+	if (zhp != NULL && strcmp(type, "root") == 0)
+		vdevname = strdup("root-0");
+	else
+		vdevname = zpool_vdev_name(g_zfs, zhp, nv,
+		    cbp->cb_vdevs.cb_name_flags);
+
+	(void) vdev_expand_proplist(zhp, vdevname, &cbp->cb_proplist);
+
 	ret = get_callback_vdev(zhp, vdevname, data);
+
+	free(vdevname);
 
 	return (ret);
 }
@@ -10021,7 +10164,6 @@ get_callback(zpool_handle_t *zhp, void *data)
 
 	if (cbp->cb_type == ZFS_TYPE_VDEV) {
 		if (strcmp(cbp->cb_vdevs.cb_names[0], "all-vdevs") == 0) {
-			for_each_vdev(zhp, get_callback_vdev_width_cb, data);
 			for_each_vdev(zhp, get_callback_vdev_cb, data);
 		} else {
 			/* Adjust column widths for vdev properties */
@@ -10109,6 +10251,7 @@ zpool_do_get(int argc, char **argv)
 	int ret;
 	int c, i;
 	char *propstr = NULL;
+	char *vdev = NULL;
 
 	cb.cb_first = B_TRUE;
 
@@ -10206,10 +10349,17 @@ found:
 	} else if (are_all_pools(1, argv)) {
 		/* The first arg is a pool name */
 		if ((argc == 2 && strcmp(argv[1], "all-vdevs") == 0) ||
+		    (argc == 2 && strcmp(argv[1], "root") == 0) ||
 		    are_vdevs_in_pool(argc - 1, argv + 1, argv[0],
 		    &cb.cb_vdevs)) {
+
+			if (strcmp(argv[1], "root") == 0)
+				vdev = strdup("root-0");
+			else
+				vdev = strdup(argv[1]);
+
 			/* ... and the rest are vdev names */
-			cb.cb_vdevs.cb_names = argv + 1;
+			cb.cb_vdevs.cb_names = &vdev;
 			cb.cb_vdevs.cb_names_count = argc - 1;
 			cb.cb_type = ZFS_TYPE_VDEV;
 			argc = 1; /* One pool to process */
@@ -10253,6 +10403,9 @@ found:
 		zprop_free_list(fake_name.pl_next);
 	else
 		zprop_free_list(cb.cb_proplist);
+
+	if (vdev != NULL)
+		free(vdev);
 
 	return (ret);
 }
@@ -10355,6 +10508,7 @@ zpool_do_set(int argc, char **argv)
 {
 	set_cbdata_t cb = { 0 };
 	int error;
+	char *vdev = NULL;
 
 	current_prop_type = ZFS_TYPE_POOL;
 	if (argc > 1 && argv[1][0] == '-') {
@@ -10403,19 +10557,29 @@ zpool_do_set(int argc, char **argv)
 
 	/* argv[1], when supplied, is vdev name */
 	if (argc == 2) {
-		if (!are_vdevs_in_pool(1, argv + 1, argv[0], &cb.cb_vdevs)) {
+
+		if (strcmp(argv[1], "root") == 0)
+			vdev = strdup("root-0");
+		else
+			vdev = strdup(argv[1]);
+
+		if (!are_vdevs_in_pool(1, &vdev, argv[0], &cb.cb_vdevs)) {
 			(void) fprintf(stderr, gettext(
 			    "cannot find '%s' in '%s': device not in pool\n"),
-			    argv[1], argv[0]);
+			    vdev, argv[0]);
+			free(vdev);
 			return (EINVAL);
 		}
-		cb.cb_vdevs.cb_names = argv + 1;
+		cb.cb_vdevs.cb_names = &vdev;
 		cb.cb_vdevs.cb_names_count = 1;
 		cb.cb_type = ZFS_TYPE_VDEV;
 	}
 
 	error = for_each_pool(1, argv, B_TRUE, NULL, ZFS_TYPE_POOL,
 	    B_FALSE, set_callback, &cb);
+
+	if (vdev != NULL)
+		free(vdev);
 
 	return (error);
 }

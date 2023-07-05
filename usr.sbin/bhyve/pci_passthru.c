@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
-#include "config.h"
 #include "debug.h"
 #include "mem.h"
 #include "pci_passthru.h"
@@ -78,7 +77,11 @@ __FBSDID("$FreeBSD$");
 #define MSIX_TABLE_COUNT(ctrl) (((ctrl) & PCIM_MSIXCTRL_TABLE_SIZE) + 1)
 #define MSIX_CAPLEN 12
 
+#define PASSTHRU_MMIO_MAX 2
+
 static int pcifd = -1;
+
+SET_DECLARE(passthru_dev_set, struct passthru_dev);
 
 struct passthru_softc {
 	struct pci_devinst *psc_pi;
@@ -94,6 +97,7 @@ struct passthru_softc {
 	} psc_msix;
 	struct pcisel psc_sel;
 
+	struct passthru_mmio_mapping psc_mmio_map[PASSTHRU_MMIO_MAX];
 	cfgread_handler psc_pcir_rhandler[PCI_REGMAX + 1];
 	cfgwrite_handler psc_pcir_whandler[PCI_REGMAX + 1];
 };
@@ -660,6 +664,23 @@ done:
 	return (error);
 }
 
+struct passthru_mmio_mapping *
+passthru_get_mmio(struct passthru_softc *sc, int num)
+{
+	assert(sc != NULL);
+	assert(num < PASSTHRU_MMIO_MAX);
+
+	return (&sc->psc_mmio_map[num]);
+}
+
+struct pcisel *
+passthru_get_sel(struct passthru_softc *sc)
+{
+	assert(sc != NULL);
+
+	return (&sc->psc_sel);
+}
+
 int
 set_pcir_handler(struct passthru_softc *sc, int reg, int len,
     cfgread_handler rhandler, cfgwrite_handler whandler)
@@ -836,6 +857,8 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
+	struct passthru_dev **devpp;
+	struct passthru_dev *devp, *dev = NULL;
 	const char *value;
 
 	sc = NULL;
@@ -899,9 +922,26 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 	if ((error = set_pcir_handler(sc, PCIR_COMMAND, 0x04, NULL, NULL)) != 0)
 		goto done;
 
+	SET_FOREACH(devpp, passthru_dev_set) {
+		devp = *devpp;
+		assert(devp->probe != NULL);
+		if (devp->probe(pi) == 0) {
+			dev = devp;
+			break;
+		}
+	}
+
+	if (dev != NULL) {
+		error = dev->init(pi, nvl);
+		if (error != 0)
+			goto done;
+	}
+
 	error = 0;		/* success */
 done:
 	if (error) {
+		if (dev != NULL)
+			dev->deinit(pi);
 		free(sc);
 		vm_unassign_pptdev(pi->pi_vmctx, bus, slot, func);
 	}

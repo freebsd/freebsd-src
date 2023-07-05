@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2007-2011 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
@@ -267,10 +267,9 @@ width_capability(cap_rights_t *rightsp)
 static void
 print_capability(cap_rights_t *rightsp, u_int capwidth)
 {
-	u_int count, i, width;
+	u_int count, i;
 
 	count = 0;
-	width = 0;
 	for (i = width_capability(rightsp); i < capwidth; i++) {
 		if (i != 0)
 			xo_emit(" ");
@@ -282,9 +281,6 @@ print_capability(cap_rights_t *rightsp, u_int capwidth)
 		if (cap_rights_is_set(rightsp, cap_desc[i].cd_right)) {
 			xo_emit("{D:/%s}{l:capabilities/%s}", count ? "," : "",
 			    cap_desc[i].cd_desc);
-			width += strlen(cap_desc[i].cd_desc);
-			if (count)
-				width++;
 			count++;
 		}
 	}

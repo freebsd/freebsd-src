@@ -126,7 +126,7 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 				 sal_compression_service_t *pCompService)
 {
 	int level = 0;
-
+	pCompService->comp_device_data.asbEnableSupport = CPA_FALSE;
 	pCompService->comp_device_data.uniqueCompressionLevels[0] = CPA_FALSE;
 
 	switch (device->deviceType) {
@@ -154,6 +154,23 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		pCompService->comp_device_data.windowSizeMask =
 		    (1 << DC_8K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
 		pCompService->comp_device_data.cnvnrSupported = CPA_FALSE;
+		for (level = CPA_DC_L1; level <= CPA_DC_L12; level++) {
+			switch (level) {
+			case CPA_DC_L1:
+			case CPA_DC_L2:
+			case CPA_DC_L3:
+			case CPA_DC_L4:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_TRUE;
+				break;
+			default:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_FALSE;
+				break;
+			}
+		}
+		pCompService->comp_device_data.numCompressionLevels =
+		    DC_NUM_COMPRESSION_LEVELS;
 		break;
 	case DEVICE_C3XXX:
 	case DEVICE_C3XXXVF:
@@ -181,6 +198,24 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
 
 		pCompService->comp_device_data.cnvnrSupported = CPA_TRUE;
+
+		for (level = CPA_DC_L1; level <= CPA_DC_L12; level++) {
+			switch (level) {
+			case CPA_DC_L1:
+			case CPA_DC_L2:
+			case CPA_DC_L3:
+			case CPA_DC_L4:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_TRUE;
+				break;
+			default:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_FALSE;
+				break;
+			}
+		}
+		pCompService->comp_device_data.numCompressionLevels =
+		    DC_NUM_COMPRESSION_LEVELS;
 		break;
 	case DEVICE_C62X:
 	case DEVICE_C62XVF:
@@ -209,7 +244,7 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
 		pCompService->comp_device_data.cnvnrSupported = CPA_TRUE;
 
-		for (level = CPA_DC_L1; level <= CPA_DC_L9; level++) {
+		for (level = CPA_DC_L1; level <= CPA_DC_L12; level++) {
 			switch (level) {
 			case CPA_DC_L1:
 			case CPA_DC_L2:
@@ -254,8 +289,28 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		pCompService->comp_device_data.windowSizeMask =
 		    (1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
 		pCompService->comp_device_data.cnvnrSupported = CPA_TRUE;
+
+		for (level = CPA_DC_L1; level <= CPA_DC_L12; level++) {
+			switch (level) {
+			case CPA_DC_L1:
+			case CPA_DC_L2:
+			case CPA_DC_L3:
+			case CPA_DC_L4:
+			case CPA_DC_L5:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_TRUE;
+				break;
+			default:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_FALSE;
+				break;
+			}
+		}
+		pCompService->comp_device_data.numCompressionLevels =
+		    DC_NUM_COMPRESSION_LEVELS;
 		break;
-	case DEVICE_GEN4:
+	case DEVICE_4XXX:
+	case DEVICE_4XXXVF:
 		pCompService->generic_service_info.integrityCrcCheck = CPA_TRUE;
 		pCompService->numInterBuffs = 0;
 		pCompService->comp_device_data.minOutputBuffSize =
@@ -277,7 +332,7 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		pCompService->comp_device_data.windowSizeMask =
 		    (1 << DC_4K_WINDOW_SIZE | 1 << DC_8K_WINDOW_SIZE |
 		     1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
-		for (level = CPA_DC_L1; level <= CPA_DC_L9; level++) {
+		for (level = CPA_DC_L1; level <= CPA_DC_L12; level++) {
 			switch (level) {
 			case CPA_DC_L1:
 			case CPA_DC_L6:

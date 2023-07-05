@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 #ifndef NVME_USE_NVD
-#define NVME_USE_NVD 1
+#define NVME_USE_NVD 0
 #endif
 
 int nvme_use_nvd = NVME_USE_NVD;

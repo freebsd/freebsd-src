@@ -187,8 +187,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
+#define	__pv_stat_used
 #else
 #define PV_STAT(x)	do { } while (0)
+#define	__pv_stat_used	__unused
 #endif
 
 #define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
@@ -253,6 +255,15 @@ vm_offset_t dmap_max_addr;	/* The virtual address limit of the dmap */
 /* This code assumes all L1 DMAP entries will be used */
 CTASSERT((DMAP_MIN_ADDRESS  & ~L1_OFFSET) == DMAP_MIN_ADDRESS);
 CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
+
+/*
+ * This code assumes that the early DEVMAP is L2_SIZE aligned and is fully
+ * contained within a single L2 entry. The early DTB is mapped immediately
+ * before the devmap L2 entry.
+ */
+CTASSERT((PMAP_MAPDEV_EARLY_SIZE & L2_OFFSET) == 0);
+CTASSERT((VM_EARLY_DTB_ADDRESS & L2_OFFSET) == 0);
+CTASSERT(VM_EARLY_DTB_ADDRESS < (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE));
 
 static struct rwlock_padalign pvh_global_lock;
 static struct mtx_padalign allpmaps_lock;
@@ -684,7 +695,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	/* Create the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt,
-	    VM_MAX_KERNEL_ADDRESS - L2_SIZE, freemempos);
+	    VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE, freemempos);
 
 	/*
 	 * Invalidate the mapping we created for the DTB. At this point a copy
@@ -704,7 +715,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	mode = 0;
 	TUNABLE_INT_FETCH("vm.pmap.mode", &mode);
-	if (mode == PMAP_MODE_SV48) {
+	if (mode == PMAP_MODE_SV48 && (mmu_caps & MMU_SV48) != 0) {
 		/*
 		 * Enable SV48 mode: allocate an L0 page and set SV48 mode in
 		 * SATP.  If the implementation does not provide SV48 mode,
@@ -738,7 +749,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	msgbufp = (void *)msgbufpv;
 
 	virtual_avail = roundup2(freemempos, L2_SIZE);
-	virtual_end = VM_MAX_KERNEL_ADDRESS - L2_SIZE;
+	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE;
 	kernel_vm_end = virtual_avail;
 
 	pa = pmap_early_vtophys(l1pt, freemempos);
@@ -3886,7 +3897,7 @@ pmap_remove_pages(pmap_t pmap)
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree, field, freed, idx;
+	int allfree, field, freed __pv_stat_used, idx;
 	bool superpage;
 
 	lock = NULL;
@@ -4736,33 +4747,33 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
  * \param vaddr       On return contains the kernel virtual memory address
  *                    of the pages passed in the page parameter.
  * \param count       Number of pages passed in.
- * \param can_fault   TRUE if the thread using the mapped pages can take
- *                    page faults, FALSE otherwise.
+ * \param can_fault   true if the thread using the mapped pages can take
+ *                    page faults, false otherwise.
  *
- * \returns TRUE if the caller must call pmap_unmap_io_transient when
- *          finished or FALSE otherwise.
+ * \returns true if the caller must call pmap_unmap_io_transient when
+ *          finished or false otherwise.
  *
  */
-boolean_t
+bool
 pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
-    boolean_t can_fault)
+    bool can_fault)
 {
 	vm_paddr_t paddr;
-	boolean_t needs_mapping;
+	bool needs_mapping;
 	int error __diagused, i;
 
 	/*
 	 * Allocate any KVA space that we need, this is done in a separate
 	 * loop to prevent calling vmem_alloc while pinned.
 	 */
-	needs_mapping = FALSE;
+	needs_mapping = false;
 	for (i = 0; i < count; i++) {
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (__predict_false(paddr >= DMAP_MAX_PHYSADDR)) {
 			error = vmem_alloc(kernel_arena, PAGE_SIZE,
 			    M_BESTFIT | M_WAITOK, &vaddr[i]);
 			KASSERT(error == 0, ("vmem_alloc failed: %d", error));
-			needs_mapping = TRUE;
+			needs_mapping = true;
 		} else {
 			vaddr[i] = PHYS_TO_DMAP(paddr);
 		}
@@ -4770,7 +4781,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 
 	/* Exit early if everything is covered by the DMAP */
 	if (!needs_mapping)
-		return (FALSE);
+		return (false);
 
 	if (!can_fault)
 		sched_pin();
@@ -4787,7 +4798,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 
 void
 pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
-    boolean_t can_fault)
+    bool can_fault)
 {
 	vm_paddr_t paddr;
 	int i;

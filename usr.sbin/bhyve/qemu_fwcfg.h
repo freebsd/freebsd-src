@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 Beckhoff Automation GmbH & Co. KG
  * Author: Corvin Köhne <c.koehne@beckhoff.com>
@@ -23,3 +23,4 @@ struct qemu_fwcfg_item {
 int qemu_fwcfg_add_file(const char *name,
     const uint32_t size, void *const data);
 int qemu_fwcfg_init(struct vmctx *const ctx);
+int qemu_fwcfg_parse_cmdline_arg(const char *opt);

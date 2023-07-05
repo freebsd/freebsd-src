@@ -43,6 +43,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <string.h>
 #include <time.h>
@@ -207,8 +208,14 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 		int nentries = map->nentries ? map->nentries : 32;
 		void **tmp;
 
+		if (slot > INT_MAX / 2)
+			return (-1);
+
 		while (nentries <= slot)
 			nentries <<= 1;
+
+		if (nentries > INT_MAX / msize)
+			return (-1);
 
 		tmp = (void **)mm_realloc(map->entries, nentries * msize);
 		if (tmp == NULL)
@@ -393,7 +400,8 @@ evmap_io_del_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 	if (res) {
 		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
-		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1) {
+		if (evsel->del(base, ev->ev_fd,
+			old, (ev->ev_events & EV_ET) | res, extra) == -1) {
 			retval = -1;
 		} else {
 			retval = 1;
@@ -424,7 +432,7 @@ evmap_io_active_(struct event_base *base, evutil_socket_t fd, short events)
 	if (NULL == ctx)
 		return;
 	LIST_FOREACH(ev, &ctx->events, ev_io_next) {
-		if (ev->ev_events & events)
+		if (ev->ev_events & (events & ~EV_ET))
 			event_active_nolock_(ev, ev->ev_events & events, 1);
 	}
 }
@@ -444,6 +452,9 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 	const struct eventop *evsel = base->evsigsel;
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx = NULL;
+
+	if (sig < 0 || sig >= NSIG)
+		return (-1);
 
 	if (sig >= map->nentries) {
 		if (evmap_make_space(
@@ -471,7 +482,7 @@ evmap_signal_del_(struct event_base *base, int sig, struct event *ev)
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx;
 
-	if (sig >= map->nentries)
+	if (sig < 0 || sig >= map->nentries)
 		return (-1);
 
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
@@ -858,6 +869,7 @@ event_changelist_add_(struct event_base *base, evutil_socket_t fd, short old, sh
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
+	ev_uint8_t evchange = EV_CHANGE_ADD | (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
 
 	event_changelist_check(base);
 
@@ -869,18 +881,12 @@ event_changelist_add_(struct event_base *base, evutil_socket_t fd, short old, sh
 	 * since the delete might fail (because the fd had been closed since
 	 * the last add, for instance. */
 
-	if (events & (EV_READ|EV_SIGNAL)) {
-		change->read_change = EV_CHANGE_ADD |
-		    (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
-	}
-	if (events & EV_WRITE) {
-		change->write_change = EV_CHANGE_ADD |
-		    (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
-	}
-	if (events & EV_CLOSED) {
-		change->close_change = EV_CHANGE_ADD |
-		    (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
-	}
+	if (events & (EV_READ|EV_SIGNAL))
+		change->read_change = evchange;
+	if (events & EV_WRITE)
+		change->write_change = evchange;
+	if (events & EV_CLOSED)
+		change->close_change = evchange;
 
 	event_changelist_check(base);
 	return (0);
@@ -893,6 +899,7 @@ event_changelist_del_(struct event_base *base, evutil_socket_t fd, short old, sh
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
+	ev_uint8_t del = EV_CHANGE_DEL | (events & EV_ET);
 
 	event_changelist_check(base);
 	change = event_changelist_get_or_construct(changelist, fd, old, fdinfo);
@@ -919,19 +926,19 @@ event_changelist_del_(struct event_base *base, evutil_socket_t fd, short old, sh
 		if (!(change->old_events & (EV_READ | EV_SIGNAL)))
 			change->read_change = 0;
 		else
-			change->read_change = EV_CHANGE_DEL;
+			change->read_change = del;
 	}
 	if (events & EV_WRITE) {
 		if (!(change->old_events & EV_WRITE))
 			change->write_change = 0;
 		else
-			change->write_change = EV_CHANGE_DEL;
+			change->write_change = del;
 	}
 	if (events & EV_CLOSED) {
 		if (!(change->old_events & EV_CLOSED))
 			change->close_change = 0;
 		else
-			change->close_change = EV_CHANGE_DEL;
+			change->close_change = del;
 	}
 
 	event_changelist_check(base);

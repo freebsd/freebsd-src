@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2009 Hiroki Sato.  All rights reserved.
  *
@@ -69,22 +69,19 @@ static const char rcsid[] =
 		"\007NO_RADR\010NO_PREFER_IFACE\011NO_DAD\020DEFAULTIF"
 #endif
 
-static int isnd6defif(int);
-void setnd6flags(const char *, int, int, const struct afswtch *);
-void setnd6defif(const char *, int, int, const struct afswtch *);
-void nd6_status(int);
+static int isnd6defif(if_ctx *ctx, int s);
+void setnd6flags(if_ctx *, const char *, int);
+void setnd6defif(if_ctx *,const char *, int);
+void nd6_status(if_ctx *);
 
 void
-setnd6flags(const char *dummyaddr __unused,
-	int d, int s,
-	const struct afswtch *afp)
+setnd6flags(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
-	struct in6_ndireq nd;
+	struct in6_ndireq nd = {};
 	int error;
 
-	memset(&nd, 0, sizeof(nd));
-	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
-	error = ioctl(s, SIOCGIFINFO_IN6, &nd);
+	strlcpy(nd.ifname, ctx->ifname, sizeof(nd.ifname));
+	error = ioctl_ctx(ctx, SIOCGIFINFO_IN6, &nd);
 	if (error) {
 		warn("ioctl(SIOCGIFINFO_IN6)");
 		return;
@@ -93,25 +90,22 @@ setnd6flags(const char *dummyaddr __unused,
 		nd.ndi.flags &= ~(-d);
 	else
 		nd.ndi.flags |= d;
-	error = ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd);
+	error = ioctl_ctx(ctx, SIOCSIFINFO_IN6, (caddr_t)&nd);
 	if (error)
 		warn("ioctl(SIOCSIFINFO_IN6)");
 }
 
 void
-setnd6defif(const char *dummyaddr __unused,
-	int d, int s,
-	const struct afswtch *afp)
+setnd6defif(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
-	struct in6_ndifreq ndifreq;
+	struct in6_ndifreq ndifreq = {};
 	int ifindex;
 	int error;
 
-	memset(&ndifreq, 0, sizeof(ndifreq));
-	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ctx->ifname, sizeof(ndifreq.ifname));
 
 	if (d < 0) {
-		if (isnd6defif(s)) {
+		if (isnd6defif(ctx, ctx->io_s)) {
 			/* ifindex = 0 means to remove default if */
 			ifindex = 0;
 		} else
@@ -122,20 +116,19 @@ setnd6defif(const char *dummyaddr __unused,
 	}
 
 	ndifreq.ifindex = ifindex;
-	error = ioctl(s, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq);
+	error = ioctl_ctx(ctx, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq);
 	if (error)
 		warn("ioctl(SIOCSDEFIFACE_IN6)");
 }
 
 static int
-isnd6defif(int s)
+isnd6defif(if_ctx *ctx, int s)
 {
-	struct in6_ndifreq ndifreq;
+	struct in6_ndifreq ndifreq = {};
 	unsigned int ifindex;
 	int error;
 
-	memset(&ndifreq, 0, sizeof(ndifreq));
-	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ctx->ifname, sizeof(ndifreq.ifname));
 
 	ifindex = if_nametoindex(ndifreq.ifname);
 	error = ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq);
@@ -147,15 +140,14 @@ isnd6defif(int s)
 }
 
 void
-nd6_status(int s)
+nd6_status(if_ctx *ctx)
 {
-	struct in6_ndireq nd;
+	struct in6_ndireq nd = {};
 	int s6;
 	int error;
 	int isdefif;
 
-	memset(&nd, 0, sizeof(nd));
-	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ctx->ifname, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
 			warn("socket(AF_INET6, SOCK_DGRAM)");
@@ -168,7 +160,7 @@ nd6_status(int s)
 		close(s6);
 		return;
 	}
-	isdefif = isnd6defif(s6);
+	isdefif = isnd6defif(ctx, s6);
 	close(s6);
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;

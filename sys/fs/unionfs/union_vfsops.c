@@ -285,8 +285,8 @@ unionfs_domount(struct mount *mp)
 	 */
 	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
 	    NULLVP, &(ump->um_rootvp), NULL);
-	vrele(upperrootvp);
 	if (error != 0) {
+		vrele(upperrootvp);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (error);
@@ -295,16 +295,30 @@ unionfs_domount(struct mount *mp)
 	KASSERT((ump->um_rootvp->v_vflag & VV_ROOT) != 0,
 	    ("%s: rootvp without VV_ROOT", __func__));
 
+	/*
+	 * Do not release the namei() reference on upperrootvp until after
+	 * we attempt to register the upper mounts.  A concurrent unmount
+	 * of the upper or lower FS may have caused unionfs_nodeget() to
+	 * create a unionfs node with a NULL upper or lower vp and with
+	 * no reference held on upperrootvp or lowerrootvp.
+	 * vfs_register_upper() should subsequently fail, which is what
+	 * we want, but we must ensure neither underlying vnode can be
+	 * reused until that happens.  We assume the caller holds a reference
+	 * to lowerrootvp as it is the mount's covered vnode.
+	 */
 	lowermp = vfs_register_upper_from_vp(ump->um_lowervp, mp,
 	    &ump->um_lower_link);
 	uppermp = vfs_register_upper_from_vp(ump->um_uppervp, mp,
 	    &ump->um_upper_link);
+
+	vrele(upperrootvp);
 
 	if (lowermp == NULL || uppermp == NULL) {
 		if (lowermp != NULL)
 			vfs_unregister_upper(lowermp, &ump->um_lower_link);
 		if (uppermp != NULL)
 			vfs_unregister_upper(uppermp, &ump->um_upper_link);
+		vflush(mp, 1, FORCECLOSE, curthread);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (ENOENT);

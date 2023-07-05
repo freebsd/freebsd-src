@@ -1,7 +1,7 @@
 /*	$NetBSD: mii_bitbang.h,v 1.6 2009/05/12 14:31:27 cegger Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.

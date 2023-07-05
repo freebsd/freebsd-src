@@ -1,10 +1,10 @@
-make: "directive-ifmake.mk" line 13: ok: positive condition works
-make: "directive-ifmake.mk" line 24: ok: negation works
-make: "directive-ifmake.mk" line 33: ok: double negation works
-make: "directive-ifmake.mk" line 40: ok: both mentioned
-make: "directive-ifmake.mk" line 47: ok: only those mentioned
-make: "directive-ifmake.mk" line 57: Targets can even be added at parse time.
-make: "directive-ifmake.mk" line 75: ok
+make: "directive-ifmake.mk" line 14: ok: positive condition works
+make: "directive-ifmake.mk" line 26: ok: negation works
+make: "directive-ifmake.mk" line 36: ok: double negation works
+make: "directive-ifmake.mk" line 44: ok: both mentioned
+make: "directive-ifmake.mk" line 52: ok: only those mentioned
+make: "directive-ifmake.mk" line 63: Targets can even be added at parse time.
+make: "directive-ifmake.mk" line 82: ok
 : first
 : second
 : late-target

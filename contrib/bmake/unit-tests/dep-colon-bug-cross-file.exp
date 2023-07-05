@@ -1,4 +1,4 @@
-make: "dep-colon-bug-cross-file.mk" line 31: warning: duplicate script for target "all" ignored
-make: "dep-colon-bug-cross-file.mk" line 40: warning: using previous script for "all" defined here
+make: "dep-colon-bug-cross-file.mk" line 32: warning: duplicate script for target "all" ignored
+make: "dep-colon-bug-cross-file.mk" line 42: warning: using previous script for "all" defined here
 : pass 1
 exit status 0

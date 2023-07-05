@@ -270,7 +270,8 @@ _genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	fclose(fp);
 	fp = NULL;
 	if (pubkey == NULL)
-		errx(1, "Unable to read data from %s.", pubkeyfile);
+		errx(1, "Unable to read data from %s: %s", pubkeyfile,
+		    ERR_error_string(ERR_get_error(), NULL));
 
 	/*
 	 * RSA keys under ~1024 bits are trivially factorable (2018).  OpenSSL
@@ -565,7 +566,12 @@ main(int argc, char *argv[])
 	if (cipher != KERNELDUMP_ENC_NONE && pubkeyfile == NULL) {
 		errx(EX_USAGE, "-C option requires a public key file.");
 	} else if (pubkeyfile != NULL) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		ERR_load_crypto_strings();
+#else
+		if (!OPENSSL_init_crypto(0, NULL))
+			errx(EX_UNAVAILABLE, "Unable to initialize OpenSSL");
+#endif
 	}
 #else
 	if (pubkeyfile != NULL)

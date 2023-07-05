@@ -1,7 +1,3 @@
-/*
- * $OpenPAM: openpam_attr.h 938 2017-04-30 21:34:42Z des $
- */
-
 #ifndef SECURITY_OPENPAM_ATTR_H_INCLUDED
 #define SECURITY_OPENPAM_ATTR_H_INCLUDED
 

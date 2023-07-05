@@ -121,6 +121,7 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
+static void	sigexit1(struct thread *td, int sig, ksiginfo_t *ksi) __dead2;
 
 static uma_zone_t	ksiginfo_zone = NULL;
 struct filterops sig_filtops = {
@@ -220,7 +221,7 @@ SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
 #define	SIGPROP_IGNORE		0x10	/* ignore by default */
 #define	SIGPROP_CONT		0x20	/* continue if suspended */
 
-static int sigproptbl[NSIG] = {
+static const int sigproptbl[NSIG] = {
 	[SIGHUP] =	SIGPROP_KILL,
 	[SIGINT] =	SIGPROP_KILL,
 	[SIGQUIT] =	SIGPROP_KILL | SIGPROP_CORE,
@@ -371,6 +372,15 @@ sigqueue_start(void)
 	    TDP_OLDMASK, ast_sigsuspend);
 }
 
+static void
+sig_handle_killpg(struct proc *p, ksiginfo_t *ksi)
+{
+	if ((ksi->ksi_flags & KSI_KILLPG) != 0 && p != NULL) {
+		MPASS(atomic_load_int(&p->p_killpg_cnt) > 0);
+		atomic_add_int(&p->p_killpg_cnt, -1);
+	}
+}
+
 ksiginfo_t *
 ksiginfo_alloc(int mwait)
 {
@@ -470,6 +480,7 @@ sigqueue_take(ksiginfo_t *ksi)
 	p = sq->sq_proc;
 	TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
 	ksi->ksi_sigq = NULL;
+	sig_handle_killpg(p, ksi);
 	if (!(ksi->ksi_flags & KSI_EXT) && p != NULL)
 		p->p_pendingcnt--;
 
@@ -567,6 +578,7 @@ sigqueue_flush(sigqueue_t *sq)
 	while ((ksi = TAILQ_FIRST(&sq->sq_list)) != NULL) {
 		TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
 		ksi->ksi_sigq = NULL;
+		sig_handle_killpg(p, ksi);
 		if (ksiginfo_tryfree(ksi) && p != NULL)
 			p->p_pendingcnt--;
 	}
@@ -642,6 +654,7 @@ sigqueue_delete_set(sigqueue_t *sq, const sigset_t *set)
 		if (SIGISMEMBER(*set, ksi->ksi_signo)) {
 			TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
 			ksi->ksi_sigq = NULL;
+			sig_handle_killpg(p, ksi);
 			if (ksiginfo_tryfree(ksi) && p != NULL)
 				p->p_pendingcnt--;
 		}
@@ -1458,7 +1471,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 #endif
 		if (sig == SIGKILL) {
 			proc_td_siginfo_capture(td, &ksi->ksi_info);
-			sigexit(td, sig);
+			sigexit1(td, sig, ksi);
 		}
 	}
 	PROC_UNLOCK(p);
@@ -1825,7 +1838,7 @@ kill_processes_prison_cb(struct proc *p, void *arg)
 
 /*
  * Common code for kill process group/broadcast kill.
- * cp is calling process.
+ * td is the calling thread, as usual.
  */
 static int
 killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
@@ -1847,6 +1860,7 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		prison_proc_iterate(td->td_ucred->cr_prison,
 		    kill_processes_prison_cb, &arg);
 	} else {
+again:
 		sx_slock(&proctree_lock);
 		if (pgid == 0) {
 			/*
@@ -1862,10 +1876,17 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 			}
 		}
 		sx_sunlock(&proctree_lock);
+		if (!sx_try_xlock(&pgrp->pg_killsx)) {
+			PGRP_UNLOCK(pgrp);
+			sx_xlock(&pgrp->pg_killsx);
+			sx_xunlock(&pgrp->pg_killsx);
+			goto again;
+		}
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			killpg1_sendsig(p, false, &arg);
 		}
 		PGRP_UNLOCK(pgrp);
+		sx_xunlock(&pgrp->pg_killsx);
 	}
 	MPASS(arg.ret != 0 || arg.found || !arg.sent);
 	if (arg.ret == 0 && !arg.sent)
@@ -1928,8 +1949,10 @@ kern_kill(struct thread *td, pid_t pid, int signum)
 	case -1:		/* broadcast signal */
 		return (killpg1(td, signum, 0, 1, &ksi));
 	case 0:			/* signal own process group */
+		ksi.ksi_flags |= KSI_KILLPG;
 		return (killpg1(td, signum, 0, 0, &ksi));
 	default:		/* negative explicit process group */
+		ksi.ksi_flags |= KSI_KILLPG;
 		return (killpg1(td, signum, -pid, 0, &ksi));
 	}
 	/* NOTREACHED */
@@ -1980,6 +2003,7 @@ okillpg(struct thread *td, struct okillpg_args *uap)
 	ksi.ksi_code = SI_USER;
 	ksi.ksi_pid = td->td_proc->p_pid;
 	ksi.ksi_uid = td->td_ucred->cr_ruid;
+	ksi.ksi_flags |= KSI_KILLPG;
 	return (killpg1(td, uap->signum, uap->pgid, 0, &ksi));
 }
 #endif /* COMPAT_43 */
@@ -2367,6 +2391,10 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	ret = sigqueue_add(sigqueue, sig, ksi);
 	if (ret != 0)
 		return (ret);
+	if ((ksi->ksi_flags & KSI_KILLPG) != 0) {
+		sx_assert(&p->p_pgrp->pg_killsx, SX_XLOCKED);
+		atomic_add_int(&p->p_killpg_cnt, 1);
+	}
 	signotify(td);
 	/*
 	 * Defer further processing for signals which are held,
@@ -3417,7 +3445,7 @@ postsig(int sig)
 		 */
 		mtx_unlock(&ps->ps_mtx);
 		proc_td_siginfo_capture(td, &ksi.ksi_info);
-		sigexit(td, sig);
+		sigexit1(td, sig, &ksi);
 		/* NOTREACHED */
 	} else {
 		/*
@@ -3445,6 +3473,7 @@ postsig(int sig)
 		if (p->p_sig == sig) {
 			p->p_sig = 0;
 		}
+		sig_handle_killpg(p, &ksi);
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
 		postsig_done(sig, td, ps);
 	}
@@ -3602,8 +3631,8 @@ killproc(struct proc *p, const char *why)
  * If dumping core, save the signal number for the debugger.  Calls exit and
  * does not return.
  */
-void
-sigexit(struct thread *td, int sig)
+static void
+sigexit1(struct thread *td, int sig, ksiginfo_t *ksi)
 {
 	struct proc *p = td->td_proc;
 
@@ -3642,8 +3671,14 @@ sigexit(struct thread *td, int sig)
 			    sig & WCOREFLAG ? " (core dumped)" : "");
 	} else
 		PROC_UNLOCK(p);
-	exit1(td, 0, sig);
+	exit2(td, 0, sig, ksi != NULL && (ksi->ksi_flags & KSI_KILLPG) != 0);
 	/* NOTREACHED */
+}
+
+void
+sigexit(struct thread *td, int sig)
+{
+	sigexit1(td, sig, NULL);
 }
 
 /*

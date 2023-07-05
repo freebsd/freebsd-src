@@ -1,0 +1,55 @@
+.\" $FreeBSD$
+.\"
+.Dd Apr 18, 2023
+.Dt NCTGPIO 4
+.Os
+.Sh NAME
+.Nm nctgpio
+.Nd GPIO controller on Nuvoton and Winbond Super I/Os
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "device nctgpio"
+.Cd "device superio"
+.Sh DESCRIPTION
+The
+.Nm
+is a driver for GPIO controller that can be found in Nuvoton and Winbond Super I/O chips.
+.Pp
+The
+.Nm
+driver supports the following chips:
+.Pp
+.Bl -bullet -compact
+.It
+Nuvoton NCT5104D
+.It
+Nuvoton NCT5104D (PC-Engines APU)
+.It
+Nuvoton NCT5104D (PC-Engines APU3)
+.It
+Nuvoton NCT5585D
+.It
+Nuvoton NCT6116D
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6796D-E
+.It
+Winbond 83627DHG
+.El
+
+.Sh SEE ALSO
+.Xr gpio 3 ,
+.Xr gpio 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The driver first appeared in
+.Fx 11.0 .
+And the
+manual page first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+The driver was initially written by
+.An Daniel Wyatt Aq Mt daniel@dewyatt.com .
+This man page was written by
+.An Stéphane Rochoy Aq Mt stephane.rochoy@stormshield.eu .

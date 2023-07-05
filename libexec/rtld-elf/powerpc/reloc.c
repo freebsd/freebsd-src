@@ -1,7 +1,7 @@
 /*      $NetBSD: ppc_reloc.c,v 1.10 2001/09/10 06:09:41 mycroft Exp $   */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1998   Tsubai Masanari
  * All rights reserved.
@@ -252,7 +252,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
 		 * modules. If we run out of space, we generate an
 		 * error.
 		 */
-		if (!defobj->tls_done) {
+		if (!defobj->tls_static) {
 			if (!allocate_tls_offset(
 				    __DECONST(Obj_Entry *, defobj))) {
 				_rtld_error("%s: No space available for static "

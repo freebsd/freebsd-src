@@ -31,26 +31,37 @@
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
-.Nm mfiutil
+.Nm mfiutil ,
+.Nm mrsasutil
 .Nd Utility for managing LSI MegaRAID SAS controllers
 .Sh SYNOPSIS
 .Nm
 .Cm version
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show adapter
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show battery
 .Nm
 .Op Fl d
 .Op Fl e
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show config
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show drives
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show events
 .Op Fl c Ar class
@@ -59,67 +70,107 @@
 .Op Fl v
 .Op Ar start Op Ar stop
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show firmware
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show foreign Op Ar volume
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show logstate
 .Nm
 .Op Fl d
 .Op Fl e
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show patrol
 .Nm
 .Op Fl d
 .Op Fl e
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show progress
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm show volumes
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm fail Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm good Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm rebuild Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm syspd Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm drive progress Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm drive clear Ar drive Brq "start | stop"
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm start rebuild Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm abort rebuild Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm locate Ar drive Brq "on | off"
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm name Ar volume Ar name
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm volume progress Ar volume
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm clear
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm create Ar type
 .Op Fl v
@@ -127,51 +178,83 @@
 .Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
 .Op Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm delete Ar volume
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm add Ar drive Op Ar volume
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm remove Ar drive
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm start patrol
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm stop patrol
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm patrol Ar command Op Ar interval Op Ar start
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm foreign scan
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm foreign clear Op Ar config
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm foreign diag Op Ar config
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm foreign preview Op Ar config
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm foreign import Op Ar config
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm flash Ar file
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm start learn
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm bbu Ar setting Ar value
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm ctrlprop Ar rebuild Op Ar rate
 .Nm
+.Op Fl D Ar device
+.Op Fl t Ar type
 .Op Fl u Ar unit
 .Cm ctrlprop Ar alarm Op Ar 0/1
 .Sh DESCRIPTION
@@ -185,8 +268,22 @@ consists of zero or more global options followed by a command.
 Commands may support additional optional or required arguments after the
 command.
 .Pp
-Currently one global option is supported:
+Currently three global options are supported:
 .Bl -tag -width indent
+.It Fl D Ar device
+.Ar device
+specifies the device node of the controller to use.
+'/dev/' will be added to the device node if needed.
+If no device node is specified,
+then device will be made of the type and device.
+.It Fl t Ar type
+.Ar type
+specifies the type of the controller to work with either
+.Xr mfi 4
+or
+.Xr mrsas 4 .
+If no type is specified,
+then the name of the invoked tool used to derive the type.
 .It Fl u Ar unit
 .Ar unit
 specifies the unit of the controller to work with.
@@ -720,7 +817,8 @@ Display the second detected foreign configuration:
 Set the current rebuild rate for volumes to 40%:
 .Dl Nm Cm ctrlprop rebuild 40
 .Sh SEE ALSO
-.Xr mfi 4
+.Xr mfi 4 ,
+.Xr mrsas 4
 .Sh HISTORY
 The
 .Nm

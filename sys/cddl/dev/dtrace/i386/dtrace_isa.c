@@ -498,7 +498,7 @@ dtrace_getstackdepth(int aframes)
 }
 
 ulong_t
-dtrace_getreg(struct trapframe *rp, uint_t reg)
+dtrace_getreg(struct trapframe *frame, uint_t reg)
 {
 	struct pcb *pcb;
 	int regmap[] = {  /* Order is dependent on reg.d */
@@ -543,41 +543,41 @@ dtrace_getreg(struct trapframe *rp, uint_t reg)
 		}
 		return (pcb->pcb_gs);
 	case REG_FS:
-		return (rp->tf_fs);
+		return (frame->tf_fs);
 	case REG_ES:
-		return (rp->tf_es);
+		return (frame->tf_es);
 	case REG_DS:
-		return (rp->tf_ds);
+		return (frame->tf_ds);
 	case REG_RDI:
-		return (rp->tf_edi);
+		return (frame->tf_edi);
 	case REG_RSI:
-		return (rp->tf_esi);
+		return (frame->tf_esi);
 	case REG_RBP:
-		return (rp->tf_ebp);
+		return (frame->tf_ebp);
 	case REG_RSP:
-		return (rp->tf_isp);
+		return (frame->tf_isp);
 	case REG_RBX:
-		return (rp->tf_ebx);
+		return (frame->tf_ebx);
 	case REG_RCX:
-		return (rp->tf_ecx);
+		return (frame->tf_ecx);
 	case REG_RAX:
-		return (rp->tf_eax);
+		return (frame->tf_eax);
 	case REG_TRAPNO:
-		return (rp->tf_trapno);
+		return (frame->tf_trapno);
 	case REG_ERR:
-		return (rp->tf_err);
+		return (frame->tf_err);
 	case REG_RIP:
-		return (rp->tf_eip);
+		return (frame->tf_eip);
 	case REG_CS:
-		return (rp->tf_cs);
+		return (frame->tf_cs);
 	case REG_RFL:
-		return (rp->tf_eflags);
+		return (frame->tf_eflags);
 #if 0
 	case REG_RSP:
-		return (rp->tf_esp);
+		return (frame->tf_esp);
 #endif
 	case REG_SS:
-		return (rp->tf_ss);
+		return (frame->tf_ss);
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
 		return (0);

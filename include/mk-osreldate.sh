@@ -1,5 +1,5 @@
 #!/bin/sh -
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2013 Garrett Cooper
 # All rights reserved.

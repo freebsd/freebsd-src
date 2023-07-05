@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "CLANG" "1" "2021-06-07" "12" "Clang"
+.TH "CLANG" "1" "2023-05-24" "16" "Clang"
 .SH NAME
 clang \- the Clang C, C++, and Objective-C compiler
 .SH SYNOPSIS
@@ -53,8 +52,8 @@ transparently use it to run the other tools.
 .B Preprocessing
 This stage handles tokenization of the input source file, macro expansion,
 #include expansion and handling of other preprocessor directives.  The
-output of this stage is typically called a ".i" (for C), ".ii" (for C++),
-".mi" (for Objective\-C), or ".mii" (for Objective\-C++) file.
+output of this stage is typically called a \(dq.i\(dq (for C), \(dq.ii\(dq (for C++),
+\(dq.mi\(dq (for Objective\-C), or \(dq.mii\(dq (for Objective\-C++) file.
 .TP
 .B Parsing and Semantic Analysis
 This stage parses the input file, translating preprocessor tokens into a
@@ -62,27 +61,27 @@ parse tree.  Once in the form of a parse tree, it applies semantic
 analysis to compute types for expressions as well and determine whether
 the code is well formed. This stage is responsible for generating most of
 the compiler warnings as well as parse errors. The output of this stage is
-an "Abstract Syntax Tree" (AST).
+an \(dqAbstract Syntax Tree\(dq (AST).
 .TP
 .B Code Generation and Optimization
 This stage translates an AST into low\-level intermediate code (known as
-"LLVM IR") and ultimately to machine code.  This phase is responsible for
+\(dqLLVM IR\(dq) and ultimately to machine code.  This phase is responsible for
 optimizing the generated code and handling target\-specific code generation.
-The output of this stage is typically called a ".s" file or "assembly" file.
+The output of this stage is typically called a \(dq.s\(dq file or \(dqassembly\(dq file.
 .sp
 Clang also supports the use of an integrated assembler, in which the code
 generator produces object files directly. This avoids the overhead of
-generating the ".s" file and of calling the target assembler.
+generating the \(dq.s\(dq file and of calling the target assembler.
 .TP
 .B Assembler
 This stage runs the target assembler to translate the output of the
 compiler into a target object file. The output of this stage is typically
-called a ".o" file or "object" file.
+called a \(dq.o\(dq file or \(dqobject\(dq file.
 .TP
 .B Linker
 This stage runs the target linker to merge multiple object files into an
 executable or dynamic library. The output of this stage is typically called
-an "a.out", ".dylib" or ".so" file.
+an \(dqa.out\(dq, \(dq.dylib\(dq or \(dq.so\(dq file.
 .UNINDENT
 .sp
 \fBClang Static Analyzer\fP
@@ -101,7 +100,7 @@ Run the preprocessor stage.
 .INDENT 0.0
 .TP
 .B \-fsyntax\-only
-Run the preprocessor, parser and type checking stages.
+Run the preprocessor, parser and semantic analysis stages.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -112,7 +111,7 @@ and target\-specific code generation, producing an assembly file.
 .INDENT 0.0
 .TP
 .B \-c
-Run all of the above, plus the assembler, generating a target ".o" object file.
+Run all of the above, plus the assembler, generating a target \(dq.o\(dq object file.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -305,27 +304,45 @@ ISO C++ 2017 with amendments and GNU extensions
 .UNINDENT
 .UNINDENT
 .nf
-\fBc++2a\fP
+\fBc++20\fP
 .fi
 .sp
 .INDENT 0.0
 .INDENT 3.5
-Working draft for ISO C++ 2020
+ISO C++ 2020 with amendments
 .UNINDENT
 .UNINDENT
 .nf
-\fBgnu++2a\fP
+\fBgnu++20\fP
 .fi
 .sp
 .INDENT 0.0
 .INDENT 3.5
-Working draft for ISO C++ 2020 with GNU extensions
+ISO C++ 2020 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++2b\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2023
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++2b\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2023 with GNU extensions
 .UNINDENT
 .UNINDENT
 .UNINDENT
 .UNINDENT
 .sp
-The default C++ language standard is \fBgnu++14\fP\&.
+The default C++ language standard is \fBgnu++17\fP\&.
 .sp
 Supported values for the OpenCL language are:
 .INDENT 7.0
@@ -424,8 +441,26 @@ implementations, as these are needed for efficient codegen for many programs.
 .INDENT 0.0
 .TP
 .B \-fno\-builtin
-Disable special handling and optimizations of builtin functions like
-\fBstrlen()\fP and \fBmalloc()\fP\&.
+Disable special handling and optimizations of well\-known library functions,
+like \fBstrlen()\fP and \fBmalloc()\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fno\-builtin\-<function>
+Disable special handling and optimizations for the specific library function.
+For example, \fB\-fno\-builtin\-strlen\fP removes any special handling for the
+\fBstrlen()\fP library function.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fno\-builtin\-std\-<function>
+Disable special handling and optimizations for the specific C++ standard
+library function in namespace \fBstd\fP\&. For example,
+\fB\-fno\-builtin\-std\-move_if_noexcept\fP removes any special handling for the
+\fBstd::move_if_noexcept()\fP library function.
+.sp
+For C standard library functions that the C++ standard library also provides
+in namespace \fBstd\fP, use \fI\%\-fno\-builtin\-<function>\fP instead.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -435,7 +470,7 @@ Indicate that math functions should be treated as updating \fBerrno\fP\&.
 .INDENT 0.0
 .TP
 .B \-fpascal\-strings
-Enable support for Pascal\-style strings with "\epfoo".
+Enable support for Pascal\-style strings with \(dq\epfoo\(dq.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -479,13 +514,13 @@ overall bit\-width
 .INDENT 0.0
 .TP
 .B \-fblocks
-Enable the "Blocks" language feature.
+Enable the \(dqBlocks\(dq language feature.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-fobjc\-abi\-version=version
 Select the Objective\-C ABI version to use. Available versions are 1 (legacy
-"fragile" ABI), 2 (non\-fragile ABI 1), and 3 (non\-fragile ABI 2).
+\(dqfragile\(dq ABI), 2 (non\-fragile ABI 1), and 3 (non\-fragile ABI 2).
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -509,7 +544,12 @@ number of cross compilers, or may only support a native target.
 .INDENT 0.0
 .TP
 .B \-arch <architecture>
-Specify the architecture to build for.
+Specify the architecture to build for (Mac OS X specific).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-target <architecture>
+Specify the architecture to build for (all platforms).
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -550,7 +590,7 @@ but which may not exist on earlier ones.
 Specify which optimization level to use:
 .INDENT 7.0
 .INDENT 3.5
-\fI\%\-O0\fP Means "no optimization": this level compiles the fastest and
+\fI\%\-O0\fP Means \(dqno optimization\(dq: this level compiles the fastest and
 generates the most debuggable code.
 .sp
 \fI\%\-O1\fP Somewhere between \fI\%\-O0\fP and \fI\%\-O2\fP\&.
@@ -594,9 +634,9 @@ best at \fI\%\-O0\fP\&.  When more than one option starting with \fI\-g\fP is
 specified, the last one wins:
 .INDENT 7.0
 .INDENT 3.5
-\fB\-g\fP Generate debug information.
+\fI\%\-g\fP Generate debug information.
 .sp
-\fB\-gline\-tables\-only\fP Generate only line table debug information. This
+\fI\%\-gline\-tables\-only\fP Generate only line table debug information. This
 allows for symbolicated backtraces with inlining information, but does not
 include any information about variables, their locations or types.
 .sp
@@ -627,7 +667,7 @@ needed by a module and could be replaced with a forward declaration.
 Further, Clang will only emit type info for a dynamic C++ class in the
 module that contains the vtable for the class.
 .sp
-The \fB\-fstandalone\-debug\fP option turns off these optimizations.
+The \fI\%\-fstandalone\-debug\fP option turns off these optimizations.
 This is useful when working with 3rd\-party libraries that don\(aqt come with
 debug information.  This is the default on Darwin.  Note that Clang will
 never emit type information for types that are not referenced at all by the
@@ -668,8 +708,8 @@ It can be disabled with \fI\%\-fno\-common\fP\&.
 .TP
 .B \-ftls\-model=<model>
 Set the default thread\-local storage (TLS) model to use for thread\-local
-variables. Valid values are: "global\-dynamic", "local\-dynamic",
-"initial\-exec" and "local\-exec". The default is "global\-dynamic". The default
+variables. Valid values are: \(dqglobal\-dynamic\(dq, \(dqlocal\-dynamic\(dq,
+\(dqinitial\-exec\(dq and \(dqlocal\-exec\(dq. The default is \(dqglobal\-dynamic\(dq. The default
 model can be overridden with the tls_model attribute. The compiler will try
 to choose a more efficient model if possible.
 .UNINDENT
@@ -681,16 +721,16 @@ When used with \fI\%\-S\fP this generates LLVM intermediate language
 assembly files, otherwise this generates LLVM bitcode format object files
 (which may be passed to the linker depending on the stage selection options).
 .sp
-The default for \fI\%\-flto\fP is "full", in which the
+The default for \fI\%\-flto\fP is \(dqfull\(dq, in which the
 LLVM bitcode is suitable for monolithic Link Time Optimization (LTO), where
 the linker merges all such modules into a single combined module for
-optimization. With "thin", ThinLTO
+optimization. With \(dqthin\(dq, \fI\%ThinLTO\fP
 compilation is invoked instead.
 .sp
 \fBNOTE:\fP
 .INDENT 7.0
 .INDENT 3.5
-On Darwin, when using \fI\%\-flto\fP along with \fB\-g\fP and
+On Darwin, when using \fI\%\-flto\fP along with \fI\%\-g\fP and
 compiling and linking in separate steps, you also need to pass
 \fB\-Wl,\-object_path_lto,<lto\-filename>.o\fP at the linking step to instruct the
 ld64 linker not to delete the temporary object file generated during Link
@@ -765,7 +805,7 @@ Print the full library path of file.
 .TP
 .B \-print\-libgcc\-file\-name
 Print the library path for the currently used compiler runtime library
-("libgcc.a" or "libclang_rt.builtins.*.a").
+(\(dqlibgcc.a\(dq or \(dqlibclang_rt.builtins.*.a\(dq).
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -786,8 +826,8 @@ Save intermediate compilation results.
 .TP
 .B \-save\-stats, \-save\-stats=cwd, \-save\-stats=obj
 Save internal code generation (LLVM) statistics to a file in the current
-directory (\fI\%\-save\-stats\fP/"\-save\-stats=cwd") or the directory
-of the output file ("\-save\-state=obj").
+directory (\fI\%\-save\-stats\fP/\(dq\-save\-stats=cwd\(dq) or the directory
+of the output file (\(dq\-save\-state=obj\(dq).
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -895,15 +935,15 @@ Darwin targets.
 .UNINDENT
 .SH BUGS
 .sp
-To report bugs, please visit <\fI\%https://bugs.llvm.org/\fP>.  Most bug reports should
+To report bugs, please visit <\fI\%https://github.com/llvm/llvm\-project/issues/\fP>.  Most bug reports should
 include preprocessed source files (use the \fI\%\-E\fP option) and the full
 output of the compiler, along with information to reproduce.
 .SH SEE ALSO
 .sp
-\fBld(1)\fP
+\fBas(1)\fP, \fBld(1)\fP
 .SH AUTHOR
 Maintained by the Clang / LLVM Team (<http://clang.llvm.org>)
 .SH COPYRIGHT
-2007-2021, The Clang Team
+2007-2023, The Clang Team
 .\" Generated by docutils manpage writer.
 .

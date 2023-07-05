@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 #  Copyright (c) 2010 Gordon Tetlow
 #  All rights reserved.
@@ -67,6 +67,25 @@ build_manlocales() {
 	MANLOCALES=${manlocales#:}
 
 	decho "Available manual locales: $MANLOCALES"
+}
+
+# Usage: build_mansect
+# Builds a correct MANSECT variable.
+build_mansect() {
+	# If the user has set mansect, who are we to argue.
+	if [ -n "$MANSECT" ]; then
+		return
+	fi
+
+	parse_configs
+
+	# Trim leading colon
+	MANSECT=${mansect#:}
+
+	if [ -z "$MANSECT" ]; then
+		MANSECT=$man_default_sections
+	fi
+	decho "Using manual sections: $MANSECT"
 }
 
 # Usage: build_manpath
@@ -548,10 +567,10 @@ man_find_and_display() {
 	fi
 }
 
-# Usage: man_parse_args "$@"
+# Usage: man_parse_opts "$@"
 # Parses commandline options for man.
-man_parse_args() {
-	local IFS cmd_arg
+man_parse_opts() {
+	local cmd_arg
 
 	OPTIND=1
 	while getopts 'K:M:P:S:adfhkm:op:tw' cmd_arg; do
@@ -601,19 +620,6 @@ man_parse_args() {
 		do_apropos "$@"
 		exit
 	fi
-
-	IFS=:
-	for sect in $man_default_sections; do
-		if [ "$sect" = "$1" ]; then
-			decho "Detected manual section as first arg: $1"
-			MANSECT="$1"
-			shift
-			break
-		fi
-	done
-	unset IFS
-
-	pages="$*"
 }
 
 # Usage: man_setup
@@ -633,14 +639,8 @@ man_setup() {
 	decho "Using architecture: $MACHINE_ARCH:$MACHINE"
 
 	setup_pager
-
-	# Setup manual sections to search.
-	if [ -z "$MANSECT" ]; then
-		MANSECT=$man_default_sections
-	fi
-	decho "Using manual sections: $MANSECT"
-
 	build_manpath
+	build_mansect
 	man_setup_locale
 	man_setup_width
 }
@@ -787,6 +787,10 @@ parse_file() {
 				trim "${line#MANCONFIG}"
 				config_local="$tstr"
 				;;
+		MANSECT*)	decho "    MANSECT" 3
+				trim "${line#MANSECT}"
+				mansect="$mansect:$tstr"
+				;;
 		# Set variables in the form of FOO_BAR
 		*_*[\ \	]*)	var="${line%%[\ \	]*}"
 				trim "${line#$var}"
@@ -906,7 +910,7 @@ setup_cattool() {
 	case "$1" in
 	*.bz)	cattool='/usr/bin/bzcat' ;;
 	*.bz2)	cattool='/usr/bin/bzcat' ;;
-	*.gz)	cattool='/usr/bin/zcat' ;;
+	*.gz)	cattool='/usr/bin/gzcat' ;;
 	*.lzma)	cattool='/usr/bin/lzcat' ;;
 	*.xz)	cattool='/usr/bin/xzcat' ;;
 	*.zst)	cattool='/usr/bin/zstdcat' ;;
@@ -1008,12 +1012,28 @@ do_full_search() {
 }
 
 do_man() {
-	man_parse_args "$@"
+	local IFS
+
+	man_parse_opts "$@"
+	man_setup
+
+	shift $(( $OPTIND - 1 ))
+	IFS=:
+	for sect in $MANSECT; do
+		if [ "$sect" = "$1" ]; then
+			decho "Detected manual section as first arg: $1"
+			MANSECT="$1"
+			shift
+			break
+		fi
+	done
+	unset IFS
+	pages="$*"
+
 	if [ -z "$pages" -a -z "${Kflag}" ]; then
 		echo 'What manual page do you want?' >&2
 		exit 1
 	fi
-	man_setup
 
 	if [ ! -z "${Kflag}" ]; then
 		# Short circuit because -K flag does a sufficiently

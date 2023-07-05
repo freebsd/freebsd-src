@@ -49,7 +49,6 @@ ath3k_fw_read(struct ath3k_firmware *fw, const char *fwname)
 	struct stat sb;
 	unsigned char *buf;
 	ssize_t r;
-	int i;
 
 	fd = open(fwname, O_RDONLY);
 	if (fd < 0) {
@@ -70,7 +69,6 @@ ath3k_fw_read(struct ath3k_firmware *fw, const char *fwname)
 		return (0);
 	}
 
-	i = 0;
 	/* XXX handle partial reads */
 	r = read(fd, buf, sb.st_size);
 	if (r < 0) {

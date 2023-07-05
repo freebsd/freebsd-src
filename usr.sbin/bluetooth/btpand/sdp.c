@@ -1,7 +1,7 @@
 /*	$NetBSD: sdp.c,v 1.2 2008/12/06 20:01:14 plunky Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2008 Iain Hibbert
  * All rights reserved.

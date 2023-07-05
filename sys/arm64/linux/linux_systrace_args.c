@@ -2,7 +2,6 @@
  * System call argument to DTrace register array converstion.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * $FreeBSD$
  * This file is part of the DTrace syscall provider.
  */
 
@@ -252,7 +251,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[a++] = p->dfd; /* l_int */
 		uarg[a++] = (intptr_t)p->filename; /* const char * */
 		iarg[a++] = p->mode; /* l_int */
-		iarg[a++] = p->dev; /* l_uint */
+		iarg[a++] = p->dev; /* l_dev_t */
 		*n_args = 4;
 		break;
 	}
@@ -1763,8 +1762,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 221: {
 		struct linux_execve_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* char * */
-		uarg[a++] = (intptr_t)p->argp; /* char ** */
-		uarg[a++] = (intptr_t)p->envp; /* char ** */
+		uarg[a++] = (intptr_t)p->argp; /* l_uintptr_t * */
+		uarg[a++] = (intptr_t)p->envp; /* l_uintptr_t * */
 		*n_args = 3;
 		break;
 	}
@@ -2777,7 +2776,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 3:
-			p = "l_uint";
+			p = "l_dev_t";
 			break;
 		default:
 			break;
@@ -5285,10 +5284,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "userland char **";
+			p = "userland l_uintptr_t *";
 			break;
 		case 2:
-			p = "userland char **";
+			p = "userland l_uintptr_t *";
 			break;
 		default:
 			break;

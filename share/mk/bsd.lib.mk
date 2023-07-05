@@ -99,19 +99,21 @@ LDFLAGS+= -Wl,-zretpolineplt
 # Initialize stack variables on function entry
 .if ${MK_INIT_ALL_ZERO} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
-CFLAGS+= -ftrivial-auto-var-init=zero \
-    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
-CXXFLAGS+= -ftrivial-auto-var-init=zero \
-    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+CFLAGS+= -ftrivial-auto-var-init=zero
+CXXFLAGS+= -ftrivial-auto-var-init=zero
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
+CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+.endif
 .else
-.warning InitAll (zeros) requested but not support by compiler
+.warning InitAll (zeros) requested but not supported by compiler
 .endif
 .elif ${MK_INIT_ALL_PATTERN} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=pattern
 CXXFLAGS+= -ftrivial-auto-var-init=pattern
 .else
-.warning InitAll (pattern) requested but not support by compiler
+.warning InitAll (pattern) requested but not supported by compiler
 .endif
 .endif
 
@@ -190,7 +192,7 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .s.po .s.pico .s.nossppico .s.pieo:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+	${CC:N${CCACHE_BIN}} -x assembler ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.po:
@@ -378,7 +380,7 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .endif
 .endif #defined(SHLIB_NAME)
 
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
 lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
@@ -540,7 +542,7 @@ _libinstall:
 .endif # SHLIB_LDSCRIPT
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif

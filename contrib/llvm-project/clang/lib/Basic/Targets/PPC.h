@@ -50,7 +50,6 @@ class LLVM_LIBRARY_VISIBILITY PPCTargetInfo : public TargetInfo {
   } ArchDefineTypes;
 
   ArchDefineTypes ArchDefs = ArchDefineNone;
-  static const Builtin::Info BuiltinInfo[];
   static const char *const GCCRegNames[];
   static const TargetInfo::GCCRegAlias GCCRegAliases[];
   std::string CPU;
@@ -216,7 +215,7 @@ public:
       // Don't use floating point registers on soft float ABI.
       if (FloatABI == SoftFloat)
         return false;
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case 'b': // Base register
       Info.setAllowsRegister();
       break;
@@ -295,7 +294,7 @@ public:
     case 'Q': // Memory operand that is an offset from a register (it is
               // usually better to use `m' or `es' in asm statements)
       Info.setAllowsRegister();
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case 'Z': // Memory operand that is an indexed or indirect from a
               // register (it is usually better to use `m' or `es' in
               // asm statements)
@@ -427,12 +426,12 @@ public:
     } else if ((Triple.getArch() == llvm::Triple::ppc64le)) {
       DataLayout = "e-m:e-i64:64-n32:64";
       ABI = "elfv2";
-    } else if (Triple.isOSFreeBSD() && (Triple.getOSMajorVersion() == 0 || Triple.getOSMajorVersion() >= 13)) {
-      DataLayout = "E-m:e-i64:64-n32:64";
-      ABI = "elfv2";
     } else {
       DataLayout = "E-m:e-i64:64-n32:64";
-      ABI = "elfv1";
+      if (Triple.isPPC64ELFv2ABI())
+        ABI = "elfv2";
+      else
+        ABI = "elfv1";
     }
 
     if (Triple.isOSFreeBSD() || Triple.isOSOpenBSD() || Triple.isMusl()) {

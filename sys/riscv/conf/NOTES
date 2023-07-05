@@ -16,7 +16,6 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
-options 	FPE			# Floating-point extension support
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 
 # RISC-V SBI console

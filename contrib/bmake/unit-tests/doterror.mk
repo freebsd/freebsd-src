@@ -1,4 +1,4 @@
-# $NetBSD: doterror.mk,v 1.2 2020/10/24 08:34:59 rillig Exp $
+# $NetBSD: doterror.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
 
 
 .BEGIN:
@@ -17,4 +17,3 @@ happy:
 
 sad:
 	@echo and now: $@; exit 1
-

@@ -58,7 +58,7 @@ fail:
 
 static int
 bio_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **sub_argv, size_t sub_argc,
-    const char *pin, const fido_blob_t *token)
+    const char *pin, const fido_blob_t *token, int *ms)
 {
 	cbor_item_t	*argv[5];
 	es256_pk_t	*pk = NULL;
@@ -90,12 +90,12 @@ bio_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **sub_argv, size_t sub_argc,
 
 	/* pinProtocol, pinAuth */
 	if (pin) {
-		if ((r = fido_do_ecdh(dev, &pk, &ecdh)) != FIDO_OK) {
+		if ((r = fido_do_ecdh(dev, &pk, &ecdh, ms)) != FIDO_OK) {
 			fido_log_debug("%s: fido_do_ecdh", __func__);
 			goto fail;
 		}
 		if ((r = cbor_add_uv_params(dev, cmd, &hmac, pk, ecdh, pin,
-		    NULL, &argv[4], &argv[3])) != FIDO_OK) {
+		    NULL, &argv[4], &argv[3], ms)) != FIDO_OK) {
 			fido_log_debug("%s: cbor_add_uv_params", __func__);
 			goto fail;
 		}
@@ -109,7 +109,7 @@ bio_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **sub_argv, size_t sub_argc,
 
 	/* framing and transmission */
 	if (cbor_build_frame(cmd, argv, nitems(argv), &f) < 0 ||
-	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len) < 0) {
+	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len, ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -231,7 +231,7 @@ bio_parse_template_array(const cbor_item_t *key, const cbor_item_t *val,
 }
 
 static int
-bio_rx_template_array(fido_dev_t *dev, fido_bio_template_array_t *ta, int ms)
+bio_rx_template_array(fido_dev_t *dev, fido_bio_template_array_t *ta, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -256,11 +256,11 @@ bio_rx_template_array(fido_dev_t *dev, fido_bio_template_array_t *ta, int ms)
 
 static int
 bio_get_template_array_wait(fido_dev_t *dev, fido_bio_template_array_t *ta,
-    const char *pin, int ms)
+    const char *pin, int *ms)
 {
 	int r;
 
-	if ((r = bio_tx(dev, CMD_ENUM, NULL, 0, pin, NULL)) != FIDO_OK ||
+	if ((r = bio_tx(dev, CMD_ENUM, NULL, 0, pin, NULL, ms)) != FIDO_OK ||
 	    (r = bio_rx_template_array(dev, ta, ms)) != FIDO_OK)
 		return (r);
 
@@ -271,15 +271,17 @@ int
 fido_bio_dev_get_template_array(fido_dev_t *dev, fido_bio_template_array_t *ta,
     const char *pin)
 {
+	int ms = dev->timeout_ms;
+
 	if (pin == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-	return (bio_get_template_array_wait(dev, ta, pin, -1));
+	return (bio_get_template_array_wait(dev, ta, pin, &ms));
 }
 
 static int
 bio_set_template_name_wait(fido_dev_t *dev, const fido_bio_template_t *t,
-    const char *pin, int ms)
+    const char *pin, int *ms)
 {
 	cbor_item_t	*argv[2];
 	int		 r = FIDO_ERR_INTERNAL;
@@ -292,7 +294,8 @@ bio_set_template_name_wait(fido_dev_t *dev, const fido_bio_template_t *t,
 		goto fail;
 	}
 
-	if ((r = bio_tx(dev, CMD_SET_NAME, argv, 2, pin, NULL)) != FIDO_OK ||
+	if ((r = bio_tx(dev, CMD_SET_NAME, argv, 2, pin, NULL,
+	    ms)) != FIDO_OK ||
 	    (r = fido_rx_cbor_status(dev, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		goto fail;
@@ -309,10 +312,12 @@ int
 fido_bio_dev_set_template_name(fido_dev_t *dev, const fido_bio_template_t *t,
     const char *pin)
 {
+	int ms = dev->timeout_ms;
+
 	if (pin == NULL || t->name == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-	return (bio_set_template_name_wait(dev, t, pin, -1));
+	return (bio_set_template_name_wait(dev, t, pin, &ms));
 }
 
 static void
@@ -378,7 +383,7 @@ bio_parse_template_id(const cbor_item_t *key, const cbor_item_t *val,
 
 static int
 bio_rx_enroll_begin(fido_dev_t *dev, fido_bio_template_t *t,
-    fido_bio_enroll_t *e, int ms)
+    fido_bio_enroll_t *e, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -411,7 +416,7 @@ bio_rx_enroll_begin(fido_dev_t *dev, fido_bio_template_t *t,
 
 static int
 bio_enroll_begin_wait(fido_dev_t *dev, fido_bio_template_t *t,
-    fido_bio_enroll_t *e, uint32_t timo_ms, int ms)
+    fido_bio_enroll_t *e, uint32_t timo_ms, int *ms)
 {
 	cbor_item_t	*argv[3];
 	const uint8_t	 cmd = CMD_ENROLL_BEGIN;
@@ -419,12 +424,12 @@ bio_enroll_begin_wait(fido_dev_t *dev, fido_bio_template_t *t,
 
 	memset(&argv, 0, sizeof(argv));
 
-	if ((argv[2] = cbor_build_uint32(timo_ms)) == NULL) {
+	if ((argv[2] = cbor_build_uint(timo_ms)) == NULL) {
 		fido_log_debug("%s: cbor encode", __func__);
 		goto fail;
 	}
 
-	if ((r = bio_tx(dev, cmd, argv, 3, NULL, e->token)) != FIDO_OK ||
+	if ((r = bio_tx(dev, cmd, argv, 3, NULL, e->token, ms)) != FIDO_OK ||
 	    (r = bio_rx_enroll_begin(dev, t, e, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		goto fail;
@@ -444,6 +449,7 @@ fido_bio_dev_enroll_begin(fido_dev_t *dev, fido_bio_template_t *t,
 	es256_pk_t	*pk = NULL;
 	fido_blob_t	*ecdh = NULL;
 	fido_blob_t	*token = NULL;
+	int		 ms = dev->timeout_ms;
 	int		 r;
 
 	if (pin == NULL || e->token != NULL)
@@ -454,13 +460,13 @@ fido_bio_dev_enroll_begin(fido_dev_t *dev, fido_bio_template_t *t,
 		goto fail;
 	}
 
-	if ((r = fido_do_ecdh(dev, &pk, &ecdh)) != FIDO_OK) {
+	if ((r = fido_do_ecdh(dev, &pk, &ecdh, &ms)) != FIDO_OK) {
 		fido_log_debug("%s: fido_do_ecdh", __func__);
 		goto fail;
 	}
 
 	if ((r = fido_dev_get_uv_token(dev, CTAP_CBOR_BIO_ENROLL_PRE, pin, ecdh,
-	    pk, NULL, token)) != FIDO_OK) {
+	    pk, NULL, token, &ms)) != FIDO_OK) {
 		fido_log_debug("%s: fido_dev_get_uv_token", __func__);
 		goto fail;
 	}
@@ -475,11 +481,11 @@ fail:
 	if (r != FIDO_OK)
 		return (r);
 
-	return (bio_enroll_begin_wait(dev, t, e, timo_ms, -1));
+	return (bio_enroll_begin_wait(dev, t, e, timo_ms, &ms));
 }
 
 static int
-bio_rx_enroll_continue(fido_dev_t *dev, fido_bio_enroll_t *e, int ms)
+bio_rx_enroll_continue(fido_dev_t *dev, fido_bio_enroll_t *e, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -505,7 +511,7 @@ bio_rx_enroll_continue(fido_dev_t *dev, fido_bio_enroll_t *e, int ms)
 
 static int
 bio_enroll_continue_wait(fido_dev_t *dev, const fido_bio_template_t *t,
-    fido_bio_enroll_t *e, uint32_t timo_ms, int ms)
+    fido_bio_enroll_t *e, uint32_t timo_ms, int *ms)
 {
 	cbor_item_t	*argv[3];
 	const uint8_t	 cmd = CMD_ENROLL_NEXT;
@@ -514,12 +520,12 @@ bio_enroll_continue_wait(fido_dev_t *dev, const fido_bio_template_t *t,
 	memset(&argv, 0, sizeof(argv));
 
 	if ((argv[0] = fido_blob_encode(&t->id)) == NULL ||
-	    (argv[2] = cbor_build_uint32(timo_ms)) == NULL) {
+	    (argv[2] = cbor_build_uint(timo_ms)) == NULL) {
 		fido_log_debug("%s: cbor encode", __func__);
 		goto fail;
 	}
 
-	if ((r = bio_tx(dev, cmd, argv, 3, NULL, e->token)) != FIDO_OK ||
+	if ((r = bio_tx(dev, cmd, argv, 3, NULL, e->token, ms)) != FIDO_OK ||
 	    (r = bio_rx_enroll_continue(dev, e, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		goto fail;
@@ -536,19 +542,21 @@ int
 fido_bio_dev_enroll_continue(fido_dev_t *dev, const fido_bio_template_t *t,
     fido_bio_enroll_t *e, uint32_t timo_ms)
 {
+	int ms = dev->timeout_ms;
+
 	if (e->token == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-	return (bio_enroll_continue_wait(dev, t, e, timo_ms, -1));
+	return (bio_enroll_continue_wait(dev, t, e, timo_ms, &ms));
 }
 
 static int
-bio_enroll_cancel_wait(fido_dev_t *dev, int ms)
+bio_enroll_cancel_wait(fido_dev_t *dev, int *ms)
 {
 	const uint8_t	cmd = CMD_ENROLL_CANCEL;
 	int		r;
 
-	if ((r = bio_tx(dev, cmd, NULL, 0, NULL, NULL)) != FIDO_OK ||
+	if ((r = bio_tx(dev, cmd, NULL, 0, NULL, NULL, ms)) != FIDO_OK ||
 	    (r = fido_rx_cbor_status(dev, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		return (r);
@@ -560,12 +568,14 @@ bio_enroll_cancel_wait(fido_dev_t *dev, int ms)
 int
 fido_bio_dev_enroll_cancel(fido_dev_t *dev)
 {
-	return (bio_enroll_cancel_wait(dev, -1));
+	int ms = dev->timeout_ms;
+
+	return (bio_enroll_cancel_wait(dev, &ms));
 }
 
 static int
 bio_enroll_remove_wait(fido_dev_t *dev, const fido_bio_template_t *t,
-    const char *pin, int ms)
+    const char *pin, int *ms)
 {
 	cbor_item_t	*argv[1];
 	const uint8_t	 cmd = CMD_ENROLL_REMOVE;
@@ -578,7 +588,7 @@ bio_enroll_remove_wait(fido_dev_t *dev, const fido_bio_template_t *t,
 		goto fail;
 	}
 
-	if ((r = bio_tx(dev, cmd, argv, 1, pin, NULL)) != FIDO_OK ||
+	if ((r = bio_tx(dev, cmd, argv, 1, pin, NULL, ms)) != FIDO_OK ||
 	    (r = fido_rx_cbor_status(dev, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		goto fail;
@@ -595,7 +605,9 @@ int
 fido_bio_dev_enroll_remove(fido_dev_t *dev, const fido_bio_template_t *t,
     const char *pin)
 {
-	return (bio_enroll_remove_wait(dev, t, pin, -1));
+	int ms = dev->timeout_ms;
+
+	return (bio_enroll_remove_wait(dev, t, pin, &ms));
 }
 
 static void
@@ -640,7 +652,7 @@ bio_parse_info(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 }
 
 static int
-bio_rx_info(fido_dev_t *dev, fido_bio_info_t *i, int ms)
+bio_rx_info(fido_dev_t *dev, fido_bio_info_t *i, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -664,11 +676,12 @@ bio_rx_info(fido_dev_t *dev, fido_bio_info_t *i, int ms)
 }
 
 static int
-bio_get_info_wait(fido_dev_t *dev, fido_bio_info_t *i, int ms)
+bio_get_info_wait(fido_dev_t *dev, fido_bio_info_t *i, int *ms)
 {
 	int r;
 
-	if ((r = bio_tx(dev, CMD_GET_INFO, NULL, 0, NULL, NULL)) != FIDO_OK ||
+	if ((r = bio_tx(dev, CMD_GET_INFO, NULL, 0, NULL, NULL,
+	    ms)) != FIDO_OK ||
 	    (r = bio_rx_info(dev, i, ms)) != FIDO_OK) {
 		fido_log_debug("%s: tx/rx", __func__);
 		return (r);
@@ -680,7 +693,9 @@ bio_get_info_wait(fido_dev_t *dev, fido_bio_info_t *i, int ms)
 int
 fido_bio_dev_get_info(fido_dev_t *dev, fido_bio_info_t *i)
 {
-	return (bio_get_info_wait(dev, i, -1));
+	int ms = dev->timeout_ms;
+
+	return (bio_get_info_wait(dev, i, &ms));
 }
 
 const char *

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2023
+.Dd June 27, 2023
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl aCcfjLlnopqtuvy
+.Op { Fl O | Fl I No } Ar encoding
 .Op Fl d Ar dir
 .Op Fl x Ar pattern
 .Op Fl P Ar password
@@ -62,6 +63,9 @@ Update existing.
 Extract only files from the zipfile if a file with the same name
 already exists on disk and is older than the former.
 Otherwise, the file is silently skipped.
+.It Fl I Ar encoding
+.It Fl O Ar encoding
+Convert filenames from the specified encoding.
 .It Fl j
 Ignore directories stored in the zipfile; instead, extract all files
 directly into the extraction directory.
@@ -123,7 +127,7 @@ Currently only
 mode 1 is supported, which lists the file names one per line.
 .It Ar [member ...]
 Optional list of members to extract from the zipfile.
-Can include patterns, e.g.
+Can include patterns, e.g.,
 .Ar 'memberdir/*'
 will extract all files and dirs below memberdir.
 .El

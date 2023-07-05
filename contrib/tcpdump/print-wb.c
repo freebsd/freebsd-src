@@ -22,46 +22,45 @@
 /* \summary: White Board printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
-static const char tstr[] = "[|wb]";
 
-/* XXX need to add byte-swapping macros! */
-/* XXX - you mean like the ones in "extract.h"? */
-
+#if 0
 /*
  * Largest packet size.  Everything should fit within this space.
  * For instance, multiline objects are sent piecewise.
  */
 #define MAXFRAMESIZE 1024
+#endif
 
 /*
  * Multiple drawing ops can be sent in one packet.  Each one starts on a
  * an even multiple of DOP_ALIGN bytes, which must be a power of two.
  */
 #define DOP_ALIGN 4
-#define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
+#define DOP_ROUNDUP(x)	roundup2(x, DOP_ALIGN)
 #define DOP_NEXT(d)\
 	((const struct dophdr *)((const u_char *)(d) + \
-				DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
+				DOP_ROUNDUP(GET_BE_U_2((d)->dh_len) + sizeof(*(d)))))
 
 /*
  * Format of the whiteboard packet header.
  * The transport level header.
  */
 struct pkt_hdr {
-	uint32_t ph_src;		/* site id of source */
-	uint32_t ph_ts;		/* time stamp (for skew computation) */
-	uint16_t ph_version;	/* version number */
-	u_char ph_type;		/* message type */
-	u_char ph_flags;	/* message flags */
+	nd_uint32_t ph_src;	/* site id of source */
+	nd_uint32_t ph_ts;	/* time stamp (for skew computation) */
+	nd_uint16_t ph_version;	/* version number */
+	nd_uint8_t ph_type;	/* message type */
+	nd_uint8_t ph_flags;	/* message flags */
 };
 
 /* Packet types */
@@ -73,6 +72,7 @@ struct pkt_hdr {
 #define PT_PREQ         5       /* page vector request */
 #define PT_PREP         7       /* page vector reply */
 
+#if 0
 #ifdef PF_USER
 #undef PF_USER			/* {Digital,Tru64} UNIX define this, alas */
 #endif
@@ -80,17 +80,18 @@ struct pkt_hdr {
 /* flags */
 #define PF_USER		0x01	/* hint that packet has interactive data */
 #define PF_VIS		0x02	/* only visible ops wanted */
+#endif
 
 struct PageID {
-	uint32_t p_sid;		/* session id of initiator */
-	uint32_t p_uid;		/* page number */
+	nd_uint32_t p_sid;		/* session id of initiator */
+	nd_uint32_t p_uid;		/* page number */
 };
 
 struct dophdr {
-	uint32_t  dh_ts;		/* sender's timestamp */
-	uint16_t	dh_len;		/* body length */
-	u_char	dh_flags;
-	u_char	dh_type;	/* body type */
+	nd_uint32_t	dh_ts;		/* sender's timestamp */
+	nd_uint16_t	dh_len;		/* body length */
+	nd_uint8_t	dh_flags;
+	nd_uint8_t	dh_type;	/* body type */
 	/* body follows */
 };
 /*
@@ -110,15 +111,31 @@ struct dophdr {
 #define DT_REF          13
 #define DT_SKIP         14
 #define DT_HOLE         15
-#define DT_MAXTYPE      15
+static const struct tok dop_str[] = {
+	{ DT_RECT,   "RECT"   },
+	{ DT_LINE,   "LINE"   },
+	{ DT_ML,     "ML"     },
+	{ DT_DEL,    "DEL"    },
+	{ DT_XFORM,  "XFORM"  },
+	{ DT_ELL,    "ELL"    },
+	{ DT_CHAR,   "CHAR"   },
+	{ DT_STR,    "STR"    },
+	{ DT_NOP,    "NOP"    },
+	{ DT_PSCODE, "PSCODE" },
+	{ DT_PSCOMP, "PSCOMP" },
+	{ DT_REF,    "REF"    },
+	{ DT_SKIP,   "SKIP"   },
+	{ DT_HOLE,   "HOLE"   },
+	{ 0, NULL }
+};
 
 /*
  * A drawing operation.
  */
 struct pkt_dop {
 	struct PageID pd_page;	/* page that operations apply to */
-	uint32_t	pd_sseq;	/* start sequence number */
-	uint32_t	pd_eseq;	/* end sequence number */
+	nd_uint32_t	pd_sseq;	/* start sequence number */
+	nd_uint32_t	pd_eseq;	/* end sequence number */
 	/* drawing ops follow */
 };
 
@@ -126,31 +143,31 @@ struct pkt_dop {
  * A repair request.
  */
 struct pkt_rreq {
-        uint32_t pr_id;           /* source id of drawops to be repaired */
-        struct PageID pr_page;           /* page of drawops */
-        uint32_t pr_sseq;         /* start seqno */
-        uint32_t pr_eseq;         /* end seqno */
+        nd_uint32_t pr_id;        /* source id of drawops to be repaired */
+        struct PageID pr_page;    /* page of drawops */
+        nd_uint32_t pr_sseq;      /* start seqno */
+        nd_uint32_t pr_eseq;      /* end seqno */
 };
 
 /*
  * A repair reply.
  */
 struct pkt_rrep {
-	uint32_t pr_id;	/* original site id of ops  */
+	nd_uint32_t pr_id;	/* original site id of ops  */
 	struct pkt_dop pr_dop;
 	/* drawing ops follow */
 };
 
 struct id_off {
-        uint32_t id;
-        uint32_t off;
+        nd_uint32_t id;
+        nd_uint32_t off;
 };
 
 struct pgstate {
-	uint32_t slot;
+	nd_uint32_t slot;
 	struct PageID page;
-	uint16_t nid;
-	uint16_t rsvd;
+	nd_uint16_t nid;
+	nd_uint16_t rsvd;
         /* seqptr's */
 };
 
@@ -158,7 +175,7 @@ struct pgstate {
  * An announcement packet.
  */
 struct pkt_id {
-	uint32_t pi_mslot;
+	nd_uint32_t pi_mslot;
         struct PageID    pi_mpage;        /* current page */
 	struct pgstate pi_ps;
         /* seqptr's */
@@ -167,12 +184,12 @@ struct pkt_id {
 
 struct pkt_preq {
         struct PageID  pp_page;
-        uint32_t  pp_low;
-        uint32_t  pp_high;
+        nd_uint32_t  pp_low;
+        nd_uint32_t  pp_high;
 };
 
 struct pkt_prep {
-        uint32_t  pp_n;           /* size of pageid array */
+        nd_uint32_t  pp_n;           /* size of pageid array */
         /* pgstate's follow */
 };
 
@@ -180,62 +197,60 @@ static int
 wb_id(netdissect_options *ndo,
       const struct pkt_id *id, u_int len)
 {
-	int i;
-	const char *cp;
+	u_int i;
+	const u_char *sitename;
 	const struct id_off *io;
 	char c;
-	int nid;
+	u_int nid;
 
-	ND_PRINT((ndo, " wb-id:"));
-	if (len < sizeof(*id) || !ND_TTEST(*id))
+	ND_PRINT(" wb-id:");
+	if (len < sizeof(*id))
 		return (-1);
 	len -= sizeof(*id);
 
-	ND_PRINT((ndo, " %u/%s:%u (max %u/%s:%u) ",
-	       EXTRACT_32BITS(&id->pi_ps.slot),
-	       ipaddr_string(ndo, &id->pi_ps.page.p_sid),
-	       EXTRACT_32BITS(&id->pi_ps.page.p_uid),
-	       EXTRACT_32BITS(&id->pi_mslot),
-	       ipaddr_string(ndo, &id->pi_mpage.p_sid),
-	       EXTRACT_32BITS(&id->pi_mpage.p_uid)));
+	ND_PRINT(" %u/%s:%u (max %u/%s:%u) ",
+	       GET_BE_U_4(id->pi_ps.slot),
+	       GET_IPADDR_STRING(id->pi_ps.page.p_sid),
+	       GET_BE_U_4(id->pi_ps.page.p_uid),
+	       GET_BE_U_4(id->pi_mslot),
+	       GET_IPADDR_STRING(id->pi_mpage.p_sid),
+	       GET_BE_U_4(id->pi_mpage.p_uid));
+	/* now the rest of the fixed-size part of struct pkt_id */
+	ND_TCHECK_SIZE(id);
 
-	nid = EXTRACT_16BITS(&id->pi_ps.nid);
+	nid = GET_BE_U_2(id->pi_ps.nid);
+	if (len < sizeof(*io) * nid)
+		return (-1);
 	len -= sizeof(*io) * nid;
 	io = (const struct id_off *)(id + 1);
-	cp = (const char *)(io + nid);
-	if (ND_TTEST2(*cp, len)) {
-		ND_PRINT((ndo, "\""));
-		fn_print(ndo, (const u_char *)cp, (const u_char *)cp + len);
-		ND_PRINT((ndo, "\""));
-	}
+	sitename = (const u_char *)(io + nid);
 
 	c = '<';
-	for (i = 0; i < nid && ND_TTEST(*io); ++io, ++i) {
-		ND_PRINT((ndo, "%c%s:%u",
-		    c, ipaddr_string(ndo, &io->id), EXTRACT_32BITS(&io->off)));
+	for (i = 0; i < nid; ++io, ++i) {
+		ND_PRINT("%c%s:%u",
+		    c, GET_IPADDR_STRING(io->id), GET_BE_U_4(io->off));
 		c = ',';
 	}
-	if (i >= nid) {
-		ND_PRINT((ndo, ">"));
-		return (0);
-	}
-	return (-1);
+	ND_PRINT("> \"");
+	nd_printjnp(ndo, sitename, len);
+	ND_PRINT("\"");
+	return (0);
 }
 
 static int
 wb_rreq(netdissect_options *ndo,
         const struct pkt_rreq *rreq, u_int len)
 {
-	ND_PRINT((ndo, " wb-rreq:"));
-	if (len < sizeof(*rreq) || !ND_TTEST(*rreq))
+	ND_PRINT(" wb-rreq:");
+	if (len < sizeof(*rreq))
 		return (-1);
 
-	ND_PRINT((ndo, " please repair %s %s:%u<%u:%u>",
-	       ipaddr_string(ndo, &rreq->pr_id),
-	       ipaddr_string(ndo, &rreq->pr_page.p_sid),
-	       EXTRACT_32BITS(&rreq->pr_page.p_uid),
-	       EXTRACT_32BITS(&rreq->pr_sseq),
-	       EXTRACT_32BITS(&rreq->pr_eseq)));
+	ND_PRINT(" please repair %s %s:%u<%u:%u>",
+	       GET_IPADDR_STRING(rreq->pr_id),
+	       GET_IPADDR_STRING(rreq->pr_page.p_sid),
+	       GET_BE_U_4(rreq->pr_page.p_uid),
+	       GET_BE_U_4(rreq->pr_sseq),
+	       GET_BE_U_4(rreq->pr_eseq));
 	return (0);
 }
 
@@ -243,14 +258,16 @@ static int
 wb_preq(netdissect_options *ndo,
         const struct pkt_preq *preq, u_int len)
 {
-	ND_PRINT((ndo, " wb-preq:"));
-	if (len < sizeof(*preq) || !ND_TTEST(*preq))
+	ND_PRINT(" wb-preq:");
+	if (len < sizeof(*preq))
 		return (-1);
 
-	ND_PRINT((ndo, " need %u/%s:%u",
-	       EXTRACT_32BITS(&preq->pp_low),
-	       ipaddr_string(ndo, &preq->pp_page.p_sid),
-	       EXTRACT_32BITS(&preq->pp_page.p_uid)));
+	ND_PRINT(" need %u/%s:%u",
+	       GET_BE_U_4(preq->pp_low),
+	       GET_IPADDR_STRING(preq->pp_page.p_sid),
+	       GET_BE_U_4(preq->pp_page.p_uid));
+	/* now the rest of the fixed-size part of struct pkt_req */
+	ND_TCHECK_SIZE(preq);
 	return (0);
 }
 
@@ -258,90 +275,63 @@ static int
 wb_prep(netdissect_options *ndo,
         const struct pkt_prep *prep, u_int len)
 {
-	int n;
+	u_int n;
 	const struct pgstate *ps;
-	const u_char *ep = ndo->ndo_snapend;
 
-	ND_PRINT((ndo, " wb-prep:"));
-	if (len < sizeof(*prep) || !ND_TTEST(*prep))
+	ND_PRINT(" wb-prep:");
+	if (len < sizeof(*prep))
 		return (-1);
-	n = EXTRACT_32BITS(&prep->pp_n);
+	n = GET_BE_U_4(prep->pp_n);
 	ps = (const struct pgstate *)(prep + 1);
-	while (--n >= 0 && ND_TTEST(*ps)) {
+	while (n != 0) {
 		const struct id_off *io, *ie;
 		char c = '<';
 
-		ND_PRINT((ndo, " %u/%s:%u",
-		    EXTRACT_32BITS(&ps->slot),
-		    ipaddr_string(ndo, &ps->page.p_sid),
-		    EXTRACT_32BITS(&ps->page.p_uid)));
+		ND_PRINT(" %u/%s:%u",
+		    GET_BE_U_4(ps->slot),
+		    GET_IPADDR_STRING(ps->page.p_sid),
+		    GET_BE_U_4(ps->page.p_uid));
+		/* now the rest of the fixed-size part of struct pgstate */
+		ND_TCHECK_SIZE(ps);
 		io = (const struct id_off *)(ps + 1);
-		for (ie = io + ps->nid; io < ie && ND_TTEST(*io); ++io) {
-			ND_PRINT((ndo, "%c%s:%u", c, ipaddr_string(ndo, &io->id),
-			    EXTRACT_32BITS(&io->off)));
+		for (ie = io + GET_U_1(ps->nid); io < ie; ++io) {
+			ND_PRINT("%c%s:%u", c, GET_IPADDR_STRING(io->id),
+			    GET_BE_U_4(io->off));
 			c = ',';
 		}
-		ND_PRINT((ndo, ">"));
+		ND_PRINT(">");
 		ps = (const struct pgstate *)io;
+		n--;
 	}
-	return ((const u_char *)ps <= ep? 0 : -1);
+	return 0;
 }
 
-
-static const char *dopstr[] = {
-	"dop-0!",
-	"dop-1!",
-	"RECT",
-	"LINE",
-	"ML",
-	"DEL",
-	"XFORM",
-	"ELL",
-	"CHAR",
-	"STR",
-	"NOP",
-	"PSCODE",
-	"PSCOMP",
-	"REF",
-	"SKIP",
-	"HOLE",
-};
-
-static int
+static void
 wb_dops(netdissect_options *ndo, const struct pkt_dop *dop,
         uint32_t ss, uint32_t es)
 {
 	const struct dophdr *dh = (const struct dophdr *)((const u_char *)dop + sizeof(*dop));
 
-	ND_PRINT((ndo, " <"));
+	ND_PRINT(" <");
 	for ( ; ss <= es; ++ss) {
-		int t;
+		u_int t;
 
-		if (!ND_TTEST(*dh)) {
-			ND_PRINT((ndo, "%s", tstr));
-			break;
-		}
-		t = dh->dh_type;
+		t = GET_U_1(dh->dh_type);
 
-		if (t > DT_MAXTYPE)
-			ND_PRINT((ndo, " dop-%d!", t));
-		else {
-			ND_PRINT((ndo, " %s", dopstr[t]));
-			if (t == DT_SKIP || t == DT_HOLE) {
-				uint32_t ts = EXTRACT_32BITS(&dh->dh_ts);
-				ND_PRINT((ndo, "%d", ts - ss + 1));
-				if (ss > ts || ts > es) {
-					ND_PRINT((ndo, "[|]"));
-					if (ts < ss)
-						return (0);
-				}
-				ss = ts;
+		ND_PRINT(" %s", tok2str(dop_str, "dop-%u!", t));
+		if (t == DT_SKIP || t == DT_HOLE) {
+			uint32_t ts = GET_BE_U_4(dh->dh_ts);
+			ND_PRINT("%u", ts - ss + 1);
+			if (ss > ts || ts > es) {
+				ND_PRINT("[|]");
+				if (ts < ss)
+					return;
 			}
+			ss = ts;
 		}
 		dh = DOP_NEXT(dh);
 	}
-	ND_PRINT((ndo, " >"));
-	return (0);
+	ND_PRINT(" >");
 }
 
 static int
@@ -350,22 +340,22 @@ wb_rrep(netdissect_options *ndo,
 {
 	const struct pkt_dop *dop = &rrep->pr_dop;
 
-	ND_PRINT((ndo, " wb-rrep:"));
-	if (len < sizeof(*rrep) || !ND_TTEST(*rrep))
+	ND_PRINT(" wb-rrep:");
+	if (len < sizeof(*rrep))
 		return (-1);
 	len -= sizeof(*rrep);
 
-	ND_PRINT((ndo, " for %s %s:%u<%u:%u>",
-	    ipaddr_string(ndo, &rrep->pr_id),
-	    ipaddr_string(ndo, &dop->pd_page.p_sid),
-	    EXTRACT_32BITS(&dop->pd_page.p_uid),
-	    EXTRACT_32BITS(&dop->pd_sseq),
-	    EXTRACT_32BITS(&dop->pd_eseq)));
+	ND_PRINT(" for %s %s:%u<%u:%u>",
+	    GET_IPADDR_STRING(rrep->pr_id),
+	    GET_IPADDR_STRING(dop->pd_page.p_sid),
+	    GET_BE_U_4(dop->pd_page.p_uid),
+	    GET_BE_U_4(dop->pd_sseq),
+	    GET_BE_U_4(dop->pd_eseq));
 
 	if (ndo->ndo_vflag)
-		return (wb_dops(ndo, dop,
-		    EXTRACT_32BITS(&dop->pd_sseq),
-		    EXTRACT_32BITS(&dop->pd_eseq)));
+		wb_dops(ndo, dop,
+		        GET_BE_U_4(dop->pd_sseq),
+		        GET_BE_U_4(dop->pd_eseq));
 	return (0);
 }
 
@@ -373,21 +363,21 @@ static int
 wb_drawop(netdissect_options *ndo,
           const struct pkt_dop *dop, u_int len)
 {
-	ND_PRINT((ndo, " wb-dop:"));
-	if (len < sizeof(*dop) || !ND_TTEST(*dop))
+	ND_PRINT(" wb-dop:");
+	if (len < sizeof(*dop))
 		return (-1);
 	len -= sizeof(*dop);
 
-	ND_PRINT((ndo, " %s:%u<%u:%u>",
-	    ipaddr_string(ndo, &dop->pd_page.p_sid),
-	    EXTRACT_32BITS(&dop->pd_page.p_uid),
-	    EXTRACT_32BITS(&dop->pd_sseq),
-	    EXTRACT_32BITS(&dop->pd_eseq)));
+	ND_PRINT(" %s:%u<%u:%u>",
+	    GET_IPADDR_STRING(dop->pd_page.p_sid),
+	    GET_BE_U_4(dop->pd_page.p_uid),
+	    GET_BE_U_4(dop->pd_sseq),
+	    GET_BE_U_4(dop->pd_eseq));
 
 	if (ndo->ndo_vflag)
-		return (wb_dops(ndo, dop,
-				EXTRACT_32BITS(&dop->pd_sseq),
-				EXTRACT_32BITS(&dop->pd_eseq)));
+		wb_dops(ndo, dop,
+		        GET_BE_U_4(dop->pd_sseq),
+		        GET_BE_U_4(dop->pd_eseq));
 	return (0);
 }
 
@@ -396,63 +386,60 @@ wb_drawop(netdissect_options *ndo,
  */
 void
 wb_print(netdissect_options *ndo,
-         register const void *hdr, register u_int len)
+         const u_char *hdr, u_int len)
 {
-	register const struct pkt_hdr *ph;
+	const struct pkt_hdr *ph;
+	uint8_t type;
+	int print_result;
 
+	ndo->ndo_protocol = "wb";
 	ph = (const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || !ND_TTEST(*ph)) {
-		ND_PRINT((ndo, "%s", tstr));
-		return;
-	}
+	if (len < sizeof(*ph))
+		goto invalid;
+	ND_TCHECK_SIZE(ph);
 	len -= sizeof(*ph);
 
-	if (ph->ph_flags)
-		ND_PRINT((ndo, "*"));
-	switch (ph->ph_type) {
+	if (GET_U_1(ph->ph_flags))
+		ND_PRINT("*");
+	type = GET_U_1(ph->ph_type);
+	switch (type) {
 
 	case PT_KILL:
-		ND_PRINT((ndo, " wb-kill"));
+		ND_PRINT(" wb-kill");
 		return;
 
 	case PT_ID:
-		if (wb_id(ndo, (const struct pkt_id *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_id(ndo, (const struct pkt_id *)(ph + 1), len);
 		break;
 
 	case PT_RREQ:
-		if (wb_rreq(ndo, (const struct pkt_rreq *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_rreq(ndo, (const struct pkt_rreq *)(ph + 1), len);
 		break;
 
 	case PT_RREP:
-		if (wb_rrep(ndo, (const struct pkt_rrep *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_rrep(ndo, (const struct pkt_rrep *)(ph + 1), len);
 		break;
 
 	case PT_DRAWOP:
-		if (wb_drawop(ndo, (const struct pkt_dop *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_drawop(ndo, (const struct pkt_dop *)(ph + 1), len);
 		break;
 
 	case PT_PREQ:
-		if (wb_preq(ndo, (const struct pkt_preq *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_preq(ndo, (const struct pkt_preq *)(ph + 1), len);
 		break;
 
 	case PT_PREP:
-		if (wb_prep(ndo, (const struct pkt_prep *)(ph + 1), len) >= 0)
-			return;
-		ND_PRINT((ndo, "%s", tstr));
+		print_result = wb_prep(ndo, (const struct pkt_prep *)(ph + 1), len);
 		break;
 
 	default:
-		ND_PRINT((ndo, " wb-%d!", ph->ph_type));
-		return;
+		ND_PRINT(" wb-%u!", type);
+		print_result = -1;
 	}
+	if (print_result < 0)
+		goto invalid;
+	return;
+
+invalid:
+	nd_print_invalid(ndo);
 }

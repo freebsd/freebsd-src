@@ -1,9 +1,0 @@
-SHA512t224 test suite:
-SHA512t224 ("") = 6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4 - verified correct
-SHA512t224 ("a") = d5cdb9ccc769a5121d4175f2bfdd13d6310e0d3d361ea75d82108327 - verified correct
-SHA512t224 ("abc") = 4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa - verified correct
-SHA512t224 ("message digest") = ad1a4db188fe57064f4f24609d2a83cd0afb9b398eb2fcaeaae2c564 - verified correct
-SHA512t224 ("abcdefghijklmnopqrstuvwxyz") = ff83148aa07ec30655c1b40aff86141c0215fe2a54f767d3f38743d8 - verified correct
-SHA512t224 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = a8b4b9174b99ffc67d6f49be9981587b96441051e16e6dd036b140d3 - verified correct
-SHA512t224 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = ae988faaa47e401a45f704d1272d99702458fea2ddc6582827556dd2 - verified correct
-SHA512t224 ("MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been made that its security is in some doubt") = b3c3b945249b0c8c94aba76ea887bcaad5401665a1fbeb384af4d06b - verified correct

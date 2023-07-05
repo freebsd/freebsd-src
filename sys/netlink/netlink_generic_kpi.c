@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_generic_kpi
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG3);
+_DECLARE_DEBUG(LOG_INFO);
 
 
 /*

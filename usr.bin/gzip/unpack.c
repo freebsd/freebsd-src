@@ -2,7 +2,7 @@
 /*	$NetBSD: unpack.c,v 1.3 2017/08/04 07:27:08 mrg Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2009 Xin LI <delphij@FreeBSD.org>
  *

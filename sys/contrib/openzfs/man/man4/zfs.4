@@ -239,6 +239,16 @@ relative to the pool.
 Make some blocks above a certain size be gang blocks.
 This option is used by the test suite to facilitate testing.
 .
+.It Sy zfs_ddt_zap_default_bs Ns = Ns Sy 15 Po 32 KiB Pc Pq int
+Default DDT ZAP data block size as a power of 2. Note that changing this after
+creating a DDT on the pool will not affect existing DDTs, only newly created
+ones.
+.
+.It Sy zfs_ddt_zap_default_ibs Ns = Ns Sy 15 Po 32 KiB Pc Pq int
+Default DDT ZAP indirect block size as a power of 2. Note that changing this
+after creating a DDT on the pool will not affect existing DDTs, only newly
+created ones.
+.
 .It Sy zfs_default_bs Ns = Ns Sy 9 Po 512 B Pc Pq int
 Default dnode block size as a power of 2.
 .
@@ -357,7 +367,10 @@ and the allocation can't actually be satisfied
 When a vdev is added, target this number of metaslabs per top-level vdev.
 .
 .It Sy zfs_vdev_default_ms_shift Ns = Ns Sy 29 Po 512 MiB Pc Pq uint
-Default limit for metaslab size.
+Default lower limit for metaslab size.
+.
+.It Sy zfs_vdev_max_ms_shift Ns = Ns Sy 34 Po 16 GiB Pc Pq uint
+Default upper limit for metaslab size.
 .
 .It Sy zfs_vdev_max_auto_ashift Ns = Ns Sy 14 Pq uint
 Maximum ashift used when optimizing for logical \[->] physical sector size on
@@ -1292,6 +1305,11 @@ as fuller devices will tend to be slower than empty devices.
 Also see
 .Sy zio_dva_throttle_enabled .
 .
+.It Sy zfs_vdev_def_queue_depth Ns = Ns Sy 32 Pq uint
+Default queue depth for each vdev IO allocator.
+Higher values allow for better coalescing of sequential writes before sending
+them to the disk, but can increase transaction commit times.
+.
 .It Sy zfs_vdev_failfast_mask Ns = Ns Sy 1 Pq uint
 Defines if the driver should retire on a given error type.
 The following options may be bitwise-ored together:
@@ -1756,6 +1774,9 @@ Scrubs are processed by the sync thread.
 While scrubbing, it will spend at least this much time
 working on a scrub between TXG flushes.
 .
+.It Sy zfs_scrub_error_blocks_per_txg Ns = Ns Sy 4096 Pq uint
+Error blocks to be scrubbed in one txg.
+.
 .It Sy zfs_scan_checkpoint_intval Ns = Ns Sy 7200 Ns s Po 2 hour Pc Pq uint
 To preserve progress across reboots, the sequential scan algorithm periodically
 needs to stop metadata scanning and issue all the verification I/O to disk.
@@ -2005,32 +2026,11 @@ Historical statistics for this many latest TXGs will be available in
 Flush dirty data to disk at least every this many seconds (maximum TXG
 duration).
 .
-.It Sy zfs_vdev_aggregate_trim Ns = Ns Sy 0 Ns | Ns 1 Pq uint
-Allow TRIM I/O operations to be aggregated.
-This is normally not helpful because the extents to be trimmed
-will have been already been aggregated by the metaslab.
-This option is provided for debugging and performance analysis.
-.
 .It Sy zfs_vdev_aggregation_limit Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq uint
 Max vdev I/O aggregation size.
 .
 .It Sy zfs_vdev_aggregation_limit_non_rotating Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq uint
 Max vdev I/O aggregation size for non-rotating media.
-.
-.It Sy zfs_vdev_cache_bshift Ns = Ns Sy 16 Po 64 KiB Pc Pq uint
-Shift size to inflate reads to.
-.
-.It Sy zfs_vdev_cache_max Ns = Ns Sy 16384 Ns B Po 16 KiB Pc Pq uint
-Inflate reads smaller than this value to meet the
-.Sy zfs_vdev_cache_bshift
-size
-.Pq default Sy 64 KiB .
-.
-.It Sy zfs_vdev_cache_size Ns = Ns Sy 0 Pq uint
-Total size of the per-disk cache in bytes.
-.Pp
-Currently this feature is disabled, as it has been found to not be helpful
-for performance and in some cases harmful.
 .
 .It Sy zfs_vdev_mirror_rotating_inc Ns = Ns Sy 0 Pq int
 A number by which the balancing algorithm increments the load calculation for

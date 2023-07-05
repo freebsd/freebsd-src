@@ -97,6 +97,7 @@ void efi_close_devpath(EFI_HANDLE);
 EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
+EFI_DEVICE_PATH *efi_devpath_next_instance(EFI_DEVICE_PATH *);
 bool efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 bool efi_devpath_match_node(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 bool efi_devpath_is_prefix(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);

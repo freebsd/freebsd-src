@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
@@ -2002,7 +2002,7 @@ do {								\
 					    >> 8) | (offset != 0));
 				} else {
 					/*
-					 * Compatiblity: historically bare
+					 * Compatibility: historically bare
 					 * "frag" would match IPv6 fragments.
 					 */
 					match = (cmd->arg1 == 0x1 &&

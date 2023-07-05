@@ -4,7 +4,7 @@
 __FBSDID("$FreeBSD$");
 #define UFOMA_HANDSFREE
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005, Takanori Watanabe All rights reserved.
  * Copyright (c) 2003 M. Warner Losh <imp@FreeBSD.org>

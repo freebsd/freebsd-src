@@ -30,7 +30,7 @@ extern "C" {
  */
 
 /**
- * Sends a buffer to an ip using udp and return the respons as a ldns_pkt
+ * Sends a buffer to an ip using udp and return the response as a ldns_pkt
  * \param[in] qbin the ldns_buffer to be send
  * \param[in] to the ip addr to send to
  * \param[in] tolen length of the ip addr
@@ -48,7 +48,20 @@ ldns_status ldns_udp_send(uint8_t **result, ldns_buffer *qbin, const struct sock
  * \param[in] to the ip addr to send to
  * \param[in] tolen length of the ip addr
  * \param[in] timeout *unused*, was the timeout value for the network
- * \return the socket used
+ * \return the socket used or -1 on failure
+ */
+int ldns_udp_bgsend2(ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
+
+/**
+ * Send an udp query and don't wait for an answer but return
+ * the socket
+ * This function has the flaw that it returns 0 on failure, but 0 could be a
+ * valid socket.  Please use ldns_udp_bgsend2 instead of this function.
+ * \param[in] qbin the ldns_buffer to be send
+ * \param[in] to the ip addr to send to
+ * \param[in] tolen length of the ip addr
+ * \param[in] timeout *unused*, was the timeout value for the network
+ * \return the socket used or 0 on failure
  */
 int ldns_udp_bgsend(ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
 
@@ -59,12 +72,25 @@ int ldns_udp_bgsend(ldns_buffer *qbin, const struct sockaddr_storage *to, sockle
  * \param[in] to the ip addr to send to
  * \param[in] tolen length of the ip addr
  * \param[in] timeout the timeout value for the connect attempt
- * \return the socket used
+ * \return the socket used or -1 on failure
+ */
+int ldns_tcp_bgsend2(ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
+
+/**
+ * Send an tcp query and don't wait for an answer but return
+ * the socket
+ * This function has the flaw that it returns 0 on failure, but 0 could be a
+ * valid socket.  Please use ldns_tcp_bgsend2 instead of this function.
+ * \param[in] qbin the ldns_buffer to be send
+ * \param[in] to the ip addr to send to
+ * \param[in] tolen length of the ip addr
+ * \param[in] timeout the timeout value for the connect attempt
+ * \return the socket used or 0 on failure
  */
 int ldns_tcp_bgsend(ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
 
 /**
- * Sends a buffer to an ip using tcp and return the respons as a ldns_pkt
+ * Sends a buffer to an ip using tcp and return the response as a ldns_pkt
  * \param[in] qbin the ldns_buffer to be send
  * \param[in] qbin the ldns_buffer to be send
  * \param[in] to the ip addr to send to
@@ -104,7 +130,18 @@ ldns_status ldns_send_buffer(ldns_pkt **pkt, ldns_resolver *r, ldns_buffer *qb, 
  * \param[in] to ip and family
  * \param[in] tolen length of to
  * \param[in] timeout timeout for the connect attempt
- * \return a socket descriptor
+ * \return a socket descriptor or -1 on failure
+ */
+int ldns_tcp_connect2(const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
+
+/**
+ * Create a tcp socket to the specified address
+ * This function has the flaw that it returns 0 on failure, but 0 could be a
+ * valid socket.  Please use ldns_tcp_connect2 instead of this function.
+ * \param[in] to ip and family
+ * \param[in] tolen length of to
+ * \param[in] timeout timeout for the connect attempt
+ * \return a socket descriptor or 0 on failure
  */
 int ldns_tcp_connect(const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
 
@@ -112,7 +149,17 @@ int ldns_tcp_connect(const struct sockaddr_storage *to, socklen_t tolen, struct 
  * Create a udp socket to the specified address
  * \param[in] to ip and family
  * \param[in] timeout *unused*, was timeout for the socket
- * \return a socket descriptor
+ * \return a socket descriptor or -1 on failure
+ */
+int ldns_udp_connect2(const struct sockaddr_storage *to, struct timeval timeout);
+
+/**
+ * Create a udp socket to the specified address
+ * This function has the flaw that it returns 0 on failure, but 0 could be a
+ * valid socket.  Please use ldns_udp_connect2 instead of this function.
+ * \param[in] to ip and family
+ * \param[in] timeout *unused*, was timeout for the socket
+ * \return a socket descriptor or 0 on failure
  */
 int ldns_udp_connect(const struct sockaddr_storage *to, struct timeval timeout);
 
@@ -186,7 +233,7 @@ struct sockaddr_storage * ldns_rdf2native_sockaddr_storage(const ldns_rdf *rd, u
  * returns an rdf with the sockaddr info. works for ip4 and ip6
  * \param[in] sock the struct sockaddr_storage to convert
  * \param[in] port what port was used. When NULL this is not set
- * \return ldns_rdf* wth the address
+ * \return ldns_rdf* with the address
  */
 ldns_rdf * ldns_sockaddr_storage2rdf(const struct sockaddr_storage *sock, uint16_t *port);
 
@@ -194,7 +241,7 @@ ldns_rdf * ldns_sockaddr_storage2rdf(const struct sockaddr_storage *sock, uint16
  * Prepares the resolver for an axfr query
  * The query is sent and the answers can be read with ldns_axfr_next
  * \param[in] resolver the resolver to use
- * \param[in] domain the domain to exfr
+ * \param[in] domain the domain to axfr
  * \param[in] c the class to use
  * \return ldns_status the status of the transfer
  */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -945,11 +945,11 @@ struct ice_mbx_data {
 	u16 async_watermark_val;
 };
 
-/* PHY configuration */
-enum ice_phy_cfg {
-	ICE_PHY_E810 = 1,
+/* PHY model */
+enum ice_phy_model {
+	ICE_PHY_UNSUP = -1,
+	ICE_PHY_E810  = 1,
 	ICE_PHY_E822,
-	ICE_PHY_ETH56G,
 };
 
 /* Port hardware description */
@@ -975,7 +975,7 @@ struct ice_hw {
 	u8 revision_id;
 
 	u8 pf_id;		/* device profile info */
-	enum ice_phy_cfg phy_cfg;
+	enum ice_phy_model phy_model;
 
 	u16 max_burst_size;	/* driver sets this value */
 

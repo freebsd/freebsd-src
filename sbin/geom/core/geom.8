@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2022
+.Dd May 9, 2023
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -127,8 +127,9 @@ When a class-specific shared library exists, a direct utility should also be
 available under the name of
 .Nm g Ns Ar class .
 .Pp
-Currently available classes which are aware of
-.Nm :
+Currently, classes aware of
+.Nm
+are:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
@@ -184,7 +185,10 @@ The following example shows how to set up a stripe on three disks for automatic
 configuration:
 .Bd -literal -offset indent
 geom stripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2
+.Ed
+.Pp
 or:
+.Bd -literal -offset indent
 gstripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2
 .Ed
 .Pp

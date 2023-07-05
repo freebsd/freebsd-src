@@ -58,7 +58,7 @@ display_pending_firmware(int fd)
 		return (error);
 	}
 
-	printf("mfi%d Pending Firmware Images:\n", mfi_unit);
+	printf("%s Pending Firmware Images:\n", mfi_device);
 	strcpy(header.name, "Name");
 	strcpy(header.version, "Version");
 	strcpy(header.build_date, "Date");
@@ -122,7 +122,7 @@ flash_adapter(int ac, char **av)
 		goto error;
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

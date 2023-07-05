@@ -28,7 +28,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2023
+.Dd May 26, 2023
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -36,12 +36,12 @@
 .Nd split a file into pieces
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl cd
 .Op Fl l Ar line_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Op Fl d
+.Op Fl cd
 .Fl b Ar byte_count Ns
 .Oo
 .Sm off
@@ -51,12 +51,12 @@
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Op Fl d
+.Op Fl cd
 .Fl n Ar chunk_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Op Fl d
+.Op Fl cd
 .Fl p Ar pattern
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
@@ -112,6 +112,9 @@ or
 is appended to the number, the file is split into
 .Ar byte_count
 gigabyte pieces.
+.It Fl c
+Continue creating files and do not overwrite existing
+output files.
 .It Fl d
 Use a numeric suffix instead of a alphabetic suffix.
 .It Fl l Ar line_count
@@ -151,7 +154,11 @@ characters in the range
 .Dq Li a Ns - Ns Li z .
 If
 .Fl a
-is not specified, two letters are used as the suffix.
+is not specified, two letters are used as the initial suffix.
+If the output does not fit into the resulting number of files and the
+.Fl d
+flag is not specified, then the suffix length is automatically extended as
+needed such that all output files continue to sort in lexical order.
 .Pp
 If the
 .Ar prefix
@@ -159,6 +166,15 @@ argument is not specified, the file is split into lexically ordered
 files named with the prefix
 .Dq Li x
 and with suffixes as above.
+.Pp
+By default,
+.Nm
+will overwrite any existing output files.
+If the
+.Fl c
+flag is specified,
+.Nm
+will instead create files with names that do not already exist.
 .Sh ENVIRONMENT
 The
 .Ev LANG , LC_ALL , LC_CTYPE

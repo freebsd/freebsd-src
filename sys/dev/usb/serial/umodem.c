@@ -4,7 +4,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003 M. Warner Losh <imp@FreeBSD.org>
  *

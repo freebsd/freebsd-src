@@ -34,7 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 
-#include <dev/hyperv/include/hyperv_busdma.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+
 #include <dev/hyperv/include/vmbus_xact.h>
 
 struct vmbus_xact {
@@ -42,7 +45,6 @@ struct vmbus_xact {
 	void				*x_priv;
 
 	void				*x_req;
-	struct hyperv_dma		x_req_dma;
 
 	const void			*x_resp;
 	size_t				x_resp_len;
@@ -88,8 +90,8 @@ vmbus_xact_alloc(struct vmbus_xact_ctx *ctx, bus_dma_tag_t parent_dtag)
 	xact->x_ctx = ctx;
 
 	/* XXX assume that page aligned is enough */
-	xact->x_req = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    ctx->xc_req_size, &xact->x_req_dma, BUS_DMA_WAITOK);
+	xact->x_req = contigmalloc(ctx->xc_req_size, M_DEVBUF,
+	    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 	if (xact->x_req == NULL) {
 		free(xact, M_DEVBUF);
 		return (NULL);
@@ -105,7 +107,7 @@ static void
 vmbus_xact_free(struct vmbus_xact *xact)
 {
 
-	hyperv_dmamem_free(&xact->x_req_dma, xact->x_req);
+	contigfree(xact->x_req, xact->x_ctx->xc_req_size, M_DEVBUF);
 	free(xact->x_resp0, M_DEVBUF);
 	if (xact->x_priv != NULL)
 		free(xact->x_priv, M_DEVBUF);
@@ -243,7 +245,7 @@ bus_addr_t
 vmbus_xact_req_paddr(const struct vmbus_xact *xact)
 {
 
-	return (xact->x_req_dma.hv_paddr);
+	return (pmap_kextract((vm_offset_t)xact->x_req));
 }
 
 void *

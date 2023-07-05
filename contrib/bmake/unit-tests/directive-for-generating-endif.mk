@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-generating-endif.mk,v 1.1 2020/08/29 18:50:25 rillig Exp $
+# $NetBSD: directive-for-generating-endif.mk,v 1.2 2023/06/01 20:56:35 rillig Exp $
 #
 # Test whether a .for loop can be used to generate multiple .endif
 # directives to close nested .if directives.  Depending on the exact
@@ -18,8 +18,12 @@
 .  if 2
 .    if 3
 .for i in 3 2 1
+# expect+3: if-less endif
+# expect+2: if-less endif
+# expect+1: if-less endif
 .endif
 .endfor
 
 all:
 	@:;
+# expect+1: 3 open conditionals

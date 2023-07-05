@@ -1652,7 +1652,7 @@ static void help_version(FILE * out, int detail)
 
 static void version_parse(char **p_last, osm_opensm_t * p_osm, FILE * out)
 {
-	fprintf(out, "%s build %s %s\n", p_osm->osm_version, __DATE__, __TIME__);
+	fprintf(out, "%s\n", p_osm->osm_version);
 }
 
 /* more parse routines go here */

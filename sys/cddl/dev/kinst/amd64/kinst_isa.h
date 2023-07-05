@@ -1,8 +1,12 @@
 /*
  * SPDX-License-Identifier: CDDL 1.0
  *
- * Copyright 2022 Christos Margiolis <christos@FreeBSD.org>
- * Copyright 2022 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2022 Christos Margiolis <christos@FreeBSD.org>
+ * Copyright (c) 2022 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  */
 
 #ifndef _KINST_ISA_H_
@@ -18,28 +22,21 @@
  * to 16 bytes, 32 bytes is enough to cover even the worst case scenario.
  */
 #define	KINST_TRAMP_SIZE	32
-#define	KINST_TRAMPCHUNK_SIZE	PAGE_SIZE
-
-/*
- * Fill the trampolines with breakpoint instructions so that the kernel will
- * crash cleanly if things somehow go wrong.
- */
-#define	KINST_TRAMP_INIT(t, s)	memset((t), KINST_PATCHVAL, (s))
 
 typedef uint8_t kinst_patchval_t;
 
 struct kinst_probe_md {
-	int			flags;
-	int			instlen;	/* original instr len */
-	int			tinstlen;	/* trampoline instr len */
-	uint8_t			template[16];	/* copied into thread tramps */
-	int			dispoff;	/* offset of rip displacement */
+	int	flags;
+	int	instlen;	/* original instr len */
+	int	tinstlen;	/* trampoline instr len */
+	uint8_t	template[16];	/* copied into thread tramps */
+	int	dispoff;	/* offset of rip displacement */
 
 	/* operands to "call" instruction branch target */
-	int			reg1;
-	int			reg2;
-	int			scale;
-	int64_t			disp;
+	int	reg1;
+	int	reg2;
+	int	scale;
+	int64_t	disp;
 };
 
 #endif /* _KINST_ISA_H_ */

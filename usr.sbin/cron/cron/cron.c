@@ -1,37 +1,33 @@
 /* Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
+ */
+
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
  *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$Id: cron.c,v 1.3 1998/08/14 00:32:36 vixie Exp $";
 #endif
 
 #define	MAIN_PROGRAM
 
-
 #include "cron.h"
 #include <sys/mman.h>
-#include <sys/signal.h>
-#if SYS_TIME_H
-# include <sys/time.h>
-#else
-# include <time.h>
-#endif
-
 
 static	void	usage(void),
 		run_reboot_jobs(cron_db *),
@@ -39,9 +35,7 @@ static	void	usage(void),
 		cron_sync(int),
 		cron_sleep(cron_db *, int),
 		cron_clean(cron_db *),
-#ifdef USE_SIGCHLD
 		sigchld_handler(int),
-#endif
 		sighup_handler(int),
 		parse_args(int c, char *v[]);
 
@@ -58,7 +52,7 @@ static void
 usage(void)
 {
 #if DEBUGGING
-    char **dflags;
+	const char **dflags;
 #endif
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
@@ -66,7 +60,7 @@ usage(void)
 #if DEBUGGING
 	fprintf(stderr, "\ndebugflags: ");
 
-        for(dflags = DebugFlagNames; *dflags; dflags++) {
+        for (dflags = DebugFlagNames; *dflags; dflags++) {
 		fprintf(stderr, "%s ", *dflags);
 	}
         fprintf(stderr, "\n");
@@ -78,11 +72,10 @@ usage(void)
 static void
 open_pidfile(void)
 {
-	char	pidfile[MAX_FNAME];
+	const char *pidfile = PIDDIR PIDFILE;
 	char	buf[MAX_TEMPSTR];
 	int	otherpid;
 
-	(void) snprintf(pidfile, sizeof(pidfile), PIDFILE, PIDDIR);
 	pfh = pidfile_open(pidfile, 0600, &otherpid);
 	if (pfh == NULL) {
 		if (errno == EEXIST) {
@@ -114,20 +107,14 @@ main(int argc, char *argv[])
 
 	parse_args(argc, argv);
 
-#ifdef USE_SIGCHLD
 	(void) signal(SIGCHLD, sigchld_handler);
-#else
-	(void) signal(SIGCLD, SIG_IGN);
-#endif
 	(void) signal(SIGHUP, sighup_handler);
 
 	open_pidfile();
 	set_cron_uid();
 	set_cron_cwd();
 
-#if defined(POSIX)
-	setenv("PATH", _PATH_DEFPATH, 1);
-#endif
+	putenv("PATH="_PATH_DEFPATH);
 
 	/* if there are no debug flags turned on, fork as a daemon should.
 	 */
@@ -197,15 +184,14 @@ main(int argc, char *argv[])
 	}
 }
 
-
 static void
 run_reboot_jobs(cron_db *db)
 {
-	register user		*u;
-	register entry		*e;
+	user *u;
+	entry *e;
 
-	for (u = db->head;  u != NULL;  u = u->next) {
-		for (e = u->crontab;  e != NULL;  e = e->next) {
+	for (u = db->head; u != NULL; u = u->next) {
+		for (e = u->crontab; e != NULL; e = e->next) {
 			if (e->flags & WHEN_REBOOT) {
 				job_add(e, u);
 			}
@@ -217,19 +203,21 @@ run_reboot_jobs(cron_db *db)
 	(void) job_runqueue();
 }
 
-
 static void
 cron_tick(cron_db *db, int secres)
 {
-	static struct tm	lasttm;
-	static time_t	diff = 0, /* time difference in seconds from the last offset change */
-		difflimit = 0; /* end point for the time zone correction */
-	struct tm	otztm; /* time in the old time zone */
-	int		otzsecond, otzminute, otzhour, otzdom, otzmonth, otzdow;
- 	register struct tm	*tm = localtime(&TargetTime);
-	register int		second, minute, hour, dom, month, dow;
-	register user		*u;
-	register entry		*e;
+	static struct tm lasttm;
+	/* time difference in seconds from the last offset change */
+	static time_t diff = 0;
+	/* end point for the time zone correction */
+	static time_t difflimit = 0;
+	/* time in the old time zone */
+	struct tm otztm;
+	int otzsecond, otzminute, otzhour, otzdom, otzmonth, otzdow;
+	struct tm *tm = localtime(&TargetTime);
+	int second, minute, hour, dom, month, dow;
+	user *u;
+	entry *e;
 
 	/* make 0-based values out of these so we can use them as indices
 	 */
@@ -252,8 +240,8 @@ cron_tick(cron_db *db, int secres)
 		if ( diff > 0 ) { /* ST->DST */
 			/* mark jobs for an earlier run */
 			difflimit = TargetTime + diff;
-			for (u = db->head;  u != NULL;  u = u->next) {
-				for (e = u->crontab;  e != NULL;  e = e->next) {
+			for (u = db->head; u != NULL; u = u->next) {
+				for (e = u->crontab; e != NULL; e = e->next) {
 					e->flags &= ~NOT_UNTIL;
 					if ( e->lastrun >= TargetTime )
 						e->lastrun = 0;
@@ -267,8 +255,8 @@ cron_tick(cron_db *db, int secres)
 		} else { /* diff < 0 : DST->ST */
 			/* mark jobs for skipping */
 			difflimit = TargetTime - diff;
-			for (u = db->head;  u != NULL;  u = u->next) {
-				for (e = u->crontab;  e != NULL;  e = e->next) {
+			for (u = db->head; u != NULL; u = u->next) {
+				for (e = u->crontab; e != NULL; e = e->next) {
 					e->flags |= NOT_UNTIL;
 					e->flags &= ~RUN_AT;
 				}
@@ -282,8 +270,8 @@ cron_tick(cron_db *db, int secres)
 			/* disable the TZ switch checks */
 			diff = 0;
 			difflimit = 0;
-			for (u = db->head;  u != NULL;  u = u->next) {
-				for (e = u->crontab;  e != NULL;  e = e->next) {
+			for (u = db->head; u != NULL; u = u->next) {
+				for (e = u->crontab; e != NULL; e = e->next) {
 					e->flags &= ~(RUN_AT|NOT_UNTIL);
 				}
 			}
@@ -309,8 +297,8 @@ cron_tick(cron_db *db, int secres)
 	 * is why we keep 'e->dow_star' and 'e->dom_star'.  yes, it's bizarre.
 	 * like many bizarre things, it's the standard.
 	 */
-	for (u = db->head;  u != NULL;  u = u->next) {
-		for (e = u->crontab;  e != NULL;  e = e->next) {
+	for (u = db->head; u != NULL; u = u->next) {
+		for (e = u->crontab; e != NULL; e = e->next) {
 			Debug(DSCH|DEXT, ("user [%s:%d:%d:...] cmd=\"%s\"\n",
 					  env_get("LOGNAME", e->envp),
 					  e->uid, e->gid, e->cmd))
@@ -323,11 +311,11 @@ cron_tick(cron_db *db, int secres)
 			}
 
 			if ( diff != 0 && (e->flags & (RUN_AT|NOT_UNTIL)) ) {
-				if (bit_test(e->second, otzsecond)
-				 && bit_test(e->minute, otzminute)
-				 && bit_test(e->hour, otzhour)
-				 && bit_test(e->month, otzmonth)
-				 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
+				if (bit_test(e->second, otzsecond) &&
+				    bit_test(e->minute, otzminute) &&
+				    bit_test(e->hour, otzhour) &&
+				    bit_test(e->month, otzmonth) &&
+				    ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
 					  ? (bit_test(e->dow,otzdow) && bit_test(e->dom,otzdom))
 					  : (bit_test(e->dow,otzdow) || bit_test(e->dom,otzdom))
 					)
@@ -343,11 +331,11 @@ cron_tick(cron_db *db, int secres)
 					continue;
 			}
 
-			if (bit_test(e->second, second)
-			 && bit_test(e->minute, minute)
-			 && bit_test(e->hour, hour)
-			 && bit_test(e->month, month)
-			 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
+			if (bit_test(e->second, second) &&
+			    bit_test(e->minute, minute) &&
+			    bit_test(e->hour, hour) &&
+			    bit_test(e->month, month) &&
+			    ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
 			      ? (bit_test(e->dow,dow) && bit_test(e->dom,dom))
 			      : (bit_test(e->dow,dow) || bit_test(e->dom,dom))
 			    )
@@ -363,7 +351,6 @@ cron_tick(cron_db *db, int secres)
 	lasttm = *tm;
 }
 
-
 /* the task here is to figure out how long it's going to be until :00 of the
  * following minute and initialize TargetTime to this value.  TargetTime
  * will subsequently slide 60 seconds at a time, with correction applied
@@ -375,7 +362,7 @@ cron_tick(cron_db *db, int secres)
  */
 static void
 cron_sync(int secres) {
- 	struct tm *tm;
+	struct tm *tm;
 
 	TargetTime = time((time_t*)0);
 	if (secres != 0) {
@@ -474,19 +461,14 @@ cron_clean(cron_db *db)
 	}
 }
 
-#ifdef USE_SIGCHLD
 static void
 sigchld_handler(int x)
 {
-	WAIT_T		waiter;
-	PID_T		pid;
+	WAIT_T waiter;
+	PID_T pid;
 
 	for (;;) {
-#ifdef POSIX
 		pid = waitpid(-1, &waiter, WNOHANG);
-#else
-		pid = wait3(&waiter, WNOHANG, (struct rusage *)0);
-#endif
 		switch (pid) {
 		case -1:
 			Debug(DPROC,
@@ -504,8 +486,6 @@ sigchld_handler(int x)
 		}
 	}
 }
-#endif /*USE_SIGCHLD*/
-
 
 static void
 sighup_handler(int x)
@@ -513,12 +493,11 @@ sighup_handler(int x)
 	log_close();
 }
 
-
 static void
 parse_args(int argc, char *argv[])
 {
-	int	argch;
-	char	*endp;
+	int argch;
+	char *endp;
 
 	while ((argch = getopt(argc, argv, "j:J:m:nosx:")) != -1) {
 		switch (argch) {

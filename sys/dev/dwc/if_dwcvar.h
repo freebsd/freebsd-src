@@ -70,9 +70,9 @@ struct dwc_softc {
 	struct mtx		mtx;
 	void *			intr_cookie;
 	struct callout		dwc_callout;
-	boolean_t		link_is_up;
-	boolean_t		is_attached;
-	boolean_t		is_detaching;
+	bool			link_is_up;
+	bool			is_attached;
+	bool			is_detaching;
 	int			tx_watchdog_count;
 	int			stats_harvest_count;
 	int			phy_mode;

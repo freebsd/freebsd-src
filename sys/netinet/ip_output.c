@@ -699,6 +699,7 @@ sendit:
 
 		case 0: /* Continue normally */
 			ip = mtod(m, struct ip *);
+			ip_len = ntohs(ip->ip_len);
 			break;
 
 		case -1: /* Need to try again */

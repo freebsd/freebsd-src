@@ -1,2 +1,2 @@
-make: "directive-ifndef.mk" line 10: guarded section
+make: "directive-ifndef.mk" line 14: guarded section
 exit status 0

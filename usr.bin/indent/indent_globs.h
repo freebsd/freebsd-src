@@ -200,6 +200,8 @@ struct options {
 				 * lined-up code within the margin */
     int         lineup_to_parens; /* if true, continued code within parens
 				 * will be lined up to the open paren */
+    int         pointer_as_binop; /* if true, the pointer dereference operator
+				 * will be treated as a binary operator */
     int         proc_calls_space; /* If true, procedure calls look like:
 				 * foo (bar) rather than foo(bar) */
     int         procnames_start_line; /* if true, the names of procedures

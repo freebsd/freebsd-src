@@ -142,6 +142,7 @@ bwidawsk [label="Ben Widawsky\nbwidawsk@FreeBSD.org\n2018/07/05"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 cc [label="Cheng Cui\ncc@FreeBSD.org\n2023/02/15"]
 cem [label="Conrad Meyer\ncem@FreeBSD.org\n2015/07/05"]
+christos [label="Christos Margiolis\nchristos@FreeBSD.org\n2023/05/22"]
 chuck [label="Chuck Tuffli\nchuck@FreeBSD.org\n2017/09/06"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
@@ -740,6 +741,7 @@ marcel -> nwhitehorn
 marcel -> sjg
 
 markj -> cem
+markj -> christos
 markj -> dougm
 markj -> lwhsu
 markj -> mhorne

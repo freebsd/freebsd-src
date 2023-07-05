@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
@@ -29,17 +29,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+
+#include <security/audit/audit.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -49,41 +57,68 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
-#include <compat/linux/linux_util.h>
+#include <compat/linux/linux.h>
 #include <compat/linux/linux_file.h>
+#include <compat/linux/linux_util.h>
 
-static void
-translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
+
+static int
+linux_kern_fstat(struct thread *td, int fd, struct stat *sbp)
 {
-	int major, minor;
+	struct vnode *vp;
+	struct file *fp;
+	int error;
 
-	if (vn_isdisk(vp)) {
-		sb->st_mode &= ~S_IFMT;
-		sb->st_mode |= S_IFBLK;
-	}
+	AUDIT_ARG_FD(fd);
 
-	/*
-	 * Return the same st_dev for every devfs instance.  The reason
-	 * for this is to work around an idiosyncrasy of glibc getttynam()
-	 * implementation: it checks whether st_dev returned for fd 0
-	 * is the same as st_dev returned for the target of /proc/self/fd/0
-	 * symlink, and with linux chroots having their own devfs instance,
-	 * the check will fail if you chroot into it.
-	 */
-	if (rootdevmp != NULL && vp->v_mount->mnt_vfc == rootdevmp->mnt_vfc)
-		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
+	error = fget(td, fd, &cap_fstat_rights, &fp);
+	if (__predict_false(error != 0))
+		return (error);
 
-	if (linux_vn_get_major_minor(vp, &major, &minor) == 0)
-		sb->st_rdev = (major << 8 | minor);
+	AUDIT_ARG_FILE(td->td_proc, fp);
+
+	error = fo_stat(fp, sbp, td->td_ucred);
+	if (error == 0 && (vp = fp->f_vnode) != NULL)
+		translate_vnhook_major_minor(vp, sbp);
+	fdrop(fp, td);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrstat_error(sbp, error);
+#endif
+	return (error);
 }
 
 static int
 linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
+	struct nameidata nd;
+	int error;
 
-	return (kern_statat(td, flag, fd, path, pathseg, sbp,
-	    translate_vnhook_major_minor));
+	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_RESOLVE_BENEATH |
+	    AT_EMPTY_PATH)) != 0)
+		return (EINVAL);
+
+	NDINIT_ATRIGHTS(&nd, LOOKUP, at2cnpflags(flag, AT_RESOLVE_BENEATH |
+	    AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) | LOCKSHARED | LOCKLEAF |
+	    AUDITVNODE1, pathseg, path, fd, &cap_fstat_rights);
+
+	if ((error = namei(&nd)) != 0) {
+		if (error == ENOTDIR &&
+		    (nd.ni_resflags & NIRES_EMPTYPATH) != 0)
+			error = linux_kern_fstat(td, fd, sbp);
+		return (error);
+	}
+	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
+	if (error == 0)
+		translate_vnhook_major_minor(nd.ni_vp, sbp);
+	NDFREE_PNBUF(&nd);
+	vput(nd.ni_vp);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrstat_error(sbp, error);
+#endif
+	return (error);
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -105,77 +140,19 @@ linux_kern_lstat(struct thread *td, const char *path, enum uio_seg pathseg,
 }
 #endif
 
-static void
-translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
-{
-	struct file *fp;
-	struct vnode *vp;
-	struct mount *mp;
-	int major, minor;
-
-	/*
-	 * No capability rights required here.
-	 */
-	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, &cap_no_rights, &fp) != 0)
-		return;
-	vp = fp->f_vnode;
-	if (vp != NULL && vn_isdisk(vp)) {
-		buf->st_mode &= ~S_IFMT;
-		buf->st_mode |= S_IFBLK;
-	}
-	if (vp != NULL && rootdevmp != NULL) {
-		mp = vp->v_mount;
-		__compiler_membar();
-		if (mp != NULL && mp->mnt_vfc == rootdevmp->mnt_vfc)
-			buf->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
-	}
-	if (linux_vn_get_major_minor(vp, &major, &minor) == 0) {
-		buf->st_rdev = (major << 8 | minor);
-	} else if (fp->f_type == DTYPE_PTS) {
-		struct tty *tp = fp->f_data;
-
-		/* Convert the numbers for the slave device. */
-		if (linux_driver_get_major_minor(devtoname(tp->t_dev),
-					 &major, &minor) == 0) {
-			buf->st_rdev = (major << 8 | minor);
-		}
-	}
-	fdrop(fp, td);
-}
-
-/*
- * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
- * truncation of a dev_t to 16 bits gives the same result as unpacking
- * using major() and minor() and repacking in the l_dev_t format.  This
- * detail is hidden in dev_to_ldev().  Overflow in conversions of dev_t's
- * are not checked for, as for other fields.
- *
- * dev_to_ldev() is only used for translating st_dev.  When we convert
- * st_rdev for copying it out, it isn't really a dev_t, but has already
- * been translated to an l_dev_t in a nontrivial way.  Translating it
- * again would be illogical but would have no effect since the low 16
- * bits have the same encoding.
- *
- * The nontrivial translation for st_rdev renumbers some devices, but not
- * ones that can be mounted on, so it is consistent with the translation
- * for st_dev except when the renumbering or truncation causes conflicts.
- */
-#define	dev_to_ldev(d)	((uint16_t)(d))
-
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_newstat tbuf;
 
 	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = dev_to_ldev(buf->st_dev);
+	tbuf.st_dev = linux_new_encode_dev(buf->st_dev);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
 	tbuf.st_nlink = buf->st_nlink;
 	tbuf.st_uid = buf->st_uid;
 	tbuf.st_gid = buf->st_gid;
-	tbuf.st_rdev = buf->st_rdev;
+	tbuf.st_rdev = linux_new_encode_dev(buf->st_rdev);
 	tbuf.st_size = buf->st_size;
 	tbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	tbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -189,55 +166,15 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
 }
 
-static int
-statx_copyout(struct stat *buf, void *ubuf)
-{
-	struct l_statx tbuf;
-
-	bzero(&tbuf, sizeof(tbuf));
-	tbuf.stx_mask = STATX_ALL;
-	tbuf.stx_blksize = buf->st_blksize;
-	tbuf.stx_attributes = 0;
-	tbuf.stx_nlink = buf->st_nlink;
-	tbuf.stx_uid = buf->st_uid;
-	tbuf.stx_gid = buf->st_gid;
-	tbuf.stx_mode = buf->st_mode;
-	tbuf.stx_ino = buf->st_ino;
-	tbuf.stx_size = buf->st_size;
-	tbuf.stx_blocks = buf->st_blocks;
-
-	tbuf.stx_atime.tv_sec = buf->st_atim.tv_sec;
-	tbuf.stx_atime.tv_nsec = buf->st_atim.tv_nsec;
-	tbuf.stx_btime.tv_sec = buf->st_birthtim.tv_sec;
-	tbuf.stx_btime.tv_nsec = buf->st_birthtim.tv_nsec;
-	tbuf.stx_ctime.tv_sec = buf->st_ctim.tv_sec;
-	tbuf.stx_ctime.tv_nsec = buf->st_ctim.tv_nsec;
-	tbuf.stx_mtime.tv_sec = buf->st_mtim.tv_sec;
-	tbuf.stx_mtime.tv_nsec = buf->st_mtim.tv_nsec;
-
-	tbuf.stx_rdev_major = buf->st_rdev >> 8;
-	tbuf.stx_rdev_minor = buf->st_rdev & 0xff;
-	tbuf.stx_dev_major = buf->st_dev >> 8;
-	tbuf.stx_dev_minor = buf->st_dev & 0xff;
-
-	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
-}
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_newstat(struct thread *td, struct linux_newstat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	if (error)
 		return (error);
 	return (newstat_copyout(&buf, args->buf));
@@ -247,16 +184,9 @@ int
 linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 {
 	struct stat sb;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &sb);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &sb);
-		LFREEPATH(path);
-	}
+	error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	return (newstat_copyout(&sb, args->buf));
@@ -269,8 +199,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	struct stat buf;
 	int error;
 
-	error = kern_fstat(td, args->fd, &buf);
-	translate_fd_major_minor(td, args->fd, &buf);
+	error = linux_kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
@@ -278,19 +207,27 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-static int
-stat_copyout(struct stat *buf, void *ubuf)
+
+static __inline uint16_t
+linux_old_encode_dev(dev_t _dev)
 {
-	struct l_stat lbuf;
+
+	return (_dev == NODEV ? 0 : linux_encode_dev(major(_dev), minor(_dev)));
+}
+
+static int
+old_stat_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_old_stat lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = dev_to_ldev(buf->st_dev);
+	lbuf.st_dev = linux_old_encode_dev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
-	lbuf.st_rdev = buf->st_rdev;
+	lbuf.st_rdev = linux_old_encode_dev(buf->st_rdev);
 	lbuf.st_size = MIN(buf->st_size, INT32_MAX);
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -310,40 +247,26 @@ int
 linux_stat(struct thread *td, struct linux_stat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	if (error) {
 		return (error);
 	}
-	return (stat_copyout(&buf, args->up));
+	return (old_stat_copyout(&buf, args->up));
 }
 
 int
 linux_lstat(struct thread *td, struct linux_lstat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &buf);
 	if (error) {
 		return (error);
 	}
-	return (stat_copyout(&buf, args->up));
+	return (old_stat_copyout(&buf, args->up));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -458,18 +381,10 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 {
 	struct l_statfs linux_statfs;
 	struct statfs *bsd_statfs;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
-		LFREEPATH(path);
-	}
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	if (error == 0)
 		error = bsd_to_linux_statfs(bsd_statfs, &linux_statfs);
 	free(bsd_statfs, M_STATFS);
@@ -503,21 +418,13 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 {
 	struct l_statfs64 linux_statfs;
 	struct statfs *bsd_statfs;
-	char *path;
 	int error;
 
 	if (args->bufsize != sizeof(struct l_statfs64))
 		return (EINVAL);
 
-	if (!LUSECONVPATH(td)) {
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
-		LFREEPATH(path);
-	}
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	if (error == 0)
 		bsd_to_linux_statfs64(bsd_statfs, &linux_statfs);
 	free(bsd_statfs, M_STATFS);
@@ -589,13 +496,13 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	struct l_stat64 lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = dev_to_ldev(buf->st_dev);
+	lbuf.st_dev = linux_new_encode_dev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
-	lbuf.st_rdev = buf->st_rdev;
+	lbuf.st_rdev = linux_new_encode_dev(buf->st_rdev);
 	lbuf.st_size = buf->st_size;
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -621,16 +528,9 @@ int
 linux_stat64(struct thread *td, struct linux_stat64_args *args)
 {
 	struct stat buf;
-	char *filename;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->filename, &filename);
-		error = linux_kern_stat(td, filename, UIO_SYSSPACE, &buf);
-		LFREEPATH(filename);
-	}
+	error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
 	if (error)
 		return (error);
 	return (stat64_copyout(&buf, args->statbuf));
@@ -640,16 +540,9 @@ int
 linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 {
 	struct stat sb;
-	char *filename;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
-	} else {
-		LCONVPATHEXIST(args->filename, &filename);
-		error = linux_kern_lstat(td, filename, UIO_SYSSPACE, &sb);
-		LFREEPATH(filename);
-	}
+	error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	return (stat64_copyout(&sb, args->statbuf));
@@ -661,8 +554,7 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	struct stat buf;
 	int error;
 
-	error = kern_fstat(td, args->fd, &buf);
-	translate_fd_major_minor(td, args->fd, &buf);
+	error = linux_kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
 
@@ -672,7 +564,6 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 int
 linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 {
-	char *path;
 	int error, dfd, flag, unsupported;
 	struct stat buf;
 
@@ -687,14 +578,8 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = stat64_copyout(&buf, args->statbuf);
 
@@ -706,7 +591,6 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 int
 linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 {
-	char *path;
 	int error, dfd, flag, unsupported;
 	struct stat buf;
 
@@ -722,14 +606,8 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = newstat_copyout(&buf, args->statbuf);
 
@@ -777,10 +655,42 @@ linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
 	return (error);
 }
 
+static int
+statx_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_statx tbuf;
+
+	bzero(&tbuf, sizeof(tbuf));
+	tbuf.stx_mask = STATX_ALL;
+	tbuf.stx_blksize = buf->st_blksize;
+	tbuf.stx_attributes = 0;
+	tbuf.stx_nlink = buf->st_nlink;
+	tbuf.stx_uid = buf->st_uid;
+	tbuf.stx_gid = buf->st_gid;
+	tbuf.stx_mode = buf->st_mode;
+	tbuf.stx_ino = buf->st_ino;
+	tbuf.stx_size = buf->st_size;
+	tbuf.stx_blocks = buf->st_blocks;
+
+	tbuf.stx_atime.tv_sec = buf->st_atim.tv_sec;
+	tbuf.stx_atime.tv_nsec = buf->st_atim.tv_nsec;
+	tbuf.stx_btime.tv_sec = buf->st_birthtim.tv_sec;
+	tbuf.stx_btime.tv_nsec = buf->st_birthtim.tv_nsec;
+	tbuf.stx_ctime.tv_sec = buf->st_ctim.tv_sec;
+	tbuf.stx_ctime.tv_nsec = buf->st_ctim.tv_nsec;
+	tbuf.stx_mtime.tv_sec = buf->st_mtim.tv_sec;
+	tbuf.stx_mtime.tv_nsec = buf->st_mtim.tv_nsec;
+	tbuf.stx_rdev_major = linux_encode_major(buf->st_rdev);
+	tbuf.stx_rdev_minor = linux_encode_minor(buf->st_rdev);
+	tbuf.stx_dev_major = linux_encode_major(buf->st_dev);
+	tbuf.stx_dev_minor = linux_encode_minor(buf->st_dev);
+
+	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
+}
+
 int
 linux_statx(struct thread *td, struct linux_statx_args *args)
 {
-	char *path;
 	int error, dirfd, flags, unsupported;
 	struct stat buf;
 
@@ -797,14 +707,8 @@ linux_statx(struct thread *td, struct linux_statx_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dirfd = (args->dirfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dirfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flags, dirfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dirfd);
-		error = linux_kern_statat(td, flags, dirfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flags, dirfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = statx_copyout(&buf, args->statxbuf);
 

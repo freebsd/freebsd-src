@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
@@ -35,8 +35,6 @@
 #include <machine/db_machdep.h>
 #include <machine/frame.h>
 #include <machine/psl.h>
-
-#define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
 
 extern void kdb_cpu_clear_singlestep(void);
 extern void kdb_cpu_set_singlestep(void);

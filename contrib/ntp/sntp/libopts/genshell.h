@@ -6,7 +6,7 @@
  *  From the definitions    genshell.def
  *  and the template file   options
  *
- * Generated from AutoOpts 41:0:16 templates.
+ * Generated from AutoOpts 42:1:17 templates.
  *
  *  AutoOpts is a copyrighted work.  This header file is not encumbered
  *  by AutoOpts licensing, but is provided under the licensing terms chosen
@@ -19,7 +19,7 @@
  * The genshellopt program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1999-2014 Bruce Korb, all rights reserved.
+ *  Copyright (C) 1999-2018 Bruce Korb, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the GNU Lesser General Public License,
  *  version 2 or later <http://www.gnu.org/licenses/old-licenses/lgpl-2.0.html>
@@ -47,6 +47,8 @@
 #ifndef AUTOOPTS_GENSHELL_H_GUARD
 #define AUTOOPTS_GENSHELL_H_GUARD 1
 #include <autoopts/options.h>
+#include <stdarg.h>
+#include <stdnoreturn.h>
 
 /**
  *  Ensure that the library used for compiling this generated header is at
@@ -55,11 +57,17 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 167937
+#define AO_TEMPLATE_VERSION 172033
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header
   Choke Me.
+#endif
+
+#if GCC_VERSION > 40400
+#define NOT_REACHED __builtin_unreachable();
+#else
+#define NOT_REACHED
 #endif
 
 /**
@@ -150,6 +158,12 @@ typedef enum {
 #ifdef  __cplusplus
 extern "C" {
 #endif
+/*
+ *  global exported definitions
+ */
+#define ch_t  unsigned char
+#define cc_t  const unsigned char
+#define cch_t char const
 
 
 /* * * * * *
@@ -200,6 +214,7 @@ static inline char* aoGetsText(char const* pz) {
 #   define _(_s)  _s
 # endif
 #endif  /* ENABLE_NLS */
+
 
 #ifdef  __cplusplus
 }

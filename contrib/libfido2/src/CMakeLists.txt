@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Yubico AB. All rights reserved.
+# Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
@@ -30,11 +30,16 @@ list(APPEND FIDO_SOURCES
 	pin.c
 	random.c
 	reset.c
+	rs1.c
 	rs256.c
+	time.c
+	tpm.c
+	types.c
 	u2f.c
 )
 
 if(FUZZ)
+	list(APPEND FIDO_SOURCES ../fuzz/clock.c)
 	list(APPEND FIDO_SOURCES ../fuzz/prng.c)
 	list(APPEND FIDO_SOURCES ../fuzz/uniform_random.c)
 	list(APPEND FIDO_SOURCES ../fuzz/udev.c)
@@ -62,7 +67,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
 	list(APPEND FIDO_SOURCES hid_netbsd.c hid_unix.c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
 	list(APPEND FIDO_SOURCES hid_openbsd.c hid_unix.c)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
+    CMAKE_SYSTEM_NAME STREQUAL "MidnightBSD")
 	list(APPEND FIDO_SOURCES hid_freebsd.c hid_unix.c)
 else()
 	message(FATAL_ERROR "please define a hid backend for your platform")
@@ -75,11 +81,11 @@ endif()
 
 list(APPEND COMPAT_SOURCES
 	../openbsd-compat/bsd-getpagesize.c
+	../openbsd-compat/clock_gettime.c
 	../openbsd-compat/endian_win32.c
 	../openbsd-compat/explicit_bzero.c
 	../openbsd-compat/explicit_bzero_win32.c
 	../openbsd-compat/freezero.c
-	../openbsd-compat/hkdf.c
 	../openbsd-compat/recallocarray.c
 	../openbsd-compat/strlcat.c
 	../openbsd-compat/timingsafe_bcmp.c
@@ -87,9 +93,6 @@ list(APPEND COMPAT_SOURCES
 
 if(WIN32)
 	list(APPEND BASE_LIBRARIES wsock32 ws2_32 bcrypt setupapi hid)
-	if(USE_WINHELLO)
-		list(APPEND BASE_LIBRARIES webauthn)
-	endif()
 elseif(APPLE)
 	list(APPEND BASE_LIBRARIES "-framework CoreFoundation" "-framework IOKit")
 endif()
@@ -129,7 +132,7 @@ endif()
 install(FILES fido.h DESTINATION include)
 install(DIRECTORY fido DESTINATION include)
 
-if(NOT WIN32)
+if(NOT MSVC)
 	configure_file(libfido2.pc.in libfido2.pc @ONLY)
 	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libfido2.pc"
 		DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

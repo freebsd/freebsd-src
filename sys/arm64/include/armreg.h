@@ -101,13 +101,6 @@
 #define	CLIDR_CTYPE_ID		0x3	/* Split instruction and data */
 #define	CLIDR_CTYPE_UNIFIED	0x4	/* Unified */
 
-/* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
-#define	CNTHCTL_EVNTI_MASK	(0xf << 4) /* Bit to trigger event stream */
-#define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
-#define	CNTHCTL_EVNTEN		(1 << 2) /* Enable event stream */
-#define	CNTHCTL_EL1PCEN		(1 << 1) /* Allow EL0/1 physical timer access */
-#define	CNTHCTL_EL1PCTEN	(1 << 0) /*Allow EL0/1 physical counter access*/
-
 /* CNTP_CTL_EL0 - Counter-timer Physical Timer Control register */
 #define	CNTP_CTL_EL0		MRS_REG(CNTP_CTL_EL0)
 #define	CNTP_CTL_EL0_op0	3
@@ -435,16 +428,44 @@
 #define	ICC_SGI1R_EL1_CRn		12
 #define	ICC_SGI1R_EL1_CRm		11
 #define	ICC_SGI1R_EL1_op2		5
-#define	ICC_SGI1R_EL1_TL_MASK		0xffffUL
+#define	ICC_SGI1R_EL1_TL_SHIFT		0
+#define	ICC_SGI1R_EL1_TL_MASK		(0xffffUL << ICC_SGI1R_EL1_TL_SHIFT)
+#define	ICC_SGI1R_EL1_TL_VAL(x)		((x) & ICC_SGI1R_EL1_TL_MASK)
 #define	ICC_SGI1R_EL1_AFF1_SHIFT	16
+#define	ICC_SGI1R_EL1_AFF1_MASK		(0xfful << ICC_SGI1R_EL1_AFF1_SHIFT)
+#define	ICC_SGI1R_EL1_AFF1_VAL(x)	((x) & ICC_SGI1R_EL1_AFF1_MASK)
 #define	ICC_SGI1R_EL1_SGIID_SHIFT	24
+#define	ICC_SGI1R_EL1_SGIID_MASK	(0xfUL << ICC_SGI1R_EL1_SGIID_SHIFT)
+#define	ICC_SGI1R_EL1_SGIID_VAL(x)	((x) & ICC_SGI1R_EL1_SGIID_MASK)
 #define	ICC_SGI1R_EL1_AFF2_SHIFT	32
+#define	ICC_SGI1R_EL1_AFF2_MASK		(0xfful << ICC_SGI1R_EL1_AFF2_SHIFT)
+#define	ICC_SGI1R_EL1_AFF2_VAL(x)	((x) & ICC_SGI1R_EL1_AFF2_MASK)
+#define	ICC_SGI1R_EL1_RS_SHIFT		44
+#define	ICC_SGI1R_EL1_RS_MASK		(0xful << ICC_SGI1R_EL1_RS_SHIFT)
+#define	ICC_SGI1R_EL1_RS_VAL(x)		((x) & ICC_SGI1R_EL1_RS_MASK)
 #define	ICC_SGI1R_EL1_AFF3_SHIFT	48
-#define	ICC_SGI1R_EL1_SGIID_MASK	0xfUL
+#define	ICC_SGI1R_EL1_AFF3_MASK		(0xfful << ICC_SGI1R_EL1_AFF3_SHIFT)
+#define	ICC_SGI1R_EL1_AFF3_VAL(x)	((x) & ICC_SGI1R_EL1_AFF3_MASK)
 #define	ICC_SGI1R_EL1_IRM		(0x1UL << 40)
 
 /* ICC_SRE_EL1 */
 #define	ICC_SRE_EL1_SRE		(1U << 0)
+
+/* ID_AA64AFR0_EL1 */
+#define	ID_AA64AFR0_EL1			MRS_REG(ID_AA64AFR0_EL1)
+#define	ID_AA64AFR0_EL1_op0		3
+#define	ID_AA64AFR0_EL1_op1		0
+#define	ID_AA64AFR0_EL1_CRn		0
+#define	ID_AA64AFR0_EL1_CRm		5
+#define	ID_AA64AFR0_EL1_op2		4
+
+/* ID_AA64AFR1_EL1 */
+#define	ID_AA64AFR1_EL1			MRS_REG(ID_AA64AFR1_EL1)
+#define	ID_AA64AFR1_EL1_op0		3
+#define	ID_AA64AFR1_EL1_op1		0
+#define	ID_AA64AFR1_EL1_CRn		0
+#define	ID_AA64AFR1_EL1_CRm		5
+#define	ID_AA64AFR1_EL1_op2		5
 
 /* ID_AA64DFR0_EL1 */
 #define	ID_AA64DFR0_EL1			MRS_REG(ID_AA64DFR0_EL1)
@@ -502,6 +523,14 @@
 #define	ID_AA64DFR0_TraceFilt_VAL(x)	((x) & ID_AA64DFR0_TraceFilt_MASK)
 #define	 ID_AA64DFR0_TraceFilt_NONE	(UL(0x0) << ID_AA64DFR0_TraceFilt_SHIFT)
 #define	 ID_AA64DFR0_TraceFilt_8_4	(UL(0x1) << ID_AA64DFR0_TraceFilt_SHIFT)
+
+/* ID_AA64DFR1_EL1 */
+#define	ID_AA64DFR1_EL1			MRS_REG(ID_AA64DFR1_EL1)
+#define	ID_AA64DFR1_EL1_op0		3
+#define	ID_AA64DFR1_EL1_op1		0
+#define	ID_AA64DFR1_EL1_CRn		0
+#define	ID_AA64DFR1_EL1_CRm		5
+#define	ID_AA64DFR1_EL1_op2		1
 
 /* ID_AA64ISAR0_EL1 */
 #define	ID_AA64ISAR0_EL1		MRS_REG(ID_AA64ISAR0_EL1)
@@ -1193,6 +1222,38 @@
 #define	MDSCR_MDE_SHIFT			15
 #define	MDSCR_MDE			(UL(0x1) << MDSCR_MDE_SHIFT)
 
+/* MIDR_EL1 - Main ID Register */
+#define	MIDR_EL1			MRS_REG(MIDR_EL1)
+#define	MIDR_EL1_op0			3
+#define	MIDR_EL1_op1			0
+#define	MIDR_EL1_CRn			0
+#define	MIDR_EL1_CRm			0
+#define	MIDR_EL1_op2			0
+
+/* MPIDR_EL1 - Multiprocessor Affinity Register */
+#define	MPIDR_EL1			MRS_REG(MPIDR_EL1)
+#define	MPIDR_EL1_op0			3
+#define	MPIDR_EL1_op1			0
+#define	MPIDR_EL1_CRn			0
+#define	MPIDR_EL1_CRm			0
+#define	MPIDR_EL1_op2			5
+#define	MPIDR_AFF0_SHIFT		0
+#define	MPIDR_AFF0_MASK			(UL(0xff) << MPIDR_AFF0_SHIFT)
+#define	MPIDR_AFF0_VAL(x)		((x) & MPIDR_AFF0_MASK)
+#define	MPIDR_AFF1_SHIFT		8
+#define	MPIDR_AFF1_MASK			(UL(0xff) << MPIDR_AFF1_SHIFT)
+#define	MPIDR_AFF1_VAL(x)		((x) & MPIDR_AFF1_MASK)
+#define	MPIDR_AFF2_SHIFT		16
+#define	MPIDR_AFF2_MASK			(UL(0xff) << MPIDR_AFF2_SHIFT)
+#define	MPIDR_AFF2_VAL(x)		((x) & MPIDR_AFF2_MASK)
+#define	MPIDR_MT_SHIFT			24
+#define	MPIDR_MT_MASK			(UL(0x1) << MPIDR_MT_SHIFT)
+#define	MPIDR_U_SHIFT			30
+#define	MPIDR_U_MASK			(UL(0x1) << MPIDR_U_SHIFT)
+#define	MPIDR_AFF3_SHIFT		32
+#define	MPIDR_AFF3_MASK			(UL(0xff) << MPIDR_AFF3_SHIFT)
+#define	MPIDR_AFF3_VAL(x)		((x) & MPIDR_AFF3_MASK)
+
 /* MVFR0_EL1 */
 #define	MVFR0_EL1			MRS_REG(MVFR0_EL1)
 #define	MVFR0_EL1_op0			0x3
@@ -1807,6 +1868,14 @@
 /* PSR fields that can be set from 32-bit and 64-bit processes */
 #define	PSR_SETTABLE_32	PSR_FLAGS
 #define	PSR_SETTABLE_64	(PSR_FLAGS | PSR_SS)
+
+/* REVIDR_EL1 - Revision ID Register */
+#define	REVIDR_EL1			MRS_REG(REVIDR_EL1)
+#define	REVIDR_EL1_op0			3
+#define	REVIDR_EL1_op1			0
+#define	REVIDR_EL1_CRn			0
+#define	REVIDR_EL1_CRm			0
+#define	REVIDR_EL1_op2			6
 
 /* TCR_EL1 - Translation Control Register */
 /* Bits 63:59 are reserved */

@@ -1,2 +1,1 @@
-.\" $FreeBSD$
-Do not build Capsicum support into system programs.
+This option has no effect.

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2022
+.Dd June 1, 2023
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -551,7 +551,9 @@ Requires the
 .Cd GEOM_PART_APM
 kernel option.
 .It Cm BSD
-Traditional BSD disklabel, usually used to subdivide MBR partitions.
+Traditional BSD
+.Xr disklabel 8 ,
+usually used to subdivide MBR partitions.
 .Po
 This scheme can also be used as the sole partitioning method, without
 an MBR.
@@ -564,7 +566,9 @@ Requires the
 .Cm GEOM_PART_BSD
 kernel option.
 .It Cm BSD64
-64-bit implementation of BSD disklabel used in DragonFlyBSD to subdivide MBR
+64-bit implementation of BSD disklabel used in
+.Dx
+to subdivide MBR
 or GPT partitions.
 Requires the
 .Cm GEOM_PART_BSD64
@@ -770,50 +774,67 @@ See
 .Sx CAVEATS
 section below.
 .It Cm dragonfly-label32
-A DragonFlyBSD partition subdivided into filesystems with a
+A
+.Dx
+partition subdivided into filesystems with a
 .Bx
 disklabel.
 The scheme-specific type is
 .Qq Li "!9d087404-1ca5-11dc-8817-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-label64
-A DragonFlyBSD partition subdivided into filesystems with a
+A
+.Dx
+partition subdivided into filesystems with a
 disklabel64.
 The scheme-specific type is
 .Qq Li "!3d48ce54-1d16-11dc-8696-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-legacy
-A legacy partition type used in DragonFlyBSD.
+A legacy partition type used in
+.Dx .
 The scheme-specific type is
 .Qq Li "!bd215ab2-1d16-11dc-8696-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-ccd
-A DragonFlyBSD partition used with Concatenated Disk driver.
+A
+.Dx
+partition used with Concatenated Disk driver.
 The scheme-specific type is
 .Qq Li "!dbd5211b-1ca5-11dc-8817-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-hammer
-A DragonFlyBSD partition that contains a Hammer filesystem.
+A
+.Dx
+partition that contains a Hammer filesystem.
 The scheme-specific type is
 .Qq Li "!61dc63ac-6e38-11dc-8513-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-hammer2
-A DragonFlyBSD partition that contains a Hammer2 filesystem.
+A
+.Dx
+partition that contains a Hammer2 filesystem.
 The scheme-specific type is
 .Qq Li "!5cbb9ad1-862d-11dc-a94d-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-swap
-A DragonFlyBSD partition dedicated to swap space.
+A
+.Dx
+partition dedicated to swap space.
 The scheme-specific type is
 .Qq Li "!9d58fdbd-1ca5-11dc-8817-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-ufs
-A DragonFlyBSD partition that contains an UFS1 filesystem.
+A
+.Dx
+partition that contains an UFS1 filesystem.
 The scheme-specific type is
 .Qq Li "!9d94ce7c-1ca5-11dc-8817-01301bb8a9f5"
 for GPT.
 .It Cm dragonfly-vinum
-A DragonFlyBSD partition used with Logical Volume Manager.
+A
+.Dx
+partition used with Logical Volume Manager.
 The scheme-specific type is
 .Qq Li "!9dd4478f-1ca5-11dc-8817-01301bb8a9f5"
 for GPT.
@@ -904,32 +925,44 @@ The scheme-specific type is
 .Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
 for GPT.
 .It Cm netbsd-ccd
-A NetBSD partition used with Concatenated Disk driver.
+A
+.Nx
+partition used with Concatenated Disk driver.
 The scheme-specific type is
 .Qq Li "!2db519c4-b10f-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm netbsd-cgd
-An encrypted NetBSD partition.
+An encrypted
+.Nx
+partition.
 The scheme-specific type is
 .Qq Li "!2db519ec-b10f-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm netbsd-ffs
-A NetBSD partition that contains an UFS filesystem.
+A
+.Nx
+partition that contains an UFS filesystem.
 The scheme-specific type is
 .Qq Li "!49f48d5a-b10e-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm netbsd-lfs
-A NetBSD partition that contains an LFS filesystem.
+A
+.Nx
+partition that contains an LFS filesystem.
 The scheme-specific type is
 .Qq Li "!49f48d82-b10e-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm netbsd-raid
-A NetBSD partition used in a software RAID configuration.
+A
+.Nx
+partition used in a software RAID configuration.
 The scheme-specific type is
 .Qq Li "!49f48daa-b10e-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm netbsd-swap
-A NetBSD partition dedicated to swap space.
+A
+.Nx
+partition dedicated to swap space.
 The scheme-specific type is
 .Qq Li "!49f48d32-b10e-11dc-b99b-0019d1879648"
 for GPT.
@@ -1443,7 +1476,6 @@ label:
 /sbin/gpart bootcode -b /boot/boot ada0s1
 .Ed
 .Ss VTOC8
-.Pp
 Create a VTOC8 scheme on
 .Pa da0 :
 .Bd -literal -offset indent
@@ -1496,7 +1528,6 @@ This is equivalent to the previous example:
 /sbin/gpart destroy -F da0
 .Ed
 .Ss Backup and Restore
-.Pp
 Create a backup of the partition table from
 .Pa da0 :
 .Bd -literal -offset indent

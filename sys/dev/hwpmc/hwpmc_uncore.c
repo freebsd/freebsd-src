@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2010 Fabien Thomas
  * All rights reserved.
@@ -233,17 +233,11 @@ ucf_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 ucf_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
 	struct pmc_hw *phw;
-	char ucf_name[PMC_NAME_MAX];
 
 	phw = &uncore_pcpu[cpu]->pc_uncorepmcs[ri + uncore_ucf_ri];
 
-	(void) snprintf(ucf_name, sizeof(ucf_name), "UCF-%d", ri);
-	if ((error = copystr(ucf_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return (error);
-
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "UCF-%d", ri);
 	pi->pm_class = PMC_CLASS_UCF;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
@@ -266,21 +260,14 @@ ucf_get_config(int cpu, int ri, struct pmc **ppm)
 }
 
 static int
-ucf_read_pmc(int cpu, int ri, pmc_value_t *v)
+ucf_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
-	struct pmc *pm;
 	pmc_value_t tmp;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal cpu value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < uncore_ucf_npmc,
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
-
-	pm = uncore_pcpu[cpu]->pc_uncorepmcs[ri + uncore_ucf_ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] cpu %d ri %d(%d) pmc not configured", __LINE__, cpu,
-		ri, ri + uncore_ucf_ri));
 
 	tmp = rdmsr(UCF_CTR0 + ri);
 
@@ -311,9 +298,8 @@ ucf_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-ucf_start_pmc(int cpu, int ri)
+ucf_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc *pm;
 	struct uncore_cpu *ucfc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -324,8 +310,6 @@ ucf_start_pmc(int cpu, int ri)
 	PMCDBG2(MDP,STA,1,"ucf-start cpu=%d ri=%d", cpu, ri);
 
 	ucfc = uncore_pcpu[cpu];
-	pm = ucfc->pc_uncorepmcs[ri + uncore_ucf_ri].phw_pmc;
-
 	ucfc->pc_ucfctrl |= pm->pm_md.pm_ucf.pm_ucf_ctrl;
 
 	wrmsr(UCF_CTRL, ucfc->pc_ucfctrl);
@@ -341,7 +325,7 @@ ucf_start_pmc(int cpu, int ri)
 }
 
 static int
-ucf_stop_pmc(int cpu, int ri)
+ucf_stop_pmc(int cpu, int ri, struct pmc *pm __unused)
 {
 	uint32_t fc;
 	struct uncore_cpu *ucfc;
@@ -372,10 +356,9 @@ ucf_stop_pmc(int cpu, int ri)
 }
 
 static int
-ucf_write_pmc(int cpu, int ri, pmc_value_t v)
+ucf_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
 	struct uncore_cpu *cc;
-	struct pmc *pm;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal cpu value %d", __LINE__, cpu));
@@ -383,10 +366,6 @@ ucf_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
 
 	cc = uncore_pcpu[cpu];
-	pm = cc->pc_uncorepmcs[ri + uncore_ucf_ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = ucf_reload_count_to_perfctr_value(v);
@@ -560,17 +539,11 @@ ucp_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 ucp_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
 	struct pmc_hw *phw;
-	char ucp_name[PMC_NAME_MAX];
 
 	phw = &uncore_pcpu[cpu]->pc_uncorepmcs[ri];
 
-	(void) snprintf(ucp_name, sizeof(ucp_name), "UCP-%d", ri);
-	if ((error = copystr(ucp_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return (error);
-
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "UCP-%d", ri);
 	pi->pm_class = PMC_CLASS_UCP;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
@@ -593,21 +566,14 @@ ucp_get_config(int cpu, int ri, struct pmc **ppm)
 }
 
 static int
-ucp_read_pmc(int cpu, int ri, pmc_value_t *v)
+ucp_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
-	struct pmc *pm;
 	pmc_value_t tmp;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal cpu value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < uncore_ucp_npmc,
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
-
-	pm = uncore_pcpu[cpu]->pc_uncorepmcs[ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] cpu %d ri %d pmc not configured", __LINE__, cpu,
-		ri));
 
 	tmp = rdmsr(UCP_PMC0 + ri);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -641,9 +607,8 @@ ucp_release_pmc(int cpu, int ri, struct pmc *pm)
 }
 
 static int
-ucp_start_pmc(int cpu, int ri)
+ucp_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc *pm;
 	uint64_t evsel;
 	struct uncore_cpu *cc;
 
@@ -653,11 +618,6 @@ ucp_start_pmc(int cpu, int ri)
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
 
 	cc = uncore_pcpu[cpu];
-	pm = cc->pc_uncorepmcs[ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] starting cpu%d,ri%d with no pmc configured",
-		__LINE__, cpu, ri));
 
 	PMCDBG2(MDP,STA,1, "ucp-start cpu=%d ri=%d", cpu, ri);
 
@@ -667,27 +627,6 @@ ucp_start_pmc(int cpu, int ri)
 	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
 	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel);
 
-	/* Event specific configuration. */
-	switch (pm->pm_event) {
-	case PMC_EV_UCP_EVENT_0CH_04H_E:
-	case PMC_EV_UCP_EVENT_0CH_08H_E:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x2);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_F:
-	case PMC_EV_UCP_EVENT_0CH_08H_F:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x8);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_M:
-	case PMC_EV_UCP_EVENT_0CH_08H_M:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x1);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_S:
-	case PMC_EV_UCP_EVENT_0CH_08H_S:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
-		break;
-	default:
-		break;
-	}
 	wrmsr(SELECTSEL(uncore_cputype) + ri, evsel);
 
 	cc->pc_globalctrl |= (1ULL << ri);
@@ -697,22 +636,13 @@ ucp_start_pmc(int cpu, int ri)
 }
 
 static int
-ucp_stop_pmc(int cpu, int ri)
+ucp_stop_pmc(int cpu, int ri, struct pmc *pm __unused)
 {
-	struct pmc *pm __diagused;
-	struct uncore_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal cpu value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < uncore_ucp_npmc,
 	    ("[uncore,%d] illegal row index %d", __LINE__, ri));
-
-	cc = uncore_pcpu[cpu];
-	pm = cc->pc_uncorepmcs[ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
-		cpu, ri));
 
 	PMCDBG2(MDP,STO,1, "ucp-stop cpu=%d ri=%d", cpu, ri);
 
@@ -725,22 +655,13 @@ ucp_stop_pmc(int cpu, int ri)
 }
 
 static int
-ucp_write_pmc(int cpu, int ri, pmc_value_t v)
+ucp_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
-	struct pmc *pm;
-	struct uncore_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal cpu value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < uncore_ucp_npmc,
 	    ("[uncore,%d] illegal row index %d", __LINE__, ri));
-
-	cc = uncore_pcpu[cpu];
-	pm = cc->pc_uncorepmcs[ri].phw_pmc;
-
-	KASSERT(pm,
-	    ("[uncore,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
-		cpu, ri));
 
 	PMCDBG4(MDP,WRI,1, "ucp-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    UCP_PMC0 + ri, v);

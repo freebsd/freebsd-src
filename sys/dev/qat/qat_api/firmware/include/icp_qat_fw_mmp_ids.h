@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
 /* $FreeBSD$ */
+
+
+/* --- (Automatically generated (relocation v. 1.3), do not modify manually) --- */
+
 /**
  * @file icp_qat_fw_mmp_ids.h
  * @ingroup icp_qat_fw_mmp
@@ -14,7 +18,159 @@
 #ifndef __ICP_QAT_FW_MMP_IDS__
 #define __ICP_QAT_FW_MMP_IDS__
 
-#define PKE_INIT 0x09061798
+#define PKE_ECSM2_GENERATOR_MULTIPLICATION 0x220f16ae
+/**< Functionality ID for ECC SM2 point multiply [k]G
+ * @li 1 input parameters : @link
+ * icp_qat_fw_mmp_ecsm2_generator_multiplication_input_s::k k @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_mmp_ecsm2_generator_multiplication_output_s::xd xd @endlink @link
+ * icp_qat_fw_mmp_ecsm2_generator_multiplication_output_s::yd yd @endlink
+ */
+#define PKE_ECSM2_POINT_MULTIPLICATION 0x211716ce
+/**< Functionality ID for ECC SM2 point multiply [k]P
+ * @li 3 input parameters : @link
+ * icp_qat_fw_mmp_ecsm2_point_multiplication_input_s::k k @endlink @link
+ * icp_qat_fw_mmp_ecsm2_point_multiplication_input_s::x x @endlink @link
+ * icp_qat_fw_mmp_ecsm2_point_multiplication_input_s::y y @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_mmp_ecsm2_point_multiplication_output_s::xd xd @endlink @link
+ * icp_qat_fw_mmp_ecsm2_point_multiplication_output_s::yd yd @endlink
+ */
+#define PKE_ECSM2_POINT_VERIFY 0x1b0716a6
+/**< Functionality ID for ECC SM2 point verify
+ * @li 2 input parameters : @link icp_qat_fw_mmp_ecsm2_point_verify_input_s::x x
+ * @endlink @link icp_qat_fw_mmp_ecsm2_point_verify_input_s::y y @endlink
+ * @li no output parameters
+ */
+#define PKE_ECSM2_SIGN_RS 0x222116fe
+/**< Functionality ID for ECC SM2 Sign RS
+ * @li 3 input parameters : @link icp_qat_fw_mmp_ecsm2_sign_rs_input_s::k k
+ * @endlink @link icp_qat_fw_mmp_ecsm2_sign_rs_input_s::e e @endlink @link
+ * icp_qat_fw_mmp_ecsm2_sign_rs_input_s::d d @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecsm2_sign_rs_output_s::r r
+ * @endlink @link icp_qat_fw_mmp_ecsm2_sign_rs_output_s::s s @endlink
+ */
+#define PKE_ECSM2_VERIFY 0x29241743
+/**< Functionality ID for ECC SM2 Signature Verify
+ * @li 5 input parameters : @link icp_qat_fw_mmp_ecsm2_verify_input_s::e e
+ * @endlink @link icp_qat_fw_mmp_ecsm2_verify_input_s::r r @endlink @link
+ * icp_qat_fw_mmp_ecsm2_verify_input_s::s s @endlink @link
+ * icp_qat_fw_mmp_ecsm2_verify_input_s::xp xp @endlink @link
+ * icp_qat_fw_mmp_ecsm2_verify_input_s::yp yp @endlink
+ * @li no output parameters
+ */
+#define PKE_ECSM2_ENCRYPTION 0x25221720
+/**< Functionality ID for ECC SM2 encryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_ecsm2_encryption_input_s::k k
+ * @endlink @link icp_qat_fw_mmp_ecsm2_encryption_input_s::xp xp @endlink @link
+ * icp_qat_fw_mmp_ecsm2_encryption_input_s::yp yp @endlink
+ * @li 4 output parameters : @link icp_qat_fw_mmp_ecsm2_encryption_output_s::xc
+ * xc @endlink @link icp_qat_fw_mmp_ecsm2_encryption_output_s::yc yc @endlink
+ * @link icp_qat_fw_mmp_ecsm2_encryption_output_s::xpb xpb @endlink @link
+ * icp_qat_fw_mmp_ecsm2_encryption_output_s::ypb ypb @endlink
+ */
+#define PKE_ECSM2_DECRYPTION 0x201716e6
+/**< Functionality ID for ECC SM2 decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_ecsm2_decryption_input_s::d d
+ * @endlink @link icp_qat_fw_mmp_ecsm2_decryption_input_s::xpb xpb @endlink
+ * @link icp_qat_fw_mmp_ecsm2_decryption_input_s::ypb ypb @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecsm2_decryption_output_s::xd
+ * xd @endlink @link icp_qat_fw_mmp_ecsm2_decryption_output_s::yd yd @endlink
+ */
+#define PKE_ECSM2_KEYEX_P1 0x220f16be
+/**< Functionality ID for ECC SM2 key exchange phase1
+ * @li 1 input parameters : @link icp_qat_fw_mmp_ecsm2_keyex_p1_input_s::k k
+ * @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecsm2_keyex_p1_output_s::xd xd
+ * @endlink @link icp_qat_fw_mmp_ecsm2_keyex_p1_output_s::yd yd @endlink
+ */
+#define PKE_ECSM2_KEYEX_P2 0x22361768
+/**< Functionality ID for ECC SM2 key exchange phase2
+ * @li 7 input parameters : @link icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::r r
+ * @endlink @link icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::d d @endlink @link
+ * icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::x1 x1 @endlink @link
+ * icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::x2 x2 @endlink @link
+ * icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::y2 y2 @endlink @link
+ * icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::xp xp @endlink @link
+ * icp_qat_fw_mmp_ecsm2_keyex_p2_input_s::yp yp @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecsm2_keyex_p2_output_s::xus
+ * xus @endlink @link icp_qat_fw_mmp_ecsm2_keyex_p2_output_s::yus yus @endlink
+ */
+#define POINT_MULTIPLICATION_C25519 0x0a0634c6
+/**< Functionality ID for ECC curve25519 Variable Point Multiplication [k]P(x),
+ * as specified in RFC7748
+ * @li 2 input parameters : @link
+ * icp_qat_fw_point_multiplication_c25519_input_s::xp xp @endlink @link
+ * icp_qat_fw_point_multiplication_c25519_input_s::k k @endlink
+ * @li 1 output parameters : @link
+ * icp_qat_fw_point_multiplication_c25519_output_s::xr xr @endlink
+ */
+#define GENERATOR_MULTIPLICATION_C25519 0x0a0634d6
+/**< Functionality ID for ECC curve25519 Generator Point Multiplication [k]G(x),
+ * as specified in RFC7748
+ * @li 1 input parameters : @link
+ * icp_qat_fw_generator_multiplication_c25519_input_s::k k @endlink
+ * @li 1 output parameters : @link
+ * icp_qat_fw_generator_multiplication_c25519_output_s::xr xr @endlink
+ */
+#define POINT_MULTIPLICATION_ED25519 0x100b34e6
+/**< Functionality ID for ECC edwards25519 Variable Point Multiplication [k]P,
+ * as specified in RFC8032
+ * @li 3 input parameters : @link
+ * icp_qat_fw_point_multiplication_ed25519_input_s::xp xp @endlink @link
+ * icp_qat_fw_point_multiplication_ed25519_input_s::yp yp @endlink @link
+ * icp_qat_fw_point_multiplication_ed25519_input_s::k k @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_point_multiplication_ed25519_output_s::xr xr @endlink @link
+ * icp_qat_fw_point_multiplication_ed25519_output_s::yr yr @endlink
+ */
+#define GENERATOR_MULTIPLICATION_ED25519 0x100a34f6
+/**< Functionality ID for ECC edwards25519 Generator Point Multiplication [k]G,
+ * as specified in RFC8032
+ * @li 1 input parameters : @link
+ * icp_qat_fw_generator_multiplication_ed25519_input_s::k k @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_generator_multiplication_ed25519_output_s::xr xr @endlink @link
+ * icp_qat_fw_generator_multiplication_ed25519_output_s::yr yr @endlink
+ */
+#define POINT_MULTIPLICATION_C448 0x0c063506
+/**< Functionality ID for ECC curve448 Variable Point Multiplication [k]P(x), as
+ * specified in RFC7748
+ * @li 2 input parameters : @link
+ * icp_qat_fw_point_multiplication_c448_input_s::xp xp @endlink @link
+ * icp_qat_fw_point_multiplication_c448_input_s::k k @endlink
+ * @li 1 output parameters : @link
+ * icp_qat_fw_point_multiplication_c448_output_s::xr xr @endlink
+ */
+#define GENERATOR_MULTIPLICATION_C448 0x0c063516
+/**< Functionality ID for ECC curve448 Generator Point Multiplication [k]G(x),
+ * as specified in RFC7748
+ * @li 1 input parameters : @link
+ * icp_qat_fw_generator_multiplication_c448_input_s::k k @endlink
+ * @li 1 output parameters : @link
+ * icp_qat_fw_generator_multiplication_c448_output_s::xr xr @endlink
+ */
+#define POINT_MULTIPLICATION_ED448 0x1a0b3526
+/**< Functionality ID for ECC edwards448 Variable Point Multiplication [k]P, as
+ * specified in RFC8032
+ * @li 3 input parameters : @link
+ * icp_qat_fw_point_multiplication_ed448_input_s::xp xp @endlink @link
+ * icp_qat_fw_point_multiplication_ed448_input_s::yp yp @endlink @link
+ * icp_qat_fw_point_multiplication_ed448_input_s::k k @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_point_multiplication_ed448_output_s::xr xr @endlink @link
+ * icp_qat_fw_point_multiplication_ed448_output_s::yr yr @endlink
+ */
+#define GENERATOR_MULTIPLICATION_ED448 0x1a0a3536
+/**< Functionality ID for ECC edwards448 Generator Point Multiplication [k]P, as
+ * specified in RFC8032
+ * @li 1 input parameters : @link
+ * icp_qat_fw_generator_multiplication_ed448_input_s::k k @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_generator_multiplication_ed448_output_s::xr xr @endlink @link
+ * icp_qat_fw_generator_multiplication_ed448_output_s::yr yr @endlink
+ */
+#define PKE_INIT 0x0806169f
 /**< Functionality ID for Initialisation sequence
  * @li 1 input parameters : @link icp_qat_fw_mmp_init_input_s::z z @endlink
  * @li 1 output parameters : @link icp_qat_fw_mmp_init_output_s::zz zz @endlink
@@ -114,6 +270,22 @@
  * @link icp_qat_fw_mmp_dh_4096_input_s::e e @endlink @link
  * icp_qat_fw_mmp_dh_4096_input_s::m m @endlink
  * @li 1 output parameters : @link icp_qat_fw_mmp_dh_4096_output_s::r r @endlink
+ */
+#define PKE_DH_G2_8192 0x8d0b3626
+/**< Functionality ID for Diffie-Hellman Modular exponentiation base 2 for
+ * 8192-bit numbers
+ * @li 2 input parameters : @link icp_qat_fw_mmp_dh_g2_8192_input_s::e e
+ * @endlink @link icp_qat_fw_mmp_dh_g2_8192_input_s::m m @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_dh_g2_8192_output_s::r r
+ * @endlink
+ */
+#define PKE_DH_8192 0xcd0d3636
+/**< Functionality ID for Diffie-Hellman Modular exponentiation for 8192-bit
+ * numbers
+ * @li 3 input parameters : @link icp_qat_fw_mmp_dh_8192_input_s::g g @endlink
+ * @link icp_qat_fw_mmp_dh_8192_input_s::e e @endlink @link
+ * icp_qat_fw_mmp_dh_8192_input_s::m m @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_dh_8192_output_s::r r @endlink
  */
 #define PKE_RSA_KP1_512 0x191d1a9a
 /**< Functionality ID for RSA 512 key generation first form
@@ -389,6 +561,33 @@
  * icp_qat_fw_mmp_rsa_dp2_4096_input_s::dq dq @endlink @link
  * icp_qat_fw_mmp_rsa_dp2_4096_input_s::qinv qinv @endlink
  * @li 1 output parameters : @link icp_qat_fw_mmp_rsa_dp2_4096_output_s::m m
+ * @endlink
+ */
+#define PKE_RSA_EP_8192 0xc31335c6
+/**< Functionality ID for RSA 8192 Encryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_rsa_ep_8192_input_s::m m
+ * @endlink @link icp_qat_fw_mmp_rsa_ep_8192_input_s::e e @endlink @link
+ * icp_qat_fw_mmp_rsa_ep_8192_input_s::n n @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_rsa_ep_8192_output_s::c c
+ * @endlink
+ */
+#define PKE_RSA_DP1_8192 0xc31335e6
+/**< Functionality ID for RSA 8192 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_rsa_dp1_8192_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_rsa_dp1_8192_input_s::d d @endlink @link
+ * icp_qat_fw_mmp_rsa_dp1_8192_input_s::n n @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_rsa_dp1_8192_output_s::m m
+ * @endlink
+ */
+#define PKE_RSA_DP2_8192 0xc9133606
+/**< Functionality ID for RSA 8192 Decryption with CRT
+ * @li 6 input parameters : @link icp_qat_fw_mmp_rsa_dp2_8192_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_rsa_dp2_8192_input_s::p p @endlink @link
+ * icp_qat_fw_mmp_rsa_dp2_8192_input_s::q q @endlink @link
+ * icp_qat_fw_mmp_rsa_dp2_8192_input_s::dp dp @endlink @link
+ * icp_qat_fw_mmp_rsa_dp2_8192_input_s::dq dq @endlink @link
+ * icp_qat_fw_mmp_rsa_dp2_8192_input_s::qinv qinv @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_rsa_dp2_8192_output_s::m m
  * @endlink
  */
 #define PKE_GCD_PT_192 0x19201fcd
@@ -677,6 +876,14 @@
  * @li 1 output parameters : @link icp_qat_fw_maths_modexp_l4096_output_s::r r
  * @endlink
  */
+#define MATHS_MODEXP_L8192 0xc50c3646
+/**< Functionality ID for Modular exponentiation for numbers up to 8192 bits
+ * @li 3 input parameters : @link icp_qat_fw_maths_modexp_l8192_input_s::g g
+ * @endlink @link icp_qat_fw_maths_modexp_l8192_input_s::e e @endlink @link
+ * icp_qat_fw_maths_modexp_l8192_input_s::m m @endlink
+ * @li 1 output parameters : @link icp_qat_fw_maths_modexp_l8192_output_s::r r
+ * @endlink
+ */
 #define MATHS_MODINV_ODD_L128 0x090623f8
 /**< Functionality ID for Modular multiplicative inverse for numbers less than
  * 128 bits
@@ -763,6 +970,14 @@
  * @li 2 input parameters : @link icp_qat_fw_maths_modinv_odd_l4096_input_s::a a
  * @endlink @link icp_qat_fw_maths_modinv_odd_l4096_input_s::b b @endlink
  * @li 1 output parameters : @link icp_qat_fw_maths_modinv_odd_l4096_output_s::c
+ * c @endlink
+ */
+#define MATHS_MODINV_ODD_L8192 0x88073656
+/**< Functionality ID for Modular multiplicative inverse for numbers up to 8192
+ * bits
+ * @li 2 input parameters : @link icp_qat_fw_maths_modinv_odd_l8192_input_s::a a
+ * @endlink @link icp_qat_fw_maths_modinv_odd_l8192_input_s::b b @endlink
+ * @li 1 output parameters : @link icp_qat_fw_maths_modinv_odd_l8192_output_s::c
  * c @endlink
  */
 #define MATHS_MODINV_EVEN_L128 0x0906243a
@@ -852,6 +1067,14 @@
  * a @endlink @link icp_qat_fw_maths_modinv_even_l4096_input_s::b b @endlink
  * @li 1 output parameters : @link
  * icp_qat_fw_maths_modinv_even_l4096_output_s::c c @endlink
+ */
+#define MATHS_MODINV_EVEN_L8192 0xc80d3666
+/**< Functionality ID for Modular multiplicative inverse for numbers up to 8192
+ * bits
+ * @li 2 input parameters : @link icp_qat_fw_maths_modinv_even_l8192_input_s::a
+ * a @endlink @link icp_qat_fw_maths_modinv_even_l8192_input_s::b b @endlink
+ * @li 1 output parameters : @link
+ * icp_qat_fw_maths_modinv_even_l8192_output_s::c c @endlink
  */
 #define PKE_DSA_GEN_P_1024_160 0x381824a4
 /**< Functionality ID for DSA parameter generation P
@@ -1461,81 +1684,60 @@
  * icp_qat_fw_maths_point_verify_gfp_521_input_s::b b @endlink
  * @li no output parameters
  */
-#define POINT_MULTIPLICATION_C25519 0x0a0634c6
-/**< Functionality ID for ECC curve25519 Variable Point Multiplication [k]P(x),
- * as specified in RFC7748
- * @li 2 input parameters : @link
- * icp_qat_fw_point_multiplication_c25519_input_s::xp xp @endlink @link
- * icp_qat_fw_point_multiplication_c25519_input_s::k k @endlink
- * @li 1 output parameters : @link
- * icp_qat_fw_point_multiplication_c25519_output_s::xr xr @endlink
- */
-#define GENERATOR_MULTIPLICATION_C25519 0x0a0634d6
-/**< Functionality ID for ECC curve25519 Generator Point Multiplication [k]G(x),
- * as specified in RFC7748
- * @li 1 input parameters : @link
- * icp_qat_fw_generator_multiplication_c25519_input_s::k k @endlink
- * @li 1 output parameters : @link
- * icp_qat_fw_generator_multiplication_c25519_output_s::xr xr @endlink
- */
-#define POINT_MULTIPLICATION_ED25519 0x100b34e6
-/**< Functionality ID for ECC edwards25519 Variable Point Multiplication [k]P,
- * as specified in RFC8032
+#define PKE_EC_POINT_MULTIPLICATION_P256 0x0a083546
+/**< Functionality ID for ECC P256 Variable Point Multiplication [k]P(x)
  * @li 3 input parameters : @link
- * icp_qat_fw_point_multiplication_ed25519_input_s::xp xp @endlink @link
- * icp_qat_fw_point_multiplication_ed25519_input_s::yp yp @endlink @link
- * icp_qat_fw_point_multiplication_ed25519_input_s::k k @endlink
+ * icp_qat_fw_mmp_ec_p256_point_multiplication_input_s::xp xp @endlink @link
+ * icp_qat_fw_mmp_ec_p256_point_multiplication_input_s::yp yp @endlink @link
+ * icp_qat_fw_mmp_ec_p256_point_multiplication_input_s::k k @endlink
  * @li 2 output parameters : @link
- * icp_qat_fw_point_multiplication_ed25519_output_s::xr xr @endlink @link
- * icp_qat_fw_point_multiplication_ed25519_output_s::yr yr @endlink
+ * icp_qat_fw_mmp_ec_p256_point_multiplication_output_s::xr xr @endlink @link
+ * icp_qat_fw_mmp_ec_p256_point_multiplication_output_s::yr yr @endlink
  */
-#define GENERATOR_MULTIPLICATION_ED25519 0x100a34f6
-/**< Functionality ID for ECC edwards25519 Generator Point Multiplication [k]G,
- * as specified in RFC8032
+#define PKE_EC_GENERATOR_MULTIPLICATION_P256 0x12073556
+/**< Functionality ID for ECC P256 Generator Point Multiplication [k]G(x)
  * @li 1 input parameters : @link
- * icp_qat_fw_generator_multiplication_ed25519_input_s::k k @endlink
+ * icp_qat_fw_mmp_ec_p256_generator_multiplication_input_s::k k @endlink
  * @li 2 output parameters : @link
- * icp_qat_fw_generator_multiplication_ed25519_output_s::xr xr @endlink @link
- * icp_qat_fw_generator_multiplication_ed25519_output_s::yr yr @endlink
+ * icp_qat_fw_mmp_ec_p256_generator_multiplication_output_s::xr xr @endlink
+ * @link icp_qat_fw_mmp_ec_p256_generator_multiplication_output_s::yr yr
+ * @endlink
  */
-#define POINT_MULTIPLICATION_C448 0x0c063506
-/**< Functionality ID for ECC curve448 Variable Point Multiplication [k]P(x), as
- * specified in RFC7748
- * @li 2 input parameters : @link
- * icp_qat_fw_point_multiplication_c448_input_s::xp xp @endlink @link
- * icp_qat_fw_point_multiplication_c448_input_s::k k @endlink
- * @li 1 output parameters : @link
- * icp_qat_fw_point_multiplication_c448_output_s::xr xr @endlink
+#define PKE_ECDSA_SIGN_RS_P256 0x18133566
+/**< Functionality ID for ECC P256 ECDSA Sign RS
+ * @li 3 input parameters : @link icp_qat_fw_mmp_ecdsa_sign_rs_p256_input_s::k k
+ * @endlink @link icp_qat_fw_mmp_ecdsa_sign_rs_p256_input_s::e e @endlink @link
+ * icp_qat_fw_mmp_ecdsa_sign_rs_p256_input_s::d d @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecdsa_sign_rs_p256_output_s::r
+ * r @endlink @link icp_qat_fw_mmp_ecdsa_sign_rs_p256_output_s::s s @endlink
  */
-#define GENERATOR_MULTIPLICATION_C448 0x0c063516
-/**< Functionality ID for ECC curve448 Generator Point Multiplication [k]G(x),
- * as specified in RFC7748
- * @li 1 input parameters : @link
- * icp_qat_fw_generator_multiplication_c448_input_s::k k @endlink
- * @li 1 output parameters : @link
- * icp_qat_fw_generator_multiplication_c448_output_s::xr xr @endlink
- */
-#define POINT_MULTIPLICATION_ED448 0x1a0b3526
-/**< Functionality ID for ECC edwards448 Variable Point Multiplication [k]P, as
- * specified in RFC8032
+#define PKE_EC_POINT_MULTIPLICATION_P384 0x0b083586
+/**< Functionality ID for ECC P384 Variable Point Multiplication [k]P(x)
  * @li 3 input parameters : @link
- * icp_qat_fw_point_multiplication_ed448_input_s::xp xp @endlink @link
- * icp_qat_fw_point_multiplication_ed448_input_s::yp yp @endlink @link
- * icp_qat_fw_point_multiplication_ed448_input_s::k k @endlink
+ * icp_qat_fw_mmp_ec_p384_point_multiplication_input_s::xp xp @endlink @link
+ * icp_qat_fw_mmp_ec_p384_point_multiplication_input_s::yp yp @endlink @link
+ * icp_qat_fw_mmp_ec_p384_point_multiplication_input_s::k k @endlink
  * @li 2 output parameters : @link
- * icp_qat_fw_point_multiplication_ed448_output_s::xr xr @endlink @link
- * icp_qat_fw_point_multiplication_ed448_output_s::yr yr @endlink
+ * icp_qat_fw_mmp_ec_p384_point_multiplication_output_s::xr xr @endlink @link
+ * icp_qat_fw_mmp_ec_p384_point_multiplication_output_s::yr yr @endlink
  */
-#define GENERATOR_MULTIPLICATION_ED448 0x1a0a3536
-/**< Functionality ID for ECC edwards448 Generator Point Multiplication [k]P, as
- * specified in RFC8032
+#define PKE_EC_GENERATOR_MULTIPLICATION_P384 0x0b073596
+/**< Functionality ID for ECC P384 Generator Point Multiplication [k]G(x)
  * @li 1 input parameters : @link
- * icp_qat_fw_generator_multiplication_ed448_input_s::k k @endlink
+ * icp_qat_fw_mmp_ec_p384_generator_multiplication_input_s::k k @endlink
  * @li 2 output parameters : @link
- * icp_qat_fw_generator_multiplication_ed448_output_s::xr xr @endlink @link
- * icp_qat_fw_generator_multiplication_ed448_output_s::yr yr @endlink
+ * icp_qat_fw_mmp_ec_p384_generator_multiplication_output_s::xr xr @endlink
+ * @link icp_qat_fw_mmp_ec_p384_generator_multiplication_output_s::yr yr
+ * @endlink
  */
-
+#define PKE_ECDSA_SIGN_RS_P384 0x1a1335a6
+/**< Functionality ID for ECC P384 ECDSA Sign RS
+ * @li 3 input parameters : @link icp_qat_fw_mmp_ecdsa_sign_rs_p384_input_s::k k
+ * @endlink @link icp_qat_fw_mmp_ecdsa_sign_rs_p384_input_s::e e @endlink @link
+ * icp_qat_fw_mmp_ecdsa_sign_rs_p384_input_s::d d @endlink
+ * @li 2 output parameters : @link icp_qat_fw_mmp_ecdsa_sign_rs_p384_output_s::r
+ * r @endlink @link icp_qat_fw_mmp_ecdsa_sign_rs_p384_output_s::s s @endlink
+ */
 #define PKE_LIVENESS 0x00000001
 /**< Functionality ID for PKE_LIVENESS
  * @li 0 input parameter(s)
@@ -1544,12 +1746,186 @@
 #define PKE_INTERFACE_SIGNATURE 0x972ded54
 /**< Encoded signature of the interface specifications
  */
-
 #define PKE_INVALID_FUNC_ID 0xffffffff
+#define PKE_KPT_ECDSA_SIGN_RS_P521 0xb6563896
+/**< Functionality ID for ECC P521 ECDSA Sign RS
+ * @li 3 input parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p521_input_s::kpt_wrapped kpt_wrapped
+ * @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p521_input_s::kpt_wrapping_context
+ * kpt_wrapping_context @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p521_input_s::e e @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p521_output_s::r r @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p521_output_s::s s @endlink
+ */
+#define PKE_KPT_ECDSA_SIGN_RS_P384 0x22143876
+/**< Functionality ID for ECC P384 ECDSA Sign RS
+ * @li 3 input parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p384_input_s::kpt_wrapped kpt_wrapped
+ * @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p384_input_s::kpt_wrapping_context
+ * kpt_wrapping_context @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p384_input_s::e e @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p384_output_s::r r @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p384_output_s::s s @endlink
+ */
+#define PKE_KPT_ECDSA_SIGN_RS_P256 0x8d153856
+/**< Functionality ID for ECC KPT P256 ECDSA Sign RS
+ * @li 3 input parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p256_input_s::kpt_wrapped kpt_wrapped
+ * @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p256_input_s::key_unwrap_context
+ * key_unwrap_context @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p256_input_s::e e @endlink
+ * @li 2 output parameters : @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p256_output_s::r r @endlink @link
+ * icp_qat_fw_mmp_kpt_ecdsa_sign_rs_p256_output_s::s s @endlink
+ */
+#define PKE_KPT_RSA_DP1_512 0x1b1c3696
+/**< Functionality ID for KPT RSA 512 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_512_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_512_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_512_input_s::kpt_unwrap_context kpt_unwrap_context
+ * @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_512_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_1024 0x2d1d36b6
+/**< Functionality ID for KPT RSA 1024 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_1024_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_1024_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_1024_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_1024_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_1536 0x451d36d6
+/**< Functionality ID for KPT RSA 1536 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_1536_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_1536_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_1536_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_1536_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_2048 0x661936f6
+/**< Functionality ID for KPT RSA 2048 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_2048_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_2048_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_2048_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_2048_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_3072 0x751d3716
+/**< Functionality ID for KPT RSA 3072 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_3072_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_3072_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_3072_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_3072_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_4096 0x9d1d3736
+/**< Functionality ID for KPT RSA 4096 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_4096_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_4096_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_4096_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_4096_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP1_8192 0xbe203756
+/**< Functionality ID for KPT RSA 8192 Decryption
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_8192_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp1_8192_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp1_8192_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp1_8192_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_512 0x241d3776
+/**< Functionality ID for RSA 512 decryption second form
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_512_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_512_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_512_input_s::kpt_unwrap_context kpt_unwrap_context
+ * @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_512_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_1024 0x4e1d3796
+/**< Functionality ID for RSA 1024 Decryption with CRT
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_1024_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_1024_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_1024_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_1024_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_1536 0x762b37b6
+/**< Functionality ID for KPT RSA 1536 Decryption with CRT
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_1536_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_1536_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_1536_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_1536_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_2048 0xa41a37d6
+/**< Functionality ID for RSA 2048 Decryption with CRT
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_2048_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_2048_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_2048_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_2048_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_3072 0xd41a37f6
+/**< Functionality ID for
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_3072_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_3072_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_3072_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_3072_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_4096 0xd22a3816
+/**< Functionality ID for RSA 4096 Decryption with CRT
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_4096_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_4096_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_4096_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_4096_output_s::m m
+ * @endlink
+ */
+#define PKE_KPT_RSA_DP2_8192 0xae383836
+/**< Functionality ID for RSA 8192 Decryption with CRT
+ * @li 3 input parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_8192_input_s::c c
+ * @endlink @link icp_qat_fw_mmp_kpt_rsa_dp2_8192_input_s::kpt_wrapped
+ * kpt_wrapped @endlink @link
+ * icp_qat_fw_mmp_kpt_rsa_dp2_8192_input_s::kpt_unwrap_context
+ * kpt_unwrap_context @endlink
+ * @li 1 output parameters : @link icp_qat_fw_mmp_kpt_rsa_dp2_8192_output_s::m m
+ * @endlink
+ */
 
 #endif /* __ICP_QAT_FW_MMP_IDS__ */
 
-/* --- (Automatically generated (relocation v. 1.3), do not modify manually) ---
- */
+/* --- (Automatically generated (relocation v. 1.3), do not modify manually) --- */
 
 /* --- end of file --- */

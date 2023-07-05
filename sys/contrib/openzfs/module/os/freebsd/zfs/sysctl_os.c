@@ -872,8 +872,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, validate_skip,
 	"Enable to bypass vdev_validate().");
 /* END CSTYLED */
 
-/* vdev_cache.c */
-
 /* vdev_mirror.c */
 
 /* vdev_queue.c */
@@ -885,14 +883,6 @@ SYSCTL_UINT(_vfs_zfs, OID_AUTO, top_maxinflight,
 	CTLFLAG_RWTUN, &zfs_vdev_max_active, 0,
 	"The maximum number of I/Os of all types active for each device."
 	" (LEGACY)");
-/* END CSTYLED */
-
-extern uint_t zfs_vdev_def_queue_depth;
-
-/* BEGIN CSTYLED */
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, def_queue_depth,
-	CTLFLAG_RWTUN, &zfs_vdev_def_queue_depth, 0,
-	"Default queue depth for each allocator");
 /* END CSTYLED */
 
 /* zio.c */

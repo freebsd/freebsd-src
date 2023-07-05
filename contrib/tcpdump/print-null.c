@@ -22,15 +22,16 @@
 /* \summary: BSD loopback device printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
-#include <string.h>
-
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
+#include "extract.h"
 #include "af.h"
+
 
 /*
  * The DLT_NULL packet header is 4 bytes long. It contains a host-byte-order
@@ -52,18 +53,18 @@
 #define	SWAPLONG(y) \
 ((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
 
-static inline void
-null_hdr_print(netdissect_options *ndo, u_int family, u_int length)
+static void
+null_hdr_print(netdissect_options *ndo, uint32_t family, u_int length)
 {
 	if (!ndo->ndo_qflag) {
-		ND_PRINT((ndo, "AF %s (%u)",
-			tok2str(bsd_af_values,"Unknown",family),family));
+		ND_PRINT("AF %s (%u)",
+			tok2str(bsd_af_values,"Unknown",family),family);
 	} else {
-		ND_PRINT((ndo, "%s",
-			tok2str(bsd_af_values,"Unknown AF %u",family)));
+		ND_PRINT("%s",
+			tok2str(bsd_af_values,"Unknown AF %u",family));
 	}
 
-	ND_PRINT((ndo, ", length %u: ", length));
+	ND_PRINT(", length %u: ", length);
 }
 
 /*
@@ -72,19 +73,18 @@ null_hdr_print(netdissect_options *ndo, u_int family, u_int length)
  * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
-u_int
+void
 null_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	u_int family;
+	uint32_t family;
 
-	if (caplen < NULL_HDRLEN) {
-		ND_PRINT((ndo, "[|null]"));
-		return (NULL_HDRLEN);
-	}
+	ndo->ndo_protocol = "null";
+	ND_TCHECK_LEN(p, NULL_HDRLEN);
+	ndo->ndo_ll_hdr_len += NULL_HDRLEN;
 
-	memcpy((char *)&family, (const char *)p, sizeof(family));
+	family = GET_HE_U_4(p);
 
 	/*
 	 * This isn't necessarily in our host byte order; if this is
@@ -135,13 +135,4 @@ null_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char
 		if (!ndo->ndo_suppress_default_print)
 			ND_DEFAULTPRINT(p, caplen);
 	}
-
-	return (NULL_HDRLEN);
 }
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 8
- * End:
- */

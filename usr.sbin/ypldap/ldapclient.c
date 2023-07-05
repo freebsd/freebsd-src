@@ -346,7 +346,7 @@ client_shutdown(void)
 pid_t
 ldapclient(int pipe_main2client[2])
 {
-	pid_t            pid, dns_pid;
+	pid_t            pid;
 	int              pipe_dns[2];
 	struct passwd	*pw;
 	struct event	 ev_sigint;
@@ -371,7 +371,7 @@ ldapclient(int pipe_main2client[2])
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pipe_dns) == -1)
 		fatal("socketpair");
-	dns_pid = ypldap_dns(pipe_dns, pw);
+	ypldap_dns(pipe_dns, pw);
 	close(pipe_dns[1]);
 
 #ifndef DEBUG

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,6 @@ enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
 enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req);
-
 enum ice_status ice_create_all_ctrlq(struct ice_hw *hw);
 enum ice_status ice_init_all_ctrlq(struct ice_hw *hw);
 void ice_shutdown_all_ctrlq(struct ice_hw *hw, bool unloading);
@@ -85,7 +84,6 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_aq_desc *desc, void *buf, u16 buf_size,
 		struct ice_sq_cd *cd);
 void ice_clear_pxe_mode(struct ice_hw *hw);
-
 enum ice_status ice_get_caps(struct ice_hw *hw);
 
 void ice_set_safe_mode_caps(struct ice_hw *hw);
@@ -109,9 +107,14 @@ enum ice_status ice_set_mac_type(struct ice_hw *hw);
  */
 #define ICE_ALIGN(ptr, align)	(((ptr) + ((align) - 1)) & ~((align) - 1))
 
+#define ice_arr_elem_idx(idx, val)	[(idx)] = (val)
+
 enum ice_status
 ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 		  u32 rxq_index);
+enum ice_status
+ice_read_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		 u32 rxq_index);
 enum ice_status ice_clear_rxq_ctx(struct ice_hw *hw, u32 rxq_index);
 enum ice_status
 ice_clear_tx_cmpltnq_ctx(struct ice_hw *hw, u32 tx_cmpltnq_index);
@@ -159,6 +162,8 @@ extern const struct ice_ctx_ele ice_tlan_ctx_info[];
 enum ice_status
 ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
 	    const struct ice_ctx_ele *ce_info);
+enum ice_status
+ice_get_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info);
 
 enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
@@ -240,6 +245,7 @@ enum ice_status
 ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 		  u16 mem_addr, u8 page, u8 set_page, u8 *data, u8 length,
 		  bool write, struct ice_sq_cd *cd);
+u32 ice_get_link_speed(u16 index);
 
 enum ice_status
 ice_aq_prog_topo_dev_nvm(struct ice_hw *hw,
@@ -255,9 +261,11 @@ enum ice_status
 ice_aq_get_port_options(struct ice_hw *hw,
 			struct ice_aqc_get_port_options_elem *options,
 			u8 *option_count, u8 lport, bool lport_valid,
-			u8 *active_option_idx, bool *active_option_valid);
+			u8 *active_option_idx, bool *active_option_valid,
+			u8 *pending_option_idx, bool *pending_option_valid);
 enum ice_status
-ice_get_ctx(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info);
+ice_aq_set_port_option(struct ice_hw *hw, u8 lport, u8 lport_valid,
+		       u8 new_option);
 enum ice_status
 __ice_write_sr_word(struct ice_hw *hw, u32 offset, const u16 *data);
 enum ice_status

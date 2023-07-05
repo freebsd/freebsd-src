@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c)2006,2007,2008,2009 YAMAMOTO Takashi,
  * Copyright (c) 2013 EMC Corp.

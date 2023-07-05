@@ -107,7 +107,7 @@ fg_start(
 
 	DPRINTF(1, ("starting FG with device %s\n",device));
 
-	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	fd = refclock_open(&peer->srcadr, device, SPEED232, LDISC_CLK);
 	if (fd <= 0)
 		return (0);
 	
@@ -244,11 +244,11 @@ fg_receive(
 	}
 
 	/* Below I trying to find a correct reply in buffer.
-	 * Sometime GPS reply located in the beginnig of buffer,
+	 * Sometime GPS reply located in the beginning of buffer,
 	 * sometime you can find it with some offset.
 	 */
 
-	bpt = (char *)rbufp->recv_space.X_recv_buffer;
+	bpt = (char *)rbufp->recv_buffer;
 	while (*bpt != '\x10')
 		bpt++;
 

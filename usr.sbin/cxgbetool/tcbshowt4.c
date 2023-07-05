@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2018 Chelsio Communications, Inc.
  * All rights reserved.
@@ -220,7 +220,7 @@ void t4_display_tcb_aux_0 (_TCBVAR *tvp, int aux)
 	      val("rx_flow_control_ddp"));
 
 
-  PR("MISCELANEOUS:\n");  /* *************************** */
+  PR("MISCELLANEOUS:\n");  /* *************************** */
   PR("  pend_ctl: 0x%1x, unused_flags: 0x%x,  main_slush: 0x%x\n",
 	      ((val("pend_ctl2")<<2) | (val("pend_ctl1")<<1) | 
 	       val("pend_ctl0")),

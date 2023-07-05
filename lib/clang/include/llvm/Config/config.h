@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -137,11 +136,6 @@
 #define HAVE_LINK_H 1
 #else
 #define HAVE_LINK_H 0
-#endif
-
-/* Define to 1 if you have the `lseek64' function. */
-#if defined(__linux__)
-#define HAVE_LSEEK64 1
 #endif
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
@@ -353,16 +347,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 15.0.7"
+#define PACKAGE_STRING "LLVM 16.0.6"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "15.0.7"
+#define PACKAGE_VERSION "16.0.6"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
-
-/* Define if std::is_trivially_copyable is supported */
-#define HAVE_STD_IS_TRIVIALLY_COPYABLE 1
 
 /* Define to a function implementing stricmp */
 /* #undef stricmp */

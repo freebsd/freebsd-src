@@ -1449,7 +1449,14 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	int ret = 0, i = 0;
 	MRSAS_DRV_PCI_INFORMATION *pciDrvInfo;
 
-	sc = mrsas_get_softc_instance(dev, cmd, arg);
+	switch (cmd) {
+	case MFIIO_PASSTHRU:
+                sc = (struct mrsas_softc *)(dev->si_drv1);
+		break;
+	default:
+		sc = mrsas_get_softc_instance(dev, cmd, arg);
+		break;
+        }
 	if (!sc)
 		return ENOENT;
 
@@ -1510,6 +1517,10 @@ do_ioctl:
 		    pciDrvInfo->busNumber, pciDrvInfo->deviceNumber,
 		    pciDrvInfo->functionNumber, pciDrvInfo->domainID);
 		ret = 0;
+		break;
+
+	case MFIIO_PASSTHRU:
+		ret = mrsas_user_command(sc, (struct mfi_ioc_passthru *)arg);
 		break;
 
 	default:

@@ -68,6 +68,12 @@ __FBSDID("$FreeBSD$");
 #include "qlnx_rdma.h"
 #endif /* #ifdef QLNX_ENABLE_IWARP */
 
+#ifdef CONFIG_ECORE_SRIOV
+#include <sys/nv.h>
+#include <sys/iov_schema.h>
+#include <dev/pci/pci_iov.h>
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+
 #include <sys/smp.h>
 
 /*
@@ -6596,8 +6602,13 @@ qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn, struct qlnx_rx_queue *rxq)
          */
 	wmb();
 
-        internal_ram_wr(p_hwfn, rxq->hw_rxq_prod_addr,
+#ifdef ECORE_CONFIG_DIRECT_HWFN
+	internal_ram_wr(p_hwfn, rxq->hw_rxq_prod_addr,
 		sizeof(rx_prods), &rx_prods.data32);
+#else
+	internal_ram_wr(rxq->hw_rxq_prod_addr,
+		sizeof(rx_prods), &rx_prods.data32);
+#endif
 
         /* mmiowb is needed to synchronize doorbell writes from more than one
          * processor. It guarantees that the write arrives to the device before

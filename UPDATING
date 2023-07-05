@@ -1,4 +1,4 @@
-Updating Information for FreeBSD current users.
+Updating Information for users of FreeBSD-CURRENT.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -26,6 +26,46 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20230629:
+	The heuristic for detecting old chromebooks with an EC bug that requires
+	atkbdc driver workarounds has changed. There should be no functional
+	change, but if your old chromebook's keyboard stops working, please
+	file a PR and assign it to imp.
+
+20230623:
+	OpenSSL has been updated to version 3.0, including changes throughout
+	the base system.  It is important to rebuild third-party software
+	after upgrading.
+
+20230619:
+	To enable pf rdr rules for connections initiated from the host, pf
+	filter rules can be optionally enabled for packets delivered
+	locally. This can change the behavior of rules which match packets
+	delivered to lo0. To enable this feature:
+
+		sysctl net.pf.filter_local=1
+		service pf restart
+
+	When enabled, its best to ensure that packets delivered locally are not
+	filtered, e.g. by adding a 'skip on lo' rule.
+
+20230613:
+	Improvements to libtacplus(8) mean that tacplus.conf(5) now
+	follows POSIX shell syntax rules. This may cause TACACS+
+	authentication to fail if the shared secret contains a single
+	quote, double quote, or backslash character which isn't
+	already properly quoted or escaped.
+
+20230612:
+	Belatedly switch the default nvme block device on x86 from nvd to nda.
+	nda created nvd compatibility links by default, so this should be a
+	nop. If this causes problems for your application, set hw.nvme.use_nvd=1
+	in your loader.conf or add `options NVME_USE_NVD=1` to your kernel
+	config. To disable the nvd compatibility aliases, add
+	kern.cam.nda.nvd_compat=0 to loader.conf.  The default has been nda on
+	all non-x86 platforms for some time now. If you need to fall back,
+	please email imp@freebsd.org about why.
 
 20230422:
 	Remove portsnap(8).  Users are encouraged to obtain the ports tree

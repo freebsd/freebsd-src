@@ -1,7 +1,7 @@
 /*-
  * link_policy.c
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -82,7 +82,7 @@ hci_role_discovery(int s, int argc, char **argv)
 	return (OK);
 } /* hci_role_discovery */
 
-/* Send Swith Role to the unit */
+/* Send Switch Role to the unit */
 static int
 hci_switch_role(int s, int argc, char **argv)
 {

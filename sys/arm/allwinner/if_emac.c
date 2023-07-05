@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
@@ -991,7 +991,7 @@ fail:
 	return (error);
 }
 
-static boolean_t
+static bool
 emac_miibus_iowait(struct emac_softc *sc)
 {
 	uint32_t timeout;

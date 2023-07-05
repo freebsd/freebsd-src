@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2006 Max Laier. All rights reserved.
  *
@@ -47,49 +47,45 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-/* ARGSUSED */
 static void
-setifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
+setifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
-	struct ifgroupreq ifgr;
+	struct ifgroupreq ifgr = {};
 
-	memset(&ifgr, 0, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
+	strlcpy(ifgr.ifgr_name, ctx->ifname, IFNAMSIZ);
 
 	if (group_name[0] && isdigit(group_name[strlen(group_name) - 1]))
 		errx(1, "setifgroup: group names may not end in a digit");
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "setifgroup: group name too long");
-	if (ioctl(s, SIOCAIFGROUP, (caddr_t)&ifgr) == -1 && errno != EEXIST)
+	if (ioctl_ctx(ctx, SIOCAIFGROUP, (caddr_t)&ifgr) == -1 && errno != EEXIST)
 		err(1," SIOCAIFGROUP");
 }
 
-/* ARGSUSED */
 static void
-unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
+unsetifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
-	struct ifgroupreq ifgr;
+	struct ifgroupreq ifgr = {};
 
-	memset(&ifgr, 0, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
+	strlcpy(ifgr.ifgr_name, ctx->ifname, IFNAMSIZ);
 
 	if (group_name[0] && isdigit(group_name[strlen(group_name) - 1]))
 		errx(1, "unsetifgroup: group names may not end in a digit");
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "unsetifgroup: group name too long");
-	if (ioctl(s, SIOCDIFGROUP, (caddr_t)&ifgr) == -1 && errno != ENOENT)
+	if (ioctl_ctx(ctx, SIOCDIFGROUP, (caddr_t)&ifgr) == -1 && errno != ENOENT)
 		err(1, "SIOCDIFGROUP");
 }
 
 static void
-getifgroups(int s)
+getifgroups(if_ctx *ctx)
 {
 	struct ifgroupreq ifgr;
 	size_t cnt;
 
-	if (ifconfig_get_groups(lifh, name, &ifgr) == -1)
+	if (ifconfig_get_groups(lifh, ctx->ifname, &ifgr) == -1)
 		return;
 
 	cnt = 0;
@@ -114,7 +110,7 @@ printgroup(const char *groupname)
 {
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
-	int			 len;
+	unsigned int		 len;
 	int			 s;
 
 	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
@@ -150,19 +146,23 @@ static struct cmd group_cmds[] = {
 	DEF_CMD_ARG("group",	setifgroup),
 	DEF_CMD_ARG("-group",	unsetifgroup),
 };
+
 static struct afswtch af_group = {
 	.af_name	= "af_group",
 	.af_af		= AF_UNSPEC,
 	.af_other_status = getifgroups,
 };
-static struct option group_gopt = { "g:", "[-g groupname]", printgroup };
+
+static struct option group_gopt = {
+	.opt		= "g:",
+	.opt_usage	= "[-g groupname]",
+	.cb		= printgroup,
+};
 
 static __constructor void
 group_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(group_cmds);  i++)
+	for (size_t i = 0; i < nitems(group_cmds);  i++)
 		cmd_register(&group_cmds[i]);
 	af_register(&af_group);
 	opt_register(&group_gopt);

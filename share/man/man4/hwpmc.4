@@ -1,9 +1,11 @@
 .\" Copyright (c) 2003-2008 Joseph Koshy
-.\" Copyright (c) 2007 The FreeBSD Foundation
-.\" All rights reserved.
+.\" Copyright (c) 2007,2023 The FreeBSD Foundation
 .\"
 .\" Portions of this software were developed by A. Joseph Koshy under
 .\" sponsorship from the FreeBSD Foundation and Google, Inc.
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,18 +30,45 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2021
+.Dd June 16, 2023
 .Dt HWPMC 4
 .Os
 .Sh NAME
 .Nm hwpmc
 .Nd "Hardware Performance Monitoring Counter support"
 .Sh SYNOPSIS
+The following option must be present in the kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options HWPMC_HOOKS"
-.Cd "device hwpmc"
+.Ed
 .Pp
 Additionally, for i386 systems:
+.Bd -ragged -offset indent
 .Cd "device apic"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the
+following line in
+.Xr rc.conf 5 :
+.Bd -literal -offset indent
+kld_list="${kld_list} hwpmc"
+.Ed
+.Pp
+Alternatively, to compile this driver into the kernel:
+.Bd -ragged -offset indent
+.Cd "device hwpmc"
+.Ed
+.Pp
+To enable debugging features
+.Po see
+.Sx DEBUGGING
+.Pc :
+.Bd -ragged -offset indent
+.Cd "options KTR"
+.Cd "options KTR_COMPILE=(KTR_SUBSYS)"
+.Cd "options KTR_MASK=(KTR_SUBSYS)"
+.Cd "options HWPMC_DEBUG"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -265,14 +294,15 @@ Non-disabled hardware counters in such a row may be used
 for satisfying system scope allocation requests.
 No process scope PMCs will use hardware counters in this row.
 .El
-.Sh PROGRAMMING API
-The recommended way for application programs to use the facilities of
-the
-.Nm
-driver is using the API provided by the
+.Sh COMPATIBILITY
+The API and ABI documented in this manual page may change in the future.
+This interface is intended to be consumed by the
 .Xr pmc 3
-library.
-.Pp
+library; other consumers are unsupported.
+Applications targeting PMCs should use the
+.Xr pmc 3
+library API.
+.Sh PROGRAMMING API
 The
 .Nm
 driver operates using a system call number that is dynamically
@@ -473,28 +503,6 @@ PMCs, then the
 driver will reject allocation requests for process-private PMCs that
 request counting of hardware events that cannot be counted separately
 for each logical CPU.
-.Ss Intel Pentium-Pro Handling
-Writing a value to the PMC MSRs found in Intel Pentium-Pro style PMCs
-(found in
-.Tn "Intel Pentium Pro" ,
-.Tn "Pentium II" ,
-.Tn "Pentium III" ,
-.Tn "Pentium M"
-and
-.Tn "Celeron"
-processors) will replicate bit 31 of the
-value being written into the upper 8 bits of the MSR,
-bringing down the usable width of these PMCs to 31 bits.
-For process-virtual PMCs, the
-.Nm
-driver implements a workaround in software and makes the corrected 64
-bit count available via the
-.Dv PMC_OP_RW
-operation.
-Processes that intend to use RDPMC instructions directly or
-that intend to write values larger than 2^31 into these PMCs with
-.Dv PMC_OP_RW
-need to be aware of this hardware limitation.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "hwpmc: [class/npmc/capabilities]..."
@@ -525,16 +533,92 @@ The value for tunable
 .Va kern.hwpmc.nsamples
 was negative or greater than 65535.
 .El
-.Sh COMPATIBILITY
+.Sh DEBUGGING
 The
 .Nm
-driver is
-.Ud
-The API and ABI documented in this manual page may change in
-the future.
-The recommended method of accessing this driver is using the
-.Xr pmc 3
-API.
+module can be configured to record trace entries using the
+.Xr ktr 4
+interface.
+This is useful for debugging the driver's functionality, primarily during
+development.
+This debugging functionality is not enabled by default, and requires
+recompiling the kernel and
+.Nm
+module after adding the following to the kernel config:
+.Bd -literal -offset indent
+.Cd options KTR
+.Cd options KTR_COMPILE=(KTR_SUBSYS)
+.Cd options KTR_MASK=(KTR_SUBSYS)
+.Cd options HWPMC_DEBUG
+.Ed
+.Pp
+This alone is not enough to enable tracing; one must also configure the
+.Va kern.hwpmc.debugflags
+.Xr sysctl 8
+variable, which provides fine-grained control over which types of events are
+logged to the trace buffer.
+.Pp
+.Nm
+trace events are grouped by 'major' and 'minor' flag types.
+The major flag groups are as follows:
+.Pp
+.Bl -tag -compact -offset indent
+.It CPU
+CPU events
+.It CSW
+Context switch events
+.It LOG
+Logging events
+.It MDP
+Machine-dependent/class-dependent events
+.It MOD
+Miscellaneous events
+.It OWN
+PMC owner events
+.It PMC
+PMC management events
+.It PRC
+Process events
+.It SAM
+Sampling events
+.El
+.Pp
+The minor flags for each major flag group can vary.
+For the full list of flag groups, consult
+.In sys/pmc.h .
+.Pp
+The
+.Va kern.hwpmc.debugflags
+variable is a string with a custom format.
+The string should contain a space-separated list of event specifiers.
+Each event specifier consists of the major flag name, followed by an equal sign
+(=), followed by a comma-separated list of minor event types.
+To track all events for a major group, an asterisk (*) can be given instead.
+.Pp
+For example, to trace all allocation and release events, set
+.Va debugflags
+as follows:
+.Bd -literal -offset indent
+kern.hwpmc.debugflags="pmc=all,rel mdp=all,rel"
+.Ed
+.Pp
+To trace all process events, as well as context switches:
+.Bd -literal -offset indent
+kern.hwpmc.debugflags="prc=* csw=*"
+.Ed
+.Pp
+To disable all trace events, set the variable to an empty string.
+.Bd -literal -offset indent
+kern.hwpmc.debugflags=""
+.Ed
+.Pp
+Trace events are recorded by
+.Xr ktr 4 ,
+and can be inspected at run-time using the
+.Xr ktrdump 8
+utility, or at the
+.Xr ddb 4
+prompt after a panic with the 'show ktr' command.
 .Sh ERRORS
 A command issued to the
 .Nm
@@ -597,6 +681,12 @@ An invalid PMC handle was specified.
 An invalid CPU number was passed in for a
 .Dv PMC_OP_GETPMCINFO
 operation.
+.It Bq Er EINVAL
+The
+.Ar pm_flags
+argument to a
+.Dv PMC_OP_CONFIGURELOG
+request contained unknown flags.
 .It Bq Er EINVAL
 A
 .Dv PMC_OP_CONFIGURELOG
@@ -760,7 +850,10 @@ operation is not being monitored by
 .Xr kenv 1 ,
 .Xr pmc 3 ,
 .Xr pmclog 3 ,
+.Xr ddb 4 ,
+.Xr ktr 4 ,
 .Xr kldload 8 ,
+.Xr ktrdump 8 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,
 .Xr sysctl 8 ,

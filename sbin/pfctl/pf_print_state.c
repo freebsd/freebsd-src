@@ -350,17 +350,34 @@ print_state(struct pfctl_state *s, int opts)
 		if (s->state_flags & PFSTATE_NODF)
 			printf(", no-df");
 		if (s->state_flags & PFSTATE_SETTOS)
-			printf(", set-tos");
+			printf(", set-tos 0x%2.2x", s->set_tos);
 		if (s->state_flags & PFSTATE_RANDOMID)
 			printf(", random-id");
 		if (s->state_flags & PFSTATE_SCRUB_TCP)
-			printf(", scrub-tcp");
+			printf(", reassemble-tcp");
 		if (s->state_flags & PFSTATE_SETPRIO)
-			printf(", set-prio");
+			printf(", set-prio (0x%02x 0x%02x)",
+			    s->set_prio[0], s->set_prio[1]);
+		if (s->dnpipe || s->dnrpipe) {
+			if (s->state_flags & PFSTATE_DN_IS_PIPE)
+				printf(", dummynet pipe (%d %d)",
+				s->dnpipe, s->dnrpipe);
+			if (s->state_flags & PFSTATE_DN_IS_QUEUE)
+				printf(", dummynet queue (%d %d)",
+				s->dnpipe, s->dnrpipe);
+		}
 		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
 			printf(", source-track");
 		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)
 			printf(", sticky-address");
+		if (s->log)
+			printf(", log");
+		if (s->log & PF_LOG_ALL)
+			printf(" (all)");
+		if (s->min_ttl)
+			printf(", min-ttl %d", s->min_ttl);
+		if (s->max_mss)
+			printf(", max-mss %d", s->max_mss);
 		printf("\n");
 	}
 	if (opts & PF_OPT_VERBOSE2) {
@@ -368,8 +385,26 @@ print_state(struct pfctl_state *s, int opts)
 
 		bcopy(&s->id, &id, sizeof(u_int64_t));
 		printf("   id: %016jx creatorid: %08x", id, s->creatorid);
-		printf(" gateway: ");
-		print_host(&s->rt_addr, 0, af, opts);
+		if (s->rt) {
+			switch (s->rt) {
+				case PF_ROUTETO:
+					printf(" route-to: ");
+					break;
+				case PF_DUPTO:
+					printf(" dup-to: ");
+					break;
+				case PF_REPLYTO:
+					printf(" reply-to: ");
+					break;
+				default:
+					printf(" gateway: ");
+			}
+			print_host(&s->rt_addr, 0, af, opts);
+			if (s->rt_ifname[0])
+				printf("@%s", s->rt_ifname);
+		}
+		if (s->rtableid != -1)
+			printf(" rtable: %d", s->rtableid);
 		printf("\n");
 
 		if (strcmp(s->ifname, s->orig_ifname) != 0)

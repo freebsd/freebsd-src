@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause and BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-3-Clause and BSD-2-Clause
  *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -333,6 +333,7 @@ extern int adjnbfree[MIBSIZE];	/* MIB cmd to adjust number of free blocks */
 extern int adjnifree[MIBSIZE];	/* MIB cmd to adjust number of free inodes */
 extern int adjnffree[MIBSIZE];	/* MIB cmd to adjust number of free frags */
 extern int adjnumclusters[MIBSIZE]; /* MIB cmd adjust number of free clusters */
+extern int adjdepth[MIBSIZE];	/* MIB cmd to adjust directory depth count */
 extern int freefiles[MIBSIZE];	/* MIB cmd to free a set of files */
 extern int freedirs[MIBSIZE];	/* MIB cmd to free a set of directories */
 extern int freeblks[MIBSIZE];	/* MIB cmd to free a set of data blocks */
@@ -466,8 +467,10 @@ void		cgdirty(struct bufarea *);
 struct bufarea *cglookup(int cg);
 int		changeino(ino_t dir, const char *name, ino_t newnum, int depth);
 void		check_blkcnt(struct inode *ip);
-int		check_cgmagic(int cg, struct bufarea *cgbp, int requestrebuild);
+int		check_cgmagic(int cg, struct bufarea *cgbp);
+void		rebuild_cg(int cg, struct bufarea *cgbp);
 void		check_dirdepth(struct inoinfo *inp);
+int		chkfilesize(mode_t mode, u_int64_t filesize);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);

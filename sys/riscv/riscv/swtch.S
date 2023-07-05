@@ -42,7 +42,6 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifdef FPE
 .macro __fpe_state_save p
 	/*
 	 * Enable FPE usage in supervisor mode,
@@ -204,8 +203,7 @@ ENTRY(fpe_state_clear)
 
 	ret
 END(fpe_state_clear)
-#endif /* FPE */
-	
+
 /*
  * void cpu_throw(struct thread *old __unused, struct thread *new)
  */
@@ -240,7 +238,6 @@ ENTRY(cpu_throw)
 	ld	s10, (PCB_S + 10 * 8)(x13)
 	ld	s11, (PCB_S + 11 * 8)(x13)
 
-#ifdef FPE
 	/* Is FPE enabled for new thread? */
 	ld	t0, TD_FRAME(a0)
 	ld	t1, (TF_SSTATUS)(t0)
@@ -251,8 +248,6 @@ ENTRY(cpu_throw)
 	/* Restore registers. */
 	__fpe_state_load x13
 1:
-#endif
-
 	ret
 END(cpu_throw)
 
@@ -292,7 +287,6 @@ ENTRY(cpu_switch)
 	sd	s10, (PCB_S + 10 * 8)(x13)
 	sd	s11, (PCB_S + 11 * 8)(x13)
 
-#ifdef FPE
 	/*
 	 * Is FPE enabled and is it in dirty state
 	 * for the old thread?
@@ -313,7 +307,6 @@ ENTRY(cpu_switch)
 
 	__fpe_state_save x13
 1:
-#endif
 
 	/* Activate the new thread's pmap */
 	mv	s0, a0
@@ -355,7 +348,6 @@ ENTRY(cpu_switch)
 	ld	s10, (PCB_S + 10 * 8)(x13)
 	ld	s11, (PCB_S + 11 * 8)(x13)
 
-#ifdef FPE
 	/* Is FPE enabled for new thread? */
 	ld	t0, TD_FRAME(a1)
 	ld	t1, (TF_SSTATUS)(t0)
@@ -366,11 +358,7 @@ ENTRY(cpu_switch)
 	/* Restore registers. */
 	__fpe_state_load x13
 1:
-#endif
-
 	ret
-.Lcpu_switch_panic_str:
-	.asciz "cpu_switch: %p\0"
 END(cpu_switch)
 
 /*
@@ -468,8 +456,6 @@ ENTRY(savectx)
 	sd	s10, (PCB_S + 10 * 8)(a0)
 	sd	s11, (PCB_S + 11 * 8)(a0)
 
-#ifdef FPE
 	__fpe_state_save a0
-#endif
 	ret
 END(savectx)

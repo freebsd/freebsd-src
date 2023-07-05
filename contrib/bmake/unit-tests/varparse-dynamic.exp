@@ -1,5 +1,5 @@
-make: "varparse-dynamic.mk" line 8: Malformed conditional (${.TARGEX})
-make: "varparse-dynamic.mk" line 10: Malformed conditional (${.TARGXX})
+make: "varparse-dynamic.mk" line 9: Malformed conditional (${.TARGEX})
+make: "varparse-dynamic.mk" line 12: Malformed conditional (${.TARGXX})
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

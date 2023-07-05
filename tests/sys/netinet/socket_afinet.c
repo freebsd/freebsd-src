@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Bjoern A. Zeeb
  *
@@ -28,9 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <errno.h>
 #include <poll.h>
 
 #include <atf-c.h>
@@ -82,7 +82,7 @@ ATF_TC_BODY(socket_afinet_bind_ok, tc)
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
-	sin.sin_port = htons(6666);
+	sin.sin_port = htons(0);
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	rc = bind(sd, (struct sockaddr *)&sin, sizeof(sin));
 	ATF_CHECK_EQ(0, rc);
@@ -95,6 +95,7 @@ ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
+	socklen_t slen;
 	struct pollfd pfd;
 	int one = 1;
 
@@ -108,11 +109,14 @@ ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
-	sin.sin_port = htons(6666);
+	sin.sin_port = htons(0);
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	rc = bind(ss, (struct sockaddr *)&sin, sizeof(sin));
 	ATF_CHECK_EQ(0, rc);
 	rc = listen(ss, 1);
+	ATF_CHECK_EQ(0, rc);
+	slen = sizeof(sin);
+	rc = getsockname(ss, (struct sockaddr *)&sin, &slen);
 	ATF_CHECK_EQ(0, rc);
 
 	/* Client connects, server accepts. */
@@ -154,6 +158,7 @@ ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
+	socklen_t slen;
 	struct pollfd pfd;
 	char buffer;
 	int one = 1;
@@ -168,11 +173,14 @@ ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
-	sin.sin_port = htons(6666);
+	sin.sin_port = htons(0);
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	rc = bind(ss, (struct sockaddr *)&sin, sizeof(sin));
 	ATF_CHECK_EQ(0, rc);
 	rc = listen(ss, 1);
+	ATF_CHECK_EQ(0, rc);
+	slen = sizeof(sin);
+	rc = getsockname(ss, (struct sockaddr *)&sin, &slen);
 	ATF_CHECK_EQ(0, rc);
 
 	/* Client connects, server accepts. */
@@ -228,14 +236,61 @@ ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
 	close(ss);
 }
 
+ATF_TC_WITHOUT_HEAD(socket_afinet_stream_reconnect);
+ATF_TC_BODY(socket_afinet_stream_reconnect, tc)
+{
+	struct sockaddr_in sin;
+	socklen_t slen;
+	int ss, cs, rc;
+
+	/*
+	 * Make sure that an attempt to connect(2) a connected or disconnected
+	 * stream socket fails with EISCONN.
+	 */
+
+	/* Server setup. */
+	ss = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(ss >= 0);
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_port = htons(0);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	rc = bind(ss, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	rc = listen(ss, 1);
+	ATF_CHECK_EQ(0, rc);
+	slen = sizeof(sin);
+	rc = getsockname(ss, (struct sockaddr *)&sin, &slen);
+	ATF_CHECK_EQ(0, rc);
+
+	/* Client connects, shuts down. */
+	cs = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(cs >= 0);
+	rc = connect(cs, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	rc = shutdown(cs, SHUT_RDWR);
+	ATF_CHECK_EQ(0, rc);
+
+	/* A subsequent connect(2) fails with EISCONN. */
+	rc = connect(cs, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(-1, rc);
+	ATF_CHECK_EQ(errno, EISCONN);
+
+	rc = close(cs);
+	ATF_CHECK_EQ(0, rc);
+	rc = close(ss);
+	ATF_CHECK_EQ(0, rc);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, socket_afinet);
 	ATF_TP_ADD_TC(tp, socket_afinet_bind_zero);
 	ATF_TP_ADD_TC(tp, socket_afinet_bind_ok);
 	ATF_TP_ADD_TC(tp, socket_afinet_poll_no_rdhup);
 	ATF_TP_ADD_TC(tp, socket_afinet_poll_rdhup);
+	ATF_TP_ADD_TC(tp, socket_afinet_stream_reconnect);
 
 	return atf_no_error();
 }

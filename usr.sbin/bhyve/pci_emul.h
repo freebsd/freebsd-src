@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -234,6 +234,8 @@ int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 	    enum pcibar_type type, uint64_t size);
 int 	pci_emul_alloc_rom(struct pci_devinst *const pdi, const uint64_t size,
     	    void **const addr);
+int 	pci_emul_add_boot_device(struct pci_devinst *const pi,
+	    const int bootindex);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 int	pci_emul_add_pciecap(struct pci_devinst *pi, int pcie_device_type);
 void	pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes,
@@ -263,9 +265,10 @@ void	pci_write_dsdt(void);
 uint64_t pci_ecfg_base(void);
 int	pci_bus_configured(int bus);
 #ifdef BHYVE_SNAPSHOT
+struct pci_devinst *pci_next(const struct pci_devinst *cursor);
 int	pci_snapshot(struct vm_snapshot_meta *meta);
-int	pci_pause(const char *dev_name);
-int	pci_resume(const char *dev_name);
+int	pci_pause(struct pci_devinst *pdi);
+int	pci_resume(struct pci_devinst *pdi);
 #endif
 
 static __inline void

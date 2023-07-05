@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,12 +23,7 @@
  * The characters which serve as "open bracket" and 
  * "close bracket" are given.
  */
-	public void
-match_brac(obrac, cbrac, forwdir, n)
-	int obrac;
-	int cbrac;
-	int forwdir;
-	int n;
+public void match_brac(char obrac, char cbrac, int forwdir, int n)
 {
 	int c;
 	int nest;

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2023 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -191,6 +191,12 @@ nl_store_ifp_cookie_stub(struct nl_pstate *npt __unused, struct ifnet *ifp __unu
 {
 }
 
+static struct nlpcb *
+nl_get_thread_nlp_stub(struct thread *td __unused)
+{
+	return (NULL);
+}
+
 const static struct nl_function_wrapper nl_stub = {
 	.nlmsg_add = nlmsg_add_stub,
 	.nlmsg_refill_buffer = nlmsg_refill_buffer_stub,
@@ -204,6 +210,7 @@ const static struct nl_function_wrapper nl_stub = {
 	.nlmsg_end_dump = nlmsg_end_dump_stub,
 	.nl_modify_ifp_generic = nl_modify_ifp_generic_stub,
 	.nl_store_ifp_cookie = nl_store_ifp_cookie_stub,
+	.nl_get_thread_nlp = nl_get_thread_nlp_stub,
 };
 
 /*
@@ -290,6 +297,12 @@ void
 nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
 {
 	return (_nl->nl_store_ifp_cookie(npt, ifp));
+}
+
+struct nlpcb *
+nl_get_thread_nlp(struct thread *td)
+{
+	return (_nl->nl_get_thread_nlp(td));
 }
 
 #endif /* !NETLINK */

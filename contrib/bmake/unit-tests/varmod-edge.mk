@@ -1,4 +1,4 @@
-# $NetBSD: varmod-edge.mk,v 1.16 2021/02/23 15:56:30 rillig Exp $
+# $NetBSD: varmod-edge.mk,v 1.17 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for edge cases in variable modifiers.
 #
@@ -162,7 +162,25 @@ MOD.colons=	${INP.colons::::}
 EXP.colons=	# empty
 
 .for test in ${TESTS}
+# expect+2: Unknown modifier ":"
+# expect+1: Unknown modifier ":"
 .  if ${MOD.${test}} == ${EXP.${test}}
+# expect+16: ok M-paren
+# expect+15: ok M-mixed
+# expect+14: ok M-unescape
+# expect+13: ok M-nest-mix
+# expect+12: ok M-nest-brk
+# expect+11: ok M-pat-err
+# expect+10: ok M-bsbs
+# expect+09: ok M-bs1-par
+# expect+08: ok M-bs2-par
+# expect+07: ok M-128
+# expect+06: ok eq-ext
+# expect+05: ok eq-q
+# expect+04: ok eq-bs
+# expect+03: ok eq-esc
+# expect+02: ok colon
+# expect+01: ok colons
 .    info ok ${test}
 .  else
 .    warning error in ${test}: expected "${EXP.${test}}", got "${MOD.${test}}"
@@ -172,6 +190,8 @@ EXP.colons=	# empty
 # Even in expressions based on an unnamed variable, there may be errors.
 # XXX: The error message should mention the variable name of the expression,
 # even though that name is empty in this case.
+# expect+2: Malformed conditional (${:Z})
+# expect+1: Unknown modifier "Z"
 .if ${:Z}
 .  error
 .else
@@ -185,6 +205,7 @@ EXP.colons=	# empty
 # modifier for  (',' missing)", having two spaces in a row.
 #
 # XXX: The error message should report the filename:lineno.
+# expect+1: Malformed conditional (${:S,})
 .if ${:S,}
 .  error
 .else

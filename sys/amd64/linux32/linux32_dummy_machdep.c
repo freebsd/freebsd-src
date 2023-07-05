@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
@@ -44,6 +44,7 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 UNIMPLEMENTED(break);
 UNIMPLEMENTED(ftime);
+UNIMPLEMENTED(fstat);
 UNIMPLEMENTED(gtty);
 UNIMPLEMENTED(stty);
 UNIMPLEMENTED(lock);

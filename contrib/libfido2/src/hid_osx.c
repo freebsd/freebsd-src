@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -11,12 +11,19 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <Availability.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
 #include <IOKit/hid/IOHIDManager.h>
 
 #include "fido.h"
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 120000
+#define kIOMainPortDefault kIOMasterPortDefault
+#endif
+
+#define IOREG "ioreg://"
 
 struct hid_osx {
 	IOHIDDeviceRef	ref;
@@ -131,23 +138,18 @@ get_str(IOHIDDeviceRef dev, char **manufacturer, char **product)
 	*manufacturer = NULL;
 	*product = NULL;
 
-	if (get_utf8(dev, CFSTR(kIOHIDManufacturerKey), buf, sizeof(buf)) < 0) {
-		fido_log_debug("%s: get_utf8 manufacturer", __func__);
-		goto fail;
-	}
+	if (get_utf8(dev, CFSTR(kIOHIDManufacturerKey), buf, sizeof(buf)) < 0)
+		*manufacturer = strdup("");
+	else
+		*manufacturer = strdup(buf);
 
-	if ((*manufacturer = strdup(buf)) == NULL) {
-		fido_log_debug("%s: strdup manufacturer", __func__);
-		goto fail;
-	}
+	if (get_utf8(dev, CFSTR(kIOHIDProductKey), buf, sizeof(buf)) < 0)
+		*product = strdup("");
+	else
+		*product = strdup(buf);
 
-	if (get_utf8(dev, CFSTR(kIOHIDProductKey), buf, sizeof(buf)) < 0) {
-		fido_log_debug("%s: get_utf8 product", __func__);
-		goto fail;
-	}
-
-	if ((*product = strdup(buf)) == NULL) {
-		fido_log_debug("%s: strdup product", __func__);
+	if (*manufacturer == NULL || *product == NULL) {
+		fido_log_debug("%s: strdup", __func__);
 		goto fail;
 	}
 
@@ -166,20 +168,27 @@ fail:
 static char *
 get_path(IOHIDDeviceRef dev)
 {
-	io_service_t	s;
-	io_string_t	path;
+	io_service_t	 s;
+	uint64_t	 id;
+	char		*path;
 
 	if ((s = IOHIDDeviceGetService(dev)) == MACH_PORT_NULL) {
 		fido_log_debug("%s: IOHIDDeviceGetService", __func__);
 		return (NULL);
 	}
 
-	if (IORegistryEntryGetPath(s, kIOServicePlane, path) != KERN_SUCCESS) {
-		fido_log_debug("%s: IORegistryEntryGetPath", __func__);
+	if (IORegistryEntryGetRegistryEntryID(s, &id) != KERN_SUCCESS) {
+		fido_log_debug("%s: IORegistryEntryGetRegistryEntryID",
+		    __func__);
 		return (NULL);
 	}
 
-	return (strdup(path));
+	if (asprintf(&path, "%s%llu", IOREG, (unsigned long long)id) == -1) {
+		fido_log_error(errno, "%s: asprintf", __func__);
+		return (NULL);
+	}
+
+	return (path);
 }
 
 static bool
@@ -365,6 +374,42 @@ disable_sigpipe(int fd)
 	return (0);
 }
 
+static int
+to_uint64(const char *str, uint64_t *out)
+{
+	char *ep;
+	unsigned long long ull;
+
+	errno = 0;
+	ull = strtoull(str, &ep, 10);
+	if (str == ep || *ep != '\0')
+		return (-1);
+	else if (ull == ULLONG_MAX && errno == ERANGE)
+		return (-1);
+	else if (ull > UINT64_MAX)
+		return (-1);
+	*out = (uint64_t)ull;
+
+	return (0);
+}
+
+static io_registry_entry_t
+get_ioreg_entry(const char *path)
+{
+	uint64_t id;
+
+	if (strncmp(path, IOREG, strlen(IOREG)) != 0)
+		return (IORegistryEntryFromPath(kIOMainPortDefault, path));
+
+	if (to_uint64(path + strlen(IOREG), &id) == -1) {
+		fido_log_debug("%s: to_uint64", __func__);
+		return (MACH_PORT_NULL);
+	}
+
+	return (IOServiceGetMatchingService(kIOMainPortDefault,
+	    IORegistryEntryIDMatching(id)));
+}
+
 void *
 fido_hid_open(const char *path)
 {
@@ -398,9 +443,8 @@ fido_hid_open(const char *path)
 		goto fail;
 	}
 
-	if ((entry = IORegistryEntryFromPath(kIOMasterPortDefault,
-	    path)) == MACH_PORT_NULL) {
-		fido_log_debug("%s: IORegistryEntryFromPath", __func__);
+	if ((entry = get_ioreg_entry(path)) == MACH_PORT_NULL) {
+		fido_log_debug("%s: get_ioreg_entry: %s", __func__, path);
 		goto fail;
 	}
 

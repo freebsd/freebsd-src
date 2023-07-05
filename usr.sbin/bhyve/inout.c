@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 
 #include <x86/psl.h>
-#include <x86/segments.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>

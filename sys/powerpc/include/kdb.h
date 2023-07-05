@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
@@ -39,8 +39,6 @@
 
 void kdb_cpu_clear_singlestep(void);
 void kdb_cpu_set_singlestep(void);
-
-#define KDB_STOPPEDPCB(pc)      &stoppcbs[pc->pc_cpuid]
 
 static __inline void
 kdb_cpu_sync_icache(unsigned char *addr, size_t size)

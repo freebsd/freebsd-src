@@ -46,13 +46,6 @@ CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
 		-Wno-error=pointer-sign
 CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
-.if ${COMPILER_VERSION} >= 150000
-# Clang 15 has much more aggressive diagnostics about
-# mismatched prototypes and unused-but-set variables. Make these
-# non-fatal for the time being.
-CWARNEXTRA+=	-Wno-error=strict-prototypes
-CWARNEXTRA+=	-Wno-error=unused-but-set-variable
-.endif
 .endif	# clang
 
 .if ${COMPILER_TYPE} == "gcc"
@@ -153,10 +146,9 @@ INLINE_LIMIT?=	8000
 
 #
 # For RISC-V we specify the soft-float ABI (lp64) to avoid the use of floating
-# point registers within the kernel. However, for kernels supporting hardware
-# float (FPE), we have to include that in the march so we can have limited
-# floating point support in context switching needed for that. This is different
-# than userland where we use a hard-float ABI (lp64d).
+# point registers within the kernel. However, we include the F and D extensions
+# in -march so we can have limited floating point support in context switching
+# code. This is different than userland where we use a hard-float ABI (lp64d).
 #
 # We also specify the "medium" code model, which generates code suitable for a
 # 2GiB addressing range located at any offset, allowing modules to be located
@@ -253,10 +245,12 @@ CFLAGS+=	-mretpoline
 #
 .if ${MK_INIT_ALL_ZERO} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
-CFLAGS+= -ftrivial-auto-var-init=zero \
-    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+CFLAGS+= -ftrivial-auto-var-init=zero
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
+CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+.endif
 .else
-.warning InitAll (zeros) requested but not support by compiler
+.warning InitAll (zeros) requested but not supported by compiler
 .endif
 .elif ${MK_INIT_ALL_PATTERN} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
@@ -284,7 +278,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
 
-CSTD=		c99
+CSTD=		gnu99
 
 .if ${CSTD} == "k&r"
 CFLAGS+=        -traditional

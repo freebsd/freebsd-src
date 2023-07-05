@@ -29,7 +29,7 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Datto Inc. All rights reserved.
  * Copyright (c) 2021, Klara Inc.
- * Copyright [2021] Hewlett Packard Enterprise Development LP
+ * Copyright (c) 2021, 2023 Hewlett Packard Enterprise Development LP.
  */
 
 #include <sys/zfs_context.h>
@@ -96,7 +96,7 @@ static uint_t zfs_vdev_ms_count_limit = 1ULL << 17;
 static uint_t zfs_vdev_default_ms_shift = 29;
 
 /* upper limit for metaslab size (16G) */
-static const uint_t zfs_vdev_max_ms_shift = 34;
+static uint_t zfs_vdev_max_ms_shift = 34;
 
 int vdev_validate_skip = B_FALSE;
 
@@ -397,7 +397,9 @@ vdev_prop_get_int(vdev_t *vd, vdev_prop_t prop, uint64_t *value)
 	uint64_t objid;
 	int err;
 
-	if (vd->vdev_top_zap != 0) {
+	if (vd->vdev_root_zap != 0) {
+		objid = vd->vdev_root_zap;
+	} else if (vd->vdev_top_zap != 0) {
 		objid = vd->vdev_top_zap;
 	} else if (vd->vdev_leaf_zap != 0) {
 		objid = vd->vdev_leaf_zap;
@@ -713,7 +715,6 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	    offsetof(struct vdev, vdev_dtl_node));
 	vd->vdev_stat.vs_timestamp = gethrtime();
 	vdev_queue_init(vd);
-	vdev_cache_init(vd);
 
 	return (vd);
 }
@@ -897,6 +898,14 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	 */
 	(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_CREATE_TXG,
 	    &vd->vdev_crtxg);
+
+	if (vd->vdev_ops == &vdev_root_ops &&
+	    (alloctype == VDEV_ALLOC_LOAD ||
+	    alloctype == VDEV_ALLOC_SPLIT ||
+	    alloctype == VDEV_ALLOC_ROOTPOOL)) {
+		(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_VDEV_ROOT_ZAP,
+		    &vd->vdev_root_zap);
+	}
 
 	/*
 	 * If we're a top-level vdev, try to load the allocation parameters.
@@ -1086,7 +1095,6 @@ vdev_free(vdev_t *vd)
 	 * Clean up vdev structure.
 	 */
 	vdev_queue_fini(vd);
-	vdev_cache_fini(vd);
 
 	if (vd->vdev_path)
 		spa_strfree(vd->vdev_path);
@@ -1710,8 +1718,7 @@ vdev_probe(vdev_t *vd, zio_t *zio)
 		vps = kmem_zalloc(sizeof (*vps), KM_SLEEP);
 
 		vps->vps_flags = ZIO_FLAG_CANFAIL | ZIO_FLAG_PROBE |
-		    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_AGGREGATE |
-		    ZIO_FLAG_TRYHARD;
+		    ZIO_FLAG_DONT_AGGREGATE | ZIO_FLAG_TRYHARD;
 
 		if (spa_config_held(spa, SCL_ZIO, RW_WRITER)) {
 			/*
@@ -2602,8 +2609,6 @@ vdev_close(vdev_t *vd)
 
 	vd->vdev_ops->vdev_op_close(vd);
 
-	vdev_cache_purge(vd);
-
 	/*
 	 * We record the previous state before we close it, so that if we are
 	 * doing a reopen(), we don't generate FMA ereports if we notice that
@@ -2687,6 +2692,17 @@ vdev_reopen(vdev_t *vd)
 		}
 	} else {
 		(void) vdev_validate(vd);
+	}
+
+	/*
+	 * Recheck if resilver is still needed and cancel any
+	 * scheduled resilver if resilver is unneeded.
+	 */
+	if (!vdev_resilver_needed(spa->spa_root_vdev, NULL, NULL) &&
+	    spa->spa_async_tasks & SPA_ASYNC_RESILVER) {
+		mutex_enter(&spa->spa_async_lock);
+		spa->spa_async_tasks &= ~SPA_ASYNC_RESILVER;
+		mutex_exit(&spa->spa_async_lock);
 	}
 
 	/*
@@ -3346,6 +3362,12 @@ vdev_construct_zaps(vdev_t *vd, dmu_tx_t *tx)
 			if (vd->vdev_alloc_bias != VDEV_BIAS_NONE)
 				vdev_zap_allocation_data(vd, tx);
 		}
+	}
+	if (vd->vdev_ops == &vdev_root_ops && vd->vdev_root_zap == 0 &&
+	    spa_feature_is_enabled(vd->vdev_spa, SPA_FEATURE_AVZ_V2)) {
+		if (!spa_feature_is_active(vd->vdev_spa, SPA_FEATURE_AVZ_V2))
+			spa_feature_incr(vd->vdev_spa, SPA_FEATURE_AVZ_V2, tx);
+		vd->vdev_root_zap = vdev_create_link_zap(vd, tx);
 	}
 
 	for (uint64_t i = 0; i < vd->vdev_children; i++) {
@@ -4081,10 +4103,17 @@ vdev_remove_wanted(spa_t *spa, uint64_t guid)
 		return (spa_vdev_state_exit(spa, NULL, SET_ERROR(ENODEV)));
 
 	/*
-	 * If the vdev is already removed, then don't do anything.
+	 * If the vdev is already removed, or expanding which can trigger
+	 * repartition add/remove events, then don't do anything.
 	 */
-	if (vd->vdev_removed)
+	if (vd->vdev_removed || vd->vdev_expanding)
 		return (spa_vdev_state_exit(spa, NULL, 0));
+
+	/*
+	 * Confirm the vdev has been removed, otherwise don't do anything.
+	 */
+	if (vd->vdev_ops->vdev_op_leaf && !zio_wait(vdev_probe(vd, NULL)))
+		return (spa_vdev_state_exit(spa, NULL, SET_ERROR(EEXIST)));
 
 	vd->vdev_remove_wanted = B_TRUE;
 	spa_async_request(spa, SPA_ASYNC_REMOVE);
@@ -4183,9 +4212,19 @@ vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
 
 	if (wasoffline ||
 	    (oldstate < VDEV_STATE_DEGRADED &&
-	    vd->vdev_state >= VDEV_STATE_DEGRADED))
+	    vd->vdev_state >= VDEV_STATE_DEGRADED)) {
 		spa_event_notify(spa, vd, NULL, ESC_ZFS_VDEV_ONLINE);
 
+		/*
+		 * Asynchronously detach spare vdev if resilver or
+		 * rebuild is not required
+		 */
+		if (vd->vdev_unspare &&
+		    !dsl_scan_resilvering(spa->spa_dsl_pool) &&
+		    !dsl_scan_resilver_scheduled(spa->spa_dsl_pool) &&
+		    !vdev_rebuild_active(tvd))
+			spa_async_request(spa, SPA_ASYNC_DETACH_SPARE);
+	}
 	return (spa_vdev_state_exit(spa, vd, 0));
 }
 
@@ -4569,11 +4608,9 @@ vdev_get_stats_ex_impl(vdev_t *vd, vdev_stat_t *vs, vdev_stat_ex_t *vsx)
 
 		memcpy(vsx, &vd->vdev_stat_ex, sizeof (vd->vdev_stat_ex));
 
-		for (t = 0; t < ARRAY_SIZE(vd->vdev_queue.vq_class); t++) {
-			vsx->vsx_active_queue[t] =
-			    vd->vdev_queue.vq_class[t].vqc_active;
-			vsx->vsx_pend_queue[t] = avl_numnodes(
-			    &vd->vdev_queue.vq_class[t].vqc_queued_tree);
+		for (t = 0; t < ZIO_PRIORITY_NUM_QUEUEABLE; t++) {
+			vsx->vsx_active_queue[t] = vd->vdev_queue.vq_cactive[t];
+			vsx->vsx_pend_queue[t] = vdev_queue_class_length(vd, t);
 		}
 	}
 }
@@ -5431,20 +5468,20 @@ vdev_deadman(vdev_t *vd, const char *tag)
 		vdev_queue_t *vq = &vd->vdev_queue;
 
 		mutex_enter(&vq->vq_lock);
-		if (avl_numnodes(&vq->vq_active_tree) > 0) {
+		if (vq->vq_active > 0) {
 			spa_t *spa = vd->vdev_spa;
 			zio_t *fio;
 			uint64_t delta;
 
-			zfs_dbgmsg("slow vdev: %s has %lu active IOs",
-			    vd->vdev_path, avl_numnodes(&vq->vq_active_tree));
+			zfs_dbgmsg("slow vdev: %s has %u active IOs",
+			    vd->vdev_path, vq->vq_active);
 
 			/*
 			 * Look at the head of all the pending queues,
 			 * if any I/O has been outstanding for longer than
 			 * the spa_deadman_synctime invoke the deadman logic.
 			 */
-			fio = avl_first(&vq->vq_active_tree);
+			fio = list_head(&vq->vq_active_list);
 			delta = gethrtime() - fio->io_timestamp;
 			if (delta > spa_deadman_synctime(spa))
 				zio_deadman(fio, tag);
@@ -5673,12 +5710,17 @@ vdev_props_set_sync(void *arg, dmu_tx_t *tx)
 		/*
 		 * Set vdev property values in the vdev props mos object.
 		 */
-		if (vd->vdev_top_zap != 0) {
+		if (vd->vdev_root_zap != 0) {
+			objid = vd->vdev_root_zap;
+		} else if (vd->vdev_top_zap != 0) {
 			objid = vd->vdev_top_zap;
 		} else if (vd->vdev_leaf_zap != 0) {
 			objid = vd->vdev_leaf_zap;
 		} else {
-			panic("vdev not top or leaf");
+			/*
+			 * XXX: implement vdev_props_set_check()
+			 */
+			panic("vdev not root/top/leaf");
 		}
 
 		switch (prop = vdev_name_to_prop(propname)) {
@@ -5881,7 +5923,9 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 
 	nvlist_lookup_nvlist(innvl, ZPOOL_VDEV_PROPS_GET_PROPS, &nvprops);
 
-	if (vd->vdev_top_zap != 0) {
+	if (vd->vdev_root_zap != 0) {
+		objid = vd->vdev_root_zap;
+	} else if (vd->vdev_top_zap != 0) {
 		objid = vd->vdev_top_zap;
 	} else if (vd->vdev_leaf_zap != 0) {
 		objid = vd->vdev_leaf_zap;
@@ -6288,7 +6332,10 @@ ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, UINT, ZMOD_RW,
 	"Target number of metaslabs per top-level vdev");
 
 ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, UINT, ZMOD_RW,
-	"Default limit for metaslab size");
+	"Default lower limit for metaslab size");
+
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, max_ms_shift, UINT, ZMOD_RW,
+	"Default upper limit for metaslab size");
 
 ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, UINT, ZMOD_RW,
 	"Minimum number of metaslabs per top-level vdev");

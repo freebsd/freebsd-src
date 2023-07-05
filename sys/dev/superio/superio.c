@@ -93,6 +93,7 @@ struct siosc {
 	superio_vendor_t		vendor;
 	uint16_t			devid;
 	uint8_t				revid;
+	int				extid;
 	uint8_t				current_ldn;
 	uint8_t				ldn_reg;
 	uint8_t				enable_reg;
@@ -270,6 +271,12 @@ const struct sio_device ite_devices[] = {
 	{ .type = SUPERIO_DEV_NONE },
 };
 
+const struct sio_device w83627_devices[] = {
+	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
+	{ .ldn = 9, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
 const struct sio_device nvt_devices[] = {
 	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
 	{ .type = SUPERIO_DEV_NONE },
@@ -279,6 +286,24 @@ const struct sio_device nct5104_devices[] = {
 	{ .ldn = 7, .type = SUPERIO_DEV_GPIO },
 	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
 	{ .ldn = 15, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct5585_devices[] = {
+	{ .ldn = 9, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct611x_devices[] = {
+	{ .ldn = 0x7, .type = SUPERIO_DEV_GPIO },
+	{ .ldn = 0x8, .type = SUPERIO_DEV_WDT },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct67xx_devices[] = {
+	{ .ldn = 0x8, .type = SUPERIO_DEV_WDT },
+	{ .ldn = 0x9, .type = SUPERIO_DEV_GPIO },
+	{ .ldn = 0xb, .type = SUPERIO_DEV_HWM },
 	{ .type = SUPERIO_DEV_NONE },
 };
 
@@ -292,9 +317,14 @@ static const struct {
 	superio_vendor_t	vendor;
 	uint16_t		devid;
 	uint16_t		mask;
+	int			extid; /* Extra ID: used to handle conflicting devid. */
 	const char		*descr;
 	const struct sio_device	*devices;
 } superio_table[] = {
+	{
+		.vendor = SUPERIO_VENDOR_ITE, .devid = 0x8613,
+		.devices = ite_devices,
+	},
 	{
 		.vendor = SUPERIO_VENDOR_ITE, .devid = 0x8712,
 		.devices = ite_devices,
@@ -375,7 +405,7 @@ static const struct {
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xa000, .mask = 0xff,
 		.descr = "Winbond 83627DHG",
-		.devices = nvt_devices,
+		.devices = w83627_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xa200, .mask = 0xff,
@@ -413,9 +443,19 @@ static const struct {
 		.devices = nct5104_devices,
 	},
 	{
-		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xc500, .mask = 0xff,
-		.descr = "Nuvoton NCT6779",
-		.devices = nvt_devices,
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xc500, .mask = 0xff,
+		.descr   = "Nuvoton NCT6779D",
+		.devices = nct67xx_devices,
+	},
+	{
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xd42a, .extid = 1,
+		.descr   = "Nuvoton NCT6796D-E",
+		.devices = nct67xx_devices,
+	},
+	{
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xd42a, .extid = 2,
+		.descr   = "Nuvoton NCT5585D",
+		.devices = nct5585_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xc800, .mask = 0xff,
@@ -431,6 +471,11 @@ static const struct {
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd100, .mask = 0xff,
 		.descr = "Nuvoton NCT6793",
 		.devices = nvt_devices,
+	},
+	{
+		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd200, .mask = 0xff,
+		.descr = "Nuvoton NCT6112D/NCT6114D/NCT6116D",
+		.devices = nct611x_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd300, .mask = 0xff,
@@ -479,6 +524,7 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	int error;
 	int rid;
 	int i, m;
+	int prefer;
 
 	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &port, &count);
 	if (error != 0)
@@ -502,6 +548,11 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 			device_printf(dev, "failed to allocate I/O resource\n");
 		return (ENXIO);
 	}
+
+	prefer = 0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer", &prefer);
+	if (bootverbose && prefer > 0)
+		device_printf(dev, "prefer extid %d\n", prefer);
 
 	for (m = 0; methods_table[m] != NULL; m++) {
 		methods_table[m]->enter(res, port);
@@ -529,6 +580,8 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 				continue;
 			if ((superio_table[i].devid & ~mask) != (devid & ~mask))
 				continue;
+			if (prefer > 0 && prefer != superio_table[i].extid)
+				continue;
 			break;
 		}
 
@@ -554,13 +607,14 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	sc->io_port = port;
 	sc->devid = devid;
 	sc->revid = revid;
+	sc->extid = superio_table[i].extid;
 
 	KASSERT(sc->vendor == SUPERIO_VENDOR_ITE ||
 	    sc->vendor == SUPERIO_VENDOR_NUVOTON ||
 	    sc->vendor == SUPERIO_VENDOR_FINTEK,
 	    ("Only ITE, Nuvoton and Fintek SuperIO-s are supported"));
 	sc->ldn_reg = 0x07;
-	sc->enable_reg = 0x30;
+	sc->enable_reg = 0x30;	/* FIXME enable_reg not used by nctgpio(4). */
 	sc->current_ldn = 0xff;	/* no device should have this */
 
 	if (superio_table[i].descr != NULL) {
@@ -873,30 +927,53 @@ superio_revid(device_t dev)
 	return (sc->revid);
 }
 
-uint8_t
-superio_read(device_t dev, uint8_t reg)
+int
+superio_extid(device_t dev)
 {
 	device_t sio_dev = device_get_parent(dev);
 	struct siosc *sc = device_get_softc(sio_dev);
-	struct superio_devinfo *dinfo = device_get_ivars(dev);
-	uint8_t v;
+
+	return (sc->extid);
+}
+
+uint8_t
+superio_ldn_read(device_t dev, uint8_t ldn, uint8_t reg)
+{
+	device_t      sio_dev = device_get_parent(dev);
+	struct siosc *sc      = device_get_softc(sio_dev);
+	uint8_t       v;
 
 	sio_conf_enter(sc);
-	v = sio_ldn_read(sc, dinfo->ldn, reg);
+	v = sio_ldn_read(sc, ldn, reg);
 	sio_conf_exit(sc);
 	return (v);
+}
+
+uint8_t
+superio_read(device_t dev, uint8_t reg)
+{
+	struct superio_devinfo *dinfo = device_get_ivars(dev);
+
+	return (superio_ldn_read(dev, dinfo->ldn, reg));
+}
+
+void
+superio_ldn_write(device_t dev, uint8_t ldn, uint8_t reg, uint8_t val)
+{
+	device_t      sio_dev = device_get_parent(dev);
+	struct siosc *sc      = device_get_softc(sio_dev);
+
+	sio_conf_enter(sc);
+	sio_ldn_write(sc, ldn, reg, val);
+	sio_conf_exit(sc);
 }
 
 void
 superio_write(device_t dev, uint8_t reg, uint8_t val)
 {
-	device_t sio_dev = device_get_parent(dev);
-	struct siosc *sc = device_get_softc(sio_dev);
 	struct superio_devinfo *dinfo = device_get_ivars(dev);
 
-	sio_conf_enter(sc);
-	sio_ldn_write(sc, dinfo->ldn, reg, val);
-	sio_conf_exit(sc);
+	return (superio_ldn_write(dev, dinfo->ldn, reg, val));
 }
 
 bool
@@ -911,7 +988,7 @@ superio_dev_enabled(device_t dev, uint8_t mask)
 	if (sc->vendor == SUPERIO_VENDOR_ITE && dinfo->ldn == 7)
 		return (true);
 
-	v = superio_read(dev, sc->enable_reg);
+	v = superio_read(dev, sc->enable_reg); /* FIXME enable_reg not used by nctgpio(4). */
 	return ((v & mask) != 0);
 }
 

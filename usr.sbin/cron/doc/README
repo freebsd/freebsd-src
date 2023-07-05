@@ -1,22 +1,25 @@
-#/* Copyright 1988,1990,1993 by Paul Vixie
+#/* Copyright 1988,1990,1993 by Paul Vixie <paul@vix.com>
 # * All rights reserved
-# *
-# * Distribute freely, except: don't remove my name from the source or
-# * documentation (don't take credit for my work), mark your changes (don't
-# * get me blamed for your possible bugs), don't alter or remove this
-# * notice.  May be sold if buildable source is provided to buyer.  No
-# * warrantee of any kind, express or implied, is included with this
-# * software; use at your own risk, responsibility for damages (if any) to
-# * anyone resulting from the use of this software rests entirely with the
-# * user.
-# *
-# * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
-# * I'll try to keep a version up to date.  I can be reached as follows:
-# * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 # */
 
-Vixie Cron V3.0
-December 27, 1993
+## Copyright (c) 1997 by Internet Software Consortium.
+##
+## Permission to use, copy, modify, and distribute this software for any
+## purpose with or without fee is hereby granted, provided that the above
+## copyright notice and this permission notice appear in all copies.
+##
+## THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+## ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+## OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+## CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+## DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+## PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+## SOFTWARE.
+
+Vixie Cron V4.0 - September 7, 1997
+[V3.1 was some time after 1993]
+[V3.0 was December 27, 1993]
 [V2.2 was some time in 1992]
 [V2.1 was May 29, 1991]
 [V2.0 was July 5, 1990]
@@ -24,7 +27,7 @@ December 27, 1993
 [V1.0 was May 6, 1987]
 Paul Vixie
 
-This is a version of 'cron' that is known to run on BSD 4.[23] systems.  It
+This is a version of 'cron' that is known to run on most systems.  It
 is functionally based on the SysV cron, which means that each user can have
 their own crontab file (all crontab files are stored in a read-protected
 directory, usually /var/cron/tabs).  No direct support is provided for
@@ -35,13 +38,6 @@ A messages is logged each time a command is executed; also, the files
 "allow" and "deny" in /var/cron can be used to control access to the
 "crontab" command (which installs crontabs).  It hasn't been tested on
 SysV, although some effort has gone into making the port an easy one.
-
-This is more or less the copyright that USENET contributed software usually
-has.  Since ATT couldn't use this version if they had to freely distribute
-source, and since I'd love to see them use it, I'll offer some rediculously
-low license fee just to have them take it.  In the unlikely event that they
-do this, I will continue to support and distribute the pseudo-PD version, so
-please, don't flame me for wanting my work to see a wider distribution.
 
 To use this: Sorry, folks, there is no cutesy 'Configure' script.  You'll
 have to go edit a couple of files... So, here's the checklist:
@@ -69,4 +65,4 @@ have to go edit a couple of files... So, here's the checklist:
 	if you like it, change your /etc/{rc,rc.local} to use it instead of
 		the old one.
 
-$FreeBSD$
+$Id: README,v 1.2 1998/08/14 00:32:35 vixie Exp $

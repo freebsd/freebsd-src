@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
 #include <sys/ktr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <machine/armreg.h>
@@ -54,6 +55,9 @@ _Static_assert(sizeof(ucontext32_t) == 260, "ucontext32_t size incorrect");
 _Static_assert(sizeof(struct siginfo32) == 64, "struct siginfo32 size incorrect");
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
+
+SYSCTL_NODE(_compat, OID_AUTO, arm, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "32-bit mode");
 
 /*
  * The first two fields of a ucontext_t are the signal mask and the machine

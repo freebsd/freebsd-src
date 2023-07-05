@@ -856,11 +856,13 @@ fork1(struct thread *td, struct fork_req *fr)
 	struct vmspace *vm2;
 	struct ucred *cred;
 	struct file *fp_procdesc;
+	struct pgrp *pg;
 	vm_ooffset_t mem_charged;
 	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
 	int flags, pages;
+	bool killsx_locked;
 
 	flags = fr->fr_flags;
 	pages = fr->fr_pages;
@@ -917,6 +919,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	fp_procdesc = NULL;
 	newproc = NULL;
 	vm2 = NULL;
+	killsx_locked = false;
 
 	/*
 	 * Increment the nprocs resource before allocations occur.
@@ -944,6 +947,29 @@ fork1(struct thread *td, struct fork_req *fr)
 			sx_xunlock(&allproc_lock);
 			goto fail2;
 		}
+	}
+
+	/*
+	 * Atomically check for signals and block threads from sending
+	 * a signal to our process group until the child is visible.
+	 */
+	pg = p1->p_pgrp;
+	if (sx_slock_sig(&pg->pg_killsx) != 0) {
+		error = ERESTART;
+		goto fail2;
+	} else if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0 ||
+	    atomic_load_int(&p1->p_killpg_cnt) != 0)) {
+		/*
+		 * Either the process was moved to other process
+		 * group, or there is pending signal.  sx_slock_sig()
+		 * does not check for signals if not sleeping for the
+		 * lock.
+		 */
+		sx_sunlock(&pg->pg_killsx);
+		error = ERESTART;
+		goto fail2;
+	} else {
+		killsx_locked = true;
 	}
 
 	/*
@@ -1037,6 +1063,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
+	sx_sunlock(&pg->pg_killsx);
 	return (0);
 fail0:
 	error = EAGAIN;
@@ -1055,6 +1082,8 @@ fail2:
 		fdrop(fp_procdesc, td);
 	}
 	atomic_add_int(&nprocs, -1);
+	if (killsx_locked)
+		sx_sunlock(&pg->pg_killsx);
 	pause("fork", hz / 2);
 	return (error);
 }
@@ -1144,7 +1173,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 			td->td_dbgflags &= ~TDB_STOPATFORK;
 		}
 		PROC_UNLOCK(p);
-	} else if (p->p_flag & P_TRACED || td->td_dbgflags & TDB_BORN) {
+	} else if (p->p_flag & P_TRACED) {
  		/*
 		 * This is the start of a new thread in a traced
 		 * process.  Report a system call exit event.
@@ -1168,7 +1197,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(SYS_fork, 0, 0);
+		ktrsysret(td->td_sa.code, 0, 0);
 #endif
 }
 

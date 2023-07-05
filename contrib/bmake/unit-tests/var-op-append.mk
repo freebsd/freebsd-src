@@ -1,7 +1,20 @@
-# $NetBSD: var-op-append.mk,v 1.9 2021/04/04 10:13:09 rillig Exp $
+# $NetBSD: var-op-append.mk,v 1.10 2023/06/21 07:30:50 rillig Exp $
 #
-# Tests for the += variable assignment operator, which appends to a variable,
-# creating it if necessary.
+# Tests for the '+=' variable assignment operator, which appends to a
+# variable, creating it if necessary.
+#
+# See also
+#	var-op.mk
+#
+# Standards
+#	The '+=' variable assignment operator is planned to be added in
+#	POSIX.1-202x.
+#
+#	This implementation does not support the immediate-expansion macros
+#	specified in POSIX.1-202x.  All variables are delayed-expansion.
+#
+# History
+#	The '+=' variable assignment operator was added before 1993-03-21.
 
 # Appending to an undefined variable is possible.
 # The variable is created, and no extra space is added before the value.

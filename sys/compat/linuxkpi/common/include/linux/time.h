@@ -121,6 +121,8 @@ ns_to_timespec(const int64_t nsec)
 	return (ts);
 }
 
+#define	ns_to_timespec64(_x)	ns_to_timespec(_x)
+
 static inline int
 timespec_valid(const struct timespec *ts)
 {

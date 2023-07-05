@@ -1,7 +1,11 @@
 /*
  * SPDX-License-Identifier: CDDL 1.0
  *
- * Copyright 2022 Christos Margiolis <christos@FreeBSD.org>
+ * Copyright (c) 2022 Christos Margiolis <christos@FreeBSD.org>
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  */
 
 #ifndef _KINST_H_
@@ -46,6 +50,9 @@ extern struct kinst_probe_list	*kinst_probetab;
 struct linker_file;
 struct linker_symval;
 
+volatile void	*kinst_memcpy(volatile void *, volatile const void *, size_t);
+bool	kinst_excluded(const char *);
+bool	kinst_md_excluded(const char *);
 int	kinst_invop(uintptr_t, struct trapframe *, uintptr_t);
 int	kinst_make_probe(struct linker_file *, int, struct linker_symval *,
 	    void *);

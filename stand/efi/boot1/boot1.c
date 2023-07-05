@@ -96,6 +96,26 @@ try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t load
 		buf = NULL;
 	}
 
+	/*
+	 * See if there's any env variables the module wants to set. If so,
+	 * append it to any config present.
+	 */
+	if (mod->extra_env != NULL) {
+		const char *env = mod->extra_env();
+		if (env != NULL) {
+			size_t newlen = cmdsize + strlen(env) + 1;
+
+			cmd = realloc(cmd, newlen);
+			if (cmd == NULL)
+				goto errout;
+			if (cmdsize > 0)
+				strlcat(cmd, " ", newlen);
+			strlcat(cmd, env, newlen);
+			cmdsize = strlen(cmd);
+			free(__DECONST(char *, env));
+		}
+	}
+
 	if ((status = BS->LoadImage(TRUE, IH, efi_devpath_last_node(dev->devpath),
 	    loaderbuf, loadersize, &loaderhandle)) != EFI_SUCCESS) {
 		printf("Failed to load image provided by %s, size: %zu, (%lu)\n",

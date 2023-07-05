@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>

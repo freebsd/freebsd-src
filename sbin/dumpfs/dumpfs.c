@@ -245,6 +245,8 @@ dumpfs(const char *name, int dosb)
 	default:
 		goto err;
 	}
+	printf("old_cpg\t%d\tsize_cg\t%zu\tCGSIZE\t%zu\n",
+	    afs.fs_old_cpg, sizeof(struct cg), CGSIZE(&afs));
 	printf("sblkno\t%d\tcblkno\t%d\tiblkno\t%d\tdblkno\t%d\n",
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
 	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",

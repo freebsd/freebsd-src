@@ -284,22 +284,19 @@ VGLMouseInit(int mode)
 {
   struct mouse_info mouseinfo;
   VGLBitmap *ormask;
-  int andmask, border, error, i, interior;
+  int border, error, i, interior;
 
   switch (VGLModeInfo.vi_mem_model) {
   case V_INFO_MM_PACKED:
   case V_INFO_MM_PLANAR:
-    andmask = 0x0f;
     border = 0x0f;
     interior = 0x04;
     break;
   case V_INFO_MM_VGAX:
-    andmask = 0x3f;
     border = 0x3f;
     interior = 0x24;
     break;
   default:
-    andmask = 0xff;
     border = BORDER;
     interior = INTERIOR;
     break;

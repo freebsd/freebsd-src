@@ -353,6 +353,18 @@ struct pfctl_state {
 	uint32_t		 pfsync_time;
 	uint16_t		 state_flags;
 	uint32_t		 sync_flags;
+	uint16_t		 qid;
+	uint16_t		 pqid;
+	uint16_t		 dnpipe;
+	uint16_t		 dnrpipe;
+	uint8_t			 log;
+	int32_t			 rtableid;
+	uint8_t			 min_ttl;
+	uint8_t			 set_tos;
+	uint16_t		 max_mss;
+	uint8_t			 set_prio[2];
+	uint8_t			 rt;
+	char			 rt_ifname[IFNAMSIZ];
 };
 
 TAILQ_HEAD(pfctl_statelist, pfctl_state);

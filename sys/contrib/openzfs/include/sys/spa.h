@@ -787,6 +787,7 @@ extern int bpobj_enqueue_free_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx);
 #define	SPA_ASYNC_L2CACHE_REBUILD		0x800
 #define	SPA_ASYNC_L2CACHE_TRIM			0x1000
 #define	SPA_ASYNC_REBUILD_DONE			0x2000
+#define	SPA_ASYNC_DETACH_SPARE			0x4000
 
 /* device manipulation */
 extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot);
@@ -976,6 +977,8 @@ extern int spa_import_progress_set_state(uint64_t pool_guid,
 extern int spa_config_tryenter(spa_t *spa, int locks, const void *tag,
     krw_t rw);
 extern void spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw);
+extern void spa_config_enter_mmp(spa_t *spa, int locks, const void *tag,
+    krw_t rw);
 extern void spa_config_exit(spa_t *spa, int locks, const void *tag);
 extern int spa_config_held(spa_t *spa, int locks, krw_t rw);
 
@@ -1137,7 +1140,8 @@ extern const char *spa_state_to_name(spa_t *spa);
 struct zbookmark_phys;
 extern void spa_log_error(spa_t *spa, const zbookmark_phys_t *zb,
     const uint64_t *birth);
-extern void spa_remove_error(spa_t *spa, zbookmark_phys_t *zb);
+extern void spa_remove_error(spa_t *spa, zbookmark_phys_t *zb,
+    const uint64_t *birth);
 extern int zfs_ereport_post(const char *clazz, spa_t *spa, vdev_t *vd,
     const zbookmark_phys_t *zb, zio_t *zio, uint64_t state);
 extern boolean_t zfs_ereport_is_valid(const char *clazz, spa_t *spa, vdev_t *vd,
@@ -1151,6 +1155,7 @@ extern void zfs_post_state_change(spa_t *spa, vdev_t *vd, uint64_t laststate);
 extern void zfs_post_autoreplace(spa_t *spa, vdev_t *vd);
 extern uint64_t spa_approx_errlog_size(spa_t *spa);
 extern int spa_get_errlog(spa_t *spa, void *uaddr, uint64_t *count);
+extern uint64_t spa_get_last_errlog_size(spa_t *spa);
 extern void spa_errlog_rotate(spa_t *spa);
 extern void spa_errlog_drain(spa_t *spa);
 extern void spa_errlog_sync(spa_t *spa, uint64_t txg);
@@ -1161,10 +1166,13 @@ extern void spa_swap_errlog(spa_t *spa, uint64_t new_head_ds,
 extern void sync_error_list(spa_t *spa, avl_tree_t *t, uint64_t *obj,
     dmu_tx_t *tx);
 extern void spa_upgrade_errlog(spa_t *spa, dmu_tx_t *tx);
-
-/* vdev cache */
-extern void vdev_cache_stat_init(void);
-extern void vdev_cache_stat_fini(void);
+extern int find_top_affected_fs(spa_t *spa, uint64_t head_ds,
+    zbookmark_err_phys_t *zep, uint64_t *top_affected_fs);
+extern int find_birth_txg(struct dsl_dataset *ds, zbookmark_err_phys_t *zep,
+    uint64_t *birth_txg);
+extern void zep_to_zb(uint64_t dataset, zbookmark_err_phys_t *zep,
+    zbookmark_phys_t *zb);
+extern void name_to_errphys(char *buf, zbookmark_err_phys_t *zep);
 
 /* vdev mirror */
 extern void vdev_mirror_stat_init(void);

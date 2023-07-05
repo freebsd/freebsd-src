@@ -1,27 +1,27 @@
-make: "varmod-edge.mk" line 166: ok M-paren
-make: "varmod-edge.mk" line 166: ok M-mixed
-make: "varmod-edge.mk" line 166: ok M-unescape
+make: "varmod-edge.mk" line 184: ok M-paren
+make: "varmod-edge.mk" line 184: ok M-mixed
+make: "varmod-edge.mk" line 184: ok M-unescape
 make: Unclosed variable expression, expecting '}' for modifier "U*)" of variable "" with value "*)"
-make: "varmod-edge.mk" line 166: ok M-nest-mix
-make: "varmod-edge.mk" line 166: ok M-nest-brk
-make: "varmod-edge.mk" line 166: ok M-pat-err
-make: "varmod-edge.mk" line 166: ok M-bsbs
-make: "varmod-edge.mk" line 166: ok M-bs1-par
-make: "varmod-edge.mk" line 166: ok M-bs2-par
-make: "varmod-edge.mk" line 166: ok M-128
-make: "varmod-edge.mk" line 166: ok eq-ext
-make: "varmod-edge.mk" line 166: ok eq-q
-make: "varmod-edge.mk" line 166: ok eq-bs
+make: "varmod-edge.mk" line 184: ok M-nest-mix
+make: "varmod-edge.mk" line 184: ok M-nest-brk
+make: "varmod-edge.mk" line 184: ok M-pat-err
+make: "varmod-edge.mk" line 184: ok M-bsbs
+make: "varmod-edge.mk" line 184: ok M-bs1-par
+make: "varmod-edge.mk" line 184: ok M-bs2-par
+make: "varmod-edge.mk" line 184: ok M-128
+make: "varmod-edge.mk" line 184: ok eq-ext
+make: "varmod-edge.mk" line 184: ok eq-q
+make: "varmod-edge.mk" line 184: ok eq-bs
 make: Unfinished modifier for "INP.eq-esc" ('=' missing)
-make: "varmod-edge.mk" line 166: ok eq-esc
-make: "varmod-edge.mk" line 166: ok colon
-make: "varmod-edge.mk" line 165: Unknown modifier ":"
-make: "varmod-edge.mk" line 165: Unknown modifier ":"
-make: "varmod-edge.mk" line 166: ok colons
-make: "varmod-edge.mk" line 175: Unknown modifier "Z"
-make: "varmod-edge.mk" line 175: Malformed conditional (${:Z})
+make: "varmod-edge.mk" line 184: ok eq-esc
+make: "varmod-edge.mk" line 184: ok colon
+make: "varmod-edge.mk" line 167: Unknown modifier ":"
+make: "varmod-edge.mk" line 167: Unknown modifier ":"
+make: "varmod-edge.mk" line 184: ok colons
+make: "varmod-edge.mk" line 195: Unknown modifier "Z"
+make: "varmod-edge.mk" line 195: Malformed conditional (${:Z})
 make: Unfinished modifier for "" (',' missing)
-make: "varmod-edge.mk" line 188: Malformed conditional (${:S,})
+make: "varmod-edge.mk" line 209: Malformed conditional (${:S,})
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

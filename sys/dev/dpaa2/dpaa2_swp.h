@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2022 Dmitry Salychev
+ * Copyright © 2021-2023 Dmitry Salychev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +28,8 @@
 #ifndef	_DPAA2_SWP_H
 #define	_DPAA2_SWP_H
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 
 #include "dpaa2_types.h"
@@ -195,6 +197,17 @@
 #define DPAA2_SWP_STAT_EINVAL		0xFE	/* Invalid argument */
 #define DPAA2_SWP_STAT_ERR		0xFF	/* General error */
 
+#define DPAA2_EQ_DESC_SIZE		32u	/* Enqueue Command Descriptor */
+#define DPAA2_FDR_DESC_SIZE		32u	/* Descriptor of the FDR */
+#define DPAA2_FD_SIZE			32u	/* Frame Descriptor */
+#define DPAA2_FDR_SIZE			64u	/* Frame Dequeue Response */
+#define DPAA2_SCN_SIZE			16u	/* State Change Notification */
+#define DPAA2_FA_SIZE			64u	/* SW Frame Annotation */
+#define DPAA2_SGE_SIZE			16u	/* S/G table entry */
+#define DPAA2_DQ_SIZE			64u	/* Dequeue Response */
+#define DPAA2_SWP_CMD_SIZE		64u	/* SWP Command */
+#define DPAA2_SWP_RSP_SIZE		64u	/* SWP Command Response */
+
 /* Opaque token for static dequeues. */
 #define DPAA2_SWP_SDQCR_TOKEN		0xBBu
 /* Opaque token for static dequeues. */
@@ -221,8 +234,6 @@ enum dpaa2_fd_format {
 
 /**
  * @brief Enqueue command descriptor.
- *
- * NOTE: 32 bytes.
  */
 struct dpaa2_eq_desc {
 	uint8_t		verb;
@@ -239,11 +250,10 @@ struct dpaa2_eq_desc {
 	uint8_t		rspid;
 	uint64_t	rsp_addr;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_eq_desc) == DPAA2_EQ_DESC_SIZE);
 
 /**
  * @brief Frame Dequeue Response (FDR) descriptor.
- *
- * NOTE: 32 bytes.
  */
 struct dpaa2_fdr_desc {
 	uint8_t		verb;
@@ -258,11 +268,10 @@ struct dpaa2_fdr_desc {
 	uint32_t	fq_frm_cnt;
 	uint64_t	fqd_ctx;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_fdr_desc) == DPAA2_FDR_DESC_SIZE);
 
 /**
  * @brief State Change Notification Message (SCNM).
- *
- * NOTE: 16 bytes.
  */
 struct dpaa2_scn {
 	uint8_t		verb;
@@ -272,6 +281,7 @@ struct dpaa2_scn {
 	uint32_t	rid_tok;
 	uint64_t	ctx;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_scn) == DPAA2_SCN_SIZE);
 
 /**
  * @brief DPAA2 frame descriptor.
@@ -290,8 +300,6 @@ struct dpaa2_scn {
  *			structure. QMan may use the FLC field for 3 purposes:
  *			stashing control, order definition point identification,
  *			and enqueue replication control.
- *
- * NOTE: 32 bytes.
  */
 struct dpaa2_fd {
 	uint64_t	addr;
@@ -302,11 +310,29 @@ struct dpaa2_fd {
 	uint32_t	ctrl;
 	uint64_t	flow_ctx;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_fd) == DPAA2_FD_SIZE);
+
+/**
+ * @brief DPAA2 frame annotation.
+ */
+struct dpaa2_fa {
+	uint32_t		 magic;
+	struct dpaa2_buf	*buf;
+	union {
+		struct { /* Tx frame annotation */
+			struct dpaa2_ni_tx_ring *tx;
+		};
+#ifdef __notyet__
+		struct { /* Rx frame annotation */
+			uint64_t		 _notused;
+		};
+#endif
+	};
+} __packed;
+CTASSERT(sizeof(struct dpaa2_fa) <= DPAA2_FA_SIZE);
 
 /**
  * @brief DPAA2 scatter/gather entry.
- *
- * NOTE: 16 bytes.
  */
 struct dpaa2_sg_entry {
 	uint64_t	addr;
@@ -314,21 +340,19 @@ struct dpaa2_sg_entry {
 	uint16_t	bpid;
 	uint16_t	offset_fmt;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_sg_entry) == DPAA2_SGE_SIZE);
 
 /**
  * @brief Frame Dequeue Response (FDR).
- *
- * NOTE: 64 bytes.
  */
 struct dpaa2_fdr {
 	struct dpaa2_fdr_desc	 desc;
 	struct dpaa2_fd		 fd;
 } __packed;
+CTASSERT(sizeof(struct dpaa2_fdr) == DPAA2_FDR_SIZE);
 
 /**
  * @brief Dequeue Response Message.
- *
- * NOTE: 64 bytes.
  */
 struct dpaa2_dq {
 	union {
@@ -340,6 +364,7 @@ struct dpaa2_dq {
 		struct dpaa2_scn scn; /* State Change Notification */
 	};
 } __packed;
+CTASSERT(sizeof(struct dpaa2_dq) == DPAA2_DQ_SIZE);
 
 /**
  * @brief Descriptor of the QBMan software portal.
@@ -382,6 +407,7 @@ struct dpaa2_swp_desc {
 struct dpaa2_swp_cmd {
 	uint64_t	params[DPAA2_SWP_CMD_PARAMS_N];
 };
+CTASSERT(sizeof(struct dpaa2_swp_cmd) == DPAA2_SWP_CMD_SIZE);
 
 /**
  * @brief Command response holds data received from the software portal.
@@ -389,6 +415,7 @@ struct dpaa2_swp_cmd {
 struct dpaa2_swp_rsp {
 	uint64_t	params[DPAA2_SWP_RSP_PARAMS_N];
 };
+CTASSERT(sizeof(struct dpaa2_swp_rsp) == DPAA2_SWP_RSP_SIZE);
 
 /**
  * @brief QBMan software portal.

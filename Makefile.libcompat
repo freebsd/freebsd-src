@@ -6,10 +6,14 @@ __<${_this:T}>__:
 # Makefile for the compatibility libraries.
 # - 32-bit compat libraries on PowerPC, and AMD64.
 
+.if defined(_LIBCOMPATS)
+
 .include <bsd.compat.mk>
 
+.for libcompatidx _LIBCOMPAT libcompat in ${_LIBCOMPATS:range:@i@${i} ${_LIBCOMPATS:[$i]} ${libcompats:[$i]}@}
+
 # Yes, the flags are redundant.
-LIBCOMPATWMAKEENV+= \
+LIB${_LIBCOMPAT}WMAKEENV+= \
 		INSTALL="${INSTALL_CMD} -U" \
 		PATH=${TMPPATH} \
 		SYSROOT=${WORLDTMP} \
@@ -19,50 +23,32 @@ LIBCOMPATWMAKEENV+= \
 		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
 .if ${MK_META_MODE} != "no"
 # Don't rebuild build-tools targets during normal build.
-LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA
+LIB${_LIBCOMPAT}WMAKEENV+=	BUILD_TOOLS_META=.NOMETA
 .endif
-LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
-		CXX="${XCXX} ${LIBCOMPATCXXFLAGS} ${LIBCOMPATCFLAGS}" \
-		CPP="${XCPP} ${LIBCOMPATCFLAGS}" \
+LIB${_LIBCOMPAT}WMAKEFLAGS+= CC="${XCC} ${LIB${_LIBCOMPAT}CFLAGS}" \
+		CXX="${XCXX} ${LIB${_LIBCOMPAT}CXXFLAGS} ${LIB${_LIBCOMPAT}CFLAGS}" \
+		CPP="${XCPP} ${LIB${_LIBCOMPAT}CFLAGS}" \
 		DESTDIR=${WORLDTMP} \
 		-DNO_CPU_CFLAGS \
 		MK_BOOT=no \
 		MK_CTF=no \
 		MK_TESTS=no
-LIBCOMPATWMAKE+=	${TIME_ENV} ${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
-			OBJTOP=${LIBCOMPAT_OBJTOP} \
+LIB${_LIBCOMPAT}WMAKE+=	${TIME_ENV} ${LIB${_LIBCOMPAT}WMAKEENV} ${MAKE} \
+			${LIB${_LIBCOMPAT}WMAKEFLAGS} \
+			OBJTOP=${LIB${_LIBCOMPAT}_OBJTOP} \
 			OBJROOT='$${OBJTOP}/' \
 			MAKEOBJDIRPREFIX= \
 			MK_MAN=no MK_HTML=no
-LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*} \
+LIB${_LIBCOMPAT}IMAKE+=	${LIB${_LIBCOMPAT}WMAKE:NINSTALL=*:NDESTDIR=*} \
 			${IMAKE_INSTALL} \
 			MK_INCLUDES=no \
 			-DLIBRARIES_ONLY
-
-_LC_LIBDIRS.yes=		lib
-_LC_LIBDIRS.yes+=		gnu/lib
-_LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
-_LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
-_LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
-
-_LC_INCDIRS=	\
-		include \
-		lib/ncurses/tinfo \
-		${_LC_LIBDIRS.yes}
-
-.if ${MK_FILE} != "no"
-_libmagic=	lib/libmagic
-.endif
-.if ${MK_PMC} != "no"
-_jevents=	lib/libpmc/pmu-events
-.endif
-
 
 # Shared logic
 build${libcompat}: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4.3: building lib${libcompat} shim libraries"
+	@echo ">>> stage 4.3.${libcompatidx}: building lib${libcompat} shim libraries"
 	@echo "--------------------------------------------------------------"
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
@@ -70,16 +56,14 @@ build${libcompat}: .PHONY
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
 .endif
-.for _dir in lib/ncurses/tinfo ${_libmagic} ${_jevents}
-.for _t in ${_obj} build-tools
-	${_+_}cd ${.CURDIR}/${_dir}; \
+	${_+_}cd ${.CURDIR}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    ${MAKE} DESTDIR= \
-	    OBJTOP=${LIBCOMPAT_OBJTOP} \
+	    ${MAKE} -f Makefile.inc1 \
+	    DESTDIR= \
+	    OBJTOP=${LIB${_LIBCOMPAT}_OBJTOP} \
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
-	    DIRPRFX=${_dir}/ \
 	    -DNO_LINT \
 	    -DNO_CPU_CFLAGS \
 	    MK_ASAN=no \
@@ -88,15 +72,45 @@ build${libcompat}: .PHONY
 	    MK_SSP=no \
 	    MK_UBSAN=no \
 	    MK_WERROR=no \
-	    ${_t}
-.endfor
-.endfor
+	    _lc_build-tools
 	${_+_}cd ${.CURDIR}; \
-	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
+	    ${LIB${_LIBCOMPAT}WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 
 distribute${libcompat} install${libcompat}: .PHONY
+	${_+_}cd ${.CURDIR}; \
+	    ${LIB${_LIBCOMPAT}IMAKE} -f Makefile.inc1 _lc_${.TARGET:S/${libcompat}$//}
+
+.endfor # libcompatidx _LIBCOMPAT libcompat
+
+.endif # defined(_LIBCOMPATS)
+
+# These depend on MK_*, which could vary between the native and compat
+# architectures. Thus targets using them are run within a compat sub-make
+# rather than the native make environment.
+
+_LC_LIBDIRS.yes=		lib
+_LC_LIBDIRS.yes+=		gnu/lib
+_LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
+_LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
+
+.if ${MK_FILE} != "no"
+_libmagic=	lib/libmagic
+.endif
+.if ${MK_PMC} != "no"
+_jevents=	lib/libpmc/pmu-events
+.endif
+
+_lc_build-tools:
+.for _dir in lib/ncurses/tinfo ${_libmagic} ${_jevents}
+.for _t in ${_obj} build-tools
+	${_+_}cd ${.CURDIR}/${_dir}; ${MAKE} DIRPRFX=${_dir}/ ${_t}
+.endfor
+.endfor
+
+_lc_distribute _lc_install:
 .for _dir in ${_LC_LIBDIRS.yes}
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATIMAKE} ${.TARGET:S/${libcompat}$//}
+	${_+_}cd ${.CURDIR}/${_dir}; ${MAKE} ${.TARGET:S/^_lc_//}
 .endfor
 
 .endif # !targets(__<${_this:T}>__)

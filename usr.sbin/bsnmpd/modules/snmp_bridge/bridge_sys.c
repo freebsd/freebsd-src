@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
  * All rights reserved.
@@ -312,7 +312,7 @@ bridge_set_priority(struct bridge_if *bif, int32_t priority)
  * 1/256 seconds, the following algorithm should be used:
  *	b = floor( (n * 256) / 100)
  * The conversion to 1/256 of a second happens in the kernel -
- * just make sure we correctly convert the seconds to Timout
+ * just make sure we correctly convert the seconds to Timeout
  * and vice versa.
  */
 static uint32_t
@@ -1223,7 +1223,7 @@ bridge_getinfo_bif_ports(struct bridge_if *bif)
 int
 bridge_update_memif(struct bridge_if *bif)
 {
-	int added, updated;
+	int updated;
 	uint32_t i;
 	int32_t buf_len;
 	struct ifbreq *b_req_buf, *b_req;
@@ -1234,7 +1234,7 @@ bridge_update_memif(struct bridge_if *bif)
 	if ((buf_len = bridge_port_get_iflist(bif, &b_req_buf)) < 0)
 		return (-1);
 
-	added = updated = 0;
+	updated = 0;
 
 #define	BP_FOUND	0x01
 	for (i = 0; i < buf_len / sizeof(struct ifbreq); i++) {
@@ -1249,7 +1249,6 @@ bridge_update_memif(struct bridge_if *bif)
 		if ((bp = bridge_port_find(m_if->index, bif)) == NULL &&
 		    (bp = bridge_new_port(m_if, bif)) != NULL) {
 			bp->status = RowStatus_active;
-			added++;
 		}
 
 		if (bp != NULL) {

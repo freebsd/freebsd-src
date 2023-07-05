@@ -98,12 +98,16 @@ cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/des/des_enc.c		optional	netsmb
+crypto/openssl/amd64/aes-gcm-avx512.S	optional ossl
 crypto/openssl/amd64/aesni-x86_64.S	optional ossl
+crypto/openssl/amd64/aesni-gcm-x86_64.S	optional ossl
 crypto/openssl/amd64/chacha-x86_64.S	optional ossl
+crypto/openssl/amd64/ghash-x86_64.S	optional ossl
 crypto/openssl/amd64/poly1305-x86_64.S	optional ossl
 crypto/openssl/amd64/sha1-x86_64.S	optional ossl
 crypto/openssl/amd64/sha256-x86_64.S	optional ossl
 crypto/openssl/amd64/sha512-x86_64.S	optional ossl
+crypto/openssl/amd64/ossl_aes_gcm.c	optional ossl
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
@@ -235,6 +239,7 @@ dev/ixl/i40e_adminq.c		optional	ixl pci \
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/nctgpio/nctgpio.c		optional	nctgpio
+dev/ncthwm/ncthwm.c		optional	ncthwm superio
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
 dev/ntb/ntb_transport.c		optional	ntb_transport | if_ntb
@@ -292,6 +297,22 @@ dev/qlnx/qlnxe/ecore_mcp.c	optional	qlnxe pci \
 dev/qlnx/qlnxe/ecore_sp_commands.c optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
 dev/qlnx/qlnxe/ecore_spq.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_sriov.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_vf.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_ll2.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_iwarp.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_rdma.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_roce.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/ecore_ooo.c	optional	qlnxe pci \
+	compile-with "${LINUXKPI_C}"
+dev/qlnx/qlnxe/qlnx_rdma.c	optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
 dev/qlnx/qlnxe/qlnx_ioctl.c	optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"

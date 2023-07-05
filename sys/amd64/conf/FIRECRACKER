@@ -173,7 +173,7 @@ envvar	hw.broken_txfifo="1"
 # skip that; later in the boot process we have other timecounters.
 envvar	machdep.disable_tsc_calibration="1"
 
-# Provide bug-for-bug compatiblity with Linux in MP Table searching
+# Provide bug-for-bug compatibility with Linux in MP Table searching
 # and parsing.  Firecracker relies on these bugs.
 options 	MPTABLE_LINUX_BUG_COMPAT
 

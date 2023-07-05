@@ -192,7 +192,7 @@ tcp_tv_to_lusectick(const struct timeval *sv)
 
 extern int32_t tcp_min_hptsi_time;
 
-__inline int32_t
+static inline int32_t
 get_hpts_min_sleep_time(void)
 {
 	return (tcp_min_hptsi_time + HPTS_TICKS_PER_SLOT);

@@ -250,10 +250,9 @@ sanity_check_currdev(void)
 static bool
 probe_zfs_currdev(uint64_t guid)
 {
+	char buf[VDEV_PAD_SIZE];
 	char *devname;
 	struct zfs_devdesc currdev;
-	char *buf = NULL;
-	bool bootable;
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
@@ -263,21 +262,14 @@ probe_zfs_currdev(uint64_t guid)
 	devname = devformat(&currdev.dd);
 	init_zfs_boot_options(devname);
 
-	bootable = sanity_check_currdev();
-	if (bootable) {
-		buf = malloc(VDEV_PAD_SIZE);
-		if (buf != NULL) {
-			if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf,
-			    VDEV_PAD_SIZE) == 0) {
-				printf("zfs bootonce: %s\n", buf);
-				set_currdev(buf);
-				setenv("zfs-bootonce", buf, 1);
-			}
-			free(buf);
-			(void) zfs_attach_nvstore(&currdev);
-		}
+	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
+		printf("zfs bootonce: %s\n", buf);
+		set_currdev(buf);
+		setenv("zfs-bootonce", buf, 1);
+		(void)zfs_attach_nvstore(&currdev);
 	}
-	return (bootable);
+
+	return (sanity_check_currdev());
 }
 #endif
 
@@ -933,6 +925,22 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_readin = efi_readin;
 	archsw.arch_zfs_probe = efi_zfs_probe;
 
+#if !defined(__arm__)
+	for (k = 0; k < ST->NumberOfTableEntries; k++) {
+		guid = &ST->ConfigurationTable[k].VendorGuid;
+		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
+		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
+			char buf[40];
+
+			snprintf(buf, sizeof(buf), "%p",
+			    ST->ConfigurationTable[k].VendorTable);
+			setenv("hint.smbios.0.mem", buf, 1);
+			smbios_detect(ST->ConfigurationTable[k].VendorTable);
+			break;
+		}
+	}
+#endif
+
         /* Get our loaded image protocol interface structure. */
 	(void) OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
 
@@ -1054,10 +1062,8 @@ main(int argc, CHAR16 *argv[])
 	 */
 	boot_howto_to_env(howto);
 
-	if (efi_copy_init()) {
-		printf("failed to allocate staging area\n");
+	if (efi_copy_init())
 		return (EFI_BUFFER_TOO_SMALL);
-	}
 
 	if ((s = getenv("fail_timeout")) != NULL)
 		fail_timeout = strtol(s, NULL, 10);
@@ -1183,22 +1189,6 @@ main(int argc, CHAR16 *argv[])
 
 	autoload_font(false);	/* Set up the font list for console. */
 	efi_init_environment();
-
-#if !defined(__arm__)
-	for (k = 0; k < ST->NumberOfTableEntries; k++) {
-		guid = &ST->ConfigurationTable[k].VendorGuid;
-		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
-		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
-			char buf[40];
-
-			snprintf(buf, sizeof(buf), "%p",
-			    ST->ConfigurationTable[k].VendorTable);
-			setenv("hint.smbios.0.mem", buf, 1);
-			smbios_detect(ST->ConfigurationTable[k].VendorTable);
-			break;
-		}
-	}
-#endif
 
 	interact();			/* doesn't return */
 

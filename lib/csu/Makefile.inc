@@ -20,7 +20,6 @@ CRT1OBJS+=	crtbrand.o feature_note.o ignore_init_note.o
 ACFLAGS+=	-DLOCORE
 
 CFLAGS+=	-DSTRIP_FBSDID
-CFLAGS+=	-fno-asynchronous-unwind-tables
 CFLAGS+=	-fno-omit-frame-pointer
 CFLAGS+=	-I${.CURDIR:H}/common \
 		-I${SRCTOP}/lib/libc/include
@@ -35,25 +34,28 @@ FILESDIR=	${LIBDIR}
 # These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
 .undef LIBRARIES_ONLY
 
-CLEANFILES+=	${OBJS} ${CRT1OBJS} crt1_c.o gcrt1_c.o Scrt1_c.o
-CLEANFILES+=	crti_s.o
+CRT1SRC?=	crt1_c.c
+CRT1OBJ?=
 
-crt1.o:	crt1_c.o ${CRT1OBJS}
+CLEANFILES+=	${OBJS} ${CRT1OBJS} crt1_c.o gcrt1_c.o Scrt1_c.o
+CLEANFILES+=	crti_s.o ${CRT1SRC:C/.[S|c]$/.o/}
+
+crt1.o:	${CRT1SRC:C/.[S|c]$/.o/} ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 .if ${MACHINE_ARCH} == "i386"
 	${OBJCOPY} --localize-symbol _start1 ${.TARGET}
 .endif
 
-gcrt1_c.o: crt1_c.c
-	${CC} ${CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
+gcrt1_c.o: ${CRT1SRC}
+	${CC} ${CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/${CRT1SRC}
 
-gcrt1.o: gcrt1_c.o ${CRT1OBJS}
+gcrt1.o: gcrt1_c.o ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
-Scrt1_c.o: crt1_c.c
-	${CC} ${CFLAGS} -fPIC -DPIC -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
+Scrt1_c.o: ${CRT1SRC}
+	${CC} ${CFLAGS} -fPIC -DPIC -c -o ${.TARGET} ${.CURDIR}/${CRT1SRC}
 
-Scrt1.o: Scrt1_c.o ${CRT1OBJS}
+Scrt1.o: Scrt1_c.o ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 .if ${MACHINE_ARCH} == "i386"
 	${OBJCOPY} --localize-symbol _start1 ${.TARGET}

@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2023
+.Dd May 19, 2023
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .\" Display time.
 .Nm
 .Op Fl nRu
+.Op Fl z Ar output_zone
 .Op Fl I Ns Op Ar FMT
 .Op Fl r Ar filename
 .Op Fl r Ar seconds
@@ -56,6 +57,7 @@
 .\" Set time with the default input format.
 .Nm
 .Op Fl jnRu
+.Op Fl z Ar output_zone
 .Op Fl I Ns Op Ar FMT
 .Oo
 .Sm off
@@ -77,6 +79,7 @@
 .\" Set time with the user-provided input format.
 .Nm
 .Op Fl jnRu
+.Op Fl z Ar output_zone
 .Op Fl I Ns Op Ar FMT
 .Oo
 .Sm off
@@ -202,6 +205,14 @@ displays the time in the time zone described by
 or the
 .Ev TZ
 environment variable.
+.It Fl z Ar output_zone
+Just before printing the time, change to the specified timezone;
+see the description of
+.Ev TZ
+below.
+This can be used with
+.Fl j
+to easily convert time specifications from one zone to another.
 .It Xo
 .Fl v
 .Sm off
@@ -514,13 +525,20 @@ will display
 .Pp
 .Dl "2018-08-04T13:42:19-07:00"
 .Pp
-Finally the command:
+The command:
 .Pp
 .Dl "env LC_ALL=C date -j -f ""%a %b %d %T %Z %Y"" ""`env LC_ALL=C date`"" ""+%s"""
 .Pp
 can be used to parse the output from
 .Nm
 and express it in Epoch time.
+.Pp
+Finally the command
+.Pp
+.Dl "TZ=America/Los_Angeles date -z Europe/Paris -j 0900"
+.Pp
+will print the time in the "Europe/Paris" timezone when it is 9:00 in The
+America/Los_Angeles timezone.
 .Sh DIAGNOSTICS
 It is invalid to combine the
 .Fl I

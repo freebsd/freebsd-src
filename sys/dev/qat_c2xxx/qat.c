@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause */
+/* SPDX-License-Identifier: BSD-2-Clause AND BSD-3-Clause */
 /*	$NetBSD: qat.c,v 1.6 2020/06/14 23:23:12 riastradh Exp $	*/
 
 /*

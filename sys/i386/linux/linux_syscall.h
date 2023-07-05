@@ -2,7 +2,6 @@
  * System call numbers.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * $FreeBSD$
  */
 
 #define	LINUX_SYS_linux_exit	1
@@ -31,7 +30,6 @@
 #define	LINUX_SYS_linux_stime	25
 #define	LINUX_SYS_linux_ptrace	26
 #define	LINUX_SYS_linux_alarm	27
-#define	LINUX_SYS_linux_fstat	28
 #define	LINUX_SYS_linux_pause	29
 #define	LINUX_SYS_linux_utime	30
 #define	LINUX_SYS_linux_access	33

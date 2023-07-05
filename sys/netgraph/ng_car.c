@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005 Nuno Antunes <nuno.antunes@gmail.com>
  * Copyright (c) 2007 Alexander Motin <mav@freebsd.org>

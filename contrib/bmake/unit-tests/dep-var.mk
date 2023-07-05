@@ -1,4 +1,4 @@
-# $NetBSD: dep-var.mk,v 1.7 2023/02/13 21:01:46 rillig Exp $
+# $NetBSD: dep-var.mk,v 1.8 2023/05/10 15:53:32 rillig Exp $
 #
 # Tests for variable references in dependency declarations.
 #
@@ -91,5 +91,6 @@ undef1 def2 a-def2-b 1-2-$$INDIRECT_2-2-1 ${:U\$)}:
 
 .MAKEFLAGS: -d0
 
-# XXX: Why is the exit status still 0, even though Parse_Error is called
-# with PARSE_FATAL in SuffExpandChildren?
+# XXX: The exit status is still 0, even though Parse_Error is called with
+# PARSE_FATAL in SuffExpandChildren.  The exit status is only affected by
+# parse errors when they occur in the parsing phase, see Parse_File.

@@ -516,9 +516,9 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 	status = mac_veriexec_get_fingerprint_status(vp);
 	if (status == FINGERPRINT_INVALID || status == FINGERPRINT_NODEV) {
 		found_dev = 0;
-		error = mac_veriexec_metadata_get_file_info(vap->va_fsid,
-		    vap->va_fileid, vap->va_gen, &found_dev, &ip, check_files);
-		if (error != 0) {
+		if (mac_veriexec_metadata_get_file_info(vap->va_fsid,
+		    vap->va_fileid, vap->va_gen, &found_dev, &ip,
+		    check_files) != 0) {
 			status = (found_dev) ? FINGERPRINT_NOENTRY :
 			    FINGERPRINT_NODEV;
 			VERIEXEC_DEBUG(3,

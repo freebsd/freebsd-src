@@ -464,20 +464,22 @@ verify_asc(const char *sigfile, int flags)
 	size_t n;
 	unsigned char *fdata, *sdata;
 	size_t fbytes, sbytes;
-    
+
+	fdata = NULL;
 	if ((sdata = read_file(sigfile, &sbytes))) {
 		n = strlcpy(pbuf, sigfile, sizeof(pbuf));
-		if ((cp = strrchr(pbuf, '.')))
-			*cp = '\0';
-		if ((fdata = read_file(pbuf, &fbytes))) {
-			if (openpgp_verify(pbuf, fdata, fbytes, sdata,
-				sbytes, flags)) {
-				free(fdata);
-				fdata = NULL;
+		if (n < sizeof(pbuf)) {
+			if ((cp = strrchr(pbuf, '.')))
+				*cp = '\0';
+			if ((fdata = read_file(pbuf, &fbytes))) {
+				if (openpgp_verify(pbuf, fdata, fbytes, sdata,
+					sbytes, flags)) {
+					free(fdata);
+					fdata = NULL;
+				}
 			}
 		}
-	} else
-		fdata = NULL;
+	}
 	free(sdata);
 	return (fdata);
 }

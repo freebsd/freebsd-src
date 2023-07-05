@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2012
+.Dd June 29, 2023
 .Dt LIBSTDBUF 3
 .Os
 .Sh NAME
@@ -82,9 +82,12 @@ output will not stall until the full buffer fills.
     STDBUF_1=L awk '$2 > 1 || $3 > 1' | cat -n
 .Ed
 .Pp
-See also the manpage of
+See
 .Xr stdbuf 1
 for a simpler way to do this.
+.Sh SEE ALSO
+.Xr rtld 1 ,
+.Xr stdbuf 1
 .Sh HISTORY
 The
 .Nm

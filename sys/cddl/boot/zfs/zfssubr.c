@@ -1574,7 +1574,7 @@ vdev_raidz_read(vdev_t *vd, const blkptr_t *bp, void *data,
 	raidz_map_t *rm;
 	raidz_col_t *rc;
 	int c, error;
-	int unexpected_errors;
+	int unexpected_errors __unused;
 	int parity_errors;
 	int parity_untried;
 	int data_errors;

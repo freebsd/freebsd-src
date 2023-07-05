@@ -2,7 +2,7 @@
  * random.h - header for random.c
  *
  * Copyright (c) 2009-2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "types.h"

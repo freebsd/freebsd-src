@@ -1,0 +1,53 @@
+.\" $FreeBSD$
+.\"
+.Dd Apr 18, 2023
+.Dt NCTHWM 4
+.Os
+.Sh NAME
+.Nm ncthwm
+.Nd Hardware monitoring controller on Nuvoton Super I/Os
+.Sh SYNOPSIS
+.Cd "device ncthwm"
+.Cd "device superio"
+.Sh DESCRIPTION
+The
+.Nm
+is a driver for hardware monitoring controller that can be found in Nuvoton
+Super I/O chips. It expose fan speed via
+.Xr sysctl 8 .
+
+.Pp
+The
+.Nm
+driver supports the following chips:
+.Pp
+.Bl -bullet -compact
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6796D-E
+.El
+
+.Sh SYSCTL VARIABLES
+These variables are available as read-only
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va dev.ncthwm.0.CPUFAN
+CPU fan speed in RPM.
+.It Va dev.ncthwm.0.SYSFAN
+System fan speed in RPM.
+.It Va dev.ncthwm.0.AUXFAN0
+AUX0 fan speed in RPM.
+.It Va dev.ncthwm.0.AUXFAN1
+AUX1 fan speed in RPM.
+.It Va dev.ncthwm.0.AUXFAN2
+AUX2 fan speed in RPM.
+.El
+
+.Sh HISTORY
+The driver first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+The driver was initially written by
+.An Stéphane Rochoy Aq Mt stephane.rochoy@stormshield.eu .

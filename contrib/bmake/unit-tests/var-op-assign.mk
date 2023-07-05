@@ -1,4 +1,4 @@
-# $NetBSD: var-op-assign.mk,v 1.8 2021/03/15 19:15:04 rillig Exp $
+# $NetBSD: var-op-assign.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
 #
 # Tests for the = variable assignment operator, which overwrites an existing
 # variable or creates it.
@@ -56,6 +56,7 @@ VAR=	${:! echo 'this will be evaluated later' 1>&2 !}
 
 # In a variable assignment, the variable name must consist of a single word.
 # The following line therefore generates a parse error.
+# expect+1: Invalid line type
 VARIABLE NAME=	variable value
 
 # But if the whitespace appears inside parentheses or braces, everything is
@@ -90,6 +91,7 @@ VARNAME_BRACES=	VAR{spaces in braces}
 # unexpected variable values.
 #
 # Therefore, just output an info message.
+# expect+1: Parsing still continues until here.
 .info Parsing still continues until here.
 
 all:

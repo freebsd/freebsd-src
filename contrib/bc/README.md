@@ -422,13 +422,23 @@ Other projects based on this bc are:
 
 * [busybox `bc`][8]. The busybox maintainers have made their own changes, so any
   bugs in the busybox `bc` should be reported to them.
-
 * [toybox `bc`][9]. The maintainer has also made his own changes, so bugs in the
   toybox `bc` should be reported there.
-
 * [FreeBSD `bc`][23]. While the `bc` in FreeBSD is kept up-to-date, it is better
   to [report bugs there][24], as well as [submit patches][25], and the
   maintainers of the package will contact me if necessary.
+* [Mac OSX `bc`][35]. Any bugs in that `bc` should be reported to me, but do
+  expect bugs because the version is old.
+* [Android Open Source `bc`][32]. Any bugs in that `bc` can be reported here.
+
+This is a non-comprehensive list of Linux distros that use this `bc` as the
+system `bc`:
+
+* [Gentoo][33]; it is a first-class alternative to GNU `bc`, but not exclusive.
+* [Linux from Scratch][34].
+
+Other Linux distros package it as a second-class alternative, usually as `bc-gh`
+or `howard-bc`.
 
 ## Language
 
@@ -500,3 +510,7 @@ Folders:
 [29]: https://github.com/gavinhoward/bc
 [30]: ./manuals/bc/A.1.md#extended-library
 [31]: ./manuals/build.md#settings
+[32]: https://android.googlesource.com/platform/external/bc/
+[33]: https://github.com/gentoo/gentoo/blob/master/app-alternatives/bc/bc-0.ebuild#L8
+[34]: https://www.linuxfromscratch.org/lfs/view/stable/chapter08/bc.html
+[35]: https://github.com/apple-oss-distributions/bc/tree/main/bc

@@ -25,6 +25,11 @@ SRCS+= route_netlink.c
 CFLAGS+=-DWITHOUT_NETLINK
 .endif
 
+.if ${MK_JAIL} != "no" && !defined(RESCUE)
+CFLAGS+= -DJAIL
+LIBADD+= jail
+.endif
+
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 

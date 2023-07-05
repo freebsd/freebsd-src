@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 Ng Peng Nam Sean
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
@@ -52,7 +52,7 @@ FEATURE(netlink, "Netlink support");
 #define	DEBUG_MOD_NAME	nl_mod
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 
 #define NL_MAX_HANDLERS	20
@@ -187,6 +187,9 @@ const static struct nl_function_wrapper nl_module = {
 	.nlmsg_get_group_writer = _nlmsg_get_group_writer,
 	.nlmsg_get_chain_writer = _nlmsg_get_chain_writer,
 	.nlmsg_end_dump = _nlmsg_end_dump,
+	.nl_modify_ifp_generic = _nl_modify_ifp_generic,
+	.nl_store_ifp_cookie = _nl_store_ifp_cookie,
+	.nl_get_thread_nlp = _nl_get_thread_nlp,
 };
 #endif
 
@@ -220,6 +223,8 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 	switch (what) {
 	case MOD_LOAD:
 		NL_LOG(LOG_DEBUG2, "Loading");
+		nl_init_msg_zone();
+		nl_osd_register();
 #if !defined(NETLINK) && defined(NETLINK_MODULE)
 		nl_set_functions(&nl_module);
 #endif
@@ -233,6 +238,8 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 #if !defined(NETLINK) && defined(NETLINK_MODULE)
 			nl_set_functions(NULL);
 #endif
+			nl_osd_unregister();
+			nl_destroy_msg_zone();
 		} else
 			ret = EBUSY;
 		break;

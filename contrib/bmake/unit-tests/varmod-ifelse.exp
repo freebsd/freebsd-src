@@ -1,32 +1,32 @@
 make: Bad conditional expression 'variable expression == "literal"' in 'variable expression == "literal"?bad:bad'
-make: "varmod-ifelse.mk" line 27: Malformed conditional (${${:Uvariable expression} == "literal":?bad:bad})
+make: "varmod-ifelse.mk" line 28: Malformed conditional (${${:Uvariable expression} == "literal":?bad:bad})
 make: Bad conditional expression ' == ""' in ' == ""?bad-assign:bad-assign'
 make: Bad conditional expression ' == ""' in ' == ""?bad-cond:bad-cond'
-make: "varmod-ifelse.mk" line 44: Malformed conditional (${${UNDEF} == "":?bad-cond:bad-cond})
+make: "varmod-ifelse.mk" line 46: Malformed conditional (${${UNDEF} == "":?bad-cond:bad-cond})
 make: Bad conditional expression '1 == == 2' in '1 == == 2?yes:no'
-make: "varmod-ifelse.mk" line 66: Malformed conditional (${1 == == 2:?yes:no} != "")
+make: "varmod-ifelse.mk" line 69: Malformed conditional (${1 == == 2:?yes:no} != "")
 CondParser_Eval: "${1 == == 2:?yes:no}" != ""
 CondParser_Eval: 1 == == 2
 Comparing 1.000000 == 0.000000
 make: Bad conditional expression '1 == == 2' in '1 == == 2?yes:no'
 Comparing "" != ""
-make: "varmod-ifelse.mk" line 92: warning: Oops, the parse error should have been propagated.
+make: "varmod-ifelse.mk" line 96: warning: Oops, the parse error should have been propagated.
 CondParser_Eval: ${ ${:U\$}{VAR} == value:?ok:bad} != "ok"
 CondParser_Eval: ${VAR} == value
 Comparing "value" == "value"
 Comparing "ok" != "ok"
-make: "varmod-ifelse.mk" line 153: no.
-make: "varmod-ifelse.mk" line 154: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+make: "varmod-ifelse.mk" line 158: no.
+make: "varmod-ifelse.mk" line 161: Comparison with '>=' requires both operands 'no' and '10' to be numeric
 make: Bad conditional expression 'string == "literal" || no >= 10' in 'string == "literal" || no >= 10?yes:no'
-make: "varmod-ifelse.mk" line 154: .
+make: "varmod-ifelse.mk" line 161: .
 make: Bad conditional expression 'string == "literal" &&  >= 10' in 'string == "literal" &&  >= 10?yes:no'
-make: "varmod-ifelse.mk" line 159: .
+make: "varmod-ifelse.mk" line 167: .
 make: Bad conditional expression 'string == "literal" ||  >= 10' in 'string == "literal" ||  >= 10?yes:no'
-make: "varmod-ifelse.mk" line 160: .
-make: "varmod-ifelse.mk" line 167: true
-make: "varmod-ifelse.mk" line 169: false
+make: "varmod-ifelse.mk" line 169: .
+make: "varmod-ifelse.mk" line 177: true
+make: "varmod-ifelse.mk" line 180: false
 make: Bad conditional expression '	' in '	?true:false'
-make: "varmod-ifelse.mk" line 171: 
+make: "varmod-ifelse.mk" line 182: 
 CondParser_Eval: 0 && ${1:?${:Uthen0:S,}},,}:${:Uelse0:S,}},,}} != "not evaluated"
 CondParser_Eval: 1 && ${0:?${:Uthen1:S,}},,}:${:Uelse1:S,}},,}} != "else1"
 CondParser_Eval: 0

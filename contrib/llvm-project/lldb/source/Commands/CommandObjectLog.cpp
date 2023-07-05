@@ -146,7 +146,7 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_log_enable_options);
+      return llvm::ArrayRef(g_log_enable_options);
     }
 
     FileSpec log_file;
@@ -371,7 +371,7 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_log_dump_options);
+      return llvm::ArrayRef(g_log_dump_options);
     }
 
     FileSpec log_file;
@@ -401,7 +401,7 @@ protected:
           m_options.log_file, flags, lldb::eFilePermissionsFileDefault, false);
       if (!file) {
         result.AppendErrorWithFormat("Unable to open log file '%s': %s",
-                                     m_options.log_file.GetCString(),
+                                     m_options.log_file.GetPath().c_str(),
                                      llvm::toString(file.takeError()).c_str());
         return false;
       }

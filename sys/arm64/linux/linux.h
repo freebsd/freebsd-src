@@ -49,7 +49,6 @@ typedef uint16_t	l_ushort;
 typedef l_ulong		l_uintptr_t;
 typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
-typedef l_ulong		l_dev_t;
 typedef l_uint		l_gid_t;
 typedef l_ushort	l_gid16_t;	/* XXX */
 typedef l_uint		l_uid_t;
@@ -128,7 +127,7 @@ struct l_timespec {
 #define	LINUX_O_LARGEFILE	000400000
 
 struct l_newstat {
-	l_dev_t		st_dev;
+	l_ulong		st_dev;
 	l_ino_t		st_ino;
 	l_uint		st_mode;
 	l_uint		st_nlink;
@@ -136,7 +135,7 @@ struct l_newstat {
 	l_uid_t		st_uid;
 	l_gid_t		st_gid;
 
-	l_dev_t		st_rdev;
+	l_ulong		st_rdev;
 	l_ulong		__st_pad1;
 	l_off_t		st_size;
 	l_int		st_blksize;
@@ -205,6 +204,10 @@ void	linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
 	    struct syscall_info *si);
 int	linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
 	    struct linux_pt_regset *l_regset);
+int	linux_ptrace_peekuser(struct thread *td, pid_t pid,
+	    void *addr, void *data);
+int	linux_ptrace_pokeuser(struct thread *td, pid_t pid,
+	    void *addr, void *data);
 #endif /* _KERNEL */
 
 #endif /* _ARM64_LINUX_H_ */

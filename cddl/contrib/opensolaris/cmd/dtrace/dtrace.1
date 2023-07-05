@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2021
+.Dd February 24, 2023
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -29,7 +29,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32 | Fl 64
-.Op Fl aACeFGhHlqSvVwZ
+.Op Fl aACdeFGhHlqSvVwZ
 .Op Fl b Ar bufsz
 .Op Fl c Ar cmd
 .Op Fl D Ar name Op Ns = Ns value
@@ -195,6 +195,12 @@ option.
 For a description of the set of tokens defined by the D compiler when invoking
 the C preprocessor, see
 .Fl X .
+.It Fl d
+Dump the D script to standard output, after syntactic transformations have been
+applied.
+For example, if-statements in D are implemented using such transformations: a
+conditional clause in a probe body is replaced at compile-time by a separate
+probe predicated on the original condition.
 .It Fl D Ar name Op Ns = Ns value
 Define
 .Ar name
@@ -803,11 +809,6 @@ failed or that the specified request could not be satisfied.
 .It 2
 Invalid command line options or arguments were specified.
 .El
-.Sh HISTORY
-The
-.Nm 
-utility first appeared in
-.Fx 7.1 .
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr elf 5 ,
@@ -815,3 +816,8 @@ utility first appeared in
 .Rs
 .%T Solaris Dynamic Tracing Guide
 .Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.1 .

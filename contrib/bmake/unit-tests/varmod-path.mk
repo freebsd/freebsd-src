@@ -1,4 +1,4 @@
-# $NetBSD: varmod-path.mk,v 1.3 2020/08/23 08:10:49 rillig Exp $
+# $NetBSD: varmod-path.mk,v 1.4 2023/05/10 15:53:32 rillig Exp $
 #
 # Tests for the :P variable modifier, which looks up the path for a given
 # target.
@@ -7,11 +7,12 @@
 # as of 2020-08-23 it is nevertheless resolved to a path.  This is probably
 # unintended.
 #
-# The real target is located in a subdirectory, and its full path is returned.
-# If it had been in the current directory, the difference between its path and
-# its name would not be visible.
+# In this test, the real target is located in a subdirectory, and its full
+# path is returned.  If it had been in the current directory, the difference
+# between its path and its name would not be visible.
 #
-# The enoent target does not exist, therefore the target name is returned.
+# The enoent target does not exist, therefore the plain name of the target
+# is returned.
 
 .MAIN: all
 
@@ -20,7 +21,8 @@ _!=	mkdir varmod-path.subdir
 _!=	> varmod-path.subdir/varmod-path.phony
 _!=	> varmod-path.subdir/varmod-path.real
 
-# To have an effect, this .PATH declaration must be after the directory is created.
+# To have an effect, this .PATH declaration must be processed after the
+# directory has been created.
 .PATH: varmod-path.subdir
 
 varmod-path.phony: .PHONY

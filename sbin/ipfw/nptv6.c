@@ -420,7 +420,6 @@ nptv6_foreach(nptv6_cb_t *f, const char *name, uint8_t set, int sort)
 	ipfw_nptv6_cfg *cfg;
 	size_t sz;
 	uint32_t i;
-	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(*cfg);
@@ -442,7 +441,7 @@ nptv6_foreach(nptv6_cb_t *f, const char *name, uint8_t set, int sort)
 
 		cfg = (ipfw_nptv6_cfg *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(cfg, name, set);
+			(void)f(cfg, name, set);
 			cfg = (ipfw_nptv6_cfg *)((caddr_t)cfg + olh->objsize);
 		}
 		free(olh);

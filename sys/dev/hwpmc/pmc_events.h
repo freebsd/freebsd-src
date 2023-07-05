@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005  Joseph Koshy
  * All rights reserved.
@@ -203,32 +203,6 @@ __PMC_EV(IAF, CPU_CLK_UNHALTED_REF)
 __PMC_EV_ALIAS("instruction-retired",	IAF_INSTR_RETIRED_ANY)		\
 __PMC_EV_ALIAS("unhalted-core-cycles",	IAF_CPU_CLK_UNHALTED_CORE)	\
 __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
-
-
-#define	PMC_EV_IAP_FIRST	PMC_EV_IAP_ARCH_BR_INS_RET
-#define	PMC_EV_IAP_LAST		PMC_EV_IAP_EVENT_FDH_40H
-
-/*
- * Map "architectural" event names to event ids.
- */
-#define	__PMC_EV_ALIAS_INTEL_ARCHITECTURAL()				\
-__PMC_EV_ALIAS("branch-instruction-retired",	IAP_ARCH_BR_INS_RET)	\
-__PMC_EV_ALIAS("branch-misses-retired",		IAP_ARCH_BR_MIS_RET)	\
-__PMC_EV_ALIAS("instruction-retired",		IAP_ARCH_INS_RET)	\
-__PMC_EV_ALIAS("llc-misses",			IAP_ARCH_LLC_MIS)	\
-__PMC_EV_ALIAS("llc-reference",			IAP_ARCH_LLC_REF)	\
-__PMC_EV_ALIAS("unhalted-reference-cycles",	IAP_ARCH_UNH_REF_CYC)	\
-__PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
-
-#define        __PMC_EV_UCP()                          \
-	__PMC_EV(UCP, EVENT_0CH_04H_E)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_F)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_M)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_S)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_E)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_F)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_M)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_S)					   \
 
 /*
  * ARMv7 Events
@@ -2464,10 +2438,10 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
  * 0x2000	0x0080		AMD K7 events
  * 0x2080	0x0100		AMD K8 events
  * 0x10000	0x0080		INTEL architectural fixed-function events
- * 0x10080	0x0F80		INTEL architectural programmable events
- * 0x11000	0x0080		INTEL Pentium 4 events
- * 0x11080	0x0080		INTEL Pentium MMX events
- * 0x11100	0x0100		INTEL Pentium Pro/P-II/P-III/Pentium-M events
+ * 0x10080	0x0F80		free (was INTEL architectural programmable events)
+ * 0x11000	0x0080		free (was INTEL Pentium 4 events)
+ * 0x11080	0x0080		free (was INTEL Pentium MMX events)
+ * 0x11100	0x0100		free (was INTEL Pentium Pro/P-II/P-III/Pentium-M events)
  * 0x11200	0x00FF		free (was INTEL XScale events)
  * 0x11300	0x00FF		free (was MIPS 24K events)
  * 0x11400	0x00FF		free (was Octeon events)
@@ -2484,32 +2458,30 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
  * 0x14600	0x0100		ARM CMN-600 events
  * 0x20000	0x1000		Software events
  */
-#define	__PMC_EVENTS()				\
-	__PMC_EV_BLOCK(TSC,	0x01000)	\
-	__PMC_EV_TSC()				\
-	__PMC_EV_BLOCK(IAF,     0x10000)	\
-	__PMC_EV_IAF()				\
-	__PMC_EV_BLOCK(K7,	0x2000)		\
-	__PMC_EV_K7()				\
-	__PMC_EV_BLOCK(K8,	0x2080)	        \
-	__PMC_EV_K8()				\
-	__PMC_EV_BLOCK(UCP,     0x12080)        \
-	__PMC_EV_UCP()				\
-	__PMC_EV_BLOCK(PPC7450,	0x13000)	\
-	__PMC_EV_PPC7450()			\
-	__PMC_EV_BLOCK(PPC970,	0x13100)	\
-	__PMC_EV_PPC970()			\
-	__PMC_EV_BLOCK(E500,	0x13300)	\
-	__PMC_EV_E500()				\
-	__PMC_EV_BLOCK(ARMV7,	0x14000)	\
-	__PMC_EV_ARMV7()			\
-	__PMC_EV_BLOCK(ARMV8,	0x14100)	\
-	__PMC_EV_ARMV8()			\
-	__PMC_EV_BLOCK(DMC620_PMU_CD2, 0x14500)	\
-	__PMC_EV_DMC620_PMU_CD2()		\
-	__PMC_EV_BLOCK(DMC620_PMU_C, 0x14520)	\
-	__PMC_EV_DMC620_PMU_C()			\
-	__PMC_EV_BLOCK(CMN600_PMU, 0x14600)	\
+#define	__PMC_EVENTS()					\
+	__PMC_EV_BLOCK(TSC,		0x01000)	\
+	__PMC_EV_TSC()					\
+	__PMC_EV_BLOCK(K7,		0x02000)	\
+	__PMC_EV_K7()					\
+	__PMC_EV_BLOCK(K8,		0x02080)	\
+	__PMC_EV_K8()					\
+	__PMC_EV_BLOCK(IAF,		0x10000)	\
+	__PMC_EV_IAF()					\
+	__PMC_EV_BLOCK(PPC7450,		0x13000)	\
+	__PMC_EV_PPC7450()				\
+	__PMC_EV_BLOCK(PPC970,		0x13100)	\
+	__PMC_EV_PPC970()				\
+	__PMC_EV_BLOCK(E500,		0x13300)	\
+	__PMC_EV_E500()					\
+	__PMC_EV_BLOCK(ARMV7,		0x14000)	\
+	__PMC_EV_ARMV7()				\
+	__PMC_EV_BLOCK(ARMV8,		0x14100)	\
+	__PMC_EV_ARMV8()				\
+	__PMC_EV_BLOCK(DMC620_PMU_CD2,	0x14500)	\
+	__PMC_EV_DMC620_PMU_CD2()			\
+	__PMC_EV_BLOCK(DMC620_PMU_C,	0x14520)	\
+	__PMC_EV_DMC620_PMU_C()				\
+	__PMC_EV_BLOCK(CMN600_PMU,	0x14600)	\
 	__PMC_EV_CMN600_PMU()
 
 #define	PMC_EVENT_FIRST	PMC_EV_TSC_TSC

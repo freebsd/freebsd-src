@@ -197,11 +197,17 @@ e820_add_entry(const uint64_t base, const uint64_t end,
 		return (0);
 	}
 
-	assert(element != NULL);
-	/* Non system memory should be allocated inside system memory. */
-	assert(element->type == E820_TYPE_MEMORY);
-	/* New element should fit into existing system memory element. */
-	assert(base >= element->base && end <= element->end);
+	/*
+	 * If some one tries to allocate a specific address, it could happen, that
+	 * this address is not allocatable. Therefore, do some checks. If the
+	 * address is not allocatable, don't panic. The user may have a fallback and
+	 * tries to allocate another address. This is true for the GVT-d emulation
+	 * which tries to reuse the host address of the graphics stolen memory and
+	 * falls back to allocating the highest address below 4 GB.
+	 */
+	if (element == NULL || element->type != E820_TYPE_MEMORY ||
+	    (base < element->base || end > element->end))
+		return (ENOMEM);
 
 	if (base == element->base) {
 		/*

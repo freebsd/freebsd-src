@@ -150,14 +150,14 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/$ZFSBOOT_BEROOT_NAME				mountpoint=none
 	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
+	# Home directories separated so they are common to all BEs
+	/home		mountpoint=/home
+
 	# Compress /tmp, allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
 	/usr		mountpoint=/usr,canmount=off
-
-	# Home directories separated so they are common to all BEs
-	/usr/home	# NB: /home is a symlink to /usr/home
 
 	# Ports tree
 	/usr/ports	setuid=off

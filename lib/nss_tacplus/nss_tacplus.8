@@ -1,0 +1,89 @@
+.\"-
+.\" Copyright (c) 2023 Klara, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 13, 2023
+.Dt NSS_TACPLUS 8
+.Os
+.Sh NAME
+.Nm nss_tacplus
+.Nd TACACS+ nsswitch module
+.Sh SYNOPSIS
+.Ic passwd : files tacplus
+.Sh DESCRIPTION
+The
+.Nm
+module is a loadable NSS module which provides a minimal identity
+service using a TACACS+ backend.
+.Pp
+Due to the limitations of the TACACS+ protocol, the functionality
+provided by the
+.Nm
+module is very limited: it can look up a user by name, but not by uid,
+and it cannot enumerate users.
+.Pp
+To look up a user, the
+.Nm
+module submits an authorization request with authentication method
+.Dv TAC_PLUS_AUTHEN_METH_NOT_SET ,
+authentication type
+.Dv TAC_PLUS_AUTHEN_TYPE_NOT_SET ,
+and authentication service
+.Dv TAC_PLUS_AUTHEN_SVC_LOGIN ,
+for the
+.Dq shell
+service.
+If the response status is either
+.Dv TAC_PLUS_AUTHOR_STATUS_PASS_ADD
+or
+.Dv TAC_PLUS_AUTHOR_STATUS_PASS_REPL ,
+the user is considered to exist and the
+.Nm
+module fills out a
+.Vt struct passwd
+for it.
+.Pp
+The following attributes, if included in the response from the TACACS+
+server, are used to construct the response:
+.Bl -tag -width GECOS
+.It Va UID
+Numeric user ID.
+Must be between 0 and
+.Dv UID_MAX .
+Defaults to 65534.
+.It Va GID
+Numeric primary group ID.
+Must be between 0 and
+.Dv GID_MAX .
+Defaults to 65534.
+.It Va CLASS
+Login class.
+Left blank if not provided.
+.It Va GECOS
+Display name.
+If not provided, the user name is used instead.
+.It Va HOME
+Home directory.
+Defaults to
+.Pa / .
+.It Va SHELL
+Shell.
+Defaults to
+.Pa /bin/sh .
+.El
+.Pp
+Case is ignored when matching attribute names.
+If an attribute is included multiple times, the last value takes
+effect.
+.Sh SEE ALSO
+.Xr libtacplus 3 ,
+.Xr tacplus.conf 5 ,
+.Xr pam_tacplus 8
+.Sh HISTORY
+.An -nosplit
+The
+.Nm
+module and this manual page were written by
+.An Dag-Erling Smørgrav Aq Mt des@FreeBSD.org
+for Klara Systems.

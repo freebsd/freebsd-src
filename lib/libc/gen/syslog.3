@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2021
+.Dd July 3, 2023
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -131,6 +131,11 @@ The
 .Fa ident
 argument
 is a string that will be prepended to every message.
+It may be formatted as
+.Fa ident[N]
+in which case decimal number
+.Fa N
+replaces the process id within messages.
 The
 .Fa logopt
 argument

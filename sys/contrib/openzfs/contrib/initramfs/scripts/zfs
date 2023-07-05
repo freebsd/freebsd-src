@@ -344,7 +344,7 @@ mount_fs()
 
 	# Need the _original_ datasets mountpoint!
 	mountpoint=$(get_fs_value "$fs" mountpoint)
-	ZFS_CMD="mount.zfs -o zfsutil"
+	ZFS_CMD="mount -o zfsutil -t zfs"
 	if [ "$mountpoint" = "legacy" ] || [ "$mountpoint" = "none" ]; then
 		# Can't use the mountpoint property. Might be one of our
 		# clones. Check the 'org.zol:mountpoint' property set in
@@ -361,7 +361,7 @@ mount_fs()
 			fi
 			# Don't use mount.zfs -o zfsutils for legacy mountpoint
 			if [ "$mountpoint" = "legacy" ]; then
-				ZFS_CMD="mount.zfs"
+				ZFS_CMD="mount -t zfs"
 			fi
 			# Last hail-mary: Hope 'rootmnt' is set!
 			mountpoint=""
@@ -419,6 +419,16 @@ decrypt_fs()
 			KEYSTATUS="$(get_fs_value "${ENCRYPTIONROOT}" keystatus)"
 			# Continue only if the key needs to be loaded
 			[ "$KEYSTATUS" = "unavailable" ] || return 0
+
+			# Try extensions first
+			for f in "/etc/zfs/initramfs-tools-load-key" "/etc/zfs/initramfs-tools-load-key.d/"*; do
+				[ -r "$f" ] || continue
+				(. "$f") && {
+					# Successful return and actually-loaded key: we're done
+					KEYSTATUS="$(get_fs_value "${ENCRYPTIONROOT}" keystatus)"
+					[ "$KEYSTATUS" = "unavailable" ] || return 0
+				}
+			done
 
 			# Do not prompt if key is stored noninteractively,
 			if ! [ "${KEYLOCATION}" = "prompt" ]; then
@@ -934,7 +944,7 @@ mountroot()
 		echo "       not specified on the kernel command line."
 		echo ""
 		echo "Manually mount the root filesystem on $rootmnt and then exit."
-		echo "Hint: Try:  mount.zfs -o zfsutil ${ZFS_RPOOL-rpool}/ROOT/system $rootmnt"
+		echo "Hint: Try:  mount -o zfsutil -t zfs ${ZFS_RPOOL-rpool}/ROOT/system $rootmnt"
 		shell
 	fi
 

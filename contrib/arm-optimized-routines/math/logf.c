@@ -1,8 +1,8 @@
 /*
  * Single-precision log function.
  *
- * Copyright (c) 2017-2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2017-2023, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <math.h>
@@ -57,7 +57,7 @@ logf (float x)
   tmp = ix - OFF;
   i = (tmp >> (23 - LOGF_TABLE_BITS)) % N;
   k = (int32_t) tmp >> 23; /* arithmetic shift */
-  iz = ix - (tmp & 0x1ff << 23);
+  iz = ix - (tmp & 0xff800000);
   invc = T[i].invc;
   logc = T[i].logc;
   z = (double_t) asfloat (iz);

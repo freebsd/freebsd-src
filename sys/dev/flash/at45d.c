@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011-2012 Ian Lepore All rights reserved.
  * Copyright (c) 2012 Marius Strobl <marius@FreeBSD.org> All rights reserved.

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 InnoGames GmbH
  *
@@ -130,6 +130,7 @@ pfsync_nvstatus_to_kstatus(const nvlist_t *nvl, struct pfsync_kstatus *status)
 		return (EINVAL);
 
 	status->maxupdates = nvlist_get_number(nvl, "maxupdates");
+	status->version = nvlist_get_number(nvl, "version");
 	status->flags = nvlist_get_number(nvl, "flags");
 
 	if (nvlist_exists_string(nvl, "syncdev"))

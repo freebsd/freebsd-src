@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
@@ -818,7 +818,7 @@ enum nvme_path_related_status_code {
 	NVME_SC_ASYMMETRIC_ACCESS_TRANSITION	= 0x03,
 	NVME_SC_CONTROLLER_PATHING_ERROR	= 0x60,
 	NVME_SC_HOST_PATHING_ERROR		= 0x70,
-	NVME_SC_COMMAND_ABOTHED_BY_HOST		= 0x71,
+	NVME_SC_COMMAND_ABORTED_BY_HOST		= 0x71,
 };
 
 /* admin opcodes */

@@ -29,7 +29,4 @@ void	ipi_selected(cpuset_t cpus, u_int ipi);
 void	platform_mp_setmaxid(void);
 void	platform_mp_start_ap(void);
 
-/* global data in mp_machdep.c */
-extern struct pcb               stoppcbs[];
-
 #endif /* !_MACHINE_SMP_H_ */

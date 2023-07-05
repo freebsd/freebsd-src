@@ -112,6 +112,7 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_DEVICE_ID		PCIR_DEVICE
 #define	PCI_COMMAND		PCIR_COMMAND
 #define	PCI_COMMAND_INTX_DISABLE	PCIM_CMD_INTxDIS
+#define	PCI_COMMAND_MEMORY	PCIM_CMD_MEMEN
 #define	PCI_EXP_DEVCTL		PCIER_DEVICE_CTL		/* Device Control */
 #define	PCI_EXP_LNKCTL		PCIER_LINK_CTL			/* Link Control */
 #define	PCI_EXP_LNKCTL_ASPM_L0S	PCIEM_LINK_CTL_ASPMC_L0S
@@ -260,6 +261,7 @@ struct pci_driver {
 
 struct pci_bus {
 	struct pci_dev	*self;
+	/* struct pci_bus	*parent */
 	int		domain;
 	int		number;
 };
@@ -293,11 +295,15 @@ struct msi_msg {
 	uint32_t			data;
 };
 
-struct msi_desc {
-	struct msi_msg			msg;
+struct pci_msi_desc {
 	struct {
 		bool			is_64;
 	} msi_attrib;
+};
+
+struct msi_desc {
+	struct msi_msg			msg;
+	struct pci_msi_desc		pci;
 };
 
 /*
@@ -1409,6 +1415,29 @@ pci_unlock_rescan_remove(void)
 static __inline void
 pci_stop_and_remove_bus_device(struct pci_dev *pdev)
 {
+}
+
+static inline int
+pci_rescan_bus(struct pci_bus *pbus)
+{
+	device_t *devlist, parent;
+	int devcount, error;
+
+	if (!device_is_attached(pbus->self->dev.bsddev))
+		return (0);
+	/* pci_rescan_method() will work on the pcib (parent). */
+	error = BUS_RESCAN(pbus->self->dev.bsddev);
+	if (error != 0)
+		return (0);
+
+	parent = device_get_parent(pbus->self->dev.bsddev);
+	error = device_get_children(parent, &devlist, &devcount);
+	if (error != 0)
+		return (0);
+	if (devcount != 0)
+		free(devlist, M_TEMP);
+
+	return (devcount);
 }
 
 /*

@@ -38,34 +38,13 @@
 
 #include <sys/uio.h>
 
+extern int linux_debug;
+
 MALLOC_DECLARE(M_LINUX);
 MALLOC_DECLARE(M_EPOLL);
 
-extern char linux_emul_path[];
-extern int linux_use_emul_path;
-
-int linux_emul_convpath(const char *, enum uio_seg, char **, int, int);
-
-#define LUSECONVPATH(td) atomic_load_int(&linux_use_emul_path)
-
-#define LCONVPATH_AT(upath, pathp, i, dfd)				\
-	do {								\
-		int _error;						\
-									\
-		_error = linux_emul_convpath(upath, UIO_USERSPACE,	\
-		    pathp, i, dfd);					\
-		if (*(pathp) == NULL)					\
-			return (_error);				\
-	} while (0)
-
-#define LCONVPATH(upath, pathp, i)	\
-   LCONVPATH_AT(upath, pathp, i, AT_FDCWD)
-
-#define LCONVPATHEXIST(upath, pathp) LCONVPATH(upath, pathp, 0)
-#define LCONVPATHEXIST_AT(upath, pathp, dfd) LCONVPATH_AT(upath, pathp, 0, dfd)
-#define LCONVPATHCREAT(upath, pathp) LCONVPATH(upath, pathp, 1)
-#define LCONVPATHCREAT_AT(upath, pathp, dfd) LCONVPATH_AT(upath, pathp, 1, dfd)
-#define LFREEPATH(path)	free(path, M_TEMP)
+int linux_pwd_onexec(struct thread *);
+void linux_pwd_onexec_native(struct thread *);
 
 #define DUMMY(s)							\
 LIN_SDT_PROBE_DEFINE0(dummy, s, not_implemented);			\
@@ -105,6 +84,8 @@ struct linux_device_handler {
 	int	linux_char_device;
 };
 
+struct stat;
+
 int	linux_device_register_handler(struct linux_device_handler *h);
 int	linux_device_unregister_handler(struct linux_device_handler *h);
 char	*linux_driver_get_name_dev(device_t dev);
@@ -112,6 +93,7 @@ int	linux_driver_get_major_minor(const char *node, int *major, int *minor);
 int	linux_vn_get_major_minor(const struct vnode *vn, int *major, int *minor);
 char	*linux_get_char_devices(void);
 void	linux_free_get_char_devices(char *string);
+void	translate_vnhook_major_minor(struct vnode *vp, struct stat *sb);
 
 #if defined(KTR)
 

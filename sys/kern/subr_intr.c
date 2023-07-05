@@ -135,7 +135,7 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, int flags);
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc **irq_sources;
-u_int irq_next_free;
+static u_int irq_next_free;
 
 #ifdef SMP
 #ifdef EARLY_AP_STARTUP
@@ -1713,6 +1713,14 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data)
 
 	mtx_lock(&irq_map_lock);
 	for (i = irq_map_first_free_idx; i < irq_map_count; i++) {
+		if (irq_map[i] == NULL) {
+			irq_map[i] = entry;
+			irq_map_first_free_idx = i + 1;
+			mtx_unlock(&irq_map_lock);
+			return (i);
+		}
+	}
+	for (i = 0; i < irq_map_first_free_idx; i++) {
 		if (irq_map[i] == NULL) {
 			irq_map[i] = entry;
 			irq_map_first_free_idx = i + 1;

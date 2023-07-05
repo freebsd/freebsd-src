@@ -27,12 +27,16 @@ SRCS.aarch64= \
 	ossl_aarch64.c
 
 SRCS.amd64= \
+	aes-gcm-avx512.S \
 	aesni-x86_64.S \
+	aesni-gcm-x86_64.S \
 	chacha-x86_64.S \
+	ghash-x86_64.S \
 	poly1305-x86_64.S \
 	sha1-x86_64.S \
 	sha256-x86_64.S \
 	sha512-x86_64.S \
+	ossl_aes_gcm.c \
 	ossl_x86.c
 
 SRCS.i386= \

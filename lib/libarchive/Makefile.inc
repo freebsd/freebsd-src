@@ -10,7 +10,9 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD+=	crypto
+CFLAGS.archive_hmac.c+=-Wno-error=cast-qual
 .else
 LIBADD+=	md
 .endif

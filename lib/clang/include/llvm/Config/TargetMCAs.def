@@ -1,9 +1,10 @@
-/* $FreeBSD$ */
-
 #ifndef LLVM_TARGETMCA
 #  error Please define the macro LLVM_TARGETMCA(TargetName)
 #endif
 
+#ifdef LLVM_TARGET_ENABLE_RISCV
+LLVM_TARGETMCA(RISCV)
+#endif
 #ifdef LLVM_TARGET_ENABLE_X86
 LLVM_TARGETMCA(X86)
 #endif

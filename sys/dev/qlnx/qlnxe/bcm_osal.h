@@ -93,7 +93,6 @@ extern int qlnx_pf_vf_msg(void *p_hwfn, uint16_t relative_vf_id);
 extern void qlnx_vf_flr_update(void *p_hwfn);
 
 #define nothing			do {} while(0)
-#ifdef ECORE_PACKAGE
 
 /* Memory Types */
 #define u8 uint8_t 
@@ -481,8 +480,8 @@ qlnx_test_and_change_bit(long bit, volatile unsigned long *var)
 #define OSAL_TEST_AND_FLIP_BIT qlnx_test_and_change_bit
 #define OSAL_TEST_AND_CLEAR_BIT test_and_clear_bit
 #define OSAL_MEMCMP memcmp
-#define OSAL_SPIN_LOCK_IRQSAVE(x,y) {y=0; mtx_lock(x);}
-#define OSAL_SPIN_UNLOCK_IRQSAVE(x,y) {y= 0; mtx_unlock(x);}
+#define OSAL_SPIN_LOCK_IRQSAVE(x, y) { (void)y; mtx_lock(x); }
+#define OSAL_SPIN_UNLOCK_IRQSAVE(x, y) { (void)y; mtx_unlock(x); }
 
 static inline u32
 OSAL_CRC32(u32 crc, u8 *ptr, u32 length)
@@ -541,7 +540,5 @@ OSAL_CRC8(u8 * cdu_crc8_table, u8 * data_to_crc, int data_to_crc_len, u8 init_va
 
 #define OSAL_VF_FLR_UPDATE(p_hwfn) qlnx_vf_flr_update(p_hwfn)
 #define OSAL_IOV_VF_VPORT_STOP(p_hwfn, vf)
-
-#endif /* #ifdef ECORE_PACKAGE */
 
 #endif /* #ifdef __BCM_OSAL_ECORE_PACKAGE */

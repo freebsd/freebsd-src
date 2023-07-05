@@ -2,7 +2,7 @@
  * Single-precision pow function.
  *
  * Copyright (c) 2017-2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <math.h>

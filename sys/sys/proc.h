@@ -113,6 +113,8 @@ struct pgrp {
 	pid_t		pg_id;		/* (c) Process group id. */
 	struct mtx	pg_mtx;		/* Mutex to protect members */
 	int		pg_flags;	/* (m) PGRP_ flags */
+	struct sx	pg_killsx;	/* Mutual exclusion between group member
+					 * fork() and killpg() */
 };
 
 #define	PGRP_ORPHANED	0x00000001	/* Group is orphaned */
@@ -271,11 +273,11 @@ struct thread {
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
-	short		td_locks;	/* (k) Debug: count of non-spin locks */
-	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
-	short		td_sx_slocks;	/* (k) Count of sx shared locks. */
-	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
-	short		td_stopsched;	/* (k) Scheduler stopped. */
+	u_char		td_stopsched;	/* (k) Scheduler stopped. */
+	int		td_locks;	/* (k) Debug: count of non-spin locks */
+	int		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
+	int		td_sx_slocks;	/* (k) Count of sx shared locks. */
+	int		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
 	const char	*td_lockname;	/* (t) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
@@ -430,7 +432,7 @@ do {									\
 #define	TD_LOCKS_INC(td)	((td)->td_locks++)
 #define	TD_LOCKS_DEC(td) do {						\
 	KASSERT(SCHEDULER_STOPPED_TD(td) || (td)->td_locks > 0,		\
-	    ("thread %p owns no locks", (td)));				\
+	    ("Thread %p owns no locks", (td)));				\
 	(td)->td_locks--;						\
 } while (0)
 #else
@@ -720,6 +722,7 @@ struct proc {
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
+	int		p_killpg_cnt;
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -881,6 +884,7 @@ struct proc {
 #define	P2_WEXIT		0x00040000	/* exit just started, no
 						   external thread_single() is
 						   permitted */
+#define	P2_REAPKILLED		0x00080000
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -1233,6 +1237,7 @@ void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
+void	exit2(struct thread *, int, int, bool) __dead2;
 void	cpu_copy_thread(struct thread *td, struct thread *td0);
 bool	cpu_exec_vmspace_reuse(struct proc *p, struct vm_map *map);
 int	cpu_fetch_syscall_args(struct thread *td);

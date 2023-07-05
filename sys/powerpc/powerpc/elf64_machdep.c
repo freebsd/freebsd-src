@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
@@ -75,7 +75,6 @@ struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
@@ -118,7 +117,6 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
@@ -149,16 +147,15 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 
-static boolean_t ppc64_elfv1_header_match(struct image_params *params,
+static bool ppc64_elfv1_header_match(struct image_params *params,
     int32_t *, uint32_t *);
-static boolean_t ppc64_elfv2_header_match(struct image_params *params,
+static bool ppc64_elfv2_header_match(struct image_params *params,
     int32_t *, uint32_t *);
 
 static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_v1,
 	.interp_newpath	= NULL,
@@ -175,7 +172,6 @@ static Elf64_Brandinfo freebsd_brand_info_elfv2 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_v2,
 	.interp_newpath	= NULL,
@@ -192,7 +188,6 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec_v1,
 	.interp_newpath	= NULL,
@@ -227,7 +222,7 @@ ppc64_init_sysvecs(void *arg)
 }
 SYSINIT(elf64_sysvec, SI_SUB_EXEC, SI_ORDER_ANY, ppc64_init_sysvecs, NULL);
 
-static boolean_t
+static bool
 ppc64_elfv1_header_match(struct image_params *params, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
@@ -237,7 +232,7 @@ ppc64_elfv1_header_match(struct image_params *params, int32_t *osrel __unused,
 	return (abi == 0 || abi == 1);
 }
 
-static boolean_t
+static bool
 ppc64_elfv2_header_match(struct image_params *params, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {

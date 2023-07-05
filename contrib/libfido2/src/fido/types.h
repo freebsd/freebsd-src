@@ -107,8 +107,12 @@ typedef struct fido_attcred {
 } fido_attcred_t;
 
 typedef struct fido_attstmt {
-	fido_blob_t x5c; /* attestation certificate */
-	fido_blob_t sig; /* attestation signature */
+	fido_blob_t certinfo; /* tpm attestation TPMS_ATTEST structure */
+	fido_blob_t pubarea;  /* tpm attestation TPMT_PUBLIC structure */
+	fido_blob_t cbor;     /* cbor-encoded attestation statement */
+	fido_blob_t x5c;      /* attestation certificate */
+	fido_blob_t sig;      /* attestation signature */
+	int         alg;      /* attestation algorithm (cose) */
 } fido_attstmt_t;
 
 typedef struct fido_rp {
@@ -124,8 +128,9 @@ typedef struct fido_user {
 } fido_user_t;
 
 typedef struct fido_cred_ext {
-	int mask; /* enabled extensions */
-	int prot; /* protection policy */
+	int    mask;      /* enabled extensions */
+	int    prot;      /* protection policy */
+	size_t minpinlen; /* minimum pin length */
 } fido_cred_ext_t;
 
 typedef struct fido_cred {
@@ -146,13 +151,13 @@ typedef struct fido_cred {
 	fido_attcred_t    attcred;       /* returned credential (key + id) */
 	fido_attstmt_t    attstmt;       /* attestation statement (x509 + sig) */
 	fido_blob_t       largeblob_key; /* decoded large blob key */
-	fido_blob_t       blob;          /* FIDO 2.1 credBlob */
+	fido_blob_t       blob;          /* CTAP 2.1 credBlob */
 } fido_cred_t;
 
 typedef struct fido_assert_extattr {
 	int         mask;            /* decoded extensions */
 	fido_blob_t hmac_secret_enc; /* hmac secret, encrypted */
-	fido_blob_t blob;            /* decoded FIDO 2.1 credBlob */
+	fido_blob_t blob;            /* decoded CTAP 2.1 credBlob */
 } fido_assert_extattr_t;
 
 typedef struct _fido_assert_stmt {
@@ -260,6 +265,7 @@ typedef struct fido_dev {
 	int                   flags;      /* internal flags; see FIDO_DEV_* */
 	fido_dev_transport_t  transport;  /* transport functions */
 	uint64_t	      maxmsgsize; /* max message size */
+	int		      timeout_ms; /* read timeout in ms */
 } fido_dev_t;
 
 #else

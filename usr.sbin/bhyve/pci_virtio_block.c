@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -468,6 +468,11 @@ pci_vtblk_init(struct pci_devinst *pi, nvlist_t *nvl)
 	bctxt = blockif_open(nvl, bident);
 	if (bctxt == NULL) {
 		perror("Could not open backing file");
+		return (1);
+	}
+
+	if (blockif_add_boot_device(pi, bctxt)) {
+		perror("Invalid boot device");
 		return (1);
 	}
 

@@ -170,7 +170,7 @@ inoinfo(ino_t inum)
 	struct inostatlist *ilp;
 	int iloff;
 
-	if (inum > maxino)
+	if (inum >= maxino)
 		errx(EEXIT, "inoinfo: inumber %ju out of range",
 		    (uintmax_t)inum);
 	ilp = &inostathead[inum / sblock.fs_ipg];
@@ -989,9 +989,7 @@ blzero(int fd, ufs2_daddr_t blk, long size)
  * Verify cylinder group's magic number and other parameters.  If the
  * test fails, offer an option to rebuild the whole cylinder group.
  *
- * Return 1 if the cylinder group is good or if repair is requested
- * and is completed successfully. Return 0 if it is bad or if a repair
- * has been requested but is not completed successfully.
+ * Return 1 if the cylinder group is good or return 0 if it is bad.
  */
 #undef CHK
 #define CHK(lhs, op, rhs, fmt)						\
@@ -1003,7 +1001,7 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 		error = 1;						\
 	}
 int
-check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
+check_cgmagic(int cg, struct bufarea *cgbp)
 {
 	struct cg *cgp = cgbp->b_un.b_cg;
 	uint32_t cghash, calchash;
@@ -1040,7 +1038,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 		CHK(cgp->cg_ndblk, !=, sblock.fs_size - cgbase(&sblock, cg),
 		    "%jd");
 	}
-	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	start = sizeof(*cgp);
 	if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		CHK(cgp->cg_iusedoff, !=, start, "%jd");
 	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
@@ -1077,15 +1075,16 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 		return (0);
 	prevfailcg = cg;
 	pfatal("CYLINDER GROUP %d: INTEGRITY CHECK FAILED", cg);
-	if (!request_rebuild) {
-		printf("\n");
-		return (0);
-	}
-	if (!reply("REBUILD CYLINDER GROUP")) {
-		printf("YOU WILL NEED TO RERUN FSCK.\n");
-		rerun = 1;
-		return (0);
-	}
+	printf("\n");
+	return (0);
+}
+
+void
+rebuild_cg(int cg, struct bufarea *cgbp)
+{
+	struct cg *cgp = cgbp->b_un.b_cg;
+	long start;
+
 	/*
 	 * Zero out the cylinder group and then initialize critical fields.
 	 * Bit maps and summaries will be recalculated by later passes.
@@ -1099,7 +1098,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 		cgp->cg_ndblk = sblock.fs_fpg;
 	else
 		cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
-	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	start = sizeof(*cgp);
 	if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		cgp->cg_iusedoff = start;
 	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
@@ -1127,7 +1126,6 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	}
 	cgp->cg_ckhash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
 	cgdirty(cgbp);
-	return (1);
 }
 
 /*
@@ -1191,7 +1189,7 @@ std_checkblkavail(ufs2_daddr_t blkno, long frags)
 		cg = dtog(&sblock, blkno + j);
 		cgbp = cglookup(cg);
 		cgp = cgbp->b_un.b_cg;
-		if (!check_cgmagic(cg, cgbp, 0))
+		if (!check_cgmagic(cg, cgbp))
 			return (-((cg + 1) * sblock.fs_fpg - sblock.fs_frag));
 		baseblk = dtogd(&sblock, blkno + j);
 		for (k = 0; k < frags; k++) {
@@ -1207,6 +1205,31 @@ std_checkblkavail(ufs2_daddr_t blkno, long frags)
 		return (blkno + j);
 	}
 	return (0);
+}
+
+/*
+ * Check whether a file size is within the limits for the filesystem.
+ * Return 1 when valid and 0 when too big.
+ *
+ * This should match the file size limit in ffs_mountfs().
+ */
+int
+chkfilesize(mode_t mode, u_int64_t filesize)
+{
+	u_int64_t kernmaxfilesize;
+
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		kernmaxfilesize = (off_t)0x40000000 * sblock.fs_bsize - 1;
+	else
+		kernmaxfilesize = sblock.fs_maxfilesize;
+	if (filesize > kernmaxfilesize ||
+	    filesize > sblock.fs_maxfilesize ||
+	    (mode == IFDIR && filesize > MAXDIRSIZE)) {
+		if (debug)
+			printf("bad file size %ju:", (uintmax_t)filesize);
+		return (0);
+	}
+	return (1);
 }
 
 /*

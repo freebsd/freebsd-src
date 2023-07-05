@@ -35,6 +35,20 @@
 #ifndef _X86_LINUX_SIGFRAME_H_
 #define	_X86_LINUX_SIGFRAME_H_
 
+#define	LINUX_UC_FP_XSTATE		0x1
+
+#define	LINUX_FP_XSTATE_MAGIC1		0x46505853U
+#define	LINUX_FP_XSTATE_MAGIC2		0x46505845U
+#define	LINUX_FP_XSTATE_MAGIC2_SIZE	sizeof(uint32_t)
+
+struct l_fpx_sw_bytes {
+	uint32_t	magic1;
+	uint32_t	extended_size;
+	uint64_t	xfeatures;
+	uint32_t	xstate_size;
+	uint32_t	padding[7];
+};
+
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 /* The Linux sigcontext, pretty much a standard 386 trapframe. */
@@ -140,7 +154,11 @@ struct l_fpstate {
 	u_int32_t mxcsr_mask;
 	u_int8_t st[8][16];
 	u_int8_t xmm[16][16];
-	u_int32_t reserved2[24];
+	u_int32_t reserved2[12];
+	union {
+		u_int32_t		reserved3[12];
+		struct l_fpx_sw_bytes	sw_reserved;
+	};
 } __aligned(16);
 
 struct l_sigcontext {
@@ -170,7 +188,13 @@ struct l_sigcontext {
 	l_ulong		sc_trapno;
 	l_sigset_t	sc_mask;
 	l_ulong		sc_cr2;
-	struct l_fpstate *sc_fpstate;
+	/*
+	 * On Linux sc_fpstate is (struct l_fpstate *) or (struct l_xstate *)
+	 * depending on the FP_XSTATE_MAGIC1 encoded in the sw_reserved
+	 * bytes of (struct l_fpstate) and FP_XSTATE_MAGIC2 present at the end
+	 * of extended memory layout.
+	 */
+	l_uintptr_t	sc_fpstate;
 	l_ulong		sc_reserved1[8];
 };
 
@@ -189,7 +213,6 @@ struct l_ucontext {
 struct l_rt_sigframe {
 	struct l_ucontext	sf_uc;
 	struct l_siginfo	sf_si;
-	struct l_fpstate 	sf_fs;
 };
 
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */

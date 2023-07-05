@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-tblgen
+MAN=
 
 SRCDIR=		llvm/utils/TableGen
 SRCS+=		AsmMatcherEmitter.cpp
@@ -50,6 +51,7 @@ SRCS+=		OptParserEmitter.cpp
 SRCS+=		OptRSTEmitter.cpp
 SRCS+=		PredicateExpander.cpp
 SRCS+=		PseudoLoweringEmitter.cpp
+SRCS+=		RISCVTargetDefEmitter.cpp
 SRCS+=		RegisterBankEmitter.cpp
 SRCS+=		RegisterInfoEmitter.cpp
 SRCS+=		SDNodeProperties.cpp

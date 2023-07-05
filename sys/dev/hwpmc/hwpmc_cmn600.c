@@ -141,11 +141,10 @@ cmn600_pmu_writecntr(void *arg, u_int nodeid, u_int xpcntr, u_int dtccntr,
  * read a pmc register
  */
 static int
-cmn600_read_pmc(int cpu, int ri, pmc_value_t *v)
+cmn600_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	int counter, local_counter, nodeid;
 	struct cmn600_descr *desc;
-	struct pmc *pm;
 	void *arg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -155,14 +154,9 @@ cmn600_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	counter = ri % CMN600_COUNTERS_N;
 	desc = cmn600desc(ri);
-	pm = desc->pd_phw->phw_pmc;
 	arg = desc->pd_rw_arg;
 	nodeid = pm->pm_md.pm_cmn600.pm_cmn600_nodeid;
 	local_counter = pm->pm_md.pm_cmn600.pm_cmn600_local_counter;
-
-	KASSERT(pm != NULL,
-	    ("[cmn600,%d] No owner for HWPMC [cpu%d,pmc%d]", __LINE__,
-		cpu, ri));
 
 	*v = cmn600_pmu_readcntr(arg, nodeid, local_counter, counter, 4);
 	PMCDBG3(MDP, REA, 2, "%s id=%d -> %jd", __func__, ri, *v);
@@ -174,11 +168,10 @@ cmn600_read_pmc(int cpu, int ri, pmc_value_t *v)
  * Write a pmc register.
  */
 static int
-cmn600_write_pmc(int cpu, int ri, pmc_value_t v)
+cmn600_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
 	int counter, local_counter, nodeid;
 	struct cmn600_descr *desc;
-	struct pmc *pm;
 	void *arg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -188,7 +181,6 @@ cmn600_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	counter = ri % CMN600_COUNTERS_N;
 	desc = cmn600desc(ri);
-	pm = desc->pd_phw->phw_pmc;
 	arg = desc->pd_rw_arg;
 	nodeid = pm->pm_md.pm_cmn600.pm_cmn600_nodeid;
 	local_counter = pm->pm_md.pm_cmn600.pm_cmn600_local_counter;
@@ -424,13 +416,11 @@ cmn600_encode_source(int node_type, int counter, int port, int sub)
  */
 
 static int
-cmn600_start_pmc(int cpu, int ri)
+cmn600_start_pmc(int cpu, int ri, struct pmc *pm)
 {
 	int counter, local_counter, node_type, shift;
 	uint64_t config, occupancy, source, xp_pmucfg;
 	struct cmn600_descr *desc;
-	struct pmc_hw *phw;
-	struct pmc *pm;
 	uint8_t event, port, sub;
 	uint16_t nodeid;
 	void *arg;
@@ -442,13 +432,7 @@ cmn600_start_pmc(int cpu, int ri)
 
 	counter = ri % CMN600_COUNTERS_N;
 	desc = cmn600desc(ri);
-	phw = desc->pd_phw;
-	pm  = phw->phw_pmc;
 	arg = desc->pd_rw_arg;
-
-	KASSERT(pm != NULL,
-	    ("[cmn600,%d] starting cpu%d,pmc%d with null pmc record", __LINE__,
-		cpu, ri));
 
 	PMCDBG3(MDP, STA, 1, "%s cpu=%d ri=%d", __func__, cpu, ri);
 
@@ -541,11 +525,9 @@ cmn600_start_pmc(int cpu, int ri)
  */
 
 static int
-cmn600_stop_pmc(int cpu, int ri)
+cmn600_stop_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct cmn600_descr *desc;
-	struct pmc_hw *phw;
-	struct pmc *pm;
 	int local_counter;
 	uint64_t val;
 
@@ -555,12 +537,6 @@ cmn600_stop_pmc(int cpu, int ri)
 	    ri));
 
 	desc = cmn600desc(ri);
-	phw = desc->pd_phw;
-	pm  = phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[cmn600,%d] cpu%d,pmc%d no PMC to stop", __LINE__,
-		cpu, ri));
 
 	PMCDBG2(MDP, STO, 1, "%s ri=%d", __func__, ri);
 
@@ -587,9 +563,8 @@ cmn600_stop_pmc(int cpu, int ri)
 static int
 cmn600_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
+	struct pmc_descr *pd;
 	struct pmc_hw *phw;
-	size_t copied;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[cmn600,%d] illegal CPU %d", __LINE__, cpu));
@@ -597,12 +572,10 @@ cmn600_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ri));
 
 	phw = cmn600desc(ri)->pd_phw;
+	pd = &cmn600desc(ri)->pd_descr;
 
-	if ((error = copystr(cmn600desc(ri)->pd_descr.pd_name,
-	    pi->pm_name, PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
-	pi->pm_class = cmn600desc(ri)->pd_descr.pd_class;
+	strlcpy(pi->pm_name, pd->pd_name, sizeof(pi->pm_name));
+	pi->pm_class = pd->pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
@@ -699,10 +672,10 @@ cmn600_pmu_intr(struct trapframe *tf, int unit, int i)
 
 	error = pmc_process_interrupt(PMC_HR, pm, tf);
 	if (error)
-		cmn600_stop_pmc(cpu, ri);
+		cmn600_stop_pmc(cpu, ri, pm);
 
 	/* Reload sampling count */
-	cmn600_write_pmc(cpu, ri, pm->pm_sc.pm_reloadcount);
+	cmn600_write_pmc(cpu, ri, pm, pm->pm_sc.pm_reloadcount);
 
 	return (0);
 }

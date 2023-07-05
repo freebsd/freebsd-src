@@ -16,6 +16,8 @@
 
 #include "../openbsd-compat/openbsd-compat.h"
 
+#define MAXRPID	64
+
 struct param {
 	char pin1[MAXSTR];
 	char pin2[MAXSTR];
@@ -440,10 +442,35 @@ dev_set_pin_minlen(const struct param *p)
 	fido_dev_free(&dev);
 }
 
+static void
+dev_set_pin_minlen_rpid(const struct param *p)
+{
+	fido_dev_t *dev;
+	const char *rpid[MAXRPID];
+	const char *pin;
+	size_t n;
+	int r;
+
+	set_wire_data(p->config_wire_data.body, p->config_wire_data.len);
+	if ((dev = open_dev(0)) == NULL)
+		return;
+	n = uniform_random(MAXRPID);
+	for (size_t i = 0; i < n; i++)
+		rpid[i] = dummy_rp_id;
+	pin = p->pin1;
+	if (strlen(pin) == 0)
+		pin = NULL;
+	r = fido_dev_set_pin_minlen_rpid(dev, rpid, n, pin);
+	consume_str(fido_strerr(r));
+	fido_dev_close(dev);
+	fido_dev_free(&dev);
+}
+
 void
 test(const struct param *p)
 {
 	prng_init((unsigned int)p->seed);
+	fuzz_clock_reset();
 	fido_init(FIDO_DEBUG);
 	fido_set_log_handler(consume_str);
 
@@ -457,6 +484,7 @@ test(const struct param *p)
 	dev_toggle_always_uv(p);
 	dev_force_pin_change(p);
 	dev_set_pin_minlen(p);
+	dev_set_pin_minlen_rpid(p);
 }
 
 void

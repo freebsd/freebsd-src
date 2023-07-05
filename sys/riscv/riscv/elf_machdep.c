@@ -59,8 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
-static const char *riscv_machine_arch(struct proc *p);
-
 u_long elf_hwcap;
 
 static struct sysentvec elf64_freebsd_sysvec = {
@@ -75,7 +73,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= 0,	/* Filled in during boot. */
@@ -99,7 +96,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
 	.sv_hwcap	= &elf_hwcap,
-	.sv_machine_arch = riscv_machine_arch,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
 	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
@@ -107,21 +103,10 @@ static struct sysentvec elf64_freebsd_sysvec = {
 };
 INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
 
-static const char *
-riscv_machine_arch(struct proc *p)
-{
-
-	if ((p->p_elf_flags & EF_RISCV_FLOAT_ABI_MASK) ==
-	    EF_RISCV_FLOAT_ABI_SOFT)
-		return (MACHINE_ARCH "sf");
-	return (MACHINE_ARCH);
-}
-
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_RISCV,
 	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,

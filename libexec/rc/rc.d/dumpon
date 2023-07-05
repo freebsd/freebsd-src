@@ -52,14 +52,17 @@ dumpon_start()
 	# early so a crash early in the boot process can be caught.
 	#
 	case ${dumpdev} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
-	[Aa][Uu][Tt][Oo])
+	[Aa][Uu][Tt][Oo] | '')
 		root_hold_wait
 		dev=$(/bin/kenv -q dumpdev)
 		if [ -n "${dev}" ] ; then
 			dumpon_try "${dev}"
 			return $?
+		fi
+		if [ -z ${dumpdev} ] ; then
+			return
 		fi
 		while read dev mp type more ; do
 			[ "${type}" = "swap" ] || continue
@@ -85,7 +88,7 @@ dumpon_start()
 dumpon_stop()
 {
 	case ${dumpdev} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		rm -f /dev/dumpdev

@@ -373,6 +373,19 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 	}
 }
 
+static spa_t *
+spa_find_by_dev(struct zfs_devdesc *dev)
+{
+
+	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
+		return (NULL);
+
+	if (dev->pool_guid == 0)
+		return (STAILQ_FIRST(&zfs_pools));
+
+	return (spa_find_by_guid(dev->pool_guid));
+}
+
 /*
  * if path is NULL, create mount structure, but do not add it to list.
  */
@@ -785,35 +798,12 @@ zfs_probe_partition(void *arg, const char *partname,
 int
 zfs_get_bootenv(void *vdev, nvlist_t **benvp)
 {
-	struct zfs_devdesc *dev = (struct zfs_devdesc *)vdev;
-	nvlist_t *benv = NULL;
-	vdev_t *vd;
 	spa_t *spa;
 
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (ENOTSUP);
-
-	if ((spa = spa_find_by_dev(dev)) == NULL)
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
 		return (ENXIO);
 
-	if (spa->spa_bootenv == NULL) {
-		STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children,
-		    v_childlink) {
-			benv = vdev_read_bootenv(vd);
-
-			if (benv != NULL)
-				break;
-		}
-		spa->spa_bootenv = benv;
-	} else {
-		benv = spa->spa_bootenv;
-	}
-
-	if (benv == NULL)
-		return (ENOENT);
-
-	*benvp = benv;
-	return (0);
+	return (zfs_get_bootenv_spa(spa, benvp));
 }
 
 /*
@@ -822,22 +812,12 @@ zfs_get_bootenv(void *vdev, nvlist_t **benvp)
 int
 zfs_set_bootenv(void *vdev, nvlist_t *benv)
 {
-	struct zfs_devdesc *dev = (struct zfs_devdesc *)vdev;
 	spa_t *spa;
-	vdev_t *vd;
 
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (ENOTSUP);
-
-	if ((spa = spa_find_by_dev(dev)) == NULL)
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
 		return (ENXIO);
 
-	STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children, v_childlink) {
-		vdev_write_bootenv(vd, benv);
-	}
-
-	spa->spa_bootenv = benv;
-	return (0);
+	return (zfs_set_bootenv_spa(spa, benv));
 }
 
 /*
@@ -847,27 +827,12 @@ zfs_set_bootenv(void *vdev, nvlist_t *benv)
 int
 zfs_get_bootonce(void *vdev, const char *key, char *buf, size_t size)
 {
-	nvlist_t *benv;
-	char *result = NULL;
-	int result_size, rv;
+	spa_t *spa;
 
-	if ((rv = zfs_get_bootenv(vdev, &benv)) != 0)
-		return (rv);
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
+		return (ENXIO);
 
-	if ((rv = nvlist_find(benv, key, DATA_TYPE_STRING, NULL,
-	    &result, &result_size)) == 0) {
-		if (result_size == 0) {
-			/* ignore empty string */
-			rv = ENOENT;
-		} else {
-			size = MIN((size_t)result_size + 1, size);
-			strlcpy(buf, result, size);
-		}
-		(void) nvlist_remove(benv, key, DATA_TYPE_STRING);
-		(void) zfs_set_bootenv(vdev, benv);
-	}
-
-	return (rv);
+	return (zfs_get_bootonce_spa(spa, key, buf, size));
 }
 
 /*

@@ -31,7 +31,7 @@
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2022
+.Dd May 16, 2023
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ They can be used in conjunction with the Hesiod domains
 and
 .Sq Li uid ,
 and the
-.Tn NIS
+NIS
 maps
 .Sq Li passwd.byname ,
 .Sq Li passwd.byuid ,
@@ -131,7 +131,7 @@ The login name must not begin with a hyphen
 .Pq Ql \&- ,
 and cannot contain 8-bit characters, tabs or spaces, or any of these
 symbols:
-.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/" .
+.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/"\&; .
 The dollar symbol
 .Pq Ql \&$
 is allowed only as the last character for use with Samba.
@@ -310,7 +310,7 @@ lookups occur from the
 .Sq Li master.passwd.byname ,
 and
 .Sq Li master.passwd.byuid
-.Tn NIS
+NIS
 maps.
 .Sh COMPAT SUPPORT
 If
@@ -361,7 +361,7 @@ or
 .Sq Li passwd.byname
 and
 .Sq Li passwd.byuid
-.Tn NIS
+NIS
 maps (with
 .Sq Li passwd_compat: nis )
 to be included.
@@ -372,7 +372,7 @@ or
 .Ar gid
 fields, the specified numbers will override the information retrieved
 from the Hesiod domain or the
-.Tn NIS
+NIS
 maps.
 Likewise, if the
 .Ar gecos ,
@@ -381,20 +381,20 @@ or
 .Ar shell
 entries contain text, it will override the information included via
 Hesiod or
-.Tn NIS .
+NIS .
 On some systems, the
 .Ar passwd
 field may also be overridden.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/master.passwd" -compact
 .It Pa /etc/passwd
-.Tn ASCII
+ASCII
 password file, with passwords removed
 .It Pa /etc/pwd.db
 .Xr db 3 Ns -format
 password database, with passwords removed
 .It Pa /etc/master.passwd
-.Tn ASCII
+ASCII
 password file, with passwords intact
 .It Pa /etc/spwd.db
 .Xr db 3 Ns -format
@@ -444,7 +444,7 @@ file format first appeared in
 .At v1 .
 .Pp
 The
-.Tn NIS
+NIS
 .Nm
 file format first appeared in SunOS.
 .Pp

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2008 The FreeBSD Foundation
  * Copyright (c) 2009-2021 Bjoern A. Zeeb <bz@FreeBSD.org>
@@ -335,6 +335,17 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (m == NULL)
 		return (0);
 	M_ASSERTPKTHDR(m);
+
+	/*
+	 * We could just transmit this, but it makes testing easier if we're a
+	 * little bit more like real hardware.
+	 * Allow just that little bit extra for ethernet (and vlan) headers.
+	 */
+	if (m->m_pkthdr.len > (ifp->if_mtu + sizeof(struct ether_vlan_header))) {
+		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		return (E2BIG);
+	}
 
 	/*
 	 * We are not going to use the interface en/dequeue mechanism

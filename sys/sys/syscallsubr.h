@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002 Ian Dowse.  All rights reserved.
  *
@@ -81,6 +81,7 @@ struct mmap_req {
 	mmap_check_fp_fn	mr_check_fp_fn;
 };
 
+uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
 int	kern_abort2(struct thread *td, const char *why, int nargs,
@@ -93,8 +94,6 @@ int	kern_accessat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
 	    struct timeval *olddelta);
-int	kern_alternate_path(const char *prefix, const char *path,
-	    enum uio_seg pathseg, char **pathbuf, int create, int dirfd);
 int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
 int	kern_break(struct thread *td, uintptr_t *addr);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
@@ -319,8 +318,7 @@ int	kern_sigqueue(struct thread *td, pid_t pid, int signum,
 	    union sigval *value);
 int	kern_socket(struct thread *td, int domain, int type, int protocol);
 int	kern_statat(struct thread *td, int flag, int fd, const char *path,
-	    enum uio_seg pathseg, struct stat *sbp,
-	    void (*hook)(struct vnode *vp, struct stat *sbp));
+	    enum uio_seg pathseg, struct stat *sbp);
 int	kern_specialfd(struct thread *td, int type, void *arg);
 int	kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
 	    struct statfs *buf);

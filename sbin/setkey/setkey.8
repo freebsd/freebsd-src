@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2023
+.Dd May 27, 2023
 .Dt SETKEY 8
 .Os
 .\"
@@ -283,7 +283,7 @@ and they cannot be used.
 .Pp
 .It Ar extensions
 take some of the following:
-.Bl -tag -width Fl -compact
+.Bl -tag -width Fl natt_mtu -compact
 .\"
 .It Fl m Ar mode
 Specify a security protocol mode for use.
@@ -328,6 +328,21 @@ Do not allow cyclic sequence number.
 .It Fl lh Ar time
 .It Fl ls Ar time
 Specify hard/soft life time duration of the SA.
+.It Fl natt Ar oai \([ Ar sport \(] Ar oar \([ Ar dport \(]
+Manually configure NAT-T for the SA, by specifying initiator
+.Ar oai
+and
+requestor
+.Ar oar
+ip addresses and ports.
+Note that the
+.Sq \([
+and
+.Sq \(]
+symbols are part of the syntax for the ports specification,
+not indication of the optional components.
+.It Fl natt_mtu Ar fragsize
+Configure NAT-T fragment size.
 .El
 .\"
 .Pp

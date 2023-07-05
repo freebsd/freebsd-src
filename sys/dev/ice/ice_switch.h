@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -239,8 +239,10 @@ struct ice_adv_rule_info {
 	struct ice_sw_act_ctrl sw_act;
 	u32 priority;
 	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
+	u8 add_dir_lkup;
 	u16 fltr_rule_id;
 	u16 lg_id;
+	u16 vlan_type;
 	struct ice_adv_rule_flags_info flags_info;
 };
 
@@ -490,8 +492,7 @@ ice_aq_get_res_descs(struct ice_hw *hw, u16 num_entries,
 		     bool res_shared, u16 *desc_id, struct ice_sq_cd *cd);
 enum ice_status
 ice_add_vlan(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_list);
-enum ice_status
-ice_remove_vlan(struct ice_hw *hw, struct LIST_HEAD_TYPE *v_list);
+enum ice_status ice_remove_vlan(struct ice_hw *hw, struct LIST_HEAD_TYPE *v_list);
 void ice_rem_all_sw_rules_info(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_lst);

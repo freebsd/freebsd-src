@@ -114,10 +114,14 @@ command_load(int argc, char *argv[])
 	char	*typestr;
 #ifdef LOADER_VERIEXEC
 	char	*prefix, *skip;
+	int	dflag = 0;
+	char	*args = "dkp:s:t:";
+#else
+	char	*args = "kt:";
 #endif
-	int		dflag, dofile, dokld, ch, error;
+	int	dofile, dokld, ch, error;
 
-	dflag = dokld = dofile = 0;
+	dokld = dofile = 0;
 	optind = 1;
 	optreset = 1;
 	typestr = NULL;
@@ -129,11 +133,13 @@ command_load(int argc, char *argv[])
 	prefix = NULL;
 	skip = NULL;
 #endif
-	while ((ch = getopt(argc, argv, "dkp:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, args)) != -1) {
 		switch(ch) {
+#ifdef LOADER_VERIEXEC
 		case 'd':
 			dflag++;
 			break;
+#endif
 		case 'k':
 			dokld = 1;
 			break;

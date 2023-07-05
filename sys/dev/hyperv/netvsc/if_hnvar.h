@@ -71,8 +71,8 @@ struct hn_rx_rsc {
 };
 
 struct hn_rx_ring {
-	struct ifnet	*hn_ifp;
-	struct ifnet	*hn_rxvf_ifp;	/* SR-IOV VF for RX */
+	if_t		hn_ifp;
+	if_t		hn_rxvf_ifp;	/* SR-IOV VF for RX */
 	struct hn_tx_ring *hn_txr;
 	void		*hn_pktbuf;
 	int		hn_pktbuf_len;
@@ -102,7 +102,6 @@ struct hn_rx_ring {
 	struct sysctl_oid *hn_rx_sysctl_tree;
 
 	void		*hn_br;		/* TX/RX bufring */
-	struct hyperv_dma hn_br_dma;
 
 	struct vmbus_channel *hn_chan;
 } __aligned(CACHE_LINE_SIZE);
@@ -192,7 +191,7 @@ struct hn_tx_ring {
  * Device-specific softc structure
  */
 struct hn_softc {
-	struct ifnet    *hn_ifp;
+	if_t		hn_ifp;
 	struct ifmedia	hn_media;
 	device_t        hn_dev;
 	int             hn_if_flags;
@@ -204,7 +203,7 @@ struct hn_softc {
 	struct hn_rx_ring *hn_rx_ring;
 
 	struct rmlock	hn_vf_lock;
-	struct ifnet	*hn_vf_ifp;	/* SR-IOV VF */
+	if_t		hn_vf_ifp;	/* SR-IOV VF */
 	uint32_t	hn_xvf_flags;	/* transparent VF flags */
 
 	int		hn_tx_ring_cnt;
@@ -242,10 +241,8 @@ struct hn_softc {
 
 	void			*hn_rxbuf;
 	uint32_t		hn_rxbuf_gpadl;
-	struct hyperv_dma	hn_rxbuf_dma;
 
 	uint32_t		hn_chim_gpadl;
-	struct hyperv_dma	hn_chim_dma;
 
 	uint32_t		hn_rndis_rid;
 	uint32_t		hn_ndis_ver;
@@ -277,7 +274,7 @@ struct hn_softc {
 	 * Saved information for VF under transparent mode.
 	 */
 	void			(*hn_vf_input)
-				(struct ifnet *, struct mbuf *);
+				(if_t, struct mbuf *);
 	int			hn_saved_caps;
 	u_int			hn_saved_tsomax;
 	u_int			hn_saved_tsosegcnt;

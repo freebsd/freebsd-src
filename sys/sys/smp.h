@@ -178,6 +178,9 @@ extern int smp_threads_per_core;
 extern cpuset_t all_cpus;
 extern cpuset_t cpuset_domain[MAXMEMDOM]; 	/* CPUs in each NUMA domain. */
 
+struct pcb;
+extern struct pcb *stoppcbs;
+
 /*
  * Macro allowing us to determine whether a CPU is absent at any given
  * time, thus permitting us to configure sparse maps of cpuid-dependent

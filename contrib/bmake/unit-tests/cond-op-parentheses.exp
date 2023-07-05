@@ -1,7 +1,7 @@
 make: "cond-op-parentheses.mk" line 22: Comparison with '>' requires both operands '3' and '(2' to be numeric
 make: "cond-op-parentheses.mk" line 25: Malformed conditional ((3) > 2)
-make: "cond-op-parentheses.mk" line 43: Malformed conditional (()
-make: "cond-op-parentheses.mk" line 56: Malformed conditional ())
+make: "cond-op-parentheses.mk" line 44: Malformed conditional (()
+make: "cond-op-parentheses.mk" line 58: Malformed conditional ())
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -374,6 +374,8 @@ oce_attach(device_t dev)
 	}
 	softc_tail = sc;
 
+	gone_in_dev(dev, 15, "relatively uncommon 10GbE NIC");
+
 	return 0;
 
 stats_free:
@@ -2246,7 +2248,6 @@ oce_handle_passthrough(if_t ifp, caddr_t data)
 	uint32_t req_size;
 	struct mbx_hdr req;
 	OCE_DMA_MEM dma_mem;
-	struct mbx_common_get_cntl_attr *fw_cmd;
 
 	if (copyin(priv_data, cookie, strlen(IOCTL_COOKIE)))
 		return EFAULT;
@@ -2278,17 +2279,25 @@ oce_handle_passthrough(if_t ifp, caddr_t data)
 		goto dma_free;
 	}
 
-	if (copyout(OCE_DMAPTR(&dma_mem,char), ioctl_ptr, req_size))
+	if (copyout(OCE_DMAPTR(&dma_mem,char), ioctl_ptr, req_size)) {
 		rc =  EFAULT;
+		goto dma_free;
+	}
 
 	/* 
 	   firmware is filling all the attributes for this ioctl except
 	   the driver version..so fill it 
 	 */
 	if(req.u0.rsp.opcode == OPCODE_COMMON_GET_CNTL_ATTRIBUTES) {
-		fw_cmd = (struct mbx_common_get_cntl_attr *) ioctl_ptr;
-		strncpy(fw_cmd->params.rsp.cntl_attr_info.hba_attr.drv_ver_str,
-			COMPONENT_REVISION, strlen(COMPONENT_REVISION));	
+		struct mbx_common_get_cntl_attr *fw_cmd =
+		    (struct mbx_common_get_cntl_attr *)ioctl_ptr;
+		_Static_assert(sizeof(COMPONENT_REVISION) <=
+		     sizeof(fw_cmd->params.rsp.cntl_attr_info.hba_attr.drv_ver_str),
+		     "driver version string too long");
+
+		rc = copyout(COMPONENT_REVISION,
+		    fw_cmd->params.rsp.cntl_attr_info.hba_attr.drv_ver_str,
+		    sizeof(COMPONENT_REVISION));
 	}
 
 dma_free:

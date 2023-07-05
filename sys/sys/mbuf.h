@@ -1385,6 +1385,7 @@ extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 #define	PACKET_TAG_CARP				28 /* CARP info */
 #define	PACKET_TAG_IPSEC_NAT_T_PORTS		29 /* two uint16_t */
 #define	PACKET_TAG_ND_OUTGOING			30 /* ND outgoing */
+#define	PACKET_TAG_PF_REASSEMBLED		31
 
 /* Specific cookies and tags. */
 

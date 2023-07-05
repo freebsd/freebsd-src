@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1996, by Steve Passe
  * All rights reserved.
@@ -1264,7 +1264,7 @@ mptable_host_res_handler(ext_entry_ptr entry, void *arg)
 			break;
 		default:
 			printf(
-    "MPTable: Unknown compatiblity address space range for bus %u: %d\n",
+    "MPTable: Unknown compatibility address space range for bus %u: %d\n",
 			    cbasm->bus_id, cbasm->predefined_range);
 			return;
 		}

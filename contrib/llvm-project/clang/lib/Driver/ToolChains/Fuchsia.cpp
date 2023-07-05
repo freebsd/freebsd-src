@@ -87,6 +87,8 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   if (ToolChain.getArch() == llvm::Triple::aarch64) {
+    CmdArgs.push_back("--execute-only");
+
     std::string CPU = getCPUName(D, Args, Triple);
     if (CPU.empty() || CPU == "generic" || CPU == "cortex-a53")
       CmdArgs.push_back("--fix-cortex-a53-843419");
@@ -375,8 +377,8 @@ void Fuchsia::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
 
 void Fuchsia::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
                                            ArgStringList &CC1Args) const {
-  if (DriverArgs.hasArg(options::OPT_nostdlibinc) ||
-      DriverArgs.hasArg(options::OPT_nostdincxx))
+  if (DriverArgs.hasArg(options::OPT_nostdinc, options::OPT_nostdlibinc,
+                        options::OPT_nostdincxx))
     return;
 
   const Driver &D = getDriver();
@@ -445,13 +447,13 @@ SanitizerMask Fuchsia::getDefaultSanitizers() const {
   SanitizerMask Res;
   switch (getTriple().getArch()) {
   case llvm::Triple::aarch64:
+  case llvm::Triple::riscv64:
     Res |= SanitizerKind::ShadowCallStack;
     break;
   case llvm::Triple::x86_64:
     Res |= SanitizerKind::SafeStack;
     break;
   default:
-    // TODO: Enable SafeStack on RISC-V once tested.
     break;
   }
   return Res;

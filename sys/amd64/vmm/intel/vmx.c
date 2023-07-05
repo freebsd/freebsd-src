@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -619,7 +619,9 @@ vmx_modcleanup(void)
 		nmi_flush_l1d_sw = 0;
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
-	kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
+
+	if (vmxon_region != NULL)
+		kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
 
 	return (0);
 }
@@ -1436,6 +1438,10 @@ vmx_inject_interrupts(struct vmx_vcpu *vcpu, struct vlapic *vlapic,
 	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
+
+	if (vcpu->cap.set & (1 << VM_CAP_MASK_HWINTR)) {
+		return;
+	}
 
 	if (vcpu->state.nextrip != guestrip) {
 		gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
@@ -3632,6 +3638,9 @@ vmx_setcap(void *vcpui, int type, int val)
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
 		break;
+	case VM_CAP_MASK_HWINTR:		
+		retval = 0;
+		break;
 	default:
 		break;
 	}
@@ -4169,6 +4178,9 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 
 	SNAPSHOT_BUF_OR_LEAVE(vcpu->guest_msrs,
 	    sizeof(vcpu->guest_msrs), meta, err, done);
+
+	SNAPSHOT_BUF_OR_LEAVE(vcpu->pir_desc,
+	    sizeof(*vcpu->pir_desc), meta, err, done);
 
 	vmxctx = &vcpu->ctx;
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdi, meta, err, done);

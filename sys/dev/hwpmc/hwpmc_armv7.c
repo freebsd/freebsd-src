@@ -160,10 +160,9 @@ armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 
 static int
-armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
+armv7_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	pmc_value_t tmp;
-	struct pmc *pm;
 	register_t s;
 	u_int reg;
 
@@ -171,8 +170,6 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < armv7_npmcs,
 	    ("[armv7,%d] illegal row index %d", __LINE__, ri));
-
-	pm  = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 
 	s = intr_disable();
 	tmp = armv7_pmcn_read(ri, pm->pm_md.pm_armv7.pm_armv7_evsel);
@@ -212,16 +209,13 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 }
 
 static int
-armv7_write_pmc(int cpu, int ri, pmc_value_t v)
+armv7_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
-	struct pmc *pm;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < armv7_npmcs,
 	    ("[armv7,%d] illegal row-index %d", __LINE__, ri));
-
-	pm  = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = ARMV7_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
@@ -261,14 +255,10 @@ armv7_config_pmc(int cpu, int ri, struct pmc *pm)
 }
 
 static int
-armv7_start_pmc(int cpu, int ri)
+armv7_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc_hw *phw;
 	uint32_t config;
-	struct pmc *pm;
 
-	phw    = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
-	pm     = phw->phw_pmc;
 	config = pm->pm_md.pm_armv7.pm_armv7_evsel;
 
 	/*
@@ -290,14 +280,10 @@ armv7_start_pmc(int cpu, int ri)
 }
 
 static int
-armv7_stop_pmc(int cpu, int ri)
+armv7_stop_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc_hw *phw;
-	struct pmc *pm;
 	uint32_t config;
 
-	phw    = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
-	pm     = phw->phw_pmc;
 	config = pm->pm_md.pm_armv7.pm_armv7_evsel;
 	if (config == PMC_EV_CPU_CYCLES)
 		ri = 31;
@@ -372,10 +358,10 @@ armv7_intr(struct trapframe *tf)
 
 		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error)
-			armv7_stop_pmc(cpu, ri);
+			armv7_stop_pmc(cpu, ri, pm);
 
 		/* Reload sampling count */
-		armv7_write_pmc(cpu, ri, pm->pm_sc.pm_reloadcount);
+		armv7_write_pmc(cpu, ri, pm, pm->pm_sc.pm_reloadcount);
 	}
 
 	return (retval);
@@ -384,9 +370,7 @@ armv7_intr(struct trapframe *tf)
 static int
 armv7_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	char armv7_name[PMC_NAME_MAX];
 	struct pmc_hw *phw;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d], illegal CPU %d", __LINE__, cpu));
@@ -394,11 +378,10 @@ armv7_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ("[armv7,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
-	snprintf(armv7_name, sizeof(armv7_name), "ARMV7-%d", ri);
-	if ((error = copystr(armv7_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return error;
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "ARMV7-%d", ri);
 	pi->pm_class = PMC_CLASS_ARMV7;
+
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
 		*ppmc = phw->phw_pmc;
@@ -415,23 +398,6 @@ armv7_get_config(int cpu, int ri, struct pmc **ppm)
 {
 
 	*ppm = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
-
-	return 0;
-}
-
-/*
- * XXX don't know what we should do here.
- */
-static int
-armv7_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return 0;
-}
-
-static int
-armv7_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
 
 	return 0;
 }
@@ -554,11 +520,8 @@ pmc_armv7_initialize(void)
 	pcd->pcd_stop_pmc       = armv7_stop_pmc;
 	pcd->pcd_write_pmc      = armv7_write_pmc;
 
-	pmc_mdep->pmd_intr       = armv7_intr;
-	pmc_mdep->pmd_switch_in  = armv7_switch_in;
-	pmc_mdep->pmd_switch_out = armv7_switch_out;
-	
-	pmc_mdep->pmd_npmc   += armv7_npmcs;
+	pmc_mdep->pmd_intr = armv7_intr;
+	pmc_mdep->pmd_npmc += armv7_npmcs;
 
 	return (pmc_mdep);
 }

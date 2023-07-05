@@ -38,6 +38,18 @@ gallant.fnt:en:Gallant Character set, 12x22
 gallant.fnt:da:Gallant-tegnsæt, 12x22
 gallant.fnt:de:Gallant Zeichensatz, 12x22
 
+spleen-5x8.fnt:en:Spleen, 5x8
+
+spleen-6x12.fnt:en:Spleen, 6x12
+
+spleen-8x16.fnt:en:Spleen, 8x16
+
+spleen-12x24.fnt:en:Spleen, 12x24
+
+spleen-16x32.fnt:en:Spleen, 16x32
+
+spleen-32x64.fnt:en:Spleen, 32x64
+
 terminus-b32.fnt:en:Terminus BSD Console, size 32
 terminus-b32.fnt:da:Terminus BSD-konsol, størrelse 32
 terminus-b32.fnt:de:Terminus BSD Console, Größe 32

@@ -51,39 +51,80 @@ static const char rcsid[] =
 #include <net/ethernet.h>
 
 #include "ifconfig.h"
+#include "ifconfig_netlink.h"
 
 static struct ifreq link_ridreq;
 
 extern char *f_ether;
 
 static void
-link_status(int s __unused, const struct ifaddrs *ifa)
+print_ether(const struct ether_addr *addr, const char *prefix)
+{
+	char *ether_format = ether_ntoa(addr);
+
+	if (f_ether != NULL) {
+		if (strcmp(f_ether, "dash") == 0) {
+			char *format_char;
+
+			while ((format_char = strchr(ether_format, ':')) != NULL) {
+				*format_char = '-';
+			}
+		} else if (strcmp(f_ether, "dotted") == 0) {
+			/* Indices 0 and 1 is kept as is. */
+			ether_format[ 2] = ether_format[ 3];
+			ether_format[ 3] = ether_format[ 4];
+			ether_format[ 4] = '.';
+			ether_format[ 5] = ether_format[ 6];
+			ether_format[ 6] = ether_format[ 7];
+			ether_format[ 7] = ether_format[ 9];
+			ether_format[ 8] = ether_format[10];
+			ether_format[ 9] = '.';
+			ether_format[10] = ether_format[12];
+			ether_format[11] = ether_format[13];
+			ether_format[12] = ether_format[15];
+			ether_format[13] = ether_format[16];
+			ether_format[14] = '\0';
+		}
+	}
+	printf("\t%s %s\n", prefix, ether_format);
+}
+
+static void
+print_lladdr(struct sockaddr_dl *sdl)
+{
+	if (match_ether(sdl)) {
+		print_ether((struct ether_addr *)LLADDR(sdl), "ether");
+	} else {
+		int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+		printf("\tlladdr %s\n", link_ntoa(sdl) + n);
+	}
+}
+
+static void
+print_pcp(if_ctx *ctx)
+{
+	struct ifreq ifr = {};
+
+	if (ioctl_ctx_ifr(ctx, SIOCGLANPCP, &ifr) == 0 &&
+	    ifr.ifr_lan_pcp != IFNET_PCP_NONE)
+		printf("\tpcp %d\n", ifr.ifr_lan_pcp);
+}
+
+#ifdef WITHOUT_NETLINK
+static void
+link_status(if_ctx *ctx, const struct ifaddrs *ifa)
 {
 	/* XXX no const 'cuz LLADDR is defined wrong */
 	struct sockaddr_dl *sdl;
-	char *ether_format, *format_char;
 	struct ifreq ifr;
-	int n, rc, sock_hw;
+	int rc, sock_hw;
 	static const u_char laggaddr[6] = {0};
 
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+	sdl = satosdl(ifa->ifa_addr);
 	if (sdl == NULL || sdl->sdl_alen == 0)
 		return;
 
-	if ((sdl->sdl_type == IFT_ETHER || sdl->sdl_type == IFT_L2VLAN ||
-	    sdl->sdl_type == IFT_BRIDGE) && sdl->sdl_alen == ETHER_ADDR_LEN) {
-		ether_format = ether_ntoa((struct ether_addr *)LLADDR(sdl));
-		if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
-			while ((format_char = strchr(ether_format, ':')) !=
-			    NULL) {
-				*format_char = '-';
-			}
-		}
-		printf("\tether %s\n", ether_format);
-	} else {
-		n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
-		printf("\tlladdr %s\n", link_ntoa(sdl) + n);
-	}
+	print_lladdr(sdl);
 
 	/*
 	 * Best-effort (i.e. failures are silent) to get original
@@ -118,21 +159,48 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 	    memcmp(ifr.ifr_addr.sa_data, LLADDR(sdl), sdl->sdl_alen) == 0)
 		goto pcp;
 
-	ether_format = ether_ntoa((const struct ether_addr *)
-	    &ifr.ifr_addr.sa_data);
-	if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
-		for (format_char = strchr(ether_format, ':');
-		     format_char != NULL;
-		     format_char = strchr(ether_format, ':'))
-			*format_char = '-';
-	}
-	printf("\thwaddr %s\n", ether_format);
-
+	print_ether((const struct ether_addr *)&ifr.ifr_addr.sa_data, "hwaddr");
 pcp:
-	if (ioctl(s, SIOCGLANPCP, (caddr_t)&ifr) == 0 &&
-	    ifr.ifr_lan_pcp != IFNET_PCP_NONE)
-		printf("\tpcp %d\n", ifr.ifr_lan_pcp);
+	print_pcp(ctx);
 }
+
+#else
+static uint8_t
+convert_iftype(uint8_t iftype)
+{
+	switch (iftype) {
+	case IFT_IEEE8023ADLAG:
+		return (IFT_ETHER);
+	case IFT_INFINIBANDLAG:
+		return (IFT_INFINIBAND);
+	}
+	return (iftype);
+}
+
+static void
+link_status_nl(if_ctx *ctx, if_link_t *link, if_addr_t *ifa __unused)
+{
+	if (link->ifla_address != NULL) {
+		struct sockaddr_dl sdl = {
+			.sdl_len = sizeof(struct sockaddr_dl),
+			.sdl_family = AF_LINK,
+			.sdl_type = convert_iftype(link->ifi_type),
+			.sdl_alen = NLA_DATA_LEN(link->ifla_address),
+		};
+		memcpy(LLADDR(&sdl), NLA_DATA(link->ifla_address), sdl.sdl_alen);
+		print_lladdr(&sdl);
+
+		if (link->iflaf_orig_hwaddr != NULL) {
+			struct nlattr *hwaddr = link->iflaf_orig_hwaddr;
+
+			if (memcmp(NLA_DATA(hwaddr), NLA_DATA(link->ifla_address), sdl.sdl_alen))
+				print_ether((struct ether_addr *)NLA_DATA(hwaddr), "hwaddr");
+		}
+	}
+	if (convert_iftype(link->ifi_type) == IFT_ETHER)
+		print_pcp(ctx);
+}
+#endif
 
 static void
 link_getaddr(const char *addr, int which)
@@ -171,26 +239,41 @@ link_getaddr(const char *addr, int which)
 static struct afswtch af_link = {
 	.af_name	= "link",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 static struct afswtch af_ether = {
 	.af_name	= "ether",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 static struct afswtch af_lladdr = {
 	.af_name	= "lladdr",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 
 static __constructor void

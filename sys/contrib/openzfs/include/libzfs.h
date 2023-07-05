@@ -125,11 +125,14 @@ typedef enum zfs_error {
 	EZFS_THREADCREATEFAILED, /* thread create failed */
 	EZFS_POSTSPLIT_ONLINE,	/* onlining a disk after splitting it */
 	EZFS_SCRUBBING,		/* currently scrubbing */
+	EZFS_ERRORSCRUBBING,	/* currently error scrubbing */
+	EZFS_ERRORSCRUB_PAUSED,	/* error scrub currently paused */
 	EZFS_NO_SCRUB,		/* no active scrub */
 	EZFS_DIFF,		/* general failure of zfs diff */
 	EZFS_DIFFDATA,		/* bad zfs diff data */
 	EZFS_POOLREADONLY,	/* pool is in read-only mode */
 	EZFS_SCRUB_PAUSED,	/* scrub currently paused */
+	EZFS_SCRUB_PAUSED_TO_CANCEL,	/* scrub currently paused */
 	EZFS_ACTIVE_POOL,	/* pool is imported on a different system */
 	EZFS_CRYPTOFAILED,	/* failed to setup encryption */
 	EZFS_NO_PENDING,	/* cannot cancel, no operation is pending */
@@ -658,17 +661,29 @@ _LIBZFS_H void zprop_print_one_property(const char *, zprop_get_cbdata_t *,
 
 typedef int (*zfs_iter_f)(zfs_handle_t *, void *);
 _LIBZFS_H int zfs_iter_root(libzfs_handle_t *, zfs_iter_f, void *);
-_LIBZFS_H int zfs_iter_children(zfs_handle_t *, int, zfs_iter_f, void *);
-_LIBZFS_H int zfs_iter_dependents(zfs_handle_t *, int, boolean_t, zfs_iter_f,
+_LIBZFS_H int zfs_iter_children(zfs_handle_t *, zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_dependents(zfs_handle_t *, boolean_t, zfs_iter_f,
     void *);
-_LIBZFS_H int zfs_iter_filesystems(zfs_handle_t *, int, zfs_iter_f, void *);
-_LIBZFS_H int zfs_iter_snapshots(zfs_handle_t *, int, zfs_iter_f, void *,
+_LIBZFS_H int zfs_iter_filesystems(zfs_handle_t *, zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_snapshots(zfs_handle_t *, boolean_t, zfs_iter_f, void *,
     uint64_t, uint64_t);
-_LIBZFS_H int zfs_iter_snapshots_sorted(zfs_handle_t *, int, zfs_iter_f, void *,
+_LIBZFS_H int zfs_iter_snapshots_sorted(zfs_handle_t *, zfs_iter_f, void *,
     uint64_t, uint64_t);
-_LIBZFS_H int zfs_iter_snapspec(zfs_handle_t *, int, const char *, zfs_iter_f,
+_LIBZFS_H int zfs_iter_snapspec(zfs_handle_t *, const char *, zfs_iter_f,
     void *);
-_LIBZFS_H int zfs_iter_bookmarks(zfs_handle_t *, int, zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_bookmarks(zfs_handle_t *, zfs_iter_f, void *);
+
+_LIBZFS_H int zfs_iter_children_v2(zfs_handle_t *, int, zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_dependents_v2(zfs_handle_t *, int, boolean_t, zfs_iter_f,
+    void *);
+_LIBZFS_H int zfs_iter_filesystems_v2(zfs_handle_t *, int, zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_snapshots_v2(zfs_handle_t *, int, zfs_iter_f, void *,
+    uint64_t, uint64_t);
+_LIBZFS_H int zfs_iter_snapshots_sorted_v2(zfs_handle_t *, int, zfs_iter_f,
+    void *, uint64_t, uint64_t);
+_LIBZFS_H int zfs_iter_snapspec_v2(zfs_handle_t *, int, const char *,
+    zfs_iter_f, void *);
+_LIBZFS_H int zfs_iter_bookmarks_v2(zfs_handle_t *, int, zfs_iter_f, void *);
 _LIBZFS_H int zfs_iter_mounted(zfs_handle_t *, zfs_iter_f, void *);
 
 typedef struct get_all_cb {

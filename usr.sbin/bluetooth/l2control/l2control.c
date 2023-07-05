@@ -1,7 +1,7 @@
 /*-
  * l2control.c
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -147,7 +147,7 @@ do_l2cap_command(bdaddr_p bdaddr, int argc, char **argv)
 
 		e = 0x0ffff;
 		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &e, sizeof(e)) < 0)
-			err(3, "Coult not setsockopt(RCVBUF, %d)", e);
+			err(3, "Could not setsockopt(RCVBUF, %d)", e);
 
 		e = (c->handler)(s, -- argc, ++ argv);
 

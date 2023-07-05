@@ -190,7 +190,7 @@ main(int argc, char *argv[])
 			jobname = optarg;
 			break;
 
-		case 'P':		/* specifiy printer name */
+		case 'P':		/* specify printer name */
 			printer = optarg;
 			break;
 

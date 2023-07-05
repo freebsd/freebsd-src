@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
@@ -133,8 +133,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
+#define	__debug_used
 #else
 #define debugf(fmt, args...)
+#define	__debug_used	__unused
 #endif
 
 #ifdef __powerpc64__
@@ -632,7 +634,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	int cnt, i, j;
 	vm_paddr_t s, e, sz;
 	vm_paddr_t physsz, hwphyssz;
-	u_int phys_avail_count;
+	u_int phys_avail_count __debug_used;
 	vm_size_t kstack0_sz;
 	vm_paddr_t kstack0_phys;
 	vm_offset_t kstack0;

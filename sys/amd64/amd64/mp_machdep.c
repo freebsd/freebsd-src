@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1996, by Steve Passe
  * Copyright (c) 2003, by Peter Wemm
@@ -215,6 +215,8 @@ init_secondary(void)
 	/* See comment in pmap_bootstrap(). */
 	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
+	pc->pc_kpmap_store.pm_pcid = PMAP_PCID_KERN;
+	pc->pc_kpmap_store.pm_gen = 1;
 
 	pc->pc_smp_tlb_gen = 1;
 
@@ -288,29 +290,28 @@ init_secondary(void)
 	init_secondary_tail();
 }
 
-/*******************************************************************
- * local functions and data
- */
-
-#ifdef NUMA
 static void
-mp_realloc_pcpu(int cpuid, int domain)
+amd64_mp_alloc_pcpu(void)
 {
 	vm_page_t m;
-	vm_offset_t oa, na;
+	int cpu;
 
-	oa = (vm_offset_t)&__pcpu[cpuid];
-	if (vm_phys_domain(pmap_kextract(oa)) == domain)
-		return;
-	m = vm_page_alloc_noobj_domain(domain, 0);
-	if (m == NULL)
-		return;
-	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	pagecopy((void *)oa, (void *)na);
-	pmap_qenter((vm_offset_t)&__pcpu[cpuid], &m, 1);
-	/* XXX old pcpu page leaked. */
-}
+	/* Allocate pcpu areas to the correct domain. */
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+#ifdef NUMA
+		m = NULL;
+		if (vm_ndomains > 1) {
+			m = vm_page_alloc_noobj_domain(
+			    acpi_pxm_get_cpu_locality(cpu_apic_ids[cpu]), 0);
+		}
+		if (m == NULL)
 #endif
+			m = vm_page_alloc_noobj(0);
+		if (m == NULL)
+			panic("cannot alloc pcpu page for cpu %d", cpu);
+		pmap_qenter((vm_offset_t)&__pcpu[cpu], &m, 1);
+	}
+}
 
 /*
  * start each AP in our list
@@ -328,6 +329,7 @@ start_all_aps(void)
 	int apic_id, cpu, domain, i;
 	u_char mpbiosreason;
 
+	amd64_mp_alloc_pcpu();
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	MPASS(bootMP_size <= PAGE_SIZE);
@@ -400,16 +402,6 @@ start_all_aps(void)
 	}
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-
-	/* Relocate pcpu areas to the correct domain. */
-#ifdef NUMA
-	if (vm_ndomains > 1)
-		for (cpu = 1; cpu < mp_ncpus; cpu++) {
-			apic_id = cpu_apic_ids[cpu];
-			domain = acpi_pxm_get_cpu_locality(apic_id);
-			mp_realloc_pcpu(cpu, domain);
-		}
-#endif
 
 	/* start each AP */
 	domain = 0;
@@ -767,7 +759,7 @@ invltlb_invpcid_handler(pmap_t smp_tlb_pmap)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pcid = pmap_get_pcid(smp_tlb_pmap);
 	d.pad = 0;
 	d.addr = 0;
 	invpcid(&d, smp_tlb_pmap == kernel_pmap ? INVPCID_CTXGLOB :
@@ -786,7 +778,7 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pcid = pmap_get_pcid(smp_tlb_pmap);
 	d.pad = 0;
 	d.addr = 0;
 	if (smp_tlb_pmap == kernel_pmap) {
@@ -808,8 +800,6 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 static void
 invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 {
-	uint32_t pcid;
-  
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -828,8 +818,8 @@ invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 		 * CPU.
 		 */
 		if (smp_tlb_pmap == PCPU_GET(curpmap)) {
-			pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
-			load_cr3(smp_tlb_pmap->pm_cr3 | pcid);
+			load_cr3(smp_tlb_pmap->pm_cr3 |
+			    pmap_get_pcid(smp_tlb_pmap));
 			if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3)
 				PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 		}
@@ -865,8 +855,7 @@ invlpg_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
-		    PMAP_PCID_USER_PT;
+		d.pcid = pmap_get_pcid(smp_tlb_pmap) | PMAP_PCID_USER_PT;
 		d.pad = 0;
 		d.addr = smp_tlb_addr1;
 		invpcid(&d, INVPCID_ADDR);
@@ -890,7 +879,7 @@ invlpg_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		pcid = pmap_get_pcid(smp_tlb_pmap);
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
 		pmap_pti_pcid_invlpg(ucr3, kcr3, smp_tlb_addr1);
@@ -944,8 +933,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
-		    PMAP_PCID_USER_PT;
+		d.pcid = pmap_get_pcid(smp_tlb_pmap) | PMAP_PCID_USER_PT;
 		d.pad = 0;
 		d.addr = smp_tlb_addr1;
 		do {
@@ -978,7 +966,7 @@ invlrng_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		pcid = pmap_get_pcid(smp_tlb_pmap);
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
 		pmap_pti_pcid_invlrng(ucr3, kcr3, smp_tlb_addr1, smp_tlb_addr2);

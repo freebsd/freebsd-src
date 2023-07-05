@@ -2,7 +2,7 @@
 /*	from $OpenBSD: ifconfig.c,v 1.82 2003/10/19 05:43:35 mcbride Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002 Michael Shalayeff. All rights reserved.
  * Copyright (c) 2003 Ryan McBride. All rights reserved.
@@ -60,12 +60,7 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-static void carp_status(int s);
-static void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
-static void setcarp_callback(int, void *);
-static void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
-static void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
-static void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
+static void setcarp_callback(if_ctx *, void *);
 
 static int carpr_vhid = -1;
 static int carpr_advskew = -1;
@@ -76,19 +71,19 @@ static struct in6_addr carp_addr6;
 static unsigned char const *carpr_key;
 
 static void
-carp_status(int s)
+carp_status(if_ctx *ctx)
 {
 	struct ifconfig_carp carpr[CARP_MAXVHID];
 	char addr_buf[NI_MAXHOST];
 
-	if (ifconfig_carp_get_info(lifh, name, carpr, CARP_MAXVHID) == -1)
+	if (ifconfig_carp_get_info(lifh, ctx->ifname, carpr, CARP_MAXVHID) == -1)
 		return;
 
 	for (size_t i = 0; i < carpr[0].carpr_count; i++) {
 		printf("\tcarp: %s vhid %d advbase %d advskew %d",
 		    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
 		    carpr[i].carpr_advbase, carpr[i].carpr_advskew);
-		if (printkeys && carpr[i].carpr_key[0] != '\0')
+		if (ctx->args->printkeys && carpr[i].carpr_key[0] != '\0')
 			printf(" key \"%s\"\n", carpr[i].carpr_key);
 		else
 			printf("\n");
@@ -102,8 +97,9 @@ carp_status(int s)
 }
 
 static void
-setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_vhid(if_ctx *ctx, const char *val, int dummy __unused)
 {
+	const struct afswtch *afp = ctx->afp;
 
 	carpr_vhid = atoi(val);
 
@@ -111,40 +107,18 @@ setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
 		errx(1, "vhid must be greater than 0 and less than %u",
 		    CARP_MAXVHID);
 
-	switch (afp->af_af) {
-#ifdef INET
-	case AF_INET:
-	    {
-		struct in_aliasreq *ifra;
-
-		ifra = (struct in_aliasreq *)afp->af_addreq;
-		ifra->ifra_vhid = carpr_vhid;
-		break;
-	    }
-#endif
-#ifdef INET6
-	case AF_INET6:
-	    {
-		struct in6_aliasreq *ifra;
-
-		ifra = (struct in6_aliasreq *)afp->af_addreq;
-		ifra->ifra_vhid = carpr_vhid;
-		break;
-	    }
-#endif
-	default:
+	if (afp->af_setvhid == NULL)
 		errx(1, "%s doesn't support carp(4)", afp->af_name);
-	}
-
+	afp->af_setvhid(carpr_vhid);
 	callback_register(setcarp_callback, NULL);
 }
 
 static void
-setcarp_callback(int s, void *arg __unused)
+setcarp_callback(if_ctx *ctx, void *arg __unused)
 {
 	struct ifconfig_carp carpr = { };
 
-	if (ifconfig_carp_get_vhid(lifh, name, &carpr, carpr_vhid) == -1) {
+	if (ifconfig_carp_get_vhid(lifh, ctx->ifname, &carpr, carpr_vhid) == -1) {
 		if (ifconfig_err_errno(lifh) != ENOENT)
 			return;
 	}
@@ -165,12 +139,12 @@ setcarp_callback(int s, void *arg __unused)
 		memcpy(&carpr.carpr_addr6, &carp_addr6,
 		    sizeof(carp_addr6));
 
-	if (ifconfig_carp_set_info(lifh, name, &carpr))
+	if (ifconfig_carp_set_info(lifh, ctx->ifname, &carpr))
 		err(1, "SIOCSVH");
 }
 
 static void
-setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_passwd(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -180,7 +154,7 @@ setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_advskew(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_advskew(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -190,7 +164,7 @@ setcarp_advskew(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_advbase(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -200,7 +174,7 @@ setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_state(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	int i;
 
@@ -217,19 +191,19 @@ setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_peer(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_peer(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	carp_addr.s_addr = inet_addr(val);
 }
 
 static void
-setcarp_mcast(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_mcast(if_ctx *ctx __unused, const char *val __unused, int dummy __unused)
 {
 	carp_addr.s_addr = htonl(INADDR_CARP_GROUP);
 }
 
 static void
-setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_peer6(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	struct addrinfo hints, *res;
 
@@ -237,16 +211,15 @@ setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
 	hints.ai_family = AF_INET6;
 	hints.ai_flags = AI_NUMERICHOST;
 
-	if (getaddrinfo(val, NULL, &hints, &res) == 1)
+	if (getaddrinfo(val, NULL, &hints, &res) != 0)
 		errx(1, "Invalid IPv6 address %s", val);
 
-	memcpy(&carp_addr6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
-	    sizeof(carp_addr6));
+	memcpy(&carp_addr6, &(satosin6(res->ai_addr))->sin6_addr, sizeof(carp_addr6));
 	freeaddrinfo(res);
 }
 
 static void
-setcarp_mcast6(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_mcast6(if_ctx *ctx __unused, const char *val __unused, int dummy __unused)
 {
 	bzero(&carp_addr6, sizeof(carp_addr6));
 	carp_addr6.s6_addr[0] = 0xff;
@@ -274,13 +247,11 @@ static struct afswtch af_carp = {
 static __constructor void
 carp_ctor(void)
 {
-	int i;
-
 	/* Default to multicast. */
-	setcarp_mcast(NULL, 0, 0, NULL);
-	setcarp_mcast6(NULL, 0, 0, NULL);
+	setcarp_mcast(NULL, NULL, 0);
+	setcarp_mcast6(NULL, NULL, 0);
 
-	for (i = 0; i < nitems(carp_cmds);  i++)
+	for (size_t i = 0; i < nitems(carp_cmds);  i++)
 		cmd_register(&carp_cmds[i]);
 	af_register(&af_carp);
 }

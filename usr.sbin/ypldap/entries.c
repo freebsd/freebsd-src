@@ -40,7 +40,6 @@
 void
 flatten_entries(struct env *env)
 {
-	size_t		 wrlen;
 	size_t		 len;
 	char		*linep;
 	char		*endp;
@@ -56,7 +55,6 @@ flatten_entries(struct env *env)
 	 *
 	 * An extra octet is alloced to make space for an additional NUL.
 	 */
-	wrlen = env->sc_user_line_len;
 	if ((linep = calloc(1, env->sc_user_line_len + 1)) == NULL) {
 		/*
 		 * XXX: try allocating a smaller chunk of memory
@@ -78,7 +76,6 @@ flatten_entries(struct env *env)
 		free(ue->ue_line);
 		ue->ue_line = endp;
 		endp += len;
-		wrlen -= len;
 
 		/*
 		 * To save memory strdup(3) the netid_line which originally used
@@ -94,7 +91,6 @@ flatten_entries(struct env *env)
 	env->sc_user_lines = linep;
 	log_debug("done pushing users");
 
-	wrlen = env->sc_group_line_len;
 	if ((linep = calloc(1, env->sc_group_line_len + 1)) == NULL) {
 		/*
 		 * XXX: try allocating a smaller chunk of memory
@@ -115,7 +111,6 @@ flatten_entries(struct env *env)
 		free(ge->ge_line);
 		ge->ge_line = endp;
 		endp += len;
-		wrlen -= len;
 	}
 	env->sc_group_lines = linep;
 	log_debug("done pushing groups");

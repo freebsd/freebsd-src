@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2009
+.Dd May 24, 2024
 .Dt MPTUTIL 8
 .Os
 .Sh NAME
@@ -71,7 +71,7 @@
 .Nm
 .Op Fl u Ar unit
 .Cm volume cache Ar volume
-.Ar enable|disable
+.Ar enable|enabled|disable|disabled
 .Nm
 .Op Fl u Ar unit
 .Cm clear
@@ -239,7 +239,7 @@ Sets the name of
 .Ar volume
 to
 .Ar name .
-.It Cm volume cache Ar volume Ar enable|disable
+.It Cm volume cache Ar volume Ar enable|enabled|disable|disabled
 Enables or disables the drive write cache for the member drives of
 .Ar volume .
 .It Cm volume status Ar volume

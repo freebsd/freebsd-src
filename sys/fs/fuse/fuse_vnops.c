@@ -229,8 +229,6 @@ struct vop_vector fuse_vnops = {
 };
 VFS_VOP_VECTOR_REGISTER(fuse_vnops);
 
-uma_zone_t fuse_pbuf_zone;
-
 /* Check permission for extattr operations, much like extattr_check_cred */
 static int
 fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,

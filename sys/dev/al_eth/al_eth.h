@@ -177,8 +177,8 @@ struct al_eth_link_config {
 	uint8_t flow_ctrl_supported;
 
 	/* the following are not relevant to RGMII */
-	boolean_t	force_1000_base_x;
-	boolean_t	autoneg;
+	bool	force_1000_base_x;
+	bool	autoneg;
 };
 
 /* SFP detection event */
@@ -196,18 +196,18 @@ enum al_eth_sfp_detect_evt {
 /* SFP detection status */
 struct al_eth_sfp_detect_stat {
 	/* Status is valid (i.e. rest of fields are valid) */
-	boolean_t		valid;
-	boolean_t		connected;
+	bool			valid;
+	bool			connected;
 	uint8_t			sfp_10g;
 	uint8_t			sfp_1g;
 	uint8_t			sfp_cable_tech;
-	boolean_t		lt_en;
-	boolean_t		an_en;
+	bool			lt_en;
+	bool			an_en;
 	enum al_eth_mac_mode	mac_mode;
 };
 
 struct al_eth_retimer_params {
-	boolean_t			exist;
+	bool				exist;
 	uint8_t				bus_id;
 	uint8_t				i2c_addr;
 	enum al_eth_retimer_channel	channel;
@@ -304,10 +304,10 @@ struct al_eth_adapter {
 	struct al_eth_mac_stats mac_stats;
 
 	enum al_eth_mac_mode	mac_mode;
-	boolean_t		mac_mode_set; /* Relevant only when 'auto_speed' is set */
+	bool			mac_mode_set; /* Relevant only when 'auto_speed' is set */
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
-	boolean_t		phy_exist;
+	bool			phy_exist;
 	struct mii_bus		*mdio_bus;
 	struct phy_device	*phydev;
 	uint8_t			phy_addr;
@@ -328,28 +328,28 @@ struct al_eth_adapter {
 	struct task			link_status_task;
 	uint32_t			link_poll_interval; /* task interval in mSec */
 
-	boolean_t			serdes_init;
+	bool				serdes_init;
 	struct al_serdes_grp_obj	serdes_obj;
 	uint8_t				serdes_grp;
 	uint8_t				serdes_lane;
 
-	boolean_t			an_en;	/* run kr auto-negotiation */
-	boolean_t			lt_en;	/* run kr link-training */
+	bool				an_en;	/* run kr auto-negotiation */
+	bool				lt_en;	/* run kr link-training */
 
-	boolean_t			sfp_detection_needed; /* true if need to run sfp detection */
-	boolean_t			auto_speed; /* true if allowed to change SerDes speed configuration */
+	bool				sfp_detection_needed; /* true if need to run sfp detection */
+	bool				auto_speed; /* true if allowed to change SerDes speed configuration */
 	uint8_t				i2c_adapter_id; /* identifier for the i2c adapter to use to access SFP+ module */
 	enum al_eth_ref_clk_freq	ref_clk_freq; /* reference clock frequency */
 	unsigned int			mdio_freq; /* MDIO frequency [Khz] */
 
-	boolean_t up;
+	bool up;
 
-	boolean_t			last_link;
-	boolean_t			last_establish_failed;
+	bool				last_link;
+	bool				last_establish_failed;
 	struct al_eth_lm_context	lm_context;
-	boolean_t			use_lm;
+	bool				use_lm;
 
-	boolean_t			dont_override_serdes; /* avoid overriding serdes parameters
+	bool				dont_override_serdes; /* avoid overriding serdes parameters
 								   to preset static values */
 	struct mtx			serdes_config_lock;
 	struct mtx			if_rx_lock;
