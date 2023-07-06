@@ -1051,6 +1051,41 @@ static const struct mrs_field id_aa64mmfr0_fields[] = {
 
 
 /* ID_AA64MMFR1_EL1 */
+static const struct mrs_field_value id_aa64mmfr1_cmovw[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, CMOVW, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_tidcp1[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, TIDCP1, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_ntlbpa[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, nTLBPA, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_afp[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, AFP, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_hcx[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, HCX, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_ets[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, ETS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr1_twed[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, TWED, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr1_xnx[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, XNX, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1064,6 +1099,7 @@ static const struct mrs_field_value id_aa64mmfr1_specsei[] = {
 static const struct mrs_field_value id_aa64mmfr1_pan[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, PAN, NONE, IMPL),
 	MRS_FIELD_VALUE(ID_AA64MMFR1_PAN_ATS1E1, "PAN+ATS1E1"),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_PAN_EPAN, "EPAN"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1098,6 +1134,13 @@ static const struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
 };
 
 static const struct mrs_field id_aa64mmfr1_fields[] = {
+	MRS_FIELD(ID_AA64MMFR1, CMOVW, false, MRS_EXACT, id_aa64mmfr1_cmovw),
+	MRS_FIELD(ID_AA64MMFR1, TIDCP1, false, MRS_EXACT, id_aa64mmfr1_tidcp1),
+	MRS_FIELD(ID_AA64MMFR1, nTLBPA, false, MRS_EXACT, id_aa64mmfr1_ntlbpa),
+	MRS_FIELD(ID_AA64MMFR1, AFP, false, MRS_EXACT, id_aa64mmfr1_afp),
+	MRS_FIELD(ID_AA64MMFR1, HCX, false, MRS_EXACT, id_aa64mmfr1_hcx),
+	MRS_FIELD(ID_AA64MMFR1, ETS, false, MRS_EXACT, id_aa64mmfr1_ets),
+	MRS_FIELD(ID_AA64MMFR1, TWED, false, MRS_EXACT, id_aa64mmfr1_twed),
 	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_EXACT, id_aa64mmfr1_xnx),
 	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_EXACT,
 	    id_aa64mmfr1_specsei),
