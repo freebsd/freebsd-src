@@ -1453,10 +1453,47 @@ static const struct mrs_field id_aa64pfr0_fields[] = {
 
 
 /* ID_AA64PFR1_EL1 */
+static const struct mrs_field_value id_aa64pfr1_nmi[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, NMI, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_csv2_frac[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_CSV2_frac_p0, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_CSV2_frac_p1, "CSV2 p1"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_CSV2_frac_p2, "CSV2 p2"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_rndr_trap[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, RNDR_trap, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_sme[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_SME_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_SME_SME, "SME"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_SME_SME2, "SME2"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_mpam_frac[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_MPAM_frac_p0, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MPAM_frac_p1, "MPAM p1"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_ras_frac[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_RAS_frac_p0, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_RAS_frac_p1, "RAS p1"),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64pfr1_mte[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_NONE, ""),
-	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_IMPL_EL0, "MTE EL0"),
-	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_IMPL, "MTE"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_MTE, "MTE"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_MTE2, "MTE2"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_MTE3, "MTE3"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1487,6 +1524,16 @@ static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
 #endif
 
 static const struct mrs_field id_aa64pfr1_fields[] = {
+	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_EXACT, id_aa64pfr1_nmi),
+	MRS_FIELD(ID_AA64PFR1, CSV2_frac, false, MRS_EXACT,
+	    id_aa64pfr1_csv2_frac),
+	MRS_FIELD(ID_AA64PFR1, RNDR_trap, false, MRS_EXACT,
+	    id_aa64pfr1_rndr_trap),
+	MRS_FIELD(ID_AA64PFR1, SME, false, MRS_EXACT, id_aa64pfr1_sme),
+	MRS_FIELD(ID_AA64PFR1, MPAM_frac, false, MRS_EXACT,
+	    id_aa64pfr1_mpam_frac),
+	MRS_FIELD(ID_AA64PFR1, RAS_frac, false, MRS_EXACT,
+	    id_aa64pfr1_ras_frac),
 	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
 	MRS_FIELD_HWCAP(ID_AA64PFR1, SSBS, false, MRS_LOWER, id_aa64pfr1_ssbs,
 	    id_aa64pfr1_ssbs_caps),
