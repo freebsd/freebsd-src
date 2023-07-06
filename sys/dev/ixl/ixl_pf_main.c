@@ -67,6 +67,7 @@ static int	ixl_sysctl_set_link_active(SYSCTL_HANDLER_ARGS);
 /* Debug Sysctls */
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_phy_statistics(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
@@ -2671,6 +2672,10 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
 
+	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "phy_statistics", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_phy_statistics, "A", "PHY Statistics");
+
 	if (pf->has_i2c) {
 		SYSCTL_ADD_PROC(ctx, debug_list,
 		    OID_AUTO, "read_i2c_byte",
@@ -3502,6 +3507,61 @@ ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS)
 	    abilities.module_type[2], (abilities.fec_cfg_curr_mod_ext_info & 0xe0) >> 5,
 	    abilities.fec_cfg_curr_mod_ext_info & 0x1F,
 	    abilities.ext_comp_code);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
+	sbuf_delete(buf);
+	return (error);
+}
+
+static int
+ixl_sysctl_phy_statistics(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (buf == NULL) {
+		device_printf(dev, "Could not allocate sbuf for sysctl output.\n");
+		return (ENOMEM);
+	}
+
+	if (hw->mac.type == I40E_MAC_X722) {
+		sbuf_printf(buf, "\n"
+		    "PCS Link Control Register:                          unavailable\n"
+		    "PCS Link Status 1:                                  unavailable\n"
+		    "PCS Link Status 2:                                  unavailable\n"
+		    "XGMII FIFO Status:                                  unavailable\n"
+		    "Auto-Negotiation (AN) Status:                       unavailable\n"
+		    "KR PCS Status:                                      unavailable\n"
+		    "KR FEC Status 1 – FEC Correctable Blocks Counter:   unavailable\n"
+		    "KR FEC Status 2 – FEC Uncorrectable Blocks Counter: unavailable"
+		);
+	} else {
+		sbuf_printf(buf, "\n"
+		    "PCS Link Control Register:                          %#010X\n"
+		    "PCS Link Status 1:                                  %#010X\n"
+		    "PCS Link Status 2:                                  %#010X\n"
+		    "XGMII FIFO Status:                                  %#010X\n"
+		    "Auto-Negotiation (AN) Status:                       %#010X\n"
+		    "KR PCS Status:                                      %#010X\n"
+		    "KR FEC Status 1 – FEC Correctable Blocks Counter:   %#010X\n"
+		    "KR FEC Status 2 – FEC Uncorrectable Blocks Counter: %#010X",
+		    rd32(hw, I40E_PRTMAC_PCS_LINK_CTRL),
+		    rd32(hw, I40E_PRTMAC_PCS_LINK_STATUS1(0)),
+		    rd32(hw, I40E_PRTMAC_PCS_LINK_STATUS2),
+		    rd32(hw, I40E_PRTMAC_PCS_XGMII_FIFO_STATUS),
+		    rd32(hw, I40E_PRTMAC_PCS_AN_LP_STATUS),
+		    rd32(hw, I40E_PRTMAC_PCS_KR_STATUS),
+		    rd32(hw, I40E_PRTMAC_PCS_FEC_KR_STATUS1),
+		    rd32(hw, I40E_PRTMAC_PCS_FEC_KR_STATUS2)
+		);
+	}
 
 	error = sbuf_finish(buf);
 	if (error)
