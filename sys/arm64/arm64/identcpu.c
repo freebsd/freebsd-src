@@ -935,6 +935,17 @@ static const struct mrs_field id_aa64isar2_fields[] = {
 
 
 /* ID_AA64MMFR0_EL1 */
+static const struct mrs_field_value id_aa64mmfr0_ecv[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, ECV, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_ECV_CNTHCTL, "ECV+CNTHCTL"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr0_fgt[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, FGT, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr0_exs[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, ExS, ALL, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -944,6 +955,7 @@ static const struct mrs_field_value id_aa64mmfr0_tgran4_2[] = {
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_TGran4, ""),
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_NONE, "No S2 TGran4"),
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_IMPL, "S2 TGran4"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_LPA2, "S2 TGran4+LPA2"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -958,11 +970,13 @@ static const struct mrs_field_value id_aa64mmfr0_tgran16_2[] = {
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_TGran16, ""),
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_NONE, "No S2 TGran16"),
 	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_IMPL, "S2 TGran16"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_LPA2, "S2 TGran16+LPA2"),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field_value id_aa64mmfr0_tgran4[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4,NONE, IMPL),
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_LPA2, "TGran4+LPA2"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -973,6 +987,7 @@ static const struct mrs_field_value id_aa64mmfr0_tgran64[] = {
 
 static const struct mrs_field_value id_aa64mmfr0_tgran16[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran16, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_LPA2, "TGran16+LPA2"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1009,6 +1024,8 @@ static const struct mrs_field_value id_aa64mmfr0_parange[] = {
 };
 
 static const struct mrs_field id_aa64mmfr0_fields[] = {
+	MRS_FIELD(ID_AA64MMFR0, ECV, false, MRS_EXACT, id_aa64mmfr0_ecv),
+	MRS_FIELD(ID_AA64MMFR0, FGT, false, MRS_EXACT, id_aa64mmfr0_fgt),
 	MRS_FIELD(ID_AA64MMFR0, ExS, false, MRS_EXACT, id_aa64mmfr0_exs),
 	MRS_FIELD(ID_AA64MMFR0, TGran4_2, false, MRS_EXACT,
 	    id_aa64mmfr0_tgran4_2),
