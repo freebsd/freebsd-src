@@ -440,7 +440,7 @@ int nfs_supportsnfsv4acls(vnode_t);
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
     bool, int *, int *, NFSPROC_T *);
-int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, enum vtype,
+int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, __enum_uint8(vtype),
     NFSPROC_T *);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
 
@@ -478,7 +478,7 @@ int nfsrpc_read(vnode_t, struct uio *, struct ucred *, NFSPROC_T *,
 int nfsrpc_write(vnode_t, struct uio *, int *, int *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, int, int);
 int nfsrpc_mknod(vnode_t, char *, int, struct vattr *, u_int32_t,
-    enum vtype, struct ucred *, NFSPROC_T *, struct nfsvattr *,
+    __enum_uint8(vtype), struct ucred *, NFSPROC_T *, struct nfsvattr *,
     struct nfsvattr *, struct nfsfh **, int *, int *);
 int nfsrpc_create(vnode_t, char *, int, struct vattr *, nfsquad_t,
     int, struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
@@ -770,7 +770,7 @@ int nfsvno_listxattr(struct vnode *, uint64_t, struct ucred *, struct thread *,
     u_char **, uint32_t *, bool *);
 void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
     int);
-bool nfsrv_checkwrongsec(struct nfsrv_descript *, int, enum vtype);
+bool nfsrv_checkwrongsec(struct nfsrv_descript *, int, __enum_uint8(vtype));
 void nfsrv_checknospc(void);
 
 /* nfs_commonkrpc.c */

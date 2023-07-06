@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
  * errno value.
  */
 int
-vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
+vaccess_acl_posix1e(__enum_uint8(vtype) type, uid_t file_uid, gid_t file_gid,
     struct acl *acl, accmode_t accmode, struct ucred *cred)
 {
 	struct acl_entry *acl_other, *acl_mask;

@@ -581,16 +581,6 @@ INCSDIR=	${INCLUDEDIR}/openssl
 
 LIBADD=	pthread
 
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448/arch_32
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
-CFLAGS+=	-I${.OBJDIR}
-
-.if !empty(SRCS:M*.S)
-ACFLAGS+=	-Wa,--noexecstack
-.endif
-
 SRCS+=	buildinf.h
 
 CLEANDIRS=	openssl

@@ -39,7 +39,7 @@
 # ID: zfsd_autoreplace_001_neg
 #
 # DESCRIPTION: 
-#	In a pool without the autoreplace property unset, a vdev will not be
+#	In a pool without the autoreplace property set, a vdev will not be
 #	replaced by physical path
 #
 # STRATEGY:
@@ -64,7 +64,7 @@ function verify_assertion
 {
 	# 9. Verify that it does not get added to the pool
 	for ((timeout=0; timeout<4; timeout=$timeout+1)); do
-		log_mustnot check_state $TESTPOOL $REMOVAL_DISK "ONLINE"
+		log_mustnot check_state $TESTPOOL $NEW_DISK "ONLINE"
 		$SLEEP 5
 	done
 }
@@ -83,9 +83,10 @@ log_must create_gnops $OTHER_DISKS
 for keyword in "${MY_KEYWORDS[@]}" ; do
 	log_must create_gnop $REMOVAL_DISK $PHYSPATH
 	log_must create_pool $TESTPOOL $keyword $ALLNOPS
-	log_must $ZPOOL set autoreplace=on $TESTPOOL
+	log_must $ZPOOL set autoreplace=off $TESTPOOL
 
 	log_must destroy_gnop $REMOVAL_DISK
+	log_must wait_for_pool_removal 20
 	log_must create_gnop $NEW_DISK $PHYSPATH
 	verify_assertion
 	destroy_pool "$TESTPOOL"

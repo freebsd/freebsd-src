@@ -748,7 +748,7 @@ out:
 }
 
 static int
-compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
+enforce_lkflags(struct mount *mp, int lkflags)
 {
 
 	if (mp == NULL || ((lkflags & LK_SHARED) &&
@@ -815,9 +815,7 @@ vfs_lookup_degenerate(struct nameidata *ndp, struct vnode *dp, int wantparent)
 		cnp->cn_lkflags |= LK_EXCLUSIVE;
 	}
 
-	vn_lock(dp,
-	    compute_cn_lkflags(mp, cnp->cn_lkflags | LK_RETRY,
-	    cnp->cn_flags));
+	vn_lock(dp, enforce_lkflags(mp, cnp->cn_lkflags | LK_RETRY));
 
 	if (dp->v_type != VDIR) {
 		error = ENOTDIR;
@@ -928,7 +926,6 @@ vfs_lookup(struct nameidata *ndp)
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
-	int dpunlocked = 0;		/* dp has already been unlocked */
 	int relookup = 0;		/* do not consume the path component */
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
@@ -1009,8 +1006,7 @@ vfs_lookup(struct nameidata *ndp)
 	 * we adjust based on the requesting flags.
 	 */
 	vn_lock(dp,
-	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY,
-	    cnp->cn_flags));
+	    enforce_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY));
 
 dirloop:
 	/*
@@ -1149,8 +1145,8 @@ dirloop:
 			VREF(dp);
 			vput(tdp);
 			vn_lock(dp,
-			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY, ISDOTDOT));
+			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 			error = nameicap_check_dotdot(ndp, dp);
 			if (error != 0) {
 capdotdot:
@@ -1196,8 +1192,7 @@ unionlookup:
 	vn_printf(dp, "lookup in ");
 #endif
 	lkflags_save = cnp->cn_lkflags;
-	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
-	    cnp->cn_flags);
+	cnp->cn_lkflags = enforce_lkflags(dp->v_mount, cnp->cn_lkflags);
 	error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp);
 	cnp->cn_lkflags = lkflags_save;
 	if (error != 0) {
@@ -1213,8 +1208,8 @@ unionlookup:
 			VREF(dp);
 			vput(tdp);
 			vn_lock(dp,
-			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY, cnp->cn_flags));
+			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 			nameicap_tracker_add(ndp, dp);
 			goto unionlookup;
 		}
@@ -1303,8 +1298,7 @@ good:
 		KASSERT(mp != NULL,
 		    ("%s: NULL mountpoint for VIRF_MOUNTPOINT vnode", __func__));
 		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
-		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
-		    cnp->cn_flags);
+		crosslkflags = enforce_lkflags(mp, cnp->cn_lkflags);
 		if (__predict_false(crosslock)) {
 			/*
 			 * We are going to be holding the vnode lock, which
@@ -1347,10 +1341,8 @@ good:
 			vput(dp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
-		if (error != 0) {
-			dpunlocked = 1;
-			goto bad2;
-		}
+		if (error != 0)
+			goto bad_unlocked;
 		ndp->ni_vp = dp = tdp;
 	} while ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0);
 
@@ -1462,8 +1454,7 @@ bad2:
 			vrele(ndp->ni_dvp);
 	}
 bad:
-	if (!dpunlocked)
-		vput(dp);
+	vput(dp);
 bad_unlocked:
 	ndp->ni_vp = NULL;
 	return (error);

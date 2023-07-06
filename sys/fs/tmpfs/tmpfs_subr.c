@@ -535,7 +535,7 @@ tmpfs_ref_node(struct tmpfs_node *node)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
+tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, __enum_uint8(vtype) type,
     uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *parent,
     const char *target, dev_t rdev, struct tmpfs_node **node)
 {

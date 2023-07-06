@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2022
+.Dd July 5, 2023
 .Dt DB_COMMAND 9
 .Os
 .Sh NAME
@@ -34,11 +34,17 @@
 .Nm DB_SHOW_COMMAND ,
 .Nm DB_SHOW_COMMAND_FLAGS ,
 .Nm DB_SHOW_ALL_COMMAND ,
+.Nm DB_TABLE_COMMAND ,
+.Nm DB_TABLE_COMMAND_FLAGS ,
 .Nm DB_ALIAS ,
 .Nm DB_ALIAS_FLAGS ,
 .Nm DB_SHOW_ALIAS ,
 .Nm DB_SHOW_ALIAS_FLAGS ,
-.Nm DB_SHOW_ALL_ALIAS
+.Nm DB_SHOW_ALL_ALIAS ,
+.Nm DB_TABLE_ALIAS ,
+.Nm DB_TABLE_ALIAS_FLAGS
+.Nm DB_DECLARE_TABLE ,
+.Nm DB_DEFINE_TABLE ,
 .Nd Extends the ddb command set
 .Sh SYNOPSIS
 .In ddb/ddb.h
@@ -47,11 +53,17 @@
 .Fn DB_SHOW_COMMAND "command_name" "command_function"
 .Fn DB_SHOW_COMMAND_FLAGS "command_name" "command_function" "flags"
 .Fn DB_SHOW_ALL_COMMAND "command_name" "command_function"
+.Fn DB_TABLE_COMMAND "table" "command_name" "command_function"
+.Fn DB_TABLE_COMMAND_FLAGS "table" "command_name" "command_function" "flags"
 .Fn DB_ALIAS "alias_name" "command_function"
 .Fn DB_ALIAS_FLAGS "alias_name" "command_function" "flags"
 .Fn DB_SHOW_ALIAS "alias_name" "command_function"
 .Fn DB_SHOW_ALIAS_FLAGS "alias_name" "command_function" "flags"
 .Fn DB_SHOW_ALL_ALIAS "alias_name" "command_function"
+.Fn DB_TABLE_ALIAS "table" "alias_name" "command_function"
+.Fn DB_TABLE_ALIAS_FLAGS "table" "alias_name" "command_function" "flags"
+.Fn DB_DEFINE_TABLE "parent" "name" "table"
+.Fn DB_DECLARE_TABLE "table"
 .Sh DESCRIPTION
 The
 .Fn DB_COMMAND
@@ -78,10 +90,18 @@ command and
 command, respectively.
 .Pp
 The
+.Fn DB_TABLE_COMMAND
+macro is also similar to
+.Fn DB_COMMAND
+but adds the new command as a sub-command of the ddb command
+.Fa table .
+.Pp
+The
 .Fn DB_ALIAS ,
 .Fn DB_SHOW_ALIAS ,
+.Fn DB_SHOW_ALL_ALIAS ,
 and
-.Fn DB_SHOW_ALL_ALIAS
+.Fn DB_TABLE_ALIAS
 macros register the existing
 .Fa command_function
 under the alternative command name
@@ -117,6 +137,19 @@ For example, the
 .Sy examine
 command will display words in decimal form if it is passed the modifier "d".
 .El
+.Pp
+The
+.Fn DB_DEFINE_TABLE
+macro adds a new command
+.Fa name
+as a sub-command of the existing command table
+.Fa parent .
+The new command defines a table named
+.Fa table
+which contains sub-commands.
+New commands and aliases can be added to this table by passing
+.Fa table
+as the first argument to one of the DB_TABLE_ macros.
 .Sh EXAMPLES
 In your module, the command is declared as:
 .Bd -literal

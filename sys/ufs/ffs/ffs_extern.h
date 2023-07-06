@@ -62,7 +62,7 @@ int	ffs_balloc_ufs1(struct vnode *a_vp, off_t a_startoffset, int a_size,
 int	ffs_balloc_ufs2(struct vnode *a_vp, off_t a_startoffset, int a_size,
             struct ucred *a_cred, int a_flags, struct buf **a_bpp);
 void	ffs_blkfree(struct ufsmount *, struct fs *, struct vnode *,
-	    ufs2_daddr_t, long, ino_t, enum vtype, struct workhead *, u_long);
+	    ufs2_daddr_t, long, ino_t, __enum_uint8(vtype), struct workhead *, u_long);
 ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
 void	ffs_blkrelease_finish(struct ufsmount *, u_long);
@@ -99,7 +99,7 @@ int	ffs_sbput(void *, struct fs *, off_t, int (*)(void *, off_t, void *,
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
-	    enum vtype, struct workhead *);
+	    __enum_uint8(vtype), struct workhead *);
 void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);

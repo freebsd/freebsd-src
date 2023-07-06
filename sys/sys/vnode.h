@@ -56,15 +56,34 @@
 /*
  * Vnode types.  VNON means no type.
  */
-enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
-		  VMARKER };
-#define VLASTTYPE VMARKER
+__enum_uint8_decl(vtype) {
+	VNON,
+	VREG,
+	VDIR,
+	VBLK,
+	VCHR,
+	VLNK,
+	VSOCK,
+	VFIFO,
+	VBAD,
+	VMARKER,
+	VLASTTYPE = VMARKER,
+};
 
-enum vstate	{ VSTATE_UNINITIALIZED, VSTATE_CONSTRUCTED, VSTATE_DESTROYING,
-		  VSTATE_DEAD };
-#define VLASTSTATE VSTATE_DEAD
+__enum_uint8_decl(vstate) {
+	VSTATE_UNINITIALIZED,
+	VSTATE_CONSTRUCTED,
+	VSTATE_DESTROYING,
+	VSTATE_DEAD,
+	VLASTSTATE = VSTATE_DEAD,
+};
 
-enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
+enum vgetstate {
+	VGET_NONE,
+	VGET_HOLDCNT,
+	VGET_USECOUNT,
+};
+
 /*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
@@ -110,8 +129,8 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	enum	vtype v_type:8;			/* u vnode type */
-	enum	vstate v_state:8;		/* u vnode state */
+	__enum_uint8(vtype) v_type;		/* u vnode type */
+	__enum_uint8(vstate) v_state;		/* u vnode state */
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
@@ -262,7 +281,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
  * is unavailable (getattr) or which is not to be changed (setattr).
  */
 struct vattr {
-	enum vtype	va_type;	/* vnode type (for create) */
+	__enum_uint8(vtype)	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
 	u_short		va_padding0;
 	uid_t		va_uid;		/* owner user id */
@@ -386,7 +405,7 @@ extern const u_int io_hold_cnt;
  * Convert between vnode types and inode formats (since POSIX.1
  * defines mode word of stat structure in terms of inode formats).
  */
-extern enum vtype	iftovt_tab[];
+extern __enum_uint8(vtype)	iftovt_tab[];
 extern int		vttoif_tab[];
 #define	IFTOVT(mode)	(iftovt_tab[((mode) & S_IFMT) >> 12])
 #define	VTTOIF(indx)	(vttoif_tab[(int)(indx)])
@@ -701,13 +720,13 @@ int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
 int	vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
 	    struct vnode *dvp, char *path, u_int pathlen, const char *leaf_name,
 	    size_t leaf_length);
-int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
+int	vaccess(__enum_uint8(vtype) type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred);
 int	vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	    struct ucred *cred);
-int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
+int	vaccess_acl_nfs4(__enum_uint8(vtype) type, uid_t file_uid, gid_t file_gid,
 	    struct acl *aclp, accmode_t accmode, struct ucred *cred);
-int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
+int	vaccess_acl_posix1e(__enum_uint8(vtype) type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred);
 void	vattr_null(struct vattr *vap);
@@ -1125,11 +1144,11 @@ int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 int vn_lktype_write(struct mount *mp, struct vnode *vp);
 
 #ifdef INVARIANTS
-void vn_set_state_validate(struct vnode *vp, enum vstate state);
+void vn_set_state_validate(struct vnode *vp, __enum_uint8(vstate) state);
 #endif
 
 static inline void
-vn_set_state(struct vnode *vp, enum vstate state)
+vn_set_state(struct vnode *vp, __enum_uint8(vstate) state)
 {
 #ifdef INVARIANTS
 	vn_set_state_validate(vp, state);
@@ -1137,7 +1156,7 @@ vn_set_state(struct vnode *vp, enum vstate state)
 	vp->v_state = state;
 }
 
-static inline enum vstate
+static inline __enum_uint8(vstate)
 vn_get_state(struct vnode *vp)
 {
 	return (vp->v_state);
