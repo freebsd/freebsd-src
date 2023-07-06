@@ -1314,7 +1314,13 @@ static const struct mrs_field_value id_aa64pfr0_csv3[] = {
 static const struct mrs_field_value id_aa64pfr0_csv2[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_ISOLATED, "CSV2"),
-	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_SCXTNUM, "SCXTNUM"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_SCXTNUM, "CSV2_2"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_3, "CSV2_3"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr0_rme[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, RME, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1332,6 +1338,7 @@ static const struct mrs_field_hwcap id_aa64pfr0_dit_caps[] = {
 static const struct mrs_field_value id_aa64pfr0_amu[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR0_AMU_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64PFR0_AMU_V1, "AMUv1"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_AMU_V1_1, "AMUv1p1"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1424,6 +1431,7 @@ static const struct mrs_field_value id_aa64pfr0_el0[] = {
 static const struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_EXACT, id_aa64pfr0_csv3),
 	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_EXACT, id_aa64pfr0_csv2),
+	MRS_FIELD(ID_AA64PFR0, RME, false, MRS_EXACT, id_aa64pfr0_rme),
 	MRS_FIELD_HWCAP(ID_AA64PFR0, DIT, false, MRS_LOWER, id_aa64pfr0_dit,
 	    id_aa64pfr0_dit_caps),
 	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_EXACT, id_aa64pfr0_amu),
