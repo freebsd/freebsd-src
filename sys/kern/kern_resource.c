@@ -885,11 +885,6 @@ rufetchtd(struct thread *td, struct rusage *ru)
 	calcru1(p, &td->td_rux, &ru->ru_utime, &ru->ru_stime);
 }
 
-/* XXX: the MI version is too slow to use: */
-#ifndef __HAVE_INLINE_FLSLL
-#define	flsll(x)	(fls((x) >> 32) != 0 ? fls((x) >> 32) + 32 : fls(x))
-#endif
-
 static uint64_t
 mul64_by_fraction(uint64_t a, uint64_t b, uint64_t c)
 {
