@@ -189,10 +189,6 @@ libkern/ashrdi3.c		optional	powerpc | powerpcspe
 libkern/bcopy.c			standard
 libkern/cmpdi2.c		optional	powerpc | powerpcspe
 libkern/divdi3.c		optional	powerpc | powerpcspe
-libkern/ffs.c			standard
-libkern/ffsl.c			standard
-libkern/ffsll.c			standard
-libkern/flsll.c			standard
 libkern/lshrdi3.c		optional	powerpc | powerpcspe
 libkern/memcmp.c		standard
 libkern/memset.c		standard

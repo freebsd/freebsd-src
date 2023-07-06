@@ -132,24 +132,63 @@ void	 arc4rand(void *, u_int, int);
 int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
-#ifndef	HAVE_INLINE_FFS
-int	 ffs(int);
-#endif
-#ifndef	HAVE_INLINE_FFSL
-int	 ffsl(long);
-#endif
-#ifndef	HAVE_INLINE_FFSLL
-int	 ffsll(long long);
-#endif
-#ifndef	HAVE_INLINE_FLS
-int	 fls(int);
-#endif
-#ifndef	HAVE_INLINE_FLSL
-int	 flsl(long);
-#endif
-#ifndef	HAVE_INLINE_FLSLL
-int	 flsll(long long);
-#endif
+
+/*
+ * MHTODO: remove the 'HAVE_INLINE_FOO' defines once use of these flags has
+ * been purged everywhere. For now we provide them unconditionally.
+ */
+#define	HAVE_INLINE_FFS
+#define	HAVE_INLINE_FFSL
+#define	HAVE_INLINE_FFSLL
+#define	HAVE_INLINE_FLS
+#define	HAVE_INLINE_FLSL
+#define	HAVE_INLINE_FLSLL
+
+static __inline __pure2 int
+ffs(int mask)
+{
+
+	return (__builtin_ffs((u_int)mask));
+}
+
+static __inline __pure2 int
+ffsl(long mask)
+{
+
+	return (__builtin_ffsl((u_long)mask));
+}
+
+static __inline __pure2 int
+ffsll(long long mask)
+{
+
+	return (__builtin_ffsll((unsigned long long)mask));
+}
+
+static __inline __pure2 int
+fls(int mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clz((u_int)mask));
+}
+
+static __inline __pure2 int
+flsl(long mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clzl((u_long)mask));
+}
+
+static __inline __pure2 int
+flsll(long long mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clzll((unsigned long long)mask));
+}
+
 #define	bitcount64(x)	__bitcount64((uint64_t)(x))
 #define	bitcount32(x)	__bitcount32((uint32_t)(x))
 #define	bitcount16(x)	__bitcount16((uint16_t)(x))
