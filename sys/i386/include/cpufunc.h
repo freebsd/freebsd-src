@@ -180,48 +180,6 @@ sfence(void)
 	__asm __volatile("sfence" : : : "memory");
 }
 
-#ifdef _KERNEL
-
-#define	HAVE_INLINE_FFS
-
-static __inline __pure2 int
-ffs(int mask)
-{
-	/*
-	 * Note that gcc-2's builtin ffs would be used if we didn't declare
-	 * this inline or turn off the builtin.  The builtin is faster but
-	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and later
-	 * versions.
-	 */
-	 return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
-}
-
-#define	HAVE_INLINE_FFSL
-
-static __inline __pure2 int
-ffsl(long mask)
-{
-	return (ffs((int)mask));
-}
-
-#define	HAVE_INLINE_FLS
-
-static __inline __pure2 int
-fls(int mask)
-{
-	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
-}
-
-#define	HAVE_INLINE_FLSL
-
-static __inline __pure2 int
-flsl(long mask)
-{
-	return (fls((int)mask));
-}
-
-#endif /* _KERNEL */
-
 static __inline void
 halt(void)
 {
