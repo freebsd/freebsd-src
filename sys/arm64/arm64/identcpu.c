@@ -133,6 +133,7 @@ struct cpu_desc {
 	uint64_t	id_aa64mmfr4;
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
+	uint64_t	id_aa64pfr2;
 	uint64_t	id_aa64zfr0;
 	uint64_t	ctr;
 #ifdef COMPAT_FREEBSD32
@@ -1488,6 +1489,12 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 };
 
 
+/* ID_AA64PFR2_EL1 */
+static const struct mrs_field id_aa64pfr2_fields[] = {
+	MRS_FIELD_END,
+};
+
+
 /* ID_AA64ZFR0_EL1 */
 static const struct mrs_field_value id_aa64zfr0_f64mm[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, F64MM, NONE, IMPL),
@@ -1791,6 +1798,7 @@ static const struct mrs_user_reg user_regs[] = {
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
 	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
+	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2),
 
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0),
 
@@ -2469,6 +2477,11 @@ print_cpu_features(u_int cpu)
 		print_id_register(sb, "Processor Features 1",
 		    cpu_desc[cpu].id_aa64pfr1, id_aa64pfr1_fields);
 
+	/* AArch64 Processor Feature Register 2 */
+	if (SHOULD_PRINT_REG(id_aa64pfr2))
+		print_id_register(sb, "Processor Features 2",
+		    cpu_desc[cpu].id_aa64pfr2, id_aa64pfr2_fields);
+
 	/* AArch64 Memory Model Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr0))
 		print_id_register(sb, "Memory Model Features 0",
@@ -2610,6 +2623,7 @@ identify_cpu(u_int cpu)
 	cpu_desc[cpu].id_aa64mmfr4 = READ_SPECIALREG(id_aa64mmfr4_el1);
 	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
 	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
+	cpu_desc[cpu].id_aa64pfr2 = READ_SPECIALREG(id_aa64pfr2_el1);
 
 	/*
 	 * ID_AA64ZFR0_EL1 is only valid when at least one of:
