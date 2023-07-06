@@ -732,14 +732,12 @@ search:
 	ip->ops = fpops;
 	ip->fileid = fileid;
 	ip->gen = gen;
+	ip->label = NULL;
+	ip->labellen = 0;
 	memcpy(ip->fingerprint, fingerprint, fpops->digest_len);
 	if (flags & VERIEXEC_LABEL)
 		ip->labellen = mac_veriexec_init_label(&ip->label,
 		    ip->labellen, label, labellen);
-	else {
-		ip->label = NULL;
-		ip->labellen = 0;
-	}
 
 	VERIEXEC_DEBUG(3, ("add file %ju.%lu (files=%d)\n",
 	    (uintmax_t)ip->fileid,
