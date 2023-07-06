@@ -184,42 +184,13 @@ bitrange(int n, int count)
 	    ((u_daddr_t)-1 >> (BLIST_RADIX - (n + count))));
 }
 
-/*
- * Find the first bit set in a u_daddr_t.
- */
-static inline int
-generic_bitpos(u_daddr_t mask)
-{
-	int hi, lo, mid;
-
-	lo = 0;
-	hi = BLIST_RADIX;
-	while (lo + 1 < hi) {
-		mid = (lo + hi) >> 1;
-		if (mask & bitrange(0, mid))
-			hi = mid;
-		else
-			lo = mid;
-	}
-	return (lo);
-}
-
 static inline int
 bitpos(u_daddr_t mask)
 {
 
-	switch (sizeof(mask)) {
-#ifdef HAVE_INLINE_FFSLL
-	case sizeof(long long):
-		return (ffsll(mask) - 1);
-#endif
-#ifdef HAVE_INLINE_FFS
-	case sizeof(int):
-		return (ffs(mask) - 1);
-#endif
-	default:
-		return (generic_bitpos(mask));
-	}
+	_Static_assert(sizeof(long long) >= sizeof(mask),
+	    "mask too big for ffsll()");
+	return (ffsll(mask) - 1);
 }
 
 /*
