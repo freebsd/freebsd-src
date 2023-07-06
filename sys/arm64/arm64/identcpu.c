@@ -572,6 +572,11 @@ static const struct mrs_field_hwcap id_aa64isar0_rdm_caps[] = {
 	MRS_HWCAP_END
 };
 
+static const struct mrs_field_value id_aa64isar0_tme[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, TME, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64isar0_atomic[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, Atomic, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -644,6 +649,7 @@ static const struct mrs_field id_aa64isar0_fields[] = {
 	    id_aa64isar0_sha3_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR0, RDM, false, MRS_LOWER, id_aa64isar0_rdm,
 	    id_aa64isar0_rdm_caps),
+	MRS_FIELD(ID_AA64ISAR0, TME, false, MRS_EXACT, id_aa64isar0_tme),
 	MRS_FIELD_HWCAP(ID_AA64ISAR0, Atomic, false, MRS_LOWER,
 	    id_aa64isar0_atomic, id_aa64isar0_atomic_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR0, CRC32, false, MRS_LOWER,
