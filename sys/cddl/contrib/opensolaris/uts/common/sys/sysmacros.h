@@ -392,7 +392,7 @@ extern unsigned char bcd_to_byte[256];
 static __inline int
 highbit(unsigned long i)
 {
-#if defined(__FreeBSD__) && defined(_KERNEL) && defined(HAVE_INLINE_FLSL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
 	return (flsl(i));
 #else
 	int h = 1;
@@ -430,7 +430,7 @@ highbit(unsigned long i)
 static __inline int
 highbit64(uint64_t i)
 {
-#if defined(__FreeBSD__) && defined(_KERNEL) && defined(HAVE_INLINE_FLSLL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
 	return (flsll(i));
 #else
 	int h = 1;
