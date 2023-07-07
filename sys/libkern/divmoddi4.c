@@ -44,13 +44,19 @@ __divmoddi4(quad_t a, quad_t b, quad_t *rem)
 	u_quad_t ua, ub, uq, urem;
 	int negq, negr;
 
-	if (a < 0)
-		ua = -(u_quad_t)a, negq = 1, negr = 1;
-	else
-		ua = a, negq = 0, negr = 0;
-	if (b < 0)
-		ub = -(u_quad_t)b, negq ^= 1;
-	else
+	if (a < 0) {
+		ua = -(u_quad_t)a;
+		negq = 1;
+		negr = 1;
+	} else {
+		ua = a;
+		negq = 0;
+		negr = 0;
+	}
+	if (b < 0) {
+		ub = -(u_quad_t)b;
+		negq ^= 1;
+	} else
 		ub = b;
 	uq = __qdivrem(ua, ub, &urem);
 	if (rem != 0)
