@@ -104,9 +104,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #endif /* INET6 */
 
-#if defined(SCTP) || defined(SCTP_SUPPORT)
+#include <netinet/sctp_header.h>
 #include <netinet/sctp_crc32.h>
-#endif
 
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
@@ -411,6 +410,21 @@ VNET_DEFINE(struct intr_event *, pf_swi_ie);
 
 VNET_DEFINE(uint32_t, pf_hashseed);
 #define	V_pf_hashseed	VNET(pf_hashseed)
+
+static void
+pf_sctp_checksum(struct mbuf *m, int off)
+{
+	uint32_t sum = 0;
+
+	/* Zero out the checksum, to enable recalculation. */
+	m_copyback(m, off + offsetof(struct sctphdr, checksum),
+	    sizeof(sum), (caddr_t)&sum);
+
+	sum = sctp_calculate_cksum(m, off);
+
+	m_copyback(m, off + offsetof(struct sctphdr, checksum),
+	    sizeof(sum), (caddr_t)&sum);
+}
 
 int
 pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
@@ -5977,12 +5991,10 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 		in_delayed_cksum(m0);
 		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-#if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
-		sctp_delayed_cksum(m0, (uint32_t)(ip->ip_hl << 2));
+		pf_sctp_checksum(m0, (uint32_t)(ip->ip_hl << 2));
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
-#endif
 
 	/*
 	 * If small enough for interface, or the interface will take
