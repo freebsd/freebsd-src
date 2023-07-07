@@ -223,6 +223,8 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
 	tf->tf_elr = (register_t)entry;
 	tf->tf_x[0] = (register_t)arg;
+	tf->tf_x[29] = 0;
+	tf->tf_lr = 0;
 }
 
 int
