@@ -68,12 +68,12 @@ __FBSDID("$FreeBSD$");
 static time_t tval;
 
 static void badformat(void);
-static void iso8601_usage(const char *);
+static void iso8601_usage(const char *) __dead2;
 static void multipleformats(void);
 static void printdate(const char *);
 static void printisodate(struct tm *);
 static void setthetime(const char *, const char *, int);
-static void usage(void);
+static void usage(void) __dead2;
 
 static const struct iso8601_fmt {
 	const char *refname;

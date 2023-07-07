@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <time.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static volatile sig_atomic_t report_requested;
 static void
