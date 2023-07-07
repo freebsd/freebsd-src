@@ -45,8 +45,10 @@ SYMBOL_MAPS=${.CURDIR}/pthread.map
 
 MAN=	libthr.3
 
+.if ${MK_PTHREADS_ASSERTIONS} != "no"
 # enable extra internal consistency checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
+.endif
 
 PRECIOUSLIB=
 
