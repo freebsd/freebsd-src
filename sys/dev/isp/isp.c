@@ -720,7 +720,9 @@ isp_init(ispsoftc_t *isp)
 		if (IS_28XX(isp))
 			icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN_28XX;
 
-		isp_prt(isp, ISP_LOGERR, "bad frame length (%d) from NVRAM - using %d", DEFAULT_FRAMESIZE(isp), icbp->icb_maxfrmlen);
+		isp_prt(isp, ISP_LOGERR,
+		    "bad frame length (%d) from NVRAM - using %d",
+		    DEFAULT_FRAMESIZE(isp), icbp->icb_maxfrmlen);
 	}
 
 	if (!IS_26XX(isp))
@@ -4446,7 +4448,7 @@ isp_parse_flthdr_2xxx(ispsoftc_t *isp, uint8_t *flthdr_data)
 	fcp->flt_length = le16toh((uint16_t) (ISP2XXX_FLT_LENGTH(flthdr_data)));
 	csum = le16toh((uint16_t) (ISP2XXX_FLT_CSUM(flthdr_data)));
 
-	if ((fcp->flt_length == 0 ) ||
+	if ((fcp->flt_length == 0) ||
 	    (fcp->flt_length > (FLT_HEADER_SIZE + FLT_REGIONS_SIZE))) {
 		isp_prt(isp, ISP_LOGERR,
 		    "FLT[DEF]: Invalid length=0x%x(%d)",
@@ -4504,7 +4506,7 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 		    region[count].code, region[count].start, region[count].end,
 		    region[count].size, region[count].attribute);
 
-		switch(region[count].code) {
+		switch (region[count].code) {
 		case FLT_REG_FW:
 			fcp->flt_region_fw = region[count].start;
 			break;
@@ -4521,13 +4523,13 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 				fcp->flt_region_vpd = region[count].start;
 			break;
 		case FLT_REG_VPD_2:
-			if (!IS_27XX(isp)) 
+			if (!IS_27XX(isp))
 				break;
 			if (isp->isp_port == 2)
 				fcp->flt_region_vpd = region[count].start;
 			break;
 		case FLT_REG_VPD_3:
-			if (!IS_27XX(isp)) 
+			if (!IS_27XX(isp))
 				break;
 			if (isp->isp_port == 3)
 				fcp->flt_region_vpd = region[count].start;
@@ -4541,13 +4543,13 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 				fcp->flt_region_nvram = region[count].start;
 			break;
 		case FLT_REG_NVRAM_2:
-			if (!IS_27XX(isp)) 
+			if (!IS_27XX(isp))
 				break;
 			if (isp->isp_port == 2)
 				fcp->flt_region_nvram = region[count].start;
 			break;
 		case FLT_REG_NVRAM_3:
-			if (!IS_27XX(isp)) 
+			if (!IS_27XX(isp))
 				break;
 			if (isp->isp_port == 3)
 				fcp->flt_region_nvram = region[count].start;
@@ -4578,46 +4580,46 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 				fcp->flt_region_fcp_prio = region[count].start;
 			break;
 		case FLT_REG_IMG_PRI_27XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_img_status_pri = region[count].start;
 			break;
 		case FLT_REG_IMG_SEC_27XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_img_status_sec = region[count].start;
 			break;
 		case FLT_REG_FW_SEC_27XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_fw_sec = region[count].start;
 			break;
 		case FLT_REG_BOOTLOAD_SEC_27XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_boot_sec = region[count].start;
 			break;
 		case FLT_REG_AUX_IMG_PRI_28XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_aux_img_status_pri = region[count].start;
 			break;
 		case FLT_REG_AUX_IMG_SEC_28XX:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				fcp->flt_region_aux_img_status_sec = region[count].start;
 			break;
 		case FLT_REG_NVRAM_SEC_28XX_0:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 0)
 					fcp->flt_region_nvram_sec = region[count].start;
 			break;
 		case FLT_REG_NVRAM_SEC_28XX_1:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 1)
 					fcp->flt_region_nvram_sec = region[count].start;
 			break;
 		case FLT_REG_NVRAM_SEC_28XX_2:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 2)
 					fcp->flt_region_nvram_sec = region[count].start;
 			break;
 		case FLT_REG_NVRAM_SEC_28XX_3:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 3)
 					fcp->flt_region_nvram_sec = region[count].start;
 			break;
@@ -4631,19 +4633,19 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 			break;
 		case FLT_REG_VPD_SEC_27XX_1:
 		case FLT_REG_VPD_SEC_28XX_1:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 1)
 					fcp->flt_region_vpd_sec = region[count].start;
 			break;
 		case FLT_REG_VPD_SEC_27XX_2:
 		case FLT_REG_VPD_SEC_28XX_2:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 2)
 					fcp->flt_region_vpd_sec = region[count].start;
 			break;
 		case FLT_REG_VPD_SEC_27XX_3:
 		case FLT_REG_VPD_SEC_28XX_3:
-			if (IS_27XX(isp)) 
+			if (IS_27XX(isp))
 				if (isp->isp_port == 3)
 					fcp->flt_region_vpd_sec = region[count].start;
 			break;
