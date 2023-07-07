@@ -336,8 +336,9 @@ _check_dynamicrouting()
 		skip="$skip -s nojail"
 	fi
 	[ -n "$local_startup" ] && find_local_scripts_new
+	[ -n "$system_rc" ] && find_system_scripts
 	
-	for file in $( rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null |
+	for file in $( rcorder ${skip} ${system_rc} ${local_rc} 2>/dev/null |
 		       xargs grep -lE '^# PROVIDE:.*\<dynamicrouting\>' ); do
 		(set -- enabled; . $file) && return 0;
 	done
