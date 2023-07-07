@@ -46,20 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "path.h"
 #include "lex.h"
 
-/*
- * HALT, PDWN, and PASTE aren't defined in 4.x, but we need them to bridge
- * to 5.0-current so define them here as a stop gap transition measure.
- */
-#ifndef	HALT
-#define	HALT		0xa1		/* halt machine */
-#endif
-#ifndef PDWN
-#define	PDWN		0xa2		/* halt machine and power down */
-#endif
-#ifndef PASTE
-#define PASTE		0xa3		/* paste from cut-paste buffer */
-#endif
-
 #define	SPECIAL		0x80000000
 
 static const char ctrl_names[32][4] = {
