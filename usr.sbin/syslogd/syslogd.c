@@ -1123,6 +1123,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 	FAIL_IF("STRUCTURED-NAME", start == msg);			\
 } while (0)
 	IF_NOT_NILVALUE(structured_data) {
+		structured_data = msg;
 		/* SD-ELEMENT. */
 		while (*msg == '[') {
 			++msg;
@@ -1582,9 +1583,8 @@ evaluate_prop_filter(const struct prop_filter *filter, const char *value)
 
 /*
  * Logs a message to the appropriate log files, users, etc. based on the
- * priority. Log messages are always formatted according to RFC 3164,
- * even if they were in RFC 5424 format originally, The MSGID and
- * STRUCTURED-DATA fields are thus discarded for the time being.
+ * priority. Log messages are formatted according to RFC 3164 or
+ * RFC 5424 in subsequent fprintlog_*() functions.
  */
 static void
 logmsg(int pri, const struct logtime *timestamp, const char *hostname,
