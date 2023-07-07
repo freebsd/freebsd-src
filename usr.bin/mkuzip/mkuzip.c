@@ -99,7 +99,7 @@ static const struct mkuz_format uzip_fmts[] = {
 };
 
 static struct mkuz_blk *readblock(int, u_int32_t);
-static void usage(void);
+static void usage(void) __dead2;
 static void cleanup(void);
 
 static char *cleanfile = NULL;

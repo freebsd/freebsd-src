@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void dofile(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 #define	FILENAME	"nohup.out"
 /*

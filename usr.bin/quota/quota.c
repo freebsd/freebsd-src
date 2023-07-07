@@ -86,7 +86,7 @@ struct quotause {
 
 static char *timeprt(int64_t seconds);
 static struct quotause *getprivs(long id, int quotatype);
-static void usage(void);
+static void usage(void) __dead2;
 static int showuid(u_long uid);
 static int showgid(u_long gid);
 static int showusrname(char *name);

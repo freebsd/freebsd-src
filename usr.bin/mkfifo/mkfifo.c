@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define	BASEMODE	S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | \
 			S_IROTH | S_IWOTH
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static int f_mode;
 

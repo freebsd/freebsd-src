@@ -64,7 +64,7 @@ static void clnt_output(const char *, const char *, int, const char * );
 static char *generate_guard(const char *);
 static void c_initialize(void);
 
-static void usage(void);
+static void usage(void) __dead2;
 static void options_usage(void);
 static int do_registers(int, const char **);
 static int parseargs(int, const char **, struct commandline *);
