@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ucred.h>
@@ -118,6 +119,16 @@ libbe_init(const char *root)
 
 	lbh = NULL;
 	poolname = pos = NULL;
+
+	/*
+	 * If the zfs kmod's not loaded then the later libzfs_init() will load
+	 * the module for us, but that's not desirable for a couple reasons.  If
+	 * the module's not loaded, there's no pool imported and we're going to
+	 * fail anyways.  We also don't really want libbe consumers to have that
+	 * kind of side-effect (module loading) in the general case.
+	 */
+	if (modfind("zfs") < 0)
+		goto err;
 
 	if ((lbh = calloc(1, sizeof(libbe_handle_t))) == NULL)
 		goto err;
