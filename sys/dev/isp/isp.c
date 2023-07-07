@@ -4379,7 +4379,9 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 	uint32_t base = 0x7ffe0000;
 	uint32_t tmp = 0;
 
-	if (IS_26XX(isp)) {
+	if (IS_28XX(isp)) {
+		base = 0x7fad0000;	/* 0x7f7d0000 + 0x300000 */
+	} else if (IS_26XX(isp)) {
 		base = 0x7fe7c000;	/* XXX: Observation, may be wrong. */
 	} else if (IS_25XX(isp)) {
 		base = 0x7ff00000 | 0x48000;
