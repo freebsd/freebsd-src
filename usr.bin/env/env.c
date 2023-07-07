@@ -62,7 +62,7 @@ extern char **environ;
 
 int	 env_verbosity;
 
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * Exit codes.

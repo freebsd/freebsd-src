@@ -43,7 +43,7 @@ static void set(int, int);
 static void standt(int);
 static void movto(int, int);
 static void sighndl(int);
-static void usage(void);
+static void usage(void) __dead2;
 
 static void
 sighndl(int signo)

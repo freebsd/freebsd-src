@@ -89,7 +89,7 @@ static int	 look(wchar_t *, unsigned char *, unsigned char *);
 static wchar_t	*prepkey(const char *, wchar_t);
 static void	 print_from(wchar_t *, unsigned char *, unsigned char *);
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct option longopts[] = {
 	{ "alternative",no_argument,	NULL, 'a' },

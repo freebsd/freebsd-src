@@ -257,7 +257,7 @@ static struct {
 #define RCS_STRING  "tfdscmlunbvpwko"
 
 static rlim_t resource_num(int which, int ch, const char *str);
-static void usage(void);
+static void usage(void) __dead2;
 static int getshelltype(void);
 static void print_limit(rlim_t limit, unsigned divisor, const char *inf,
 			const char *pfx, const char *sfx, const char *which);

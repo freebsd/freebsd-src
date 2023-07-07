@@ -126,7 +126,7 @@ static int stable_collate_range_cmp(int, int);
 static void do_order(void);
 static void getargs(int, char **);
 static void randomize(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * main:

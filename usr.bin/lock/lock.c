@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 static void quit(int);
 static void bye(int);
 static void hi(int);
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct timeval	timeout;
 static struct timeval	zerotime;

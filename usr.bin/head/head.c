@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 static void head(FILE *, intmax_t);
 static void head_bytes(FILE *, off_t);
 static void obsolete(char *[]);
-static void usage(void);
+static void usage(void) __dead2;
 
 static const struct option long_opts[] =
 {
