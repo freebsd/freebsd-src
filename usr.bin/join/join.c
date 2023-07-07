@@ -114,7 +114,7 @@ static void outoneline(INPUT *, LINE *);
 static void outtwoline(INPUT *, LINE *, INPUT *, LINE *);
 static void slurp(INPUT *);
 static wchar_t *towcs(const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 
 void fold(int);
 static int newpos(int, wint_t);
-static void usage(void);
+static void usage(void) __dead2;
 
 static int bflag;		/* Count bytes, not columns */
 static int sflag;		/* Split on word boundaries */
