@@ -118,14 +118,12 @@ static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 
 static void isp_setdfltfcparm(ispsoftc_t *, int);
 static int isp_read_nvram(ispsoftc_t *, int);
+static void isp_rd_2xxx_flash(ispsoftc_t *, uint32_t, uint32_t *);
 static int isp_read_flthdr_2xxx(ispsoftc_t *);
-static void isp_rd_2xxx_flthdr(ispsoftc_t *, uint32_t, uint32_t *);
 static void isp_parse_flthdr_2xxx(ispsoftc_t *, uint8_t *);
 static int isp_read_flt_2xxx(ispsoftc_t *);
-static void isp_rd_2xxx_flt(ispsoftc_t *, uint32_t, uint32_t *);
 static int isp_parse_flt_2xxx(ispsoftc_t *, uint8_t *);
 static int isp_read_nvram_2400(ispsoftc_t *);
-static void isp_rd_2400_nvram(ispsoftc_t *, uint32_t, uint32_t *);
 static void isp_parse_nvram_2400(ispsoftc_t *, uint8_t *);
 
 static void
@@ -4382,6 +4380,30 @@ isp_read_nvram(ispsoftc_t *isp, int bus)
 	return (isp_read_nvram_2400(isp));
 }
 
+static void
+isp_rd_2xxx_flash(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int loops = 0;
+	uint32_t base = fcp->flash_data_addr;
+	uint32_t tmp = 0;
+
+	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base + addr);
+	for (loops = 0; loops < 5000; loops++) {
+		ISP_DELAY(10);
+		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
+		if ((tmp & (1U << 31)) != 0) {
+			break;
+		}
+	}
+	if (tmp & (1U << 31)) {
+		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
+		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
+	} else {
+		*rp = 0xffffffff;
+	}
+}
+
 static int
 isp_read_flthdr_2xxx(ispsoftc_t *isp)
 {
@@ -4397,7 +4419,7 @@ isp_read_flthdr_2xxx(ispsoftc_t *isp)
 	isp_prt(isp, ISP_LOGDEBUG0,
 	    "FLTL[DEF]: 0x%x", addr);
 	for (lwrds = 0; lwrds < FLT_HEADER_SIZE >> 2; lwrds++) {
-		isp_rd_2xxx_flthdr(isp, addr++, dptr++);
+		isp_rd_2xxx_flash(isp, addr++, dptr++);
 	}
 	dptr = (uint32_t *) flthdr_data;
 	for (csum = 0, lwrds = 0; lwrds < FLT_HEADER_SIZE >> 4; lwrds++) {
@@ -4412,30 +4434,6 @@ isp_read_flthdr_2xxx(ispsoftc_t *isp)
 	isp_parse_flthdr_2xxx(isp, flthdr_data);
 out:
 	return (retval);
-}
-
-static void
-isp_rd_2xxx_flthdr(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int loops = 0;
-	uint32_t base = fcp->flash_data_addr;
-	uint32_t tmp = 0;
-
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
-	for (loops = 0; loops < 5000; loops++) {
-		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
-		}
-	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
 }
 
 static void
@@ -4454,7 +4452,7 @@ isp_parse_flthdr_2xxx(ispsoftc_t *isp, uint8_t *flthdr_data)
 		    "FLT[DEF]: Invalid length=0x%x(%d)",
 		    fcp->flt_length, fcp->flt_length);
 	}
-	isp_prt(isp, ISP_LOGCONFIG,
+	isp_prt(isp, ISP_LOGDEBUG0,
 	    "FLT[DEF]: version=0x%x length=0x%x(%d) checksum=0x%x",
 	    ver, fcp->flt_length, fcp->flt_length, csum);
 }
@@ -4471,37 +4469,13 @@ isp_read_flt_2xxx(ispsoftc_t *isp)
 
 	addr = fcp->flt_region_flt + (FLT_HEADER_SIZE >> 2);
 	dptr = (uint32_t *) flt_data;
-	isp_prt(isp, ISP_LOGCONFIG, "FLT[DEF]: regions=%d",
+	isp_prt(isp, ISP_LOGDEBUG0, "FLT[DEF]: regions=%d",
 	    fcp->flt_region_entries);
 	for (lwrds = 0; lwrds < len >> 2; lwrds++) {
-		isp_rd_2xxx_flt(isp, addr++, dptr++);
+		isp_rd_2xxx_flash(isp, addr++, dptr++);
 	}
 	retval = isp_parse_flt_2xxx(isp, flt_data);
 	return (retval);
-}
-
-static void
-isp_rd_2xxx_flt(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int loops = 0;
-	uint32_t base = fcp->flash_data_addr;
-	uint32_t tmp = 0;
-
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
-	for (loops = 0; loops < 5000; loops++) {
-		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
-		}
-	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
 }
 
 static int
@@ -4675,7 +4649,7 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 			break;
 		}
 	}
-	isp_prt(isp, ISP_LOGCONFIG,
+	isp_prt(isp, ISP_LOGDEBUG0,
 	    "FLT[FLT]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram 0x%x "
 	    "fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x",
 	    fcp->flt_region_boot, fcp->flt_region_fw, fcp->flt_region_vpd_nvram,
@@ -4697,7 +4671,7 @@ isp_read_nvram_2400(ispsoftc_t *isp)
 	addr = fcp->flt_region_nvram;
 	dptr = (uint32_t *) nvram_data;
 	for (lwrds = 0; lwrds < ISP2400_NVRAM_SIZE >> 2; lwrds++) {
-		isp_rd_2400_nvram(isp, addr++, dptr++);
+		isp_rd_2xxx_flash(isp, addr++, dptr++);
 	}
 	if (nvram_data[0] != 'I' || nvram_data[1] != 'S' ||
 	    nvram_data[2] != 'P') {
@@ -4720,33 +4694,6 @@ isp_read_nvram_2400(ispsoftc_t *isp)
 	isp_parse_nvram_2400(isp, nvram_data);
 out:
 	return (retval);
-}
-
-static void
-isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int loops = 0;
-	uint32_t base; // = 0x7ffe0000;
-	uint32_t tmp = 0;
-
-	base = fcp->flash_data_addr + addr;
-	addr = 0;
-
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
-	for (loops = 0; loops < 5000; loops++) {
-		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
-		}
-	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
 }
 
 static void
