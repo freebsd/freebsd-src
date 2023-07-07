@@ -61,7 +61,7 @@ static bool tcpswitchall(const char *, int);
 static bool tcpswitchbyname(const char *, const char *, const char *,
     const char *, int);
 static bool tcpswitchconn(const struct in_conninfo *, int);
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * Switch a tcp connection.
