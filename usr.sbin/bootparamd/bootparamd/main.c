@@ -39,7 +39,7 @@ const char *bootpfile = "/etc/bootparams";
 
 static struct sockaddr_in my_addr;
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char **argv)
