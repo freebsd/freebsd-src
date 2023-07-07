@@ -66,7 +66,7 @@ struct entry {
 static STAILQ_HEAD(, entry) head = STAILQ_HEAD_INITIALIZER(head);
 
 static void add(int, const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

@@ -159,7 +159,7 @@ static const char *port = DEFAULT_PORT;
 static const char *choose_server(char *);
 static struct addrinfo *gethostinfo(const char *, const char *, int);
 static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
-static void usage(void);
+static void usage(void) __dead2;
 static void whois(const char *, const char *, const char *, int);
 
 int
