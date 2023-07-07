@@ -587,8 +587,12 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 	    ("enterpgrp: session leader attempted setpgrp"));
 
 	old_pgrp = p->p_pgrp;
-	if (!sx_try_xlock(&old_pgrp->pg_killsx))
+	if (!sx_try_xlock(&old_pgrp->pg_killsx)) {
+		sx_xunlock(&proctree_lock);
+		sx_xlock(&old_pgrp->pg_killsx);
+		sx_xunlock(&old_pgrp->pg_killsx);
 		return (ERESTART);
+	}
 	MPASS(old_pgrp == p->p_pgrp);
 
 	if (sess != NULL) {
@@ -656,11 +660,18 @@ enterthispgrp(struct proc *p, struct pgrp *pgrp)
 	    ("%s: p %p belongs to pgrp %p", __func__, p, pgrp));
 
 	old_pgrp = p->p_pgrp;
-	if (!sx_try_xlock(&old_pgrp->pg_killsx))
+	if (!sx_try_xlock(&old_pgrp->pg_killsx)) {
+		sx_xunlock(&proctree_lock);
+		sx_xlock(&old_pgrp->pg_killsx);
+		sx_xunlock(&old_pgrp->pg_killsx);
 		return (ERESTART);
+	}
 	MPASS(old_pgrp == p->p_pgrp);
 	if (!sx_try_xlock(&pgrp->pg_killsx)) {
 		sx_xunlock(&old_pgrp->pg_killsx);
+		sx_xunlock(&proctree_lock);
+		sx_xlock(&pgrp->pg_killsx);
+		sx_xunlock(&pgrp->pg_killsx);
 		return (ERESTART);
 	}
 
