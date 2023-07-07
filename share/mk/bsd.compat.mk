@@ -115,8 +115,8 @@ WORLDTMP?=		${SYSROOT}
 LIB${_LIBCOMPAT}_OBJTOP?=	${OBJTOP}/obj-lib${_libcompat}
 
 LIB${_LIBCOMPAT}CFLAGS+=	${LIB${_LIBCOMPAT}CPUFLAGS} \
-			--sysroot=${WORLDTMP} \
-			${BFLAGS}
+				--sysroot=${WORLDTMP} \
+				${BFLAGS}
 
 LIB${_LIBCOMPAT}LDFLAGS+=	-L${WORLDTMP}/usr/lib${_libcompat}
 
