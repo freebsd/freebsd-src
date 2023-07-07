@@ -96,7 +96,7 @@ static int debug = 0;
 
 void perr(const char *fmt, ...);
 void perrx(const char *fmt, ...);
-static void usage(void);
+static void usage(void) __dead2;
 
 /* Local functions */
 static int
