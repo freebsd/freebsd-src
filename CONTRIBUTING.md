@@ -15,14 +15,14 @@ FreeBSD accepts source code contributions using one of several methods:
 - Direct access to the [Git repository](https://cgit.freebsd.org/src/)
 
 The preferred method depends on a few factors including the size or scope of
-the change.  GitHub pull requests are preferred for relatively straightforward
+the change. GitHub pull requests are preferred for relatively straightforward
 changes where the contributor already has a GitHub account.
 
 ## GitHub Pull Requests
 
 Presently, GitHub 'freebsd-src' repository is one of the publish-only services
 for the FreeBSD 'src' repository the project uses to promote collaboration and
-contribution.  Pull requests that need little developer time, are generally
+contribution. Pull requests that need little developer time, are generally
 small, and have limited scope should be submitted. Do not submit pull requests
 that are security-related, problem reports, works in progress, changes that are controversial
 and need discussion, or changes that require specialized review.
@@ -41,7 +41,7 @@ A pull request will be considered if:
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors
 * The commits do not introduce trailing white space.
-* If the commmit fixes a bug, please add 'PR: \<bugnumber>\' to the commit message.
+* If the commmit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
 * If there's a code review in Phabricator, please include a link as a 'Differential Revision: ' line.
 
 When updating your pull request, please rebase with a forced push rather than a
@@ -49,9 +49,9 @@ merge commit.
 
 More complex changes may be submitted as pull requests, but they may be closed
 if they are too large, too unwieldy, become inactive, need further discussion in
-the community, or need extensive revision.  Please avoid creating large,
+the community, or need extensive revision. Please avoid creating large,
 wide-ranging cleanup patches: they are too large and lack the focus needed for a
-good review.  Misdirected patches may be redirected to a more appropriate forum
+good review. Misdirected patches may be redirected to a more appropriate forum
 for the patch to be resolved.
 
 Please make sure that your submissions compile and work before submitting. If
@@ -72,7 +72,7 @@ project. The guidelines are streamlined for quick decisions about each pull
 request. Unless explicitly stated, rejection here as "not ready" or "too large"
 does not mean the project is uninterested in the work, it just means the
 submission does not meet the limited scope for pull requests accepted
-here. Sometimes it is easier to review a GihHub pull request than to do the
+here. Sometimes it is easier to review a GitHub pull request than to do the
 review in Phabricator, so that's also allowed.
 
 ## Style
@@ -91,13 +91,13 @@ comments on your pull requests.
 
 For Makefiles changes, see
 [style.Makefile(5)](https://man.freebsd.org/cgi/man.cgi?query=style.Makefile&sektion=5)
-for details. FreeBSD's base system uses the in-tree make, not GNU Make, so 
+for details. FreeBSD's base system uses the in-tree make, not GNU Make, so
 [make(1)](https://man.freebsd.org/cgi/man.cgi?query=make&sektion=1) is another useful
 resource.
 
 The project uses mdoc for all its man pages. Changes should pass `mandoc -Tlint` and igor (install the latter with `pkg install igor`).
 Please be sure to observe the one-sentence-per-line rule so manual pages properly render. Any semantic changes to the manual pages should bump the date.
-[style.mdoc(5)](https://man.freebsd.org/cgi/man.cgi?query=style.mdoc&sektion=5) has the all details. 
+[style.mdoc(5)](https://man.freebsd.org/cgi/man.cgi?query=style.mdoc&sektion=5) has the all details.
 
 For [Lua](https://www.lua.org), please see
 [style.lua(9)](https://man.freebsd.org/cgi/man.cgi?query=style.lua&sektion=9)
