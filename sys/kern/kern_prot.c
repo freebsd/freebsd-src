@@ -461,7 +461,7 @@ again:
 	}
 done:
 	sx_xunlock(&proctree_lock);
-	KASSERT((error == 0) || (newpgrp != NULL),
+	KASSERT(error == 0 || newpgrp != NULL,
 	    ("setpgid failed and newpgrp is NULL"));
 	if (error == ERESTART)
 		goto again;
