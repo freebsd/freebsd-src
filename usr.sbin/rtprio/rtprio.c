@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static int parseint(const char *, const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

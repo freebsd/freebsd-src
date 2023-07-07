@@ -58,7 +58,7 @@ static bool tcpdropall(const char *, const char *, int);
 static bool tcpdropbyname(const char *, const char *, const char *,
     const char *);
 static bool tcpdropconn(const struct in_conninfo *);
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * Drop a tcp connection.

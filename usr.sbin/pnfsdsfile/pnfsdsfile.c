@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfs.h>
 #include <fs/nfs/nfsrvstate.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct option longopts[] = {
 	{ "changeds",	required_argument,	NULL,	'c'	},

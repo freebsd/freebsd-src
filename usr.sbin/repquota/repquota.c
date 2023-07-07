@@ -104,7 +104,7 @@ int oneof(char *, char *[], int);
 int repquota(struct fstab *, int);
 char *timeprt(time_t);
 static void prthumanval(int64_t bytes);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

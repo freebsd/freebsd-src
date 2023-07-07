@@ -70,7 +70,7 @@ static int	vflag;		/* verbose */
 
 static int oneof(char *, char *[], int);
 static int quotaonoff(struct fstab *fs, int, int);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char **argv)
