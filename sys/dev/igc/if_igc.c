@@ -271,7 +271,7 @@ SYSCTL_INT(_hw_igc, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &igc_eee_setting, 0,
 /*
 ** Tuneable Interrupt rate
 */
-static int igc_max_interrupt_rate = 8000;
+static int igc_max_interrupt_rate = 20000;
 SYSCTL_INT(_hw_igc, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igc_max_interrupt_rate, 0, "Maximum interrupts per second");
 
