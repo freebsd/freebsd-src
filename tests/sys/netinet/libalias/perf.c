@@ -38,7 +38,7 @@
 #include "util.h"
 #include <alias.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 #define	timevalcmp(tv, uv, cmp)			\
 	(((tv).tv_sec == (uv).tv_sec)		\
