@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "mcp_public.h"
 #include "ecore_iro.h"
 #include "nvm_cfg.h"
-#include "ecore_dev_api.h"
 #include "ecore_dbg_fw_funcs.h"
 #include "ecore_iov_api.h"
 #include "ecore_vf_api.h"
