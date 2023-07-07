@@ -118,17 +118,15 @@ static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 
 static void isp_setdfltfcparm(ispsoftc_t *, int);
 static int isp_read_nvram(ispsoftc_t *, int);
+static int isp_read_flthdr_2xxx(ispsoftc_t *);
+static void isp_rd_2xxx_flthdr(ispsoftc_t *, uint32_t, uint32_t *);
+static void isp_parse_flthdr_2xxx(ispsoftc_t *, uint8_t *);
+static int isp_read_flt_2xxx(ispsoftc_t *);
+static void isp_rd_2xxx_flt(ispsoftc_t *, uint32_t, uint32_t *);
+static int isp_parse_flt_2xxx(ispsoftc_t *, uint8_t *);
 static int isp_read_nvram_2400(ispsoftc_t *);
 static void isp_rd_2400_nvram(ispsoftc_t *, uint32_t, uint32_t *);
 static void isp_parse_nvram_2400(ispsoftc_t *, uint8_t *);
-
-static int isp_read_flthdr_28xx(ispsoftc_t *);
-static void isp_rd_28xx_flthdr(ispsoftc_t *, uint32_t, uint32_t *);
-static void isp_parse_flthdr_28xx(ispsoftc_t *, uint8_t *);
-
-static int isp_read_flt_28xx(ispsoftc_t *);
-static void isp_rd_28xx_flt(ispsoftc_t *, uint32_t, uint32_t *);
-static int isp_parse_flt_28xx(ispsoftc_t *, uint8_t *);
 
 static void
 isp_change_fw_state(ispsoftc_t *isp, int chan, int state)
@@ -4341,21 +4339,351 @@ cleanup:
 static int
 isp_read_nvram(ispsoftc_t *isp, int bus)
 {
-	if (IS_28XX(isp)) {
-		fcparam *fcp = FCPARAM(isp, 0);
-		int r = 0;
+	fcparam *fcp = FCPARAM(isp, 0);
+	int r = 0;
 
-		fcp->flash_data_addr = ISP28XX_BASE_ADDR;
-		fcp->flt_length = 0;
-		r = isp_read_flthdr_28xx(isp);
-		if (r == 0) {
-			isp_read_flt_28xx(isp);
+	if (isp->isp_type != ISP_HA_FC_2600) {
+		if (IS_28XX(isp)) {
+			fcp->flash_data_addr = ISP28XX_BASE_ADDR;
+			fcp->flt_region_flt = ISP28XX_FLT_ADDR;
+		} else if (IS_27XX(isp)) {
+			fcp->flash_data_addr = ISP27XX_BASE_ADDR;
+			fcp->flt_region_flt = ISP27XX_FLT_ADDR;
+		} else if (IS_25XX(isp)) {
+			fcp->flash_data_addr = ISP25XX_BASE_ADDR;
+			fcp->flt_region_flt = ISP25XX_FLT_ADDR;
 		} else {
-			fcp->flt_region_nvram =
-			    (0x300000 + ISP2400_NVRAM_PORT_ADDR(isp->isp_port));
+			fcp->flash_data_addr = ISP24XX_BASE_ADDR;
+			fcp->flt_region_flt = ISP24XX_FLT_ADDR;
 		}
+		fcp->flt_length = 0;
+		r = isp_read_flthdr_2xxx(isp);
+		if (r == 0) {
+			isp_read_flt_2xxx(isp);
+		} else { /* fallback to hardcoded NVRAM address */
+			if (IS_28XX(isp)) {
+				fcp->flt_region_nvram = 0x300000;
+			} else if (IS_27XX(isp)) {
+				fcp->flash_data_addr = 0x7fe7c000;
+				fcp->flt_region_nvram = 0;
+			} else if (IS_25XX(isp)) {
+				fcp->flt_region_nvram = 0x48000;
+			} else {
+				fcp->flash_data_addr = 0x7ffe0000;
+				fcp->flt_region_nvram = 0;
+			}
+			fcp->flt_region_nvram += ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
+		}
+	} else {
+		fcp->flash_data_addr = 0x7fe7c000;
+		fcp->flt_region_nvram = 0;
+		fcp->flt_region_nvram += ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
 	}
 	return (isp_read_nvram_2400(isp));
+}
+
+static int
+isp_read_flthdr_2xxx(ispsoftc_t *isp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int retval = 0;
+	uint32_t addr, lwrds, *dptr;
+	uint16_t csum;
+	uint8_t flthdr_data[FLT_HEADER_SIZE];
+
+	addr = fcp->flt_region_flt;
+	dptr = (uint32_t *) flthdr_data;
+
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "FLTL[DEF]: 0x%x", addr);
+	for (lwrds = 0; lwrds < FLT_HEADER_SIZE >> 2; lwrds++) {
+		isp_rd_2xxx_flthdr(isp, addr++, dptr++);
+	}
+	dptr = (uint32_t *) flthdr_data;
+	for (csum = 0, lwrds = 0; lwrds < FLT_HEADER_SIZE >> 4; lwrds++) {
+		uint16_t tmp;
+		ISP_IOXGET_16(isp, &dptr[lwrds], tmp);
+		csum += tmp;
+	}
+	if (csum != 0) {
+		retval = -1;
+		goto out;
+	}
+	isp_parse_flthdr_2xxx(isp, flthdr_data);
+out:
+	return (retval);
+}
+
+static void
+isp_rd_2xxx_flthdr(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int loops = 0;
+	uint32_t base = fcp->flash_data_addr;
+	uint32_t tmp = 0;
+
+	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
+	for (loops = 0; loops < 5000; loops++) {
+		ISP_DELAY(10);
+		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
+		if ((tmp & (1U << 31)) != 0) {
+			break;
+		}
+	}
+	if (tmp & (1U << 31)) {
+		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
+		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
+	} else {
+		*rp = 0xffffffff;
+	}
+}
+
+static void
+isp_parse_flthdr_2xxx(ispsoftc_t *isp, uint8_t *flthdr_data)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	uint16_t ver, csum;
+
+	ver = le16toh((uint16_t) (ISP2XXX_FLT_VERSION(flthdr_data)));
+	fcp->flt_length = le16toh((uint16_t) (ISP2XXX_FLT_LENGTH(flthdr_data)));
+	csum = le16toh((uint16_t) (ISP2XXX_FLT_CSUM(flthdr_data)));
+
+	if ((fcp->flt_length == 0 ) ||
+	    (fcp->flt_length > (FLT_HEADER_SIZE + FLT_REGIONS_SIZE))) {
+		isp_prt(isp, ISP_LOGERR,
+		    "FLT[DEF]: Invalid length=0x%x(%d)",
+		    fcp->flt_length, fcp->flt_length);
+	}
+	isp_prt(isp, ISP_LOGCONFIG,
+	    "FLT[DEF]: version=0x%x length=0x%x(%d) checksum=0x%x",
+	    ver, fcp->flt_length, fcp->flt_length, csum);
+}
+
+static int
+isp_read_flt_2xxx(ispsoftc_t *isp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int retval = 0;
+	int len = fcp->flt_length - FLT_HEADER_SIZE;
+	uint32_t addr, lwrds, *dptr;
+	uint8_t flt_data[len];
+	fcp->flt_region_entries = len / FLT_REGION_SIZE;
+
+	addr = fcp->flt_region_flt + (FLT_HEADER_SIZE >> 2);
+	dptr = (uint32_t *) flt_data;
+	isp_prt(isp, ISP_LOGCONFIG, "FLT[DEF]: regions=%d",
+	    fcp->flt_region_entries);
+	for (lwrds = 0; lwrds < len >> 2; lwrds++) {
+		isp_rd_2xxx_flt(isp, addr++, dptr++);
+	}
+	retval = isp_parse_flt_2xxx(isp, flt_data);
+	return (retval);
+}
+
+static void
+isp_rd_2xxx_flt(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int loops = 0;
+	uint32_t base = fcp->flash_data_addr;
+	uint32_t tmp = 0;
+
+	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
+	for (loops = 0; loops < 5000; loops++) {
+		ISP_DELAY(10);
+		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
+		if ((tmp & (1U << 31)) != 0) {
+			break;
+		}
+	}
+	if (tmp & (1U << 31)) {
+		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
+		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
+	} else {
+		*rp = 0xffffffff;
+	}
+}
+
+static int
+isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int count;
+	struct flt_region region[fcp->flt_region_entries];
+
+	for (count = 0; count < fcp->flt_region_entries; count++) {
+		region[count].code =
+		    le16toh((uint16_t) (ISP2XXX_FLT_REG_CODE(flt_data, count)));
+		region[count].attribute =
+		    (uint8_t) (ISP2XXX_FLT_REG_ATTR(flt_data, count));
+		region[count].reserved =
+		    (uint8_t) (ISP2XXX_FLT_REG_RES(flt_data, count));
+		region[count].size =
+		    le32toh((uint32_t) (ISP2XXX_FLT_REG_SIZE(flt_data, count)) >> 2);
+		region[count].start =
+		    le32toh((uint32_t) (ISP2XXX_FLT_REG_START(flt_data, count)) >> 2);
+		region[count].end =
+		    le32toh((uint32_t) (ISP2XXX_FLT_REG_END(flt_data, count)) >> 2);
+
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "FLT[0x%x]: start=0x%x end=0x%x size=0x%x attribute=0x%x",
+		    region[count].code, region[count].start, region[count].end,
+		    region[count].size, region[count].attribute);
+
+		switch(region[count].code) {
+		case FLT_REG_FW:
+			fcp->flt_region_fw = region[count].start;
+			break;
+		case FLT_REG_BOOT_CODE:
+			fcp->flt_region_boot = region[count].start;
+			break;
+		case FLT_REG_VPD_0:
+			fcp->flt_region_vpd_nvram = region[count].start;
+			if (isp->isp_port == 0)
+				fcp->flt_region_vpd = region[count].start;
+			break;
+		case FLT_REG_VPD_1:
+			if (isp->isp_port == 1)
+				fcp->flt_region_vpd = region[count].start;
+			break;
+		case FLT_REG_VPD_2:
+			if (!IS_27XX(isp)) 
+				break;
+			if (isp->isp_port == 2)
+				fcp->flt_region_vpd = region[count].start;
+			break;
+		case FLT_REG_VPD_3:
+			if (!IS_27XX(isp)) 
+				break;
+			if (isp->isp_port == 3)
+				fcp->flt_region_vpd = region[count].start;
+			break;
+		case FLT_REG_NVRAM_0:
+			if (isp->isp_port == 0)
+				fcp->flt_region_nvram = region[count].start;
+			break;
+		case FLT_REG_NVRAM_1:
+			if (isp->isp_port == 1)
+				fcp->flt_region_nvram = region[count].start;
+			break;
+		case FLT_REG_NVRAM_2:
+			if (!IS_27XX(isp)) 
+				break;
+			if (isp->isp_port == 2)
+				fcp->flt_region_nvram = region[count].start;
+			break;
+		case FLT_REG_NVRAM_3:
+			if (!IS_27XX(isp)) 
+				break;
+			if (isp->isp_port == 3)
+				fcp->flt_region_nvram = region[count].start;
+			break;
+		case FLT_REG_FDT:
+			fcp->flt_region_fdt = region[count].start;
+			break;
+		case FLT_REG_FLT:
+			fcp->flt_region_flt = region[count].start;
+			break;
+		case FLT_REG_NPIV_CONF_0:
+			if (isp->isp_port == 0)
+				fcp->flt_region_npiv_conf = region[count].start;
+			break;
+		case FLT_REG_NPIV_CONF_1:
+			if (isp->isp_port == 1)
+				fcp->flt_region_npiv_conf = region[count].start;
+			break;
+		case FLT_REG_GOLD_FW:
+			fcp->flt_region_gold_fw = region[count].start;
+			break;
+		case FLT_REG_FCP_PRIO_0:
+			if (isp->isp_port == 0)
+				fcp->flt_region_fcp_prio = region[count].start;
+			break;
+		case FLT_REG_FCP_PRIO_1:
+			if (isp->isp_port == 1)
+				fcp->flt_region_fcp_prio = region[count].start;
+			break;
+		case FLT_REG_IMG_PRI_27XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_img_status_pri = region[count].start;
+			break;
+		case FLT_REG_IMG_SEC_27XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_img_status_sec = region[count].start;
+			break;
+		case FLT_REG_FW_SEC_27XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_fw_sec = region[count].start;
+			break;
+		case FLT_REG_BOOTLOAD_SEC_27XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_boot_sec = region[count].start;
+			break;
+		case FLT_REG_AUX_IMG_PRI_28XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_aux_img_status_pri = region[count].start;
+			break;
+		case FLT_REG_AUX_IMG_SEC_28XX:
+			if (IS_27XX(isp)) 
+				fcp->flt_region_aux_img_status_sec = region[count].start;
+			break;
+		case FLT_REG_NVRAM_SEC_28XX_0:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 0)
+					fcp->flt_region_nvram_sec = region[count].start;
+			break;
+		case FLT_REG_NVRAM_SEC_28XX_1:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 1)
+					fcp->flt_region_nvram_sec = region[count].start;
+			break;
+		case FLT_REG_NVRAM_SEC_28XX_2:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 2)
+					fcp->flt_region_nvram_sec = region[count].start;
+			break;
+		case FLT_REG_NVRAM_SEC_28XX_3:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 3)
+					fcp->flt_region_nvram_sec = region[count].start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_0:
+		case FLT_REG_VPD_SEC_28XX_0:
+			if (IS_27XX(isp)) {
+				fcp->flt_region_vpd_nvram_sec = region[count].start;
+				if (isp->isp_port == 0)
+					fcp->flt_region_vpd_sec = region[count].start;
+			}
+			break;
+		case FLT_REG_VPD_SEC_27XX_1:
+		case FLT_REG_VPD_SEC_28XX_1:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 1)
+					fcp->flt_region_vpd_sec = region[count].start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_2:
+		case FLT_REG_VPD_SEC_28XX_2:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 2)
+					fcp->flt_region_vpd_sec = region[count].start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_3:
+		case FLT_REG_VPD_SEC_28XX_3:
+			if (IS_27XX(isp)) 
+				if (isp->isp_port == 3)
+					fcp->flt_region_vpd_sec = region[count].start;
+			break;
+		}
+	}
+	isp_prt(isp, ISP_LOGCONFIG,
+	    "FLT[FLT]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram 0x%x "
+	    "fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x",
+	    fcp->flt_region_boot, fcp->flt_region_fw, fcp->flt_region_vpd_nvram,
+	    fcp->flt_region_vpd, fcp->flt_region_nvram, fcp->flt_region_fdt,
+	    fcp->flt_region_flt, fcp->flt_region_npiv_conf,
+	    fcp->flt_region_fcp_prio);
+
+	return (0);
 }
 
 static int
@@ -4366,11 +4694,7 @@ isp_read_nvram_2400(ispsoftc_t *isp)
 	uint32_t addr, csum, lwrds, *dptr;
 	uint8_t nvram_data[ISP2400_NVRAM_SIZE];
 
-	if (IS_28XX(isp)) {
-		addr = fcp->flt_region_nvram;
-	} else {
-		addr = ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
-	}
+	addr = fcp->flt_region_nvram;
 	dptr = (uint32_t *) nvram_data;
 	for (lwrds = 0; lwrds < ISP2400_NVRAM_SIZE >> 2; lwrds++) {
 		isp_rd_2400_nvram(isp, addr++, dptr++);
@@ -4401,19 +4725,14 @@ out:
 static void
 isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 {
+	fcparam *fcp = FCPARAM(isp, 0);
 	int loops = 0;
-	uint32_t base = 0x7ffe0000;
+	uint32_t base; // = 0x7ffe0000;
 	uint32_t tmp = 0;
 
-	if (IS_28XX(isp)) {
-		fcparam *fcp = FCPARAM(isp, 0);
-		base = fcp->flash_data_addr + addr;
-		addr = 0;
-	} else if (IS_26XX(isp)) {
-		base = 0x7fe7c000;	/* XXX: Observation, may be wrong. */
-	} else if (IS_25XX(isp)) {
-		base = 0x7ff00000 | 0x48000;
-	}
+	base = fcp->flash_data_addr + addr;
+	addr = 0;
+
 	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
 	for (loops = 0; loops < 5000; loops++) {
 		ISP_DELAY(10);
@@ -4475,268 +4794,4 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	fcp->isp_fwoptions = ISP2400_NVRAM_FIRMWARE_OPTIONS1(nvram_data);
 	fcp->isp_xfwoptions = ISP2400_NVRAM_FIRMWARE_OPTIONS2(nvram_data);
 	fcp->isp_zfwoptions = ISP2400_NVRAM_FIRMWARE_OPTIONS3(nvram_data);
-}
-
-static int
-isp_read_flthdr_28xx(ispsoftc_t *isp)
-{
-	int retval = 0;
-	uint32_t addr, lwrds, *dptr;
-	uint16_t csum;
-	uint8_t flthdr_data[FLT_HEADER_SIZE];
-
-	addr = ISP28XX_FLT_ADDR;
-	dptr = (uint32_t *) flthdr_data;
-
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "FLTL[DEF]: 0x%x", ISP28XX_FLT_ADDR);
-	for (lwrds = 0; lwrds < FLT_HEADER_SIZE >> 2; lwrds++) {
-		isp_rd_28xx_flthdr(isp, addr++, dptr++);
-	}
-	dptr = (uint32_t *) flthdr_data;
-	for (csum = 0, lwrds = 0; lwrds < FLT_HEADER_SIZE >> 4; lwrds++) {
-		uint16_t tmp;
-		ISP_IOXGET_16(isp, &dptr[lwrds], tmp);
-		csum += tmp;
-	}
-	if (csum != 0) {
-		retval = -1;
-		goto out;
-	}
-	isp_parse_flthdr_28xx(isp, flthdr_data);
-out:
-	return (retval);
-}
-
-static void
-isp_rd_28xx_flthdr(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int loops = 0;
-	uint32_t base = fcp->flash_data_addr;
-	uint32_t tmp = 0;
-
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
-	for (loops = 0; loops < 5000; loops++) {
-		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
-		}
-	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
-}
-
-static void
-isp_parse_flthdr_28xx(ispsoftc_t *isp, uint8_t *flthdr_data)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	uint16_t ver, csum;
-
-	ver = le16toh((uint16_t) (ISP28XX_FLT_VERSION(flthdr_data)));
-	fcp->flt_length = le16toh((uint16_t) (ISP28XX_FLT_LENGTH(flthdr_data)));
-	csum = le16toh((uint16_t) (ISP28XX_FLT_CSUM(flthdr_data)));
-
-	if ((fcp->flt_length == 0 ) ||
-	    (fcp->flt_length > (FLT_HEADER_SIZE + FLT_REGIONS_SIZE))) {
-		isp_prt(isp, ISP_LOGWARN,
-		    "FLT[DEF]: Invalid length=0x%x(%d)",
-		    fcp->flt_length, fcp->flt_length);
-	}
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "FLT[DEF]: version=0x%x length=0x%x(%d) checksum=0x%x",
-	    ver, fcp->flt_length, fcp->flt_length, csum);
-}
-
-static int
-isp_read_flt_28xx(ispsoftc_t *isp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int retval = 0;
-	int len = fcp->flt_length - FLT_HEADER_SIZE;
-	uint32_t addr, lwrds, *dptr;
-	uint8_t flt_data[len];
-	fcp->flt_region_entries = len / FLT_REGION_SIZE;
-
-	addr = ISP28XX_FLT_ADDR + (FLT_HEADER_SIZE >> 2);
-	dptr = (uint32_t *) flt_data;
-	isp_prt(isp, ISP_LOGDEBUG0, "FLT[DEF]: regions=%d",
-	    fcp->flt_region_entries);
-	for (lwrds = 0; lwrds < len >> 2; lwrds++) {
-		isp_rd_28xx_flt(isp, addr++, dptr++);
-	}
-	retval = isp_parse_flt_28xx(isp, flt_data);
-	return (retval);
-}
-
-static void
-isp_rd_28xx_flt(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int loops = 0;
-	uint32_t base = fcp->flash_data_addr;
-	uint32_t tmp = 0;
-
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
-	for (loops = 0; loops < 5000; loops++) {
-		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
-		}
-	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
-}
-
-static int
-isp_parse_flt_28xx(ispsoftc_t *isp, uint8_t *flt_data)
-{
-	fcparam *fcp = FCPARAM(isp, 0);
-	int count;
-	struct flt_region region[fcp->flt_region_entries];
-
-	for (count = 0; count < fcp->flt_region_entries; count++) {
-		region[count].code =
-		    le16toh((uint16_t) (ISP28XX_FLT_REG_CODE(flt_data, count)));
-		region[count].attribute =
-		    (uint8_t) (ISP28XX_FLT_REG_ATTR(flt_data, count));
-		region[count].reserved =
-		    (uint8_t) (ISP28XX_FLT_REG_RES(flt_data, count));
-		region[count].size =
-		    le32toh((uint32_t) (ISP28XX_FLT_REG_SIZE(flt_data, count)) >> 2);
-		region[count].start =
-		    le32toh((uint32_t) (ISP28XX_FLT_REG_START(flt_data, count)) >> 2);
-		region[count].end =
-		    le32toh((uint32_t) (ISP28XX_FLT_REG_END(flt_data, count)) >> 2);
-
-		isp_prt(isp, ISP_LOGDEBUG0,
-		    "FLT[0x%x]: start=0x%x end=0x%x size=0x%x attribute=0x%x",
-		    region[count].code, region[count].start, region[count].end,
-		    region[count].size, region[count].attribute);
-
-		switch(region[count].code) {
-		case FLT_REG_FW:
-			fcp->flt_region_fw = region[count].start;
-			break;
-		case FLT_REG_BOOT_CODE:
-			fcp->flt_region_boot = region[count].start;
-			break;
-		case FLT_REG_VPD_0:
-			fcp->flt_region_vpd_nvram = region[count].start;
-			if (isp->isp_port == 0)
-				fcp->flt_region_vpd = region[count].start;
-			break;
-		case FLT_REG_VPD_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_vpd = region[count].start;
-			break;
-		case FLT_REG_VPD_2:
-			if (isp->isp_port == 2)
-				fcp->flt_region_vpd = region[count].start;
-			break;
-		case FLT_REG_VPD_3:
-			if (isp->isp_port == 3)
-				fcp->flt_region_vpd = region[count].start;
-			break;
-		case FLT_REG_NVRAM_0:
-			if (isp->isp_port == 0)
-				fcp->flt_region_nvram = region[count].start;
-			break;
-		case FLT_REG_NVRAM_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_nvram = region[count].start;
-			break;
-		case FLT_REG_NVRAM_2:
-			if (isp->isp_port == 2)
-				fcp->flt_region_nvram = region[count].start;
-			break;
-		case FLT_REG_NVRAM_3:
-			if (isp->isp_port == 3)
-				fcp->flt_region_nvram = region[count].start;
-			break;
-		case FLT_REG_FDT:
-			fcp->flt_region_fdt = region[count].start;
-			break;
-		case FLT_REG_FLT:
-			fcp->flt_region_flt = region[count].start;
-			break;
-		case FLT_REG_NPIV_CONF_0:
-			if (isp->isp_port == 0)
-				fcp->flt_region_npiv_conf = region[count].start;
-			break;
-		case FLT_REG_NPIV_CONF_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_npiv_conf = region[count].start;
-			break;
-		case FLT_REG_GOLD_FW:
-			fcp->flt_region_gold_fw = region[count].start;
-			break;
-		case FLT_REG_FCP_PRIO_0:
-			if (isp->isp_port == 0)
-				fcp->flt_region_fcp_prio = region[count].start;
-			break;
-		case FLT_REG_FCP_PRIO_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_fcp_prio = region[count].start;
-			break;
-		case FLT_REG_AUX_IMG_PRI_28XX:
-			fcp->flt_region_aux_img_status_pri = region[count].start;
-			break;
-		case FLT_REG_AUX_IMG_SEC_28XX:
-			fcp->flt_region_aux_img_status_sec = region[count].start;
-			break;
-		case FLT_REG_NVRAM_SEC_28XX_0:
-			if (isp->isp_port == 0)
-				fcp->flt_region_nvram_sec = region[count].start;
-			break;
-		case FLT_REG_NVRAM_SEC_28XX_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_nvram_sec = region[count].start;
-			break;
-		case FLT_REG_NVRAM_SEC_28XX_2:
-			if (isp->isp_port == 2)
-				fcp->flt_region_nvram_sec = region[count].start;
-			break;
-		case FLT_REG_NVRAM_SEC_28XX_3:
-			if (isp->isp_port == 3)
-				fcp->flt_region_nvram_sec = region[count].start;
-			break;
-		case FLT_REG_VPD_SEC_28XX_0:
-			fcp->flt_region_vpd_nvram_sec = region[count].start;
-			if (isp->isp_port == 0)
-				fcp->flt_region_vpd_sec = region[count].start;
-			break;
-		case FLT_REG_VPD_SEC_28XX_1:
-			if (isp->isp_port == 1)
-				fcp->flt_region_vpd_sec = region[count].start;
-			break;
-		case FLT_REG_VPD_SEC_28XX_2:
-			if (isp->isp_port == 2)
-				fcp->flt_region_vpd_sec = region[count].start;
-			break;
-		case FLT_REG_VPD_SEC_28XX_3:
-			if (isp->isp_port == 3)
-				fcp->flt_region_vpd_sec = region[count].start;
-			break;
-		}
-	}
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "FLT[FLT]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram 0x%x "
-	    "fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x",
-	    fcp->flt_region_boot, fcp->flt_region_fw, fcp->flt_region_vpd_nvram,
-	    fcp->flt_region_vpd, fcp->flt_region_nvram, fcp->flt_region_fdt,
-	    fcp->flt_region_flt, fcp->flt_region_npiv_conf,
-	    fcp->flt_region_fcp_prio);
-
-	return (0);
 }

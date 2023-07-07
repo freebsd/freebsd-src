@@ -382,6 +382,10 @@ typedef struct {
 	uint32_t		flt_region_flt;
 	uint32_t		flt_region_fw;
 	uint32_t		flt_region_gold_fw;
+	uint32_t		flt_region_img_status_pri;
+	uint32_t		flt_region_img_status_sec;
+	uint32_t		flt_region_fw_sec;
+	uint32_t		flt_region_boot_sec;
 	uint32_t		flt_region_npiv_conf;
 	uint32_t		flt_region_nvram;
 	uint32_t		flt_region_nvram_sec;

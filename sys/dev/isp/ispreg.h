@@ -271,24 +271,24 @@ typedef struct {
 #define FLT_MAX_REGIONS		0xFF
 #define FLT_REGIONS_SIZE	(FLT_REGION_SIZE * FLT_MAX_REGIONS)
 
-#define ISP28XX_FLT_VERSION(c)		((c)[0] | ((c)[1] << 8))
-#define ISP28XX_FLT_LENGTH(c)		((c)[2] | ((c)[3] << 8))
-#define ISP28XX_FLT_CSUM(c)		((c)[4] | ((c)[5] << 8))
-#define ISP28XX_FLT_REG_CODE(c, o)	\
+#define ISP2XXX_FLT_VERSION(c)		((c)[0] | ((c)[1] << 8))
+#define ISP2XXX_FLT_LENGTH(c)		((c)[2] | ((c)[3] << 8))
+#define ISP2XXX_FLT_CSUM(c)		((c)[4] | ((c)[5] << 8))
+#define ISP2XXX_FLT_REG_CODE(c, o)	\
 	((c)[0 + FLT_REGION_SIZE * o] | ((c)[1 + FLT_REGION_SIZE * o] << 8))
-#define ISP28XX_FLT_REG_ATTR(c, o)	((c)[2 + FLT_REGION_SIZE * o])
-#define ISP28XX_FLT_REG_RES(c, o)	((c)[3 + FLT_REGION_SIZE * o])
-#define ISP28XX_FLT_REG_SIZE(c, o)	(\
+#define ISP2XXX_FLT_REG_ATTR(c, o)	((c)[2 + FLT_REGION_SIZE * o])
+#define ISP2XXX_FLT_REG_RES(c, o)	((c)[3 + FLT_REGION_SIZE * o])
+#define ISP2XXX_FLT_REG_SIZE(c, o)	(\
 		((uint32_t)(c)[4 + FLT_REGION_SIZE * o] << 0) | \
 		((uint32_t)(c)[5 + FLT_REGION_SIZE * o] << 8) | \
 		((uint32_t)(c)[6 + FLT_REGION_SIZE * o] << 16) | \
 		((uint32_t)(c)[7 + FLT_REGION_SIZE * o] << 24))
-#define ISP28XX_FLT_REG_START(c, o)	(\
+#define ISP2XXX_FLT_REG_START(c, o)	(\
 		((uint32_t)(c)[8 + FLT_REGION_SIZE * o] << 0) | \
 		((uint32_t)(c)[9 + FLT_REGION_SIZE * o] << 8) | \
 		((uint32_t)(c)[10 + FLT_REGION_SIZE * o] << 16) | \
 		((uint32_t)(c)[11 + FLT_REGION_SIZE * o] << 24))
-#define ISP28XX_FLT_REG_END(c, o)	(\
+#define ISP2XXX_FLT_REG_END(c, o)	(\
 		((uint32_t)(c)[12 + FLT_REGION_SIZE * o] << 0) | \
 		((uint32_t)(c)[13 + FLT_REGION_SIZE * o] << 8) | \
 		((uint32_t)(c)[14 + FLT_REGION_SIZE * o] << 16) | \
@@ -321,6 +321,17 @@ struct flt_region {
 #define FLT_REG_FCP_PRIO_0	0x87
 #define FLT_REG_FCP_PRIO_1	0x88
 
+/* 27xx */
+#define FLT_REG_IMG_PRI_27XX	0x95
+#define FLT_REG_IMG_SEC_27XX	0x96
+#define FLT_REG_FW_SEC_27XX	0x02
+#define FLT_REG_BOOTLOAD_SEC_27XX	0x9
+#define FLT_REG_VPD_SEC_27XX_0	0x50
+#define FLT_REG_VPD_SEC_27XX_1	0x52
+#define FLT_REG_VPD_SEC_27XX_2	0xd8
+#define FLT_REG_VPD_SEC_27XX_3	0xda
+
+/* 28xx */
 #define FLT_REG_AUX_IMG_PRI_28XX	0x125
 #define FLT_REG_AUX_IMG_SEC_28XX	0x126
 #define FLT_REG_NVRAM_SEC_28XX_0	0x10d
