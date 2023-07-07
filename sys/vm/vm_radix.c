@@ -91,6 +91,18 @@ __FBSDID("$FreeBSD$");
 #define	VM_RADIX_LIMIT							\
 	(howmany(sizeof(vm_pindex_t) * NBBY, VM_RADIX_WIDTH) - 1)
 
+#if VM_RADIX_WIDTH == 3
+typedef uint8_t rn_popmap_t;
+#elif VM_RADIX_WIDTH == 4
+typedef uint16_t rn_popmap_t;
+#elif VM_RADIX_WIDTH == 5
+typedef uint32_t rn_popmap_t;
+#else
+#error Unsupported width
+#endif
+_Static_assert(sizeof(rn_popmap_t) <= sizeof(int),
+    "rn_popmap_t too wide");
+
 /* Flag bits stored in node pointers. */
 #define	VM_RADIX_ISLEAF	0x1
 #define	VM_RADIX_FLAGS	0x1
@@ -107,9 +119,8 @@ typedef SMR_POINTER(struct vm_radix_node *) smrnode_t;
 
 struct vm_radix_node {
 	vm_pindex_t	rn_owner;			/* Owner of record. */
-	uint16_t	rn_count;			/* Valid children. */
+	rn_popmap_t	rn_popmap;			/* Valid children. */
 	uint8_t		rn_clev;			/* Current level. */
-	int8_t		rn_last;			/* zero last ptr. */
 	smrnode_t	rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 };
 
@@ -152,13 +163,12 @@ vm_radix_node_get(vm_pindex_t index, uint16_t clevel)
 	 * has exited so lookup can not return false negatives.  It is done
 	 * here because it will be cache-cold in the dtor callback.
 	 */
-	if (rnode->rn_last != 0) {
-		vm_radix_node_store(&rnode->rn_child[rnode->rn_last - 1],
+	if (rnode->rn_popmap != 0) {
+		vm_radix_node_store(&rnode->rn_child[ffs(rnode->rn_popmap) - 1],
 		    NULL, UNSERIALIZED);
-		rnode->rn_last = 0;
+		rnode->rn_popmap = 0;
 	}
 	rnode->rn_owner = vm_radix_trimkey(index, clevel + 1);
-	rnode->rn_count = 2;
 	rnode->rn_clev = clevel;
 	return (rnode);
 }
@@ -167,23 +177,21 @@ vm_radix_node_get(vm_pindex_t index, uint16_t clevel)
  * Free radix node.
  */
 static __inline void
-vm_radix_node_put(struct vm_radix_node *rnode, int8_t last)
+vm_radix_node_put(struct vm_radix_node *rnode)
 {
 #ifdef INVARIANTS
 	int slot;
 
-	KASSERT(rnode->rn_count == 0,
-	    ("vm_radix_node_put: rnode %p has %d children", rnode,
-	    rnode->rn_count));
+	KASSERT(powerof2(rnode->rn_popmap),
+	    ("vm_radix_node_put: rnode %p has too many children %04x", rnode,
+	    rnode->rn_popmap));
 	for (slot = 0; slot < VM_RADIX_COUNT; slot++) {
-		if (slot == last)
+		if ((rnode->rn_popmap & (1 << slot)) != 0)
 			continue;
 		KASSERT(smr_unserialized_load(&rnode->rn_child[slot], true) ==
 		    NULL, ("vm_radix_node_put: rnode %p has a child", rnode));
 	}
 #endif
-	/* Off by one so a freshly zero'd node is not assigned to. */
-	rnode->rn_last = last + 1;
 	uma_zfree_smr(vm_radix_node_zone, rnode);
 }
 
@@ -284,6 +292,9 @@ vm_radix_addpage(struct vm_radix_node *rnode, vm_pindex_t index, uint16_t clev,
 	slot = vm_radix_slot(index, clev);
 	vm_radix_node_store(&rnode->rn_child[slot],
 	    vm_radix_toleaf(page), access);
+	rnode->rn_popmap ^= 1 << slot;
+	KASSERT((rnode->rn_popmap & (1 << slot)) != 0,
+	    ("%s: bad popmap slot %d in rnode %p", __func__, slot, rnode));
 }
 
 /*
@@ -330,19 +341,19 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 	struct vm_radix_node *child;
 	int slot;
 
-	KASSERT(rnode->rn_count <= VM_RADIX_COUNT,
-	    ("vm_radix_reclaim_allnodes_int: bad count in rnode %p", rnode));
-	for (slot = 0; rnode->rn_count != 0; slot++) {
+	while (rnode->rn_popmap != 0) {
+		slot = ffs(rnode->rn_popmap) - 1;
 		child = vm_radix_node_load(&rnode->rn_child[slot],
 		    UNSERIALIZED);
-		if (child == NULL)
-			continue;
+		KASSERT(child != NULL, ("%s: bad popmap slot %d in rnode %p",
+		    __func__, slot, rnode));
 		if (!vm_radix_isleaf(child))
 			vm_radix_reclaim_allnodes_int(child);
-		vm_radix_node_store(&rnode->rn_child[slot], NULL, UNSERIALIZED);
-		rnode->rn_count--;
+		rnode->rn_popmap ^= 1 << slot;
+		vm_radix_node_store(&rnode->rn_child[slot], NULL,
+		    UNSERIALIZED);
 	}
-	vm_radix_node_put(rnode, -1);
+	vm_radix_node_put(rnode);
 }
 
 #ifndef UMA_MD_SMALL_ALLOC
@@ -430,7 +441,6 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 		parentp = &rnode->rn_child[slot];
 		tmp = vm_radix_node_load(parentp, LOCKED);
 		if (tmp == NULL) {
-			rnode->rn_count++;
 			vm_radix_addpage(rnode, index, rnode->rn_clev, page,
 			    LOCKED);
 			return (0);
@@ -452,6 +462,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	/* These writes are not yet visible due to ordering. */
 	vm_radix_addpage(tmp, index, clev, page, UNSERIALIZED);
 	vm_radix_node_store(&tmp->rn_child[slot], rnode, UNSERIALIZED);
+	tmp->rn_popmap ^= 1 << slot;
 	/* Serializing write to make the above visible. */
 	vm_radix_node_store(parentp, tmp, LOCKED);
 
@@ -522,7 +533,6 @@ vm_page_t
 vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *stack[VM_RADIX_LIMIT];
-	vm_pindex_t inc;
 	vm_page_t m;
 	struct vm_radix_node *child, *rnode;
 #ifdef INVARIANTS
@@ -589,35 +599,23 @@ ascend:
 		} else if (child != NULL)
 			goto descend;
 
-		/*
-		 * Look for an available edge or page within the current
-		 * bisection node.
-		 */
-                if (slot < (VM_RADIX_COUNT - 1)) {
-			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
-			index = vm_radix_trimkey(index, rnode->rn_clev);
-			do {
-				index += inc;
-				slot++;
-				child = vm_radix_node_load(&rnode->rn_child[slot],
-				    LOCKED);
-				if (vm_radix_isleaf(child)) {
-					m = vm_radix_topage(child);
-					KASSERT(m->pindex >= index,
-					    ("vm_radix_lookup_ge: leaf<index"));
-					return (m);
-				} else if (child != NULL)
-					goto descend;
-			} while (slot < (VM_RADIX_COUNT - 1));
+		/* Find the first set bit beyond the first slot+1 bits. */
+		slot = ffs(rnode->rn_popmap & (-2 << slot)) - 1;
+		if (slot < 0) {
+			/*
+			 * A page or edge greater than the search slot is not
+			 * found in the current node; ascend to the next
+			 * higher-level node.
+			 */
+			goto ascend;
 		}
-		KASSERT(child == NULL || vm_radix_isleaf(child),
-		    ("vm_radix_lookup_ge: child is radix node"));
-
-		/*
-		 * If a page or edge greater than the search slot is not found
-		 * in the current node, ascend to the next higher-level node.
-		 */
-		goto ascend;
+		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
+		KASSERT(child != NULL, ("%s: bad popmap slot %d in rnode %p",
+		    __func__, slot, rnode));
+		if (vm_radix_isleaf(child))
+			return (vm_radix_topage(child));
+		index = vm_radix_trimkey(index, rnode->rn_clev + 1) +
+		    slot * VM_RADIX_UNITLEVEL(rnode->rn_clev);
 descend:
 		KASSERT(rnode->rn_clev > 0,
 		    ("vm_radix_lookup_ge: pushing leaf's parent"));
@@ -635,7 +633,6 @@ vm_page_t
 vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *stack[VM_RADIX_LIMIT];
-	vm_pindex_t inc;
 	vm_page_t m;
 	struct vm_radix_node *child, *rnode;
 #ifdef INVARIANTS
@@ -704,35 +701,23 @@ ascend:
 		} else if (child != NULL)
 			goto descend;
 
-		/*
-		 * Look for an available edge or page within the current
-		 * bisection node.
-		 */
-		if (slot > 0) {
-			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
-			index |= inc - 1;
-			do {
-				index -= inc;
-				slot--;
-				child = vm_radix_node_load(&rnode->rn_child[slot],
-				    LOCKED);
-				if (vm_radix_isleaf(child)) {
-					m = vm_radix_topage(child);
-					KASSERT(m->pindex <= index,
-					    ("vm_radix_lookup_le: leaf>index"));
-					return (m);
-				} else if (child != NULL)
-					goto descend;
-			} while (slot > 0);
+		/* Find the last set bit among the first slot bits. */
+		slot = fls(rnode->rn_popmap & ((1 << slot) - 1)) - 1;
+		if (slot < 0) {
+			/*
+			 * A page or edge smaller than the search slot is not
+			 * found in the current node; ascend to the next
+			 * higher-level node.
+			 */
+			goto ascend;
 		}
-		KASSERT(child == NULL || vm_radix_isleaf(child),
-		    ("vm_radix_lookup_le: child is radix node"));
-
-		/*
-		 * If a page or edge smaller than the search slot is not found
-		 * in the current node, ascend to the next higher-level node.
-		 */
-		goto ascend;
+		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
+		KASSERT(child != NULL, ("%s: bad popmap slot %d in rnode %p",
+		    __func__, slot, rnode));
+		if (vm_radix_isleaf(child))
+			return (vm_radix_topage(child));
+		index = vm_radix_trimkey(index, rnode->rn_clev + 1) +
+		    (slot + 1) * VM_RADIX_UNITLEVEL(rnode->rn_clev) - 1;
 descend:
 		KASSERT(rnode->rn_clev > 0,
 		    ("vm_radix_lookup_le: pushing leaf's parent"));
@@ -752,7 +737,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode, *parent, *tmp;
 	vm_page_t m;
-	int i, slot;
+	int slot;
 
 	rnode = vm_radix_root_load(rtree, LOCKED);
 	if (vm_radix_isleaf(rnode)) {
@@ -772,19 +757,21 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			m = vm_radix_topage(tmp);
 			if (m->pindex != index)
 				return (NULL);
+			KASSERT((rnode->rn_popmap & (1 << slot)) != 0,
+			    ("%s: bad popmap slot %d in rnode %p",
+			    __func__, slot, rnode));
+			rnode->rn_popmap ^= 1 << slot;
 			vm_radix_node_store(
 			    &rnode->rn_child[slot], NULL, LOCKED);
-			rnode->rn_count--;
-			if (rnode->rn_count > 1)
+			if (!powerof2(rnode->rn_popmap))
 				return (m);
-			for (i = 0; i < VM_RADIX_COUNT; i++) {
-				tmp = vm_radix_node_load(&rnode->rn_child[i],
-				    LOCKED);
-				if (tmp != NULL)
-					break;
-			}
+			KASSERT(rnode->rn_popmap != 0,
+			    ("%s: bad popmap all zeroes", __func__));
+			slot = ffs(rnode->rn_popmap) - 1;
+			tmp = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 			KASSERT(tmp != NULL,
-			    ("%s: invalid node configuration", __func__));
+			    ("%s: bad popmap slot %d in rnode %p",
+			    __func__, slot, rnode));
 			if (parent == NULL)
 				vm_radix_root_store(rtree, tmp, LOCKED);
 			else {
@@ -799,8 +786,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			 * The child is still valid and we can not zero the
 			 * pointer until all smr references are gone.
 			 */
-			rnode->rn_count--;
-			vm_radix_node_put(rnode, i);
+			vm_radix_node_put(rnode);
 			return (m);
 		}
 		parent = rnode;
@@ -880,21 +866,22 @@ vm_radix_wait(void)
 DB_SHOW_COMMAND(radixnode, db_show_radixnode)
 {
 	struct vm_radix_node *rnode, *tmp;
-	int i;
+	int slot;
+	rn_popmap_t popmap;
 
         if (!have_addr)
                 return;
 	rnode = (struct vm_radix_node *)addr;
-	db_printf("radixnode %p, owner %jx, children count %u, level %u:\n",
-	    (void *)rnode, (uintmax_t)rnode->rn_owner, rnode->rn_count,
+	db_printf("radixnode %p, owner %jx, children popmap %04x, level %u:\n",
+	    (void *)rnode, (uintmax_t)rnode->rn_owner, rnode->rn_popmap,
 	    rnode->rn_clev);
-	for (i = 0; i < VM_RADIX_COUNT; i++) {
-		tmp = vm_radix_node_load(&rnode->rn_child[i], UNSERIALIZED);
-		if (tmp != NULL)
-			db_printf("slot: %d, val: %p, page: %p, clev: %d\n",
-			    i, (void *)tmp,
-			    vm_radix_isleaf(tmp) ?  vm_radix_topage(tmp) : NULL,
-			    rnode->rn_clev);
+	for (popmap = rnode->rn_popmap; popmap != 0; popmap ^= 1 << slot) {
+		slot = ffs(popmap) - 1;
+		tmp = vm_radix_node_load(&rnode->rn_child[slot], UNSERIALIZED);
+		db_printf("slot: %d, val: %p, page: %p, clev: %d\n",
+		    slot, (void *)tmp,
+		    vm_radix_isleaf(tmp) ?  vm_radix_topage(tmp) : NULL,
+		    rnode->rn_clev);
 	}
 }
 #endif /* DDB */
