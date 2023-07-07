@@ -109,7 +109,7 @@ static int extra_output = 0;
 
 static void intpr(int, int);
 static void printhdr(int, int, int);
-static void usage(void);
+static void usage(void) __dead2;
 static char *sperc1(int, int);
 static char *sperc2(int, int);
 static void exp_intpr(int, int, int);

@@ -50,7 +50,7 @@ static const char rcsid[] =
 	"$FreeBSD$";
 #endif /* not lint */
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static const struct option long_opts[] = {
 	{"directory",	no_argument,	NULL,	'd'},

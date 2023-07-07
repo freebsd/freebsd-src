@@ -83,7 +83,7 @@ static struct	myutmp {
 static time_t	now;
 static int	aflg;
 
-static void usage(void);
+static void usage(void) __dead2;
 static int utmpcmp(const void *, const void *);
 
 int

@@ -192,7 +192,7 @@ static struct protox *protoprotox[] = {
 					 NULL };
 
 static void printproto(struct protox *, const char *, bool *);
-static void usage(void);
+static void usage(void) __dead2;
 static struct protox *name2protox(const char *);
 static struct protox *knownname(const char *);
 

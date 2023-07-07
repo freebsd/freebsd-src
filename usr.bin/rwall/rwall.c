@@ -71,7 +71,7 @@ static char *mbuf;
 static char notty[] = "no tty";
 
 static void	makemsg(const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 /* ARGSUSED */
 int

@@ -180,7 +180,7 @@ static const struct commands {
 static const char *getblksiz(int);
 static void printreg(const char *, u_int, const char *);
 static void status(struct mtget *);
-static void usage(void);
+static void usage(void) __dead2;
 const char *get_driver_state_str(int dsreg);
 static void st_status (struct mtget *);
 static int mt_locate(int argc, char **argv, int mtfd, const char *tape);

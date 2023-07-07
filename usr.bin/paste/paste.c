@@ -65,7 +65,7 @@ static int delimcnt;
 static int parallel(char **);
 static int sequential(char **);
 static int tr(wchar_t *);
-static void usage(void);
+static void usage(void) __dead2;
 
 static wchar_t tab[] = L"\t";
 
