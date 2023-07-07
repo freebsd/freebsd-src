@@ -454,7 +454,7 @@ sys_setpgid(struct thread *td, struct setpgid_args *uap)
 	}
 done:
 	sx_xunlock(&proctree_lock);
-	KASSERT((error == 0) || (newpgrp != NULL),
+	KASSERT(error == 0 || newpgrp != NULL,
 	    ("setpgid failed and newpgrp is NULL"));
 	uma_zfree(pgrp_zone, newpgrp);
 	return (error);
