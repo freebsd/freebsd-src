@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+/*
+ * Fetch the value of fwctl nodes from a guest.
+ *
+ * Usage: fwctl_fetch <node>
+ */
+
 #include <sys/param.h>
 #include <err.h>
 #include <fcntl.h>
