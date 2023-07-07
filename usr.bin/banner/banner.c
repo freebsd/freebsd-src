@@ -1026,7 +1026,7 @@ static char	print[DWIDTH];
 static int	debug, i, j, linen, max, nchars, pc, term, trace, x, y;
 static int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

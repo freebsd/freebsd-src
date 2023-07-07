@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #define	TAB	8
 
 void check(FILE *);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
