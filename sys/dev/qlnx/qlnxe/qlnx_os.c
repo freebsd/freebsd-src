@@ -2634,7 +2634,9 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	int		ret = 0, mask;
 	struct ifreq	*ifr = (struct ifreq *)data;
+#ifdef INET
 	struct ifaddr	*ifa = (struct ifaddr *)data;
+#endif
 	qlnx_host_t	*ha;
 
 	ha = (qlnx_host_t *)if_getsoftc(ifp);
@@ -2643,6 +2645,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx)\n", cmd);
 
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			if_setflagbits(ifp, IFF_UP, 0);
 			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
@@ -2654,9 +2657,10 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				   cmd, ntohl(IA_SIN(ifa)->sin_addr.s_addr));
 
 			arp_ifinit(ifp, ifa);
-		} else {
-			ether_ioctl(ifp, cmd, data);
+			break;
 		}
+#endif
+		ether_ioctl(ifp, cmd, data);
 		break;
 
 	case SIOCSIFMTU:
