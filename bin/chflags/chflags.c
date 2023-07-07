@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 static volatile sig_atomic_t siginfo;
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static void
 siginfo_handler(int sig __unused)

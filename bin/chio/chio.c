@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "defs.h"
 #include "pathnames.h"
 
-static	void usage(void);
+static	void usage(void) __dead2;
 static	void cleanup(void);
 static	u_int16_t parse_element_type(char *);
 static	u_int16_t parse_element_unit(char *);

@@ -50,5 +50,5 @@ int	copy_special(struct stat *, int);
 int	setfile(struct stat *, int);
 int	preserve_dir_acls(struct stat *, char *, char *);
 int	preserve_fd_acls(int, int);
-void	usage(void);
+void	usage(void) __dead2;
 __END_DECLS
