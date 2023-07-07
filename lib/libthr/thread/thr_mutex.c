@@ -120,7 +120,7 @@ __weak_reference(_pthread_mutex_getyieldloops_np, pthread_mutex_getyieldloops_np
 __weak_reference(_pthread_mutex_isowned_np, pthread_mutex_isowned_np);
 
 static void
-mutex_init_link(struct pthread_mutex *m)
+mutex_init_link(struct pthread_mutex *m __unused)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
