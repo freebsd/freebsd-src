@@ -596,7 +596,7 @@ check_and_init_mutex(pthread_mutex_t *mutex, struct pthread_mutex **m)
 
 	*m = *mutex;
 	ret = 0;
-	if (*m == THR_PSHARED_PTR) {
+	if (__predict_false(*m == THR_PSHARED_PTR)) {
 		*m = __thr_pshared_offpage(mutex, 0);
 		if (*m == NULL)
 			ret = EINVAL;
@@ -714,7 +714,7 @@ done:
 	return (ret);
 }
 
-static inline int
+static __always_inline int
 mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
     bool cvattach, bool rb_onlist)
 {
@@ -728,7 +728,7 @@ mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
 	if (!rb_onlist)
 		robust = _mutex_enter_robust(curthread, m);
 	ret = _thr_umutex_trylock2(&m->m_lock, TID(curthread));
-	if (ret == 0 || ret == EOWNERDEAD) {
+	if (__predict_true(ret == 0) || ret == EOWNERDEAD) {
 		enqueue_mutex(curthread, m, ret);
 		if (ret == EOWNERDEAD)
 			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
@@ -951,7 +951,7 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 	return (ret);
 }
 
-static int
+static __always_inline int
 mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 {
 	struct pthread *curthread;
