@@ -3286,7 +3286,6 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 		kvm32.kvm_shp_addr = (uint32_t)kvm.kvm_shp_addr;
 		kvm32.kvm_shp_size = (uint32_t)kvm.kvm_shp_size;
 		kvm32.kvm_map_flags = kvm.kvm_map_flags;
-		vmspace_free(vmspace);
 		error = SYSCTL_OUT(req, &kvm32, sizeof(kvm32));
 		goto out;
 	}
