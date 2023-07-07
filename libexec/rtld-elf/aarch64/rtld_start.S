@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(.rtld_start)
 	mov	x19, x0		/* Put ps_strings in a callee-saved register */
-	mov	x20, sp		/* And the stack pointer */
 
 	sub	sp, sp, #16	/* Make room for obj_main & exit proc */
 
@@ -40,11 +39,9 @@ ENTRY(.rtld_start)
 	add	x2, x1, #8	/* obj_main */
 	bl	_rtld		/* Call the loader */
 	mov	x8, x0		/* Backup the entry point */
+	ldp	x2, x1, [sp], #16 /* Load cleanup, obj_main */
 
-	ldr	x2, [sp]	/* Load cleanup */
-	ldr	x1, [sp, #8]	/* Load obj_main */
 	mov	x0, x19		/* Restore ps_strings */
-	mov	sp, x20		/* Restore the stack pointer */
 	br	x8		/* Jump to the entry point */
 END(.rtld_start)
 
