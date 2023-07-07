@@ -62,7 +62,7 @@ struct policyqueue {
 TAILQ_HEAD(policyhead, policyqueue);
 static struct policyhead policyhead;
 
-static void usage(void);
+static void usage(void) __dead2;
 static void get_policy(void);
 static void dump_policy(void);
 static int mask2plen(struct sockaddr_in6 *);

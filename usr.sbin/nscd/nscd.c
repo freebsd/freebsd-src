@@ -85,7 +85,7 @@ static void process_socket_event(struct kevent *, struct runtime_env *,
 static void process_timer_event(struct kevent *, struct runtime_env *,
 	struct configuration *);
 static void *processing_thread(void *);
-static void usage(void);
+static void usage(void) __dead2;
 
 void get_time_func(struct timeval *);
 
