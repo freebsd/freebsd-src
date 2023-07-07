@@ -124,7 +124,7 @@ static char	*disktype;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(void);
-static void usage(void);
+static void usage(void) __dead2;
 static int expand_number_int(const char *buf, int *num);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */

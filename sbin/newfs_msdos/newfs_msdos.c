@@ -51,7 +51,7 @@ static const char rcsid[] =
 
 static u_int argtou(const char *, u_int, u_int, const char *);
 static off_t argtooff(const char *, const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 static time_t
 get_tstamp(const char *b)

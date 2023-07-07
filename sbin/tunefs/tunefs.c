@@ -80,7 +80,7 @@ static char clrbuf[MAXBSIZE];
 static struct uufsd disk;
 #define	sblock disk.d_fs
 
-static void usage(void);
+static void usage(void) __dead2;
 static void printfs(void);
 static int journal_alloc(int64_t size);
 static void journal_clear(void);
