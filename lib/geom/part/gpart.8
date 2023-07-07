@@ -1429,7 +1429,7 @@ sizes of up to 256 kB.
 .Pp
 Finally, we create and format an 8 GB
 .Cm freebsd-ufs
-partition for the root filesystem, leaving the rest of the slice free
+partition for the root filesystem, leaving the rest of the device free
 for additional filesystems:
 .Bd -literal -offset indent
 /sbin/gpart add -s 8G -t freebsd-ufs ada0
