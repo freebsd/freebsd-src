@@ -66,7 +66,7 @@ static void humantime(FILE *, long, long);
 static void showtime(FILE *, struct timespec *, struct timespec *,
     struct rusage *);
 static void siginfo(int);
-static void usage(void);
+static void usage(void) __dead2;
 
 static sig_atomic_t siginfo_recvd;
 static char decimal_point;

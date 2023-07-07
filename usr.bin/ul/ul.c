@@ -89,7 +89,7 @@ static int	halfpos;
 static int	upln;
 static int	iflag;
 
-static void usage(void);
+static void usage(void) __dead2;
 static void setnewmode(int);
 static void initcap(void);
 static void reverse(void);
