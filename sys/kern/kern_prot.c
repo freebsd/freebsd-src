@@ -347,10 +347,8 @@ again:
 		error = EPERM;
 	} else {
 		error = enterpgrp(p, p->p_pid, newpgrp, newsess);
-		if (error == ERESTART) {
-			sx_xunlock(&proctree_lock);
+		if (error == ERESTART)
 			goto again;
-		}
 		MPASS(error == 0);
 		td->td_retval[0] = p->p_pid;
 		newpgrp = NULL;
@@ -460,11 +458,11 @@ again:
 		error = enterthispgrp(targp, pgrp);
 	}
 done:
-	sx_xunlock(&proctree_lock);
 	KASSERT(error == 0 || newpgrp != NULL,
 	    ("setpgid failed and newpgrp is NULL"));
 	if (error == ERESTART)
 		goto again;
+	sx_xunlock(&proctree_lock);
 	uma_zfree(pgrp_zone, newpgrp);
 	return (error);
 }
