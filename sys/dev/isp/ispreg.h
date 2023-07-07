@@ -251,4 +251,85 @@ typedef struct {
 #define	ISP2400_NVRAM_FIRMWARE_OPTIONS3(c)	\
 	((c)[52] | ((c)[53] << 8) | ((c)[54] << 16) | ((c)[55] << 24))
 
+/*
+ * Qlogic FLT
+ */
+#define ISP24XX_BASE_ADDR	0x7ff00000
+#define ISP24XX_FLT_ADDR	0x11400
+
+#define ISP25XX_BASE_ADDR	ISP24XX_BASE_ADDR
+#define ISP25XX_FLT_ADDR	0x50400
+
+#define ISP27XX_BASE_ADDR	0x7f800000
+#define ISP27XX_FLT_ADDR	(0x3F1000/4)
+
+#define ISP28XX_BASE_ADDR	0x7f7d0000
+#define ISP28XX_FLT_ADDR	(0x11000/4)
+
+#define FLT_HEADER_SIZE		8
+#define FLT_REGION_SIZE		16
+#define FLT_MAX_REGIONS		0xFF
+#define FLT_REGIONS_SIZE	(FLT_REGION_SIZE * FLT_MAX_REGIONS)
+
+#define ISP28XX_FLT_VERSION(c)		((c)[0] | ((c)[1] << 8))
+#define ISP28XX_FLT_LENGTH(c)		((c)[2] | ((c)[3] << 8))
+#define ISP28XX_FLT_CSUM(c)		((c)[4] | ((c)[5] << 8))
+#define ISP28XX_FLT_REG_CODE(c, o)	\
+	((c)[0 + FLT_REGION_SIZE * o] | ((c)[1 + FLT_REGION_SIZE * o] << 8))
+#define ISP28XX_FLT_REG_ATTR(c, o)	((c)[2 + FLT_REGION_SIZE * o])
+#define ISP28XX_FLT_REG_RES(c, o)	((c)[3 + FLT_REGION_SIZE * o])
+#define ISP28XX_FLT_REG_SIZE(c, o)	(\
+		((uint32_t)(c)[4 + FLT_REGION_SIZE * o] << 0) | \
+		((uint32_t)(c)[5 + FLT_REGION_SIZE * o] << 8) | \
+		((uint32_t)(c)[6 + FLT_REGION_SIZE * o] << 16) | \
+		((uint32_t)(c)[7 + FLT_REGION_SIZE * o] << 24))
+#define ISP28XX_FLT_REG_START(c, o)	(\
+		((uint32_t)(c)[8 + FLT_REGION_SIZE * o] << 0) | \
+		((uint32_t)(c)[9 + FLT_REGION_SIZE * o] << 8) | \
+		((uint32_t)(c)[10 + FLT_REGION_SIZE * o] << 16) | \
+		((uint32_t)(c)[11 + FLT_REGION_SIZE * o] << 24))
+#define ISP28XX_FLT_REG_END(c, o)	(\
+		((uint32_t)(c)[12 + FLT_REGION_SIZE * o] << 0) | \
+		((uint32_t)(c)[13 + FLT_REGION_SIZE * o] << 8) | \
+		((uint32_t)(c)[14 + FLT_REGION_SIZE * o] << 16) | \
+		((uint32_t)(c)[15 + FLT_REGION_SIZE * o] << 24))
+
+struct flt_region {
+	uint16_t  code;
+	uint8_t attribute;
+	uint8_t reserved;
+	uint32_t size;
+	uint32_t start;
+	uint32_t end;
+};
+
+#define FLT_REG_FW		0x01
+#define FLT_REG_BOOT_CODE	0x07
+#define FLT_REG_VPD_0		0x14
+#define FLT_REG_NVRAM_0		0x15
+#define FLT_REG_VPD_1		0x16
+#define FLT_REG_NVRAM_1		0x17
+#define FLT_REG_VPD_2		0xd4
+#define FLT_REG_NVRAM_2		0xd5
+#define FLT_REG_VPD_3		0xd6
+#define FLT_REG_NVRAM_3		0xd7
+#define FLT_REG_FDT		0x1a
+#define FLT_REG_FLT		0x1c
+#define FLT_REG_NPIV_CONF_0	0x29
+#define FLT_REG_NPIV_CONF_1	0x2a
+#define FLT_REG_GOLD_FW		0x2f
+#define FLT_REG_FCP_PRIO_0	0x87
+#define FLT_REG_FCP_PRIO_1	0x88
+
+#define FLT_REG_AUX_IMG_PRI_28XX	0x125
+#define FLT_REG_AUX_IMG_SEC_28XX	0x126
+#define FLT_REG_NVRAM_SEC_28XX_0	0x10d
+#define FLT_REG_NVRAM_SEC_28XX_1	0x10f
+#define FLT_REG_NVRAM_SEC_28XX_2	0x111
+#define FLT_REG_NVRAM_SEC_28XX_3	0x113
+#define FLT_REG_VPD_SEC_28XX_0		0x10c
+#define FLT_REG_VPD_SEC_28XX_1		0x10e
+#define FLT_REG_VPD_SEC_28XX_2		0x110
+#define FLT_REG_VPD_SEC_28XX_3		0x112
+
 #endif	/* _ISPREG_H */

@@ -368,6 +368,28 @@ typedef struct {
 	int			isp_use_gft_id;		/* Use GFT_ID */
 	int			isp_use_gff_id;		/* Use GFF_ID */
 
+	uint32_t		flash_data_addr;
+	/*
+	 * FLT
+	 */
+	uint16_t		flt_length;
+	uint32_t		flt_region_entries;
+	uint32_t		flt_region_aux_img_status_pri;
+	uint32_t		flt_region_aux_img_status_sec;
+	uint32_t		flt_region_boot;
+	uint32_t		flt_region_fcp_prio;
+	uint32_t		flt_region_fdt;
+	uint32_t		flt_region_flt;
+	uint32_t		flt_region_fw;
+	uint32_t		flt_region_gold_fw;
+	uint32_t		flt_region_npiv_conf;
+	uint32_t		flt_region_nvram;
+	uint32_t		flt_region_nvram_sec;
+	uint32_t		flt_region_vpd;
+	uint32_t		flt_region_vpd_nvram;
+	uint32_t		flt_region_vpd_nvram_sec;
+	uint32_t		flt_region_vpd_sec;
+
 	/*
 	 * Current active WWNN/WWPN
 	 */
