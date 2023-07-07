@@ -135,6 +135,8 @@
                     ..
                     json
                     ..
+                    kinst
+                    ..
                     lexer
                     ..
                     llquantize
@@ -254,8 +256,6 @@
                 ..
                 amd64
                     arrays
-                    ..
-                    kinst
                     ..
                 ..
             ..
