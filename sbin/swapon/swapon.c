@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 static const char *swap_on_off(const char *, int, char *);
 static const char *swap_on_off_gbde(const char *, int);
 static const char *swap_on_off_geli(const char *, char *, int);

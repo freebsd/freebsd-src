@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #define REPORT_PERIOD (30*60)
 
 static void fake(int);
-static void usage(void);
+static void usage(void) __dead2;
 
 static void
 fake(int unused __unused)

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <utmpx.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 static u_int get_pageins(void);
 
 static int dohalt;

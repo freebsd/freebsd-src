@@ -131,7 +131,7 @@ static void query_loop(char *argv[], int) __attribute((__noreturn__));
 static int getnet(char *, struct netinfo *);
 static u_int std_mask(u_int);
 static int parse_quote(char **, const char *, char *, char *, int);
-static void usage(void);
+static void usage(void) __dead2;
 
 
 int
