@@ -1571,22 +1571,16 @@ get_kbd_id(KBDC kbdc)
 	return ((id2 << 8) | id1);
 }
 
-static int delays[] = { 250, 500, 750, 1000 };
-static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
-			68,  76,  84,  92, 100, 110, 118, 126,
-		       136, 152, 168, 184, 200, 220, 236, 252,
-		       272, 304, 336, 368, 400, 440, 472, 504 };
-
 static int
 typematic_delay(int i)
 {
-	return delays[(i >> 5) & 3];
+	return (kbdelays[(i >> 5) & 3]);
 }
 
 static int
 typematic_rate(int i)
 {
-	return rates[i & 0x1f];
+	return (kbrates[i & 0x1f]);
 }
 
 static int
@@ -1595,13 +1589,13 @@ typematic(int delay, int rate)
 	int value;
 	int i;
 
-	for (i = nitems(delays) - 1; i > 0; --i) {
-		if (delay >= delays[i])
+	for (i = nitems(kbdelays) - 1; i > 0; --i) {
+		if (delay >= kbdelays[i])
 			break;
 	}
 	value = i << 5;
-	for (i = nitems(rates) - 1; i > 0; --i) {
-		if (rate >= rates[i])
+	for (i = nitems(kbrates) - 1; i > 0; --i) {
+		if (rate >= kbrates[i])
 			break;
 	}
 	value |= i;
