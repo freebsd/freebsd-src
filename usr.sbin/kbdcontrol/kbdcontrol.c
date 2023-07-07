@@ -40,24 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <sys/kbio.h>
 #include <sys/consio.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include "path.h"
 #include "lex.h"
-
-/*
- * HALT, PDWN, and PASTE aren't defined in 4.x, but we need them to bridge
- * to 5.0-current so define them here as a stop gap transition measure.
- */
-#ifndef	HALT
-#define	HALT		0xa1		/* halt machine */
-#endif
-#ifndef PDWN
-#define	PDWN		0xa2		/* halt machine and power down */
-#endif
-#ifndef PASTE
-#define PASTE		0xa3		/* paste from cut-paste buffer */
-#endif
 
 #define	SPECIAL		0x80000000
 
@@ -70,13 +57,13 @@ static const char ctrl_names[32][4] = {
 
 static const char acc_names[15][5] = {
 	"dgra", "dacu", "dcir", "dtil", "dmac", "dbre", "ddot",
-	"duml", "dsla", "drin", "dced", "dapo", "ddac", "dogo", 
+	"duml", "dsla", "drin", "dced", "dapo", "ddac", "dogo",
 	"dcar",
 	};
 
 static const char acc_names_u[15][5] = {
 	"DGRA", "DACU", "DCIR", "DTIL", "DMAC", "DBRE", "DDOT",
-	"DUML", "DSLA", "DRIN", "DCED", "DAPO", "DDAC", "DOGO", 
+	"DUML", "DSLA", "DRIN", "DCED", "DAPO", "DDAC", "DOGO",
 	"DCAR",
 	};
 
@@ -107,13 +94,8 @@ static const char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
-static const int delays[]  = {250, 500, 750, 1000};
-static const int repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
-		      68,  76,  84,  92, 100, 110, 118, 126,
-		     136, 152, 168, 184, 200, 220, 236, 252,
-		     272, 304, 336, 368, 400, 440, 472, 504};
-static const int ndelays = (sizeof(delays) / sizeof(int));
-static const int nrepeats = (sizeof(repeats) / sizeof(int));
+static const int ndelays = nitems(kbdelays);
+static const int nrepeats = nitems(kbrates);
 static int	hex = 0;
 static int	paths_configured = 0;
 static int	token;
@@ -298,7 +280,7 @@ get_definition_line(FILE *file, keymap_t *keymap, accentmap_t *accentmap)
 
 	if (token < 0)
 		token = yylex();
-	switch (token) { 
+	switch (token) {
 	case TNUM:
 		c = get_key_definition_line(keymap);
 		if (c < 0)
@@ -751,7 +733,7 @@ dump_key_definition(char *name, keymap_t *keymap)
 				dump_entry(keymap->key[i].map[j]);
 		}
 		printf("}, 0x%02X,0x%02X },\n",
-		       (unsigned)keymap->key[i].spcl, 
+		       (unsigned)keymap->key[i].spcl,
 		       (unsigned)keymap->key[i].flgs);
 	}
 	printf("} };\n\n");
@@ -764,7 +746,7 @@ dump_accent_definition(char *name, accentmap_t *accentmap)
 	int c;
 
 	printf("static accentmap_t accentmap_%s = { %d",
-		name, accentmap->n_accs); 
+		name, accentmap->n_accs);
 	if (accentmap->n_accs <= 0) {
 		printf(" };\n\n");
 		return;
@@ -785,7 +767,7 @@ dump_accent_definition(char *name, accentmap_t *accentmap)
 		} else
 			printf(" 0x%02x, {", c);
 		for (j = 0; j < NUM_ACCENTCHARS; j++) {
-			c = accentmap->acc[i].map[j][0]; 
+			c = accentmap->acc[i].map[j][0];
 			if (c == 0)
 				break;
 			if ((j > 0) && ((j % 4) == 0))
@@ -793,7 +775,7 @@ dump_accent_definition(char *name, accentmap_t *accentmap)
 			if (isascii(c) && isprint(c))
 				printf(" {  '%c',", c);
 			else
-				printf(" { 0x%02x,", c); 
+				printf(" { 0x%02x,", c);
 			printf("0x%02x },", accentmap->acc[i].map[j][1]);
 		}
 		printf(" }, },\n");
@@ -900,8 +882,8 @@ load_keymap(char *opt, int dumponly)
 		fclose(file);
 		return;
 	}
-	if ((accentmap.n_accs > 0) 
-		&& (ioctl(0, PIO_DEADKEYMAP, &accentmap) < 0)) {
+	if ((accentmap.n_accs > 0)
+	    && (ioctl(0, PIO_DEADKEYMAP, &accentmap) < 0)) {
 #ifdef OPIO_DEADKEYMAP
 		to_old_accentmap(&accentmap, &oaccentmap);
 		if (ioctl(0, OPIO_DEADKEYMAP, &oaccentmap) < 0)
@@ -1058,14 +1040,20 @@ set_keyrates(char *opt)
 	int r, d;
 
 	if (!strcmp(opt, "slow")) {
-		delay = 1000, repeat = 500;
-		d = 3, r = 31;
+		delay = 1000;
+		repeat = 504;
+		d = 3;
+		r = 31;
 	} else if (!strcmp(opt, "normal")) {
-		delay = 500, repeat = 125;
-		d = 1, r = 15;
+		delay = 500;
+		repeat = 126;
+		d = 1;
+		r = 15;
 	} else if (!strcmp(opt, "fast")) {
-		delay = repeat = 0;
-		d = r = 0;
+		delay = 0;
+		repeat = 0;
+		d = 0;
+		r = 0;
 	} else {
 		int		n;
 		char		*v1;
@@ -1081,11 +1069,11 @@ badopt:
 			return;
 		}
 		for (n = 0; n < ndelays - 1; n++)
-			if (delay <= delays[n])
+			if (delay <= kbdelays[n])
 				break;
 		d = n;
 		for (n = 0; n < nrepeats - 1; n++)
-			if (repeat <= repeats[n])
+			if (repeat <= kbrates[n])
 				break;
 		r = n;
 	}
@@ -1093,6 +1081,7 @@ badopt:
 	arg[0] = delay;
 	arg[1] = repeat;
 	if (ioctl(0, KDSETREPEAT, arg)) {
+		warn("fallback, setting keyboard rate via legacy interface (KDSETRAD), will be removed soon");
 		if (ioctl(0, KDSETRAD, (d << 5) | r))
 			warn("setting keyboard rate");
 	}
@@ -1151,7 +1140,7 @@ set_keyboard(char *device)
 	}
 	/*
 	 * The keyboard device driver won't release the keyboard by
-	 * the following ioctl, but it automatically will, when the device 
+	 * the following ioctl, but it automatically will, when the device
 	 * is closed.  So, we don't check error here.
 	 */
 	ioctl(fd, CONS_RELKBD, 0);

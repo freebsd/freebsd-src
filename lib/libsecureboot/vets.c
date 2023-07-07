@@ -243,12 +243,10 @@ x509_cn_get(br_x509_certificate *xc, char *buf, size_t len)
 	mc.vtable->end_cert(&mc.vtable);
 	/* we don't actually care about cert status - just its name */
 	err = mc.vtable->end_chain(&mc.vtable);
+	(void)err;			/* keep compiler quiet */
 
-	if (!cn.status) {
+	if (cn.status <= 0)
 		buf = NULL;
-		if (err == 0)		/* keep compiler happy */
-			buf = NULL;
-	}
 	return (buf);
 }
 

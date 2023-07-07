@@ -127,43 +127,6 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-#ifdef _KERNEL
-
-#define	HAVE_INLINE_FFS
-#define	ffs(x)		__builtin_ffs(x)
-
-#define	HAVE_INLINE_FFSL
-#define	ffsl(x)		__builtin_ffsl(x)
-
-#define	HAVE_INLINE_FFSLL
-#define	ffsll(x)	__builtin_ffsll(x)
-
-#define	HAVE_INLINE_FLS
-
-static __inline __pure2 int
-fls(int mask)
-{
-	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
-}
-
-#define	HAVE_INLINE_FLSL
-
-static __inline __pure2 int
-flsl(long mask)
-{
-	return (mask == 0 ? mask : (int)bsrq((u_long)mask) + 1);
-}
-
-#define	HAVE_INLINE_FLSLL
-
-static __inline __pure2 int
-flsll(long long mask)
-{
-	return (flsl((long)mask));
-}
-
-#endif /* _KERNEL */
-
 static __inline void
 halt(void)
 {

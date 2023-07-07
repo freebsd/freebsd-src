@@ -963,17 +963,6 @@ kbdmux_check_char(keyboard_t *kbd)
 static int
 kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
-	static int	 delays[] = {
-		250, 500, 750, 1000
-	};
-
-	static int	 rates[]  =  {
-		34,  38,  42,  46,  50,   55,  59,  63,
-		68,  76,  84,  92,  100, 110, 118, 126,
-		136, 152, 168, 184, 200, 220, 236, 252,
-		272, 304, 336, 368, 400, 440, 472, 504
-	};
-
 	kbdmux_state_t	*state = (kbdmux_state_t *) kbd->kb_data;
 	kbdmux_kbd_t	*k;
 	keyboard_info_t	*ki;
@@ -1206,14 +1195,14 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			int	i;
 
 			/* lookup delay */
-			for (i = sizeof(delays)/sizeof(delays[0]) - 1; i > 0; i --)
-				if (((int *)arg)[0] >= delays[i])
+			for (i = nitems(kbdelays) - 1; i > 0; i--)
+				if (((int *)arg)[0] >= kbdelays[i])
 					break;
 			mode = i << 5;
 
 			/* lookup rate */
-			for (i = sizeof(rates)/sizeof(rates[0]) - 1; i > 0; i --)
-				if (((int *)arg)[1] >= rates[i])
+			for (i = nitems(kbrates) - 1; i > 0; i--)
+				if (((int *)arg)[1] >= kbrates[i])
 					break;
 			mode |= i;
 		} else
@@ -1225,8 +1214,8 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return (EINVAL);
 		}
 
-		kbd->kb_delay1 = delays[(mode >> 5) & 3];
-		kbd->kb_delay2 = rates[mode & 0x1f];
+		kbd->kb_delay1 = kbdelays[(mode >> 5) & 3];
+		kbd->kb_delay2 = kbrates[mode & 0x1f];
 #ifdef EVDEV_SUPPORT
 		if (state->ks_evdev != NULL &&
 		    evdev_rcpt_mask & EVDEV_RCPT_KBDMUX)

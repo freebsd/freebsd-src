@@ -100,3 +100,13 @@ CFLAGS+=	-DENGINESDIR="\"${LIBDIR}/engines-3\""
 CFLAGS+=	-DMODULESDIR="\"${LIBDIR}/ossl-modules\""
 
 CFLAGS+=	-DNDEBUG
+
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448/arch_32
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
+CFLAGS+=	-I${.OBJDIR}
+
+.if !empty(SRCS:M*.S)
+ACFLAGS+=	-Wa,--noexecstack
+.endif

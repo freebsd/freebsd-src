@@ -90,7 +90,7 @@ vnode_mount(struct vnode *vp)
 	return (vp->v_mount);
 }
 
-static inline enum vtype
+static inline __enum_uint8(vtype)
 vnode_vtype(struct vnode *vp)
 {
 	return (vp->v_type);
@@ -284,7 +284,7 @@ void fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
 /* entity creation */
 
 static inline int
-fuse_internal_checkentry(struct fuse_entry_out *feo, enum vtype vtyp)
+fuse_internal_checkentry(struct fuse_entry_out *feo, __enum_uint8(vtype) vtyp)
 {
 	if (vtyp != IFTOVT(feo->attr.mode)) {
 		return (EINVAL);
@@ -303,14 +303,14 @@ fuse_internal_checkentry(struct fuse_entry_out *feo, enum vtype vtyp)
 
 int fuse_internal_newentry(struct vnode *dvp, struct vnode **vpp,
     struct componentname *cnp, enum fuse_opcode op, void *buf, size_t bufsize,
-    enum vtype vtyp);
+    __enum_uint8(vtype) vtyp);
 
 void fuse_internal_newentry_makerequest(struct mount *mp, uint64_t dnid,
     struct componentname *cnp, enum fuse_opcode op, void *buf, size_t bufsize,
     struct fuse_dispatcher *fdip);
 
 int fuse_internal_newentry_core(struct vnode *dvp, struct vnode **vpp,
-    struct componentname *cnp, enum vtype vtyp, struct fuse_dispatcher *fdip);
+    struct componentname *cnp, __enum_uint8(vtype) vtyp, struct fuse_dispatcher *fdip);
 
 /* entity destruction */
 

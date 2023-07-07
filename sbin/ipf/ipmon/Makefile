@@ -7,6 +7,7 @@ MAN=		ipmon.5 ipmon.8
 MLINKS=		ipmon.5 ipmon.conf.5
 
 CFLAGS+=	-DLOGFAC=LOG_LOCAL0 -I.
+CFLAGS+=	-Wno-error=unused-but-set-variable
 
 GENHDRS+=	ipmon_l.h ipmon_y.h
 CLEANFILES+=	${GENHDRS} ipmon_y.c ipmon_l.c

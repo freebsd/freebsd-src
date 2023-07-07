@@ -66,8 +66,8 @@ ENTRY(sigsetjmp)
 	call	__libc_sigprocmask
 	popq	%rdi
 2:	movq	%rdi,%rcx
-	movq	0(%rsp),%rdx		/* retval */
-	movq	%rdx, 0(%rcx)		/* 0; retval */
+	movq	0(%rsp),%rdx		/* return address */
+	movq	%rdx, 0(%rcx)		/* 0; return address */
 	movq	%rbx, 8(%rcx)		/* 1; rbx */
 	movq	%rsp,16(%rcx)		/* 2; rsp */
 	movq	%rbp,24(%rcx)		/* 3; rbp */
@@ -109,7 +109,7 @@ ENTRY(__siglongjmp)
 	testq	%rax,%rax
 	jnz	1f
 	incq	%rax
-1:	movq	%rcx,0(%rsp)
+1:	movq	%rcx,0(%rsp)		/* return address */
 	ret
 END(__siglongjmp)
 

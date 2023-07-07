@@ -748,7 +748,7 @@ out:
 }
 
 static int
-compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
+enforce_lkflags(struct mount *mp, int lkflags)
 {
 
 	if (mp == NULL || ((lkflags & LK_SHARED) &&
@@ -815,9 +815,7 @@ vfs_lookup_degenerate(struct nameidata *ndp, struct vnode *dp, int wantparent)
 		cnp->cn_lkflags |= LK_EXCLUSIVE;
 	}
 
-	vn_lock(dp,
-	    compute_cn_lkflags(mp, cnp->cn_lkflags | LK_RETRY,
-	    cnp->cn_flags));
+	vn_lock(dp, enforce_lkflags(mp, cnp->cn_lkflags | LK_RETRY));
 
 	if (dp->v_type != VDIR) {
 		error = ENOTDIR;
@@ -873,6 +871,79 @@ vfs_lookup_failifexists(struct nameidata *ndp)
 	return (EEXIST);
 }
 
+static int __noinline
+vfs_lookup_cross_mount(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+	struct mount *mp;
+	struct vnode *dp, *tdp;
+	int error, crosslkflags;
+	bool crosslock;
+
+	cnp = &ndp->ni_cnd;
+	dp = ndp->ni_vp;
+
+	/*
+	 * The vnode has been mounted on, find the root of the mounted
+	 * filesystem.
+	 */
+	for (;;) {
+		mp = dp->v_mountedhere;
+		ASSERT_VOP_LOCKED(dp, __func__);
+		VNPASS((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0 && mp != NULL, dp);
+
+		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
+		crosslkflags = enforce_lkflags(mp, cnp->cn_lkflags);
+		if (__predict_false(crosslock)) {
+			/*
+			 * We are going to be holding the vnode lock, which
+			 * in this case is shared by the root vnode of the
+			 * filesystem mounted at mp, across the call to
+			 * VFS_ROOT().  Make the situation clear to the
+			 * filesystem by passing LK_CANRECURSE if the
+			 * lock is held exclusive, or by clearinng
+			 * LK_NODDLKTREAT to allow recursion on the shared
+			 * lock in the presence of an exclusive waiter.
+			 */
+			if (VOP_ISLOCKED(dp) == LK_EXCLUSIVE) {
+				crosslkflags &= ~LK_SHARED;
+				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
+			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
+				error = vn_lock(dp, LK_UPGRADE);
+				if (error != 0)
+					break;
+				if (dp->v_mountedhere != mp) {
+					continue;
+				}
+			} else
+				crosslkflags &= ~LK_NODDLKTREAT;
+		}
+		if (vfs_busy(mp, 0) != 0)
+			continue;
+		if (__predict_true(!crosslock))
+			vput(dp);
+		if (dp != ndp->ni_dvp)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+		vrefact(vp_crossmp);
+		ndp->ni_dvp = vp_crossmp;
+		error = VFS_ROOT(mp, crosslkflags, &tdp);
+		vfs_unbusy(mp);
+		if (__predict_false(crosslock))
+			vput(dp);
+		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
+			panic("vp_crossmp exclusively locked or reclaimed");
+		if (error != 0)
+			break;
+		ndp->ni_vp = dp = tdp;
+		if ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) == 0)
+			break;
+	}
+
+	return (error);
+}
+
 /*
  * Search a pathname.
  * This is a very central and rather complicated routine.
@@ -921,20 +992,16 @@ vfs_lookup(struct nameidata *ndp)
 	char *lastchar;			/* location of the last character */
 	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
-	struct mount *mp;		/* mount table entry */
 	struct prison *pr;
 	size_t prev_ni_pathlen;		/* saved ndp->ni_pathlen */
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
-	int dpunlocked = 0;		/* dp has already been unlocked */
 	int relookup = 0;		/* do not consume the path component */
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
 	int ni_dvp_unlocked;
-	int crosslkflags;
-	bool crosslock;
 
 	/*
 	 * Setup: break out flag bits into variables.
@@ -1009,8 +1076,7 @@ vfs_lookup(struct nameidata *ndp)
 	 * we adjust based on the requesting flags.
 	 */
 	vn_lock(dp,
-	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY,
-	    cnp->cn_flags));
+	    enforce_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY));
 
 dirloop:
 	/*
@@ -1149,8 +1215,8 @@ dirloop:
 			VREF(dp);
 			vput(tdp);
 			vn_lock(dp,
-			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY, ISDOTDOT));
+			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 			error = nameicap_check_dotdot(ndp, dp);
 			if (error != 0) {
 capdotdot:
@@ -1196,8 +1262,7 @@ unionlookup:
 	vn_printf(dp, "lookup in ");
 #endif
 	lkflags_save = cnp->cn_lkflags;
-	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
-	    cnp->cn_flags);
+	cnp->cn_lkflags = enforce_lkflags(dp->v_mount, cnp->cn_lkflags);
 	error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp);
 	cnp->cn_lkflags = lkflags_save;
 	if (error != 0) {
@@ -1213,8 +1278,8 @@ unionlookup:
 			VREF(dp);
 			vput(tdp);
 			vn_lock(dp,
-			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY, cnp->cn_flags));
+			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 			nameicap_tracker_add(ndp, dp);
 			goto unionlookup;
 		}
@@ -1288,71 +1353,18 @@ good:
 			ni_dvp_unlocked = 1;
 		}
 		goto success;
-	} else if ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0) {
-		if ((cnp->cn_flags & NOCROSSMOUNT) != 0)
-			goto nextname;
-	} else
-		goto nextname;
+	}
 
-	/*
-	 * Check to see if the vnode has been mounted on;
-	 * if so find the root of the mounted filesystem.
-	 */
-	do {
-		mp = dp->v_mountedhere;
-		KASSERT(mp != NULL,
-		    ("%s: NULL mountpoint for VIRF_MOUNTPOINT vnode", __func__));
-		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
-		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
-		    cnp->cn_flags);
-		if (__predict_false(crosslock)) {
-			/*
-			 * We are going to be holding the vnode lock, which
-			 * in this case is shared by the root vnode of the
-			 * filesystem mounted at mp, across the call to
-			 * VFS_ROOT().  Make the situation clear to the
-			 * filesystem by passing LK_CANRECURSE if the
-			 * lock is held exclusive, or by clearinng
-			 * LK_NODDLKTREAT to allow recursion on the shared
-			 * lock in the presence of an exclusive waiter.
-			 */
-			if (VOP_ISLOCKED(dp) == LK_EXCLUSIVE) {
-				crosslkflags &= ~LK_SHARED;
-				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
-			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
-				vn_lock(dp, LK_UPGRADE | LK_RETRY);
-				if (VN_IS_DOOMED(dp)) {
-					error = ENOENT;
-					goto bad2;
-				}
-				if (dp->v_mountedhere != mp) {
-					continue;
-				}
-			} else
-				crosslkflags &= ~LK_NODDLKTREAT;
-		}
-		if (vfs_busy(mp, 0) != 0)
-			continue;
-		if (__predict_true(!crosslock))
-			vput(dp);
-		if (dp != ndp->ni_dvp)
-			vput(ndp->ni_dvp);
-		else
-			vrele(ndp->ni_dvp);
-		vrefact(vp_crossmp);
-		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, crosslkflags, &tdp);
-		vfs_unbusy(mp);
-		if (__predict_false(crosslock))
-			vput(dp);
-		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
-			panic("vp_crossmp exclusively locked or reclaimed");
-		if (error != 0) {
-			dpunlocked = 1;
-			goto bad2;
-		}
-		ndp->ni_vp = dp = tdp;
-	} while ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0);
+	if ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0 &&
+	    (cnp->cn_flags & NOCROSSMOUNT) == 0) {
+		error = vfs_lookup_cross_mount(ndp);
+		if (error != 0)
+			goto bad_unlocked;
+		/*
+		 * FALLTHROUGH to nextname
+		 */
+		dp = ndp->ni_vp;
+	}
 
 nextname:
 	/*
@@ -1462,8 +1474,7 @@ bad2:
 			vrele(ndp->ni_dvp);
 	}
 bad:
-	if (!dpunlocked)
-		vput(dp);
+	vput(dp);
 bad_unlocked:
 	ndp->ni_vp = NULL;
 	return (error);

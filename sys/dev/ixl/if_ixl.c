@@ -597,14 +597,14 @@ ixl_if_attach_pre(if_ctx_t ctx)
 	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
 	    (pf->hw.aq.fw_maj_ver < 4)) {
 		i40e_aq_stop_lldp(hw, true, false, NULL);
-		pf->state |= IXL_PF_STATE_FW_LLDP_DISABLED;
+		ixl_set_state(&pf->state, IXL_STATE_FW_LLDP_DISABLED);
 	}
 
 	/* Try enabling Energy Efficient Ethernet (EEE) mode */
 	if (i40e_enable_eee(hw, true) == I40E_SUCCESS)
-		atomic_set_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+		ixl_set_state(&pf->state, IXL_STATE_EEE_ENABLED);
 	else
-		atomic_clear_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+		ixl_clear_state(&pf->state, IXL_STATE_EEE_ENABLED);
 
 	/* Get MAC addresses from hardware */
 	i40e_get_mac_addr(hw, hw->mac.addr);
@@ -629,11 +629,11 @@ ixl_if_attach_pre(if_ctx_t ctx)
 	/* Query device FW LLDP status */
 	if (i40e_get_fw_lldp_status(hw, &lldp_status) == I40E_SUCCESS) {
 		if (lldp_status == I40E_GET_FW_LLDP_STATUS_DISABLED) {
-			atomic_set_32(&pf->state,
-			    IXL_PF_STATE_FW_LLDP_DISABLED);
+			ixl_set_state(&pf->state,
+			    IXL_STATE_FW_LLDP_DISABLED);
 		} else {
-			atomic_clear_32(&pf->state,
-			    IXL_PF_STATE_FW_LLDP_DISABLED);
+			ixl_clear_state(&pf->state,
+			    IXL_STATE_FW_LLDP_DISABLED);
 		}
 	}
 
@@ -772,7 +772,7 @@ ixl_if_attach_post(if_ctx_t ctx)
 	 * Driver may have been reloaded. Ensure that the link state
 	 * is consistent with current settings.
 	 */
-	ixl_set_link(pf, (pf->state & IXL_PF_STATE_LINK_ACTIVE_ON_DOWN) != 0);
+	ixl_set_link(pf, ixl_test_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN));
 
 	hw->phy.get_link_info = true;
 	i40e_get_link_status(hw, &pf->link_up);
@@ -1032,8 +1032,7 @@ ixl_if_stop(if_ctx_t ctx)
 	 * e.g. on MTU change.
 	 */
 	if ((if_getflags(ifp) & IFF_UP) == 0 &&
-	    (atomic_load_acq_32(&pf->state) &
-	    IXL_PF_STATE_LINK_ACTIVE_ON_DOWN) == 0)
+	    !ixl_test_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN))
 		ixl_set_link(pf, false);
 }
 
@@ -1417,7 +1416,7 @@ ixl_if_update_admin_status(if_ctx_t ctx)
 	if (!i40e_check_asq_alive(&pf->hw))
 		return;
 
-	if (pf->state & IXL_PF_STATE_MDD_PENDING)
+	if (ixl_test_state(&pf->state, IXL_STATE_MDD_PENDING))
 		ixl_handle_mdd_event(pf);
 
 	ixl_process_adminq(pf, &pending);

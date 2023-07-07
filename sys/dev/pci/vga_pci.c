@@ -373,8 +373,7 @@ vga_pci_attach(device_t dev)
 
 	bus_generic_probe(dev);
 
-	/* Always create a drm child for now to make it easier on drm. */
-	device_add_child(dev, "drm", -1);
+	/* Always create a drmn child for now to make it easier on drm. */
 	device_add_child(dev, "drmn", -1);
 	bus_generic_attach(dev);
 

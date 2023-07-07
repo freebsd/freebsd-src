@@ -1472,21 +1472,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	LIST_INSERT_HEAD(&lc->lro_free, le, next);
 }
 
-#ifdef HAVE_INLINE_FLSLL
 #define	tcp_lro_msb_64(x) (1ULL << (flsll(x) - 1))
-#else
-static inline uint64_t
-tcp_lro_msb_64(uint64_t x)
-{
-	x |= (x >> 1);
-	x |= (x >> 2);
-	x |= (x >> 4);
-	x |= (x >> 8);
-	x |= (x >> 16);
-	x |= (x >> 32);
-	return (x & ~(x >> 1));
-}
-#endif
 
 /*
  * The tcp_lro_sort() routine is comparable to qsort(), except it has

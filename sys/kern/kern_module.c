@@ -520,10 +520,9 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	id = mod->id;
 	refs = mod->refs;
 	name = mod->name;
-	CP(mod->data, data32, intval);
+	_Static_assert(sizeof(data32) == sizeof(data32.uintval),
+	    "bad modspecific32_t size");
 	CP(mod->data, data32, uintval);
-	CP(mod->data, data32, longval);
-	CP(mod->data, data32, ulongval);
 	MOD_SUNLOCK;
 	stat32 = uap->stat;
 

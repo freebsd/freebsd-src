@@ -125,6 +125,10 @@ pfsync_syncpeer_nvlist_to_sockaddr(const nvlist_t *nvl,
 {
 	int af;
 
+#if (!defined INET && !defined INET6)
+	(void)sa;
+#endif
+
 	if (!nvlist_exists_number(nvl, "af"))
 		return (EINVAL);
 	if (!nvlist_exists_binary(nvl, "address"))

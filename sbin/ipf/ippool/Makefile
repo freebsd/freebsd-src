@@ -5,6 +5,7 @@ PROG=		ippool
 SRCS=		${GENHDRS} ippool_y.c ippool_l.c ippool.c
 MAN=		ippool.5 ippool.8
 CFLAGS+=	-I.
+CFLAGS+=	-Wno-error=unused-but-set-variable
 
 GENHDRS=	ippool_l.h ippool_y.h
 CLEANFILES+=	${GENHDRS} ippool_y.c ippool_l.c

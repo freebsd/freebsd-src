@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2023
+.Dd July 6, 2023
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -79,11 +79,15 @@ third-party loadable kernel modules, such as those associated with
 pool cache files
 .El
 .It Pa /compat/
-normally a link to
-.Pa /usr/compat .
-If not, then the
-.Pa /usr/compat
-comments apply
+files supporting binary compatibility with other operating systems
+.Pp
+.Bl -tag -width "nvmecontrol/" -compact
+.It Pa linux/
+default location for
+.Xr linux 4
+compatibility run-time
+.El
+.Pp
 .It Pa /dev/
 the normal mount point for
 .Xr devfs 5
@@ -201,9 +205,6 @@ contains the majority of user utilities and applications
 .Bl -tag -width "freebsd-dist/" -compact
 .It Pa bin/
 common utilities, programming tools, and applications
-.It Pa compat/
-files needed to support binary compatibility with other operating systems; see
-.Xr linux 4
 .It Pa freebsd-dist/
 distribution files
 .Pq like base.txz ; see

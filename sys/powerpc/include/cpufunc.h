@@ -258,20 +258,6 @@ get_pcpu(void)
 	return (ret);
 }
 
-#define	HAVE_INLINE_FLS
-static __inline __pure2 int
-fls(int mask)
-{
-	return (mask ? 32 - __builtin_clz(mask) : 0);
-}
-
-#define HAVE_INLINE_FLSL
-static __inline __pure2 int
-flsl(long mask)
-{
-	return (mask ? (8 * sizeof(long) - __builtin_clzl(mask)) : 0);
-}
-
 /* "NOP" operations to signify priorities to the kernel. */
 static __inline void
 nop_prio_vlow(void)

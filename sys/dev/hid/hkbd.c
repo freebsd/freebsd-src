@@ -1832,17 +1832,11 @@ hkbd_set_typematic(keyboard_t *kbd, int code)
 #ifdef EVDEV_SUPPORT
 	struct hkbd_softc *sc = kbd->kb_data;
 #endif
-	static const int delays[] = {250, 500, 750, 1000};
-	static const int rates[] = {34, 38, 42, 46, 50, 55, 59, 63,
-		68, 76, 84, 92, 100, 110, 118, 126,
-		136, 152, 168, 184, 200, 220, 236, 252,
-	272, 304, 336, 368, 400, 440, 472, 504};
-
 	if (code & ~0x7f) {
 		return (EINVAL);
 	}
-	kbd->kb_delay1 = delays[(code >> 5) & 3];
-	kbd->kb_delay2 = rates[code & 0x1f];
+	kbd->kb_delay1 = kbdelays[(code >> 5) & 3];
+	kbd->kb_delay2 = kbrates[code & 0x1f];
 #ifdef EVDEV_SUPPORT
 	if (sc->sc_evdev != NULL)
 		evdev_push_repeats(sc->sc_evdev, kbd);

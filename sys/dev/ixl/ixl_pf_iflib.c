@@ -158,7 +158,7 @@ ixl_msix_adminq(void *arg)
 
 	if (reg & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
 		mask &= ~I40E_PFINT_ICR0_ENA_MAL_DETECT_MASK;
-		atomic_set_32(&pf->state, IXL_PF_STATE_MDD_PENDING);
+		ixl_set_state(&pf->state, IXL_STATE_MDD_PENDING);
 		do_task = TRUE;
 	}
 
@@ -185,7 +185,7 @@ ixl_msix_adminq(void *arg)
 		}
 		device_printf(dev, "Reset Requested! (%s)\n", reset_type);
 		/* overload admin queue task to check reset progress */
-		atomic_set_int(&pf->state, IXL_PF_STATE_RESETTING);
+		ixl_set_state(&pf->state, IXL_STATE_RESETTING);
 		do_task = TRUE;
 	}
 
@@ -202,8 +202,8 @@ ixl_msix_adminq(void *arg)
 	/* Checks against the conditions above */
 	if (reg & IXL_ICR0_CRIT_ERR_MASK) {
 		mask &= ~IXL_ICR0_CRIT_ERR_MASK;
-		atomic_set_32(&pf->state,
-		    IXL_PF_STATE_PF_RESET_REQ | IXL_PF_STATE_PF_CRIT_ERR);
+		ixl_set_state(&pf->state,
+		    IXL_STATE_PF_RESET_REQ | IXL_STATE_PF_CRIT_ERR);
 		do_task = TRUE;
 	}
 
@@ -1037,11 +1037,11 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 	/* Query device FW LLDP status */
 	if (i40e_get_fw_lldp_status(hw, &lldp_status) == I40E_SUCCESS) {
 		if (lldp_status == I40E_GET_FW_LLDP_STATUS_DISABLED) {
-			atomic_set_32(&pf->state,
-			    IXL_PF_STATE_FW_LLDP_DISABLED);
+			ixl_set_state(&pf->state,
+			    IXL_STATE_FW_LLDP_DISABLED);
 		} else {
-			atomic_clear_32(&pf->state,
-			    IXL_PF_STATE_FW_LLDP_DISABLED);
+			ixl_clear_state(&pf->state,
+			    IXL_STATE_FW_LLDP_DISABLED);
 		}
 	}
 
