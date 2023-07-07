@@ -281,7 +281,7 @@ static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
 static void parse_args(int argc, char **argv);
 static int parse_doption(const char *doption);
-static void usage(void);
+static void usage(void) __dead2;
 static int log_trim(const char *logname, const struct conf_entry *log_ent);
 static int age_old_log(const char *file);
 static void savelog(char *from, char *to);

@@ -73,7 +73,7 @@ static void print_jail(FILE *fp, struct cfjail *j, int oldcl, int running);
 static void print_param(FILE *fp, const struct cfparam *p, int sep, int doname);
 static void show_jails(void);
 static void quoted_print(FILE *fp, char *str);
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct permspec perm_sysctl[] = {
     { "security.jail.set_hostname_allowed", KP_ALLOW_SET_HOSTNAME, 0 },

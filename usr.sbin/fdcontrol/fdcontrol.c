@@ -47,7 +47,7 @@ static	int format, verbose, show = 1, showfmt;
 static	char *fmtstring;
 
 static void showdev(enum fd_drivetype, const char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 static void
 usage(void)
