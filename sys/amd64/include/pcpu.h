@@ -114,16 +114,72 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 #define MONITOR_STOPSTATE_STOPPED	1
 
 /*
- * Evaluates to the byte offset of the per-cpu variable name.
- */
-#define	__pcpu_offset(name)						\
-	__offsetof(struct pcpu, name)
-
-/*
  * Evaluates to the type of the per-cpu variable name.
  */
 #define	__pcpu_type(name)						\
 	__typeof(((struct pcpu *)0)->name)
+
+#ifdef __SEG_GS
+#define	get_pcpu() __extension__ ({					\
+	static struct pcpu __seg_gs *__pc = 0;				\
+									\
+	__pc->pc_prvspace;						\
+})
+
+/*
+ * Evaluates to the address of the per-cpu variable name.
+ */
+#define	__PCPU_PTR(name) __extension__ ({				\
+	struct pcpu *__pc = get_pcpu();					\
+									\
+	&__pc->name;							\
+})
+
+/*
+ * Evaluates to the value of the per-cpu variable name.
+ */
+#define	__PCPU_GET(name) __extension__ ({				\
+	static struct pcpu __seg_gs *__pc = 0;				\
+									\
+	__pc->name;							\
+})
+
+/*
+ * Adds the value to the per-cpu counter name.  The implementation
+ * must be atomic with respect to interrupts.
+ */
+#define	__PCPU_ADD(name, val) do {					\
+	static struct pcpu __seg_gs *__pc = 0;				\
+	__pcpu_type(name) __val;					\
+									\
+	__val = (val);							\
+	if (sizeof(__val) == 1 || sizeof(__val) == 2 ||			\
+	    sizeof(__val) == 4 || sizeof(__val) == 8) {			\
+		__pc->name += __val;					\
+	} else								\
+		*__PCPU_PTR(name) += __val;				\
+} while (0)
+
+/*
+ * Sets the value of the per-cpu variable name to value val.
+ */
+#define	__PCPU_SET(name, val) {						\
+	static struct pcpu __seg_gs *__pc = 0;				\
+	__pcpu_type(name) __val;					\
+									\
+	__val = (val);							\
+	if (sizeof(__val) == 1 || sizeof(__val) == 2 ||			\
+	    sizeof(__val) == 4 || sizeof(__val) == 8) {			\
+		__pc->name = __val;					\
+	} else								\
+		*__PCPU_PTR(name) = __val;				\
+} while (0)
+#else /* !__SEG_GS */
+/*
+ * Evaluates to the byte offset of the per-cpu variable name.
+ */
+#define	__pcpu_offset(name)						\
+	__offsetof(struct pcpu, name)
 
 /*
  * Evaluates to the address of the per-cpu variable name.
@@ -210,6 +266,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))));	\
 	__pc;								\
 })
+#endif /* !__SEG_GS */
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
