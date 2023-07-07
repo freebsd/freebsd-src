@@ -189,5 +189,10 @@ if [ -f "$OBJTOP"/secure/lib/libcrypto/aria.o ]; then
 	    "$OBJTOP"/obj-lib32/secure/lib/libssl
 fi
 
-# 20230711  ee8b0c436d72    replace ffs/fls implementations with clang builtins
-clean_dep   lib/libc        ffs S
+# 20230714  ee8b0c436d72    replace ffs/fls implementations with clang builtins
+clean_dep   lib/libc        ffs   S
+clean_dep   lib/libc        ffsl  S
+clean_dep   lib/libc        ffsll S
+clean_dep   lib/libc        fls   S
+clean_dep   lib/libc        flsl  S
+clean_dep   lib/libc        flsll S
