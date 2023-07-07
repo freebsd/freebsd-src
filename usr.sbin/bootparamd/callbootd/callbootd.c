@@ -30,7 +30,7 @@ static char cln[MAX_MACHINE_NAME+1];
 static char dmn[MAX_MACHINE_NAME+1];
 static char path[MAX_PATH_LEN+1];
 
-static void usage(void);
+static void usage(void) __dead2;
 int printgetfile(bp_getfile_res *);
 int printwhoami(bp_whoami_res *);
 

@@ -110,7 +110,7 @@ struct quotause *getprivs(long, int, char *);
 void putprivs(long, struct quotause *);
 int readprivs(struct quotause *, char *);
 int readtimes(struct quotause *, char *);
-static void usage(void);
+static void usage(void) __dead2;
 int writetimes(struct quotause *, int, int);
 int writeprivs(struct quotause *, int, char *, int);
 

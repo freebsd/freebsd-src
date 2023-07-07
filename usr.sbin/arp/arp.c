@@ -90,7 +90,7 @@ static void nuke_entries(uint32_t ifindex, struct in_addr addr);
 static int print_entries(uint32_t ifindex, struct in_addr addr);
 
 static int delete(char *host);
-static void usage(void);
+static void usage(void) __dead2;
 static int set(int argc, char **argv);
 static int get(char *host);
 static int file(char *name);

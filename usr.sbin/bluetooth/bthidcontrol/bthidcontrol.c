@@ -48,7 +48,7 @@
 static int do_bthid_command(bdaddr_p bdaddr, int argc, char **argv);
 static struct bthid_command * find_bthid_command(char const *command, struct bthid_command *category);
 static void print_bthid_command(struct bthid_command *category);
-static void usage(void);
+static void usage(void) __dead2;
 
 int32_t hid_sdp_query(bdaddr_t const *local, bdaddr_t const *remote, int32_t *error);
 
