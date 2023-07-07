@@ -5490,6 +5490,8 @@ OPENSSL_3_0_9 {
         b2i_PVK_bio_ex;
         d2i_AutoPrivateKey_ex;
         d2i_ISSUER_SIGN_TOOL;
+        d2i_KeyParams;
+        d2i_KeyParams_bio;
         d2i_OSSL_CMP_MSG;
         d2i_OSSL_CMP_MSG_bio;
         d2i_OSSL_CMP_PKIHEADER;
