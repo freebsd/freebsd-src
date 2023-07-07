@@ -538,6 +538,7 @@ struct ispsoftc {
 #define	ISP_CFG_8GB		0x4000	/* force 8Gb connection (25XX only) */
 #define	ISP_CFG_16GB		0x8000	/* force 16Gb connection (26XX only) */
 #define	ISP_CFG_32GB		0x10000	/* force 32Gb connection (27XX only) */
+#define	ISP_CFG_64GB		0x20000	/* force 64Gb connection (28XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -606,10 +607,12 @@ struct ispsoftc {
 #define	ISP_HA_FC_2500		0x05
 #define	ISP_HA_FC_2600		0x06
 #define	ISP_HA_FC_2700		0x07
+#define	ISP_HA_FC_2800		0x08
 
 #define	IS_25XX(isp)	((isp)->isp_type >= ISP_HA_FC_2500)
 #define	IS_26XX(isp)	((isp)->isp_type >= ISP_HA_FC_2600)
 #define	IS_27XX(isp)	((isp)->isp_type >= ISP_HA_FC_2700)
+#define	IS_28XX(isp)	((isp)->isp_type >= ISP_HA_FC_2800)
 
 /*
  * DMA related macros

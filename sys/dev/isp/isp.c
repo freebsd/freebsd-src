@@ -178,6 +178,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	case ISP_HA_FC_2700:
 		btype = "2700";
 		break;
+	case ISP_HA_FC_2800:
+		btype = "2800";
+		break;
 	default:
 		break;
 	}
@@ -709,8 +712,11 @@ isp_init(ispsoftc_t *isp)
 	icbp->icb_version = ICB_VERSION1;
 	icbp->icb_maxfrmlen = DEFAULT_FRAMESIZE(isp);
 	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN || icbp->icb_maxfrmlen > ICB_MAX_FRMLEN) {
-		isp_prt(isp, ISP_LOGERR, "bad frame length (%d) from NVRAM- using %d", DEFAULT_FRAMESIZE(isp), ICB_DFLT_FRMLEN);
 		icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN;
+		if (IS_28XX(isp))
+			icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN_28XX;
+
+		isp_prt(isp, ISP_LOGERR, "bad frame length (%d) from NVRAM - using %d", DEFAULT_FRAMESIZE(isp), icbp->icb_maxfrmlen);
 	}
 
 	if (!IS_26XX(isp))
@@ -821,12 +827,16 @@ isp_init(ispsoftc_t *isp)
 	} else if (isp->isp_confopts & ISP_CFG_32GB) {
 		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_32GB;
+	} else if (isp->isp_confopts & ISP_CFG_64GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_64GB;
 	} else {
 		switch (icbp->icb_fwoptions3 & ICB2400_OPT3_RATE_MASK) {
 		case ICB2400_OPT3_RATE_4GB:
 		case ICB2400_OPT3_RATE_8GB:
 		case ICB2400_OPT3_RATE_16GB:
 		case ICB2400_OPT3_RATE_32GB:
+		case ICB2400_OPT3_RATE_64GB:
 		case ICB2400_OPT3_RATE_AUTO:
 			break;
 		case ICB2400_OPT3_RATE_2GB:
@@ -1536,6 +1546,8 @@ not_on_fabric:
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		if (mbs.param[1] == MBGSD_10GB)
 			fcp->isp_gbspeed = 10;
+		else if (mbs.param[1] == MBGSD_64GB)
+			fcp->isp_gbspeed = 64;
 		else if (mbs.param[1] == MBGSD_32GB)
 			fcp->isp_gbspeed = 32;
 		else if (mbs.param[1] == MBGSD_16GB)
