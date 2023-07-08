@@ -1300,7 +1300,9 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	static size_t bufsize;
 	int nr, nw;
 	int serrno;
+#ifndef BOOTSTRAP_XINSTALL
 	ssize_t ret;
+#endif
 	char *p;
 	int done_copy;
 	DIGEST_CTX ctx;
@@ -1311,6 +1313,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
 		err(EX_OSERR, "lseek: %s", to_name);
 
+#ifndef BOOTSTRAP_XINSTALL
 	/* Try copy_file_range() if no digest is requested */
 	if (digesttype == DIGEST_NONE) {
 		ret = 1;
@@ -1331,6 +1334,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		/* Fall back */
 	}
 
+#endif
 	digest_init(&ctx);
 
 	done_copy = 0;
