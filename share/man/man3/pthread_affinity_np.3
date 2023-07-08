@@ -61,7 +61,7 @@ The kernel uses the meaningful part of the mask, where the upper bound is
 the maximum CPU id present in the system.
 If bits for non-existing CPUs are set, calls to
 .Fn pthread_setaffinity_np
-fails with
+fail with
 .Er EINVAL .
 .Pp
 The supplied mask should have a size of
