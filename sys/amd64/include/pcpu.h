@@ -163,7 +163,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 /*
  * Sets the value of the per-cpu variable name to value val.
  */
-#define	__PCPU_SET(name, val) {						\
+#define	__PCPU_SET(name, val) do {					\
 	static struct pcpu __seg_gs *__pc = 0;				\
 	__pcpu_type(name) __val;					\
 									\
