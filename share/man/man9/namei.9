@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2015
+.Dd July 8, 2023
 .Dt NAMEI 9
 .Os
 .Sh NAME
@@ -219,23 +219,10 @@ and we have not gone through any symlinks with an absolute path, and
 the root otherwise.
 .Pp
 In this case, it is only used by
-.Fn lookup ,
+.Fn vfs_lookup ,
 and should not be
 considered valid after a call to
 .Fn namei .
-If
-.Dv SAVESTART
-is set, this is set to the same as
-.Va ni_dvp ,
-with an extra
-.Xr vref 9 .
-To block
-.Fn NDFREE
-from releasing
-.Va ni_startdir ,
-the
-.Dv NDF_NO_STARTDIR_RELE
-can be set.
 .It Va ni_dvp
 Vnode pointer to directory of the object on which lookup is performed.
 This is available on successful return if
@@ -246,13 +233,6 @@ is set.
 It is locked if
 .Dv LOCKPARENT
 is set.
-Freeing this in
-.Fn NDFREE
-can be inhibited by
-.Dv NDF_NO_DVP_RELE , NDF_NO_DVP_PUT ,
-or
-.Dv NDF_NO_DVP_UNLOCK
-(with the obvious effects).
 .It Va ni_vp
 Vnode pointer to the resulting object,
 .Dv NULL
@@ -264,13 +244,6 @@ If
 .Dv LOCKLEAF
 is set, it is also locked.
 .Pp
-Freeing this in
-.Fn NDFREE
-can be inhibited by
-.Dv NDF_NO_VP_RELE , NDF_NO_VP_PUT ,
-or
-.Dv NDF_NO_VP_UNLOCK
-(with the obvious effects).
 .It Va ni_cnd.cn_pnbuf
 The pathname buffer contains the location of the file or directory
 that will be used by the
@@ -279,28 +252,6 @@ operations.
 It is managed by the
 .Xr uma 9
 zone allocation interface.
-If the
-.Dv SAVESTART
-or
-.Dv SAVENAME
-flag is set, then the pathname buffer is available
-after calling the
-.Fn namei
-function.
-.Pp
-To only deallocate resources used by the pathname buffer,
-.Va ni_cnd.cn_pnbuf ,
-then
-.Dv NDF_ONLY_PNBUF
-flag can be passed to the
-.Fn NDFREE
-function.
-To keep the pathname buffer intact,
-the
-.Dv NDF_NO_FREE_PNBUF
-flag can be passed to the
-.Fn NDFREE
-function.
 .El
 .Sh RETURN VALUES
 If successful,
