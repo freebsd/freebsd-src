@@ -938,18 +938,6 @@ verify_krb_v5_tgt_begin(krb5_context context, char *pam_service, int debug,
 			continue;
 		break;
 	}
-	if (retval != 0) {	/* failed to find key */
-		/* Keytab or service key does not exist */
-		if (debug) {
-			const char *msg = krb5_get_error_message(context,
-			    retval);
-			syslog(LOG_DEBUG,
-			    "pam_krb5: verify_krb_v5_tgt(): %s: %s",
-			    "krb5_kt_read_service_key()", msg);
-			krb5_free_error_message(context, msg);
-		}
-		retval = 0;
-	}
 	if (keyblock)
 		krb5_free_keyblock(context, keyblock);
 
