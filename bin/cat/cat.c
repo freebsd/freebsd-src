@@ -83,6 +83,7 @@ static void usage(void) __dead2;
 static void scanfiles(char *argv[], int cooked);
 #ifndef BOOTSTRAP_CAT
 static void cook_cat(FILE *);
+static ssize_t in_kernel_copy(int);
 #endif
 static void raw_cat(int);
 
@@ -280,7 +281,16 @@ scanfiles(char *argv[], int cooked __unused)
 			}
 #endif
 		} else {
+#ifndef BOOTSTRAP_CAT
+			if (in_kernel_copy(fd) == -1) {
+				if (errno == EINVAL)
+					raw_cat(fd);
+				else
+					err(1, "stdout");
+			}
+#else
 			raw_cat(fd);
+#endif
 			if (fd != STDIN_FILENO)
 				close(fd);
 		}
@@ -379,6 +389,21 @@ ilseq:
 	}
 	if (ferror(stdout))
 		err(1, "stdout");
+}
+
+static ssize_t
+in_kernel_copy(int rfd)
+{
+	int wfd;
+	ssize_t ret;
+
+	wfd = fileno(stdout);
+	ret = 1;
+
+	while (ret > 0)
+		ret = copy_file_range(rfd, NULL, wfd, NULL, SSIZE_MAX, 0);
+
+	return (ret);
 }
 #endif /* BOOTSTRAP_CAT */
 
