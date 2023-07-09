@@ -236,7 +236,7 @@ main(int argc, char *argv[])
 			rtld = _PATH_RTLD;
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 			if (type == TYPE_ELF32)
-				rtld = _COMPAT32_PATH_RTLD;
+				rtld = __PATH_RTLD("32");
 #endif
 			if (is_shlib == 0) {
 				execl(rtld, rtld, "--",
