@@ -558,32 +558,65 @@ logged to the trace buffer.
 .Pp
 .Nm
 trace events are grouped by 'major' and 'minor' flag types.
-The major flag groups are as follows:
+The major flag names are as follows:
 .Pp
-.Bl -tag -compact -offset indent
-.It CPU
+.Bl -tag -width "sampling" -compact -offset indent
+.It cpu
 CPU events
-.It CSW
+.It csw
 Context switch events
-.It LOG
+.It logging
 Logging events
-.It MDP
+.It md
 Machine-dependent/class-dependent events
-.It MOD
+.It module
 Miscellaneous events
-.It OWN
+.It owner
 PMC owner events
-.It PMC
+.It pmc
 PMC management events
-.It PRC
+.It process
 Process events
-.It SAM
+.It sampling
 Sampling events
 .El
 .Pp
 The minor flags for each major flag group can vary.
-For the full list of flag groups, consult
-.In sys/pmc.h .
+The individual minor flag names are:
+.Bd -ragged -offset indent
+allocaterow,
+allocate,
+attach,
+bind,
+config,
+exec,
+exit,
+find,
+flush,
+fork,
+getbuf,
+hook,
+init,
+intr,
+linktarget,
+mayberemove,
+ops,
+read,
+register,
+release,
+remove,
+sample,
+scheduleio,
+select,
+signal,
+swi,
+swo,
+start,
+stop,
+syscall,
+unlinktarget,
+write
+.Ed
 .Pp
 The
 .Va kern.hwpmc.debugflags
@@ -591,18 +624,19 @@ variable is a string with a custom format.
 The string should contain a space-separated list of event specifiers.
 Each event specifier consists of the major flag name, followed by an equal sign
 (=), followed by a comma-separated list of minor event types.
-To track all events for a major group, an asterisk (*) can be given instead.
+To track all events for a major group, an asterisk (*) can be given instead of
+minor event names.
 .Pp
 For example, to trace all allocation and release events, set
 .Va debugflags
 as follows:
 .Bd -literal -offset indent
-kern.hwpmc.debugflags="pmc=all,rel mdp=all,rel"
+kern.hwpmc.debugflags="pmc=allocate,release md=allocate,release"
 .Ed
 .Pp
-To trace all process events, as well as context switches:
+To trace all events in the process and context switch major flag groups:
 .Bd -literal -offset indent
-kern.hwpmc.debugflags="prc=* csw=*"
+kern.hwpmc.debugflags="process=* csw=*"
 .Ed
 .Pp
 To disable all trace events, set the variable to an empty string.
