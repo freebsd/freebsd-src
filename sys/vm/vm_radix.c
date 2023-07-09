@@ -281,17 +281,16 @@ vm_radix_topage(struct vm_radix_node *rnode)
 }
 
 /*
- * Adds the page as a child of the provided node.
+ * Make 'child' a child of 'rnode'.
  */
 static __inline void
-vm_radix_addpage(struct vm_radix_node *rnode, vm_pindex_t index, uint16_t clev,
-    vm_page_t page, enum vm_radix_access access)
+vm_radix_addnode(struct vm_radix_node *rnode, vm_pindex_t index, uint16_t clev,
+    struct vm_radix_node *child, enum vm_radix_access access)
 {
 	int slot;
 
 	slot = vm_radix_slot(index, clev);
-	vm_radix_node_store(&rnode->rn_child[slot],
-	    vm_radix_toleaf(page), access);
+	vm_radix_node_store(&rnode->rn_child[slot], child, access);
 	rnode->rn_popmap ^= 1 << slot;
 	KASSERT((rnode->rn_popmap & (1 << slot)) != 0,
 	    ("%s: bad popmap slot %d in rnode %p", __func__, slot, rnode));
@@ -401,13 +400,13 @@ int
 vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 {
 	vm_pindex_t index, newind;
-	struct vm_radix_node *rnode, *tmp;
+	struct vm_radix_node *leaf, *rnode, *tmp;
 	smrnode_t *parentp;
-	vm_page_t m;
 	int slot;
 	uint16_t clev;
 
 	index = page->pindex;
+	leaf = vm_radix_toleaf(page);
 
 	/*
 	 * The owner of record for root is not really important because it
@@ -415,57 +414,44 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	 */
 	rnode = vm_radix_root_load(rtree, LOCKED);
 	if (rnode == NULL) {
-		rtree->rt_root = (uintptr_t)vm_radix_toleaf(page);
+		rtree->rt_root = (uintptr_t)leaf;
 		return (0);
 	}
-	parentp = (smrnode_t *)&rtree->rt_root;
-	for (;;) {
+	for (parentp = (smrnode_t *)&rtree->rt_root;; rnode = tmp) {
 		if (vm_radix_isleaf(rnode)) {
-			m = vm_radix_topage(rnode);
-			if (m->pindex == index)
+			newind = vm_radix_topage(rnode)->pindex;
+			if (newind == index)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
-			clev = vm_radix_keydiff(m->pindex, index);
-			tmp = vm_radix_node_get(index, clev);
-			if (tmp == NULL)
-				return (ENOMEM);
-			/* These writes are not yet visible due to ordering. */
-			vm_radix_addpage(tmp, index, clev, page, UNSERIALIZED);
-			vm_radix_addpage(tmp, m->pindex, clev, m, UNSERIALIZED);
-			/* Synchronize to make leaf visible. */
-			vm_radix_node_store(parentp, tmp, LOCKED);
-			return (0);
-		} else if (vm_radix_keybarr(rnode, index))
 			break;
+		} else if (vm_radix_keybarr(rnode, index)) {
+			newind = rnode->rn_owner;
+			break;
+		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		parentp = &rnode->rn_child[slot];
 		tmp = vm_radix_node_load(parentp, LOCKED);
 		if (tmp == NULL) {
-			vm_radix_addpage(rnode, index, rnode->rn_clev, page,
+			vm_radix_addnode(rnode, index, rnode->rn_clev, leaf,
 			    LOCKED);
 			return (0);
 		}
-		rnode = tmp;
 	}
 
 	/*
 	 * A new node is needed because the right insertion level is reached.
 	 * Setup the new intermediate node and add the 2 children: the
-	 * new object and the older edge.
+	 * new object and the older edge or object.
 	 */
-	newind = rnode->rn_owner;
 	clev = vm_radix_keydiff(newind, index);
 	tmp = vm_radix_node_get(index, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
-	slot = vm_radix_slot(newind, clev);
 	/* These writes are not yet visible due to ordering. */
-	vm_radix_addpage(tmp, index, clev, page, UNSERIALIZED);
-	vm_radix_node_store(&tmp->rn_child[slot], rnode, UNSERIALIZED);
-	tmp->rn_popmap ^= 1 << slot;
+	vm_radix_addnode(tmp, index, clev, leaf, UNSERIALIZED);
+	vm_radix_addnode(tmp, newind, clev, rnode, UNSERIALIZED);
 	/* Serializing write to make the above visible. */
 	vm_radix_node_store(parentp, tmp, LOCKED);
-
 	return (0);
 }
 
