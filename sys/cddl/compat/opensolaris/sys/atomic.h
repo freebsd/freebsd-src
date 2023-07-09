@@ -157,7 +157,7 @@ atomic_dec_64_nv(volatile uint64_t *target)
 	return (atomic_add_64_nv(target, -1));
 }
 
-#if !defined(COMPAT_32BIT) && defined(__LP64__)
+#ifdef __LP64__
 static __inline void *
 atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
 {
@@ -171,6 +171,6 @@ atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
 	return ((void *)atomic_cas_32((volatile uint32_t *)target,
 	    (uint32_t)cmp, (uint32_t)newval));
 }
-#endif	/* !defined(COMPAT_32BIT) && defined(__LP64__) */
+#endif	/* __LP64__ */
 
 #endif	/* !_OPENSOLARIS_SYS_ATOMIC_H_ */
