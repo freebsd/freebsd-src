@@ -112,7 +112,8 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 
 CLEANFILES= ioctl.c ioctl.c.tmp tables.h tables_linux.h
 
-.if defined(COMPAT_32BIT)
+# XXX: The flags should come from bsd.compat.mk / Makefile.libcompat
+.if ${COMPAT_LIBCOMPAT:U} == "32"
 CPP+=	-m32
 .endif
 
