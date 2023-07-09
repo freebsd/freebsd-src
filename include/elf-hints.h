@@ -47,6 +47,8 @@ struct elfhints_hdr {
 
 #define ELFHINTS_MAGIC	0x746e6845
 
+#ifndef _PATH_ELF_HINTS
 #define _PATH_ELF_HINTS	"/var/run/ld-elf.so.hints"
+#endif
 
 #endif /* !_ELF_HINTS_H_ */
