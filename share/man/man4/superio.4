@@ -50,6 +50,7 @@ superio_load="YES"
 Super I/O is an I/O controller that combines various low-bandwidth devices
 that can be functionally unrelated otherwise.
 A typical Super I/O can contain devices such as
+.Pp
 .Bl -bullet -compact
 .It
 a floppy disk controller
@@ -101,8 +102,8 @@ controllers and a bus driver for supported devices in those controllers.
 The
 .Nm
 driver supports a multitude of Super I/O controllers produced by Nuvoton,
-formerly known as Winbond, and ITE. Namely:
-
+formerly known as Winbond, and ITE, namely:
+.Pp
 .Bl -bullet -compact
 .It
 Fintek F81803
@@ -141,7 +142,6 @@ Winbond 83687THF
 .It
 Winbond 83697HF/UG
 .El
-
 .Sh SEE ALSO
 .Xr superio 9
 .Sh HISTORY
