@@ -87,14 +87,6 @@
 #define	TOKEN_LIB		"lib" _RTLD_COMPAT_LIB_SUFFIX
 #endif
 
-#ifndef _PATH_ELF32_HINTS
-#define	_PATH_ELF32_HINTS	__PATH_ELF_HINTS("32")
-#endif
-
-#ifndef _COMPAT32_PATH_RTLD
-#define	_COMPAT32_PATH_RTLD	__PATH_RTLD("32")
-#endif
-
 #ifdef IN_RTLD
 extern const char *ld_elf_hints_default;
 extern const char *ld_path_libmap_conf;
