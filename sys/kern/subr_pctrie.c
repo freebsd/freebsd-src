@@ -256,17 +256,16 @@ pctrie_toval(struct pctrie_node *node)
 }
 
 /*
- * Adds the val as a child of the provided node.
+ * Make 'child' a child of 'node'.
  */
 static __inline void
-pctrie_addval(struct pctrie_node *node, uint64_t index, uint16_t clev,
-    uint64_t *val, enum pctrie_access access)
+pctrie_addnode(struct pctrie_node *node, uint64_t index, uint16_t clev,
+    struct pctrie_node *child, enum pctrie_access access)
 {
 	int slot;
 
 	slot = pctrie_slot(index, clev);
-	pctrie_node_store(&node->pn_child[slot],
-	    pctrie_toleaf(val), access);
+	pctrie_node_store(&node->pn_child[slot], child, access);
 	node->pn_popmap ^= 1 << slot;
 	KASSERT((node->pn_popmap & (1 << slot)) != 0,
 	    ("%s: bad popmap slot %d in node %p", __func__, slot, node));
@@ -361,13 +360,13 @@ int
 pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 {
 	uint64_t index, newind;
-	struct pctrie_node *node, *tmp;
+	struct pctrie_node *leaf, *node, *tmp;
 	smr_pctnode_t *parentp;
-	uint64_t *m;
 	int slot;
 	uint16_t clev;
 
 	index = *val;
+	leaf = pctrie_toleaf(val);
 
 	/*
 	 * The owner of record for root is not really important because it
@@ -375,58 +374,44 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL) {
-		ptree->pt_root = (uintptr_t)pctrie_toleaf(val);
+		ptree->pt_root = (uintptr_t)leaf;
 		return (0);
 	}
-	parentp = (smr_pctnode_t *)&ptree->pt_root;
-	for (;;) {
+	for (parentp = (smr_pctnode_t *)&ptree->pt_root;; node = tmp) {
 		if (pctrie_isleaf(node)) {
-			m = pctrie_toval(node);
-			if (*m == index)
+			newind = *pctrie_toval(node);
+			if (newind == index)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
-			clev = pctrie_keydiff(*m, index);
-			tmp = pctrie_node_get(ptree, allocfn, index, clev);
-			if (tmp == NULL)
-				return (ENOMEM);
-			/* These writes are not yet visible due to ordering. */
-			pctrie_addval(tmp, index, clev, val,
-			    PCTRIE_UNSERIALIZED);
-			pctrie_addval(tmp, *m, clev, m, PCTRIE_UNSERIALIZED);
-			/* Synchronize to make leaf visible. */
-			pctrie_node_store(parentp, tmp, PCTRIE_LOCKED);
-			return (0);
-		} else if (pctrie_keybarr(node, index))
 			break;
+		} else if (pctrie_keybarr(node, index)) {
+			newind = node->pn_owner;
+			break;
+		}
 		slot = pctrie_slot(index, node->pn_clev);
 		parentp = &node->pn_child[slot];
 		tmp = pctrie_node_load(parentp, NULL, PCTRIE_LOCKED);
 		if (tmp == NULL) {
-			pctrie_addval(node, index, node->pn_clev, val,
+			pctrie_addnode(node, index, node->pn_clev, leaf,
 			    PCTRIE_LOCKED);
 			return (0);
 		}
-		node = tmp;
 	}
 
 	/*
 	 * A new node is needed because the right insertion level is reached.
 	 * Setup the new intermediate node and add the 2 children: the
-	 * new object and the older edge.
+	 * new object and the older edge or object.
 	 */
-	newind = node->pn_owner;
 	clev = pctrie_keydiff(newind, index);
 	tmp = pctrie_node_get(ptree, allocfn, index, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
-	slot = pctrie_slot(newind, clev);
 	/* These writes are not yet visible due to ordering. */
-	pctrie_addval(tmp, index, clev, val, PCTRIE_UNSERIALIZED);
-	pctrie_node_store(&tmp->pn_child[slot], node, PCTRIE_UNSERIALIZED);
-	tmp->pn_popmap ^= 1 << slot;
+	pctrie_addnode(tmp, index, clev, leaf, PCTRIE_UNSERIALIZED);
+	pctrie_addnode(tmp, newind, clev, node, PCTRIE_UNSERIALIZED);
 	/* Synchronize to make the above visible. */
 	pctrie_node_store(parentp, tmp, PCTRIE_LOCKED);
-
 	return (0);
 }
 
