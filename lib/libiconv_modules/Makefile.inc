@@ -7,10 +7,6 @@ CFLAGS+= -I${SRCTOP}/lib/libc/iconv
 
 CFLAGS+=	-Dbool=_Bool
 
-.if !defined(COMPAT_32BIT)
-SHLIBDIR= /usr/lib/i18n
-.else
-SHLIBDIR= /usr/lib32/i18n
-.endif
+SHLIBDIR= /usr/lib${COMPAT_libcompat:U}/i18n
 LIBDIR=	 ${SHLIBDIR}
 MK_PROFILE=	no
