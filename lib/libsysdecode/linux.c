@@ -41,11 +41,7 @@ __FBSDID("$FreeBSD$");
 #elif __i386__
 #include <i386/linux/linux.h>
 #elif __amd64__
-#ifdef COMPAT_32BIT
-#include <amd64/linux32/linux.h>
-#else
 #include <amd64/linux/linux.h>
-#endif
 #else
 #error "Unsupported Linux arch"
 #endif
