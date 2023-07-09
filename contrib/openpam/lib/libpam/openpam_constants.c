@@ -175,9 +175,9 @@ const char *openpam_policy_path[] = {
 const char *openpam_module_path[] = {
 #ifdef OPENPAM_MODULES_DIRECTORY
 	OPENPAM_MODULES_DIRECTORY,
-#elif COMPAT_32BIT
-	"/usr/lib32",
-	"/usr/local/lib32",
+#elif defined(COMPAT_libcompat)
+	"/usr/lib" COMPAT_libcompat,
+	"/usr/local/lib" COMPAT_libcompat,
 #else
 	"/usr/lib",
 	"/usr/local/lib",
