@@ -73,6 +73,11 @@ static const char *shift_2[] = {
 	"lsl", "lsr", "asr", "ror"
 };
 
+static const char *extend_regs[] = {
+	"uxtb", "uxth", "uxtw", "uxtx",
+	"sxtb", "sxth", "sxtw", "sxtx",
+};
+
 /*
  * Structure representing single token (operand) inside instruction.
  * name   - name of operand
@@ -106,6 +111,12 @@ enum arm64_format_type {
 
 	/* OP <RT>, #imm SF32/64 */
 	TYPE_03,
+
+	/*
+	 * OP <RD>, <RN|SP>, <RM> {, <extend> { #<amount> } }
+	 * OP <RN|SP>, <RM>, {, <extend> { #<amount> } }
+	 */
+	TYPE_04,
 };
 
 /*
@@ -255,6 +266,18 @@ static struct arm64_insn arm64_i[] = {
 	    TYPE_01, OP_SHIFT_ROR },		/* eon shifted register */
 	{ "eor", "SF(1)|1001010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
 	    TYPE_01, OP_SHIFT_ROR },		/* eor shifted register */
+	{ "add", "SF(1)|0001011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, OP_RD_SP },		/* add extended register */
+	{ "cmn", "SF(1)|0101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|11111",
+	    TYPE_04, 0 },			/* cmn extended register */
+	{ "adds", "SF(1)|0101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, 0 },			/* adds extended register */
+	{ "cmp", "SF(1)|1101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|11111",
+	    TYPE_04, 0 },			/* cmp extended register */
+	{ "subs", "SF(1)|1101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, 0 },			/* subs extended register */
+	{ "sub", "SF(1)|1001011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, OP_RD_SP },		/* sub extended register */
 	{ NULL, NULL }
 };
 
@@ -404,6 +427,36 @@ arm64_disasm_read_token_sign_ext(struct arm64_insn *insn, u_int opcode,
 }
 
 static const char *
+arm64_disasm_reg_extend(int b64, int option, int rd, int rn, int amount)
+{
+	bool is_sp, lsl_preferred_uxtw, lsl_preferred_uxtx, lsl_preferred;
+
+	is_sp = rd == 31 || rn == 31;
+	lsl_preferred_uxtw = b64 == 0 && option == 2;
+	lsl_preferred_uxtx = b64 == 1 && option == 3;
+	lsl_preferred = is_sp && (lsl_preferred_uxtw || lsl_preferred_uxtx);
+
+	/*
+	 * LSL may be omitted when <amount> is 0.
+	 * In all other cases <extend> is required.
+	 */
+	if (lsl_preferred && amount == 0)
+		return (NULL);
+	if (lsl_preferred)
+		return ("lsl");
+	return (extend_regs[option]);
+}
+
+/* Gets register width W or X from OPTION(3) */
+static const char *
+arm64_disasm_reg_width(int option)
+{
+	if (option == 3 || option == 7)
+		return ("x");
+	return ("w");
+}
+
+static const char *
 arm64_w_reg(int num, int wsp)
 {
 	if (num == 31)
@@ -427,6 +480,27 @@ arm64_reg(int b64, int num, int sp)
 	return (arm64_w_reg(num, sp));
 }
 
+/* Gets <Wn> register or WZR */
+static const char *
+arm64_w_reg_wzr(int num)
+{
+	return (arm64_w_reg(num, 0));
+}
+
+/* Gets <Xn|Wn> register or <WZR|XZR> */
+static const char *
+arm64_reg_zr(int b64, int num)
+{
+	return (arm64_reg(b64, num, 0));
+}
+
+/* Gets <Xn|Wn> register or <WSP|SP> */
+static const char *
+arm64_reg_sp(int b64, int num)
+{
+	return (arm64_reg(b64, num, 1));
+}
+
 vm_offset_t
 disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 {
@@ -446,10 +520,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	/* Indicate if shift type ror is supported */
 	bool has_shift_ror;
 
+	const char *extend;
+
 	/* Initialize defaults, all are 0 except SF indicating 64bit access */
 	shift = rd = rm = rn = imm = idx = option = amount = scale = 0;
 	sign_ext = 0;
 	sf = 1;
+	extend = NULL;
 
 	matchp = 0;
 	insn = di->di_readword(loc);
@@ -661,6 +738,37 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			di->di_printf("0x%lx", loc + imm);
 		else
 			di->di_printf("#%d", imm);
+
+		break;
+
+	case TYPE_04:
+		/*
+		 * OP <RD>, <RN|SP>, <RM> {, <extend> { #<amount> } }
+		 * OP <RN|SP>, <RM>, {, <extend> { #<amount> } }
+		 */
+
+		arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
+		arm64_disasm_read_token(i_ptr, insn, "RM", &rm);
+		arm64_disasm_read_token(i_ptr, insn, "OPTION", &option);
+
+		rd_absent = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
+		extend = arm64_disasm_extend_reg(sf, option, rd, rn, imm);
+
+		di->di_printf("%s\t", i_ptr->name);
+
+		if (!rd_absent)
+			di->di_printf("%s, ", arm64_reg(sf, rd, rd_sp));
+
+		di->di_printf("%s, ", arm64_reg_sp(sf, rn));
+
+		if (sf != 0)
+			di->di_printf("%s%d",
+			    arm64_disasm_reg_width(option), rm);
+		else
+			di->di_printf("%s", arm64_w_reg_wzr(rm));
+
+		if (extend != NULL)
+			di->di_printf(", %s #%d", extend, imm);
 
 		break;
 	default:
