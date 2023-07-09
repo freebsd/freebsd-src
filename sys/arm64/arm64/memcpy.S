@@ -448,3 +448,156 @@ ENTRY(disasm_shifted_reg_with_ror)
 	tst	w0, wzr, asr #2
 	tst	x0, xzr, lsl #1
 END(disasm_shifter_reg_with_ror)
+
+ENTRY(disasm_ext_reg)
+	/* add extended register */
+	add	w1,  w2,  w3, uxtb #1
+	add	wsp, w2,  w3, uxth #2
+	add	wsp, wsp, w3, lsl  #3
+	add	w1,  wsp, w3, lsl  #1
+	add	wsp, w2,  w3, lsl  #4
+	add	w1,  w2,  w3, uxtw
+	add	w1,  wsp, w3, uxtx
+	add	wsp, w2,  w3, sxtb #1
+	add	wsp, wsp, w3, sxth #2
+	add	w1,  wsp, w3, sxtw #3
+	add	w1,  wsp, w3, sxtx #4
+
+	add	x1, x2, w3, uxtb #1
+	add	sp, x2, w3, uxth #2
+	add	sp, sp, x3, lsl  #3
+	add	x1, sp, x3, lsl  #1
+	add	sp, x2, x3, lsl  #4
+	add	x1, x2, w3, uxtw
+	add	x1, sp, x3, uxtx
+	add	sp, x2, w3, sxtb #1
+	add	sp, sp, w3, sxth #2
+	add	x1, sp, w3, sxtw #3
+	add	x1, sp, x3, sxtx #4
+
+	/* adds extended register */
+	adds	w1,  w2,  w3, uxtb #1
+	adds	w1,  w2,  w3, uxth #2
+	adds	w1,  wsp, w3, lsl  #3
+	adds	w1,  wsp, w3, lsl  #1
+	adds	w1,  w2,  w3, lsl  #4
+	adds	w1,  w2,  w3, uxtw
+	adds	w1,  wsp, w3, uxtx
+	adds	w1,  w2,  w3, sxtb #1
+	adds	w1,  wsp, w3, sxth #2
+	adds	w1,  wsp, w3, sxtw #3
+	adds	w1,  wsp, w3, sxtx #4
+
+	adds	x1, x2, w3, uxtb #1
+	adds	x1, x2, w3, uxth #2
+	adds	x1, sp, x3, lsl  #3
+	adds	x1, sp, x3, lsl  #1
+	adds	x1, x2, x3, lsl  #4
+	adds	x1, x2, w3, uxtw
+	adds	x1, sp, x3, uxtx
+	adds	x1, x2, w3, sxtb #1
+	adds	x1, sp, w3, sxth #2
+	adds	x1, sp, w3, sxtw #3
+	adds	x1, sp, x3, sxtx #4
+
+	/* cmn extended register */
+	cmn	w2,  w3, uxtb #1
+	cmn	w2,  w3, uxth #2
+	cmn	wsp, w3, lsl  #3
+	cmn	wsp, w3, lsl  #1
+	cmn	w2,  w3, lsl  #4
+	cmn	w2,  w3, uxtw
+	cmn	wsp, w3, uxtx
+	cmn	w2,  w3, sxtb #1
+	cmn	wsp, w3, sxth #2
+	cmn	wsp, w3, sxtw #3
+	cmn	wsp, w3, sxtx #4
+
+	cmn	x2, w3, uxtb #1
+	cmn	x2, w3, uxth #2
+	cmn	sp, x3, lsl  #3
+	cmn	sp, x3, lsl  #1
+	cmn	x2, x3, lsl  #4
+	cmn	x2, w3, uxtw
+	cmn	sp, x3, uxtx
+	cmn	x2, w3, sxtb #1
+	cmn	sp, w3, sxth #2
+	cmn	sp, w3, sxtw #3
+	cmn	sp, x3, sxtx #4
+
+	/* cmp extended register */
+	cmp	w2,  w3, uxtb #1
+	cmp	w2,  w3, uxth #2
+	cmp	wsp, w3, lsl  #3
+	cmp	wsp, w3, lsl  #1
+	cmp	w2,  w3, lsl  #4
+	cmp	w2,  w3, uxtw
+	cmp	wsp, w3, uxtx
+	cmp	w2,  w3, sxtb #1
+	cmp	wsp, w3, sxth #2
+	cmp	wsp, w3, sxtw #3
+	cmp	wsp, w3, sxtx #4
+
+	cmp	x2, w3, uxtb #1
+	cmp	x2, w3, uxth #2
+	cmp	sp, x3, lsl  #3
+	cmp	sp, x3, lsl  #1
+	cmp	x2, x3, lsl  #4
+	cmp	x2, w3, uxtw
+	cmp	sp, x3, uxtx
+	cmp	x2, w3, sxtb #1
+	cmp	sp, w3, sxth #2
+	cmp	sp, w3, sxtw #3
+	cmp	sp, x3, sxtx #4
+
+	/* sub extended register */
+	sub	w1,  w2,  w3, uxtb #1
+	sub	wsp, w2,  w3, uxth #2
+	sub	wsp, wsp, w3, lsl  #3
+	sub	w1,  wsp, w3, lsl  #1
+	sub	wsp, w2,  w3, lsl  #4
+	sub	w1,  w2,  w3, uxtw
+	sub	w1,  wsp, w3, uxtx
+	sub	wsp, w2,  w3, sxtb #1
+	sub	wsp, wsp, w3, sxth #2
+	sub	w1,  wsp, w3, sxtw #3
+	sub	w1,  wsp, w3, sxtx #4
+
+	sub	x1, x2, w3, uxtb #1
+	sub	sp, x2, w3, uxth #2
+	sub	sp, sp, x3, lsl  #3
+	sub	x1, sp, x3, lsl  #1
+	sub	sp, x2, x3, lsl  #4
+	sub	x1, x2, w3, uxtw
+	sub	x1, sp, x3, uxtx
+	sub	sp, x2, w3, sxtb #1
+	sub	sp, sp, w3, sxth #2
+	sub	x1, sp, w3, sxtw #3
+	sub	x1, sp, x3, sxtx #4
+	
+	/* subs extended register */
+	subs	w1,  w2,  w3, uxtb #1
+	subs	w1,  w2,  w3, uxth #2
+	subs	w1,  wsp, w3, lsl  #3
+	subs	w1,  wsp, w3, lsl  #1
+	subs	w1,  w2,  w3, lsl  #4
+	subs	w1,  w2,  w3, uxtw
+	subs	w1,  wsp, w3, uxtx
+	subs	w1,  w2,  w3, sxtb #1
+	subs	w1,  wsp, w3, sxth #2
+	subs	w1,  wsp, w3, sxtw #3
+	subs	w1,  wsp, w3, sxtx #4
+
+	subs	x1, x2, w3, uxtb #1
+	subs	x1, x2, w3, uxth #2
+	subs	x1, sp, x3, lsl  #3
+	subs	x1, sp, x3, lsl  #1
+	subs	x1, x2, x3, lsl  #4
+	subs	x1, x2, w3, uxtw
+	subs	x1, sp, x3, uxtx
+	subs	x1, x2, w3, sxtb #1
+	subs	x1, sp, w3, sxth #2
+	subs	x1, sp, w3, sxtw #3
+	subs	x1, sp, x3, sxtx #4
+END(disasm_ext_reg)
+
