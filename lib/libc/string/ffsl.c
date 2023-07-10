@@ -44,5 +44,5 @@ __FBSDID("$FreeBSD$");
 int
 ffsl(long mask)
 {
-	return (__builtin_ffsl(mask));
+	return (mask == 0 ? 0 : __builtin_ctzl(mask) + 1);
 }
