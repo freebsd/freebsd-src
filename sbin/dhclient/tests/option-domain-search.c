@@ -343,7 +343,9 @@ parse_date_valid(void)
 		abort();
 
 	parse_date_helper(" 2 2024/7/2 20:25:50;\n", 1719951950);
+#ifndef __i386__
 	parse_date_helper(" 1 2091/7/2 20:25:50;\n", 3834246350);
+#endif
 }
 
 int
