@@ -260,6 +260,7 @@ static void
 flush_caches(void)
 {
 	struct statfs *mntbuf;
+	struct statfs statbuf;
 	int i, nitems;
 
 	nitems = getmntinfo(&mntbuf, MNT_WAIT);
@@ -270,6 +271,21 @@ flush_caches(void)
 
 	for (i = 0; i < nitems; i++) {
 		if (strcmp(mntbuf[i].f_fstypename, "autofs") != 0) {
+			log_debugx("skipping %s, filesystem type is not autofs",
+			    mntbuf[i].f_mntonname);
+			continue;
+		}
+		/*
+		 * A direct map mountpoint may have been mounted over, in
+		 * which case we can't MNT_UPDATE it. There's an obvious race
+		 * condition remaining here, but that has to be fixed in the
+		 * kernel.
+		 */
+		if (statfs(mntbuf[i].f_mntonname, &statbuf) != 0) {
+			log_err(1, "cannot statfs %s", mntbuf[i].f_mntonname);
+			continue;
+		}
+		if (strcmp(statbuf.f_fstypename, "autofs") != 0) {
 			log_debugx("skipping %s, filesystem type is not autofs",
 			    mntbuf[i].f_mntonname);
 			continue;
