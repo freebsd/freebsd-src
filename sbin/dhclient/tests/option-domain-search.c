@@ -303,6 +303,49 @@ multiple_domains_valid()
 	free(option->data);
 }
 
+static
+void
+parse_date_helper(const char *string, time_t timestamp)
+{
+	int ret = 0;
+	FILE *file = NULL;
+	time_t ts;
+
+	file = fopen("/tmp/dhclient.test", "w");
+	if (!file)
+		abort();
+
+	ret = fwrite(string, strlen(string), 1, file);
+	if (ret <= 0)
+		abort();
+
+	fclose(file);
+
+	file = fopen("/tmp/dhclient.test", "r");
+	if (!file)
+		abort();
+
+	new_parse("test");
+	ts = parse_date(file);
+	if (ts != timestamp)
+		abort();
+
+	fclose(file);
+}
+
+void
+parse_date_valid(void)
+{
+	int ret;
+
+	ret = setjmp(env);
+	if (ret != 0)
+		abort();
+
+	parse_date_helper(" 2 2024/7/2 20:25:50;\n", 1719951950);
+	parse_date_helper(" 1 2091/7/2 20:25:50;\n", 3834246350);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -323,6 +366,8 @@ main(int argc, char *argv[])
 	two_domains_truncatedptr();
 
 	multiple_domains_valid();
+
+	parse_date_valid();
 
 	return (0);
 }
