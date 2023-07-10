@@ -4557,6 +4557,8 @@ OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man7/gperf.7.gz
+OLD_DIRS+=usr/include/gcc/4.2
+OLD_DIRS+=usr/include/gcc
 
 # 20200220: Upgrade of ncurses, shlib bumped to version 9
 OLD_LIBS+=lib/libncurses.so.8
