@@ -91,7 +91,7 @@ fi
 
 # 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
 if [ "$MACHINE_ARCH" = "amd64" ]; then
-    clean_dep lib/libc bcmp c
+	clean_dep lib/libc bcmp c
 fi
 
 # 20220524  68fe988a40ca    kqueue_test binary replaced shell script
