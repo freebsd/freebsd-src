@@ -683,7 +683,7 @@ sigqueue_delete_set_proc(struct proc *p, const sigset_t *set)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	sigqueue_init(&worklist, NULL);
+	sigqueue_init(&worklist, p);
 	sigqueue_move_set(&p->p_sigqueue, &worklist, set);
 
 	FOREACH_THREAD_IN_PROC(p, td0)
