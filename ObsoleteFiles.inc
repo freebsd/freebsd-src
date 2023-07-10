@@ -8427,6 +8427,8 @@ OLD_DIRS+=usr/include/c++/4.2/debug
 OLD_DIRS+=usr/include/c++/4.2/bits
 OLD_DIRS+=usr/include/c++/4.2/backward
 OLD_DIRS+=usr/include/c++/4.2
+OLD_DIRS+=usr/include/gcc/4.2
+OLD_DIRS+=usr/include/gcc
 
 # 20200220: Upgrade of ncurses, shlib bumped to version 9
 OLD_LIBS+=lib/libncurses.so.8
