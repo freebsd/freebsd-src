@@ -444,9 +444,7 @@ convert_num(unsigned char *buf, char *str, unsigned base, int size)
 time_t
 parse_date(FILE *cfile)
 {
-	static int months[11] = { 31, 59, 90, 120, 151, 181,
-	    212, 243, 273, 304, 334 };
-	int guess, token;
+	int token;
 	struct tm tm;
 	char *val;
 
@@ -570,27 +568,5 @@ parse_date(FILE *cfile)
 		return (0);
 	}
 
-	/* Guess the time value... */
-	guess = ((((((365 * (tm.tm_year - 70) +	/* Days in years since '70 */
-		    (tm.tm_year - 69) / 4 +	/* Leap days since '70 */
-		    (tm.tm_mon			/* Days in months this year */
-		    ? months[tm.tm_mon - 1]
-		    : 0) +
-		    (tm.tm_mon > 1 &&		/* Leap day this year */
-		    !((tm.tm_year - 72) & 3)) +
-		    tm.tm_mday - 1) * 24) +	/* Day of month */
-		    tm.tm_hour) * 60) +
-		    tm.tm_min) * 60) + tm.tm_sec;
-
-	/*
-	 * This guess could be wrong because of leap seconds or other
-	 * weirdness we don't know about that the system does.   For
-	 * now, we're just going to accept the guess, but at some point
-	 * it might be nice to do a successive approximation here to get
-	 * an exact value.   Even if the error is small, if the server
-	 * is restarted frequently (and thus the lease database is
-	 * reread), the error could accumulate into something
-	 * significant.
-	 */
-	return (guess);
+	return (timegm(&tm));
 }
