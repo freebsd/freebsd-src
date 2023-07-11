@@ -30,8 +30,15 @@
 	.globl	.rtld_start
 	.type	.rtld_start,@function
 .rtld_start:
+	.cfi_startproc
+	.cfi_undefined %eip
 	xorl	%ebp,%ebp		# Clear frame pointer for good form
 	movl	%esp,%esi		# Save initial stack pointer
+	pushl	%ebp
+	.cfi_def_cfa_offset 4
+	movl	%esp,%ebp
+	.cfi_offset %ebp,-4
+	.cfi_def_cfa_register %ebp
 	andl	$0xfffffff0,%esp	# Align stack pointer
 	subl	$16,%esp		# A place to store exit procedure addr
 	movl	%esp,%ebx		# save address of exit proc
@@ -53,6 +60,7 @@
 .globl .rtld_goto_main
 .rtld_goto_main:	# This symbol exists just to make debugging easier.
 	jmp	*%eax			# Enter main program
+	.cfi_endproc
 
 
 /*
