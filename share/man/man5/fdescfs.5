@@ -40,7 +40,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2021
+.Dd Jul 11, 2023
 .Dt FDESCFS 5
 .Os
 .Sh NAME
@@ -94,6 +94,18 @@ ABI compatibility mount
 volume with the
 .Cm linrdlnk
 option.
+.It Cm rdlnk
+Treat
+.Nm
+vnodes as symbolic links consistently, in particular, follow
+the resolved name for the name lookups.
+This option is strictly stronger than the
+.Cm linrdlnk
+option, it changes not only the type returned by
+.Xr stat 2 ,
+but also causes the
+.Nm
+files to behave as symlinks.
 .El
 .Pp
 For
