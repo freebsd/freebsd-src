@@ -23,6 +23,16 @@ if [ ! -d "$OBJTOP" ]; then
 	exit 1
 fi
 
+if [ -z "${MACHINE+set}" ]; then
+	echo "$(basename "$0"): MACHINE not set" >&2
+	exit 1
+fi
+
+if [ -z "${MACHINE_ARCH+set}" ]; then
+	echo "$(basename "$0"): MACHINE_ARCH not set" >&2
+	exit 1
+fi
+
 # $1 directory
 # $2 source filename w/o extension
 # $3 source extension

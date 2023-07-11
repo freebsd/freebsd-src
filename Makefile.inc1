@@ -1016,7 +1016,8 @@ _sanity_check: .PHONY .MAKE
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
-	sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
+	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
+	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
 
 _worldtmp: .PHONY
 	@echo
