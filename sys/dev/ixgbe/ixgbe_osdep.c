@@ -76,3 +76,36 @@ ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg, u32 offset, u32 val)
 	    ((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_handle,
 	    reg + (offset << 2), val);
 }
+
+uint64_t
+ixgbe_link_speed_to_baudrate(ixgbe_link_speed speed)
+{
+	uint64_t baudrate;
+
+	switch (speed) {
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		baudrate = IF_Gbps(10);
+		break;
+	case IXGBE_LINK_SPEED_5GB_FULL:
+		baudrate = IF_Gbps(5);
+		break;
+	case IXGBE_LINK_SPEED_2_5GB_FULL:
+		baudrate = IF_Mbps(2500);
+		break;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		baudrate = IF_Gbps(1);
+		break;
+	case IXGBE_LINK_SPEED_100_FULL:
+		baudrate = IF_Mbps(100);
+		break;
+	case IXGBE_LINK_SPEED_10_FULL:
+		baudrate = IF_Mbps(10);
+		break;
+	case IXGBE_LINK_SPEED_UNKNOWN:
+	default:
+		baudrate = 0;
+		break;
+	}
+
+	return baudrate;
+}
