@@ -937,7 +937,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 				    "Full Duplex");
 			sc->link_active = true;
 			iflib_link_state_change(ctx, LINK_STATE_UP,
-			    ixgbe_link_speed_to_baudrate(adapter->link_speed));
+			    ixgbe_link_speed_to_baudrate(sc->link_speed));
 		}
 	} else { /* Link down */
 		if (sc->link_active == true) {
