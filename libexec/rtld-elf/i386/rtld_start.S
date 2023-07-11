@@ -31,7 +31,6 @@
 	.type	.rtld_start,@function
 .rtld_start:
 	xorl	%ebp,%ebp		# Clear frame pointer for good form
-	movl	%esp,%eax		# Save initial stack pointer
 	movl	%esp,%esi		# Save initial stack pointer
 	andl	$0xfffffff0,%esp	# Align stack pointer
 	subl	$16,%esp		# A place to store exit procedure addr
@@ -41,7 +40,7 @@
 	subl	$4,%esp			# Keep stack aligned
 	pushl	%ecx			# Pass address of obj_main
 	pushl	%ebx			# Pass address of exit proc
-	pushl	%eax			# Pass initial stack pointer to rtld
+	pushl	%esi			# Pass initial stack pointer to rtld
 	call	_rtld			# Call rtld(sp); returns entry point
 	addl	$16,%esp		# Remove arguments from stack
 	popl	%edx			# Get exit procedure address
