@@ -685,9 +685,19 @@ pwait_locked:
 			break;
 		}
 
-		if (Pstate(P) != PS_UNDEAD && Psetrun(P, 0, 0) == -1) {
-			dt_dprintf("pid %d: failed to set running: %s\n",
-			    (int)dpr->dpr_pid, strerror(errno));
+		if (Pstate(P) != PS_UNDEAD) {
+			if (dpr->dpr_quit && (proc_getflags(P) & PR_KLC)) {
+				/*
+				 * We're about to kill the child, so don't
+				 * bother resuming it.  In some cases, such as
+				 * an initialization error, we shouldn't have
+				 * started it in the first place, so letting it
+				 * run could be harmful.
+				 */
+			} else if (Psetrun(P, 0, 0) == -1) {
+				dt_dprintf("pid %d: failed to set running: "
+				    "%s\n", (int)dpr->dpr_pid, strerror(errno));
+			}
 		}
 
 		(void) pthread_mutex_unlock(&dpr->dpr_lock);
