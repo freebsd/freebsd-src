@@ -266,7 +266,7 @@ ${FULLPROG}: ${OBJS} ${BLOB_OBJS}
 .if ${EXPORT_SYMS} == NO
 	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo -n "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
+	printf '%s' "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
