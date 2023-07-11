@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 const char *
 getlocalbase(void)
 {
-#if LOCALBASE_CTL_LEN > 0 
+#if LOCALBASE_CTL_LEN > 0
 	int localbase_oid[2] = {CTL_USER, USER_LOCALBASE};
 	static char localpath[LOCALBASE_CTL_LEN];
 	size_t localpathlen = LOCALBASE_CTL_LEN;
