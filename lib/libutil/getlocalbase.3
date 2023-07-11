@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2020
+.Dd July 11, 2023
 .Dt GETLOCALBASE 3
 .Os
 .Sh NAME
@@ -53,10 +53,10 @@ If that does not exist then the
 .Va user.localbase
 sysctl is checked.
 If that also does not exist then the value of the
-.Dv _PATH_LOCALBASE
+.Dv LOCALBASE_PATH
 compile-time variable is used.
-If that is undefined then the default of
-.Pa /usr/local
+If that is undefined then the system default,
+.Pa _PATH_LOCALBASE
 is used.
 .Pp
 The contents of the string returned by the

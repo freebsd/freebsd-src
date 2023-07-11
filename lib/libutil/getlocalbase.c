@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <unistd.h>
 
-#ifndef _PATH_LOCALBASE
-#define _PATH_LOCALBASE "/usr/local"
+#ifndef LOCALBASE_PATH
+#define LOCALBASE_PATH _PATH_LOCALBASE
 #endif
 
 #ifndef LOCALBASE_CTL_LEN
@@ -73,17 +73,17 @@ getlocalbase(void)
 #if LOCALBASE_CTL_LEN > 0
 	if (sysctl(localbase_oid, 2, localpath, &localpathlen, NULL, 0) != 0) {
 		if (errno != ENOMEM)
-			localbase = _PATH_LOCALBASE;
+			localbase = LOCALBASE_PATH;
 		else
 			localbase = ILLEGAL_PREFIX;
 	} else {
 		if (localpath[0] != '\0')
 			localbase = localpath;
 		else
-			localbase = _PATH_LOCALBASE;
+			localbase = LOCALBASE_PATH;
 	}
 #else
-	localbase = _PATH_LOCALBASE;
+	localbase = LOCALBASE_PATH;
 #endif
 
 	return (localbase);
