@@ -3679,7 +3679,7 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 			/* Update DMA coalescing config */
 			ixgbe_config_dmac(sc);
 			iflib_link_state_change(ctx, LINK_STATE_UP,
-			    ixgbe_link_speed_to_baudrate(adapter->link_speed));
+			    ixgbe_link_speed_to_baudrate(sc->link_speed));
 
 			if (sc->feat_en & IXGBE_FEATURE_SRIOV)
 				ixgbe_ping_all_vfs(sc);
