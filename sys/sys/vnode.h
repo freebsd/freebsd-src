@@ -270,7 +270,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
-#define	VV_UNUSED01	0x2000	/* was: fdescfs linux vnode */
+#define	VV_READLINK	0x2000	/* fdescfs linux vnode */
 #define	VV_UNREF	0x4000	/* vunref, do not drop lock in inactive() */
 #define	VV_CROSSLOCK	0x8000	/* vnode lock is shared w/ root mounted here */
 

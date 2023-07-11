@@ -190,9 +190,8 @@ loop:
 	fd->fd_type = ftype;
 	fd->fd_fd = fd_fd;
 	fd->fd_ix = ix;
-	/* Cannot set v_type to VCHR */
-	if (ftype == Fdesc && (fmp->flags & FMNT_LINRDLNKF) != 0)
-		vp->v_type = VLNK;
+	if (ftype == Fdesc && fmp->flags & FMNT_LINRDLNKF)
+		vp->v_vflag |= VV_READLINK;
 	error = insmntque1(vp, mp);
 	if (error != 0) {
 		vgone(vp);
@@ -458,8 +457,7 @@ fdesc_getattr(struct vop_getattr_args *ap)
 		break;
 
 	case Fdesc:
-		vap->va_type = (VFSTOFDESC(vp->v_mount)->flags &
-		    FMNT_LINRDLNKF) == 0 ? VCHR : VLNK;
+		vap->va_type = (vp->v_vflag & VV_READLINK) == 0 ? VCHR : VLNK;
 		vap->va_nlink = 1;
 		vap->va_size = 0;
 		vap->va_rdev = makedev(0, vap->va_fileid);
