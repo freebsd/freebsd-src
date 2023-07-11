@@ -469,8 +469,7 @@ fdesc_getattr(struct vop_getattr_args *ap)
 		break;
 
 	case Fdesc:
-		vap->va_type = (VFSTOFDESC(vp->v_mount)->flags &
-		    FMNT_LINRDLNKF) == 0 ? VCHR : VLNK;
+		vap->va_type = (vp->v_vflag & VV_READLINK) == 0 ? VCHR : VLNK;
 		vap->va_nlink = 1;
 		vap->va_size = 0;
 		vap->va_rdev = makedev(0, vap->va_fileid);

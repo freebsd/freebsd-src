@@ -2660,7 +2660,7 @@ kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg, size_t count,
 	if (error != 0)
 		return (error);
 #endif
-	if (vp->v_type != VLNK)
+	if (vp->v_type != VLNK && (vp->v_vflag & VV_READLINK) == 0)
 		return (EINVAL);
 
 	aiov.iov_base = buf;
