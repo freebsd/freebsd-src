@@ -42,9 +42,6 @@ CLEANFILES+=	crti_s.o ${CRT1SRC:C/.[S|c]$/.o/}
 
 crt1.o:	${CRT1SRC:C/.[S|c]$/.o/} ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
-.if ${MACHINE_ARCH} == "i386"
-	${OBJCOPY} --localize-symbol _start1 ${.TARGET}
-.endif
 
 gcrt1_c.o: ${CRT1SRC}
 	${CC} ${CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/${CRT1SRC}
@@ -57,9 +54,6 @@ Scrt1_c.o: ${CRT1SRC}
 
 Scrt1.o: Scrt1_c.o ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
-.if ${MACHINE_ARCH} == "i386"
-	${OBJCOPY} --localize-symbol _start1 ${.TARGET}
-.endif
 
 crtbegin.o: crtbegin.c
 crtbeginS.o: crtbegin.c
