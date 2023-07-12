@@ -520,6 +520,72 @@ TEST_F(CaseFileTest, PoolDestroy)
 }
 
 /*
+ * A Vdev with a very large number of Delay errors should fault
+ * For performance reasons, RefreshVdevState should be called at most once
+ */
+TEST_F(CaseFileTest, VeryManyDelayErrors)
+{
+	EXPECT_CALL(*m_caseFile, RefreshVdevState())
+	    .Times(::testing::AtMost(1))
+	    .WillRepeatedly(::testing::Return(true));
+
+	for(int i=0; i<100; i++) {
+		stringstream evStringStream;
+		evStringStream <<
+			"!system=ZFS "
+			"class=ereport.fs.zfs.delay "
+			"ena=12091638756982918145 "
+			"parent_guid=13237004955564865395 "
+			"parent_type=raidz "
+			"pool=testpool.4415 "
+			"pool_context=0 "
+			"pool_failmode=wait "
+			"pool_guid=456 "
+			"pool_state= 0"
+			"subsystem=ZFS "
+			"time=";
+		evStringStream << i << "0000000000000000 ";
+		evStringStream << "timestamp=" << i << " ";
+		evStringStream <<
+			"type=ereport.fs.zfs.delay "
+			"vdev_ashift=12 "
+			"vdev_cksum_errors=0 "
+			"vdev_complete_ts=948336226469 "
+			"vdev_delays=77 "
+			"vdev_delta_ts=123998485899 "
+			"vdev_guid=123 "
+			"vdev_path=/dev/da400 "
+			"vdev_read_errors=0 "
+			"vdev_spare_guids= "
+			"vdev_type=disk "
+			"vdev_write_errors=0 "
+			"zio_blkid=622 "
+			"zio_delay=31000041101 "
+			"zio_delta=123998485899 "
+			"zio_err=0 "
+			"zio_flags=1572992 "
+			"zio_level=-2 "
+			"zio_object=0 "
+			"zio_objset=37 "
+			"zio_offset=25598976 "
+			"zio_pipeline=48234496 "
+			"zio_priority=3 "
+			"zio_size=1024"
+			"zio_stage=33554432 "
+			"zio_timestamp=824337740570 ";
+		Event *event(Event::CreateEvent(*m_eventFactory,
+						evStringStream.str()));
+		ZfsEvent *zfs_event = static_cast<ZfsEvent*>(event);
+		EXPECT_TRUE(m_caseFile->ReEvaluate(*zfs_event));
+		delete event;
+	}
+
+	m_caseFile->SpliceEvents();
+	EXPECT_FALSE(m_caseFile->ShouldDegrade());
+	EXPECT_TRUE(m_caseFile->ShouldFault());
+}
+
+/*
  * A Vdev with a very large number of IO errors should fault
  * For performance reasons, RefreshVdevState should be called at most once
  */
