@@ -302,8 +302,10 @@ calls.
 Nested anchors, since they are not directly attached to the given
 anchor, will not be included.
 This ioctl returns
-.Er EINVAL
-if the given anchor does not exist.
+.Er ENOENT
+if the parent anchor given at
+.Va path
+does not exist.
 .It Dv DIOCGETRULESET Fa "struct pfioc_ruleset *pr"
 Get a ruleset (i.e., an anchor)
 .Va name
@@ -315,10 +317,14 @@ the maximum number of which can be obtained from a preceding
 .Dv DIOCGETRULESETS
 call.
 This ioctl returns
-.Er EINVAL
-if the given anchor does not exist or
+.Er ENOENT
+if the parent anchor given by
+.Va path
+does not exist or
 .Er EBUSY
-if another process is concurrently updating a ruleset.
+if the index passed in by
+.Va nr
+is greater than the number of anchors.
 .It Dv DIOCADDSTATE Fa "struct pfioc_state *ps"
 Add a state entry.
 .Bd -literal
