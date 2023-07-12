@@ -49,6 +49,8 @@ gce-check-depends:
 	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-sdk
 . else
 	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/net/google-cloud-sdk BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/lang/python BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/lang/python3 BATCH=1 all install clean
 . endif
 .endif
 
