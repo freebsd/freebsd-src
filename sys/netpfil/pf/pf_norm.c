@@ -1030,7 +1030,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 
 #ifdef INET
 int
-pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason,
+pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
@@ -1055,7 +1055,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
-		else if (r->direction && r->direction != dir)
+		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
 		else if (r->af && r->af != AF_INET)
 			r = r->skip[PF_SKIP_AF].ptr;
@@ -1083,8 +1083,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 			return (PF_PASS);
 
 		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[dir == PF_OUT], pd->tot_len);
+		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
+		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_counter_u64_critical_exit();
 	} else if ((!V_pf_status.reass && (h->ip_off & htons(IP_MF | IP_OFFMASK)))) {
 		/* With no scrub rules IPv4 fragment reassembly depends on the
@@ -1149,7 +1149,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 		 * Might return a completely reassembled mbuf, or NULL */
 		PF_FRAG_LOCK();
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-		verdict = pf_reassemble(m0, h, dir, reason);
+		verdict = pf_reassemble(m0, h, pd->dir, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)
@@ -1182,8 +1182,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 	REASON_SET(reason, PFRES_FRAG);
  drop:
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET, dir, *reason, r, NULL, NULL, pd,
-		    1);
+		PFLOG_PACKET(kif, m, AF_INET, *reason, r, NULL, NULL, pd, 1);
 
 	return (PF_DROP);
 }
@@ -1191,7 +1190,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 
 #ifdef INET6
 int
-pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
+pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
     u_short *reason, struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
@@ -1219,7 +1218,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
-		else if (r->direction && r->direction != dir)
+		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
 		else if (r->af && r->af != AF_INET6)
 			r = r->skip[PF_SKIP_AF].ptr;
@@ -1246,8 +1245,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 			return (PF_PASS);
 
 		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[dir == PF_OUT], pd->tot_len);
+		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
+		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_counter_u64_critical_exit();
 	}
 
@@ -1350,21 +1349,19 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
  shortpkt:
 	REASON_SET(reason, PFRES_SHORT);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET6, dir, *reason, r, NULL, NULL, pd,
-		    1);
+		PFLOG_PACKET(kif, m, AF_INET6, *reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET6, dir, *reason, r, NULL, NULL, pd,
-		    1);
+		PFLOG_PACKET(kif, m, AF_INET6, *reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 }
 #endif /* INET6 */
 
 int
-pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
+pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
     int off, void *h, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
@@ -1385,7 +1382,7 @@ pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
-		else if (r->direction && r->direction != dir)
+		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
 		else if (r->af && r->af != af)
 			r = r->skip[PF_SKIP_AF].ptr;
@@ -1420,8 +1417,8 @@ pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 			return (PF_PASS);
 
 		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[dir == PF_OUT], pd->tot_len);
+		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
+		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_counter_u64_critical_exit();
 	}
 
@@ -1487,8 +1484,7 @@ pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET, dir, reason, r, NULL, NULL, pd,
-		    1);
+		PFLOG_PACKET(kif, m, AF_INET, reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 }
 
