@@ -21,6 +21,7 @@ ${PACKAGE}FILES+=	zfsd_autoreplace_003_pos.ksh
 ${PACKAGE}FILES+=	zfsd_degrade_001_pos.ksh
 ${PACKAGE}FILES+=	zfsd_degrade_002_pos.ksh
 ${PACKAGE}FILES+=	zfsd_fault_001_pos.ksh
+${PACKAGE}FILES+=	zfsd_fault_002_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_001_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_002_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_003_pos.ksh

@@ -56,6 +56,37 @@ zfsd_fault_001_pos_cleanup()
 }
 
 
+atf_test_case zfsd_fault_002_pos cleanup
+zfsd_fault_002_pos_head()
+{
+	atf_set "descr" "ZFS will fault a vdev that experiences delayed I/O"
+	atf_set "require.progs" "ksh93 gnop zfs zpool zfsd"
+	atf_set "timeout" 300
+}
+zfsd_fault_002_pos_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	verify_disk_count "$DISKS" 2
+	verify_zfsd_running
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_fault_002_pos.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_fault_002_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 atf_test_case zfsd_degrade_001_pos cleanup
 zfsd_degrade_001_pos_head()
 {
@@ -631,6 +662,7 @@ zfsd_import_001_pos_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case zfsd_fault_001_pos
+	atf_add_test_case zfsd_fault_002_pos
 	atf_add_test_case zfsd_degrade_001_pos
 	atf_add_test_case zfsd_degrade_002_pos
 	atf_add_test_case zfsd_hotspare_001_pos
