@@ -217,7 +217,7 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
+pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af,
     u_int8_t reason, struct pf_krule *rm, struct pf_krule *am,
     struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
@@ -254,7 +254,7 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	 * These conditions are very very rare, however.
 	 */
 	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
-		pd->lookup.done = pf_socket_lookup(dir, pd, m);
+		pd->lookup.done = pf_socket_lookup(pd, m);
 	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
 	else
@@ -262,10 +262,10 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	hdr.pid = NO_PID;
 	hdr.rule_uid = rm->cuid;
 	hdr.rule_pid = rm->cpid;
-	hdr.dir = dir;
+	hdr.dir = pd->dir;
 
 #ifdef INET
-	if (af == AF_INET && dir == PF_OUT) {
+	if (af == AF_INET && pd->dir == PF_OUT) {
 		struct ip *ip;
 
 		ip = mtod(m, struct ip *);
