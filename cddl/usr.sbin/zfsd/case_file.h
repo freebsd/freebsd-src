@@ -224,7 +224,11 @@ protected:
 		 * to transition a vdev from healthy to degraded
 		 * status.
 		 */
-		ZFS_DEGRADE_IO_COUNT = 50
+		ZFS_DEGRADE_IO_COUNT = 50,
+		/**
+		 * The number of delay errors on a vdev required to fault it
+		 */
+		ZFS_FAULT_DELAY_COUNT = 8,
 	};
 
 	static CalloutFunc_t OnGracePeriodEnded;

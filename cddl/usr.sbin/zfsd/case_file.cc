@@ -442,7 +442,8 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		consumed = true;
 	}
 	else if (event.Value("class") == "ereport.fs.zfs.io" ||
-	         event.Value("class") == "ereport.fs.zfs.checksum") {
+	         event.Value("class") == "ereport.fs.zfs.checksum" ||
+		 event.Value("class") == "ereport.fs.zfs.delay") {
 
 		m_tentativeEvents.push_front(event.DeepCopy());
 		RegisterCallout(event);
@@ -1143,6 +1144,13 @@ IsIOEvent(const Event* const event)
 	return ("ereport.fs.zfs.io" == event->Value("type"));
 }
 
+/* Does the argument event refer to an IO delay? */
+static bool
+IsDelayEvent(const Event* const event)
+{
+	return ("ereport.fs.zfs.delay" == event->Value("type"));
+}
+
 bool
 CaseFile::ShouldDegrade() const
 {
@@ -1153,8 +1161,14 @@ CaseFile::ShouldDegrade() const
 bool
 CaseFile::ShouldFault() const
 {
-	return (std::count_if(m_events.begin(), m_events.end(),
-			      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
+	bool should_fault_for_io, should_fault_for_delay;
+
+	should_fault_for_io = std::count_if(m_events.begin(), m_events.end(),
+			      IsIOEvent) > ZFS_DEGRADE_IO_COUNT;
+	should_fault_for_delay = std::count_if(m_events.begin(), m_events.end(),
+			      IsDelayEvent) > ZFS_FAULT_DELAY_COUNT;
+
+	return (should_fault_for_io || should_fault_for_delay);
 }
 
 nvlist_t *
