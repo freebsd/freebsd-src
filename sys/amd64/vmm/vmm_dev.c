@@ -187,6 +187,7 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 	int error;
 	uint16_t i, j, maxcpus;
 
+	error = 0;
 	vm_slock_vcpus(sc->vm);
 	maxcpus = vm_get_maxcpus(sc->vm);
 	for (i = 0; i < maxcpus; i++) {
