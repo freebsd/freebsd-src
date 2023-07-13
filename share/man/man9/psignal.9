@@ -28,14 +28,13 @@
 .\"	$NetBSD: psignal.9,v 1.1 1996/06/22 22:57:35 pk Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2011
+.Dd July 14, 2023
 .Dt PSIGNAL 9
 .Os
 .Sh NAME
 .Nm psignal ,
 .Nm kern_psignal ,
 .Nm pgsignal ,
-.Nm gsignal ,
 .Nm tdsignal
 .Nd post signal to a thread, process, or process group
 .Sh SYNOPSIS
@@ -45,8 +44,6 @@
 .Fn kern_psignal "struct proc *p" "int signum"
 .Ft void
 .Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
-.Ft void
-.Fn gsignal "int pgid" "int signum"
 .Ft void
 .Fn tdsignal "struct thread *td" "int signum"
 .Sh DESCRIPTION
@@ -127,24 +124,6 @@ If
 is
 .Dv NULL
 no action is taken.
-.Pp
-The
-.Fn gsignal
-function posts signal number
-.Fa signum
-to each member of the process group identified by the group id
-.Fa pgid .
-.Fn gsignal
-first finds the group structure associated with
-.Fa pgid ,
-then invokes
-.Fn pgsignal
-with the argument
-.Fa checkctty
-set to zero.
-If
-.Fa pgid
-is zero no action is taken.
 .Pp
 The
 .Fn tdsignal

@@ -62,6 +62,9 @@ OLD_FILES+=usr/share/man/man4/meteor.4.gz
 # 20230806: remove bt(4) man page
 OLD_FILES+=usr/share/man/man4/bt.4.gz
 
+# 20230714: gsignal
+OLD_FILES+=/usr/share/man/man9/gsignal.9.gz
+
 # 20230622: new clang import which bumps version from 15.0.7 to 16.0.1
 OLD_FILES+=usr/lib/clang/15.0.7/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/15.0.7/include/__clang_cuda_cmath.h
