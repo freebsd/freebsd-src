@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..21
+echo 1..22
 
 REGRESSION_START($1)
 
