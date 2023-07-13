@@ -2689,10 +2689,13 @@ static int
 pfsync_multicast_setup(struct pfsync_softc *sc, struct ifnet *ifp,
     struct in_mfilter* imf, struct in6_mfilter* im6f)
 {
+#ifdef  INET
 	struct ip_moptions *imo = &sc->sc_imo;
+#endif
+#ifdef INET6
 	struct ip6_moptions *im6o = &sc->sc_im6o;
-	int error;
 	struct sockaddr_in6 *syncpeer_sa6 = NULL;
+#endif
 
 	if (!(ifp->if_flags & IFF_MULTICAST))
 		return (EADDRNOTAVAIL);
@@ -2700,46 +2703,45 @@ pfsync_multicast_setup(struct pfsync_softc *sc, struct ifnet *ifp,
 	switch (sc->sc_sync_peer.ss_family) {
 #ifdef INET
 	case AF_INET:
-	    {
+	{
+		int error;
+
 		ip_mfilter_init(&imo->imo_head);
 		imo->imo_multicast_vif = -1;
 		if ((error = in_joingroup(ifp,
-		    &(((struct sockaddr_in *)&sc->sc_sync_peer)->sin_addr),
-		    NULL, &imf->imf_inm)) != 0)
-		{
+		    &((struct sockaddr_in *)&sc->sc_sync_peer)->sin_addr, NULL,
+		    &imf->imf_inm)) != 0)
 			return (error);
-		}
 
 		ip_mfilter_insert(&imo->imo_head, imf);
 		imo->imo_multicast_ifp = ifp;
 		imo->imo_multicast_ttl = PFSYNC_DFLTTL;
 		imo->imo_multicast_loop = 0;
 		break;
-	    }
+	}
 #endif
 #ifdef INET6
 	case AF_INET6:
-	    {
+	{
+		int error;
+
 		syncpeer_sa6 = (struct sockaddr_in6 *)&sc->sc_sync_peer;
 		if ((error = in6_setscope(&syncpeer_sa6->sin6_addr, ifp, NULL)))
-		{
 			return (error);
-		}
+
 		ip6_mfilter_init(&im6o->im6o_head);
 		if ((error = in6_joingroup(ifp, &syncpeer_sa6->sin6_addr, NULL,
 		    &(im6f->im6f_in6m), 0)) != 0)
-		{
 			return (error);
-		}
 
 		ip6_mfilter_insert(&im6o->im6o_head, im6f);
 		im6o->im6o_multicast_ifp = ifp;
 		im6o->im6o_multicast_hlim = PFSYNC_DFLTTL;
 		im6o->im6o_multicast_loop = 0;
 		break;
-	    }
 	}
 #endif
+	}
 
 	return (0);
 }
@@ -2747,10 +2749,9 @@ pfsync_multicast_setup(struct pfsync_softc *sc, struct ifnet *ifp,
 static void
 pfsync_multicast_cleanup(struct pfsync_softc *sc)
 {
+#ifdef INET
 	struct ip_moptions *imo = &sc->sc_imo;
-	struct ip6_moptions *im6o = &sc->sc_im6o;
 	struct in_mfilter *imf;
-	struct in6_mfilter *im6f;
 
 	while ((imf = ip_mfilter_first(&imo->imo_head)) != NULL) {
 		ip_mfilter_remove(&imo->imo_head, imf);
@@ -2758,6 +2759,11 @@ pfsync_multicast_cleanup(struct pfsync_softc *sc)
 		ip_mfilter_free(imf);
 	}
 	imo->imo_multicast_ifp = NULL;
+#endif
+
+#ifdef INET6
+	struct ip6_moptions *im6o = &sc->sc_im6o;
+	struct in6_mfilter *im6f;
 
 	while ((im6f = ip6_mfilter_first(&im6o->im6o_head)) != NULL) {
 		ip6_mfilter_remove(&im6o->im6o_head, im6f);
@@ -2765,6 +2771,7 @@ pfsync_multicast_cleanup(struct pfsync_softc *sc)
 		ip6_mfilter_free(im6f);
 	}
 	im6o->im6o_multicast_ifp = NULL;
+#endif
 }
 
 void
@@ -2818,8 +2825,6 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 	struct ifnet *sifp;
 	struct in_mfilter *imf = NULL;
 	struct in6_mfilter *im6f = NULL;
-	struct sockaddr_in *status_sin;
-	struct sockaddr_in6 *status_sin6;
 	int error;
 	int c;
 
@@ -2832,8 +2837,10 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		return (EINVAL);
 
 	switch (status->syncpeer.ss_family) {
+#ifdef INET
 	case AF_UNSPEC:
 	case AF_INET: {
+		struct sockaddr_in *status_sin;
 		status_sin = (struct sockaddr_in *)&(status->syncpeer);
 		if (sifp != NULL) {
 			if (status_sin->sin_addr.s_addr == 0 ||
@@ -2851,7 +2858,10 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		}
 		break;
 	}
+#endif
+#ifdef INET6
 	case AF_INET6: {
+		struct sockaddr_in6 *status_sin6;
 		status_sin6 = (struct sockaddr_in6*)&(status->syncpeer);
 		if (sifp != NULL) {
 			if (IN6_IS_ADDR_UNSPECIFIED(&status_sin6->sin6_addr) ||
@@ -2869,6 +2879,7 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		}
 		break;
 	}
+#endif
 	}
 
 	PFSYNC_LOCK(sc);
@@ -2954,10 +2965,14 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		if (error) {
 			if_rele(sifp);
 			PFSYNC_UNLOCK(sc);
+#ifdef INET
 			if (imf != NULL)
 				ip_mfilter_free(imf);
+#endif
+#ifdef INET6
 			if (im6f != NULL)
 				ip6_mfilter_free(im6f);
+#endif
 			return (error);
 		}
 	}
@@ -2966,6 +2981,7 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 	sc->sc_sync_if = sifp;
 
 	switch (sc->sc_sync_peer.ss_family) {
+#ifdef INET
 	case AF_INET: {
 		struct ip *ip;
 		ip = &sc->sc_template.ipv4;
@@ -2981,6 +2997,8 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		ip->ip_dst = ((struct sockaddr_in *)&sc->sc_sync_peer)->sin_addr;
 		break;
 	}
+#endif
+#ifdef INET6
 	case AF_INET6: {
 		struct ip6_hdr *ip6;
 		ip6 = &sc->sc_template.ipv6;
@@ -2997,6 +3015,7 @@ pfsync_kstatus_to_softc(struct pfsync_kstatus *status, struct pfsync_softc *sc)
 		NET_EPOCH_EXIT(et);
 		break;
 	}
+#endif
 	}
 
 	/* Request a full state table update. */

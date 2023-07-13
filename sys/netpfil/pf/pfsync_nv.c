@@ -47,7 +47,6 @@ pfsync_syncpeer_nvlist_to_sockaddr(const nvlist_t *nvl,
     struct sockaddr_storage *sa)
 {
 	int af;
-	int error;
 
 	if (!nvlist_exists_number(nvl, "af"))
 		return (EINVAL);
@@ -74,6 +73,7 @@ pfsync_syncpeer_nvlist_to_sockaddr(const nvlist_t *nvl,
 	case AF_INET6: {
 		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)sa;
 		size_t len;
+		int error;
 		const void *addr = nvlist_get_binary(nvl, "address", &len);
 		in6->sin6_family = af;
 		if (len != sizeof(*in6))
