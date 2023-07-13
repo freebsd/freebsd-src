@@ -35,6 +35,7 @@
 #ifdef INVARIANTS
 #include <sys/proc.h>
 #endif
+#include <sys/systm.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
