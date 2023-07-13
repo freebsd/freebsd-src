@@ -1966,25 +1966,6 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 }
 
 /*
- * Send a signal to a process group.
- */
-void
-gsignal(int pgid, int sig, ksiginfo_t *ksi)
-{
-	struct pgrp *pgrp;
-
-	if (pgid != 0) {
-		sx_slock(&proctree_lock);
-		pgrp = pgfind(pgid);
-		sx_sunlock(&proctree_lock);
-		if (pgrp != NULL) {
-			pgsignal(pgrp, sig, 0, ksi);
-			PGRP_UNLOCK(pgrp);
-		}
-	}
-}
-
-/*
  * Send a signal to a process group.  If checktty is 1,
  * limit to members which have a controlling terminal.
  */
