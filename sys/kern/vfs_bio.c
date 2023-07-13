@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/pctrie.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/refcount.h>
@@ -5152,7 +5153,9 @@ bufobj_init(struct bufobj *bo, void *private)
         rw_init(BO_LOCKPTR(bo), "bufobj interlock");
         bo->bo_private = private;
         TAILQ_INIT(&bo->bo_clean.bv_hd);
+	pctrie_init(&bo->bo_clean.bv_root);
         TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	pctrie_init(&bo->bo_dirty.bv_root);
 }
 
 void
