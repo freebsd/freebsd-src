@@ -346,6 +346,7 @@ extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
 
 struct inpcb;
+struct ucred;
 
 int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
 
