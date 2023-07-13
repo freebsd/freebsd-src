@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 import json
 import os
+import subprocess
 
 
 class ToolsHelper(object):
@@ -12,6 +13,26 @@ class ToolsHelper(object):
         if verbose:
             print("run: '{}'".format(cmd))
         return os.popen(cmd).read()
+
+    @classmethod
+    def pf_rules(cls, rules, verbose=True):
+        pf_conf = ""
+        for r in rules:
+            pf_conf = pf_conf + r + "\n"
+
+        if verbose:
+            print("Set rules:")
+            print(pf_conf)
+
+        ps = subprocess.Popen("/sbin/pfctl -g -f -", shell=True,
+            stdin=subprocess.PIPE)
+        ps.communicate(bytes(pf_conf, 'utf-8'))
+        ret = ps.wait()
+        if ret != 0:
+            raise Exception("Failed to set pf rules %d" % ret)
+
+        if verbose:
+            cls.print_output("/sbin/pfctl -sr")
 
     @classmethod
     def print_output(cls, cmd: str, verbose=True):
