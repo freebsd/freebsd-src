@@ -5,6 +5,7 @@ echo 1..21
 REGRESSION_START($1)
 
 REGRESSION_TEST(`normal', `xargs echo The <${SRCDIR}/regress.in')
+REGRESSION_TEST(`n2147483647', `xargs -n2147483647 <${SRCDIR}/regress.in')
 REGRESSION_TEST(`I', `xargs -I% echo The % % % %% % % <${SRCDIR}/regress.in')
 REGRESSION_TEST(`J', `xargs -J% echo The % again. <${SRCDIR}/regress.in')
 REGRESSION_TEST(`L', `xargs -L3 echo <${SRCDIR}/regress.in')

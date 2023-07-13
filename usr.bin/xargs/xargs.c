@@ -257,7 +257,7 @@ main(int argc, char *argv[])
 	 * the maximum arguments to be read from stdin and the trailing
 	 * NULL.
 	 */
-	linelen = 1 + argc + nargs + 1;
+	linelen = 1 + argc + (size_t)nargs + 1;
 	if ((av = bxp = malloc(linelen * sizeof(char *))) == NULL)
 		errx(1, "malloc failed");
 
