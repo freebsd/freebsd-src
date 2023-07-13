@@ -36,6 +36,7 @@
 #define __MACHINE_COUNTER_H__
 
 #include <sys/pcpu.h>
+#include <sys/kassert.h>
 
 #define	EARLY_COUNTER	(void *)__offsetof(struct pcpu, pc_early_dummy_counter)
 
