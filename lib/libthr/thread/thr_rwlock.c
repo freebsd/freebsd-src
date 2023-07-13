@@ -343,14 +343,14 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 int
 _Tthr_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
-	return (rwlock_wrlock_common (rwlock, NULL));
+	return (rwlock_wrlock_common(rwlock, NULL));
 }
 
 int
 _pthread_rwlock_timedwrlock(pthread_rwlock_t * __restrict rwlock,
     const struct timespec * __restrict abstime)
 {
-	return (rwlock_wrlock_common (rwlock, abstime));
+	return (rwlock_wrlock_common(rwlock, abstime));
 }
 
 int
