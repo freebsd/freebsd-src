@@ -270,18 +270,18 @@ add_warning(void)
 static void
 prepend_cpp(void)
 {
-	int idx = 1;
+	int idx = 0;
 	const char *var;
 	char *dupvar, *s, *t;
 
 	if (CPP != NULL)
-		insarg(0, CPP);
+		insarg(idx++, CPP);
 	else if ((var = getenv("RPCGEN_CPP")) == NULL)
-		insarg(0, "/usr/bin/cpp");
+		insarg(idx++, "/usr/bin/cpp");
 	else {
 		/* Parse command line in a rudimentary way */
 		dupvar = xstrdup(var);
-		for (s = dupvar, idx = 0; (t = strsep(&s, " \t")) != NULL; ) {
+		for (s = dupvar; (t = strsep(&s, " \t")) != NULL; ) {
 			if (t[0])
 				insarg(idx++, t);
 		}
