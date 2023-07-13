@@ -174,7 +174,7 @@ main(int argc, char *argv[])
 			replstr = optarg;
 			break;
 		case 'L':
-			Lflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			Lflag = (int)strtonum(optarg, 1, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
@@ -203,6 +203,8 @@ main(int argc, char *argv[])
 			Rflag = (int)strtonum(optarg, INT_MIN, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "-%c %s: %s", ch, optarg, errstr);
+			if (!Rflag)
+				errx(1, "-%c %s: %s", ch, optarg, "must be non-zero");
 			break;
 		case 'r':
 			/* GNU compatibility */
