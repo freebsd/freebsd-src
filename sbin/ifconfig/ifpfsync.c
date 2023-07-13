@@ -227,10 +227,15 @@ setpfsync_syncpeer(if_ctx *ctx, const char *val, int dummy __unused)
 	case AF_INET: {
 		struct sockaddr_in *sin = satosin(peerres->ai_addr);
 
-		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-			errx(1, "syncpeer address cannot be multicast");
-
 		memcpy(&addr, sin, sizeof(*sin));
+		break;
+	}
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		struct sockaddr_in6 *sin6 = satosin6(peerres->ai_addr);
+
+		memcpy(&addr, sin6, sizeof(*sin6));
 		break;
 	}
 #endif
@@ -377,9 +382,9 @@ pfsync_status(if_ctx *ctx)
 	if (syncdev[0] != '\0')
 		printf("syncdev: %s ", syncdev);
 
-	if (syncpeer.ss_family == AF_INET &&
+	if ((syncpeer.ss_family == AF_INET &&
 	    ((struct sockaddr_in *)&syncpeer)->sin_addr.s_addr !=
-		htonl(INADDR_PFSYNC_GROUP)) {
+	    htonl(INADDR_PFSYNC_GROUP)) || syncpeer.ss_family == AF_INET6) {
 
 		struct sockaddr *syncpeer_sa =
 		    (struct sockaddr *)&syncpeer;
