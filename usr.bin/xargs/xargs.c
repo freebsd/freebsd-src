@@ -200,7 +200,7 @@ main(int argc, char *argv[])
 			pflag = 1;
 			break;
 		case 'R':
-			Rflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			Rflag = (int)strtonum(optarg, INT_MIN, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;

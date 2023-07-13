@@ -15,6 +15,7 @@ ${PACKAGE}FILES+=		regress.J.out
 ${PACKAGE}FILES+=		regress.L.out
 ${PACKAGE}FILES+=		regress.P1.out
 ${PACKAGE}FILES+=		regress.R.out
+${PACKAGE}FILES+=		regress.R-1.out
 ${PACKAGE}FILES+=		regress.in
 ${PACKAGE}FILES+=		regress.n1.out
 ${PACKAGE}FILES+=		regress.n2.out
