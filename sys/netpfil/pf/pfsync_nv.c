@@ -35,6 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/errno.h>
 
+#include <netinet/in.h>
+
+#include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
+
 #include <netpfil/pf/pfsync_nv.h>
 
 int
@@ -42,6 +47,7 @@ pfsync_syncpeer_nvlist_to_sockaddr(const nvlist_t *nvl,
     struct sockaddr_storage *sa)
 {
 	int af;
+	int error;
 
 	if (!nvlist_exists_number(nvl, "af"))
 		return (EINVAL);
@@ -74,6 +80,11 @@ pfsync_syncpeer_nvlist_to_sockaddr(const nvlist_t *nvl,
 			return (EINVAL);
 
 		memcpy(in6, addr, sizeof(*in6));
+
+		error = sa6_embedscope(in6, V_ip6_use_defzone);
+		if (error)
+			return (error);
+
 		break;
 	}
 #endif
@@ -106,6 +117,7 @@ pfsync_sockaddr_to_syncpeer_nvlist(struct sockaddr_storage *sa)
 #ifdef INET6
 	case AF_INET6: {
 		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)sa;
+		sa6_recoverscope(in6);
 		nvlist_add_number(nvl, "af", in6->sin6_family);
 		nvlist_add_binary(nvl, "address", in6, sizeof(*in6));
 		break;
