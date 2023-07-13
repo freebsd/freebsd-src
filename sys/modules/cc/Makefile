@@ -8,9 +8,9 @@ SUBDIR=	cc_newreno \
 
 # Do we have the TCP_HHOOK symbol defined? If not, there is no point in
 # building these modules by default.
-# We will default to building these modules unless $OPT_INET is defined
-# and does not contain the TCP_HHOOK option.
-.if defined(ALL_MODULES) || ${OPT_INET:UTCP_HHOOK:MTCP_HHOOK} != ""
+# We will default to building these modules if $OPT_GLOBAL does contain
+# the TCP_HHOOK option.
+.if defined(ALL_MODULES) || ${OPT_GLOBAL:UTCP_HHOOK:MTCP_HHOOK} != ""
 SUBDIR+= \
 	cc_cdg \
 	cc_chd \
