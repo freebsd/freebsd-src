@@ -5706,7 +5706,7 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 		sp->pfs_1301.expire = htonl(sp->pfs_1301.expire - time_uptime);
 
 	sp->pfs_1301.direction = st->direction;
-	sp->pfs_1301.log = st->log;
+	sp->pfs_1301.log = st->act.log;
 	sp->pfs_1301.timeout = st->timeout;
 
 	switch (msg_version) {
@@ -5715,16 +5715,16 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 			break;
 		case PFSYNC_MSG_VERSION_1400:
 			sp->pfs_1400.state_flags = htons(st->state_flags);
-			sp->pfs_1400.qid = htons(st->qid);
-			sp->pfs_1400.pqid = htons(st->pqid);
-			sp->pfs_1400.dnpipe = htons(st->dnpipe);
-			sp->pfs_1400.dnrpipe = htons(st->dnrpipe);
-			sp->pfs_1400.rtableid = htonl(st->rtableid);
-			sp->pfs_1400.min_ttl = st->min_ttl;
-			sp->pfs_1400.set_tos = st->set_tos;
-			sp->pfs_1400.max_mss = htons(st->max_mss);
-			sp->pfs_1400.set_prio[0] = st->set_prio[0];
-			sp->pfs_1400.set_prio[1] = st->set_prio[1];
+			sp->pfs_1400.qid = htons(st->act.qid);
+			sp->pfs_1400.pqid = htons(st->act.pqid);
+			sp->pfs_1400.dnpipe = htons(st->act.dnpipe);
+			sp->pfs_1400.dnrpipe = htons(st->act.dnrpipe);
+			sp->pfs_1400.rtableid = htonl(st->act.rtableid);
+			sp->pfs_1400.min_ttl = st->act.min_ttl;
+			sp->pfs_1400.set_tos = st->act.set_tos;
+			sp->pfs_1400.max_mss = htons(st->act.max_mss);
+			sp->pfs_1400.set_prio[0] = st->act.set_prio[0];
+			sp->pfs_1400.set_prio[1] = st->act.set_prio[1];
 			sp->pfs_1400.rt = st->rt;
 			if (st->rt_kif)
 				strlcpy(sp->pfs_1400.rt_ifname,
@@ -5797,7 +5797,7 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 		sp->expire = htonl(sp->expire - time_uptime);
 
 	sp->direction = st->direction;
-	sp->log = st->log;
+	sp->log = st->act.log;
 	sp->timeout = st->timeout;
 	/* 8 bits for the old libpfctl, 16 bits for the new libpfctl */
 	sp->state_flags_compat = st->state_flags;
@@ -5830,20 +5830,20 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	sp->bytes[0] = st->bytes[0];
 	sp->bytes[1] = st->bytes[1];
 
-	sp->qid = htons(st->qid);
-	sp->pqid = htons(st->pqid);
-	sp->dnpipe = htons(st->dnpipe);
-	sp->dnrpipe = htons(st->dnrpipe);
-	sp->rtableid = htonl(st->rtableid);
-	sp->min_ttl = st->min_ttl;
-	sp->set_tos = st->set_tos;
-	sp->max_mss = htons(st->max_mss);
+	sp->qid = htons(st->act.qid);
+	sp->pqid = htons(st->act.pqid);
+	sp->dnpipe = htons(st->act.dnpipe);
+	sp->dnrpipe = htons(st->act.dnrpipe);
+	sp->rtableid = htonl(st->act.rtableid);
+	sp->min_ttl = st->act.min_ttl;
+	sp->set_tos = st->act.set_tos;
+	sp->max_mss = htons(st->act.max_mss);
 	sp->rt = st->rt;
 	if (st->rt_kif)
 		strlcpy(sp->rt_ifname, st->rt_kif->pfik_name,
 		    sizeof(sp->rt_ifname));
-	sp->set_prio[0] = st->set_prio[0];
-	sp->set_prio[1] = st->set_prio[1];
+	sp->set_prio[0] = st->act.set_prio[0];
+	sp->set_prio[1] = st->act.set_prio[1];
 
 }
 

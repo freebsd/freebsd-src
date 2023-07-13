@@ -618,7 +618,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	}
 
 	st->direction = sp->pfs_1301.direction;
-	st->log = sp->pfs_1301.log;
+	st->act.log = sp->pfs_1301.log;
 	st->timeout = sp->pfs_1301.timeout;
 
 	switch (msg_version) {
@@ -639,13 +639,13 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 				 * from multiple "match" rules as only rule
 				 * creating the state is send over pfsync.
 				 */
-				st->qid = r->qid;
-				st->pqid = r->pqid;
-				st->rtableid = r->rtableid;
+				st->act.qid = r->qid;
+				st->act.pqid = r->pqid;
+				st->act.rtableid = r->rtableid;
 				if (r->scrub_flags & PFSTATE_SETTOS)
-					st->set_tos = r->set_tos;
-				st->min_ttl = r->min_ttl;
-				st->max_mss = r->max_mss;
+					st->act.set_tos = r->set_tos;
+				st->act.min_ttl = r->min_ttl;
+				st->act.max_mss = r->max_mss;
 				st->state_flags |= (r->scrub_flags &
 				    (PFSTATE_NODF|PFSTATE_RANDOMID|
 				    PFSTATE_SETTOS|PFSTATE_SCRUB_TCP|
@@ -656,22 +656,22 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 					else
 						st->state_flags &= ~PFSTATE_DN_IS_PIPE;
 				}
-				st->dnpipe = r->dnpipe;
-				st->dnrpipe = r->dnrpipe;
+				st->act.dnpipe = r->dnpipe;
+				st->act.dnrpipe = r->dnrpipe;
 			}
 			break;
 		case PFSYNC_MSG_VERSION_1400:
 			st->state_flags = ntohs(sp->pfs_1400.state_flags);
-			st->qid = ntohs(sp->pfs_1400.qid);
-			st->pqid = ntohs(sp->pfs_1400.pqid);
-			st->dnpipe = ntohs(sp->pfs_1400.dnpipe);
-			st->dnrpipe = ntohs(sp->pfs_1400.dnrpipe);
-			st->rtableid = ntohl(sp->pfs_1400.rtableid);
-			st->min_ttl = sp->pfs_1400.min_ttl;
-			st->set_tos = sp->pfs_1400.set_tos;
-			st->max_mss = ntohs(sp->pfs_1400.max_mss);
-			st->set_prio[0] = sp->pfs_1400.set_prio[0];
-			st->set_prio[1] = sp->pfs_1400.set_prio[1];
+			st->act.qid = ntohs(sp->pfs_1400.qid);
+			st->act.pqid = ntohs(sp->pfs_1400.pqid);
+			st->act.dnpipe = ntohs(sp->pfs_1400.dnpipe);
+			st->act.dnrpipe = ntohs(sp->pfs_1400.dnrpipe);
+			st->act.rtableid = ntohl(sp->pfs_1400.rtableid);
+			st->act.min_ttl = sp->pfs_1400.min_ttl;
+			st->act.set_tos = sp->pfs_1400.set_tos;
+			st->act.max_mss = ntohs(sp->pfs_1400.max_mss);
+			st->act.set_prio[0] = sp->pfs_1400.set_prio[0];
+			st->act.set_prio[1] = sp->pfs_1400.set_prio[1];
 			st->rt = sp->pfs_1400.rt;
 			if (st->rt && (st->rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname)) == NULL) {
 				if (V_pf_status.debug >= PF_DEBUG_MISC)
