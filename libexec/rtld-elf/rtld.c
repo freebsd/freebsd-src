@@ -3714,7 +3714,6 @@ static Obj_Entry *
 dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     int mode, RtldLockState *lockstate)
 {
-    Obj_Entry *old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
     RtldLockState mlockstate;
@@ -3731,7 +3730,6 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     }
     GDB_STATE(RT_ADD,NULL);
 
-    old_obj_tail = globallist_curr(TAILQ_LAST(&obj_list, obj_entry_q));
     obj = NULL;
     if (name == NULL && fd == -1) {
 	obj = obj_main;
@@ -3744,9 +3742,9 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	obj->dl_refcount++;
 	if (mode & RTLD_GLOBAL && objlist_find(&list_global, obj) == NULL)
 	    objlist_push_tail(&list_global, obj);
-	if (globallist_next(old_obj_tail) != NULL) {
-	    /* We loaded something new. */
-	    assert(globallist_next(old_obj_tail) == obj);
+
+	if (!obj->init_done) {
+	    /* We loaded something new and have to init something. */
 	    if ((lo_flags & RTLD_LO_DEEPBIND) != 0)
 		obj->symbolic = true;
 	    result = 0;
