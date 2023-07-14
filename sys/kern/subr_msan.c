@@ -57,9 +57,6 @@ __KERNEL_RCSID(0, "$NetBSD: subr_msan.c,v 1.14 2020/09/09 16:29:59 maxv Exp $");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -555,42 +552,6 @@ kmsan_mark_bio(const struct bio *bp, uint8_t c)
 	kmsan_mark(bp->bio_data, bp->bio_length, c);
 }
 
-static void
-kmsan_mark_ccb(const union ccb *ccb, uint8_t c)
-{
-	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_IN)
-		return;
-	if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
-		return;
-
-	switch (ccb->ccb_h.func_code) {
-	case XPT_SCSI_IO: {
-		const struct ccb_scsiio *scsiio;
-
-		scsiio = &ccb->ctio;
-		kmsan_mark(scsiio->data_ptr, scsiio->dxfer_len, c);
-		break;
-	}
-	case XPT_ATA_IO: {
-		const struct ccb_ataio *ataio;
-
-		ataio = &ccb->ataio;
-		kmsan_mark(ataio->data_ptr, ataio->dxfer_len, c);
-		break;
-	}
-	case XPT_NVME_IO: {
-		const struct ccb_nvmeio *nvmeio;
-
-		nvmeio = &ccb->nvmeio;
-		kmsan_mark(nvmeio->data_ptr, nvmeio->dxfer_len, c);
-		break;
-	}
-	default:
-		kmsan_panic("%s: unhandled CCB type %d", __func__,
-		    ccb->ccb_h.func_code);
-	}
-}
-
 void
 kmsan_mark_mbuf(const struct mbuf *m, uint8_t c)
 {
@@ -611,39 +572,6 @@ void
 kmsan_check_bio(const struct bio *bp, const char *descr)
 {
 	kmsan_shadow_check((uintptr_t)bp->bio_data, bp->bio_length, descr);
-}
-
-void
-kmsan_check_ccb(const union ccb *ccb, const char *descr)
-{
-	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_OUT)
-		return;
-	switch (ccb->ccb_h.func_code) {
-	case XPT_SCSI_IO: {
-		const struct ccb_scsiio *scsiio;
-
-		scsiio = &ccb->ctio;
-		kmsan_check(scsiio->data_ptr, scsiio->dxfer_len, descr);
-		break;
-	}
-	case XPT_ATA_IO: {
-		const struct ccb_ataio *ataio;
-
-		ataio = &ccb->ataio;
-		kmsan_check(ataio->data_ptr, ataio->dxfer_len, descr);
-		break;
-	}
-	case XPT_NVME_IO: {
-		const struct ccb_nvmeio *nvmeio;
-
-		nvmeio = &ccb->nvmeio;
-		kmsan_check(nvmeio->data_ptr, nvmeio->dxfer_len, descr);
-		break;
-	}
-	default:
-		kmsan_panic("%s: unhandled CCB type %d", __func__,
-		    ccb->ccb_h.func_code);
-	}
 }
 
 void
@@ -1586,9 +1514,6 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 		case MEMDESC_MBUF:
 			kmsan_check_mbuf(desc->u.md_mbuf, "dmasync");
 			break;
-		case MEMDESC_CCB:
-			kmsan_check_ccb(desc->u.md_ccb, "dmasync");
-			break;
 		case 0:
 			break;
 		default:
@@ -1607,9 +1532,6 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 			break;
 		case MEMDESC_MBUF:
 			kmsan_mark_mbuf(desc->u.md_mbuf, KMSAN_STATE_INITED);
-			break;
-		case MEMDESC_CCB:
-			kmsan_mark_ccb(desc->u.md_ccb, KMSAN_STATE_INITED);
 			break;
 		case 0:
 			break;
