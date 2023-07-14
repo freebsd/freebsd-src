@@ -47,7 +47,6 @@ struct memdesc {
 		void			*md_vaddr;
 		vm_paddr_t		md_paddr;
 		struct bus_dma_segment	*md_list;
-		struct bio		*md_bio;
 		struct uio		*md_uio;
 		struct mbuf		*md_mbuf;
 		struct vm_page 		**md_ma;
@@ -66,7 +65,6 @@ struct memdesc {
 #define	MEMDESC_PADDR	2	/* Contiguous physical address. */
 #define	MEMDESC_VLIST	3	/* scatter/gather list of kva addresses. */
 #define	MEMDESC_PLIST	4	/* scatter/gather list of physical addresses. */
-#define	MEMDESC_BIO	5	/* Pointer to a bio (block io). */
 #define	MEMDESC_UIO	6	/* Pointer to a uio (any io). */
 #define	MEMDESC_MBUF	7	/* Pointer to a mbuf (network io). */
 #define	MEMDESC_VMPAGES	8	/* Pointer to array of VM pages. */
@@ -120,17 +118,6 @@ memdesc_plist(struct bus_dma_segment *plist, int sglist_cnt)
 }
 
 static inline struct memdesc
-memdesc_bio(struct bio *bio)
-{
-	struct memdesc mem;
-
-	mem.u.md_bio = bio;
-	mem.md_type = MEMDESC_BIO;
-
-	return (mem);
-}
-
-static inline struct memdesc
 memdesc_uio(struct uio *uio)
 {
 	struct memdesc mem;
@@ -165,6 +152,7 @@ memdesc_vmpages(struct vm_page **ma, size_t len, u_int ma_offset)
 	return (mem);
 }
 
+struct memdesc	memdesc_bio(struct bio *bio);
 struct memdesc	memdesc_ccb(union ccb *ccb);
 
 #endif /* _SYS_MEMDESC_H_ */

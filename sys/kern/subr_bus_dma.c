@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/ktr.h>
@@ -259,29 +258,6 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	return (error);
 }
 
-/*
- * Load from block io.
- */
-static int
-_bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
-    int *nsegs, int flags)
-{
-
-	if ((bio->bio_flags & BIO_VLIST) != 0) {
-		bus_dma_segment_t *segs = (bus_dma_segment_t *)bio->bio_data;
-		return (_bus_dmamap_load_vlist(dmat, map, segs, bio->bio_ma_n,
-		    kernel_pmap, nsegs, flags, bio->bio_ma_offset,
-		    bio->bio_bcount));
-	}
-
-	if ((bio->bio_flags & BIO_UNMAPPED) != 0)
-		return (_bus_dmamap_load_ma(dmat, map, bio->bio_ma,
-		    bio->bio_bcount, bio->bio_ma_offset, flags, NULL, nsegs));
-
-	return (_bus_dmamap_load_buffer(dmat, map, bio->bio_data,
-	    bio->bio_bcount, kernel_pmap, flags, NULL, nsegs));
-}
-
 int
 bus_dmamap_load_ma_triv(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
@@ -497,43 +473,11 @@ bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
 		    bus_dmamap_callback_t *callback, void *callback_arg,
 		    int flags)
 {
-	bus_dma_segment_t *segs;
 	struct memdesc mem;
-	int error;
-	int nsegs;
 
-#ifdef KMSAN
 	mem = memdesc_bio(bio);
-	_bus_dmamap_load_kmsan(dmat, map, &mem);
-#endif
-
-	if ((flags & BUS_DMA_NOWAIT) == 0) {
-		mem = memdesc_bio(bio);
-		_bus_dmamap_waitok(dmat, map, &mem, callback, callback_arg);
-	}
-	nsegs = -1;
-	error = _bus_dmamap_load_bio(dmat, map, bio, &nsegs, flags);
-	nsegs++;
-
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, flags, error, nsegs);
-
-	if (error == EINPROGRESS)
-		return (error);
-
-	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
-	if (error)
-		(*callback)(callback_arg, segs, 0, error);
-	else
-		(*callback)(callback_arg, segs, nsegs, error);
-	/*
-	 * Return ENOMEM to the caller so that it can pass it up the stack.
-	 * This error only happens when NOWAIT is set, so deferral is disabled.
-	 */
-	if (error == ENOMEM)
-		return (error);
-
-	return (0);
+	return (bus_dmamap_load_mem(dmat, map, &mem, callback, callback_arg,
+	    flags));
 }
 
 int
@@ -570,10 +514,6 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 	case MEMDESC_PLIST:
 		error = _bus_dmamap_load_plist(dmat, map, mem->u.md_list,
 		    mem->md_nseg, &nsegs, flags);
-		break;
-	case MEMDESC_BIO:
-		error = _bus_dmamap_load_bio(dmat, map, mem->u.md_bio,
-		    &nsegs, flags);
 		break;
 	case MEMDESC_UIO:
 		error = _bus_dmamap_load_uio(dmat, map, mem->u.md_uio,
