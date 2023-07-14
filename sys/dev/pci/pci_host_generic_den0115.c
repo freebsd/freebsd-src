@@ -71,10 +71,11 @@ pci_host_acpi_smccc_probe(device_t dev)
 		return (ENXIO);
 
 	/*
-	 * Check we have memory resources. We may have a non-memory
+	 * Check if we have memory resources. We may have a non-memory
 	 * mapped device, e.g. using the Arm PCI Configuration Space
 	 * Access Firmware Interface (DEN0115).
 	 */
+	rid = 0;
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 	if (res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
