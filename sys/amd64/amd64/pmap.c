@@ -1993,6 +1993,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_ucr3 = PMAP_NO_CR3;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	kernel_pmap->pm_stats.resident_count = res;
+	vm_radix_init(&kernel_pmap->pm_root);
 	kernel_pmap->pm_flags = pmap_flags;
 
 	/*

@@ -286,6 +286,7 @@ vm_object_init(void)
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 
 	rw_init(&kernel_object->lock, "kernel vm object");
+	vm_radix_init(&kernel_object->rtree);
 	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
 	    VM_MIN_KERNEL_ADDRESS), OBJ_UNMANAGED, kernel_object, NULL);
 #if VM_NRESERVLEVEL > 0

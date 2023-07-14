@@ -1291,6 +1291,7 @@ pmap_bootstrap(vm_paddr_t kernstart, vm_size_t kernlen)
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_l0_paddr =
 	    pmap_early_vtophys((vm_offset_t)kernel_pmap_store.pm_l0);
+	vm_radix_init(&kernel_pmap->pm_root);
 	kernel_pmap->pm_cookie = COOKIE_FROM(-1, INT_MIN);
 	kernel_pmap->pm_stage = PM_STAGE1;
 	kernel_pmap->pm_levels = 4;
