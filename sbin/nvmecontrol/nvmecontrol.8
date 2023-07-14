@@ -589,6 +589,7 @@ Show all the command values on stdout.
 .It Fl w -write
 Command writes data to the device.
 .El
+.Pp
 Send arbitrary commands to the device.
 Can be used to extract vendor specific logs.
 Transfers to/from the device possible, but limited to
@@ -615,7 +616,7 @@ Where
 is required, you can use either the
 .Pa nvmeX
 device, or the disk device such as
-.Pa nda Z
+.Pa ndaZ
 or
 .Pa nvdZ .
 For commands that take an optional
