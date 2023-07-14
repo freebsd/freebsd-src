@@ -659,6 +659,7 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	kernel_pmap->pm_stats.resident_count = res;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
+	vm_radix_init(&kernel_pmap->pm_root);
 
  	/*
 	 * Initialize the global pv list lock.

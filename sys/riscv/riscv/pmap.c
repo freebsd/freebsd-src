@@ -646,6 +646,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_top = (pd_entry_t *)l1pt;
 	PMAP_LOCK_INIT(kernel_pmap);
+	vm_radix_init(&kernel_pmap->pm_root);
 
 	rw_init(&pvh_global_lock, "pmap pv global");
 
