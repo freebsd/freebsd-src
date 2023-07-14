@@ -557,19 +557,19 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 	switch (mem->md_type) {
 	case MEMDESC_VADDR:
 		error = _bus_dmamap_load_buffer(dmat, map, mem->u.md_vaddr,
-		    mem->md_opaque, kernel_pmap, flags, NULL, &nsegs);
+		    mem->md_len, kernel_pmap, flags, NULL, &nsegs);
 		break;
 	case MEMDESC_PADDR:
 		error = _bus_dmamap_load_phys(dmat, map, mem->u.md_paddr,
-		    mem->md_opaque, flags, NULL, &nsegs);
+		    mem->md_len, flags, NULL, &nsegs);
 		break;
 	case MEMDESC_VLIST:
 		error = _bus_dmamap_load_vlist(dmat, map, mem->u.md_list,
-		    mem->md_opaque, kernel_pmap, &nsegs, flags, 0, SIZE_T_MAX);
+		    mem->md_nseg, kernel_pmap, &nsegs, flags, 0, SIZE_T_MAX);
 		break;
 	case MEMDESC_PLIST:
 		error = _bus_dmamap_load_plist(dmat, map, mem->u.md_list,
-		    mem->md_opaque, &nsegs, flags);
+		    mem->md_nseg, &nsegs, flags);
 		break;
 	case MEMDESC_BIO:
 		error = _bus_dmamap_load_bio(dmat, map, mem->u.md_bio,

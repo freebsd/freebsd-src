@@ -50,7 +50,10 @@ struct memdesc {
 		struct uio		*md_uio;
 		struct mbuf		*md_mbuf;
 	} u;
-	size_t		md_opaque;	/* type specific data. */
+	union {				/* type specific data. */
+		size_t		md_len;	/* VADDR, PADDR */
+		int		md_nseg; /* VLIST, PLIST */
+	};
 	uint32_t	md_type;	/* Type of memory. */
 };
 
@@ -68,7 +71,7 @@ memdesc_vaddr(void *vaddr, size_t len)
 	struct memdesc mem;
 
 	mem.u.md_vaddr = vaddr;
-	mem.md_opaque = len;
+	mem.md_len = len;
 	mem.md_type = MEMDESC_VADDR;
 
 	return (mem);
@@ -80,7 +83,7 @@ memdesc_paddr(vm_paddr_t paddr, size_t len)
 	struct memdesc mem;
 
 	mem.u.md_paddr = paddr;
-	mem.md_opaque = len;
+	mem.md_len = len;
 	mem.md_type = MEMDESC_PADDR;
 
 	return (mem);
@@ -92,7 +95,7 @@ memdesc_vlist(struct bus_dma_segment *vlist, int sglist_cnt)
 	struct memdesc mem;
 
 	mem.u.md_list = vlist;
-	mem.md_opaque = sglist_cnt;
+	mem.md_nseg = sglist_cnt;
 	mem.md_type = MEMDESC_VLIST;
 
 	return (mem);
@@ -104,7 +107,7 @@ memdesc_plist(struct bus_dma_segment *plist, int sglist_cnt)
 	struct memdesc mem;
 
 	mem.u.md_list = plist;
-	mem.md_opaque = sglist_cnt;
+	mem.md_nseg = sglist_cnt;
 	mem.md_type = MEMDESC_PLIST;
 
 	return (mem);

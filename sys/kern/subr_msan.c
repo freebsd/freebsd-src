@@ -1505,7 +1505,7 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 	    BUS_DMASYNC_PREWRITE) {
 		switch (desc->md_type) {
 		case MEMDESC_VADDR:
-			kmsan_check(desc->u.md_vaddr, desc->md_opaque,
+			kmsan_check(desc->u.md_vaddr, desc->md_len,
 			    "dmasync");
 			break;
 		case MEMDESC_BIO:
@@ -1524,7 +1524,7 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 		switch (desc->md_type) {
 		case MEMDESC_VADDR:
-			kmsan_mark(desc->u.md_vaddr, desc->md_opaque,
+			kmsan_mark(desc->u.md_vaddr, desc->md_len,
 			    KMSAN_STATE_INITED);
 			break;
 		case MEMDESC_BIO:
