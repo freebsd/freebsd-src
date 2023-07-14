@@ -17,7 +17,7 @@ WITHOUT_FC_ENOENT=WITHOUT_ACPI=YES WITHOUT_BOOT=YES WITHOUT_BHYVE=YES \
 WITHOUT_FC_FEATURES=WITHOUT_DEBUG_FILES=YES WITHOUT_INCLUDES=YES \
     WITHOUT_INSTALLLIB=YES WITHOUT_TESTS=YES WITHOUT_TOOLCHAIN=YES
 # All the excluded bits
-WITHOUTS=${WITHOUT_VM_ENOENT} ${WITHOUT_FC_ENOENT} ${WITHOUT_FC_FEATURES}
+WITHOUTS?=${WITHOUT_VM_ENOENT} ${WITHOUT_FC_ENOENT} ${WITHOUT_FC_FEATURES}
 
 firecracker:	firecracker-freebsd-kern.bin firecracker-freebsd-rootfs.bin
 
@@ -35,6 +35,7 @@ firecracker-freebsd-kern.bin:
 	cp ${FCKDIR}/boot/kernel/kernel ${DESTDIR}/freebsd-kern.bin
 
 FCWDIR=	${.OBJDIR}/${TARGET}/firecracker-world
+FCROOTFSSZ?=	1g
 firecracker-freebsd-rootfs.bin:
 	mkdir -p ${FCWDIR}
 	${MAKE} -C ${WORLDDIR} DESTDIR=${FCWDIR} \
@@ -54,5 +55,5 @@ firecracker-freebsd-rootfs.bin:
 	    -u 1001 -g 1001 -G 0 -c "FreeBSD User" -d /home/freebsd -s /bin/sh
 	pw -R ${FCWDIR} usermod root -w yes
 	touch ${FCWDIR}/firstboot
-	makefs -s 1g -o label=rootfs -o version=2 -o softupdates=1 \
+	makefs -s ${FCROOTFSSZ} -o label=rootfs -o version=2 -o softupdates=1 \
 	    ${DESTDIR}/freebsd-rootfs.bin ${FCWDIR}
