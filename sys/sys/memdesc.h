@@ -35,6 +35,7 @@ struct bio;
 struct bus_dma_segment;
 struct uio;
 struct mbuf;
+struct vm_page;
 union ccb;
 
 /*
@@ -49,10 +50,14 @@ struct memdesc {
 		struct bio		*md_bio;
 		struct uio		*md_uio;
 		struct mbuf		*md_mbuf;
+		struct vm_page 		**md_ma;
 	} u;
 	union {				/* type specific data. */
-		size_t		md_len;	/* VADDR, PADDR */
+		size_t		md_len;	/* VADDR, PADDR, VMPAGES */
 		int		md_nseg; /* VLIST, PLIST */
+	};
+	union {
+		uint32_t	md_offset; /* VMPAGES */
 	};
 	uint32_t	md_type;	/* Type of memory. */
 };
@@ -64,6 +69,7 @@ struct memdesc {
 #define	MEMDESC_BIO	5	/* Pointer to a bio (block io). */
 #define	MEMDESC_UIO	6	/* Pointer to a uio (any io). */
 #define	MEMDESC_MBUF	7	/* Pointer to a mbuf (network io). */
+#define	MEMDESC_VMPAGES	8	/* Pointer to array of VM pages. */
 
 static inline struct memdesc
 memdesc_vaddr(void *vaddr, size_t len)
@@ -142,6 +148,19 @@ memdesc_mbuf(struct mbuf *mbuf)
 
 	mem.u.md_mbuf = mbuf;
 	mem.md_type = MEMDESC_MBUF;
+
+	return (mem);
+}
+
+static inline struct memdesc
+memdesc_vmpages(struct vm_page **ma, size_t len, u_int ma_offset)
+{
+	struct memdesc mem;
+
+	mem.u.md_ma = ma;
+	mem.md_len = len;
+	mem.md_type = MEMDESC_VMPAGES;
+	mem.md_offset = ma_offset;
 
 	return (mem);
 }

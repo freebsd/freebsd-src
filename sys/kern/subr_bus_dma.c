@@ -583,6 +583,10 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->u.md_mbuf,
 		    NULL, &nsegs, flags);
 		break;
+	case MEMDESC_VMPAGES:
+		error = _bus_dmamap_load_ma(dmat, map, mem->u.md_ma,
+		    mem->md_len, mem->md_offset, flags, NULL, &nsegs);
+		break;
 	}
 	nsegs++;
 
