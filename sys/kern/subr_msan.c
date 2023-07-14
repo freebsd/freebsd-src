@@ -1508,9 +1508,6 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 			kmsan_check(desc->u.md_vaddr, desc->md_len,
 			    "dmasync");
 			break;
-		case MEMDESC_BIO:
-			kmsan_check_bio(desc->u.md_bio, "dmasync");
-			break;
 		case MEMDESC_MBUF:
 			kmsan_check_mbuf(desc->u.md_mbuf, "dmasync");
 			break;
@@ -1526,9 +1523,6 @@ kmsan_bus_dmamap_sync(struct memdesc *desc, bus_dmasync_op_t op)
 		case MEMDESC_VADDR:
 			kmsan_mark(desc->u.md_vaddr, desc->md_len,
 			    KMSAN_STATE_INITED);
-			break;
-		case MEMDESC_BIO:
-			kmsan_mark_bio(desc->u.md_bio, KMSAN_STATE_INITED);
 			break;
 		case MEMDESC_MBUF:
 			kmsan_mark_mbuf(desc->u.md_mbuf, KMSAN_STATE_INITED);
