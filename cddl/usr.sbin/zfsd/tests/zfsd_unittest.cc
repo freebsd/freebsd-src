@@ -400,7 +400,7 @@ TEST_F(ZfsEventTest, ProcessPoolEventGetsCalled)
 {
 	string evString("!system=ZFS "
 			"subsystem=ZFS "
-			"type=misc.fs.zfs.vdev_remove "
+			"type=sysevent.fs.zfs.vdev_remove "
 			"pool_name=foo "
 			"pool_guid=9756779504028057996 "
 			"vdev_guid=1631193447431603339 "
@@ -515,7 +515,7 @@ TEST_F(CaseFileTest, PoolDestroy)
 			"pool_guid=456 "
 			"subsystem=ZFS "
 			"timestamp=1348867914 "
-			"type=misc.fs.zfs.pool_destroy ");
+			"type=sysevent.fs.zfs.pool_destroy ");
 	m_event = Event::CreateEvent(*m_eventFactory, evString);
 	ZfsEvent *zfs_event = static_cast<ZfsEvent*>(m_event);
 	EXPECT_CALL(*m_caseFile, Close());
@@ -685,7 +685,7 @@ string ReEvaluateByGuidTest::s_evString(
 	"pool_name=foo "
 	"subsystem=ZFS "
 	"timestamp=1360620391 "
-	"type=misc.fs.zfs.config_sync");
+	"type=sysevent.fs.zfs.config_sync");
 
 
 /*
