@@ -54,10 +54,10 @@ section, below.
 .Pp
 For kernel modules loaded via
 .Xr rc.subr 8
-system ,
+system,
 additional module-specific settings can be applied
 by adding a file in the same format named
-.Pf /etc/sysctl.d/<module name>.conf .
+.Pf /etc/sysctl.kld.d/<module name>.conf .
 .Sh FILES
 .Bl -tag -width /etc/rc.d/sysctl_lastload -compact
 .It Pa /etc/rc.d/sysctl
@@ -76,7 +76,7 @@ Initial settings for
 .It Pa /etc/sysctl.conf.local
 Machine-specific settings for sites with a common
 .Pa /etc/sysctl.conf .
-.It Pa /etc/sysctl.conf.d
+.It Pa /etc/sysctl.kld.d
 Module specific settings for kernel modules loaded via
 .Xr rc.subr 8 .
 .El
