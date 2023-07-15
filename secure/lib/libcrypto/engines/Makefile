@@ -6,4 +6,6 @@ SUBDIR+=	padlock
 .endif
 SUBDIR_PARALLEL=
 
+LDFLAGS+=	-Wl,-znoexecstack
+
 .include <bsd.subdir.mk>

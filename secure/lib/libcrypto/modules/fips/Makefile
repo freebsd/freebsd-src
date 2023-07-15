@@ -4,6 +4,8 @@ SHLIB_NAME?=	fips.so
 
 CFLAGS+=	-DFIPS_MODULE
 
+LDFLAGS+=	-Wl,-znoexecstack
+
 SRCS+=	fips_entry.c fipsprov.c self_test.c self_test_kats.c
 
 .include "../../Makefile.common"

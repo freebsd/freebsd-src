@@ -611,6 +611,8 @@ buildinf.h: Makefile
 
 PICFLAG+=	-DOPENSSL_PIC
 
+LDFLAGS+=	-Wl,-znoexecstack
+
 .if defined(ASM_${MACHINE_CPUARCH})
 .PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)

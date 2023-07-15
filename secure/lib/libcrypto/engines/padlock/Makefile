@@ -11,6 +11,8 @@ SRCS+=	e_padlock-x86.S
 
 LDFLAGS.bfd+=	-Wl,-znoexecstack
 
+LDFLAGS+=	-Wl,-znoexecstack
+
 .PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_CPUARCH}
 
 .include <bsd.lib.mk>
