@@ -41,8 +41,9 @@
 typedef uint32_t msan_orig_t;
 
 /*
- * Our 32-bit origin cells encode a 2-bit type and 30-bit pointer.  The pointer
- * is compressed by making it a positive offset relative to KERNBASE.
+ * Our 32-bit origin cells encode a 2-bit type and 30-bit pointer to a kernel
+ * instruction.  The pointer is compressed by making it a positive offset
+ * relative to KERNBASE.
  */
 #define	KMSAN_ORIG_TYPE_SHIFT	30u
 #define	KMSAN_ORIG_PTR_MASK	((1u << KMSAN_ORIG_TYPE_SHIFT) - 1)
@@ -76,6 +77,12 @@ kmsan_md_addr_to_orig(vm_offset_t addr)
 static inline bool
 kmsan_md_unsupported(vm_offset_t addr)
 {
+	/*
+	 * The kernel itself isn't shadowed: for most purposes global variables
+	 * are always initialized, and because KMSAN kernels are large
+	 * (GENERIC-KMSAN is ~80MB at the time of writing), shadowing would
+	 * incur signficant memory usage.
+	 */
 	return (addr < VM_MIN_KERNEL_ADDRESS || addr >= KERNBASE);
 }
 
