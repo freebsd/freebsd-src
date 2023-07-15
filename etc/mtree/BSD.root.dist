@@ -96,7 +96,7 @@
         ..
         ssl
         ..
-	sysctl.conf.d
+	sysctl.kld.d
 	..
         syslog.d
         ..
