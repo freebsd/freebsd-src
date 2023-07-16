@@ -1179,7 +1179,7 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, uintptr_t arg, int iovcnt)
 		return;
 	}
 
-	fputs("[", fp);
+	fputc('[', fp);
 	for (i = 0; i < iovcnt; i++) {
 		len = iov[i].iov_len;
 		if (len > max_string) {
@@ -1268,12 +1268,12 @@ print_gen_cmsg(FILE *fp, struct cmsghdr *cmsghdr)
 {
 	u_char *q;
 
-	fputs("{", fp);
+	fputc('{', fp);
 	for (q = CMSG_DATA(cmsghdr);
 	     q < (u_char *)cmsghdr + cmsghdr->cmsg_len; q++) {
 		fprintf(fp, "%s0x%02x", q == CMSG_DATA(cmsghdr) ? "" : ",", *q);
 	}
-	fputs("}", fp);
+	fputc('}', fp);
 }
 
 static void
@@ -1483,7 +1483,7 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 	}
 	msghdr->msg_control = cmsgbuf;
 	first = true;
-	fputs("{", fp);
+	fputc('{', fp);
 	for (cmsghdr = CMSG_FIRSTHDR(msghdr);
 	   cmsghdr != NULL;
 	   cmsghdr = CMSG_NXTHDR(msghdr, cmsghdr)) {
@@ -1518,10 +1518,10 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 			print_gen_cmsg(fp, cmsghdr);
 			break;
 		}
-		fputs("}", fp);
+		fputc('}', fp);
 		first = false;
 	}
-	fputs("}", fp);
+		fputc('}', fp);
 	free(cmsgbuf);
 }
 
@@ -1947,7 +1947,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 			err(1, "Cannot malloc %zu bytes for fd_set array",
 			    bytes);
 		if (get_struct(pid, args[sc->offset], fds, bytes) != -1) {
-			fputs("{", fp);
+			fputc('{', fp);
 			for (i = 0; i < numfds; i++) {
 				if (FD_ISSET(i, fds))
 					fprintf(fp, " %d", i);
@@ -2476,7 +2476,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		domain = args[sc->offset - 2];
 		protocol = args[sc->offset];
 		if (protocol == 0) {
-			fputs("0", fp);
+			fputc('0', fp);
 		} else {
 			temp = sysdecode_socket_protocol(domain, protocol);
 			if (temp) {
@@ -2645,7 +2645,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 
 		if (get_struct(pid, args[sc->offset], cbs, sizeof(uintptr_t) * nent) != -1) {
 			unsigned int i;
-			fputs("[", fp);
+			fputc('[', fp);
 			for (i = 0; i < nent; ++i) {
 				struct aiocb cb;
 				if (i > 0)
@@ -2657,7 +2657,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 			}
 			if (truncated)
 				fputs(",...", fp);
-			fputs("]", fp);
+			fputc(']', fp);
 		} else
 			print_pointer(fp, args[sc->offset]);
 		break;
@@ -2698,7 +2698,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 			print_pointer(fp, args[sc->offset]);
 			break;
 		}
-		fputs("{", fp);
+		fputc('{', fp);
 		print_sockaddr(fp, trussinfo, (uintptr_t)msghdr.msg_name, msghdr.msg_namelen);
 		fprintf(fp, ",%d,", msghdr.msg_namelen);
 		print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov, msghdr.msg_iovlen);
@@ -2706,7 +2706,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		print_cmsgs(fp, pid, sc->type & OUT, &msghdr);
 		fprintf(fp, ",%u,", msghdr.msg_controllen);
 		print_mask_arg(sysdecode_msg_flags, fp, msghdr.msg_flags);
-		fputs("}", fp);
+		fputc('}', fp);
 		break;
 	}
 

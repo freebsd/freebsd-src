@@ -820,7 +820,7 @@ sysdecode_wait4_options(FILE *fp, int options, int *rem)
 
 	/* A flags value of 0 is normal. */
 	if (options == 0) {
-		fputs("0", fp);
+		fputc('0', fp);
 		if (rem != NULL)
 			*rem = 0;
 		return (true);

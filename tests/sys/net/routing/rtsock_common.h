@@ -309,7 +309,7 @@ file_append_line(char *fname, char *text)
 
 	f = fopen(fname, "a");
 	fputs(text, f);
-	fputs("\n", f);
+	fputc('\n', f);
 	fclose(f);
 }
 

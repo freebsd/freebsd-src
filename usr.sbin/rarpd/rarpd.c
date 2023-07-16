@@ -965,7 +965,7 @@ logmsg(int pri, const char *fmt, ...)
 			vfprintf(fp, newfmt, v);
 			free(newfmt);
 		}
-		fputs("\n", fp);
+		fputc('\n', fp);
 		fflush(fp);
 	} else {
 		vsyslog(pri, fmt, v);

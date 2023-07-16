@@ -102,7 +102,7 @@ print_mask_0(FILE *fp, struct name_table *table, int val, int *rem)
 {
 
 	if (val == 0) {
-		fputs("0", fp);
+		fputc('0', fp);
 		if (rem != NULL)
 			*rem = 0;
 		return (true);
@@ -120,7 +120,7 @@ print_mask_0ul(FILE *fp, struct name_table *table, u_long lval, u_long *rem)
 	bool printed;
 
 	if (lval == 0) {
-		fputs("0", fp);
+		fputc('0', fp);
 		if (rem != NULL)
 			*rem = 0;
 		return (true);
