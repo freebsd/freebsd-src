@@ -1029,8 +1029,6 @@ enic_update_admin_status(if_ctx_t ctx)
 	enic_link_status(softc);
 }
 
-uint32_t	iflib_get_flags(if_ctx_t ctx);
-
 static void
 enic_txq_timer(if_ctx_t ctx, uint16_t qid)
 {
