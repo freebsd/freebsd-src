@@ -1327,6 +1327,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_satp = pmap_satp_mode() |
 	    (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
+	vm_radix_init(&pmap->pm_root);
 	pmap_activate_boot(pmap);
 }
 
