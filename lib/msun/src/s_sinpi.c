@@ -155,7 +155,8 @@ sinpi(double x)
 		return ((hx & 0x80000000) ? -s : s);
 	}
 
-	if (ix >= 0x7f800000)
+	/* x = +-inf or nan. */
+	if (ix >= 0x7ff00000)
 		return (vzero / vzero);
 
 	/*
