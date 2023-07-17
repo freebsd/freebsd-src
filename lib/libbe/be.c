@@ -1266,12 +1266,38 @@ be_deactivate(libbe_handle_t *lbh, const char *ds, bool temporary)
 	return (0);
 }
 
+static int
+be_zfs_promote_cb(zfs_handle_t *zhp, void *data)
+{
+	char origin[BE_MAXPATHLEN];
+	bool *found_origin = (bool *)data;
+	int err;
+
+	if (zfs_prop_get(zhp, ZFS_PROP_ORIGIN, origin, sizeof(origin),
+	    NULL, NULL, 0, true) == 0) {
+		*found_origin = true;
+		err = zfs_promote(zhp);
+		if (err)
+			return (err);
+	}
+
+	return (zfs_iter_filesystems(zhp, be_zfs_promote_cb, data));
+}
+
+static int
+be_zfs_promote(zfs_handle_t *zhp, bool *found_origin)
+{
+	*found_origin = false;
+	return (be_zfs_promote_cb(zhp, (void *)found_origin));
+}
+
 int
 be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
-	char be_path[BE_MAXPATHLEN], origin[BE_MAXPATHLEN];
+	char be_path[BE_MAXPATHLEN];
 	zfs_handle_t *zhp;
 	int err;
+	bool found_origin;
 
 	be_root_concat(lbh, bootenv, be_path);
 
@@ -1297,18 +1323,14 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 			if (zhp == NULL)
 				return (-1);
 
-			if (zfs_prop_get(zhp, ZFS_PROP_ORIGIN, origin, sizeof(origin),
-				NULL, NULL, 0, 1) != 0) {
-				zfs_close(zhp);
-				break;
-			}
+			err = be_zfs_promote(zhp, &found_origin);
 
-			err = zfs_promote(zhp);
 			zfs_close(zhp);
-			if (err)
+			if (!found_origin)
 				break;
+			if (err)
+				return (err);
 		}
-
 
 		if (err)
 			return (-1);
