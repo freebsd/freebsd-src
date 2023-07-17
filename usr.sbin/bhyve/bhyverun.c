@@ -208,7 +208,7 @@ static void
 usage(int code)
 {
 
-        fprintf(stderr,
+	fprintf(stderr,
 		"Usage: %s [-AaCDeHhPSuWwxY]\n"
 		"       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
 		"       %*s [-G port] [-k config_file] [-l lpc] [-m mem] [-o var=value]\n"
@@ -1032,7 +1032,7 @@ fbsdrun_set_capabilities(struct vcpu *vcpu)
 			exit(4);
 		}
 		vm_set_capability(vcpu, VM_CAP_PAUSE_EXIT, 1);
-        }
+	}
 
 	if (get_config_bool_default("x86.x2apic", false))
 		err = vm_set_x2apic_state(vcpu, X2APIC_ENABLED);
@@ -1249,12 +1249,12 @@ main(int argc, char *argv[])
 			set_config_bool("destroy_on_poweroff", true);
 			break;
 		case 'p':
-                        if (pincpu_parse(optarg) != 0) {
-                            errx(EX_USAGE, "invalid vcpu pinning "
-                                 "configuration '%s'", optarg);
-                        }
+			if (pincpu_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid vcpu pinning "
+				    "configuration '%s'", optarg);
+			}
 			break;
-                case 'c':
+		case 'c':
 			if (topology_parse(optarg) != 0) {
 			    errx(EX_USAGE, "invalid cpu topology "
 				"'%s'", optarg);
@@ -1302,7 +1302,7 @@ main(int argc, char *argv[])
 		case 'S':
 			set_config_bool("memory.wired", true);
 			break;
-                case 'm':
+		case 'm':
 			set_config_value("memory.size", optarg);
 			break;
 		case 'o':
