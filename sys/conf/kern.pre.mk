@@ -252,8 +252,7 @@ CDDL_C=		${CC} -c ${CDDL_CFLAGS} ${WERROR} ${.IMPSRC}
 # Special flags for managing the compat compiles for ZFS
 ZFS_CFLAGS+=	-I$S/contrib/openzfs/module/icp/include \
 	${CDDL_CFLAGS} -DBUILDING_ZFS -DHAVE_UIO_ZEROCOPY \
-	-DWITH_NETDUMP -D__KERNEL__ -D_SYS_CONDVAR_H_ -DSMP \
-	-DIN_FREEBSD_BASE
+	-DWITH_NETDUMP -D__KERNEL__ -D_SYS_CONDVAR_H_ -DSMP
 
 .if ${MACHINE_ARCH} == "amd64"
 ZFS_CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
