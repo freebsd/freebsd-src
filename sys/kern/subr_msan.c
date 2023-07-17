@@ -165,9 +165,9 @@ kmsan_orig_name(int type)
 }
 
 static void
-kmsan_report_hook(const void *addr, size_t size, size_t off, const char *hook)
+kmsan_report_hook(const void *addr, msan_orig_t *orig, size_t size, size_t off,
+    const char *hook)
 {
-	msan_orig_t *orig;
 	const char *typename;
 	char *var, *fn;
 	uintptr_t ptr;
@@ -180,9 +180,6 @@ kmsan_report_hook(const void *addr, size_t size, size_t off, const char *hook)
 
 	kmsan_reporting = true;
 	__compiler_membar();
-
-	orig = (msan_orig_t *)kmsan_md_addr_to_orig((vm_offset_t)addr);
-	orig = (msan_orig_t *)((uintptr_t)orig & MSAN_ORIG_MASK);
 
 	if (*orig == 0) {
 		REPORT("MSan: Uninitialized memory in %s, offset %zu",
@@ -363,6 +360,7 @@ kmsan_meta_copy(void *dst, const void *src, size_t size)
 static inline void
 kmsan_shadow_check(uintptr_t addr, size_t size, const char *hook)
 {
+	msan_orig_t *orig;
 	uint8_t *shad;
 	size_t i;
 
@@ -375,7 +373,9 @@ kmsan_shadow_check(uintptr_t addr, size_t size, const char *hook)
 	for (i = 0; i < size; i++) {
 		if (__predict_true(shad[i] == 0))
 			continue;
-		kmsan_report_hook((const char *)addr + i, size, i, hook);
+		orig = (msan_orig_t *)kmsan_md_addr_to_orig((vm_offset_t)&shad[i]);
+		orig = (msan_orig_t *)((uintptr_t)orig & MSAN_ORIG_MASK);
+		kmsan_report_hook((const char *)addr + i, orig, size, i, hook);
 		break;
 	}
 }
@@ -413,21 +413,24 @@ kmsan_init_ret(size_t n)
 static void
 kmsan_check_arg(size_t size, const char *hook)
 {
+	msan_orig_t *orig;
 	msan_td_t *mtd;
 	uint8_t *arg;
-	size_t i;
+	size_t ctx, i;
 
 	if (__predict_false(!kmsan_enabled))
 		return;
 	if (__predict_false(curthread == NULL))
 		return;
 	mtd = curthread->td_kmsan;
-	arg = mtd->tls[mtd->ctx].param_shadow;
+	ctx = mtd->ctx;
+	arg = mtd->tls[ctx].param_shadow;
 
 	for (i = 0; i < size; i++) {
 		if (__predict_true(arg[i] == 0))
 			continue;
-		kmsan_report_hook((const char *)arg + i, size, i, hook);
+		orig = &mtd->tls[ctx].param_origin[i / sizeof(msan_orig_t)];
+		kmsan_report_hook((const char *)arg + i, orig, size, i, hook);
 		break;
 	}
 }
