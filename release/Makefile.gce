@@ -46,13 +46,11 @@ gce-check-depends:
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-sdk
-	env ASSUME_ALWAYS_YES=yes pkg install -y lang/python lang/python3 \
-		net/google-cloud-sdk
+	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-sdk \
+		lang/python
 . else
 	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/net/google-cloud-sdk BATCH=1 all install clean
 	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/lang/python BATCH=1 all install clean
-	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/lang/python3 BATCH=1 all install clean
 . endif
 .endif
 
