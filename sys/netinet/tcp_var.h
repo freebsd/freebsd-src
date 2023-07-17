@@ -482,9 +482,7 @@ struct tcpcb {
 	struct mbufq t_inpkts;		/* List of saved input packets. */
 	struct mbufq t_outpkts;		/* List of saved output packets. */
 #endif
-#ifdef TCP_HHOOK
 	struct osd	t_osd;		/* storage for Khelp module data */
-#endif
 	uint8_t _t_logpoint;	/* Used when a BB log points is enabled */
 #ifdef TCP_REQUEST_TRK
 	/* Response tracking addons. */
