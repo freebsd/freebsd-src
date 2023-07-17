@@ -163,7 +163,7 @@ tanpi(double x)
 	}
 
 	/* x = +-inf or nan. */
-	if (ix >= 0x7f800000)
+	if (ix >= 0x7ff00000)
 		return (vzero / vzero);
 
 	/*

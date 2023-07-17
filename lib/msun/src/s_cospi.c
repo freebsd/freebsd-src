@@ -138,7 +138,8 @@ cospi(double x)
 		return (j0 & 1 ? -c : c);
 	}
 
-	if (ix >= 0x7f800000)
+	/* x = +-inf or nan. */
+	if (ix >= 0x7ff00000)
 		return (vzero / vzero);
 
 	/*
