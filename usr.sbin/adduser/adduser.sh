@@ -657,6 +657,8 @@ input_interactive() {
 	_usepass="yes"
 	_logingroup_ok="no"
 	_groups_ok="no"
+	_all_ok="yes"
+	_another_user="no"
 	case $passwdtype in
 	none)
 		_emptypass="yes"
@@ -817,8 +819,11 @@ input_interactive() {
 	printf "%-10s : %s\n" "Shell" "$ushell"
 	printf "%-10s : %s\n" "Locked" "$_disable"
 	while : ; do
-		echo -n "OK? (yes/no): "
+		echo -n "OK? (yes/no) [$_all_ok]: "
 		read _input
+		if [ -z "$_input" ]; then
+			_input=$_all_ok
+		fi
 		case $_input in
 		[Nn][Oo]|[Nn])
 			return 1
@@ -1030,11 +1035,14 @@ else
 	input_interactive
 	while : ; do
 		if [ -z "$configflag" ]; then
-			echo -n "Add another user? (yes/no): "
+			echo -n "Add another user? (yes/no) [$_another_user]: "
 		else
-			echo -n "Re-edit the default configuration? (yes/no): "
+			echo -n "Re-edit the default configuration? (yes/no) [$_another_user]: "
 		fi
 		read _input
+		if [ -z "$_input" ]; then
+			_input=$_another_user
+		fi
 		case $_input in
 		[Yy][Ee][Ss]|[Yy][Ee]|[Yy])
 			uidstart=`get_nextuid $uidstart`
