@@ -141,6 +141,8 @@ class Handler {
       std::vector<std::string> args = {"pytest", "-vv", "-p",
         "no:cacheprovider", "-s", "--atf"};
 
+      args.push_back("--confcutdir=" + python_path);
+
       if (flag_list) {
         args.push_back("--co");
         args.push_back(script_path);
