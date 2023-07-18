@@ -147,7 +147,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 		p = newtd->td_proc;
 
 		/* non-exec call */
-		em = malloc(sizeof(*em), M_TEMP, M_WAITOK | M_ZERO);
+		em = malloc(sizeof(*em), M_LINUX, M_WAITOK | M_ZERO);
 		if (init_thread) {
 			LINUX_CTR1(proc_init, "thread newtd(%d)",
 			    newtd->td_tid);
@@ -250,7 +250,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 		p->p_emuldata = NULL;
 		PROC_UNLOCK(p);
 
-		free(em, M_TEMP);
+		free(em, M_LINUX);
 		free(pem, M_LINUX);
 	}
 	return (EJUSTRETURN);
@@ -328,7 +328,7 @@ linux_thread_dtor(struct thread *td)
 
 	LINUX_CTR1(thread_dtor, "thread(%d)", em->em_tid);
 
-	free(em, M_TEMP);
+	free(em, M_LINUX);
 }
 
 void
