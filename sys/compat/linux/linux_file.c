@@ -603,7 +603,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	struct l_dirent *linux_dirent;
 	int buflen, error;
 
-	buflen = LINUX_RECLEN(LINUX_NAME_MAX);
+	buflen = sizeof(*bdp);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 
 	error = kern_getdirentries(td, args->fd, buf, buflen,
