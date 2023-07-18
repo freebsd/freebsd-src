@@ -50,7 +50,7 @@
 
 #ifdef _KERNEL
 
-/* for intrhook below */
+/* for intrhook and sysinit linked list below */
 #include <sys/queue.h>
 
 /* for timestamping SYSINITs; other files may assume this is included here */
@@ -220,6 +220,7 @@ typedef void (*sysinit_cfunc_t)(const void *);
 struct sysinit {
 	enum sysinit_sub_id	subsystem;	/* subsystem identifier*/
 	enum sysinit_elem_order	order;		/* init order within subsystem*/
+	SLIST_ENTRY(sysinit)	next;		/* singly-linked list */
 	sysinit_cfunc_t func;			/* function		*/
 	const void	*udata;			/* multiplexer/argument */
 };
@@ -260,6 +261,7 @@ sysinit_tslog_shim(const void * data)
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
 		order,						\
+		{ NULL },					\
 		sysinit_tslog_shim,				\
 		&uniquifier ## _sys_init_tslog			\
 	};							\
@@ -269,6 +271,7 @@ sysinit_tslog_shim(const void * data)
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
 		order,						\
+		{ NULL },					\
 		func,						\
 		(ident)						\
 	};							\
@@ -286,6 +289,7 @@ sysinit_tslog_shim(const void * data)
 	static struct sysinit uniquifier ## _sys_uninit = {	\
 		subsystem,					\
 		order,						\
+		{ NULL },					\
 		func,						\
 		(ident)						\
 	};							\
