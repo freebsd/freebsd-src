@@ -526,7 +526,6 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	int len, reclen;		/* BSD-format */
 	caddr_t outp;			/* Linux-format */
 	int resid, linuxreclen;		/* Linux-format */
-	caddr_t lbuf;			/* Linux-format */
 	off_t base;
 	struct l_dirent64 *linux_dirent64;
 	int buflen, error;
@@ -542,7 +541,8 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 		goto out1;
 	}
 
-	lbuf = malloc(LINUX_RECLEN64(LINUX_NAME_MAX), M_TEMP, M_WAITOK | M_ZERO);
+	linux_dirent64 = malloc(LINUX_RECLEN64(LINUX_NAME_MAX), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	len = td->td_retval[0];
 	inp = buf;
@@ -563,7 +563,6 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 			goto out;
 		}
 
-		linux_dirent64 = (struct l_dirent64*)lbuf;
 		linux_dirent64->d_ino = bdp->d_fileno;
 		linux_dirent64->d_off = bdp->d_off;
 		linux_dirent64->d_reclen = linuxreclen;
@@ -585,7 +584,7 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	td->td_retval[0] = retval;
 
 out:
-	free(lbuf, M_TEMP);
+	free(linux_dirent64, M_TEMP);
 out1:
 	free(buf, M_TEMP);
 	return (error);
