@@ -234,9 +234,11 @@ printlong(const DISPLAY *dp)
 		strmode(sp->st_mode, buf);
 		aclmode(buf, p);
 		np = p->fts_pointer;
-		(void)printf("%s %*ju %-*s  %-*s  ", buf, dp->s_nlink,
-		    (uintmax_t)sp->st_nlink, dp->s_user, np->user, dp->s_group,
-		    np->group);
+		(void)printf("%s %*ju ", buf, dp->s_nlink,
+		    (uintmax_t)sp->st_nlink);
+		if (!f_sowner)
+			(void)printf("%-*s ", dp->s_user, np->user);
+		(void)printf("%-*s ", dp->s_group, np->group);
 		if (f_flags)
 			(void)printf("%-*s ", dp->s_flags, np->flags);
 		if (f_label)

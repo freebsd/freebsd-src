@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2022
+.Dd July 18, 2023
 .Dt LS 1
 .Os
 .Sh NAME
@@ -301,14 +301,9 @@ and
 .Fl s
 options.
 .It Fl g
-This option has no effect.
-It is only available for compatibility with
-.Bx 4.3 ,
-where it was used to display the group name in the long
+Display the long
 .Pq Fl l
-format output.
-This option is incompatible with
-.St -p1003.1-2008 .
+format output without the file owner's name or number.
 .It Fl h
 When used with the
 .Fl l

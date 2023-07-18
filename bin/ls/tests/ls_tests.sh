@@ -525,18 +525,19 @@ f_flag_body()
 atf_test_case g_flag
 g_flag_head()
 {
-	atf_set "descr" "Verify that -g does nothing (compatibility flag)"
+	atf_set "descr" "Verify that -g implies -l but omits the owner name field"
 }
 
 g_flag_body()
 {
-	create_test_inputs2
-	for file in $files; do
-		atf_check -e empty -o match:"$(ls -a $file)" -s exit:0 \
-		    ls -ag $file
-		atf_check -e empty -o match:"$(ls -la $file)" -s exit:0 \
-		    ls -alg $file
-	done
+	atf_check -e empty -o empty -s exit:0 touch a.file
+
+	mtime_in_secs=$(stat -f "%m" -t "%s" a.file)
+	mtime=$(date -j -f "%s" $mtime_in_secs +"%b[[:space:]]+%e[[:space:]]+%H:%M")
+
+	expected_output=$(stat -f "%Sp[[:space:]]+%l[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$mtime[[:space:]]+a\\.file" a.file)
+
+	atf_check -e empty -o match:"$expected_output" -s exit:0 ls -g a.file
 }
 
 atf_test_case h_flag
@@ -689,7 +690,7 @@ n_flag_body()
 
 	atf_check -e empty \
 	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+1[[:space:]]+'"$nobody_uid[[:space:]]+$daemon_gid"'[[:space:]]+.+a\.file' \
-	    ls -ln a.file
+	    ls -n a.file
 
 }
 
