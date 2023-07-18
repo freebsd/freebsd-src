@@ -73,6 +73,8 @@
 #include <sys/racct.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
+#include <sys/queue.h>
+#include <sys/queue_mergesort.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
@@ -154,46 +156,73 @@ FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
 SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
 
 /*
- * The sysinit table itself.  Items are checked off as the are run.
- * If we want to register new sysinit types, add them to newsysinit.
+ * The sysinit linker set compiled into the kernel.  These are placed onto the
+ * sysinit list by mi_startup; sysinit_add can add (e.g., from klds) additional
+ * sysinits to the linked list but the linker set here does not change.
  */
 SET_DECLARE(sysinit_set, struct sysinit);
-struct sysinit **sysinit, **sysinit_end;
-struct sysinit **newsysinit, **newsysinit_end;
 
 /*
- * Merge a new sysinit set into the current set, reallocating it if
- * necessary.  This can only be called after malloc is running.
+ * The sysinit list itself.  Items are removed as they are run.
+ */
+static SLIST_HEAD(sysinitlist, sysinit) sysinit_list;
+
+/*
+ * Compare two sysinits; return -1, 0, or 1 if a comes before, at the same time
+ * as, or after b.
+ */
+static int
+sysinit_compar(struct sysinit *a, struct sysinit *b, void *thunk __unused)
+{
+
+	if (a->subsystem < b->subsystem)
+		return (-1);
+	if (a->subsystem > b->subsystem)
+		return (1);
+	if (a->order < b->order)
+		return (-1);
+	if (a->order > b->order)
+		return (1);
+	return (0);
+}
+
+static void
+sysinit_mklist(struct sysinitlist *list, struct sysinit **set,
+    struct sysinit **set_end)
+{
+	struct sysinit **sipp;
+
+	TSENTER();
+	TSENTER2("listify");
+	SLIST_INIT(list);
+	for (sipp = set; sipp < set_end; sipp++)
+		SLIST_INSERT_HEAD(list, *sipp, next);
+	TSEXIT2("listify");
+	TSENTER2("mergesort");
+	SLIST_MERGESORT(list, NULL, sysinit_compar, sysinit, next);
+	TSEXIT2("mergesort");
+	TSEXIT();
+}
+
+/*
+ * Merge a new sysinit set into the sysinit list.
  */
 void
 sysinit_add(struct sysinit **set, struct sysinit **set_end)
 {
-	struct sysinit **newset;
-	struct sysinit **sipp;
-	struct sysinit **xipp;
-	int count;
+	struct sysinitlist new_list;
 
-	count = set_end - set;
-	if (newsysinit)
-		count += newsysinit_end - newsysinit;
-	else
-		count += sysinit_end - sysinit;
-	newset = malloc(count * sizeof(*sipp), M_TEMP, M_NOWAIT);
-	if (newset == NULL)
-		panic("cannot malloc for sysinit");
-	xipp = newset;
-	if (newsysinit)
-		for (sipp = newsysinit; sipp < newsysinit_end; sipp++)
-			*xipp++ = *sipp;
-	else
-		for (sipp = sysinit; sipp < sysinit_end; sipp++)
-			*xipp++ = *sipp;
-	for (sipp = set; sipp < set_end; sipp++)
-		*xipp++ = *sipp;
-	if (newsysinit)
-		free(newsysinit, M_TEMP);
-	newsysinit = newset;
-	newsysinit_end = newset + count;
+	TSENTER();
+
+	/* Construct a sorted list from the new sysinits. */
+	sysinit_mklist(&new_list, set, set_end);
+
+	/* Merge the new list into the existing one. */
+	TSENTER2("SLIST_MERGE");
+	SLIST_MERGE(&sysinit_list, &new_list, NULL, sysinit_compar, sysinit, next);
+	TSEXIT2("SLIST_MERGE");
+
+	TSEXIT();
 }
 
 #if defined (DDB) && defined(VERBOSE_SYSINIT)
@@ -229,10 +258,7 @@ void
 mi_startup(void)
 {
 
-	struct sysinit **sipp;	/* system initialization*/
-	struct sysinit **xipp;	/* interior loop of sort*/
-	struct sysinit *save;	/* bubble*/
-
+	struct sysinit *sip;
 	int last;
 #if defined(VERBOSE_SYSINIT)
 	int verbose;
@@ -243,29 +269,8 @@ mi_startup(void)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 
-	if (sysinit == NULL) {
-		sysinit = SET_BEGIN(sysinit_set);
-		sysinit_end = SET_LIMIT(sysinit_set);
-	}
-
-restart:
-	/*
-	 * Perform a bubble sort of the system initialization objects by
-	 * their subsystem (primary key) and order (secondary key).
-	 */
-	TSENTER2("bubblesort");
-	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
-		for (xipp = sipp + 1; xipp < sysinit_end; xipp++) {
-			if ((*sipp)->subsystem < (*xipp)->subsystem ||
-			     ((*sipp)->subsystem == (*xipp)->subsystem &&
-			      (*sipp)->order <= (*xipp)->order))
-				continue;	/* skip*/
-			save = *sipp;
-			*sipp = *xipp;
-			*xipp = save;
-		}
-	}
-	TSEXIT2("bubblesort");
+	/* Construct and sort sysinit list. */
+	sysinit_mklist(&sysinit_list, SET_BEGIN(sysinit_set), SET_LIMIT(sysinit_set));
 
 	last = SI_SUB_COPYRIGHT;
 #if defined(VERBOSE_SYSINIT)
@@ -276,21 +281,23 @@ restart:
 #endif
 
 	/*
-	 * Traverse the (now) ordered list of system initialization tasks.
-	 * Perform each task, and continue on to the next task.
+	 * Perform each system initialization task from the ordered list.  Note
+	 * that if sysinit_list is modified (e.g. by a KLD) we will nonetheless
+	 * always perform the earlist-sorted sysinit at each step; using the
+	 * SLIST_FOREACH macro would result in items being skipped if inserted
+	 * earlier than the "current item".
 	 */
-	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
-		if ((*sipp)->subsystem == SI_SUB_DUMMY)
+	while ((sip = SLIST_FIRST(&sysinit_list)) != NULL) {
+		SLIST_REMOVE_HEAD(&sysinit_list, next);
+
+		if (sip->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
 
-		if ((*sipp)->subsystem == SI_SUB_DONE)
-			continue;
-
-		if ((*sipp)->subsystem > last)
-			BOOTTRACE_INIT("sysinit 0x%7x", (*sipp)->subsystem);
+		if (sip->subsystem > last)
+			BOOTTRACE_INIT("sysinit 0x%7x", sip->subsystem);
 
 #if defined(VERBOSE_SYSINIT)
-		if ((*sipp)->subsystem > last && verbose_sysinit != 0) {
+		if (sip->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
 			printf("subsystem %x\n", last);
 		}
@@ -298,23 +305,23 @@ restart:
 #if defined(DDB)
 			const char *func, *data;
 
-			func = symbol_name((vm_offset_t)(*sipp)->func,
+			func = symbol_name((vm_offset_t)sip->func,
 			    DB_STGY_PROC);
-			data = symbol_name((vm_offset_t)(*sipp)->udata,
+			data = symbol_name((vm_offset_t)sip->udata,
 			    DB_STGY_ANY);
 			if (func != NULL && data != NULL)
 				printf("   %s(&%s)... ", func, data);
 			else if (func != NULL)
-				printf("   %s(%p)... ", func, (*sipp)->udata);
+				printf("   %s(%p)... ", func, sip->udata);
 			else
 #endif
-				printf("   %p(%p)... ", (*sipp)->func,
-				    (*sipp)->udata);
+				printf("   %p(%p)... ", sip->func,
+				    sip->udata);
 		}
 #endif
 
 		/* Call function */
-		(*((*sipp)->func))((*sipp)->udata);
+		(*(sip->func))(sip->udata);
 
 #if defined(VERBOSE_SYSINIT)
 		if (verbose)
@@ -322,19 +329,7 @@ restart:
 #endif
 
 		/* Check off the one we're just done */
-		last = (*sipp)->subsystem;
-		(*sipp)->subsystem = SI_SUB_DONE;
-
-		/* Check if we've installed more sysinit items via KLD */
-		if (newsysinit != NULL) {
-			if (sysinit != SET_BEGIN(sysinit_set))
-				free(sysinit, M_TEMP);
-			sysinit = newsysinit;
-			sysinit_end = newsysinit_end;
-			newsysinit = NULL;
-			newsysinit_end = NULL;
-			goto restart;
-		}
+		last = sip->subsystem;
 	}
 
 	TSEXIT();	/* Here so we don't overlap with start_init. */
@@ -904,13 +899,13 @@ db_show_print_syinit(struct sysinit *sip, bool ddb)
 
 DB_SHOW_COMMAND_FLAGS(sysinit, db_show_sysinit, DB_CMD_MEMSAFE)
 {
-	struct sysinit **sipp;
+	struct sysinit *sip;
 
 	db_printf("SYSINIT vs Name(Ptr)\n");
 	db_printf("  Subsystem  Order\n");
 	db_printf("  Function(Name)(Arg)\n");
-	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
-		db_show_print_syinit(*sipp, true);
+	SLIST_FOREACH(sip, &sysinit_list, next) {
+		db_show_print_syinit(sip, true);
 		if (db_pager_quit)
 			break;
 	}
