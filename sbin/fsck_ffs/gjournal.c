@@ -77,7 +77,6 @@ gjournal_check(const char *filesys)
 	fs = &sblock;
 	/* Are there any unreferenced inodes in this file system? */
 	if (fs->fs_unrefs == 0) {
-		//printf("No unreferenced inodes.\n");
 		sbdirty();
 		ckfini(1);
 		return;
@@ -105,7 +104,6 @@ gjournal_check(const char *filesys)
 		/* Are there any unreferenced inodes in this cylinder group? */
 		if (cgp->cg_unrefs == 0)
 			continue;
-		//printf("Analizing cylinder group %d (count=%d)\n", cg, cgp->cg_unrefs);
 		/*
 		 * Now go through the list of all inodes in this cylinder group
 		 * to find unreferenced ones.
@@ -150,20 +148,15 @@ gjournal_check(const char *filesys)
 			inodirty(&ip);
 			irelse(&ip);
 			cgdirty(cgbp);
-			if (cgp->cg_unrefs == 0) {
-				//printf("No more unreferenced inodes in cg=%d.\n", cg);
+			if (cgp->cg_unrefs == 0)
 				break;
-			}
 		}
 		/*
-		 * If there are no more unreferenced inodes, there is no need to
-		 * check other cylinder groups.
+		 * If there are no more unreferenced inodes, there is no
+		 * need to check other cylinder groups.
 		 */
-		if (fs->fs_unrefs == 0) {
-			//printf("No more unreferenced inodes (cg=%d/%d).\n", cg,
-			//    fs->fs_ncg);
+		if (fs->fs_unrefs == 0)
 			break;
-		}
 	}
 	/* Write back updated statistics and super-block. */
 	sbdirty();

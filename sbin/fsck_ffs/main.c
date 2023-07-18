@@ -351,16 +351,18 @@ checkfilesys(char *filesys)
 	 * Determine if we can and should do journal recovery.
 	 */
 	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
-		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
+		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK &&
+		    skipclean) {
 			sujrecovery = 1;
 			if (suj_check(filesys) == 0) {
-				printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
+				pwarn("\n**** FILE SYSTEM MARKED CLEAN ****\n");
 				if (chkdoreload(mntp, pwarn) == 0)
 					exit(0);
 				exit(4);
 			}
 			sujrecovery = 0;
-			printf("** Skipping journal, falling through to full fsck\n\n");
+			pwarn("Skipping journal, "
+			    "falling through to full fsck\n");
 		}
 		if (fswritefd != -1) {
 			/*
