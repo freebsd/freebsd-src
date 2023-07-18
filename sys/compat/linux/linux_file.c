@@ -555,9 +555,8 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	struct dirent *bdp;
 	caddr_t buf;			/* BSD-format */
 	int linuxreclen;		/* Linux-format */
-	caddr_t lbuf;			/* Linux-format */
 	off_t base;
-	struct l_dirent *linux_dirent;
+	struct l_dirent *linux_dirent;	/* Linux-format */
 	int buflen, error;
 
 	buflen = sizeof(*bdp);
@@ -572,12 +571,12 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	if (td->td_retval[0] == 0)
 		goto out;
 
-	lbuf = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_TEMP, M_WAITOK | M_ZERO);
+	linux_dirent = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	bdp = (struct dirent *) buf;
 	linuxreclen = LINUX_RECLEN(bdp->d_namlen);
 
-	linux_dirent = (struct l_dirent*)lbuf;
 	linux_dirent->d_ino = bdp->d_fileno;
 	linux_dirent->d_off = bdp->d_off;
 	linux_dirent->d_reclen = bdp->d_namlen;
@@ -587,7 +586,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	if (error == 0)
 		td->td_retval[0] = linuxreclen;
 
-	free(lbuf, M_TEMP);
+	free(linux_dirent, M_TEMP);
 out:
 	free(buf, M_TEMP);
 	return (error);
