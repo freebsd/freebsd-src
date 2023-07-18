@@ -104,7 +104,7 @@ pass1(void)
 			if (!reply("REBUILD CYLINDER GROUP")) {
 				cgheader_corrupt = 1;
 				if (!nflag) {
-					printf("YOU WILL NEED TO RERUN FSCK.\n");
+					pwarn("YOU WILL NEED TO RERUN FSCK.\n");
 					rerun = 1;
 				}
 			} else {

@@ -502,7 +502,8 @@ blk_free(ino_t ino, ufs2_daddr_t bno, int mask, int frags)
 		 * deallocate the fragment
 		 */
 		for (i = 0; i < frags; i++)
-			if ((mask & (1 << i)) == 0 && isclr(blksfree, cgbno +i)) {
+			if ((mask & (1 << i)) == 0 &&
+			    isclr(blksfree, cgbno +i)) {
 				freefrags++;
 				setbit(blksfree, cgbno + i);
 			}
@@ -1304,8 +1305,8 @@ ino_trunc(ino_t ino, off_t size)
 		return;
 	}
 	if (debug)
-		printf("Truncating ino %ju, mode %o to size %jd from size %jd\n",
-		    (uintmax_t)ino, mode, size, cursize);
+		printf("Truncating ino %ju, mode %o to size %jd from "
+		    "size %jd\n", (uintmax_t)ino, mode, size, cursize);
 
 	/* Skip datablocks for short links and devices. */
 	if (mode == 0 || mode == IFBLK || mode == IFCHR ||
@@ -1511,8 +1512,8 @@ blk_check(struct suj_blk *sblk)
 			sino->si_blkadj = 1;
 		}
 		if (debug)
-			printf("op %d blk %jd ino %ju lbn %jd frags %d isat %d (%d)\n",
-			    brec->jb_op, blk, (uintmax_t)brec->jb_ino,
+			printf("op %d blk %jd ino %ju lbn %jd frags %d isat %d "
+			    "(%d)\n", brec->jb_op, blk, (uintmax_t)brec->jb_ino,
 			    brec->jb_lbn, brec->jb_frags, isat, frags);
 		/*
 		 * If we found the block at this address we still have to
@@ -2335,8 +2336,8 @@ restart:
 				    recsize <= fs->fs_bsize)
 					goto restart;
 				if (debug)
-					printf("Found invalid segsize %d > %d\n",
-					    recsize, size);
+					printf("Found invalid segsize "
+					    "%d > %d\n", recsize, size);
 				recsize = real_dev_bsize;
 				jblocks_advance(suj_jblocks, recsize);
 				continue;
@@ -2479,7 +2480,8 @@ suj_check(const char *filesys)
 		cg_apply(cg_adj_blk);
 		cg_apply(cg_check_ino);
 	}
-	if (preen == 0 && (jrecs > 0 || jbytes > 0) && reply("WRITE CHANGES") == 0)
+	if (preen == 0 && (jrecs > 0 || jbytes > 0) &&
+	    reply("WRITE CHANGES") == 0)
 		return (0);
 	/*
 	 * Check block counts of snapshot inodes and
@@ -2507,10 +2509,11 @@ suj_check(const char *filesys)
 	sbdirty();
 	ckfini(1);
 	if (jrecs > 0 || jbytes > 0) {
-		printf("** %jd journal records in %jd bytes for %.2f%% utilization\n",
-		    jrecs, jbytes, ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
-		printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd frags.\n",
-		    freeinos, freedir, freeblocks, freefrags);
+		printf("** %jd journal records in %jd bytes for %.2f%% "
+		    "utilization\n", jrecs, jbytes,
+		    ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
+		printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd "
+		    "frags.\n", freeinos, freedir, freeblocks, freefrags);
 	}
 
 	return (0);
