@@ -560,7 +560,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	int buflen, error;
 
 	buflen = sizeof(*bdp);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	buf = malloc(buflen, M_LINUX, M_WAITOK);
 
 	error = kern_getdirentries(td, args->fd, buf, buflen,
 	    &base, NULL, UIO_SYSSPACE);
@@ -571,7 +571,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	if (td->td_retval[0] == 0)
 		goto out;
 
-	linux_dirent = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_TEMP,
+	linux_dirent = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_LINUX,
 	    M_WAITOK | M_ZERO);
 
 	bdp = (struct dirent *) buf;
@@ -586,9 +586,9 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	if (error == 0)
 		td->td_retval[0] = linuxreclen;
 
-	free(linux_dirent, M_TEMP);
+	free(linux_dirent, M_LINUX);
 out:
-	free(buf, M_TEMP);
+	free(buf, M_LINUX);
 	return (error);
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
