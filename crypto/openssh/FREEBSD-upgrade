@@ -187,6 +187,14 @@
    recognize and ignore the configuration options to avoid breaking
    existing configurations.
 
+12) PrintLastLog bugfix
+
+   Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
+   lastlog.ll_line, but uses it to disable the PrintLastLog configuration
+   option altogether.  There is a hacky SKIP_DISABLE_LASTLOG_DEFINE=yes to
+   skip setting DISABLE_LASTLOG which we've applied for FreeBSD, but the
+   autoconf machinery really ought to be reworked.  Reported upstream at
+   https://lists.mindrot.org/pipermail/openssh-unix-dev/2022-May/040242.html
 
 
 This port was brought to you by (in no particular order) DARPA, NAI
