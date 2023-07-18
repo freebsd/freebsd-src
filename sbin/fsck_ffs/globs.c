@@ -60,18 +60,18 @@ ino_t cursnapshot;
 long  dirhash, inplast;
 unsigned long  numdirs, listmax;
 long countdirs;		/* number of directories we actually found */
-int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
-int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
-int	setsize[MIBSIZE];	/* MIB command to set inode size */
-int	adjndir[MIBSIZE];	/* MIB command to adjust number of directories */
-int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
-int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
-int	adjnffree[MIBSIZE];	/* MIB command to adjust number of free frags */
-int	adjnumclusters[MIBSIZE];	/* MIB command to adjust number of free clusters */
+int	adjrefcnt[MIBSIZE];	/* MIB cmd to adjust inode reference cnt */
+int	adjblkcnt[MIBSIZE];	/* MIB cmd to adjust inode block count */
+int	setsize[MIBSIZE];	/* MIB cmd to set inode size */
+int	adjndir[MIBSIZE];	/* MIB cmd to adjust number of directories */
+int	adjnbfree[MIBSIZE];	/* MIB cmd to adjust number of free blocks */
+int	adjnifree[MIBSIZE];	/* MIB cmd to adjust number of free inodes */
+int	adjnffree[MIBSIZE];	/* MIB cmd to adjust number of free frags */
+int	adjnumclusters[MIBSIZE]; /* MIB cmd to adjust number of free clusters */
 int	adjdepth[MIBSIZE];	/* MIB cmd to adjust directory depth count */
-int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
-int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
-int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
+int	freefiles[MIBSIZE];	/* MIB cmd to free a set of files */
+int	freedirs[MIBSIZE];	/* MIB cmd to free a set of directories */
+int	freeblks[MIBSIZE];	/* MIB cmd to free a set of data blocks */
 struct	fsck_cmd cmd;		/* sysctl file system update commands */
 char	snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
 char	*cdevname;		/* name of device being checked */
@@ -91,7 +91,7 @@ char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
 int	ckhashadd;		/* check hashes to be added */
 int	bkgrdcheck;		/* determine if background check is possible */
-int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
+int	bkgrdsumadj;		/* kernel able to adjust superblock summary */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */
 char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */

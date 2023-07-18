@@ -112,7 +112,7 @@ struct inostat {
 #define	FSTATE	0x2		/* inode is file */
 #define	FZLINK	0x3		/* inode is file with a link count of zero */
 #define	DSTATE	0x4		/* inode is directory */
-#define	DZLINK	0x5		/* inode is directory with a zero link count  */
+#define	DZLINK	0x5		/* inode is directory with a zero link count */
 #define	DFOUND	0x6		/* directory found during descent */
 /*     		0x7		   UNUSED - see S_IS_DVALID() definition */
 #define	DCLEAR	0x8		/* directory is to be cleared */
@@ -297,8 +297,8 @@ struct dups {
 	struct dups *next;
 	ufs2_daddr_t dup;
 };
-extern struct dups *duplist;		/* head of dup list */
-extern struct dups *muldup;		/* end of unique duplicate dup block numbers */
+extern struct dups *duplist;	/* head of dup list */
+extern struct dups *muldup;	/* end of unique duplicate dup block numbers */
 
 /*
  * Inode cache data structures.
