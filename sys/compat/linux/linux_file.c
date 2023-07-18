@@ -413,7 +413,7 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	size_t retval;
 
 	buflen = min(args->count, MAXBSIZE);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	buf = malloc(buflen, M_LINUX, M_WAITOK);
 
 	error = kern_getdirentries(td, args->fd, buf, buflen,
 	    &base, NULL, UIO_SYSSPACE);
@@ -422,7 +422,7 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 		goto out1;
 	}
 
-	lbuf = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_TEMP, M_WAITOK | M_ZERO);
+	lbuf = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_LINUX, M_WAITOK | M_ZERO);
 
 	len = td->td_retval[0];
 	inp = buf;
@@ -468,9 +468,9 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	td->td_retval[0] = retval;
 
 out:
-	free(lbuf, M_TEMP);
+	free(lbuf, M_LINUX);
 out1:
-	free(buf, M_TEMP);
+	free(buf, M_LINUX);
 	return (error);
 }
 #endif
