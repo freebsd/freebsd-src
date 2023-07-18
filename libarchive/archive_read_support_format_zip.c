@@ -2227,7 +2227,7 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 	to_consume = zip->bzstream.total_in_lo32;
 	__archive_read_consume(a, to_consume);
 
-	total_out = ((uint64_t) zip->bzstream.total_out_hi32 << 32) +
+	total_out = ((uint64_t) zip->bzstream.total_out_hi32 << 32) |
 	    zip->bzstream.total_out_lo32;
 
 	zip->entry_bytes_remaining -= to_consume;

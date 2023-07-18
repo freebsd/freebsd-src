@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   MacOS:
-    runs-on: macos-12
+    runs-on: macos-13
     strategy:
       matrix:
         bs: [autotools, cmake]
@@ -24,15 +24,19 @@ jobs:
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
+        MAKE_ARGS: -j
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
+        IGNORE_TRAVERSALS_TEST4: 1
+        MAKE_ARGS: -j
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
+        MAKE_ARGS: -j
     - name: Artifact
       run: ./build/ci/build.sh -a artifact
       env:
@@ -50,6 +54,8 @@ jobs:
         crypto: [mbedtls, nettle, openssl]
     steps:
     - uses: actions/checkout@master
+    - name: Update apt cache
+      run: sudo apt-get update
     - name: Install dependencies
       run: sudo apt-get install -y autoconf automake build-essential cmake git libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zlib1g-dev
     - name: Autogen
@@ -65,11 +71,13 @@ jobs:
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
+        MAKE_ARGS: -j
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
+        MAKE_ARGS: -j
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -86,6 +94,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@master
+    - name: Update package definitions
+      run: sudo apt-get update
     - name: Install dependencies
       run: sudo apt-get install -y autoconf automake bsdmainutils build-essential cmake ghostscript git groff libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zip zlib1g-dev
     - name: Autogen

@@ -156,7 +156,11 @@ cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 {
 	wchar_t *wpath;
 	HANDLE handle;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
 	handle = CreateFileA(path, dwDesiredAccess, dwShareMode,
 	    lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes,
 	    hTemplateFile);
@@ -164,12 +168,25 @@ cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 		return (handle);
 	if (GetLastError() != ERROR_PATH_NOT_FOUND)
 		return (handle);
+#endif
 	wpath = permissive_name(path);
 	if (wpath == NULL)
-		return (handle);
+		return INVALID_HANDLE_VALUE;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileAttributes = dwFlagsAndAttributes & 0xFFFF;
+	createExParams.dwFileFlags = dwFlagsAndAttributes & 0xFFF00000;
+	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F0000;
+	createExParams.lpSecurityAttributes = lpSecurityAttributes;
+	createExParams.hTemplateFile = hTemplateFile;
+	handle = CreateFile2(wpath, dwDesiredAccess, dwShareMode,
+	    dwCreationDisposition, &createExParams);
+#else
 	handle = CreateFileW(wpath, dwDesiredAccess, dwShareMode,
 	    lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes,
 	    hTemplateFile);
+#endif
 	free(wpath);
 	return (handle);
 }

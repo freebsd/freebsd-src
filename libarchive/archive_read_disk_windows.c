@@ -418,9 +418,19 @@ la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf, int *linktype)
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 	int ret;
 
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileFlags = flag;
+	h = CreateFile2(path, 0,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	    OPEN_EXISTING, &createExParams);
+#else
 	h = CreateFileW(path, 0,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 	    OPEN_EXISTING, flag, NULL);
+#endif
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
 		return (-1);
@@ -1067,16 +1077,29 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
 		DWORD flags = FILE_FLAG_BACKUP_SEMANTICS;
+#if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 		if (t->async_io)
 			flags |= FILE_FLAG_OVERLAPPED;
 		if (t->direct_io)
 			flags |= FILE_FLAG_NO_BUFFERING;
 		else
 			flags |= FILE_FLAG_SEQUENTIAL_SCAN;
+#if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		ZeroMemory(&createExParams, sizeof(createExParams));
+		createExParams.dwSize = sizeof(createExParams);
+		createExParams.dwFileFlags = flags;
+		t->entry_fh = CreateFile2(tree_current_access_path(t),
+		    GENERIC_READ,
+		    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		    OPEN_EXISTING, &createExParams);
+#else
 		t->entry_fh = CreateFileW(tree_current_access_path(t),
 		    GENERIC_READ,
 		    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		    NULL, OPEN_EXISTING, flags, NULL);
+#endif
 		if (t->entry_fh == INVALID_HANDLE_VALUE) {
 			la_dosmaperr(GetLastError());
 			archive_set_error(&a->archive, errno,
@@ -1547,6 +1570,9 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 {
 	HANDLE handle;
 	int r = 0;
+#if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 	if (h == INVALID_HANDLE_VALUE && AE_IFLNK == rt->filetype)
 		return (0);
@@ -1560,8 +1586,16 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 	if ((t->flags & needsRestoreTimes) == 0)
 		return (r);
 
+#if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+	handle = CreateFile2(rt->full_path, FILE_WRITE_ATTRIBUTES,
+		    0, OPEN_EXISTING, &createExParams);
+#else
 	handle = CreateFileW(rt->full_path, FILE_WRITE_ATTRIBUTES,
 		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+#endif
 	if (handle == INVALID_HANDLE_VALUE) {
 		errno = EINVAL;
 		return (-1);
@@ -2046,12 +2080,24 @@ tree_current_file_information(struct tree *t, BY_HANDLE_FILE_INFORMATION *st,
 	HANDLE h;
 	int r;
 	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS;
-	
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
+
 	if (sim_lstat && tree_current_is_physical_link(t))
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileFlags = flag;
+	h = CreateFile2(tree_current_access_path(t), 0,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	    OPEN_EXISTING, &createExParams);
+#else
 	h = CreateFileW(tree_current_access_path(t), 0,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 	    OPEN_EXISTING, flag, NULL);
+#endif
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
 		t->tree_errno = errno;
@@ -2257,7 +2303,10 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		} else {
 			WIN32_FIND_DATAW findData;
 			DWORD flag, desiredAccess;
-	
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+			CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
+
 			h = FindFirstFileW(path, &findData);
 			if (h == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
@@ -2279,9 +2328,18 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			} else
 				desiredAccess = GENERIC_READ;
 
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+			ZeroMemory(&createExParams, sizeof(createExParams));
+			createExParams.dwSize = sizeof(createExParams);
+			createExParams.dwFileFlags = flag;
+			h = CreateFile2(path, desiredAccess,
+			    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			    OPEN_EXISTING, &createExParams);
+#else
 			h = CreateFileW(path, desiredAccess,
 			    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 			    OPEN_EXISTING, flag, NULL);
+#endif
 			if (h == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
 				archive_set_error(&a->archive, errno,
@@ -2342,9 +2400,19 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		if (fd >= 0) {
 			h = (HANDLE)_get_osfhandle(fd);
 		} else {
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+			CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+			ZeroMemory(&createExParams, sizeof(createExParams));
+			createExParams.dwSize = sizeof(createExParams);
+			createExParams.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+			h = CreateFile2(path, GENERIC_READ,
+			    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			    OPEN_EXISTING, &createExParams);
+#else
 			h = CreateFileW(path, GENERIC_READ,
 			    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 			    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+#endif
 			if (h == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
 				archive_set_error(&a->archive, errno,

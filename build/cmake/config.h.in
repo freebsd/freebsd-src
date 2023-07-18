@@ -207,6 +207,9 @@ typedef uint64_t uintmax_t;
 /* MD5 via ARCHIVE_CRYPTO_MD5_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_MD5_LIBSYSTEM 1
 
+/* MD5 via ARCHIVE_CRYPTO_MD5_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_MD5_MBEDTLS 1
+
 /* MD5 via ARCHIVE_CRYPTO_MD5_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_MD5_NETTLE 1
 
@@ -222,6 +225,9 @@ typedef uint64_t uintmax_t;
 /* RMD160 via ARCHIVE_CRYPTO_RMD160_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_RMD160_NETTLE 1
 
+/* RMD160 via ARCHIVE_CRYPTO_RMD160_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_RMD160_MBEDTLS 1
+
 /* RMD160 via ARCHIVE_CRYPTO_RMD160_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_RMD160_OPENSSL 1
 
@@ -230,6 +236,9 @@ typedef uint64_t uintmax_t;
 
 /* SHA1 via ARCHIVE_CRYPTO_SHA1_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA1_LIBSYSTEM 1
+
+/* SHA1 via ARCHIVE_CRYPTO_SHA1_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA1_MBEDTLS 1
 
 /* SHA1 via ARCHIVE_CRYPTO_SHA1_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA1_NETTLE 1
@@ -252,6 +261,9 @@ typedef uint64_t uintmax_t;
 /* SHA256 via ARCHIVE_CRYPTO_SHA256_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA256_LIBSYSTEM 1
 
+/* SHA256 via ARCHIVE_CRYPTO_SHA256_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA256_MBEDTLS 1
+
 /* SHA256 via ARCHIVE_CRYPTO_SHA256_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA256_NETTLE 1
 
@@ -273,6 +285,9 @@ typedef uint64_t uintmax_t;
 /* SHA384 via ARCHIVE_CRYPTO_SHA384_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA384_LIBSYSTEM 1
 
+/* SHA384 via ARCHIVE_CRYPTO_SHA384_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA384_MBEDTLS 1
+
 /* SHA384 via ARCHIVE_CRYPTO_SHA384_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA384_NETTLE 1
 
@@ -293,6 +308,9 @@ typedef uint64_t uintmax_t;
 
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_LIBSYSTEM 1
+
+/* SHA512 via ARCHIVE_CRYPTO_SHA512_MBEDTLS supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA512_MBEDTLS 1
 
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_NETTLE supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_NETTLE 1
@@ -366,7 +384,7 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <attr/xattr.h> header file. */
 #cmakedefine HAVE_ATTR_XATTR_H 1
 
-/* Define to 1 if you have the <Bcrypt.h> header file. */
+/* Define to 1 if you have the <bcrypt.h> header file. */
 #cmakedefine HAVE_BCRYPT_H 1
 
 /* Define to 1 if you have the <bsdxml.h> header file. */
@@ -570,6 +588,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `flistxattr' function. */
 #cmakedefine HAVE_FLISTXATTR 1
 
+/* Define to 1 if you have the `fnmatch' function. */
+#cmakedefine HAVE_FNMATCH 1
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#cmakedefine HAVE_FNMATCH_H 1
+
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 
@@ -617,6 +641,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `getgrnam_r' function. */
 #cmakedefine HAVE_GETGRNAM_R 1
+
+/* Define to 1 if platform uses `optreset` to reset `getopt` */
+#cmakedefine HAVE_GETOPT_OPTRESET 1
 
 /* Define to 1 if you have the `getpid' function. */
 #cmakedefine HAVE_GETPID 1
@@ -827,6 +854,15 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <lzo/lzoconf.h> header file. */
 #cmakedefine HAVE_LZO_LZOCONF_H 1
 
+/* Define to 1 if you have the <mbedtls/aes.h> header file. */
+#cmakedefine HAVE_MBEDTLS_AES_H 1
+
+/* Define to 1 if you have the <mbedtls/md.h> header file. */
+#cmakedefine HAVE_MBEDTLS_MD_H 1
+
+/* Define to 1 if you have the <mbedtls/pkcs5.h> header file. */
+#cmakedefine HAVE_MBEDTLS_PKCS5_H 1
+
 /* Define to 1 if you have the `mbrtowc' function. */
 #cmakedefine HAVE_MBRTOWC 1
 
@@ -877,6 +913,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `openat' function. */
 #cmakedefine HAVE_OPENAT 1
+
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#cmakedefine HAVE_OPENSSL_EVP_H 1
 
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
@@ -1072,6 +1111,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #cmakedefine HAVE_SYS_POLL_H 1
+
+/* Define to 1 if you have the <sys/queue.h> header file. */
+#cmakedefine HAVE_SYS_QUEUE_H 1
 
 /* Define to 1 if you have the <sys/richacl.h> header file. */
 #cmakedefine HAVE_SYS_RICHACL_H 1

@@ -327,7 +327,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 	int r;
 
 	memset(bhfi, 0, sizeof(*bhfi));
-	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
+	h = CreateFileA(path, FILE_READ_ATTRIBUTES, 0, NULL,
 		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
@@ -1432,7 +1432,7 @@ assertion_file_time(const char *file, int line,
 	/* Note: FILE_FLAG_BACKUP_SEMANTICS applies to open
 	 * a directory file. If not, CreateFile() will fail when
 	 * the pathname is a directory. */
-	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
+	h = CreateFileA(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
 	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);

@@ -16,6 +16,7 @@ autom4te.cache/
 bsdcat
 bsdcpio
 bsdtar
+bsdunzip
 build/autoconf/compile
 build/autoconf/config.guess
 build/autoconf/config.sub
@@ -41,6 +42,7 @@ libarchive/test/list.h
 libtool
 stamp-h1
 tar/test/list.h
+unzip/test/list.h
 CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl

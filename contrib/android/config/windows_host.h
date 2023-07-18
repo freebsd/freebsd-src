@@ -160,7 +160,7 @@
 /* Define to 1 if you have the <attr/xattr.h> header file. */
 /* #undef HAVE_ATTR_XATTR_H */
 
-/* Define to 1 if you have the <Bcrypt.h> header file. */
+/* Define to 1 if you have the <bcrypt.h> header file. */
 #define HAVE_BCRYPT_H
 
 /* Define to 1 if you have the <bzlib.h> header file. */

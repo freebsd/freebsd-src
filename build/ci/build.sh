@@ -97,9 +97,6 @@ if [ -n "${DEBUG}" ]; then
 	else
 		export CFLAGS="-g -fsanitize=address"
 	fi
-	if [ "${BS}" = "cmake" ]; then
-		CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
-	fi
 fi
 if [ -z "${ACTIONS}" ]; then
 	ACTIONS="autogen configure build test install"

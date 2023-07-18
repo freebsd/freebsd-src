@@ -45,15 +45,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
-	/*
-	 * Technically, the mtime field in the ustar header can
-	 * support 33 bits. We are using all of them to keep
-	 * tar/test/test_option_C_mtree.c simple and passing after 2038.
-	 * Platforms that use signed 32-bit time values need to fix
-	 * their handling of timestamps anyway.
-	 */
-#define USTAR_MAX_MTIME 0x1ffffffff
-
 struct sparse_block {
 	struct sparse_block	*next;
 	int		is_hole;
@@ -109,6 +100,7 @@ static int		 has_non_ASCII(const char *);
 static void		 sparse_list_clear(struct pax *);
 static int		 sparse_list_add(struct pax *, int64_t, int64_t);
 static char		*url_encode(const char *in);
+static time_t		 get_ustar_max_mtime(void);
 
 /*
  * Set output format to 'restricted pax' format.
@@ -603,6 +595,8 @@ archive_write_pax_header(struct archive_write *a,
 	ret = ARCHIVE_OK;
 	need_extension = 0;
 	pax = (struct pax *)a->format_data;
+
+	const time_t ustar_max_mtime = get_ustar_max_mtime();
 
 	/* Sanity check. */
 	if (archive_entry_pathname(entry_original) == NULL) {
@@ -1131,7 +1125,7 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if (!need_extension &&
 	    ((archive_entry_mtime(entry_main) < 0)
-		|| (archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME)))
+		|| (archive_entry_mtime(entry_main) >= ustar_max_mtime)))
 		need_extension = 1;
 
 	/* I use a star-compatible file flag attribute. */
@@ -1196,7 +1190,7 @@ archive_write_pax_header(struct archive_write *a,
 	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
 	    need_extension) {
 		if (archive_entry_mtime(entry_main) < 0  ||
-		    archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME  ||
+		    archive_entry_mtime(entry_main) >= ustar_max_mtime  ||
 		    archive_entry_mtime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "mtime",
 			    archive_entry_mtime(entry_main),
@@ -1434,7 +1428,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* Copy mtime, but clip to ustar limits. */
 		s = archive_entry_mtime(entry_main);
 		if (s < 0) { s = 0; }
-		if (s > USTAR_MAX_MTIME) { s = USTAR_MAX_MTIME; }
+		if (s > ustar_max_mtime) { s = ustar_max_mtime; }
 		archive_entry_set_mtime(pax_attr_entry, s, 0);
 
 		/* Standard ustar doesn't support atime. */
@@ -2052,3 +2046,18 @@ sparse_list_add(struct pax *pax, int64_t offset, int64_t length)
 	return (_sparse_list_add_block(pax, offset, length, 0));
 }
 
+static time_t
+get_ustar_max_mtime(void)
+{
+	/*
+	 * Technically, the mtime field in the ustar header can
+	 * support 33 bits. We are using all of them to keep
+	 * tar/test/test_option_C_mtree.c simple and passing after 2038.
+	 * For platforms that use signed 32-bit time values we
+	 * use the 32-bit maximum.
+	 */
+	if (sizeof(time_t) > sizeof(int32_t))
+		return (time_t)0x1ffffffff;
+	else
+		return (time_t)0x7fffffff;
+}

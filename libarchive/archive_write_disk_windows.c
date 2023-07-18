@@ -254,9 +254,9 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
  * which is high-16-bits of nFileIndexHigh. */
 #define bhfi_ino(bhfi)	\
 	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
-    + (bhfi)->nFileIndexLow)
+    | (bhfi)->nFileIndexLow)
 #define bhfi_size(bhfi)	\
-    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) + (bhfi)->nFileSizeLow)
+    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) | (bhfi)->nFileSizeLow)
 
 static int
 file_information(struct archive_write_disk *a, wchar_t *path,
@@ -266,6 +266,9 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 	int r;
 	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS;
 	WIN32_FIND_DATAW	findData;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 	if (sim_lstat || mode != NULL) {
 		h = FindFirstFileW(path, &findData);
@@ -290,14 +293,27 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 		(findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)))
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
 
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileFlags = flag;
+	h = CreateFile2(a->name, 0, 0,
+		OPEN_EXISTING, &createExParams);
+#else
 	h = CreateFileW(a->name, 0, 0, NULL,
 	    OPEN_EXISTING, flag, NULL);
+#endif
 	if (h == INVALID_HANDLE_VALUE &&
 	    GetLastError() == ERROR_INVALID_NAME) {
 		wchar_t *full;
 		full = __la_win_permissive_name_w(path);
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		h = CreateFile2(full, 0, 0,
+			OPEN_EXISTING, &createExParams);
+#else
 		h = CreateFileW(full, 0, 0, NULL,
 		    OPEN_EXISTING, flag, NULL);
+#endif
 		free(full);
 	}
 	if (h == INVALID_HANDLE_VALUE) {
@@ -559,6 +575,7 @@ la_mktemp(struct archive_write_disk *a)
 	return (fd);
 }
 
+#if _WIN32_WINNT < _WIN32_WINNT_VISTA
 static void *
 la_GetFunctionKernel32(const char *name)
 {
@@ -574,18 +591,24 @@ la_GetFunctionKernel32(const char *name)
 	}
 	return (void *)GetProcAddress(lib, name);
 }
+#endif
 
 static int
 la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 {
-	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
-	static int set;
+	static BOOL (WINAPI *f)(LPCWSTR, LPCWSTR, LPSECURITY_ATTRIBUTES);
 	BOOL ret;
 
+#if _WIN32_WINNT < _WIN32_WINNT_XP
+	static int set;
+/* CreateHardLinkW is available since XP and always loaded */
 	if (!set) {
 		set = 1;
 		f = la_GetFunctionKernel32("CreateHardLinkW");
 	}
+#else
+	f = CreateHardLinkW;
+#endif
 	if (!f) {
 		errno = ENOTSUP;
 		return (0);
@@ -624,7 +647,6 @@ static int
 la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
     int linktype) {
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
-	static int set;
 	wchar_t *ttarget, *p;
 	size_t len;
 	DWORD attrs = 0;
@@ -632,10 +654,20 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 	DWORD newflags = 0;
 	BOOL ret = 0;
 
+#if _WIN32_WINNT < _WIN32_WINNT_VISTA
+/* CreateSymbolicLinkW is available since Vista and always loaded */
+	static int set;
 	if (!set) {
 		set = 1;
 		f = la_GetFunctionKernel32("CreateSymbolicLinkW");
 	}
+#else
+# if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+	f = CreateSymbolicLinkW;
+# else
+	f = NULL;
+# endif
+#endif
 	if (!f)
 		return (0);
 
@@ -1185,6 +1217,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		if (la_ftruncate(a->fh, a->filesize) == -1) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
+			CloseHandle(a->fh);
+			a->fh = INVALID_HANDLE_VALUE;
 			return (ARCHIVE_FAILED);
 		}
 	}
@@ -1656,6 +1690,9 @@ create_filesystem_object(struct archive_write_disk *a)
 	mode_t final_mode, mode;
 	int r;
 	DWORD attrs = 0;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 	/* We identify hard/symlinks according to the link names. */
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
@@ -1719,8 +1756,16 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+			ZeroMemory(&createExParams, sizeof(createExParams));
+			createExParams.dwSize = sizeof(createExParams);
+			createExParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+			a->fh = CreateFile2(namefull, GENERIC_WRITE, 0,
+			    TRUNCATE_EXISTING, &createExParams);
+#else
 			a->fh = CreateFileW(namefull, GENERIC_WRITE, 0, NULL,
 			    TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+#endif
 			if (a->fh == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
 				r = errno;
@@ -1783,14 +1828,27 @@ create_filesystem_object(struct archive_write_disk *a)
 		a->tmpname = NULL;
 		fullname = a->name;
 		/* O_WRONLY | O_CREAT | O_EXCL */
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		ZeroMemory(&createExParams, sizeof(createExParams));
+		createExParams.dwSize = sizeof(createExParams);
+		createExParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+		a->fh = CreateFile2(fullname, GENERIC_WRITE, 0,
+		    CREATE_NEW, &createExParams);
+#else
 		a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
 		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+#endif
 		if (a->fh == INVALID_HANDLE_VALUE &&
 		    GetLastError() == ERROR_INVALID_NAME &&
 		    fullname == a->name) {
 			fullname = __la_win_permissive_name_w(a->name);
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+			a->fh = CreateFile2(fullname, GENERIC_WRITE, 0,
+			    CREATE_NEW, &createExParams);
+#else
 			a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
 			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+#endif
 		}
 		if (a->fh == INVALID_HANDLE_VALUE) {
 			if (GetLastError() == ERROR_ACCESS_DENIED) {
@@ -2551,14 +2609,25 @@ set_times(struct archive_write_disk *a,
 		hw = NULL;
 	} else {
 		wchar_t *ws;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 		if (S_ISLNK(mode))
 			return (ARCHIVE_OK);
 		ws = __la_win_permissive_name_w(name);
 		if (ws == NULL)
 			goto settimes_failed;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		ZeroMemory(&createExParams, sizeof(createExParams));
+		createExParams.dwSize = sizeof(createExParams);
+		createExParams.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+		hw = CreateFile2(ws, FILE_WRITE_ATTRIBUTES, 0,
+		    OPEN_EXISTING, &createExParams);
+#else
 		hw = CreateFileW(ws, FILE_WRITE_ATTRIBUTES,
 		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+#endif
 		free(ws);
 		if (hw == INVALID_HANDLE_VALUE)
 			goto settimes_failed;

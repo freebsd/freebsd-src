@@ -8,17 +8,17 @@ ACLOCAL_AMFLAGS = -I build/autoconf
 #
 lib_LTLIBRARIES=	libarchive.la
 noinst_LTLIBRARIES=	libarchive_fe.la
-bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs) $(bsdcat_programs)
-man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS) $(bsdcat_man_MANS)
-BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h cat/test/list.h
+bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs) $(bsdcat_programs) $(bsdunzip_programs)
+man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS) $(bsdcat_man_MANS) $(bsdunzip_man_MANS)
+BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h cat/test/list.h unzip/test/list.h
 
 #
 # What to test: We always test libarchive, test bsdtar and bsdcpio only
 # if we built them.
 #
-check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs)
-TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs)
-TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT)
+check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
+TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
+TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT) $(bsdunzip_TESTS_ENVIRONMENT)
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
@@ -49,7 +49,9 @@ EXTRA_DIST= \
 	$(bsdcpio_EXTRA_DIST) \
 	$(bsdcpio_test_EXTRA_DIST) \
 	$(bsdcat_EXTRA_DIST) \
-	$(bsdcat_test_EXTRA_DIST)
+	$(bsdcat_test_EXTRA_DIST) \
+	$(bsdunzip_EXTRA_DIST) \
+	$(bsdunzip_test_EXTRA_DIST)
 
 # a) Clean out some unneeded files and directories
 # b) Collect all documentation and format it for distribution.
@@ -69,7 +71,8 @@ DISTCLEANFILES= \
 	libarchive/test/list.h \
 	tar/test/list.h \
 	cpio/test/list.h \
-	cat/test/list.h
+	cat/test/list.h \
+	unzip/test/list.h
 
 distclean-local:
 	-rm -rf .ref
@@ -82,7 +85,9 @@ distclean-local:
 	-[ -f cpio/Makefile ] && cd cpio && make clean
 	-[ -f cpio/test/Makefile ] && cd cpio/test && make clean
 	-[ -f cat/Makefile ] && cd cat && make clean
-	-[ -f cpio/test/Makefile ] && cd cat/test && make clean
+	-[ -f cat/test/Makefile ] && cd cat/test && make clean
+	-[ -f unzip/Makefile ] && cd unzip && make clean
+	-[ -f unzip/test/Makefile ] && cd unzip/test && make clean
 
 #
 # Libarchive headers, source, etc.
@@ -763,6 +768,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_copy.7z.uu \
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta4_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma2.7z.uu \
@@ -776,11 +782,18 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_arm.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_bcj.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_nobcj.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd.7z.uu \
 	libarchive/test/test_read_format_ar.ar.uu \
 	libarchive/test/test_read_format_cab_1.cab.uu \
 	libarchive/test/test_read_format_cab_2.cab.uu \
@@ -1428,3 +1441,99 @@ bsdcat_test_EXTRA_DIST= \
 	cat/test/test_expand.plain.uu \
 	cat/test/test_expand.xz.uu \
 	cat/test/CMakeLists.txt
+
+#
+#
+# bsdunzip source, docs, etc.
+#
+#
+
+bsdunzip_SOURCES= \
+		unzip/bsdunzip.c \
+		unzip/bsdunzip_platform.h
+
+if INC_WINDOWS_FILES
+bsdunzip_SOURCES+=
+endif
+
+bsdunzip_DEPENDENCIES = libarchive.la libarchive_fe.la
+
+
+if STATIC_BSDUNZIP
+bsdunzip_ldstatic= -static
+bsdunzip_ccstatic= -DLIBARCHIVE_STATIC
+else
+bsdunzip_ldstatic=
+bsdunzip_ccstatic=
+endif
+
+bsdunzip_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
+bsdunzip_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdunzip_ccstatic) $(PLATFORMCPPFLAGS)
+bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(GC_SECTIONS)
+
+bsdunzip_EXTRA_DIST= \
+	unzip/bsdunzip.1 \
+	unzip/CMakeLists.txt
+
+
+if BUILD_BSDUNZIP
+# Manpages to install
+bsdunzip_man_MANS= unzip/bsdunzip.1
+bsdunzip_programs= bsdunzip
+else
+bsdunzip_man_MANS=
+bsdunzip_programs=
+endif
+
+#
+# bsdcat_test
+#
+
+bsdunzip_test_SOURCES= \
+	$(test_utils_SOURCES) \
+	unzip/test/test.h \
+	unzip/test/test_0.c \
+	unzip/test/test_basic.c \
+	unzip/test/test_glob.c \
+	unzip/test/test_not_exist.c \
+	unzip/test/test_singlefile.c \
+	unzip/test/test_C.c \
+	unzip/test/test_p.c \
+	unzip/test/test_d.c \
+	unzip/test/test_j.c \
+	unzip/test/test_L.c \
+	unzip/test/test_n.c \
+	unzip/test/test_o.c \
+	unzip/test/test_q.c \
+	unzip/test/test_t.c \
+	unzip/test/test_t_bad.c \
+	unzip/test/test_x.c \
+	unzip/test/test_Z1.c \
+	unzip/test/test_P_encryption.c
+
+bsdunzip_test_CPPFLAGS= \
+	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/test_utils \
+	-I$(top_srcdir)/unzip -I$(top_srcdir)/unzip/test \
+	-I$(top_builddir)/unzip/test \
+	$(PLATFORMCPPFLAGS)
+bsdunzip_test_LDADD=libarchive_fe.la
+
+unzip/test/list.h: Makefile
+	cat $(top_srcdir)/unzip/test/test_*.c | grep '^DEFINE_TEST' > unzip/test/list.h
+
+if BUILD_BSDUNZIP
+bsdunzip_test_programs= bsdunzip_test
+bsdunzip_TESTS_ENVIRONMENT= BSDUNZIP=`cd $(top_builddir);/bin/pwd`/bsdunzip$(EXEEXT) BSDUNZIP_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/unzip/test
+else
+bsdunzip_test_programs=
+bsdunzip_TESTS_ENVIRONMENT=
+endif
+
+bsdunzip_test_EXTRA_DIST= \
+	unzip/test/list.h \
+	unzip/test/test_basic.zip.uu \
+	unzip/test/test_encrypted.zip.uu \
+	unzip/test/test_singlefile.zip.uu \
+	unzip/test/test_t_bad.zip.uu \
+	unzip/test/CMakeLists.txt
