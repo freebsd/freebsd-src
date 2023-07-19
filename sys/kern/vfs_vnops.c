@@ -4028,9 +4028,9 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 {
 	int error;
 
-	MPASS((lkflags1 & LK_SHARED) != 0 ^ (lkflags1 & LK_EXCLUSIVE) != 0);
+	MPASS(((lkflags1 & LK_SHARED) != 0) ^ ((lkflags1 & LK_EXCLUSIVE) != 0));
 	MPASS((lkflags1 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
-	MPASS((lkflags2 & LK_SHARED) != 0 ^ (lkflags2 & LK_EXCLUSIVE) != 0);
+	MPASS(((lkflags2 & LK_SHARED) != 0) ^ ((lkflags2 & LK_EXCLUSIVE) != 0));
 	MPASS((lkflags2 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
 
 	if (vp1 == NULL && vp2 == NULL)
