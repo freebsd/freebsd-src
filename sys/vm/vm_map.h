@@ -97,6 +97,10 @@ union vm_map_object {
  *	a VM object (or sharing map) and offset into that object,
  *	and user-exported inheritance and protection information.
  *	Also included is control information for virtual copy operations.
+ *
+ *	For stack gap map entries (MAP_ENTRY_GUARD | MAP_ENTRY_GROWS_DOWN
+ *	or UP), the next_read member is reused as the stack_guard_page
+ *	storage, and offset is the stack protection.
  */
 struct vm_map_entry {
 	struct vm_map_entry *left;	/* left child or previous entry */
