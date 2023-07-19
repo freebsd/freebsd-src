@@ -35,8 +35,36 @@ struct kinst_probe {
 	kinst_patchval_t	kp_patchval;
 	kinst_patchval_t	kp_savedval;
 	kinst_patchval_t	*kp_patchpoint;
+	uint8_t			*kp_tramp;
 
 	struct kinst_probe_md	kp_md;
+};
+
+struct kinst_cpu_state {
+	/*
+	 * kinst uses a breakpoint to return from the trampoline and resume
+	 * execution. To do this safely, kinst implements a per-CPU state
+	 * machine; the state is set to KINST_PROBE_FIRED for the duration of
+	 * the trampoline execution (i.e from the time we transfer execution to
+	 * it, until we return). Upon return, the state is set to
+	 * KINST_PROBE_ARMED to indicate that a probe is not currently firing.
+	 * All CPUs have their state initialized to KINST_PROBE_ARMED when
+	 * kinst is loaded.
+	 */
+	enum {
+		KINST_PROBE_ARMED,
+		KINST_PROBE_FIRED,
+	} state;
+	/*
+	 * Points to the probe whose trampoline we're currently executing.
+	 */
+	struct kinst_probe *kp;
+	/*
+	 * Because we execute trampolines with interrupts disabled, we have to
+	 * cache the CPU's status in order to restore it when we return from
+	 * the trampoline.
+	 */
+	uint64_t status;
 };
 
 LIST_HEAD(kinst_probe_list, kinst_probe);

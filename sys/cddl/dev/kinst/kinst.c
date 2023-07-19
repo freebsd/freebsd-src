@@ -228,6 +228,9 @@ kinst_destroy(void *arg, dtrace_id_t id, void *parg)
 	struct kinst_probe *kp = parg;
 
 	LIST_REMOVE(kp, kp_hashnext);
+#ifndef __amd64__
+	kinst_trampoline_dealloc(kp->kp_tramp);
+#endif
 	free(kp, M_KINST);
 }
 
