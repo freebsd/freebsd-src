@@ -14,20 +14,7 @@
 
 #include "kinst.h"
 
-/*
- * Per-CPU trampolines used when the interrupted thread is executing with
- * interrupts disabled.  If an interrupt is raised while executing a trampoline,
- * the interrupt thread cannot safely overwrite its trampoline if it hits a
- * kinst probe while executing the interrupt handler.
- */
-DPCPU_DEFINE_STATIC(uint8_t *, intr_tramp);
-
-/*
- * The double-breakpoint mechanism needs to save the current probe for the next
- * call to kinst_invop(). As with per-CPU trampolines, this also has to be done
- * per-CPU when interrupts are disabled.
- */
-DPCPU_DEFINE_STATIC(struct kinst_probe *, intr_probe);
+DPCPU_DEFINE_STATIC(struct kinst_cpu_state, kinst_state);
 
 #define _MATCH_REG(reg)	\
 	(offsetof(struct trapframe, tf_ ## reg) / sizeof(register_t))
@@ -78,7 +65,7 @@ kinst_c_regoff(struct trapframe *frame, int n)
 #undef _MATCH_REG
 
 static int
-kinst_emulate(struct trapframe *frame, struct kinst_probe *kp)
+kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 {
 	kinst_patchval_t instr = kp->kp_savedval;
 	register_t prevpc;
@@ -244,23 +231,23 @@ kinst_emulate(struct trapframe *frame, struct kinst_probe *kp)
 }
 
 static int
-kinst_jump_next_instr(struct trapframe *frame, struct kinst_probe *kp)
+kinst_jump_next_instr(struct trapframe *frame, const struct kinst_probe *kp)
 {
-	frame->tf_sepc = (register_t)((uint8_t *)kp->kp_patchpoint +
+	frame->tf_sepc = (register_t)((const uint8_t *)kp->kp_patchpoint +
 	    kp->kp_md.instlen);
 
 	return (MATCH_C_NOP);
 }
 
 static void
-kinst_trampoline_populate(struct kinst_probe *kp, uint8_t *tramp)
+kinst_trampoline_populate(struct kinst_probe *kp)
 {
 	static uint16_t nop = MATCH_C_NOP;
 	static uint32_t ebreak = MATCH_EBREAK;
 	int ilen;
 
 	ilen = kp->kp_md.instlen;
-	kinst_memcpy(tramp, &kp->kp_savedval, ilen);
+	kinst_memcpy(kp->kp_tramp, &kp->kp_savedval, ilen);
 
 	/*
 	 * Since we cannot encode large displacements in a single instruction
@@ -273,9 +260,9 @@ kinst_trampoline_populate(struct kinst_probe *kp, uint8_t *tramp)
 	 * Add a NOP after a compressed instruction for padding.
 	 */
 	if (ilen == INSN_C_SIZE)
-		kinst_memcpy(&tramp[ilen], &nop, INSN_C_SIZE);
+		kinst_memcpy(&kp->kp_tramp[ilen], &nop, INSN_C_SIZE);
 
-	kinst_memcpy(&tramp[INSN_SIZE], &ebreak, INSN_SIZE);
+	kinst_memcpy(&kp->kp_tramp[INSN_SIZE], &ebreak, INSN_SIZE);
 
 	fence_i();
 }
@@ -306,27 +293,26 @@ int
 kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 {
 	solaris_cpu_t *cpu;
-	struct kinst_probe *kp;
-	uint8_t *tramp;
+	struct kinst_cpu_state *ks;
+	const struct kinst_probe *kp;
 
-	/*
-	 * Use per-CPU trampolines and probes if the thread executing the
-	 * instruction was executing with interrupts disabled.
-	 */
-	if ((frame->tf_sstatus & SSTATUS_SPIE) == 0) {
-		tramp = DPCPU_GET(intr_tramp);
-		kp = DPCPU_GET(intr_probe);
-	} else {
-		tramp = curthread->t_kinst_tramp;
-		kp = curthread->t_kinst_curprobe;
-	}
+	ks = DPCPU_PTR(kinst_state);
 
 	/*
 	 * Detect if the breakpoint was triggered by the trampoline, and
 	 * manually set the PC to the next instruction.
 	 */
-	if (addr == (uintptr_t)(tramp + INSN_SIZE))
-		return (kinst_jump_next_instr(frame, kp));
+	if (ks->state == KINST_PROBE_FIRED &&
+	    addr == (uintptr_t)(ks->kp->kp_tramp + INSN_SIZE)) {
+		/*
+		 * Restore interrupts if they were enabled prior to the first
+		 * breakpoint.
+		 */
+		if ((ks->status & SSTATUS_SPIE) != 0)
+			frame->tf_sstatus |= SSTATUS_SPIE;
+		ks->state = KINST_PROBE_ARMED;
+		return (kinst_jump_next_instr(frame, ks->kp));
+	}
 
 	LIST_FOREACH(kp, KINST_GETPROBE(addr), kp_hashnext) {
 		if ((uintptr_t)kp->kp_patchpoint == addr)
@@ -343,26 +329,16 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 	if (kp->kp_md.emulate)
 		return (kinst_emulate(frame, kp));
 
-	if (tramp == NULL) {
-		/*
-		 * A trampoline allocation failed, so this probe is
-		 * effectively disabled.  Restore the original
-		 * instruction.
-		 *
-		 * We can't safely print anything here, but the
-		 * trampoline allocator should have left a breadcrumb in
-		 * the dmesg.
-		 */
-		kinst_patch_tracepoint(kp, kp->kp_savedval);
-		frame->tf_sepc = (register_t)kp->kp_patchpoint;
-	} else {
-		kinst_trampoline_populate(kp, tramp);
-		frame->tf_sepc = (register_t)tramp;
-		if ((frame->tf_sstatus & SSTATUS_SPIE) == 0)
-			DPCPU_SET(intr_probe, kp);
-		else
-			curthread->t_kinst_curprobe = kp;
-	}
+	ks->state = KINST_PROBE_FIRED;
+	ks->kp = kp;
+
+	/*
+	 * Cache the current SSTATUS and clear interrupts for the
+	 * duration of the double breakpoint.
+	 */
+	ks->status = frame->tf_sstatus;
+	frame->tf_sstatus &= ~SSTATUS_SPIE;
+	frame->tf_sepc = (register_t)kp->kp_tramp;
 
 	return (MATCH_C_NOP);
 }
@@ -427,6 +403,9 @@ kinst_instr_dissect(struct kinst_probe *kp, int instrsize)
 			break;
 		}
 	}
+
+	if (!kpmd->emulate)
+		kinst_trampoline_populate(kp);
 }
 
 static bool
@@ -556,6 +535,10 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 			kp->kp_patchval = KINST_PATCHVAL;
 		else
 			kp->kp_patchval = KINST_C_PATCHVAL;
+		if ((kp->kp_tramp = kinst_trampoline_alloc(M_WAITOK)) == NULL) {
+			KINST_LOG("cannot allocate trampoline for %p", instr);
+			return (ENOMEM);
+		}
 
 		kinst_instr_dissect(kp, instrsize);
 		kinst_probe_create(kp, lf);
@@ -571,14 +554,12 @@ cont:
 int
 kinst_md_init(void)
 {
-	uint8_t *tramp;
+	struct kinst_cpu_state *ks;
 	int cpu;
 
 	CPU_FOREACH(cpu) {
-		tramp = kinst_trampoline_alloc(M_WAITOK);
-		if (tramp == NULL)
-			return (ENOMEM);
-		DPCPU_ID_SET(cpu, intr_tramp, tramp);
+		ks = DPCPU_PTR(kinst_state);
+		ks->state = KINST_PROBE_ARMED;
 	}
 
 	return (0);
@@ -587,16 +568,6 @@ kinst_md_init(void)
 void
 kinst_md_deinit(void)
 {
-	uint8_t *tramp;
-	int cpu;
-
-	CPU_FOREACH(cpu) {
-		tramp = DPCPU_ID_GET(cpu, intr_tramp);
-		if (tramp != NULL) {
-			kinst_trampoline_dealloc(tramp);
-			DPCPU_ID_SET(cpu, intr_tramp, NULL);
-		}
-	}
 }
 
 /*
