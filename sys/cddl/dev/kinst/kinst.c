@@ -97,6 +97,13 @@ kinst_excluded(const char *name)
 		return (true);
 
 	/*
+	 * cpu_switch() can cause a crash if it modifies the value of curthread
+	 * while in probe context.
+	 */
+	if (strcmp(name, "cpu_switch") == 0)
+		return (true);
+
+	/*
 	 * Anything beginning with "dtrace_" may be called from probe context
 	 * unless it explicitly indicates that it won't be called from probe
 	 * context by using the prefix "dtrace_safe_".
