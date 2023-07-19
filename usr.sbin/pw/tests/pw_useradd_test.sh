@@ -463,6 +463,29 @@ user_add_conf_defaultpasswd_body()
 	    grep defaultpasswd ${HOME}/pw.conf
 }
 
+atf_test_case user_add_existing_login_group
+user_add_existing_login_group_body()
+{
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} groupadd testuser
+	atf_check -s exit:0 ${PW} useradd user1 -G testuser
+	atf_check -s exit:0 ${PW} useradd testuser
+	atf_check -o match:"1" \
+	    sh -c "grep testuser ${HOME}/group | wc -l"
+}
+
+atf_test_case user_add_already_in_group
+user_add_already_in_group_body()
+{
+	populate_etc_skel
+
+	echo "testgroup:*:4242:testuser" >> ${HOME}/group
+	atf_check -s exit:0 ${PW} useradd testuser -G testgroup
+	atf_check -o not-match:"testuser,testuser" \
+		grep testuser ${HOME}/group
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -503,4 +526,6 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_defaultgroup
 
 	atf_add_test_case user_add_conf_defaultpasswd
+	atf_add_test_case user_add_existing_login_group
+	atf_add_test_case user_add_already_in_group
 }
