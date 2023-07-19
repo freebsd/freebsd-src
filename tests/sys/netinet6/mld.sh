@@ -80,10 +80,50 @@ mldraw01_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "pr233683" "cleanup"
+pr233683_head() {
+
+	atf_set descr 'Test for PR233683'
+	atf_set require.user root
+}
+
+pr233683_body() {
+	j="mld:pr233683"
+
+	vnet_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${j}a ${epair}a
+	jexec ${j}a ifconfig ${epair}a inet6 2001:db8::1/64 up
+	sleep 5
+
+	jexec ${j}a ifconfig ${epair}a inet6 2001:db8::1/64
+
+	vnet_mkjail ${j}b ${epair}b
+	jexec ${j}b ifconfig ${epair}b inet6 2001:db8::2/64 up
+
+	# Allow DAD to run
+	sleep 5
+
+	# Debug output. If the bug is present we'd expect to not see a
+	# membership for ff02::1:ff00:1
+	jexec ${j}a ifmcstat -i ${epair}a
+	jexec ${j}a ifconfig ${epair}a
+
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}b ping -6 -c 1 2001:db8::1
+}
+
+pr233683_cleanup() {
+
+	vnet_cleanup
+}
 atf_init_test_cases()
 {
 
 	atf_add_test_case "mldraw01"
+	atf_add_test_case "pr233683"
 }
 
 # end
