@@ -50,22 +50,25 @@ extern struct kinst_probe_list	*kinst_probetab;
 struct linker_file;
 struct linker_symval;
 
+/* kinst.c */
 volatile void	*kinst_memcpy(volatile void *, volatile const void *, size_t);
 bool	kinst_excluded(const char *);
-bool	kinst_md_excluded(const char *);
-int	kinst_invop(uintptr_t, struct trapframe *, uintptr_t);
-int	kinst_make_probe(struct linker_file *, int, struct linker_symval *,
-	    void *);
-void	kinst_patch_tracepoint(struct kinst_probe *, kinst_patchval_t);
 void	kinst_probe_create(struct kinst_probe *, struct linker_file *);
 
+/* arch/kinst_isa.c */
+int	kinst_invop(uintptr_t, struct trapframe *, uintptr_t);
+void	kinst_patch_tracepoint(struct kinst_probe *, kinst_patchval_t);
+int	kinst_make_probe(struct linker_file *, int, struct linker_symval *,
+	    void *);
+int	kinst_md_init(void);
+void	kinst_md_deinit(void);
+bool	kinst_md_excluded(const char *);
+
+/* trampoline.c */
 int	kinst_trampoline_init(void);
 int	kinst_trampoline_deinit(void);
 uint8_t	*kinst_trampoline_alloc(int);
 void	kinst_trampoline_dealloc(uint8_t *);
-
-int	kinst_md_init(void);
-void	kinst_md_deinit(void);
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_KINST);
