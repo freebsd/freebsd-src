@@ -89,7 +89,6 @@ typedef struct kdtrace_thread {
 	uint64_t	td_fasttrap_tp_gen; /* Tracepoint hash table gen. */
 	struct trapframe *td_dtrace_trapframe; /* Trap frame from invop. */
 	void		*td_kinst_tramp;
-	void		*td_kinst_curprobe;
 } kdtrace_thread_t;
 
 /*
@@ -120,7 +119,6 @@ typedef struct kdtrace_thread {
 #define	t_fasttrap_tp_gen	td_dtrace->td_fasttrap_tp_gen
 #define	t_dtrace_trapframe	td_dtrace->td_dtrace_trapframe
 #define	t_kinst_tramp		td_dtrace->td_kinst_tramp
-#define	t_kinst_curprobe	td_dtrace->td_kinst_curprobe
 #define	p_dtrace_helpers	p_dtrace->p_dtrace_helpers
 #define	p_dtrace_count	p_dtrace->p_dtrace_count
 #define	p_dtrace_probes	p_dtrace->p_dtrace_probes
