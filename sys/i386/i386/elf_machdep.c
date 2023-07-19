@@ -244,6 +244,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_386_GLOB_DAT:	/* S */
+		case R_386_JMP_SLOT:	/* S */
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
 				return (-1);
