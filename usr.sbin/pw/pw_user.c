@@ -1408,6 +1408,9 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if (cmdcnf->groups != NULL) {
 		for (i = 0; i < cmdcnf->groups->sl_cur; i++) {
 			grp = GETGRNAM(cmdcnf->groups->sl_str[i]);
+			/* gr_add doesn't check if new member is already in group */
+			if (grp_has_member(grp, pwd->pw_name))
+				continue;
 			grp = gr_add(grp, pwd->pw_name);
 			/*
 			 * grp can only be NULL in 2 cases:
