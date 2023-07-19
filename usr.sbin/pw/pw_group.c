@@ -418,7 +418,7 @@ pw_group_del(int argc, char **argv, char *arg1)
 	return (EXIT_SUCCESS);
 }
 
-static bool
+bool
 grp_has_member(struct group *grp, const char *name)
 {
 	int j;
