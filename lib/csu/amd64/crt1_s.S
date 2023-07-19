@@ -60,10 +60,11 @@ _start:
 	addq	%rax, %rdx		/* env += argc */
 #ifdef PIC
 	/*
-	 * XXX. %rip relative addressing does not intended to use in the
-	 * large memory model due to offset from %rip is limited to 32 bits.
+	 * XXX. %rip relative addressing is not intended for use in the
+	 * large memory model due to the offset from %rip being limited
+	 * to 32 bits.
 	 */
-	leaq	main(%rip), %r8
+	leaq	main@plt(%rip), %r8
 #else
 	movabsq	$main, %r8
 #endif
