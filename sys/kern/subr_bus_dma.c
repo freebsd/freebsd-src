@@ -450,25 +450,6 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 }
 
 int
-bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
-		    bus_dmamap_callback_t *callback, void *callback_arg,
-		    int flags)
-{
-	struct ccb_hdr *ccb_h;
-	struct memdesc mem;
-
-	ccb_h = &ccb->ccb_h;
-	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
-		callback(callback_arg, NULL, 0, 0);
-		return (0);
-	}
-
-	mem = memdesc_ccb(ccb);
-	return (bus_dmamap_load_mem(dmat, map, &mem, callback, callback_arg,
-	    flags));
-}
-
-int
 bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
 		    bus_dmamap_callback_t *callback, void *callback_arg,
 		    int flags)
