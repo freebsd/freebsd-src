@@ -49,8 +49,10 @@ static TAILQ_HEAD(, trampchunk)	kinst_trampchunks =
     TAILQ_HEAD_INITIALIZER(kinst_trampchunks);
 static struct sx		kinst_tramp_sx;
 SX_SYSINIT(kinst_tramp_sx, &kinst_tramp_sx, "kinst tramp");
+#ifdef __amd64__
 static eventhandler_tag		kinst_thread_ctor_handler;
 static eventhandler_tag		kinst_thread_dtor_handler;
+#endif
 
 /*
  * Fill the trampolines with KINST_TRAMP_FILL_PATTERN so that the kernel will
@@ -150,12 +152,14 @@ kinst_trampoline_alloc_locked(int how)
 		if ((how & M_NOWAIT) != 0)
 			return (NULL);
 
-		/*
-		 * We didn't find any free trampoline in the current list,
-		 * allocate a new one.  If that fails the provider will no
-		 * longer be reliable, so try to warn the user.
-		 */
 		if ((chunk = kinst_trampchunk_alloc()) == NULL) {
+#ifdef __amd64__
+			/*
+			 * We didn't find any free trampoline in the current
+			 * list, allocate a new one.  If that fails the
+			 * provider will no longer be reliable, so try to warn
+			 * the user.
+			 */
 			static bool once = true;
 
 			if (once) {
@@ -164,6 +168,7 @@ kinst_trampoline_alloc_locked(int how)
 				    "kinst: failed to allocate trampoline, "
 				    "probes may not fire");
 			}
+#endif
 			return (NULL);
 		}
 		off = 0;
@@ -220,6 +225,7 @@ kinst_trampoline_dealloc(uint8_t *tramp)
 	sx_xunlock(&kinst_tramp_sx);
 }
 
+#ifdef __amd64__
 static void
 kinst_thread_ctor(void *arg __unused, struct thread *td)
 {
@@ -240,10 +246,12 @@ kinst_thread_dtor(void *arg __unused, struct thread *td)
 	 */
 	kinst_trampoline_dealloc(tramp);
 }
+#endif
 
 int
 kinst_trampoline_init(void)
 {
+#ifdef __amd64__
 	struct proc *p;
 	struct thread *td;
 	void *tramp;
@@ -296,12 +304,21 @@ retry:
 out:
 	sx_xunlock(&kinst_tramp_sx);
 	sx_sunlock(&allproc_lock);
+#else
+	int error = 0;
+
+	sx_xlock(&kinst_tramp_sx);
+	TAILQ_INIT(&kinst_trampchunks);
+	sx_xunlock(&kinst_tramp_sx);
+#endif
+
 	return (error);
 }
 
 int
 kinst_trampoline_deinit(void)
 {
+#ifdef __amd64__
 	struct trampchunk *chunk, *tmp;
 	struct proc *p;
 	struct thread *td;
@@ -324,6 +341,14 @@ kinst_trampoline_deinit(void)
 	TAILQ_FOREACH_SAFE(chunk, &kinst_trampchunks, next, tmp)
 		kinst_trampchunk_free(chunk);
 	sx_xunlock(&kinst_tramp_sx);
+#else
+	struct trampchunk *chunk, *tmp;
+
+	sx_xlock(&kinst_tramp_sx);
+	TAILQ_FOREACH_SAFE(chunk, &kinst_trampchunks, next, tmp)
+		kinst_trampchunk_free(chunk);
+	sx_xunlock(&kinst_tramp_sx);
+#endif
 
 	return (0);
 }
