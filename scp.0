@@ -229,4 +229,4 @@ CAVEATS
      requires careful quoting of any characters that have special meaning to
      the remote shell, such as quote characters.
 
-OpenBSD 7.2                    December 16, 2022                   OpenBSD 7.2
+OpenBSD 7.3                    December 16, 2022                   OpenBSD 7.3

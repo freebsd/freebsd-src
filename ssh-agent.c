@@ -169,6 +169,12 @@ char socket_dir[PATH_MAX];
 /* Pattern-list of allowed PKCS#11/Security key paths */
 static char *allowed_providers;
 
+/*
+ * Allows PKCS11 providers or SK keys that use non-internal providers to
+ * be added over a remote connection (identified by session-bind@openssh.com).
+ */
+static int remote_add_provider;
+
 /* locking */
 #define LOCK_SIZE	32
 #define LOCK_SALT_SIZE	16
@@ -1228,6 +1234,12 @@ process_add_identity(SocketEntry *e)
 		if (strcasecmp(sk_provider, "internal") == 0) {
 			debug_f("internal provider");
 		} else {
+			if (e->nsession_ids != 0 && !remote_add_provider) {
+				verbose("failed add of SK provider \"%.100s\": "
+				    "remote addition of providers is disabled",
+				    sk_provider);
+				goto out;
+			}
 			if (realpath(sk_provider, canonical_provider) == NULL) {
 				verbose("failed provider \"%.100s\": "
 				    "realpath: %s", sk_provider,
@@ -1389,6 +1401,11 @@ process_add_smartcard_key(SocketEntry *e)
 	if (parse_key_constraints(e->request, NULL, &death, &seconds, &confirm,
 	    NULL, &dest_constraints, &ndest_constraints) != 0) {
 		error_f("failed to parse constraints");
+		goto send;
+	}
+	if (e->nsession_ids != 0 && !remote_add_provider) {
+		verbose("failed PKCS#11 add of \"%.100s\": remote addition of "
+		    "providers is disabled", provider);
 		goto send;
 	}
 	if (realpath(provider, canonical_provider) == NULL) {
@@ -2050,7 +2067,9 @@ main(int ac, char **av)
 			break;
 		case 'O':
 			if (strcmp(optarg, "no-restrict-websafe") == 0)
-				restrict_websafe  = 0;
+				restrict_websafe = 0;
+			else if (strcmp(optarg, "allow-remote-pkcs11") == 0)
+				remote_add_provider = 1;
 			else
 				fatal("Unknown -O option");
 			break;
