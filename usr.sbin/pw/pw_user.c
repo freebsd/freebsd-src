@@ -378,8 +378,7 @@ pw_gidpolicy(struct userconf *cnf, char *grname, char *nam, gid_t prefer, bool d
 			grp = GETGRGID(gid);
 		}
 		gid = grp->gr_gid;
-	} else if ((grp = GETGRNAM(nam)) != NULL &&
-	    (grp->gr_mem == NULL || grp->gr_mem[0] == NULL)) {
+	} else if ((grp = GETGRNAM(nam)) != NULL) {
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
 		intmax_t		grid = -1;
