@@ -107,9 +107,27 @@ environment variable).
 .It Fl O Ar option
 Specify an option when starting
 .Nm .
-Currently only one option is supported:
+Currently two options are supported:
+.Cm allow-remote-pkcs11
+and
 .Cm no-restrict-websafe .
-This instructs
+.Pp
+The
+.Cm allow-remote-pkcs11
+option allows clients of a forwarded
+.Nm
+to load PKCS#11 or FIDO provider libraries.
+By default only local clients may perform this operation.
+Note that signalling that a
+.Nm
+client remote is performed by
+.Xr ssh 1 ,
+and use of other tools to forward access to the agent socket may circumvent
+this restriction.
+.Pp
+The
+.Cm no-restrict-websafe ,
+instructs
 .Nm
 to permit signatures using FIDO keys that might be web authentication
 requests.
