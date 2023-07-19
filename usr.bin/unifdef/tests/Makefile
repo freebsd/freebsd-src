@@ -2,6 +2,7 @@
 
 PACKAGE=	tests
 
+ATF_TESTS_SH=	unifdef_test
 NETBSD_ATF_TESTS_SH=	basic_test
 
 ${PACKAGE}FILES+=	d_basic.in

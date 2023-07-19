@@ -886,8 +886,9 @@ parseline(void)
 			retval = LT_ELIF;
 	}
 	/* the following can happen if the last line of the file lacks a
-	   newline or if there is too much whitespace in a directive */
-	if (linestate == LS_HASH) {
+	   newline or if there is too much whitespace in a directive,
+	   or if a directive is followed by a multiline comment */
+	if (linestate == LS_HASH && !incomment) {
 		long len = cp - tline;
 		if (fgets(tline + len, MAXLINE - len, input) == NULL) {
 			if (ferror(input))
