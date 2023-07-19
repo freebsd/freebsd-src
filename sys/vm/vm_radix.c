@@ -513,205 +513,146 @@ vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index)
 }
 
 /*
- * Look up the nearest entry at a position greater than or equal to index.
+ * Returns the page with the least pindex that is greater than or equal to the
+ * specified pindex, or NULL if there are no such pages.
+ *
+ * Requires that access be externally synchronized by a lock.
  */
 vm_page_t
 vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
-	struct vm_radix_node *stack[VM_RADIX_LIMIT];
+	struct vm_radix_node *rnode, *succ;
 	vm_page_t m;
-	struct vm_radix_node *child, *rnode;
-#ifdef INVARIANTS
-	int loops = 0;
-#endif
-	int slot, tos;
+	int slot;
 
+	/*
+	 * Descend the trie as if performing an ordinary lookup for the page
+	 * with the specified pindex.  However, unlike an ordinary lookup, as we
+	 * descend the trie, we use "succ" to remember the last branching-off
+	 * point, that is, the interior node under which the page with the least
+	 * pindex that is both outside our current path down the trie and more
+	 * than the specified pindex resides.  (The node's popmap makes it fast
+	 * and easy to recognize a branching-off point.)  If our ordinary lookup
+	 * fails to yield a page with a pindex that is greater than or equal to
+	 * the specified pindex, then we will exit this loop and perform a
+	 * lookup starting from "succ".  If "succ" is not NULL, then that lookup
+	 * is guaranteed to succeed.
+	 */
 	rnode = vm_radix_root_load(rtree, LOCKED);
-	if (rnode == NULL)
-		return (NULL);
-	else if (vm_radix_isleaf(rnode)) {
-		m = vm_radix_topage(rnode);
-		if (m->pindex >= index)
-			return (m);
-		else
-			return (NULL);
-	}
-	tos = 0;
-	for (;;) {
-		/*
-		 * If the keys differ before the current bisection node,
-		 * then the search key might rollback to the earliest
-		 * available bisection node or to the smallest key
-		 * in the current node (if the owner is greater than the
-		 * search key).
-		 */
-		if (vm_radix_keybarr(rnode, index)) {
-			if (index > rnode->rn_owner) {
-ascend:
-				KASSERT(++loops < 1000,
-				    ("vm_radix_lookup_ge: too many loops"));
-
-				/*
-				 * Pop nodes from the stack until either the
-				 * stack is empty or a node that could have a
-				 * matching descendant is found.
-				 */
-				do {
-					if (tos == 0)
-						return (NULL);
-					rnode = stack[--tos];
-				} while (vm_radix_slot(index,
-				    rnode->rn_clev) == (VM_RADIX_COUNT - 1));
-
-				/*
-				 * The following computation cannot overflow
-				 * because index's slot at the current level
-				 * is less than VM_RADIX_COUNT - 1.
-				 */
-				index = vm_radix_trimkey(index,
-				    rnode->rn_clev);
-				index += VM_RADIX_UNITLEVEL(rnode->rn_clev);
-			} else
-				index = rnode->rn_owner;
-			KASSERT(!vm_radix_keybarr(rnode, index),
-			    ("vm_radix_lookup_ge: keybarr failed"));
-		}
-		slot = vm_radix_slot(index, rnode->rn_clev);
-		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
-		if (vm_radix_isleaf(child)) {
-			m = vm_radix_topage(child);
+	succ = NULL;
+	while (rnode != NULL) {
+		if (vm_radix_isleaf(rnode)) {
+			m = vm_radix_topage(rnode);
 			if (m->pindex >= index)
 				return (m);
-		} else if (child != NULL)
-			goto descend;
-
-		/* Find the first set bit beyond the first slot+1 bits. */
-		slot = ffs(rnode->rn_popmap & (-2 << slot)) - 1;
-		if (slot < 0) {
-			/*
-			 * A page or edge greater than the search slot is not
-			 * found in the current node; ascend to the next
-			 * higher-level node.
-			 */
-			goto ascend;
+			break;
 		}
-		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
-		KASSERT(child != NULL, ("%s: bad popmap slot %d in rnode %p",
-		    __func__, slot, rnode));
-		if (vm_radix_isleaf(child))
-			return (vm_radix_topage(child));
-		index = vm_radix_trimkey(index, rnode->rn_clev + 1) +
-		    slot * VM_RADIX_UNITLEVEL(rnode->rn_clev);
-descend:
-		KASSERT(rnode->rn_clev > 0,
-		    ("vm_radix_lookup_ge: pushing leaf's parent"));
-		KASSERT(tos < VM_RADIX_LIMIT,
-		    ("vm_radix_lookup_ge: stack overflow"));
-		stack[tos++] = rnode;
-		rnode = child;
+		if (vm_radix_keybarr(rnode, index)) {
+			/*
+			 * If all pages in this subtree have pindex > index,
+			 * then the page in this subtree with the least pindex
+			 * is the answer.
+			 */
+			if (rnode->rn_owner > index)
+				succ = rnode;
+			break;
+		}
+		slot = vm_radix_slot(index, rnode->rn_clev);
+
+		/*
+		 * Just in case the next search step leads to a subtree of all
+		 * pages with pindex < index, check popmap to see if a next
+		 * bigger step, to a subtree of all pages with pindex > index,
+		 * is available.  If so, remember to restart the search here.
+		 */
+		if ((rnode->rn_popmap >> slot) > 1)
+			succ = rnode;
+		rnode = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 	}
+
+	/*
+	 * Restart the search from the last place visited in the subtree that
+	 * included some pages with pindex > index, if there was such a place.
+	 */
+	if (succ == NULL)
+		return (NULL);
+	if (succ != rnode) {
+		/*
+		 * Take a step to the next bigger sibling of the node chosen
+		 * last time.  In that subtree, all pages have pindex > index.
+		 */
+		slot = vm_radix_slot(index, succ->rn_clev) + 1;
+		KASSERT((succ->rn_popmap >> slot) != 0,
+		    ("%s: no popmap siblings past slot %d in node %p",
+		    __func__, slot, succ));
+		slot += ffs(succ->rn_popmap >> slot) - 1;
+		succ = vm_radix_node_load(&succ->rn_child[slot], LOCKED);
+	}
+
+	/*
+	 * Find the page in the subtree rooted at "succ" with the least pindex.
+	 */
+	while (!vm_radix_isleaf(succ)) {
+		KASSERT(succ->rn_popmap != 0,
+		    ("%s: no popmap children in node %p",  __func__, succ));
+		slot = ffs(succ->rn_popmap) - 1;
+		succ = vm_radix_node_load(&succ->rn_child[slot], LOCKED);
+	}
+	return (vm_radix_topage(succ));
 }
 
 /*
- * Look up the nearest entry at a position less than or equal to index.
+ * Returns the page with the greatest pindex that is less than or equal to the
+ * specified pindex, or NULL if there are no such pages.
+ *
+ * Requires that access be externally synchronized by a lock.
  */
 vm_page_t
 vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
-	struct vm_radix_node *stack[VM_RADIX_LIMIT];
+	struct vm_radix_node *pred, *rnode;
 	vm_page_t m;
-	struct vm_radix_node *child, *rnode;
-#ifdef INVARIANTS
-	int loops = 0;
-#endif
-	int slot, tos;
+	int slot;
 
+	/*
+	 * Mirror the implementation of vm_radix_lookup_ge, described above.
+	 */
 	rnode = vm_radix_root_load(rtree, LOCKED);
-	if (rnode == NULL)
-		return (NULL);
-	else if (vm_radix_isleaf(rnode)) {
-		m = vm_radix_topage(rnode);
-		if (m->pindex <= index)
-			return (m);
-		else
-			return (NULL);
-	}
-	tos = 0;
-	for (;;) {
-		/*
-		 * If the keys differ before the current bisection node,
-		 * then the search key might rollback to the earliest
-		 * available bisection node or to the largest key
-		 * in the current node (if the owner is smaller than the
-		 * search key).
-		 */
-		if (vm_radix_keybarr(rnode, index)) {
-			if (index > rnode->rn_owner) {
-				index = rnode->rn_owner + VM_RADIX_COUNT *
-				    VM_RADIX_UNITLEVEL(rnode->rn_clev);
-			} else {
-ascend:
-				KASSERT(++loops < 1000,
-				    ("vm_radix_lookup_le: too many loops"));
-
-				/*
-				 * Pop nodes from the stack until either the
-				 * stack is empty or a node that could have a
-				 * matching descendant is found.
-				 */
-				do {
-					if (tos == 0)
-						return (NULL);
-					rnode = stack[--tos];
-				} while (vm_radix_slot(index,
-				    rnode->rn_clev) == 0);
-
-				/*
-				 * The following computation cannot overflow
-				 * because index's slot at the current level
-				 * is greater than 0.
-				 */
-				index = vm_radix_trimkey(index,
-				    rnode->rn_clev);
-			}
-			index--;
-			KASSERT(!vm_radix_keybarr(rnode, index),
-			    ("vm_radix_lookup_le: keybarr failed"));
-		}
-		slot = vm_radix_slot(index, rnode->rn_clev);
-		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
-		if (vm_radix_isleaf(child)) {
-			m = vm_radix_topage(child);
+	pred = NULL;
+	while (rnode != NULL) {
+		if (vm_radix_isleaf(rnode)) {
+			m = vm_radix_topage(rnode);
 			if (m->pindex <= index)
 				return (m);
-		} else if (child != NULL)
-			goto descend;
-
-		/* Find the last set bit among the first slot bits. */
-		slot = fls(rnode->rn_popmap & ((1 << slot) - 1)) - 1;
-		if (slot < 0) {
-			/*
-			 * A page or edge smaller than the search slot is not
-			 * found in the current node; ascend to the next
-			 * higher-level node.
-			 */
-			goto ascend;
+			break;
 		}
-		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
-		KASSERT(child != NULL, ("%s: bad popmap slot %d in rnode %p",
-		    __func__, slot, rnode));
-		if (vm_radix_isleaf(child))
-			return (vm_radix_topage(child));
-		index = vm_radix_trimkey(index, rnode->rn_clev + 1) +
-		    (slot + 1) * VM_RADIX_UNITLEVEL(rnode->rn_clev) - 1;
-descend:
-		KASSERT(rnode->rn_clev > 0,
-		    ("vm_radix_lookup_le: pushing leaf's parent"));
-		KASSERT(tos < VM_RADIX_LIMIT,
-		    ("vm_radix_lookup_le: stack overflow"));
-		stack[tos++] = rnode;
-		rnode = child;
+		if (vm_radix_keybarr(rnode, index)) {
+			if (rnode->rn_owner < index)
+				pred = rnode;
+			break;
+		}
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		if ((rnode->rn_popmap & ((1 << slot) - 1)) != 0)
+			pred = rnode;
+		rnode = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 	}
+	if (pred == NULL)
+		return (NULL);
+	if (pred != rnode) {
+		slot = vm_radix_slot(index, pred->rn_clev);
+		KASSERT((pred->rn_popmap & ((1 << slot) - 1)) != 0,
+		    ("%s: no popmap siblings before slot %d in node %p",
+		    __func__, slot, pred));
+		slot = fls(pred->rn_popmap & ((1 << slot) - 1)) - 1;
+		pred = vm_radix_node_load(&pred->rn_child[slot], LOCKED);
+	}
+	while (!vm_radix_isleaf(pred)) {
+		KASSERT(pred->rn_popmap != 0,
+		    ("%s: no popmap children in node %p",  __func__, pred));
+		slot = fls(pred->rn_popmap) - 1;
+		pred = vm_radix_node_load(&pred->rn_child[slot], LOCKED);
+	}
+	return (vm_radix_topage(pred));
 }
 
 /*

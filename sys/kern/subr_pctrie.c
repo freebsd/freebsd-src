@@ -472,211 +472,151 @@ pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t index, smr_t smr)
 }
 
 /*
- * Look up the nearest entry at a position bigger than or equal to index,
- * assuming access is externally synchronized by a lock.
+ * Returns the value with the least index that is greater than or equal to the
+ * specified index, or NULL if there are no such values.
+ *
+ * Requires that access be externally synchronized by a lock.
  */
 uint64_t *
 pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 {
-	struct pctrie_node *stack[PCTRIE_LIMIT];
+	struct pctrie_node *node, *succ;
 	uint64_t *m;
-	struct pctrie_node *child, *node;
-#ifdef INVARIANTS
-	int loops = 0;
-#endif
-	unsigned tos;
 	int slot;
 
+	/*
+	 * Descend the trie as if performing an ordinary lookup for the
+	 * specified value.  However, unlike an ordinary lookup, as we descend
+	 * the trie, we use "succ" to remember the last branching-off point,
+	 * that is, the interior node under which the least value that is both
+	 * outside our current path down the trie and greater than the specified
+	 * index resides.  (The node's popmap makes it fast and easy to
+	 * recognize a branching-off point.)  If our ordinary lookup fails to
+	 * yield a value that is greater than or equal to the specified index,
+	 * then we will exit this loop and perform a lookup starting from
+	 * "succ".  If "succ" is not NULL, then that lookup is guaranteed to
+	 * succeed.
+	 */
 	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	if (node == NULL)
-		return (NULL);
-	else if (pctrie_isleaf(node)) {
-		m = pctrie_toval(node);
-		if (*m >= index)
-			return (m);
-		else
-			return (NULL);
-	}
-	tos = 0;
-	for (;;) {
-		/*
-		 * If the keys differ before the current bisection node,
-		 * then the search key might rollback to the earliest
-		 * available bisection node or to the smallest key
-		 * in the current node (if the owner is greater than the
-		 * search key).
-		 */
-		if (pctrie_keybarr(node, index)) {
-			if (index > node->pn_owner) {
-ascend:
-				KASSERT(++loops < 1000,
-				    ("pctrie_lookup_ge: too many loops"));
-
-				/*
-				 * Pop nodes from the stack until either the
-				 * stack is empty or a node that could have a
-				 * matching descendant is found.
-				 */
-				do {
-					if (tos == 0)
-						return (NULL);
-					node = stack[--tos];
-				} while (pctrie_slot(index,
-				    node->pn_clev) == (PCTRIE_COUNT - 1));
-
-				/*
-				 * The following computation cannot overflow
-				 * because index's slot at the current level
-				 * is less than PCTRIE_COUNT - 1.
-				 */
-				index = pctrie_trimkey(index,
-				    node->pn_clev);
-				index += PCTRIE_UNITLEVEL(node->pn_clev);
-			} else
-				index = node->pn_owner;
-			KASSERT(!pctrie_keybarr(node, index),
-			    ("pctrie_lookup_ge: keybarr failed"));
-		}
-		slot = pctrie_slot(index, node->pn_clev);
-		child = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_LOCKED);
-		if (pctrie_isleaf(child)) {
-			m = pctrie_toval(child);
+	succ = NULL;
+	while (node != NULL) {
+		if (pctrie_isleaf(node)) {
+			m = pctrie_toval(node);
 			if (*m >= index)
 				return (m);
-		} else if (child != NULL)
-			goto descend;
-
-		/* Find the first set bit beyond the first slot+1 bits. */
-		slot = ffs(node->pn_popmap & (-2 << slot)) - 1;
-		if (slot < 0) {
-			/*
-			 * A value or edge greater than the search slot is not
-			 * found in the current node; ascend to the next
-			 * higher-level node.
-			 */
-			goto ascend;
+			break;
 		}
-		child = pctrie_node_load(&node->pn_child[slot],
-		    NULL, PCTRIE_LOCKED);
-		KASSERT(child != NULL, ("%s: bad popmap slot %d in node %p",
-		    __func__, slot, node));
-		if (pctrie_isleaf(child))
-			return (pctrie_toval(child));
-		index = pctrie_trimkey(index, node->pn_clev + 1) +
-		    slot * PCTRIE_UNITLEVEL(node->pn_clev);
-descend:
-		KASSERT(node->pn_clev > 0,
-		    ("pctrie_lookup_ge: pushing leaf's parent"));
-		KASSERT(tos < PCTRIE_LIMIT,
-		    ("pctrie_lookup_ge: stack overflow"));
-		stack[tos++] = node;
-		node = child;
+		if (pctrie_keybarr(node, index)) {
+			/*
+			 * If all values in this subtree are > index, then the
+			 * least value in this subtree is the answer.
+			 */
+			if (node->pn_owner > index)
+				succ = node;
+			break;
+		}
+		slot = pctrie_slot(index, node->pn_clev);
+
+		/*
+		 * Just in case the next search step leads to a subtree of all
+		 * values < index, check popmap to see if a next bigger step, to
+		 * a subtree of all pages with values > index, is available.  If
+		 * so, remember to restart the search here.
+		 */
+		if ((node->pn_popmap >> slot) > 1)
+			succ = node;
+		node = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
 	}
+
+	/*
+	 * Restart the search from the last place visited in the subtree that
+	 * included some values > index, if there was such a place.
+	 */
+	if (succ == NULL)
+		return (NULL);
+	if (succ != node) {
+		/*
+		 * Take a step to the next bigger sibling of the node chosen
+		 * last time.  In that subtree, all values > index.
+		 */
+		slot = pctrie_slot(index, succ->pn_clev) + 1;
+		KASSERT((succ->pn_popmap >> slot) != 0,
+		    ("%s: no popmap siblings past slot %d in node %p",
+		    __func__, slot, succ));
+		slot += ffs(succ->pn_popmap >> slot) - 1;
+		succ = pctrie_node_load(&succ->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+	}
+
+	/* 
+	 * Find the value in the subtree rooted at "succ" with the least index.
+	 */
+	while (!pctrie_isleaf(succ)) {
+		KASSERT(succ->pn_popmap != 0,
+		    ("%s: no popmap children in node %p",  __func__, succ));
+		slot = ffs(succ->pn_popmap) - 1;
+		succ = pctrie_node_load(&succ->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+	}
+	return (pctrie_toval(succ));
 }
 
 /*
- * Look up the nearest entry at a position less than or equal to index,
- * assuming access is externally synchronized by a lock.
+ * Returns the value with the greatest index that is less than or equal to the
+ * specified index, or NULL if there are no such values.
+ *
+ * Requires that access be externally synchronized by a lock.
  */
 uint64_t *
 pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 {
-	struct pctrie_node *stack[PCTRIE_LIMIT];
+	struct pctrie_node *node, *pred;
 	uint64_t *m;
-	struct pctrie_node *child, *node;
-#ifdef INVARIANTS
-	int loops = 0;
-#endif
-	unsigned tos;
 	int slot;
 
+	/*
+	 * Mirror the implementation of pctrie_lookup_ge, described above.
+	 */
 	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	if (node == NULL)
-		return (NULL);
-	else if (pctrie_isleaf(node)) {
-		m = pctrie_toval(node);
-		if (*m <= index)
-			return (m);
-		else
-			return (NULL);
-	}
-	tos = 0;
-	for (;;) {
-		/*
-		 * If the keys differ before the current bisection node,
-		 * then the search key might rollback to the earliest
-		 * available bisection node or to the largest key
-		 * in the current node (if the owner is smaller than the
-		 * search key).
-		 */
-		if (pctrie_keybarr(node, index)) {
-			if (index > node->pn_owner) {
-				index = node->pn_owner + PCTRIE_COUNT *
-				    PCTRIE_UNITLEVEL(node->pn_clev);
-			} else {
-ascend:
-				KASSERT(++loops < 1000,
-				    ("pctrie_lookup_le: too many loops"));
-
-				/*
-				 * Pop nodes from the stack until either the
-				 * stack is empty or a node that could have a
-				 * matching descendant is found.
-				 */
-				do {
-					if (tos == 0)
-						return (NULL);
-					node = stack[--tos];
-				} while (pctrie_slot(index,
-				    node->pn_clev) == 0);
-
-				/*
-				 * The following computation cannot overflow
-				 * because index's slot at the current level
-				 * is greater than 0.
-				 */
-				index = pctrie_trimkey(index,
-				    node->pn_clev);
-			}
-			index--;
-			KASSERT(!pctrie_keybarr(node, index),
-			    ("pctrie_lookup_le: keybarr failed"));
-		}
-		slot = pctrie_slot(index, node->pn_clev);
-		child = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_LOCKED);
-		if (pctrie_isleaf(child)) {
-			m = pctrie_toval(child);
+	pred = NULL;
+	while (node != NULL) {
+		if (pctrie_isleaf(node)) {
+			m = pctrie_toval(node);
 			if (*m <= index)
 				return (m);
-		} else if (child != NULL)
-			goto descend;
-
-		/* Find the last set bit among the first slot bits. */
-		slot = fls(node->pn_popmap & ((1 << slot) - 1)) - 1;
-		if (slot < 0) {
-			/*
-			 * A value or edge smaller than the search slot is not
-			 * found in the current node; ascend to the next
-			 * higher-level node.
-			 */
-			goto ascend;
+			break;
 		}
-		child = pctrie_node_load(&node->pn_child[slot],
-		    NULL, PCTRIE_LOCKED);
-		if (pctrie_isleaf(child))
-			return (pctrie_toval(child));
-		index = pctrie_trimkey(index, node->pn_clev + 1) +
-		    (slot + 1) * PCTRIE_UNITLEVEL(node->pn_clev) - 1;
-descend:
-		KASSERT(node->pn_clev > 0,
-		    ("pctrie_lookup_le: pushing leaf's parent"));
-		KASSERT(tos < PCTRIE_LIMIT,
-		    ("pctrie_lookup_le: stack overflow"));
-		stack[tos++] = node;
-		node = child;
+		if (pctrie_keybarr(node, index)) {
+			if (node->pn_owner < index)
+				pred = node;
+			break;
+		}
+		slot = pctrie_slot(index, node->pn_clev);
+		if ((node->pn_popmap & ((1 << slot) - 1)) != 0)
+			pred = node;
+		node = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
 	}
+	if (pred == NULL)
+		return (NULL);
+	if (pred != node) {
+		slot = pctrie_slot(index, pred->pn_clev);
+		KASSERT((pred->pn_popmap & ((1 << slot) - 1)) != 0,
+		    ("%s: no popmap siblings before slot %d in node %p",
+		    __func__, slot, pred));
+		slot = fls(pred->pn_popmap & ((1 << slot) - 1)) - 1;
+		pred = pctrie_node_load(&pred->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+	}
+	while (!pctrie_isleaf(pred)) {
+		KASSERT(pred->pn_popmap != 0,
+		    ("%s: no popmap children in node %p",  __func__, pred));
+		slot = fls(pred->pn_popmap) - 1;
+		pred = pctrie_node_load(&pred->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+	}
+	return (pctrie_toval(pred));
 }
 
 /*
