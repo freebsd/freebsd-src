@@ -407,7 +407,7 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	uint32_t af;
 
 	if (dst->sa_family == AF_UNSPEC)
-		bcopy(dst->sa_data, &af, sizeof(af));
+		memcpy(&af, dst->sa_data, sizeof(af));
 	else
 		af = RO_GET_FAMILY(ro, dst);
 	/*
