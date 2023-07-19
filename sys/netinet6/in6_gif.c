@@ -291,31 +291,16 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct ip6_hdr *ip6;
-	int len;
 
 	/* prepend new IP header */
 	NET_EPOCH_ASSERT();
-	len = sizeof(struct ip6_hdr);
-#ifndef __NO_STRICT_ALIGNMENT
-	if (proto == IPPROTO_ETHERIP)
-		len += ETHERIP_ALIGN;
-#endif
-	M_PREPEND(m, len, M_NOWAIT);
+	M_PREPEND(m, sizeof(struct ip6_hdr), M_NOWAIT);
 	if (m == NULL)
 		return (ENOBUFS);
-#ifndef __NO_STRICT_ALIGNMENT
-	if (proto == IPPROTO_ETHERIP) {
-		len = mtod(m, vm_offset_t) & 3;
-		KASSERT(len == 0 || len == ETHERIP_ALIGN,
-		    ("in6_gif_output: unexpected misalignment"));
-		m->m_data += len;
-		m->m_len -= ETHERIP_ALIGN;
-	}
-#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	MPASS(sc->gif_family == AF_INET6);
-	bcopy(sc->gif_ip6hdr, ip6, sizeof(struct ip6_hdr));
+	memcpy(ip6, sc->gif_ip6hdr, sizeof(struct ip6_hdr));
 
 	ip6->ip6_flow  |= htonl((uint32_t)ecn << 20);
 	ip6->ip6_nxt	= proto;
