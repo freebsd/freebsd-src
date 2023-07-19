@@ -58,7 +58,7 @@ struct kinst_cpu_state {
 	/*
 	 * Points to the probe whose trampoline we're currently executing.
 	 */
-	struct kinst_probe *kp;
+	const struct kinst_probe *kp;
 	/*
 	 * Because we execute trampolines with interrupts disabled, we have to
 	 * cache the CPU's status in order to restore it when we return from
