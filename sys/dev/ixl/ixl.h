@@ -286,6 +286,8 @@
 /* For stats sysctl naming */
 #define IXL_QUEUE_NAME_LEN 32
 
+#define IXL_PF_MAX_LINK_POLL	SBT_1S * 5
+
 MALLOC_DECLARE(M_IXL);
 
 #define IXL_DEV_ERR(_dev, _format, ...) \

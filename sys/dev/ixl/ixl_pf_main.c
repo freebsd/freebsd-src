@@ -4705,22 +4705,38 @@ ixl_attach_get_link_status(struct ixl_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
-	int error = 0;
+	enum i40e_status_code status;
 
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
 		i40e_msec_delay(75);
-		error = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
-		if (error) {
-			device_printf(dev, "link restart failed, aq_err=%d\n",
-			    pf->hw.aq.asq_last_status);
-			return error;
+		status = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
+		if (status != I40E_SUCCESS) {
+			device_printf(dev,
+			    "%s link restart failed status: %s, aq_err=%s\n",
+			    __func__, i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+			return (EINVAL);
 		}
 	}
 
 	/* Determine link state */
 	hw->phy.get_link_info = TRUE;
-	i40e_get_link_status(hw, &pf->link_up);
+	status = i40e_get_link_status(hw, &pf->link_up);
+	if (status != I40E_SUCCESS) {
+		device_printf(dev,
+		    "%s get link status, status: %s aq_err=%s\n",
+		    __func__, i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		/*
+		 * Most probably FW has not finished configuring PHY.
+		 * Retry periodically in a timer callback.
+		 */
+		ixl_set_state(&pf->state, IXL_STATE_LINK_POLLING);
+		pf->link_poll_start = getsbinuptime();
+		return (EAGAIN);
+	}
+ 	ixl_dbg_link(pf, "%s link_up: %d\n", __func__, pf->link_up);
 
 	/* Flow Control mode not set by user, read current FW settings */
 	if (pf->fc == -1)
