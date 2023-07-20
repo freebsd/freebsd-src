@@ -102,7 +102,7 @@ print_bits(const char *btype, uint32_t *v, const int v_count,
 	}
 	if (num > 0)
 		printf(">");
-}	
+}
 
 static void
 nl_init_socket(struct snl_state *ss)
@@ -287,7 +287,7 @@ match_iface(struct ifconfig_args *args, struct iface *iface)
 		};
 		return (match_ether(&sdl));
 	}
-	
+
 	for (struct ifa *ifa = iface->ifa; ifa != NULL; ifa = ifa->next) {
 		if (args->afp->af_af == ifa->addr.ifa_family)
 			return (true);
@@ -421,7 +421,7 @@ static int
 get_local_socket(void)
 {
 	int s = socket(AF_LOCAL, SOCK_DGRAM, 0);
-	
+
 	if (s < 0)
 		err(1, "socket(family %u,SOCK_DGRAM)", AF_LOCAL);
 	return (s);
