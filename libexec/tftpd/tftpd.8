@@ -28,7 +28,7 @@
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2020
+.Dd July 20, 2023
 .Dt TFTPD 8
 .Os
 .Sh NAME
@@ -72,7 +72,11 @@ Files containing the string
 or starting with
 .Dq Li "../"
 are not allowed.
-Files may be written only if they already exist and are publicly writable.
+Files may be written only if they already exist (unless the
+.Fl w
+option is used) and are publicly writable (unless chrooted and the
+.Fl S
+option is used).
 Note that this extends the concept of
 .Dq public
 to include
@@ -191,6 +195,12 @@ to change its root directory to
 After doing that but before accepting commands,
 .Nm
 will switch credentials to an unprivileged user.
+.It Fl S
+If
+.Nm
+runs chrooted, the option allows write requests according to generic
+file permissions, skipping requirement for files to be publicly writable.
+The option is ignored for non-chrooted run.
 .It Fl u Ar user
 Switch credentials to
 .Ar user
@@ -275,12 +285,16 @@ the
 .Fl c
 option was introduced in
 .Fx 4.3 ,
-and the
+the
 .Fl F
 and
 .Fl W
 options were introduced in
-.Fx 7.4 .
+.Fx 7.4 ,
+and the
+.Fl S
+option was introduced in
+.Fx 13.3 .
 .Pp
 Support for Timeout Interval and Transfer Size Options (RFC2349)
 was introduced in
