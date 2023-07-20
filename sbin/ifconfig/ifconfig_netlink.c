@@ -88,7 +88,7 @@ print_bits(const char *btype, uint32_t *v, const int v_count,
 	int num = 0;
 
 	for (int i = 0; i < v_count * 32; i++) {
-		bool is_set = v[i / 32] & (1 << (i % 32));
+		bool is_set = v[i / 32] & (1U << (i % 32));
 		if (is_set) {
 			if (num++ == 0)
 				printf("<");
