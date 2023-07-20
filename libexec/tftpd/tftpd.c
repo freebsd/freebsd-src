@@ -98,6 +98,7 @@ static struct dirlist {
 static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
+static int	check_woth = 1;
 static int	create_new = 0;
 static const char *newfile_format = "%Y%m%d";
 static int	increase_name = 0;
@@ -138,7 +139,8 @@ main(int argc, char *argv[])
 	acting_as_client = 0;
 
 	tftp_openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cCd:F:lnoOp:s:u:U:wW")) != -1) {
+	while ((ch = getopt(argc, argv, "cCd:F:lnoOp:s:Su:U:wW")) != -1) {
+>>>>>>> 273a307d0b80 (tftpd: introduce new option -S)
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
@@ -175,6 +177,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			chroot_dir = optarg;
+			break;
+		case 'S':
+			check_woth = -1;
 			break;
 		case 'u':
 			chuser = optarg;
@@ -385,7 +390,11 @@ main(int argc, char *argv[])
 			tftp_log(LOG_ERR, "setuid failed");
 			exit(1);
 		}
+		if (check_woth == -1)
+			check_woth = 0;
 	}
+	if (check_woth == -1)
+		check_woth = 1;
 
 	len = sizeof(me_sock);
 	if (getsockname(0, (struct sockaddr *)&me_sock, &len) == 0) {
@@ -727,7 +736,7 @@ validate_access(int peer, char **filep, int mode)
 			if ((stbuf.st_mode & S_IROTH) == 0)
 				return (EACCESS);
 		} else {
-			if ((stbuf.st_mode & S_IWOTH) == 0)
+			if (check_woth && ((stbuf.st_mode & S_IWOTH) == 0))
 				return (EACCESS);
 		}
 	} else {
@@ -757,7 +766,7 @@ validate_access(int peer, char **filep, int mode)
 					if ((stbuf.st_mode & S_IROTH) != 0)
 						break;
 				} else {
-					if ((stbuf.st_mode & S_IWOTH) != 0)
+					if (!check_woth || ((stbuf.st_mode & S_IWOTH) != 0))
 						break;
 				}
 				err = EACCESS;
