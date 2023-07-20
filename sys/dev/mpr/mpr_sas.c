@@ -2767,13 +2767,13 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 * count by returning CAM_REQUEUE_REQ.  Unfortunately, if
 		 * we hit a persistent drive problem that returns one of
 		 * these error codes, we would retry indefinitely.  So,
-		 * return CAM_REQ_CMP_ERROR so that we decrement the retry
+		 * return CAM_REQ_CMP_ERR so that we decrement the retry
 		 * count and avoid infinite retries.  We're taking the
 		 * potential risk of flagging false failures in the event
 		 * of a topology-related error (e.g. a SAS expander problem
 		 * causes a command addressed to a drive to fail), but
 		 * avoiding getting into an infinite retry loop. However,
-		 * if we get them while were moving a device, we should
+		 * if we get them while were removing a device, we should
 		 * fail the request as 'not there' because the device
 		 * is effectively gone.
 		 */
