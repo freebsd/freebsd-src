@@ -315,7 +315,8 @@ static int host_match(char *tok, struct host_info *host)
 	return (masked_match(tok, mask, eval_hostaddr(host)));
     } else {					/* anything else */
 	return (string_match(tok, eval_hostaddr(host))
-	    || (NOT_INADDR(tok) && string_match(tok, eval_hostname(host))));
+	    || (NOT_INADDR(tok) && NOT_INADDR6(tok)
+	     && string_match(tok, eval_hostname(host))));
     }
 }
 
