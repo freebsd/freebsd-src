@@ -70,6 +70,7 @@ extern char paranoid[];
 #define	HOSTNAME_KNOWN(s) (STR_NE((s),unknown) && STR_NE((s),paranoid))
 
 #define	NOT_INADDR(s) (s[strspn(s,"01234567890./")] != 0)
+#define	NOT_INADDR6(s) (strchr(s, ':') == NULL)
 
 /* Global functions. */
 
