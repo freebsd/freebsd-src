@@ -32,6 +32,28 @@ SRCS+=	ppccpuid.S ppccap.c
 SRCS+=	mem_clr.c
 .endif
 
+# crypto/aes
+SRCS+=	aes_cbc.c aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
+.if defined(ASM_aarch64)
+SRCS+=	aes_core.c aesv8-armx.S vpaes-armv8.S
+ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
+.elif defined(ASM_amd64)
+SRCS+=	aes_core.c aesni-mb-x86_64.S aesni-sha1-x86_64.S aesni-sha256-x86_64.S
+SRCS+=	aesni-x86_64.S vpaes-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	aes-armv4.S aesv8-armx.S bsaes-armv7.S
+.elif defined(ASM_i386)
+SRCS+=	aes_core.c aesni-x86.S vpaes-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+.else
+SRCS+=	aes_core.c
+.endif
+
 # crypto/bn
 SRCS+=	bn_add.c bn_div.c bn_exp.c bn_lib.c bn_ctx.c bn_mul.c \
 	bn_mod.c bn_conv.c bn_rand.c bn_shift.c bn_word.c bn_blind.c \
@@ -55,6 +77,20 @@ SRCS+=	bn_ppc.c bn-ppc.S ppc-mont.S
 SRCS+=	bn_ppc.c bn-ppc.S ppc-mont.S
 .else
 SRCS+=	bn_asm.c
+.endif
+
+# crypto/buffer
+SRCS+=	buffer.c
+
+# crypto/cmac
+SRCS+=	cmac.c
+
+# crypto/des
+SRCS+=	set_key.c ecb3_enc.c
+.if defined(ASM_i386)
+SRCS+=	crypt586.S des-586.S
+.else
+SRCS+=	des_enc.c fcrypt_b.c
 .endif
 
 # crypto/dh
@@ -109,11 +145,37 @@ SRCS+=	ffc_params.c ffc_params_generate.c ffc_key_generate.c \
 	ffc_params_validate.c ffc_key_validate.c ffc_backend.c \
 	ffc_dh.c
 
+# crypto/hmac
+SRCS+=	hmac.c
+
 # crypto/lhash
 SRCS+=	lhash.c
 
+# crypto/modes
+SRCS+=	cbc128.c ctr128.c cfb128.c ofb128.c gcm128.c ccm128.c xts128.c
+SRCS+=	wrap128.c
+.if defined(ASM_aarch64)
+SRCS+=	ghashv8-armx.S aes-gcm-armv8_64.S
+ACFLAGS.ghashv8-armx.S=	-march=armv8-a+crypto
+.elif defined(ASM_amd64)
+SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	ghash-armv4.S ghashv8-armx.S
+.elif defined(ASM_i386)
+SRCS+=	ghash-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	ghashp8-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	ghashp8-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	ghashp8-ppc.S
+.endif
+
 # crypto/property
 SRCS+=	property_string.c property_parse.c property_query.c property.c defn_cache.c
+
+# crypto/rand
+SRCS+=	rand_lib.c
 
 # crypto/rsa
 SRCS+=	rsa_ossl.c rsa_gen.c rsa_lib.c rsa_sign.c rsa_pk1.c \
@@ -142,6 +204,9 @@ SRCS+=	keccak1600-ppc64.S sha_ppc.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p
 .else
 SRCS+=	keccak1600.c
 .endif
+
+# crypto/stack
+SRCS+=	stack.c
 
 # common
 SRCS+=	capabilities.c bio_prov.c digest_to_nid.c \
@@ -243,17 +308,25 @@ SRCS+=	record/tls_pad.c s3_cbc.c
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes \
 	${LCRYPTO_SRC}/crypto/bio \
 	${LCRYPTO_SRC}/crypto/bn \
+	${LCRYPTO_SRC}/crypto/buffer \
+	${LCRYPTO_SRC}/crypto/cmac \
+	${LCRYPTO_SRC}/crypto/des \
 	${LCRYPTO_SRC}/crypto/dh \
 	${LCRYPTO_SRC}/crypto/dsa \
 	${LCRYPTO_SRC}/crypto/ec \
 	${LCRYPTO_SRC}/crypto/evp \
 	${LCRYPTO_SRC}/crypto/ffc \
+	${LCRYPTO_SRC}/crypto/hmac \
 	${LCRYPTO_SRC}/crypto/lhash \
+	${LCRYPTO_SRC}/crypto/modes \
 	${LCRYPTO_SRC}/crypto/property \
+	${LCRYPTO_SRC}/crypto/rand \
 	${LCRYPTO_SRC}/crypto/rsa \
 	${LCRYPTO_SRC}/crypto/sha \
+	${LCRYPTO_SRC}/crypto/stack \
 	${LCRYPTO_SRC}/providers/fips \
 	${LCRYPTO_SRC}/providers/common/der \
 	${LCRYPTO_SRC}/providers/implementations/asymciphers \
