@@ -220,19 +220,13 @@ proc_set_p2_wexit(struct proc *p)
 	p->p_flag2 |= P2_WEXIT;
 }
 
-void
-exit1(struct thread *td, int rval, int signo)
-{
-	exit2(td, rval, signo, false);
-}
-
 /*
  * Exit: deallocate address space and other resources, change proc state to
  * zombie, and unlink proc from allproc and parent's lists.  Save exit status
  * and rusage for wait().  Check for child processes and orphan them.
  */
 void
-exit2(struct thread *td, int rval, int signo, bool dec_killpg_cnt)
+exit1(struct thread *td, int rval, int signo)
 {
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
@@ -309,11 +303,6 @@ exit2(struct thread *td, int rval, int signo, bool dec_killpg_cnt)
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
 	racct_sub(p, RACCT_NTHR, 1);
-
-	if (dec_killpg_cnt) {
-		MPASS(atomic_load_int(&p->p_killpg_cnt) > 0);
-		atomic_add_int(&p->p_killpg_cnt, -1);
-	}
 
 	/* Let event handler change exit status */
 	p->p_xexit = rval;
