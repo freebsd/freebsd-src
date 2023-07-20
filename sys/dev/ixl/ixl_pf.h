@@ -89,6 +89,7 @@ enum ixl_state {
 	IXL_STATE_FW_LLDP_DISABLED	= 9,
 	IXL_STATE_EEE_ENABLED	= 10,
 	IXL_STATE_LINK_ACTIVE_ON_DOWN = 11,
+	IXL_STATE_LINK_POLLING = 12,
 };
 
 #define IXL_PF_IN_RECOVERY_MODE(pf)	\
@@ -172,6 +173,8 @@ struct ixl_pf {
 	int			num_vfs;
 	uint16_t		veb_seid;
 	int			vc_debug_lvl;
+
+	sbintime_t		link_poll_start;
 };
 
 /*
@@ -282,6 +285,7 @@ struct ixl_pf {
 #define ixl_dbg_info(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_INFO, s, ##__VA_ARGS__)
 #define ixl_dbg_filter(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_FILTER, s, ##__VA_ARGS__)
 #define ixl_dbg_iov(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_IOV, s, ##__VA_ARGS__)
+#define ixl_dbg_link(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_LINK, s, ##__VA_ARGS__)
 
 /* PF-only function declarations */
 void	ixl_set_state(volatile u32 *s, enum ixl_state bit);

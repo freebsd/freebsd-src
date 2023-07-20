@@ -444,6 +444,29 @@ ixl_admin_timer(void *arg)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)arg;
 
+	if (ixl_test_state(&pf->state, IXL_STATE_LINK_POLLING)) {
+		struct i40e_hw *hw = &pf->hw;
+		sbintime_t stime;
+		enum i40e_status_code status;
+
+		hw->phy.get_link_info = TRUE;
+		status = i40e_get_link_status(hw, &pf->link_up);
+		if (status == I40E_SUCCESS) {
+			ixl_clear_state(&pf->state, IXL_STATE_LINK_POLLING);
+			/* OS link info is updated in the admin task */
+		} else {
+			device_printf(pf->dev,
+			    "%s: i40e_get_link_status status %s, aq error %s\n",
+			    __func__, i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+			stime = getsbinuptime();
+			if (stime - pf->link_poll_start > IXL_PF_MAX_LINK_POLL) {
+				device_printf(pf->dev, "Polling link status failed\n");
+				ixl_clear_state(&pf->state, IXL_STATE_LINK_POLLING);
+			}
+		}
+	}
+
 	/* Fire off the admin task */
 	iflib_admin_intr_deferred(pf->vsi.ctx);
 
@@ -706,12 +729,6 @@ ixl_if_attach_post(if_ctx_t ctx)
 		return (0);
 	}
 
-	/* Determine link state */
-	if (ixl_attach_get_link_status(pf)) {
-		error = EINVAL;
-		goto err;
-	}
-
 	error = ixl_switch_config(pf);
 	if (error) {
 		device_printf(dev, "Initial ixl_switch_config() failed: %d\n",
@@ -739,6 +756,11 @@ ixl_if_attach_post(if_ctx_t ctx)
 	}
 	device_printf(dev, "Allocating %d queues for PF LAN VSI; %d queues active\n",
 	    pf->qtag.num_allocated, pf->qtag.num_active);
+
+	/* Determine link state */
+	error = ixl_attach_get_link_status(pf);
+	if (error == EINVAL)
+		goto err;
 
 	/* Limit PHY interrupts to link, autoneg, and modules failure */
 	status = i40e_aq_set_phy_int_mask(hw, IXL_DEFAULT_PHY_INT_MASK,
@@ -775,8 +797,20 @@ ixl_if_attach_post(if_ctx_t ctx)
 	ixl_set_link(pf, ixl_test_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN));
 
 	hw->phy.get_link_info = true;
-	i40e_get_link_status(hw, &pf->link_up);
-	ixl_update_link_status(pf);
+	status = i40e_get_link_status(hw, &pf->link_up);
+	if (status != I40E_SUCCESS) {
+		device_printf(dev,
+		    "%s get link status, status: %s aq_err=%s\n",
+		    __func__, i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		/*
+		 * Most probably FW has not finished configuring PHY.
+		 * Retry periodically in a timer callback.
+		 */
+		ixl_set_state(&pf->state, IXL_STATE_LINK_POLLING);
+		pf->link_poll_start = getsbinuptime();
+	} else
+		ixl_update_link_status(pf);
 
 #ifdef PCI_IOV
 	ixl_initialize_sriov(pf);
