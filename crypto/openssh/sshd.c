@@ -1297,13 +1297,24 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 				    SO_LINGER, &l, sizeof(l));
 				(void )close(*newsock);
 				/*
-				 * Mimic message from libwrap's refuse()
-				 * exactly.  sshguard, and supposedly lots
-				 * of custom made scripts rely on it.
+				 * Mimic message from libwrap's refuse() as
+				 * precisely as we can afford.  The authentic
+				 * message prints the IP address and the
+				 * hostname it resolves to in parentheses.  If
+				 * the IP address cannot be resolved to a
+				 * hostname, the IP address will be repeated
+				 * in parentheses.  As name resolution in the
+				 * main server loop could stall, and logging
+				 * resolved names adds little or no value to
+				 * incident investigation, this implementation
+				 * only repeats the IP address in parentheses.
+				 * This should resemble librwap's refuse()
+				 * closely enough not to break auditing
+				 * software like sshguard or custom scripts.
 				 */
 				syslog(LOG_WARNING,
 				    "refused connect from %s (%s)",
-				    eval_client(&req),
+				    eval_hostaddr(req.client),
 				    eval_hostaddr(req.client));
 				debug("Connection refused by tcp wrapper");
 				continue;
