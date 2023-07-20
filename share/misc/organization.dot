@@ -48,7 +48,6 @@ bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nallanjude, brd,\ndhw, gavin,\ngjb, peter,\nsbruno, simon,\nzi"]
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nclusteradm"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nclusteradm,\nkuriyama"]
-perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
 postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, krion, ler, philip, pi, rea, remko, zi"]
 webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
 
@@ -68,7 +67,6 @@ _admin -> bugmeister
 _admin -> clusteradm
 _admin -> dnsadm
 _admin -> mirroradmin
-_admin -> perforceadmin
 _admin -> postmaster
 _admin -> webmaster
 
