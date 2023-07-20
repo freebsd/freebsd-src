@@ -671,6 +671,12 @@ again:
 sendit:
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (IPSEC_ENABLED(ipv4)) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IPSTAT_INC(ips_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
 		if ((error = IPSEC_OUTPUT(ipv4, m, inp)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
