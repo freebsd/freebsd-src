@@ -4178,7 +4178,8 @@ vm_map_copy_entry(
 			    src_entry->start);
 		} else {
 			dst_entry->object.vm_object = NULL;
-			dst_entry->offset = 0;
+			if ((dst_entry->eflags & MAP_ENTRY_GUARD) == 0)
+				dst_entry->offset = 0;
 			if (src_entry->cred != NULL) {
 				dst_entry->cred = curthread->td_ucred;
 				crhold(dst_entry->cred);
