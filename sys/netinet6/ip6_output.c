@@ -461,6 +461,12 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 * XXX: need scope argument.
 	 */
 	if (IPSEC_ENABLED(ipv6)) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
 		if ((error = IPSEC_OUTPUT(ipv6, m, inp)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
