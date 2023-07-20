@@ -95,6 +95,8 @@ LDFLAGS+= -Wl,-zretpolineplt
 .warning Retpoline requested but not supported by compiler or linker
 .endif
 .endif
+# LLD sensibly defaults to -znoexecstack, so do the same for BFD
+LDFLAGS.bfd+= -Wl,-znoexecstack
 
 # Initialize stack variables on function entry
 .if ${MK_INIT_ALL_ZERO} == "yes"
