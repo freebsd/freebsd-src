@@ -857,7 +857,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	static int curfail;
 	static struct timeval lastfail;
 	int flags, pages;
-	bool killsx_locked;
+	bool killsx_locked, singlethreaded;
 
 	flags = fr->fr_flags;
 	pages = fr->fr_pages;
@@ -915,6 +915,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	newproc = NULL;
 	vm2 = NULL;
 	killsx_locked = false;
+	singlethreaded = false;
 
 	/*
 	 * Increment the nprocs resource before allocations occur.
@@ -945,14 +946,37 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	/*
-	 * Atomically check for signals and block threads from sending
-	 * a signal to our process group until the child is visible.
+	 * If we are possibly multi-threaded, and there is a process
+	 * sending a signal to our group right now, ensure that our
+	 * other threads cannot be chosen for the signal queueing.
+	 * Otherwise, this might delay signal action, and make the new
+	 * child escape the signaling.
 	 */
 	pg = p1->p_pgrp;
-	if (sx_slock_sig(&pg->pg_killsx) != 0) {
+	if (p1->p_numthreads > 1) {
+		if (sx_try_slock(&pg->pg_killsx) != 0) {
+			killsx_locked = true;
+		} else {
+			PROC_LOCK(p1);
+			if (thread_single(p1, SINGLE_BOUNDARY)) {
+				PROC_UNLOCK(p1);
+				error = ERESTART;
+				goto fail2;
+			}
+			PROC_UNLOCK(p1);
+			singlethreaded = true;
+		}
+	}
+
+	/*
+	 * Atomically check for signals and block processes from sending
+	 * a signal to our process group until the child is visible.
+	 */
+	if (!killsx_locked && sx_slock_sig(&pg->pg_killsx) != 0) {
 		error = ERESTART;
 		goto fail2;
-	} else if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
+	}
+	if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
 		/*
 		 * Either the process was moved to other process
 		 * group, or there is pending signal.  sx_slock_sig()
@@ -1056,8 +1080,8 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
-	sx_sunlock(&pg->pg_killsx);
-	return (0);
+	error = 0;
+	goto cleanup;
 fail0:
 	error = EAGAIN;
 #ifdef MAC
@@ -1075,9 +1099,16 @@ fail2:
 		fdrop(fp_procdesc, td);
 	}
 	atomic_add_int(&nprocs, -1);
+cleanup:
 	if (killsx_locked)
 		sx_sunlock(&pg->pg_killsx);
-	pause("fork", hz / 2);
+	if (singlethreaded) {
+		PROC_LOCK(p1);
+		thread_single_end(p1, SINGLE_BOUNDARY);
+		PROC_UNLOCK(p1);
+	}
+	if (error != 0)
+		pause("fork", hz / 2);
 	return (error);
 }
 
