@@ -1285,6 +1285,7 @@ ndaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 #endif
 		break;
 	case CAM_REQ_CMP_ERR:
+	case CAM_NVME_STATUS_ERROR:
 #ifdef CAM_IO_STATS
 		softc->errors++;
 #endif

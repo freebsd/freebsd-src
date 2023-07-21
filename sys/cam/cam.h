@@ -240,7 +240,12 @@ typedef enum {
 	CAM_REQ_SOFTTIMEOUT	= 0x1f,
 
 	/*
-	 * 0x20 - 0x32 are unassigned
+	 * NVME error, look at errro code in CCB
+	 */
+	CAM_NVME_STATUS_ERROR	= 0x20,
+
+	/*
+	 * 0x21 - 0x32 are unassigned
 	 */
 
 	/* Initiator Detected Error */

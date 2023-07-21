@@ -74,7 +74,7 @@ nvme_sim_nvmeio_done(void *ccb_arg, const struct nvme_completion *cpl)
 	memcpy(&ccb->nvmeio.cpl, cpl, sizeof(*cpl));
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if (nvme_completion_is_error(cpl)) {
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		ccb->ccb_h.status = CAM_NVME_STATUS_ERROR;
 		xpt_done(ccb);
 	} else {
 		ccb->ccb_h.status = CAM_REQ_CMP;
