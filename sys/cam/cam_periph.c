@@ -1262,7 +1262,7 @@ cam_periph_runccb(union ccb *ccb,
 	 * shutdown_post_sync event will run with the scheduler stopped, but
 	 * before we're officially dumping. To avoid hanging in adashutdown
 	 * initiated commands (or other similar situations), we have to test for
-	 * either SCHEDULER_STOPPED() here as well.
+	 * either dumping or SCHEDULER_STOPPED() here.
 	 *
 	 * To avoid locking problems, dumping/polling callers must call
 	 * without a periph lock held.
