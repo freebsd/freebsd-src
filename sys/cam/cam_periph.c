@@ -1298,6 +1298,11 @@ cam_periph_runccb(union ccb *ccb,
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 				error = 0;
 			else if (error_routine != NULL) {
+				/*
+				 * cbfcnp is modified by cam_periph_ccbwait so
+				 * reset it before we call the error routine
+				 * which may call xpt_done.
+				 */
 				ccb->ccb_h.cbfcnp = cam_periph_done;
 				error = (*error_routine)(ccb, camflags, sense_flags);
 			} else
