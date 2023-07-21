@@ -163,7 +163,10 @@ xlocale_release(void *val)
 
 /**
  * Load functions.  Each takes the name of a locale and a pointer to the data
- * to be initialised as arguments.  Two special values are allowed for the 
+ * to be initialised as arguments.  Three special values are allowed for the
+ * name of the locale: C, POSIX, and C.UTF-8.  When these are used, we may
+ * use some statically defined tables rather than allocating memory for the
+ * locales' use.
  */
 extern void* __collate_load(const char*, locale_t);
 extern void* __ctype_load(const char*, locale_t);
