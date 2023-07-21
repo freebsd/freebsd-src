@@ -5368,7 +5368,7 @@ bge_start_locked(if_t ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if_bpfmtap(ifp, m_head);
+		bpf_mtap_if(ifp, m_head);
 	}
 
 	if (count > 0)

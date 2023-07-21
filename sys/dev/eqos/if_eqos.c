@@ -597,7 +597,7 @@ eqos_start_locked(if_t ifp)
 			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
-		if_bpfmtap(ifp, m);
+		bpf_mtap_if(ifp, m);
 		pending++;
 	}
 

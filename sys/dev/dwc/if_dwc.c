@@ -1132,7 +1132,7 @@ dwc_txstart_locked(struct dwc_softc *sc)
 			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
-		if_bpfmtap(ifp, m);
+		bpf_mtap_if(ifp, m);
 		sc->tx_map_head = next_txidx(sc, sc->tx_map_head);
 		sc->tx_mapcount++;
 		++enqueued;

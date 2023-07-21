@@ -1036,7 +1036,7 @@ gen_start_locked(struct gen_softc *sc)
 				if_sendq_prepend(ifp, m);
 			break;
 		}
-		if_bpfmtap(ifp, m);
+		bpf_mtap_if(ifp, m);
 	}
 }
 
