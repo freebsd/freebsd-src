@@ -4910,18 +4910,6 @@ if_gethandle(u_char type)
 }
 
 void
-if_bpfmtap(if_t ifp, struct mbuf *m)
-{
-	BPF_MTAP(ifp, m);
-}
-
-void
-if_etherbpfmtap(if_t ifp, struct mbuf *m)
-{
-	ETHER_BPF_MTAP(ifp, m);
-}
-
-void
 if_vlancap(if_t ifp)
 {
 	VLAN_CAPABILITIES(ifp);
