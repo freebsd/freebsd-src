@@ -1996,6 +1996,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
 		/* FALLTHROUGH */
 	case CAM_ATA_STATUS_ERROR:
+	case CAM_SMP_STATUS_ERROR:
 	case CAM_REQ_CMP_ERR:
 	case CAM_CMD_TIMEOUT:
 	case CAM_UNEXP_BUSFREE:
