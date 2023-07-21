@@ -2616,7 +2616,7 @@ nfe_start_locked(if_t ifp)
 			break;
 		}
 		enq++;
-		if_etherbpfmtap(ifp, m0);
+		ether_bpf_mtap_if(ifp, m0);
 	}
 
 	if (enq > 0) {

@@ -984,7 +984,7 @@ awg_start_locked(struct awg_softc *sc)
 				if_sendq_prepend(ifp, m);
 			break;
 		}
-		if_bpfmtap(ifp, m);
+		bpf_mtap_if(ifp, m);
 	}
 
 	if (cnt != 0) {
