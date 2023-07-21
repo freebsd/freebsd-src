@@ -1592,7 +1592,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x18, 0x07, SS_NOP | SSQ_PRINT_SENSE,
 	    "Recovered data with ECC - data rewritten") },
 	/*      R         */
-	{ SST(0x18, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x18, 0x08, SS_NOP | SSQ_PRINT_SENSE,
 	    "Recovered data with linking") },
 	/* D     O    K   */
 	{ SST(0x19, 0x00, SS_RDEF,
