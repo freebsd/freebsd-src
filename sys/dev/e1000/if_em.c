@@ -781,19 +781,21 @@ em_set_num_queues(if_ctx_t ctx)
 	return (maxqueues);
 }
 
-#define	LEM_CAPS							\
-    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |		\
-    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER
+#define LEM_CAPS \
+    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
+    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER | IFCAP_TSO4 | \
+    IFCAP_LRO | IFCAP_JUMBO_MTU
 
-#define	EM_CAPS								\
-    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |		\
-    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER | IFCAP_TSO4 |	\
-    IFCAP_LRO | IFCAP_VLAN_HWTSO
+#define EM_CAPS \
+    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
+    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER | IFCAP_TSO4 | \
+    IFCAP_LRO | IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | IFCAP_HWCSUM_IPV6 | \
+    IFCAP_TSO6
 
-#define	IGB_CAPS							\
-    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |		\
-    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER | IFCAP_TSO4 |	\
-    IFCAP_LRO | IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | IFCAP_HWCSUM_IPV6 |\
+#define IGB_CAPS \
+    IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
+    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_VLAN_HWFILTER | IFCAP_TSO4 | \
+    IFCAP_LRO | IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | IFCAP_HWCSUM_IPV6 | \
     IFCAP_TSO6
 
 /*********************************************************************
@@ -897,7 +899,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_tso_segsize_max = EM_TSO_SEG_SIZE;
 		scctx->isc_capabilities = scctx->isc_capenable = EM_CAPS;
 		/*
-		 * For EM-class devices, don't enable IFCAP_{TSO4,VLAN_HWTSO}
+		 * For EM-class devices, don't enable IFCAP_{TSO4,VLAN_HWTSO,TSO6}
 		 * by default as we don't have workarounds for all associated
 		 * silicon errata.  E. g., with several MACs such as 82573E,
 		 * TSO only works at Gigabit speed and otherwise can cause the
@@ -912,8 +914,9 @@ em_if_attach_pre(if_ctx_t ctx)
 		 * work for a few MACs of this class - at least when sticking
 		 * with Gigabit - in which case users may enable TSO manually.
 		 */
-		scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
-		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO;
+		scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO | IFCAP_TSO6);
+		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
+		    CSUM_IP6_TCP | CSUM_IP6_UDP;
 		/*
 		 * We support MSI-X with 82574 only, but indicate to iflib(4)
 		 * that it shall give MSI at least a try with other devices.
@@ -932,6 +935,19 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP;
 		scctx->isc_txrx = &lem_txrx;
 		scctx->isc_capabilities = LEM_CAPS;
+
+		/*
+		 * For LEM-class devices, don't enable IFCAP {TSO4,VLAN_HWTSO}
+		 * by default as we don't have workarounds for all associated
+		 * silicon errata.  TSO4 may work on > 82544 but its status
+		 * is unknown by the authors.  Please report any success or failures.
+		 */
+		 scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
+
+		/* 8254x SDM4.0 page 33 - FDX requirement on these chips */
+		if (hw->mac.type == e1000_82547 || hw->mac.type == e1000_82547_rev_2)
+			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
+
 		if (hw->mac.type < e1000_82543)
 			scctx->isc_capabilities &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
 		/* 82541ER doesn't do HW tagging */
