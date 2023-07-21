@@ -72,6 +72,8 @@ typedef enum {
 	SS_NOP      = 0x000000,	/* Do nothing */
 	SS_RETRY    = 0x010000,	/* Retry the command */
 	SS_FAIL     = 0x020000,	/* Bail out */
+
+	/* Actions larger than SS_START allocate a recovery CCB */
 	SS_START    = 0x030000,	/* Send a Start Unit command to the device,
 				 * then retry the original command.
 				 */
