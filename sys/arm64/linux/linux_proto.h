@@ -37,55 +37,55 @@ struct thread;
 struct linux_setxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(const char *)]; const char * value; char value_r_[PADR_(const char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_lsetxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(const char *)]; const char * value; char value_r_[PADR_(const char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_fsetxattr_args {
 	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(const char *)]; const char * value; char value_r_[PADR_(const char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_getxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(char *)]; char * value; char value_r_[PADR_(char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_lgetxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(char *)]; char * value; char value_r_[PADR_(char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_fgetxattr_args {
 	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-	char value_l_[PADL_(char *)]; char * value; char value_r_[PADR_(char *)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_listxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char list_l_[PADL_(const char *)]; const char * list; char list_r_[PADR_(const char *)];
+	char list_l_[PADL_(char *)]; char * list; char list_r_[PADR_(char *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_llistxattr_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char list_l_[PADL_(const char *)]; const char * list; char list_r_[PADR_(const char *)];
+	char list_l_[PADL_(char *)]; char * list; char list_r_[PADR_(char *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_flistxattr_args {
 	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
-	char list_l_[PADL_(const char *)]; const char * list; char list_r_[PADR_(const char *)];
+	char list_l_[PADL_(char *)]; char * list; char list_r_[PADR_(char *)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
 };
 struct linux_removexattr_args {
