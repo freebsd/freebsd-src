@@ -1238,7 +1238,7 @@
 		int linux_setxattr(
 		    const char *path,
 		    const char *name,
-		    const char *value,
+		    void *value,
 		    l_size_t size,
 		    l_int flags
 		);
@@ -1247,7 +1247,7 @@
 		int linux_lsetxattr(
 		    const char *path,
 		    const char *name,
-		    const char *value,
+		    void *value,
 		    l_size_t size,
 		    l_int flags
 		);
@@ -1256,7 +1256,7 @@
 		int linux_fsetxattr(
 		    l_int fd,
 		    const char *name,
-		    const char *value,
+		    void *value,
 		    l_size_t size,
 		    l_int flags
 		);
@@ -1265,7 +1265,7 @@
 		int linux_getxattr(
 		    const char *path,
 		    const char *name,
-		    char *value,
+		    void *value,
 		    l_size_t size
 		);
 	}
@@ -1273,7 +1273,7 @@
 		int linux_lgetxattr(
 		    const char *path,
 		    const char *name,
-		    char *value,
+		    void *value,
 		    l_size_t size
 		);
 	}
@@ -1281,28 +1281,28 @@
 		int linux_fgetxattr(
 		    l_int fd,
 		    const char *name,
-		    char *value,
+		    void *value,
 		    l_size_t size
 		);
 	}
 232	AUE_NULL	STD {
 		int linux_listxattr(
 		    const char *path,
-		    const char *list,
+		    char *list,
 		    l_size_t size
 		);
 	}
 233	AUE_NULL	STD {
 		int linux_llistxattr(
 		    const char *path,
-		    const char *list,
+		    char *list,
 		    l_size_t size
 		);
 	}
 234	AUE_NULL	STD {
 		int linux_flistxattr(
 		    l_int fd,
-		    const char *list,
+		    char *list,
 		    l_size_t size
 		);
 	}
