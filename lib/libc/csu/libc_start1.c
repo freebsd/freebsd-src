@@ -76,6 +76,7 @@ process_irelocs(void)
 #error "Define platform reloc type"
 #endif
 
+#ifndef PIC
 static void
 finalizer(void)
 {
@@ -90,6 +91,7 @@ finalizer(void)
 	}
 	_fini();
 }
+#endif
 
 static void
 handle_static_init(int argc, char **argv, char **env)
