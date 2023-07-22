@@ -2032,6 +2032,13 @@ pmap_kremove(vm_offset_t va)
 	pmap_s1_invalidate_page(kernel_pmap, va, true);
 }
 
+/*
+ * Remove the specified range of mappings from the kernel address space.
+ *
+ * Should only be applied to mappings that were created by pmap_kenter() or
+ * pmap_kenter_device().  Nothing about this function is actually specific
+ * to device mappings.
+ */
 void
 pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 {
@@ -2039,7 +2046,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 	vm_offset_t va;
 
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kremove_device: Invalid virtual address"));
+	    ("pmap_kremove_device: Invalid virtual address"));
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("pmap_kremove_device: Mapping is not page-sized"));
 
@@ -6550,7 +6557,7 @@ void
 pmap_unmapbios(void *p, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
-	vm_offset_t offset, tmpsize, va, va_trunc;
+	vm_offset_t offset, va, va_trunc;
 	pd_entry_t *pde;
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, block;
@@ -6600,14 +6607,8 @@ pmap_unmapbios(void *p, vm_size_t size)
 		size = round_page(offset + size);
 		va = trunc_page(va);
 
-		pde = pmap_pde(kernel_pmap, va, &lvl);
-		KASSERT(pde != NULL,
-		    ("pmap_unmapbios: Invalid page entry, va: 0x%lx", va));
-		KASSERT(lvl == 2, ("pmap_unmapbios: Invalid level %d", lvl));
-
 		/* Unmap and invalidate the pages */
-                for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
-			pmap_kremove(va + tmpsize);
+		pmap_kremove_device(va, size);
 
 		kva_free(va, size);
 	}
