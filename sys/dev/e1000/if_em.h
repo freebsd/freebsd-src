@@ -333,10 +333,13 @@
 #define EM_TSO_SIZE		65535
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
 #define ETH_ZLEN		60
-#define EM_CSUM_OFFLOAD		(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP) /* Offload bits in mbuf flag */
+
+/* Offload bits in mbuf flag */
+#define EM_CSUM_OFFLOAD		(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP | \
+				    CSUM_IP6_UDP | CSUM_IP6_TCP)
 #define IGB_CSUM_OFFLOAD	(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP | \
 				    CSUM_IP_SCTP | CSUM_IP6_UDP | CSUM_IP6_TCP | \
-				    CSUM_IP6_SCTP)	/* Offload bits in mbuf flag */
+				    CSUM_IP6_SCTP)
 
 #define IGB_PKTTYPE_MASK	0x0000FFF0
 #define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coalesce Flush */
