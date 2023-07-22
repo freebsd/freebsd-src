@@ -53,9 +53,11 @@ static char *rcsid = "$FreeBSD$";
 #include <stddef.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef IN_RTLD
 #include "rtld.h"
 #include "rtld_printf.h"
 #include "rtld_paths.h"
+#endif
 #include "rtld_malloc.h"
 
 /*
