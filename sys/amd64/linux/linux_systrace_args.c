@@ -1436,7 +1436,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_setxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* const char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		iarg[a++] = p->flags; /* l_int */
 		*n_args = 5;
@@ -1447,7 +1447,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_lsetxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* const char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		iarg[a++] = p->flags; /* l_int */
 		*n_args = 5;
@@ -1458,7 +1458,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_fsetxattr_args *p = params;
 		iarg[a++] = p->fd; /* l_int */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* const char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		iarg[a++] = p->flags; /* l_int */
 		*n_args = 5;
@@ -1469,7 +1469,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_getxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -1479,7 +1479,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_lgetxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -1489,7 +1489,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_fgetxattr_args *p = params;
 		iarg[a++] = p->fd; /* l_int */
 		uarg[a++] = (intptr_t)p->name; /* const char * */
-		uarg[a++] = (intptr_t)p->value; /* char * */
+		uarg[a++] = (intptr_t)p->value; /* void * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -1498,7 +1498,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 194: {
 		struct linux_listxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		uarg[a++] = (intptr_t)p->list; /* const char * */
+		uarg[a++] = (intptr_t)p->list; /* char * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 3;
 		break;
@@ -1507,7 +1507,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 195: {
 		struct linux_llistxattr_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		uarg[a++] = (intptr_t)p->list; /* const char * */
+		uarg[a++] = (intptr_t)p->list; /* char * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 3;
 		break;
@@ -1516,7 +1516,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 196: {
 		struct linux_flistxattr_args *p = params;
 		iarg[a++] = p->fd; /* l_int */
-		uarg[a++] = (intptr_t)p->list; /* const char * */
+		uarg[a++] = (intptr_t)p->list; /* char * */
 		iarg[a++] = p->size; /* l_size_t */
 		*n_args = 3;
 		break;
@@ -5039,7 +5039,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland const char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5061,7 +5061,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland const char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5083,7 +5083,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland const char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5105,7 +5105,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5124,7 +5124,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5143,7 +5143,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland char *";
+			p = "userland void *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -5159,7 +5159,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland char *";
 			break;
 		case 2:
 			p = "l_size_t";
@@ -5175,7 +5175,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland char *";
 			break;
 		case 2:
 			p = "l_size_t";
@@ -5191,7 +5191,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland char *";
 			break;
 		case 2:
 			p = "l_size_t";
