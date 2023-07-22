@@ -56,6 +56,7 @@ static char *rcsid = "$FreeBSD$";
 #include "rtld.h"
 #include "rtld_printf.h"
 #include "rtld_paths.h"
+#include "rtld_malloc.h"
 
 /*
  * Pre-allocate mmap'ed pages
