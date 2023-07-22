@@ -68,10 +68,6 @@ static caddr_t		pagepool_start, pagepool_end;
  * contains a pointer to the next free block, and the bottom two bits must
  * be zero.  When in use, the first byte is set to MAGIC, and the second
  * byte is the size index.  The remaining bytes are for alignment.
- * If range checking is enabled then a second word holds the size of the
- * requested block, less 1, rounded up to a multiple of sizeof(RMAGIC).
- * The order of elements is critical: ov_magic must overlay the low order
- * bits of ov_next, and ov_magic can not be a valid ov_next bit pattern.
  */
 union	overhead {
 	union	overhead *ov_next;	/* when free */
