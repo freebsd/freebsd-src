@@ -419,9 +419,4 @@ void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
 void init_pltgot(Obj_Entry *);
 void allocate_initial_tls(Obj_Entry *);
 
-void *__crt_calloc(size_t num, size_t size);
-void __crt_free(void *cp);
-void *__crt_malloc(size_t nbytes);
-void *__crt_realloc(void *cp, size_t nbytes);
-
 #endif /* } */
