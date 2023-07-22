@@ -64,11 +64,33 @@
 #ifdef _KERNEL
 #include <sys/types.h>
 
+enum uio_seg;
+struct uio;
 struct thread;
 struct ucred;
 struct vnode;
 int	extattr_check_cred(struct vnode *vp, int attrnamespace,
 	    struct ucred *cred, struct thread *td, accmode_t accmode);
+int	kern_extattr_set_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes, int follow, enum uio_seg pathseg);
+int	kern_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *attrname, void *data, size_t nbytes);
+int	kern_extattr_get_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes, int follow, enum uio_seg pathseg);
+int	kern_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *attrname, void *data, size_t nbytes);
+int	kern_extattr_delete_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, int follow,
+	    enum uio_seg pathseg);
+int	kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *attrname);
+int	kern_extattr_list_path(struct thread *td, const char *path,
+	    int attrnamespace, struct uio *auiop, int follow,
+	    enum uio_seg pathseg);
+int	kern_extattr_list_fd(struct thread *td, int fd, int attrnamespace,
+	    struct uio *auiop);
 
 #else
 #include <sys/cdefs.h>
