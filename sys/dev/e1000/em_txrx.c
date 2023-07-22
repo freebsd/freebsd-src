@@ -674,12 +674,12 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
-	if (scctx->isc_capenable & IFCAP_RXCSUM)
+	/* XXX add a faster way to look this up */
+	if (sc->hw.mac.type >= e1000_82543)
 		em_receive_checksum(status, errors, ri);
 
-	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
-	    status & E1000_RXD_STAT_VP) {
-		ri->iri_vtag = le16toh(rxd->special & E1000_RXD_SPC_VLAN_MASK);
+	if (status & E1000_RXD_STAT_VP) {
+		ri->iri_vtag = le16toh(rxd->special);
 		ri->iri_flags |= M_VLANTAG;
 	}
 
@@ -699,11 +699,11 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	uint16_t len;
 	uint32_t pkt_info;
-	uint32_t staterr;
+	uint32_t staterr = 0;
 	bool eop;
 	int i, cidx;
 
-	staterr = i = 0;
+	i = 0;
 	cidx = ri->iri_cidx;
 
 	do {
@@ -739,8 +739,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(staterr, staterr >> 24, ri);
 
-	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
-	    staterr & E1000_RXD_STAT_VP) {
+	if (staterr & E1000_RXD_STAT_VP) {
 		ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
 		ri->iri_flags |= M_VLANTAG;
 	}
