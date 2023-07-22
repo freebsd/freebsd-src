@@ -86,13 +86,15 @@ static void morecore(int bucket);
 static int morepages(int n);
 
 #define	MAGIC		0xef		/* magic # on accounting info */
+#define	AMAGIC		0xdf		/* magic # for aligned alloc */
 
 /*
  * nextf[i] is the pointer to the next free block of size
  * (FIRST_BUCKET_SIZE << i).  The overhead information precedes the data
  * area returned to the user.
  */
-#define	FIRST_BUCKET_SIZE	8
+#define	LOW_BITS		3
+#define	FIRST_BUCKET_SIZE	(1U << LOW_BITS)
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
 
@@ -169,6 +171,28 @@ __crt_calloc(size_t num, size_t size)
 	return (ret);
 }
 
+void *
+__crt_aligned_alloc_offset(size_t align, size_t size, size_t offset)
+{
+	void *mem, *ov;
+	union overhead ov1;
+	uintptr_t x;
+
+	if (align < FIRST_BUCKET_SIZE)
+		align = FIRST_BUCKET_SIZE;
+	offset &= align - 1;
+	mem = __crt_malloc(size + align + offset + sizeof(union overhead));
+	if (mem == NULL)
+		return (NULL);
+	x = roundup2((uintptr_t)mem + sizeof(union overhead), align);
+	x += offset;
+	ov = cp2op((void *)x);
+	ov1.ov_magic = AMAGIC;
+	ov1.ov_index = x - (uintptr_t)mem - sizeof(union overhead);
+	memcpy(ov, &ov1, sizeof(ov1));
+	return ((void *)x);
+}
+
 /*
  * Allocate more memory to the indicated bucket.
  */
@@ -210,12 +234,16 @@ morecore(int bucket)
 void
 __crt_free(void *cp)
 {
+	union overhead *op, op1;
+	void *opx;
 	int size;
-	union overhead *op;
 
   	if (cp == NULL)
   		return;
-	op = cp2op(cp);
+	opx = cp2op(cp);
+	memcpy(&op1, opx, sizeof(op1));
+	op = op1.ov_magic == AMAGIC ? (void *)((caddr_t)cp - op1.ov_index) :
+	    opx;
 	if (op->ov_magic != MAGIC)
 		return;				/* sanity */
   	size = op->ov_index;
