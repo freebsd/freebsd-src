@@ -32,6 +32,7 @@
 #ifndef RTLD_MALLOC_H
 #define	RTLD_MALLOC_H
 
+void *__crt_aligned_alloc_offset(size_t align, size_t size, size_t offset);
 void *__crt_calloc(size_t num, size_t size);
 void __crt_free(void *cp);
 void *__crt_malloc(size_t nbytes);
