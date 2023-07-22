@@ -106,6 +106,12 @@ static	int pagesz;			/* page size */
  * increasing order.
  */
 
+static union overhead *
+cp2op(void *cp)
+{
+	return ((union overhead *)((caddr_t)cp - sizeof(union overhead)));
+}
+
 void *
 __crt_malloc(size_t nbytes)
 {
@@ -209,7 +215,7 @@ __crt_free(void *cp)
 
   	if (cp == NULL)
   		return;
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+	op = cp2op(cp);
 	if (op->ov_magic != MAGIC)
 		return;				/* sanity */
   	size = op->ov_index;
@@ -227,7 +233,7 @@ __crt_realloc(void *cp, size_t nbytes)
 
   	if (cp == NULL)
 		return (__crt_malloc(nbytes));
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+	op = cp2op(cp);
 	if (op->ov_magic != MAGIC)
 		return (NULL);	/* Double-free or bad argument */
 	i = op->ov_index;
