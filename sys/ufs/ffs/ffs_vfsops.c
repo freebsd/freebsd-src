@@ -1711,7 +1711,7 @@ ffs_sync(struct mount *mp, int waitfor)
 	}
 	if (waitfor == MNT_WAIT)
 		lockreq = LK_EXCLUSIVE;
-	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
+	lockreq |= LK_INTERLOCK;
 loop:
 	/* Grab snapshot of secondary write counts */
 	MNT_ILOCK(mp);
@@ -1741,7 +1741,7 @@ loop:
 			continue;
 		}
 		if ((error = vget(vp, lockreq)) != 0) {
-			if (error == ENOENT || error == ENOLCK) {
+			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
