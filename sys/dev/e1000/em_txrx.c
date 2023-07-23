@@ -291,7 +291,7 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
 		*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
 
-		if (csum_flags & CSUM_TCP | CSUM_IP6_TCP) {
+		if (csum_flags & (CSUM_TCP | CSUM_IP6_TCP)) {
 			tucso = hdr_len + offsetof(struct tcphdr, th_sum);
 			cmd |= E1000_TXD_CMD_TCP;
 		} else
