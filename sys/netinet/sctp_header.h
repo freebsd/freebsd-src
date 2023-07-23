@@ -207,7 +207,7 @@ struct sctp_state_cookie {	/* this is our definition... */
 
 	uint8_t ipv4_scope;	/* IPv4 private addr scope */
 	uint8_t loopback_scope;	/* loopback scope information */
-	uint8_t zero_checksum;	/* copy of the inp value */
+	uint8_t rcv_edmid;	/* copy of the inp value */
 	uint8_t reserved[SCTP_RESERVE_SPACE];	/* Align to 64 bits */
 	/*
 	 * at the end is tacked on the INIT chunk and the INIT-ACK chunk
@@ -519,6 +519,13 @@ struct sctp_auth_chunk {
 	uint16_t hmac_id;
 	uint8_t hmac[];
 }               SCTP_PACKED;
+
+/* Zero checksum support draft-ietf-tsvwg-sctp-zero-checksum */
+
+struct sctp_zero_checksum_acceptable {
+	struct sctp_paramhdr ph;
+	uint32_t edmid;
+}                             SCTP_PACKED;
 
 /*
  * we pre-reserve enough room for a ECNE or CWR AND a SACK with no missing

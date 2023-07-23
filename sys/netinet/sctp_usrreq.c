@@ -6839,13 +6839,15 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			uint32_t *value;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
-			SCTP_INP_WLOCK(inp);
-			if (*value != 0) {
-				inp->zero_checksum = 1;
+			if ((*value == SCTP_EDMID_NONE) ||
+			    (*value == SCTP_EDMID_LOWER_LAYER_DTLS)) {
+				SCTP_INP_WLOCK(inp);
+				inp->rcv_edmid = *value;
+				SCTP_INP_WUNLOCK(inp);
 			} else {
-				inp->zero_checksum = 0;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
 			}
-			SCTP_INP_WUNLOCK(inp);
 			break;
 		}
 
