@@ -1972,19 +1972,20 @@ void
 pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 {
 	pd_entry_t *pde;
-	pt_entry_t *pte, attr;
+	pt_entry_t attr, old_l3e, *pte;
 	vm_offset_t va;
 	int lvl;
 
 	KASSERT((pa & L3_OFFSET) == 0,
-	   ("pmap_kenter: Invalid physical address"));
+	    ("pmap_kenter: Invalid physical address"));
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kenter: Invalid virtual address"));
+	    ("pmap_kenter: Invalid virtual address"));
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("pmap_kenter: Mapping is not page-sized"));
 
 	attr = ATTR_DEFAULT | ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_XN |
 	    ATTR_S1_IDX(mode) | L3_PAGE;
+	old_l3e = 0;
 	va = sva;
 	while (size != 0) {
 		pde = pmap_pde(kernel_pmap, va, &lvl);
@@ -1993,13 +1994,21 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 		KASSERT(lvl == 2, ("pmap_kenter: Invalid level %d", lvl));
 
 		pte = pmap_l2_to_l3(pde, va);
-		pmap_load_store(pte, PHYS_TO_PTE(pa) | attr);
+		old_l3e |= pmap_load_store(pte, PHYS_TO_PTE(pa) | attr);
 
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+	if ((old_l3e & ATTR_DESCR_VALID) != 0)
+		pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+	else {
+		/*
+		 * Because the old entries were invalid and the new mappings
+		 * are not executable, an isb is not required.
+		 */
+		dsb(ishst);
+	}
 }
 
 void
@@ -2082,11 +2091,12 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
 	pd_entry_t *pde;
-	pt_entry_t *pte, pa, attr;
+	pt_entry_t attr, old_l3e, pa, *pte;
 	vm_offset_t va;
 	vm_page_t m;
 	int i, lvl;
 
+	old_l3e = 0;
 	va = sva;
 	for (i = 0; i < count; i++) {
 		pde = pmap_pde(kernel_pmap, va, &lvl);
@@ -2100,11 +2110,19 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		attr = ATTR_DEFAULT | ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_XN |
 		    ATTR_S1_IDX(m->md.pv_memattr) | L3_PAGE;
 		pte = pmap_l2_to_l3(pde, va);
-		pmap_load_store(pte, PHYS_TO_PTE(pa) | attr);
+		old_l3e |= pmap_load_store(pte, PHYS_TO_PTE(pa) | attr);
 
 		va += L3_SIZE;
 	}
-	pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+	if ((old_l3e & ATTR_DESCR_VALID) != 0)
+		pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+	else {
+		/*
+		 * Because the old entries were invalid and the new mappings
+		 * are not executable, an isb is not required.
+		 */
+		dsb(ishst);
+	}
 }
 
 /*
@@ -6441,7 +6459,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
 	vm_offset_t va, offset;
-	pd_entry_t *pde;
+	pd_entry_t old_l2e, *pde;
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, free_l2_count, start_idx;
 
@@ -6501,6 +6519,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 
 		/* Map L2 blocks */
 		pa = rounddown2(pa, L2_SIZE);
+		old_l2e = 0;
 		for (i = 0; i < l2_blocks; i++) {
 			pde = pmap_pde(kernel_pmap, va, &lvl);
 			KASSERT(pde != NULL,
@@ -6511,14 +6530,22 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 
 			/* Insert L2_BLOCK */
 			l2 = pmap_l1_to_l2(pde, va);
-			pmap_load_store(l2,
+			old_l2e |= pmap_load_store(l2,
 			    PHYS_TO_PTE(pa) | ATTR_DEFAULT | ATTR_S1_XN |
 			    ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | L2_BLOCK);
 
 			va += L2_SIZE;
 			pa += L2_SIZE;
 		}
-		pmap_s1_invalidate_all(kernel_pmap);
+		if ((old_l2e & ATTR_DESCR_VALID) != 0)
+			pmap_s1_invalidate_all(kernel_pmap);
+		else {
+			/*
+			 * Because the old entries were invalid and the new
+			 * mappings are not executable, an isb is not required.
+			 */
+			dsb(ishst);
+		}
 
 		va = preinit_map_va + (start_idx * L2_SIZE);
 
