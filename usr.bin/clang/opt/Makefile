@@ -8,7 +8,4 @@ SRCS+=		BreakpointPrinter.cpp
 SRCS+=		NewPMDriver.cpp
 SRCS+=		opt.cpp
 
-LIBADD+=	z
-LIBADD+=	zstd
-
 .include "../llvm.prog.mk"

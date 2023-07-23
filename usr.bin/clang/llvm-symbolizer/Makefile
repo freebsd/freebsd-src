@@ -24,9 +24,6 @@ DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
-LIBADD+=	z
-LIBADD+=	zstd
-
 LINKS+=		${BINDIR}/llvm-symbolizer ${BINDIR}/llvm-addr2line
 
 .if ${MK_LLVM_BINUTILS} != "no"

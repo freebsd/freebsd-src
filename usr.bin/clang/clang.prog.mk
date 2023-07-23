@@ -29,5 +29,7 @@ LIBADD+=	execinfo
 LIBADD+=	ncursesw
 .endif
 LIBADD+=	pthread
+LIBADD+=	z
+LIBADD+=	zstd
 
 .include <bsd.prog.mk>
