@@ -406,6 +406,9 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 {
 	uint32_t af;
 
+	KASSERT(ifp->if_bridge == NULL,
+	    ("%s: unexpectedly called with bridge attached", __func__));
+
 	if (dst->sa_family == AF_UNSPEC)
 		memcpy(&af, dst->sa_data, sizeof(af));
 	else
