@@ -20,6 +20,4 @@ SRCS+=		llvm-mca.cpp
 
 CFLAGS+=	-I${LLVM_BASE}/${SRCDIR}
 
-LIBADD+=	z
-
 .include "../llvm.prog.mk"
