@@ -10,8 +10,6 @@ SRCS+=		llvm-ar.cpp
 
 CFLAGS.llvm-ar.cpp+=	-Dllvm_ar_main=main
 
-LIBADD+=	z
-
 LINKS+=		${BINDIR}/llvm-ar ${BINDIR}/llvm-ranlib
 
 .if ${MK_LLVM_BINUTILS} != "no"

@@ -7,7 +7,4 @@ SRCS+=		SectionSizes.cpp
 SRCS+=		Statistics.cpp
 SRCS+=		llvm-dwarfdump.cpp
 
-LIBADD+=	z
-LIBADD+=	zstd
-
 .include "../llvm.prog.mk"
