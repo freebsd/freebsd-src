@@ -2433,7 +2433,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->nrsack_supported = (uint8_t)SCTP_BASE_SYSCTL(sctp_nrsack_enable);
 	inp->pktdrop_supported = (uint8_t)SCTP_BASE_SYSCTL(sctp_pktdrop_enable);
 	inp->idata_supported = 0;
-	inp->zero_checksum = 0;
+	inp->rcv_edmid = SCTP_EDMID_NONE;
 
 	inp->fibnum = so->so_fibnum;
 	/* init the small hash table we use to track asocid <-> tcb */
@@ -6403,12 +6403,23 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			/* Peer supports pr-sctp */
 			peer_supports_prsctp = 1;
 		} else if (ptype == SCTP_ZERO_CHECKSUM_ACCEPTABLE) {
-			/*
-			 * Only send zero checksums if the upper layer has
-			 * also enabled the support for this.
-			 */
-			if (stcb->asoc.zero_checksum == 1) {
-				stcb->asoc.zero_checksum = 2;
+			struct sctp_zero_checksum_acceptable zero_chksum,
+			                             *zero_chksum_p;
+
+			phdr = sctp_get_next_param(m, offset,
+			    (struct sctp_paramhdr *)&zero_chksum,
+			    sizeof(struct sctp_zero_checksum_acceptable));
+			if (phdr != NULL) {
+				/*
+				 * Only send zero checksums if the upper
+				 * layer has enabled the support for the
+				 * same method as allowed by the peer.
+				 */
+				zero_chksum_p = (struct sctp_zero_checksum_acceptable *)phdr;
+				if ((ntohl(zero_chksum_p->edmid) != SCTP_EDMID_NONE) &&
+				    (ntohl(zero_chksum_p->edmid) == stcb->asoc.rcv_edmid)) {
+					stcb->asoc.snd_edmid = stcb->asoc.rcv_edmid;
+				}
 			}
 		} else if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
