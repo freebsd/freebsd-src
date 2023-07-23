@@ -1443,6 +1443,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	void *rl_cookie;
 	struct vn_io_fault_args args;
 	int error;
+	bool rl_locked;
 
 	doio = uio->uio_rw == UIO_READ ? vn_read : vn_write;
 	vp = fp->f_vnode;
@@ -1465,12 +1466,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	}
 
 	foffset_lock_uio(fp, uio, flags);
-	if (do_vn_io_fault(vp, uio)) {
-		args.kind = VN_IO_FAULT_FOP;
-		args.args.fop_args.fp = fp;
-		args.args.fop_args.doio = doio;
-		args.cred = active_cred;
-		args.flags = flags | FOF_OFFSET;
+	if (vp->v_type == VREG) {
 		if (uio->uio_rw == UIO_READ) {
 			rl_cookie = vn_rangelock_rlock(vp, uio->uio_offset,
 			    uio->uio_offset + uio->uio_resid);
@@ -1482,11 +1478,22 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			rl_cookie = vn_rangelock_wlock(vp, uio->uio_offset,
 			    uio->uio_offset + uio->uio_resid);
 		}
+		rl_locked = true;
+	} else {
+		rl_locked = false;
+	}
+	if (do_vn_io_fault(vp, uio)) {
+		args.kind = VN_IO_FAULT_FOP;
+		args.args.fop_args.fp = fp;
+		args.args.fop_args.doio = doio;
+		args.cred = active_cred;
+		args.flags = flags | FOF_OFFSET;
 		error = vn_io_fault1(vp, uio, &args, td);
-		vn_rangelock_unlock(vp, rl_cookie);
 	} else {
 		error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
 	}
+	if (rl_locked)
+		vn_rangelock_unlock(vp, rl_cookie);
 	foffset_unlock_uio(fp, uio, flags);
 	return (error);
 }
