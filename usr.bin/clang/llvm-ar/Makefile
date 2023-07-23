@@ -11,6 +11,7 @@ SRCS+=		llvm-ar.cpp
 CFLAGS.llvm-ar.cpp+=	-Dllvm_ar_main=main
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 LINKS+=		${BINDIR}/llvm-ar ${BINDIR}/llvm-ranlib
 
