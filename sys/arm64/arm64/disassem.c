@@ -73,6 +73,11 @@ static const char *shift_2[] = {
 	"lsl", "lsr", "asr", "ror"
 };
 
+static const char *extend_types[] = {
+	"uxtb", "uxth", "uxtw", "uxtx",
+	"sxtb", "sxth", "sxtw", "sxtx",
+};
+
 /*
  * Structure representing single token (operand) inside instruction.
  * name   - name of operand
@@ -107,6 +112,12 @@ enum arm64_format_type {
 
 	/* OP <RT>, #imm SF32/64 */
 	TYPE_03,
+
+	/*
+	 * OP <RD>, <RN|SP>, <RM> {, <extend> { #<amount> } }
+	 * OP <RN|SP>, <RM>, {, <extend> { #<amount> } }
+	 */
+	TYPE_04,
 };
 
 /*
@@ -260,6 +271,18 @@ static struct arm64_insn arm64_i[] = {
 	    TYPE_01, OP_SHIFT_ROR },		/* eon shifted register */
 	{ "eor", "SF(1)|1001010|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
 	    TYPE_01, OP_SHIFT_ROR },		/* eor shifted register */
+	{ "add", "SF(1)|0001011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, OP_RD_SP },		/* add extended register */
+	{ "cmn", "SF(1)|0101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|11111",
+	    TYPE_04, 0 },			/* cmn extended register */
+	{ "adds", "SF(1)|0101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, 0 },			/* adds extended register */
+	{ "sub", "SF(1)|1001011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, OP_RD_SP },		/* sub extended register */
+	{ "cmp", "SF(1)|1101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|11111",
+	    TYPE_04, 0 },			/* cmp extended register */
+	{ "subs", "SF(1)|1101011001|RM(5)|OPTION(3)|IMM(3)|RN(5)|RD(5)",
+	    TYPE_04, 0 },			/* subs extended register */
 	{ NULL, NULL }
 };
 
@@ -409,6 +432,27 @@ arm64_disasm_read_token_sign_ext(struct arm64_insn *insn, u_int opcode,
 }
 
 static const char *
+arm64_disasm_reg_extend(int sf, int option, int rd, int rn, int amount)
+{
+	bool is_sp, lsl_preferred_uxtw, lsl_preferred_uxtx, lsl_preferred;
+
+	is_sp = rd == 31 || rn == 31;
+	lsl_preferred_uxtw = sf == 0 && option == 2;
+	lsl_preferred_uxtx = sf == 1 && option == 3;
+	lsl_preferred = is_sp && (lsl_preferred_uxtw || lsl_preferred_uxtx);
+
+	/*
+	 * LSL may be omitted when <amount> is 0.
+	 * In all other cases <extend> is required.
+	 */
+	if (lsl_preferred && amount == 0)
+		return (NULL);
+	if (lsl_preferred)
+		return ("lsl");
+	return (extend_types[option]);
+}
+
+static const char *
 arm64_w_reg(int num, int wsp)
 {
 	if (num == 31)
@@ -432,6 +476,18 @@ arm64_reg(int b64, int num, int sp)
 	return (arm64_w_reg(num, sp));
 }
 
+/*
+ * Decodes OPTION(3) to get <Xn|Wn> register or <WZR|XZR>
+ * for extended register instruction.
+ */
+static const char *
+arm64_disasm_reg_width(int option, int reg)
+{
+	if (option == 3 || option == 7)
+		return (arm64_x_reg(reg, 0));
+	return (arm64_w_reg(reg, 0));
+}
+
 vm_offset_t
 disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 {
@@ -451,10 +507,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	/* Indicate if shift type ror is supported */
 	bool has_shift_ror;
 
+	const char *extend;
+
 	/* Initialize defaults, all are 0 except SF indicating 64bit access */
 	shift = rd = rm = rn = imm = idx = option = amount = scale = 0;
 	sign_ext = 0;
 	sf = 1;
+	extend = NULL;
 
 	matchp = 0;
 	insn = di->di_readword(loc);
@@ -667,6 +726,37 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			di->di_printf("0x%lx", loc + imm);
 		else
 			di->di_printf("#%d", imm);
+
+		break;
+
+	case TYPE_04:
+		/*
+		 * OP <RD>, <RN|SP>, <RM> {, <extend> { #<amount> } }
+		 * OP <RN|SP>, <RM>, {, <extend> { #<amount> } }
+		 */
+
+		arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
+		arm64_disasm_read_token(i_ptr, insn, "RM", &rm);
+		arm64_disasm_read_token(i_ptr, insn, "OPTION", &option);
+
+		rd_absent = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
+		extend = arm64_disasm_reg_extend(sf, option, rd, rn, imm);
+
+		di->di_printf("%s\t", i_ptr->name);
+
+		if (!rd_absent)
+			di->di_printf("%s, ", arm64_reg(sf, rd, rd_sp));
+
+		di->di_printf("%s, ", arm64_reg(sf, rn, 1));
+
+		if (sf != 0)
+			di->di_printf("%s",
+			    arm64_disasm_reg_width(option, rm));
+		else
+			di->di_printf("%s", arm64_w_reg(rm, 0));
+
+		if (extend != NULL)
+			di->di_printf(", %s #%d", extend, imm);
 
 		break;
 	default:
