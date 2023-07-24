@@ -95,8 +95,13 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	    "archive_read_data_into_fd");
 
 	can_lseek = (fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
-	if (!can_lseek)
+	if (!can_lseek) {
 		nulls = calloc(1, nulls_size);
+		if (!nulls) {
+			r = ARCHIVE_FATAL;
+			goto cleanup;
+		}
+	}
 
 	while ((r = archive_read_data_block(a, &buff, &size, &target_offset)) ==
 	    ARCHIVE_OK) {

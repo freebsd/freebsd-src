@@ -44,6 +44,7 @@ DEFINE_TEST(test_option_lzma)
 		if (strstr(p, "Unsupported compression") != NULL) {
 			skipping("This version of bsdtar was compiled "
 			    "without lzma support");
+			free(p);
 			return;
 		}
 		failure("--lzma option is broken");

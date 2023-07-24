@@ -1310,6 +1310,8 @@ DEFINE_TEST(test_read_format_rar5_sfx)
 
 	assertA(size == archive_read_data(a, buff, size));
 	assertEqualMem(buff, test_txt, size);
+	
+	EPILOGUE();
 }
 
 DEFINE_TEST(test_read_format_rar5_decode_number_out_of_bounds_read)

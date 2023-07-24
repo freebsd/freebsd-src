@@ -124,10 +124,9 @@ test_fuzz(const struct files *filesets)
 				newraw = realloc(rawimage, oldsize + size);
 				if (!assert(newraw != NULL))
 				{
-					free(rawimage);
-					rawimage = NULL;
 					free(tmp);
-					continue;
+					size = 0;
+					break;
 				}
 				rawimage = newraw;
 				memcpy(rawimage + oldsize, tmp, size);

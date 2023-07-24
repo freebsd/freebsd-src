@@ -37,10 +37,10 @@ is_octal(const char *p, size_t l)
 	return (1);
 }
 
-static int
+static long long int
 from_octal(const char *p, size_t l)
 {
-	int r = 0;
+	long long int r = 0;
 
 	while (l > 0) {
 		r *= 8;
@@ -161,7 +161,7 @@ DEFINE_TEST(test_option_c)
 		assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
 		assertEqualInt(gid, from_octal(e + 30, 6)); /* gid */
 		assertEqualMem(e + 36, "000001", 6); /* nlink */
-		failure("file entries should have rdev == 0 (dev was 0%o)",
+		failure("file entries should have rdev == 0 (dev was 0%llo)",
 		    from_octal(e + 6, 6));
 		assertEqualMem(e + 42, "000000", 6); /* rdev */
 		t = from_octal(e + 48, 11); /* mtime */

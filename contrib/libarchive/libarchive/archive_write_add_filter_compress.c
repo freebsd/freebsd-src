@@ -352,7 +352,7 @@ archive_compressor_compress_write(struct archive_write_filter *f,
 	while (length--) {
 		c = *bp++;
 		state->in_count++;
-		state->cur_fcode = (c << 16) + state->cur_code;
+		state->cur_fcode = (c << 16) | state->cur_code;
 		i = ((c << HSHIFT) ^ state->cur_code);	/* Xor hashing. */
 
 		if (state->hashtab[i] == state->cur_fcode) {

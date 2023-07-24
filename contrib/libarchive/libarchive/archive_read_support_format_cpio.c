@@ -441,7 +441,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strncmp((const char *)h, "TRAILER!!!",
-	    11) == 0) {
+	    10) == 0) {
 		/* TODO: Store file location of start of block. */
 		archive_clear_error(&a->archive);
 		return (ARCHIVE_EOF);
@@ -985,14 +985,14 @@ archive_read_format_cpio_cleanup(struct archive_read *a)
 static int64_t
 le4(const unsigned char *p)
 {
-	return ((p[0] << 16) + (((int64_t)p[1]) << 24) + (p[2] << 0) + (p[3] << 8));
+	return ((p[0] << 16) | (((int64_t)p[1]) << 24) | (p[2] << 0) | (p[3] << 8));
 }
 
 
 static int64_t
 be4(const unsigned char *p)
 {
-	return ((((int64_t)p[0]) << 24) + (p[1] << 16) + (p[2] << 8) + (p[3]));
+	return ((((int64_t)p[0]) << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]));
 }
 
 /*
