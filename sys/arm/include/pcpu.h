@@ -37,8 +37,6 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
-#define	ALT_STACK_SIZE	128
-
 struct vmspace;
 
 #endif	/* _KERNEL */

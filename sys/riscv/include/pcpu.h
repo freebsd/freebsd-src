@@ -42,8 +42,6 @@
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 
-#define	ALT_STACK_SIZE	128
-
 /* Keep in sync with db_show_mdpcpu() */
 #define	PCPU_MD_FIELDS							\
 	struct pmap *pc_curpmap;	/* Currently active pmap */	\
