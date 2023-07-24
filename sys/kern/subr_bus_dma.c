@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/memdesc.h>
@@ -52,9 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/pmap.h>
-
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
 
 #include <opencrypto/cryptodev.h>
 
