@@ -1127,7 +1127,7 @@ atohex(unsigned char *b, size_t bsize, const char *p, size_t psize)
 			x |= p[1] - '0';
 		else
 			return (-1);
-		
+
 		*b++ = x;
 		bsize--;
 		p += 2;
@@ -1139,11 +1139,11 @@ atohex(unsigned char *b, size_t bsize, const char *p, size_t psize)
 static time_t
 time_from_tm(struct tm *t)
 {
-#if HAVE_TIMEGM
+#if HAVE__MKGMTIME
+        return _mkgmtime(t);
+#elif HAVE_TIMEGM
         /* Use platform timegm() if available. */
         return (timegm(t));
-#elif HAVE__MKGMTIME64
-        return (_mkgmtime64(t));
 #else
         /* Else use direct calculation using POSIX assumptions. */
         /* First, fix up tm_yday based on the year/month/day. */

@@ -171,8 +171,10 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	int input, output, save_errno, i, need_restart;
 	char ch, *p, *end;
 	struct termios term, oterm;
+#ifdef HAVE_SIGACTION
 	struct sigaction sa, savealrm, saveint, savehup, savequit, saveterm;
 	struct sigaction savetstp, savettin, savettou, savepipe;
+#endif
 
 	/* I suppose we could alloc on demand in this case (XXX). */
 	if (bufsiz == 0) {
@@ -221,6 +223,7 @@ restart:
 		oterm.c_lflag |= ECHO;
 	}
 
+#ifdef HAVE_SIGACTION
 	/*
 	 * Catch signals that would otherwise cause the user to end
 	 * up with echo turned off in the shell.  Don't worry about
@@ -239,6 +242,7 @@ restart:
 	(void)sigaction(SIGTSTP, &sa, &savetstp);
 	(void)sigaction(SIGTTIN, &sa, &savettin);
 	(void)sigaction(SIGTTOU, &sa, &savettou);
+#endif
 
 	if (!(flags & RPP_STDIN)) {
 		int r = write(output, prompt, strlen(prompt));
@@ -276,6 +280,7 @@ restart:
 			continue;
 		signo[SIGTTOU] = sigttou;
 	}
+#ifdef HAVE_SIGACTION
 	(void)sigaction(SIGALRM, &savealrm, NULL);
 	(void)sigaction(SIGHUP, &savehup, NULL);
 	(void)sigaction(SIGINT, &saveint, NULL);
@@ -285,6 +290,7 @@ restart:
 	(void)sigaction(SIGTSTP, &savetstp, NULL);
 	(void)sigaction(SIGTTIN, &savettin, NULL);
 	(void)sigaction(SIGTTOU, &savettou, NULL);
+#endif
 	if (input != STDIN_FILENO)
 		(void)close(input);
 

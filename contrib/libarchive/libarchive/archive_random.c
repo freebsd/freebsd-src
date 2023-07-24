@@ -51,15 +51,26 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #endif
 
-static void arc4random_buf(void *, size_t);
+static void la_arc4random_buf(void *, size_t);
 
 #endif /* HAVE_ARC4RANDOM_BUF */
 
 #include "archive.h"
 #include "archive_random_private.h"
 
-#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+/* don't use bcrypt when XP needs to be supported */
+#include <bcrypt.h>
+
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
+
+#elif defined(HAVE_WINCRYPT_H)
 #include <wincrypt.h>
+#endif
 #endif
 
 #ifndef O_CLOEXEC
@@ -75,6 +86,20 @@ int
 archive_random(void *buf, size_t nbytes)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+# if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	NTSTATUS status;
+	BCRYPT_ALG_HANDLE hAlg;
+
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM, NULL, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return ARCHIVE_FAILED;
+	status = BCryptGenRandom(hAlg, buf, nbytes, 0);
+	BCryptCloseAlgorithmProvider(hAlg, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return ARCHIVE_FAILED;
+
+	return ARCHIVE_OK;
+# else
 	HCRYPTPROV hProv;
 	BOOL success;
 
@@ -92,6 +117,10 @@ archive_random(void *buf, size_t nbytes)
 	}
 	/* TODO: Does this case really happen? */
 	return ARCHIVE_FAILED;
+# endif
+#elif !defined(HAVE_ARC4RANDOM_BUF) && (!defined(_WIN32) || defined(__CYGWIN__))
+	la_arc4random_buf(buf, nbytes);
+	return ARCHIVE_OK;
 #else
 	arc4random_buf(buf, nbytes);
 	return ARCHIVE_OK;
@@ -256,7 +285,7 @@ arc4_getbyte(void)
 }
 
 static void
-arc4random_buf(void *_buf, size_t n)
+la_arc4random_buf(void *_buf, size_t n)
 {
 	uint8_t *buf = (uint8_t *)_buf;
 	_ARC4_LOCK();

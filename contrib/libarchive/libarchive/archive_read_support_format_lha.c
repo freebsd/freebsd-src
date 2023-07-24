@@ -2009,10 +2009,10 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 				    ((uint64_t)strm->next_in[0]) << 48 |
 				    ((uint64_t)strm->next_in[1]) << 40 |
 				    ((uint64_t)strm->next_in[2]) << 32 |
-				    ((uint32_t)strm->next_in[3]) << 24 |
-				    ((uint32_t)strm->next_in[4]) << 16 |
-				    ((uint32_t)strm->next_in[5]) << 8 |
-				     (uint32_t)strm->next_in[6];
+				    ((uint64_t)strm->next_in[3]) << 24 |
+				    ((uint64_t)strm->next_in[4]) << 16 |
+				    ((uint64_t)strm->next_in[5]) << 8 |
+				     (uint64_t)strm->next_in[6];
 				strm->next_in += 7;
 				strm->avail_in -= 7;
 				br->cache_avail += 7 * 8;
@@ -2022,10 +2022,10 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 		 		   (br->cache_buffer << 48) |
 				    ((uint64_t)strm->next_in[0]) << 40 |
 				    ((uint64_t)strm->next_in[1]) << 32 |
-				    ((uint32_t)strm->next_in[2]) << 24 |
-				    ((uint32_t)strm->next_in[3]) << 16 |
-				    ((uint32_t)strm->next_in[4]) << 8 |
-				     (uint32_t)strm->next_in[5];
+				    ((uint64_t)strm->next_in[2]) << 24 |
+				    ((uint64_t)strm->next_in[3]) << 16 |
+				    ((uint64_t)strm->next_in[4]) << 8 |
+				     (uint64_t)strm->next_in[5];
 				strm->next_in += 6;
 				strm->avail_in -= 6;
 				br->cache_avail += 6 * 8;

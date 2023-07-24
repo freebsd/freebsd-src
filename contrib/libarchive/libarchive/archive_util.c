@@ -42,8 +42,19 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+/* don't use bcrypt when XP needs to be supported */
+#include <bcrypt.h>
+
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
+
+#elif defined(HAVE_WINCRYPT_H)
 #include <wincrypt.h>
+#endif
 #endif
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -233,14 +244,16 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 		L'm', L'n', L'o', L'p', L'q', L'r', L's', L't',
 		L'u', L'v', L'w', L'x', L'y', L'z'
 	};
-	HCRYPTPROV hProv;
 	struct archive_wstring temp_name;
 	wchar_t *ws;
 	DWORD attr;
 	wchar_t *xp, *ep;
 	int fd;
-
-	hProv = (HCRYPTPROV)NULL;
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	BCRYPT_ALG_HANDLE hAlg = NULL;
+#else
+	HCRYPTPROV hProv = (HCRYPTPROV)NULL;
+#endif
 	fd = -1;
 	ws = NULL;
 
@@ -314,23 +327,42 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			abort();
 	}
 
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM,
+		NULL, 0))) {
+		la_dosmaperr(GetLastError());
+		goto exit_tmpfile;
+	}
+#else
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
 		la_dosmaperr(GetLastError());
 		goto exit_tmpfile;
 	}
+#endif
 
 	for (;;) {
 		wchar_t *p;
 		HANDLE h;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+		if (!BCRYPT_SUCCESS(BCryptGenRandom(hAlg, (PUCHAR)p,
+		    (DWORD)(ep - p)*sizeof(wchar_t), 0))) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+#else
 		if (!CryptGenRandom(hProv, (DWORD)(ep - p)*sizeof(wchar_t),
 		    (BYTE*)p)) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
+#endif
 		for (; p < ep; p++)
 			*p = num[((DWORD)*p) % (sizeof(num)/sizeof(num[0]))];
 
@@ -347,6 +379,17 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			/* mkstemp */
 			attr = FILE_ATTRIBUTE_NORMAL;
 		}
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		ZeroMemory(&createExParams, sizeof(createExParams));
+		createExParams.dwSize = sizeof(createExParams);
+		createExParams.dwFileAttributes = attr & 0xFFFF;
+		createExParams.dwFileFlags = attr & 0xFFF00000;
+		h = CreateFile2(ws,
+		    GENERIC_READ | GENERIC_WRITE | DELETE,
+		    0,/* Not share */
+			CREATE_NEW,
+			&createExParams);
+#else
 		h = CreateFileW(ws,
 		    GENERIC_READ | GENERIC_WRITE | DELETE,
 		    0,/* Not share */
@@ -354,6 +397,7 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 		    CREATE_NEW,/* Create a new file only */
 		    attr,
 		    NULL);
+#endif
 		if (h == INVALID_HANDLE_VALUE) {
 			/* The same file already exists. retry with
 			 * a new filename. */
@@ -372,8 +416,13 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			break;/* success! */
 	}
 exit_tmpfile:
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	if (hAlg != NULL)
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+#else
 	if (hProv != (HCRYPTPROV)NULL)
 		CryptReleaseContext(hProv, 0);
+#endif
 	free(ws);
 	if (template == temp_name.s)
 		archive_wstring_free(&temp_name);

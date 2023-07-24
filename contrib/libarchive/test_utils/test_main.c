@@ -327,7 +327,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 	int r;
 
 	memset(bhfi, 0, sizeof(*bhfi));
-	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
+	h = CreateFileA(path, FILE_READ_ATTRIBUTES, 0, NULL,
 		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
@@ -1432,7 +1432,7 @@ assertion_file_time(const char *file, int line,
 	/* Note: FILE_FLAG_BACKUP_SEMANTICS applies to open
 	 * a directory file. If not, CreateFile() will fail when
 	 * the pathname is a directory. */
-	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
+	h = CreateFileA(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
 	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
@@ -2345,7 +2345,7 @@ static void assert_version_id(char **qq, size_t *ss)
 		q += 3;
 		s -= 3;
 	}
-	
+
 	/* Skip a single trailing a,b,c, or d. */
 	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
 		++q;
@@ -2391,7 +2391,7 @@ void assertVersion(const char *prog, const char *base)
 
 	/* Version message should start with name of program, then space. */
 	assert(s > prog_len + 1);
-	
+
 	failure("Version must start with '%s': ``%s''", base, p);
 	if (!assertEqualMem(q, base, prog_len)) {
 		free(p);
@@ -2729,7 +2729,7 @@ canNodump(void)
 /* Get extended attribute value from a path */
 void *
 getXattr(const char *path, const char *name, size_t *sizep)
-{ 
+{
 	void *value = NULL;
 #if ARCHIVE_XATTR_SUPPORT
 	ssize_t size;
@@ -3863,17 +3863,13 @@ main(int argc, char **argv)
 	int test_set[sizeof(tests) / sizeof(tests[0])];
 	int i = 0, j = 0, tests_run = 0, tests_failed = 0, option;
 	int testprogdir_len;
-#ifdef PROGRAM	
+#ifdef PROGRAM
 	int tmp2_len;
 #endif
 	time_t now;
 	struct tm *tmptr;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
-#endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t	terr;
-	__time64_t tmptime;
 #endif
 	char *refdir_alloc = NULL;
 	const char *progname;
@@ -4109,15 +4105,10 @@ main(int argc, char **argv)
 	 */
 	now = time(NULL);
 	for (i = 0; ; i++) {
-#if defined(HAVE_LOCALTIME_R)
+#if defined(HAVE_LOCALTIME_S)
+		tmptr = localtime_s(&tmbuf, &now) ? NULL : &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
 		tmptr = localtime_r(&now, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
-		tmptime = now;
-		terr = _localtime64_s(&tmbuf, &tmptime);
-		if (terr)
-			tmptr = NULL;
-		else
-			tmptr = &tmbuf;
 #else
 		tmptr = localtime(&now);
 #endif

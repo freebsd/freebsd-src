@@ -115,9 +115,9 @@ zstd_bidder_bid(struct archive_read_filter_bidder *self,
 	unsigned prefix;
 
 	/* Zstd frame magic values */
-	const unsigned zstd_magic = 0xFD2FB528U;
-	const unsigned zstd_magic_skippable_start = 0x184D2A50U;
-	const unsigned zstd_magic_skippable_mask = 0xFFFFFFF0;
+	unsigned zstd_magic = 0xFD2FB528U;
+	unsigned zstd_magic_skippable_start = 0x184D2A50U;
+	unsigned zstd_magic_skippable_mask = 0xFFFFFFF0;
 
 	(void) self; /* UNUSED */
 
@@ -170,7 +170,7 @@ static int
 zstd_bidder_init(struct archive_read_filter *self)
 {
 	struct private_data *state;
-	const size_t out_block_size = ZSTD_DStreamOutSize();
+	size_t out_block_size = ZSTD_DStreamOutSize();
 	void *out_block;
 	ZSTD_DStream *dstream;
 
@@ -211,6 +211,7 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 	ssize_t avail_in;
 	ZSTD_outBuffer out;
 	ZSTD_inBuffer in;
+	size_t ret;
 
 	state = (struct private_data *)self->data;
 
@@ -219,7 +220,7 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 	/* Try to fill the output buffer. */
 	while (out.pos < out.size && !state->eof) {
 		if (!state->in_frame) {
-			const size_t ret = ZSTD_initDStream(state->dstream);
+			ret = ZSTD_initDStream(state->dstream);
 			if (ZSTD_isError(ret)) {
 				archive_set_error(&self->archive->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -249,8 +250,7 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		in.pos = 0;
 
 		{
-			const size_t ret =
-			    ZSTD_decompressStream(state->dstream, &out, &in);
+			ret = ZSTD_decompressStream(state->dstream, &out, &in);
 
 			if (ZSTD_isError(ret)) {
 				archive_set_error(&self->archive->archive,
