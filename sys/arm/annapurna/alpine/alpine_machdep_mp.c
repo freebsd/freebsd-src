@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
-#include <machine/cpu-v6.h>
+#include <machine/cpu.h>
 #include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
