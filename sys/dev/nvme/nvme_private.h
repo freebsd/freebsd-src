@@ -37,6 +37,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -114,21 +115,11 @@ struct nvme_completion_poll_status {
 	int			done;
 };
 
-#define NVME_REQUEST_VADDR	1
-#define NVME_REQUEST_NULL	2 /* For requests with no payload. */
-#define NVME_REQUEST_UIO	3
-#define NVME_REQUEST_BIO	4
-#define NVME_REQUEST_CCB        5
-
 struct nvme_request {
 	struct nvme_command		cmd;
 	struct nvme_qpair		*qpair;
-	union {
-		void			*payload;
-		struct bio		*bio;
-	} u;
-	uint32_t			type;
-	uint32_t			payload_size;
+	struct memdesc			payload;
+	bool				payload_valid;
 	bool				timeout;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
@@ -521,9 +512,8 @@ nvme_allocate_request_vaddr(void *payload, uint32_t payload_size,
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL) {
-		req->type = NVME_REQUEST_VADDR;
-		req->u.payload = payload;
-		req->payload_size = payload_size;
+		req->payload = memdesc_vaddr(payload, payload_size);
+		req->payload_valid = true;
 	}
 	return (req);
 }
@@ -534,8 +524,6 @@ nvme_allocate_request_null(nvme_cb_fn_t cb_fn, void *cb_arg)
 	struct nvme_request *req;
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
-	if (req != NULL)
-		req->type = NVME_REQUEST_NULL;
 	return (req);
 }
 
@@ -546,8 +534,8 @@ nvme_allocate_request_bio(struct bio *bio, nvme_cb_fn_t cb_fn, void *cb_arg)
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL) {
-		req->type = NVME_REQUEST_BIO;
-		req->u.bio = bio;
+		req->payload = memdesc_bio(bio);
+		req->payload_valid = true;
 	}
 	return (req);
 }
@@ -559,8 +547,8 @@ nvme_allocate_request_ccb(union ccb *ccb, nvme_cb_fn_t cb_fn, void *cb_arg)
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL) {
-		req->type = NVME_REQUEST_CCB;
-		req->u.payload = ccb;
+		req->payload = memdesc_ccb(ccb);
+		req->payload_valid = true;
 	}
 
 	return (req);

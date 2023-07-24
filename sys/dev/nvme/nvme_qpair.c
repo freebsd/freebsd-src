@@ -447,7 +447,7 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 	KASSERT(cpl->cid == req->cmd.cid, ("cpl cid does not match cmd cid\n"));
 
 	if (!retry) {
-		if (req->type != NVME_REQUEST_NULL) {
+		if (req->payload_valid) {
 			bus_dmamap_sync(qpair->dma_tag_payload,
 			    tr->payload_dma_map,
 			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -462,7 +462,7 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 		req->retries++;
 		nvme_qpair_submit_tracker(qpair, tr);
 	} else {
-		if (req->type != NVME_REQUEST_NULL) {
+		if (req->payload_valid) {
 			bus_dmamap_unload(qpair->dma_tag_payload,
 			    tr->payload_dma_map);
 		}
@@ -1179,45 +1179,13 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	tr->deadline = SBT_MAX;
 	tr->req = req;
 
-	switch (req->type) {
-	case NVME_REQUEST_VADDR:
-		KASSERT(req->payload_size <= qpair->ctrlr->max_xfer_size,
-		    ("payload_size (%d) exceeds max_xfer_size (%d)\n",
-		    req->payload_size, qpair->ctrlr->max_xfer_size));
-		err = bus_dmamap_load(tr->qpair->dma_tag_payload,
-		    tr->payload_dma_map, req->u.payload, req->payload_size,
-		    nvme_payload_map, tr, 0);
-		if (err != 0)
-			nvme_printf(qpair->ctrlr,
-			    "bus_dmamap_load returned 0x%x!\n", err);
-		break;
-	case NVME_REQUEST_NULL:
+	if (!req->payload_valid) {
 		nvme_qpair_submit_tracker(tr->qpair, tr);
-		break;
-	case NVME_REQUEST_BIO:
-		KASSERT(req->u.bio->bio_bcount <= qpair->ctrlr->max_xfer_size,
-		    ("bio->bio_bcount (%jd) exceeds max_xfer_size (%d)\n",
-		    (intmax_t)req->u.bio->bio_bcount,
-		    qpair->ctrlr->max_xfer_size));
-		err = bus_dmamap_load_bio(tr->qpair->dma_tag_payload,
-		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
-		if (err != 0)
-			nvme_printf(qpair->ctrlr,
-			    "bus_dmamap_load_bio returned 0x%x!\n", err);
-		break;
-	case NVME_REQUEST_CCB:
-		err = bus_dmamap_load_ccb(tr->qpair->dma_tag_payload,
-		    tr->payload_dma_map, req->u.payload,
-		    nvme_payload_map, tr, 0);
-		if (err != 0)
-			nvme_printf(qpair->ctrlr,
-			    "bus_dmamap_load_ccb returned 0x%x!\n", err);
-		break;
-	default:
-		panic("unknown nvme request type 0x%x\n", req->type);
-		break;
+		return;
 	}
 
+	err = bus_dmamap_load_mem(tr->qpair->dma_tag_payload,
+	    tr->payload_dma_map, &req->payload, nvme_payload_map, tr, 0);
 	if (err != 0) {
 		/*
 		 * The dmamap operation failed, so we manually fail the
@@ -1226,6 +1194,8 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		 * nvme_qpair_manual_complete_tracker must not be called
 		 *  with the qpair lock held.
 		 */
+		nvme_printf(qpair->ctrlr,
+		    "bus_dmamap_load_mem returned 0x%x!\n", err);
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
 		    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
