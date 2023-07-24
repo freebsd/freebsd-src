@@ -79,10 +79,10 @@ ${X_}LINKER_FREEBSD_VERSION:=	${_ld_version:[4]:C/.*-([^-]*)\)/\1/}
 .else
 ${X_}LINKER_FREEBSD_VERSION=	0
 .endif
-.elif ${_ld_version:[1]} == "@(\#)PROGRAM:ld"
+.elif ${_ld_version:[1]:S/-classic$//} == "@(\#)PROGRAM:ld"
 # bootstrap linker on MacOS
 ${X_}LINKER_TYPE=        mac
-_v=        ${_ld_version:[2]:S/PROJECT:ld64-//}
+_v=        ${_ld_version:[2]:S/PROJECT:(ld64|dyld)-//}
 # Convert version 409.12 to 409.12.0 so that the echo + awk below works
 .if empty(_v:M[1-9]*.[0-9]*.[0-9]*) && !empty(_v:M[1-9]*.[0-9]*)
 _v:=${_v}.0
