@@ -37,8 +37,6 @@
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 
-#define	ALT_STACK_SIZE	128
-
 typedef int (*pcpu_bp_harden)(void);
 typedef int (*pcpu_ssbd)(int);
 struct debug_monitor_state;
