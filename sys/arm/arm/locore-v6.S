@@ -34,7 +34,7 @@
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
-#include <machine/pte-v6.h>
+#include <machine/pte.h>
 
 __FBSDID("$FreeBSD$");
 

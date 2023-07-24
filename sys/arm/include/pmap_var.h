@@ -30,7 +30,7 @@
 #ifndef _MACHINE_PMAP_VAR_H_
 #define _MACHINE_PMAP_VAR_H_
 
-#include <machine/pte-v6.h>
+#include <machine/pte.h>
 
 /*
  *  Various PMAP defines, exports, and inline functions

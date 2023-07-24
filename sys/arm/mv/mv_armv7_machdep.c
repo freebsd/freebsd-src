@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
-#include <machine/pte-v6.h>
+#include <machine/pte.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
