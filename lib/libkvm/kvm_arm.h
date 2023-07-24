@@ -83,11 +83,7 @@ typedef uint32_t	arm_pt_entry_t;
 #ifdef __arm__
 #include <machine/acle-compat.h>
 
-#if __ARM_ARCH >= 6
-#include <machine/pte-v6.h>
-#else
-#include <machine/pte-v4.h>
-#endif
+#include <machine/pte.h>
 
 _Static_assert(PAGE_SHIFT == ARM_PAGE_SHIFT, "PAGE_SHIFT mismatch");
 _Static_assert(PAGE_SIZE == ARM_PAGE_SIZE, "PAGE_SIZE mismatch");
@@ -114,9 +110,6 @@ _Static_assert(L1_C_ADDR_MASK == ARM_L1_C_ADDR_MASK, "L1_C_ADDR_MASK mismatch");
 _Static_assert(L2_TYPE_INV == ARM_L2_TYPE_INV, "L2_TYPE_INV mismatch");
 _Static_assert(L2_TYPE_L == ARM_L2_TYPE_L, "L2_TYPE_L mismatch");
 _Static_assert(L2_TYPE_S == ARM_L2_TYPE_S, "L2_TYPE_S mismatch");
-#if __ARM_ARCH < 6
-_Static_assert(L2_TYPE_T == ARM_L2_TYPE_T, "L2_TYPE_T mismatch");
-#endif
 _Static_assert(L2_TYPE_MASK == ARM_L2_TYPE_MASK, "L2_TYPE_MASK mismatch");
 #endif
 
