@@ -350,7 +350,6 @@ irdma_event_handler(struct ice_rdma_peer *peer, struct ice_rdma_event *event)
 		atomic_dec(&iwdev->rf->dev_ctx.event_rfcnt);
 		break;
 	case ICE_RDMA_EVENT_CRIT_ERR:
-#ifdef EVNT_HNDLR_CRITERR
 		if (event->oicr_reg & IRDMAPFINT_OICR_PE_CRITERR_M) {
 			u32 pe_criterr;
 
@@ -371,9 +370,6 @@ irdma_event_handler(struct ice_rdma_peer *peer, struct ice_rdma_event *event)
 		}
 		if (iwdev->rf->reset)
 			iwdev->rf->gen_ops.request_reset(iwdev->rf);
-#else
-		printf("%s:%d event type received: %d\n", __func__, __LINE__, event->type);
-#endif
 		break;
 	case ICE_RDMA_EVENT_RESET:
 		iwdev->rf->reset = true;

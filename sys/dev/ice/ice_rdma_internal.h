@@ -98,4 +98,6 @@ int  ice_rdma_pf_stop(struct ice_softc *sc);
 void ice_rdma_link_change(struct ice_softc *sc, int linkstate, uint64_t baudrate);
 void ice_rdma_notify_dcb_qos_change(struct ice_softc *sc);
 void ice_rdma_dcb_qos_update(struct ice_softc *sc, struct ice_port_info *pi);
+void ice_rdma_notify_pe_intr(struct ice_softc *sc, uint32_t oicr);
+void ice_rdma_notify_reset(struct ice_softc *sc);
 #endif
