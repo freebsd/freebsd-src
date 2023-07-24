@@ -29,6 +29,7 @@
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
+#include <machine/sysreg.h>
 
 __FBSDID("$FreeBSD$");
 

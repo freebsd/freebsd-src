@@ -41,7 +41,6 @@
 #ifndef _MACHINE_ASM_H_
 #define _MACHINE_ASM_H_
 #include <sys/cdefs.h>
-#include <machine/sysreg.h>
 
 #define	_C_LABEL(x)	x
 #define	_ASM_LABEL(x)	x
@@ -194,6 +193,7 @@
 #endif
 
 #elif __ARM_ARCH == 6
+#include <machine/sysreg.h>
 #define ISB	mcr CP15_CP15ISB
 #define DSB	mcr CP15_CP15DSB
 #define DMB	mcr CP15_CP15DMB
