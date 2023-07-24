@@ -43,12 +43,6 @@
 
 #include <sys/atomic_common.h>
 
-#include <machine/armreg.h>
-
-#ifndef _KERNEL
-#include <machine/sysarch.h>
-#endif
-
 #include <machine/atomic-v6.h>
 
 static __inline u_long
