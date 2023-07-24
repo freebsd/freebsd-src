@@ -37,12 +37,8 @@ DEFINE_TEST(test_option_t)
 	char date[32];
 	char date2[32];
 	struct tm *tmptr;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
-#endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t terr;
-	__time64_t tmptime;
 #endif
 
 	/* List reference archive, make sure the TOC is correct. */
@@ -95,15 +91,10 @@ DEFINE_TEST(test_option_t)
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
 #endif
-#if defined(HAVE_LOCALTIME_R)
+#if defined(HAVE_LOCALTIME_S)
+        tmptr = localtime_s(&tmbuf, &mtime) ? NULL : &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
         tmptr = localtime_r(&mtime, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
-        tmptime = mtime;
-        terr = _localtime64_s(&tmbuf, &tmptime);
-        if (terr)
-                tmptr = NULL;
-        else
-                tmptr = &tmbuf;
 #else
         tmptr = localtime(&mtime);
 #endif

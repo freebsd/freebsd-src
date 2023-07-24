@@ -74,12 +74,8 @@ DEFINE_TEST(test_write_format_zip_file)
 	struct archive_entry *ae;
 	time_t t = 1234567890;
 	struct tm *tm;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
-#endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t terr;
-	__time64_t tmptime;
 #endif
 	size_t used, buffsize = 1000000;
 	unsigned long crc;
@@ -98,15 +94,10 @@ DEFINE_TEST(test_write_format_zip_file)
 	zip_compression = 0;
 #endif
 
-#if defined(HAVE_LOCALTIME_R)
+#if defined(HAVE_LOCALTIME_S)
+	tm = localtime_s(&tmbuf, &t) ? NULL : &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
 	tm = localtime_r(&t, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
-	tmptime = t;
-	terr = _localtime64_s(&tmbuf, &tmptime);
-	if (terr)
-		tm = NULL;
-	else
-		tm = &tmbuf;
 #else
 	tm = localtime(&t);
 #endif

@@ -36,6 +36,11 @@
 #error Cannot use both OpenSSL and libmd.
 #endif
 
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
+
 /*
  * Message digest functions for Windows platform.
  */
@@ -48,6 +53,26 @@
 /*
  * Initialize a Message digest.
  */
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+static int
+win_crypto_init(Digest_CTX *ctx, const WCHAR *algo)
+{
+	NTSTATUS status;
+	ctx->valid = 0;
+
+	status = BCryptOpenAlgorithmProvider(&ctx->hAlg, algo, NULL, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return (ARCHIVE_FAILED);
+	status = BCryptCreateHash(ctx->hAlg, &ctx->hHash, NULL, 0, NULL, 0, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
+		return (ARCHIVE_FAILED);
+	}
+
+	ctx->valid = 1;
+	return (ARCHIVE_OK);
+}
+#else
 static int
 win_crypto_init(Digest_CTX *ctx, DWORD prov, ALG_ID algId)
 {
@@ -70,6 +95,7 @@ win_crypto_init(Digest_CTX *ctx, DWORD prov, ALG_ID algId)
 	ctx->valid = 1;
 	return (ARCHIVE_OK);
 }
+#endif
 
 /*
  * Update a Message digest.
@@ -81,23 +107,37 @@ win_crypto_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
 	if (!ctx->valid)
 		return (ARCHIVE_FAILED);
 
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	BCryptHashData(ctx->hHash,
+		      (PUCHAR)(uintptr_t)buf,
+		      len, 0);
+#else
 	CryptHashData(ctx->hash,
 		      (unsigned char *)(uintptr_t)buf,
 		      (DWORD)len, 0);
+#endif
 	return (ARCHIVE_OK);
 }
 
 static int
 win_crypto_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx)
 {
+#if !(defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA)
 	DWORD siglen = (DWORD)bufsize;
+#endif
 
 	if (!ctx->valid)
 		return (ARCHIVE_FAILED);
 
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	BCryptFinishHash(ctx->hHash, buf, (ULONG)bufsize, 0);
+	BCryptDestroyHash(ctx->hHash);
+	BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
+#else
 	CryptGetHashParam(ctx->hash, HP_HASHVAL, buf, &siglen, 0);
 	CryptDestroyHash(ctx->hash);
 	CryptReleaseContext(ctx->cryptProv, 0);
+#endif
 	ctx->valid = 0;
 	return (ARCHIVE_OK);
 }
@@ -276,7 +316,11 @@ __archive_md5final(archive_md5_ctx *ctx, void *md)
 static int
 __archive_md5init(archive_md5_ctx *ctx)
 {
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_MD5_ALGORITHM));
+#else
   return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_MD5));
+#endif
 }
 
 static int
@@ -659,7 +703,11 @@ __archive_sha1final(archive_sha1_ctx *ctx, void *md)
 static int
 __archive_sha1init(archive_sha1_ctx *ctx)
 {
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA1_ALGORITHM));
+#else
   return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_SHA1));
+#endif
 }
 
 static int
@@ -919,7 +967,11 @@ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_sha256init(archive_sha256_ctx *ctx)
 {
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA256_ALGORITHM));
+#else
   return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_256));
+#endif
 }
 
 static int
@@ -1155,7 +1207,11 @@ __archive_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_sha384init(archive_sha384_ctx *ctx)
 {
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA384_ALGORITHM));
+#else
   return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_384));
+#endif
 }
 
 static int
@@ -1415,7 +1471,11 @@ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_sha512init(archive_sha512_ctx *ctx)
 {
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA512_ALGORITHM));
+#else
   return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_512));
+#endif
 }
 
 static int

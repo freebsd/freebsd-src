@@ -255,6 +255,27 @@ have been concatenated together.
 Without this option, only the contents of
 the first concatenated archive would be read.
 .El
+.It Format zip
+.Bl -tag -compact -width indent
+.It Cm compat-2x
+Libarchive 2.x incorrectly encoded Unicode filenames on
+some platforms.
+This option mimics the libarchive 2.x filename handling
+so that such archives can be read correctly.
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.It Cm ignorecrc32
+Skip the CRC32 check.
+Mostly used for testing.
+.It Cm mac-ext
+Support Mac OS metadata extension that records data in special
+files beginning with a period and underscore.
+Defaults to enabled on Mac OS, disabled on other platforms.
+Use
+.Cm !mac-ext
+to disable.
+.El
 .El
 .\"
 .Sh ERRORS

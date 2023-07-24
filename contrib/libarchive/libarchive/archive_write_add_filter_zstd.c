@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -50,10 +53,21 @@ __FBSDID("$FreeBSD$");
 
 struct private_data {
 	int		 compression_level;
-	int      threads;
+	int		 threads;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+	enum {
+		running,
+		finishing,
+		resetting,
+	} state;
+	int		 frame_per_file;
+	size_t		 min_frame_size;
+	size_t		 max_frame_size;
+	size_t		 cur_frame;
+	size_t		 cur_frame_in;
+	size_t		 cur_frame_out;
+	size_t		 total_in;
 	ZSTD_CStream	*cstream;
-	int64_t		 total_in;
 	ZSTD_outBuffer	 out;
 #else
 	struct archive_write_program_data *pdata;
@@ -75,6 +89,7 @@ static int archive_compressor_zstd_options(struct archive_write_filter *,
 static int archive_compressor_zstd_open(struct archive_write_filter *);
 static int archive_compressor_zstd_write(struct archive_write_filter *,
 		    const void *, size_t);
+static int archive_compressor_zstd_flush(struct archive_write_filter *);
 static int archive_compressor_zstd_close(struct archive_write_filter *);
 static int archive_compressor_zstd_free(struct archive_write_filter *);
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
@@ -103,6 +118,7 @@ archive_write_add_filter_zstd(struct archive *_a)
 	f->data = data;
 	f->open = &archive_compressor_zstd_open;
 	f->options = &archive_compressor_zstd_options;
+	f->flush = &archive_compressor_zstd_flush;
 	f->close = &archive_compressor_zstd_close;
 	f->free = &archive_compressor_zstd_free;
 	f->code = ARCHIVE_FILTER_ZSTD;
@@ -110,6 +126,11 @@ archive_write_add_filter_zstd(struct archive *_a)
 	data->compression_level = CLEVEL_DEFAULT;
 	data->threads = 0;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+	data->frame_per_file = 0;
+	data->min_frame_size = 0;
+	data->max_frame_size = SIZE_MAX;
+	data->cur_frame_in = 0;
+	data->cur_frame_out = 0;
 	data->cstream = ZSTD_createCStream();
 	if (data->cstream == NULL) {
 		free(data);
@@ -147,29 +168,18 @@ archive_compressor_zstd_free(struct archive_write_filter *f)
 	return (ARCHIVE_OK);
 }
 
-static int string_is_numeric (const char* value)
+static int string_to_number(const char *string, intmax_t *numberp)
 {
-       size_t len = strlen(value);
-       size_t i;
+	char *end;
 
-       if (len == 0) {
-               return (ARCHIVE_WARN);
-       }
-       else if (len == 1 && !(value[0] >= '0' && value[0] <= '9')) {
-               return (ARCHIVE_WARN);
-       }
-       else if (!(value[0] >= '0' && value[0] <= '9') &&
-                value[0] != '-' && value[0] != '+') {
-               return (ARCHIVE_WARN);
-       }
-
-       for (i = 1; i < len; i++) {
-               if (!(value[i] >= '0' && value[i] <= '9')) {
-                       return (ARCHIVE_WARN);
-               }
-       }
-
-       return (ARCHIVE_OK);
+	if (string == NULL || *string == '\0')
+		return (ARCHIVE_WARN);
+	*numberp = strtoimax(string, &end, 10);
+	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+		*numberp = 0;
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -182,13 +192,13 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 	struct private_data *data = (struct private_data *)f->data;
 
 	if (strcmp(key, "compression-level") == 0) {
-		int level = atoi(value);
+		intmax_t level;
+		if (string_to_number(value, &level) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
 		/* If we don't have the library, hard-code the max level */
 		int minimum = CLEVEL_MIN;
 		int maximum = CLEVEL_MAX;
-		if (string_is_numeric(value) != ARCHIVE_OK) {
-			return (ARCHIVE_WARN);
-		}
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 		maximum = ZSTD_maxCLevel();
 #if ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
@@ -207,19 +217,40 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		data->compression_level = level;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "threads") == 0) {
-		int threads = atoi(value);
-		if (string_is_numeric(value) != ARCHIVE_OK) {
+		intmax_t threads;
+		if (string_to_number(value, &threads) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-
-		int minimum = 0;
-
-		if (threads < minimum) {
+		if (threads < 0) {
 			return (ARCHIVE_WARN);
 		}
-
 		data->threads = threads;
 		return (ARCHIVE_OK);
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+	} else if (strcmp(key, "frame-per-file") == 0) {
+		data->frame_per_file = 1;
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "min-frame-size") == 0) {
+		intmax_t min_frame_size;
+		if (string_to_number(value, &min_frame_size) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+		if (min_frame_size < 0) {
+			return (ARCHIVE_WARN);
+		}
+		data->min_frame_size = min_frame_size;
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "max-frame-size") == 0) {
+		intmax_t max_frame_size;
+		if (string_to_number(value, &max_frame_size) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+		if (max_frame_size < 1024) {
+			return (ARCHIVE_WARN);
+		}
+		data->max_frame_size = max_frame_size;
+		return (ARCHIVE_OK);
+#endif
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -281,15 +312,22 @@ archive_compressor_zstd_write(struct archive_write_filter *f, const void *buff,
     size_t length)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret;
 
-	/* Update statistics */
-	data->total_in += length;
+	return (drive_compressor(f, data, 0, buff, length));
+}
 
-	if ((ret = drive_compressor(f, data, 0, buff, length)) != ARCHIVE_OK)
-		return (ret);
+/*
+ * Flush the compressed stream.
+ */
+static int
+archive_compressor_zstd_flush(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
 
-	return (ARCHIVE_OK);
+	if (data->frame_per_file && data->state == running &&
+	    data->cur_frame_out > data->min_frame_size)
+		data->state = finishing;
+	return (drive_compressor(f, data, 1, NULL, 0));
 }
 
 /*
@@ -300,57 +338,72 @@ archive_compressor_zstd_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 
-	/* Finish zstd frame */
-	return drive_compressor(f, data, 1, NULL, 0);
+	if (data->state == running)
+		data->state = finishing;
+	return (drive_compressor(f, data, 1, NULL, 0));
 }
 
 /*
  * Utility function to push input data through compressor,
  * writing full output blocks as necessary.
- *
- * Note that this handles both the regular write case (finishing ==
- * false) and the end-of-archive case (finishing == true).
  */
 static int
 drive_compressor(struct archive_write_filter *f,
-    struct private_data *data, int finishing, const void *src, size_t length)
+    struct private_data *data, int flush, const void *src, size_t length)
 {
-	ZSTD_inBuffer in = (ZSTD_inBuffer) { src, length, 0 };
+	ZSTD_inBuffer in = { .src = src, .size = length, .pos = 0 };
+	size_t ipos, opos, zstdret = 0;
+	int ret;
 
 	for (;;) {
-		if (data->out.pos == data->out.size) {
-			const int ret = __archive_write_filter(f->next_filter,
-			    data->out.dst, data->out.size);
+		ipos = in.pos;
+		opos = data->out.pos;
+		switch (data->state) {
+		case running:
+			if (in.pos == in.size)
+				return (ARCHIVE_OK);
+			zstdret = ZSTD_compressStream(data->cstream,
+			    &data->out, &in);
+			if (ZSTD_isError(zstdret))
+				goto zstd_fatal;
+			break;
+		case finishing:
+			zstdret = ZSTD_endStream(data->cstream, &data->out);
+			if (ZSTD_isError(zstdret))
+				goto zstd_fatal;
+			if (zstdret == 0)
+				data->state = resetting;
+			break;
+		case resetting:
+			ZSTD_CCtx_reset(data->cstream, ZSTD_reset_session_only);
+			data->cur_frame++;
+			data->cur_frame_in = 0;
+			data->cur_frame_out = 0;
+			data->state = running;
+			break;
+		}
+		data->total_in += in.pos - ipos;
+		data->cur_frame_in += in.pos - ipos;
+		data->cur_frame_out += data->out.pos - opos;
+		if (data->state == running &&
+		    data->cur_frame_in >= data->max_frame_size) {
+			data->state = finishing;
+		}
+		if (data->out.pos == data->out.size ||
+		    (flush && data->out.pos > 0)) {
+			ret = __archive_write_filter(f->next_filter,
+			    data->out.dst, data->out.pos);
 			if (ret != ARCHIVE_OK)
-				return (ARCHIVE_FATAL);
+				goto fatal;
 			data->out.pos = 0;
 		}
-
-		/* If there's nothing to do, we're done. */
-		if (!finishing && in.pos == in.size)
-			return (ARCHIVE_OK);
-
-		{
-			const size_t zstdret = !finishing ?
-			    ZSTD_compressStream(data->cstream, &data->out, &in)
-			    : ZSTD_endStream(data->cstream, &data->out);
-
-			if (ZSTD_isError(zstdret)) {
-				archive_set_error(f->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "Zstd compression failed: %s",
-				    ZSTD_getErrorName(zstdret));
-				return (ARCHIVE_FATAL);
-			}
-
-			/* If we're finishing, 0 means nothing left to flush */
-			if (finishing && zstdret == 0) {
-				const int ret = __archive_write_filter(f->next_filter,
-				    data->out.dst, data->out.pos);
-				return (ret);
-			}
-		}
 	}
+zstd_fatal:
+	archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
+	    "Zstd compression failed: %s",
+	    ZSTD_getErrorName(zstdret));
+fatal:
+	return (ARCHIVE_FATAL);
 }
 
 #else /* HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR */
@@ -367,17 +420,9 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	archive_strcpy(&as, "zstd --no-check");
 
 	if (data->compression_level < CLEVEL_STD_MIN) {
-		struct archive_string as2;
-		archive_string_init(&as2);
-		archive_string_sprintf(&as2, " --fast=%d", -data->compression_level);
-		archive_string_concat(&as, &as2);
-		archive_string_free(&as2);
+		archive_string_sprintf(&as, " --fast=%d", -data->compression_level);
 	} else {
-		struct archive_string as2;
-		archive_string_init(&as2);
-		archive_string_sprintf(&as2, " -%d", data->compression_level);
-		archive_string_concat(&as, &as2);
-		archive_string_free(&as2);
+		archive_string_sprintf(&as, " -%d", data->compression_level);
 	}
 
 	if (data->compression_level > CLEVEL_STD_MAX) {
@@ -385,11 +430,7 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	}
 
 	if (data->threads != 0) {
-		struct archive_string as2;
-		archive_string_init(&as2);
-		archive_string_sprintf(&as2, " --threads=%d", data->threads);
-		archive_string_concat(&as, &as2);
-		archive_string_free(&as2);
+		archive_string_sprintf(&as, " --threads=%d", data->threads);
 	}
 
 	f->write = archive_compressor_zstd_write;
@@ -405,6 +446,14 @@ archive_compressor_zstd_write(struct archive_write_filter *f, const void *buff,
 	struct private_data *data = (struct private_data *)f->data;
 
 	return __archive_write_program_write(f, data->pdata, buff, length);
+}
+
+static int
+archive_compressor_zstd_flush(struct archive_write_filter *f)
+{
+	(void)f; /* UNUSED */
+
+	return (ARCHIVE_OK);
 }
 
 static int
