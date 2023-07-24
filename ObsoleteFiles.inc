@@ -52,6 +52,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230724: Remove unneeded arm headers
+.if ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/machine/atomic-v6.h
+OLD_FILES+=usr/include/machine/cpu-v6.h
+OLD_FILES+=usr/include/machine/pmap-v6.h
+OLD_FILES+=usr/include/machine/pte-v6.h
+OLD_FILES+=usr/include/machine/swi.h
+.endif
+
 # 20230714: gsignal
 OLD_FILES+=usr/share/man/man9/gsignal.9.gz
 
