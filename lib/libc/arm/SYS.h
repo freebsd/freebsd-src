@@ -39,7 +39,6 @@
 
 #include <machine/asm.h>
 #include <sys/syscall.h>
-#include <machine/swi.h>
 
 #define SYSTRAP(x)							\
 			mov ip, r7;					\
