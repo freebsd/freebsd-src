@@ -225,6 +225,7 @@ SUBDIR=	\
 	${_mac_bsdextended} \
 	${_mac_ddb} \
 	${_mac_ifoff} \
+	${_mac_ipacl} \
 	${_mac_lomac} \
 	${_mac_mls} \
 	${_mac_none} \
@@ -581,6 +582,7 @@ _mac_bsdextended= mac_bsdextended
 _mac_ddb=	mac_ddb
 .endif
 _mac_ifoff=	mac_ifoff
+_mac_ipacl=	mac_ipacl
 _mac_lomac=	mac_lomac
 _mac_mls=	mac_mls
 _mac_none=	mac_none
