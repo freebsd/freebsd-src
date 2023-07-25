@@ -146,7 +146,7 @@ scsi_wrap_inquiry(struct cam_device *device, uint32_t page, uint32_t length)
 		     /*retries*/ 0,
 		     /*cbfcnp*/ NULL,
 		     /* tag_action */ MSG_SIMPLE_Q_TAG,
-		     /* inq_buf */ (u_int8_t *)buf,
+		     /* inq_buf */ (uint8_t *)buf,
 		     /* inq_len */ length,
 		     /* evpd */ 1,
 		     /* page_code */ page,
