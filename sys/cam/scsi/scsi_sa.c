@@ -392,22 +392,22 @@ struct sa_softc {
 	int		blk_gran;
 	int		blk_mask;
 	int		blk_shift;
-	u_int32_t	max_blk;
-	u_int32_t	min_blk;
-	u_int32_t	maxio;
-	u_int32_t	cpi_maxio;
+	uint32_t	max_blk;
+	uint32_t	min_blk;
+	uint32_t	maxio;
+	uint32_t	cpi_maxio;
 	int		allow_io_split;
 	int		inject_eom;
 	int		set_pews_status;
-	u_int32_t	comp_algorithm;
-	u_int32_t	saved_comp_algorithm;
-	u_int32_t	media_blksize;
-	u_int32_t	last_media_blksize;
-	u_int32_t	media_numblks;
-	u_int8_t	media_density;
-	u_int8_t	speed;
-	u_int8_t	scsi_rev;
-	u_int8_t	dsreg;		/* mtio mt_dsreg, redux */
+	uint32_t	comp_algorithm;
+	uint32_t	saved_comp_algorithm;
+	uint32_t	media_blksize;
+	uint32_t	last_media_blksize;
+	uint32_t	media_numblks;
+	uint8_t	media_density;
+	uint8_t	speed;
+	uint8_t	scsi_rev;
+	uint8_t	dsreg;		/* mtio mt_dsreg, redux */
 	int		buffer_mode;
 	int		filemarks;
 	int		last_resid_was_io;
@@ -449,11 +449,11 @@ struct sa_softc {
 	 */
 	struct {
 		struct scsi_sense_data _last_io_sense;
-		u_int64_t _last_io_resid;
-		u_int8_t _last_io_cdb[CAM_MAX_CDBLEN];
+		uint64_t _last_io_resid;
+		uint8_t _last_io_cdb[CAM_MAX_CDBLEN];
 		struct scsi_sense_data _last_ctl_sense;
-		u_int64_t _last_ctl_resid;
-		u_int8_t _last_ctl_cdb[CAM_MAX_CDBLEN];
+		uint64_t _last_ctl_resid;
+		uint8_t _last_ctl_cdb[CAM_MAX_CDBLEN];
 #define	last_io_sense	errinfo._last_io_sense
 #define	last_io_resid	errinfo._last_io_resid
 #define	last_io_cdb	errinfo._last_io_cdb
@@ -464,7 +464,7 @@ struct sa_softc {
 	/*
 	 * Misc other flags/state
 	 */
-	u_int32_t
+	uint32_t
 					: 29,
 		open_rdonly		: 1,	/* open read-only */
 		open_pending_mount	: 1,	/* open pending mount */
@@ -480,7 +480,7 @@ struct sa_softc {
 struct sa_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;	/* matching pattern */
 	sa_quirks quirks;	/* specific quirk type */
-	u_int32_t prefblk;	/* preferred blocksize when in fixed mode */
+	uint32_t prefblk;	/* preferred blocksize when in fixed mode */
 };
 
 static struct sa_quirk_entry sa_quirk_table[] =
@@ -596,21 +596,21 @@ static	periph_ctor_t	saregister;
 static	periph_oninv_t	saoninvalidate;
 static	periph_dtor_t	sacleanup;
 static	periph_start_t	sastart;
-static	void		saasync(void *callback_arg, u_int32_t code,
+static	void		saasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	void		sadone(struct cam_periph *periph,
 			       union ccb *start_ccb);
-static  int		saerror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static  int		saerror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 static int		samarkswanted(struct cam_periph *);
 static int		sacheckeod(struct cam_periph *periph);
 static int		sagetparams(struct cam_periph *periph,
 				    sa_params params_to_get,
-				    u_int32_t *blocksize, u_int8_t *density,
-				    u_int32_t *numblocks, int *buff_mode,
-				    u_int8_t *write_protect, u_int8_t *speed,
+				    uint32_t *blocksize, uint8_t *density,
+				    uint32_t *numblocks, int *buff_mode,
+				    uint8_t *write_protect, uint8_t *speed,
 				    int *comp_supported, int *comp_enabled,
-				    u_int32_t *comp_algorithm,
+				    uint32_t *comp_algorithm,
 				    sa_comp_t *comp_page,
 				    struct scsi_control_data_prot_subpage
 				    *prot_page, int dp_size,
@@ -619,9 +619,9 @@ static int		sasetprot(struct cam_periph *periph,
 				  struct sa_prot_state *new_prot);
 static int		sasetparams(struct cam_periph *periph,
 				    sa_params params_to_set,
-				    u_int32_t blocksize, u_int8_t density,
-				    u_int32_t comp_algorithm,
-				    u_int32_t sense_flags);
+				    uint32_t blocksize, uint8_t density,
+				    uint32_t comp_algorithm,
+				    uint32_t sense_flags);
 static int		sasetsili(struct cam_periph *periph,
 				  struct mtparamset *ps, int num_params);
 static int		saseteotwarn(struct cam_periph *periph,
@@ -658,7 +658,7 @@ static int		saerase(struct cam_periph *periph, int longerase);
 static int		sawritefilemarks(struct cam_periph *periph,
 					 int nmarks, int setmarks, int immed);
 static int		sagetpos(struct cam_periph *periph);
-static int		sardpos(struct cam_periph *periph, int, u_int32_t *);
+static int		sardpos(struct cam_periph *periph, int, uint32_t *);
 static int		sasetpos(struct cam_periph *periph, int, 
 				 struct mtlocate *);
 static void		safilldenstypesb(struct sbuf *sb, int *indent,
@@ -1510,7 +1510,7 @@ static int
 sagetparams_common(struct cdev *dev, struct cam_periph *periph)
 {
 	struct sa_softc *softc;
-	u_int8_t write_protect;
+	uint8_t write_protect;
 	int comp_enabled, comp_supported, error;
 
 	softc = (struct sa_softc *)periph->softc;
@@ -2071,11 +2071,11 @@ extget_bailout:
 		break;
 	case MTIOCRDSPOS:
 		PENDING_MOUNT_CHECK(softc, periph, dev);
-		error = sardpos(periph, 0, (u_int32_t *) arg);
+		error = sardpos(periph, 0, (uint32_t *) arg);
 		break;
 	case MTIOCRDHPOS:
 		PENDING_MOUNT_CHECK(softc, periph, dev);
-		error = sardpos(periph, 1, (u_int32_t *) arg);
+		error = sardpos(periph, 1, (uint32_t *) arg);
 		break;
 	case MTIOCSLOCATE:
 	case MTIOCHLOCATE: {
@@ -2108,11 +2108,11 @@ extget_bailout:
 			mode = 1;
 		else
 			mode = 2;
-		*((u_int32_t *) arg) = mode;
+		*((uint32_t *) arg) = mode;
 		break;
 	case MTIOCSETEOTMODEL:
 		error = 0;
-		switch (*((u_int32_t *) arg)) {
+		switch (*((uint32_t *) arg)) {
 		case 1:
 			softc->quirks &= ~SA_QUIRK_2FM;
 			softc->quirks |= SA_QUIRK_1FM;
@@ -2289,7 +2289,7 @@ sacleanup(struct cam_periph *periph)
 }
 
 static void
-saasync(void *callback_arg, u_int32_t code,
+saasync(void *callback_arg, uint32_t code,
 	struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
@@ -2855,7 +2855,7 @@ again:
 			xpt_release_ccb(start_ccb);
 			biodone(done_bp);
 		} else {
-			u_int32_t length;
+			uint32_t length;
 
 			bioq_remove(&softc->bio_queue, bp);
 			softc->queue_count--;
@@ -3133,7 +3133,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (!(csio->ccb_h.ccb_pflags & SA_POSITION_UPDATED) &&
 		    (softc->blkno != (daddr_t) -1)) {
 			if ((softc->flags & SA_FLAG_FIXED) != 0) {
-				u_int32_t l;
+				uint32_t l;
 				if (softc->blk_shift != 0) {
 					l = bp->bio_bcount >>
 						softc->blk_shift;
@@ -3231,7 +3231,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
 		struct scsi_read_block_limits_data *rblim = NULL;
 		int comp_enabled, comp_supported;
-		u_int8_t write_protect, guessing = 0;
+		uint8_t write_protect, guessing = 0;
 
 		/*
 		 * Clear out old state.
@@ -3376,7 +3376,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			 */
 			if (softc->media_density == SCSI_DEFAULT_DENSITY) {
 				int i;
-				static u_int8_t ctry[] = {
+				static uint8_t ctry[] = {
 					SCSI_DENSITY_HALFINCH_PE,
 					SCSI_DENSITY_HALFINCH_6250C,
 					SCSI_DENSITY_HALFINCH_6250,
@@ -3663,7 +3663,7 @@ sacheckeod(struct cam_periph *periph)
 }
 
 static int
-saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
+saerror(union ccb *ccb, uint32_t cflgs, uint32_t sflgs)
 {
 	static const char *toobig =
 	    "%d-byte tape record bigger than supplied buffer\n";
@@ -3873,9 +3873,9 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 
 static int
 sagetparams(struct cam_periph *periph, sa_params params_to_get,
-	    u_int32_t *blocksize, u_int8_t *density, u_int32_t *numblocks,
-	    int *buff_mode, u_int8_t *write_protect, u_int8_t *speed,
-	    int *comp_supported, int *comp_enabled, u_int32_t *comp_algorithm,
+	    uint32_t *blocksize, uint8_t *density, uint32_t *numblocks,
+	    int *buff_mode, uint8_t *write_protect, uint8_t *speed,
+	    int *comp_supported, int *comp_enabled, uint32_t *comp_algorithm,
 	    sa_comp_t *tcs, struct scsi_control_data_prot_subpage *prot_page,
 	    int dp_size, int prot_changeable)
 {
@@ -3885,7 +3885,7 @@ sagetparams(struct cam_periph *periph, sa_params params_to_get,
 	struct scsi_mode_blk_desc *mode_blk;
 	int mode_buffer_len;
 	struct sa_softc *softc;
-	u_int8_t cpage;
+	uint8_t cpage;
 	int error;
 	cam_status status;
 
@@ -4388,14 +4388,14 @@ bailout:
  */
 static int
 sasetparams(struct cam_periph *periph, sa_params params_to_set,
-	    u_int32_t blocksize, u_int8_t density, u_int32_t calg,
-	    u_int32_t sense_flags)
+	    uint32_t blocksize, uint8_t density, uint32_t calg,
+	    uint32_t sense_flags)
 {
 	struct sa_softc *softc;
-	u_int32_t current_blocksize;
-	u_int32_t current_calg;
-	u_int8_t current_density;
-	u_int8_t current_speed;
+	uint32_t current_blocksize;
+	uint32_t current_calg;
+	uint8_t current_density;
+	uint8_t current_speed;
 	int comp_enabled, comp_supported;
 	void *mode_buffer;
 	int mode_buffer_len;
@@ -5209,7 +5209,7 @@ sagetpos(struct cam_periph *periph)
 }
 
 static int
-sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
+sardpos(struct cam_periph *periph, int hard, uint32_t *blkptr)
 {
 	struct scsi_tape_position_data loc;
 	union ccb *ccb;
@@ -5931,16 +5931,16 @@ saloadtimeouts(struct sa_softc *softc, union ccb *ccb)
  * Read tape block limits command.
  */
 void
-scsi_read_block_limits(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_read_block_limits(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action,
+		   uint8_t tag_action,
 		   struct scsi_read_block_limits_data *rlimit_buf,
-		   u_int8_t sense_len, u_int32_t timeout)
+		   uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_read_block_limits *scsi_cmd;
 
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_IN, tag_action,
-	     (u_int8_t *)rlimit_buf, sizeof(*rlimit_buf), sense_len,
+	     (uint8_t *)rlimit_buf, sizeof(*rlimit_buf), sense_len,
 	     sizeof(*scsi_cmd), timeout);
 
 	scsi_cmd = (struct scsi_read_block_limits *)&csio->cdb_io.cdb_bytes;
@@ -5949,11 +5949,11 @@ scsi_read_block_limits(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_sa_read_write(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_sa_read_write(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int readop, int sli,
-		   int fixed, u_int32_t length, u_int8_t *data_ptr,
-		   u_int32_t dxfer_len, u_int8_t sense_len, u_int32_t timeout)
+		   uint8_t tag_action, int readop, int sli,
+		   int fixed, uint32_t length, uint8_t *data_ptr,
+		   uint32_t dxfer_len, uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_sa_rw *scsi_cmd;
 	int read;
@@ -5977,11 +5977,11 @@ scsi_sa_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,         
+scsi_load_unload(struct ccb_scsiio *csio, uint32_t retries,         
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),   
-		 u_int8_t tag_action, int immediate, int eot,
-		 int reten, int load, u_int8_t sense_len,
-		 u_int32_t timeout)
+		 uint8_t tag_action, int immediate, int eot,
+		 int reten, int load, uint8_t sense_len,
+		 uint32_t timeout)
 {
 	struct scsi_load_unload *scsi_cmd;
 
@@ -6002,10 +6002,10 @@ scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,         
+scsi_rewind(struct ccb_scsiio *csio, uint32_t retries,         
 	    void (*cbfcnp)(struct cam_periph *, union ccb *),   
-	    u_int8_t tag_action, int immediate, u_int8_t sense_len,     
-	    u_int32_t timeout)
+	    uint8_t tag_action, int immediate, uint8_t sense_len,     
+	    uint32_t timeout)
 {
 	struct scsi_rewind *scsi_cmd;
 
@@ -6020,10 +6020,10 @@ scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_space(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_space(struct ccb_scsiio *csio, uint32_t retries,
 	   void (*cbfcnp)(struct cam_periph *, union ccb *),
-	   u_int8_t tag_action, scsi_space_code code,
-	   u_int32_t count, u_int8_t sense_len, u_int32_t timeout)
+	   uint8_t tag_action, scsi_space_code code,
+	   uint32_t count, uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_space *scsi_cmd;
 
@@ -6038,11 +6038,11 @@ scsi_space(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_write_filemarks(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, int immediate, int setmark,
-		     u_int32_t num_marks, u_int8_t sense_len,
-		     u_int32_t timeout)
+		     uint8_t tag_action, int immediate, int setmark,
+		     uint32_t num_marks, uint8_t sense_len,
+		     uint32_t timeout)
 {
 	struct scsi_write_filemarks *scsi_cmd;
 
@@ -6064,11 +6064,11 @@ scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
  * The reserve and release unit commands differ only by their opcodes.
  */
 void
-scsi_reserve_release_unit(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_reserve_release_unit(struct ccb_scsiio *csio, uint32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
-			  u_int8_t tag_action, int third_party,
-			  int third_party_id, u_int8_t sense_len,
-			  u_int32_t timeout, int reserve)
+			  uint8_t tag_action, int third_party,
+			  int third_party_id, uint8_t sense_len,
+			  uint32_t timeout, int reserve)
 {
 	struct scsi_reserve_release_unit *scsi_cmd;
 
@@ -6091,10 +6091,10 @@ scsi_reserve_release_unit(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_erase(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_erase(struct ccb_scsiio *csio, uint32_t retries,
 	   void (*cbfcnp)(struct cam_periph *, union ccb *),
-	   u_int8_t tag_action, int immediate, int long_erase,
-	   u_int8_t sense_len, u_int32_t timeout)
+	   uint8_t tag_action, int immediate, int long_erase,
+	   uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_erase *scsi_cmd;
 
@@ -6117,16 +6117,16 @@ scsi_erase(struct ccb_scsiio *csio, u_int32_t retries,
  * Read Tape Position command.
  */
 void
-scsi_read_position(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_read_position(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int hardsoft,
+		   uint8_t tag_action, int hardsoft,
 		   struct scsi_tape_position_data *sbp,
-		   u_int8_t sense_len, u_int32_t timeout)
+		   uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_tape_read_position *scmd;
 
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_IN, tag_action,
-	    (u_int8_t *)sbp, sizeof (*sbp), sense_len, sizeof(*scmd), timeout);
+	    (uint8_t *)sbp, sizeof (*sbp), sense_len, sizeof(*scmd), timeout);
 	scmd = (struct scsi_tape_read_position *)&csio->cdb_io.cdb_bytes;
 	bzero(scmd, sizeof(*scmd));
 	scmd->opcode = READ_POSITION;
@@ -6137,11 +6137,11 @@ scsi_read_position(struct ccb_scsiio *csio, u_int32_t retries,
  * Read Tape Position command.
  */
 void
-scsi_read_position_10(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_read_position_10(struct ccb_scsiio *csio, uint32_t retries,
 		      void (*cbfcnp)(struct cam_periph *, union ccb *),
-		      u_int8_t tag_action, int service_action,
-		      u_int8_t *data_ptr, u_int32_t length,
-		      u_int32_t sense_len, u_int32_t timeout)
+		      uint8_t tag_action, int service_action,
+		      uint8_t *data_ptr, uint32_t length,
+		      uint32_t sense_len, uint32_t timeout)
 {
 	struct scsi_tape_read_position *scmd;
 
@@ -6172,15 +6172,15 @@ scsi_read_position_10(struct ccb_scsiio *csio, u_int32_t retries,
  * Set Tape Position command.
  */
 void
-scsi_set_position(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_set_position(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int hardsoft, u_int32_t blkno,
-		   u_int8_t sense_len, u_int32_t timeout)
+		   uint8_t tag_action, int hardsoft, uint32_t blkno,
+		   uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_tape_locate *scmd;
 
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action,
-	    (u_int8_t *)NULL, 0, sense_len, sizeof(*scmd), timeout);
+	    (uint8_t *)NULL, 0, sense_len, sizeof(*scmd), timeout);
 	scmd = (struct scsi_tape_locate *)&csio->cdb_io.cdb_bytes;
 	bzero(scmd, sizeof(*scmd));
 	scmd->opcode = LOCATE;
@@ -6193,11 +6193,11 @@ scsi_set_position(struct ccb_scsiio *csio, u_int32_t retries,
  * XXX KDM figure out how to make a compatibility function.
  */
 void
-scsi_locate_10(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_locate_10(struct ccb_scsiio *csio, uint32_t retries,
 	       void (*cbfcnp)(struct cam_periph *, union ccb *),
-	       u_int8_t tag_action, int immed, int cp, int hard,
-	       int64_t partition, u_int32_t block_address,
-	       int sense_len, u_int32_t timeout)
+	       uint8_t tag_action, int immed, int cp, int hard,
+	       int64_t partition, uint32_t block_address,
+	       int sense_len, uint32_t timeout)
 {
 	struct scsi_tape_locate *scmd;
 
@@ -6225,11 +6225,11 @@ scsi_locate_10(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_locate_16(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_locate_16(struct ccb_scsiio *csio, uint32_t retries,
 	       void (*cbfcnp)(struct cam_periph *, union ccb *),
-	       u_int8_t tag_action, int immed, int cp, u_int8_t dest_type,
-	       int bam, int64_t partition, u_int64_t logical_id,
-	       int sense_len, u_int32_t timeout)
+	       uint8_t tag_action, int immed, int cp, uint8_t dest_type,
+	       int bam, int64_t partition, uint64_t logical_id,
+	       int sense_len, uint32_t timeout)
 {
 
 	struct scsi_locate_16 *scsi_cmd;
@@ -6260,11 +6260,11 @@ scsi_locate_16(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_report_density_support(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_report_density_support(struct ccb_scsiio *csio, uint32_t retries,
 			    void (*cbfcnp)(struct cam_periph *, union ccb *),
-			    u_int8_t tag_action, int media, int medium_type,
-			    u_int8_t *data_ptr, u_int32_t length,
-			    u_int32_t sense_len, u_int32_t timeout)
+			    uint8_t tag_action, int media, int medium_type,
+			    uint8_t *data_ptr, uint32_t length,
+			    uint32_t sense_len, uint32_t timeout)
 {
 	struct scsi_report_density_support *scsi_cmd;
 
@@ -6292,10 +6292,10 @@ scsi_report_density_support(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_set_capacity(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_set_capacity(struct ccb_scsiio *csio, uint32_t retries,
 		  void (*cbfcnp)(struct cam_periph *, union ccb *),
-		  u_int8_t tag_action, int byte1, u_int32_t proportion,
-		  u_int32_t sense_len, u_int32_t timeout)
+		  uint8_t tag_action, int byte1, uint32_t proportion,
+		  uint32_t sense_len, uint32_t timeout)
 {
 	struct scsi_set_capacity *scsi_cmd;
 
@@ -6320,11 +6320,11 @@ scsi_set_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_format_medium(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_format_medium(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int byte1, int byte2, 
-		   u_int8_t *data_ptr, u_int32_t dxfer_len,
-		   u_int32_t sense_len, u_int32_t timeout)
+		   uint8_t tag_action, int byte1, int byte2, 
+		   uint8_t *data_ptr, uint32_t dxfer_len,
+		   uint32_t sense_len, uint32_t timeout)
 {
 	struct scsi_format_medium *scsi_cmd;
 
@@ -6351,10 +6351,10 @@ scsi_format_medium(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_allow_overwrite(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_allow_overwrite(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int allow_overwrite, int partition, 
-		   u_int64_t logical_id, u_int32_t sense_len, u_int32_t timeout)
+		   uint8_t tag_action, int allow_overwrite, int partition, 
+		   uint64_t logical_id, uint32_t sense_len, uint32_t timeout)
 {
 	struct scsi_allow_overwrite *scsi_cmd;
 

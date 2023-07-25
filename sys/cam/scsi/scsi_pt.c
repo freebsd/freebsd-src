@@ -90,7 +90,7 @@ static	d_open_t	ptopen;
 static	d_close_t	ptclose;
 static	d_strategy_t	ptstrategy;
 static	periph_init_t	ptinit;
-static	void		ptasync(void *callback_arg, u_int32_t code,
+static	void		ptasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	periph_ctor_t	ptctor;
 static	periph_oninv_t	ptoninvalidate;
@@ -99,14 +99,14 @@ static	periph_start_t	ptstart;
 static	void		ptdone(struct cam_periph *periph,
 			       union ccb *done_ccb);
 static	d_ioctl_t	ptioctl;
-static  int		pterror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static  int		pterror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 
-void	scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
+void	scsi_send_receive(struct ccb_scsiio *csio, uint32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
 			  u_int tag_action, int readop, u_int byte2,
-			  u_int32_t xfer_len, u_int8_t *data_ptr,
-			  u_int8_t sense_len, u_int32_t timeout);
+			  uint32_t xfer_len, uint8_t *data_ptr,
+			  uint8_t sense_len, uint32_t timeout);
 
 static struct periph_driver ptdriver =
 {
@@ -356,7 +356,7 @@ ptdtor(struct cam_periph *periph)
 }
 
 static void
-ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
+ptasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
 
@@ -558,7 +558,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+pterror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags));
@@ -603,11 +603,11 @@ ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 void
-scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_send_receive(struct ccb_scsiio *csio, uint32_t retries,
 		  void (*cbfcnp)(struct cam_periph *, union ccb *),
 		  u_int tag_action, int readop, u_int byte2,
-		  u_int32_t xfer_len, u_int8_t *data_ptr, u_int8_t sense_len,
-		  u_int32_t timeout)
+		  uint32_t xfer_len, uint8_t *data_ptr, uint8_t sense_len,
+		  uint32_t timeout)
 {
 	struct scsi_send_receive *scsi_cmd;
 

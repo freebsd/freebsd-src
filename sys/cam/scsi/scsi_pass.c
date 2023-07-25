@@ -128,7 +128,7 @@ struct pass_io_req {
 struct pass_softc {
 	pass_state		  state;
 	pass_flags		  flags;
-	u_int8_t		  pd_type;
+	uint8_t		  pd_type;
 	int			  open_count;
 	u_int		 	  maxio;
 	struct devstat		 *device_stats;
@@ -165,7 +165,7 @@ static	periph_dtor_t	passcleanup;
 static	periph_start_t	passstart;
 static	void		pass_shutdown_kqueue(void *context, int pending);
 static	void		pass_add_physpath(void *context, int pending);
-static	void		passasync(void *callback_arg, u_int32_t code,
+static	void		passasync(void *callback_arg, uint32_t code,
 				  struct cam_path *path, void *arg);
 static	void		passdone(struct cam_periph *periph, 
 				 union ccb *done_ccb);
@@ -179,8 +179,8 @@ static	int		passmemsetup(struct cam_periph *periph,
 				     struct pass_io_req *io_req);
 static	int		passmemdone(struct cam_periph *periph,
 				    struct pass_io_req *io_req);
-static	int		passerror(union ccb *ccb, u_int32_t cam_flags, 
-				  u_int32_t sense_flags);
+static	int		passerror(union ccb *ccb, uint32_t cam_flags, 
+				  uint32_t sense_flags);
 static 	int		passsendccb(struct cam_periph *periph, union ccb *ccb,
 				    union ccb *inccb);
 
@@ -483,7 +483,7 @@ out:
 }
 
 static void
-passasync(void *callback_arg, u_int32_t code,
+passasync(void *callback_arg, uint32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
@@ -1120,7 +1120,7 @@ static void
 passiocleanup(struct pass_softc *softc, struct pass_io_req *io_req)
 {
 	union ccb *ccb;
-	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
+	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	int i, numbufs;
 
 	ccb = &io_req->ccb;
@@ -1130,10 +1130,10 @@ passiocleanup(struct pass_softc *softc, struct pass_io_req *io_req)
 		numbufs = min(io_req->num_bufs, 2);
 
 		if (numbufs == 1) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.matches;
 		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.patterns;
+			data_ptrs[1] = (uint8_t **)&ccb->cdm.matches;
 		}
 		break;
 	case XPT_SCSI_IO:
@@ -1308,15 +1308,15 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 			return(EINVAL);
 		}
 		if (ccb->cdm.pattern_buf_len > 0) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.patterns;
 			lengths[0] = ccb->cdm.pattern_buf_len;
 			dirs[0] = CAM_DIR_OUT;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[1] = (uint8_t **)&ccb->cdm.matches;
 			lengths[1] = ccb->cdm.match_buf_len;
 			dirs[1] = CAM_DIR_IN;
 			numbufs = 2;
 		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.matches;
 			lengths[0] = ccb->cdm.match_buf_len;
 			dirs[0] = CAM_DIR_IN;
 			numbufs = 1;
@@ -2247,7 +2247,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 }
 
 static int
-passerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+passerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags));

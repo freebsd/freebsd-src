@@ -148,7 +148,7 @@ static void		targfreeccb(struct targ_softc *softc, union ccb *ccb);
 static struct targ_cmd_descr *
 			targgetdescr(struct targ_softc *softc);
 static periph_init_t	targinit;
-static void		targasync(void *callback_arg, u_int32_t code,
+static void		targasync(void *callback_arg, uint32_t code,
 				  struct cam_path *path, void *arg);
 static void		abort_all_pending(struct targ_softc *softc);
 static void		notify_user(struct targ_softc *softc);
@@ -1003,7 +1003,7 @@ targinit(void)
 }
 
 static void
-targasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
+targasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
 	/* All events are handled in usermode by INOTs */
 	panic("targasync() called, should be an INOT instead");
