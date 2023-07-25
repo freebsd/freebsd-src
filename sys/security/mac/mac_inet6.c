@@ -173,6 +173,17 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 	    q6->ip6q_label);
 }
 
+/* Check with rules in module if the IPv6 address is allowed. */
+int
+mac_inet6_check_add_addr(struct ucred *cred, const struct in6_addr *ia6,
+    struct ifnet *ifp)
+{
+	int error;
+
+	MAC_POLICY_CHECK(ip6_check_jail, cred, ia6, ifp);
+	return (error);
+}
+
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
 {

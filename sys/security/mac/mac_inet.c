@@ -108,6 +108,17 @@ mac_inpcb_init(struct inpcb *inp, int flag)
 	return (0);
 }
 
+/* Check with rules in module if the IPv4 address is allowed. */
+int
+mac_inet_check_add_addr(struct ucred *cred, const struct in_addr *ia,
+    struct ifnet *ifp)
+{
+	int error;
+
+	MAC_POLICY_CHECK(ip4_check_jail, cred, ia, ifp);
+	return (error);
+}
+
 static struct label *
 mac_ipq_label_alloc(int flag)
 {

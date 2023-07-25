@@ -77,6 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef MAC
+#include <security/mac/mac_framework.h>
+#endif
+
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
 static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
 static int in_gifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
@@ -486,6 +490,13 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 		return (EDESTADDRREQ);
 	if (vhid != 0 && carp_attach_p == NULL)
 		return (EPROTONOSUPPORT);
+
+#ifdef MAC
+	/* Check if a MAC policy disallows setting the IPv4 address. */
+	error = mac_inet_check_add_addr(cred, &addr->sin_addr, ifp);
+	if (error != 0)
+		return (error);
+#endif
 
 	/*
 	 * See whether address already exist.
