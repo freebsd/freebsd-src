@@ -32,6 +32,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/_types.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE__TYPES_H_
 #define	_MACHINE__TYPES_H_
 
@@ -67,3 +71,5 @@ typedef	unsigned int	___wchar_t;
 #define	__WCHAR_MAX	__UINT_MAX	/* max value for a wchar_t */
 
 #endif /* !_MACHINE__TYPES_H_ */
+
+#endif /* !__arm__ */

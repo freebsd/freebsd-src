@@ -28,6 +28,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef __arm__
+#include <arm/tls.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_TLS_H_
 #define	_MACHINE_TLS_H_
 
@@ -53,3 +57,5 @@ _tcb_get(void)
 }
 
 #endif /* !_MACHINE_TLS_H_ */
+
+#endif /* !__arm__ */

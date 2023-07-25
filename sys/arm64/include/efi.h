@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/efi.h>
+#else /* !__arm__ */
+
 #ifndef __ARM64_INCLUDE_EFI_H_
 #define __ARM64_INCLUDE_EFI_H_
 
@@ -58,3 +62,5 @@ struct efirt_callinfo {
 };
 
 #endif /* __ARM64_INCLUDE_EFI_H_ */
+
+#endif /* !__arm__ */

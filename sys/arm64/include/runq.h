@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/runq.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_RUNQ_H_
 #define	_MACHINE_RUNQ_H_
 
@@ -44,3 +48,5 @@
 typedef	unsigned long	rqb_word_t;
 
 #endif
+
+#endif /* !__arm__ */

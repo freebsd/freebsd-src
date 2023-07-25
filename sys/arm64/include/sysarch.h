@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/sysarch.h>
+#else /* !__arm__ */
+
 /*
  * Architecture specific syscalls (arm64)
  */
@@ -45,3 +49,5 @@ __END_DECLS
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */
+
+#endif /* !__arm__ */

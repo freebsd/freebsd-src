@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/pcb.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
@@ -87,3 +91,5 @@ int	savectx(struct pcb *pcb) __returns_twice;
 #endif /* !LOCORE */
 
 #endif /* !_MACHINE_PCB_H_ */
+
+#endif /* !__arm__ */

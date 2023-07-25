@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/vdso.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_VDSO_H_
 #define	_MACHINE_VDSO_H_
 
@@ -37,3 +41,5 @@
 #define	VDSO_TIMEHANDS_MD32	VDSO_TIMEHANDS_MD
 
 #endif /* !_MACHINE_VDSO_H_ */
+
+#endif /* !__arm__ */
