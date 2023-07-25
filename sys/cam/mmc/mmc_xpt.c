@@ -69,7 +69,7 @@ FEATURE(mmccam, "CAM-based MMC/SD/SDIO stack");
 
 static struct cam_ed * mmc_alloc_device(struct cam_eb *bus,
     struct cam_et *target, lun_id_t lun_id);
-static void mmc_dev_async(u_int32_t async_code, struct cam_eb *bus,
+static void mmc_dev_async(uint32_t async_code, struct cam_eb *bus,
     struct cam_et *target, struct cam_ed *device, void *async_arg);
 static void	 mmc_action(union ccb *start_ccb);
 static void	 mmc_dev_advinfo(union ccb *start_ccb);
@@ -207,7 +207,7 @@ mmc_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 }
 
 static void
-mmc_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
+mmc_dev_async(uint32_t async_code, struct cam_eb *bus, struct cam_et *target,
 	      struct cam_ed *device, void *async_arg)
 {
 
@@ -822,7 +822,7 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 
 	int err;
 	struct ccb_mmcio *mmcio;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("mmcprobe_done\n"));
 	softc = (mmcprobe_softc *)periph->softc;

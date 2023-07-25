@@ -166,7 +166,7 @@ static const char *mmc_errmsg[] =
 static	disk_strategy_t	sddastrategy;
 static	dumper_t	sddadump;
 static	periph_init_t	sddainit;
-static	void		sddaasync(void *callback_arg, u_int32_t code,
+static	void		sddaasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	periph_ctor_t	sddaregister;
 static	periph_dtor_t	sddacleanup;
@@ -174,8 +174,8 @@ static	periph_start_t	sddastart;
 static	periph_oninv_t	sddaoninvalidate;
 static	void		sddadone(struct cam_periph *periph,
 			       union ccb *done_ccb);
-static  int		sddaerror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static  int		sddaerror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 
 static int mmc_handle_reply(union ccb *ccb);
 static uint16_t get_rca(struct cam_periph *periph);
@@ -646,7 +646,7 @@ sddacleanup(struct cam_periph *periph)
 }
 
 static void
-sddaasync(void *callback_arg, u_int32_t code,
+sddaasync(void *callback_arg, uint32_t code,
 	struct cam_path *path, void *arg)
 {
 	struct ccb_getdev cgd;
@@ -1285,12 +1285,12 @@ sdda_start_init(void *context, union ccb *start_ccb)
 
 	/* Update info for CAM */
 	device->serial_num_len = strlen(softc->card_sn_string);
-	device->serial_num = (u_int8_t *)malloc((device->serial_num_len + 1),
+	device->serial_num = (uint8_t *)malloc((device->serial_num_len + 1),
 	    M_CAMXPT, M_NOWAIT);
 	strlcpy(device->serial_num, softc->card_sn_string, device->serial_num_len + 1);
 
 	device->device_id_len = strlen(softc->card_id_string);
-	device->device_id = (u_int8_t *)malloc((device->device_id_len + 1),
+	device->device_id = (uint8_t *)malloc((device->device_id_len + 1),
 	    M_CAMXPT, M_NOWAIT);
 	strlcpy(device->device_id, softc->card_id_string, device->device_id_len + 1);
 
@@ -2000,7 +2000,7 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-sddaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+sddaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }

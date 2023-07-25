@@ -64,7 +64,7 @@
  * This structure describes an MMC/SD card
  */
 struct mmc_params {
-        u_int8_t	model[40]; /* Card model */
+        uint8_t	model[40]; /* Card model */
 
         /* Card OCR */
         uint32_t card_ocr;
