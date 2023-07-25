@@ -2255,10 +2255,10 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	int rv;
 
 	hint = *addr;
-	if (hint == 0)
+	if (hint == 0) {
 		cow |= MAP_NO_HINT;
-	if (hint < min_addr)
 		*addr = hint = min_addr;
+	}
 	for (;;) {
 		rv = vm_map_find(map, object, offset, addr, length, max_addr,
 		    find_space, prot, max, cow);
