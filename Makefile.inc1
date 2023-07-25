@@ -163,6 +163,8 @@ _t=		${TARGET_ARCH}/${TARGET}
 
 .if ${TARGET_ARCH} == "amd64"
 LIBCOMPAT_INCLUDE_DIRS+= i386
+.elif ${TARGET_ARCH} == "aarch64"
+LIBCOMPAT_INCLUDE_DIRS+= arm
 .endif
 
 .if ${.MAKE.OS} != "FreeBSD"

@@ -203,7 +203,7 @@ SUBDIR.${MK_PMC}+=	libipt
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm"
 SUBDIR.${MK_OPENMP}+=	libomp
 .endif
 .if ${MK_USB} != "no"
