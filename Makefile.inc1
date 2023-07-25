@@ -161,6 +161,10 @@ _t=		${TARGET_ARCH}/${TARGET}
 .endif
 .endfor
 
+.if ${TARGET_ARCH} == "amd64"
+LIBCOMPAT_INCLUDE_DIRS+= i386
+.endif
+
 .if ${.MAKE.OS} != "FreeBSD"
 CROSSBUILD_HOST=${.MAKE.OS}
 .if ${.MAKE.OS} != "Linux" && ${.MAKE.OS} != "Darwin"
@@ -1081,9 +1085,9 @@ _bootstrap-tools:
 	    -p ${WORLDTMP}/usr >/dev/null
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
-.if ${TARGET_ARCH} == "amd64"
-	mkdir -p ${WORLDTMP}/usr/include/i386
-.endif
+.for d in ${LIBCOMPAT_INCLUDE_DIRS}
+	mkdir -p ${WORLDTMP}/usr/include/${d}
+.endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_DEBUG_FILES} != "no"
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
@@ -1416,9 +1420,9 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
-.if ${TARGET_ARCH} == "amd64"
-	-mkdir ${DESTDIR}/${DISTDIR}/${dist}/usr/include/i386
-.endif
+.for d in ${LIBCOMPAT_INCLUDE_DIRS}
+	-mkdir ${DESTDIR}/${DISTDIR}/${dist}/usr/include/${d}
+.endfor
 .if ${MK_DEBUG_FILES} != "no"
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
@@ -1447,9 +1451,9 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
-.if ${TARGET_ARCH} == "amd64"
-	echo "./${dist}/usr/include/i386 type=dir uname=root gname=wheel mode=0755" >> ${METALOG}
-.endif
+.for d in ${LIBCOMPAT_INCLUDE_DIRS}
+	echo "./${dist}/usr/include/${d} type=dir uname=root gname=wheel mode=0755" >> ${METALOG}
+.endfor
 .for libcompat in ${libcompats}
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
@@ -2901,9 +2905,9 @@ native-xtools-install: .PHONY
 	    -p ${NXBDESTDIR}/usr >/dev/null
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${NXBDESTDIR}/usr/include >/dev/null
-.if ${TARGET_ARCH} == "amd64"
-	mkdir -p ${NXBDESTDIR}/usr/include/i386
-.endif
+.for d in ${LIBCOMPAT_INCLUDE_DIRS}
+	mkdir -p ${NXBDESTDIR}/usr/include/${d}
+.endfor
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} \
 	    DESTDIR=${NXBDESTDIR} \
 	    -DNO_ROOT \
@@ -3589,9 +3593,9 @@ _xi-mtree: .PHONY
 	    -p ${XDDESTDIR}/usr >/dev/null
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
-.if ${TARGET_ARCH} == "amd64"
-	mkdir -p ${XDDESTDIR}/usr/include/i386
-.endif
+.for d in ${LIBCOMPAT_INCLUDE_DIRS}
+	mkdir -p ${XDDESTDIR}/usr/include/${d}
+.endfor
 .for libcompat in ${libcompats}
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${XDDESTDIR}/usr >/dev/null
