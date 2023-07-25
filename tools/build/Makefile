@@ -316,23 +316,23 @@ _host_abs_tools_to_symlink=	${_make_abs}:make ${_make_abs}:bmake
 # When building on FreeBSD we always copy the host tools instead of linking
 # into WORLDTMP to avoid issues with incompatible libraries (see r364030).
 # Note: we could create links if we don't intend to update the current machine.
-_COPY_HOST_TOOL=cp -pf
+_COPY_HOST_TOOL=	cp -pf
 .else
 # However, this is not necessary on Linux/macOS. Additionally, copying the host
 # tools to another directory with cp -p results in freezes on macOS Big Sur for
 # some unknown reason. It can also break building inside docker containers if
 # there are ACLs on shared volumes.
-_COPY_HOST_TOOL=ln -sfn
-_make_abs!=	which "${MAKE}"
-_host_abs_tools_to_symlink+=	${_make_abs}:make ${_make_abs}:bmake
+_COPY_HOST_TOOL=	ln -sfn
+
 .if ${.MAKE.OS} == "Darwin"
 # /usr/bin/cpp may invoke xcrun:
-_host_tools_to_symlink+=xcrun
+_host_tools_to_symlink+=	xcrun
 .endif  # ${.MAKE.OS} == "Darwin"
-# On Ubuntu /bin/sh is dash which is totally useless. Let's just link bash
-# as the build sh since that will work fine.
+
+# On Ubuntu /bin/sh is dash which is totally useless, and the same for modern
+# macOS. Let's just link bash as the build sh since that will work fine.
 _host_abs_tools_to_symlink+=	/bin/bash:sh
-_host_tools_to_symlink:=${_host_tools_to_symlink:Nsh}
+_host_tools_to_symlink:=	${_host_tools_to_symlink:Nsh}
 .endif
 
 host-symlinks:
