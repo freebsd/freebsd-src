@@ -150,7 +150,7 @@ static struct cam_ed *
 		 nvme_alloc_device(struct cam_eb *bus, struct cam_et *target,
 				   lun_id_t lun_id);
 static void	 nvme_device_transport(struct cam_path *path);
-static void	 nvme_dev_async(u_int32_t async_code,
+static void	 nvme_dev_async(uint32_t async_code,
 				struct cam_eb *bus,
 				struct cam_et *target,
 				struct cam_ed *device,
@@ -310,7 +310,7 @@ nvme_probe_done(struct cam_periph *periph, union ccb *done_ccb)
 	struct cam_path *path;
 	struct scsi_vpd_device_id *did;
 	struct scsi_vpd_id_descriptor *idd;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int found = 1, e, g, len;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("nvme_probe_done\n"));
@@ -373,7 +373,7 @@ device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			path->device->serial_num = NULL;
 			path->device->serial_num_len = 0;
 		}
-		path->device->serial_num = (u_int8_t *)
+		path->device->serial_num = (uint8_t *)
 		    malloc(NVME_SERIAL_NUMBER_LENGTH + 1, M_CAMXPT, M_NOWAIT);
 		if (path->device->serial_num != NULL) {
 			cam_strvis_flag(path->device->serial_num,
@@ -430,7 +430,7 @@ device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 		if (e < sizeof(nvme_data->eui64))
 			len += sizeof(struct scsi_vpd_id_descriptor) + 8;
 		if (len > 0) {
-			path->device->device_id = (u_int8_t *)
+			path->device->device_id = (uint8_t *)
 			    malloc(SVPD_DEVICE_ID_HDR_LEN + len,
 			    M_CAMXPT, M_NOWAIT);
 		}
@@ -764,7 +764,7 @@ nvme_action(union ccb *start_ccb)
  * Handle any per-device event notifications that require action by the XPT.
  */
 static void
-nvme_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
+nvme_dev_async(uint32_t async_code, struct cam_eb *bus, struct cam_et *target,
 	      struct cam_ed *device, void *async_arg)
 {
 
