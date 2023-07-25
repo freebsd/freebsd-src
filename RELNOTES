@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+3cb2f5f369ec:
+	The lua-flavored loader(8) will now interpret .lua files that appear in
+	loader_conf_files as lua, and execute them in a sandbox.  Existing
+	loader environment variables are available as globals in the sandbox,
+	and any global variable set, if not a table value, will be reflected in
+	the loader environment upon successful execution of the configuration
+	file.  Environment variables with names that aren't valid lua names may
+	be accessed as indices of _ENV; e.g., _ENV['net.fibs'].
+
 bdc81eeda05d:
 
 	nda is now the default nvme device on all platforms. While nda creates
