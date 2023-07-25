@@ -75,8 +75,8 @@ static caddr_t		pagepool_start, pagepool_end;
 union	overhead {
 	union	overhead *ov_next;	/* when free */
 	struct {
-		u_char	ovu_magic;	/* magic number */
-		u_char	ovu_index;	/* bucket # */
+		uint16_t ovu_index;	/* bucket # */
+		uint8_t ovu_magic;	/* magic number */
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
