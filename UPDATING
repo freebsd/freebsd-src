@@ -74,6 +74,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	all non-x86 platforms for some time now. If you need to fall back,
 	please email imp@freebsd.org about why.
 
+	Encrypted swap partitions need to be changed from nvd to nda if you
+	migrate, or you need to use the above to switch back to nvd.
+
 20230422:
 	Remove portsnap(8).  Users are encouraged to obtain the ports tree
 	using git instead.
