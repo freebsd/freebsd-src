@@ -63,6 +63,25 @@ LIB32_MACHINE=	powerpc
 LIB32_MACHINE_ARCH=	powerpc
 LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd"
+
+.elif ${COMPAT_ARCH} == "aarch64"
+HAS_COMPAT+=	32
+.if empty(LIB32CPUTYPE)
+LIB32CPUFLAGS=	-march=armv7
+.else
+LIB32CPUFLAGS=	-mcpu=${LIB32CPUTYPE}
+.endif
+
+LIB32CPUFLAGS+=	-m32
+.if ${COMPAT_COMPILER_TYPE} == "gcc"
+.else
+LIB32CPUFLAGS+=	-target armv7-unknown-freebsd${OS_REVISION}-gnueabihf
+.endif
+
+LIB32_MACHINE=	arm
+LIB32_MACHINE_ARCH=	armv7
+LIB32WMAKEFLAGS=	\
+		LD="${XLD} -m armelf_fbsd"
 .endif
 
 LIB32WMAKEFLAGS+= NM="${XNM}"

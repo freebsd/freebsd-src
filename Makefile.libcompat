@@ -4,7 +4,7 @@
 __<${_this:T}>__:
 
 # Makefile for the compatibility libraries.
-# - 32-bit compat libraries on PowerPC, and AMD64.
+# - 32-bit compat libraries on some 64-bit architectures
 
 .if defined(_LIBCOMPATS)
 
