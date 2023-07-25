@@ -28,6 +28,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/vfp.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_VFP_H_
 #define	_MACHINE_VFP_H_
 
@@ -113,3 +117,5 @@ void set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp);
 #endif
 
 #endif /* !_MACHINE_VFP_H_ */
+
+#endif /* !__arm__ */

@@ -29,6 +29,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/resource.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_RESOURCE_H_
 #define	_MACHINE_RESOURCE_H_	1
 
@@ -47,3 +51,5 @@
 #endif
 
 #endif /* !_MACHINE_RESOURCE_H_ */
+
+#endif /* !__arm__ */

@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/param.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_PARAM_H_
 #define	_MACHINE_PARAM_H_
 
@@ -130,3 +134,5 @@
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #endif /* !_MACHINE_PARAM_H_ */
+
+#endif /* !__arm__ */

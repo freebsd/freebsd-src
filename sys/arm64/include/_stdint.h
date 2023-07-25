@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/_stdint.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE__STDINT_H_
 #define	_MACHINE__STDINT_H_
 
@@ -156,3 +160,5 @@
 #endif /* !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) */
 
 #endif /* !_MACHINE__STDINT_H_ */
+
+#endif /* !__arm__ */

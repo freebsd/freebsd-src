@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/pte.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_PTE_H_
 #define	_MACHINE_PTE_H_
 
@@ -188,3 +192,5 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #endif /* !_MACHINE_PTE_H_ */
 
 /* End of pte.h */
+
+#endif /* !__arm__ */

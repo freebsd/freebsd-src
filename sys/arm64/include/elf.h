@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/elf.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_ELF_H_
 #define	_MACHINE_ELF_H_
 
@@ -180,3 +184,5 @@ __ElfType(Auxinfo);
 #endif
 
 #endif /* !_MACHINE_ELF_H_ */
+
+#endif /* !__arm__ */

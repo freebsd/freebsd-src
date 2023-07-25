@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/pcpu.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
@@ -89,3 +93,5 @@ get_curthread(void)
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCPU_H_ */
+
+#endif /* !__arm__ */

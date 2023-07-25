@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/reg.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
@@ -91,3 +95,5 @@ struct arm64_addr_mask {
 #define	__HAVE_REG32
 
 #endif /* !_MACHINE_REG_H_ */
+
+#endif /* !__arm__ */

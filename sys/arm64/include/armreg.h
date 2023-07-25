@@ -29,6 +29,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/armreg.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_ARMREG_H_
 #define	_MACHINE_ARMREG_H_
 
@@ -1994,3 +1998,5 @@
 #define	ZCR_LEN_BYTES(x)	((((x) & ZCR_LEN_MASK) + 1) * 16)
 
 #endif /* !_MACHINE_ARMREG_H_ */
+
+#endif /* !__arm__ */

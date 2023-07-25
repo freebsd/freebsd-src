@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/setjmp.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_SETJMP_H_
 #define	_MACHINE_SETJMP_H_
 
@@ -71,3 +75,5 @@ typedef struct _jmp_buf { __int128_t _jb[_JBLEN + 1]; } jmp_buf[1];
 #endif /* __ASSEMBLER__ */
 
 #endif /* !_MACHINE_SETJMP_H_ */
+
+#endif /* !__arm__ */

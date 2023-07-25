@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/fenv.h>
+#else /* __arm__ */
+
 #ifndef	_FENV_H_
 #define	_FENV_H_
 
@@ -244,3 +248,5 @@ fegetexcept(void)
 __END_DECLS
 
 #endif	/* !_FENV_H_ */
+
+#endif /* __arm__ */

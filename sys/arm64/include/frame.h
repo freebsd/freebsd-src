@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/frame.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
@@ -77,3 +81,5 @@ struct sigframe32 {
 #endif /* !LOCORE */
 
 #endif /* !_MACHINE_FRAME_H_ */
+
+#endif /* !__arm__ */

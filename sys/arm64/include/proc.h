@@ -31,6 +31,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/proc.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
@@ -75,3 +79,5 @@ struct mdproc {
 #define	KINFO_PROC32_SIZE 816
 
 #endif /* !_MACHINE_PROC_H_ */
+
+#endif /* !__arm__ */

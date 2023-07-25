@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/atomic.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
@@ -670,3 +674,5 @@ atomic_thread_fence_seq_cst(void)
 
 #endif /* KCSAN && !KCSAN_RUNTIME */
 #endif /* _MACHINE_ATOMIC_H_ */
+
+#endif /* !__arm__ */

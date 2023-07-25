@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/cpufunc.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
@@ -193,3 +197,5 @@ bool arm64_get_writable_addr(vm_offset_t, vm_offset_t *);
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */
+
+#endif /* !__arm__ */

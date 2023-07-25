@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/ucontext.h>
+#else /* !__arm__ */
+
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
@@ -86,3 +90,5 @@ typedef struct __mcontext32_vfp {
 #endif /* COMPAT_FREEBSD32 */
 
 #endif	/* !_MACHINE_UCONTEXT_H_ */
+
+#endif /* !__arm__ */

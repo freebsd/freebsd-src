@@ -32,6 +32,10 @@
  * $FreeBSD$
  */
 
+#ifdef __arm__
+#include <arm/signal.h>
+#else /* !__arm__ */
+
 #ifndef	_MACHINE_SIGNAL_H_
 #define	_MACHINE_SIGNAL_H_
 
@@ -48,3 +52,5 @@ struct sigcontext {
 #endif
 
 #endif /* !_MACHINE_SIGNAL_H_ */
+
+#endif /* !__arm__ */
