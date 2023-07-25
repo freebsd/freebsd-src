@@ -95,7 +95,7 @@ void mode_sense(struct cam_device *device, int *cdb_len, int dbd, int llbaa,
 		int pc, int page, int subpage, int task_attr, int retry_count,
 		int timeout, uint8_t *data, int datalen);
 void mode_select(struct cam_device *device, int cdb_len, int save_pages,
-		 int task_attr, int retry_count, int timeout, u_int8_t *data,
+		 int task_attr, int retry_count, int timeout, uint8_t *data,
 		 int datalen);
 void mode_edit(struct cam_device *device, int cdb_len, int desc, int dbd,
 	       int llbaa, int pc, int page, int subpage, int edit, int binary,
