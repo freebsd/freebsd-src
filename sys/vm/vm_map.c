@@ -2287,7 +2287,8 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
  * another entry.
  */
 #define	MAP_ENTRY_NOMERGE_MASK	(MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP | \
-	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_VN_EXEC)
+    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_VN_EXEC | \
+    MAP_ENTRY_STACK_GAP_UP | MAP_ENTRY_STACK_GAP_DN)
 
 static bool
 vm_map_mergeable_neighbors(vm_map_entry_t prev, vm_map_entry_t entry)
