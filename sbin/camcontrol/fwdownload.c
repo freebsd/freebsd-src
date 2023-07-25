@@ -167,8 +167,8 @@ struct fw_vendor {
 	const char *pattern;
 	int dev_type;
 	int max_pkt_size;
-	u_int8_t cdb_byte2;
-	u_int8_t cdb_byte2_last;
+	uint8_t cdb_byte2;
+	uint8_t cdb_byte2_last;
 	int inc_cdb_buffer_id;
 	int inc_cdb_offset;
 	fw_tur_status tur_status;
@@ -474,7 +474,7 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 		     /*retries*/ retry_count,
 		     /*cbfcnp*/ NULL,
 		     /* tag_action */ MSG_SIMPLE_Q_TAG,
-		     /* inq_buf */ (u_int8_t *)&vpd_page,
+		     /* inq_buf */ (uint8_t *)&vpd_page,
 		     /* inq_len */ sizeof(vpd_page),
 		     /* evpd */ 1,
 		     /* page_code */ SVPD_IBM_FW_DESIGNATION,
@@ -832,9 +832,9 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 	union ccb *ccb = NULL;
 	int pkt_count = 0;
 	int max_pkt_size;
-	u_int32_t pkt_size = 0;
+	uint32_t pkt_size = 0;
 	char *pkt_ptr = buf;
-	u_int32_t offset;
+	uint32_t offset;
 	int last_pkt = 0;
 	int retval = 0;
 
