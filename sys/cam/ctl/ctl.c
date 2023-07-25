@@ -8272,7 +8272,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 	struct ctl_softc *softc = CTL_SOFTC(ctsio);
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	int retval;
-	u_int32_t param_len;
+	uint32_t param_len;
 	struct scsi_per_res_out *cdb;
 	struct scsi_per_res_out_parms* param;
 	uint32_t residx;
