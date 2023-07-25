@@ -490,10 +490,11 @@ dt_proc_control(void *arg)
 	dt_proc_attach(dpr, B_FALSE);		/* enable rtld breakpoints */
 
 	/*
-	 * If PR_KLC is set, we created the process; otherwise we grabbed it.
-	 * Check for an appropriate stop request and wait for dt_proc_continue.
+	 * If DT_CLOSE_KILL is set, we created the process; otherwise we
+	 * grabbed it.  Check for an appropriate stop request and wait for
+	 * dt_proc_continue.
 	 */
-	if (proc_getflags(P) & PR_KLC)
+	if (dpr->dpr_close == DT_CLOSE_KILL)
 		dt_proc_stop(dpr, DT_PROC_STOP_CREATE);
 	else
 		dt_proc_stop(dpr, DT_PROC_STOP_GRAB);
@@ -586,7 +587,7 @@ dt_proc_control(void *arg)
 		}
 
 		if (Pstate(P) != PS_UNDEAD) {
-			if (dpr->dpr_quit && (proc_getflags(P) & PR_KLC)) {
+			if (dpr->dpr_quit && dpr->dpr_close == DT_CLOSE_KILL) {
 				/*
 				 * We're about to kill the child, so don't
 				 * bother resuming it.  In some cases, such as
@@ -678,20 +679,15 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 
 	assert(dpr != NULL);
 
-	/*
-	 * If neither PR_KLC nor PR_RLC is set, then the process is stopped by
-	 * an external debugger and we were waiting in dt_proc_waitrun().
-	 * Leave the process in this condition using PRELEASE_HANG.
-	 */
-	if (!(proc_getflags(dpr->dpr_proc) & (PR_KLC | PR_RLC))) {
-		dt_dprintf("abandoning pid %d\n", (int)dpr->dpr_pid);
-		rflag = PRELEASE_HANG;
-	} else if (proc_getflags(dpr->dpr_proc) & PR_KLC) {
+	switch (dpr->dpr_close) {
+	case DT_CLOSE_KILL:
 		dt_dprintf("killing pid %d\n", (int)dpr->dpr_pid);
-		rflag = PRELEASE_KILL; /* apply kill-on-last-close */
-	} else {
+		rflag = PRELEASE_KILL;
+		break;
+	case DT_CLOSE_RUN:
 		dt_dprintf("releasing pid %d\n", (int)dpr->dpr_pid);
-		rflag = 0; /* apply run-on-last-close */
+		rflag = 0;
+		break;
 	}
 
 	if (dpr->dpr_tid) {
@@ -860,9 +856,7 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 
 	dpr->dpr_hdl = dtp;
 	dpr->dpr_pid = proc_getpid(dpr->dpr_proc);
-
-	(void) Punsetflags(dpr->dpr_proc, PR_RLC);
-	(void) Psetflags(dpr->dpr_proc, PR_KLC);
+	dpr->dpr_close = DT_CLOSE_KILL;
 
 	if (dt_proc_create_thread(dtp, dpr, dtp->dt_prcmode) != 0)
 		return (NULL); /* dt_proc_error() has been called for us */
@@ -927,9 +921,7 @@ dt_proc_grab(dtrace_hdl_t *dtp, pid_t pid, int flags, int nomonitor)
 
 	dpr->dpr_hdl = dtp;
 	dpr->dpr_pid = pid;
-
-	(void) Punsetflags(dpr->dpr_proc, PR_KLC);
-	(void) Psetflags(dpr->dpr_proc, PR_RLC);
+	dpr->dpr_close = DT_CLOSE_RUN;
 
 	/*
 	 * If we are attempting to grab the process without a monitor

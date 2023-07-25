@@ -40,6 +40,11 @@
 extern "C" {
 #endif
 
+enum dt_close_action {
+	DT_CLOSE_RUN,
+	DT_CLOSE_KILL,
+};
+
 typedef struct dt_proc {
 	dt_list_t dpr_list;		/* prev/next pointers for lru chain */
 	struct dt_proc *dpr_hash;	/* next pointer for pid hash chain */
@@ -60,6 +65,7 @@ typedef struct dt_proc {
 	uint8_t dpr_rdonly;		/* proc flag: opened read-only */
 	pthread_t dpr_tid;		/* control thread (or zero if none) */
 	dt_list_t dpr_bps;		/* list of dt_bkpt_t structures */
+	enum dt_close_action dpr_close;	/* do this to child when exiting */
 } dt_proc_t;
 
 typedef struct dt_proc_notify {
