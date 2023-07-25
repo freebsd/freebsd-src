@@ -59,41 +59,41 @@ struct ccb_hdr_0x17 {
 	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
 	camq_entry	sim_links;	/* For chaining in the SIM layer */	
 	camq_entry	periph_links;	/* For chaining in the type driver */
-	u_int32_t	retry_count;
+	uint32_t	retry_count;
 	void		(*cbfcnp)(struct cam_periph *, union ccb *);
 	xpt_opcode	func_code;	/* XPT function code */
-	u_int32_t	status;		/* Status returned by CAM subsystem */
+	uint32_t	status;		/* Status returned by CAM subsystem */
 	struct		cam_path *path;	/* Compiled path for this ccb */
 	path_id_t	path_id;	/* Path ID for the request */
 	target_id_t	target_id;	/* Target device ID */
 	u_int		target_lun;	/* Target LUN number */
-	u_int32_t	flags;		/* ccb_flags */
+	uint32_t	flags;		/* ccb_flags */
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
-	u_int32_t	timeout;	/* Hard timeout value in seconds */
+	uint32_t	timeout;	/* Hard timeout value in seconds */
 	struct callout	*timeout_ch;
 };
 
 struct ccb_pathinq_0x17 {
 	struct ccb_hdr_0x17 ccb_h;
-	u_int8_t    version_num;	/* Version number for the SIM/HBA */
-	u_int8_t    hba_inquiry;	/* Mimic of INQ byte 7 for the HBA */
-	u_int8_t    target_sprt;	/* Flags for target mode support */
-	u_int8_t    hba_misc;		/* Misc HBA features */
-	u_int16_t   hba_eng_cnt;	/* HBA engine count */
+	uint8_t    version_num;	/* Version number for the SIM/HBA */
+	uint8_t    hba_inquiry;	/* Mimic of INQ byte 7 for the HBA */
+	uint8_t    target_sprt;	/* Flags for target mode support */
+	uint8_t    hba_misc;		/* Misc HBA features */
+	uint16_t   hba_eng_cnt;	/* HBA engine count */
 					/* Vendor Unique capabilities */
-	u_int8_t    vuhba_flags[VUHBALEN];
-	u_int32_t   max_target;		/* Maximum supported Target */
-	u_int32_t   max_lun;		/* Maximum supported Lun */
-	u_int32_t   async_flags;	/* Installed Async handlers */
+	uint8_t    vuhba_flags[VUHBALEN];
+	uint32_t   max_target;		/* Maximum supported Target */
+	uint32_t   max_lun;		/* Maximum supported Lun */
+	uint32_t   async_flags;	/* Installed Async handlers */
 	path_id_t   hpath_id;		/* Highest Path ID in the subsystem */
 	target_id_t initiator_id;	/* ID of the HBA on the SCSI bus */
 	char	    sim_vid[SIM_IDLEN];	/* Vendor ID of the SIM */
 	char	    hba_vid[HBA_IDLEN];	/* Vendor ID of the HBA */
 	char 	    dev_name[DEV_IDLEN];/* Device name for SIM */
-	u_int32_t   unit_number;	/* Unit number for SIM */
-	u_int32_t   bus_id;		/* Bus ID for SIM */
-	u_int32_t   base_transfer_speed;/* Base bus speed in KB/sec */
+	uint32_t   unit_number;	/* Unit number for SIM */
+	uint32_t   bus_id;		/* Bus ID for SIM */
+	uint32_t   base_transfer_speed;/* Base bus speed in KB/sec */
 	cam_proto   protocol;
 	u_int	    protocol_version;
 	cam_xport   transport;
@@ -105,10 +105,10 @@ struct ccb_pathinq_0x17 {
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
-	u_int16_t	hba_vendor;	/* HBA vendor ID */
-	u_int16_t	hba_device;	/* HBA device ID */
-	u_int16_t	hba_subvendor;	/* HBA subvendor ID */
-	u_int16_t	hba_subdevice;	/* HBA subdevice ID */
+	uint16_t	hba_vendor;	/* HBA vendor ID */
+	uint16_t	hba_device;	/* HBA device ID */
+	uint16_t	hba_subvendor;	/* HBA subvendor ID */
+	uint16_t	hba_subdevice;	/* HBA subdevice ID */
 };
 
 struct ccb_trans_settings_0x17 {
@@ -147,21 +147,21 @@ struct ccb_hdr_0x18 {
 	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
 	camq_entry	sim_links;	/* For chaining in the SIM layer */	
 	camq_entry	periph_links;	/* For chaining in the type driver */
-	u_int32_t	retry_count;
+	uint32_t	retry_count;
 	void		(*cbfcnp)(struct cam_periph *, union ccb *);
 	xpt_opcode	func_code;	/* XPT function code */
-	u_int32_t	status;		/* Status returned by CAM subsystem */
+	uint32_t	status;		/* Status returned by CAM subsystem */
 	struct		cam_path *path;	/* Compiled path for this ccb */
 	path_id_t	path_id;	/* Path ID for the request */
 	target_id_t	target_id;	/* Target device ID */
 	u_int		target_lun;	/* Target LUN number */
-	u_int64_t	ext_lun;	/* 64-bit LUN, more or less */
-	u_int32_t	flags;		/* ccb_flags */
-	u_int32_t	xflags;		/* extended ccb_flags */
+	uint64_t	ext_lun;	/* 64-bit LUN, more or less */
+	uint32_t	flags;		/* ccb_flags */
+	uint32_t	xflags;		/* extended ccb_flags */
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
 	ccb_qos_area	qos;
-	u_int32_t	timeout;	/* Hard timeout value in seconds */
+	uint32_t	timeout;	/* Hard timeout value in seconds */
 	struct timeval	softtimeout;	/* Soft timeout value in sec + usec */
 };
 
@@ -196,7 +196,7 @@ struct dev_match_result_0x18 {
         union {
 		struct {
 			char periph_name[DEV_IDLEN];
-			u_int32_t unit_number;
+			uint32_t unit_number;
 			path_id_t path_id;
 			target_id_t target_id;
 			u_int target_lun;

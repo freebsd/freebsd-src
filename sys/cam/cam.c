@@ -123,14 +123,14 @@ SYSCTL_INT(_kern_cam, OID_AUTO, sort_io_queues, CTLFLAG_RWTUN,
 #endif
 
 void
-cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen)
+cam_strvis(uint8_t *dst, const uint8_t *src, int srclen, int dstlen)
 {
 	cam_strvis_flag(dst, src, srclen, dstlen,
 	    CAM_STRVIS_FLAG_NONASCII_ESC);
 }
 
 void
-cam_strvis_flag(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen,
+cam_strvis_flag(uint8_t *dst, const uint8_t *src, int srclen, int dstlen,
 		uint32_t flags)
 {
 	struct sbuf sb;
@@ -141,7 +141,7 @@ cam_strvis_flag(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen,
 }
 
 void
-cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
+cam_strvis_sbuf(struct sbuf *sb, const uint8_t *src, int srclen,
 		uint32_t flags)
 {
 
@@ -203,7 +203,7 @@ cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
  * Each '*' generates recursion, so keep the number of * in check.
  */
 int
-cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
+cam_strmatch(const uint8_t *str, const uint8_t *pattern, int str_len)
 {
 
 	while (*pattern != '\0' && str_len > 0) {  

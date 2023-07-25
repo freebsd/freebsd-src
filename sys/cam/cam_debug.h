@@ -79,9 +79,9 @@ typedef enum {
 /* Path we want to debug */
 extern struct cam_path *cam_dpath;
 /* Current debug levels set */
-extern u_int32_t cam_dflags;
+extern uint32_t cam_dflags;
 /* Printf delay value (to prevent scrolling) */
-extern u_int32_t cam_debug_delay;
+extern uint32_t cam_debug_delay;
 
 /* Debugging macros. */
 #define	CAM_DEBUGGED(path, flag)			\

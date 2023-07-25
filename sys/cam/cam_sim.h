@@ -50,14 +50,14 @@ struct cam_devq;
 typedef void (*sim_action_func)(struct cam_sim *sim, union ccb *ccb);
 typedef void (*sim_poll_func)(struct cam_sim *sim);
 
-struct cam_devq * cam_simq_alloc(u_int32_t max_sim_transactions);
+struct cam_devq * cam_simq_alloc(uint32_t max_sim_transactions);
 void		  cam_simq_free(struct cam_devq *devq);
 
 struct cam_sim *  cam_sim_alloc(sim_action_func sim_action,
 				sim_poll_func sim_poll,
 				const char *sim_name,
 				void *softc,
-				u_int32_t unit,
+				uint32_t unit,
 				struct mtx *mtx,
 				int max_dev_transactions,
 				int max_tagged_dev_transactions,
@@ -76,7 +76,7 @@ void		  cam_sim_hold(struct cam_sim *sim);
 void		  cam_sim_release(struct cam_sim *sim);
 
 /* Optional sim attributes may be set with these. */
-void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
+void	cam_sim_set_path(struct cam_sim *sim, uint32_t path_id);
 
 /* Generically useful offsets into the sim private area */
 #define spriv_ptr0 sim_priv.entries[0].ptr
@@ -95,17 +95,17 @@ struct cam_sim {
 	void			*softc;
 	struct mtx		*mtx;
 	TAILQ_ENTRY(cam_sim)	links;
-	u_int32_t		path_id;/* The Boot device may set this to 0? */
-	u_int32_t		unit_number;
-	u_int32_t		bus_id;
+	uint32_t		path_id;/* The Boot device may set this to 0? */
+	uint32_t		unit_number;
+	uint32_t		bus_id;
 	int			max_tagged_dev_openings;
 	int			max_dev_openings;
-	u_int32_t		flags;
+	uint32_t		flags;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
 };
 
-static __inline u_int32_t
+static __inline uint32_t
 cam_sim_path(const struct cam_sim *sim)
 {
 	return (sim->path_id);
@@ -123,13 +123,13 @@ cam_sim_softc(const struct cam_sim *sim)
 	return (sim->softc);
 }
 
-static __inline u_int32_t
+static __inline uint32_t
 cam_sim_unit(const struct cam_sim *sim)
 {
 	return (sim->unit_number);
 }
 
-static __inline u_int32_t
+static __inline uint32_t
 cam_sim_bus(const struct cam_sim *sim)
 {
 	return (sim->bus_id);

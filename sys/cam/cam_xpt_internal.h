@@ -43,7 +43,7 @@ typedef struct cam_ed * (*xpt_alloc_device_func)(struct cam_eb *bus,
 					         lun_id_t lun_id);
 typedef void (*xpt_release_device_func)(struct cam_ed *device);
 typedef void (*xpt_action_func)(union ccb *start_ccb);
-typedef void (*xpt_dev_async_func)(u_int32_t async_code,
+typedef void (*xpt_dev_async_func)(uint32_t async_code,
 				   struct cam_eb *bus,
 				   struct cam_et *target,
 				   struct cam_ed *device,
@@ -127,16 +127,16 @@ struct cam_ed {
 	uint8_t		 *rcap_buf;
 	struct		 ata_params ident_data;
         struct		 mmc_params mmc_ident_data;
-	u_int8_t	 inq_flags;	/*
+	uint8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
 					 * This allows us to override settings
 					 * like disconnection and tagged
 					 * queuing for a device.
 					 */
-	u_int8_t	 queue_flags;	/* Queue flags from the control page */
-	u_int8_t	 serial_num_len;
-	u_int8_t	*serial_num;
-	u_int32_t	 flags;
+	uint8_t	 queue_flags;	/* Queue flags from the control page */
+	uint8_t	 serial_num_len;
+	uint8_t	*serial_num;
+	uint32_t	 flags;
 #define CAM_DEV_UNCONFIGURED	 	0x01
 #define CAM_DEV_REL_TIMEOUT_PENDING	0x02
 #define CAM_DEV_REL_ON_COMPLETE		0x04
@@ -146,10 +146,10 @@ struct cam_ed {
 #define	CAM_DEV_IN_DV			0x80
 #define	CAM_DEV_DV_HIT_BOTTOM		0x100
 #define CAM_DEV_IDENTIFY_DATA_VALID	0x200
-	u_int32_t	 tag_delay_count;
+	uint32_t	 tag_delay_count;
 #define	CAM_TAG_DELAY_COUNT		5
-	u_int32_t	 tag_saved_openings;
-	u_int32_t	 refcount;
+	uint32_t	 tag_saved_openings;
+	uint32_t	 refcount;
 	struct callout	 callout;
 	STAILQ_ENTRY(cam_ed) highpowerq_entry;
 	struct mtx	 device_mtx;
@@ -169,7 +169,7 @@ struct cam_et {
 	TAILQ_ENTRY(cam_et) links;
 	struct	cam_eb	*bus;
 	target_id_t	target_id;
-	u_int32_t	refcount;
+	uint32_t	refcount;
 	u_int		generation;
 	struct		timeval last_reset;
 	u_int		rpl_size;
@@ -188,9 +188,9 @@ struct cam_eb {
 	path_id_t	     path_id;
 	struct cam_sim	     *sim;
 	struct timeval	     last_reset;
-	u_int32_t	     flags;
+	uint32_t	     flags;
 #define	CAM_EB_RUNQ_SCHEDULED	0x01
-	u_int32_t	     refcount;
+	uint32_t	     refcount;
 	u_int		     generation;
 	device_t	     parent_dev;
 	struct xpt_xport     *xport;
@@ -209,7 +209,7 @@ struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 lun_id_t lun_id);
 void			xpt_acquire_device(struct cam_ed *device);
 void			xpt_release_device(struct cam_ed *device);
-u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
+uint32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
 void			xpt_start_tags(struct cam_path *path);
 void			xpt_stop_tags(struct cam_path *path);
 

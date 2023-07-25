@@ -216,8 +216,8 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		cpi17 = (struct ccb_pathinq_0x17 *)hdr17;
 		cpi17->version_num = cpi->version_num;
 		cpi17->hba_inquiry = cpi->hba_inquiry;
-		cpi17->target_sprt = (u_int8_t)cpi->target_sprt;
-		cpi17->hba_misc = (u_int8_t)cpi->hba_misc;
+		cpi17->target_sprt = (uint8_t)cpi->target_sprt;
+		cpi17->hba_misc = (uint8_t)cpi->hba_misc;
 		cpi17->hba_eng_cnt = cpi->hba_eng_cnt;
 		bcopy(&cpi->vuhba_flags[0], &cpi17->vuhba_flags[0], VUHBALEN);
 		cpi17->max_target = cpi->max_target;

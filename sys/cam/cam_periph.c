@@ -78,20 +78,20 @@ static  void		camperiphfree(struct cam_periph *periph);
 static int		camperiphscsistatuserror(union ccb *ccb,
 					        union ccb **orig_ccb,
 						 cam_flags camflags,
-						 u_int32_t sense_flags,
+						 uint32_t sense_flags,
 						 int *openings,
-						 u_int32_t *relsim_flags,
-						 u_int32_t *timeout,
-						 u_int32_t  *action,
+						 uint32_t *relsim_flags,
+						 uint32_t *timeout,
+						 uint32_t  *action,
 						 const char **action_string);
 static	int		camperiphscsisenseerror(union ccb *ccb,
 					        union ccb **orig_ccb,
 					        cam_flags camflags,
-					        u_int32_t sense_flags,
+					        uint32_t sense_flags,
 					        int *openings,
-					        u_int32_t *relsim_flags,
-					        u_int32_t *timeout,
-					        u_int32_t *action,
+					        uint32_t *relsim_flags,
+					        uint32_t *timeout,
+					        uint32_t *action,
 					        const char **action_string);
 static void		cam_periph_devctl_notify(union ccb *ccb);
 
@@ -809,9 +809,9 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
     u_int maxmap)
 {
 	int numbufs, i;
-	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
-	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
-	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
+	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
+	uint32_t lengths[CAM_PERIPH_MAXMAPS];
+	uint32_t dirs[CAM_PERIPH_MAXMAPS];
 
 	bzero(mapinfo, sizeof(*mapinfo));
 	if (maxmap == 0)
@@ -826,15 +826,15 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 			return(EINVAL);
 		}
 		if (ccb->cdm.pattern_buf_len > 0) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.patterns;
 			lengths[0] = ccb->cdm.pattern_buf_len;
 			dirs[0] = CAM_DIR_OUT;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[1] = (uint8_t **)&ccb->cdm.matches;
 			lengths[1] = ccb->cdm.match_buf_len;
 			dirs[1] = CAM_DIR_IN;
 			numbufs = 2;
 		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.matches;
 			lengths[0] = ccb->cdm.match_buf_len;
 			dirs[0] = CAM_DIR_IN;
 			numbufs = 1;
@@ -1020,9 +1020,9 @@ void
 cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 {
 	int numbufs, i;
-	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
-	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
-	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
+	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
+	uint32_t lengths[CAM_PERIPH_MAXMAPS];
+	uint32_t dirs[CAM_PERIPH_MAXMAPS];
 
 	if (mapinfo->num_bufs_used <= 0) {
 		/* nothing to free and the process wasn't held. */
@@ -1032,15 +1032,15 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
 		if (ccb->cdm.pattern_buf_len > 0) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.patterns;
 			lengths[0] = ccb->cdm.pattern_buf_len;
 			dirs[0] = CAM_DIR_OUT;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[1] = (uint8_t **)&ccb->cdm.matches;
 			lengths[1] = ccb->cdm.match_buf_len;
 			dirs[1] = CAM_DIR_IN;
 			numbufs = 2;
 		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
+			data_ptrs[0] = (uint8_t **)&ccb->cdm.matches;
 			lengths[0] = ccb->cdm.match_buf_len;
 			dirs[0] = CAM_DIR_IN;
 			numbufs = 1;
@@ -1060,10 +1060,10 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		numbufs = 1;
 		break;
 	case XPT_MMC_IO:
-		data_ptrs[0] = (u_int8_t **)&ccb->mmcio.cmd.data;
+		data_ptrs[0] = (uint8_t **)&ccb->mmcio.cmd.data;
 		lengths[0] = sizeof(struct mmc_data *);
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
-		data_ptrs[1] = (u_int8_t **)&ccb->mmcio.cmd.data->data;
+		data_ptrs[1] = (uint8_t **)&ccb->mmcio.cmd.data->data;
 		lengths[1] = ccb->mmcio.cmd.data->len;
 		dirs[1] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 2;
@@ -1124,7 +1124,7 @@ int
 cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
 				      cam_flags camflags,
-				      u_int32_t sense_flags))
+				      uint32_t sense_flags))
 {
 	union ccb 	     *ccb;
 	int 		     error;
@@ -1223,8 +1223,8 @@ int
 cam_periph_runccb(union ccb *ccb,
 		  int (*error_routine)(union ccb *ccb,
 				       cam_flags camflags,
-				       u_int32_t sense_flags),
-		  cam_flags camflags, u_int32_t sense_flags,
+				       uint32_t sense_flags),
+		  cam_flags camflags, uint32_t sense_flags,
 		  struct devstat *ds)
 {
 	struct bintime *starttime;
@@ -1359,9 +1359,9 @@ cam_freeze_devq(struct cam_path *path)
 	xpt_action((union ccb *)&ccb_h);
 }
 
-u_int32_t
-cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
-		 u_int32_t openings, u_int32_t arg,
+uint32_t
+cam_release_devq(struct cam_path *path, uint32_t relsim_flags,
+		 uint32_t openings, uint32_t arg,
 		 int getcount_only)
 {
 	struct ccb_relsim crs;
@@ -1387,7 +1387,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
 	int		error = 0, error_code, sense_key, asc, ascq;
-	u_int16_t	done_flags;
+	uint16_t	done_flags;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
@@ -1485,7 +1485,7 @@ out:
  * and leave the rest to this function.
  */
 void
-cam_periph_async(struct cam_periph *periph, u_int32_t code,
+cam_periph_async(struct cam_periph *periph, uint32_t code,
 		 struct cam_path *path, void *arg)
 {
 	switch (code) {
@@ -1540,9 +1540,9 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 
 static int
 camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
-    cam_flags camflags, u_int32_t sense_flags,
-    int *openings, u_int32_t *relsim_flags,
-    u_int32_t *timeout, u_int32_t *action, const char **action_string)
+    cam_flags camflags, uint32_t sense_flags,
+    int *openings, uint32_t *relsim_flags,
+    uint32_t *timeout, uint32_t *action, const char **action_string)
 {
 	struct cam_periph *periph;
 	int error;
@@ -1655,14 +1655,14 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 
 static int
 camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
-    cam_flags camflags, u_int32_t sense_flags,
-    int *openings, u_int32_t *relsim_flags,
-    u_int32_t *timeout, u_int32_t *action, const char **action_string)
+    cam_flags camflags, uint32_t sense_flags,
+    int *openings, uint32_t *relsim_flags,
+    uint32_t *timeout, uint32_t *action, const char **action_string)
 {
 	struct cam_periph *periph;
 	union ccb *orig_ccb = ccb;
 	int error, recoveryccb;
-	u_int16_t flags;
+	uint16_t flags;
 
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO && ccb->csio.bio != NULL)
@@ -1879,7 +1879,7 @@ sense_error_done:
  */
 int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
-		 u_int32_t sense_flags)
+		 uint32_t sense_flags)
 {
 	struct cam_path *newpath;
 	union ccb  *orig_ccb, *scan_ccb;
@@ -1887,7 +1887,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	const char *action_string;
 	cam_status  status;
 	int	    frozen, error, openings, devctl_err;
-	u_int32_t   action, relsim_flags, timeout;
+	uint32_t   action, relsim_flags, timeout;
 
 	action = SSQ_PRINT_SENSE;
 	periph = xpt_path_periph(ccb->ccb_h.path);
