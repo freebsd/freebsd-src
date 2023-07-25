@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
-	u_int8_t quirks;
+	uint8_t quirks;
 #define	CAM_QUIRK_MAXTAGS	0x01
 	u_int mintags;
 	u_int maxtags;
@@ -182,7 +182,7 @@ static void	 ata_get_transfer_settings(struct ccb_trans_settings *cts);
 static void	 ata_set_transfer_settings(struct ccb_trans_settings *cts,
 					    struct cam_path *path,
 					    int async_update);
-static void	 ata_dev_async(u_int32_t async_code,
+static void	 ata_dev_async(uint32_t async_code,
 				struct cam_eb *bus,
 				struct cam_et *target,
 				struct cam_ed *device,
@@ -380,7 +380,7 @@ aprobestart(struct cam_periph *periph, union ccb *start_ccb)
 		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
-		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*data_ptr*/(uint8_t *)&softc->ident_data,
 		      /*dxfer_len*/sizeof(softc->ident_data),
 		      30 * 1000);
 		if (path->device->protocol == PROTO_ATA)
@@ -660,7 +660,7 @@ negotiate:
 			     /*retries*/1,
 			     aprobedone,
 			     MSG_SIMPLE_Q_TAG,
-			     (u_int8_t *)inq_buf,
+			     (uint8_t *)inq_buf,
 			     inquiry_len,
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
@@ -696,7 +696,7 @@ negotiate:
 		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
-		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*data_ptr*/(uint8_t *)&softc->ident_data,
 		      /*dxfer_len*/sizeof(softc->ident_data),
 		      30 * 1000);
 		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x02,
@@ -708,7 +708,7 @@ negotiate:
 		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
-		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*data_ptr*/(uint8_t *)&softc->ident_data,
 		      /*dxfer_len*/sizeof(softc->ident_data),
 		      30 * 1000);
 		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x00,
@@ -748,7 +748,7 @@ aprobedone(struct cam_periph *periph, union ccb *done_ccb)
 	aprobe_softc *softc;
 	struct cam_path *path;
 	cam_status status;
-	u_int32_t  priority;
+	uint32_t  priority;
 	u_int caps, oif;
 	int changed, found = 1;
 	static const uint8_t fake_device_id_hdr[8] =
@@ -965,7 +965,7 @@ noerror:
 				path->device->device_id_len = 0;
 			}
 			path->device->serial_num =
-				(u_int8_t *)malloc((sizeof(ident_buf->serial) + 1),
+				(uint8_t *)malloc((sizeof(ident_buf->serial) + 1),
 					   M_CAMXPT, M_NOWAIT);
 			if (path->device->serial_num != NULL) {
 				bcopy(ident_buf->serial,
@@ -1162,7 +1162,7 @@ notsata:
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
 	{
-		u_int8_t periph_qual, len;
+		uint8_t periph_qual, len;
 
 		path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
 
@@ -2036,7 +2036,7 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
  * Handle any per-device event notifications that require action by the XPT.
  */
 static void
-ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
+ata_dev_async(uint32_t async_code, struct cam_eb *bus, struct cam_et *target,
 	      struct cam_ed *device, void *async_arg)
 {
 	/*
