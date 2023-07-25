@@ -587,8 +587,8 @@ ata_logical_sector_size(struct ata_params *ident_data)
 {
 	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE &&
 	    (ident_data->pss & ATA_PSS_LSSABOVE512)) {
-		return (((u_int32_t)ident_data->lss_1 |
-		    ((u_int32_t)ident_data->lss_2 << 16)) * 2);
+		return (((uint32_t)ident_data->lss_1 |
+		    ((uint32_t)ident_data->lss_2 << 16)) * 2);
 	}
 	return (512);
 }
@@ -761,9 +761,9 @@ ata_read_log(struct ccb_ataio *ataio, uint32_t retries,
 void
 ata_bswap(int8_t *buf, int len)
 {
-	u_int16_t *ptr = (u_int16_t*)(buf + len);
+	uint16_t *ptr = (uint16_t*)(buf + len);
 
-	while (--ptr >= (u_int16_t*)buf)
+	while (--ptr >= (uint16_t*)buf)
 		*ptr = be16toh(*ptr);
 }
 
@@ -1037,7 +1037,7 @@ ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry)
 
 void
 semb_receive_diagnostic_results(struct ccb_ataio *ataio,
-    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+    uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
     uint8_t tag_action, int pcv, uint8_t page_code,
     uint8_t *data_ptr, uint16_t length, uint32_t timeout)
 {
@@ -1058,7 +1058,7 @@ semb_receive_diagnostic_results(struct ccb_ataio *ataio,
 
 void
 semb_send_diagnostic(struct ccb_ataio *ataio,
-    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+    uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
     uint8_t tag_action, uint8_t *data_ptr, uint16_t length, uint32_t timeout)
 {
 
@@ -1078,7 +1078,7 @@ semb_send_diagnostic(struct ccb_ataio *ataio,
 
 void
 semb_read_buffer(struct ccb_ataio *ataio,
-    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+    uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
     uint8_t tag_action, uint8_t page_code,
     uint8_t *data_ptr, uint16_t length, uint32_t timeout)
 {
@@ -1099,7 +1099,7 @@ semb_read_buffer(struct ccb_ataio *ataio,
 
 void
 semb_write_buffer(struct ccb_ataio *ataio,
-    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+    uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
     uint8_t tag_action, uint8_t *data_ptr, uint16_t length, uint32_t timeout)
 {
 

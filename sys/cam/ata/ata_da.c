@@ -233,11 +233,11 @@ static const char *ada_delete_method_desc[] =
 #endif
 
 struct disk_params {
-	u_int8_t  heads;
-	u_int8_t  secs_per_track;
-	u_int32_t cylinders;
-	u_int32_t secsize;	/* Number of bytes/logical sector */
-	u_int64_t sectors;	/* Total number sectors */
+	uint8_t  heads;
+	uint8_t  secs_per_track;
+	uint32_t cylinders;
+	uint32_t secsize;	/* Number of bytes/logical sector */
+	uint64_t sectors;	/* Total number sectors */
 };
 
 #define TRIM_MAX_BLOCKS	8
@@ -832,7 +832,7 @@ static	periph_init_t	adainit;
 static	void		adadiskgonecb(struct disk *dp);
 static	periph_oninv_t	adaoninvalidate;
 static	periph_dtor_t	adacleanup;
-static	void		adaasync(void *callback_arg, u_int32_t code,
+static	void		adaasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	int		adabitsysctl(SYSCTL_HANDLER_ARGS);
 static	int		adaflagssysctl(SYSCTL_HANDLER_ARGS);
@@ -856,8 +856,8 @@ static	void		adaprobedone(struct cam_periph *periph, union ccb *ccb);
 static	void		adazonedone(struct cam_periph *periph, union ccb *ccb);
 static	void		adadone(struct cam_periph *periph,
 			       union ccb *done_ccb);
-static  int		adaerror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static  int		adaerror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 static callout_func_t	adasendorderedtag;
 static void		adashutdown(void *arg, int howto);
 static void		adasuspend(void *arg);
@@ -1128,7 +1128,7 @@ adadump(void *arg, void *virtual, off_t offset, size_t length)
 		    NULL,
 		    CAM_DIR_OUT,
 		    0,
-		    (u_int8_t *) virtual,
+		    (uint8_t *) virtual,
 		    length,
 		    ada_default_timeout*1000);
 		if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
@@ -1300,7 +1300,7 @@ adasetdeletemethod(struct ada_softc *softc)
 }
 
 static void
-adaasync(void *callback_arg, u_int32_t code,
+adaasync(void *callback_arg, uint32_t code,
 	struct cam_path *path, void *arg)
 {
 	struct ccb_getdev cgd;
@@ -2321,7 +2321,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 	case ADA_STATE_NORMAL:
 	{
 		struct bio *bp;
-		u_int8_t tag_code;
+		uint8_t tag_code;
 
 		bp = cam_iosched_next_bio(softc->cam_iosched);
 		if (bp == NULL) {
@@ -3382,7 +3382,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+adaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 #ifdef CAM_IO_STATS
 	struct ada_softc *softc;
@@ -3415,8 +3415,8 @@ static void
 adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 {
 	struct disk_params *dp = &softc->params;
-	u_int64_t lbasize48;
-	u_int32_t lbasize;
+	uint64_t lbasize48;
+	uint32_t lbasize;
 	u_int maxio, d_flags;
 	size_t tmpsize;
 
@@ -3427,27 +3427,27 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 		dp->heads = cgd->ident_data.current_heads;
 		dp->secs_per_track = cgd->ident_data.current_sectors;
 		dp->cylinders = cgd->ident_data.cylinders;
-		dp->sectors = (u_int32_t)cgd->ident_data.current_size_1 |
-			  ((u_int32_t)cgd->ident_data.current_size_2 << 16);
+		dp->sectors = (uint32_t)cgd->ident_data.current_size_1 |
+			  ((uint32_t)cgd->ident_data.current_size_2 << 16);
 	} else {
 		dp->heads = cgd->ident_data.heads;
 		dp->secs_per_track = cgd->ident_data.sectors;
 		dp->cylinders = cgd->ident_data.cylinders;
 		dp->sectors = cgd->ident_data.cylinders *
-			      (u_int32_t)(dp->heads * dp->secs_per_track);
+			      (uint32_t)(dp->heads * dp->secs_per_track);
 	}
-	lbasize = (u_int32_t)cgd->ident_data.lba_size_1 |
-		  ((u_int32_t)cgd->ident_data.lba_size_2 << 16);
+	lbasize = (uint32_t)cgd->ident_data.lba_size_1 |
+		  ((uint32_t)cgd->ident_data.lba_size_2 << 16);
 
 	/* use the 28bit LBA size if valid or bigger than the CHS mapping */
 	if (cgd->ident_data.cylinders == 16383 || dp->sectors < lbasize)
 		dp->sectors = lbasize;
 
 	/* use the 48bit LBA size if valid */
-	lbasize48 = ((u_int64_t)cgd->ident_data.lba_size48_1) |
-		    ((u_int64_t)cgd->ident_data.lba_size48_2 << 16) |
-		    ((u_int64_t)cgd->ident_data.lba_size48_3 << 32) |
-		    ((u_int64_t)cgd->ident_data.lba_size48_4 << 48);
+	lbasize48 = ((uint64_t)cgd->ident_data.lba_size48_1) |
+		    ((uint64_t)cgd->ident_data.lba_size48_2 << 16) |
+		    ((uint64_t)cgd->ident_data.lba_size48_3 << 32) |
+		    ((uint64_t)cgd->ident_data.lba_size48_4 << 48);
 	if ((cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) &&
 	    lbasize48 > ATA_MAX_28BIT_LBA)
 		dp->sectors = lbasize48;

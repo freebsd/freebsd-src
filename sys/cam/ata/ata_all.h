@@ -42,49 +42,49 @@ union  ccb;
 #define	SID_DMA		0x10 /* Abuse inq_flags bit to track enabled DMA. */
 
 struct ata_cmd {
-	u_int8_t	flags;		/* ATA command flags */
+	uint8_t	flags;		/* ATA command flags */
 #define		CAM_ATAIO_48BIT		0x01	/* Command has 48-bit format */
 #define		CAM_ATAIO_FPDMA		0x02	/* FPDMA command */
 #define		CAM_ATAIO_CONTROL	0x04	/* Control, not a command */
 #define		CAM_ATAIO_NEEDRESULT	0x08	/* Request requires result. */
 #define		CAM_ATAIO_DMA		0x10	/* DMA command */
 
-	u_int8_t	command;
-	u_int8_t	features;
+	uint8_t	command;
+	uint8_t	features;
 
-	u_int8_t	lba_low;
-	u_int8_t	lba_mid;
-	u_int8_t	lba_high;
-	u_int8_t	device;
+	uint8_t	lba_low;
+	uint8_t	lba_mid;
+	uint8_t	lba_high;
+	uint8_t	device;
 
-	u_int8_t	lba_low_exp;
-	u_int8_t	lba_mid_exp;
-	u_int8_t	lba_high_exp;
-	u_int8_t	features_exp;
+	uint8_t	lba_low_exp;
+	uint8_t	lba_mid_exp;
+	uint8_t	lba_high_exp;
+	uint8_t	features_exp;
 
-	u_int8_t	sector_count;
-	u_int8_t	sector_count_exp;
-	u_int8_t	control;
+	uint8_t	sector_count;
+	uint8_t	sector_count_exp;
+	uint8_t	control;
 };
 
 struct ata_res {
-	u_int8_t	flags;		/* ATA command flags */
+	uint8_t	flags;		/* ATA command flags */
 #define		CAM_ATAIO_48BIT		0x01	/* Command has 48-bit format */
 
-	u_int8_t	status;
-	u_int8_t	error;
+	uint8_t	status;
+	uint8_t	error;
 
-	u_int8_t	lba_low;
-	u_int8_t	lba_mid;
-	u_int8_t	lba_high;
-	u_int8_t	device;
+	uint8_t	lba_low;
+	uint8_t	lba_mid;
+	uint8_t	lba_high;
+	uint8_t	device;
 
-	u_int8_t	lba_low_exp;
-	u_int8_t	lba_mid_exp;
-	u_int8_t	lba_high_exp;
+	uint8_t	lba_low_exp;
+	uint8_t	lba_mid_exp;
+	uint8_t	lba_high_exp;
 
-	u_int8_t	sector_count;
-	u_int8_t	sector_count_exp;
+	uint8_t	sector_count;
+	uint8_t	sector_count_exp;
 };
 
 struct sep_identify_data {
@@ -160,22 +160,22 @@ void	semb_print_ident_short(struct sep_identify_data *ident_data);
 void	semb_print_ident_short_sbuf(struct sep_identify_data *ident_data, struct sbuf *sb);
 
 void semb_receive_diagnostic_results(struct ccb_ataio *ataio,
-	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
 	uint8_t tag_action, int pcv, uint8_t page_code,
 	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
 
 void semb_send_diagnostic(struct ccb_ataio *ataio,
-	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
 	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
 	uint32_t timeout);
 
 void semb_read_buffer(struct ccb_ataio *ataio,
-	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
 	uint8_t tag_action, uint8_t page_code,
 	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
 
 void semb_write_buffer(struct ccb_ataio *ataio,
-	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
 	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
 	uint32_t timeout);
 
