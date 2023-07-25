@@ -3100,7 +3100,7 @@ ffs_fserr(struct fs *fs,
 
 /*
  * This function provides the capability for the fsck program to
- * update an active filesystem. Fourteen operations are provided:
+ * update an active filesystem. Sixteen operations are provided:
  *
  * adjrefcnt(inode, amt) - adjusts the reference count on the
  *	specified inode by the specified amount. Under normal
