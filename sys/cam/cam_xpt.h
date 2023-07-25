@@ -63,9 +63,9 @@ struct cam_path;
  */
 struct async_node {
 	SLIST_ENTRY(async_node)	links;
-	u_int32_t	event_enable;	/* Async Event enables */
-	u_int32_t	event_lock;	/* Take SIM lock for handlers. */
-	void		(*callback)(void *arg, u_int32_t code,
+	uint32_t	event_enable;	/* Async Event enables */
+	uint32_t	event_lock;	/* Take SIM lock for handlers. */
+	void		(*callback)(void *arg, uint32_t code,
 				    struct cam_path *path, void *args);
 	void		*callback_arg;
 };
@@ -80,11 +80,11 @@ union ccb		*xpt_alloc_ccb_nowait(void);
 void			xpt_free_ccb(union ccb *free_ccb);
 void			xpt_setup_ccb_flags(struct ccb_hdr *ccb_h,
 					    struct cam_path *path,
-					    u_int32_t priority,
-					    u_int32_t flags);
+					    uint32_t priority,
+					    uint32_t flags);
 void			xpt_setup_ccb(struct ccb_hdr *ccb_h,
 				      struct cam_path *path,
-				      u_int32_t priority);
+				      uint32_t priority);
 void			xpt_merge_ccb(union ccb *dst_ccb,
 				      union ccb *src_ccb);
 cam_status		xpt_create_path(struct cam_path **new_path_ptr,
@@ -117,7 +117,7 @@ device_t		xpt_path_sim_device(const struct cam_path *path);
 void			xpt_print_path(struct cam_path *path);
 void			xpt_print_device(struct cam_ed *device);
 void			xpt_print(struct cam_path *path, const char *fmt, ...);
-void			xpt_async(u_int32_t async_code, struct cam_path *path,
+void			xpt_async(uint32_t async_code, struct cam_path *path,
 				  void *async_arg);
 void			xpt_rescan(union ccb *ccb);
 void			xpt_hold_boot(void);
