@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 
 struct scsi_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
-	u_int8_t quirks;
+	uint8_t quirks;
 #define	CAM_QUIRK_NOLUNS	0x01
 #define	CAM_QUIRK_NOVPDS	0x02
 #define	CAM_QUIRK_HILUNS	0x04
@@ -187,7 +187,7 @@ typedef struct {
 	probe_action	action;
 	probe_flags	flags;
 	MD5_CTX		context;
-	u_int8_t	digest[16];
+	uint8_t	digest[16];
 	struct cam_periph *periph;
 } probe_softc;
 
@@ -587,7 +587,7 @@ static void	 scsi_set_transfer_settings(struct ccb_trans_settings *cts,
 					    struct cam_path *path,
 					    int async_update);
 static void	 scsi_toggle_tags(struct cam_path *path);
-static void	 scsi_dev_async(u_int32_t async_code,
+static void	 scsi_dev_async(uint32_t async_code,
 				struct cam_eb *bus,
 				struct cam_et *target,
 				struct cam_ed *device,
@@ -820,7 +820,7 @@ again:
 			     /*retries*/4,
 			     probedone,
 			     MSG_SIMPLE_Q_TAG,
-			     (u_int8_t *)inq_buf,
+			     (uint8_t *)inq_buf,
 			     inquiry_len,
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
@@ -896,7 +896,7 @@ again:
 				     /*retries*/4,
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
-				     (u_int8_t *)vpd_list,
+				     (uint8_t *)vpd_list,
 				     sizeof(*vpd_list),
 				     /*evpd*/TRUE,
 				     SVPD_SUPPORTED_PAGE_LIST,
@@ -990,7 +990,7 @@ done:
 				     /*retries*/4,
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
-				     (u_int8_t *)serial_buf,
+				     (uint8_t *)serial_buf,
 				     sizeof(*serial_buf),
 				     /*evpd*/TRUE,
 				     SVPD_UNIT_SERIAL_NUMBER,
@@ -1026,7 +1026,7 @@ done:
 			     /*retries*/4,
 			     probedone,
 			     MSG_SIMPLE_Q_TAG,
-			     (u_int8_t *)inq_buf,
+			     (uint8_t *)inq_buf,
 			     inquiry_len,
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
@@ -1172,7 +1172,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	probe_softc *softc;
 	struct cam_path *path;
 	struct scsi_inquiry_data *inq_buf;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
 
@@ -1211,7 +1211,7 @@ out:
 	case PROBE_FULL_INQUIRY:
 	{
 		if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
-			u_int8_t periph_qual;
+			uint8_t periph_qual;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
 			scsi_find_quirk(path->device);
@@ -1423,9 +1423,9 @@ out:
 		mode_hdr = (struct scsi_mode_header_6 *)csio->data_ptr;
 		if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
 			struct scsi_control_page *page;
-			u_int8_t *offset;
+			uint8_t *offset;
 
-			offset = ((u_int8_t *)&mode_hdr[1])
+			offset = ((uint8_t *)&mode_hdr[1])
 			    + mode_hdr->blk_desc_len;
 			page = (struct scsi_control_page *)offset;
 			path->device->queue_flags = page->queue_flags;
@@ -1581,7 +1581,7 @@ probe_device_check:
 	{
 		struct ccb_scsiio *csio;
 		struct scsi_vpd_unit_serial_number *serial_buf;
-		u_int32_t  priority;
+		uint32_t  priority;
 		int changed;
 		int have_serialnum;
 
@@ -1600,7 +1600,7 @@ probe_device_check:
 			&& (serial_buf->length > 0)) {
 			have_serialnum = 1;
 			path->device->serial_num =
-				(u_int8_t *)malloc((serial_buf->length + 1),
+				(uint8_t *)malloc((serial_buf->length + 1),
 						   M_CAMXPT, M_NOWAIT);
 			if (path->device->serial_num != NULL) {
 				int start, slen;
@@ -1642,7 +1642,7 @@ probe_device_check:
 		 */
 		if ((softc->flags & PROBE_INQUIRY_CKSUM) != 0) {
 			MD5_CTX context;
-			u_int8_t digest[16];
+			uint8_t digest[16];
 
 			MD5Init(&context);
 
@@ -1832,7 +1832,7 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new,
 	struct scsi_report_luns_data *old;
 	u_int idx1, idx2, nlun_old, nlun_new;
 	lun_id_t this_lun;
-	u_int8_t *ol, *nl;
+	uint8_t *ol, *nl;
 
 	if (path->target == NULL) {
 		return;
@@ -2968,7 +2968,7 @@ scsi_toggle_tags(struct cam_path *path)
  * Handle any per-device event notifications that require action by the XPT.
  */
 static void
-scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
+scsi_dev_async(uint32_t async_code, struct cam_eb *bus, struct cam_et *target,
 	      struct cam_ed *device, void *async_arg)
 {
 	cam_status status;

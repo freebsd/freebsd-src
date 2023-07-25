@@ -137,110 +137,110 @@ struct scsi_mechanism_status_header
 
 struct scsi_pause
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t unused[6];
-	u_int8_t resume;
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t unused[6];
+	uint8_t resume;
+	uint8_t control;
 };
 #define	PA_PAUSE	1
 #define PA_RESUME	0
 
 struct scsi_play_msf
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t unused;
-	u_int8_t start_m;
-	u_int8_t start_s;
-	u_int8_t start_f;
-	u_int8_t end_m;
-	u_int8_t end_s;
-	u_int8_t end_f;
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t unused;
+	uint8_t start_m;
+	uint8_t start_s;
+	uint8_t start_f;
+	uint8_t end_m;
+	uint8_t end_s;
+	uint8_t end_f;
+	uint8_t control;
 };
 
 struct scsi_play_track
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t unused[2];
-	u_int8_t start_track;
-	u_int8_t start_index;
-	u_int8_t unused1;
-	u_int8_t end_track;
-	u_int8_t end_index;
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t unused[2];
+	uint8_t start_track;
+	uint8_t start_index;
+	uint8_t unused1;
+	uint8_t end_track;
+	uint8_t end_index;
+	uint8_t control;
 };
 
 struct scsi_play_10
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t blk_addr[4];
-	u_int8_t unused;
-	u_int8_t xfer_len[2];
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t blk_addr[4];
+	uint8_t unused;
+	uint8_t xfer_len[2];
+	uint8_t control;
 };
 
 struct scsi_play_12
 {
-	u_int8_t op_code;
-	u_int8_t byte2;	/* same as above */
-	u_int8_t blk_addr[4];
-	u_int8_t xfer_len[4];
-	u_int8_t unused;
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;	/* same as above */
+	uint8_t blk_addr[4];
+	uint8_t xfer_len[4];
+	uint8_t unused;
+	uint8_t control;
 };
 
 struct scsi_play_rel_12
 {
-	u_int8_t op_code;
-	u_int8_t byte2;	/* same as above */
-	u_int8_t blk_addr[4];
-	u_int8_t xfer_len[4];
-	u_int8_t track;
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;	/* same as above */
+	uint8_t blk_addr[4];
+	uint8_t xfer_len[4];
+	uint8_t track;
+	uint8_t control;
 };
 
 struct scsi_read_header
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t blk_addr[4];
-	u_int8_t unused;
-	u_int8_t data_len[2];
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t blk_addr[4];
+	uint8_t unused;
+	uint8_t data_len[2];
+	uint8_t control;
 };
 
 struct scsi_read_subchannel
 {
-	u_int8_t op_code;
-	u_int8_t byte1;
-	u_int8_t byte2;
+	uint8_t op_code;
+	uint8_t byte1;
+	uint8_t byte2;
 #define	SRS_SUBQ	0x40
-	u_int8_t subchan_format;
-	u_int8_t unused[2];
-	u_int8_t track;
-	u_int8_t data_len[2];
-	u_int8_t control;
+	uint8_t subchan_format;
+	uint8_t unused[2];
+	uint8_t track;
+	uint8_t data_len[2];
+	uint8_t control;
 };
 
 struct scsi_read_toc
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t format;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t format;
 #define	SRTOC_FORMAT_TOC	0x00
 #define	SRTOC_FORMAT_LAST_ADDR	0x01
 #define	SRTOC_FORMAT_QSUB_TOC	0x02
 #define	SRTOC_FORMAT_QSUB_PMA	0x03
 #define	SRTOC_FORMAT_ATIP	0x04
 #define	SRTOC_FORMAT_CD_TEXT	0x05
-	u_int8_t unused[3];
-	u_int8_t from_track;
-	u_int8_t data_len[2];
-	u_int8_t control;
+	uint8_t unused[3];
+	uint8_t from_track;
+	uint8_t data_len[2];
+	uint8_t control;
 };
 
 struct scsi_read_toc_hdr
@@ -261,34 +261,34 @@ struct scsi_read_toc_type01_descr
 
 struct scsi_read_cd_capacity
 {
-	u_int8_t op_code;
-	u_int8_t byte2;
-	u_int8_t addr_3;	/* Most Significant */
-	u_int8_t addr_2;
-	u_int8_t addr_1;
-	u_int8_t addr_0;	/* Least Significant */
-	u_int8_t unused[3];
-	u_int8_t control;
+	uint8_t op_code;
+	uint8_t byte2;
+	uint8_t addr_3;	/* Most Significant */
+	uint8_t addr_2;
+	uint8_t addr_1;
+	uint8_t addr_0;	/* Least Significant */
+	uint8_t unused[3];
+	uint8_t control;
 };
 
 struct scsi_set_speed
 {
-	u_int8_t opcode;
-	u_int8_t byte2;
-	u_int8_t readspeed[2];
-	u_int8_t writespeed[2];
-	u_int8_t reserved[5];
-	u_int8_t control;
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t readspeed[2];
+	uint8_t writespeed[2];
+	uint8_t reserved[5];
+	uint8_t control;
 };
 
 struct scsi_report_key 
 {
-	u_int8_t opcode;
-	u_int8_t reserved0;
-	u_int8_t lba[4];
-	u_int8_t reserved1[2];
-	u_int8_t alloc_len[2];
-	u_int8_t agid_keyformat;
+	uint8_t opcode;
+	uint8_t reserved0;
+	uint8_t lba[4];
+	uint8_t reserved1[2];
+	uint8_t alloc_len[2];
+	uint8_t agid_keyformat;
 #define RK_KF_AGID_MASK		0xc0
 #define RK_KF_AGID_SHIFT	6
 #define RK_KF_KEYFORMAT_MASK	0x3f
@@ -301,7 +301,7 @@ struct scsi_report_key
 #define RK_KF_RPC_SET		0x06
 #define RF_KF_RPC_REPORT	0x08
 #define RF_KF_INV_AGID		0x3f
-	u_int8_t control;
+	uint8_t control;
 };
 
 /*
@@ -309,20 +309,20 @@ struct scsi_report_key
  */
 struct scsi_send_key
 {
-	u_int8_t opcode;
-	u_int8_t reserved[7];
-	u_int8_t param_len[2];
-	u_int8_t agid_keyformat;
-	u_int8_t control;
+	uint8_t opcode;
+	uint8_t reserved[7];
+	uint8_t param_len[2];
+	uint8_t agid_keyformat;
+	uint8_t control;
 };
 
 struct scsi_read_dvd_structure
 {
-	u_int8_t opcode;
-	u_int8_t reserved;
-	u_int8_t address[4];
-	u_int8_t layer_number;
-	u_int8_t format;
+	uint8_t opcode;
+	uint8_t reserved;
+	uint8_t address[4];
+	uint8_t layer_number;
+	uint8_t format;
 #define RDS_FORMAT_PHYSICAL		0x00
 #define RDS_FORMAT_COPYRIGHT		0x01
 #define RDS_FORMAT_DISC_KEY		0x02
@@ -341,9 +341,9 @@ struct scsi_read_dvd_structure
 #define RDS_FORMAT_DCB			0x30
 #define RDS_FORMAT_WRITE_PROT		0xc0
 #define RDS_FORMAT_STRUCTURE_LIST	0xff
-	u_int8_t alloc_len[2];
-	u_int8_t agid;
-	u_int8_t control;
+	uint8_t alloc_len[2];
+	uint8_t agid;
+	uint8_t control;
 };
 
 /*
@@ -370,40 +370,40 @@ struct scsi_read_dvd_structure
 
 struct scsi_report_key_data_header
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
 };
 
 struct scsi_report_key_data_agid
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[5];
-	u_int8_t agid;
+	uint8_t data_len[2];
+	uint8_t reserved[5];
+	uint8_t agid;
 #define RKD_AGID_MASK	0xc0
 #define RKD_AGID_SHIFT	6
 };
 
 struct scsi_report_key_data_challenge
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t challenge_key[10];
-	u_int8_t reserved1[2];
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t challenge_key[10];
+	uint8_t reserved1[2];
 };
 
 struct scsi_report_key_data_key1_key2
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t key1[5];
-	u_int8_t reserved1[3];
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t key1[5];
+	uint8_t reserved1[3];
 };
 
 struct scsi_report_key_data_title
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t byte0;
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t byte0;
 #define RKD_TITLE_CPM		0x80
 #define RKD_TITLE_CPM_SHIFT	7
 #define RKD_TITLE_CP_SEC	0x40
@@ -414,26 +414,26 @@ struct scsi_report_key_data_title
 #define RKD_TITLE_CMGS_RSVD	0x10
 #define RKD_TITLE_CMGS_1_GEN	0x20
 #define RKD_TITLE_CMGS_NO_COPY	0x30
-	u_int8_t title_key[5];
-	u_int8_t reserved1[2];
+	uint8_t title_key[5];
+	uint8_t reserved1[2];
 };
 
 struct scsi_report_key_data_asf
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[5];
-	u_int8_t success;
+	uint8_t data_len[2];
+	uint8_t reserved[5];
+	uint8_t success;
 #define RKD_ASF_SUCCESS	0x01
 };
 
 struct scsi_report_key_data_rpc
 {
-	u_int8_t data_len[2];
-	u_int8_t rpc_scheme0;
+	uint8_t data_len[2];
+	uint8_t rpc_scheme0;
 #define RKD_RPC_SCHEME_UNKNOWN		0x00
 #define RKD_RPC_SCHEME_PHASE_II		0x01
-	u_int8_t reserved0;
-	u_int8_t byte4;
+	uint8_t reserved0;
+	uint8_t byte4;
 #define RKD_RPC_TYPE_MASK		0xC0
 #define RKD_RPC_TYPE_SHIFT		6
 #define RKD_RPC_TYPE_NONE		0x00
@@ -444,17 +444,17 @@ struct scsi_report_key_data_rpc
 #define RKD_RPC_VENDOR_RESET_SHIFT	3
 #define RKD_RPC_USER_RESET_MASK		0x07
 #define RKD_RPC_USER_RESET_SHIFT	0
-	u_int8_t region_mask;
-	u_int8_t rpc_scheme1;
-	u_int8_t reserved1;
+	uint8_t region_mask;
+	uint8_t rpc_scheme1;
+	uint8_t reserved1;
 };
 
 struct scsi_send_key_data_rpc
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t region_code;
-	u_int8_t reserved1[3];
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t region_code;
+	uint8_t reserved1[3];
 };
 
 /*
@@ -462,13 +462,13 @@ struct scsi_send_key_data_rpc
  */
 struct scsi_read_dvd_struct_data_header
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
 };
 
 struct scsi_read_dvd_struct_data_layer_desc
 {
-	u_int8_t book_type_version;
+	uint8_t book_type_version;
 #define RDSD_BOOK_TYPE_DVD_ROM	0x00
 #define RDSD_BOOK_TYPE_DVD_RAM	0x10
 #define RDSD_BOOK_TYPE_DVD_R	0x20
@@ -481,7 +481,7 @@ struct scsi_read_dvd_struct_data_layer_desc
 	 * The lower 4 bits of this field is referred to as the "minimum
 	 * rate" field in MMC2, and the "maximum rate" field in MMC3.  Ugh.
 	 */
-	u_int8_t disc_size_max_rate;
+	uint8_t disc_size_max_rate;
 #define RDSD_DISC_SIZE_120MM	0x00
 #define RDSD_DISC_SIZE_80MM	0x10
 #define RDSD_DISC_SIZE_MASK	0xf0
@@ -491,7 +491,7 @@ struct scsi_read_dvd_struct_data_layer_desc
 #define RDSD_MAX_RATE_1008	0x02
 #define RDSD_MAX_RATE_NOT_SPEC	0x0f
 #define RDSD_MAX_RATE_MASK	0x0f
-	u_int8_t layer_info;
+	uint8_t layer_info;
 #define RDSD_NUM_LAYERS_MASK	0x60
 #define RDSD_NUM_LAYERS_SHIFT	5
 #define RDSD_NL_ONE_LAYER	0x00
@@ -504,7 +504,7 @@ struct scsi_read_dvd_struct_data_layer_desc
 #define RDSD_LAYER_TYPE_RECORD	0x02
 #define RDSD_LAYER_TYPE_RW	0x04
 #define RDSD_LAYER_TYPE_MASK	0x0f
-	u_int8_t density;
+	uint8_t density;
 #define RDSD_LIN_DENSITY_0267		0x00
 #define RDSD_LIN_DENSITY_0293		0x10
 #define RDSD_LIN_DENSITY_0409_0435	0x20
@@ -517,65 +517,65 @@ struct scsi_read_dvd_struct_data_layer_desc
 #define RDSD_TRACK_DENSITY_080		0x01
 #define RDSD_TRACK_DENSITY_0615		0x02
 #define RDSD_TRACK_DENSITY_MASK		0x0f
-	u_int8_t zeros0;
-	u_int8_t main_data_start[3];
+	uint8_t zeros0;
+	uint8_t main_data_start[3];
 #define RDSD_MAIN_DATA_START_DVD_RO	0x30000
 #define RDSD_MAIN_DATA_START_DVD_RW	0x31000
-	u_int8_t zeros1;
-	u_int8_t main_data_end[3];
-	u_int8_t zeros2;
-	u_int8_t end_sector_layer0[3];
-	u_int8_t bca;
+	uint8_t zeros1;
+	uint8_t main_data_end[3];
+	uint8_t zeros2;
+	uint8_t end_sector_layer0[3];
+	uint8_t bca;
 #define RDSD_BCA	0x80
 #define RDSD_BCA_MASK	0x80
 #define RDSD_BCA_SHIFT	7
-	u_int8_t media_specific[2031];
+	uint8_t media_specific[2031];
 };
 
 struct scsi_read_dvd_struct_data_physical
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
 	struct scsi_read_dvd_struct_data_layer_desc layer_desc;
 };
 
 struct scsi_read_dvd_struct_data_copyright
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t cps_type;
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t cps_type;
 #define RDSD_CPS_NOT_PRESENT	0x00
 #define RDSD_CPS_DATA_EXISTS	0x01
-	u_int8_t region_info;
-	u_int8_t reserved1[2];
+	uint8_t region_info;
+	uint8_t reserved1[2];
 };
 
 struct scsi_read_dvd_struct_data_disc_key
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t disc_key[2048];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t disc_key[2048];
 };
 
 struct scsi_read_dvd_struct_data_bca
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t bca_info[188]; /* XXX 12-188 bytes */
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t bca_info[188]; /* XXX 12-188 bytes */
 };
 
 struct scsi_read_dvd_struct_data_manufacturer
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t manuf_info[2048];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t manuf_info[2048];
 };
 
 struct scsi_read_dvd_struct_data_copy_manage
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t byte4;
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t byte4;
 #define RDSD_CPM_NO_COPYRIGHT	0x00
 #define RDSD_CPM_HAS_COPYRIGHT	0x80
 #define RDSD_CPM_MASK		0x80
@@ -583,14 +583,14 @@ struct scsi_read_dvd_struct_data_copy_manage
 #define RDSD_CMGS_ONE_COPY	0x20
 #define RDSD_CMGS_NO_COPIES	0x30
 #define RDSD_CMGS_MASK		0x30
-	u_int8_t reserved1[3];
+	uint8_t reserved1[3];
 };
 
 struct scsi_read_dvd_struct_data_prot_discid
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t prot_discid_data[16];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t prot_discid_data[16];
 };
 
 struct scsi_read_dvd_struct_data_disc_key_blk
@@ -598,59 +598,59 @@ struct scsi_read_dvd_struct_data_disc_key_blk
 	/*
 	 * Length is 0x6ffe == 28670 for CPRM, 0x3002 == 12990 for CSS2.
 	 */
-	u_int8_t data_len[2];
-	u_int8_t reserved;
-	u_int8_t total_packs;
-	u_int8_t disc_key_pack_data[28668];
+	uint8_t data_len[2];
+	uint8_t reserved;
+	uint8_t total_packs;
+	uint8_t disc_key_pack_data[28668];
 };
 struct scsi_read_dvd_struct_data_dds
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t dds_info[2048];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t dds_info[2048];
 };
 
 struct scsi_read_dvd_struct_data_medium_status
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t byte4;
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t byte4;
 #define RDSD_MS_CARTRIDGE	0x80
 #define RDSD_MS_OUT		0x40
 #define RDSD_MS_MSWI		0x08
 #define RDSD_MS_CWP		0x04
 #define RDSD_MS_PWP		0x02
-	u_int8_t disc_type_id;
+	uint8_t disc_type_id;
 #define RDSD_DT_NEED_CARTRIDGE	0x00
 #define RDSD_DT_NO_CART_NEEDED	0x01
-	u_int8_t reserved1;
-	u_int8_t ram_swi_info;
+	uint8_t reserved1;
+	uint8_t ram_swi_info;
 #define RDSD_SWI_NO_BARE	0x01
 #define RDSD_SWI_UNSPEC		0xff
 };
 
 struct scsi_read_dvd_struct_data_spare_area
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t unused_primary[4];
-	u_int8_t unused_supl[4];
-	u_int8_t allocated_supl[4];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t unused_primary[4];
+	uint8_t unused_supl[4];
+	uint8_t allocated_supl[4];
 };
 
 struct scsi_read_dvd_struct_data_rmd_borderout
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t rmd[30720]; 	/* maximum is 30720 bytes */
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t rmd[30720]; 	/* maximum is 30720 bytes */
 };
 
 struct scsi_read_dvd_struct_data_rmd
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
-	u_int8_t last_sector_num[4];
-	u_int8_t rmd_bytes[32768];  /* This is the maximum */
+	uint8_t data_len[2];
+	uint8_t reserved[2];
+	uint8_t last_sector_num[4];
+	uint8_t rmd_bytes[32768];  /* This is the maximum */
 };
 
 /*
@@ -660,124 +660,124 @@ struct scsi_read_dvd_struct_data_rmd
  */
 struct scsi_read_dvd_struct_data_leadin
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t field_id_1;
-	u_int8_t app_code;
-	u_int8_t disc_physical_data;
-	u_int8_t last_addr[3];
-	u_int8_t reserved1[2];
-	u_int8_t field_id_2;
-	u_int8_t rwp;
-	u_int8_t rwp_wavelength;
-	u_int8_t optimum_write_strategy;
-	u_int8_t reserved2[4];
-	u_int8_t field_id_3;
-	u_int8_t manuf_id_17_12[6];
-	u_int8_t reserved3;
-	u_int8_t field_id_4;
-	u_int8_t manuf_id_11_6[6];
-	u_int8_t reserved4;
-	u_int8_t field_id_5;
-	u_int8_t manuf_id_5_0[6];
-	u_int8_t reserved5[25];
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t field_id_1;
+	uint8_t app_code;
+	uint8_t disc_physical_data;
+	uint8_t last_addr[3];
+	uint8_t reserved1[2];
+	uint8_t field_id_2;
+	uint8_t rwp;
+	uint8_t rwp_wavelength;
+	uint8_t optimum_write_strategy;
+	uint8_t reserved2[4];
+	uint8_t field_id_3;
+	uint8_t manuf_id_17_12[6];
+	uint8_t reserved3;
+	uint8_t field_id_4;
+	uint8_t manuf_id_11_6[6];
+	uint8_t reserved4;
+	uint8_t field_id_5;
+	uint8_t manuf_id_5_0[6];
+	uint8_t reserved5[25];
 };
 
 struct scsi_read_dvd_struct_data_disc_id
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[4];
-	u_int8_t random_num[2];
-	u_int8_t year[4];
-	u_int8_t month[2];
-	u_int8_t day[2];
-	u_int8_t hour[2];
-	u_int8_t minute[2];
-	u_int8_t second[2];
+	uint8_t data_len[2];
+	uint8_t reserved[4];
+	uint8_t random_num[2];
+	uint8_t year[4];
+	uint8_t month[2];
+	uint8_t day[2];
+	uint8_t hour[2];
+	uint8_t minute[2];
+	uint8_t second[2];
 };
 
 struct scsi_read_dvd_struct_data_generic_dcb
 {
-	u_int8_t content_desc[4];
+	uint8_t content_desc[4];
 #define SCSI_RCB
-	u_int8_t unknown_desc_actions[4];
+	uint8_t unknown_desc_actions[4];
 #define RDSD_ACTION_RECORDING	0x0001
 #define RDSD_ACTION_READING	0x0002
 #define RDSD_ACTION_FORMAT	0x0004
 #define RDSD_ACTION_MODIFY_DCB	0x0008
-	u_int8_t vendor_id[32];
-	u_int8_t dcb_data[32728];
+	uint8_t vendor_id[32];
+	uint8_t dcb_data[32728];
 };
 
 struct scsi_read_dvd_struct_data_dcb
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
 	struct scsi_read_dvd_struct_data_generic_dcb dcb;
 };
 
 struct read_dvd_struct_write_prot
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved0[2];
-	u_int8_t write_prot_status;
+	uint8_t data_len[2];
+	uint8_t reserved0[2];
+	uint8_t write_prot_status;
 #define RDSD_WPS_MSWI		0x08
 #define RDSD_WPS_CWP		0x04
 #define RDSD_WPS_PWP		0x02
 #define RDSD_WPS_SWPP		0x01
-	u_int8_t reserved[3];
+	uint8_t reserved[3];
 };
 
 struct read_dvd_struct_list_entry
 {
-	u_int8_t format_code;
-	u_int8_t sds_rds;
+	uint8_t format_code;
+	uint8_t sds_rds;
 #define RDSD_SDS_NOT_WRITEABLE	0x00
 #define RDSD_SDS_WRITEABLE	0x80
 #define RDSD_SDS_MASK		0x80
 #define RDSD_RDS_NOT_READABLE	0x00
 #define RDSD_RDS_READABLE	0x40
 #define RDSD_RDS_MASK		0x40
-	u_int8_t struct_len[2];
+	uint8_t struct_len[2];
 };
 
 struct read_dvd_struct_data_list
 {
-	u_int8_t data_len[2];
-	u_int8_t reserved[2];
+	uint8_t data_len[2];
+	uint8_t reserved[2];
 	struct read_dvd_struct_list_entry entries[0];
 };
 
 struct scsi_read_cd_cap_data
 {
-	u_int8_t addr_3;	/* Most significant */
-	u_int8_t addr_2;
-	u_int8_t addr_1;
-	u_int8_t addr_0;	/* Least significant */
-	u_int8_t length_3;	/* Most significant */
-	u_int8_t length_2;
-	u_int8_t length_1;
-	u_int8_t length_0;	/* Least significant */
+	uint8_t addr_3;	/* Most significant */
+	uint8_t addr_2;
+	uint8_t addr_1;
+	uint8_t addr_0;	/* Least significant */
+	uint8_t length_3;	/* Most significant */
+	uint8_t length_2;
+	uint8_t length_1;
+	uint8_t length_0;	/* Least significant */
 };
 
 struct cd_audio_page
 {
-	u_int8_t page_code;
+	uint8_t page_code;
 #define	CD_PAGE_CODE		0x3F
 #define	AUDIO_PAGE		0x0e
 #define	CD_PAGE_PS		0x80
-	u_int8_t param_len;
-	u_int8_t flags;
+	uint8_t param_len;
+	uint8_t flags;
 #define	CD_PA_SOTC		0x02
 #define	CD_PA_IMMED		0x04
-	u_int8_t unused[2];
-	u_int8_t format_lba;
+	uint8_t unused[2];
+	uint8_t format_lba;
 #define	CD_PA_FORMAT_LBA	0x0F
 #define	CD_PA_APR_VALID		0x80
-	u_int8_t lb_per_sec[2];
+	uint8_t lb_per_sec[2];
 	struct	port_control
 	{
-		u_int8_t channels;
+		uint8_t channels;
 #define	CHANNEL			0x0F
 #define	CHANNEL_0		1
 #define	CHANNEL_1		2
@@ -785,7 +785,7 @@ struct cd_audio_page
 #define	CHANNEL_3		8
 #define	LEFT_CHANNEL		CHANNEL_0
 #define	RIGHT_CHANNEL		CHANNEL_1
-		u_int8_t volume;
+		uint8_t volume;
 	} port[4];
 #define	LEFT_PORT		0
 #define	RIGHT_PORT		1
@@ -852,30 +852,30 @@ struct cd_mode_params
 	STAILQ_ENTRY(cd_mode_params)	links;
 	int				cdb_size;
 	int				alloc_len;
-	u_int8_t			*mode_buf;
+	uint8_t			*mode_buf;
 };
 
 __BEGIN_DECLS
-void scsi_report_key(struct ccb_scsiio *csio, u_int32_t retries,
+void scsi_report_key(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, u_int32_t lba, u_int8_t agid,
-		     u_int8_t key_format, u_int8_t *data_ptr,
-		     u_int32_t dxfer_len, u_int8_t sense_len,
-		     u_int32_t timeout);
+		     uint8_t tag_action, uint32_t lba, uint8_t agid,
+		     uint8_t key_format, uint8_t *data_ptr,
+		     uint32_t dxfer_len, uint8_t sense_len,
+		     uint32_t timeout);
 
-void scsi_send_key(struct ccb_scsiio *csio, u_int32_t retries,
+void scsi_send_key(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, u_int8_t agid, u_int8_t key_format,
-		   u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
-		   u_int32_t timeout);
+		   uint8_t tag_action, uint8_t agid, uint8_t key_format,
+		   uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
+		   uint32_t timeout);
 
-void scsi_read_dvd_structure(struct ccb_scsiio *csio, u_int32_t retries,
+void scsi_read_dvd_structure(struct ccb_scsiio *csio, uint32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
-			     u_int8_t tag_action, u_int32_t address,
-			     u_int8_t layer_number, u_int8_t format,
-			     u_int8_t agid, u_int8_t *data_ptr,
-			     u_int32_t dxfer_len, u_int8_t sense_len,
-			     u_int32_t timeout);
+			     uint8_t tag_action, uint32_t address,
+			     uint8_t layer_number, uint8_t format,
+			     uint8_t agid, uint8_t *data_ptr,
+			     uint32_t dxfer_len, uint8_t sense_len,
+			     uint32_t timeout);
 
 void scsi_read_toc(struct ccb_scsiio *csio, uint32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),

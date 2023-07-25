@@ -103,8 +103,8 @@ struct targbh_cmd_desc {
 	void*	  data;		/* The data. Can be from backing_store or not */
 	void*	  backing_store;/* Backing store allocated for this descriptor*/
 	u_int	  max_size;	/* Size of backing_store */
-	u_int32_t timeout;	
-	u_int8_t  status;	/* Status to return to initiator */
+	uint32_t timeout;	
+	uint8_t  status;	/* Status to return to initiator */
 };
 
 static struct scsi_inquiry_data no_lun_inq_data =
@@ -129,7 +129,7 @@ static struct scsi_sense_data_fixed no_lun_sense_data =
 static const int request_sense_size = offsetof(struct scsi_sense_data_fixed, fru);
 
 static periph_init_t	targbhinit;
-static void		targbhasync(void *callback_arg, u_int32_t code,
+static void		targbhasync(void *callback_arg, uint32_t code,
 				    struct cam_path *path, void *arg);
 static cam_status	targbhenlun(struct cam_periph *periph);
 static cam_status	targbhdislun(struct cam_periph *periph);
@@ -139,8 +139,8 @@ static periph_start_t	targbhstart;
 static void		targbhdone(struct cam_periph *periph,
 				   union ccb *done_ccb);
 #ifdef NOTYET
-static  int		targbherror(union ccb *ccb, u_int32_t cam_flags,
-				    u_int32_t sense_flags);
+static  int		targbherror(union ccb *ccb, uint32_t cam_flags,
+				    uint32_t sense_flags);
 #endif
 static struct targbh_cmd_desc*	targbhallocdescr(void);
 static void		targbhfreedescr(struct targbh_cmd_desc *buf);
@@ -172,7 +172,7 @@ targbhinit(void)
 }
 
 static void
-targbhasync(void *callback_arg, u_int32_t code,
+targbhasync(void *callback_arg, uint32_t code,
 	    struct cam_path *path, void *arg)
 {
 	struct cam_path *new_path;
@@ -537,7 +537,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		struct ccb_accept_tio *atio;
 		struct targbh_cmd_desc *descr;
-		u_int8_t *cdb;
+		uint8_t *cdb;
 		int priority;
 
 		atio = &done_ccb->atio;
@@ -731,7 +731,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 
 #ifdef NOTYET
 static int
-targbherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+targbherror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 	return 0;
 }

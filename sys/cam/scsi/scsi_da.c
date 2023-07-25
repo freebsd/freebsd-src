@@ -302,11 +302,11 @@ static const char *da_delete_method_desc[] =
 #define ccb_bp		ppriv_ptr1
 
 struct disk_params {
-	u_int8_t  heads;
-	u_int32_t cylinders;
-	u_int8_t  secs_per_track;
-	u_int32_t secsize;	/* Number of bytes/sector */
-	u_int64_t sectors;	/* total number sectors */
+	uint8_t  heads;
+	uint32_t cylinders;
+	uint8_t  secs_per_track;
+	uint32_t secsize;	/* Number of bytes/sector */
+	uint64_t sectors;	/* total number sectors */
 	u_int     stripesize;
 	u_int     stripeoffset;
 };
@@ -1470,7 +1470,7 @@ static struct da_quirk_entry da_quirk_table[] =
 static	disk_strategy_t	dastrategy;
 static	dumper_t	dadump;
 static	periph_init_t	dainit;
-static	void		daasync(void *callback_arg, u_int32_t code,
+static	void		daasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	void		dasysctlinit(void *context, int pending);
 static	int		dasysctlsofttimeout(SYSCTL_HANDLER_ARGS);
@@ -1520,8 +1520,8 @@ static void		dadone_probezone(struct cam_periph *periph,
 					 union ccb *done_ccb);
 static void		dadone_tur(struct cam_periph *periph,
 				   union ccb *done_ccb);
-static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static  int		daerror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 static void		daprevent(struct cam_periph *periph, int action);
 static void		dareprobe(struct cam_periph *periph);
 static void		dasetgeom(struct cam_periph *periph, uint32_t block_len,
@@ -1944,7 +1944,7 @@ dadump(void *arg, void *virtual, off_t offset, size_t length)
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				offset / secsize,
 				length / secsize,
-				/*data_ptr*/(u_int8_t *) virtual,
+				/*data_ptr*/(uint8_t *) virtual,
 				/*dxfer_len*/length,
 				/*sense_len*/SSD_FULL_SIZE,
 				da_default_timeout * 1000);
@@ -2101,7 +2101,7 @@ dacleanup(struct cam_periph *periph)
 }
 
 static void
-daasync(void *callback_arg, u_int32_t code,
+daasync(void *callback_arg, uint32_t code,
 	struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
@@ -3605,7 +3605,7 @@ out:
 			     /*retries*/da_retry_count,
 			     /*cbfcnp*/dadone_probelbp,
 			     /*tag_action*/MSG_SIMPLE_Q_TAG,
-			     /*inq_buf*/(u_int8_t *)lbp,
+			     /*inq_buf*/(uint8_t *)lbp,
 			     /*inq_len*/sizeof(*lbp),
 			     /*evpd*/TRUE,
 			     /*page_code*/SVPD_LBP,
@@ -3639,7 +3639,7 @@ out:
 			     /*retries*/da_retry_count,
 			     /*cbfcnp*/dadone_probeblklimits,
 			     /*tag_action*/MSG_SIMPLE_Q_TAG,
-			     /*inq_buf*/(u_int8_t *)block_limits,
+			     /*inq_buf*/(uint8_t *)block_limits,
 			     /*inq_len*/sizeof(*block_limits),
 			     /*evpd*/TRUE,
 			     /*page_code*/SVPD_BLOCK_LIMITS,
@@ -3672,7 +3672,7 @@ out:
 			     /*retries*/da_retry_count,
 			     /*cbfcnp*/dadone_probebdc,
 			     /*tag_action*/MSG_SIMPLE_Q_TAG,
-			     /*inq_buf*/(u_int8_t *)bdc,
+			     /*inq_buf*/(uint8_t *)bdc,
 			     /*inq_len*/sizeof(*bdc),
 			     /*evpd*/TRUE,
 			     /*page_code*/SVPD_BDC,
@@ -3710,7 +3710,7 @@ out:
 				  /*retries*/da_retry_count,
 				  /*cbfcnp*/dadone_probeata,
                                   /*tag_action*/MSG_SIMPLE_Q_TAG,
-				  /*data_ptr*/(u_int8_t *)ata_params,
+				  /*data_ptr*/(uint8_t *)ata_params,
 				  /*dxfer_len*/sizeof(*ata_params),
 				  /*sense_len*/SSD_FULL_SIZE,
 				  /*timeout*/da_default_timeout * 1000);
@@ -3953,7 +3953,7 @@ out:
 			     /*retries*/da_retry_count,
 			     /*cbfcnp*/dadone_probezone,
 			     /*tag_action*/MSG_SIMPLE_Q_TAG,
-			     /*inq_buf*/(u_int8_t *)bdc,
+			     /*inq_buf*/(uint8_t *)bdc,
 			     /*inq_len*/sizeof(*bdc),
 			     /*evpd*/TRUE,
 			     /*page_code*/SVPD_ZONED_BDC,
@@ -4268,7 +4268,7 @@ cmd6workaround(union ccb *ccb)
 	struct scsi_rw_6 cmd6;
 	struct scsi_rw_10 *cmd10;
 	struct da_softc *softc;
-	u_int8_t *cdb;
+	uint8_t *cdb;
 	struct bio *bp;
 	int frozen;
 
@@ -4675,7 +4675,7 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probewp\n"));
 
@@ -4759,7 +4759,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_scsiio *csio;
 	da_ccb_state state;
 	char *announce_buf;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int lbp, n;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_proberc\n"));
@@ -5045,7 +5045,7 @@ dadone_probelbp(struct cam_periph *periph, union ccb *done_ccb)
 	struct scsi_vpd_logical_block_prov *lbp;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probelbp\n"));
 
@@ -5103,7 +5103,7 @@ dadone_probeblklimits(struct cam_periph *periph, union ccb *done_ccb)
 	struct scsi_vpd_block_limits *block_limits;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeblklimits\n"));
 
@@ -5197,7 +5197,7 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 	struct scsi_vpd_block_device_characteristics *bdc;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probebdc\n"));
 
@@ -5215,7 +5215,7 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 		 * Disable queue sorting for non-rotational media
 		 * by default.
 		 */
-		u_int16_t old_rate = softc->disk->d_rotation_rate;
+		uint16_t old_rate = softc->disk->d_rotation_rate;
 
 		valid_len = csio->dxfer_len - csio->resid;
 		if (SBDC_IS_PRESENT(bdc, valid_len,
@@ -5297,7 +5297,7 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	struct ata_params *ata_params;
 	struct ccb_scsiio *csio;
 	struct da_softc *softc;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int continue_probe;
 	int error;
 
@@ -5436,7 +5436,7 @@ dadone_probeatalogdir(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int error;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeatalogdir\n"));
@@ -5517,7 +5517,7 @@ dadone_probeataiddir(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int error;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeataiddir\n"));
@@ -5608,7 +5608,7 @@ dadone_probeatasup(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
+	uint32_t  priority;
 	int error;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeatasup\n"));
@@ -5937,7 +5937,7 @@ dareprobe(struct cam_periph *periph)
 }
 
 static int
-daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
@@ -6301,11 +6301,11 @@ dashutdown(void * arg, int howto)
  * be moved so they are included both in the kernel and userland.
  */
 void
-scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_format_unit(struct ccb_scsiio *csio, uint32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
-		 u_int8_t tag_action, u_int8_t byte2, u_int16_t ileave,
-		 u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
-		 u_int32_t timeout)
+		 uint8_t tag_action, uint8_t byte2, uint16_t ileave,
+		 uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
+		 uint32_t timeout)
 {
 	struct scsi_format_unit *scsi_cmd;
 
@@ -6380,11 +6380,11 @@ scsi_read_defects(struct ccb_scsiio *csio, uint32_t retries,
 }
 
 void
-scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_sanitize(struct ccb_scsiio *csio, uint32_t retries,
 	      void (*cbfcnp)(struct cam_periph *, union ccb *),
-	      u_int8_t tag_action, u_int8_t byte2, u_int16_t control,
-	      u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
-	      u_int32_t timeout)
+	      uint8_t tag_action, uint8_t byte2, uint16_t control,
+	      uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
+	      uint32_t timeout)
 {
 	struct scsi_sanitize *scsi_cmd;
 

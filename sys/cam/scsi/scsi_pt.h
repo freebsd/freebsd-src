@@ -35,10 +35,10 @@
 
 struct scsi_send_receive
 {
-	u_int8_t opcode;
-	u_int8_t byte2;
-	u_int8_t xfer_len[3];
-	u_int8_t control;
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t xfer_len[3];
+	uint8_t control;
 };
 
 /*

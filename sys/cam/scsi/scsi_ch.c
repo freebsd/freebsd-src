@@ -96,13 +96,13 @@ __FBSDID("$FreeBSD$");
  * ELEMENT STATUS).
  */
 
-static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
-static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 5 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
-static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
+static const uint32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
+static const uint32_t	CH_TIMEOUT_MOVE_MEDIUM               = 15 * 60 * 1000;
+static const uint32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 15 * 60 * 1000;
+static const uint32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 15 * 60 * 1000;
+static const uint32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 5 * 60 * 1000;
+static const uint32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
+static const uint32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
 typedef enum {
 	CH_FLAG_INVALID		= 0x001
@@ -162,12 +162,12 @@ struct ch_softc {
 	 * The following mask defines the legal combinations
 	 * of elements for the MOVE MEDIUM command.
 	 */
-	u_int8_t	sc_movemask[CHET_MAX + 1];
+	uint8_t	sc_movemask[CHET_MAX + 1];
 
 	/*
 	 * As above, but for EXCHANGE MEDIUM.
 	 */
-	u_int8_t	sc_exchangemask[CHET_MAX + 1];
+	uint8_t	sc_exchangemask[CHET_MAX + 1];
 
 	/*
 	 * Quirks; see below.  XXX KDM not implemented yet
@@ -183,12 +183,12 @@ static  periph_ctor_t	chregister;
 static	periph_oninv_t	choninvalidate;
 static  periph_dtor_t   chcleanup;
 static  periph_start_t  chstart;
-static	void		chasync(void *callback_arg, u_int32_t code,
+static	void		chasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static	void		chdone(struct cam_periph *periph,
 			       union ccb *done_ccb);
-static	int		cherror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static	int		cherror(union ccb *ccb, uint32_t cam_flags,
+				uint32_t sense_flags);
 static	int		chmove(struct cam_periph *periph,
 			       struct changer_move *cm);
 static	int		chexchange(struct cam_periph *periph,
@@ -316,7 +316,7 @@ chcleanup(struct cam_periph *periph)
 }
 
 static void
-chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
+chasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
 
@@ -580,7 +580,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 					FALSE : TRUE,
 				/* pc */ SMS_PAGE_CTRL_CURRENT,
 				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-				/* param_buf */ (u_int8_t *)mode_buffer,
+				/* param_buf */ (uint8_t *)mode_buffer,
 				/* param_len */ mode_buffer_len,
 				/* sense_len */ SSD_FULL_SIZE,
 				/* timeout */ CH_TIMEOUT_MODE_SENSE);
@@ -732,7 +732,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+cherror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
 
 	return (cam_periph_error(ccb, cam_flags, sense_flags));
@@ -861,7 +861,7 @@ static int
 chmove(struct cam_periph *periph, struct changer_move *cm)
 {
 	struct ch_softc *softc;
-	u_int16_t fromelem, toelem;
+	uint16_t fromelem, toelem;
 	union ccb *ccb;
 	int error;
 
@@ -915,7 +915,7 @@ static int
 chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 {
 	struct ch_softc *softc;
-	u_int16_t src, dst1, dst2;
+	uint16_t src, dst1, dst2;
 	union ccb *ccb;
 	int error;
 
@@ -978,7 +978,7 @@ static int
 chposition(struct cam_periph *periph, struct changer_position *cp)
 {
 	struct ch_softc *softc;
-	u_int16_t dst;
+	uint16_t dst;
 	union ccb *ccb;
 	int error;
 
@@ -1047,13 +1047,13 @@ copy_voltag(struct changer_voltag *uvoltag, struct volume_tag *voltag)
  */
 static void
 copy_element_status(struct ch_softc *softc,
-		    u_int16_t flags,
+		    uint16_t flags,
 		    struct read_element_status_descriptor *desc,
 		    struct changer_element_status *ces,
 		    int scsi_version)
 {
-	u_int16_t eaddr = scsi_2btoul(desc->eaddr);
-	u_int16_t et;
+	uint16_t eaddr = scsi_2btoul(desc->eaddr);
+	uint16_t et;
 	struct volume_tag *pvol_tag = NULL, *avol_tag = NULL;
 	struct read_element_status_device_id *devid = NULL;
 
@@ -1442,8 +1442,8 @@ chsetvoltag(struct cam_periph *periph,
 {
 	union ccb *ccb;
 	struct ch_softc *softc;
-	u_int16_t ea;
-	u_int8_t sac;
+	uint16_t ea;
+	uint8_t sac;
 	struct scsi_send_volume_tag_parameters ssvtp;
 	int error;
 	int i;
@@ -1534,7 +1534,7 @@ chgetparams(struct cam_periph *periph)
 	struct page_element_address_assignment *ea;
 	struct page_device_capabilities *cap;
 	int error, from, dbd;
-	u_int8_t *moves, *exchanges;
+	uint8_t *moves, *exchanges;
 
 	error = 0;
 
@@ -1574,7 +1574,7 @@ chgetparams(struct cam_periph *periph)
 			/* dbd */ dbd,
 			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-			/* param_buf */ (u_int8_t *)mode_buffer,
+			/* param_buf */ (uint8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
@@ -1637,7 +1637,7 @@ chgetparams(struct cam_periph *periph)
 			/* dbd */ dbd,
 			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_DEVICE_CAP_PAGE,
-			/* param_buf */ (u_int8_t *)mode_buffer,
+			/* param_buf */ (uint8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
@@ -1727,11 +1727,11 @@ chscsiversion(struct cam_periph *periph)
 }
 
 void
-scsi_move_medium(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_move_medium(struct ccb_scsiio *csio, uint32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
-		 u_int8_t tag_action, u_int32_t tea, u_int32_t src,
-		 u_int32_t dst, int invert, u_int8_t sense_len,
-		 u_int32_t timeout)
+		 uint8_t tag_action, uint32_t tea, uint32_t src,
+		 uint32_t dst, int invert, uint8_t sense_len,
+		 uint32_t timeout)
 {
 	struct scsi_move_medium *scsi_cmd;
 
@@ -1760,11 +1760,11 @@ scsi_move_medium(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_exchange_medium(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_exchange_medium(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, u_int32_t tea, u_int32_t src,
-		     u_int32_t dst1, u_int32_t dst2, int invert1,
-		     int invert2, u_int8_t sense_len, u_int32_t timeout)
+		     uint8_t tag_action, uint32_t tea, uint32_t src,
+		     uint32_t dst1, uint32_t dst2, int invert1,
+		     int invert2, uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_exchange_medium *scsi_cmd;
 
@@ -1797,10 +1797,10 @@ scsi_exchange_medium(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_position_to_element(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_position_to_element(struct ccb_scsiio *csio, uint32_t retries,
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
-			 u_int8_t tag_action, u_int32_t tea, u_int32_t dst,
-			 int invert, u_int8_t sense_len, u_int32_t timeout)
+			 uint8_t tag_action, uint32_t tea, uint32_t dst,
+			 int invert, uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_position_to_element *scsi_cmd;
 
@@ -1828,13 +1828,13 @@ scsi_position_to_element(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_read_element_status(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_read_element_status(struct ccb_scsiio *csio, uint32_t retries,
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
-			 u_int8_t tag_action, int voltag, u_int32_t sea,
+			 uint8_t tag_action, int voltag, uint32_t sea,
 			 int curdata, int dvcid,
-			 u_int32_t count, u_int8_t *data_ptr,
-			 u_int32_t dxfer_len, u_int8_t sense_len,
-			 u_int32_t timeout)
+			 uint32_t count, uint8_t *data_ptr,
+			 uint32_t dxfer_len, uint8_t sense_len,
+			 uint32_t timeout)
 {
 	struct scsi_read_element_status *scsi_cmd;
 
@@ -1867,10 +1867,10 @@ scsi_read_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_initialize_element_status(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_initialize_element_status(struct ccb_scsiio *csio, uint32_t retries,
 			       void (*cbfcnp)(struct cam_periph *, union ccb *),
-			       u_int8_t tag_action, u_int8_t sense_len,
-			       u_int32_t timeout)
+			       uint8_t tag_action, uint8_t sense_len,
+			       uint32_t timeout)
 {
 	struct scsi_initialize_element_status *scsi_cmd;
 
@@ -1893,13 +1893,13 @@ scsi_initialize_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
+scsi_send_volume_tag(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, 
-		     u_int16_t element_address,
-		     u_int8_t send_action_code,
+		     uint8_t tag_action, 
+		     uint16_t element_address,
+		     uint8_t send_action_code,
 		     struct scsi_send_volume_tag_parameters *parameters,
-		     u_int8_t sense_len, u_int32_t timeout)
+		     uint8_t sense_len, uint32_t timeout)
 {
 	struct scsi_send_volume_tag *scsi_cmd;
 
@@ -1916,7 +1916,7 @@ scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
 		      cbfcnp,
 		      /*flags*/ CAM_DIR_OUT,
 		      tag_action,
-		      /* data_ptr */ (u_int8_t *) parameters,
+		      /* data_ptr */ (uint8_t *) parameters,
 		      sizeof(*parameters),
 		      sense_len,
 		      sizeof(*scsi_cmd),
