@@ -2720,7 +2720,22 @@ static void
 vm_map_protect_guard(vm_map_entry_t entry, vm_prot_t new_prot,
     vm_prot_t new_maxprot, int flags)
 {
+	vm_prot_t old_prot;
+
 	MPASS((entry->eflags & MAP_ENTRY_GUARD) != 0);
+	if ((entry->eflags & (MAP_ENTRY_STACK_GAP_UP |
+	    MAP_ENTRY_STACK_GAP_DN)) == 0)
+		return;
+
+	old_prot = PROT_EXTRACT(entry->offset);
+	if ((flags & VM_MAP_PROTECT_SET_MAXPROT) != 0) {
+		entry->offset = PROT_MAX(new_maxprot) |
+		    (new_maxprot & old_prot);
+	}
+	if ((flags & VM_MAP_PROTECT_SET_PROT) != 0) {
+		entry->offset = new_prot | PROT_MAX(
+		    PROT_MAX_EXTRACT(entry->offset));
+	}
 }
 
 /*
@@ -2736,7 +2751,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry, first_entry, in_tran, prev_entry;
 	vm_object_t obj;
 	struct ucred *cred;
-	vm_prot_t check_prot, old_prot;
+	vm_prot_t check_prot, max_prot, old_prot;
 	int rv;
 
 	if (start == end)
@@ -2785,10 +2800,14 @@ again:
 			vm_map_unlock(map);
 			return (KERN_INVALID_ARGUMENT);
 		}
-		if ((entry->eflags & MAP_ENTRY_GUARD) != 0) {
+		if ((entry->eflags & (MAP_ENTRY_GUARD |
+		    MAP_ENTRY_STACK_GAP_DN | MAP_ENTRY_STACK_GAP_UP)) ==
+		    MAP_ENTRY_GUARD)
 			continue;
-		}
-		if (!CONTAINS_BITS(entry->max_protection, check_prot)) {
+		max_prot = (entry->eflags & (MAP_ENTRY_STACK_GAP_DN |
+		    MAP_ENTRY_STACK_GAP_UP)) != 0 ?
+		    PROT_MAX_EXTRACT(entry->offset) : entry->max_protection;
+		if (!CONTAINS_BITS(max_prot, check_prot)) {
 			vm_map_unlock(map);
 			return (KERN_PROTECTION_FAILURE);
 		}
