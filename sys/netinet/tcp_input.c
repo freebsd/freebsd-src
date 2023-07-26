@@ -1963,6 +1963,10 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	 *	if seg contains an ACK, but not for our SYN/ACK, send a RST.
 	 */
 	case TCPS_SYN_RECEIVED:
+		if (thflags & TH_RST) {
+			/* Handle RST segments later. */
+			break;
+		}
 		if ((thflags & TH_ACK) &&
 		    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 		     SEQ_GT(th->th_ack, tp->snd_max))) {
