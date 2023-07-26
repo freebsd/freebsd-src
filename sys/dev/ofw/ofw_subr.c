@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2005 by Marius Strobl <marius@FreeBSD.org>
  * Copyright (c) 2015 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -26,6 +27,8 @@
  * The initial ofw_reg_to_paddr() implementation has been copied from powerpc
  * ofw_machdep.c OF_decode_addr(). It was added by Marcel Moolenaar, who did not
  * assert copyright with the addition but still deserves credit for the work.
+ * The powerpc OF_decode_addr() in turn was based on the sparc64 counterpart
+ * written by Marius Strobl.
  */
 
 #include <sys/cdefs.h>
