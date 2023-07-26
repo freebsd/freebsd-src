@@ -163,6 +163,7 @@ CMDFUNC(uplink);			/* incr link */
 CMDFUNC(downlink);			/* decr link */
 CMDFUNC(linkcount);			/* set link count */
 CMDFUNC(quit);				/* quit */
+CMDFUNC(quitclean);			/* quit with filesystem marked clean */
 CMDFUNC(findblk);			/* find block */
 CMDFUNC(ls);				/* list directory */
 CMDFUNC(rm);				/* remove name */
@@ -217,6 +218,7 @@ struct cmdtable cmds[] = {
 	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
 	{ "atime", "Change atime of current inode to ATIME", 2, 2, FL_WR, chatime },
 	{ "chdb", "Change db pointer N of current inode to BLKNO", 3, 3, FL_CWR, chdb },
+	{ "quitclean", "Exit with filesystem marked clean", 1, 1, FL_RO, quitclean },
 	{ "quit", "Exit", 1, 1, FL_RO, quit },
 	{ "q", "Exit", 1, 1, FL_RO, quit },
 	{ "exit", "Exit", 1, 1, FL_RO, quit },
@@ -399,6 +401,16 @@ CMDFUNCSTART(blocks)
 
 CMDFUNCSTART(quit)
 {
+    return -1;
+}
+
+CMDFUNCSTART(quitclean)
+{
+    if (fscritmodified) {
+	printf("Warning: modified filesystem marked clean\n");
+	fscritmodified = 0;
+	sblock.fs_clean = 1;
+    }
     return -1;
 }
 
