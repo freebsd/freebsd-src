@@ -624,7 +624,7 @@ rnintf(__float_t x)
  * The complications for extra precision are smaller for rnintl() since it
  * can safely assume that the rounding precision has been increased from
  * its default to FP_PE on x86.  We don't exploit that here to get small
- * optimizations from limiting the rangle to double.  We just need it for
+ * optimizations from limiting the range to double.  We just need it for
  * the magic number to work with long doubles.  ld128 callers should use
  * rnint() instead of this if possible.  ld80 callers should prefer
  * rnintl() since for amd64 this avoids swapping the register set, while
