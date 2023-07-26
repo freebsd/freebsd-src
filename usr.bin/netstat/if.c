@@ -269,6 +269,99 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
 	return (ifma);
 }
 
+enum process_op { MEASURE, EMIT };
+
+static void
+process_ifa_addr(enum process_op op, struct ifaddrs *ifa, int *max_net_len,
+    int *max_addr_len, bool *network, bool *link)
+{
+	int net_len, addr_len;
+	const char *nn, *rn;
+
+	if (op == EMIT) {
+		net_len = *max_net_len;
+		addr_len = *max_addr_len;
+	}
+
+	switch (ifa->ifa_addr->sa_family) {
+	case AF_UNSPEC:
+		if (op == MEASURE) {
+			net_len = strlen("none");
+			addr_len = strlen("none");
+		} else {
+			xo_emit("{:network/%-*.*s}  ", net_len, net_len,
+			    "none");
+			xo_emit("{:address/%-*.*s} ", addr_len, addr_len,
+			    "none");
+		}
+		break;
+	case AF_INET:
+#ifdef INET6
+	case AF_INET6:
+#endif /* INET6 */
+		nn = netname(ifa->ifa_addr, ifa->ifa_netmask);
+		rn = routename(ifa->ifa_addr, numeric_addr);
+		if (op == MEASURE) {
+			net_len = strlen(nn);
+			addr_len = strlen(rn);
+		} else {
+			xo_emit("{t:network/%-*s}  ", net_len, nn);
+			xo_emit("{t:address/%-*s} ", addr_len, rn);
+		}
+
+		if (network != NULL)
+			*network = true;
+		break;
+	case AF_LINK:
+	    {
+		struct sockaddr_dl *sdl;
+		char linknum[sizeof("<Link#32767>")];
+
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		snprintf(linknum, sizeof(linknum), "<Link#%d>", sdl->sdl_index);
+		if (op == MEASURE) {
+			net_len = strlen(linknum);
+			if (sdl->sdl_nlen == 0 &&
+			    sdl->sdl_alen == 0 &&
+			    sdl->sdl_slen == 0)
+				addr_len = 1;
+			else
+				addr_len = strlen(routename(ifa->ifa_addr, 1));
+		} else {
+			xo_emit("{t:network/%-*.*s}  ", net_len, net_len,
+			    linknum);
+			if (sdl->sdl_nlen == 0 &&
+			    sdl->sdl_alen == 0 &&
+			    sdl->sdl_slen == 0)
+				xo_emit("{P:/%*s} ", addr_len, "");
+			else
+				xo_emit("{t:address/%-*.*s} ", addr_len,
+				    addr_len, routename(ifa->ifa_addr, 1));
+		}
+		if (link != NULL)
+			*link = true;
+		break;
+	    }
+	}
+
+	if (op == MEASURE) {
+		if (net_len > *max_net_len)
+			*max_net_len = net_len;
+		if (addr_len > *max_addr_len)
+			*max_addr_len = addr_len;
+	}
+}
+
+static int
+max_num_len(int max_len, u_long num)
+{
+	int len = 2;		/* include space */
+
+	for (; num > 10; len++)
+		num /= 10;
+	return (MAX(max_len, len));
+}
+
 /*
  * Print a description of the network interfaces.
  */
@@ -278,7 +371,8 @@ intpr(void (*pfunc)(char *), int af)
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;
 	u_int ifn_len_max = 5, ifn_len;
-	u_int has_ipv6 = 0, net_len = 13, addr_len = 17;
+	u_int net_len = strlen("Network "), addr_len = strlen("Address ");
+	u_int npkt_len = 8, nbyte_len = 10, nerr_len = 5;
 
 	if (interval)
 		return sidewaysintpr();
@@ -298,39 +392,51 @@ intpr(void (*pfunc)(char *), int af)
 		if ((ifa->ifa_flags & IFF_UP) == 0)
 			++ifn_len;
 		ifn_len_max = MAX(ifn_len_max, ifn_len);
-		if (ifa->ifa_addr->sa_family == AF_INET6)
-			has_ipv6 = 1;
-	}
-	if (Wflag) {
-		if (has_ipv6) {
-			net_len = 24;
-			addr_len = 39;
-		} else
-			net_len = 18;
+		process_ifa_addr(MEASURE, ifa, &net_len, &addr_len,
+		    NULL, NULL);
+
+#define	IFA_STAT(s)	(((struct if_data *)ifa->ifa_data)->ifi_ ## s)
+		if (!hflag) {
+			npkt_len = max_num_len(npkt_len, IFA_STAT(ipackets));
+			npkt_len = max_num_len(npkt_len, IFA_STAT(opackets));
+			nerr_len = max_num_len(nerr_len, IFA_STAT(ierrors));
+			nerr_len = max_num_len(nerr_len, IFA_STAT(iqdrops));
+			nerr_len = max_num_len(nerr_len, IFA_STAT(collisions));
+			if (dflag)
+				nerr_len = max_num_len(nerr_len,
+				    IFA_STAT(oqdrops));
+			if (bflag) {
+				nbyte_len = max_num_len(nbyte_len,
+				    IFA_STAT(ibytes));
+				nbyte_len = max_num_len(nbyte_len,
+				    IFA_STAT(obytes));
+			}
+		}
 	}
 
 	xo_open_list("interface");
 	if (!pfunc) {
 		xo_emit("{T:/%-*.*s}", ifn_len_max, ifn_len_max, "Name");
-		xo_emit(" {T:/%5.5s} {T:/%-*.*s} {T:/%-*.*s} {T:/%8.8s} "
-		    "{T:/%5.5s} {T:/%5.5s}",
+		xo_emit(" {T:/%5.5s} {T:/%-*.*s}  {T:/%-*.*s} {T:/%*.*s} "
+		    "{T:/%*.*s} {T:/%*.*s}",
 		    "Mtu", net_len, net_len, "Network", addr_len, addr_len,
-		    "Address", "Ipkts", "Ierrs", "Idrop");
+		    "Address", npkt_len, npkt_len, "Ipkts",
+		    nerr_len, nerr_len, "Ierrs", nerr_len, nerr_len, "Idrop");
 		if (bflag)
-			xo_emit(" {T:/%10.10s}","Ibytes");
-		xo_emit(" {T:/%8.8s} {T:/%5.5s}", "Opkts", "Oerrs");
+			xo_emit(" {T:/%*.*s}", nbyte_len, nbyte_len, "Ibytes");
+		xo_emit(" {T:/%*.*s} {T:/%*.*s}", npkt_len, npkt_len, "Opkts",
+		    nerr_len, nerr_len, "Oerrs");
 		if (bflag)
-			xo_emit(" {T:/%10.10s}","Obytes");
-		xo_emit(" {T:/%5s}", "Coll");
+			xo_emit(" {T:/%*.*s}", nbyte_len, nbyte_len, "Obytes");
+		xo_emit(" {T:/%*s}", nerr_len, "Coll");
 		if (dflag)
-			xo_emit(" {T:/%5.5s}", "Drop");
+			xo_emit(" {T:/%*.*s}", nerr_len, nerr_len, "Drop");
 		xo_emit("\n");
 	}
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		bool network = false, link = false;
 		char *name, *xname, buf[IFNAMSIZ+1];
-		const char *nn, *rn;
 
 		if (interface != NULL && strcmp(ifa->ifa_name, interface) != 0)
 			continue;
@@ -371,72 +477,29 @@ intpr(void (*pfunc)(char *), int af)
 		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
 #undef IFA_MTU
 
-		switch (ifa->ifa_addr->sa_family) {
-		case AF_UNSPEC:
-			xo_emit("{:network/%-*.*s} ", net_len, net_len,
-			    "none");
-			xo_emit("{:address/%-*.*s} ", addr_len, addr_len,
-			    "none");
-			break;
-		case AF_INET:
-#ifdef INET6
-		case AF_INET6:
-#endif /* INET6 */
-			nn = netname(ifa->ifa_addr, ifa->ifa_netmask);
-			rn = routename(ifa->ifa_addr, numeric_addr);
-			if (Wflag) {
-				xo_emit("{t:network/%-*s} ", net_len, nn);
-				xo_emit("{t:address/%-*s} ", addr_len, rn);
-			} else {
-				xo_emit("{d:network/%-*.*s}{et:network} ",
-				    net_len, net_len, nn, nn);
-				xo_emit("{d:address/%-*.*s}{et:address} ",
-				    addr_len, addr_len, rn, rn);
-			}
+		process_ifa_addr(EMIT, ifa, &net_len, &addr_len,
+		    &network, &link);
 
-			network = true;
-			break;
-		case AF_LINK:
-		    {
-			struct sockaddr_dl *sdl;
-			char linknum[sizeof("<Link#32767>")];
-
-			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-			snprintf(linknum, sizeof(linknum), "<Link#%d>", sdl->sdl_index);
-			xo_emit("{t:network/%-*.*s} ", net_len, net_len,
-			    linknum);
-			if (sdl->sdl_nlen == 0 &&
-			    sdl->sdl_alen == 0 &&
-			    sdl->sdl_slen == 0)
-				xo_emit("{P:/%*s} ", addr_len, "");
-			else
-				xo_emit("{t:address/%-*.*s} ", addr_len,
-				    addr_len, routename(ifa->ifa_addr, 1));
-			link = true;
-			break;
-		    }
-		}
-
-#define	IFA_STAT(s)	(((struct if_data *)ifa->ifa_data)->ifi_ ## s)
-		show_stat("lu", 8, "received-packets", IFA_STAT(ipackets),
-		    link|network, 1);
-		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors),
+		show_stat("lu", npkt_len, "received-packets",
+		    IFA_STAT(ipackets), link|network, 1);
+		show_stat("lu", nerr_len, "received-errors", IFA_STAT(ierrors),
 		    link, 1);
-		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops),
+		show_stat("lu", nerr_len, "dropped-packets", IFA_STAT(iqdrops),
 		    link, 1);
 		if (bflag)
-			show_stat("lu", 10, "received-bytes", IFA_STAT(ibytes),
-			    link|network, 0);
-		show_stat("lu", 8, "sent-packets", IFA_STAT(opackets),
+			show_stat("lu", nbyte_len, "received-bytes",
+			    IFA_STAT(ibytes), link|network, 0);
+		show_stat("lu", npkt_len, "sent-packets", IFA_STAT(opackets),
 		    link|network, 1);
-		show_stat("lu", 5, "send-errors", IFA_STAT(oerrors), link, 1);
+		show_stat("lu", nerr_len, "send-errors", IFA_STAT(oerrors),
+		    link, 1);
 		if (bflag)
-			show_stat("lu", 10, "sent-bytes", IFA_STAT(obytes),
-			    link|network, 0);
-		show_stat("NRSlu", 5, "collisions", IFA_STAT(collisions),
+			show_stat("lu", nbyte_len, "sent-bytes",
+			    IFA_STAT(obytes), link|network, 0);
+		show_stat("NRSlu", nerr_len, "collisions", IFA_STAT(collisions),
 		    link, 1);
 		if (dflag)
-			show_stat("LSlu", 5, "dropped-packets",
+			show_stat("LSlu", nerr_len, "dropped-packets",
 			    IFA_STAT(oqdrops), link, 1);
 		xo_emit("\n");
 
