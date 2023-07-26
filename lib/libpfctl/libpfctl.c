@@ -68,6 +68,8 @@ pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
 	int ret;
 
 	data = nvlist_pack(*nvl, &nvlen);
+	if (nvlen > size)
+		size = nvlen;
 
 retry:
 	nv.data = malloc(size);
