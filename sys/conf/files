@@ -3740,7 +3740,6 @@ geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_ldm.c		optional geom_part_ldm
 geom/part/g_part_mbr.c		optional geom_part_mbr
-geom/part/g_part_vtoc8.c	optional geom_part_vtoc8
 geom/raid/g_raid.c		optional geom_raid
 geom/raid/g_raid_ctl.c		optional geom_raid
 geom/raid/g_raid_md_if.m	optional geom_raid
