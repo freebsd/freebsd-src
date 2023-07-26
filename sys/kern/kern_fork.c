@@ -989,6 +989,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		 * lock.
 		 */
 		sx_sunlock(&pg->pg_killsx);
+		killsx_locked = false;
 		error = ERESTART;
 		goto fail2;
 	} else {
