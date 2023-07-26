@@ -117,15 +117,12 @@ main(int argc, char *argv[])
 
 	initctls(m);
 
-	if (dflag && set_dunit(m, dunit) < 0)
-		goto parse;
-	if (sflag) {
+	if (((!dflag || set_dunit(m, dunit) >= 0) && sflag)) {
 		printrecsrc(m, oflag);
 		(void)mixer_close(m);
 		return (0);
 	}
 
-parse:
 	while (argc > 0) {
 		if ((p = strdup(*argv)) == NULL)
 			err(1, "strdup(%s)", *argv);
