@@ -115,6 +115,7 @@ static TAILQ_HEAD(seghd, suj_seg) allsegs;
 static uint64_t oldseq;
 static struct fs *fs = NULL;
 static ino_t sujino;
+static char *joptype[JOP_NUMJOPTYPES] = JOP_NAMES;
 
 /*
  * Summary statistics.
@@ -1446,9 +1447,9 @@ ino_check(struct suj_ino *sino)
 			err_suj("Inode mode/directory type mismatch %o != %o\n",
 			    mode, rrec->jr_mode);
 		if (debug)
-			printf("jrefrec: op %d ino %ju, nlink %ju, parent %ju, "
+			printf("jrefrec: op %s ino %ju, nlink %ju, parent %ju, "
 			    "diroff %jd, mode %o, isat %d, isdot %d\n",
-			    rrec->jr_op, (uintmax_t)rrec->jr_ino,
+			    JOP_OPTYPE(rrec->jr_op), (uintmax_t)rrec->jr_ino,
 			    (uintmax_t)rrec->jr_nlink,
 			    (uintmax_t)rrec->jr_parent,
 			    (uintmax_t)rrec->jr_diroff,
@@ -1512,9 +1513,10 @@ blk_check(struct suj_blk *sblk)
 			sino->si_blkadj = 1;
 		}
 		if (debug)
-			printf("op %d blk %jd ino %ju lbn %jd frags %d isat %d "
-			    "(%d)\n", brec->jb_op, blk, (uintmax_t)brec->jb_ino,
-			    brec->jb_lbn, brec->jb_frags, isat, frags);
+			printf("op %s blk %jd ino %ju lbn %jd frags %d isat %d "
+			    "(%d)\n", JOP_OPTYPE(brec->jb_op), blk,
+			    (uintmax_t)brec->jb_ino, brec->jb_lbn,
+			    brec->jb_frags, isat, frags);
 		/*
 		 * If we found the block at this address we still have to
 		 * determine if we need to free the tail end that was
@@ -1696,9 +1698,9 @@ ino_append(union jrec *rec)
 		    (uintmax_t)mvrec->jm_newoff, (uintmax_t)mvrec->jm_oldoff);
 	else if (debug &&
 	    (refrec->jr_op == JOP_ADDREF || refrec->jr_op == JOP_REMREF))
-		printf("ino ref: op %d, ino %ju, nlink %ju, "
+		printf("ino ref: op %s, ino %ju, nlink %ju, "
 		    "parent %ju, diroff %jd\n",
-		    refrec->jr_op, (uintmax_t)refrec->jr_ino,
+		    JOP_OPTYPE(refrec->jr_op), (uintmax_t)refrec->jr_ino,
 		    (uintmax_t)refrec->jr_nlink,
 		    (uintmax_t)refrec->jr_parent, (uintmax_t)refrec->jr_diroff);
 	sino = ino_lookup(((struct jrefrec *)rec)->jr_ino, 1);
@@ -1858,8 +1860,8 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 			TAILQ_REMOVE(&sino->si_newrecs, srn, sr_next);
 			break;
 		default:
-			err_suj("ino_build_ref: Unknown op %d\n",
-			    srn->sr_rec->rec_jrefrec.jr_op);
+			err_suj("ino_build_ref: Unknown op %s\n",
+			    JOP_OPTYPE(srn->sr_rec->rec_jrefrec.jr_op));
 		}
 	}
 	ino_add_ref(sino, srec);
@@ -1888,8 +1890,8 @@ ino_build(struct suj_ino *sino)
 			TAILQ_INSERT_TAIL(&sino->si_movs, srec, sr_next);
 			break;
 		default:
-			err_suj("ino_build: Unknown op %d\n",
-			    srec->sr_rec->rec_jrefrec.jr_op);
+			err_suj("ino_build: Unknown op %s\n",
+			    JOP_OPTYPE(srec->sr_rec->rec_jrefrec.jr_op));
 		}
 	}
 	if (TAILQ_EMPTY(&sino->si_recs))
@@ -1911,9 +1913,9 @@ blk_build(struct jblkrec *blkrec)
 	int frag;
 
 	if (debug)
-		printf("blk_build: op %d blkno %jd frags %d oldfrags %d "
+		printf("blk_build: op %s blkno %jd frags %d oldfrags %d "
 		    "ino %ju lbn %jd\n",
-		    blkrec->jb_op, (uintmax_t)blkrec->jb_blkno,
+		    JOP_OPTYPE(blkrec->jb_op), (uintmax_t)blkrec->jb_blkno,
 		    blkrec->jb_frags, blkrec->jb_oldfrags,
 		    (uintmax_t)blkrec->jb_ino, (uintmax_t)blkrec->jb_lbn);
 
@@ -2018,8 +2020,8 @@ suj_build(void)
 				ino_build_trunc((struct jtrncrec *)rec);
 				break;
 			default:
-				err_suj("Unknown journal operation %d (%d)\n",
-				    rec->rec_jrefrec.jr_op, off);
+				err_suj("Unknown journal operation %s at %d\n",
+				    JOP_OPTYPE(rec->rec_jrefrec.jr_op), off);
 			}
 			i++;
 		}
