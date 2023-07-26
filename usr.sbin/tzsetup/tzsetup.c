@@ -713,7 +713,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 		snprintf(prompt, sizeof(prompt),
 		    "Creating symbolic link %s to %s",
 		    path_localtime, zoneinfo_file);
-		message_zoneinfo_file("Info", prompt);
+	message_zoneinfo_file("Info", prompt);
 #endif
 
 	if (reallydoit) {
