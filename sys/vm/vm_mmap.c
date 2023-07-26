@@ -1577,12 +1577,12 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		return (EINVAL);
 
 	if ((flags & MAP_FIXED) == 0) {
-		fitit = TRUE;
+		fitit = true;
 		*addr = round_page(*addr);
 	} else {
 		if (*addr != trunc_page(*addr))
 			return (EINVAL);
-		fitit = FALSE;
+		fitit = false;
 	}
 
 	if (flags & MAP_ANON) {
