@@ -32,6 +32,13 @@ public:
 
   const char *GetSignalAsCString(int32_t signo) const;
 
+  std::string
+  GetSignalDescription(int32_t signo,
+                       std::optional<int32_t> code = std::nullopt,
+                       std::optional<lldb::addr_t> addr = std::nullopt,
+                       std::optional<lldb::addr_t> lower = std::nullopt,
+                       std::optional<lldb::addr_t> upper = std::nullopt) const;
+
   bool SignalIsValid(int32_t signo) const;
 
   int32_t GetSignalNumberFromName(const char *name) const;
@@ -70,8 +77,6 @@ public:
 
   int32_t GetSignalAtIndex(int32_t index) const;
 
-  ConstString GetShortName(ConstString name) const;
-
   // We assume that the elements of this object are constant once it is
   // constructed, since a process should never need to add or remove symbols as
   // it runs.  So don't call these functions anywhere but the constructor of
@@ -81,6 +86,14 @@ public:
   void AddSignal(int signo, const char *name, bool default_suppress,
                  bool default_stop, bool default_notify,
                  const char *description, const char *alias = nullptr);
+
+  enum SignalCodePrintOption { None, Address, Bounds };
+
+  // Instead of calling this directly, use a ADD_SIGCODE macro to get compile
+  // time checks when on the native platform.
+  void AddSignalCode(
+      int signo, int code, const llvm::StringLiteral description,
+      SignalCodePrintOption print_option = SignalCodePrintOption::None);
 
   void RemoveSignal(int signo);
 
@@ -111,10 +124,16 @@ public:
 protected:
   // Classes that inherit from UnixSignals can see and modify these
 
+  struct SignalCode {
+    const llvm::StringLiteral m_description;
+    const SignalCodePrintOption m_print_option;
+  };
+
   struct Signal {
     ConstString m_name;
     ConstString m_alias;
     std::string m_description;
+    std::map<int32_t, SignalCode> m_codes;
     uint32_t m_hit_count = 0;
     bool m_suppress : 1, m_stop : 1, m_notify : 1;
     bool m_default_suppress : 1, m_default_stop : 1, m_default_notify : 1;
@@ -125,6 +144,8 @@ protected:
     ~Signal() = default;
     void Reset(bool reset_stop, bool reset_notify, bool reset_suppress);
   };
+
+  llvm::StringRef GetShortName(llvm::StringRef name) const;
 
   virtual void Reset();
 

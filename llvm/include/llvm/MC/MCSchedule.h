@@ -58,14 +58,26 @@ struct MCProcResourceDesc {
   }
 };
 
-/// Identify one of the processor resource kinds consumed by a particular
-/// scheduling class for the specified number of cycles.
+/// Identify one of the processor resource kinds consumed by a
+/// particular scheduling class for the specified number of cycles.
+/// TODO: consider renaming the field `StartAtCycle` and `Cycles` to
+/// `AcquireAtCycle` and `ReleaseAtCycle` respectively, to stress the
+/// fact that resource allocation is now represented as an interval,
+/// relatively to the issue cycle of the instruction.
 struct MCWriteProcResEntry {
   uint16_t ProcResourceIdx;
+  /// Cycle at which the resource will be released by an instruction,
+  /// relatively to the cycle in which the instruction is issued
+  /// (assuming no stalls inbetween).
   uint16_t Cycles;
+  /// Cycle at which the resource will be grabbed by an instruction,
+  /// relatively to the cycle in which the instruction is issued
+  /// (assuming no stalls inbetween).
+  uint16_t StartAtCycle;
 
   bool operator==(const MCWriteProcResEntry &Other) const {
-    return ProcResourceIdx == Other.ProcResourceIdx && Cycles == Other.Cycles;
+    return ProcResourceIdx == Other.ProcResourceIdx && Cycles == Other.Cycles &&
+           StartAtCycle == Other.StartAtCycle;
   }
 };
 
@@ -300,6 +312,11 @@ struct MCSchedModel {
   bool PostRAScheduler; // default value is false
 
   bool CompleteModel;
+
+  // Tells the MachineScheduler whether or not to track resource usage
+  // using intervals via ResourceSegments (see
+  // llvm/include/llvm/CodeGen/MachineScheduler.h).
+  bool EnableIntervals;
 
   unsigned ProcID;
   const MCProcResourceDesc *ProcResourceTable;

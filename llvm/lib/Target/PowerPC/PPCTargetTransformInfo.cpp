@@ -517,7 +517,7 @@ unsigned PPCTTIImpl::getPrefetchDistance() const {
   return 300;
 }
 
-unsigned PPCTTIImpl::getMaxInterleaveFactor(unsigned VF) {
+unsigned PPCTTIImpl::getMaxInterleaveFactor(ElementCount VF) {
   unsigned Directive = ST->getCPUDirective();
   // The 440 has no SIMD support, but floating-point instructions
   // have a 5-cycle latency, so unroll by 5x for latency hiding.
@@ -1079,17 +1079,5 @@ InstructionCost PPCTTIImpl::getVPMemoryOpCost(unsigned Opcode, Type *Src,
 }
 
 bool PPCTTIImpl::supportsTailCallFor(const CallBase *CB) const {
-  // Subtargets using PC-Relative addressing supported.
-  if (ST->isUsingPCRelativeCalls())
-    return true;
-
-  const Function *Callee = CB->getCalledFunction();
-  // Indirect calls and variadic argument functions not supported.
-  if (!Callee || Callee->isVarArg())
-    return false;
-
-  const Function *Caller = CB->getCaller();
-  // Support if we can share TOC base.
-  return ST->getTargetMachine().shouldAssumeDSOLocal(*Caller->getParent(),
-                                                     Callee);
+  return TLI->supportsTailCallFor(CB);
 }

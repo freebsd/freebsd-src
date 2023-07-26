@@ -64,7 +64,7 @@ class MarshallingInfo {
 public:
   static constexpr const char *MacroName = "OPTION_WITH_MARSHALLING";
   const Record &R;
-  bool ShouldAlwaysEmit;
+  bool ShouldAlwaysEmit = false;
   StringRef MacroPrefix;
   StringRef KeyPath;
   StringRef DefaultValue;
@@ -212,8 +212,7 @@ static MarshallingInfo createMarshallingInfo(const Record &R) {
 /// OptParserEmitter - This tablegen backend takes an input .td file
 /// describing a list of options and emits a data structure for parsing and
 /// working with those options when given an input command line.
-namespace llvm {
-void EmitOptParser(RecordKeeper &Records, raw_ostream &OS) {
+static void EmitOptParser(RecordKeeper &Records, raw_ostream &OS) {
   // Get the option groups and options.
   const std::vector<Record*> &Groups =
     Records.getAllDerivedDefinitions("OptionGroup");
@@ -499,4 +498,6 @@ void EmitOptParser(RecordKeeper &Records, raw_ostream &OS) {
 
   OS << "\n";
 }
-} // end namespace llvm
+
+static TableGen::Emitter::Opt X("gen-opt-parser-defs", EmitOptParser,
+                                "Generate option definitions");

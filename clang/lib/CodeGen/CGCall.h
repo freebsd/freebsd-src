@@ -30,6 +30,7 @@ class Value;
 namespace clang {
 class Decl;
 class FunctionDecl;
+class TargetOptions;
 class VarDecl;
 
 namespace CodeGen {
@@ -108,9 +109,6 @@ public:
     AbstractInfo = abstractInfo;
     assert(functionPtr && "configuring callee without function pointer");
     assert(functionPtr->getType()->isPointerTy());
-    assert(functionPtr->getType()->isOpaquePointerTy() ||
-           functionPtr->getType()->getNonOpaquePointerElementType()
-               ->isFunctionTy());
   }
 
   static CGCallee forBuiltin(unsigned builtinID,
@@ -376,6 +374,14 @@ public:
   bool isUnused() const { return IsUnused; }
   bool isExternallyDestructed() const { return IsExternallyDestructed; }
 };
+
+/// Helper to add attributes to \p F according to the CodeGenOptions and
+/// LangOptions without requiring a CodeGenModule to be constructed.
+void mergeDefaultFunctionDefinitionAttributes(llvm::Function &F,
+                                              const CodeGenOptions CodeGenOpts,
+                                              const LangOptions &LangOpts,
+                                              const TargetOptions &TargetOpts,
+                                              bool WillInternalize);
 
 } // end namespace CodeGen
 } // end namespace clang

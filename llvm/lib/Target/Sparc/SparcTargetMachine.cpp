@@ -17,7 +17,6 @@
 #include "TargetInfo/SparcTargetInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/MC/TargetRegistry.h"
 #include <optional>
 using namespace llvm;
@@ -31,6 +30,10 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSparcTarget() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeSparcDAGToDAGISelPass(PR);
 }
+
+static cl::opt<bool>
+    BranchRelaxation("sparc-enable-branch-relax", cl::Hidden, cl::init(true),
+                     cl::desc("Relax out of range conditional branches"));
 
 static std::string computeDataLayout(const Triple &T, bool is64Bit) {
   // Sparc is typically big endian, but some are little.
@@ -182,6 +185,9 @@ bool SparcPassConfig::addInstSelector() {
 }
 
 void SparcPassConfig::addPreEmitPass(){
+  if (BranchRelaxation)
+    addPass(&BranchRelaxationPassID);
+
   addPass(createSparcDelaySlotFillerPass());
 
   if (this->getSparcTargetMachine().getSubtargetImpl()->insertNOPLoad())

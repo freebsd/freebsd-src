@@ -36,6 +36,8 @@ multiclass B<string name, string help1, string help2> {
 
 defm auxiliary: Eq<"auxiliary", "Set DT_AUXILIARY field to the specified name">;
 
+def be8: F<"be8">, HelpText<"write a Big Endian ELF file using BE8 format (AArch32 only)">;
+
 def Bno_symbolic: F<"Bno-symbolic">, HelpText<"Don't bind default visibility defined symbols locally for -shared (default)">;
 
 def Bsymbolic: F<"Bsymbolic">, HelpText<"Bind default visibility defined symbols locally for -shared">;
@@ -79,6 +81,18 @@ defm split_stack_adjust_size
       MetaVarName<"<value>">;
 
 def O: JoinedOrSeparate<["-"], "O">, HelpText<"Optimize output file size">;
+
+def cmse_implib: FF<"cmse-implib">,
+  HelpText<"Make the output library to be a CMSE secure code import library">;
+
+defm in_implib: EEq<"in-implib",
+    "Read an existing CMSE secure code import library and preserve entry function addresses in the "
+    "resulting new CMSE secure code import library (optional when creating a CMSE secure image)">,
+  MetaVarName<"<file>">;
+
+defm out_implib: EEq<"out-implib",
+    "Output the CMSE secure code import library to <file> (required when creating a CMSE secure image)">,
+  MetaVarName<"<file>">;
 
 defm Tbss: Eq<"Tbss", "Same as --section-start with .bss as the sectionname">;
 
@@ -351,9 +365,24 @@ def push_state: F<"push-state">,
 def print_map: F<"print-map">,
   HelpText<"Print a link map to the standard output">;
 
+def print_memory_usage: F<"print-memory-usage">,
+  HelpText<"Report target memory usage">;
+
 defm relax: BB<"relax",
   "Enable target-specific relaxations if supported (default)",
   "Disable target-specific relaxations">;
+
+defm relax_gp: BB<"relax-gp",
+  "Enable global pointer relaxation",
+  "Disable global pointer relaxation (default)">;
+
+defm remap_inputs: EEq<"remap-inputs",
+  "Remap input files matching <from-glob> to <to-file>">,
+  MetaVarName<"<from-glob>=<to-file>">;
+
+def remap_inputs_file: JJ<"remap-inputs-file=">,
+  HelpText<"Each line contains 'from-glob=to-file'. An input file matching <from-glob> is remapped to <to-file>">,
+  MetaVarName<"<file>">;
 
 defm reproduce:
   EEq<"reproduce",
@@ -548,18 +577,21 @@ def: JoinedOrSeparate<["-"], "u">, Alias<undefined>, HelpText<"Alias for --undef
 def: Flag<["-"], "V">, Alias<v>, HelpText<"Alias for -v">;
 
 // LTO-related options.
+
+def lto: JJ<"lto=">, HelpText<"Set LTO backend">,
+                 MetaVarName<"[full,thin]">;
 def lto_aa_pipeline: JJ<"lto-aa-pipeline=">,
   HelpText<"AA pipeline to run during LTO. Used in conjunction with -lto-newpm-passes">;
 def lto_debug_pass_manager: FF<"lto-debug-pass-manager">,
   HelpText<"Debug new pass manager">;
 def lto_emit_asm: FF<"lto-emit-asm">,
   HelpText<"Emit assembly code">;
-def no_lto_legacy_pass_manager: FF<"no-lto-legacy-pass-manager">,
-  HelpText<"Use the new pass manager in LLVM">;
 def lto_newpm_passes: JJ<"lto-newpm-passes=">,
   HelpText<"Passes to run during LTO">;
 def lto_O: JJ<"lto-O">, MetaVarName<"<opt-level>">,
   HelpText<"Optimization level for LTO">;
+def lto_CGO: JJ<"lto-CGO">, MetaVarName<"<cgopt-level>">,
+  HelpText<"Codegen optimization level for LTO">;
 def lto_partitions: JJ<"lto-partitions=">,
   HelpText<"Number of LTO codegen partitions">;
 def lto_cs_profile_generate: FF<"lto-cs-profile-generate">,
@@ -567,7 +599,7 @@ def lto_cs_profile_generate: FF<"lto-cs-profile-generate">,
 def lto_cs_profile_file: JJ<"lto-cs-profile-file=">,
   HelpText<"Context sensitive profile file path">;
 defm lto_pgo_warn_mismatch: BB<"lto-pgo-warn-mismatch",
-  "turn on warnings about profile cfg mismatch (default)>",
+  "turn on warnings about profile cfg mismatch (default)",
   "turn off warnings about profile cfg mismatch">;
 def lto_obj_path_eq: JJ<"lto-obj-path=">;
 def lto_sample_profile: JJ<"lto-sample-profile=">,
@@ -627,8 +659,6 @@ def plugin_opt_emit_llvm: F<"plugin-opt=emit-llvm">;
 def: J<"plugin-opt=jobs=">, Alias<thinlto_jobs_eq>, HelpText<"Alias for --thinlto-jobs=">;
 def: J<"plugin-opt=lto-partitions=">, Alias<lto_partitions>, HelpText<"Alias for --lto-partitions">;
 def plugin_opt_mcpu_eq: J<"plugin-opt=mcpu=">;
-def: F<"plugin-opt=new-pass-manager">,
-  Alias<no_lto_legacy_pass_manager>, HelpText<"Alias for --no-lto-legacy-pass-manager">;
 def: F<"plugin-opt=cs-profile-generate">,
   Alias<lto_cs_profile_generate>, HelpText<"Alias for --lto-cs-profile-generate">;
 def: J<"plugin-opt=cs-profile-path=">,
@@ -638,8 +668,6 @@ def: J<"plugin-opt=obj-path=">,
   HelpText<"Alias for --lto-obj-path=">;
 def plugin_opt_opaque_pointers: F<"plugin-opt=opaque-pointers">,
   HelpText<"Use opaque pointers in IR during LTO (default)">;
-def plugin_opt_no_opaque_pointers: F<"plugin-opt=no-opaque-pointers">,
-  HelpText<"Use typed pointers in IR during LTO">;
 def: J<"plugin-opt=opt-remarks-filename=">,
   Alias<opt_remarks_filename>,
   HelpText<"Alias for --opt-remarks-filename">;

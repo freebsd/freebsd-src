@@ -29,6 +29,14 @@ void LangOptions::resetNonModularOptions() {
   Name = static_cast<unsigned>(Default);
 #include "clang/Basic/LangOptions.def"
 
+  // Reset "benign" options with implied values (Options.td ImpliedBy relations)
+  // rather than their defaults. This avoids unexpected combinations and
+  // invocations that cannot be round-tripped to arguments.
+  // FIXME: we should derive this automatically from ImpliedBy in tablegen.
+  AllowFPReassoc = UnsafeFPMath;
+  NoHonorNaNs = FiniteMathOnly;
+  NoHonorInfs = FiniteMathOnly;
+
   // These options do not affect AST generation.
   NoSanitizeFiles.clear();
   XRayAlwaysInstrumentFiles.clear();
@@ -109,7 +117,8 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   Opts.CPlusPlus14 = Std.isCPlusPlus14();
   Opts.CPlusPlus17 = Std.isCPlusPlus17();
   Opts.CPlusPlus20 = Std.isCPlusPlus20();
-  Opts.CPlusPlus2b = Std.isCPlusPlus2b();
+  Opts.CPlusPlus23 = Std.isCPlusPlus23();
+  Opts.CPlusPlus26 = Std.isCPlusPlus26();
   Opts.GNUMode = Std.isGNUMode();
   Opts.GNUCVersion = 0;
   Opts.HexFloats = Std.hasHexFloats();

@@ -13,13 +13,12 @@
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Triple.h"
-#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
@@ -28,11 +27,10 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SpecialCaseList.h"
 #include "llvm/Support/VirtualFileSystem.h"
-#include "llvm/Transforms/Instrumentation.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
@@ -249,10 +247,6 @@ private:
                                        const char *Section);
   std::pair<Value *, Value *> CreateSecStartEnd(Module &M, const char *Section,
                                                 Type *Ty);
-
-  void SetNoSanitizeMetadata(Instruction *I) {
-    I->setMetadata(LLVMContext::MD_nosanitize, MDNode::get(*C, std::nullopt));
-  }
 
   std::string getSectionName(const std::string &Section) const;
   std::string getSectionStart(const std::string &Section) const;
@@ -809,7 +803,7 @@ void ModuleSanitizerCoverage::InjectCoverageForIndirectCalls(
   assert(Options.TracePC || Options.TracePCGuard ||
          Options.Inline8bitCounters || Options.InlineBoolFlag);
   for (auto *I : IndirCalls) {
-    IRBuilder<> IRB(I);
+    InstrumentationIRBuilder IRB(I);
     CallBase &CB = cast<CallBase>(*I);
     Value *Callee = CB.getCalledOperand();
     if (isa<InlineAsm>(Callee))
@@ -826,7 +820,7 @@ void ModuleSanitizerCoverage::InjectTraceForSwitch(
     Function &, ArrayRef<Instruction *> SwitchTraceTargets) {
   for (auto *I : SwitchTraceTargets) {
     if (SwitchInst *SI = dyn_cast<SwitchInst>(I)) {
-      IRBuilder<> IRB(I);
+      InstrumentationIRBuilder IRB(I);
       SmallVector<Constant *, 16> Initializers;
       Value *Cond = SI->getCondition();
       if (Cond->getType()->getScalarSizeInBits() >
@@ -864,7 +858,7 @@ void ModuleSanitizerCoverage::InjectTraceForSwitch(
 void ModuleSanitizerCoverage::InjectTraceForDiv(
     Function &, ArrayRef<BinaryOperator *> DivTraceTargets) {
   for (auto *BO : DivTraceTargets) {
-    IRBuilder<> IRB(BO);
+    InstrumentationIRBuilder IRB(BO);
     Value *A1 = BO->getOperand(1);
     if (isa<ConstantInt>(A1)) continue;
     if (!A1->getType()->isIntegerTy())
@@ -882,7 +876,7 @@ void ModuleSanitizerCoverage::InjectTraceForDiv(
 void ModuleSanitizerCoverage::InjectTraceForGep(
     Function &, ArrayRef<GetElementPtrInst *> GepTraceTargets) {
   for (auto *GEP : GepTraceTargets) {
-    IRBuilder<> IRB(GEP);
+    InstrumentationIRBuilder IRB(GEP);
     for (Use &Idx : GEP->indices())
       if (!isa<ConstantInt>(Idx) && Idx->getType()->isIntegerTy())
         IRB.CreateCall(SanCovTraceGepFunction,
@@ -904,7 +898,7 @@ void ModuleSanitizerCoverage::InjectTraceForLoadsAndStores(
   Type *PointerType[5] = {Int8PtrTy, Int16PtrTy, Int32PtrTy, Int64PtrTy,
                           Int128PtrTy};
   for (auto *LI : Loads) {
-    IRBuilder<> IRB(LI);
+    InstrumentationIRBuilder IRB(LI);
     auto Ptr = LI->getPointerOperand();
     int Idx = CallbackIdx(LI->getType());
     if (Idx < 0)
@@ -913,7 +907,7 @@ void ModuleSanitizerCoverage::InjectTraceForLoadsAndStores(
                    IRB.CreatePointerCast(Ptr, PointerType[Idx]));
   }
   for (auto *SI : Stores) {
-    IRBuilder<> IRB(SI);
+    InstrumentationIRBuilder IRB(SI);
     auto Ptr = SI->getPointerOperand();
     int Idx = CallbackIdx(SI->getValueOperand()->getType());
     if (Idx < 0)
@@ -927,7 +921,7 @@ void ModuleSanitizerCoverage::InjectTraceForCmp(
     Function &, ArrayRef<Instruction *> CmpTraceTargets) {
   for (auto *I : CmpTraceTargets) {
     if (ICmpInst *ICMP = dyn_cast<ICmpInst>(I)) {
-      IRBuilder<> IRB(ICMP);
+      InstrumentationIRBuilder IRB(ICMP);
       Value *A0 = ICMP->getOperand(0);
       Value *A1 = ICMP->getOperand(1);
       if (!A0->getType()->isIntegerTy())
@@ -994,8 +988,8 @@ void ModuleSanitizerCoverage::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
     auto Load = IRB.CreateLoad(Int8Ty, CounterPtr);
     auto Inc = IRB.CreateAdd(Load, ConstantInt::get(Int8Ty, 1));
     auto Store = IRB.CreateStore(Inc, CounterPtr);
-    SetNoSanitizeMetadata(Load);
-    SetNoSanitizeMetadata(Store);
+    Load->setNoSanitizeMetadata();
+    Store->setNoSanitizeMetadata();
   }
   if (Options.InlineBoolFlag) {
     auto FlagPtr = IRB.CreateGEP(
@@ -1006,8 +1000,8 @@ void ModuleSanitizerCoverage::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
         SplitBlockAndInsertIfThen(IRB.CreateIsNull(Load), &*IP, false);
     IRBuilder<> ThenIRB(ThenTerm);
     auto Store = ThenIRB.CreateStore(ConstantInt::getTrue(Int1Ty), FlagPtr);
-    SetNoSanitizeMetadata(Load);
-    SetNoSanitizeMetadata(Store);
+    Load->setNoSanitizeMetadata();
+    Store->setNoSanitizeMetadata();
   }
   if (Options.StackDepth && IsEntryBB && !IsLeafFunc) {
     // Check stack depth.  If it's the deepest so far, record it.
@@ -1023,8 +1017,8 @@ void ModuleSanitizerCoverage::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
     auto ThenTerm = SplitBlockAndInsertIfThen(IsStackLower, &*IP, false);
     IRBuilder<> ThenIRB(ThenTerm);
     auto Store = ThenIRB.CreateStore(FrameAddrInt, SanCovLowestStack);
-    SetNoSanitizeMetadata(LowestStack);
-    SetNoSanitizeMetadata(Store);
+    LowestStack->setNoSanitizeMetadata();
+    Store->setNoSanitizeMetadata();
   }
 }
 

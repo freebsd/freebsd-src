@@ -8,6 +8,7 @@
 
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/ExecutionEngine/JITLink/COFF.h"
 #include "llvm/ExecutionEngine/JITLink/ELF.h"
@@ -86,6 +87,21 @@ const char *getScopeName(Scope S) {
     return "local";
   }
   llvm_unreachable("Unrecognized llvm.jitlink.Scope enum");
+}
+
+bool isCStringBlock(Block &B) {
+  if (B.getSize() == 0) // Empty blocks are not valid C-strings.
+    return false;
+
+  // Zero-fill blocks of size one are valid empty strings.
+  if (B.isZeroFill())
+    return B.getSize() == 1;
+
+  for (size_t I = 0; I != B.getSize() - 1; ++I)
+    if (B.getContent()[I] == '\0')
+      return false;
+
+  return B.getContent()[B.getSize() - 1] == '\0';
 }
 
 raw_ostream &operator<<(raw_ostream &OS, const Block &B) {

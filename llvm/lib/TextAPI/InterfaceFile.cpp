@@ -17,31 +17,6 @@
 using namespace llvm;
 using namespace llvm::MachO;
 
-namespace {
-template <typename C>
-typename C::iterator addEntry(C &Container, StringRef InstallName) {
-  auto I = partition_point(Container, [=](const InterfaceFileRef &O) {
-    return O.getInstallName() < InstallName;
-  });
-  if (I != Container.end() && I->getInstallName() == InstallName)
-    return I;
-
-  return Container.emplace(I, InstallName);
-}
-
-template <typename C>
-typename C::iterator addEntry(C &Container, const Target &Target_) {
-  auto Iter =
-      lower_bound(Container, Target_, [](const Target &LHS, const Target &RHS) {
-        return LHS < RHS;
-      });
-  if ((Iter != std::end(Container)) && !(Target_ < *Iter))
-    return Iter;
-
-  return Container.insert(Iter, Target_);
-}
-} // end namespace
-
 void InterfaceFileRef::addTarget(const Target &Target) {
   addEntry(Targets, Target);
 }
@@ -71,28 +46,17 @@ void InterfaceFile::addParentUmbrella(const Target &Target_, StringRef Parent) {
   ParentUmbrellas.emplace(Iter, Target_, std::string(Parent));
 }
 
-void InterfaceFile::addUUID(const Target &Target_, StringRef UUID) {
-  auto Iter = lower_bound(UUIDs, Target_,
+void InterfaceFile::addRPath(const Target &InputTarget, StringRef RPath) {
+  auto Iter = lower_bound(RPaths, InputTarget,
                           [](const std::pair<Target, std::string> &LHS,
                              Target RHS) { return LHS.first < RHS; });
 
-  if ((Iter != UUIDs.end()) && !(Target_ < Iter->first)) {
-    Iter->second = std::string(UUID);
+  if ((Iter != RPaths.end()) && !(InputTarget < Iter->first)) {
+    Iter->second = std::string(RPath);
     return;
   }
 
-  UUIDs.emplace(Iter, Target_, std::string(UUID));
-}
-
-void InterfaceFile::addUUID(const Target &Target, uint8_t UUID[16]) {
-  std::stringstream Stream;
-  for (unsigned i = 0; i < 16; ++i) {
-    if (i == 4 || i == 6 || i == 8 || i == 10)
-      Stream << '-';
-    Stream << std::setfill('0') << std::setw(2) << std::uppercase << std::hex
-           << static_cast<int>(UUID[i]);
-  }
-  addUUID(Target, Stream.str());
+  RPaths.emplace(Iter, InputTarget, std::string(RPath));
 }
 
 void InterfaceFile::addTarget(const Target &Target) {
@@ -107,17 +71,6 @@ InterfaceFile::targets(ArchitectureSet Archs) const {
   return make_filter_range(Targets, fn);
 }
 
-void InterfaceFile::addSymbol(SymbolKind Kind, StringRef Name,
-                              const TargetList &Targets, SymbolFlags Flags) {
-  Name = copyString(Name);
-  auto result = Symbols.try_emplace(SymbolsMapKey{Kind, Name}, nullptr);
-  if (result.second)
-    result.first->second = new (Allocator) Symbol{Kind, Name, Targets, Flags};
-  else
-    for (const auto &Target : Targets)
-      result.first->second->addTarget(Target);
-}
-
 void InterfaceFile::addDocument(std::shared_ptr<InterfaceFile> &&Document) {
   auto Pos = llvm::lower_bound(Documents, Document,
                                [](const std::shared_ptr<InterfaceFile> &LHS,
@@ -126,6 +79,10 @@ void InterfaceFile::addDocument(std::shared_ptr<InterfaceFile> &&Document) {
                                });
   Document->Parent = this;
   Documents.insert(Pos, Document);
+}
+
+static bool isYAMLTextStub(const FileType &Kind) {
+  return (Kind >= FileType::TBD_V1) && (Kind < FileType::TBD_V5);
 }
 
 bool InterfaceFile::operator==(const InterfaceFile &O) const {
@@ -142,16 +99,23 @@ bool InterfaceFile::operator==(const InterfaceFile &O) const {
     return false;
   if (IsAppExtensionSafe != O.IsAppExtensionSafe)
     return false;
-  if (IsInstallAPI != O.IsInstallAPI)
-    return false;
   if (ParentUmbrellas != O.ParentUmbrellas)
     return false;
   if (AllowableClients != O.AllowableClients)
     return false;
   if (ReexportedLibraries != O.ReexportedLibraries)
     return false;
-  if (Symbols != O.Symbols)
+  if (*SymbolsSet != *O.SymbolsSet)
     return false;
+  // Don't compare run search paths for older filetypes that cannot express
+  // them.
+  if (!(isYAMLTextStub(FileKind)) && !(isYAMLTextStub(O.FileKind))) {
+    if (RPaths != O.RPaths)
+      return false;
+    if (mapToPlatformVersionSet(Targets) != mapToPlatformVersionSet(O.Targets))
+      return false;
+  }
+
   if (!std::equal(Documents.begin(), Documents.end(), O.Documents.begin(),
                   O.Documents.end(),
                   [](const std::shared_ptr<InterfaceFile> LHS,

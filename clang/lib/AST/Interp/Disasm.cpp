@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Floating.h"
 #include "Function.h"
 #include "Opcode.h"
 #include "PrimType.h"
@@ -33,18 +34,7 @@ template <typename T> inline T ReadArg(Program &P, CodePtr &OpPC) {
 LLVM_DUMP_METHOD void Function::dump() const { dump(llvm::errs()); }
 
 LLVM_DUMP_METHOD void Function::dump(llvm::raw_ostream &OS) const {
-  if (F) {
-    if (auto *Cons = dyn_cast<CXXConstructorDecl>(F)) {
-      DeclarationName Name = Cons->getParent()->getDeclName();
-      OS << Name << "::" << Name;
-    } else {
-      OS << F->getDeclName();
-    }
-    OS << " " << (const void*)this << ":\n";
-  } else {
-    OS << "<<expr>>\n";
-  }
-
+  OS << getName() << " " << (const void *)this << "\n";
   OS << "frame size: " << getFrameSize() << "\n";
   OS << "arg size:   " << getArgSize() << "\n";
   OS << "rvo:        " << hasRVO() << "\n";
@@ -52,9 +42,9 @@ LLVM_DUMP_METHOD void Function::dump(llvm::raw_ostream &OS) const {
 
   auto PrintName = [&OS](const char *Name) {
     OS << Name;
-    for (long I = 0, N = strlen(Name); I < 30 - N; ++I) {
-      OS << ' ';
-    }
+    long N = 30 - strlen(Name);
+    if (N > 0)
+      OS.indent(N);
   };
 
   for (CodePtr Start = getCodeBegin(), PC = Start; PC != getCodeEnd();) {

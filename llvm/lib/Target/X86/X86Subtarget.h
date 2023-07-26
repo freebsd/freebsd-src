@@ -17,9 +17,9 @@
 #include "X86ISelLowering.h"
 #include "X86InstrInfo.h"
 #include "X86SelectionDAGInfo.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/CallingConv.h"
+#include "llvm/TargetParser/Triple.h"
 #include <climits>
 #include <memory>
 
@@ -247,6 +247,17 @@ public:
   }
   bool canExtendTo512BW() const  {
     return hasBWI() && canExtendTo512DQ();
+  }
+
+  bool hasNoDomainDelay() const { return NoDomainDelay; }
+  bool hasNoDomainDelayMov() const {
+      return hasNoDomainDelay() || NoDomainDelayMov;
+  }
+  bool hasNoDomainDelayBlend() const {
+      return hasNoDomainDelay() || NoDomainDelayBlend;
+  }
+  bool hasNoDomainDelayShuffle() const {
+      return hasNoDomainDelay() || NoDomainDelayShuffle;
   }
 
   // If there are no 512-bit vectors and we prefer not to use 512-bit registers,

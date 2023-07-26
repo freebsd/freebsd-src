@@ -82,9 +82,9 @@ getCommentSplit(StringRef Text, unsigned ContentStartColumn,
        NumChars < MaxSplit && MaxSplitBytes < Text.size();) {
     unsigned BytesInChar =
         encoding::getCodePointNumBytes(Text[MaxSplitBytes], Encoding);
-    NumChars +=
-        encoding::columnWidthWithTabs(Text.substr(MaxSplitBytes, BytesInChar),
-                                      ContentStartColumn, TabWidth, Encoding);
+    NumChars += encoding::columnWidthWithTabs(
+        Text.substr(MaxSplitBytes, BytesInChar), ContentStartColumn + NumChars,
+        TabWidth, Encoding);
     MaxSplitBytes += BytesInChar;
   }
 
@@ -590,10 +590,8 @@ unsigned BreakableBlockComment::getContentIndent(unsigned LineIndex) const {
     ContentWithNoDecoration = ContentWithNoDecoration.substr(1).ltrim(Blanks);
   StringRef FirstWord = ContentWithNoDecoration.substr(
       0, ContentWithNoDecoration.find_first_of(Blanks));
-  if (ContentIndentingJavadocAnnotations.find(FirstWord) !=
-      ContentIndentingJavadocAnnotations.end()) {
+  if (ContentIndentingJavadocAnnotations.contains(FirstWord))
     return Style.ContinuationIndentWidth;
-  }
   return 0;
 }
 

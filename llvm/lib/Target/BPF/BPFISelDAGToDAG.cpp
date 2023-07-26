@@ -77,7 +77,6 @@ private:
 
   // Node preprocessing cases
   void PreprocessLoad(SDNode *Node, SelectionDAG::allnodes_iterator &I);
-  void PreprocessCopyToReg(SDNode *Node);
   void PreprocessTrunc(SDNode *Node, SelectionDAG::allnodes_iterator &I);
 
   // Find constants from a constant structure
@@ -172,7 +171,7 @@ bool BPFDAGToDAGISel::SelectInlineAsmMemoryOperand(
   }
 
   SDLoc DL(Op);
-  SDValue AluOp = CurDAG->getTargetConstant(ISD::ADD, DL, MVT::i32);;
+  SDValue AluOp = CurDAG->getTargetConstant(ISD::ADD, DL, MVT::i32);
   OutOps.push_back(Op0);
   OutOps.push_back(Op1);
   OutOps.push_back(AluOp);

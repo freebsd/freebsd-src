@@ -14,7 +14,6 @@
 #include "DXILValueEnumerator.h"
 #include "DirectXIRPasses/PointerTypeAnalysis.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/BitcodeCommon.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/LLVMBitCodes.h"
@@ -51,6 +50,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/SHA1.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace llvm {
 namespace dxil {
@@ -513,7 +513,7 @@ unsigned DXILBitcodeWriter::getEncodedBinaryOpcode(unsigned Opcode) {
 }
 
 unsigned DXILBitcodeWriter::getTypeID(Type *T, const Value *V) {
-  if (!T->isOpaquePointerTy() &&
+  if (!T->isPointerTy() &&
       // For Constant, always check PointerMap to make sure OpaquePointer in
       // things like constant struct/array works.
       (!V || !isa<Constant>(V)))
@@ -1070,24 +1070,14 @@ void DXILBitcodeWriter::writeTypeTable() {
       break;
     }
     case Type::PointerTyID: {
-      PointerType *PTy = cast<PointerType>(T);
       // POINTER: [pointee type, address space]
-      Code = bitc::TYPE_CODE_POINTER;
-      // Emitting an empty struct type for the opaque pointer's type allows
-      // this to be order-independent. Non-struct types must be emitted in
-      // bitcode before they can be referenced.
-      if (PTy->isOpaquePointerTy()) {
-        TypeVals.push_back(false);
-        Code = bitc::TYPE_CODE_OPAQUE;
-        writeStringRecord(Stream, bitc::TYPE_CODE_STRUCT_NAME,
-                          "dxilOpaquePtrReservedName", StructNameAbbrev);
-      } else {
-        TypeVals.push_back(getTypeID(PTy->getNonOpaquePointerElementType()));
-        unsigned AddressSpace = PTy->getAddressSpace();
-        TypeVals.push_back(AddressSpace);
-        if (AddressSpace == 0)
-          AbbrevToUse = PtrAbbrev;
-      }
+      // Emitting an empty struct type for the pointer's type allows this to be
+      // order-independent. Non-struct types must be emitted in bitcode before
+      // they can be referenced.
+      TypeVals.push_back(false);
+      Code = bitc::TYPE_CODE_OPAQUE;
+      writeStringRecord(Stream, bitc::TYPE_CODE_STRUCT_NAME,
+                        "dxilOpaquePtrReservedName", StructNameAbbrev);
       break;
     }
     case Type::FunctionTyID: {

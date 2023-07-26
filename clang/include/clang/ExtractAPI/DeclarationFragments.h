@@ -97,7 +97,36 @@ public:
           Declaration(Declaration) {}
   };
 
+  using FragmentIterator = std::vector<Fragment>::iterator;
+  using ConstFragmentIterator = std::vector<Fragment>::const_iterator;
+
   const std::vector<Fragment> &getFragments() const { return Fragments; }
+
+  FragmentIterator begin() { return Fragments.begin(); }
+
+  FragmentIterator end() { return Fragments.end(); }
+
+  ConstFragmentIterator cbegin() const { return Fragments.cbegin(); }
+
+  ConstFragmentIterator cend() const { return Fragments.cend(); }
+
+  // Add a new Fragment at an arbitrary offset.
+  DeclarationFragments &insert(FragmentIterator It, StringRef Spelling,
+                               FragmentKind Kind,
+                               StringRef PreciseIdentifier = "",
+                               const Decl *Declaration = nullptr) {
+    Fragments.insert(It,
+                     Fragment(Spelling, Kind, PreciseIdentifier, Declaration));
+    return *this;
+  }
+
+  DeclarationFragments &insert(FragmentIterator It,
+                               DeclarationFragments &&Other) {
+    Fragments.insert(It, std::make_move_iterator(Other.Fragments.begin()),
+                     std::make_move_iterator(Other.Fragments.end()));
+    Other.Fragments.clear();
+    return *this;
+  }
 
   /// Append a new Fragment to the end of the Fragments.
   ///

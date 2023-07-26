@@ -153,6 +153,11 @@ Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
 
   while (true) {
     MaybeSkipAttributes(tok::objc_class);
+    if (Tok.is(tok::code_completion)) {
+      cutOffParsing();
+      Actions.CodeCompleteObjCClassForwardDecl(getCurScope());
+      return Actions.ConvertDeclToDeclGroup(nullptr);
+    }
     if (expectIdentifier()) {
       SkipUntil(tok::semi);
       return Actions.ConvertDeclToDeclGroup(nullptr);
@@ -408,7 +413,7 @@ static void addContextSensitiveTypeNullability(Parser &P,
   auto getNullabilityAttr = [&](AttributePool &Pool) -> ParsedAttr * {
     return Pool.create(P.getNullabilityKeyword(nullability),
                        SourceRange(nullabilityLoc), nullptr, SourceLocation(),
-                       nullptr, 0, ParsedAttr::AS_ContextSensitiveKeyword);
+                       nullptr, 0, ParsedAttr::Form::ContextSensitiveKeyword());
   };
 
   if (D.getNumTypeObjects() > 0) {

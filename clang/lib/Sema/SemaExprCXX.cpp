@@ -31,6 +31,7 @@
 #include "clang/Basic/TypeTraits.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/EnterExpressionEvaluationContext.h"
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
@@ -42,6 +43,7 @@
 #include "clang/Sema/TemplateDeduction.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TypeSize.h"
 #include <optional>
@@ -391,7 +393,7 @@ ParsedType Sema::getDestructorName(SourceLocation TildeLoc,
     //
     // also looks for type-name in the scope. Unfortunately, we can't
     // reasonably apply this fallback for dependent nested-name-specifiers.
-    if (SS.getScopeRep()->getPrefix()) {
+    if (SS.isValid() && SS.getScopeRep()->getPrefix()) {
       if (ParsedType T = LookupInScope()) {
         Diag(SS.getEndLoc(), diag::ext_qualified_dtor_named_in_lexical_scope)
             << FixItHint::CreateRemoval(SS.getRange());
@@ -500,13 +502,16 @@ bool Sema::checkLiteralOperatorId(const CXXScopeSpec &SS,
     IdentifierInfo *II = Name.Identifier;
     ReservedIdentifierStatus Status = II->isReserved(PP.getLangOpts());
     SourceLocation Loc = Name.getEndLoc();
-    if (isReservedInAllContexts(Status) &&
-        !PP.getSourceManager().isInSystemHeader(Loc)) {
-      Diag(Loc, diag::warn_reserved_extern_symbol)
-          << II << static_cast<int>(Status)
-          << FixItHint::CreateReplacement(
-                 Name.getSourceRange(),
-                 (StringRef("operator\"\"") + II->getName()).str());
+    if (!PP.getSourceManager().isInSystemHeader(Loc)) {
+      if (auto Hint = FixItHint::CreateReplacement(
+              Name.getSourceRange(),
+              (StringRef("operator\"\"") + II->getName()).str());
+          isReservedInAllContexts(Status)) {
+        Diag(Loc, diag::warn_reserved_extern_symbol)
+            << II << static_cast<int>(Status) << Hint;
+      } else {
+        Diag(Loc, diag::warn_deprecated_literal_operator_id) << II << Hint;
+      }
     }
   }
 
@@ -975,6 +980,19 @@ bool Sema::CheckCXXThrowOperand(SourceLocation ThrowLoc,
     Ty = Ptr->getPointeeType();
     isPointer = true;
   }
+
+  // Cannot throw WebAssembly reference type.
+  if (Ty.isWebAssemblyReferenceType()) {
+    Diag(ThrowLoc, diag::err_wasm_reftype_tc) << 0 << E->getSourceRange();
+    return true;
+  }
+
+  // Cannot throw WebAssembly table.
+  if (isPointer && Ty.isWebAssemblyReferenceType()) {
+    Diag(ThrowLoc, diag::err_wasm_table_art) << 2 << E->getSourceRange();
+    return true;
+  }
+
   if (!isPointer || !Ty->isVoidType()) {
     if (RequireCompleteType(ThrowLoc, Ty,
                             isPointer ? diag::err_throw_incomplete_ptr
@@ -1135,8 +1153,7 @@ static QualType adjustCVQualifiersForCXXThisWithinLambda(
     auto C = CurLSI->getCXXThisCapture();
 
     if (C.isCopyCapture()) {
-      ClassType.removeLocalCVRQualifiers(Qualifiers::CVRMask);
-      if (CurLSI->CallOperator->isConst())
+      if (!CurLSI->Mutable)
         ClassType.addConst();
       return ASTCtx.getPointerType(ClassType);
     }
@@ -1175,7 +1192,6 @@ static QualType adjustCVQualifiersForCXXThisWithinLambda(
     while (Closure &&
            IsThisCaptured(Closure, IsByCopyCapture, IsConstCapture)) {
       if (IsByCopyCapture) {
-        ClassType.removeLocalCVRQualifiers(Qualifiers::CVRMask);
         if (IsConstCapture)
           ClassType.addConst();
         return ASTCtx.getPointerType(ClassType);
@@ -1362,15 +1378,7 @@ bool Sema::CheckCXXThisCapture(SourceLocation Loc, const bool Explicit,
 
     // The type of the corresponding data member (not a 'this' pointer if 'by
     // copy').
-    QualType CaptureType = ThisTy;
-    if (ByCopy) {
-      // If we are capturing the object referred to by '*this' by copy, ignore
-      // any cv qualifiers inherited from the type of the member function for
-      // the type of the closure-type's corresponding data member and any use
-      // of 'this'.
-      CaptureType = ThisTy->getPointeeType();
-      CaptureType.removeLocalCVRQualifiers(Qualifiers::CVRMask);
-    }
+    QualType CaptureType = ByCopy ? ThisTy->getPointeeType() : ThisTy;
 
     bool isNested = NumCapturingClosures > 1;
     CSI->addThisCapture(isNested, Loc, CaptureType, ByCopy);
@@ -1476,20 +1484,21 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
           : InitializationKind::CreateValue(TyBeginLoc, LParenOrBraceLoc,
                                             RParenOrBraceLoc);
 
-  // C++1z [expr.type.conv]p1:
+  // C++17 [expr.type.conv]p1:
   //   If the type is a placeholder for a deduced class type, [...perform class
   //   template argument deduction...]
-  // C++2b:
+  // C++23:
   //   Otherwise, if the type contains a placeholder type, it is replaced by the
   //   type determined by placeholder type deduction.
   DeducedType *Deduced = Ty->getContainedDeducedType();
-  if (Deduced && isa<DeducedTemplateSpecializationType>(Deduced)) {
+  if (Deduced && !Deduced->isDeduced() &&
+      isa<DeducedTemplateSpecializationType>(Deduced)) {
     Ty = DeduceTemplateSpecializationFromInitializer(TInfo, Entity,
                                                      Kind, Exprs);
     if (Ty.isNull())
       return ExprError();
     Entity = InitializedEntity::InitializeTemporary(TInfo, Ty);
-  } else if (Deduced) {
+  } else if (Deduced && !Deduced->isDeduced()) {
     MultiExprArg Inits = Exprs;
     if (ListInitialization) {
       auto *ILE = cast<InitListExpr>(Exprs[0]);
@@ -1505,7 +1514,7 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
                             diag::err_auto_expr_init_multiple_expressions)
                        << Ty << FullRange);
     }
-    if (getLangOpts().CPlusPlus2b) {
+    if (getLangOpts().CPlusPlus23) {
       if (Ty->getAs<AutoType>())
         Diag(TyBeginLoc, diag::warn_cxx20_compat_auto_expr) << FullRange;
     }
@@ -1531,16 +1540,10 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
     Entity = InitializedEntity::InitializeTemporary(TInfo, Ty);
   }
 
-  if (Ty->isDependentType() || CallExpr::hasAnyTypeDependentArguments(Exprs)) {
-    // FIXME: CXXUnresolvedConstructExpr does not model list-initialization
-    // directly. We work around this by dropping the locations of the braces.
-    SourceRange Locs = ListInitialization
-                           ? SourceRange()
-                           : SourceRange(LParenOrBraceLoc, RParenOrBraceLoc);
-    return CXXUnresolvedConstructExpr::Create(Context, Ty.getNonReferenceType(),
-                                              TInfo, Locs.getBegin(), Exprs,
-                                              Locs.getEnd());
-  }
+  if (Ty->isDependentType() || CallExpr::hasAnyTypeDependentArguments(Exprs))
+    return CXXUnresolvedConstructExpr::Create(
+        Context, Ty.getNonReferenceType(), TInfo, LParenOrBraceLoc, Exprs,
+        RParenOrBraceLoc, ListInitialization);
 
   // C++ [expr.type.conv]p1:
   // If the expression list is a parenthesized single expression, the type
@@ -1589,6 +1592,9 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
   Expr *Inner = Result.get();
   if (CXXBindTemporaryExpr *BTE = dyn_cast_or_null<CXXBindTemporaryExpr>(Inner))
     Inner = BTE->getSubExpr();
+  if (auto *CE = dyn_cast<ConstantExpr>(Inner);
+      CE && CE->isImmediateInvocation())
+    Inner = CE->getSubExpr();
   if (!isa<CXXTemporaryObjectExpr>(Inner) &&
       !isa<CXXScalarValueInitExpr>(Inner)) {
     // If we created a CXXTemporaryObjectExpr, that node also represents the
@@ -2016,7 +2022,8 @@ ExprResult Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
 
   // C++11 [dcl.spec.auto]p6. Deduce the type which 'auto' stands in for.
   auto *Deduced = AllocType->getContainedDeducedType();
-  if (Deduced && isa<DeducedTemplateSpecializationType>(Deduced)) {
+  if (Deduced && !Deduced->isDeduced() &&
+      isa<DeducedTemplateSpecializationType>(Deduced)) {
     if (ArraySize)
       return ExprError(
           Diag(*ArraySize ? (*ArraySize)->getExprLoc() : TypeRange.getBegin(),
@@ -2030,7 +2037,7 @@ ExprResult Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
         AllocTypeInfo, Entity, Kind, Exprs);
     if (AllocType.isNull())
       return ExprError();
-  } else if (Deduced) {
+  } else if (Deduced && !Deduced->isDeduced()) {
     MultiExprArg Inits = Exprs;
     bool Braced = (initStyle == CXXNewExpr::ListInit);
     if (Braced) {
@@ -2650,11 +2657,10 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
   // FIXME: Should the Sema create the expression and embed it in the syntax
   // tree? Or should the consumer just recalculate the value?
   // FIXME: Using a dummy value will interact poorly with attribute enable_if.
-  IntegerLiteral Size(
-      Context,
-      llvm::APInt::getZero(
-          Context.getTargetInfo().getPointerWidth(LangAS::Default)),
-      Context.getSizeType(), SourceLocation());
+  QualType SizeTy = Context.getSizeType();
+  unsigned SizeTyWidth = Context.getTypeSize(SizeTy);
+  IntegerLiteral Size(Context, llvm::APInt::getZero(SizeTyWidth), SizeTy,
+                      SourceLocation());
   AllocArgs.push_back(&Size);
 
   QualType AlignValT = Context.VoidTy;
@@ -2977,7 +2983,7 @@ void Sema::DeclareGlobalNewDelete() {
   //   functions are replaceable ([new.delete]); these are attached to the
   //   global module ([module.unit]).
   if (getLangOpts().CPlusPlusModules && getCurrentModule())
-    PushGlobalModuleFragment(SourceLocation(), /*IsImplicit=*/true);
+    PushGlobalModuleFragment(SourceLocation());
 
   // C++ [basic.std.dynamic]p2:
   //   [...] The following allocation and deallocation functions (18.4) are
@@ -3021,10 +3027,10 @@ void Sema::DeclareGlobalNewDelete() {
 
     // The implicitly declared "std::bad_alloc" should live in global module
     // fragment.
-    if (GlobalModuleFragment) {
+    if (TheGlobalModuleFragment) {
       getStdBadAlloc()->setModuleOwnershipKind(
           Decl::ModuleOwnershipKind::ReachableWhenImported);
-      getStdBadAlloc()->setLocalOwningModule(GlobalModuleFragment);
+      getStdBadAlloc()->setLocalOwningModule(TheGlobalModuleFragment);
     }
   }
   if (!StdAlignValT && getLangOpts().AlignedAllocation) {
@@ -3036,10 +3042,10 @@ void Sema::DeclareGlobalNewDelete() {
 
     // The implicitly declared "std::align_val_t" should live in global module
     // fragment.
-    if (GlobalModuleFragment) {
+    if (TheGlobalModuleFragment) {
       AlignValT->setModuleOwnershipKind(
           Decl::ModuleOwnershipKind::ReachableWhenImported);
-      AlignValT->setLocalOwningModule(GlobalModuleFragment);
+      AlignValT->setLocalOwningModule(TheGlobalModuleFragment);
     }
 
     AlignValT->setIntegerType(Context.getSizeType());
@@ -3154,7 +3160,8 @@ void Sema::DeclareGlobalAllocationFunction(DeclarationName Name,
     // Global allocation functions should always be visible.
     Alloc->setVisibleDespiteOwningModule();
 
-    if (HasBadAllocExceptionSpec && getLangOpts().NewInfallible)
+    if (HasBadAllocExceptionSpec && getLangOpts().NewInfallible &&
+        !getLangOpts().CheckNew)
       Alloc->addAttr(
           ReturnsNonNullAttr::CreateImplicit(Context, Alloc->getLocation()));
 
@@ -3168,10 +3175,10 @@ void Sema::DeclareGlobalAllocationFunction(DeclarationName Name,
     // module all the time. But in the implementation, the global module
     // is only meaningful when we're in a module unit. So here we attach
     // these allocation functions to global module conditionally.
-    if (GlobalModuleFragment) {
+    if (TheGlobalModuleFragment) {
       Alloc->setModuleOwnershipKind(
           Decl::ModuleOwnershipKind::ReachableWhenImported);
-      Alloc->setLocalOwningModule(GlobalModuleFragment);
+      Alloc->setLocalOwningModule(TheGlobalModuleFragment);
     }
 
     Alloc->addAttr(VisibilityAttr::CreateImplicit(
@@ -4032,7 +4039,7 @@ ExprResult Sema::CheckCXXBooleanCondition(Expr *CondExpr, bool IsConstexpr) {
   // The value of a condition that is an expression is the value of the
   // expression, implicitly converted to bool.
   //
-  // C++2b 8.5.2p2
+  // C++23 8.5.2p2
   // If the if statement is of the form if constexpr, the value of the condition
   // is contextually converted to bool and the converted expression shall be
   // a constant expression.
@@ -4083,6 +4090,9 @@ Sema::IsStringLiteralToNonConstPointerConversion(Expr *From, QualType ToType) {
             case StringLiteral::Wide:
               return Context.typesAreCompatible(Context.getWideCharType(),
                                                 QualType(ToPointeeType, 0));
+            case StringLiteral::Unevaluated:
+              assert(false && "Unevaluated string literal in expression");
+              break;
           }
         }
       }
@@ -4576,6 +4586,7 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
     break;
 
   case ICK_SVE_Vector_Conversion:
+  case ICK_RVV_Vector_Conversion:
     From = ImpCastExprToType(From, ToType, CK_BitCast, VK_PRValue,
                              /*BasePath=*/nullptr, CCK)
                .get();
@@ -4881,8 +4892,11 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsStandardLayout:
   case UTT_IsPOD:
   case UTT_IsLiteral:
-  // By analogy, is_trivially_relocatable imposes the same constraints.
+  // By analogy, is_trivially_relocatable and is_trivially_equality_comparable
+  // impose the same constraints.
   case UTT_IsTriviallyRelocatable:
+  case UTT_IsTriviallyEqualityComparable:
+  case UTT_CanPassInRegs:
   // Per the GCC type traits documentation, T shall be a complete type, cv void,
   // or an array of unknown bound. But GCC actually imposes the same constraints
   // as above.
@@ -5371,15 +5385,27 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
     return T.isTriviallyRelocatableType(C);
   case UTT_IsReferenceable:
     return T.isReferenceable();
+  case UTT_CanPassInRegs:
+    if (CXXRecordDecl *RD = T->getAsCXXRecordDecl(); RD && !T.hasQualifiers())
+      return RD->canPassInRegisters();
+    Self.Diag(KeyLoc, diag::err_builtin_pass_in_regs_non_class) << T;
+    return false;
+  case UTT_IsTriviallyEqualityComparable:
+    return T.isTriviallyEqualityComparableType(C);
   }
 }
 
 static bool EvaluateBinaryTypeTrait(Sema &Self, TypeTrait BTT, QualType LhsT,
                                     QualType RhsT, SourceLocation KeyLoc);
 
-static bool evaluateTypeTrait(Sema &S, TypeTrait Kind, SourceLocation KWLoc,
-                              ArrayRef<TypeSourceInfo *> Args,
-                              SourceLocation RParenLoc) {
+static bool EvaluateBooleanTypeTrait(Sema &S, TypeTrait Kind,
+                                     SourceLocation KWLoc,
+                                     ArrayRef<TypeSourceInfo *> Args,
+                                     SourceLocation RParenLoc,
+                                     bool IsDependent) {
+  if (IsDependent)
+    return false;
+
   if (Kind <= UTT_Last)
     return EvaluateUnaryTypeTrait(S, Kind, KWLoc, Args[0]->getType());
 
@@ -5547,12 +5573,19 @@ bool Sema::CheckTypeTraitArity(unsigned Arity, SourceLocation Loc, size_t N) {
   return true;
 }
 
+enum class TypeTraitReturnType {
+  Bool,
+};
+
+static TypeTraitReturnType GetReturnType(TypeTrait Kind) {
+  return TypeTraitReturnType::Bool;
+}
+
 ExprResult Sema::BuildTypeTrait(TypeTrait Kind, SourceLocation KWLoc,
                                 ArrayRef<TypeSourceInfo *> Args,
                                 SourceLocation RParenLoc) {
   if (!CheckTypeTraitArity(getTypeTraitArity(Kind), KWLoc, Args.size()))
     return ExprError();
-  QualType ResultType = Context.getLogicalOperationType();
 
   if (Kind <= UTT_Last && !CheckUnaryTypeTraitTypeCompleteness(
                                *this, Kind, KWLoc, Args[0]->getType()))
@@ -5568,12 +5601,15 @@ ExprResult Sema::BuildTypeTrait(TypeTrait Kind, SourceLocation KWLoc,
     }
   }
 
-  bool Result = false;
-  if (!Dependent)
-    Result = evaluateTypeTrait(*this, Kind, KWLoc, Args, RParenLoc);
-
-  return TypeTraitExpr::Create(Context, ResultType, KWLoc, Kind, Args,
-                               RParenLoc, Result);
+  switch (GetReturnType(Kind)) {
+  case TypeTraitReturnType::Bool: {
+    bool Result = EvaluateBooleanTypeTrait(*this, Kind, KWLoc, Args, RParenLoc,
+                                           Dependent);
+    return TypeTraitExpr::Create(Context, Context.getLogicalOperationType(),
+                                 KWLoc, Kind, Args, RParenLoc, Result);
+  }
+  }
+  llvm_unreachable("unhandled type trait return type");
 }
 
 ExprResult Sema::ActOnTypeTrait(TypeTrait Kind, SourceLocation KWLoc,
@@ -6560,6 +6596,13 @@ QualType Sema::CXXCheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
 
   if (IsSizelessVectorConditional)
     return CheckSizelessVectorConditionalTypes(Cond, LHS, RHS, QuestionLoc);
+
+  // WebAssembly tables are not allowed as conditional LHS or RHS.
+  if (LTy->isWebAssemblyTableType() || RTy->isWebAssemblyTableType()) {
+    Diag(QuestionLoc, diag::err_wasm_table_conditional_expression)
+        << LHS.get()->getSourceRange() << RHS.get()->getSourceRange();
+    return QualType();
+  }
 
   // C++11 [expr.cond]p3
   //   Otherwise, if the second and third operand have different types, and
@@ -8231,12 +8274,12 @@ static inline bool VariableCanNeverBeAConstantExpression(VarDecl *Var,
   const VarDecl *DefVD = nullptr;
 
   // If there is no initializer - this can not be a constant expression.
-  if (!Var->getAnyInitializer(DefVD)) return true;
+  const Expr *Init = Var->getAnyInitializer(DefVD);
+  if (!Init)
+    return true;
   assert(DefVD);
-  if (DefVD->isWeak()) return false;
-  EvaluatedStmt *Eval = DefVD->ensureEvaluatedStmt();
-
-  Expr *Init = cast<Expr>(Eval->Value);
+  if (DefVD->isWeak())
+    return false;
 
   if (Var->getType()->isDependentType() || Init->isValueDependent()) {
     // FIXME: Teach the constant evaluator to deal with the non-dependent parts

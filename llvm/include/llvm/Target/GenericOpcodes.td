@@ -23,7 +23,7 @@ class GenericInstruction : StandardPseudoInstruction {
 // different instruction flags. This is intended to provide a
 // convenient way to define strict floating point variants of ordinary
 // floating point instructions.
-class ConstrainedIntruction<GenericInstruction baseInst> :
+class ConstrainedInstruction<GenericInstruction baseInst> :
   GenericInstruction {
   let OutOperandList = baseInst.OutOperandList;
   let InOperandList =  baseInst.InOperandList;
@@ -101,6 +101,12 @@ def G_FRAME_INDEX : GenericInstruction {
 }
 
 def G_GLOBAL_VALUE : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins unknown:$src);
+  let hasSideEffects = false;
+}
+
+def G_CONSTANT_POOL : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$src);
   let hasSideEffects = false;
@@ -917,6 +923,20 @@ def G_FLOG10 : GenericInstruction {
   let hasSideEffects = false;
 }
 
+// Floating point x * 2^n
+def G_FLDEXP : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src0, type1:$src1);
+  let hasSideEffects = false;
+}
+
+// Floating point frexp
+def G_FFREXP : GenericInstruction {
+  let OutOperandList = (outs type0:$dst0, type1:$dst1);
+  let InOperandList = (ins type0:$src0);
+  let hasSideEffects = false;
+}
+
 // Floating point ceiling of a value.
 def G_FCEIL : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
@@ -1371,13 +1391,14 @@ def G_VECREDUCE_UMIN : VectorReduction;
 // Constrained floating point ops
 //------------------------------------------------------------------------------
 
-def G_STRICT_FADD : ConstrainedIntruction<G_FADD>;
-def G_STRICT_FSUB : ConstrainedIntruction<G_FSUB>;
-def G_STRICT_FMUL : ConstrainedIntruction<G_FMUL>;
-def G_STRICT_FDIV : ConstrainedIntruction<G_FDIV>;
-def G_STRICT_FREM : ConstrainedIntruction<G_FREM>;
-def G_STRICT_FMA : ConstrainedIntruction<G_FMA>;
-def G_STRICT_FSQRT : ConstrainedIntruction<G_FSQRT>;
+def G_STRICT_FADD : ConstrainedInstruction<G_FADD>;
+def G_STRICT_FSUB : ConstrainedInstruction<G_FSUB>;
+def G_STRICT_FMUL : ConstrainedInstruction<G_FMUL>;
+def G_STRICT_FDIV : ConstrainedInstruction<G_FDIV>;
+def G_STRICT_FREM : ConstrainedInstruction<G_FREM>;
+def G_STRICT_FMA : ConstrainedInstruction<G_FMA>;
+def G_STRICT_FSQRT : ConstrainedInstruction<G_FSQRT>;
+def G_STRICT_FLDEXP : ConstrainedInstruction<G_FLDEXP>;
 
 //------------------------------------------------------------------------------
 // Memory intrinsics
@@ -1465,5 +1486,12 @@ def G_ASSERT_SEXT : GenericInstruction {
 def G_ASSERT_ALIGN : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src, untyped_imm_0:$align);
+  let hasSideEffects = false;
+}
+
+// Prevent constant folding of the source value with any users.
+def G_CONSTANT_FOLD_BARRIER : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src);
   let hasSideEffects = false;
 }

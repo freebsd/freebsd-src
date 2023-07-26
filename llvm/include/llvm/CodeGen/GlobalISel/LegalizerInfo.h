@@ -17,12 +17,12 @@
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/GlobalISel/LegacyLegalizerInfo.h"
+#include "llvm/CodeGen/LowLevelType.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/LowLevelTypeImpl.h"
 #include <cassert>
 #include <cstdint>
 #include <tuple>
@@ -939,6 +939,28 @@ public:
                     all(Predicate, scalarOrEltNarrowerThan(
                                        TypeIdx, Ty.getScalarSizeInBits())),
                     changeElementTo(typeIdx(TypeIdx), Ty));
+  }
+
+  /// Ensure the vector size is at least as wide as VectorSize by promoting the
+  /// element.
+  LegalizeRuleSet &widenVectorEltsToVectorMinSize(unsigned TypeIdx,
+                                                  unsigned VectorSize) {
+    using namespace LegalityPredicates;
+    using namespace LegalizeMutations;
+    return actionIf(
+        LegalizeAction::WidenScalar,
+        [=](const LegalityQuery &Query) {
+          const LLT VecTy = Query.Types[TypeIdx];
+          return VecTy.isVector() && !VecTy.isScalable() &&
+                 VecTy.getSizeInBits() < VectorSize;
+        },
+        [=](const LegalityQuery &Query) {
+          const LLT VecTy = Query.Types[TypeIdx];
+          unsigned NumElts = VecTy.getNumElements();
+          unsigned MinSize = VectorSize / NumElts;
+          LLT NewTy = LLT::fixed_vector(NumElts, LLT::scalar(MinSize));
+          return std::make_pair(TypeIdx, NewTy);
+        });
   }
 
   /// Ensure the scalar is at least as wide as Ty.

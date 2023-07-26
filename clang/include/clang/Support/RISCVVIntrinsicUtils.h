@@ -58,6 +58,13 @@ enum class VectorTypeModifier : uint8_t {
   SFixedLog2LMUL1,
   SFixedLog2LMUL2,
   SFixedLog2LMUL3,
+  Tuple2,
+  Tuple3,
+  Tuple4,
+  Tuple5,
+  Tuple6,
+  Tuple7,
+  Tuple8,
 };
 
 // Similar to basic type but used to describe what's kind of type related to
@@ -92,25 +99,24 @@ enum class TypeModifier : uint8_t {
   LLVM_MARK_AS_BITMASK_ENUM(LMUL1),
 };
 
-struct Policy {
-  bool IsUnspecified = false;
+class Policy {
+public:
   enum PolicyType {
     Undisturbed,
     Agnostic,
   };
-  PolicyType TailPolicy = Agnostic;
-  PolicyType MaskPolicy = Agnostic;
-  bool HasTailPolicy, HasMaskPolicy;
-  Policy(bool HasTailPolicy, bool HasMaskPolicy)
-      : IsUnspecified(true), HasTailPolicy(HasTailPolicy),
-        HasMaskPolicy(HasMaskPolicy) {}
-  Policy(PolicyType TailPolicy, bool HasTailPolicy, bool HasMaskPolicy)
-      : TailPolicy(TailPolicy), HasTailPolicy(HasTailPolicy),
-        HasMaskPolicy(HasMaskPolicy) {}
-  Policy(PolicyType TailPolicy, PolicyType MaskPolicy, bool HasTailPolicy,
-         bool HasMaskPolicy)
-      : TailPolicy(TailPolicy), MaskPolicy(MaskPolicy),
-        HasTailPolicy(HasTailPolicy), HasMaskPolicy(HasMaskPolicy) {}
+
+private:
+  // The default assumption for an RVV instruction is TAMA, as an undisturbed
+  // policy generally will affect the performance of an out-of-order core.
+  const PolicyType TailPolicy = Agnostic;
+  const PolicyType MaskPolicy = Agnostic;
+
+public:
+  Policy() = default;
+  Policy(PolicyType TailPolicy) : TailPolicy(TailPolicy) {}
+  Policy(PolicyType TailPolicy, PolicyType MaskPolicy)
+      : TailPolicy(TailPolicy), MaskPolicy(MaskPolicy) {}
 
   bool isTAMAPolicy() const {
     return TailPolicy == Agnostic && MaskPolicy == Agnostic;
@@ -136,17 +142,8 @@ struct Policy {
 
   bool isMUPolicy() const { return MaskPolicy == Undisturbed; }
 
-  bool hasTailPolicy() const { return HasTailPolicy; }
-
-  bool hasMaskPolicy() const { return HasMaskPolicy; }
-
-  bool isUnspecified() const { return IsUnspecified; }
-
   bool operator==(const Policy &Other) const {
-    return IsUnspecified == Other.IsUnspecified &&
-           TailPolicy == Other.TailPolicy && MaskPolicy == Other.MaskPolicy &&
-           HasTailPolicy == Other.HasTailPolicy &&
-           HasMaskPolicy == Other.HasMaskPolicy;
+    return TailPolicy == Other.TailPolicy && MaskPolicy == Other.MaskPolicy;
   }
 
   bool operator!=(const Policy &Other) const { return !(*this == Other); }
@@ -253,6 +250,8 @@ class RVVType {
   unsigned ElementBitwidth = 0;
   VScaleVal Scale = 0;
   bool Valid;
+  bool IsTuple = false;
+  unsigned NF = 0;
 
   std::string BuiltinStr;
   std::string ClangBuiltinStr;
@@ -303,10 +302,15 @@ public:
   }
   bool isConstant() const { return IsConstant; }
   bool isPointer() const { return IsPointer; }
+  bool isTuple() const { return IsTuple; }
   unsigned getElementBitwidth() const { return ElementBitwidth; }
 
   ScalarTypeKind getScalarType() const { return ScalarType; }
   VScaleVal getScale() const { return Scale; }
+  unsigned getNF() const {
+    assert(NF > 1 && NF <= 8 && "Only legal NF should be fetched");
+    return NF;
+  }
 
 private:
   // Verify RVV vector type and set Valid.
@@ -393,7 +397,7 @@ public:
                const RVVTypes &Types,
                const std::vector<int64_t> &IntrinsicTypes,
                const std::vector<llvm::StringRef> &RequiredFeatures,
-               unsigned NF, Policy PolicyAttrs);
+               unsigned NF, Policy PolicyAttrs, bool HasFRMRoundModeOp);
   ~RVVIntrinsic() = default;
 
   RVVTypePtr getOutputType() const { return OutputType; }
@@ -422,7 +426,6 @@ public:
     return IntrinsicTypes;
   }
   Policy getPolicyAttrs() const {
-    assert(PolicyAttrs.IsUnspecified == false);
     return PolicyAttrs;
   }
   unsigned getPolicyAttrsBits() const {
@@ -430,8 +433,6 @@ public:
     // The 0th bit simulates the `vta` of RVV
     // The 1st bit simulates the `vma` of RVV
     // int PolicyAttrs = 0;
-
-    assert(PolicyAttrs.IsUnspecified == false);
 
     if (PolicyAttrs.isTUMAPolicy())
       return 2;
@@ -457,17 +458,16 @@ public:
   computeBuiltinTypes(llvm::ArrayRef<PrototypeDescriptor> Prototype,
                       bool IsMasked, bool HasMaskedOffOperand, bool HasVL,
                       unsigned NF, PolicyScheme DefaultScheme,
-                      Policy PolicyAttrs);
+                      Policy PolicyAttrs, bool IsTuple);
 
-  static llvm::SmallVector<Policy>
-  getSupportedUnMaskedPolicies(bool HasTailPolicy, bool HasMaskPolicy);
+  static llvm::SmallVector<Policy> getSupportedUnMaskedPolicies();
   static llvm::SmallVector<Policy>
       getSupportedMaskedPolicies(bool HasTailPolicy, bool HasMaskPolicy);
 
   static void updateNamesAndPolicy(bool IsMasked, bool HasPolicy,
                                    std::string &Name, std::string &BuiltinName,
                                    std::string &OverloadedName,
-                                   Policy &PolicyAttrs);
+                                   Policy &PolicyAttrs, bool HasFRMRoundModeOp);
 };
 
 // RVVRequire should be sync'ed with target features, but only
@@ -475,9 +475,9 @@ public:
 enum RVVRequire : uint8_t {
   RVV_REQ_None = 0,
   RVV_REQ_RV64 = 1 << 0,
-  RVV_REQ_FullMultiply = 1 << 1,
+  RVV_REQ_Xsfvcp = 1 << 1,
 
-  LLVM_MARK_AS_BITMASK_ENUM(RVV_REQ_FullMultiply)
+  LLVM_MARK_AS_BITMASK_ENUM(RVV_REQ_Xsfvcp)
 };
 
 // Raw RVV intrinsic info, used to expand later.
@@ -525,6 +525,8 @@ struct RVVIntrinsicRecord {
   bool HasMaskedOffOperand : 1;
   bool HasTailPolicy : 1;
   bool HasMaskPolicy : 1;
+  bool HasFRMRoundModeOp : 1;
+  bool IsTuple : 1;
   uint8_t UnMaskedPolicyScheme : 2;
   uint8_t MaskedPolicyScheme : 2;
 };

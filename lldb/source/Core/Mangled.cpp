@@ -25,6 +25,7 @@
 
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include <cstdlib>
@@ -90,23 +91,6 @@ int Mangled::Compare(const Mangled &a, const Mangled &b) {
                               b.GetName(ePreferMangled));
 }
 
-// Set the string value in this objects. If "mangled" is true, then the mangled
-// named is set with the new value in "s", else the demangled name is set.
-void Mangled::SetValue(ConstString s, bool mangled) {
-  if (s) {
-    if (mangled) {
-      m_demangled.Clear();
-      m_mangled = s;
-    } else {
-      m_demangled = s;
-      m_mangled.Clear();
-    }
-  } else {
-    m_demangled.Clear();
-    m_mangled.Clear();
-  }
-}
-
 void Mangled::SetValue(ConstString name) {
   if (name) {
     if (cstring_is_mangled(name.GetStringRef())) {
@@ -123,18 +107,18 @@ void Mangled::SetValue(ConstString name) {
 }
 
 // Local helpers for different demangling implementations.
-static char *GetMSVCDemangledStr(const char *M) {
+static char *GetMSVCDemangledStr(std::string_view M) {
   char *demangled_cstr = llvm::microsoftDemangle(
-      M, nullptr, nullptr, nullptr, nullptr,
+      M, nullptr, nullptr,
       llvm::MSDemangleFlags(
           llvm::MSDF_NoAccessSpecifier | llvm::MSDF_NoCallingConvention |
           llvm::MSDF_NoMemberType | llvm::MSDF_NoVariableType));
 
   if (Log *log = GetLog(LLDBLog::Demangle)) {
     if (demangled_cstr && demangled_cstr[0])
-      LLDB_LOGF(log, "demangled msvc: %s -> \"%s\"", M, demangled_cstr);
+      LLDB_LOGF(log, "demangled msvc: %s -> \"%s\"", M.data(), demangled_cstr);
     else
-      LLDB_LOGF(log, "demangled msvc: %s -> error", M);
+      LLDB_LOGF(log, "demangled msvc: %s -> error", M.data());
   }
 
   return demangled_cstr;
@@ -167,7 +151,7 @@ static char *GetItaniumDemangledStr(const char *M) {
   return demangled_cstr;
 }
 
-static char *GetRustV0DemangledStr(const char *M) {
+static char *GetRustV0DemangledStr(std::string_view M) {
   char *demangled_cstr = llvm::rustDemangle(M);
 
   if (Log *log = GetLog(LLDBLog::Demangle)) {
@@ -180,7 +164,7 @@ static char *GetRustV0DemangledStr(const char *M) {
   return demangled_cstr;
 }
 
-static char *GetDLangDemangledStr(const char *M) {
+static char *GetDLangDemangledStr(std::string_view M) {
   char *demangled_cstr = llvm::dlangDemangle(M);
 
   if (Log *log = GetLog(LLDBLog::Demangle)) {
@@ -220,7 +204,7 @@ bool Mangled::GetRichManglingInfo(RichManglingContext &context,
     // We have no rich mangling for MSVC-mangled names yet, so first try to
     // demangle it if necessary.
     if (!m_demangled && !m_mangled.GetMangledCounterpart(m_demangled)) {
-      if (char *d = GetMSVCDemangledStr(m_mangled.GetCString())) {
+      if (char *d = GetMSVCDemangledStr(m_mangled)) {
         // Without the rich mangling info we have to demangle the full name.
         // Copy it to string pool and connect the counterparts to accelerate
         // later access in GetDemangledName().
@@ -276,10 +260,10 @@ ConstString Mangled::GetDemangledName() const {
         break;
       }
       case eManglingSchemeRustV0:
-        demangled_name = GetRustV0DemangledStr(mangled_name);
+        demangled_name = GetRustV0DemangledStr(m_mangled);
         break;
       case eManglingSchemeD:
-        demangled_name = GetDLangDemangledStr(mangled_name);
+        demangled_name = GetDLangDemangledStr(m_mangled);
         break;
       case eManglingSchemeNone:
         llvm_unreachable("eManglingSchemeNone was handled already");

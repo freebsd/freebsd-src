@@ -15,7 +15,7 @@
 // 'wide' iteration. After this transformation the index is incremented
 // by the SIMD vector width, and not by one.
 //
-// This pass has three parts:
+// This pass has four parts:
 // 1. The main loop pass that drives the different parts.
 // 2. LoopVectorizationLegality - A unit that checks for the legality
 //    of the vectorization.
@@ -189,7 +189,7 @@ public:
   // Shim for old PM.
   LoopVectorizeResult runImpl(Function &F, ScalarEvolution &SE_, LoopInfo &LI_,
                               TargetTransformInfo &TTI_, DominatorTree &DT_,
-                              BlockFrequencyInfo &BFI_, TargetLibraryInfo *TLI_,
+                              BlockFrequencyInfo *BFI_, TargetLibraryInfo *TLI_,
                               DemandedBits &DB_, AssumptionCache &AC_,
                               LoopAccessInfoManager &LAIs_,
                               OptimizationRemarkEmitter &ORE_,

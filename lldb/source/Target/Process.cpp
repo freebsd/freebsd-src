@@ -92,9 +92,9 @@ class ProcessOptionValueProperties
 public:
   ProcessOptionValueProperties(ConstString name) : Cloneable(name) {}
 
-  const Property *GetPropertyAtIndex(const ExecutionContext *exe_ctx,
-                                     bool will_modify,
-                                     uint32_t idx) const override {
+  const Property *
+  GetPropertyAtIndex(size_t idx,
+                     const ExecutionContext *exe_ctx) const override {
     // When getting the value for a key from the process options, we will
     // always try and grab the setting from the current process if there is
     // one. Else we just use the one from this instance.
@@ -167,8 +167,8 @@ ProcessProperties::ProcessProperties(lldb_private::Process *process)
         std::make_shared<ProcessOptionValueProperties>(ConstString("process"));
     m_collection_sp->Initialize(g_process_properties);
     m_collection_sp->AppendProperty(
-        ConstString("thread"), ConstString("Settings specific to threads."),
-        true, Thread::GetGlobalProperties().GetValueProperties());
+        "thread", "Settings specific to threads.", true,
+        Thread::GetGlobalProperties().GetValueProperties());
   } else {
     m_collection_sp =
         OptionValueProperties::CreateLocalCopy(Process::GetGlobalProperties());
@@ -180,9 +180,9 @@ ProcessProperties::ProcessProperties(lldb_private::Process *process)
   m_experimental_properties_up =
       std::make_unique<ProcessExperimentalProperties>();
   m_collection_sp->AppendProperty(
-      ConstString(Properties::GetExperimentalSettingsName()),
-      ConstString("Experimental settings - setting these won't produce "
-                  "errors if the setting is not present."),
+      Properties::GetExperimentalSettingsName(),
+      "Experimental settings - setting these won't produce "
+      "errors if the setting is not present.",
       true, m_experimental_properties_up->GetValueProperties());
 }
 
@@ -190,169 +190,183 @@ ProcessProperties::~ProcessProperties() = default;
 
 bool ProcessProperties::GetDisableMemoryCache() const {
   const uint32_t idx = ePropertyDisableMemCache;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 uint64_t ProcessProperties::GetMemoryCacheLineSize() const {
   const uint32_t idx = ePropertyMemCacheLineSize;
-  return m_collection_sp->GetPropertyAtIndexAsUInt64(
-      nullptr, idx, g_process_properties[idx].default_uint_value);
+  return GetPropertyAtIndexAs<uint64_t>(
+      idx, g_process_properties[idx].default_uint_value);
 }
 
 Args ProcessProperties::GetExtraStartupCommands() const {
   Args args;
   const uint32_t idx = ePropertyExtraStartCommand;
-  m_collection_sp->GetPropertyAtIndexAsArgs(nullptr, idx, args);
+  m_collection_sp->GetPropertyAtIndexAsArgs(idx, args);
   return args;
 }
 
 void ProcessProperties::SetExtraStartupCommands(const Args &args) {
   const uint32_t idx = ePropertyExtraStartCommand;
-  m_collection_sp->SetPropertyAtIndexFromArgs(nullptr, idx, args);
+  m_collection_sp->SetPropertyAtIndexFromArgs(idx, args);
 }
 
 FileSpec ProcessProperties::GetPythonOSPluginPath() const {
   const uint32_t idx = ePropertyPythonOSPluginPath;
-  return m_collection_sp->GetPropertyAtIndexAsFileSpec(nullptr, idx);
+  return GetPropertyAtIndexAs<FileSpec>(idx, {});
 }
 
 uint32_t ProcessProperties::GetVirtualAddressableBits() const {
   const uint32_t idx = ePropertyVirtualAddressableBits;
-  return m_collection_sp->GetPropertyAtIndexAsUInt64(
-      nullptr, idx, g_process_properties[idx].default_uint_value);
+  return GetPropertyAtIndexAs<uint64_t>(
+      idx, g_process_properties[idx].default_uint_value);
 }
 
 void ProcessProperties::SetVirtualAddressableBits(uint32_t bits) {
   const uint32_t idx = ePropertyVirtualAddressableBits;
-  m_collection_sp->SetPropertyAtIndexAsUInt64(nullptr, idx, bits);
+  SetPropertyAtIndex(idx, static_cast<uint64_t>(bits));
 }
+
+uint32_t ProcessProperties::GetHighmemVirtualAddressableBits() const {
+  const uint32_t idx = ePropertyHighmemVirtualAddressableBits;
+  return GetPropertyAtIndexAs<uint64_t>(
+      idx, g_process_properties[idx].default_uint_value);
+}
+
+void ProcessProperties::SetHighmemVirtualAddressableBits(uint32_t bits) {
+  const uint32_t idx = ePropertyHighmemVirtualAddressableBits;
+  SetPropertyAtIndex(idx, static_cast<uint64_t>(bits));
+}
+
 void ProcessProperties::SetPythonOSPluginPath(const FileSpec &file) {
   const uint32_t idx = ePropertyPythonOSPluginPath;
-  m_collection_sp->SetPropertyAtIndexAsFileSpec(nullptr, idx, file);
+  SetPropertyAtIndex(idx, file);
 }
 
 bool ProcessProperties::GetIgnoreBreakpointsInExpressions() const {
   const uint32_t idx = ePropertyIgnoreBreakpointsInExpressions;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 void ProcessProperties::SetIgnoreBreakpointsInExpressions(bool ignore) {
   const uint32_t idx = ePropertyIgnoreBreakpointsInExpressions;
-  m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, ignore);
+  SetPropertyAtIndex(idx, ignore);
 }
 
 bool ProcessProperties::GetUnwindOnErrorInExpressions() const {
   const uint32_t idx = ePropertyUnwindOnErrorInExpressions;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 void ProcessProperties::SetUnwindOnErrorInExpressions(bool ignore) {
   const uint32_t idx = ePropertyUnwindOnErrorInExpressions;
-  m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, ignore);
+  SetPropertyAtIndex(idx, ignore);
 }
 
 bool ProcessProperties::GetStopOnSharedLibraryEvents() const {
   const uint32_t idx = ePropertyStopOnSharedLibraryEvents;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 void ProcessProperties::SetStopOnSharedLibraryEvents(bool stop) {
   const uint32_t idx = ePropertyStopOnSharedLibraryEvents;
-  m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, stop);
+  SetPropertyAtIndex(idx, stop);
 }
 
 bool ProcessProperties::GetDisableLangRuntimeUnwindPlans() const {
   const uint32_t idx = ePropertyDisableLangRuntimeUnwindPlans;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 void ProcessProperties::SetDisableLangRuntimeUnwindPlans(bool disable) {
   const uint32_t idx = ePropertyDisableLangRuntimeUnwindPlans;
-  m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, disable);
+  SetPropertyAtIndex(idx, disable);
   m_process->Flush();
 }
 
 bool ProcessProperties::GetDetachKeepsStopped() const {
   const uint32_t idx = ePropertyDetachKeepsStopped;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 void ProcessProperties::SetDetachKeepsStopped(bool stop) {
   const uint32_t idx = ePropertyDetachKeepsStopped;
-  m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, stop);
+  SetPropertyAtIndex(idx, stop);
 }
 
 bool ProcessProperties::GetWarningsOptimization() const {
   const uint32_t idx = ePropertyWarningOptimization;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 bool ProcessProperties::GetWarningsUnsupportedLanguage() const {
   const uint32_t idx = ePropertyWarningUnsupportedLanguage;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 bool ProcessProperties::GetStopOnExec() const {
   const uint32_t idx = ePropertyStopOnExec;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 std::chrono::seconds ProcessProperties::GetUtilityExpressionTimeout() const {
   const uint32_t idx = ePropertyUtilityExpressionTimeout;
-  uint64_t value = m_collection_sp->GetPropertyAtIndexAsUInt64(
-      nullptr, idx, g_process_properties[idx].default_uint_value);
+  uint64_t value = GetPropertyAtIndexAs<uint64_t>(
+      idx, g_process_properties[idx].default_uint_value);
   return std::chrono::seconds(value);
 }
 
 std::chrono::seconds ProcessProperties::GetInterruptTimeout() const {
   const uint32_t idx = ePropertyInterruptTimeout;
-  uint64_t value = m_collection_sp->GetPropertyAtIndexAsUInt64(
-      nullptr, idx, g_process_properties[idx].default_uint_value);
+  uint64_t value = GetPropertyAtIndexAs<uint64_t>(
+      idx, g_process_properties[idx].default_uint_value);
   return std::chrono::seconds(value);
 }
 
 bool ProcessProperties::GetSteppingRunsAllThreads() const {
   const uint32_t idx = ePropertySteppingRunsAllThreads;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_process_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_process_properties[idx].default_uint_value != 0);
 }
 
 bool ProcessProperties::GetOSPluginReportsAllThreads() const {
   const bool fail_value = true;
   const Property *exp_property =
-      m_collection_sp->GetPropertyAtIndex(nullptr, true, ePropertyExperimental);
+      m_collection_sp->GetPropertyAtIndex(ePropertyExperimental);
   OptionValueProperties *exp_values =
       exp_property->GetValue()->GetAsProperties();
   if (!exp_values)
     return fail_value;
 
-  return exp_values->GetPropertyAtIndexAsBoolean(
-      nullptr, ePropertyOSPluginReportsAllThreads, fail_value);
+  return exp_values
+      ->GetPropertyAtIndexAs<bool>(ePropertyOSPluginReportsAllThreads)
+      .value_or(fail_value);
 }
 
 void ProcessProperties::SetOSPluginReportsAllThreads(bool does_report) {
   const Property *exp_property =
-      m_collection_sp->GetPropertyAtIndex(nullptr, true, ePropertyExperimental);
+      m_collection_sp->GetPropertyAtIndex(ePropertyExperimental);
   OptionValueProperties *exp_values =
       exp_property->GetValue()->GetAsProperties();
   if (exp_values)
-    exp_values->SetPropertyAtIndexAsBoolean(
-        nullptr, ePropertyOSPluginReportsAllThreads, does_report);
+    exp_values->SetPropertyAtIndex(ePropertyOSPluginReportsAllThreads,
+                                   does_report);
 }
 
 FollowForkMode ProcessProperties::GetFollowForkMode() const {
   const uint32_t idx = ePropertyFollowForkMode;
-  return (FollowForkMode)m_collection_sp->GetPropertyAtIndexAsEnumeration(
-      nullptr, idx, g_process_properties[idx].default_uint_value);
+  return GetPropertyAtIndexAs<FollowForkMode>(
+      idx, static_cast<FollowForkMode>(
+               g_process_properties[idx].default_uint_value));
 }
 
 ProcessSP Process::FindPlugin(lldb::TargetSP target_sp,
@@ -402,8 +416,7 @@ ConstString &Process::GetStaticBroadcasterClass() {
 }
 
 Process::Process(lldb::TargetSP target_sp, ListenerSP listener_sp)
-    : Process(target_sp, listener_sp,
-              UnixSignals::Create(HostInfo::GetArchitecture())) {
+    : Process(target_sp, listener_sp, UnixSignals::CreateForHost()) {
   // This constructor just delegates to the full Process constructor,
   // defaulting to using the Host's UnixSignals.
 }
@@ -480,13 +493,12 @@ Process::Process(lldb::TargetSP target_sp, ListenerSP listener_sp,
 
   // Allow the platform to override the default cache line size
   OptionValueSP value_sp =
-      m_collection_sp
-          ->GetPropertyAtIndex(nullptr, true, ePropertyMemCacheLineSize)
+      m_collection_sp->GetPropertyAtIndex(ePropertyMemCacheLineSize)
           ->GetValue();
-  uint32_t platform_cache_line_size =
+  uint64_t platform_cache_line_size =
       target_sp->GetPlatform()->GetDefaultMemoryCacheLineSize();
   if (!value_sp->OptionWasSet() && platform_cache_line_size != 0)
-    value_sp->SetUInt64Value(platform_cache_line_size);
+    value_sp->SetValueAs(platform_cache_line_size);
 
   RegisterAssertFrameRecognizer(this);
 }
@@ -645,10 +657,10 @@ void Process::SyncIOHandler(uint32_t iohandler_id,
   }
 }
 
-StateType Process::WaitForProcessToStop(const Timeout<std::micro> &timeout,
-                                        EventSP *event_sp_ptr, bool wait_always,
-                                        ListenerSP hijack_listener_sp,
-                                        Stream *stream, bool use_run_lock) {
+StateType Process::WaitForProcessToStop(
+    const Timeout<std::micro> &timeout, EventSP *event_sp_ptr, bool wait_always,
+    ListenerSP hijack_listener_sp, Stream *stream, bool use_run_lock,
+    SelectMostRelevant select_most_relevant) {
   // We can't just wait for a "stopped" event, because the stopped event may
   // have restarted the target. We have to actually check each event, and in
   // the case of a stopped event check the restarted flag on the event.
@@ -683,8 +695,8 @@ StateType Process::WaitForProcessToStop(const Timeout<std::micro> &timeout,
       *event_sp_ptr = event_sp;
 
     bool pop_process_io_handler = (hijack_listener_sp.get() != nullptr);
-    Process::HandleProcessStateChangedEvent(event_sp, stream,
-                                            pop_process_io_handler);
+    Process::HandleProcessStateChangedEvent(
+        event_sp, stream, select_most_relevant, pop_process_io_handler);
 
     switch (state) {
     case eStateCrashed:
@@ -713,9 +725,10 @@ StateType Process::WaitForProcessToStop(const Timeout<std::micro> &timeout,
   return state;
 }
 
-bool Process::HandleProcessStateChangedEvent(const EventSP &event_sp,
-                                             Stream *stream,
-                                             bool &pop_process_io_handler) {
+bool Process::HandleProcessStateChangedEvent(
+    const EventSP &event_sp, Stream *stream,
+    SelectMostRelevant select_most_relevant,
+    bool &pop_process_io_handler) {
   const bool handle_pop = pop_process_io_handler;
 
   pop_process_io_handler = false;
@@ -897,7 +910,8 @@ bool Process::HandleProcessStateChangedEvent(const EventSP &event_sp,
             return false;
 
           const bool only_threads_with_stop_reason = true;
-          const uint32_t start_frame = thread_sp->GetSelectedFrameIndex();
+          const uint32_t start_frame =
+              thread_sp->GetSelectedFrameIndex(select_most_relevant);
           const uint32_t num_frames = 1;
           const uint32_t num_frames_with_source = 1;
           const bool stop_format = true;
@@ -1054,14 +1068,16 @@ bool Process::SetExitStatus(int status, const char *cstr) {
   std::lock_guard<std::mutex> guard(m_exit_status_mutex);
 
   Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
-  LLDB_LOGF(
-      log, "Process::SetExitStatus (status=%i (0x%8.8x), description=%s%s%s)",
-      status, status, cstr ? "\"" : "", cstr ? cstr : "NULL", cstr ? "\"" : "");
+  LLDB_LOGF(log, "(plugin = %s status=%i (0x%8.8x), description=%s%s%s)",
+           GetPluginName().data(), status, status, cstr ? "\"" : "",
+           cstr ? cstr : "NULL", cstr ? "\"" : "");
 
   // We were already in the exited state
   if (m_private_state.GetValue() == eStateExited) {
-    LLDB_LOGF(log, "Process::SetExitStatus () ignoring exit status because "
-                   "state was already set to eStateExited");
+    LLDB_LOGF(log,
+             "(plugin = %s) ignoring exit status because state was already set "
+             "to eStateExited",
+             GetPluginName().data());
     return false;
   }
 
@@ -1313,8 +1329,8 @@ void Process::SetPublicState(StateType new_state, bool restarted) {
   }
 
   Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
-  LLDB_LOGF(log, "Process::SetPublicState (state = %s, restarted = %i)",
-            StateAsCString(new_state), restarted);
+  LLDB_LOGF(log, "(plugin = %s, state = %s, restarted = %i)",
+           GetPluginName().data(), StateAsCString(new_state), restarted);
   const StateType old_state = m_public_state.GetValue();
   m_public_state.SetValue(new_state);
 
@@ -1324,15 +1340,15 @@ void Process::SetPublicState(StateType new_state, bool restarted) {
   if (!StateChangedIsExternallyHijacked()) {
     if (new_state == eStateDetached) {
       LLDB_LOGF(log,
-                "Process::SetPublicState (%s) -- unlocking run lock for detach",
-                StateAsCString(new_state));
+               "(plugin = %s, state = %s) -- unlocking run lock for detach",
+               GetPluginName().data(), StateAsCString(new_state));
       m_public_run_lock.SetStopped();
     } else {
       const bool old_state_is_stopped = StateIsStoppedState(old_state, false);
       if ((old_state_is_stopped != new_state_is_stopped)) {
         if (new_state_is_stopped && !restarted) {
-          LLDB_LOGF(log, "Process::SetPublicState (%s) -- unlocking run lock",
-                    StateAsCString(new_state));
+          LLDB_LOGF(log, "(plugin = %s, state = %s) -- unlocking run lock",
+                   GetPluginName().data(), StateAsCString(new_state));
           m_public_run_lock.SetStopped();
         }
       }
@@ -1342,10 +1358,11 @@ void Process::SetPublicState(StateType new_state, bool restarted) {
 
 Status Process::Resume() {
   Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
-  LLDB_LOGF(log, "Process::Resume -- locking run lock");
+  LLDB_LOGF(log, "(plugin = %s) -- locking run lock", GetPluginName().data());
   if (!m_public_run_lock.TrySetRunning()) {
     Status error("Resume request failed - process still running.");
-    LLDB_LOGF(log, "Process::Resume: -- TrySetRunning failed, not resuming.");
+    LLDB_LOGF(log, "(plugin = %s) -- TrySetRunning failed, not resuming.",
+             GetPluginName().data());
     return error;
   }
   Status error = PrivateResume();
@@ -1355,8 +1372,6 @@ Status Process::Resume() {
   }
   return error;
 }
-
-static const char *g_resume_sync_name = "lldb.Process.ResumeSynchronous.hijack";
 
 Status Process::ResumeSynchronous(Stream *stream) {
   Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
@@ -1368,13 +1383,14 @@ Status Process::ResumeSynchronous(Stream *stream) {
   }
 
   ListenerSP listener_sp(
-      Listener::MakeListener(g_resume_sync_name));
+      Listener::MakeListener(ResumeSynchronousHijackListenerName.data()));
   HijackProcessEvents(listener_sp);
 
   Status error = PrivateResume();
   if (error.Success()) {
     StateType state =
-        WaitForProcessToStop(std::nullopt, nullptr, true, listener_sp, stream);
+        WaitForProcessToStop(std::nullopt, nullptr, true, listener_sp, stream,
+                             true /* use_run_lock */, SelectMostRelevantFrame);
     const bool must_be_alive =
         false; // eStateExited is ok, so this must be false
     if (!StateIsStoppedState(state, must_be_alive))
@@ -1394,9 +1410,8 @@ Status Process::ResumeSynchronous(Stream *stream) {
 
 bool Process::StateChangedIsExternallyHijacked() {
   if (IsHijackedForEvent(eBroadcastBitStateChanged)) {
-    const char *hijacking_name = GetHijackingListenerName();
-    if (hijacking_name &&
-        strcmp(hijacking_name, g_resume_sync_name))
+    llvm::StringRef hijacking_name = GetHijackingListenerName();
+    if (!hijacking_name.starts_with("lldb.internal"))
       return true;
   }
   return false;
@@ -1404,9 +1419,8 @@ bool Process::StateChangedIsExternallyHijacked() {
 
 bool Process::StateChangedIsHijackedForSynchronousResume() {
   if (IsHijackedForEvent(eBroadcastBitStateChanged)) {
-    const char *hijacking_name = GetHijackingListenerName();
-    if (hijacking_name &&
-        strcmp(hijacking_name, g_resume_sync_name) == 0)
+    llvm::StringRef hijacking_name = GetHijackingListenerName();
+    if (hijacking_name == ResumeSynchronousHijackListenerName)
       return true;
   }
   return false;
@@ -1421,7 +1435,8 @@ void Process::SetPrivateState(StateType new_state) {
   Log *log(GetLog(LLDBLog::State | LLDBLog::Process | LLDBLog::Unwind));
   bool state_changed = false;
 
-  LLDB_LOGF(log, "Process::SetPrivateState (%s)", StateAsCString(new_state));
+  LLDB_LOGF(log, "(plugin = %s, state = %s)", GetPluginName().data(),
+           StateAsCString(new_state));
 
   std::lock_guard<std::recursive_mutex> thread_guard(m_thread_list.GetMutex());
   std::lock_guard<std::recursive_mutex> guard(m_private_state.GetMutex());
@@ -1462,15 +1477,15 @@ void Process::SetPrivateState(StateType new_state) {
       if (!m_mod_id.IsLastResumeForUserExpression())
         m_mod_id.SetStopEventForLastNaturalStopID(event_sp);
       m_memory_cache.Clear();
-      LLDB_LOGF(log, "Process::SetPrivateState (%s) stop_id = %u",
-                StateAsCString(new_state), m_mod_id.GetStopID());
+      LLDB_LOGF(log, "(plugin = %s, state = %s, stop_id = %u",
+               GetPluginName().data(), StateAsCString(new_state),
+               m_mod_id.GetStopID());
     }
 
     m_private_state_broadcaster.BroadcastEvent(event_sp);
   } else {
-    LLDB_LOGF(log,
-              "Process::SetPrivateState (%s) state didn't change. Ignoring...",
-              StateAsCString(new_state));
+    LLDB_LOGF(log, "(plugin = %s, state = %s) state didn't change. Ignoring...",
+             GetPluginName().data(), StateAsCString(new_state));
   }
 }
 
@@ -2355,6 +2370,23 @@ Status Process::DeallocateMemory(addr_t ptr) {
   return error;
 }
 
+bool Process::GetWatchpointReportedAfter() {
+  if (std::optional<bool> subclass_override = DoGetWatchpointReportedAfter())
+    return *subclass_override;
+
+  bool reported_after = true;
+  const ArchSpec &arch = GetTarget().GetArchitecture();
+  if (!arch.IsValid())
+    return reported_after;
+  llvm::Triple triple = arch.GetTriple();
+
+  if (triple.isMIPS() || triple.isPPC64() || triple.isRISCV() ||
+      triple.isAArch64() || triple.isArmMClass() || triple.isARM())
+    reported_after = false;
+
+  return reported_after;
+}
+
 ModuleSP Process::ReadModuleFromMemory(const FileSpec &file_spec,
                                        lldb::addr_t header_addr,
                                        size_t size_to_read) {
@@ -2435,6 +2467,7 @@ Process::WaitForProcessStopPrivate(EventSP &event_sp,
 }
 
 void Process::LoadOperatingSystemPlugin(bool flush) {
+  std::lock_guard<std::recursive_mutex> guard(m_thread_mutex);
   if (flush)
     m_thread_list.Clear();
   m_os_up.reset(OperatingSystem::FindPlugin(this, nullptr));
@@ -2495,7 +2528,7 @@ Status Process::LaunchPrivate(ProcessLaunchInfo &launch_info, StateType &state,
 
   FileSpec exe_spec_to_use;
   if (!exe_module) {
-    if (!launch_info.GetExecutableFile()) {
+    if (!launch_info.GetExecutableFile() && !launch_info.IsScriptedProcess()) {
       error.SetErrorString("executable module does not exist");
       return error;
     }
@@ -2637,7 +2670,8 @@ Status Process::LoadCore() {
     // Wait for a stopped event since we just posted one above...
     lldb::EventSP event_sp;
     StateType state =
-        WaitForProcessToStop(std::nullopt, &event_sp, true, listener_sp);
+        WaitForProcessToStop(std::nullopt, &event_sp, true, listener_sp,
+                             nullptr, true, SelectMostRelevantFrame);
 
     if (!StateIsStoppedState(state, false)) {
       Log *log = GetLog(LLDBLog::Process);
@@ -3142,9 +3176,13 @@ Status Process::Halt(bool clear_thread_plans, bool use_run_lock) {
   }
 
   // Wait for the process halt timeout seconds for the process to stop.
-  StateType state =
-      WaitForProcessToStop(GetInterruptTimeout(), &event_sp, true,
-                           halt_listener_sp, nullptr, use_run_lock);
+  // If we are going to use the run lock, that means we're stopping out to the
+  // user, so we should also select the most relevant frame.
+  SelectMostRelevant select_most_relevant =
+      use_run_lock ? SelectMostRelevantFrame : DoNoSelectMostRelevantFrame;
+  StateType state = WaitForProcessToStop(GetInterruptTimeout(), &event_sp, true,
+                                         halt_listener_sp, nullptr,
+                                         use_run_lock, select_most_relevant);
   RestoreProcessEvents();
 
   if (state == eStateInvalid || !event_sp) {
@@ -3352,7 +3390,7 @@ Status Process::Signal(int signal) {
 
 void Process::SetUnixSignals(UnixSignalsSP &&signals_sp) {
   assert(signals_sp && "null signals_sp");
-  m_unix_signals_sp = signals_sp;
+  m_unix_signals_sp = std::move(signals_sp);
 }
 
 const lldb::UnixSignalsSP &Process::GetUnixSignals() {
@@ -3562,8 +3600,8 @@ bool Process::StartPrivateStateThread(bool is_secondary_thread) {
           },
           8 * 1024 * 1024);
   if (!private_state_thread) {
-    LLDB_LOG(GetLog(LLDBLog::Host), "failed to launch host thread: {}",
-             llvm::toString(private_state_thread.takeError()));
+    LLDB_LOG_ERROR(GetLog(LLDBLog::Host), private_state_thread.takeError(),
+                   "failed to launch host thread: {0}");
     return false;
   }
 
@@ -3913,12 +3951,11 @@ Process::ProcessEventData::ProcessEventData(const ProcessSP &process_sp,
 
 Process::ProcessEventData::~ProcessEventData() = default;
 
-ConstString Process::ProcessEventData::GetFlavorString() {
-  static ConstString g_flavor("Process::ProcessEventData");
-  return g_flavor;
+llvm::StringRef Process::ProcessEventData::GetFlavorString() {
+  return "Process::ProcessEventData";
 }
 
-ConstString Process::ProcessEventData::GetFlavor() const {
+llvm::StringRef Process::ProcessEventData::GetFlavor() const {
   return ProcessEventData::GetFlavorString();
 }
 
@@ -4265,7 +4302,7 @@ void Process::BroadcastStructuredData(const StructuredData::ObjectSP &object_sp,
 }
 
 StructuredDataPluginSP
-Process::GetStructuredDataPlugin(ConstString type_name) const {
+Process::GetStructuredDataPlugin(llvm::StringRef type_name) const {
   auto find_it = m_structured_data_plugin_map.find(type_name);
   if (find_it != m_structured_data_plugin_map.end())
     return find_it->second;
@@ -4745,10 +4782,11 @@ Process::RunThreadPlan(ExecutionContext &exe_ctx,
 
   // Save the thread & frame from the exe_ctx for restoration after we run
   const uint32_t thread_idx_id = thread->GetIndexID();
-  StackFrameSP selected_frame_sp = thread->GetSelectedFrame();
+  StackFrameSP selected_frame_sp =
+      thread->GetSelectedFrame(DoNoSelectMostRelevantFrame);
   if (!selected_frame_sp) {
     thread->SetSelectedFrame(nullptr);
-    selected_frame_sp = thread->GetSelectedFrame();
+    selected_frame_sp = thread->GetSelectedFrame(DoNoSelectMostRelevantFrame);
     if (!selected_frame_sp) {
       diagnostic_manager.Printf(
           eDiagnosticSeverityError,
@@ -4780,7 +4818,9 @@ Process::RunThreadPlan(ExecutionContext &exe_ctx,
   StackID selected_stack_id;
   if (selected_thread_sp) {
     selected_tid = selected_thread_sp->GetIndexID();
-    selected_stack_id = selected_thread_sp->GetSelectedFrame()->GetStackID();
+    selected_stack_id =
+        selected_thread_sp->GetSelectedFrame(DoNoSelectMostRelevantFrame)
+            ->GetStackID();
   } else {
     selected_tid = LLDB_INVALID_THREAD_ID;
   }
@@ -5624,23 +5664,73 @@ void Process::Flush() {
 }
 
 lldb::addr_t Process::GetCodeAddressMask() {
-  if (m_code_address_mask == 0) {
-    if (uint32_t number_of_addressable_bits = GetVirtualAddressableBits()) {
-      lldb::addr_t address_mask = ~((1ULL << number_of_addressable_bits) - 1);
-      SetCodeAddressMask(address_mask);
-    }
-  }
+  if (uint32_t num_bits_setting = GetVirtualAddressableBits())
+    return ~((1ULL << num_bits_setting) - 1);
+
   return m_code_address_mask;
 }
 
 lldb::addr_t Process::GetDataAddressMask() {
-  if (m_data_address_mask == 0) {
-    if (uint32_t number_of_addressable_bits = GetVirtualAddressableBits()) {
-      lldb::addr_t address_mask = ~((1ULL << number_of_addressable_bits) - 1);
-      SetDataAddressMask(address_mask);
-    }
-  }
+  if (uint32_t num_bits_setting = GetVirtualAddressableBits())
+    return ~((1ULL << num_bits_setting) - 1);
+
   return m_data_address_mask;
+}
+
+lldb::addr_t Process::GetHighmemCodeAddressMask() {
+  if (uint32_t num_bits_setting = GetHighmemVirtualAddressableBits())
+    return ~((1ULL << num_bits_setting) - 1);
+  return GetCodeAddressMask();
+}
+
+lldb::addr_t Process::GetHighmemDataAddressMask() {
+  if (uint32_t num_bits_setting = GetHighmemVirtualAddressableBits())
+    return ~((1ULL << num_bits_setting) - 1);
+  return GetDataAddressMask();
+}
+
+void Process::SetCodeAddressMask(lldb::addr_t code_address_mask) {
+  LLDB_LOG(GetLog(LLDBLog::Process),
+           "Setting Process code address mask to {0:x}", code_address_mask);
+  m_code_address_mask = code_address_mask;
+}
+
+void Process::SetDataAddressMask(lldb::addr_t data_address_mask) {
+  LLDB_LOG(GetLog(LLDBLog::Process),
+           "Setting Process data address mask to {0:x}", data_address_mask);
+  m_data_address_mask = data_address_mask;
+}
+
+void Process::SetHighmemCodeAddressMask(lldb::addr_t code_address_mask) {
+  LLDB_LOG(GetLog(LLDBLog::Process),
+           "Setting Process highmem code address mask to {0:x}",
+           code_address_mask);
+  m_highmem_code_address_mask = code_address_mask;
+}
+
+void Process::SetHighmemDataAddressMask(lldb::addr_t data_address_mask) {
+  LLDB_LOG(GetLog(LLDBLog::Process),
+           "Setting Process highmem data address mask to {0:x}",
+           data_address_mask);
+  m_highmem_data_address_mask = data_address_mask;
+}
+
+addr_t Process::FixCodeAddress(addr_t addr) {
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixCodeAddress(addr);
+  return addr;
+}
+
+addr_t Process::FixDataAddress(addr_t addr) {
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixDataAddress(addr);
+  return addr;
+}
+
+addr_t Process::FixAnyAddress(addr_t addr) {
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixAnyAddress(addr);
+  return addr;
 }
 
 void Process::DidExec() {
@@ -5737,7 +5827,7 @@ void Process::ModulesDidLoad(ModuleList &module_list) {
     LoadOperatingSystemPlugin(false);
 
   // Inform the structured-data plugins of the modified modules.
-  for (auto pair : m_structured_data_plugin_map) {
+  for (auto &pair : m_structured_data_plugin_map) {
     if (pair.second)
       pair.second->ModulesDidLoad(*this, module_list);
   }
@@ -5918,7 +6008,7 @@ Status Process::GetMemoryRegions(lldb_private::MemoryRegionInfos &region_list) {
 }
 
 Status
-Process::ConfigureStructuredData(ConstString type_name,
+Process::ConfigureStructuredData(llvm::StringRef type_name,
                                  const StructuredData::ObjectSP &config_sp) {
   // If you get this, the Process-derived class needs to implement a method to
   // enable an already-reported asynchronous structured data feature. See
@@ -5932,34 +6022,29 @@ void Process::MapSupportedStructuredDataPlugins(
 
   // Bail out early if there are no type names to map.
   if (supported_type_names.GetSize() == 0) {
-    LLDB_LOGF(log, "Process::%s(): no structured data types supported",
-              __FUNCTION__);
+    LLDB_LOG(log, "no structured data types supported");
     return;
   }
 
-  // Convert StructuredData type names to ConstString instances.
-  std::set<ConstString> const_type_names;
+  // These StringRefs are backed by the input parameter.
+  std::set<llvm::StringRef> type_names;
 
-  LLDB_LOGF(log,
-            "Process::%s(): the process supports the following async "
-            "structured data types:",
-            __FUNCTION__);
+  LLDB_LOG(log,
+           "the process supports the following async structured data types:");
 
   supported_type_names.ForEach(
-      [&const_type_names, &log](StructuredData::Object *object) {
-        if (!object) {
-          // Invalid - shouldn't be null objects in the array.
+      [&type_names, &log](StructuredData::Object *object) {
+        // There shouldn't be null objects in the array.
+        if (!object)
           return false;
-        }
 
-        auto type_name = object->GetAsString();
-        if (!type_name) {
-          // Invalid format - all type names should be strings.
+        // All type names should be strings.
+        const llvm::StringRef type_name = object->GetStringValue();
+        if (type_name.empty())
           return false;
-        }
 
-        const_type_names.insert(ConstString(type_name->GetValue()));
-        LLDB_LOG(log, "- {0}", type_name->GetValue());
+        type_names.insert(type_name);
+        LLDB_LOG(log, "- {0}", type_name);
         return true;
       });
 
@@ -5968,10 +6053,10 @@ void Process::MapSupportedStructuredDataPlugins(
   // we've consumed all the type names.
   // FIXME: should we return an error if there are type names nobody
   // supports?
-  for (uint32_t plugin_index = 0; !const_type_names.empty(); plugin_index++) {
+  for (uint32_t plugin_index = 0; !type_names.empty(); plugin_index++) {
     auto create_instance =
-           PluginManager::GetStructuredDataPluginCreateCallbackAtIndex(
-               plugin_index);
+        PluginManager::GetStructuredDataPluginCreateCallbackAtIndex(
+            plugin_index);
     if (!create_instance)
       break;
 
@@ -5984,8 +6069,8 @@ void Process::MapSupportedStructuredDataPlugins(
     }
 
     // For any of the remaining type names, map any that this plugin supports.
-    std::vector<ConstString> names_to_remove;
-    for (auto &type_name : const_type_names) {
+    std::vector<llvm::StringRef> names_to_remove;
+    for (llvm::StringRef type_name : type_names) {
       if (plugin_sp->SupportsStructuredDataType(type_name)) {
         m_structured_data_plugin_map.insert(
             std::make_pair(type_name, plugin_sp));
@@ -5996,8 +6081,8 @@ void Process::MapSupportedStructuredDataPlugins(
     }
 
     // Remove the type names that were consumed by this plugin.
-    for (auto &type_name : names_to_remove)
-      const_type_names.erase(type_name);
+    for (llvm::StringRef type_name : names_to_remove)
+      type_names.erase(type_name);
   }
 }
 
@@ -6014,7 +6099,7 @@ bool Process::RouteAsyncStructuredData(
     return false;
 
   // Grab the async structured type name (i.e. the feature/plugin name).
-  ConstString type_name;
+  llvm::StringRef type_name;
   if (!dictionary->GetValueForKeyAsString("type", type_name))
     return false;
 

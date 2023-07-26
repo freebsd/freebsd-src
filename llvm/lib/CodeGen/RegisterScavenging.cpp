@@ -96,13 +96,13 @@ void RegScavenger::enterBasicBlockEnd(MachineBasicBlock &MBB) {
 }
 
 void RegScavenger::addRegUnits(BitVector &BV, MCRegister Reg) {
-  for (MCRegUnitIterator RUI(Reg, TRI); RUI.isValid(); ++RUI)
-    BV.set(*RUI);
+  for (MCRegUnit Unit : TRI->regunits(Reg))
+    BV.set(Unit);
 }
 
 void RegScavenger::removeRegUnits(BitVector &BV, MCRegister Reg) {
-  for (MCRegUnitIterator RUI(Reg, TRI); RUI.isValid(); ++RUI)
-    BV.reset(*RUI);
+  for (MCRegUnit Unit : TRI->regunits(Reg))
+    BV.reset(Unit);
 }
 
 void RegScavenger::determineKillsAndDefs() {
@@ -198,25 +198,13 @@ void RegScavenger::forward() {
         // S1 is can be freely clobbered.
         // Ideally we would like a way to model this, but leaving the
         // insert_subreg around causes both correctness and performance issues.
-        bool SubUsed = false;
-        for (const MCPhysReg &SubReg : TRI->subregs(Reg))
-          if (isRegUsed(SubReg)) {
-            SubUsed = true;
-            break;
-          }
-        bool SuperUsed = false;
-        for (MCSuperRegIterator SR(Reg, TRI); SR.isValid(); ++SR) {
-          if (isRegUsed(*SR)) {
-            SuperUsed = true;
-            break;
-          }
-        }
-        if (!SubUsed && !SuperUsed) {
+        if (none_of(TRI->subregs(Reg),
+                    [&](MCPhysReg SR) { return isRegUsed(SR); }) &&
+            none_of(TRI->superregs(Reg),
+                    [&](MCPhysReg SR) { return isRegUsed(SR); })) {
           MBB->getParent()->verify(nullptr, "In Register Scavenger");
           llvm_unreachable("Using an undefined register!");
         }
-        (void)SubUsed;
-        (void)SuperUsed;
       }
     } else {
       assert(MO.isDef());
@@ -280,70 +268,6 @@ BitVector RegScavenger::getRegsAvailable(const TargetRegisterClass *RC) {
     if (!isRegUsed(Reg))
       Mask.set(Reg);
   return Mask;
-}
-
-Register RegScavenger::findSurvivorReg(MachineBasicBlock::iterator StartMI,
-                                       BitVector &Candidates,
-                                       unsigned InstrLimit,
-                                       MachineBasicBlock::iterator &UseMI) {
-  int Survivor = Candidates.find_first();
-  assert(Survivor > 0 && "No candidates for scavenging");
-
-  MachineBasicBlock::iterator ME = MBB->getFirstTerminator();
-  assert(StartMI != ME && "MI already at terminator");
-  MachineBasicBlock::iterator RestorePointMI = StartMI;
-  MachineBasicBlock::iterator MI = StartMI;
-
-  bool inVirtLiveRange = false;
-  for (++MI; InstrLimit > 0 && MI != ME; ++MI, --InstrLimit) {
-    if (MI->isDebugOrPseudoInstr()) {
-      ++InstrLimit; // Don't count debug instructions
-      continue;
-    }
-    bool isVirtKillInsn = false;
-    bool isVirtDefInsn = false;
-    // Remove any candidates touched by instruction.
-    for (const MachineOperand &MO : MI->operands()) {
-      if (MO.isRegMask())
-        Candidates.clearBitsNotInMask(MO.getRegMask());
-      if (!MO.isReg() || MO.isUndef() || !MO.getReg())
-        continue;
-      if (MO.getReg().isVirtual()) {
-        if (MO.isDef())
-          isVirtDefInsn = true;
-        else if (MO.isKill())
-          isVirtKillInsn = true;
-        continue;
-      }
-      for (MCRegAliasIterator AI(MO.getReg(), TRI, true); AI.isValid(); ++AI)
-        Candidates.reset(*AI);
-    }
-    // If we're not in a virtual reg's live range, this is a valid
-    // restore point.
-    if (!inVirtLiveRange) RestorePointMI = MI;
-
-    // Update whether we're in the live range of a virtual register
-    if (isVirtKillInsn) inVirtLiveRange = false;
-    if (isVirtDefInsn) inVirtLiveRange = true;
-
-    // Was our survivor untouched by this instruction?
-    if (Candidates.test(Survivor))
-      continue;
-
-    // All candidates gone?
-    if (Candidates.none())
-      break;
-
-    Survivor = Candidates.find_first();
-  }
-  // If we ran off the end, that's where we want to restore.
-  if (MI == ME) RestorePointMI = ME;
-  assert(RestorePointMI != StartMI &&
-         "No available scavenger restore location!");
-
-  // We ran out of candidates, so stop the search.
-  UseMI = RestorePointMI;
-  return Survivor;
 }
 
 /// Given the bitvector \p Available of free register units at position
@@ -520,73 +444,6 @@ RegScavenger::spill(Register Reg, const TargetRegisterClass &RC, int SPAdj,
     TRI->eliminateFrameIndex(II, SPAdj, FIOperandNum, this);
   }
   return Scavenged[SI];
-}
-
-Register RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
-                                        MachineBasicBlock::iterator I,
-                                        int SPAdj, bool AllowSpill) {
-  MachineInstr &MI = *I;
-  const MachineFunction &MF = *MI.getMF();
-  // Consider all allocatable registers in the register class initially
-  BitVector Candidates = TRI->getAllocatableSet(MF, RC);
-
-  // Exclude all the registers being used by the instruction.
-  for (const MachineOperand &MO : MI.operands()) {
-    if (MO.isReg() && MO.getReg() != 0 && !(MO.isUse() && MO.isUndef()) &&
-        !MO.getReg().isVirtual())
-      for (MCRegAliasIterator AI(MO.getReg(), TRI, true); AI.isValid(); ++AI)
-        Candidates.reset(*AI);
-  }
-
-  // If we have already scavenged some registers, remove them from the
-  // candidates. If we end up recursively calling eliminateFrameIndex, we don't
-  // want to be clobbering previously scavenged registers or their associated
-  // stack slots.
-  for (ScavengedInfo &SI : Scavenged) {
-    if (SI.Reg) {
-      if (isRegUsed(SI.Reg)) {
-        LLVM_DEBUG(
-          dbgs() << "Removing " << printReg(SI.Reg, TRI) <<
-          " from scavenging candidates since it was already scavenged\n");
-        for (MCRegAliasIterator AI(SI.Reg, TRI, true); AI.isValid(); ++AI)
-          Candidates.reset(*AI);
-      }
-    }
-  }
-
-  // Try to find a register that's unused if there is one, as then we won't
-  // have to spill.
-  BitVector Available = getRegsAvailable(RC);
-  Available &= Candidates;
-  if (Available.any())
-    Candidates = Available;
-
-  // Find the register whose use is furthest away.
-  MachineBasicBlock::iterator UseMI;
-  Register SReg = findSurvivorReg(I, Candidates, 25, UseMI);
-
-  // If we found an unused register there is no reason to spill it.
-  if (!isRegUsed(SReg)) {
-    LLVM_DEBUG(dbgs() << "Scavenged register: " << printReg(SReg, TRI) << "\n");
-    return SReg;
-  }
-
-  if (!AllowSpill)
-    return 0;
-
-#ifndef NDEBUG
-  for (ScavengedInfo &SI : Scavenged) {
-    assert(SI.Reg != SReg && "scavenged a previously scavenged register");
-  }
-#endif
-
-  ScavengedInfo &Scavenged = spill(SReg, *RC, SPAdj, I, UseMI);
-  Scavenged.Restore = &*std::prev(UseMI);
-
-  LLVM_DEBUG(dbgs() << "Scavenged register (with spill): "
-                    << printReg(SReg, TRI) << "\n");
-
-  return SReg;
 }
 
 Register RegScavenger::scavengeRegisterBackwards(const TargetRegisterClass &RC,

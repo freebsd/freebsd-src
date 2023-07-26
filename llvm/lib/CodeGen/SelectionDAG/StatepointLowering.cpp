@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
@@ -42,7 +43,6 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/MachineValueType.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <cassert>
@@ -258,8 +258,7 @@ static bool willLowerDirectly(SDValue Incoming) {
   if (Incoming.getValueType().getSizeInBits() > 64)
     return false;
 
-  return (isa<ConstantSDNode>(Incoming) || isa<ConstantFPSDNode>(Incoming) ||
-          Incoming.isUndef());
+  return isIntOrFPConstant(Incoming) || Incoming.isUndef();
 }
 
 /// Try to find existing copies of the incoming values in stack slots used for
@@ -490,7 +489,7 @@ lowerIncomingStatepointValue(SDValue Incoming, bool RequireSpillSlot,
     Ops.push_back(std::get<0>(Res));
     if (auto *MMO = std::get<2>(Res))
       MemRefs.push_back(MMO);
-    Chain = std::get<1>(Res);;
+    Chain = std::get<1>(Res);
     Builder.DAG.setRoot(Chain);
   }
 
@@ -1250,7 +1249,7 @@ void SelectionDAGBuilder::visitGCRelocate(const GCRelocateInst &Relocate) {
 
     // All the reloads are independent and are reading memory only modified by
     // statepoints (i.e. no other aliasing stores); informing SelectionDAG of
-    // this this let's CSE kick in for free and allows reordering of
+    // this lets CSE kick in for free and allows reordering of
     // instructions if possible.  The lowering for statepoint sets the root,
     // so this is ordering all reloads with the either
     // a) the statepoint node itself, or

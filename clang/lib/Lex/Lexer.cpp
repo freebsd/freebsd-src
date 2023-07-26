@@ -2279,7 +2279,7 @@ void Lexer::codeCompleteIncludedFile(const char *PathStart,
     ++CompletionPoint;
     if (Next == (IsAngled ? '>' : '"'))
       break;
-    if (llvm::is_contained(SlashChars, Next))
+    if (SlashChars.contains(Next))
       break;
   }
 
@@ -2785,7 +2785,7 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
           // Adjust the pointer to point directly after the first slash. It's
           // not necessary to set C here, it will be overwritten at the end of
           // the outer loop.
-          CurPtr += llvm::countTrailingZeros<unsigned>(cmp) + 1;
+          CurPtr += llvm::countr_zero<unsigned>(cmp) + 1;
           goto FoundSlash;
         }
         CurPtr += 16;
@@ -3348,8 +3348,8 @@ std::optional<uint32_t> Lexer::tryReadNumericUCN(const char *&StartPtr,
   }
 
   if (Delimited && PP) {
-    Diag(SlashLoc, PP->getLangOpts().CPlusPlus2b
-                       ? diag::warn_cxx2b_delimited_escape_sequence
+    Diag(SlashLoc, PP->getLangOpts().CPlusPlus23
+                       ? diag::warn_cxx23_delimited_escape_sequence
                        : diag::ext_delimited_escape_sequence)
         << /*delimited*/ 0 << (PP->getLangOpts().CPlusPlus ? 1 : 0);
   }
@@ -3436,8 +3436,8 @@ std::optional<uint32_t> Lexer::tryReadNamedUCN(const char *&StartPtr,
   }
 
   if (Diagnose && Match)
-    Diag(SlashLoc, PP->getLangOpts().CPlusPlus2b
-                       ? diag::warn_cxx2b_delimited_escape_sequence
+    Diag(SlashLoc, PP->getLangOpts().CPlusPlus23
+                       ? diag::warn_cxx23_delimited_escape_sequence
                        : diag::ext_delimited_escape_sequence)
         << /*named*/ 1 << (PP->getLangOpts().CPlusPlus ? 1 : 0);
 
@@ -3484,9 +3484,14 @@ uint32_t Lexer::tryReadUCN(const char *&StartPtr, const char *SlashLoc,
   if (LangOpts.AsmPreprocessor)
     return CodePoint;
 
-  // C99 6.4.3p2: A universal character name shall not specify a character whose
-  //   short identifier is less than 00A0 other than 0024 ($), 0040 (@), or
-  //   0060 (`), nor one in the range D800 through DFFF inclusive.)
+  // C2x 6.4.3p2: A universal character name shall not designate a code point
+  // where the hexadecimal value is:
+  // - in the range D800 through DFFF inclusive; or
+  // - greater than 10FFFF.
+  // A universal-character-name outside the c-char-sequence of a character
+  // constant, or the s-char-sequence of a string-literal shall not designate
+  // a control character or a character in the basic character set.
+
   // C++11 [lex.charset]p2: If the hexadecimal value for a
   //   universal-character-name corresponds to a surrogate code point (in the
   //   range 0xD800-0xDFFF, inclusive), the program is ill-formed. Additionally,
@@ -3496,9 +3501,6 @@ uint32_t Lexer::tryReadUCN(const char *&StartPtr, const char *SlashLoc,
   //   ranges 0x00-0x1F or 0x7F-0x9F, both inclusive) or to a character in the
   //   basic source character set, the program is ill-formed.
   if (CodePoint < 0xA0) {
-    if (CodePoint == 0x24 || CodePoint == 0x40 || CodePoint == 0x60)
-      return CodePoint;
-
     // We don't use isLexingRawMode() here because we need to warn about bad
     // UCNs even when skipping preprocessing tokens in a #if block.
     if (Result && PP) {
@@ -4222,9 +4224,7 @@ LexStart:
     if (LangOpts.Digraphs && Char == '>') {
       Kind = tok::r_square; // ':>' -> ']'
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
-    } else if ((LangOpts.CPlusPlus ||
-                LangOpts.DoubleSquareBracketAttributes) &&
-               Char == ':') {
+    } else if (Char == ':') {
       Kind = tok::coloncolon;
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
     } else {
@@ -4361,11 +4361,9 @@ HandleDirective:
   FormTokenWithChars(Result, CurPtr, tok::hash);
   PP->HandleDirective(Result);
 
-  if (PP->hadModuleLoaderFatalFailure()) {
+  if (PP->hadModuleLoaderFatalFailure())
     // With a fatal failure in the module loader, we abort parsing.
-    assert(Result.is(tok::eof) && "Preprocessor did not set tok:eof");
     return true;
-  }
 
   // We parsed the directive; lex a token with the new state.
   return false;
@@ -4443,8 +4441,7 @@ bool Lexer::LexDependencyDirectiveToken(Token &Result) {
     Result.setLiteralData(TokPtr);
     return true;
   }
-  if (Result.is(tok::colon) &&
-      (LangOpts.CPlusPlus || LangOpts.DoubleSquareBracketAttributes)) {
+  if (Result.is(tok::colon)) {
     // Convert consecutive colons to 'tok::coloncolon'.
     if (*BufferPtr == ':') {
       assert(DepDirectives.front().Tokens[NextDepDirectiveTokenIndex].is(
@@ -4482,6 +4479,7 @@ bool Lexer::LexDependencyDirectiveTokenWhileSkipping(Token &Result) {
     case pp_pragma_push_macro:
     case pp_pragma_pop_macro:
     case pp_pragma_include_alias:
+    case pp_pragma_system_header:
     case pp_include_next:
     case decl_at_import:
     case cxx_module_decl:

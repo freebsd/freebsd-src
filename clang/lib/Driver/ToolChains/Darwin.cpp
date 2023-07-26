@@ -23,9 +23,10 @@
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
-#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include "llvm/TargetParser/TargetParser.h"
+#include "llvm/TargetParser/Triple.h"
 #include <cstdlib> // ::getenv
 
 using namespace clang::driver;
@@ -74,7 +75,8 @@ llvm::Triple::ArchType darwin::getArchTypeForMachOArchName(StringRef Str) {
       .Default(llvm::Triple::UnknownArch);
 }
 
-void darwin::setTripleTypeForMachOArchName(llvm::Triple &T, StringRef Str) {
+void darwin::setTripleTypeForMachOArchName(llvm::Triple &T, StringRef Str,
+                                           const ArgList &Args) {
   const llvm::Triple::ArchType Arch = getArchTypeForMachOArchName(Str);
   llvm::ARM::ArchKind ArchKind = llvm::ARM::parseArch(Str);
   T.setArch(Arch);
@@ -84,6 +86,17 @@ void darwin::setTripleTypeForMachOArchName(llvm::Triple &T, StringRef Str) {
   if (ArchKind == llvm::ARM::ArchKind::ARMV6M ||
       ArchKind == llvm::ARM::ArchKind::ARMV7M ||
       ArchKind == llvm::ARM::ArchKind::ARMV7EM) {
+    // Don't reject these -version-min= if we have the appropriate triple.
+    if (T.getOS() == llvm::Triple::IOS)
+      for (Arg *A : Args.filtered(options::OPT_mios_version_min_EQ))
+        A->ignoreTargetSpecific();
+    if (T.getOS() == llvm::Triple::WatchOS)
+      for (Arg *A : Args.filtered(options::OPT_mwatchos_version_min_EQ))
+        A->ignoreTargetSpecific();
+    if (T.getOS() == llvm::Triple::TvOS)
+      for (Arg *A : Args.filtered(options::OPT_mtvos_version_min_EQ))
+        A->ignoreTargetSpecific();
+
     T.setOS(llvm::Triple::UnknownOS);
     T.setObjectFormat(llvm::Triple::MachO);
   }
@@ -393,6 +406,13 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
     }
   }
 
+  if (Args.hasArg(options::OPT_mkernel) ||
+      Args.hasArg(options::OPT_fapple_kext) ||
+      Args.hasArg(options::OPT_ffreestanding)) {
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back("-disable-atexit-based-global-dtor-lowering");
+  }
+
   Args.AddLastArg(CmdArgs, options::OPT_prebind);
   Args.AddLastArg(CmdArgs, options::OPT_noprebind);
   Args.AddLastArg(CmdArgs, options::OPT_nofixprebinding);
@@ -442,6 +462,23 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_dylinker__install__name);
   Args.AddLastArg(CmdArgs, options::OPT_dylinker);
   Args.AddLastArg(CmdArgs, options::OPT_Mach);
+
+  if (LinkerIsLLD) {
+    if (auto *CSPGOGenerateArg = getLastCSProfileGenerateArg(Args)) {
+      SmallString<128> Path(CSPGOGenerateArg->getNumValues() == 0
+                                ? ""
+                                : CSPGOGenerateArg->getValue());
+      llvm::sys::path::append(Path, "default_%m.profraw");
+      CmdArgs.push_back("--cs-profile-generate");
+      CmdArgs.push_back(Args.MakeArgString(Twine("--cs-profile-path=") + Path));
+    } else if (auto *ProfileUseArg = getLastProfileUseArg(Args)) {
+      SmallString<128> Path(
+          ProfileUseArg->getNumValues() == 0 ? "" : ProfileUseArg->getValue());
+      if (Path.empty() || llvm::sys::fs::is_directory(Path))
+        llvm::sys::path::append(Path, "default.profdata");
+      CmdArgs.push_back(Args.MakeArgString(Twine("--cs-profile-path=") + Path));
+    }
+  }
 }
 
 /// Determine whether we are linking the ObjC runtime.
@@ -602,9 +639,9 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // It seems that the 'e' option is completely ignored for dynamic executables
   // (the default), and with static executables, the last one wins, as expected.
-  Args.AddAllArgs(CmdArgs, {options::OPT_d_Flag, options::OPT_s, options::OPT_t,
-                            options::OPT_Z_Flag, options::OPT_u_Group,
-                            options::OPT_e, options::OPT_r});
+  Args.AddAllArgs(CmdArgs,
+                  {options::OPT_d_Flag, options::OPT_s, options::OPT_t,
+                   options::OPT_Z_Flag, options::OPT_u_Group, options::OPT_r});
 
   // Forward -ObjC when either -ObjC or -ObjC++ is used, to force loading
   // members of static archive libraries which implement Objective-C classes or
@@ -1197,6 +1234,9 @@ void DarwinClang::AddLinkARCArgs(const ArgList &Args,
     P += "macosx";
   P += ".a";
 
+  if (!getVFS().exists(P))
+    getDriver().Diag(clang::diag::err_drv_darwin_sdk_missing_arclite) << P;
+
   CmdArgs.push_back(Args.MakeArgString(P));
 }
 
@@ -1426,32 +1466,52 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
 
   const SanitizerArgs &Sanitize = getSanitizerArgs(Args);
 
-  if (!Sanitize.needsSharedRt() && Sanitize.needsUbsanRt()) {
-    getDriver().Diag(diag::err_drv_unsupported_static_ubsan_darwin);
-    return;
+  if (!Sanitize.needsSharedRt()) {
+    const char *sanitizer = nullptr;
+    if (Sanitize.needsUbsanRt()) {
+      sanitizer = "UndefinedBehaviorSanitizer";
+    } else if (Sanitize.needsAsanRt()) {
+      sanitizer = "AddressSanitizer";
+    } else if (Sanitize.needsTsanRt()) {
+      sanitizer = "ThreadSanitizer";
+    }
+    if (sanitizer) {
+      getDriver().Diag(diag::err_drv_unsupported_static_sanitizer_darwin)
+          << sanitizer;
+      return;
+    }
   }
 
-  if (Sanitize.needsAsanRt())
-    AddLinkSanitizerLibArgs(Args, CmdArgs, "asan");
-  if (Sanitize.needsLsanRt())
-    AddLinkSanitizerLibArgs(Args, CmdArgs, "lsan");
-  if (Sanitize.needsUbsanRt()) {
-    assert(Sanitize.needsSharedRt() && "Static sanitizer runtimes not supported");
-    AddLinkSanitizerLibArgs(Args, CmdArgs,
-                            Sanitize.requiresMinimalRuntime() ? "ubsan_minimal"
-                                                              : "ubsan");
-  }
-  if (Sanitize.needsTsanRt())
-    AddLinkSanitizerLibArgs(Args, CmdArgs, "tsan");
-  if (Sanitize.needsFuzzer() && !Args.hasArg(options::OPT_dynamiclib)) {
-    AddLinkSanitizerLibArgs(Args, CmdArgs, "fuzzer", /*shared=*/false);
+  if (Sanitize.linkRuntimes()) {
+    if (Sanitize.needsAsanRt()) {
+      assert(Sanitize.needsSharedRt() &&
+             "Static sanitizer runtimes not supported");
+      AddLinkSanitizerLibArgs(Args, CmdArgs, "asan");
+    }
+    if (Sanitize.needsLsanRt())
+      AddLinkSanitizerLibArgs(Args, CmdArgs, "lsan");
+    if (Sanitize.needsUbsanRt()) {
+      assert(Sanitize.needsSharedRt() &&
+             "Static sanitizer runtimes not supported");
+      AddLinkSanitizerLibArgs(
+          Args, CmdArgs,
+          Sanitize.requiresMinimalRuntime() ? "ubsan_minimal" : "ubsan");
+    }
+    if (Sanitize.needsTsanRt()) {
+      assert(Sanitize.needsSharedRt() &&
+             "Static sanitizer runtimes not supported");
+      AddLinkSanitizerLibArgs(Args, CmdArgs, "tsan");
+    }
+    if (Sanitize.needsFuzzer() && !Args.hasArg(options::OPT_dynamiclib)) {
+      AddLinkSanitizerLibArgs(Args, CmdArgs, "fuzzer", /*shared=*/false);
 
-    // Libfuzzer is written in C++ and requires libcxx.
-    AddCXXStdlibLibArgs(Args, CmdArgs);
-  }
-  if (Sanitize.needsStatsRt()) {
-    AddLinkRuntimeLib(Args, CmdArgs, "stats_client", RLO_AlwaysLink);
-    AddLinkSanitizerLibArgs(Args, CmdArgs, "stats");
+        // Libfuzzer is written in C++ and requires libcxx.
+        AddCXXStdlibLibArgs(Args, CmdArgs);
+    }
+    if (Sanitize.needsStatsRt()) {
+      AddLinkRuntimeLib(Args, CmdArgs, "stats_client", RLO_AlwaysLink);
+      AddLinkSanitizerLibArgs(Args, CmdArgs, "stats");
+    }
   }
 
   const XRayArgs &XRay = getXRayArgs();
@@ -1772,7 +1832,7 @@ getDeploymentTargetFromOSVersionArg(DerivedArgList &Args,
                  ->getAsString(Args);
     }
     return DarwinPlatform::createOSVersionArg(Darwin::MacOS, macOSVersion,
-                                              /*IsImulator=*/false);
+                                              /*IsSimulator=*/false);
   } else if (iOSVersion) {
     if (TvOSVersion || WatchOSVersion) {
       TheDriver.Diag(diag::err_drv_argument_not_allowed_with)
@@ -2455,17 +2515,6 @@ void DarwinClang::AddClangCXXStdlibIncludeArgs(
     switch (arch) {
     default: break;
 
-    case llvm::Triple::ppc:
-    case llvm::Triple::ppc64:
-      IsBaseFound = AddGnuCPlusPlusIncludePaths(DriverArgs, CC1Args, UsrIncludeCxx,
-                                                "4.2.1",
-                                                "powerpc-apple-darwin10",
-                                                arch == llvm::Triple::ppc64 ? "ppc64" : "");
-      IsBaseFound |= AddGnuCPlusPlusIncludePaths(DriverArgs, CC1Args, UsrIncludeCxx,
-                                                "4.0.0", "powerpc-apple-darwin10",
-                                                 arch == llvm::Triple::ppc64 ? "ppc64" : "");
-      break;
-
     case llvm::Triple::x86:
     case llvm::Triple::x86_64:
       IsBaseFound = AddGnuCPlusPlusIncludePaths(DriverArgs, CC1Args, UsrIncludeCxx,
@@ -2925,8 +2974,10 @@ ToolChain::UnwindTableLevel MachO::getDefaultUnwindTableLevel(const ArgList &Arg
       (GetExceptionModel(Args) != llvm::ExceptionHandling::SjLj &&
        Args.hasFlag(options::OPT_fexceptions, options::OPT_fno_exceptions,
                     true)))
-    return getArch() == llvm::Triple::aarch64 ? UnwindTableLevel::Synchronous
-                                              : UnwindTableLevel::Asynchronous;
+    return (getArch() == llvm::Triple::aarch64 ||
+            getArch() == llvm::Triple::aarch64_32)
+               ? UnwindTableLevel::Synchronous
+               : UnwindTableLevel::Asynchronous;
 
   return UnwindTableLevel::None;
 }
@@ -3253,7 +3304,6 @@ SanitizerMask Darwin::getSupportedSanitizers() const {
   Res |= SanitizerKind::Leak;
   Res |= SanitizerKind::Fuzzer;
   Res |= SanitizerKind::FuzzerNoLink;
-  Res |= SanitizerKind::Function;
   Res |= SanitizerKind::ObjCCast;
 
   // Prior to 10.9, macOS shipped a version of the C++ standard library without

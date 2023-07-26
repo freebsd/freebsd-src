@@ -689,7 +689,7 @@ static ConstantInt *createOrdering(IRBuilder<> *IRB, AtomicOrdering ord) {
 // replaced back with intrinsics. If that becomes wrong at some point,
 // we will need to call e.g. __tsan_memset to avoid the intrinsics.
 bool ThreadSanitizer::instrumentMemIntrinsic(Instruction *I) {
-  IRBuilder<> IRB(I);
+  InstrumentationIRBuilder IRB(I);
   if (MemSetInst *M = dyn_cast<MemSetInst>(I)) {
     IRB.CreateCall(
         MemsetFn,
@@ -813,8 +813,6 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I, const DataLayout &DL) {
 int ThreadSanitizer::getMemoryAccessFuncIndex(Type *OrigTy, Value *Addr,
                                               const DataLayout &DL) {
   assert(OrigTy->isSized());
-  assert(
-      cast<PointerType>(Addr->getType())->isOpaqueOrPointeeTypeMatches(OrigTy));
   uint32_t TypeSize = DL.getTypeStoreSizeInBits(OrigTy);
   if (TypeSize != 8  && TypeSize != 16 &&
       TypeSize != 32 && TypeSize != 64 && TypeSize != 128) {
@@ -822,7 +820,7 @@ int ThreadSanitizer::getMemoryAccessFuncIndex(Type *OrigTy, Value *Addr,
     // Ignore all unusual sizes.
     return -1;
   }
-  size_t Idx = countTrailingZeros(TypeSize / 8);
+  size_t Idx = llvm::countr_zero(TypeSize / 8);
   assert(Idx < kNumberOfAccessSizes);
   return Idx;
 }

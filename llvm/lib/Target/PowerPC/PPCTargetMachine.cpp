@@ -22,7 +22,6 @@
 #include "TargetInfo/PowerPCTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
@@ -43,6 +42,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Scalar.h"
 #include <cassert>
 #include <memory>
@@ -161,6 +161,17 @@ static std::string getDataLayoutString(const Triple &T) {
   if (!is64Bit || T.getOS() == Triple::Lv2)
     Ret += "-p:32:32";
 
+  // If the target ABI uses function descriptors, then the alignment of function
+  // pointers depends on the alignment used to emit the descriptor. Otherwise,
+  // function pointers are aligned to 32 bits because the instructions must be.
+  if ((T.getArch() == Triple::ppc64 && !T.isPPC64ELFv2ABI())) {
+    Ret += "-Fi64";
+  } else if (T.isOSAIX()) {
+    Ret += is64Bit ? "-Fi64" : "-Fi32";
+  } else {
+    Ret += "-Fn32";
+  }
+
   // Note, the alignment values for f64 and i64 on ppc64 in Darwin
   // documentation are wrong; these are correct (i.e. "what gcc does").
   Ret += "-i64:64";
@@ -237,7 +248,10 @@ static PPCTargetMachine::PPCABI computeTargetABI(const Triple &TT,
   case Triple::ppc64le:
     return PPCTargetMachine::PPC_ABI_ELFv2;
   case Triple::ppc64:
-    return PPCTargetMachine::PPC_ABI_ELFv1;
+    if (TT.isPPC64ELFv2ABI())
+      return PPCTargetMachine::PPC_ABI_ELFv2;
+    else
+      return PPCTargetMachine::PPC_ABI_ELFv1;
   default:
     return PPCTargetMachine::PPC_ABI_UNKNOWN;
   }
@@ -474,7 +488,7 @@ bool PPCPassConfig::addPreISel() {
     addPass(createPPCLoopInstrFormPrepPass(getPPCTargetMachine()));
 
   if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)
-    addPass(createHardwareLoopsPass());
+    addPass(createHardwareLoopsLegacyPass());
 
   return false;
 }

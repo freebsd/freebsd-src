@@ -175,12 +175,14 @@ class REPL;
 class RecognizedStackFrame;
 class RegisterCheckpoint;
 class RegisterContext;
+class RegisterTypeBuilder;
 class RegisterValue;
 class RegularExpression;
 class RichManglingContext;
 class Scalar;
 class ScriptInterpreter;
 class ScriptInterpreterLocker;
+class ScriptedMetadata;
 class ScriptedPlatformInterface;
 class ScriptedProcessInterface;
 class ScriptedThreadInterface;
@@ -370,6 +372,8 @@ typedef std::shared_ptr<lldb_private::ProcessLaunchInfo> ProcessLaunchInfoSP;
 typedef std::weak_ptr<lldb_private::Process> ProcessWP;
 typedef std::shared_ptr<lldb_private::RegisterCheckpoint> RegisterCheckpointSP;
 typedef std::shared_ptr<lldb_private::RegisterContext> RegisterContextSP;
+typedef std::shared_ptr<lldb_private::RegisterTypeBuilder>
+    RegisterTypeBuilderSP;
 typedef std::shared_ptr<lldb_private::RegularExpression> RegularExpressionSP;
 typedef std::shared_ptr<lldb_private::Queue> QueueSP;
 typedef std::weak_ptr<lldb_private::Queue> QueueWP;
@@ -380,6 +384,7 @@ typedef std::shared_ptr<lldb_private::RecognizedStackFrame>
 typedef std::shared_ptr<lldb_private::ScriptSummaryFormat>
     ScriptSummaryFormatSP;
 typedef std::shared_ptr<lldb_private::ScriptInterpreter> ScriptInterpreterSP;
+typedef std::shared_ptr<lldb_private::ScriptedMetadata> ScriptedMetadataSP;
 typedef std::unique_ptr<lldb_private::ScriptedPlatformInterface>
     ScriptedPlatformInterfaceUP;
 typedef std::unique_ptr<lldb_private::ScriptedProcessInterface>

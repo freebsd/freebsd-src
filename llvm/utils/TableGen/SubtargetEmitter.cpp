@@ -10,22 +10,23 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CodeGenHwModes.h"
 #include "CodeGenSchedule.h"
 #include "CodeGenTarget.h"
 #include "PredicateExpander.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/MC/MCSchedule.h"
-#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
+#include "llvm/TargetParser/SubtargetFeature.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -39,6 +40,15 @@ using namespace llvm;
 #define DEBUG_TYPE "subtarget-emitter"
 
 namespace {
+
+/// Sorting predicate to sort record pointers by their
+/// FieldName field.
+struct LessRecordFieldFieldName {
+  bool operator()(const Record *Rec1, const Record *Rec2) const {
+    return Rec1->getValueAsString("FieldName") <
+           Rec2->getValueAsString("FieldName");
+  }
+};
 
 class SubtargetEmitter {
   // Each processor has a SchedClassDesc table with an entry for each SchedClass.
@@ -68,7 +78,7 @@ class SubtargetEmitter {
     }
   };
 
-  const CodeGenTarget &TGT;
+  CodeGenTarget TGT;
   RecordKeeper &Records;
   CodeGenSchedModels &SchedModels;
   std::string Target;
@@ -110,6 +120,7 @@ class SubtargetEmitter {
   Record *FindReadAdvance(const CodeGenSchedRW &SchedRead,
                           const CodeGenProcModel &ProcModel);
   void ExpandProcResources(RecVec &PRVec, std::vector<int64_t> &Cycles,
+                           std::vector<int64_t> &StartAtCycles,
                            const CodeGenProcModel &ProcModel);
   void GenSchedClassTables(const CodeGenProcModel &ProcModel,
                            SchedClassTables &SchedTables);
@@ -126,8 +137,8 @@ class SubtargetEmitter {
   void ParseFeaturesFunction(raw_ostream &OS);
 
 public:
-  SubtargetEmitter(RecordKeeper &R, CodeGenTarget &TGT)
-      : TGT(TGT), Records(R), SchedModels(TGT.getSchedModels()),
+  SubtargetEmitter(RecordKeeper &R)
+      : TGT(R), Records(R), SchedModels(TGT.getSchedModels()),
         Target(TGT.getName()) {}
 
   void run(raw_ostream &o);
@@ -200,15 +211,15 @@ void SubtargetEmitter::EmitSubtargetInfoMacroCalls(raw_ostream &OS) {
 
   std::vector<Record *> FeatureList =
       Records.getAllDerivedDefinitions("SubtargetFeature");
-  llvm::sort(FeatureList, LessRecordFieldName());
+  llvm::sort(FeatureList, LessRecordFieldFieldName());
 
   for (const Record *Feature : FeatureList) {
-    const StringRef Attribute = Feature->getValueAsString("Attribute");
+    const StringRef FieldName = Feature->getValueAsString("FieldName");
     const StringRef Value = Feature->getValueAsString("Value");
 
     // Only handle boolean features for now, excluding BitVectors and enums.
     const bool IsBool = (Value == "false" || Value == "true") &&
-                        !StringRef(Attribute).contains('[');
+                        !StringRef(FieldName).contains('[');
     if (!IsBool)
       continue;
 
@@ -217,9 +228,9 @@ void SubtargetEmitter::EmitSubtargetInfoMacroCalls(raw_ostream &OS) {
 
     // Define the getter with lowercased first char: xxxYyy() { return XxxYyy; }
     const std::string Getter =
-        Attribute.substr(0, 1).lower() + Attribute.substr(1).str();
+        FieldName.substr(0, 1).lower() + FieldName.substr(1).str();
 
-    OS << "GET_SUBTARGETINFO_MACRO(" << Attribute << ", " << Default << ", "
+    OS << "GET_SUBTARGETINFO_MACRO(" << FieldName << ", " << Default << ", "
        << Getter << ")\n";
   }
   OS << "#undef GET_SUBTARGETINFO_MACRO\n";
@@ -967,6 +978,7 @@ Record *SubtargetEmitter::FindReadAdvance(const CodeGenSchedRW &SchedRead,
 // resource groups and super resources that cover them.
 void SubtargetEmitter::ExpandProcResources(RecVec &PRVec,
                                            std::vector<int64_t> &Cycles,
+                                           std::vector<int64_t> &StartAtCycles,
                                            const CodeGenProcModel &PM) {
   assert(PRVec.size() == Cycles.size() && "failed precondition");
   for (unsigned i = 0, e = PRVec.size(); i != e; ++i) {
@@ -989,6 +1001,7 @@ void SubtargetEmitter::ExpandProcResources(RecVec &PRVec,
                                          SubDef->getLoc());
         PRVec.push_back(SuperDef);
         Cycles.push_back(Cycles[i]);
+        StartAtCycles.push_back(StartAtCycles[i]);
         SubDef = SuperDef;
       }
     }
@@ -1005,6 +1018,7 @@ void SubtargetEmitter::ExpandProcResources(RecVec &PRVec,
       if (SubI == SubE) {
         PRVec.push_back(PR);
         Cycles.push_back(Cycles[i]);
+        StartAtCycles.push_back(StartAtCycles[i]);
       }
     }
   }
@@ -1139,22 +1153,48 @@ void SubtargetEmitter::GenSchedClassTables(const CodeGenProcModel &ProcModel,
         std::vector<int64_t> Cycles =
           WriteRes->getValueAsListOfInts("ResourceCycles");
 
-        if (Cycles.empty()) {
-          // If ResourceCycles is not provided, default to one cycle per
-          // resource.
-          Cycles.resize(PRVec.size(), 1);
-        } else if (Cycles.size() != PRVec.size()) {
+        std::vector<int64_t> StartAtCycles =
+            WriteRes->getValueAsListOfInts("StartAtCycles");
+
+        // Check consistency of the two vectors carrying the start and
+        // stop cycles of the resources.
+        if (!Cycles.empty() && Cycles.size() != PRVec.size()) {
           // If ResourceCycles is provided, check consistency.
           PrintFatalError(
               WriteRes->getLoc(),
-              Twine("Inconsistent resource cycles: !size(ResourceCycles) != "
-                    "!size(ProcResources): ")
+              Twine("Inconsistent resource cycles: size(ResourceCycles) != "
+                    "size(ProcResources): ")
                   .concat(Twine(PRVec.size()))
                   .concat(" vs ")
                   .concat(Twine(Cycles.size())));
         }
 
-        ExpandProcResources(PRVec, Cycles, ProcModel);
+        if (!StartAtCycles.empty() && StartAtCycles.size() != PRVec.size()) {
+          PrintFatalError(
+              WriteRes->getLoc(),
+              Twine("Inconsistent resource cycles: size(StartAtCycles) != "
+                    "size(ProcResources): ")
+                  .concat(Twine(StartAtCycles.size()))
+                  .concat(" vs ")
+                  .concat(Twine(PRVec.size())));
+        }
+
+        if (Cycles.empty()) {
+          // If ResourceCycles is not provided, default to one cycle
+          // per resource.
+          Cycles.resize(PRVec.size(), 1);
+        }
+
+        if (StartAtCycles.empty()) {
+          // If StartAtCycles is not provided, reserve the resource
+          // starting from cycle 0.
+          StartAtCycles.resize(PRVec.size(), 0);
+        }
+
+        assert(StartAtCycles.size() == Cycles.size());
+
+        ExpandProcResources(PRVec, Cycles, StartAtCycles, ProcModel);
+        assert(StartAtCycles.size() == Cycles.size());
 
         for (unsigned PRIdx = 0, PREnd = PRVec.size();
              PRIdx != PREnd; ++PRIdx) {
@@ -1162,6 +1202,17 @@ void SubtargetEmitter::GenSchedClassTables(const CodeGenProcModel &ProcModel,
           WPREntry.ProcResourceIdx = ProcModel.getProcResourceIdx(PRVec[PRIdx]);
           assert(WPREntry.ProcResourceIdx && "Bad ProcResourceIdx");
           WPREntry.Cycles = Cycles[PRIdx];
+          WPREntry.StartAtCycle = StartAtCycles[PRIdx];
+          if (StartAtCycles[PRIdx] > Cycles[PRIdx]) {
+            PrintFatalError(WriteRes->getLoc(),
+                            Twine("Inconsistent resource cycles: StartAtCycles "
+                                  "< Cycles must hold."));
+          }
+          if (StartAtCycles[PRIdx] < 0) {
+            PrintFatalError(WriteRes->getLoc(),
+                            Twine("Invalid value: StartAtCycle "
+                                  "must be a non-negative value."));
+          }
           // If this resource is already used in this sequence, add the current
           // entry's cycles so that the same resource appears to be used
           // serially, rather than multiple parallel uses. This is important for
@@ -1170,6 +1221,15 @@ void SubtargetEmitter::GenSchedClassTables(const CodeGenProcModel &ProcModel,
           for( ; WPRIdx != WPREnd; ++WPRIdx) {
             if (WriteProcResources[WPRIdx].ProcResourceIdx
                 == WPREntry.ProcResourceIdx) {
+              // TODO: multiple use of the same resources would
+              // require either 1. thinking of how to handle multiple
+              // intervals for the same resource in
+              // `<Target>WriteProcResTable` (see
+              // `SubtargetEmitter::EmitSchedClassTables`), or
+              // 2. thinking how to merge multiple intervals into a
+              // single interval.
+              assert(WPREntry.StartAtCycle == 0 &&
+                     "multiple use ofthe same resource is not yet handled");
               WriteProcResources[WPRIdx].Cycles += WPREntry.Cycles;
               break;
             }
@@ -1274,15 +1334,16 @@ void SubtargetEmitter::GenSchedClassTables(const CodeGenProcModel &ProcModel,
 void SubtargetEmitter::EmitSchedClassTables(SchedClassTables &SchedTables,
                                             raw_ostream &OS) {
   // Emit global WriteProcResTable.
-  OS << "\n// {ProcResourceIdx, Cycles}\n"
-     << "extern const llvm::MCWriteProcResEntry "
-     << Target << "WriteProcResTable[] = {\n"
-     << "  { 0,  0}, // Invalid\n";
+  OS << "\n// {ProcResourceIdx, Cycles, StartAtCycle}\n"
+     << "extern const llvm::MCWriteProcResEntry " << Target
+     << "WriteProcResTable[] = {\n"
+     << "  { 0,  0,  0 }, // Invalid\n";
   for (unsigned WPRIdx = 1, WPREnd = SchedTables.WriteProcResources.size();
        WPRIdx != WPREnd; ++WPRIdx) {
     MCWriteProcResEntry &WPREntry = SchedTables.WriteProcResources[WPRIdx];
     OS << "  {" << format("%2d", WPREntry.ProcResourceIdx) << ", "
-       << format("%2d", WPREntry.Cycles) << "}";
+       << format("%2d", WPREntry.Cycles) << ",  "
+       << format("%2d", WPREntry.StartAtCycle) << "}";
     if (WPRIdx + 1 < WPREnd)
       OS << ',';
     OS << " // #" << WPRIdx << '\n';
@@ -1400,6 +1461,12 @@ void SubtargetEmitter::EmitProcessorModels(raw_ostream &OS) {
 
     OS << "  " << (CompleteModel ? "true" : "false") << ", // "
        << "CompleteModel\n";
+
+    bool EnableIntervals =
+        (PM.ModelDef ? PM.ModelDef->getValueAsBit("EnableIntervals") : false);
+
+    OS << "  " << (EnableIntervals ? "true" : "false") << ", // "
+       << "EnableIntervals\n";
 
     OS << "  " << PM.Index << ", // Processor ID\n";
     if (PM.hasInstrSchedModel())
@@ -1746,17 +1813,17 @@ void SubtargetEmitter::ParseFeaturesFunction(raw_ostream &OS) {
     // Next record
     StringRef Instance = R->getName();
     StringRef Value = R->getValueAsString("Value");
-    StringRef Attribute = R->getValueAsString("Attribute");
+    StringRef FieldName = R->getValueAsString("FieldName");
 
     if (Value=="true" || Value=="false")
       OS << "  if (Bits[" << Target << "::"
          << Instance << "]) "
-         << Attribute << " = " << Value << ";\n";
+         << FieldName << " = " << Value << ";\n";
     else
       OS << "  if (Bits[" << Target << "::"
          << Instance << "] && "
-         << Attribute << " < " << Value << ") "
-         << Attribute << " = " << Value << ";\n";
+         << FieldName << " < " << Value << ") "
+         << FieldName << " = " << Value << ";\n";
   }
 
   OS << "}\n";
@@ -1983,11 +2050,5 @@ void SubtargetEmitter::run(raw_ostream &OS) {
   EmitMCInstrAnalysisPredicateFunctions(OS);
 }
 
-namespace llvm {
-
-void EmitSubtarget(RecordKeeper &RK, raw_ostream &OS) {
-  CodeGenTarget CGTarget(RK);
-  SubtargetEmitter(RK, CGTarget).run(OS);
-}
-
-} // end namespace llvm
+static TableGen::Emitter::OptClass<SubtargetEmitter>
+    X("gen-subtarget", "Generate subtarget enumerations");

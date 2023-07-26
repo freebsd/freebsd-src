@@ -99,29 +99,27 @@ PlatformProperties::PlatformProperties() {
 
 bool PlatformProperties::GetUseModuleCache() const {
   const auto idx = ePropertyUseModuleCache;
-  return m_collection_sp->GetPropertyAtIndexAsBoolean(
-      nullptr, idx, g_platform_properties[idx].default_uint_value != 0);
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_platform_properties[idx].default_uint_value != 0);
 }
 
 bool PlatformProperties::SetUseModuleCache(bool use_module_cache) {
-  return m_collection_sp->SetPropertyAtIndexAsBoolean(
-      nullptr, ePropertyUseModuleCache, use_module_cache);
+  return SetPropertyAtIndex(ePropertyUseModuleCache, use_module_cache);
 }
 
 FileSpec PlatformProperties::GetModuleCacheDirectory() const {
-  return m_collection_sp->GetPropertyAtIndexAsFileSpec(
-      nullptr, ePropertyModuleCacheDirectory);
+  return GetPropertyAtIndexAs<FileSpec>(ePropertyModuleCacheDirectory, {});
 }
 
 bool PlatformProperties::SetModuleCacheDirectory(const FileSpec &dir_spec) {
-  return m_collection_sp->SetPropertyAtIndexAsFileSpec(
-      nullptr, ePropertyModuleCacheDirectory, dir_spec);
+  return m_collection_sp->SetPropertyAtIndex(ePropertyModuleCacheDirectory,
+                                             dir_spec);
 }
 
 void PlatformProperties::SetDefaultModuleCacheDirectory(
     const FileSpec &dir_spec) {
   auto f_spec_opt = m_collection_sp->GetPropertyAtIndexAsOptionValueFileSpec(
-        nullptr, false, ePropertyModuleCacheDirectory);
+      ePropertyModuleCacheDirectory);
   assert(f_spec_opt);
   f_spec_opt->SetDefaultValue(dir_spec);
 }
@@ -160,7 +158,7 @@ Status Platform::GetFileWithUUID(const FileSpec &platform_file,
 
 FileSpecList
 Platform::LocateExecutableScriptingResources(Target *target, Module &module,
-                                             Stream *feedback_stream) {
+                                             Stream &feedback_stream) {
   return FileSpecList();
 }
 
@@ -212,11 +210,10 @@ Status Platform::GetSharedModule(
     Status error(eErrorTypeGeneric);
     ModuleSpec resolved_spec;
     // Check if we have sysroot set.
-    if (m_sdk_sysroot) {
+    if (!m_sdk_sysroot.empty()) {
       // Prepend sysroot to module spec.
       resolved_spec = spec;
-      resolved_spec.GetFileSpec().PrependPathComponent(
-          m_sdk_sysroot.GetStringRef());
+      resolved_spec.GetFileSpec().PrependPathComponent(m_sdk_sysroot);
       // Try to get shared module with resolved spec.
       error = ModuleList::GetSharedModule(resolved_spec, module_sp,
                                           module_search_paths_ptr, old_modules,
@@ -314,9 +311,9 @@ void Platform::GetStatus(Stream &strm) {
     strm.Printf(" Connected: %s\n", is_connected ? "yes" : "no");
   }
 
-  if (GetSDKRootDirectory()) {
-    strm.Format("   Sysroot: {0}\n", GetSDKRootDirectory());
-  }
+  if (const std::string &sdk_root = GetSDKRootDirectory(); !sdk_root.empty())
+    strm.Format("   Sysroot: {0}\n", sdk_root);
+
   if (GetWorkingDirectory()) {
     strm.Printf("WorkingDir: %s\n", GetWorkingDirectory().GetPath().c_str());
   }
@@ -435,7 +432,7 @@ RecurseCopy_Callback(void *baton, llvm::sys::fs::file_type ft,
     // make the new directory and get in there
     FileSpec dst_dir = rc_baton->dst;
     if (!dst_dir.GetFilename())
-      dst_dir.SetFilename(src.GetLastPathComponent());
+      dst_dir.SetFilename(src.GetFilename());
     Status error = rc_baton->platform_ptr->MakeDirectory(
         dst_dir, lldb::eFilePermissionsDirectoryDefault);
     if (error.Fail()) {
@@ -1063,7 +1060,7 @@ lldb::ProcessSP Platform::DebugProcess(ProcessLaunchInfo &launch_info,
                                        Debugger &debugger, Target &target,
                                        Status &error) {
   Log *log = GetLog(LLDBLog::Platform);
-  LLDB_LOG(log, "target = {0})", &target);
+  LLDB_LOG(log, "target = {0}", &target);
 
   ProcessSP process_sp;
   // Make sure we stop at the entry point
@@ -1633,7 +1630,7 @@ Status Platform::DownloadModuleSlice(const FileSpec &src_file_spec,
     return error;
   }
 
-  std::vector<char> buffer(1024);
+  std::vector<char> buffer(512 * 1024);
   auto offset = src_offset;
   uint64_t total_bytes_read = 0;
   while (total_bytes_read < src_size) {
@@ -1815,8 +1812,9 @@ lldb::ProcessSP Platform::DoConnectProcess(llvm::StringRef connect_url,
                                      nullptr);
     process_sp->RestoreProcessEvents();
     bool pop_process_io_handler = false;
-    Process::HandleProcessStateChangedEvent(event_sp, stream,
-                                            pop_process_io_handler);
+    // This is a user-level stop, so we allow recognizers to select frames.
+    Process::HandleProcessStateChangedEvent(
+        event_sp, stream, SelectMostRelevantFrame, pop_process_io_handler);
   }
 
   return process_sp;
@@ -1895,6 +1893,12 @@ size_t Platform::GetSoftwareBreakpointTrapOpcode(Target &target,
     trap_opcode_size = sizeof(g_hex_opcode);
   } break;
 
+  case llvm::Triple::msp430: {
+    static const uint8_t g_msp430_opcode[] = {0x43, 0x43};
+    trap_opcode = g_msp430_opcode;
+    trap_opcode_size = sizeof(g_msp430_opcode);
+  } break;
+
   case llvm::Triple::systemz: {
     static const uint8_t g_hex_opcode[] = {0x00, 0x01};
     trap_opcode = g_hex_opcode;
@@ -1965,6 +1969,14 @@ CompilerType Platform::GetSiginfoType(const llvm::Triple& triple) {
 
 Args Platform::GetExtraStartupCommands() {
   return {};
+}
+
+void Platform::SetLocateModuleCallback(LocateModuleCallback callback) {
+  m_locate_module_callback = callback;
+}
+
+Platform::LocateModuleCallback Platform::GetLocateModuleCallback() const {
+  return m_locate_module_callback;
 }
 
 PlatformSP PlatformList::GetOrCreate(llvm::StringRef name) {

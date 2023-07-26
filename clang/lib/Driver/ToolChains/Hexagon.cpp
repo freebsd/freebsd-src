@@ -159,9 +159,11 @@ static void handleHVXTargetFeatures(const Driver &D, const ArgList &Args,
 }
 
 // Hexagon target features.
-void hexagon::getHexagonTargetFeatures(const Driver &D, const ArgList &Args,
+void hexagon::getHexagonTargetFeatures(const Driver &D,
+                                       const llvm::Triple &Triple,
+                                       const ArgList &Args,
                                        std::vector<StringRef> &Features) {
-  handleTargetFeaturesGroup(Args, Features,
+  handleTargetFeaturesGroup(D, Triple, Args, Features,
                             options::OPT_m_hexagon_Features_Group);
 
   bool UseLongCalls = false;
@@ -361,9 +363,8 @@ constructHexagonLinkArgs(Compilation &C, const JobAction &JA,
 
     CmdArgs.push_back(
         Args.MakeArgString(StringRef("-L") + D.SysRoot + "/usr/lib"));
-    Args.AddAllArgs(CmdArgs,
-                    {options::OPT_T_Group, options::OPT_e, options::OPT_s,
-                     options::OPT_t, options::OPT_u_Group});
+    Args.AddAllArgs(CmdArgs, {options::OPT_T_Group, options::OPT_s,
+                              options::OPT_t, options::OPT_u_Group});
     AddLinkerInputs(HTC, Inputs, Args, CmdArgs, JA);
 
     if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
@@ -444,9 +445,8 @@ constructHexagonLinkArgs(Compilation &C, const JobAction &JA,
   //----------------------------------------------------------------------------
   //
   //----------------------------------------------------------------------------
-  Args.AddAllArgs(CmdArgs,
-                  {options::OPT_T_Group, options::OPT_e, options::OPT_s,
-                   options::OPT_t, options::OPT_u_Group});
+  Args.AddAllArgs(CmdArgs, {options::OPT_T_Group, options::OPT_s,
+                            options::OPT_t, options::OPT_u_Group});
 
   AddLinkerInputs(HTC, Inputs, Args, CmdArgs, JA);
 
@@ -540,7 +540,9 @@ HexagonToolChain::getSmallDataThreshold(const ArgList &Args) {
 std::string HexagonToolChain::getCompilerRTPath() const {
   SmallString<128> Dir(getDriver().SysRoot);
   llvm::sys::path::append(Dir, "usr", "lib");
-  Dir += SelectedMultilib.gccSuffix();
+  if (!SelectedMultilibs.empty()) {
+    Dir += SelectedMultilibs.back().gccSuffix();
+  }
   return std::string(Dir.str());
 }
 

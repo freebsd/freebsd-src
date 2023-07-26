@@ -11,6 +11,7 @@
 #include "Program.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/OptionalDiagnostic.h"
 
 using namespace clang;
 using namespace clang::interp;
@@ -125,9 +126,9 @@ void State::addCallStack(unsigned Limit) {
 
   // Walk the call stack and add the diagnostics.
   unsigned CallIdx = 0;
-  Frame *Top = getCurrentFrame();
+  const Frame *Top = getCurrentFrame();
   const Frame *Bottom = getBottomFrame();
-  for (Frame *F = Top; F != Bottom; F = F->getCaller(), ++CallIdx) {
+  for (const Frame *F = Top; F != Bottom; F = F->getCaller(), ++CallIdx) {
     SourceLocation CallLocation = F->getCallLocation();
 
     // Skip this call?
@@ -142,12 +143,12 @@ void State::addCallStack(unsigned Limit) {
 
     // Use a different note for an inheriting constructor, because from the
     // user's perspective it's not really a function at all.
-    if (auto *CD = dyn_cast_or_null<CXXConstructorDecl>(F->getCallee())) {
-      if (CD->isInheritingConstructor()) {
-        addDiag(CallLocation, diag::note_constexpr_inherited_ctor_call_here)
-            << CD->getParent();
-        continue;
-      }
+    if (const auto *CD =
+            dyn_cast_if_present<CXXConstructorDecl>(F->getCallee());
+        CD && CD->isInheritingConstructor()) {
+      addDiag(CallLocation, diag::note_constexpr_inherited_ctor_call_here)
+          << CD->getParent();
+      continue;
     }
 
     SmallString<128> Buffer;

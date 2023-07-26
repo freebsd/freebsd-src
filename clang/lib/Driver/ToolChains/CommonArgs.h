@@ -59,11 +59,6 @@ void AddStaticDeviceLibsLinking(Compilation &C, const Tool &T,
                                 llvm::opt::ArgStringList &CmdArgs,
                                 StringRef Arch, StringRef Target,
                                 bool isBitCodeSDL, bool postClangLink);
-void AddStaticDeviceLibsPostLinking(const Driver &D,
-                                    const llvm::opt::ArgList &DriverArgs,
-                                    llvm::opt::ArgStringList &CmdArgs,
-                                    StringRef Arch, StringRef Target,
-                                    bool isBitCodeSDL, bool postClangLink);
 void AddStaticDeviceLibs(Compilation *C, const Tool *T, const JobAction *JA,
                          const InputInfoList *Inputs, const Driver &D,
                          const llvm::opt::ArgList &DriverArgs,
@@ -104,6 +99,12 @@ ParsePICArgs(const ToolChain &ToolChain, const llvm::opt::ArgList &Args);
 unsigned ParseFunctionAlignment(const ToolChain &TC,
                                 const llvm::opt::ArgList &Args);
 
+void addDebugInfoKind(llvm::opt::ArgStringList &CmdArgs,
+                      llvm::codegenoptions::DebugInfoKind DebugInfoKind);
+
+llvm::codegenoptions::DebugInfoKind
+debugLevelToInfoKind(const llvm::opt::Arg &A);
+
 // Extract the integer N from a string spelled "-dwarf-N", returning 0
 // on mismatch. The StringRef input (rather than an Arg) allows
 // for use by the "-Xassembler" option parser.
@@ -117,9 +118,6 @@ void AddAssemblerKPIC(const ToolChain &ToolChain,
                       const llvm::opt::ArgList &Args,
                       llvm::opt::ArgStringList &CmdArgs);
 
-void addOpenMPRuntimeSpecificRPath(const ToolChain &TC,
-                                   const llvm::opt::ArgList &Args,
-                                   llvm::opt::ArgStringList &CmdArgs);
 void addArchSpecificRPath(const ToolChain &TC, const llvm::opt::ArgList &Args,
                           llvm::opt::ArgStringList &CmdArgs);
 void addOpenMPRuntimeLibraryPath(const ToolChain &TC,
@@ -145,6 +143,7 @@ void addHIPRuntimeLibArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
 
 const char *getAsNeededOption(const ToolChain &TC, bool as_needed);
 
+llvm::opt::Arg *getLastCSProfileGenerateArg(const llvm::opt::ArgList &Args);
 llvm::opt::Arg *getLastProfileUseArg(const llvm::opt::ArgList &Args);
 llvm::opt::Arg *getLastProfileSampleUseArg(const llvm::opt::ArgList &Args);
 
@@ -185,7 +184,8 @@ void getTargetFeatures(const Driver &D, const llvm::Triple &Triple,
 /// Note: Since \p Features may contain default values before calling
 /// this function, or may be appended with entries to override arguments,
 /// entries in \p Features are not unique.
-void handleTargetFeaturesGroup(const llvm::opt::ArgList &Args,
+void handleTargetFeaturesGroup(const Driver &D, const llvm::Triple &Triple,
+                               const llvm::opt::ArgList &Args,
                                std::vector<StringRef> &Features,
                                llvm::opt::OptSpecifier Group);
 
@@ -198,9 +198,8 @@ SmallString<128> getStatsFileName(const llvm::opt::ArgList &Args,
                                   const InputInfo &Output,
                                   const InputInfo &Input, const Driver &D);
 
-/// \p Flag must be a flag accepted by the driver with its leading '-' removed,
-//     otherwise '-print-multi-lib' will not emit them correctly.
-void addMultilibFlag(bool Enabled, const char *const Flag,
+/// \p Flag must be a flag accepted by the driver.
+void addMultilibFlag(bool Enabled, const StringRef Flag,
                      Multilib::flags_list &Flags);
 
 void addX86AlignBranchArgs(const Driver &D, const llvm::opt::ArgList &Args,

@@ -1083,7 +1083,7 @@ areFeasible(ConstraintRangeTy Constraints) {
 ///
 /// \returns true if assuming this Sym to be true means equality of operands
 ///          false if it means disequality of operands
-///          None otherwise
+///          std::nullopt otherwise
 std::optional<bool> meansEquality(const SymSymExpr *Sym) {
   switch (Sym->getOpcode()) {
   case BO_Sub:
@@ -2678,7 +2678,18 @@ EquivalenceClass::simplify(SValBuilder &SVB, RangeSet::Factory &F,
       if (OldState == State)
         continue;
 
-      assert(find(State, MemberSym) == find(State, SimplifiedMemberSym));
+      // Be aware that `SimplifiedMemberSym` might refer to an already dead
+      // symbol. In that case, the eqclass of that might not be the same as the
+      // eqclass of `MemberSym`. This is because the dead symbols are not
+      // preserved in the `ClassMap`, hence
+      // `find(State, SimplifiedMemberSym)` will result in a trivial eqclass
+      // compared to the eqclass of `MemberSym`.
+      // These eqclasses should be the same if `SimplifiedMemberSym` is alive.
+      // --> assert(find(State, MemberSym) == find(State, SimplifiedMemberSym))
+      //
+      // Note that `MemberSym` must be alive here since that is from the
+      // `ClassMembers` where all the symbols are alive.
+
       // Remove the old and more complex symbol.
       State = find(State, MemberSym).removeMember(State, MemberSym);
 

@@ -56,6 +56,7 @@
 
 #ifdef _WIN32
 #include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/Windows/WindowsSupport.h"
 #endif
 
@@ -83,8 +84,15 @@ raw_ostream::~raw_ostream() {
 }
 
 size_t raw_ostream::preferred_buffer_size() const {
+#ifdef _WIN32
+  // On Windows BUFSIZ is only 512 which results in more calls to write. This
+  // overhead can cause significant performance degradation. Therefore use a
+  // better default.
+  return (16 * 1024);
+#else
   // BUFSIZ is intended to be a reasonable default.
   return BUFSIZ;
+#endif
 }
 
 void raw_ostream::SetBuffered() {
@@ -775,6 +783,15 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
           )
         continue;
 
+#ifdef _WIN32
+      // Windows equivalents of SIGPIPE/EPIPE.
+      DWORD WinLastError = GetLastError();
+      if (WinLastError == ERROR_BROKEN_PIPE ||
+          (WinLastError == ERROR_NO_DATA && errno == EINVAL)) {
+        llvm::sys::CallOneShotPipeSignalHandler();
+        errno = EPIPE;
+      }
+#endif
       // Otherwise it's a non-recoverable error. Note it and quit.
       error_detected(std::error_code(errno, std::generic_category()));
       break;
@@ -802,8 +819,6 @@ uint64_t raw_fd_ostream::seek(uint64_t off) {
   flush();
 #ifdef _WIN32
   pos = ::_lseeki64(FD, off, SEEK_SET);
-#elif defined(HAVE_LSEEK64)
-  pos = ::lseek64(FD, off, SEEK_SET);
 #else
   pos = ::lseek(FD, off, SEEK_SET);
 #endif
@@ -992,7 +1007,7 @@ Error llvm::writeToOutput(StringRef OutputFileName,
     return Write(Out);
   }
 
-  unsigned Mode = sys::fs::all_read | sys::fs::all_write | sys::fs::all_exe;
+  unsigned Mode = sys::fs::all_read | sys::fs::all_write;
   Expected<sys::fs::TempFile> Temp =
       sys::fs::TempFile::create(OutputFileName + ".temp-stream-%%%%%%", Mode);
   if (!Temp)

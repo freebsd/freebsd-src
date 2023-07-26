@@ -400,7 +400,9 @@ void StmtPrinter::VisitForStmt(ForStmt *Node) {
     PrintInitStmt(Node->getInit(), 5);
   else
     OS << (Node->getCond() ? "; " : ";");
-  if (Node->getCond())
+  if (const DeclStmt *DS = Node->getConditionVariableDeclStmt())
+    PrintRawDeclStmt(DS);
+  else if (Node->getCond())
     PrintExpr(Node->getCond());
   OS << ";";
   if (Node->getInc()) {
@@ -1458,8 +1460,12 @@ void StmtPrinter::VisitUnaryExprOrTypeTraitExpr(
 
 void StmtPrinter::VisitGenericSelectionExpr(GenericSelectionExpr *Node) {
   OS << "_Generic(";
-  PrintExpr(Node->getControllingExpr());
-  for (const GenericSelectionExpr::Association Assoc : Node->associations()) {
+  if (Node->isExprPredicate())
+    PrintExpr(Node->getControllingExpr());
+  else
+    Node->getControllingType()->getType().print(OS, Policy);
+
+  for (const GenericSelectionExpr::Association &Assoc : Node->associations()) {
     OS << ", ";
     QualType T = Assoc.getType();
     if (T.isNull())
@@ -1740,7 +1746,7 @@ void StmtPrinter::VisitDesignatedInitExpr(DesignatedInitExpr *Node) {
   for (const DesignatedInitExpr::Designator &D : Node->designators()) {
     if (D.isFieldDesignator()) {
       if (D.getDotLoc().isInvalid()) {
-        if (IdentifierInfo *II = D.getFieldName()) {
+        if (const IdentifierInfo *II = D.getFieldName()) {
           OS << II->getName() << ":";
           NeedsEquals = false;
         }
@@ -2539,7 +2545,7 @@ void StmtPrinter::VisitRequiresExpr(RequiresExpr *E) {
   OS << "}";
 }
 
-// C++ Coroutines TS
+// C++ Coroutines
 
 void StmtPrinter::VisitCoroutineBodyStmt(CoroutineBodyStmt *S) {
   Visit(S->getBody());

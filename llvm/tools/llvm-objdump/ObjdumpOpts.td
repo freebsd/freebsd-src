@@ -65,7 +65,11 @@ def : Flag<["-"], "D">, Alias<disassemble_all>,
 
 def symbol_description : Flag<["--"], "symbol-description">,
   HelpText<"Add symbol description for disassembly. This "
-           "option is for XCOFF files only.">;
+           "option is for XCOFF files only">;
+
+def traceback_table : Flag<["--"], "traceback-table">,
+  HelpText<"Decode traceback table in disassembly. Implies --disassemble. "
+           "This option is for XCOFF files only">;
 
 def disassemble_symbols_EQ : Joined<["--"], "disassemble-symbols=">,
   HelpText<"List of symbols to disassemble. "
@@ -145,10 +149,10 @@ def reloc : Flag<["--"], "reloc">,
 def : Flag<["-"], "r">, Alias<reloc>, HelpText<"Alias for --reloc">;
 
 def print_imm_hex : Flag<["--"], "print-imm-hex">,
-  HelpText<"Use hex format for immediate values">;
+  HelpText<"Use hex format for immediate values (default)">;
 
 def no_print_imm_hex : Flag<["--"], "no-print-imm-hex">,
-  HelpText<"Do not use hex format for immediate values (default)">;
+  HelpText<"Do not use hex format for immediate values">;
 def : Flag<["--"], "print-imm-hex=false">, Alias<no_print_imm_hex>;
 
 def private_headers : Flag<["--"], "private-headers">,

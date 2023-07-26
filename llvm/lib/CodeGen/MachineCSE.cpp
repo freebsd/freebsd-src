@@ -68,12 +68,12 @@ static cl::opt<int>
 namespace {
 
   class MachineCSE : public MachineFunctionPass {
-    const TargetInstrInfo *TII;
-    const TargetRegisterInfo *TRI;
-    AliasAnalysis *AA;
-    MachineDominatorTree *DT;
-    MachineRegisterInfo *MRI;
-    MachineBlockFrequencyInfo *MBFI;
+    const TargetInstrInfo *TII = nullptr;
+    const TargetRegisterInfo *TRI = nullptr;
+    AliasAnalysis *AA = nullptr;
+    MachineDominatorTree *DT = nullptr;
+    MachineRegisterInfo *MRI = nullptr;
+    MachineBlockFrequencyInfo *MBFI = nullptr;
 
   public:
     static char ID; // Pass identification
@@ -175,9 +175,7 @@ INITIALIZE_PASS_END(MachineCSE, DEBUG_TYPE,
 bool MachineCSE::PerformTrivialCopyPropagation(MachineInstr *MI,
                                                MachineBasicBlock *MBB) {
   bool Changed = false;
-  for (MachineOperand &MO : MI->operands()) {
-    if (!MO.isReg() || !MO.isUse())
-      continue;
+  for (MachineOperand &MO : MI->all_uses()) {
     Register Reg = MO.getReg();
     if (!Reg.isVirtual())
       continue;
@@ -291,9 +289,7 @@ bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
                                        PhysDefVector &PhysDefs,
                                        bool &PhysUseDef) const {
   // First, add all uses to PhysRefs.
-  for (const MachineOperand &MO : MI->operands()) {
-    if (!MO.isReg() || MO.isDef())
-      continue;
+  for (const MachineOperand &MO : MI->all_uses()) {
     Register Reg = MO.getReg();
     if (!Reg)
       continue;
@@ -483,8 +479,8 @@ bool MachineCSE::isProfitableToCSE(Register CSReg, Register Reg,
   // Heuristics #2: If the expression doesn't not use a vr and the only use
   // of the redundant computation are copies, do not cse.
   bool HasVRegUse = false;
-  for (const MachineOperand &MO : MI->operands()) {
-    if (MO.isReg() && MO.isUse() && MO.getReg().isVirtual()) {
+  for (const MachineOperand &MO : MI->all_uses()) {
+    if (MO.getReg().isVirtual()) {
       HasVRegUse = true;
       break;
     }

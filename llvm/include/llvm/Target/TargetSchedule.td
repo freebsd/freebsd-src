@@ -117,6 +117,11 @@ class SchedMachineModel {
   list<Predicate> UnsupportedFeatures = [];
 
   bit NoModel = false; // Special tag to indicate missing machine model.
+
+  // Tells the MachineScheduler whether or not to track resource usage
+  // using intervals via ResourceSegments (see
+  // llvm/include/llvm/CodeGen/MachineScheduler.h).
+  bit EnableIntervals = false;
 }
 
 def NoSchedModel : SchedMachineModel {
@@ -250,6 +255,7 @@ class WriteSequence<list<SchedWrite> writes, int rep = 1> : SchedWrite {
 class ProcWriteResources<list<ProcResourceKind> resources> {
   list<ProcResourceKind> ProcResources = resources;
   list<int> ResourceCycles = [];
+  list<int> StartAtCycles = [];
   int Latency = 1;
   int NumMicroOps = 1;
   bit BeginGroup = false;

@@ -76,10 +76,14 @@ bool formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
 /// This function may introduce unused PHI nodes. If \p PHIsToRemove is not
 /// nullptr, those are added to it (before removing, the caller has to check if
 /// they still do not have any uses). Otherwise the PHIs are directly removed.
+///
+/// If \p InsertedPHIs is not nullptr, inserted phis will be added to this
+/// vector.
 bool formLCSSAForInstructions(
     SmallVectorImpl<Instruction *> &Worklist, const DominatorTree &DT,
-    const LoopInfo &LI, ScalarEvolution *SE, IRBuilderBase &Builder,
-    SmallVectorImpl<PHINode *> *PHIsToRemove = nullptr);
+    const LoopInfo &LI, ScalarEvolution *SE,
+    SmallVectorImpl<PHINode *> *PHIsToRemove = nullptr,
+    SmallVectorImpl<PHINode *> *InsertedPHIs = nullptr);
 
 /// Put loop into LCSSA form.
 ///
@@ -116,10 +120,9 @@ public:
   // Explicitly set limits.
   SinkAndHoistLICMFlags(unsigned LicmMssaOptCap,
                         unsigned LicmMssaNoAccForPromotionCap, bool IsSink,
-                        Loop *L = nullptr, MemorySSA *MSSA = nullptr);
+                        Loop &L, MemorySSA &MSSA);
   // Use default limits.
-  SinkAndHoistLICMFlags(bool IsSink, Loop *L = nullptr,
-                        MemorySSA *MSSA = nullptr);
+  SinkAndHoistLICMFlags(bool IsSink, Loop &L, MemorySSA &MSSA);
 
   void setIsSink(bool B) { IsSink = B; }
   bool getIsSink() { return IsSink; }
@@ -174,6 +177,11 @@ bool hoistRegion(DomTreeNode *, AAResults *, LoopInfo *, DominatorTree *,
                  MemorySSAUpdater &, ScalarEvolution *, ICFLoopSafetyInfo *,
                  SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *, bool,
                  bool AllowSpeculation);
+
+/// Return true if the induction variable \p IV in a Loop whose latch is
+/// \p LatchBlock would become dead if the exit test \p Cond were removed.
+/// Conservatively returns false if analysis is insufficient.
+bool isAlmostDeadIV(PHINode *IV, BasicBlock *LatchBlock, Value *Cond);
 
 /// This function deletes dead loops. The caller of this function needs to
 /// guarantee that the loop is infact dead.
@@ -349,6 +357,9 @@ bool canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
                         SinkAndHoistLICMFlags &LICMFlags,
                         OptimizationRemarkEmitter *ORE = nullptr);
 
+/// Returns the min/max intrinsic used when expanding a min/max reduction.
+Intrinsic::ID getMinMaxReductionIntrinsicOp(RecurKind RK);
+
 /// Returns the comparison predicate used when expanding a min/max reduction.
 CmpInst::Predicate getMinMaxReductionPredicate(RecurKind RK);
 
@@ -424,6 +435,14 @@ bool isKnownNegativeInLoop(const SCEV *S, const Loop *L, ScalarEvolution &SE);
 /// Returns true if we can prove that \p S is defined and always non-negative in
 /// loop \p L.
 bool isKnownNonNegativeInLoop(const SCEV *S, const Loop *L,
+                              ScalarEvolution &SE);
+/// Returns true if we can prove that \p S is defined and always positive in
+/// loop \p L.
+bool isKnownPositiveInLoop(const SCEV *S, const Loop *L, ScalarEvolution &SE);
+
+/// Returns true if we can prove that \p S is defined and always non-positive in
+/// loop \p L.
+bool isKnownNonPositiveInLoop(const SCEV *S, const Loop *L,
                               ScalarEvolution &SE);
 
 /// Returns true if \p S is defined and never is equal to signed/unsigned max.

@@ -79,9 +79,9 @@ void HexagonMCChecker::initReg(MCInst const &MCI, unsigned R, unsigned &PredReg,
   } else
     // Note register use.  Super-registers are not tracked directly,
     // but their components.
-    for (MCRegAliasIterator SRI(R, &RI, !MCSubRegIterator(R, &RI).isValid());
-         SRI.isValid(); ++SRI)
-      if (!MCSubRegIterator(*SRI, &RI).isValid())
+    for (MCRegAliasIterator SRI(R, &RI, RI.subregs(R).empty()); SRI.isValid();
+         ++SRI)
+      if (RI.subregs(*SRI).empty())
         // Skip super-registers used indirectly.
         Uses.insert(*SRI);
 
@@ -103,7 +103,7 @@ void HexagonMCChecker::init(MCInst const &MCI) {
 
   const bool IgnoreTmpDst = (HexagonMCInstrInfo::hasTmpDst(MCII, MCI) ||
                              HexagonMCInstrInfo::hasHvxTmp(MCII, MCI)) &&
-                            STI.getFeatureBits()[Hexagon::ArchV69];
+                            STI.hasFeature(Hexagon::ArchV69);
 
   // Get implicit register definitions.
   for (MCPhysReg R : MCID.implicit_defs()) {
@@ -145,9 +145,9 @@ void HexagonMCChecker::init(MCInst const &MCI) {
 
     // Note register definitions, direct ones as well as indirect side-effects.
     // Super-registers are not tracked directly, but their components.
-    for (MCRegAliasIterator SRI(R, &RI, !MCSubRegIterator(R, &RI).isValid());
-         SRI.isValid(); ++SRI) {
-      if (MCSubRegIterator(*SRI, &RI).isValid())
+    for (MCRegAliasIterator SRI(R, &RI, RI.subregs(R).empty()); SRI.isValid();
+         ++SRI) {
+      if (!RI.subregs(*SRI).empty())
         // Skip super-registers defined indirectly.
         continue;
 
@@ -178,10 +178,6 @@ void HexagonMCChecker::init(MCInst const &MCI) {
         // TODO: relies on the impossibility of a current and a temporary loads
         // in the same packet.
         TmpDefs.insert(*SRI);
-      else if (i <= 1 && HexagonMCInstrInfo::hasNewValue2(MCII, MCI))
-        // vshuff(Vx, Vy, Rx) <- Vx(0) and Vy(1) are both source and
-        // destination registers with this instruction. same for vdeal(Vx,Vy,Rx)
-        Uses.insert(*SRI);
       else if (!IgnoreTmpDst)
         Defs[*SRI].insert(PredSense(PredReg, isTrue));
     }
@@ -713,7 +709,7 @@ bool HexagonMCChecker::checkShuffle() {
 }
 
 bool HexagonMCChecker::checkValidTmpDst() {
-  if (!STI.getFeatureBits()[Hexagon::ArchV69]) {
+  if (!STI.hasFeature(Hexagon::ArchV69)) {
     return true;
   }
   auto HasTmp = [&](MCInst const &I) {
@@ -803,7 +799,7 @@ void HexagonMCChecker::reportWarning(Twine const &Msg) {
 }
 
 bool HexagonMCChecker::checkLegalVecRegPair() {
-  const bool IsPermitted = STI.getFeatureBits()[Hexagon::ArchV67];
+  const bool IsPermitted = STI.hasFeature(Hexagon::ArchV67);
   const bool HasReversePairs = ReversePairs.size() != 0;
 
   if (!IsPermitted && HasReversePairs) {

@@ -20,7 +20,7 @@
 #include <__ranges/access.h>
 #include <__ranges/all.h>
 #include <__ranges/concepts.h>
-#include <__ranges/copyable_box.h>
+#include <__ranges/movable_box.h>
 #include <__ranges/range_adaptor.h>
 #include <__ranges/view_interface.h>
 #include <__type_traits/decay.h>
@@ -53,27 +53,21 @@ template <class _View, class _Pred>
 concept __take_while_const_is_range =
     range<const _View> && indirect_unary_predicate<const _Pred, iterator_t<const _View>>;
 
-template <class, class, bool>
-class __take_while_view_sentinel;
-
 template <view _View, class _Pred>
   requires input_range<_View> && is_object_v<_Pred> && indirect_unary_predicate<const _Pred, iterator_t<_View>>
 class take_while_view : public view_interface<take_while_view<_View, _Pred>> {
-  template <class, class, bool>
-  friend class __take_while_view_sentinel;
-
-  template <bool _Const>
-  using __sentinel = __take_while_view_sentinel<_View, _Pred, _Const>;
+  template <bool>
+  class __sentinel;
 
   _LIBCPP_NO_UNIQUE_ADDRESS _View __base_ = _View();
-  _LIBCPP_NO_UNIQUE_ADDRESS __copyable_box<_Pred> __pred_;
+  _LIBCPP_NO_UNIQUE_ADDRESS __movable_box<_Pred> __pred_;
 
 public:
   _LIBCPP_HIDE_FROM_ABI take_while_view()
     requires default_initializable<_View> && default_initializable<_Pred>
   = default;
 
-  _LIBCPP_HIDE_FROM_ABI constexpr take_while_view(_View __base, _Pred __pred)
+  _LIBCPP_HIDE_FROM_ABI constexpr _LIBCPP_EXPLICIT_SINCE_CXX23 take_while_view(_View __base, _Pred __pred)
       : __base_(std::move(__base)), __pred_(std::in_place, std::move(__pred)) {}
 
   _LIBCPP_HIDE_FROM_ABI constexpr _View base() const&
@@ -114,37 +108,37 @@ public:
 template <class _Range, class _Pred>
 take_while_view(_Range&&, _Pred) -> take_while_view<views::all_t<_Range>, _Pred>;
 
-template <class _View, class _Pred, bool _Const>
-class __take_while_view_sentinel {
+template <view _View, class _Pred>
+  requires input_range<_View> && is_object_v<_Pred> && indirect_unary_predicate<const _Pred, iterator_t<_View>>
+template <bool _Const>
+class take_while_view<_View, _Pred>::__sentinel {
   using _Base = __maybe_const<_Const, _View>;
 
   sentinel_t<_Base> __end_ = sentinel_t<_Base>();
   const _Pred* __pred_     = nullptr;
 
-  template <class, class, bool>
-  friend class __take_while_view_sentinel;
+  friend class __sentinel<!_Const>;
 
 public:
-  _LIBCPP_HIDE_FROM_ABI __take_while_view_sentinel() = default;
+  _LIBCPP_HIDE_FROM_ABI __sentinel() = default;
 
-  _LIBCPP_HIDE_FROM_ABI constexpr explicit __take_while_view_sentinel(sentinel_t<_Base> __end, const _Pred* __pred)
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit __sentinel(sentinel_t<_Base> __end, const _Pred* __pred)
       : __end_(std::move(__end)), __pred_(__pred) {}
 
-  _LIBCPP_HIDE_FROM_ABI constexpr __take_while_view_sentinel(__take_while_view_sentinel<_View, _Pred, !_Const> __s)
+  _LIBCPP_HIDE_FROM_ABI constexpr __sentinel(__sentinel<!_Const> __s)
     requires _Const && convertible_to<sentinel_t<_View>, sentinel_t<_Base>>
       : __end_(std::move(__s.__end_)), __pred_(__s.__pred_) {}
 
   _LIBCPP_HIDE_FROM_ABI constexpr sentinel_t<_Base> base() const { return __end_; }
 
-  _LIBCPP_HIDE_FROM_ABI friend constexpr bool
-  operator==(const iterator_t<_Base>& __x, const __take_while_view_sentinel& __y) {
+  _LIBCPP_HIDE_FROM_ABI friend constexpr bool operator==(const iterator_t<_Base>& __x, const __sentinel& __y) {
     return __x == __y.__end_ || !std::invoke(*__y.__pred_, *__x);
   }
 
   template <bool _OtherConst = !_Const>
     requires sentinel_for<sentinel_t<_Base>, iterator_t<__maybe_const<_OtherConst, _View>>>
   _LIBCPP_HIDE_FROM_ABI friend constexpr bool
-  operator==(const iterator_t<__maybe_const<_OtherConst, _View>>& __x, const __take_while_view_sentinel& __y) {
+  operator==(const iterator_t<__maybe_const<_OtherConst, _View>>& __x, const __sentinel& __y) {
     return __x == __y.__end_ || !std::invoke(*__y.__pred_, *__x);
   }
 };

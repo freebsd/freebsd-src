@@ -22,8 +22,6 @@
 
 using namespace llvm;
 
-Value *SSAContext::ValueRefNull = nullptr;
-
 void SSAContext::setFunction(Function &Fn) { F = &Fn; }
 
 BasicBlock *SSAContext::getEntryBlock(Function &F) {
@@ -75,9 +73,9 @@ bool SSAContext::comesBefore(const Instruction *lhs, const Instruction *rhs) {
   return lhs->comesBefore(rhs);
 }
 
-bool SSAContext::isConstantValuePhi(const Instruction &Instr) {
+bool SSAContext::isConstantOrUndefValuePhi(const Instruction &Instr) {
   if (auto *Phi = dyn_cast<PHINode>(&Instr))
-    return Phi->hasConstantValue();
+    return Phi->hasConstantOrUndefValue();
   return false;
 }
 

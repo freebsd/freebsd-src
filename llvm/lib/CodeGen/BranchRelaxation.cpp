@@ -81,9 +81,9 @@ class BranchRelaxation : public MachineFunctionPass {
   std::unique_ptr<RegScavenger> RS;
   LivePhysRegs LiveRegs;
 
-  MachineFunction *MF;
-  const TargetRegisterInfo *TRI;
-  const TargetInstrInfo *TII;
+  MachineFunction *MF = nullptr;
+  const TargetRegisterInfo *TRI = nullptr;
+  const TargetInstrInfo *TII = nullptr;
 
   bool relaxBranchInstructions();
   void scanFunction();
@@ -131,6 +131,19 @@ void BranchRelaxation::verify() {
     assert(!Num || BlockInfo[PrevNum].postOffset(MBB) <= BlockInfo[Num].Offset);
     assert(BlockInfo[Num].Size == computeBlockSize(MBB));
     PrevNum = Num;
+  }
+
+  for (MachineBasicBlock &MBB : *MF) {
+    for (MachineBasicBlock::iterator J = MBB.getFirstTerminator();
+         J != MBB.end(); J = std::next(J)) {
+      MachineInstr &MI = *J;
+      if (!MI.isConditionalBranch() && !MI.isUnconditionalBranch())
+        continue;
+      if (MI.getOpcode() == TargetOpcode::FAULTING_OP)
+        continue;
+      MachineBasicBlock *DestBB = TII->getBranchDestBlock(MI);
+      assert(isBlockInRange(MI, *DestBB));
+    }
   }
 #endif
 }

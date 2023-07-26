@@ -282,6 +282,11 @@ public:
     return (unsigned) Imm.Val;
   }
 
+  unsigned getFpReg() const {
+    assert(isEvenRegNumber() && "Invalid access!");
+    return (unsigned)(Imm.Val >> 1);
+  }
+
   unsigned getVSReg() const {
     assert(isVSRegNumber() && "Invalid access!");
     return (unsigned) Imm.Val;
@@ -334,7 +339,7 @@ public:
 
   unsigned getCRBitMask() const {
     assert(isCRBitMask() && "Invalid access!");
-    return 7 - countTrailingZeros<uint64_t>(Imm.Val);
+    return 7 - llvm::countr_zero<uint64_t>(Imm.Val);
   }
 
   bool isToken() const override { return Kind == Token; }
@@ -441,8 +446,10 @@ public:
 
   bool isEvenRegNumber() const { return isRegNumber() && (getImm() & 1) == 0; }
 
-  bool isCRBitMask() const { return Kind == Immediate && isUInt<8>(getImm()) &&
-                                    isPowerOf2_32(getImm()); }
+  bool isCRBitMask() const {
+    return Kind == Immediate && isUInt<8>(getImm()) &&
+           llvm::has_single_bit<uint32_t>(getImm());
+  }
   bool isATBitsAsHint() const { return false; }
   bool isMem() const override { return false; }
   bool isReg() const override { return false; }
@@ -498,6 +505,11 @@ public:
   void addRegF8RCOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::createReg(FRegs[getReg()]));
+  }
+
+  void addRegFpRCOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    Inst.addOperand(MCOperand::createReg(FpRegs[getFpReg()]));
   }
 
   void addRegVFRCOperands(MCInst &Inst, unsigned N) const {
@@ -1198,7 +1210,7 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::MFTB: {
-    if (getSTI().getFeatureBits()[PPC::FeatureMFTB]) {
+    if (getSTI().hasFeature(PPC::FeatureMFTB)) {
       assert(Inst.getNumOperands() == 2 && "Expecting two operands");
       Inst.setOpcode(PPC::MFSPR);
     }
@@ -1266,40 +1278,40 @@ bool PPCAsmParser::MatchRegisterName(MCRegister &RegNo, int64_t &IntVal) {
   } else if (Name.equals_insensitive("vrsave")) {
     RegNo = PPC::VRSAVE;
     IntVal = 256;
-  } else if (Name.startswith_insensitive("r") &&
+  } else if (Name.starts_with_insensitive("r") &&
              !Name.substr(1).getAsInteger(10, IntVal) && IntVal < 32) {
     RegNo = isPPC64() ? XRegs[IntVal] : RRegs[IntVal];
-  } else if (Name.startswith_insensitive("f") &&
+  } else if (Name.starts_with_insensitive("f") &&
              !Name.substr(1).getAsInteger(10, IntVal) && IntVal < 32) {
     RegNo = FRegs[IntVal];
-  } else if (Name.startswith_insensitive("vs") &&
+  } else if (Name.starts_with_insensitive("vs") &&
              !Name.substr(2).getAsInteger(10, IntVal) && IntVal < 64) {
     RegNo = VSRegs[IntVal];
-  } else if (Name.startswith_insensitive("v") &&
+  } else if (Name.starts_with_insensitive("v") &&
              !Name.substr(1).getAsInteger(10, IntVal) && IntVal < 32) {
     RegNo = VRegs[IntVal];
-  } else if (Name.startswith_insensitive("cr") &&
+  } else if (Name.starts_with_insensitive("cr") &&
              !Name.substr(2).getAsInteger(10, IntVal) && IntVal < 8) {
     RegNo = CRRegs[IntVal];
-  } else if (Name.startswith_insensitive("acc") &&
+  } else if (Name.starts_with_insensitive("acc") &&
              !Name.substr(3).getAsInteger(10, IntVal) && IntVal < 8) {
     RegNo = ACCRegs[IntVal];
-  } else if (Name.startswith_insensitive("wacc_hi") &&
+  } else if (Name.starts_with_insensitive("wacc_hi") &&
              !Name.substr(7).getAsInteger(10, IntVal) && IntVal < 8) {
     RegNo = ACCRegs[IntVal];
-  } else if (Name.startswith_insensitive("wacc") &&
+  } else if (Name.starts_with_insensitive("wacc") &&
              !Name.substr(4).getAsInteger(10, IntVal) && IntVal < 8) {
     RegNo = WACCRegs[IntVal];
-  } else if (Name.startswith_insensitive("dmrrowp") &&
+  } else if (Name.starts_with_insensitive("dmrrowp") &&
              !Name.substr(7).getAsInteger(10, IntVal) && IntVal < 32) {
     RegNo = DMRROWpRegs[IntVal];
-  } else if (Name.startswith_insensitive("dmrrow") &&
+  } else if (Name.starts_with_insensitive("dmrrow") &&
              !Name.substr(6).getAsInteger(10, IntVal) && IntVal < 64) {
     RegNo = DMRROWRegs[IntVal];
-  } else if (Name.startswith_insensitive("dmrp") &&
+  } else if (Name.starts_with_insensitive("dmrp") &&
              !Name.substr(4).getAsInteger(10, IntVal) && IntVal < 4) {
     RegNo = DMRROWpRegs[IntVal];
-  } else if (Name.startswith_insensitive("dmr") &&
+  } else if (Name.starts_with_insensitive("dmr") &&
              !Name.substr(3).getAsInteger(10, IntVal) && IntVal < 8) {
     RegNo = DMRRegs[IntVal];
   } else
@@ -1536,24 +1548,20 @@ bool PPCAsmParser::ParseOperand(OperandVector &Operands) {
   if (const MCSymbolRefExpr *Ref = dyn_cast<MCSymbolRefExpr>(EVal))
     TLSCall = Ref->getSymbol().getName() == "__tls_get_addr";
 
-  if (TLSCall && getLexer().is(AsmToken::LParen)) {
+  if (TLSCall && parseOptionalToken(AsmToken::LParen)) {
     const MCExpr *TLSSym;
-
-    Parser.Lex(); // Eat the '('.
     S = Parser.getTok().getLoc();
     if (ParseExpression(TLSSym))
       return Error(S, "invalid TLS call expression");
-    if (getLexer().isNot(AsmToken::RParen))
-      return Error(Parser.getTok().getLoc(), "missing ')'");
+    if (parseToken(AsmToken::RParen, "expected ')'"))
+      return true;
     E = Parser.getTok().getLoc();
-    Parser.Lex(); // Eat the ')'.
 
     Operands.push_back(PPCOperand::CreateFromMCExpr(TLSSym, S, E, isPPC64()));
   }
 
   // Otherwise, check for D-form memory operands
-  if (!TLSCall && getLexer().is(AsmToken::LParen)) {
-    Parser.Lex(); // Eat the '('.
+  if (!TLSCall && parseOptionalToken(AsmToken::LParen)) {
     S = Parser.getTok().getLoc();
 
     int64_t IntVal;
@@ -1640,7 +1648,7 @@ bool PPCAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   //  where th can be omitted when it is 0. dcbtst is the same. We take the
   //  server form to be the default, so swap the operands if we're parsing for
   //  an embedded core (they'll be swapped again upon printing).
-  if (getSTI().getFeatureBits()[PPC::FeatureBookE] &&
+  if (getSTI().hasFeature(PPC::FeatureBookE) &&
       Operands.size() == 4 &&
       (Name == "dcbt" || Name == "dcbtst")) {
     std::swap(Operands[1], Operands[3]);

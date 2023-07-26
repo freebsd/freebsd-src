@@ -161,10 +161,13 @@ static IMAKind ClassifyImplicitMemberAccess(Sema &SemaRef,
   }
 
   CXXRecordDecl *contextClass;
-  if (CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(DC))
+  if (auto *MD = dyn_cast<CXXMethodDecl>(DC))
     contextClass = MD->getParent()->getCanonicalDecl();
+  else if (auto *RD = dyn_cast<CXXRecordDecl>(DC))
+    contextClass = RD;
   else
-    contextClass = cast<CXXRecordDecl>(DC);
+    return AbstractInstanceResult ? AbstractInstanceResult
+                                  : IMA_Error_StaticContext;
 
   // [class.mfct.non-static]p3:
   // ...is used in the body of a non-static member function of class X,
@@ -764,7 +767,7 @@ Sema::BuildMemberReferenceExpr(Expr *Base, QualType BaseType,
     QualType RecordTy = BaseType;
     if (IsArrow) RecordTy = RecordTy->castAs<PointerType>()->getPointeeType();
     if (LookupMemberExprInRecord(
-            *this, R, nullptr, RecordTy->getAs<RecordType>(), OpLoc, IsArrow,
+            *this, R, nullptr, RecordTy->castAs<RecordType>(), OpLoc, IsArrow,
             SS, TemplateArgs != nullptr, TemplateKWLoc, TE))
       return ExprError();
     if (TE)
