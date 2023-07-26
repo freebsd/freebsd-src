@@ -49,7 +49,8 @@ struct cmdtable {
 	unsigned int flags;
 #define	FL_RO	0x0000		/* for symmetry */
 #define	FL_WR	0x0001		/* wants to write */
-#define	FL_ST	0x0002		/* resplit final string if argc > maxargc */
+#define	FL_CWR	0x0002		/* wants to write critical data */
+#define	FL_ST	0x0003		/* resplit final string if argc > maxargc */
 	int (*handler)(int argc, char *argv[]);
 };
 extern struct inode curip;
