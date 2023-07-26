@@ -794,7 +794,7 @@ lbn_offset(struct fs *fs, int level)
 /*
  * Softdep journal record format.
  */
-
+#define	JOP_UNKNOWN	0	/* JOP operation is unknown */
 #define	JOP_ADDREF	1	/* Add a reference to an inode. */
 #define	JOP_REMREF	2	/* Remove a reference from an inode. */
 #define	JOP_NEWBLK	3	/* Allocate a block. */
@@ -802,6 +802,18 @@ lbn_offset(struct fs *fs, int level)
 #define	JOP_MVREF	5	/* Move a reference from one off to another. */
 #define	JOP_TRUNC	6	/* Partial truncation record. */
 #define	JOP_SYNC	7	/* fsync() complete record. */
+#define	JOP_NUMJOPTYPES	8
+#define JOP_NAMES {	\
+        "unknown",	\
+	"JOP_ADDREF",	\
+	"JOP_REMREF",	\
+	"JOP_NEWBLK",	\
+	"JOP_FREEBLK",	\
+	"JOP_MVREF",	\
+	"JOP_TRUNC",	\
+	"JOP_SYNC" }
+#define JOP_OPTYPE(op) \
+	(op) < JOP_NUMJOPTYPES ? joptype[op] : joptype[JOP_UNKNOWN]
 
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
