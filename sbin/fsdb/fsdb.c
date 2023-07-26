@@ -63,6 +63,23 @@ static int find_blks64(uint64_t *buf, int size, uint64_t *blknum);
 static int find_indirblks32(uint32_t blk, int ind_level, uint32_t *blknum);
 static int find_indirblks64(uint64_t blk, int ind_level, uint64_t *blknum);
 
+/*
+ * Track modifications to the filesystem. Two types of changes are tracked.
+ * The first type of changes are those that are not critical to the integrity
+ * of the filesystem such as owner, group, time stamps, access mode, and
+ * generation number. The second type of changes are those that do affect
+ * the integrity of the filesystem including zeroing inodes, changing block
+ * pointers, directory entries, link counts, file lengths, file types and
+ * file flags.
+ *
+ * When quitting having made no changes or only changes to data that is not
+ * critical to filesystem integrity, the clean state of the filesystem is
+ * left unchanged. But if filesystem critical data are changed then fsdb
+ * will set the unclean flag which will require a full fsck to be run
+ * before the filesystem can be mounted.
+ */
+static int fsnoncritmodified;	/* filesystem non-critical modifications */
+static int fscritmodified;	/* filesystem integrity critical mods */
 struct inode curip;
 union dinode *curinode;
 ino_t curinum, ocurrent;
@@ -119,9 +136,13 @@ main(int argc, char *argv[])
 	       nflag? "Examining": "Editing", fsys, sblock.fs_fsmnt);
 	rval = cmdloop();
 	if (!nflag) {
-		sblock.fs_clean = 0;	/* mark it dirty */
-		sbdirty();
-		ckfini(0);
+		if (fscritmodified != 0) {
+			sblock.fs_clean = 0;	/* mark it dirty */
+			sbdirty();
+		}
+		ckfini(fscritmodified ? 0 : sblock.fs_clean);
+		if (fscritmodified == 0)
+			exit(0);
 		printf("*** FILE SYSTEM MARKED DIRTY\n");
 		printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
 		printf("*** IF IT IS MOUNTED, RE-MOUNT WITH -u -o reload\n");
@@ -167,36 +188,35 @@ struct cmdtable cmds[] = {
 	{ "help", "Print out help", 1, 1, FL_RO, helpfn },
 	{ "?", "Print out help", 1, 1, FL_RO, helpfn },
 	{ "inode", "Set active inode to INUM", 2, 2, FL_RO, focus },
-	{ "clri", "Clear inode INUM", 2, 2, FL_WR, zapi },
+	{ "clri", "Clear inode INUM", 2, 2, FL_CWR, zapi },
 	{ "lookup", "Set active inode by looking up NAME", 2, 2, FL_RO | FL_ST, focusname },
 	{ "cd", "Set active inode by looking up NAME", 2, 2, FL_RO | FL_ST, focusname },
 	{ "back", "Go to previous active inode", 1, 1, FL_RO, back },
 	{ "active", "Print active inode", 1, 1, FL_RO, active },
 	{ "print", "Print active inode", 1, 1, FL_RO, active },
 	{ "blocks", "Print block numbers of active inode", 1, 1, FL_RO, blocks },
-	{ "uplink", "Increment link count", 1, 1, FL_WR, uplink },
-	{ "downlink", "Decrement link count", 1, 1, FL_WR, downlink },
-	{ "linkcount", "Set link count to COUNT", 2, 2, FL_WR, linkcount },
+	{ "uplink", "Increment link count", 1, 1, FL_CWR, uplink },
+	{ "downlink", "Decrement link count", 1, 1, FL_CWR, downlink },
+	{ "linkcount", "Set link count to COUNT", 2, 2, FL_CWR, linkcount },
 	{ "findblk", "Find inode owning disk block(s)", 2, 33, FL_RO, findblk},
 	{ "ls", "List current inode as directory", 1, 1, FL_RO, ls },
-	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
-	{ "del", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
-	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, FL_WR | FL_ST, ln },
-	{ "chinum", "Change dir entry number INDEX to INUM", 3, 3, FL_WR, chinum },
+	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_CWR | FL_ST, rm },
+	{ "del", "Remove NAME from current inode directory", 2, 2, FL_CWR | FL_ST, rm },
+	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, FL_CWR | FL_ST, ln },
+	{ "chinum", "Change dir entry number INDEX to INUM", 3, 3, FL_CWR, chinum },
 	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, FL_WR | FL_ST, chname },
-	{ "chtype", "Change type of current inode to TYPE", 2, 2, FL_WR, newtype },
+	{ "chtype", "Change type of current inode to TYPE", 2, 2, FL_CWR, newtype },
 	{ "chmod", "Change mode of current inode to MODE", 2, 2, FL_WR, chmode },
-	{ "chlen", "Change length of current inode to LENGTH", 2, 2, FL_WR, chlen },
 	{ "chown", "Change owner of current inode to OWNER", 2, 2, FL_WR, chowner },
 	{ "chgrp", "Change group of current inode to GROUP", 2, 2, FL_WR, chgroup },
-	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, FL_WR, chaflags },
+	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, FL_CWR, chaflags },
 	{ "chgen", "Change generation number of current inode to GEN", 2, 2, FL_WR, chgen },
-	{ "chsize", "Change size of current inode to SIZE", 2, 2, FL_WR, chsize },
+	{ "chsize", "Change size of current inode to SIZE", 2, 2, FL_CWR, chsize },
 	{ "btime", "Change btime of current inode to BTIME", 2, 2, FL_WR, chbtime },
 	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, FL_WR, chmtime },
 	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
 	{ "atime", "Change atime of current inode to ATIME", 2, 2, FL_WR, chatime },
-	{ "chdb", "Change db pointer N of current inode to BLKNO", 3, 3, FL_WR, chdb },
+	{ "chdb", "Change db pointer N of current inode to BLKNO", 3, 3, FL_CWR, chdb },
 	{ "quit", "Exit", 1, 1, FL_RO, quit },
 	{ "q", "Exit", 1, 1, FL_RO, quit },
 	{ "exit", "Exit", 1, 1, FL_RO, quit },
@@ -280,7 +300,7 @@ cmdloop(void)
 	    known = 0;
 	    for (cmdp = cmds; cmdp->cmd; cmdp++) {
 		if (!strcmp(cmdp->cmd, cmd_argv[0])) {
-		    if ((cmdp->flags & FL_WR) == FL_WR && nflag)
+		    if ((cmdp->flags & (FL_CWR | FL_WR)) != 0 && nflag)
 			warnx("`%s' requires write access", cmd_argv[0]),
 			    rval = 1;
 		    else if (cmd_argc >= cmdp->minargc &&
@@ -294,6 +314,12 @@ cmdloop(void)
 		    } else
 			rval = argcount(cmdp, cmd_argc, cmd_argv);
 		    known = 1;
+		    if (rval == 0) {
+			if ((cmdp->flags & FL_WR) != 0)
+			    fsnoncritmodified = 1;
+			if ((cmdp->flags & FL_CWR) != 0)
+			    fscritmodified = 1;
+		    }
 		    break;
 		}
 	    }
@@ -308,7 +334,7 @@ cmdloop(void)
 	    return 0;
 	}
 	if (rval)
-	    warnx("rval was %d", rval);
+	    warnx("command failed, return value was %d", rval);
     }
     el_end(elptr);
     history_end(hist);
@@ -930,30 +956,8 @@ CMDFUNCSTART(newtype)
     return 0;
 }
 
-CMDFUNCSTART(chlen)
-{
-    int rval = 1;
-    long len;
-    char *cp;
-
-    if (!checkactive())
-	return 1;
-
-    len = strtol(argv[1], &cp, 0);
-    if (cp == argv[1] || *cp != '\0' || len < 0) { 
-	warnx("bad length `%s'", argv[1]);
-	return 1;
-    }
-    
-    DIP_SET(curinode, di_size, len);
-    inodirty(&curip);
-    printactive(0);
-    return rval;
-}
-
 CMDFUNCSTART(chmode)
 {
-    int rval = 1;
     long modebits;
     char *cp;
 
@@ -970,12 +974,11 @@ CMDFUNCSTART(chmode)
     DIP_SET(curinode, di_mode, DIP(curinode, di_mode) | modebits);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNCSTART(chaflags)
 {
-    int rval = 1;
     u_long flags;
     char *cp;
 
@@ -995,12 +998,11 @@ CMDFUNCSTART(chaflags)
     DIP_SET(curinode, di_flags, flags);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNCSTART(chgen)
 {
-    int rval = 1;
     long gen;
     char *cp;
 
@@ -1013,19 +1015,19 @@ CMDFUNCSTART(chgen)
 	return 1;
     }
     
-    if (gen > INT_MAX || gen < INT_MIN) {
-	warnx("gen set beyond 32-bit range of field (%lx)\n", gen);
+    if (gen > UINT_MAX) {
+	warnx("gen set beyond 32-bit range of field (0x%lx), max is 0x%x\n",
+	    gen, UINT_MAX);
 	return(1);
     }
     DIP_SET(curinode, di_gen, gen);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNCSTART(chsize)
 {
-    int rval = 1;
     off_t size;
     char *cp;
 
@@ -1045,7 +1047,7 @@ CMDFUNCSTART(chsize)
     DIP_SET(curinode, di_size, size);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNC(chdb)
@@ -1080,7 +1082,6 @@ CMDFUNC(chdb)
 
 CMDFUNCSTART(linkcount)
 {
-    int rval = 1;
     int lcnt;
     char *cp;
 
@@ -1100,12 +1101,11 @@ CMDFUNCSTART(linkcount)
     DIP_SET(curinode, di_nlink, lcnt);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNCSTART(chowner)
 {
-    int rval = 1;
     unsigned long uid;
     char *cp;
     struct passwd *pwd;
@@ -1127,12 +1127,11 @@ CMDFUNCSTART(chowner)
     DIP_SET(curinode, di_uid, uid);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 CMDFUNCSTART(chgroup)
 {
-    int rval = 1;
     unsigned long gid;
     char *cp;
     struct group *grp;
@@ -1153,7 +1152,7 @@ CMDFUNCSTART(chgroup)
     DIP_SET(curinode, di_gid, gid);
     inodirty(&curip);
     printactive(0);
-    return rval;
+    return 0;
 }
 
 int
