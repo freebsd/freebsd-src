@@ -13405,7 +13405,13 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
 
+	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
+	if ((thflags & TH_RST) ||
+	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	if ((thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
@@ -13413,7 +13419,6 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (IS_FASTOPEN(tp->t_flags)) {
 		/*
 		 * When a TFO connection is in SYN_RECEIVED, the
@@ -13440,11 +13445,6 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 	}
 
-	if ((thflags & TH_RST) ||
-	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC 1323 PAWS: If we have a timestamp reply on this segment and
 	 * it's less than ts_recent, drop it.
