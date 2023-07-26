@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2023
+.Dd July 26, 2023
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -544,7 +544,7 @@ See
 Several partitioning schemes are supported by the
 .Nm
 utility:
-.Bl -tag -width ".Cm VTOC8"
+.Bl -tag -width ".Cm BSD64"
 .It Cm APM
 Apple Partition Map, used by PowerPC(R) Macintosh(R) computers.
 Requires the
@@ -599,15 +599,6 @@ The
 option enables backward compatibility for partition names
 in the EBR scheme.
 It also prevents any type of actions on such partitions.
-.It Cm VTOC8
-Sun's SMI Volume Table Of Contents, used by
-.Tn SPARC64
-and
-.Tn UltraSPARC
-computers.
-Requires the
-.Cm GEOM_PART_VTOC8
-kernel option.
 .El
 .Pp
 See
@@ -680,36 +671,36 @@ A
 partition dedicated to swap space.
 The scheme-specific types are
 .Qq Li "!FreeBSD-swap"
-for APM,
+for APM, and
 .Qq Li "!516e7cb5-6ecf-11d6-8ff8-00022d09712b"
-for GPT, and tag 0x0901 for VTOC8.
+for GPT.
 .It Cm freebsd-ufs
 A
 .Fx
 partition that contains a UFS or UFS2 filesystem.
 The scheme-specific types are
 .Qq Li "!FreeBSD-UFS"
-for APM,
+for APM, and
 .Qq Li "!516e7cb6-6ecf-11d6-8ff8-00022d09712b"
-for GPT, and tag 0x0902 for VTOC8.
+for GPT.
 .It Cm freebsd-vinum
 A
 .Fx
 partition that contains a Vinum volume.
 The scheme-specific types are
 .Qq Li "!FreeBSD-Vinum"
-for APM,
+for APM, and
 .Qq Li "!516e7cb8-6ecf-11d6-8ff8-00022d09712b"
-for GPT, and tag 0x0903 for VTOC8.
+for GPT.
 .It Cm freebsd-zfs
 A
 .Fx
 partition that contains a ZFS volume.
 The scheme-specific types are
 .Qq Li "!FreeBSD-ZFS"
-for APM,
+for APM, and
 .Qq Li "!516e7cba-6ecf-11d6-8ff8-00022d09712b"
-for GPT, and 0x0904 for VTOC8.
+for GPT.
 .El
 .Pp
 Other symbolic names that can be used with the
@@ -1196,18 +1187,6 @@ After all pools are detected,
 .Pa /boot/loader
 is started from the first one found set as bootable.
 .Pp
-The VTOC8 scheme does not support embedding bootstrap code.
-Instead, the 8 KBytes bootstrap code image
-.Pa /boot/boot1
-should be written with the
-.Cm gpart bootcode
-command with the
-.Fl p Ar bootcode
-option to all sufficiently large VTOC8 partitions.
-To do this the
-.Fl i Ar index
-option could be omitted.
-.Pp
 The APM scheme also does not support embedding bootstrap code.
 Instead, the 800 KBytes bootstrap code image
 .Pa /boot/boot1.hfs
@@ -1306,7 +1285,7 @@ GEOM class.
 The default value is shown next to each variable.
 .Bl -tag -width indent
 .It Va kern.geom.part.allow_nesting : No 0
-By default, some schemes (currently BSD, BSD64 and VTOC8) do not permit
+By default, some schemes (currently BSD and BSD64) do not permit
 further nested partitioning.
 This variable overrides this restriction and allows arbitrary nesting (except
 within partitions created at offset 0).
@@ -1443,12 +1422,12 @@ using a traditional
 .Bx
 disklabel.
 .Pp
-First, we create the partition table and a single 64 GB partition,
-then we mark that partition active (bootable) and install the
-first-stage boot loader:
+First, we create the partition table as well as a single partition 64 GB in
+size and an alignment of 4 kB, then we mark that partition active (bootable)
+and install the first-stage boot loader:
 .Bd -literal -offset indent
 /sbin/gpart create -s MBR ada0
-/sbin/gpart add -t freebsd -s 64G ada0
+/sbin/gpart add -t freebsd -s 64G -a 4k ada0
 /sbin/gpart set -a active -i 1 ada0
 /sbin/gpart bootcode -b /boot/boot0 ada0
 .Ed
@@ -1474,31 +1453,6 @@ Finally, we install the appropriate boot loader for the
 label:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -b /boot/boot ada0s1
-.Ed
-.Ss VTOC8
-Create a VTOC8 scheme on
-.Pa da0 :
-.Bd -literal -offset indent
-/sbin/gpart create -s VTOC8 da0
-.Ed
-.Pp
-Create a 512MB-sized
-.Cm freebsd-ufs
-partition to contain a UFS filesystem from which the system can boot.
-.Bd -literal -offset indent
-/sbin/gpart add -s 512M -t freebsd-ufs da0
-.Ed
-.Pp
-Create a 15GB-sized
-.Cm freebsd-ufs
-partition to contain a UFS filesystem and aligned on 4KB boundaries:
-.Bd -literal -offset indent
-/sbin/gpart add -s 15G -t freebsd-ufs -a 4k da0
-.Ed
-.Pp
-After creating all required partitions, embed bootstrap code into them:
-.Bd -literal -offset indent
-/sbin/gpart bootcode -p /boot/boot1 da0
 .Ed
 .Ss Deleting Partitions and Destroying the Partitioning Scheme
 If a

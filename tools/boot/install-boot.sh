@@ -353,15 +353,6 @@ boot_geli_mbr_zfs_both() {
     exit 1
 }
 
-boot_nogeli_vtoc8_ufs_ofw() {
-    dev=$1
-    dst=$2
-
-    # For non-native builds, ensure that geom_part(4) supports VTOC8.
-    kldload geom_part_vtoc8.ko
-    doit gpart bootcode -p ${vtoc8} ${dev}
-}
-
 usage() {
 	printf 'Usage: %s -b bios [-d destdir] -f fs [-g geli] [-h] [-o optargs] -s scheme <bootdev>\n' "$0"
 	printf 'Options:\n'
@@ -430,9 +421,6 @@ gptzfs2=${srcroot}/boot/gptzfsboot
 # For MBR, we have lots of choices, but select mbr, boot0 has issues with UEFI
 mbr0=${srcroot}/boot/mbr
 mbr2=${srcroot}/boot/boot
-
-# VTOC8
-vtoc8=${srcroot}/boot/boot1
 
 # sanity check here
 

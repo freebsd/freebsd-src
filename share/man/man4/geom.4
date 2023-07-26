@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2023
+.Dd July 26, 2023
 .Dt GEOM 4
 .Os
 .Sh NAME
@@ -62,7 +62,6 @@
 .Cd options GEOM_PART_GPT
 .Cd options GEOM_PART_LDM
 .Cd options GEOM_PART_MBR
-.Cd options GEOM_PART_VTOC8
 .Cd options GEOM_RAID
 .Cd options GEOM_RAID3
 .Cd options GEOM_SHSEC
@@ -494,8 +493,6 @@ Use
 .Cd GEOM_MULTIPATH ,
 .It
 .Cd GEOM_PART_MBR ,
-.It
-.Cd GEOM_PART_VTOC8 ,
 and
 .It
 .Cd GEOM_LABEL

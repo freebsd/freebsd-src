@@ -27,8 +27,7 @@ SRCS+=	\
 	bsd.c \
 	ebr.c \
 	gpt.c \
-	mbr.c \
-	vtoc8.c
+	mbr.c
 
 BINDIR?=/usr/bin
 

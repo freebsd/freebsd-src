@@ -36,7 +36,6 @@ enum ptable_type {
 	PTABLE_BSD,
 	PTABLE_MBR,
 	PTABLE_GPT,
-	PTABLE_VTOC8,
 	PTABLE_ISO9660
 };
 
