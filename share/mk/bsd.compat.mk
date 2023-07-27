@@ -3,7 +3,7 @@
 .if !targets(__<${_this:T}>__)
 __<${_this:T}>__:
 
-_ALL_LIBCOMPATS:=	32
+.include <bsd.compat.pre.mk>
 
 .if defined(_LIBCOMPATS)
 COMPAT_ARCH?=	${TARGET_ARCH}
