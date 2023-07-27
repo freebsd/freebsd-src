@@ -2609,6 +2609,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			sc->sc_if_input(bifp, mc2);
 		}
 
+		/* Do not process none-local-targeted packets */
+  		if(!V_pfil_local_phys) {
+			m_freem(m);
+			return(NULL);
+		}
+
 		/* Return the original packet for local processing. */
 		return (m);
 	}
