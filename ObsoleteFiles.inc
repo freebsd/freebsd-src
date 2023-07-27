@@ -78,7 +78,9 @@ OLD_LIBS+=usr/lib/engines/capi.so
 OLD_LIBS+=usr/lib/engines/padlock.so
 OLD_LIBS+=usr/lib/libssl.so.111
 OLD_DIRS+=usr/lib/engines
-OLD_DIRS+=usr/lib32/engines
+.for libcompat in ${_ALL_libcompats}
+OLD_DIRS+=usr/lib${libcompat}/engines
+.endfor
 OLD_FILES+=usr/share/man/man1/list.1
 OLD_FILES+=usr/share/man/man1/openssl-tsget.1
 OLD_FILES+=usr/share/man/man3/ECDH_get_ex_data.3
