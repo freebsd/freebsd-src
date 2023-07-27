@@ -77,10 +77,10 @@
 #define	UFS_MAXNAMLEN	255
 
 struct	direct {
-	u_int32_t d_ino;		/* inode number of entry */
-	u_int16_t d_reclen;		/* length of this record */
-	u_int8_t  d_type; 		/* file type, see below */
-	u_int8_t  d_namlen;		/* length of string in d_name */
+	uint32_t d_ino;		/* inode number of entry */
+	uint16_t d_reclen;		/* length of this record */
+	uint8_t  d_type; 		/* file type, see below */
+	uint8_t  d_namlen;		/* length of string in d_name */
 	char	  d_name[UFS_MAXNAMLEN + 1];
 					/* name with length <= UFS_MAXNAMLEN */
 };
@@ -128,15 +128,15 @@ struct	direct {
  * but the name field is UFS_MAXNAMLEN - 1, and this just won't do.
  */
 struct dirtemplate {
-	u_int32_t	dot_ino;
+	uint32_t	dot_ino;
 	int16_t		dot_reclen;
-	u_int8_t	dot_type;
-	u_int8_t	dot_namlen;
+	uint8_t	dot_type;
+	uint8_t	dot_namlen;
 	char		dot_name[4];	/* must be multiple of 4 */
-	u_int32_t	dotdot_ino;
+	uint32_t	dotdot_ino;
 	int16_t		dotdot_reclen;
-	u_int8_t	dotdot_type;
-	u_int8_t	dotdot_namlen;
+	uint8_t	dotdot_type;
+	uint8_t	dotdot_namlen;
 	char		dotdot_name[4];	/* ditto */
 };
 
@@ -144,13 +144,13 @@ struct dirtemplate {
  * This is the old format of directories, sanz type element.
  */
 struct odirtemplate {
-	u_int32_t	dot_ino;
+	uint32_t	dot_ino;
 	int16_t		dot_reclen;
-	u_int16_t	dot_namlen;
+	uint16_t	dot_namlen;
 	char		dot_name[4];	/* must be multiple of 4 */
-	u_int32_t	dotdot_ino;
+	uint32_t	dotdot_ino;
 	int16_t		dotdot_reclen;
-	u_int16_t	dotdot_namlen;
+	uint16_t	dotdot_namlen;
 	char		dotdot_name[4];	/* ditto */
 };
 #endif /* !_DIR_H_ */

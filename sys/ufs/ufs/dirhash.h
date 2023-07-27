@@ -95,7 +95,7 @@ struct dirhash {
 	int	dh_memreq;	/* Memory used. */
 
 	/* Free space statistics. XXX assumes DIRBLKSIZ is 512. */
-	u_int8_t *dh_blkfree;	/* free DIRALIGN words in each dir block */
+	uint8_t *dh_blkfree;	/* free DIRALIGN words in each dir block */
 	int	dh_nblk;	/* size of dh_blkfree array */
 	int	dh_dirblks;	/* number of DIRBLKSIZ blocks in dir */
 	int	dh_firstfree[DH_NFSTATS + 1]; /* first blk with N words free */

@@ -100,23 +100,23 @@
  * structure).
  */
 struct dqblk32 {
-	u_int32_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
-	u_int32_t dqb_bsoftlimit;	/* preferred limit on disk blks */
-	u_int32_t dqb_curblocks;	/* current block count */
-	u_int32_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
-	u_int32_t dqb_isoftlimit;	/* preferred inode limit */
-	u_int32_t dqb_curinodes;	/* current # allocated inodes */
+	uint32_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
+	uint32_t dqb_bsoftlimit;	/* preferred limit on disk blks */
+	uint32_t dqb_curblocks;	/* current block count */
+	uint32_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
+	uint32_t dqb_isoftlimit;	/* preferred inode limit */
+	uint32_t dqb_curinodes;	/* current # allocated inodes */
 	int32_t   dqb_btime;		/* time limit for excessive disk use */
 	int32_t   dqb_itime;		/* time limit for excessive files */
 };
 
 struct dqblk64 {
-	u_int64_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
-	u_int64_t dqb_bsoftlimit;	/* preferred limit on disk blks */
-	u_int64_t dqb_curblocks;	/* current block count */
-	u_int64_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
-	u_int64_t dqb_isoftlimit;	/* preferred inode limit */
-	u_int64_t dqb_curinodes;	/* current # allocated inodes */
+	uint64_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
+	uint64_t dqb_bsoftlimit;	/* preferred limit on disk blks */
+	uint64_t dqb_curblocks;	/* current block count */
+	uint64_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
+	uint64_t dqb_isoftlimit;	/* preferred inode limit */
+	uint64_t dqb_curinodes;	/* current # allocated inodes */
 	int64_t   dqb_btime;		/* time limit for excessive disk use */
 	int64_t   dqb_itime;		/* time limit for excessive files */
 };
@@ -149,10 +149,10 @@ struct dquot {
 	LIST_ENTRY(dquot) dq_hash;	/* (h) hash list */
 	TAILQ_ENTRY(dquot) dq_freelist;	/* (h) free list */
 	struct mtx dq_lock;		/* lock for concurrency */
-	u_int16_t dq_flags;		/* flags, see below */
-	u_int16_t dq_type;		/* quota type of this dquot */
-	u_int32_t dq_cnt;		/* (h) count of active references */
-	u_int32_t dq_id;		/* identifier this applies to */
+	uint16_t dq_flags;		/* flags, see below */
+	uint16_t dq_type;		/* quota type of this dquot */
+	uint32_t dq_cnt;		/* (h) count of active references */
+	uint32_t dq_id;		/* identifier this applies to */
 	struct ufsmount *dq_ump;	/* (h) filesystem that this is
 					   taken from */
 	struct dqblk64 dq_dqb;		/* actual usage & quotas */
@@ -233,13 +233,13 @@ int	qsync(struct mount *);
 int	qsyncvp(struct vnode *);
 int	quotaoff(struct thread *, struct mount *, int);
 int	quotaon(struct thread *, struct mount *, int, void *, bool *);
-int	getquota32(struct thread *, struct mount *, u_long, int, void *);
-int	setquota32(struct thread *, struct mount *, u_long, int, void *);
-int	setuse32(struct thread *, struct mount *, u_long, int, void *);
-int	getquota(struct thread *, struct mount *, u_long, int, void *);
-int	setquota(struct thread *, struct mount *, u_long, int, void *);
-int	setuse(struct thread *, struct mount *, u_long, int, void *);
-int	getquotasize(struct thread *, struct mount *, u_long, int, void *);
+int	getquota32(struct thread *, struct mount *, uint64_t, int, void *);
+int	setquota32(struct thread *, struct mount *, uint64_t, int, void *);
+int	setuse32(struct thread *, struct mount *, uint64_t, int, void *);
+int	getquota(struct thread *, struct mount *, uint64_t, int, void *);
+int	setquota(struct thread *, struct mount *, uint64_t, int, void *);
+int	setuse(struct thread *, struct mount *, uint64_t, int, void *);
+int	getquotasize(struct thread *, struct mount *, uint64_t, int, void *);
 vfs_quotactl_t ufs_quotactl;
 
 #ifdef SOFTUPDATES

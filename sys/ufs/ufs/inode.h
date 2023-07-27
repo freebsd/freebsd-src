@@ -97,7 +97,7 @@ struct inode {
 	} dinode_u;
 
 	ino_t	  i_number;	/* The identity of the inode. */
-	u_int32_t i_flag;	/* flags, see below */
+	uint32_t i_flag;	/* flags, see below */
 	int	  i_effnlink;	/* i_nlink when I/O completes */
 
 	/*
@@ -121,7 +121,7 @@ struct inode {
 	/*
 	 * Data for extended attribute modification.
  	 */
-	u_char	  *i_ea_area;	/* Pointer to malloced copy of EA area */
+	uint8_t	  *i_ea_area;	/* Pointer to malloced copy of EA area */
 	unsigned  i_ea_len;	/* Length of i_ea_area */
 	int	  i_ea_error;	/* First errno in transaction */
 	int	  i_ea_refs;	/* Number of users of EA area */
@@ -129,12 +129,12 @@ struct inode {
 	/*
 	 * Copies from the on-disk dinode itself.
 	 */
-	u_int64_t i_size;	/* File byte count. */
-	u_int64_t i_gen;	/* Generation number. */
-	u_int32_t i_flags;	/* Status flags (chflags). */
-	u_int32_t i_uid;	/* File owner. */
-	u_int32_t i_gid;	/* File group. */
-	u_int16_t i_mode;	/* IFMT, permissions; see below. */
+	uint64_t i_size;	/* File byte count. */
+	uint64_t i_gen;	/* Generation number. */
+	uint32_t i_flags;	/* Status flags (chflags). */
+	uint32_t i_uid;	/* File owner. */
+	uint32_t i_gid;	/* File group. */
+	uint16_t i_mode;	/* IFMT, permissions; see below. */
 	int16_t	  i_nlink;	/* File link count. */
 };
 /*
@@ -272,8 +272,8 @@ struct indir {
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
-	u_int16_t ufid_len;	/* Length of structure. */
-	u_int16_t ufid_pad;	/* Force 32-bit alignment. */
+	uint16_t ufid_len;	/* Length of structure. */
+	uint16_t ufid_pad;	/* Force 32-bit alignment. */
 	uint32_t  ufid_ino;	/* File number (ino). */
 	uint32_t  ufid_gen;	/* Generation number. */
 };

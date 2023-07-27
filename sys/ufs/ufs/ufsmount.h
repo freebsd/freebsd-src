@@ -90,13 +90,13 @@ struct ufsmount {
 	struct	bufobj *um_bo;			/* (r) Buffer cache object */
 	struct	vnode *um_odevvp;		/* (r) devfs dev vnode */
 	struct	vnode *um_devvp;		/* (r) mntfs private vnode */
-	u_long	um_fstype;			/* (c) type of filesystem */
+	uint64_t um_fstype;			/* (c) type of filesystem */
 	struct	fs *um_fs;			/* (r) pointer to superblock */
 	struct	ufs_extattr_per_mount um_extattr; /* (c) extended attrs */
-	u_long	um_nindir;			/* (c) indirect ptrs per blk */
-	u_long	um_bptrtodb;			/* (c) indir disk block ptr */
-	u_long	um_seqinc;			/* (c) inc between seq blocks */
-	u_long	um_bsize;			/* (c) fs block size */
+	uint64_t um_nindir;			/* (c) indirect ptrs per blk */
+	uint64_t um_bptrtodb;			/* (c) indir disk block ptr */
+	uint64_t um_seqinc;			/* (c) inc between seq blocks */
+	uint64_t um_bsize;			/* (c) fs block size */
 	uint64_t um_maxsymlinklen;		/* (c) max size of short
 						       symlink */
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
@@ -109,15 +109,15 @@ struct ufsmount {
 	time_t	um_itime[MAXQUOTAS];		/* (q) inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* (i) quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* (c) track maxfilesize */
-	u_int	um_flags;			/* (i) filesystem flags */
+	uint64_t um_flags;			/* (i) filesystem flags */
 	struct	timeval um_last_fullmsg;	/* (i) last full msg time */
 	int	um_secs_fullmsg;		/* (i) seconds since full msg */
 	struct	timeval um_last_integritymsg;	/* (i) last integrity msg */
 	int	um_secs_integritymsg;		/* (i) secs since integ msg */
-	u_int	um_trim_inflight;		/* (i) outstanding trim count */
-	u_int	um_trim_inflight_blks;		/* (i) outstanding trim blks */
-	u_long	um_trim_total;			/* (i) total trim count */
-	u_long	um_trim_total_blks;		/* (i) total trim block count */
+	uint64_t um_trim_inflight;		/* (i) outstanding trim count */
+	uint64_t um_trim_inflight_blks;		/* (i) outstanding trim blks */
+	uint64_t um_trim_total;			/* (i) total trim count */
+	uint64_t um_trim_total_blks;		/* (i) total trim block count */
 	struct	taskqueue *um_trim_tq;		/* (c) trim request queue */
 	struct	trimlist_hashhead *um_trimhash;	/* (i) trimlist hash table */
 	u_long	um_trimlisthashsize;		/* (i) trim hash table size-1 */

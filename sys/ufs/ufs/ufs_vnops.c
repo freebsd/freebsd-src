@@ -552,7 +552,7 @@ ufs_stat(struct vop_stat_args *ap)
 		sb->st_ctim.tv_nsec = ip->i_din1->di_ctimensec;
 		sb->st_birthtim.tv_sec = -1;
 		sb->st_birthtim.tv_nsec = 0;
-		sb->st_blocks = dbtob((u_quad_t)ip->i_din1->di_blocks) / S_BLKSIZE;
+		sb->st_blocks = dbtob((uint64_t)ip->i_din1->di_blocks) / S_BLKSIZE;
 	} else {
 		sb->st_rdev = ip->i_din2->di_rdev;
 		sb->st_size = ip->i_din2->di_size;
@@ -562,7 +562,7 @@ ufs_stat(struct vop_stat_args *ap)
 		sb->st_ctim.tv_nsec = ip->i_din2->di_ctimensec;
 		sb->st_birthtim.tv_sec = ip->i_din2->di_birthtime;
 		sb->st_birthtim.tv_nsec = ip->i_din2->di_birthnsec;
-		sb->st_blocks = dbtob((u_quad_t)ip->i_din2->di_blocks) / S_BLKSIZE;
+		sb->st_blocks = dbtob((uint64_t)ip->i_din2->di_blocks) / S_BLKSIZE;
 	}
 
 	sb->st_blksize = max(PAGE_SIZE, vp->v_mount->mnt_stat.f_iosize);
@@ -611,7 +611,7 @@ ufs_getattr(
 		vap->va_mtime.tv_nsec = ip->i_din1->di_mtimensec;
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
 		vap->va_ctime.tv_nsec = ip->i_din1->di_ctimensec;
-		vap->va_bytes = dbtob((u_quad_t)ip->i_din1->di_blocks);
+		vap->va_bytes = dbtob((uint64_t)ip->i_din1->di_blocks);
 		vap->va_filerev = ip->i_din1->di_modrev;
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;
@@ -622,7 +622,7 @@ ufs_getattr(
 		vap->va_ctime.tv_nsec = ip->i_din2->di_ctimensec;
 		vap->va_birthtime.tv_sec = ip->i_din2->di_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_din2->di_birthnsec;
-		vap->va_bytes = dbtob((u_quad_t)ip->i_din2->di_blocks);
+		vap->va_bytes = dbtob((uint64_t)ip->i_din2->di_blocks);
 		vap->va_filerev = ip->i_din2->di_modrev;
 	}
 	vap->va_flags = ip->i_flags;
@@ -2415,7 +2415,7 @@ ufs_readdir(
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
-	u_int ncookies;
+	uint64_t ncookies;
 	int error;
 
 	if (uio->uio_offset < 0)
@@ -2609,8 +2609,8 @@ ufs_print(
 		printf(", extsize %d", ip->i_din2->di_extsize);
 	printf("\n\tgeneration=%jx, uid=%d, gid=%d, flags=0x%b\n",
 	    (uintmax_t)ip->i_gen, ip->i_uid, ip->i_gid,
-	    (u_int)ip->i_flags, PRINT_INODE_FLAGS);
-	printf("\tino %lu, on dev %s", (u_long)ip->i_number,
+	    (uint32_t)ip->i_flags, PRINT_INODE_FLAGS);
+	printf("\tino %ju, on dev %s", (intmax_t)ip->i_number,
 	    devtoname(ITODEV(ip)));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
