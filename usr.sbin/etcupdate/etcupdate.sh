@@ -214,15 +214,17 @@ build_tree()
 			mkdir -p $1/etc || return 1
 			cp -p $SRCDIR/$file $1/etc/$name || return 1
 		done
-	elif ! [ -n "$nobuild" ]; then
-		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
-    MAKEOBJDIRPREFIX=$destdir/usr/obj $make _obj SUBDIR_OVERRIDE=etc &&
-    MAKEOBJDIRPREFIX=$destdir/usr/obj $make everything SUBDIR_OVERRIDE=etc &&
-    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) || \
-		    return 1
 	else
-		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
-		    $make DESTDIR=$destdir distribution) || return 1
+		(
+			cd $SRCDIR || exit 1;
+			if ! [ -n "$nobuild" ]; then
+				export MAKEOBJDIRPREFIX=$destdir/usr/obj;
+				$make _obj SUBDIR_OVERRIDE=etc || exit 1
+				$make everything SUBDIR_OVERRIDE=etc || exit 1
+			fi
+			$make DESTDIR=$destdir distrib-dirs || exit 1
+			$make DESTDIR=$destdir distribution || exit 1
+		) || return 1
 	fi
 	chflags -R noschg $1 || return 1
 	rm -rf $1/usr/obj || return 1
