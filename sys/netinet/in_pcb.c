@@ -850,25 +850,6 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 	return (in_pcb_lport_dest(inp, laddrp ? (struct sockaddr *) &laddr :
 	    NULL, lportp, NULL, 0, cred, lookupflags));
 }
-
-/*
- * Return cached socket options.
- */
-int
-inp_so_options(const struct inpcb *inp)
-{
-	int so_options;
-
-	so_options = 0;
-
-	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
-		so_options |= SO_REUSEPORT_LB;
-	if ((inp->inp_flags2 & INP_REUSEPORT) != 0)
-		so_options |= SO_REUSEPORT;
-	if ((inp->inp_flags2 & INP_REUSEADDR) != 0)
-		so_options |= SO_REUSEADDR;
-	return (so_options);
-}
 #endif /* INET || INET6 */
 
 #ifdef INET
@@ -979,16 +960,16 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				     (t->inp_flags2 & INP_REUSEPORT) ||
-				     (t->inp_flags2 & INP_REUSEPORT_LB) == 0) &&
+				     (t->inp_socket->so_options & SO_REUSEPORT) ||
+				     (t->inp_socket->so_options & SO_REUSEPORT_LB) == 0) &&
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, lookupflags, cred);
-			if (t != NULL && (reuseport & inp_so_options(t)) == 0 &&
-			    (reuseport_lb & inp_so_options(t)) == 0) {
+			if (t != NULL && (reuseport & t->inp_socket->so_options) == 0 &&
+			    (reuseport_lb & t->inp_socket->so_options) == 0) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||
@@ -2658,7 +2639,7 @@ in_pcbinshash(struct inpcb *inp)
 	 * Add entry to load balance group.
 	 * Only do this if SO_REUSEPORT_LB is set.
 	 */
-	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0) {
+	if ((inp->inp_socket->so_options & SO_REUSEPORT_LB) != 0) {
 		int error = in_pcbinslbgrouphash(inp, M_NODOM);
 		if (error != 0)
 			return (error);
