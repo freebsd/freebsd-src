@@ -172,7 +172,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	list-old-dirs list-old-files list-old-libs \
 	obj objlink showconfig tags toolchain \
 	makeman sysent \
-	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
+	_cleanworldtmp _worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools native-xtools-install stageworld stagekernel \
