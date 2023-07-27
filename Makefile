@@ -158,14 +158,14 @@ __DO_KERNELS?=yes
 
 .include "${.CURDIR}/share/mk/bsd.compat.pre.mk"
 
-TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
+TGTS=	all all-man buildenv buildenvvars buildetc buildkernel buildworld \
 	check check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd checkworld clean cleandepend cleandir cleankernel \
 	cleanworld cleanuniverse \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
-	everything hier hierarchy install installcheck installkernel \
+	everything hier hierarchy install installcheck installetc installkernel \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries maninstall \
