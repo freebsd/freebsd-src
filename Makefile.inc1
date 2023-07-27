@@ -857,9 +857,12 @@ XCFLAGS+=	--sysroot=${WORLDTMP}
 XCFLAGS+=	${BFLAGS}
 .endif
 
-.if ${MK_LIB32} == "yes"
-_LIBCOMPATS+=	32
+.include "share/mk/bsd.compat.pre.mk"
+.for LIBCOMPAT in ${_ALL_LIBCOMPATS}
+.if ${MK_LIB${LIBCOMPAT}} == "yes"
+_LIBCOMPATS+=	${LIBCOMPAT}
 .endif
+.endfor
 .include "Makefile.libcompat"
 
 # META_MODE normally ignores host file changes since every build updates
@@ -3255,8 +3258,9 @@ list-old-files: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V "OLD_FILES:ts\n" -V "OLD_FILES:Musr/share/*.gz:R:ts\n" \
-	    -V "OLD_FILES:Mlib/*.so.*:S,^lib,usr/lib32,:ts\n" \
-	    -V "OLD_FILES:Musr/lib/*:S,^usr/lib,usr/lib32,:ts\n" | sort
+	    ${_ALL_libcompats:@v@-V "OLD_FILES:Mlib/*.so.*:S,^lib,usr/lib$v,:ts\n"@} \
+	    ${_ALL_libcompats:@v@-V "OLD_FILES:Musr/lib/*:S,^usr/lib,usr/lib$v,:ts\n"@} | \
+	sort
 
 delete-old-files: .PHONY
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
@@ -3321,9 +3325,10 @@ list-old-libs: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V "OLD_LIBS:ts\n" -V "MOVED_LIBS:ts\n" \
-	    -V "OLD_LIBS:Mlib/*:S,^lib,usr/lib32,:ts\n" \
-	    -V "OLD_LIBS:Musr/lib/*:S,^usr/lib,usr/lib32,:ts\n" \
-	    -V "OLD_LIBS:Mlib/casper/*:S,^lib/casper,usr/lib32,:ts\n" | sort
+	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/*:S,^lib,usr/lib$v,:ts\n"@} \
+	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Musr/lib/*:S,^usr/lib,usr/lib$v,:ts\n"@} | \
+	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/casper/*:S,^lib/casper,usr/lib$v,:ts\n"@} | \
+	sort
 
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
