@@ -156,6 +156,8 @@ __DO_KERNELS?=yes
 .include "targets/Makefile"
 .else
 
+.include "${.CURDIR}/share/mk/bsd.compat.pre.mk"
+
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd checkworld clean cleandepend cleandir cleankernel \
@@ -172,7 +174,6 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	makeman sysent \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
-	build32 distribute32 install32 \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools native-xtools-install stageworld stagekernel \
 	stage-packages stage-packages-kernel stage-packages-world \
@@ -180,6 +181,10 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	update-packages packages installconfig real-packages real-update-packages \
 	sign-packages package-pkg print-dir test-system-compiler test-system-linker \
 	test-includes
+
+.for libcompat in ${_ALL_libcompats}
+TGTS+=	build${libcompat} distribute${libcompat} install${libcompat}
+.endfor
 
 # These targets require a TARGET and TARGET_ARCH be defined.
 XTGTS=	native-xtools native-xtools-install xdev xdev-build xdev-install \
@@ -201,11 +206,15 @@ TGTS+=	${BITGTS}
 # the interactive tty prompt.  The safest route is to just whitelist
 # the ones that benefit from it.
 META_TGT_WHITELIST+= \
-	_* build32 buildfiles buildincludes buildkernel \
+	_* buildfiles buildincludes buildkernel \
 	buildworld everything kernel-toolchain kernel-toolchains kernel \
 	kernels libraries native-xtools showconfig test-includes \
 	test-system-compiler test-system-linker tinderbox toolchain \
 	toolchains universe universe-toolchain world worlds xdev xdev-build
+
+.for libcompat in ${_ALL_libcompats}
+META_TGT_WHITELIST+=	build${libcompat}
+.endfor
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distrib-dirs
