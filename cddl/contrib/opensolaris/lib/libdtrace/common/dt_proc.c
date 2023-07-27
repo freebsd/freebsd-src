@@ -366,84 +366,6 @@ dt_proc_attach(dt_proc_t *dpr, int exec)
 	}
 }
 
-/*
- * Wait for a stopped process to be set running again by some other debugger.
- * This is typically not required by /proc-based debuggers, since the usual
- * model is that one debugger controls one victim.  But DTrace, as usual, has
- * its own needs: the stop() action assumes that prun(1) or some other tool
- * will be applied to resume the victim process.  This could be solved by
- * adding a PCWRUN directive to /proc, but that seems like overkill unless
- * other debuggers end up needing this functionality, so we implement a cheap
- * equivalent to PCWRUN using the set of existing kernel mechanisms.
- *
- * Our intent is really not just to wait for the victim to run, but rather to
- * wait for it to run and then stop again for a reason other than the current
- * PR_REQUESTED stop.  Since PCWSTOP/Pstopstatus() can be applied repeatedly
- * to a stopped process and will return the same result without affecting the
- * victim, we can just perform these operations repeatedly until Pstate()
- * changes, the representative LWP ID changes, or the stop timestamp advances.
- * dt_proc_control() will then rediscover the new state and continue as usual.
- * When the process is still stopped in the same exact state, we sleep for a
- * brief interval before waiting again so as not to spin consuming CPU cycles.
- */
-static void
-dt_proc_waitrun(dt_proc_t *dpr)
-{
-	printf("%s:%s(%d): not implemented\n", __FUNCTION__, __FILE__,
-	    __LINE__);
-#ifdef DOODAD
-	struct ps_prochandle *P = dpr->dpr_proc;
-	const lwpstatus_t *psp = &Pstatus(P)->pr_lwp;
-
-	int krflag = psp->pr_flags & (PR_KLC | PR_RLC);
-	timestruc_t tstamp = psp->pr_tstamp;
-	lwpid_t lwpid = psp->pr_lwpid;
-
-	const long wstop = PCWSTOP;
-	int pfd = Pctlfd(P);
-
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
-	assert(psp->pr_flags & PR_STOPPED);
-	assert(Pstate(P) == PS_STOP);
-
-	/*
-	 * While we are waiting for the victim to run, clear PR_KLC and PR_RLC
-	 * so that if the libdtrace client is killed, the victim stays stopped.
-	 * dt_proc_destroy() will also observe this and perform PRELEASE_HANG.
-	 */
-	(void) Punsetflags(P, krflag);
-	Psync(P);
-
-	(void) pthread_mutex_unlock(&dpr->dpr_lock);
-
-	while (!dpr->dpr_quit) {
-		if (write(pfd, &wstop, sizeof (wstop)) == -1 && errno == EINTR)
-			continue; /* check dpr_quit and continue waiting */
-
-		(void) pthread_mutex_lock(&dpr->dpr_lock);
-		(void) Pstopstatus(P, PCNULL, 0);
-		psp = &Pstatus(P)->pr_lwp;
-
-		/*
-		 * If we've reached a new state, found a new representative, or
-		 * the stop timestamp has changed, restore PR_KLC/PR_RLC to its
-		 * original setting and then return with dpr_lock held.
-		 */
-		if (Pstate(P) != PS_STOP || psp->pr_lwpid != lwpid ||
-		    bcmp(&psp->pr_tstamp, &tstamp, sizeof (tstamp)) != 0) {
-			(void) Psetflags(P, krflag);
-			Psync(P);
-			return;
-		}
-
-		(void) pthread_mutex_unlock(&dpr->dpr_lock);
-		(void) poll(NULL, 0, MILLISEC / 2);
-	}
-
-	(void) pthread_mutex_lock(&dpr->dpr_lock);
-#endif
-}
-
 typedef struct dt_proc_control_data {
 	dtrace_hdl_t *dpcd_hdl;			/* DTrace handle */
 	dt_proc_t *dpcd_proc;			/* proccess to control */
@@ -531,23 +453,6 @@ dt_proc_control(void *arg)
 
 			dt_dprintf("pid %d: proc stopped showing %d/%d\n",
 			    pid, psp->pr_why, psp->pr_what);
-
-			/*
-			 * If the process stops showing PR_REQUESTED, then the
-			 * DTrace stop() action was applied to it or another
-			 * debugging utility (e.g. pstop(1)) asked it to stop.
-			 * In either case, the user's intention is for the
-			 * process to remain stopped until another external
-			 * mechanism (e.g. prun(1)) is applied.  So instead of
-			 * setting the process running ourself, we wait for
-			 * someone else to do so.  Once that happens, we return
-			 * to our normal loop waiting for an event of interest.
-			 */
-			if (psp->pr_why == PR_REQUESTED) {
-				dt_proc_waitrun(dpr);
-				(void) pthread_mutex_unlock(&dpr->dpr_lock);
-				continue;
-			}
 
 			/*
 			 * If the process stops showing one of the events that

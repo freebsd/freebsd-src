@@ -111,7 +111,7 @@ typedef enum {
 
 typedef struct lwpstatus {
 	int pr_why;
-#define PR_REQUESTED	1
+#define PR_REQUESTED	1	/* not implemented */
 #define PR_FAULTED	2
 #define PR_SYSENTRY	3
 #define PR_SYSEXIT	4
