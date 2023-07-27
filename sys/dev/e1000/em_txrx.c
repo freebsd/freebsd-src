@@ -186,7 +186,7 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	TXD->tcp_seg_setup.fields.hdr_len = hdr_len;
 
 	/*
-	 * 8254x SDM4.0 page 45, and PCIe GbE SDM2.5 page 63
+	 * "PCI/PCI-X SDM 4.0" page 45, and "PCIe GbE SDM 2.5" page 63
 	 * - Set up basic TUCMDs
 	 * - Enable IP bit on 82544
 	 * - For others IP bit on indicates IPv4, while off indicates IPv6
@@ -212,10 +212,6 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	return (cur);
 }
 
-#define TSO_WORKAROUND 4
-#define DONT_FORCE_CTX 1
-
-
 /*********************************************************************
  *  The offload context is protocol specific (TCP/UDP) and thus
  *  only needs to be set when the protocol changes. The occasion
@@ -232,6 +228,7 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
  *  in turn greatly slow down performance to send small sized
  *  frames.
  **********************************************************************/
+#define DONT_FORCE_CTX 1
 
 static int
 em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
@@ -271,20 +268,30 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 	}
 
 	TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
+	/*
+	 * ipcss - Start offset for header checksum calculation.
+	 * ipcse - End offset for header checksum calculation.
+	 * ipcso - Offset of place to put the checksum.
+	 *
+	 * We set ipcsX values regardless of IP version to work around HW issues
+	 * and ipcse must be 0 for IPv6 per "PCIe GbE SDM 2.5" page 61.
+	 * IXSM controls whether it's inserted.
+	 */
+	TXD->lower_setup.ip_fields.ipcss = pi->ipi_ehdrlen;
+	TXD->lower_setup.ip_fields.ipcso = pi->ipi_ehdrlen +
+	    offsetof(struct ip, ip_sum);
 	if (csum_flags & CSUM_IP) {
 		*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
-		/*
-		 * Start offset for header checksum calculation.
-		 * End offset for header checksum calculation.
-		 * Offset of place to put the checksum.
-		 */
-		TXD->lower_setup.ip_fields.ipcss = pi->ipi_ehdrlen;
 		TXD->lower_setup.ip_fields.ipcse = htole16(hdr_len);
-		TXD->lower_setup.ip_fields.ipcso = pi->ipi_ehdrlen +
-		    offsetof(struct ip, ip_sum);
 		cmd |= E1000_TXD_CMD_IP;
-	}
+	} else if (csum_flags & (CSUM_IP6_TCP | CSUM_IP6_UDP))
+		TXD->lower_setup.ip_fields.ipcse = htole16(0);
 
+	/*
+	 * tucss - Start offset for payload checksum calculation.
+	 * tucse - End offset for payload checksum calculation.
+	 * tucso - Offset of place to put the checksum.
+	 */
 	if (csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP | CSUM_IP6_UDP)) {
 		uint8_t tucso;
 
@@ -319,6 +326,8 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 	    csum_flags, *txd_upper, *txd_lower, hdr_len, cmd);
 	return (cur);
 }
+
+#define TSO_WORKAROUND 4 /* TSO sentinel descriptor */
 
 static int
 em_isc_txd_encap(void *arg, if_pkt_info_t pi)
