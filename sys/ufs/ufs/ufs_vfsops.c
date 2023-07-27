@@ -109,7 +109,7 @@ ufs_quotactl(struct mount *mp, int cmds, uid_t id, void *arg, bool *mp_busy)
 			return (EINVAL);
 		}
 	}
-	if ((u_int)type >= MAXQUOTAS)
+	if ((uint64_t)type >= MAXQUOTAS)
 		return (EINVAL);
 
 	switch (cmd) {

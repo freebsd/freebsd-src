@@ -1063,7 +1063,7 @@ struct mount_softdeps {
 	struct	bmsafemap_hashhead *sd_bmhash;	/* bmsafemap hash table */
 	u_long	sd_bmhashsize;			/* bmsafemap hash table size-1*/
 	struct	indir_hashhead *sd_indirhash;	/* indir hash table */
-	u_long	sd_indirhashsize;		/* indir hash table size-1 */
+	uint64_t sd_indirhashsize;		/* indir hash table size-1 */
 	int	sd_on_journal;			/* Items on the journal list */
 	int	sd_on_worklist;			/* Items on the worklist */
 	int	sd_deps;			/* Total dependency count */
@@ -1074,7 +1074,7 @@ struct mount_softdeps {
 	struct	thread *sd_flushtd;		/* thread handling flushing */
 	TAILQ_ENTRY(mount_softdeps) sd_next;	/* List of softdep filesystem */
 	struct	ufsmount *sd_ump;		/* our ufsmount structure */
-	u_long	sd_curdeps[D_LAST + 1];		/* count of current deps */
+	uint64_t sd_curdeps[D_LAST + 1];	/* count of current deps */
 	struct	workhead sd_alldeps[D_LAST + 1];/* Lists of all deps */
 };
 /*

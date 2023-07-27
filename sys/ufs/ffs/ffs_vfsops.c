@@ -759,7 +759,7 @@ ffs_reload(struct mount *mp, int flags)
 	struct ufsmount *ump;
 	ufs2_daddr_t sblockloc;
 	int i, blks, error;
-	u_long size;
+	uint64_t size;
 	int32_t *lp;
 
 	ump = VFSTOUFS(mp);
@@ -803,7 +803,7 @@ ffs_reload(struct mount *mp, int flags)
 	newfs->fs_si = fs->fs_si;
 	newfs->fs_ronly = fs->fs_ronly;
 	sblockloc = fs->fs_sblockloc;
-	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
+	bcopy(newfs, fs, (uint64_t)fs->fs_sbsize);
 	brelse(bp);
 	ump->um_bsize = fs->fs_bsize;
 	ump->um_maxsymlinklen = fs->fs_maxsymlinklen;
@@ -825,7 +825,7 @@ ffs_reload(struct mount *mp, int flags)
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
-	size += fs->fs_ncg * sizeof(u_int8_t);
+	size += fs->fs_ncg * sizeof(uint8_t);
 	free(fs->fs_csp, M_UFSMNT);
 	space = malloc(size, M_UFSMNT, M_WAITOK);
 	fs->fs_csp = space;
@@ -837,7 +837,7 @@ ffs_reload(struct mount *mp, int flags)
 		    NOCRED, &bp);
 		if (error)
 			return (error);
-		bcopy(bp->b_data, space, (u_int)size);
+		bcopy(bp->b_data, space, (uint64_t)size);
 		space = (char *)space + size;
 		brelse(bp);
 	}
@@ -850,8 +850,8 @@ ffs_reload(struct mount *mp, int flags)
 			*lp++ = fs->fs_contigsumsize;
 		space = lp;
 	}
-	size = fs->fs_ncg * sizeof(u_int8_t);
-	fs->fs_contigdirs = (u_int8_t *)space;
+	size = fs->fs_ncg * sizeof(uint8_t);
+	fs->fs_contigdirs = (uint8_t *)space;
 	bzero(fs->fs_contigdirs, size);
 	if ((flags & FFSR_UNSUSPEND) != 0) {
 		MNT_ILOCK(mp);
@@ -1006,7 +1006,7 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		 * Get journal provider name.
 		 */
 		len = 1024;
-		mp->mnt_gjprovider = malloc((u_long)len, M_UFSMNT, M_WAITOK);
+		mp->mnt_gjprovider = malloc((uint64_t)len, M_UFSMNT, M_WAITOK);
 		if (g_io_getattr("GJOURNAL::provider", cp, &len,
 		    mp->mnt_gjprovider) == 0) {
 			mp->mnt_gjprovider = realloc(mp->mnt_gjprovider, len,
@@ -2052,7 +2052,7 @@ ffs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 int
 ffs_inotovp(struct mount *mp,
 	ino_t ino,
-	u_int64_t gen,
+	uint64_t gen,
 	int lflags,
 	struct vnode **vpp,
 	int ffs_flags)
@@ -2063,7 +2063,7 @@ ffs_inotovp(struct mount *mp,
 	struct fs *fs;
 	struct cg *cgp;
 	struct buf *bp;
-	u_int cg;
+	uint64_t cg;
 	int error;
 
 	ump = VFSTOUFS(mp);
@@ -2196,7 +2196,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	 */
 	if (loc != fs->fs_sblockloc) {
 		bp = getblk(ump->um_devvp, btodb(loc), size, 0, 0, 0);
-		bcopy(buf, bp->b_data, (u_int)size);
+		bcopy(buf, bp->b_data, (uint64_t)size);
 		if (devfdp->suspended)
 			bp->b_flags |= B_VALIDSUSPWRT;
 		if (devfdp->waitfor != MNT_WAIT)
@@ -2230,7 +2230,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	if (MOUNTEDSOFTDEP(ump->um_mountp))
 		softdep_setup_sbupdate(ump, (struct fs *)bp->b_data, bp);
 	UFS_LOCK(ump);
-	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
+	bcopy((caddr_t)fs, bp->b_data, (uint64_t)fs->fs_sbsize);
 	UFS_UNLOCK(ump);
 	fs = (struct fs *)bp->b_data;
 	fs->fs_fmod = 0;
@@ -2565,8 +2565,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 
 		default:
 			printf("multiple buffer types 0x%b\n",
-			    (u_int)(bp->b_xflags & BX_FSPRIV),
-			    PRINT_UFS_BUF_XFLAGS);
+			    (bp->b_xflags & BX_FSPRIV), PRINT_UFS_BUF_XFLAGS);
 			break;
 		}
 	}

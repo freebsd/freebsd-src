@@ -209,7 +209,7 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	struct vnode *pdp;		/* saved dp during symlink work */
 	struct vnode *tdp;		/* returned by VFS_VGET */
 	doff_t enduseful;		/* pointer past last used dir slot */
-	u_long bmask;			/* block offset mask */
+	uint64_t bmask;			/* block offset mask */
 	int namlen, error;
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
@@ -815,7 +815,7 @@ void
 ufs_makedirentry(struct inode *ip, struct componentname *cnp,
     struct direct *newdirp)
 {
-	u_int namelen;
+	uint64_t namelen;
 
 	namelen = (unsigned)cnp->cn_namelen;
 	KASSERT(namelen <= UFS_MAXNAMLEN,
@@ -824,7 +824,7 @@ ufs_makedirentry(struct inode *ip, struct componentname *cnp,
 	newdirp->d_namlen = namelen;
 
 	/* Zero out after-name padding */
-	*(u_int32_t *)(&newdirp->d_name[namelen & ~(DIR_ROUNDUP - 1)]) = 0;
+	*(uint32_t *)(&newdirp->d_name[namelen & ~(DIR_ROUNDUP - 1)]) = 0;
 
 	bcopy(cnp->cn_nameptr, newdirp->d_name, namelen);
 
@@ -833,7 +833,7 @@ ufs_makedirentry(struct inode *ip, struct componentname *cnp,
 	else {
 		newdirp->d_type = 0;
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
-			{ u_char tmp = newdirp->d_namlen;
+			{ uint8_t tmp = newdirp->d_namlen;
 			newdirp->d_namlen = newdirp->d_type;
 			newdirp->d_type = tmp; }
 #		endif
@@ -858,9 +858,9 @@ ufs_direnter(struct vnode *dvp, struct vnode *tvp, struct direct *dirp,
 	int newentrysize;
 	struct inode *dp;
 	struct buf *bp;
-	u_int dsize;
+	uint64_t dsize;
 	struct direct *ep, *nep;
-	u_int64_t old_isize;
+	uint64_t old_isize;
 	int error, ret, blkoff, loc, spacefree, flags, namlen;
 	char *dirbuf;
 
@@ -890,12 +890,13 @@ ufs_direnter(struct vnode *dvp, struct vnode *tvp, struct direct *dirp,
 		}
 #endif
 		old_isize = dp->i_size;
-		vnode_pager_setsize(dvp, (u_long)I_OFFSET(dp) + DIRBLKSIZ);
+		vnode_pager_setsize(dvp,
+		    (vm_ooffset_t)I_OFFSET(dp) + DIRBLKSIZ);
 		if ((error = UFS_BALLOC(dvp, (off_t)I_OFFSET(dp), DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
 				bdwrite(newdirbp);
-			vnode_pager_setsize(dvp, (u_long)old_isize);
+			vnode_pager_setsize(dvp, (vm_ooffset_t)old_isize);
 			return (error);
 		}
 		dp->i_size = I_OFFSET(dp) + DIRBLKSIZ;
@@ -1057,7 +1058,7 @@ ufs_direnter(struct vnode *dvp, struct vnode *tvp, struct direct *dirp,
 	    dirp->d_reclen == spacefree))
 		ufsdirhash_add(dp, dirp, I_OFFSET(dp) + ((char *)ep - dirbuf));
 #endif
-	bcopy((caddr_t)dirp, (caddr_t)ep, (u_int)newentrysize);
+	bcopy((caddr_t)dirp, (caddr_t)ep, (uint64_t)newentrysize);
 #ifdef UFS_DIRHASH
 	if (dp->i_dirhash != NULL)
 		ufsdirhash_checkblock(dp, dirbuf -

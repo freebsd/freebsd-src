@@ -67,7 +67,7 @@ struct ufs_extattr_fileheader {
 struct ufs_extattr_header {
 	u_int	ueh_flags;	/* flags for attribute */
 	u_int	ueh_len;	/* local defined length; <= uef_size */
-	u_int32_t	ueh_i_gen;	/* generation number for sanity */
+	uint32_t	ueh_i_gen;	/* generation number for sanity */
 	/* data follows the header */
 };
 
