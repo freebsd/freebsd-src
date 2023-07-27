@@ -72,6 +72,9 @@ if [ -z "${MACHINE_ARCH+set}" ]; then
 	err "MACHINE_ARCH not set"
 fi
 
+# XXX: _ALL_libcompats not MFC'd in Makefile.inc1
+ALL_libcompats=32
+
 run()
 {
 	if [ "$VERBOSE" ]; then
@@ -87,12 +90,15 @@ run()
 # $3 source extension
 clean_dep()
 {
-	if egrep -qw "$2\.$3" "$OBJTOP"/$1/.depend.$2.*o 2>/dev/null; then
-		echo "Removing stale dependencies and objects for $2.$3"
-		run rm -f \
-		    "$OBJTOP"/obj-lib32/$1/.depend.$2.* \
-		    "$OBJTOP"/obj-lib32/$1/$2.*o
-	fi
+	for libcompat in "" $ALL_libcompats; do
+		dirprfx=${libcompat:+obj-lib${libcompat}/}
+		if egrep -qw "$2\.$3" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
+			echo "Removing stale ${libcompat:+lib${libcompat} }dependencies and objects for $2.$3"
+			run rm -f \
+			    "$OBJTOP"/$dirprfx$1/.depend.$2.* \
+			    "$OBJTOP"/$dirprfx$1/$2.*o
+		fi
+	done
 }
 
 # Date      Rev      Description
@@ -106,7 +112,10 @@ if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
     egrep -qw "cddl/contrib/opensolaris/lib/libzfs/common/libzfs_changelist.c" \
     "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o; then
 	echo "Removing old ZFS tree"
-	run rm -rf "$OBJTOP"/cddl "$OBJTOP"/obj-lib32/cddl
+	for libcompat in "" $ALL_libcompats; do
+		dirprfx=${libcompat:+obj-lib${libcompat}/}
+		run rm -rf "$OBJTOP"/${dirprfx}cddl
+	done
 fi
 
 # 20200916  WARNS bumped, need bootstrapped crunchgen stubs
@@ -127,7 +136,10 @@ fi
 # 20210108  821aa63a0940   non-widechar version of ncurses removed
 if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
 	echo "Removing stale ncurses objects"
-	run rm -rf "$OBJTOP"/lib/ncurses "$OBJTOP"/obj-lib32/lib/ncurses
+	for libcompat in "" $ALL_libcompats; do
+		dirprfx=${libcompat:+obj-lib${libcompat}/}
+		run rm -rf "$OBJTOP"/${dirprfx}lib/ncurses
+	done
 fi
 
 # 20210608  f20893853e8e    move from atomic.S to atomic.c
