@@ -706,12 +706,12 @@ gve_xmit_br(struct gve_tx_ring *tx)
 			break;
 		}
 
+		drbr_advance(ifp, tx->br);
+		BPF_MTAP(ifp, mbuf);
+
 		bus_dmamap_sync(tx->desc_ring_mem.tag, tx->desc_ring_mem.map,
 		    BUS_DMASYNC_PREWRITE);
 		gve_db_bar_write_4(priv, tx->com.db_offset, tx->req);
-
-		drbr_advance(ifp, tx->br);
-                BPF_MTAP(ifp, mbuf);
 	}
 }
 
