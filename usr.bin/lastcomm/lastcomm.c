@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 				    localtime(&ab.ac_btime));
 				(void)printf(" %s", buf);
 			} else
-				(void)printf(" %.16s", ctime(&ab.ac_btime));
+				(void)printf(" %.19s", ctime(&ab.ac_btime));
 		}
 		
 		/* exit time (starting time + elapsed time )*/
@@ -203,7 +203,7 @@ main(int argc, char *argv[])
 				    localtime(&t));
 				(void)printf(" %s", buf);
 			} else
-				(void)printf(" %.16s", ctime(&t));
+				(void)printf(" %.19s", ctime(&t));
 		}
 		printf("\n");
  	}
