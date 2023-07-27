@@ -490,7 +490,6 @@ struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
-int	inp_so_options(const struct inpcb *inp);
 
 #endif /* _KERNEL */
 
@@ -597,9 +596,9 @@ int	inp_so_options(const struct inpcb *inp);
 /*				0x00000001 */
 /*				0x00000002 */
 /*				0x00000004 */
-#define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
+/*				0x00000008 */
 /*				0x00000010 */
-#define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
+/*				0x00000020 */
 /*				0x00000040 */
 /*				0x00000080 */
 #define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
@@ -607,7 +606,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
 #define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
 /*				0x00001000 */
-#define	INP_REUSEPORT_LB	0x00002000 /* SO_REUSEPORT_LB option is set */
+/*				0x00002000 */
 /*				0x00004000 */
 /*				0x00008000 */
 /*				0x00010000 */
