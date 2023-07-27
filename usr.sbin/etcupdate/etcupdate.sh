@@ -216,9 +216,9 @@ build_tree()
 		done
 	else
 		(
-			cd $SRCDIR || exit 1;
+			cd $SRCDIR || exit 1
 			if ! [ -n "$nobuild" ]; then
-				export MAKEOBJDIRPREFIX=$destdir/usr/obj;
+				export MAKEOBJDIRPREFIX=$destdir/usr/obj
 				if [ -n "$($make -V.ALLTARGETS:Mbuildetc)" ]; then
 					$make buildetc || exit 1
 				else
