@@ -1082,7 +1082,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x01, 0x00, SS_RDEF,
 	    "No index/sector signal") },
 	/* D   WRO   BK   */
-	{ SST(0x02, 0x00, SS_RDEF,
+	{ SST(0x02, 0x00, SS_FATAL | EIO,
 	    "No seek complete") },
 	/* DTL W O   BK   */
 	{ SST(0x03, 0x00, SS_RDEF,
