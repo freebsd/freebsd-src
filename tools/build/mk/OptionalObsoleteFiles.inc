@@ -1017,7 +1017,9 @@ OLD_FILES+=usr/share/dtrace/tcptrack
 OLD_FILES+=usr/share/dtrace/udptrack
 OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_DIRS+=usr/lib/dtrace
-OLD_DIRS+=usr/lib32/dtrace
+.  for libcompat in ${_ALL_libcompats}
+OLD_DIRS+=usr/lib${libcompat}/dtrace
+.  endfor
 OLD_DIRS+=usr/libexec/dwatch
 OLD_DIRS+=usr/share/dtrace/toolkit
 OLD_DIRS+=usr/share/dtrace
@@ -3677,34 +3679,36 @@ OLD_FILES+=usr/share/man/man5/keymap.5.gz
 OLD_FILES+=usr/share/man/man8/moused.8.gz
 .endif
 
-.if ${MK_LIB32} == no
-OLD_FILES+=etc/mtree/BSD.lib32.dist
-OLD_FILES+=libexec/ld-elf32.so.1
-.  if exists(${DESTDIR}/usr/lib32)
-LIB32_DIRS!=find ${DESTDIR}/usr/lib32 -type d \
+.for LIBCOMPAT libcompat in ${_ALL_LIBCOMPATS_libcompats}
+.  if ${MK_LIB${LIBCOMPAT}} == no
+OLD_FILES+=etc/mtree/BSD.lib${libcompat}.dist
+OLD_FILES+=libexec/ld-elf${libcompat}.so.1
+.    if exists(${DESTDIR}/usr/lib${libcompat})
+LIB${LIBCOMPAT}_DIRS!=find ${DESTDIR}/usr/lib${libcompat} -type d \
     | sed -e 's,^${DESTDIR}/,,'; echo
-LIB32_FILES!=find ${DESTDIR}/usr/lib32 \! -type d \
+LIB${LIBCOMPAT}_FILES!=find ${DESTDIR}/usr/lib${libcompat} \! -type d \
     \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
-LIB32_LIBS!=find ${DESTDIR}/usr/lib32 \! -type d \
+LIB${LIBCOMPAT}_LIBS!=find ${DESTDIR}/usr/lib${libcompat} \! -type d \
     -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
-OLD_DIRS+=${LIB32_DIRS}
-OLD_FILES+=${LIB32_FILES}
-OLD_LIBS+=${LIB32_LIBS}
-.  endif
-.  if ${MK_DEBUG_FILES} == no
-.    if exists(${DESTDIR}/usr/lib/debug/usr/lib32)
-DEBUG_LIB32_DIRS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 -type d \
-    | sed -e 's,^${DESTDIR}/,,'; echo
-DEBUG_LIB32_FILES!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
-    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
-DEBUG_LIB32_LIBS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
-    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
-OLD_DIRS+=${DEBUG_LIB32_DIRS}
-OLD_FILES+=${DEBUG_LIB32_FILES}
-OLD_LIBS+=${DEBUG_LIB32_LIBS}
+OLD_DIRS+=${LIB${LIBCOMPAT}_DIRS}
+OLD_FILES+=${LIB${LIBCOMPAT}_FILES}
+OLD_LIBS+=${LIB${LIBCOMPAT}_LIBS}
 .    endif
-.  endif
+.    if ${MK_DEBUG_FILES} == no
+.      if exists(${DESTDIR}/usr/lib/debug/usr/lib${libcompat})
+DEBUG_LIB${LIBCOMPAT}_DIRS!=find ${DESTDIR}/usr/lib/debug/usr/lib${libcompat} -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB${LIBCOMPAT}_FILES!=find ${DESTDIR}/usr/lib/debug/usr/lib${libcompat} \! -type d \
+    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB${LIBCOMPAT}_LIBS!=find ${DESTDIR}/usr/lib/debug/usr/lib${libcompat} \! -type d \
+    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${DEBUG_LIB${LIBCOMPAT}_DIRS}
+OLD_FILES+=${DEBUG_LIB${LIBCOMPAT}_FILES}
+OLD_LIBS+=${DEBUG_LIB${LIBCOMPAT}_LIBS}
+.      endif
+.    endif
 .endif
+.endfor # LIBCOMPAT libcompat
 
 .if ${MK_LLD} == no
 OLD_FILES+=usr/bin/ld.lld
