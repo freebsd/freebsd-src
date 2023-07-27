@@ -755,7 +755,7 @@ ffs_read(
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			u_int nextsize = blksize(fs, ip, nextlbn);
+			int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, lbn, size, &nextlbn,
 			    &nextsize, 1, NOCRED, bflag, NULL, &bp);
 		} else {
@@ -1117,8 +1117,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			u_int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
-
+			int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
 			nextlbn = -1 - nextlbn;
 			error = breadn(vp, -1 - lbn,
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
@@ -1294,8 +1293,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
  * the length of the EA, and possibly the pointer to the entry and to the data.
  */
 static int
-ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name,
-    struct extattr **eapp, u_char **eac)
+ffs_findextattr(uint8_t *ptr, uint64_t length, int nspace, const char *name,
+    struct extattr **eapp, uint8_t **eac)
 {
 	struct extattr *eap, *eaend;
 	size_t nlen;
@@ -1320,7 +1319,7 @@ ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name,
 }
 
 static int
-ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
+ffs_rdextattr(uint8_t **p, struct vnode *vp, struct thread *td)
 {
 	const struct extattr *eap, *eaend, *eapnext;
 	struct inode *ip;
@@ -1328,9 +1327,9 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
 	struct fs *fs;
 	struct uio luio;
 	struct iovec liovec;
-	u_int easize;
+	uint64_t easize;
 	int error;
-	u_char *eae;
+	uint8_t *eae;
 
 	ip = VTOI(vp);
 	fs = ITOFS(ip);
@@ -1361,7 +1360,7 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
 	    eap = eapnext) {
 		/* Detect zeroed out tail */
 		if (eap->ea_length < sizeof(*eap) || eap->ea_length == 0) {
-			easize = (const u_char *)eap - eae;
+			easize = (const uint8_t *)eap - eae;
 			break;
 		}
 			
@@ -1594,7 +1593,7 @@ ffs_deleteextattr(
 	struct extattr *eap;
 	uint32_t ul;
 	int olen, error, i, easize;
-	u_char *eae;
+	uint8_t *eae;
 	void *tmp;
 
 	vp = ap->a_vp;
@@ -1644,7 +1643,7 @@ ffs_deleteextattr(
 		return (ENOATTR);
 	}
 	ul = eap->ea_length;
-	i = (u_char *)EXTATTR_NEXT(eap) - eae;
+	i = (uint8_t *)EXTATTR_NEXT(eap) - eae;
 	bcopy(EXTATTR_NEXT(eap), eap, easize - i);
 	easize -= ul;
 
@@ -1672,7 +1671,7 @@ ffs_getextattr(
 	} */ *ap)
 {
 	struct inode *ip;
-	u_char *eae, *p;
+	uint8_t *eae, *p;
 	unsigned easize;
 	int error, ealen;
 
@@ -1786,7 +1785,7 @@ ffs_setextattr(
 	uint32_t ealength, ul;
 	ssize_t ealen;
 	int olen, eapad1, eapad2, error, i, easize;
-	u_char *eae;
+	uint8_t *eae;
 	void *tmp;
 
 	vp = ap->a_vp;
@@ -1856,9 +1855,9 @@ ffs_setextattr(
 		easize += ealength;
 	} else {
 		ul = eap->ea_length;
-		i = (u_char *)EXTATTR_NEXT(eap) - eae;
+		i = (uint8_t *)EXTATTR_NEXT(eap) - eae;
 		if (ul != ealength) {
-			bcopy(EXTATTR_NEXT(eap), (u_char *)eap + ealength,
+			bcopy(EXTATTR_NEXT(eap), (uint8_t *)eap + ealength,
 			    easize - i);
 			easize += (ealength - ul);
 		}
@@ -1884,7 +1883,7 @@ ffs_setextattr(
 			ip->i_ea_error = error;
 		return (error);
 	}
-	bzero((u_char *)EXTATTR_CONTENT(eap) + ealen, eapad2);
+	bzero((uint8_t *)EXTATTR_CONTENT(eap) + ealen, eapad2);
 
 	tmp = ip->i_ea_area;
 	ip->i_ea_area = eae;
@@ -1986,7 +1985,7 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	struct vnode *dvp, *vp, *vp1, **vpp;
 	struct inode *dp, *ip;
 	ino_t ip_ino;
-	u_int64_t ip_gen;
+	uint64_t ip_gen;
 	int error, vp_locked;
 
 	dvp = ap->a_dvp;

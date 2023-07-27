@@ -348,7 +348,7 @@ ufsdirhash_build(struct inode *ip)
 	struct direct *ep;
 	struct vnode *vp;
 	doff_t bmask, pos;
-	u_int dirblocks, i, narrays, nblocks, nslots;
+	uint64_t dirblocks, i, narrays, nblocks, nslots;
 	int j, memreqd, slot;
 
 	/* Take care of a decreased sysctl value. */
@@ -1034,7 +1034,7 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 static int
 ufsdirhash_hash(struct dirhash *dh, char *name, int namelen)
 {
-	u_int32_t hash;
+	uint32_t hash;
 
 	/*
 	 * We hash the name and then some other bit of data that is
@@ -1181,7 +1181,7 @@ static int
 ufsdirhash_destroy(struct dirhash *dh)
 {
 	doff_t **hash;
-	u_int8_t *blkfree;
+	uint8_t *blkfree;
 	int i, mem, narrays;
 
 	KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));

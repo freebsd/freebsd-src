@@ -115,7 +115,7 @@ ufs_quotactl(struct mount *mp, int cmds, uid_t id, void *arg)
 			return (EINVAL);
 		}
 	}
-	if ((u_int)type >= MAXQUOTAS) {
+	if ((uint64_t)type >= MAXQUOTAS) {
 		if (cmd == Q_QUOTAON || cmd == Q_QUOTAOFF)
 			vfs_unbusy(mp);
 		return (EINVAL);
