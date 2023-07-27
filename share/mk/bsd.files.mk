@@ -116,7 +116,7 @@ stage_as.${${_${group}DIR_${file}}:C,[/*],_,g}: ${file}
 
 installfiles-${group}: _${group}INS_${file}
 _${group}INS_${file}: ${file} installdirs-${_${group}DIR_${file}}
-	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN_${file}} \
+	${INSTALL} -C ${${group}TAG_ARGS} -o ${${group}OWN_${file}} \
 	    -g ${${group}GRP_${file}} -m ${${group}MODE_${file}} \
 	    ${.ALLSRC:Ninstalldirs-*} ${${group}PREFIX_${file}}/${${group}NAME_${file}}
 .endfor # file in ${${group}}
