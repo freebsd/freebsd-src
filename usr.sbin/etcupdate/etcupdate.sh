@@ -219,11 +219,19 @@ build_tree()
 			cd $SRCDIR || exit 1;
 			if ! [ -n "$nobuild" ]; then
 				export MAKEOBJDIRPREFIX=$destdir/usr/obj;
-				$make _obj SUBDIR_OVERRIDE=etc || exit 1
-				$make everything SUBDIR_OVERRIDE=etc || exit 1
+				if [ -n "$($make -V.ALLTARGETS:Mbuildetc)" ]; then
+					$make buildetc || exit 1
+				else
+					$make _obj SUBDIR_OVERRIDE=etc || exit 1
+					$make everything SUBDIR_OVERRIDE=etc || exit 1
+				fi
 			fi
-			$make DESTDIR=$destdir distrib-dirs || exit 1
-			$make DESTDIR=$destdir distribution || exit 1
+			if [ -n "$($make -V.ALLTARGETS:Minstalletc)" ]; then
+				$make DESTDIR=$destdir installetc || exit 1
+			else
+				$make DESTDIR=$destdir distrib-dirs || exit 1
+				$make DESTDIR=$destdir distribution || exit 1
+			fi
 		) || return 1
 	fi
 	chflags -R noschg $1 || return 1
