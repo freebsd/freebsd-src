@@ -113,7 +113,9 @@ __FBSDID("$FreeBSD$");
 
 #define	INPCBLBGROUP_SIZMIN	8
 #define	INPCBLBGROUP_SIZMAX	256
-#define	INP_FREED	0x00000200	/* See in_pcb.h. */
+
+#define	INP_FREED	0x00000200	/* Went through in_pcbfree(). */
+#define	INP_INLBGROUP	0x01000000	/* Inserted into inpcblbgroup. */
 
 /*
  * These configure the range of local port addresses assigned to
@@ -403,6 +405,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 
 	grp->il_inp[grp->il_inpcnt] = inp;
 	grp->il_inpcnt++;
+	inp->inp_flags |= INP_INLBGROUP;
 	return (0);
 }
 
@@ -420,6 +423,7 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 	pcbinfo = inp->inp_pcbinfo;
 
 	INP_WLOCK_ASSERT(inp);
+	MPASS(inp->inp_flags & INP_INLBGROUP);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
@@ -436,9 +440,11 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 				/* Pull up inpcbs, shrink group if possible. */
 				in_pcblbgroup_reorder(hdr, &grp, i);
 			}
+			inp->inp_flags &= ~INP_INLBGROUP;
 			return;
 		}
 	}
+	KASSERT(0, ("%s: did not find %p", __func__, inp));
 }
 
 int
@@ -2672,7 +2678,7 @@ in_pcbinshash(struct inpcb *inp)
 	if (phd == NULL) {
 		phd = uma_zalloc_smr(pcbinfo->ipi_portzone, M_NOWAIT);
 		if (phd == NULL) {
-			if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
+			if ((inp->inp_flags & INP_INLBGROUP) != 0)
 				in_pcbremlbgrouphash(inp);
 			return (ENOMEM);
 		}
@@ -2717,7 +2723,7 @@ in_pcbremhash_locked(struct inpcb *inp)
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 	MPASS(inp->inp_flags & INP_INHASHLIST);
 
-	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
+	if ((inp->inp_flags & INP_INLBGROUP) != 0)
 		in_pcbremlbgrouphash(inp);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
