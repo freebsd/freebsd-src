@@ -5,6 +5,7 @@
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 .include <bsd.linker.mk>
+.include <bsd.compat.pre.mk>
 
 __<bsd.lib.mk>__:
 
@@ -64,9 +65,11 @@ CTFFLAGS+= -g
 STRIP?=	-s
 .endif
 
-.if ${SHLIBDIR:M*lib32*}
-TAGS+=	lib32
+.for _libcompat in ${_ALL_libcompats}
+.if ${SHLIBDIR:M*/lib${_libcompat}} || ${SHLIBDIR:M*/lib${_libcompat}/*}
+TAGS+=	lib${_libcompat}
 .endif
+.endfor
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
