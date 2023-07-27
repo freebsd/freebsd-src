@@ -1026,6 +1026,7 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
 	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
+	    ALL_libcompats=${_ALL_libcompats:Q} \
 	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
 
 _worldtmp: .PHONY
