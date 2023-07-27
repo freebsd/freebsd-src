@@ -471,6 +471,11 @@ struct tcpcb {
 	};
 	struct osd	t_osd;		/* storage for Khelp module data */
 	uint8_t _t_logpoint;	/* Used when a BB log points is enabled */
+	/*
+	 * Keep all #ifdef'ed components at the end of the structure!
+	 * This is important to minimize problems when compiling modules
+	 * using this structure from within the modules' directory.
+	 */
 #ifdef TCP_REQUEST_TRK
 	/* Response tracking addons. */
 	uint8_t t_tcpreq_req;	/* Request count */
