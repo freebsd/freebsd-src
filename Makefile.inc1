@@ -1624,6 +1624,29 @@ distrib-dirs distribution: .MAKE .PHONY
 .endif
 
 #
+# buildetc and installetc
+#
+buildetc: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _worldtmp
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _legacy
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _bootstrap-tools \
+	    MK_CROSS_COMPILER=no MK_TOOLCHAIN=no
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _obj \
+	    SUBDIR_OVERRIDE=etc
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 everything \
+	    SUBDIR_OVERRIDE=etc
+
+installetc: .MAKE .PHONY
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making hierarchy"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distrib-dirs
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making distribution"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribution
+
+#
 # buildkernel and installkernel
 #
 # Which kernels to build and/or install is specified by setting
