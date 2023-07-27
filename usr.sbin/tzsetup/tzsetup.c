@@ -276,6 +276,7 @@ struct country {
 	char		*tlc;
 	int		nzones;
 	struct continent *override;	/* continent override */
+	struct continent *alternate;	/* extra continent */
 	TAILQ_HEAD(, zone) zones;
 	dialogMenuItem	*submenu;
 };
@@ -375,6 +376,18 @@ find_country(int lineno, const char *tlc)
 }
 
 static void
+add_cont_to_country(struct country *cp, struct continent *cont)
+{
+	struct zone	*zp;
+
+	TAILQ_FOREACH(zp, &cp->zones, link) {
+		if (zp->continent == cont)
+			return;
+	}
+	cp->alternate = cont;
+}
+
+static void
 add_zone_to_country(int lineno, struct country *cp, const char *descr,
     const char *file, struct continent *cont)
 {
@@ -441,13 +454,13 @@ read_zones(void)
 	struct country	*cp;
 	size_t		len;
 	char		*line, *country_list, *tlc, *file, *descr;
+	char		*p, *q;
 	int		lineno;
-	bool		pass1;
+	int		pass = 1;
 
 	fp = fopen(path_zonetab, "r");
 	if (!fp)
 		err(1, "%s", path_zonetab);
-	pass1 = true;
 
 again:
 	lineno = 0;
@@ -457,7 +470,9 @@ again:
 			errx(1, "%s:%d: invalid format", path_zonetab, lineno);
 		line[len - 1] = '\0';
 
-		if (pass1) {
+		switch (pass)
+		{
+		case 1:
 			/*
 			 * First pass: collect overrides, only looking for
 			 * single continent ones for the moment.
@@ -481,7 +496,8 @@ again:
 				cp = find_country(lineno, tlc);
 				cp->override = cont;
 			}
-		} else {
+			break;
+		case 2:
 			/* Second pass: parse actual data */
 			if (line[0] == '#')
 				continue;
@@ -498,11 +514,34 @@ again:
 				add_zone_to_country(lineno, cp, descr, file,
 				    cont);
 			}
+			break;
+		case 3:
+			/* Third pass: collect multi-continent overrides */
+			if (strncmp(line, "#@", strlen("#@")) != 0)
+				continue;
+			line += 2;
+			country_list = strsep(&line, "\t");
+			/* Skip single-continent overrides */
+			if (strchr(line, ',') == NULL)
+				continue;
+			while (line != NULL) {
+				cont = find_continent(lineno, line);
+				p = q = strdup(country_list);
+				if (p == NULL)
+					errx(1, "malloc failed");
+				while (q != NULL) {
+					tlc = strsep(&q, ",");
+					cp = find_country(lineno, tlc);
+					add_cont_to_country(cp, cont);
+				}
+				free(p);
+				strsep(&line, ",");
+			}
+			break;
 		}
 	}
 
-	if (pass1) {
-		pass1 = false;
+	if (pass++ < 3) {
 		errno = 0;
 		rewind(fp);
 		if (errno != 0)
@@ -555,6 +594,12 @@ make_menus(void)
 			if (zp2 == zp)
 				zp->continent->nitems++;
 		}
+
+		for (i = 0; i < NCONTINENTS; i++) {
+			if (cp->alternate == continent_names[i].continent) {
+				continent_names[i].continent->nitems++;
+			}
+		}
 	}
 
 	/*
@@ -604,6 +649,16 @@ make_menus(void)
 			if (zp2 != zp)
 				continue;
 
+			dmi = &cont->menu[cont->nitems];
+			memset(dmi, 0, sizeof(*dmi));
+			asprintf(&dmi->prompt, "%d", ++cont->nitems);
+			dmi->title = cp->name;
+			dmi->fire = set_zone_menu;
+			dmi->data = cp;
+		}
+
+		if (cp->alternate != NULL) {
+			cont = cp->alternate;
 			dmi = &cont->menu[cont->nitems];
 			memset(dmi, 0, sizeof(*dmi));
 			asprintf(&dmi->prompt, "%d", ++cont->nitems);
