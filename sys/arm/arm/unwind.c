@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
 
@@ -368,6 +369,7 @@ unwind_exec_read_byte(struct unwind_state *state)
 static int
 unwind_exec_insn(struct unwind_state *state)
 {
+	struct thread *td = curthread;
 	unsigned int insn;
 	uint32_t *vsp = (uint32_t *)state->registers[SP];
 	int update_vsp = 0;
@@ -402,6 +404,10 @@ unwind_exec_insn(struct unwind_state *state)
 		/* Load the registers */
 		for (reg = 4; mask && reg < 16; mask >>= 1, reg++) {
 			if (mask & 1) {
+				if (!kstack_contains(td, (uintptr_t)vsp,
+				    sizeof(*vsp)))
+					return 1;
+
 				state->registers[reg] = *vsp++;
 				state->update_mask |= 1 << reg;
 
@@ -428,6 +434,9 @@ unwind_exec_insn(struct unwind_state *state)
 		update_vsp = 1;
 
 		/* Pop the registers */
+		if (!kstack_contains(td, (uintptr_t)vsp,
+		    sizeof(*vsp) * (4 + count)))
+			return 1;
 		for (reg = 4; reg <= 4 + count; reg++) {
 			state->registers[reg] = *vsp++;
 			state->update_mask |= 1 << reg;
@@ -435,6 +444,8 @@ unwind_exec_insn(struct unwind_state *state)
 
 		/* Check if we are in the pop r14 version */
 		if ((insn & INSN_POP_TYPE_MASK) != 0) {
+			if (!kstack_contains(td, (uintptr_t)vsp, sizeof(*vsp)))
+				return 1;
 			state->registers[14] = *vsp++;
 		}
 
@@ -455,6 +466,9 @@ unwind_exec_insn(struct unwind_state *state)
 		/* Load the registers */
 		for (reg = 0; mask && reg < 4; mask >>= 1, reg++) {
 			if (mask & 1) {
+				if (!kstack_contains(td, (uintptr_t)vsp,
+				    sizeof(*vsp)))
+					return 1;
 				state->registers[reg] = *vsp++;
 				state->update_mask |= 1 << reg;
 			}
