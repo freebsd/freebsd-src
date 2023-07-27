@@ -1628,7 +1628,8 @@ iflib_fast_intr_ctx(void *arg)
 			return (result);
 	}
 
-	GROUPTASK_ENQUEUE(gtask);
+	if (gtask->gt_taskqueue != NULL)
+		GROUPTASK_ENQUEUE(gtask);
 	return (FILTER_HANDLED);
 }
 
