@@ -312,6 +312,8 @@ _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 _make_abs!=	which "${MAKE}"
 _host_abs_tools_to_symlink=	${_make_abs}:make ${_make_abs}:bmake
 
+_LINK_HOST_TOOL=	ln -sfn
+
 .if ${.MAKE.OS} == "FreeBSD"
 # When building on FreeBSD we always copy the host tools instead of linking
 # into WORLDTMP to avoid issues with incompatible libraries (see r364030).
@@ -322,7 +324,7 @@ _COPY_HOST_TOOL=	cp -pf
 # tools to another directory with cp -p results in freezes on macOS Big Sur for
 # some unknown reason. It can also break building inside docker containers if
 # there are ACLs on shared volumes.
-_COPY_HOST_TOOL=	ln -sfn
+_COPY_HOST_TOOL=	${_LINK_HOST_TOOL}
 
 .if ${.MAKE.OS} == "Darwin"
 # /usr/bin/cpp may invoke xcrun:
@@ -334,6 +336,20 @@ _host_tools_to_symlink+=	xcrun
 _host_abs_tools_to_symlink+=	/bin/bash:sh
 _host_tools_to_symlink:=	${_host_tools_to_symlink:Nsh}
 .endif
+
+# We also need to symlink any non-absolute toolchain commands. Clang finds its
+# resource directory relative to itself, so CC/CXX/CPP must be symlinked, and
+# we do the same for LD for consistency. There should be no concerns about
+# installing over the current system since we don't use the toolchain during
+# install.
+.for var in CC CXX CPP LD
+.for X in $${_empty_var_} X
+.if !empty(${X}${var}) && !${${X}${var}:M/*} && \
+	!${_toolchain_tools_to_symlink:U:M${${X}${var}}}
+_toolchain_tools_to_symlink+=	${${X}${var}}
+.endif
+.endfor
+.endfor
 
 host-symlinks:
 	@echo "Linking host tools into ${DESTDIR}/bin"
@@ -359,6 +375,15 @@ host-symlinks:
 	rm -f ${DESTDIR}/usr/libexec/flua
 	${_COPY_HOST_TOOL} /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
 .endif
+.for _tool in ${_toolchain_tools_to_symlink}
+	@export PATH=$${PATH}:/usr/local/bin; \
+	source_path=`which ${_tool} || echo /dev/null/no/such`; \
+	if [ ! -e "$${source_path}" ] ; then \
+		echo "Cannot find host tool '${_tool}' in PATH ($$PATH)." >&2; false; \
+	fi; \
+	rm -f "${DESTDIR}/bin/${_tool}"; \
+	${_LINK_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"
+.endfor
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
 # and cross-tools stages. We do this here using mkdir since mtree may not exist
