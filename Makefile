@@ -536,6 +536,9 @@ worlds: .PHONY
 # Don't build rarely used, semi-supported architectures unless requested.
 #
 .if defined(EXTRA_TARGETS)
+# armv6's importance has waned enough to make building it the exception rather
+# than the rule.
+EXTRA_ARCHES_arm=	armv6
 # powerpcspe excluded from main list until clang fixed
 EXTRA_ARCHES_powerpc=	powerpcspe
 .endif
