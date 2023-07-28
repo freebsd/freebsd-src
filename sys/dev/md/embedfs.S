@@ -38,7 +38,7 @@
 	.globl	mfs_root
 	.type	mfs_root, %object
 mfs_root:
-	.incbin	__XSTRING(MFS_IMAGE)
+	.incbin	MFS_IMAGE
 	.size	mfs_root, . - mfs_root
 	.globl	mfs_root_end
 	.type	mfs_root_end, %object

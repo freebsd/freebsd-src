@@ -55,7 +55,7 @@ fi
 
 ${CC} ${DEBUG} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c \
    -o elf-vdso32.so.o -I. -I"${S}" -include opt_global.h \
-   -DVDSO_NAME=elf_vdso32_so_1 -DVDSO_FILE=elf-vdso32.so.1 \
+   -DVDSO_NAME=elf_vdso32_so_1 -DVDSO_FILE=\"elf-vdso32.so.1\" \
    "${S}"/tools/vdso_wrap.S
 
 ${NM} -D elf-vdso32.so.1 | ${AWK} \
