@@ -183,6 +183,8 @@ static	int		passerror(union ccb *ccb, uint32_t cam_flags,
 				  uint32_t sense_flags);
 static 	int		passsendccb(struct cam_periph *periph, union ccb *ccb,
 				    union ccb *inccb);
+static	void		passflags(union ccb *ccb, uint32_t *cam_flags,
+				  uint32_t *sense_flags);
 
 static struct periph_driver passdriver =
 {
@@ -912,19 +914,17 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
 #endif
-		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-		 && (done_ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER)
-		 && ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
+		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) &&
+		    ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
 			int error;
+			uint32_t cam_flags, sense_flags;
 
-			error = passerror(done_ccb, CAM_RETRY_SELTO,
-					  SF_RETRY_UA | SF_NO_PRINT);
+			passflags(done_ccb, &cam_flags, &sense_flags);
+			error = passerror(done_ccb, cam_flags, sense_flags);
 
 			if (error == ERESTART) {
-				/*
-				 * A retry was scheduled, so
- 				 * just return.
-				 */
+				KASSERT(((sense_flags & SF_NO_RETRY) == 0),
+				    ("passerror returned ERESTART with no retry requested\n"));
 				return;
 			}
 		}
@@ -2230,10 +2230,13 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * that request.  Otherwise, it's up to the user to perform any
 	 * error recovery.
 	 */
-	cam_periph_runccb(ccb, (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ? 
-	    passerror : NULL, /* cam_flags */ CAM_RETRY_SELTO,
-	    /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT,
-	    softc->device_stats);
+	{
+		uint32_t cam_flags, sense_flags;
+
+		passflags(ccb, &cam_flags, &sense_flags);
+		cam_periph_runccb(ccb,  passerror, cam_flags,
+		    sense_flags, softc->device_stats);
+	}
 
 	cam_periph_unlock(periph);
 	cam_periph_unmapmem(ccb, &mapinfo);
@@ -2244,6 +2247,25 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	bcopy(ccb, inccb, sizeof(union ccb));
 
 	return(0);
+}
+
+/*
+ * Set the cam_flags and sense_flags based on whether or not the request wants
+ * error recovery. In order to log errors via devctl, we need to do at least
+ * minimal recovery. We do this by not retrying unit attention (we let the
+ * requester do it, or not, if appropriate) and specifically asking for no
+ * recovery, like we do during device probing.
+ */
+static void
+passflags(union ccb *ccb, uint32_t *cam_flags, uint32_t *sense_flags)
+{
+	if ((ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) != 0) {
+		*cam_flags = CAM_RETRY_SELTO;
+		*sense_flags = SF_RETRY_UA | SF_NO_PRINT;
+	} else {
+		*cam_flags = 0;
+		*sense_flags = SF_NO_RETRY | SF_NO_RECOVERY | SF_NO_PRINT;
+	}
 }
 
 static int
