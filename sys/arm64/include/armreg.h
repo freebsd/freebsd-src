@@ -319,6 +319,26 @@
 #define	 ISS_INSN_S1PTW		(0x01 << 7)
 #define	 ISS_INSN_IFSC_MASK	(0x1f << 0)
 
+#define	 ISS_WFx_TI_SHIFT	0
+#define	 ISS_WFx_TI_MASK	(0x03 << ISS_WFx_TI_SHIFT)
+#define	 ISS_WFx_TI_WFI		(0x00 << ISS_WFx_TI_SHIFT)
+#define	 ISS_WFx_TI_WFE		(0x01 << ISS_WFx_TI_SHIFT)
+#define	 ISS_WFx_TI_WFIT	(0x02 << ISS_WFx_TI_SHIFT)
+#define	 ISS_WFx_TI_WFET	(0x03 << ISS_WFx_TI_SHIFT)
+#define	 ISS_WFx_RV_SHIFT	2
+#define	 ISS_WFx_RV_MASK	(0x01 << ISS_WFx_RV_SHIFT)
+#define	 ISS_WFx_RV_INVALID	(0x00 << ISS_WFx_RV_SHIFT)
+#define	 ISS_WFx_RV_VALID	(0x01 << ISS_WFx_RV_SHIFT)
+#define	 ISS_WFx_RN_SHIFT	5
+#define	 ISS_WFx_RN_MASK	(0x1f << ISS_WFx_RN_SHIFT)
+#define	 ISS_WFx_RN(x)		(((x) & ISS_WFx_RN_MASK) >> ISS_WFx_RN_SHIFT)
+#define	 ISS_WFx_COND_SHIFT	20
+#define	 ISS_WFx_COND_MASK	(0x0f << ISS_WFx_COND_SHIFT)
+#define	 ISS_WFx_CV_SHIFT	24
+#define	 ISS_WFx_CV_MASK	(0x01 << ISS_WFx_CV_SHIFT)
+#define	 ISS_WFx_CV_INVALID	(0x00 << ISS_WFx_CV_SHIFT)
+#define	 ISS_WFx_CV_VALID	(0x01 << ISS_WFx_CV_SHIFT)
+
 #define	 ISS_MSR_DIR_SHIFT	0
 #define	 ISS_MSR_DIR		(0x01 << ISS_MSR_DIR_SHIFT)
 #define	 ISS_MSR_Rt_SHIFT	5
