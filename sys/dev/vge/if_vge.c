@@ -2564,7 +2564,7 @@ vge_sysctl_node(struct vge_softc *sc)
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "crcerrs",
 	    &stats->rx_crcerrs, "CRC errors");
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "pause_frames",
-	    &stats->rx_pause_frames, "CRC errors");
+	    &stats->rx_pause_frames, "Pause frames");
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "align_errs",
 	    &stats->rx_alignerrs, "Alignment errors");
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "nobufs",
