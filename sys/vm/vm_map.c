@@ -2752,6 +2752,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry, first_entry, in_tran, prev_entry;
 	vm_object_t obj;
 	struct ucred *cred;
+	vm_offset_t orig_start;
 	vm_prot_t check_prot, max_prot, old_prot;
 	int rv;
 
@@ -2763,8 +2764,10 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	    !CONTAINS_BITS(new_maxprot, new_prot))
 		return (KERN_OUT_OF_BOUNDS);
 
+	orig_start = start;
 again:
 	in_tran = NULL;
+	start = orig_start;
 	vm_map_lock(map);
 
 	if ((map->flags & MAP_WXORX) != 0 &&
@@ -2786,6 +2789,22 @@ again:
 
 	if (!vm_map_lookup_entry(map, start, &first_entry))
 		first_entry = vm_map_entry_succ(first_entry);
+
+	if ((flags & VM_MAP_PROTECT_GROWSDOWN) != 0 &&
+	    (first_entry->eflags & MAP_ENTRY_GROWS_DOWN) != 0) {
+		/*
+		 * Handle Linux's PROT_GROWSDOWN flag.
+		 * It means that protection is applied down to the
+		 * whole stack, including the specified range of the
+		 * mapped region, and the grow down region (AKA
+		 * guard).
+		 */
+		while (!CONTAINS_BITS(first_entry->eflags,
+		    MAP_ENTRY_GUARD | MAP_ENTRY_STACK_GAP_DN) &&
+		    first_entry != vm_map_entry_first(map))
+			first_entry = vm_map_entry_pred(first_entry);
+		start = first_entry->start;
+	}
 
 	/*
 	 * Make a first pass to check for protection violations.

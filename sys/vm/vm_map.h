@@ -518,6 +518,7 @@ vm_map_entry_succ(vm_map_entry_t entry)
 
 #define	VM_MAP_PROTECT_SET_PROT		0x0001
 #define	VM_MAP_PROTECT_SET_MAXPROT	0x0002
+#define	VM_MAP_PROTECT_GROWSDOWN	0x0004
 
 int vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
     vm_prot_t new_prot, vm_prot_t new_maxprot, int flags);
