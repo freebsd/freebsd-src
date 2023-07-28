@@ -1995,6 +1995,10 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_stats.resident_count = res;
 	vm_radix_init(&kernel_pmap->pm_root);
 	kernel_pmap->pm_flags = pmap_flags;
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
+		rangeset_init(&kernel_pmap->pm_pkru, pkru_dup_range,
+		    pkru_free_range, kernel_pmap, M_NOWAIT);
+	}
 
 	/*
 	 * The kernel pmap is always active on all CPUs.  Once CPUs are
