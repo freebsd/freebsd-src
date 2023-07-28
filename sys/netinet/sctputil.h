@@ -251,11 +251,7 @@ do { \
 		} \
 		if (stcb->sctp_socket && ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) || \
 		    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) { \
-			if (stcb->sctp_socket->so_snd.sb_cc >= sp->length) { \
-				atomic_subtract_int(&stcb->sctp_socket->so_snd.sb_cc,sp->length); \
-			} else { \
-				stcb->sctp_socket->so_snd.sb_cc = 0; \
-			} \
+			SCTP_SAVE_ATOMIC_DECREMENT(&stcb->sctp_socket->so_snd.sb_cc, sp->length); \
 		} \
 	} \
 } while (0)
