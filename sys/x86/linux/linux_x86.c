@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/signal.h>
+#include <x86/specialreg.h>
 #include <x86/trap.h>
+#include <x86/x86_var.h>
 
 #include <x86/linux/linux_x86.h>
 
@@ -96,4 +98,18 @@ bsd_to_linux_trapcode(int code)
 
 	return (code < nitems(_bsd_to_linux_trapcode) ?
 	    _bsd_to_linux_trapcode[code] : LINUX_T_UNKNOWN);
+}
+
+u_int
+linux_x86_elf_hwcap2(void)
+{
+	static u_int elf_hwcap2 = 0;
+	static bool elf_hwcap2_valid = false;
+
+	if (!elf_hwcap2_valid) {
+		if ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
+			elf_hwcap2 |= LINUX_HWCAP2_FSGSBASE;
+		elf_hwcap2_valid = true;
+	}
+	return (elf_hwcap2);
 }
