@@ -34,10 +34,15 @@
 #define __VM_RADIX_H_
 
 /*
+ * Radix tree node.
+ */
+struct vm_radix_node;
+
+/*
  * Radix tree root.
  */
 struct vm_radix {
-	uintptr_t	rt_root;
+	struct vm_radix_node	*rt_root;
 };
 
 #endif /* !__VM_RADIX_H_ */
