@@ -1213,6 +1213,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 	if (sizeof(struct ip6_hdr) + IPV6_MAXPACKET < m->m_pkthdr.len)
 		goto drop;
 
+again:
+	h = mtod(m, struct ip6_hdr *);
 	extoff = 0;
 	off = sizeof(struct ip6_hdr);
 	proto = h->ip6_nxt;
@@ -1303,6 +1305,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 	return (PF_PASS);
 
  fragment:
+	if (pd->flags & PFDESC_IP_REAS)
+		return (PF_DROP);
 	/* Jumbo payload packets cannot be fragmented. */
 	plen = ntohs(h->ip6_plen);
 	if (plen == 0 || jumbolen)
@@ -1324,7 +1328,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 		return (PF_DROP);
 
 	pd->flags |= PFDESC_IP_REAS;
-	return (PF_PASS);
+	goto again;
 
  shortpkt:
 	REASON_SET(reason, PFRES_SHORT);
