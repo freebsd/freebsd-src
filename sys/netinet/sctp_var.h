@@ -196,7 +196,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_sbfree(ctl, stcb, sb, m) { \
-	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_cc, SCTP_BUF_LEN((m))); \
+	SCTP_SB_DECR(sb, SCTP_BUF_LEN((m))); \
 	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_mbcnt, MSIZE); \
 	if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
 		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \
@@ -208,7 +208,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_sballoc(stcb, sb, m) { \
-	atomic_add_int(&(sb)->sb_cc,SCTP_BUF_LEN((m))); \
+	SCTP_SB_INCR(sb, SCTP_BUF_LEN((m))); \
 	atomic_add_int(&(sb)->sb_mbcnt, MSIZE); \
 	if (stcb) { \
 		atomic_add_int(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \

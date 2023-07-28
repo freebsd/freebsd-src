@@ -3609,7 +3609,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		TAILQ_REMOVE(&inp->read_queue, sq, next);
 		sctp_free_remote_addr(sq->whoFrom);
 		if (so)
-			so->so_rcv.sb_cc -= sq->length;
+			SCTP_SB_DECR(&so->so_rcv, sq->length);
 		if (sq->data) {
 			sctp_m_freem(sq->data);
 			sq->data = NULL;

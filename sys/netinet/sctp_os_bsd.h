@@ -370,11 +370,6 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
 /* get the socket type */
 #define SCTP_SO_TYPE(so)	((so)->so_type)
-/* Use a macro for renaming sb_cc to sb_acc.
- * Initially sb_ccc was used, but this broke select() when used
- * with SCTP sockets.
- */
-#define sb_cc sb_acc
 /* reserve sb space for a socket */
 #define SCTP_SORESERVE(so, send, recv)	soreserve(so, send, recv)
 /* wakeup a socket */
@@ -382,8 +377,19 @@ typedef struct callout sctp_os_timer_t;
 /* number of bytes ready to read */
 #define SCTP_SBAVAIL(sb)	sbavail(sb)
 /* clear the socket buffer state */
+#define SCTP_SB_INCR(sb, incr)			\
+{						\
+	atomic_add_int(&(sb)->sb_acc, incr);	\
+	atomic_add_int(&(sb)->sb_ccc, incr);	\
+}
+#define SCTP_SB_DECR(sb, decr)					\
+{								\
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_acc, decr);	\
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_ccc, decr);	\
+}
 #define SCTP_SB_CLEAR(sb)	\
-	(sb).sb_cc = 0;		\
+	(sb).sb_acc = 0;	\
+	(sb).sb_ccc = 0;	\
 	(sb).sb_mb = NULL;	\
 	(sb).sb_mbcnt = 0;
 
