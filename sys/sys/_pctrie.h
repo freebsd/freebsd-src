@@ -34,10 +34,15 @@
 #define __SYS_PCTRIE_H_
 
 /*
+ * Radix tree node.
+ */
+struct pctrie_node;
+
+/*
  * Radix tree root.
  */
 struct pctrie {
-	uintptr_t	pt_root;
+	struct pctrie_node	*pt_root;
 };
 
 #endif /* !__SYS_PCTRIE_H_ */
