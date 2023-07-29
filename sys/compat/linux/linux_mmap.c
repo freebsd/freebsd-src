@@ -229,16 +229,22 @@ out:
 int
 linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 {
+	int flags = 0;
 
-	/* XXX Ignore PROT_GROWSDOWN and PROT_GROWSUP for now. */
-	prot &= ~(LINUX_PROT_GROWSDOWN | LINUX_PROT_GROWSUP);
-	if ((prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
+	/* XXX Ignore PROT_GROWSUP for now. */
+	prot &= ~LINUX_PROT_GROWSUP;
+	if ((prot & ~(LINUX_PROT_GROWSDOWN | PROT_READ | PROT_WRITE |
+	    PROT_EXEC)) != 0)
 		return (EINVAL);
+	if ((prot & LINUX_PROT_GROWSDOWN) != 0) {
+		prot &= ~LINUX_PROT_GROWSDOWN;
+		flags |= VM_MAP_PROTECT_GROWSDOWN;
+	}
 
 #if defined(__amd64__)
 	linux_fixup_prot(td, &prot);
 #endif
-	return (kern_mprotect(td, addr, len, prot));
+	return (kern_mprotect(td, addr, len, prot, flags));
 }
 
 /*
