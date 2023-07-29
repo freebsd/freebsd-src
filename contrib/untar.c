@@ -37,8 +37,16 @@
 #include <sys/stat.h>  /* For mkdir() */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#include <windows.h>
-#endif
+#define NUM_FORMAT "zu"
+#include <direct.h>
+#elif defined(__linux__) || defined(linux) || defined(__linux)
+#define NUM_FORMAT "d"
+#else
+#define NUM_FORMAT "lu"
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
+
+#define TO_STRING(x) #x
+#define STR(x) TO_STRING(x)
 
 /* Parse an octal number, ignoring leading and trailing nonsense. */
 static int
@@ -145,18 +153,19 @@ verify_checksum(const char *p)
 static void
 untar(FILE *a, const char *path)
 {
-	char buff[512];
+    enum { BUF_SIZE=512 };
+	char buff[BUF_SIZE];
 	FILE *f = NULL;
 	size_t bytes_read;
-	int filesize;
+	off_t filesize;
 
 	printf("Extracting from %s\n", path);
 	for (;;) {
-		bytes_read = fread(buff, 1, 512, a);
-		if (bytes_read < 512) {
+		bytes_read = fread(buff, 1, BUF_SIZE, a);
+		if (bytes_read < BUF_SIZE) {
 			fprintf(stderr,
-			    "Short read on %s: expected 512, got %d\n",
-			    path, (int)bytes_read);
+					"Short read on %s: expected " STR(BUF_SIZE) ", got %"NUM_FORMAT"\n",
+					path, bytes_read);
 			return;
 		}
 		if (is_end_of_archive(buff)) {
@@ -169,51 +178,51 @@ untar(FILE *a, const char *path)
 		}
 		filesize = parseoct(buff + 124, 12);
 		switch (buff[156]) {
-		case '1':
-			printf(" Ignoring hardlink %s\n", buff);
-			break;
-		case '2':
-			printf(" Ignoring symlink %s\n", buff);
-			break;
-		case '3':
-			printf(" Ignoring character device %s\n", buff);
+			case '1':
+				printf(" Ignoring hardlink %s\n", buff);
 				break;
-		case '4':
-			printf(" Ignoring block device %s\n", buff);
-			break;
-		case '5':
-			printf(" Extracting dir %s\n", buff);
-			create_dir(buff, parseoct(buff + 100, 8));
-			filesize = 0;
-			break;
-		case '6':
-			printf(" Ignoring FIFO %s\n", buff);
-			break;
-		default:
-			printf(" Extracting file %s\n", buff);
-			f = create_file(buff, parseoct(buff + 100, 8));
-			break;
+			case '2':
+				printf(" Ignoring symlink %s\n", buff);
+				break;
+			case '3':
+				printf(" Ignoring character device %s\n", buff);
+				break;
+			case '4':
+				printf(" Ignoring block device %s\n", buff);
+				break;
+			case '5':
+				printf(" Extracting dir %s\n", buff);
+				create_dir(buff, parseoct(buff + 100, 8));
+				filesize = 0;
+				break;
+			case '6':
+				printf(" Ignoring FIFO %s\n", buff);
+				break;
+			default:
+				printf(" Extracting file %s\n", buff);
+				f = create_file(buff, parseoct(buff + 100, 8));
+				break;
 		}
 		while (filesize > 0) {
-			bytes_read = fread(buff, 1, 512, a);
-			if (bytes_read < 512) {
+			bytes_read = fread(buff, 1, BUF_SIZE, a);
+			if (bytes_read < BUF_SIZE) {
 				fprintf(stderr,
-				    "Short read on %s: Expected 512, got %d\n",
-				    path, (int)bytes_read);
+						"Short read on %s: Expected " STR(BUF_SIZE) ", got %"NUM_FORMAT"\n",
+						path, bytes_read);
 				return;
 			}
-			if (filesize < 512)
+			if (filesize < BUF_SIZE)
 				bytes_read = filesize;
 			if (f != NULL) {
 				if (fwrite(buff, 1, bytes_read, f)
-				    != bytes_read)
+					!= bytes_read)
 				{
 					fprintf(stderr, "Failed write\n");
 					fclose(f);
 					f = NULL;
 				}
 			}
-			filesize -= bytes_read;
+			filesize -= (off_t)bytes_read;
 		}
 		if (f != NULL) {
 			fclose(f);

@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
 		if (skip_data) {
 			v_print(v, "skipping");
 		} else {
-			while ((r = archive_read_data(a, buffer, 4096) > 0))
+			while ((r = archive_read_data(a, buffer, 4096)) > 0)
 			;
 			if (r == ARCHIVE_FATAL) {
 				v_print(v, "ERROR\nError string: %s\n",

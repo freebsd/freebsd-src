@@ -1417,6 +1417,7 @@ bsdcat_test_CPPFLAGS= \
 bsdcat_test_LDADD=libarchive_fe.la
 
 cat/test/list.h: Makefile
+	$(MKDIR_P) cat/test
 	cat $(top_srcdir)/cat/test/test_*.c | grep '^DEFINE_TEST' > cat/test/list.h
 
 if BUILD_BSDCAT
@@ -1450,7 +1451,9 @@ bsdcat_test_EXTRA_DIST= \
 
 bsdunzip_SOURCES= \
 		unzip/bsdunzip.c \
-		unzip/bsdunzip_platform.h
+		unzip/bsdunzip_platform.h \
+		unzip/la_getline.c \
+		unzip/la_queue.h
 
 if INC_WINDOWS_FILES
 bsdunzip_SOURCES+=
@@ -1520,6 +1523,7 @@ bsdunzip_test_CPPFLAGS= \
 bsdunzip_test_LDADD=libarchive_fe.la
 
 unzip/test/list.h: Makefile
+	$(MKDIR_P) unzip/test
 	cat $(top_srcdir)/unzip/test/test_*.c | grep '^DEFINE_TEST' > unzip/test/list.h
 
 if BUILD_BSDUNZIP

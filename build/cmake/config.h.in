@@ -642,6 +642,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `getgrnam_r' function. */
 #cmakedefine HAVE_GETGRNAM_R 1
 
+/* Define to 1 if you have the `getline' function. */
+#cmakedefine HAVE_GETLINE 1
+
 /* Define to 1 if platform uses `optreset` to reset `getopt` */
 #cmakedefine HAVE_GETOPT_OPTRESET 1
 

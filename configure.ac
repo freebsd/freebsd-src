@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.0])
-m4_define([LIBARCHIVE_VERSION_N],[3007000])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.1])
+m4_define([LIBARCHIVE_VERSION_N],[3007001])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -742,7 +742,7 @@ AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
-AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
+AC_CHECK_FUNCS([geteuid getline getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])

@@ -8,6 +8,8 @@ IF(ENABLE_UNZIP)
   SET(bsdunzip_SOURCES
     bsdunzip.c
     bsdunzip_platform.h
+    la_getline.c
+    la_queue.h
     ../libarchive_fe/err.c
     ../libarchive_fe/err.h
     ../libarchive_fe/lafe_platform.h
