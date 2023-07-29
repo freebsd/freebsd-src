@@ -949,9 +949,10 @@ em_if_attach_pre(if_ctx_t ctx)
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
 
 		/* "PCI/PCI-X SDM 4.0" page 33 (b) - FDX requirement on these chips */
-		if (hw->mac.type < e1000_82543 || hw->mac.type == e1000_82547 ||
+		if (hw->mac.type == e1000_82542 || hw->mac.type == e1000_82547 ||
 		    hw->mac.type == e1000_82547_rev_2)
-			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
+			scctx->isc_capenable &= ~(IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
+			    IFCAP_HWCSUM_IPV6);
 		/* 82541ER doesn't do HW tagging */
 		if (hw->device_id == E1000_DEV_ID_82541ER || hw->device_id == E1000_DEV_ID_82541ER_LOM)
 			scctx->isc_capenable &= ~IFCAP_VLAN_HWTAGGING;
