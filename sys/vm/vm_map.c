@@ -146,6 +146,8 @@ static int vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos,
 static void vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
     vm_offset_t failed_addr);
 
+#define	CONTAINS_BITS(set, bits)	((~(set) & (bits)) == 0)
+
 #define	ENTRY_CHARGED(e) ((e)->cred != NULL || \
     ((e)->object.vm_object != NULL && (e)->object.vm_object->cred != NULL && \
      !((e)->eflags & MAP_ENTRY_NEEDS_COPY)))
@@ -2727,15 +2729,15 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry, first_entry, in_tran, prev_entry;
 	vm_object_t obj;
 	struct ucred *cred;
-	vm_prot_t old_prot;
+	vm_prot_t check_prot, old_prot;
 	int rv;
 
 	if (start == end)
 		return (KERN_SUCCESS);
 
-	if ((flags & (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT)) ==
-	    (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT) &&
-	    (new_prot & new_maxprot) != new_prot)
+	if (CONTAINS_BITS(flags, VM_MAP_PROTECT_SET_PROT |
+	    VM_MAP_PROTECT_SET_MAXPROT) &&
+	    !CONTAINS_BITS(new_maxprot, new_prot))
 		return (KERN_OUT_OF_BOUNDS);
 
 again:
@@ -2744,8 +2746,7 @@ again:
 
 	if ((map->flags & MAP_WXORX) != 0 &&
 	    (flags & VM_MAP_PROTECT_SET_PROT) != 0 &&
-	    (new_prot & (VM_PROT_WRITE | VM_PROT_EXECUTE)) == (VM_PROT_WRITE |
-	    VM_PROT_EXECUTE)) {
+	    CONTAINS_BITS(new_prot, VM_PROT_WRITE | VM_PROT_EXECUTE)) {
 		vm_map_unlock(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
@@ -2766,6 +2767,11 @@ again:
 	/*
 	 * Make a first pass to check for protection violations.
 	 */
+	check_prot = 0;
+	if ((flags & VM_MAP_PROTECT_SET_PROT) != 0)
+		check_prot |= new_prot;
+	if ((flags & VM_MAP_PROTECT_SET_MAXPROT) != 0)
+		check_prot |= new_maxprot;
 	for (entry = first_entry; entry->start < end;
 	    entry = vm_map_entry_succ(entry)) {
 		if ((entry->eflags & MAP_ENTRY_GUARD) != 0)
@@ -2774,12 +2780,7 @@ again:
 			vm_map_unlock(map);
 			return (KERN_INVALID_ARGUMENT);
 		}
-		if ((flags & VM_MAP_PROTECT_SET_PROT) == 0)
-			new_prot = entry->protection;
-		if ((flags & VM_MAP_PROTECT_SET_MAXPROT) == 0)
-			new_maxprot = entry->max_protection;
-		if ((new_prot & entry->max_protection) != new_prot ||
-		    (new_maxprot & entry->max_protection) != new_maxprot) {
+		if (!CONTAINS_BITS(entry->max_protection, check_prot)) {
 			vm_map_unlock(map);
 			return (KERN_PROTECTION_FAILURE);
 		}
