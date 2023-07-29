@@ -584,7 +584,7 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 		    state->out_block + prefix64k, (int)compressed_size,
 		    state->flags.block_maximum_size,
 		    state->out_block,
-		    prefix64k);
+		    (int)prefix64k);
 #else
 		uncompressed_size = LZ4_decompress_safe_withPrefix64k(
 		    read_buf + 4,

@@ -2475,7 +2475,7 @@ static void update_crc(struct rar5* rar, const uint8_t* p, size_t to_read) {
 		 * `stored_crc32` info filled in. */
 		if(rar->file.stored_crc32 > 0) {
 			rar->file.calculated_crc32 =
-				crc32(rar->file.calculated_crc32, p, to_read);
+				crc32(rar->file.calculated_crc32, p, (unsigned int)to_read);
 		}
 
 		/* Check if the file uses an optional BLAKE2sp checksum
