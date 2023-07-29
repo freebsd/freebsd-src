@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/_inttypes.h>
 #endif
 
-#include <sys/capsicum.h>
-
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
