@@ -40,6 +40,8 @@
 
 #ifdef HAVE_SYS_QUEUE_H
 #include <sys/queue.h>
+#else
+#include "la_queue.h"
 #endif
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -70,6 +72,12 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if ((!defined(HAVE_UTIMENSAT) && defined(HAVE_LUTIMES)) || \
+    (!defined(HAVE_FUTIMENS) && defined(HAVE_FUTIMES)))
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#endif
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -82,6 +90,7 @@ static int		 C_opt;		/* match case-insensitively */
 static int		 c_opt;		/* extract to stdout */
 static const char	*d_arg;		/* directory */
 static int		 f_opt;		/* update existing files only */
+static char		*O_arg;		/* encoding */
 static int		 j_opt;		/* junk directories */
 static int		 L_opt;		/* lowercase names */
 static int		 n_opt;		/* never overwrite */
@@ -628,9 +637,15 @@ extract_file(struct archive *a, struct archive_entry *e, char **path)
 	int mode;
 	struct timespec mtime;
 	struct stat sb;
-	struct timespec ts[2];
 	int fd, check, text;
 	const char *linkname;
+#if defined(HAVE_UTIMENSAT) || defined(HAVE_FUTIMENS)
+	struct timespec ts[2];
+#endif
+#if ((!defined(HAVE_UTIMENSAT) && defined(HAVE_LUTIMES)) || \
+    (!defined(HAVE_FUTIMENS) && defined(HAVE_FUTIMES)))
+	struct timeval times[2];
+#endif
 
 	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
@@ -684,9 +699,18 @@ recheck:
 			return;
 	}
 
+#if defined(HAVE_UTIMENSAT) || defined(HAVE_FUTIMENS)
 	ts[0].tv_sec = 0;
 	ts[0].tv_nsec = UTIME_NOW;
 	ts[1] = mtime;
+#endif
+#if ((!defined(HAVE_UTIMENSAT) && defined(HAVE_LUTIMES)) || \
+    (!defined(HAVE_FUTIMENS) && defined(HAVE_FUTIMES)))
+	times[0].tv_sec = 0;
+	times[0].tv_usec = -1;
+	times[1].tv_sec = mtime.tv_sec;
+	times[1].tv_usec = mtime.tv_nsec / 1000;
+#endif
 
 	/* process symlinks */
 	linkname = archive_entry_symlink(e);
@@ -694,11 +718,19 @@ recheck:
 		if (symlink(linkname, *path) != 0)
 			error("symlink('%s')", *path);
 		info(" extracting: %s -> %s\n", *path, linkname);
+#ifdef HAVE_LCHMOD
 		if (lchmod(*path, mode) != 0)
 			warning("Cannot set mode for '%s'", *path);
+#endif
 		/* set access and modification time */
+#if defined(HAVE_UTIMENSAT)
 		if (utimensat(AT_FDCWD, *path, ts, AT_SYMLINK_NOFOLLOW) != 0)
 			warning("utimensat('%s')", *path);
+#elif defined(HAVE_LUTIMES)
+		gettimeofday(&times[0], NULL);
+		if (lutimes(*path, times) != 0)
+			warning("lutimes('%s')", *path);
+#endif
 		return;
 	}
 
@@ -716,8 +748,14 @@ recheck:
 	info("\n");
 
 	/* set access and modification time */
+#if defined(HAVE_FUTIMENS)
 	if (futimens(fd, ts) != 0)
 		error("futimens('%s')", *path);
+#elif defined(HAVE_FUTIMES)
+	gettimeofday(&times[0], NULL);
+	if (futimes(fd, times) != 0)
+		error("futimes('%s')", *path);
+#endif
 	if (close(fd) != 0)
 		error("close('%s')", *path);
 }
@@ -961,6 +999,9 @@ unzip(const char *fn)
 
 	ac(archive_read_support_format_zip(a));
 
+	if (O_arg)
+		ac(archive_read_set_format_option(a, "zip", "hdrcharset", O_arg));
+
 	if (P_arg)
 		archive_read_add_passphrase(a, P_arg);
 	else
@@ -1043,7 +1084,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] [-P password] zipfile\n"
+"Usage: unzip [-aCcfjLlnopqtuvyZ1] [{-O|-I} encoding] [-d dir] [-x pattern] [-P password] zipfile\n"
 "             [member ...]\n");
 	exit(EXIT_FAILURE);
 }
@@ -1053,8 +1094,11 @@ getopts(int argc, char *argv[])
 {
 	int opt;
 
-	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "aCcd:fjLlnopP:qtuvx:yZ1")) != -1)
+	optind = 1;
+#ifdef HAVE_GETOPT_OPTRESET
+	optreset = 1;
+#endif
+	while ((opt = getopt(argc, argv, "aCcd:fI:jLlnO:opP:qtuvx:yZ1")) != -1)
 		switch (opt) {
 		case '1':
 			Z1_opt = 1;
@@ -1073,6 +1117,10 @@ getopts(int argc, char *argv[])
 			break;
 		case 'f':
 			f_opt = 1;
+			break;
+		case 'I':
+		case 'O':
+			O_arg = optarg;
 			break;
 		case 'j':
 			j_opt = 1;

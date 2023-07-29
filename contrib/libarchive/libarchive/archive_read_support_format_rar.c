@@ -1062,7 +1062,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
 		      return (ARCHIVE_FATAL);
 	      }
 	      p = h;
-	      crc32_val = crc32(crc32_val, (const unsigned char *)p, to_read);
+	      crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned int)to_read);
 	      __archive_read_consume(a, to_read);
 	      skip -= to_read;
       }
@@ -3437,7 +3437,7 @@ compile_program(const uint8_t *bytes, size_t length)
   prog = calloc(1, sizeof(*prog));
   if (!prog)
     return NULL;
-  prog->fingerprint = crc32(0, bytes, length) | ((uint64_t)length << 32);
+  prog->fingerprint = crc32(0, bytes, (unsigned int)length) | ((uint64_t)length << 32);
 
   if (membr_bits(&br, 1))
   {
