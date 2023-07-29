@@ -230,7 +230,7 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
-	state->stream.avail_out = state->out_block_size;
+	state->stream.avail_out = (uint32_t)state->out_block_size;
 
 	/* Try to fill the output buffer. */
 	for (;;) {
@@ -288,7 +288,7 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 			return (ARCHIVE_FATAL);
 		}
 		state->stream.next_in = (char *)(uintptr_t)read_buf;
-		state->stream.avail_in = ret;
+		state->stream.avail_in = (uint32_t)ret;
 		/* There is no more data, return whatever we have. */
 		if (ret == 0) {
 			state->eof = 1;

@@ -190,7 +190,7 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 
 	memset(&data->stream, 0, sizeof(data->stream));
 	data->stream.next_out = data->compressed;
-	data->stream.avail_out = data->compressed_buffer_size;
+	data->stream.avail_out = (uint32_t)data->compressed_buffer_size;
 	f->write = archive_compressor_bzip2_write;
 
 	/* Initialize compression library */
@@ -244,7 +244,7 @@ archive_compressor_bzip2_write(struct archive_write_filter *f,
 
 	/* Compress input data to output buffer */
 	SET_NEXT_IN(data, buff);
-	data->stream.avail_in = length;
+	data->stream.avail_in = (uint32_t)length;
 	if (drive_compressor(f, data, 0))
 		return (ARCHIVE_FATAL);
 	return (ARCHIVE_OK);
@@ -313,7 +313,7 @@ drive_compressor(struct archive_write_filter *f,
 				return (ARCHIVE_FATAL);
 			}
 			data->stream.next_out = data->compressed;
-			data->stream.avail_out = data->compressed_buffer_size;
+			data->stream.avail_out = (uint32_t)data->compressed_buffer_size;
 		}
 
 		/* If there's nothing to do, we're done. */

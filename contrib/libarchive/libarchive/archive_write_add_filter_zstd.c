@@ -214,7 +214,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		if (level < minimum || level > maximum) {
 			return (ARCHIVE_WARN);
 		}
-		data->compression_level = level;
+		data->compression_level = (int)level;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "threads") == 0) {
 		intmax_t threads;
@@ -224,7 +224,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		if (threads < 0) {
 			return (ARCHIVE_WARN);
 		}
-		data->threads = threads;
+		data->threads = (int)threads;
 		return (ARCHIVE_OK);
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	} else if (strcmp(key, "frame-per-file") == 0) {

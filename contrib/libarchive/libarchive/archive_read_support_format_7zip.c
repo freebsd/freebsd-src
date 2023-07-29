@@ -1477,9 +1477,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case _7Z_BZ2:
 		zip->bzstream.next_in = (char *)(uintptr_t)t_next_in;
-		zip->bzstream.avail_in = t_avail_in;
+		zip->bzstream.avail_in = (uint32_t)t_avail_in;
 		zip->bzstream.next_out = (char *)(uintptr_t)t_next_out;
-		zip->bzstream.avail_out = t_avail_out;
+		zip->bzstream.avail_out = (uint32_t)t_avail_out;
 		r = BZ2_bzDecompress(&(zip->bzstream));
 		switch (r) {
 		case BZ_STREAM_END: /* Found end of stream. */
@@ -3833,7 +3833,7 @@ arm_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 		}
 	}
 
-	zip->bcj_ip += i;
+	zip->bcj_ip += (uint32_t)i;
 
 	return i;
 }
@@ -3896,7 +3896,7 @@ arm64_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 		}
 	}
 
-	zip->bcj_ip += i;
+	zip->bcj_ip += (uint32_t)i;
 
 	return i;
 }

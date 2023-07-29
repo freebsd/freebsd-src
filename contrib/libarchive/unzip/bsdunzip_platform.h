@@ -62,14 +62,6 @@
 #include "archive_entry.h"
 #endif
 
-#ifndef HAVE_GETOPT_OPTRESET
-/*
- * If platform doesn't use optreset for resetting getopt, declare it so
- * C source doesn't have to know this platform-specific difference
- */
-int optreset;
-#endif
-
 /* How to mark functions that don't return. */
 /* This facilitates use of some newer static code analysis tools. */
 #undef __LA_DEAD
