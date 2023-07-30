@@ -83,17 +83,13 @@ _Static_assert(sizeof(pn_popmap_t) <= sizeof(int),
 #define	PCTRIE_FLAGS	(PCTRIE_ISLEAF)
 #define	PCTRIE_PAD	PCTRIE_FLAGS
 
-/* Returns one unit associated with specified level. */
-#define	PCTRIE_UNITLEVEL(lev)						\
-	((uint64_t)1 << ((lev) * PCTRIE_WIDTH))
-
 struct pctrie_node;
 typedef SMR_POINTER(struct pctrie_node *) smr_pctnode_t;
 
 struct pctrie_node {
 	uint64_t	pn_owner;			/* Owner of record. */
 	pn_popmap_t	pn_popmap;			/* Valid children. */
-	uint8_t		pn_clev;			/* Current level. */
+	uint8_t		pn_clev;			/* Level * WIDTH. */
 	smr_pctnode_t	pn_child[PCTRIE_COUNT];		/* Child nodes. */
 };
 
@@ -108,14 +104,14 @@ static __inline void pctrie_node_store(smr_pctnode_t *p, void *val,
 static __inline int
 pctrie_slot(uint64_t index, uint16_t level)
 {
-	return ((index >> (level * PCTRIE_WIDTH)) & PCTRIE_MASK);
+	return ((index >> level) & PCTRIE_MASK);
 }
 
-/* Computes the key (index) with the low-order 'level' radix-digits zeroed. */
+/* Computes the key (index) with the low-order 'level' + 1 radix-digits zeroed. */
 static __inline uint64_t
 pctrie_trimkey(uint64_t index, uint16_t level)
 {
-	return (index & -PCTRIE_UNITLEVEL(level));
+	return (index & -((uint64_t)PCTRIE_COUNT << level));
 }
 
 /*
@@ -124,7 +120,7 @@ pctrie_trimkey(uint64_t index, uint16_t level)
  */
 static struct pctrie_node *
 pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t index,
-    uint16_t clevel)
+    uint64_t newind)
 {
 	struct pctrie_node *node;
 
@@ -142,8 +138,20 @@ pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t index,
 		    PCTRIE_NULL, PCTRIE_UNSERIALIZED);
 		node->pn_popmap = 0;
 	}
-	node->pn_owner = pctrie_trimkey(index, clevel + 1);
-	node->pn_clev = clevel;
+
+	/*
+	 * From the highest-order bit where the indexes differ,
+	 * compute the highest level in the trie where they differ.  Then,
+	 * compute the least index of this subtrie.
+	 */
+	KASSERT(index != newind, ("%s: passing the same key value %jx",
+	    __func__, (uintmax_t)index));
+	_Static_assert(sizeof(long long) >= sizeof(uint64_t),
+	    "uint64 too wide");
+	_Static_assert(sizeof(uint64_t) * NBBY <=
+	    (1 << (sizeof(node->pn_clev) * NBBY)), "pn_clev too narrow");
+	node->pn_clev = rounddown(flsll(index ^ newind) - 1, PCTRIE_WIDTH);
+	node->pn_owner = pctrie_trimkey(index, node->pn_clev);
 	return (node);
 }
 
@@ -259,35 +267,16 @@ pctrie_toval(struct pctrie_node *node)
  * Make 'child' a child of 'node'.
  */
 static __inline void
-pctrie_addnode(struct pctrie_node *node, uint64_t index, uint16_t clev,
+pctrie_addnode(struct pctrie_node *node, uint64_t index,
     struct pctrie_node *child, enum pctrie_access access)
 {
 	int slot;
 
-	slot = pctrie_slot(index, clev);
+	slot = pctrie_slot(index, node->pn_clev);
 	pctrie_node_store(&node->pn_child[slot], child, access);
 	node->pn_popmap ^= 1 << slot;
 	KASSERT((node->pn_popmap & (1 << slot)) != 0,
 	    ("%s: bad popmap slot %d in node %p", __func__, slot, node));
-}
-
-/*
- * Returns the level where two keys differ.
- * It cannot accept 2 equal keys.
- */
-static __inline uint16_t
-pctrie_keydiff(uint64_t index1, uint64_t index2)
-{
-
-	KASSERT(index1 != index2, ("%s: passing the same key value %jx",
-	    __func__, (uintmax_t)index1));
-	CTASSERT(sizeof(long long) >= sizeof(uint64_t));
-
-	/*
-	 * From the highest-order bit where the indexes differ,
-	 * compute the highest level in the trie where they differ.
-	 */
-	return ((flsll(index1 ^ index2) - 1) / PCTRIE_WIDTH);
 }
 
 /*
@@ -297,12 +286,8 @@ pctrie_keydiff(uint64_t index1, uint64_t index2)
 static __inline bool
 pctrie_keybarr(struct pctrie_node *node, uint64_t idx)
 {
-
-	if (node->pn_clev < PCTRIE_LIMIT) {
-		idx = pctrie_trimkey(idx, node->pn_clev + 1);
-		return (idx != node->pn_owner);
-	}
-	return (false);
+	idx = pctrie_trimkey(idx, node->pn_clev);
+	return (idx != node->pn_owner);
 }
 
 /*
@@ -366,7 +351,6 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	struct pctrie_node *leaf, *node, *parent;
 	smr_pctnode_t *parentp;
 	int slot;
-	uint16_t clev;
 
 	index = *val;
 	leaf = pctrie_toleaf(val);
@@ -383,8 +367,7 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 				if (parent == NULL)
 					ptree->pt_root = leaf;
 				else
-					pctrie_addnode(parent, index,
-					    parent->pn_clev, leaf,
+					pctrie_addnode(parent, index, leaf,
 					    PCTRIE_LOCKED);
 				return (0);
 			}
@@ -411,13 +394,12 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 */
 	parentp = (parent != NULL) ? &parent->pn_child[slot]:
 	    (smr_pctnode_t *)&ptree->pt_root;
-	clev = pctrie_keydiff(newind, index);
-	parent = pctrie_node_get(ptree, allocfn, index, clev);
+	parent = pctrie_node_get(ptree, allocfn, index, newind);
 	if (parent == NULL)
 		return (ENOMEM);
 	/* These writes are not yet visible due to ordering. */
-	pctrie_addnode(parent, index, clev, leaf, PCTRIE_UNSERIALIZED);
-	pctrie_addnode(parent, newind, clev, node, PCTRIE_UNSERIALIZED);
+	pctrie_addnode(parent, index, leaf, PCTRIE_UNSERIALIZED);
+	pctrie_addnode(parent, newind, node, PCTRIE_UNSERIALIZED);
 	/* Synchronize to make the above visible. */
 	pctrie_node_store(parentp, parent, PCTRIE_LOCKED);
 	return (0);
@@ -714,7 +696,7 @@ DB_SHOW_COMMAND(pctrienode, db_show_pctrienode)
 	node = (struct pctrie_node *)addr;
 	db_printf("node %p, owner %jx, children popmap %04x, level %u:\n",
 	    (void *)node, (uintmax_t)node->pn_owner, node->pn_popmap,
-	    node->pn_clev);
+	    node->pn_clev / PCTRIE_WIDTH);
 	for (popmap = node->pn_popmap; popmap != 0; popmap ^= 1 << slot) {
 		slot = ffs(popmap) - 1;
 		tmp = pctrie_node_load(&node->pn_child[slot], NULL,
@@ -722,7 +704,7 @@ DB_SHOW_COMMAND(pctrienode, db_show_pctrienode)
 		db_printf("slot: %d, val: %p, value: %p, clev: %d\n",
 		    slot, (void *)tmp,
 		    pctrie_isleaf(tmp) ? pctrie_toval(tmp) : NULL,
-		    node->pn_clev);
+		    node->pn_clev / PCTRIE_WIDTH);
 	}
 }
 #endif /* DDB */
