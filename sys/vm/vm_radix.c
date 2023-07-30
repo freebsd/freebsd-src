@@ -126,20 +126,26 @@ static void vm_radix_node_store(smrnode_t *p, struct vm_radix_node *v,
     enum vm_radix_access access);
 
 /*
- * Return the position in the array for a given level.
+ * Map index to an array position for the children of rnode,
  */
 static __inline int
-vm_radix_slot(vm_pindex_t index, uint16_t level)
+vm_radix_slot(struct vm_radix_node *rnode, vm_pindex_t index)
 {
-	return ((index >> level) & VM_RADIX_MASK);
+	return ((index >> rnode->rn_clev) & VM_RADIX_MASK);
 }
 
-/* Computes the key (index) with the low-order 'level' + 1 radix-digits
- * zeroed. */
-static __inline vm_pindex_t
-vm_radix_trimkey(vm_pindex_t index, uint16_t level)
+/*
+ * Returns true if index does not belong to the specified rnode.  Otherwise,
+ * sets slot value, and returns false.
+ */
+static __inline bool
+vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t index, int *slot)
 {
-	return (index & -((vm_pindex_t)VM_RADIX_COUNT << level));
+	index = (index - rnode->rn_owner) >> rnode->rn_clev;
+	if (index >= VM_RADIX_COUNT)
+		return (true);
+	*slot = index;
+	return (false);
 }
 
 /*
@@ -177,7 +183,8 @@ vm_radix_node_get(vm_pindex_t index, vm_pindex_t newind)
 	_Static_assert(sizeof(vm_pindex_t) * NBBY <=
 	    (1 << (sizeof(rnode->rn_clev) * NBBY)), "rn_clev too narrow");
 	rnode->rn_clev = rounddown(flsll(index ^ newind) - 1, VM_RADIX_WIDTH);
-	rnode->rn_owner = vm_radix_trimkey(index, rnode->rn_clev);
+	rnode->rn_owner = VM_RADIX_COUNT;
+	rnode->rn_owner = index & -(rnode->rn_owner << rnode->rn_clev);
 	return (rnode);
 }
 
@@ -298,22 +305,11 @@ vm_radix_addnode(struct vm_radix_node *rnode, vm_pindex_t index,
 {
 	int slot;
 
-	slot = vm_radix_slot(index, rnode->rn_clev);
+	slot = vm_radix_slot(rnode, index);
 	vm_radix_node_store(&rnode->rn_child[slot], child, access);
 	rnode->rn_popmap ^= 1 << slot;
 	KASSERT((rnode->rn_popmap & (1 << slot)) != 0,
 	    ("%s: bad popmap slot %d in rnode %p", __func__, slot, rnode));
-}
-
-/*
- * Returns TRUE if it can be determined that key does not belong to the
- * specified rnode.  Otherwise, returns FALSE.
- */
-static __inline bool
-vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
-{
-	idx = vm_radix_trimkey(idx, rnode->rn_clev);
-	return (idx != rnode->rn_owner);
 }
 
 /*
@@ -432,11 +428,10 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 				    __func__, (uintmax_t)index);
 			break;
 		}
-		if (vm_radix_keybarr(rnode, index)) {
+		if (vm_radix_keybarr(rnode, index, &slot)) {
 			newind = rnode->rn_owner;
 			break;
 		}
-		slot = vm_radix_slot(index, rnode->rn_clev);
 		parent = rnode;
 		rnode = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 	}
@@ -479,9 +474,8 @@ _vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index,
 				return (m);
 			break;
 		}
-		if (vm_radix_keybarr(rnode, index))
+		if (vm_radix_keybarr(rnode, index, &slot))
 			break;
-		slot = vm_radix_slot(index, rnode->rn_clev);
 		rnode = vm_radix_node_load(&rnode->rn_child[slot], access);
 	}
 	return (NULL);
@@ -551,7 +545,7 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 				return (m);
 			break;
 		}
-		if (vm_radix_keybarr(rnode, index)) {
+		if (vm_radix_keybarr(rnode, index, &slot)) {
 			/*
 			 * If all pages in this subtree have pindex > index,
 			 * then the page in this subtree with the least pindex
@@ -561,7 +555,6 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 				succ = rnode;
 			break;
 		}
-		slot = vm_radix_slot(index, rnode->rn_clev);
 
 		/*
 		 * Just in case the next search step leads to a subtree of all
@@ -585,7 +578,7 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 		 * Take a step to the next bigger sibling of the node chosen
 		 * last time.  In that subtree, all pages have pindex > index.
 		 */
-		slot = vm_radix_slot(index, succ->rn_clev) + 1;
+		slot = vm_radix_slot(succ, index) + 1;
 		KASSERT((succ->rn_popmap >> slot) != 0,
 		    ("%s: no popmap siblings past slot %d in node %p",
 		    __func__, slot, succ));
@@ -630,12 +623,11 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 				return (m);
 			break;
 		}
-		if (vm_radix_keybarr(rnode, index)) {
+		if (vm_radix_keybarr(rnode, index, &slot)) {
 			if (rnode->rn_owner < index)
 				pred = rnode;
 			break;
 		}
-		slot = vm_radix_slot(index, rnode->rn_clev);
 		if ((rnode->rn_popmap & ((1 << slot) - 1)) != 0)
 			pred = rnode;
 		rnode = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
@@ -643,7 +635,7 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 	if (pred == NULL)
 		return (NULL);
 	if (pred != rnode) {
-		slot = vm_radix_slot(index, pred->rn_clev);
+		slot = vm_radix_slot(pred, index);
 		KASSERT((pred->rn_popmap & ((1 << slot) - 1)) != 0,
 		    ("%s: no popmap siblings before slot %d in node %p",
 		    __func__, slot, pred));
@@ -677,7 +669,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			break;
 		parent = rnode;
 		rnode = child;
-		slot = vm_radix_slot(index, rnode->rn_clev);
+		slot = vm_radix_slot(rnode, index);
 		child = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 	}
 	if ((m = vm_radix_topage(child)) == NULL || m->pindex != index)
@@ -700,7 +692,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 	if (parent == NULL)
 		vm_radix_root_store(rtree, child, LOCKED);
 	else {
-		slot = vm_radix_slot(index, parent->rn_clev);
+		slot = vm_radix_slot(parent, index);
 		KASSERT(rnode ==
 		    vm_radix_node_load(&parent->rn_child[slot], LOCKED),
 		    ("%s: invalid child value", __func__));
@@ -762,9 +754,8 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 			}
 			break;
 		}
-		if (vm_radix_keybarr(rnode, index))
+		if (vm_radix_keybarr(rnode, index, &slot))
 			break;
-		slot = vm_radix_slot(index, rnode->rn_clev);
 		parent = rnode;
 		rnode = vm_radix_node_load(&rnode->rn_child[slot], LOCKED);
 	}
