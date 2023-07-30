@@ -106,10 +106,10 @@ static	int pagesz;			/* page size */
  * increasing order.
  */
 
-static union overhead *
+static void *
 cp2op(void *cp)
 {
-	return ((union overhead *)((caddr_t)cp - sizeof(union overhead)));
+	return (((caddr_t)cp - sizeof(union overhead)));
 }
 
 void *
