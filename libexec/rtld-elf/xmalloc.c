@@ -75,34 +75,18 @@ xstrdup(const char *str)
 }
 
 void *
-malloc_aligned(size_t size, size_t align, size_t offset)
+xmalloc_aligned(size_t size, size_t align, size_t offset)
 {
-	char *mem, *res;
-	uintptr_t x;
+	void *res;
 
 	offset &= align - 1;
 	if (align < sizeof(void *))
 		align = sizeof(void *);
 
-	mem = xmalloc(size + 3 * align + offset);
-	x = roundup((uintptr_t)mem + sizeof(void *), align);
-	x += offset;
-	res = (void *)x;
-	x -= sizeof(void *);
-	memcpy((void *)x, &mem, sizeof(mem));
+	res = __crt_aligned_alloc_offset(align, size, offset);
+	if (res == NULL) {
+		rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
+		_exit(1);
+	}
 	return (res);
-}
-
-void
-free_aligned(void *ptr)
-{
-	void *mem;
-	uintptr_t x;
-
-	if (ptr == NULL)
-		return;
-	x = (uintptr_t)ptr;
-	x -= sizeof(void *);
-	memcpy(&mem, (void *)x, sizeof(mem));
-	free(mem);
 }
