@@ -138,7 +138,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		if (vaddr == 0)
 			return (NULL);
 
-		page = PHYS_TO_VM_PAGE(vtophys((void *)vaddr));
+		page = virt_to_page((void *)vaddr);
 
 		KASSERT(vaddr == (vm_offset_t)page_address(page),
 		    ("Page address mismatch"));
@@ -526,7 +526,7 @@ linuxkpi_page_frag_free(void *addr)
 {
 	vm_page_t page;
 
-	page = PHYS_TO_VM_PAGE(vtophys(addr));
+	page = virt_to_page(addr);
 	linux_free_pages(page, 0);
 }
 
