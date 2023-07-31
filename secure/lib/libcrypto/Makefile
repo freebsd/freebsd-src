@@ -6,7 +6,7 @@ SUBDIR=		engines modules
 .include <bsd.own.mk>
 .include <src.opts.mk>
 
-PACKAGE=	openssl
+PACKAGE=	openssl-lib
 LIB=		crypto
 SHLIB_MAJOR=	30
 VERSION_MAP=	${.CURDIR}/Version.map
