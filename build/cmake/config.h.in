@@ -342,6 +342,9 @@ typedef uint64_t uintmax_t;
 /* Version number of bsdcat */
 #cmakedefine BSDCAT_VERSION_STRING "@BSDCAT_VERSION_STRING@"
 
+/* Version number of bsdunzip */
+#cmakedefine BSDUNZIP_VERSION_STRING "@BSDUNZIP_VERSION_STRING@"
+
 /* Define to 1 if you have the `acl_create_entry' function. */
 #cmakedefine HAVE_ACL_CREATE_ENTRY 1
 
@@ -644,9 +647,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `getline' function. */
 #cmakedefine HAVE_GETLINE 1
-
-/* Define to 1 if platform uses `optreset` to reset `getopt` */
-#cmakedefine HAVE_GETOPT_OPTRESET 1
 
 /* Define to 1 if you have the `getpid' function. */
 #cmakedefine HAVE_GETPID 1

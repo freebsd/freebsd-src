@@ -4,13 +4,14 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.1])
-m4_define([LIBARCHIVE_VERSION_N],[3007001])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3007002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCAT_VERSION_S],LIBARCHIVE_VERSION_S())
+m4_define([BSDUNZIP_VERSION_S],LIBARCHIVE_VERSION_S())
 
 AC_PREREQ([2.71])
 
@@ -59,6 +60,8 @@ AC_DEFINE([BSDTAR_VERSION_STRING],"BSDTAR_VERSION_S()",
 	[Version number of bsdtar])
 AC_DEFINE([BSDCAT_VERSION_STRING],"BSDTAR_VERSION_S()",
 	[Version number of bsdcat])
+AC_DEFINE([BSDUNZIP_VERSION_STRING],"BSDUNZIP_VERSION_S()",
+	[Version number of bsdunzip])
 
 # The shell variables here must be the same as the AC_SUBST() variables
 # below, but the shell variable names apparently cannot be the same as
@@ -66,6 +69,7 @@ AC_DEFINE([BSDCAT_VERSION_STRING],"BSDTAR_VERSION_S()",
 BSDCPIO_VERSION_STRING=BSDCPIO_VERSION_S()
 BSDTAR_VERSION_STRING=BSDTAR_VERSION_S()
 BSDCAT_VERSION_STRING=BSDCAT_VERSION_S()
+BSDUNZIP_VERSION_STRING=BSDUNZIP_VERSION_S()
 LIBARCHIVE_VERSION_STRING=LIBARCHIVE_VERSION_S()
 LIBARCHIVE_VERSION_NUMBER=LIBARCHIVE_VERSION_N()
 
@@ -76,6 +80,7 @@ AC_SUBST(ARCHIVE_LIBTOOL_VERSION)
 AC_SUBST(BSDCPIO_VERSION_STRING)
 AC_SUBST(BSDTAR_VERSION_STRING)
 AC_SUBST(BSDCAT_VERSION_STRING)
+AC_SUBST(BSDUNZIP_VERSION_STRING)
 AC_SUBST(LIBARCHIVE_VERSION_STRING)
 AC_SUBST(LIBARCHIVE_VERSION_NUMBER)
 
@@ -831,11 +836,6 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 #include <dirent.h>
 #endif
 ])
-
-AC_CHECK_DECL([optreset],
-		[AC_DEFINE(HAVE_GETOPT_OPTRESET, 1, [Platform uses optreset to reset getopt])],
-		[],
-		[#include <getopt.h>])
 
 # Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],

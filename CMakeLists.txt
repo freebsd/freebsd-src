@@ -21,7 +21,7 @@ endif()
 #   RelWithDebInfo : Release build with Debug Info
 #   MinSizeRel     : Release Min Size build
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
+  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 # Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
 # value type is "UNINITIALIZED".
@@ -65,6 +65,7 @@ SET(VERSION                    "${_major}.${_trimmed_minor}.${_trimmed_revision}
 SET(BSDCPIO_VERSION_STRING     "${VERSION}")
 SET(BSDTAR_VERSION_STRING      "${VERSION}")
 SET(BSDCAT_VERSION_STRING      "${VERSION}")
+SET(BSDUNZIP_VERSION_STRING    "${VERSION}")
 SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 
@@ -1486,10 +1487,6 @@ CHECK_C_SOURCE_COMPILES(
 CHECK_C_SOURCE_COMPILES(
   "#include <fcntl.h>\n#include <unistd.h>\nint main() {char buf[10]; return readlinkat(AT_FDCWD, \"\", buf, 0);}"
   HAVE_READLINKAT)
-
-# Check for getopt uses optreset to reset
-CHECK_SYMBOL_EXISTS(optreset "getopt.h" HAVE_GETOPT_OPTRESET)
-
 
 # To verify major(), we need to both include the header
 # of interest and verify that the result can be linked.

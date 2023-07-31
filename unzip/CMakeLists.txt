@@ -7,7 +7,9 @@ IF(ENABLE_UNZIP)
 
   SET(bsdunzip_SOURCES
     bsdunzip.c
+    bsdunzip.h
     bsdunzip_platform.h
+    cmdline.c
     la_getline.c
     la_queue.h
     ../libarchive_fe/err.c

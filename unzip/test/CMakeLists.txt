@@ -23,6 +23,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_q.c
     test_t.c
     test_t_bad.c
+    test_version.c
     test_x.c
     test_Z1.c
     test_P_encryption.c
