@@ -60,7 +60,7 @@ kmap(struct page *page)
 	struct sf_buf *sf;
 
 	if (PMAP_HAS_DMAP) {
-		return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+		return ((void *)PHYS_TO_DMAP(page_to_phys(page)));
 	} else {
 		sched_pin();
 		sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
