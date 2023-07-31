@@ -158,7 +158,7 @@ sg_next(struct scatterlist *sg)
 static inline vm_paddr_t
 sg_phys(struct scatterlist *sg)
 {
-	return (VM_PAGE_TO_PHYS(sg_page(sg)) + sg->offset);
+	return (page_to_phys(sg_page(sg)) + sg->offset);
 }
 
 static inline void *
@@ -649,7 +649,7 @@ sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 				break;
 			vaddr = (char *)sf_buf_kva(sf);
 		} else
-			vaddr = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
+			vaddr = (char *)PHYS_TO_DMAP(page_to_phys(page));
 		memcpy(buf, vaddr + sg->offset + offset, len);
 		if (!PMAP_HAS_DMAP)
 			sf_buf_free(sf);
