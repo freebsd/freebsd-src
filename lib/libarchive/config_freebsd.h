@@ -113,6 +113,8 @@
 #define HAVE_FCNTL 1
 #define HAVE_FCNTL_H 1
 #define HAVE_FDOPENDIR 1
+#define HAVE_FNMATCH 1
+#define HAVE_FNMATCH_H 1
 #define HAVE_FORK 1
 #define HAVE_FSEEKO 1
 #define HAVE_FSTAT 1
@@ -125,6 +127,8 @@
 #define HAVE_GETEUID 1
 #define HAVE_GETGRGID_R 1
 #define HAVE_GETGRNAM_R 1
+#define HAVE_GETLINE 1
+#define HAVE_GETOPT_OPTRESET 1
 #define HAVE_GETPID 1
 #define HAVE_GETPWNAM_R 1
 #define HAVE_GETPWUID_R 1
@@ -205,6 +209,7 @@
 #define HAVE_SYS_MOUNT_H 1
 #define HAVE_SYS_PARAM_H 1
 #define HAVE_SYS_POLL_H 1
+#define HAVE_SYS_QUEUE_H 1
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_STATVFS_H 1
 #define HAVE_SYS_STAT_H 1

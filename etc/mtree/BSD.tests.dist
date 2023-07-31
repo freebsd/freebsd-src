@@ -1134,6 +1134,8 @@
         ..
         uniq
         ..
+        unzip
+        ..
         vmstat
         ..
         wc
