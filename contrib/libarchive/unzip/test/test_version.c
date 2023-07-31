@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003-2017 Tim Kientzle
  * All rights reserved.
  *
@@ -21,20 +21,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
+ */
+#include "test.h"
+
+/*
+ * Test that --version option works and generates reasonable output.
  */
 
-/* Every test program should #include "test.h" as the first thing. */
-
-#define KNOWNREF	"test_basic.zip.uu"
-#define ENVBASE "BSDUNZIP" /* Prefix for environment variables. */
-#define	PROGRAM "bsdunzip" /* Name of program being tested. */
-#define PROGRAM_ALIAS "unzip" /* Generic alias for program */
-#undef	LIBRARY		  /* Not testing a library. */
-#undef	EXTRA_DUMP	  /* How to dump extra data */
-#undef	EXTRA_ERRNO	  /* How to dump errno */
-/* How to generate extra version info. */
-#define	EXTRA_VERSION     (systemf("%s --version", testprog) ? "" : "")
-
-#include "test_common.h"
+DEFINE_TEST(test_version)
+{
+	assertVersion(testprog, "bsdunzip");
+}
