@@ -99,8 +99,8 @@ extern void *linux_page_address(struct page *);
 /*
  * Page management for unmapped pages:
  */
-extern vm_page_t linux_alloc_pages(gfp_t flags, unsigned int order);
-extern void linux_free_pages(vm_page_t page, unsigned int order);
+extern struct page *linux_alloc_pages(gfp_t flags, unsigned int order);
+extern void linux_free_pages(struct page *page, unsigned int order);
 void *linuxkpi_page_frag_alloc(struct page_frag_cache *, size_t, gfp_t);
 void linuxkpi_page_frag_free(void *);
 void linuxkpi__page_frag_cache_drain(struct page *, size_t);

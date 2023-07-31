@@ -13,7 +13,7 @@
 
 struct pagevec {
 	uint8_t	nr;
-	struct vm_page *pages[PAGEVEC_SIZE];
+	struct page *pages[PAGEVEC_SIZE];
 };
 
 static inline unsigned int
@@ -41,7 +41,7 @@ pagevec_count(struct pagevec *pvec)
 }
 
 static inline unsigned int
-pagevec_add(struct pagevec *pvec, struct vm_page *page)
+pagevec_add(struct pagevec *pvec, struct page *page)
 {
 	pvec->pages[pvec->nr++] = page;
 	return PAGEVEC_SIZE - pvec->nr;
