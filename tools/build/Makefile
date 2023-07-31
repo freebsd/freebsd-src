@@ -338,10 +338,21 @@ _host_tools_to_symlink:=	${_host_tools_to_symlink:Nsh}
 .endif
 
 # We also need to symlink any non-absolute toolchain commands. Clang finds its
-# resource directory relative to itself, so CC/CXX/CPP must be symlinked, and
-# we do the same for LD for consistency. There should be no concerns about
-# installing over the current system since we don't use the toolchain during
-# install.
+# resource directory relative to itself, so CC/CXX/CPP cannot be copied, and
+# there should be no concerns about installing over the current system since we
+# don't use the toolchain during install, so that's not an issue. However,
+# before Clang 13 there was no symlink detection for FreeBSD so that was broken
+# in the same way as copying (https://reviews.llvm.org/D103346), thus create a
+# wrapper script for each to work around this and behave like a symlink.
+# Remove this hack and just use a symlink once Clang 13 can be assumed.
+# For consistency, we use the same strategy for LD.
+.include <bsd.compiler.mk>
+.if ${.MAKE.OS} == "FreeBSD" && ${COMPILER_TYPE} == "clang" && \
+    ${COMPILER_VERSION} < 130000
+_WRAP_HOST_TOOL=	sh -c "printf '\#!/bin/sh\nexec \"\%s\" \"\$$@\"\n' \"\$$0\" > \"\$$1\" && chmod +x \"\$$1\""
+.else
+_WRAP_HOST_TOOL=	${_LINK_HOST_TOOL}
+.endif
 .for var in CC CXX CPP LD
 .for X in $${_empty_var_} X
 .if !empty(${X}${var}) && !${${X}${var}:M/*} && \
@@ -382,7 +393,7 @@ host-symlinks:
 		echo "Cannot find host tool '${_tool}' in PATH ($$PATH)." >&2; false; \
 	fi; \
 	rm -f "${DESTDIR}/bin/${_tool}"; \
-	${_LINK_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"
+	${_WRAP_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"
 .endfor
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
