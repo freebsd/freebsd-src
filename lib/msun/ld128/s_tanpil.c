@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2021 Steven G. Kargl
+ * Copyright (c) 2017-2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
  * See ../src/s_tanpi.c for implementation details.
  */
 
+#include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
@@ -69,8 +70,8 @@ volatile static const double vzero = 0;
 long double
 tanpil(long double x)
 {
-	long double ax, hi, lo, xf, t;
-	uint32_t ix;
+	long double ai, ar, ax, hi, lo, t;
+	double odd;
 
 	ax = fabsl(x);
 
@@ -88,27 +89,22 @@ tanpil(long double x)
 			}
 			t = __kernel_tanpil(ax);
 		} else if (ax == 0.5)
-			return ((ax - ax) / (ax - ax));
+			t = 1 / vzero;
 		else
 			t = -__kernel_tanpil(1 - ax);
 		return (x < 0 ? -t : t);
 	}
 
-	if (ix < 0x1p112) {
-		/* Split x = n + r with 0 <= r < 1. */
-		xf = (ax + 0x1p112L) - 0x1p112L;        /* Integer part */
-		ax -= xf;                               /* Remainder */
-		if (ax < 0) {
-			ax += 1;
-			xf -= 1;
-		}
-
-		if (ax < 0.5)
-			t = ax == 0 ? 0 : __kernel_tanpil(ax);
-		else if (ax == 0.5)
-			return ((ax - ax) / (ax - ax));
+	if (ax < 0x1p112) {
+		/* Split ax = ai + ar with 0 <= ar < 1. */
+		FFLOORL128(ax, ai, ar);
+		odd = fmodl(ai, 2.L) == 0 ? 1 : -1;
+		if (ar < 0.5)
+			t = ar == 0 ? copysign(0., odd) : __kernel_tanpil(ar);
+		else if (ar == 0.5)
+			t = odd / vzero;
 		else
-			t = -__kernel_tanpil(1 - ax);
+			t = -__kernel_tanpil(1 - ar);
 		return (x < 0 ? -t : t);
 	}
 
@@ -117,7 +113,10 @@ tanpil(long double x)
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p112 is always an integer, so return +-0.
+	 * For 0x1p112 <= |x| < 0x1p113 need to determine if x is an even
+	 * or odd integer to set t = +0 or -0.
+	 * For |x| >= 0x1p113, it is always an even integer, so t = 0.
 	 */
-	return (copysignl(0, x));
+	t = fmodl(ax,2.L) == 0  ? 0 : copysign(0., -1.);
+	return (copysignl(t, x));
 }

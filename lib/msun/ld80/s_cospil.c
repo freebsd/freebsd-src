@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017, 2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,18 +80,8 @@ cospil(long double x)
 		RETURNI(c);
 	}
 
-	if (ix < 0x403e) {		/* 1 <= |x| < 0x1p63 */
-		/* Determine integer part of ax. */
-		j0 = ix - 0x3fff + 1;
-		if (j0 < 32) {
-			lx = (lx >> 32) << 32;
-			lx &= ~(((lx << 32)-1) >> j0);
-		} else {
-			m = (uint64_t)-1 >> (j0 + 1);
-			if (lx & m) lx &= ~m;
-		}
-		INSERT_LDBL80_WORDS(x, ix, lx);
-
+	if (ix < 0x403e) {			/* 1 <= |x| < 0x1p63 */
+		FFLOORL80(x, j0, ix, lx);	/* Integer part of ax. */
 		ax -= x;
 		EXTRACT_LDBL80_WORDS(ix, lx, ax);
 
@@ -123,7 +113,9 @@ cospil(long double x)
 		RETURNI(vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p63 is always an even integer, so return 1.
+	 * For 0x1p63 <= |x| < 0x1p64 need to determine if x is an even
+	 * or odd integer to return t = +1 or -1.
+	 * For |x| >= 0x1p64, it is always an even integer, so t = 1.
 	 */
-	RETURNI(1);
+	RETURNI(ix >= 0x403f ? 1 : ((lx & 1) ? -1 : 1));
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017, 2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,18 +88,8 @@ sinpil(long double x)
 		RETURNI((hx & 0x8000) ? -s : s);
 	}
 
-	if (ix < 0x403e) {		/* 1 <= |x| < 0x1p63 */
-		/* Determine integer part of ax. */
-		j0 = ix - 0x3fff + 1;
-		if (j0 < 32) {
-			lx = (lx >> 32) << 32;
-			lx &= ~(((lx << 32)-1) >> j0);
-		} else {
-			m = (uint64_t)-1 >> (j0 + 1);
-			if (lx & m) lx &= ~m;
-		}
-		INSERT_LDBL80_WORDS(x, ix, lx);
-
+	if (ix < 0x403e) {			/* 1 <= |x| < 0x1p63 */
+		FFLOORL80(x, j0, ix, lx);	/* Integer part of ax. */
 		ax -= x;
 		EXTRACT_LDBL80_WORDS(ix, lx, ax);
 

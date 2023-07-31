@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017,2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ volatile static const float vzero = 0;
 float
 tanpif(float x)
 {
-	float ax, hi, lo, t;
+	float ax, hi, lo, odd, t;
 	uint32_t hx, ix, j0;
 
 	GET_FLOAT_WORD(hx, x);
@@ -79,25 +79,22 @@ tanpif(float x)
 			}
 			t = __kernel_tanpif(ax);
 		} else if (ix == 0x3f000000)
-			return ((ax - ax) / (ax - ax));
+			t = 1 / vzero;
 		else
 			t = - __kernel_tanpif(1 - ax);
 		return ((hx & 0x80000000) ? -t : t);
 	}
 
 	if (ix < 0x4b000000) {		/* 1 <= |x| < 0x1p23 */
-		/* Determine integer part of ax. */
-		j0 = ((ix >> 23) & 0xff) - 0x7f;
-		ix &= ~(0x007fffff >> j0);
-		SET_FLOAT_WORD(x, ix);
-
+		FFLOORF(x, j0, ix);	/* Integer part of ax. */
+		odd = (uint32_t)x & 1 ? -1 : 1;
 		ax -= x;
 		GET_FLOAT_WORD(ix, ax);
 
 		if (ix < 0x3f000000)		/* |x| < 0.5 */
-			t = ix == 0 ? 0 : __kernel_tanpif(ax);
+			t = ix == 0 ? copysignf(0, odd) : __kernel_tanpif(ax);
 		else if (ix == 0x3f000000)
-			return ((ax - ax) / (ax - ax));
+			t = odd / vzero;
 		else
 			t = - __kernel_tanpif(1 - ax);
 		return ((hx & 0x80000000) ? -t : t);
@@ -108,7 +105,10 @@ tanpif(float x)
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p23 is always an integer, so return +-0.
+	 * For 0x1p23 <= |x| < 0x1p24 need to determine if x is an even
+	 * or odd integer to set t = +0 or -0.
+	 * For |x| >= 0x1p24, it is always an even integer, so t = 0.
 	 */
-	return (copysignf(0, x));
+	t = ix >= 0x4b800000 ? 0 : (copysignf(0, (ix & 1) ? -1 : 1));
+	return ((hx & 0x80000000) ? -t : t);
 }
