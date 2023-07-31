@@ -45,7 +45,7 @@
 struct page *
 linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 {
-	vm_page_t page;
+	struct page *page;
 	int rv;
 
 	if ((gfp & GFP_NOWAIT) != 0)
