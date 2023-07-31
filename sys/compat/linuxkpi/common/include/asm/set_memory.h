@@ -54,7 +54,7 @@ set_memory_wb(unsigned long addr, int numpages)
 }
 
 static inline int
-set_pages_uc(vm_page_t page, int numpages)
+set_pages_uc(struct page *page, int numpages)
 {
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
@@ -63,7 +63,7 @@ set_pages_uc(vm_page_t page, int numpages)
 }
 
 static inline int
-set_pages_wc(vm_page_t page, int numpages)
+set_pages_wc(struct page *page, int numpages)
 {
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
@@ -76,7 +76,7 @@ set_pages_wc(vm_page_t page, int numpages)
 }
 
 static inline int
-set_pages_wb(vm_page_t page, int numpages)
+set_pages_wb(struct page *page, int numpages)
 {
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
@@ -85,7 +85,7 @@ set_pages_wb(vm_page_t page, int numpages)
 }
 
 static inline int
-set_pages_array_wb(vm_page_t *pages, int addrinarray)
+set_pages_array_wb(struct page **pages, int addrinarray)
 {
 	int i;
 
@@ -95,7 +95,7 @@ set_pages_array_wb(vm_page_t *pages, int addrinarray)
 }
 
 static inline int
-set_pages_array_wc(vm_page_t *pages, int addrinarray)
+set_pages_array_wc(struct page **pages, int addrinarray)
 {
 	int i;
 
@@ -105,7 +105,7 @@ set_pages_array_wc(vm_page_t *pages, int addrinarray)
 }
 
 static inline int
-set_pages_array_uc(vm_page_t *pages, int addrinarray)
+set_pages_array_uc(struct page **pages, int addrinarray)
 {
 	int i;
 

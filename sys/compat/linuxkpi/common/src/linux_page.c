@@ -98,10 +98,10 @@ linux_page_address(struct page *page)
 	    IDX_TO_OFF(page->pindex)));
 }
 
-vm_page_t
+struct page *
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-	vm_page_t page;
+	struct page *page;
 
 	if (PMAP_HAS_DMAP) {
 		unsigned long npages = 1UL << order;
@@ -148,7 +148,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 }
 
 void
-linux_free_pages(vm_page_t page, unsigned int order)
+linux_free_pages(struct page *page, unsigned int order)
 {
 	if (PMAP_HAS_DMAP) {
 		unsigned long npages = 1UL << order;

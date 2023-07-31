@@ -248,19 +248,19 @@ vma_pages(struct vm_area_struct *vma)
 #define	offset_in_page(off)	((unsigned long)(off) & (PAGE_SIZE - 1))
 
 static inline void
-set_page_dirty(struct vm_page *page)
+set_page_dirty(struct page *page)
 {
 	vm_page_dirty(page);
 }
 
 static inline void
-mark_page_accessed(struct vm_page *page)
+mark_page_accessed(struct page *page)
 {
 	vm_page_reference(page);
 }
 
 static inline void
-get_page(struct vm_page *page)
+get_page(struct page *page)
 {
 	vm_page_wire(page);
 }
@@ -307,7 +307,7 @@ pin_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 }
 
 static inline void
-put_page(struct vm_page *page)
+put_page(struct page *page)
 {
 	vm_page_unwire(page, PQ_ACTIVE);
 }
@@ -323,7 +323,7 @@ vm_get_page_prot(unsigned long vm_flags)
 	return (vm_flags & VM_PROT_ALL);
 }
 
-static inline vm_page_t
+static inline struct page *
 vmalloc_to_page(const void *addr)
 {
 	vm_paddr_t paddr;
