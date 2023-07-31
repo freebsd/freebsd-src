@@ -520,12 +520,18 @@ cd9660_rrip_loop(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana,
 		}
 
 		if (ana->fields && ana->iso_ce_len) {
-			if (ana->iso_ce_blk >= ana->imp->volume_space_size
-			    || ana->iso_ce_off + ana->iso_ce_len > ana->imp->logical_block_size
-			    || bread(ana->imp->im_devvp,
-				     ana->iso_ce_blk <<
-				     (ana->imp->im_bshift - DEV_BSHIFT),
-				     ana->imp->logical_block_size, NOCRED, &bp))
+			if (ana->iso_ce_blk >= ana->imp->volume_space_size ||
+			    ana->iso_ce_off + ana->iso_ce_len >
+			    ana->imp->logical_block_size)
+				break;
+			if (bp != NULL) {
+				brelse(bp);
+				bp = NULL;
+			}
+			if (bread(ana->imp->im_devvp,
+			    ana->iso_ce_blk <<
+			    (ana->imp->im_bshift - DEV_BSHIFT),
+			    ana->imp->logical_block_size, NOCRED, &bp) != 0)
 				/* what to do now? */
 				break;
 			phead = (ISO_SUSP_HEADER *)(bp->b_data + ana->iso_ce_off);
