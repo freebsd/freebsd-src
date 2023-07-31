@@ -141,7 +141,6 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
-	struct e1000_hw *hw = &sc->hw;
 	struct e1000_context_desc *TXD;
 	int cur, hdr_len;
 	uint32_t cmd_type_len;
@@ -151,27 +150,39 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 		      E1000_TXD_DTYP_D |	/* Data descr type */
 		      E1000_TXD_CMD_TSE);	/* Do TSE on this packet */
 
-	/* IP and/or TCP header checksum calculation and insertion. */
-	*txd_upper = (E1000_TXD_POPTS_IXSM | E1000_TXD_POPTS_TXSM) << 8;
-
 	cur = pi->ipi_pidx;
 	TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
 
 	/*
-	 * Start offset for header checksum calculation.
-	 * End offset for header checksum calculation.
-	 * Offset of place put the checksum.
+	 * ipcss - Start offset for header checksum calculation.
+	 * ipcse - End offset for header checksum calculation.
+	 * ipcso - Offset of place to put the checksum.
 	 */
+	switch(pi->ipi_etype) {
+	case ETHERTYPE_IP:
+		/* IP and/or TCP header checksum calculation and insertion. */
+		*txd_upper = (E1000_TXD_POPTS_IXSM | E1000_TXD_POPTS_TXSM) << 8;
+
+		TXD->lower_setup.ip_fields.ipcse =
+		    htole16(pi->ipi_ehdrlen + pi->ipi_ip_hlen - 1);
+		break;
+	case ETHERTYPE_IPV6:
+		/* TCP header checksum calculation and insertion. */
+		*txd_upper = E1000_TXD_POPTS_TXSM << 8;
+
+		TXD->lower_setup.ip_fields.ipcse = htole16(0);
+		break;
+	default:
+		break;
+	}
 	TXD->lower_setup.ip_fields.ipcss = pi->ipi_ehdrlen;
-	TXD->lower_setup.ip_fields.ipcse =
-	    htole16(pi->ipi_ehdrlen + pi->ipi_ip_hlen - 1);
 	TXD->lower_setup.ip_fields.ipcso =
 	    pi->ipi_ehdrlen + offsetof(struct ip, ip_sum);
 
 	/*
-	 * Start offset for payload checksum calculation.
-	 * End offset for payload checksum calculation.
-	 * Offset of place to put the checksum.
+	 * tucss - Start offset for payload checksum calculation.
+	 * tucse - End offset for payload checksum calculation.
+	 * tucso - Offset of place to put the checksum.
 	 */
 	TXD->upper_setup.tcp_fields.tucss = pi->ipi_ehdrlen + pi->ipi_ip_hlen;
 	TXD->upper_setup.tcp_fields.tucse = 0;
@@ -188,16 +199,13 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	/*
 	 * "PCI/PCI-X SDM 4.0" page 45, and "PCIe GbE SDM 2.5" page 63
 	 * - Set up basic TUCMDs
-	 * - Enable IP bit on 82544
 	 * - For others IP bit on indicates IPv4, while off indicates IPv6
 	*/
 	cmd_type_len = sc->txd_cmd |
 	    E1000_TXD_CMD_DEXT | /* Extended descr */
 	    E1000_TXD_CMD_TSE |  /* TSE context */
 	    E1000_TXD_CMD_TCP;   /* Do TCP checksum */
-	if (hw->mac.type == e1000_82544)
-		cmd_type_len |= E1000_TXD_CMD_IP;
-	else if (pi->ipi_etype == ETHERTYPE_IP)
+	if (pi->ipi_etype == ETHERTYPE_IP)
 		cmd_type_len |= E1000_TXD_CMD_IP;
 	TXD->cmd_and_length = htole32(cmd_type_len |
 	    (pi->ipi_len - hdr_len)); /* Total len */
