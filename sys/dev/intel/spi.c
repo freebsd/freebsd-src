@@ -317,8 +317,10 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* If the controller is in use wait until it is available. */
 	while (sc->sc_flags & INTELSPI_BUSY) {
-		if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP)
+		if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP) {
+			INTELSPI_UNLOCK(sc);
 			return (EBUSY);
+		}
 		err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", 0);
 		if (err == EINTR) {
 			INTELSPI_UNLOCK(sc);
