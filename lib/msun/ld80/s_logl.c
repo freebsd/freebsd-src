@@ -560,24 +560,23 @@ log1pl(long double x)
 	int i, k;
 	int16_t ax, hx;
 
-	DOPRINT_START(&x);
 	EXTRACT_LDBL80_WORDS(hx, lx, x);
 	if (hx < 0x3fff) {		/* x < 1, or x neg NaN */
 		ax = hx & 0x7fff;
 		if (ax >= 0x3fff) {	/* x <= -1, or x neg NaN */
 			if (ax == 0x3fff && lx == 0x8000000000000000ULL)
-				RETURNP(-1 / zero);	/* log1p(-1) = -Inf */
+				RETURNF(-1 / zero);	/* log1p(-1) = -Inf */
 			/* log1p(x < 1, or x [pseudo-]NaN) = qNaN: */
-			RETURNP((x - x) / (x - x));
+			RETURNF((x - x) / (x - x));
 		}
 		if (ax <= 0x3fbe) {	/* |x| < 2**-64 */
 			if ((int)x == 0)
-				RETURNP(x);	/* x with inexact if x != 0 */
+				RETURNF(x);	/* x with inexact if x != 0 */
 		}
 		f_hi = 1;
 		f_lo = x;
 	} else if (hx >= 0x7fff) {	/* x +Inf or non-neg NaN */
-		RETURNP(x + x);		/* log1p(Inf or NaN) = Inf or qNaN */
+		RETURNF(x + x);		/* log1p(Inf or NaN) = Inf or qNaN */
 					/* log1p(pseudo-Inf) = qNaN */
 					/* log1p(pseudo-NaN) = qNaN */
 					/* log1p(unnormal) = qNaN */
@@ -658,7 +657,7 @@ log1pl(long double x)
 #endif
 
 	_3sumF(val_hi, val_lo, F_hi(i) + dk * ln2_hi);
-	RETURN2PI(val_hi, val_lo);
+	RETURNI(val_hi + val_lo);
 }
 
 #ifdef STRUCT_RETURN
@@ -669,7 +668,6 @@ logl(long double x)
 	struct ld r;
 
 	ENTERI();
-	DOPRINT_START(&x);
 	k_logl(x, &r);
 	RETURNSPI(&r);
 }
@@ -690,15 +688,14 @@ log10l(long double x)
 	long double hi, lo;
 
 	ENTERI();
-	DOPRINT_START(&x);
 	k_logl(x, &r);
 	if (!r.lo_set)
-		RETURNPI(r.hi);
+		RETURNI(r.hi);
 	_2sumF(r.hi, r.lo);
 	hi = (float)r.hi;
 	lo = r.lo + (r.hi - hi);
-	RETURN2PI(invln10_hi * hi,
-	    invln10_lo_plus_hi * lo + invln10_lo * hi);
+	RETURNI(invln10_hi * hi + 
+	    (invln10_lo_plus_hi * lo + invln10_lo * hi));
 }
 
 long double
@@ -708,15 +705,14 @@ log2l(long double x)
 	long double hi, lo;
 
 	ENTERI();
-	DOPRINT_START(&x);
 	k_logl(x, &r);
 	if (!r.lo_set)
-		RETURNPI(r.hi);
+		RETURNI(r.hi);
 	_2sumF(r.hi, r.lo);
 	hi = (float)r.hi;
 	lo = r.lo + (r.hi - hi);
-	RETURN2PI(invln2_hi * hi,
-	    invln2_lo_plus_hi * lo + invln2_lo * hi);
+	RETURNI(invln2_hi * hi +
+	    (invln2_lo_plus_hi * lo + invln2_lo * hi));
 }
 
 #endif /* STRUCT_RETURN */
