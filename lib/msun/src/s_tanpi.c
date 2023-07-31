@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017, 2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,11 +56,15 @@
  * 5. Special cases:
  *
  *    tanpi(+-0) = +-0
- *    tanpi(+-n) = +-0, for positive integers n.
+ *    tanpi(n) = +0 for positive even and negative odd integer n.
+ *    tanpi(n) = -0 for positive odd and negative even integer n.
  *    tanpi(+-n+1/4) = +-1, for positive integers n.
- *    tanpi(+-n+1/2) = NaN, for positive integers n.
- *    tanpi(+-inf) = NaN.  Raises the "invalid" floating-point exception.
- *    tanpi(nan) = NaN.  Raises the "invalid" floating-point exception.
+ *    tanpi(n+1/2) = +inf and raises the FE_DIVBYZERO exception for 
+ *    even integers n.   
+ *    tanpi(n+1/2) = -inf and raises the FE_DIVBYZERO exception for 
+ *    odd integers n.   
+ *    tanpi(+-inf) = NaN and raises the FE_INVALID exception.
+ *    tanpi(nan) = NaN and raises the FE_INVALID exception.
  */
 
 #include <float.h>
@@ -106,7 +110,7 @@ volatile static const double vzero = 0;
 double
 tanpi(double x)
 {
-	double ax, hi, lo, t;
+	double ax, hi, lo, odd, t;
 	uint32_t hx, ix, j0, lx;
 
 	EXTRACT_WORDS(hx, lx, x);
@@ -132,30 +136,22 @@ tanpi(double x)
 			}
 			t = __kernel_tanpi(ax);
 		} else if (ax == 0.5)
-			return ((ax - ax) / (ax - ax));
+			t = 1 / vzero;
 		else
 			t = - __kernel_tanpi(1 - ax);
 		return ((hx & 0x80000000) ? -t : t);
 	}
 
 	if (ix < 0x43300000) {		/* 1 <= |x| < 0x1p52 */
-		/* Determine integer part of ax. */
-		j0 = ((ix >> 20) & 0x7ff) - 0x3ff;
-		if (j0 < 20) {
-			ix &= ~(0x000fffff >> j0);
-			lx = 0;
-		} else {
-			lx &= ~(((uint32_t)(0xffffffff)) >> (j0 - 20));
-		}
-		INSERT_WORDS(x,ix,lx);
-
+		FFLOOR(x, j0, ix, lx);	/* Integer part of ax. */
+		odd = (uint64_t)x & 1 ? -1 : 1;
 		ax -= x;
 		EXTRACT_WORDS(ix, lx, ax);
 
 		if (ix < 0x3fe00000)		/* |x| < 0.5 */
-			t = ax == 0 ? 0 : __kernel_tanpi(ax);
+			t = ix == 0 ? copysign(0, odd) : __kernel_tanpi(ax);
 		else if (ax == 0.5)
-			return ((ax - ax) / (ax - ax));
+			t = odd / vzero;
 		else
 			t = - __kernel_tanpi(1 - ax);
 
@@ -167,9 +163,12 @@ tanpi(double x)
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p52 is always an integer, so return +-0.
+	 * For 0x1p52 <= |x| < 0x1p53 need to determine if x is an even
+	 * or odd integer to set t = +0 or -0.
+	 * For |x| >= 0x1p54, it is always an even integer, so t = 0.
 	 */
-	return (copysign(0, x));
+	t = ix >= 0x43400000 ? 0 : (copysign(0, (lx & 1) ? -1 : 1));
+	return ((hx & 0x80000000) ? -t : t);
 }
 
 #if LDBL_MANT_DIG == 53

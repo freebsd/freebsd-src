@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017,2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,12 +71,8 @@ cospif(float x)
 		return (c);
 	}
 
-	if (ix < 0x4b000000) {			/* 1 <= |x| < 0x1p23 */
-		/* Determine integer part of ax. */
-		j0 = ((ix >> 23) & 0xff) - 0x7f;
-		ix &= ~(0x007fffff >> j0);
-		SET_FLOAT_WORD(x, ix);
-
+	if (ix < 0x4b000000) {		/* 1 <= |x| < 0x1p23 */
+		FFLOORF(x, j0, ix);	/* Integer part of ax. */
 		ax -= x;
 		GET_FLOAT_WORD(ix, ax);
 
@@ -103,7 +99,9 @@ cospif(float x)
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p23 is always an even integer, so return 1.
+	 * For 0x1p23 <= |x| < 0x1p24 need to determine if x is an even
+	 * or odd integer to return +1 or -1.
+	 * For |x| >= 0x1p24, it is always an even integer, so return 1.
 	 */
-	return (1);
+	return (ix < 0x4b800000 ? ((ix & 1) ? -1 : 1) : 1);
 }

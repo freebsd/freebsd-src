@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017, 2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ volatile static const double vzero = 0;
 long double
 tanpil(long double x)
 {
-	long double ax, hi, lo, t;
+	long double ax, hi, lo, odd, t;
 	uint64_t lx, m;
 	uint32_t j0;
 	uint16_t hx, ix;
@@ -98,31 +98,22 @@ tanpil(long double x)
 			}
 			t = __kernel_tanpil(ax);
 		} else if (ax == 0.5)
-			RETURNI((ax - ax) / (ax - ax));
+			t = 1 / vzero;
 		else
 			t = -__kernel_tanpil(1 - ax);
 		RETURNI((hx & 0x8000) ? -t : t);
 	}
 
-	if (ix < 0x403e) {		/* 1 <= |x| < 0x1p63 */
-		/* Determine integer part of ax. */
-		j0 = ix - 0x3fff + 1;
-		if (j0 < 32) {
-			lx = (lx >> 32) << 32;
-			lx &= ~(((lx << 32)-1) >> j0);
-		} else {
-			m = (uint64_t)-1 >> (j0 + 1);
-			if (lx & m) lx &= ~m;
-		}
-		INSERT_LDBL80_WORDS(x, ix, lx);
-
+	if (ix < 0x403e) {			/* 1 <= |x| < 0x1p63 */
+		FFLOORL80(x, j0, ix, lx);	/* Integer part of ax. */
+		odd = (uint64_t)x & 1 ? -1 : 1;
 		ax -= x;
 		EXTRACT_LDBL80_WORDS(ix, lx, ax);
 
 		if (ix < 0x3ffe)		/* |x| < 0.5 */
-			t = ax == 0 ? 0 : __kernel_tanpil(ax);
-		else if (ax == 0.5)
-			RETURNI((ax - ax) / (ax - ax));
+			t = ix == 0 ? copysignl(0, odd) : __kernel_tanpil(ax);
+		else if (ax == 0.5L)
+			t = odd / vzero;
 		else
 			t = -__kernel_tanpil(1 - ax);
 		RETURNI((hx & 0x8000) ? -t : t);
@@ -133,7 +124,10 @@ tanpil(long double x)
 		RETURNI(vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p63 is always an integer, so return +-0.
+	 * For 0x1p63 <= |x| < 0x1p64 need to determine if x is an even
+	 * or odd integer to set t = +0 or -0.
+	 * For |x| >= 0x1p64, it is always an even integer, so t = 0.
 	 */
-	RETURNI(copysignl(0, x));
+	t = ix >= 0x403f ? 0 : (copysignl(0, (lx & 1) ? -1 : 1));
+	RETURNI((hx & 0x8000) ? -t : t);
 }

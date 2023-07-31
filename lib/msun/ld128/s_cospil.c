@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2021 Steven G. Kargl
+ * Copyright (c) 2017-2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
  * See ../src/s_cospi.c for implementation details.
  */
 
+#include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
@@ -46,8 +47,7 @@ volatile static const double vzero = 0;
 long double
 cospil(long double x)
 {
-	long double ax, c, xf;
-	uint32_t ix;
+	long double ai, ar, ax, c;
 
 	ax = fabsl(x);
 
@@ -72,41 +72,37 @@ cospil(long double x)
 	}
 
 	if (ax < 0x1p112) {
-		/* Split x = n + r with 0 <= r < 1. */
-		xf = (ax + 0x1p112L) - 0x1p112L;        /* Integer part */
-		ax -= xf;                               /* Remainder */
-		if (ax < 0) {
-			ax += 1;
-			xf -= 1;
-		}
+		/* Split ax = ai + ar with 0 <= ar < 1. */
+		FFLOORL128(ax, ai, ar);
 
-		if (ax < 0.5) {
-			if (ax < 0.25)
-				c = ax == 0 ? 1 : __kernel_cospil(ax);
+		if (ar < 0.5) {
+			if (ar < 0.25)
+				c = ar == 0 ? 1 : __kernel_cospil(ar);
 			else
-				c = __kernel_sinpil(0.5 - ax);
+				c = __kernel_sinpil(0.5 - ar);
 		} else {
-			if (ax < 0.75) {
-				if (ax == 0.5)
+			if (ar < 0.75) {
+				if (ar == 0.5)
 					return (0);
-				c = -__kernel_sinpil(ax - 0.5);
+				c = -__kernel_sinpil(ar - 0.5);
 			} else
-				c = -__kernel_cospil(1 - ax);
+				c = -__kernel_cospil(1 - ar);
 		}
-
-		if (xf > 0x1p64)
-			xf -= 0x1p64;
-		if (xf > 0x1p32)
-			xf -= 0x1p32;
-		ix = (uint32_t)xf;
-		return (ix & 1 ? -c : c);
+		return (fmodl(ai, 2.L) == 0 ? c : -c);
 	}
 
 	if (isinf(x) || isnan(x))
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p112 is always an even integer, so return 1.
+	 * For |x| >= 0x1p113, it is always an even integer, so return 1.
 	 */
-	return (1);
+	if (ax >= 0x1p113)
+		return (1);
+	/*
+	 * For 0x1p112 <= |x| < 0x1p113 need to determine if x is an even
+	 * or odd integer to return 1 or -1.
+	 */
+
+	return (fmodl(ax, 2.L) == 0 ? 1 : -1);
 }

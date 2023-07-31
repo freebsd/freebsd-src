@@ -688,6 +688,59 @@ irintl(long double x)
 }
 #endif
 
+/*
+ * The following are fast floor macros for 0 <= |x| < 0x1p(N-1), where
+ * N is the precision of the type of x. These macros are used in the
+ * half-cycle trignometric functions (e.g., sinpi(x)).
+ */
+#define	FFLOORF(x, j0, ix) do {			\
+	(j0) = (((ix) >> 23) & 0xff) - 0x7f;	\
+	(ix) &= ~(0x007fffff >> (j0));		\
+	SET_FLOAT_WORD((x), (ix));		\
+} while (0)
+
+#define	FFLOOR(x, j0, ix, lx) do {				\
+	(j0) = (((ix) >> 20) & 0x7ff) - 0x3ff;			\
+	if ((j0) < 20) {					\
+		(ix) &= ~(0x000fffff >> (j0));			\
+		(lx) = 0;					\
+	} else {						\
+		(lx) &= ~((uint32_t)0xffffffff >> ((j0) - 20));	\
+	}							\
+	INSERT_WORDS((x), (ix), (lx));				\
+} while (0)
+
+#define	FFLOORL80(x, j0, ix, lx) do {			\
+	j0 = ix - 0x3fff + 1;				\
+	if ((j0) < 32) {				\
+		(lx) = ((lx) >> 32) << 32;		\
+		(lx) &= ~((((lx) << 32)-1) >> (j0));	\
+	} else {					\
+		uint64_t _m;				\
+		_m = (uint64_t)-1 >> (j0);		\
+		if ((lx) & _m) (lx) &= ~_m;		\
+	}						\
+	INSERT_LDBL80_WORDS((x), (ix), (lx));		\
+} while (0)
+
+#define FFLOORL128(x, ai, ar) do {			\
+	union IEEEl2bits u;				\
+	uint64_t m;					\
+	int e;						\
+	u.e = (x);					\
+	e = u.bits.exp - 16383;				\
+	if (e < 48) {					\
+		m = ((1llu << 49) - 1) >> (e + 1);	\
+		u.bits.manh &= ~m;			\
+		u.bits.manl = 0;			\
+	} else {					\
+		m = (uint64_t)-1 >> (e - 48);		\
+		u.bits.manl &= ~m;			\
+	}						\
+	(ai) = u.e;					\
+	(ar) = (x) - (ai);				\
+} while (0)
+
 #ifdef DEBUG
 #if defined(__amd64__) || defined(__i386__)
 #define	breakpoint()	asm("int $3")

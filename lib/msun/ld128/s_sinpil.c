@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2021 Steven G. Kargl
+ * Copyright (c) 2017-2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
  * See ../src/s_sinpi.c for implementation details.
  */
 
+#include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
@@ -46,8 +47,7 @@ volatile static const double vzero = 0;
 long double
 sinpil(long double x)
 {
-	long double ax, hi, lo, s, xf, xhi, xlo;
-	uint32_t ix;
+	long double ai, ar, ax, hi, lo, s, xhi, xlo;
 
 	ax = fabsl(x);
 
@@ -78,35 +78,25 @@ sinpil(long double x)
 	}
 
 	if (ax < 0x1p112) {
-		/* Split x = n + r with 0 <= r < 1. */
-		xf = (ax + 0x1p112L) - 0x1p112L;        /* Integer part */
-		ax -= xf;                               /* Remainder */
-		if (ax < 0) {
-			ax += 1;
-			xf -= 1;
-		}
+		/* Split ax = ai + ar with 0 <= ar < 1. */
+		FFLOORL128(ax, ai, ar);
 
-		if (ax == 0) {
+		if (ar == 0) {
 			s = 0;
 		} else {
-			if (ax < 0.5) {
-				if (ax <= 0.25)
-					s = __kernel_sinpil(ax);
+			if (ar < 0.5) {
+				if (ar <= 0.25)
+					s = __kernel_sinpil(ar);
 				else
-					s = __kernel_cospil(0.5 - ax);
+					s = __kernel_cospil(0.5 - ar);
 			} else {
-				if (ax < 0.75)
-					s = __kernel_cospil(ax - 0.5);
+				if (ar < 0.75)
+					s = __kernel_cospil(ar - 0.5);
 				else
-					s = __kernel_sinpil(1 - ax);
+					s = __kernel_sinpil(1 - ar);
 			}
 
-			if (xf > 0x1p64)
-				xf -= 0x1p64;
-			if (xf > 0x1p32)
-				xf -= 0x1p32;
-			ix = (uint32_t)xf;
-			if (ix & 1) s = -s;
+			s = fmodl(ai, 2.L) == 0 ? s : -s;
 		}
 		return (x < 0 ? -s : s);
 	}

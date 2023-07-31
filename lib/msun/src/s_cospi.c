@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017, 2023 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,19 +104,9 @@ cospi(double x)
 	}
 
 	if (ix < 0x43300000) {		/* 1 <= |x| < 0x1p52 */
-		/* Determine integer part of ax. */
-		j0 = ((ix >> 20) & 0x7ff) - 0x3ff;
-		if (j0 < 20) {
-			ix &= ~(0x000fffff >> j0);
-			lx = 0;
-		} else {
-			lx &= ~((uint32_t)0xffffffff >> (j0 - 20));
-		}
-		INSERT_WORDS(x, ix, lx);
-
+		FFLOOR(x, j0, ix, lx);	/* Integer part of ax. */
 		ax -= x;
 		EXTRACT_WORDS(ix, lx, ax);
-
 
 		if (ix < 0x3fe00000) {		/* |x| < 0.5 */
 			if (ix < 0x3fd00000)	/* |x| < 0.25 */
@@ -143,9 +133,11 @@ cospi(double x)
 		return (vzero / vzero);
 
 	/*
-	 * |x| >= 0x1p52 is always an even integer, so return 1.
+	 * For 0x1p52 <= |x| < 0x1p53 need to determine if x is an even
+	 * or odd integer to return +1 or -1.
+	 * For |x| >= 0x1p53, it is always an even integer, so return 1.
 	 */
-	return (1);
+	return (ix < 0x43400000 ? ((lx & 1) ? -1 : 1) : 1);
 }
 
 #if LDBL_MANT_DIG == 53
