@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2003-2017 Tim Kientzle
+/*-
+ * Copyright (c) 2023, Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,20 +21,43 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/* Every test program should #include "test.h" as the first thing. */
+#ifndef BSDUNZIP_H_INCLUDED
+#define BSDUNZIP_H_INCLUDED
 
-#define KNOWNREF	"test_basic.zip.uu"
-#define ENVBASE "BSDUNZIP" /* Prefix for environment variables. */
-#define	PROGRAM "bsdunzip" /* Name of program being tested. */
-#define PROGRAM_ALIAS "unzip" /* Generic alias for program */
-#undef	LIBRARY		  /* Not testing a library. */
-#undef	EXTRA_DUMP	  /* How to dump extra data */
-#undef	EXTRA_ERRNO	  /* How to dump errno */
-/* How to generate extra version info. */
-#define	EXTRA_VERSION     (systemf("%s --version", testprog) ? "" : "")
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#else
+/* Not having a config.h of some sort is a serious problem. */
+#include "config.h"
+#endif
 
-#include "test_common.h"
+#include <archive.h>
+#include <archive_entry.h>
+
+struct bsdunzip {
+	/* Option parser state */
+	int		  getopt_state;
+	char		 *getopt_word;
+
+	/* Miscellaneous state information */
+	int		  argc;
+	char		**argv;
+	const char	 *argument;
+};
+
+struct bsdunzip_getopt_ret {
+	int		index;
+	int		opt;
+};
+
+enum {
+	OPTION_NONE,
+	OPTION_VERSION
+};
+
+int bsdunzip_getopt(struct bsdunzip *);
+
+#endif
