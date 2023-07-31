@@ -3879,6 +3879,7 @@ kern/subr_kobj.c		standard
 kern/subr_lock.c		standard
 kern/subr_log.c			standard
 kern/subr_mchain.c		optional libmchain
+kern/subr_memdesc.c		standard
 kern/subr_module.c		standard
 kern/subr_msan.c		optional kmsan \
 	compile-with "${NORMAL_C:N-fsanitize*:N-fstack-protector*}"
