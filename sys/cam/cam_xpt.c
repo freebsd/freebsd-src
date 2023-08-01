@@ -1067,9 +1067,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	if (proto)
 		proto->ops->announce(path->device);
 	else
-		printf("%s%d: Unknown protocol device %d\n",
-		    periph->periph_name, periph->unit_number,
-		    path->device->protocol);
+		printf("Unknown protocol device %d\n", path->device->protocol);
 	if (path->device->serial_num_len > 0) {
 		/* Don't wrap the screen  - print only the first 60 chars */
 		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
@@ -1124,8 +1122,7 @@ xpt_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb,
 	if (proto)
 		proto->ops->announce_sbuf(path->device, sb);
 	else
-		sbuf_printf(sb, "%s%d: Unknown protocol device %d\n",
-		    periph->periph_name, periph->unit_number,
+		sbuf_printf(sb, "Unknown protocol device %d\n",
 		    path->device->protocol);
 	if (path->device->serial_num_len > 0) {
 		/* Don't wrap the screen  - print only the first 60 chars */
@@ -1191,9 +1188,7 @@ xpt_denounce_periph(struct cam_periph *periph)
 	if (proto)
 		proto->ops->denounce(path->device);
 	else
-		printf("%s%d: Unknown protocol device %d\n",
-		    periph->periph_name, periph->unit_number,
-		    path->device->protocol);
+		printf("Unknown protocol device %d", path->device->protocol);
 	if (path->device->serial_num_len > 0)
 		printf(" s/n %.60s", path->device->serial_num);
 	printf(" detached\n");
@@ -1231,8 +1226,7 @@ xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 	if (proto)
 		proto->ops->denounce_sbuf(path->device, sb);
 	else
-		sbuf_printf(sb, "%s%d: Unknown protocol device %d\n",
-		    periph->periph_name, periph->unit_number,
+		sbuf_printf(sb, "Unknown protocol device %d",
 		    path->device->protocol);
 	if (path->device->serial_num_len > 0)
 		sbuf_printf(sb, " s/n %.60s", path->device->serial_num);
