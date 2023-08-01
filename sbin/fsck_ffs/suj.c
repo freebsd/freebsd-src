@@ -2135,7 +2135,9 @@ suj_verifyino(union dinode *dp)
 	}
 
 	if (DIP(dp, di_modrev) != fs->fs_mtime) {
-		printf("Journal timestamp does not match fs mount time\n");
+		if (!bkgrdcheck || debug)
+			printf("Journal timestamp does not match "
+			    "fs mount time\n");
 		return (-1);
 	}
 
@@ -2436,7 +2438,9 @@ suj_check(const char *filesys)
 		sujino = idesc.id_parent;
 		irelse(&ip);
 	} else {
-		printf("Journal inode removed.  Use tunefs to re-create.\n");
+		if (!bkgrdcheck || debug)
+			printf("Journal inode removed.  "
+			    "Use tunefs to re-create.\n");
 		sblock.fs_flags &= ~FS_SUJ;
 		sblock.fs_sujfree = 0;
 		irelse(&ip);
@@ -2447,7 +2451,8 @@ suj_check(const char *filesys)
 	 */
 	ginode(sujino, &ip);
 	jip = ip.i_dp;
-	printf("** SU+J Recovering %s\n", filesys);
+	if (!bkgrdcheck || debug)
+		printf("** SU+J Recovering %s\n", filesys);
 	if (suj_verifyino(jip) != 0 || (!preen && !reply("USE JOURNAL"))) {
 		irelse(&ip);
 		return (-1);
@@ -2456,14 +2461,22 @@ suj_check(const char *filesys)
 	 * Build a list of journal blocks in jblocks before parsing the
 	 * available journal blocks in with suj_read().
 	 */
-	printf("** Reading %jd byte journal from inode %ju.\n",
-	    DIP(jip, di_size), (uintmax_t)sujino);
+	if (!bkgrdcheck || debug)
+		printf("** Reading %jd byte journal from inode %ju.\n",
+		    DIP(jip, di_size), (uintmax_t)sujino);
 	suj_jblocks = jblocks_create();
 	blocks = ino_visit(jip, sujino, suj_add_block, 0);
 	if (blocks != numfrags(fs, DIP(jip, di_size))) {
-		printf("Sparse journal inode %ju.\n", (uintmax_t)sujino);
+		if (!bkgrdcheck || debug)
+			printf("Sparse journal inode %ju.\n",
+			    (uintmax_t)sujino);
 		irelse(&ip);
 		return (-1);
+	}
+	/* If journal is valid then do journal check rather than background */
+	if (bkgrdcheck) {
+		irelse(&ip);
+		return (0);
 	}
 	irelse(&ip);
 	suj_read();
