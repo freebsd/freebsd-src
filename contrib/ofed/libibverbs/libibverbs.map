@@ -10,7 +10,6 @@ IBVERBS_1.0 {
 		ibv_get_async_event;
 		ibv_ack_async_event;
 		ibv_query_device;
-		ibv_query_device_ex;
 		ibv_query_port;
 		ibv_query_gid;
 		ibv_query_pkey;
@@ -65,7 +64,6 @@ IBVERBS_1.1 {
 		ibv_fork_init;
 		ibv_dontfork_range;
 		ibv_dofork_range;
-		ibv_register_driver;
 
 		ibv_node_type_str;
 		ibv_port_state_str;
@@ -136,7 +134,6 @@ IBVERBS_PRIVATE_14 {
 		ibv_cmd_rereg_mr;
 		ibv_cmd_resize_cq;
 		ibv_query_gid_type;
-		ibv_register_driver;
 		verbs_register_driver;
 		verbs_init_cq;
 };
