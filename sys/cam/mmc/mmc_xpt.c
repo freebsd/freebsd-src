@@ -466,10 +466,6 @@ mmc_print_ident(struct mmc_params *ident_data, struct sbuf *sb)
 		sbuf_printf(sb, "Number of functions: %u\n",
 		    ident_data->sdio_func_count);
 	}
-
-	sbuf_finish(sb);
-	printf("%s", sbuf_data(sb));
-	sbuf_clear(sb);
 }
 
 static void
