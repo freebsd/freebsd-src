@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2022
+.Dd August 1, 2023
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -193,12 +193,13 @@ no log entry for the system call.
 #include <dev/filemon/filemon.h>
 #include <fcntl.h>
 #include <err.h>
+#include <errno.h>
 #include <unistd.h>
 
 static void
 open_filemon(void)
 {
-	pid_t child;
+	pid_t child, wait_rv;
 	int fm_fd, fm_log;
 
 	if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
@@ -215,8 +216,14 @@ open_filemon(void)
 		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
 			err(1, "Cannot set filemon PID");
 		/* Do something here. */
-	} else {
-		wait(&child);
+	} else if (child == -1)
+		err(1, "Cannot fork child");
+	else {
+		while ((wait_rv = wait(&child)) == -1 &&
+		    errno == EINTR)
+			;
+		if (wait_rv == -1)
+			err(1, "cannot wait for child");
 		close(fm_fd);
 	}
 }
