@@ -1,4 +1,0 @@
-Compile userspace DTrace code (libdtrace, dtrace(1), lockstat(1), plockstat(1))
-with address and undefined behavior sanitizers.
-Requires that Clang be used as the base system compiler
-and that the runtime support library is available.

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/lockstat
 
 PACKAGE=	dtrace
@@ -27,11 +25,6 @@ CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_SYS_DISTDIR}/compat \
 		-I${SRCTOP}/sys
 CFLAGS+= -DHAVE_ISSETUGID
-
-.if ${MK_DTRACE_ASAN} != "no"
-CFLAGS+=	-fsanitize=address -fsanitize=undefined
-LDFLAGS+=	-fsanitize=address -fsanitize=undefined
-.endif
 
 CFLAGS+=	-DNEED_ERRLOC -g
 
