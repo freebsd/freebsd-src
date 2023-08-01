@@ -464,12 +464,8 @@ ENTRY(disasm_bitmask_imm)
 
 	/* mov (bitmask immediate) */
 	mov	wsp, #0x0000000000f00000
-	mov	w1,  #0x0000000000f00000
-	mov	wzr, #0x0000000000f00000
 
 	mov	sp,  #0x0001000100010001
-	mov	x1,  #0x0000000000f00000
-	mov	xzr, #0x0000000000f00000
 
 	/* ands (bitmask immediate) */
 	ands	wzr, wzr, #0x0000000000f00000
