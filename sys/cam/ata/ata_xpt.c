@@ -188,16 +188,11 @@ static void	 ata_dev_async(uint32_t async_code,
 				struct cam_ed *device,
 				void *async_arg);
 static void	 ata_action(union ccb *start_ccb);
-static void	 ata_announce_periph(struct cam_periph *periph);
 static void	 ata_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb);
-static void	 ata_proto_announce(struct cam_ed *device);
 static void	 ata_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb);
-static void	 ata_proto_denounce(struct cam_ed *device);
 static void	 ata_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb);
 static void	 ata_proto_debug_out(union ccb *ccb);
-static void	 semb_proto_announce(struct cam_ed *device);
 static void	 semb_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb);
-static void	 semb_proto_denounce(struct cam_ed *device);
 static void	 semb_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb);
 
 static int ata_dma = 1;
@@ -210,7 +205,6 @@ static struct xpt_xport_ops ata_xport_ops = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
 	.async = ata_dev_async,
-	.announce = ata_announce_periph,
 	.announce_sbuf = ata_announce_periph_sbuf,
 };
 #define ATA_XPT_XPORT(x, X)			\
@@ -227,9 +221,7 @@ ATA_XPT_XPORT(sata, SATA);
 #undef ATA_XPORT_XPORT
 
 static struct xpt_proto_ops ata_proto_ops_ata = {
-	.announce = ata_proto_announce,
 	.announce_sbuf = ata_proto_announce_sbuf,
-	.denounce = ata_proto_denounce,
 	.denounce_sbuf = ata_proto_denounce_sbuf,
 	.debug_out = ata_proto_debug_out,
 };
@@ -240,9 +232,7 @@ static struct xpt_proto ata_proto_ata = {
 };
 
 static struct xpt_proto_ops ata_proto_ops_satapm = {
-	.announce = ata_proto_announce,
 	.announce_sbuf = ata_proto_announce_sbuf,
-	.denounce = ata_proto_denounce,
 	.denounce_sbuf = ata_proto_denounce_sbuf,
 	.debug_out = ata_proto_debug_out,
 };
@@ -253,9 +243,7 @@ static struct xpt_proto ata_proto_satapm = {
 };
 
 static struct xpt_proto_ops ata_proto_ops_semb = {
-	.announce = semb_proto_announce,
 	.announce_sbuf = semb_proto_announce_sbuf,
-	.denounce = semb_proto_denounce,
 	.denounce_sbuf = semb_proto_denounce_sbuf,
 	.debug_out = ata_proto_debug_out,
 };
@@ -2134,59 +2122,6 @@ _ata_announce_periph(struct cam_periph *periph, struct ccb_trans_settings *cts, 
 }
 
 static void
-ata_announce_periph(struct cam_periph *periph)
-{
-	struct ccb_trans_settings cts;
-	u_int speed, mb;
-
-	bzero(&cts, sizeof(cts));
-	_ata_announce_periph(periph, &cts, &speed);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-		return;
-
-	mb = speed / 1000;
-	if (mb > 0)
-		printf("%s%d: %d.%03dMB/s transfers",
-		       periph->periph_name, periph->unit_number,
-		       mb, speed % 1000);
-	else
-		printf("%s%d: %dKB/s transfers", periph->periph_name,
-		       periph->unit_number, speed);
-	/* Report additional information about connection */
-	if (cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_pata *pata =
-		    &cts.xport_specific.ata;
-
-		printf(" (");
-		if (pata->valid & CTS_ATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(pata->mode));
-		if ((pata->valid & CTS_ATA_VALID_ATAPI) && pata->atapi != 0)
-			printf("ATAPI %dbytes, ", pata->atapi);
-		if (pata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", pata->bytecount);
-		printf(")");
-	}
-	if (cts.transport == XPORT_SATA) {
-		struct ccb_trans_settings_sata *sata =
-		    &cts.xport_specific.sata;
-
-		printf(" (");
-		if (sata->valid & CTS_SATA_VALID_REVISION)
-			printf("SATA %d.x, ", sata->revision);
-		else
-			printf("SATA, ");
-		if (sata->valid & CTS_SATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(sata->mode));
-		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
-			printf("ATAPI %dbytes, ", sata->atapi);
-		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", sata->bytecount);
-		printf(")");
-	}
-	printf("\n");
-}
-
-static void
 ata_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 {
 	struct ccb_trans_settings cts;
@@ -2246,18 +2181,6 @@ ata_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb)
 }
 
 static void
-ata_proto_announce(struct cam_ed *device)
-{
-	ata_print_ident(&device->ident_data);
-}
-
-static void
-ata_proto_denounce(struct cam_ed *device)
-{
-	ata_print_ident_short(&device->ident_data);
-}
-
-static void
 ata_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
 	ata_print_ident_short_sbuf(&device->ident_data, sb);
@@ -2267,18 +2190,6 @@ static void
 semb_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
 	semb_print_ident_sbuf((struct sep_identify_data *)&device->ident_data, sb);
-}
-
-static void
-semb_proto_announce(struct cam_ed *device)
-{
-	semb_print_ident((struct sep_identify_data *)&device->ident_data);
-}
-
-static void
-semb_proto_denounce(struct cam_ed *device)
-{
-	semb_print_ident_short((struct sep_identify_data *)&device->ident_data);
 }
 
 static void

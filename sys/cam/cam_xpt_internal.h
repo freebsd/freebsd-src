@@ -56,7 +56,6 @@ struct xpt_xport_ops {
 	xpt_release_device_func	reldev;
 	xpt_action_func		action;
 	xpt_dev_async_func	async;
-	xpt_announce_periph_func announce;
 	xpt_announce_periph_sbuf_func announce_sbuf;
 };
 
@@ -75,9 +74,7 @@ typedef void (*xpt_proto_announce_sbuf_func)(struct cam_ed *, struct sbuf *);
 typedef void (*xpt_proto_debug_out_func)(union ccb *);
 
 struct xpt_proto_ops {
-	xpt_proto_announce_func	announce;
 	xpt_proto_announce_sbuf_func	announce_sbuf;
-	xpt_proto_announce_func	denounce;
 	xpt_proto_announce_sbuf_func	denounce_sbuf;
 	xpt_proto_debug_out_func debug_out;
 };

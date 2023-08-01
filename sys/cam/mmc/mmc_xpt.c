@@ -73,7 +73,6 @@ static void mmc_dev_async(uint32_t async_code, struct cam_eb *bus,
     struct cam_et *target, struct cam_ed *device, void *async_arg);
 static void	 mmc_action(union ccb *start_ccb);
 static void	 mmc_dev_advinfo(union ccb *start_ccb);
-static void	 mmc_announce_periph(struct cam_periph *periph);
 static void	 mmc_announce_periph_sbuf(struct cam_periph *periph,
     struct sbuf *sb);
 static void	 mmc_scan_lun(struct cam_periph *periph,
@@ -85,9 +84,7 @@ static void	 mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb);
 static void	 mmcprobe_cleanup(struct cam_periph *periph);
 static void	 mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb);
 
-static void mmc_proto_announce(struct cam_ed *device);
 static void mmc_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb);
-static void mmc_proto_denounce(struct cam_ed *device);
 static void mmc_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb);
 static void mmc_proto_debug_out(union ccb *ccb);
 
@@ -151,7 +148,6 @@ static struct xpt_xport_ops mmc_xport_ops = {
 	.alloc_device = mmc_alloc_device,
 	.action = mmc_action,
 	.async = mmc_dev_async,
-	.announce = mmc_announce_periph,
 	.announce_sbuf = mmc_announce_periph_sbuf,
 };
 
@@ -166,9 +162,7 @@ static struct xpt_xport_ops mmc_xport_ops = {
 MMC_XPT_XPORT(mmc, MMCSD);
 
 static struct xpt_proto_ops mmc_proto_ops = {
-	.announce = mmc_proto_announce,
 	.announce_sbuf = mmc_proto_announce_sbuf,
-	.denounce = mmc_proto_denounce,
 	.denounce_sbuf = mmc_proto_denounce_sbuf,
 	.debug_out = mmc_proto_debug_out,
 };
@@ -384,29 +378,6 @@ mmc_dev_advinfo(union ccb *start_ccb)
 }
 
 static void
-mmc_announce_periph(struct cam_periph *periph)
-{
-	struct	ccb_pathinq cpi;
-	struct	ccb_trans_settings cts;
-	struct	cam_path *path = periph->path;
-
-	cam_periph_assert(periph, MA_OWNED);
-
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("mmc_announce_periph"));
-
-	memset(&cts, 0, sizeof(cts));
-	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	cts.type = CTS_TYPE_CURRENT_SETTINGS;
-	xpt_action((union ccb*)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-		return;
-	xpt_path_inq(&cpi, periph->path);
-	CAM_DEBUG(path, CAM_DEBUG_INFO,
-	    ("XPT info: CLK %04d, ...\n", cts.proto_specific.mmc.ios.clock));
-}
-
-static void
 mmc_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 {
 	struct	ccb_pathinq cpi;
@@ -499,28 +470,9 @@ mmc_print_ident(struct mmc_params *ident_data, struct sbuf *sb)
 }
 
 static void
-mmc_proto_announce(struct cam_ed *device)
-{
-	struct sbuf	sb;
-	char		buffer[256];
-
-	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
-	mmc_print_ident(&device->mmc_ident_data, &sb);
-	sbuf_finish(&sb);
-	sbuf_putbuf(&sb);
-}
-
-static void
 mmc_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
 	mmc_print_ident(&device->mmc_ident_data, sb);
-}
-
-static void
-mmc_proto_denounce(struct cam_ed *device)
-{
-
-	mmc_proto_announce(device);
 }
 
 static void
