@@ -7,6 +7,10 @@
 
 PACKAGE=	dtrace
 LIB=		dtrace
+
+SHLIBDIR=	/lib
+SHLIB_MAJOR=	2
+
 SRCS=		dt_aggregate.c \
 		dt_as.c \
 		dt_buf.c \
