@@ -498,7 +498,7 @@ arm64_replicate(uint64_t value, uint32_t esize, int bit_count)
 
 	result = value;
 
-	for (set_bits = value; set_bits < bit_count; set_bits += esize) {
+	for (set_bits = esize; set_bits < bit_count; set_bits += esize) {
 		value <<= esize;
 		result |= value;
 	}
