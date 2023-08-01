@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2021
+.Dd August 1, 2023
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -509,7 +509,23 @@ Additionally, builds in
 are influenced by the following
 .Xr make 1
 variables:
-.Bl -tag -width ".Va SUBDIR_OVERRIDE"
+.Bl -tag -width ".Va LOCAL_MODULES_DIR"
+.It Va CROSS_TOOLCHAIN
+Requests use of an external toolchain to build either the world or kernel.
+This value of this variable can either be the full path to a file,
+or the base name of a file in
+.Pa ${LOCALBASE}/share/toolchains .
+The file should be a make file which sets variables to request an external
+toolchain such as
+.Va XCC .
+.Pp
+External toolchains are available in ports for both LLVM and GCC/binutils.
+For external toolchains available in ports,
+.Va CROSS_TOOLCHAIN
+should be set to the name of the package.
+LLVM toolchain packages use the name llvm<major version>.
+GCC toolchains provide separate packages for each architecture and use the
+name ${MACHINE_ARCH}-gcc<major version>.
 .It Va KERNCONF
 Overrides which kernel to build and install for the various kernel
 make targets.
@@ -713,7 +729,7 @@ using the
 .Fl D
 option of
 .Xr make 1 :
-.Bl -tag -width ".Va -DNO_KERNELCONFIG"
+.Bl -tag -width ".Va LOADER_DEFAULT_INTERP"
 .It Va LOADER_DEFAULT_INTERP
 Defines what interpreter the default loader program will have.
 Valid values include
@@ -783,6 +799,10 @@ If set, the libraries phase will be skipped.
 If set, no object directories will be created.
 This should only be used if object directories were created in a
 previous build and no new directories are connected.
+.It Va UNIVERSE_TOOLCHAIN
+Requests use of the toolchain built as part of the
+.Cm universe
+target as an external toolchain.
 .It Va WORLDFAST
 If set, the build target
 .Cm buildworld
@@ -812,7 +832,7 @@ Builds using the
 and related targets are influenced by the following
 .Xr make 1
 variables:
-.Bl -tag -width ".Va MAKE_JUST_KERNELS"
+.Bl -tag -width ".Va USE_GCC_TOOLCHAINS"
 .It Va JFLAG
 Pass the value of this variable to each
 .Xr make 1
@@ -834,6 +854,10 @@ target for each supported architecture instead of the default action of
 building a world and one or more kernels.
 This variable implies
 .Va WITHOUT_KERNELS .
+.It Va USE_GCC_TOOLCHAINS
+Use external GCC toolchains to build the requested targets.
+If the required toolchain package for a supported architecture is not installed,
+the build for that architecture is skipped.
 .It Va TARGETS
 Only build the listed targets instead of each supported architecture.
 .It Va EXTRA_TARGETS
