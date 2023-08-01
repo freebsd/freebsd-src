@@ -89,7 +89,14 @@ void
 nvme_print_ident(const struct nvme_controller_data *cdata,
     const struct nvme_namespace_data *data, struct sbuf *sb)
 {
+	nvme_print_ident_short(cdata, data, sb);
+	sbuf_printf(sb, "\n");
+}
 
+void
+nvme_print_ident_short(const struct nvme_controller_data *cdata,
+    const struct nvme_namespace_data *data, struct sbuf *sb)
+{
 	sbuf_printf(sb, "<");
 	cam_strvis_sbuf(sb, cdata->mn, sizeof(cdata->mn),
 	    CAM_STRVIS_FLAG_NONASCII_SPC);
@@ -99,7 +106,7 @@ nvme_print_ident(const struct nvme_controller_data *cdata,
 	sbuf_printf(sb, " ");
 	cam_strvis_sbuf(sb, cdata->sn, sizeof(cdata->sn),
 	    CAM_STRVIS_FLAG_NONASCII_SPC);
-	sbuf_printf(sb, ">\n");
+	sbuf_printf(sb, ">");
 }
 
 /* XXX need to do nvme admin opcodes too, but those aren't used yet by nda */
