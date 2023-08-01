@@ -1909,6 +1909,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_SCSI_STATUS_ERROR:
 	case CAM_ATA_STATUS_ERROR:
 	case CAM_SMP_STATUS_ERROR:
+	case CAM_DEV_NOT_THERE:
+	case CAM_NVME_STATUS_ERROR:
 		devctl_err++;
 		break;
 	default:
