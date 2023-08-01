@@ -861,6 +861,11 @@ postinsert:
 	/* Adjust offset to point where the original next header starts. */
 	offset = ip6af->ip6af_offset - sizeof(struct ip6_frag);
 	free(ip6af, M_FRAG6);
+	if ((u_int)plen + (u_int)offset - sizeof(struct ip6_hdr) >
+	    IPV6_MAXPACKET) {
+		frag6_freef(q6, bucket);
+		goto dropfrag;
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_plen = htons((u_short)plen + offset - sizeof(struct ip6_hdr));
 	if (q6->ip6q_ecn == IPTOS_ECN_CE)
