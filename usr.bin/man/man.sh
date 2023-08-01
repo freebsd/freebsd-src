@@ -1000,11 +1000,11 @@ do_full_search() {
 	gflags="${gflags} --label"
 
 	set +f
-	for mpath in $(echo "${MANPATH}" | tr : [:blank:]); do
-		for section in $(echo "${MANSECT}" | tr : [:blank:]); do
+	for mpath in $(echo "${MANPATH}" | tr : '[:blank:]'); do
+		for section in $(echo "${MANSECT}" | tr : '[:blank:]'); do
 			for manfile in ${mpath}/man${section}/*.${section}*; do
 				mandoc "${manfile}" 2>/dev/null |
-					grep -E ${gflags} "${manfile}" -e ${re}
+					grep -E ${gflags} "${manfile}" -e "${re}"
 			done
 		done
 	done
