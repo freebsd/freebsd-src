@@ -157,8 +157,14 @@ static void	 nvme_dev_async(uint32_t async_code,
 				void *async_arg);
 static void	 nvme_action(union ccb *start_ccb);
 static void	 nvme_announce_periph(struct cam_periph *periph);
+static void	 nvme_announce_periph_sbuf(struct cam_periph *periph,
+    struct sbuf *sb);
 static void	 nvme_proto_announce(struct cam_ed *device);
+static void	 nvme_proto_announce_sbuf(struct cam_ed *device,
+    struct sbuf *sb);
 static void	 nvme_proto_denounce(struct cam_ed *device);
+static void	 nvme_proto_denounce_sbuf(struct cam_ed *device,
+    struct sbuf *sb);
 static void	 nvme_proto_debug_out(union ccb *ccb);
 
 static struct xpt_xport_ops nvme_xport_ops = {
@@ -166,6 +172,7 @@ static struct xpt_xport_ops nvme_xport_ops = {
 	.action = nvme_action,
 	.async = nvme_dev_async,
 	.announce = nvme_announce_periph,
+	.announce_sbuf = nvme_announce_periph_sbuf,
 };
 #define NVME_XPT_XPORT(x, X)			\
 static struct xpt_xport nvme_xport_ ## x = {	\
@@ -181,7 +188,9 @@ NVME_XPT_XPORT(nvme, NVME);
 
 static struct xpt_proto_ops nvme_proto_ops = {
 	.announce = nvme_proto_announce,
+	.announce_sbuf = nvme_proto_announce_sbuf,
 	.denounce = nvme_proto_denounce,
+	.denounce_sbuf = nvme_proto_denounce_sbuf,
 	.debug_out = nvme_proto_debug_out,
 };
 static struct xpt_proto nvme_proto = {
@@ -783,14 +792,12 @@ nvme_dev_async(uint32_t async_code, struct cam_eb *bus, struct cam_et *target,
 }
 
 static void
-nvme_announce_periph(struct cam_periph *periph)
+nvme_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 {
 	struct	ccb_pathinq cpi;
 	struct	ccb_trans_settings cts;
 	struct	cam_path *path = periph->path;
 	struct ccb_trans_settings_nvme	*nvmex;
-	struct sbuf	sb;
-	char		buffer[120];
 
 	cam_periph_assert(periph, MA_OWNED);
 
@@ -805,20 +812,29 @@ nvme_announce_periph(struct cam_periph *periph)
 
 	/* Ask the SIM for its base transfer speed */
 	xpt_path_inq(&cpi, periph->path);
-	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "%s%d: nvme version %d.%d",
+	sbuf_printf(sb, "%s%d: nvme version %d.%d",
 	    periph->periph_name, periph->unit_number,
 	    NVME_MAJOR(cts.protocol_version),
 	    NVME_MINOR(cts.protocol_version));
 	if (cts.transport == XPORT_NVME) {
 		nvmex = &cts.proto_specific.nvme;
 		if (nvmex->valid & CTS_NVME_VALID_LINK)
-			sbuf_printf(&sb,
+			sbuf_printf(sb,
 			    " x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
 			    nvmex->lanes, nvmex->max_lanes,
 			    nvmex->speed, nvmex->max_speed);
 	}
-	sbuf_printf(&sb, "\n");
+	sbuf_printf(sb, "\n");
+}
+
+static void
+nvme_announce_periph(struct cam_periph *periph)
+{
+	struct sbuf	sb;
+	char		buffer[120];
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	nvme_announce_periph_sbuf(periph, &sb);
 	sbuf_finish(&sb);
 	sbuf_putbuf(&sb);
 }
@@ -836,6 +852,12 @@ nvme_proto_announce(struct cam_ed *device)
 }
 
 static void
+nvme_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb)
+{
+	nvme_print_ident(device->nvme_cdata, device->nvme_data, sb);
+}
+
+static void
 nvme_proto_denounce(struct cam_ed *device)
 {
 	struct sbuf	sb;
@@ -845,6 +867,12 @@ nvme_proto_denounce(struct cam_ed *device)
 	nvme_print_ident_short(device->nvme_cdata, device->nvme_data, &sb);
 	sbuf_finish(&sb);
 	sbuf_putbuf(&sb);
+}
+
+static void
+nvme_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb)
+{
+	nvme_print_ident_short(device->nvme_cdata, device->nvme_data, sb);
 }
 
 static void
