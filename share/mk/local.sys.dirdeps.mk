@@ -64,9 +64,6 @@ WITH_META_STATS= t
 .endif
 
 # toolchains can be a pain - especially bootstrappping them
-.if ${MACHINE} == "host"
-MK_SHARED_TOOLCHAIN= no
-.endif
 TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJCOPY RANLIB \
 		STRINGS SIZE LLVM_TBLGEN
 _toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen

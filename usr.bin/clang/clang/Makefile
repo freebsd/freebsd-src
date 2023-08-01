@@ -12,11 +12,6 @@ SRCS+=		driver.cpp
 
 CFLAGS.driver.cpp+=	-Dclang_main=main
 
-.if ${MK_SHARED_TOOLCHAIN} == "no"
-NO_SHARED?= yes
-
-.endif
-
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp
 MLINKS=	clang.1 clang++.1 \

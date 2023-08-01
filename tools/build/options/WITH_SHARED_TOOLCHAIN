@@ -1,6 +1,0 @@
-.\" $FreeBSD$
-Build the toolchain binaries as dynamically linked executables.
-The set includes
-.Xr cc 1 ,
-.Xr make 1
-and necessary utilities like assembler, linker and library archive manager.
