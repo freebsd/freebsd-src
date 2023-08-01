@@ -2571,7 +2571,7 @@ skc_resume(device_t dev)
  * to get correct checksum value but couldn't get correct one. So TCP/UDP
  * checksum offload was disabled at the moment and only IP checksum offload
  * was enabled.
- * As nomral IP header size is 20 bytes I can't expect it would give an
+ * As normal IP header size is 20 bytes I can't expect it would give an
  * increase in throughput. However it seems it doesn't hurt performance in
  * my testing. If there is a more detailed information for checksum secret
  * of the hardware in question please contact yongari@FreeBSD.org to add
