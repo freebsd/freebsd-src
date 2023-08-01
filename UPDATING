@@ -12,6 +12,23 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230801:
+	13.2-RELEASE-p2	FreeBSD-EN-23:08.vnet
+			FreeBSD-SA-23:06.ipv6
+			FreeBSD-SA-23:07.bhyve
+			FreeBSD-SA-23:08.ssh
+			FreeBSD-SA-23:09.pam_krb5
+
+	VNET and DCPU modules panic on arm64 due to linker relaxation [EN-23:08.vnet]
+
+	Remote denial of service in IPv6 fragment reassembly [SA-23:06.ipv6]
+
+	bhyve privileged guest escape via fwctl [SA-23:07.bhyve]
+
+	Potential remote code execution via ssh-agent forwarding [SA-23:08.ssh]
+
+	Network authentication attack via pam_krb5 [SA-23:09.pam_krb5]
+
 20230621:
 	13.2-RELEASE-p1	FreeBSD-EN-23:06.loader
 			FreeBSD-EN-23:07.mpr
