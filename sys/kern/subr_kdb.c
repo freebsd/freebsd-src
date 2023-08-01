@@ -503,11 +503,19 @@ kdb_dbbe_select(const char *name)
 }
 
 static bool
-kdb_backend_permitted(struct kdb_dbbe *be, struct ucred *cred)
+kdb_backend_permitted(struct kdb_dbbe *be, struct thread *td)
 {
+	struct ucred *cred;
 	int error;
 
-	error = securelevel_gt(cred, kdb_enter_securelevel);
+	cred = td->td_ucred;
+	if (cred == NULL) {
+		KASSERT(td == &thread0 && cold,
+		    ("%s: missing cred for %p", __func__, td));
+		error = 0;
+	} else {
+		error = securelevel_gt(cred, kdb_enter_securelevel);
+	}
 #ifdef MAC
 	/*
 	 * Give MAC a chance to weigh in on the policy: if the securelevel is
@@ -776,7 +784,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	cngrab();
 
 	for (;;) {
-		if (!kdb_backend_permitted(be, curthread->td_ucred)) {
+		if (!kdb_backend_permitted(be, curthread)) {
 			/* Unhandled breakpoint traps are fatal. */
 			handled = 1;
 			break;
