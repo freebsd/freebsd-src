@@ -838,8 +838,13 @@ nvme_proto_announce(struct cam_ed *device)
 static void
 nvme_proto_denounce(struct cam_ed *device)
 {
+	struct sbuf	sb;
+	char		buffer[120];
 
-	nvme_proto_announce(device);
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	nvme_print_ident_short(device->nvme_cdata, device->nvme_data, &sb);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 static void
