@@ -17,6 +17,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20230801:
+	12.4-RELEASE-p4 FreeBSD-SA-23:06.ipv6
+			FreeBSD-SA-23:08.ssh
+			FreeBSD-SA-23:09.pam_krb5
+
+	Remote denial of service in IPv6 fragment reassembly [SA-23:06.ipv6]
+
+	Potential remote code execution via ssh-agent forwarding [SA-23:08.ssh]
+
+	Network authentication attack via pam_krb5 [SA-23:09.pam_krb5]
+
 20230621:
 	12.4-RELEASE-p3	FreeBSD-EN-23:05.tzdata
 			FreeBSD-EN-23:07.mpr
