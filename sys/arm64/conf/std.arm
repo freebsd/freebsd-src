@@ -8,6 +8,9 @@ device		pci_n1sdp		# ARM Neoverse N1 SDP PCI
 # GPIO / PINCTRL
 device		pl061			# Arm PL061 GPIO controller
 
+# RTC
+device		pl031			# Arm PL031 RTC
+
 # Serial (COM) ports
 device		pl011
 
