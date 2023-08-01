@@ -594,11 +594,6 @@ When set, it enforces these options:
 .It
 .Va WITHOUT_CTF
 .El
-.It Va WITH_DTRACE_ASAN
-Compile userspace DTrace code (libdtrace, dtrace(1), lockstat(1), plockstat(1))
-with address and undefined behavior sanitizers.
-Requires that Clang be used as the base system compiler
-and that the runtime support library is available.
 .It Va WITH_DTRACE_TESTS
 Build and install the DTrace test suite in
 .Pa /usr/tests/cddl/usr.sbin/dtrace .
