@@ -386,7 +386,7 @@ mmc_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 
 	cam_periph_assert(periph, MA_OWNED);
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("mmc_announce_periph"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("mmc_announce_periph_sbuf"));
 
 	memset(&cts, 0, sizeof(cts));
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
