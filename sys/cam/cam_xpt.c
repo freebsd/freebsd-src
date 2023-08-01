@@ -110,7 +110,6 @@ struct xpt_softc {
 	TAILQ_HEAD(, ccb_hdr) ccb_scanq;
 	int buses_to_config;
 	int buses_config_done;
-	int announce_nosbuf;
 
 	/*
 	 * Registered buses
@@ -168,8 +167,6 @@ SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 SYSCTL_UINT(_kern_cam, OID_AUTO, xpt_generation, CTLFLAG_RD,
 	    &xsoftc.xpt_generation, 0, "CAM peripheral generation count");
-SYSCTL_INT(_kern_cam, OID_AUTO, announce_nosbuf, CTLFLAG_RWTUN,
-	    &xsoftc.announce_nosbuf, 0, "Don't use sbuf for announcements");
 
 struct cam_doneq {
 	struct mtx_padalign	cam_doneq_mtx;
@@ -1097,18 +1094,6 @@ xpt_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb,
 	cam_periph_assert(periph, MA_OWNED);
 	periph->flags |= CAM_PERIPH_ANNOUNCED;
 
-	/* Fall back to the non-sbuf method if necessary */
-	if (xsoftc.announce_nosbuf != 0) {
-		xpt_announce_periph(periph, announce_string);
-		return;
-	}
-	proto = xpt_proto_find(path->device->protocol);
-	if (((proto != NULL) && (proto->ops->announce_sbuf == NULL)) ||
-	    (path->bus->xport->ops->announce_sbuf == NULL)) {
-		xpt_announce_periph(periph, announce_string);
-		return;
-	}
-
 	sbuf_printf(sb, "%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	    periph->periph_name, periph->unit_number,
 	    path->bus->sim->sim_name,
@@ -1118,7 +1103,7 @@ xpt_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb,
 	    path->target->target_id,
 	    (uintmax_t)path->device->lun_id);
 	sbuf_printf(sb, "%s%d: ", periph->periph_name, periph->unit_number);
-
+	proto = xpt_proto_find(path->device->protocol);
 	if (proto)
 		proto->ops->announce_sbuf(path->device, sb);
 	else
@@ -1157,11 +1142,6 @@ void
 xpt_announce_quirks_sbuf(struct cam_periph *periph, struct sbuf *sb,
 			 int quirks, char *bit_string)
 {
-	if (xsoftc.announce_nosbuf != 0) {
-		xpt_announce_quirks(periph, quirks, bit_string);
-		return;
-	}
-
 	if (quirks != 0) {
 		sbuf_printf(sb, "%s%d: quirks=0x%b\n", periph->periph_name,
 		    periph->unit_number, quirks, bit_string);
@@ -1202,17 +1182,6 @@ xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 
 	cam_periph_assert(periph, MA_OWNED);
 
-	/* Fall back to the non-sbuf method if necessary */
-	if (xsoftc.announce_nosbuf != 0) {
-		xpt_denounce_periph(periph);
-		return;
-	}
-	proto = xpt_proto_find(path->device->protocol);
-	if ((proto != NULL) && (proto->ops->denounce_sbuf == NULL)) {
-		xpt_denounce_periph(periph);
-		return;
-	}
-
 	sbuf_printf(sb, "%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	    periph->periph_name, periph->unit_number,
 	    path->bus->sim->sim_name,
@@ -1222,7 +1191,7 @@ xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 	    path->target->target_id,
 	    (uintmax_t)path->device->lun_id);
 	sbuf_printf(sb, "%s%d: ", periph->periph_name, periph->unit_number);
-
+	proto = xpt_proto_find(path->device->protocol);
 	if (proto)
 		proto->ops->denounce_sbuf(path->device, sb);
 	else
