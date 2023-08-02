@@ -40,6 +40,7 @@ ATF_TESTS_SH+=	altq \
 		tos
 
 ATF_TESTS_PYTEST+=	frag6.py
+ATF_TESTS_PYTEST+=	sctp.py
 
 # Tests reuse jail names and so cannot run in parallel.
 TEST_METADATA+=	is_exclusive=true
