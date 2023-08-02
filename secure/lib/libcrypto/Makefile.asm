@@ -312,7 +312,7 @@ PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 SRCS=	ppccpuid.pl
 
 #bn
-SRCS+=	ppc-mont.pl
+SRCS+=	ppc.pl ppc-mont.pl
 
 #aes
 SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
@@ -377,7 +377,7 @@ PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 SRCS=	ppccpuid.pl
 
 #bn
-SRCS+=	ppc-mont.pl
+SRCS+=	ppc.pl ppc-mont.pl
 
 #aes
 SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
@@ -448,7 +448,7 @@ PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 SRCS=	ppccpuid.pl
 
 #bn
-SRCS+=	ppc-mont.pl
+SRCS+=	ppc.pl ppc-mont.pl
 
 #aes
 SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
