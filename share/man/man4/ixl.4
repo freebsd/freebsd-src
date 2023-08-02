@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2021
+.Dd August 1, 2023
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -105,7 +105,10 @@ package.
 .It
 To update the firmware on an adapter, use the Intel Non-Volatile Memory (NVM)
 Update Utility; installed by the
-.Em sysutils/intel-nvmupdate
+.Em sysutils/intel-nvmupdate-10g ,
+.Em sysutils/intel-nvmupdate-40g ,
+or
+.Em sysutils/intel-nvmupdate-100g ,
 package.
 .It
 Drivers are provided by Intel outside of the
