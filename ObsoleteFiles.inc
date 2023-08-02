@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230802: Remove a copy of libdtrace.so installed to the wrong path
+OLD_FILES+=usr/lib/libdtrace.so.2
+
 # 20230726: Removal of support for the VTOC8 partitioning scheme
 OLD_FILES+=usr/include/sys/disk/vtoc.h
 OLD_FILES+=usr/include/sys/vtoc.h
