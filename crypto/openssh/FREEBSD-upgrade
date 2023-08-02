@@ -182,10 +182,8 @@
 
 11) Retired patches
 
-   We no longer have HPN patches (adaptive buffer size for increased
-   throughput on high-BxD links) or client-side VersionAddendum, but we
-   recognize and ignore the configuration options to avoid breaking
-   existing configurations.
+   We no longer have client-side VersionAddendum, but we recognize and ignore
+   the configuration options to avoid breaking existing configurations.
 
 12) PrintLastLog bugfix
 
