@@ -707,10 +707,13 @@ static struct {
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+
+	/* HPN patch - retired in 60c59fad8806 */
 	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
 	{ "hpnbuffersize", sDeprecated, SSHCFG_ALL },
 	{ "tcprcvbufpoll", sDeprecated, SSHCFG_ALL },
+
 	{ NULL, sBadOption, 0 }
 };
 
