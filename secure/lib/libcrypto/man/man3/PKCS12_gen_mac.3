@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12_GEN_MAC 3"
-.TH PKCS12_GEN_MAC 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH PKCS12_GEN_MAC 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,7 +158,7 @@ PKCS12_verify_mac \- Functions to create and manipulate a PKCS#12 structure
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBPKCS12_gen_mac()\fR generates an \s-1HMAC\s0 over the entire PKCS#12 object using the
-supplied password along with a set of already configured paramters.
+supplied password along with a set of already configured parameters.
 .PP
 \&\fBPKCS12_verify_mac()\fR verifies the PKCS#12 object's \s-1HMAC\s0 using the supplied
 password.
@@ -194,7 +194,7 @@ All functions return 1 on success and 0 if an error occurred.
 \&\fBpassphrase\-encoding\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

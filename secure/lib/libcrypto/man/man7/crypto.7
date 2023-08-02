@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CRYPTO 7"
-.TH CRYPTO 7 "2023-05-30" "3.0.9" "OpenSSL"
+.TH CRYPTO 7 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -320,7 +320,7 @@ If anything in this step fails, the next step is used as a fallback.
 .IP "2." 4
 As a fallback, try to fetch the operation type implementation from the same
 provider as the original \s-1\fBEVP_PKEY\s0\fR\|(3)'s \s-1\fBEVP_KEYMGMT\s0\fR\|(3), still using the
-propery string from the \fB\s-1EVP_PKEY_CTX\s0\fR.
+property string from the \fB\s-1EVP_PKEY_CTX\s0\fR.
 .SS "Performance"
 .IX Subsection "Performance"
 If you perform the same operation many times then it is recommended to use

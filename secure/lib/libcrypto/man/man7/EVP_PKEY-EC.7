@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY-EC 7"
-.TH EVP_PKEY-EC 7 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY-EC 7 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,7 +150,7 @@ The \fB\s-1EC\s0\fR keytype is implemented in OpenSSL's default provider.
 The normal way of specifying domain parameters for an \s-1EC\s0 curve is via the
 curve name \*(L"group\*(R". For curves with no curve name, explicit parameters can be
 used that specify \*(L"field-type\*(R", \*(L"p\*(R", \*(L"a\*(R", \*(L"b\*(R", \*(L"generator\*(R" and \*(L"order\*(R".
-Explicit parameters are supported for backwards compability reasons, but they
+Explicit parameters are supported for backwards compatibility reasons, but they
 are not compliant with multiple standards (including \s-1RFC5915\s0) which only allow
 named curves.
 .PP
@@ -211,7 +211,7 @@ Integers used for point multiplications will be between 0 and
 .ie n .IP """decoded-from-explicit"" (\fB\s-1OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS\s0\fR) <integer>" 4
 .el .IP "``decoded-from-explicit'' (\fB\s-1OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS\s0\fR) <integer>" 4
 .IX Item "decoded-from-explicit (OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS) <integer>"
-Gets a flag indicating wether the key or parameters were decoded from explicit
+Gets a flag indicating whether the key or parameters were decoded from explicit
 curve parameters. Set to 1 if so or 0 if a named curve was used.
 .ie n .IP """use-cofactor-flag"" (\fB\s-1OSSL_PKEY_PARAM_USE_COFACTOR_ECDH\s0\fR) <integer>" 4
 .el .IP "``use-cofactor-flag'' (\fB\s-1OSSL_PKEY_PARAM_USE_COFACTOR_ECDH\s0\fR) <integer>" 4
@@ -240,7 +240,7 @@ point_conversion_forms please see \fBEC_POINT_new\fR\|(3). Valid values are
 Sets or Gets the type of group check done when \fBEVP_PKEY_param_check()\fR is called.
 Valid values are \*(L"default\*(R", \*(L"named\*(R" and \*(L"named-nist\*(R".
 The \*(L"named\*(R" type checks that the domain parameters match the inbuilt curve parameters,
-\&\*(L"named-nist\*(R" is similiar but also checks that the named curve is a nist curve.
+\&\*(L"named-nist\*(R" is similar but also checks that the named curve is a nist curve.
 The \*(L"default\*(R" type does domain parameter validation for the OpenSSL default provider,
 but is equivalent to \*(L"named-nist\*(R" for the OpenSSL \s-1FIPS\s0 provider.
 .ie n .IP """include-public"" (\fB\s-1OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC\s0\fR) <integer>" 4

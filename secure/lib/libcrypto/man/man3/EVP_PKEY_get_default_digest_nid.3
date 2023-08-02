@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_GET_DEFAULT_DIGEST_NID 3"
-.TH EVP_PKEY_GET_DEFAULT_DIGEST_NID 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY_GET_DEFAULT_DIGEST_NID 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -155,8 +155,8 @@ EVP_PKEY_get_default_digest_nid, EVP_PKEY_get_default_digest_name
 \&\fBEVP_PKEY_get_default_digest_name()\fR fills in the default message digest
 name for the public key signature operations associated with key
 \&\fIpkey\fR into \fImdname\fR, up to at most \fImdname_sz\fR bytes including the
-ending \s-1NUL\s0 byte.  The name could be \f(CW"UNDEF"\fR, signifying that no digest
-should be used.
+ending \s-1NUL\s0 byte.  The name could be \f(CW"UNDEF"\fR, signifying that a digest
+must (for return value 2) or may (for return value 1) be left unspecified.
 .PP
 \&\fBEVP_PKEY_get_default_digest_nid()\fR sets \fIpnid\fR to the default message
 digest \s-1NID\s0 for the public key signature operations associated with key
@@ -189,7 +189,7 @@ algorithm.
 This function was added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

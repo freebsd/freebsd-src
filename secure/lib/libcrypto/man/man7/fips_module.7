@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "FIPS_MODULE 7"
-.TH FIPS_MODULE 7 "2023-05-30" "3.0.9" "OpenSSL"
+.TH FIPS_MODULE 7 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,6 +148,9 @@ See the individual manual pages for details.
 This guide details different ways that OpenSSL can be used in conjunction
 with the \s-1FIPS\s0 module. Which is the correct approach to use will depend on your
 own specific circumstances and what you are attempting to achieve.
+.PP
+For information related to installing the \s-1FIPS\s0 module see
+<https://github.com/openssl/openssl/blob/master/README\-FIPS.md>.
 .PP
 Note that the old functions \fBFIPS_mode()\fR and \fBFIPS_mode_set()\fR are no longer
 present so you must remove them from your application if you use them.
@@ -222,7 +225,7 @@ Obviously the include file location above should match the path and name of the
 \&\s-1FIPS\s0 module config file that you installed earlier.
 See <https://github.com/openssl/openssl/blob/master/README\-FIPS.md>.
 .PP
-For \s-1FIPS\s0 usage, it is recommened that the \fBconfig_diagnostics\fR option is
+For \s-1FIPS\s0 usage, it is recommended that the \fBconfig_diagnostics\fR option is
 enabled to prevent accidental use of non-FIPS validated algorithms via broken
 or mistaken configuration.  See \fBconfig\fR\|(5).
 .PP
@@ -584,16 +587,29 @@ To go from the \fB\s-1EVP_MD\s0\fR to its \fB\s-1OSSL_PROVIDER\s0\fR,
 use \fBEVP_MD_get0_provider\fR\|(3).
 To extract the name from the \fB\s-1OSSL_PROVIDER\s0\fR, use
 \&\fBOSSL_PROVIDER_get0_name\fR\|(3).
+.SH "NOTES"
+.IX Header "NOTES"
+Some released versions of OpenSSL do not include a validated
+\&\s-1FIPS\s0 provider.  To determine which versions have undergone
+the validation process, please refer to the
+OpenSSL Downloads page <https://www.openssl.org/source/>.  If you
+require FIPS-approved functionality, it is essential to build your \s-1FIPS\s0
+provider using one of the validated versions listed there.  Normally,
+it is possible to utilize a \s-1FIPS\s0 provider constructed from one of the
+validated versions alongside \fIlibcrypto\fR and \fIlibssl\fR compiled from any
+release within the same major release series.  This flexibility enables
+you to address bug fixes and CVEs that fall outside the \s-1FIPS\s0 boundary.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBmigration_guide\fR\|(7), \fBcrypto\fR\|(7), \fBfips_config\fR\|(5)
+\&\fBmigration_guide\fR\|(7), \fBcrypto\fR\|(7), \fBfips_config\fR\|(5),
+<https://www.openssl.org/source/>
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \s-1FIPS\s0 module guide was created for use with the new \s-1FIPS\s0 provider
 in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

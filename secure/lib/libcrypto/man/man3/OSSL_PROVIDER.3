@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PROVIDER 3"
-.TH OSSL_PROVIDER 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_PROVIDER 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -226,8 +226,8 @@ the environment variable \s-1OPENSSL_MODULES\s0 if set.
 .PP
 \&\fBOSSL_PROVIDER_try_load()\fR functions like \fBOSSL_PROVIDER_load()\fR, except that
 it does not disable the fallback providers if the provider cannot be
-loaded and initialized or if \fIretain_fallbacks\fR is zero.
-If the provider loads successfully and \fIretain_fallbacks\fR is nonzero, the
+loaded and initialized or if \fIretain_fallbacks\fR is nonzero.
+If the provider loads successfully and \fIretain_fallbacks\fR is zero, the
 fallback providers are disabled.
 .PP
 \&\fBOSSL_PROVIDER_unload()\fR unloads the given provider.
@@ -346,7 +346,7 @@ its build information.
 The type and functions described here were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

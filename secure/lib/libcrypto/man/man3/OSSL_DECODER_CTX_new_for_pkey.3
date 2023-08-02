@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_DECODER_CTX_NEW_FOR_PKEY 3"
-.TH OSSL_DECODER_CTX_NEW_FOR_PKEY 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_DECODER_CTX_NEW_FOR_PKEY 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -178,7 +178,7 @@ them up, so all the caller has to do next is call functions like
 \&\fBOSSL_DECODER_from_bio\fR\|(3).  The caller may use the optional \fIinput_type\fR,
 \&\fIinput_struct\fR, \fIkeytype\fR and \fIselection\fR to specify what the input is
 expected to contain.  The \fIpkey\fR must reference an \fB\s-1EVP_PKEY\s0 *\fR variable
-that will be set to the newly created \fB\s-1EVP_PKEY\s0\fR on succesfull decoding.
+that will be set to the newly created \fB\s-1EVP_PKEY\s0\fR on successful decoding.
 The referenced variable must be initialized to \s-1NULL\s0 before calling the
 function.
 .PP
@@ -265,7 +265,7 @@ failure.
 The functions described here were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

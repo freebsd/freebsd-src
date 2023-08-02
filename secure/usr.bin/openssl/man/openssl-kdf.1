@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-KDF 1"
-.TH OPENSSL-KDF 1 "2023-06-02" "3.0.9" "OpenSSL"
+.TH OPENSSL-KDF 1 "2023-08-02" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -192,8 +192,7 @@ cases.
 .IP "\fB\-kdfopt\fR \fInm\fR:\fIv\fR" 4
 .IX Item "-kdfopt nm:v"
 Passes options to the \s-1KDF\s0 algorithm.
-A comprehensive list of parameters can be found in the \s-1EVP_KDF_CTX\s0
-implementation documentation.
+A comprehensive list of parameters can be found in \*(L"\s-1PARAMETERS\*(R"\s0 in \s-1\fBEVP_KDF\s0\fR\|(3).
 Common parameter names used by \fBEVP_KDF_CTX_set_params()\fR are:
 .RS 4
 .IP "\fBkey:\fR\fIstring\fR" 4
@@ -204,9 +203,8 @@ The string length must conform to any restrictions of the \s-1KDF\s0 algorithm.
 A key must be specified for most \s-1KDF\s0 algorithms.
 .IP "\fBhexkey:\fR\fIstring\fR" 4
 .IX Item "hexkey:string"
-Specifies the secret key in hexadecimal form (two hex digits per byte).
-The key length must conform to any restrictions of the \s-1KDF\s0 algorithm.
-A key must be specified for most \s-1KDF\s0 algorithms.
+Alternative to the \fBkey:\fR option where
+the secret key is specified in hexadecimal form (two hex digits per byte).
 .IP "\fBpass:\fR\fIstring\fR" 4
 .IX Item "pass:string"
 Specifies the password as an alphanumeric string (use if the password contains
@@ -214,8 +212,31 @@ printable characters only).
 The password must be specified for \s-1PBKDF2\s0 and scrypt.
 .IP "\fBhexpass:\fR\fIstring\fR" 4
 .IX Item "hexpass:string"
-Specifies the password in hexadecimal form (two hex digits per byte).
-The password must be specified for \s-1PBKDF2\s0 and scrypt.
+Alternative to the \fBpass:\fR option where
+the password is specified in hexadecimal form (two hex digits per byte).
+.IP "\fBsalt:\fR\fIstring\fR" 4
+.IX Item "salt:string"
+Specifies a non-secret unique cryptographic salt as an alphanumeric string
+(use if it contains printable characters only).
+The length must conform to any restrictions of the \s-1KDF\s0 algorithm.
+A salt parameter is required for several \s-1KDF\s0 algorithms,
+such as \s-1\fBEVP_KDF\-PBKDF2\s0\fR\|(7).
+.IP "\fBhexsalt:\fR\fIstring\fR" 4
+.IX Item "hexsalt:string"
+Alternative to the \fBsalt:\fR option where
+the salt is specified in hexadecimal form (two hex digits per byte).
+.IP "\fBinfo:\fR\fIstring\fR" 4
+.IX Item "info:string"
+Some \s-1KDF\s0 implementations, such as \s-1\fBEVP_KDF\-HKDF\s0\fR\|(7), take an 'info' parameter
+for binding the derived key material
+to application\- and context-specific information.
+Specifies the info, fixed info, other info or shared info argument
+as an alphanumeric string (use if it contains printable characters only).
+The length must conform to any restrictions of the \s-1KDF\s0 algorithm.
+.IP "\fBhexinfo:\fR\fIstring\fR" 4
+.IX Item "hexinfo:string"
+Alternative to the \fBinfo:\fR option where
+the info is specified in hexadecimal form (two hex digits per byte).
 .IP "\fBdigest:\fR\fIstring\fR" 4
 .IX Item "digest:string"
 This option is identical to the \fB\-digest\fR option.
@@ -329,7 +350,7 @@ used when building OpenSSL.
 Added in OpenSSL 3.0
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

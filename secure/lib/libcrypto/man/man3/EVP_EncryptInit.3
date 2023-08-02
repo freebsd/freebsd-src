@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_ENCRYPTINIT 3"
-.TH EVP_ENCRYPTINIT 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_ENCRYPTINIT 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -748,7 +748,7 @@ Note that the block size for a cipher may be different to the block size for
 the underlying encryption/decryption primitive.
 For example \s-1AES\s0 in \s-1CTR\s0 mode has a block size of 1 (because it operates like a
 stream cipher), even though \s-1AES\s0 has a block size of 16.
-Use \fBEVP_CIPHER_get_block_size()\fR to retreive the cached value.
+Use \fBEVP_CIPHER_get_block_size()\fR to retrieve the cached value.
 .ie n .IP """aead"" (\fB\s-1OSSL_CIPHER_PARAM_AEAD\s0\fR) <integer>" 4
 .el .IP "``aead'' (\fB\s-1OSSL_CIPHER_PARAM_AEAD\s0\fR) <integer>" 4
 .IX Item "aead (OSSL_CIPHER_PARAM_AEAD) <integer>"
@@ -1215,10 +1215,11 @@ return 1 for success and 0 for failure.
 \&\fBEVP_CipherInit_ex2()\fR and \fBEVP_CipherUpdate()\fR return 1 for success and 0 for failure.
 \&\fBEVP_CipherFinal_ex()\fR returns 0 for a decryption failure or 1 for success.
 .PP
-\&\fBEVP_Cipher()\fR returns the amount of encrypted / decrypted bytes, or \-1
-on failure if the flag \fB\s-1EVP_CIPH_FLAG_CUSTOM_CIPHER\s0\fR is set for the
-cipher.  \fBEVP_Cipher()\fR returns 1 on success or 0 on failure, if the flag
+\&\fBEVP_Cipher()\fR returns 1 on success or 0 on failure, if the flag
 \&\fB\s-1EVP_CIPH_FLAG_CUSTOM_CIPHER\s0\fR is not set for the cipher.
+\&\fBEVP_Cipher()\fR returns the number of bytes written to \fIout\fR for encryption / decryption, or
+the number of bytes authenticated in a call specifying \s-1AAD\s0 for an \s-1AEAD\s0 cipher, if the flag
+\&\fB\s-1EVP_CIPH_FLAG_CUSTOM_CIPHER\s0\fR is set for the cipher.
 .PP
 \&\fBEVP_CIPHER_CTX_reset()\fR returns 1 for success and 0 for failure.
 .PP
@@ -1282,7 +1283,8 @@ depending on the mode specified.
 .PP
 To specify additional authenticated data (\s-1AAD\s0), a call to \fBEVP_CipherUpdate()\fR,
 \&\fBEVP_EncryptUpdate()\fR or \fBEVP_DecryptUpdate()\fR should be made with the output
-parameter \fIout\fR set to \fB\s-1NULL\s0\fR.
+parameter \fIout\fR set to \fB\s-1NULL\s0\fR. In this case, on success, the parameter
+\&\fIoutl\fR is set to the number of bytes authenticated.
 .PP
 When decrypting, the return value of \fBEVP_DecryptFinal()\fR or \fBEVP_CipherFinal()\fR
 indicates whether the operation was successful. If it does not indicate success,

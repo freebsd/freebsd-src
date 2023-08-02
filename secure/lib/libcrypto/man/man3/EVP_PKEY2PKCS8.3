@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY2PKCS8 3"
-.TH EVP_PKEY2PKCS8 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY2PKCS8 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,7 +158,7 @@ EVP_PKEY2PKCS8, EVP_PKCS82PKEY_ex, EVP_PKCS82PKEY
 \&\fBEVP_PKCS82PKEY_ex()\fR converts a \s-1PKCS8\s0 object \fIp8\fR into a returned private key.
 It uses \fIlibctx\fR and \fIpropq\fR when fetching algorithms.
 .PP
-\&\s-1\fBEVP_PKCS82PKEY\s0()\fR is similiar to \fBEVP_PKCS82PKEY_ex()\fR but uses default values of
+\&\s-1\fBEVP_PKCS82PKEY\s0()\fR is similar to \fBEVP_PKCS82PKEY_ex()\fR but uses default values of
 \&\s-1NULL\s0 for the \fIlibctx\fR and \fIpropq\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -171,7 +171,7 @@ All functions return \s-1NULL\s0 if the operation fails.
 \&\fBPKCS8_pkey_add1_attr\fR\|(3),
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

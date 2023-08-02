@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PARAM_INT 3"
-.TH OSSL_PARAM_INT 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_PARAM_INT 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -350,7 +350,7 @@ will be assigned the size the parameter's \fIdata\fR buffer should have.
 \&\fBOSSL_PARAM_get_utf8_string()\fR retrieves a \s-1UTF8\s0 string from the parameter
 pointed to by \fIp\fR.
 The string is stored into \fI*val\fR with a size limit of \fImax_len\fR,
-which must be large enough to accomodate a terminating \s-1NUL\s0 byte,
+which must be large enough to accommodate a terminating \s-1NUL\s0 byte,
 otherwise this function will fail.
 If \fI*val\fR is \s-1NULL,\s0 memory is allocated for the string (including the
 terminating  \s-1NUL\s0 byte) and \fImax_len\fR is ignored.
@@ -359,14 +359,14 @@ If memory is allocated by this function, it must be freed by the caller.
 \&\fBOSSL_PARAM_set_utf8_string()\fR sets a \s-1UTF8\s0 string from the parameter pointed to
 by \fIp\fR to the value referenced by \fIval\fR.
 If the parameter's \fIdata\fR field isn't \s-1NULL,\s0 its \fIdata_size\fR must indicate
-that the buffer is large enough to accomodate the string that \fIval\fR points at,
+that the buffer is large enough to accommodate the string that \fIval\fR points at,
 not including the terminating \s-1NUL\s0 byte, or this function will fail.
 A terminating \s-1NUL\s0 byte is added only if the parameter's \fIdata_size\fR indicates
 the buffer is longer than the string length, otherwise the string will not be
 \&\s-1NUL\s0 terminated.
 If the parameter's \fIdata\fR field is \s-1NULL,\s0 then only its \fIreturn_size\fR field
 will be assigned the minimum size the parameter's \fIdata\fR buffer should have
-to accomodate the string, not including a terminating \s-1NUL\s0 byte.
+to accommodate the string, not including a terminating \s-1NUL\s0 byte.
 .PP
 \&\fBOSSL_PARAM_get_octet_string()\fR retrieves an \s-1OCTET\s0 string from the parameter
 pointed to by \fIp\fR.
