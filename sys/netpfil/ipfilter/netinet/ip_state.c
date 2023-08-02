@@ -1255,7 +1255,7 @@ ipf_state_matchisps(ipstate_t *is1, ipstate_t *is2)
 		case IPPROTO_TCP :
 		case IPPROTO_UDP :
 		case IPPROTO_GRE :
-			/* greinfo_t can be also interprted as port pair */
+			/* greinfo_t can be also interpreted as port pair */
 			rv = ipf_state_matchports(&is1->is_ps.is_us,
 						  &is2->is_ps.is_us);
 			break;
