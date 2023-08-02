@@ -1531,6 +1531,9 @@ struct pfi_kkif {
 #define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
 
 #ifdef _KERNEL
+struct pf_sctp_multihome_job;
+TAILQ_HEAD(pf_sctp_multihome_jobs, pf_sctp_multihome_job);
+
 struct pf_pdesc {
 	struct {
 		int	 done;
@@ -1578,10 +1581,22 @@ struct pf_pdesc {
 #define PFDESC_SCTP_SHUTDOWN	0x0010
 #define PFDESC_SCTP_SHUTDOWN_COMPLETE	0x0020
 #define PFDESC_SCTP_DATA	0x0040
-#define PFDESC_SCTP_OTHER	0x0080
+#define PFDESC_SCTP_ASCONF	0x0080
+#define PFDESC_SCTP_OTHER	0x0100
 	u_int16_t	 sctp_flags;
 	u_int32_t	 sctp_initiate_tag;
+
+	struct pf_sctp_multihome_jobs	sctp_multihome_jobs;
 };
+
+struct pf_sctp_multihome_job {
+	TAILQ_ENTRY(pf_sctp_multihome_job)	next;
+	struct pf_pdesc				 pd;
+	struct pf_addr				 src;
+	struct pf_addr				 dst;
+	struct mbuf				*m;
+};
+
 #endif
 
 /* flags for RDR options */
@@ -2248,6 +2263,11 @@ void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
 int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *, bool);
 #endif /* INET6 */
+
+int	pf_multihome_scan_init(struct mbuf *, int, int, struct pf_pdesc *,
+	    struct pfi_kkif *);
+int	pf_multihome_scan_asconf(struct mbuf *, int, int, struct pf_pdesc *,
+	    struct pfi_kkif *);
 
 u_int32_t	pf_new_isn(struct pf_kstate *);
 void   *pf_pull_hdr(struct mbuf *, int, void *, int, u_short *, u_short *,
