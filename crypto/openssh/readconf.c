@@ -323,12 +323,14 @@ static struct {
 	{ "requiredrsasize", oRequiredRSASize },
 	{ "enableescapecommandline", oEnableEscapeCommandline },
 
+	/* HPN patch - retired in 60c59fad8806 */
 	{ "hpndisabled", oDeprecated },
 	{ "hpnbuffersize", oDeprecated },
 	{ "tcprcvbufpoll", oDeprecated },
 	{ "tcprcvbuf", oDeprecated },
 	{ "noneenabled", oUnsupported },
 	{ "noneswitch", oUnsupported },
+	/* Client VersionAddendum - retired in bffe60ead024 */
 	{ "versionaddendum", oDeprecated },
 
 	{ NULL, oBadOption }
