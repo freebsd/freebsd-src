@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	 SMI_CLK_MODE			(1UL << 24)
 
 #define	SMI_EN				0x20
-#define	 SMI_EN_EN			(1UL << 0)	/* Enabele interface */
+#define	 SMI_EN_EN			(1UL << 0)	/* Enable interface */
 
 #define	SMI_DRV_CTL			0x28
 
