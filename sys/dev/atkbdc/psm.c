@@ -5441,7 +5441,7 @@ enable_kmouse(struct psm_softc *sc, enum probearg arg)
 	if ((status[1] == PSMD_RES_LOW) || (status[2] == rate[i - 1]))
 		return (FALSE);
 
-	/* the device appears be enabled by this sequence, diable it for now */
+	/* the device appears be enabled by this sequence, disable it for now */
 	disable_aux_dev(kbdc);
 	empty_aux_buffer(kbdc, 5);
 
