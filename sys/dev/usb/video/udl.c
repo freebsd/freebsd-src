@@ -786,7 +786,7 @@ udl_select_chip(struct udl_softc *sc, struct usb_attach_arg *uaa)
 		/*
 		 * WS Tech DVI is DL120 or DL160. All deviced uses the
 		 * same revision (0.04) so iSerialNumber must be used
-		 * to determin which chip it is.
+		 * to determine which chip it is.
 		 */
 
 		if (strlen(pserial) > 7) {
