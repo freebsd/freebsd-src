@@ -4642,7 +4642,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				 * client somehow does an RPC without a
 				 * SequenceID Op that causes a callback just
 				 * after the nfsd threads have been terminated
-				 * and restared we could conceivably get here
+				 * and restarted we could conceivably get here
 				 * without a backchannel xprt.
 				 */
 				printf("nfsrv_docallback: no xprt\n");
