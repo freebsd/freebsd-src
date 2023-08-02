@@ -227,7 +227,7 @@ parse_line(const char *line, uint64_t *startp, uint64_t *endp)
 	uint64_t start, end;
 
 	/*
-	 * Each line is a range followed by a descriptoin of the form:
+	 * Each line is a range followed by a description of the form:
 	 * <hex-number><dash><hex-number><space><colon><space><string>
 	 * Bail if we have any parsing errors.
 	 */
