@@ -2159,6 +2159,7 @@ carp_sc_state(struct carp_softc *sc)
 #endif
 		carp_set_state(sc, INIT, "hardware interface down");
 		carp_setrun(sc, 0);
+		carp_delroute(sc);
 		if (!sc->sc_suppress)
 			carp_demote_adj(V_carp_ifdown_adj, "interface down");
 		sc->sc_suppress = 1;
