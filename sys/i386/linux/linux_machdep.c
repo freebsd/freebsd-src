@@ -519,7 +519,7 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	/*
 	 * Semantics of Linux version: every thread in the system has array of
 	 * 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
-	 * syscall loads one of the selected tls decriptors with a value and
+	 * syscall loads one of the selected tls descriptors with a value and
 	 * also loads GDT descriptors 6, 7 and 8 with the content of the
 	 * per-thread descriptors.
 	 *
