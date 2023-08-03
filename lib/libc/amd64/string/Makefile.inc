@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MDSRCS+= \
+	amd64_archlevel.c \
 	bcmp.S \
 	memcmp.S \
 	memcpy.S \
