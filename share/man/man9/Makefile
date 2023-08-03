@@ -1118,7 +1118,8 @@ MLINKS+=fpu_kern.9 fpu_kern_alloc_ctx.9 \
 	fpu_kern.9 fpu_kern_thread.9 \
 	fpu_kern.9 is_fpu_kern_thread.9
 MLINKS+=g_attach.9 g_detach.9
-MLINKS+=g_bio.9 g_alloc_bio.9 \
+MLINKS+=g_bio.9 bio.9 \
+	g_bio.9 g_alloc_bio.9 \
 	g_bio.9 g_clone_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
 	g_bio.9 g_duplicate_bio.9 \
