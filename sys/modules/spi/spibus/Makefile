@@ -9,6 +9,11 @@ SRCS=	spibus.c
 SRCS+=	ofw_spibus.c ofw_bus_if.h
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+SRCS+= acpi_spibus.c opt_acpi.h acpi_if.h
+.endif
+
 # Generated files...
 SRCS+=	\
 	bus_if.h \

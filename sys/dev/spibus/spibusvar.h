@@ -73,7 +73,15 @@ spibus_set_ ## A(device_t dev, T t)					\
 SPIBUS_ACCESSOR(cs,		CS,		uint32_t)
 SPIBUS_ACCESSOR(mode,		MODE,		uint32_t)
 SPIBUS_ACCESSOR(clock,		CLOCK,		uint32_t)
-SPIBUS_ACCESSOR(cs_delay,		CS_DELAY,		uint32_t)
+SPIBUS_ACCESSOR(cs_delay,	CS_DELAY,	uint32_t)
 
 extern driver_t spibus_driver;
 extern driver_t ofw_spibus_driver;
+
+int spibus_attach(device_t);
+int spibus_detach(device_t);
+device_t spibus_add_child_common(device_t, u_int, const char *, int, size_t);
+void spibus_probe_nomatch(device_t, device_t);
+int spibus_child_location(device_t, device_t, struct sbuf *);
+int spibus_read_ivar(device_t, device_t, int, uintptr_t *);
+int spibus_write_ivar(device_t, device_t, int, uintptr_t);
