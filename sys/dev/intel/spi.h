@@ -54,7 +54,7 @@ struct intelspi_softc {
 	struct spi_command	*sc_cmd;
 	uint32_t		sc_len;
 	uint32_t		sc_read;
-	uint32_t		sc_flags;
+	volatile uint32_t	sc_flags;
 	uint32_t		sc_written;
 	uint32_t		sc_clock;
 	uint32_t		sc_mode;
