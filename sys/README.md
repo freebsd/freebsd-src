@@ -9,6 +9,17 @@ architecture. `GENERIC` is the configuration used in release builds. `NOTES`
 contains documentation of all possible entries. `LINT` is a compile-only
 configuration used to maximize build coverage and detect regressions.
 
+Documentation:
+--------------
+
+Source code documentation is maintained in a set of man pages, under section 9.
+These pages are located in [`share/man/man9`](../share/man/man9), from the
+top-level of the src tree. Consult [`intro(9)`](https://man.freebsd.org/intro/9)
+for an overview of existing pages.
+
+Some additional high-level documentation of the kernel is maintained in the
+[Architecture Handbook](https://docs.freebsd.org/en/books/arch-handbook/).
+
 Source Roadmap:
 ---------------
 | Directory | Description |
