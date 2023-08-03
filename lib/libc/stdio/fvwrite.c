@@ -139,7 +139,7 @@ __sfvwrite(FILE *fp, struct __suio *uio)
 				fp->_p += w;
 				old_p = fp->_p;
 				if (__fflush(fp) == EOF) {
-					if (old_p == fp->_p && errno == EINTR)
+					if (old_p == fp->_p)
 						fp->_p -= w;
 					goto err;
 				}
@@ -183,7 +183,7 @@ __sfvwrite(FILE *fp, struct __suio *uio)
 				fp->_p += w;
 				old_p = fp->_p;
 				if (__fflush(fp) == EOF) {
-					if (old_p == fp->_p && errno == EINTR)
+					if (old_p == fp->_p)
 						fp->_p -= w;
 					goto err;
 				}
