@@ -330,6 +330,7 @@ static int	em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	em_get_rs(SYSCTL_HANDLER_ARGS);
 static void	em_print_debug_info(struct e1000_softc *);
 static int 	em_is_valid_ether_addr(u8 *);
+static bool	em_automask_tso(if_ctx_t);
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	em_add_int_delay_sysctl(struct e1000_softc *, const char *,
 		    const char *, struct em_int_delay_info *, int, int);
@@ -532,6 +533,10 @@ SYSCTL_INT(_hw_em, OID_AUTO, rx_abs_int_delay, CTLFLAG_RDTUN,
 static int em_smart_pwr_down = false;
 SYSCTL_INT(_hw_em, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &em_smart_pwr_down,
     0, "Set to true to leave smart power down enabled on newer adapters");
+
+static bool em_unsupported_tso = false;
+SYSCTL_BOOL(_hw_em, OID_AUTO, unsupported_tso, CTLFLAG_RDTUN,
+    &em_unsupported_tso, 0, "Allow unsupported em(4) TSO configurations");
 
 /* Controls whether promiscuous also shows bad packets */
 static int em_debug_sbp = false;
@@ -937,6 +942,8 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_tso_size_max = EM_TSO_SIZE;
 		scctx->isc_tx_tso_segsize_max = EM_TSO_SEG_SIZE;
 		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
+		if (em_unsupported_tso)
+			scctx->isc_capabilities |= IFCAP_TSO6;
 		/*
 		 * For LEM-class devices, don't enable IFCAP_{TSO4,VLAN_HWTSO}
 		 * by default as we don't have workarounds for all associated
@@ -1078,6 +1085,9 @@ em_if_attach_pre(if_ctx_t ctx)
 		error = ENOMEM;
 		goto err_late;
 	}
+
+	/* Clear the IFCAP_TSO auto mask */
+	sc->tso_automasked = 0;
 
 	/* Check SOL/IDER usage */
 	if (e1000_check_reset_block(hw))
@@ -1817,6 +1827,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 	struct e1000_hw *hw = &sc->hw;
 	device_t dev = iflib_get_dev(ctx);
 	u32 link_check, thstat, ctrl;
+	bool automasked = false;
 
 	link_check = thstat = ctrl = 0;
 	/* Get the cached link value or read phy for real */
@@ -1894,8 +1905,14 @@ em_if_update_admin_status(if_ctx_t ctx)
 			sc->flags |= IGB_MEDIA_RESET;
 			em_reset(ctx);
 		}
-		iflib_link_state_change(ctx, LINK_STATE_UP,
-		    IF_Mbps(sc->link_speed));
+		/* Only do TSO on gigabit Ethernet for older chips due to errata */
+		if (hw->mac.type < igb_mac_min)
+			automasked = em_automask_tso(ctx);
+
+		/* Automasking resets the interface, so don't mark it up yet */
+		if (!automasked)
+			iflib_link_state_change(ctx, LINK_STATE_UP,
+			    IF_Mbps(sc->link_speed));
 	} else if (!link_check && (sc->link_active == 1)) {
 		sc->link_speed = 0;
 		sc->link_duplex = 0;
@@ -3874,6 +3891,35 @@ em_is_valid_ether_addr(u8 *addr)
 	}
 
 	return (true);
+}
+
+static bool
+em_automask_tso(if_ctx_t ctx)
+{
+	struct e1000_softc *sc = iflib_get_softc(ctx);
+	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
+
+	if (!em_unsupported_tso && sc->link_speed &&
+	    sc->link_speed != SPEED_1000 && scctx->isc_capenable & IFCAP_TSO) {
+		device_printf(sc->dev, "Disabling TSO for 10/100 Ethernet.\n");
+		sc->tso_automasked = scctx->isc_capenable & IFCAP_TSO;
+		scctx->isc_capenable &= ~IFCAP_TSO;
+		if_setcapenablebit(ifp, 0, IFCAP_TSO);
+		/* iflib_init_locked handles ifnet hwassistbits */
+		iflib_request_reset(ctx);
+		return true;
+	} else if (sc->link_speed == SPEED_1000 && sc->tso_automasked) {
+		device_printf(sc->dev, "Re-enabling TSO for GbE.\n");
+		scctx->isc_capenable |= sc->tso_automasked;
+		if_setcapenablebit(ifp, sc->tso_automasked, 0);
+		sc->tso_automasked = 0;
+		/* iflib_init_locked handles ifnet hwassistbits */
+		iflib_request_reset(ctx);
+		return true;
+	}
+
+	return false;
 }
 
 /*
