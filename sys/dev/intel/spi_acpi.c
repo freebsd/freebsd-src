@@ -42,9 +42,10 @@
 static const struct intelspi_acpi_device {
 	const char *hid;
 	enum intelspi_vers vers;
+	const char *desc;
 } intelspi_acpi_devices[] = {
-	{ "80860F0E", SPI_BAYTRAIL },
-	{ "8086228E", SPI_BRASWELL },
+	{ "80860F0E", SPI_BAYTRAIL, "Intel Bay Trail SPI Controller" },
+	{ "8086228E", SPI_BRASWELL, "Intel Braswell SPI Controller" },
 };
 
 static char *intelspi_ids[] = { "80860F0E", "8086228E", NULL };
@@ -66,7 +67,7 @@ intelspi_acpi_probe(device_t dev)
 		if (strcmp(intelspi_acpi_devices[i].hid, hid) == 0) {
 			sc->sc_vers = intelspi_acpi_devices[i].vers;
 			sc->sc_handle = acpi_get_handle(dev);
-			device_set_desc(dev, intelspi_infos[sc->sc_vers].desc);
+			device_set_desc(dev, intelspi_acpi_devices[i].desc);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}

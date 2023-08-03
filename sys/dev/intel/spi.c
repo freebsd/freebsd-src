@@ -109,6 +109,29 @@
 #define	 SPI_CS_CTRL_HW_MODE			(1 << 0)
 #define	 SPI_CS_CTRL_CS_HIGH			(1 << 1)
 
+/* Same order as intelspi_vers */
+static const struct intelspi_info {
+	uint32_t reg_lpss_base;
+	uint32_t reg_cs_ctrl;
+} intelspi_infos[] = {
+	[SPI_BAYTRAIL] = {
+		.reg_lpss_base = 0x400,
+		.reg_cs_ctrl = 0x18,
+	},
+	[SPI_BRASWELL] = {
+		.reg_lpss_base = 0x400,
+		.reg_cs_ctrl = 0x18,
+	},
+	[SPI_LYNXPOINT] = {
+		.reg_lpss_base = 0x800,
+		.reg_cs_ctrl = 0x18,
+	},
+	[SPI_SUNRISEPOINT] = {
+		.reg_lpss_base = 0x200,
+		.reg_cs_ctrl = 0x24,
+	},
+};
+
 static void	intelspi_intr(void *);
 
 static int
