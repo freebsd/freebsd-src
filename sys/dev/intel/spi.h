@@ -41,38 +41,10 @@ enum intelspi_vers {
 	SPI_SUNRISEPOINT,
 };
 
-/* Same order as intelspi_vers */
-static const struct intelspi_info {
-	const char *desc;
-	uint32_t reg_lpss_base;
-	uint32_t reg_cs_ctrl;
-} intelspi_infos[] = {
-	[SPI_BAYTRAIL] = {
-		.desc = "Intel Bay Trail SPI Controller",
-		.reg_lpss_base = 0x400,
-		.reg_cs_ctrl = 0x18,
-	},
-	[SPI_BRASWELL] = {
-		.desc = "Intel Braswell SPI Controller",
-		.reg_lpss_base = 0x400,
-		.reg_cs_ctrl = 0x18,
-	},
-	[SPI_LYNXPOINT] = {
-		.desc = "Intel Lynx Point / Wildcat Point SPI Controller",
-		.reg_lpss_base = 0x800,
-		.reg_cs_ctrl = 0x18,
-	},
-	[SPI_SUNRISEPOINT] = {
-		.desc = "Intel Sunrise Point SPI Controller",
-		.reg_lpss_base = 0x200,
-		.reg_cs_ctrl = 0x24,
-	},
-};
-
 struct intelspi_softc {
 	ACPI_HANDLE		sc_handle;
 	device_t		sc_dev;
-	enum intelspi_vers sc_vers;
+	enum intelspi_vers	sc_vers;
 	struct mtx		sc_mtx;
 	int			sc_mem_rid;
 	struct resource		*sc_mem_res;
