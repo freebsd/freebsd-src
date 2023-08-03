@@ -3143,6 +3143,7 @@ dev/sound/midi/mpu_if.m		optional sound
 dev/sound/midi/mpufoi_if.m	optional sound
 dev/sound/midi/sequencer.c	optional sound
 dev/sound/midi/synth_if.m	optional sound
+dev/spibus/acpi_spibus.c	optional acpi spibus
 dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
