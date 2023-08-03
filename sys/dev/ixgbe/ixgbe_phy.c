@@ -1302,6 +1302,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 cable_tech = 0;
 	u8 cable_spec = 0;
 	u16 enforce_sfp = 0;
+	static bool warned_once = false;
 
 	DEBUGFUNC("ixgbe_identify_sfp_module_generic");
 
@@ -1536,13 +1537,16 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				status = IXGBE_SUCCESS;
 			} else {
 				if (hw->allow_unsupported_sfp == true) {
-					EWARN(hw,
-						"WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. "
-						"Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. "
-						"Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+					if (!warned_once)
+						EWARN(hw,
+							"WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. "
+							"Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. "
+							"Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+					warned_once = true;
 					status = IXGBE_SUCCESS;
 				} else {
-					DEBUGOUT("SFP+ module not supported\n");
+					DEBUGOUT
+					    ("SFP+ module not supported\n");
 					hw->phy.type =
 						ixgbe_phy_sfp_unsupported;
 					status = IXGBE_ERR_SFP_NOT_SUPPORTED;
@@ -1647,6 +1651,7 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	u8 cable_length = 0;
 	u8 device_tech = 0;
 	bool active_cable = false;
+	static bool warned_once = false;
 
 	DEBUGFUNC("ixgbe_identify_qsfp_module_generic");
 
@@ -1792,10 +1797,12 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 				status = IXGBE_SUCCESS;
 			} else {
 				if (hw->allow_unsupported_sfp == true) {
-					EWARN(hw,
-						"WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. "
-						"Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. "
-						"Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+					if (!warned_once)
+						EWARN(hw,
+							"WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. "
+							"Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. "
+							"Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+					warned_once = true;
 					status = IXGBE_SUCCESS;
 				} else {
 					DEBUGOUT("QSFP module not supported\n");
