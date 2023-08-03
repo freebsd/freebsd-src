@@ -119,6 +119,15 @@ static device_method_t intelspi_pci_methods[] = {
 	DEVMETHOD(device_suspend, intelspi_suspend),
 	DEVMETHOD(device_resume, intelspi_resume),
 
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+
 	/* SPI interface */
 	DEVMETHOD(spibus_transfer, intelspi_transfer),
 
