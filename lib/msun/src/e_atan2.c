@@ -15,7 +15,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_atan2(y,x)
+/* atan2(y,x)
  * Method :
  *	1. Reduce y to positive by atan2(y,x)=-atan2(-y,x).
  *	2. Reduce x to positive by (if x and y are unexceptional): 
@@ -58,7 +58,7 @@ static volatile double
 pi_lo   = 1.2246467991473531772E-16; /* 0x3CA1A626, 0x33145C07 */
 
 double
-__ieee754_atan2(double y, double x)
+atan2(double y, double x)
 {
 	double z;
 	int32_t k,m,hx,hy,ix,iy;

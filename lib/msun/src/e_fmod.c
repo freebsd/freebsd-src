@@ -15,7 +15,7 @@
 __FBSDID("$FreeBSD$");
 
 /* 
- * __ieee754_fmod(x,y)
+ * fmod(x,y)
  * Return x mod y in exact arithmetic
  * Method: shift and subtract
  */
@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 static const double one = 1.0, Zero[] = {0.0, -0.0,};
 
 double
-__ieee754_fmod(double x, double y)
+fmod(double x, double y)
 {
 	int32_t n,hx,hy,hz,ix,iy,sx,i;
 	u_int32_t lx,ly,lz;

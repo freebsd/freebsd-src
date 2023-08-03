@@ -16,10 +16,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_gammaf(x)
+/* gammaf(x)
  * Return the logarithm of the Gamma function of x.
  *
- * Method: call __ieee754_gammaf_r
+ * Method: call gammaf_r
  */
 
 #include "math.h"
@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 extern int signgam;
 
 float
-__ieee754_gammaf(float x)
+gammaf(float x)
 {
-	return __ieee754_gammaf_r(x,&signgam);
+	return gammaf_r(x,&signgam);
 }

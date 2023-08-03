@@ -120,7 +120,7 @@ sin_pif(float x)
 
 
 float
-__ieee754_lgammaf_r(float x, int *signgamp)
+lgammaf_r(float x, int *signgamp)
 {
 	float nadj,p,p1,p2,q,r,t,w,y,z;
 	int32_t hx;
@@ -138,7 +138,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	if(ix<0x32000000) {		/* |x|<2**-27, return -log(|x|) */
 	    if(ix==0)
 	        return one/vzero;
-	    return -__ieee754_logf(fabsf(x));
+	    return -logf(fabsf(x));
 	}
 
     /* purge negative integers and start evaluation for other x < 0 */
@@ -148,7 +148,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 		return one/vzero;
 	    t = sin_pif(x);
 	    if(t==zero) return one/vzero; /* -integer */
-	    nadj = __ieee754_logf(pi/fabsf(t*x));
+	    nadj = logf(pi/fabsf(t*x));
 	    if(t<zero) *signgamp = -1;
 	    x = -x;
 	}
@@ -158,7 +158,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
     /* for x < 2.0 */
 	else if(ix<0x40000000) {
 	    if(ix<=0x3f666666) { 	/* lgamma(x) = lgamma(x+1)-log(x) */
-		r = -__ieee754_logf(x);
+		r = -logf(x);
 		if(ix>=0x3f3b4a20) {y = one-x; i= 0;}
 		else if(ix>=0x3e6d3308) {y= x-(tc-one); i=1;}
 	  	else {y = x; i=2;}
@@ -198,18 +198,18 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	    case 5: z *= (y+4);		/* FALLTHRU */
 	    case 4: z *= (y+3);		/* FALLTHRU */
 	    case 3: z *= (y+2);		/* FALLTHRU */
-		    r += __ieee754_logf(z); break;
+		    r += logf(z); break;
 	    }
     /* 8.0 <= x < 2**27 */
 	} else if (ix < 0x4d000000) {
-	    t = __ieee754_logf(x);
+	    t = logf(x);
 	    z = one/x;
 	    y = z*z;
 	    w = w0+z*(w1+y*w2);
 	    r = (x-half)*(t-one)+w;
 	} else
     /* 2**27 <= x <= inf */
-	    r =  x*(__ieee754_logf(x)-one);
+	    r =  x*(logf(x)-one);
 	if(hx<0) r = nadj - r;
 	return r;
 }
