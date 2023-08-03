@@ -45,7 +45,7 @@ S04  =  1.1661400734e-09; /* 0x30a045e8 */
 static const float zero = 0, qrtr = 0.25;
 
 float
-__ieee754_j0f(float x)
+j0f(float x)
 {
 	float z, s,c,ss,cc,r,u,v;
 	int32_t hx,ix;
@@ -105,7 +105,7 @@ v03  =  2.5915085189e-07, /* 0x348b216c */
 v04  =  4.4111031494e-10; /* 0x2ff280c2 */
 
 float
-__ieee754_y0f(float x)
+y0f(float x)
 {
 	float z, s,c,ss,cc,u,v;
 	int32_t hx,ix;
@@ -147,12 +147,12 @@ __ieee754_y0f(float x)
                 return z;
 	}
 	if(ix<=0x39000000) {	/* x < 2**-13 */
-	    return(u00 + tpi*__ieee754_logf(x));
+	    return(u00 + tpi*logf(x));
 	}
 	z = x*x;
 	u = u00+z*(u01+z*(u02+z*(u03+z*(u04+z*(u05+z*u06)))));
 	v = one+z*(v01+z*(v02+z*(v03+z*v04)));
-	return(u/v + tpi*(__ieee754_j0f(x)*__ieee754_logf(x)));
+	return(u/v + tpi*(j0f(x)*logf(x)));
 }
 
 /* The asymptotic expansions of pzero is

@@ -39,7 +39,7 @@ static const double zero   =  0.0;
 static volatile double vzero = 0.0;
 
 double
-__ieee754_log10(double x)
+log10(double x)
 {
 	double f,hfsq,hi,lo,r,val_hi,val_lo,w,y,y2;
 	int32_t i,k,hx;

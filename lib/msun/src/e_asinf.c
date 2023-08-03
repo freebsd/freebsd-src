@@ -32,7 +32,7 @@ static const double
 pio2 =  1.570796326794896558e+00;
 
 float
-__ieee754_asinf(float x)
+asinf(float x)
 {
 	double s;
 	float t,w,p,q;

@@ -36,13 +36,13 @@ asinhf(float x)
 	    if(huge+x>one) return x;	/* return x inexact except 0 */
 	}
 	if(ix>0x4d800000) {	/* |x| > 2**28 */
-	    w = __ieee754_logf(fabsf(x))+ln2;
+	    w = logf(fabsf(x))+ln2;
 	} else if (ix>0x40000000) {	/* 2**28 > |x| > 2.0 */
 	    t = fabsf(x);
-	    w = __ieee754_logf((float)2.0*t+one/(__ieee754_sqrtf(x*x+one)+t));
+	    w = logf((float)2.0*t+one/(sqrtf(x*x+one)+t));
 	} else {		/* 2.0 > |x| > 2**-28 */
 	    t = x*x;
-	    w =log1pf(fabsf(x)+t/(one+__ieee754_sqrtf(one+t)));
+	    w =log1pf(fabsf(x)+t/(one+sqrtf(one+t)));
 	}
 	if(hx>0) return w; else return -w;
 }

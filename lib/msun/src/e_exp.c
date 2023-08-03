@@ -13,7 +13,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_exp(x)
+/* exp(x)
  * Returns the exponential of x.
  *
  * Method
@@ -102,7 +102,7 @@ huge	= 1.0e+300,
 twom1000= 9.33263618503218878990e-302;     /* 2**-1000=0x01700000,0*/
 
 double
-__ieee754_exp(double x)	/* default IEEE double exp */
+exp(double x)	/* default IEEE double exp */
 {
 	double y,hi=0.0,lo=0.0,c,t,twopk;
 	int32_t k=0,xsb;

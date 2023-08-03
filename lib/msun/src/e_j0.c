@@ -13,7 +13,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_j0(x), __ieee754_y0(x)
+/* j0(x), y0(x)
  * Bessel function of the first and second kinds of order zero.
  * Method -- j0(x):
  *	1. For tiny x, we use j0(x) = 1 - x^2/4 + x^4/64 - ...
@@ -83,7 +83,7 @@ S04  =  1.16614003333790000205e-09; /* 0x3E1408BC, 0xF4745D8F */
 static const double zero = 0, qrtr = 0.25;
 
 double
-__ieee754_j0(double x)
+j0(double x)
 {
 	double z, s,c,ss,cc,r,u,v;
 	int32_t hx,ix;
@@ -143,7 +143,7 @@ v03  =  2.59150851840457805467e-07, /* 0x3E91642D, 0x7FF202FD */
 v04  =  4.41110311332675467403e-10; /* 0x3DFE5018, 0x3BD6D9EF */
 
 double
-__ieee754_y0(double x)
+y0(double x)
 {
 	double z, s,c,ss,cc,u,v;
 	int32_t hx,ix,lx;
@@ -192,12 +192,12 @@ __ieee754_y0(double x)
                 return z;
 	}
 	if(ix<=0x3e400000) {	/* x < 2**-27 */
-	    return(u00 + tpi*__ieee754_log(x));
+	    return(u00 + tpi*log(x));
 	}
 	z = x*x;
 	u = u00+z*(u01+z*(u02+z*(u03+z*(u04+z*(u05+z*u06)))));
 	v = one+z*(v01+z*(v02+z*(v03+z*v04)));
-	return(u/v + tpi*(__ieee754_j0(x)*__ieee754_log(x)));
+	return(u/v + tpi*(j0(x)*log(x)));
 }
 
 /* The asymptotic expansions of pzero is

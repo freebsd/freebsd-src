@@ -13,7 +13,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_j1(x), __ieee754_y1(x)
+/* j1(x), y1(x)
  * Bessel function of the first and second kinds of order zero.
  * Method -- j1(x):
  *	1. For tiny x, we use j1(x) = x/2 - x^3/16 + x^5/384 - ...
@@ -84,7 +84,7 @@ s05  =  1.23542274426137913908e-11; /* 0x3DAB2ACF, 0xCFB97ED8 */
 static const double zero    = 0.0;
 
 double
-__ieee754_j1(double x)
+j1(double x)
 {
 	double z, s,c,ss,cc,r,u,v,y;
 	int32_t hx,ix;
@@ -140,7 +140,7 @@ static const double V0[5] = {
 };
 
 double
-__ieee754_y1(double x)
+y1(double x)
 {
 	double z, s,c,ss,cc,u,v;
 	int32_t hx,ix,lx;
@@ -190,7 +190,7 @@ __ieee754_y1(double x)
         z = x*x;
         u = U0[0]+z*(U0[1]+z*(U0[2]+z*(U0[3]+z*U0[4])));
         v = one+z*(V0[0]+z*(V0[1]+z*(V0[2]+z*(V0[3]+z*V0[4]))));
-        return(x*(u/v) + tpi*(__ieee754_j1(x)*__ieee754_log(x)-one/x));
+        return(x*(u/v) + tpi*(j1(x)*log(x)-one/x));
 }
 
 /* For x >= 8, the asymptotic expansions of pone is

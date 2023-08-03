@@ -22,7 +22,7 @@ __FBSDID("$FreeBSD$");
 static const float one = 1.0, shuge = 1.0e37;
 
 float
-__ieee754_sinhf(float x)
+sinhf(float x)
 {
 	float t,h;
 	int32_t ix,jx;
@@ -45,7 +45,7 @@ __ieee754_sinhf(float x)
 	}
 
     /* |x| in [9, logf(maxfloat)] return 0.5*exp(|x|) */
-	if (ix < 0x42b17217)  return h*__ieee754_expf(fabsf(x));
+	if (ix < 0x42b17217)  return h*expf(fabsf(x));
 
     /* |x| in [logf(maxfloat), overflowthresold] */
 	if (ix<=0x42b2d4fc)
