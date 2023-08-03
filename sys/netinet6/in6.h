@@ -650,7 +650,9 @@ struct ip6_mtuinfo {
 #define	M_SKIP_FIREWALL		M_PROTO3	/* skip firewall processing */
 #define	M_AUTHIPHDR		M_PROTO4
 #define	M_DECRYPTED		M_PROTO5
-#define	M_LOOP			M_PROTO6
+#ifndef M_LOOP
+	#define	M_LOOP			M_PROTO6
+#endif
 #define	M_AUTHIPDGM		M_PROTO7
 #define	M_RTALERT_MLD		M_PROTO8
 #define	M_FRAGMENTED		M_PROTO9	/* contained fragment header */
