@@ -2610,7 +2610,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}
 
 		/* Do not process none-local-targeted packets */
-  		if(!V_pfil_local_phys) {
+  		if (!V_pfil_local_phys) {
 			m_freem(m);
 			return(NULL);
 		}
