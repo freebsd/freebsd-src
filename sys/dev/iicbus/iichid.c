@@ -791,8 +791,8 @@ iichid_sysctl_sampling_rate_handler(SYSCTL_HANDLER_ARGS)
 #endif /* IICHID_SAMPLING */
 
 static void
-iichid_intr_setup(device_t dev, hid_intr_t intr, void *context,
-    struct hid_rdesc_info *rdesc)
+iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
+    void *context, struct hid_rdesc_info *rdesc)
 {
 	struct iichid_softc *sc;
 
@@ -820,7 +820,7 @@ iichid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 }
 
 static void
-iichid_intr_unsetup(device_t dev)
+iichid_intr_unsetup(device_t dev, device_t child __unused)
 {
 	struct iichid_softc *sc;
 
@@ -832,7 +832,7 @@ iichid_intr_unsetup(device_t dev)
 }
 
 static int
-iichid_intr_start(device_t dev)
+iichid_intr_start(device_t dev, device_t child __unused)
 {
 	struct iichid_softc *sc;
 
@@ -844,7 +844,7 @@ iichid_intr_start(device_t dev)
 }
 
 static int
-iichid_intr_stop(device_t dev)
+iichid_intr_stop(device_t dev, device_t child __unused)
 {
 	struct iichid_softc *sc;
 
@@ -862,7 +862,7 @@ iichid_intr_stop(device_t dev)
 }
 
 static void
-iichid_intr_poll(device_t dev)
+iichid_intr_poll(device_t dev, device_t child __unused)
 {
 	struct iichid_softc *sc;
 	iichid_size_t actual;
@@ -878,7 +878,8 @@ iichid_intr_poll(device_t dev)
  * HID interface
  */
 static int
-iichid_get_rdesc(device_t dev, void *buf, hid_size_t len)
+iichid_get_rdesc(device_t dev, device_t child __unused, void *buf,
+    hid_size_t len)
 {
 	struct iichid_softc *sc;
 	int error;
@@ -892,7 +893,8 @@ iichid_get_rdesc(device_t dev, void *buf, hid_size_t len)
 }
 
 static int
-iichid_read(device_t dev, void *buf, hid_size_t maxlen, hid_size_t *actlen)
+iichid_read(device_t dev, device_t child __unused, void *buf,
+    hid_size_t maxlen, hid_size_t *actlen)
 {
 	struct iichid_softc *sc;
 	device_t parent;
@@ -911,7 +913,8 @@ iichid_read(device_t dev, void *buf, hid_size_t maxlen, hid_size_t *actlen)
 }
 
 static int
-iichid_write(device_t dev, const void *buf, hid_size_t len)
+iichid_write(device_t dev, device_t child __unused, const void *buf,
+    hid_size_t len)
 {
 	struct iichid_softc *sc;
 
@@ -922,8 +925,8 @@ iichid_write(device_t dev, const void *buf, hid_size_t len)
 }
 
 static int
-iichid_get_report(device_t dev, void *buf, hid_size_t maxlen,
-    hid_size_t *actlen, uint8_t type, uint8_t id)
+iichid_get_report(device_t dev, device_t child __unused, void *buf,
+    hid_size_t maxlen, hid_size_t *actlen, uint8_t type, uint8_t id)
 {
 	struct iichid_softc *sc;
 
@@ -935,8 +938,8 @@ iichid_get_report(device_t dev, void *buf, hid_size_t maxlen,
 }
 
 static int
-iichid_set_report(device_t dev, const void *buf, hid_size_t len, uint8_t type,
-    uint8_t id)
+iichid_set_report(device_t dev, device_t child __unused, const void *buf,
+    hid_size_t len, uint8_t type, uint8_t id)
 {
 	struct iichid_softc *sc;
 
@@ -947,19 +950,21 @@ iichid_set_report(device_t dev, const void *buf, hid_size_t len, uint8_t type,
 }
 
 static int
-iichid_set_idle(device_t dev, uint16_t duration, uint8_t id)
+iichid_set_idle(device_t dev, device_t child __unused,
+    uint16_t duration, uint8_t id)
 {
 	return (ENOTSUP);
 }
 
 static int
-iichid_set_protocol(device_t dev, uint16_t protocol)
+iichid_set_protocol(device_t dev, device_t child __unused, uint16_t protocol)
 {
 	return (ENOTSUP);
 }
 
 static int
-iichid_ioctl(device_t dev, unsigned long cmd, uintptr_t data)
+iichid_ioctl(device_t dev, device_t child __unused, unsigned long cmd,
+    uintptr_t data)
 {
 	int error;
 

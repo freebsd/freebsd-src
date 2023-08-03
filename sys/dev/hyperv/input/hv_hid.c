@@ -473,8 +473,8 @@ hv_hid_detach(device_t dev)
 }
 
 static void
-hv_hid_intr_setup(device_t dev, hid_intr_t intr, void *ctx,
-    struct hid_rdesc_info *rdesc)
+hv_hid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
+    void *ctx, struct hid_rdesc_info *rdesc)
 {
 	hv_hid_sc	*sc;
 
@@ -489,7 +489,7 @@ hv_hid_intr_setup(device_t dev, hid_intr_t intr, void *ctx,
 }
 
 static void
-hv_hid_intr_unsetup(device_t dev)
+hv_hid_intr_unsetup(device_t dev, device_t child __unused)
 {
 	hv_hid_sc	*sc;
 
@@ -500,7 +500,7 @@ hv_hid_intr_unsetup(device_t dev)
 }
 
 static int
-hv_hid_intr_start(device_t dev)
+hv_hid_intr_start(device_t dev, device_t child __unused)
 {
 	hv_hid_sc	*sc;
 
@@ -512,7 +512,7 @@ hv_hid_intr_start(device_t dev)
 }
 
 static int
-hv_hid_intr_stop(device_t dev)
+hv_hid_intr_stop(device_t dev, device_t child __unused)
 {
 	hv_hid_sc	*sc;
 
@@ -524,7 +524,8 @@ hv_hid_intr_stop(device_t dev)
 }
 
 static int
-hv_hid_get_rdesc(device_t dev, void *buf, hid_size_t len)
+hv_hid_get_rdesc(device_t dev, device_t child __unused, void *buf,
+    hid_size_t len)
 {
 	hv_hid_sc	*sc;
 
