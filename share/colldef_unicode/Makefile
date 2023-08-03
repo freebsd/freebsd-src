@@ -8,7 +8,7 @@ FILESNAME=	LC_COLLATE
 .SUFFIXES:	.src .LC_COLLATE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
-CLDR_VERSION=	"41.0"
+CLDR_VERSION=	"43.0"
 
 .include <bsd.endian.mk>
 
