@@ -127,14 +127,13 @@ __sflush(FILE *fp)
 	for (; n > 0; n -= t, p += t) {
 		t = _swrite(fp, (char *)p, n);
 		if (t <= 0) {
-			/* Reset _p and _w. */
-			if (p > fp->_p) {
+			if (p > fp->_p)
 				/* Some was written. */
 				memmove(fp->_p, p, n);
-				fp->_p += n;
-				if ((fp->_flags & (__SLBF | __SNBF)) == 0)
-					fp->_w -= n;
-			}
+			/* Reset _p and _w. */
+			fp->_p += n;
+			if ((fp->_flags & __SNBF) == 0)
+				fp->_w -= n;
 			fp->_flags |= __SERR;
 			return (EOF);
 		}
