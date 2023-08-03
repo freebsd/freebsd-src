@@ -15,7 +15,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_acosh(x)
+/* acosh(x)
  * Method :
  *	Based on 
  *		acosh(x) = log [ x + sqrt(x*x-1) ]
@@ -39,7 +39,7 @@ one	= 1.0,
 ln2	= 6.93147180559945286227e-01;  /* 0x3FE62E42, 0xFEFA39EF */
 
 double
-__ieee754_acosh(double x)
+acosh(double x)
 {
 	double t;
 	int32_t hx;
@@ -51,12 +51,12 @@ __ieee754_acosh(double x)
 	    if(hx >=0x7ff00000) {	/* x is inf of NaN */
 	        return x+x;
 	    } else 
-		return __ieee754_log(x)+ln2;	/* acosh(huge)=log(2x) */
+		return log(x)+ln2;	/* acosh(huge)=log(2x) */
 	} else if(((hx-0x3ff00000)|lx)==0) {
 	    return 0.0;			/* acosh(1) = 0 */
 	} else if (hx > 0x40000000) {	/* 2**28 > x > 2 */
 	    t=x*x;
-	    return __ieee754_log(2.0*x-one/(x+sqrt(t-one)));
+	    return log(2.0*x-one/(x+sqrt(t-one)));
 	} else {			/* 1<x<2 */
 	    t = x-one;
 	    return log1p(t+sqrt(2.0*t+t*t));

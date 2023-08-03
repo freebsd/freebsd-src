@@ -14,7 +14,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_asin(x)
+/* asin(x)
  * Method :                  
  *	Since  asin(x) = x + x^3/6 + x^5*3/40 + x^7*15/336 + ...
  *	we approximate asin(x) on [0,0.5] by
@@ -68,7 +68,7 @@ qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
 double
-__ieee754_asin(double x)
+asin(double x)
 {
 	double t=0.0,w,p,q,c,r,s;
 	int32_t hx,ix;

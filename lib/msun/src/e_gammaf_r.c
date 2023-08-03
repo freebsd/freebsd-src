@@ -16,18 +16,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __ieee754_gammaf_r(x, signgamp)
+/* gammaf_r(x, signgamp)
  * Reentrant version of the logarithm of the Gamma function
  * with user provide pointer for the sign of Gamma(x).
  *
- * Method: See __ieee754_lgammaf_r
+ * Method: See lgammaf_r
  */
 
 #include "math.h"
 #include "math_private.h"
 
 float
-__ieee754_gammaf_r(float x, int *signgamp)
+gammaf_r(float x, int *signgamp)
 {
-	return __ieee754_lgammaf_r(x,signgamp);
+	return lgammaf_r(x,signgamp);
 }

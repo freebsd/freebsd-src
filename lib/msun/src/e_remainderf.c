@@ -23,7 +23,7 @@ static const float zero = 0.0;
 
 
 float
-__ieee754_remainderf(float x, float p)
+remainderf(float x, float p)
 {
 	int32_t hx,hp;
 	u_int32_t sx;
@@ -42,7 +42,7 @@ __ieee754_remainderf(float x, float p)
 	    return nan_mix_op(x, p, *)/nan_mix_op(x, p, *);
 
 
-	if (hp<=0x7effffff) x = __ieee754_fmodf(x,p+p);	/* now x < 2p */
+	if (hp<=0x7effffff) x = fmodf(x,p+p);	/* now x < 2p */
 	if ((hx-hp)==0) return zero*x;
 	x  = fabsf(x);
 	p  = fabsf(p);

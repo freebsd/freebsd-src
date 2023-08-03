@@ -22,7 +22,7 @@ static char rcsid[] = "$FreeBSD$";
 
 #ifdef USE_BUILTIN_SQRTF
 float
-__ieee754_sqrtf(float x)
+sqrtf(float x)
 {
 	return (__builtin_sqrtf(x));
 }
@@ -30,7 +30,7 @@ __ieee754_sqrtf(float x)
 static	const float	one	= 1.0, tiny=1.0e-30;
 
 float
-__ieee754_sqrtf(float x)
+sqrtf(float x)
 {
 	float z;
 	int32_t sign = (int)0x80000000;
