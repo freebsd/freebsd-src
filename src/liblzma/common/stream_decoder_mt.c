@@ -629,7 +629,7 @@ get_thread(struct lzma_stream_coder *coder, const lzma_allocator *allocator)
 			coder->thr = coder->threads_free;
 			coder->threads_free = coder->threads_free->next;
 
-			// The thread is no longer in the cache so substract
+			// The thread is no longer in the cache so subtract
 			// it from the cached memory usage. Don't add it
 			// to mem_in_use though; the caller will handle it
 			// since it knows how much memory it will actually
@@ -1359,7 +1359,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
 		// towards more favorable conditions (less memory in use,
 		// more in cache).
 		//
-		// These are initalized to silence warnings.
+		// These are initialized to silence warnings.
 		uint64_t mem_in_use = 0;
 		uint64_t mem_cached = 0;
 		struct worker_thread *thr = NULL;
@@ -1425,7 +1425,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
 		}
 
 		// Update the memory usage counters. Note that coder->mem_*
-		// may have changed since we read them so we must substract
+		// may have changed since we read them so we must subtract
 		// or add the changes.
 		mythread_sync(coder->mutex) {
 			coder->mem_cached -= mem_freed;
@@ -1438,7 +1438,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
 			// coder->mem_cached might count the same thing twice.
 			// If so, this will get corrected in get_thread() when
 			// a worker_thread is picked from coder->free_threads
-			// and its memory usage is substracted from mem_cached.
+			// and its memory usage is subtracted from mem_cached.
 			coder->mem_in_use += coder->mem_next_in
 					+ coder->mem_next_filters;
 		}

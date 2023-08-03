@@ -1,11 +1,12 @@
 '\" t
 .\"
-.\" Author: Lasse Collin
+.\" Authors: Lasse Collin
+.\"          Jia Tan
 .\"
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2022-12-01" "Tukaani" "XZ Utils"
+.TH XZ 1 "2023-07-17" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -1963,7 +1964,7 @@ decompression in the future.
 .
 .SS Version
 .B "xz \-\-robot \-\-version"
-will print the version number of
+prints the version number of
 .B xz
 and liblzma in the following format:
 .PP
@@ -2004,7 +2005,7 @@ and
 .
 .SS "Memory limit information"
 .B "xz \-\-robot \-\-info\-memory"
-prints a single line with three tab-separated columns:
+prints a single line with multiple tab-separated columns:
 .IP 1. 4
 Total amount of physical memory (RAM) in bytes.
 .IP 2. 4

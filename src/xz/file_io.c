@@ -602,7 +602,7 @@ io_open_src_real(file_pair *pair)
 	if (!follow_symlinks) {
 		struct stat st;
 		if (lstat(pair->src_name, &st)) {
-			message_error("%s: %s", pair->src_name,
+			message_error(_("%s: %s"), pair->src_name,
 					strerror(errno));
 			return true;
 
@@ -676,7 +676,7 @@ io_open_src_real(file_pair *pair)
 			// Something else than O_NOFOLLOW failing
 			// (assuming that the race conditions didn't
 			// confuse us).
-			message_error("%s: %s", pair->src_name,
+			message_error(_("%s: %s"), pair->src_name,
 					strerror(errno));
 
 		return true;
@@ -766,7 +766,7 @@ io_open_src_real(file_pair *pair)
 	return false;
 
 error_msg:
-	message_error("%s: %s", pair->src_name, strerror(errno));
+	message_error(_("%s: %s"), pair->src_name, strerror(errno));
 error:
 	(void)close(pair->src_fd);
 	return true;
@@ -937,7 +937,7 @@ io_open_dest_real(file_pair *pair)
 		pair->dest_fd = open(pair->dest_name, flags, mode);
 
 		if (pair->dest_fd == -1) {
-			message_error("%s: %s", pair->dest_name,
+			message_error(_("%s: %s"), pair->dest_name,
 					strerror(errno));
 			free(pair->dest_name);
 			return true;

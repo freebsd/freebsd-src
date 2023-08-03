@@ -56,7 +56,7 @@
  *
  * Usually you want this instead of LZMA1. Compared to LZMA1, LZMA2 adds
  * support for LZMA_SYNC_FLUSH, uncompressed chunks (smaller expansion
- * when trying to compress uncompressible data), possibility to change
+ * when trying to compress incompressible data), possibility to change
  * lc/lp/pb in the middle of encoding, and some other internal improvements.
  */
 #define LZMA_FILTER_LZMA2       LZMA_VLI_C(0x21)
@@ -417,7 +417,7 @@ typedef struct {
 	 *     like it is with LZMA_FILTER_LZMA1. Without this flag the
 	 *     end marker isn't written and the application has to store
 	 *     the uncompressed size somewhere outside the compressed stream.
-	 *     To decompress streams without the end marker, the appliation
+	 *     To decompress streams without the end marker, the application
 	 *     has to set the correct uncompressed size in ext_size_low and
 	 *     ext_size_high.
 	 *

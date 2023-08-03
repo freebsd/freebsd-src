@@ -184,7 +184,7 @@ typedef struct {
 //
 // Algorithms such as LZMA2 first try to compress a chunk, and then check
 // if the encoded result is smaller than the uncompressed one. If the chunk
-// was uncompressible, it is better to store it in uncompressed form in
+// was incompressible, it is better to store it in uncompressed form in
 // the output stream. To do this, the whole uncompressed chunk has to be
 // still available in the history buffer. before_size achieves that.
 

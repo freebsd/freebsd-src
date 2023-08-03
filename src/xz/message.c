@@ -667,7 +667,7 @@ progress_flush(bool finished)
 				cols[4]);
 	} else {
 		// The filename is always printed.
-		fprintf(stderr, "%s: ", filename);
+		fprintf(stderr, _("%s: "), filename);
 
 		// Percentage is printed only if we didn't finish yet.
 		if (!finished) {

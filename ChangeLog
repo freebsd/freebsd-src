@@ -1,3 +1,707 @@
+commit c1e396a9ac1c1c28ce4ede5cbadb955c516477bc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-02 20:32:20 +0800
+
+    Bump version and soname for 5.4.4.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 7d266d25ae323a2dc5f2e254c991ef84b997adad
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-02 20:30:07 +0800
+
+    Add NEWS for 5.4.4.
+
+ NEWS | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+commit 6a1093c0004c42eeaef312456c295671496dd67a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-02 15:19:43 +0300
+
+    build-aux/manconv.sh: Fix US-ASCII and UTF-8 output.
+    
+    groff defaults to SGR escapes. Using -P-c passes -c to grotty
+    which restores the old behavior. Perhaps there is a better way to
+    get pure plain text output but this works for now.
+
+ build-aux/manconv.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit f6f9f5651a7e2d89f588981533155ab850e063f7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-01 19:10:43 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 0dd83ba8767dad722e0f0f94e0e4146e290a28cb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-01 18:22:24 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 4170a80785cc69edfc5fdfe498bed5f40db6a7ef
+Author: ChanTsune <41658782+ChanTsune@users.noreply.github.com>
+Date:   2023-08-01 18:17:17 +0300
+
+    mythread.h: Disable signal functions in builds targeting Wasm + WASI.
+    
+    signal.h in WASI SDK doesn't currently provide sigprocmask()
+    or sigset_t. liblzma doesn't need them so this change makes
+    liblzma and xzdec build against WASI SDK. xz doesn't build yet
+    and the tests don't either as tuktest needs setjmp() which
+    isn't (yet?) implemented in WASI SDK.
+    
+    Closes: https://github.com/tukaani-project/xz/pull/57
+    See also: https://github.com/tukaani-project/xz/pull/56
+    
+    (The original commit was edited a little by Lasse Collin.)
+
+ src/common/mythread.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 0db6fbe0be1545a4f25fcd6993371155b37bbb26
+Author: Dimitri Papadopoulos Orfanos <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date:   2023-07-31 14:02:21 +0200
+
+    Docs: Fix typos found by codespell
+
+ CMakeLists.txt                            | 4 ++--
+ NEWS                                      | 2 +-
+ configure.ac                              | 2 +-
+ src/liblzma/api/lzma/container.h          | 4 ++--
+ src/liblzma/api/lzma/filter.h             | 2 +-
+ src/liblzma/api/lzma/lzma12.h             | 4 ++--
+ src/liblzma/common/block_buffer_encoder.c | 2 +-
+ src/liblzma/common/common.h               | 2 +-
+ src/liblzma/common/file_info.c            | 2 +-
+ src/liblzma/common/lzip_decoder.c         | 2 +-
+ src/liblzma/common/stream_decoder_mt.c    | 8 ++++----
+ src/liblzma/common/string_conversion.c    | 6 +++---
+ src/liblzma/lz/lz_encoder.h               | 2 +-
+ src/liblzma/lzma/lzma_encoder.c           | 4 ++--
+ src/xz/hardware.c                         | 4 ++--
+ tests/test_filter_flags.c                 | 4 ++--
+ tests/test_index.c                        | 2 +-
+ tests/test_vli.c                          | 2 +-
+ 18 files changed, 29 insertions(+), 29 deletions(-)
+
+commit 84a3a1f4e4f146b3b5fa73fe708cacb0d9f829f3
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-26 20:26:23 +0800
+
+    Update .gitignore.
+
+ .gitignore | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 962b3d41e0c27355ba3052ef7b7d9a887de807e5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-28 22:03:08 +0800
+
+    CMake: Conditionally allow the creation of broken symlinks.
+    
+    The CMake build will try to create broken symlinks on Unix and Unix-like
+    platforms. Cygwin and MSYS2 are Unix-like, but may not be able to create
+    broken symlinks. The value of the CYGWIN or MSYS environment variables
+    determine if broken symlinks are valid.
+    
+    The default for MSYS2 does not allow for broken symlinks, so the CMake
+    build has been broken for MSYS2 since commit
+    80a1a8bb838842a2be343bd88ad1462c21c5e2c9.
+
+ CMakeLists.txt | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 75 insertions(+), 7 deletions(-)
+
+commit 19899340cf74d98304f9f5b726c72e85c7017d72
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-24 21:43:44 +0800
+
+    liblzma: Prevent an empty translation unit in Windows builds.
+    
+    To workaround Automake lacking Windows resource compiler support, an
+    empty source file is compiled to overwrite the resource files for static
+    library builds. Translation units without an external declaration are
+    not allowed by the C standard and result in a warning when used with
+    -Wempty-translation-unit (Clang) or -pedantic (GCC).
+
+ src/liblzma/Makefile.am | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit ef7fbe83937abd7f55f1637c1d08b559f1d3d6cc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-21 18:05:44 +0800
+
+    Tests: Skip .lz files in test_files.sh if not configured.
+    
+    Previously if the lzip decoder was not configured then test_files.sh
+    would pass the lzip tests instead of skipping them.
+
+ tests/test_files.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e49815ba7aa610b72e8724025eceee23c27e7b23
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 22:11:13 +0800
+
+    Tests: Add ARM64 filter test to test_compress.sh.
+
+ tests/test_compress.sh | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit db5b57b827c2b084586c51da1b8a3ab0984bdb40
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-22 18:37:56 +0800
+
+    Translations: Update the Vietnamese translation.
+
+ po/vi.po | 45 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)
+
+commit e6ba5014081c98cb068253b3e5f9e372dd157f3c
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:30:05 +0800
+
+    Translations: Update the Croatian translation.
+
+ po/hr.po | 49 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)
+
+commit 82657a1f10a25050a3e9c246c41deb785cccba3a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:28:32 +0800
+
+    Translations: Update the Korean man page translations.
+
+ po4a/ko.po | 1255 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 629 insertions(+), 626 deletions(-)
+
+commit fab35907d13efbe7c457e00a310123335d7bae3e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:25:24 +0800
+
+    Translations: Update the Korean translation.
+
+ po/ko.po | 45 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)
+
+commit f530fe1964c34797fa3b775ec5804d68007c1579
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:24:05 +0800
+
+    Translations: Update the Polish translation.
+
+ po/pl.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit 10b3500cc2617aabdbc802a63164ce0a3683ad2b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:22:23 +0800
+
+    Translations: Update the German man page translations.
+
+ po4a/de.po | 1255 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 629 insertions(+), 626 deletions(-)
+
+commit 3d14e8a34dba176f975326924ae28a3ab5fee165
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:18:44 +0800
+
+    Translations: Update the German translation.
+
+ po/de.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit bdcc180a2da15039c47455c1cafd1ce9aff442e4
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:17:10 +0800
+
+    Translations: Update the Chinese (simplified) translation.
+
+ po/zh_CN.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit 844240350d33cb46ba8827b74dc8758e2abed9e5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:15:47 +0800
+
+    Translations: Update the Swedish translation.
+
+ po/sv.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit bdc7952bcfbc20c134f723ff5cbf84ab690fb4fc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:14:00 +0800
+
+    Translations: Update the Ukrainian man page translations.
+
+ po4a/uk.po | 1253 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 628 insertions(+), 625 deletions(-)
+
+commit 143396e070c8d8afb56e3a5f688b214222cf71e0
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:09:15 +0800
+
+    Translations: Update the Ukrainian translation.
+
+ po/uk.po | 45 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)
+
+commit 1b8146d64eaac51b40079f5788b85c1eb79e35de
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:06:57 +0800
+
+    Translations: Update the Spanish translation.
+
+ po/es.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit f947ce09d79ef8fa6549d350c4d72e4a8a9fa697
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:05:19 +0800
+
+    Translations: Update the Romanian translation.
+
+ po/ro.po | 48 ++++++++++++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 18 deletions(-)
+
+commit f681301a368def3f597a7c7bea7cb3f7a2f933e7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-20 20:02:56 +0800
+
+    Translations: Update the Romanian man page translations.
+
+ po4a/ro.po | 1254 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 629 insertions(+), 625 deletions(-)
+
+commit 8bc3146c6be920b56283f4ee846456cb34ae4b6f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-13 21:26:47 +0800
+
+    xz: Update man page Authors and date.
+
+ src/xz/xz.1 | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+commit c2905540ef905412b54c76488758712d3e2a0f9d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-18 23:19:09 +0800
+
+    xz: Slight reword in xz man page for consistency.
+    
+    Changed will print => prints in xz --robot --version description to
+    match --robot --info-memory description.
+
+ src/xz/xz.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 2600d3352449faf57d9cb3fa00cbe40548a1310f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-18 22:49:57 +0800
+
+    liblzma: Improve comment in string_conversion.c.
+    
+    The comment used "flag" when referring to decoder options. Just
+    referring to them as options is more clear and consistent.
+
+ src/liblzma/common/string_conversion.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 98fc14541eec3e1dcf694075c8533f19a3cee552
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-13 21:21:54 +0800
+
+    liblzma: Reword lzma_str_list_filters() documentation.
+    
+    Reword "options required" to "options read". The previous wording
+    may have suggested that the options listed were all required when
+    the filters are used for encoding or decoding. Now it should be
+    more clear that the options listed are the ones relevant for
+    encoding or decoding.
+
+ src/liblzma/api/lzma/filter.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 1ac79b4cbaecf3f4930a5d8ce6f7e1f2b63c2a01
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-07-18 17:37:33 +0300
+
+    xz: Translate the second "%s: " in message.c since French needs "%s : ".
+    
+    This string is used to print a filename when using "xz -v" and
+    stderr isn't a terminal.
+
+ src/xz/message.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 97851be2c6c64494f23c3a735601c13d4387820b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-07-18 14:35:33 +0300
+
+    xz: Make "%s: %s" translatable because French needs "%s : %s".
+
+ src/xz/args.c    |  5 ++++-
+ src/xz/coder.c   |  8 ++++----
+ src/xz/file_io.c |  8 ++++----
+ src/xz/list.c    | 11 ++++++-----
+ 4 files changed, 18 insertions(+), 14 deletions(-)
+
+commit b406828a6dfd3caa4f77efe3ff3e3eea263eee62
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-07-18 13:57:54 +0300
+
+    liblzma: Tweak #if condition in memcmplen.h.
+    
+    Maybe ICC always #defines _MSC_VER on Windows but now
+    it's very clear which code will get used.
+
+ src/liblzma/common/memcmplen.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit ef4a07ad9434f81417395f6fe0bb331e027a703b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-07-18 13:49:43 +0300
+
+    liblzma: Omit unnecessary parenthesis in a preprocessor directive.
+
+ src/liblzma/common/memcmplen.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 64ee0caaea06654b28afaee850fb187a11bf9cb2
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-06-28 20:22:38 +0800
+
+    liblzma: Prevent warning for MSYS2 Windows build.
+    
+    In lzma_memcmplen(), the <intrin.h> header file is only included if
+    _MSC_VER and _M_X64 are both defined but _BitScanForward64() was
+    previously used if _M_X64 was defined. GCC for MSYS2 defines _M_X64 but
+    not _MSC_VER so _BitScanForward64() was used without including
+    <intrin.h>.
+    
+    Now, lzma_memcmplen() will use __builtin_ctzll() for MSYS2 GCC builds as
+    expected.
+
+ src/liblzma/common/memcmplen.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit ba177057643dae6e9c167ee26471181c199c8a00
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-14 23:20:33 +0800
+
+    Docs: Add a new section to INSTALL for Tests.
+    
+    The new Tests section describes basic information about the tests, how
+    to run them, and important details when cross compiling. We have had a
+    few questions about how to compile the tests without running them, so
+    hopefully this information will help others with the same question in the
+    future.
+    
+    Fixes: https://github.com/tukaani-project/xz/issues/54
+
+ INSTALL | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 64 insertions(+), 17 deletions(-)
+
+commit 0745b900fafa5ac2c31e8ec3cfba3053457c8b1f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-14 21:10:27 +0800
+
+    Docs: Update README.
+    
+    This adds an entry to "Other implementations of the .xz format" for
+    XZ for Java.
+
+ README | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit c972d44103c4edf88e73917ef08bde69db9d06cb
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-18 13:27:46 +0300
+
+    xz: Fix typo in man page.
+    
+    The Memory limit information section described three output
+    columns when it actually has six. This was reworded to
+    "multiple" to make it more future proof.
+
+ src/xz/xz.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 6e21f1b4e2c580b64d258e3b81ac9e44d53b9283
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-14 21:30:25 +0800
+
+    Tests: Improve feature testing for skipping.
+    
+    Fixed a bug where test_compress_* would all fail if arm64 or armthumb
+    filters were enabled for compression but arm was disabled. Since the
+    grep tests only checked for "define HAVE_ENCODER_ARM", this would match
+    on HAVE_ENCODER_ARM64 or HAVE_ENCODER_ARMTHUMB.
+    
+    Now the config.h feature test requires " 1" at the end to prevent the
+    prefix problem. have_feature() was also updated for this even though
+    there were known current bugs affecting it. This is just in case future
+    features have a similar prefix problem.
+
+ tests/test_compress.sh | 4 ++--
+ tests/test_files.sh    | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+commit 26c37d290c0884a4518a26b949575420a77fb938
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-10 20:56:28 +0800
+
+    Translations: Update the Chinese (traditional) translation.
+
+ po/zh_TW.po | 659 ++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 377 insertions(+), 282 deletions(-)
+
+commit 2ec65181e28335692a3a4fac4fefc4303111d355
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-07-08 20:03:59 +0800
+
+    Translations: Update the Vietnamese translation.
+
+ po/vi.po | 620 +++++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 349 insertions(+), 271 deletions(-)
+
+commit c44c7e7590db1b89c97e106f5c516bf69189e233
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-06-28 20:46:31 +0800
+
+    Tests: Fix memory leaks in test_index.
+    
+    Several tests were missing calls to lzma_index_end() to clean up the
+    lzma_index structs. The memory leaks were discovered by using
+    -fsanitize=address with GCC.
+
+ tests/test_index.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit b9499c94fccc03eba5311b5305f04149a7c5af65
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-06-28 20:43:29 +0800
+
+    Tests: Fix memory leaks in test_block_header.
+    
+    test_block_header was not properly freeing the filter options between
+    calls to lzma_block_header_decode(). The memory leaks were discovered by
+    using -fsanitize=address with GCC.
+
+ tests/test_block_header.c | 38 ++++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)
+
+commit 1155471651ad456c5f90aee6435931fae65682bf
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-06-28 20:31:11 +0800
+
+    liblzma: Prevent uninitialzed warning in mt stream encoder.
+    
+    This change only impacts the compiler warning since it was impossible
+    for the wait_abs struct in stream_encode_mt() to be used before it was
+    initialized since mythread_condtime_set() will always be called before
+    mythread_cond_timedwait().
+    
+    Since the mythread.h code is different between the POSIX and
+    Windows versions, this warning was only present on Windows builds.
+    
+    Thanks to Arthur S for reporting the warning and providing an initial
+    patch.
+
+ src/liblzma/common/stream_encoder_mt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 62dd1c9bf0c66679ceeebc8b99bca136ca43bcb9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-06-07 00:10:38 +0800
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit d04eb78ab3892d3678c180437dd66379efa051fd
+Author: Benjamin Buch <bebuch@users.noreply.github.com>
+Date:   2023-06-06 15:32:45 +0200
+
+    CMake: Protects against double find_package
+    
+    Boost iostream uses `find_package` in quiet mode and then again uses
+    `find_package` with required. This second call triggers a
+    `add_library cannot create imported target "LibLZMA::LibLZMA"
+    because another target with the same name already exists.`
+    
+    This can simply be fixed by skipping the alias part on secondary
+    `find_package` runs.
+
+ CMakeLists.txt | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+commit 12ea1fb29763dd72376aca73d69621aff01eaa7f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-31 20:26:42 +0800
+
+    Translations: Update the Esperanto translation.
+
+ po/eo.po | 185 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 92 insertions(+), 93 deletions(-)
+
+commit a4d45c07c1e4aa0ea9410b4eed7301c97e960319
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-31 20:25:00 +0800
+
+    Translations: Update the Croatian translation.
+
+ po/hr.po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit f51b7bcea6f948db9529b3e6d850e76a30cc0e96
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-31 20:15:53 +0800
+
+    Translations: Update the Chinese (simplified) translation.
+
+ po/zh_CN.po | 317 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 157 insertions(+), 160 deletions(-)
+
+commit d5b81c19a7594fbb913bb3450360bc2145f29568
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-17 23:12:13 +0800
+
+    Translations: Update German translation of man pages.
+
+ po4a/de.po | 52 ++++++++++++----------------------------------------
+ 1 file changed, 12 insertions(+), 40 deletions(-)
+
+commit 36860a3e30d5675b4dba3a343159458d8864bceb
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-17 23:09:18 +0800
+
+    Translations: Update the German translation.
+
+ po/de.po | 189 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 94 insertions(+), 95 deletions(-)
+
+commit f05641ef0d4990c4c58f459039d412475b94b37d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-17 20:30:01 +0800
+
+    Translations: Update the Croatian translation.
+
+ po/hr.po | 187 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 93 insertions(+), 94 deletions(-)
+
+commit b852f6f11d43cafce871cd158c80488f86619a63
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-17 20:26:54 +0800
+
+    Translations: Update Korean translation of man pages.
+
+ po4a/ko.po | 3015 ++++++++++++------------------------------------------------
+ 1 file changed, 568 insertions(+), 2447 deletions(-)
+
+commit fdcb78fb6f5313eda363869690685471d7ab9731
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-17 20:13:01 +0800
+
+    Translations: Update the Korean translation.
+
+ po/ko.po | 319 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 158 insertions(+), 161 deletions(-)
+
+commit 9e39cebe3ccdd4bc320ce6e7eea989bdd167c8b2
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:49:09 +0800
+
+    Translations: Update the Spanish translation.
+
+ po/es.po | 319 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 158 insertions(+), 161 deletions(-)
+
+commit 7a578d1d8293fc1cf7c6f9df76bc6a0e55c51a14
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:47:23 +0800
+
+    Translations: Update the Romanian translation.
+
+ po/ro.po | 195 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 98 insertions(+), 97 deletions(-)
+
+commit 362320fea5383bae179763763625532bad6d10e8
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:45:43 +0800
+
+    Translations: Update Romanian translation of man pages.
+
+ po4a/ro.po | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+commit 29c5a870be23d0a565b959404b34a8b1babef7df
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:43:51 +0800
+
+    Translations: Update Ukrainian translation of man pages.
+
+ po4a/uk.po | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit 5ee57572773207371712b1bbcd9b5b8c1baad2cc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:37:54 +0800
+
+    Translations: Update the Ukrainian translation.
+
+ po/uk.po | 321 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 159 insertions(+), 162 deletions(-)
+
+commit dfc257bdb224780d3c8cdeca5a8e52848b9adc0a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 23:07:35 +0800
+
+    Translations: Update the Polish translation.
+
+ po/pl.po | 316 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 155 insertions(+), 161 deletions(-)
+
+commit f6df4c4ab7378d2971ae1606f4eecc011ea5fc6d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 22:52:14 +0800
+
+    Translations: Update the Swedish translation.
+
+ po/sv.po | 319 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 158 insertions(+), 161 deletions(-)
+
+commit 25da22e0521ec698dae4eb5e994b4cd3f4708b60
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-16 21:21:38 +0800
+
+    Translations: Update the Esperanto translation.
+
+ po/eo.po | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)
+
+commit 4f57a9c9915b7b9267885cf9fca58e5c8208458d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-11 23:49:23 +0800
+
+    liblzma: Adds lzma_nothrow to MicroLZMA API functions.
+    
+    None of the liblzma functions may throw an exception, so this
+    attribute should be applied to all liblzma API functions.
+
+ src/liblzma/api/lzma/container.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
 commit 238b4e5458b4bd2cadefb768b8ea7c6b70a191ac
 Author: Jia Tan <jiat0218@gmail.com>
 Date:   2023-05-04 20:38:52 +0800
