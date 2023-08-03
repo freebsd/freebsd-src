@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include "bsdunzip.h"
 #include "err.h"
 
-extern int bsdunzip_optind;
-
 /*
  * Short options for bsdunzip.  Please keep this sorted.
  */
