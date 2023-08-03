@@ -106,10 +106,10 @@ int
 __sflush(FILE *fp)
 {
 	unsigned char *p;
-	int n, t;
+	int n, f, t;
 
-	t = fp->_flags;
-	if ((t & __SWR) == 0)
+	f = fp->_flags;
+	if ((f & __SWR) == 0)
 		return (0);
 
 	if ((p = fp->_bf._base) == NULL)
@@ -122,7 +122,7 @@ __sflush(FILE *fp)
 	 * exchange buffering (via setvbuf) in user write function.
 	 */
 	fp->_p = p;
-	fp->_w = t & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
+	fp->_w = f & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
 
 	for (; n > 0; n -= t, p += t) {
 		t = _swrite(fp, (char *)p, n);
