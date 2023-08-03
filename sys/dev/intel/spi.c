@@ -508,7 +508,7 @@ intelspi_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->sc_irq_rid, sc->sc_irq_res);
 
-	return (bus_generic_detach(dev));
+	return (device_delete_children(dev));
 }
 
 int
