@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -46,14 +47,27 @@
 /**
  *	Macros for driver mutex locking
  */
-#define	INTELSPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	INTELSPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	INTELSPI_IN_POLLING_MODE()	(SCHEDULER_STOPPED() || kdb_active)
+#define	INTELSPI_LOCK(_sc)		do {		\
+	if(!INTELSPI_IN_POLLING_MODE())			\
+		mtx_lock(&(_sc)->sc_mtx);		\
+} while (0)
+#define	INTELSPI_UNLOCK(_sc)		do {		\
+	if(!INTELSPI_IN_POLLING_MODE())			\
+		mtx_unlock(&(_sc)->sc_mtx);		\
+} while (0)
 #define	INTELSPI_LOCK_INIT(_sc)		\
 	mtx_init(&_sc->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
 	    "intelspi", MTX_DEF)
 #define	INTELSPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
-#define	INTELSPI_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
-#define	INTELSPI_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+#define	INTELSPI_ASSERT_LOCKED(_sc)	do {		\
+	if(!INTELSPI_IN_POLLING_MODE())			\
+		mtx_assert(&(_sc)->sc_mtx, MA_OWNED);	\
+} while (0)
+#define	INTELSPI_ASSERT_UNLOCKED(_sc)	do {		\
+	if(!INTELSPI_IN_POLLING_MODE())			\
+		mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED);\
+} while (0)
 
 #define INTELSPI_WRITE(_sc, _off, _val)		\
     bus_write_4((_sc)->sc_mem_res, (_off), (_val))
@@ -342,17 +356,26 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	INTELSPI_LOCK(sc);
 
-	/* If the controller is in use wait until it is available. */
-	while (sc->sc_flags & INTELSPI_BUSY) {
-		if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP) {
-			INTELSPI_UNLOCK(sc);
-			return (EBUSY);
+	if (!INTELSPI_IN_POLLING_MODE()) {
+		/* If the controller is in use wait until it is available. */
+		while (sc->sc_flags & INTELSPI_BUSY) {
+			if ((cmd->flags & SPI_FLAG_NO_SLEEP) != 0) {
+				INTELSPI_UNLOCK(sc);
+				return (EBUSY);
+			}
+			err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", 0);
+			if (err == EINTR) {
+				INTELSPI_UNLOCK(sc);
+				return (err);
+			}
 		}
-		err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", 0);
-		if (err == EINTR) {
-			INTELSPI_UNLOCK(sc);
-			return (err);
-		}
+	} else {
+		/*
+		 * Now we are in the middle of other transfer. Try to reset
+		 * controller state to get predictable context.
+		 */
+		if ((sc->sc_flags & INTELSPI_BUSY) != 0)
+			intelspi_init(sc);
 	}
 
 	/* Now we have control over SPI controller. */
@@ -411,7 +434,8 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	DELAY(cs_delay);
 
 	/* Transfer as much as possible to FIFOs */
-	if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP) {
+	if ((cmd->flags & SPI_FLAG_NO_SLEEP) != 0 ||
+	     INTELSPI_IN_POLLING_MODE() || cold) {
 		/* We cannot wait with mtx_sleep if we're called from e.g. an ithread */
 		poll_limit = 2000;
 		while (!intelspi_transact(sc) && poll_limit-- > 0)
@@ -449,7 +473,8 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Release the controller and wakeup the next thread waiting for it. */
 	sc->sc_flags = 0;
-	wakeup_one(dev);
+	if (!INTELSPI_IN_POLLING_MODE())
+		wakeup_one(dev);
 	INTELSPI_UNLOCK(sc);
 
 	/*
