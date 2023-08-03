@@ -2255,19 +2255,19 @@ done:
 
 /*
  *	vm_map_find_min() is a variant of vm_map_find() that takes an
- *	additional parameter (min_addr) and treats the given address
- *	(*addr) differently.  Specifically, it treats *addr as a hint
+ *	additional parameter ("default_addr") and treats the given address
+ *	("*addr") differently.  Specifically, it treats "*addr" as a hint
  *	and not as the minimum address where the mapping is created.
  *
  *	This function works in two phases.  First, it tries to
  *	allocate above the hint.  If that fails and the hint is
- *	greater than min_addr, it performs a second pass, replacing
- *	the hint with min_addr as the minimum address for the
+ *	greater than "default_addr", it performs a second pass, replacing
+ *	the hint with "default_addr" as the minimum address for the
  *	allocation.
  */
 int
 vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr, vm_size_t length, vm_offset_t min_addr,
+    vm_offset_t *addr, vm_size_t length, vm_offset_t default_addr,
     vm_offset_t max_addr, int find_space, vm_prot_t prot, vm_prot_t max,
     int cow)
 {
@@ -2277,14 +2277,14 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	hint = *addr;
 	if (hint == 0) {
 		cow |= MAP_NO_HINT;
-		*addr = hint = min_addr;
+		*addr = hint = default_addr;
 	}
 	for (;;) {
 		rv = vm_map_find(map, object, offset, addr, length, max_addr,
 		    find_space, prot, max, cow);
-		if (rv == KERN_SUCCESS || min_addr >= hint)
+		if (rv == KERN_SUCCESS || default_addr >= hint)
 			return (rv);
-		*addr = hint = min_addr;
+		*addr = hint = default_addr;
 	}
 }
 
