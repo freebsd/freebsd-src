@@ -308,8 +308,7 @@ void
 ifc_link_ifp(struct if_clone *ifc, struct ifnet *ifp)
 {
 
-	if ((ifc->ifc_flags & IFC_NOGROUP) == 0)
-		if_addgroup(ifp, ifc->ifc_name);
+	if_addgroup(ifp, ifc->ifc_name);
 
 	IF_CLONE_LOCK(ifc);
 	IFC_IFLIST_INSERT(ifc, ifp);
@@ -336,7 +335,7 @@ ifc_unlink_ifp(struct if_clone *ifc, struct ifnet *ifp)
 	}
 	IF_CLONE_UNLOCK(ifc);
 
-	if (ifcifp != NULL && (ifc->ifc_flags & IFC_F_NOGROUP) == 0)
+	if (ifcifp != NULL)
 		if_delgroup(ifp, ifc->ifc_name);
 
 	return (ifcifp != NULL);
@@ -536,7 +535,7 @@ ifc_attach_cloner(const char *name, struct if_clone_addreq *req)
 	ifc->ifc_match = req->match_f != NULL ? req->match_f : ifc_simple_match;
 	ifc->ifc_create = req->create_f;
 	ifc->ifc_destroy = req->destroy_f;
-	ifc->ifc_flags = (req->flags & (IFC_F_AUTOUNIT | IFC_F_NOGROUP));
+	ifc->ifc_flags = (req->flags & IFC_F_AUTOUNIT);
 
 	if (req->version == 2) {
 		struct if_clone_addreq_v2 *req2 = (struct if_clone_addreq_v2 *)req;
@@ -782,8 +781,7 @@ if_clone_restoregroup(struct ifnet *ifp)
 	}
 	CURVNET_RESTORE();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-		if (strcmp(ifc->ifc_name, ifc_name) == 0 &&
-		    ((ifc->ifc_flags & IFC_NOGROUP) == 0))
+		if (strcmp(ifc->ifc_name, ifc_name) == 0)
 			break;
 	IF_CLONERS_UNLOCK();
 
@@ -956,22 +954,4 @@ ifc_copyin(const struct ifc_data *ifd, void *target, size_t len)
 		return (0);
 	} else
 		return (copyin(ifd->params, target, len));
-}
-
-const char *
-ifc_name(struct if_clone *ifc)
-{
-	return (ifc->ifc_name);
-}
-
-void
-ifc_flags_set(struct if_clone *ifc, int flags)
-{
-	ifc->ifc_flags = flags;
-}
-
-int
-ifc_flags_get(struct if_clone *ifc)
-{
-	return (ifc->ifc_flags);
 }

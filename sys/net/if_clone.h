@@ -99,14 +99,11 @@ struct if_clone_addreq_v2 {
 	ifc_dump_nl_f	*dump_nl_f;
 };
 
-
-#define	IFC_F_NOGROUP	0x01	/* Creation flag: don't add unit group */
+#define	IFC_F_SPARE	0x01
 #define	IFC_F_AUTOUNIT	0x02	/* Creation flag: automatically select unit */
 #define	IFC_F_SYSSPACE	0x04	/* Cloner callback: params pointer is in kernel memory */
 #define	IFC_F_FORCE	0x08	/* Deletion flag: force interface deletion */
 #define	IFC_F_CREATE	0x10	/* Creation flag: indicate creation request */
-
-#define	IFC_NOGROUP	IFC_F_NOGROUP
 
 struct if_clone	*ifc_attach_cloner(const char *name, struct if_clone_addreq *req);
 void ifc_detach_cloner(struct if_clone *ifc);
@@ -143,9 +140,6 @@ void	if_clone_detach(struct if_clone *);
 int	ifc_name2unit(const char *name, int *unit);
 int	ifc_alloc_unit(struct if_clone *, int *);
 void	ifc_free_unit(struct if_clone *, int);
-const char *ifc_name(struct if_clone *);
-void ifc_flags_set(struct if_clone *, int flags);
-int ifc_flags_get(struct if_clone *);
 
 /* Interface clone event. */
 typedef void (*if_clone_event_handler_t)(void *, struct if_clone *);

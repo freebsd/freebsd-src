@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230803: Removal of support for cloning pseudo interfaces from iflib(9)
+OLD_FILES+=usr/include/net/iflib_private.h
+
 # 20230802: Remove a copy of libdtrace.so installed to the wrong path
 OLD_FILES+=usr/lib/libdtrace.so.2
 
