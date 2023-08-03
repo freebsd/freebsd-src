@@ -7,6 +7,10 @@
 #
 # Modified by John Marino to suit DragonFly needs
 #
+
+CLDRVERSION=	43.0
+UCDVERSION=	15.0.0
+
 .if ${.CURDIR} == ${.OBJDIR}
 .error Do make obj first.
 .endif
@@ -20,13 +24,9 @@ TOOLSDIR=	${BASEDIR}/tools
 PATCHDIR=	${BASEDIR}/patch
 UNIDIR=		${.OBJDIR:tA}/unicode
 
-PKGS=	openjdk8 \
-	p5-XML-Parser \
-	p5-Tie-IxHash \
-	p5-Text-Iconv
+PKGS=	openjdk11 p5-XML-Parser p5-Tie-IxHash p5-Text-Iconv utf8proc
 tools-test:
-	pkg info -e ${PKGS}
-	@echo tools ok.
+	@pkg info -e ${PKGS} || ( echo required packages: ${PKGS}; exit 1 )
 
 KNOWN=		monetdef numericdef msgdef colldef ctypedef # timedef
 TYPES?=		${KNOWN}
@@ -39,8 +39,8 @@ SETENV=	env -i \
 	TOOLSDIR="${TOOLSDIR}" \
 	ETCDIR="${ETCDIR}"
 
-all: posix build afterbuild
-.ORDER: posix build afterbuild
+all: tools-test posix build afterbuild widths
+.ORDER: tools-test posix build afterbuild widths
 
 afterbuild: build
 	@echo ""
@@ -123,11 +123,10 @@ ENCODINGS=	UTF-8 \
 		UTF-32
 
 # CLDR files
-CLDRVERSION=	41.0
 CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION:R}/core.zip
 CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-keyboards-${CLDRVERSION}.zip
 CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-tools-${CLDRVERSION}.jar
-CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/14.0.0/UCD.zip
+CLDRFILES_UCD=	https://www.unicode.org/Public/zipped/${UCDVERSION}/UCD.zip
 
 # fetch and extract targets
 ${UNIDIR}:
@@ -141,12 +140,13 @@ extract-${CLDRFILES_${N}:T}:: ${CLDRFILES_${N}:T} ${UNIDIR}
 extract: extract-${CLDRFILES_${N}:T}
 .endfor
 	echo ${CLDRVERSION} > ${UNIDIR}/cldr-version
+	mkdir -p ${UNIDIR}/seed/main
 patch::
 .if exists(${PATCHDIR})
 	cd ${UNIDIR} && cat ${PATCHDIR}/patch-* | patch
 .endif
 
-JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${.OBJDIR:tA}//${CLDRFILES_TOOLS:T}
+JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${.OBJDIR:tA}/${CLDRFILES_TOOLS:T}
 
 posix: posixcm post-posixcm posixsrc
 .ORDER: posixcm post-posixcm posixsrc
