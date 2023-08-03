@@ -42,7 +42,7 @@ static uint64_t memlimit_decompress = 0;
 ///
 ///   - Default value for --memlimit-mt-decompress
 ///
-/// This value is caluclated in hardware_init() and cannot be changed later.
+/// This value is calculated in hardware_init() and cannot be changed later.
 static uint64_t memlimit_mt_default;
 
 /// Memory usage limit for multithreaded decompression. This is a soft limit:
@@ -147,7 +147,7 @@ hardware_memlimit_set(uint64_t new_memlimit,
 		// for the xz program and so on. Don't use 4000 MiB because
 		// it could look like someone mixed up base-2 and base-10.
 #ifdef __mips__
-		// For MIPS32, due to architectural pecularities,
+		// For MIPS32, due to architectural peculiarities,
 		// the limit is even lower.
 		const uint64_t limit_max = UINT64_C(2000) << 20;
 #else
