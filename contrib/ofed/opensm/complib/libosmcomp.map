@@ -112,7 +112,6 @@ OSMCOMP_2.3 {
 		cl_thread_stall;
 		cl_proc_count;
 		cl_is_current_thread;
-		cl_thread_pool_construct;
 		cl_thread_pool_init;
 		cl_thread_pool_destroy;
 		cl_thread_pool_signal;
@@ -126,7 +125,6 @@ OSMCOMP_2.3 {
 		cl_timer_trim;
 		cl_get_time_stamp;
 		cl_get_time_stamp_sec;
-		cl_vector_copy_general;
 		cl_vector_copy16;
 		cl_vector_copy32;
 		cl_vector_copy64;
@@ -142,7 +140,6 @@ OSMCOMP_2.3 {
 		cl_vector_find_from_start;
 		cl_vector_find_from_end;
 		cl_atomic_spinlock;
-		cl_atomic_dec;
 		ib_error_str;
 		ib_async_event_str;
 		ib_wc_status_str;
