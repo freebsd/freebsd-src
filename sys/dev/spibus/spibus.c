@@ -70,13 +70,7 @@ spibus_attach(device_t dev)
 static int
 spibus_detach(device_t dev)
 {
-	int err;
-
-	if ((err = bus_generic_detach(dev)) != 0)
-		return (err);
-	device_delete_children(dev);
-
-	return (0);
+	return (device_delete_children(dev));
 }
 
 static int
