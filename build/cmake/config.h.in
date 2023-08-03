@@ -1032,6 +1032,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `strrchr' function. */
 #cmakedefine HAVE_STRRCHR 1
 
+/* Define to 1 if the system has the type `struct statfs'. */
+#cmakedefine HAVE_STRUCT_STATFS 1
+
+/* Define to 1 if `f_iosize' is a member of `struct statfs'. */
+#cmakedefine HAVE_STRUCT_STATFS_F_IOSIZE 1
+
 /* Define to 1 if `f_namemax' is a member of `struct statfs'. */
 #cmakedefine HAVE_STRUCT_STATFS_F_NAMEMAX 1
 

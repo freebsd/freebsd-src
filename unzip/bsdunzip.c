@@ -113,6 +113,9 @@ static int		 zipinfo_mode;
 /* running on tty? */
 static int		 tty;
 
+/* processing exclude list */
+static int		 unzip_exclude_mode = 0;
+
 int bsdunzip_optind;
 
 /* convenience macro */
@@ -1114,6 +1117,7 @@ getopts(int argc, char *argv[])
         bsdunzip->argc = argc;
 
 	while ((opt = bsdunzip_getopt(bsdunzip)) != -1) {
+		unzip_exclude_mode = 0;
 		switch (opt) {
 		case 'a':
 			a_opt = 1;
@@ -1171,6 +1175,7 @@ getopts(int argc, char *argv[])
 			break;
 		case 'x':
 			add_pattern(&exclude, bsdunzip->argument);
+			unzip_exclude_mode = 1;
 			break;
 		case 'y':
 			y_str = "  ";
@@ -1245,11 +1250,25 @@ main(int argc, char *argv[])
 	if (strcmp(zipfile, "-") == 0)
 		zipfile = NULL; /* STDIN */
 
+	unzip_exclude_mode = 0;
+
 	while (nopts < argc && *argv[nopts] != '-')
 		add_pattern(&include, argv[nopts++]);
 
 	nopts--; /* fake argv[0] */
 	nopts += getopts(argc - nopts, argv + nopts);
+
+	/*
+	 * For compatibility with Info-ZIP's unzip(1) we need to treat
+	 * non-option arguments following an -x after the zipfile as
+	 * exclude list members.
+	 */
+	if (unzip_exclude_mode) {
+		while (nopts < argc && *argv[nopts] != '-')
+			add_pattern(&exclude, argv[nopts++]);
+		nopts--; /* fake argv[0] */
+		nopts += getopts(argc - nopts, argv + nopts);
+	}
 
 	/* There may be residual arguments if we encountered -- */
 	while (nopts < argc)
