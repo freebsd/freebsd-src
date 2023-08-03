@@ -71,7 +71,6 @@ OPENSM_1.5 {
 		osm_dump_pkey_block;
 		osm_dump_pkey_block_v2;
 		osm_log_raw;
-		osm_get_sm_state_str;
 		osm_get_sm_signal_str;
 		osm_get_disp_msg_str;
 		osm_get_port_state_str_fixed_width;
@@ -91,7 +90,6 @@ OPENSM_1.5 {
 		osm_dump_mlnx_ext_port_info_v2;
 		osm_log_v2;
 		osm_log_msg_box_v2;
-		osm_log_is_active_v2;
 		osm_get_log_per_module;
 		osm_set_log_per_module;
 		osm_reset_log_per_module;
