@@ -25,5 +25,5 @@ __FBSDID("$FreeBSD$");
 double
 significand(double x)
 {
-	return __ieee754_scalb(x,(double) -ilogb(x));
+	return scalb(x,(double) -ilogb(x));
 }

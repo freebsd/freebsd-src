@@ -29,7 +29,7 @@ static const float zero   =  0.0;
 static volatile float vzero = 0.0;
 
 float
-__ieee754_log2f(float x)
+log2f(float x)
 {
 	float f,hfsq,hi,lo,r,y;
 	int32_t i,k,hx;

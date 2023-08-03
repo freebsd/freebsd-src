@@ -21,10 +21,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _SCALB_INT
 float
-__ieee754_scalbf(float x, int fn)
+scalbf(float x, int fn)
 #else
 float
-__ieee754_scalbf(float x, float fn)
+scalbf(float x, float fn)
 #endif
 {
 #ifdef _SCALB_INT
