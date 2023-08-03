@@ -903,25 +903,19 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_tso_size_max = EM_TSO_SIZE;
 		scctx->isc_tx_tso_segsize_max = EM_TSO_SEG_SIZE;
 		scctx->isc_capabilities = scctx->isc_capenable = EM_CAPS;
-		/*
-		 * For EM-class devices, don't enable IFCAP_{TSO4,VLAN_HWTSO,TSO6}
-		 * by default as we don't have workarounds for all associated
-		 * silicon errata.  E. g., with several MACs such as 82573E,
-		 * TSO only works at Gigabit speed and otherwise can cause the
-		 * hardware to hang (which also would be next to impossible to
-		 * work around given that already queued TSO-using descriptors
-		 * would need to be flushed and vlan(4) reconfigured at runtime
-		 * in case of a link speed change).  Moreover, MACs like 82579
-		 * still can hang at Gigabit even with all publicly documented
-		 * TSO workarounds implemented.  Generally, the penality of
-		 * these workarounds is rather high and may involve copying
-		 * mbuf data around so advantages of TSO lapse.  Still, TSO may
-		 * work for a few MACs of this class - at least when sticking
-		 * with Gigabit - in which case users may enable TSO manually.
-		 */
-		scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO | IFCAP_TSO6);
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
+
+		/* Disable TSO on 82574L due to performance loss being investigated */
+		if (hw->mac.type == e1000_82574)
+			scctx->isc_capenable &= ~IFCAP_TSO;
+		/*
+		 * Disable TSO on SPT due to errata that downclocks DMA performance
+		 * i218-i219 Specification Update 1.5.4.5
+		 */
+		if (hw->mac.type == e1000_pch_spt)
+			scctx->isc_capenable &= ~IFCAP_TSO;
+
 		/*
 		 * We support MSI-X with 82574 only, but indicate to iflib(4)
 		 * that it shall give MSI at least a try with other devices.
@@ -944,24 +938,38 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
 		if (em_unsupported_tso)
 			scctx->isc_capabilities |= IFCAP_TSO6;
-		/*
-		 * For LEM-class devices, don't enable IFCAP_{TSO4,VLAN_HWTSO}
-		 * by default as we don't have workarounds for all associated
-		 * silicon errata.  TSO4 may work on > 82544 but its status
-		 * is unknown by the authors.  Please report any success or failures.
-		 */
-		scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
 
+		/* 82541ER doesn't do HW tagging */
+		if (hw->device_id == E1000_DEV_ID_82541ER ||
+		    hw->device_id == E1000_DEV_ID_82541ER_LOM) {
+			scctx->isc_capabilities &= ~IFCAP_VLAN_HWTAGGING;
+			scctx->isc_capenable = scctx->isc_capabilities;
+		}
+		/* This is the first e1000 chip and it does not do offloads */
+		if (hw->mac.type == e1000_82542) {
+			scctx->isc_capabilities &= ~(IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
+			    IFCAP_HWCSUM_IPV6 | IFCAP_VLAN_HWTAGGING |
+			    IFCAP_VLAN_HWFILTER | IFCAP_TSO | IFCAP_VLAN_HWTSO);
+			scctx->isc_capenable = scctx->isc_capabilities;
+		}
+		/* These can't do TSO for various reasons */
+		if (hw->mac.type < e1000_82544 || hw->mac.type == e1000_82547 ||
+		    hw->mac.type == e1000_82547_rev_2) {
+			scctx->isc_capabilities &= ~(IFCAP_TSO | IFCAP_VLAN_HWTSO);
+			scctx->isc_capenable = scctx->isc_capabilities;
+		}
+		/* XXXKB: No IPv6 before this? */
+		if (hw->mac.type < e1000_82545){
+			scctx->isc_capabilities &= ~IFCAP_HWCSUM_IPV6;
+			scctx->isc_capenable = scctx->isc_capabilities;
+		}
 		/* "PCI/PCI-X SDM 4.0" page 33 (b) - FDX requirement on these chips */
-		if (hw->mac.type == e1000_82542 || hw->mac.type == e1000_82547 ||
-		    hw->mac.type == e1000_82547_rev_2)
+		if (hw->mac.type == e1000_82547 || hw->mac.type == e1000_82547_rev_2)
 			scctx->isc_capenable &= ~(IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
 			    IFCAP_HWCSUM_IPV6);
-		/* 82541ER doesn't do HW tagging */
-		if (hw->device_id == E1000_DEV_ID_82541ER || hw->device_id == E1000_DEV_ID_82541ER_LOM)
-			scctx->isc_capenable &= ~IFCAP_VLAN_HWTAGGING;
+
 		/* INTx only */
 		scctx->isc_msix_bar = 0;
 	}
