@@ -662,7 +662,9 @@ MLINKS+=disc.4 if_disc.4
 MLINKS+=edsc.4 if_edsc.4
 MLINKS+=em.4 if_em.4 \
 	em.4 igb.4 \
-	em.4 if_igb.4
+	em.4 if_igb.4 \
+	em.4 lem.4 \
+	em.4 if_lem.4
 MLINKS+=enc.4 if_enc.4
 MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
