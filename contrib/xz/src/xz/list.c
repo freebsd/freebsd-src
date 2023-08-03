@@ -366,7 +366,7 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 			hardware_memlimit_get(MODE_LIST),
 			(uint64_t)(pair->src_st.st_size));
 	if (ret != LZMA_OK) {
-		message_error("%s: %s", pair->src_name, message_strm(ret));
+		message_error(_("%s: %s"), pair->src_name, message_strm(ret));
 		return true;
 	}
 
@@ -412,7 +412,7 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 		}
 
 		default:
-			message_error("%s: %s", pair->src_name,
+			message_error(_("%s: %s"), pair->src_name,
 					message_strm(ret));
 
 			// If the error was too low memory usage limit,
@@ -474,7 +474,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 		break;
 
 	case LZMA_OPTIONS_ERROR:
-		message_error("%s: %s", pair->src_name,
+		message_error(_("%s: %s"), pair->src_name,
 				message_strm(LZMA_OPTIONS_ERROR));
 		return true;
 
@@ -578,7 +578,8 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 
 	// Check if the stringification succeeded.
 	if (str_ret != LZMA_OK) {
-		message_error("%s: %s", pair->src_name, message_strm(str_ret));
+		message_error(_("%s: %s"), pair->src_name,
+				message_strm(str_ret));
 		return true;
 	}
 
@@ -586,7 +587,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 
 data_error:
 	// Show the error message.
-	message_error("%s: %s", pair->src_name,
+	message_error(_("%s: %s"), pair->src_name,
 			message_strm(LZMA_DATA_ERROR));
 	return true;
 }

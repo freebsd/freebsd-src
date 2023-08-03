@@ -633,7 +633,7 @@ lzma_lzma_encoder_create(void **coder_ptr, const lzma_allocator *allocator,
 			// Currently the maximum encoder dictionary size
 			// is 1.5 GiB due to lz_encoder.c and here we need
 			// to be below 2 GiB to make the rounded up value
-			// fit in an uint32_t and avoid an infite while-loop
+			// fit in an uint32_t and avoid an infinite while-loop
 			// (and undefined behavior due to a too large shift).
 			// So do the same check as in LZ encoder,
 			// limiting to 1.5 GiB.
@@ -673,7 +673,7 @@ lzma_lzma_encoder_create(void **coder_ptr, const lzma_allocator *allocator,
 	coder->uncomp_size = 0;
 	coder->uncomp_size_ptr = NULL;
 
-	// Output size limitting is disabled by default.
+	// Output size limiting is disabled by default.
 	coder->out_limit = 0;
 
 	// Determine if end marker is wanted:

@@ -527,7 +527,10 @@ parse_real(args_info *args, int argc, char **argv)
 				args->files_file = fopen(optarg,
 						c == OPT_FILES ? "r" : "rb");
 				if (args->files_file == NULL)
-					message_fatal("%s: %s", optarg,
+					// TRANSLATORS: This is a translatable
+					// string because French needs a space
+					// before the colon ("%s : %s").
+					message_fatal(_("%s: %s"), optarg,
 							strerror(errno));
 			}
 

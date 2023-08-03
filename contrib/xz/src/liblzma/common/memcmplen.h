@@ -23,9 +23,9 @@
 // on Windows when using an MSVC compatible compiler. The Intel compiler
 // can use the intrinsics without the header file.
 #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& (defined(_MSC_VER) \
+		&& defined(_MSC_VER) \
 		&& defined(_M_X64) \
-		&& !defined(__INTEL_COMPILER))
+		&& !defined(__INTEL_COMPILER)
 #	include <intrin.h>
 #endif
 
@@ -69,11 +69,13 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	while (len < limit) {
 		const uint64_t x = read64ne(buf1 + len) - read64ne(buf2 + len);
 		if (x != 0) {
-#	if defined(_M_X64) // MSVC or Intel C compiler on Windows
+	// MSVC or Intel C compiler on Windows
+#	if (defined(_MSC_VER) || defined(__INTEL_COMPILER)) && defined(_M_X64)
 			unsigned long tmp;
 			_BitScanForward64(&tmp, x);
 			len += (uint32_t)tmp >> 3;
-#	else // GCC, clang, or Intel C compiler
+	// GCC, Clang, or Intel C compiler
+#	else
 			len += (uint32_t)__builtin_ctzll(x) >> 3;
 #	endif
 			return my_min(len, limit);

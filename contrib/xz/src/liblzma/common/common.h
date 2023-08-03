@@ -47,7 +47,7 @@
 // to 2 then symbol versioning is done only if also PIC is defined.
 // By default Libtool defines PIC when building a shared library and
 // doesn't define it when building a static library but it can be
-// overriden with --with-pic and --without-pic. configure let's rely
+// overridden with --with-pic and --without-pic. configure let's rely
 // on PIC if neither --with-pic or --without-pic was used.
 #if defined(HAVE_SYMBOL_VERSIONS_LINUX) \
 		&& (HAVE_SYMBOL_VERSIONS_LINUX == 2 && !defined(PIC))

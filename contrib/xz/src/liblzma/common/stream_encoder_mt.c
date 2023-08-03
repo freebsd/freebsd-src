@@ -743,7 +743,7 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 
 		// These are for wait_for_work().
 		bool has_blocked = false;
-		mythread_condtime wait_abs;
+		mythread_condtime wait_abs = { 0 };
 
 		while (true) {
 			mythread_sync(coder->mutex) {

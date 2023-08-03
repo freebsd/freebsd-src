@@ -468,7 +468,7 @@ extern LZMA_API(lzma_ret) lzma_alone_encoder(
 /**
  * \brief       Calculate output buffer size for single-call Stream encoder
  *
- * When trying to compress uncompressible data, the encoded size will be
+ * When trying to compress incompressible data, the encoded size will be
  * slightly bigger than the input data. This function calculates how much
  * output buffer space is required to be sure that lzma_stream_buffer_encode()
  * doesn't return LZMA_BUF_ERROR.
@@ -484,7 +484,7 @@ extern LZMA_API(lzma_ret) lzma_alone_encoder(
  * \note        The limit calculated by this function applies only to
  *              single-call encoding. Multi-call encoding may (and probably
  *              will) have larger maximum expansion when encoding
- *              uncompressible data. Currently there is no function to
+ *              incompressible data. Currently there is no function to
  *              calculate the maximum expansion of multi-call encoding.
  *
  * \param       uncompressed_size   Size in bytes of the uncompressed
@@ -587,7 +587,8 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  *                output space (6 bytes) to create a valid MicroLZMA stream.
  */
 extern LZMA_API(lzma_ret) lzma_microlzma_encoder(
-		lzma_stream *strm, const lzma_options_lzma *options);
+		lzma_stream *strm, const lzma_options_lzma *options)
+		lzma_nothrow;
 
 
 /************
@@ -964,4 +965,4 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_decode(
 extern LZMA_API(lzma_ret) lzma_microlzma_decoder(
 		lzma_stream *strm, uint64_t comp_size,
 		uint64_t uncomp_size, lzma_bool uncomp_size_is_exact,
-		uint32_t dict_size);
+		uint32_t dict_size) lzma_nothrow;
