@@ -435,7 +435,7 @@ hkbd_do_poll(struct hkbd_softc *sc, uint8_t wait)
 	}
 
 	while (sc->sc_inputhead == sc->sc_inputtail) {
-		hidbus_intr_poll(sc->sc_dev);
+		hid_intr_poll(sc->sc_dev);
 
 		/* Delay-optimised support for repetition of keys */
 		if (hkbd_any_key_pressed(sc)) {
@@ -1004,7 +1004,7 @@ hkbd_attach(device_t dev)
 	}
 
 	/* start the keyboard */
-	hidbus_intr_start(dev);
+	hid_intr_start(dev);
 
 	return (0);			/* success */
 
@@ -1035,7 +1035,7 @@ hkbd_detach(device_t dev)
 	/* kill any stuck keys */
 	if (sc->sc_flags & HKBD_FLAG_ATTACHED) {
 		/* stop receiving events from the USB keyboard */
-		hidbus_intr_stop(dev);
+		hid_intr_stop(dev);
 
 		/* release all leftover keys, if any */
 		memset(&sc->sc_ndata, 0, bitstr_size(HKBD_NKEYCODE));

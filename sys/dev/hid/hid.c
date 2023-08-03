@@ -1029,6 +1029,24 @@ hid_quirk_unload(void *arg)
 }
 
 int
+hid_intr_start(device_t dev)
+{
+	return (HID_INTR_START(device_get_parent(dev), dev));
+}
+
+int
+hid_intr_stop(device_t dev)
+{
+	return (HID_INTR_STOP(device_get_parent(dev), dev));
+}
+
+void
+hid_intr_poll(device_t dev)
+{
+	HID_INTR_POLL(device_get_parent(dev), dev);
+}
+
+int
 hid_get_rdesc(device_t dev, void *data, hid_size_t len)
 {
 	return (HID_GET_RDESC(device_get_parent(dev), dev, data, len));

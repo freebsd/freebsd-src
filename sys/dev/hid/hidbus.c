@@ -604,10 +604,10 @@ hidbus_set_intr(device_t child, hid_intr_t *handler, void *context)
 	tlc->intr_ctx = context;
 }
 
-int
-hidbus_intr_start(device_t child)
+static int
+hidbus_intr_start(device_t bus, device_t child)
 {
-	device_t bus = device_get_parent(child);
+	MPASS(bus = device_get_parent(child));
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
@@ -624,16 +624,16 @@ hidbus_intr_start(device_t child)
 			mtx_unlock(tlc->mtx);
 		}
 	}
-	error = refcnted ? 0 : HID_INTR_START(device_get_parent(bus), bus);
+	error = refcnted ? 0 : hid_intr_start(bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
 }
 
-int
-hidbus_intr_stop(device_t child)
+static int
+hidbus_intr_stop(device_t bus, device_t child)
 {
-	device_t bus = device_get_parent(child);
+	MPASS(bus = device_get_parent(child));
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
@@ -651,18 +651,16 @@ hidbus_intr_stop(device_t child)
 		}
 		refcnted |= (tlc->refcnt != 0);
 	}
-	error = refcnted ? 0 : HID_INTR_STOP(device_get_parent(bus), bus);
+	error = refcnted ? 0 : hid_intr_stop(bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
 }
 
-void
-hidbus_intr_poll(device_t child)
+static void
+hidbus_intr_poll(device_t bus, device_t child __unused)
 {
-	device_t bus = device_get_parent(child);
-
-	HID_INTR_POLL(device_get_parent(bus), bus);
+	hid_intr_poll(bus);
 }
 
 struct hid_rdesc_info *
@@ -954,6 +952,9 @@ static device_method_t hidbus_methods[] = {
 	DEVMETHOD(bus_child_location,	hidbus_child_location),
 
 	/* hid interface */
+	DEVMETHOD(hid_intr_start,	hidbus_intr_start),
+	DEVMETHOD(hid_intr_stop,	hidbus_intr_stop),
+	DEVMETHOD(hid_intr_poll,	hidbus_intr_poll),
 	DEVMETHOD(hid_get_rdesc,	hidbus_get_rdesc),
 	DEVMETHOD(hid_read,		hidbus_read),
 	DEVMETHOD(hid_write,		hidbus_write),

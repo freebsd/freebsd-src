@@ -333,6 +333,9 @@ int	hid_add_dynamic_quirk(struct hid_device_info *dev_info,
 	    uint16_t quirk);
 void	hid_quirk_unload(void *arg);
 
+int	hid_intr_start(device_t);
+int	hid_intr_stop(device_t);
+void	hid_intr_poll(device_t);
 int	hid_get_rdesc(device_t, void *, hid_size_t);
 int	hid_read(device_t, void *, hid_size_t, hid_size_t *);
 int	hid_write(device_t, const void *, hid_size_t);
