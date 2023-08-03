@@ -325,7 +325,6 @@ rtnl_if_flags_to_linux(unsigned int if_flags)
 		case IFF_STICKYARP:
 		case IFF_DYING:
 		case IFF_RENAMING:
-		case IFF_NOGROUP:
 			/* No Linux analogue */
 			break;
 		case IFF_MULTICAST:
