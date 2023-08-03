@@ -109,6 +109,10 @@
 #define	 SPI_CS_CTRL_HW_MODE			(1 << 0)
 #define	 SPI_CS_CTRL_CS_HIGH			(1 << 1)
 
+#define	INTELSPI_RESETS			0x204
+#define	 INTELSPI_RESET_HOST			(1 << 0) | (1 << 1)
+#define	 INTELSPI_RESET_DMA			(1 << 2)
+
 /* Same order as intelspi_vers */
 static const struct intelspi_info {
 	uint32_t reg_lpss_base;
@@ -476,6 +480,11 @@ intelspi_attach(device_t dev)
 		device_printf(dev, "can't allocate memory resource\n");
 		goto error;
 	}
+
+	/* Release LPSS reset */
+	if (sc->sc_vers == SPI_SUNRISEPOINT)
+		INTELSPI_WRITE(sc, INTELSPI_RESETS,
+		    (INTELSPI_RESET_HOST | INTELSPI_RESET_DMA));
 
 	sc->sc_irq_res = bus_alloc_resource_any(sc->sc_dev,
 	    SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE | RF_SHAREABLE);
