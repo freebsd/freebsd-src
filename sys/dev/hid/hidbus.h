@@ -160,9 +160,6 @@ struct hid_rdesc_info *hidbus_get_rdesc_info(device_t);
 int		hidbus_lookup_driver_info(device_t,
 		    const struct hid_device_id *, int);
 void		hidbus_set_intr(device_t, hid_intr_t*, void *);
-int		hidbus_intr_start(device_t);
-int		hidbus_intr_stop(device_t);
-void		hidbus_intr_poll(device_t);
 void		hidbus_set_desc(device_t, const char *);
 device_t	hidbus_find_child(device_t, int32_t);
 

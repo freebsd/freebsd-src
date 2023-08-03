@@ -118,13 +118,13 @@ _hidmap_set_debug_var(struct hidmap *hm, int *debug_var)
 static int
 hidmap_ev_close(struct evdev_dev *evdev)
 {
-	return (hidbus_intr_stop(evdev_get_softc(evdev)));
+	return (hid_intr_stop(evdev_get_softc(evdev)));
 }
 
 static int
 hidmap_ev_open(struct evdev_dev *evdev)
 {
-	return (hidbus_intr_start(evdev_get_softc(evdev)));
+	return (hid_intr_start(evdev_get_softc(evdev)));
 }
 
 void

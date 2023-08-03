@@ -252,13 +252,13 @@ static const struct hid_device_id hmt_devs[] = {
 static int
 hmt_ev_close(struct evdev_dev *evdev)
 {
-	return (hidbus_intr_stop(evdev_get_softc(evdev)));
+	return (hid_intr_stop(evdev_get_softc(evdev)));
 }
 
 static int
 hmt_ev_open(struct evdev_dev *evdev)
 {
-	return (hidbus_intr_start(evdev_get_softc(evdev)));
+	return (hid_intr_start(evdev_get_softc(evdev)));
 }
 
 static int
