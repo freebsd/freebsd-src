@@ -197,12 +197,6 @@ TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
 static int ixv_header_split = false;
 TUNABLE_INT("hw.ixv.hdr_split", &ixv_header_split);
 
-/*
- * Shadow VFTA table, this is needed because
- * the real filter table gets cleared during
- * a soft reset and we need to repopulate it.
- */
-static u32 ixv_shadow_vfta[IXGBE_VFTA_SIZE];
 extern struct if_txrx ixgbe_txrx;
 
 static struct if_shared_ctx ixv_sctx_init = {
@@ -1541,9 +1535,9 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 	 * we need to repopulate it now.
 	 */
 	for (int i = 0; i < IXGBE_VFTA_SIZE; i++) {
-		if (ixv_shadow_vfta[i] == 0)
+		if (sc->shadow_vfta[i] == 0)
 			continue;
-		vfta = ixv_shadow_vfta[i];
+		vfta = sc->shadow_vfta[i];
 		/*
 		 * Reconstruct the vlan id's
 		 * based on the bits set in each
@@ -1579,7 +1573,7 @@ ixv_if_register_vlan(if_ctx_t ctx, u16 vtag)
 
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	ixv_shadow_vfta[index] |= (1 << bit);
+	sc->shadow_vfta[index] |= (1 << bit);
 	++sc->num_vlans;
 } /* ixv_if_register_vlan */
 
@@ -1597,7 +1591,7 @@ ixv_if_unregister_vlan(if_ctx_t ctx, u16 vtag)
 
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	ixv_shadow_vfta[index] &= ~(1 << bit);
+	sc->shadow_vfta[index] &= ~(1 << bit);
 	--sc->num_vlans;
 } /* ixv_if_unregister_vlan */
 
