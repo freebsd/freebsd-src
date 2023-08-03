@@ -48,16 +48,13 @@ struct bsdunzip {
 	const char	 *argument;
 };
 
-struct bsdunzip_getopt_ret {
-	int		index;
-	int		opt;
-};
-
 enum {
 	OPTION_NONE,
 	OPTION_VERSION
 };
 
 int bsdunzip_getopt(struct bsdunzip *);
+
+extern int bsdunzip_optind;
 
 #endif
