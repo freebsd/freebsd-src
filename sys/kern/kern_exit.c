@@ -691,7 +691,7 @@ exit1(struct thread *td, int rval, int signo)
 	prison_proc_free(p->p_ucred->cr_prison);
 
 	/*
-	 * The state PRS_ZOMBIE prevents other proesses from sending
+	 * The state PRS_ZOMBIE prevents other processes from sending
 	 * signal to the process, to avoid memory leak, we free memory
 	 * for signal queue at the time when the state is set.
 	 */
