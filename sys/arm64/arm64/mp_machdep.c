@@ -147,7 +147,7 @@ static volatile int aps_started;
 static volatile int aps_ready;
 
 /* Temporary variables for init_secondary()  */
-void *dpcpu[MAXCPU - 1];
+static void *dpcpu[MAXCPU - 1];
 
 static bool
 is_boot_cpu(uint64_t target_cpu)
