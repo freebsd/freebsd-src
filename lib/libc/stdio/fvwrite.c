@@ -38,7 +38,6 @@ static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,7 +54,6 @@ int
 __sfvwrite(FILE *fp, struct __suio *uio)
 {
 	size_t len;
-	unsigned char *old_p;
 	char *p;
 	struct __siov *iov;
 	int w, s;
@@ -139,12 +137,8 @@ __sfvwrite(FILE *fp, struct __suio *uio)
 				COPY(w);
 				/* fp->_w -= w; */ /* unneeded */
 				fp->_p += w;
-				old_p = fp->_p;
-				if (__fflush(fp) == EOF) {
-					if (old_p == fp->_p && errno == EINTR)
-						fp->_p -= w;
+				if (__fflush(fp))
 					goto err;
-				}
 			} else if (len >= (w = fp->_bf._size)) {
 				/* write directly */
 				w = _swrite(fp, p, w);
@@ -183,12 +177,8 @@ __sfvwrite(FILE *fp, struct __suio *uio)
 				COPY(w);
 				/* fp->_w -= w; */
 				fp->_p += w;
-				old_p = fp->_p;
-				if (__fflush(fp) == EOF) {
-					if (old_p == fp->_p && errno == EINTR)
-						fp->_p -= w;
+				if (__fflush(fp))
 					goto err;
-				}
 			} else if (s >= (w = fp->_bf._size)) {
 				w = _swrite(fp, p, w);
 				if (w <= 0)

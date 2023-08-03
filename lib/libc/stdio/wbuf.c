@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 int
 __swbuf(int c, FILE *fp)
 {
-	unsigned char *old_p;
 	int n;
 
 	/*
@@ -88,15 +87,8 @@ __swbuf(int c, FILE *fp)
 	}
 	fp->_w--;
 	*fp->_p++ = c;
-	old_p = fp->_p;
-	if (++n == fp->_bf._size || (fp->_flags & __SLBF && c == '\n')) {
-		if (__fflush(fp) != 0) {
-			if (fp->_p == old_p && errno == EINTR) {
-				fp->_p--;
-				fp->_w++;
-			}
+	if (++n == fp->_bf._size || (fp->_flags & __SLBF && c == '\n'))
+		if (__fflush(fp) != 0)
 			return (EOF);
-		}
-	}
 	return (c);
 }
