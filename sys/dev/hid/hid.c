@@ -1031,52 +1031,53 @@ hid_quirk_unload(void *arg)
 int
 hid_get_rdesc(device_t dev, void *data, hid_size_t len)
 {
-	return (HID_GET_RDESC(device_get_parent(dev), data, len));
+	return (HID_GET_RDESC(device_get_parent(dev), dev, data, len));
 }
 
 int
 hid_read(device_t dev, void *data, hid_size_t maxlen, hid_size_t *actlen)
 {
-	return (HID_READ(device_get_parent(dev), data, maxlen, actlen));
+	return (HID_READ(device_get_parent(dev), dev, data, maxlen, actlen));
 }
 
 int
 hid_write(device_t dev, const void *data, hid_size_t len)
 {
-	return (HID_WRITE(device_get_parent(dev), data, len));
+	return (HID_WRITE(device_get_parent(dev), dev, data, len));
 }
 
 int
 hid_get_report(device_t dev, void *data, hid_size_t maxlen, hid_size_t *actlen,
     uint8_t type, uint8_t id)
 {
-	return (HID_GET_REPORT(device_get_parent(dev), data, maxlen, actlen,
-	    type, id));
+	return (HID_GET_REPORT(device_get_parent(dev), dev, data, maxlen,
+	    actlen, type, id));
 }
 
 int
 hid_set_report(device_t dev, const void *data, hid_size_t len, uint8_t type,
     uint8_t id)
 {
-	return (HID_SET_REPORT(device_get_parent(dev), data, len, type, id));
+	return (HID_SET_REPORT(device_get_parent(dev), dev, data, len, type,
+	    id));
 }
 
 int
 hid_set_idle(device_t dev, uint16_t duration, uint8_t id)
 {
-	return (HID_SET_IDLE(device_get_parent(dev), duration, id));
+	return (HID_SET_IDLE(device_get_parent(dev), dev, duration, id));
 }
 
 int
 hid_set_protocol(device_t dev, uint16_t protocol)
 {
-	return (HID_SET_PROTOCOL(device_get_parent(dev), protocol));
+	return (HID_SET_PROTOCOL(device_get_parent(dev), dev, protocol));
 }
 
 int
 hid_ioctl(device_t dev, unsigned long cmd, uintptr_t data)
 {
-	return (HID_IOCTL(device_get_parent(dev), cmd, data));
+	return (HID_IOCTL(device_get_parent(dev), dev, cmd, data));
 }
 
 MODULE_VERSION(hid, 1);

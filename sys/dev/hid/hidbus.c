@@ -257,7 +257,8 @@ hidbus_attach_children(device_t dev)
 	struct hidbus_softc *sc = device_get_softc(dev);
 	int error;
 
-	HID_INTR_SETUP(device_get_parent(dev), hidbus_intr, sc, &sc->rdesc);
+	HID_INTR_SETUP(device_get_parent(dev), dev, hidbus_intr, sc,
+	    &sc->rdesc);
 
 	error = hidbus_enumerate_children(dev, sc->rdesc.data, sc->rdesc.len);
 	if (error != 0)
@@ -327,7 +328,7 @@ hidbus_detach_children(device_t dev)
 		free(children, M_TEMP);
 	}
 
-	HID_INTR_UNSETUP(device_get_parent(bus));
+	HID_INTR_UNSETUP(device_get_parent(bus), bus);
 
 	return (error);
 }
@@ -479,7 +480,7 @@ hidbus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		tlc->flags = value;
 		if ((value & HIDBUS_FLAG_CAN_POLL) != 0)
 			HID_INTR_SETUP(
-			    device_get_parent(bus), NULL, NULL, NULL);
+			    device_get_parent(bus), bus, NULL, NULL, NULL);
 		break;
 	case HIDBUS_IVAR_DRIVER_INFO:
 		tlc->driver_info = value;
@@ -623,7 +624,7 @@ hidbus_intr_start(device_t child)
 			mtx_unlock(tlc->mtx);
 		}
 	}
-	error = refcnted ? 0 : HID_INTR_START(device_get_parent(bus));
+	error = refcnted ? 0 : HID_INTR_START(device_get_parent(bus), bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
@@ -650,7 +651,7 @@ hidbus_intr_stop(device_t child)
 		}
 		refcnted |= (tlc->refcnt != 0);
 	}
-	error = refcnted ? 0 : HID_INTR_STOP(device_get_parent(bus));
+	error = refcnted ? 0 : HID_INTR_STOP(device_get_parent(bus), bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
@@ -661,7 +662,7 @@ hidbus_intr_poll(device_t child)
 {
 	device_t bus = device_get_parent(child);
 
-	HID_INTR_POLL(device_get_parent(bus));
+	HID_INTR_POLL(device_get_parent(bus), bus);
 }
 
 struct hid_rdesc_info *
@@ -761,7 +762,22 @@ hid_set_report_descr(device_t dev, const void *data, hid_size_t len)
 }
 
 static int
-hidbus_write(device_t dev, const void *data, hid_size_t len)
+hidbus_get_rdesc(device_t dev, device_t child __unused, void *data,
+    hid_size_t len)
+{
+	return (hid_get_rdesc(dev, data, len));
+}
+
+static int
+hidbus_read(device_t dev, device_t child __unused, void *data,
+    hid_size_t maxlen, hid_size_t *actlen)
+{
+	return (hid_read(dev, data, maxlen, actlen));
+}
+
+static int
+hidbus_write(device_t dev, device_t child __unused, const void *data,
+    hid_size_t len)
 {
 	struct hidbus_softc *sc;
 	uint8_t id;
@@ -778,6 +794,40 @@ hidbus_write(device_t dev, const void *data, hid_size_t len)
 	}
 
 	return (hid_write(dev, data, len));
+}
+
+static int
+hidbus_get_report(device_t dev, device_t child __unused, void *data,
+    hid_size_t maxlen, hid_size_t *actlen, uint8_t type, uint8_t id)
+{
+	return (hid_get_report(dev, data, maxlen, actlen, type, id));
+}
+
+static int
+hidbus_set_report(device_t dev, device_t child __unused, const void *data,
+    hid_size_t len, uint8_t type, uint8_t id)
+{
+	return (hid_set_report(dev, data, len, type, id));
+}
+
+static int
+hidbus_set_idle(device_t dev, device_t child __unused, uint16_t duration,
+    uint8_t id)
+{
+	return (hid_set_idle(dev, duration, id));
+}
+
+static int
+hidbus_set_protocol(device_t dev, device_t child __unused, uint16_t protocol)
+{
+	return (hid_set_protocol(dev, protocol));
+}
+
+static int
+hidbus_ioctl(device_t dev, device_t child __unused, unsigned long cmd,
+    uintptr_t data)
+{
+	return (hid_ioctl(dev, cmd, data));
 }
 
 /*------------------------------------------------------------------------*
@@ -904,14 +954,14 @@ static device_method_t hidbus_methods[] = {
 	DEVMETHOD(bus_child_location,	hidbus_child_location),
 
 	/* hid interface */
-	DEVMETHOD(hid_get_rdesc,	hid_get_rdesc),
-	DEVMETHOD(hid_read,		hid_read),
+	DEVMETHOD(hid_get_rdesc,	hidbus_get_rdesc),
+	DEVMETHOD(hid_read,		hidbus_read),
 	DEVMETHOD(hid_write,		hidbus_write),
-	DEVMETHOD(hid_get_report,	hid_get_report),
-	DEVMETHOD(hid_set_report,	hid_set_report),
-	DEVMETHOD(hid_set_idle,		hid_set_idle),
-	DEVMETHOD(hid_set_protocol,	hid_set_protocol),
-	DEVMETHOD(hid_ioctl,		hid_ioctl),
+	DEVMETHOD(hid_get_report,	hidbus_get_report),
+	DEVMETHOD(hid_set_report,	hidbus_set_report),
+	DEVMETHOD(hid_set_idle,		hidbus_set_idle),
+	DEVMETHOD(hid_set_protocol,	hidbus_set_protocol),
+	DEVMETHOD(hid_ioctl,		hidbus_ioctl),
 
 	DEVMETHOD_END
 };
