@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2019
+.Dd August 3, 2023
 .Dt EM 4
 .Os
 .Sh NAME
@@ -55,21 +55,36 @@ if_em_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI Gigabit Ethernet adapters based on
+driver provides support for PCI/PCI-X Gigabit Ethernet adapters based on
 the Intel 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546,
-82546EB, 82546GB, 82547, 82571, 81572, 82573, and 82574 Ethernet
+82546EB, 82546GB, 82547 controller chips.
+.Pp
+The
+.Nm
+driver provides support for PCI Express Gigabit Ethernet adapters
+based on the Intel 82571, 82572, 82573, 82574, and 82583 Ethernet
 controller chips.
 .Pp
 The
 .Nm
-driver also provides support for PCI Express Gigabit Ethernet adapters
-based on the Intel 82575, 82576, 82580, i21x and i35x.
+driver provides support for Gigabit Ethernet adapters connected to I/O
+Controller Hub (ICH), Platform Controller Hub (PCH) and Connectivity
+Integrated (CNVi) including Intel 80003ES2LAN, 82562, 82566, 82567,
+82577, 82578, 82579, i217, i218, and i219.
+.Pp
+The
+.Nm
+driver provides support for PCI Express Gigabit Ethernet adapters
+based on the Intel 82575, 82576, 82580, i210, i211, and i35x.  These
+appear as
+.Cm igb
+interfaces to maintain compatibility with existing infrastructure.
 .Pp
 The driver supports Transmit/Receive checksum offload and Jumbo Frames
 on all but 82542-based adapters.
 .Pp
 Furthermore it supports TCP segmentation offload (TSO) on all adapters but
-those based on the 82543, 82544 and 82547 controller chips.
+those based on the 82542, 82543, 82544 and 82547 controller chips.
 The identification LEDs of the adapters supported by the
 .Nm
 driver can be controlled via the
@@ -313,7 +328,8 @@ The
 device driver first appeared in
 .Fx 4.4 .
 .Nm
-was merged with the igb device driver and converted to the iflib framework in
+was merged with the lem and igb device driver and converted to the iflib
+framework in
 .Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
