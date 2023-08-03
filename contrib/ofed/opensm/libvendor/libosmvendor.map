@@ -1,6 +1,5 @@
 OSMVENDOR_2.0 {
 	global:
-		umad_receiver;
 		osm_vendor_init;
 		osm_vendor_new;
 		osm_vendor_delete;
@@ -15,6 +14,5 @@ OSMVENDOR_2.0 {
 		osm_vendor_set_debug;
 		osmv_bind_sa;
 		osmv_query_sa;
-		osm_vendor_get_guid_ca_and_port;
 	local: *;
 };
