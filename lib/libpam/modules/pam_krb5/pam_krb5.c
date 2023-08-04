@@ -576,8 +576,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	PAM_LOG("Prepared for iteration");
 
 	/* Copy the creds (should be two of them) */
-	while ((krbret = krb5_cc_next_cred(pam_context, ccache_temp,
-				&cursor, &creds) == 0)) {
+	while (krb5_cc_next_cred(pam_context, ccache_temp, &cursor, &creds) == 0) {
 		krbret = krb5_cc_store_cred(pam_context, ccache_perm, &creds);
 		if (krbret != 0) {
 			PAM_LOG_KRB5_ERR(pam_context, krbret,
