@@ -848,7 +848,6 @@ sctp_flush(struct socket *so, int how)
 		SOCK_LOCK(so);
 		KASSERT(!SOLISTENING(so),
 		    ("sctp_flush: called on listening socket %p", so));
-		SCTP_SB_CLEAR(so->so_snd);
 		SOCK_UNLOCK(so);
 	}
 	return (0);
