@@ -11642,13 +11642,16 @@ pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 /*
  * Reserve enough memory to:
  * 1) allocate PDP pages for the shadow map(s),
- * 2) shadow one page of memory, so one PD page, one PT page, and one shadow
- *    page per shadow map.
+ * 2) shadow the boot stack of KSTACK_PAGES pages,
+ * so we need one PD page, one or two PT pages, and KSTACK_PAGES shadow pages
+ * per shadow map.
  */
 #ifdef KASAN
-#define	SAN_EARLY_PAGES	(NKASANPML4E + 3)
+#define	SAN_EARLY_PAGES	\
+	(NKASANPML4E + 1 + 2 + howmany(KSTACK_PAGES, KASAN_SHADOW_SCALE))
 #else
-#define	SAN_EARLY_PAGES	(NKMSANSHADPML4E + NKMSANORIGPML4E + 2 * 3)
+#define	SAN_EARLY_PAGES	\
+	(NKMSANSHADPML4E + NKMSANORIGPML4E + 2 * (1 + 2 + KSTACK_PAGES))
 #endif
 
 static uint64_t __nosanitizeaddress __nosanitizememory
