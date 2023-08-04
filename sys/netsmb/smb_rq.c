@@ -425,12 +425,18 @@ static int
 smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
 	struct mdchain *mdp)
 {
-	struct mbuf *m, *m0;
+	struct mbuf *m0;
 	int len;
 
+	len = m_length(mtop, NULL);
+	if (offset + count > len)
+		return (EPROTO);
+
 	m0 = m_split(mtop, offset, M_WAITOK);
-	len = m_length(m0, &m);
-	m->m_len -= len - count;
+	if (len != offset + count) {
+		len -= offset + count;
+		m_adj(m0, -len);
+	}
 	if (mdp->md_top == NULL) {
 		md_initm(mdp, m0);
 	} else
