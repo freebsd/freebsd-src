@@ -413,6 +413,11 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 		lvd = (struct logvol_desc *)bp->b_data;
 		if (!udf_checktag(&lvd->tag, TAGID_LOGVOL)) {
 			udfmp->bsize = le32toh(lvd->lb_size);
+			if (udfmp->bsize < 0 || udfmp->bsize > maxbcachebuf) {
+				printf("lvd block size %d\n", udfmp->bsize);
+				error = EINVAL;
+				goto bail;
+			}
 			udfmp->bmask = udfmp->bsize - 1;
 			udfmp->bshift = ffs(udfmp->bsize) - 1;
 			fsd_part = le16toh(lvd->_lvd_use.fsd_loc.loc.part_num);
