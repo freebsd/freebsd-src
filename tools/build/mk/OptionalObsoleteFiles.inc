@@ -7252,6 +7252,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/bestmx_is_local.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bitdomain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/blacklist_recipients.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/block_bad_helo.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/check_other.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/check_cert_altnames.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/check_other.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/compat_check.m4
