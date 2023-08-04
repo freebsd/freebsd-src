@@ -690,15 +690,17 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order,
  * term fragmentation by promoting contemporaneous allocation and (hopefully)
  * deallocation.
  *
- * The physical page m's buddy must not be free.
+ * If npages is zero, this function does nothing and ignores the physical page
+ * parameter m.  Otherwise, the physical page m's buddy must not be free.
  */
 static vm_page_t
 vm_phys_enq_range(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 {
 	int order;
 
-	KASSERT(((VM_PAGE_TO_PHYS(m) + npages * PAGE_SIZE) &
-	    ((PAGE_SIZE << fls(npages / 2)) - 1)) == 0,
+	KASSERT(npages == 0 ||
+	    ((VM_PAGE_TO_PHYS(m) + npages * PAGE_SIZE) &
+	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
 	    ("vm_phys_enq_range: page %p and npages %u are misaligned",
 	    m, npages));
 	while (npages > 0) {
