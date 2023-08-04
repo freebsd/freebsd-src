@@ -2476,7 +2476,6 @@ iflib_get_rx_mbuf_sz(if_ctx_t ctx)
 static void
 iflib_init_locked(if_ctx_t ctx)
 {
-	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	if_t ifp = ctx->ifc_ifp;
 	iflib_fl_t fl;
@@ -2506,7 +2505,7 @@ iflib_init_locked(if_ctx_t ctx)
 	if (if_getcapenable(ifp) & IFCAP_TSO6)
 		if_sethwassistbits(ifp, CSUM_IP6_TSO, 0);
 
-	for (i = 0, txq = ctx->ifc_txqs; i < sctx->isc_ntxqsets; i++, txq++) {
+	for (i = 0, txq = ctx->ifc_txqs; i < scctx->isc_ntxqsets; i++, txq++) {
 		CALLOUT_LOCK(txq);
 		callout_stop(&txq->ift_timer);
 #ifdef DEV_NETMAP
@@ -2528,7 +2527,7 @@ iflib_init_locked(if_ctx_t ctx)
 #endif
 	IFDI_INIT(ctx);
 	MPASS(if_getdrvflags(ifp) == i);
-	for (i = 0, rxq = ctx->ifc_rxqs; i < sctx->isc_nrxqsets; i++, rxq++) {
+	for (i = 0, rxq = ctx->ifc_rxqs; i < scctx->isc_nrxqsets; i++, rxq++) {
 		if (iflib_netmap_rxq_init(ctx, rxq) > 0) {
 			/* This rxq is in netmap mode. Skip normal init. */
 			continue;
@@ -2546,7 +2545,7 @@ done:
 	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
-	for (i = 0; i < sctx->isc_ntxqsets; i++, txq++)
+	for (i = 0; i < scctx->isc_ntxqsets; i++, txq++)
 		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer, txq,
 			txq->ift_timer.c_cpu);
 
