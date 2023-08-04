@@ -78,8 +78,6 @@ DUMMY(add_key);
 DUMMY(request_key);
 DUMMY(keyctl);
 /* Linux 2.6.13: */
-DUMMY(ioprio_set);
-DUMMY(ioprio_get);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
 /* Linux 2.6.16: */

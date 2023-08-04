@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
+#include <sys/rtprio.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
@@ -2651,5 +2652,274 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
+	return (error);
+}
+
+static void
+linux_up_rtprio_if(struct thread *td1, struct rtprio *rtp)
+{
+	struct rtprio rtp2;
+
+	pri_to_rtp(td1, &rtp2);
+	if (rtp2.type <  rtp->type ||
+	    (rtp2.type == rtp->type &&
+	    rtp2.prio < rtp->prio)) {
+		rtp->type = rtp2.type;
+		rtp->prio = rtp2.prio;
+	}
+}
+
+#define	LINUX_PRIO_DIVIDER	RTP_PRIO_MAX / LINUX_IOPRIO_MAX
+
+static int
+linux_rtprio2ioprio(struct rtprio *rtp)
+{
+	int ioprio, prio;
+
+	switch (rtp->type) {
+	case RTP_PRIO_IDLE:
+		prio = RTP_PRIO_MIN;
+		ioprio = LINUX_IOPRIO_PRIO(LINUX_IOPRIO_CLASS_IDLE, prio);
+		break;
+	case RTP_PRIO_NORMAL:
+		prio = rtp->prio / LINUX_PRIO_DIVIDER;
+		ioprio = LINUX_IOPRIO_PRIO(LINUX_IOPRIO_CLASS_BE, prio);
+		break;
+	case RTP_PRIO_REALTIME:
+		prio = rtp->prio / LINUX_PRIO_DIVIDER;
+		ioprio = LINUX_IOPRIO_PRIO(LINUX_IOPRIO_CLASS_RT, prio);
+		break;
+	default:
+		prio = RTP_PRIO_MIN;
+		ioprio = LINUX_IOPRIO_PRIO(LINUX_IOPRIO_CLASS_NONE, prio);
+		break;
+	}
+	return (ioprio);
+}
+
+static int
+linux_ioprio2rtprio(int ioprio, struct rtprio *rtp)
+{
+
+	switch (LINUX_IOPRIO_PRIO_CLASS(ioprio)) {
+	case LINUX_IOPRIO_CLASS_IDLE:
+		rtp->prio = RTP_PRIO_MIN;
+		rtp->type = RTP_PRIO_IDLE;
+		break;
+	case LINUX_IOPRIO_CLASS_BE:
+		rtp->prio = LINUX_IOPRIO_PRIO_DATA(ioprio) * LINUX_PRIO_DIVIDER;
+		rtp->type = RTP_PRIO_NORMAL;
+		break;
+	case LINUX_IOPRIO_CLASS_RT:
+		rtp->prio = LINUX_IOPRIO_PRIO_DATA(ioprio) * LINUX_PRIO_DIVIDER;
+		rtp->type = RTP_PRIO_REALTIME;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+#undef LINUX_PRIO_DIVIDER
+
+int
+linux_ioprio_get(struct thread *td, struct linux_ioprio_get_args *args)
+{
+	struct thread *td1;
+	struct rtprio rtp;
+	struct pgrp *pg;
+	struct proc *p;
+	int error, found;
+
+	p = NULL;
+	td1 = NULL;
+	error = 0;
+	found = 0;
+	rtp.type = RTP_PRIO_IDLE;
+	rtp.prio = RTP_PRIO_MAX;
+	switch (args->which) {
+	case LINUX_IOPRIO_WHO_PROCESS:
+		if (args->who == 0) {
+			td1 = td;
+			p = td1->td_proc;
+			PROC_LOCK(p);
+		} else if (args->who > PID_MAX) {
+			td1 = linux_tdfind(td, args->who, -1);
+			if (td1 != NULL)
+				p = td1->td_proc;
+		} else
+			p = pfind(args->who);
+		if (p == NULL)
+			return (ESRCH);
+		if ((error = p_cansee(td, p))) {
+			PROC_UNLOCK(p);
+			break;
+		}
+		if (td1 != NULL) {
+			pri_to_rtp(td1, &rtp);
+		} else {
+			FOREACH_THREAD_IN_PROC(p, td1) {
+				linux_up_rtprio_if(td1, &rtp);
+			}
+		}
+		found++;
+		PROC_UNLOCK(p);
+		break;
+	case LINUX_IOPRIO_WHO_PGRP:
+		sx_slock(&proctree_lock);
+		if (args->who == 0) {
+			pg = td->td_proc->p_pgrp;
+			PGRP_LOCK(pg);
+		} else {
+			pg = pgfind(args->who);
+			if (pg == NULL) {
+				sx_sunlock(&proctree_lock);
+				error = ESRCH;
+				break;
+			}
+		}
+		sx_sunlock(&proctree_lock);
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
+				FOREACH_THREAD_IN_PROC(p, td1) {
+					linux_up_rtprio_if(td1, &rtp);
+					found++;
+				}
+			}
+			PROC_UNLOCK(p);
+		}
+		PGRP_UNLOCK(pg);
+		break;
+	case LINUX_IOPRIO_WHO_USER:
+		if (args->who == 0)
+			args->who = td->td_ucred->cr_uid;
+		sx_slock(&allproc_lock);
+		FOREACH_PROC_IN_SYSTEM(p) {
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NORMAL &&
+			    p->p_ucred->cr_uid == args->who &&
+			    p_cansee(td, p) == 0) {
+				FOREACH_THREAD_IN_PROC(p, td1) {
+					linux_up_rtprio_if(td1, &rtp);
+					found++;
+				}
+			}
+			PROC_UNLOCK(p);
+		}
+		sx_sunlock(&allproc_lock);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	if (error == 0) {
+		if (found != 0)
+			td->td_retval[0] = linux_rtprio2ioprio(&rtp);
+		else
+			error = ESRCH;
+	}
+	return (error);
+}
+
+int
+linux_ioprio_set(struct thread *td, struct linux_ioprio_set_args *args)
+{
+	struct thread *td1;
+	struct rtprio rtp;
+	struct pgrp *pg;
+	struct proc *p;
+	int error;
+
+	if ((error = linux_ioprio2rtprio(args->ioprio, &rtp)) != 0)
+		return (error);
+	/* Attempts to set high priorities (REALTIME) require su privileges. */
+	if (RTP_PRIO_BASE(rtp.type) == RTP_PRIO_REALTIME &&
+	    (error = priv_check(td, PRIV_SCHED_RTPRIO)) != 0)
+		return (error);
+
+	p = NULL;
+	td1 = NULL;
+	switch (args->which) {
+	case LINUX_IOPRIO_WHO_PROCESS:
+		if (args->who == 0) {
+			td1 = td;
+			p = td1->td_proc;
+			PROC_LOCK(p);
+		} else if (args->who > PID_MAX) {
+			td1 = linux_tdfind(td, args->who, -1);
+			if (td1 != NULL)
+				p = td1->td_proc;
+		} else
+			p = pfind(args->who);
+		if (p == NULL)
+			return (ESRCH);
+		if ((error = p_cansched(td, p))) {
+			PROC_UNLOCK(p);
+			break;
+		}
+		if (td1 != NULL) {
+			error = rtp_to_pri(&rtp, td1);
+		} else {
+			FOREACH_THREAD_IN_PROC(p, td1) {
+				if ((error = rtp_to_pri(&rtp, td1)) != 0)
+					break;
+			}
+		}
+		PROC_UNLOCK(p);
+		break;
+	case LINUX_IOPRIO_WHO_PGRP:
+		sx_slock(&proctree_lock);
+		if (args->who == 0) {
+			pg = td->td_proc->p_pgrp;
+			PGRP_LOCK(pg);
+		} else {
+			pg = pgfind(args->who);
+			if (pg == NULL) {
+				sx_sunlock(&proctree_lock);
+				error = ESRCH;
+				break;
+			}
+		}
+		sx_sunlock(&proctree_lock);
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansched(td, p) == 0) {
+				FOREACH_THREAD_IN_PROC(p, td1) {
+					if ((error = rtp_to_pri(&rtp, td1)) != 0)
+						break;
+				}
+			}
+			PROC_UNLOCK(p);
+			if (error != 0)
+				break;
+		}
+		PGRP_UNLOCK(pg);
+		break;
+	case LINUX_IOPRIO_WHO_USER:
+		if (args->who == 0)
+			args->who = td->td_ucred->cr_uid;
+		sx_slock(&allproc_lock);
+		FOREACH_PROC_IN_SYSTEM(p) {
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NORMAL &&
+			    p->p_ucred->cr_uid == args->who &&
+			    p_cansched(td, p) == 0) {
+				FOREACH_THREAD_IN_PROC(p, td1) {
+					if ((error = rtp_to_pri(&rtp, td1)) != 0)
+						break;
+				}
+			}
+			PROC_UNLOCK(p);
+			if (error != 0)
+				break;
+		}
+		sx_sunlock(&allproc_lock);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
 	return (error);
 }

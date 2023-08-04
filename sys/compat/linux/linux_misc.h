@@ -191,4 +191,28 @@ struct syscall_info {
 	};
 };
 
+/* Linux ioprio set/get syscalls */
+#define	LINUX_IOPRIO_CLASS_SHIFT	13
+#define	LINUX_IOPRIO_CLASS_MASK		0x07
+#define	LINUX_IOPRIO_PRIO_MASK		((1UL << LINUX_IOPRIO_CLASS_SHIFT) - 1)
+
+#define	LINUX_IOPRIO_PRIO_CLASS(ioprio)						\
+    (((ioprio) >> LINUX_IOPRIO_CLASS_SHIFT) & LINUX_IOPRIO_CLASS_MASK)
+#define	LINUX_IOPRIO_PRIO_DATA(ioprio)	((ioprio) & LINUX_IOPRIO_PRIO_MASK)
+#define	LINUX_IOPRIO_PRIO(class, data)						\
+    ((((class) & LINUX_IOPRIO_CLASS_MASK) << LINUX_IOPRIO_CLASS_SHIFT) |	\
+    ((data) & LINUX_IOPRIO_PRIO_MASK))
+
+#define	LINUX_IOPRIO_CLASS_NONE		0
+#define	LINUX_IOPRIO_CLASS_RT		1
+#define	LINUX_IOPRIO_CLASS_BE		2
+#define	LINUX_IOPRIO_CLASS_IDLE		3
+
+#define	LINUX_IOPRIO_MIN		0
+#define	LINUX_IOPRIO_MAX		7
+
+#define	LINUX_IOPRIO_WHO_PROCESS	1
+#define	LINUX_IOPRIO_WHO_PGRP		2
+#define	LINUX_IOPRIO_WHO_USER		3
+
 #endif	/* _LINUX_MISC_H_ */
