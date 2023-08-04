@@ -240,8 +240,10 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		offset -= vol->v_subdisks[no].sd_size;
 		no++;
 	}
-	KASSERT(no < vol->v_disks_count,
-	    ("Request starts after volume end (%ju)", bp->bio_offset));
+	if (no >= vol->v_disks_count) {
+		g_raid_iodone(bp, EIO);
+		return;
+	}
 	bioq_init(&queue);
 	do {
 		sd = &vol->v_subdisks[no];
@@ -267,10 +269,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 			addr += length;
 		offset = 0;
 		no++;
-		KASSERT(no < vol->v_disks_count || remain == 0,
-		    ("Request ends after volume end (%ju, %ju)",
-			bp->bio_offset, bp->bio_length));
-	} while (remain > 0);
+	} while (remain > 0 && no < vol->v_disks_count);
+	bp->bio_completed = bp->bio_length - remain;
 	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -308,8 +308,8 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr, void *virtual,
 		offset -= vol->v_subdisks[no].sd_size;
 		no++;
 	}
-	KASSERT(no < vol->v_disks_count,
-	    ("Request starts after volume end (%ju)", boffset));
+	if (no >= vol->v_disks_count)
+		return (EIO);
 	do {
 		sd = &vol->v_subdisks[no];
 		length = MIN(sd->sd_size - offset, remain);
@@ -321,10 +321,9 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr, void *virtual,
 		addr += length;
 		offset = 0;
 		no++;
-		KASSERT(no < vol->v_disks_count || remain == 0,
-		    ("Request ends after volume end (%ju, %zu)",
-			boffset, blength));
-	} while (remain > 0);
+	} while (remain > 0 && no < vol->v_disks_count);
+	if (remain > 0)
+		return (EIO);
 	return (0);
 }
 
@@ -340,7 +339,6 @@ g_raid_tr_iodone_concat(struct g_raid_tr_object *tr,
 	g_destroy_bio(bp);
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
-		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, pbp->bio_error);
 	}
 }
