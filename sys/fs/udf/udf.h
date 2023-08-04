@@ -97,8 +97,10 @@ struct ifid {
 MALLOC_DECLARE(M_UDFFENTRY);
 
 static __inline int
-udf_readdevblks(struct udf_mnt *udfmp, int sector, int size, struct buf **bp)
+udf_readdevblks(struct udf_mnt *udfmp, daddr_t sector, int size, struct buf **bp)
 {
+	if (size < 0 || size + udfmp->bmask < size)
+		return (ERANGE);
 	return (RDSECTOR(udfmp->im_devvp, sector,
 			 (size + udfmp->bmask) & ~udfmp->bmask, bp));
 }
