@@ -1896,12 +1896,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_ioprio_set */
 	case 251: {
-		*n_args = 0;
+		struct linux_ioprio_set_args *p = params;
+		iarg[a++] = p->which; /* l_int */
+		iarg[a++] = p->who; /* l_int */
+		iarg[a++] = p->ioprio; /* l_int */
+		*n_args = 3;
 		break;
 	}
 	/* linux_ioprio_get */
 	case 252: {
-		*n_args = 0;
+		struct linux_ioprio_get_args *p = params;
+		iarg[a++] = p->which; /* l_int */
+		iarg[a++] = p->who; /* l_int */
+		*n_args = 2;
 		break;
 	}
 	/* linux_inotify_init */
@@ -5767,9 +5774,32 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ioprio_set */
 	case 251:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_ioprio_get */
 	case 252:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_inotify_init */
 	case 253:
@@ -8225,8 +8255,14 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 250:
 	/* linux_ioprio_set */
 	case 251:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_ioprio_get */
 	case 252:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_inotify_init */
 	case 253:
 	/* linux_inotify_add_watch */

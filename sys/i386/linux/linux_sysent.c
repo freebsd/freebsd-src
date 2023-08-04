@@ -305,8 +305,8 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_add_key, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 286 = linux_add_key */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_request_key, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 287 = linux_request_key */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_keyctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 288 = linux_keyctl */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_ioprio_set, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 289 = linux_ioprio_set */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_ioprio_get, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 290 = linux_ioprio_get */
+	{ .sy_narg = AS(linux_ioprio_set_args), .sy_call = (sy_call_t *)linux_ioprio_set, .sy_auevent = AUE_SETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 289 = linux_ioprio_set */
+	{ .sy_narg = AS(linux_ioprio_get_args), .sy_call = (sy_call_t *)linux_ioprio_get, .sy_auevent = AUE_GETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 290 = linux_ioprio_get */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_init, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 291 = linux_inotify_init */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_add_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 292 = linux_inotify_add_watch */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_rm_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 293 = linux_inotify_rm_watch */

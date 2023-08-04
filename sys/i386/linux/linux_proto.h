@@ -960,10 +960,13 @@ struct linux_keyctl_args {
 	syscallarg_t dummy;
 };
 struct linux_ioprio_set_args {
-	syscallarg_t dummy;
+	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
+	char who_l_[PADL_(l_int)]; l_int who; char who_r_[PADR_(l_int)];
+	char ioprio_l_[PADL_(l_int)]; l_int ioprio; char ioprio_r_[PADR_(l_int)];
 };
 struct linux_ioprio_get_args {
-	syscallarg_t dummy;
+	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
+	char who_l_[PADL_(l_int)]; l_int who; char who_r_[PADR_(l_int)];
 };
 struct linux_inotify_init_args {
 	syscallarg_t dummy;
@@ -2269,8 +2272,8 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_add_key	AUE_NULL
 #define	LINUX_SYS_AUE_linux_request_key	AUE_NULL
 #define	LINUX_SYS_AUE_linux_keyctl	AUE_NULL
-#define	LINUX_SYS_AUE_linux_ioprio_set	AUE_NULL
-#define	LINUX_SYS_AUE_linux_ioprio_get	AUE_NULL
+#define	LINUX_SYS_AUE_linux_ioprio_set	AUE_SETPRIORITY
+#define	LINUX_SYS_AUE_linux_ioprio_get	AUE_GETPRIORITY
 #define	LINUX_SYS_AUE_linux_inotify_init	AUE_NULL
 #define	LINUX_SYS_AUE_linux_inotify_add_watch	AUE_NULL
 #define	LINUX_SYS_AUE_linux_inotify_rm_watch	AUE_NULL

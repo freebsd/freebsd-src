@@ -153,10 +153,13 @@ struct linux_ioctl_args {
 	char arg_l_[PADL_(l_ulong)]; l_ulong arg; char arg_r_[PADR_(l_ulong)];
 };
 struct linux_ioprio_set_args {
-	syscallarg_t dummy;
+	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
+	char who_l_[PADL_(l_int)]; l_int who; char who_r_[PADR_(l_int)];
+	char ioprio_l_[PADL_(l_int)]; l_int ioprio; char ioprio_r_[PADR_(l_int)];
 };
 struct linux_ioprio_get_args {
-	syscallarg_t dummy;
+	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
+	char who_l_[PADL_(l_int)]; l_int who; char who_r_[PADR_(l_int)];
 };
 struct linux_mknodat_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
@@ -1475,8 +1478,8 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_inotify_add_watch	AUE_NULL
 #define	LINUX_SYS_AUE_linux_inotify_rm_watch	AUE_NULL
 #define	LINUX_SYS_AUE_linux_ioctl	AUE_IOCTL
-#define	LINUX_SYS_AUE_linux_ioprio_set	AUE_NULL
-#define	LINUX_SYS_AUE_linux_ioprio_get	AUE_NULL
+#define	LINUX_SYS_AUE_linux_ioprio_set	AUE_SETPRIORITY
+#define	LINUX_SYS_AUE_linux_ioprio_get	AUE_GETPRIORITY
 #define	LINUX_SYS_AUE_linux_mknodat	AUE_MKNODAT
 #define	LINUX_SYS_AUE_linux_mkdirat	AUE_MKDIRAT
 #define	LINUX_SYS_AUE_linux_unlinkat	AUE_UNLINKAT
