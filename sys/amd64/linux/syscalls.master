@@ -1465,11 +1465,18 @@
 250	AUE_NULL	STD {
 		int linux_keyctl(void);
 	}
-251	AUE_NULL	STD {
-		int linux_ioprio_set(void);
+251	AUE_SETPRIORITY	STD	{
+		int linux_ioprio_set(
+		    l_int which,
+		    l_int who,
+		    l_int ioprio
+		);
 	}
-252	AUE_NULL	STD {
-		int linux_ioprio_get(void);
+252	AUE_GETPRIORITY	STD	{
+		int linux_ioprio_get(
+		    l_int which,
+		    l_int who
+		);
 	}
 253	AUE_NULL	STD {
 		int linux_inotify_init(void);

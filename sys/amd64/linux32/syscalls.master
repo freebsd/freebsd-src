@@ -1577,11 +1577,18 @@
 		int linux_keyctl(void);
 	}
 ; Linux 2.6.13:
-289	AUE_NULL	STD {
-		int linux_ioprio_set(void);
+289	AUE_SETPRIORITY	STD	{
+		int linux_ioprio_set(
+		    l_int which,
+		    l_int who,
+		    l_int ioprio
+		);
 	}
-290	AUE_NULL	STD {
-		int linux_ioprio_get(void);
+290	AUE_GETPRIORITY	STD	{
+		int linux_ioprio_get(
+		    l_int which,
+		    l_int who
+		);
 	}
 291	AUE_NULL	STD {
 		int linux_inotify_init(void);
