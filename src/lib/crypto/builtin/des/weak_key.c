@@ -33,8 +33,10 @@
  * Originally written 8/85 by Steve Miller, MIT Project Athena.
  */
 
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "des_int.h"
+
+#ifdef K5_BUILTIN_DES
 
 /*
  * The following are the weak DES keys:
@@ -84,3 +86,5 @@ mit_des_is_weak_key(mit_des_cblock key)
 
     return 0;
 }
+
+#endif /* K5_BUILTIN_DES */

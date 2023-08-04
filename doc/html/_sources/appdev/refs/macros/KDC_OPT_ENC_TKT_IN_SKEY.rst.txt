@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-ENC-TKT-IN-SKEY-data:
+
+KDC_OPT_ENC_TKT_IN_SKEY
+=======================
+
+..
+.. data:: KDC_OPT_ENC_TKT_IN_SKEY
+..
+
+
+
+
+============================== ======================
+``KDC_OPT_ENC_TKT_IN_SKEY``       ``0x00000008``
+============================== ======================

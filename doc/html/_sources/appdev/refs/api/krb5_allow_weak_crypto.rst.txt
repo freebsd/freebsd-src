@@ -1,0 +1,49 @@
+krb5_allow_weak_crypto -  Allow the application to override the profile's allow_weak_crypto setting. 
+=====================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_allow_weak_crypto(krb5_context context, krb5_boolean enable)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enable** - Boolean flag
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+This function allows an application to override the allow_weak_crypto setting. It is primarily for use by aklog.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

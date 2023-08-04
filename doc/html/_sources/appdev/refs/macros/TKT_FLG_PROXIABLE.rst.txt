@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _TKT-FLG-PROXIABLE-data:
+
+TKT_FLG_PROXIABLE
+=================
+
+..
+.. data:: TKT_FLG_PROXIABLE
+..
+
+
+
+
+======================== ======================
+``TKT_FLG_PROXIABLE``       ``0x10000000``
+======================== ======================

@@ -41,16 +41,8 @@ gss_get_name_attribute(OM_uint32 *minor_status,
     gss_union_name_t    union_name;
     gss_mechanism       mech;
 
-    if (minor_status == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    if (name == GSS_C_NO_NAME)
-        return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_BAD_NAME;
-    if (attr == GSS_C_NO_BUFFER)
-        return GSS_S_CALL_INACCESSIBLE_READ;
-    if (more == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
+    if (minor_status != NULL)
+        *minor_status = 0;
     if (authenticated != NULL)
         *authenticated = 0;
     if (complete != NULL)
@@ -64,7 +56,15 @@ gss_get_name_attribute(OM_uint32 *minor_status,
         display_value->length = 0;
     }
 
-    *minor_status = 0;
+    if (minor_status == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
+
+    if (name == GSS_C_NO_NAME)
+        return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_BAD_NAME;
+    if (attr == GSS_C_NO_BUFFER)
+        return GSS_S_CALL_INACCESSIBLE_READ;
+    if (more == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     union_name = (gss_union_name_t)name;
 

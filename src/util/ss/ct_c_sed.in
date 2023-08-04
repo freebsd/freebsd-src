@@ -42,7 +42,7 @@ bFIRST
 s/, */, /g
 /^$/d
 #
-# Now we take care of some syntatic sugar.....
+# Now we take care of some syntactic sugar.....
 #
 /^unimplemented/ {
 	s/^unimplemented [A-Za-z_0-9]*/request ss_unimplemented/

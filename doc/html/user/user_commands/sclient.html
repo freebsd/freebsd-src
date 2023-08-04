@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>sclient &mdash; MIT Kerberos Documentation</title>
-    
+    <title>sclient &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="User commands" href="index.html" />
     <link rel="next" title="For administrators" href="../../admin/index.html" />
     <link rel="prev" title="kvno" href="kvno.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="sclient">
 <span id="sclient-1"></span><h1>sclient<a class="headerlink" href="#sclient" title="Permalink to this headline">¶</a></h1>
@@ -72,13 +70,18 @@
 <div class="section" id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p>sclient is a sample application, primarily useful for testing
-purposes.  It contacts a sample server <a class="reference internal" href="../../admin/admin_commands/sserver.html#sserver-8"><em>sserver</em></a> and
+purposes.  It contacts a sample server <a class="reference internal" href="../../admin/admin_commands/sserver.html#sserver-8"><span class="std std-ref">sserver</span></a> and
 authenticates to it using Kerberos version 5 tickets, then displays
-the server&#8217;s response.</p>
+the server’s response.</p>
+</div>
+<div class="section" id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="kinit.html#kinit-1"><em>kinit</em></a>, <a class="reference internal" href="../../admin/admin_commands/sserver.html#sserver-8"><em>sserver</em></a></p>
+<p><a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>, <a class="reference internal" href="../../admin/admin_commands/sserver.html#sserver-8"><span class="std std-ref">sserver</span></a>, <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </div>
 </div>
 
@@ -93,6 +96,7 @@ the server&#8217;s response.</p>
 <li><a class="reference internal" href="#">sclient</a><ul>
 <li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
 <li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
 <li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
 </ul>
 </li>
@@ -114,7 +118,7 @@ the server&#8217;s response.</p>
 <li class="toctree-l3"><a class="reference internal" href="ksu.html">ksu</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kswitch.html">kswitch</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kvno.html">kvno</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">sclient</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">sclient</a></li>
 </ul>
 </li>
 </ul>
@@ -147,8 +151,8 @@ the server&#8217;s response.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -36,7 +36,7 @@
 int main (int argc, char *argv[])
 {
     int s;
-    register int retval, i;
+    int retval, i;
     char *hname;          /* full name of server */
     char **srealms;       /* realm(s) of server */
     char *princ;          /* principal in credentials cache */
@@ -53,7 +53,7 @@ int main (int argc, char *argv[])
 
     if (argc < 2 || argc > 4) {
         fputs ("usage: uu-client <hostname> [message [port]]\n", stderr);
-        return 1;
+        exit(1);
     }
 
     retval = krb5_init_context(&context);
@@ -68,7 +68,7 @@ int main (int argc, char *argv[])
     else if ((serv = getservbyname ("uu-sample", "tcp")) == NULL)
     {
         fputs ("uu-client: unknown service \"uu-sample/tcp\"\n", stderr);
-        return 2;
+        exit(2);
     } else {
         port = serv->s_port;
     }
@@ -76,13 +76,13 @@ int main (int argc, char *argv[])
     if ((host = gethostbyname (argv[1])) == NULL) {
         fprintf (stderr, "uu-client: can't get address of host \"%s\".\n",
                  argv[1]);
-        return 3;
+        exit(3);
     }
 
     if (host->h_addrtype != AF_INET) {
         fprintf (stderr, "uu-client: bad address type %d for \"%s\".\n",
                  host->h_addrtype, argv[1]);
-        return 3;
+        exit(3);
     }
 
     hname = strdup (host->h_name);
@@ -90,7 +90,7 @@ int main (int argc, char *argv[])
 #ifndef USE_STDOUT
     if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         com_err ("uu-client", errno, "creating socket");
-        return 4;
+        exit(4);
     } else {
         cli_net_addr.sin_family = AF_INET;
         cli_net_addr.sin_port = 0;
@@ -98,7 +98,7 @@ int main (int argc, char *argv[])
         if (bind (s, (struct sockaddr *)&cli_net_addr,
                   sizeof (cli_net_addr)) < 0) {
             com_err ("uu-client", errno, "binding socket");
-            return 4;
+            exit(4);
         }
     }
 
@@ -109,7 +109,7 @@ int main (int argc, char *argv[])
     while (1) {
         if (host->h_addr_list[i] == 0) {
             fprintf (stderr, "uu-client: unable to connect to \"%s\"\n", hname);
-            return 5;
+            exit(5);
         }
 
         memcpy (&serv_net_addr.sin_addr, host->h_addr_list[i++],
@@ -128,7 +128,7 @@ int main (int argc, char *argv[])
     retval = krb5_cc_default(context, &cc);
     if (retval) {
         com_err("uu-client", retval, "getting credentials cache");
-        return 6;
+        exit(6);
     }
 
     memset (&creds, 0, sizeof(creds));
@@ -136,13 +136,13 @@ int main (int argc, char *argv[])
     retval = krb5_cc_get_principal(context, cc, &creds.client);
     if (retval) {
         com_err("uu-client", retval, "getting principal name");
-        return 6;
+        exit(6);
     }
 
     retval = krb5_unparse_name(context, creds.client, &princ);
     if (retval) {
         com_err("uu-client", retval, "printing principal name");
-        return 7;
+        exit(7);
     }
     else
         fprintf(stderr, "uu-client: client principal is \"%s\".\n", princ);
@@ -150,7 +150,7 @@ int main (int argc, char *argv[])
     retval = krb5_get_host_realm(context, hname, &srealms);
     if (retval) {
         com_err("uu-client", retval, "getting realms for \"%s\"", hname);
-        return 7;
+        exit(7);
     }
 
     retval =
@@ -167,7 +167,7 @@ int main (int argc, char *argv[])
                                  0);
     if (retval) {
         com_err("uu-client", retval, "setting up tgt server name");
-        return 7;
+        exit(7);
     }
 
     /* Get TGT from credentials cache */
@@ -175,7 +175,7 @@ int main (int argc, char *argv[])
                                   &creds, &new_creds);
     if (retval) {
         com_err("uu-client", retval, "getting TGT");
-        return 6;
+        exit(6);
     }
 
     i = strlen(princ) + 1;
@@ -188,7 +188,7 @@ int main (int argc, char *argv[])
     retval = krb5_write_message(context, (krb5_pointer) &s, &princ_data);
     if (retval) {
         com_err("uu-client", retval, "sending principal name to server");
-        return 8;
+        exit(8);
     }
 
     free(princ);
@@ -197,19 +197,19 @@ int main (int argc, char *argv[])
                                 &new_creds->ticket);
     if (retval) {
         com_err("uu-client", retval, "sending ticket to server");
-        return 8;
+        exit(8);
     }
 
     retval = krb5_read_message(context, (krb5_pointer) &s, &reply);
     if (retval) {
         com_err("uu-client", retval, "reading reply from server");
-        return 9;
+        exit(9);
     }
 
     retval = krb5_auth_con_init(context, &auth_context);
     if (retval) {
         com_err("uu-client", retval, "initializing the auth_context");
-        return 9;
+        exit(9);
     }
 
     retval =
@@ -218,36 +218,30 @@ int main (int argc, char *argv[])
                                KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR);
     if (retval) {
         com_err("uu-client", retval, "generating addrs for auth_context");
-        return 9;
+        exit(9);
     }
 
     retval = krb5_auth_con_setflags(context, auth_context,
                                     KRB5_AUTH_CONTEXT_DO_SEQUENCE);
     if (retval) {
         com_err("uu-client", retval, "initializing the auth_context flags");
-        return 9;
+        exit(9);
     }
 
     retval = krb5_auth_con_setuseruserkey(context, auth_context,
                                           &new_creds->keyblock);
     if (retval) {
         com_err("uu-client", retval, "setting useruserkey for authcontext");
-        return 9;
+        exit(9);
     }
 
-#if 1
     /* read the ap_req to get the session key */
     retval = krb5_rd_req(context, &auth_context, &reply, creds.client, NULL,
                          NULL, &ticket);
-    free(reply.data);
-#else
-    retval = krb5_recvauth(context, &auth_context, (krb5_pointer)&s, "???",
-                           0, /* server */, 0, NULL, &ticket);
-#endif
-
+    krb5_free_data_contents(context, &reply);
     if (retval) {
         com_err("uu-client", retval, "reading AP_REQ from server");
-        return 9;
+        exit(9);
     }
 
     retval = krb5_unparse_name(context, ticket->enc_part2->client, &princ);
@@ -261,18 +255,20 @@ int main (int argc, char *argv[])
     retval = krb5_read_message(context, (krb5_pointer) &s, &reply);
     if (retval) {
         com_err("uu-client", retval, "reading reply from server");
-        return 9;
+        exit(9);
     }
 
     retval = krb5_rd_safe(context, auth_context, &reply, &msg, NULL);
     if (retval) {
         com_err("uu-client", retval, "decoding reply from server");
-        return 10;
+        exit(10);
     }
 
     printf ("uu-client: server says \"%s\".\n", msg.data);
 
-
+#ifndef USE_STDOUT
+    close(s);
+#endif
     krb5_free_ticket(context, ticket);
     krb5_free_host_realm(context, srealms);
     free(hname);

@@ -16,7 +16,7 @@ static int _rpcsvccount = 0;		/* Number of requests being serviced */
 void
 rpc_test_prog_1_svc(rqstp, transp)
 	struct svc_req *rqstp;
-	register SVCXPRT *transp;
+	SVCXPRT *transp;
 {
 	union {
 		char *rpc_test_echo_1_arg;

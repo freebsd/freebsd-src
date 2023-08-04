@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Password quality interface (pwqual) &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Password quality interface (pwqual) &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For plugin module developers" href="index.html" />
     <link rel="next" title="KADM5 hook interface (kadm5_hook)" href="kadm5_hook.html" />
     <link rel="prev" title="Credential cache selection interface (ccselect)" href="ccselect.html" /> 
   </head>
@@ -61,17 +59,17 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="password-quality-interface-pwqual">
 <span id="pwqual-plugin"></span><h1>Password quality interface (pwqual)<a class="headerlink" href="#password-quality-interface-pwqual" title="Permalink to this headline">¶</a></h1>
 <p>The pwqual interface allows modules to control what passwords are
 allowed when a user changes passwords.  For a detailed description of
-the pwqual interface, see the header file <tt class="docutils literal"><span class="pre">&lt;krb5/pwqual_plugin.h&gt;</span></tt>.</p>
+the pwqual interface, see the header file <code class="docutils literal"><span class="pre">&lt;krb5/pwqual_plugin.h&gt;</span></code>.</p>
 <p>The primary pwqual method is <strong>check</strong>, which receives a password as
-input and returns success (0) or a <tt class="docutils literal"><span class="pre">KADM5_PASS_Q_</span></tt> failure code
+input and returns success (0) or a <code class="docutils literal"><span class="pre">KADM5_PASS_Q_</span></code> failure code
 depending on whether the password is allowed.  The <strong>check</strong> method
-also receives the principal name and the name of the principal&#8217;s
+also receives the principal name and the name of the principal’s
 password policy as input; although there is no stable interface for
 the module to obtain the fields of the password policy, it can define
 its own configuration or data store based on the policy name.</p>
@@ -79,9 +77,9 @@ its own configuration or data store based on the policy name.</p>
 implementing the <strong>open</strong> and <strong>close</strong> methods.  State objects have
 the type krb5_pwqual_moddata, which is an abstract pointer type.  A
 module should typically cast this to an internal type for the state
-object.  The <strong>open</strong> method also receives the name of the realm&#8217;s
+object.  The <strong>open</strong> method also receives the name of the realm’s
 dictionary file (as configured by the <strong>dict_file</strong> variable in the
-<a class="reference internal" href="../admin/conf_files/kdc_conf.html#kdc-realms"><em>[realms]</em></a> section of <a class="reference internal" href="../admin/conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>) if it wishes to use
+<a class="reference internal" href="../admin/conf_files/kdc_conf.html#kdc-realms"><span class="std std-ref">[realms]</span></a> section of <a class="reference internal" href="../admin/conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>) if it wishes to use
 it.</p>
 </div>
 
@@ -107,7 +105,7 @@ it.</p>
 <li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Password quality interface (pwqual)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
@@ -145,8 +143,8 @@ it.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

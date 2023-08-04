@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_init_creds_init - Create a context for acquiring initial credentials. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_init_creds_init - Create a context for acquiring initial credentials. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_init_creds_set_keytab - Specify a keytab to use for acquiring initial credentials." href="krb5_init_creds_set_keytab.html" />
     <link rel="prev" title="krb5_init_creds_get_times - Retrieve ticket times from an initial credentials context." href="krb5_init_creds_get_times.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-init-creds-init-create-a-context-for-acquiring-initial-credentials">
 <h1>krb5_init_creds_init -  Create a context for acquiring initial credentials.<a class="headerlink" href="#krb5-init-creds-init-create-a-context-for-acquiring-initial-credentials" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_init_creds_init">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_init_creds_init</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;client</em>, <a class="reference internal" href="../types/krb5_prompter_fct.html#c.krb5_prompter_fct" title="krb5_prompter_fct">krb5_prompter_fct</a><em>&nbsp;prompter</em>, void *<em>&nbsp;data</em>, <a class="reference internal" href="../types/krb5_deltat.html#c.krb5_deltat" title="krb5_deltat">krb5_deltat</a><em>&nbsp;start_time</em>, <a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt">krb5_get_init_creds_opt</a> *<em>&nbsp;options</em>, <a class="reference internal" href="../types/krb5_init_creds_context.html#c.krb5_init_creds_context" title="krb5_init_creds_context">krb5_init_creds_context</a> *<em>&nbsp;ctx</em><big>)</big><a class="headerlink" href="#c.krb5_init_creds_init" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_init_creds_init</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;client</em>, <a class="reference internal" href="../types/krb5_prompter_fct.html#c.krb5_prompter_fct" title="krb5_prompter_fct">krb5_prompter_fct</a><em>&nbsp;prompter</em>, void *<em>&nbsp;data</em>, <a class="reference internal" href="../types/krb5_deltat.html#c.krb5_deltat" title="krb5_deltat">krb5_deltat</a><em>&nbsp;start_time</em>, <a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt">krb5_get_init_creds_opt</a> *<em>&nbsp;options</em>, <a class="reference internal" href="../types/krb5_init_creds_context.html#c.krb5_init_creds_context" title="krb5_init_creds_context">krb5_init_creds_context</a> *<em>&nbsp;ctx</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_init_creds_init" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -96,8 +94,8 @@
 </tr>
 </tbody>
 </table>
-<p>This function creates a new context for acquiring initial credentials. Use <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></tt></a> to free <em>ctx</em> when it is no longer needed.</p>
-<p>Any subsequent calls to <a class="reference internal" href="krb5_init_creds_step.html#c.krb5_init_creds_step" title="krb5_init_creds_step"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_step()</span></tt></a> , <a class="reference internal" href="krb5_init_creds_get.html#c.krb5_init_creds_get" title="krb5_init_creds_get"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_get()</span></tt></a> , or <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></tt></a> for this initial credentials context must use the same <em>context</em> argument as the one passed to this function.</p>
+<p>This function creates a new context for acquiring initial credentials. Use <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><code class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></code></a> to free <em>ctx</em> when it is no longer needed.</p>
+<p>Any subsequent calls to <a class="reference internal" href="krb5_init_creds_step.html#c.krb5_init_creds_step" title="krb5_init_creds_step"><code class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_step()</span></code></a> , <a class="reference internal" href="krb5_init_creds_get.html#c.krb5_init_creds_get" title="krb5_init_creds_get"><code class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_get()</span></code></a> , or <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><code class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></code></a> for this initial credentials context must use the same <em>context</em> argument as the one passed to this function.</p>
 </div>
 
 
@@ -156,8 +154,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

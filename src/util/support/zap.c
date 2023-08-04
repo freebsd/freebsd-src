@@ -25,8 +25,8 @@
  */
 
 /*
- * krb5int_zap() is used by zap() (a static inline function defined in
- * k5-int.h) on non-Windows, non-gcc compilers, in order to prevent the
+ * krb5int_zap() is used by zap() (a macro or static inline function defined in
+ * k5-platform.h) on non-Windows, non-gcc compilers, in order to prevent the
  * compiler from inlining and optimizing out the memset() call.
  */
 

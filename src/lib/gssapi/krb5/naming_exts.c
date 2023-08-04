@@ -624,7 +624,7 @@ krb5_gss_export_name_composite(OM_uint32 *minor_status,
     exp_composite_name->length += 4; /* length of encoded attributes */
     if (attrs != NULL)
         exp_composite_name->length += attrs->length;
-    exp_composite_name->value = malloc(exp_composite_name->length);
+    exp_composite_name->value = gssalloc_malloc(exp_composite_name->length);
     if (exp_composite_name->value == NULL) {
         code = ENOMEM;
         goto cleanup;
@@ -664,13 +664,3 @@ cleanup:
 
     return kg_map_name_error(minor_status, code);
 }
-
-#if 0
-OM_uint32
-krb5_gss_display_name_ext(OM_uint32 *minor_status,
-                          gss_name_t name,
-                          gss_OID display_as_name_type,
-                          gss_buffer_t display_name)
-{
-}
-#endif

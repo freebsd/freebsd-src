@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 from princflags import *
 import re

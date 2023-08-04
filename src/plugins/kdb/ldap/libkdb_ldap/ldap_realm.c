@@ -87,7 +87,7 @@ ldap_filter_correct (char *in)
             break;
         k5_buf_add_fmt(&buf, "\\%2x", (unsigned char)*in++);
     }
-    return buf.data;
+    return k5_buf_cstring(&buf);
 }
 
 static int
@@ -444,7 +444,7 @@ krb5_ldap_modify_realm(krb5_context context, krb5_ldap_realm_params *rparams,
     }
 
 
-    /* Realm modify opearation */
+    /* Realm modify operation */
     if (mods != NULL) {
         if ((st=ldap_modify_ext_s(ld, rparams->realmdn, mods, NULL, NULL)) != LDAP_SUCCESS) {
             st = set_ldap_error (context, st, OP_MOD);
@@ -777,9 +777,6 @@ krb5_ldap_read_realm_params(krb5_context context, char *lrealm,
     ent = ldap_first_entry (ld, result);
     if (ent == NULL) {
         ldap_get_option (ld, LDAP_OPT_ERROR_NUMBER, (void *) &st);
-#if 0
-        st = translate_ldap_error(st, OP_SEARCH);
-#endif
         goto cleanup;
     }
 

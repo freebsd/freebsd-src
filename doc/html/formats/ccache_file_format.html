@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Credential cache file format &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Credential cache file format &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="Protocols and file formats" href="index.html" />
     <link rel="next" title="Keytab file format" href="keytab_file_format.html" />
     <link rel="prev" title="Protocols and file formats" href="index.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="credential-cache-file-format">
 <span id="ccache-file-format"></span><h1>Credential cache file format<a class="headerlink" href="#credential-cache-file-format" title="Permalink to this headline">¶</a></h1>
@@ -91,17 +89,17 @@ changed since the initial authentication.</p>
 <span id="cache-principal-format"></span><h2>Principal format<a class="headerlink" href="#principal-format" title="Permalink to this headline">¶</a></h2>
 <p>The default principal is marshalled using the following informal
 grammar:</p>
-<div class="highlight-python"><div class="highlight"><pre>principal ::=
-    name type (32 bits) [omitted in version 1]
-    count of components (32 bits) [includes realm in version 1]
-    realm (data)
-    component1 (data)
-    component2 (data)
-    ...
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">principal</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">name</span> <span class="nb">type</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">omitted</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">count</span> <span class="n">of</span> <span class="n">components</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">includes</span> <span class="n">realm</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">realm</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component1</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component2</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="o">...</span>
 
-data ::=
-    length (32 bits)
-    value (length bytes)
+<span class="n">data</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">length</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">value</span> <span class="p">(</span><span class="n">length</span> <span class="nb">bytes</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>There is no external framing on the default principal, so it must be
@@ -111,45 +109,45 @@ credentials which follows.</p>
 <div class="section" id="credential-format">
 <span id="ccache-credential-format"></span><h2>Credential format<a class="headerlink" href="#credential-format" title="Permalink to this headline">¶</a></h2>
 <p>The credential format uses the following informal grammar (referencing
-the <tt class="docutils literal"><span class="pre">principal</span></tt> and <tt class="docutils literal"><span class="pre">data</span></tt> types from the previous section):</p>
-<div class="highlight-python"><div class="highlight"><pre>credential ::=
-    client (principal)
-    server (principal)
-    keyblock (keyblock)
-    authtime (32 bits)
-    starttime (32 bits)
-    endtime (32 bits)
-    renew_till (32 bits)
-    is_skey (1 byte, 0 or 1)
-    ticket_flags (32 bits)
-    addresses (addresses)
-    authdata (authdata)
-    ticket (data)
-    second_ticket (data)
+the <code class="docutils literal"><span class="pre">principal</span></code> and <code class="docutils literal"><span class="pre">data</span></code> types from the previous section):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">credential</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">client</span> <span class="p">(</span><span class="n">principal</span><span class="p">)</span>
+    <span class="n">server</span> <span class="p">(</span><span class="n">principal</span><span class="p">)</span>
+    <span class="n">keyblock</span> <span class="p">(</span><span class="n">keyblock</span><span class="p">)</span>
+    <span class="n">authtime</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">starttime</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">endtime</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">renew_till</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">is_skey</span> <span class="p">(</span><span class="mi">1</span> <span class="n">byte</span><span class="p">,</span> <span class="mi">0</span> <span class="ow">or</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">ticket_flags</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">addresses</span> <span class="p">(</span><span class="n">addresses</span><span class="p">)</span>
+    <span class="n">authdata</span> <span class="p">(</span><span class="n">authdata</span><span class="p">)</span>
+    <span class="n">ticket</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">second_ticket</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
-keyblock ::=
-    enctype (16 bits) [repeated twice in version 3]
-    data
+<span class="n">keyblock</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">enctype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">repeated</span> <span class="n">twice</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">data</span>
 
-addresses ::=
-    count (32 bits)
-    address1
-    address2
-    ...
+<span class="n">addresses</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">count</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">address1</span>
+    <span class="n">address2</span>
+    <span class="o">...</span>
 
-address ::=
-    addrtype (16 bits)
-    data
+<span class="n">address</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">addrtype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">data</span>
 
-authdata ::=
-    count (32 bits)
-    authdata1
-    authdata2
-    ...
+<span class="n">authdata</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">count</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">authdata1</span>
+    <span class="n">authdata2</span>
+    <span class="o">...</span>
 
-authdata ::=
-    ad_type (16 bits)
-    data
+<span class="n">authdata</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">ad_type</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">data</span>
 </pre></div>
 </div>
 <p>There is no external framing on a marshalled credential, so it must be
@@ -162,9 +160,9 @@ ends.</p>
 <h2>Credential cache configuration entries<a class="headerlink" href="#credential-cache-configuration-entries" title="Permalink to this headline">¶</a></h2>
 <p>Configuration entries are encoded as credential entries.  The client
 principal of the entry is the default principal of the cache.  The
-server principal has the realm <tt class="docutils literal"><span class="pre">X-CACHECONF:</span></tt> and two or three
-components, the first of which is <tt class="docutils literal"><span class="pre">krb5_ccache_conf_data</span></tt>.  The
-server principal&#8217;s second component is the configuration key.  The
+server principal has the realm <code class="docutils literal"><span class="pre">X-CACHECONF:</span></code> and two or three
+components, the first of which is <code class="docutils literal"><span class="pre">krb5_ccache_conf_data</span></code>.  The
+server principal’s second component is the configuration key.  The
 third component, if it exists, is a principal to which the
 configuration key is associated.  The configuration value is stored in
 the ticket field of the entry.  All other entry fields are zeroed.</p>
@@ -186,9 +184,9 @@ entries because of the endtime.</li>
 <dl class="docutils">
 <dt>fast_avail</dt>
 <dd>The presence of this key with a non-empty value indicates that the
-KDC asserted support for FAST (see <span class="target" id="index-0"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a>) during the initial
+KDC asserted support for FAST (see <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a>) during the initial
 authentication, using the negotiation method described in
-<span class="target" id="index-1"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a> section 11.  This key is not associated with any
+<span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a> section 11.  This key is not associated with any
 principal.</dd>
 <dt>pa_config_data</dt>
 <dd>The value of this key contains a JSON object representation of
@@ -214,6 +212,11 @@ the GSS mechanism using a client keytab.  The value is the ASCII
 decimal representation of a timestamp at which the GSS mechanism
 should attempt to refresh the credential cache from the client
 keytab.</dd>
+<dt>start_realm</dt>
+<dd>This key indicates the realm of the ticket-granting ticket to be
+used for TGS requests, when making a referrals request or
+beginning a cross-realm request.  If it is not present, the client
+realm is used.</dd>
 </dl>
 </div>
 </div>
@@ -245,11 +248,11 @@ keytab.</dd>
 <li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="">Credential cache file format</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Credential cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="keytab_file_format.html">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -274,8 +277,8 @@ keytab.</dd>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

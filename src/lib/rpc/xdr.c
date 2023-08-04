@@ -212,7 +212,7 @@ xdr_u_long(XDR *xdrs, u_long *ulp)
  * XDR short integers
  */
 bool_t
-xdr_short(register XDR *xdrs, short *sp)
+xdr_short(XDR *xdrs, short *sp)
 {
 	long l;
 
@@ -243,7 +243,7 @@ xdr_short(register XDR *xdrs, short *sp)
  * XDR unsigned short integers
  */
 bool_t
-xdr_u_short(register XDR *xdrs, u_short *usp)
+xdr_u_short(XDR *xdrs, u_short *usp)
 {
 	u_long l;
 
@@ -318,7 +318,7 @@ xdr_u_char(XDR *xdrs, u_char *cp)
  * XDR booleans
  */
 bool_t
-xdr_bool(register XDR *xdrs, bool_t *bp)
+xdr_bool(XDR *xdrs, bool_t *bp)
 {
 	long lb;
 
@@ -384,7 +384,7 @@ xdr_enum(XDR *xdrs, enum_t *ep)
 bool_t
 xdr_opaque(XDR *xdrs, caddr_t cp, u_int cnt)
 {
-	register u_int rndup;
+	u_int rndup;
 	static int crud[BYTES_PER_XDR_UNIT];
 
 	/*
@@ -438,8 +438,8 @@ xdr_bytes(
 	u_int *sizep,
 	u_int maxsize)
 {
-	register char *sp = *cpp;  /* sp is the actual string pointer */
-	register u_int nodesize;
+	char *sp = *cpp;  /* sp is the actual string pointer */
+	u_int nodesize;
 
 	/*
 	 * first deal with the length since xdr bytes are counted
@@ -544,7 +544,7 @@ xdr_u_int32(XDR *xdrs, uint32_t *up)
 }
 
 /*
- * XDR a descriminated union
+ * XDR a discriminated union
  * Support routine for discriminated unions.
  * You create an array of xdrdiscrim structures, terminated with
  * an entry with a null procedure pointer.  The routine gets
@@ -563,7 +563,7 @@ xdr_union(
 	xdrproc_t dfault	/* default xdr routine */
 	)
 {
-	register enum_t dscm;
+	enum_t dscm;
 
 	/*
 	 * we deal with the discriminator;  it's an enum
@@ -607,7 +607,7 @@ xdr_union(
 bool_t
 xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 {
-	register char *sp = *cpp;  /* sp is the actual string pointer */
+	char *sp = *cpp;	/* sp is the actual string pointer */
 	u_int size;
 	u_int nodesize;
 

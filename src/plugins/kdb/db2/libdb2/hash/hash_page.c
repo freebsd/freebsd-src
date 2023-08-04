@@ -72,7 +72,6 @@ static char sccsid[] = "@(#)hash_page.c	8.11 (Berkeley) 11/7/95";
 static int32_t	 add_bigptr __P((HTAB *, ITEM_INFO *, indx_t));
 static u_int32_t *fetch_bitmap __P((HTAB *, int32_t));
 static u_int32_t first_free __P((u_int32_t));
-static indx_t	 next_realkey __P((PAGE16 *, indx_t));
 static u_int16_t overflow_page __P((HTAB *));
 static void	 page_init __P((HTAB *, PAGE16 *, db_pgno_t, u_int8_t));
 static indx_t	 prev_realkey __P((PAGE16 *, indx_t));
@@ -249,27 +248,6 @@ putpair(p, key, val)
 }
 
 /*
- * Returns the index of the next non-bigkey pair after n on the page.
- * Returns -1 if there are no more non-big things on the page.
- */
-static indx_t
-#ifdef __STDC__
-next_realkey(PAGE16 * pagep, indx_t n)
-#else
-next_realkey(pagep, n)
-	PAGE16 *pagep;
-	u_int32_t n;
-#endif
-{
-	indx_t i;
-
-	for (i = n + 1; i < NUM_ENT(pagep); i++)
-		if (KEY_OFF(pagep, i) != BIGPAIR)
-			return (i);
-	return (-1);
-}
-
-/*
  * Returns the index of the previous non-bigkey pair after n on the page.
  * Returns n if there are no previous non-big things on the page.
  */
@@ -305,7 +283,7 @@ __delpair(hashp, cursorp, item_info)
 	PAGE16 *pagep;
 	indx_t ndx;
 	short check_ndx;
-	int16_t delta, len, next_key;
+	int16_t delta, len;
 	int32_t n;
 	u_int8_t *src, *dest;
 
@@ -376,10 +354,6 @@ __delpair(hashp, cursorp, item_info)
 	/* Adjust the offsets. */
 	for (n = ndx; n < NUM_ENT(pagep) - 1; n++)
 		if (KEY_OFF(pagep, (n + 1)) != BIGPAIR) {
-			next_key = next_realkey(pagep, n);
-#ifdef DEBUG
-			assert(next_key != -1);
-#endif
 			KEY_OFF(pagep, n) = KEY_OFF(pagep, (n + 1)) + delta;
 			DATA_OFF(pagep, n) = DATA_OFF(pagep, (n + 1)) + delta;
 		} else {

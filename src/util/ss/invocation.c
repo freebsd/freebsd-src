@@ -43,9 +43,9 @@ int ss_create_invocation(subsystem_name, version_string, info_ptr,
     ss_request_table *request_table_ptr;
     int *code_ptr;
 {
-    register int sci_idx;
-    register ss_data *new_table;
-    register ss_data **table, **tmp;
+    int sci_idx;
+    ss_data *new_table;
+    ss_data **table, **tmp;
 
     *code_ptr = 0;
     table = _ss_table;
@@ -118,7 +118,7 @@ void
 ss_delete_invocation(sci_idx)
     int sci_idx;
 {
-    register ss_data *t;
+    ss_data *t;
     int ignored_code;
 
     t = ss_info(sci_idx);

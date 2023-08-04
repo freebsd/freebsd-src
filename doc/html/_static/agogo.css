@@ -4,7 +4,7 @@
  *
  * Sphinx stylesheet -- agogo theme.
  *
- * :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.
+ * :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
  * :license: BSD, see LICENSE for details.
  *
  */
@@ -97,7 +97,10 @@ h3:hover > a.headerlink,
 h4:hover > a.headerlink,
 h5:hover > a.headerlink,
 h6:hover > a.headerlink,
-dt:hover > a.headerlink {
+dt:hover > a.headerlink,
+caption:hover > a.headerlink,
+p.caption:hover > a.headerlink,
+div.code-block-caption:hover > a.headerlink {
   visibility: visible;
 }
 
@@ -207,6 +210,23 @@ div.document div.highlight {
   margin-bottom: .8em;
 }
 
+div.document div.literal-block-wrapper {
+  margin-top: .8em;
+  margin-bottom: .8em;
+}
+
+div.document div.literal-block-wrapper div.highlight {
+  margin: 0;
+}
+
+div.document div.code-block-caption span.caption-number {
+    padding: 0.1em 0.3em;
+    font-style: italic;
+}
+
+div.document div.code-block-caption span.caption-text {
+}
+
 div.document h2 {
   margin-top: .7em;
 }
@@ -221,6 +241,10 @@ div.document li.toctree-l1 {
 
 div.document .descname {
   font-weight: bold;
+}
+
+div.document .sig-paren {
+    font-size: larger;
 }
 
 div.document .docutils.literal {
@@ -369,6 +393,20 @@ img.align-center, .figure.align-center, object.align-center {
     text-align: right;
 }
 
+table caption span.caption-number {
+    font-style: italic;
+}
+
+table caption span.caption-text {
+}
+
+div.figure p.caption span.caption-number {
+    font-style: italic;
+}
+
+div.figure p.caption span.caption-text {
+}
+
 /* -- search page ----------------------------------------------------------- */
 
 ul.search {
@@ -424,9 +462,14 @@ table.indextable td {
     vertical-align: top;
 }
 
-table.indextable dl, table.indextable dd {
+table.indextable ul {
     margin-top: 0;
     margin-bottom: 0;
+    list-style-type: none;
+}
+
+table.indextable > tbody > tr > td > ul {
+    padding-left: 0em;
 }
 
 table.indextable tr.pcap {
@@ -442,6 +485,13 @@ img.toggler {
     margin-right: 3px;
     margin-top: 3px;
     cursor: pointer;
+}
+
+/* -- domain module index --------------------------------------------------- */
+
+table.modindextable td {
+    padding: 2px;
+    border-collapse: collapse;
 }
 
 /* -- viewcode extension ---------------------------------------------------- */
@@ -461,4 +511,21 @@ div.viewcode-block:target {
     background-color: #f4debf;
     border-top: 1px solid #ac9;
     border-bottom: 1px solid #ac9;
+}
+
+div.code-block-caption {
+    background-color: #ddd;
+    color: #333;
+    padding: 2px 5px;
+    font-size: small;
+}
+
+/* -- math display ---------------------------------------------------------- */
+
+div.body div.math p {
+    text-align: center;
+}
+
+span.eqno {
+    float: right;
 }

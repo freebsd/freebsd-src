@@ -14,6 +14,7 @@ void test_string_to_timestamp (krb5_context, char *);
 void test_425_conv_principal (krb5_context, char *, char*, char *);
 void test_524_conv_principal (krb5_context, char *);
 void test_parse_name (krb5_context, const char *);
+void test_name_type (krb5_context, const char *);
 void test_set_realm (krb5_context, const char *, const char *);
 void usage (char *);
 
@@ -121,6 +122,21 @@ fail:
 }
 
 void
+test_name_type(krb5_context ctx, const char *name)
+{
+    krb5_error_code retval;
+    krb5_principal  princ = 0;
+
+    retval = krb5_parse_name(ctx, name, &princ);
+    if (retval) {
+        com_err("krb5_parse_name", retval, 0);
+        return;
+    }
+    printf("name_type principal(%s): %d\n", name, krb5_princ_type(ctx, princ));
+    krb5_free_principal(ctx, princ);
+}
+
+void
 test_set_realm(krb5_context ctx, const char *name, const char *realm)
 {
     krb5_error_code retval;
@@ -154,10 +170,11 @@ fail:
 void
 usage(char *progname)
 {
-    fprintf(stderr, "%s: Usage: %s 425_conv_principal <name> <inst> <realm\n",
+    fprintf(stderr, "%s: Usage: %s 425_conv_principal <name> <inst> <realm>\n",
             progname, progname);
     fprintf(stderr, "\t%s 524_conv_principal <name>\n", progname);
     fprintf(stderr, "\t%s parse_name <name>\n", progname);
+    fprintf(stderr, "\t%s name_type <name>\n", progname);
     fprintf(stderr, "\t%s set_realm <name> <realm>\n", progname);
     fprintf(stderr, "\t%s string_to_timestamp <time>\n", progname);
     exit(1);
@@ -198,6 +215,11 @@ main(int argc, char **argv)
             if (!argc) usage(progname);
             name = *argv;
             test_parse_name(ctx, name);
+        } else if (strcmp(*argv, "name_type") == 0) {
+            argc--; argv++;
+            if (!argc) usage(progname);
+            name = *argv;
+            test_name_type(ctx, name);
         } else if (strcmp(*argv, "set_realm") == 0) {
             argc--; argv++;
             if (!argc) usage(progname);

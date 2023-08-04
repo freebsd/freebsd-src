@@ -1,6 +1,6 @@
 mydir=kadmin
 BUILDTOP=$(REL)..
-SUBDIRS = cli dbutil ktutil server testing
+SUBDIRS = cli dbutil ktutil server
 
 all:
 

@@ -38,11 +38,8 @@ gss_inquire_name(OM_uint32 *minor_status,
     gss_union_name_t    union_name;
     gss_mechanism       mech;
 
-    if (minor_status == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    if (name == GSS_C_NO_NAME)
-        return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_BAD_NAME;
+    if (minor_status != NULL)
+        *minor_status = 0;
 
     if (MN_mech != NULL)
         *MN_mech = GSS_C_NO_OID;
@@ -50,7 +47,12 @@ gss_inquire_name(OM_uint32 *minor_status,
     if (attrs != NULL)
         *attrs = GSS_C_NO_BUFFER_SET;
 
-    *minor_status = 0;
+    if (minor_status == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
+
+    if (name == GSS_C_NO_NAME)
+        return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_BAD_NAME;
+
     union_name = (gss_union_name_t)name;
 
     if (union_name->mech_type == GSS_C_NO_OID) {

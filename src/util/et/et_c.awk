@@ -82,8 +82,7 @@ c2n["_"]=63
 
 	# figure out: table_number_base=table_number*256
 	tab_base_low = tab_base_low * 256
-	tab_base_high = (tab_base_high * 256) + \
-			int(tab_base_low / mod_base)
+	tab_base_high = (tab_base_high * 256) + int(tab_base_low / mod_base)
 	tab_base_low = tab_base_low % mod_base
 
 	if (table_number > 128*256*256) {
@@ -203,14 +202,12 @@ END {
 	print "#include <com_err.h>" > outfile
 	print "" > outfile
 	if (tab_base_high == 0) {
-	    print "const struct error_table et_" table_name "_error_table = { text, " \
-		sprintf("%dL, %d };", tab_base_sign*tab_base_low, \
-		table_item_count) > outfile
+	    base = sprintf("%dL", tab_base_sign * tab_base_low)
 	} else {
-	    print "const struct error_table et_" table_name "_error_table = { text, " \
-		sprintf("%d%06dL, %d };", tab_base_sign*tab_base_high, \
-		tab_base_low, table_item_count) > outfile
+	    base = sprintf("%d%06dL", tab_base_sign * tab_base_high, tab_base_low)
 	}
+	ints = sprintf("%s, %d", base, table_item_count)
+	print "const struct error_table et_" table_name "_error_table = { text, " ints " };" > outfile
 	print "" > outfile
 	print "#if !defined(_WIN32)" > outfile
 	print "void initialize_" table_name "_error_table (void)" > outfile

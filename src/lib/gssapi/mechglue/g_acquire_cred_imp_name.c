@@ -149,7 +149,7 @@ gss_acquire_cred_impersonate_name(OM_uint32 *minor_status,
     /*
      * if desired_mechs equals GSS_C_NULL_OID_SET, then pick an
      * appropriate default.  We use the first mechanism in the
-     * mechansim list as the default. This set is created with
+     * mechanism list as the default. This set is created with
      * statics thus needs not be freed
      */
     if(desired_mechs == GSS_C_NULL_OID_SET) {

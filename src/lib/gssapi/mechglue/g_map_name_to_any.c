@@ -38,7 +38,13 @@ gss_map_name_to_any(OM_uint32 *minor_status,
     gss_union_name_t    union_name;
     gss_mechanism       mech;
 
-    if (minor_status == NULL)
+    if (minor_status != NULL)
+        *minor_status = 0;
+
+    if (output != NULL)
+        *output = NULL;
+
+    if (minor_status == NULL || output == NULL)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     if (name == GSS_C_NO_NAME)
@@ -46,11 +52,6 @@ gss_map_name_to_any(OM_uint32 *minor_status,
 
     if (type_id == GSS_C_NO_BUFFER)
         return GSS_S_CALL_INACCESSIBLE_READ;
-
-    if (output == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor_status = 0;
 
     union_name = (gss_union_name_t)name;
 

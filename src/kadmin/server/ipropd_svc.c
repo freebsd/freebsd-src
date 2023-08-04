@@ -263,8 +263,6 @@ ipropx_resync(uint32_t vers, struct svc_req *rqstp)
     int pret, fret;
     FILE *p;
     kadm5_server_handle_t handle = global_server_handle;
-    OM_uint32 min_stat;
-    gss_name_t name = NULL;
     char *client_name = NULL, *service_name = NULL;
     char *whoami = "iprop_full_resync_1";
 
@@ -338,8 +336,8 @@ ipropx_resync(uint32_t vers, struct svc_req *rqstp)
      * dump already exists or that dump is not in ipropx format, or the
      * sno and timestamp in the header of that dump are outside the
      * ulog.  This allows us to share a single global dump with all
-     * slaves, since it's OK to share an older dump, as long as its sno
-     * and timestamp are in the ulog (then the slaves can get the
+     * replicas, since it's OK to share an older dump, as long as its
+     * sno and timestamp are in the ulog (then the replicas can get the
      * subsequent updates very iprop).
      */
     if (asprintf(&ubuf, "%s -r %s dump -i%d -c %s", kdb5_util,
@@ -351,9 +349,9 @@ ipropx_resync(uint32_t vers, struct svc_req *rqstp)
     }
 
     /*
-     * Fork to dump the db and xfer it to the slave.
+     * Fork to dump the db and xfer it to the replica.
      * (the fork allows parent to return quickly and the child
-     * acts like a callback to the slave).
+     * acts like a callback to the replica).
      */
     fret = fork();
     DPRINT("%s: fork=%d (%d)\n", whoami, fret, getpid());
@@ -418,7 +416,7 @@ ipropx_resync(uint32_t vers, struct svc_req *rqstp)
 
     default: /* parent */
 	ret.ret = UPDATE_OK;
-	/* not used by slave (sno is retrieved from kdb5_util dump) */
+	/* not used by replica (sno is retrieved from kdb5_util dump) */
 	ret.lastentry.last_sno = 0;
 	ret.lastentry.last_time.seconds = 0;
 	ret.lastentry.last_time.useconds = 0;
@@ -440,8 +438,6 @@ out:
 	debprret(whoami, ret.ret, 0);
     free(client_name);
     free(service_name);
-    if (name)
-	gss_release_name(&min_stat, &name);
     free(ubuf);
     return (&ret);
 }
@@ -533,7 +529,7 @@ fail_name:
 
 void
 krb5_iprop_prog_1(struct svc_req *rqstp,
-		  register SVCXPRT *transp)
+		  SVCXPRT *transp)
 {
     union {
 	kdb_last_t iprop_get_updates_1_arg;
@@ -621,32 +617,3 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
     }
 
 }
-
-#if 0
-/*
- * Get the host base service name for the kiprop principal. Returns
- * KADM5_OK on success. Caller must free the storage allocated for
- * host_service_name.
- */
-kadm5_ret_t
-kiprop_get_adm_host_srv_name(krb5_context context,
-			     const char *realm,
-			     char **host_service_name)
-{
-    kadm5_ret_t ret;
-    char *name;
-    char *host;
-
-    if (ret = kadm5_get_master(context, realm, &host))
-	return (ret);
-
-    if (asprintf(&name, "%s@%s", KIPROP_SVC_NAME, host) < 0) {
-	free(host);
-	return (ENOMEM);
-    }
-    free(host);
-    *host_service_name = name;
-
-    return (KADM5_OK);
-}
-#endif

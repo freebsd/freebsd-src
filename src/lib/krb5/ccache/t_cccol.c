@@ -235,7 +235,7 @@ main(int argc, char **argv)
      * resolve to the generated caches and appear in the collection.  (They
      * might appear before being initialized; that's not currently considered
      * important).  The primary cache for the collection should remain as the
-     * unitialized cache from the previous step.
+     * uninitialized cache from the previous step.
      */
     typename = krb5_cc_get_type(ctx, ccinitial);
     check(krb5_cc_new_unique(ctx, typename, NULL, &ccu1));

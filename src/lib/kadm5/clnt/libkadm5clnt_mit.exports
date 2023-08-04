@@ -44,15 +44,12 @@ kadm5_set_string
 kadm5_setkey_principal
 kadm5_setkey_principal_3
 kadm5_setkey_principal_4
-kadm5_setv4key_principal
 kadm5_unlock
-krb5_aprof_finish
 krb5_aprof_get_boolean
 krb5_aprof_get_deltat
 krb5_aprof_get_int32
 krb5_aprof_get_string
 krb5_aprof_getvals
-krb5_aprof_init
 krb5_flagnum_to_string
 krb5_flagspec_to_mask
 krb5_flags_to_strings
@@ -62,6 +59,7 @@ krb5_keysalt_iterate
 krb5_klog_close
 krb5_klog_init
 krb5_klog_reopen
+krb5_klog_set_context
 krb5_klog_syslog
 krb5_string_to_keysalts
 xdr_chpass3_arg
@@ -113,6 +111,5 @@ xdr_rprinc_arg
 xdr_setkey3_arg
 xdr_setkey4_arg
 xdr_setkey_arg
-xdr_setv4key_arg
 xdr_ui_4
 kadm5_init_iprop

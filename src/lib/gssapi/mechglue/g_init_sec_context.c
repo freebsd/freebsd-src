@@ -63,6 +63,12 @@ val_init_sec_ctx_args(
 	output_token->value = NULL;
     }
 
+    if (ret_flags != NULL)
+	*ret_flags = 0;
+
+    if (time_rec != NULL)
+	*time_rec = 0;
+
     /* Validate arguments. */
 
     if (minor_status == NULL)
@@ -178,20 +184,10 @@ OM_uint32 *		time_rec;
      */
 
     if(*context_handle == GSS_C_NO_CONTEXT) {
-	status = GSS_S_FAILURE;
-	union_ctx_id = (gss_union_ctx_id_t)
-	    malloc(sizeof(gss_union_ctx_id_desc));
-	if (union_ctx_id == NULL)
+	status = gssint_create_union_context(minor_status, selected_mech,
+					     &union_ctx_id);
+	if (status != GSS_S_COMPLETE)
 	    goto end;
-
-	if (generic_gss_copy_oid(&temp_minor_status, selected_mech,
-				 &union_ctx_id->mech_type) != GSS_S_COMPLETE) {
-	    free(union_ctx_id);
-	    goto end;
-	}
-
-	/* copy the supplied context handle */
-	union_ctx_id->internal_ctx_id = GSS_C_NO_CONTEXT;
     } else {
 	union_ctx_id = (gss_union_ctx_id_t)*context_handle;
 	if (union_ctx_id->internal_ctx_id == GSS_C_NO_CONTEXT) {
@@ -242,7 +238,6 @@ OM_uint32 *		time_rec;
 	    free(union_ctx_id);
 	}
     } else if (*context_handle == GSS_C_NO_CONTEXT) {
-	union_ctx_id->loopback = union_ctx_id;
 	*context_handle = (gss_ctx_id_t)union_ctx_id;
     }
 

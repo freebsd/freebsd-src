@@ -46,6 +46,7 @@ k5_strerror_r(int errnum, char *buf, size_t buflen)
         errno = st;
         return -1;
     }
+    return 0;
 }
 
 #elif !defined(HAVE_STRERROR_R)

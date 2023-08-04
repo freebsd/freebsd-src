@@ -28,11 +28,7 @@ clean-windows::
 
 
 
-##WIN32##!if  ("$(CPU)" == "IA64" ) || ("$(CPU)" == "AMD64" ) || ("$(CPU)" == "ALPHA64" )
-##WIN32##SLIBS = $(BUILDTOP)\util\support\$(OUTPRE)k5sprt64.lib
-##WIN32##!else
-##WIN32##SLIBS = $(BUILDTOP)\util\support\$(OUTPRE)k5sprt32.lib
-##WIN32##!endif
+##WIN32##SLIBS = $(BUILDTOP)\util\support\$(OUTPRE)k5sprt$(BITS).lib
 ##WIN32##CLIBS = $(BUILDTOP)\util\et\$(OUTPRE)comerr.lib
 ##WIN32##PLIBS = $(BUILDTOP)\util\profile\$(OUTPRE)profile.lib
 ##WIN32##KLIBS = krb5\$(OUTPRE)krb5.lib crypto\$(OUTPRE)crypto.lib \
@@ -100,7 +96,7 @@ clean-windows::
 
 ##WIN32##$(SLIB): $(SDEF) $(SLIBS) $(SGLUE) $(SRES)
 ##WIN32##	link $(WINDLLFLAGS) -def:$(SDEF) -out:$*.dll \
-##WIN32##	  $(SLIBS) $(SGLUE) $(SRES) $(WINLIBS) $(SCLIB)
+##WIN32##	  $(SLIBS) $(SGLUE) $(SRES) $(WINLIBS)
 ##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
 ##WIN32##$(SDEF): ..\util\support\libkrb5support.exports
 ##WIN32##	echo EXPORTS > $(SDEF).new
@@ -110,7 +106,7 @@ clean-windows::
 
 ##WIN32##$(CLIB): $(CDEF) $(CLIBS) $(CGLUE) $(CRES) $(SLIB)
 ##WIN32##	link $(WINDLLFLAGS) -def:$(CDEF) -out:$*.dll \
-##WIN32##	  $(CLIBS) $(CGLUE) $(CRES) $(SLIB) $(WINLIBS) $(SCLIB)
+##WIN32##	  $(CLIBS) $(CGLUE) $(CRES) $(SLIB) $(WINLIBS)
 ##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
 
 ##WIN32##$(PLIB): $(PDEF) $(PLIBS) $(PGLUE) $(PRES) $(CLIB) $(SLIB)
@@ -118,14 +114,14 @@ clean-windows::
 ##WIN32##	  $(PLIBS) $(PGLUE) $(PRES) $(CLIB) $(SLIB) $(WINLIBS)
 ##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
 
-##WIN32##$(KLIB): $(KDEF) $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS) $(DNSLIBS)
+##WIN32##$(KLIB): $(KDEF) $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS)
 ##WIN32##	link $(WINDLLFLAGS) -def:$(KDEF) -out:$*.dll \
-##WIN32##	  $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS) $(DNSLIBS) $(WINLIBS) $(SCLIB)
+##WIN32##	  $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS) $(DNSLIBS) $(WINLIBS)
 ##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
 
 ##WIN32##$(GLIB): $(GDEF) $(GLIBS) $(GGLUE) $(GRES) $(KLIB) $(CLIB) $(SLIB)
 ##WIN32##	link $(WINDLLFLAGS) -def:$(GDEF) -out:$*.dll \
-##WIN32##	  $(GLIBS) $(GGLUE) $(GRES) $(KLIB) $(CLIB) $(SLIB) $(WINLIBS) $(SCLIB)
+##WIN32##	  $(GLIBS) $(GGLUE) $(GRES) $(KLIB) $(CLIB) $(SLIB) $(WINLIBS)
 ##WIN32##		$(_VC_MANIFEST_EMBED_DLL)
 
 ##WIN32##$(K5_GLUE): win_glue.c

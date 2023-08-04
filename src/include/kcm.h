@@ -51,12 +51,31 @@
  *
  * All replies begin with a 32-bit big-endian reply code.
  *
- * Parameters are appended to the request or reply with no delimiters.  Flags
- * and time offsets are stored as 32-bit big-endian integers.  Names are
- * marshalled as zero-terminated strings.  Principals and credentials are
+ * Parameters are appended to the request or reply with no delimiters.  Flags,
+ * time offsets, and lengths are stored as 32-bit big-endian integers.  Names
+ * are marshalled as zero-terminated strings.  Principals and credentials are
  * marshalled in the v4 FILE ccache format.  UUIDs are 16 bytes.  UUID lists
  * are not delimited, so nothing can come after them.
+ *
+ * Flag words must use Heimdal flag values, which are not the same as MIT krb5
+ * values for KRB5_GC and KRB5_TC constants.  The same flag word may contain
+ * both kinds of flags in Heimdal, but not in MIT krb5.  Defines for the
+ * applicable Heimdal flag values are given below using KCM_GC and KCM_TC
+ * prefixes.
  */
+
+#define KCM_GC_CACHED                   (1U << 0)
+
+#define KCM_TC_DONT_MATCH_REALM         (1U << 31)
+#define KCM_TC_MATCH_KEYTYPE            (1U << 30)
+#define KCM_TC_MATCH_SRV_NAMEONLY       (1U << 29)
+#define KCM_TC_MATCH_FLAGS_EXACT        (1U << 28)
+#define KCM_TC_MATCH_FLAGS              (1U << 27)
+#define KCM_TC_MATCH_TIMES_EXACT        (1U << 26)
+#define KCM_TC_MATCH_TIMES              (1U << 25)
+#define KCM_TC_MATCH_AUTHDATA           (1U << 24)
+#define KCM_TC_MATCH_2ND_TKT            (1U << 23)
+#define KCM_TC_MATCH_IS_SKEY            (1U << 22)
 
 /* Opcodes without comments are currently unused in the MIT client
  * implementation. */
@@ -68,7 +87,7 @@ typedef enum kcm_opcode {
     KCM_OP_INITIALIZE,          /*          (name, princ) -> ()          */
     KCM_OP_DESTROY,             /*                 (name) -> ()          */
     KCM_OP_STORE,               /*           (name, cred) -> ()          */
-    KCM_OP_RETRIEVE,
+    KCM_OP_RETRIEVE,            /* (name, flags, credtag) -> (cred)      */
     KCM_OP_GET_PRINCIPAL,       /*                 (name) -> (princ)     */
     KCM_OP_GET_CRED_UUID_LIST,  /*                 (name) -> (uuid, ...) */
     KCM_OP_GET_CRED_BY_UUID,    /*           (name, uuid) -> (cred)      */
@@ -89,7 +108,13 @@ typedef enum kcm_opcode {
     KCM_OP_HAVE_NTLM_CRED,
     KCM_OP_DEL_NTLM_CRED,
     KCM_OP_DO_NTLM_AUTH,
-    KCM_OP_GET_NTLM_USER_LIST
+    KCM_OP_GET_NTLM_USER_LIST,
+
+    /* MIT extensions */
+    KCM_OP_MIT_EXTENSION_BASE = 13000,
+    KCM_OP_GET_CRED_LIST,       /* (name) -> (count, count*{len, cred}) */
+    KCM_OP_REPLACE,             /* (name, offset, princ,
+                                 *  count, count*{len, cred}) -> () */
 } kcm_opcode;
 
 #endif /* KCM_H */

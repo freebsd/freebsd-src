@@ -37,7 +37,8 @@ get_name_from_passwd_file(char *program_name, krb5_context context,
 }
 #else /* HAVE_PWD_H */
 static void
-get_name_from_passwd_file(krb5_context context, krb5_principal *me)
+get_name_from_passwd_file(char *program_name, krb5_context context,
+                          krb5_principal *me)
 {
     fprintf(stderr, _("Unable to identify user\n"));
     exit(1);

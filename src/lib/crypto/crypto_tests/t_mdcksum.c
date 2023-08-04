@@ -24,7 +24,7 @@
  * or implied warranty.
  */
 
-/* Test checksum and checksum compatability for rsa-md[4,5]-des. */
+/* Test checksum and checksum compatibility for rsa-md[4,5]-des. */
 
 #ifndef MD
 #define MD      5

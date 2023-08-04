@@ -39,11 +39,12 @@
 */
 
 krb5_error_code
-krb5_encrypt_tkt_part(krb5_context context, const krb5_keyblock *srv_key, register krb5_ticket *dec_ticket)
+krb5_encrypt_tkt_part(krb5_context context, const krb5_keyblock *srv_key,
+                      krb5_ticket *dec_ticket)
 {
     krb5_data *scratch;
     krb5_error_code retval;
-    register krb5_enc_tkt_part *dec_tkt_part = dec_ticket->enc_part2;
+    krb5_enc_tkt_part *dec_tkt_part = dec_ticket->enc_part2;
 
     /*  start by encoding the to-be-encrypted part. */
     if ((retval = encode_krb5_enc_tkt_part(dec_tkt_part, &scratch))) {

@@ -92,7 +92,7 @@ qquote(struct flavor *fl, const char *s)
         if (*sp == fl->quotechar)
             k5_buf_add_len(&buf, sp, 1);
     }
-    return buf.data;
+    return k5_buf_cstring(&buf);
 }
 
 /*

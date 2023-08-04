@@ -36,7 +36,13 @@ gss_inquire_sec_context_by_oid (OM_uint32 *minor_status,
     gss_union_ctx_id_t	ctx;
     gss_mechanism	mech;
 
-    if (minor_status == NULL)
+    if (minor_status != NULL)
+	*minor_status = 0;
+
+    if (data_set != NULL)
+	*data_set = GSS_C_NO_BUFFER_SET;
+
+    if (minor_status == NULL || data_set == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     if (context_handle == GSS_C_NO_CONTEXT)

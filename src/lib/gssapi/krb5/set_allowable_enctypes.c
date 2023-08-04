@@ -66,7 +66,7 @@ gss_krb5int_set_allowable_enctypes(OM_uint32 *minor_status,
                                    const gss_OID desired_oid,
                                    const gss_buffer_t value)
 {
-    unsigned int i;
+    unsigned int i, j;
     krb5_enctype * new_ktypes;
     OM_uint32 major_status;
     krb5_gss_cred_id_t cred;
@@ -83,14 +83,7 @@ gss_krb5int_set_allowable_enctypes(OM_uint32 *minor_status,
     /* verify and valildate cred handle */
     cred = (krb5_gss_cred_id_t) *cred_handle;
 
-    if (req->ktypes) {
-        for (i = 0; i < req->num_ktypes && req->ktypes[i]; i++) {
-            if (!krb5_c_valid_enctype(req->ktypes[i])) {
-                kerr = KRB5_PROG_ETYPE_NOSUPP;
-                goto error_out;
-            }
-        }
-    } else {
+    if (req->ktypes == NULL) {
         k5_mutex_lock(&cred->lock);
         if (cred->req_enctypes)
             free(cred->req_enctypes);
@@ -99,13 +92,19 @@ gss_krb5int_set_allowable_enctypes(OM_uint32 *minor_status,
         return GSS_S_COMPLETE;
     }
 
-    /* Copy the requested ktypes into the cred structure */
-    if ((new_ktypes = (krb5_enctype *)malloc(sizeof(krb5_enctype) * (i + 1)))) {
-        memcpy(new_ktypes, req->ktypes, sizeof(krb5_enctype) * i);
-        new_ktypes[i] = 0;      /* "null-terminate" the list */
+    /* Copy the requested enctypes into the cred structure.  Filter out the
+     * ones we don't consider valid.  Error out if no enctypes are valid. */
+    new_ktypes = k5calloc(req->num_ktypes + 1, sizeof(*new_ktypes), &kerr);
+    if (new_ktypes == NULL)
+        goto error_out;
+    for (i = 0, j = 0; i < req->num_ktypes && req->ktypes[i]; i++) {
+        if (krb5_c_valid_enctype(req->ktypes[i]))
+            new_ktypes[j++] = req->ktypes[i];
     }
-    else {
-        kerr = ENOMEM;
+    new_ktypes[j] = 0;
+    if (j == 0) {
+        free(new_ktypes);
+        kerr = KRB5_PROG_ETYPE_NOSUPP;
         goto error_out;
     }
     k5_mutex_lock(&cred->lock);

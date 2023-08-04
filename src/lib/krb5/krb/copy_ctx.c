@@ -69,13 +69,10 @@ krb5_copy_context(krb5_context ctx, krb5_context *nctx_out)
 
     *nctx = *ctx;
 
-    nctx->in_tkt_etypes = NULL;
     nctx->tgs_etypes = NULL;
     nctx->default_realm = NULL;
     nctx->profile = NULL;
     nctx->dal_handle = NULL;
-    nctx->ser_ctx_count = 0;
-    nctx->ser_ctx = NULL;
     nctx->prompt_types = NULL;
     nctx->preauth_context = NULL;
     nctx->ccselect_handles = NULL;
@@ -95,9 +92,6 @@ krb5_copy_context(krb5_context ctx, krb5_context *nctx_out)
     memset(&nctx->err, 0, sizeof(nctx->err));
     memset(&nctx->plugins, 0, sizeof(nctx->plugins));
 
-    ret = k5_copy_etypes(ctx->in_tkt_etypes, &nctx->in_tkt_etypes);
-    if (ret)
-        goto errout;
     ret = k5_copy_etypes(ctx->tgs_etypes, &nctx->tgs_etypes);
     if (ret)
         goto errout;

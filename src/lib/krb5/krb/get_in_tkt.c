@@ -230,17 +230,12 @@ verify_as_reply(krb5_context            context,
     if (canon_req) {
         canon_ok = IS_TGS_PRINC(request->server) &&
             IS_TGS_PRINC(as_reply->enc_part2->server);
-        if (!canon_ok && (request->kdc_options & KDC_OPT_REQUEST_ANONYMOUS)) {
-            canon_ok = krb5_principal_compare_any_realm(context,
-                                                        as_reply->client,
-                                                        krb5_anonymous_principal());
-        }
     } else
         canon_ok = 0;
 
     if ((!canon_ok &&
-         (!krb5_principal_compare(context, as_reply->client, request->client) ||
-          !krb5_principal_compare(context, as_reply->enc_part2->server, request->server)))
+         !krb5_principal_compare(context, as_reply->enc_part2->server, request->server))
+        || (!canon_req && !krb5_principal_compare(context, as_reply->client, request->client))
         || !krb5_principal_compare(context, as_reply->enc_part2->server, as_reply->ticket->server)
         || (request->nonce != as_reply->enc_part2->nonce)
         /* XXX check for extraneous flags */
@@ -402,40 +397,6 @@ make_preauth_list(krb5_context  context,
 
 #define MAX_IN_TKT_LOOPS 16
 
-/* Add a pa-data item with the specified type and contents to *padptr. */
-static krb5_error_code
-add_padata(krb5_pa_data ***padptr, krb5_preauthtype pa_type,
-           const void *contents, unsigned int length)
-{
-    size_t size = 0;
-    krb5_pa_data **pad = *padptr;
-    krb5_pa_data *pa= NULL;
-    if (pad)
-        for (size=0; pad[size]; size++);
-    pad = realloc(pad, sizeof(*pad)*(size+2));
-    if (pad == NULL)
-        return ENOMEM;
-    *padptr = pad;
-    pad[size] = pad[size + 1] = NULL;
-
-    pa = malloc(sizeof(krb5_pa_data));
-    if (pa == NULL)
-        return ENOMEM;
-    pa->contents = NULL;
-    pa->length = length;
-    if (contents != NULL) {
-        pa->contents = malloc(length);
-        if (pa->contents == NULL) {
-            free(pa);
-            return ENOMEM;
-        }
-        memcpy(pa->contents, contents, length);
-    }
-    pa->pa_type = pa_type;
-    pad[size] = pa;
-    return 0;
-}
-
 /* Sort a pa_data sequence so that types named in the "preferred_preauth_types"
  * libdefaults entry are listed before any others. */
 static krb5_error_code
@@ -478,7 +439,7 @@ sort_krb5_padata_sequence(krb5_context context, krb5_data *realm,
             /* see if we can extract a number */
             l = strtol(p, &q, 10);
             if ((q != NULL) && (q > p)) {
-                /* got a valid number; search for a matchin entry */
+                /* got a valid number; search for a matching entry */
                 for (i = base; padata[i] != NULL; i++) {
                     /* bubble the matching entry to the front of the list */
                     if (padata[i]->pa_type == l) {
@@ -545,12 +506,7 @@ build_in_tkt_name(krb5_context context,
         if (ret)
             return ret;
     }
-    /*
-     * Windows Server 2008 R2 RODC insists on TGS principal names having the
-     * right name type.
-     */
-    if (server->length == 2 && data_eq_string(server->data[0], KRB5_TGS_NAME))
-        server->type = KRB5_NT_SRV_INST;
+
     *server_out = server;
     return 0;
 }
@@ -588,14 +544,14 @@ krb5_init_creds_free(krb5_context context,
 
 krb5_error_code
 k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
-                  int *use_master)
+                  int *use_primary)
 {
     krb5_error_code code;
     krb5_data request;
     krb5_data reply;
     krb5_data realm;
     unsigned int flags = 0;
-    int tcp_only = 0, master = *use_master;
+    int tcp_only = 0, primary = *use_primary;
 
     request.length = 0;
     request.data = NULL;
@@ -619,9 +575,9 @@ k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
 
         krb5_free_data_contents(context, &reply);
 
-        master = *use_master;
+        primary = *use_primary;
         code = krb5_sendto_kdc(context, &request, &realm,
-                               &reply, &master, tcp_only);
+                               &reply, &primary, tcp_only);
         if (code != 0)
             break;
 
@@ -633,7 +589,7 @@ k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
     krb5_free_data_contents(context, &reply);
     krb5_free_data_contents(context, &realm);
 
-    *use_master = master;
+    *use_primary = primary;
     return code;
 }
 
@@ -642,9 +598,9 @@ krb5_error_code KRB5_CALLCONV
 krb5_init_creds_get(krb5_context context,
                     krb5_init_creds_context ctx)
 {
-    int use_master = 0;
+    int use_primary = 0;
 
-    return k5_init_creds_get(context, ctx, &use_master);
+    return k5_init_creds_get(context, ctx, &use_primary);
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -801,6 +757,24 @@ read_allowed_preauth_type(krb5_context context, krb5_init_creds_context ctx)
     free(tmp);
 }
 
+/* Return true if encrypted timestamp is disabled for realm. */
+static krb5_boolean
+encts_disabled(profile_t profile, const krb5_data *realm)
+{
+    krb5_error_code ret;
+    char *realmstr;
+    int bval;
+
+    realmstr = k5memdup0(realm->data, realm->length, &ret);
+    if (realmstr == NULL)
+        return FALSE;
+    ret = profile_get_boolean(profile, KRB5_CONF_REALMS, realmstr,
+                              KRB5_CONF_DISABLE_ENCRYPTED_TIMESTAMP, FALSE,
+                              &bval);
+    free(realmstr);
+    return (ret == 0) ? bval : FALSE;
+}
+
 /**
  * Throw away any pre-authentication realm state and begin with a
  * unauthenticated or optimistically authenticated request.  If fast_upgrade is
@@ -841,6 +815,11 @@ restart_init_creds_loop(krb5_context context, krb5_init_creds_context ctx,
         if (code)
             goto cleanup;
     }
+
+    /* Never set encts_disabled back to false, so it can't be circumvented with
+     * client realm referrals. */
+    if (encts_disabled(context->profile, &ctx->request->client->realm))
+        ctx->encts_disabled = TRUE;
 
     krb5_free_principal(context, ctx->request->server);
     ctx->request->server = NULL;
@@ -895,7 +874,7 @@ krb5_init_creds_init(krb5_context context,
     ctx->request = k5alloc(sizeof(krb5_kdc_req), &code);
     if (code != 0)
         goto cleanup;
-    ctx->enc_pa_rep_permitted = TRUE;
+    ctx->info_pa_permitted = TRUE;
     code = krb5_copy_principal(context, client, &ctx->request->client);
     if (code != 0)
         goto cleanup;
@@ -1067,9 +1046,6 @@ krb5_init_creds_init(krb5_context context,
         ctx->request->kdc_options |= KDC_OPT_REQUEST_ANONYMOUS;
         ctx->request->client->type = KRB5_NT_WELLKNOWN;
     }
-    code = restart_init_creds_loop(context, ctx, FALSE);
-    if (code)
-        goto cleanup;
 
     *pctx = ctx;
     ctx = NULL;
@@ -1207,7 +1183,6 @@ read_cc_config_in_data(krb5_context context, krb5_init_creds_context ctx)
     krb5_data config;
     char *encoded;
     krb5_error_code code;
-    int i;
     krb5_ccache in_ccache = k5_gic_opt_get_in_ccache(ctx->opt);
 
     k5_json_release(ctx->cc_config_in);
@@ -1222,9 +1197,9 @@ read_cc_config_in_data(krb5_context context, krb5_init_creds_context ctx)
     if (code)
         return code;
 
-    i = asprintf(&encoded, "%.*s", (int)config.length, config.data);
+    encoded = k5memdup0(config.data, config.length, &code);
     krb5_free_data_contents(context, &config);
-    if (i < 0)
+    if (encoded == NULL)
         return ENOMEM;
 
     code = k5_json_decode(encoded, &val);
@@ -1277,8 +1252,8 @@ maybe_add_pac_request(krb5_context context, krb5_init_creds_context ctx)
     code = encode_krb5_pa_pac_req(&pac_req, &encoded);
     if (code)
         return code;
-    code = add_padata(&ctx->request->padata, KRB5_PADATA_PAC_REQUEST,
-                      encoded->data, encoded->length);
+    code = k5_add_pa_data_from_data(&ctx->request->padata,
+                                    KRB5_PADATA_PAC_REQUEST, encoded);
     krb5_free_data(context, encoded);
     return code;
 }
@@ -1290,6 +1265,7 @@ init_creds_step_request(krb5_context context,
 {
     krb5_error_code code;
     krb5_preauthtype pa_type;
+    krb5_data copy;
     struct errinfo save = EMPTY_ERRINFO;
     uint32_t rcode = (ctx->err_reply == NULL) ? 0 : ctx->err_reply->error;
 
@@ -1331,9 +1307,7 @@ init_creds_step_request(krb5_context context,
         krb5_free_pa_data(context, ctx->optimistic_padata);
         ctx->optimistic_padata = NULL;
         if (code) {
-            /* Make an unauthenticated request, and possibly try again using
-             * the same mechanisms as we tried optimistically. */
-            k5_reset_preauth_types_tried(ctx);
+            /* Make an unauthenticated request. */
             krb5_clear_error_message(context);
             code = 0;
         }
@@ -1360,6 +1334,9 @@ init_creds_step_request(krb5_context context,
     }
     /* Don't continue after a keyboard interrupt. */
     if (code == KRB5_LIBOS_PWDINTR)
+        goto cleanup;
+    /* Don't continue if fallback is disabled. */
+    if (code && ctx->fallback_disabled)
         goto cleanup;
     if (code) {
         /* See if we can try a different preauth mech before giving up. */
@@ -1389,12 +1366,27 @@ init_creds_step_request(krb5_context context,
         krb5_free_data(context, ctx->encoded_previous_request);
         ctx->encoded_previous_request = NULL;
     }
-    if (ctx->enc_pa_rep_permitted) {
-        code = add_padata(&ctx->request->padata, KRB5_ENCPADATA_REQ_ENC_PA_REP,
-                          NULL, 0);
+    if (ctx->info_pa_permitted) {
+        code = k5_add_empty_pa_data(&ctx->request->padata,
+                                    KRB5_PADATA_AS_FRESHNESS);
+        if (code)
+            goto cleanup;
+        code = k5_add_empty_pa_data(&ctx->request->padata,
+                                    KRB5_ENCPADATA_REQ_ENC_PA_REP);
     }
     if (code)
         goto cleanup;
+
+    if (ctx->subject_cert != NULL) {
+        code = krb5int_copy_data_contents(context, ctx->subject_cert, &copy);
+        if (code)
+            goto cleanup;
+        code = k5_add_pa_data_from_data(&ctx->request->padata,
+                                        KRB5_PADATA_S4U_X509_USER, &copy);
+        krb5_free_data_contents(context, &copy);
+        if (code)
+            goto cleanup;
+    }
 
     code = maybe_add_pac_request(context, ctx);
     if (code)
@@ -1481,6 +1473,199 @@ accept_method_data(krb5_context context, krb5_init_creds_context ctx)
                                      ctx->method_padata);
 }
 
+/* Return the password expiry time indicated by enc_part2.  Set *is_last_req
+ * if the information came from a last_req value. */
+static void
+get_expiry_times(krb5_enc_kdc_rep_part *enc_part2, krb5_timestamp *pw_exp,
+                 krb5_timestamp *acct_exp, krb5_boolean *is_last_req)
+{
+    krb5_last_req_entry **last_req;
+    krb5_int32 lr_type;
+
+    *pw_exp = 0;
+    *acct_exp = 0;
+    *is_last_req = FALSE;
+
+    /* Look for last-req entries for password or account expiration. */
+    if (enc_part2->last_req) {
+        for (last_req = enc_part2->last_req; *last_req; last_req++) {
+            lr_type = (*last_req)->lr_type;
+            if (lr_type == KRB5_LRQ_ALL_PW_EXPTIME ||
+                lr_type == KRB5_LRQ_ONE_PW_EXPTIME) {
+                *is_last_req = TRUE;
+                *pw_exp = (*last_req)->value;
+            } else if (lr_type == KRB5_LRQ_ALL_ACCT_EXPTIME ||
+                       lr_type == KRB5_LRQ_ONE_ACCT_EXPTIME) {
+                *is_last_req = TRUE;
+                *acct_exp = (*last_req)->value;
+            }
+        }
+    }
+
+    /* If we didn't find any, use the ambiguous key_exp field. */
+    if (*is_last_req == FALSE)
+        *pw_exp = enc_part2->key_exp;
+}
+
+/*
+ * Send an appropriate warning prompter if as_reply indicates that the password
+ * is going to expire soon.  If an expire callback was provided, use that
+ * instead.
+ */
+static void
+warn_pw_expiry(krb5_context context, krb5_get_init_creds_opt *options,
+               krb5_prompter_fct prompter, void *data,
+               const char *in_tkt_service, krb5_kdc_rep *as_reply)
+{
+    krb5_error_code ret;
+    krb5_expire_callback_func expire_cb;
+    void *expire_data;
+    krb5_timestamp pw_exp, acct_exp, now;
+    krb5_boolean is_last_req;
+    uint32_t interval;
+    char ts[256], banner[1024];
+
+    if (as_reply == NULL || as_reply->enc_part2 == NULL)
+        return;
+
+    get_expiry_times(as_reply->enc_part2, &pw_exp, &acct_exp, &is_last_req);
+
+    k5_gic_opt_get_expire_cb(options, &expire_cb, &expire_data);
+    if (expire_cb != NULL) {
+        /* Invoke the expire callback and don't send prompter warnings. */
+        (*expire_cb)(context, expire_data, pw_exp, acct_exp, is_last_req);
+        return;
+    }
+
+    /* Don't warn if no password expiry value was sent. */
+    if (pw_exp == 0)
+        return;
+
+    /* Don't warn if the password is being changed. */
+    if (in_tkt_service && strcmp(in_tkt_service, "kadmin/changepw") == 0)
+        return;
+
+    /*
+     * If the expiry time came from a last_req field, assume the KDC wants us
+     * to warn.  Otherwise, warn only if the expiry time is less than a week
+     * from now.
+     */
+    ret = krb5_timeofday(context, &now);
+    if (ret != 0)
+        return;
+    interval = ts_interval(now, pw_exp);
+    if (!is_last_req && (!interval || interval > 7 * 24 * 60 * 60))
+        return;
+
+    if (!prompter)
+        return;
+
+    ret = krb5_timestamp_to_string(pw_exp, ts, sizeof(ts));
+    if (ret != 0)
+        return;
+
+    if (interval < 3600) {
+        snprintf(banner, sizeof(banner),
+                 _("Warning: Your password will expire in less than one hour "
+                   "on %s"), ts);
+    } else if (interval < 86400 * 2) {
+        snprintf(banner, sizeof(banner),
+                 _("Warning: Your password will expire in %d hour%s on %s"),
+                 interval / 3600, interval < 7200 ? "" : "s", ts);
+    } else {
+        snprintf(banner, sizeof(banner),
+                 _("Warning: Your password will expire in %d days on %s"),
+                 interval / 86400, ts);
+    }
+
+    /* PROMPTER_INVOCATION */
+    (*prompter)(context, data, 0, banner, 0, 0);
+}
+
+/* Display a warning via the prompter if a deprecated enctype was used for
+ * either the reply key or the session key. */
+static void
+warn_deprecated(krb5_context context, krb5_init_creds_context ctx,
+                krb5_enctype as_key_enctype)
+{
+    krb5_enctype etype;
+    char encbuf[128], banner[256];
+
+    if (ctx->prompter == NULL)
+        return;
+
+    if (krb5int_c_deprecated_enctype(as_key_enctype))
+        etype = as_key_enctype;
+    else if (krb5int_c_deprecated_enctype(ctx->cred.keyblock.enctype))
+        etype = ctx->cred.keyblock.enctype;
+    else
+        return;
+
+    if (krb5_enctype_to_name(etype, FALSE, encbuf, sizeof(encbuf)) != 0)
+        return;
+    snprintf(banner, sizeof(banner),
+             _("Warning: encryption type %s used for authentication is "
+               "deprecated and will be disabled"), encbuf);
+
+    /* PROMPTER_INVOCATION */
+    (*ctx->prompter)(context, ctx->prompter_data, NULL, banner, 0, NULL);
+}
+
+/*
+ * If ctx specifies an output ccache, create or refresh it (atomically, if
+ * possible) with the obtained credential and any appropriate ccache
+ * configuration.
+ */
+static krb5_error_code
+write_out_ccache(krb5_context context, krb5_init_creds_context ctx,
+                 krb5_boolean fast_avail)
+{
+    krb5_error_code ret;
+    krb5_ccache out_ccache = k5_gic_opt_get_out_ccache(ctx->opt);
+    krb5_ccache mcc = NULL;
+    krb5_data yes = string2data("yes");
+
+    if (out_ccache == NULL)
+        return 0;
+
+    ret = krb5_cc_new_unique(context, "MEMORY", NULL, &mcc);
+    if (ret)
+        goto cleanup;
+
+    ret = krb5_cc_initialize(context, mcc, ctx->cred.client);
+    if (ret)
+        goto cleanup;
+
+    if (fast_avail) {
+        ret = krb5_cc_set_config(context, mcc, ctx->cred.server,
+                                 KRB5_CC_CONF_FAST_AVAIL, &yes);
+        if (ret)
+            goto cleanup;
+    }
+
+    ret = save_selected_preauth_type(context, mcc, ctx);
+    if (ret)
+        goto cleanup;
+
+    ret = save_cc_config_out_data(context, mcc, ctx);
+    if (ret)
+        goto cleanup;
+
+    ret = k5_cc_store_primary_cred(context, mcc, &ctx->cred);
+    if (ret)
+        goto cleanup;
+
+    ret = krb5_cc_move(context, mcc, out_ccache);
+    if (ret)
+        goto cleanup;
+    mcc = NULL;
+
+cleanup:
+    if (mcc != NULL)
+        krb5_cc_destroy(context, mcc);
+    return ret;
+}
+
 static krb5_error_code
 init_creds_step_reply(krb5_context context,
                       krb5_init_creds_context ctx,
@@ -1495,7 +1680,6 @@ init_creds_step_reply(krb5_context context,
     krb5_keyblock *strengthen_key = NULL;
     krb5_keyblock encrypting_key;
     krb5_boolean fast_avail;
-    krb5_ccache out_ccache = k5_gic_opt_get_out_ccache(ctx->opt);
 
     encrypting_key.length = 0;
     encrypting_key.contents = NULL;
@@ -1530,7 +1714,7 @@ init_creds_step_reply(krb5_context context,
                    ctx->selected_preauth_type == KRB5_PADATA_NONE) {
             /* The KDC didn't like our informational padata (probably a pre-1.7
              * MIT krb5 KDC).  Retry without it. */
-            ctx->enc_pa_rep_permitted = FALSE;
+            ctx->info_pa_permitted = FALSE;
             ctx->restarted = TRUE;
             code = restart_init_creds_loop(context, ctx, FALSE);
         } else if (reply_code == KDC_ERR_PREAUTH_EXPIRED) {
@@ -1538,6 +1722,12 @@ init_creds_step_reply(krb5_context context,
              * FAST upgrade. */
             ctx->restarted = FALSE;
             code = restart_init_creds_loop(context, ctx, FALSE);
+        } else if (ctx->identify_realm &&
+                   (reply_code == KDC_ERR_PREAUTH_REQUIRED ||
+                    reply_code == KDC_ERR_KEY_EXP)) {
+            /* The client exists in this realm; we can stop. */
+            ctx->complete = TRUE;
+            goto cleanup;
         } else if (reply_code == KDC_ERR_PREAUTH_REQUIRED && retry) {
             note_req_timestamp(context, ctx, ctx->err_reply->stime,
                                ctx->err_reply->susec);
@@ -1545,16 +1735,10 @@ init_creds_step_reply(krb5_context context,
         } else if (reply_code == KDC_ERR_PREAUTH_FAILED && retry) {
             note_req_timestamp(context, ctx, ctx->err_reply->stime,
                                ctx->err_reply->susec);
-            if (ctx->method_padata == NULL) {
-                /* Optimistic preauth failed on the KDC.  Allow all mechanisms
-                 * to be tried again using method data. */
-                k5_reset_preauth_types_tried(ctx);
-            } else {
-                /* Don't try again with the mechanism that failed. */
-                code = k5_preauth_note_failed(ctx, ctx->selected_preauth_type);
-                if (code)
-                    goto cleanup;
-            }
+            /* Don't try again with the mechanism that failed. */
+            code = k5_preauth_note_failed(ctx, ctx->selected_preauth_type);
+            if (code)
+                goto cleanup;
             ctx->selected_preauth_type = KRB5_PADATA_NONE;
             /* Accept or update method data if the KDC sent it. */
             if (ctx->err_padata != NULL)
@@ -1574,7 +1758,7 @@ init_creds_step_reply(krb5_context context,
                 goto cleanup;
             /* Reset per-realm negotiation state. */
             ctx->restarted = FALSE;
-            ctx->enc_pa_rep_permitted = TRUE;
+            ctx->info_pa_permitted = TRUE;
             code = restart_init_creds_loop(context, ctx, FALSE);
         } else {
             if (retry && ctx->selected_preauth_type != KRB5_PADATA_NONE) {
@@ -1602,6 +1786,12 @@ init_creds_step_reply(krb5_context context,
                                          ctx->reply, &strengthen_key);
     if (code != 0)
         goto cleanup;
+
+    if (ctx->identify_realm) {
+        /* Just getting a reply means the client exists in this realm. */
+        ctx->complete = TRUE;
+        goto cleanup;
+    }
 
     code = sort_krb5_padata_sequence(context, &ctx->request->client->realm,
                                      ctx->reply->padata);
@@ -1657,35 +1847,17 @@ init_creds_step_reply(krb5_context context,
     code = stash_as_reply(context, ctx->reply, &ctx->cred, NULL);
     if (code != 0)
         goto cleanup;
-    if (out_ccache != NULL) {
-        krb5_data config_data;
-        code = krb5_cc_initialize(context, out_ccache, ctx->cred.client);
-        if (code != 0)
-            goto cc_cleanup;
-        code = krb5_cc_store_cred(context, out_ccache, &ctx->cred);
-        if (code != 0)
-            goto cc_cleanup;
-        if (fast_avail) {
-            config_data.data = "yes";
-            config_data.length = strlen(config_data.data);
-            code = krb5_cc_set_config(context, out_ccache, ctx->cred.server,
-                                      KRB5_CC_CONF_FAST_AVAIL, &config_data);
-            if (code != 0)
-                goto cc_cleanup;
-        }
-        code = save_selected_preauth_type(context, out_ccache, ctx);
-        if (code != 0)
-            goto cc_cleanup;
-        code = save_cc_config_out_data(context, out_ccache, ctx);
-    cc_cleanup:
-        if (code != 0)
-            k5_prependmsg(context, code, _("Failed to store credentials"));
-    }
+    code = write_out_ccache(context, ctx, fast_avail);
+    if (code)
+        k5_prependmsg(context, code, _("Failed to store credentials"));
 
     k5_preauth_request_context_fini(context, ctx);
 
     /* success */
     ctx->complete = TRUE;
+    warn_pw_expiry(context, ctx->opt, ctx->prompter, ctx->prompter_data,
+                   ctx->in_tkt_service, ctx->reply);
+    warn_deprecated(context, ctx, encrypting_key.enctype);
 
 cleanup:
     krb5_free_pa_data(context, kdc_padata);
@@ -1740,6 +1912,10 @@ krb5_init_creds_step(krb5_context context,
         }
         if (code != 0 || ctx->complete)
             goto cleanup;
+    } else {
+        code = restart_init_creds_loop(context, ctx, FALSE);
+        if (code)
+            goto cleanup;
     }
 
     code = init_creds_step_request(context, ctx, out);
@@ -1783,7 +1959,7 @@ k5_get_init_creds(krb5_context context, krb5_creds *creds,
                   krb5_principal client, krb5_prompter_fct prompter,
                   void *prompter_data, krb5_deltat start_time,
                   const char *in_tkt_service, krb5_get_init_creds_opt *options,
-                  get_as_key_fn gak_fct, void *gak_data, int *use_master,
+                  get_as_key_fn gak_fct, void *gak_data, int *use_primary,
                   krb5_kdc_rep **as_reply)
 {
     krb5_error_code code;
@@ -1808,7 +1984,7 @@ k5_get_init_creds(krb5_context context, krb5_creds *creds,
             goto cleanup;
     }
 
-    code = k5_init_creds_get(context, ctx, use_master);
+    code = k5_init_creds_get(context, ctx, use_primary);
     if (code != 0)
         goto cleanup;
 
@@ -1825,6 +2001,46 @@ cleanup:
     krb5_init_creds_free(context, ctx);
 
     return code;
+}
+
+krb5_error_code
+k5_identify_realm(krb5_context context, krb5_principal client,
+                  const krb5_data *subject_cert, krb5_principal *client_out)
+{
+    krb5_error_code ret;
+    krb5_get_init_creds_opt *opts = NULL;
+    krb5_init_creds_context ctx = NULL;
+    int use_primary = 0;
+
+    *client_out = NULL;
+
+    ret = krb5_get_init_creds_opt_alloc(context, &opts);
+    if (ret)
+        goto cleanup;
+    krb5_get_init_creds_opt_set_tkt_life(opts, 15);
+    krb5_get_init_creds_opt_set_renew_life(opts, 0);
+    krb5_get_init_creds_opt_set_forwardable(opts, 0);
+    krb5_get_init_creds_opt_set_proxiable(opts, 0);
+    krb5_get_init_creds_opt_set_canonicalize(opts, 1);
+
+    ret = krb5_init_creds_init(context, client, NULL, NULL, 0, opts, &ctx);
+    if (ret)
+        goto cleanup;
+
+    ctx->identify_realm = TRUE;
+    ctx->subject_cert = subject_cert;
+
+    ret = k5_init_creds_get(context, ctx, &use_primary);
+    if (ret)
+        goto cleanup;
+
+    TRACE_INIT_CREDS_IDENTIFIED_REALM(context, &ctx->request->client->realm);
+    ret = krb5_copy_principal(context, ctx->request->client, client_out);
+
+cleanup:
+    krb5_get_init_creds_opt_free(context, opts);
+    krb5_init_creds_free(context, ctx);
+    return ret;
 }
 
 krb5_error_code

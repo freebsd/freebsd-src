@@ -33,10 +33,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-static krb5_int32 last_usec = 0, last_os_random = 0;
-
-static krb5_error_code make_too_big_error(kdc_realm_t *kdc_active_realm,
-                                          krb5_data **out);
+static krb5_error_code make_too_big_error(kdc_realm_t *realm, krb5_data **out);
 
 struct dispatch_state {
     loop_respond_fn respond;
@@ -53,13 +50,12 @@ finish_dispatch(struct dispatch_state *state, krb5_error_code code,
 {
     loop_respond_fn oldrespond = state->respond;
     void *oldarg = state->arg;
-    kdc_realm_t *kdc_active_realm = state->active_realm;
 
     if (state->is_tcp == 0 && response &&
         response->length > (unsigned int)max_dgram_reply_size) {
-        krb5_free_data(kdc_context, response);
+        krb5_free_data(NULL, response);
         response = NULL;
-        code = make_too_big_error(kdc_active_realm, &response);
+        code = make_too_big_error(state->active_realm, &response);
         if (code)
             krb5_klog_syslog(LOG_ERR, "error constructing "
                              "KRB_ERR_RESPONSE_TOO_BIG error: %s",
@@ -90,41 +86,13 @@ finish_dispatch_cache(void *arg, krb5_error_code code, krb5_data *response)
     finish_dispatch(state, code, response);
 }
 
-static void
-reseed_random(krb5_context kdc_err_context)
-{
-    krb5_error_code retval;
-    krb5_timestamp now;
-    krb5_int32 now_usec, usec_difference;
-    krb5_data data;
-
-    retval = krb5_crypto_us_timeofday(&now, &now_usec);
-    if (retval == 0) {
-        usec_difference = now_usec - last_usec;
-        if (last_os_random == 0)
-            last_os_random = now;
-        /* Grab random data from OS every hour*/
-        if (ts_delta(now, last_os_random) >= 60 * 60) {
-            krb5_c_random_os_entropy(kdc_err_context, 0, NULL);
-            last_os_random = now;
-        }
-
-        data.length = sizeof(krb5_int32);
-        data.data = (void *)&usec_difference;
-
-        krb5_c_random_add_entropy(kdc_err_context,
-                                  KRB5_C_RANDSOURCE_TIMING, &data);
-        last_usec = now_usec;
-    }
-}
-
 void
 dispatch(void *cb, const krb5_fulladdr *local_addr,
          const krb5_fulladdr *remote_addr, krb5_data *pkt, int is_tcp,
          verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
     krb5_error_code retval;
-    krb5_kdc_req *as_req;
+    krb5_kdc_req *req = NULL;
     krb5_data *response = NULL;
     struct dispatch_state *state;
     struct server_handle *handle = cb;
@@ -172,39 +140,45 @@ dispatch(void *cb, const krb5_fulladdr *local_addr,
      * is currently being processed. */
     kdc_insert_lookaside(kdc_err_context, pkt, NULL);
 #endif
-    reseed_random(kdc_err_context);
 
     /* try TGS_REQ first; they are more common! */
 
-    if (krb5_is_tgs_req(pkt)) {
-        retval = process_tgs_req(handle, pkt, remote_addr, &response);
-    } else if (krb5_is_as_req(pkt)) {
-        if (!(retval = decode_krb5_as_req(pkt, &as_req))) {
-            /*
-             * setup_server_realm() sets up the global realm-specific data
-             * pointer.
-             * process_as_req frees the request if it is called
-             */
-            state->active_realm = setup_server_realm(handle, as_req->server);
-            if (state->active_realm != NULL) {
-                process_as_req(as_req, pkt, local_addr, remote_addr,
-                               state->active_realm, vctx,
-                               finish_dispatch_cache, state);
-                return;
-            } else {
-                retval = KRB5KDC_ERR_WRONG_REALM;
-                krb5_free_kdc_req(kdc_err_context, as_req);
-            }
-        }
-    } else
+    if (krb5_is_tgs_req(pkt))
+        retval = decode_krb5_tgs_req(pkt, &req);
+    else if (krb5_is_as_req(pkt))
+        retval = decode_krb5_as_req(pkt, &req);
+    else
         retval = KRB5KRB_AP_ERR_MSG_TYPE;
+    if (retval)
+        goto done;
 
+    state->active_realm = setup_server_realm(handle, req->server);
+    if (state->active_realm == NULL) {
+        retval = KRB5KDC_ERR_WRONG_REALM;
+        goto done;
+    }
+
+    if (krb5_is_tgs_req(pkt)) {
+        /* process_tgs_req frees the request */
+        retval = process_tgs_req(req, pkt, remote_addr, state->active_realm,
+                                 &response);
+        req = NULL;
+    } else if (krb5_is_as_req(pkt)) {
+        /* process_as_req frees the request and calls finish_dispatch_cache. */
+        process_as_req(req, pkt, local_addr, remote_addr, state->active_realm,
+                       vctx, finish_dispatch_cache, state);
+        return;
+    }
+
+done:
+    krb5_free_kdc_req(kdc_err_context, req);
     finish_dispatch_cache(state, retval, response);
 }
 
 static krb5_error_code
-make_too_big_error(kdc_realm_t *kdc_active_realm, krb5_data **out)
+make_too_big_error(kdc_realm_t *realm, krb5_data **out)
 {
+    krb5_context context = realm->realm_context;
     krb5_error errpkt;
     krb5_error_code retval;
     krb5_data *scratch;
@@ -212,11 +186,11 @@ make_too_big_error(kdc_realm_t *kdc_active_realm, krb5_data **out)
     *out = NULL;
     memset(&errpkt, 0, sizeof(errpkt));
 
-    retval = krb5_us_timeofday(kdc_context, &errpkt.stime, &errpkt.susec);
+    retval = krb5_us_timeofday(context, &errpkt.stime, &errpkt.susec);
     if (retval)
         return retval;
     errpkt.error = KRB_ERR_RESPONSE_TOO_BIG;
-    errpkt.server = tgs_server;
+    errpkt.server = realm->realm_tgsprinc;
     errpkt.client = NULL;
     errpkt.text.length = 0;
     errpkt.text.data = 0;
@@ -225,7 +199,7 @@ make_too_big_error(kdc_realm_t *kdc_active_realm, krb5_data **out)
     scratch = malloc(sizeof(*scratch));
     if (scratch == NULL)
         return ENOMEM;
-    retval = krb5_mk_error(kdc_context, &errpkt, scratch);
+    retval = krb5_mk_error(context, &errpkt, scratch);
     if (retval) {
         free(scratch);
         return retval;

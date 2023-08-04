@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # This file contains tests for kadmin command parsing.  Principal

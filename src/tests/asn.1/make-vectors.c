@@ -40,6 +40,8 @@
 #include <PA-OTP-REQUEST.h>
 #include <PA-OTP-ENC-REQUEST.h>
 #include <AD-CAMMAC.h>
+#include <SPAKESecondFactor.h>
+#include <PA-SPAKE.h>
 
 static unsigned char buf[8192];
 static size_t buf_pos;
@@ -168,6 +170,36 @@ static struct other_verifiers overfs = { { verifiers, 2, 2 } };
 static AD_CAMMAC_t cammac_2 = { { { (void *)adlist_2, 2, 2 } },
                                 &vmac_1, &vmac_2, &overfs };
 
+/* SPAKESecondFactor */
+static SPAKESecondFactor_t factor_1 = { 1, NULL };
+static OCTET_STRING_t factor_data = { "fdata", 5 };
+static SPAKESecondFactor_t factor_2 = { 2, &factor_data };
+
+/* PA-SPAKE (support) */
+static Int32_t group_1 = 1, group_2 = 2, *groups[] = { &group_1, &group_2 };
+static PA_SPAKE_t pa_spake_1 = { PA_SPAKE_PR_support,
+                                 { .support = { { groups, 2, 2 } } } };
+
+/* PA-SPAKE (challenge) */
+static SPAKESecondFactor_t *factors[2] = { &factor_1, &factor_2 };
+static PA_SPAKE_t pa_spake_2 = { PA_SPAKE_PR_challenge,
+                                 { .challenge = { 1, { "T value", 7 },
+                                                  { factors, 2, 2 } } } };
+
+/* PA-SPAKE (response) */
+UInt32_t enctype_5 = 5;
+static PA_SPAKE_t pa_spake_3 = { PA_SPAKE_PR_response,
+                                 { .response = { { "S value", 7 },
+                                                 { 0, &enctype_5,
+                                                   { "krbASN.1 test message",
+                                                     21 } } } } };
+
+/* PA-SPAKE (encdata) */
+static PA_SPAKE_t pa_spake_4 = { PA_SPAKE_PR_encdata,
+                                 { .encdata = { 0, &enctype_5,
+                                                { "krbASN.1 test message",
+                                                  21 } } } };
+
 static int
 consume(const void *data, size_t size, void *dummy)
 {
@@ -270,6 +302,30 @@ main()
 
     printf("\nMaximal AD-CAMMAC:\n");
     der_encode(&asn_DEF_AD_CAMMAC, &cammac_2, consume, NULL);
+    printbuf();
+
+    printf("\nMinimal SPAKESecondFactor:\n");
+    der_encode(&asn_DEF_SPAKESecondFactor, &factor_1, consume, NULL);
+    printbuf();
+
+    printf("\nMaximal SPAKESecondFactor:\n");
+    der_encode(&asn_DEF_SPAKESecondFactor, &factor_2, consume, NULL);
+    printbuf();
+
+    printf("\nPA-SPAKE (support):\n");
+    der_encode(&asn_DEF_PA_SPAKE, &pa_spake_1, consume, NULL);
+    printbuf();
+
+    printf("\nPA-SPAKE (challenge):\n");
+    der_encode(&asn_DEF_PA_SPAKE, &pa_spake_2, consume, NULL);
+    printbuf();
+
+    printf("\nPA-SPAKE (response):\n");
+    der_encode(&asn_DEF_PA_SPAKE, &pa_spake_3, consume, NULL);
+    printbuf();
+
+    printf("\nPA-SPAKE (encdata):\n");
+    der_encode(&asn_DEF_PA_SPAKE, &pa_spake_4, consume, NULL);
     printbuf();
 
     printf("\n");

@@ -26,7 +26,7 @@
 
 static struct et_list *et_list;
 static k5_mutex_t et_list_lock = K5_MUTEX_PARTIAL_INITIALIZER;
-static int terminated = 0;      /* for debugging shlib fini sequence errors */
+static int terminated = 0;      /* for safety and finalization debugging */
 
 MAKE_INIT_FUNCTION(com_err_initialize);
 MAKE_FINI_FUNCTION(com_err_terminate);
@@ -69,6 +69,7 @@ void com_err_terminate(void)
         enext = e->next;
         free(e);
     }
+    et_list = NULL;
     k5_mutex_unlock(&et_list_lock);
     k5_mutex_destroy(&et_list_lock);
     terminated = 1;
@@ -279,6 +280,10 @@ errcode_t KRB5_CALLCONV
 remove_error_table(const struct error_table *et)
 {
     struct et_list **ep, *e;
+
+    /* Safety check in case libraries are finalized in the wrong order. */
+    if (terminated)
+        return ENOENT;
 
     if (CALL_INIT_FUNCTION(com_err_initialize))
         return 0;

@@ -118,9 +118,6 @@ DWORD find_server(Init::InitInfo& info, LPSTR endpoint) {
     char*               szDir       = 0;
     BOOL                bRes        = FALSE;
     char*               cmdline     = NULL;
-#if 0
-    HANDLE hToken = 0;
-#endif
 
     psa = isNT() ? &sa : 0;
 
@@ -156,38 +153,6 @@ DWORD find_server(Init::InitInfo& info, LPSTR endpoint) {
             }
 
         if (!status) {
-
-#if 0
-            if (SecureClient::IsImp()) {
-                cci_debug_printf(STARTUP "Token is impersonation token"));
-                SecureClient::DuplicateImpAsPrimary(hToken);
-                } 
-            else {
-                cci_debug_printf(STARTUP "Token is NOT impersonation token"));
-                }
-#endif
-
-#if 0
-            if (hToken)
-                bRes = CreateProcessAsUser(hToken,
-                                       szExe, // app name
-                                       NULL, // cmd line
-                                       psa, // SA
-                                       psa, // SA
-                                       FALSE, 
-                                       CREATE_NEW_PROCESS_GROUP | 
-                                       //CREATE_NEW_CONSOLE |
-                                       NORMAL_PRIORITY_CLASS |
-                                       // CREATE_NO_WINDOW |
-                                       DETACHED_PROCESS |
-                                       0
-                                       ,
-                                       NULL, // environment
-                                       szDir, // current dir
-                                       &si,
-                                       &pi);
-            else
-#endif
                 alloc_cmdline_2_args(szExe, endpoint, "-D", &cmdline);
                 bRes = CreateProcess(  szExe,       // app name
                                        NULL, //cmdline,     // cmd line is <server endpoint -[DC]>
@@ -223,10 +188,6 @@ DWORD find_server(Init::InitInfo& info, LPSTR endpoint) {
             cci_debug_printf("  unexpected error while looking for server: 0D%d / 0U%u / 0X%X", status, status, status);
             } 
 
-#if 0
-    if (hToken)
-        CloseHandle(hToken);
-#endif
     if (szDir)                      free_alloc_p(&szDir);
     if (szExe)                      free_alloc_p(&szExe);
     if (hEvent)                     CloseHandle(hEvent);

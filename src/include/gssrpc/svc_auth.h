@@ -88,7 +88,7 @@ extern enum auth_stat gssrpc__authenticate(struct svc_req *rqst,
 enum auth_stat gssrpc__svcauth_none(struct svc_req *,
 	struct rpc_msg *, bool_t *);
 /* unix style (uid, gids) */
-/* RENAMED: shoudl be _svcauth_unix. */
+/* RENAMED: should be _svcauth_unix. */
 enum auth_stat gssrpc__svcauth_unix(struct svc_req *,
 	struct rpc_msg *, bool_t *);
 /* short hand unix style */

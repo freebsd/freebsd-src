@@ -31,8 +31,8 @@ extern "C" {
 
 enum iprop_role {
     IPROP_NULL = 0,
-    IPROP_MASTER = 1,
-    IPROP_SLAVE = 2
+    IPROP_PRIMARY = 1,
+    IPROP_REPLICA = 2
 };
 typedef enum iprop_role iprop_role;
 

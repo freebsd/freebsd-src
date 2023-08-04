@@ -392,20 +392,6 @@ get_linux_ipv6_addrs ()
                 a6.s6_addr[i] = addrbyte[i];
             if (scope != 0)
                 continue;
-#if 0 /* These symbol names are as used by ifconfig, but none of the
-         system header files export them.  Dig up the kernel versions
-         someday and see if they're exported.  */
-            switch (scope) {
-            case 0:
-            default:
-                break;
-            case IPV6_ADDR_LINKLOCAL:
-            case IPV6_ADDR_SITELOCAL:
-            case IPV6_ADDR_COMPATv4:
-            case IPV6_ADDR_LOOPBACK:
-                continue;
-            }
-#endif
             nw = calloc (1, sizeof (struct linux_ipv6_addr_list));
             if (nw == 0)
                 continue;
@@ -1330,14 +1316,6 @@ krb5_os_localaddr(krb5_context context, krb5_address ***addr)
 {
     return get_localaddrs(context, addr, 1);
 }
-
-#if 0 /* not actually used anywhere currently */
-krb5_error_code
-krb5int_local_addresses(krb5_context context, krb5_address ***addr)
-{
-    return get_localaddrs(context, addr, 0);
-}
-#endif
 
 static krb5_error_code
 get_localaddrs (krb5_context context, krb5_address ***addr, int use_profile)

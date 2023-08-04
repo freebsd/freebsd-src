@@ -36,6 +36,7 @@ krb5_error_code ktutil_delete (krb5_context, krb5_kt_list *, int);
 krb5_error_code ktutil_add (krb5_context,
                             krb5_kt_list *,
                             char *,
+                            int,
                             krb5_kvno,
                             char *,
                             int,
@@ -48,10 +49,6 @@ krb5_error_code ktutil_read_keytab (krb5_context,
 krb5_error_code ktutil_write_keytab (krb5_context,
                                      krb5_kt_list,
                                      char *);
-
-krb5_error_code ktutil_read_srvtab (krb5_context,
-                                    char *,
-                                    krb5_kt_list *);
 
 void ktutil_add_entry (int, char *[]);
 

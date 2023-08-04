@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-FAST-REQ-CHKSUM-data:
+
+KRB5_KEYUSAGE_FAST_REQ_CHKSUM
+=============================
+
+..
+.. data:: KRB5_KEYUSAGE_FAST_REQ_CHKSUM
+..
+
+
+
+
+==================================== ======================
+``KRB5_KEYUSAGE_FAST_REQ_CHKSUM``       ``50``
+==================================== ======================

@@ -66,8 +66,8 @@ __rec_search(t, recno, op)
 	recno_t recno;
 	enum SRCHOP op;
 {
-	register indx_t idx;
-	register PAGE *h;
+	indx_t idx;
+	PAGE *h;
 	EPGNO *parent;
 	RINTERNAL *r;
 	db_pgno_t pg;

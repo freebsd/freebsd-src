@@ -286,7 +286,7 @@ cleanup:
  * check the existence of the object.  This serves one major purpose,
  * i.e., if the object to be is anything other than the ticket policy
  * object then the krb5_ldap_read_policy returns an error and thus is
- * not accidently deleted in this function.
+ * not accidentally deleted in this function.
  *
  * NOTE: Other kerberos objects (user/realm object) might be having
  * references to the policy object to be deleted. This situation is

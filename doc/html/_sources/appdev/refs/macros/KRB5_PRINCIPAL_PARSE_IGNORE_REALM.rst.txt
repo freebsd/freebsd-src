@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PRINCIPAL-PARSE-IGNORE-REALM-data:
+
+KRB5_PRINCIPAL_PARSE_IGNORE_REALM
+=================================
+
+..
+.. data:: KRB5_PRINCIPAL_PARSE_IGNORE_REALM
+..
+
+Ignore realm if present.
+
+
+
+======================================== ======================
+``KRB5_PRINCIPAL_PARSE_IGNORE_REALM``       ``0x8``
+======================================== ======================

@@ -80,7 +80,6 @@ enum __MIDL_ccapi_0003
     {	KRB_NAME_SZ	= 40,
 	KRB_INSTANCE_SZ	= 40,
 	KRB_REALM_SZ	= 40,
-	MAX_V4_CRED_LEN	= 1250
     } ;
 typedef struct _NC_INFO
     {
@@ -94,24 +93,6 @@ typedef struct _NC_INFO_LIST
     CC_UINT32 length;
     /* [size_is] */ NC_INFO *info;
     } 	NC_INFO_LIST;
-
-typedef struct _V4_CRED
-    {
-    CC_UCHAR kversion;
-    CC_CHAR principal[ 41 ];
-    CC_CHAR principal_instance[ 41 ];
-    CC_CHAR service[ 41 ];
-    CC_CHAR service_instance[ 41 ];
-    CC_CHAR realm[ 41 ];
-    CC_UCHAR session_key[ 8 ];
-    CC_INT32 kvno;
-    CC_INT32 str_to_key;
-    CC_INT32 issue_date;
-    CC_INT32 lifetime;
-    CC_UINT32 address;
-    CC_INT32 ticket_sz;
-    CC_UCHAR ticket[ 1250 ];
-    } 	V4_CRED;
 
 typedef struct _CC_DATA
     {
@@ -145,7 +126,6 @@ typedef struct _V5_CRED
 
 typedef /* [switch_type] */ union _CRED_PTR_UNION
     {
-    /* [case()] */ V4_CRED *pV4Cred;
     /* [case()] */ V5_CRED *pV5Cred;
     } 	CRED_PTR_UNION;
 

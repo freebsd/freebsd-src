@@ -1,6 +1,6 @@
 mydir=clients$(S)ksu
 BUILDTOP=$(REL)..$(S)..
-DEFINES = -DGET_TGT_VIA_PASSWD -DPRINC_LOOK_AHEAD -DCMD_PATH='"/bin /local/bin"'
+DEFINES = -DGET_TGT_VIA_PASSWD -DPRINC_LOOK_AHEAD -DCMD_PATH='"/usr/local/sbin /usr/local/bin /sbin /bin /usr/sbin /usr/bin"'
 
 KSU_LIBS=@KSU_LIBS@
 

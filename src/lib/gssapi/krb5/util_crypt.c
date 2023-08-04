@@ -74,27 +74,6 @@ kg_copy_keys(krb5_context context, krb5_gss_ctx_id_rec *ctx, krb5_key subkey)
     return 0;
 }
 
-static krb5_error_code
-kg_derive_des_enc_key(krb5_context context, krb5_key subkey, krb5_key *out)
-{
-    krb5_error_code code;
-    krb5_keyblock *keyblock;
-    unsigned int i;
-
-    *out = NULL;
-
-    code = krb5_k_key_keyblock(context, subkey, &keyblock);
-    if (code != 0)
-        return code;
-
-    for (i = 0; i < keyblock->length; i++)
-        keyblock->contents[i] ^= 0xF0;
-
-    code = krb5_k_create_key(context, keyblock, out);
-    krb5_free_keyblock(context, keyblock);
-    return code;
-}
-
 krb5_error_code
 kg_setup_keys(krb5_context context, krb5_gss_ctx_id_rec *ctx, krb5_key subkey,
               krb5_cksumtype *cksumtype)
@@ -118,26 +97,6 @@ kg_setup_keys(krb5_context context, krb5_gss_ctx_id_rec *ctx, krb5_key subkey,
         return code;
 
     switch (subkey->keyblock.enctype) {
-    case ENCTYPE_DES_CBC_MD5:
-    case ENCTYPE_DES_CBC_MD4:
-    case ENCTYPE_DES_CBC_CRC:
-        krb5_k_free_key(context, ctx->seq);
-        code = krb5_k_create_key(context, &subkey->keyblock, &ctx->seq);
-        if (code != 0)
-            return code;
-
-        krb5_k_free_key(context, ctx->enc);
-        code = kg_derive_des_enc_key(context, subkey, &ctx->enc);
-        if (code != 0)
-            return code;
-
-        ctx->enc->keyblock.enctype = ENCTYPE_DES_CBC_RAW;
-        ctx->seq->keyblock.enctype = ENCTYPE_DES_CBC_RAW;
-        ctx->signalg = SGN_ALG_DES_MAC_MD5;
-        ctx->cksum_size = 8;
-        ctx->sealalg = SEAL_ALG_DES;
-
-        break;
     case ENCTYPE_DES3_CBC_SHA1:
         code = kg_copy_keys(context, ctx, subkey);
         if (code != 0)
@@ -690,14 +649,11 @@ kg_fixup_padding_iov(OM_uint32 *minor_status, gss_iov_buffer_desc *iov,
     data = kg_locate_iov(iov, iov_count, GSS_IOV_BUFFER_TYPE_DATA);
     padding = kg_locate_iov(iov, iov_count, GSS_IOV_BUFFER_TYPE_PADDING);
 
-    if (data == NULL) {
+    /* Do nothing if padding is absent or empty, to allow unwrapping of WinRM
+     * unpadded RC4 tokens using an explicit IOV array. */
+    if (data == NULL || padding == NULL || padding->buffer.length == 0) {
         *minor_status = 0;
         return GSS_S_COMPLETE;
-    }
-
-    if (padding == NULL || padding->buffer.length == 0) {
-        *minor_status = EINVAL;
-        return GSS_S_FAILURE;
     }
 
     p = (unsigned char *)padding->buffer.value;
@@ -718,7 +674,7 @@ kg_fixup_padding_iov(OM_uint32 *minor_status, gss_iov_buffer_desc *iov,
      * the padding length.
      *
      * If the caller manages the padding length, then relative_padlength
-     * wil be zero.
+     * will be zero.
      *
      * eg. if the buffers are structured as follows:
      *

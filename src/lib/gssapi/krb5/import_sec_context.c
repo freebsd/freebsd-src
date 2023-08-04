@@ -48,22 +48,6 @@ gss_OID krb5_gss_convert_static_mech_oid(oid)
     return oid;
 }
 
-krb5_error_code
-krb5_gss_ser_init (krb5_context context)
-{
-    krb5_error_code code;
-    static krb5_error_code (KRB5_CALLCONV *const fns[])(krb5_context) = {
-        krb5_ser_context_init, krb5_ser_auth_context_init,
-        krb5_ser_ccache_init, krb5_ser_rcache_init, krb5_ser_keytab_init,
-    };
-    unsigned int i;
-
-    for (i = 0; i < sizeof(fns)/sizeof(fns[0]); i++)
-        if ((code = (fns[i])(context)) != 0)
-            return code;
-    return 0;
-}
-
 OM_uint32 KRB5_CALLCONV
 krb5_gss_import_sec_context(minor_status, interprocess_token, context_handle)
     OM_uint32           *minor_status;
@@ -85,13 +69,6 @@ krb5_gss_import_sec_context(minor_status, interprocess_token, context_handle)
         *minor_status = kret;
         return GSS_S_FAILURE;
     }
-    kret = krb5_gss_ser_init(context);
-    if (kret) {
-        *minor_status = kret;
-        save_error_info(*minor_status, context);
-        krb5_free_context(context);
-        return GSS_S_FAILURE;
-    }
 
     /* Assume a tragic failure */
     ctx = (krb5_gss_ctx_id_t) NULL;
@@ -100,7 +77,7 @@ krb5_gss_import_sec_context(minor_status, interprocess_token, context_handle)
     /* Internalize the context */
     ibp = (krb5_octet *) interprocess_token->value;
     blen = (size_t) interprocess_token->length;
-    kret = kg_ctx_internalize(context, (krb5_pointer *) &ctx, &ibp, &blen);
+    kret = kg_ctx_internalize(context, &ctx, &ibp, &blen);
     if (kret) {
         *minor_status = (OM_uint32) kret;
         save_error_info(*minor_status, context);

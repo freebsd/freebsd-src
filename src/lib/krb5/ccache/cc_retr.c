@@ -30,9 +30,6 @@
 
 #define KRB5_OK 0
 
-#define set(bits) (whichfields & bits)
-#define flags_match(a,b) (((a) & (b)) == (a))
-
 static int
 times_match_exact(const krb5_ticket_times *t1, const krb5_ticket_times *t2)
 {
@@ -58,30 +55,20 @@ times_match(const krb5_ticket_times *t1, const krb5_ticket_times *t2)
 }
 
 static krb5_boolean
-standard_fields_match(krb5_context context, const krb5_creds *mcreds, const krb5_creds *creds)
+princs_match(krb5_context context, krb5_flags whichfields,
+             const krb5_creds *mcreds, const krb5_creds *creds)
 {
-    return (krb5_principal_compare(context, mcreds->client,creds->client)
-            && krb5_principal_compare(context, mcreds->server,creds->server));
-}
-
-/* only match the server name portion, not the server realm portion */
-
-static krb5_boolean
-srvname_match(krb5_context context, const krb5_creds *mcreds, const krb5_creds *creds)
-{
-    krb5_boolean retval;
-    krb5_principal_data p1, p2;
-
-    retval = krb5_principal_compare(context, mcreds->client,creds->client);
-    if (retval != TRUE)
-        return retval;
-    /*
-     * Hack to ignore the server realm for the purposes of the compare.
-     */
-    p1 = *mcreds->server;
-    p2 = *creds->server;
-    p1.realm = p2.realm;
-    return krb5_principal_compare(context, &p1, &p2);
+    if (mcreds->client != NULL &&
+        !krb5_principal_compare(context, mcreds->client, creds->client))
+        return FALSE;
+    if (mcreds->server == NULL)
+        return TRUE;
+    if (whichfields & KRB5_TC_MATCH_SRV_NAMEONLY) {
+        return krb5_principal_compare_any_realm(context, mcreds->server,
+                                                creds->server);
+    } else {
+        return krb5_principal_compare(context, mcreds->server, creds->server);
+    }
 }
 
 static krb5_boolean
@@ -162,37 +149,47 @@ pref (krb5_enctype my_ktype, int nktypes, krb5_enctype *ktypes)
  */
 
 krb5_boolean
-krb5int_cc_creds_match_request(krb5_context context, krb5_flags whichfields, krb5_creds *mcreds, krb5_creds *creds)
+krb5int_cc_creds_match_request(krb5_context context, krb5_flags whichfields,
+                               krb5_creds *mcreds, krb5_creds *creds)
 {
-    if (((set(KRB5_TC_MATCH_SRV_NAMEONLY) &&
-          srvname_match(context, mcreds, creds)) ||
-         standard_fields_match(context, mcreds, creds))
-        &&
-        (! set(KRB5_TC_MATCH_IS_SKEY) ||
-         mcreds->is_skey == creds->is_skey)
-        &&
-        (! set(KRB5_TC_MATCH_FLAGS_EXACT) ||
-         mcreds->ticket_flags == creds->ticket_flags)
-        &&
-        (! set(KRB5_TC_MATCH_FLAGS) ||
-         flags_match(mcreds->ticket_flags, creds->ticket_flags))
-        &&
-        (! set(KRB5_TC_MATCH_TIMES_EXACT) ||
-         times_match_exact(&mcreds->times, &creds->times))
-        &&
-        (! set(KRB5_TC_MATCH_TIMES) ||
-         times_match(&mcreds->times, &creds->times))
-        &&
-        ( ! set(KRB5_TC_MATCH_AUTHDATA) ||
-          authdata_match(mcreds->authdata, creds->authdata))
-        &&
-        (! set(KRB5_TC_MATCH_2ND_TKT) ||
-         data_match (&mcreds->second_ticket, &creds->second_ticket))
-        &&
-        ((! set(KRB5_TC_MATCH_KTYPE))||
-         (mcreds->keyblock.enctype == creds->keyblock.enctype)))
-        return TRUE;
-    return FALSE;
+    krb5_boolean is_skey;
+
+    if (!princs_match(context, whichfields, mcreds, creds))
+        return FALSE;
+
+    /* Only match a user-to-user credential if explicitly asked for, since the
+     * ticket won't work as a regular service ticket. */
+    is_skey = (whichfields & KRB5_TC_MATCH_IS_SKEY) ? mcreds->is_skey : FALSE;
+    if (creds->is_skey != is_skey)
+        return FALSE;
+
+    if ((whichfields & KRB5_TC_MATCH_FLAGS_EXACT) &&
+        mcreds->ticket_flags != creds->ticket_flags)
+        return FALSE;
+    if ((whichfields & KRB5_TC_MATCH_FLAGS) &&
+        (creds->ticket_flags & mcreds->ticket_flags) != mcreds->ticket_flags)
+        return FALSE;
+
+    if ((whichfields & KRB5_TC_MATCH_TIMES_EXACT) &&
+        !times_match_exact(&mcreds->times, &creds->times))
+        return FALSE;
+    if ((whichfields & KRB5_TC_MATCH_TIMES) &&
+        !times_match(&mcreds->times, &creds->times))
+        return FALSE;
+
+    if ((whichfields & KRB5_TC_MATCH_AUTHDATA) &&
+        !authdata_match(mcreds->authdata, creds->authdata))
+        return FALSE;
+
+    if ((whichfields & KRB5_TC_MATCH_2ND_TKT) &&
+        !data_match(&mcreds->second_ticket, &creds->second_ticket))
+        return FALSE;
+
+    if ((whichfields & KRB5_TC_MATCH_KTYPE) &&
+        mcreds->keyblock.enctype != creds->keyblock.enctype)
+        return FALSE;
+
+    return TRUE;
 }
 
 static krb5_error_code

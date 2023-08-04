@@ -27,10 +27,10 @@
 <Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
     
     <?define VersionString="$(var.VersionMajor).$(var.VersionMinor).$(var.VersionPatch)"?>
-    <?if $(var.Platform) = "x64" ?>
+    <?if $(sys.BUILDARCH) = "x64" ?>
         <?define BaseProductName="!(loc.ProductName64)"?>
         <?define BaseProductNameShort="!(loc.ProductNameShort64)"?>
-    <?elseif $(var.Platform) = "Intel" ?>
+    <?elseif $(sys.BUILDARCH) = "x86" ?>
         <?define BaseProductName="!(loc.ProductName)"?>
         <?define BaseProductNameShort="!(loc.ProductNameShort)"?>
     <?else?>

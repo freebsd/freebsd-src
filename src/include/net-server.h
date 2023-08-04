@@ -31,7 +31,7 @@
 
 #include <verto.h>
 
-/* The delimeter characters supported by the addresses string. */
+/* The delimiter characters supported by the addresses string. */
 #define ADDRESSES_DELIM ",; "
 
 typedef struct _krb5_fulladdr {
@@ -95,7 +95,7 @@ krb5_error_code make_toolong_error (void *handle, krb5_data **);
  * Contexts are needed in lots of places.  Opaque application-provided
  * handles are passed around in lots of place, but contexts are not.
  * For now, we'll require that the application provide us an easy way
- * to get at a context; eventually it should probably be explicity.
+ * to get at a context; eventually it should probably be explicitly.
  */
 krb5_context get_context(void *handle);
 

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # These tests will become much less important after the y2038 boundary
@@ -17,6 +16,7 @@ realm.start_kdc(['-T', '662256000'])
 # kinit without preauth should succeed with clock skew correction, but
 # will result in an expired ticket, because we sent an absolute end
 # time and didn't get a chance to correct it..
+mark('kinit, no preauth')
 realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ], expected_code=1,
           expected_msg='Ticket expired')
@@ -24,6 +24,7 @@ realm.run([kvno, realm.host_princ], expected_code=1,
 # kinit with preauth should succeed and result in a valid ticket, as
 # we get a chance to correct the end time based on the KDC time.  Try
 # with encrypted timestamp and encrypted challenge.
+mark('kinit, with preauth')
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'user'])
 realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ])
@@ -32,6 +33,7 @@ realm.run([kvno, realm.host_princ])
 
 # Test that expiration warning works after y2038, by setting a
 # password expiration time ten minutes after the KDC time.
+mark('expiration warning')
 realm.run([kadminl, 'modprinc', '-pwexpire', '662256600 seconds', 'user'])
 out = realm.kinit(realm.user_princ, password('user'))
 if 'will expire in less than one hour' not in out:
@@ -48,11 +50,13 @@ realm.prep_kadmin()
 # Test getdate parsing of absolute timestamps after 2038 and
 # marshalling over the kadmin protocol.  The local time zone will
 # affect the display time by a little bit, so just look for the year.
+mark('kadmin marshalling')
 realm.run_kadmin(['modprinc', '-pwexpire', '2040-02-03', realm.host_princ])
 realm.run_kadmin(['getprinc', realm.host_princ], expected_msg=' 2040\n')
 
 # Get a ticket whose lifetime crosses the y2038 boundary and
 # range-check the expiration year as reported by klist.
+mark('ticket lifetime across y2038')
 realm.kinit(realm.user_princ, password('user'),
             flags=['-l', '8000d', '-r', '8500d'])
 realm.run([kvno, realm.host_princ])

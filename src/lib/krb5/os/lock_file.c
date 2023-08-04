@@ -45,7 +45,7 @@
 #define POSIX_FILE_LOCKS
 
 /*
- * Gnu libc bug 20251, currently unfixed, breaks OFD lock support on
+ * Gnu libc bug 20251, fixed in 2.28, breaks OFD lock support on
  * 32-bit platforms.  Work around this bug by explicitly using the
  * fcntl64 system call and struct flock64.
  */

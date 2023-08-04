@@ -62,7 +62,7 @@ while (! $h->eof()) {
         next LINE;
     }
     s/#.*$//;
-    if (/^} *$/) {
+    if (/^\} *$/) {
         next LINE;
     }
     # strip comments
@@ -86,18 +86,18 @@ while (! $h->eof()) {
     if (/^[ \t]*$/) {
         next LINE;
     }
-    if (/^ *extern "C" {/) {
+    if (/^ *extern "C" \{/) {
         next LINE;
     }
     s/KRB5_ATTR_DEPRECATED//;
     # elide struct definitions
   Struct1:
-    if (/{[^}]*}/) {
-	s/{[^}]*}/ /g;
+    if (/\{[^}]*\}/) {
+	s/\{[^}]*\}/ /g;
 	goto Struct1;
     }
     # multi-line defs
-    if (/{/) {
+    if (/\{/) {
 	$_ .= "\n";
 	$len1 = length;
 	$_ .= $h->getline();

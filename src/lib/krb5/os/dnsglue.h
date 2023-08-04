@@ -26,7 +26,8 @@
 
 /*
  * Glue layer for DNS resolver, to make parsing of replies easier
- * whether we are using BIND 4, 8, or 9.
+ * whether we are using BIND 4, 8, or 9.  This header is not used on
+ * Windows.
  */
 
 /*
@@ -50,22 +51,14 @@
 
 #include "k5-int.h"
 #include "os-proto.h"
-#ifdef WSHELPER
-#include <wshelper.h>
-#else /* WSHELPER */
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include <netdb.h>
-#endif /* WSHELPER */
 
 #if HAVE_SYS_PARAM_H
 #include <sys/param.h>          /* for MAXHOSTNAMELEN */
-#endif
-
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 64       /* if we can't find it elswhere */
 #endif
 
 #ifndef MAXDNAME
@@ -158,25 +151,6 @@ int krb5int_dns_nextans(struct krb5int_dns_state *,
 int krb5int_dns_expand(struct krb5int_dns_state *,
                        const unsigned char *, char *, int);
 void krb5int_dns_fini(struct krb5int_dns_state *);
-
-struct srv_dns_entry {
-    struct srv_dns_entry *next;
-    int priority;
-    int weight;
-    unsigned short port;
-    char *host;
-};
-
-krb5_error_code
-krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
-                             const char *service, const char *protocol,
-                             struct srv_dns_entry **answers);
-
-void krb5int_free_srv_dns_data(struct srv_dns_entry *);
-
-krb5_error_code
-k5_make_uri_query(krb5_context context, const krb5_data *realm,
-                  const char *service, struct srv_dns_entry **answers);
 
 #endif /* KRB5_DNS_LOOKUP */
 #endif /* !defined(KRB5_DNSGLUE_H) */

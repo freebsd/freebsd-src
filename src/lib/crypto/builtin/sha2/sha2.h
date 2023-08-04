@@ -36,7 +36,7 @@
 #ifndef SHA2_H
 #define SHA2_H 1
 
-#include <k5-int.h>
+#include "crypto_int.h"
 
 #define SHA256_DIGEST_LENGTH 32
 #define SHA384_DIGEST_LENGTH 48

@@ -13,7 +13,7 @@
 #endif
 
 /* Match struct packing of krb5_get_init_creds_opt on macOS. */
-#if TARGET_OS_MAC
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__) || defined(__i386__) || defined(__x86_64__))
 #pragma pack(push,2)
 #endif
 struct extended_options {
@@ -30,7 +30,7 @@ struct extended_options {
     void *responder_data;
     int pac_request;            /* -1 unset, 0 false, 1 true */
 };
-#if TARGET_OS_MAC
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__) || defined(__i386__) || defined(__x86_64__))
 #pragma pack(pop)
 #endif
 

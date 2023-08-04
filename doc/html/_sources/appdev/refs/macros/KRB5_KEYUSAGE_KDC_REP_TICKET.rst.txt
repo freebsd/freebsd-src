@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-KDC-REP-TICKET-data:
+
+KRB5_KEYUSAGE_KDC_REP_TICKET
+============================
+
+..
+.. data:: KRB5_KEYUSAGE_KDC_REP_TICKET
+..
+
+
+
+
+=================================== ======================
+``KRB5_KEYUSAGE_KDC_REP_TICKET``       ``2``
+=================================== ======================

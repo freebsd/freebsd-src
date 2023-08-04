@@ -40,21 +40,6 @@ int g_set_init(g_set_elt *s)
     return(0);
 }
 
-#if 0
-int g_set_destroy(g_set_elt *s)
-{
-    g_set next;
-
-    while (*s) {
-        next = (*s)->next;
-        free(*s);
-        *s = next;
-    }
-
-    return(0);
-}
-#endif
-
 int g_set_entry_add(g_set_elt *s, void *key, void *value)
 {
     g_set_elt first;

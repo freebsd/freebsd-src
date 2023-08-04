@@ -33,6 +33,9 @@
 
 
 #include "crypto_int.h"
+
+#ifdef K5_OPENSSL_RC4
+
 #include <openssl/evp.h>
 
 /*
@@ -52,12 +55,12 @@ struct arcfour_state {
 /* Interface layer to krb5 crypto layer */
 
 /* The workhorse of the arcfour system,
- * this impliments the cipher
+ * this implements the cipher
  */
 
 /* In-place IOV crypto */
 static krb5_error_code
-k5_arcfour_docrypt(krb5_key key,const krb5_data *state, krb5_crypto_iov *data,
+k5_arcfour_docrypt(krb5_key key, const krb5_data *state, krb5_crypto_iov *data,
                    size_t num_data)
 {
     size_t i;
@@ -66,7 +69,7 @@ k5_arcfour_docrypt(krb5_key key,const krb5_data *state, krb5_crypto_iov *data,
     EVP_CIPHER_CTX *ctx = NULL;
     struct arcfour_state *arcstate;
 
-    arcstate = (state != NULL) ? (struct arcfour_state *) state->data : NULL;
+    arcstate = (state != NULL) ? (void *)state->data : NULL;
     if (arcstate != NULL) {
         ctx = arcstate->ctx;
         if (arcstate->loopback != arcstate)
@@ -113,7 +116,7 @@ k5_arcfour_docrypt(krb5_key key,const krb5_data *state, krb5_crypto_iov *data,
 static void
 k5_arcfour_free_state(krb5_data *state)
 {
-    struct arcfour_state *arcstate = (struct arcfour_state *) state->data;
+    struct arcfour_state *arcstate = (void *)state->data;
 
     EVP_CIPHER_CTX_free(arcstate->ctx);
     free(arcstate);
@@ -124,6 +127,15 @@ k5_arcfour_init_state(const krb5_keyblock *key,
                       krb5_keyusage keyusage, krb5_data *new_state)
 {
     struct arcfour_state *arcstate;
+
+    /*
+     * The cipher state here is a saved pointer to a struct arcfour_state
+     * object, rather than a flat byte array as in most enc providers.  The
+     * object includes a loopback pointer to detect if if the caller made a
+     * copy of the krb5_data value or otherwise assumed it was a simple byte
+     * array.  When we cast the data pointer back, we need to go through void *
+     * to avoid increased alignment warnings.
+     */
 
     /* Create a state structure with an uninitialized context. */
     arcstate = calloc(1, sizeof(*arcstate));
@@ -154,3 +166,5 @@ const struct krb5_enc_provider krb5int_enc_arcfour = {
     k5_arcfour_init_state,
     k5_arcfour_free_state
 };
+
+#endif /* K5_OPENSSL_RC4 */

@@ -11,29 +11,32 @@
 
 #define KADM5_SERVER_HANDLE_MAGIC       0x12345800
 
-#define GENERIC_CHECK_HANDLE(handle, old_api_version, new_api_version)  \
+#define CHECK_VERSIONS(struct_version, api_version, old_api_err, new_api_err) \
     {                                                                   \
-        kadm5_server_handle_t srvr =                                    \
-            (kadm5_server_handle_t) handle;                             \
-                                                                        \
-        if (! srvr)                                                     \
-            return KADM5_BAD_SERVER_HANDLE;                             \
-        if (srvr->magic_number != KADM5_SERVER_HANDLE_MAGIC)            \
-            return KADM5_BAD_SERVER_HANDLE;                             \
-        if ((srvr->struct_version & KADM5_MASK_BITS) !=                 \
-            KADM5_STRUCT_VERSION_MASK)                                  \
+        if ((struct_version & KADM5_MASK_BITS) != KADM5_STRUCT_VERSION_MASK) \
             return KADM5_BAD_STRUCT_VERSION;                            \
-        if (srvr->struct_version < KADM5_STRUCT_VERSION_1)              \
+        if (struct_version < KADM5_STRUCT_VERSION_1)                    \
             return KADM5_OLD_STRUCT_VERSION;                            \
-        if (srvr->struct_version > KADM5_STRUCT_VERSION_1)              \
+        if (struct_version > KADM5_STRUCT_VERSION_1)                    \
             return KADM5_NEW_STRUCT_VERSION;                            \
-        if ((srvr->api_version & KADM5_MASK_BITS) !=                    \
-            KADM5_API_VERSION_MASK)                                     \
+        if ((api_version & KADM5_MASK_BITS) != KADM5_API_VERSION_MASK)  \
             return KADM5_BAD_API_VERSION;                               \
-        if (srvr->api_version < KADM5_API_VERSION_2)                    \
-            return old_api_version;                                     \
-        if (srvr->api_version > KADM5_API_VERSION_4)                    \
-            return new_api_version;                                     \
+        if (api_version < KADM5_API_VERSION_2)                          \
+            return old_api_err;                                         \
+        if (api_version > KADM5_API_VERSION_4)                          \
+            return new_api_err;                                         \
+    }
+
+#define GENERIC_CHECK_HANDLE(handle, old_api_err, new_api_err)  \
+    {                                                           \
+        kadm5_server_handle_t srvr = handle;                    \
+                                                                \
+        if (srvr == NULL)                                       \
+            return KADM5_BAD_SERVER_HANDLE;                     \
+        if (srvr->magic_number != KADM5_SERVER_HANDLE_MAGIC)    \
+            return KADM5_BAD_SERVER_HANDLE;                     \
+        CHECK_VERSIONS(srvr->struct_version, srvr->api_version, \
+                       old_api_err, new_api_err);               \
     }
 
 /*

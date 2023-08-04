@@ -283,6 +283,8 @@ get_server_key(context, server, enctype, key)
     krb5_data salt;
     krb5_data pwd;
 
+    *key = NULL;
+
     if ((retval = krb5_principal2salt(context, server, &salt)))
 	return retval;
 
@@ -294,8 +296,11 @@ get_server_key(context, server, enctype, key)
 
     if ((*key = (krb5_keyblock *)malloc(sizeof(krb5_keyblock)))) {
     	krb5_use_enctype(context, &eblock, enctype);
-    	if ((retval = krb5_string_to_key(context, &eblock, *key, &pwd, &salt)))
+	retval = krb5_string_to_key(context, &eblock, *key, &pwd, &salt);
+	if (retval) {
 	    free(*key);
+	    *key = NULL;
+	}
     } else
         retval = ENOMEM;
 
@@ -434,7 +439,6 @@ int get_tgt (context, p_client_str, p_client, ccache)
     krb5_principal *p_client;
     krb5_ccache ccache;
 {
-    char *cache_name = NULL;		/* -f option */
     long lifetime = KRB5_DEFAULT_LIFE;	/* -l option */
     krb5_error_code code;
     krb5_creds my_creds;
@@ -459,8 +463,7 @@ int get_tgt (context, p_client_str, p_client, ccache)
 
     code = krb5_cc_initialize (context, ccache, *p_client);
     if (code != 0) {
-	com_err (prog, code, "when initializing cache %s",
-		 cache_name?cache_name:"");
+	com_err (prog, code, "when initializing cache");
 	return(-1);
     }
 

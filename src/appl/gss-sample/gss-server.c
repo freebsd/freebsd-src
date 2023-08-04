@@ -106,7 +106,7 @@ int     verbose = 0;
  * Effects:
  *
  * The service name is imported with gss_import_name, and service
- * credentials are acquired with gss_acquire_cred.  If either opertion
+ * credentials are acquired with gss_acquire_cred.  If either operation
  * fails, an error message is displayed and -1 is returned; otherwise,
  * 0 is returned.  If mech is given, credentials are acquired for the
  * specified mechanism.
@@ -391,7 +391,7 @@ test_import_export_context(gss_ctx_id_t *context)
     if (verbose && logfile)
         fprintf(logfile, "Importing context: %7.4f seconds\n",
                 timeval_subtract(&tm1, &tm2));
-    free(context_token.value);
+    (void) gss_release_buffer(&min_stat, &context_token);
     return 0;
 }
 
@@ -766,8 +766,6 @@ main(int argc, char **argv)
         int     stmp;
 
         if ((stmp = create_socket(port)) >= 0) {
-            if (listen(stmp, max_threads == 1 ? 0 : max_threads) < 0)
-                perror("listening on socket");
             fprintf(stderr, "starting...\n");
 
             do {
@@ -781,6 +779,7 @@ main(int argc, char **argv)
                 /* Accept a TCP connection */
                 if ((work->s = accept(stmp, NULL, 0)) < 0) {
                     perror("accepting connection");
+                    free(work);
                     continue;
                 }
 

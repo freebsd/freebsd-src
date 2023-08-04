@@ -46,9 +46,7 @@ int check_constants(void) {
 
 	/* Credentials versions */
 
-	check_int(cc_credentials_v4,    1);
 	check_int(cc_credentials_v5,    2);
-	check_int(cc_credentials_v4_v5, (cc_credentials_v4 | cc_credentials_v5));
 
 	/* Lock types */
 

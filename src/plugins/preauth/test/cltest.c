@@ -53,6 +53,9 @@
  * - If the "fail_optimistic", "fail_2rt", or "fail_tryagain" gic options are
  *   set, it fails with a recognizable error string at the requested point in
  *   processing.
+ *
+ * - If the "disable_fallback" gic option is set, fallback is disabled when a
+ *   client message is generated.
  */
 
 #include "k5-int.h"
@@ -66,6 +69,7 @@ struct client_state {
     krb5_boolean fail_optimistic;
     krb5_boolean fail_2rt;
     krb5_boolean fail_tryagain;
+    krb5_boolean disable_fallback;
 };
 
 struct client_request_state {
@@ -81,6 +85,7 @@ test_init(krb5_context context, krb5_clpreauth_moddata *moddata_out)
     assert(st != NULL);
     st->indicators = NULL;
     st->fail_optimistic = st->fail_2rt = st->fail_tryagain = FALSE;
+    st->disable_fallback = FALSE;
     *moddata_out = (krb5_clpreauth_moddata)st;
     return 0;
 }
@@ -138,6 +143,8 @@ test_process(krb5_context context, krb5_clpreauth_moddata moddata,
             return KRB5_PREAUTH_FAILED;
         }
         *out_pa_data = make_pa_list("optimistic", 10);
+        if (st->disable_fallback)
+            cb->disable_fallback(context, rock);
         return 0;
     } else if (reqst->second_round_trip) {
         printf("2rt: %.*s\n", pa_data->length, pa_data->contents);
@@ -166,6 +173,8 @@ test_process(krb5_context context, krb5_clpreauth_moddata moddata,
 
     indstr = (st->indicators != NULL) ? st->indicators : "";
     *out_pa_data = make_pa_list(indstr, strlen(indstr));
+    if (st->disable_fallback)
+        cb->disable_fallback(context, rock);
     return 0;
 }
 
@@ -212,6 +221,8 @@ test_gic_opt(krb5_context kcontext, krb5_clpreauth_moddata moddata,
         st->fail_2rt = TRUE;
     } else if (strcmp(attr, "fail_tryagain") == 0) {
         st->fail_tryagain = TRUE;
+    } else if (strcmp(attr, "disable_fallback") == 0) {
+        st->disable_fallback = TRUE;
     }
     return 0;
 }

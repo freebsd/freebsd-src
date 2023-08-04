@@ -42,7 +42,7 @@ main(int argc, char *argv[])
 {
     OM_uint32 minor, major;
     gss_key_value_set_desc store;
-    gss_name_t name;
+    gss_name_t name = GSS_C_NO_NAME;
     gss_cred_usage_t cred_usage = GSS_C_BOTH;
     gss_OID_set mechs = GSS_C_NO_OID_SET;
     gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
@@ -71,7 +71,9 @@ main(int argc, char *argv[])
     /* Get the principal name. */
     if (*argv == NULL)
         usage();
-    name = import_name(*argv++);
+    if (**argv != '\0')
+        name = import_name(*argv);
+    argv++;
 
     /* Put any remaining arguments into the store. */
     store.elements = calloc(argc, sizeof(struct gss_key_value_element_struct));

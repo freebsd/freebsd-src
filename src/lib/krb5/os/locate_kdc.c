@@ -27,17 +27,8 @@
 #include "k5-int.h"
 #include "fake-addrinfo.h"
 #include "os-proto.h"
+
 #ifdef KRB5_DNS_LOOKUP
-#ifdef WSHELPER
-#include <wshelper.h>
-#else /* WSHELPER */
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <arpa/nameser.h>
-#include <resolv.h>
-#include <netdb.h>
-#endif /* WSHELPER */
-#include "dnsglue.h"
 
 #define DEFAULT_LOOKUP_KDC 1
 #if KRB5_DNS_LOOKUP_REALM
@@ -141,7 +132,7 @@ new_server_entry(struct serverlist *list)
     list->servers = newservers;
     entry = &newservers[list->nservers];
     memset(entry, 0, sizeof(*entry));
-    entry->master = -1;
+    entry->primary = -1;
     return entry;
 }
 
@@ -169,7 +160,7 @@ add_addr_to_list(struct serverlist *list, k5_transport transport, int family,
 static int
 add_host_to_list(struct serverlist *list, const char *hostname, int port,
                  k5_transport transport, int family, const char *uri_path,
-                 int master)
+                 int primary)
 {
     struct server_entry *entry;
 
@@ -187,7 +178,7 @@ add_host_to_list(struct serverlist *list, const char *hostname, int port,
             goto oom;
     }
     entry->port = port;
-    entry->master = master;
+    entry->primary = primary;
     list->nservers++;
     return 0;
 oom:
@@ -255,6 +246,11 @@ locate_srv_conf_1(krb5_context context, const krb5_data *realm,
     realm_srv_names[2] = name;
     realm_srv_names[3] = 0;
     code = profile_get_values(context->profile, realm_srv_names, &hostlist);
+    if (code == PROF_NO_RELATION && strcmp(name, KRB5_CONF_PRIMARY_KDC) == 0) {
+        realm_srv_names[2] = KRB5_CONF_MASTER_KDC;
+        code = profile_get_values(context->profile, realm_srv_names,
+                                  &hostlist);
+    }
     if (code) {
         Tprintf("config file lookup failed: %s\n", error_message(code));
         if (code == PROF_NO_SECTION || code == PROF_NO_RELATION)
@@ -504,8 +500,8 @@ prof_locate_server(krb5_context context, const krb5_data *realm,
     kdc_ports:
         dflport = KRB5_DEFAULT_PORT;
         break;
-    case locate_service_master_kdc:
-        profname = KRB5_CONF_MASTER_KDC;
+    case locate_service_primary_kdc:
+        profname = KRB5_CONF_PRIMARY_KDC;
         goto kdc_ports;
     case locate_service_kadmin:
         profname = KRB5_CONF_ADMIN_SERVER;
@@ -532,7 +528,7 @@ prof_locate_server(krb5_context context, const krb5_data *realm,
 
 /*
  * Parse the initial part of the URI, first confirming the scheme name.  Get
- * the transport, flags (indicating master status), and host.  The host is
+ * the transport, flags (indicating primary status), and host.  The host is
  * either an address or hostname with an optional port, or an HTTPS URL.
  * The format is krb5srv:flags:udp|tcp|kkdcp:host
  *
@@ -540,15 +536,15 @@ prof_locate_server(krb5_context context, const krb5_data *realm,
  */
 static void
 parse_uri_fields(const char *uri, k5_transport *transport_out,
-                 const char **host_out, int *master_out)
+                 const char **host_out, int *primary_out)
 
 {
     k5_transport transport;
-    int master = FALSE;
+    int primary = FALSE;
 
     *transport_out = 0;
     *host_out = NULL;
-    *master_out = -1;
+    *primary_out = -1;
 
     /* Confirm the scheme name. */
     if (strncasecmp(uri, "krb5srv", 7) != 0)
@@ -565,7 +561,7 @@ parse_uri_fields(const char *uri, k5_transport *transport_out,
     /* Check the flags field for supported flags. */
     for (; *uri != ':' && *uri != '\0'; uri++) {
         if (*uri == 'm' || *uri == 'M')
-            master = TRUE;
+            primary = TRUE;
     }
     if (*uri != ':')
         return;
@@ -592,7 +588,7 @@ parse_uri_fields(const char *uri, k5_transport *transport_out,
     /* The rest of the URI is the host (with optional port) or URI. */
     *host_out = uri + 1;
     *transport_out = transport;
-    *master_out = master;
+    *primary_out = primary;
 }
 
 /*
@@ -603,14 +599,14 @@ static krb5_error_code
 locate_uri(krb5_context context, const krb5_data *realm,
            const char *req_service, struct serverlist *serverlist,
            k5_transport req_transport, int default_port,
-           krb5_boolean master_only)
+           krb5_boolean primary_only)
 {
     krb5_error_code ret;
     k5_transport transport, host_trans;
     struct srv_dns_entry *answers, *entry;
     char *host;
     const char *host_field, *path;
-    int port, def_port, master;
+    int port, def_port, primary;
 
     ret = k5_make_uri_query(context, realm, req_service, &answers);
     if (ret || answers == NULL)
@@ -620,7 +616,7 @@ locate_uri(krb5_context context, const krb5_data *realm,
         def_port = default_port;
         path = NULL;
 
-        parse_uri_fields(entry->host, &transport, &host_field, &master);
+        parse_uri_fields(entry->host, &transport, &host_field, &primary);
         if (host_field == NULL)
             continue;
 
@@ -648,7 +644,7 @@ locate_uri(krb5_context context, const krb5_data *realm,
         }
 
         ret = add_host_to_list(serverlist, host, port, transport, AF_UNSPEC,
-                               path, master);
+                               path, primary);
         free(host);
         if (ret)
             break;
@@ -666,14 +662,14 @@ dns_locate_server_uri(krb5_context context, const krb5_data *realm,
     krb5_error_code ret;
     char *svcname;
     int def_port;
-    krb5_boolean find_master = FALSE;
+    krb5_boolean find_primary = FALSE;
 
     if (!_krb5_use_dns_kdc(context) || !use_dns_uri(context))
         return 0;
 
     switch (svc) {
-    case locate_service_master_kdc:
-        find_master = TRUE;
+    case locate_service_primary_kdc:
+        find_primary = TRUE;
         /* Fall through */
     case locate_service_kdc:
         svcname = "_kerberos";
@@ -692,7 +688,7 @@ dns_locate_server_uri(krb5_context context, const krb5_data *realm,
     }
 
     ret = locate_uri(context, realm, svcname, serverlist, transport, def_port,
-                     find_master);
+                     find_primary);
 
     if (serverlist->nservers == 0)
         TRACE_DNS_URI_NOTFOUND(context);
@@ -716,7 +712,7 @@ dns_locate_server_srv(krb5_context context, const krb5_data *realm,
     case locate_service_kdc:
         dnsname = "_kerberos";
         break;
-    case locate_service_master_kdc:
+    case locate_service_primary_kdc:
         dnsname = "_kerberos-master";
         break;
     case locate_service_kadmin:
@@ -828,26 +824,26 @@ k5_locate_server(krb5_context context, const krb5_data *realm,
 
 krb5_error_code
 k5_locate_kdc(krb5_context context, const krb5_data *realm,
-              struct serverlist *serverlist, krb5_boolean get_masters,
+              struct serverlist *serverlist, krb5_boolean get_primaries,
               krb5_boolean no_udp)
 {
     enum locate_service_type stype;
 
-    stype = get_masters ? locate_service_master_kdc : locate_service_kdc;
+    stype = get_primaries ? locate_service_primary_kdc : locate_service_kdc;
     return k5_locate_server(context, realm, serverlist, stype, no_udp);
 }
 
 krb5_boolean
-k5_kdc_is_master(krb5_context context, const krb5_data *realm,
-                 struct server_entry *server)
+k5_kdc_is_primary(krb5_context context, const krb5_data *realm,
+                  struct server_entry *server)
 {
     struct serverlist list;
     krb5_boolean found;
 
-    if (server->master != -1)
-        return server->master;
+    if (server->primary != -1)
+        return server->primary;
 
-    if (locate_server(context, realm, &list, locate_service_master_kdc,
+    if (locate_server(context, realm, &list, locate_service_primary_kdc,
                       server->transport) != 0)
         return FALSE;
     found = server_list_contains(&list, server);

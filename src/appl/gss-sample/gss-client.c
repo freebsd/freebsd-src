@@ -100,7 +100,7 @@ usage()
  *      host            (r) the target host name
  *      port            (r) the target port, in host byte order
  *
- * Returns: the established socket file desciptor, or -1 on failure
+ * Returns: the established socket file descriptor, or -1 on failure
  *
  * Effects:
  *

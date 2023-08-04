@@ -8,7 +8,7 @@ main.so main.po $(OUTPRE)main.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
   $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
-  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
-  $(top_srcdir)/include/krb5/certauth_plugin.h $(top_srcdir)/include/krb5/plugin.h \
-  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
-  main.c
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/certauth_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h main.c

@@ -1,0 +1,65 @@
+krb5_kdc_sign_ticket -  Sign a PAC, possibly including a ticket signature. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kdc_sign_ticket(krb5_context context, krb5_enc_tkt_part * enc_tkt, const krb5_pac pac, krb5_const_principal server_princ, krb5_const_principal client_princ, const krb5_keyblock * server, const krb5_keyblock * privsvr, krb5_boolean with_realm)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enc_tkt** - The ticket for the signature
+
+	          **[in]** **pac** - PAC handle
+
+	          **[in]** **server_princ** - Canonical ticket server name
+
+	          **[in]** **client_princ** - PAC_CLIENT_INFO principal (or NULL)
+
+	          **[in]** **server** - Key for server checksum
+
+	          **[in]** **privsvr** - Key for KDC and ticket checksum
+
+	          **[in]** **with_realm** - If true, include the realm of *principal*
+
+
+..
+
+
+:retval:
+         -   0   on success, otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Sign *pac* using the keys *server* and *privsvr* . Include a ticket signature over *enc_tkt* if *server_princ* is not a TGS or kadmin/changepw principal name. Add the signed PAC's encoding to the authorization data of *enc_tkt* in the first slot, wrapped in an AD-IF-RELEVANT container. If *client_princ* is non-null, add a PAC_CLIENT_INFO buffer, including the realm if *with_realm* is true.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.20
+ 
+

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-AP-REQ-data:
+
+KRB5_AP_REQ
+===========
+
+..
+.. data:: KRB5_AP_REQ
+..
+
+Auth req to application server.
+
+
+
+================== ======================
+``KRB5_AP_REQ``       ``((krb5_msgtype)14)``
+================== ======================

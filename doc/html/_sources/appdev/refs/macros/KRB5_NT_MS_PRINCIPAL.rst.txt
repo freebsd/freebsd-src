@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-NT-MS-PRINCIPAL-data:
+
+KRB5_NT_MS_PRINCIPAL
+====================
+
+..
+.. data:: KRB5_NT_MS_PRINCIPAL
+..
+
+Windows 2000 UPN and SID.
+
+
+
+=========================== ======================
+``KRB5_NT_MS_PRINCIPAL``       ``-128``
+=========================== ======================

@@ -61,7 +61,7 @@ k5_is_string_numeric(const char *s)
  * address - The address string that should be parsed.
  * default_port - The default port to use if no port is found.
  * host_out - An output pointer for the parsed host, or NULL if no host was
- * specified or an error occured.  Must be freed.
+ * specified or an error occurred.  Must be freed.
  * port_out - An output pointer for the parsed port.  Will be 0 on error.
  *
  * Returns 0 on success, otherwise an error.

@@ -198,11 +198,11 @@ static struct dbl_limits {
 bool_t
 xdr_double(XDR *xdrs, double *dp)
 {
-	register int32_t *lp;
+	int32_t *lp;
 #if defined(vax)
 	struct	ieee_double id;
 	struct	vax_double vd;
-	register struct dbl_limits *lim;
+	struct dbl_limits *lim;
 	int i;
 #endif
 

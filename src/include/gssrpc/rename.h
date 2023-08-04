@@ -50,10 +50,7 @@
  * External names in the RPC API not beginning with "_" get renamed
  * with the prefix "gssrpc_" via #define, e.g., "foo" -> "gssrpc_foo".
  * External names in the RPC API beginning with "_" get textually
- * rewritten, with "#if 0"-disabled #defines mapping them back to
- * their original forms, e.g., "_foo" is rewrittten to "gssrpc__foo"
- * in the original files, with an unused "#define gssrpc__foo _foo"
- * here.
+ * rewritten.
  */
 
 #ifndef GSSRPC_RENAME_H
@@ -63,18 +60,10 @@
 
 #define xdr_des_block		gssrpc_xdr_des_block
 
-#define authany_wrap		gssrpc_authany_wrap
-#define authany_unwrap		gssrpc_authany_unwrap
-
 #define authunix_create		gssrpc_authunix_create
 #define authunix_create_default	gssrpc_authunix_create_default
 #define authnone_create		gssrpc_authnone_create
-#define authdes_create		gssrpc_authdes_create
 #define xdr_opaque_auth		gssrpc_xdr_opaque_auth
-
-#if 0
-#define gssrpc__null_auth	_null_auth
-#endif
 
 /* auth_gss.c */
 
@@ -181,10 +170,6 @@
 #define callrpc			gssrpc_callrpc
 #define getrpcport		gssrpc_getrpcport
 
-#if 0
-#define gssrpc__rpc_getdtablesize	_rpc_getdtablesize
-#endif
-
 /* rpc_msg.h */
 
 #define xdr_callmsg		gssrpc_xdr_callmsg
@@ -192,10 +177,6 @@
 #define xdr_replymsg		gssrpc_xdr_replymsg
 #define xdr_accepted_reply	gssrpc_xdr_accepted_reply
 #define xdr_rejected_reply	gssrpc_xdr_rejected_reply
-
-#if 0
-#define gssrpc__seterr_reply	_seterr_reply
-#endif
 
 /* svc.h */
 
@@ -218,11 +199,8 @@
 #define svc_fdset		gssrpc_svc_fdset
 #define svc_fds			gssrpc_svc_fds
 
-#define rpctest_service		gssrpc_rpctest_service
-
 #define svc_getreq		gssrpc_svc_getreq
 #define svc_getreqset		gssrpc_svc_getreqset
-#define svc_getreqset2		gssrpc_svc_getreqset2
 #define svc_run			gssrpc_svc_run
 
 #define svcraw_create		gssrpc_svcraw_create
@@ -243,15 +221,6 @@
 
 #define svcauth_gss_set_svc_name	gssrpc_svcauth_gss_set_svc_name
 #define svcauth_gss_get_principal	gssrpc_svcauth_gss_get_principal
-
-#if 0
-#define gssrpc__authenticate	_authenticate
-#define gssrpc__svcauth_none	_svcauth_none
-#define gssrpc__svcauth_unix	_svcauth_unix
-#define gssrpc__svcauth_short	_svcauth_short
-#define gssrpc__svcauth_gssapi	_svcauth_gssapi
-#define gssrpc__svcauth_gss	_svcauth_gss
-#endif
 
 /* svc_auth_gss.c */
 

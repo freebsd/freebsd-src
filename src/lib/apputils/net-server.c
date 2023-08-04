@@ -73,7 +73,17 @@ static int max_tcp_or_rpc_data_connections = 45;
 static int
 setreuseaddr(int sock, int value)
 {
-    return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+    int st;
+
+    st = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+    if (st)
+        return st;
+#ifdef SO_REUSEPORT
+    st = setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &value, sizeof(value));
+    if (st)
+        return st;
+#endif
+    return 0;
 }
 
 #if defined(IPV6_V6ONLY)
@@ -352,7 +362,7 @@ loop_add_address(const char *address, int port, enum bind_type type,
  *
  * - addresses
  *      A string for the addresses.  Pass NULL to use the wildcard address.
- *      Supported delimeters can be found in ADDRESSES_DELIM.  Addresses are
+ *      Supported delimiters can be found in ADDRESSES_DELIM.  Addresses are
  *      parsed with k5_parse_host_name().
  * - default_port
  *      What port the socket should be set to if not specified in addresses.
@@ -818,7 +828,10 @@ setup_addresses(verto_ctx *ctx, void *handle, const char *prog,
      * resolution. */
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+    hints.ai_flags = AI_PASSIVE;
+#ifdef AI_NUMERICSERV
+    hints.ai_flags |= AI_NUMERICSERV;
+#endif
 
     /* Add all the requested addresses. */
     for (i = 0; i < bind_addresses.n; i++) {
@@ -1060,17 +1073,6 @@ process_packet(verto_ctx *ctx, verto_ev *ev)
         return;
     }
 
-#if 0
-    if (state->daddr_len > 0) {
-        char addrbuf[100];
-        if (getnameinfo(ss2sa(&state->daddr), state->daddr_len,
-                        addrbuf, sizeof(addrbuf),
-                        0, 0, NI_NUMERICHOST))
-            strlcpy(addrbuf, "?", sizeof(addrbuf));
-        com_err(conn->prog, 0, _("pktinfo says local addr is %s"), addrbuf);
-    }
-#endif
-
     if (state->daddr_len == 0 && conn->type == CONN_UDP) {
         /*
          * An address couldn't be obtained, so the PKTINFO option probably
@@ -1116,11 +1118,6 @@ kill_lru_tcp_or_rpc_connection(void *handle, verto_ev *newev)
             continue;
         if (c->type != CONN_TCP && c->type != CONN_RPC)
             continue;
-#if 0
-        krb5_klog_syslog(LOG_INFO, "fd %d started at %ld",
-                         verto_get_fd(oldest_ev),
-                         c->start_time);
-#endif
         if (oldest_c == NULL
             || oldest_c->start_time > c->start_time) {
             oldest_ev = ev;
@@ -1186,10 +1183,6 @@ accept_tcp_connection(verto_ctx *ctx, verto_ev *ev)
             strlcpy(p, tmpbuf, end - p);
         }
     }
-#if 0
-    krb5_klog_syslog(LOG_INFO, "accepted TCP connection on socket %d from %s",
-                     s, newconn->addrbuf);
-#endif
 
     newconn->addr_s = addr_s;
     newconn->addrlen = addrlen;
@@ -1452,7 +1445,7 @@ accept_rpc_connection(verto_ctx *ctx, verto_ev *ev)
     verto_ev_flag flags;
     struct connection *conn;
     fd_set fds;
-    register int s;
+    int s;
 
     conn = verto_get_private(ev);
 
@@ -1481,9 +1474,6 @@ accept_rpc_connection(verto_ctx *ctx, verto_ev *ev)
         newconn = verto_get_private(newev);
 
         set_cloexec_fd(s);
-#if 0
-        setnbio(s), setnolinger(s), setkeepalive(s);
-#endif
 
         if (getpeername(s, addr, &addrlen) ||
             getnameinfo(addr, addrlen,
@@ -1503,10 +1493,6 @@ accept_rpc_connection(verto_ctx *ctx, verto_ev *ev)
                 strlcpy(p, tmpbuf, end - p);
             }
         }
-#if 0
-        krb5_klog_syslog(LOG_INFO, _("accepted RPC connection on socket %d "
-                                     "from %s"), s, newconn->addrbuf);
-#endif
 
         newconn->addr_s = addr_s;
         newconn->addrlen = addrlen;

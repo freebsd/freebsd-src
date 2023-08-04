@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Set up a basic realm and a client keytab containing two user principals.
@@ -124,5 +123,67 @@ del bad_cktname['KRB5_CLIENT_KTNAME']
 realm.kinit(realm.user_princ, password('user'))
 realm.run(['./t_ccselect', phost], env=bad_cktname,
           expected_msg=realm.user_princ)
+
+mark('refresh of manually acquired creds')
+
+# Test 17: no name/ccache specified, manually acquired creds which
+# will expire soon.  Verify that creds are refreshed using the current
+# client name, with refresh_time set in the refreshed ccache.
+realm.kinit('bob', password('bob'), ['-l', '15s'])
+realm.run(['./t_ccselect', phost], expected_msg='bob')
+realm.run([klist, '-C'], expected_msg='refresh_time = ')
+
+# Test 18: no name/ccache specified, manually acquired creds with a
+# client principal not present in the client keytab.  A refresh is
+# attempted but fails, and an expired ticket error results.
+realm.kinit(realm.admin_princ, password('admin'), ['-l', '-10s'])
+msgs = ('Getting initial credentials for user/admin@KRBTEST.COM',
+        '/Matching credential not found')
+realm.run(['./t_ccselect', phost], expected_code=1,
+          expected_msg='Ticket expired', expected_trace=msgs)
+realm.run([kdestroy, '-A'])
+
+# Test 19: host-based initiator name
+mark('host-based initiator name')
+hsvc = 'h:svc@' + hostname
+svcprinc = 'svc/%s@%s' % (hostname, realm.realm)
+realm.addprinc(svcprinc)
+realm.extract_keytab(svcprinc, realm.client_keytab)
+# On the first run we match against the keytab while getting tickets,
+# substituting the default realm.
+msgs = ('/Can\'t find client principal svc/%s@ in' % hostname,
+        'Getting initial credentials for svc/%s@' % hostname,
+        'Found entries for %s in keytab' % svcprinc,
+        'Retrieving %s from FILE:%s' % (svcprinc, realm.client_keytab),
+        'Storing %s -> %s in' % (svcprinc, realm.krbtgt_princ),
+        'Retrieving %s -> %s from' % (svcprinc, realm.krbtgt_princ),
+        'authenticator for %s -> %s' % (svcprinc, realm.host_princ))
+realm.run(['./t_ccselect', phost, hsvc], expected_trace=msgs)
+# On the second run we match against the collection.
+msgs = ('Matching svc/%s@ in collection with result: 0' % hostname,
+        'Getting credentials %s -> %s' % (svcprinc, realm.host_princ),
+        'authenticator for %s -> %s' % (svcprinc, realm.host_princ))
+realm.run(['./t_ccselect', phost, hsvc], expected_trace=msgs)
+realm.run([kdestroy, '-A'])
+
+# Test 20: host-based initiator name with fallback
+mark('host-based fallback initiator name')
+canonname = canonicalize_hostname(hostname)
+if canonname != hostname:
+    hfsvc = 'h:fsvc@' + hostname
+    canonprinc = 'fsvc/%s@%s' % (canonname, realm.realm)
+    realm.addprinc(canonprinc)
+    realm.extract_keytab(canonprinc, realm.client_keytab)
+    msgs = ('/Can\'t find client principal fsvc/%s@ in' % hostname,
+            'Found entries for %s in keytab' % canonprinc,
+            'authenticator for %s -> %s' % (canonprinc, realm.host_princ))
+    realm.run(['./t_ccselect', phost, hfsvc], expected_trace=msgs)
+    msgs = ('Matching fsvc/%s@ in collection with result: 0' % hostname,
+            'Getting credentials %s -> %s' % (canonprinc, realm.host_princ))
+    realm.run(['./t_ccselect', phost, hfsvc], expected_trace=msgs)
+    realm.run([kdestroy, '-A'])
+else:
+    skipped('GSS initiator name fallback test',
+            '%s does not canonicalize to a different name' % hostname)
 
 success('Client keytab tests')

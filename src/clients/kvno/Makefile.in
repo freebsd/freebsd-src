@@ -26,6 +26,9 @@ kvno: kvno.o $(KRB5_BASE_DEPLIBS)
 ##WIN32##	link $(EXE_LINKOPTS) /out:$@ $**
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
 
+check-pytests: kvno
+	$(RUNPYTEST) $(srcdir)/t_kvno.py $(PYTESTFLAGS)
+
 clean-unix::
 	$(RM) kvno.o kvno
 

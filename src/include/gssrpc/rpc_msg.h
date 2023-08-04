@@ -48,7 +48,7 @@ GSSRPC__BEGIN_DECLS
 
 /*
  * Bottom up definition of an rpc message.
- * NOTE: call and reply use the same overall stuct but
+ * NOTE: call and reply use the same overall struct but
  * different parts of unions within it.
  */
 

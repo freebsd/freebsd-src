@@ -278,7 +278,7 @@ LeashUIApplication::OnCreateUICommand(UINT32 commandId, UI_COMMANDTYPE typeID,
 
 // It looks like this is called by the framework when the window with the
 // ribbon is going away, to give the application a chance to free any
-// application-specific resources (not from the framwork) that were bound
+// application-specific resources (not from the framework) that were bound
 // to a command in OnCreateUICommand.
 //
 // We do not have any such resources, so we do not need to implement this

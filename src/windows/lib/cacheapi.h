@@ -102,21 +102,6 @@ typedef struct opaque_dll_control_block_type* apiCB;
 typedef struct opaque_ccache_pointer_type* ccache_p;
 typedef struct opaque_credential_iterator_type* ccache_cit;
 
-#if 0
-enum _cc_data_type {
-    type_ticket = 0,                /* 0 for ticket, second_ticket */
-    /* Ted's draft spec says these are to be
-       "as defined in the Kerberos V5 protocol"
-       all I can find are typdefs,
-       can't find an enumerated type or #define
-    */
-    type_address,           /* =  <"as defined in the Kerberos V5 protocol"> */
-    type_authdata,          /* = <"as defined in the Kerberos V5 protocol"> */
-    type_encryption,        /* = <"as defined in the Kerberos V5 protocol"> */
-    cc_data_type_max        /* for validation */
-};
-#endif
-
 typedef struct _cc_data
 {
     cc_uint32       type;		// should be one of _cc_data_type
@@ -141,52 +126,8 @@ typedef struct _cc_creds {
     cc_data **  authdata;
 } cc_creds;
 
-// begin V4 stuff
-// use an enumerated type so all callers infer the same meaning
-// these values are what krbv4win uses internally.
-#define STK_AFS	0
-#define STK_DES	1
-
-// K4 uses a MAX_KTXT_LEN of 1250 to hold a ticket
-// K95 uses 256
-// To be safe I'll use the larger number, but a factor of 5!!!
-#define MAX_V4_CRED_LEN	1250
-
-// V4 Credentials
-
-enum {
-    KRB_NAME_SZ = 40,
-    KRB_INSTANCE_SZ = 40,
-    KRB_REALM_SZ = 40
-};
-
-typedef struct cc_V4credential {
-    unsigned char  kversion;
-    char           principal[KRB_NAME_SZ + 1];
-    char           principal_instance[KRB_INSTANCE_SZ + 1];
-    char       	   service[KRB_NAME_SZ + 1];
-    char       	   service_instance[KRB_INSTANCE_SZ + 1];
-    char           realm[KRB_REALM_SZ + 1];
-    unsigned char  session_key[8];
-    cc_int32       kvno;           // k95 used BYTE skvno
-    cc_int32       str_to_key;     // k4 infers dynamically, k95 stores
-    long           issue_date;     // k95 called this issue_time
-    cc_int32       lifetime;       // k95 used LONG expiration_time
-    cc_uint32      address;        // IP Address of local host
-    cc_int32       ticket_sz;      // k95 used BYTE, k4 ktext uses int to hold up to 1250
-    unsigned char  ticket[MAX_V4_CRED_LEN];
-    unsigned long  oops;           // zero to catch runaways
-} V4Cred_type;
-
-enum {
-    CC_CRED_VUNKNOWN = 0,       // For validation
-    CC_CRED_V4 = 1,
-    CC_CRED_V5 = 2,
-    CC_CRED_VMAX = 3            // For validation
-};
 
 typedef union cred_ptr_union_type {
-    V4Cred_type* pV4Cred;
     cc_creds*    pV5Cred;
 } cred_ptr_union;
 
@@ -238,16 +179,15 @@ cc_get_change_time(
 **   create, open, close, destroy, get_principal, get_cred_version, &
 **   lock_request
 **
-** Multiple NCs are allowed within the main cache.  Each has a Name
-** and kerberos version # (V4 or V5).  Caller gets "ccache_ptr"s for
-** NCs.
+** Multiple NCs are allowed within the main cache.  Each has a Name and
+** kerberos version # (V5).  Caller gets "ccache_ptr"s for NCs.
 */
 CCACHE_API
 cc_create(
     apiCB* cc_ctx,          // >  DLL's primary control structure
     const char* name,       // >  name of cache to be [destroyed if exists, then] created
     const char* principal,
-    cc_int32 vers,          // >  ticket version (CC_CRED_V4 or CC_CRED_V5)
+    cc_int32 vers,          // >  ticket version (CC_CRED_V5)
     cc_uint32 cc_flags,     // >  options
     ccache_p** ccache_ptr   // <  NC control structure
     );
@@ -256,7 +196,7 @@ CCACHE_API
 cc_open(
     apiCB* cc_ctx,          // >  DLL's primary control structure
     const char* name,       // >  name of pre-created cache
-    cc_int32 vers,          // >  ticket version (CC_CRED_V4 or CC_CRED_V5)
+    cc_int32 vers,          // >  ticket version (CC_CRED_V5)
     cc_uint32 cc_flags,     // >  options
     ccache_p** ccache_ptr   // <  NC control structure
     );

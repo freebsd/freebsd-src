@@ -37,94 +37,67 @@
 
 
 /*
- * Given a particular enctype and optional salttype and kvno, find the
- * most appropriate krb5_key_data entry of the database entry.
- *
- * If stype or kvno is negative, it is ignored.
- * If kvno is 0 get the key which is maxkvno for the princ and matches
- * the other attributes.
+ * Set *kd_out to the key data entry matching kvno, enctype, and salttype.  If
+ * any of those three parameters are -1, ignore them.  If kvno is 0, match only
+ * the highest kvno.  Begin searching at the index *start and set *start to the
+ * index after the match.  Do not return keys of non-permitted enctypes; return
+ * KRB5_KDB_NO_PERMITTED_KEY if the whole list was searched and only
+ * non-permitted matches were found.
  */
 krb5_error_code
-krb5_dbe_def_search_enctype(kcontext, dbentp, start, ktype, stype, kvno, kdatap)
-    krb5_context        kcontext;
-    krb5_db_entry       *dbentp;
-    krb5_int32          *start;
-    krb5_int32          ktype;
-    krb5_int32          stype;
-    krb5_int32          kvno;
-    krb5_key_data       **kdatap;
+krb5_dbe_def_search_enctype(krb5_context context, krb5_db_entry *ent,
+                            krb5_int32 *start, krb5_int32 enctype,
+                            krb5_int32 salttype, krb5_int32 kvno,
+                            krb5_key_data **kd_out)
 {
-    int                 i, idx;
-    int                 maxkvno;
-    krb5_key_data       *datap;
-    krb5_error_code     ret;
-    krb5_boolean        saw_non_permitted = FALSE;
+    krb5_key_data *kd;
+    krb5_int32 db_salttype;
+    krb5_boolean saw_non_permitted = FALSE;
+    int i;
 
-    ret = 0;
-    if (ktype != -1 && !krb5_is_permitted_enctype(kcontext, ktype))
+    *kd_out = NULL;
+
+    if (enctype != -1 && !krb5_is_permitted_enctype(context, enctype))
         return KRB5_KDB_NO_PERMITTED_KEY;
+    if (ent->n_key_data == 0)
+        return KRB5_KDB_NO_MATCHING_KEY;
 
-    if (kvno == -1 && stype == -1 && ktype == -1)
-        kvno = 0;
+    /* Match the highest kvno if kvno is 0.  Key data is sorted in descending
+     * order of kvno. */
+    if (kvno == 0)
+        kvno = ent->key_data[0].key_data_kvno;
 
-    if (kvno == 0) {
-        /* Get the max key version */
-        for (i = 0; i < dbentp->n_key_data; i++) {
-            if (kvno < dbentp->key_data[i].key_data_kvno) {
-                kvno = dbentp->key_data[i].key_data_kvno;
-            }
-        }
-    }
+    for (i = *start; i < ent->n_key_data; i++) {
+        kd = &ent->key_data[i];
+        db_salttype = (kd->key_data_ver > 1) ? kd->key_data_type[1] :
+            KRB5_KDB_SALTTYPE_NORMAL;
 
-    maxkvno = -1;
-    idx = -1;
-    datap = (krb5_key_data *) NULL;
-    for (i = *start; i < dbentp->n_key_data; i++) {
-        krb5_boolean    similar;
-        krb5_int32      db_stype;
-
-        ret = 0;
-        if (dbentp->key_data[i].key_data_ver > 1) {
-            db_stype = dbentp->key_data[i].key_data_type[1];
-        } else {
-            db_stype = KRB5_KDB_SALTTYPE_NORMAL;
-        }
-
-        /* Match this entry against the arguments. */
-        if (ktype != -1) {
-            ret = krb5_c_enctype_compare(kcontext, (krb5_enctype) ktype,
-                                         dbentp->key_data[i].key_data_type[0],
-                                         &similar);
-            if (ret != 0 || !similar)
-                continue;
-        }
-        if (stype >= 0 && db_stype != stype)
+        /* Match this entry against the arguments.  Stop searching if we have
+         * passed the entries for the requested kvno. */
+        if (enctype != -1 && kd->key_data_type[0] != enctype)
             continue;
-        if (kvno >= 0 && dbentp->key_data[i].key_data_kvno != kvno)
+        if (salttype >= 0 && db_salttype != salttype)
+            continue;
+        if (kvno >= 0 && kd->key_data_kvno < kvno)
+            break;
+        if (kvno >= 0 && kd->key_data_kvno != kvno)
             continue;
 
         /* Filter out non-permitted enctypes. */
-        if (!krb5_is_permitted_enctype(kcontext,
-                                       dbentp->key_data[i].key_data_type[0])) {
+        if (!krb5_is_permitted_enctype(context, kd->key_data_type[0])) {
             saw_non_permitted = TRUE;
             continue;
         }
 
-        if (dbentp->key_data[i].key_data_kvno > maxkvno) {
-            maxkvno = dbentp->key_data[i].key_data_kvno;
-            datap = &dbentp->key_data[i];
-            idx = i;
-        }
+        *start = i + 1;
+        *kd_out = kd;
+        return 0;
     }
+
     /* If we scanned the whole set of keys and matched only non-permitted
      * enctypes, indicate that. */
-    if (maxkvno < 0 && *start == 0 && saw_non_permitted)
-        ret = KRB5_KDB_NO_PERMITTED_KEY;
-    if (maxkvno < 0)
-        return ret ? ret : KRB5_KDB_NO_MATCHING_KEY;
-    *kdatap = datap;
-    *start = idx+1;
-    return 0;
+    return (*start == 0 && saw_non_permitted) ? KRB5_KDB_NO_PERMITTED_KEY :
+        KRB5_KDB_NO_MATCHING_KEY;
 }
 
 /*
@@ -551,8 +524,7 @@ krb5_db_def_rename_principal(krb5_context kcontext,
     if (source == NULL || target == NULL)
         return EINVAL;
 
-    ret = krb5_db_get_principal(kcontext, source, KRB5_KDB_FLAG_ALIAS_OK,
-                                &kdb);
+    ret = krb5_db_get_principal(kcontext, source, 0, &kdb);
     if (ret)
         goto cleanup;
 

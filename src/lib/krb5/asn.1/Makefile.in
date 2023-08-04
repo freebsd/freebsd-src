@@ -9,19 +9,16 @@ EHDRDIR=$(BUILDTOP)/include/krb5/asn.1
 
 STLIBOBJS= \
 	asn1_encode.o\
-	asn1buf.o\
 	asn1_k_encode.o\
 	ldap_key_seq.o
 
 SRCS= \
 	$(srcdir)/asn1_encode.c\
-	$(srcdir)/asn1buf.c\
 	$(srcdir)/asn1_k_encode.c\
 	$(srcdir)/ldap_key_seq.c
 
 OBJS= \
 	$(OUTPRE)asn1_encode.$(OBJEXT)\
-	$(OUTPRE)asn1buf.$(OBJEXT)\
 	$(OUTPRE)asn1_k_encode.$(OBJEXT)\
 	$(OUTPRE)ldap_key_seq.$(OBJEXT)
 

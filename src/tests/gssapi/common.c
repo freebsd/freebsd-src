@@ -97,10 +97,14 @@ import_name(const char *str)
         nametype = GSS_C_NT_USER_NAME;
     else if (*str == 'p')
         nametype = (gss_OID)GSS_KRB5_NT_PRINCIPAL_NAME;
+    else if (*str == 'e')
+        nametype = (gss_OID)GSS_KRB5_NT_ENTERPRISE_NAME;
+    else if (*str == 'c')
+        nametype = (gss_OID)GSS_KRB5_NT_X509_CERT;
     else if (*str == 'h')
         nametype = GSS_C_NT_HOSTBASED_SERVICE;
     if (nametype == NULL || str[1] != ':')
-        errout("names must begin with u: or p: or h:");
+        errout("names must begin with u: or p: or e: or c: or h:");
     buf.value = (char *)str + 2;
     buf.length = strlen(str) - 2;
     major = gss_import_name(&minor, &buf, nametype, &name);
@@ -114,6 +118,19 @@ establish_contexts(gss_OID imech, gss_cred_id_t icred, gss_cred_id_t acred,
                    gss_ctx_id_t *actx, gss_name_t *src_name, gss_OID *amech,
                    gss_cred_id_t *deleg_cred)
 {
+    establish_contexts_ex(imech, icred, acred, tname, flags, ictx, actx,
+                          GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_CHANNEL_BINDINGS,
+                          NULL, src_name, amech, deleg_cred);
+}
+
+void
+establish_contexts_ex(gss_OID imech, gss_cred_id_t icred, gss_cred_id_t acred,
+                      gss_name_t tname, OM_uint32 flags, gss_ctx_id_t *ictx,
+                      gss_ctx_id_t *actx, gss_channel_bindings_t icb,
+                      gss_channel_bindings_t acb, OM_uint32 *aret_flags,
+                      gss_name_t *src_name, gss_OID *amech,
+                      gss_cred_id_t *deleg_cred)
+{
     OM_uint32 minor, imaj, amaj;
     gss_buffer_desc itok, atok;
 
@@ -124,17 +141,16 @@ establish_contexts(gss_OID imech, gss_cred_id_t icred, gss_cred_id_t acred,
     for (;;) {
         (void)gss_release_buffer(&minor, &itok);
         imaj = gss_init_sec_context(&minor, icred, ictx, tname, imech, flags,
-                                    GSS_C_INDEFINITE,
-                                    GSS_C_NO_CHANNEL_BINDINGS, &atok, NULL,
-                                    &itok, NULL, NULL);
+                                    GSS_C_INDEFINITE, icb, &atok, NULL, &itok,
+                                    NULL, NULL);
         check_gsserr("gss_init_sec_context", imaj, minor);
         if (amaj == GSS_S_COMPLETE)
             break;
 
         (void)gss_release_buffer(&minor, &atok);
-        amaj = gss_accept_sec_context(&minor, actx, acred, &itok,
-                                      GSS_C_NO_CHANNEL_BINDINGS, src_name,
-                                      amech, &atok, NULL, NULL, deleg_cred);
+        amaj = gss_accept_sec_context(&minor, actx, acred, &itok, acb,
+                                      src_name, amech, &atok, aret_flags, NULL,
+                                      deleg_cred);
         check_gsserr("gss_accept_sec_context", amaj, minor);
         (void)gss_release_buffer(&minor, &itok);
         if (imaj == GSS_S_COMPLETE)

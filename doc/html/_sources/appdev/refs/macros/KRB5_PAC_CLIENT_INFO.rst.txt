@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-CLIENT-INFO-data:
+
+KRB5_PAC_CLIENT_INFO
+====================
+
+..
+.. data:: KRB5_PAC_CLIENT_INFO
+..
+
+Client name and ticket info.
+
+
+
+=========================== ======================
+``KRB5_PAC_CLIENT_INFO``       ``10``
+=========================== ======================

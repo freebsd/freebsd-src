@@ -151,7 +151,7 @@ build-tests: $(TEST_NAMES)
 
 $(TEST_NAMES):
     @echo DBG: $@
-    $(CC) $(ALL_CFLAGS) -Fe$(TESTDIR)$(S)$@.exe -Fd$(OBJDIR)$(S)$@.obj $@.c $(OBJECTS) $(LIBS)
+    $(CC) $(ALL_CFLAGS) -Fe$(TESTDIR)$(S)$@.exe -Fd$(OBJDIR)$(S)$@.pdb $@.c $(OBJECTS) $(LIBS)
 # Clean .obj from .:
     $(RM) $@.$(OBJEXT)
 ##-- These two rules build each element of the list.

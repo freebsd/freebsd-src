@@ -72,11 +72,8 @@ typedef struct _prf_file_t *prf_file_t;
 
 /*
  * The profile flags
- *
- * Deprecated use of read/write profile flag.
- * Check whether file is writable lazily so we don't call access as often.
  */
-#define PROFILE_FILE_DEPRECATED_RW	0x0001
+#define PROFILE_FILE_NO_RELOAD		0x0001
 #define PROFILE_FILE_DIRTY		0x0002
 #define PROFILE_FILE_SHARED		0x0004
 

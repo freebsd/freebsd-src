@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Credential cache &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Credential cache &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="Kerberos V5 concepts" href="index.html" />
     <link rel="next" title="keytab" href="keytab_def.html" />
     <link rel="prev" title="Kerberos V5 concepts" href="index.html" /> 
   </head>
@@ -61,24 +59,24 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="credential-cache">
 <span id="ccache-definition"></span><h1>Credential cache<a class="headerlink" href="#credential-cache" title="Permalink to this headline">¶</a></h1>
-<p>A credential cache (or &#8220;ccache&#8221;) holds Kerberos credentials while they
-remain valid and, generally, while the user&#8217;s session lasts, so that
+<p>A credential cache (or “ccache”) holds Kerberos credentials while they
+remain valid and, generally, while the user’s session lasts, so that
 authenticating to a service multiple times (e.g., connecting to a web
-or mail server more than once) doesn&#8217;t require contacting the KDC
+or mail server more than once) doesn’t require contacting the KDC
 every time.</p>
 <p>A credential cache usually contains one initial ticket which is
 obtained using a password or another form of identity verification.
 If this ticket is a ticket-granting ticket, it can be used to obtain
 additional credentials without the password.  Because the credential
 cache does not store the password, less long-term damage can be done
-to the user&#8217;s account if the machine is compromised.</p>
+to the user’s account if the machine is compromised.</p>
 <p>A credentials cache stores a default client principal name, set when
 the cache is created.  This is the name shown at the top of the
-<a class="reference internal" href="../user/user_commands/klist.html#klist-1"><em>klist</em></a> <em>-A</em> output.</p>
+<a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a> <em>-A</em> output.</p>
 <p>Each normal cache entry includes a service principal name, a client
 principal name (which, in some ccache types, need not be the same as
 the default), lifetime information, and flags, along with the
@@ -86,8 +84,8 @@ credential itself.  There are also other entries, indicated by special
 names, that store additional information.</p>
 <div class="section" id="ccache-types">
 <h2>ccache types<a class="headerlink" href="#ccache-types" title="Permalink to this headline">¶</a></h2>
-<p>The credential cache interface, like the <a class="reference internal" href="keytab_def.html#keytab-definition"><em>keytab</em></a> and
-<a class="reference internal" href="rcache_def.html#rcache-definition"><em>replay cache</em></a> interfaces, uses <cite>TYPE:value</cite> strings to
+<p>The credential cache interface, like the <a class="reference internal" href="keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> and
+<a class="reference internal" href="rcache_def.html#rcache-definition"><span class="std std-ref">replay cache</span></a> interfaces, uses <cite>TYPE:value</cite> strings to
 indicate the type of credential cache and any associated cache naming
 data to use.</p>
 <p>There are several kinds of credentials cache supported in the MIT
@@ -105,16 +103,23 @@ with multiple Kerberos realms and KDCs.  For release 1.10 the
 directory must already exist.  In post-1.10 releases the
 requirement is for parent directory to exist and the current
 process must have permissions to create the directory if it does
-not exist. See <a class="reference internal" href="#col-ccache"><em>Collections of caches</em></a> for details.  New in release 1.10.</p>
+not exist. See <a class="reference internal" href="#col-ccache"><span class="std std-ref">Collections of caches</span></a> for details.  New in release 1.10.
+The following residual forms are supported:</p>
+<ul class="simple">
+<li>DIR:dirname</li>
+<li>DIR::dirpath/filename - a single cache within the directory</li>
+</ul>
+<p>Switching to a ccache of the latter type causes it to become the
+primary for the directory.</p>
 </li>
 <li><p class="first"><strong>FILE</strong> caches are the simplest and most portable. A simple flat
 file format is used to store one credential after another.  This is
 the default ccache type if no type is specified in a ccache name.</p>
 </li>
-<li><p class="first"><strong>KCM</strong> caches work by contacting a daemon process called <tt class="docutils literal"><span class="pre">kcm</span></tt>
-to perform cache operations.  If the cache name is just <tt class="docutils literal"><span class="pre">KCM:</span></tt>,
+<li><p class="first"><strong>KCM</strong> caches work by contacting a daemon process called <code class="docutils literal"><span class="pre">kcm</span></code>
+to perform cache operations.  If the cache name is just <code class="docutils literal"><span class="pre">KCM:</span></code>,
 the default cache as determined by the KCM daemon will be used.
-Newly created caches must generally be named <tt class="docutils literal"><span class="pre">KCM:uid:name</span></tt>,
+Newly created caches must generally be named <code class="docutils literal"><span class="pre">KCM:uid:name</span></code>,
 where <em>uid</em> is the effective user ID of the running process.</p>
 <p>KCM client support is new in release 1.13.  A KCM daemon has not
 yet been implemented in MIT krb5, but the client will interoperate
@@ -143,11 +148,11 @@ logs out, until the cache credentials expire.  This type of
 ccache requires support from the kernel; otherwise, it will fall
 back to the user keyring.</li>
 </ul>
-<p>See <a class="reference internal" href="#col-ccache"><em>Collections of caches</em></a> for details.</p>
+<p>See <a class="reference internal" href="#col-ccache"><span class="std std-ref">Collections of caches</span></a> for details.</p>
 </li>
-<li><p class="first"><strong>MEMORY</strong> caches are for storage of credentials that don&#8217;t need to
+<li><p class="first"><strong>MEMORY</strong> caches are for storage of credentials that don’t need to
 be made available outside of the current process.  For example, a
-memory ccache is used by <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> to store the
+memory ccache is used by <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> to store the
 administrative ticket used to contact the admin server.  Memory
 ccaches are faster than file ccaches and are automatically
 destroyed when the process exits.</p>
@@ -174,18 +179,18 @@ Collections are supported by the <strong>KCM</strong> ccache type in release 1.1
 <div class="section" id="tool-alterations-to-use-cache-collection">
 <h3>Tool alterations to use cache collection<a class="headerlink" href="#tool-alterations-to-use-cache-collection" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
-<li><a class="reference internal" href="../user/user_commands/kdestroy.html#kdestroy-1"><em>kdestroy</em></a> <em>-A</em> will destroy all caches in the collection.</li>
-<li>If the default cache type supports switching, <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><em>kinit</em></a>
+<li><a class="reference internal" href="../user/user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a> <em>-A</em> will destroy all caches in the collection.</li>
+<li>If the default cache type supports switching, <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>
 <em>princname</em> will search the collection for a matching cache and
 store credentials there, or will store credentials in a new unique
 cache of the default type if no existing cache for the principal
 exists.  Either way, kinit will switch to the selected cache.</li>
-<li><a class="reference internal" href="../user/user_commands/klist.html#klist-1"><em>klist</em></a> <em>-l</em> will list the caches in the collection.</li>
-<li><a class="reference internal" href="../user/user_commands/klist.html#klist-1"><em>klist</em></a> <em>-A</em> will show the content of all caches in the
+<li><a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a> <em>-l</em> will list the caches in the collection.</li>
+<li><a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a> <em>-A</em> will show the content of all caches in the
 collection.</li>
-<li><a class="reference internal" href="../user/user_commands/kswitch.html#kswitch-1"><em>kswitch</em></a> <em>-p princname</em> will search the collection for a
+<li><a class="reference internal" href="../user/user_commands/kswitch.html#kswitch-1"><span class="std std-ref">kswitch</span></a> <em>-p princname</em> will search the collection for a
 matching cache and switch to it.</li>
-<li><a class="reference internal" href="../user/user_commands/kswitch.html#kswitch-1"><em>kswitch</em></a> <em>-c cachename</em> will switch to a specified cache.</li>
+<li><a class="reference internal" href="../user/user_commands/kswitch.html#kswitch-1"><span class="std std-ref">kswitch</span></a> <em>-c cachename</em> will switch to a specified cache.</li>
 </ul>
 </div>
 </div>
@@ -195,9 +200,9 @@ matching cache and switch to it.</li>
 descending order of priority:</p>
 <ol class="arabic simple">
 <li>The <strong>KRB5CCNAME</strong> environment variable.  For example,
-<tt class="docutils literal"><span class="pre">KRB5CCNAME=DIR:/mydir/</span></tt>.</li>
-<li>The <strong>default_ccache_name</strong> profile variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>.</li>
-<li>The hardcoded default, <a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFCCNAME</em></a>.</li>
+<code class="docutils literal"><span class="pre">KRB5CCNAME=DIR:/mydir/</span></code>.</li>
+<li>The <strong>default_ccache_name</strong> profile variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</li>
+<li>The hardcoded default, <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a>.</li>
 </ol>
 </div>
 </div>
@@ -230,9 +235,7 @@ descending order of priority:</p>
 <li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="">Credential cache</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Credential cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
 <li class="toctree-l2"><a class="reference internal" href="rcache_def.html">replay cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
@@ -262,8 +265,8 @@ descending order of priority:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

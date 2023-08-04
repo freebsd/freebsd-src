@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-int16-struct:
+
+krb5_int16
+==========
+
+..
+.. c:type:: krb5_int16
+..
+
+
+
+
+Declaration
+------------
+
+typedef int16_t krb5_int16
+
+

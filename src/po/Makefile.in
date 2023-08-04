@@ -17,8 +17,7 @@ ETSRCS=	$(BUILDTOP)/lib/gssapi/generic/gssapi_err_generic.c \
 	$(BUILDTOP)/lib/krb5/error_tables/asn1_err.c \
 	$(BUILDTOP)/lib/krb5/error_tables/kv5m_err.c \
 	$(BUILDTOP)/lib/krb5/error_tables/krb524_err.c
-# This is a placeholder until we have an actual translation.
-CATALOGS=en_US.mo de.mo
+CATALOGS=en_US.mo de.mo ka.mo
 
 .SUFFIXES: .po .mo
 .po.mo:

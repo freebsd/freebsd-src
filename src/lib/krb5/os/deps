@@ -40,15 +40,15 @@ changepw.so changepw.po $(OUTPRE)changepw.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
   $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
   $(COM_ERR_DEPS) $(srcdir)/../krb/auth_con.h $(srcdir)/../krb/int-proto.h \
-  $(top_srcdir)/include/fake-addrinfo.h $(top_srcdir)/include/k5-buf.h \
-  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
-  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
-  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
-  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
-  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
-  $(top_srcdir)/include/krb5/locate_plugin.h $(top_srcdir)/include/krb5/plugin.h \
-  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
-  changepw.c os-proto.h
+  $(srcdir)/../rcache/memrcache.h $(top_srcdir)/include/fake-addrinfo.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/locate_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h changepw.c os-proto.h
 dnsglue.so dnsglue.po $(OUTPRE)dnsglue.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
   $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
@@ -163,7 +163,7 @@ hostrealm_dns.so hostrealm_dns.po $(OUTPRE)hostrealm_dns.$(OBJEXT): \
   $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/hostrealm_plugin.h \
   $(top_srcdir)/include/krb5/locate_plugin.h $(top_srcdir)/include/krb5/plugin.h \
   $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
-  dnsglue.h hostrealm_dns.c os-proto.h
+  hostrealm_dns.c os-proto.h
 hostrealm_domain.so hostrealm_domain.po $(OUTPRE)hostrealm_domain.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
   $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
@@ -329,8 +329,7 @@ locate_kdc.so locate_kdc.po $(OUTPRE)locate_kdc.$(OBJEXT): \
   $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
   $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/locate_plugin.h \
   $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
-  $(top_srcdir)/include/socket-utils.h dnsglue.h locate_kdc.c \
-  os-proto.h
+  $(top_srcdir)/include/socket-utils.h locate_kdc.c os-proto.h
 lock_file.so lock_file.po $(OUTPRE)lock_file.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
   $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \

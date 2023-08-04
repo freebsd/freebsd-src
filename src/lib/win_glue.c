@@ -111,10 +111,6 @@ void GetCallingAppVerInfo( char *AppTitle, char *AppVer, char *AppIni,
 		 * hey , I bet we don't have a version resource, let's
 		 * punt
 		 */
-#if 0
-		/* let's see what we have? (1813 means no resource) */
-		size = GetLastError(); 		/*  WIN32 only */
-#endif
 		*VSflag = FALSE;
 		return;
 	}
@@ -291,11 +287,6 @@ krb5_error_code krb5_vercheck()
 		return retval;
 #endif
 #ifdef VERSERV
-#if 0
-	/* Check library ? */
-	if (CallVersionServer(APP_TITLE, APP_VER, APP_INI, NULL))
-		return KRB5_LIB_EXPIRED;
-#endif
 	{
 #ifdef APP_TITLE
 		if (CallVersionServer(APP_TITLE, APP_VER, APP_INI, NULL))
@@ -358,12 +349,10 @@ control(int mode)
     switch (mode) {
     case DLL_STARTUP:
 	profile_library_initializer__auxinit();
-	cryptoint_initialize_library__auxinit();
 	krb5int_lib_init__auxinit();
 	break;
     case DLL_SHUTDOWN:
 	krb5int_lib_fini();
-	cryptoint_cleanup_library();
 	profile_library_finalizer();
 	break;
     }

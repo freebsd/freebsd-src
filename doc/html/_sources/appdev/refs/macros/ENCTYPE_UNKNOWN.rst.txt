@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _ENCTYPE-UNKNOWN-data:
+
+ENCTYPE_UNKNOWN
+===============
+
+..
+.. data:: ENCTYPE_UNKNOWN
+..
+
+
+
+
+====================== ======================
+``ENCTYPE_UNKNOWN``       ``0x01ff``
+====================== ======================

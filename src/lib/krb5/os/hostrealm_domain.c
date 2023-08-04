@@ -81,7 +81,7 @@ domain_fallback_realm(krb5_context context, krb5_hostrealm_moddata data,
     ret = profile_get_integer(context->profile, KRB5_CONF_LIBDEFAULTS,
                               KRB5_CONF_REALM_TRY_DOMAINS, 0, -1, &limit);
     if (ret)
-        return ret;
+        goto cleanup;
     suffix = uhost;
     while (limit-- >= 0 && (dot = strchr(suffix, '.')) != NULL) {
         drealm = string2data((char *)suffix);

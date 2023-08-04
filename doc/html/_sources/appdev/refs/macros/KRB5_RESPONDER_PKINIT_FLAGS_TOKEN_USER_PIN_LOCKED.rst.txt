@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-PKINIT-FLAGS-TOKEN-USER-PIN-LOCKED-data:
+
+KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED
+=================================================
+
+..
+.. data:: KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED
+..
+
+This flag indicates that the user PIN is locked, and you can't log in to the token with it.
+
+
+
+======================================================== ======================
+``KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED``       ``(1 << 2)``
+======================================================== ======================

@@ -32,7 +32,6 @@
 
 #include "k5-int.h"
 #include "k5-cmocka.h"
-#include <malloc.h>
 
 /* Call k5_parse_host_string() and check the result against the expected code,
  * hostname, and port. */

@@ -27,6 +27,8 @@
 #include "crypto_int.h"
 #include "aes.h"
 
+#ifdef K5_BUILTIN_AES
+
 /*
  * Private per-key data to cache after first generation.  We don't
  * want to mess with the imported AES implementation too much, so
@@ -35,7 +37,8 @@
  * we've initialized each half.
  */
 struct aes_key_info_cache {
-    aes_ctx enc_ctx, dec_ctx;
+    aes_encrypt_ctx enc_ctx;
+    aes_decrypt_ctx dec_ctx;
     krb5_boolean aesni;
 };
 #define CACHE(X) ((struct aes_key_info_cache *)((X)->cache))
@@ -85,10 +88,10 @@ aesni_expand_enc_key(krb5_key key)
     struct aes_key_info_cache *cache = CACHE(key);
 
     if (key->keyblock.length == 16)
-        k5_iEncExpandKey128(key->keyblock.contents, cache->enc_ctx.k_sch);
+        k5_iEncExpandKey128(key->keyblock.contents, cache->enc_ctx.ks);
     else
-        k5_iEncExpandKey256(key->keyblock.contents, cache->enc_ctx.k_sch);
-    cache->enc_ctx.n_rnd = 1;
+        k5_iEncExpandKey256(key->keyblock.contents, cache->enc_ctx.ks);
+    cache->enc_ctx.inf.l = 1;
 }
 
 static void
@@ -97,10 +100,10 @@ aesni_expand_dec_key(krb5_key key)
     struct aes_key_info_cache *cache = CACHE(key);
 
     if (key->keyblock.length == 16)
-        k5_iDecExpandKey128(key->keyblock.contents, cache->dec_ctx.k_sch);
+        k5_iDecExpandKey128(key->keyblock.contents, cache->dec_ctx.ks);
     else
-        k5_iDecExpandKey256(key->keyblock.contents, cache->dec_ctx.k_sch);
-    cache->dec_ctx.n_rnd = 1;
+        k5_iDecExpandKey256(key->keyblock.contents, cache->dec_ctx.ks);
+    cache->dec_ctx.inf.l = 1;
 }
 
 static inline void
@@ -111,7 +114,7 @@ aesni_enc(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
 
     d.in_block = data;
     d.out_block = data;
-    d.expanded_key = cache->enc_ctx.k_sch;
+    d.expanded_key = cache->enc_ctx.ks;
     d.iv = iv;
     d.num_blocks = nblocks;
     if (key->keyblock.length == 16)
@@ -128,7 +131,7 @@ aesni_dec(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
 
     d.in_block = data;
     d.out_block = data;
-    d.expanded_key = cache->dec_ctx.k_sch;
+    d.expanded_key = cache->dec_ctx.ks;
     d.iv = iv;
     d.num_blocks = nblocks;
     if (key->keyblock.length == 16)
@@ -154,7 +157,7 @@ xorblock(const unsigned char *in, unsigned char *out)
 {
     size_t q;
 
-    for (q = 0; q < BLOCK_SIZE; q += 4)
+    for (q = 0; q < AES_BLOCK_SIZE; q += 4)
         store_32_n(load_32_n(out + q) ^ load_32_n(in + q), out + q);
 }
 
@@ -166,7 +169,7 @@ init_key_cache(krb5_key key)
     key->cache = malloc(sizeof(struct aes_key_info_cache));
     if (key->cache == NULL)
         return ENOMEM;
-    CACHE(key)->enc_ctx.n_rnd = CACHE(key)->dec_ctx.n_rnd = 0;
+    CACHE(key)->enc_ctx.inf.l = CACHE(key)->dec_ctx.inf.l = 0;
     CACHE(key)->aesni = aesni_supported_by_cpu();
     return 0;
 }
@@ -174,24 +177,24 @@ init_key_cache(krb5_key key)
 static inline void
 expand_enc_key(krb5_key key)
 {
-    if (CACHE(key)->enc_ctx.n_rnd)
+    if (CACHE(key)->enc_ctx.inf.l != 0)
         return;
     if (aesni_supported(key))
         aesni_expand_enc_key(key);
-    else if (aes_enc_key(key->keyblock.contents, key->keyblock.length,
-                         &CACHE(key)->enc_ctx) != aes_good)
+    else if (aes_encrypt_key(key->keyblock.contents, key->keyblock.length,
+                             &CACHE(key)->enc_ctx) != EXIT_SUCCESS)
         abort();
 }
 
 static inline void
 expand_dec_key(krb5_key key)
 {
-    if (CACHE(key)->dec_ctx.n_rnd)
+    if (CACHE(key)->dec_ctx.inf.l != 0)
         return;
     if (aesni_supported(key))
         aesni_expand_dec_key(key);
-    else if (aes_dec_key(key->keyblock.contents, key->keyblock.length,
-                         &CACHE(key)->dec_ctx) != aes_good)
+    else if (aes_decrypt_key(key->keyblock.contents, key->keyblock.length,
+                             &CACHE(key)->dec_ctx) != EXIT_SUCCESS)
         abort();
 }
 
@@ -203,11 +206,11 @@ cbc_enc(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
         aesni_enc(key, data, nblocks, iv);
         return;
     }
-    for (; nblocks > 0; nblocks--, data += BLOCK_SIZE) {
+    for (; nblocks > 0; nblocks--, data += AES_BLOCK_SIZE) {
         xorblock(iv, data);
-        if (aes_enc_blk(data, data, &CACHE(key)->enc_ctx) != aes_good)
+        if (aes_encrypt(data, data, &CACHE(key)->enc_ctx) != EXIT_SUCCESS)
             abort();
-        memcpy(iv, data, BLOCK_SIZE);
+        memcpy(iv, data, AES_BLOCK_SIZE);
     }
 }
 
@@ -215,29 +218,29 @@ cbc_enc(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
 static inline void
 cbc_dec(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
 {
-    unsigned char last_cipherblock[BLOCK_SIZE];
+    unsigned char last_cipherblock[AES_BLOCK_SIZE];
 
     if (aesni_supported(key)) {
         aesni_dec(key, data, nblocks, iv);
         return;
     }
     assert(nblocks > 0);
-    data += (nblocks - 1) * BLOCK_SIZE;
-    memcpy(last_cipherblock, data, BLOCK_SIZE);
-    for (; nblocks > 0; nblocks--, data -= BLOCK_SIZE) {
-        if (aes_dec_blk(data, data, &CACHE(key)->dec_ctx) != aes_good)
+    data += (nblocks - 1) * AES_BLOCK_SIZE;
+    memcpy(last_cipherblock, data, AES_BLOCK_SIZE);
+    for (; nblocks > 0; nblocks--, data -= AES_BLOCK_SIZE) {
+        if (aes_decrypt(data, data, &CACHE(key)->dec_ctx) != EXIT_SUCCESS)
             abort();
-        xorblock(nblocks == 1 ? iv : data - BLOCK_SIZE, data);
+        xorblock(nblocks == 1 ? iv : data - AES_BLOCK_SIZE, data);
     }
-    memcpy(iv, last_cipherblock, BLOCK_SIZE);
+    memcpy(iv, last_cipherblock, AES_BLOCK_SIZE);
 }
 
 krb5_error_code
 krb5int_aes_encrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
                     size_t num_data)
 {
-    unsigned char iv[BLOCK_SIZE], block[BLOCK_SIZE];
-    unsigned char blockN2[BLOCK_SIZE], blockN1[BLOCK_SIZE];
+    unsigned char iv[AES_BLOCK_SIZE], block[AES_BLOCK_SIZE];
+    unsigned char blockN2[AES_BLOCK_SIZE], blockN1[AES_BLOCK_SIZE];
     size_t input_length, nblocks, ncontig;
     struct iov_cursor cursor;
 
@@ -245,22 +248,22 @@ krb5int_aes_encrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
         return ENOMEM;
     expand_enc_key(key);
 
-    k5_iov_cursor_init(&cursor, data, num_data, BLOCK_SIZE, FALSE);
+    k5_iov_cursor_init(&cursor, data, num_data, AES_BLOCK_SIZE, FALSE);
 
     input_length = iov_total_length(data, num_data, FALSE);
-    nblocks = (input_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    nblocks = (input_length + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
     if (nblocks == 1) {
         k5_iov_cursor_get(&cursor, block);
-        memset(iv, 0, BLOCK_SIZE);
+        memset(iv, 0, AES_BLOCK_SIZE);
         cbc_enc(key, block, 1, iv);
         k5_iov_cursor_put(&cursor, block);
         return 0;
     }
 
     if (ivec != NULL)
-        memcpy(iv, ivec->data, BLOCK_SIZE);
+        memcpy(iv, ivec->data, AES_BLOCK_SIZE);
     else
-        memset(iv, 0, BLOCK_SIZE);
+        memset(iv, 0, AES_BLOCK_SIZE);
 
     while (nblocks > 2) {
         ncontig = iov_cursor_contig_blocks(&cursor);
@@ -289,7 +292,7 @@ krb5int_aes_encrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     k5_iov_cursor_put(&cursor, blockN2);
 
     if (ivec != NULL)
-        memcpy(ivec->data, iv, BLOCK_SIZE);
+        memcpy(ivec->data, iv, AES_BLOCK_SIZE);
 
     return 0;
 }
@@ -298,8 +301,9 @@ krb5_error_code
 krb5int_aes_decrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
                     size_t num_data)
 {
-    unsigned char iv[BLOCK_SIZE], dummy_iv[BLOCK_SIZE], block[BLOCK_SIZE];
-    unsigned char blockN2[BLOCK_SIZE], blockN1[BLOCK_SIZE];
+    unsigned char iv[AES_BLOCK_SIZE], dummy_iv[AES_BLOCK_SIZE];
+    unsigned char block[AES_BLOCK_SIZE];
+    unsigned char blockN2[AES_BLOCK_SIZE], blockN1[AES_BLOCK_SIZE];
     size_t input_length, last_len, nblocks, ncontig;
     struct iov_cursor cursor;
 
@@ -307,23 +311,23 @@ krb5int_aes_decrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
         return ENOMEM;
     expand_dec_key(key);
 
-    k5_iov_cursor_init(&cursor, data, num_data, BLOCK_SIZE, FALSE);
+    k5_iov_cursor_init(&cursor, data, num_data, AES_BLOCK_SIZE, FALSE);
 
     input_length = iov_total_length(data, num_data, FALSE);
-    nblocks = (input_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    last_len = input_length - (nblocks - 1) * BLOCK_SIZE;
+    nblocks = (input_length + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
+    last_len = input_length - (nblocks - 1) * AES_BLOCK_SIZE;
     if (nblocks == 1) {
         k5_iov_cursor_get(&cursor, block);
-        memset(iv, 0, BLOCK_SIZE);
+        memset(iv, 0, AES_BLOCK_SIZE);
         cbc_dec(key, block, 1, iv);
         k5_iov_cursor_put(&cursor, block);
         return 0;
     }
 
     if (ivec != NULL)
-        memcpy(iv, ivec->data, BLOCK_SIZE);
+        memcpy(iv, ivec->data, AES_BLOCK_SIZE);
     else
-        memset(iv, 0, BLOCK_SIZE);
+        memset(iv, 0, AES_BLOCK_SIZE);
 
     while (nblocks > 2) {
         ncontig = iov_cursor_contig_blocks(&cursor);
@@ -346,7 +350,7 @@ krb5int_aes_decrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     k5_iov_cursor_get(&cursor, blockN2);
     k5_iov_cursor_get(&cursor, blockN1);
     if (ivec != NULL)
-        memcpy(ivec->data, blockN2, BLOCK_SIZE);
+        memcpy(ivec->data, blockN2, AES_BLOCK_SIZE);
 
     /* Decrypt the second-to-last ciphertext block, using the final ciphertext
      * block as the CBC IV.  This produces the final plaintext block. */
@@ -355,7 +359,7 @@ krb5int_aes_decrypt(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
 
     /* Use the final bits of the decrypted plaintext to pad the last ciphertext
      * block, and decrypt it to produce the second-to-last plaintext block. */
-    memcpy(blockN1 + last_len, blockN2 + last_len, BLOCK_SIZE - last_len);
+    memcpy(blockN1 + last_len, blockN2 + last_len, AES_BLOCK_SIZE - last_len);
     cbc_dec(key, blockN1, 1, iv);
 
     /* Put the last two plaintext blocks back into the iovec. */
@@ -404,3 +408,5 @@ const struct krb5_enc_provider krb5int_enc_aes256 = {
     krb5int_default_free_state,
     aes_key_cleanup
 };
+
+#endif /* K5_BUILTIN_AES */

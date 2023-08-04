@@ -25,6 +25,9 @@
  */
 
 #include "crypto_int.h"
+
+#ifdef K5_OPENSSL_HMAC
+
 #include <openssl/x509.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -35,6 +38,7 @@ krb5int_pbkdf2_hmac(const struct krb5_hash_provider *hash,
                     const krb5_data *pass, const krb5_data *salt)
 {
     const EVP_MD *md = NULL;
+    int ok;
 
     /* Get the message digest handle corresponding to the hash. */
     if (hash == &krb5int_hash_sha1)
@@ -46,8 +50,10 @@ krb5int_pbkdf2_hmac(const struct krb5_hash_provider *hash,
     if (md == NULL)
         return KRB5_CRYPTO_INTERNAL;
 
-    PKCS5_PBKDF2_HMAC(pass->data, pass->length, (unsigned char *)salt->data,
-                      salt->length, count, md, out->length,
-                      (unsigned char *)out->data);
-    return 0;
+    ok = PKCS5_PBKDF2_HMAC(pass->data, pass->length,
+                           (unsigned char *)salt->data, salt->length, count,
+                           md, out->length, (unsigned char *)out->data);
+    return ok ? 0 : KRB5_CRYPTO_INTERNAL;
 }
+
+#endif /* K5_OPENSSL_HMAC */

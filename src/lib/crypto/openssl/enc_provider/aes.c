@@ -25,9 +25,16 @@
  */
 
 #include "crypto_int.h"
+
+#ifdef K5_OPENSSL_AES
+
 #include <openssl/evp.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#else
 #include <openssl/aes.h>
 #include <openssl/modes.h>
+#endif
 
 /* proto's */
 static krb5_error_code
@@ -125,6 +132,90 @@ cbc_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     zap(oblock, BLOCK_SIZE);
     return (ret == 1) ? 0 : KRB5_CRYPTO_INTERNAL;
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+static krb5_error_code
+do_cts(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+       size_t num_data, size_t dlen, int encrypt)
+{
+    krb5_error_code ret;
+    int outlen, len;
+    unsigned char *oblock = NULL, *dbuf = NULL;
+    unsigned char iv_cts[IV_CTS_BUF_SIZE];
+    struct iov_cursor cursor;
+    OSSL_PARAM params[2], *p = params;
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+
+    memset(iv_cts, 0, sizeof(iv_cts));
+    if (ivec != NULL && ivec->data != NULL){
+        if (ivec->length != sizeof(iv_cts))
+            return KRB5_CRYPTO_INTERNAL;
+        memcpy(iv_cts, ivec->data, ivec->length);
+    }
+
+    if (key->keyblock.length == 16)
+        cipher = EVP_CIPHER_fetch(NULL, "AES-128-CBC-CTS", NULL);
+    else if (key->keyblock.length == 32)
+        cipher = EVP_CIPHER_fetch(NULL, "AES-256-CBC-CTS", NULL);
+    if (cipher == NULL)
+        return KRB5_CRYPTO_INTERNAL;
+
+    oblock = OPENSSL_malloc(dlen);
+    dbuf = OPENSSL_malloc(dlen);
+    ctx = EVP_CIPHER_CTX_new();
+    if (oblock == NULL || dbuf == NULL || ctx == NULL) {
+        ret = ENOMEM;
+        goto cleanup;
+    }
+
+    k5_iov_cursor_init(&cursor, data, num_data, dlen, FALSE);
+    k5_iov_cursor_get(&cursor, dbuf);
+
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_CIPHER_PARAM_CTS_MODE,
+                                            "CS3", 0);
+    *p = OSSL_PARAM_construct_end();
+    if (!EVP_CipherInit_ex2(ctx, cipher, key->keyblock.contents, iv_cts,
+                            encrypt, params) ||
+        !EVP_CipherUpdate(ctx, oblock, &outlen, dbuf, dlen) ||
+        !EVP_CipherFinal_ex(ctx, oblock + outlen, &len)) {
+        ret = KRB5_CRYPTO_INTERNAL;
+        goto cleanup;
+    }
+
+    if (ivec != NULL && ivec->data != NULL &&
+        !EVP_CIPHER_CTX_get_updated_iv(ctx, ivec->data, sizeof(iv_cts))) {
+        ret = KRB5_CRYPTO_INTERNAL;
+        goto cleanup;
+    }
+
+    k5_iov_cursor_put(&cursor, oblock);
+
+    ret = 0;
+cleanup:
+    OPENSSL_clear_free(oblock, dlen);
+    OPENSSL_clear_free(dbuf, dlen);
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(cipher);
+    return ret;
+}
+
+static inline krb5_error_code
+cts_encr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+         size_t num_data, size_t dlen)
+{
+    return do_cts(key, ivec, data, num_data, dlen, 1);
+}
+
+static inline krb5_error_code
+cts_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+         size_t num_data, size_t dlen)
+{
+    return do_cts(key, ivec, data, num_data, dlen, 0);
+}
+
+#else /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 static krb5_error_code
 cts_encr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
@@ -231,6 +322,8 @@ cts_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     return ret;
 }
 
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+
 krb5_error_code
 krb5int_aes_encrypt(krb5_key key, const krb5_data *ivec,
                     krb5_crypto_iov *data, size_t num_data)
@@ -301,3 +394,5 @@ const struct krb5_enc_provider krb5int_enc_aes256 = {
     krb5int_aes_init_state,
     krb5int_default_free_state
 };
+
+#endif /* K5_OPENSSL_AES */

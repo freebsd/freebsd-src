@@ -90,7 +90,7 @@ krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
     krb5_deltat lifetime;
     krb5_gss_name_t ret_name;
     krb5_principal princ;
-    gss_OID_set mechs;
+    gss_OID_set mechs = GSS_C_NO_OID_SET;
     OM_uint32 major, tmpmin, ret;
 
     ret = GSS_S_FAILURE;
@@ -127,11 +127,11 @@ krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
     if ((code = krb5_timeofday(context, &now))) {
         *minor_status = code;
         ret = GSS_S_FAILURE;
-        goto fail;
+        goto cleanup;
     }
 
     if (cred->expire != 0) {
-        lifetime = ts_delta(cred->expire, now);
+        lifetime = ts_interval(now, cred->expire);
         if (lifetime < 0)
             lifetime = 0;
     }
@@ -158,7 +158,7 @@ krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
             *minor_status = code;
             save_error_info(*minor_status, context);
             ret = GSS_S_FAILURE;
-            goto fail;
+            goto cleanup;
         }
     }
 
@@ -174,7 +174,7 @@ krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
             if (ret_name)
                 kg_release_name(context, &ret_name);
             /* *minor_status set above */
-            goto fail;
+            goto cleanup;
         }
     }
 
@@ -190,21 +190,20 @@ krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
 
     if (cred_usage)
         *cred_usage = cred->usage;
-    k5_mutex_unlock(&cred->lock);
 
-    if (mechanisms)
+    if (mechanisms) {
         *mechanisms = mechs;
+        mechs = GSS_C_NO_OID_SET;
+    }
 
-    if (cred_handle == GSS_C_NO_CREDENTIAL)
-        krb5_gss_release_cred(minor_status, (gss_cred_id_t *)&cred);
-
-    krb5_free_context(context);
     *minor_status = 0;
-    return((lifetime == 0)?GSS_S_CREDENTIALS_EXPIRED:GSS_S_COMPLETE);
-fail:
+    ret = (lifetime == 0) ? GSS_S_CREDENTIALS_EXPIRED : GSS_S_COMPLETE;
+
+cleanup:
     k5_mutex_unlock(&cred->lock);
     krb5_gss_release_cred(&tmpmin, &defcred);
     krb5_free_context(context);
+    (void)generic_gss_release_oid_set(&tmpmin, &mechs);
     return ret;
 }
 

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-FAST-REP-data:
+
+KRB5_KEYUSAGE_FAST_REP
+======================
+
+..
+.. data:: KRB5_KEYUSAGE_FAST_REP
+..
+
+
+
+
+============================= ======================
+``KRB5_KEYUSAGE_FAST_REP``       ``52``
+============================= ======================

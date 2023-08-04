@@ -8,7 +8,7 @@
  *
  * A copy of this license is available in file LICENSE in the
  * top-level directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 /* Copyright 2001 Computing Research Labs, New Mexico State University
  *
@@ -32,7 +32,7 @@
  */
 
 /*
- * This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ * This work is part of OpenLDAP Software <https://www.openldap.org/>.
  * $OpenLDAP: pkg/ldap/libraries/liblunicode/ucdata/ucgendat.c,v 1.43 2008/01/07 23:20:05 kurt Exp $
  * $Id: ucgendat.c,v 1.4 2001/01/02 18:46:20 mleisher Exp $"
  */
@@ -485,8 +485,8 @@ add_decomp(krb5_ui_4 code, short compat)
          * Shift the decomps up by one if the codes don't match.
          */
         for (j = *pdecomps_used; j > i; j--)
-          (void) memcpy((char *) &(*pdecomps)[j], (char *) &(*pdecomps)[j - 1],
-                        sizeof(_decomp_t));
+          (void) memmove((char *) &(*pdecomps)[j], (char *) &(*pdecomps)[j - 1],
+                         sizeof(_decomp_t));
     }
 
     /*
@@ -509,8 +509,8 @@ add_decomp(krb5_ui_4 code, short compat)
 
     (*pdecomps)[i].code = code;
     (*pdecomps)[i].used = dectmp_size;
-    (void) memcpy((char *) (*pdecomps)[i].decomp, (char *) dectmp,
-                  sizeof(krb5_ui_4) * dectmp_size);
+    (void) memmove((char *) (*pdecomps)[i].decomp, (char *) dectmp,
+                   sizeof(krb5_ui_4) * dectmp_size);
 
     /*
      * NOTICE: This needs changing later so it is more general than simply
@@ -549,8 +549,8 @@ add_title(krb5_ui_4 code)
          * Shift the array up by one.
          */
         for (j = title_used; j > i; j--)
-          (void) memcpy((char *) &title[j], (char *) &title[j - 1],
-                        sizeof(_case_t));
+          (void) memmove((char *) &title[j], (char *) &title[j - 1],
+                         sizeof(_case_t));
     }
 
     title[i].key = cases[2];    /* Title */
@@ -596,8 +596,8 @@ add_upper(krb5_ui_4 code)
          * Shift the array up by one.
          */
         for (j = upper_used; j > i; j--)
-          (void) memcpy((char *) &upper[j], (char *) &upper[j - 1],
-                        sizeof(_case_t));
+          (void) memmove((char *) &upper[j], (char *) &upper[j - 1],
+                         sizeof(_case_t));
     }
 
     upper[i].key = cases[0];    /* Upper */
@@ -643,8 +643,8 @@ add_lower(krb5_ui_4 code)
          * Shift the array up by one.
          */
         for (j = lower_used; j > i; j--)
-          (void) memcpy((char *) &lower[j], (char *) &lower[j - 1],
-                        sizeof(_case_t));
+          (void) memmove((char *) &lower[j], (char *) &lower[j - 1],
+                         sizeof(_case_t));
     }
 
     lower[i].key = cases[1];    /* Lower */

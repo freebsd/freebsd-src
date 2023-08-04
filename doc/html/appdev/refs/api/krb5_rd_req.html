@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_rd_req - Parse and decrypt a KRB_AP_REQ message. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_rd_req - Parse and decrypt a KRB_AP_REQ message. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_rd_safe - Process KRB-SAFE message." href="krb5_rd_safe.html" />
     <link rel="prev" title="krb5_rd_rep_dce - Parse and decrypt a KRB_AP_REP message for DCE RPC." href="krb5_rd_rep_dce.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-rd-req-parse-and-decrypt-a-krb-ap-req-message">
 <h1>krb5_rd_req -  Parse and decrypt a KRB_AP_REQ message.<a class="headerlink" href="#krb5-rd-req-parse-and-decrypt-a-krb-ap-req-message" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_rd_req">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_rd_req</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a> *<em>&nbsp;auth_context</em>, const <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;inbuf</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;server</em>, <a class="reference internal" href="../types/krb5_keytab.html#c.krb5_keytab" title="krb5_keytab">krb5_keytab</a><em>&nbsp;keytab</em>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a> *<em>&nbsp;ap_req_options</em>, <a class="reference internal" href="../types/krb5_ticket.html#c.krb5_ticket" title="krb5_ticket">krb5_ticket</a> **<em>&nbsp;ticket</em><big>)</big><a class="headerlink" href="#c.krb5_rd_req" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_rd_req</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a> *<em>&nbsp;auth_context</em>, const <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;inbuf</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;server</em>, <a class="reference internal" href="../types/krb5_keytab.html#c.krb5_keytab" title="krb5_keytab">krb5_keytab</a><em>&nbsp;keytab</em>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a> *<em>&nbsp;ap_req_options</em>, <a class="reference internal" href="../types/krb5_ticket.html#c.krb5_ticket" title="krb5_ticket">krb5_ticket</a> **<em>&nbsp;ticket</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_rd_req" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -97,8 +95,8 @@
 </tbody>
 </table>
 <p>This function parses, decrypts and verifies a AP-REQ message from <em>inbuf</em> and stores the authenticator in <em>auth_context</em> .</p>
-<p>If a keyblock was specified in <em>auth_context</em> using <a class="reference internal" href="krb5_auth_con_setuseruserkey.html#c.krb5_auth_con_setuseruserkey" title="krb5_auth_con_setuseruserkey"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setuseruserkey()</span></tt></a> , that key is used to decrypt the ticket in AP-REQ message and <em>keytab</em> is ignored. In this case, <em>server</em> should be specified as a complete principal name to allow for proper transited-path checking and replay cache selection.</p>
-<p>Otherwise, the decryption key is obtained from <em>keytab</em> , or from the default keytab if it is NULL. In this case, <em>server</em> may be a complete principal name, a matching principal (see <a class="reference internal" href="krb5_sname_match.html#c.krb5_sname_match" title="krb5_sname_match"><tt class="xref c c-func docutils literal"><span class="pre">krb5_sname_match()</span></tt></a> ), or NULL to match any principal name. The keys tried against the encrypted part of the ticket are determined as follows:</p>
+<p>If a keyblock was specified in <em>auth_context</em> using <a class="reference internal" href="krb5_auth_con_setuseruserkey.html#c.krb5_auth_con_setuseruserkey" title="krb5_auth_con_setuseruserkey"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setuseruserkey()</span></code></a> , that key is used to decrypt the ticket in AP-REQ message and <em>keytab</em> is ignored. In this case, <em>server</em> should be specified as a complete principal name to allow for proper transited-path checking and replay cache selection.</p>
+<p>Otherwise, the decryption key is obtained from <em>keytab</em> , or from the default keytab if it is NULL. In this case, <em>server</em> may be a complete principal name, a matching principal (see <a class="reference internal" href="krb5_sname_match.html#c.krb5_sname_match" title="krb5_sname_match"><code class="xref c c-func docutils literal"><span class="pre">krb5_sname_match()</span></code></a> ), or NULL to match any principal name. The keys tried against the encrypted part of the ticket are determined as follows:</p>
 <blockquote>
 <div><ul class="simple">
 <li>If <em>server</em> is a complete principal name, then its entry in <em>keytab</em> is tried.</li>
@@ -110,8 +108,8 @@
 <p>If the <em>remote_addr</em> field of <em>auth_context</em> is set, the request must come from that address.</p>
 <p>If a replay cache handle is provided in the <em>auth_context</em> , the authenticator and ticket are verified against it. If no conflict is found, the new authenticator is then stored in the replay cache of <em>auth_context</em> .</p>
 <p>Various other checks are performed on the decoded data, including cross-realm policy, clockskew, and ticket validation times.</p>
-<p>On success the authenticator, subkey, and remote sequence number of the request are stored in <em>auth_context</em> . If the <a class="reference internal" href="../macros/AP_OPTS_MUTUAL_REQUIRED.html#AP_OPTS_MUTUAL_REQUIRED" title="AP_OPTS_MUTUAL_REQUIRED"><tt class="xref py py-data docutils literal"><span class="pre">AP_OPTS_MUTUAL_REQUIRED</span></tt></a> bit is set, the local sequence number is XORed with the remote sequence number in the request.</p>
-<p>Use <a class="reference internal" href="krb5_free_ticket.html#c.krb5_free_ticket" title="krb5_free_ticket"><tt class="xref c c-func docutils literal"><span class="pre">krb5_free_ticket()</span></tt></a> to free <em>ticket</em> when it is no longer needed.</p>
+<p>On success the authenticator, subkey, and remote sequence number of the request are stored in <em>auth_context</em> . If the <a class="reference internal" href="../macros/AP_OPTS_MUTUAL_REQUIRED.html#AP_OPTS_MUTUAL_REQUIRED" title="AP_OPTS_MUTUAL_REQUIRED"><code class="xref py py-data docutils literal"><span class="pre">AP_OPTS_MUTUAL_REQUIRED</span></code></a> bit is set, the local sequence number is XORed with the remote sequence number in the request.</p>
+<p>Use <a class="reference internal" href="krb5_free_ticket.html#c.krb5_free_ticket" title="krb5_free_ticket"><code class="xref c c-func docutils literal"><span class="pre">krb5_free_ticket()</span></code></a> to free <em>ticket</em> when it is no longer needed.</p>
 </div>
 
 
@@ -170,8 +168,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

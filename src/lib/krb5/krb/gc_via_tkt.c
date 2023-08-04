@@ -34,7 +34,8 @@
 #include "fast.h"
 
 static krb5_error_code
-kdcrep2creds(krb5_context context, krb5_kdc_rep *pkdcrep, krb5_address *const *address,
+kdcrep2creds(krb5_context context, krb5_kdc_rep *pkdcrep,
+             krb5_address *const *address, krb5_boolean is_skey,
              krb5_data *psectkt, krb5_creds **ppcreds)
 {
     krb5_error_code retval;
@@ -69,7 +70,7 @@ kdcrep2creds(krb5_context context, krb5_kdc_rep *pkdcrep, krb5_address *const *a
     (*ppcreds)->magic = KV5M_CREDS;
 
     (*ppcreds)->authdata = NULL;                        /* not used */
-    (*ppcreds)->is_skey = psectkt->length != 0;
+    (*ppcreds)->is_skey = is_skey;
 
     if (pkdcrep->enc_part2->caddrs) {
         if ((retval = krb5_copy_addresses(context, pkdcrep->enc_part2->caddrs,
@@ -131,17 +132,6 @@ check_reply_server(krb5_context context, krb5_flags kdcoptions,
         /* Canonicalization not requested, and not a TGS referral. */
         return KRB5_KDCREP_MODIFIED;
     }
-#if 0
-    /*
-     * Is this check needed?  find_nxt_kdc() in gc_frm_kdc.c already
-     * effectively checks this.
-     */
-    if (krb5_realm_compare(context, in_cred->client, in_cred->server) &&
-        data_eq(*in_cred->server->data[1], *in_cred->client->realm)) {
-        /* Attempted to rewrite local TGS. */
-        return KRB5_KDCREP_MODIFIED;
-    }
-#endif
     return 0;
 }
 
@@ -185,7 +175,7 @@ krb5int_process_tgs_reply(krb5_context context,
     krb5_error_code retval;
     krb5_kdc_rep *dec_rep = NULL;
     krb5_error *err_reply = NULL;
-    krb5_boolean s4u2self;
+    krb5_boolean s4u2self, is_skey;
 
     s4u2self = krb5int_find_pa_data(context, in_padata,
                                     KRB5_PADATA_S4U_X509_USER) ||
@@ -267,9 +257,12 @@ krb5int_process_tgs_reply(krb5_context context,
         /* Final hop, check whether KDC supports S4U2Self */
         if (krb5_principal_compare(context, dec_rep->client, in_cred->server))
             retval = KRB5KDC_ERR_PADATA_TYPE_NOSUPP;
-    } else if ((kdcoptions & KDC_OPT_CNAME_IN_ADDL_TKT) == 0) {
-        /* XXX for constrained delegation this check must be performed by caller
-         * as we don't have access to the key to decrypt the evidence ticket.
+    } else if ((kdcoptions & KDC_OPT_CNAME_IN_ADDL_TKT) == 0 ||
+               IS_TGS_PRINC(dec_rep->ticket->server)) {
+        /*
+         * For constrained delegation this check must be performed by caller,
+         * as we can't decrypt the evidence ticket.  However, if it is a
+         * referral the client should match the TGT client like normal.
          */
         if (!krb5_principal_compare(context, dec_rep->client, tkt->client))
             retval = KRB5_KDCREP_MODIFIED;
@@ -321,7 +314,8 @@ krb5int_process_tgs_reply(krb5_context context,
         dec_rep->enc_part2->enc_padata = NULL;
     }
 
-    retval = kdcrep2creds(context, dec_rep, address,
+    is_skey = (kdcoptions & KDC_OPT_ENC_TKT_IN_SKEY);
+    retval = kdcrep2creds(context, dec_rep, address, is_skey,
                           &in_cred->second_ticket, out_cred);
     if (retval != 0)
         goto cleanup;
@@ -351,7 +345,7 @@ krb5_get_cred_via_tkt_ext(krb5_context context, krb5_creds *tkt,
     krb5_timestamp timestamp;
     krb5_int32 nonce;
     krb5_keyblock *subkey = NULL;
-    int tcp_only = 0, use_master = 0;
+    int tcp_only = 0, use_primary = 0;
     struct krb5int_fast_request_state *fast_state = NULL;
 
     request_data.data = NULL;
@@ -373,9 +367,9 @@ krb5_get_cred_via_tkt_ext(krb5_context context, krb5_creds *tkt,
         goto cleanup;
 
 send_again:
-    use_master = 0;
+    use_primary = 0;
     retval = krb5_sendto_kdc(context, &request_data, &in_cred->server->realm,
-                             &response_data, &use_master, tcp_only);
+                             &response_data, &use_primary, tcp_only);
     if (retval == 0) {
         if (krb5_is_krb_error(&response_data)) {
             if (!tcp_only) {

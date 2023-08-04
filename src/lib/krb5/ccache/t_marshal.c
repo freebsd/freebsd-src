@@ -162,7 +162,7 @@ const struct test {
         /* Version 4 header */
         16,
         "\x05\x04\x00\x0C\x00\x01\x00\x08\x00\x00\x01\x2C\x00\x00\xD4\x31",
-        /* Verion 4 principal */
+        /* Version 4 principal */
         37,
         "\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x0B\x4B\x52\x42\x54"
         "\x45\x53\x54\x2E\x43\x4F\x4D\x00\x00\x00\x0A\x74\x65\x73\x74\x63"
@@ -268,13 +268,14 @@ main(int argc, char **argv)
     krb5_context context;
     krb5_ccache cache;
     krb5_principal princ;
-    krb5_creds cred1, cred2;
+    krb5_creds cred1, cred2, *alloc_cred;
     krb5_cc_cursor cursor;
     const char *filename;
     char *ccname, filebuf[256];
     int version, fd;
     const struct test *t;
     struct k5buf buf;
+    krb5_data ser_data, *alloc_data;
 
     if (argc != 2)
         abort();
@@ -284,6 +285,18 @@ main(int argc, char **argv)
 
     if (krb5_init_context(&context) != 0)
         abort();
+
+    /* Test public functions for unmarshalling and marshalling. */
+    ser_data = make_data((char *)tests[3].cred1, tests[3].cred1len);
+    if (krb5_unmarshal_credentials(context, &ser_data, &alloc_cred) != 0)
+        abort();
+    verify_cred1(alloc_cred);
+    if (krb5_marshal_credentials(context, alloc_cred, &alloc_data) != 0)
+        abort();
+    assert(alloc_data->length == tests[3].cred1len);
+    assert(memcmp(tests[3].cred1, alloc_data->data, alloc_data->length) == 0);
+    krb5_free_data(context, alloc_data);
+    krb5_free_creds(context, alloc_cred);
 
     for (version = FIRST_VERSION; version <= 4; version++) {
         t = &tests[version - 1];

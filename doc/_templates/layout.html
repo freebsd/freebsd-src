@@ -2,7 +2,6 @@
 {% set rellinks = [('search', 'Enter search criteria', 'S', 'Search')] +
                   rellinks +
                   [('index', 'Full Table of Contents', 'C', 'Contents')] %}
-{% set css_files = css_files + ["_static/kerb.css"] %}
 
 {# Add a "feedback" button to the rellinks #}
 {%- macro feedback_rellinks() %}
@@ -38,7 +37,7 @@
             {% if logo %}
                 <p class="logo">
                     {# Link logo to kerberos.org #}
-                    <a href="http://kerberos.org"> <img class="logo"
+                    <a href="https://kerberos.org"> <img class="logo"
                     src="{{ pathto('_static/' + logo, 1) }}" alt="Logo" /></a>
                 </p>
             {% endif %}

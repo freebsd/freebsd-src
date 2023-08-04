@@ -87,7 +87,7 @@
  *
  * + Use gethostbyname2, inet_aton and other IPv6 or thread-safe
  *   functions if available.  But, see
- *   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=135182 for one
+ *   https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=135182 for one
  *   gethostbyname2 problem on Linux.  And besides, if a platform is
  *   supporting IPv6 at all, they really should be doing getaddrinfo
  *   by now.
@@ -888,16 +888,10 @@ fake_getaddrinfo (const char *name, const char *serv,
        If it's not set, don't accept such names.  */
     if (flags & AI_NUMERICHOST) {
         struct in_addr addr4;
-#if 0
-        ret = inet_aton (name, &addr4);
-        if (ret)
-            return EAI_NONAME;
-#else
         addr4.s_addr = inet_addr (name);
         if (addr4.s_addr == 0xffffffff || addr4.s_addr == -1)
             /* 255.255.255.255 or parse error, both bad */
             return EAI_NONAME;
-#endif
         ret = fai_add_entry (&res, &addr4, port, &template);
     } else {
         ret = fai_add_hosts_by_name (name, &template, port, flags,
@@ -1173,7 +1167,7 @@ getaddrinfo (const char *name, const char *serv, const struct addrinfo *hint,
        that, we'll have to start replacing and freeing all of the
        ai_canonname fields.
 
-       Ref: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=133668 .
+       Ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=133668 .
 
        Since it's dependent on the target hostname, it's hard to check
        for at configure time.  The bug was fixed in glibc 2.3.4.

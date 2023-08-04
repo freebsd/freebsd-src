@@ -91,7 +91,6 @@
 extern time_t get_date(char *); /* kadmin/cli/getdate.o */
 
 char *yes = "yes\n"; /* \n to compare against result of fgets */
-krb5_key_salt_tuple def_kslist = {ENCTYPE_DES_CBC_CRC, KRB5_KDB_SALTTYPE_NORMAL};
 
 krb5_data tgt_princ_entries[] = {
     {0, KRB5_TGS_NAME_SIZE, KRB5_TGS_NAME},
@@ -136,20 +135,17 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
     time_t now;
     int mask = 0;
     krb5_error_code retval = 0;
-    krb5_boolean no_msg = FALSE;
-
-    krb5_boolean print_usage = FALSE;
     char *me = progname;
 
     time(&now);
     if (!strcmp(argv[*i], "-maxtktlife")) {
         if (++(*i) > argc-1)
-            goto err_usage;
+            return 0;
         date = get_date(argv[*i]);
         if (date == (time_t)(-1)) {
             retval = EINVAL;
             com_err(me, retval, _("while providing time specification"));
-            goto err_nomsg;
+            return 0;
         }
         rparams->max_life = date-now;
         mask |= LDAP_REALM_MAXTICKETLIFE;
@@ -158,13 +154,13 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
 
     else if (!strcmp(argv[*i], "-maxrenewlife")) {
         if (++(*i) > argc-1)
-            goto err_usage;
+            return 0;
 
         date = get_date(argv[*i]);
         if (date == (time_t)(-1)) {
             retval = EINVAL;
             com_err(me, retval, _("while providing time specification"));
-            goto err_nomsg;
+            return 0;
         }
         rparams->max_renewable_life = date-now;
         mask |= LDAP_REALM_MAXRENEWLIFE;
@@ -174,7 +170,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_POSTDATED;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_forwardable")) {
@@ -184,7 +180,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_FORWARDABLE;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_renewable")) {
@@ -193,7 +189,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_RENEWABLE;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_proxiable")) {
@@ -202,7 +198,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_PROXIABLE;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_dup_skey")) {
@@ -211,7 +207,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_DUP_SKEY;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     }
@@ -222,7 +218,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags &= (int)(~KRB5_KDB_REQUIRES_PRE_AUTH);
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "requires_hwauth")) {
@@ -231,7 +227,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags &= (int)(~KRB5_KDB_REQUIRES_HW_AUTH);
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_svr")) {
@@ -240,7 +236,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_SVR;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_tgs_req")) {
@@ -249,7 +245,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_TGT_BASED;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "allow_tix")) {
@@ -258,7 +254,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags |= KRB5_KDB_DISALLOW_ALL_TIX;
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "needchange")) {
@@ -267,7 +263,7 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags &= (int)(~KRB5_KDB_REQUIRES_PWCHANGE);
         else
-            goto err_usage;
+            return 0;
 
         mask |= LDAP_REALM_KRBTICKETFLAGS;
     } else if (!strcmp((argv[*i] + 1), "password_changing_service")) {
@@ -276,15 +272,10 @@ get_ticket_policy(krb5_ldap_realm_params *rparams, int *i, char *argv[],
         else if (*(argv[*i]) == '-')
             rparams->tktflags &= (int)(~KRB5_KDB_PWCHANGE_SERVICE);
         else
-            goto err_usage;
+            return 0;
 
         mask |=LDAP_REALM_KRBTICKETFLAGS;
     }
-err_usage:
-    print_usage = TRUE;
-
-err_nomsg:
-    no_msg = TRUE;
 
     return mask;
 }
@@ -306,29 +297,6 @@ create_fixed_special(krb5_context context, struct realm_info *rinfo,
     krb5_free_principal(context, princ);
     return ret;
 
-}
-
-/* Create a special principal using one specified component and the
- * canonicalized local hostname. */
-static krb5_error_code
-create_hostbased_special(krb5_context context, struct realm_info *rinfo,
-                         krb5_keyblock *mkey, const char *comp1)
-{
-    krb5_error_code ret;
-    krb5_principal princ = NULL;
-
-    ret = krb5_sname_to_principal(context, NULL, comp1, KRB5_NT_SRV_HST,
-                                  &princ);
-    if (ret)
-        goto cleanup;
-    ret = krb5_set_principal_realm(context, princ, global_params.realm);
-    if (ret)
-        goto cleanup;
-    ret = kdb_ldap_create_principal(context, princ, TGT_KEY, rinfo, mkey);
-
-cleanup:
-    krb5_free_principal(context, princ);
-    return ret;
 }
 
 /* Create all special principals for the realm. */
@@ -361,20 +329,10 @@ create_special_princs(krb5_context context, krb5_principal master_princ,
     if (ret)
         return ret;
 
-    /* Create kadmin/admin and kadmin/<hostname>. */
+    /* Create kadmin/admin. */
     rblock.max_life = ADMIN_LIFETIME;
     rblock.flags = KRB5_KDB_DISALLOW_TGT_BASED;
     ret = create_fixed_special(context, &rblock, mkey, "kadmin", "admin");
-    if (ret)
-        return ret;
-    ret = create_hostbased_special(context, &rblock, mkey, "kadmin");
-    if (ret)
-        return ret;
-
-    /* Create kiprop/<hostname>. */
-    rblock.max_life = global_params.max_life;
-    rblock.flags = 0;
-    ret = create_hostbased_special(context, &rblock, mkey, "kiprop");
     if (ret)
         return ret;
 
@@ -1338,7 +1296,7 @@ kdb_ldap_create_principal(krb5_context context, krb5_principal princ,
                                                      now, &db_create_princ)))
         goto cleanup;
 
-    entry.attributes = pblock->flags;
+    entry.attributes = pblock->flags | KRB5_KDB_LOCKDOWN_KEYS;
     entry.max_life = pblock->max_life;
     entry.max_renewable_life = pblock->max_rlife;
     entry.expiration = pblock->expiration;

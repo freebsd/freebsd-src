@@ -7,22 +7,23 @@
  *
  * A copy of this license is available in file LICENSE in the top-level
  * directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 
 /*
- * This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ * This work is part of OpenLDAP Software <https://www.openldap.org/>.
  * $OpenLDAP: pkg/ldap/libraries/liblunicode/ucstr.c,v 1.40 2008/03/04 06:24:05 hyc Exp $
  */
 
 #include "k5-int.h"
 #include "k5-utf8.h"
 #include "k5-unicode.h"
+#include "k5-input.h"
 #include "ucdata/ucdata.h"
 
 #include <ctype.h>
 
-int
+static int
 krb5int_ucstrncmp(
 		  const krb5_unicode * u1,
 		  const krb5_unicode * u2,
@@ -39,7 +40,7 @@ krb5int_ucstrncmp(
     return 0;
 }
 
-int
+static int
 krb5int_ucstrncasecmp(
 		      const krb5_unicode * u1,
 		      const krb5_unicode * u2,
@@ -59,245 +60,33 @@ krb5int_ucstrncasecmp(
     return 0;
 }
 
-krb5_unicode *
-krb5int_ucstrnchr(
-		  const krb5_unicode * u,
-		  size_t n,
-		  krb5_unicode c)
+/* Return true if data contains valid UTF-8 sequences. */
+krb5_boolean
+k5_utf8_validate(const krb5_data *data)
 {
-    for (; 0 < n; ++u, --n) {
-	if (*u == c) {
-	    return (krb5_unicode *) u;
+    struct k5input in;
+    int len, tmplen, i;
+    const uint8_t *bytes;
+
+    k5_input_init(&in, data->data, data->length);
+    while (!in.status && in.len > 0) {
+	len = KRB5_UTF8_CHARLEN(in.ptr);
+	if (len < 1 || len > 4)
+	    return FALSE;
+	bytes = k5_input_get_bytes(&in, len);
+	if (bytes == NULL)
+	    return FALSE;
+	if (KRB5_UTF8_CHARLEN2(bytes, tmplen) != len)
+	    return FALSE;
+	for (i = 1; i < len; i++) {
+	    if ((bytes[i] & 0xc0) != 0x80)
+		return FALSE;
 	}
     }
-
-    return NULL;
+    return !in.status;
 }
 
-krb5_unicode *
-krb5int_ucstrncasechr(
-		      const krb5_unicode * u,
-		      size_t n,
-		      krb5_unicode c)
-{
-    c = uctolower(c);
-    for (; 0 < n; ++u, --n) {
-	if ((krb5_unicode) uctolower(*u) == c) {
-	    return (krb5_unicode *) u;
-	}
-    }
-
-    return NULL;
-}
-
-void
-krb5int_ucstr2upper(
-		    krb5_unicode * u,
-		    size_t n)
-{
-    for (; 0 < n; ++u, --n) {
-	*u = uctoupper(*u);
-    }
-}
-
-#define TOUPPER(c)  (islower(c) ? toupper(c) : (c))
 #define TOLOWER(c)  (isupper(c) ? tolower(c) : (c))
-
-krb5_error_code
-krb5int_utf8_normalize(
-		       const krb5_data * data,
-		       krb5_data ** newdataptr,
-		       unsigned flags)
-{
-    int i, j, len, clen, outpos = 0, ucsoutlen, outsize;
-    char *out = NULL, *outtmp, *s;
-    krb5_ucs4 *ucs = NULL, *p, *ucsout = NULL;
-    krb5_data *newdata;
-    krb5_error_code retval = 0;
-
-    static unsigned char mask[] = {
-    0, 0x7f, 0x1f, 0x0f, 0x07, 0x03, 0x01};
-
-    unsigned casefold = flags & KRB5_UTF8_CASEFOLD;
-    unsigned approx = flags & KRB5_UTF8_APPROX;
-
-    *newdataptr = NULL;
-
-    s = data->data;
-    len = data->length;
-
-    newdata = malloc(sizeof(*newdata));
-    if (newdata == NULL)
-	return ENOMEM;
-
-    /*
-     * Should first check to see if string is already in proper normalized
-     * form. This is almost as time consuming as the normalization though.
-     */
-
-    /* finish off everything up to character before first non-ascii */
-    if (KRB5_UTF8_ISASCII(s)) {
-	if (casefold) {
-	    outsize = len + 7;
-	    out = malloc(outsize);
-	    if (out == NULL) {
-		retval = ENOMEM;
-		goto cleanup;
-	    }
-
-	    for (i = 1; (i < len) && KRB5_UTF8_ISASCII(s + i); i++) {
-		out[outpos++] = TOLOWER(s[i - 1]);
-	    }
-	    if (i == len) {
-		out[outpos++] = TOLOWER(s[len - 1]);
-		goto cleanup;
-	    }
-	} else {
-	    for (i = 1; (i < len) && KRB5_UTF8_ISASCII(s + i); i++) {
-		/* empty */
-	    }
-
-	    if (i == len) {
-		newdata->length = len;
-		newdata->data = k5memdup0(s, len, &retval);
-		if (newdata->data == NULL)
-		    goto cleanup;
-		*newdataptr = newdata;
-		return 0;
-	    }
-	    outsize = len + 7;
-	    out = malloc(outsize);
-	    if (out == NULL) {
-		retval = ENOMEM;
-		goto cleanup;
-	    }
-	    outpos = i - 1;
-	    memcpy(out, s, outpos);
-	}
-    } else {
-	outsize = len + 7;
-	out = malloc(outsize);
-	if (out == NULL) {
-	    retval = ENOMEM;
-	    goto cleanup;
-	}
-	i = 0;
-    }
-
-    p = ucs = malloc(len * sizeof(*ucs));
-    if (ucs == NULL) {
-	retval = ENOMEM;
-	goto cleanup;
-    }
-    /* convert character before first non-ascii to ucs-4 */
-    if (i > 0) {
-	*p = casefold ? TOLOWER(s[i - 1]) : s[i - 1];
-	p++;
-    }
-    /* s[i] is now first non-ascii character */
-    for (;;) {
-	/* s[i] is non-ascii */
-	/* convert everything up to next ascii to ucs-4 */
-	while (i < len) {
-	    clen = KRB5_UTF8_CHARLEN2(s + i, clen);
-	    if (clen == 0) {
-		retval = KRB5_ERR_INVALID_UTF8;
-		goto cleanup;
-	    }
-	    if (clen == 1) {
-		/* ascii */
-		break;
-	    }
-	    *p = s[i] & mask[clen];
-	    i++;
-	    for (j = 1; j < clen; j++) {
-		if ((s[i] & 0xc0) != 0x80) {
-		    retval = KRB5_ERR_INVALID_UTF8;
-		    goto cleanup;
-		}
-		*p <<= 6;
-		*p |= s[i] & 0x3f;
-		i++;
-	    }
-	    if (casefold) {
-		*p = uctolower(*p);
-	    }
-	    p++;
-	}
-	/* normalize ucs of length p - ucs */
-	uccompatdecomp(ucs, p - ucs, &ucsout, &ucsoutlen);
-	if (approx) {
-	    for (j = 0; j < ucsoutlen; j++) {
-		if (ucsout[j] < 0x80) {
-		    out[outpos++] = ucsout[j];
-		}
-	    }
-	} else {
-	    ucsoutlen = uccanoncomp(ucsout, ucsoutlen);
-	    /* convert ucs to utf-8 and store in out */
-	    for (j = 0; j < ucsoutlen; j++) {
-		/*
-		 * allocate more space if not enough room for 6 bytes and
-		 * terminator
-		 */
-		if (outsize - outpos < 7) {
-		    outsize = ucsoutlen - j + outpos + 6;
-		    outtmp = realloc(out, outsize);
-		    if (outtmp == NULL) {
-			retval = ENOMEM;
-			goto cleanup;
-		    }
-		    out = outtmp;
-		}
-		outpos += krb5int_ucs4_to_utf8(ucsout[j], &out[outpos]);
-	    }
-	}
-
-	free(ucsout);
-	ucsout = NULL;
-
-	if (i == len) {
-	    break;
-	}
-
-	/* Allocate more space in out if necessary */
-	if (len - i >= outsize - outpos) {
-	    outsize += 1 + ((len - i) - (outsize - outpos));
-	    outtmp = realloc(out, outsize);
-	    if (outtmp == NULL) {
-		retval = ENOMEM;
-		goto cleanup;
-	    }
-	    out = outtmp;
-	}
-	/* s[i] is ascii */
-	/* finish off everything up to char before next non-ascii */
-	for (i++; (i < len) && KRB5_UTF8_ISASCII(s + i); i++) {
-	    out[outpos++] = casefold ? TOLOWER(s[i - 1]) : s[i - 1];
-	}
-	if (i == len) {
-	    out[outpos++] = casefold ? TOLOWER(s[len - 1]) : s[len - 1];
-	    break;
-	}
-	/* convert character before next non-ascii to ucs-4 */
-	*ucs = casefold ? TOLOWER(s[i - 1]) : s[i - 1];
-	p = ucs + 1;
-    }
-
-cleanup:
-    free(ucs);
-    free(ucsout);
-    if (retval) {
-	free(out);
-	free(newdata);
-	return retval;
-    }
-    out[outpos] = '\0';
-    newdata->data = out;
-    newdata->length = outpos;
-    *newdataptr = newdata;
-    return 0;
-}
 
 /* compare UTF8-strings, optionally ignore casing */
 /* slow, should be optimized */

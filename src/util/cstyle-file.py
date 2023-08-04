@@ -57,7 +57,7 @@ from subprocess import call
 from tempfile import NamedTemporaryFile
 
 def warn(ln, msg):
-    print '%5d  %s' % (ln, msg)
+    print('%5d  %s' % (ln, msg))
 
 
 # If lines[0] indicates the krb5 C style, try to use emacs to reindent
@@ -70,7 +70,7 @@ def emacs_reindent(lines):
     util_dir = os.path.dirname(sys.argv[0])
     cstyle_el = os.path.join(util_dir, 'krb5-c-style.el')
     reindent_el = os.path.join(util_dir, 'krb5-batch-reindent.el')
-    with NamedTemporaryFile(suffix='.c') as f:
+    with NamedTemporaryFile(suffix='.c', mode='w+') as f:
         f.write(''.join(lines))
         f.flush()
         args = ['emacs', '-q', '-batch', '-l', cstyle_el, '-l', reindent_el,

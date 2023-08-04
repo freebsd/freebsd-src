@@ -5,7 +5,7 @@ LOCALINCLUDES= -I.
 
 # Keep LIBMAJOR in sync with KRB5_KDB_API_VERSION in include/kdb.h.
 LIBBASE=kdb5
-LIBMAJOR=9
+LIBMAJOR=10
 LIBMINOR=0
 LIBINITFUNC=kdb_init_lock_list
 LIBFINIFUNC=kdb_fini_lock_list
@@ -16,7 +16,7 @@ SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libgssrpc$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT)
-SHLIB_EXPLIBS=-lgssrpc -lkrb5 -lk5crypto -lcom_err $(SUPPORT_LIB) $(DL_LIB) $(LIBS)
+SHLIB_EXPLIBS=-lgssrpc -lkrb5 -lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) $(DL_LIB) $(LIBS)
 
 adb_err.$(OBJEXT): adb_err.c
 adb_err.c adb_err.h: $(srcdir)/adb_err.et

@@ -10,7 +10,6 @@
 #include "k5-platform.h"
 #include "cc-int.h"
 #include "kt-int.h"
-#include "rc-int.h"
 #include "os-proto.h"
 
 /*
@@ -40,9 +39,6 @@ int krb5int_lib_init(void)
 
     bindtextdomain(KRB5_TEXTDOMAIN, LOCALEDIR);
 
-    err = krb5int_rc_finish_init();
-    if (err)
-        return err;
 #ifndef LEAN_CLIENT
     err = krb5int_kt_initialize();
     if (err)
@@ -87,7 +83,6 @@ void krb5int_lib_fini(void)
 #ifndef LEAN_CLIENT
     krb5int_kt_finalize();
 #endif /* LEAN_CLIENT */
-    krb5int_rc_terminate();
 
 #if defined(_WIN32) || defined(USE_CCAPI)
     krb5_stdcc_shutdown();

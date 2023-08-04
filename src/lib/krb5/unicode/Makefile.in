@@ -6,19 +6,15 @@ BUILDTOP=$(REL)..$(S)..$(S)..
 ##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
 
 XXDIR = $(srcdir)/ucdata/
-XXHEADERS = ucdata.h ure.h uctable.h
-XXSRCS  = ucdata.c ucgendat.c ure.c urestubs.c
+XXHEADERS = ucdata.h uctable.h
+XXSRCS  = ucdata.c ucgendat.c
 
 STLIBOBJS= \
 	ucdata.o	\
-	ure.o		\
-	urestubs.o	\
 	ucstr.o		
 
 OBJS= \
 	$(OUTPRE)ucdata.$(OBJEXT)	\
-	$(OUTPRE)ure.$(OBJEXT)		\
-	$(OUTPRE)urestubs.$(OBJEXT)	\
 	$(OUTPRE)ucstr.$(OBJEXT)	
 
 SRCS= \
@@ -57,9 +53,6 @@ ucgendat: ucgendat.o
 ##DOS##		$(CP) $(srcdir)\ucdata\ucdata.c ucdata.c
 ##DOS##		$(CP) $(srcdir)\ucdata\ucgendat.c ucgendat.c
 ##DOS##		$(CP) $(srcdir)\ucdata\uctable.h uctable.h
-##DOS##		$(CP) $(srcdir)\ure\ure.h ure.h
-##DOS##		$(CP) $(srcdir)\ure\ure.c ure.c
-##DOS##		$(CP) $(srcdir)\ure\urestubs.c urestubs.c
 ##DOS##		$(CP) nul .links
 
 $(XXSRCS) $(XXHEADERS) : .links

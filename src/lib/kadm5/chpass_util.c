@@ -217,7 +217,9 @@ kadm5_ret_t _kadm5_chpass_principal_util(void *server_handle,
         until = ts_incr(princ_ent.last_pwd_change, policy_ent.pw_min_life);
 
         time_string = ctime(&until);
-        if (*(ptr = &time_string[strlen(time_string)-1]) == '\n')
+        if (time_string == NULL)
+            time_string = "(error)";
+        else if (*(ptr = &time_string[strlen(time_string)-1]) == '\n')
             *ptr = '\0';
 
         snprintf(msg_ret, msg_len, string_text(CHPASS_UTIL_PASSWORD_TOO_SOON),

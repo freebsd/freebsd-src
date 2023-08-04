@@ -25,6 +25,7 @@
  */
 
 #include "k5-int.h"
+#include "int-proto.h"
 
 krb5_boolean KRB5_CALLCONV
 krb5_sname_match(krb5_context context, krb5_const_principal matching,
@@ -54,4 +55,16 @@ krb5_sname_match(krb5_context context, krb5_const_principal matching,
 
     /* All elements match. */
     return TRUE;
+}
+
+krb5_boolean
+k5_sname_wildcard_host(krb5_context context, krb5_const_principal mprinc)
+{
+    if (mprinc == NULL)
+        return TRUE;
+
+    if (mprinc->type != KRB5_NT_SRV_HST || mprinc->length != 2)
+        return FALSE;
+
+    return context->ignore_acceptor_hostname || mprinc->data[1].length == 0;
 }

@@ -25,9 +25,16 @@
  */
 
 #include "crypto_int.h"
+
+#ifdef K5_OPENSSL_CAMELLIA
+
 #include <openssl/evp.h>
 #include <openssl/camellia.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#else
 #include <openssl/modes.h>
+#endif
 
 static krb5_error_code
 cbc_enc(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
@@ -45,31 +52,6 @@ cts_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
 #define BLOCK_SIZE 16
 #define NUM_BITS 8
 #define IV_CTS_BUF_SIZE 16 /* 16 - hardcoded in CRYPTO_cts128_en/decrypt */
-
-static void
-xorblock(unsigned char *out, const unsigned char *in)
-{
-    int z;
-    for (z = 0; z < CAMELLIA_BLOCK_SIZE / 4; z++) {
-        unsigned char *outptr = &out[z * 4];
-        unsigned char *inptr = (unsigned char *)&in[z * 4];
-        /*
-         * Use unaligned accesses.  On x86, this will probably still be faster
-         * than multiple byte accesses for unaligned data, and for aligned data
-         * should be far better.  (One test indicated about 2.4% faster
-         * encryption for 1024-byte messages.)
-         *
-         * If some other CPU has really slow unaligned-word or byte accesses,
-         * perhaps this function (or the load/store helpers?) should test for
-         * alignment first.
-         *
-         * If byte accesses are faster than unaligned words, we may need to
-         * conditionalize on CPU type, as that may be hard to determine
-         * automatically.
-         */
-        store_32_n(load_32_n(outptr) ^ load_32_n(inptr), outptr);
-    }
-}
 
 static const EVP_CIPHER *
 map_mode(unsigned int len)
@@ -149,6 +131,90 @@ cbc_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     zap(oblock, BLOCK_SIZE);
     return (ret == 1) ? 0 : KRB5_CRYPTO_INTERNAL;
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+static krb5_error_code
+do_cts(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+       size_t num_data, size_t dlen, int encrypt)
+{
+    krb5_error_code ret;
+    int outlen, len;
+    unsigned char *oblock = NULL, *dbuf = NULL;
+    unsigned char iv_cts[IV_CTS_BUF_SIZE];
+    struct iov_cursor cursor;
+    OSSL_PARAM params[2], *p = params;
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+
+    memset(iv_cts, 0, sizeof(iv_cts));
+    if (ivec != NULL && ivec->data != NULL){
+        if (ivec->length != sizeof(iv_cts))
+            return KRB5_CRYPTO_INTERNAL;
+        memcpy(iv_cts, ivec->data, ivec->length);
+    }
+
+    if (key->keyblock.length == 16)
+        cipher = EVP_CIPHER_fetch(NULL, "CAMELLIA-128-CBC-CTS", NULL);
+    else if (key->keyblock.length == 32)
+        cipher = EVP_CIPHER_fetch(NULL, "CAMELLIA-256-CBC-CTS", NULL);
+    if (cipher == NULL)
+        return KRB5_CRYPTO_INTERNAL;
+
+    oblock = OPENSSL_malloc(dlen);
+    dbuf = OPENSSL_malloc(dlen);
+    ctx = EVP_CIPHER_CTX_new();
+    if (oblock == NULL || dbuf == NULL || ctx == NULL) {
+        ret = ENOMEM;
+        goto cleanup;
+    }
+
+    k5_iov_cursor_init(&cursor, data, num_data, dlen, FALSE);
+    k5_iov_cursor_get(&cursor, dbuf);
+
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_CIPHER_PARAM_CTS_MODE,
+                                            "CS3", 0);
+    *p = OSSL_PARAM_construct_end();
+    if (!EVP_CipherInit_ex2(ctx, cipher, key->keyblock.contents, iv_cts,
+                            encrypt, params) ||
+        !EVP_CipherUpdate(ctx, oblock, &outlen, dbuf, dlen) ||
+        !EVP_CipherFinal_ex(ctx, oblock + outlen, &len)) {
+        ret = KRB5_CRYPTO_INTERNAL;
+        goto cleanup;
+    }
+
+    if (ivec != NULL && ivec->data != NULL &&
+        !EVP_CIPHER_CTX_get_updated_iv(ctx, ivec->data, sizeof(iv_cts))) {
+        ret = KRB5_CRYPTO_INTERNAL;
+        goto cleanup;
+    }
+
+    k5_iov_cursor_put(&cursor, oblock);
+
+    ret = 0;
+cleanup:
+    OPENSSL_clear_free(oblock, dlen);
+    OPENSSL_clear_free(dbuf, dlen);
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(cipher);
+    return ret;
+}
+
+static inline krb5_error_code
+cts_encr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+         size_t num_data, size_t dlen)
+{
+    return do_cts(key, ivec, data, num_data, dlen, 1);
+}
+
+static inline krb5_error_code
+cts_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
+         size_t num_data, size_t dlen)
+{
+    return do_cts(key, ivec, data, num_data, dlen, 0);
+}
+
+#else /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 static krb5_error_code
 cts_encr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
@@ -255,7 +321,9 @@ cts_decr(krb5_key key, const krb5_data *ivec, krb5_crypto_iov *data,
     return ret;
 }
 
-static krb5_error_code
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+
+krb5_error_code
 krb5int_camellia_encrypt(krb5_key key, const krb5_data *ivec,
                          krb5_crypto_iov *data, size_t num_data)
 {
@@ -295,7 +363,22 @@ krb5int_camellia_decrypt(krb5_key key, const krb5_data *ivec,
     return ret;
 }
 
-krb5_error_code
+#ifdef K5_BUILTIN_CMAC
+
+static void
+xorblock(uint8_t *out, const uint8_t *in)
+{
+    int z;
+
+    for (z = 0; z < CAMELLIA_BLOCK_SIZE / 4; z++) {
+        uint8_t *outptr = &out[z * 4];
+        const uint8_t *inptr = &in[z * 4];
+
+        store_32_n(load_32_n(outptr) ^ load_32_n(inptr), outptr);
+    }
+}
+
+static krb5_error_code
 krb5int_camellia_cbc_mac(krb5_key key, const krb5_crypto_iov *data,
                          size_t num_data, const krb5_data *iv,
                          krb5_data *output)
@@ -327,6 +410,10 @@ krb5int_camellia_cbc_mac(krb5_key key, const krb5_crypto_iov *data,
     return 0;
 }
 
+#else
+#define krb5int_camellia_cbc_mac NULL
+#endif
+
 static krb5_error_code
 krb5int_camellia_init_state (const krb5_keyblock *key, krb5_keyusage usage,
                              krb5_data *state)
@@ -343,7 +430,7 @@ const struct krb5_enc_provider krb5int_enc_camellia128 = {
     16, 16,
     krb5int_camellia_encrypt,
     krb5int_camellia_decrypt,
-    krb5int_camellia_cbc_mac,
+    krb5int_camellia_cbc_mac,   /* NULL if K5_BUILTIN_CMAC not defined */
     krb5int_camellia_init_state,
     krb5int_default_free_state
 };
@@ -353,7 +440,9 @@ const struct krb5_enc_provider krb5int_enc_camellia256 = {
     32, 32,
     krb5int_camellia_encrypt,
     krb5int_camellia_decrypt,
-    krb5int_camellia_cbc_mac,
+    krb5int_camellia_cbc_mac,   /* NULL if K5_BUILTIN_CMAC not defined */
     krb5int_camellia_init_state,
     krb5int_default_free_state
 };
+
+#endif /* K5_OPENSSL_CAMELLIA */

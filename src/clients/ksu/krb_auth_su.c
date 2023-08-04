@@ -23,7 +23,7 @@
  *     direct, indirect, or consequential damages with respect to any
  *     claim by the user or distributor of the ksu software.
  *
- * KSU was writen by:  Ari Medvinsky, ari@isi.edu
+ * KSU was written by:  Ari Medvinsky, ari@isi.edu
  */
 
 #include "ksu.h"
@@ -183,21 +183,19 @@ krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
     if (code ) {
         com_err(prog_name, code, _("while reading password for '%s'\n"),
                 client_name);
-        memset(password, 0, sizeof(password));
         return (FALSE);
     }
 
     if ( pwsize == 0) {
         fprintf(stderr, _("No password given\n"));
         *zero_password = TRUE;
-        memset(password, 0, sizeof(password));
         return (FALSE);
     }
 
     code = krb5_get_init_creds_password(context, &creds, client, password,
                                         krb5_prompter_posix, NULL, 0, NULL,
                                         options);
-    memset(password, 0, sizeof(password));
+    zap(password, sizeof(password));
 
 
     if (code) {

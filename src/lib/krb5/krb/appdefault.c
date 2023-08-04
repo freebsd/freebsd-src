@@ -44,6 +44,8 @@ appdefault_get(krb5_context context, const char *appname, const krb5_data *realm
     krb5_error_code retval;
     const char * realmstr =  realm?realm->data:NULL;
 
+    *ret_value = NULL;
+
     if (!context || (context->magic != KV5M_CONTEXT))
         return KV5M_CONTEXT;
 

@@ -1,6 +1,7 @@
 mydir=lib$(S)gssapi$(S)mechglue
 BUILDTOP=$(REL)..$(S)..$(S)..
 LOCALINCLUDES = -I. -I$(srcdir) -I$(srcdir)/.. -I../generic -I$(srcdir)/../generic -I../krb5 -I$(srcdir)/../krb5 -I../spnego -I$(srcdir)/../spnego
+
 DEFINES=-D_GSS_STATIC_LINK=1
 
 ##DOSBUILDTOP = ..\..\..
@@ -49,6 +50,7 @@ SRCS = \
 	$(srcdir)/g_mech_invoke.c \
 	$(srcdir)/g_mechattr.c \
 	$(srcdir)/g_mechname.c \
+	$(srcdir)/g_negoex.c \
 	$(srcdir)/g_oid_ops.c \
 	$(srcdir)/g_prf.c \
 	$(srcdir)/g_process_context.c \
@@ -113,6 +115,7 @@ OBJS = \
 	$(OUTPRE)g_mech_invoke.$(OBJEXT) \
 	$(OUTPRE)g_mechattr.$(OBJEXT) \
 	$(OUTPRE)g_mechname.$(OBJEXT) \
+	$(OUTPRE)g_negoex.$(OBJEXT) \
 	$(OUTPRE)g_oid_ops.$(OBJEXT) \
 	$(OUTPRE)g_prf.$(OBJEXT) \
 	$(OUTPRE)g_process_context.$(OBJEXT) \
@@ -177,6 +180,7 @@ STLIBOBJS = \
 	g_mech_invoke.o \
 	g_mechattr.o \
 	g_mechname.o \
+	g_negoex.o \
 	g_oid_ops.o \
 	g_prf.o \
 	g_process_context.o \

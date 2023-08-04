@@ -86,7 +86,7 @@ generic_gss_release_oid(OM_uint32 *minor_status, gss_OID *oid)
 
     /*
      * We use the official OID definitions instead of the unofficial OID
-     * defintions. But we continue to support the unofficial OID
+     * definitions. But we continue to support the unofficial OID
      * gss_nt_service_name just in case if some gss applications use
      * the old OID.
      */

@@ -33,7 +33,7 @@ all-windows: autoconf.h $(BUILT_HEADERS) verify-calling-conventions-krb5
 all-unix: @MAINT@ verify-calling-conventions-krb5
 
 $(srcdir)/autoconf.h.in: @MAINT@ $(srcdir)/autoconf.stmp
-$(srcdir)/autoconf.stmp: $(top_srcdir)/configure.in $(top_srcdir)/aclocal.m4
+$(srcdir)/autoconf.stmp: $(top_srcdir)/configure.ac $(top_srcdir)/aclocal.m4
 	(cd $(top_srcdir) && $(AUTOHEADER) --include=$(CONFIG_RELTOPDIR) $(AUTOHEADERFLAGS))
 	touch $(srcdir)/autoconf.stmp
 

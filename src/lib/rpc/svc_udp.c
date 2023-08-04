@@ -108,13 +108,13 @@ struct svcudp_data {
  */
 SVCXPRT *
 svcudp_bufcreate(
-	register int sock,
+	int sock,
 	u_int sendsz,
 	u_int recvsz)
 {
 	bool_t madesock = FALSE;
-	register SVCXPRT *xprt;
-	register struct svcudp_data *su;
+	SVCXPRT *xprt;
+	struct svcudp_data *su;
 	struct sockaddr_storage ss;
 	struct sockaddr *sa = (struct sockaddr *)&ss;
 	socklen_t len;
@@ -191,14 +191,14 @@ svcudp_stat(SVCXPRT *xprt)
 
 static bool_t
 svcudp_recv(
-	register SVCXPRT *xprt,
+	SVCXPRT *xprt,
 	struct rpc_msg *msg)
 {
         struct msghdr dummy;
 	struct iovec dummy_iov[1];
-	register struct svcudp_data *su = su_data(xprt);
-	register XDR *xdrs = &(su->su_xdrs);
-	register int rlen;
+	struct svcudp_data *su = su_data(xprt);
+	XDR *xdrs = &su->su_xdrs;
+	int rlen;
 	char *reply;
 	uint32_t replylen;
 	socklen_t addrlen;
@@ -243,13 +243,13 @@ svcudp_recv(
 }
 
 static bool_t svcudp_reply(
-	register SVCXPRT *xprt,
+	SVCXPRT *xprt,
 	struct rpc_msg *msg)
 {
-     register struct svcudp_data *su = su_data(xprt);
-     register XDR *xdrs = &(su->su_xdrs);
-     register int slen;
-     register bool_t stat = FALSE;
+     struct svcudp_data *su = su_data(xprt);
+     XDR *xdrs = &su->su_xdrs;
+     int slen;
+     bool_t stat = FALSE;
 
      xdrproc_t xdr_results = NULL;
      caddr_t xdr_location = 0;
@@ -305,16 +305,16 @@ svcudp_freeargs(
 	xdrproc_t xdr_args,
 	void * args_ptr)
 {
-	register XDR *xdrs = &(su_data(xprt)->su_xdrs);
+	XDR *xdrs = &su_data(xprt)->su_xdrs;
 
 	xdrs->x_op = XDR_FREE;
 	return ((*xdr_args)(xdrs, args_ptr));
 }
 
 static void
-svcudp_destroy(register SVCXPRT *xprt)
+svcudp_destroy(SVCXPRT *xprt)
 {
-	register struct svcudp_data *su = su_data(xprt);
+	struct svcudp_data *su = su_data(xprt);
 
 	xprt_unregister(xprt);
         if (xprt->xp_sock != INVALID_SOCKET)
@@ -446,9 +446,9 @@ cache_set(
 	SVCXPRT *xprt,
 	uint32_t replylen)
 {
-	register cache_ptr victim;
-	register cache_ptr *vicp;
-	register struct svcudp_data *su = su_data(xprt);
+	cache_ptr victim;
+	cache_ptr *vicp;
+	struct svcudp_data *su = su_data(xprt);
 	struct udp_cache *uc = (struct udp_cache *) su->su_cache;
 	u_int loc;
 	char *newbuf;
@@ -479,6 +479,7 @@ cache_set(
 		newbuf = mem_alloc(su->su_iosz);
 		if (newbuf == NULL) {
 			CACHE_PERROR("cache_set: could not allocate new rpc_buffer");
+			free(victim);
 			return;
 		}
 	}
@@ -514,9 +515,9 @@ cache_get(
 	uint32_t *replylenp)
 {
 	u_int loc;
-	register cache_ptr ent;
-	register struct svcudp_data *su = su_data(xprt);
-	register struct udp_cache *uc = (struct udp_cache *) su->su_cache;
+	cache_ptr ent;
+	struct svcudp_data *su = su_data(xprt);
+	struct udp_cache *uc = su->su_cache;
 
 #	define EQADDR(a1, a2) (memcmp((char*)&a1, (char*)&a2, sizeof(a1)) == 0)
 

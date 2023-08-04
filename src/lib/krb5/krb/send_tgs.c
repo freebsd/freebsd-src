@@ -53,7 +53,6 @@ tgs_construct_ap_req(krb5_context context, krb5_data *checksum_data,
                      krb5_creds *tgt, krb5_keyblock *subkey,
                      krb5_data **ap_req_asn1_out)
 {
-    krb5_cksumtype cksumtype;
     krb5_error_code ret;
     krb5_checksum checksum;
     krb5_authenticator authent;
@@ -67,24 +66,8 @@ tgs_construct_ap_req(krb5_context context, krb5_data *checksum_data,
     memset(&ap_req, 0, sizeof(ap_req));
     memset(&authent_enc, 0, sizeof(authent_enc));
 
-    /* Determine the authenticator checksum type. */
-    switch (tgt->keyblock.enctype) {
-    case ENCTYPE_DES_CBC_CRC:
-    case ENCTYPE_DES_CBC_MD4:
-    case ENCTYPE_DES_CBC_MD5:
-    case ENCTYPE_ARCFOUR_HMAC:
-    case ENCTYPE_ARCFOUR_HMAC_EXP:
-        cksumtype = context->kdc_req_sumtype;
-        break;
-    default:
-        ret = krb5int_c_mandatory_cksumtype(context, tgt->keyblock.enctype,
-                                            &cksumtype);
-        if (ret)
-            goto cleanup;
-    }
-
     /* Generate checksum. */
-    ret = krb5_c_make_checksum(context, cksumtype, &tgt->keyblock,
+    ret = krb5_c_make_checksum(context, 0, &tgt->keyblock,
                                KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM, checksum_data,
                                &checksum);
     if (ret)
@@ -278,8 +261,10 @@ k5_make_tgs_req(krb5_context context,
         pa->length = in_padata[i]->length;
         pa->contents = k5memdup(in_padata[i]->contents, in_padata[i]->length,
                                 &ret);
-        if (pa->contents == NULL)
+        if (pa->contents == NULL) {
+            free(pa);
             goto cleanup;
+        }
         padata[i + 1] = pa;
     }
     req.padata = padata;
@@ -306,7 +291,7 @@ cleanup:
     krb5_free_data(context, authdata_asn1);
     krb5_free_data(context, req_body_asn1);
     krb5_free_data(context, ap_req_asn1);
-    krb5_free_pa_data(context, req.padata);
+    krb5_free_pa_data(context, padata);
     krb5_free_ticket(context, sec_ticket);
     krb5_free_data_contents(context, &authdata_enc.ciphertext);
     krb5_free_keyblock(context, subkey);

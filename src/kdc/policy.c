@@ -106,7 +106,7 @@ check_kdcpolicy_as(krb5_context context, const krb5_kdc_req *request,
                    krb5_data *const *auth_indicators, krb5_timestamp kdc_time,
                    krb5_ticket_times *times, const char **status)
 {
-    krb5_deltat life, rlife;
+    krb5_deltat life = 0, rlife = 0;
     krb5_error_code ret;
     kdcpolicy_handle *hp, h;
     char **ais = NULL;
@@ -146,7 +146,7 @@ check_kdcpolicy_tgs(krb5_context context, const krb5_kdc_req *request,
                     krb5_data *const *auth_indicators, krb5_timestamp kdc_time,
                     krb5_ticket_times *times, const char **status)
 {
-    krb5_deltat life, rlife;
+    krb5_deltat life = 0, rlife = 0;
     krb5_error_code ret;
     kdcpolicy_handle *hp, h;
     char **ais = NULL;

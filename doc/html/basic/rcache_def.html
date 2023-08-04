@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>replay cache &mdash; MIT Kerberos Documentation</title>
-    
+    <title>replay cache &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="Kerberos V5 concepts" href="index.html" />
     <link rel="next" title="stash file" href="stash_file_def.html" />
     <link rel="prev" title="keytab" href="keytab_def.html" /> 
   </head>
@@ -61,16 +59,16 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="replay-cache">
 <span id="rcache-definition"></span><h1>replay cache<a class="headerlink" href="#replay-cache" title="Permalink to this headline">¶</a></h1>
-<p>A replay cache (or &#8220;rcache&#8221;) keeps track of all authenticators
+<p>A replay cache (or “rcache”) keeps track of all authenticators
 recently presented to a service.  If a duplicate authentication
 request is detected in the replay cache, an error message is sent to
 the application program.</p>
 <p>The replay cache interface, like the credential cache and
-<a class="reference internal" href="keytab_def.html#keytab-definition"><em>keytab</em></a> interfaces, uses <cite>type:value</cite> strings to
+<a class="reference internal" href="keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> interfaces, uses <cite>type:residual</cite> strings to
 indicate the type of replay cache and any associated cache naming
 data to use.</p>
 <div class="section" id="background-information">
@@ -80,28 +78,28 @@ where a message is sent containing an authenticator, which establishes
 the encryption key that the client will use for talking to the
 service.  But nothing about that prevents an eavesdropper from
 recording the messages sent by the client, establishing a new
-connection, and re-sending or &#8220;replaying&#8221; the same messages; the
+connection, and re-sending or “replaying” the same messages; the
 replayed authenticator will establish the same encryption key for the
 new session, and the following messages will be decrypted and
-processed.  The attacker may not know what the messages say, and can&#8217;t
+processed.  The attacker may not know what the messages say, and can’t
 generate new messages under the same encryption key, but in some
 instances it may be harmful to the user (or helpful to the attacker)
 to cause the server to see the same messages again a second time.  For
-example, if the legitimate client sends &#8220;delete first message in
-mailbox&#8221;, a replay from an attacker may delete another, different
-&#8220;first&#8221; message.  (Protocol design to guard against such problems has
-been discussed in <span class="target" id="index-0"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4120.html#section-10"><strong>RFC 4120</strong></a>.)</p>
+example, if the legitimate client sends “delete first message in
+mailbox”, a replay from an attacker may delete another, different
+“first” message.  (Protocol design to guard against such problems has
+been discussed in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4120.html#section-10"><strong>RFC 4120#section-10</strong></a>.)</p>
 <p>Even if one protocol uses further protection to verify that the client
 side of the connection actually knows the encryption keys (and thus is
 presumably a legitimate user), if another service uses the same
 service principal name, it may be possible to record an authenticator
-used with the first protocol and &#8220;replay&#8221; it against the second.</p>
+used with the first protocol and “replay” it against the second.</p>
 <p>The replay cache mitigates these attacks somewhat, by keeping track of
 authenticators that have been seen until their five-minute window
 expires.  Different authenticators generated by multiple connections
 from the same legitimate client will generally have different
 timestamps, and thus will not be considered the same.</p>
-<p>This mechanism isn&#8217;t perfect.  If a message is sent to one application
+<p>This mechanism isn’t perfect.  If a message is sent to one application
 server but a man-in-the-middle attacker can prevent it from actually
 arriving at that server, the attacker could then use the authenticator
 (once!) against a different service on the same host.  This could be a
@@ -113,39 +111,50 @@ additional messages), or if the simple act of presenting the
 authenticator triggers some interesting action in the service being
 attacked.</p>
 </div>
-<div class="section" id="default-rcache-type">
-<h2>Default rcache type<a class="headerlink" href="#default-rcache-type" title="Permalink to this headline">¶</a></h2>
-<p>There is currently only one implemented kind of replay cache, called
-<strong>dfl</strong>.  It stores replay data in one file, occasionally rewriting it
-to purge old, expired entries.</p>
-<p>The default type can be overridden by the <strong>KRB5RCACHETYPE</strong>
-environment variable.</p>
-<p>The placement of the replay cache file is determined by the following:</p>
+<div class="section" id="replay-cache-types">
+<h2>Replay cache types<a class="headerlink" href="#replay-cache-types" title="Permalink to this headline">¶</a></h2>
+<p>Unlike the credential cache and keytab interfaces, replay cache types
+are in lowercase.  The following types are defined:</p>
 <ol class="arabic simple">
-<li>The <strong>KRB5RCACHEDIR</strong> environment variable;</li>
-<li>If KRB5RCACHEDIR is unspecified, on UNIX, the library
-will fall back to the environment variable <strong>TMPDIR</strong>, and then to
-a temporary directory determined at configuration time such as
-<em>/tmp</em> or <em>/var/tmp</em>; on Windows, it will check the environment
-variables <em>TEMP</em> and <em>TMP</em>, and fall back to the directory C:\.</li>
+<li><strong>none</strong> disables the replay cache.  The residual value is ignored.</li>
+<li><strong>file2</strong> (new in release 1.18) uses a hash-based format to store
+replay records.  The file may grow to accommodate hash collisions.
+The residual value is the filename.</li>
+<li><strong>dfl</strong> is the default type if no environment variable or
+configuration specifies a different type.  It stores replay data in
+a file2 replay cache with a filename based on the effective uid.
+The residual value is ignored.</li>
 </ol>
+<p>For the dfl type, the location of the replay cache file is determined
+as follows:</p>
+<ol class="arabic simple">
+<li>The directory is taken from the <strong>KRB5RCACHEDIR</strong> environment
+variable, or the <strong>TMPDIR</strong> environment variable, or a temporary
+directory determined at configuration time such as <code class="docutils literal"><span class="pre">/var/tmp</span></code>, in
+descending order of preference.</li>
+<li>The filename is <code class="docutils literal"><span class="pre">krb5_EUID.rcache2</span></code> where EUID is the effective
+uid of the process.</li>
+<li>The file is opened without following symbolic links, and ownership
+of the file is verified to match the effective uid.</li>
+</ol>
+<p>On Windows, the directory for the dfl type is the local appdata
+directory, unless overridden by the <strong>KRB5RCACHEDIR</strong> environment
+variable.  The filename on Windows is <code class="docutils literal"><span class="pre">krb5.rcache2</span></code>, and the file
+is opened normally.</p>
 </div>
-<div class="section" id="performance-issues">
-<h2>Performance issues<a class="headerlink" href="#performance-issues" title="Permalink to this headline">¶</a></h2>
-<p>Several known minor performance issues that may occur when replay
-cache is enabled on the Kerberos system include: delays due to writing
-the authenticator data to disk slowing down response time for very
-heavily loaded servers, and delays during the rewrite that may be
-unacceptable to high-performance services.</p>
-<p>For use cases where replays are adequately defended against for all
-protocols using a given service principal name, or where performance
-or other considerations outweigh the risk of replays, the special
-replay cache type &#8220;none&#8221; can be specified:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">KRB5RCACHETYPE</span><span class="o">=</span><span class="n">none</span>
-</pre></div>
-</div>
-<p>It doesn&#8217;t record any information about authenticators, and reports
-that any authenticator seen is not a replay.</p>
+<div class="section" id="default-replay-cache-name">
+<h2>Default replay cache name<a class="headerlink" href="#default-replay-cache-name" title="Permalink to this headline">¶</a></h2>
+<p>The default replay cache name is determined by the following, in
+descending order of priority:</p>
+<ol class="arabic simple">
+<li>The <strong>KRB5RCACHENAME</strong> environment variable (new in release 1.18).</li>
+<li>The <strong>KRB5RCACHETYPE</strong> environment variable.  If this variable is
+set, the residual value is empty.</li>
+<li>The <strong>default_rcache_name</strong> profile variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>
+(new in release 1.18).</li>
+<li>If none of the above are set, the default replay cache name is
+<code class="docutils literal"><span class="pre">dfl:</span></code>.</li>
+</ol>
 </div>
 </div>
 
@@ -159,8 +168,8 @@ that any authenticator seen is not a replay.</p>
     <ul>
 <li><a class="reference internal" href="#">replay cache</a><ul>
 <li><a class="reference internal" href="#background-information">Background information</a></li>
-<li><a class="reference internal" href="#default-rcache-type">Default rcache type</a></li>
-<li><a class="reference internal" href="#performance-issues">Performance issues</a></li>
+<li><a class="reference internal" href="#replay-cache-types">Replay cache types</a></li>
+<li><a class="reference internal" href="#default-replay-cache-name">Default replay cache name</a></li>
 </ul>
 </li>
 </ul>
@@ -176,9 +185,7 @@ that any authenticator seen is not a replay.</p>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="ccache_def.html">Credential cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">replay cache</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">replay cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="date_format.html">Supported date and time formats</a></li>
 </ul>
@@ -206,8 +213,8 @@ that any authenticator seen is not a replay.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

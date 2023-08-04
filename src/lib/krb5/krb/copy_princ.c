@@ -32,7 +32,7 @@
 krb5_error_code KRB5_CALLCONV
 krb5_copy_principal(krb5_context context, krb5_const_principal inprinc, krb5_principal *outprinc)
 {
-    register krb5_principal tempprinc;
+    krb5_principal tempprinc;
     krb5_int32 i;
 
     tempprinc = (krb5_principal)malloc(sizeof(krb5_principal_data));

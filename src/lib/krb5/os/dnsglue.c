@@ -24,8 +24,12 @@
  * or implied warranty.
  */
 
-#include "autoconf.h"
+#include "k5-int.h"
+#include "os-proto.h"
+
 #ifdef KRB5_DNS_LOOKUP
+
+#ifndef _WIN32
 
 #include "dnsglue.h"
 #ifdef __APPLE__
@@ -67,6 +71,7 @@ static int initparse(struct krb5int_dns_state *);
  * Define macros to use the best available DNS search functions.  INIT_HANDLE()
  * returns true if handle initialization is successful, false if it is not.
  * SEARCH() returns the length of the response or -1 on error.
+ * PRIMARY_DOMAIN() returns the first search domain in allocated memory.
  * DECLARE_HANDLE() must be used last in the declaration list since it may
  * evaluate to nothing.
  */
@@ -77,6 +82,7 @@ static int initparse(struct krb5int_dns_state *);
 #define DECLARE_HANDLE(h) dns_handle_t h
 #define INIT_HANDLE(h) ((h = dns_open(NULL)) != NULL)
 #define SEARCH(h, n, c, t, a, l) dns_search(h, n, c, t, a, l, NULL, NULL)
+#define PRIMARY_DOMAIN(h) dns_search_list_domain(h, 0)
 #define DESTROY_HANDLE(h) dns_free(h)
 
 #elif HAVE_RES_NINIT && HAVE_RES_NSEARCH
@@ -85,6 +91,7 @@ static int initparse(struct krb5int_dns_state *);
 #define DECLARE_HANDLE(h) struct __res_state h
 #define INIT_HANDLE(h) (memset(&h, 0, sizeof(h)), res_ninit(&h) == 0)
 #define SEARCH(h, n, c, t, a, l) res_nsearch(&h, n, c, t, a, l)
+#define PRIMARY_DOMAIN(h) ((h.dnsrch[0] == NULL) ? NULL : strdup(h.dnsrch[0]))
 #if HAVE_RES_NDESTROY
 #define DESTROY_HANDLE(h) res_ndestroy(&h)
 #else
@@ -97,6 +104,8 @@ static int initparse(struct krb5int_dns_state *);
 #define DECLARE_HANDLE(h)
 #define INIT_HANDLE(h) (res_init() == 0)
 #define SEARCH(h, n, c, t, a, l) res_search(n, c, t, a, l)
+#define PRIMARY_DOMAIN(h) \
+    ((_res.defdname == NULL) ? NULL : strdup(_res.defdname))
 #define DESTROY_HANDLE(h)
 
 #endif
@@ -352,11 +361,90 @@ out:
     return -1;
 }
 
-#endif
+#endif /* !HAVE_NS_INITPARSE */
+#endif /* not _WIN32 */
+
+/* Construct a DNS label of the form "prefix[.name.]".  name may be NULL. */
+static char *
+txt_lookup_name(const char *prefix, const char *name)
+{
+    struct k5buf buf;
+
+    k5_buf_init_dynamic(&buf);
+
+    if (name == NULL || name[0] == '\0') {
+        k5_buf_add(&buf, prefix);
+    } else {
+        k5_buf_add_fmt(&buf, "%s.%s", prefix, name);
+
+        /*
+         * Realm names don't (normally) end with ".", but if the query doesn't
+         * end with "." and doesn't get an answer as is, the resolv code will
+         * try appending the local domain.  Since the realm names are
+         * absolutes, let's stop that.
+         *
+         * But only if a name has been specified.  If we are performing a
+         * search on the prefix alone then the intention is to allow the local
+         * domain or domain search lists to be expanded.
+         */
+
+        if (buf.len > 0 && ((char *)buf.data)[buf.len - 1] != '.')
+            k5_buf_add(&buf, ".");
+    }
+
+    return k5_buf_cstring(&buf);
+}
 
 /*
  * Try to look up a TXT record pointing to a Kerberos realm
  */
+
+#ifdef _WIN32
+
+#include <windns.h>
+
+krb5_error_code
+k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
+                    char **realm)
+{
+    krb5_error_code ret = 0;
+    char *txtname = NULL;
+    PDNS_RECORD rr = NULL;
+    DNS_STATUS st;
+
+    *realm = NULL;
+
+    txtname = txt_lookup_name(prefix, name);
+    if (txtname == NULL)
+        return ENOMEM;
+
+    st = DnsQuery_UTF8(txtname, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, NULL,
+                       &rr, NULL);
+    if (st != ERROR_SUCCESS || rr == NULL) {
+        TRACE_TXT_LOOKUP_NOTFOUND(context, txtname);
+        ret = KRB5_ERR_HOST_REALM_UNKNOWN;
+        goto cleanup;
+    }
+
+    *realm = strdup(rr->Data.TXT.pStringArray[0]);
+    if (*realm == NULL)
+        ret = ENOMEM;
+    TRACE_TXT_LOOKUP_SUCCESS(context, txtname, *realm);
+
+cleanup:
+    free(txtname);
+    if (rr != NULL)
+        DnsRecordListFree(rr, DnsFreeRecordList);
+    return ret;
+}
+
+char *
+k5_primary_domain()
+{
+    return NULL;
+}
+
+#else /* _WIN32 */
 
 krb5_error_code
 k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
@@ -364,39 +452,20 @@ k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
 {
     krb5_error_code retval = KRB5_ERR_HOST_REALM_UNKNOWN;
     const unsigned char *p, *base;
-    char host[MAXDNAME];
+    char *txtname = NULL;
     int ret, rdlen, len;
     struct krb5int_dns_state *ds = NULL;
-    struct k5buf buf;
 
     /*
      * Form our query, and send it via DNS
      */
 
-    k5_buf_init_fixed(&buf, host, sizeof(host));
-    if (name == NULL || name[0] == '\0') {
-        k5_buf_add(&buf, prefix);
-    } else {
-        k5_buf_add_fmt(&buf, "%s.%s", prefix, name);
-
-        /* Realm names don't (normally) end with ".", but if the query
-           doesn't end with "." and doesn't get an answer as is, the
-           resolv code will try appending the local domain.  Since the
-           realm names are absolutes, let's stop that.
-
-           But only if a name has been specified.  If we are performing
-           a search on the prefix alone then the intention is to allow
-           the local domain or domain search lists to be expanded.
-        */
-
-        if (buf.len > 0 && host[buf.len - 1] != '.')
-            k5_buf_add(&buf, ".");
-    }
-    if (k5_buf_status(&buf) != 0)
-        return KRB5_ERR_HOST_REALM_UNKNOWN;
-    ret = krb5int_dns_init(&ds, host, C_IN, T_TXT);
+    txtname = txt_lookup_name(prefix, name);
+    if (txtname == NULL)
+        return ENOMEM;
+    ret = krb5int_dns_init(&ds, txtname, C_IN, T_TXT);
     if (ret < 0) {
-        TRACE_TXT_LOOKUP_NOTFOUND(context, host);
+        TRACE_TXT_LOOKUP_NOTFOUND(context, txtname);
         goto errout;
     }
 
@@ -419,14 +488,26 @@ k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
     if ( (*realm)[len-1] == '.' )
         (*realm)[len-1] = '\0';
     retval = 0;
-    TRACE_TXT_LOOKUP_SUCCESS(context, host, *realm);
+    TRACE_TXT_LOOKUP_SUCCESS(context, txtname, *realm);
 
 errout:
-    if (ds != NULL) {
-        krb5int_dns_fini(ds);
-        ds = NULL;
-    }
+    krb5int_dns_fini(ds);
+    free(txtname);
     return retval;
 }
 
+char *
+k5_primary_domain()
+{
+    char *domain;
+    DECLARE_HANDLE(h);
+
+    if (!INIT_HANDLE(h))
+        return NULL;
+    domain = PRIMARY_DOMAIN(h);
+    DESTROY_HANDLE(h);
+    return domain;
+}
+
+#endif /* not _WIN32 */
 #endif /* KRB5_DNS_LOOKUP */

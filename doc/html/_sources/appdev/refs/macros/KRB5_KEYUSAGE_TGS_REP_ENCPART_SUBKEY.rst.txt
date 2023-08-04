@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-TGS-REP-ENCPART-SUBKEY-data:
+
+KRB5_KEYUSAGE_TGS_REP_ENCPART_SUBKEY
+====================================
+
+..
+.. data:: KRB5_KEYUSAGE_TGS_REP_ENCPART_SUBKEY
+..
+
+
+
+
+=========================================== ======================
+``KRB5_KEYUSAGE_TGS_REP_ENCPART_SUBKEY``       ``9``
+=========================================== ======================

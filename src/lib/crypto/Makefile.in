@@ -1,34 +1,28 @@
 mydir=lib$(S)crypto
 BUILDTOP=$(REL)..$(S)..
-SUBDIRS= krb $(CRYPTO_IMPL) crypto_tests
+SUBDIRS= krb builtin openssl crypto_tests
+WINSUBDIRS= krb builtin crypto_tests
+LOCALINCLUDES=$(CRYPTO_IMPL_CFLAGS)
 
 LIBBASE=k5crypto
 LIBMAJOR=3
 LIBMINOR=1
-LIBINITFUNC=cryptoint_initialize_library
-LIBFINIFUNC=cryptoint_cleanup_library
 RELDIR=crypto
 
-STOBJLISTS=$(CRYPTO_IMPL)/enc_provider/OBJS.ST				\
-	$(CRYPTO_IMPL)/hash_provider/OBJS.ST				\
-	$(CRYPTO_IMPL)/md4/OBJS.ST $(CRYPTO_IMPL)/md5/OBJS.ST		\
-	$(CRYPTO_IMPL)/sha1/OBJS.ST $(CRYPTO_IMPL)/sha2/OBJS.ST		\
-	$(CRYPTO_IMPL)/aes/OBJS.ST $(CRYPTO_IMPL)/des/OBJS.ST		\
-	$(CRYPTO_IMPL)/camellia/OBJS.ST krb/OBJS.ST			\
-	$(CRYPTO_IMPL)/OBJS.ST
+STOBJLISTS=krb/OBJS.ST						\
+	builtin/OBJS.ST builtin/des/OBJS.ST			\
+	builtin/aes/OBJS.ST builtin/camellia/OBJS.ST		\
+	builtin/md4/OBJS.ST builtin/md5/OBJS.ST			\
+	builtin/sha1/OBJS.ST builtin/sha2/OBJS.ST		\
+	builtin/enc_provider/OBJS.ST builtin/hash_provider/OBJS.ST \
+	openssl/OBJS.ST openssl/des/OBJS.ST			\
+	openssl/enc_provider/OBJS.ST openssl/hash_provider/OBJS.ST
 
-SUBDIROBJLISTS=$(CRYPTO_IMPL)/enc_provider/OBJS.ST			\
-	$(CRYPTO_IMPL)/hash_provider/OBJS.ST				\
-	$(CRYPTO_IMPL)/md4/OBJS.ST $(CRYPTO_IMPL)/md5/OBJS.ST		\
-	$(CRYPTO_IMPL)/sha1/OBJS.ST $(CRYPTO_IMPL)/sha2/OBJS.ST		\
-	$(CRYPTO_IMPL)/aes/OBJS.ST $(CRYPTO_IMPL)/des/OBJS.ST		\
-	$(CRYPTO_IMPL)/camellia/OBJS.ST krb/OBJS.ST			\
-	$(CRYPTO_IMPL)/OBJS.ST
+SUBDIROBJLISTS=$(STOBJLISTS)
 
 # No dependencies.  Record places to find this shared object if the target
 # link editor and loader support it.
 DEPLIBS=
-CRYPTO_IMPL_LIBS=@CRYPTO_IMPL_LIBS@
 SHLIB_EXPLIBS= $(SUPPORT_LIB) $(CRYPTO_IMPL_LIBS) $(LIBS)
 SHLIB_EXPDEPLIBS= $(SUPPORT_DEPLIB)
 SHLIB_LDFLAGS= $(LDFLAGS) @SHLIB_RPATH_DIRS@

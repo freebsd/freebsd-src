@@ -115,7 +115,7 @@ read_all(int fildes, void *data, unsigned int nbyte)
 
     FD_ZERO(&rfds);
     FD_SET(fildes, &rfds);
-    tv.tv_sec = 10;
+    tv.tv_sec = 300;
     tv.tv_usec = 0;
 
     for (ptr = buf; nbyte; ptr += ret, nbyte -= ret) {
@@ -340,7 +340,7 @@ display_status_1(m, code, type)
  * Effects:
  *
  * The GSS-API messages associated with maj_stat and min_stat are
- * displayed on stderr, each preceeded by "GSS-API error <msg>: " and
+ * displayed on stderr, each preceded by "GSS-API error <msg>: " and
  * followed by a newline.
  */
 void
@@ -356,7 +356,7 @@ display_status(msg, maj_stat, min_stat)
 /*
  * Function: display_ctx_flags
  *
- * Purpose: displays the flags returned by context initation in
+ * Purpose: displays the flags returned by context initiation in
  *          a human-readable form
  *
  * Arguments:

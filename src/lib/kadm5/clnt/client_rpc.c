@@ -85,14 +85,6 @@ chpass_principal3_2(chpass3_arg *argp, generic_ret *res, CLIENT *clnt)
 }
 
 enum clnt_stat
-setv4key_principal_2(setv4key_arg *argp, generic_ret *res, CLIENT *clnt)
-{
-	return clnt_call(clnt, SETV4KEY_PRINCIPAL,
-			 (xdrproc_t)xdr_setv4key_arg, (caddr_t)argp,
-			 (xdrproc_t)xdr_generic_ret, (caddr_t)res, TIMEOUT);
-}
-
-enum clnt_stat
 setkey_principal_2(setkey_arg *argp, generic_ret *res, CLIENT *clnt)
 {
 	return clnt_call(clnt, SETKEY_PRINCIPAL,

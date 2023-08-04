@@ -38,5 +38,5 @@ krb5int_aes2_prf(const struct krb5_keytypes *ktp, krb5_key key,
 {
     krb5_data label = string2data("prf");
 
-    return k5_sp800_108_counter_hmac(ktp->hash, key, out, &label, in);
+    return k5_sp800_108_counter_hmac(ktp->hash, key, &label, in, out);
 }

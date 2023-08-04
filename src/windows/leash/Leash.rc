@@ -86,14 +86,12 @@ IDI_LEASH_TICKET_SESSION ICON                    "res\\key.ico"
 IDI_LEASH_TICKET_ENCRYPTION ICON                    "res\\encryption.ico"
 IDI_TOOLBAR_INIT        ICON                    "res\\new.ico"
 IDI_TOOLBAR_RENEW       ICON                    "res\\renew.ico"
-IDI_TOOLBAR_IMPORT      ICON                    "res\\import.ico"
 IDI_TOOLBAR_DESTROY     ICON                    "res\\destroy.ico"
 IDI_TOOLBAR_PASSWORD    ICON                    "res\\password.ico"
 IDI_TOOLBAR_REFRESH     ICON                    "res\\refresh.ico"
 IDI_TOOLBAR_SYNC        ICON                    "res\\sync.ico"
 IDI_TOOLBAR_INIT_DISABLED ICON                    "res\\new_disabled.ico"
 IDI_TOOLBAR_RENEW_DISABLED ICON                    "res\\renew_disabled.ico"
-IDI_TOOLBAR_IMPORT_DISABLED ICON                    "res\\import_disabled.ico"
 IDI_TOOLBAR_DESTROY_DISABLED ICON                    "res\\destroy_disabled.ico"
 IDI_TOOLBAR_PASSWORD_DISABLED ICON                    "res\\password_disabled.ico"
 IDI_TOOLBAR_REFRESH_DISABLED ICON                    "res\\refresh_disabled.ico"
@@ -110,7 +108,6 @@ BEGIN
     BEGIN
         MENUITEM "&Get Ticket(s)\tCtrl+T",      ID_INIT_TICKET
         MENUITEM "&Renew Ticket(s)\tCtrl+R",    ID_RENEW_TICKET
-        MENUITEM "&Import Ticket(s)\tCtrl+I",   ID_IMPORT_TICKET
         MENUITEM "&Destroy Ticket(s)\tCtrl+D",  ID_DESTROY_TICKET
         MENUITEM SEPARATOR
         MENUITEM "&Change Password...",         ID_CHANGE_PASSWORD
@@ -155,7 +152,6 @@ IDR_MAINFRAME ACCELERATORS
 BEGIN
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     "D",            ID_DESTROY_TICKET,      VIRTKEY, CONTROL, NOINVERT
-    "I",            ID_IMPORT_TICKET,       VIRTKEY, CONTROL, NOINVERT
     "M",            ID_MAKE_DEFAULT,        VIRTKEY, CONTROL, NOINVERT
     "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
@@ -178,11 +174,6 @@ BEGIN
     "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
 END
 
-IDD_KRB4_DOMAINREALM_MAINT ACCELERATORS
-BEGIN
-    "F",            ID_BUTTON_HOSTNAME_REMOVE, VIRTKEY, CONTROL, NOINVERT
-END
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -202,7 +193,7 @@ BEGIN
     CONTROL         "Tree1",IDC_TREEVIEW,"SysTreeView32",TVS_HASBUTTONS |
                     TVS_HASLINES | TVS_LINESATROOT | TVS_DISABLEDRAGDROP |
                     TVS_INFOTIP | WS_HSCROLL | WS_TABSTOP,0,19,164,13
-    LTEXT           "Your Kerberos Tickets and AFS Tokens (Issued/Expires/[Renew]/Principal)",
+    LTEXT           "Your Kerberos Tickets (Issued/Expires/[Renew]/Principal)",
                     IDC_LABEL_KERB_TICKETS,6,5,280,12
     CONTROL         "",IDC_LEASH_MAINVIEW,"SysListView32",LVS_REPORT |
                     LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,43,347,88
@@ -259,30 +250,6 @@ BEGIN
     CTEXT           "Leash Warning Here!!!",IDC_LEASH_WARNING_MSG,0,7,257,27
 END
 
-IDD_KRB4_PROP_LOCATION DIALOG  0, 0, 316, 191
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Client File Location"
-FONT 8, "MS Sans Serif"
-BEGIN
-    EDITTEXT        IDC_EDIT_TICKET_FILE,64,24,239,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_KRB_LOC,64,110,203,12,ES_AUTOHSCROLL | WS_GROUP
-    PUSHBUTTON      "Browse",IDC_BUTTON_KRB_BROWSE,271,109,31,14,WS_GROUP
-    PUSHBUTTON      "Browse",IDC_BUTTON_KRBREALM_BROWSE,271,129,32,14,
-                    WS_GROUP
-    LTEXT           "Name:",IDC_STATIC_TICKET_FILEPATH,34,25,22,8
-    GROUPBOX        "Configuration File(s) Path",IDC_STATIC_CONFIG_FILES,7,
-                    92,301,93
-    GROUPBOX        "Ticket File",IDC_STATIC_TICKETFILE,7,8,301,71
-    LTEXT           "Config.:",IDC_STATIC_KRBCON,31,110,25,8
-    LTEXT           "Ticket file name is set in your computer's environment!\nTo edit, remove it from the environment.",
-                    IDC_STATIC_TXT,12,54,283,19
-    LTEXT           "One or more Configuration file locations are set in your computer's environment!\nTo edit, remove all of them from the environment.",
-                    IDC_STATIC_CONFILES,12,160,284,19
-    EDITTEXT        IDC_EDIT_KRBREALM_LOC,64,130,203,12,ES_AUTOHSCROLL |
-                    WS_GROUP
-    LTEXT           "Realms:",IDC_STATIC_KRBREALMS,30,130,26,8
-END
-
 IDD_KRB_PROP_CONTENT DIALOG  0, 0, 314, 172
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Default Realm Configuration"
@@ -313,36 +280,6 @@ STYLE DS_SETFONT | WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS
 FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "",stc32,7,7,227,98,NOT WS_VISIBLE
-END
-
-IDD_LEASH_PROPERTIES DIALOGEX 0, 0, 305, 166
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Leash Properties"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
-BEGIN
-    EDITTEXT        IDC_EDIT_TIME_SERVER,59,22,233,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "&Help",IDC_BUTTON_LEASHINI_HELP2,138,145,50,14
-    DEFPUSHBUTTON   "&OK",IDOK,242,145,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,190,145,50,14
-    LTEXT           "Name:",IDC_STATIC_TIMESERVER,31,23,22,8
-    GROUPBOX        "Time Server",IDC_STATIC_OPTIONS,7,7,291,45
-    LTEXT           "Time server name is set in your computer's environment!\nTo edit, remove it from the environment.",
-                    IDC_STATIC_TIMEHOST,31,22,201,21
-    CONTROL         "Create Configuration Files &Missing at Startup",
-                    IDC_CHECK_CREATE_MISSING_CFG,"Button",BS_AUTOCHECKBOX |
-                    WS_TABSTOP,15,105,244,10
-    PUSHBUTTON      "&Restore Leash Defaults",IDC_RESET_DEFAULTS,31,126,243,
-                    14
-    GROUPBOX        "Miscellaneous Options",IDC_GROUP_LEASH_MISC,7,95,291,29
-    GROUPBOX        "Automatic MSLSA Ticket Importation",IDC_STATIC,7,52,291,
-                    40
-    CONTROL         "Never",IDC_RADIO_MSLSA_IMPORT_OFF,"Button",
-                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,16,70,35,10
-    CONTROL         "Always",IDC_RADIO_MSLSA_IMPORT_ON,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,62,70,48,10
-    CONTROL         "When MSLSA Principal matches Default Realm",
-                    IDC_RADIO_MSLSA_IMPORT_MATCH,"Button",BS_AUTORADIOBUTTON |
-                    WS_TABSTOP,116,71,165,10
 END
 
 IDD_KRB5_PROP_CONTENT DIALOG  0, 0, 321, 126
@@ -407,19 +344,6 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,169,158,131,10
 END
 
-IDD_KRB4_DOMAINREALM_MAINT DIALOG  0, 0, 313, 213
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Domain-Host/Realm Maintenance"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LISTBOX         IDC_LIST_DOMAINREALM,7,7,299,174,LBS_NOINTEGRALHEIGHT |
-                    WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "&Add",IDC_BUTTON_REALM_HOST_ADD,52,192,50,14
-    PUSHBUTTON      "&Remove",ID_BUTTON_REALM_HOST_REMOVE,106,192,50,14
-    PUSHBUTTON      "&Edit",IDC_BUTTON_REALM_HOST_EDIT,160,192,50,14
-    PUSHBUTTON      "&Help",IDC_BUTTON_HOSTMAINT_HELP,214,192,50,14
-END
-
 IDD_KRB_ADD_REALM DIALOG  0, 0, 295, 94
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add a Kerberos Realm"
@@ -448,34 +372,6 @@ BEGIN
                     IDC_STATIC_NOTE,11,15,267,8
 END
 
-IDD_KRB4_ADD_DOMAINREALMNAME DIALOG  0, 0, 295, 89
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Add Your Domain-Host/Kerberos Realm Names to List"
-FONT 8, "MS Sans Serif"
-BEGIN
-    EDITTEXT        IDC_EDIT_DOMAINHOSTNAME,75,15,208,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DOMAINREALMNAME,75,32,208,12,ES_UPPERCASE |
-                    ES_AUTOHSCROLL
-    PUSHBUTTON      "&OK",IDOK,232,62,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,179,62,50,14
-    LTEXT           "Domain or Host: ",IDC_STATIC_DEFAULT_REALM,12,17,58,8
-    LTEXT           "Kerberos Realm:",IDC_STATIC_REALM_HOSTNAME,17,34,53,8
-END
-
-IDD_KRB4_EDIT_DOMAINREALMNAME DIALOG  0, 0, 295, 89
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Edit Your Domain-Host/Kerberos Realm Names to List"
-FONT 8, "MS Sans Serif"
-BEGIN
-    EDITTEXT        IDC_EDIT_DOMAINHOST,75,15,208,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_REALMNAME,75,32,208,12,ES_UPPERCASE |
-                    ES_AUTOHSCROLL
-    PUSHBUTTON      "&OK",IDOK,232,62,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,179,62,50,14
-    LTEXT           "Domain or Host: ",IDC_STATIC_DEFAULT_REALM,12,17,58,8
-    LTEXT           "Kerberos Realm:",IDC_STATIC_REALM_HOSTNAME,17,34,53,8
-END
-
 IDD_KRB_ADD_KDC_HOSTSERVER DIALOG  0, 0, 295, 94
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add a Kerberos Host Server"
@@ -502,57 +398,6 @@ BEGIN
                     IDC_STATIC_NOTE,11,15,267,8
 END
 
-IDD_KRB4_REALMHOST_MAINT2 DIALOG  0, 0, 313, 214
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Realm/Host Maintenance"
-FONT 8, "MS Sans Serif"
-BEGIN
-    DEFPUSHBUTTON   "&Add",IDC_BUTTON_KRB4_REALM_HOST_ADD,53,161,50,14
-    PUSHBUTTON      "&Remove",ID_BUTTON_KRB4_REALM_HOST_REMOVE,107,161,50,14
-    PUSHBUTTON      "&Edit",IDC_BUTTON_KRB4_REALM_HOST_EDIT,161,161,50,14
-    PUSHBUTTON      "&Help",IDC_BUTTON_REALMHOST_MAINT_HELP2,214,161,50,14
-    LISTBOX         IDC_LIST_REMOVE_HOST,7,7,299,149,LBS_NOINTEGRALHEIGHT |
-                    WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Use DNS KDC Lookup",IDC_KRB4_DNS_KDC,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,18,186,89,10
-END
-
-IDD_KRB4_EDIT_REALM DIALOG  0, 0, 296, 113
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Edit Kerberos Realm/Kerberos Host Names"
-FONT 8, "MS Sans Serif"
-BEGIN
-    EDITTEXT        IDC_EDIT_DEFAULT_REALM,70,23,213,12,ES_UPPERCASE |
-                    ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_REALM_HOSTNAME,70,41,213,12,ES_AUTOHSCROLL
-    CONTROL         "Has Administrative Server",IDC_RADIO_ADMIN_SERVER,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,50,61,96,12
-    CONTROL         "No Administrative Server",IDC_RADIO_NO_ADMIN_SERVER,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,154,61,92,12
-    PUSHBUTTON      "&OK",IDOK,233,86,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,181,86,50,14
-    LTEXT           "Kerberos Realm:",IDC_STATIC_DEFAULT_REALM,11,25,53,8
-    LTEXT           "Kerberos Host:",IDC_STATIC_REALM_HOSTNAME,16,43,48,8
-END
-
-IDD_KRB4_ADD_REALM DIALOG  0, 0, 296, 113
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Add Kerberos Realm/Kerberos Host Names"
-FONT 8, "MS Sans Serif"
-BEGIN
-    EDITTEXT        IDC_EDIT_DEFAULT_REALM,70,23,213,12,ES_UPPERCASE |
-                    ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_REALM_HOSTNAME,70,41,213,12,ES_AUTOHSCROLL
-    CONTROL         "Has Administrative Server",IDC_RADIO_ADMIN_SERVER,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,50,61,95,12
-    CONTROL         "No Administrative Server",IDC_RADIO_NO_ADMIN_SERVER,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,154,61,92,12
-    PUSHBUTTON      "&OK",IDOK,232,86,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,179,86,50,14
-    LTEXT           "Kerberos Realm:",IDC_STATIC_DEFAULT_REALM,11,25,53,8
-    LTEXT           "Kerberos Host:",IDC_STATIC_REALM_HOSTNAME,16,43,48,8
-END
-
 IDD_KRB_DOMAINREALM_MAINT DIALOG  0, 0, 314, 213
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "DNS / Realm Mapping"
@@ -563,21 +408,6 @@ BEGIN
     DEFPUSHBUTTON   "&Insert",IDC_BUTTON_HOST_ADD,77,192,50,14
     PUSHBUTTON      "&Remove",ID_BUTTON_HOST_REMOVE,131,192,50,14
     PUSHBUTTON      "&Edit",IDC_BUTTON_HOST_EDIT,185,192,50,14
-END
-
-IDD_AFS_PROPERTIES DIALOG  0, 0, 290, 68
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "AFS Properties"
-FONT 8, "MS Sans Serif"
-BEGIN
-    CONTROL         "AFS Enabled",IDC_RADIO_AFS_ENABLED,"Button",
-                    BS_AUTORADIOBUTTON,12,19,59,10
-    CONTROL         "AFS Disabled",IDC_RADIO_AFS_DISABLED,"Button",
-                    BS_AUTORADIOBUTTON,80,19,59,10
-    PUSHBUTTON      "AFS Properties",IDC_BUTTON_AFS_PROPERTIES,11,47,70,14
-    DEFPUSHBUTTON   "&OK",IDOK,227,47,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,173,47,50,14
-    PUSHBUTTON      "&Help",IDC_BUTTON_LEASHINI_HELP2,119,47,50,14
 END
 
 IDD_KRB_PROP_MISC DIALOGEX 0, 0, 314, 215
@@ -653,8 +483,6 @@ BEGIN
     LTEXT           "h",IDC_STATIC,230,26,8,8
     LTEXT           "m",IDC_STATIC,267,26,8,8
     GROUPBOX        "Ticket Initialization Options",IDC_STATIC,7,151,300,59
-    CONTROL         "Request Kerberos 4 Tickets",IDC_CHECK_REQUEST_KRB4,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,167,203,10
     CONTROL         "Preserve Ticket Initialization Dialog Options",
                     IDC_CHECK_PRESERVE_KINIT_OPTIONS,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,20,182,208,10
@@ -696,14 +524,6 @@ BEGIN
     BEGIN
     END
 
-    IDD_KRB4_PROP_LOCATION, DIALOG
-    BEGIN
-        LEFTMARGIN, 6
-        RIGHTMARGIN, 307
-        TOPMARGIN, 6
-        BOTTOMMARGIN, 184
-    END
-
     IDD_KRB_PROP_CONTENT, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -718,14 +538,6 @@ BEGIN
         RIGHTMARGIN, 234
         TOPMARGIN, 7
         BOTTOMMARGIN, 105
-    END
-
-    IDD_LEASH_PROPERTIES, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 298
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 159
     END
 
     IDD_KRB5_PROP_CONTENT, DIALOG
@@ -753,14 +565,6 @@ BEGIN
         BOTTOMMARGIN, 206
     END
 
-    IDD_KRB4_DOMAINREALM_MAINT, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 306
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 206
-    END
-
     IDD_KRB_ADD_REALM, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -775,22 +579,6 @@ BEGIN
         RIGHTMARGIN, 288
         TOPMARGIN, 7
         BOTTOMMARGIN, 87
-    END
-
-    IDD_KRB4_ADD_DOMAINREALMNAME, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 288
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 82
-    END
-
-    IDD_KRB4_EDIT_DOMAINREALMNAME, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 288
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 82
     END
 
     IDD_KRB_ADD_KDC_HOSTSERVER, DIALOG
@@ -809,44 +597,12 @@ BEGIN
         BOTTOMMARGIN, 87
     END
 
-    IDD_KRB4_REALMHOST_MAINT2, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 306
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 206
-    END
-
-    IDD_KRB4_EDIT_REALM, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 289
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 106
-    END
-
-    IDD_KRB4_ADD_REALM, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 289
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 106
-    END
-
     IDD_KRB_DOMAINREALM_MAINT, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 307
         TOPMARGIN, 7
         BOTTOMMARGIN, 206
-    END
-
-    IDD_AFS_PROPERTIES, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 283
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 61
     END
 
     IDD_KRB_PROP_MISC, DIALOG
@@ -869,7 +625,6 @@ IDR_MAINFRAME TOOLBAR  18, 18
 BEGIN
     BUTTON      ID_INIT_TICKET
     BUTTON      ID_RENEW_TICKET
-    BUTTON      ID_IMPORT_TICKET
     BUTTON      ID_DESTROY_TICKET
     SEPARATOR
     BUTTON      ID_CHANGE_PASSWORD
@@ -930,7 +685,6 @@ END
 STRINGTABLE
 BEGIN
     ID_PROPERTIES           "Enables you to change settings"
-    ID_IMPORT_TICKET        "import tickets from your Windows Logon Session.\n Import Tickets"
     ID_INIT_TICKET          "Obtain a new ticket\n Get Ticket"
     ID_AUTO_RENEW           "Automatically attempt to renew tickets.\n Automatic Ticket Renewal"
     ID_TIME_ISSUED          "Display column showing when your tickets will expire.\n Issued"
@@ -955,9 +709,8 @@ BEGIN
     ID_LARGE_ICONS          "Show large or small tree icons"
     ID_UPPERCASE_REALM      "Allow realm names that include lower case letters.\n Allow Mixed Case Realm Name"
     ID_OPTIONS_RESETWINDOWSIZE
-                            "Puts Leash's main window back to it's default size "
-    ID_RESET_WINDOW_SIZE    "Refresh Leash window to it's default size/position"
-    ID_AFS_CONTROL_PANEL    "Enables you to change settings"
+                            "Puts Leash's main window back to its default size "
+    ID_RESET_WINDOW_SIZE    "Refresh Leash window to its default size/position"
     ID_SYSTEM_CONTROL_PANEL "Open your System Properties window"
     ID_OPTIONS_LOWTICKETALARMSOUND
                             "Turn alarm off or on,  when ticket time is low"
@@ -975,9 +728,7 @@ END
 STRINGTABLE
 BEGIN
     ID_MAKE_DEFAULT         "Make the selected principal the default principal.\n Make Default"
-    ID_IMPORT_TICKETS       "Automatically import tickets from your Windows Logon Session.\n Import Tickets"
     ID_EXPORT_TICKET        "Export tickets to your Windows Logon Sesion.\n Export Tickets"
-    ID_AUTO_IMPORT_TICKET   "Automatically import tickets from your Windows Logon Session.\n Automatic Import Tickets"
 END
 
 #endif    // English (United States) resources

@@ -3,18 +3,18 @@ install guide.
 
 Bugs or issues:
 
-The "full resync" part of the protocol involves the master side firing
-off a normal kprop (and going back to servicing requests), and the
-slave side stopping all the incremental propagation stuff and waiting
-for the kprop.  If the connection from the master never comes in for
-some reason, the slave side just blocks forever, and never resumes
-incremental propagation.
+The "full resync" part of the protocol involves the primary side
+firing off a normal kprop (and going back to servicing requests), and
+the replica side stopping all the incremental propagation stuff and
+waiting for the kprop.  If the connection from the primary never comes
+in for some reason, the replica side just blocks forever, and never
+resumes incremental propagation.
 
 The protocol does not currently pass policy database changes; this was
 an intentional decision on Sun's part.  The policy database is only
-relevant to the master KDC, and is usually fairly static (aside from
-refcount updates), but not propagating it does mean that a slave
-maintained via iprop can't simply be promoted to a master in disaster
+relevant to the primary KDC, and is usually fairly static (aside from
+refcount updates), but not propagating it does mean that a replica
+maintained via iprop can't simply be promoted to a primary in disaster
 recovery or other cases without doing a full propagation or restoring
 a database from backups.
 
@@ -29,17 +29,17 @@ the update log as well; etc.  At least initially, we wouldn't treat it
 as a differently-named database; the installation of the hooks would
 be done by explicitly checking if iprop is enabled, etc.
 
-The "iprop role" is assumed to be either master or slave.  The master
-writes a log, and the slave fetches it.  But what about a cascade
-propagation model where A sends to B which sends to C, perhaps because
-A's bandwidth is highly limited, or B and C are co-located?  In such a
-case, B would want to operate in both modes.  Granted, with iprop the
-bandwidth issues should be less important, but there may still be
-reasons one may wish to run in such a configuration.
+The "iprop role" is assumed to be either primary or replica.  The
+primary writes a log, and the replica fetches it.  But what about a
+cascade propagation model where A sends to B which sends to C, perhaps
+because A's bandwidth is highly limited, or B and C are co-located?
+In such a case, B would want to operate in both modes.  Granted, with
+iprop the bandwidth issues should be less important, but there may
+still be reasons one may wish to run in such a configuration.
 
 The propagation of changes does not happen in real time.  It's not a
-"push" protocol; the slaves poll periodically for changes.  Perhaps a
-future revision of the protocol could address that.
+"push" protocol; the replicas poll periodically for changes.  Perhaps
+a future revision of the protocol could address that.
 
 kadmin/cli/kadmin.c call to kadm5_init_iprop - is this needed in
 client-side program? Should it be done in libkadm5srv instead as part
@@ -67,18 +67,18 @@ db changes, which locking protocols should deal with anyways, (b)
 existing acl code, (c) existing server process?
 
 The incremental propagation protocol requires an ACL entry on the
-master, listing the slave.  Since the full-resync part uses normal
-kprop, the slave also has to have an ACL entry for the master.  If
+primary, listing the replica.  Since the full-resync part uses normal
+kprop, the replica also has to have an ACL entry for the primary.  If
 this is missing, I suspect the behavior will be that every two
-minutes, the master side will (at the prompting of the slave) dump out
-the database and attempt a full propagation.
+minutes, the primary side will (at the prompting of the replica) dump
+out the database and attempt a full propagation.
 
 Possible optimizations: If an existing dump file has a recent enough
 serial number, just send it, without dumping again?  Use just one dump
-file instead of one per slave?
+file instead of one per replica?
 
-Requiring normal kprop means the slave still can't be behind a NAT or
-firewall without special configuration.  The incremental parts can
+Requiring normal kprop means the replica still can't be behind a NAT
+or firewall without special configuration.  The incremental parts can
 work in such a configuration, so long as outgoing TCP connections are
 allowed.
 
@@ -90,23 +90,23 @@ backwards-incompatible ABI changes.)
 
 Overflow checks for ulogentries times block size?
 
-If file can't be made the size indicated by ulogentries, shoud we
+If file can't be made the size indicated by ulogentries, should we
 truncate or error out?  If we error out, this could blow out when
 resizing the log because of a too-large log entry.
 
 The kprop invocation doesn't specify a realm name, so it'll only work
 for the default realm.  No clean way to specify a port number, either.
 Would it be overkill to come up with a way to configure host+port for
-kpropd on the master?  Preferably in a way that'd support cascading
+kpropd on the primary?  Preferably in a way that'd support cascading
 propagations.
 
-The kadmind process, when it needs to run kprop, extracts the slave
+The kadmind process, when it needs to run kprop, extracts the replica
 host name from the client principal name.  It assumes that the
 principal name will be of the form foo/hostname@REALM, and looks
 specifically for the "/" and "@" to chop up the string form of the
 name.  If looking up that name won't give a working IPv4 address for
-the slave, kprop will fail (and kpropd will keep waiting, incremental
-updates will stop, etc).
+the replica, kprop will fail (and kpropd will keep waiting,
+incremental updates will stop, etc).
 
 Mapping between file offsets and structure addresses, we should be
 careful about alignment.  We're probably okay on current platforms,

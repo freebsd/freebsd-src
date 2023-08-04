@@ -182,12 +182,12 @@ typedef struct krb5_kdcpreauth_callbacks_st {
     /* End of version 2 kdcpreauth callbacks. */
 
     /*
-     * Get the decrypted client long-term key chosen according to the request
-     * enctype list, or NULL if no matching key was found.  The returned
-     * pointer is an alias and should not be freed.  If invoked from
-     * return_padata, the result will be the same as the encrypting_key
-     * parameter if it is not NULL, and will therefore reflect the modified
-     * reply key if a return_padata handler has replaced the reply key.
+     * Get the current reply key.  Initially the reply key is the decrypted
+     * client long-term key chosen according to the request enctype list, or
+     * NULL if no matching key was found.  The value may be changed by the
+     * replace_reply_key callback or a return_padata method modifying
+     * encrypting_key.  The returned pointer is an alias and should not be
+     * freed.
      */
     const krb5_keyblock *(*client_keyblock)(krb5_context context,
                                             krb5_kdcpreauth_rock rock);
@@ -239,6 +239,37 @@ typedef struct krb5_kdcpreauth_callbacks_st {
                                   krb5_kdcpreauth_rock rock);
 
     /* End of version 4 kdcpreauth callbacks. */
+
+    /*
+     * Instruct the KDC to send a freshness token in the method data
+     * accompanying a PREAUTH_REQUIRED or PREAUTH_FAILED error, if the client
+     * indicated support for freshness tokens.  This callback should only be
+     * invoked from the edata method.
+     */
+    void (*send_freshness_token)(krb5_context context,
+                                 krb5_kdcpreauth_rock rock);
+
+    /* Validate a freshness token sent by the client.  Return 0 on success,
+     * KRB5KDC_ERR_PREAUTH_EXPIRED on error. */
+    krb5_error_code (*check_freshness_token)(krb5_context context,
+                                             krb5_kdcpreauth_rock rock,
+                                             const krb5_data *token);
+
+    /* End of version 5 kdcpreauth callbacks. */
+
+    /*
+     * Replace the reply key with key.  If is_strengthen is true, key must be a
+     * derivative of the client long-term key.  This callback may be invoked
+     * from the verify or return_padata methods.  If it is invoked from the
+     * verify method, the new key will appear as the encrypting_key input to
+     * return_padata.
+     */
+    krb5_error_code (*replace_reply_key)(krb5_context context,
+                                         krb5_kdcpreauth_rock rock,
+                                         const krb5_keyblock *key,
+                                         krb5_boolean is_strengthen);
+
+    /* End of version 6 kdcpreauth callbacks. */
 
 } *krb5_kdcpreauth_callbacks;
 
@@ -333,7 +364,8 @@ typedef void
 /*
  * Optional: generate preauthentication response data to send to the client as
  * part of the AS-REP.  If it needs to override the key which is used to
- * encrypt the response, it can do so.
+ * encrypt the response, it can do so by modifying encrypting_key, but it is
+ * preferrable to use the replace_reply_key callback.
  */
 typedef krb5_error_code
 (*krb5_kdcpreauth_return_fn)(krb5_context context,
@@ -363,7 +395,7 @@ typedef krb5_error_code
 
 typedef struct krb5_kdcpreauth_vtable_st {
     /* Mandatory: name of module. */
-    char *name;
+    const char *name;
 
     /* Mandatory: pointer to zero-terminated list of pa_types which this module
      * can provide services for. */

@@ -93,7 +93,7 @@ class DocNode(object):
 
         return '\n'.join(result)
 
-class DoxyContenHandler(object, ContentHandler):
+class DoxyContenHandler(ContentHandler):
     def __init__(self, builder):
         self.builder = builder
         self.counters = defaultdict(int)
@@ -242,7 +242,7 @@ class DoxyFuncs(XML2AST):
                            'description': p_descr}
             parameters.append(param_descr)
         result = Function(**function_descr)
-        print >> self.tmp, result
+        print(result, file=self.tmp)
 
         return function_descr
 

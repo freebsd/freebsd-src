@@ -27,6 +27,8 @@
 #include <ctype.h>
 #include "crypto_int.h"
 
+#ifdef K5_BUILTIN_PBKDF2
+
 /*
  * RFC 2898 specifies PBKDF2 in terms of an underlying pseudo-random
  * function with two arguments (password and salt||blockindex).  Right
@@ -73,10 +75,12 @@ static void printd (const char *descr, krb5_data *d) {
  * Implements the hmac-sha1 PRF.  pass has been pre-hashed (if
  * necessary) and converted to a key already; salt has had the block
  * index appended to the original salt.
+ *
+ * NetBSD 8 declares an hmac() function in stdlib.h, so avoid that name.
  */
 static krb5_error_code
-hmac(const struct krb5_hash_provider *hash, krb5_keyblock *pass,
-     krb5_data *salt, krb5_data *out)
+k5_hmac(const struct krb5_hash_provider *hash, krb5_keyblock *pass,
+        krb5_data *salt, krb5_data *out)
 {
     krb5_error_code err;
     krb5_crypto_iov iov;
@@ -102,11 +106,6 @@ F(char *output, char *u_tmp1, char *u_tmp2,
     krb5_data out;
     krb5_error_code err;
 
-#if 0
-    printf("F(i=%d, count=%lu, pass=%d:%s)\n", i, count,
-           pass->length, pass->data);
-#endif
-
     /* Compute U_1.  */
     store_32_be(i, ibytes);
 
@@ -114,45 +113,25 @@ F(char *output, char *u_tmp1, char *u_tmp2,
     memcpy(u_tmp2 + salt->length, ibytes, 4);
     sdata = make_data(u_tmp2, salt->length + 4);
 
-#if 0
-    printd("initial salt", &sdata);
-#endif
-
     out = make_data(u_tmp1, hlen);
 
-#if 0
-    printf("F: computing hmac #1 (U_1) with %s\n", pdata.contents);
-#endif
-    err = hmac(hash, pass, &sdata, &out);
+    err = k5_hmac(hash, pass, &sdata, &out);
     if (err)
         return err;
-#if 0
-    printd("F: prf return value", &out);
-#endif
+
     memcpy(output, u_tmp1, hlen);
 
     /* Compute U_2, .. U_c.  */
     sdata.length = hlen;
     for (j = 2; j <= count; j++) {
-#if 0
-        printf("F: computing hmac #%d (U_%d)\n", j, j);
-#endif
         memcpy(u_tmp2, u_tmp1, hlen);
-        err = hmac(hash, pass, &sdata, &out);
+        err = k5_hmac(hash, pass, &sdata, &out);
         if (err)
             return err;
-#if 0
-        printd("F: prf return value", &out);
-#endif
+
         /* And xor them together.  */
         for (k = 0; k < hlen; k++)
             output[k] ^= u_tmp1[k];
-#if 0
-        printf("F: xor result:\n");
-        for (k = 0; k < hlen; k++)
-            printf(" %02x", 0xff & output[k]);
-        printf("\n");
-#endif
     }
     return 0;
 }
@@ -185,9 +164,6 @@ pbkdf2(const struct krb5_hash_provider *hash, krb5_keyblock *pass,
 
     /* Step 3.  */
     for (i = 1; i <= l; i++) {
-#if 0
-        int j;
-#endif
         krb5_error_code err;
         char *out;
 
@@ -205,12 +181,6 @@ pbkdf2(const struct krb5_hash_provider *hash, krb5_keyblock *pass,
             memcpy(output->data + (i-1) * hlen, utmp3,
                    output->length - (i-1) * hlen);
 
-#if 0
-        printf("after F(%d), @%p:\n", i, output->data);
-        for (j = (i-1) * hlen; j < i * hlen; j++)
-            printf(" %02x", 0xff & output->data[j]);
-        printf ("\n");
-#endif
     }
     free(utmp1);
     free(utmp2);
@@ -247,3 +217,5 @@ krb5int_pbkdf2_hmac(const struct krb5_hash_provider *hash,
     err = pbkdf2(hash, &keyblock, salt, count, out);
     return err;
 }
+
+#endif /* K5_BUILTIN_PBKDF2 */

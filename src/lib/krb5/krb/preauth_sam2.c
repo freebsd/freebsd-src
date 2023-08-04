@@ -95,7 +95,6 @@ sam2_process(krb5_context context, krb5_clpreauth_moddata moddata,
     krb5_prompt kprompt;
     krb5_prompt_type prompt_type;
     krb5_data defsalt, *salt;
-    struct gak_password *gakpw;
     krb5_checksum **cksum;
     krb5_data *scratch = NULL;
     krb5_boolean valid_cksum = 0;
@@ -152,9 +151,8 @@ sam2_process(krb5_context context, krb5_clpreauth_moddata moddata,
 
         salt = ctx->default_salt ? NULL : &ctx->salt;
         retval = ctx->gak_fct(context, request->client, sc2b->sam_etype,
-                              prompter, prompter_data, &ctx->salt,
-                              &ctx->s2kparams, &ctx->as_key,
-                              ctx->gak_data, ctx->rctx.items);
+                              prompter, prompter_data, salt, &ctx->s2kparams,
+                              &ctx->as_key, ctx->gak_data, ctx->rctx.items);
         if (retval) {
             krb5_free_sam_challenge_2(context, sc2);
             krb5_free_sam_challenge_2_body(context, sc2b);
@@ -212,56 +210,21 @@ sam2_process(krb5_context context, krb5_clpreauth_moddata moddata,
 
     /* Get encryption key to be used for checksum and sam_response */
     if (!(sc2b->sam_flags & KRB5_SAM_USE_SAD_AS_KEY)) {
-        /* as_key = string_to_key(password) */
-
-        if (ctx->as_key.length) {
-            krb5_free_keyblock_contents(context, &ctx->as_key);
-            ctx->as_key.length = 0;
-        }
-
-        /* generate a key using the supplied password */
-        gakpw = ctx->gak_data;
-        retval = krb5_c_string_to_key(context, sc2b->sam_etype,
-                                      gakpw->password, salt, &ctx->as_key);
-
-        if (retval) {
-            krb5_free_sam_challenge_2(context, sc2);
-            krb5_free_sam_challenge_2_body(context, sc2b);
-            if (defsalt.length) free(defsalt.data);
-            return(retval);
-        }
-
-        if (!(sc2b->sam_flags & KRB5_SAM_SEND_ENCRYPTED_SAD)) {
-            /* as_key = combine_key (as_key, string_to_key(SAD)) */
-            krb5_keyblock tmp_kb;
-
-            retval = krb5_c_string_to_key(context, sc2b->sam_etype,
-                                          &response_data, salt, &tmp_kb);
-
-            if (retval) {
-                krb5_free_sam_challenge_2(context, sc2);
-                krb5_free_sam_challenge_2_body(context, sc2b);
-                if (defsalt.length) free(defsalt.data);
-                return(retval);
-            }
-
-            /* This should be a call to the crypto library some day */
-            /* key types should already match the sam_etype */
-            retval = krb5int_c_combine_keys(context, &ctx->as_key, &tmp_kb,
-                                            &ctx->as_key);
-
-            if (retval) {
-                krb5_free_sam_challenge_2(context, sc2);
-                krb5_free_sam_challenge_2_body(context, sc2b);
-                if (defsalt.length) free(defsalt.data);
-                return(retval);
-            }
-            krb5_free_keyblock_contents(context, &tmp_kb);
-        }
-
+        /* Retain as_key from above gak_fct call. */
         if (defsalt.length)
             free(defsalt.data);
 
+        if (!(sc2b->sam_flags & KRB5_SAM_SEND_ENCRYPTED_SAD)) {
+            /*
+             * If no flags are set, the protocol calls for us to combine the
+             * initial reply key with the SAD, using a method which is only
+             * specified for DES and 3DES enctypes.  We no longer support this
+             * case.
+             */
+            krb5_free_sam_challenge_2(context, sc2);
+            krb5_free_sam_challenge_2_body(context, sc2b);
+            return(KRB5_SAM_UNSUPPORTED);
+        }
     } else {
         /* as_key = string_to_key(SAD) */
 
@@ -410,6 +373,7 @@ sam2_process(krb5_context context, krb5_clpreauth_moddata moddata,
     sam_padata[1] = NULL;
 
     *out_padata = sam_padata;
+    cb->disable_fallback(context, rock);
 
     return(0);
 }

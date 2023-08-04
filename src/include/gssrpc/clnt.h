@@ -70,7 +70,7 @@ enum clnt_stat {
 	 * callrpc & clnt_create errors
 	 */
 	RPC_UNKNOWNHOST=13,		/* unknown host name */
-	RPC_UNKNOWNPROTO=17,		/* unkown protocol */
+	RPC_UNKNOWNPROTO=17,		/* unknown protocol */
 
 	/*
 	 * _ create errors
@@ -93,8 +93,8 @@ struct rpc_err {
 		int RE_errno;		/* realated system error */
 		enum auth_stat RE_why;	/* why the auth error occurred */
 		struct {
-			rpcvers_t low;	/* lowest verion supported */
-			rpcvers_t high;	/* highest verion supported */
+			rpcvers_t low;	/* lowest version supported */
+			rpcvers_t high;	/* highest version supported */
 		} RE_vers;
 		struct {		/* maybe meaningful if RPC_FAILED */
 			int32_t s1;
@@ -226,7 +226,7 @@ typedef struct CLIENT {
 
 
 /*
- * RPCTEST is a test program which is accessable on every rpc
+ * RPCTEST is a test program which is accessible on every rpc
  * transport/port.  It is used for testing, performance evaluation,
  * and network administration.
  */
@@ -270,7 +270,7 @@ extern CLIENT *clnt_create(char *, rpcprog_t, rpcvers_t, char *);
  *	struct sockaddr_in *raddr;
  *	rpcprog_t prog;
  *	rpcvers_t version;
- *	register int *sockp;
+ *	int *sockp;
  *	u_int sendsz;
  *	u_int recvsz;
  */

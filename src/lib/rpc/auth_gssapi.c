@@ -383,7 +383,7 @@ next_token:
 	  } else {
 	       PRINTF(("gssapi_create: processing signed isn\n"));
 
-	       /* don't check conf (integ only) or qop (accpet default) */
+	       /* don't check conf (integ only) or qop (accept default) */
 	       *gssstat = gss_unseal(minor_stat,
 				     AUTH_PRIVATE(auth)->context,
 				     &call_res.signed_isn,
@@ -744,14 +744,6 @@ skip_call:
      }
 
      free(AUTH_PRIVATE(auth)->client_handle.value);
-
-#if 0
-     PRINTF(("gssapi_destroy: calling GSSAPI_EXIT\n"));
-     AUTH_PRIVATE(auth)->established = FALSE;
-     callstat = clnt_call(AUTH_PRIVATE(auth)->clnt, AUTH_GSSAPI_EXIT,
-			  xdr_void, NULL, xdr_void, NULL, timeout);
-#endif
-
      free(auth->ah_private);
      free(auth);
      PRINTF(("gssapi_destroy: done\n"));

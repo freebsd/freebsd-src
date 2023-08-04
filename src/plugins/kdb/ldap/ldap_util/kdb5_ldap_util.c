@@ -102,24 +102,28 @@ void
 usage(void)
 {
     fprintf(stderr,
-            _("Usage: kdb5_ldap_util [-D user_dn [-w passwd]] [-H ldapuri]\n"
+            _("Usage: kdb5_ldap_util [-D user_dn [-w passwd]] [-H ldapuri] "
+              "[-r realm]\n"
               "\tcmd [cmd_options]\n"
 
 /* Create realm */
-              "create          [-subtrees subtree_dn_list] [-sscope search_scope] [-containerref container_reference_dn]\n"
-              "\t\t[-m|-P password|-sf stashfilename] [-k mkeytype] [-kv mkeyVNO] [-s]\n"
-              "\t\t[-maxtktlife max_ticket_life] [-maxrenewlife max_renewable_ticket_life]\n"
-              "\t\t[ticket_flags] [-r realm]\n"
+              "create          [-subtrees subtree_dn_list] [-sscope search_scope]\n"
+              "\t\t[-containerref container_reference_dn]\n"
+              "\t\t[-m|-P password|-sf stashfilename] [-s]\n"
+              "\t\t[-k mkeytype] [-kv mkeyVNO] [-M mkeyname]\n"
+              "\t\t[-maxtktlife max_ticket_life]\n"
+              "\t\t[-maxrenewlife max_renewable_ticket_life] [ticket_flags]\n"
 
 /* modify realm */
-              "modify          [-subtrees subtree_dn_list] [-sscope search_scope] [-containerref container_reference_dn]\n"
-              "\t\t[-maxtktlife max_ticket_life] [-maxrenewlife max_renewable_ticket_life]\n"
-              "\t\t[ticket_flags] [-r realm]\n"
+              "modify          [-subtrees subtree_dn_list] [-sscope search_scope]\n"
+              "\t\t[-containerref container_reference_dn]\n"
+              "\t\t[-maxtktlife max_ticket_life]\n"
+              "\t\t[-maxrenewlife max_renewable_ticket_life] [ticket_flags]\n"
 /* View realm */
-              "view            [-r realm]\n"
+              "view\n"
 
 /* Destroy realm */
-              "destroy                [-f] [-r realm]\n"
+              "destroy         [-f]\n"
 
 /* List realms */
               "list\n"
@@ -128,21 +132,21 @@ usage(void)
               "stashsrvpw      [-f filename] service_dn\n"
 
 /* Create policy */
-              "create_policy   [-r realm] [-maxtktlife max_ticket_life]\n"
+              "create_policy   [-maxtktlife max_ticket_life]\n"
               "\t\t[-maxrenewlife max_renewable_ticket_life] [ticket_flags] policy\n"
 
 /* Modify policy */
-              "modify_policy   [-r realm] [-maxtktlife max_ticket_life]\n"
+              "modify_policy   [-maxtktlife max_ticket_life]\n"
               "\t\t[-maxrenewlife max_renewable_ticket_life] [ticket_flags] policy\n"
 
 /* View policy */
-              "view_policy     [-r realm] policy\n"
+              "view_policy     policy\n"
 
 /* Destroy policy */
-              "destroy_policy  [-r realm] [-force] policy\n"
+              "destroy_policy  [-force] policy\n"
 
 /* List policies */
-              "list_policy     [-r realm]\n"));
+              "list_policy\n"));
 }
 
 void
@@ -428,7 +432,7 @@ main(int argc, char *argv[])
                                          &global_params, &global_params);
         if (retval) {
             com_err(progname, retval,
-                    _("while retreiving configuration parameters"));
+                    _("while retrieving configuration parameters"));
             exit_status++;
             goto cleanup;
         }

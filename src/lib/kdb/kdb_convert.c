@@ -305,8 +305,6 @@ ulog_conv_2logentry(krb5_context context, krb5_db_entry *entry,
     krb5_error_code ret;
     kdbe_attr_type_t *attr_types;
     int kadm_data_yes;
-    /* always exclude non-replicated attributes, for now */
-    krb5_boolean exclude_nra = TRUE;
 
     nattrs = tmpint = 0;
     final = -1;
@@ -356,7 +354,8 @@ ulog_conv_2logentry(krb5_context context, krb5_db_entry *entry,
             nattrs++;
         }
     } else {
-        find_changed_attrs(curr, entry, exclude_nra, attr_types, &nattrs);
+        /* Always exclude non-replicated attributes for now. */
+        find_changed_attrs(curr, entry, TRUE, attr_types, &nattrs);
         krb5_db_free_principal(context, curr);
     }
 
@@ -399,31 +398,6 @@ ulog_conv_2logentry(krb5_context context, krb5_db_entry *entry,
                 ULOG_ENTRY_TYPE(update, ++final).av_type = AT_PW_EXP;
                 ULOG_ENTRY(update, final).av_pw_exp =
                     (uint32_t)entry->pw_expiration;
-            }
-            break;
-
-        case AT_LAST_SUCCESS:
-            if (!exclude_nra && entry->last_success >= 0) {
-                ULOG_ENTRY_TYPE(update, ++final).av_type = AT_LAST_SUCCESS;
-                ULOG_ENTRY(update, final).av_last_success =
-                    (uint32_t)entry->last_success;
-            }
-            break;
-
-        case AT_LAST_FAILED:
-            if (!exclude_nra && entry->last_failed >= 0) {
-                ULOG_ENTRY_TYPE(update, ++final).av_type = AT_LAST_FAILED;
-                ULOG_ENTRY(update, final).av_last_failed =
-                    (uint32_t)entry->last_failed;
-            }
-            break;
-
-        case AT_FAIL_AUTH_COUNT:
-            if (!exclude_nra) {
-                ULOG_ENTRY_TYPE(update, ++final).av_type =
-                    AT_FAIL_AUTH_COUNT;
-                ULOG_ENTRY(update, final).av_fail_auth_count =
-                    (uint32_t)entry->fail_auth_count;
             }
             break;
 
@@ -552,10 +526,8 @@ ulog_conv_2logentry(krb5_context context, krb5_db_entry *entry,
 /* END CSTYLED */
 
         case AT_LEN:
-            if (entry->len >= 0) {
-                ULOG_ENTRY_TYPE(update, ++final).av_type = AT_LEN;
-                ULOG_ENTRY(update, final).av_len = (int16_t)entry->len;
-            }
+            ULOG_ENTRY_TYPE(update, ++final).av_type = AT_LEN;
+            ULOG_ENTRY(update, final).av_len = (int16_t)entry->len;
             break;
 
         default:
@@ -578,8 +550,8 @@ krb5_error_code
 ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
                    kdb_incr_update_t *update)
 {
-    krb5_db_entry *ent;
-    int slave;
+    krb5_db_entry *ent = NULL;
+    int replica;
     krb5_principal mod_princ = NULL;
     int i, j, cnt = 0, mod_time = 0, nattrs;
     krb5_principal dbprinc;
@@ -592,31 +564,28 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
 
     *entry = NULL;
 
-    slave = (context->kdblog_context != NULL) &&
-        (context->kdblog_context->iproprole == IPROP_SLAVE);
+    replica = (context->kdblog_context != NULL) &&
+        (context->kdblog_context->iproprole == IPROP_REPLICA);
 
     /*
      * Store the no. of changed attributes in nattrs
      */
     nattrs = update->kdb_update.kdbe_t_len;
 
-    dbprincstr = malloc((update->kdb_princ_name.utf8str_t_len + 1)
-                        * sizeof (char));
+    dbprincstr = k5memdup0(update->kdb_princ_name.utf8str_t_val,
+                           update->kdb_princ_name.utf8str_t_len, &ret);
     if (dbprincstr == NULL)
-        return (ENOMEM);
-    strncpy(dbprincstr, (char *)update->kdb_princ_name.utf8str_t_val,
-            update->kdb_princ_name.utf8str_t_len);
-    dbprincstr[update->kdb_princ_name.utf8str_t_len] = 0;
+        goto cleanup;
 
     ret = krb5_parse_name(context, dbprincstr, &dbprinc);
     free(dbprincstr);
     if (ret)
-        return (ret);
+        goto cleanup;
 
     ret = krb5_db_get_principal(context, dbprinc, 0, &ent);
     krb5_free_principal(context, dbprinc);
     if (ret && ret != KRB5_KDB_NOENTRY)
-        return (ret);
+        goto cleanup;
     is_add = (ret == KRB5_KDB_NOENTRY);
 
     /*
@@ -655,24 +624,26 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
             break;
 
         case AT_LAST_SUCCESS:
-            if (!slave)
+            if (!replica)
                 ent->last_success = (krb5_timestamp) u.av_last_success;
             break;
 
         case AT_LAST_FAILED:
-            if (!slave)
+            if (!replica)
                 ent->last_failed = (krb5_timestamp) u.av_last_failed;
             break;
 
         case AT_FAIL_AUTH_COUNT:
-            if (!slave)
+            if (!replica)
                 ent->fail_auth_count = (krb5_kvno) u.av_fail_auth_count;
             break;
 
         case AT_PRINC:
             tmpprinc = conv_princ_2db(context, &u.av_princ);
-            if (tmpprinc == NULL)
-                return ENOMEM;
+            if (tmpprinc == NULL) {
+                ret = ENOMEM;
+                goto cleanup;
+            }
             krb5_free_principal(context, ent->princ);
             ent->princ = tmpprinc;
             break;
@@ -689,8 +660,10 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
             /* Allocate one extra key data to avoid allocating zero bytes. */
             newptr = realloc(ent->key_data, (ent->n_key_data + 1) *
                              sizeof(krb5_key_data));
-            if (newptr == NULL)
-                return ENOMEM;
+            if (newptr == NULL) {
+                ret = ENOMEM;
+                goto cleanup;
+            }
             ent->key_data = newptr;
 
 /* BEGIN CSTYLED */
@@ -705,7 +678,8 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
                 kp->key_data_ver = (krb5_int16)kv->k_ver;
                 kp->key_data_kvno = (krb5_ui_2)kv->k_kvno;
                 if (kp->key_data_ver > 2) {
-                    return EINVAL; /* XXX ? */
+                    ret = EINVAL; /* XXX ? */
+                    goto cleanup;
                 }
 
                 for (cnt = 0; cnt < kp->key_data_ver; cnt++) {
@@ -713,8 +687,10 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
                     kp->key_data_length[cnt] = (krb5_int16)kv->k_contents.k_contents_val[cnt].utf8str_t_len;
                     newptr = realloc(kp->key_data_contents[cnt],
                                      kp->key_data_length[cnt]);
-                    if (newptr == NULL)
-                        return ENOMEM;
+                    if (newptr == NULL) {
+                        ret = ENOMEM;
+                        goto cleanup;
+                    }
                     kp->key_data_contents[cnt] = newptr;
 
                     (void) memset(kp->key_data_contents[cnt], 0,
@@ -732,22 +708,26 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
                 newtl.tl_data_length = (krb5_int16)u.av_tldata.av_tldata_val[j].tl_data.tl_data_len;
                 newtl.tl_data_contents = (krb5_octet *)u.av_tldata.av_tldata_val[j].tl_data.tl_data_val;
                 newtl.tl_data_next = NULL;
-                if ((ret = krb5_dbe_update_tl_data(context, ent, &newtl)))
-                    return (ret);
+                ret = krb5_dbe_update_tl_data(context, ent, &newtl);
+                if (ret)
+                    goto cleanup;
             }
             break;
 /* END CSTYLED */
         }
         case AT_PW_LAST_CHANGE:
-            if ((ret = krb5_dbe_update_last_pwd_change(context, ent,
-                                                       u.av_pw_last_change)))
-                return (ret);
+            ret = krb5_dbe_update_last_pwd_change(context, ent,
+                                                  u.av_pw_last_change);
+            if (ret)
+                goto cleanup;
             break;
 
         case AT_MOD_PRINC:
             tmpprinc = conv_princ_2db(context, &u.av_mod_princ);
-            if (tmpprinc == NULL)
-                return ENOMEM;
+            if (tmpprinc == NULL) {
+                ret = ENOMEM;
+                goto cleanup;
+            }
             mod_princ = tmpprinc;
             break;
 
@@ -771,14 +751,17 @@ ulog_conv_2dbentry(krb5_context context, krb5_db_entry **entry,
     if (mod_time && mod_princ) {
         ret = krb5_dbe_update_mod_princ_data(context, ent,
                                              mod_time, mod_princ);
-        krb5_free_principal(context, mod_princ);
-        mod_princ = NULL;
         if (ret)
-            return (ret);
+            goto cleanup;
     }
 
     *entry = ent;
-    return (0);
+    ent = NULL;
+    ret = 0;
+cleanup:
+    krb5_db_free_principal(context, ent);
+    krb5_free_principal(context, mod_princ);
+    return ret;
 }
 
 

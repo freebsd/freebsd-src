@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_c_crypto_length - Return a length of a message field specific to the encryption type. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_c_crypto_length - Return a length of a message field specific to the encryption type. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_c_crypto_length_iov - Fill in lengths for header, trailer and padding in a IOV array." href="krb5_c_crypto_length_iov.html" />
     <link rel="prev" title="krb5_c_checksum_length - Return the length of checksums for a checksum type." href="krb5_c_checksum_length.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-c-crypto-length-return-a-length-of-a-message-field-specific-to-the-encryption-type">
 <h1>krb5_c_crypto_length -  Return a length of a message field specific to the encryption type.<a class="headerlink" href="#krb5-c-crypto-length-return-a-length-of-a-message-field-specific-to-the-encryption-type" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_c_crypto_length">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_c_crypto_length</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a><em>&nbsp;enctype</em>, <a class="reference internal" href="../types/krb5_cryptotype.html#c.krb5_cryptotype" title="krb5_cryptotype">krb5_cryptotype</a><em>&nbsp;type</em>, unsigned int *<em>&nbsp;size</em><big>)</big><a class="headerlink" href="#c.krb5_c_crypto_length" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_c_crypto_length</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a><em>&nbsp;enctype</em>, <a class="reference internal" href="../types/krb5_cryptotype.html#c.krb5_cryptotype" title="krb5_cryptotype">krb5_cryptotype</a><em>&nbsp;type</em>, unsigned int *<em>&nbsp;size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_c_crypto_length" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -76,7 +74,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>enctype</strong> - Encryption type</p>
-<p><strong>[in]</strong> <strong>type</strong> - Type field (See <tt class="xref py py-data docutils literal"><span class="pre">KRB5_CRYPTO_TYPE</span></tt> types)</p>
+<p><strong>[in]</strong> <strong>type</strong> - Type field (See <code class="xref py py-data docutils literal"><span class="pre">KRB5_CRYPTO_TYPE</span></code> types)</p>
 <p class="last"><strong>[out]</strong> <strong>size</strong> - Length of the <em>type</em> specific to <em>enctype</em></p>
 </td>
 </tr>
@@ -151,8 +149,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -9,11 +9,9 @@ SRCS= $(srcdir)/krb5_encode_test.c $(srcdir)/krb5_decode_test.c \
 
 ASN1SRCS= $(srcdir)/krb5.asn1 $(srcdir)/pkix.asn1 $(srcdir)/otp.asn1 \
 	$(srcdir)/pkinit.asn1 $(srcdir)/pkinit-agility.asn1 \
-	$(srcdir)/cammac.asn1
+	$(srcdir)/cammac.asn1 $(srcdir)/spake.asn1
 
 all: krb5_encode_test krb5_decode_test krb5_decode_leak t_trval
-
-LOCALINCLUDES = -I$(srcdir)/../../lib/krb5/asn.1
 
 ENCOBJS = krb5_encode_test.o ktest.o ktest_equal.o utility.o trval.o
 

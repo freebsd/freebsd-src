@@ -48,7 +48,7 @@ krb5_ldap_read_krbcontainer_dn(krb5_context context, char **container_dn)
     *container_dn = NULL;
     SETUP_CONTEXT();
 
-    /* read kerberos containter location from [dbmodules] section of krb5.conf file */
+    /* read kerberos container location from [dbmodules] section of krb5.conf file */
     if (ldap_context->conf_section) {
         if ((st=profile_get_string(context->profile, KDB_MODULE_SECTION, ldap_context->conf_section,
                                    KRB5_CONF_LDAP_KERBEROS_CONTAINER_DN, NULL,
@@ -59,7 +59,7 @@ krb5_ldap_read_krbcontainer_dn(krb5_context context, char **container_dn)
         }
     }
 
-    /* read kerberos containter location from [dbdefaults] section of krb5.conf file */
+    /* read kerberos container location from [dbdefaults] section of krb5.conf file */
     if (dn == NULL) {
         if ((st=profile_get_string(context->profile, KDB_MODULE_DEF_SECTION,
                                    KRB5_CONF_LDAP_KERBEROS_CONTAINER_DN, NULL,

@@ -58,8 +58,7 @@ oidToSaslName(OM_uint32 *minor, const gss_OID mech,
     iov[2].data.length = sizeof(cksumBuf);
     iov[2].data.data = (char *)cksumBuf;
 
-    *minor = krb5_k_make_checksum_iov(NULL, CKSUMTYPE_NIST_SHA,
-                                      NULL, 0, iov, 3);
+    *minor = krb5_k_make_checksum_iov(NULL, CKSUMTYPE_SHA1, NULL, 0, iov, 3);
     if (*minor != 0)
         return GSS_S_FAILURE;
 
@@ -177,13 +176,14 @@ OM_uint32 KRB5_CALLCONV gss_inquire_mech_for_saslname(
     gss_OID_set     mechSet = GSS_C_NO_OID_SET;
     size_t          i;
 
-    if (minor_status == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor_status = 0;
+    if (minor_status != NULL)
+        *minor_status = 0;
 
     if (mech_type != NULL)
         *mech_type = GSS_C_NO_OID;
+
+    if (minor_status == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     status = gss_indicate_mechs(minor_status, &mechSet);
     if (status != GSS_S_COMPLETE)

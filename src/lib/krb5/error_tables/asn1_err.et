@@ -10,7 +10,7 @@ error_code ASN1_BAD_LENGTH, "ASN.1 length doesn't match expected value"
 error_code ASN1_BAD_FORMAT, "ASN.1 badly-formatted encoding"
 error_code ASN1_PARSE_ERROR, "ASN.1 parse error"
 error_code ASN1_BAD_GMTIME, "ASN.1 bad return from gmtime"
-error_code ASN1_MISMATCH_INDEF, "ASN.1 non-constructed indefinite encoding"
+error_code ASN1_INDEF, "ASN.1 indefinite encoding"
 error_code ASN1_MISSING_EOC, "ASN.1 missing expected EOC"
 error_code ASN1_OMITTED, "ASN.1 object omitted in sequence"
 end

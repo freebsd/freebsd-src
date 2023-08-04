@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (C) 2010 by the Massachusetts Institute of Technology.
 # All rights reserved.
 #
@@ -38,6 +36,17 @@ def run_client_server(realm, options, server_options, **kwargs):
     server = realm.start_server(server_args, 'starting...')
     realm.run([gss_client, '-port', portstr] + options +
               [hostname, 'host', 'testmsg'], **kwargs)
+
+    seen1 = seen2 = False
+    while 'expected_code' not in kwargs and not (seen1 and seen2):
+        line = server.stdout.readline()
+        if line == '':
+            fail('gss-server process exited unexpectedly')
+        if line == 'Accepted connection: "user@KRBTEST.COM"\n':
+            seen1 = True
+        if line == 'Received message: "testmsg"\n':
+            seen2 = True
+
     stop_daemon(server)
 
 # Run a gss-server and gss-client process, and verify that gss-client
@@ -95,22 +104,26 @@ def kt_test(realm, options, server_options=[]):
 for realm in multipass_realms():
     ccache_save(realm)
 
+    mark('TGS')
     tgs_test(realm, ['-krb5'])
     tgs_test(realm, ['-spnego'])
     tgs_test(realm, ['-iakerb'], ['-iakerb'])
     # test default (i.e., krb5) mechanism with GSS_C_DCE_STYLE
     tgs_test(realm, ['-dce'])
 
+    mark('pw')
     pw_test(realm, ['-krb5'])
     pw_test(realm, ['-spnego'])
     pw_test(realm, ['-iakerb'], ['-iakerb'])
     pw_test(realm, ['-dce'])
 
+    mark('wrong pw')
     wrong_pw_test(realm, ['-krb5'])
     wrong_pw_test(realm, ['-spnego'])
     wrong_pw_test(realm, ['-iakerb'], ['-iakerb'], True)
     wrong_pw_test(realm, ['-dce'])
 
+    mark('client keytab')
     realm.extract_keytab(realm.user_princ, realm.client_keytab)
     kt_test(realm, ['-krb5'])
     kt_test(realm, ['-spnego'])

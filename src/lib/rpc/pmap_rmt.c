@@ -89,7 +89,7 @@ pmap_rmtcall(
 	rpcport_t *port_ptr)
 {
         SOCKET sock = INVALID_SOCKET;
-	register CLIENT *client;
+	CLIENT *client;
 	struct rmtcallargs a;
 	struct rmtcallres r;
 	enum clnt_stat stat;
@@ -123,8 +123,8 @@ pmap_rmtcall(
  */
 bool_t
 xdr_rmtcall_args(
-	register XDR *xdrs,
-	register struct rmtcallargs *cap)
+	XDR *xdrs,
+	struct rmtcallargs *cap)
 {
 	u_int lenposition, argposition, position;
 
@@ -154,8 +154,8 @@ xdr_rmtcall_args(
  */
 bool_t
 xdr_rmtcallres(
-	register XDR *xdrs,
-	register struct rmtcallres *crp)
+	XDR *xdrs,
+	struct rmtcallres *crp)
 {
 	caddr_t port_ptr;
 
@@ -237,7 +237,7 @@ clnt_broadcast(
 	enum clnt_stat stat;
 	AUTH *unix_auth = authunix_create_default();
 	XDR xdr_stream;
-	register XDR *xdrs = &xdr_stream;
+	XDR *xdrs = &xdr_stream;
 	int outlen, nets;
 	ssize_t inlen;
 	GETSOCKNAME_ARG3_TYPE fromlen;
@@ -248,11 +248,11 @@ clnt_broadcast(
 	fd_set readfds;
 #else
 	int readfds;
-	register int mask;
+	int mask;
 #endif /* def FD_SETSIZE */
-	register int i;
+	int i;
 	bool_t done = FALSE;
-	register uint32_t xid;
+	uint32_t xid;
 	rpcport_t port;
 	struct in_addr addrs[20];
 	struct sockaddr_in baddr, raddr; /* broadcast and response addresses */

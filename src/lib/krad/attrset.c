@@ -217,7 +217,7 @@ kr_attrset_decode(krb5_context ctx, const krb5_data *in, const char *secret,
 
     for (i = 0; i + 2 < in->length; ) {
         type = in->data[i++];
-        tmp = make_data(&in->data[i + 1], in->data[i] - 2);
+        tmp = make_data(&in->data[i + 1], (uint8_t)in->data[i] - 2);
         i += tmp.length + 1;
 
         retval = (in->length < i) ? EBADMSG : 0;

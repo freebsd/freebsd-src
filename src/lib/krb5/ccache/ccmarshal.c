@@ -515,3 +515,56 @@ k5_marshal_mcred(struct k5buf *buf, krb5_creds *mcred)
     if (mcred->second_ticket.length > 0)
         put_data(buf, version, &mcred->second_ticket);
 }
+
+krb5_error_code KRB5_CALLCONV
+krb5_marshal_credentials(krb5_context context, krb5_creds *in_creds,
+                         krb5_data **data_out)
+{
+    krb5_error_code ret;
+    krb5_data *data;
+    struct k5buf buf;
+
+    *data_out = NULL;
+
+    data = k5alloc(sizeof(krb5_data), &ret);
+    if (ret)
+        return ret;
+
+    k5_buf_init_dynamic(&buf);
+    k5_marshal_cred(&buf, 4, in_creds);
+
+    ret = k5_buf_status(&buf);
+    if (ret) {
+        free(data);
+        return ret;
+    }
+
+    /* Steal payload from buf. */
+    *data = make_data(buf.data, buf.len);
+    *data_out = data;
+    return 0;
+}
+
+krb5_error_code KRB5_CALLCONV
+krb5_unmarshal_credentials(krb5_context context, const krb5_data *data,
+                           krb5_creds **creds_out)
+{
+    krb5_error_code ret;
+    krb5_creds *creds;
+
+    *creds_out = NULL;
+
+    creds = k5alloc(sizeof(krb5_creds), &ret);
+    if (ret)
+        return ret;
+
+    ret = k5_unmarshal_cred((unsigned char *)data->data, data->length, 4,
+                            creds);
+    if (ret) {
+        free(creds);
+        return ret;
+    }
+
+    *creds_out = creds;
+    return 0;
+}

@@ -101,7 +101,10 @@ typedef _W64 int         ssize_t;
 #endif
 #endif /* KRB5_SYSTYPES__ */
 
+#ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN  512
+#endif
+
 #ifndef MAXPATHLEN
 #define MAXPATHLEN      256            /* Also for Windows temp files */
 #endif
@@ -175,18 +178,6 @@ typedef _W64 int         ssize_t;
 #define HAVE_SYS_TYPES_H
 #define HAVE_STDLIB_H
 #endif
-
-/* This controls which encryption routines libcrypto will provide */
-#define PROVIDE_DES_CBC_MD5
-#define PROVIDE_DES_CBC_CRC
-#define PROVIDE_DES_CBC_RAW
-#define PROVIDE_DES_CBC_CKSUM
-#define PROVIDE_CRC32
-#define PROVIDE_RSA_MD4
-#define PROVIDE_RSA_MD5
-/* #define PROVIDE_DES3_CBC_SHA */
-/* #define PROVIDE_DES3_CBC_RAW */
-/* #define PROVIDE_NIST_SHA */
 
 /* Ugly. Microsoft, in stdc mode, doesn't support the low-level i/o
  * routines directly. Rather, they only export the _<function> version.

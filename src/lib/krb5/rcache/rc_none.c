@@ -32,65 +32,27 @@
 #include "k5-int.h"
 #include "rc-int.h"
 
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_init(krb5_context ctx, krb5_rcache rc, krb5_deltat d)
+static krb5_error_code
+none_resolve(krb5_context ctx, const char *residual, void **rcdata_out)
 {
+    *rcdata_out = NULL;
     return 0;
 }
-#define krb5_rc_none_recover_or_init krb5_rc_none_init
 
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_noargs(krb5_context ctx, krb5_rcache rc)
+static void
+none_close(krb5_context ctx, void *rcdata)
 {
-    return 0;
 }
-#define krb5_rc_none_recover    krb5_rc_none_noargs
-#define krb5_rc_none_expunge    krb5_rc_none_noargs
 
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_close(krb5_context ctx, krb5_rcache rc)
-{
-    free (rc);
-    return 0;
-}
-#define krb5_rc_none_destroy    krb5_rc_none_close
-
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_store(krb5_context ctx, krb5_rcache rc, krb5_donot_replay *r)
+static krb5_error_code
+none_store(krb5_context ctx, void *rcdata, const krb5_data *tag)
 {
     return 0;
 }
 
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_get_span(krb5_context ctx, krb5_rcache rc, krb5_deltat *d)
-{
-    return 0;
-}
-
-static char * KRB5_CALLCONV
-krb5_rc_none_get_name(krb5_context ctx, krb5_rcache rc)
-{
-    return "";
-}
-
-static krb5_error_code KRB5_CALLCONV
-krb5_rc_none_resolve(krb5_context ctx, krb5_rcache rc, char *name)
-{
-    rc->data = "none";
-    return 0;
-}
-
-const krb5_rc_ops krb5_rc_none_ops = {
-    0,
+const krb5_rc_ops k5_rc_none_ops = {
     "none",
-    krb5_rc_none_init,
-    krb5_rc_none_recover,
-    krb5_rc_none_recover_or_init,
-    krb5_rc_none_destroy,
-    krb5_rc_none_close,
-    krb5_rc_none_store,
-    krb5_rc_none_expunge,
-    krb5_rc_none_get_span,
-    krb5_rc_none_get_name,
-    krb5_rc_none_resolve
+    none_resolve,
+    none_close,
+    none_store
 };

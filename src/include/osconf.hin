@@ -55,8 +55,19 @@
 #endif
 #endif /* _WINDOWS  */
 
+#ifdef _WIN32
+#define DEFAULT_PLUGIN_BASE_DIR "%{LIBDIR}\\plugins"
+#else
 #define DEFAULT_PLUGIN_BASE_DIR "@LIBDIR/krb5/plugins"
+#endif
+
+#if defined(_WIN64)
+#define PLUGIN_EXT              "64.dll"
+#elif defined(_WIN32)
+#define PLUGIN_EXT              "32.dll"
+#else
 #define PLUGIN_EXT              "@DYNOBJEXT"
+#endif
 
 #define KDC_DIR                 "@LOCALSTATEDIR/krb5kdc"
 #define KDC_RUN_DIR             "@RUNSTATEDIR/krb5kdc"
@@ -111,10 +122,10 @@
 #define KRB5_ENV_CCNAME "KRB5CCNAME"
 
 /*
- * krb5 slave support follows
+ * krb5 replica support follows
  */
 
-#define KPROP_DEFAULT_FILE KDC_DIR "/slave_datatrans"
+#define KPROP_DEFAULT_FILE KDC_DIR "/replica_datatrans"
 #define KPROPD_DEFAULT_FILE KDC_DIR "/from_master"
 #define KPROPD_DEFAULT_KDB5_UTIL "@SBINDIR/kdb5_util"
 #define KPROPD_DEFAULT_KPROP "@SBINDIR/kprop"

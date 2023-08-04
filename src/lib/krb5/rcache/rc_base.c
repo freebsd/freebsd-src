@@ -10,172 +10,191 @@
  * Base "glue" functions for the replay cache.
  */
 
-#include "rc_base.h"
+#include "k5-int.h"
 #include "rc-int.h"
 #include "k5-thread.h"
+#include "../os/os-proto.h"
 
-struct krb5_rc_typelist {
+struct typelist {
     const krb5_rc_ops *ops;
-    struct krb5_rc_typelist *next;
+    struct typelist *next;
 };
-static struct krb5_rc_typelist none = { &krb5_rc_none_ops, 0 };
-static struct krb5_rc_typelist krb5_rc_typelist_dfl = { &krb5_rc_dfl_ops, &none };
-static struct krb5_rc_typelist *typehead = &krb5_rc_typelist_dfl;
-static k5_mutex_t rc_typelist_lock = K5_MUTEX_PARTIAL_INITIALIZER;
+static struct typelist none = { &k5_rc_none_ops, 0 };
+static struct typelist file2 = { &k5_rc_file2_ops, &none };
+static struct typelist dfl = { &k5_rc_dfl_ops, &file2 };
+static struct typelist *typehead = &dfl;
 
-int
-krb5int_rc_finish_init(void)
+krb5_error_code
+k5_rc_default(krb5_context context, krb5_rcache *rc_out)
 {
-    return k5_mutex_finish_init(&rc_typelist_lock);
+    krb5_error_code ret;
+    const char *val;
+    char *profstr, *rcname;
+
+    *rc_out = NULL;
+
+    /* If KRB5RCACHENAME is set in the environment, resolve it. */
+    val = secure_getenv("KRB5RCACHENAME");
+    if (val != NULL)
+        return k5_rc_resolve(context, val, rc_out);
+
+    /* If KRB5RCACHETYPE is set in the environment, resolve it with an empty
+     * residual (primarily to support KRB5RCACHETYPE=none). */
+    val = secure_getenv("KRB5RCACHETYPE");
+    if (val != NULL) {
+        if (asprintf(&rcname, "%s:", val) < 0)
+            return ENOMEM;
+        ret = k5_rc_resolve(context, rcname, rc_out);
+        free(rcname);
+        return ret;
+    }
+
+    /* If [libdefaults] default_rcache_name is set, expand path tokens in the
+     * value and resolve it. */
+    if (profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                           KRB5_CONF_DEFAULT_RCACHE_NAME, NULL, NULL,
+                           &profstr) == 0 && profstr != NULL) {
+        ret = k5_expand_path_tokens(context, profstr, &rcname);
+        profile_release_string(profstr);
+        if (ret)
+            return ret;
+        ret = k5_rc_resolve(context, rcname, rc_out);
+        free(rcname);
+        return ret;
+    }
+
+    /* Resolve the default type with no residual. */
+    return k5_rc_resolve(context, "dfl:", rc_out);
+}
+
+
+krb5_error_code
+k5_rc_resolve(krb5_context context, const char *name, krb5_rcache *rc_out)
+{
+    krb5_error_code ret;
+    struct typelist *t;
+    const char *sep;
+    size_t len;
+    krb5_rcache rc = NULL;
+
+    *rc_out = NULL;
+
+    sep = strchr(name, ':');
+    if (sep == NULL)
+        return KRB5_RC_PARSE;
+    len = sep - name;
+
+    for (t = typehead; t != NULL; t = t->next) {
+        if (strncmp(t->ops->type, name, len) == 0 && t->ops->type[len] == '\0')
+            break;
+    }
+    if (t == NULL)
+        return KRB5_RC_TYPE_NOTFOUND;
+
+    rc = k5alloc(sizeof(*rc), &ret);
+    if (rc == NULL)
+        goto error;
+    rc->name = strdup(name);
+    if (rc->name == NULL) {
+        ret = ENOMEM;
+        goto error;
+    }
+    ret = t->ops->resolve(context, sep + 1, &rc->data);
+    if (ret)
+        goto error;
+    rc->ops = t->ops;
+    rc->magic = KV5M_RCACHE;
+
+    *rc_out = rc;
+    return 0;
+
+error:
+    if (rc != NULL) {
+        free(rc->name);
+        free(rc);
+    }
+    return ret;
 }
 
 void
-krb5int_rc_terminate(void)
+k5_rc_close(krb5_context context, krb5_rcache rc)
 {
-    struct krb5_rc_typelist *t, *t_next;
-    k5_mutex_destroy(&rc_typelist_lock);
-    for (t = typehead; t != &krb5_rc_typelist_dfl; t = t_next) {
-        t_next = t->next;
-        free(t);
-    }
+    rc->ops->close(context, rc->data);
+    free(rc->name);
+    free(rc);
 }
 
 krb5_error_code
-krb5_rc_register_type(krb5_context context, const krb5_rc_ops *ops)
+k5_rc_store(krb5_context context, krb5_rcache rc,
+            const krb5_enc_data *authenticator)
 {
-    struct krb5_rc_typelist *t;
+    krb5_error_code ret;
+    krb5_data tag;
 
-    k5_mutex_lock(&rc_typelist_lock);
-    for (t = typehead;t && strcmp(t->ops->type,ops->type);t = t->next)
-        ;
-    if (t) {
-        k5_mutex_unlock(&rc_typelist_lock);
-        return KRB5_RC_TYPE_EXISTS;
-    }
-    t = (struct krb5_rc_typelist *) malloc(sizeof(struct krb5_rc_typelist));
-    if (t == NULL) {
-        k5_mutex_unlock(&rc_typelist_lock);
-        return KRB5_RC_MALLOC;
-    }
-    t->next = typehead;
-    t->ops = ops;
-    typehead = t;
-    k5_mutex_unlock(&rc_typelist_lock);
+    ret = k5_rc_tag_from_ciphertext(context, authenticator, &tag);
+    if (ret)
+        return ret;
+    return rc->ops->store(context, rc->data, &tag);
+}
+
+const char *
+k5_rc_get_name(krb5_context context, krb5_rcache rc)
+{
+    return rc->name;
+}
+
+krb5_error_code
+k5_rc_tag_from_ciphertext(krb5_context context, const krb5_enc_data *enc,
+                          krb5_data *tag_out)
+{
+    krb5_error_code ret;
+    const krb5_data *cdata = &enc->ciphertext;
+    unsigned int len;
+
+    *tag_out = empty_data();
+
+    ret = krb5_c_crypto_length(context, enc->enctype,
+                               KRB5_CRYPTO_TYPE_CHECKSUM, &len);
+    if (ret)
+        return ret;
+    if (cdata->length < len)
+        return EINVAL;
+    *tag_out = make_data(cdata->data + cdata->length - len, len);
     return 0;
 }
 
-krb5_error_code
-krb5_rc_resolve_type(krb5_context context, krb5_rcache *idptr,
-                     const char *type)
-{
-    struct krb5_rc_typelist *t;
-    krb5_error_code err;
-    krb5_rcache id;
+/*
+ * Stub functions for former internal replay cache functions used by OpenSSL
+ * (despite the lack of prototypes) before the OpenSSL 1.1 release.
+ */
 
-    *idptr = NULL;
-
-    /* Find the named type in the list. */
-    k5_mutex_lock(&rc_typelist_lock);
-    for (t = typehead; t && strcmp(t->ops->type, type); t = t->next)
-        ;
-    k5_mutex_unlock(&rc_typelist_lock);
-    if (!t)
-        return KRB5_RC_TYPE_NOTFOUND;
-
-    /* Create and return the rcache structure. */
-    id = malloc(sizeof(*id));
-    if (!id)
-        return KRB5_RC_MALLOC;
-    err = k5_mutex_init(&id->lock);
-    if (err) {
-        free(id);
-        return err;
-    }
-    id->data = NULL;  /* Gets real data when resolved */
-    id->magic = 0;    /* Gets real magic after resolved */
-    id->ops = t->ops;
-    *idptr = id;
-    return 0;
-}
-
-char * krb5_rc_get_type(krb5_context context, krb5_rcache id)
-{
-    return id->ops->type;
-}
-
-char *
-krb5_rc_default_type(krb5_context context)
-{
-    char *s;
-    if ((s = getenv("KRB5RCACHETYPE")))
-        return s;
-    else
-        return "dfl";
-}
-
-char *
-krb5_rc_default_name(krb5_context context)
-{
-    char *s;
-    if ((s = getenv("KRB5RCACHENAME")))
-        return s;
-    else
-        return (char *) 0;
-}
+krb5_error_code krb5_rc_default(krb5_context, krb5_rcache *);
+krb5_error_code KRB5_CALLCONV krb5_rc_destroy(krb5_context, krb5_rcache);
+krb5_error_code KRB5_CALLCONV krb5_rc_get_lifespan(krb5_context, krb5_rcache,
+                                                   krb5_deltat *);
+krb5_error_code KRB5_CALLCONV krb5_rc_initialize(krb5_context, krb5_rcache,
+                                                 krb5_deltat);
 
 krb5_error_code
-krb5_rc_default(krb5_context context, krb5_rcache *idptr)
+krb5_rc_default(krb5_context context, krb5_rcache *rc)
 {
-    krb5_error_code retval;
-    krb5_rcache id;
-
-    *idptr = NULL;
-    retval = krb5_rc_resolve_type(context, &id, krb5_rc_default_type(context));
-    if (retval)
-        return retval;
-    retval = krb5_rc_resolve(context, id, krb5_rc_default_name(context));
-    if (retval) {
-        k5_mutex_destroy(&id->lock);
-        free(id);
-        return retval;
-    }
-    id->magic = KV5M_RCACHE;
-    *idptr = id;
-    return retval;
+    return EINVAL;
 }
 
-
-krb5_error_code
-krb5_rc_resolve_full(krb5_context context, krb5_rcache *idptr,
-                     const char *string_name)
+krb5_error_code KRB5_CALLCONV
+krb5_rc_destroy(krb5_context context, krb5_rcache rc)
 {
-    char *type;
-    char *residual;
-    krb5_error_code retval;
-    unsigned int diff;
-    krb5_rcache id;
+    return EINVAL;
+}
 
-    *idptr = NULL;
+krb5_error_code KRB5_CALLCONV
+krb5_rc_get_lifespan(krb5_context context, krb5_rcache rc, krb5_deltat *span)
+{
+    return EINVAL;
+}
 
-    if (!(residual = strchr(string_name,':')))
-        return KRB5_RC_PARSE;
-
-    diff = residual - string_name;
-    if (!(type = malloc(diff + 1)))
-        return KRB5_RC_MALLOC;
-    (void) strncpy(type, string_name, diff);
-    type[residual - string_name] = '\0';
-
-    retval = krb5_rc_resolve_type(context, &id,type);
-    free(type);
-    if (retval)
-        return retval;
-    if ((retval = krb5_rc_resolve(context, id,residual + 1))) {
-        k5_mutex_destroy(&id->lock);
-        free(id);
-        return retval;
-    }
-    id->magic = KV5M_RCACHE;
-    *idptr = id;
-    return retval;
+krb5_error_code KRB5_CALLCONV
+krb5_rc_initialize(krb5_context context, krb5_rcache rc, krb5_deltat span)
+{
+    return EINVAL;
 }

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 realm = K5Realm(start_kdc=False, create_host=False)

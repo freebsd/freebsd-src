@@ -37,9 +37,6 @@
 #define BELL_CHAR '\007'
 #endif
 
-extern int optind;
-extern char *optarg;
-
 #ifndef _WIN32
 #define GET_PROGNAME(x) (strrchr((x), '/') ? strrchr((x), '/') + 1 : (x))
 #else
@@ -52,10 +49,12 @@ char *progname;
 static void
 usage()
 {
-    fprintf(stderr, _("Usage: %s [-A] [-q] [-c cache_name]\n"), progname);
+    fprintf(stderr, _("Usage: %s [-A] [-q] [-c cache_name] [-p princ_name]\n"),
+            progname);
     fprintf(stderr, _("\t-A destroy all credential caches in collection\n"));
     fprintf(stderr, _("\t-q quiet mode\n"));
     fprintf(stderr, _("\t-c specify name of credentials cache\n"));
+    fprintf(stderr, _("\t-p specify principal name within collection\n"));
     exit(2);
 }
 
@@ -90,13 +89,15 @@ main(int argc, char *argv[])
     krb5_error_code ret;
     krb5_ccache cache = NULL;
     krb5_cccol_cursor cursor;
+    krb5_principal princ;
     char *cache_name = NULL;
+    const char *princ_name = NULL;
     int code = 0, errflg = 0, quiet = 0, all = 0, c;
 
     setlocale(LC_ALL, "");
     progname = GET_PROGNAME(argv[0]);
 
-    while ((c = getopt(argc, argv, "54Aqc:")) != -1) {
+    while ((c = getopt(argc, argv, "54Aqc:p:")) != -1) {
         switch (c) {
         case 'A':
             all = 1;
@@ -112,6 +113,14 @@ main(int argc, char *argv[])
                 cache_name = optarg;
             }
             break;
+        case 'p':
+            if (princ_name != NULL) {
+                fprintf(stderr, _("Only one -p option allowed\n"));
+                errflg++;
+            } else {
+                princ_name = optarg;
+            }
+            break;
         case '4':
             fprintf(stderr, _("Kerberos 4 is no longer supported\n"));
             exit(3);
@@ -123,6 +132,11 @@ main(int argc, char *argv[])
             errflg++;
             break;
         }
+    }
+
+    if (all && princ_name != NULL) {
+        fprintf(stderr, _("-A option is exclusive with -p option\n"));
+        errflg++;
     }
 
     if (optind != argc)
@@ -170,10 +184,26 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    code = krb5_cc_default(context, &cache);
-    if (code) {
-        com_err(progname, code, _("while resolving ccache"));
-        exit(1);
+    if (princ_name != NULL) {
+        code = krb5_parse_name(context, princ_name, &princ);
+        if (code) {
+            com_err(progname, code, _("while parsing principal name %s"),
+                    princ_name);
+            exit(1);
+        }
+        code = krb5_cc_cache_match(context, princ, &cache);
+        if (code) {
+            com_err(progname, code, _("while finding cache for %s"),
+                    princ_name);
+            exit(1);
+        }
+        krb5_free_principal(context, princ);
+    } else {
+        code = krb5_cc_default(context, &cache);
+        if (code) {
+            com_err(progname, code, _("while resolving ccache"));
+            exit(1);
+        }
     }
 
     code = krb5_cc_destroy(context, cache);
@@ -190,7 +220,7 @@ main(int argc, char *argv[])
         }
     }
 
-    if (!quiet && !errflg)
+    if (!quiet && !errflg && princ_name == NULL)
         print_remaining_cc_warning(context);
 
     krb5_free_context(context);

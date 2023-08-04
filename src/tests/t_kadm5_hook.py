@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 plugin = os.path.join(buildtop, "plugins", "kadm5_hook", "test",

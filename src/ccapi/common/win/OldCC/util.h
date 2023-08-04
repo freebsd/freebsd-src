@@ -29,9 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
-#endif
 
 BOOL isNT();
 

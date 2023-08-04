@@ -135,7 +135,7 @@ get_homedir(krb5_context context)
     struct passwd pwx, *pwd;
 
     if (!context->profile_secure)
-        homedir = getenv("HOME");
+        homedir = secure_getenv("HOME");
 
     if (homedir == NULL) {
         if (k5_getpwuid_r(geteuid(), &pwx, pwbuf, sizeof(pwbuf), &pwd) != 0)

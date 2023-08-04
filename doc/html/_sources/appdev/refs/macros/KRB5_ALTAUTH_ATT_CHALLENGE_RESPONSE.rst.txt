@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-ALTAUTH-ATT-CHALLENGE-RESPONSE-data:
+
+KRB5_ALTAUTH_ATT_CHALLENGE_RESPONSE
+===================================
+
+..
+.. data:: KRB5_ALTAUTH_ATT_CHALLENGE_RESPONSE
+..
+
+alternate authentication types
+
+
+
+========================================== ======================
+``KRB5_ALTAUTH_ATT_CHALLENGE_RESPONSE``       ``64``
+========================================== ======================

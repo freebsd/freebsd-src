@@ -78,39 +78,6 @@ void profile_library_finalizer(void)
 
 static void profile_free_file_data(prf_data_t);
 
-#if 0
-
-#define scan_shared_trees_locked()                              \
-    {                                                           \
-        prf_data_t d;                                           \
-        k5_mutex_assert_locked(&g_shared_trees_mutex);          \
-        for (d = g_shared_trees; d; d = d->next) {              \
-            assert(d->magic == PROF_MAGIC_FILE_DATA);           \
-            assert((d->flags & PROFILE_FILE_SHARED) != 0);      \
-            assert(d->filespec[0] != 0);                        \
-            assert(d->fslen <= 1000); /* XXX */                 \
-            assert(d->filespec[d->fslen] == 0);                 \
-            assert(d->fslen = strlen(d->filespec));             \
-            assert(d->root != NULL);                            \
-        }                                                       \
-    }
-
-#define scan_shared_trees_unlocked()                    \
-    {                                                   \
-        int r;                                          \
-        r = k5_mutex_lock(&g_shared_trees_mutex);       \
-        assert (r == 0);                                \
-        scan_shared_trees_locked();                     \
-        k5_mutex_unlock(&g_shared_trees_mutex);         \
-    }
-
-#else
-
-#define scan_shared_trees_locked()      { ; }
-#define scan_shared_trees_unlocked()    { ; }
-
-#endif
-
 static int rw_access(const_profile_filespec_t filespec)
 {
 #ifdef HAVE_ACCESS
@@ -208,8 +175,6 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     if (retval)
         return retval;
 
-    scan_shared_trees_unlocked();
-
     prf = malloc(sizeof(struct _prf_file_t));
     if (!prf)
         return ENOMEM;
@@ -217,7 +182,7 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     prf->magic = PROF_MAGIC_FILE;
 
     if (filespec[0] == '~' && filespec[1] == '/') {
-        home_env = getenv("HOME");
+        home_env = secure_getenv("HOME");
 #ifdef HAVE_PWD_H
         if (home_env == NULL) {
             uid_t uid;
@@ -243,7 +208,6 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     }
 
     k5_mutex_lock(&g_shared_trees_mutex);
-    scan_shared_trees_locked();
     for (data = g_shared_trees; data; data = data->next) {
         if (!strcmp(data->filespec, expanded_filename)
             /* Check that current uid has read access.  */
@@ -263,7 +227,6 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
         }
         prf->data = data;
         *ret_prof = prf;
-        scan_shared_trees_unlocked();
         return 0;
     }
     k5_mutex_unlock(&g_shared_trees_mutex);
@@ -290,11 +253,9 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     }
 
     k5_mutex_lock(&g_shared_trees_mutex);
-    scan_shared_trees_locked();
     data->flags |= PROFILE_FILE_SHARED;
     data->next = g_shared_trees;
     g_shared_trees = data;
-    scan_shared_trees_locked();
     k5_mutex_unlock(&g_shared_trees_mutex);
 
     *ret_prof = prf;
@@ -311,6 +272,9 @@ errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
 #endif
     FILE *f;
     int isdir = 0;
+
+    if ((data->flags & PROFILE_FILE_NO_RELOAD) && data->root != NULL)
+        return 0;
 
 #ifdef HAVE_STAT
     now = time(0);
@@ -339,6 +303,10 @@ errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
         profile_free_node(data->root);
         data->root = 0;
     }
+
+    /* Only try to reload regular files, not devices such as pipes. */
+    if ((st.st_mode & S_IFMT) != S_IFREG)
+        data->flags |= PROFILE_FILE_NO_RELOAD;
 #else
     /*
      * If we don't have the stat() call, assume that our in-core
@@ -362,7 +330,7 @@ errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
     }
 
     data->upd_serial++;
-    data->flags &= PROFILE_FILE_SHARED;  /* FIXME same as '=' operator */
+    data->flags &= ~PROFILE_FILE_DIRTY;
 
     if (isdir) {
         retval = profile_process_directory(data->filespec, &data->root);
@@ -536,11 +504,9 @@ void profile_dereference_data(prf_data_t data)
 }
 void profile_dereference_data_locked(prf_data_t data)
 {
-    scan_shared_trees_locked();
     data->refcount--;
     if (data->refcount == 0)
         profile_free_file_data(data);
-    scan_shared_trees_locked();
 }
 
 void profile_lock_global()
@@ -561,7 +527,6 @@ void profile_free_file(prf_file_t prf)
 /* Call with mutex locked!  */
 static void profile_free_file_data(prf_data_t data)
 {
-    scan_shared_trees_locked();
     if (data->flags & PROFILE_FILE_SHARED) {
         /* Remove from linked list.  */
         if (g_shared_trees == data)
@@ -585,7 +550,6 @@ static void profile_free_file_data(prf_data_t data)
     data->magic = 0;
     k5_mutex_destroy(&data->lock);
     free(data);
-    scan_shared_trees_locked();
 }
 
 errcode_t profile_close_file(prf_file_t prf)

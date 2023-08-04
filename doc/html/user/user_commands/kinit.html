@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>kinit &mdash; MIT Kerberos Documentation</title>
-    
+    <title>kinit &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="User commands" href="index.html" />
     <link rel="next" title="klist" href="klist.html" />
     <link rel="prev" title="kdestroy" href="kdestroy.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="kinit">
 <span id="kinit-1"></span><h1>kinit<a class="headerlink" href="#kinit" title="Permalink to this headline">¶</a></h1>
@@ -80,13 +78,14 @@
 [<strong>-E</strong>]
 [<strong>-v</strong>]
 [<strong>-R</strong>]
-[<strong>-k</strong> [-<strong>t</strong> <em>keytab_file</em>]]
+[<strong>-k</strong> [<strong>-i</strong> | -<strong>t</strong> <em>keytab_file</em>]]
 [<strong>-c</strong> <em>cache_name</em>]
 [<strong>-n</strong>]
 [<strong>-S</strong> <em>service_name</em>]
 [<strong>-I</strong> <em>input_ccache</em>]
 [<strong>-T</strong> <em>armor_ccache</em>]
 [<strong>-X</strong> <em>attribute</em>[=<em>value</em>]]
+[<strong>–request-pac</strong> | <strong>–no-request-pac</strong>]
 [<em>principal</em>]</p>
 </div>
 <div class="section" id="description">
@@ -103,23 +102,23 @@ choice of principal name.</p>
 <dt><strong>-V</strong></dt>
 <dd>display verbose output.</dd>
 <dt><strong>-l</strong> <em>lifetime</em></dt>
-<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests a ticket with the lifetime
+<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Requests a ticket with the lifetime
 <em>lifetime</em>.</p>
-<p>For example, <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5:30</span></tt> or <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5h30m</span></tt>.</p>
+<p>For example, <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5:30</span></code> or <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5h30m</span></code>.</p>
 <p class="last">If the <strong>-l</strong> option is not specified, the default ticket lifetime
 (configured by each site) is used.  Specifying a ticket lifetime
 longer than the maximum ticket lifetime (configured by each site)
 will not override the configured maximum ticket lifetime.</p>
 </dd>
 <dt><strong>-s</strong> <em>start_time</em></dt>
-<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests a postdated ticket.  Postdated
+<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Requests a postdated ticket.  Postdated
 tickets are issued with the <strong>invalid</strong> flag set, and need to be
 resubmitted to the KDC for validation before use.</p>
 <p class="last"><em>start_time</em> specifies the duration of the delay before the ticket
 can become valid.</p>
 </dd>
 <dt><strong>-r</strong> <em>renewable_life</em></dt>
-<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests renewable tickets, with a total
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Requests renewable tickets, with a total
 lifetime of <em>renewable_life</em>.</dd>
 <dt><strong>-f</strong></dt>
 <dd>requests forwardable tickets.</dd>
@@ -130,7 +129,7 @@ lifetime of <em>renewable_life</em>.</dd>
 <dt><strong>-P</strong></dt>
 <dd>requests non-proxiable tickets.</dd>
 <dt><strong>-a</strong></dt>
-<dd>requests tickets restricted to the host&#8217;s local address[es].</dd>
+<dd>requests tickets restricted to the host’s local address[es].</dd>
 <dt><strong>-A</strong></dt>
 <dd>requests tickets not restricted by address.</dd>
 <dt><strong>-C</strong></dt>
@@ -138,8 +137,7 @@ lifetime of <em>renewable_life</em>.</dd>
 KDC to reply with a different client principal from the one
 requested.</dd>
 <dt><strong>-E</strong></dt>
-<dd>treats the principal name as an enterprise name (implies the
-<strong>-C</strong> option).</dd>
+<dd>treats the principal name as an enterprise name.</dd>
 <dt><strong>-v</strong></dt>
 <dd>requests that the ticket-granting ticket in the cache (with the
 <strong>invalid</strong> flag set) be passed to the KDC for validation.  If the
@@ -150,18 +148,18 @@ with the validated ticket.</dd>
 expired ticket cannot be renewed, even if the ticket is still
 within its renewable life.</p>
 <p class="last">Note that renewable tickets that have expired as reported by
-<a class="reference internal" href="klist.html#klist-1"><em>klist</em></a> may sometimes be renewed using this option,
+<a class="reference internal" href="klist.html#klist-1"><span class="std std-ref">klist</span></a> may sometimes be renewed using this option,
 because the KDC applies a grace period to account for client-KDC
-clock skew.  See <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> <strong>clockskew</strong> setting.</p>
+clock skew.  See <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> <strong>clockskew</strong> setting.</p>
 </dd>
 <dt><strong>-k</strong> [<strong>-i</strong> | <strong>-t</strong> <em>keytab_file</em>]</dt>
-<dd>requests a ticket, obtained from a key in the local host&#8217;s keytab.
+<dd>requests a ticket, obtained from a key in the local host’s keytab.
 The location of the keytab may be specified with the <strong>-t</strong>
 <em>keytab_file</em> option, or with the <strong>-i</strong> option to specify the use
 of the default client keytab; otherwise the default keytab will be
 used.  By default, a host ticket for the local host is requested,
 but any principal may be specified.  On a KDC, the special keytab
-location <tt class="docutils literal"><span class="pre">KDB:</span></tt> can be used to indicate that kinit should open
+location <code class="docutils literal"><span class="pre">KDB:</span></code> can be used to indicate that kinit should open
 the KDC database and look up the key directly.  This permits an
 administrator to obtain tickets as any principal that supports
 authentication based on the key.</dd>
@@ -169,14 +167,14 @@ authentication based on the key.</dd>
 <dd><p class="first">Requests anonymous processing.  Two types of anonymous principals
 are supported.</p>
 <p>For fully anonymous Kerberos, configure pkinit on the KDC and
-configure <strong>pkinit_anchors</strong> in the client&#8217;s <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>.
-Then use the <strong>-n</strong> option with a principal of the form <tt class="docutils literal"><span class="pre">&#64;REALM</span></tt>
+configure <strong>pkinit_anchors</strong> in the client’s <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.
+Then use the <strong>-n</strong> option with a principal of the form <code class="docutils literal"><span class="pre">&#64;REALM</span></code>
 (an empty principal name followed by the at-sign and a realm
 name).  If permitted by the KDC, an anonymous ticket will be
 returned.</p>
 <p>A second form of anonymous tickets is supported; these
 realm-exposed tickets hide the identity of the client but not the
-client&#8217;s realm.  For this mode, use <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span></tt> with a normal
+client’s realm.  For this mode, use <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span></code> with a normal
 principal name.  If supported by the KDC, the principal (but not
 realm) will be replaced by the anonymous principal.</p>
 <p class="last">As of release 1.8, the MIT Kerberos KDC only supports fully
@@ -219,46 +217,46 @@ tickets.</dd>
 interpreted by pre-authentication modules.  The acceptable
 attribute and value values vary from module to module.  This
 option may be specified multiple times to specify multiple
-attributes.  If no value is specified, it is assumed to be &#8220;yes&#8221;.</p>
+attributes.  If no value is specified, it is assumed to be “yes”.</p>
 <p>The following attributes are recognized by the PKINIT
 pre-authentication mechanism:</p>
 <dl class="last docutils">
 <dt><strong>X509_user_identity</strong>=<em>value</em></dt>
-<dd>specify where to find user&#8217;s X509 identity information</dd>
+<dd>specify where to find user’s X509 identity information</dd>
 <dt><strong>X509_anchors</strong>=<em>value</em></dt>
 <dd>specify where to find trusted X509 anchor information</dd>
 <dt><strong>flag_RSA_PROTOCOL</strong>[<strong>=yes</strong>]</dt>
 <dd>specify use of RSA, rather than the default Diffie-Hellman
 protocol</dd>
+<dt><strong>disable_freshness</strong>[<strong>=yes</strong>]</dt>
+<dd>disable sending freshness tokens (for testing purposes only)</dd>
 </dl>
 </dd>
+<dt><strong>–request-pac</strong> | <strong>–no-request-pac</strong></dt>
+<dd>mutually exclusive.  If <strong>–request-pac</strong> is set, ask the KDC to
+include a PAC in authdata; if <strong>–no-request-pac</strong> is set, ask the
+KDC not to include a PAC; if neither are set,  the KDC will follow
+its default, which is typically is to include a PAC if doing so is
+supported.</dd>
 </dl>
 </div>
 <div class="section" id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
-<p>kinit uses the following environment variables:</p>
-<dl class="docutils">
-<dt><strong>KRB5CCNAME</strong></dt>
-<dd>Location of the default Kerberos 5 credentials cache, in the form
-<em>type</em>:<em>residual</em>.  If no <em>type</em> prefix is present, the <strong>FILE</strong>
-type is assumed.  The type of the default cache may determine the
-availability of a cache collection; for instance, a default cache
-of type <strong>DIR</strong> causes caches within the directory to be present
-in the collection.</dd>
-</dl>
+<p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="files">
 <h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
-<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCCNAME</em></a></dt>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a></dt>
 <dd>default location of Kerberos 5 credentials cache</dd>
-<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFKTNAME</em></a></dt>
-<dd>default location for the local host&#8217;s keytab.</dd>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a></dt>
+<dd>default location for the local host’s keytab.</dd>
 </dl>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="klist.html#klist-1"><em>klist</em></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><em>kdestroy</em></a>, kerberos(1)</p>
+<p><a class="reference internal" href="klist.html#klist-1"><span class="std std-ref">klist</span></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </div>
 </div>
 
@@ -290,7 +288,7 @@ in the collection.</dd>
 <li class="toctree-l2"><a class="reference internal" href="../user_config/index.html">User config files</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="index.html">User commands</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="kdestroy.html">kdestroy</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">kinit</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kinit</a></li>
 <li class="toctree-l3"><a class="reference internal" href="klist.html">klist</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
@@ -330,8 +328,8 @@ in the collection.</dd>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

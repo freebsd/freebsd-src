@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Differences between Heimdal and MIT Kerberos API &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Differences between Heimdal and MIT Kerberos API &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For application developers" href="index.html" />
     <link rel="next" title="Initial credentials" href="init_creds.html" />
     <link rel="prev" title="Year 2038 considerations for uses of krb5_timestamp" href="y2038.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="differences-between-heimdal-and-mit-kerberos-api">
 <h1>Differences between Heimdal and MIT Kerberos API<a class="headerlink" href="#differences-between-heimdal-and-mit-kerberos-api" title="Permalink to this headline">¶</a></h1>
@@ -71,43 +69,40 @@
 <col width="55%" />
 </colgroup>
 <tbody valign="top">
-<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_getaddrs.html#c.krb5_auth_con_getaddrs" title="krb5_auth_con_getaddrs"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_getaddrs()</span></tt></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_getaddrs.html#c.krb5_auth_con_getaddrs" title="krb5_auth_con_getaddrs"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_getaddrs()</span></code></a></td>
 <td>H5l: If either of the pointers to local_addr
 and remote_addr is not NULL, it is freed
 first and then reallocated before being
 populated with the content of corresponding
 address from authentication context.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_auth_con_setaddrs.html#c.krb5_auth_con_setaddrs" title="krb5_auth_con_setaddrs"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setaddrs()</span></tt></a></td>
+<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_auth_con_setaddrs.html#c.krb5_auth_con_setaddrs" title="krb5_auth_con_setaddrs"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setaddrs()</span></code></a></td>
 <td>H5l: If either address is NULL, the previous
 address remains in place</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_setports.html#c.krb5_auth_con_setports" title="krb5_auth_con_setports"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setports()</span></tt></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_setports.html#c.krb5_auth_con_setports" title="krb5_auth_con_setports"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setports()</span></code></a></td>
 <td>H5l: Not implemented as of version 1.3.3</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_auth_con_setrecvsubkey.html#c.krb5_auth_con_setrecvsubkey" title="krb5_auth_con_setrecvsubkey"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setrecvsubkey()</span></tt></a></td>
+<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_auth_con_setrecvsubkey.html#c.krb5_auth_con_setrecvsubkey" title="krb5_auth_con_setrecvsubkey"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setrecvsubkey()</span></code></a></td>
 <td>H5l: If either port is NULL, the previous
 port remains in place</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_setsendsubkey.html#c.krb5_auth_con_setsendsubkey" title="krb5_auth_con_setsendsubkey"><tt class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setsendsubkey()</span></tt></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_auth_con_setsendsubkey.html#c.krb5_auth_con_setsendsubkey" title="krb5_auth_con_setsendsubkey"><code class="xref c c-func docutils literal"><span class="pre">krb5_auth_con_setsendsubkey()</span></code></a></td>
 <td>H5l: Not implemented as of version 1.3.3</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_cc_set_config.html#c.krb5_cc_set_config" title="krb5_cc_set_config"><tt class="xref c c-func docutils literal"><span class="pre">krb5_cc_set_config()</span></tt></a></td>
+<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_cc_set_config.html#c.krb5_cc_set_config" title="krb5_cc_set_config"><code class="xref c c-func docutils literal"><span class="pre">krb5_cc_set_config()</span></code></a></td>
 <td>MIT: Before version 1.10 it was assumed that
 the last argument <em>data</em> is ALWAYS non-zero.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="refs/api/krb5_cccol_last_change_time.html#c.krb5_cccol_last_change_time" title="krb5_cccol_last_change_time"><tt class="xref c c-func docutils literal"><span class="pre">krb5_cccol_last_change_time()</span></tt></a></td>
-<td>H5l takes 3 arguments: krb5_context context,
-const char *type, krb5_timestamp *change_time
-MIT takes two arguments: krb5_context context,
-krb5_timestamp *change_time</td>
+<tr class="row-odd"><td><code class="xref c c-func docutils literal"><span class="pre">krb5_cccol_last_change_time()</span></code></td>
+<td>MIT: not implemented</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_set_default_realm.html#c.krb5_set_default_realm" title="krb5_set_default_realm"><tt class="xref c c-func docutils literal"><span class="pre">krb5_set_default_realm()</span></tt></a></td>
+<tr class="row-even"><td><a class="reference internal" href="refs/api/krb5_set_default_realm.html#c.krb5_set_default_realm" title="krb5_set_default_realm"><code class="xref c c-func docutils literal"><span class="pre">krb5_set_default_realm()</span></code></a></td>
 <td>H5l: Caches the computed default realm context
 field.  If the second argument is NULL,
 it tries to retrieve it from libdefaults or DNS.
 MIT: Computes the default realm each time
-if it wasn&#8217;t explicitly set in the context</td>
+if it wasn’t explicitly set in the context</td>
 </tr>
 </tbody>
 </table>
@@ -132,7 +127,7 @@ if it wasn&#8217;t explicitly set in the context</td>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">For application developers</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="gssapi.html">Developing with GSSAPI</a></li>
 <li class="toctree-l2"><a class="reference internal" href="y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_handle.html">Principal manipulation and parsing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="refs/index.html">Complete reference - API and datatypes</a></li>
@@ -164,8 +159,8 @@ if it wasn&#8217;t explicitly set in the context</td>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

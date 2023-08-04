@@ -105,7 +105,7 @@ int verbose = 0;
  * Effects:
  *
  * The service name is imported with gss_import_name, and service
- * credentials are acquired with gss_acquire_cred.  If either opertion
+ * credentials are acquired with gss_acquire_cred.  If either operation
  * fails, an error message is displayed and -1 is returned; otherwise,
  * 0 is returned.
  */
@@ -782,9 +782,6 @@ main(int argc, char **argv)
 
         stmp = create_socket(port);
         if (stmp >= 0) {
-            if (listen(stmp, max_threads == 1 ? 0 : max_threads) < 0)
-                perror("listening on socket");
-
             do {
                 struct _work_plan * work = malloc(sizeof(struct _work_plan));
 

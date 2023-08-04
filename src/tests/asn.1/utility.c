@@ -95,7 +95,7 @@ krb5_data_parse(krb5_data *d, const char *s)
     memcpy(d->data, s, d->length);
 }
 
-asn1_error_code
+krb5_error_code
 krb5_data_hex_parse(krb5_data *d, const char *s)
 {
     int lo;
@@ -129,33 +129,6 @@ krb5_data_hex_parse(krb5_data *d, const char *s)
     d->length = dp - d->data;
     return 0;
 }
-
-#if 0
-void
-asn1buf_print(const asn1buf *buf)
-{
-    asn1buf bufcopy;
-    char *s=NULL;
-    int length;
-    int i;
-
-    bufcopy.base = bufcopy.next = buf->next;
-    bufcopy.bound = buf->bound;
-    length = asn1buf_len(&bufcopy);
-
-    s = calloc(3*length, sizeof(char));
-    if (s == NULL) return;
-    for (i=0; i<length; i++) {
-        s[3*i] = hexchar(((bufcopy.base)[i]&0xF0)>>4);
-        s[3*i+1] = hexchar((bufcopy.base)[i]&0x0F);
-        s[3*i+2] = ' ';
-    }
-    s[3*length-1] = '\0';
-
-    printf("%s\n",s);
-    free(s);
-}
-#endif
 
 void
 init_access(const char *progname)

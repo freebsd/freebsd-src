@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-KDC-ISSUED-data:
+
+KRB5_AUTHDATA_KDC_ISSUED
+========================
+
+..
+.. data:: KRB5_AUTHDATA_KDC_ISSUED
+..
+
+
+
+
+=============================== ======================
+``KRB5_AUTHDATA_KDC_ISSUED``       ``4``
+=============================== ======================

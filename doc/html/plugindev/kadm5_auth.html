@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>kadmin authorization interface (kadm5_auth) &mdash; MIT Kerberos Documentation</title>
-    
+    <title>kadmin authorization interface (kadm5_auth) &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For plugin module developers" href="index.html" />
     <link rel="next" title="Host-to-realm interface (hostrealm)" href="hostrealm.html" />
     <link rel="prev" title="KADM5 hook interface (kadm5_hook)" href="kadm5_hook.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="kadmin-authorization-interface-kadm5-auth">
 <span id="kadm5-auth-plugin"></span><h1>kadmin authorization interface (kadm5_auth)<a class="headerlink" href="#kadmin-authorization-interface-kadm5-auth" title="Permalink to this headline">¶</a></h1>
@@ -69,7 +67,7 @@
 determine whether a client principal is authorized to perform an
 operation in the kadmin protocol, and to apply restrictions to
 principal operations.  For a detailed description of the kadm5_auth
-interface, see the header file <tt class="docutils literal"><span class="pre">&lt;krb5/kadm5_auth_plugin.h&gt;</span></tt>.</p>
+interface, see the header file <code class="docutils literal"><span class="pre">&lt;krb5/kadm5_auth_plugin.h&gt;</span></code>.</p>
 <p>A module can create and destroy per-process state objects by
 implementing the <strong>init</strong> and <strong>fini</strong> methods.  State objects have
 the type kadm5_auth_modinfo, which is an abstract pointer type.  A
@@ -82,12 +80,12 @@ decision to other modules, or another error (canonically EPERM) to
 authoritatively deny access.  Access is granted if at least one module
 grants access and no module authoritatively denies access.</p>
 <p>The <strong>addprinc</strong> and <strong>modprinc</strong> methods can also impose restrictions
-on the principal operation by returning a <tt class="docutils literal"><span class="pre">struct</span>
-<span class="pre">kadm5_auth_restrictions</span></tt> object.  The module should also implement
+on the principal operation by returning a <code class="docutils literal"><span class="pre">struct</span>
+<span class="pre">kadm5_auth_restrictions</span></code> object.  The module should also implement
 the <strong>free_restrictions</strong> method if it dynamically allocates
 restrictions objects for principal operations.</p>
 <p>kadm5_auth modules can optionally inspect principal or policy objects.
-To do this, the module must also include <tt class="docutils literal"><span class="pre">&lt;kadm5/admin.h&gt;</span></tt> to gain
+To do this, the module must also include <code class="docutils literal"><span class="pre">&lt;kadm5/admin.h&gt;</span></code> to gain
 access to the structure definitions for those objects.  As the kadmin
 interface is explicitly not as stable as other public interfaces,
 modules which do this may not retain compatibility across releases.</p>
@@ -117,7 +115,7 @@ modules which do this may not retain compatibility across releases.</p>
 <li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">kadmin authorization interface (kadm5_auth)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">kadmin authorization interface (kadm5_auth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
@@ -153,8 +151,8 @@ modules which do this may not retain compatibility across releases.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

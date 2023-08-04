@@ -54,38 +54,6 @@
         (((o1)->length == (o2)->length) &&                              \
         (memcmp((o1)->elements, (o2)->elements, (o1)->length) == 0))
 
-/* this code knows that an int on the wire is 32 bits.  The type of
-   num should be at least this big, or the extra shifts may do weird
-   things */
-
-#define TWRITE_INT(ptr, num, bigend)                                    \
-   if (bigend) store_32_be(num, ptr); else store_32_le(num, ptr);       \
-   (ptr) += 4;
-
-#define TWRITE_INT16(ptr, num, bigend)                                  \
-   if (bigend) store_16_be((num)>>16, ptr); else store_16_le(num, ptr); \
-   (ptr) += 2;
-
-#define TREAD_INT(ptr, num, bigend)                        \
-   (num) = ((bigend) ? load_32_be(ptr) : load_32_le(ptr)); \
-   (ptr) += 4;
-
-#define TREAD_INT16(ptr, num, bigend)                              \
-   (num) = ((bigend) ? (load_16_be(ptr) << 16) : load_16_le(ptr)); \
-   (ptr) += 2;
-
-#define TWRITE_STR(ptr, str, len)               \
-   memcpy((ptr), (str), (len));                 \
-   (ptr) += (len);
-
-#define TREAD_STR(ptr, str, len)                \
-   (str) = (ptr);                               \
-   (ptr) += (len);
-
-#define TWRITE_BUF(ptr, buf, bigend)                    \
-   TWRITE_INT((ptr), (buf).length, (bigend));           \
-   TWRITE_STR((ptr), (buf).value, (buf).length);
-
 /** malloc wrappers; these may actually do something later */
 
 #define xmalloc(n) malloc(n)
@@ -153,8 +121,8 @@ int g_make_string_buffer (const char *str, gss_buffer_t buffer);
 
 unsigned int g_token_size (const gss_OID_desc * mech, unsigned int body_size);
 
-void g_make_token_header (const gss_OID_desc * mech, unsigned int body_size,
-                          unsigned char **buf, int tok_type);
+void g_make_token_header (struct k5buf *buf, const gss_OID_desc *mech,
+                          size_t body_size, int tok_type);
 
 /* flags for g_verify_token_header() */
 #define G_VFY_TOKEN_HDR_WRAPPER_REQUIRED        0x01

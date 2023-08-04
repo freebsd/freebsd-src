@@ -29,7 +29,7 @@
 #include <time.h>
 
 krb5_error_code KRB5_CALLCONV
-krb5_timeofday(krb5_context context, register krb5_timestamp *timeret)
+krb5_timeofday(krb5_context context, krb5_timestamp *timeret)
 {
     krb5_os_context os_ctx;
     time_t tval;

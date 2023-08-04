@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-PKINIT-FLAGS-TOKEN-USER-PIN-COUNT-LOW-data:
+
+KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW
+====================================================
+
+..
+.. data:: KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW
+..
+
+This flag indicates that an incorrect PIN was supplied at least once since the last time the correct PIN was supplied.
+
+
+
+=========================================================== ======================
+``KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW``       ``(1 << 0)``
+=========================================================== ======================

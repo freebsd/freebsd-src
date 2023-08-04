@@ -56,7 +56,6 @@ DECL_FUNC_PTR(Leash_get_default_renew_till);
 DECL_FUNC_PTR(Leash_get_default_noaddresses);
 DECL_FUNC_PTR(Leash_get_default_proxiable);
 DECL_FUNC_PTR(Leash_get_default_publicip);
-DECL_FUNC_PTR(Leash_get_default_use_krb4);
 DECL_FUNC_PTR(Leash_get_default_life_min);
 DECL_FUNC_PTR(Leash_get_default_life_max);
 DECL_FUNC_PTR(Leash_get_default_renew_min);
@@ -167,7 +166,6 @@ FUNC_INFO leash_fi[] = {
     MAKE_FUNC_INFO(Leash_get_default_noaddresses),
     MAKE_FUNC_INFO(Leash_get_default_proxiable),
     MAKE_FUNC_INFO(Leash_get_default_publicip),
-    MAKE_FUNC_INFO(Leash_get_default_use_krb4),
     MAKE_FUNC_INFO(Leash_get_default_life_min),
     MAKE_FUNC_INFO(Leash_get_default_life_max),
     MAKE_FUNC_INFO(Leash_get_default_renew_min),

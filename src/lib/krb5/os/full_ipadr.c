@@ -36,8 +36,8 @@ krb5_make_full_ipaddr(krb5_context context, krb5_int32 adr,
 {
     unsigned long smushaddr = (unsigned long) adr; /* already in net order */
     unsigned short smushport = (unsigned short) port; /* ditto */
-    register krb5_address *retaddr;
-    register krb5_octet *marshal;
+    krb5_address *retaddr;
+    krb5_octet *marshal;
     krb5_addrtype temptype;
     krb5_int32 templength;
 

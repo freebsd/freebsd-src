@@ -59,10 +59,6 @@ main()
 {
     SHS_INFO shsInfo;
     unsigned int i;
-#if 0
-    time_t secondCount;
-    SHS_BYTE data[ 200 ];
-#endif
 
     /* Make sure we've got the endianness set right.  If the machine is
        big-endian (up to 64 bits) the following value will be signed,
@@ -119,17 +115,6 @@ main()
 #else
     puts( "passed, result= 3232AFFA48628A26653B5AAA44541FD90D690603" );
 #endif /* NEW_SHS */
-
-#if 0
-    printf( "\nTesting speed for 100MB data... " );
-    shsInit( &shsInfo );
-    secondCount = time( NULL );
-    for( i = 0; i < 500000U; i++ )
-        shsUpdate( &shsInfo, data, 200 );
-    secondCount = time( NULL ) - secondCount;
-    printf( "done.  Time = %ld seconds, %ld kbytes/second.\n", \
-            secondCount, 100500L / secondCount );
-#endif
 
     puts( "\nAll SHS tests passed" );
     exit( 0 );

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-CRYPTO-TYPE-DATA-data:
+
+KRB5_CRYPTO_TYPE_DATA
+=====================
+
+..
+.. data:: KRB5_CRYPTO_TYPE_DATA
+..
+
+[in, out] plaintext
+
+
+
+============================ ======================
+``KRB5_CRYPTO_TYPE_DATA``       ``2``
+============================ ======================

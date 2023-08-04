@@ -82,6 +82,8 @@ pkinit_init_plg_opts(pkinit_plg_opts **plgopts)
     opts->dh_or_rsa = DH_PROTOCOL;
     opts->allow_upn = 0;
     opts->require_crl_checking = 0;
+    opts->require_freshness = 0;
+    opts->disable_freshness = 0;
 
     opts->dh_min_bits = PKINIT_DEFAULT_DH_MIN_BITS;
 
@@ -109,15 +111,6 @@ free_krb5_pa_pk_as_req(krb5_pa_pk_as_req **in)
 }
 
 void
-free_krb5_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 **in)
-{
-    if (*in == NULL) return;
-    free((*in)->signedAuthPack.data);
-    free((*in)->kdcCert.data);
-    free(*in);
-}
-
-void
 free_krb5_reply_key_pack(krb5_reply_key_pack **in)
 {
     if (*in == NULL) return;
@@ -127,24 +120,12 @@ free_krb5_reply_key_pack(krb5_reply_key_pack **in)
 }
 
 void
-free_krb5_reply_key_pack_draft9(krb5_reply_key_pack_draft9 **in)
-{
-    if (*in == NULL) return;
-    free((*in)->replyKey.contents);
-    free(*in);
-}
-
-void
 free_krb5_auth_pack(krb5_auth_pack **in)
 {
     if ((*in) == NULL) return;
-    if ((*in)->clientPublicValue != NULL) {
-        free((*in)->clientPublicValue->algorithm.algorithm.data);
-        free((*in)->clientPublicValue->algorithm.parameters.data);
-        free((*in)->clientPublicValue->subjectPublicKey.data);
-        free((*in)->clientPublicValue);
-    }
+    krb5_free_data_contents(NULL, &(*in)->clientPublicValue);
     free((*in)->pkAuthenticator.paChecksum.contents);
+    krb5_free_data(NULL, (*in)->pkAuthenticator.freshnessToken);
     if ((*in)->supportedCMSTypes != NULL)
         free_krb5_algorithm_identifiers(&((*in)->supportedCMSTypes));
     if ((*in)->supportedKDFs) {
@@ -154,15 +135,6 @@ free_krb5_auth_pack(krb5_auth_pack **in)
             krb5_free_data(NULL, supportedKDFs[i]);
         free(supportedKDFs);
     }
-    free(*in);
-}
-
-void
-free_krb5_auth_pack_draft9(krb5_context context,
-                           krb5_auth_pack_draft9 **in)
-{
-    if ((*in) == NULL) return;
-    krb5_free_principal(context, (*in)->pkAuthenticator.kdcName);
     free(*in);
 }
 
@@ -181,14 +153,6 @@ free_krb5_pa_pk_as_rep(krb5_pa_pk_as_rep **in)
     default:
         break;
     }
-    free(*in);
-}
-
-void
-free_krb5_pa_pk_as_rep_draft9(krb5_pa_pk_as_rep_draft9 **in)
-{
-    if (*in == NULL) return;
-    free((*in)->u.encKeyPack.data);
     free(*in);
 }
 
@@ -230,15 +194,6 @@ free_krb5_algorithm_identifiers(krb5_algorithm_identifier ***in)
 }
 
 void
-free_krb5_subject_pk_info(krb5_subject_pk_info **in)
-{
-    if ((*in) == NULL) return;
-    free((*in)->algorithm.parameters.data);
-    free((*in)->subjectPublicKey.data);
-    free(*in);
-}
-
-void
 free_krb5_kdc_dh_key_info(krb5_kdc_dh_key_info **in)
 {
     if (*in == NULL) return;
@@ -259,17 +214,6 @@ init_krb5_pa_pk_as_req(krb5_pa_pk_as_req **in)
 }
 
 void
-init_krb5_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 **in)
-{
-    (*in) = malloc(sizeof(krb5_pa_pk_as_req_draft9));
-    if ((*in) == NULL) return;
-    (*in)->signedAuthPack.data = NULL;
-    (*in)->signedAuthPack.length = 0;
-    (*in)->kdcCert.data = NULL;
-    (*in)->kdcCert.length = 0;
-}
-
-void
 init_krb5_reply_key_pack(krb5_reply_key_pack **in)
 {
     (*in) = malloc(sizeof(krb5_reply_key_pack));
@@ -278,15 +222,6 @@ init_krb5_reply_key_pack(krb5_reply_key_pack **in)
     (*in)->replyKey.length = 0;
     (*in)->asChecksum.contents = NULL;
     (*in)->asChecksum.length = 0;
-}
-
-void
-init_krb5_reply_key_pack_draft9(krb5_reply_key_pack_draft9 **in)
-{
-    (*in) = malloc(sizeof(krb5_reply_key_pack_draft9));
-    if ((*in) == NULL) return;
-    (*in)->replyKey.contents = NULL;
-    (*in)->replyKey.length = 0;
 }
 
 void
@@ -301,28 +236,6 @@ init_krb5_pa_pk_as_rep(krb5_pa_pk_as_rep **in)
     (*in)->u.encKeyPack.length = 0;
     (*in)->u.encKeyPack.data = NULL;
     (*in)->u.dh_Info.kdfID = NULL;
-}
-
-void
-init_krb5_pa_pk_as_rep_draft9(krb5_pa_pk_as_rep_draft9 **in)
-{
-    (*in) = malloc(sizeof(krb5_pa_pk_as_rep_draft9));
-    if ((*in) == NULL) return;
-    (*in)->u.dhSignedData.length = 0;
-    (*in)->u.dhSignedData.data = NULL;
-    (*in)->u.encKeyPack.length = 0;
-    (*in)->u.encKeyPack.data = NULL;
-}
-
-void
-init_krb5_subject_pk_info(krb5_subject_pk_info **in)
-{
-    (*in) = malloc(sizeof(krb5_subject_pk_info));
-    if ((*in) == NULL) return;
-    (*in)->algorithm.parameters.data = NULL;
-    (*in)->algorithm.parameters.length = 0;
-    (*in)->subjectPublicKey.data = NULL;
-    (*in)->subjectPublicKey.length = 0;
 }
 
 krb5_error_code

@@ -129,22 +129,13 @@ class CLeashView : public CListView
 {
 private:
 ////@#+Remove
-#ifndef NO_KRB4
-    TicketList*         m_listKrb4;
-#endif
-    TicketList*         m_listAfs;
     CLeashDebugWindow*	m_pDebugWindow;
     CCacheDisplayData*  m_ccacheDisplay;
 	CImageList			m_imageList;
 	CWinApp*			m_pApp;
 	HTREEITEM			m_hPrincipal;
-////@#+Remove
-#ifndef NO_KRB4
-	HTREEITEM			m_hKerb4;
-#endif
 	HTREEITEM			m_hKerb5;
     HTREEITEM           m_hk5tkt;
-	HTREEITEM			m_hAFS;
 	TV_INSERTSTRUCT		m_tvinsert;
 	HMENU				m_hMenu;
     BOOL				m_startup;
@@ -157,11 +148,7 @@ private:
 	INT					m_largeIcons;
 	INT					m_lowTicketAlarm;
 	INT					m_hPrincipalState;
-#ifndef NO_KRB4
-	INT					m_hKerb4State;
-#endif
 	INT					m_hKerb5State;
-	INT					m_hAFSState;
     CString*            m_pWarningMessage;
     BOOL                m_bIconAdded;
     BOOL                m_bIconDeleted;
@@ -174,18 +161,9 @@ private:
     static ViewColumnInfo sm_viewColumns[NUM_VIEW_COLUMNS];
 
     static INT		   	m_autoRenewTickets;
-    static INT          m_ticketStatusAfs;
-////Remove as well?
-    static INT          m_ticketStatusKrb4;
     static INT          m_ticketStatusKrb5;
     static INT          m_autoRenewalAttempted;
-	static INT			m_warningOfTicketTimeLeftAfs;
-////Remove as well?
-	static INT			m_warningOfTicketTimeLeftKrb4;
 	static INT			m_warningOfTicketTimeLeftKrb5;
-    static INT			m_warningOfTicketTimeLeftLockAfs;
-////Remove as well?
-    static INT			m_warningOfTicketTimeLeftLockKrb4;
     static INT			m_warningOfTicketTimeLeftLockKrb5;
     static INT			m_updateDisplayCount;
     static INT	        m_alreadyPlayedDisplayCount;
@@ -218,9 +196,9 @@ private:
                                CCacheDisplayData *elem,
                                int iItem,
                                char *principal,
-                               long issued,
-                               long valid_until,
-                               long renew_until,
+                               time_t issued,
+                               time_t valid_until,
+                               time_t renew_until,
                                char *encTypes,
                                unsigned long flags,
                                char *cache_name);
@@ -246,13 +224,6 @@ protected: // create from serialization only
 
 // Attributes
 public:
-	static INT   m_forwardableTicket;
-	static INT   m_proxiableTicket;
-    static INT   m_renewableTicket;
-    static INT   m_noaddressTicket;
-    static DWORD m_publicIPAddress;
-    static BOOL  m_importedTickets;
-
     CLeashView();
 	//LeashDoc* GetDocument();
 
@@ -294,7 +265,6 @@ protected:
     afx_msg VOID OnClose(void);
 	afx_msg VOID OnInitTicket();
 	afx_msg VOID OnRenewTicket();
-	afx_msg VOID OnImportTicket();
 	afx_msg VOID OnDestroyTicket();
 	afx_msg VOID OnMakeDefault();
 	afx_msg VOID OnChangePassword();
@@ -312,7 +282,6 @@ protected:
 	afx_msg VOID OnKillTixOnExit();
 	afx_msg VOID OnDestroy();
 	afx_msg VOID OnUpdateDestroyTicket(CCmdUI* pCmdUI);
-	afx_msg VOID OnUpdateImportTicket(CCmdUI* pCmdUI);
 	afx_msg VOID OnUpdateInitTicket(CCmdUI* pCmdUI);
 	afx_msg VOID OnUpdateRenewTicket(CCmdUI* pCmdUI);
 	afx_msg VOID OnUpdateTimeIssued(CCmdUI* pCmdUI);
@@ -327,18 +296,14 @@ protected:
 	afx_msg VOID OnUpdateAutoRenew(CCmdUI* pCmdUI);
 	afx_msg VOID OnUpdateMakeDefault(CCmdUI* pCmdUI);
 	afx_msg VOID OnAppAbout();
-	afx_msg VOID OnAfsControlPanel();
 	afx_msg VOID OnUpdateDebugMode(CCmdUI* pCmdUI);
 	afx_msg VOID OnUpdateCfgFiles(CCmdUI* pCmdUI);
-	afx_msg VOID OnKrb4Properties();
 	afx_msg VOID OnKrb5Properties();
 	afx_msg void OnLeashProperties();
 	afx_msg void OnLeashRestore();
 	afx_msg void OnLeashMinimize();
 	afx_msg void OnLowTicketAlarm();
-	afx_msg void OnUpdateKrb4Properties(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateKrb5Properties(CCmdUI* pCmdUI);
-	afx_msg void OnUpdateAfsControlPanel(CCmdUI* pCmdUI);
     afx_msg void OnKrbProperties();
 	afx_msg void OnUpdateProperties(CCmdUI* pCmdUI);
 	afx_msg void OnHelpKerberos();

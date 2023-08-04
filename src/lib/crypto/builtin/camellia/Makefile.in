@@ -2,7 +2,7 @@ thisconfigdir=../../../..
 myfulldir=lib/crypto/builtin/camellia
 mydir=lib$(S)crypto$(S)builtin$(S)camellia
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
-LOCALINCLUDES = -I$(srcdir)/../aes
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLGAS)
 
 ##DOS##BUILDTOP = ..\..\..\..
 ##DOS##PREFIXDIR = builtin\camellia
@@ -30,7 +30,9 @@ camellia-gen: camellia-gen.o $(GEN_OBJS)
 run-camellia-gen: camellia-gen
 	./camellia-gen > kresults.out
 
-check: run-camellia-gen
+check-unix: check-@CRYPTO_BUILTIN_TESTS@
+check-no:
+check-yes: run-camellia-gen
 
 
 clean-unix:: clean-libobjs

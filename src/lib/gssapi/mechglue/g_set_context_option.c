@@ -44,11 +44,10 @@ gss_set_sec_context_option (OM_uint32 *minor_status,
 
     if (minor_status == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    *minor_status = 0;
 
     if (context_handle == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor_status = 0;
 
     /*
      * select the approprate underlying mechanism routine and
@@ -72,36 +71,23 @@ gss_set_sec_context_option (OM_uint32 *minor_status,
 					      &internal_ctx,
 					      desired_object,
 					      value);
-    if (status == GSS_S_COMPLETE) {
-	if (ctx == NULL && internal_ctx != GSS_C_NO_CONTEXT) {
-	    /* Allocate a union context handle to wrap new context */
-	    ctx = (gss_union_ctx_id_t)malloc(sizeof(*ctx));
-	    if (ctx == NULL) {
-		*minor_status = ENOMEM;
-		gssint_delete_internal_sec_context(&minor,
-						   &mech->mech_type,
-						   &internal_ctx,
-						   GSS_C_NO_BUFFER);
-		return GSS_S_FAILURE;
-	    }
-
-	    status = generic_gss_copy_oid(minor_status,
-					  &mech->mech_type,
-					  &ctx->mech_type);
-	    if (status != GSS_S_COMPLETE) {
-		gssint_delete_internal_sec_context(&minor,
-						   ctx->mech_type,
-						   &internal_ctx,
-						   GSS_C_NO_BUFFER);
-		free(ctx);
-		return status;
-	    }
-
-	    ctx->internal_ctx_id = internal_ctx;
-	    *context_handle = (gss_ctx_id_t)ctx;
-	}
-    } else
+    if (status != GSS_S_COMPLETE) {
 	map_error(minor_status, mech);
+	return status;
+    }
 
-    return status;
+    if (ctx == NULL && internal_ctx != GSS_C_NO_CONTEXT) {
+	status = gssint_create_union_context(minor_status, &mech->mech_type,
+					     &ctx);
+	if (status != GSS_S_COMPLETE) {
+	    gssint_delete_internal_sec_context(&minor, ctx->mech_type,
+					       &internal_ctx, GSS_C_NO_BUFFER);
+	    return status;
+	}
+
+	ctx->internal_ctx_id = internal_ctx;
+	*context_handle = (gss_ctx_id_t)ctx;
+    }
+
+    return GSS_S_COMPLETE;
 }

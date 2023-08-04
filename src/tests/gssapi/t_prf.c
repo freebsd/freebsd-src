@@ -24,6 +24,7 @@
  */
 
 #include "k5-int.h"
+#include "k5-hex.h"
 #include "common.h"
 #include "mglueP.h"
 #include "gssapiP_krb5.h"
@@ -40,13 +41,6 @@ static struct {
     const char *key2;
     const char *out2;
 } tests[] = {
-    { ENCTYPE_DES_CBC_CRC,
-      "E607FE9DABB57AE0",
-      "803C4121379FC4B87CE413B67707C4632EBED2C6D6B7"
-      "2A55E878836E35E21600D915D590DED5B6D77BB30A1F",
-      "54758316B6257A75",
-      "279E4105F7ADC9BD6EF28ABE31D89B442FE0058388BA"
-      "33264ACB5729562DC637950F6BD144B654BE7700B2D6" },
     { ENCTYPE_DES3_CBC_SHA1,
       "70378A19CD64134580C27C0115D6B34A1CF2FEECEF9886A2",
       "9F8D127C520BB826BFF3E0FE5EF352389C17E0C073D9"
@@ -109,12 +103,14 @@ static struct {
 static size_t
 fromhex(const char *hexstr, unsigned char *out)
 {
-    const char *p;
-    size_t count;
+    uint8_t *bytes;
+    size_t len;
 
-    for (p = hexstr, count = 0; *p != '\0'; p += 2, count++)
-        sscanf(p, "%2hhx", &out[count]);
-    return count;
+    if (k5_hex_decode(hexstr, &bytes, &len) != 0)
+        abort();
+    memcpy(out, bytes, len);
+    free(bytes);
+    return len;
 }
 
 int

@@ -57,7 +57,7 @@ krb5_get_ldap_handle(krb5_ldap_context *ldap_context)
 }
 
 /*
- * This is called incase krb5_get_ldap_handle returns NULL.
+ * This is called in case krb5_get_ldap_handle returns NULL.
  * Try getting a single connection (handle) and return the same by
  * calling krb5_get_ldap_handle function.
  * Do not lock the mutex here. The caller should lock it

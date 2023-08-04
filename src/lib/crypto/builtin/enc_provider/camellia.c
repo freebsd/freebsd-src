@@ -27,6 +27,8 @@
 #include "crypto_int.h"
 #include "camellia.h"
 
+#ifdef K5_BUILTIN_CAMELLIA
+
 /*
  * Private per-key data to cache after first generation.  We don't want to mess
  * with the imported Camellia implementation too much, so we'll just use two
@@ -111,7 +113,7 @@ cbc_dec(krb5_key key, unsigned char *data, size_t nblocks, unsigned char *iv)
     memcpy(iv, last_cipherblock, BLOCK_SIZE);
 }
 
-static krb5_error_code
+krb5_error_code
 krb5int_camellia_encrypt(krb5_key key, const krb5_data *ivec,
                          krb5_crypto_iov *data, size_t num_data)
 {
@@ -244,7 +246,7 @@ krb5int_camellia_decrypt(krb5_key key, const krb5_data *ivec,
     return 0;
 }
 
-krb5_error_code
+static krb5_error_code
 krb5int_camellia_cbc_mac(krb5_key key, const krb5_crypto_iov *data,
                          size_t num_data, const krb5_data *ivec,
                          krb5_data *output)
@@ -313,3 +315,5 @@ const struct krb5_enc_provider krb5int_enc_camellia256 = {
     krb5int_default_free_state,
     camellia_key_cleanup
 };
+
+#endif /* K5_BUILTIN_CAMELLIA */

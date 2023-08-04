@@ -26,23 +26,20 @@
 
 #include "k5-int.h"
 #include "k5-queue.h"
+#include "k5-hashtab.h"
 #include "kdc_util.h"
 #include "extern.h"
 
 #ifndef NOCACHE
 
 struct entry {
-    K5_LIST_ENTRY(entry) bucket_links;
-    K5_TAILQ_ENTRY(entry) expire_links;
+    K5_TAILQ_ENTRY(entry) links;
     int num_hits;
     krb5_timestamp timein;
     krb5_data req_packet;
     krb5_data reply_packet;
 };
 
-#ifndef LOOKASIDE_HASH_SIZE
-#define LOOKASIDE_HASH_SIZE 16384
-#endif
 #ifndef LOOKASIDE_MAX_SIZE
 #define LOOKASIDE_MAX_SIZE (10 * 1024 * 1024)
 #endif
@@ -50,7 +47,7 @@ struct entry {
 K5_LIST_HEAD(entry_list, entry);
 K5_TAILQ_HEAD(entry_queue, entry);
 
-static struct entry_list hash_table[LOOKASIDE_HASH_SIZE];
+static struct k5_hashtab *hash_table;
 static struct entry_queue expiration_queue;
 
 static int hits = 0;
@@ -58,49 +55,9 @@ static int calls = 0;
 static int max_hits_per_entry = 0;
 static int num_entries = 0;
 static size_t total_size = 0;
-static krb5_ui_4 seed;
 
 #define STALE_TIME      (2*60)            /* two minutes */
 #define STALE(ptr, now) (ts_after(now, ts_incr((ptr)->timein, STALE_TIME)))
-
-/* Return x rotated to the left by r bits. */
-static inline krb5_ui_4
-rotl32(krb5_ui_4 x, int r)
-{
-    return (x << r) | (x >> (32 - r));
-}
-
-/*
- * Return a non-cryptographic hash of data, seeded by seed (the global
- * variable), using the MurmurHash3 algorithm by Austin Appleby.  Return the
- * result modulo LOOKASIDE_HASH_SIZE.
- */
-static int
-murmurhash3(const krb5_data *data)
-{
-    const krb5_ui_4 c1 = 0xcc9e2d51, c2 = 0x1b873593;
-    const unsigned char *start = (unsigned char *)data->data, *endblocks, *p;
-    int tail_len = (data->length % 4);
-    krb5_ui_4 h = seed, final;
-
-    endblocks = start + data->length - tail_len;
-    for (p = start; p < endblocks; p += 4) {
-        h ^= rotl32(load_32_le(p) * c1, 15) * c2;
-        h = rotl32(h, 13) * 5 + 0xe6546b64;
-    }
-
-    final = 0;
-    final |= (tail_len >= 3) ? p[2] << 16 : 0;
-    final |= (tail_len >= 2) ? p[1] << 8 : 0;
-    final |= (tail_len >= 1) ? p[0] : 0;
-    h ^= rotl32(final * c1, 15) * c2;
-
-    h ^= data->length;
-    h = (h ^ (h >> 16)) * 0x85ebca6b;
-    h = (h ^ (h >> 13)) * 0xc2b2ae35;
-    h ^= h >> 16;
-    return h % LOOKASIDE_HASH_SIZE;
-}
 
 /* Return the rough memory footprint of an entry containing req and rep. */
 static size_t
@@ -117,35 +74,40 @@ insert_entry(krb5_context context, krb5_data *req, krb5_data *rep,
 {
     krb5_error_code ret;
     struct entry *entry;
-    krb5_ui_4 req_hash = murmurhash3(req);
     size_t esize = entry_size(req, rep);
 
     entry = calloc(1, sizeof(*entry));
     if (entry == NULL)
-        return NULL;
+        goto error;
     entry->timein = time;
 
     ret = krb5int_copy_data_contents(context, req, &entry->req_packet);
-    if (ret) {
-        free(entry);
-        return NULL;
-    }
+    if (ret)
+        goto error;
 
     if (rep != NULL) {
         ret = krb5int_copy_data_contents(context, rep, &entry->reply_packet);
-        if (ret) {
-            krb5_free_data_contents(context, &entry->req_packet);
-            free(entry);
-            return NULL;
-        }
+        if (ret)
+            goto error;
     }
 
-    K5_TAILQ_INSERT_TAIL(&expiration_queue, entry, expire_links);
-    K5_LIST_INSERT_HEAD(&hash_table[req_hash], entry, bucket_links);
+    ret = k5_hashtab_add(hash_table, entry->req_packet.data,
+                         entry->req_packet.length, entry);
+    if (ret)
+        goto error;
+    K5_TAILQ_INSERT_TAIL(&expiration_queue, entry, links);
     num_entries++;
     total_size += esize;
 
     return entry;
+
+error:
+    if (entry != NULL) {
+        krb5_free_data_contents(context, &entry->req_packet);
+        krb5_free_data_contents(context, &entry->reply_packet);
+        free(entry);
+    }
+    return NULL;
 }
 
 
@@ -155,38 +117,30 @@ discard_entry(krb5_context context, struct entry *entry)
 {
     total_size -= entry_size(&entry->req_packet, &entry->reply_packet);
     num_entries--;
-    K5_LIST_REMOVE(entry, bucket_links);
-    K5_TAILQ_REMOVE(&expiration_queue, entry, expire_links);
+    k5_hashtab_remove(hash_table, entry->req_packet.data,
+                      entry->req_packet.length);
+    K5_TAILQ_REMOVE(&expiration_queue, entry, links);
     krb5_free_data_contents(context, &entry->req_packet);
     krb5_free_data_contents(context, &entry->reply_packet);
     free(entry);
-}
-
-/* Return the entry for req_packet, or NULL if we don't have one. */
-static struct entry *
-find_entry(krb5_data *req_packet)
-{
-    krb5_ui_4 hash = murmurhash3(req_packet);
-    struct entry *e;
-
-    K5_LIST_FOREACH(e, &hash_table[hash], bucket_links) {
-        if (data_eq(e->req_packet, *req_packet))
-            return e;
-    }
-    return NULL;
 }
 
 /* Initialize the lookaside cache structures and randomize the hash seed. */
 krb5_error_code
 kdc_init_lookaside(krb5_context context)
 {
-    krb5_data d = make_data(&seed, sizeof(seed));
-    int i;
+    krb5_error_code ret;
+    uint8_t seed[K5_HASH_SEED_LEN];
+    krb5_data d = make_data(seed, sizeof(seed));
 
-    for (i = 0; i < LOOKASIDE_HASH_SIZE; i++)
-        K5_LIST_INIT(&hash_table[i]);
+    ret = krb5_c_random_make_octets(context, &d);
+    if (ret)
+        return ret;
+    ret = k5_hashtab_create(seed, 8192, &hash_table);
+    if (ret)
+        return ret;
     K5_TAILQ_INIT(&expiration_queue);
-    return krb5_c_random_make_octets(context, &d);
+    return 0;
 }
 
 /* Remove the lookaside cache entry for a packet. */
@@ -195,7 +149,7 @@ kdc_remove_lookaside(krb5_context kcontext, krb5_data *req_packet)
 {
     struct entry *e;
 
-    e = find_entry(req_packet);
+    e = k5_hashtab_get(hash_table, req_packet->data, req_packet->length);
     if (e != NULL)
         discard_entry(kcontext, e);
 }
@@ -217,7 +171,7 @@ kdc_check_lookaside(krb5_context kcontext, krb5_data *req_packet,
     *reply_packet_out = NULL;
     calls++;
 
-    e = find_entry(req_packet);
+    e = k5_hashtab_get(hash_table, req_packet->data, req_packet->length);
     if (e == NULL)
         return FALSE;
 
@@ -251,7 +205,7 @@ kdc_insert_lookaside(krb5_context kcontext, krb5_data *req_packet,
         return;
 
     /* Purge stale entries and limit the total size of the entries. */
-    K5_TAILQ_FOREACH_SAFE(e, &expiration_queue, expire_links, next) {
+    K5_TAILQ_FOREACH_SAFE(e, &expiration_queue, links, next) {
         if (!STALE(e, timenow) && total_size + esize <= LOOKASIDE_MAX_SIZE)
             break;
         max_hits_per_entry = max(max_hits_per_entry, e->num_hits);
@@ -268,9 +222,10 @@ kdc_free_lookaside(krb5_context kcontext)
 {
     struct entry *e, *next;
 
-    K5_TAILQ_FOREACH_SAFE(e, &expiration_queue, expire_links, next) {
+    K5_TAILQ_FOREACH_SAFE(e, &expiration_queue, links, next) {
         discard_entry(kcontext, e);
     }
+    k5_hashtab_free(hash_table);
 }
 
 #endif /* NOCACHE */

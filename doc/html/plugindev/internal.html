@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Internal pluggable interfaces &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Internal pluggable interfaces &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For plugin module developers" href="index.html" />
     <link rel="next" title="PKINIT certificate authorization interface (certauth)" href="certauth.html" />
     <link rel="prev" title="GSSAPI mechanism interface" href="gssapi.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="internal-pluggable-interfaces">
 <h1>Internal pluggable interfaces<a class="headerlink" href="#internal-pluggable-interfaces" title="Permalink to this headline">¶</a></h1>
@@ -77,7 +75,7 @@ of MIT krb5.</p>
 <p>A KDB module implements a database back end for KDC principal and
 policy information, and can also control many aspects of KDC behavior.
 For a full description of the interface, see the header file
-<tt class="docutils literal"><span class="pre">&lt;kdb.h&gt;</span></tt>.</p>
+<code class="docutils literal"><span class="pre">&lt;kdb.h&gt;</span></code>.</p>
 <p>The KDB pluggable interface is often referred to as the DAL (Database
 Access Layer).</p>
 </div>
@@ -86,7 +84,7 @@ Access Layer).</p>
 <p>The authdata interface allows a module to provide (from the KDC) or
 consume (in application servers) authorization data of types beyond
 those handled by the core MIT krb5 code base.  The interface is
-defined in the header file <tt class="docutils literal"><span class="pre">&lt;krb5/authdata_plugin.h&gt;</span></tt>, which is not
+defined in the header file <code class="docutils literal"><span class="pre">&lt;krb5/authdata_plugin.h&gt;</span></code>, which is not
 installed by the build.</p>
 </div>
 </div>
@@ -125,9 +123,7 @@ installed by the build.</p>
 <li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Internal pluggable interfaces</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Internal pluggable interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kdcpolicy.html">KDC policy interface (kdcpolicy)</a></li>
 </ul>
@@ -157,8 +153,8 @@ installed by the build.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

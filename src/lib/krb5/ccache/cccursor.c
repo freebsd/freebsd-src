@@ -30,6 +30,7 @@
 
 #include "cc-int.h"
 #include "../krb/int-proto.h"
+#include "../os/os-proto.h"
 
 #include <assert.h>
 
@@ -141,53 +142,18 @@ krb5_cccol_cursor_free(krb5_context context,
     return 0;
 }
 
-krb5_error_code KRB5_CALLCONV
-krb5_cccol_last_change_time(krb5_context context,
-                            krb5_timestamp *change_time)
-{
-    krb5_error_code ret = 0;
-    krb5_cccol_cursor c = NULL;
-    krb5_ccache ccache = NULL;
-    krb5_timestamp last_time = 0;
-    krb5_timestamp max_change_time = 0;
-
-    *change_time = 0;
-
-    ret = krb5_cccol_cursor_new(context, &c);
-
-    while (!ret) {
-        ret = krb5_cccol_cursor_next(context, c, &ccache);
-        if (ccache) {
-            ret = krb5_cc_last_change_time(context, ccache, &last_time);
-            if (!ret && ts_after(last_time, max_change_time)) {
-                max_change_time = last_time;
-            }
-            ret = 0;
-        }
-        else {
-            break;
-        }
-    }
-    *change_time = max_change_time;
-    return ret;
-}
-
-/*
- * krb5_cccol_lock and krb5_cccol_unlock are defined in ccbase.c
- */
-
-krb5_error_code KRB5_CALLCONV
-krb5_cc_cache_match(krb5_context context, krb5_principal client,
-                    krb5_ccache *cache_out)
+static krb5_error_code
+match_caches(krb5_context context, krb5_const_principal client,
+             krb5_ccache *cache_out)
 {
     krb5_error_code ret;
     krb5_cccol_cursor cursor;
     krb5_ccache cache = NULL;
     krb5_principal princ;
-    char *name;
     krb5_boolean eq;
 
     *cache_out = NULL;
+
     ret = krb5_cccol_cursor_new(context, &cursor);
     if (ret)
         return ret;
@@ -204,20 +170,52 @@ krb5_cc_cache_match(krb5_context context, krb5_principal client,
         krb5_cc_close(context, cache);
     }
     krb5_cccol_cursor_free(context, &cursor);
+
     if (ret)
         return ret;
-    if (cache == NULL) {
-        ret = krb5_unparse_name(context, client, &name);
-        if (ret == 0) {
-            k5_setmsg(context, KRB5_CC_NOTFOUND,
+    if (cache == NULL)
+        return KRB5_CC_NOTFOUND;
+
+    *cache_out = cache;
+    return 0;
+}
+
+krb5_error_code KRB5_CALLCONV
+krb5_cc_cache_match(krb5_context context, krb5_principal client,
+                    krb5_ccache *cache_out)
+{
+    krb5_error_code ret;
+    struct canonprinc iter = { client, .subst_defrealm = TRUE };
+    krb5_const_principal canonprinc = NULL;
+    krb5_ccache cache = NULL;
+    char *name;
+
+    *cache_out = NULL;
+
+    while ((ret = k5_canonprinc(context, &iter, &canonprinc)) == 0 &&
+           canonprinc != NULL) {
+        ret = match_caches(context, canonprinc, &cache);
+        if (ret != KRB5_CC_NOTFOUND)
+            break;
+    }
+    free_canonprinc(&iter);
+
+    if (ret == 0 && canonprinc == NULL) {
+        ret = KRB5_CC_NOTFOUND;
+        if (krb5_unparse_name(context, client, &name) == 0) {
+            k5_setmsg(context, ret,
                       _("Can't find client principal %s in cache collection"),
                       name);
             krb5_free_unparsed_name(context, name);
         }
-        ret = KRB5_CC_NOTFOUND;
-    } else
-        *cache_out = cache;
-    return ret;
+    }
+
+    TRACE_CC_CACHE_MATCH(context, client, ret);
+    if (ret)
+        return ret;
+
+    *cache_out = cache;
+    return 0;
 }
 
 /* Store the error state for code from context into errsave, but only if code
@@ -226,33 +224,8 @@ static void
 save_first_error(krb5_context context, krb5_error_code code,
                  struct errinfo *errsave)
 {
-    if (code && code != KRB5_CC_END && !errsave->code)
+    if (code && code != KRB5_FCC_NOFILE && !errsave->code)
         k5_save_ctx_error(context, code, errsave);
-}
-
-/* Return 0 if cache contains any non-config credentials.  Return KRB5_CC_END
- * if it does not, or another error if we failed to read through it. */
-static krb5_error_code
-has_content(krb5_context context, krb5_ccache cache)
-{
-    krb5_error_code ret;
-    krb5_boolean found = FALSE;
-    krb5_cc_cursor cache_cursor;
-    krb5_creds creds;
-
-    ret = krb5_cc_start_seq_get(context, cache, &cache_cursor);
-    if (ret)
-        return ret;
-    while (!found) {
-        ret = krb5_cc_next_cred(context, cache, &cache_cursor, &creds);
-        if (ret)
-            break;
-        if (!krb5_is_config_principal(context, creds.server))
-            found = TRUE;
-        krb5_free_cred_contents(context, &creds);
-    }
-    krb5_cc_end_seq_get(context, cache, &cache_cursor);
-    return ret;
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -261,6 +234,7 @@ krb5_cccol_have_content(krb5_context context)
     krb5_error_code ret;
     krb5_cccol_cursor col_cursor;
     krb5_ccache cache;
+    krb5_principal princ;
     krb5_boolean found = FALSE;
     struct errinfo errsave = EMPTY_ERRINFO;
     const char *defname;
@@ -275,15 +249,18 @@ krb5_cccol_have_content(krb5_context context)
         save_first_error(context, ret, &errsave);
         if (ret || cache == NULL)
             break;
-        ret = has_content(context, cache);
+        ret = krb5_cc_get_principal(context, cache, &princ);
         save_first_error(context, ret, &errsave);
         if (!ret)
             found = TRUE;
+        krb5_free_principal(context, princ);
         krb5_cc_close(context, cache);
     }
     krb5_cccol_cursor_free(context, &col_cursor);
-    if (found)
+    if (found) {
+        k5_clear_error(&errsave);
         return 0;
+    }
 
 no_entries:
     if (errsave.code) {

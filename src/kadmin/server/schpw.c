@@ -436,13 +436,16 @@ dispatch(void *handle, const krb5_fulladdr *local_addr,
 {
     krb5_error_code ret;
     krb5_keytab kt = NULL;
-    kadm5_server_handle_t server_handle = (kadm5_server_handle_t)handle;
+    kadm5_server_handle_t server_handle = *(void **)handle;
     krb5_data *response = NULL;
+    const char *emsg;
 
     ret = krb5_kt_resolve(server_handle->context, "KDB:", &kt);
     if (ret != 0) {
+        emsg = krb5_get_error_message(server_handle->context, ret);
         krb5_klog_syslog(LOG_ERR, _("chpw: Couldn't open admin keytab %s"),
-                         krb5_get_error_message(server_handle->context, ret));
+                         emsg);
+        krb5_free_error_message(server_handle->context, emsg);
         goto egress;
     }
 
@@ -451,7 +454,7 @@ dispatch(void *handle, const krb5_fulladdr *local_addr,
         goto egress;
 
     ret = process_chpw_request(server_handle->context,
-                               handle,
+                               server_handle,
                                server_handle->params.realm,
                                kt,
                                local_addr,

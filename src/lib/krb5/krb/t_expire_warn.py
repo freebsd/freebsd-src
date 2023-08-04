@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (C) 2010 by the Massachusetts Institute of Technology.
 # All rights reserved.
 #
@@ -36,23 +34,33 @@ realm.run([kadminl, 'addprinc', '-pw', 'pass', '-pwexpire', '12 hours',
 realm.run([kadminl, 'addprinc', '-pw', 'pass', '-pwexpire', '3 days', 'days'])
 
 # Check for expected prompter warnings when no expire callback is used.
-output = realm.run(['./t_expire_warn', 'noexpire', 'pass', '0'])
+output = realm.run(['./t_expire_warn', 'noexpire', 'pass', '0', '0'])
 if output:
     fail('Unexpected output for noexpire')
-realm.run(['./t_expire_warn', 'minutes', 'pass', '0'],
+realm.run(['./t_expire_warn', 'minutes', 'pass', '0', '0'],
           expected_msg=' less than one hour on ')
-realm.run(['./t_expire_warn', 'hours', 'pass', '0'], expected_msg=' hours on ')
-realm.run(['./t_expire_warn', 'days', 'pass', '0'], expected_msg=' days on ')
+realm.run(['./t_expire_warn', 'hours', 'pass', '0', '0'],
+          expected_msg=' hours on ')
+realm.run(['./t_expire_warn', 'days', 'pass', '0', '0'],
+          expected_msg=' days on ')
+# Try one case with the stepwise interface.
+realm.run(['./t_expire_warn', 'days', 'pass', '0', '1'],
+          expected_msg=' days on ')
 
 # Check for expected expire callback behavior.  These tests are
 # carefully agnostic about whether the KDC supports last_req fields,
 # and could be made more specific if last_req support is added.
-output = realm.run(['./t_expire_warn', 'noexpire', 'pass', '1'])
+output = realm.run(['./t_expire_warn', 'noexpire', 'pass', '1', '0'])
 if 'password_expiration = 0\n' not in output or \
         'account_expiration = 0\n' not in output or \
         'is_last_req = ' not in output:
     fail('Expected callback output not seen for noexpire')
-output = realm.run(['./t_expire_warn', 'days', 'pass', '1'])
+output = realm.run(['./t_expire_warn', 'days', 'pass', '1', '0'])
+if 'password_expiration = ' not in output or \
+        'password_expiration = 0\n' in output:
+    fail('Expected non-zero password expiration not seen for days')
+# Try one case with the stepwise interface.
+output = realm.run(['./t_expire_warn', 'days', 'pass', '1', '1'])
 if 'password_expiration = ' not in output or \
         'password_expiration = 0\n' in output:
     fail('Expected non-zero password expiration not seen for days')

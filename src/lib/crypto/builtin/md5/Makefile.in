@@ -1,5 +1,6 @@
 mydir=lib$(S)crypto$(S)builtin$(S)md5
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
 
 ##DOS##BUILDTOP = ..\..\..\..
 ##DOS##PREFIXDIR = builtin\md5

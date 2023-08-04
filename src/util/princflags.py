@@ -1,5 +1,4 @@
 import re
-import string
 
 # Module for translating KDB principal flags between string and
 # integer forms.
@@ -81,7 +80,7 @@ _prefixlen = len(_prefix)
 _flagnames = {}
 
 # Translation table to map hyphens to underscores
-_squash = string.maketrans('-', '_')
+_squash = str.maketrans('-', '_')
 
 # Combined input-to-flag lookup table, to be filled in by
 # _setup_tables()
@@ -176,7 +175,7 @@ def flagnum2str(n):
 # Return a list of flag names from a flag word.
 def flags2namelist(flags):
     a = []
-    for n in xrange(32):
+    for n in range(32):
         if flags & (1 << n):
             a.append(flagnum2str(n))
     return a
@@ -225,21 +224,21 @@ def speclist2mask(s):
 
 # Print C table of input flag specifiers for lib/kadm5/str_conv.c.
 def _print_ftbl():
-    print 'static const struct flag_table_row ftbl[] = {'
-    a = sorted(pflags.items(), key=lambda (k, v): (v.flag, -v.invert, k))
+    print('static const struct flag_table_row ftbl[] = {')
+    a = sorted(pflags.items(), key=lambda k, v: (v.flag, -v.invert, k))
     for k, v in a:
         s1 = '    {"%s",' % k
         s2 = '%-31s KRB5_KDB_%s,' % (s1, v.flagname())
-        print '%-63s %d},' % (s2, 1 if v.invert else 0)
+        print('%-63s %d},' % (s2, 1 if v.invert else 0))
 
-    print '};'
-    print '#define NFTBL (sizeof(ftbl) / sizeof(ftbl[0]))'
+    print('};')
+    print('#define NFTBL (sizeof(ftbl) / sizeof(ftbl[0]))')
 
 
 # Print C table of output flag names for lib/kadm5/str_conv.c.
 def _print_outflags():
-    print 'static const char *outflags[] = {'
-    for i in xrange(32):
+    print('static const char *outflags[] = {')
+    for i in range(32):
         flag = 1 << i
         if flag > max(_flagnames.keys()):
             break
@@ -247,10 +246,10 @@ def _print_outflags():
             s = '    "%s",' % _flagnames[flag]
         except KeyError:
             s = '    NULL,'
-        print '%-32s/* 0x%08x */' % (s, flag)
+        print('%-32s/* 0x%08x */' % (s, flag))
 
-    print '};'
-    print '#define NOUTFLAGS (sizeof(outflags) / sizeof(outflags[0]))'
+    print('};')
+    print('#define NOUTFLAGS (sizeof(outflags) / sizeof(outflags[0]))')
 
 
 # Print out C tables to insert into lib/kadm5/str_conv.c.

@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Credential cache selection interface (ccselect) &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Credential cache selection interface (ccselect) &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For plugin module developers" href="index.html" />
     <link rel="next" title="Password quality interface (pwqual)" href="pwqual.html" />
     <link rel="prev" title="KDC preauthentication interface (kdcpreauth)" href="kdcpreauth.html" /> 
   </head>
@@ -61,14 +59,14 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="credential-cache-selection-interface-ccselect">
 <span id="ccselect-plugin"></span><h1>Credential cache selection interface (ccselect)<a class="headerlink" href="#credential-cache-selection-interface-ccselect" title="Permalink to this headline">¶</a></h1>
 <p>The ccselect interface allows modules to control how credential caches
 are chosen when a GSSAPI client contacts a service.  For a detailed
 description of the ccselect interface, see the header file
-<tt class="docutils literal"><span class="pre">&lt;krb5/ccselect_plugin.h&gt;</span></tt>.</p>
+<code class="docutils literal"><span class="pre">&lt;krb5/ccselect_plugin.h&gt;</span></code>.</p>
 <p>The primary ccselect method is <strong>choose</strong>, which accepts a server
 principal as input and returns a ccache and/or principal name as
 output.  A module can use the krb5_cccol APIs to iterate over the
@@ -78,8 +76,8 @@ implementing the <strong>init</strong> and <strong>fini</strong> methods.  State
 the type krb5_ccselect_moddata, which is an abstract pointer type.  A
 module should typically cast this to an internal type for the state
 object.</p>
-<p>A module can have one of two priorities, &#8220;authoritative&#8221; or
-&#8220;heuristic&#8221;.  Results from authoritative modules, if any are
+<p>A module can have one of two priorities, “authoritative” or
+“heuristic”.  Results from authoritative modules, if any are
 available, will take priority over results from heuristic modules.  A
 module communicates its priority as a result of the <strong>init</strong> method.</p>
 </div>
@@ -105,7 +103,7 @@ module communicates its priority as a result of the <strong>init</strong> method
 <li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Credential cache selection interface (ccselect)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
@@ -144,8 +142,8 @@ module communicates its priority as a result of the <strong>init</strong> method
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

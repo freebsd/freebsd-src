@@ -27,7 +27,7 @@
 
 /*
  * Algorithm Specification 
- *  http://info.isl.ntt.co.jp/crypt/eng/camellia/specifications.html
+ *  https://info.isl.ntt.co.jp/crypt/eng/camellia/specifications.html
  */
 
 
@@ -35,6 +35,9 @@
 #include <stdlib.h>
 
 #include "camellia.h"
+
+#include "crypto_int.h"
+#ifdef K5_BUILTIN_CAMELLIA
 
 /* key constants */
 
@@ -1537,3 +1540,5 @@ camellia_dec_blk(const unsigned char in_blk[],  unsigned char out_blk[],
     Camellia_DecryptBlock(cx->keybitlen, in_blk, cx->k_sch, out_blk);
     return camellia_good;
 }
+
+#endif /* K5_BUILTIN_CAMELLIA */

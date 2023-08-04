@@ -23,7 +23,7 @@
  *     direct, indirect, or consequential damages with respect to any
  *     claim by the user or distributor of the ksu software.
  *
- * KSU was writen by:  Ari Medvinsky, ari@isi.edu
+ * KSU was written by:  Ari Medvinsky, ari@isi.edu
  */
 
 #include "ksu.h"
@@ -266,7 +266,6 @@ get_authorized_princ_names(luser, cmd, princ_list)
 
     retval = list_union(k5login_list, k5users_filt_list, &combined_list);
     if (retval){
-        close_time(k5users_flag,users_fp, k5login_flag,login_fp);
         return retval;
     }
     *princ_list = combined_list;

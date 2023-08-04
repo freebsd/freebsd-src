@@ -79,9 +79,9 @@ clpreauth_otp_initvt(krb5_context context, int maj_ver, int min_ver,
                      krb5_plugin_vtable vtable);
 
 krb5_error_code
-krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
-                                 krb5_creds *in_creds, krb5_creds *mcreds,
-                                 krb5_flags *fields);
+k5_get_cached_cred(krb5_context context, krb5_flags options,
+                   krb5_ccache ccache, krb5_creds *in_creds,
+                   krb5_creds **creds_out);
 
 #define IS_TGS_PRINC(p) ((p)->length == 2 &&                            \
                          data_eq_string((p)->data[0], KRB5_TGS_NAME))
@@ -143,6 +143,33 @@ krb5int_validate_times(krb5_context, krb5_ticket_times *);
 krb5_error_code
 krb5int_copy_authdatum(krb5_context, const krb5_authdata *, krb5_authdata **);
 
+/* Set replay data fields in rdata and caller_rdata according to the flags in
+ * authcon. */
+krb5_error_code
+k5_privsafe_gen_rdata(krb5_context context, krb5_auth_context authcon,
+                      krb5_replay_data *rdata, krb5_replay_data *caller_rdata);
+
+/*
+ * Set *local_out and *remote_out to addresses based on authcon.  The resulting
+ * pointers should not be freed, but addresses may be placed into *lstorage and
+ * *rstorage which the caller must free, even on error.
+ */
+krb5_error_code
+k5_privsafe_gen_addrs(krb5_context context, krb5_auth_context authcon,
+                      krb5_address *lstorage, krb5_address *rstorage,
+                      krb5_address **local_out, krb5_address **remote_out);
+
+/*
+ * If the DO_TIME flag is set in authcon, store a replay record in a memory
+ * replay cache (initializing one if necessary).  Either enc or cksum must be
+ * non-null.  If rdata is not null, also check that its timestamp is within
+ * clock skew.
+ */
+krb5_error_code
+k5_privsafe_check_replay(krb5_context context, krb5_auth_context authcon,
+                         const krb5_replay_data *rdata,
+                         const krb5_enc_data *enc, const krb5_checksum *cksum);
+
 krb5_boolean
 k5_privsafe_check_seqnum(krb5_context ctx, krb5_auth_context ac,
                          krb5_ui_4 in_seq);
@@ -174,7 +201,7 @@ k5_ccselect_free_context(krb5_context context);
 
 krb5_error_code
 k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
-                  int *use_master);
+                  int *use_primary);
 
 krb5_error_code
 k5_init_creds_current_time(krb5_context context, krb5_init_creds_context ctx,
@@ -196,9 +223,6 @@ k5_init_preauth_context(krb5_context context);
 
 void
 k5_free_preauth_context(krb5_context context);
-
-void
-k5_reset_preauth_types_tried(krb5_init_creds_context ctx);
 
 krb5_error_code
 k5_preauth_note_failed(krb5_init_creds_context ctx, krb5_preauthtype pa_type);
@@ -267,8 +291,19 @@ k5_get_init_creds(krb5_context context, krb5_creds *creds,
                   krb5_principal client, krb5_prompter_fct prompter,
                   void *prompter_data, krb5_deltat start_time,
                   const char *in_tkt_service, krb5_get_init_creds_opt *options,
-                  get_as_key_fn gak, void *gak_data, int *master,
+                  get_as_key_fn gak, void *gak_data, int *primary,
                   krb5_kdc_rep **as_reply);
+
+/*
+ * Make AS requests with the canonicalize flag set, stopping when we get a
+ * message indicating which realm the client principal is in.  Set *client_out
+ * to a copy of client with the canonical realm.  If subject_cert is non-null,
+ * include PA_S4U_X509_USER pa-data with the subject certificate each request.
+ * (See [MS-SFU] 3.1.5.1.1.1 and 3.1.5.1.1.2.)
+ */
+krb5_error_code
+k5_identify_realm(krb5_context context, krb5_principal client,
+                  const krb5_data *subject_cert, krb5_principal *client_out);
 
 krb5_error_code
 k5_populate_gic_opt(krb5_context context, krb5_get_init_creds_opt **opt,
@@ -336,5 +371,31 @@ k5_gic_opt_shallow_copy(krb5_get_init_creds_opt *opt);
  * boolean (0 or 1). */
 int
 k5_gic_opt_pac_request(krb5_get_init_creds_opt *opt);
+
+krb5_error_code
+k5_get_etype_info(krb5_context context, krb5_init_creds_context ctx,
+                  krb5_pa_data **padata);
+
+/*
+ * Make an S4U2Proxy (constrained delegation) request.  in_creds->client is the
+ * impersonator principal, and in_creds->second_ticket is the evidence
+ * ticket.
+ */
+krb5_error_code
+k5_get_proxy_cred_from_kdc(krb5_context context, krb5_flags options,
+                           krb5_ccache ccache, krb5_creds *in_creds,
+                           krb5_creds **out_creds);
+
+/* Return true if mprinc will match any hostname in a host-based principal name
+ * (possibly due to ignore_acceptor_hostname) with krb5_sname_match(). */
+krb5_boolean
+k5_sname_wildcard_host(krb5_context context, krb5_const_principal mprinc);
+
+/* Guess the appropriate name-type for a principal based on the name. */
+krb5_int32
+k5_infer_principal_type(krb5_principal princ);
+
+krb5_boolean
+k5_pac_should_have_ticket_signature(krb5_const_principal sprinc);
 
 #endif /* KRB5_INT_FUNC_PROTO__ */

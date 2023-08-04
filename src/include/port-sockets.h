@@ -40,8 +40,9 @@ typedef WSABUF sg_buf;
  */
 /* WSASend returns 0 or SOCKET_ERROR.  */
 #define SOCKET_WRITEV_TEMP DWORD
-#define SOCKET_WRITEV(FD, SG, LEN, TMP)                         \
-    (WSASend((FD), (SG), (LEN), &(TMP), 0, 0, 0) ? -1 : (TMP))
+#define SOCKET_WRITEV(FD, SG, LEN, TMP)                 \
+    (WSASend((FD), (SG), (LEN), &(TMP), 0, 0, 0) ?      \
+     (ssize_t)-1 : (ssize_t)(TMP))
 
 #define SHUTDOWN_READ   SD_RECEIVE
 #define SHUTDOWN_WRITE  SD_SEND
@@ -158,6 +159,7 @@ typedef int socklen_t;
 #include <netinet/in.h>         /* For struct sockaddr_in and in_addr */
 #include <arpa/inet.h>          /* For inet_ntoa */
 #include <netdb.h>
+#include <string.h>             /* For memset */
 
 #ifndef HAVE_NETDB_H_H_ERRNO
 extern int h_errno;             /* In case it's missing, e.g., HP-UX 10.20. */
@@ -218,15 +220,51 @@ typedef struct iovec sg_buf;
 #define SOCKET_NFDS(f)          ((f)+1) /* select() arg for a single fd */
 #define SOCKET_READ             read
 #define SOCKET_WRITE            write
-#define SOCKET_CONNECT          connect
+static inline int
+socket_connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    int st;
+#ifdef SO_NOSIGPIPE
+    int set = 1;
+#endif
+
+    st = connect(fd, addr, addrlen);
+    if (st == -1)
+        return st;
+
+#ifdef SO_NOSIGPIPE
+    st = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(set));
+    if (st != 0)
+        st = -1;
+#endif
+
+    return st;
+}
+#define SOCKET_CONNECT          socket_connect
 #define SOCKET_GETSOCKNAME      getsockname
 #define SOCKET_CLOSE            close
 #define SOCKET_EINTR            EINTR
 #define SOCKET_WRITEV_TEMP int
+static inline ssize_t
+socket_sendmsg(SOCKET fd, sg_buf *iov, int iovcnt)
+{
+    struct msghdr msg;
+    int flags = 0;
+
+#ifdef MSG_NOSIGNAL
+    flags |= MSG_NOSIGNAL;
+#endif
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = iov;
+    msg.msg_iovlen = iovcnt;
+
+    return sendmsg(fd, &msg, flags);
+}
 /* Use TMP to avoid compiler warnings and keep things consistent with
  * Windows version. */
-#define SOCKET_WRITEV(FD, SG, LEN, TMP)         \
-    ((TMP) = writev((FD), (SG), (LEN)), (TMP))
+#define SOCKET_WRITEV(FD, SG, LEN, TMP)                 \
+    ((TMP) = socket_sendmsg((FD), (SG), (LEN)), (TMP))
 
 #define SHUTDOWN_READ   0
 #define SHUTDOWN_WRITE  1

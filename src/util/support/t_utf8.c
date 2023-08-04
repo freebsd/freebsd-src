@@ -49,13 +49,13 @@
 #endif
 
 /*
- * len is 0 for invalid encoding prefixes (krb5int_utf8_charlen2() partially
+ * len is 0 for invalid encoding prefixes (KRB5_UTF8_CHARLEN2() partially
  * enforces the validity of the first two bytes, based on masking the second
  * byte.  It doesn't check whether bit 6 is 0, though, and doesn't catch the
  * range between U+110000 and U+13FFFF).
  *
  * ucs is 0 for invalid encodings (including ones with valid prefixes according
- * to krb5int_utf8_charlen2(); krb5int_utf8_to_ucs4() will still fail on them
+ * to KRB5_UTF8_CHARLEN2(); krb5int_utf8_to_ucs4() will still fail on them
  * because it checks more things.)  Code points above U+10FFFF are excluded by
  * the actual test code and remain in the table for possibly testing the old
  * implementation that didn't exclude them.
@@ -129,7 +129,7 @@ test_decode(struct testcase *t, int high4)
     int len, status = 0;
     krb5_ucs4 u = 0;
 
-    len = krb5int_utf8_charlen2(t->p);
+    len = KRB5_UTF8_CHARLEN2(t->p, len);
     if (len != t->len) {
         printf("expected len=%d, got len=%d\n", t->len, len);
         status = 1;

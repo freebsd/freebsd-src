@@ -162,7 +162,7 @@ cc_int32 ccs_os_server_initialize (int argc, const char *argv[]) {
 
     if (err) {
         Init::Cleanup();
-        fprintf(    stderr, "An error occured while %s the server (%u)\n",
+        fprintf(    stderr, "An error occurred while %s the server (%u)\n",
                     opts.bShutdown ? "shutting down" : "starting/running",
                     err);
         exit(cci_check_error (err));
@@ -245,10 +245,7 @@ cc_int32 ccs_os_server_listen_loop (int argc, const char *argv[]) {
 
             if (worklist_remove(&rpcmsg, &pipe, &buf, &serverStartTime)) {
                 uuid = ccs_win_pipe_getUuid(pipe);
-#if 0
-                cci_debug_printf("%s: processing WorkItem msg:%ld pipeUUID:<%s> pipeHandle:0x%X SST:%ld",
-                    __FUNCTION__, rpcmsg, uuid, ccs_win_pipe_getHandle(pipe), serverStartTime);
-#endif
+
                 if (serverStartTime <= getMySST()) {
                     switch (rpcmsg) {
                         case CCMSG_CONNECT: {
@@ -472,13 +469,6 @@ void    receiveLoop(void* rpcargs) {
     }   // End receiveLoop
 
 
-#if 0
-
-    return status;
-}
-#endif
-
-
 
 /* ------------------------------------------------------------------------ */
 /* The connection listener thread waits forever for a call to the CCAPI_CLIENT_<UUID>
@@ -635,7 +625,7 @@ RPC_STATUS send_connection_reply(ccs_pipe_t in_pipe) {
             CCMSG_CONNECT_REPLY,    /* Message type */
             (unsigned char*)&h,      /* client's tspdata* */
             (unsigned char*)uuid,
-            getMySST(),             /* Server's session number = it's start time */
+            getMySST(),             /* Server's session number = its start time */
             &status );              /* Return code */
         }
     RpcExcept(1) {
@@ -646,17 +636,6 @@ RPC_STATUS send_connection_reply(ccs_pipe_t in_pipe) {
     status  = send_finish();
     return (status);
     }
-
-#if 0
-DWORD alloc_name(LPSTR* pname, LPSTR postfix) {
-    DWORD len = strlen(sessID) + 1 + strlen(postfix) + 1;
-
-    *pname = (LPSTR)malloc(len);
-    if (!*pname) return GetLastError();
-    _snprintf(*pname, len, "%s.%s", sessID, postfix);
-    return 0;
-    }
-#endif
 
 RPC_STATUS GetPeerName( RPC_BINDING_HANDLE hClient,
                         LPTSTR pszClientName,

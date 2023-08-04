@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from k5test import *
 from subprocess import *
 
@@ -8,8 +6,8 @@ realm = K5Realm(create_kdb=False)
 def compare(s, expected, msg):
     if s == expected:
         return
-    print 'expected:', repr(expected)
-    print 'got:', repr(s)
+    print('expected:', repr(expected))
+    print('got:', repr(s))
     fail(msg)
 
 out = realm.run(['./t_tdumputil', '2', 'field1', 'field2',

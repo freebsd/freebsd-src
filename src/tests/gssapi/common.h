@@ -62,6 +62,15 @@ void establish_contexts(gss_OID imech, gss_cred_id_t icred,
                         gss_name_t *src_name, gss_OID *amech,
                         gss_cred_id_t *deleg_cred);
 
+/* Establish contexts with channel bindings. */
+void establish_contexts_ex(gss_OID imech, gss_cred_id_t icred,
+                           gss_cred_id_t acred, gss_name_t tname,
+                           OM_uint32 flags, gss_ctx_id_t *ictx,
+                           gss_ctx_id_t *actx, gss_channel_bindings_t icb,
+                           gss_channel_bindings_t acb, OM_uint32 *aret_flags,
+                           gss_name_t *src_name, gss_OID *amech,
+                           gss_cred_id_t *deleg_cred);
+
 /* Export *cred to a token, then release *cred and replace it by re-importing
  * the token. */
 void export_import_cred(gss_cred_id_t *cred);

@@ -25,6 +25,7 @@
 import sys
 import os
 import re
+import textwrap
 
 from lxml import etree
 
@@ -110,7 +111,7 @@ class DoxyTypes(object):
         # remove  macros
         t_definition = re.sub('KRB5_CALLCONV_C', '', t_definition)
         t_definition = re.sub('KRB5_CALLCONV', '', t_definition)
-        t_definition = re.sub('\*', '\\*', t_definition)
+        t_definition = re.sub(r'\*', '\\*', t_definition)
         # handle fp
         if t_type[1].find('(') >= 0:
               t_type = (t_type[0],None)
@@ -160,7 +161,7 @@ class DoxyTypes(object):
         # remove  macros
         v_definition = re.sub('KRB5_CALLCONV_C', '', v_definition)
         v_definition = re.sub('KRB5_CALLCONV', '', v_definition)
-        v_definition = re.sub('\*', '\\*', v_definition)
+        v_definition = re.sub(r'\*', '\\*', v_definition)
 
         variable_descr = {'category': 'variable',
                           'definition': v_definition,
@@ -192,7 +193,7 @@ class DoxyTypes(object):
             if prm_list is not None:
                 prm_str = prm_str.join(prm_list)
             d_signature = " %s (%s) " % (d_name , prm_str)
-            d_signature = re.sub(', \)', ')', d_signature).strip()
+            d_signature = re.sub(r', \)', ')', d_signature).strip()
 
         if len(node.xpath('./initializer')) > 0:
             len_ref = len(node.xpath('./initializer/ref'))
@@ -267,36 +268,36 @@ class DoxyTypes(object):
 
     def _process_paragraph_content(self, node):
 
+        def add_text(l, s):
+            # Add a space if it wouldn't be at the start or end of a line.
+            if l and not l[-1].endswith('\n') and not s.startswith('\n'):
+                l.append(' ')
+            l.append(s)
+
         result = list()
         content = node.xpath(".//text()")
         for e in content:
-            if node is e.getparent():
-                result.append(e.strip())
+            if e.is_tail or node is e.getparent():
+                add_text(result, e.strip())
             elif e.getparent().tag == 'ref':
-                if e.is_tail:
-                    result.append(e.strip())
-                elif e.strip().find('(') > 0:
-                    result.append(':c:func:`%s`' % e.strip())
+                if e.strip().find('(') > 0:
+                    add_text(result, ':c:func:`%s`' % e.strip())
                 elif e.isupper():
-                    result.append(':c:data:`%s`' % e.strip())
+                    add_text(result, ':c:data:`%s`' % e.strip())
                 else:
-                    result.append(':c:type:`%s`' % e.strip())
+                    add_text(result, ':c:type:`%s`' % e.strip())
             elif e.getparent().tag == 'emphasis':
-                if e.is_tail:
-                    result.append(e.strip())
-                else:
-                    result.append('*%s*' % e.strip())
+                add_text(result, '*%s*' % e.strip())
             elif e.getparent().tag == 'computeroutput':
-                if e.is_tail:
-                    result.append(e.strip())
-                else:
-                    result.append('*%s*' % e.strip())
-            elif  e.getparent().tag == 'defname':
-                result.append('%s, ' % e.strip())
-            elif  e.getparent().tag == 'linebreak':
-                result.append('\n*%s*\n' % e.strip())
+                add_text(result, '*%s*' % e.strip())
+            elif e.getparent().tag == 'defname':
+                add_text(result, '%s, ' % e.strip())
+            elif e.getparent().tag == 'verbatim':
+                add_text(result, '\n::\n\n')
+                add_text(result, textwrap.indent(e, '    ', lambda x: True))
+                add_text(result, '\n')
 
-        result = ' '.join(result)
+        result = ''.join(result)
 
         return result
 
@@ -358,7 +359,7 @@ class DoxyBuilderTypes(DoxyTypes):
         result = self.run(filename, include=['typedef'])
         target_dir = '%s/types' % (self.target_dir)
         if not os.path.exists(target_dir):
-            os.makedirs(target_dir, 0755)
+            os.makedirs(target_dir, 0o755)
         for t in result:
             obj = DocModel(**t)
             self.save(obj, self.templates, target_dir)
@@ -369,7 +370,7 @@ class DoxyBuilderTypes(DoxyTypes):
         result = self.run(filename, include=['define'])
         target_dir = '%s/macros' % (self.target_dir)
         if not os.path.exists(target_dir):
-            os.makedirs(target_dir, 0755)
+            os.makedirs(target_dir, 0o755)
         for t in result:
             obj = DocModel(**t)
             tmpl = {'composite': 'define_document.tmpl'}

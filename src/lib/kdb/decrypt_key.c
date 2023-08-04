@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* lib/kdb/decrypt_key.c */
 /*
- * Copyright 1990,1991 by the Massachusetts Institute of Technology.
+ * Copyright 1990,1991,2023 by the Massachusetts Institute of Technology.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -52,88 +52,84 @@
 #include "k5-int.h"
 #include "kdb.h"
 
-/*
- * Decrypt a key from storage in the database.  "eblock" is used
- * to decrypt the key in "in" into "out"; the storage pointed to by "out"
- * is allocated before use.
- */
-
+/* Decrypt key_data, putting the result into dbkey_out and (if not null)
+ * keysalt_out. */
 krb5_error_code
-krb5_dbe_def_decrypt_key_data( krb5_context     context,
-                               const krb5_keyblock    * mkey,
-                               const krb5_key_data    * key_data,
-                               krb5_keyblock  * dbkey,
-                               krb5_keysalt   * keysalt)
+krb5_dbe_def_decrypt_key_data(krb5_context context, const krb5_keyblock *mkey,
+                              const krb5_key_data *kd,
+                              krb5_keyblock *dbkey_out,
+                              krb5_keysalt *keysalt_out)
 {
-    krb5_error_code       retval = 0;
-    krb5_int16            tmplen;
-    krb5_octet          * ptr;
-    krb5_enc_data         cipher;
-    krb5_data             plain;
+    krb5_error_code ret;
+    int16_t keylen;
+    krb5_enc_data cipher;
+    krb5_data plain = empty_data();
+    krb5_keyblock kb = { 0 };
+    krb5_keysalt salt = { 0 };
 
-    if (!mkey)
+    memset(dbkey_out, 0, sizeof(*dbkey_out));
+    if (keysalt_out != NULL)
+        memset(keysalt_out, 0, sizeof(*keysalt_out));
+
+    if (mkey == NULL)
         return KRB5_KDB_BADSTORED_MKEY;
-    ptr = key_data->key_data_contents[0];
 
-    if (ptr) {
-        krb5_kdb_decode_int16(ptr, tmplen);
-        ptr += 2;
-
-        if (tmplen < 0)
+    if (kd->key_data_contents[0] != NULL && kd->key_data_length[0] >= 2) {
+        keylen = load_16_le(kd->key_data_contents[0]);
+        if (keylen < 0)
             return EINVAL;
         cipher.enctype = ENCTYPE_UNKNOWN;
-        cipher.ciphertext.length = key_data->key_data_length[0]-2;
-        cipher.ciphertext.data = (char *) ptr;
-        plain.length = key_data->key_data_length[0]-2;
-        if ((plain.data = malloc(plain.length)) == NULL)
-            return(ENOMEM);
+        cipher.ciphertext = make_data(kd->key_data_contents[0] + 2,
+                                      kd->key_data_length[0] - 2);
+        ret = alloc_data(&plain, kd->key_data_length[0] - 2);
+        if (ret)
+            goto cleanup;
 
-        if ((retval = krb5_c_decrypt(context, mkey, 0 /* XXX */, 0,
-                                     &cipher, &plain))) {
-            free(plain.data);
-            return retval;
+        ret = krb5_c_decrypt(context, mkey, 0, 0, &cipher, &plain);
+        if (ret)
+            goto cleanup;
+
+        /* Make sure the plaintext has at least as many bytes as the true ke
+         * length (it may have more due to padding). */
+        if ((unsigned int)keylen > plain.length) {
+            ret = KRB5_CRYPTO_INTERNAL;
+            if (ret)
+                goto cleanup;
         }
 
-        /* tmplen is the true length of the key.  plain.data is the
-           plaintext data length, but it may be padded, since the
-           old-style etypes didn't store the real length.  I can check
-           to make sure that there are enough bytes, but I can't do
-           any better than that. */
-
-        if ((unsigned int) tmplen >  plain.length) {
-            free(plain.data);
-            return(KRB5_CRYPTO_INTERNAL);
-        }
-
-        dbkey->magic = KV5M_KEYBLOCK;
-        dbkey->enctype = key_data->key_data_type[0];
-        dbkey->length = tmplen;
-        dbkey->contents = (krb5_octet *) plain.data;
+        kb.magic = KV5M_KEYBLOCK;
+        kb.enctype = kd->key_data_type[0];
+        kb.length = keylen;
+        kb.contents = (uint8_t *)plain.data;
+        plain = empty_data();
     }
 
-    /* Decode salt data */
-    if (keysalt) {
-        if (key_data->key_data_ver == 2) {
-            keysalt->type = key_data->key_data_type[1];
-            if ((keysalt->data.length = key_data->key_data_length[1])) {
-                if (!(keysalt->data.data=(char *)malloc(keysalt->data.length))){
-                    if (key_data->key_data_contents[0]) {
-                        free(dbkey->contents);
-                        dbkey->contents = 0;
-                        dbkey->length = 0;
-                    }
-                    return ENOMEM;
-                }
-                memcpy(keysalt->data.data, key_data->key_data_contents[1],
-                       (size_t) keysalt->data.length);
-            } else
-                keysalt->data.data = (char *) NULL;
+    /* Decode salt data. */
+    if (keysalt_out != NULL) {
+        if (kd->key_data_ver == 2) {
+            salt.type = kd->key_data_type[1];
+            salt.data.length = kd->key_data_length[1];
+            if (kd->key_data_length[1] > 0) {
+                ret = alloc_data(&salt.data, kd->key_data_length[1]);
+                if (ret)
+                    goto cleanup;
+                memcpy(salt.data.data, kd->key_data_contents[1],
+                       salt.data.length);
+            }
         } else {
-            keysalt->type = KRB5_KDB_SALTTYPE_NORMAL;
-            keysalt->data.data = (char *) NULL;
-            keysalt->data.length = 0;
+            salt.type = KRB5_KDB_SALTTYPE_NORMAL;
         }
     }
 
-    return retval;
+    *dbkey_out = kb;
+    if (keysalt_out != NULL)
+        *keysalt_out = salt;
+    memset(&kb, 0, sizeof(kb));
+    memset(&salt, 0, sizeof(salt));
+
+cleanup:
+    zapfree(plain.data, plain.length);
+    krb5_free_keyblock_contents(context, &kb);
+    free(salt.data.data);
+    return ret;
 }

@@ -94,7 +94,7 @@ typedef int cc_int32;
 
 enum {
     CC_CRED_VUNKNOWN = 0,       // For validation
-    CC_CRED_V4 = 1,
+    /* CC_CRED_V4 = 1, */
     CC_CRED_V5 = 2,
     CC_CRED_VMAX = 3            // For validation
 };

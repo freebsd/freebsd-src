@@ -721,6 +721,8 @@ get_int_from_tl_data(krb5_context context, krb5_db_entry *entry, int type,
     void *ptr;
     int *intptr;
 
+    *intval = 0;
+
     tl_data.tl_data_type = KDB_TL_USER_INFO;
     ret = krb5_dbe_lookup_tl_data(context, entry, &tl_data);
     if (ret || tl_data.tl_data_length == 0)
@@ -1368,7 +1370,7 @@ get_ldap_auth_ind(krb5_context context, LDAP *ld, LDAPMessage *ldap_ent,
 {
     krb5_error_code ret;
     int i;
-    char **auth_inds = NULL;
+    char **auth_inds = NULL, *indstr;
     struct k5buf buf = EMPTY_K5BUF;
 
     auth_inds = ldap_get_values(ld, ldap_ent, "krbPrincipalAuthInd");
@@ -1377,19 +1379,21 @@ get_ldap_auth_ind(krb5_context context, LDAP *ld, LDAPMessage *ldap_ent,
 
     k5_buf_init_dynamic(&buf);
 
-    /* Make a space seperated list of indicators. */
+    /* Make a space-separated list of indicators. */
     for (i = 0; auth_inds[i] != NULL; i++) {
         k5_buf_add(&buf, auth_inds[i]);
         if (auth_inds[i + 1] != NULL)
             k5_buf_add(&buf, " ");
     }
 
-    ret = k5_buf_status(&buf);
-    if (ret)
+    indstr = k5_buf_cstring(&buf);
+    if (indstr == NULL) {
+        ret = ENOMEM;
         goto cleanup;
+    }
 
     ret = krb5_dbe_set_string(context, entry, KRB5_KDB_SK_REQUIRE_AUTH,
-                              buf.data);
+                              indstr);
     if (!ret)
         *mask |= KDB_AUTH_IND_ATTR;
 
@@ -1420,6 +1424,7 @@ populate_krb5_db_entry(krb5_context context, krb5_ldap_context *ldap_context,
     struct berval **ber_key_data = NULL, **ber_tl_data = NULL;
     krb5_tl_data userinfo_tl_data = { NULL }, **endp, *tl;
     osa_princ_ent_rec princ_ent;
+    char *is_login_disabled = NULL;
 
     memset(&princ_ent, 0, sizeof(princ_ent));
 
@@ -1652,6 +1657,23 @@ populate_krb5_db_entry(krb5_context context, krb5_ldap_context *ldap_context,
     ret = krb5_dbe_update_tl_data(context, entry, &userinfo_tl_data);
     if (ret)
         goto cleanup;
+
+    /*
+     * 389ds and other Netscape directory server derivatives support an
+     * attribute "nsAccountLock" which functions similarly to eDirectory's
+     * "loginDisabled".  When the user's account object is also a
+     * krbPrincipalAux object, the kdb entry should be treated as if
+     * DISALLOW_ALL_TIX has been set.
+     */
+    ret = krb5_ldap_get_string(ld, ent, "nsAccountLock", &is_login_disabled,
+                               &attr_present);
+    if (ret)
+        goto cleanup;
+    if (attr_present == TRUE) {
+        if (strcasecmp(is_login_disabled, "TRUE") == 0)
+            entry->attributes |= KRB5_KDB_DISALLOW_ALL_TIX;
+        free(is_login_disabled);
+    }
 
     ret = krb5_read_tkt_policy(context, ldap_context, entry, tktpolname);
     if (ret)

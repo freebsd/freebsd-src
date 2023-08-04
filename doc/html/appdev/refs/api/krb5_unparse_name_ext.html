@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_unparse_name_ext - Convert krb5_principal structure to string and length. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_unparse_name_ext - Convert krb5_principal structure to string and length. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_unparse_name_flags - Convert krb5_principal structure to a string with flags." href="krb5_unparse_name_flags.html" />
     <link rel="prev" title="krb5_unparse_name - Convert a krb5_principal structure to a string representation." href="krb5_unparse_name.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-unparse-name-ext-convert-krb5-principal-structure-to-string-and-length">
 <h1>krb5_unparse_name_ext -  Convert krb5_principal structure to string and length.<a class="headerlink" href="#krb5-unparse-name-ext-convert-krb5-principal-structure-to-string-and-length" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_unparse_name_ext">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_unparse_name_ext</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;principal</em>, char **<em>&nbsp;name</em>, unsigned int *<em>&nbsp;size</em><big>)</big><a class="headerlink" href="#c.krb5_unparse_name_ext" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_unparse_name_ext</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;principal</em>, char **<em>&nbsp;name</em>, unsigned int *<em>&nbsp;size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_unparse_name_ext" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -98,8 +96,8 @@
 </tr>
 </tbody>
 </table>
-<p>This function is similar to <a class="reference internal" href="krb5_unparse_name.html#c.krb5_unparse_name" title="krb5_unparse_name"><tt class="xref c c-func docutils literal"><span class="pre">krb5_unparse_name()</span></tt></a> , but allows the use of an existing buffer for the result. If size is not NULL, then <em>name</em> must point to either NULL or an existing buffer of at least the size pointed to by <em>size</em> . The buffer will be allocated or resized if necessary, with the new pointer stored into <em>name</em> . Whether or not the buffer is resized, the necessary space for the result, including null terminator, will be stored into <em>size</em> .</p>
-<p>If size is NULL, this function behaves exactly as <a class="reference internal" href="krb5_unparse_name.html#c.krb5_unparse_name" title="krb5_unparse_name"><tt class="xref c c-func docutils literal"><span class="pre">krb5_unparse_name()</span></tt></a> .</p>
+<p>This function is similar to <a class="reference internal" href="krb5_unparse_name.html#c.krb5_unparse_name" title="krb5_unparse_name"><code class="xref c c-func docutils literal"><span class="pre">krb5_unparse_name()</span></code></a> , but allows the use of an existing buffer for the result. If size is not NULL, then <em>name</em> must point to either NULL or an existing buffer of at least the size pointed to by <em>size</em> . The buffer will be allocated or resized if necessary, with the new pointer stored into <em>name</em> . Whether or not the buffer is resized, the necessary space for the result, including null terminator, will be stored into <em>size</em> .</p>
+<p>If size is NULL, this function behaves exactly as <a class="reference internal" href="krb5_unparse_name.html#c.krb5_unparse_name" title="krb5_unparse_name"><code class="xref c c-func docutils literal"><span class="pre">krb5_unparse_name()</span></code></a> .</p>
 </div>
 
 
@@ -158,8 +156,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

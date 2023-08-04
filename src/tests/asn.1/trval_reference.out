@@ -1180,7 +1180,7 @@ encode_krb5_sam_challenge_2_body:
 .  [5] [Octet String] "challenge ipse"
 .  [6] [Octet String] "response_prompt ipse"
 .  [8] [Integer] 5517840
-.  [9] [Integer] 1
+.  [9] [Integer] 20
 
 encode_krb5_sam_response_2:
 
@@ -1189,7 +1189,7 @@ encode_krb5_sam_response_2:
 .  [1] [Bit String] 0x80000000
 .  [2] [Octet String] "track data"
 .  [3] [Sequence/Sequence Of]
-.  .  [0] [Integer] 1
+.  .  [0] [Integer] 20
 .  .  [1] [Integer] 3382
 .  .  [2] [Octet String] "nonce or sad"
 .  [4] [Integer] 5517840
@@ -1250,55 +1250,6 @@ encode_krb5_ad_kdcissued:
 .  .  [Sequence/Sequence Of]
 .  .  .  [0] [Integer] 1
 .  .  .  [1] [Octet String] "foobar"
-
-encode_krb5_ad_signedpath_data:
-
-[Sequence/Sequence Of]
-.  [0] [Sequence/Sequence Of]
-.  .  [0] [Sequence/Sequence Of]
-.  .  .  [0] [Integer] 1
-.  .  .  [1] [Sequence/Sequence Of]
-.  .  .  .  [General string] "hftsai"
-.  .  .  .  [General string] "extra"
-.  .  [1] [General string] "ATHENA.MIT.EDU"
-.  [1] [Generalized Time] "19940610060317Z"
-.  [2] [Sequence/Sequence Of]
-.  .  [Sequence/Sequence Of]
-.  .  .  [0] [Sequence/Sequence Of]
-.  .  .  .  [0] [Integer] 1
-.  .  .  .  [1] [Sequence/Sequence Of]
-.  .  .  .  .  [General string] "hftsai"
-.  .  .  .  .  [General string] "extra"
-.  .  .  [1] [General string] "ATHENA.MIT.EDU"
-.  [3] [Sequence/Sequence Of]
-.  .  [Sequence/Sequence Of]
-.  .  .  [1] [Integer] 13
-.  .  .  [2] [Octet String] "pa-data"
-.  .  [Sequence/Sequence Of]
-.  .  .  [1] [Integer] 13
-.  .  .  [2] [Octet String] "pa-data"
-.  [4] [Sequence/Sequence Of]
-.  .  [Sequence/Sequence Of]
-.  .  .  [0] [Integer] 1
-.  .  .  [1] [Octet String] "foobar"
-.  .  [Sequence/Sequence Of]
-.  .  .  [0] [Integer] 1
-.  .  .  [1] [Octet String] "foobar"
-
-encode_krb5_ad_signedpath:
-
-[Sequence/Sequence Of]
-.  [0] [Integer] 1
-.  [1] [Sequence/Sequence Of]
-.  .  [0] [Integer] 1
-.  .  [1] [Octet String] "1234"
-.  [3] [Sequence/Sequence Of]
-.  .  [Sequence/Sequence Of]
-.  .  .  [1] [Integer] 13
-.  .  .  [2] [Octet String] "pa-data"
-.  .  [Sequence/Sequence Of]
-.  .  .  [1] [Integer] 13
-.  .  .  [2] [Octet String] "pa-data"
 
 encode_krb5_iakerb_header:
 
@@ -1584,3 +1535,53 @@ encode_krb5_secure_cookie:
 .  .  [Sequence/Sequence Of]
 .  .  .  [1] [Integer] 13
 .  .  .  [2] [Octet String] "pa-data"
+
+encode_krb5_spake_factor(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 1
+
+encode_krb5_spake_factor:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 2
+.  [1] [Octet String] "fdata"
+
+encode_krb5_pa_spake(support):
+
+[CONT 0]
+.  [Sequence/Sequence Of]
+.  .  [0] [Sequence/Sequence Of]
+.  .  .  [Integer] 1
+.  .  .  [Integer] 2
+
+encode_krb5_pa_spake(challenge):
+
+[CONT 1]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "T value"
+.  .  [2] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 1
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 2
+.  .  .  .  [1] [Octet String] "fdata"
+
+encode_krb5_pa_spake(response):
+
+[CONT 2]
+.  [Sequence/Sequence Of]
+.  .  [0] [Octet String] "S value"
+.  .  [1] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 0
+.  .  .  [1] [Integer] 5
+.  .  .  [2] [Octet String] "krbASN.1 test message"
+
+encode_krb5_pa_spake(encdata):
+
+[CONT 3]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [Integer] 5
+.  .  [2] [Octet String] "krbASN.1 test message"

@@ -385,6 +385,8 @@ CacheInfoEx2ToMITCred(KERB_TICKET_CACHE_INFO_EX2 *info,
      * not a NULL list of addresses.
      */
     creds->addresses = (krb5_address **)malloc(sizeof(krb5_address *));
+    if (creds->addresses == NULL)
+        return FALSE;
     memset(creds->addresses, 0, sizeof(krb5_address *));
 
     return TRUE;
@@ -739,13 +741,14 @@ KerbSubmitTicket( HANDLE LogonHandle, ULONG  PackageId,
 {
     NTSTATUS Status = 0;
     NTSTATUS SubStatus = 0;
-    KERB_SUBMIT_TKT_REQUEST * pSubmitRequest;
+    KERB_SUBMIT_TKT_REQUEST * pSubmitRequest = NULL;
     DWORD dwRequestLen;
-    krb5_auth_context auth_context;
+    krb5_auth_context auth_context = NULL;
     krb5_keyblock * keyblock = 0;
     krb5_replay_data replaydata;
     krb5_data * krb_cred = 0;
     krb5_error_code rc;
+    BOOL rv = FALSE;
 
     if (krb5_auth_con_init(context, &auth_context)) {
         return FALSE;
@@ -765,9 +768,13 @@ KerbSubmitTicket( HANDLE LogonHandle, ULONG  PackageId,
      * that an enctype other than NULL be used. */
     if (keyblock == NULL) {
         keyblock = (krb5_keyblock *)malloc(sizeof(krb5_keyblock));
+        if (keyblock == NULL)
+            return FALSE;
         keyblock->enctype = ENCTYPE_ARCFOUR_HMAC;
         keyblock->length = 16;
         keyblock->contents = (krb5_octet *)malloc(16);
+        if (keyblock->contents == NULL)
+            goto cleanup;
         keyblock->contents[0] = 0xde;
         keyblock->contents[1] = 0xad;
         keyblock->contents[2] = 0xbe;
@@ -787,18 +794,14 @@ KerbSubmitTicket( HANDLE LogonHandle, ULONG  PackageId,
         krb5_auth_con_setsendsubkey(context, auth_context, keyblock);
     }
     rc = krb5_mk_1cred(context, auth_context, cred, &krb_cred, &replaydata);
-    if (rc) {
-        krb5_auth_con_free(context, auth_context);
-        if (keyblock)
-            krb5_free_keyblock(context, keyblock);
-        if (krb_cred)
-            krb5_free_data(context, krb_cred);
-        return FALSE;
-    }
+    if (rc)
+        goto cleanup;
 
     dwRequestLen = sizeof(KERB_SUBMIT_TKT_REQUEST) + krb_cred->length + (keyblock ? keyblock->length : 0);
 
     pSubmitRequest = (PKERB_SUBMIT_TKT_REQUEST)malloc(dwRequestLen);
+    if (pSubmitRequest == NULL)
+        goto cleanup;
     memset(pSubmitRequest, 0, dwRequestLen);
 
     pSubmitRequest->MessageType = KerbSubmitTicketMessage;
@@ -822,8 +825,6 @@ KerbSubmitTicket( HANDLE LogonHandle, ULONG  PackageId,
     if (keyblock)
         memcpy(((CHAR *)pSubmitRequest)+sizeof(KERB_SUBMIT_TKT_REQUEST)+krb_cred->length,
                keyblock->contents, keyblock->length);
-    krb5_free_data(context, krb_cred);
-
     Status = LsaCallAuthenticationPackage( LogonHandle,
                                            PackageId,
                                            pSubmitRequest,
@@ -832,15 +833,16 @@ KerbSubmitTicket( HANDLE LogonHandle, ULONG  PackageId,
                                            NULL,
                                            &SubStatus
     );
+
+    rv = (!FAILED(Status) && !FAILED(SubStatus));
+
+cleanup:
     free(pSubmitRequest);
-    if (keyblock)
-        krb5_free_keyblock(context, keyblock);
+    krb5_free_keyblock(context, keyblock);
+    krb5_free_data(context, krb_cred);
     krb5_auth_con_free(context, auth_context);
 
-    if (FAILED(Status) || FAILED(SubStatus)) {
-        return FALSE;
-    }
-    return TRUE;
+    return rv;
 }
 
 /*
@@ -1063,7 +1065,7 @@ GetMSTGT(krb5_context context, HANDLE LogonHandle, ULONG PackageId, KERB_EXTERNA
     }
 
     //
-    // Intialize the request of the request.
+    // Initialize the request of the request.
     //
 
     pTicketRequest->MessageType = KerbRetrieveEncodedTicketMessage;
@@ -1101,12 +1103,13 @@ GetMSTGT(krb5_context context, HANDLE LogonHandle, ULONG PackageId, KERB_EXTERNA
     }
 
     if (krb5_get_tgs_ktypes(context, NULL, &etype_list)) {
-        ptr = etype_list = NULL;
-        etype = ENCTYPE_DES_CBC_CRC;
-    } else {
-        ptr = etype_list + 1;
-        etype = *etype_list;
+        /* No enctypes - nothing we can do. */
+        bIsLsaError = TRUE;
+        goto cleanup;
     }
+
+    ptr = etype_list + 1;
+    etype = *etype_list;
 
     while ( etype ) {
         // Try once more but this time specify the Encryption Type
@@ -1509,7 +1512,7 @@ typedef struct _krb5_lcc_cursor {
  * id
  *
  * Effects:
- * Acccess the MS Kerberos LSA cache in the current logon session
+ * Access the MS Kerberos LSA cache in the current logon session
  * Ignore the residual.
  *
  * Returns:
@@ -1636,8 +1639,8 @@ krb5_lcc_initialize(krb5_context context, krb5_ccache id, krb5_principal princ)
 static krb5_error_code KRB5_CALLCONV
 krb5_lcc_close(krb5_context context, krb5_ccache id)
 {
-    register int closeval = KRB5_OK;
-    register krb5_lcc_data *data;
+    int closeval = KRB5_OK;
+    krb5_lcc_data *data;
 
     if (id) {
         data = (krb5_lcc_data *) id->data;
@@ -1663,7 +1666,7 @@ krb5_lcc_close(krb5_context context, krb5_ccache id)
 static krb5_error_code KRB5_CALLCONV
 krb5_lcc_destroy(krb5_context context, krb5_ccache id)
 {
-    register krb5_lcc_data *data;
+    krb5_lcc_data *data;
 
     if (id) {
         data = (krb5_lcc_data *) id->data;
@@ -1734,7 +1737,7 @@ krb5_lcc_start_seq_get(krb5_context context, krb5_ccache id, krb5_cc_cursor *cur
  * cursor is a krb5_cc_cursor originally obtained from
  * krb5_lcc_start_seq_get.
  *
- * Modifes:
+ * Modifies:
  * cursor
  *
  * Effects:
@@ -2201,7 +2204,6 @@ const krb5_cc_ops krb5_lcc_ops = {
     krb5_lcc_ptcursor_next,
     krb5_lcc_ptcursor_free,
     NULL, /* move */
-    NULL, /* lastchange */
     NULL, /* wasdefault */
     NULL, /* lock */
     NULL, /* unlock */

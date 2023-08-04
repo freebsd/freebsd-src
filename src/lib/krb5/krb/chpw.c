@@ -393,6 +393,7 @@ decode_ad_policy_info(const krb5_data *data, char **msg_out)
     uint64_t password_days;
     const char *p;
     struct k5buf buf;
+    char *msg;
 
     *msg_out = NULL;
     if (data->length != AD_POLICY_INFO_LENGTH)
@@ -462,13 +463,13 @@ decode_ad_policy_info(const krb5_data *data, char **msg_out)
                        (int)password_days);
     }
 
-    if (k5_buf_status(&buf) != 0)
+    msg = k5_buf_cstring(&buf);
+    if (msg == NULL)
         return ENOMEM;
-
-    if (buf.len > 0)
-        *msg_out = buf.data;
+    if (*msg != '\0')
+        *msg_out = msg;
     else
-        k5_buf_free(&buf);
+        free(msg);
     return 0;
 }
 
@@ -477,7 +478,6 @@ krb5_chpw_message(krb5_context context, const krb5_data *server_string,
                   char **message_out)
 {
     krb5_error_code ret;
-    krb5_data *string;
     char *msg;
 
     *message_out = NULL;
@@ -493,11 +493,10 @@ krb5_chpw_message(krb5_context context, const krb5_data *server_string,
     /* If server_string contains a valid UTF-8 string, return that. */
     if (server_string->length > 0 &&
         memchr(server_string->data, 0, server_string->length) == NULL &&
-        krb5int_utf8_normalize(server_string, &string,
-                               KRB5_UTF8_APPROX) == 0) {
-        *message_out = string->data; /* already null terminated */
-        free(string);
-        return 0;
+        k5_utf8_validate(server_string)) {
+        *message_out = k5memdup0(server_string->data, server_string->length,
+                                 &ret);
+        return (*message_out == NULL) ? ENOMEM : 0;
     }
 
     /* server_string appears invalid, so try to be helpful. */

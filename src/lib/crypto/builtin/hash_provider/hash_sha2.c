@@ -33,6 +33,8 @@
 #include "crypto_int.h"
 #include "sha2.h"
 
+#ifdef K5_BUILTIN_SHA2
+
 static krb5_error_code
 k5_sha256_hash(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
@@ -86,3 +88,5 @@ const struct krb5_hash_provider krb5int_hash_sha384 = {
     SHA384_BLOCK_SIZE,
     k5_sha384_hash
 };
+
+#endif /* K5_BUILTIN_SHA2 */

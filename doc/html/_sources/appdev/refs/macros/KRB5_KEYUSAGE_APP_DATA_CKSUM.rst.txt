@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-APP-DATA-CKSUM-data:
+
+KRB5_KEYUSAGE_APP_DATA_CKSUM
+============================
+
+..
+.. data:: KRB5_KEYUSAGE_APP_DATA_CKSUM
+..
+
+
+
+
+=================================== ======================
+``KRB5_KEYUSAGE_APP_DATA_CKSUM``       ``17``
+=================================== ======================

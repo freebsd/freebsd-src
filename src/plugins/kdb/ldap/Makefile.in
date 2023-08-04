@@ -19,7 +19,7 @@ SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
 	$(TOPLIBD)/lib$(SUPPORT_LIBNAME)$(SHLIBEXT)
-SHLIB_EXPLIBS= -lkdb_ldap $(GSSRPC_LIBS) -lkrb5 -lcom_err -lk5crypto -lkrb5support $(LIBS)
+SHLIB_EXPLIBS= -lkdb_ldap $(GSSRPC_LIBS) -lkrb5 $(COM_ERR_LIB) -lk5crypto -lkrb5support $(LIBS)
 
 SRCS= 	$(srcdir)/ldap_exp.c
 

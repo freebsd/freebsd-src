@@ -182,7 +182,7 @@ t_locate_kdc: t_locate_kdc.o
 t_locate_kdc.o: t_locate_kdc.c locate_kdc.c dnssrv.c dnsglue.c
 $(OUTPRE)t_locate_kdc.exe: $(OUTPRE)t_locate_kdc.obj \
 		$(KLIB) $(PLIB) $(CLIB) $(SLIB)
-	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(DNSLIBS)
+	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
 
 t_trace: $(T_TRACE_OBJS) $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o t_trace $(T_TRACE_OBJS) $(KRB5_BASE_LIBS)
@@ -232,12 +232,16 @@ check-unix-locate: t_locate_kdc
 		echo 'Skipped t_locate_kdc test: OFFLINE' >> $(SKIPTESTS); \
 	fi
 
+ASAN = @ASAN@
 check-unix-uri: t_locate_kdc
-	if [ $(HAVE_RESOLV_WRAPPER) = 1 ]; then \
-	    $(RUNPYTEST) $(srcdir)/t_discover_uri.py $(PYTESTFLAGS); \
-	else \
+	if [ $(HAVE_RESOLV_WRAPPER) = 0 ]; then \
 	    echo '*** WARNING: skipped t_discover_uri.py due to not using resolv_wrapper'; \
 	    echo 'Skipped URI discovery tests: resolv_wrapper 1.1.5 not found' >> $(SKIPTESTS); \
+	elif [ $(ASAN) = yes ]; then \
+	    echo '*** Skipping URI discovery tests: resolv_wrapper is incompatible with asan'; \
+	    echo 'Skipped URI discovery tests: incompatible with asan' >> $(SKIPTESTS); \
+	else \
+	    $(RUNPYTEST) $(srcdir)/t_discover_uri.py $(PYTESTFLAGS); \
 	fi
 
 check-unix-trace: t_trace

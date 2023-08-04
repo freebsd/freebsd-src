@@ -45,12 +45,12 @@ else:
 
 # General information about the project.
 project = u'MIT Kerberos'
-copyright = u'1985-2017, MIT'
+copyright = u'1985-2023, MIT'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-execfile("version.py")
+exec(open("version.py").read())
 # The short X.Y version.
 r_list = [r_major, r_minor]
 if r_patch:
@@ -98,6 +98,16 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+# When we can rely on Sphinx 1.8 (released Sep 2018) we can just set:
+#   html_css_files = ['kerb.css']
+# But in the meantime, we add this file using either a way that works
+# after 1.8 or a way that works before 4.0.
+def setup(app):
+    if callable(getattr(app, 'add_css_file', None)):
+        app.add_css_file('kerb.css')
+    else:
+        app.add_stylesheet('kerb.css')
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 # html_theme = 'default'
@@ -138,10 +148,6 @@ html_static_path = ['_static']
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 #html_last_updated_fmt = '%b %d, %Y'
-
-# If true, SmartyPants will be used to convert quotes and dashes to
-# typographically correct entities.
-html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
@@ -236,9 +242,10 @@ if 'mansubs' in tags:
     ccache = '``@CCNAME@``'
     keytab = '``@KTNAME@``'
     ckeytab = '``@CKTNAME@``'
+    pkcs11_modname = '``@PKCS11MOD@``'
 elif 'pathsubs' in tags:
     # Read configured paths from a file produced by the build system.
-    execfile('paths.py')
+    exec(open("paths.py").read())
 else:
     bindir = ':ref:`BINDIR <paths>`'
     sbindir = ':ref:`SBINDIR <paths>`'
@@ -249,6 +256,7 @@ else:
     ccache = ':ref:`DEFCCNAME <paths>`'
     keytab = ':ref:`DEFKTNAME <paths>`'
     ckeytab = ':ref:`DEFCKTNAME <paths>`'
+    pkcs11_modname = ':ref:`PKCS11_MODNAME <paths>`'
 
 rst_epilog = '\n'
 
@@ -269,10 +277,11 @@ else:
     rst_epilog += '.. |ccache| replace:: %s\n' % ccache
     rst_epilog += '.. |keytab| replace:: %s\n' % keytab
     rst_epilog += '.. |ckeytab| replace:: %s\n' % ckeytab
+    rst_epilog += '.. |pkcs11_modname| replace:: %s\n' % pkcs11_modname
     rst_epilog += '''
 .. |krb5conf| replace:: ``/etc/krb5.conf``
-.. |defkeysalts| replace:: ``aes256-cts-hmac-sha1-96:normal aes128-cts-hmac-sha1-96:normal des3-cbc-sha1:normal arcfour-hmac-md5:normal``
-.. |defetypes| replace:: ``aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 des3-cbc-sha1 arcfour-hmac-md5 camellia256-cts-cmac camellia128-cts-cmac des-cbc-crc des-cbc-md5 des-cbc-md4``
+.. |defkeysalts| replace:: ``aes256-cts-hmac-sha1-96:normal aes128-cts-hmac-sha1-96:normal``
+.. |defetypes| replace:: ``aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 des3-cbc-sha1 arcfour-hmac-md5 camellia256-cts-cmac camellia128-cts-cmac``
 .. |defmkey| replace:: ``aes256-cts-hmac-sha1-96``
 .. |copy| unicode:: U+000A9
 '''
@@ -292,11 +301,12 @@ man_pages = [
     ('user/user_commands/krb5-config', 'krb5-config', u'tool for linking against MIT Kerberos libraries', [u'MIT'], 1),
     ('user/user_config/k5login', 'k5login', u'Kerberos V5 acl file for host access', [u'MIT'], 5),
     ('user/user_config/k5identity', 'k5identity', u'Kerberos V5 client principal selection rules', [u'MIT'], 5),
+    ('user/user_config/kerberos', 'kerberos', u'Overview of using Kerberos', [u'MIT'], 7),
     ('admin/admin_commands/krb5kdc', 'krb5kdc', u'Kerberos V5 KDC', [u'MIT'], 8),
     ('admin/admin_commands/kadmin_local', 'kadmin', u'Kerberos V5 database administration program', [u'MIT'], 1),
-    ('admin/admin_commands/kprop', 'kprop', u'propagate a Kerberos V5 principal database to a slave server', [u'MIT'], 8),
+    ('admin/admin_commands/kprop', 'kprop', u'propagate a Kerberos V5 principal database to a replica server', [u'MIT'], 8),
     ('admin/admin_commands/kproplog', 'kproplog', u'display the contents of the Kerberos principal update log', [u'MIT'], 8),
-    ('admin/admin_commands/kpropd', 'kpropd', u'Kerberos V5 slave KDC update server', [u'MIT'], 8),
+    ('admin/admin_commands/kpropd', 'kpropd', u'Kerberos V5 replica KDC update server', [u'MIT'], 8),
     ('admin/admin_commands/kdb5_util', 'kdb5_util', u'Kerberos database maintenance utility', [u'MIT'], 8),
     ('admin/admin_commands/ktutil', 'ktutil', u'Kerberos keytab file maintenance utility', [u'MIT'], 1),
     ('admin/admin_commands/k5srvutil', 'k5srvutil', u'host key table (keytab) manipulation utility', [u'MIT'], 1),

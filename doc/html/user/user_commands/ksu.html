@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>ksu &mdash; MIT Kerberos Documentation</title>
-    
+    <title>ksu &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="User commands" href="index.html" />
     <link rel="next" title="kswitch" href="kswitch.html" />
     <link rel="prev" title="krb5-config" href="krb5-config.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="ksu">
 <span id="ksu-1"></span><h1>ksu<a class="headerlink" href="#ksu" title="Permalink to this headline">¶</a></h1>
@@ -73,11 +71,12 @@
 [ <strong>-c</strong> <em>source_cache_name</em> ]
 [ <strong>-k</strong> ]
 [ <strong>-r</strong> time ]
-[ <strong>-pf</strong> ]
+[ <strong>-p</strong> | <strong>-P</strong>]
+[ <strong>-f</strong> | <strong>-F</strong>]
 [ <strong>-l</strong> <em>lifetime</em> ]
 [ <strong>-z | Z</strong> ]
 [ <strong>-q</strong> ]
-[ <strong>-e</strong> <em>command</em> [ args ...  ] ] [ <strong>-a</strong> [ args ...  ] ]</p>
+[ <strong>-e</strong> <em>command</em> [ args …  ] ] [ <strong>-a</strong> [ args …  ] ]</p>
 </div>
 <div class="section" id="requirements">
 <h2>REQUIREMENTS<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
@@ -92,10 +91,10 @@ the target user, and the other is to create a new security context.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p>For the sake of clarity, all references to and attributes of
-the user invoking the program will start with &#8220;source&#8221;
-(e.g., &#8220;source user&#8221;, &#8220;source cache&#8221;, etc.).</p>
+the user invoking the program will start with “source”
+(e.g., “source user”, “source cache”, etc.).</p>
 <p class="last">Likewise, all references to and attributes of the target
-account will start with &#8220;target&#8221;.</p>
+account will start with “target”.</p>
 </div>
 </div>
 <div class="section" id="authentication">
@@ -103,19 +102,19 @@ account will start with &#8220;target&#8221;.</p>
 <p>To fulfill the first mission, ksu operates in two phases:
 authentication and authorization.  Resolving the target principal name
 is the first step in authentication.  The user can either specify his
-principal name with the <strong>-n</strong> option (e.g., <tt class="docutils literal"><span class="pre">-n</span> <span class="pre">jqpublic&#64;USC.EDU</span></tt>)
+principal name with the <strong>-n</strong> option (e.g., <code class="docutils literal"><span class="pre">-n</span> <span class="pre">jqpublic&#64;USC.EDU</span></code>)
 or a default principal name will be assigned using a heuristic
 described in the OPTIONS section (see <strong>-n</strong> option).  The target user
 name must be the first argument to ksu; if not specified root is the
-default.  If <tt class="docutils literal"><span class="pre">.</span></tt> is specified then the target user will be the
-source user (e.g., <tt class="docutils literal"><span class="pre">ksu</span> <span class="pre">.</span></tt>).  If the source user is root or the
+default.  If <code class="docutils literal"><span class="pre">.</span></code> is specified then the target user will be the
+source user (e.g., <code class="docutils literal"><span class="pre">ksu</span> <span class="pre">.</span></code>).  If the source user is root or the
 target user is the source user, no authentication or authorization
 takes place.  Otherwise, ksu looks for an appropriate Kerberos ticket
 in the source cache.</p>
 <p>The ticket can either be for the end-server or a ticket granting
-ticket (TGT) for the target principal&#8217;s realm.  If the ticket for the
-end-server is already in the cache, it&#8217;s decrypted and verified.  If
-it&#8217;s not in the cache but the TGT is, the TGT is used to obtain the
+ticket (TGT) for the target principal’s realm.  If the ticket for the
+end-server is already in the cache, it’s decrypted and verified.  If
+it’s not in the cache but the TGT is, the TGT is used to obtain the
 ticket for the end-server.  The end-server ticket is then verified.
 If neither ticket is in the cache, but ksu is compiled with the
 <strong>GET_TGT_VIA_PASSWD</strong> define, the user will be prompted for a
@@ -131,14 +130,14 @@ invoked without the <strong>-e</strong> option.  For a description of the <stron
 option, see the OPTIONS section.</p>
 <p>Upon successful authentication, ksu checks whether the target
 principal is authorized to access the target account.  In the target
-user&#8217;s home directory, ksu attempts to access two authorization files:
-<a class="reference internal" href="../user_config/k5login.html#k5login-5"><em>.k5login</em></a> and .k5users.  In the .k5login file each line
+user’s home directory, ksu attempts to access two authorization files:
+<a class="reference internal" href="../user_config/k5login.html#k5login-5"><span class="std std-ref">.k5login</span></a> and .k5users.  In the .k5login file each line
 contains the name of a principal that is authorized to access the
 account.</p>
 <p>For example:</p>
-<div class="highlight-python"><div class="highlight"><pre>jqpublic@USC.EDU
-jqpublic/secure@USC.EDU
-jqpublic/admin@USC.EDU
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">jqpublic</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">jqpublic</span><span class="o">/</span><span class="n">secure</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">jqpublic</span><span class="o">/</span><span class="n">admin</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span>
 </pre></div>
 </div>
 <p>The format of .k5users is the same, except the principal name may be
@@ -147,7 +146,7 @@ execute (see the <strong>-e</strong> option in the OPTIONS section for details).
 <p>Thus if the target principal name is found in the .k5login file the
 source user is authorized to access the target account.  Otherwise ksu
 looks in the .k5users file.  If the target principal name is found
-without any trailing commands or followed only by <tt class="docutils literal"><span class="pre">*</span></tt> then the
+without any trailing commands or followed only by <code class="docutils literal"><span class="pre">*</span></code> then the
 source user is authorized.  If either .k5login or .k5users exist but
 an appropriate entry for the target principal does not exist then
 access is denied.  If neither file exists then the principal will be
@@ -160,10 +159,10 @@ rules.  Otherwise, authorization fails.</p>
 similar fashion to su.  The environment is unmodified with the
 exception of USER, HOME and SHELL variables.  If the target user is
 not root, USER gets set to the target user name.  Otherwise USER
-remains unchanged.  Both HOME and SHELL are set to the target login&#8217;s
+remains unchanged.  Both HOME and SHELL are set to the target login’s
 default values.  In addition, the environment variable <strong>KRB5CCNAME</strong>
 gets set to the name of the target cache.  The real and effective user
-ID are changed to that of the target user.  The target user&#8217;s shell is
+ID are changed to that of the target user.  The target user’s shell is
 then invoked (the shell name is specified in the password file).  Upon
 termination of the shell, ksu deletes the target cache (unless ksu is
 invoked with the <strong>-k</strong> option).  This is implemented by first doing a
@@ -197,7 +196,7 @@ wrong password is typed in, ksu fails.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">During authentication, only the tickets that could be
-obtained without providing a password are cached in in the
+obtained without providing a password are cached in the
 source cache.</p>
 </div>
 </div>
@@ -214,10 +213,10 @@ assigned via the following heuristic:</p>
 <p>If the target user is the source user the default principal name
 is set to the default principal of the source cache.  If the
 cache does not exist then the default principal name is set to
-<tt class="docutils literal"><span class="pre">target_user&#64;local_realm</span></tt>.  If the source and target users are
-different and neither <tt class="docutils literal"><span class="pre">~target_user/.k5users</span></tt> nor
-<tt class="docutils literal"><span class="pre">~target_user/.k5login</span></tt> exist then the default principal name
-is <tt class="docutils literal"><span class="pre">target_user_login_name&#64;local_realm</span></tt>.  Otherwise, starting
+<code class="docutils literal"><span class="pre">target_user&#64;local_realm</span></code>.  If the source and target users are
+different and neither <code class="docutils literal"><span class="pre">~target_user/.k5users</span></code> nor
+<code class="docutils literal"><span class="pre">~target_user/.k5login</span></code> exist then the default principal name
+is <code class="docutils literal"><span class="pre">target_user_login_name&#64;local_realm</span></code>.  Otherwise, starting
 with the first principal listed below, ksu checks if the
 principal is authorized to access the target account and whether
 there is a legitimate ticket for that principal in the source
@@ -238,31 +237,31 @@ follows:</p>
 <p>For each candidate in the above list, select an authorized
 principal that has the same realm name and first part of the
 principal name equal to the prefix of the candidate.  For
-example if candidate a) is <tt class="docutils literal"><span class="pre">jqpublic&#64;ISI.EDU</span></tt> and
-<tt class="docutils literal"><span class="pre">jqpublic/secure&#64;ISI.EDU</span></tt> is authorized to access the target
+example if candidate a) is <code class="docutils literal"><span class="pre">jqpublic&#64;ISI.EDU</span></code> and
+<code class="docutils literal"><span class="pre">jqpublic/secure&#64;ISI.EDU</span></code> is authorized to access the target
 account then the default principal is set to
-<tt class="docutils literal"><span class="pre">jqpublic/secure&#64;ISI.EDU</span></tt>.</p>
+<code class="docutils literal"><span class="pre">jqpublic/secure&#64;ISI.EDU</span></code>.</p>
 </li>
 <li><p class="first">Case 2: source user is root.</p>
 <p>If the target user is non-root then the default principal name
-is <tt class="docutils literal"><span class="pre">target_user&#64;local_realm</span></tt>.  Else, if the source cache
+is <code class="docutils literal"><span class="pre">target_user&#64;local_realm</span></code>.  Else, if the source cache
 exists the default principal name is set to the default
 principal of the source cache.  If the source cache does not
-exist, default principal name is set to <tt class="docutils literal"><span class="pre">root\&#64;local_realm</span></tt>.</p>
+exist, default principal name is set to <code class="docutils literal"><span class="pre">root\&#64;local_realm</span></code>.</p>
 </li>
 </ul>
 </dd>
 </dl>
 <p><strong>-c</strong> <em>source_cache_name</em></p>
 <blockquote>
-<div><p>Specify source cache name (e.g., <tt class="docutils literal"><span class="pre">-c</span> <span class="pre">FILE:/tmp/my_cache</span></tt>).  If
+<div><p>Specify source cache name (e.g., <code class="docutils literal"><span class="pre">-c</span> <span class="pre">FILE:/tmp/my_cache</span></code>).  If
 <strong>-c</strong> option is not used then the name is obtained from
 <strong>KRB5CCNAME</strong> environment variable.  If <strong>KRB5CCNAME</strong> is not
-defined the source cache name is set to <tt class="docutils literal"><span class="pre">krb5cc_&lt;source</span> <span class="pre">uid&gt;</span></tt>.
-The target cache name is automatically set to <tt class="docutils literal"><span class="pre">krb5cc_&lt;target</span>
-<span class="pre">uid&gt;.(gen_sym())</span></tt>, where gen_sym generates a new number such that
+defined the source cache name is set to <code class="docutils literal"><span class="pre">krb5cc_&lt;source</span> <span class="pre">uid&gt;</span></code>.
+The target cache name is automatically set to <code class="docutils literal"><span class="pre">krb5cc_&lt;target</span>
+<span class="pre">uid&gt;.(gen_sym())</span></code>, where gen_sym generates a new number such that
 the resulting cache does not already exist.  For example:</p>
-<div class="highlight-python"><div class="highlight"><pre>krb5cc_1984.2
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">krb5cc_1984</span><span class="o">.</span><span class="mi">2</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -278,7 +277,7 @@ name.  Use the <strong>-n</strong> option if you want the tickets for other then
 the default principal.  Note that the <strong>-z</strong> option is mutually
 exclusive with the <strong>-Z</strong> option.</dd>
 <dt><strong>-Z</strong></dt>
-<dd>Don&#8217;t copy any tickets from the source cache to the target cache.
+<dd>Don’t copy any tickets from the source cache to the target cache.
 Just create a fresh target cache, where the default principal name
 of the cache is initialized to the target principal name.  Note
 that the <strong>-Z</strong> option is mutually exclusive with the <strong>-z</strong>
@@ -288,7 +287,7 @@ option.</dd>
 </dl>
 <p>Ticket granting ticket options:</p>
 <dl class="docutils">
-<dt><strong>-l</strong> <em>lifetime</em> <strong>-r</strong> <em>time</em> <strong>-pf</strong></dt>
+<dt><strong>-l</strong> <em>lifetime</em> <strong>-r</strong> <em>time</em> <strong>-p</strong> <strong>-P</strong> <strong>-f</strong> <strong>-F</strong></dt>
 <dd>The ticket granting ticket options only apply to the case where
 there are no appropriate tickets in the cache to authenticate the
 source user.  In this case if ksu is configured to prompt users
@@ -296,58 +295,66 @@ for a Kerberos password (<strong>GET_TGT_VIA_PASSWD</strong> is defined), the
 ticket granting ticket options that are specified will be used
 when getting a ticket granting ticket from the Kerberos server.</dd>
 <dt><strong>-l</strong> <em>lifetime</em></dt>
-<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Specifies the lifetime to be requested
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Specifies the lifetime to be requested
 for the ticket; if this option is not specified, the default ticket
 lifetime (12 hours) is used instead.</dd>
 <dt><strong>-r</strong> <em>time</em></dt>
-<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Specifies that the <strong>renewable</strong> option
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Specifies that the <strong>renewable</strong> option
 should be requested for the ticket, and specifies the desired
 total lifetime of the ticket.</dd>
 <dt><strong>-p</strong></dt>
 <dd>specifies that the <strong>proxiable</strong> option should be requested for
 the ticket.</dd>
+<dt><strong>-P</strong></dt>
+<dd>specifies that the <strong>proxiable</strong> option should not be requested
+for the ticket, even if the default configuration is to ask for
+proxiable tickets.</dd>
 <dt><strong>-f</strong></dt>
 <dd>option specifies that the <strong>forwardable</strong> option should be
 requested for the ticket.</dd>
-<dt><strong>-e</strong> <em>command</em> [<em>args</em> ...]</dt>
+<dt><strong>-F</strong></dt>
+<dd>option specifies that the <strong>forwardable</strong> option should not be
+requested for the ticket, even if the default configuration is to
+ask for forwardable tickets.</dd>
+<dt><strong>-e</strong> <em>command</em> [<em>args</em> …]</dt>
 <dd><p class="first">ksu proceeds exactly the same as if it was invoked without the
 <strong>-e</strong> option, except instead of executing the target shell, ksu
 executes the specified command. Example of usage:</p>
-<div class="highlight-python"><div class="highlight"><pre>ksu bob -e ls -lag
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ksu</span> <span class="n">bob</span> <span class="o">-</span><span class="n">e</span> <span class="n">ls</span> <span class="o">-</span><span class="n">lag</span>
 </pre></div>
 </div>
 <p>The authorization algorithm for <strong>-e</strong> is as follows:</p>
 <p>If the source user is root or source user == target user, no
 authorization takes place and the command is executed.  If source
-user id != 0, and <tt class="docutils literal"><span class="pre">~target_user/.k5users</span></tt> file does not exist,
-authorization fails.  Otherwise, <tt class="docutils literal"><span class="pre">~target_user/.k5users</span></tt> file
+user id != 0, and <code class="docutils literal"><span class="pre">~target_user/.k5users</span></code> file does not exist,
+authorization fails.  Otherwise, <code class="docutils literal"><span class="pre">~target_user/.k5users</span></code> file
 must have an appropriate entry for target principal to get
 authorized.</p>
 <p>The .k5users file format:</p>
 <p>A single principal entry on each line that may be followed by a
 list of commands that the principal is authorized to execute.  A
-principal name followed by a <tt class="docutils literal"><span class="pre">*</span></tt> means that the user is
+principal name followed by a <code class="docutils literal"><span class="pre">*</span></code> means that the user is
 authorized to execute any command.  Thus, in the following
 example:</p>
-<div class="highlight-python"><div class="highlight"><pre>jqpublic@USC.EDU ls mail /local/kerberos/klist
-jqpublic/secure@USC.EDU *
-jqpublic/admin@USC.EDU
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">jqpublic</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span> <span class="n">ls</span> <span class="n">mail</span> <span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">kerberos</span><span class="o">/</span><span class="n">klist</span>
+<span class="n">jqpublic</span><span class="o">/</span><span class="n">secure</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span> <span class="o">*</span>
+<span class="n">jqpublic</span><span class="o">/</span><span class="n">admin</span><span class="nd">@USC</span><span class="o">.</span><span class="n">EDU</span>
 </pre></div>
 </div>
-<p><tt class="docutils literal"><span class="pre">jqpublic&#64;USC.EDU</span></tt> is only authorized to execute <tt class="docutils literal"><span class="pre">ls</span></tt>,
-<tt class="docutils literal"><span class="pre">mail</span></tt> and <tt class="docutils literal"><span class="pre">klist</span></tt> commands.  <tt class="docutils literal"><span class="pre">jqpublic/secure&#64;USC.EDU</span></tt> is
-authorized to execute any command.  <tt class="docutils literal"><span class="pre">jqpublic/admin&#64;USC.EDU</span></tt> is
+<p><code class="docutils literal"><span class="pre">jqpublic&#64;USC.EDU</span></code> is only authorized to execute <code class="docutils literal"><span class="pre">ls</span></code>,
+<code class="docutils literal"><span class="pre">mail</span></code> and <code class="docutils literal"><span class="pre">klist</span></code> commands.  <code class="docutils literal"><span class="pre">jqpublic/secure&#64;USC.EDU</span></code> is
+authorized to execute any command.  <code class="docutils literal"><span class="pre">jqpublic/admin&#64;USC.EDU</span></code> is
 not authorized to execute any command.  Note, that
-<tt class="docutils literal"><span class="pre">jqpublic/admin&#64;USC.EDU</span></tt> is authorized to execute the target
+<code class="docutils literal"><span class="pre">jqpublic/admin&#64;USC.EDU</span></code> is authorized to execute the target
 shell (regular ksu, without the <strong>-e</strong> option) but
-<tt class="docutils literal"><span class="pre">jqpublic&#64;USC.EDU</span></tt> is not.</p>
+<code class="docutils literal"><span class="pre">jqpublic&#64;USC.EDU</span></code> is not.</p>
 <p>The commands listed after the principal name must be either a full
 path names or just the program name.  In the second case,
 <strong>CMD_PATH</strong> specifying the location of authorized programs must
 be defined at the compilation time of ksu.  Which command gets
 executed?</p>
 <p class="last">If the source user is root or the target user is the source user
-or the user is authorized to execute any command (<tt class="docutils literal"><span class="pre">*</span></tt> entry)
+or the user is authorized to execute any command (<code class="docutils literal"><span class="pre">*</span></code> entry)
 then command can be either a full or a relative path leading to
 the target program.  Otherwise, the user must specify either a
 full path or just the program name.</p>
@@ -358,7 +365,7 @@ flags and parameters following -a will be passed to the shell,
 thus all options intended for ksu must precede <strong>-a</strong>.</p>
 <p>The <strong>-a</strong> option can be used to simulate the <strong>-e</strong> option if
 used as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre>-a -c [command [arguments]].
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">a</span> <span class="o">-</span><span class="n">c</span> <span class="p">[</span><span class="n">command</span> <span class="p">[</span><span class="n">arguments</span><span class="p">]]</span><span class="o">.</span>
 </pre></div>
 </div>
 <p class="last"><strong>-c</strong> is interpreted by the c-shell to execute the command.</p>
@@ -385,19 +392,19 @@ the .k5users file as described in the OPTIONS section
 <dd>Specifies a list of directories containing programs that users are
 authorized to execute (via .k5users file).</dd>
 <dt><strong>HAVE_GETUSERSHELL</strong></dt>
-<dd>If the source user is non-root, ksu insists that the target user&#8217;s
-shell to be invoked is a &#8220;legal shell&#8221;.  <em>getusershell(3)</em> is
-called to obtain the names of &#8220;legal shells&#8221;.  Note that the
-target user&#8217;s shell is obtained from the passwd file.</dd>
+<dd>If the source user is non-root, ksu insists that the target user’s
+shell to be invoked is a “legal shell”.  <em>getusershell(3)</em> is
+called to obtain the names of “legal shells”.  Note that the
+target user’s shell is obtained from the passwd file.</dd>
 </dl>
 <p>Sample configuration:</p>
-<div class="highlight-python"><div class="highlight"><pre>KSU_OPTS = -DGET_TGT_VIA_PASSWD -DPRINC_LOOK_AHEAD -DCMD_PATH=&#39;&quot;/bin /usr/ucb /local/bin&quot;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">KSU_OPTS</span> <span class="o">=</span> <span class="o">-</span><span class="n">DGET_TGT_VIA_PASSWD</span> <span class="o">-</span><span class="n">DPRINC_LOOK_AHEAD</span> <span class="o">-</span><span class="n">DCMD_PATH</span><span class="o">=</span><span class="s1">&#39;&quot;/bin /usr/ucb /local/bin&quot;</span>
 </pre></div>
 </div>
 <p>ksu should be owned by root and have the set user id bit turned on.</p>
 <p>ksu attempts to get a ticket for the end server just as Kerberized
 telnet and rlogin.  Thus, there must be an entry for the server in the
-Kerberos database (e.g., <tt class="docutils literal"><span class="pre">host/nii.isi.edu&#64;ISI.EDU</span></tt>).  The keytab
+Kerberos database (e.g., <code class="docutils literal"><span class="pre">host/nii.isi.edu&#64;ISI.EDU</span></code>).  The keytab
 file must be in an appropriate location.</p>
 </div>
 <div class="section" id="side-effects">
@@ -407,6 +414,15 @@ file must be in an appropriate location.</p>
 <div class="section" id="author-of-ksu">
 <h2>AUTHOR OF KSU<a class="headerlink" href="#author-of-ksu" title="Permalink to this headline">¶</a></h2>
 <p>GENNADY (ARI) MEDVINSKY</p>
+</div>
+<div class="section" id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a>, <a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a></p>
 </div>
 </div>
 
@@ -430,6 +446,8 @@ file must be in an appropriate location.</p>
 <li><a class="reference internal" href="#installation-instructions">INSTALLATION INSTRUCTIONS</a></li>
 <li><a class="reference internal" href="#side-effects">SIDE EFFECTS</a></li>
 <li><a class="reference internal" href="#author-of-ksu">AUTHOR OF KSU</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
 </ul>
 </li>
 </ul>
@@ -447,7 +465,7 @@ file must be in an appropriate location.</p>
 <li class="toctree-l3"><a class="reference internal" href="klist.html">klist</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">ksu</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">ksu</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kswitch.html">kswitch</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kvno.html">kvno</a></li>
 <li class="toctree-l3"><a class="reference internal" href="sclient.html">sclient</a></li>
@@ -483,8 +501,8 @@ file must be in an appropriate location.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

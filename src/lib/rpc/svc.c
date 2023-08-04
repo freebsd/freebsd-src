@@ -74,7 +74,7 @@ static SVCXPRT *xports[NOFILE];
  * The services list
  * Each entry represents a set of procedures (an rpc program).
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 static struct svc_callout {
 	struct svc_callout *sc_next;
@@ -96,7 +96,7 @@ static void svc_do_xprt(SVCXPRT *xprt);
 void
 xprt_register(SVCXPRT *xprt)
 {
-	register int sock = xprt->xp_sock;
+	int sock = xprt->xp_sock;
 
 #ifdef FD_SETSIZE
 	if (gssrpc_svc_fdset_init == 0) {
@@ -130,7 +130,7 @@ xprt_register(SVCXPRT *xprt)
 void
 xprt_unregister(SVCXPRT *xprt)
 {
-	register int sock = xprt->xp_sock;
+	int sock = xprt->xp_sock;
 
 #ifdef FD_SETSIZE
 	if ((sock < FD_SETSIZE) && (xports[sock] == xprt)) {
@@ -166,7 +166,7 @@ svc_register(
 	int protocol)
 {
 	struct svc_callout *prev;
-	register struct svc_callout *s;
+	struct svc_callout *s;
 
 	if ((s = svc_find(prog, vers, &prev)) != NULL_SVC) {
 		if (s->sc_dispatch == dispatch)
@@ -199,7 +199,7 @@ svc_unregister(
 	rpcvers_t vers)
 {
 	struct svc_callout *prev;
-	register struct svc_callout *s;
+	struct svc_callout *s;
 
 	if ((s = svc_find(prog, vers, &prev)) == NULL_SVC)
 		return;
@@ -224,7 +224,7 @@ svc_find(
 	rpcvers_t vers,
 	struct svc_callout **prev)
 {
-	register struct svc_callout *s, *p;
+	struct svc_callout *s, *p;
 
 	p = NULL_SVC;
 	for (s = svc_head; s != NULL_SVC; s = s->sc_next) {
@@ -244,7 +244,7 @@ done:
  */
 bool_t
 svc_sendreply(
-	register SVCXPRT *xprt,
+	SVCXPRT *xprt,
 	xdrproc_t xdr_results,
 	caddr_t xdr_location)
 {
@@ -263,7 +263,7 @@ svc_sendreply(
  * No procedure error reply
  */
 void
-svcerr_noproc(register SVCXPRT *xprt)
+svcerr_noproc(SVCXPRT *xprt)
 {
 	struct rpc_msg rply;
 
@@ -278,7 +278,7 @@ svcerr_noproc(register SVCXPRT *xprt)
  * Can't decode args error reply
  */
 void
-svcerr_decode(register SVCXPRT *xprt)
+svcerr_decode(SVCXPRT *xprt)
 {
 	struct rpc_msg rply;
 
@@ -293,7 +293,7 @@ svcerr_decode(register SVCXPRT *xprt)
  * Some system error
  */
 void
-svcerr_systemerr(register SVCXPRT *xprt)
+svcerr_systemerr(SVCXPRT *xprt)
 {
 	struct rpc_msg rply;
 
@@ -335,7 +335,7 @@ svcerr_weakauth(SVCXPRT *xprt)
  * Program unavailable error reply
  */
 void
-svcerr_noprog(register SVCXPRT *xprt)
+svcerr_noprog(SVCXPRT *xprt)
 {
 	struct rpc_msg rply;
 
@@ -351,7 +351,7 @@ svcerr_noprog(register SVCXPRT *xprt)
  */
 void
 svcerr_progvers(
-	register SVCXPRT *xprt,
+	SVCXPRT *xprt,
 	rpcvers_t low_vers,
 	rpcvers_t high_vers)
 {
@@ -417,8 +417,8 @@ svc_getreqset(FDSET_TYPE *readfds)
 #ifndef FD_SETSIZE
 	int readfds_local = *readfds;
 #endif
-	register SVCXPRT *xprt;
-	register int sock;
+	SVCXPRT *xprt;
+	int sock;
 
 #ifdef FD_SETSIZE
 	for (sock = 0; sock <= svc_maxfd; sock++) {
@@ -467,7 +467,7 @@ svc_do_xprt(SVCXPRT *xprt)
 	r.rq_clntcred = cookedcred;
 
 	do {
-		register struct svc_callout *s;
+		struct svc_callout *s;
 		enum auth_stat why;
 
 		if (!SVC_RECV(xprt, &msg))

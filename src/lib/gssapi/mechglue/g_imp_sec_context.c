@@ -97,10 +97,6 @@ gss_ctx_id_t *		context_handle;
     /* Initial value needed below. */
     status = GSS_S_FAILURE;
 
-    ctx = (gss_union_ctx_id_t) malloc(sizeof(gss_union_ctx_id_desc));
-    if (!ctx)
-	return (GSS_S_FAILURE);
-
     if (interprocess_token->length >= sizeof (OM_uint32)) {
 	p = interprocess_token->value;
 	length = (OM_uint32)*p++;
@@ -111,7 +107,6 @@ gss_ctx_id_t *		context_handle;
 
     if (length == 0 ||
 	length > (interprocess_token->length - sizeof (OM_uint32))) {
-	free(ctx);
 	return (GSS_S_CALL_BAD_STRUCTURE | GSS_S_DEFECTIVE_TOKEN);
     }
 
@@ -131,24 +126,18 @@ gss_ctx_id_t *		context_handle;
     status = gssint_select_mech_type(minor_status, &token_mech,
 				     &selected_mech);
     if (status != GSS_S_COMPLETE)
-	goto error_out;
+	return status;
 
     mech = gssint_get_mechanism(selected_mech);
-    if (!mech) {
-	status = GSS_S_BAD_MECH;
-	goto error_out;
-    }
+    if (!mech)
+	return GSS_S_BAD_MECH;
     if (!mech->gssspi_import_sec_context_by_mech &&
-	!mech->gss_import_sec_context) {
-	status = GSS_S_UNAVAILABLE;
-	goto error_out;
-    }
+	!mech->gss_import_sec_context)
+	return GSS_S_UNAVAILABLE;
 
-    if (generic_gss_copy_oid(minor_status, selected_mech,
-			     &ctx->mech_type) != GSS_S_COMPLETE) {
-	status = GSS_S_FAILURE;
-	goto error_out;
-    }
+    status = gssint_create_union_context(minor_status, selected_mech, &ctx);
+    if (status != GSS_S_COMPLETE)
+	return status;
 
     if (mech->gssspi_import_sec_context_by_mech) {
 	public_mech = gssint_get_public_oid(selected_mech);
@@ -160,15 +149,12 @@ gss_ctx_id_t *		context_handle;
     }
     if (status == GSS_S_COMPLETE) {
 	ctx->internal_ctx_id = mctx;
-	ctx->loopback = ctx;
 	*context_handle = (gss_ctx_id_t)ctx;
 	return (GSS_S_COMPLETE);
     }
     map_error(minor_status, mech);
     free(ctx->mech_type->elements);
     free(ctx->mech_type);
-
-error_out:
     free(ctx);
     return status;
 }

@@ -31,8 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#include <k5-int.h>
 #include "sha2.h"
+
+#ifdef K5_BUILTIN_SHA2
 
 #ifdef K5_BE
 #define WORDS_BIGENDIAN
@@ -303,3 +304,5 @@ k5_sha384_final (void *res, SHA384_CTX *m)
     k5_sha512_final(data, m);
     memcpy(res, data, SHA384_DIGEST_LENGTH);
 }
+
+#endif /* K5_BUILTIN_SHA2 */

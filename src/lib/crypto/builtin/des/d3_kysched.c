@@ -21,8 +21,10 @@
  * express or implied warranty.
  */
 
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "des_int.h"
+
+#ifdef K5_BUILTIN_DES
 
 int
 mit_des3_key_sched(mit_des3_cblock k, mit_des3_key_schedule schedule)
@@ -49,3 +51,5 @@ mit_des3_key_sched(mit_des3_cblock k, mit_des3_key_schedule schedule)
     /* if key was good, return 0 */
     return 0;
 }
+
+#endif /* K5_BUILTIN_DES */

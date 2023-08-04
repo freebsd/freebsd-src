@@ -139,7 +139,9 @@ extern  krb5_principal  current_caller;
     (KADM5_POLICY | KADM5_PW_MAX_LIFE | KADM5_PW_MIN_LIFE |             \
      KADM5_PW_MIN_LENGTH | KADM5_PW_MIN_CLASSES | KADM5_PW_HISTORY_NUM | \
      KADM5_REF_COUNT | KADM5_PW_MAX_FAILURE | KADM5_PW_FAILURE_COUNT_INTERVAL | \
-     KADM5_PW_LOCKOUT_DURATION )
+     KADM5_PW_LOCKOUT_DURATION | KADM5_POLICY_ATTRIBUTES |              \
+     KADM5_POLICY_MAX_LIFE | KADM5_POLICY_MAX_RLIFE |                   \
+     KADM5_POLICY_ALLOWED_KEYSALTS | KADM5_POLICY_TL_DATA)
 
 #define SERVER_CHECK_HANDLE(handle)             \
     {                                           \

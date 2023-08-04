@@ -618,23 +618,6 @@ krb5int_fast_free_state(krb5_context context,
     free(state);
 }
 
-krb5_pa_data *
-krb5int_find_pa_data(krb5_context context, krb5_pa_data *const *padata,
-                     krb5_preauthtype pa_type)
-{
-    krb5_pa_data * const *tmppa;
-
-    if (padata == NULL)
-        return NULL;
-
-    for (tmppa = padata; *tmppa != NULL; tmppa++) {
-        if ((*tmppa)->pa_type == pa_type)
-            break;
-    }
-
-    return *tmppa;
-}
-
 /*
  * Implement FAST negotiation as specified in RFC 6806 section 11.  If
  * the encrypted part of rep sets the enc-pa-rep flag, look for and

@@ -55,13 +55,13 @@ enum parse_mode { WHITESPACE, TOKEN, QUOTED_STRING };
 
 char **ss_parse (sci_idx, line_ptr, argc_ptr)
     int sci_idx;
-    register char *line_ptr;
+    char *line_ptr;
     int *argc_ptr;
 {
-    register char **argv, *cp;
+    char **argv, *cp;
     char **newargv;
-    register int argc;
-    register enum parse_mode parse_mode;
+    int argc;
+    enum parse_mode parse_mode;
 
     argv = (char **) malloc (sizeof(char *));
     if (argv == (char **)NULL) {

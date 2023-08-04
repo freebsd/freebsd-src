@@ -13,6 +13,7 @@ SUBDIRS=util include lib \
 	@audit_plugin@ \
 	plugins/kadm5_hook/test \
 	plugins/kadm5_auth/test \
+	plugins/gssapi/negoextest \
 	plugins/hostrealm/test \
 	plugins/localauth/test \
 	plugins/pwqual/test \
@@ -21,15 +22,17 @@ SUBDIRS=util include lib \
 	plugins/certauth/test \
 	plugins/kdb/db2 \
 	@ldap_plugin_dir@ \
+	@lmdb_plugin_dir@ \
 	plugins/kdb/test \
 	plugins/kdcpolicy/test \
 	plugins/preauth/otp \
 	plugins/preauth/pkinit \
+	plugins/preauth/spake \
 	plugins/preauth/test \
 	plugins/tls/k5tls \
-	kdc kadmin slave clients appl tests \
+	kdc kadmin kprop clients appl tests \
 	config-files build-tools man doc @po@
-WINSUBDIRS=include util lib ccapi windows clients appl
+WINSUBDIRS=include util lib ccapi windows clients appl plugins\preauth\spake
 BUILDTOP=$(REL).
 
 SRCS =  
@@ -61,15 +64,15 @@ world:
 INSTALLMKDIRS = $(KRB5ROOT) $(KRB5MANROOT) $(KRB5OTHERMKDIRS) \
 		$(ADMIN_BINDIR) $(SERVER_BINDIR) $(CLIENT_BINDIR) \
 		$(ADMIN_MANDIR) $(SERVER_MANDIR) $(CLIENT_MANDIR) \
-		$(FILE_MANDIR) \
+		$(FILE_MANDIR) $(OVERVIEW_MANDIR) \
 		$(ADMIN_CATDIR) $(SERVER_CATDIR) $(CLIENT_CATDIR) \
-		$(FILE_CATDIR) \
+		$(FILE_CATDIR) $(OVERVIEW_CATDIR) \
 		$(KRB5_LIBDIR) $(KRB5_INCDIR) \
 		$(KRB5_DB_MODULE_DIR) $(KRB5_PA_MODULE_DIR) \
 		$(KRB5_AD_MODULE_DIR) \
 		$(KRB5_LIBKRB5_MODULE_DIR) $(KRB5_TLS_MODULE_DIR) \
-		@localstatedir@ @localstatedir@/krb5kdc \
-		@runstatedir@ @runstatedir@/krb5kdc \
+		$(localstatedir) $(localstatedir)/krb5kdc \
+		$(runstatedir) $(runstatedir)/krb5kdc \
 		$(KRB5_INCSUBDIRS) $(datadir) $(EXAMPLEDIR) \
 		$(PKGCONFIG_DIR)
 
@@ -148,12 +151,10 @@ WINMAKEFILES=Makefile \
 	util\et\Makefile util\profile\Makefile util\profile\testmod\Makefile \
 	util\support\Makefile \
 	util\windows\Makefile \
-	util\wshelper\Makefile \
-	windows\Makefile windows\lib\Makefile \
-	windows\cns\Makefile windows\ms2mit\Makefile \
-	windows\wintel\Makefile windows\kfwlogon\Makefile \
-	windows\leashdll\Makefile windows\leash\Makefile \
-	windows\leash\htmlhelp\Makefile
+	windows\Makefile windows\lib\Makefile windows\ms2mit\Makefile \
+	windows\kfwlogon\Makefile windows\leashdll\Makefile \
+	windows\leash\Makefile windows\leash\htmlhelp\Makefile \
+	plugins\preauth\spake\Makefile
 
 ##DOS##Makefile-windows: $(MKFDEP) $(WINMAKEFILES)
 
@@ -263,17 +264,11 @@ WINMAKEFILES=Makefile \
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##util\windows\Makefile: util\windows\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
-##DOS##util\wshelper\Makefile: util\wshelper\Makefile.in $(MKFDEP)
-##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##windows\Makefile: windows\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##windows\lib\Makefile: windows\lib\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
-##DOS##windows\cns\Makefile: windows\cns\Makefile.in $(MKFDEP)
-##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##windows\ms2mit\Makefile: windows\ms2mit\Makefile.in $(MKFDEP)
-##DOS##	$(WCONFIG) config < $@.in > $@
-##DOS##windows\wintel\Makefile: windows\wintel\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##windows\kfwlogon\Makefile: windows\kfwlogon\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
@@ -282,6 +277,8 @@ WINMAKEFILES=Makefile \
 ##DOS##windows\leash\Makefile: windows\leash\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##windows\leash\htmlhelp\Makefile: windows\leash\htmlhelp\Makefile.in $(MKFDEP)
+##DOS##	$(WCONFIG) config < $@.in > $@
+##DOS##plugins\preauth\spake\Makefile: plugins\preauth\spake\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 
 clean-windows:: Makefile-windows
@@ -434,6 +431,8 @@ install-windows:
 	@if not exist "$(KRB_INSTALL_DIR)\include\gssapi\$(NULL)" @mkdir "$(KRB_INSTALL_DIR)\include\gssapi"
 	@if not exist "$(KRB_INSTALL_DIR)\lib\$(NULL)" @mkdir "$(KRB_INSTALL_DIR)\lib"
 	@if not exist "$(KRB_INSTALL_DIR)\bin\$(NULL)" @mkdir "$(KRB_INSTALL_DIR)\bin"
+	@if not exist "$(KRB_INSTALL_DIR)\bin\plugins\$(NULL)" @mkdir "$(KRB_INSTALL_DIR)\bin\plugins"
+	@if not exist "$(KRB_INSTALL_DIR)\bin\plugins\preauth\$(NULL)" @mkdir "$(KRB_INSTALL_DIR)\bin\plugins\preauth"
 	copy include\krb5.h "$(KRB_INSTALL_DIR)\include\."
 	copy include\krb5\krb5.h "$(KRB_INSTALL_DIR)\include\krb5\."
 	copy include\win-mac.h "$(KRB_INSTALL_DIR)\include\."
@@ -446,8 +445,6 @@ install-windows:
 	copy lib\$(OUTPRE)*.lib "$(KRB_INSTALL_DIR)\lib\."
 	copy lib\$(OUTPRE)*.dll "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) lib\$(OUTPRE)*.pdb "$(KRB_INSTALL_DIR)\bin\."
-	copy windows\cns\$(OUTPRE)krb5.exe "$(KRB_INSTALL_DIR)\bin\."
-	$(INSTALLDBGSYMS) windows\cns\$(OUTPRE)krb5.pdb "$(KRB_INSTALL_DIR)\bin\."
 	copy appl\gss-sample\$(OUTPRE)gss-server.exe "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) appl\gss-sample\$(OUTPRE)gss-server.pdb "$(KRB_INSTALL_DIR)\bin\."
 	copy appl\gss-sample\$(OUTPRE)gss-client.exe "$(KRB_INSTALL_DIR)\bin\."
@@ -467,9 +464,6 @@ install-windows:
 	copy windows\kfwlogon\$(OUTPRE)*.exe "$(KRB_INSTALL_DIR)\bin\."
 	copy windows\kfwlogon\$(OUTPRE)*.dll "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) windows\kfwlogon\$(OUTPRE)*.pdb "$(KRB_INSTALL_DIR)\bin\."
-	copy util\wshelper\$(OUTPRE)$(DLIB).lib "$(KRB_INSTALL_DIR)\lib\."
-	copy util\wshelper\$(OUTPRE)$(DLIB).dll "$(KRB_INSTALL_DIR)\bin\."
-	$(INSTALLDBGSYMS) util\wshelper\$(OUTPRE)$(DLIB).pdb "$(KRB_INSTALL_DIR)\bin\."
 	copy ccapi\lib\win\srctmp\$(OUTPRE)$(CCLIB).dll "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) ccapi\lib\win\srctmp\$(OUTPRE)$(CCLIB).pdb "$(KRB_INSTALL_DIR)\bin\."
 	copy ccapi\lib\win\srctmp\$(CCLIB).lib "$(KRB_INSTALL_DIR)\lib\."
@@ -491,21 +485,28 @@ install-windows:
 	$(INSTALLDBGSYMS) clients\kdeltkt\$(OUTPRE)kdeltkt.pdb "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) clients\kpasswd\$(OUTPRE)kpasswd.pdb "$(KRB_INSTALL_DIR)\bin\."
 	$(INSTALLDBGSYMS) clients\kswitch\$(OUTPRE)kswitch.pdb "$(KRB_INSTALL_DIR)\bin\."
+	copy plugins\preauth\spake\$(OUTPRE)$(SPAKELIB).dll "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
+	$(INSTALLDBGSYMS) plugins\preauth\spake\$(OUTPRE)$(SPAKELIB).pdb "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
 
 check-prerecurse: runenv.py
 	$(RM) $(SKIPTESTS)
 	touch $(SKIPTESTS)
 
-check-unix:
+check-unix: check-lmdb-$(HAVE_LMDB)
 	cat $(SKIPTESTS)
 
+MINPYTHON = @PYTHON_MINVERSION@
 check-pytests-no: check-postrecurse
-	@echo 'Skipped python test scripts: python 2.5 or later required' >> \
+	@echo 'Skipped python test scripts: python $(MINPYTHON) required' >> \
 		$(SKIPTESTS)
 
 check-cmocka-no: check-postrecurse
 	@echo 'Skipped cmocka tests: cmocka library or header not found' >> \
 		$(SKIPTESTS)
+
+check-lmdb-yes:
+check-lmdb-no:
+	@echo 'Skipped LMDB tests: LMDB KDB module not built' >> $(SKIPTESTS)
 
 # Create a test realm and spawn a shell in an environment pointing to it.
 # If CROSSNUM is set, create that many fully connected test realms and
@@ -523,6 +524,8 @@ pyrunenv.vals: Makefile
 	done > $@
 	echo "tls_impl = '$(TLS_IMPL)'" >> $@
 	echo "have_sasl = '$(HAVE_SASL)'" >> $@
+	echo "have_spake_openssl = '$(HAVE_SPAKE_OPENSSL)'" >> $@
+	echo "have_lmdb = '$(HAVE_LMDB)'" >> $@
 	echo "sizeof_time_t = $(SIZEOF_TIME_T)" >> $@
 
 runenv.py: pyrunenv.vals
@@ -531,6 +534,7 @@ runenv.py: pyrunenv.vals
 
 clean-unix::
 	$(RM) runenv.py runenv.pyc pyrunenv.vals
+	$(RM) -r __pycache__
 
 COV_BUILD=	cov-build
 COV_ANALYZE=	cov-analyze
@@ -565,7 +569,6 @@ coverity prevent cov: Makefiles
 FIND = find
 XARGS = xargs
 EMACS = emacs
-PYTHON = python
 
 INDENTDIRS = \
 	appl \
@@ -581,12 +584,11 @@ INDENTDIRS = \
 	lib/krb5 \
 	plugins \
 	prototype \
-	slave \
+	kprop \
 	tests \
 	util
 
 BSDFILES = \
-	kadmin/cli/strftime.c \
 	kadmin/server/ipropd_svc.c \
 	kadmin/server/kadm_rpc_svc.c \
 	lib/apputils/daemon.c \
@@ -595,9 +597,8 @@ BSDFILES = \
 	lib/kadm5/kadm_rpc.h \
 	lib/kadm5/kadm_rpc_xdr.c \
 	lib/kadm5/srv/adb_xdr.c \
-	lib/krb5/krb/strftime.c \
 	lib/krb5/krb/strptime.c \
-	slave/kpropd_rpc.c \
+	kprop/kpropd_rpc.c \
 	util/support/getopt.c \
 	util/support/getopt_long.c \
 	util/support/mkstemp.c \
@@ -621,8 +622,6 @@ OTHEREXCLUDES = \
 	lib/krb5/unicode \
 	plugins/kdb/db2/libdb2 \
 	plugins/kdb/db2/pol_xdr.c \
-	plugins/kdb/ldap/libkdb_ldap/princ_xdr.c \
-	plugins/kdb/ldap/libkdb_ldap/princ_xdr.h \
 	plugins/preauth/pkinit/pkcs11.h \
 	plugins/preauth/pkinit/pkinit_accessor.h \
 	plugins/preauth/pkinit/pkinit_crypto.h \
@@ -637,11 +636,9 @@ OTHEREXCLUDES = \
 	util/et/com_err.h \
 	util/profile/prof_int.h \
 	util/profile/profile.hin \
-	util/profile/profile_tcl.c \
 	util/support/fnmatch.c \
 	util/verto \
-	util/k5ev \
-	util/wshelper
+	util/k5ev
 
 EXCLUDES = `for i in $(BSDFILES) $(OTHEREXCLUDES); do echo $$i; done | $(AWK) '{ print "-path", $$1, "-o" }'` -path /dev/null
 
@@ -674,7 +671,7 @@ mark-cstyle-bsd:
 check-copyright:
 	(cd $(top_srcdir) && \
 	$(FIND) . \( -name '*.[ch]' -o -name '*.hin' \) -print0 | \
-	$(XARGS) -0 python util/krb5-check-copyright.py)
+	$(XARGS) -0 $(PYTHON) util/krb5-check-copyright.py)
 
 tags: FORCE
 	(cd $(top_srcdir) && \
@@ -684,6 +681,13 @@ tags: FORCE
 	$(FIND) . -name '*.y' -print | etags --lang=yacc --append -)
 FORCE:
 .PHONY: FORCE tags
+
+# Update versioned automatically-generated files.
+regen:
+	$(MAKE) depend
+	(cd man && $(MAKE) man)
+	(cd po && $(MAKE) update-po)
+	(cd lib/krb5/krb && $(RM) deltat.c && $(MAKE) deltat.c)
 
 distclean-unix:
 	$(RM) $(top_srcdir)/TAGS

@@ -7,6 +7,18 @@ all:
 
 check-windows:
 
+# In a few parts of "make check" we run shell scripts which run
+# programs linked against krb5 libraries.  On macOS 10.11 and higher,
+# DYLD_LIBRARY_PATH is cleared by the shell unless System Integrity
+# Protection is turned off, so we need to set runtime linker
+# environment variables from within test scripts.  A Makefile.in which
+# runs shell script tests should make its check rule depend on
+# runenv.sh and make each script begin with ". ./runenv.sh".
+runenv.sh:
+	$(RUN_SETUP); for i in $(RUN_VARS); do \
+		eval echo "$$i=\\\"\$$$$i\\\""; \
+		echo "export $$i"; done > $@
+
 ##############################
 # dependency generation
 #
@@ -156,7 +168,7 @@ clean: clean-$(WHAT)
 
 clean-unix::
 	$(RM) $(OBJS) $(DEPTARGETS_CLEAN) $(EXTRA_FILES)
-	$(RM) et-[ch]-*.et et-[ch]-*.[ch] testlog testtrace
+	$(RM) et-[ch]-*.et et-[ch]-*.[ch] testlog testtrace runenv.sh
 	-$(RM) -r testdir
 
 clean-windows::
@@ -181,7 +193,7 @@ Makefile: $(srcdir)/Makefile.in $(srcdir)/deps $(BUILDTOP)/config.status \
 $(BUILDTOP)/config.status: $(top_srcdir)/configure
 	(cd $(BUILDTOP) && $(SHELL) config.status --recheck)
 $(top_srcdir)/configure: @MAINT@ \
-		$(top_srcdir)/configure.in \
+		$(top_srcdir)/configure.ac \
 		$(top_srcdir)/patchlevel.h \
 		$(top_srcdir)/aclocal.m4
 	(cd $(top_srcdir) && \

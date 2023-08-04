@@ -28,6 +28,8 @@
 #include "crypto_int.h"
 #include "des_int.h"
 
+#ifdef K5_BUILTIN_DES
+
 static krb5_error_code
 validate_and_schedule(krb5_key key, const krb5_data *ivec,
                       const krb5_crypto_iov *data, size_t num_data,
@@ -103,3 +105,5 @@ const struct krb5_enc_provider krb5int_enc_des3 = {
     krb5int_des_init_state,
     krb5int_default_free_state
 };
+
+#endif /* K5_BUILTIN_DES */

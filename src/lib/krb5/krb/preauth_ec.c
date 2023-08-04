@@ -138,6 +138,7 @@ ec_process(krb5_context context, krb5_clpreauth_moddata moddata,
             encoded_ts->data = NULL;
             *out_padata = pa;
             pa = NULL;
+            cb->disable_fallback(context, rock);
         }
         free(pa);
         krb5_free_data(context, encoded_ts);

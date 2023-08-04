@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";
  * svc_tcp.c, Server side for TCP/IP based RPC.
  *
  * Actually implements two flavors of transporter -
- * a tcp rendezvouser (a listner and connection establisher)
+ * a tcp rendezvouser (a listener and connection establisher)
  * and a record/tcp stream.
  */
 
@@ -141,8 +141,8 @@ svctcp_create(
 	u_int recvsize)
 {
 	bool_t madesock = FALSE;
-	register SVCXPRT *xprt;
-	register struct tcp_rendezvous *r;
+	SVCXPRT *xprt;
+	struct tcp_rendezvous *r;
 	struct sockaddr_storage ss;
 	struct sockaddr *sa = (struct sockaddr *)&ss;
 	socklen_t len;
@@ -225,8 +225,8 @@ makefd_xprt(
 	u_int sendsize,
 	u_int recvsize)
 {
-	register SVCXPRT *xprt;
-	register struct tcp_conn *cd;
+	SVCXPRT *xprt;
+	struct tcp_conn *cd;
 
 #ifdef FD_SETSIZE
 	if (fd >= FD_SETSIZE) {
@@ -262,7 +262,7 @@ makefd_xprt(
 	xprt->xp_verf.oa_base = cd->verf_body;
 	xprt->xp_addrlen = 0;
 	xprt->xp_laddrlen = 0;
-	xprt->xp_ops = &svctcp_op;  /* truely deals with calls */
+	xprt->xp_ops = &svctcp_op;  /* truly deals with calls */
 	xprt->xp_port = 0;  /* this is a connection, not a rendezvouser */
 	xprt->xp_sock = fd;
 	xprt_register(xprt);
@@ -272,7 +272,7 @@ makefd_xprt(
 
 static bool_t
 rendezvous_request(
-	register SVCXPRT *xprt,
+	SVCXPRT *xprt,
 	struct rpc_msg *msg)
 {
         SOCKET sock;
@@ -309,16 +309,16 @@ rendezvous_request(
 }
 
 static enum xprt_stat
-rendezvous_stat(register SVCXPRT *xprt)
+rendezvous_stat(SVCXPRT *xprt)
 {
 
 	return (XPRT_IDLE);
 }
 
 static void
-svctcp_destroy(register SVCXPRT *xprt)
+svctcp_destroy(SVCXPRT *xprt)
 {
-	register struct tcp_conn *cd = (struct tcp_conn *)xprt->xp_p1;
+	struct tcp_conn *cd = xprt->xp_p1;
 
 	xprt_unregister(xprt);
         (void)closesocket(xprt->xp_sock);
@@ -344,7 +344,7 @@ svctcp_destroy(register SVCXPRT *xprt)
 static struct timeval wait_per_try = { 35, 0 };
 
 /*
- * reads data from the tcp conection.
+ * reads data from the tcp connection.
  * any error is fatal and the connection is closed.
  * (And a read of zero bytes is a half closed stream => error.)
  */
@@ -352,10 +352,10 @@ static int
 readtcp(
         char *xprtptr,
 	caddr_t buf,
-	register int len)
+	int len)
 {
-	register SVCXPRT *xprt = (SVCXPRT *)(void *)xprtptr;
-	register int sock = xprt->xp_sock;
+	SVCXPRT *xprt = (void *)xprtptr;
+	int sock = xprt->xp_sock;
 	struct timeval tout;
 #ifdef FD_SETSIZE
 	fd_set mask;
@@ -364,7 +364,7 @@ readtcp(
 	FD_ZERO(&mask);
 	FD_SET(sock, &mask);
 #else
-	register int mask = 1 << sock;
+	int mask = 1 << sock;
 	int readfds;
 #endif /* def FD_SETSIZE */
 #ifdef FD_SETSIZE
@@ -401,8 +401,8 @@ writetcp(
 	caddr_t buf,
 	int len)
 {
-	register SVCXPRT *xprt = (SVCXPRT *)(void *) xprtptr;
-	register int i, cnt;
+	SVCXPRT *xprt = (void *)xprtptr;
+	int i, cnt;
 
 	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
 		if ((i = write(xprt->xp_sock, buf, (size_t) cnt)) < 0) {
@@ -417,8 +417,7 @@ writetcp(
 static enum xprt_stat
 svctcp_stat(SVCXPRT *xprt)
 {
-	register struct tcp_conn *cd =
-	    (struct tcp_conn *)(xprt->xp_p1);
+	struct tcp_conn *cd = xprt->xp_p1;
 
 	if (cd->strm_stat == XPRT_DIED)
 		return (XPRT_DIED);
@@ -430,11 +429,10 @@ svctcp_stat(SVCXPRT *xprt)
 static bool_t
 svctcp_recv(
 	SVCXPRT *xprt,
-	register struct rpc_msg *msg)
+	struct rpc_msg *msg)
 {
-	register struct tcp_conn *cd =
-	    (struct tcp_conn *)(xprt->xp_p1);
-	register XDR *xdrs = &(cd->xdrs);
+	struct tcp_conn *cd = xprt->xp_p1;
+	XDR *xdrs = &cd->xdrs;
 
 	xdrs->x_op = XDR_DECODE;
 	(void)xdrrec_skiprecord(xdrs);
@@ -466,8 +464,7 @@ svctcp_freeargs(
 	xdrproc_t xdr_args,
 	void * args_ptr)
 {
-	register XDR *xdrs =
-	    &(((struct tcp_conn *)(xprt->xp_p1))->xdrs);
+	XDR *xdrs = &((struct tcp_conn *)(xprt->xp_p1))->xdrs;
 
 	xdrs->x_op = XDR_FREE;
 	return ((*xdr_args)(xdrs, args_ptr));
@@ -475,12 +472,11 @@ svctcp_freeargs(
 
 static bool_t svctcp_reply(
 	SVCXPRT *xprt,
-	register struct rpc_msg *msg)
+	struct rpc_msg *msg)
 {
-	register struct tcp_conn *cd =
-		(struct tcp_conn *)(xprt->xp_p1);
-	register XDR *xdrs = &(cd->xdrs);
-	register bool_t stat;
+	struct tcp_conn *cd = xprt->xp_p1;
+	XDR *xdrs = &cd->xdrs;
+	bool_t stat;
 
 	xdrproc_t xdr_results = NULL;
 	caddr_t xdr_location = 0;

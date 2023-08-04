@@ -1,17 +1,19 @@
 mydir=tests
 BUILDTOP=$(REL)..
-SUBDIRS = resolve asn.1 create hammer verify gssapi dejagnu shlib \
-	gss-threads misc threads
+SUBDIRS = asn.1 create hammer verify gssapi shlib gss-threads misc threads \
+	softpkcs11
 
 RUN_DB_TEST = $(RUN_SETUP) KRB5_KDC_PROFILE=kdc.conf KRB5_CONFIG=krb5.conf \
-	LC_ALL=C $(VALGRIND)
+	GSS_MECH_CONFIG=mech.conf LC_ALL=C $(VALGRIND)
 
-OBJS= adata.o etinfo.o forward.o gcred.o hist.o hooks.o hrealm.o \
+OBJS= adata.o conccache.o etinfo.o forward.o gcred.o hist.o hooks.o hrealm.o \
 	icinterleave.o icred.o kdbtest.o localauth.o plugorder.o rdreq.o \
-	responder.o s2p.o s4u2proxy.o unlockiter.o
-EXTRADEPSRCS= adata.c etinfo.c forward.c gcred.c hist.c hooks.c hrealm.c \
-	icinterleave.c icred.c kdbtest.c localauth.c plugorder.c rdreq.o \
-	responder.c s2p.c s4u2proxy.c unlockiter.c
+	replay.o responder.o s2p.o s4u2self.o s4u2proxy.o t_inetd.o \
+	unlockiter.o
+EXTRADEPSRCS= adata.c conccache.c etinfo.c forward.c gcred.c hist.c hooks.c \
+	hrealm.c icinterleave.c icred.c kdbtest.c localauth.c plugorder.c \
+	rdreq.c replay.c responder.c s2p.c s4u2self.c s4u2proxy.c t_inetd.c \
+	unlockiter.c
 
 TEST_DB = ./testdb
 TEST_REALM = FOO.TEST.REALM
@@ -25,6 +27,9 @@ KTEST_OPTS= $(KADMIN_OPTS) -p $(TEST_PREFIX) -n $(TEST_NUM) -D $(TEST_DEPTH)
 
 adata: adata.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ adata.o $(KRB5_BASE_LIBS)
+
+conccache: conccache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ conccache.o $(KRB5_BASE_LIBS)
 
 etinfo: etinfo.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ etinfo.o $(KRB5_BASE_LIBS)
@@ -63,18 +68,29 @@ plugorder: plugorder.o $(KRB5_BASE_DEPLIBS)
 rdreq: rdreq.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ rdreq.o $(KRB5_BASE_LIBS)
 
+replay: replay.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ replay.o $(KRB5_BASE_LIBS)
+
 responder: responder.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ responder.o $(KRB5_BASE_LIBS)
 
 s2p: s2p.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ s2p.o $(KRB5_BASE_LIBS)
 
+s4u2self: s4u2self.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ s4u2self.o $(KRB5_BASE_LIBS)
+
 s4u2proxy: s4u2proxy.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ s4u2proxy.o $(KRB5_BASE_LIBS)
+
+t_inetd: t_inetd.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_inetd.o $(LIBS) $(KRB5_BASE_LIBS)
 
 unlockiter: unlockiter.o $(KDB5_DEPLIBS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ unlockiter.o $(KDB5_LIBS) $(KADMSRV_LIBS) \
 		$(KRB5_BASE_LIBS)
+
+all-unix: t_inetd
 
 check-unix: kdb_check
 
@@ -97,7 +113,6 @@ kdb_check: kdc.conf krb5.conf
 	$(RUN_DB_TEST) ../tests/create/kdb5_mkdums $(KTEST_OPTS)
 	$(RUN_DB_TEST) ../tests/verify/kdb5_verify $(KTEST_OPTS)
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump $(TEST_DB).dump
-	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump -ov $(TEST_DB).ovdump
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) destroy -f
 	@echo "====> NOTE!"
 	@echo "The following 'create' command is needed due to a change"
@@ -105,22 +120,17 @@ kdb_check: kdc.conf krb5.conf
 	@echo ====
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) create -W
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) load $(TEST_DB).dump
-	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) load -update -ov $(TEST_DB).ovdump
 	$(RUN_DB_TEST) ../tests/verify/kdb5_verify $(KTEST_OPTS)
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump $(TEST_DB).dump2
-	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump -ov $(TEST_DB).ovdump2
 	sort $(TEST_DB).dump > $(TEST_DB).sort
 	sort $(TEST_DB).dump2 > $(TEST_DB).sort2
-	sort $(TEST_DB).ovdump > $(TEST_DB).ovsort
-	sort $(TEST_DB).ovdump2 > $(TEST_DB).ovsort2
 	cmp $(TEST_DB).sort $(TEST_DB).sort2
-	cmp $(TEST_DB).ovsort $(TEST_DB).ovsort2
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) destroy -f
 	$(RM) $(TEST_DB)* stash_file
 
-check-pytests: adata etinfo forward gcred hist hooks hrealm icinterleave icred
-check-pytests: kdbtest localauth plugorder rdreq responder s2p s4u2proxy
-check-pytests: unlockiter
+check-pytests: adata conccache etinfo forward gcred hist hooks hrealm
+check-pytests: icinterleave icred kdbtest localauth plugorder rdreq replay
+check-pytests: responder s2p s4u2proxy unlockiter s4u2self
 	$(RUNPYTEST) $(srcdir)/t_general.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_hooks.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_dump.py $(PYTESTFLAGS)
@@ -130,6 +140,7 @@ check-pytests: unlockiter
 	$(RUNPYTEST) $(srcdir)/t_changepw.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_pkinit.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_otp.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_spake.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_localauth.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kadm5_hook.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kadm5_auth.py $(PYTESTFLAGS)
@@ -146,6 +157,7 @@ check-pytests: unlockiter
 	$(RUNPYTEST) $(srcdir)/t_referral.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_skew.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_keytab.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadmin.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kadmin_acl.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kadmin_parsing.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kdb.py $(PYTESTFLAGS)
@@ -157,6 +169,7 @@ check-pytests: unlockiter
 	$(RUNPYTEST) $(srcdir)/t_cve-2012-1015.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_cve-2013-1416.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_cve-2013-1417.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2021-36222.py $(PYTESTFLAGS)
 	$(RM) au.log
 	$(RUNPYTEST) $(srcdir)/t_audit.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/jsonwalker.py -d $(srcdir)/au_dict.json \
@@ -175,11 +188,14 @@ check-pytests: unlockiter
 	$(RUNPYTEST) $(srcdir)/t_certauth.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_y2038.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kdcpolicy.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_u2u.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdcoptions.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_replay.py $(PYTESTFLAGS)
 
 clean:
-	$(RM) adata etinfo forward gcred hist hooks hrealm icinterleave icred
-	$(RM) kdbtest localauth plugorder rdreq responder s2p s4u2proxy
-	$(RM) unlockiter
+	$(RM) adata conccache etinfo forward gcred hist hooks hrealm
+	$(RM) icinterleave icred kdbtest localauth plugorder rdreq replay
+	$(RM) responder s2p s4u2proxy s4u2self t_inetd unlockiter
 	$(RM) krb5.conf kdc.conf
 	$(RM) -rf kdc_realm/sandbox ldap
 	$(RM) au.log

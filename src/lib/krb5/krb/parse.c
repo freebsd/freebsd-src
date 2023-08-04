@@ -25,6 +25,7 @@
  */
 
 #include "k5-int.h"
+#include "int-proto.h"
 
 /*
  * Scan name and allocate a shell principal with enough space in each field.
@@ -183,6 +184,7 @@ krb5_parse_name_flags(krb5_context context, const char *name,
     krb5_boolean require_realm = (flags & KRB5_PRINCIPAL_PARSE_REQUIRE_REALM);
     krb5_boolean no_realm = (flags & KRB5_PRINCIPAL_PARSE_NO_REALM);
     krb5_boolean ignore_realm = (flags & KRB5_PRINCIPAL_PARSE_IGNORE_REALM);
+    krb5_boolean no_def_realm = (flags & KRB5_PRINCIPAL_PARSE_NO_DEF_REALM);
 
     *principal_out = NULL;
 
@@ -191,11 +193,8 @@ krb5_parse_name_flags(krb5_context context, const char *name,
         goto cleanup;
     parse_name_into_princ(name, enterprise, princ);
 
-    /*
-     * If a realm was not found, then use the default realm, unless
-     * KRB5_PRINCIPAL_PARSE_NO_REALM was specified in which case the
-     * realm will be empty.
-     */
+    /* If a realm was not included, use the default realm, unless flags
+     * indicate otherwise. */
     if (!has_realm) {
         if (require_realm) {
             ret = KRB5_PARSE_MALFORMED;
@@ -203,7 +202,7 @@ krb5_parse_name_flags(krb5_context context, const char *name,
                       _("Principal %s is missing required realm"), name);
             goto cleanup;
         }
-        if (!no_realm && !ignore_realm) {
+        if (!no_realm && !ignore_realm && !no_def_realm) {
             ret = krb5_get_default_realm(context, &default_realm);
             if (ret)
                 goto cleanup;
@@ -220,7 +219,8 @@ krb5_parse_name_flags(krb5_context context, const char *name,
     }
 
     princ->type = (enterprise) ? KRB5_NT_ENTERPRISE_PRINCIPAL :
-        KRB5_NT_PRINCIPAL;
+        k5_infer_principal_type(princ);
+
     princ->magic = KV5M_PRINCIPAL;
     *principal_out = princ;
     princ = NULL;

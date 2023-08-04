@@ -35,7 +35,7 @@
  *
  * The certauth pluggable interface currently has only one supported major
  * version, which is 1.  Major version 1 has a current minor version number of
- * 1.
+ * 2.
  *
  * certauth plugin modules should define a function named
  * certauth_<modulename>_initvt, matching the signature:
@@ -79,19 +79,35 @@ typedef krb5_error_code
                          krb5_certauth_moddata *moddata_out);
 
 /*
+ * Optional: Initialize module data.  Supersedes init if present.
+ */
+typedef krb5_error_code
+(*krb5_certauth_init_ex_fn)(krb5_context context, const char *const *realmlist,
+                            krb5_certauth_moddata *moddata_out);
+
+/*
  * Optional: Clean up the module data.
  */
 typedef void
 (*krb5_certauth_fini_fn)(krb5_context context, krb5_certauth_moddata moddata);
 
 /*
- * Mandatory:
- * Return 0 if the DER-encoded cert is authorized for PKINIT authentication by
- * princ; otherwise return one of the following error codes:
+ * Mandatory: decode cert as an X.509 certificate and determine whether it is
+ * authorized to authenticate as the requested client principal princ using
+ * PKINIT.  Return 0 or KRB5_CERTAUTH_HWAUTH if the certificate is authorized.
+ * Otherwise return one of the following error codes:
+ *
  * - KRB5KDC_ERR_CLIENT_NAME_MISMATCH - incorrect SAN value
  * - KRB5KDC_ERR_INCONSISTENT_KEY_PURPOSE - incorrect EKU
  * - KRB5KDC_ERR_CERTIFICATE_MISMATCH - other extension error
- * - KRB5_PLUGIN_NO_HANDLE - the module has no opinion about cert
+ * - KRB5_PLUGIN_NO_HANDLE or KRB5_CERTAUTH_HWAUTH_PASS - the module has no
+ *   opinion about whether cert is authorized
+ *
+ * Returning KRB5_CERTAUTH_HWAUTH will authorize the PKINIT authentication and
+ * cause the hw-authent flag to be set in the issued ticket (new in release
+ * 1.19).  Returning KRB5_CERTAUTH_HWAUTH_PASS does not authorize the PKINIT
+ * authentication, but causes the hw-authent flag to be set if another module
+ * authorizes it (new in release 1.20)
  *
  * - opts is used by built-in modules to receive internal data, and must be
  *   ignored by other modules.
@@ -123,6 +139,10 @@ typedef struct krb5_certauth_vtable_st {
     krb5_certauth_fini_fn fini;
     krb5_certauth_authorize_fn authorize;
     krb5_certauth_free_indicator_fn free_ind;
+    /* Minor version 1 ends here. */
+
+    krb5_certauth_init_ex_fn init_ex;
+    /* Minor version 2 ends here. */
 } *krb5_certauth_vtable;
 
 #endif /* KRB5_CERTAUTH_PLUGIN_H */

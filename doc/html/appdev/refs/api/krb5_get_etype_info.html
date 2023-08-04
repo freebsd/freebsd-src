@@ -1,0 +1,188 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>krb5_get_etype_info - Retrieve enctype, salt and s2kparams from KDC. &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.21.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="next" title="krb5_get_permitted_enctypes - Return a list of encryption types permitted for session keys." href="krb5_get_permitted_enctypes.html" />
+    <link rel="prev" title="krb5_free_unparsed_name - Free a string representation of a principal." href="krb5_free_unparsed_name.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_free_unparsed_name.html" title="krb5_free_unparsed_name - Free a string representation of a principal."
+            accesskey="P">previous</a> |
+        <a href="krb5_get_permitted_enctypes.html" title="krb5_get_permitted_enctypes - Return a list of encryption types permitted for session keys."
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_get_etype_info -  Retrieve enctype, salt and s2kparams from KDC.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="krb5-get-etype-info-retrieve-enctype-salt-and-s2kparams-from-kdc">
+<h1>krb5_get_etype_info -  Retrieve enctype, salt and s2kparams from KDC.<a class="headerlink" href="#krb5-get-etype-info-retrieve-enctype-salt-and-s2kparams-from-kdc" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="c.krb5_get_etype_info">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_get_etype_info</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;principal</em>, <a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt">krb5_get_init_creds_opt</a> *<em>&nbsp;opt</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a> *<em>&nbsp;enctype_out</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;salt_out</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;s2kparams_out</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_get_etype_info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p><strong>[in]</strong> <strong>principal</strong> - Principal whose information is requested</p>
+<p><strong>[in]</strong> <strong>opt</strong> - Initial credential options</p>
+<p><strong>[out]</strong> <strong>enctype_out</strong> - The enctype chosen by KDC</p>
+<p><strong>[out]</strong> <strong>salt_out</strong> - Salt returned from KDC</p>
+<p class="last"><strong>[out]</strong> <strong>s2kparams_out</strong> - String-to-key parameters returned from KDC</p>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first simple">
+<li>0   Success</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">return:</th><td class="field-body"><ul class="first last simple">
+<li>A Kerberos error code</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Send an initial ticket request for <em>principal</em> and extract the encryption type, salt type, and string-to-key parameters from the KDC response. If the KDC provides no etype-info, set <em>enctype_out</em> to <strong>ENCTYPE_NULL</strong> and set <em>salt_out</em> and <em>s2kparams_out</em> to empty. If the KDC etype-info provides no salt, compute the default salt and place it in <em>salt_out</em> . If the KDC etype-info provides no string-to-key parameters, set <em>s2kparams_out</em> to empty.</p>
+<blockquote>
+<div><em>opt</em> may be used to specify options which affect the initial request, such as request encryption types or a FAST armor cache (see <a class="reference internal" href="krb5_get_init_creds_opt_set_etype_list.html#c.krb5_get_init_creds_opt_set_etype_list" title="krb5_get_init_creds_opt_set_etype_list"><code class="xref c c-func docutils literal"><span class="pre">krb5_get_init_creds_opt_set_etype_list()</span></code></a> and <a class="reference internal" href="krb5_get_init_creds_opt_set_fast_ccache_name.html#c.krb5_get_init_creds_opt_set_fast_ccache_name" title="krb5_get_init_creds_opt_set_fast_ccache_name"><code class="xref c c-func docutils literal"><span class="pre">krb5_get_init_creds_opt_set_fast_ccache_name()</span></code></a> ).</div></blockquote>
+<p>Use <a class="reference internal" href="krb5_free_data_contents.html#c.krb5_free_data_contents" title="krb5_free_data_contents"><code class="xref c c-func docutils literal"><span class="pre">krb5_free_data_contents()</span></code></a> to free <em>salt_out</em> and <em>s2kparams_out</em> when they are no longer needed.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">New in 1.17</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_get_etype_info -  Retrieve enctype, salt and s2kparams from KDC.</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_free_unparsed_name.html" title="krb5_free_unparsed_name - Free a string representation of a principal."
+            >previous</a> |
+        <a href="krb5_get_permitted_enctypes.html" title="krb5_get_permitted_enctypes - Return a list of encryption types permitted for session keys."
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_get_etype_info -  Retrieve enctype, salt and s2kparams from KDC.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

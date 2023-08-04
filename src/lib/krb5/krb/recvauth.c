@@ -58,14 +58,13 @@ recvauth_common(krb5_context context,
     krb5_data             outbuf;
     krb5_rcache           rcache = 0;
     krb5_octet            response;
-    krb5_data             null_server;
     krb5_data             d;
     int                   need_error_free = 0;
     int                   local_rcache = 0, local_authcon = 0;
 
     /*
      * Zero out problem variable.  If problem is set at the end of
-     * the intial version negotiation section, it means that we
+     * the initial version negotiation section, it means that we
      * need to send an error code back to the client application
      * and exit.
      */
@@ -132,17 +131,7 @@ recvauth_common(krb5_context context,
     }
     krb5_auth_con_getrcache(context, *auth_context, &rcache);
     if ((!problem) && rcache == NULL) {
-        /*
-         * Setup the replay cache.
-         */
-        if (server != NULL && server->length > 0) {
-            problem = krb5_get_server_rcache(context, &server->data[0],
-                                             &rcache);
-        } else {
-            null_server.length = 7;
-            null_server.data = "default";
-            problem = krb5_get_server_rcache(context, &null_server, &rcache);
-        }
+        problem = k5_rc_default(context, &rcache);
         if (!problem)
             problem = krb5_auth_con_setrcache(context, *auth_context, rcache);
         local_rcache = 1;
@@ -155,7 +144,7 @@ recvauth_common(krb5_context context,
 
     /*
      * If there was a problem, send back a krb5_error message,
-     * preceeded by the length of the krb5_error message.  If
+     * preceded by the length of the krb5_error message.  If
      * everything's ok, send back 0 for the length.
      */
     if (problem) {
@@ -220,7 +209,7 @@ cleanup:;
         if (local_authcon) {
             krb5_auth_con_free(context, *auth_context);
         } else if (local_rcache && rcache != NULL) {
-            krb5_rc_close(context, rcache);
+            k5_rc_close(context, rcache);
             krb5_auth_con_setrcache(context, *auth_context, NULL);
         }
     }

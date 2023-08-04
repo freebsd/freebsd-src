@@ -6,7 +6,7 @@ mydir=util
 SUBDIRS=support $(MAYBE_ET_@COM_ERR_VERSION@) $(MAYBE_SS_@SS_VERSION@) \
 	profile $(MAYBE_VERTO_@VERTO_VERSION@)
 ##WIN32##!endif
-WINSUBDIRS=windows support et profile wshelper
+WINSUBDIRS=windows support et profile
 BUILDTOP=$(REL)..
 
 MAYBE_ET_k5 = et
@@ -26,3 +26,4 @@ install:
 
 clean-unix::
 	$(RM) *.pyc
+	$(RM) -r __pycache__

@@ -76,8 +76,8 @@
 
 static krb5_error_code
 prepare_error_as(struct kdc_request_state *, krb5_kdc_req *, krb5_db_entry *,
-                 int, krb5_pa_data **, krb5_boolean, krb5_principal,
-                 krb5_data **, const char *);
+                 krb5_keyblock *, krb5_error_code, krb5_pa_data **,
+                 krb5_boolean, krb5_principal, krb5_data **, const char *);
 
 /* Determine the key-expiration value according to RFC 4120 section 5.4.2. */
 static krb5_timestamp
@@ -130,6 +130,26 @@ select_client_key(krb5_context context, krb5_db_entry *client,
     return 0;
 }
 
+static krb5_error_code
+lookup_client(krb5_context context, krb5_kdc_req *req, unsigned int flags,
+              krb5_db_entry **entry_out)
+{
+    krb5_pa_data *pa;
+    krb5_data cert;
+
+    *entry_out = NULL;
+    pa = krb5int_find_pa_data(context, req->padata, KRB5_PADATA_S4U_X509_USER);
+    if (pa != NULL && pa->length != 0 &&
+        req->client->type == KRB5_NT_X500_PRINCIPAL) {
+        cert = make_data(pa->contents, pa->length);
+        flags |= KRB5_KDB_FLAG_REFERRAL_OK;
+        return krb5_db_get_s4u_x509_principal(context, &cert, req->client,
+                                              flags, entry_out);
+    } else {
+        return krb5_db_get_principal(context, req->client, flags, entry_out);
+    }
+}
+
 struct as_req_state {
     loop_respond_fn respond;
     void *arg;
@@ -138,6 +158,7 @@ struct as_req_state {
     krb5_enc_tkt_part enc_tkt_reply;
     krb5_enc_kdc_rep_part reply_encpart;
     krb5_ticket ticket_reply;
+    krb5_keyblock local_tgt_key;
     krb5_keyblock server_keyblock;
     krb5_keyblock client_keyblock;
     krb5_db_entry *client;
@@ -152,7 +173,6 @@ struct as_req_state {
     krb5_boolean typed_e_data;
     krb5_kdc_rep reply;
     krb5_timestamp kdc_time;
-    krb5_timestamp authtime;
     krb5_keyblock session_key;
     unsigned int c_flags;
     krb5_data *req_pkt;
@@ -173,15 +193,16 @@ struct as_req_state {
 static void
 finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
 {
-    krb5_key_data *server_key;
+    kdc_realm_t *realm = state->active_realm;
+    krb5_context context = realm->realm_context;
     krb5_keyblock *as_encrypting_key = NULL;
     krb5_data *response = NULL;
     const char *emsg = 0;
     int did_log = 0;
     loop_respond_fn oldrespond;
     void *oldarg;
-    kdc_realm_t *kdc_active_realm = state->active_realm;
     krb5_audit_state *au_state = state->au_state;
+    krb5_keyblock *replaced_reply_key = NULL;
 
     assert(state);
     oldrespond = state->respond;
@@ -192,52 +213,19 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
 
     au_state->stage = ENCR_REP;
 
-    if ((errcode = validate_forwardable(state->request, *state->client,
-                                        *state->server, state->kdc_time,
-                                        &state->status))) {
-        errcode += ERROR_TABLE_BASE_krb5;
-        goto egress;
-    }
-
-    errcode = check_indicators(kdc_context, state->server,
-                               state->auth_indicators);
-    if (errcode) {
-        state->status = "HIGHER_AUTHENTICATION_REQUIRED";
-        goto egress;
-    }
-
     state->ticket_reply.enc_part2 = &state->enc_tkt_reply;
 
-    errcode = check_kdcpolicy_as(kdc_context, state->request, state->client,
+    errcode = check_kdcpolicy_as(context, state->request, state->client,
                                  state->server, state->auth_indicators,
                                  state->kdc_time, &state->enc_tkt_reply.times,
                                  &state->status);
     if (errcode)
         goto egress;
 
-    /*
-     * Find the server key
-     */
-    if ((errcode = krb5_dbe_find_enctype(kdc_context, state->server,
-                                         -1, /* ignore keytype   */
-                                         -1, /* Ignore salttype  */
-                                         0,  /* Get highest kvno */
-                                         &server_key))) {
+    errcode = get_first_current_key(context, state->server,
+                                    &state->server_keyblock);
+    if (errcode) {
         state->status = "FINDING_SERVER_KEY";
-        goto egress;
-    }
-
-    /*
-     * Convert server->key into a real key
-     * (it may be encrypted in the database)
-     *
-     *  server_keyblock is later used to generate auth data signatures
-     */
-    if ((errcode = krb5_dbe_decrypt_key_data(kdc_context, NULL,
-                                             server_key,
-                                             &state->server_keyblock,
-                                             NULL))) {
-        state->status = "DECRYPT_SERVER_KEY";
         goto egress;
     }
 
@@ -253,20 +241,14 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
     state->reply_encpart.key_exp = get_key_exp(state->client);
     state->reply_encpart.flags = state->enc_tkt_reply.flags;
     state->reply_encpart.server = state->ticket_reply.server;
-
-    /* copy the time fields EXCEPT for authtime; it's location
-     *  is used for ktime
-     */
     state->reply_encpart.times = state->enc_tkt_reply.times;
-    state->reply_encpart.times.authtime = state->authtime = state->kdc_time;
-
     state->reply_encpart.caddrs = state->enc_tkt_reply.caddrs;
     state->reply_encpart.enc_padata = NULL;
 
     /* Fetch the padata info to be returned (do this before
      *  authdata to handle possible replacement of reply key
      */
-    errcode = return_padata(kdc_context, &state->rock, state->req_pkt,
+    errcode = return_padata(context, &state->rock, state->req_pkt,
                             state->request, &state->reply,
                             &state->client_keyblock, &state->pa_context);
     if (errcode) {
@@ -282,21 +264,16 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
         goto egress;
     }
 
-    errcode = handle_authdata(kdc_context,
-                              state->c_flags,
-                              state->client,
-                              state->server,
-                              NULL,
-                              state->local_tgt,
-                              &state->client_keyblock,
-                              &state->server_keyblock,
-                              NULL,
-                              state->req_pkt,
-                              state->request,
-                              NULL, /* for_user_princ */
-                              NULL, /* enc_tkt_request */
-                              state->auth_indicators,
-                              &state->enc_tkt_reply);
+    if (state->rock.replaced_reply_key)
+        replaced_reply_key = &state->client_keyblock;
+
+    errcode = handle_authdata(realm, state->c_flags, state->client,
+                              state->server, NULL, state->local_tgt,
+                              &state->local_tgt_key, &state->client_keyblock,
+                              &state->server_keyblock, NULL,
+                              replaced_reply_key, state->req_pkt,
+                              state->request, NULL, NULL, NULL,
+                              &state->auth_indicators, &state->enc_tkt_reply);
     if (errcode) {
         krb5_klog_syslog(LOG_INFO, _("AS_REQ : handle_authdata (%d)"),
                          errcode);
@@ -304,17 +281,23 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
         goto egress;
     }
 
-    errcode = krb5_encrypt_tkt_part(kdc_context, &state->server_keyblock,
+    errcode = check_indicators(context, state->server, state->auth_indicators);
+    if (errcode) {
+        state->status = "HIGHER_AUTHENTICATION_REQUIRED";
+        goto egress;
+    }
+
+    errcode = krb5_encrypt_tkt_part(context, &state->server_keyblock,
                                     &state->ticket_reply);
     if (errcode)
         goto egress;
 
-    errcode = kau_make_tkt_id(kdc_context, &state->ticket_reply,
+    errcode = kau_make_tkt_id(context, &state->ticket_reply,
                               &au_state->tkt_out_id);
     if (errcode)
         goto egress;
 
-    state->ticket_reply.enc_part.kvno = server_key->key_data_kvno;
+    state->ticket_reply.enc_part.kvno = current_kvno(state->server);
     errcode = kdc_fast_response_handle_padata(state->rstate,
                                               state->request,
                                               &state->reply,
@@ -330,7 +313,7 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
                                         &as_encrypting_key);
     if (errcode)
         goto egress;
-    errcode = return_enc_padata(kdc_context, state->req_pkt, state->request,
+    errcode = return_enc_padata(context, state->req_pkt, state->request,
                                 as_encrypting_key, state->server,
                                 &state->reply_encpart, FALSE);
     if (errcode) {
@@ -340,10 +323,9 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
 
     if (kdc_fast_hide_client(state->rstate))
         state->reply.client = (krb5_principal)krb5_anonymous_principal();
-    errcode = krb5_encode_kdc_rep(kdc_context, KRB5_AS_REP,
-                                  &state->reply_encpart, 0,
-                                  as_encrypting_key,
-                                  &state->reply, &response);
+    errcode = krb5_encode_kdc_rep(context, KRB5_AS_REP, &state->reply_encpart,
+                                  0, as_encrypting_key, &state->reply,
+                                  &response);
     if (state->client_key != NULL)
         state->reply.enc_part.kvno = state->client_key->key_data_kvno;
     if (errcode)
@@ -355,9 +337,9 @@ finish_process_as_req(struct as_req_state *state, krb5_error_code errcode)
            state->reply.enc_part.ciphertext.length);
     free(state->reply.enc_part.ciphertext.data);
 
-    log_as_req(kdc_context, state->local_addr, state->remote_addr,
+    log_as_req(context, state->local_addr, state->remote_addr,
                state->request, &state->reply, state->client, state->cname,
-               state->server, state->sname, state->authtime, 0, 0, 0);
+               state->server, state->sname, state->kdc_time, 0, 0, 0);
     did_log = 1;
 
 egress:
@@ -366,20 +348,20 @@ egress:
 
     au_state->status = state->status;
     au_state->reply = &state->reply;
-    kau_as_req(kdc_context,
-              (errcode || state->preauth_err) ? FALSE : TRUE, au_state);
+    kau_as_req(context, (errcode || state->preauth_err) ? FALSE : TRUE,
+               au_state);
     kau_free_kdc_req(au_state);
 
-    free_padata_context(kdc_context, state->pa_context);
+    free_padata_context(context, state->pa_context);
     if (as_encrypting_key)
-        krb5_free_keyblock(kdc_context, as_encrypting_key);
+        krb5_free_keyblock(context, as_encrypting_key);
     if (errcode)
-        emsg = krb5_get_error_message(kdc_context, errcode);
+        emsg = krb5_get_error_message(context, errcode);
 
     if (state->status) {
-        log_as_req(kdc_context, state->local_addr, state->remote_addr,
+        log_as_req(context, state->local_addr, state->remote_addr,
                    state->request, &state->reply, state->client,
-                   state->cname, state->server, state->sname, state->authtime,
+                   state->cname, state->server, state->sname, state->kdc_time,
                    state->status, errcode, emsg);
         did_log = 1;
     }
@@ -388,13 +370,10 @@ egress:
             state->status = emsg;
         }
         if (errcode != KRB5KDC_ERR_DISCARD) {
-            errcode -= ERROR_TABLE_BASE_krb5;
-            if (errcode < 0 || errcode > KRB_ERR_MAX)
-                errcode = KRB_ERR_GENERIC;
-
             errcode = prepare_error_as(state->rstate, state->request,
-                                       state->local_tgt, errcode,
-                                       state->e_data, state->typed_e_data,
+                                       state->local_tgt, &state->local_tgt_key,
+                                       errcode, state->e_data,
+                                       state->typed_e_data,
                                        ((state->client != NULL) ?
                                         state->client->princ : NULL),
                                        &response, state->status);
@@ -403,38 +382,39 @@ egress:
     }
 
     if (emsg)
-        krb5_free_error_message(kdc_context, emsg);
+        krb5_free_error_message(context, emsg);
     if (state->enc_tkt_reply.authorization_data != NULL)
-        krb5_free_authdata(kdc_context,
-                           state->enc_tkt_reply.authorization_data);
+        krb5_free_authdata(context, state->enc_tkt_reply.authorization_data);
+    if (state->local_tgt_key.contents != NULL)
+        krb5_free_keyblock_contents(context, &state->local_tgt_key);
     if (state->server_keyblock.contents != NULL)
-        krb5_free_keyblock_contents(kdc_context, &state->server_keyblock);
+        krb5_free_keyblock_contents(context, &state->server_keyblock);
     if (state->client_keyblock.contents != NULL)
-        krb5_free_keyblock_contents(kdc_context, &state->client_keyblock);
+        krb5_free_keyblock_contents(context, &state->client_keyblock);
     if (state->reply.padata != NULL)
-        krb5_free_pa_data(kdc_context, state->reply.padata);
+        krb5_free_pa_data(context, state->reply.padata);
     if (state->reply_encpart.enc_padata)
-        krb5_free_pa_data(kdc_context, state->reply_encpart.enc_padata);
+        krb5_free_pa_data(context, state->reply_encpart.enc_padata);
 
     if (state->cname != NULL)
         free(state->cname);
     if (state->sname != NULL)
         free(state->sname);
-    krb5_db_free_principal(kdc_context, state->client);
-    krb5_db_free_principal(kdc_context, state->server);
-    krb5_db_free_principal(kdc_context, state->local_tgt_storage);
+    krb5_db_free_principal(context, state->client);
+    krb5_db_free_principal(context, state->server);
+    krb5_db_free_principal(context, state->local_tgt_storage);
     if (state->session_key.contents != NULL)
-        krb5_free_keyblock_contents(kdc_context, &state->session_key);
+        krb5_free_keyblock_contents(context, &state->session_key);
     if (state->ticket_reply.enc_part.ciphertext.data != NULL) {
         memset(state->ticket_reply.enc_part.ciphertext.data , 0,
                state->ticket_reply.enc_part.ciphertext.length);
         free(state->ticket_reply.enc_part.ciphertext.data);
     }
 
-    krb5_free_pa_data(kdc_context, state->e_data);
-    krb5_free_data(kdc_context, state->inner_body);
+    krb5_free_pa_data(context, state->e_data);
+    krb5_free_data(context, state->inner_body);
     kdc_free_rstate(state->rstate);
-    krb5_free_kdc_req(kdc_context, state->request);
+    krb5_free_kdc_req(context, state->request);
     k5_free_data_ptr_list(state->auth_indicators);
     assert(did_log != 0);
 
@@ -489,11 +469,11 @@ finish_preauth(void *arg, krb5_error_code code)
 void
 process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
                const krb5_fulladdr *local_addr,
-               const krb5_fulladdr *remote_addr, kdc_realm_t *kdc_active_realm,
+               const krb5_fulladdr *remote_addr, kdc_realm_t *realm,
                verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
+    krb5_context context = realm->realm_context;
     krb5_error_code errcode;
-    unsigned int s_flags = 0;
     krb5_data encoded_req_body;
     krb5_enctype useenctype;
     struct as_req_state *state;
@@ -510,9 +490,9 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     state->req_pkt = req_pkt;
     state->local_addr = local_addr;
     state->remote_addr = remote_addr;
-    state->active_realm = kdc_active_realm;
+    state->active_realm = realm;
 
-    errcode = kdc_make_rstate(kdc_active_realm, &state->rstate);
+    errcode = kdc_make_rstate(realm, &state->rstate);
     if (errcode != 0) {
         (*respond)(arg, errcode, NULL);
         free(state);
@@ -520,7 +500,7 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     }
 
     /* Initialize audit state. */
-    errcode = kau_init_kdc_req(kdc_context, state->request, remote_addr,
+    errcode = kau_init_kdc_req(context, state->request, remote_addr,
                                &au_state);
     if (errcode) {
         (*respond)(arg, errcode, NULL);
@@ -537,7 +517,11 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     }
 
     /* Seed the audit trail with the request ID and basic information. */
-    kau_as_req(kdc_context, TRUE, au_state);
+    kau_as_req(context, TRUE, au_state);
+
+    errcode = krb5_timeofday(context, &state->kdc_time);
+    if (errcode)
+        goto errout;
 
     if (fetch_asn1_field((unsigned char *) req_pkt->data,
                          1, 4, &encoded_req_body) != 0) {
@@ -552,7 +536,7 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     }
     if (state->inner_body == NULL) {
         /* Not a FAST request; copy the encoded request body. */
-        errcode = krb5_copy_data(kdc_context, &encoded_req_body,
+        errcode = krb5_copy_data(context, &encoded_req_body,
                                  &state->inner_body);
         if (errcode)
             goto errout;
@@ -563,14 +547,15 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     state->rock.rstate = state->rstate;
     state->rock.vctx = vctx;
     state->rock.auth_indicators = &state->auth_indicators;
+    state->rock.send_freshness_token = FALSE;
     if (!state->request->client) {
         state->status = "NULL_CLIENT";
         errcode = KRB5KDC_ERR_C_PRINCIPAL_UNKNOWN;
         goto errout;
     }
-    if ((errcode = krb5_unparse_name(kdc_context,
-                                     state->request->client,
-                                     &state->cname)))
+    errcode = krb5_unparse_name(context, state->request->client,
+                                &state->cname);
+    if (errcode)
         goto errout;
     limit_string(state->cname);
 
@@ -579,32 +564,18 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
         errcode = KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN;
         goto errout;
     }
-    if ((errcode = krb5_unparse_name(kdc_context,
-                                     state->request->server,
-                                     &state->sname)))
+    errcode = krb5_unparse_name(context, state->request->server,
+                                &state->sname);
+    if (errcode)
         goto errout;
     limit_string(state->sname);
 
-    /*
-     * We set KRB5_KDB_FLAG_CLIENT_REFERRALS_ONLY as a hint
-     * to the backend to return naming information in lieu
-     * of cross realm TGS entries.
-     */
-    setflag(state->c_flags, KRB5_KDB_FLAG_CLIENT_REFERRALS_ONLY);
-    /*
-     * Note that according to the referrals draft we should
-     * always canonicalize enterprise principal names.
-     */
+    setflag(state->c_flags, KRB5_KDB_FLAG_CLIENT);
     if (isflagset(state->request->kdc_options, KDC_OPT_CANONICALIZE) ||
-        state->request->client->type == KRB5_NT_ENTERPRISE_PRINCIPAL) {
-        setflag(state->c_flags, KRB5_KDB_FLAG_CANONICALIZE);
-        setflag(state->c_flags, KRB5_KDB_FLAG_ALIAS_OK);
-    }
-    if (include_pac_p(kdc_context, state->request)) {
-        setflag(state->c_flags, KRB5_KDB_FLAG_INCLUDE_PAC);
-    }
-    errcode = krb5_db_get_principal(kdc_context, state->request->client,
-                                    state->c_flags, &state->client);
+        state->request->client->type == KRB5_NT_ENTERPRISE_PRINCIPAL)
+        setflag(state->c_flags, KRB5_KDB_FLAG_REFERRAL_OK);
+    errcode = lookup_client(context, state->request, state->c_flags,
+                            &state->client);
     if (errcode == KRB5_KDB_CANTLOCK_DB)
         errcode = KRB5KDC_ERR_SVC_UNAVAILABLE;
     if (errcode == KRB5_KDB_NOENTRY) {
@@ -620,27 +591,10 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     }
     state->rock.client = state->client;
 
-    /*
-     * If the backend returned a principal that is not in the local
-     * realm, then we need to refer the client to that realm.
-     */
-    if (!is_local_principal(kdc_active_realm, state->client->princ)) {
-        /* Entry is a referral to another realm */
-        state->status = "REFERRAL";
-        au_state->cl_realm = &state->client->princ->realm;
-        errcode = KRB5KDC_ERR_WRONG_REALM;
-        goto errout;
-    }
-
     au_state->stage = SRVC_PRINC;
 
-    s_flags = 0;
-    setflag(s_flags, KRB5_KDB_FLAG_ALIAS_OK);
-    if (isflagset(state->request->kdc_options, KDC_OPT_CANONICALIZE)) {
-        setflag(s_flags, KRB5_KDB_FLAG_CANONICALIZE);
-    }
-    errcode = krb5_db_get_principal(kdc_context, state->request->server,
-                                    s_flags, &state->server);
+    errcode = krb5_db_get_principal(context, state->request->server, 0,
+                                    &state->server);
     if (errcode == KRB5_KDB_CANTLOCK_DB)
         errcode = KRB5KDC_ERR_SVC_UNAVAILABLE;
     if (errcode == KRB5_KDB_NOENTRY) {
@@ -652,44 +606,50 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
         goto errout;
     }
 
-    errcode = get_local_tgt(kdc_context, &state->request->server->realm,
+    /* If the KDB module returned a different realm for the client and server,
+     * we need to issue a client realm referral. */
+    if (!data_eq(state->server->princ->realm, state->client->princ->realm)) {
+        state->status = "REFERRAL";
+        au_state->cl_realm = &state->client->princ->realm;
+        errcode = KRB5KDC_ERR_WRONG_REALM;
+        goto errout;
+    }
+
+    errcode = get_local_tgt(context, &state->request->server->realm,
                             state->server, &state->local_tgt,
-                            &state->local_tgt_storage);
+                            &state->local_tgt_storage, &state->local_tgt_key);
     if (errcode) {
         state->status = "GET_LOCAL_TGT";
         goto errout;
     }
+    state->rock.local_tgt = state->local_tgt;
+    state->rock.local_tgt_key = &state->local_tgt_key;
 
     au_state->stage = VALIDATE_POL;
 
-    if ((errcode = krb5_timeofday(kdc_context, &state->kdc_time)))
+    errcode = validate_as_request(realm, state->request, state->client,
+                                  state->server, state->kdc_time,
+                                  &state->status, &state->e_data);
+    if (errcode)
         goto errout;
-    state->authtime = state->kdc_time; /* for audit_as_request() */
-
-    if ((errcode = validate_as_request(kdc_active_realm,
-                                       state->request, *state->client,
-                                       *state->server, state->kdc_time,
-                                       &state->status, &state->e_data))) {
-        errcode += ERROR_TABLE_BASE_krb5;
-        goto errout;
-    }
 
     au_state->stage = ISSUE_TKT;
 
     /*
      * Select the keytype for the ticket session key.
      */
-    if ((useenctype = select_session_keytype(kdc_active_realm, state->server,
-                                             state->request->nktypes,
-                                             state->request->ktype)) == 0) {
+    useenctype = select_session_keytype(context, state->server,
+                                        state->request->nktypes,
+                                        state->request->ktype);
+    if (useenctype == 0) {
         /* unsupported ktype */
         state->status = "BAD_ENCRYPTION_TYPE";
         errcode = KRB5KDC_ERR_ETYPE_NOSUPP;
         goto errout;
     }
 
-    if ((errcode = krb5_c_make_random_key(kdc_context, useenctype,
-                                          &state->session_key)))
+    errcode = krb5_c_make_random_key(context, useenctype, &state->session_key);
+    if (errcode)
         goto errout;
 
     /*
@@ -697,7 +657,7 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
      * (the intention is to allow support for Windows "short" realm
      * aliases, nothing more).
      */
-    if (isflagset(s_flags, KRB5_KDB_FLAG_CANONICALIZE) &&
+    if (isflagset(state->request->kdc_options, KDC_OPT_CANONICALIZE) &&
         krb5_is_tgs_principal(state->request->server) &&
         krb5_is_tgs_principal(state->server->princ)) {
         state->ticket_reply.server = state->server->princ;
@@ -706,11 +666,10 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     }
 
     /* Copy options that request the corresponding ticket flags. */
-    state->enc_tkt_reply.flags = OPTS2FLAGS(state->request->kdc_options);
-    state->enc_tkt_reply.times.authtime = state->authtime;
-
-    setflag(state->enc_tkt_reply.flags, TKT_FLG_INITIAL);
-    setflag(state->enc_tkt_reply.flags, TKT_FLG_ENC_PA_REP);
+    state->enc_tkt_reply.flags = get_ticket_flags(state->request->kdc_options,
+                                                  state->client, state->server,
+                                                  NULL);
+    state->enc_tkt_reply.times.authtime = state->kdc_time;
 
     /*
      * It should be noted that local policy may affect the
@@ -719,7 +678,7 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
      */
 
     state->enc_tkt_reply.session = &state->session_key;
-    if (isflagset(state->c_flags, KRB5_KDB_FLAG_CANONICALIZE)) {
+    if (isflagset(state->request->kdc_options, KDC_OPT_CANONICALIZE)) {
         state->client_princ = *(state->client->princ);
     } else {
         state->client_princ = *(state->request->client);
@@ -730,20 +689,18 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     state->enc_tkt_reply.transited.tr_type = KRB5_DOMAIN_X500_COMPRESS;
     state->enc_tkt_reply.transited.tr_contents = empty_string;
 
-    if (isflagset(state->request->kdc_options, KDC_OPT_POSTDATED)) {
-        setflag(state->enc_tkt_reply.flags, TKT_FLG_INVALID);
+    if (isflagset(state->request->kdc_options, KDC_OPT_POSTDATED))
         state->enc_tkt_reply.times.starttime = state->request->from;
-    } else
+    else
         state->enc_tkt_reply.times.starttime = state->kdc_time;
 
-    kdc_get_ticket_endtime(kdc_active_realm,
-                           state->enc_tkt_reply.times.starttime,
+    kdc_get_ticket_endtime(realm, state->enc_tkt_reply.times.starttime,
                            kdc_infinity, state->request->till, state->client,
                            state->server, &state->enc_tkt_reply.times.endtime);
 
-    kdc_get_ticket_renewtime(kdc_active_realm, state->request, NULL,
-                             state->client, state->server,
-                             &state->enc_tkt_reply);
+    kdc_get_ticket_renewtime(realm, state->request, NULL, state->client,
+                             state->server, &state->enc_tkt_reply.flags,
+                             &state->enc_tkt_reply.times);
 
     /*
      * starttime is optional, and treated as authtime if not present.
@@ -759,17 +716,16 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
     /* If anonymous requests are being used, adjust the realm of the client
      * principal. */
     if (isflagset(state->request->kdc_options, KDC_OPT_REQUEST_ANONYMOUS)) {
-        if (!krb5_principal_compare_any_realm(kdc_context,
-                                              state->request->client,
+        if (!krb5_principal_compare_any_realm(context, state->request->client,
                                               krb5_anonymous_principal())) {
             errcode = KRB5KDC_ERR_BADOPTION;
             /* Anonymous requested but anonymous principal not used.*/
             state->status = "VALIDATE_ANONYMOUS_PRINCIPAL";
             goto errout;
         }
-        krb5_free_principal(kdc_context, state->request->client);
+        krb5_free_principal(context, state->request->client);
         state->request->client = NULL;
-        errcode = krb5_copy_principal(kdc_context, krb5_anonymous_principal(),
+        errcode = krb5_copy_principal(context, krb5_anonymous_principal(),
                                       &state->request->client);
         if (errcode)
             goto errout;
@@ -777,20 +733,19 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
         setflag(state->client->attributes, KRB5_KDB_REQUIRES_PRE_AUTH);
     }
 
-    errcode = select_client_key(kdc_context, state->client,
-                                state->request->ktype, state->request->nktypes,
+    errcode = select_client_key(context, state->client, state->request->ktype,
+                                state->request->nktypes,
                                 &state->client_keyblock, &state->client_key);
     if (errcode) {
         state->status = "DECRYPT_CLIENT_KEY";
         goto errout;
     }
-    if (state->client_key != NULL) {
+    if (state->client_key != NULL)
         state->rock.client_key = state->client_key;
-        state->rock.client_keyblock = &state->client_keyblock;
-    }
+    state->rock.client_keyblock = &state->client_keyblock;
 
-    errcode = kdc_fast_read_cookie(kdc_context, state->rstate, state->request,
-                                   state->local_tgt);
+    errcode = kdc_fast_read_cookie(context, state->rstate, state->request,
+                                   state->local_tgt, &state->local_tgt_key);
     if (errcode) {
         state->status = "READ_COOKIE";
         goto errout;
@@ -800,10 +755,9 @@ process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
      * Check the preauthentication if it is there.
      */
     if (state->request->padata) {
-        check_padata(kdc_context, &state->rock, state->req_pkt,
-                     state->request, &state->enc_tkt_reply, &state->pa_context,
-                     &state->e_data, &state->typed_e_data, finish_preauth,
-                     state);
+        check_padata(context, &state->rock, state->req_pkt, state->request,
+                     &state->enc_tkt_reply, &state->pa_context, &state->e_data,
+                     &state->typed_e_data, finish_preauth, state);
     } else
         finish_preauth(state, 0);
     return;
@@ -814,15 +768,16 @@ errout:
 
 static krb5_error_code
 prepare_error_as(struct kdc_request_state *rstate, krb5_kdc_req *request,
-                 krb5_db_entry *local_tgt, int error, krb5_pa_data **e_data_in,
+                 krb5_db_entry *local_tgt, krb5_keyblock *local_tgt_key,
+                 krb5_error_code code, krb5_pa_data **e_data_in,
                  krb5_boolean typed_e_data, krb5_principal canon_client,
                  krb5_data **response, const char *status)
 {
+    krb5_context context = rstate->realm_data->realm_context;
     krb5_error errpkt;
     krb5_error_code retval;
     krb5_data *scratch = NULL, *e_data_asn1 = NULL, *fast_edata = NULL;
     krb5_pa_data **e_data = NULL, *cookie = NULL;
-    kdc_realm_t *kdc_active_realm = rstate->realm_data;
     size_t count;
 
     errpkt.magic = KV5M_ERROR;
@@ -835,20 +790,20 @@ prepare_error_as(struct kdc_request_state *rstate, krb5_kdc_req *request,
         if (e_data == NULL)
             return ENOMEM;
         memcpy(e_data, e_data_in, count * sizeof(*e_data));
-        retval = kdc_fast_make_cookie(kdc_context, rstate, local_tgt,
-                                      request->client, &cookie);
+        retval = kdc_fast_make_cookie(context, rstate, local_tgt,
+                                      local_tgt_key, request->client, &cookie);
         e_data[count] = cookie;
     }
 
     errpkt.ctime = 0;
     errpkt.cusec = 0;
 
-    retval = krb5_us_timeofday(kdc_context, &errpkt.stime, &errpkt.susec);
+    retval = krb5_us_timeofday(context, &errpkt.stime, &errpkt.susec);
     if (retval)
         goto cleanup;
-    errpkt.error = error;
+    errpkt.error = errcode_to_protocol(code);
     errpkt.server = request->server;
-    errpkt.client = (error == KDC_ERR_WRONG_REALM) ? canon_client :
+    errpkt.client = (code == KRB5KDC_ERR_WRONG_REALM) ? canon_client :
         request->client;
     errpkt.text = string2data((char *)status);
 
@@ -863,8 +818,8 @@ prepare_error_as(struct kdc_request_state *rstate, krb5_kdc_req *request,
     } else
         errpkt.e_data = empty_data();
 
-    retval = kdc_fast_handle_error(kdc_context, rstate, request, e_data,
-                                   &errpkt, &fast_edata);
+    retval = kdc_fast_handle_error(context, rstate, request, e_data, &errpkt,
+                                   &fast_edata);
     if (retval)
         goto cleanup;
     if (fast_edata != NULL)
@@ -875,7 +830,7 @@ prepare_error_as(struct kdc_request_state *rstate, krb5_kdc_req *request,
         goto cleanup;
     if (kdc_fast_hide_client(rstate) && errpkt.client != NULL)
         errpkt.client = (krb5_principal)krb5_anonymous_principal();
-    retval = krb5_mk_error(kdc_context, &errpkt, scratch);
+    retval = krb5_mk_error(context, &errpkt, scratch);
     if (retval)
         goto cleanup;
 
@@ -883,8 +838,8 @@ prepare_error_as(struct kdc_request_state *rstate, krb5_kdc_req *request,
     scratch = NULL;
 
 cleanup:
-    krb5_free_data(kdc_context, fast_edata);
-    krb5_free_data(kdc_context, e_data_asn1);
+    krb5_free_data(context, fast_edata);
+    krb5_free_data(context, e_data_asn1);
     free(scratch);
     free(e_data);
     if (cookie != NULL)

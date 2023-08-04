@@ -254,13 +254,15 @@ translate_gai_error(int num)
 /* Get the canonical form of the local host name, using forward
  * canonicalization only. */
 krb5_error_code
-krb5int_get_fq_local_hostname(char *buf, size_t bufsize)
+krb5int_get_fq_local_hostname(char **hostname_out)
 {
     struct addrinfo *ai, hints;
+    char buf[MAXHOSTNAMELEN];
     int err;
 
-    buf[0] = '\0';
-    if (gethostname(buf, bufsize) == -1)
+    *hostname_out = NULL;
+
+    if (gethostname(buf, sizeof(buf)) == -1)
         return SOCKET_ERRNO;
 
     memset(&hints, 0, sizeof(hints));
@@ -272,26 +274,26 @@ krb5int_get_fq_local_hostname(char *buf, size_t bufsize)
         freeaddrinfo(ai);
         return KRB5_EAI_FAIL;
     }
-    if (strlcpy(buf, ai->ai_canonname, bufsize) >= bufsize)
-        return ENOMEM;
+    *hostname_out = strdup(ai->ai_canonname);
     freeaddrinfo(ai);
-    return 0;
+    return (*hostname_out == NULL) ? ENOMEM : 0;
 }
 
-krb5_error_code
-k5_clean_hostname(krb5_context context, const char *host, char *cleanname,
-                  size_t lhsize)
+static krb5_error_code
+clean_hostname(krb5_context context, const char *host, char **cleanname_out)
 {
-    char *p;
+    char *p, *cleanname;
     krb5_error_code ret;
     size_t l;
 
-    cleanname[0] = '\0';
+    *cleanname_out = NULL;
+
     if (host != NULL) {
-        if (strlcpy(cleanname, host, lhsize) >= lhsize)
+        cleanname = strdup(host);
+        if (cleanname == NULL)
             return ENOMEM;
     } else {
-        ret = krb5int_get_fq_local_hostname(cleanname, lhsize);
+        ret = krb5int_get_fq_local_hostname(&cleanname);
         if (ret)
             return ret;
     }
@@ -307,6 +309,7 @@ k5_clean_hostname(krb5_context context, const char *host, char *cleanname,
     if (l > 0 && cleanname[l - 1] == '.')
         cleanname[l - 1] = '\0';
 
+    *cleanname_out = cleanname;
     return 0;
 }
 
@@ -359,19 +362,19 @@ krb5_get_host_realm(krb5_context context, const char *host, char ***realms_out)
 {
     krb5_error_code ret;
     struct hostrealm_module_handle **hp;
-    char **realms, cleanname[1024];
+    char **realms, *cleanname = NULL;
 
     *realms_out = NULL;
 
     if (context->hostrealm_handles == NULL) {
         ret = load_hostrealm_modules(context);
         if (ret)
-            return ret;
+            goto cleanup;
     }
 
-    ret = k5_clean_hostname(context, host, cleanname, sizeof(cleanname));
+    ret = clean_hostname(context, host, &cleanname);
     if (ret)
-        return ret;
+        goto cleanup;
 
     /* Give each module a chance to determine the host's realms. */
     for (hp = context->hostrealm_handles; *hp != NULL; hp++) {
@@ -379,15 +382,19 @@ krb5_get_host_realm(krb5_context context, const char *host, char ***realms_out)
         if (ret == 0) {
             ret = copy_list(realms, realms_out);
             free_list(context, *hp, realms);
-            return ret;
+            goto cleanup;
         } else if (ret != KRB5_PLUGIN_NO_HANDLE) {
-            return ret;
+            goto cleanup;
         }
     }
 
     /* Return a list containing the "referral realm" (an empty realm), as a
      * cue to try referrals. */
-    return k5_make_realmlist(KRB5_REFERRAL_REALM, realms_out);
+    ret = k5_make_realmlist(KRB5_REFERRAL_REALM, realms_out);
+
+cleanup:
+    free(cleanname);
+    return ret;
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -396,23 +403,23 @@ krb5_get_fallback_host_realm(krb5_context context, krb5_data *hdata,
 {
     krb5_error_code ret;
     struct hostrealm_module_handle **hp;
-    char **realms, *defrealm, *host, cleanname[1024];
+    char **realms, *defrealm, *host, *cleanname = NULL;
 
     *realms_out = NULL;
 
     /* Convert hdata into a string and clean it. */
     host = k5memdup0(hdata->data, hdata->length, &ret);
     if (host == NULL)
-        return ret;
-    ret = k5_clean_hostname(context, host, cleanname, sizeof(cleanname));
+        goto cleanup;
+    ret = clean_hostname(context, host, &cleanname);
     free(host);
     if (ret)
-        return ret;
+        goto cleanup;
 
     if (context->hostrealm_handles == NULL) {
         ret = load_hostrealm_modules(context);
         if (ret)
-            return ret;
+            goto cleanup;
     }
 
     /* Give each module a chance to determine the fallback realms. */
@@ -421,18 +428,21 @@ krb5_get_fallback_host_realm(krb5_context context, krb5_data *hdata,
         if (ret == 0) {
             ret = copy_list(realms, realms_out);
             free_list(context, *hp, realms);
-            return ret;
+            goto cleanup;
         } else if (ret != KRB5_PLUGIN_NO_HANDLE) {
-            return ret;
+            goto cleanup;
         }
     }
 
     /* Return a list containing the default realm. */
     ret = krb5_get_default_realm(context, &defrealm);
     if (ret)
-        return ret;
+        goto cleanup;
     ret = k5_make_realmlist(defrealm, realms_out);
     krb5_free_default_realm(context, defrealm);
+
+cleanup:
+    free(cleanname);
     return ret;
 }
 

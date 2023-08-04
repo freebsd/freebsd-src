@@ -52,7 +52,7 @@ static char sccsid[] = "@(#)dbm.c	8.6 (Berkeley) 11/7/95";
 
 /* If the two size fields of datum and DBMT are not equal, then
  * casting between structures will result in stack garbage being
- * transfered. Has been observed for DEC Alpha OSF, but will handle
+ * transferred. Has been observed for DEC Alpha OSF, but will handle
  *  the general case.
  */
 

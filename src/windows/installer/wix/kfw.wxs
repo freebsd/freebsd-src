@@ -50,7 +50,6 @@
             Languages="$(var.Language)"
             Compressed="yes"
             SummaryCodepage="$(var.CodePage)"
-            Platforms="$(var.Platform)" 
             />
         
         <?include lang\ui_$(var.BuildLang).wxi?>
@@ -65,7 +64,7 @@
         <Condition Message="!(loc.OsVistaSP2)">(Not (VersionNT = 600)) Or (ServicePackLevel &gt;= 2)</Condition>
         <Condition Message="!(loc.CMNotSelected)">USELEASH Or USENETIDMGR</Condition>
         <Condition Message="!(loc.CMDupSelected)">Not (USELEASH And USENETIDMGR)</Condition>
-        <?if $(var.Platform) = "x64" ?>
+        <?if $(sys.BUILDARCH) = "x64" ?>
             <Condition Message="!(loc.StrPlatform64)">
                 <![CDATA[VersionNT64]]>
             </Condition>

@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>HTTPS proxy configuration &mdash; MIT Kerberos Documentation</title>
-    
+    <title>HTTPS proxy configuration &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For administrators" href="index.html" />
     <link rel="next" title="Authentication indicators" href="auth_indicator.html" />
     <link rel="prev" title="Encryption types" href="enctypes.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="https-proxy-configuration">
 <span id="https"></span><h1>HTTPS proxy configuration<a class="headerlink" href="#https-proxy-configuration" title="Permalink to this headline">¶</a></h1>
@@ -83,25 +81,25 @@ is available in the python package index.</p>
 <div class="section" id="configuring-the-clients">
 <h2>Configuring the clients<a class="headerlink" href="#configuring-the-clients" title="Permalink to this headline">¶</a></h2>
 <p>To use an HTTPS proxy, a client host must trust the CA which issued
-that proxy&#8217;s SSL certificate.  If that CA&#8217;s certificate is not in the
+that proxy’s SSL certificate.  If that CA’s certificate is not in the
 system-wide default set of trusted certificates, configure the
-following relation in the client host&#8217;s <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> file in
-the appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><em>[realms]</em></a> subsection:</p>
-<div class="highlight-python"><div class="highlight"><pre>http_anchors = FILE:/etc/krb5/cacert.pem
+following relation in the client host’s <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file in
+the appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> subsection:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">http_anchors</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">cacert</span><span class="o">.</span><span class="n">pem</span>
 </pre></div>
 </div>
 <p>Adjust the pathname to match the path of the file which contains a
-copy of the CA&#8217;s certificate.  The <cite>http_anchors</cite> option is documented
-more fully in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>.</p>
+copy of the CA’s certificate.  The <cite>http_anchors</cite> option is documented
+more fully in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.</p>
 <p>Configure the client to access the KDC and kpasswd service by
-specifying their locations in its <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> file in the form
+specifying their locations in its <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file in the form
 of HTTPS URLs for the proxy server:</p>
-<div class="highlight-python"><div class="highlight"><pre>kdc = https://server.fqdn/KdcProxy
-kpasswd_server = https://server.fqdn/KdcProxy
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kdc</span> <span class="o">=</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">server</span><span class="o">.</span><span class="n">fqdn</span><span class="o">/</span><span class="n">KdcProxy</span>
+<span class="n">kpasswd_server</span> <span class="o">=</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">server</span><span class="o">.</span><span class="n">fqdn</span><span class="o">/</span><span class="n">KdcProxy</span>
 </pre></div>
 </div>
 <p>If the proxy and client are properly configured, client commands such
-as <tt class="docutils literal"><span class="pre">kinit</span></tt>, <tt class="docutils literal"><span class="pre">kvno</span></tt>, and <tt class="docutils literal"><span class="pre">kpasswd</span></tt> should all function normally.</p>
+as <code class="docutils literal"><span class="pre">kinit</span></code>, <code class="docutils literal"><span class="pre">kvno</span></code>, and <code class="docutils literal"><span class="pre">kpasswd</span></code> should all function normally.</p>
 </div>
 </div>
 
@@ -128,6 +126,7 @@ as <tt class="docutils literal"><span class="pre">kinit</span></tt>, <tt class="
 <li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
@@ -135,11 +134,11 @@ as <tt class="docutils literal"><span class="pre">kinit</span></tt>, <tt class="
 <li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">HTTPS proxy configuration</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">HTTPS proxy configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
 <li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
@@ -176,8 +175,8 @@ as <tt class="docutils literal"><span class="pre">kinit</span></tt>, <tt class="
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

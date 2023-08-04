@@ -64,7 +64,6 @@ struct request_st {
 
 struct server_st {
     krad_remote *serv;
-    time_t last;
     K5_LIST_ENTRY(server_st) list;
 };
 
@@ -81,15 +80,10 @@ get_server(krad_client *rc, const struct addrinfo *ai, const char *secret,
            krad_remote **out)
 {
     krb5_error_code retval;
-    time_t currtime;
     server *srv;
-
-    if (time(&currtime) == (time_t)-1)
-        return errno;
 
     K5_LIST_FOREACH(srv, &rc->servers, list) {
         if (kr_remote_equals(srv->serv, ai, secret)) {
-            srv->last = currtime;
             *out = srv->serv;
             return 0;
         }
@@ -98,7 +92,6 @@ get_server(krad_client *rc, const struct addrinfo *ai, const char *secret,
     srv = calloc(1, sizeof(server));
     if (srv == NULL)
         return ENOMEM;
-    srv->last = currtime;
 
     retval = kr_remote_new(rc->kctx, rc->vctx, ai, secret, &srv->serv);
     if (retval != 0) {
@@ -173,28 +166,12 @@ request_new(krad_client *rc, krad_code code, const krad_attrset *attrs,
     return 0;
 }
 
-/* Close remotes that haven't been used in a while. */
-static void
-age(struct server_head *head, time_t currtime)
-{
-    server *srv, *tmp;
-
-    K5_LIST_FOREACH_SAFE(srv, head, list, tmp) {
-        if (currtime == (time_t)-1 || currtime - srv->last > 60 * 60) {
-            K5_LIST_REMOVE(srv, list);
-            kr_remote_free(srv->serv);
-            free(srv);
-        }
-    }
-}
-
 /* Handle a response from a server (or related errors). */
 static void
 on_response(krb5_error_code retval, const krad_packet *reqp,
             const krad_packet *rspp, void *data)
 {
     request *req = data;
-    time_t currtime;
     size_t i;
 
     /* Do nothing if we are already completed. */
@@ -221,10 +198,6 @@ on_response(krb5_error_code retval, const krad_packet *reqp,
     for (i = 0; req->remotes[i].remote != NULL; i++)
         kr_remote_cancel(req->remotes[i].remote, req->remotes[i].packet);
 
-    /* Age out servers that haven't been used in a while. */
-    if (time(&currtime) != (time_t)-1)
-        age(&req->rc->servers, currtime);
-
     request_free(req);
 }
 
@@ -247,10 +220,23 @@ krad_client_new(krb5_context kctx, verto_ctx *vctx, krad_client **out)
 void
 krad_client_free(krad_client *rc)
 {
+    server *srv;
+
     if (rc == NULL)
         return;
 
-    age(&rc->servers, -1);
+    /* Cancel all requests before freeing any remotes, since each request's
+     * callback data may contain references to multiple remotes. */
+    K5_LIST_FOREACH(srv, &rc->servers, list)
+        kr_remote_cancel_all(srv->serv);
+
+    while (!K5_LIST_EMPTY(&rc->servers)) {
+        srv = K5_LIST_FIRST(&rc->servers);
+        K5_LIST_REMOVE(srv, list);
+        kr_remote_free(srv->serv);
+        free(srv);
+    }
+
     free(rc);
 }
 

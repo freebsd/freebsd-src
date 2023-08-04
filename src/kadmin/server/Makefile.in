@@ -4,7 +4,7 @@ KDB_DEP_LIB=$(DL_LIB) $(THREAD_LINKOPTS)
 
 LOCALINCLUDES = -I$(top_srcdir)/lib/gssapi/generic \
 	-I$(top_srcdir)/lib/gssapi/krb5 -I$(BUILDTOP)/lib/gssapi/generic \
-	-I$(BUILDTOP)/lib/gssapi/krb5 -I$(top_srcdir)/lib/kadm5/srv
+	-I$(BUILDTOP)/lib/gssapi/krb5
 
 PROG = kadmind
 OBJS = auth.o auth_acl.o auth_self.o kadm_rpc_svc.o server_stubs.o \

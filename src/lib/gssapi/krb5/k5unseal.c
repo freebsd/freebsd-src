@@ -76,7 +76,6 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
     int sealalg;
     int bad_pad = 0;
     gss_buffer_desc token;
-    krb5_checksum cksum;
     krb5_checksum md5cksum;
     krb5_data plaind;
     char *data_ptr;
@@ -132,7 +131,6 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
        but few enough that we can try them all. */
 
     if ((ctx->sealalg == SEAL_ALG_NONE && signalg > 1) ||
-        (ctx->sealalg == SEAL_ALG_1 && signalg != SGN_ALG_3) ||
         (ctx->sealalg == SEAL_ALG_DES3KD &&
          signalg != SGN_ALG_HMAC_SHA1_DES3_KD)||
         (ctx->sealalg == SEAL_ALG_MICROSOFT_RC4 &&
@@ -142,15 +140,10 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
     }
 
     switch (signalg) {
-    case SGN_ALG_DES_MAC_MD5:
-    case SGN_ALG_MD2_5:
     case SGN_ALG_HMAC_MD5:
         cksum_len = 8;
         if (toktype != KG_TOK_SEAL_MSG)
             sign_usage = 15;
-        break;
-    case SGN_ALG_3:
-        cksum_len = 16;
         break;
     case SGN_ALG_HMAC_SHA1_DES3_KD:
         cksum_len = 20;
@@ -260,12 +253,6 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
 
     /* initialize the the cksum */
     switch (signalg) {
-    case SGN_ALG_DES_MAC_MD5:
-    case SGN_ALG_MD2_5:
-    case SGN_ALG_DES_MAC:
-    case SGN_ALG_3:
-        md5cksum.checksum_type = CKSUMTYPE_RSA_MD5;
-        break;
     case SGN_ALG_HMAC_MD5:
         md5cksum.checksum_type = CKSUMTYPE_HMAC_MD5_ARCFOUR;
         break;
@@ -282,105 +269,6 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
     md5cksum.length = sumlen;
 
     switch (signalg) {
-    case SGN_ALG_DES_MAC_MD5:
-    case SGN_ALG_3:
-        /* compute the checksum of the message */
-
-        /* 8 = bytes of token body to be checksummed according to spec */
-
-        if (! (data_ptr = xmalloc(8 + plainlen))) {
-            if (sealalg != 0xffff)
-                xfree(plain);
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = ENOMEM;
-            return(GSS_S_FAILURE);
-        }
-
-        (void) memcpy(data_ptr, ptr-2, 8);
-
-        (void) memcpy(data_ptr+8, plain, plainlen);
-
-        plaind.length = 8 + plainlen;
-        plaind.data = data_ptr;
-        code = krb5_k_make_checksum(context, md5cksum.checksum_type,
-                                    ctx->seq, sign_usage,
-                                    &plaind, &md5cksum);
-        xfree(data_ptr);
-
-        if (code) {
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = code;
-            return(GSS_S_FAILURE);
-        }
-
-        code = kg_encrypt_inplace(context, ctx->seq, KG_USAGE_SEAL,
-                                  (g_OID_equal(ctx->mech_used,
-                                               gss_mech_krb5_old) ?
-                                   ctx->seq->keyblock.contents : NULL),
-                                  md5cksum.contents, 16);
-        if (code) {
-            krb5_free_checksum_contents(context, &md5cksum);
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = code;
-            return GSS_S_FAILURE;
-        }
-
-        if (signalg == 0)
-            cksum.length = 8;
-        else
-            cksum.length = 16;
-        cksum.contents = md5cksum.contents + 16 - cksum.length;
-
-        code = k5_bcmp(cksum.contents, ptr + 14, cksum.length);
-        break;
-
-    case SGN_ALG_MD2_5:
-        if (!ctx->seed_init &&
-            (code = kg_make_seed(context, ctx->subkey, ctx->seed))) {
-            krb5_free_checksum_contents(context, &md5cksum);
-            if (sealalg != 0xffff)
-                xfree(plain);
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = code;
-            return GSS_S_FAILURE;
-        }
-
-        if (! (data_ptr = xmalloc(sizeof(ctx->seed) + 8 + plainlen))) {
-            krb5_free_checksum_contents(context, &md5cksum);
-            if (sealalg == 0)
-                xfree(plain);
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = ENOMEM;
-            return(GSS_S_FAILURE);
-        }
-        (void) memcpy(data_ptr, ptr-2, 8);
-        (void) memcpy(data_ptr+8, ctx->seed, sizeof(ctx->seed));
-        (void) memcpy(data_ptr+8+sizeof(ctx->seed), plain, plainlen);
-        plaind.length = 8 + sizeof(ctx->seed) + plainlen;
-        plaind.data = data_ptr;
-        krb5_free_checksum_contents(context, &md5cksum);
-        code = krb5_k_make_checksum(context, md5cksum.checksum_type,
-                                    ctx->seq, sign_usage,
-                                    &plaind, &md5cksum);
-        xfree(data_ptr);
-
-        if (code) {
-            if (sealalg == 0)
-                xfree(plain);
-            if (toktype == KG_TOK_SEAL_MSG)
-                gssalloc_free(token.value);
-            *minor_status = code;
-            return(GSS_S_FAILURE);
-        }
-
-        code = k5_bcmp(md5cksum.contents, ptr + 14, 8);
-        /* Falls through to defective-token??  */
-
     default:
         *minor_status = 0;
         return(GSS_S_DEFECTIVE_TOKEN);

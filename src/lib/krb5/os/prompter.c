@@ -16,12 +16,12 @@
 #ifdef POSIX_SIGNALS
 typedef struct sigaction osiginfo;
 #else
-typedef struct krb5_sigtype (*osiginfo)();
+typedef struct void (*osiginfo)();
 #endif
 
 static void     catch_signals(osiginfo *);
 static void     restore_signals(osiginfo *);
-static krb5_sigtype     intrfunc(int sig);
+static void     intrfunc(int sig);
 
 static krb5_error_code  setup_tty(FILE*, int, struct termios *, osiginfo *);
 static krb5_error_code  restore_tty(FILE*, struct termios *, osiginfo *);
@@ -124,7 +124,7 @@ cleanup:
     return errcode;
 }
 
-static krb5_sigtype
+static void
 intrfunc(int sig)
 {
     got_int = 1;

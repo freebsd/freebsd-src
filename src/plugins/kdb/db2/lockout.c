@@ -157,10 +157,6 @@ krb5_db2_lockout_audit(krb5_context context,
     case KRB5KDC_ERR_PREAUTH_FAILED:
     case KRB5KRB_AP_ERR_BAD_INTEGRITY:
         break;
-#if 0
-    case KRB5KDC_ERR_CLIENT_REVOKED:
-        break;
-#endif
     default:
         return 0;
     }

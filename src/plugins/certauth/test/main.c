@@ -31,13 +31,14 @@
  */
 
 #include <k5-int.h>
+#include <kdb.h>
 #include "krb5/certauth_plugin.h"
 
 struct krb5_certauth_moddata_st {
     int initialized;
 };
 
-/* Test module 1 returns OK with an indicator. */
+/* Test module 1 passes with an indicator. */
 static krb5_error_code
 test1_authorize(krb5_context context, krb5_certauth_moddata moddata,
                 const uint8_t *cert, size_t cert_len,
@@ -130,8 +131,9 @@ has_cn(krb5_context context, const uint8_t *cert, size_t cert_len,
 }
 
 /*
- * Test module 2 returns OK if princ matches the CN part of the subject name,
- * and returns indicators of the module name and princ.
+ * Test module 2 passes if the principal name is "nocert".  Otherwise it
+ * returns OK if the CN of the cert matches the principal name, with indicators
+ * of the module name and princ, and errors if the certificate does not match.
  */
 static krb5_error_code
 test2_authorize(krb5_context context, krb5_certauth_moddata moddata,
@@ -151,6 +153,10 @@ test2_authorize(krb5_context context, krb5_certauth_moddata moddata,
                                   KRB5_PRINCIPAL_UNPARSE_NO_REALM, &name);
     if (ret)
         goto cleanup;
+    if (strcmp(name, "nocert") == 0) {
+        ret = KRB5_PLUGIN_NO_HANDLE;
+        goto cleanup;
+    }
 
     if (!has_cn(context, cert, cert_len, name)) {
         ret = KRB5KDC_ERR_CERTIFICATE_MISMATCH;
@@ -169,6 +175,48 @@ test2_authorize(krb5_context context, krb5_certauth_moddata moddata,
 
 cleanup:
     krb5_free_unparsed_name(context, name);
+    return ret;
+}
+
+/*
+ * Test module 3 reads the "hwauth" string attribute on db_entry, and adds an
+ * authentication indicator of "hwauth:<value>" if the attribute is set.  It
+ * returns KRB5_CERTAUTH_HWAUTH if the value is "ok", and
+ * KRB5_CERTAUTH_HWAUTH_PASS if the value is "pass".  Otherwise it passes.
+ */
+static krb5_error_code
+test3_authorize(krb5_context context, krb5_certauth_moddata moddata,
+                const uint8_t *cert, size_t cert_len,
+                krb5_const_principal princ, const void *opts,
+                const struct _krb5_db_entry_new *db_entry,
+                char ***authinds_out)
+{
+    krb5_error_code ret;
+    char *strval = NULL, **ais = NULL;
+
+    ret = krb5_dbe_get_string(context, (krb5_db_entry *)db_entry, "hwauth",
+                              &strval);
+    if (ret)
+        return ret;
+    if (strval != NULL && strcmp(strval, "ok") == 0)
+        ret = KRB5_CERTAUTH_HWAUTH;
+    else if (strval != NULL && strcmp(strval, "pass") == 0)
+        ret = KRB5_CERTAUTH_HWAUTH_PASS;
+    else
+        ret = KRB5_PLUGIN_NO_HANDLE;
+
+    if (strval != NULL) {
+        ais = calloc(2, sizeof(*ais));
+        assert(ais != NULL);
+        if (asprintf(&ais[0], "hwauth:%s", strval) < 0)
+            abort();
+        assert(ais[0] != NULL);
+    }
+
+    *authinds_out = ais;
+    ais = NULL;
+
+    krb5_dbe_free_string(context, strval);
     return ret;
 }
 
@@ -206,6 +254,25 @@ certauth_test2_initvt(krb5_context context, int maj_ver, int min_ver,
     vt->authorize = test2_authorize;
     vt->init = test2_init;
     vt->fini = test2_fini;
+    vt->free_ind = test_free_ind;
+    return 0;
+}
+
+krb5_error_code
+certauth_test3_initvt(krb5_context context, int maj_ver, int min_ver,
+                      krb5_plugin_vtable vtable);
+
+krb5_error_code
+certauth_test3_initvt(krb5_context context, int maj_ver, int min_ver,
+                      krb5_plugin_vtable vtable)
+{
+    krb5_certauth_vtable vt;
+
+    if (maj_ver != 1)
+        return KRB5_PLUGIN_VER_NOTSUPP;
+    vt = (krb5_certauth_vtable)vtable;
+    vt->name = "test3";
+    vt->authorize = test3_authorize;
     vt->free_ind = test_free_ind;
     return 0;
 }

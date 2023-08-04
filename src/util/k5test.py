@@ -81,6 +81,7 @@ keyword arguments:
     - $buildtop: The root of the build directory
     - $srctop:   The root of the source directory
     - $plugins:  The plugin directory in the build tree
+    - $certs:    The PKINIT certificate directory in the source tree
     - $hostname: The FQDN of the host
     - $port0:    The first listener port (portbase)
     - ...
@@ -118,6 +119,11 @@ keyword arguments:
 
 * get_creds=False: Don't get user credentials.
 
+* bdb_only=True: Use the DB2 KDB module even if K5TEST_LMDB is set in
+  the environment.
+
+* pkinit=True: Configure a PKINIT anchor and KDC certificate.
+
 Scripts may use the following functions and variables:
 
 * fail(message): Display message (plus leading marker and trailing
@@ -141,11 +147,20 @@ Scripts may use the following functions and variables:
   added newline) in testlog, and write it to stdout if running
   verbosely.
 
+* mark(message): Place a divider message in the test output, to make
+  it easier to determine what part of the test script a command
+  invocation belongs to.  The last mark message will also be displayed
+  if a command invocation fails.  Do not include a newline in message.
+
 * which(progname): Return the location of progname in the executable
   path, or None if it is not found.
 
 * password(name): Return a weakly random password based on name.  The
   password will be consistent across calls with the same name.
+
+* canonicalize_hostname(name, rdns=True): Return the DNS
+  canonicalization of name, optionally using reverse DNS.  On error,
+  return name converted to lowercase.
 
 * stop_daemon(proc): Stop a daemon process started with
   realm.start_server() or realm.start_in_inetd().  Only necessary if
@@ -159,6 +174,12 @@ Scripts may use the following functions and variables:
   keyword with the exception of krbtgt_keysalt, which will not be
   honored.  If keywords contains krb5_conf and/or kdc_conf fragments,
   they will be merged with the default and per-pass specifications.
+
+* multidb_realms(**keywords): Yields a realm for multiple DB modules.
+  Currently DB2 and LMDB are included.  Ideally LDAP would be
+  included, but setting up a test LDAP server currently requires a
+  one-second delay, so all LDAP tests are currently confined to
+  t_kdb.py.  keywords may contain any K5Realm initializer.
 
 * cross_realms(num, xtgts=None, args=None, **keywords): This function
   returns a list of num realms, where each realm's configuration knows
@@ -179,7 +200,15 @@ Scripts may use the following functions and variables:
 
 * plugins: The plugin directory in the build tree (absolute path).
 
-* hostname: This machine's fully-qualified domain name.
+* pkinit_enabled: True if the PKINIT plugin module is present in the
+  build directory.
+
+* pkinit_certs: The directory containing test PKINIT certificates.
+
+* hostname: The local hostname as it will initially appear in
+  krb5_sname_to_principal() results.  (Shortname qualification is
+  turned off in the test environment to make this value easy to
+  discover from Python.)
 
 * null_input: A file opened to read /dev/null.
 
@@ -227,7 +256,8 @@ Scripts may use the following realm methods and attributes:
   return code other than 0, expected_msg=MSG to expect a substring in
   the command output, and expected_trace=('a', 'b', ...) to expect an
   ordered series of line substrings in the command's KRB5_TRACE
-  output.
+  output, or return_trace=True to return a tuple of the command output
+  and the trace output.
 
 * realm.kprop_port(): Returns a port number based on realm.portbase
   intended for use by kprop and kpropd.
@@ -280,6 +310,10 @@ Scripts may use the following realm methods and attributes:
   flags must cause kinit not to need a password (e.g. by specifying a
   keytab).
 
+* realm.pkinit(princ, **keywords): Acquire credentials for princ,
+  supplying a PKINIT identity of the basic user test certificate
+  (matching user@KRBTEST.COM).
+
 * realm.klist(client_princ, service_princ=None, ccache=None): Using
   klist, list the credentials cache ccache (must be a filename;
   self.ccache if not specified) and verify that the output shows
@@ -308,13 +342,13 @@ Scripts may use the following realm methods and attributes:
   or similar methods.
 
 * realm.start_kpropd(env, args=[]): Start a kpropd process.  Pass an
-  environment created with realm.special_env() for the slave.  If args
-  is given, it contains a list of additional kpropd arguments.
+  environment created with realm.special_env() for the replica.  If
+  args is given, it contains a list of additional kpropd arguments.
   Returns a handle to the kpropd process.
 
 * realm.run_kpropd_once(env, args=[]): Run kpropd once, using the -t
   flag.  Pass an environment created with realm.special_env() for the
-  slave.  If args is given, it contains a list of additional kpropd
+  replica.  If args is given, it contains a list of additional kpropd
   arguments.  Returns the kpropd output.
 
 * realm.realm: The realm's name.
@@ -357,6 +391,7 @@ command-line flags.  These are documented in the --help output.
 """
 
 import atexit
+import fcntl
 import optparse
 import os
 import shlex
@@ -366,7 +401,6 @@ import socket
 import string
 import subprocess
 import sys
-import imp
 
 # Used when most things go wrong (other than programming errors) so
 # that the user sees an error message rather than a Python traceback,
@@ -375,21 +409,35 @@ import imp
 def fail(msg):
     """Print a message and exit with failure."""
     global _current_pass
-    print "*** Failure:", msg
+    print("*** Failure:", msg)
+    if _last_mark:
+        print("*** Last mark: %s" % _last_mark)
     if _last_cmd:
-        print "*** Last command (#%d): %s" % (_cmd_index - 1, _last_cmd)
-    if _last_cmd_output:
-        print "*** Output of last command:"
+        print("*** Last command (#%d): %s" % (_cmd_index - 1, _last_cmd))
+    if _failed_daemon_output:
+        print('*** Output of failed daemon:')
+        sys.stdout.write(_failed_daemon_output)
+    elif _last_cmd_output:
+        print("*** Output of last command:")
         sys.stdout.write(_last_cmd_output)
     if _current_pass:
-        print "*** Failed in test pass:", _current_pass
+        print("*** Failed in test pass:", _current_pass)
+    if _current_db:
+        print("*** Failed with db:", _current_db)
     sys.exit(1)
 
 
 def success(msg):
     global _success
+    _stop_daemons()
     output('*** Success: %s\n' % msg)
     _success = True
+
+
+def mark(msg):
+    global _last_mark
+    output('\n====== %s ======\n' % msg)
+    _last_mark = msg
 
 
 def skipped(whatmsg, whymsg):
@@ -402,6 +450,7 @@ def skipped(whatmsg, whymsg):
 def skip_rest(whatmsg, whymsg):
     global _success
     skipped(whatmsg, whymsg)
+    _stop_daemons()
     _success = True
     sys.exit(0)
 
@@ -428,39 +477,52 @@ def password(name):
     return name + str(os.getpid())
 
 
+def canonicalize_hostname(name, rdns=True):
+    """Canonicalize name using DNS, optionally with reverse DNS."""
+    try:
+        ai = socket.getaddrinfo(name, None, 0, 0, 0, socket.AI_CANONNAME)
+    except socket.gaierror as e:
+        return name.lower()
+    (family, socktype, proto, canonname, sockaddr) = ai[0]
+
+    if not rdns:
+        return canonname.lower()
+
+    try:
+        rname = socket.getnameinfo(sockaddr, socket.NI_NAMEREQD)
+    except socket.gaierror:
+        return canonname.lower()
+    return rname[0].lower()
+
+
 # Exit handler which ensures processes are cleaned up and, on failure,
 # prints messages to help developers debug the problem.
 def _onexit():
     global _daemons, _success, srctop, verbose
     global _debug, _stop_before, _stop_after, _shell_before, _shell_after
-    if _daemons is None:
-        # In Python 2.5, if we exit as a side-effect of importing
-        # k5test, _onexit will execute in an empty global namespace.
-        # This can happen if argument processing fails or the build
-        # root isn't valid.  In this case we can safely assume that no
-        # daemons have been launched and that we don't really need to
-        # amend the error message.  The bug is fixed in Python 2.6.
-        return
     if _debug or _stop_before or _stop_after or _shell_before or _shell_after:
         # Wait before killing daemons in case one is being debugged.
         sys.stdout.write('*** Press return to kill daemons and exit script: ')
+        sys.stdout.flush()
         sys.stdin.readline()
     for proc in _daemons:
         os.kill(proc.pid, signal.SIGTERM)
+        _check_daemon(proc)
     if not _success:
         print
         if not verbose:
             testlogfile = os.path.join(os.getcwd(), 'testlog')
             utildir = os.path.join(srctop, 'util')
-            print 'For details, see: %s' % testlogfile
-            print 'Or re-run this test script with the -v flag:'
-            print '    cd %s' % os.getcwd()
-            print '    PYTHONPATH=%s %s %s -v' % \
-                (utildir, sys.executable, sys.argv[0])
-            print
-        print 'Use --debug=NUM to run a command under a debugger.  Use'
-        print '--stop-after=NUM to stop after a daemon is started in order to'
-        print 'attach to it with a debugger.  Use --help to see other options.'
+            print('For details, see: %s' % testlogfile)
+            print('Or re-run this test script with the -v flag:')
+            print('    cd %s' % os.getcwd())
+            print('    PYTHONPATH=%s %s %s -v' %
+                  (utildir, sys.executable, sys.argv[0]))
+            print()
+        print('Use --debug=NUM to run a command under a debugger.  Use')
+        print('--stop-after=NUM to stop after a daemon is started in order to')
+        print('attach to it with a debugger.  Use --help to see other')
+        print('options.')
 
 
 def _onsigint(signum, frame):
@@ -502,23 +564,6 @@ def _find_srctop():
     return os.path.abspath(root)
 
 
-# Return the local hostname as it will be canonicalized by
-# krb5_sname_to_principal.  We can't simply use socket.getfqdn()
-# because it explicitly prefers results containing periods and
-# krb5_sname_to_principal doesn't care.
-def _get_hostname():
-    hostname = socket.gethostname()
-    try:
-        ai = socket.getaddrinfo(hostname, None, 0, 0, 0, socket.AI_CANONNAME)
-    except socket.gaierror, (error, errstr):
-        fail('Local hostname "%s" does not resolve: %s.' % (hostname, errstr))
-    (family, socktype, proto, canonname, sockaddr) = ai[0]
-    try:
-        name = socket.getnameinfo(sockaddr, socket.NI_NAMEREQD)
-    except socket.gaierror:
-        return canonname.lower()
-    return name[0].lower()
-
 # Parse command line arguments, setting global option variables.  Also
 # sets the global variable args to the positional arguments, which may
 # be used by the test script.
@@ -533,8 +578,7 @@ def _parse_args():
     parser.add_option('--debug', dest='debug', metavar='NUM',
                       help='Debug numbered command (or "all")')
     parser.add_option('--debugger', dest='debugger', metavar='COMMAND',
-                      help='Debugger command (default is gdb --args)',
-                      default='gdb --args')
+                      help='Debugger command (default is gdb --args)')
     parser.add_option('--stop-before', dest='stopb', metavar='NUM',
                       help='Stop before numbered command (or "all")')
     parser.add_option('--stop-after', dest='stopa', metavar='NUM',
@@ -547,11 +591,20 @@ def _parse_args():
     verbose = options.verbose
     testpass = options.testpass
     _debug = _parse_cmdnum('--debug', options.debug)
-    _debugger_command = shlex.split(options.debugger)
     _stop_before = _parse_cmdnum('--stop-before', options.stopb)
     _stop_after = _parse_cmdnum('--stop-after', options.stopa)
     _shell_before = _parse_cmdnum('--shell-before', options.shellb)
     _shell_after = _parse_cmdnum('--shell-after', options.shella)
+
+    if options.debugger is not None:
+        _debugger_command = shlex.split(options.debugger)
+    elif which('gdb') is not None:
+        _debugger_command = ['gdb', '--args']
+    elif which('lldb') is not None:
+        _debugger_command = ['lldb', '--']
+    elif options.debug is not None:
+        print('Cannot find a debugger; use --debugger=COMMAND')
+        sys.exit(1)
 
 
 # Translate a command number spec.  -1 means all, None means none.
@@ -581,7 +634,7 @@ def _match_cmdnum(cmdnum, ind):
 def _build_env():
     global buildtop, runenv
     env = os.environ.copy()
-    for (k, v) in runenv.env.iteritems():
+    for (k, v) in runenv.env.items():
         if v.find('./') == 0:
             env[k] = os.path.join(buildtop, v)
         else:
@@ -590,14 +643,6 @@ def _build_env():
     # or localized times.
     env['LC_ALL'] = 'C'
     return env
-
-
-def _import_runenv():
-    global buildtop
-    runenv_py = os.path.join(buildtop, 'runenv.py')
-    if not os.path.exists(runenv_py):
-        fail('You must run "make runenv.py" in %s first.' % buildtop)
-    return imp.load_source('runenv', runenv_py)
 
 
 # Merge the nested dictionaries cfg1 and cfg2 into a new dictionary.
@@ -612,7 +657,9 @@ def _cfg_merge(cfg1, cfg2):
         return cfg2
     result = cfg1.copy()
     for key, value2 in cfg2.items():
-        if value2 is None or key not in result:
+        if value2 is None:
+            result.pop(key, None)
+        elif key not in result:
             result[key] = value2
         else:
             value1 = result[key]
@@ -644,31 +691,30 @@ def _valgrind(args):
 def _stop_or_shell(stop, shell, env, ind):
     if (_match_cmdnum(stop, ind)):
         sys.stdout.write('*** [%d] Waiting for return: ' % ind)
+        sys.stdout.flush()
         sys.stdin.readline()
     if (_match_cmdnum(shell, ind)):
         output('*** [%d] Spawning shell\n' % ind, True)
         subprocess.call(os.getenv('SHELL'), env=env)
 
 
-# Read tracefile and look for the expected strings in successive lines.
-def _check_trace(tracefile, expected):
-    output('*** Trace output for previous command:\n')
+# Look for the expected strings in successive lines of trace.
+def _check_trace(trace, expected):
     i = 0
-    with open(tracefile, 'r') as f:
-        for line in f:
-            output(line)
-            if i < len(expected) and expected[i] in line:
-                i += 1
+    for line in trace.splitlines():
+        if i < len(expected) and expected[i] in line:
+            i += 1
     if i < len(expected):
         fail('Expected string not found in trace output: ' + expected[i])
 
 
 def _run_cmd(args, env, input=None, expected_code=0, expected_msg=None,
-             expected_trace=None):
+             expected_trace=None, return_trace=False):
     global null_input, _cmd_index, _last_cmd, _last_cmd_output, _debug
     global _stop_before, _stop_after, _shell_before, _shell_after
 
-    if expected_trace is not None:
+    tracefile = None
+    if expected_trace is not None or return_trace:
         tracefile = 'testtrace'
         if os.path.exists(tracefile):
             os.remove(tracefile)
@@ -691,7 +737,8 @@ def _run_cmd(args, env, input=None, expected_code=0, expected_msg=None,
 
     # Run the command and log the result, folding stderr into stdout.
     proc = subprocess.Popen(args, stdin=infile, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, env=env)
+                            stderr=subprocess.STDOUT, env=env,
+                            universal_newlines=True)
     (outdata, dummy_errdata) = proc.communicate(input)
     _last_cmd_output = outdata
     code = proc.returncode
@@ -707,10 +754,15 @@ def _run_cmd(args, env, input=None, expected_code=0, expected_msg=None,
     if expected_msg is not None and expected_msg not in outdata:
         fail('Expected string not found in command output: ' + expected_msg)
 
-    if expected_trace is not None:
-        _check_trace(tracefile, expected_trace)
+    if tracefile is not None:
+        with open(tracefile, 'r') as f:
+            trace = f.read()
+        output('*** Trace output for previous command:\n')
+        output(trace)
+        if expected_trace is not None:
+            _check_trace(trace, expected_trace)
 
-    return outdata
+    return (outdata, trace) if return_trace else outdata
 
 
 def _debug_cmd(args, env, input):
@@ -721,10 +773,10 @@ def _debug_cmd(args, env, input):
            (_cmd_index, _shell_equiv(args)), True)
     if input:
         print
-        print '*** Enter the following input when appropriate:'
-        print 
-        print input
-        print
+        print('*** Enter the following input when appropriate:')
+        print()
+        print(input)
+        print()
     code = subprocess.call(args, env=env)
     output('*** [%d] Completed in debugger with return code %d\n' %
            (_cmd_index, code))
@@ -752,7 +804,8 @@ def _start_daemon(args, env, sentinel):
 
     # Start the daemon and look for the sentinel in stdout or stderr.
     proc = subprocess.Popen(args, stdin=null_input, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, env=env)
+                            stderr=subprocess.STDOUT, env=env,
+                            universal_newlines=True)
     _last_cmd_output = ''
     while True:
         line = proc.stdout.readline()
@@ -783,11 +836,56 @@ def _start_daemon(args, env, sentinel):
     return proc
 
 
-def stop_daemon(proc):
-    output('*** Terminating process %d\n' % proc.pid)
-    os.kill(proc.pid, signal.SIGTERM)
-    proc.wait()
+# Await a daemon process's exit status and display it if it isn't
+# successful.  Display any output it generated after the sentinel.
+# Return the daemon's exit status (0 if it terminated with SIGTERM).
+def _check_daemon(proc):
+    global _failed_daemon_output
+    code = proc.wait()
+    # If a daemon doesn't catch SIGTERM (like gss-server), treat it as
+    # a normal exit.
+    if code == -signal.SIGTERM:
+        code = 0
+    if code != 0:
+        output('*** Daemon pid %d exited with code %d\n' % (proc.pid, code))
+
+    out, err = proc.communicate()
+    if code != 0:
+        _failed_daemon_output = out
+    output('*** Daemon pid %d output:\n' % proc.pid)
+    output(out)
+
+    return code
+
+
+# Terminate all active daemon processes.  Fail out if any of them
+# exited unsuccessfully.
+def _stop_daemons():
+    global _daemons
+    daemon_error = False
+    for proc in _daemons:
+        os.kill(proc.pid, signal.SIGTERM)
+        code = _check_daemon(proc)
+        if code != 0:
+            daemon_error = True
+    _daemons = []
+    if daemon_error:
+        fail('One or more daemon processes exited with an error')
+
+
+# Wait for a daemon process to exit.  Fail out if it exits
+# unsuccessfully.
+def await_daemon_exit(proc):
+    code = _check_daemon(proc)
     _daemons.remove(proc)
+    if code != 0:
+        fail('Daemon exited unsuccessfully')
+
+
+# Terminate one daemon process.  Fail out if it exits unsuccessfully.
+def stop_daemon(proc):
+    os.kill(proc.pid, signal.SIGTERM)
+    return await_daemon_exit(proc)
 
 
 class K5Realm(object):
@@ -797,8 +895,9 @@ class K5Realm(object):
                  krb5_conf=None, kdc_conf=None, create_kdb=True,
                  krbtgt_keysalt=None, create_user=True, get_creds=True,
                  create_host=True, start_kdc=True, start_kadmind=False,
-                 start_kpropd=False):
+                 start_kpropd=False, bdb_only=False, pkinit=False):
         global hostname, _default_krb5_conf, _default_kdc_conf
+        global _lmdb_kdc_conf, _current_db
 
         self.realm = realm
         self.testdir = os.path.join(os.getcwd(), testdir)
@@ -811,9 +910,18 @@ class K5Realm(object):
         self.keytab = os.path.join(self.testdir, 'keytab')
         self.client_keytab = os.path.join(self.testdir, 'client_keytab')
         self.ccache = os.path.join(self.testdir, 'ccache')
+        self.gss_mech_config = os.path.join(self.testdir, 'mech.conf')
         self.kadmin_ccache = os.path.join(self.testdir, 'kadmin_ccache')
-        self._krb5_conf = _cfg_merge(_default_krb5_conf, krb5_conf)
-        self._kdc_conf = _cfg_merge(_default_kdc_conf, kdc_conf)
+        base_krb5_conf = _default_krb5_conf
+        base_kdc_conf = _default_kdc_conf
+        if (os.getenv('K5TEST_LMDB') is not None and
+            not bdb_only and not _current_db):
+            base_kdc_conf = _cfg_merge(base_kdc_conf, _lmdb_kdc_conf)
+        if pkinit:
+            base_krb5_conf = _cfg_merge(base_krb5_conf, _pkinit_krb5_conf)
+            base_kdc_conf = _cfg_merge(base_kdc_conf, _pkinit_kdc_conf)
+        self._krb5_conf = _cfg_merge(base_krb5_conf, krb5_conf)
+        self._kdc_conf = _cfg_merge(base_kdc_conf, kdc_conf)
         self._kdc_proc = None
         self._kadmind_proc = None
         self._kpropd_procs = []
@@ -878,28 +986,31 @@ class K5Realm(object):
                 # A string value yields a straightforward variable setting.
                 value = self._subst_cfg_value(value)
                 file.write('%s%s = %s\n' % (indent, name, value))
-            elif value is not None:
+            else:
                 raise TypeError()
 
     def _subst_cfg_value(self, value):
         global buildtop, srctop, hostname
         template = string.Template(value)
-        return template.substitute(realm=self.realm,
-                                   testdir=self.testdir,
-                                   buildtop=buildtop,
-                                   srctop=srctop,
-                                   plugins=plugins,
-                                   hostname=hostname,
-                                   port0=self.portbase,
-                                   port1=self.portbase + 1,
-                                   port2=self.portbase + 2,
-                                   port3=self.portbase + 3,
-                                   port4=self.portbase + 4,
-                                   port5=self.portbase + 5,
-                                   port6=self.portbase + 6,
-                                   port7=self.portbase + 7,
-                                   port8=self.portbase + 8,
-                                   port9=self.portbase + 9)
+        subst = template.substitute(realm=self.realm,
+                                    testdir=self.testdir,
+                                    buildtop=buildtop,
+                                    srctop=srctop,
+                                    plugins=plugins,
+                                    certs=pkinit_certs,
+                                    hostname=hostname,
+                                    port0=self.portbase,
+                                    port1=self.portbase + 1,
+                                    port2=self.portbase + 2,
+                                    port3=self.portbase + 3,
+                                    port4=self.portbase + 4,
+                                    port5=self.portbase + 5,
+                                    port6=self.portbase + 6,
+                                    port7=self.portbase + 7,
+                                    port8=self.portbase + 8,
+                                    port9=self.portbase + 9)
+        # Empty values must be quoted to avoid a syntax error.
+        return subst if subst else '""'
 
     def _create_acl(self):
         global hostname
@@ -925,6 +1036,7 @@ class K5Realm(object):
         env['KRB5RCACHEDIR'] = self.testdir
         env['KPROPD_PORT'] = str(self.kprop_port())
         env['KPROP_PORT'] = str(self.kprop_port())
+        env['GSS_MECH_CONFIG'] = self.gss_mech_config
         return env
 
     def run(self, args, env=None, **keywords):
@@ -948,12 +1060,12 @@ class K5Realm(object):
             port = self.server_port()
         if env is None:
             env = self.env
-        inetd_args = [t_inetd, str(port)] + args
+        inetd_args = [t_inetd, str(port), args[0]] + args
         return _start_daemon(inetd_args, env, 'Ready!')
 
     def create_kdb(self):
         global kdb5_util
-        self.run([kdb5_util, 'create', '-W', '-s', '-P', 'master'])
+        self.run([kdb5_util, 'create', '-s', '-P', 'master'])
 
     def start_kdc(self, args=[], env=None):
         global krb5kdc
@@ -974,7 +1086,7 @@ class K5Realm(object):
             env = self.env
         assert(self._kadmind_proc is None)
         dump_path = os.path.join(self.testdir, 'dump')
-        self._kadmind_proc = _start_daemon([kadmind, '-nofork', '-W',
+        self._kadmind_proc = _start_daemon([kadmind, '-nofork',
                                             '-p', kdb5_util, '-K', kprop,
                                             '-F', dump_path], env,
                                            'starting...')
@@ -985,15 +1097,19 @@ class K5Realm(object):
         self._kadmind_proc = None
 
     def _kpropd_args(self):
-        slavedump_path = os.path.join(self.testdir, 'incoming-slave-datatrans')
+        datatrans_path = os.path.join(self.testdir, 'incoming-datatrans')
         kpropdacl_path = os.path.join(self.testdir, 'kpropd-acl')
         return [kpropd, '-D', '-P', str(self.kprop_port()),
-                '-f', slavedump_path, '-p', kdb5_util, '-a', kpropdacl_path]
+                '-f', datatrans_path, '-p', kdb5_util, '-a', kpropdacl_path]
 
     def start_kpropd(self, env, args=[]):
         proc = _start_daemon(self._kpropd_args() + args, env, 'ready')
         self._kpropd_procs.append(proc)
         return proc
+
+    def stop_kpropd(self, proc):
+        stop_daemon(proc)
+        self._kpropd_procs.remove(proc)
 
     def run_kpropd_once(self, env, args=[]):
         return self.run(self._kpropd_args() + ['-t'] + args, env=env)
@@ -1022,6 +1138,12 @@ class K5Realm(object):
         else:
             input = None
         return self.run([kinit] + flags + [princname], input=input, **keywords)
+
+    def pkinit(self, princ, flags=[], **kw):
+        id = 'FILE:%s,%s' % (os.path.join(pkinit_certs, 'user.pem'),
+                             os.path.join(pkinit_certs, 'privkey.pem'))
+        flags = flags + ['-X', 'X509_user_identity=%s' % id]
+        self.kinit(princ, flags=flags, **kw)
 
     def klist(self, client_princ, service_princ=None, ccache=None, **keywords):
         if service_princ is None:
@@ -1087,6 +1209,20 @@ def multipass_realms(**keywords):
         yield realm
         realm.stop()
         _current_pass = None
+
+
+def multidb_realms(**keywords):
+    global _current_db, _dbpasses
+    caller_kdc_conf = keywords.get('kdc_conf')
+    for p in _dbpasses:
+        (name, kdc_conf) = p
+        output('*** Using DB type %s\n' % name)
+        keywords['kdc_conf'] = _cfg_merge(kdc_conf, caller_kdc_conf)
+        _current_db = name
+        realm = K5Realm(**keywords)
+        yield realm
+        realm.stop()
+        _current_db = None
 
 
 def cross_realms(num, xtgts=None, args=None, **keywords):
@@ -1158,6 +1294,8 @@ _default_krb5_conf = {
     'libdefaults': {
         'default_realm': '$realm',
         'dns_lookup_kdc': 'false',
+        'dns_canonicalize_hostname': 'fallback',
+        'qualify_shortname': '',
         'plugin_base_dir': '$plugins'},
     'realms': {'$realm': {
             'kdc': '$hostname:$port0',
@@ -1171,7 +1309,7 @@ _default_kdc_conf = {
             'iprop_port': '$port4',
             'key_stash_file': '$testdir/stash',
             'acl_file': '$testdir/acl',
-            'dictfile': '$testdir/dictfile',
+            'dict_file': '$testdir/dictfile',
             'kadmind_port': '$port1',
             'kpasswd_port': '$port2',
             'kdc_listen': '$port0',
@@ -1185,104 +1323,99 @@ _default_kdc_conf = {
         'default': 'FILE:$testdir/others.log'}}
 
 
+_lmdb_kdc_conf = {'dbmodules': {'db': {'db_library': 'klmdb',
+                                       'nosync': 'true'}}}
+
+
+_pkinit_krb5_conf = {'realms': {'$realm': {
+    'pkinit_anchors': 'FILE:$certs/ca.pem'}}}
+_pkinit_kdc_conf = {'realms': {'$realm': {
+    'pkinit_identity': 'FILE:$certs/kdc.pem,$certs/privkey.pem'}}}
+
+
 # A pass is a tuple of: name, krbtgt_keysalt, krb5_conf, kdc_conf.
 _passes = [
     # No special settings; exercises AES256.
     ('default', None, None, None),
 
-    # Exercise a DES enctype and the v4 salt type.
-    ('desv4', None,
-     {'libdefaults': {
-                'default_tgs_enctypes': 'des-cbc-crc',
-                'default_tkt_enctypes': 'des-cbc-crc',
-                'permitted_enctypes': 'des-cbc-crc',
-                'allow_weak_crypto': 'true'}},
-     {'realms': {'$realm': {
-                    'supported_enctypes': 'des-cbc-crc:v4',
-                    'master_key_type': 'des-cbc-crc'}}}),
-
     # Exercise the DES3 enctype.
     ('des3', None,
-     {'libdefaults': {
-                'default_tgs_enctypes': 'des3',
-                'default_tkt_enctypes': 'des3',
-                'permitted_enctypes': 'des3'}},
+     {'libdefaults': {'permitted_enctypes': 'des3 aes256-sha1'}},
      {'realms': {'$realm': {
                     'supported_enctypes': 'des3-cbc-sha1:normal',
                     'master_key_type': 'des3-cbc-sha1'}}}),
 
     # Exercise the arcfour enctype.
     ('arcfour', None,
-     {'libdefaults': {
-                'default_tgs_enctypes': 'rc4',
-                'default_tkt_enctypes': 'rc4',
-                'permitted_enctypes': 'rc4'}},
+     {'libdefaults': {'permitted_enctypes': 'rc4 aes256-sha1'}},
      {'realms': {'$realm': {
                     'supported_enctypes': 'arcfour-hmac:normal',
                     'master_key_type': 'arcfour-hmac'}}}),
 
     # Exercise the AES128 enctype.
     ('aes128', None,
-      {'libdefaults': {
-                'default_tgs_enctypes': 'aes128-cts',
-                'default_tkt_enctypes': 'aes128-cts',
-                'permitted_enctypes': 'aes128-cts'}},
+      {'libdefaults': {'permitted_enctypes': 'aes128-cts'}},
       {'realms': {'$realm': {
                     'supported_enctypes': 'aes128-cts:normal',
                     'master_key_type': 'aes128-cts'}}}),
 
     # Exercise the camellia256-cts enctype.
     ('camellia256', None,
-      {'libdefaults': {
-                'default_tgs_enctypes': 'camellia256-cts',
-                'default_tkt_enctypes': 'camellia256-cts',
-                'permitted_enctypes': 'camellia256-cts'}},
+      {'libdefaults': {'permitted_enctypes': 'camellia256-cts'}},
       {'realms': {'$realm': {
                     'supported_enctypes': 'camellia256-cts:normal',
                     'master_key_type': 'camellia256-cts'}}}),
 
     # Exercise the aes128-sha2 enctype.
     ('aes128-sha2', None,
-      {'libdefaults': {
-                'default_tgs_enctypes': 'aes128-sha2',
-                'default_tkt_enctypes': 'aes128-sha2',
-                'permitted_enctypes': 'aes128-sha2'}},
+      {'libdefaults': {'permitted_enctypes': 'aes128-sha2'}},
       {'realms': {'$realm': {
                     'supported_enctypes': 'aes128-sha2:normal',
                     'master_key_type': 'aes128-sha2'}}}),
 
     # Exercise the aes256-sha2 enctype.
     ('aes256-sha2', None,
-      {'libdefaults': {
-                'default_tgs_enctypes': 'aes256-sha2',
-                'default_tkt_enctypes': 'aes256-sha2',
-                'permitted_enctypes': 'aes256-sha2'}},
+      {'libdefaults': {'permitted_enctypes': 'aes256-sha2'}},
       {'realms': {'$realm': {
                     'supported_enctypes': 'aes256-sha2:normal',
                     'master_key_type': 'aes256-sha2'}}}),
 
     # Test a setup with modern principal keys but an old TGT key.
-    ('aes256.destgt', 'des-cbc-crc:normal',
+    ('aes256.destgt', 'arcfour-hmac:normal',
      {'libdefaults': {'allow_weak_crypto': 'true'}},
      None)
 ]
 
 _success = False
 _current_pass = None
+_current_db = None
 _daemons = []
 _parse_args()
 atexit.register(_onexit)
 signal.signal(signal.SIGINT, _onsigint)
 _outfile = open('testlog', 'w')
 _cmd_index = 1
+_last_mark = None
 _last_cmd = None
 _last_cmd_output = None
+_failed_daemon_output = None
 buildtop = _find_buildtop()
 srctop = _find_srctop()
 plugins = os.path.join(buildtop, 'plugins')
-runenv = _import_runenv()
-hostname = _get_hostname()
+pkinit_enabled = os.path.exists(os.path.join(plugins, 'preauth', 'pkinit.so'))
+pkinit_certs = os.path.join(srctop, 'tests', 'pkinit-certs')
+hostname = socket.gethostname().lower()
 null_input = open(os.devnull, 'r')
+
+if not os.path.exists(os.path.join(buildtop, 'runenv.py')):
+    fail('You must run "make runenv.py" in %s first.' % buildtop)
+sys.path = [buildtop] + sys.path
+import runenv
+
+# A DB pass is a tuple of: name, kdc_conf.
+_dbpasses = [('db2', None)]
+if runenv.have_lmdb == 'yes':
+    _dbpasses.append(('lmdb', _lmdb_kdc_conf))
 
 krb5kdc = os.path.join(buildtop, 'kdc', 'krb5kdc')
 kadmind = os.path.join(buildtop, 'kadmin', 'server', 'kadmind')
@@ -1298,7 +1431,7 @@ kswitch = os.path.join(buildtop, 'clients', 'kswitch', 'kswitch')
 kvno = os.path.join(buildtop, 'clients', 'kvno', 'kvno')
 kdestroy = os.path.join(buildtop, 'clients', 'kdestroy', 'kdestroy')
 kpasswd = os.path.join(buildtop, 'clients', 'kpasswd', 'kpasswd')
-t_inetd = os.path.join(buildtop, 'tests', 'dejagnu', 't_inetd')
-kproplog = os.path.join(buildtop, 'slave', 'kproplog')
-kpropd = os.path.join(buildtop, 'slave', 'kpropd')
-kprop = os.path.join(buildtop, 'slave', 'kprop')
+t_inetd = os.path.join(buildtop, 'tests', 't_inetd')
+kproplog = os.path.join(buildtop, 'kprop', 'kproplog')
+kpropd = os.path.join(buildtop, 'kprop', 'kpropd')
+kprop = os.path.join(buildtop, 'kprop', 'kprop')

@@ -55,9 +55,9 @@ ec_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
           krb5_kdcpreauth_moddata moddata,
           krb5_kdcpreauth_verify_respond_fn respond, void *arg)
 {
-    krb5_error_code retval = 0;
+    krb5_error_code ret;
     krb5_enc_data *enc = NULL;
-    krb5_data scratch, plain;
+    krb5_data der_enc_ts = empty_data(), der_enc_data;
     krb5_keyblock *armor_key = cb->fast_armor(context, rock);
     krb5_pa_enc_ts *ts = NULL;
     krb5_keyblock *client_keys = NULL;
@@ -68,88 +68,87 @@ ec_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     char *ai = NULL, *realmstr = NULL;
     krb5_data realm = request->server->realm;
 
-    plain.data = NULL;
-
     if (armor_key == NULL) {
-        retval = ENOENT;
-        k5_setmsg(context, ENOENT,
+        ret = ENOENT;
+        k5_setmsg(context, ret,
                   _("Encrypted Challenge used outside of FAST tunnel"));
-    }
-    scratch.data = (char *) data->contents;
-    scratch.length = data->length;
-    if (retval == 0)
-        retval = decode_krb5_enc_data(&scratch, &enc);
-    if (retval == 0) {
-        plain.data =  malloc(enc->ciphertext.length);
-        plain.length = enc->ciphertext.length;
-        if (plain.data == NULL)
-            retval = ENOMEM;
+        goto cleanup;
     }
 
-    /* Check for a configured FAST ec auth indicator. */
-    realmstr = k5memdup0(realm.data, realm.length, &retval);
-    if (realmstr != NULL)
-        retval = profile_get_string(context->profile, KRB5_CONF_REALMS,
-                                    realmstr,
-                                    KRB5_CONF_ENCRYPTED_CHALLENGE_INDICATOR,
-                                    NULL, &ai);
+    der_enc_data = make_data(data->contents, data->length);
+    ret = decode_krb5_enc_data(&der_enc_data, &enc);
+    if (ret)
+        goto cleanup;
 
-    if (retval == 0)
-        retval = cb->client_keys(context, rock, &client_keys);
-    if (retval == 0) {
-        for (i = 0; client_keys[i].enctype&& (retval == 0); i++ ) {
-            retval = krb5_c_fx_cf2_simple(context,
-                                          armor_key, "clientchallengearmor",
-                                          &client_keys[i], "challengelongterm",
-                                          &challenge_key);
-            if (retval == 0)
-                retval  = krb5_c_decrypt(context, challenge_key,
-                                         KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT,
-                                         NULL, enc, &plain);
-            if (challenge_key)
-                krb5_free_keyblock(context, challenge_key);
-            challenge_key = NULL;
-            if (retval == 0)
-                break;
-            /*We failed to decrypt. Try next key*/
-            retval = 0;
-        }
-        if (client_keys[i].enctype == 0) {
-            retval = KRB5KDC_ERR_PREAUTH_FAILED;
-            k5_setmsg(context, retval,
-                      _("Incorrect password in encrypted challenge"));
-        }
+    ret = alloc_data(&der_enc_ts, enc->ciphertext.length);
+    if (ret)
+        goto cleanup;
+
+    /* Check for a configured auth indicator. */
+    realmstr = k5memdup0(realm.data, realm.length, &ret);
+    if (realmstr == NULL)
+        goto cleanup;
+    ret = profile_get_string(context->profile, KRB5_CONF_REALMS, realmstr,
+                             KRB5_CONF_ENCRYPTED_CHALLENGE_INDICATOR, NULL,
+                             &ai);
+    if (ret)
+        goto cleanup;
+
+    ret = cb->client_keys(context, rock, &client_keys);
+    if (ret)
+        goto cleanup;
+    for (i = 0; client_keys[i].enctype != ENCTYPE_NULL; i++) {
+        ret = krb5_c_fx_cf2_simple(context, armor_key, "clientchallengearmor",
+                                   &client_keys[i], "challengelongterm",
+                                   &challenge_key);
+        if (ret)
+            goto cleanup;
+        ret = krb5_c_decrypt(context, challenge_key,
+                             KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT, NULL, enc,
+                             &der_enc_ts);
+        krb5_free_keyblock(context, challenge_key);
+        if (!ret)
+            break;
     }
-    if (retval == 0)
-        retval = decode_krb5_pa_enc_ts(&plain, &ts);
-    if (retval == 0)
-        retval = krb5_check_clockskew(context, ts->patimestamp);
-    if (retval == 0) {
-        enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
-        /*
-         * If this fails, we won't generate a reply to the client.  That may
-         * cause the client to fail, but at this point the KDC has considered
-         * this a success, so the return value is ignored.
-         */
-        if (krb5_c_fx_cf2_simple(context, armor_key, "kdcchallengearmor",
-                                 &client_keys[i], "challengelongterm",
-                                 &kdc_challenge_key) == 0) {
-            modreq = (krb5_kdcpreauth_modreq)kdc_challenge_key;
-            if (ai != NULL)
-                cb->add_auth_indicator(context, rock, ai);
-        }
+
+    if (client_keys[i].enctype == ENCTYPE_NULL) {
+        ret = KRB5KDC_ERR_PREAUTH_FAILED;
+        k5_setmsg(context, ret,
+                  _("Incorrect password in encrypted challenge"));
+        goto cleanup;
     }
+
+    ret = decode_krb5_pa_enc_ts(&der_enc_ts, &ts);
+    if (ret)
+        goto cleanup;
+    ret = krb5_check_clockskew(context, ts->patimestamp);
+    if (ret)
+        goto cleanup;
+
+    enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
+
+    /*
+     * If this fails, we won't generate a reply to the client.  That may cause
+     * the client to fail, but at this point the KDC has considered this a
+     * success, so the return value is ignored.
+     */
+    if (krb5_c_fx_cf2_simple(context, armor_key, "kdcchallengearmor",
+                             &client_keys[i], "challengelongterm",
+                             &kdc_challenge_key) == 0) {
+        modreq = (krb5_kdcpreauth_modreq)kdc_challenge_key;
+        if (ai != NULL)
+            cb->add_auth_indicator(context, rock, ai);
+    }
+
+cleanup:
     cb->free_keys(context, rock, client_keys);
-    if (plain.data)
-        free(plain.data);
-    if (enc)
-        krb5_free_enc_data(context, enc);
-    if (ts)
-        krb5_free_pa_enc_ts(context, ts);
+    free(der_enc_ts.data);
+    krb5_free_enc_data(context, enc);
+    krb5_free_pa_enc_ts(context, ts);
     free(realmstr);
     free(ai);
 
-    (*respond)(arg, retval, modreq, NULL, NULL);
+    (*respond)(arg, ret, modreq, NULL, NULL);
 }
 
 static krb5_error_code
@@ -159,49 +158,50 @@ ec_return(krb5_context context, krb5_pa_data *padata, krb5_data *req_pkt,
           krb5_kdcpreauth_callbacks cb, krb5_kdcpreauth_rock rock,
           krb5_kdcpreauth_moddata moddata, krb5_kdcpreauth_modreq modreq)
 {
-    krb5_error_code retval = 0;
+    krb5_error_code ret;
     krb5_keyblock *challenge_key = (krb5_keyblock *)modreq;
     krb5_pa_enc_ts ts;
-    krb5_data *plain = NULL;
+    krb5_data *der_enc_ts = NULL, *der_enc_data = NULL;
     krb5_enc_data enc;
-    krb5_data *encoded = NULL;
     krb5_pa_data *pa = NULL;
+
+    enc.ciphertext.data = NULL;
 
     if (challenge_key == NULL)
         return 0;
-    enc.ciphertext.data = NULL; /* In case of error pass through */
 
-    retval = krb5_us_timeofday(context, &ts.patimestamp, &ts.pausec);
-    if (retval == 0)
-        retval = encode_krb5_pa_enc_ts(&ts, &plain);
-    if (retval == 0)
-        retval = krb5_encrypt_helper(context, challenge_key,
-                                     KRB5_KEYUSAGE_ENC_CHALLENGE_KDC,
-                                     plain, &enc);
-    if (retval == 0)
-        retval = encode_krb5_enc_data(&enc, &encoded);
-    if (retval == 0) {
-        pa = calloc(1, sizeof(krb5_pa_data));
-        if (pa == NULL)
-            retval = ENOMEM;
-    }
-    if (retval == 0) {
-        pa->pa_type = KRB5_PADATA_ENCRYPTED_CHALLENGE;
-        pa->contents = (unsigned char *) encoded->data;
-        pa->length = encoded->length;
-        encoded->data = NULL;
-        *send_pa = pa;
-        pa = NULL;
-    }
-    if (challenge_key)
-        krb5_free_keyblock(context, challenge_key);
-    if (encoded)
-        krb5_free_data(context, encoded);
-    if (plain)
-        krb5_free_data(context, plain);
-    if (enc.ciphertext.data)
-        krb5_free_data_contents(context, &enc.ciphertext);
-    return retval;
+    ret = krb5_us_timeofday(context, &ts.patimestamp, &ts.pausec);
+    if (ret)
+        goto cleanup;
+    ret = encode_krb5_pa_enc_ts(&ts, &der_enc_ts);
+    if (ret)
+        goto cleanup;
+    ret = krb5_encrypt_helper(context, challenge_key,
+                              KRB5_KEYUSAGE_ENC_CHALLENGE_KDC, der_enc_ts,
+                              &enc);
+    if (ret)
+        goto cleanup;
+    ret = encode_krb5_enc_data(&enc, &der_enc_data);
+    if (ret)
+        goto cleanup;
+
+    pa = k5alloc(sizeof(*pa), &ret);
+    if (pa == NULL)
+        goto cleanup;
+    pa->pa_type = KRB5_PADATA_ENCRYPTED_CHALLENGE;
+    pa->length = der_enc_data->length;
+    /* Steal the data pointer from der_enc_data. */
+    pa->contents = (unsigned char *)der_enc_data->data;
+    der_enc_data->data = NULL;
+
+    *send_pa = pa;
+
+cleanup:
+    krb5_free_keyblock(context, challenge_key);
+    krb5_free_data(context, der_enc_data);
+    krb5_free_data(context, der_enc_ts);
+    krb5_free_data_contents(context, &enc.ciphertext);
+    return ret;
 }
 
 static krb5_preauthtype ec_types[] = {

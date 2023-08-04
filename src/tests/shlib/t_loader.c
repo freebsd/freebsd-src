@@ -186,18 +186,6 @@ int main()
 
     (void) setvbuf(stdout, 0, _IONBF, 0);
 
-#if 0
-    /* Simplest test: Load, then unload out of order.  */
-    celib = do_open("com_err", "3.0", 0);
-    k5lib = do_open("krb5", "3.2", 0);
-    gsslib = do_open("gssapi_krb5", "2.2", 0);
-    celib2 = do_open("com_err", "3.0", 0);
-    do_close(celib);
-    do_close(k5lib);
-    do_close(celib2);
-    do_close(gsslib);
-#endif
-
     celib = do_open("com_err", "3.0", 0);
     k5lib = do_open("krb5", "3.2", 0);
     gsslib = do_open("gssapi_krb5", "2.2", 0);

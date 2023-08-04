@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Test authentication indicators.  Load the test preauth module so we
@@ -29,7 +28,7 @@ realm.run(['./t_srcattrs', 'p:service/2'], expected_code=1, expected_msg=msg)
 
 realm.kinit(realm.user_princ, password('user'), ['-X', 'indicators=one two'])
 out = realm.run(['./t_srcattrs', 'p:service/2'])
-# Hexademical "one" and "two"
+# Hexadecimal "one" and "two"
 if '6f6e65' not in out or '74776f' not in out:
     fail('Expected auth indicator not seen in name attributes')
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run this from the TOP of the source tree!
 M4=gm4
-configs=`find $1 -name configure.in -print|sort|sed -e 's@/configure.in@@'`
+configs=`find $1 -name configure.ac -print|sort|sed -e 's@/configure.ac@@'`
 for dir in $configs; do
 	syms=""
 	libs=""
@@ -10,7 +10,7 @@ for dir in $configs; do
 	funcs=""
 	AC_MACRODIR=./util/autoconf
 	# The following bits shamelessly stolen from autoheader.sh
-	eval "`$M4 -I$AC_MACRODIR autoheader.m4 $dir/configure.in|
+	eval "`$M4 -I$AC_MACRODIR autoheader.m4 $dir/configure.ac|
 		sed -n -e '
 		: again
 		/^@@@.*@@@$/s/^@@@\(.*\)@@@$/\1/p
@@ -41,7 +41,7 @@ for dir in $configs; do
 			done | sed 's/[^a-zA-Z0-9_]/_/g' | tr '[a-z]' '[A-Z]' | sed 's/^/HAVE_LIB/'`"
 	allsyms="$allsyms $libs"
 	fi
-	echo $dir/configure.in: $allsyms
+	echo $dir/configure.ac: $allsyms
 	allsyms="`echo $allsyms|tr ' ' '|'`"
 	files="$dir/*.[ch]"
 	if test ! "`echo $files`" = "$dir/"'*.[ch]'; then

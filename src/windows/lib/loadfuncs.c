@@ -27,7 +27,7 @@ UnloadFuncs(
 // LoadFuncs:
 //
 // This function try to load the functions for a DLL.  It returns 0 on failure
-// and non-zero on success.  The parameters are descibed below.
+// and non-zero on success.  The parameters are described below.
 //
 
 int

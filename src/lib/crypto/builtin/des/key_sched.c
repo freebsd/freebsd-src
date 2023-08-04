@@ -43,8 +43,10 @@
  * Originally written 6/85 by Steve Miller, MIT Project Athena.
  */
 
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "des_int.h"
+
+#ifdef K5_BUILTIN_DES
 
 int
 mit_des_key_sched(mit_des_cblock k, mit_des_key_schedule schedule)
@@ -60,3 +62,5 @@ mit_des_key_sched(mit_des_cblock k, mit_des_key_schedule schedule)
     /* if key was good, return 0 */
     return 0;
 }
+
+#endif /* K5_BUILTIN_DES */

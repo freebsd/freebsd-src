@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_c_random_os_entropy - Collect entropy from the OS if possible. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_c_random_os_entropy &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_c_random_to_key - Generate an enctype-specific key from random data." href="krb5_c_random_to_key.html" />
     <link rel="prev" title="krb5_c_random_make_octets - Generate pseudo-random bytes." href="krb5_c_random_make_octets.html" /> 
   </head>
@@ -50,7 +48,7 @@
             accesskey="I">index</a> |
         <a href="../../../search.html" title="Enter search criteria"
             accesskey="S">Search</a> |
-    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_c_random_os_entropy -  Collect entropy from the OS if possible.">feedback</a>
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_c_random_os_entropy">feedback</a>
             </div>
         </div>
     </div>
@@ -61,38 +59,27 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
-  <div class="section" id="krb5-c-random-os-entropy-collect-entropy-from-the-os-if-possible">
-<h1>krb5_c_random_os_entropy -  Collect entropy from the OS if possible.<a class="headerlink" href="#krb5-c-random-os-entropy-collect-entropy-from-the-os-if-possible" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="krb5-c-random-os-entropy">
+<h1>krb5_c_random_os_entropy<a class="headerlink" href="#krb5-c-random-os-entropy" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_c_random_os_entropy">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_c_random_os_entropy</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, int<em>&nbsp;strong</em>, int *<em>&nbsp;success</em><big>)</big><a class="headerlink" href="#c.krb5_c_random_os_entropy" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_c_random_os_entropy</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, int<em>&nbsp;strong</em>, int *<em>&nbsp;success</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_c_random_os_entropy" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
-<p><strong>[in]</strong> <strong>strong</strong> - Strongest available source of entropy</p>
-<p class="last"><strong>[out]</strong> <strong>success</strong> - 1 if OS provides entropy, 0 otherwise</p>
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>context</strong></p>
+<p><strong>strong</strong></p>
+<p class="last"><strong>success</strong></p>
 </td>
 </tr>
 </tbody>
 </table>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first last simple">
-<li>0   Success; otherwise - Kerberos error codes</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-<p>If <em>strong</em> is non-zero, this function attempts to use the strongest available source of entropy. Setting this flag may cause the function to block on some operating systems. Good uses include seeding the PRNG for kadmind and realm setup.</p>
+<p>DEPRECATED This call is no longer necessary.</p>
 </div>
 
 
@@ -103,7 +90,7 @@
         <div class="sidebar">
     <h2>On this page</h2>
     <ul>
-<li><a class="reference internal" href="#">krb5_c_random_os_entropy -  Collect entropy from the OS if possible.</a></li>
+<li><a class="reference internal" href="#">krb5_c_random_os_entropy</a></li>
 </ul>
 
     <br/>
@@ -151,8 +138,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 
@@ -166,7 +153,7 @@
             >index</a> |
         <a href="../../../search.html" title="Enter search criteria"
             >Search</a> |
-    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_c_random_os_entropy -  Collect entropy from the OS if possible.">feedback</a>
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_c_random_os_entropy">feedback</a>
             </div>
         </div>
     </div>

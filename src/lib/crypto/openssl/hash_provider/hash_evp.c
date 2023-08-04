@@ -31,7 +31,18 @@
  */
 
 #include "crypto_int.h"
+
+#if defined(K5_OPENSSL_MD4) || defined(K5_OPENSSL_MD5) ||       \
+    defined(K5_OPENSSL_SHA1) || defined(K5_OPENSSL_SHA2)
+
 #include <openssl/evp.h>
+
+/* 1.1 standardizes constructor and destructor names, renaming
+ * EVP_MD_CTX_create and EVP_MD_CTX_destroy. */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define EVP_MD_CTX_new EVP_MD_CTX_create
+#define EVP_MD_CTX_free EVP_MD_CTX_destroy
+#endif
 
 static krb5_error_code
 hash_evp(const EVP_MD *type, const krb5_crypto_iov *data, size_t num_data,
@@ -58,27 +69,48 @@ hash_evp(const EVP_MD *type, const krb5_crypto_iov *data, size_t num_data,
     }
     ok = ok && EVP_DigestFinal_ex(ctx, (uint8_t *)output->data, NULL);
     EVP_MD_CTX_free(ctx);
-    return ok ? 0 : ENOMEM;
+    return ok ? 0 : KRB5_CRYPTO_INTERNAL;
 }
 
+#endif
+
+#ifdef K5_OPENSSL_MD4
 static krb5_error_code
 hash_md4(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
     return hash_evp(EVP_md4(), data, num_data, output);
 }
 
+const struct krb5_hash_provider krb5int_hash_md4 = {
+    "MD4", 16, 64, hash_md4
+};
+#endif
+
+#ifdef K5_OPENSSL_MD5
 static krb5_error_code
 hash_md5(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
     return hash_evp(EVP_md5(), data, num_data, output);
 }
 
+const struct krb5_hash_provider krb5int_hash_md5 = {
+    "MD5", 16, 64, hash_md5
+};
+#endif
+
+#ifdef K5_OPENSSL_SHA1
 static krb5_error_code
 hash_sha1(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
     return hash_evp(EVP_sha1(), data, num_data, output);
 }
 
+const struct krb5_hash_provider krb5int_hash_sha1 = {
+    "SHA1", 20, 64, hash_sha1
+};
+#endif
+
+#ifdef K5_OPENSSL_SHA2
 static krb5_error_code
 hash_sha256(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
@@ -91,18 +123,6 @@ hash_sha384(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
     return hash_evp(EVP_sha384(), data, num_data, output);
 }
 
-const struct krb5_hash_provider krb5int_hash_md4 = {
-    "MD4", 16, 64, hash_md4
-};
-
-const struct krb5_hash_provider krb5int_hash_md5 = {
-    "MD5", 16, 64, hash_md5
-};
-
-const struct krb5_hash_provider krb5int_hash_sha1 = {
-    "SHA1", 20, 64, hash_sha1
-};
-
 const struct krb5_hash_provider krb5int_hash_sha256 = {
     "SHA-256", 32, 64, hash_sha256
 };
@@ -110,3 +130,4 @@ const struct krb5_hash_provider krb5int_hash_sha256 = {
 const struct krb5_hash_provider krb5int_hash_sha384 = {
     "SHA-384", 48, 128, hash_sha384
 };
+#endif

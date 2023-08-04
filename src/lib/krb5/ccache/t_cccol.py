@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 realm = K5Realm(create_kdb=False)
@@ -81,28 +80,34 @@ def cursor_test(testname, args, expected):
              'Expected output:\n\n' + '\n'.join(expected) + '\n\n' +
              'Actual output:\n\n' + '\n'.join(outlines))
 
+mark('FILE cursor')
 fccname = 'FILE:%s' % realm.ccache
 cursor_test('file-default', [], [fccname])
 cursor_test('file-default2', [realm.ccache], [fccname])
 cursor_test('file-default3', [fccname], [fccname])
 
+mark('DIR cursor')
 cursor_test('dir', [dccname], [duser, dalice, dbob])
 cursor_test('dir-subsidiary', [duser], [duser])
 cursor_test('dir-nofile', [dnoent], [])
 
 if test_keyring:
+    mark('KEYRING cursor')
     cursor_test('keyring', [krccname], [kruser, kralice, krbob])
     cursor_test('keyring-subsidiary', [kruser], [kruser])
     cursor_test('keyring-noent', [krnoent], [])
 
+mark('MEMORY cursor')
 mfoo = 'MEMORY:foo'
 mbar = 'MEMORY:bar'
-cursor_test('filemem', [fccname, mfoo, mbar], [fccname, mfoo, mbar])
-cursor_test('dirmem', [dccname, mfoo], [duser, dalice, dbob, mfoo])
+cursor_test('filemem', [fccname, mfoo], [fccname])
+cursor_test('dirmem', [dccname, mfoo], [duser, dalice, dbob])
+cursor_test('mem', [mfoo, mbar], [mfoo])
 if test_keyring:
-    cursor_test('keyringmem', [krccname, mfoo], [kruser, kralice, krbob, mfoo])
+    cursor_test('keyringmem', [krccname, mfoo], [kruser, kralice, krbob])
 
 # Test krb5_cccol_have_content.
+mark('krb5_cccol_have_content')
 realm.run(['./t_cccursor', dccname, 'CONTENT'])
 realm.run(['./t_cccursor', fccname, 'CONTENT'])
 realm.run(['./t_cccursor', realm.ccache, 'CONTENT'])
@@ -112,6 +117,7 @@ if test_keyring:
     cleanup_keyring('@s', col_ringname)
 
 # Make sure FILE doesn't yield a nonexistent default cache.
+mark('FILE nonexistent')
 realm.run([kdestroy])
 cursor_test('noexist', [], [])
 realm.run(['./t_cccursor', fccname, 'CONTENT'], expected_code=1)

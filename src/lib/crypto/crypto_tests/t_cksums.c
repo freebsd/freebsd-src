@@ -27,7 +27,7 @@
 /*
  * This harness tests checksum results against known values.  With the -v flag,
  * results for all tests are displayed.  This harness only works for
- * deterministic checksums; for rsa-md4-des and rsa-md5-des, see t_cksum.c.
+ * deterministic checksums.
  */
 
 #include "k5-int.h"
@@ -40,12 +40,6 @@ struct test {
     krb5_data keybits;
     krb5_data cksum;
 } test_cases[] = {
-    {
-        { KV5M_DATA, 3, "abc" },
-        CKSUMTYPE_CRC32, 0, 0, { KV5M_DATA, 0, "" },
-        { KV5M_DATA, 4,
-          "\xD0\x98\x65\xCA" }
-    },
     {
         { KV5M_DATA, 3, "one" },
         CKSUMTYPE_RSA_MD4, 0, 0, { KV5M_DATA, 0, "" },
@@ -60,7 +54,7 @@ struct test {
     },
     {
         { KV5M_DATA, 0, "" },
-        CKSUMTYPE_NIST_SHA, 0, 0, { KV5M_DATA, 0, "" },
+        CKSUMTYPE_SHA1, 0, 0, { KV5M_DATA, 0, "" },
         { KV5M_DATA, 20,
           "\xDA\x39\xA3\xEE\x5E\x6B\x4B\x0D\x32\x55\xBF\xEF\x95\x60\x18\x90"
           "\xAF\xD8\x07\x09" }
@@ -175,15 +169,11 @@ printhex(const char *head, void *data, size_t len)
 
     printf("%s", head);
     for (i = 0; i < len; i++) {
-#if 0                           /* For convenience when updating test cases. */
-        printf("\\x%02X", ((unsigned char*)data)[i]);
-#else
         printf("%02X", ((unsigned char*)data)[i]);
         if (i % 16 == 15 && i + 1 < len)
             printf("\n%*s", (int)strlen(head), "");
         else if (i + 1 < len)
             printf(" ");
-#endif
     }
     printf("\n");
 }
@@ -264,6 +254,7 @@ main(int argc, char **argv)
         }
 
         krb5_free_checksum_contents(context, &cksum);
+        assert(cksum.length == 0);
     }
     return status;
 }

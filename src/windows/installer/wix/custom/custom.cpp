@@ -328,7 +328,7 @@ struct _KillProc {
 #define RV_BAIL if(rv != ERROR_SUCCESS) goto _cleanup
 
 MSIDLLEXPORT KillRunningProcesses( MSIHANDLE hInstall ) {
-    return KillRunningProcessesSlave( hInstall, TRUE );
+    return KillRunningProcessesWorker( hInstall, TRUE );
 }
 
 /* When listing running processes, we populate the ListBox table with
@@ -338,10 +338,10 @@ MSIDLLEXPORT KillRunningProcesses( MSIHANDLE hInstall ) {
 */
 
 MSIDLLEXPORT ListRunningProcesses( MSIHANDLE hInstall ) {
-    return KillRunningProcessesSlave( hInstall, FALSE );
+    return KillRunningProcessesWorker( hInstall, FALSE );
 }
 
-UINT KillRunningProcessesSlave( MSIHANDLE hInstall, BOOL bKill )
+UINT KillRunningProcessesWorker( MSIHANDLE hInstall, BOOL bKill )
 {
     UINT rv = ERROR_SUCCESS;
     _KillProc * kpList;

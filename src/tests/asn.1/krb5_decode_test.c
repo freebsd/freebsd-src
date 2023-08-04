@@ -25,6 +25,7 @@
  */
 
 #include "k5-int.h"
+#include "k5-spake.h"
 #include "ktest.h"
 #include "com_err.h"
 #include "utility.h"
@@ -41,8 +42,6 @@ void krb5_ktest_free_enc_data(krb5_context context, krb5_enc_data *val);
 #ifndef DISABLE_PKINIT
 static int equal_principal(krb5_principal *ref, krb5_principal var);
 static void ktest_free_auth_pack(krb5_context context, krb5_auth_pack *val);
-static void ktest_free_auth_pack_draft9(krb5_context context,
-                                        krb5_auth_pack_draft9 *val);
 static void ktest_free_kdc_dh_key_info(krb5_context context,
                                        krb5_kdc_dh_key_info *val);
 static void ktest_free_pa_pk_as_req(krb5_context context,
@@ -51,8 +50,6 @@ static void ktest_free_pa_pk_as_rep(krb5_context context,
                                     krb5_pa_pk_as_rep *val);
 static void ktest_free_reply_key_pack(krb5_context context,
                                       krb5_reply_key_pack *val);
-static void ktest_free_reply_key_pack_draft9(krb5_context context,
-                                             krb5_reply_key_pack_draft9 *val);
 #endif
 static void ktest_free_kkdcp_message(krb5_context context,
                                      krb5_kkdcp_message *val);
@@ -75,8 +72,9 @@ int main(argc, argv)
 #define setup(type,constructor)                                         \
     type ref, *var;                                                     \
     constructor(&ref);                                                  \
+    do {} while (0)
 
-#define decode_run(typestring,description,encoding,decoder,comparator,cleanup) \
+#define decode_run(typestring,description,encoding,decoder,comparator,cleanup) do { \
     retval = krb5_data_hex_parse(&code,encoding);                       \
     if (retval) {                                                       \
         com_err("krb5_decode_test", retval, "while parsing %s", typestring); \
@@ -90,7 +88,24 @@ int main(argc, argv)
     test(comparator(&ref,var),typestring);                              \
     printf("%s\n",description);                                         \
     krb5_free_data_contents(test_context, &code);                       \
-    cleanup(test_context, var);
+    cleanup(test_context, var);                                         \
+} while (0)
+
+#define decode_fail(err,typestring,description,encoding,decoder) do {   \
+    retval = krb5_data_hex_parse(&code,encoding);                       \
+    if (retval) {                                                       \
+        com_err("krb5_decode_test", retval, "while parsing %s", typestring); \
+        exit(1);                                                        \
+    }                                                                   \
+    retval = decoder(&code,&var);                                       \
+    if (retval != (err)) {                                              \
+        com_err("krb5_decode_test", retval, "while decoding %s", typestring); \
+        error_count++;                                                  \
+    }                                                                   \
+    test(1,typestring);                                                 \
+    printf("%s\n",description);                                         \
+    krb5_free_data_contents(test_context, &code);                       \
+} while (0)
 
     /****************************************************************/
     /* decode_krb5_authenticator */
@@ -306,7 +321,7 @@ int main(argc, argv)
   "  00 00 00 00"
   "00 00 00 00"
 */
-        decode_run("ticket","(indefinite lengths)", "61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00" ,decode_krb5_ticket,ktest_equal_ticket,krb5_free_ticket);
+        decode_fail(ASN1_INDEF,"ticket","(indefinite lengths)", "61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00" ,decode_krb5_ticket);
 /*
   "61 80 30 80 "
   "  A0 03 02 01 05 "
@@ -327,7 +342,7 @@ int main(argc, argv)
   "  A4 03 02 01 01 "
   "00 00 00 00"
 */
-        decode_run("ticket","(indefinite lengths + trailing [4] INTEGER)", "61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 A4 03 02 01 01 00 00 00 00",decode_krb5_ticket,ktest_equal_ticket,krb5_free_ticket);
+        decode_fail(ASN1_INDEF,"ticket","(indefinite lengths + trailing [4] INTEGER)", "61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 A4 03 02 01 01 00 00 00 00",decode_krb5_ticket);
 
         ktest_empty_ticket(&ref);
 
@@ -342,10 +357,10 @@ int main(argc, argv)
 
         decode_run("encryption_key","(+ trailing [2] INTEGER)","30 16 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 03 02 01 01",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
         decode_run("encryption_key","(+ trailing [2] SEQUENCE {[0] INTEGER})","30 1A A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 07 30 05 A0 03 02 01 01",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
-        decode_run("encryption_key","(indefinite lengths)","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 00 00",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
-        decode_run("encryption_key","(indefinite lengths + trailing [2] INTEGER)","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 03 02 01 01 00 00",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
-        decode_run("encryption_key","(indefinite lengths + trailing [2] SEQUENCE {[0] INTEGER})","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 80 30 80 A0 03 02 01 01 00 00 00 00 00 00",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
-        decode_run("encryption_key","(indefinite lengths + trailing SEQUENCE {[0] INTEGER})","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 30 80 A0 03 02 01 01 00 00 00 00",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
+        decode_fail(ASN1_INDEF,"encryption_key","(indefinite lengths)","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 00 00",decode_krb5_encryption_key);
+        decode_fail(ASN1_INDEF,"encryption_key","(indefinite lengths + trailing [2] INTEGER)","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 03 02 01 01 00 00",decode_krb5_encryption_key);
+        decode_fail(ASN1_INDEF,"encryption_key","(indefinite lengths + trailing [2] SEQUENCE {[0] INTEGER})","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A2 80 30 80 A0 03 02 01 01 00 00 00 00 00 00",decode_krb5_encryption_key);
+        decode_fail(ASN1_INDEF,"encryption_key","(indefinite lengths + trailing SEQUENCE {[0] INTEGER})","30 80 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 30 80 A0 03 02 01 01 00 00 00 00",decode_krb5_encryption_key);
         ref.enctype = -1;
         decode_run("encryption_key","(enctype = -1)","30 11 A0 03 02 01 FF A1 0A 04 08 31 32 33 34 35 36 37 38",decode_krb5_encryption_key,ktest_equal_encryption_key,krb5_free_keyblock);
         ref.enctype = -255;
@@ -396,10 +411,6 @@ int main(argc, argv)
     {
         setup(krb5_enc_kdc_rep_part,ktest_make_sample_enc_kdc_rep_part);
 
-#ifdef KRB5_GENEROUS_LR_TYPE
-        decode_run("enc_kdc_rep_part","(compat_lr_type)","7A 82 01 10 30 82 01 0C A0 13 30 11 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A1 38 30 36 30 19 A0 04 02 02 00 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A 30 19 A0 04 02 02 00 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A3 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A4 07 03 05 00 FE DC BA 98 A5 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A6 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A7 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A8 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A9 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 AA 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 AB 20 30 1E 30 0D A0 03 02 01 02 A1 06 04 04 12 D0 00 23 30 0D A0 03 02 01 02 A1 06 04 04 12 D0 00 23",decode_krb5_enc_kdc_rep_part,ktest_equal_enc_kdc_rep_part,krb5_free_enc_kdc_rep_part);
-#endif
-
         decode_run("enc_kdc_rep_part","","7A 82 01 0E 30 82 01 0A A0 13 30 11 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A1 36 30 34 30 18 A0 03 02 01 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A 30 18 A0 03 02 01 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A3 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A4 07 03 05 00 FE DC BA 98 A5 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A6 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A7 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A8 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A9 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 AA 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 AB 20 30 1E 30 0D A0 03 02 01 02 A1 06 04 04 12 D0 00 23 30 0D A0 03 02 01 02 A1 06 04 04 12 D0 00 23",decode_krb5_enc_kdc_rep_part,ktest_equal_enc_kdc_rep_part,krb5_free_enc_kdc_rep_part);
 
         ref.key_exp = 0;
@@ -408,10 +419,6 @@ int main(argc, argv)
         ref.times.renew_till = 0;
         ref.flags &= ~TKT_FLG_RENEWABLE;
         ktest_destroy_addresses(&(ref.caddrs));
-
-#ifdef KRB5_GENEROUS_LR_TYPE
-        decode_run("enc_kdc_rep_part","(optionals NULL)(compat lr_type)","7A 81 B4 30 81 B1 A0 13 30 11 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A1 38 30 36 30 19 A0 04 02 02 00 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A 30 19 A0 04 02 02 00 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A4 07 03 05 00 FE 5C BA 98 A5 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A7 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A9 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 AA 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61",decode_krb5_enc_kdc_rep_part,ktest_equal_enc_kdc_rep_part,krb5_free_enc_kdc_rep_part);
-#endif
 
         decode_run("enc_kdc_rep_part","(optionals NULL)","7A 81 B2 30 81 AF A0 13 30 11 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A1 36 30 34 30 18 A0 03 02 01 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A 30 18 A0 03 02 01 FB A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A4 07 03 05 00 FE 5C BA 98 A5 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A7 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A9 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 AA 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61",decode_krb5_enc_kdc_rep_part,ktest_equal_enc_kdc_rep_part,krb5_free_enc_kdc_rep_part);
 
@@ -475,7 +482,7 @@ int main(argc, argv)
   00 00 00 00
   00 00 00 00
 */
-        decode_run("as_rep","(indefinite lengths)","6B 80 30 80 A0 03 02 01 05 A1 03 02 01 0B A2 80 30 80 30 80 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61 00 00 30 80 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61 00 00 00 00 00 00 A3 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A4 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A5 80 61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00 00 00 A6 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00",decode_krb5_as_rep,ktest_equal_as_rep,krb5_free_kdc_rep);
+        decode_fail(ASN1_INDEF,"as_rep","(indefinite lengths)","6B 80 30 80 A0 03 02 01 05 A1 03 02 01 0B A2 80 30 80 30 80 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61 00 00 30 80 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61 00 00 00 00 00 00 A3 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A4 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A5 80 61 80 30 80 A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 80 30 80 A0 03 02 01 01 A1 80 30 80 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 00 00 00 00 00 00 00 00 A3 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00 00 00 A6 80 30 80 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 00 00 00 00 00 00 00 00",decode_krb5_as_rep);
         ktest_destroy_pa_data_array(&(ref.padata));
         decode_run("as_rep","(optionals NULL)","6B 81 C2 30 81 BF A0 03 02 01 05 A1 03 02 01 0B A3 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A4 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 A5 5E 61 5C 30 5A A0 03 02 01 05 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 A3 25 30 23 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65 A6 25 30 23 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65",decode_krb5_as_rep,ktest_equal_as_rep,krb5_free_kdc_rep);
 
@@ -933,7 +940,7 @@ int main(argc, argv)
     /* decode_sam_challenge_2_body */
     {
         setup(krb5_sam_challenge_2_body,ktest_make_sample_sam_challenge_2_body);
-        decode_run("sam_challenge_2_body","","30 64 A0 03 02 01 2A A1 07 03 05 00 80 00 00 00 A2 0B 04 09 74 79 70 65 20 6E 61 6D 65 A4 11 04 0F 63 68 61 6C 6C 65 6E 67 65 20 6C 61 62 65 6C A5 10 04 0E 63 68 61 6C 6C 65 6E 67 65 20 69 70 73 65 A6 16 04 14 72 65 73 70 6F 6E 73 65 5F 70 72 6F 6D 70 74 20 69 70 73 65 A8 05 02 03 54 32 10 A9 03 02 01 01",decode_krb5_sam_challenge_2_body,ktest_equal_sam_challenge_2_body,krb5_free_sam_challenge_2_body);
+        decode_run("sam_challenge_2_body","","30 64 A0 03 02 01 2A A1 07 03 05 00 80 00 00 00 A2 0B 04 09 74 79 70 65 20 6E 61 6D 65 A4 11 04 0F 63 68 61 6C 6C 65 6E 67 65 20 6C 61 62 65 6C A5 10 04 0E 63 68 61 6C 6C 65 6E 67 65 20 69 70 73 65 A6 16 04 14 72 65 73 70 6F 6E 73 65 5F 70 72 6F 6D 70 74 20 69 70 73 65 A8 05 02 03 54 32 10 A9 03 02 01 14",decode_krb5_sam_challenge_2_body,ktest_equal_sam_challenge_2_body,krb5_free_sam_challenge_2_body);
         ktest_empty_sam_challenge_2_body(&ref);
 
     }
@@ -989,14 +996,6 @@ int main(argc, argv)
         setup(krb5_ad_kdcissued,ktest_make_sample_ad_kdcissued);
         decode_run("ad_kdcissued","","30 65 A0 0F 30 0D A0 03 02 01 01 A1 06 04 04 31 32 33 34 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 A3 24 30 22 30 0F A0 03 02 01 01 A1 08 04 06 66 6F 6F 62 61 72 30 0F A0 03 02 01 01 A1 08 04 06 66 6F 6F 62 61 72",decode_krb5_ad_kdcissued,ktest_equal_ad_kdcissued,krb5_free_ad_kdcissued);
         ktest_empty_ad_kdcissued(&ref);
-    }
-
-    /****************************************************************/
-    /* decode_ad_signedpath */
-    {
-        setup(krb5_ad_signedpath,ktest_make_sample_ad_signedpath);
-        decode_run("ad_signedpath","","30 3E A0 03 02 01 01 A1 0F 30 0D A0 03 02 01 01 A1 06 04 04 31 32 33 34 A3 26 30 24 30 10 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61 30 10 A1 03 02 01 0D A2 09 04 07 70 61 2D 64 61 74 61",decode_krb5_ad_signedpath,ktest_equal_ad_signedpath,krb5_free_ad_signedpath);
-        ktest_empty_ad_signedpath(&ref);
     }
 
     /****************************************************************/
@@ -1107,6 +1106,42 @@ int main(argc, argv)
         ktest_empty_secure_cookie(&ref);
     }
 
+    /****************************************************************/
+    /* decode_krb5_spake_factor */
+    {
+        setup(krb5_spake_factor,ktest_make_minimal_spake_factor);
+        decode_run("spake_factor","(optionals NULL)","30 05 A0 03 02 01 01",decode_krb5_spake_factor,ktest_equal_spake_factor,k5_free_spake_factor);
+        ktest_empty_spake_factor(&ref);
+    }
+    {
+        setup(krb5_spake_factor,ktest_make_maximal_spake_factor);
+        decode_run("spake_factor","","30 0E A0 03 02 01 02 A1 07 04 05 66 64 61 74 61",decode_krb5_spake_factor,ktest_equal_spake_factor,k5_free_spake_factor);
+        ktest_empty_spake_factor(&ref);
+    }
+
+    /****************************************************************/
+    /* decode_krb5_pa_spake */
+    {
+        setup(krb5_pa_spake,ktest_make_support_pa_spake);
+        decode_run("pa_spake","(support)","A0 0C 30 0A A0 08 30 06 02 01 01 02 01 02",decode_krb5_pa_spake,ktest_equal_pa_spake,k5_free_pa_spake);
+        ktest_empty_pa_spake(&ref);
+    }
+    {
+        setup(krb5_pa_spake,ktest_make_challenge_pa_spake);
+        decode_run("pa_spake","(challenge)","A1 2D 30 2B A0 03 02 01 01 A1 09 04 07 54 20 76 61 6C 75 65 A2 19 30 17 30 05 A0 03 02 01 01 30 0E A0 03 02 01 02 A1 07 04 05 66 64 61 74 61",decode_krb5_pa_spake,ktest_equal_pa_spake,k5_free_pa_spake);
+        ktest_empty_pa_spake(&ref);
+    }
+    {
+        setup(krb5_pa_spake,ktest_make_response_pa_spake);
+        decode_run("pa_spake","(response)","A2 34 30 32 A0 09 04 07 53 20 76 61 6C 75 65 A1 25 30 23 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65",decode_krb5_pa_spake,ktest_equal_pa_spake,k5_free_pa_spake);
+        ktest_empty_pa_spake(&ref);
+    }
+    {
+        setup(krb5_pa_spake,ktest_make_encdata_pa_spake);
+        decode_run("pa_spake","(encdata)","A3 25 30 23 A0 03 02 01 00 A1 03 02 01 05 A2 17 04 15 6B 72 62 41 53 4E 2E 31 20 74 65 73 74 20 6D 65 73 73 61 67 65",decode_krb5_pa_spake,ktest_equal_pa_spake,k5_free_pa_spake);
+        ktest_empty_pa_spake(&ref);
+    }
+
 #ifndef DISABLE_PKINIT
 
     /****************************************************************/
@@ -1140,20 +1175,10 @@ int main(argc, argv)
     /* decode_krb5_auth_pack */
     {
         setup(krb5_auth_pack,ktest_make_sample_auth_pack);
-        decode_run("krb5_auth_pack","","30 81 93 A0 29 30 27 A0 05 02 03 01 E2 40 A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A3 06 04 04 31 32 33 34 A1 22 30 20 30 13 06 09 2A 86 48 86 F7 12 01 02 02 04 06 70 61 72 61 6D 73 03 09 00 6B 72 62 35 64 61 74 61 A2 24 30 22 30 13 06 09 2A 86 48 86 F7 12 01 02 02 04 06 70 61 72 61 6D 73 30 0B 06 09 2A 86 48 86 F7 12 01 02 02 A3 0A 04 08 6B 72 62 35 64 61 74 61 A4 10 30 0E 30 0C A0 0A 06 08 6B 72 62 35 64 61 74 61",
+        decode_run("krb5_auth_pack","","30 81 85 A0 35 30 33 A0 05 02 03 01 E2 40 A1 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A2 03 02 01 2A A3 06 04 04 31 32 33 34 A4 0A 04 08 6B 72 62 35 64 61 74 61 A1 08 04 06 70 76 61 6C 75 65 A2 24 30 22 30 13 06 09 2A 86 48 86 F7 12 01 02 02 04 06 70 61 72 61 6D 73 30 0B 06 09 2A 86 48 86 F7 12 01 02 02 A3 0A 04 08 6B 72 62 35 64 61 74 61 A4 10 30 0E 30 0C A0 0A 06 08 6B 72 62 35 64 61 74 61",
                    acc.decode_krb5_auth_pack,
                    ktest_equal_auth_pack,ktest_free_auth_pack);
         ktest_empty_auth_pack(&ref);
-    }
-
-    /****************************************************************/
-    /* decode_krb5_auth_pack_draft9 */
-    {
-        setup(krb5_auth_pack_draft9,ktest_make_sample_auth_pack_draft9);
-        decode_run("krb5_auth_pack_draft9","","30 75 A0 4F 30 4D A0 1A 30 18 A0 03 02 01 01 A1 11 30 0F 1B 06 68 66 74 73 61 69 1B 05 65 78 74 72 61 A1 10 1B 0E 41 54 48 45 4E 41 2E 4D 49 54 2E 45 44 55 A2 05 02 03 01 E2 40 A3 11 18 0F 31 39 39 34 30 36 31 30 30 36 30 33 31 37 5A A4 03 02 01 2A A1 22 30 20 30 13 06 09 2A 86 48 86 F7 12 01 02 02 04 06 70 61 72 61 6D 73 03 09 00 6B 72 62 35 64 61 74 61",
-                   acc.decode_krb5_auth_pack_draft9,
-                   ktest_equal_auth_pack_draft9,ktest_free_auth_pack_draft9);
-        ktest_empty_auth_pack_draft9(&ref);
     }
 
     /****************************************************************/
@@ -1174,16 +1199,6 @@ int main(argc, argv)
                    acc.decode_krb5_reply_key_pack,
                    ktest_equal_reply_key_pack,ktest_free_reply_key_pack);
         ktest_empty_reply_key_pack(&ref);
-    }
-
-    /****************************************************************/
-    /* decode_krb5_reply_key_pack_draft9 */
-    {
-        setup(krb5_reply_key_pack_draft9,ktest_make_sample_reply_key_pack_draft9);
-        decode_run("krb5_reply_key_pack_draft9","","30 1A A0 13 30 11 A0 03 02 01 01 A1 0A 04 08 31 32 33 34 35 36 37 38 A1 03 02 01 2A",
-                   acc.decode_krb5_reply_key_pack_draft9,
-                   ktest_equal_reply_key_pack_draft9,ktest_free_reply_key_pack_draft9);
-        ktest_empty_reply_key_pack_draft9(&ref);
     }
 
     /****************************************************************/
@@ -1243,14 +1258,6 @@ ktest_free_auth_pack(krb5_context context, krb5_auth_pack *val)
 }
 
 static void
-ktest_free_auth_pack_draft9(krb5_context context, krb5_auth_pack_draft9 *val)
-{
-    if (val)
-        ktest_empty_auth_pack_draft9(val);
-    free(val);
-}
-
-static void
 ktest_free_kdc_dh_key_info(krb5_context context, krb5_kdc_dh_key_info *val)
 {
     if (val)
@@ -1279,15 +1286,6 @@ ktest_free_reply_key_pack(krb5_context context, krb5_reply_key_pack *val)
 {
     if (val)
         ktest_empty_reply_key_pack(val);
-    free(val);
-}
-
-static void
-ktest_free_reply_key_pack_draft9(krb5_context context,
-                                 krb5_reply_key_pack_draft9 *val)
-{
-    if (val)
-        ktest_empty_reply_key_pack_draft9(val);
     free(val);
 }
 

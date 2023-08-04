@@ -55,35 +55,10 @@
 #include <gssrpc/rpc_msg.h>	/* protocol for rpc messages */
 #include <gssrpc/auth_unix.h>	/* protocol for unix style cred */
 #include <gssrpc/auth_gss.h>	/* RPCSEC_GSS */
-/*
- *  Uncomment-out the next line if you are building the rpc library with
- *  DES Authentication (see the README file in the secure_rpc/ directory).
- */
-#if 0
-#include <gssrpc/auth_des.h>	protocol for des style cred
-#endif
 
 /* Server side only remote procedure callee */
 #include <gssrpc/svc_auth.h>	/* service side authenticator */
 #include <gssrpc/svc.h>		/* service manager and multiplexer */
-
-/*
- * Punt the rpc/netdb.h everywhere because it just makes things much more
- * difficult.  We don't use the *rpcent functions anyway.
- */
-#if 0
-/*
- * COMMENT OUT THE NEXT INCLUDE IF RUNNING ON SUN OS OR ON A VERSION
- * OF UNIX BASED ON NFSSRC.  These systems will already have the structures
- * defined by <rpc/netdb.h> included in <netdb.h>.
- */
-/* routines for parsing /etc/rpc */
-#if 0 /* netdb.h already included in rpc/types.h */
-#include <netdb.h>
-#endif
-
-#include <gssrpc/netdb.h>	/* structures and routines to parse /etc/rpc */
-#endif
 
 /*
  * get the local host's IP address without consulting

@@ -86,7 +86,7 @@ krb5_gss_pseudo_random(OM_uint32 *minor_status,
     if (desired_output_len == 0)
         return GSS_S_COMPLETE;
 
-    prf_out->value = k5alloc(desired_output_len, &code);
+    prf_out->value = gssalloc_malloc(desired_output_len);
     if (prf_out->value == NULL) {
         code = KG_INPUT_TOO_LONG;
         goto cleanup;

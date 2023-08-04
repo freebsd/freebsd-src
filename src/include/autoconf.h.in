@@ -1,4 +1,4 @@
-/* include/autoconf.h.in.  Generated from configure.in by autoheader.  */
+/* include/autoconf.h.in.  Generated from configure.ac by autoheader.  */
 
 
 #ifndef KRB5_AUTOCONF_H
@@ -19,6 +19,9 @@
 
 /* Define if __attribute__((constructor)) works */
 #undef CONSTRUCTOR_ATTR_WORKS
+
+/* Define to use OpenSSL crypto library */
+#undef CRYPTO_OPENSSL
 
 /* Define to default ccache name */
 #undef DEFCCNAME
@@ -50,9 +53,6 @@
 
 /* Define as return type of endrpcent */
 #undef ENDRPCENT_TYPE
-
-/* Define if Fortuna PRNG is selected */
-#undef FORTUNA
 
 /* Define to the type of elements in the array set by `getgroups'. Usually
    this is either `int' or `gid_t'. */
@@ -153,6 +153,15 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
+/* Define to 1 if you have the `EVP_PKEY_get_bn_param' function. */
+#undef HAVE_EVP_PKEY_GET_BN_PARAM
+
+/* Define to 1 if you have the `explicit_bzero' function. */
+#undef HAVE_EXPLICIT_BZERO
+
+/* Define to 1 if you have the `explicit_memset' function. */
+#undef HAVE_EXPLICIT_MEMSET
+
 /* Define to 1 if you have the `fchmod' function. */
 #undef HAVE_FCHMOD
 
@@ -197,6 +206,12 @@
 
 /* Define if getpwuid_r is available and useful. */
 #undef HAVE_GETPWUID_R
+
+/* Define to 1 if you have the `getresgid' function. */
+#undef HAVE_GETRESGID
+
+/* Define to 1 if you have the `getresuid' function. */
+#undef HAVE_GETRESUID
 
 /* Define if getservbyname_r exists and its return type is known */
 #undef HAVE_GETSERVBYNAME_R
@@ -294,9 +309,6 @@
 /* Define to 1 if you have the `ns_name_uncompress' function. */
 #undef HAVE_NS_NAME_UNCOMPRESS
 
-/* Define if OpenSSL supports cms. */
-#undef HAVE_OPENSSL_CMS
-
 /* Define to 1 if you have the <paths.h> header file. */
 #undef HAVE_PATHS_H
 
@@ -369,6 +381,9 @@
 /* Define if struct sockaddr contains sa_len */
 #undef HAVE_SA_LEN
 
+/* Define to 1 if you have the `secure_getenv' function. */
+#undef HAVE_SECURE_GETENV
+
 /* Define to 1 if you have the `setegid' function. */
 #undef HAVE_SETEGID
 
@@ -440,9 +455,6 @@
 
 /* Define to 1 if you have the `strerror_r' function. */
 #undef HAVE_STRERROR_R
-
-/* Define to 1 if you have the `strftime' function. */
-#undef HAVE_STRFTIME
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -530,12 +542,6 @@
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #undef HAVE_SYS_UIO_H
 
-/* Define if tcl.h found */
-#undef HAVE_TCL_H
-
-/* Define if tcl/tcl.h found */
-#undef HAVE_TCL_TCL_H
-
 /* Define to 1 if you have the `timegm' function. */
 #undef HAVE_TIMEGM
 
@@ -574,6 +580,12 @@
 
 /* Define to 1 if you have the `vsprintf' function. */
 #undef HAVE_VSPRINTF
+
+/* Define to 1 if the system has the type `__int128_t'. */
+#undef HAVE___INT128_T
+
+/* Define to 1 if the system has the type `__uint128_t'. */
+#undef HAVE___UINT128_T
 
 /* Define if errno.h declares perror */
 #undef HDR_HAS_PERROR
@@ -621,9 +633,6 @@
 /* Define if references to pthread routines should be non-weak. */
 #undef NO_WEAK_PTHREADS
 
-/* Define if lex produes code with yylineno */
-#undef NO_YYLINENO
-
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
@@ -642,14 +651,14 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Default PKCS11 module name */
+#undef PKCS11_MODNAME
+
 /* Define if setjmp indicates POSIX interface */
 #undef POSIX_SETJMP
 
 /* Define if POSIX signal handling is used */
 #undef POSIX_SIGNALS
-
-/* Define if POSIX signal handlers are used */
-#undef POSIX_SIGTYPE
 
 /* Define if termios.h exists and tcsetattr exists */
 #undef POSIX_TERMIOS
@@ -658,14 +667,17 @@
    your system. */
 #undef PTHREAD_CREATE_JOINABLE
 
-/* Define as the return type of signal handlers (`int' or `void'). */
-#undef RETSIGTYPE
-
 /* Define as return type of setrpcent */
 #undef SETRPCENT_TYPE
 
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
+
 /* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
+
+/* Define to use OpenSSL for SPAKE preauth */
+#undef SPAKE_OPENSSL
 
 /* Define for static plugin linkage */
 #undef STATIC_PLUGINS
@@ -679,14 +691,14 @@
 /* Define if sys_errlist is defined in errno.h */
 #undef SYS_ERRLIST_DECLARED
 
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#undef TIME_WITH_SYS_TIME
-
 /* Define if no TLS implementation is selected */
 #undef TLS_IMPL_NONE
 
 /* Define if TLS implementation is OpenSSL */
 #undef TLS_IMPL_OPENSSL
+
+/* Define to build macOS CCAPI client */
+#undef USE_CCAPI_MACOS
 
 /* Define if you have dirent.h functionality */
 #undef USE_DIRENT_H
@@ -709,10 +721,6 @@
 /* Define if wait takes int as a argument */
 #undef WAIT_USES_INT
 
-/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
-   `char[]'. */
-#undef YYTEXT_POINTER
-
 /* Define to enable extensions in glibc */
 #undef _GNU_SOURCE
 
@@ -730,9 +738,6 @@
 #ifndef __cplusplus
 #undef inline
 #endif
-
-/* Define krb5_sigtype to type of signal handler */
-#undef krb5_sigtype
 
 /* Define to `int' if <sys/types.h> does not define. */
 #undef mode_t

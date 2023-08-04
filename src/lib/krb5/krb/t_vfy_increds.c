@@ -26,9 +26,9 @@
 
 /*
  * This program is intended to be run from t_vfy_increds.py.  It retrieves the
- * first credential from the default ccache and verifies it against the default
- * keytab, exiting with status 0 on successful verification and 1 on
- * unsuccessful verification.
+ * first non-config credential from the default ccache and verifies it against
+ * the default keytab, exiting with status 0 on successful verification and 1
+ * on unsuccessful verification.
  */
 
 #include "k5-int.h"
@@ -64,10 +64,15 @@ main(int argc, char **argv)
     if (*argv != NULL)
         check(krb5_parse_name(context, *argv, &princ));
 
-    /* Fetch the first credential from the default ccache. */
+    /* Fetch the first non-config credential from the default ccache. */
     check(krb5_cc_default(context, &ccache));
     check(krb5_cc_start_seq_get(context, ccache, &cursor));
-    check(krb5_cc_next_cred(context, ccache, &cursor, &creds));
+    for (;;) {
+        check(krb5_cc_next_cred(context, ccache, &cursor, &creds));
+        if (!krb5_is_config_principal(context, creds.server))
+            break;
+        krb5_free_cred_contents(context, &creds);
+    }
     check(krb5_cc_end_seq_get(context, ccache, &cursor));
     check(krb5_cc_close(context, ccache));
 

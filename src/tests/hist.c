@@ -37,7 +37,7 @@
  * (since krb5 1.3 we ordinarily ensure that there's only one).  With the
  * "swap" argument, the two history keys are swapped in order; we use this
  * operation to simulate the case where krb5 1.7 or earlier chose something
- * other than the first history key to create pasword history entries.
+ * other than the first history key to create password history entries.
  */
 
 #include <k5-int.h>

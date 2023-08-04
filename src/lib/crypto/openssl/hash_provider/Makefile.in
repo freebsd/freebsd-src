@@ -1,16 +1,12 @@
 mydir=lib$(S)crypto$(S)openssl$(S)hash_provider
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
-LOCALINCLUDES = -I$(srcdir)/../../krb -I$(srcdir)/..
+LOCALINCLUDES = -I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
 
-STLIBOBJS= \
-	hash_crc32.o 	\
-	hash_evp.o
+STLIBOBJS=   hash_evp.o
 
-OBJS=   $(OUTPRE)hash_crc32.$(OBJEXT) 	\
-	$(OUTPRE)hash_evp.$(OBJEXT)
+OBJS=   $(OUTPRE)hash_evp.$(OBJEXT)
 
-SRCS=	$(srcdir)/hash_crc32.c	\
-	$(srcdir)/hash_evp.c
+SRCS=	$(srcdir)/hash_evp.c
 
 all-unix: all-libobjs
 

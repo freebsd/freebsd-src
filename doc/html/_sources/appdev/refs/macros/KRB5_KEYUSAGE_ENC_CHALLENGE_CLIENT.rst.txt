@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-ENC-CHALLENGE-CLIENT-data:
+
+KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT
+==================================
+
+..
+.. data:: KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT
+..
+
+
+
+
+========================================= ======================
+``KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT``       ``54``
+========================================= ======================

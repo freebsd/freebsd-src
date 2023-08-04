@@ -62,7 +62,7 @@ static void end_list(struct profile_string_list *list, char ***ret_list)
         *ret_list = list->list;
         return;
     } else {
-        for (cp = list->list; *cp; cp++)
+        for (cp = list->list; cp && *cp; cp++)
             free(*cp);
         free(list->list);
     }
@@ -157,7 +157,7 @@ profile_get_values(profile_t profile, const char *const *names,
                    char ***ret_values)
 {
     errcode_t               retval;
-    void                    *state;
+    void                    *state = NULL;
     char                    *value;
     struct profile_string_list values;
 
@@ -172,8 +172,9 @@ profile_get_values(profile_t profile, const char *const *names,
                                                &state)))
         return retval;
 
-    if ((retval = init_list(&values)))
-        return retval;
+    retval = init_list(&values);
+    if (retval)
+        goto cleanup;
 
     do {
         if ((retval = profile_node_iterator(&state, 0, 0, &value)))
@@ -187,11 +188,9 @@ profile_get_values(profile_t profile, const char *const *names,
         goto cleanup;
     }
 
-    end_list(&values, ret_values);
-    return 0;
-
 cleanup:
-    end_list(&values, 0);
+    end_list(&values, retval ? NULL : ret_values);
+    profile_node_iterator_free(&state);
     return retval;
 }
 

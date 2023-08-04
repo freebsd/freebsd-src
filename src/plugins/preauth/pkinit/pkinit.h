@@ -42,7 +42,6 @@
 #ifndef WITHOUT_PKCS11
 #include "pkcs11.h"
 
-#define PKCS11_MODNAME "opensc-pkcs11.so"
 #define PK_SIGLEN_GUESS 1000
 #define PK_NOSLOT 999999
 #endif
@@ -77,6 +76,7 @@
 #define KRB5_CONF_PKINIT_KDC_OCSP               "pkinit_kdc_ocsp"
 #define KRB5_CONF_PKINIT_POOL                   "pkinit_pool"
 #define KRB5_CONF_PKINIT_REQUIRE_CRL_CHECKING   "pkinit_require_crl_checking"
+#define KRB5_CONF_PKINIT_REQUIRE_FRESHNESS      "pkinit_require_freshness"
 #define KRB5_CONF_PKINIT_REVOKE                 "pkinit_revoke"
 
 /* Make pkiDebug(fmt,...) print, or not.  */
@@ -148,6 +148,8 @@ typedef struct _pkinit_plg_opts {
     int allow_upn;	    /* allow UPN-SAN instead of pkinit-SAN */
     int dh_or_rsa;	    /* selects DH or RSA based pkinit */
     int require_crl_checking; /* require CRL for a CA (default is false) */
+    int require_freshness;  /* require freshness token (default is false) */
+    int disable_freshness;  /* disable freshness token on client for testing */
     int dh_min_bits;	    /* minimum DH modulus size allowed */
 } pkinit_plg_opts;
 
@@ -162,6 +164,7 @@ typedef struct _pkinit_req_opts {
     int require_crl_checking;
     int dh_size;	    /* initial request DH modulus size (default=1024) */
     int require_hostname_match;
+    int disable_freshness;
 } pkinit_req_opts;
 
 /*
@@ -209,11 +212,11 @@ struct _pkinit_req_context {
     pkinit_identity_opts *idopts;
     int do_identity_matching;
     krb5_preauthtype pa_type;
-    int rfc4556_kdc;
     int rfc6112_kdc;
     int identity_initialized;
     int identity_prompted;
     krb5_error_code identity_prompt_retval;
+    krb5_data *freshness_token;
 };
 typedef struct _pkinit_req_context *pkinit_req_context;
 
@@ -239,7 +242,6 @@ struct _pkinit_kdc_req_context {
     int magic;
     pkinit_req_crypto_context cryptoctx;
     krb5_auth_pack *rcv_auth_pack;
-    krb5_auth_pack_draft9 *rcv_auth_pack9;
     krb5_preauthtype pa_type;
 };
 typedef struct _pkinit_kdc_req_context *pkinit_kdc_req_context;
@@ -324,27 +326,18 @@ void pkinit_free_deferred_ids(pkinit_deferred_id *identities);
  * initialization and free functions
  */
 void init_krb5_pa_pk_as_req(krb5_pa_pk_as_req **in);
-void init_krb5_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 **in);
 void init_krb5_reply_key_pack(krb5_reply_key_pack **in);
-void init_krb5_reply_key_pack_draft9(krb5_reply_key_pack_draft9 **in);
 
 void init_krb5_pa_pk_as_rep(krb5_pa_pk_as_rep **in);
-void init_krb5_pa_pk_as_rep_draft9(krb5_pa_pk_as_rep_draft9 **in);
-void init_krb5_subject_pk_info(krb5_subject_pk_info **in);
 
 void free_krb5_pa_pk_as_req(krb5_pa_pk_as_req **in);
-void free_krb5_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 **in);
 void free_krb5_reply_key_pack(krb5_reply_key_pack **in);
-void free_krb5_reply_key_pack_draft9(krb5_reply_key_pack_draft9 **in);
 void free_krb5_auth_pack(krb5_auth_pack **in);
-void free_krb5_auth_pack_draft9(krb5_context, krb5_auth_pack_draft9 **in);
 void free_krb5_pa_pk_as_rep(krb5_pa_pk_as_rep **in);
-void free_krb5_pa_pk_as_rep_draft9(krb5_pa_pk_as_rep_draft9 **in);
 void free_krb5_external_principal_identifier(krb5_external_principal_identifier ***in);
 void free_krb5_algorithm_identifiers(krb5_algorithm_identifier ***in);
 void free_krb5_algorithm_identifier(krb5_algorithm_identifier *in);
 void free_krb5_kdc_dh_key_info(krb5_kdc_dh_key_info **in);
-void free_krb5_subject_pk_info(krb5_subject_pk_info **in);
 krb5_error_code pkinit_copy_krb5_data(krb5_data *dst, const krb5_data *src);
 
 

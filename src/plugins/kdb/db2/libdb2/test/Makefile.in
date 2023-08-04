@@ -22,7 +22,7 @@ t.le.db: $(srcdir)/t.le.txt
 t.be.db t.le.db:
 	$(PERL) -ne 'chomp; print pack("H*", $$_);' $? > $@
 
-check: dbtest t.be.db t.le.db
+check: dbtest t.be.db t.le.db runenv.sh
 	$(RUN_SETUP) srcdir=$(srcdir) TMPDIR=$(TMPDIR) $(VALGRIND) $(FCTSH) $(srcdir)/run.test
 
 bttest.o: $(srcdir)/btree.tests/main.c

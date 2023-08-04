@@ -163,7 +163,7 @@ list_modify_str_array(char ***destlist, const char **sourcelist, int mode)
     /* We need to add every entry present in the source list to
      * the destination list */
     if (mode == LIST_MODE_ADD) {
-        /* Traverse throught the end of destlist for appending */
+        /* Traverse through the end of destlist for appending */
         for (dlist = *destlist, dcount = 0; *dlist != NULL;
              dlist++, dcount++) {
             ;   /* NULL statement */
@@ -227,7 +227,7 @@ list_modify_int_array(int *destlist, const int *sourcelist, int mode)
     /* We need to add every entry present in the source list to the
      * destination list */
     if (mode == LIST_MODE_ADD) {
-        /* Traverse throught the end of destlist for appending */
+        /* Traverse through the end of destlist for appending */
         for (dlist = destlist, dcount = 0; *dlist != END_OF_LIST;
              dlist++, dcount++)
             ;   /* NULL statement */

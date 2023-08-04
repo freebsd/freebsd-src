@@ -103,7 +103,7 @@ STLIBOBJS = \
 	util_token.o \
 	gssapi_err_generic.o
 
-EXPORTED_HEADERS= gssapi_generic.h  gssapi_ext.h
+EXPORTED_HEADERS= gssapi_generic.h  gssapi_ext.h gssapi_alloc.h
 EXPORTED_BUILT_HEADERS= gssapi.h
 
 $(OBJS): $(EXPORTED_HEADERS) $(ETHDRS)

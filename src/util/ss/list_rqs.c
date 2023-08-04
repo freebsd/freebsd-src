@@ -31,10 +31,10 @@ ss_list_requests(argc, argv, sci_idx, info_ptr)
     char *info_ptr;
 #endif
 {
-    register ss_request_entry *entry;
-    register char const * const *name;
-    register int spacing;
-    register ss_request_table **table;
+    ss_request_entry *entry;
+    char const *const *name;
+    int spacing;
+    ss_request_table **table;
 
     char buffer[BUFSIZ];
     FILE *output;
@@ -44,7 +44,7 @@ ss_list_requests(argc, argv, sci_idx, info_ptr)
     sigset_t nmask, omask;
 #else
     int mask;
-    RETSIGTYPE (*func)();
+    void (*func)();
 #endif
 #ifndef WAIT_USES_INT
     union wait waitb;
@@ -90,7 +90,7 @@ ss_list_requests(argc, argv, sci_idx, info_ptr)
                 continue;
             buffer[sizeof(buffer) - 1] = '\0';
             for (name = entry->command_names; *name; name++) {
-                register int len = strlen(*name);
+                int len = strlen(*name);
                 strncat(buffer, *name, sizeof(buffer) - 1 - strlen(buffer));
                 spacing += len + 2;
                 if (name[1]) {

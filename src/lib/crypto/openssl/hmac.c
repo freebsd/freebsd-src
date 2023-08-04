@@ -52,8 +52,16 @@
 
 
 #include "crypto_int.h"
-#include <openssl/hmac.h>
+
+#ifdef K5_OPENSSL_HMAC
+
 #include <openssl/evp.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/params.h>
+#include <openssl/core_names.h>
+#else
+#include <openssl/hmac.h>
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -97,19 +105,21 @@ compat_hmac_ctx_free(HMAC_CTX *ctx)
 static const EVP_MD *
 map_digest(const struct krb5_hash_provider *hash)
 {
-    if (!strncmp(hash->hash_name, "SHA1",4))
+    if (hash == &krb5int_hash_sha1)
         return EVP_sha1();
-    else if (!strncmp(hash->hash_name, "SHA-256",7))
+    else if (hash == &krb5int_hash_sha256)
         return EVP_sha256();
-    else if (!strncmp(hash->hash_name, "SHA-384",7))
+    else if (hash == &krb5int_hash_sha384)
         return EVP_sha384();
-    else if (!strncmp(hash->hash_name, "MD5", 3))
+    else if (hash == &krb5int_hash_md5)
         return EVP_md5();
-    else if (!strncmp(hash->hash_name, "MD4", 3))
+    else if (hash == &krb5int_hash_md4)
         return EVP_md4();
     else
         return NULL;
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 
 krb5_error_code
 krb5int_hmac_keyblock(const struct krb5_hash_provider *hash,
@@ -117,7 +127,60 @@ krb5int_hmac_keyblock(const struct krb5_hash_provider *hash,
                       const krb5_crypto_iov *data, size_t num_data,
                       krb5_data *output)
 {
-    unsigned int i = 0, md_len = 0;
+    int ok;
+    const EVP_MD *md = map_digest(hash);
+    EVP_MAC *mac = NULL;
+    EVP_MAC_CTX *ctx = NULL;
+    OSSL_PARAM params[2], *p = params;
+    size_t i = 0, md_len;
+
+    if (md == NULL || keyblock->length > hash->blocksize)
+        return KRB5_CRYPTO_INTERNAL;
+    if (output->length < hash->hashsize)
+        return KRB5_BAD_MSIZE;
+
+    mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
+    if (mac == NULL)
+        return KRB5_CRYPTO_INTERNAL;
+
+    ctx = EVP_MAC_CTX_new(mac);
+    if (ctx == NULL) {
+        ok = 0;
+        goto cleanup;
+    }
+
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_ALG_PARAM_DIGEST,
+                                            (char *)EVP_MD_get0_name(md), 0);
+    *p = OSSL_PARAM_construct_end();
+
+    ok = EVP_MAC_init(ctx, keyblock->contents, keyblock->length, params);
+    for (i = 0; ok && i < num_data; i++) {
+        const krb5_crypto_iov *iov = &data[i];
+        if (!SIGN_IOV(iov))
+            continue;
+        ok = EVP_MAC_update(ctx, (uint8_t *)iov->data.data, iov->data.length);
+    }
+    ok = ok && EVP_MAC_final(ctx, (uint8_t *)output->data, &md_len,
+                             output->length);
+    if (!ok)
+        goto cleanup;
+    output->length = md_len;
+
+cleanup:
+    EVP_MAC_free(mac);
+    EVP_MAC_CTX_free(ctx);
+    return ok ? 0 : KRB5_CRYPTO_INTERNAL;
+}
+
+#else /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+
+krb5_error_code
+krb5int_hmac_keyblock(const struct krb5_hash_provider *hash,
+                      const krb5_keyblock *keyblock,
+                      const krb5_crypto_iov *data, size_t num_data,
+                      krb5_data *output)
+{
+    unsigned int i = 0, md_len = 0, ok;
     unsigned char md[EVP_MAX_MD_SIZE];
     HMAC_CTX *ctx;
     size_t hashsize, blocksize;
@@ -137,23 +200,25 @@ krb5int_hmac_keyblock(const struct krb5_hash_provider *hash,
     if (ctx == NULL)
         return ENOMEM;
 
-    HMAC_Init(ctx, keyblock->contents, keyblock->length, map_digest(hash));
-    for (i = 0; i < num_data; i++) {
+    ok = HMAC_Init_ex(ctx, keyblock->contents, keyblock->length,
+                      map_digest(hash), NULL);
+    for (i = 0; ok && i < num_data; i++) {
         const krb5_crypto_iov *iov = &data[i];
 
         if (SIGN_IOV(iov))
-            HMAC_Update(ctx, (uint8_t *)iov->data.data, iov->data.length);
+            ok = HMAC_Update(ctx, (uint8_t *)iov->data.data, iov->data.length);
     }
-    HMAC_Final(ctx, md, &md_len);
-    if ( md_len <= output->length) {
+    if (ok)
+        ok = HMAC_Final(ctx, md, &md_len);
+    if (ok && md_len <= output->length) {
         output->length = md_len;
         memcpy(output->data, md, output->length);
     }
     HMAC_CTX_free(ctx);
-    return 0;
-
-
+    return ok ? 0 : KRB5_CRYPTO_INTERNAL;
 }
+
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 krb5_error_code
 krb5int_hmac(const struct krb5_hash_provider *hash, krb5_key key,
@@ -162,3 +227,5 @@ krb5int_hmac(const struct krb5_hash_provider *hash, krb5_key key,
 {
     return krb5int_hmac_keyblock(hash, &key->keyblock, data, num_data, output);
 }
+
+#endif /* K5_OPENSSL_HMAC */

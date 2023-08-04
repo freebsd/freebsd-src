@@ -1,4 +1,7 @@
-\documentstyle[12pt,fullpage,rcsid]{article}
+% This document is included for historical purposes only, and does not
+% apply to krb5 today.
+
+\documentstyle[12pt,fullpage]{article}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Make _ actually generate an _, and allow line-breaking after it.
@@ -7,15 +10,13 @@
 \def_{\underscore\penalty75\relax}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\rcs$Id$
-
 \setlength{\parskip}{.7\baselineskip}
 \setlength{\parindent}{0pt}
 
 \def\v#1{\verb+#1+}
 \def\k#1{K$_#1$}
 
-\title{KADM5 Library and Server \\ Implementation Design\thanks{\rcsId}}
+\title{KADM5 Library and Server \\ Implementation Design}
 \author{Barry Jaspan}
 
 \begin{document}
@@ -186,7 +187,7 @@ The following functions describe how each context is handled.
 
 Any code whose behavior depends on the API version should be written
 so as to be compatible with future, currently unknown API versions on
-the grounds that any particuarly piece of API behavior will most
+the grounds that any particular piece of API behavior will most
 likely not change between versions.  For example, in the current
 system, the code is not written as ``if this is VERSION_1, do X, else
 if this is VERSION_2, do Y''; instead, it is written as ``if this is
@@ -234,7 +235,7 @@ kadm5_ret_t    kadm5_get_principal(void *server_handle,
 Server library functions must know how many and what type of arguments
 to expect, and must operate on those arguments correctly, based on the
 API version with which they are invoked.  The API version is contained
-in the handle that is alwasy passed as their first argument, generated
+in the handle that is always passed as their first argument, generated
 by kadm5_init_* (to which the client specified the API version to use
 at run-time).
 
@@ -421,7 +422,7 @@ kadm5_get_principal in the server library, it must give that function
 an API handle that contains the API version requested by the client;
 otherwise the function semantics might not be correct.  One
 possibility would be for the server to call kadm5_init for each client
-request, specifing the client's API version number and thus generating
+request, specifying the client's API version number and thus generating
 an API handle with the correct version, but that would be
 prohibitively inefficient.  Instead, the server dips down in the
 server library's internal abstraction barrier, using the function
@@ -486,7 +487,7 @@ kadm5_chpass_principal did not change between VERSION_1 and VERSION_2,
 the declarations of both kadm5_get_principal and kadm5_get_policy
 did.  Thus, to use the caller's API handle, kadm5_chpass_principal
 will have to have a separate code path for each API version, even
-though it itself did not change bewteen versions, and duplicate a lot
+though it itself did not change between versions, and duplicate a lot
 of logic found elsewhere in the library.
 
 Instead, each API handle contains a ``local-use handle,'' or lhandle,
@@ -527,7 +528,7 @@ This scheme might break down if a kadm5 function has to call another
 kadm5 function to perform operations that they client will see and for
 its own benefit, since the semantics of the recursively-called kadm5
 function may depend on the API version specified and the client may be
-depending on a particular version's behavior.  Future implementators
+depending on a particular version's behavior.  Future implementors
 should avoid creating a situation in which this is possible.
 
 \section{Server Main}
@@ -709,7 +710,7 @@ and deallocate the db structure.
 \end{enumerate}
 
 Functions which modify the database acquire an exclusive lock, others
-acqure a shared lock.  osa_adb_iter_T acquires an exclusive lock for
+acquire a shared lock.  osa_adb_iter_T acquires an exclusive lock for
 safety but as stated below consequences of modifying the database in
 the iteration function are undefined.
 
@@ -880,7 +881,7 @@ osa_adb_ret_t osa_adb_iter_T(osa_adb_T_t db, osa_adb_iter_T_func func,
 Iterates over every entry in the database.  For each entry ent in the
 database db, the function (*func)(data, ent) is called.  If func
 returns an error code, osa_adb_iter_T returns an error code.  If all
-invokations of func return OSA_ADB_OK, osa_adb_iter_T returns
+invocations of func return OSA_ADB_OK, osa_adb_iter_T returns
 OSA_ADB_OK.  The function func is permitted to access the database,
 but the consequences of modifying the database during the iteration
 are undefined.
@@ -984,7 +985,7 @@ privilege, 0 if it does not.
 \section{Function Details}
 
 This section discusses specific design issues for Admin API functions
-that are not addresed by the functional specifications.
+that are not addressed by the functional specifications.
 
 \subsection{kadm5_create_principal}
 

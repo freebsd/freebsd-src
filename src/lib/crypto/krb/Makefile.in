@@ -1,6 +1,5 @@
 mydir=lib$(S)crypto$(S)krb
 BUILDTOP=$(REL)..$(S)..$(S)..
-LOCALINCLUDES = -I$(srcdir)/../$(CRYPTO_IMPL)
 
 ##DOS##BUILDTOP = ..\..\..
 ##DOS##PREFIXDIR = krb
@@ -10,8 +9,6 @@ STLIBOBJS=\
 	aead.o		 	\
 	block_size.o		\
 	cf2.o 			\
-	checksum_cbc.o		\
-	checksum_confounder.o	\
 	checksum_dk_cmac.o	\
 	checksum_dk_hmac.o	\
 	checksum_etm.o		\
@@ -20,12 +17,8 @@ STLIBOBJS=\
 	checksum_length.o	\
 	cksumtype_to_string.o	\
 	cksumtypes.o		\
-	cmac.o			\
 	coll_proof_cksum.o	\
-	combine_keys.o		\
-	crc32.o			\
 	crypto_length.o		\
-	crypto_libinit.o	\
 	default_state.o 	\
 	decrypt.o		\
 	decrypt_iov.o		\
@@ -37,7 +30,6 @@ STLIBOBJS=\
 	enc_dk_cmac.o		\
 	enc_dk_hmac.o		\
 	enc_etm.o		\
-	enc_old.o		\
 	enc_raw.o		\
 	enc_rc4.o		\
 	etypes.o		\
@@ -59,9 +51,7 @@ STLIBOBJS=\
 	prf_dk.o		\
 	prf_rc4.o		\
 	prng.o			\
-	prng_$(PRNG_ALG).o	\
 	random_to_key.o		\
-	s2k_des.o		\
 	s2k_pbkdf2.o		\
 	s2k_rc4.o		\
 	state.o 		\
@@ -75,8 +65,6 @@ OBJS=\
 	$(OUTPRE)aead.$(OBJEXT)		 	\
 	$(OUTPRE)block_size.$(OBJEXT)		\
 	$(OUTPRE)cf2.$(OBJEXT) 			\
-	$(OUTPRE)checksum_cbc.$(OBJEXT)		\
-	$(OUTPRE)checksum_confounder.$(OBJEXT)	\
 	$(OUTPRE)checksum_dk_cmac.$(OBJEXT)	\
 	$(OUTPRE)checksum_dk_hmac.$(OBJEXT)	\
 	$(OUTPRE)checksum_etm.$(OBJEXT)		\
@@ -85,12 +73,8 @@ OBJS=\
 	$(OUTPRE)checksum_length.$(OBJEXT)	\
 	$(OUTPRE)cksumtype_to_string.$(OBJEXT)	\
 	$(OUTPRE)cksumtypes.$(OBJEXT)		\
-	$(OUTPRE)cmac.$(OBJEXT)			\
 	$(OUTPRE)coll_proof_cksum.$(OBJEXT)	\
-	$(OUTPRE)combine_keys.$(OBJEXT)		\
-	$(OUTPRE)crc32.$(OBJEXT)		\
 	$(OUTPRE)crypto_length.$(OBJEXT)	\
-	$(OUTPRE)crypto_libinit.$(OBJEXT)	\
 	$(OUTPRE)default_state.$(OBJEXT) 	\
 	$(OUTPRE)decrypt.$(OBJEXT)		\
 	$(OUTPRE)decrypt_iov.$(OBJEXT)		\
@@ -102,7 +86,6 @@ OBJS=\
 	$(OUTPRE)enc_dk_cmac.$(OBJEXT)		\
 	$(OUTPRE)enc_dk_hmac.$(OBJEXT)		\
 	$(OUTPRE)enc_etm.$(OBJEXT)		\
-	$(OUTPRE)enc_old.$(OBJEXT)		\
 	$(OUTPRE)enc_raw.$(OBJEXT)		\
 	$(OUTPRE)enc_rc4.$(OBJEXT)		\
 	$(OUTPRE)etypes.$(OBJEXT)		\
@@ -124,9 +107,7 @@ OBJS=\
 	$(OUTPRE)prf_dk.$(OBJEXT)		\
 	$(OUTPRE)prf_rc4.$(OBJEXT)		\
 	$(OUTPRE)prng.$(OBJEXT)			\
-	$(OUTPRE)prng_$(PRNG_ALG).$(OBJEXT)	\
 	$(OUTPRE)random_to_key.$(OBJEXT)	\
-	$(OUTPRE)s2k_des.$(OBJEXT)		\
 	$(OUTPRE)s2k_pbkdf2.$(OBJEXT)		\
 	$(OUTPRE)s2k_rc4.$(OBJEXT)		\
 	$(OUTPRE)state.$(OBJEXT) 		\
@@ -140,8 +121,6 @@ SRCS=\
 	$(srcdir)/aead.c		\
 	$(srcdir)/block_size.c		\
 	$(srcdir)/cf2.c 			\
-	$(srcdir)/checksum_cbc.c		\
-	$(srcdir)/checksum_confounder.c	\
 	$(srcdir)/checksum_dk_cmac.c	\
 	$(srcdir)/checksum_dk_hmac.c	\
 	$(srcdir)/checksum_etm.c	\
@@ -150,12 +129,8 @@ SRCS=\
 	$(srcdir)/checksum_length.c	\
 	$(srcdir)/cksumtype_to_string.c	\
 	$(srcdir)/cksumtypes.c		\
-	$(srcdir)/cmac.c		\
 	$(srcdir)/coll_proof_cksum.c	\
-	$(srcdir)/combine_keys.c	\
-	$(srcdir)/crc32.c		\
 	$(srcdir)/crypto_length.c	\
-	$(srcdir)/crypto_libinit.c	\
 	$(srcdir)/default_state.c 	\
 	$(srcdir)/decrypt.c		\
 	$(srcdir)/decrypt_iov.c		\
@@ -167,7 +142,6 @@ SRCS=\
 	$(srcdir)/enc_dk_cmac.c		\
 	$(srcdir)/enc_dk_hmac.c		\
 	$(srcdir)/enc_etm.c		\
-	$(srcdir)/enc_old.c		\
 	$(srcdir)/enc_raw.c		\
 	$(srcdir)/enc_rc4.c		\
 	$(srcdir)/etypes.c		\
@@ -189,16 +163,13 @@ SRCS=\
 	$(srcdir)/prf_dk.c		\
 	$(srcdir)/prf_rc4.c		\
 	$(srcdir)/prng.c 		\
-	$(srcdir)/prng_$(PRNG_ALG).c	\
 	$(srcdir)/cf2.c 		\
 	$(srcdir)/random_to_key.c	\
-	$(srcdir)/s2k_des.c		\
 	$(srcdir)/s2k_pbkdf2.c		\
 	$(srcdir)/s2k_rc4.c		\
 	$(srcdir)/state.c 		\
 	$(srcdir)/string_to_cksumtype.c	\
 	$(srcdir)/string_to_key.c	\
-	$(srcdir)/t_fortuna.c		\
 	$(srcdir)/valid_cksumtype.c	\
 	$(srcdir)/verify_checksum.c	\
 	$(srcdir)/verify_checksum_iov.c
@@ -210,17 +181,7 @@ includes: depend
 
 depend: $(SRCS)
 
-check-unix: t_fortuna
-	if [ $(PRNG_ALG) = fortuna ]; then \
-		$(RUN_TEST) ./t_fortuna > t_fortuna.output && \
-		cmp t_fortuna.output $(srcdir)/t_fortuna.expected; \
-	fi
-
-t_fortuna: t_fortuna.o $(SUPPORT_DEPLIB) $(CRYPTO_DEPLIB)
-	$(CC_LINK) -o $@ t_fortuna.o $(K5CRYPTO_LIB) $(SUPPORT_LIB) $(LIBS)
-
 clean-unix:: clean-libobjs
-	$(RM) t_fortuna.o t_fortuna t_fortuna.output
 
 @lib_frag@
 @libobj_frag@

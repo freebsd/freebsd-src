@@ -3,7 +3,7 @@ BUILDTOP = ..\..
 all-windows: $(OUTPRE)libecho.exe
 
 $(OUTPRE)libecho.exe: $(OUTPRE)libecho.obj
-	link -out:$@ $** $(SCLIB)
+	link -out:$@ $**
 	$(_VC_MANIFEST_EMBED_EXE)
 	
 install-windows:

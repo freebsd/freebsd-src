@@ -42,15 +42,8 @@ typedef struct _krb5_pk_authenticator {
     krb5_timestamp  ctime;
     krb5_int32      nonce;  /* (0..4294967295) */
     krb5_checksum   paChecksum;
+    krb5_data      *freshnessToken;
 } krb5_pk_authenticator;
-
-/* PKAuthenticator draft9 */
-typedef struct _krb5_pk_authenticator_draft9 {
-    krb5_principal  kdcName;
-    krb5_int32      cusec;  /* (0..999999) */
-    krb5_timestamp  ctime;
-    krb5_int32      nonce;  /* (0..4294967295) */
-} krb5_pk_authenticator_draft9;
 
 /* AlgorithmIdentifier */
 typedef struct _krb5_algorithm_identifier {
@@ -58,26 +51,14 @@ typedef struct _krb5_algorithm_identifier {
     krb5_data parameters; /* Optional */
 } krb5_algorithm_identifier;
 
-/* SubjectPublicKeyInfo */
-typedef struct _krb5_subject_pk_info {
-    krb5_algorithm_identifier   algorithm;
-    krb5_data                   subjectPublicKey; /* BIT STRING */
-} krb5_subject_pk_info;
-
 /** AuthPack from RFC 4556*/
 typedef struct _krb5_auth_pack {
     krb5_pk_authenticator       pkAuthenticator;
-    krb5_subject_pk_info        *clientPublicValue; /* Optional */
+    krb5_data                   clientPublicValue; /* Optional */
     krb5_algorithm_identifier   **supportedCMSTypes; /* Optional */
     krb5_data                   clientDHNonce; /* Optional */
     krb5_data                   **supportedKDFs; /* OIDs of KDFs; OPTIONAL */
 } krb5_auth_pack;
-
-/* AuthPack draft9 */
-typedef struct _krb5_auth_pack_draft9 {
-    krb5_pk_authenticator_draft9 pkAuthenticator;
-    krb5_subject_pk_info        *clientPublicValue; /* Optional */
-} krb5_auth_pack_draft9;
 
 /* ExternalPrincipalIdentifier */
 typedef struct _krb5_external_principal_identifier {
@@ -85,14 +66,6 @@ typedef struct _krb5_external_principal_identifier {
     krb5_data issuerAndSerialNumber; /* Optional */
     krb5_data subjectKeyIdentifier; /* Optional */
 } krb5_external_principal_identifier;
-
-/* PA-PK-AS-REQ (Draft 9 -- PA TYPE 14) */
-/* This has four fields, but we only care about the first and third for
- * encoding, and the only about the first for decoding. */
-typedef struct _krb5_pa_pk_as_req_draft9 {
-    krb5_data signedAuthPack;
-    krb5_data kdcCert; /* Optional */
-} krb5_pa_pk_as_req_draft9;
 
 /* PA-PK-AS-REQ (rfc4556 -- PA TYPE 16) */
 typedef struct _krb5_pa_pk_as_req {
@@ -115,36 +88,11 @@ typedef struct _krb5_kdc_dh_key_info {
     krb5_timestamp  dhKeyExpiration; /* Optional */
 } krb5_kdc_dh_key_info;
 
-/* KDCDHKeyInfo draft9*/
-typedef struct _krb5_kdc_dh_key_info_draft9 {
-    krb5_data       subjectPublicKey; /* BIT STRING */
-    krb5_int32      nonce;  /* (0..4294967295) */
-} krb5_kdc_dh_key_info_draft9;
-
 /* ReplyKeyPack */
 typedef struct _krb5_reply_key_pack {
     krb5_keyblock   replyKey;
     krb5_checksum   asChecksum;
 } krb5_reply_key_pack;
-
-/* ReplyKeyPack */
-typedef struct _krb5_reply_key_pack_draft9 {
-    krb5_keyblock   replyKey;
-    krb5_int32      nonce;
-} krb5_reply_key_pack_draft9;
-
-/* PA-PK-AS-REP (Draft 9 -- PA TYPE 15) */
-typedef struct _krb5_pa_pk_as_rep_draft9 {
-    enum krb5_pa_pk_as_rep_draft9_selection {
-        choice_pa_pk_as_rep_draft9_UNKNOWN = -1,
-        choice_pa_pk_as_rep_draft9_dhSignedData = 0,
-        choice_pa_pk_as_rep_draft9_encKeyPack = 1
-    } choice;
-    union krb5_pa_pk_as_rep_draft9_choices {
-        krb5_data dhSignedData;
-        krb5_data encKeyPack;
-    } u;
-} krb5_pa_pk_as_rep_draft9;
 
 /* PA-PK-AS-REP (rfc4556 -- PA TYPE 17) */
 typedef struct _krb5_pa_pk_as_rep {
@@ -186,32 +134,16 @@ krb5_error_code
 encode_krb5_pa_pk_as_req(const krb5_pa_pk_as_req *rep, krb5_data **code);
 
 krb5_error_code
-encode_krb5_pa_pk_as_req_draft9(const krb5_pa_pk_as_req_draft9 *rep,
-                                krb5_data **code);
-
-krb5_error_code
 encode_krb5_pa_pk_as_rep(const krb5_pa_pk_as_rep *rep, krb5_data **code);
 
 krb5_error_code
-encode_krb5_pa_pk_as_rep_draft9(const krb5_pa_pk_as_rep_draft9 *rep,
-                                krb5_data **code);
-
-krb5_error_code
 encode_krb5_auth_pack(const krb5_auth_pack *rep, krb5_data **code);
-
-krb5_error_code
-encode_krb5_auth_pack_draft9(const krb5_auth_pack_draft9 *rep,
-                             krb5_data **code);
 
 krb5_error_code
 encode_krb5_kdc_dh_key_info(const krb5_kdc_dh_key_info *rep, krb5_data **code);
 
 krb5_error_code
 encode_krb5_reply_key_pack(const krb5_reply_key_pack *, krb5_data **code);
-
-krb5_error_code
-encode_krb5_reply_key_pack_draft9(const krb5_reply_key_pack_draft9 *,
-                                  krb5_data **code);
 
 krb5_error_code
 encode_krb5_td_trusted_certifiers(krb5_external_principal_identifier *const *,
@@ -237,17 +169,10 @@ krb5_error_code
 decode_krb5_pa_pk_as_req(const krb5_data *, krb5_pa_pk_as_req **);
 
 krb5_error_code
-decode_krb5_pa_pk_as_req_draft9(const krb5_data *,
-                                krb5_pa_pk_as_req_draft9 **);
-
-krb5_error_code
 decode_krb5_pa_pk_as_rep(const krb5_data *, krb5_pa_pk_as_rep **);
 
 krb5_error_code
 decode_krb5_auth_pack(const krb5_data *, krb5_auth_pack **);
-
-krb5_error_code
-decode_krb5_auth_pack_draft9(const krb5_data *, krb5_auth_pack_draft9 **);
 
 krb5_error_code
 decode_krb5_kdc_dh_key_info(const krb5_data *, krb5_kdc_dh_key_info **);
@@ -257,10 +182,6 @@ decode_krb5_principal_name(const krb5_data *, krb5_principal_data **);
 
 krb5_error_code
 decode_krb5_reply_key_pack(const krb5_data *, krb5_reply_key_pack **);
-
-krb5_error_code
-decode_krb5_reply_key_pack_draft9(const krb5_data *,
-                                  krb5_reply_key_pack_draft9 **);
 
 krb5_error_code
 decode_krb5_td_trusted_certifiers(const krb5_data *,

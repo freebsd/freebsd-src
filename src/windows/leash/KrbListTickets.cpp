@@ -73,19 +73,15 @@ LeashKRB5Error(krb5_error_code rc, LPCSTR FailedFunctionName)
 }
 
 
-static char *
-etype_string(krb5_enctype enctype)
+static void
+etype_string(krb5_enctype enctype, char *buf, size_t buflen)
 {
-    static char buf[100];
-
     krb5_error_code retval;
 
-    if ((retval = pkrb5_enctype_to_name(enctype, FALSE, buf, sizeof(buf)))) {
+    if ((retval = pkrb5_enctype_to_name(enctype, FALSE, buf, buflen))) {
         /* XXX if there's an error != EINVAL, I should probably report it */
-        sprintf_s(buf, "etype %d", enctype);
+        sprintf_s(buf, buflen, "etype %d", enctype);
     }
-
-    return buf;
 }
 
 
@@ -110,7 +106,7 @@ CredToTicketList(krb5_context ctx, krb5_creds KRBv5Credentials,
     krb5_error_code code = 0;
     krb5_ticket *tkt=NULL;
     char *sServerName = NULL;
-    char Buffer[256];
+    char Buffer[256], sestype[100], tkttype[100];
     char *functionName = NULL;
     TicketList *list = NULL;
 
@@ -144,15 +140,14 @@ CredToTicketList(krb5_context ctx, krb5_creds KRBv5Credentials,
     else
         list->renew_until = 0;
 
+    etype_string(KRBv5Credentials.keyblock.enctype, sestype, sizeof(sestype));
     if (!pkrb5_decode_ticket(&KRBv5Credentials.ticket, &tkt)) {
-        wsprintf(Buffer, "Session Key: %s  Ticket: %s",
-            etype_string(KRBv5Credentials.keyblock.enctype),
-            etype_string(tkt->enc_part.enctype));
+        etype_string(tkt->enc_part.enctype, tkttype, sizeof(tkttype));
+        wsprintf(Buffer, "Session Key: %s  Ticket: %s", sestype, tkttype);
         pkrb5_free_ticket(ctx, tkt);
         tkt = NULL;
     } else {
-        wsprintf(Buffer, "Session Key: %s",
-            etype_string(KRBv5Credentials.keyblock.enctype));
+        wsprintf(Buffer, "Session Key: %s", sestype);
     }
 
     list->encTypes = (char *)calloc(1, strlen(Buffer)+1);
@@ -222,7 +217,8 @@ do_ccache(krb5_context ctx,
     }
     code = pkrb5_cc_start_seq_get(ctx, cache, &cur);
     if (code) {
-        functionName = "krb5_cc_start_seq_get";
+        // MSLSA errors here if no TGT is found; suppress error message box
+        code = 0;
         goto cleanup;
     }
     if (*ticketInfoTail)

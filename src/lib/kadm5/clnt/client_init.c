@@ -139,43 +139,70 @@ kadm5_init_with_skey(krb5_context context, char *client_name,
 }
 
 static kadm5_ret_t
+free_handle(kadm5_server_handle_t handle)
+{
+    kadm5_ret_t ret = 0;
+    OM_uint32 minor_stat;
+    krb5_ccache ccache;
+
+    if (handle == NULL)
+        return 0;
+
+    if (handle->destroy_cache && handle->cache_name != NULL) {
+        ret = krb5_cc_resolve(handle->context, handle->cache_name, &ccache);
+        if (!ret)
+            ret = krb5_cc_destroy(handle->context, ccache);
+    }
+    free(handle->cache_name);
+    (void)gss_release_cred(&minor_stat, &handle->cred);
+    if (handle->clnt != NULL && handle->clnt->cl_auth != NULL)
+        AUTH_DESTROY(handle->clnt->cl_auth);
+    if (handle->clnt != NULL)
+        clnt_destroy(handle->clnt);
+    if (handle->client_socket != -1)
+        close(handle->client_socket);
+    free(handle->lhandle);
+    kadm5_free_config_params(handle->context, &handle->params);
+    free(handle);
+
+    return ret;
+}
+
+static kadm5_ret_t
 init_any(krb5_context context, char *client_name, enum init_type init_type,
          char *pass, krb5_ccache ccache_in, char *service_name,
          kadm5_config_params *params_in, krb5_ui_4 struct_version,
          krb5_ui_4 api_version, char **db_args, void **server_handle)
 {
     int fd = -1;
-    OM_uint32 minor_stat;
     krb5_boolean iprop_enable;
     int port;
     rpcprog_t rpc_prog;
     rpcvers_t rpc_vers;
-    krb5_ccache ccache;
     krb5_principal client = NULL, server = NULL;
     struct timeval timeout;
 
-    kadm5_server_handle_t handle;
+    kadm5_server_handle_t handle = NULL;
     kadm5_config_params params_local;
 
-    int code = 0;
+    krb5_error_code code;
     generic_ret r = { 0, 0 };
 
     initialize_ovk_error_table();
-/*      initialize_adb_error_table(); */
     initialize_ovku_error_table();
 
-    if (! server_handle) {
+    if (server_handle == NULL || client_name == NULL)
         return EINVAL;
-    }
 
-    if (! (handle = malloc(sizeof(*handle)))) {
-        return ENOMEM;
-    }
-    memset(handle, 0, sizeof(*handle));
-    if (! (handle->lhandle = malloc(sizeof(*handle)))) {
-        free(handle);
-        return ENOMEM;
-    }
+    CHECK_VERSIONS(struct_version, api_version, KADM5_OLD_LIB_API_VERSION,
+                   KADM5_NEW_LIB_API_VERSION);
+
+    handle = k5alloc(sizeof(*handle), &code);
+    if (handle == NULL)
+        goto cleanup;
+    handle->lhandle = k5alloc(sizeof(*handle), &code);
+    if (handle->lhandle == NULL)
+        goto cleanup;
 
     handle->magic_number = KADM5_SERVER_HANDLE_MAGIC;
     handle->struct_version = struct_version;
@@ -193,38 +220,36 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
 
     handle->context = context;
 
-    if(client_name == NULL) {
-        free(handle);
-        return EINVAL;
-    }
-
-    /*
-     * Verify the version numbers before proceeding; we can't use
-     * CHECK_HANDLE because not all fields are set yet.
-     */
-    GENERIC_CHECK_HANDLE(handle, KADM5_OLD_LIB_API_VERSION,
-                         KADM5_NEW_LIB_API_VERSION);
-
     memset(&params_local, 0, sizeof(params_local));
 
-    if ((code = kadm5_get_config_params(handle->context, 0,
-                                        params_in, &handle->params))) {
-        free(handle);
-        return(code);
-    }
+    code = kadm5_get_config_params(handle->context, 0, params_in,
+                                   &handle->params);
+    if (code)
+        goto cleanup;
 
 #define REQUIRED_PARAMS (KADM5_CONFIG_REALM |           \
                          KADM5_CONFIG_ADMIN_SERVER |    \
                          KADM5_CONFIG_KADMIND_PORT)
 
     if ((handle->params.mask & REQUIRED_PARAMS) != REQUIRED_PARAMS) {
-        free(handle);
-        return KADM5_MISSING_KRB5_CONF_PARAMS;
+        code = KADM5_MISSING_KRB5_CONF_PARAMS;
+        goto cleanup;
     }
 
+    /*
+     * Parse the client name.  If it has an empty realm, it is almost certainly
+     * a host-based principal using DNS fallback processing or the referral
+     * realm, so give it the appropriate name type for canonicalization.  Also
+     * check for iprop client principals as kpropd sets the realm on the
+     * sn2princ result.
+     */
     code = krb5_parse_name(handle->context, client_name, &client);
     if (code)
-        goto error;
+        goto cleanup;
+    if ((init_type == INIT_SKEY && client->realm.length == 0) ||
+        (client->length == 2 &&
+         data_eq_string(client->data[0], KIPROP_SVC_NAME)))
+        client->type = KRB5_NT_SRV_HST;
 
     /*
      * Get credentials.  Also does some fallbacks in case kadmin/fqdn
@@ -233,7 +258,7 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
     code = get_init_creds(handle, client, init_type, pass, ccache_in,
                           service_name, handle->params.realm, &server);
     if (code)
-        goto error;
+        goto cleanup;
 
     /* If the service_name and client_name are iprop-centric, use the iprop
      * port and RPC identifiers. */
@@ -252,7 +277,7 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
 
     code = connect_to_server(handle->params.admin_server, port, &fd);
     if (code)
-        goto error;
+        goto cleanup;
 
     handle->clnt = clnttcp_create(NULL, rpc_prog, rpc_vers, &fd, 0, 0);
     if (handle->clnt == NULL) {
@@ -260,7 +285,7 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
 #ifdef DEBUG
         clnt_pcreateerror("clnttcp_create");
 #endif
-        goto error;
+        goto cleanup;
     }
 
     /* Set a one-hour timeout. */
@@ -272,10 +297,6 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
     handle->lhandle->clnt = handle->clnt;
     handle->lhandle->client_socket = fd;
 
-    /* now that handle->clnt is set, we can check the handle */
-    if ((code = _kadm5_check_handle((void *) handle)))
-        goto error;
-
     /*
      * The RPC connection is open; establish the GSS-API
      * authentication context.
@@ -283,15 +304,16 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
     code = setup_gss(handle, params_in,
                      (init_type == INIT_CREDS) ? client : NULL, server);
     if (code)
-        goto error;
+        goto cleanup;
 
     /*
-     * Bypass the remainder of the code and return straightaway
+     * Bypass the remainder of the code and return straight away
      * if the gss service requested is kiprop
      */
     if (iprop_enable) {
         code = 0;
-        *server_handle = (void *) handle;
+        *server_handle = handle;
+        handle = NULL;
         goto cleanup;
     }
 
@@ -300,7 +322,7 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
 #ifdef DEBUG
         clnt_perror(handle->clnt, "init_2 null resp");
 #endif
-        goto error;
+        goto cleanup;
     }
     /* Drop down to v3 wire protocol if server does not support v4 */
     if (r.code == KADM5_NEW_SERVER_API_VERSION &&
@@ -309,7 +331,7 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
         memset(&r, 0, sizeof(generic_ret));
         if (init_2(&handle->api_version, &r, handle->clnt)) {
             code = KADM5_RPC_ERROR;
-            goto error;
+            goto cleanup;
         }
     }
     /* Drop down to v2 wire protocol if server does not support v3 */
@@ -319,47 +341,21 @@ init_any(krb5_context context, char *client_name, enum init_type init_type,
         memset(&r, 0, sizeof(generic_ret));
         if (init_2(&handle->api_version, &r, handle->clnt)) {
             code = KADM5_RPC_ERROR;
-            goto error;
+            goto cleanup;
         }
     }
     if (r.code) {
         code = r.code;
-        goto error;
+        goto cleanup;
     }
 
-    *server_handle = (void *) handle;
-
-    goto cleanup;
-
-error:
-    /*
-     * Note that it is illegal for this code to execute if "handle"
-     * has not been allocated and initialized.  I.e., don't use "goto
-     * error" before the block of code at the top of the function
-     * that allocates and initializes "handle".
-     */
-    if (handle->destroy_cache && handle->cache_name) {
-        if (krb5_cc_resolve(handle->context,
-                            handle->cache_name, &ccache) == 0)
-            (void) krb5_cc_destroy (handle->context, ccache);
-    }
-    if (handle->cache_name)
-        free(handle->cache_name);
-    (void)gss_release_cred(&minor_stat, &handle->cred);
-    if(handle->clnt && handle->clnt->cl_auth)
-        AUTH_DESTROY(handle->clnt->cl_auth);
-    if(handle->clnt)
-        clnt_destroy(handle->clnt);
-    if (fd != -1)
-        close(fd);
-    free(handle->lhandle);
-    kadm5_free_config_params(handle->context, &handle->params);
+    *server_handle = handle;
+    handle = NULL;
 
 cleanup:
-    krb5_free_principal(handle->context, client);
-    krb5_free_principal(handle->context, server);
-    if (code)
-        free(handle);
+    krb5_free_principal(context, client);
+    krb5_free_principal(context, server);
+    (void)free_handle(handle);
 
     return code;
 }
@@ -373,21 +369,9 @@ get_init_creds(kadm5_server_handle_t handle, krb5_principal client,
 {
     kadm5_ret_t code;
     krb5_ccache ccache = NULL;
-    char svcname[BUFSIZ];
+    char *svcname, svcbuf[BUFSIZ];
 
     *server_out = NULL;
-
-    /* NULL svcname means use host-based. */
-    if (svcname_in == NULL) {
-        code = kadm5_get_admin_service_name(handle->context,
-                                            handle->params.realm,
-                                            svcname, sizeof(svcname));
-        if (code)
-            goto error;
-    } else {
-        strncpy(svcname, svcname_in, sizeof(svcname));
-        svcname[sizeof(svcname)-1] = '\0';
-    }
 
     /*
      * Acquire a service ticket for svcname@realm for client, using password
@@ -424,13 +408,19 @@ get_init_creds(kadm5_server_handle_t handle, krb5_principal client,
     }
     handle->lhandle->cache_name = handle->cache_name;
 
+    svcname = (svcname_in != NULL) ? svcname_in : KADM5_ADMIN_SERVICE;
     code = gic_iter(handle, init_type, ccache, client, pass, svcname, realm,
                     server_out);
     if ((code == KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN
          || code == KRB5_CC_NOTFOUND) && svcname_in == NULL) {
-        /* Retry with old host-independent service principal. */
-        code = gic_iter(handle, init_type, ccache, client, pass,
-                        KADM5_ADMIN_SERVICE, realm, server_out);
+        /* Retry with host-based service principal. */
+        code = kadm5_get_admin_service_name(handle->context,
+                                            handle->params.realm,
+                                            svcbuf, sizeof(svcbuf));
+        if (code)
+            goto error;
+        code = gic_iter(handle, init_type, ccache, client, pass, svcbuf, realm,
+                        server_out);
     }
     /* Improved error messages */
     if (code == KRB5KRB_AP_ERR_BAD_INTEGRITY) code = KADM5_BAD_PASSWORD;
@@ -466,6 +456,9 @@ gic_iter(kadm5_server_handle_t handle, enum init_type init_type,
     /* Credentials for kadmin don't need to be forwardable or proxiable. */
     if (init_type != INIT_CREDS) {
         code = krb5_get_init_creds_opt_alloc(ctx, &opt);
+        if (code)
+            goto error;
+
         krb5_get_init_creds_opt_set_forwardable(opt, 0);
         krb5_get_init_creds_opt_set_proxiable(opt, 0);
         krb5_get_init_creds_opt_set_out_ccache(ctx, opt, ccache);
@@ -612,53 +605,8 @@ setup_gss(kadm5_server_handle_t handle, kadm5_config_params *params_in,
     gssstat = gss_acquire_cred(&minor_stat, gss_client, 0,
                                GSS_C_NULL_OID_SET, GSS_C_INITIATE,
                                &handle->cred, NULL, NULL);
-    if (gssstat != GSS_S_COMPLETE) {
-#if 0 /* for debugging only */
-        {
-            OM_uint32 maj_status, min_status, message_context = 0;
-            gss_buffer_desc status_string;
-            do {
-                maj_status = gss_display_status(&min_status,
-                                                gssstat,
-                                                GSS_C_GSS_CODE,
-                                                GSS_C_NO_OID,
-                                                &message_context,
-                                                &status_string);
-                if (maj_status == GSS_S_COMPLETE) {
-                    fprintf(stderr, "MAJ: %.*s\n",
-                            (int) status_string.length,
-                            (char *)status_string.value);
-                    gss_release_buffer(&min_status, &status_string);
-                } else {
-                    fprintf(stderr,
-                            "MAJ? gss_display_status returns 0x%lx?!\n",
-                            (unsigned long) maj_status);
-                    message_context = 0;
-                }
-            } while (message_context != 0);
-            do {
-                maj_status = gss_display_status(&min_status,
-                                                minor_stat,
-                                                GSS_C_MECH_CODE,
-                                                GSS_C_NO_OID,
-                                                &message_context,
-                                                &status_string);
-                if (maj_status == GSS_S_COMPLETE) {
-                    fprintf(stderr, "MIN: %.*s\n",
-                            (int) status_string.length,
-                            (char *)status_string.value);
-                    gss_release_buffer(&min_status, &status_string);
-                } else {
-                    fprintf(stderr,
-                            "MIN? gss_display_status returns 0x%lx?!\n",
-                            (unsigned long) maj_status);
-                    message_context = 0;
-                }
-            } while (message_context != 0);
-        }
-#endif
+    if (gssstat != GSS_S_COMPLETE)
         goto error;
-    }
 
     /*
      * Do actual creation of RPC auth handle.  Implements auth flavor
@@ -737,38 +685,8 @@ rpc_auth(kadm5_server_handle_t handle, kadm5_config_params *params_in,
 kadm5_ret_t
 kadm5_destroy(void *server_handle)
 {
-    OM_uint32 minor_stat;
-    krb5_ccache            ccache = NULL;
-    int                    code = KADM5_OK;
-    kadm5_server_handle_t      handle =
-        (kadm5_server_handle_t) server_handle;
-
     CHECK_HANDLE(server_handle);
-
-    if (handle->destroy_cache && handle->cache_name) {
-        if ((code = krb5_cc_resolve(handle->context,
-                                    handle->cache_name, &ccache)) == 0)
-            code = krb5_cc_destroy (handle->context, ccache);
-    }
-    if (handle->cache_name)
-        free(handle->cache_name);
-    if (handle->cred)
-        (void)gss_release_cred(&minor_stat, &handle->cred);
-    if (handle->clnt && handle->clnt->cl_auth)
-        AUTH_DESTROY(handle->clnt->cl_auth);
-    if (handle->clnt)
-        clnt_destroy(handle->clnt);
-    if (handle->client_socket != -1)
-        close(handle->client_socket);
-    if (handle->lhandle)
-        free (handle->lhandle);
-
-    kadm5_free_config_params(handle->context, &handle->params);
-
-    handle->magic_number = 0;
-    free(handle);
-
-    return code;
+    return free_handle(server_handle);
 }
 /* not supported on client */
 kadm5_ret_t kadm5_lock(void *server_handle)

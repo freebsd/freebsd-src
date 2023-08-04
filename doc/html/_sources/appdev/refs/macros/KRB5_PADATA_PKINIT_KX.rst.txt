@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-PKINIT-KX-data:
+
+KRB5_PADATA_PKINIT_KX
+=====================
+
+..
+.. data:: KRB5_PADATA_PKINIT_KX
+..
+
+RFC 6112.
+
+
+
+============================ ======================
+``KRB5_PADATA_PKINIT_KX``       ``147``
+============================ ======================

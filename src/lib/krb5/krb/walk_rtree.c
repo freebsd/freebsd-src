@@ -133,6 +133,12 @@ k5_client_realm_path(krb5_context context, const krb5_data *client,
     if (retval)
         return retval;
 
+    /* A capaths value of "." means no intermediates. */
+    if (capvals != NULL && capvals[0] != NULL && *capvals[0] == '.') {
+        profile_free_list(capvals);
+        capvals = NULL;
+    }
+
     /* Count capaths (if any) and allocate space.  Leave room for the client
      * realm, server realm, and terminator. */
     for (i = 0; capvals != NULL && capvals[i] != NULL; i++);
@@ -168,7 +174,7 @@ cleanup:
 /* ANL - Modified to allow Configurable Authentication Paths.
  * This modification removes the restriction on the choice of realm
  * names, i.e. they nolonger have to be hierarchical. This
- * is allowed by RFC 1510: "If a hierarchical orginization is not used
+ * is allowed by RFC 1510: "If a hierarchical organization is not used
  * it may be necessary to consult some database in order to construct
  * an authentication path between realms."  The database is contained
  * in the [capaths] section of the krb5.conf file.
@@ -178,8 +184,8 @@ cleanup:
  * entries if the same krb5.conf is used for clients and servers)
  *
  * for example: ESnet will be running a KDC which will share
- * inter-realm keys with its many orginizations which include among
- * other ANL, NERSC and PNL. Each of these orginizations wants to
+ * inter-realm keys with its many organizations which include among
+ * other ANL, NERSC and PNL. Each of these organizations wants to
  * use its DNS name in the realm, ANL.GOV. In addition ANL wants
  * to authenticatite to HAL.COM via a K5.MOON and K5.JUPITER
  * A [capaths] section of the krb5.conf file for the ANL.GOV clients
@@ -215,9 +221,9 @@ cleanup:
  *
  * This version of the Configurable Authentication Path modification
  * differs from the previous versions prior to K5 beta 5 in that
- * the profile routines are used, and the explicite path from
- * client's realm to server's realm must be given. The modifications
- * will work together.
+ * the profile routines are used, and the explicit path from client's
+ * realm to server's realm must be given. The modifications will work
+ * together.
  * DEE - 5/23/95
  */
 
@@ -609,7 +615,7 @@ comtail(struct hstate *c, struct hstate *s, int sep)
 void
 krb5_free_realm_tree(krb5_context context, krb5_principal *realms)
 {
-    register krb5_principal *nrealms = realms;
+    krb5_principal *nrealms = realms;
     if (realms == NULL)
         return;
     while (*nrealms) {

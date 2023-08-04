@@ -439,17 +439,40 @@ read_header(krb5_context context, FILE *fp, int *version_out)
     return 0;
 }
 
+static void
+marshal_header(krb5_context context, struct k5buf *buf, krb5_principal princ)
+{
+    krb5_os_context os_ctx = &context->os_context;
+    int version = context->fcc_default_format - FVNO_BASE;
+    uint16_t fields_len;
+
+    version = context->fcc_default_format - FVNO_BASE;
+    k5_buf_add_uint16_be(buf, FVNO_BASE + version);
+    if (version >= 4) {
+        /* Add tagged header fields. */
+        fields_len = 0;
+        if (os_ctx->os_flags & KRB5_OS_TOFFSET_VALID)
+            fields_len += 12;
+        k5_buf_add_uint16_be(buf, fields_len);
+        if (os_ctx->os_flags & KRB5_OS_TOFFSET_VALID) {
+            /* Add time offset tag. */
+            k5_buf_add_uint16_be(buf, FCC_TAG_DELTATIME);
+            k5_buf_add_uint16_be(buf, 8);
+            k5_buf_add_uint32_be(buf, os_ctx->time_offset);
+            k5_buf_add_uint32_be(buf, os_ctx->usec_offset);
+        }
+    }
+    k5_marshal_princ(buf, version, princ);
+}
+
 /* Create or overwrite the cache file with a header and default principal. */
 static krb5_error_code KRB5_CALLCONV
 fcc_initialize(krb5_context context, krb5_ccache id, krb5_principal princ)
 {
     krb5_error_code ret;
-    krb5_os_context os_ctx = &context->os_context;
     fcc_data *data = id->data;
-    char i16buf[2], i32buf[4];
-    uint16_t fields_len;
     ssize_t nwritten;
-    int st, flags, version, fd = -1;
+    int st, flags, fd = -1;
     struct k5buf buf = EMPTY_K5BUF;
     krb5_boolean file_locked = FALSE;
 
@@ -483,29 +506,7 @@ fcc_initialize(krb5_context context, krb5_ccache id, krb5_principal princ)
 
     /* Prepare the header and principal in buf. */
     k5_buf_init_dynamic(&buf);
-    version = context->fcc_default_format - FVNO_BASE;
-    store_16_be(FVNO_BASE + version, i16buf);
-    k5_buf_add_len(&buf, i16buf, 2);
-    if (version >= 4) {
-        /* Add tagged header fields. */
-        fields_len = 0;
-        if (os_ctx->os_flags & KRB5_OS_TOFFSET_VALID)
-            fields_len += 12;
-        store_16_be(fields_len, i16buf);
-        k5_buf_add_len(&buf, i16buf, 2);
-        if (os_ctx->os_flags & KRB5_OS_TOFFSET_VALID) {
-            /* Add time offset tag. */
-            store_16_be(FCC_TAG_DELTATIME, i16buf);
-            k5_buf_add_len(&buf, i16buf, 2);
-            store_16_be(8, i16buf);
-            k5_buf_add_len(&buf, i16buf, 2);
-            store_32_be(os_ctx->time_offset, i32buf);
-            k5_buf_add_len(&buf, i32buf, 4);
-            store_32_be(os_ctx->usec_offset, i32buf);
-            k5_buf_add_len(&buf, i32buf, 4);
-        }
-    }
-    k5_marshal_princ(&buf, version, princ);
+    marshal_header(context, &buf, princ);
     ret = k5_buf_status(&buf);
     if (ret)
         goto cleanup;
@@ -744,6 +745,14 @@ cleanup:
     return set_errmsg_filename(context, ret, data->filename);
 }
 
+/* Return true if cred is a removed entry (assuming that no legitimate cred
+ * entries will have authtime=-1 and endtime=0). */
+static inline krb5_boolean
+cred_removed(krb5_creds *c)
+{
+    return c->times.endtime == 0 && c->times.authtime == -1;
+}
+
 /* Get the next credential from the cache file. */
 static krb5_error_code KRB5_CALLCONV
 fcc_next_cred(krb5_context context, krb5_ccache id, krb5_cc_cursor *cursor,
@@ -758,26 +767,37 @@ fcc_next_cred(krb5_context context, krb5_ccache id, krb5_cc_cursor *cursor,
 
     memset(creds, 0, sizeof(*creds));
     k5_cc_mutex_lock(context, &data->lock);
-    k5_buf_init_dynamic(&buf);
+    k5_buf_init_dynamic_zap(&buf);
 
     ret = krb5_lock_file(context, fileno(fcursor->fp), KRB5_LOCKMODE_SHARED);
     if (ret)
         goto cleanup;
     file_locked = TRUE;
 
-    /* Load a marshalled cred into memory. */
-    ret = get_size(context, fcursor->fp, &maxsize);
-    if (ret)
-        goto cleanup;
-    ret = load_cred(context, fcursor->fp, fcursor->version, maxsize, &buf);
-    if (ret)
-        goto cleanup;
-    ret = k5_buf_status(&buf);
-    if (ret)
-        goto cleanup;
+    for (;;) {
+        /* Load a marshalled cred into memory. */
+        ret = get_size(context, fcursor->fp, &maxsize);
+        if (ret)
+            goto cleanup;
+        ret = load_cred(context, fcursor->fp, fcursor->version, maxsize, &buf);
+        if (ret)
+            goto cleanup;
+        ret = k5_buf_status(&buf);
+        if (ret)
+            goto cleanup;
 
-    /* Unmarshal it from buf into creds. */
-    ret = k5_unmarshal_cred(buf.data, buf.len, fcursor->version, creds);
+        /* Unmarshal it from buf into creds. */
+        ret = k5_unmarshal_cred(buf.data, buf.len, fcursor->version, creds);
+        if (ret)
+            goto cleanup;
+
+        /* Keep going if this entry has been removed; otherwise stop. */
+        if (!cred_removed(creds))
+            break;
+
+        k5_buf_truncate(&buf, 0);
+        krb5_free_cred_contents(context, creds);
+    }
 
 cleanup:
     if (file_locked)
@@ -982,7 +1002,7 @@ fcc_store(krb5_context context, krb5_ccache id, krb5_creds *creds)
         goto cleanup;
 
     /* Marshal the cred and write it to the file with a single append write. */
-    k5_buf_init_dynamic(&buf);
+    k5_buf_init_dynamic_zap(&buf);
     k5_marshal_cred(&buf, version, creds);
     ret = k5_buf_status(&buf);
     if (ret)
@@ -1002,12 +1022,142 @@ cleanup:
     return set_errmsg_filename(context, ret ? ret : ret2, data->filename);
 }
 
-/* Non-functional stub for removing a cred from the cache file. */
+/*
+ * Overwrite cred in the ccache file with an entry that should not match any
+ * reasonable search.  Deletion is not guaranteed.  This method is originally
+ * from Heimdal, with the addition of setting authtime to -1.
+ */
+static krb5_error_code
+delete_cred(krb5_context context, krb5_ccache cache, krb5_cc_cursor *cursor,
+            krb5_creds *cred)
+{
+    krb5_error_code ret;
+    krb5_fcc_cursor *fcursor = *cursor;
+    fcc_data *data = cache->data;
+    struct k5buf expected = EMPTY_K5BUF, overwrite = EMPTY_K5BUF;
+    int fd = -1;
+    uint8_t *on_disk = NULL;
+    ssize_t rwret;
+    off_t start_offset;
+
+    k5_buf_init_dynamic_zap(&expected);
+    k5_buf_init_dynamic_zap(&overwrite);
+
+    /* Re-marshal cred to get its byte representation in the file. */
+    k5_marshal_cred(&expected, fcursor->version, cred);
+    ret = k5_buf_status(&expected);
+    if (ret)
+        goto cleanup;
+
+    /*
+     * Mark the cred expired so that it will be skipped over by any future
+     * match checks.  Heimdal only sets endtime, but we also set authtime to
+     * distinguish from gssproxy's creds.
+     */
+    cred->times.endtime = 0;
+    cred->times.authtime = -1;
+
+    /* For config entries, also change the realm so that other implementations
+     * won't match them. */
+    if (data_eq_string(cred->server->realm, "X-CACHECONF:"))
+        memcpy(cred->server->realm.data, "X-RMED-CONF:", 12);
+
+    k5_marshal_cred(&overwrite, fcursor->version, cred);
+    ret = k5_buf_status(&overwrite);
+    if (ret)
+        goto cleanup;
+
+    if (expected.len != overwrite.len) {
+        ret = KRB5_CC_FORMAT;
+        goto cleanup;
+    }
+
+    /* Get a non-O_APPEND handle to the raw file. */
+    fd = open(data->filename, O_RDWR | O_BINARY | O_CLOEXEC);
+    if (fd == -1) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    }
+
+    start_offset = ftell(fcursor->fp);
+    if (start_offset == -1) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    }
+    start_offset -= expected.len;
+
+    /* Read the bytes at the entry to be overwritten. */
+    if (lseek(fd, start_offset, SEEK_SET) == -1) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    }
+    on_disk = k5alloc(expected.len, &ret);
+    if (ret != 0)
+        goto cleanup;
+    rwret = read(fd, on_disk, expected.len);
+    if (rwret < 0) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    } else if ((size_t)rwret != expected.len) {
+        ret = KRB5_CC_FORMAT;
+        goto cleanup;
+    }
+
+    /*
+     * If the bytes have changed, either someone else removed the same cred or
+     * the cache was reinitialized.  Either way the cred is no longer present,
+     * so return successfully.
+     */
+    if (memcmp(on_disk, expected.data, expected.len) != 0)
+        goto cleanup;
+
+    /* Write out the altered entry. */
+    if (lseek(fd, start_offset, SEEK_SET) == -1) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    }
+    rwret = write(fd, overwrite.data, overwrite.len);
+    if (rwret < 0) {
+        ret = interpret_errno(context, errno);
+        goto cleanup;
+    }
+
+cleanup:
+    if (fd >= 0)
+        close(fd);
+    zapfree(on_disk, expected.len);
+    k5_buf_free(&expected);
+    k5_buf_free(&overwrite);
+    return ret;
+}
+
+/* Remove the given creds from the ccache file. */
 static krb5_error_code KRB5_CALLCONV
 fcc_remove_cred(krb5_context context, krb5_ccache cache, krb5_flags flags,
                 krb5_creds *creds)
 {
-    return KRB5_CC_NOSUPP;
+    krb5_error_code ret;
+    krb5_cc_cursor cursor;
+    krb5_creds cur;
+
+    ret = krb5_cc_start_seq_get(context, cache, &cursor);
+    if (ret)
+        return ret;
+
+    for (;;) {
+        ret = krb5_cc_next_cred(context, cache, &cursor, &cur);
+        if (ret)
+            break;
+
+        if (krb5int_cc_creds_match_request(context, flags, creds, &cur))
+            ret = delete_cred(context, cache, &cursor, &cur);
+        krb5_free_cred_contents(context, &cur);
+        if (ret)
+            break;
+    }
+
+    krb5_cc_end_seq_get(context, cache, &cursor);
+    return (ret == KRB5_CC_END) ? 0 : ret;
 }
 
 static krb5_error_code KRB5_CALLCONV
@@ -1099,29 +1249,6 @@ fcc_ptcursor_free(krb5_context context, krb5_cc_ptcursor *cursor)
     return 0;
 }
 
-/* Get the cache file's last modification time. */
-static krb5_error_code KRB5_CALLCONV
-fcc_last_change_time(krb5_context context, krb5_ccache id,
-                     krb5_timestamp *change_time)
-{
-    krb5_error_code ret = 0;
-    fcc_data *data = id->data;
-    struct stat buf;
-
-    *change_time = 0;
-
-    k5_cc_mutex_lock(context, &data->lock);
-
-    if (stat(data->filename, &buf) == -1)
-        ret = interpret_errno(context, errno);
-    else
-        *change_time = (krb5_timestamp)buf.st_mtime;
-
-    k5_cc_mutex_unlock(context, &data->lock);
-
-    return set_errmsg_filename(context, ret, data->filename);
-}
-
 /* Lock the cache handle against other threads.  (This does not lock the cache
  * file against other processes.) */
 static krb5_error_code KRB5_CALLCONV
@@ -1139,6 +1266,64 @@ fcc_unlock(krb5_context context, krb5_ccache id)
     fcc_data *data = id->data;
     k5_cc_mutex_unlock(context, &data->lock);
     return 0;
+}
+
+static krb5_error_code KRB5_CALLCONV
+fcc_replace(krb5_context context, krb5_ccache id, krb5_principal princ,
+            krb5_creds **creds)
+{
+    krb5_error_code ret;
+    fcc_data *data = id->data;
+    char *tmpname = NULL;
+    int i, st, fd = -1, version = context->fcc_default_format - FVNO_BASE;
+    ssize_t nwritten;
+    struct k5buf buf = EMPTY_K5BUF;
+    krb5_boolean tmpfile_exists = FALSE;
+
+    if (asprintf(&tmpname, "%s.XXXXXX", data->filename) < 0)
+        return ENOMEM;
+    fd = mkstemp(tmpname);
+    if (fd < 0)
+        goto errno_cleanup;
+    tmpfile_exists = TRUE;
+
+    k5_buf_init_dynamic_zap(&buf);
+    marshal_header(context, &buf, princ);
+    for (i = 0; creds[i] != NULL; i++)
+        k5_marshal_cred(&buf, version, creds[i]);
+    ret = k5_buf_status(&buf);
+    if (ret)
+        goto cleanup;
+
+    nwritten = write(fd, buf.data, buf.len);
+    if (nwritten == -1)
+        goto errno_cleanup;
+    if ((size_t)nwritten != buf.len) {
+        ret = KRB5_CC_IO;
+        goto cleanup;
+    }
+    st = close(fd);
+    fd = -1;
+    if (st != 0)
+        goto errno_cleanup;
+
+    st = rename(tmpname, data->filename);
+    if (st != 0)
+        goto errno_cleanup;
+    tmpfile_exists = FALSE;
+
+cleanup:
+    k5_buf_free(&buf);
+    if (fd != -1)
+        close(fd);
+    if (tmpfile_exists)
+        unlink(tmpname);
+    free(tmpname);
+    return ret;
+
+errno_cleanup:
+    ret = interpret_errno(context, errno);
+    goto cleanup;
 }
 
 /* Translate a system errno value to a Kerberos com_err code. */
@@ -1216,8 +1401,7 @@ const krb5_cc_ops krb5_fcc_ops = {
     fcc_ptcursor_new,
     fcc_ptcursor_next,
     fcc_ptcursor_free,
-    NULL, /* move */
-    fcc_last_change_time,
+    fcc_replace,
     NULL, /* wasdefault */
     fcc_lock,
     fcc_unlock,
@@ -1287,8 +1471,7 @@ const krb5_cc_ops krb5_cc_file_ops = {
     fcc_ptcursor_new,
     fcc_ptcursor_next,
     fcc_ptcursor_free,
-    NULL, /* move */
-    fcc_last_change_time,
+    fcc_replace,
     NULL, /* wasdefault */
     fcc_lock,
     fcc_unlock,

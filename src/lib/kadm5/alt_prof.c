@@ -50,52 +50,6 @@ copy_key_salt_tuple(krb5_key_salt_tuple *ksalt, krb5_int32 len)
 }
 
 /*
- * krb5_aprof_init()        - Initialize alternate profile context.
- *
- * Parameters:
- *        fname             - default file name of the profile.
- *        envname           - environment variable which can override fname
- *        acontextp         - Pointer to opaque context for alternate profile
- *
- * Returns:
- *        error codes from profile_init()
- */
-krb5_error_code
-krb5_aprof_init(char *fname, char *envname, krb5_pointer *acontextp)
-{
-    krb5_error_code ret;
-    profile_t profile;
-    const char *kdc_config;
-    char **filenames;
-    int i;
-    struct k5buf buf;
-
-    ret = krb5_get_default_config_files(&filenames);
-    if (ret)
-        return ret;
-    if (envname == NULL || (kdc_config = getenv(envname)) == NULL)
-        kdc_config = fname;
-    k5_buf_init_dynamic(&buf);
-    if (kdc_config)
-        k5_buf_add(&buf, kdc_config);
-    for (i = 0; filenames[i] != NULL; i++) {
-        if (buf.len > 0)
-            k5_buf_add(&buf, ":");
-        k5_buf_add(&buf, filenames[i]);
-    }
-    krb5_free_config_files(filenames);
-    if (k5_buf_status(&buf) != 0)
-        return ENOMEM;
-    profile = (profile_t) NULL;
-    ret = profile_init_path(buf.data, &profile);
-    k5_buf_free(&buf);
-    if (ret)
-        return ret;
-    *acontextp = profile;
-    return 0;
-}
-
-/*
  * krb5_aprof_getvals()     - Get values from alternate profile.
  *
  * Parameters:
@@ -345,22 +299,6 @@ krb5_aprof_get_int32(krb5_pointer acontext, const char **hierarchy,
 }
 
 /*
- * krb5_aprof_finish()      - Finish alternate profile context.
- *
- * Parameter:
- *        acontext          - opaque context for alternate profile.
- *
- * Returns:
- *        0 on success, something else on failure.
- */
-krb5_error_code
-krb5_aprof_finish(krb5_pointer acontext)
-{
-    profile_release(acontext);
-    return 0;
-}
-
-/*
  * Returns nonzero if it found something to copy; the caller may still need to
  * check the output field or mask to see if the copy (allocation) was
  * successful.  Returns zero if nothing was found to copy, and thus the caller
@@ -510,8 +448,8 @@ krb5_error_code kadm5_get_config_params(krb5_context context,
                                         kadm5_config_params *params_in,
                                         kadm5_config_params *params_out)
 {
-    char *filename, *envname, *lrealm, *svalue, *sp, *ep, *tp;
-    krb5_pointer aprofile = 0;
+    char *lrealm, *svalue, *sp, *ep, *tp;
+    krb5_pointer aprofile = context->profile;
     const char *hierarchy[4];
     krb5_int32 ivalue;
     kadm5_config_params params, empty_params;
@@ -526,8 +464,11 @@ krb5_error_code kadm5_get_config_params(krb5_context context,
 
     if (params_in->mask & KADM5_CONFIG_REALM) {
         lrealm = params.realm = strdup(params_in->realm);
-        if (params.realm != NULL)
-            params.mask |= KADM5_CONFIG_REALM;
+        if (params.realm == NULL) {
+            ret = ENOMEM;
+            goto cleanup;
+        }
+        params.mask |= KADM5_CONFIG_REALM;
     } else {
         ret = krb5_get_default_realm(context, &lrealm);
         if (ret)
@@ -540,25 +481,6 @@ krb5_error_code kadm5_get_config_params(krb5_context context,
         params.kvno = params_in->kvno;
         params.mask |= KADM5_CONFIG_KVNO;
     }
-    /*
-     * XXX These defaults should to work on both client and
-     * server.  kadm5_get_config_params can be implemented as a
-     * wrapper function in each library that provides correct
-     * defaults for NULL values.
-     */
-    if (use_kdc_config) {
-        filename = DEFAULT_KDC_PROFILE;
-        envname = KDC_PROFILE_ENV;
-    } else {
-        filename = DEFAULT_PROFILE_PATH;
-        envname = "KRB5_CONFIG";
-    }
-    if (context->profile_secure == TRUE)
-        envname = NULL;
-
-    ret = krb5_aprof_init(filename, envname, &aprofile);
-    if (ret)
-        goto cleanup;
 
     /* Initialize realm parameters. */
     hierarchy[0] = KRB5_CONF_REALMS;
@@ -730,6 +652,10 @@ krb5_error_code kadm5_get_config_params(krb5_context context,
             krb5_aprof_get_string(aprofile, hierarchy, TRUE, &svalue);
         if (svalue == NULL)
             svalue = strdup(KRB5_DEFAULT_SUPPORTED_ENCTYPES);
+        if (svalue == NULL) {
+            ret = ENOMEM;
+            goto cleanup;
+        }
 
         params.keysalts = NULL;
         params.num_keysalts = 0;
@@ -777,32 +703,36 @@ krb5_error_code kadm5_get_config_params(krb5_context context,
     GET_DELTAT_PARAM(iprop_resync_timeout, KADM5_CONFIG_IPROP_RESYNC_TIMEOUT,
                      KRB5_CONF_IPROP_RESYNC_TIMEOUT, 60 * 5);
 
-    hierarchy[2] = KRB5_CONF_IPROP_MASTER_ULOGSIZE;
-
-    params.iprop_ulogsize = DEF_ULOGENTRIES;
-    params.mask |= KADM5_CONFIG_ULOG_SIZE;
-
     if (params_in->mask & KADM5_CONFIG_ULOG_SIZE) {
         params.mask |= KADM5_CONFIG_ULOG_SIZE;
         params.iprop_ulogsize = params_in->iprop_ulogsize;
     } else {
+        params.iprop_ulogsize = 0;
+        hierarchy[2] = KRB5_CONF_IPROP_ULOGSIZE;
         if (aprofile != NULL &&
-            !krb5_aprof_get_int32(aprofile, hierarchy, TRUE, &ivalue)) {
-            if (ivalue <= 0)
-                params.iprop_ulogsize = DEF_ULOGENTRIES;
-            else
-                params.iprop_ulogsize = ivalue;
-            params.mask |= KADM5_CONFIG_ULOG_SIZE;
-        }
+            !krb5_aprof_get_int32(aprofile, hierarchy, TRUE, &ivalue) &&
+            ivalue > 0)
+            params.iprop_ulogsize = ivalue;
+        hierarchy[2] = KRB5_CONF_IPROP_MASTER_ULOGSIZE;
+        if (params.iprop_ulogsize == 0 && aprofile != NULL &&
+            !krb5_aprof_get_int32(aprofile, hierarchy, TRUE, &ivalue) &&
+            ivalue > 0)
+            params.iprop_ulogsize = ivalue;
+        if (params.iprop_ulogsize == 0)
+            params.iprop_ulogsize = DEF_ULOGENTRIES;
     }
+    params.mask |= KADM5_CONFIG_ULOG_SIZE;
 
     GET_DELTAT_PARAM(iprop_poll_time, KADM5_CONFIG_POLL_TIME,
-                     KRB5_CONF_IPROP_SLAVE_POLL, 2 * 60); /* 2m */
+                     KRB5_CONF_IPROP_REPLICA_POLL, -1);
+    if (params.iprop_poll_time == -1) {
+        GET_DELTAT_PARAM(iprop_poll_time, KADM5_CONFIG_POLL_TIME,
+                         KRB5_CONF_IPROP_SLAVE_POLL, 2 * 60);
+    }
 
     *params_out = params;
 
 cleanup:
-    krb5_aprof_finish(aprofile);
     if (ret) {
         kadm5_free_config_params(context, &params);
         params_out->mask = 0;

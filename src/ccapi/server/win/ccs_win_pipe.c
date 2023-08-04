@@ -61,9 +61,7 @@ struct ccs_win_pipe_t* ccs_win_pipe_new (const char* uuid, const UINT64 h) {
         out_pipe->uuid          = uuidCopy;
         out_pipe->clientHandle  = h;
         }
-#if 0
-    cci_debug_printf("0x%X = %s(%s, 0x%X)", out_pipe, __FUNCTION__, uuid, h);
-#endif
+
     return out_pipe;
     }
 

@@ -105,5 +105,7 @@ main()
     ret = krb5int_validate_times(context, &times);
     assert(ret == KRB5KRB_AP_ERR_TKT_EXPIRED);
 
+    krb5_free_context(context);
+
     return 0;
 }

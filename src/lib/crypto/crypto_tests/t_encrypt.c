@@ -37,9 +37,6 @@
 
 /* What enctypes should we test?*/
 krb5_enctype interesting_enctypes[] = {
-    ENCTYPE_DES_CBC_CRC,
-    ENCTYPE_DES_CBC_MD4,
-    ENCTYPE_DES_CBC_MD5,
     ENCTYPE_DES3_CBC_SHA1,
     ENCTYPE_ARCFOUR_HMAC,
     ENCTYPE_ARCFOUR_HMAC_EXP,

@@ -29,8 +29,10 @@
 /*
  * des_make_sched.c - permute a DES key, returning the resulting key schedule
  */
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "des_int.h"
+
+#ifdef K5_BUILTIN_DES
 
 /*
  * Permuted choice 1 tables.  These are used to extract bits
@@ -241,14 +243,14 @@ static const unsigned DES_INT32 PC2_D[4][64] = {
 int
 mit_des_make_key_sched(mit_des_cblock key, mit_des_key_schedule schedule)
 {
-    register unsigned DES_INT32 c, d;
+    unsigned DES_INT32 c, d;
 
     {
         /*
          * Need a pointer for the keys and a temporary DES_INT32
          */
         const unsigned char *k;
-        register unsigned DES_INT32 tmp;
+        unsigned DES_INT32 tmp;
 
         /*
          * Fetch the key into something we can work with
@@ -288,10 +290,10 @@ mit_des_make_key_sched(mit_des_cblock key, mit_des_key_schedule schedule)
         /*
          * Need several temporaries in here
          */
-        register unsigned DES_INT32 ltmp, rtmp;
-        register unsigned DES_INT32 *k;
-        register int two_bit_shifts;
-        register int i;
+        unsigned DES_INT32 ltmp, rtmp;
+        unsigned DES_INT32 *k;
+        int two_bit_shifts;
+        int i;
         /*
          * Now iterate to compute the key schedule.  Note that we
          * record the entire set of subkeys in 6 bit chunks since
@@ -357,3 +359,5 @@ mit_des_make_key_sched(mit_des_cblock key, mit_des_key_schedule schedule)
     }
     return (0);
 }
+
+#endif /* K5_BUILTIN_DES */

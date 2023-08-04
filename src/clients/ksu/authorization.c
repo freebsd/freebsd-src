@@ -23,7 +23,7 @@
  *     direct, indirect, or consequential damages with respect to any
  *     claim by the user or distributor of the ksu software.
  *
- * KSU was writen by:  Ari Medvinsky, ari@isi.edu
+ * KSU was written by:  Ari Medvinsky, ari@isi.edu
  */
 
 #include "ksu.h"
@@ -122,23 +122,6 @@ krb5_error_code krb5_authorization(context, principal, luser,
         fprintf(stderr,
                 "In krb5_authorization: if auth files exist -> can access\n");
     }
-
-#if 0
-    if (cmd){
-        if(k5users_flag){
-            return 0; /* if  kusers does not exist -> done */
-        }else{
-            if(retval = k5users_lookup(users_fp,princname,
-                                       cmd,&retbool,out_fcmd)){
-                auth_cleanup(users_fp, login_fp, princname);
-                return retval;
-            }else{
-                *ok =retbool;
-                return retval;
-            }
-        }
-    }
-#endif
 
     /* if either file exists,
        first see if the principal is in the login in file,
@@ -518,11 +501,11 @@ krb5_boolean find_first_cmd_that_exists(fcmd_arr, cmd_out, err_out)
         for(j= 0; j < i; j ++)
             k5_buf_add_fmt(&buf, " %s ", fcmd_arr[j]);
         k5_buf_add(&buf, "\n");
-        if (k5_buf_status(&buf) != 0) {
+        *err_out = k5_buf_cstring(&buf);
+        if (*err_out == NULL) {
             perror(prog_name);
             exit(1);
         }
-        *err_out = buf.data;
     }
 
 

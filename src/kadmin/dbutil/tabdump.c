@@ -32,6 +32,7 @@
 
 #include <k5-int.h>
 #include "k5-platform.h"        /* for asprintf */
+#include "k5-hex.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -230,9 +231,7 @@ static int
 write_data(struct rec_args *args, krb5_data *data)
 {
     int ret;
-    char *p;
-    size_t i;
-    struct k5buf buf;
+    char *hex;
     struct rechandle *h = args->rh;
     struct tdopts *opts = args->opts;
 
@@ -241,17 +240,15 @@ write_data(struct rec_args *args, krb5_data *data)
             return -1;
         return 0;
     }
-    k5_buf_init_dynamic(&buf);
-    p = data->data;
-    for (i = 0; i < data->length; i++)
-        k5_buf_add_fmt(&buf, "%02x", (unsigned char)p[i]);
 
-    if (buf.data == NULL) {
-        errno = ENOMEM;
+    ret = k5_hex_encode(data->data, data->length, FALSE, &hex);
+    if (ret) {
+        errno = ret;
         return -1;
     }
-    ret = writefield(h, "%s", (char *)buf.data);
-    k5_buf_free(&buf);
+
+    ret = writefield(h, "%s", hex);
+    free(hex);
     return ret;
 }
 
@@ -605,10 +602,6 @@ cleanup_args(struct rec_args *args)
         fclose(args->f);
 }
 
-/*
- * Usaage is:
- *     tabdump [-H] [-c] [-e] [-n] [-o outfile] dumptype
- */
 void
 tabdump(int argc, char **argv)
 {

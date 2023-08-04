@@ -37,11 +37,10 @@ gss_set_neg_mechs(OM_uint32 *minor_status,
 
     if (minor_status == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    *minor_status = 0;
 
     if (cred_handle == GSS_C_NO_CREDENTIAL)
 	return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_NO_CRED;
-
-    *minor_status = 0;
 
     union_cred = (gss_union_cred_t) cred_handle;
 

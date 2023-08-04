@@ -25,8 +25,8 @@ void ss_help (argc, argv, sci_idx, info_ptr)
     char const *request_name;
     int code;
     int fd, child;
-    register int idx;
-    register ss_data *info;
+    int idx;
+    ss_data *info;
 
     request_name = ss_current_request(sci_idx, &code);
     if (code != 0) {
@@ -102,10 +102,10 @@ got_it:
     char *info_dir;
     int *code_ptr;
     {
-        register ss_data *info;
+        ss_data *info;
         DIR *d;
         int n_dirs;
-        register char **dirs;
+        char **dirs;
 
         info = ss_info(sci_idx);
         if ((info_dir == NULL) || (*info_dir == '\0')) {
@@ -138,8 +138,8 @@ got_it:
     char *info_dir;
     int *code_ptr;
     {
-        register char **i_d;
-        register char **info_dirs;
+        char **i_d;
+        char **info_dirs;
 
         info_dirs = ss_info(sci_idx)->info_dirs;
         for (i_d = info_dirs; *i_d; i_d++) {

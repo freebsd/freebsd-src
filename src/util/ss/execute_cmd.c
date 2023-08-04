@@ -53,14 +53,14 @@
  */
 
 static int check_request_table (rqtbl, argc, argv, sci_idx)
-    register ss_request_table *rqtbl;
+    ss_request_table *rqtbl;
     int argc;
     char *argv[];
     int sci_idx;
 {
-    register ss_request_entry *request;
-    register ss_data *info;
-    register char const * const * name;
+    ss_request_entry *request;
+    ss_data *info;
+    char const *const *name;
     char *string = argv[0];
     int i;
 
@@ -106,8 +106,8 @@ static int really_execute_command (sci_idx, argc, argv)
     int argc;
     char **argv[];
 {
-    register ss_request_table **rqtbl;
-    register ss_data *info;
+    ss_request_table **rqtbl;
+    ss_data *info;
 
     info = ss_info(sci_idx);
 
@@ -137,9 +137,9 @@ static int really_execute_command (sci_idx, argc, argv)
 int
 ss_execute_command(sci_idx, argv)
     int sci_idx;
-    register char *argv[];
+    char *argv[];
 {
-    register unsigned int i, argc;
+    unsigned int i, argc;
     char **argp;
     int ret;
 
@@ -147,6 +147,8 @@ ss_execute_command(sci_idx, argv)
     for (argp = argv; *argp; argp++)
         argc++;
     argp = (char **)malloc((argc+1)*sizeof(char *));
+    if (argp == NULL)
+        return(ENOMEM);
     for (i = 0; i <= argc; i++)
         argp[i] = argv[i];
     ret = really_execute_command(sci_idx, argc, &argp);

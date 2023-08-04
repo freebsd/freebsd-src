@@ -28,6 +28,7 @@
 #define __KTEST_EQUAL_H__
 
 #include "k5-int.h"
+#include "k5-spake.h"
 #include "kdb.h"
 
 /* int ktest_equal_structure(krb5_structure *ref, *var) */
@@ -97,6 +98,8 @@ ktest_equal_sequence_of_algorithm_identifier(krb5_algorithm_identifier **ref,
                                              krb5_algorithm_identifier **var);
 int ktest_equal_sequence_of_otp_tokeninfo(krb5_otp_tokeninfo **ref,
                                           krb5_otp_tokeninfo **var);
+int ktest_equal_sequence_of_spake_factor(krb5_spake_factor **ref,
+                                         krb5_spake_factor **var);
 
 len_array(ktest_equal_array_of_enctype,krb5_enctype);
 len_array(ktest_equal_array_of_data,krb5_data);
@@ -115,10 +118,6 @@ int ktest_equal_pa_for_user(krb5_pa_for_user *ref, krb5_pa_for_user *var);
 int ktest_equal_pa_s4u_x509_user(krb5_pa_s4u_x509_user *ref,
                                  krb5_pa_s4u_x509_user *var);
 int ktest_equal_ad_kdcissued(krb5_ad_kdcissued *ref, krb5_ad_kdcissued *var);
-int ktest_equal_ad_signedpath_data(krb5_ad_signedpath_data *ref,
-                                   krb5_ad_signedpath_data *var);
-int ktest_equal_ad_signedpath(krb5_ad_signedpath *ref,
-                              krb5_ad_signedpath *var);
 int ktest_equal_iakerb_header(krb5_iakerb_header *ref,
                               krb5_iakerb_header *var);
 int ktest_equal_iakerb_finished(krb5_iakerb_finished *ref,
@@ -136,13 +135,10 @@ int ktest_equal_ldap_sequence_of_keys(ldap_seqof_key_data *ref,
 
 #ifndef DISABLE_PKINIT
 generic(ktest_equal_pa_pk_as_req, krb5_pa_pk_as_req);
-generic(ktest_equal_pa_pk_as_req_draft9, krb5_pa_pk_as_req_draft9);
 generic(ktest_equal_pa_pk_as_rep, krb5_pa_pk_as_rep);
 generic(ktest_equal_auth_pack, krb5_auth_pack);
-generic(ktest_equal_auth_pack_draft9, krb5_auth_pack_draft9);
 generic(ktest_equal_kdc_dh_key_info, krb5_kdc_dh_key_info);
 generic(ktest_equal_reply_key_pack, krb5_reply_key_pack);
-generic(ktest_equal_reply_key_pack_draft9, krb5_reply_key_pack_draft9);
 #endif /* not DISABLE_PKINIT */
 
 int ktest_equal_kkdcp_message(krb5_kkdcp_message *ref,
@@ -151,5 +147,8 @@ int ktest_equal_cammac(krb5_cammac *ref, krb5_cammac *var);
 
 int ktest_equal_secure_cookie(krb5_secure_cookie *ref,
                               krb5_secure_cookie *var);
+
+generic(ktest_equal_spake_factor, krb5_spake_factor);
+generic(ktest_equal_pa_spake, krb5_pa_spake);
 
 #endif

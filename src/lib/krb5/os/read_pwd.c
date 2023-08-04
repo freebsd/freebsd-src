@@ -42,38 +42,37 @@ krb5_read_password(krb5_context context,
                    const char *prompt, const char *prompt2,
                    char *return_pwd, unsigned int *size_return)
 {
-    krb5_data reply_data;
-    krb5_prompt k5prompt;
+    krb5_data reply_data, verify_data = empty_data();
+    krb5_prompt k5prompt, vprompt;
     krb5_error_code retval;
-    reply_data.length = *size_return; /* NB: size_return is also an input */
-    reply_data.data = return_pwd;
+
+    /* *size_return is the space available in the return buffer on input. */
+    reply_data = make_data(return_pwd, *size_return);
     k5prompt.prompt = (char *)prompt;
     k5prompt.hidden = 1;
     k5prompt.reply = &reply_data;
-    retval =  krb5_prompter_posix(NULL,
-                                  NULL, NULL, NULL, 1, &k5prompt);
+    retval = krb5_prompter_posix(NULL, NULL, NULL, NULL, 1, &k5prompt);
+    if (retval || prompt2 == NULL)
+        goto done;
 
-    if ((retval==0) && prompt2) {
-        krb5_data verify_data;
-        verify_data.data = malloc(*size_return);
-        verify_data.length = *size_return;
-        k5prompt.prompt = (char *)prompt2;
-        k5prompt.reply = &verify_data;
-        if (!verify_data.data)
-            return ENOMEM;
-        retval = krb5_prompter_posix(NULL,
-                                     NULL,NULL, NULL, 1, &k5prompt);
-        if (retval == 0) {
-            /* compare */
-            if (strncmp(return_pwd, (char *)verify_data.data, *size_return))
-                retval = KRB5_LIBOS_BADPWDMATCH;
-        }
-        free(verify_data.data);
-    }
+    retval = alloc_data(&verify_data, *size_return);
+    if (retval)
+        goto done;
+    vprompt.prompt = (char *)prompt2;
+    vprompt.hidden = 1;
+    vprompt.reply = &verify_data;
+    retval = krb5_prompter_posix(NULL, NULL, NULL, NULL, 1, &vprompt);
+    if (retval)
+        goto done;
+    if (strncmp(return_pwd, verify_data.data, *size_return) != 0)
+        retval = KRB5_LIBOS_BADPWDMATCH;
+
+done:
+    zapfree(verify_data.data, verify_data.length);
     if (!retval)
         *size_return = k5prompt.reply->length;
     else
-        memset(return_pwd, 0, *size_return);
+        zap(return_pwd, *size_return);
     return retval;
 }
 #endif

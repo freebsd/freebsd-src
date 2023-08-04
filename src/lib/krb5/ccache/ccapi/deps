@@ -10,9 +10,5 @@ stdcc.so stdcc.po $(OUTPRE)stdcc.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
   $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/locate_plugin.h \
   $(top_srcdir)/include/krb5/preauth_plugin.h $(top_srcdir)/include/port-sockets.h \
-  $(top_srcdir)/include/socket-utils.h stdcc.c stdcc.h stdcc_util.h
-stdcc_util.so stdcc_util.po $(OUTPRE)stdcc_util.$(OBJEXT): \
-  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
-  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
-  $(top_srcdir)/include/krb5.h stdcc_util.c stdcc_util.h
+  $(top_srcdir)/include/socket-utils.h stdcc.c stdcc.h
 winccld.so winccld.po $(OUTPRE)winccld.$(OBJEXT): winccld.c

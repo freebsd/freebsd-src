@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Troubleshooting &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Troubleshooting &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For administrators" href="index.html" />
     <link rel="next" title="Advanced topics" href="advanced/index.html" />
     <link rel="prev" title="Environment variables" href="env_variables.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="troubleshooting">
 <span id="troubleshoot"></span><h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h1>
@@ -71,22 +69,22 @@
 information about internal krb5 library operations using trace
 logging.  To enable this, set the <strong>KRB5_TRACE</strong> environment variable
 to a filename before running the program.  On many operating systems,
-the filename <tt class="docutils literal"><span class="pre">/dev/stdout</span></tt> can be used to send trace logging output
+the filename <code class="docutils literal"><span class="pre">/dev/stdout</span></code> can be used to send trace logging output
 to standard output.</p>
 <p>Some programs do not honor <strong>KRB5_TRACE</strong>, either because they use
 secure library contexts (this generally applies to setuid programs and
 parts of the login system) or because they take direct control of the
 trace logging system using the API.</p>
 <p>Here is a short example showing trace logging output for an invocation
-of the <a class="reference internal" href="../user/user_commands/kvno.html#kvno-1"><em>kvno</em></a> command:</p>
-<div class="highlight-python"><div class="highlight"><pre>shell% env KRB5_TRACE=/dev/stdout kvno krbtgt/KRBTEST.COM
-[9138] 1332348778.823276: Getting credentials user@KRBTEST.COM -&gt;
-    krbtgt/KRBTEST.COM@KRBTEST.COM using ccache
-    FILE:/me/krb5/build/testdir/ccache
-[9138] 1332348778.823381: Retrieving user@KRBTEST.COM -&gt;
-    krbtgt/KRBTEST.COM@KRBTEST.COM from
-    FILE:/me/krb5/build/testdir/ccache with result: 0/Unknown code 0
-krbtgt/KRBTEST.COM@KRBTEST.COM: kvno = 1
+of the <a class="reference internal" href="../user/user_commands/kvno.html#kvno-1"><span class="std std-ref">kvno</span></a> command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">env</span> <span class="n">KRB5_TRACE</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdout</span> <span class="n">kvno</span> <span class="n">krbtgt</span><span class="o">/</span><span class="n">KRBTEST</span><span class="o">.</span><span class="n">COM</span>
+<span class="p">[</span><span class="mi">9138</span><span class="p">]</span> <span class="mf">1332348778.823276</span><span class="p">:</span> <span class="n">Getting</span> <span class="n">credentials</span> <span class="n">user</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span> <span class="o">-&gt;</span>
+    <span class="n">krbtgt</span><span class="o">/</span><span class="n">KRBTEST</span><span class="o">.</span><span class="n">COM</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span> <span class="n">using</span> <span class="n">ccache</span>
+    <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">me</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">build</span><span class="o">/</span><span class="n">testdir</span><span class="o">/</span><span class="n">ccache</span>
+<span class="p">[</span><span class="mi">9138</span><span class="p">]</span> <span class="mf">1332348778.823381</span><span class="p">:</span> <span class="n">Retrieving</span> <span class="n">user</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span> <span class="o">-&gt;</span>
+    <span class="n">krbtgt</span><span class="o">/</span><span class="n">KRBTEST</span><span class="o">.</span><span class="n">COM</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span> <span class="kn">from</span>
+    <span class="nn">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">me</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">build</span><span class="o">/</span><span class="n">testdir</span><span class="o">/</span><span class="n">ccache</span> <span class="k">with</span> <span class="n">result</span><span class="p">:</span> <span class="mi">0</span><span class="o">/</span><span class="n">Unknown</span> <span class="n">code</span> <span class="mi">0</span>
+<span class="n">krbtgt</span><span class="o">/</span><span class="n">KRBTEST</span><span class="o">.</span><span class="n">COM</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span><span class="p">:</span> <span class="n">kvno</span> <span class="o">=</span> <span class="mi">1</span>
 </pre></div>
 </div>
 </div>
@@ -95,17 +93,17 @@ krbtgt/KRBTEST.COM@KRBTEST.COM: kvno = 1
 <div class="section" id="frequently-seen-errors">
 <h3>Frequently seen errors<a class="headerlink" href="#frequently-seen-errors" title="Permalink to this headline">¶</a></h3>
 <ol class="arabic simple">
-<li><a class="reference internal" href="#init-creds-etype-nosupp"><em>KDC has no support for encryption type while getting initial credentials</em></a></li>
-<li><a class="reference internal" href="#cert-chain-etype-nosupp"><em>credential verification failed: KDC has no support for encryption type</em></a></li>
-<li><a class="reference internal" href="#err-cert-chain-cert-expired"><em>Cannot create cert chain: certificate has expired</em></a></li>
+<li><a class="reference internal" href="#init-creds-etype-nosupp"><span class="std std-ref">KDC has no support for encryption type while getting initial credentials</span></a></li>
+<li><a class="reference internal" href="#cert-chain-etype-nosupp"><span class="std std-ref">credential verification failed: KDC has no support for encryption type</span></a></li>
+<li><a class="reference internal" href="#err-cert-chain-cert-expired"><span class="std std-ref">Cannot create cert chain: certificate has expired</span></a></li>
 </ol>
 </div>
 <div class="section" id="errors-seen-by-admins">
 <h3>Errors seen by admins<a class="headerlink" href="#errors-seen-by-admins" title="Permalink to this headline">¶</a></h3>
 <ol class="arabic simple" id="prop-failed-start">
-<li><a class="reference internal" href="#kprop-no-route"><em>kprop: No route to host while connecting to server</em></a></li>
-<li><a class="reference internal" href="#kprop-con-refused"><em>kprop: Connection refused while connecting to server</em></a></li>
-<li><a class="reference internal" href="#kprop-sendauth-exchange"><em>kprop: Server rejected authentication (during sendauth exchange) while authenticating to server</em></a></li>
+<li><a class="reference internal" href="#kprop-no-route"><span class="std std-ref">kprop: No route to host while connecting to server</span></a></li>
+<li><a class="reference internal" href="#kprop-con-refused"><span class="std std-ref">kprop: Connection refused while connecting to server</span></a></li>
+<li><a class="reference internal" href="#kprop-sendauth-exchange"><span class="std std-ref">kprop: Server rejected authentication (during sendauth exchange) while authenticating to server</span></a></li>
 </ol>
 <hr class="docutils" id="prop-failed-end" />
 <div class="section" id="kdc-has-no-support-for-encryption-type-while-getting-initial-credentials">
@@ -117,8 +115,8 @@ krbtgt/KRBTEST.COM@KRBTEST.COM: kvno = 1
 DES keys, in a release (MIT krb5 1.7 or later) which disables DES by
 default.  DES encryption is considered weak due to its inadequate key
 size.  If you cannot migrate away from its use, you can re-enable DES
-by adding <tt class="docutils literal"><span class="pre">allow_weak_crypto</span> <span class="pre">=</span> <span class="pre">true</span></tt> to the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>
-section of <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>.</p>
+by adding <code class="docutils literal"><span class="pre">allow_weak_crypto</span> <span class="pre">=</span> <span class="pre">true</span></code> to the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>
+section of <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.</p>
 </div>
 <div class="section" id="cannot-create-cert-chain-certificate-has-expired">
 <span id="err-cert-chain-cert-expired"></span><h4>Cannot create cert chain: certificate has expired<a class="headerlink" href="#cannot-create-cert-chain-certificate-has-expired" title="Permalink to this headline">¶</a></h4>
@@ -126,39 +124,39 @@ section of <a class="reference internal" href="conf_files/krb5_conf.html#krb5-co
 the client certificate, KDC certificate, or one of the certificates in
 the signing chain above them has expired.</p>
 <p>If the KDC certificate has expired, this message appears in the KDC
-log file, and the client will receive a &#8220;Preauthentication failed&#8221;
+log file, and the client will receive a “Preauthentication failed”
 error.  (Prior to release 1.11, the KDC log file message erroneously
-appears as &#8220;Out of memory&#8221;.  Prior to release 1.12, the client will
-receive a &#8220;Generic error&#8221;.)</p>
+appears as “Out of memory”.  Prior to release 1.12, the client will
+receive a “Generic error”.)</p>
 <p>If the client or a signing certificate has expired, this message may
-appear in <a class="reference internal" href="#trace-logging">trace_logging</a> output from <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><em>kinit</em></a> or, starting in
+appear in <a class="reference internal" href="#trace-logging">trace_logging</a> output from <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> or, starting in
 release 1.12, as an error message from kinit or another program which
 gets initial tickets.  The error message is more likely to appear
 properly on the client if the principal entry has no long-term keys.</p>
 </div>
 <div class="section" id="kprop-no-route-to-host-while-connecting-to-server">
 <span id="kprop-no-route"></span><h4>kprop: No route to host while connecting to server<a class="headerlink" href="#kprop-no-route-to-host-while-connecting-to-server" title="Permalink to this headline">¶</a></h4>
-<p>Make sure that the hostname of the slave (as given to kprop) is
-correct, and that any firewalls between the master and the slave allow
-a connection on port 754.</p>
+<p>Make sure that the hostname of the replica KDC (as given to kprop) is
+correct, and that any firewalls between the primary and the replica
+allow a connection on port 754.</p>
 </div>
 <div class="section" id="kprop-connection-refused-while-connecting-to-server">
 <span id="kprop-con-refused"></span><h4>kprop: Connection refused while connecting to server<a class="headerlink" href="#kprop-connection-refused-while-connecting-to-server" title="Permalink to this headline">¶</a></h4>
-<p>If the slave is intended to run kpropd out of inetd, make sure that
-inetd is configured to accept krb5_prop connections.  inetd may need
-to be restarted or sent a SIGHUP to recognize the new configuration.
-If the slave is intended to run kpropd in standalone mode, make sure
-that it is running.</p>
+<p>If the replica KDC is intended to run kpropd out of inetd, make sure
+that inetd is configured to accept krb5_prop connections.  inetd may
+need to be restarted or sent a SIGHUP to recognize the new
+configuration.  If the replica is intended to run kpropd in standalone
+mode, make sure that it is running.</p>
 </div>
 <div class="section" id="kprop-server-rejected-authentication-during-sendauth-exchange-while-authenticating-to-server">
 <span id="kprop-sendauth-exchange"></span><h4>kprop: Server rejected authentication (during sendauth exchange) while authenticating to server<a class="headerlink" href="#kprop-server-rejected-authentication-during-sendauth-exchange-while-authenticating-to-server" title="Permalink to this headline">¶</a></h4>
 <p>Make sure that:</p>
 <ol class="arabic simple">
-<li>The time is synchronized between the master and slave KDCs.</li>
-<li>The master stash file was copied from the master to the expected
-location on the slave.</li>
-<li>The slave has a keytab file in the default location containing a
-<tt class="docutils literal"><span class="pre">host</span></tt> principal for the slave&#8217;s hostname.</li>
+<li>The time is synchronized between the primary and replica KDCs.</li>
+<li>The master stash file was copied from the primary to the expected
+location on the replica.</li>
+<li>The replica has a keytab file in the default location containing a
+<code class="docutils literal"><span class="pre">host</span></code> principal for the replica’s hostname.</li>
 </ol>
 </div>
 </div>
@@ -201,6 +199,7 @@ location on the slave.</li>
 <li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
@@ -208,6 +207,8 @@ location on the slave.</li>
 <li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
@@ -215,9 +216,7 @@ location on the slave.</li>
 <li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
 <li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Troubleshooting</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Troubleshooting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
 </ul>
@@ -249,8 +248,8 @@ location on the slave.</li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

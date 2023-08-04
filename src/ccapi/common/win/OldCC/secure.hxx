@@ -38,12 +38,6 @@ public:
     static void Start(SecureClient*& s);
     static void Stop(SecureClient*& s);
 
-#if 0
-    static DWORD CheckImpersonation();
-    static bool IsImp();
-    static DWORD DuplicateImpAsPrimary(HANDLE& hPrimary);
-#endif
-
     SecureClient();
     ~SecureClient();
     DWORD Error();

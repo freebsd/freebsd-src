@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <krb5.h>
 
 int
@@ -105,6 +106,7 @@ main(int argc, char **argv)
     }
 
     krb5_free_data_contents(context, &apreq);
+    assert(apreq.length == 0);
     krb5_auth_con_free(context, auth_con);
     krb5_free_creds(context, cred);
     krb5_cc_close(context, ccache);

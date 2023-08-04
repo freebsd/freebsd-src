@@ -51,6 +51,10 @@ krb5int_cc_initialize(void);
 void
 krb5int_cc_finalize(void);
 
+krb5_error_code
+k5_nonatomic_replace(krb5_context context, krb5_ccache ccache,
+                     krb5_principal princ, krb5_creds **creds);
+
 /*
  * Cursor for iterating over ccache types
  */
@@ -106,13 +110,23 @@ extern k5_cc_mutex krb5int_mcc_mutex;
 extern k5_cc_mutex krb5int_krcc_mutex;
 extern k5_cc_mutex krb5int_cc_file_mutex;
 
-#ifdef USE_CCAPI_V3
 extern krb5_error_code KRB5_CALLCONV krb5_stdccv3_context_lock
 (krb5_context context);
 
 extern krb5_error_code KRB5_CALLCONV krb5_stdccv3_context_unlock
 (krb5_context context);
-#endif
+
+krb5_error_code
+k5_cc_lock(krb5_context context, krb5_ccache ccache);
+
+krb5_error_code
+k5_cc_unlock(krb5_context context, krb5_ccache ccache);
+
+krb5_error_code
+k5_cccol_lock(krb5_context context);
+
+krb5_error_code
+k5_cccol_unlock(krb5_context context);
 
 void
 k5_cc_mutex_force_unlock(k5_cc_mutex *m);
@@ -151,6 +165,9 @@ k5_marshal_mcred(struct k5buf *buf, krb5_creds *mcred);
 
 void
 k5_marshal_princ(struct k5buf *buf, int version, krb5_principal princ);
+
+krb5_error_code
+k5_kcm_primary_name(krb5_context context, char **name_out);
 
 /*
  * Per-type ccache cursor.
@@ -198,10 +215,8 @@ struct _krb5_cc_ops {
                                                    krb5_ccache *);
     krb5_error_code (KRB5_CALLCONV *ptcursor_free)(krb5_context,
                                                    krb5_cc_ptcursor *);
-    krb5_error_code (KRB5_CALLCONV *move)(krb5_context, krb5_ccache,
-                                          krb5_ccache);
-    krb5_error_code (KRB5_CALLCONV *lastchange)(krb5_context,
-                                                krb5_ccache, krb5_timestamp *);
+    krb5_error_code (KRB5_CALLCONV *replace)(krb5_context, krb5_ccache,
+                                             krb5_principal, krb5_creds **);
     krb5_error_code (KRB5_CALLCONV *wasdefault)(krb5_context, krb5_ccache,
                                                 krb5_timestamp *);
     krb5_error_code (KRB5_CALLCONV *lock)(krb5_context, krb5_ccache);

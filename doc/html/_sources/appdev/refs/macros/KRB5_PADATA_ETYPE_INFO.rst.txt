@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-ETYPE-INFO-data:
+
+KRB5_PADATA_ETYPE_INFO
+======================
+
+..
+.. data:: KRB5_PADATA_ETYPE_INFO
+..
+
+Etype info for preauth.
+
+RFC 4120
+
+============================= ======================
+``KRB5_PADATA_ETYPE_INFO``       ``11``
+============================= ======================

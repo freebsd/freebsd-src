@@ -27,36 +27,10 @@
 #include "k5-int.h"
 #include "int-proto.h"
 
-/*
- * Routines to deal with externalizing the krb5_checksum:
- *      krb5_checksum_esize();
- *      krb5_checksum_externalize();
- *      krb5_checksum_internalize();
- */
-static krb5_error_code krb5_checksum_esize
-(krb5_context, krb5_pointer, size_t *);
-static krb5_error_code krb5_checksum_externalize
-(krb5_context, krb5_pointer, krb5_octet **, size_t *);
-static krb5_error_code krb5_checksum_internalize
-(krb5_context,krb5_pointer *, krb5_octet **, size_t *);
-
-/* Local data */
-static const krb5_ser_entry krb5_checksum_ser_entry = {
-    KV5M_CHECKSUM,                      /* Type                 */
-    krb5_checksum_esize,                /* Sizer routine        */
-    krb5_checksum_externalize,          /* Externalize routine  */
-    krb5_checksum_internalize           /* Internalize routine  */
-};
-
-/*
- * krb5_checksum_esize()        - Determine the size required to externalize
- *                                the krb5_checksum.
- */
-static krb5_error_code
-krb5_checksum_esize(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
+krb5_error_code
+k5_size_checksum(krb5_checksum *checksum, size_t *sizep)
 {
     krb5_error_code     kret;
-    krb5_checksum       *checksum;
 
     /*
      * krb5_checksum requires:
@@ -67,7 +41,7 @@ krb5_checksum_esize(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
      *  checksum->length        for contents
      */
     kret = EINVAL;
-    if ((checksum = (krb5_checksum *) arg)) {
+    if (checksum != NULL) {
         *sizep += (sizeof(krb5_int32) +
                    sizeof(krb5_int32) +
                    sizeof(krb5_int32) +
@@ -78,14 +52,11 @@ krb5_checksum_esize(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
     return(kret);
 }
 
-/*
- * krb5_checksum_externalize()  - Externalize the krb5_checksum.
- */
-static krb5_error_code
-krb5_checksum_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_externalize_checksum(krb5_checksum *checksum,
+                        krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
-    krb5_checksum       *checksum;
     size_t              required;
     krb5_octet          *bp;
     size_t              remain;
@@ -94,10 +65,9 @@ krb5_checksum_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **
     bp = *buffer;
     remain = *lenremain;
     kret = EINVAL;
-    if ((checksum = (krb5_checksum *) arg)) {
+    if (checksum != NULL) {
         kret = ENOMEM;
-        if (!krb5_checksum_esize(kcontext, arg, &required) &&
-            (required <= remain)) {
+        if (!k5_size_checksum(checksum, &required) && required <= remain) {
             /* Our identifier */
             (void) krb5_ser_pack_int32(KV5M_CHECKSUM, &bp, &remain);
 
@@ -125,11 +95,9 @@ krb5_checksum_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **
     return(kret);
 }
 
-/*
- * krb5_checksum_internalize()  - Internalize the krb5_checksum.
- */
-static krb5_error_code
-krb5_checksum_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_internalize_checksum(krb5_checksum **argp,
+                        krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
     krb5_checksum       *checksum;
@@ -171,7 +139,7 @@ krb5_checksum_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet 
                     checksum->magic = KV5M_CHECKSUM;
                     *buffer = bp;
                     *lenremain = remain;
-                    *argp = (krb5_pointer) checksum;
+                    *argp = checksum;
                 }
                 else
                     kret = EINVAL;
@@ -184,13 +152,4 @@ krb5_checksum_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet 
         }
     }
     return(kret);
-}
-
-/*
- * Register the checksum serializer.
- */
-krb5_error_code
-krb5_ser_checksum_init(krb5_context kcontext)
-{
-    return(krb5_register_serializer(kcontext, &krb5_checksum_ser_entry));
 }

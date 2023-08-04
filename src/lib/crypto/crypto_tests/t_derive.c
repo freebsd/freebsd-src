@@ -273,15 +273,11 @@ printhex(const char *head, void *data, size_t len)
 
     printf("%s", head);
     for (i = 0; i < len; i++) {
-#if 0                           /* For convenience when updating test cases. */
-        printf("\\x%02X", ((unsigned char*)data)[i]);
-#else
         printf("%02X", ((unsigned char*)data)[i]);
         if (i % 16 == 15 && i + 1 < len)
             printf("\n%*s", (int)strlen(head), "");
         else if (i + 1 < len)
             printf(" ");
-#endif
     }
     printf("\n");
 }

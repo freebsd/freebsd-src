@@ -8,7 +8,7 @@
  *
  * A copy of this license is available in file LICENSE in the
  * top-level directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 /* Copyright 2001 Computing Research Labs, New Mexico State University
  *
@@ -32,7 +32,7 @@
  */
 
 /*
- * This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ * This work is part of OpenLDAP Software <https://www.openldap.org/>.
  * $OpenLDAP: pkg/ldap/libraries/liblunicode/ucdata/ucdata.h,v 1.21 2008/01/07 23:20:05 kurt Exp $
  * $Id: ucdata.h,v 1.6 2001/01/02 18:46:20 mleisher Exp $
  */

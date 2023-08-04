@@ -29,16 +29,6 @@
 #if USE_DLOPEN
 #include <dlfcn.h>
 #endif
-#include <sys/types.h>
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #if USE_DLOPEN
 #ifdef RTLD_GROUP
@@ -54,14 +44,18 @@
 #define PLUGIN_DLOPEN_FLAGS (RTLD_NOW | RTLD_LOCAL | GROUP | NODELETE)
 #endif
 
-#if USE_DLOPEN && USE_CFBUNDLE
-#include <CoreFoundation/CoreFoundation.h>
-
-/* Currently CoreFoundation only exists on the Mac so we just use
- * pthreads directly to avoid creating empty function calls on other
- * platforms.  If a thread initializer ever gets created in the common
- * plugin code, move this there */
-static pthread_mutex_t krb5int_bundle_mutex = PTHREAD_MUTEX_INITIALIZER;
+/*
+ * glibc bug 11941, fixed in release 2.25, can cause an assertion failure in
+ * dlclose() on process exit.  Our workaround is to leak dlopen() handles
+ * (which doesn't typically manifest in leak detection tools because the
+ * handles are still reachable via a global table in libdl).  Because we
+ * dlopen() with RTLD_NODELETE, we weren't going to unload the plugin objects
+ * anyway.
+ */
+#ifdef __GLIBC_PREREQ
+#if ! __GLIBC_PREREQ(2, 25)
+#define dlclose(x)
+#endif
 #endif
 
 #include <stdarg.h>
@@ -76,370 +70,192 @@ static void Tprintf (const char *fmt, ...)
 }
 
 struct plugin_file_handle {
-#if USE_DLOPEN
+#if defined(USE_DLOPEN)
     void *dlhandle;
-#endif
-#ifdef _WIN32
-    HMODULE hinstPlugin;
-#endif
-#if !defined (USE_DLOPEN) && !defined (_WIN32)
+#elif defined(_WIN32)
+    HMODULE module;
+#else
     char dummy;
 #endif
 };
 
-#ifdef _WIN32
-struct dirent {
-    long d_ino;                 /* inode (always 1 in WIN32) */
-    off_t d_off;                /* offset to this dirent */
-    unsigned short d_reclen;    /* length of d_name */
-    char d_name[_MAX_FNAME+1];  /* filename (null terminated) */
-};
-
-typedef struct {
-    intptr_t handle;            /* _findfirst/_findnext handle */
-    short offset;               /* offset into directory */
-    short finished;             /* 1 if there are not more files */
-    struct _finddata_t fileinfo;/* from _findfirst/_findnext */
-    char *dir;                  /* the dir we are reading */
-    struct dirent dent;         /* the dirent to return */
-} DIR;
-
-DIR * opendir(const char *dir)
-{
-    DIR *dp;
-    char *filespec;
-    intptr_t handle;
-    int index;
-
-    filespec = malloc(strlen(dir) + 2 + 1);
-    strcpy(filespec, dir);
-    index = strlen(filespec) - 1;
-    if (index >= 0 && (filespec[index] == '/' || filespec[index] == '\\'))
-        filespec[index] = '\0';
-    strcat(filespec, "/*");
-
-    dp = (DIR *)malloc(sizeof(DIR));
-    dp->offset = 0;
-    dp->finished = 0;
-    dp->dir = strdup(dir);
-
-    if ((handle = _findfirst(filespec, &(dp->fileinfo))) < 0) {
-        if (errno == ENOENT)
-            dp->finished = 1;
-        else {
-            free(filespec);
-            free(dp->dir);
-            free(dp);
-            return NULL;
-        }
-    }
-
-    dp->handle = handle;
-    free(filespec);
-
-    return dp;
-}
-
-struct dirent * readdir(DIR *dp)
-{
-    if (!dp || dp->finished) return NULL;
-
-    if (dp->offset != 0) {
-        if (_findnext(dp->handle, &(dp->fileinfo)) < 0) {
-            dp->finished = 1;
-            return NULL;
-        }
-    }
-    dp->offset++;
-
-    strncpy(dp->dent.d_name, dp->fileinfo.name, _MAX_FNAME);
-    dp->dent.d_ino = 1;
-    dp->dent.d_reclen = (unsigned short)strlen(dp->dent.d_name);
-    dp->dent.d_off = dp->offset;
-
-    return &(dp->dent);
-}
-
-int closedir(DIR *dp)
-{
-    if (!dp) return 0;
-    _findclose(dp->handle);
-    free(dp->dir);
-    free(dp);
-
-    return 0;
-}
-#endif
-
-long KRB5_CALLCONV
-krb5int_open_plugin (const char *filepath, struct plugin_file_handle **h, struct errinfo *ep)
-{
-    long err = 0;
-    struct stat statbuf;
-    struct plugin_file_handle *htmp = NULL;
-    int got_plugin = 0;
-
-    if (!err) {
-        if (stat (filepath, &statbuf) < 0) {
-            err = errno;
-            Tprintf ("stat(%s): %s\n", filepath, strerror (err));
-            k5_set_error(ep, err, _("unable to find plugin [%s]: %s"),
-                         filepath, strerror(err));
-        }
-    }
-
-    if (!err) {
-        htmp = calloc (1, sizeof (*htmp)); /* calloc initializes ptrs to NULL */
-        if (htmp == NULL) { err = ENOMEM; }
-    }
-
-#if USE_DLOPEN
-    if (!err && ((statbuf.st_mode & S_IFMT) == S_IFREG
-#if USE_CFBUNDLE
-                 || (statbuf.st_mode & S_IFMT) == S_IFDIR
-#endif /* USE_CFBUNDLE */
-        )) {
-        void *handle = NULL;
-
-#if USE_CFBUNDLE
-        char executablepath[MAXPATHLEN];
-
-        if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-            int lock_err = 0;
-            CFStringRef pluginString = NULL;
-            CFURLRef pluginURL = NULL;
-            CFBundleRef pluginBundle = NULL;
-            CFURLRef executableURL = NULL;
-
-            /* Lock around CoreFoundation calls since objects are refcounted
-             * and the refcounts are not thread-safe.  Using pthreads directly
-             * because this code is Mac-specific */
-            lock_err = pthread_mutex_lock(&krb5int_bundle_mutex);
-            if (lock_err) { err = lock_err; }
-
-            if (!err) {
-                pluginString = CFStringCreateWithCString (kCFAllocatorDefault,
-                                                          filepath,
-                                                          kCFStringEncodingASCII);
-                if (pluginString == NULL) { err = ENOMEM; }
-            }
-
-            if (!err) {
-                pluginURL = CFURLCreateWithFileSystemPath (kCFAllocatorDefault,
-                                                           pluginString,
-                                                           kCFURLPOSIXPathStyle,
-                                                           true);
-                if (pluginURL == NULL) { err = ENOMEM; }
-            }
-
-            if (!err) {
-                pluginBundle = CFBundleCreate (kCFAllocatorDefault, pluginURL);
-                if (pluginBundle == NULL) { err = ENOENT; } /* XXX need better error */
-            }
-
-            if (!err) {
-                executableURL = CFBundleCopyExecutableURL (pluginBundle);
-                if (executableURL == NULL) { err = ENOMEM; }
-            }
-
-            if (!err) {
-                if (!CFURLGetFileSystemRepresentation (executableURL,
-                                                       true, /* absolute */
-                                                       (UInt8 *)executablepath,
-                                                       sizeof (executablepath))) {
-                    err = ENOMEM;
-                }
-            }
-
-            if (!err) {
-                /* override the path the caller passed in */
-                filepath = executablepath;
-            }
-
-            if (executableURL    != NULL) { CFRelease (executableURL); }
-            if (pluginBundle     != NULL) { CFRelease (pluginBundle); }
-            if (pluginURL        != NULL) { CFRelease (pluginURL); }
-            if (pluginString     != NULL) { CFRelease (pluginString); }
-
-            /* unlock after CFRelease calls since they modify refcounts */
-            if (!lock_err) { pthread_mutex_unlock (&krb5int_bundle_mutex); }
-        }
-#endif /* USE_CFBUNDLE */
-
-        if (!err) {
-            handle = dlopen(filepath, PLUGIN_DLOPEN_FLAGS);
-            if (handle == NULL) {
-                const char *e = dlerror();
-                if (e == NULL)
-                    e = _("unknown failure");
-                Tprintf ("dlopen(%s): %s\n", filepath, e);
-                err = ENOENT; /* XXX */
-                k5_set_error(ep, err, _("unable to load plugin [%s]: %s"),
-                             filepath, e);
-            }
-        }
-
-        if (!err) {
-            got_plugin = 1;
-            htmp->dlhandle = handle;
-            handle = NULL;
-        }
-
-        if (handle != NULL) { dlclose (handle); }
-    }
-#endif /* USE_DLOPEN */
-
-#ifdef _WIN32
-    if (!err && (statbuf.st_mode & S_IFMT) == S_IFREG) {
-        HMODULE handle = NULL;
-
-        handle = LoadLibrary(filepath);
-        if (handle == NULL) {
-            Tprintf ("Unable to load dll: %s\n", filepath);
-            err = ENOENT; /* XXX */
-            k5_set_error(ep, err, _("unable to load DLL [%s]"), filepath);
-        }
-
-        if (!err) {
-            got_plugin = 1;
-            htmp->hinstPlugin = handle;
-            handle = NULL;
-        }
-
-        if (handle != NULL)
-            FreeLibrary(handle);
-    }
-#endif
-
-    if (!err && !got_plugin) {
-        err = ENOENT;  /* no plugin or no way to load plugins */
-        k5_set_error(ep, err, _("plugin unavailable: %s"), strerror(err));
-    }
-
-    if (!err) {
-        *h = htmp;
-        htmp = NULL;  /* h takes ownership */
-    }
-
-    free(htmp);
-
-    return err;
-}
+#if defined(USE_DLOPEN)
 
 static long
-krb5int_get_plugin_sym (struct plugin_file_handle *h,
-                        const char *csymname, int isfunc, void **ptr,
-                        struct errinfo *ep)
+open_plugin_dlfcn(struct plugin_file_handle *h, const char *filename,
+                  struct errinfo *ep)
 {
-    long err = 0;
-    void *sym = NULL;
+    const char *e;
 
-#if USE_DLOPEN
-    if (!err && !sym && (h->dlhandle != NULL)) {
-        /* XXX Do we need to add a leading "_" to the symbol name on any
-           modern platforms?  */
-        sym = dlsym (h->dlhandle, csymname);
-        if (sym == NULL) {
-            const char *e = dlerror (); /* XXX copy and save away */
-            if (e == NULL)
-                e = "unknown failure";
-            Tprintf ("dlsym(%s): %s\n", csymname, e);
-            err = ENOENT; /* XXX */
-            k5_set_error(ep, err, "%s", e);
-        }
+    h->dlhandle = dlopen(filename, PLUGIN_DLOPEN_FLAGS);
+    if (h->dlhandle == NULL) {
+        e = dlerror();
+        if (e == NULL)
+            e = _("unknown failure");
+        Tprintf("dlopen(%s): %s\n", filename, e);
+        k5_set_error(ep, ENOENT, _("unable to load plugin [%s]: %s"),
+                     filename, e);
+        return ENOENT;
     }
-#endif
+    return 0;
+}
+#define open_plugin open_plugin_dlfcn
 
-#ifdef _WIN32
+static long
+get_sym_dlfcn(struct plugin_file_handle *h, const char *csymname,
+              void **sym_out, struct errinfo *ep)
+{
+    const char *e;
+
+    if (h->dlhandle == NULL)
+        return ENOENT;
+    *sym_out = dlsym(h->dlhandle, csymname);
+    if (*sym_out == NULL) {
+        e = dlerror();
+        if (e == NULL)
+            e = _("unknown failure");
+        Tprintf("dlsym(%s): %s\n", csymname, e);
+        k5_set_error(ep, ENOENT, "%s", e);
+        return ENOENT;
+    }
+    return 0;
+}
+#define get_sym get_sym_dlfcn
+
+static void
+close_plugin_dlfcn(struct plugin_file_handle *h)
+{
+    if (h->dlhandle != NULL)
+        dlclose(h->dlhandle);
+}
+#define close_plugin close_plugin_dlfcn
+
+#elif defined(_WIN32)
+
+static long
+open_plugin_win32(struct plugin_file_handle *h, const char *filename,
+                  struct errinfo *ep)
+{
+    h->module = LoadLibrary(filename);
+    if (h == NULL) {
+        Tprintf("Unable to load dll: %s\n", filename);
+        k5_set_error(ep, ENOENT, _("unable to load DLL [%s]"), filename);
+        return ENOENT;
+    }
+    return 0;
+}
+#define open_plugin open_plugin_win32
+
+static long
+get_sym_win32(struct plugin_file_handle *h, const char *csymname,
+              void **sym_out, struct errinfo *ep)
+{
     LPVOID lpMsgBuf;
     DWORD dw;
 
-    if (!err && !sym && (h->hinstPlugin != NULL)) {
-        sym = GetProcAddress(h->hinstPlugin, csymname);
-        if (sym == NULL) {
-            const char *e = "unable to get dll symbol"; /* XXX copy and save away */
-            Tprintf ("GetProcAddress(%s): %i\n", csymname, GetLastError());
-            err = ENOENT; /* XXX */
-            k5_set_error(ep, err, "%s", e);
-
-            dw = GetLastError();
-            if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                              FORMAT_MESSAGE_FROM_SYSTEM,
-                              NULL,
-                              dw,
-                              MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                              (LPTSTR) &lpMsgBuf,
-                              0, NULL )) {
-
-                fprintf (stderr, "unable to get dll symbol, %s\n", (LPCTSTR)lpMsgBuf);
-                LocalFree(lpMsgBuf);
-            }
+    if (h->module == NULL)
+        return ENOENT;
+    *sym_out = GetProcAddress(h->module, csymname);
+    if (*sym_out == NULL) {
+        Tprintf("GetProcAddress(%s): %i\n", csymname, GetLastError());
+        dw = GetLastError();
+        if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                          FORMAT_MESSAGE_FROM_SYSTEM,
+                          NULL, dw, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                          (LPTSTR)&lpMsgBuf, 0, NULL)) {
+            k5_set_error(ep, ENOENT, _("unable to get DLL Symbol: %s"),
+                         (char *)lpMsgBuf);
+            LocalFree(lpMsgBuf);
         }
+        return ENOENT;
     }
+    return 0;
+}
+#define get_sym get_sym_win32
+
+static void
+close_plugin_win32(struct plugin_file_handle *h)
+{
+    if (h->module != NULL)
+        FreeLibrary(h->module);
+}
+#define close_plugin close_plugin_win32
+
+#else
+
+static long
+open_plugin_dummy(struct plugin_file_handle *h, const char *filename,
+                  struct errinfo *ep)
+{
+    k5_set_error(ep, ENOENT, _("plugin loading unavailable"));
+    return ENOENT;
+}
+#define open_plugin open_plugin_dummy
+
+static long
+get_sym_dummy(struct plugin_file_handle *h, const char *csymname,
+              void **sym_out, struct errinfo *ep)
+{
+    return ENOENT;
+}
+#define get_sym get_sym_dummy
+
+static void
+close_plugin_dummy(struct plugin_file_handle *h)
+{
+}
+#define close_plugin close_plugin_dummy
+
 #endif
 
-    if (!err && (sym == NULL)) {
-        err = ENOENT;  /* unimplemented */
-    }
-
-    if (!err) {
-        *ptr = sym;
-    }
-
-    return err;
-}
-
 long KRB5_CALLCONV
-krb5int_get_plugin_data (struct plugin_file_handle *h, const char *csymname,
-                         void **ptr, struct errinfo *ep)
+krb5int_open_plugin(const char *filename,
+                    struct plugin_file_handle **handle_out, struct errinfo *ep)
 {
-    return krb5int_get_plugin_sym (h, csymname, 0, ptr, ep);
+    long ret;
+    struct plugin_file_handle *h;
+
+    *handle_out = NULL;
+
+    h = calloc(1, sizeof(*h));
+    if (h == NULL)
+        return ENOMEM;
+
+    ret = open_plugin(h, filename, ep);
+    if (ret) {
+        free(h);
+        return ret;
+    }
+
+    *handle_out = h;
+    return 0;
 }
 
 long KRB5_CALLCONV
-krb5int_get_plugin_func (struct plugin_file_handle *h, const char *csymname,
-                         void (**ptr)(), struct errinfo *ep)
+krb5int_get_plugin_data(struct plugin_file_handle *h, const char *csymname,
+                        void **sym_out, struct errinfo *ep)
+{
+    return get_sym(h, csymname, sym_out, ep);
+}
+
+long KRB5_CALLCONV
+krb5int_get_plugin_func(struct plugin_file_handle *h, const char *csymname,
+                        void (**sym_out)(), struct errinfo *ep)
 {
     void *dptr = NULL;
-    long err = krb5int_get_plugin_sym (h, csymname, 1, &dptr, ep);
-    if (!err) {
-        /* Cast function pointers to avoid code duplication */
-        *ptr = (void (*)()) dptr;
-    }
-    return err;
+    long ret = get_sym(h, csymname, &dptr, ep);
+
+    if (!ret)
+        *sym_out = (void (*)())dptr;
+    return ret;
 }
 
 void KRB5_CALLCONV
 krb5int_close_plugin (struct plugin_file_handle *h)
 {
-#if USE_DLOPEN
-    if (h->dlhandle != NULL) { dlclose(h->dlhandle); }
-#endif
-#ifdef _WIN32
-    if (h->hinstPlugin != NULL) { FreeLibrary(h->hinstPlugin); }
-#endif
-    free (h);
+    close_plugin(h);
+    free(h);
 }
-
-/* autoconf docs suggest using this preference order */
-#if HAVE_DIRENT_H || USE_DIRENT_H
-#include <dirent.h>
-#define NAMELEN(D) strlen((D)->d_name)
-#else
-#ifndef _WIN32
-#define dirent direct
-#define NAMELEN(D) ((D)->d->namlen)
-#else
-#define NAMELEN(D) strlen((D)->d_name)
-#endif
-#if HAVE_SYS_NDIR_H
-# include <sys/ndir.h>
-#elif HAVE_SYS_DIR_H
-# include <sys/dir.h>
-#elif HAVE_NDIR_H
-# include <ndir.h>
-#endif
-#endif
 
 static long
 krb5int_plugin_file_handle_array_init (struct plugin_file_handle ***harray)
@@ -602,42 +418,36 @@ krb5int_open_plugin_dirs (const char * const *dirnames,
                 if (handle   != NULL) { krb5int_close_plugin (handle); }
             }
         } else {
-            /* load all plugins in each directory */
-            DIR *dir = opendir (dirnames[i]);
+            char **fnames = NULL;
+            int j;
 
-            while (dir != NULL && !err) {
-                struct dirent *d = NULL;
+            err = k5_dir_filenames(dirnames[i], &fnames);
+            for (j = 0; !err && fnames[j] != NULL; j++) {
                 char *filepath = NULL;
                 struct plugin_file_handle *handle = NULL;
 
-                d = readdir (dir);
-                if (d == NULL) { break; }
-
-                if ((strcmp (d->d_name, ".") == 0) ||
-                    (strcmp (d->d_name, "..") == 0)) {
+                if (strcmp(fnames[j], ".") == 0 ||
+                    strcmp(fnames[j], "..") == 0)
                     continue;
+
+                if (asprintf(&filepath, "%s/%s", dirnames[i], fnames[j]) < 0) {
+                    filepath = NULL;
+                    err = ENOMEM;
                 }
 
-                if (!err) {
-                    int len = NAMELEN (d);
-                    if (asprintf(&filepath, "%s/%*s", dirnames[i], len, d->d_name) < 0) {
-                        filepath = NULL;
-                        err = ENOMEM;
-                    }
-                }
-
-                if (!err) {
-                    if (krb5int_open_plugin (filepath, &handle, ep) == 0) {
-                        err = krb5int_plugin_file_handle_array_add (&h, &count, handle);
-                        if (!err) { handle = NULL; }  /* h takes ownership */
-                    }
+                if (!err && krb5int_open_plugin(filepath, &handle, ep) == 0) {
+                    err = krb5int_plugin_file_handle_array_add(&h, &count,
+                                                               handle);
+                    if (!err)
+                        handle = NULL;  /* h takes ownership */
                 }
 
                 free(filepath);
-                if (handle    != NULL) { krb5int_close_plugin (handle); }
+                if (handle != NULL)
+                    krb5int_close_plugin(handle);
             }
 
-            if (dir != NULL) { closedir (dir); }
+            k5_free_filenames(fnames);
         }
     }
 

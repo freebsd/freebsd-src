@@ -38,6 +38,14 @@ gss_pseudo_random (OM_uint32 *minor_status,
     gss_union_ctx_id_t	ctx;
     gss_mechanism	mech;
 
+    if (minor_status != NULL)
+	*minor_status = 0;
+
+    if (prf_out != GSS_C_NO_BUFFER) {
+	prf_out->length = 0;
+	prf_out->value = NULL;
+    }
+
     if (minor_status == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
 
@@ -45,10 +53,10 @@ gss_pseudo_random (OM_uint32 *minor_status,
 	return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_NO_CONTEXT;
 
     if (prf_in == GSS_C_NO_BUFFER)
-	return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_NO_CONTEXT;
+	return GSS_S_CALL_INACCESSIBLE_READ;
 
     if (prf_out == GSS_C_NO_BUFFER)
-	return GSS_S_CALL_INACCESSIBLE_WRITE | GSS_S_NO_CONTEXT;
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     prf_out->length = 0;
     prf_out->value = NULL;

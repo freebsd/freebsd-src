@@ -207,24 +207,6 @@ TYPEDEF_FUNC(
 TYPEDEF_FUNC(
     DWORD,
     CALLCONV_C,
-    Leash_get_default_use_krb4,
-    (void)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
-    Leash_set_default_use_krb4,
-    (DWORD)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
-    Leash_reset_default_use_krb4,
-    (void)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
     Leash_get_default_life_min,
     (void)
     );
@@ -310,24 +292,6 @@ TYPEDEF_FUNC(
     DWORD,
     CALLCONV_C,
     Leash_reset_default_renewable,
-    (void)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
-    Leash_get_lock_file_locations,
-    (void)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
-    Leash_set_lock_file_locations,
-    (DWORD)
-    );
-TYPEDEF_FUNC(
-    DWORD,
-    CALLCONV_C,
-    Leash_reset_lock_file_locations,
     (void)
     );
 TYPEDEF_FUNC(

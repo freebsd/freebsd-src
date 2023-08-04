@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-RENEW-LIFE-data:
+
+KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE
+==================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE
+..
+
+
+
+
+========================================= ======================
+``KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE``       ``0x0002``
+========================================= ======================

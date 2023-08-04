@@ -46,13 +46,12 @@ static void enc()
 {
     krb5_key k;
     krb5_crypto_iov iov;
-    krb5_data cdata = make_data(cipher, 16);
 
+    memcpy(cipher, plain, 16);
     iov.flags = KRB5_CRYPTO_TYPE_DATA;
-    iov.data = make_data(plain, 16);
+    iov.data = make_data(cipher, 16);
     krb5_k_create_key(NULL, &enc_key, &k);
-    /* cbc-mac is the same as block encryption for a single block. */
-    krb5int_camellia_cbc_mac(k, &iov, 1, &ivec, &cdata);
+    krb5int_camellia_encrypt(k, &ivec, &iov, 1);
     krb5_k_free_key(NULL, k);
 }
 

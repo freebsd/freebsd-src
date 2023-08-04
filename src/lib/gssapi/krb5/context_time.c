@@ -35,8 +35,7 @@ krb5_gss_context_time(minor_status, context_handle, time_rec)
 {
     krb5_error_code code;
     krb5_gss_ctx_id_rec *ctx;
-    krb5_timestamp now;
-    krb5_deltat lifetime;
+    krb5_timestamp now, start;
 
     ctx = (krb5_gss_ctx_id_rec *) context_handle;
 
@@ -51,16 +50,9 @@ krb5_gss_context_time(minor_status, context_handle, time_rec)
         return(GSS_S_FAILURE);
     }
 
-    lifetime = ts_delta(ctx->krb_times.endtime, now);
-    if (!ctx->initiate)
-        lifetime += ctx->k5_context->clockskew;
-    if (lifetime <= 0) {
-        *time_rec = 0;
-        *minor_status = 0;
-        return(GSS_S_CONTEXT_EXPIRED);
-    } else {
-        *time_rec = lifetime;
-        *minor_status = 0;
-        return(GSS_S_COMPLETE);
-    }
+    /* Add the maximum allowable clock skew for acceptor contexts. */
+    start = ctx->initiate ? now : ts_incr(now, -ctx->k5_context->clockskew);
+    *time_rec = ts_interval(start, ctx->krb_times.endtime);
+    *minor_status = 0;
+    return (*time_rec == 0) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }

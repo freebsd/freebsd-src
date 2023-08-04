@@ -44,7 +44,7 @@ def usage():
 # Run a command and return a list of its output lines.
 def run(args):
     # subprocess.check_output would be ideal here, but requires Python 2.7.
-    p = Popen(args, stdout=PIPE, stderr=PIPE)
+    p = Popen(args, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     out, err = p.communicate()
     if p.returncode != 0:
         sys.stderr.write('Failed command: ' + ' '.join(args) + '\n')
@@ -85,8 +85,8 @@ def check_file(filename, rev, new_lines):
         p1 = Popen(['cat', filename], stdout=PIPE)
     else:
         p1 = Popen(['git', 'show', rev + ':' + filename], stdout=PIPE)
-    p2 = Popen(['python', 'src/util/cstyle-file.py'], stdin=p1.stdout,
-               stdout=PIPE)
+    p2 = Popen([sys.executable, 'src/util/cstyle-file.py'], stdin=p1.stdout,
+               stdout=PIPE, universal_newlines=True)
     p1.stdout.close()
     out, err = p2.communicate()
     if p2.returncode != 0:
@@ -97,9 +97,9 @@ def check_file(filename, rev, new_lines):
         m = line_re.match(line)
         if int(m.group(1)) in new_lines:
             if first:
-                print '  ' + dispname + ':'
+                print('  ' + dispname + ':')
                 first = False
-            print '    ' + line
+            print('    ' + line)
 
 
 # Determine the lines of each file modified by diff (a sequence of
@@ -153,8 +153,8 @@ def check_series(revlist):
 # Parse arguments.
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'w')
-except getopt.GetoptError, err:
-    print str(err)
+except getopt.GetoptError as err:
+    print(str(err))
     usage()
 if len(args) > 1:
     usage()

@@ -27,35 +27,23 @@
 #define IDD_DEBUG_WINDOW                157
 #define IDD_LEASH_DEBUG_WINDOW          157
 #define IDD_PAGE1                       160
-#define IDD_KRB4_PROP_LOCATION          160
 #define IDD_PAGE2                       161
-#define IDD_KRB4_PROP_CONTENT           161
 #define IDD_KRB_PROP_CONTENT            161
 #define IDD_LEASH_PROPERTIES            167
 #define IDD_KERB5_PAGE_PROP             168
 #define IDD_KRB5_PROP_CONTENT           168
 #define IDD_KRB5_PROP_LOCATION          169
-#define IDD_KRB4_REALMHOST_MAINT        178
 #define IDD_KRB_REALMHOST_MAINT         178
 #define IDC_CURSOR1                     179
-#define IDD_KRB4_DOMAINREALM_MAINT      180
-#define IDD_KRB4_ADD_REALMHOSTNAMES     181
 #define IDD_KRB_ADD_REALM               181
-#define IDD_KRB4_EDIT_REALMHOSTNAMES    182
 #define IDD_KRB_EDIT_REALM              182
-#define IDD_KRB4_ADD_DOMAINREALMNAME    183
-#define IDD_KRB4_EDIT_DOMAINREALMNAME   184
 #define IDD_DIALOG5                     187
 #define IDD_KRB_ADD_KDC_HOSTSERVER      197
 #define IDD_KRB_EDIT_KDC_HOSTSERVER     199
-#define IDD_KRB4_REALMHOST_MAINT2       203
-#define IDD_KRB4_EDIT_REALM             204
-#define IDD_KRB4_ADD_REALM              205
 #define IDD_DIALOG6                     207
 #define IDD_KRB_DOMAINREALM_MAINT       207
 #define IDD_DIALOG7                     210
 #define IDI_ICON1                       221
-#define IDD_AFS_PROPERTIES              224
 #define IDD_AUTHENTICATE                229
 #define IDI_LEASH_PRINCIPAL_GOOD        230
 #define IDI_LEASH_PRINCIPAL_LOW         231
@@ -64,14 +52,12 @@
 #define IDB_BITMAP1                     239
 #define IDI_TOOLBAR_INIT                240
 #define IDI_TOOLBAR_RENEW               241
-#define IDI_TOOLBAR_IMPORT              242
 #define IDI_TOOLBAR_DESTROY             243
 #define IDI_TOOLBAR_PASSWORD            244
 #define IDI_TOOLBAR_REFRESH             245
 #define IDI_TOOLBAR_SYNC                246
 #define IDI_TOOLBAR_INIT_DISABLED       247
 #define IDI_TOOLBAR_RENEW_DISABLED      248
-#define IDI_TOOLBAR_IMPORT_DISABLED     249
 #define IDI_TOOLBAR_DESTROY_DISABLED    250
 #define IDI_TOOLBAR_PASSWORD_DISABLED   251
 #define IDI_TOOLBAR_REFRESH_DISABLED    252
@@ -102,7 +88,6 @@
 #define IDC_LABEL_KERB_TICKETS          1011
 #define IDC_LIST1                       1012
 #define IDC_LEASH_MODULE_LB             1012
-#define IDC_LIST_KRB4_REALM_HOST        1012
 #define IDC_LIST_UTILITY                1012
 #define IDC_LIST_KDC_REALM              1012
 #define IDC_LIST_REMOVE_HOST            1012
@@ -173,7 +158,6 @@
 #define IDC_STATIC_OPTIONS              1083
 #define IDC_STATIC_TICKET_OPTIONS       1085
 #define IDC_BUTTON1                     1086
-#define IDC_BUTTON_AFS_PROPERTIES       1086
 #define IDC_RESET_DEFAULTS              1086
 #define IDC_BUTTON_KRB_HELP             1087
 #define IDC_STATIC_KRBREALM             1088
@@ -213,9 +197,6 @@
 #define IDC_STATIC_NOTE                 1129
 #define IDC_EDIT_KDC_HOST               1130
 #define IDC_EDIT_REALM                  1131
-#define IDC_BUTTON_KRB4_REALM_HOST_ADD  1133
-#define ID_BUTTON_KRB4_REALM_HOST_REMOVE 1134
-#define IDC_BUTTON_KRB4_REALM_HOST_EDIT 1135
 #define IDC_BUTTON_REALMHOST_MAINT_HELP2 1136
 #define IDC_BUTTON_HOST_ADD             1138
 #define ID_BUTTON_HOST_REMOVE           1139
@@ -229,8 +210,6 @@
 #define IDC_STATIC_KRBREALMS            1149
 #define IDC_STATIC_INIFILES             1150
 #define IDC_CHECK_CONFIRM_KRB5_EXISTS   1151
-#define IDC_RADIO_AFS_ENABLED           1152
-#define IDC_RADIO_AFS_DISABLED          1153
 #define IDC_STATIC_KRB_DEFAULT_LIFETIME 1154
 #define IDC_STATIC_TIME_UNITS           1155
 #define IDC_STATIC_KRB_DEFAULT_RENEWTILL 1155
@@ -256,7 +235,6 @@
 #define IDC_STATIC_KRB5                 1171
 #define IDC_EDIT_RENEWTILL_H            1171
 #define IDC_CHECK1                      1172
-#define IDC_CHECK_REQUEST_KRB4          1172
 #define IDC_CHECK2                      1173
 #define IDC_CHECK_PRESERVE_KINIT_OPTIONS 1173
 #define IDC_CHECK3                      1174
@@ -265,7 +243,6 @@
 #define IDC_STATIC_RENEW_TILL_VALUE     1177
 #define IDC_PICTURE                     1179
 #define IDC_DNS_KDC                     1180
-#define IDC_KRB4_DNS_KDC                1181
 #define IDC_CHECK_CREATE_MISSING_CFG    1182
 #define IDC_GROUP_LEASH_MISC            1183
 #define IDC_STATIC_LIFETIME_RANGE       1184
@@ -283,9 +260,6 @@
 #define IDC_EDIT_RENEW_MAX_M            1200
 #define IDC_EDIT_LIFETIME_M             1201
 #define IDC_EDIT_RENEWTILL_M            1202
-#define IDC_RADIO_MSLSA_IMPORT_OFF      1203
-#define IDC_RADIO_MSLSA_IMPORT_ON       1204
-#define IDC_RADIO_MSLSA_IMPORT_MATCH    1205
 #define IDC_STATIC_LEASH_MSLSA          1206
 #define IDC_LEASH_MAINVIEW              1207
 #define IDC_LIST3                       1208
@@ -306,9 +280,7 @@
 #define ID_UPPERCASE_REALM              32787
 #define ID_OPTIONS_RESETWINDOWSIZE      32789
 #define ID_RESET_WINDOW_SIZE            32790
-#define ID_AFS_CONTROL_PANEL            32791
 #define ID_SYSTEM_CONTROL_PANEL         32792
-#define ID_KRB4_PROPERTIES              32793
 #define ID_KRB5_PROPERTIES              32794
 #define ID_LEASH_PROPERTIES             32795
 #define ID_OPTIONS_LOWTICKETALARMSOUND  32796
@@ -320,7 +292,6 @@
 #define ID_HELP_FIND                    32803
 #define ID_HELP_LEASH32                 32804
 #define ID_HELP_WHYUSELEASH32           32805
-#define ID_IMPORT_TICKET                32806
 #define ID_INIT_TICKET                  32807
 #define ID_AUTO_RENEW                   32808
 #define ID_OBTAIN_TGT_WITH_LPARAM       32809
@@ -335,10 +306,7 @@
 #define ID_VALID_UNTIL                  32828
 #define ID_MAKE_DEFAULT                 32835
 #define ID_CHECK2                       32836
-#define ID_IMPORT_TICKETS               32836
 #define ID_EXPORT_TICKET                32837
-#define ID_AUTO_IMPORT_TICKET           32838
-#define ID_AUTO_IMPORT_TICKETS          32840
 #define ID_CCACHE_NAME                  32841
 
 // Next default values for new objects

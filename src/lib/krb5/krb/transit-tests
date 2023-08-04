@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. ./runenv.sh
+
 # Test the chk_trans.c code.
 # BUG: Currently only tests expansion, not validation.
 

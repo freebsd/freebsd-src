@@ -50,7 +50,6 @@ check_buf(struct k5buf *buf, const char *name)
     } else {
         fail_if(buf->space == 0, name);
         fail_if(buf->len >= buf->space, name);
-        fail_if(((char *)buf->data)[buf->len] != 0, name);
     }
 }
 
@@ -65,14 +64,14 @@ test_basic()
     k5_buf_add_len(&buf, "world", 5);
     check_buf(&buf, "basic fixed");
     fail_if(buf.data == NULL || buf.len != 11, "basic fixed");
-    fail_if(strcmp(buf.data, "Hello world") != 0, "basic fixed");
+    fail_if(memcmp(buf.data, "Hello world", 11) != 0, "basic fixed");
 
     k5_buf_init_dynamic(&buf);
     k5_buf_add_len(&buf, "Hello", 5);
     k5_buf_add(&buf, " world");
     check_buf(&buf, "basic dynamic");
     fail_if(buf.data == NULL || buf.len != 11, "basic dynamic");
-    fail_if(strcmp(buf.data, "Hello world") != 0, "basic dynamic");
+    fail_if(memcmp(buf.data, "Hello world", 11) != 0, "basic dynamic");
     k5_buf_free(&buf);
 }
 
@@ -141,7 +140,7 @@ test_overflow()
     /* Cause a fixed-sized buffer overflow. */
     k5_buf_init_fixed(&buf, storage, sizeof(storage));
     k5_buf_add(&buf, "12345");
-    k5_buf_add(&buf, "12345");
+    k5_buf_add(&buf, "123456");
     check_buf(&buf, "overflow 1");
     fail_if(buf.buftype != K5BUF_ERROR, "overflow 1");
 
@@ -161,7 +160,7 @@ test_error()
 
     /* Cause an overflow and then perform actions afterwards. */
     k5_buf_init_fixed(&buf, storage, sizeof(storage));
-    k5_buf_add(&buf, "1");
+    k5_buf_add(&buf, "12");
     fail_if(buf.buftype != K5BUF_ERROR, "error");
     check_buf(&buf, "error");
     k5_buf_add(&buf, "test");
@@ -184,7 +183,7 @@ test_truncate()
     k5_buf_truncate(&buf, 7);
     check_buf(&buf, "truncate");
     fail_if(buf.data == NULL || buf.len != 7, "truncate");
-    fail_if(strcmp(buf.data, "abcdefg") != 0, "truncate");
+    fail_if(memcmp(buf.data, "abcdefg", 7) != 0, "truncate");
     k5_buf_free(&buf);
 }
 
@@ -222,7 +221,7 @@ test_fmt()
     k5_buf_add_fmt(&buf, " %d ", 3);
     check_buf(&buf, "fmt 1");
     fail_if(buf.data == NULL || buf.len != 6, "fmt 1");
-    fail_if(strcmp(buf.data, "foo 3 ") != 0, "fmt 1");
+    fail_if(memcmp(buf.data, "foo 3 ", 6) != 0, "fmt 1");
 
     /* Overflow the same buffer with formatted text. */
     k5_buf_add_fmt(&buf, "%d%d%d%d", 1, 2, 3, 4);
@@ -235,14 +234,14 @@ test_fmt()
     k5_buf_add_fmt(&buf, " %d ", 3);
     check_buf(&buf, "fmt 3");
     fail_if(buf.data == NULL || buf.len != 6, "fmt 3");
-    fail_if(strcmp(buf.data, "foo 3 ") != 0, "fmt 3");
+    fail_if(memcmp(buf.data, "foo 3 ", 6) != 0, "fmt 3");
 
     /* Format more text into the same buffer, causing a big resize. */
     k5_buf_add_fmt(&buf, "%s", data);
     check_buf(&buf, "fmt 4");
     fail_if(buf.space != 2048, "fmt 4");
     fail_if(buf.data == NULL || buf.len != 1029, "fmt 4");
-    fail_if(strcmp((char *)buf.data + 6, data) != 0, "fmt 4");
+    fail_if(memcmp((char *)buf.data + 6, data, 1023) != 0, "fmt 4");
     k5_buf_free(&buf);
 }
 

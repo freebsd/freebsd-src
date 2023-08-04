@@ -280,7 +280,7 @@ expand_temp_folder(krb5_context context, PTYPE param, const char *postfix,
     const char *p = NULL;
 
     if (context == NULL || !context->profile_secure)
-        p = getenv("TMPDIR");
+        p = secure_getenv("TMPDIR");
     *ret = strdup((p != NULL) ? p : "/tmp");
     if (*ret == NULL)
         return ENOMEM;
@@ -454,7 +454,7 @@ k5_expand_path_tokens_extra(krb5_context context, const char *path_in,
 {
     krb5_error_code ret;
     struct k5buf buf;
-    char *tok_begin, *tok_end, *tok_val, **extra_tokens = NULL;
+    char *tok_begin, *tok_end, *tok_val, **extra_tokens = NULL, *path;
     const char *path_left;
     size_t nargs = 0, i;
     va_list ap;
@@ -517,22 +517,25 @@ k5_expand_path_tokens_extra(krb5_context context, const char *path_in,
         path_left = tok_end + 1;
     }
 
-    ret = k5_buf_status(&buf);
-    if (ret)
+    path = k5_buf_cstring(&buf);
+    if (path == NULL) {
+        ret = ENOMEM;
         goto cleanup;
+    }
 
 #ifdef _WIN32
     /* Also deal with slashes. */
     {
         char *p;
-        for (p = buf.data; *p != '\0'; p++) {
+        for (p = path; *p != '\0'; p++) {
             if (*p == '/')
                 *p = '\\';
         }
     }
 #endif
-    *path_out = buf.data;
+    *path_out = path;
     memset(&buf, 0, sizeof(buf));
+    ret = 0;
 
 cleanup:
     k5_buf_free(&buf);

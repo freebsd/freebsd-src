@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-TGS-REP-data:
+
+KRB5_TGS_REP
+============
+
+..
+.. data:: KRB5_TGS_REP
+..
+
+Response to TGS request.
+
+
+
+=================== ======================
+``KRB5_TGS_REP``       ``((krb5_msgtype)13)``
+=================== ======================

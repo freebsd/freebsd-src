@@ -53,14 +53,14 @@ static char sccsid[] = "@(#)svc_auth_unix.c 1.28 88/02/08 Copyr 1984 Sun Micro";
  */
 enum auth_stat
 gssrpc__svcauth_unix(
-	register struct svc_req *rqst,
-	register struct rpc_msg *msg,
+	struct svc_req *rqst,
+	struct rpc_msg *msg,
 	bool_t *dispatch)
 {
-	register enum auth_stat stat;
+	enum auth_stat stat;
 	XDR xdrs;
-	register struct authunix_parms *aup;
-	register rpc_inline_t *buf;
+	struct authunix_parms *aup;
+	rpc_inline_t *buf;
 	struct area {
 		struct authunix_parms area_aup;
 		char area_machname[MAX_MACHINE_NAME+1];

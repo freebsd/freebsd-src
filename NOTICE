@@ -1,4 +1,4 @@
-Copyright (C) 1985-2017 by the Massachusetts Institute of Technology.
+Copyright (C) 1985-2023 by the Massachusetts Institute of Technology.
 
 All rights reserved.
 
@@ -40,7 +40,7 @@ nationals of those countries.
 
 Documentation components of this software distribution are licensed
 under a Creative Commons Attribution-ShareAlike 3.0 Unported License.
-(http://creativecommons.org/licenses/by-sa/3.0/)
+(https://creativecommons.org/licenses/by-sa/3.0/)
 
 Individual source code files are copyright MIT, Cygnus Support,
 Novell, OpenVision Technologies, Oracle, Red Hat, Sun Microsystems,
@@ -137,28 +137,22 @@ Portions of "src/lib/crypto" have the following copyright:
 The implementation of the AES encryption algorithm in
 "src/lib/crypto/builtin/aes" has the following copyright:
 
-   Copyright (C) 2001, Dr Brian Gladman "brg@gladman.uk.net", Worcester, UK.
-   All rights reserved.
+      Copyright (C) 1998-2013, Brian Gladman, Worcester, UK. All
+      rights reserved.
 
-   LICENSE TERMS
+   The redistribution and use of this software (with or without
+   changes) is allowed without the payment of fees or royalties
+   provided that:
 
-   The free distribution and use of this software in both source and
-   binary form is allowed (with or without changes) provided that:
+      source code distributions include the above copyright notice,
+      this list of conditions and the following disclaimer;
 
-   1. distributions of this source code include the above copyright
-      notice, this list of conditions and the following disclaimer;
+      binary distributions include the above copyright notice, this
+      list of conditions and the following disclaimer in their
+      documentation.
 
-   2. distributions in binary form include the above copyright notice,
-      this list of conditions and the following disclaimer in the
-      documentation and/or other associated materials;
-
-   3. the copyright holder's name is not used to endorse products
-      built using this software without specific written permission.
-
-   DISCLAIMER
-
-   This software is provided 'as is' with no explcit or implied
-   warranties in respect of any properties, including, but not limited
+   This software is provided 'as is' with no explicit or implied
+   warranties in respect of its operation, including, but not limited
    to, correctness and fitness for purpose.
 
 ======================================================================
@@ -167,9 +161,9 @@ Portions contributed by Red Hat, including the pre-authentication
 plug-in framework and the NSS crypto implementation, contain the
 following copyright:
 
-   Copyright (C) 2006 Red Hat, Inc.
-   Portions copyright (C) 2006 Massachusetts Institute of Technology
-   All Rights Reserved.
+      Copyright (C) 2006 Red Hat, Inc.
+      Portions copyright (C) 2006 Massachusetts Institute of Technology
+      All Rights Reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -178,10 +172,10 @@ following copyright:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in
-     the documentation and/or other materials provided with the
-     distribution.
+   * Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials provided
+     with the distribution.
 
    * Neither the name of Red Hat, Inc., nor the names of its
      contributors may be used to endorse or promote products derived
@@ -311,8 +305,8 @@ the following new or changed files:
    lib/kdb/kdb_log.c
    lib/kdb/kdb_log.h
    lib/krb5/error_tables/kdb5_err.et
-   slave/kpropd_rpc.c
-   slave/kproplog.c
+   kprop/kpropd_rpc.c
+   kprop/kproplog.c
 
 are subject to the following license:
 
@@ -344,15 +338,16 @@ Kerberos V5 includes documentation and software developed at the
 University of California at Berkeley, which includes this copyright
 notice:
 
-   Copyright (C) 1983 Regents of the University of California.
-   All rights reserved.
+      Copyright (C) 1983 Regents of the University of California.
+      All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -381,8 +376,8 @@ notice:
 Portions contributed by Novell, Inc., including the LDAP database
 backend, are subject to the following license:
 
-   Copyright (C) 2004-2005, Novell, Inc.
-   All rights reserved.
+      Copyright (C) 2004-2005, Novell, Inc.
+      All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -391,10 +386,10 @@ backend, are subject to the following license:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in
-     the documentation and/or other materials provided with the
-     distribution.
+   * Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials provided
+     with the distribution.
 
    * The copyright holder's name is not used to endorse or promote
      products derived from this software without specific prior
@@ -420,9 +415,9 @@ University of Michigan's Center for Information Technology
 Integration, including the PKINIT implementation, are subject to the
 following license:
 
-   COPYRIGHT (C) 2006-2007
-   THE REGENTS OF THE UNIVERSITY OF MICHIGAN
-   ALL RIGHTS RESERVED
+      COPYRIGHT (C) 2006-2007
+      THE REGENTS OF THE UNIVERSITY OF MICHIGAN
+      ALL RIGHTS RESERVED
 
    Permission is granted to use, copy, create derivative works and
    redistribute this software and such derivative works for any
@@ -450,8 +445,8 @@ following license:
 The pkcs11.h file included in the PKINIT code has the following
 license:
 
-   Copyright 2006 g10 Code GmbH
-   Copyright 2006 Andreas Jellinghaus
+      Copyright 2006 g10 Code GmbH
+      Copyright 2006 Andreas Jellinghaus
 
    This file is free software; as a special exception the author gives
    unlimited permission to copy and/or distribute it, with or without
@@ -495,22 +490,23 @@ The implementations of UTF-8 string handling in src/util/support and
 src/lib/krb5/unicode are subject to the following copyright and
 permission notice:
 
-   The OpenLDAP Public License
-   Version 2.8, 17 August 2003
+      The OpenLDAP Public License
+      Version 2.8, 17 August 2003
 
    Redistribution and use of this software and associated
    documentation ("Software"), with or without modification, are
    permitted provided that the following conditions are met:
 
-   1. Redistributions in source form must retain copyright statements
-      and notices,
+   1. Redistributions in source form must retain copyright
+      statements and notices,
 
    2. Redistributions in binary form must reproduce applicable
       copyright statements and notices, this list of conditions, and
       the following disclaimer in the documentation and/or other
       materials provided with the distribution, and
 
-   3. Redistributions must contain a verbatim copy of this document.
+   3. Redistributions must contain a verbatim copy of this
+      document.
 
    The OpenLDAP Foundation may revise this license from time to time.
    Each revision is distinguished by a version number.  You may use
@@ -548,25 +544,26 @@ permission notice:
 
 Marked test programs in src/lib/krb5/krb have the following copyright:
 
-   Copyright (C) 2006 Kungliga Tekniska Högskola
-   (Royal Institute of Technology, Stockholm, Sweden).
-   All rights reserved.
+      Copyright (C) 2006 Kungliga Tekniska Högskola
+      (Royal Institute of Technology, Stockholm, Sweden).
+      All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
       disclaimer in the documentation and/or other materials provided
       with the distribution.
 
-   3. Neither the name of KTH nor the names of its contributors may be
-      used to endorse or promote products derived from this software
-      without specific prior written permission.
+   3. Neither the name of KTH nor the names of its contributors may
+      be used to endorse or promote products derived from this
+      software without specific prior written permission.
 
    THIS SOFTWARE IS PROVIDED BY KTH AND ITS CONTRIBUTORS "AS IS" AND
    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -635,16 +632,17 @@ src/include/gssrpc have the following copyright and permission notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
       disclaimer in the documentation and/or other materials provided
       with the distribution.
 
-   3. Neither the name of the "Oracle America, Inc." nor the names of
-      its contributors may be used to endorse or promote products
+   3. Neither the name of the "Oracle America, Inc." nor the names
+      of its contributors may be used to endorse or promote products
       derived from this software without specific prior written
       permission.
 
@@ -670,9 +668,9 @@ src/include/gssrpc have the following copyright and permission notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer as
-      the first lines of this file unmodified.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer as the first lines of this file unmodified.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -731,23 +729,33 @@ src/include/gssrpc have the following copyright and permission notice:
 
 ======================================================================
 
-Portions extracted from Internet RFCs have the following copyright
-notice:
+   Copyright (C) 2022 United States Government as represented by the
+   Secretary of the Navy.  All rights reserved.
 
-   Copyright (C) The Internet Society (2006).
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
 
-   This document is subject to the rights, licenses and restrictions
-   contained in BCP 78, and except as set forth therein, the authors
-   retain all their rights.
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
 
-   This document and the information contained herein are provided on
-   an "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE
-   REPRESENTS OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND
-   THE INTERNET ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES,
-   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT
-   THE USE OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR
-   ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
-   PARTICULAR PURPOSE.
+   * Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials provided
+     with the distribution.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+   OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ======================================================================
 
@@ -791,15 +799,16 @@ notice:
 Portions of the implementation of the Fortuna-like PRNG are subject to
 the following notice:
 
-   Copyright (C) 2005 Marko Kreen
-   All rights reserved.
+      Copyright (C) 2005 Marko Kreen
+      All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -844,8 +853,8 @@ the following notice:
 
 ======================================================================
 
-   Copyright (C) 1995
-   The President and Fellows of Harvard University
+      Copyright (C) 1995
+      The President and Fellows of Harvard University
 
    This code is derived from software contributed to Harvard by Jeremy
    Rassen.
@@ -854,8 +863,9 @@ the following notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -887,9 +897,9 @@ the following notice:
 
 ======================================================================
 
-   Copyright (C) 2008 by the Massachusetts Institute of Technology.
-   Copyright 1995 by Richard P. Basch.  All Rights Reserved.
-   Copyright 1995 by Lehman Brothers, Inc.  All Rights Reserved.
+      Copyright (C) 2008 by the Massachusetts Institute of Technology.
+      Copyright 1995 by Richard P. Basch.  All Rights Reserved.
+      Copyright 1995 by Lehman Brothers, Inc.  All Rights Reserved.
 
       Export of this software from the United States of America may
       require a specific license from the United States Government. It
@@ -913,8 +923,8 @@ the following notice:
 The following notice applies to "src/lib/krb5/krb/strptime.c" and
 "src/include/k5-queue.h".
 
-   Copyright (C) 1997, 1998 The NetBSD Foundation, Inc.
-   All rights reserved.
+      Copyright (C) 1997, 1998 The NetBSD Foundation, Inc.
+      All rights reserved.
 
    This code was contributed to The NetBSD Foundation by Klaus Klein.
 
@@ -922,8 +932,9 @@ The following notice applies to "src/lib/krb5/krb/strptime.c" and
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -936,9 +947,10 @@ The following notice applies to "src/lib/krb5/krb/strptime.c" and
          This product includes software developed by the NetBSD
          Foundation, Inc. and its contributors.
 
-   4. Neither the name of The NetBSD Foundation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
+   4. Neither the name of The NetBSD Foundation nor the names of
+      its contributors may be used to endorse or promote products
+      derived from this software without specific prior written
+      permission.
 
    THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
    CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -959,8 +971,8 @@ The following notice applies to "src/lib/krb5/krb/strptime.c" and
 The following notice applies to Unicode library files in
 "src/lib/krb5/unicode":
 
-   Copyright 1997, 1998, 1999 Computing Research Labs,
-   New Mexico State University
+      Copyright 1997, 1998, 1999 Computing Research Labs,
+      New Mexico State University
 
    Permission is hereby granted, free of charge, to any person
    obtaining a copy of this software and associated documentation
@@ -1048,8 +1060,9 @@ The following notice applies to portiions of "src/lib/rpc" and
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -1143,9 +1156,10 @@ The following notice applies to
 
 Portions of "src/lib/krb5" are subject to the following notice:
 
-   Copyright (C) 1994 CyberSAFE Corporation.
-   Copyright 1990,1991,2007,2008 by the Massachusetts Institute of Technology.
-   All Rights Reserved.
+      Copyright (C) 1994 CyberSAFE Corporation.
+      Copyright 1990,1991,2007,2008 by the Massachusetts
+      Institute of Technology.
+      All Rights Reserved.
 
       Export of this software from the United States of America may
       require a specific license from the United States Government. It
@@ -1178,8 +1192,9 @@ license:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above
+      copyright notice, this list of conditions and the following
+      disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -1217,10 +1232,10 @@ The bundled libev source code is subject to the following license:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in
-     the documentation and/or other materials provided with the
-     distribution.
+   * Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials provided
+     with the distribution.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -1252,15 +1267,15 @@ The bundled libev source code is subject to the following license:
 Files copied from the Intel AESNI Sample Library are subject to the
 following license:
 
-   Copyright (C) 2010, Intel Corporation
-   All rights reserved.
+   Copyright (C) 2010, Intel Corporation All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
    are met:
 
-      * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
+      * Redistributions of source code must retain the above
+        copyright notice, this list of conditions and the following
+        disclaimer.
 
       * Redistributions in binary form must reproduce the above
         copyright notice, this list of conditions and the following
@@ -1316,3 +1331,54 @@ The following notice applies to
    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
    OF THE POSSIBILITY OF SUCH DAMAGE.
+
+======================================================================
+
+The following notice applies to portions of
+"src/plugins/preauth/spake/edwards25519.c" and
+"src/plugins/preauth/spake/edwards25519_tables.h":
+
+The MIT License (MIT)
+
+Copyright (c) 2015-2016 the fiat-crypto authors (see the AUTHORS
+file).
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+======================================================================
+
+The following notice applies to portions of
+"src/plugins/preauth/spake/edwards25519.c":
+
+Copyright (c) 2015-2016, Google Inc.
+
+Permission to use, copy, modify, and/or distribute this software for
+any purpose with or without fee is hereby granted, provided that the
+above copyright notice and this permission notice appear in all
+copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.

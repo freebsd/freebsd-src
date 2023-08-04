@@ -146,7 +146,7 @@ get_line(FILE *fp, const char *fname, int *lineno, int *incr)
                 *incr = 0;
                 k5_buf_truncate(&buf, 0);
             } else {
-                return buf.data;
+                return k5_buf_cstring(&buf);
             }
         }
     }

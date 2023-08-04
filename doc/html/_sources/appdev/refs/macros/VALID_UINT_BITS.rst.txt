@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _VALID-UINT-BITS-data:
+
+VALID_UINT_BITS
+===============
+
+..
+.. data:: VALID_UINT_BITS
+..
+
+
+
+
+====================== ======================
+``VALID_UINT_BITS``       ``UINT_MAX``
+====================== ======================

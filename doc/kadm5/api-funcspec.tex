@@ -1,4 +1,7 @@
-\documentstyle[12pt,fullpage,rcsid]{article}
+% This document is included for historical purposes only, and does not
+% apply to krb5 today.
+
+\documentstyle[12pt,fullpage]{article}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Make _ actually generate an _, and allow line-breaking after it.
@@ -7,15 +10,13 @@
 \def_{\underscore\penalty75\relax}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\rcs$Id$
-
 \setlength{\parskip}{.7\baselineskip}
 \setlength{\parindent}{0pt}
 
 \def\v#1{\verb+#1+}
 
 \title{Kerberos Administration System \\
-        KADM5 API Functional Specifications\thanks{\rcsId}}
+        KADM5 API Functional Specifications}
 \author{Barry Jaspan}
 
 \begin{document}
@@ -521,7 +522,7 @@ typedef struct _krb5_key_data {
 \end{verbatim}
 %
 \begin{description}
-\item[key_data_ver] The verion number of the structure.  Versions 1
+\item[key_data_ver] The version number of the structure.  Versions 1
 and 2 are currently defined.  If key_data_ver is 1 then the key is
 either a random key (not requiring a salt) or the salt is the normal
 v5 salt which is the same as the realm and therefore doesn't need to
@@ -640,7 +641,7 @@ Before \v{\#include}ing $<$kadm5/admin.h$>$, the programmer can
 specify the API version number that the program will use by
 \v{\#define}ing USE_KADM5_API_VERSION; for example, define that symbol
 to be 1 to use KADM5_API_VERSION_1.  This will ensure that the correct
-functional protoypes and data structures are defined.  If no version
+functional prototypes and data structures are defined.  If no version
 symbol is defined, the most recent version supported by the header
 files will be used.
 
@@ -726,7 +727,7 @@ mismatch
 \item[KADM5_BAD_LENGTH] Invalid password length
 \item[KADM5_BAD_POLICY] Illegal policy name
 \item[KADM5_BAD_PRINCIPAL] Illegal principal name.
-\item[KADM5_BAD_AUX_ATTR] Invalid auxillary attributes
+\item[KADM5_BAD_AUX_ATTR] Invalid auxiliary attributes
 \item[KADM5_BAD_HISTORY] Invalid password history count
 \item[KADM5_BAD_MIN_PASS_LIFE] Password minimum life is greater
 then password maximum life
@@ -734,7 +735,7 @@ then password maximum life
 \item[KADM5_PASS_Q_CLASS] Password does not contain enough
 character classes
 \item[KADM5_PASS_Q_DICT] Password is in the password dictionary
-\item[KADM5_PASS_REUSE] Cannot resuse password
+\item[KADM5_PASS_REUSE] Cannot reuse password
 \item[KADM5_PASS_TOOSOON] Current password's minimum life has not
 expired
 \item[KADM5_POLICY_REF] Policy is in use
@@ -961,7 +962,7 @@ NOTE: kadm5_init is an obsolete function provided for backwards
 compatibility.  It is identical to kadm5_init_with_password.
 
 These three functions open a connection to the kadm5 library and
-initialize any neccessary state information.  They behave differently
+initialize any necessary state information.  They behave differently
 when called from local and remote clients.  
 
 In KADM5_API_VERSION_2, these functions take a kadm5_config_params
@@ -1443,7 +1444,7 @@ terminal-based applications will make use of the password reading
 functionality. If the passwords don't match the string ``New passwords do
 not match - password not changed.'' will be copied into msg_ret, and the
 error code KRB5_LIBOS_BADPWDMATCH will be returned.  For other errors that
-ocurr while reading the new password, copy the string ``<com_err message$>$
+occur while reading the new password, copy the string ``<com_err message$>$
 occurred while trying to read new password.'' followed by a blank line and
 the string specified by CHPASS_UTIL_PASSWORD_NOT_CHANGED into msg_ret and
 return the error code returned by krb5_read_password.
@@ -1950,7 +1951,7 @@ void kadm5_free_policy_ent(kadm5_policy_ent_t policy);
 \end{verbatim}
 
 Free memory that was allocated by a call to kadm5_get_policy.  If
-the argument is NULL, the function returns succesfully.
+the argument is NULL, the function returns successfully.
 
 AUTHORIZATION REQUIRED: none (local operation)
 

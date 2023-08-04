@@ -73,7 +73,7 @@ typedef struct __kdc_realm_data {
     krb5_deltat         realm_maxrlife; /* Maximum renewable life for realm */
     krb5_boolean        realm_reject_bad_transit; /* Accept unverifiable transited_realm ? */
     krb5_boolean        realm_restrict_anon;  /* Anon to local TGT only */
-    krb5_boolean        realm_assume_des_crc_sess;  /* Assume princs support des-cbc-crc for session keys */
+    krb5_boolean        realm_disable_pac; /* Prevent issuance of PACs. */
 } kdc_realm_t;
 
 struct server_handle {
@@ -84,13 +84,5 @@ struct server_handle {
 
 kdc_realm_t *find_realm_data(struct server_handle *, char *, krb5_ui_4);
 kdc_realm_t *setup_server_realm(struct server_handle *, krb5_principal);
-
-/*
- * These macros used to refer to a global pointer to the active realm state
- * structure for a request.  They now refer to a local variable that must be
- * properly declared in each function that uses these macros.
- */
-#define kdc_context                     kdc_active_realm->realm_context
-#define tgs_server                      kdc_active_realm->realm_tgsprinc
 
 #endif  /* REALM_DATA_H */

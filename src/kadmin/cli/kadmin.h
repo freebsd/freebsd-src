@@ -67,16 +67,10 @@ randkey_princ(void *lhandle, krb5_principal princ, krb5_boolean keepold,
 
 #include "autoconf.h"
 
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#else
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
+#endif
 #include <time.h>
-#endif
-#endif
 
 extern time_t get_date_rel(char *, time_t);
 

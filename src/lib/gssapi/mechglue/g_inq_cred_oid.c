@@ -74,14 +74,20 @@ gss_inquire_cred_by_oid(OM_uint32 *minor_status,
     gss_buffer_set_t	ret_set = GSS_C_NO_BUFFER_SET;
     OM_uint32		status, minor;
 
-    if (minor_status == NULL)
+    if (minor_status != NULL)
+	*minor_status = 0;
+
+    if (data_set != NULL)
+	*data_set = GSS_C_NO_BUFFER_SET;
+
+    if (minor_status == NULL || data_set == NULL)
 	return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     if (cred_handle == GSS_C_NO_CREDENTIAL)
 	return GSS_S_CALL_INACCESSIBLE_READ | GSS_S_NO_CRED;
 
-    *minor_status = 0;
-    *data_set = GSS_C_NO_BUFFER_SET;
+    if (desired_object == GSS_C_NO_OID)
+	return GSS_S_CALL_INACCESSIBLE_READ;
 
     union_cred = (gss_union_cred_t) cred_handle;
 

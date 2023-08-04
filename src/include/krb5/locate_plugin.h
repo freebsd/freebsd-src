@@ -34,11 +34,12 @@
 
 enum locate_service_type {
     locate_service_kdc = 1,
-    locate_service_master_kdc,
+    locate_service_primary_kdc,
     locate_service_kadmin,
     locate_service_krb524,
     locate_service_kpasswd
 };
+#define locate_service_master_kdc locate_service_primary_kdc
 
 typedef struct krb5plugin_service_locate_ftable {
     int minor_version;          /* currently 0 */

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-LRQ-ALL-ACCT-EXPTIME-data:
+
+KRB5_LRQ_ALL_ACCT_EXPTIME
+=========================
+
+..
+.. data:: KRB5_LRQ_ALL_ACCT_EXPTIME
+..
+
+
+
+
+================================ ======================
+``KRB5_LRQ_ALL_ACCT_EXPTIME``       ``7``
+================================ ======================

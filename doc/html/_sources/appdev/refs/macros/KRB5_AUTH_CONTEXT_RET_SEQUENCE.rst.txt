@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-AUTH-CONTEXT-RET-SEQUENCE-data:
+
+KRB5_AUTH_CONTEXT_RET_SEQUENCE
+==============================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_RET_SEQUENCE
+..
+
+Save sequence numbers for application.
+
+
+
+===================================== ======================
+``KRB5_AUTH_CONTEXT_RET_SEQUENCE``       ``0x00000008``
+===================================== ======================

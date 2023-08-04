@@ -38,7 +38,7 @@ int KRB5_CALLCONV
 krb5_address_order(krb5_context context, const krb5_address *addr1, const krb5_address *addr2)
 {
     int dir;
-    register int i;
+    int i;
     const int minlen = min(addr1->length, addr2->length);
 
     if (addr1->addrtype != addr2->addrtype)

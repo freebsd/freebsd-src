@@ -78,10 +78,9 @@ k5_get_error(struct errinfo *ep, long code)
 
     lock();
     if (fptr == NULL) {
+        /* Should be rare; fptr should be set whenever libkrb5 is loaded. */
         unlock();
-        if (strerror_r(code, buf, sizeof(buf)) == 0)
-            return oom_check(strdup(buf));
-        return oom_check(strdup(strerror(code)));
+        return oom_check(strdup(_("Error code translation unavailable")));
     }
     r = fptr(code);
 #ifndef HAVE_COM_ERR_INTL

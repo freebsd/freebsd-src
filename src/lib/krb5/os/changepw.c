@@ -59,13 +59,12 @@ struct sendto_callback_context {
 
 static krb5_error_code
 locate_kpasswd(krb5_context context, const krb5_data *realm,
-               struct serverlist *serverlist, krb5_boolean no_udp)
+               struct serverlist *serverlist)
 {
     krb5_error_code code;
 
     code = k5_locate_server(context, realm, serverlist, locate_service_kpasswd,
-                            no_udp);
-
+                            FALSE);
     if (code == KRB5_REALM_CANT_RESOLVE || code == KRB5_REALM_UNKNOWN) {
         code = k5_locate_server(context, realm, serverlist,
                                 locate_service_kadmin, TRUE);
@@ -76,7 +75,7 @@ locate_kpasswd(krb5_context context, const krb5_data *realm,
             for (i = 0; i < serverlist->nservers; i++) {
                 struct server_entry *s = &serverlist->servers[i];
 
-                if (!no_udp && s->transport == TCP)
+                if (s->transport == TCP)
                     s->transport = TCP_OR_UDP;
                 if (s->hostname != NULL)
                     s->port = DEFAULT_KPASSWD_PORT;
@@ -214,7 +213,6 @@ change_set_password(krb5_context context,
                     krb5_data *result_string)
 {
     krb5_data                   chpw_rep;
-    krb5_boolean                no_udp = FALSE;
     GETSOCKNAME_ARG3_TYPE       addrlen;
     krb5_error_code             code = 0;
     char                        *code_string;
@@ -246,73 +244,56 @@ change_set_password(krb5_context context,
     callback_ctx.remote_seq_num = callback_ctx.auth_context->remote_seq_number;
     callback_ctx.local_seq_num = callback_ctx.auth_context->local_seq_number;
 
-    do {
-        k5_transport_strategy strategy = no_udp ? NO_UDP : UDP_FIRST;
+    code = locate_kpasswd(callback_ctx.context, &creds->server->realm, &sl);
+    if (code)
+        goto cleanup;
 
-        code = locate_kpasswd(callback_ctx.context, &creds->server->realm, &sl,
-                              no_udp);
-        if (code)
-            break;
+    addrlen = sizeof(remote_addr);
 
-        addrlen = sizeof(remote_addr);
+    callback_info.data = &callback_ctx;
+    callback_info.pfn_callback = kpasswd_sendto_msg_callback;
+    callback_info.pfn_cleanup = kpasswd_sendto_msg_cleanup;
+    krb5_free_data_contents(callback_ctx.context, &chpw_rep);
 
-        callback_info.data = &callback_ctx;
-        callback_info.pfn_callback = kpasswd_sendto_msg_callback;
-        callback_info.pfn_cleanup = kpasswd_sendto_msg_cleanup;
-        krb5_free_data_contents(callback_ctx.context, &chpw_rep);
-
+    /* UDP retransmits may be seen as replays.  Only try UDP after other
+     * transports fail completely. */
+    code = k5_sendto(callback_ctx.context, NULL, &creds->server->realm,
+                     &sl, NO_UDP, &callback_info, &chpw_rep,
+                     ss2sa(&remote_addr), &addrlen, NULL, NULL, NULL);
+    if (code == KRB5_KDC_UNREACH) {
         code = k5_sendto(callback_ctx.context, NULL, &creds->server->realm,
-                         &sl, strategy, &callback_info, &chpw_rep,
+                         &sl, ONLY_UDP, &callback_info, &chpw_rep,
                          ss2sa(&remote_addr), &addrlen, NULL, NULL, NULL);
-        if (code) {
-            /*
-             * Here we may want to switch to TCP on some errors.
-             * right?
-             */
-            break;
+    }
+    if (code)
+        goto cleanup;
+
+    code = krb5int_rd_chpw_rep(callback_ctx.context,
+                               callback_ctx.auth_context,
+                               &chpw_rep, &local_result_code,
+                               result_string);
+
+    if (code)
+        goto cleanup;
+
+    if (result_code)
+        *result_code = local_result_code;
+
+    if (result_code_string) {
+        code = krb5_chpw_result_code_string(callback_ctx.context,
+                                            local_result_code,
+                                            &code_string);
+        if (code)
+            goto cleanup;
+
+        result_code_string->length = strlen(code_string);
+        result_code_string->data = malloc(result_code_string->length);
+        if (result_code_string->data == NULL) {
+            code = ENOMEM;
+            goto cleanup;
         }
-
-        code = krb5int_rd_chpw_rep(callback_ctx.context,
-                                   callback_ctx.auth_context,
-                                   &chpw_rep, &local_result_code,
-                                   result_string);
-
-        if (code) {
-            if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !no_udp) {
-                k5_free_serverlist(&sl);
-                no_udp = 1;
-                continue;
-            }
-
-            break;
-        }
-
-        if (result_code)
-            *result_code = local_result_code;
-
-        if (result_code_string) {
-            code = krb5_chpw_result_code_string(callback_ctx.context,
-                                                local_result_code,
-                                                &code_string);
-            if (code)
-                goto cleanup;
-
-            result_code_string->length = strlen(code_string);
-            result_code_string->data = malloc(result_code_string->length);
-            if (result_code_string->data == NULL) {
-                code = ENOMEM;
-                goto cleanup;
-            }
-            strncpy(result_code_string->data, code_string, result_code_string->length);
-        }
-
-        if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !no_udp) {
-            k5_free_serverlist(&sl);
-            no_udp = 1;
-        } else {
-            break;
-        }
-    } while (TRUE);
+        strncpy(result_code_string->data, code_string, result_code_string->length);
+    }
 
 cleanup:
     if (callback_ctx.auth_context != NULL)

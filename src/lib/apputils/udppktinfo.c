@@ -23,6 +23,9 @@
  * or implied warranty.
  */
 
+/* macOS requires this define for IPV6_PKTINFO. */
+#define __APPLE_USE_RFC_3542
+
 #include "udppktinfo.h"
 
 #include <netinet/in.h>
@@ -295,8 +298,8 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
     if (!to || !tolen || !r)
         return recvfrom(sock, buf, len, flags, from, fromlen);
 
-    /* Clobber with something recognizeable in case we can't extract the
-     * address but try to use it anyways. */
+    /* Clobber with something recognizable in case we can't extract the address
+     * but try to use it anyways. */
     memset(to, 0x40, *tolen);
 
     iov.iov_base = buf;
@@ -502,7 +505,7 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
              aux_addressing_info *auxaddr)
 {
     if (to && tolen) {
-        /* Clobber with something recognizeable in case we try to use the
+        /* Clobber with something recognizable in case we try to use the
          * address. */
         memset(to, 0x40, *tolen);
         *tolen = 0;

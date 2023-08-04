@@ -151,6 +151,7 @@ static krb5_error_code
 init_tls_vtable(krb5_context context)
 {
     krb5_plugin_initvt_fn initfn;
+    krb5_error_code ret;
 
     if (context->tls != NULL)
         return 0;
@@ -161,8 +162,11 @@ init_tls_vtable(krb5_context context)
 
     /* Attempt to load the module; just let it stay nulled out on failure. */
     k5_plugin_register_dyn(context, PLUGIN_INTERFACE_TLS, "k5tls", "tls");
-    if (k5_plugin_load(context, PLUGIN_INTERFACE_TLS, "k5tls", &initfn) == 0)
+    ret = k5_plugin_load(context, PLUGIN_INTERFACE_TLS, "k5tls", &initfn);
+    if (!ret)
         (*initfn)(context, 0, 0, (krb5_plugin_vtable)context->tls);
+    else
+        TRACE_SENDTO_KDC_K5TLS_LOAD_ERROR(context, ret);
 
     return 0;
 }
@@ -432,7 +436,7 @@ krb5_set_kdc_recv_hook(krb5_context context, krb5_post_recv_fn recv_hook,
 
 krb5_error_code
 krb5_sendto_kdc(krb5_context context, const krb5_data *message,
-                const krb5_data *realm, krb5_data *reply_out, int *use_master,
+                const krb5_data *realm, krb5_data *reply_out, int *use_primary,
                 int no_udp)
 {
     krb5_error_code retval, oldret, err;
@@ -456,7 +460,7 @@ krb5_sendto_kdc(krb5_context context, const krb5_data *message,
      * should probably be returned as well.
      */
 
-    TRACE_SENDTO_KDC(context, message->length, realm, *use_master, no_udp);
+    TRACE_SENDTO_KDC(context, message->length, realm, *use_primary, no_udp);
 
     if (!no_udp && context->udp_pref_limit < 0) {
         int tmp;
@@ -482,7 +486,7 @@ krb5_sendto_kdc(krb5_context context, const krb5_data *message,
     else
         strategy = UDP_LAST;
 
-    retval = k5_locate_kdc(context, realm, &servers, *use_master, no_udp);
+    retval = k5_locate_kdc(context, realm, &servers, *use_primary, no_udp);
     if (retval)
         return retval;
 
@@ -523,10 +527,13 @@ krb5_sendto_kdc(krb5_context context, const krb5_data *message,
                                         retval, realm, message, &reply,
                                         &hook_reply);
         if (oldret && !retval) {
-            /* The hook must set a reply if it overrides an error from
-             * k5_sendto().  Treat this reply as coming from the master KDC. */
+            /*
+             * The hook must set a reply if it overrides an error from
+             * k5_sendto().  Treat this reply as coming from the primary
+             * KDC.
+             */
             assert(hook_reply != NULL);
-            *use_master = 1;
+            *use_primary = 1;
         }
     }
     if (retval)
@@ -540,12 +547,12 @@ krb5_sendto_kdc(krb5_context context, const krb5_data *message,
         reply = empty_data();
     }
 
-    /* Set use_master to 1 if we ended up talking to a master when we didn't
+    /* Set use_primary to 1 if we ended up talking to a primary when we didn't
      * explicitly request to. */
-    if (*use_master == 0) {
-        *use_master = k5_kdc_is_master(context, realm,
-                                       &servers.servers[server_used]);
-        TRACE_SENDTO_KDC_MASTER(context, *use_master);
+    if (*use_primary == 0) {
+        *use_primary = k5_kdc_is_primary(context, realm,
+                                         &servers.servers[server_used]);
+        TRACE_SENDTO_KDC_PRIMARY(context, *use_primary);
     }
 
 cleanup:
@@ -715,8 +722,10 @@ add_connection(struct conn_state **conns, k5_transport transport,
 
         if (*udpbufp == NULL) {
             *udpbufp = malloc(MAX_DGRAM_SIZE);
-            if (*udpbufp == 0)
+            if (*udpbufp == NULL) {
+                free(state);
                 return ENOMEM;
+            }
         }
         state->in.buf = *udpbufp;
         state->in.bufsize = MAX_DGRAM_SIZE;
@@ -795,11 +804,14 @@ resolve_server(krb5_context context, const krb5_data *realm,
     int err, result;
     char portbuf[PORT_LENGTH];
 
-    /* Skip UDP entries if we don't want UDP. */
+    /* Skip entries excluded by the strategy. */
     if (strategy == NO_UDP && entry->transport == UDP)
         return 0;
+    if (strategy == ONLY_UDP && entry->transport != UDP &&
+        entry->transport != TCP_OR_UDP)
+        return 0;
 
-    transport = (strategy == UDP_FIRST) ? UDP : TCP;
+    transport = (strategy == UDP_FIRST || strategy == ONLY_UDP) ? UDP : TCP;
     if (entry->hostname == NULL) {
         /* Added by a module, so transport is either TCP or UDP. */
         ai.ai_socktype = socktype_for_transport(entry->transport);
@@ -843,8 +855,9 @@ resolve_server(krb5_context context, const krb5_data *realm,
     }
 
     /* For TCP_OR_UDP entries, add each address again with the non-preferred
-     * transport, unless we are avoiding UDP.  Flag these as deferred. */
-    if (retval == 0 && entry->transport == TCP_OR_UDP && strategy != NO_UDP) {
+     * transport, if there is one.  Flag these as deferred. */
+    if (retval == 0 && entry->transport == TCP_OR_UDP &&
+        (strategy == UDP_FIRST || strategy == UDP_LAST)) {
         transport = (strategy == UDP_FIRST) ? TCP : UDP;
         for (a = addrs; a != 0 && retval == 0; a = a->ai_next) {
             a->ai_socktype = socktype_for_transport(transport);
@@ -880,7 +893,8 @@ start_connection(krb5_context context, struct conn_state *state,
     }
 
     /* Start connecting to KDC.  */
-    e = connect(fd, (struct sockaddr *)&state->addr.saddr, state->addr.len);
+    e = SOCKET_CONNECT(fd, (struct sockaddr *)&state->addr.saddr,
+                       state->addr.len);
     if (e != 0) {
         /*
          * This is the path that should be followed for non-blocking

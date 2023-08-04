@@ -81,7 +81,7 @@ gss_name_t *dest_name;
 	dest_union->name_type = 0;
 	dest_union->external_name = 0;
 
-	/* Now copy the external representaion */
+	/* Now copy the external representation. */
 	if (gssint_create_copy_buffer(src_union->external_name,
 				&dest_union->external_name, 0))
 		goto allocation_failure;

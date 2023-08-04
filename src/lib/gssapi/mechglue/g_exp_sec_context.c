@@ -112,7 +112,7 @@ gss_buffer_t		interprocess_token;
 
     length = token.length + 4 + ctx->mech_type->length;
     interprocess_token->length = length;
-    interprocess_token->value = malloc(length);
+    interprocess_token->value = gssalloc_malloc(length);
     if (interprocess_token->value == 0) {
 	*minor_status = ENOMEM;
 	status = GSS_S_FAILURE;

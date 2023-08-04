@@ -109,7 +109,7 @@ DEFUINTTYPE if it is an unsigned type.  (For booleans, the distinction
 is unimportant since all integer types can hold the values 0 and 1.)
 We don't generally define integer mappings for every typedef name of
 an integer type.  For example, we use the type descriptor int32, which
-maps an ASN.1 INTEGER to a krb5_int32, for krb5_enctype values.
+maps an ASN.1 INTEGER to an int32_t, for krb5_enctype values.
 
 String types are a little more complicated.  Our practice is to store
 strings in a krb5_data structure (rather than a zero-terminated C
@@ -126,8 +126,8 @@ detail later) with something like:
 The first parameter is an identifier you make up.  The second and
 third parameters are the C types of the pointer and integer holding
 the string; for a krb5_data object, those should be the types in the
-example.  The pointer type must be char * or unsigned char *.  The
-fourth and fifth parameters reference primitive encoder and decoder
+example.  The pointer type must be char * or uint8_t *.  The fourth
+and fifth parameters reference primitive encoder and decoder
 functions; these should almost always be the ones in the example,
 unless the ASN.1 type is BIT STRING.  The sixth parameter is the
 universal tag number of the ASN.1 type, as defined in krbasn1.h.
@@ -299,9 +299,9 @@ pointer wrapper for the sequence element type (*not* the element type
 itself).  For example, an array of 32-bit signed integers is defined
 as:
 
-  DEFINTTYPE(int32, krb5_int32);
+  DEFINTTYPE(int32, int32_t);
   DEFPTRTYPE(int32_ptr, int32);
-  DEFCOUNTEDSEQOFTYPE(cseqof_int32, krb5_int32, int32_ptr);
+  DEFCOUNTEDSEQOFTYPE(cseqof_int32, int32_t, int32_ptr);
 
 To use a counted sequence-of type in a sequence, use DEFCOUNTEDTYPE:
 
@@ -526,11 +526,6 @@ assign a value to the choice or stored-DER field when the correct
 behavior is to skip that field and assign the value to a subsequent
 field.  It should be very rare for ASN.1 modules to use choice or open
 types this way.
-
-For historical interoperability reasons, our decoder accepts the
-indefinite length form for constructed tags, which is allowed by BER
-but not DER.  We still require the primitive forms of basic scalar
-types, however, so we do not accept all BER encodings of ASN.1 values.
 
 
 Debugging

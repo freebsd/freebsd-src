@@ -23,6 +23,7 @@
  */
 
 #include "mglueP.h"
+#include "k5-der.h"
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -38,219 +39,24 @@ extern gss_mechanism *gssint_mechs_array;
  * This file contains the support routines for the glue layer.
  */
 
-/*
- * get_der_length: Givin a pointer to a buffer that contains a DER encoded
- * length, decode the length updating the buffer to point to the character
- * after the DER encoding. The parameter bytes will point to the number of
- * bytes that made up the DER encoding of the length originally pointed to
- * by the buffer. Note we return -1 on error.
- */
-int
-gssint_get_der_length(unsigned char **buf, unsigned int buf_len, unsigned int *bytes)
+/* Retrieve the mechanism OID from an RFC 2743 InitialContextToken.  Place
+ * the result into *oid_out, aliasing memory from token. */
+OM_uint32 gssint_get_mech_type_oid(gss_OID oid_out, gss_buffer_t token)
 {
-    /* p points to the beginning of the buffer */
-    unsigned char *p = *buf;
-    int length, new_length;
-    unsigned int octets;
+    struct k5input in;
 
-    if (buf_len < 1)
-	return (-1);
-
-    /* We should have at least one byte */
-    *bytes = 1;
-
-    /*
-     * If the High order bit is not set then the length is just the value
-     * of *p.
-     */
-    if (*p < 128) {
-	*buf = p+1;	/* Advance the buffer */
-	return (*p);		/* return the length */
-    }
-
-    /*
-     * if the High order bit is set, then the low order bits represent
-     * the number of bytes that contain the DER encoding of the length.
-     */
-
-    octets = *p++ & 0x7f;
-    *bytes += octets;
-
-    /* See if the supplied buffer contains enough bytes for the length. */
-    if (octets > buf_len - 1)
-	return (-1);
-
-    /*
-     * Calculate a multibyte length. The length is encoded as an
-     * unsigned integer base 256.
-     */
-    for (length = 0; octets; octets--) {
-	new_length = (length << 8) + *p++;
-	if (new_length < length)  /* overflow */
-	    return (-1);
-	length = new_length;
-    }
-
-    *buf = p; /* Advance the buffer */
-
-    return (length);
-}
-
-/*
- * der_length_size: Return the number of bytes to encode a given length.
- */
-unsigned int
-gssint_der_length_size(unsigned int len)
-{
-    int i;
-
-    if (len < 128)
-	return (1);
-
-    for (i = 0; len; i++) {
-	len >>= 8;
-    }
-
-    return (i+1);
-}
-
-/*
- * put_der_length: Encode the supplied length into the buffer pointed to
- * by buf. max_length represents the maximum length of the buffer pointed
- * to by buff. We will advance buf to point to the character after the newly
- * DER encoded length. We return 0 on success or -l it the length cannot
- * be encoded in max_len characters.
- */
-int
-gssint_put_der_length(unsigned int length, unsigned char **buf, unsigned int max_len)
-{
-    unsigned char *s, *p;
-    unsigned int buf_len = 0;
-    int i, first;
-
-    /* Oops */
-    if (buf == 0 || max_len < 1)
-	return (-1);
-
-    s = *buf;
-
-    /* Single byte is the length */
-    if (length < 128) {
-	*s++ = length;
-	*buf = s;
-	return (0);
-    }
-
-    /* First byte contains the number of octets */
-    p = s + 1;
-
-    /* Running total of the DER encoding length */
-    buf_len = 0;
-
-    /*
-     * Encode MSB first. We do the encoding by setting a shift
-     * factor to MSO_BIT (24 for 32 bit words) and then shifting the length
-     * by the factor. We then encode the resulting low order byte.
-     * We subtract 8 from the shift factor and repeat to ecnode the next
-     * byte. We stop when the shift factor is zero or we've run out of
-     * buffer to encode into.
-     */
-    first = 0;
-    for (i = MSO_BIT; i >= 0 && buf_len <= max_len; i -= 8) {
-	unsigned int v;
-	v = (length >> i) & 0xff;
-	if ((v) || first) {
-	    buf_len += 1;
-	    *p++ = v;
-	    first = 1;
-	}
-    }
-    if (i >= 0)			/* buffer overflow */
-	return (-1);
-
-    /*
-     * We go back now and set the first byte to be the length with
-     * the high order bit set.
-     */
-    *s = buf_len | 0x80;
-    *buf = p;
-
-    return (0);
-}
-
-
-/*
- *  glue routine for get_mech_type
- *
- */
-
-OM_uint32 gssint_get_mech_type_oid(OID, token)
-    gss_OID		OID;
-    gss_buffer_t	token;
-{
-    unsigned char * buffer_ptr;
-    size_t buflen, lenbytes, length, oidlen;
-
-    /*
-     * This routine reads the prefix of "token" in order to determine
-     * its mechanism type. It assumes the encoding suggested in
-     * Appendix B of RFC 1508. This format starts out as follows :
-     *
-     * tag for APPLICATION 0, Sequence[constructed, definite length]
-     * length of remainder of token
-     * tag of OBJECT IDENTIFIER
-     * length of mechanism OID
-     * encoding of mechanism OID
-     * <the rest of the token>
-     *
-     * Numerically, this looks like :
-     *
-     * 0x60
-     * <length> - could be multiple bytes
-     * 0x06
-     * <length> - assume only one byte, hence OID length < 127
-     * <mech OID bytes>
-     *
-     * The routine fills in the OID value and returns an error as necessary.
-     */
-
-	if (OID == NULL)
-		return (GSS_S_CALL_INACCESSIBLE_WRITE);
-
-	if ((token == NULL) || (token->value == NULL))
+    if (oid_out == NULL)
+	return (GSS_S_CALL_INACCESSIBLE_WRITE);
+    if (token == NULL || token->value == NULL)
 	return (GSS_S_DEFECTIVE_TOKEN);
 
-    /* Skip past the APP/Sequnce byte and the token length */
-
-    buffer_ptr = (unsigned char *) token->value;
-    buflen = token->length;
-
-    if (buflen < 2 || *buffer_ptr++ != 0x60)
+    k5_input_init(&in, token->value, token->length);
+    if (!k5_der_get_value(&in, 0x60, &in))
 	return (GSS_S_DEFECTIVE_TOKEN);
-    length = *buffer_ptr++;
-    buflen -= 2;
-
-	/* check if token length is null */
-	if (length == 0)
-	    return (GSS_S_DEFECTIVE_TOKEN);
-
-    if (length & 0x80) {
-	lenbytes = length & 0x7f;
-	if (lenbytes > 4 || lenbytes > buflen)
-	    return (GSS_S_DEFECTIVE_TOKEN);
-	buffer_ptr += lenbytes;
-	buflen -= lenbytes;
-    }
-
-    if (buflen < 2 || *buffer_ptr++ != 0x06)
+    if (!k5_der_get_value(&in, 0x06, &in))
 	return (GSS_S_DEFECTIVE_TOKEN);
-    oidlen = *buffer_ptr++;
-    buflen -= 2;
-    if (oidlen > 0x7f || oidlen > buflen)
-	return (GSS_S_DEFECTIVE_TOKEN);
-
-    OID->length = oidlen;
-    OID->elements = (void *) buffer_ptr;
+    oid_out->length = in.len;
+    oid_out->elements = (uint8_t *)in.ptr;
     return (GSS_S_COMPLETE);
 }
 
@@ -425,12 +231,8 @@ OM_uint32 gssint_export_internal_name(minor_status, mech_type,
     gss_mechanism mech;
     gss_buffer_desc dispName;
     gss_OID nameOid;
-    unsigned char *buf = NULL;
-    const unsigned char tokId[] = "\x04\x01";
-    const unsigned int tokIdLen = 2;
-    const int mechOidLenLen = 2, mechOidTagLen = 1, nameLenLen = 4;
-    int mechOidDERLen = 0;
-    int mechOidLen = 0;
+    int mech_der_len = 0;
+    struct k5buf buf;
 
     mech = gssint_get_mechanism(mech_type);
     if (!mech)
@@ -481,52 +283,24 @@ OM_uint32 gssint_export_internal_name(minor_status, mech_type,
 	return (status);
     }
 
-    /* determine the size of the buffer needed */
-    mechOidDERLen = gssint_der_length_size(mech_type->length);
-    name_buf->length = tokIdLen + mechOidLenLen +
-	mechOidTagLen + mechOidDERLen +
-	mech_type->length +
-	nameLenLen + dispName.length;
-    if ((name_buf->value = (void*)gssalloc_malloc(name_buf->length)) ==
-	(void*)NULL) {
+    /* Allocate space and prepare a buffer. */
+    mech_der_len = k5_der_value_len(mech_type->length);
+    name_buf->length = 2 + 2 + mech_der_len + 4 + dispName.length;
+    name_buf->value = gssalloc_malloc(name_buf->length);
+    if (name_buf->value == NULL) {
 	name_buf->length = 0;
 	(void) gss_release_buffer(&status, &dispName);
 	return (GSS_S_FAILURE);
     }
+    k5_buf_init_fixed(&buf, name_buf->value, name_buf->length);
 
-    /* now create the name ..... */
-    buf = (unsigned char *)name_buf->value;
-    (void) memset(name_buf->value, 0, name_buf->length);
-    (void) memcpy(buf, tokId, tokIdLen);
-    buf += tokIdLen;
-
-    /* spec allows only 2 bytes for the mech oid length */
-    mechOidLen = mechOidDERLen + mechOidTagLen + mech_type->length;
-    store_16_be(mechOidLen, buf);
-    buf += 2;
-
-    /*
-     * DER Encoding of mech OID contains OID Tag (0x06), length and
-     * mech OID value
-     */
-    *buf++ = 0x06;
-    if (gssint_put_der_length(mech_type->length, &buf,
-		       (name_buf->length - tokIdLen -2)) != 0) {
-	name_buf->length = 0;
-	free(name_buf->value);
-	(void) gss_release_buffer(&status, &dispName);
-	return (GSS_S_FAILURE);
-    }
-
-    (void) memcpy(buf, mech_type->elements, mech_type->length);
-    buf += mech_type->length;
-
-    /* spec designates the next 4 bytes for the name length */
-    store_32_be(dispName.length, buf);
-    buf += 4;
-
-    /* for the final ingredient - add the name from gss_display_name */
-    (void) memcpy(buf, dispName.value, dispName.length);
+    /* Assemble the name. */
+    k5_buf_add_len(&buf, "\x04\x01", 2);
+    k5_buf_add_uint16_be(&buf, mech_der_len);
+    k5_der_add_value(&buf, 0x06, mech_type->elements, mech_type->length);
+    k5_buf_add_uint32_be(&buf, dispName.length);
+    k5_buf_add_len(&buf, dispName.value, dispName.length);
+    assert(buf.len == name_buf->length);
 
     /* release the buffer obtained from gss_display_name */
     (void) gss_release_buffer(minor_status, &dispName);
@@ -758,3 +532,31 @@ gssint_create_copy_buffer(srcBuf, destBuf, addNullChar)
 
     return (GSS_S_COMPLETE);
 } /* ****** gssint_create_copy_buffer  ****** */
+
+OM_uint32
+gssint_create_union_context(OM_uint32 *minor, gss_const_OID mech_oid,
+			    gss_union_ctx_id_t *ctx_out)
+{
+    OM_uint32 status;
+    gss_union_ctx_id_t ctx;
+
+    *ctx_out = NULL;
+
+    ctx = calloc(1, sizeof(*ctx));
+    if (ctx == NULL) {
+	*minor = ENOMEM;
+	return GSS_S_FAILURE;
+    }
+
+    status = generic_gss_copy_oid(minor, mech_oid, &ctx->mech_type);
+    if (status != GSS_S_COMPLETE) {
+	free(ctx);
+	return status;
+    }
+
+    ctx->loopback = ctx;
+    ctx->internal_ctx_id = GSS_C_NO_CONTEXT;
+
+    *ctx_out = ctx;
+    return GSS_S_COMPLETE;
+}

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 conf = {'plugins': {'audit': {
@@ -15,7 +14,7 @@ realm.run([kvno, 'target'])
 # Make S4U2Self and S4U2Proxy requests so they will be audited.  The
 # S4U2Proxy request is expected to fail.
 realm.run([kvno, '-k', realm.keytab, '-U', 'user', '-P', 'target'],
-          expected_code=1, expected_msg='NOT_ALLOWED_TO_DELEGATE')
+          expected_code=1, expected_msg='KDC can\'t fulfill requested option')
 
 # Make a U2U request so it will be audited.
 uuserver = os.path.join(buildtop, 'appl', 'user_user', 'uuserver')

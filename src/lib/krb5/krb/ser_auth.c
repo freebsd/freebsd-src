@@ -29,36 +29,10 @@
 #include "k5-int.h"
 #include "int-proto.h"
 
-/*
- * Routines to deal with externalizing the krb5_authenticator:
- *      krb5_authenticator_size();
- *      krb5_authenticator_externalize();
- *      krb5_authenticator_internalize();
- */
-static krb5_error_code krb5_authenticator_size
-(krb5_context, krb5_pointer, size_t *);
-static krb5_error_code krb5_authenticator_externalize
-(krb5_context, krb5_pointer, krb5_octet **, size_t *);
-static krb5_error_code krb5_authenticator_internalize
-(krb5_context,krb5_pointer *, krb5_octet **, size_t *);
-
-/* Local data */
-static const krb5_ser_entry krb5_authenticator_ser_entry = {
-    KV5M_AUTHENTICATOR,                 /* Type                 */
-    krb5_authenticator_size,            /* Sizer routine        */
-    krb5_authenticator_externalize,     /* Externalize routine  */
-    krb5_authenticator_internalize      /* Internalize routine  */
-};
-
-/*
- * krb5_authenticator_size()    - Determine the size required to externalize
- *                                the krb5_authenticator.
- */
-static krb5_error_code
-krb5_authenticator_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
+krb5_error_code
+k5_size_authenticator(krb5_authenticator *authenticator, size_t *sizep)
 {
     krb5_error_code     kret;
-    krb5_authenticator  *authenticator;
     size_t              required;
 
     /*
@@ -71,41 +45,29 @@ krb5_authenticator_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
      *  krb5_int32              for KV5M_AUTHENTICATOR
      */
     kret = EINVAL;
-    if ((authenticator = (krb5_authenticator *) arg)) {
+    if (authenticator != NULL) {
         required = sizeof(krb5_int32)*6;
 
         /* Calculate size required by client, if appropriate */
         if (authenticator->client)
-            kret = krb5_size_opaque(kcontext,
-                                    KV5M_PRINCIPAL,
-                                    (krb5_pointer) authenticator->client,
-                                    &required);
+            kret = k5_size_principal(authenticator->client, &required);
         else
             kret = 0;
 
         /* Calculate size required by checksum, if appropriate */
         if (!kret && authenticator->checksum)
-            kret = krb5_size_opaque(kcontext,
-                                    KV5M_CHECKSUM,
-                                    (krb5_pointer) authenticator->checksum,
-                                    &required);
+            kret = k5_size_checksum(authenticator->checksum, &required);
 
         /* Calculate size required by subkey, if appropriate */
         if (!kret && authenticator->subkey)
-            kret = krb5_size_opaque(kcontext,
-                                    KV5M_KEYBLOCK,
-                                    (krb5_pointer) authenticator->subkey,
-                                    &required);
+            kret = k5_size_keyblock(authenticator->subkey, &required);
 
         /* Calculate size required by authorization_data, if appropriate */
         if (!kret && authenticator->authorization_data) {
             int i;
 
             for (i=0; !kret && authenticator->authorization_data[i]; i++) {
-                kret = krb5_size_opaque(kcontext,
-                                        KV5M_AUTHDATA,
-                                        (krb5_pointer) authenticator->
-                                        authorization_data[i],
+                kret = k5_size_authdata(authenticator->authorization_data[i],
                                         &required);
             }
         }
@@ -115,14 +77,11 @@ krb5_authenticator_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
     return(kret);
 }
 
-/*
- * krb5_authenticator_externalize()     - Externalize the krb5_authenticator.
- */
-static krb5_error_code
-krb5_authenticator_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_externalize_authenticator(krb5_authenticator *authenticator,
+                             krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
-    krb5_authenticator  *authenticator;
     size_t              required;
     krb5_octet          *bp;
     size_t              remain;
@@ -132,10 +91,10 @@ krb5_authenticator_externalize(krb5_context kcontext, krb5_pointer arg, krb5_oct
     bp = *buffer;
     remain = *lenremain;
     kret = EINVAL;
-    if ((authenticator = (krb5_authenticator *) arg)) {
+    if (authenticator != NULL) {
         kret = ENOMEM;
-        if (!krb5_authenticator_size(kcontext, arg, &required) &&
-            (required <= remain)) {
+        if (!k5_size_authenticator(authenticator, &required) &&
+            required <= remain) {
             /* First write our magic number */
             (void) krb5_ser_pack_int32(KV5M_AUTHENTICATOR, &bp, &remain);
 
@@ -153,32 +112,20 @@ krb5_authenticator_externalize(krb5_context kcontext, krb5_pointer arg, krb5_oct
 
             /* Now handle client, if appropriate */
             if (authenticator->client)
-                kret = krb5_externalize_opaque(kcontext,
-                                               KV5M_PRINCIPAL,
-                                               (krb5_pointer)
-                                               authenticator->client,
-                                               &bp,
-                                               &remain);
+                kret = k5_externalize_principal(authenticator->client,
+                                                &bp, &remain);
             else
                 kret = 0;
 
             /* Now handle checksum, if appropriate */
             if (!kret && authenticator->checksum)
-                kret = krb5_externalize_opaque(kcontext,
-                                               KV5M_CHECKSUM,
-                                               (krb5_pointer)
-                                               authenticator->checksum,
-                                               &bp,
-                                               &remain);
+                kret = k5_externalize_checksum(authenticator->checksum,
+                                               &bp, &remain);
 
             /* Now handle subkey, if appropriate */
             if (!kret && authenticator->subkey)
-                kret = krb5_externalize_opaque(kcontext,
-                                               KV5M_KEYBLOCK,
-                                               (krb5_pointer)
-                                               authenticator->subkey,
-                                               &bp,
-                                               &remain);
+                kret = k5_externalize_keyblock(authenticator->subkey,
+                                               &bp, &remain);
 
             /* Now handle authorization_data, if appropriate */
             if (!kret) {
@@ -192,13 +139,9 @@ krb5_authenticator_externalize(krb5_context kcontext, krb5_pointer arg, krb5_oct
                 if (authenticator->authorization_data) {
                     for (i=0; !kret && authenticator->authorization_data[i];
                          i++)
-                        kret = krb5_externalize_opaque(kcontext,
-                                                       KV5M_AUTHDATA,
-                                                       (krb5_pointer)
-                                                       authenticator->
+                        kret = k5_externalize_authdata(authenticator->
                                                        authorization_data[i],
-                                                       &bp,
-                                                       &remain);
+                                                       &bp, &remain);
                 }
             }
 
@@ -217,11 +160,9 @@ krb5_authenticator_externalize(krb5_context kcontext, krb5_pointer arg, krb5_oct
     return(kret);
 }
 
-/*
- * krb5_authenticator_internalize()     - Internalize the krb5_authenticator.
- */
-static krb5_error_code
-krb5_authenticator_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_internalize_authenticator(krb5_authenticator **argp,
+                             krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
     krb5_authenticator  *authenticator;
@@ -261,35 +202,23 @@ krb5_authenticator_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_o
             kret = 0;
 
             /* Attempt to read in the client */
-            kret = krb5_internalize_opaque(kcontext,
-                                           KV5M_PRINCIPAL,
-                                           (krb5_pointer *)
-                                           &authenticator->client,
-                                           &bp,
-                                           &remain);
+            kret = k5_internalize_principal(&authenticator->client,
+                                            &bp, &remain);
             if (kret == EINVAL)
                 kret = 0;
 
             /* Attempt to read in the checksum */
             if (!kret) {
-                kret = krb5_internalize_opaque(kcontext,
-                                               KV5M_CHECKSUM,
-                                               (krb5_pointer *)
-                                               &authenticator->checksum,
-                                               &bp,
-                                               &remain);
+                kret = k5_internalize_checksum(&authenticator->checksum,
+                                               &bp, &remain);
                 if (kret == EINVAL)
                     kret = 0;
             }
 
             /* Attempt to read in the subkey */
             if (!kret) {
-                kret = krb5_internalize_opaque(kcontext,
-                                               KV5M_KEYBLOCK,
-                                               (krb5_pointer *)
-                                               &authenticator->subkey,
-                                               &bp,
-                                               &remain);
+                kret = k5_internalize_keyblock(&authenticator->subkey,
+                                               &bp, &remain);
                 if (kret == EINVAL)
                     kret = 0;
             }
@@ -303,13 +232,9 @@ krb5_authenticator_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_o
                 if ((authenticator->authorization_data = (krb5_authdata **)
                      calloc(len, sizeof(krb5_authdata *)))) {
                     for (i=0; !kret && (i<nadata); i++) {
-                        kret = krb5_internalize_opaque(kcontext,
-                                                       KV5M_AUTHDATA,
-                                                       (krb5_pointer *)
-                                                       &authenticator->
+                        kret = k5_internalize_authdata(&authenticator->
                                                        authorization_data[i],
-                                                       &bp,
-                                                       &remain);
+                                                       &bp, &remain);
                     }
 
                     /* Finally, find the trailer */
@@ -325,20 +250,13 @@ krb5_authenticator_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_o
             if (!kret) {
                 *buffer = bp;
                 *lenremain = remain;
-                *argp = (krb5_pointer) authenticator;
+                *argp = authenticator;
             }
             else
-                krb5_free_authenticator(kcontext, authenticator);
+                krb5_free_authenticator(NULL, authenticator);
         }
     }
     return(kret);
 }
-/*
- * Register the authenticator serializer.
- */
-krb5_error_code
-krb5_ser_authenticator_init(krb5_context kcontext)
-{
-    return(krb5_register_serializer(kcontext, &krb5_authenticator_ser_entry));
-}
+
 #endif

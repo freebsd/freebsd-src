@@ -27,36 +27,10 @@
 #include "k5-int.h"
 #include "int-proto.h"
 
-/*
- * Routines to deal with externalizing the krb5_principal:
- *      krb5_principal_size();
- *      krb5_principal_externalize();
- *      krb5_principal_internalize();
- */
-static krb5_error_code krb5_principal_size
-(krb5_context, krb5_pointer, size_t *);
-static krb5_error_code krb5_principal_externalize
-(krb5_context, krb5_pointer, krb5_octet **, size_t *);
-static krb5_error_code krb5_principal_internalize
-(krb5_context,krb5_pointer *, krb5_octet **, size_t *);
-
-/* Local data */
-static const krb5_ser_entry krb5_principal_ser_entry = {
-    KV5M_PRINCIPAL,                     /* Type                 */
-    krb5_principal_size,                /* Sizer routine        */
-    krb5_principal_externalize,         /* Externalize routine  */
-    krb5_principal_internalize          /* Internalize routine  */
-};
-
-/*
- * krb5_principal_size()        - Determine the size required to externalize
- *                                the krb5_principal.
- */
-static krb5_error_code
-krb5_principal_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
+krb5_error_code
+k5_size_principal(krb5_principal principal, size_t *sizep)
 {
     krb5_error_code     kret;
-    krb5_principal      principal;
     char                *fname;
 
     /*
@@ -67,22 +41,19 @@ krb5_principal_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
      *  krb5_int32                      for KV5M_PRINCIPAL
      */
     kret = EINVAL;
-    if ((principal = (krb5_principal) arg) &&
-        !(kret = krb5_unparse_name(kcontext, principal, &fname))) {
+    if (principal != NULL &&
+        !(kret = krb5_unparse_name(NULL, principal, &fname))) {
         *sizep += (3*sizeof(krb5_int32)) + strlen(fname);
         free(fname);
     }
     return(kret);
 }
 
-/*
- * krb5_principal_externalize() - Externalize the krb5_principal.
- */
-static krb5_error_code
-krb5_principal_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_externalize_principal(krb5_principal principal,
+                         krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
-    krb5_principal      principal;
     size_t              required;
     krb5_octet          *bp;
     size_t              remain;
@@ -92,11 +63,10 @@ krb5_principal_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet *
     bp = *buffer;
     remain = *lenremain;
     kret = EINVAL;
-    if ((principal = (krb5_principal) arg)) {
+    if (principal != NULL) {
         kret = ENOMEM;
-        if (!krb5_principal_size(kcontext, arg, &required) &&
-            (required <= remain)) {
-            if (!(kret = krb5_unparse_name(kcontext, principal, &fname))) {
+        if (!k5_size_principal(principal, &required) && required <= remain) {
+            if (!(kret = krb5_unparse_name(NULL, principal, &fname))) {
 
                 (void) krb5_ser_pack_int32(KV5M_PRINCIPAL, &bp, &remain);
                 (void) krb5_ser_pack_int32((krb5_int32) strlen(fname),
@@ -114,11 +84,9 @@ krb5_principal_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet *
     return(kret);
 }
 
-/*
- * krb5_principal_internalize() - Internalize the krb5_principal.
- */
-static krb5_error_code
-krb5_principal_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_internalize_principal(krb5_principal *argp,
+                         krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
     krb5_principal      principal = NULL;
@@ -147,7 +115,9 @@ krb5_principal_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet
     tmpname[ibuf] = '\0';
 
     /* Parse the name to a principal structure */
-    kret = krb5_parse_name(kcontext, tmpname, &principal);
+    kret = krb5_parse_name_flags(NULL, tmpname,
+                                 KRB5_PRINCIPAL_PARSE_REQUIRE_REALM,
+                                 &principal);
     if (kret)
         goto cleanup;
 
@@ -162,16 +132,7 @@ krb5_principal_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet
     *argp = principal;
 cleanup:
     if (kret)
-        krb5_free_principal(kcontext, principal);
+        krb5_free_principal(NULL, principal);
     free(tmpname);
     return kret;
-}
-
-/*
- * Register the context serializer.
- */
-krb5_error_code
-krb5_ser_principal_init(krb5_context kcontext)
-{
-    return(krb5_register_serializer(kcontext, &krb5_principal_ser_entry));
 }

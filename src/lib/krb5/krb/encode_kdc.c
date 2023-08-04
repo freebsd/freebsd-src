@@ -79,7 +79,7 @@ krb5_encode_kdc_rep(krb5_context context, krb5_msgtype type,
      * also note that the reason why we are passing it in a structure
      * instead of as an argument to encode_krb5_enc_kdc_rep_part (the
      * way we should) is for compatibility with the ISODE version of
-     * this fuction.  Ah, compatibility....
+     * this function.  Ah, compatibility....
      */
     tmp_encpart = *encpart;
     tmp_encpart.msg_type = type;

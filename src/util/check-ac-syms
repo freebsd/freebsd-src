@@ -3,9 +3,9 @@
 # args: srcdir srctop-from-srcdir header-path
 
 d=`pwd`
-head -1 $1/configure.in > config-in.tmp
+head -1 $1/configure.ac > config-in.tmp
 echo "AC_CONFIG_HEADER(fooconfig.h:$d/fooconfig-h.tmp)" >> config-in.tmp
-tail +2 $1/configure.in | grep -v AC_CONFIG_HEADER >> config-in.tmp
+tail +2 $1/configure.ac | grep -v AC_CONFIG_HEADER >> config-in.tmp
 mv -f config-in.tmp config-in.ac~
 
 if (cd $1 && autoheader --include=$2 $d/config-in.ac~) > /dev/null; then

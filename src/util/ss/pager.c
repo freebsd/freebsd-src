@@ -102,7 +102,7 @@ void ss_page_stdin()
     {
         /* minimal recovery if pager program isn't found */
         char buf[80];
-        register int n;
+        int n;
         while ((n = read(0, buf, 80)) > 0)
             write(1, buf, (unsigned) n);
     }

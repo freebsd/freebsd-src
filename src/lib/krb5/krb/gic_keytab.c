@@ -27,6 +27,7 @@
 
 #include "k5-int.h"
 #include "int-proto.h"
+#include "os-proto.h"
 #include "init_creds_ctx.h"
 
 static krb5_error_code
@@ -44,7 +45,6 @@ get_as_key_keytab(krb5_context context,
     krb5_keytab keytab = (krb5_keytab) gak_data;
     krb5_error_code ret;
     krb5_keytab_entry kt_ent;
-    krb5_keyblock *kt_key;
 
     /* We don't need the password from the responder to create the AS key. */
     if (as_key == NULL)
@@ -70,22 +70,20 @@ get_as_key_keytab(krb5_context context,
                                  etype, &kt_ent)))
         return(ret);
 
-    ret = krb5_copy_keyblock(context, &kt_ent.key, &kt_key);
-
-    /* again, krb5's memory management is lame... */
-
-    *as_key = *kt_key;
-    free(kt_key);
+    /* Steal the keyblock from kt_ent for the caller. */
+    *as_key = kt_ent.key;
+    memset(&kt_ent.key, 0, sizeof(kt_ent.key));
 
     (void) krb5_kt_free_entry(context, &kt_ent);
 
-    return(ret);
+    return 0;
 }
 
 /* Return the list of etypes available for client in keytab. */
 static krb5_error_code
 lookup_etypes_for_keytab(krb5_context context, krb5_keytab keytab,
-                         krb5_principal client, krb5_enctype **etypes_out)
+                         krb5_const_principal client,
+                         krb5_enctype **etypes_out)
 {
     krb5_kt_cursor cursor;
     krb5_keytab_entry entry;
@@ -130,10 +128,6 @@ lookup_etypes_for_keytab(krb5_context context, krb5_keytab keytab,
         }
         etypes = p;
         etypes[count++] = etype;
-        /* All DES key types work with des-cbc-crc, which is more likely to be
-         * accepted by the KDC (since MIT KDCs refuse des-cbc-md5). */
-        if (etype == ENCTYPE_DES_CBC_MD5 || etype == ENCTYPE_DES_CBC_MD4)
-            etypes[count++] = ENCTYPE_DES_CBC_CRC;
         etypes[count] = 0;
     }
     if (ret != KRB5_KT_END)
@@ -184,20 +178,40 @@ krb5_init_creds_set_keytab(krb5_context context,
                            krb5_init_creds_context ctx,
                            krb5_keytab keytab)
 {
-    krb5_enctype *etype_list;
+    krb5_enctype *etype_list = NULL;
     krb5_error_code ret;
+    struct canonprinc iter = { ctx->request->client, .subst_defrealm = TRUE };
+    krb5_const_principal canonprinc;
+    krb5_principal copy;
     char *name;
 
     ctx->gak_fct = get_as_key_keytab;
     ctx->gak_data = keytab;
 
-    ret = lookup_etypes_for_keytab(context, keytab, ctx->request->client,
-                                   &etype_list);
+    /* We may be authenticating as a host-based principal.  If so, look for
+     * each canonicalization candidate in the keytab. */
+    while ((ret = k5_canonprinc(context, &iter, &canonprinc)) == 0 &&
+           canonprinc != NULL) {
+        ret = lookup_etypes_for_keytab(context, keytab, canonprinc,
+                                       &etype_list);
+        if (ret || etype_list != NULL)
+            break;
+    }
+    if (!ret && canonprinc != NULL) {
+        /* Authenticate as the principal we found in the keytab. */
+        ret = krb5_copy_principal(context, canonprinc, &copy);
+        if (!ret) {
+            krb5_free_principal(context, ctx->request->client);
+            ctx->request->client = copy;
+        }
+    }
+    free_canonprinc(&iter);
     if (ret) {
         TRACE_INIT_CREDS_KEYTAB_LOOKUP_FAILED(context, ret);
+        free(etype_list);
         return 0;
     }
-    TRACE_INIT_CREDS_KEYTAB_LOOKUP(context, etype_list);
+    TRACE_INIT_CREDS_KEYTAB_LOOKUP(context, ctx->request->client, etype_list);
 
     /* Error out if we have no keys for the client principal. */
     if (etype_list == NULL) {
@@ -221,7 +235,7 @@ static krb5_error_code
 get_init_creds_keytab(krb5_context context, krb5_creds *creds,
                       krb5_principal client, krb5_keytab keytab,
                       krb5_deltat start_time, const char *in_tkt_service,
-                      krb5_get_init_creds_opt *options, int *use_master)
+                      krb5_get_init_creds_opt *options, int *use_primary)
 {
     krb5_error_code ret;
     krb5_init_creds_context ctx = NULL;
@@ -241,7 +255,7 @@ get_init_creds_keytab(krb5_context context, krb5_creds *creds,
     if (ret != 0)
         goto cleanup;
 
-    ret = k5_init_creds_get(context, ctx, use_master);
+    ret = k5_init_creds_get(context, ctx, use_primary);
     if (ret != 0)
         goto cleanup;
 
@@ -265,7 +279,7 @@ krb5_get_init_creds_keytab(krb5_context context,
                            krb5_get_init_creds_opt *options)
 {
     krb5_error_code ret;
-    int use_master;
+    int use_primary;
     krb5_keytab keytab;
     struct errinfo errsave = EMPTY_ERRINFO;
 
@@ -276,12 +290,12 @@ krb5_get_init_creds_keytab(krb5_context context,
         keytab = arg_keytab;
     }
 
-    use_master = 0;
+    use_primary = 0;
 
     /* first try: get the requested tkt from any kdc */
 
     ret = get_init_creds_keytab(context, creds, client, keytab, start_time,
-                                in_tkt_service, options, &use_master);
+                                in_tkt_service, options, &use_primary);
 
     /* check for success */
 
@@ -293,27 +307,27 @@ krb5_get_init_creds_keytab(krb5_context context,
     if ((ret == KRB5_KDC_UNREACH) || (ret == KRB5_REALM_CANT_RESOLVE))
         goto cleanup;
 
-    /* if the reply did not come from the master kdc, try again with
-       the master kdc */
+    /* If the reply did not come from the primary kdc, try again with
+     * the primary kdc. */
 
-    if (!use_master) {
-        use_master = 1;
+    if (!use_primary) {
+        use_primary = 1;
 
         k5_save_ctx_error(context, ret, &errsave);
         ret = get_init_creds_keytab(context, creds, client, keytab,
                                     start_time, in_tkt_service, options,
-                                    &use_master);
+                                    &use_primary);
         if (ret == 0)
             goto cleanup;
 
-        /* If the master is unreachable, return the error from the slave we
+        /* If the primary is unreachable, return the error from the replica we
          * were able to contact. */
         if (ret == KRB5_KDC_UNREACH || ret == KRB5_REALM_CANT_RESOLVE ||
             ret == KRB5_REALM_UNKNOWN)
             ret = k5_restore_ctx_error(context, &errsave);
     }
 
-    /* at this point, we have a response from the master.  Since we don't
+    /* at this point, we have a response from the primary.  Since we don't
        do any prompting or changing for keytabs, that's it. */
 
 cleanup:
@@ -335,7 +349,7 @@ krb5_get_in_tkt_with_keytab(krb5_context context, krb5_flags options,
     char * server = NULL;
     krb5_keytab keytab;
     krb5_principal client_princ, server_princ;
-    int use_master = 0;
+    int use_primary = 0;
 
     retval = k5_populate_gic_opt(context, &opts, options, addrs, ktypes,
                                  pre_auth_types, creds);
@@ -356,7 +370,7 @@ krb5_get_in_tkt_with_keytab(krb5_context context, krb5_flags options,
     client_princ = creds->client;
     retval = k5_get_init_creds(context, creds, creds->client,
                                krb5_prompter_posix,  NULL, 0, server, opts,
-                               get_as_key_keytab, (void *)keytab, &use_master,
+                               get_as_key_keytab, (void *)keytab, &use_primary,
                                ret_as_reply);
     krb5_free_unparsed_name( context, server);
     if (retval) {

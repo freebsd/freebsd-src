@@ -3,7 +3,7 @@ BUILDTOP=$(REL)..$(S)..$(S)..
 LOCALINCLUDES = -I$(BUILDTOP)/include/kadm5
 
 LIBBASE=kadm5clnt_mit
-LIBMAJOR=11
+LIBMAJOR=12
 LIBMINOR=0
 STOBJLISTS=../OBJS.ST OBJS.ST
 SHLIB_EXPDEPS=\
@@ -12,7 +12,7 @@ SHLIB_EXPDEPS=\
 	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(COM_ERR_DEPLIB) $(SUPPORT_LIBDEP)
-SHLIB_EXPLIBS=-lgssrpc -lgssapi_krb5 -lkrb5 -lk5crypto $(SUPPORT_LIB) -lcom_err $(LIBS)
+SHLIB_EXPLIBS=-lgssrpc -lgssapi_krb5 -lkrb5 -lk5crypto $(SUPPORT_LIB) $(COM_ERR_LIB) $(LIBS)
 RELDIR=kadm5/clnt
 
 ##DOSBUILDTOP = ..\..\..

@@ -56,7 +56,7 @@ SOFTWARE.
 
 void ShowMsiError(MSIHANDLE, DWORD, DWORD);
 UINT SetAllowTgtSessionKey( MSIHANDLE hInstall, BOOL pInstall );
-UINT KillRunningProcessesSlave( MSIHANDLE hInstall, BOOL bKill );
+UINT KillRunningProcessesWorker( MSIHANDLE hInstall, BOOL bKill );
 
 /* exported */
 MSIDLLEXPORT AbortMsiImmediate( MSIHANDLE );

@@ -1,0 +1,51 @@
+krb5_auth_con_setrcache -  Set the replay cache in an auth context. 
+====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_setrcache(krb5_context context, krb5_auth_context auth_context, krb5_rcache rcache)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **rcache** - Replay cache haddle
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets the replay cache in *auth_context* to *rcache* . *rcache* will be closed when *auth_context* is freed, so the caller should relinquish that responsibility.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-ADDRESS-LIST-data:
+
+KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST
+====================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST
+..
+
+
+
+
+=========================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST``       ``0x0020``
+=========================================== ======================

@@ -31,19 +31,16 @@ struct ccs_ccache_d {
     ccs_lock_state_t lock_state;
     cc_uint32 creds_version;
     char *name;
-    char *v4_principal;
     char *v5_principal;
     cc_time_t last_default_time;
     cc_time_t last_changed_time;
-    cc_uint32 kdc_time_offset_v4_valid;
-    cc_time_t kdc_time_offset_v4;
     cc_uint32 kdc_time_offset_v5_valid;
     cc_time_t kdc_time_offset_v5;
     ccs_credentials_list_t credentials;
     ccs_callback_array_t change_callbacks;
 };
 
-struct ccs_ccache_d ccs_ccache_initializer = { NULL, NULL, 0, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL };
+struct ccs_ccache_d ccs_ccache_initializer = { NULL, NULL, 0, NULL, NULL, 0, 0, 0, 0, NULL, NULL };
 
 /* ------------------------------------------------------------------------ */
 
@@ -88,11 +85,7 @@ cc_int32 ccs_ccache_new (ccs_ccache_t      *out_ccache,
     if (!err) {
         ccache->creds_version = in_creds_version;
 
-        if (ccache->creds_version == cc_credentials_v4) {
-            ccache->v4_principal = strdup (in_principal);
-            if (!ccache->v4_principal) { err = cci_check_error (ccErrNoMem); }
-
-        } else if (ccache->creds_version == cc_credentials_v5) {
+        if (ccache->creds_version == cc_credentials_v5) {
             ccache->v5_principal = strdup (in_principal);
             if (!ccache->v5_principal) { err = cci_check_error (ccErrNoMem); }
 
@@ -147,7 +140,6 @@ cc_int32 ccs_ccache_reset (ccs_ccache_t            io_ccache,
                            const char             *in_principal)
 {
     cc_int32 err = ccNoError;
-    char *v4_principal = NULL;
     char *v5_principal = NULL;
     ccs_credentials_list_t credentials = NULL;
 
@@ -158,11 +150,7 @@ cc_int32 ccs_ccache_reset (ccs_ccache_t            io_ccache,
     if (!err) {
         io_ccache->creds_version = in_creds_version;
 
-        if (io_ccache->creds_version == cc_credentials_v4) {
-            v4_principal = strdup (in_principal);
-            if (!v4_principal) { err = cci_check_error (ccErrNoMem); }
-
-        } else if (io_ccache->creds_version == cc_credentials_v5) {
+        if (io_ccache->creds_version == cc_credentials_v5) {
             v5_principal = strdup (in_principal);
             if (!v5_principal) { err = cci_check_error (ccErrNoMem); }
 
@@ -176,14 +164,8 @@ cc_int32 ccs_ccache_reset (ccs_ccache_t            io_ccache,
     }
 
     if (!err) {
-        io_ccache->kdc_time_offset_v4 = 0;
-        io_ccache->kdc_time_offset_v4_valid = 0;
         io_ccache->kdc_time_offset_v5 = 0;
         io_ccache->kdc_time_offset_v5_valid = 0;
-
-        if (io_ccache->v4_principal) { free (io_ccache->v4_principal); }
-        io_ccache->v4_principal = v4_principal;
-        v4_principal = NULL; /* take ownership */
 
         if (io_ccache->v5_principal) { free (io_ccache->v5_principal); }
         io_ccache->v5_principal = v5_principal;
@@ -196,7 +178,6 @@ cc_int32 ccs_ccache_reset (ccs_ccache_t            io_ccache,
 	err = ccs_ccache_changed (io_ccache, io_cache_collection);
     }
 
-    free (v4_principal);
     free (v5_principal);
     ccs_credentials_list_release (credentials);
 
@@ -250,7 +231,6 @@ cc_int32 ccs_ccache_release (ccs_ccache_t io_ccache)
         cci_identifier_release (io_ccache->identifier);
         ccs_lock_state_release (io_ccache->lock_state);
         free (io_ccache->name);
-        free (io_ccache->v4_principal);
         free (io_ccache->v5_principal);
         ccs_credentials_list_release (io_ccache->credentials);
         ccs_callback_array_release (io_ccache->change_callbacks);
@@ -607,15 +587,8 @@ static cc_int32 ccs_ccache_get_principal (ccs_ccache_t           io_ccache,
         err = krb5int_ipc_stream_read_uint32 (in_request_data, &version);
     }
 
-    if (!err && version == cc_credentials_v4_v5) {
-        err = cci_check_error (ccErrBadCredentialsVersion);
-    }
-
     if (!err) {
-        if (version == cc_credentials_v4) {
-            err = krb5int_ipc_stream_write_string (io_reply_data, io_ccache->v4_principal);
-
-        } else if (version == cc_credentials_v5) {
+        if (version == cc_credentials_v5) {
             err = krb5int_ipc_stream_write_string (io_reply_data, io_ccache->v5_principal);
 
         } else {
@@ -652,16 +625,7 @@ static cc_int32 ccs_ccache_set_principal (ccs_ccache_t           io_ccache,
 
     if (!err) {
         /* reset KDC time offsets because they are per-KDC */
-        if (version == cc_credentials_v4) {
-            io_ccache->kdc_time_offset_v4 = 0;
-            io_ccache->kdc_time_offset_v4_valid = 0;
-
-            if (io_ccache->v4_principal) { free (io_ccache->v4_principal); }
-            io_ccache->v4_principal = principal;
-            principal = NULL; /* take ownership */
-
-
-        } else if (version == cc_credentials_v5) {
+        if (version == cc_credentials_v5) {
             io_ccache->kdc_time_offset_v5 = 0;
             io_ccache->kdc_time_offset_v5_valid = 0;
 
@@ -998,14 +962,7 @@ static cc_int32 ccs_ccache_get_kdc_time_offset (ccs_ccache_t           io_ccache
     }
 
     if (!err) {
-        if (cred_vers == cc_credentials_v4) {
-            if (io_ccache->kdc_time_offset_v4_valid) {
-                err = krb5int_ipc_stream_write_time (io_reply_data, io_ccache->kdc_time_offset_v4);
-            } else {
-                err = cci_check_error (ccErrTimeOffsetNotSet);
-            }
-
-        } else if (cred_vers == cc_credentials_v5) {
+        if (cred_vers == cc_credentials_v5) {
             if (io_ccache->kdc_time_offset_v5_valid) {
                 err = krb5int_ipc_stream_write_time (io_reply_data, io_ccache->kdc_time_offset_v5);
             } else {
@@ -1040,13 +997,7 @@ static cc_int32 ccs_ccache_set_kdc_time_offset (ccs_ccache_t           io_ccache
     }
 
     if (!err) {
-        if (cred_vers == cc_credentials_v4) {
-            err = krb5int_ipc_stream_read_time (in_request_data, &io_ccache->kdc_time_offset_v4);
-
-            if (!err) {
-                io_ccache->kdc_time_offset_v4_valid = 1;
-            }
-        } else if (cred_vers == cc_credentials_v5) {
+        if (cred_vers == cc_credentials_v5) {
             err = krb5int_ipc_stream_read_time (in_request_data, &io_ccache->kdc_time_offset_v5);
 
             if (!err) {
@@ -1084,11 +1035,7 @@ static cc_int32 ccs_ccache_clear_kdc_time_offset (ccs_ccache_t           io_ccac
     }
 
     if (!err) {
-        if (cred_vers == cc_credentials_v4) {
-            io_ccache->kdc_time_offset_v4 = 0;
-            io_ccache->kdc_time_offset_v4_valid = 0;
-
-        } else if (cred_vers == cc_credentials_v5) {
+        if (cred_vers == cc_credentials_v5) {
             io_ccache->kdc_time_offset_v5 = 0;
             io_ccache->kdc_time_offset_v5_valid = 0;
 

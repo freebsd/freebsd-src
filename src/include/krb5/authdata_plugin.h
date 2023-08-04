@@ -191,7 +191,7 @@ typedef krb5_error_code
                              void *dst_request_context);
 
 typedef struct krb5plugin_authdata_client_ftable_v0 {
-    char *name;
+    const char *name;
     krb5_authdatatype *ad_type_list;
     authdata_client_plugin_init_proc init;
     authdata_client_plugin_fini_proc fini;

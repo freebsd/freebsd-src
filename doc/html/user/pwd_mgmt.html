@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Password management &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Password management &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For users" href="index.html" />
     <link rel="next" title="Ticket management" href="tkt_mgmt.html" />
     <link rel="prev" title="For users" href="index.html" /> 
   </head>
@@ -61,75 +59,75 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="password-management">
 <h1>Password management<a class="headerlink" href="#password-management" title="Permalink to this headline">¶</a></h1>
 <p>Your password is the only way Kerberos has of verifying your identity.
 If someone finds out your password, that person can masquerade as
-you&#8212;send email that comes from you, read, edit, or delete your files,
-or log into other hosts as you&#8212;and no one will be able to tell the
+you—send email that comes from you, read, edit, or delete your files,
+or log into other hosts as you—and no one will be able to tell the
 difference.  For this reason, it is important that you choose a good
 password, and keep it secret.  If you need to give access to your
 account to someone else, you can do so through Kerberos (see
-<a class="reference internal" href="#grant-access"><em>Granting access to your account</em></a>).  You should never tell your password to anyone,
+<a class="reference internal" href="#grant-access"><span class="std std-ref">Granting access to your account</span></a>).  You should never tell your password to anyone,
 including your system administrator, for any reason.  You should
 change your password frequently, particularly any time you think
 someone may have found out what it is.</p>
 <div class="section" id="changing-your-password">
 <h2>Changing your password<a class="headerlink" href="#changing-your-password" title="Permalink to this headline">¶</a></h2>
-<p>To change your Kerberos password, use the <a class="reference internal" href="user_commands/kpasswd.html#kpasswd-1"><em>kpasswd</em></a> command.
+<p>To change your Kerberos password, use the <a class="reference internal" href="user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a> command.
 It will ask you for your old password (to prevent someone else from
-walking up to your computer when you&#8217;re not there and changing your
+walking up to your computer when you’re not there and changing your
 password), and then prompt you for the new one twice.  (The reason you
 have to type it twice is to make sure you have typed it correctly.)
-For example, user <tt class="docutils literal"><span class="pre">david</span></tt> would do the following:</p>
-<div class="highlight-python"><div class="highlight"><pre>shell% kpasswd
-Password for david:    &lt;- Type your old password.
-Enter new password:    &lt;- Type your new password.
-Enter it again:  &lt;- Type the new password again.
-Password changed.
-shell%
+For example, user <code class="docutils literal"><span class="pre">david</span></code> would do the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kpasswd</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">david</span><span class="p">:</span>    <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">your</span> <span class="n">old</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">new</span> <span class="n">password</span><span class="p">:</span>    <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">your</span> <span class="n">new</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">it</span> <span class="n">again</span><span class="p">:</span>  <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">the</span> <span class="n">new</span> <span class="n">password</span> <span class="n">again</span><span class="o">.</span>
+<span class="n">Password</span> <span class="n">changed</span><span class="o">.</span>
+<span class="n">shell</span><span class="o">%</span>
 </pre></div>
 </div>
-<p>If <tt class="docutils literal"><span class="pre">david</span></tt> typed the incorrect old password, he would get the
+<p>If <code class="docutils literal"><span class="pre">david</span></code> typed the incorrect old password, he would get the
 following message:</p>
-<div class="highlight-python"><div class="highlight"><pre>shell% kpasswd
-Password for david:  &lt;- Type the incorrect old password.
-kpasswd: Password incorrect while getting initial ticket
-shell%
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kpasswd</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">david</span><span class="p">:</span>  <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">the</span> <span class="n">incorrect</span> <span class="n">old</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">kpasswd</span><span class="p">:</span> <span class="n">Password</span> <span class="n">incorrect</span> <span class="k">while</span> <span class="n">getting</span> <span class="n">initial</span> <span class="n">ticket</span>
+<span class="n">shell</span><span class="o">%</span>
 </pre></div>
 </div>
-<p>If you make a mistake and don&#8217;t type the new password the same way
+<p>If you make a mistake and don’t type the new password the same way
 twice, kpasswd will ask you to try again:</p>
-<div class="highlight-python"><div class="highlight"><pre>shell% kpasswd
-Password for david:  &lt;- Type the old password.
-Enter new password:  &lt;- Type the new password.
-Enter it again: &lt;- Type a different new password.
-kpasswd: Password mismatch while reading password
-shell%
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kpasswd</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">david</span><span class="p">:</span>  <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">the</span> <span class="n">old</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">new</span> <span class="n">password</span><span class="p">:</span>  <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">the</span> <span class="n">new</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">it</span> <span class="n">again</span><span class="p">:</span> <span class="o">&lt;-</span> <span class="n">Type</span> <span class="n">a</span> <span class="n">different</span> <span class="n">new</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">kpasswd</span><span class="p">:</span> <span class="n">Password</span> <span class="n">mismatch</span> <span class="k">while</span> <span class="n">reading</span> <span class="n">password</span>
+<span class="n">shell</span><span class="o">%</span>
 </pre></div>
 </div>
 <p>Once you change your password, it takes some time for the change to
 propagate through the system.  Depending on how your system is set up,
 this might be anywhere from a few minutes to an hour or more.  If you
 need to get new Kerberos tickets shortly after changing your password,
-try the new password.  If the new password doesn&#8217;t work, try again
+try the new password.  If the new password doesn’t work, try again
 using the old one.</p>
 </div>
 <div class="section" id="granting-access-to-your-account">
 <span id="grant-access"></span><h2>Granting access to your account<a class="headerlink" href="#granting-access-to-your-account" title="Permalink to this headline">¶</a></h2>
 <p>If you need to give someone access to log into your account, you can
 do so through Kerberos, without telling the person your password.
-Simply create a file called <a class="reference internal" href="user_config/k5login.html#k5login-5"><em>.k5login</em></a> in your home directory.
+Simply create a file called <a class="reference internal" href="user_config/k5login.html#k5login-5"><span class="std std-ref">.k5login</span></a> in your home directory.
 This file should contain the Kerberos principal of each person to whom
 you wish to give access.  Each principal must be on a separate line.
 Here is a sample .k5login file:</p>
-<div class="highlight-python"><div class="highlight"><pre>jennifer@ATHENA.MIT.EDU
-david@EXAMPLE.COM
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
 </pre></div>
 </div>
-<p>This file would allow the users <tt class="docutils literal"><span class="pre">jennifer</span></tt> and <tt class="docutils literal"><span class="pre">david</span></tt> to use your
+<p>This file would allow the users <code class="docutils literal"><span class="pre">jennifer</span></code> and <code class="docutils literal"><span class="pre">david</span></code> to use your
 user ID, provided that they had Kerberos tickets in their respective
 realms.  If you will be logging into other hosts across a network, you
 will want to include your own Kerberos principal in your .k5login file
@@ -146,7 +144,7 @@ NFS), that user does not inherit your network privileges.</li>
 administrator could find out, if necessary, who was capable of using
 your user ID at a particular time.</li>
 </ul>
-<p>One common application is to have a .k5login file in root&#8217;s home
+<p>One common application is to have a .k5login file in root’s home
 directory, giving root access to that machine to the Kerberos
 principals listed.  This allows system administrators to allow users
 to become root locally, or to log in remotely as root, without their
@@ -179,9 +177,7 @@ type the root password over the network.</p>
     <h2>Table of contents</h2>
     <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">For users</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="">Password management</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Password management</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tkt_mgmt.html">Ticket management</a></li>
 <li class="toctree-l2"><a class="reference internal" href="user_config/index.html">User config files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="user_commands/index.html">User commands</a></li>
@@ -215,8 +211,8 @@ type the root password over the network.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

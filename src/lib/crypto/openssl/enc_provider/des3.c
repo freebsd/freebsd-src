@@ -50,8 +50,10 @@
  */
 
 #include "crypto_int.h"
-#include <openssl/evp.h>
 
+#ifdef K5_OPENSSL_DES
+
+#include <openssl/evp.h>
 
 #define DES3_BLOCK_SIZE 8
 #define DES3_KEY_SIZE 24
@@ -182,3 +184,5 @@ const struct krb5_enc_provider krb5int_enc_des3 = {
     krb5int_des_init_state,
     krb5int_default_free_state
 };
+
+#endif /* K5_OPENSSL_DES */

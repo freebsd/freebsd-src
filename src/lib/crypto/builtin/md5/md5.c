@@ -34,8 +34,10 @@
  * Modified by John Carr, MIT, to use Kerberos 5 typedefs.
  */
 
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "rsa-md5.h"
+
+#ifdef K5_BUILTIN_MD5
 
 /*
 ***********************************************************************
@@ -189,7 +191,7 @@ krb5int_MD5Final (krb5_MD5_CTX *mdContext)
  */
 static void Transform (krb5_ui_4 *buf, krb5_ui_4 *in)
 {
-    register krb5_ui_4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
+    krb5_ui_4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
 
 #if defined(CONFIG_SMALL) && !defined(CONFIG_SMALL_NO_CRYPTO)
 
@@ -340,3 +342,5 @@ static void Transform (krb5_ui_4 *buf, krb5_ui_4 *in)
     buf[2] += c;
     buf[3] += d;
 }
+
+#endif /* K5_BUILTIN_MD5 */

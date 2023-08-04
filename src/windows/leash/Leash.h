@@ -27,7 +27,6 @@
 // Help
 #define HID_GET_TICKETS_COMMAND			98343 // ID_INIT_TICKET + 65536
 #define HID_RENEW_TICKETS_COMMAND       98312 // ID_RENEW_TICKET + 65536
-#define HID_IMPORT_TICKETS_COMMAND      98342 // ID_IMPORT_TICKET + 65536
 #define HID_DESTROY_TICKETS_COMMAND     98313
 #define HID_SYNCHRONIZE_TIME_OPTION     98314
 #define HID_CHANGE_PASSWORD_COMMAND		98315
@@ -39,8 +38,6 @@
 #define HID_DESTROY_TICKETS_ON_EXIT		98321
 #define HID_UPPERCASE_REALM_OPTION      98323
 #define HID_RESET_WINDOW_OPTION			98326
-#define HID_AFS_PROPERTIES_COMMAND		98327
-#define HID_KRB4_PROPERTIES_COMMAND		98329
 #define HID_KRB5_PROPERTIES_COMMAND		98330
 #define HID_LEASH_PROPERTIES_COMMAND	98331
 #define HID_LOW_TICKET_ALARM_OPTION		98334
@@ -56,7 +53,6 @@
 #define HID_LEASH_COMMANDS              131200
 #define HID_ABOUT_LEASH32_MODULES       131225
 #define HID_DEBUG_WINDOW				131229
-#define HID_KRB4_PROPERTIES_EDIT	    131232
 #define HID_KERBEROS_PROPERTIES_EDIT	131233
 #define HID_LEASH_PROPERTIES_EDIT		131239
 #define HID_KRB5_PROPERTIES_FORWARDING  131240
@@ -108,12 +104,8 @@ public:
 	static HINSTANCE	m_hLeashDLL;
 	static HINSTANCE	m_hComErr;
 ////
-#ifndef NO_KRB4
-	static HINSTANCE	m_hKrb4DLL;
-#endif
 	static HINSTANCE	m_hKrb5DLL;
 	static HINSTANCE	m_hKrb5ProfileDLL;
-	static HINSTANCE	m_hAfsDLL;
 	static HINSTANCE	m_hPsapi;
 	static HINSTANCE	m_hToolHelp32;
 	static krb5_context m_krbv5_context;
@@ -126,8 +118,6 @@ public:
 	virtual ~CLeashApp();
 
     static BOOL  GetProfileFile(LPSTR confname, UINT szConfname);
-    static BOOL  GetKrb4ConFile(LPSTR confname, UINT szConfname);
-    static BOOL  GetKrb4RealmFile(LPSTR confname, UINT szConfname);
     static void  ValidateConfigFiles();
     static void  ObtainTicketsViaUserIfNeeded(HWND hWnd);
     static DWORD GetNumOfIpAddrs(void);

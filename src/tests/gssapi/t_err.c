@@ -74,11 +74,16 @@ main(int argc, char *argv[])
     gss_buffer_desc itok, atok;
     gss_ctx_id_t ictx = GSS_C_NO_CONTEXT, actx = GSS_C_NO_CONTEXT;
 
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s targetname\n", argv[0]);
+    argv++;
+    if (*argv != NULL && strcmp(*argv, "--spnego") == 0) {
+        mech = &mech_spnego;
+        argv++;
+    }
+    if (*argv == NULL || argv[1] != NULL) {
+        fprintf(stderr, "Usage: t_err targetname\n");
         return 1;
     }
-    tname = import_name(argv[1]);
+    tname = import_name(*argv);
 
     /* Get the initial context token. */
     flags = GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG | GSS_C_MUTUAL_FLAG;

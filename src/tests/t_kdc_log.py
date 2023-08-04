@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from k5test import *
 
 # Make a TGS request with an expired ticket.

@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Configuration interface (profile) &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Configuration interface (profile) &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For plugin module developers" href="index.html" />
     <link rel="next" title="GSSAPI mechanism interface" href="gssapi.html" />
     <link rel="prev" title="Server location interface (locate)" href="locate.html" /> 
   </head>
@@ -61,14 +59,14 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="configuration-interface-profile">
 <span id="profile-plugin"></span><h1>Configuration interface (profile)<a class="headerlink" href="#configuration-interface-profile" title="Permalink to this headline">¶</a></h1>
 <p>The profile interface allows a module to control how krb5
 configuration information is obtained by the Kerberos library and
 applications.  For a detailed description of the profile interface,
-see the header file <tt class="docutils literal"><span class="pre">&lt;profile.h&gt;</span></tt>.</p>
+see the header file <code class="docutils literal"><span class="pre">&lt;profile.h&gt;</span></code>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">The profile interface does not follow the normal conventions
@@ -78,9 +76,9 @@ lower-level component of the krb5 library.</p>
 <p>As with other types of plugin modules, a profile module is a Unix
 shared object or Windows DLL, built separately from the krb5 tree.
 The krb5 library will dynamically load and use a profile plugin module
-if it reads a <tt class="docutils literal"><span class="pre">module</span></tt> directive at the beginning of krb5.conf, as
-described in <a class="reference internal" href="../admin/host_config.html#profile-plugin-config"><em>Configuration profile modules</em></a>.</p>
-<p>A profile module exports a function named <tt class="docutils literal"><span class="pre">profile_module_init</span></tt>
+if it reads a <code class="docutils literal"><span class="pre">module</span></code> directive at the beginning of krb5.conf, as
+described in <a class="reference internal" href="../admin/host_config.html#profile-plugin-config"><span class="std std-ref">Configuration profile modules</span></a>.</p>
+<p>A profile module exports a function named <code class="docutils literal"><span class="pre">profile_module_init</span></code>
 matching the signature of the profile_module_init_fn type.  This
 function accepts a residual string, which may be used to help locate
 the configuration source.  The function fills in a vtable and may also
@@ -90,8 +88,8 @@ them.</p>
 <p>A basic read-only profile module need only implement the
 <strong>get_values</strong> and <strong>free_values</strong> methods.  The <strong>get_values</strong> method
 accepts a null-terminated list of C string names (e.g., an array
-containing &#8220;libdefaults&#8221;, &#8220;clockskew&#8221;, and NULL for the <strong>clockskew</strong>
-variable in the <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a> section) and returns a
+containing “libdefaults”, “clockskew”, and NULL for the <strong>clockskew</strong>
+variable in the <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section) and returns a
 null-terminated list of values, which will be cleaned up with the
 <strong>free_values</strong> method when the caller is done with them.</p>
 <p>Iterable profile modules must also define the <strong>iterator_create</strong>,
@@ -106,49 +104,49 @@ require profiles to be writable, but some applications may write to
 the krb5 profile in order to present configuration interfaces.</p>
 <p>The following is an example of a very basic read-only profile module
 which returns a hardcoded value for the <strong>default_realm</strong> variable in
-<a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>, and provides no other configuration information.
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>, and provides no other configuration information.
 (For conciseness, the example omits code for checking the return
 values of malloc and strdup.)</p>
-<div class="highlight-python"><div class="highlight"><pre>#include &lt;stdlib.h&gt;
-#include &lt;string.h&gt;
-#include &lt;profile.h&gt;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#include &lt;stdlib.h&gt;</span>
+<span class="c1">#include &lt;string.h&gt;</span>
+<span class="c1">#include &lt;profile.h&gt;</span>
 
-static long
-get_values(void *cbdata, const char *const *names, char ***values)
-{
-    if (names[0] != NULL &amp;&amp; strcmp(names[0], &quot;libdefaults&quot;) == 0 &amp;&amp;
-        names[1] != NULL &amp;&amp; strcmp(names[1], &quot;default_realm&quot;) == 0) {
-        *values = malloc(2 * sizeof(char *));
-        (*values)[0] = strdup(&quot;ATHENA.MIT.EDU&quot;);
-        (*values)[1] = NULL;
-        return 0;
-    }
-    return PROF_NO_RELATION;
-}
+<span class="n">static</span> <span class="n">long</span>
+<span class="n">get_values</span><span class="p">(</span><span class="n">void</span> <span class="o">*</span><span class="n">cbdata</span><span class="p">,</span> <span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">const</span> <span class="o">*</span><span class="n">names</span><span class="p">,</span> <span class="n">char</span> <span class="o">***</span><span class="n">values</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">NULL</span> <span class="o">&amp;&amp;</span> <span class="n">strcmp</span><span class="p">(</span><span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;libdefaults&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span>
+        <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">NULL</span> <span class="o">&amp;&amp;</span> <span class="n">strcmp</span><span class="p">(</span><span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;default_realm&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="o">*</span><span class="n">values</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">sizeof</span><span class="p">(</span><span class="n">char</span> <span class="o">*</span><span class="p">));</span>
+        <span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">strdup</span><span class="p">(</span><span class="s2">&quot;ATHENA.MIT.EDU&quot;</span><span class="p">);</span>
+        <span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">NULL</span><span class="p">;</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">PROF_NO_RELATION</span><span class="p">;</span>
+<span class="p">}</span>
 
-static void
-free_values(void *cbdata, char **values)
-{
-    char **v;
+<span class="n">static</span> <span class="n">void</span>
+<span class="n">free_values</span><span class="p">(</span><span class="n">void</span> <span class="o">*</span><span class="n">cbdata</span><span class="p">,</span> <span class="n">char</span> <span class="o">**</span><span class="n">values</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">char</span> <span class="o">**</span><span class="n">v</span><span class="p">;</span>
 
-    for (v = values; *v; v++)
-        free(*v);
-    free(values);
-}
+    <span class="k">for</span> <span class="p">(</span><span class="n">v</span> <span class="o">=</span> <span class="n">values</span><span class="p">;</span> <span class="o">*</span><span class="n">v</span><span class="p">;</span> <span class="n">v</span><span class="o">++</span><span class="p">)</span>
+        <span class="n">free</span><span class="p">(</span><span class="o">*</span><span class="n">v</span><span class="p">);</span>
+    <span class="n">free</span><span class="p">(</span><span class="n">values</span><span class="p">);</span>
+<span class="p">}</span>
 
-long
-profile_module_init(const char *residual, struct profile_vtable *vtable,
-                    void **cb_ret);
+<span class="n">long</span>
+<span class="n">profile_module_init</span><span class="p">(</span><span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">residual</span><span class="p">,</span> <span class="n">struct</span> <span class="n">profile_vtable</span> <span class="o">*</span><span class="n">vtable</span><span class="p">,</span>
+                    <span class="n">void</span> <span class="o">**</span><span class="n">cb_ret</span><span class="p">);</span>
 
-long
-profile_module_init(const char *residual, struct profile_vtable *vtable,
-                    void **cb_ret)
-{
-    *cb_ret = NULL;
-    vtable-&gt;get_values = get_values;
-    vtable-&gt;free_values = free_values;
-    return 0;
-}
+<span class="n">long</span>
+<span class="n">profile_module_init</span><span class="p">(</span><span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">residual</span><span class="p">,</span> <span class="n">struct</span> <span class="n">profile_vtable</span> <span class="o">*</span><span class="n">vtable</span><span class="p">,</span>
+                    <span class="n">void</span> <span class="o">**</span><span class="n">cb_ret</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="o">*</span><span class="n">cb_ret</span> <span class="o">=</span> <span class="n">NULL</span><span class="p">;</span>
+    <span class="n">vtable</span><span class="o">-&gt;</span><span class="n">get_values</span> <span class="o">=</span> <span class="n">get_values</span><span class="p">;</span>
+    <span class="n">vtable</span><span class="o">-&gt;</span><span class="n">free_values</span> <span class="o">=</span> <span class="n">free_values</span><span class="p">;</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -181,7 +179,7 @@ profile_module_init(const char *residual, struct profile_vtable *vtable,
 <li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Configuration interface (profile)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Configuration interface (profile)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
 <li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
@@ -213,8 +211,8 @@ profile_module_init(const char *residual, struct profile_vtable *vtable,
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

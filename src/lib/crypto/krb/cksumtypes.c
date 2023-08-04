@@ -28,29 +28,11 @@
 #include "crypto_int.h"
 
 const struct krb5_cksumtypes krb5int_cksumtypes_list[] = {
-    { CKSUMTYPE_CRC32,
-      "crc32", { 0 }, "CRC-32",
-      NULL, &krb5int_hash_crc32,
-      krb5int_unkeyed_checksum, NULL,
-      4, 4, CKSUM_UNKEYED | CKSUM_NOT_COLL_PROOF },
-
     { CKSUMTYPE_RSA_MD4,
       "md4", { 0 }, "RSA-MD4",
       NULL, &krb5int_hash_md4,
       krb5int_unkeyed_checksum, NULL,
       16, 16, CKSUM_UNKEYED },
-
-    { CKSUMTYPE_RSA_MD4_DES,
-      "md4-des", { 0 }, "RSA-MD4 with DES cbc mode",
-      &krb5int_enc_des, &krb5int_hash_md4,
-      krb5int_confounder_checksum, krb5int_confounder_verify,
-      24, 24, 0 },
-
-    { CKSUMTYPE_DESCBC,
-      "des-cbc", { 0 }, "DES cbc mode",
-      &krb5int_enc_des, NULL,
-      krb5int_cbc_checksum, NULL,
-      8, 8, 0 },
 
     { CKSUMTYPE_RSA_MD5,
       "md5", { 0 }, "RSA-MD5",
@@ -58,14 +40,14 @@ const struct krb5_cksumtypes krb5int_cksumtypes_list[] = {
       krb5int_unkeyed_checksum, NULL,
       16, 16, CKSUM_UNKEYED },
 
-    { CKSUMTYPE_RSA_MD5_DES,
-      "md5-des", { 0 }, "RSA-MD5 with DES cbc mode",
-      &krb5int_enc_des, &krb5int_hash_md5,
-      krb5int_confounder_checksum, krb5int_confounder_verify,
-      24, 24, 0 },
-
     { CKSUMTYPE_NIST_SHA,
       "sha", { 0 }, "NIST-SHA",
+      NULL, &krb5int_hash_sha1,
+      krb5int_unkeyed_checksum, NULL,
+      20, 20, CKSUM_UNKEYED },
+
+    { CKSUMTYPE_SHA1,
+      "sha", { 0 }, "SHA-1",
       NULL, &krb5int_hash_sha1,
       krb5int_unkeyed_checksum, NULL,
       20, 20, CKSUM_UNKEYED },

@@ -204,7 +204,7 @@ main (int argc, char *argv[])
     padatap = NULL;
 
     TRACE(ctx, "krb5_enctype, display shortest name of enctype: {etype}",
-          ENCTYPE_DES_CBC_CRC);
+          ENCTYPE_AES128_CTS_HMAC_SHA1_96);
     TRACE(ctx, "krb5_enctype *, display list of enctypes: {etypes}", enctypes);
     TRACE(ctx, "krb5_enctype *, display list of enctypes: {etypes}", NULL);
 

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _AP-OPTS-WIRE-MASK-data:
+
+AP_OPTS_WIRE_MASK
+=================
+
+..
+.. data:: AP_OPTS_WIRE_MASK
+..
+
+
+
+
+======================== ======================
+``AP_OPTS_WIRE_MASK``       ``0xfffffff0``
+======================== ======================

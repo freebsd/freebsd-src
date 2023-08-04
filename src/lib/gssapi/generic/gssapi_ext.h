@@ -92,7 +92,7 @@ gss_userok(const gss_name_t name,
  *
  * @return Return GSS_S_COMPLETE if @a name is authorized to act as @a user,
  * GSS_S_UNAUTHORIZED if not, or an appropriate GSS error code if an error
- * occured.
+ * occurred.
  *
  * @sa gss_userok
  */
@@ -169,12 +169,31 @@ OM_uint32 KRB5_CALLCONV gss_set_sec_context_option
 	 const gss_OID /*desired_object*/,
 	 const gss_buffer_t /*value*/);
 
+/*
+ * Export import cred extensions from GGF, but using Heimdal's signatures
+ */
+OM_uint32 KRB5_CALLCONV gss_export_cred
+	(OM_uint32 * /* minor_status */,
+	 gss_cred_id_t /* cred_handle */,
+	 gss_buffer_t /* token */);
+
+OM_uint32 KRB5_CALLCONV gss_import_cred
+	(OM_uint32 * /* minor_status */,
+	 gss_buffer_t /* token */,
+	 gss_cred_id_t * /* cred_handle */);
+
+/*
+ * Heimdal extension
+ */
 OM_uint32 KRB5_CALLCONV gss_set_cred_option
 	(OM_uint32 * /*minor_status*/,
 	 gss_cred_id_t * /*cred*/,
 	 const gss_OID /*desired_object*/,
 	 const gss_buffer_t /*value*/);
 
+/*
+ * Call the given method on the given mechanism
+ */
 OM_uint32 KRB5_CALLCONV gssspi_mech_invoke
 	(OM_uint32 * /*minor_status*/,
 	 const gss_OID /*desired_mech*/,
@@ -217,6 +236,16 @@ OM_uint32 KRB5_CALLCONV gss_unwrap_aead
  * member contains an OID identifying the session key type.
  */
 GSS_DLLIMP extern gss_OID GSS_C_INQ_SSPI_SESSION_KEY;
+
+/*
+ * Returns a buffer set with the first member containing the ticket session key
+ * for ODBC compatibility.  The optional second member contains an OID
+ * identifying the session key type.
+ */
+GSS_DLLIMP extern gss_OID GSS_C_INQ_ODBC_SESSION_KEY;
+
+GSS_DLLIMP extern gss_OID GSS_C_INQ_NEGOEX_KEY;
+GSS_DLLIMP extern gss_OID GSS_C_INQ_NEGOEX_VERIFY_KEY;
 
 OM_uint32 KRB5_CALLCONV gss_complete_auth_token
 	(OM_uint32 *minor_status,
@@ -559,17 +588,49 @@ gss_store_cred_into(
     gss_OID_set *,             /* elements_stored */
     gss_cred_usage_t *);       /* cred_usage_stored */
 
-OM_uint32 KRB5_CALLCONV
-gss_export_cred(
-    OM_uint32 *,               /* minor_status */
-    gss_cred_id_t,             /* cred_handle */
-    gss_buffer_t);             /* token */
+/*
+ * A mech can make itself negotiable via NegoEx (draft-zhu-negoex) by
+ * implementing the following three SPIs, and also implementing
+ * gss_inquire_sec_context_by_oid() and answering the GSS_C_INQ_NEGOEX_KEY and
+ * GSS_C_INQ_NEGOEX_VERIFY_KEY OIDs.  The answer must be in two buffers: the
+ * first contains the key contents, and the second contains the key enctype as
+ * a four-byte little-endian integer.
+ *
+ * By default, NegoEx mechanisms will not be directly negotiated via SPNEGO.
+ * If direct SPNEGO negotiation is required for interoperability, implement
+ * gss_inquire_attrs_for_mech() and assert the GSS_C_MA_NEGOEX_AND_SPNEGO
+ * attribute (along with any applicable RFC 5587 attributes).
+ */
+
+#define GSS_C_CHANNEL_BOUND_FLAG 2048 /* 0x00000800 */
 
 OM_uint32 KRB5_CALLCONV
-gss_import_cred(
-    OM_uint32 *,               /* minor_status */
-    gss_buffer_t,              /* token */
-    gss_cred_id_t *);          /* cred_handle */
+gssspi_query_meta_data(
+    OM_uint32 *minor_status,
+    gss_const_OID mech_oid,
+    gss_cred_id_t cred_handle,
+    gss_ctx_id_t *context_handle,
+    const gss_name_t targ_name,
+    OM_uint32 req_flags,
+    gss_buffer_t meta_data);
+
+OM_uint32 KRB5_CALLCONV
+gssspi_exchange_meta_data(
+    OM_uint32 *minor_status,
+    gss_const_OID mech_oid,
+    gss_cred_id_t cred_handle,
+    gss_ctx_id_t *context_handle,
+    const gss_name_t targ_name,
+    OM_uint32 req_flags,
+    gss_const_buffer_t meta_data);
+
+OM_uint32 KRB5_CALLCONV
+gssspi_query_mechanism_info(
+    OM_uint32 *minor_status,
+    gss_const_OID mech_oid,
+    unsigned char auth_scheme[16]);
+
+GSS_DLLIMP extern gss_const_OID GSS_C_MA_NEGOEX_AND_SPNEGO;
 
 #ifdef __cplusplus
 }

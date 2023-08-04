@@ -28,6 +28,7 @@
 #define __KTEST_H__
 
 #include "k5-int.h"
+#include "k5-spake.h"
 #include "kdb.h"
 
 #define SAMPLE_USEC 123456
@@ -84,8 +85,6 @@ void ktest_make_sample_enc_sam_response_enc_2(krb5_enc_sam_response_enc_2 *p);
 void ktest_make_sample_pa_for_user(krb5_pa_for_user *p);
 void ktest_make_sample_pa_s4u_x509_user(krb5_pa_s4u_x509_user *p);
 void ktest_make_sample_ad_kdcissued(krb5_ad_kdcissued *p);
-void ktest_make_sample_ad_signedpath_data(krb5_ad_signedpath_data *p);
-void ktest_make_sample_ad_signedpath(krb5_ad_signedpath *p);
 void ktest_make_sample_iakerb_header(krb5_iakerb_header *p);
 void ktest_make_sample_iakerb_finished(krb5_iakerb_finished *p);
 void ktest_make_sample_fast_response(krb5_fast_response *p);
@@ -100,18 +99,11 @@ void ktest_make_maximal_pa_otp_req(krb5_pa_otp_req *p);
 
 #ifndef DISABLE_PKINIT
 void ktest_make_sample_pa_pk_as_req(krb5_pa_pk_as_req *p);
-void ktest_make_sample_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 *p);
 void ktest_make_sample_pa_pk_as_rep_dhInfo(krb5_pa_pk_as_rep *p);
 void ktest_make_sample_pa_pk_as_rep_encKeyPack(krb5_pa_pk_as_rep *p);
-void ktest_make_sample_pa_pk_as_rep_draft9_dhSignedData(
-    krb5_pa_pk_as_rep_draft9 *p);
-void ktest_make_sample_pa_pk_as_rep_draft9_encKeyPack(
-    krb5_pa_pk_as_rep_draft9 *p);
 void ktest_make_sample_auth_pack(krb5_auth_pack *p);
-void ktest_make_sample_auth_pack_draft9(krb5_auth_pack_draft9 *p);
 void ktest_make_sample_kdc_dh_key_info(krb5_kdc_dh_key_info *p);
 void ktest_make_sample_reply_key_pack(krb5_reply_key_pack *p);
-void ktest_make_sample_reply_key_pack_draft9(krb5_reply_key_pack_draft9 *p);
 void ktest_make_sample_sp80056a_other_info(krb5_sp80056a_other_info *p);
 void ktest_make_sample_pkinit_supp_pub_info(krb5_pkinit_supp_pub_info *p);
 #endif
@@ -124,6 +116,12 @@ void ktest_make_sample_kkdcp_message(krb5_kkdcp_message *p);
 void ktest_make_minimal_cammac(krb5_cammac *p);
 void ktest_make_maximal_cammac(krb5_cammac *p);
 void ktest_make_sample_secure_cookie(krb5_secure_cookie *p);
+void ktest_make_minimal_spake_factor(krb5_spake_factor *p);
+void ktest_make_maximal_spake_factor(krb5_spake_factor *p);
+void ktest_make_support_pa_spake(krb5_pa_spake *p);
+void ktest_make_challenge_pa_spake(krb5_pa_spake *p);
+void ktest_make_response_pa_spake(krb5_pa_spake *p);
+void ktest_make_encdata_pa_spake(krb5_pa_spake *p);
 
 /*----------------------------------------------------------------------*/
 
@@ -179,8 +177,6 @@ void ktest_empty_enc_sam_response_enc_2(krb5_enc_sam_response_enc_2 *p);
 void ktest_empty_pa_for_user(krb5_pa_for_user *p);
 void ktest_empty_pa_s4u_x509_user(krb5_pa_s4u_x509_user *p);
 void ktest_empty_ad_kdcissued(krb5_ad_kdcissued *p);
-void ktest_empty_ad_signedpath_data(krb5_ad_signedpath_data *p);
-void ktest_empty_ad_signedpath(krb5_ad_signedpath *p);
 void ktest_empty_iakerb_header(krb5_iakerb_header *p);
 void ktest_empty_iakerb_finished(krb5_iakerb_finished *p);
 void ktest_empty_fast_response(krb5_fast_response *p);
@@ -190,14 +186,10 @@ void ktest_empty_pa_otp_req(krb5_pa_otp_req *p);
 
 #ifndef DISABLE_PKINIT
 void ktest_empty_pa_pk_as_req(krb5_pa_pk_as_req *p);
-void ktest_empty_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 *p);
 void ktest_empty_pa_pk_as_rep(krb5_pa_pk_as_rep *p);
-void ktest_empty_pa_pk_as_rep_draft9(krb5_pa_pk_as_rep_draft9 *p);
 void ktest_empty_auth_pack(krb5_auth_pack *p);
-void ktest_empty_auth_pack_draft9(krb5_auth_pack_draft9 *p);
 void ktest_empty_kdc_dh_key_info(krb5_kdc_dh_key_info *p);
 void ktest_empty_reply_key_pack(krb5_reply_key_pack *p);
-void ktest_empty_reply_key_pack_draft9(krb5_reply_key_pack_draft9 *p);
 void ktest_empty_sp80056a_other_info(krb5_sp80056a_other_info *p);
 void ktest_empty_pkinit_supp_pub_info(krb5_pkinit_supp_pub_info *p);
 #endif
@@ -209,6 +201,8 @@ void ktest_empty_ldap_seqof_key_data(krb5_context, ldap_seqof_key_data *p);
 void ktest_empty_kkdcp_message(krb5_kkdcp_message *p);
 void ktest_empty_cammac(krb5_cammac *p);
 void ktest_empty_secure_cookie(krb5_secure_cookie *p);
+void ktest_empty_spake_factor(krb5_spake_factor *p);
+void ktest_empty_pa_spake(krb5_pa_spake *p);
 
 extern krb5_context test_context;
 extern char *sample_principal_name;

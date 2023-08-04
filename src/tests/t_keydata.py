@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 realm = K5Realm(create_user=False, create_host=False)
@@ -21,34 +20,30 @@ realm.run([kadminl, 'getprinc', 'user'], expected_msg='vno 1')
 
 # Return true if patype appears to have been received in a hint list
 # from a KDC error message, based on the trace file fname.
-def preauth_type_received(fname, patype):
-    f = open(fname, 'r')
+def preauth_type_received(trace, patype):
     found = False
-    for line in f:
+    for line in trace.splitlines():
         if 'Processing preauth types:' in line:
             ind = line.find('types:')
-            patypes = line[ind + 6:].strip().split(', ')
+            patypes = line[ind + 6:].split(', ')
             if str(patype) in patypes:
                 found = True
-    f.close()
     return found
 
 # Make sure the KDC doesn't offer encrypted timestamp for a principal
 # with no keys.
-tracefile = os.path.join(realm.testdir, 'trace')
 realm.run([kadminl, 'purgekeys', '-all', 'user'])
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'user'])
-realm.run(['env', 'KRB5_TRACE=' + tracefile, kinit, 'user'], expected_code=1)
-if preauth_type_received(tracefile, 2):
+out, trace = realm.run([kinit, 'user'], expected_code=1, return_trace=True)
+if preauth_type_received(trace, 2):
     fail('encrypted timestamp')
 
 # Make sure it doesn't offer encrypted challenge either.
 realm.run([kadminl, 'addprinc', '-pw', 'fast', 'armor'])
 realm.kinit('armor', 'fast')
-os.remove(tracefile)
-realm.run(['env', 'KRB5_TRACE=' + tracefile, kinit, '-T', realm.ccache,
-           'user'], expected_code=1)
-if preauth_type_received(tracefile, 138):
+out, trace = realm.run([kinit, '-T', realm.ccache, 'user'], expected_code=1,
+                       return_trace=True)
+if preauth_type_received(trace, 138):
     fail('encrypted challenge')
 
 success('Key data tests')

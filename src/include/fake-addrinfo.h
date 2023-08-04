@@ -85,7 +85,7 @@
 
    + Use gethostbyname2, inet_aton and other IPv6 or thread-safe
    functions if available.  But, see
-   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=135182 for one
+   https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=135182 for one
    gethostbyname2 problem on Linux.  And besides, if a platform is
    supporting IPv6 at all, they really should be doing getaddrinfo
    by now.

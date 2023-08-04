@@ -9,7 +9,7 @@
  *
  * Each node may represent either a relation or a section header.
  *
- * A section header must have its value field set to 0, and may a one
+ * A section header must have its value field be null, and may have one
  * or more child nodes, pointed to by first_child.
  *
  * A relation has as its value a pointer to allocated memory
@@ -113,7 +113,7 @@ errcode_t profile_create_node(const char *name, const char *value,
 }
 
 /*
- * This function verifies that all of the representation invarients of
+ * This function verifies that all of the representation invariants of
  * the profile are true.  If not, we have a programming bug somewhere,
  * probably in this file.
  */
@@ -159,15 +159,22 @@ errcode_t profile_add_node(struct profile_node *section, const char *name,
         return PROF_ADD_NOT_SECTION;
 
     /*
-     * Find the place to insert the new node.  We look for the
-     * place *after* the last match of the node name, since
+     * Find the place to insert the new node.  If we are adding a subsection
+     * and already have a subsection with that name, merge them.  Otherwise,
+     * we look for the place *after* the last match of the node name, since
      * order matters.
      */
     for (p=section->first_child, last = 0; p; last = p, p = p->next) {
         int cmp;
         cmp = strcmp(p->name, name);
-        if (cmp > 0)
+        if (cmp > 0) {
             break;
+        } else if (value == NULL && cmp == 0 &&
+                   p->value == NULL && p->deleted != 1) {
+            /* Found duplicate subsection, so don't make a new one. */
+            *ret_node = p;
+            return 0;
+        }
     }
     retval = profile_create_node(name, value, &new);
     if (retval)
@@ -229,7 +236,7 @@ const char *profile_get_node_value(struct profile_node *node)
 
 /*
  * Iterate through the section, returning the nodes which match
- * the given name.  If name is NULL, then interate through all the
+ * the given name.  If name is NULL, then iterate through all the
  * nodes in the section.  If section_flag is non-zero, only return the
  * section which matches the name; don't return relations.  If value
  * is non-NULL, then only return relations which match the requested
@@ -306,7 +313,7 @@ errcode_t profile_find_node(struct profile_node *section, const char *name,
 
 /*
  * Iterate through the section, returning the relations which match
- * the given name.  If name is NULL, then interate through all the
+ * the given name.  If name is NULL, then iterate through all the
  * relations in the section.  The first time this routine is called,
  * the state pointer must be null.  When this profile_find_node_relation()
  * returns, if the state pointer is non-NULL, then this routine should
@@ -339,7 +346,7 @@ errcode_t profile_find_node_relation(struct profile_node *section,
 
 /*
  * Iterate through the section, returning the subsections which match
- * the given name.  If name is NULL, then interate through all the
+ * the given name.  If name is NULL, then iterate through all the
  * subsections in the section.  The first time this routine is called,
  * the state pointer must be null.  When this profile_find_node_subsection()
  * returns, if the state pointer is non-NULL, then this routine should

@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)svc_raw.c 1.15 87/08/11 Copyr 1984 Sun Micro";
  * svc_raw.c,   This a toy for simple testing and timing.
  * Interface to create an rpc client and server in the same UNIX process.
  * This lets us similate rpc and get rpc (round trip) overhead, without
- * any interference from the kernal.
+ * any interference from the kernel.
  */
 
 #include <gssrpc/rpc.h>
@@ -74,7 +74,7 @@ static struct xp_ops server_ops = {
 SVCXPRT *
 svcraw_create(void)
 {
-	register struct svcraw_private *srp = svcraw_private;
+	struct svcraw_private *srp = svcraw_private;
 
 	if (srp == 0) {
 		srp = (struct svcraw_private *)calloc(1, sizeof (*srp));
@@ -100,8 +100,8 @@ svcraw_stat(SVCXPRT *xprt)
 static bool_t
 svcraw_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svcraw_private *srp = svcraw_private;
+	XDR *xdrs;
 
 	if (srp == 0)
 		return (0);
@@ -116,8 +116,8 @@ svcraw_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 static bool_t
 svcraw_reply(SVCXPRT *xprt, struct rpc_msg *msg)
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svcraw_private *srp = svcraw_private;
+	XDR *xdrs;
 
 	if (srp == 0)
 		return (FALSE);
@@ -133,7 +133,7 @@ svcraw_reply(SVCXPRT *xprt, struct rpc_msg *msg)
 static bool_t
 svcraw_getargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
-	register struct svcraw_private *srp = svcraw_private;
+	struct svcraw_private *srp = svcraw_private;
 
 	if (srp == 0)
 		return (FALSE);
@@ -147,8 +147,8 @@ svcraw_getargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 static bool_t
 svcraw_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svcraw_private *srp = svcraw_private;
+	XDR *xdrs;
 
 	if (srp == 0)
 		return (FALSE);

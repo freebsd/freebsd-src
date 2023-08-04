@@ -1,11 +1,9 @@
-#!/usr/bin/python
 from k5test import *
 import time
-from itertools import imap
 
-# Run kdbtest against the BDB module.
-realm = K5Realm(create_kdb=False)
-realm.run(['./kdbtest'])
+# Run kdbtest against the non-LDAP KDB modules.
+for realm in multidb_realms(create_kdb=False):
+    realm.run(['./kdbtest'])
 
 # Set up an OpenLDAP test server if we can.
 
@@ -52,7 +50,7 @@ else:
 def slap_add(ldif):
     proc = subprocess.Popen([slapadd, '-b', 'cn=config', '-F', slapd_conf],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT, universal_newlines=True)
     (out, dummy) = proc.communicate(ldif)
     output(out)
     return proc.wait()
@@ -99,7 +97,7 @@ if slap_add('include: file://%s\n' % schema) != 0:
 ldap_homes = ['/etc/ldap', '/etc/openldap', '/usr/local/etc/openldap',
               '/usr/local/etc/ldap']
 local_schema_path = '/schema/core.ldif'
-core_schema = next((i for i in imap(lambda x:x+local_schema_path, ldap_homes)
+core_schema = next((i for i in map(lambda x:x+local_schema_path, ldap_homes)
                     if os.path.isfile(i)), None)
 if core_schema:
     if slap_add('include: file://%s\n' % core_schema) != 0:
@@ -115,7 +113,7 @@ atexit.register(kill_slapd)
 
 out = open(slapd_out, 'w')
 subprocess.call([slapd, '-h', ldap_uri, '-F', slapd_conf], stdout=out,
-                stderr=out)
+                stderr=out, universal_newlines=True)
 out.close()
 pidf = open(slapd_pidfile, 'r')
 slapd_pid = int(pidf.read())
@@ -159,7 +157,7 @@ def ldap_search(args):
     proc = subprocess.Popen([ldapsearch, '-H', ldap_uri, '-b', top_dn,
                              '-D', admin_dn, '-w', admin_pw, args],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT, universal_newlines=True)
     (out, dummy) = proc.communicate()
     return out
 
@@ -167,7 +165,7 @@ def ldap_modify(ldif, args=[]):
     proc = subprocess.Popen([ldapmodify, '-H', ldap_uri, '-D', admin_dn,
                              '-x', '-w', admin_pw] + args,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT, universal_newlines=True)
     (out, dummy) = proc.communicate(ldif)
     output(out)
 
@@ -201,7 +199,14 @@ if out != 'KRBTEST.COM\n':
 # because we're sticking a krbPrincipalAux objectclass onto a subtree
 # krbContainer, but it works and it avoids having to load core.schema
 # in the test LDAP server.
+mark('LDAP specified dn')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'dn=cn=krb5', 'princ1'],
+          expected_code=1, expected_msg='DN is out of the realm subtree')
+# Check that the DN container check is a hierarchy test, not a simple
+# suffix match (CVE-2018-5730).  We expect this operation to fail
+# either way (because "xcn" isn't a valid DN tag) but the container
+# check should happen before the DN is parsed.
+realm.run([kadminl, 'ank', '-randkey', '-x', 'dn=xcn=t1,cn=krb5', 'princ1'],
           expected_code=1, expected_msg='DN is out of the realm subtree')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'dn=cn=t2,cn=krb5', 'princ1'])
 realm.run([kadminl, 'getprinc', 'princ1'], expected_msg='Principal: princ1')
@@ -212,6 +217,7 @@ realm.run([kadminl, 'modprinc', '-x', 'linkdn=cn=t1,cn=krb5', 'princ1'],
           expected_code=1, expected_msg='link information can not be set')
 
 # Create a principal with a specified linkdn.
+mark('LDAP specified linkdn')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'linkdn=cn=krb5', 'princ2'],
           expected_code=1, expected_msg='DN is out of the realm subtree')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'linkdn=cn=t1,cn=krb5', 'princ2'])
@@ -220,12 +226,20 @@ realm.run([kadminl, 'modprinc', '-x', 'linkdn=cn=t2,cn=krb5', 'princ2'],
           expected_code=1, expected_msg='kerberos principal is already linked')
 
 # Create a principal with a specified containerdn.
+mark('LDAP specified containerdn')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'containerdn=cn=krb5', 'princ3'],
           expected_code=1, expected_msg='DN is out of the realm subtree')
 realm.run([kadminl, 'ank', '-randkey', '-x', 'containerdn=cn=t1,cn=krb5',
            'princ3'])
 realm.run([kadminl, 'modprinc', '-x', 'containerdn=cn=t2,cn=krb5', 'princ3'],
           expected_code=1, expected_msg='containerdn option not supported')
+# Verify that containerdn is checked when linkdn is also supplied
+# (CVE-2018-5730).
+realm.run([kadminl, 'ank', '-randkey', '-x', 'containerdn=cn=krb5',
+           '-x', 'linkdn=cn=t2,cn=krb5', 'princ4'], expected_code=1,
+          expected_msg='DN is out of the realm subtree')
+
+mark('LDAP ticket policy')
 
 # Create and modify a ticket policy.
 kldaputil(['create_policy', '-maxtktlife', '3hour', '-maxrenewlife', '6hour',
@@ -293,6 +307,7 @@ realm.run([kadminl, '-q', 'modprinc -policy tktpol2 princ4'],
 
 # Do some basic tests with a KDC against the LDAP module, exercising the
 # db_args processing code.
+mark('LDAP KDC operation')
 realm.start_kdc(['-x', 'nconns=3', '-x', 'host=' + ldap_uri,
                  '-x', 'binddn=' + admin_dn, '-x', 'bindpwd=' + admin_pw])
 realm.addprinc(realm.user_princ, password('user'))
@@ -302,18 +317,46 @@ realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ])
 realm.klist(realm.user_princ, realm.host_princ)
 
-# Test auth indicator support
+mark('LDAP auth indicator')
+
+# Test require_auth normalization.
 realm.addprinc('authind', password('authind'))
 realm.run([kadminl, 'setstr', 'authind', 'require_auth', 'otp radius'])
 
+# Check that krbPrincipalAuthInd attributes are set when the string
+# attribute it set.
 out = ldap_search('(krbPrincipalName=authind*)')
 if 'krbPrincipalAuthInd: otp' not in out:
     fail('Expected krbPrincipalAuthInd value not in output')
 if 'krbPrincipalAuthInd: radius' not in out:
     fail('Expected krbPrincipalAuthInd value not in output')
 
+# Check that the string attribute still appears when the principal is
+# loaded.
 realm.run([kadminl, 'getstrs', 'authind'],
           expected_msg='require_auth: otp radius')
+
+# Modify the LDAP attributes and check that the change is reflected in
+# the string attribute.
+ldap_modify('dn: krbPrincipalName=authind@KRBTEST.COM,cn=t1,cn=krb5\n'
+            'changetype: modify\n'
+            'replace: krbPrincipalAuthInd\n'
+            'krbPrincipalAuthInd: radius\n'
+            'krbPrincipalAuthInd: pkinit\n')
+realm.run([kadminl, 'getstrs', 'authind'],
+           expected_msg='require_auth: radius pkinit')
+
+# Regression test for #8877: remove the string attribute and check
+# that it is reflected in the LDAP attributes and by getstrs.
+realm.run([kadminl, 'delstr', 'authind', 'require_auth'])
+out = ldap_search('(krbPrincipalName=authind*)')
+if 'krbPrincipalAuthInd' in out:
+    fail('krbPrincipalAuthInd attribute still present after delstr')
+out = realm.run([kadminl, 'getstrs', 'authind'])
+if 'require_auth' in out:
+    fail('require_auth string attribute still visible after delstr')
+
+mark('LDAP service principal aliases')
 
 # Test service principal aliases.
 realm.addprinc('canon', password('canon'))
@@ -321,10 +364,13 @@ ldap_modify('dn: krbPrincipalName=canon@KRBTEST.COM,cn=t1,cn=krb5\n'
             'changetype: modify\n'
             'add: krbPrincipalName\n'
             'krbPrincipalName: alias@KRBTEST.COM\n'
+            'krbPrincipalName: ent@abc@KRBTEST.COM\n'
             '-\n'
             'add: krbCanonicalName\n'
             'krbCanonicalName: canon@KRBTEST.COM\n')
 realm.run([kadminl, 'getprinc', 'alias'],
+          expected_msg='Principal: canon@KRBTEST.COM\n')
+realm.run([kadminl, 'getprinc', 'ent\\@abc'],
           expected_msg='Principal: canon@KRBTEST.COM\n')
 realm.run([kadminl, 'getprinc', 'canon'],
           expected_msg='Principal: canon@KRBTEST.COM\n')
@@ -361,14 +407,29 @@ realm.klist(realm.user_princ, 'alias@KRBTEST.COM')
 
 # Test client principal aliases, with and without preauth.
 realm.kinit('canon', password('canon'))
-realm.kinit('alias', password('canon'), expected_code=1,
-            expected_msg='not found in Kerberos database')
+realm.kinit('alias', password('canon'))
+realm.run([kvno, 'alias'])
+realm.klist('alias@KRBTEST.COM', 'alias@KRBTEST.COM')
 realm.kinit('alias', password('canon'), ['-C'])
 realm.run([kvno, 'alias'])
 realm.klist('canon@KRBTEST.COM', 'alias@KRBTEST.COM')
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'canon'])
 realm.kinit('canon', password('canon'))
 realm.kinit('alias', password('canon'), ['-C'])
+
+# Test enterprise alias with and without canonicalization.
+realm.kinit('ent@abc', password('canon'), ['-E', '-C'])
+realm.run([kvno, 'alias'])
+realm.klist('canon@KRBTEST.COM', 'alias@KRBTEST.COM')
+
+realm.kinit('ent@abc', password('canon'), ['-E'])
+realm.run([kvno, 'alias'])
+realm.klist('ent\\@abc@KRBTEST.COM', 'alias@KRBTEST.COM')
+
+# Test client name canonicalization in non-krbtgt AS reply
+realm.kinit('alias', password('canon'), ['-C', '-S', 'kadmin/changepw'])
+
+mark('LDAP password history')
 
 # Test password history.
 def test_pwhist(nhist):
@@ -409,6 +470,7 @@ def get_princ(princ):
     out = realm.run([kadminl, 'getprinc', princ])
     return dict(map(str.strip, x.split(":", 1)) for x in out.splitlines())
 
+mark('LDAP principal renaming')
 realm.addprinc("rename", password('rename'))
 renameprinc = get_princ("rename")
 realm.run([kadminl, '-p', 'fake@KRBTEST.COM', 'renprinc', 'rename', 'renamed'])
@@ -417,6 +479,7 @@ if renameprinc['Last modified'] == renamedprinc['Last modified']:
     fail('Last modified data not updated when principal was renamed')
 
 # Regression test for #7980 (fencepost when dividing keys up by kvno).
+mark('#7980 regression test')
 realm.run([kadminl, 'addprinc', '-randkey', '-e', 'aes256-cts,aes128-cts',
            'kvnoprinc'])
 realm.run([kadminl, 'cpw', '-randkey', '-keepold', '-e',
@@ -427,6 +490,7 @@ realm.run([kadminl, 'cpw', '-randkey', '-keepold', '-e',
 realm.run([kadminl, 'getprinc', 'kvnoprinc'], expected_msg='Number of keys: 6')
 
 # Regression test for #8041 (NULL dereference on keyless principals).
+mark('#8041 regression test')
 realm.run([kadminl, 'addprinc', '-nokey', 'keylessprinc'])
 realm.run([kadminl, 'getprinc', 'keylessprinc'],
           expected_msg='Number of keys: 0')
@@ -441,6 +505,7 @@ realm.run([kadminl, 'getprinc', 'keylessprinc'],
           expected_msg='Number of keys: 0')
 
 # Test for 8354 (old password history entries when -keepold is used)
+mark('#8354 regression test')
 realm.run([kadminl, 'addpol', '-history', '2', 'keepoldpasspol'])
 realm.run([kadminl, 'addprinc', '-policy', 'keepoldpasspol', '-pw', 'aaaa',
            'keepoldpassprinc'])
@@ -454,14 +519,38 @@ else:
     realm.run([kadminl, 'modprinc', '-pwexpire', '2040-02-03', 'user'])
     realm.run([kadminl, 'getprinc', 'user'], expected_msg=' 2040\n')
 
+# Regression test for #8861 (pw_expiration policy enforcement).
+mark('pw_expiration propogation')
+# Create a policy with a max life and verify its application.
+realm.run([kadminl, 'addpol', '-maxlife', '1s', 'pw_e'])
+realm.run([kadminl, 'addprinc', '-policy', 'pw_e', '-pw', 'password',
+           'pwuser'])
+out = realm.run([kadminl, 'getprinc', 'pwuser'],
+                expected_msg='Password expiration date: ')
+if 'Password expiration date: [never]' in out:
+    fail('pw_expiration not applied at principal creation')
+# Unset the policy max life and verify its application during password
+# change.
+realm.run([kadminl, 'modpol', '-maxlife', '0', 'pw_e'])
+realm.run([kadminl, 'cpw', '-pw', 'password_', 'pwuser'])
+realm.run([kadminl, 'getprinc', 'pwuser'],
+          expected_msg='Password expiration date: [never]')
+
 realm.stop()
 
-# Briefly test dump and load.
+# Test dump and load.  Include a regression test for #8882
+# (pw_expiration not set during load operation).
+mark('LDAP dump and load')
+realm.run([kadminl, 'modprinc', '-pwexpire', 'now', 'pwuser'])
 dumpfile = os.path.join(realm.testdir, 'dump')
 realm.run([kdb5_util, 'dump', dumpfile])
 realm.run([kdb5_util, 'load', dumpfile], expected_code=1,
           expected_msg='KDB module requires -update argument')
+realm.run([kadminl, 'delprinc', 'pwuser'])
 realm.run([kdb5_util, 'load', '-update', dumpfile])
+out = realm.run([kadminl, 'getprinc', 'pwuser'])
+if 'Password expiration date: [never]' in out:
+    fail('pw_expiration not preserved across dump and load')
 
 # Destroy the realm.
 kldaputil(['destroy', '-f'])
@@ -477,6 +566,7 @@ if runenv.have_sasl != 'yes':
 
 # Test SASL EXTERNAL auth.  Remove the DNs and service password file
 # from the DB module config.
+mark('LDAP SASL EXTERNAL auth')
 os.remove(ldap_pwfile)
 dbmod = conf['dbmodules']['ldap']
 dbmod['ldap_kdc_sasl_mech'] = dbmod['ldap_kadmind_sasl_mech'] = 'EXTERNAL'
@@ -493,6 +583,7 @@ realm.run([kdb5_ldap_util, 'destroy', '-f'])
 # Test SASL DIGEST-MD5 auth.  We need to set a clear-text password for
 # the admin DN, so create a person entry (requires the core schema).
 # Restore the service password file in the config and set authcids.
+mark('LDAP SASL DIGEST-MD5 auth')
 ldap_add('cn=admin,cn=krb5', 'person',
          ['sn: dummy', 'userPassword: admin'])
 dbmod['ldap_kdc_sasl_mech'] = dbmod['ldap_kadmind_sasl_mech'] = 'DIGEST-MD5'

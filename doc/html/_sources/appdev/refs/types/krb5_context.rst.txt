@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-context-struct:
+
+krb5_context
+============
+
+..
+.. c:type:: krb5_context
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_context\* krb5_context
+
+

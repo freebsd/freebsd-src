@@ -259,25 +259,17 @@ EXPORTS
 
 ; DO NOT USE -- Currently required to implement gssapi32.dll
 	decode_krb5_ap_req			@2	; PRIVATE GSSAPI k5-int.h KRB5_CALLCONV_WRONG
-	krb5_externalize_opaque			@114	; PRIVATE GSSAPI k5-int.h
-	krb5_internalize_opaque			@184	; PRIVATE GSSAPI k5-int.h
-	krb5_ser_auth_context_init		@230	; PRIVATE GSSAPI k5-int.h
-	krb5_ser_ccache_init			@231	; PRIVATE GSSAPI k5-int.h
-	krb5_ser_context_init			@232	; PRIVATE GSSAPI k5-int.h
-	krb5_ser_keytab_init			@233	; PRIVATE GSSAPI k5-int.h
 	krb5_ser_pack_bytes			@234	; PRIVATE GSSAPI k5-int.h
 	krb5_ser_pack_int32			@235	; PRIVATE GSSAPI k5-int.h
-	krb5_ser_rcache_init			@236	; PRIVATE GSSAPI k5-int.h
 	krb5_ser_unpack_bytes			@237	; PRIVATE GSSAPI k5-int.h
 	krb5_ser_unpack_int32			@238	; PRIVATE GSSAPI k5-int.h
-	krb5_size_opaque			@247	; PRIVATE GSSAPI k5-int.h
 	krb5int_cc_default			@268	; PRIVATE GSSAPI k5-int.h
 
 	krb5_free_ap_req			@119	; PRIVATE GSSAPI krb5.hin
 	krb5_get_tgs_ktypes			@177	; PRIVATE GSSAPI krb5.hin
 	krb5_auth_con_set_req_cksumtype		@36	; PRIVATE GSSAPI krb5.hin
 	krb5_kt_free_entry			@192	; PRIVATE GSSAPI krb5.hin
-	krb5_rc_close				@217	; PRIVATE GSSAPI krb5.hin
+	k5_rc_close				@217	; PRIVATE GSSAPI krb5.hin
 	krb5_free_enc_tkt_part			@132	; PRIVATE GSSAPI krb5.hin
 	krb5_decrypt_tkt_part			@108	; PRIVATE GSSAPI krb5.hin
 
@@ -434,10 +426,8 @@ EXPORTS
 	krb5_responder_get_challenge			@406
 	krb5_responder_list_questions			@407
 	krb5_responder_set_answer			@408
-	krb5_rc_recover_or_initialize			@409 ; PRIVATE GSSAPI
-	krb5_rc_resolve_full				@410 ; PRIVATE GSSAPI
-	krb5_rc_get_name				@411 ; PRIVATE GSSAPI
-	krb5_rc_get_type				@412 ; PRIVATE GSSAPI
+	k5_rc_resolve					@410 ; PRIVATE GSSAPI
+	k5_rc_get_name					@411 ; PRIVATE GSSAPI
 	krb5_responder_otp_get_challenge		@413
 	krb5_responder_otp_set_answer			@414
 	krb5_responder_otp_challenge_free		@415
@@ -473,3 +463,50 @@ EXPORTS
 
 ; new in 1.16
 	k5_enctype_to_ssf				@438 ; PRIVATE GSSAPI
+
+; new in 1.17
+	krb5_get_etype_info				@447
+	krb5_pac_sign_ext				@448
+	krb5_pac_verify_ext				@449
+; private symbols used by SPAKE client module
+	profile_get_string				@439 ; PRIVATE
+	profile_release_string				@440 ; PRIVATE
+	k5_sha256					@441 ; PRIVATE
+	krb5_encrypt_helper				@442 ; PRIVATE
+	encode_krb5_spake_factor			@443 ; PRIVATE
+	encode_krb5_pa_spake				@444 ; PRIVATE
+	decode_krb5_pa_spake				@445 ; PRIVATE
+	k5_free_pa_spake				@446 ; PRIVATE
+
+; new in 1.18
+	krb5int_c_deprecated_enctype			@450 ; PRIVATE
+	krb5_pac_get_client_info			@451
+	k5_externalize_auth_context			@452 ; PRIVATE GSSAPI
+	k5_externalize_authdata				@453 ; PRIVATE GSSAPI
+	k5_externalize_authdata_context			@454 ; PRIVATE GSSAPI
+	k5_externalize_context				@455 ; PRIVATE GSSAPI
+	k5_externalize_keyblock				@456 ; PRIVATE GSSAPI
+	k5_externalize_principal			@457 ; PRIVATE GSSAPI
+	k5_internalize_auth_context			@458 ; PRIVATE GSSAPI
+	k5_internalize_authdata				@459 ; PRIVATE GSSAPI
+	k5_internalize_authdata_context			@460 ; PRIVATE GSSAPI
+	k5_internalize_context				@461 ; PRIVATE GSSAPI
+	k5_internalize_keyblock				@462 ; PRIVATE GSSAPI
+	k5_internalize_principal			@463 ; PRIVATE GSSAPI
+	k5_size_auth_context				@464 ; PRIVATE GSSAPI
+	k5_size_authdata				@465 ; PRIVATE GSSAPI
+	k5_size_authdata_context			@466 ; PRIVATE GSSAPI
+	k5_size_context					@467 ; PRIVATE GSSAPI
+	k5_size_keyblock				@468 ; PRIVATE GSSAPI
+	k5_size_principal				@469 ; PRIVATE GSSAPI
+
+; new in 1.19
+	k5_cc_store_primary_cred			@470 ; PRIVATE
+	k5_kt_have_match				@471 ; PRIVATE GSSAPI
+
+; new in 1.20
+	krb5_marshal_credentials			@472
+	krb5_unmarshal_credentials			@473
+	k5_sname_compare				@474 ; PRIVATE GSSAPI
+	krb5_kdc_sign_ticket                            @475 ;
+	krb5_kdc_verify_ticket                          @476 ;

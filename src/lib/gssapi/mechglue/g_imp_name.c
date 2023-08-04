@@ -28,6 +28,7 @@
  */
 
 #include "mglueP.h"
+#include "k5-der.h"
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -181,13 +182,6 @@ allocation_failure:
     return (major_status);
 }
 
-/*
- * GSS export name constants
- */
-static const unsigned int expNameTokIdLen = 2;
-static const unsigned int mechOidLenLen = 2;
-static const unsigned int nameTypeLenLen = 2;
-
 static OM_uint32
 importExportName(minor, unionName, inputNameType)
     OM_uint32 *minor;
@@ -196,59 +190,31 @@ importExportName(minor, unionName, inputNameType)
 {
     gss_OID_desc mechOid;
     gss_buffer_desc expName;
-    unsigned char *buf;
     gss_mechanism mech;
-    OM_uint32 major, mechOidLen, nameLen, curLength;
-    unsigned int bytes;
+    OM_uint32 major, mechOidLen, nameLen;
+    uint8_t b2;
+    const uint8_t *name;
+    struct k5input in, oid, old_format;
 
     expName.value = unionName->external_name->value;
     expName.length = unionName->external_name->length;
+    k5_input_init(&in, expName.value, expName.length);
 
-    curLength = expNameTokIdLen + mechOidLenLen;
-    if (expName.length < curLength)
+    if (k5_input_get_byte(&in) != 0x04)
+	return (GSS_S_DEFECTIVE_TOKEN);
+    b2 = k5_input_get_byte(&in);
+    if (b2 != 0x01 && b2 != 0x02) /* allow composite names */
 	return (GSS_S_DEFECTIVE_TOKEN);
 
-    buf = (unsigned char *)expName.value;
-    if (buf[0] != 0x04)
+    mechOidLen = k5_input_get_uint16_be(&in);
+
+    if (!k5_der_get_value(&in, 0x06, &oid))
 	return (GSS_S_DEFECTIVE_TOKEN);
-    if (buf[1] != 0x01 && buf[1] != 0x02) /* allow composite names */
+    /* Verify that mechOidLen is consistent with the DER OID length. */
+    if (mechOidLen != k5_der_value_len(oid.len))
 	return (GSS_S_DEFECTIVE_TOKEN);
-
-    buf += expNameTokIdLen;
-
-    /* extract the mechanism oid length */
-    mechOidLen = (*buf++ << 8);
-    mechOidLen |= (*buf++);
-    curLength += mechOidLen;
-    if (expName.length < curLength)
-	return (GSS_S_DEFECTIVE_TOKEN);
-    /*
-     * The mechOid itself is encoded in DER format, OID Tag (0x06)
-     * length and the value of mech_OID
-     */
-    if (*buf++ != 0x06)
-	return (GSS_S_DEFECTIVE_TOKEN);
-
-    /*
-     * mechoid Length is encoded twice; once in 2 bytes as
-     * explained in RFC2743 (under mechanism independent exported
-     * name object format) and once using DER encoding
-     *
-     * We verify both lengths.
-     */
-
-    mechOid.length = gssint_get_der_length(&buf,
-				    (expName.length - curLength), &bytes);
-    mechOid.elements = (void *)buf;
-
-    /*
-     * 'bytes' is the length of the DER length, '1' is for the DER
-     * tag for OID
-     */
-    if ((bytes + mechOid.length + 1) != mechOidLen)
-	return (GSS_S_DEFECTIVE_TOKEN);
-
-    buf += mechOid.length;
+    mechOid.length = oid.len;
+    mechOid.elements = (uint8_t *)oid.ptr;
     if ((mech = gssint_get_mechanism(&mechOid)) == NULL)
 	return (GSS_S_BAD_MECH);
 
@@ -297,21 +263,11 @@ importExportName(minor, unionName, inputNameType)
      * that included a null terminator which was counted in the
      * display name gss_buffer_desc.
      */
-    curLength += 4;		/* 4 bytes for name len */
-    if (expName.length < curLength)
-	return (GSS_S_DEFECTIVE_TOKEN);
 
     /* next 4 bytes in the name are the name length */
-    nameLen = load_32_be(buf);
-    buf += 4;
-
-    /*
-     * we use < here because bad code in rpcsec_gss rounds up exported
-     * name token lengths and pads with nulls, otherwise != would be
-     * appropriate
-     */
-    curLength += nameLen;   /* this is the total length */
-    if (expName.length < curLength)
+    nameLen = k5_input_get_uint32_be(&in);
+    name = k5_input_get_bytes(&in, nameLen);
+    if (name == NULL)
 	return (GSS_S_DEFECTIVE_TOKEN);
 
     /*
@@ -324,29 +280,19 @@ importExportName(minor, unionName, inputNameType)
      * and length) there's the name itself, though null-terminated;
      * this null terminator should also not be there, but it is.
      */
-    if (nameLen > 0 && *buf == '\0') {
+    if (nameLen > 0 && *name == '\0') {
 	OM_uint32 nameTypeLen;
-	/* next two bytes are the name oid */
-	if (nameLen < nameTypeLenLen)
+
+	/* Skip the name type. */
+	k5_input_init(&old_format, name, nameLen);
+	nameTypeLen = k5_input_get_uint16_be(&old_format);
+	if (k5_input_get_bytes(&old_format, nameTypeLen) == NULL)
 	    return (GSS_S_DEFECTIVE_TOKEN);
-
-	nameLen -= nameTypeLenLen;
-
-	nameTypeLen = (*buf++) << 8;
-	nameTypeLen |= (*buf++);
-
-	if (nameLen < nameTypeLen)
-	    return (GSS_S_DEFECTIVE_TOKEN);
-
-	buf += nameTypeLen;
-	nameLen -= nameTypeLen;
-
-	/*
-	 * adjust for expected null terminator that should
-	 * really not be there
-	 */
-	if (nameLen > 0 && *(buf + nameLen - 1) == '\0')
-	    nameLen--;
+	/* Remove a null terminator if one is present. */
+	if (old_format.len > 0 && old_format.ptr[old_format.len - 1] == 0)
+	    old_format.len--;
+	name = old_format.ptr;
+	nameLen = old_format.len;
     }
 
     /*
@@ -356,7 +302,7 @@ importExportName(minor, unionName, inputNameType)
      *	 the unwrapped name.  Presumably the exported name had,
      *	 prior to being exported been obtained in such a way
      *	 that it has been properly perpared ("canonicalized," in
-     *	 GSS-API terms) accroding to some name type; we cannot
+     *	 GSS-API terms) according to some name type; we cannot
      *	 tell what that name type was now, but the name should
      *	 need no further preparation other than the lowest
      *	 common denominator afforded by the mech to names
@@ -365,7 +311,7 @@ importExportName(minor, unionName, inputNameType)
      *	 IDN is thrown in with Kerberos V extensions).
      */
     expName.length = nameLen;
-    expName.value = nameLen ? (void *)buf : NULL;
+    expName.value = nameLen ? (uint8_t *)name : NULL;
     if (mech->gssspi_import_name_by_mech) {
 	major = mech->gssspi_import_name_by_mech(minor, &mechOid, &expName,
 						 GSS_C_NULL_OID,

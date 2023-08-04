@@ -1,0 +1,21 @@
+.. highlight:: c
+
+.. _krb5-responder-fn-struct:
+
+krb5_responder_fn
+=================
+
+..
+.. c:type:: krb5_responder_fn
+..
+
+Responder function for an initial credential exchange.
+
+If a required question is unanswered, the prompter may be called.
+
+Declaration
+------------
+
+typedef krb5_error_code( \* krb5_responder_fn) (krb5_context ctx, void \*data, krb5_responder_context rctx)
+
+

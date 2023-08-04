@@ -81,8 +81,7 @@ c2n["_"]=63
 
 	# figure out: table_number_base=table_number*256
 	tab_base_low = tab_base_low * 256
-	tab_base_high = (tab_base_high * 256) + \
-			int(tab_base_low / mod_base)
+	tab_base_high = (tab_base_high * 256) + int(tab_base_low / mod_base)
 	tab_base_low = tab_base_low % mod_base
 
 	if (table_number > 128*256*256) {
@@ -119,11 +118,9 @@ c2n["_"]=63
 /^[ \t]*(error_code|ec)[ \t]+[A-Z_0-9]+,/ {
 	tag=substr($2,1,length($2)-1)
 	if (curr_high == 0) {
-		printf "#define %-40s (%dL)\n", tag, \
-			curr_sign*curr_low > outfile
+		printf "#define %-40s (%dL)\n", tag, curr_sign*curr_low > outfile
 	} else {
-		printf "#define %-40s (%d%06dL)\n", tag, curr_high*curr_sign, \
-			curr_low > outfile
+		printf "#define %-40s (%d%06dL)\n", tag, curr_high*curr_sign, curr_low > outfile
 	}
 	curr_low += curr_sign;
 	if (curr_low >= mod_base) {
@@ -142,14 +139,11 @@ END {
 	    exit 1
 	}
 	if (tab_base_high == 0) {
-		print "#define ERROR_TABLE_BASE_" table_name " (" \
-			sprintf("%d", tab_base_sign*tab_base_low) \
-			"L)" > outfile
+		base = sprintf("%dL", tab_base_sign * tab_base_low)
 	} else {
-		print "#define ERROR_TABLE_BASE_" table_name " (" \
-			sprintf("%d%06d", tab_base_sign*tab_base_high, \
-			tab_base_low) "L)" > outfile
+		base = sprintf("%d%06dL", tab_base_sign * tab_base_high, tab_base_low)
 	}
+	print "#define ERROR_TABLE_BASE_" table_name " (" base ")" > outfile
 	print "" > outfile
 	print "extern const struct error_table et_" table_name "_error_table;" > outfile
 	print "" > outfile

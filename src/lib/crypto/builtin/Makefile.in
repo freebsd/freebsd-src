@@ -1,34 +1,29 @@
 mydir=lib$(S)crypto$(S)builtin
 BUILDTOP=$(REL)..$(S)..$(S)..
 SUBDIRS=camellia des aes md4 md5 sha1 sha2 enc_provider hash_provider
-LOCALINCLUDES = -I$(srcdir)/../krb -I$(srcdir)
+LOCALINCLUDES=-I$(srcdir)/../krb $(CRYPTO_IMPL_CFLAGS)
 
 ##DOS##BUILDTOP = ..\..\..
 ##DOS##PREFIXDIR = builtin
 ##DOS##OBJFILE = ..\$(OUTPRE)builtin.lst
 
 STLIBOBJS=\
+	cmac.o	\
 	hmac.o	\
-	init.o	\
+	kdf.o \
 	pbkdf2.o
 
 OBJS=\
+	$(OUTPRE)cmac.$(OBJEXT)	\
 	$(OUTPRE)hmac.$(OBJEXT)	\
-	$(OUTPRE)init.$(OBJEXT)	\
+	$(OUTPRE)kdf.$(OBJEXT) \
 	$(OUTPRE)pbkdf2.$(OBJEXT)
 
 SRCS=\
+	$(srcdir)/cmac.c	\
 	$(srcdir)/hmac.c	\
-	$(srcdir)/init.c	\
+	$(srcdir)/kdf.c		\
 	$(srcdir)/pbkdf2.c	
-
-STOBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
-	md5/OBJS.ST sha1/OBJS.ST sha2/OBJS.ST	\
-	enc_provider/OBJS.ST 		\
-	hash_provider/OBJS.ST 		\
-	aes/OBJS.ST 			\
-	camellia/OBJS.ST 		\
-	OBJS.ST
 
 SUBDIROBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
 		md5/OBJS.ST sha1/OBJS.ST sha2/OBJS.ST 	\
@@ -36,6 +31,8 @@ SUBDIROBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
 		hash_provider/OBJS.ST 		\
 		aes/OBJS.ST			\
 		camellia/OBJS.ST 
+
+STOBJLISTS= $(SUBDIROBJLISTS) OBJS.ST
 
 ##DOS##LIBOBJS = $(OBJS)
 

@@ -11,5 +11,5 @@ Name: mit-krb5
 Description: An implementation of Kerberos network authentication
 Version: @KRB5_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -lkrb5 -lk5crypto -lcom_err
+Libs: -L${libdir} -lkrb5 -lk5crypto @COM_ERR_LIB@
 Libs.private: -lkrb5support

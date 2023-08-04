@@ -107,7 +107,7 @@ typedef	bool_t (*xdrproc_t)();
 /*
  * The XDR handle.
  * Contains operation which is being applied to the stream,
- * an operations vector for the paticular implementation (e.g. see xdr_mem.c),
+ * an operations vector for the particular implementation (e.g. see xdr_mem.c),
  * and two private fields for the use of the particular impelementation.
  */
 typedef struct XDR {
@@ -211,7 +211,7 @@ struct xdr_discrim {
 };
 
 /*
- * In-line routines for fast encode/decode of primitve data types.
+ * In-line routines for fast encode/decode of primitive data types.
  * Caveat emptor: these use single memory cycles to get the
  * data from the underlying buffer, and will fail to operate
  * properly if the data is not aligned.  The standard way to use these

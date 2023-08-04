@@ -13,9 +13,9 @@ error_code	PROF_ADD_NOT_SECTION,
 error_code	PROF_SECTION_WITH_VALUE, 
 	"A profile section header has a non-zero value"
 error_code	PROF_BAD_LINK_LIST, 	"Bad linked list in profile structures"
-error_code	PROF_BAD_GROUP_LVL, 	"Bad group level in profile strctures"
+error_code	PROF_BAD_GROUP_LVL, 	"Bad group level in profile structures"
 error_code	PROF_BAD_PARENT_PTR, 	
-	"Bad parent pointer in profile strctures"
+	"Bad parent pointer in profile structures"
 error_code	PROF_MAGIC_ITERATOR,	"Bad magic value in profile iterator"
 error_code	PROF_SET_SECTION_VALUE,	"Can't set value on section node"
 error_code	PROF_EINVAL,		"Invalid argument passed to profile library"

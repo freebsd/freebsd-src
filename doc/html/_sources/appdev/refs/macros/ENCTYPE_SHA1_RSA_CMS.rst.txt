@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-SHA1-RSA-CMS-data:
+
+ENCTYPE_SHA1_RSA_CMS
+====================
+
+..
+.. data:: ENCTYPE_SHA1_RSA_CMS
+..
+
+SHA1 with RSA, CMS signature.
+
+
+
+=========================== ======================
+``ENCTYPE_SHA1_RSA_CMS``       ``0x000b``
+=========================== ======================

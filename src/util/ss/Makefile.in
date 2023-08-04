@@ -40,11 +40,7 @@ SRCS=	$(srcdir)/invocation.c $(srcdir)/help.c \
 	$(srcdir)/error.c $(srcdir)/prompt.c \
 	$(srcdir)/request_tbl.c $(srcdir)/list_rqs.c $(srcdir)/pager.c \
 	$(srcdir)/requests.c $(srcdir)/data.c
-EXTRADEPSRCS= \
-	$(srcdir)/mk_cmds.c $(srcdir)/utils.c $(srcdir)/options.c \
-	cmd_tbl.lex.c ct.tab.c \
-	ss_err.c \
-	std_rqs.c
+EXTRADEPSRCS= ss_err.c std_rqs.c
 depend-dependencies: ss_err.h includes
 
 std_rqs.o: std_rqs.c ss_err.h
@@ -105,14 +101,6 @@ ct.tab.c ct.tab.h: ct.y
 	$(MV) y.tab.h ct.tab.h
 
 # install_library_target(ss,$(OBJS),$(SRCS),)
-
-#mk_cmds: $(MKCMDSOBJS)
-#	$(CC) $(ALL_CFLAGS) -o $@ $(MKCMDSOBJS) $(LEXLIB) $(BSDLIB)
-#
-#mk_cmds.o:	ss_err.h
-#
-#install:
-#	$(INSTALLPROG) mk_cmds ${DESTDIR}$(PROGDIR)/mk_cmds
 
 mk_cmds: $(srcdir)/mk_cmds.sh $(srcdir)/config_script 
 	$(SHELL) $(srcdir)/config_script $(srcdir)/mk_cmds.sh . $(AWK) $(SED) > mk_cmds

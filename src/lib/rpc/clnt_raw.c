@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)clnt_raw.c 1.22 87/08/11 Copyr 1984 Sun Micro";
  * Memory based rpc for simple testing and timing.
  * Interface to create an rpc client and server in the same process.
  * This lets us similate rpc and get round trip overhead, without
- * any interference from the kernal.
+ * any interference from the kernel.
  */
 
 #include <gssrpc/rpc.h>
@@ -140,8 +140,8 @@ clntraw_call(
 	void * resultsp,
 	struct timeval timeout)
 {
-	register struct clntraw_private *clp = clntraw_private;
-	register XDR *xdrs = &clp->xdr_stream;
+	struct clntraw_private *clp = clntraw_private;
+	XDR *xdrs = &clp->xdr_stream;
 	struct rpc_msg msg;
 	enum clnt_stat status;
 	struct rpc_err error;
@@ -236,8 +236,8 @@ clntraw_freeres(
 	xdrproc_t xdr_res,
 	void *res_ptr)
 {
-	register struct clntraw_private *clp = clntraw_private;
-	register XDR *xdrs = &clp->xdr_stream;
+	struct clntraw_private *clp = clntraw_private;
+	XDR *xdrs = &clp->xdr_stream;
 	bool_t rval;
 
 	if (clp == 0)

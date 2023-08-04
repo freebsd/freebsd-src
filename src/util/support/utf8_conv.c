@@ -33,7 +33,7 @@
  *
  * A copy of this license is available in the file LICENSE in the
  * top-level directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 /* Copyright (C) 1999, 2000 Novell, Inc. All Rights Reserved.
  *
@@ -47,7 +47,7 @@
  * THE PERPETRATOR TO CRIMINAL AND CIVIL LIABILITY.
  */
 
-/* This work is based on OpenLDAP Software <http://www.openldap.org/>. */
+/* This work is based on OpenLDAP Software <https://www.openldap.org/>. */
 
 /*
  * These routines convert between UTF-16 and UTF-8.  UTF-16 encodes a Unicode
@@ -94,12 +94,13 @@ k5_utf8_to_utf16le(const char *utf8, uint8_t **utf16_out, size_t *nbytes_out)
     struct k5buf buf;
     krb5_ucs4 ch;
     size_t chlen, i;
-    uint8_t *p;
 
     *utf16_out = NULL;
     *nbytes_out = 0;
 
-    k5_buf_init_dynamic(&buf);
+    /* UTF-16 conversion is used for RC4 string-to-key, so treat this data as
+     * sensitive. */
+    k5_buf_init_dynamic_zap(&buf);
 
     /* Examine next UTF-8 character. */
     while (*utf8 != '\0') {
@@ -125,16 +126,13 @@ k5_utf8_to_utf16le(const char *utf8, uint8_t **utf16_out, size_t *nbytes_out)
 
         /* Characters in the basic multilingual plane are encoded using two
          * bytes; other characters are encoded using four bytes. */
-        p = k5_buf_get_space(&buf, IS_BMP(ch) ? 2 : 4);
-        if (p == NULL)
-            return ENOMEM;
         if (IS_BMP(ch)) {
-            store_16_le(ch, p);
+            k5_buf_add_uint16_le(&buf, ch);
         } else {
             /* 0x10000 is subtracted from ch; then the high ten bits plus
              * 0xD800 and the low ten bits plus 0xDC00 are the surrogates. */
-            store_16_le(HIGH_SURROGATE(ch), p);
-            store_16_le(LOW_SURROGATE(ch), p + 2);
+            k5_buf_add_uint16_le(&buf, HIGH_SURROGATE(ch));
+            k5_buf_add_uint16_le(&buf, LOW_SURROGATE(ch));
         }
 
         /* Move to next UTF-8 character. */
@@ -193,8 +191,8 @@ k5_utf16le_to_utf8(const uint8_t *utf16bytes, size_t nbytes, char **utf8_out)
     if (in.status)
         goto invalid;
 
-    *utf8_out = buf.data;
-    return 0;
+    *utf8_out = k5_buf_cstring(&buf);
+    return (*utf8_out == NULL) ? ENOMEM : 0;
 
 invalid:
     k5_buf_free(&buf);

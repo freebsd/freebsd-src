@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright 2013 Red Hat, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,7 +23,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import StringIO
+from io import StringIO
 import os
 import sys
 import signal
@@ -52,7 +50,7 @@ class TestServer(server.Server):
 
         for key in pkt.keys():
             if key == "User-Password":
-                passwd = map(pkt.PwDecrypt, pkt[key])
+                passwd = [pkt.PwDecrypt(x) for x in pkt[key]]
 
         reply = self.CreateReplyPacket(pkt)
         if passwd == ['accept']:
@@ -63,8 +61,8 @@ class TestServer(server.Server):
 
 srv = TestServer(addresses=["localhost"],
                  hosts={"127.0.0.1":
-                        server.RemoteHost("127.0.0.1", "foo", "localhost")},
-                 dict=dictionary.Dictionary(StringIO.StringIO(DICTIONARY)))
+                        server.RemoteHost("127.0.0.1", b"foo", "localhost")},
+                 dict=dictionary.Dictionary(StringIO(DICTIONARY)))
 
 # Write a sentinel character to let the parent process know we're listening.
 sys.stdout.write("~")

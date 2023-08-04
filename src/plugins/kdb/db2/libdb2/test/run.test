@@ -3,6 +3,8 @@
 #	@(#)run.test	8.13 (Berkeley) 11/2/95
 #
 
+. ./runenv.sh
+
 # db regression tests
 main()
 {

@@ -80,139 +80,9 @@ char *GetTicketFlag(krb5_creds *cred)
    return buf;
 }
 
-long
-Leash_convert524(
-     krb5_context alt_ctx
-     )
-{
-#if defined(NO_KRB5) || defined(NO_KRB4)
-    return(0);
-#else
-    krb5_context ctx = 0;
-    krb5_error_code code = 0;
-    int icode = 0;
-    krb5_principal me = 0;
-    krb5_principal server = 0;
-    krb5_creds *v5creds = 0;
-    krb5_creds increds;
-    krb5_ccache cc = 0;
-    CREDENTIALS * v4creds = NULL;
-    static int init_ets = 1;
-
-    if (!pkrb5_init_context ||
-        !pkrb_in_tkt ||
-	!pkrb524_init_ets ||
-	!pkrb524_convert_creds_kdc)
-        return 0;
-
-	v4creds = (CREDENTIALS *) malloc(sizeof(CREDENTIALS));
-	memset((char *) v4creds, 0, sizeof(CREDENTIALS));
-
-    memset((char *) &increds, 0, sizeof(increds));
-    /*
-      From this point on, we can goto cleanup because increds is
-      initialized.
-    */
-
-    if (alt_ctx)
-    {
-        ctx = alt_ctx;
-    }
-    else
-    {
-        code = pkrb5_init_context(&ctx);
-        if (code) goto cleanup;
-    }
-
-    code = pkrb5_cc_default(ctx, &cc);
-    if (code) goto cleanup;
-
-    if ( init_ets ) {
-        pkrb524_init_ets(ctx);
-        init_ets = 0;
-    }
-
-    if (code = pkrb5_cc_get_principal(ctx, cc, &me))
-        goto cleanup;
-
-    if ((code = pkrb5_build_principal(ctx,
-                                     &server,
-                                     krb5_princ_realm(ctx, me)->length,
-                                     krb5_princ_realm(ctx, me)->data,
-                                     "krbtgt",
-                                     krb5_princ_realm(ctx, me)->data,
-                                     NULL))) {
-        goto cleanup;
-    }
-
-    increds.client = me;
-    increds.server = server;
-    increds.times.endtime = 0;
-    increds.keyblock.enctype = ENCTYPE_DES_CBC_CRC;
-    if ((code = pkrb5_get_credentials(ctx, 0,
-                                     cc,
-                                     &increds,
-                                     &v5creds))) {
-        goto cleanup;
-    }
-
-    if ((icode = pkrb524_convert_creds_kdc(ctx,
-                                          v5creds,
-                                          v4creds))) {
-        goto cleanup;
-    }
-
-    /* initialize ticket cache */
-    if ((icode = pkrb_in_tkt(v4creds->pname, v4creds->pinst, v4creds->realm)
-         != KSUCCESS)) {
-        goto cleanup;
-    }
-    /* stash ticket, session key, etc. for future use */
-    if ((icode = pkrb_save_credentials(v4creds->service,
-                                      v4creds->instance,
-                                      v4creds->realm,
-                                      v4creds->session,
-                                      v4creds->lifetime,
-                                      v4creds->kvno,
-                                      &(v4creds->ticket_st),
-                                      v4creds->issue_date))) {
-        goto cleanup;
-    }
-
- cleanup:
-    memset(v4creds, 0, sizeof(v4creds));
-    free(v4creds);
-
-    if (v5creds) {
-        pkrb5_free_creds(ctx, v5creds);
-    }
-    if (increds.client == me)
-        me = 0;
-    if (increds.server == server)
-        server = 0;
-    pkrb5_free_cred_contents(ctx, &increds);
-    if (server) {
-        pkrb5_free_principal(ctx, server);
-    }
-    if (me) {
-        pkrb5_free_principal(ctx, me);
-    }
-    pkrb5_cc_close(ctx, cc);
-
-    if (ctx && (ctx != alt_ctx)) {
-        pkrb5_free_context(ctx);
-    }
-    return !(code || icode);
-#endif /* NO_KRB5 */
-}
-
-
 int
 LeashKRB5_renew(void)
 {
-#ifdef NO_KRB5
-    return(0);
-#else
     krb5_error_code		        code = 0;
     krb5_context		        ctx = 0;
     krb5_ccache			        cc = 0;
@@ -247,16 +117,12 @@ LeashKRB5_renew(void)
     my_creds.client = me;
     my_creds.server = server;
 
-#ifdef KRB5_TC_NOTICKET
     pkrb5_cc_set_flags(ctx, cc, 0);
-#endif
     code = pkrb5_get_renewed_creds(ctx, &my_creds, me, cc, NULL);
-#ifdef KRB5_TC_NOTICKET
     pkrb5_cc_set_flags(ctx, cc, KRB5_TC_NOTICKET);
-#endif
     if (code) {
-        if ( code != KRB5KDC_ERR_ETYPE_NOSUPP ||
-             code != KRB5_KDC_UNREACH)
+        if (code != KRB5KDC_ERR_ETYPE_NOSUPP && code != KRB5_KDC_UNREACH &&
+            code != KRB5_CC_NOTFOUND)
             Leash_krb5_error(code, "krb5_get_renewed_creds()", 0, &ctx, &cc);
         goto cleanup;
     }
@@ -282,10 +148,8 @@ LeashKRB5_renew(void)
     if (ctx)
         pkrb5_free_context(ctx);
     return(code);
-#endif /* NO_KRB5 */
 }
 
-#ifndef NO_KRB5
 static krb5_error_code KRB5_CALLCONV
 leash_krb5_prompter( krb5_context context,
 					 void *data,
@@ -293,7 +157,6 @@ leash_krb5_prompter( krb5_context context,
 					 const char *banner,
 					 int num_prompts,
 					 krb5_prompt prompts[]);
-#endif /* NO_KRB5 */
 
 int
 Leash_krb5_kinit(
@@ -309,9 +172,6 @@ DWORD                       addressless,
 DWORD                       publicIP
 )
 {
-#ifdef NO_KRB5
-    return(0);
-#else
     krb5_error_code		        code = 0;
     krb5_context		        ctx = 0;
     krb5_ccache			        cc = 0, defcache = 0;
@@ -500,7 +360,6 @@ DWORD                       publicIP
     if (ctx && (ctx != alt_ctx))
 	pkrb5_free_context(ctx);
     return(code);
-#endif //!NO_KRB5
 }
 
 
@@ -512,9 +371,6 @@ Leash_krb5_kdestroy(
     void
     )
 {
-#ifdef NO_KRB5
-    return(0);
-#else
     krb5_context		ctx;
     krb5_ccache			cache;
     krb5_error_code		rc;
@@ -535,7 +391,6 @@ Leash_krb5_kdestroy(
 
     return(rc);
 
-#endif //!NO_KRB5
 }
 
 krb5_error_code
@@ -552,9 +407,7 @@ Leash_krb5_cc_default(krb5_context *ctx, krb5_ccache *cache)
             goto on_error;
         }
     }
-#ifdef KRB5_TC_NOTICKET
     flags = KRB5_TC_NOTICKET;
-#endif
     rc = pkrb5_cc_set_flags(*ctx, *cache, flags);
     if (rc) {
         if (rc == KRB5_FCC_NOFILE || rc == KRB5_CC_NOTFOUND) {
@@ -577,10 +430,6 @@ on_error:
 /**************************************/
 int Leash_krb5_initialize(krb5_context *ctx)
 {
-#ifdef NO_KRB5
-    return(0);
-#else
-
     LPCSTR          functionName = NULL;
     krb5_error_code	rc;
 
@@ -594,7 +443,6 @@ int Leash_krb5_initialize(krb5_context *ctx)
         }
     }
     return 0;
-#endif //!NO_KRB5
 }
 
 
@@ -606,9 +454,6 @@ Leash_krb5_error(krb5_error_code rc, LPCSTR FailedFunctionName,
                  int FreeContextFlag, krb5_context * ctx,
                  krb5_ccache * cache)
 {
-#ifdef NO_KRB5
-    return 0;
-#else
 #ifdef USE_MESSAGE_BOX
     char message[256];
     const char *errText;
@@ -639,81 +484,9 @@ Leash_krb5_error(krb5_error_code rc, LPCSTR FailedFunctionName,
     }
 
     return rc;
-
-#endif //!NO_KRB5
 }
 
 
-BOOL
-Leash_ms2mit(BOOL save_creds)
-{
-#ifdef NO_KRB5
-    return(FALSE);
-#else /* NO_KRB5 */
-    krb5_context kcontext = 0;
-    krb5_error_code code;
-    krb5_ccache ccache=0;
-    krb5_ccache mslsa_ccache=0;
-    krb5_creds creds;
-    krb5_cc_cursor cursor=0;
-    krb5_principal princ = 0;
-    BOOL rc = FALSE;
-
-    if ( !pkrb5_init_context )
-        goto cleanup;
-
-    if (code = pkrb5_init_context(&kcontext))
-        goto cleanup;
-
-    if (code = pkrb5_cc_resolve(kcontext, "MSLSA:", &mslsa_ccache))
-        goto cleanup;
-
-    if ( save_creds ) {
-        if (code = pkrb5_cc_get_principal(kcontext, mslsa_ccache, &princ))
-            goto cleanup;
-
-        if (code = pkrb5_cc_default(kcontext, &ccache))
-            goto cleanup;
-
-        if (code = pkrb5_cc_initialize(kcontext, ccache, princ))
-            goto cleanup;
-
-        if (code = pkrb5_cc_copy_creds(kcontext, mslsa_ccache, ccache))
-            goto cleanup;
-
-        rc = TRUE;
-    } else {
-        /* Enumerate tickets from cache looking for an initial ticket */
-        if ((code = pkrb5_cc_start_seq_get(kcontext, mslsa_ccache, &cursor)))
-            goto cleanup;
-
-        while (!(code = pkrb5_cc_next_cred(kcontext, mslsa_ccache, &cursor, &creds)))
-        {
-            if ( creds.ticket_flags & TKT_FLG_INITIAL ) {
-                rc = TRUE;
-                pkrb5_free_cred_contents(kcontext, &creds);
-                break;
-            }
-            pkrb5_free_cred_contents(kcontext, &creds);
-        }
-        pkrb5_cc_end_seq_get(kcontext, mslsa_ccache, &cursor);
-    }
-
-  cleanup:
-    if (princ)
-        pkrb5_free_principal(kcontext, princ);
-    if (ccache)
-        pkrb5_cc_close(kcontext, ccache);
-    if (mslsa_ccache)
-        pkrb5_cc_close(kcontext, mslsa_ccache);
-    if (kcontext)
-        pkrb5_free_context(kcontext);
-    return(rc);
-#endif /* NO_KRB5 */
-}
-
-
-#ifndef NO_KRB5
 /* User Query data structures and functions */
 
 struct textField {
@@ -1063,4 +836,3 @@ leash_krb5_prompter( krb5_context context,
     }
     return errcode;
 }
-#endif /* NO_KRB5 */

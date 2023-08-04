@@ -141,7 +141,7 @@ extern int set_ldap_error (krb5_context ctx, int st, int op);
 #define UNSTORE16_INT(ptr, val) (val = load_16_be(ptr))
 #define UNSTORE32_INT(ptr, val) (val = load_32_be(ptr))
 
-#define  KDB_TL_USER_INFO      0x7ffe
+#define  KDB_TL_USER_INFO      0xff
 
 #define KDB_TL_PRINCTYPE          0x01
 #define KDB_TL_PRINCCOUNT         0x02

@@ -1,7 +1,7 @@
 mydir=lib$(S)krb5$(S)ccache$(S)ccapi
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
 LOCALINCLUDES = $(WIN_INCLUDES)
-DEFINES= -DUSE_CCAPI -DUSE_CCAPI_V3
+DEFINES= -DUSE_CCAPI
 
 ##DOS##WIN_INCLUDES = -I$(top_srcdir)\windows\lib
 
@@ -11,12 +11,11 @@ DEFINES= -DUSE_CCAPI -DUSE_CCAPI_V3
 
 STLIBOBJS 	= \
 	stdcc.o \
-	stdcc_util.o \
 	winccld.o
 
-OBJS 	= $(OUTPRE)stdcc.$(OBJEXT) $(OUTPRE)stdcc_util.$(OBJEXT) $(OUTPRE)winccld.$(OBJEXT)
+OBJS 	= $(OUTPRE)stdcc.$(OBJEXT) $(OUTPRE)winccld.$(OBJEXT)
 
-SRCS 	= $(srcdir)/stdcc.c $(srcdir)/stdcc_util.c $(srcdir)/winccld.c
+SRCS 	= $(srcdir)/stdcc.c $(srcdir)/winccld.c
 
 ##DOS##LIBOBJS = $(OBJS)
 

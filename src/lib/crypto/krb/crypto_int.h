@@ -25,12 +25,68 @@
  */
 
 /* This header is the entry point for libk5crypto sources, and also documents
- * requirements for crypto modules and PRNG modules.  */
+ * requirements for crypto modules. */
 
 #ifndef CRYPTO_INT_H
 #define CRYPTO_INT_H
 
 #include <k5-int.h>
+
+#if defined(CRYPTO_OPENSSL)
+
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+/*
+ * OpenSSL 3.0 relegates MD4 and RC4 to the legacy provider, which must be
+ * explicitly loaded into a library context.  Performing this loading within a
+ * library carries complications, so use the built-in implementations of these
+ * primitives instead.  OpenSSL 3.0 also deprecates DES_set_odd_parity() with
+ * no replacement.
+ *
+ * OpenSSL 3.0 adds KDF implementations matching the ones we use to derive
+ * encryption and authentication keys from protocol keys.  It also adds
+ * the EVP_MAC interface which can be used for CMAC.  (We could use the CMAC
+ * interface with OpenSSL 1.1 but currently do not.)
+ */
+#define K5_BUILTIN_DES_KEY_PARITY
+#define K5_BUILTIN_MD4
+#define K5_BUILTIN_RC4
+#define K5_OPENSSL_KDF
+#define K5_OPENSSL_CMAC
+#else
+#define K5_OPENSSL_DES_KEY_PARITY
+#define K5_OPENSSL_MD4
+#define K5_OPENSSL_RC4
+#define K5_BUILTIN_KDF
+#define K5_BUILTIN_CMAC
+#endif
+
+#define K5_OPENSSL_AES
+#define K5_OPENSSL_CAMELLIA
+#define K5_OPENSSL_DES
+#define K5_OPENSSL_HMAC
+#define K5_OPENSSL_MD5
+#define K5_OPENSSL_PBKDF2
+#define K5_OPENSSL_SHA1
+#define K5_OPENSSL_SHA2
+
+#else
+
+#define K5_BUILTIN_AES
+#define K5_BUILTIN_CAMELLIA
+#define K5_BUILTIN_CMAC
+#define K5_BUILTIN_DES
+#define K5_BUILTIN_DES_KEY_PARITY
+#define K5_BUILTIN_HMAC
+#define K5_BUILTIN_KDF
+#define K5_BUILTIN_MD4
+#define K5_BUILTIN_MD5
+#define K5_BUILTIN_PBKDF2
+#define K5_BUILTIN_RC4
+#define K5_BUILTIN_SHA1
+#define K5_BUILTIN_SHA2
+
+#endif
 
 /* Enc providers and hash providers specify well-known ciphers and hashes to be
  * implemented by the crypto module. */
@@ -114,7 +170,14 @@ struct krb5_keytypes {
     unsigned int ssf;
 };
 
-#define ETYPE_WEAK 1
+/*
+ * "Weak" means the enctype is believed to be vulnerable to practical attacks,
+ * and will be disabled unless allow_weak_crypto is set to true.  "Deprecated"
+ * means the enctype has been deprecated by the IETF, and affects display and
+ * logging.
+ */
+#define ETYPE_WEAK (1 << 0)
+#define ETYPE_DEPRECATED (1 << 1)
 
 extern const struct krb5_keytypes krb5int_enctypes_list[];
 extern const int krb5int_enctypes_length;
@@ -173,8 +236,6 @@ extern const size_t krb5int_cksumtypes_length;
 /*** Prototypes for enctype table functions ***/
 
 /* Length */
-unsigned int krb5int_old_crypto_length(const struct krb5_keytypes *ktp,
-                                       krb5_cryptotype type);
 unsigned int krb5int_raw_crypto_length(const struct krb5_keytypes *ktp,
                                        krb5_cryptotype type);
 unsigned int krb5int_arcfour_crypto_length(const struct krb5_keytypes *ktp,
@@ -189,10 +250,6 @@ unsigned int krb5int_aes2_crypto_length(const struct krb5_keytypes *ktp,
                                         krb5_cryptotype type);
 
 /* Encrypt */
-krb5_error_code krb5int_old_encrypt(const struct krb5_keytypes *ktp,
-                                    krb5_key key, krb5_keyusage usage,
-                                    const krb5_data *ivec,
-                                    krb5_crypto_iov *data, size_t num_data);
 krb5_error_code krb5int_raw_encrypt(const struct krb5_keytypes *ktp,
                                     krb5_key key, krb5_keyusage usage,
                                     const krb5_data *ivec,
@@ -217,10 +274,6 @@ krb5_error_code krb5int_etm_encrypt(const struct krb5_keytypes *ktp,
                                     krb5_crypto_iov *data, size_t num_data);
 
 /* Decrypt */
-krb5_error_code krb5int_old_decrypt(const struct krb5_keytypes *ktp,
-                                    krb5_key key, krb5_keyusage usage,
-                                    const krb5_data *ivec,
-                                    krb5_crypto_iov *data, size_t num_data);
 krb5_error_code krb5int_raw_decrypt(const struct krb5_keytypes *ktp,
                                     krb5_key key, krb5_keyusage usage,
                                     const krb5_data *ivec,
@@ -279,8 +332,6 @@ krb5_error_code krb5int_aes2_string_to_key(const struct krb5_keytypes *enc,
 /* Random to key */
 krb5_error_code k5_rand2key_direct(const krb5_data *randombits,
                                    krb5_keyblock *keyblock);
-krb5_error_code k5_rand2key_des(const krb5_data *randombits,
-                                krb5_keyblock *keyblock);
 krb5_error_code k5_rand2key_des3(const krb5_data *randombits,
                                  krb5_keyblock *keyblock);
 
@@ -306,11 +357,6 @@ krb5_error_code krb5int_unkeyed_checksum(const struct krb5_cksumtypes *ctp,
                                          const krb5_crypto_iov *data,
                                          size_t num_data,
                                          krb5_data *output);
-krb5_error_code krb5int_cbc_checksum(const struct krb5_cksumtypes *ctp,
-                                     krb5_key key, krb5_keyusage usage,
-                                     const krb5_crypto_iov *data,
-                                     size_t num_data,
-                                     krb5_data *output);
 krb5_error_code krb5int_hmacmd5_checksum(const struct krb5_cksumtypes *ctp,
                                          krb5_key key, krb5_keyusage usage,
                                          const krb5_crypto_iov *data,
@@ -324,17 +370,6 @@ krb5_error_code krb5int_dk_cmac_checksum(const struct krb5_cksumtypes *ctp,
                                          krb5_key key, krb5_keyusage usage,
                                          const krb5_crypto_iov *data,
                                          size_t num_data, krb5_data *output);
-krb5_error_code krb5int_confounder_checksum(const struct krb5_cksumtypes *ctp,
-                                            krb5_key key, krb5_keyusage usage,
-                                            const krb5_crypto_iov *data,
-                                            size_t num_data,
-                                            krb5_data *output);
-krb5_error_code krb5int_confounder_verify(const struct krb5_cksumtypes *ctp,
-                                          krb5_key key, krb5_keyusage usage,
-                                          const krb5_crypto_iov *data,
-                                          size_t num_data,
-                                          const krb5_data *input,
-                                          krb5_boolean *valid);
 krb5_error_code krb5int_etm_checksum(const struct krb5_cksumtypes *ctp,
                                      krb5_key key, krb5_keyusage usage,
                                      const krb5_crypto_iov *data,
@@ -363,27 +398,12 @@ krb5_error_code krb5int_derive_random(const struct krb5_enc_provider *enc,
                                       krb5_key inkey, krb5_data *outrnd,
                                       const krb5_data *in_constant,
                                       enum deriv_alg alg);
-krb5_error_code
-k5_sp800_108_counter_hmac(const struct krb5_hash_provider *hash,
-                          krb5_key inkey, krb5_data *outrnd,
-                          const krb5_data *label, const krb5_data *context);
 
 /*** Miscellaneous prototypes ***/
 
 /* nfold algorithm from RFC 3961 */
 void krb5int_nfold(unsigned int inbits, const unsigned char *in,
                    unsigned int outbits, unsigned char *out);
-
-/* Compute a CMAC checksum over data. */
-krb5_error_code krb5int_cmac_checksum(const struct krb5_enc_provider *enc,
-                                      krb5_key key,
-                                      const krb5_crypto_iov *data,
-                                      size_t num_data,
-                                      krb5_data *output);
-
-/* Compute a CRC-32 checksum.  c is in-out to allow chaining; init to 0. */
-#define CRC32_CKSUM_LENGTH 4
-void mit_crc32(krb5_pointer in, size_t in_length, unsigned long *c);
 
 /* Translate an RFC 3961 key usage to a Microsoft RC4 usage. */
 krb5_keyusage krb5int_arcfour_translate_usage(krb5_keyusage usage);
@@ -448,7 +468,6 @@ void k5_iov_cursor_put(struct iov_cursor *cursor, unsigned char *block);
 /* Modules must implement the k5_sha256() function prototyped in k5-int.h. */
 
 /* Modules must implement the following enc_providers and hash_providers: */
-extern const struct krb5_enc_provider krb5int_enc_des;
 extern const struct krb5_enc_provider krb5int_enc_des3;
 extern const struct krb5_enc_provider krb5int_enc_arcfour;
 extern const struct krb5_enc_provider krb5int_enc_aes128;
@@ -458,7 +477,6 @@ extern const struct krb5_enc_provider krb5int_enc_aes256_ctr;
 extern const struct krb5_enc_provider krb5int_enc_camellia128;
 extern const struct krb5_enc_provider krb5int_enc_camellia256;
 
-extern const struct krb5_hash_provider krb5int_hash_crc32;
 extern const struct krb5_hash_provider krb5int_hash_md4;
 extern const struct krb5_hash_provider krb5int_hash_md5;
 extern const struct krb5_hash_provider krb5int_hash_sha1;
@@ -470,14 +488,17 @@ extern const struct krb5_hash_provider krb5int_hash_sha384;
 /* Set the parity bits to the correct values in keybits. */
 void k5_des_fixup_key_parity(unsigned char *keybits);
 
-/* Return true if keybits is a weak or semi-weak DES key. */
-krb5_boolean k5_des_is_weak_key(unsigned char *keybits);
-
 /* Compute an HMAC using the provided hash function, key, and data, storing the
  * result into output (caller-allocated). */
 krb5_error_code krb5int_hmac(const struct krb5_hash_provider *hash,
                              krb5_key key, const krb5_crypto_iov *data,
                              size_t num_data, krb5_data *output);
+
+/* Compute a CMAC checksum over data. */
+krb5_error_code krb5int_cmac_checksum(const struct krb5_enc_provider *enc,
+                                      krb5_key key,
+                                      const krb5_crypto_iov *data,
+                                      size_t num_data, krb5_data *output);
 
 /* As above, using a keyblock as the key input. */
 krb5_error_code krb5int_hmac_keyblock(const struct krb5_hash_provider *hash,
@@ -495,64 +516,48 @@ krb5_error_code krb5int_pbkdf2_hmac(const struct krb5_hash_provider *hash,
                                     const krb5_data *password,
                                     const krb5_data *salt);
 
+/*
+ * Compute the NIST SP800-108 KDF in counter mode (section 5.1) with the
+ * following parameters:
+ *   - HMAC (with hash as the hash provider) is the PRF.
+ *   - A block counter of four bytes is used.
+ *   - Four bytes are used to encode the output length in the PRF input.
+ *
+ * There are no uses requiring more than a single PRF invocation.
+ */
+krb5_error_code
+k5_sp800_108_counter_hmac(const struct krb5_hash_provider *hash,
+                          krb5_key key, const krb5_data *label,
+                          const krb5_data *context, krb5_data *rnd_out);
+
+/*
+ * Compute the NIST SP800-108 KDF in feedback mode (section 5.2) with the
+ * following parameters:
+ *   - CMAC (with enc as the enc provider) is the PRF.
+ *   - A block counter of four bytes is used.
+ *   - Label is the key derivation constant.
+ *   - Context is empty.
+ *   - Four bytes are used to encode the output length in the PRF input.
+ */
+krb5_error_code
+k5_sp800_108_feedback_cmac(const struct krb5_enc_provider *enc, krb5_key key,
+                           const krb5_data *label, krb5_data *rnd_out);
+
+/* Compute the RFC 3961 section 5.1 KDF (which uses n-fold) with enc as E,
+ * inkey as Key, and in_constant as Constant. */
+krb5_error_code
+k5_derive_random_rfc3961(const struct krb5_enc_provider *enc, krb5_key key,
+                         const krb5_data *constant, krb5_data *rnd_out);
+
 /* The following are used by test programs and are just handler functions from
  * the AES and Camellia enc providers. */
 krb5_error_code krb5int_aes_encrypt(krb5_key key, const krb5_data *ivec,
                                     krb5_crypto_iov *data, size_t num_data);
 krb5_error_code krb5int_aes_decrypt(krb5_key key, const krb5_data *ivec,
                                     krb5_crypto_iov *data, size_t num_data);
-krb5_error_code krb5int_camellia_cbc_mac(krb5_key key,
-                                         const krb5_crypto_iov *data,
-                                         size_t num_data, const krb5_data *iv,
-                                         krb5_data *output);
-
-/* These can be used to safely set up and tear down module global state. */
-int krb5int_crypto_impl_init(void);
-void krb5int_crypto_impl_cleanup(void);
-
-/*
- * Modules must provide a crypto_mod.h header at the top level.  To work with
- * the default PRNG module (prng_fortuna.c), crypto_mod.h must #define or
- * prototype the following symbols:
- *
- *   aes_ctx - Stack-allocatable type for an AES-128 or AES-256 key schedule
- *   krb5int_aes_enc_key(key, keybits, ctxptr) -- initialize a key schedule
- *   krb5int_aes_enc_blk(in, out, ctxptr) -- encrypt a block
- *   SHA256_CTX - Stack-allocatable type for a SHA-256 hash state
- *   k5_sha256_init(ctxptr) - Initialize a hash state
- *   k5_sha256_update(ctxptr, data, size) -- Hash some data
- *   k5_sha256_final(ctxptr, out) -- Finalize a state, writing hash into out
- *
- * These functions must never fail on valid inputs, and contexts must remain
- * valid across forks.  If the module cannot meet those constraints, then it
- * should provide its own PRNG module and the build system should ensure that
- * it is used.
- *
- * The function symbols named above are also in the library export list (so
- * they can be used by the t_fortuna.c test code), so even if the module
- * defines them away or doesn't work with Fortuna, the module must provide
- * stubs; see stubs.c in the openssl module for examples.
- */
-
-#include <crypto_mod.h>
-
-/*** PRNG module declarations ***/
-
-/*
- * PRNG modules must implement the following APIs from krb5.h:
- *   krb5_c_random_add_entropy
- *   krb5_c_random_make_octets
- *   krb5_c_random_os_entropy
- *
- * PRNG modules should implement these functions.  They are called from the
- * crypto library init and cleanup functions, and can be used to setup and tear
- * down static state without thread safety concerns.
- */
-int k5_prng_init(void);
-void k5_prng_cleanup(void);
-
-/* Used by PRNG modules to gather OS entropy.  Returns true on success. */
-krb5_boolean k5_get_os_entropy(unsigned char *buf, size_t len, int strong);
+krb5_error_code krb5int_camellia_encrypt(krb5_key key, const krb5_data *ivec,
+                                         krb5_crypto_iov *data,
+                                         size_t num_data);
 
 /*** Inline helper functions ***/
 

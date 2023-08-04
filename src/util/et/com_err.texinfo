@@ -396,7 +396,7 @@ any event, any invariant which the library assumes must be maintained.
 In general, it is not in the domain of non user-interface library
 routines to write error messages to the user's terminal, or halt the
 process.  Such forms of ``error handling'' should be reserved for
-failures of internal invariants and consistancy checks only, as it
+failures of internal invariants and consistency checks only, as it
 provides the user of the library no way to clean up for himself in the
 event of total failure.
 

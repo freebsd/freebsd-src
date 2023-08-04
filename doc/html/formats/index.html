@@ -1,32 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Protocols and file formats &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Protocols and file formats &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
     <link rel="next" title="Credential cache file format" href="ccache_file_format.html" />
     <link rel="prev" title="Supported date and time formats" href="../basic/date_format.html" /> 
   </head>
@@ -60,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="protocols-and-file-formats">
 <h1>Protocols and file formats<a class="headerlink" href="#protocols-and-file-formats" title="Permalink to this headline">¶</a></h1>
@@ -68,7 +67,9 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
 <li class="toctree-l1"><a class="reference internal" href="keytab_file_format.html">Keytab file format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
 </ul>
 </div>
 </div>
@@ -93,10 +94,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="">Protocols and file formats</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Protocols and file formats</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="keytab_file_format.html">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -121,8 +124,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -27,65 +27,31 @@
 /* This file contains constant and function declarations used in the
  * file-based replay cache routines. */
 
-#ifndef __KRB5_RCACHE_INT_H__
-#define __KRB5_RCACHE_INT_H__
+#ifndef RC_INT_H
+#define RC_INT_H
 
-int krb5int_rc_finish_init(void);
-
-void krb5int_rc_terminate(void);
+typedef struct {
+    const char *type;
+    krb5_error_code (*resolve)(krb5_context context, const char *residual,
+                               void **rcdata_out);
+    void (*close)(krb5_context context, void *rcdata);
+    krb5_error_code (*store)(krb5_context, void *rcdata, const krb5_data *tag);
+} krb5_rc_ops;
 
 struct krb5_rc_st {
     krb5_magic magic;
-    const struct _krb5_rc_ops *ops;
-    krb5_pointer data;
-    k5_mutex_t lock;
+    const krb5_rc_ops *ops;
+    char *name;
+    void *data;
 };
 
-struct _krb5_rc_ops {
-    krb5_magic magic;
-    char *type;
-    krb5_error_code (KRB5_CALLCONV *init)(
-        krb5_context,
-        krb5_rcache,
-        krb5_deltat); /* create */
-    krb5_error_code (KRB5_CALLCONV *recover)(
-        krb5_context,
-        krb5_rcache); /* open */
-    krb5_error_code (KRB5_CALLCONV *recover_or_init)(
-        krb5_context,
-        krb5_rcache,
-        krb5_deltat);
-    krb5_error_code (KRB5_CALLCONV *destroy)(
-        krb5_context,
-        krb5_rcache);
-    krb5_error_code (KRB5_CALLCONV *close)(
-        krb5_context,
-        krb5_rcache);
-    krb5_error_code (KRB5_CALLCONV *store)(
-        krb5_context,
-        krb5_rcache,
-        krb5_donot_replay *);
-    krb5_error_code (KRB5_CALLCONV *expunge)(
-        krb5_context,
-        krb5_rcache);
-    krb5_error_code (KRB5_CALLCONV *get_span)(
-        krb5_context,
-        krb5_rcache,
-        krb5_deltat *);
-    char *(KRB5_CALLCONV *get_name)(
-        krb5_context,
-        krb5_rcache);
-    krb5_error_code (KRB5_CALLCONV *resolve)(
-        krb5_context,
-        krb5_rcache,
-        char *);
-};
+extern const krb5_rc_ops k5_rc_dfl_ops;
+extern const krb5_rc_ops k5_rc_file2_ops;
+extern const krb5_rc_ops k5_rc_none_ops;
 
-typedef struct _krb5_rc_ops krb5_rc_ops;
+/* Check and store a replay record in an open (but not locked) file descriptor,
+ * using the file2 format.  fd is assumed to be at offset 0. */
+krb5_error_code k5_rcfile2_store(krb5_context context, int fd,
+                                 const krb5_data *tag_data);
 
-krb5_error_code krb5_rc_register_type(krb5_context, const krb5_rc_ops *);
-
-extern const krb5_rc_ops krb5_rc_dfl_ops;
-extern const krb5_rc_ops krb5_rc_none_ops;
-
-#endif /* __KRB5_RCACHE_INT_H__ */
+#endif /* RC_INT_H */

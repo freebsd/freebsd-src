@@ -31,7 +31,7 @@
  */
 
 /*
- * Usage: s4u2proxy evccname targetname
+ * Usage: s4u2proxy evccname targetname [ad-type ad-contents]
  *
  * evccname contains an evidence ticket.  The default ccache contains a TGT for
  * the intermediate service.  The default keytab contains a key for the
@@ -57,6 +57,28 @@ check(krb5_error_code code)
     }
 }
 
+static krb5_authdata **
+make_request_authdata(int type, const char *contents)
+{
+    krb5_authdata *ad;
+    krb5_authdata **req_authdata;
+
+    ad = malloc(sizeof(*ad));
+    assert(ad != NULL);
+    ad->magic = KV5M_AUTHDATA;
+    ad->ad_type = type;
+    ad->length = strlen(contents);
+    ad->contents = (unsigned char *)strdup(contents);
+    assert(ad->contents != NULL);
+
+    req_authdata = malloc(2 * sizeof(*req_authdata));
+    assert(req_authdata != NULL);
+    req_authdata[0] = ad;
+    req_authdata[1] = NULL;
+
+    return req_authdata;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -66,6 +88,12 @@ main(int argc, char **argv)
     krb5_keytab defkt;
     krb5_creds mcred, ev_cred, *new_cred;
     krb5_ticket *ev_ticket;
+    krb5_authdata **req_authdata = NULL;
+
+    if (argc == 5) {
+        req_authdata = make_request_authdata(atoi(argv[3]), argv[4]);
+        argc -= 2;
+    }
 
     assert(argc == 3);
     check(krb5_init_context(&context));
@@ -91,11 +119,18 @@ main(int argc, char **argv)
     /* Make an S4U2Proxy request for the target service. */
     mcred.client = client_name;
     mcred.server = target_name;
-    check(krb5_get_credentials_for_proxy(context, KRB5_GC_NO_STORE, defcc,
+    mcred.authdata = req_authdata;
+    check(krb5_get_credentials_for_proxy(context, KRB5_GC_NO_STORE |
+                                         KRB5_GC_CANONICALIZE, defcc,
                                          &mcred, ev_ticket, &new_cred));
+
+    assert(data_eq(new_cred->second_ticket, ev_cred.ticket));
+    assert(new_cred->second_ticket.length != 0);
 
     /* Store the new cred in the default ccache. */
     check(krb5_cc_store_cred(context, defcc, new_cred));
+
+    assert(req_authdata == NULL || new_cred->authdata != NULL);
 
     krb5_cc_close(context, defcc);
     krb5_cc_close(context, evcc);
@@ -106,6 +141,7 @@ main(int argc, char **argv)
     krb5_free_cred_contents(context, &ev_cred);
     krb5_free_ticket(context, ev_ticket);
     krb5_free_creds(context, new_cred);
+    krb5_free_authdata(context, req_authdata);
     krb5_free_context(context);
     return 0;
 }

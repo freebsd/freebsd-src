@@ -165,7 +165,7 @@ err_fmt_fmt(const char *err_fmt, long code, const char *msg)
         s += 2;
     }
     k5_buf_add(&buf, s);        /* Remainder after last token */
-    return buf.data;
+    return k5_buf_cstring(&buf);
 }
 
 const char * KRB5_CALLCONV

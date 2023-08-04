@@ -128,6 +128,10 @@ static const gss_OID_desc const_oids[] = {
      */
     /* GSS_C_INQ_SSPI_SESSION_KEY 1.2.840.113554.1.2.2.5.5 */
     {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x05"},
+    /* GSS_C_INQ_NEGOEX_KEY 1.2.840.113554.1.2.2.5.16 */
+    {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x10"},
+    /* GSS_C_INQ_NEGOEX_VERIFY_KEY 1.2.840.113554.1.2.2.5.17 */
+    {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x11"},
 
     /* RFC 5587 attributes, see below */
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x01"},
@@ -157,6 +161,8 @@ static const gss_OID_desc const_oids[] = {
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x19"},
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x1a"},
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x1b"},
+    /* GSS_C_MA_NEGOEX_AND_SPNEGO 1.2.840.113554.1.2.2.5.18 */
+    {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x12"},
 
     /*
      * GSS_SEC_CONTEXT_SASL_SSF_OID 1.2.840.113554.1.2.2.5.15
@@ -164,6 +170,14 @@ static const gss_OID_desc const_oids[] = {
      * infosys(1) gssapi(2) krb5(2) krb5-gssapi-ext(5) sasl-ssf(15)
      */
     {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x0f"},
+
+    /*
+     * GSS_C_INQ_ODBC_SESSION_KEY 1.2.840.113554.1.2.2.5.19
+     * iso(1) member-body(2) United States(840) mit(113554)
+     * infosys(1) ssapi(2) krb5(2) krb5-gssapi-ext(5)
+     * inq-odbc-session-key(19)
+     */
+    {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x05\13"},
 };
 
 /* Here are the constants which point to the static structure above.
@@ -194,40 +208,45 @@ GSS_DLLIMP gss_OID GSS_C_NT_EXPORT_NAME         = oids+6;
 gss_OID gss_nt_exported_name                    = oids+6;
 
 GSS_DLLIMP gss_OID GSS_C_NT_COMPOSITE_EXPORT    = oids+7;
-
 GSS_DLLIMP gss_OID GSS_C_INQ_SSPI_SESSION_KEY   = oids+8;
+GSS_DLLIMP gss_OID GSS_C_INQ_NEGOEX_KEY         = oids+9;
+GSS_DLLIMP gss_OID GSS_C_INQ_NEGOEX_VERIFY_KEY  = oids+10;
 
-GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_CONCRETE     = oids+9;
-GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_PSEUDO       = oids+10;
-GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_COMPOSITE    = oids+11;
-GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_NEGO         = oids+12;
-GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_GLUE         = oids+13;
-GSS_DLLIMP gss_const_OID GSS_C_MA_NOT_MECH          = oids+14;
-GSS_DLLIMP gss_const_OID GSS_C_MA_DEPRECATED        = oids+15;
-GSS_DLLIMP gss_const_OID GSS_C_MA_NOT_DFLT_MECH     = oids+16;
-GSS_DLLIMP gss_const_OID GSS_C_MA_ITOK_FRAMED       = oids+17;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT         = oids+18;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG         = oids+19;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT_INIT    = oids+20;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG_INIT    = oids+21;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT_ANON    = oids+22;
-GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG_ANON    = oids+23;
-GSS_DLLIMP gss_const_OID GSS_C_MA_DELEG_CRED        = oids+24;
-GSS_DLLIMP gss_const_OID GSS_C_MA_INTEG_PROT        = oids+25;
-GSS_DLLIMP gss_const_OID GSS_C_MA_CONF_PROT         = oids+26;
-GSS_DLLIMP gss_const_OID GSS_C_MA_MIC               = oids+27;
-GSS_DLLIMP gss_const_OID GSS_C_MA_WRAP              = oids+28;
-GSS_DLLIMP gss_const_OID GSS_C_MA_PROT_READY        = oids+29;
-GSS_DLLIMP gss_const_OID GSS_C_MA_REPLAY_DET        = oids+30;
-GSS_DLLIMP gss_const_OID GSS_C_MA_OOS_DET           = oids+31;
-GSS_DLLIMP gss_const_OID GSS_C_MA_CBINDINGS         = oids+32;
-GSS_DLLIMP gss_const_OID GSS_C_MA_PFS               = oids+33;
-GSS_DLLIMP gss_const_OID GSS_C_MA_COMPRESS          = oids+34;
-GSS_DLLIMP gss_const_OID GSS_C_MA_CTX_TRANS         = oids+35;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_CONCRETE     = oids+11;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_PSEUDO       = oids+12;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_COMPOSITE    = oids+13;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_NEGO         = oids+14;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MECH_GLUE         = oids+15;
+GSS_DLLIMP gss_const_OID GSS_C_MA_NOT_MECH          = oids+16;
+GSS_DLLIMP gss_const_OID GSS_C_MA_DEPRECATED        = oids+17;
+GSS_DLLIMP gss_const_OID GSS_C_MA_NOT_DFLT_MECH     = oids+18;
+GSS_DLLIMP gss_const_OID GSS_C_MA_ITOK_FRAMED       = oids+19;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT         = oids+20;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG         = oids+21;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT_INIT    = oids+22;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG_INIT    = oids+23;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_INIT_ANON    = oids+24;
+GSS_DLLIMP gss_const_OID GSS_C_MA_AUTH_TARG_ANON    = oids+25;
+GSS_DLLIMP gss_const_OID GSS_C_MA_DELEG_CRED        = oids+26;
+GSS_DLLIMP gss_const_OID GSS_C_MA_INTEG_PROT        = oids+27;
+GSS_DLLIMP gss_const_OID GSS_C_MA_CONF_PROT         = oids+28;
+GSS_DLLIMP gss_const_OID GSS_C_MA_MIC               = oids+29;
+GSS_DLLIMP gss_const_OID GSS_C_MA_WRAP              = oids+30;
+GSS_DLLIMP gss_const_OID GSS_C_MA_PROT_READY        = oids+31;
+GSS_DLLIMP gss_const_OID GSS_C_MA_REPLAY_DET        = oids+32;
+GSS_DLLIMP gss_const_OID GSS_C_MA_OOS_DET           = oids+33;
+GSS_DLLIMP gss_const_OID GSS_C_MA_CBINDINGS         = oids+34;
+GSS_DLLIMP gss_const_OID GSS_C_MA_PFS               = oids+35;
+GSS_DLLIMP gss_const_OID GSS_C_MA_COMPRESS          = oids+36;
+GSS_DLLIMP gss_const_OID GSS_C_MA_CTX_TRANS         = oids+37;
+GSS_DLLIMP gss_const_OID GSS_C_MA_NEGOEX_AND_SPNEGO = oids+38;
 
-GSS_DLLIMP gss_OID GSS_C_SEC_CONTEXT_SASL_SSF = oids+36;
+GSS_DLLIMP gss_OID GSS_C_SEC_CONTEXT_SASL_SSF = oids+39;
 
-static gss_OID_set_desc gss_ma_known_attrs_desc = { 27, oids+9 };
+GSS_DLLIMP gss_OID GSS_C_INQ_ODBC_SESSION_KEY = oids+40;
+
+static gss_OID_set_desc gss_ma_known_attrs_desc = { 28, oids+11 };
+
 gss_OID_set gss_ma_known_attrs = &gss_ma_known_attrs_desc;
 
 static struct mech_attr_info_desc {
@@ -237,169 +256,175 @@ static struct mech_attr_info_desc {
     const char *long_desc;
 } mech_attr_info[] = {
     {
-        oids+9,
+        oids+11,
         "GSS_C_MA_MECH_CONCRETE",
         "concrete-mech",
         "Mechanism is neither a pseudo-mechanism nor a composite mechanism.",
     },
     {
-        oids+10,
+        oids+12,
         "GSS_C_MA_MECH_PSEUDO",
         "pseudo-mech",
         "Mechanism is a pseudo-mechanism.",
     },
     {
-        oids+11,
+        oids+13,
         "GSS_C_MA_MECH_COMPOSITE",
         "composite-mech",
         "Mechanism is a composite of other mechanisms.",
     },
     {
-        oids+12,
+        oids+14,
         "GSS_C_MA_MECH_NEGO",
         "mech-negotiation-mech",
         "Mechanism negotiates other mechanisms.",
     },
     {
-        oids+13,
+        oids+15,
         "GSS_C_MA_MECH_GLUE",
         "mech-glue",
         "OID is not a mechanism but the GSS-API itself.",
     },
     {
-        oids+14,
+        oids+16,
         "GSS_C_MA_NOT_MECH",
         "not-mech",
         "Known OID but not a mechanism OID.",
     },
     {
-        oids+15,
+        oids+17,
         "GSS_C_MA_DEPRECATED",
         "mech-deprecated",
         "Mechanism is deprecated.",
     },
     {
-        oids+16,
+        oids+18,
         "GSS_C_MA_NOT_DFLT_MECH",
         "mech-not-default",
         "Mechanism must not be used as a default mechanism.",
     },
     {
-        oids+17,
+        oids+19,
         "GSS_C_MA_ITOK_FRAMED",
         "initial-is-framed",
         "Mechanism's initial contexts are properly framed.",
     },
     {
-        oids+18,
+        oids+20,
         "GSS_C_MA_AUTH_INIT",
         "auth-init-princ",
         "Mechanism supports authentication of initiator to acceptor.",
     },
     {
-        oids+19,
+        oids+21,
         "GSS_C_MA_AUTH_TARG",
         "auth-targ-princ",
         "Mechanism supports authentication of acceptor to initiator.",
     },
     {
-        oids+20,
+        oids+22,
         "GSS_C_MA_AUTH_INIT_INIT",
         "auth-init-princ-initial",
         "Mechanism supports authentication of initiator using "
         "initial credentials.",
     },
     {
-        oids+21,
+        oids+23,
         "GSS_C_MA_AUTH_TARG_INIT",
         "auth-target-princ-initial",
         "Mechanism supports authentication of acceptor using "
         "initial credentials.",
     },
     {
-        oids+22,
+        oids+24,
         "GSS_C_MA_AUTH_INIT_ANON",
         "auth-init-princ-anon",
         "Mechanism supports GSS_C_NT_ANONYMOUS as an initiator name.",
     },
     {
-        oids+23,
+        oids+25,
         "GSS_C_MA_AUTH_TARG_ANON",
         "auth-targ-princ-anon",
         "Mechanism supports GSS_C_NT_ANONYMOUS as an acceptor name.",
     },
     {
-        oids+24,
+        oids+26,
         "GSS_C_MA_DELEG_CRED",
         "deleg-cred",
         "Mechanism supports credential delegation.",
     },
     {
-        oids+25,
+        oids+27,
         "GSS_C_MA_INTEG_PROT",
         "integ-prot",
         "Mechanism supports per-message integrity protection.",
     },
     {
-        oids+26,
+        oids+28,
         "GSS_C_MA_CONF_PROT",
         "conf-prot",
         "Mechanism supports per-message confidentiality protection.",
     },
     {
-        oids+27,
+        oids+29,
         "GSS_C_MA_MIC",
         "mic",
         "Mechanism supports Message Integrity Code (MIC) tokens.",
     },
     {
-        oids+28,
+        oids+30,
         "GSS_C_MA_WRAP",
         "wrap",
         "Mechanism supports wrap tokens.",
     },
     {
-        oids+29,
+        oids+31,
         "GSS_C_MA_PROT_READY",
         "prot-ready",
         "Mechanism supports per-message proteciton prior to "
         "full context establishment.",
     },
     {
-        oids+30,
+        oids+32,
         "GSS_C_MA_REPLAY_DET",
         "replay-detection",
         "Mechanism supports replay detection.",
     },
     {
-        oids+31,
+        oids+33,
         "GSS_C_MA_OOS_DET",
         "oos-detection",
         "Mechanism supports out-of-sequence detection.",
     },
     {
-        oids+32,
+        oids+34,
         "GSS_C_MA_CBINDINGS",
         "channel-bindings",
         "Mechanism supports channel bindings.",
     },
     {
-        oids+33,
+        oids+35,
         "GSS_C_MA_PFS",
         "pfs",
         "Mechanism supports Perfect Forward Security.",
     },
     {
-        oids+34,
+        oids+36,
         "GSS_C_MA_COMPRESS",
         "compress",
         "Mechanism supports compression of data inputs to gss_wrap().",
     },
     {
-        oids+35,
+        oids+37,
         "GSS_C_MA_CTX_TRANS",
         "context-transfer",
         "Mechanism supports security context export/import.",
+    },
+    {
+        oids+38,
+        "GSS_C_MA_NEGOEX_AND_SPNEGO",
+        "negoex-only",
+        "NegoEx mechanism should also be negotiable through SPNEGO.",
     },
 };
 
@@ -413,6 +438,8 @@ generic_gss_display_mech_attr(
 {
     size_t i;
 
+    if (minor_status != NULL)
+        *minor_status = 0;
     if (name != GSS_C_NO_BUFFER) {
         name->length = 0;
         name->value = NULL;
@@ -425,6 +452,8 @@ generic_gss_display_mech_attr(
         long_desc->length = 0;
         long_desc->value = NULL;
     }
+    if (minor_status == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
     for (i = 0; i < sizeof(mech_attr_info)/sizeof(mech_attr_info[0]); i++) {
         struct mech_attr_info_desc *mai = &mech_attr_info[i];
 

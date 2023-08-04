@@ -44,7 +44,6 @@ lookup_lockout_policy(krb5_context context,
     krb5_tl_data tl_data;
     krb5_error_code code;
     osa_princ_ent_rec adb;
-    XDR xdrs;
 
     *pw_max_fail = 0;
     *pw_failcnt_interval = 0;
@@ -74,9 +73,7 @@ lookup_lockout_policy(krb5_context context,
         krb5_db_free_policy(context, policy);
     }
 
-    xdrmem_create(&xdrs, NULL, 0, XDR_FREE);
-    ldap_xdr_osa_princ_ent_rec(&xdrs, &adb);
-    xdr_destroy(&xdrs);
+    ldap_osa_free_princ_ent(&adb);
 
     return 0;
 }

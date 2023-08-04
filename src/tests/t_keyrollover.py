@@ -1,9 +1,8 @@
-#!/usr/bin/python
 from k5test import *
 
 rollover_krb5_conf = {'libdefaults': {'allow_weak_crypto': 'true'}}
 
-realm = K5Realm(krbtgt_keysalt='des-cbc-crc:normal',
+realm = K5Realm(krbtgt_keysalt='aes128-cts-hmac-sha256-128:normal',
                 krb5_conf=rollover_krb5_conf)
 
 princ1 = 'host/test1@%s' % (realm.realm,)
@@ -23,7 +22,8 @@ realm.run([kvno, princ1])
 realm.run([kadminl, 'purgekeys', realm.krbtgt_princ])
 # Make sure an old TGT fails after purging old TGS key.
 realm.run([kvno, princ2], expected_code=1)
-msg = 'krbtgt/%s@%s\n\tEtype (skey, tkt): des-cbc-crc, des-cbc-crc' % \
+msg = 'krbtgt/%s@%s\n\tEtype (skey, tkt): ' \
+    'aes256-cts-hmac-sha1-96, aes128-cts-hmac-sha256-128' % \
     (realm.realm, realm.realm)
 realm.run([klist, '-e'], expected_msg=msg)
 
@@ -49,7 +49,8 @@ realm.run([kadminl, 'cpw', '-randkey', '-keepold', '-e', 'aes256-cts',
            realm.krbtgt_princ])
 realm.run([kadminl, 'modprinc', '-kvno', '1', realm.krbtgt_princ])
 out = realm.run([kadminl, 'getprinc', realm.krbtgt_princ])
-if 'vno 1, aes256' not in out or 'vno 1, des3' not in out:
+if 'vno 1, aes256-cts' not in out or \
+   'vno 1, DEPRECATED:des3-cbc-sha1' not in out:
     fail('keyrollover: setup for TGS enctype test failed')
 # Now present the DES3 ticket to the KDC and make sure it's rejected.
 realm.run([kvno, realm.host_princ], expected_code=1)

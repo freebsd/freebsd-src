@@ -41,7 +41,6 @@
 #include <krb5/hostrealm_plugin.h>
 
 #ifdef KRB5_DNS_LOOKUP
-#include "dnsglue.h"
 
 /* Try a _kerberos TXT lookup for fqdn and each parent domain; return the
  * resulting realm (caller must free) or NULL. */
@@ -85,19 +84,20 @@ dns_default_realm(krb5_context context, krb5_hostrealm_moddata data,
                   char ***realms_out)
 {
     krb5_error_code ret;
-    char localhost[MAXDNAME + 1], *realm;
+    char *localhost, *realm;
 
     *realms_out = NULL;
     if (!_krb5_use_dns_realm(context))
         return KRB5_PLUGIN_NO_HANDLE;
 
-    ret = krb5int_get_fq_local_hostname(localhost, sizeof(localhost));
+    ret = krb5int_get_fq_local_hostname(&localhost);
     if (ret)
         return ret;
 
     /* If we don't find a TXT record for localhost or any parent, look for a
      * global record. */
     realm = txt_lookup(context, localhost);
+    free(localhost);
     if (realm == NULL)
         (void)k5_try_realm_txt_rr(context, "_kerberos", NULL, &realm);
 

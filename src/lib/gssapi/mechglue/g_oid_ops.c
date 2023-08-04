@@ -27,7 +27,7 @@
 #include "mglueP.h"
 
 /*
- * gss_release_oid has been moved to g_initialize, becasue it requires access
+ * gss_release_oid has been moved to g_initialize, because it requires access
  * to the mechanism list.  All functions requiring direct access to the
  * mechanism list are now in g_initialize.c
  */

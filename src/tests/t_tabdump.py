@@ -1,11 +1,10 @@
-#!/usr/bin/python
 from k5test import *
 
 import csv
-import StringIO
+from io import StringIO
 
 def tab_csv(s):
-    io = StringIO.StringIO(s)
+    io = StringIO(s)
     return list(csv.DictReader(io, dialect=csv.excel_tab))
 
 

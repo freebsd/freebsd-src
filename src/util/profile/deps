@@ -52,5 +52,5 @@ test_vtable.so test_vtable.po $(OUTPRE)test_vtable.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/profile.h \
   $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h test_vtable.c
-profile_tcl.so profile_tcl.po $(OUTPRE)profile_tcl.$(OBJEXT): \
-  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) profile_tcl.c
+t_profile.so t_profile.po $(OUTPRE)t_profile.$(OBJEXT): \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) t_profile.c

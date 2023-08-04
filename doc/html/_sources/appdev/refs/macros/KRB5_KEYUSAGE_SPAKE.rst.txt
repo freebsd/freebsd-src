@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-SPAKE-data:
+
+KRB5_KEYUSAGE_SPAKE
+===================
+
+..
+.. data:: KRB5_KEYUSAGE_SPAKE
+..
+
+
+
+
+========================== ======================
+``KRB5_KEYUSAGE_SPAKE``       ``65``
+========================== ======================

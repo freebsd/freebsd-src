@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* lib/kdb/encrypt_key.c */
 /*
- * Copyright 1990,1991 by the Massachusetts Institute of Technology.
+ * Copyright 1990,1991,2023 by the Massachusetts Institute of Technology.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -53,81 +53,62 @@
 #include "kdb.h"
 
 /*
- * Encrypt a key for storage in the database.  "eblock" is used
- * to encrypt the key in "in" into "out"; the storage pointed to by "out"
- * is allocated before use.
+ * Encrypt dbkey for storage in the database, putting the result into
+ * key_data_out.
  */
-
 krb5_error_code
-krb5_dbe_def_encrypt_key_data( krb5_context             context,
-                               const krb5_keyblock    * mkey,
-                               const krb5_keyblock    * dbkey,
-                               const krb5_keysalt     * keysalt,
-                               int                      keyver,
-                               krb5_key_data          * key_data)
+krb5_dbe_def_encrypt_key_data(krb5_context context, const krb5_keyblock *mkey,
+                              const krb5_keyblock *dbkey,
+                              const krb5_keysalt *keysalt, int keyver,
+                              krb5_key_data *key_data_out)
 {
-    krb5_error_code               retval;
-    krb5_octet                  * ptr;
-    size_t                        len;
-    int                           i;
-    krb5_data                     plain;
-    krb5_enc_data                 cipher;
+    krb5_error_code ret;
+    size_t clen;
+    krb5_data plain;
+    krb5_enc_data cipher;
+    krb5_key_data kd = { 0 };
 
-    for (i = 0; i < key_data->key_data_ver; i++) {
-        free(key_data->key_data_contents[i]);
-        key_data->key_data_contents[i] = NULL;
-    }
+    memset(key_data_out, 0, sizeof(*key_data_out));
 
-    key_data->key_data_ver = 1;
-    key_data->key_data_kvno = keyver;
+    kd.key_data_ver = 1;
+    kd.key_data_kvno = keyver;
 
-    /*
-     * The First element of the type/length/contents
-     * fields is the key type/length/contents
-     */
-    if ((retval = krb5_c_encrypt_length(context, mkey->enctype, dbkey->length,
-                                        &len)))
-        return(retval);
+    ret = krb5_c_encrypt_length(context, mkey->enctype, dbkey->length, &clen);
+    if (ret)
+        goto cleanup;
 
-    ptr = malloc(2 + len);
-    if (ptr == NULL)
-        return(ENOMEM);
+    /* The first element of the type/length/contents fields is the key
+     * type/length/contents. */
+    kd.key_data_type[0] = dbkey->enctype;
+    kd.key_data_length[0] = 2 + clen;
+    kd.key_data_contents[0] = k5alloc(kd.key_data_length[0], &ret);
+    if (kd.key_data_contents[0] == NULL)
+        goto cleanup;
+    store_16_le(dbkey->length, kd.key_data_contents[0]);
 
-    key_data->key_data_type[0] = dbkey->enctype;
-    key_data->key_data_length[0] = 2 + len;
-    key_data->key_data_contents[0] = ptr;
+    plain = make_data(dbkey->contents, dbkey->length);
+    cipher.ciphertext = make_data(kd.key_data_contents[0] + 2, clen);
+    ret = krb5_c_encrypt(context, mkey, 0, 0, &plain, &cipher);
+    if (ret)
+        goto cleanup;
 
-    krb5_kdb_encode_int16(dbkey->length, ptr);
-    ptr += 2;
-
-    plain.length = dbkey->length;
-    plain.data = (char *) dbkey->contents;
-
-    cipher.ciphertext.length = len;
-    cipher.ciphertext.data = (char *) ptr;
-
-    if ((retval = krb5_c_encrypt(context, mkey, /* XXX */ 0, 0,
-                                 &plain, &cipher))) {
-        free(key_data->key_data_contents[0]);
-        return retval;
-    }
-
-    /* After key comes the salt in necessary */
-    if (keysalt) {
-        if (keysalt->type > 0) {
-            key_data->key_data_ver++;
-            key_data->key_data_type[1] = keysalt->type;
-            if ((key_data->key_data_length[1] = keysalt->data.length) != 0) {
-                key_data->key_data_contents[1] = malloc(keysalt->data.length);
-                if (key_data->key_data_contents[1] == NULL) {
-                    free(key_data->key_data_contents[0]);
-                    return ENOMEM;
-                }
-                memcpy(key_data->key_data_contents[1], keysalt->data.data,
-                       (size_t) keysalt->data.length);
-            }
+    /* The second element of each array is the salt, if necessary. */
+    if (keysalt != NULL && keysalt->type > 0) {
+        kd.key_data_ver++;
+        kd.key_data_type[1] = keysalt->type;
+        kd.key_data_length[1] = keysalt->data.length;
+        if (keysalt->data.length > 0) {
+            kd.key_data_contents[1] = k5memdup(keysalt->data.data,
+                                               keysalt->data.length, &ret);
+            if (kd.key_data_contents[1] == NULL)
+                goto cleanup;
         }
     }
 
-    return retval;
+    *key_data_out = kd;
+    memset(&kd, 0, sizeof(kd));
+
+cleanup:
+    krb5_dbe_free_key_data_contents(context, &kd);
+    return ret;
 }

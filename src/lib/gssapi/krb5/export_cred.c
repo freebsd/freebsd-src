@@ -130,15 +130,10 @@ json_rcache(krb5_context context, krb5_rcache rcache, k5_json_value *val_out)
 {
     krb5_error_code ret;
     k5_json_string str = NULL;
-    char *name;
 
     if (rcache == NULL)
         return k5_json_null_create_val(val_out);
-    if (asprintf(&name, "%s:%s", krb5_rc_get_type(context, rcache),
-                 krb5_rc_get_name(context, rcache)) < 0)
-        return ENOMEM;
-    ret = k5_json_string_create(name, &str);
-    free(name);
+    ret = k5_json_string_create(k5_rc_get_name(context, rcache), &str);
     *val_out = str;
     return ret;
 }

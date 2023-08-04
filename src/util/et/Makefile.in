@@ -78,9 +78,9 @@ t_com_err.o: et1.h et2.h t_com_err.c
 #	$(CC) -o t_com_err t_com_err.o et1.o et2.o $(LIBOBJS)
 
 test_et: test_et.o test1.o test2.o $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-	$(CC_LINK) -o test_et test_et.o test1.o test2.o -lcom_err $(SUPPORT_LIB)
+	$(CC_LINK) -o test_et test_et.o test1.o test2.o $(COM_ERR_LIB) $(SUPPORT_LIB)
 t_com_err: t_com_err.o et1.o et2.o $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-	$(CC_LINK) -o t_com_err t_com_err.o et1.o et2.o -lcom_err $(SUPPORT_LIB)
+	$(CC_LINK) -o t_com_err t_com_err.o et1.o et2.o $(COM_ERR_LIB) $(SUPPORT_LIB)
 
 $(OUTPRE)test_et.exe: $(OUTPRE)test_et.$(OBJEXT) $(OUTPRE)test1.$(OBJEXT) \
 	$(OUTPRE)test2.$(OBJEXT) $(CLIB)

@@ -8,7 +8,7 @@ Kerberos team via email to krb5-bugs@mit.edu, as usual.
 
 It is believed that this "db" code originated from Berkeley DB 1.85
 and was further modified by Cygnus and the MIT Kerberos team.  Some
-significant changes to the hash code occured at some point.
+significant changes to the hash code occurred at some point.
 
 The file README.db2 contains the README file provided with the
 2.0-alpha release of Berkeley/Sleepycat DB, which may contain

@@ -30,7 +30,8 @@
  *
  * N.B.: Doesn't compile -- this file uses some routines internal to our
  * crypto library which are declared "static" and thus aren't accessible
- * without modifying the other sources.
+ * without modifying the other sources.  Additionally, some ciphers have been
+ * removed.
  */
 
 #include <assert.h>
@@ -448,11 +449,6 @@ int main (int argc, char **argv)
 {
     whoami = argv[0];
     test_nfold ();
-#if 0
-    test_mit_des_s2k ();
-    test_des3_s2k ();
-    test_dr_dk ();
-#endif
     test_pbkdf2();
     return 0;
 }

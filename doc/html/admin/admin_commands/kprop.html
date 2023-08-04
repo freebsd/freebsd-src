@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>kprop &mdash; MIT Kerberos Documentation</title>
-    
+    <title>kprop &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="Administration programs" href="index.html" />
     <link rel="next" title="kpropd" href="kpropd.html" />
     <link rel="prev" title="krb5kdc" href="krb5kdc.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="kprop">
 <span id="kprop-8"></span><h1>kprop<a class="headerlink" href="#kprop" title="Permalink to this headline">¶</a></h1>
@@ -73,26 +71,26 @@
 [<strong>-d</strong>]
 [<strong>-P</strong> <em>port</em>]
 [<strong>-s</strong> <em>keytab</em>]
-<em>slave_host</em></p>
+<em>replica_host</em></p>
 </div>
 <div class="section" id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p>kprop is used to securely propagate a Kerberos V5 database dump file
-from the master Kerberos server to a slave Kerberos server, which is
-specified by <em>slave_host</em>.  The dump file must be created by
-<a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>.</p>
+from the primary Kerberos server to a replica Kerberos server, which is
+specified by <em>replica_host</em>.  The dump file must be created by
+<a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>.</p>
 </div>
 <div class="section" id="options">
 <h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>-r</strong> <em>realm</em></dt>
-<dd>Specifies the realm of the master server.</dd>
+<dd>Specifies the realm of the primary server.</dd>
 <dt><strong>-f</strong> <em>file</em></dt>
 <dd>Specifies the filename where the dumped principal database file is
 to be found; by default the dumped database file is normally
-<a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/slave_datatrans</span></tt>.</dd>
+<a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal"><span class="pre">/krb5kdc</span></code><code class="docutils literal"><span class="pre">/replica_datatrans</span></code>.</dd>
 <dt><strong>-P</strong> <em>port</em></dt>
-<dd>Specifies the port to use to contact the <a class="reference internal" href="kpropd.html#kpropd-8"><em>kpropd</em></a> server
+<dd>Specifies the port to use to contact the <a class="reference internal" href="kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a> server
 on the remote host.</dd>
 <dt><strong>-d</strong></dt>
 <dd>Prints debugging information.</dd>
@@ -102,14 +100,13 @@ on the remote host.</dd>
 </div>
 <div class="section" id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
-<p><em>kprop</em> uses the following environment variable:</p>
-<ul class="simple">
-<li><strong>KRB5_CONFIG</strong></li>
-</ul>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="kpropd.html#kpropd-8"><em>kpropd</em></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>, <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a></p>
+<p><a class="reference internal" href="kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a>,
+<a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </div>
 </div>
 
@@ -140,6 +137,7 @@ on the remote host.</dd>
 <li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
@@ -147,6 +145,8 @@ on the remote host.</dd>
 <li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
@@ -157,7 +157,7 @@ on the remote host.</dd>
 <li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
 <li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">kprop</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kprop</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
@@ -199,8 +199,8 @@ on the remote host.</dd>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -50,6 +50,7 @@ xdr_rpc_gss_buf(XDR *xdrs, gss_buffer_t buf, u_int maxsize)
 {
 	bool_t xdr_stat;
 	u_int tmplen;
+	char *cp;
 
 	if (xdrs->x_op != XDR_DECODE) {
 		if (buf->length > UINT_MAX)
@@ -57,7 +58,9 @@ xdr_rpc_gss_buf(XDR *xdrs, gss_buffer_t buf, u_int maxsize)
 		else
 			tmplen = buf->length;
 	}
-	xdr_stat = xdr_bytes(xdrs, (char **)&buf->value, &tmplen, maxsize);
+	cp = buf->value;
+	xdr_stat = xdr_bytes(xdrs, &cp, &tmplen, maxsize);
+	buf->value = cp;
 
 	if (xdr_stat && xdrs->x_op == XDR_DECODE)
 		buf->length = tmplen;

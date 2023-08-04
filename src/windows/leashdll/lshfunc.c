@@ -3,22 +3,12 @@
 #include <sys/types.h>
 #include <winsock2.h>
 #include "leashdll.h"
-#ifndef NO_KRB4
-#include <KerberosIV/krb.h>
-#include <prot.h>
-#else
-/* General definitions */
-#define         KSUCCESS        0
-#define         KFAILURE        255
-#endif
 #include <time.h>
 
 #include <leashwin.h>
 #include "leasherr.h"
 #include "leash-int.h"
 #include "leashids.h"
-
-#include <mitwhich.h>
 
 #include "reminder.h"
 
@@ -70,8 +60,6 @@ leash_error_message(
     char *p = message;
     int size = sizeof(message) - 1; /* -1 to leave room for NULL terminator */
     int n;
-
-    // XXX: ignore AFS for now.
 
     if (!rc5 && !rcL)
         return 0;
@@ -279,19 +267,11 @@ Leash_changepwd_v5(
     if ( !pkrb5_init_context )
         goto cleanup;
 
-   if (rc = pkrb5_init_context(&context)) {
-#if 0
-       com_err(argv[0], ret, "initializing kerberos library");
-#endif
+   if (rc = pkrb5_init_context(&context))
        goto cleanup;
-   }
 
-   if (rc = pkrb5_parse_name(context, principal, &princ)) {
-#if 0
-       com_err(argv[0], ret, "parsing client name");
-#endif
+   if (rc = pkrb5_parse_name(context, principal, &princ))
        goto cleanup;
-   }
 
    pkrb5_get_init_creds_opt_init(&opts);
    pkrb5_get_init_creds_opt_set_tkt_life(&opts, 5*60);
@@ -305,29 +285,13 @@ Leash_changepwd_v5(
 
 
    if (rc = pkrb5_get_init_creds_password(context, &creds, princ, password,
-                                          0, 0, 0, "kadmin/changepw", &opts)) {
-       if (rc == KRB5KRB_AP_ERR_BAD_INTEGRITY) {
-#if 0
-           com_err(argv[0], 0,
-                   "Password incorrect while getting initial ticket");
-#endif
-       }
-       else {
-#if 0
-           com_err(argv[0], ret, "getting initial ticket");
-#endif
-       }
+                                          0, 0, 0, "kadmin/changepw", &opts))
        goto cleanup;
-   }
 
    if (rc = pkrb5_change_password(context, &creds, newpassword,
                                   &result_code, &result_code_string,
-                                  &result_string)) {
-#if 0
-       com_err(argv[0], ret, "changing password");
-#endif
+                                  &result_string))
        goto cleanup;
-   }
 
    if (result_code) {
        int len = result_code_string.length +
@@ -583,23 +547,6 @@ Leash_int_kinit_ex(
                             addressless,
                             publicip
                             );
-#ifndef NO_AFS
-    if ( !rc5 ) {
-        char c;
-        char *r;
-        char *t;
-        for ( r=realm, t=temp; c=*r; r++,t++ )
-            *t = isupper(c) ? tolower(c) : c;
-        *t = '\0';
-
-        rcA = Leash_afs_klog("afs", temp, "", lifetime);
-        rcB = Leash_afs_klog("afs", "", "", lifetime);
-        if (!(rcA && rcB))
-            rcA = 0;
-        else if (!rcA)
-            rcA = rcB;
-    }
-#endif /* NO_AFS */
     custom_msg = (rc5 == KRB5KRB_AP_ERR_BAD_INTEGRITY) ? "Password incorrect" : NULL;
     return leash_error_message("Ticket initialization failed.",
                                rcL, rc5, rcA, custom_msg,
@@ -612,15 +559,6 @@ Leash_renew(void)
     if ( hKrb5 && !LeashKRB5_renew() ) {
         int lifetime;
         lifetime = Leash_get_default_lifetime() / 5;
-#ifndef NO_AFS
-        {
-            TicketList * list = NULL, * token;
-            not_an_API_LeashAFSGetToken(NULL,&list,NULL);
-            for ( token = list ; token ; token = token->next )
-                Leash_afs_klog("afs", token->realm, "", lifetime);
-            not_an_API_LeashFreeTicketList(&list);
-        }
-#endif /* NO_AFS */
         return 1;
     }
     return 0;
@@ -748,145 +686,31 @@ IsProcessUacLimited (void)
 
 }
 
-// This looks really ugly because it is.  The result of IsKerberosLogon()
-// does not prove whether or not there are Kerberos tickets available to
-// be imported.  Only the call to Leash_ms2mit() which actually attempts
-// to import tickets can do that.  However, calling Leash_ms2mit() can
-// result in a TGS_REQ being sent to the KDC and since Leash_importable()
-// is called quite often we want to avoid this if at all possible.
-// Unfortunately, we have be shown at least one case in which the primary
-// authentication package was not Kerberos and yet there were Kerberos
-// tickets available.  Therefore, if IsKerberosLogon() is not TRUE we
-// must call Leash_ms2mit() but we still do not want to call it in a
-// tight loop so we cache the response and assume it won't change.
-
-// 2007-03-21
-// And the nightmare goes on.  On Vista the Lsa call we use to determine
-// whether or not Kerberos was used for logon fails to return and worse
-// corrupts the stack.  Therefore, we must now test to see if the
-// operating system is Vista and skip the call to IsKerberosLogon()
-// if it is.
 long FAR
 Leash_importable(void)
 {
-    if (IsProcessUacLimited())
-	return FALSE;
-
-    if ( !IsWindowsVista() && IsKerberosLogon() )
-        return TRUE;
-    else {
-        static int response = -1;
-        if (response == -1) {
-            response = Leash_ms2mit(0);
-        }
-        return response;
-    }
+    /* Import functionality has been removed. */
+    return FALSE;
 }
 
 long FAR
 Leash_import(void)
 {
-    if ( Leash_ms2mit(1) ) {
-        int lifetime;
-        lifetime = Leash_get_default_lifetime() / 5;
-#ifndef NO_AFS
-        {
-            char c;
-            char *r;
-            char *t;
-            char  cell[256];
-            char  realm[256];
-            int   i = 0;
-            int   rcA = 0;
-            int   rcB = 0;
-
-            krb5_context ctx = 0;
-            krb5_error_code code = 0;
-            krb5_ccache cc = 0;
-            krb5_principal me = 0;
-
-            if ( !pkrb5_init_context )
-                goto cleanup;
-
-            code = pkrb5_init_context(&ctx);
-            if (code) goto cleanup;
-
-            code = pkrb5_cc_default(ctx, &cc);
-            if (code) goto cleanup;
-
-            if (code = pkrb5_cc_get_principal(ctx, cc, &me))
-                goto cleanup;
-
-            for ( r=realm, t=cell, i=0; i<krb5_princ_realm(ctx, me)->length; r++,t++,i++ ) {
-                c = krb5_princ_realm(ctx, me)->data[i];
-                *r = c;
-                *t = isupper(c) ? tolower(c) : c;
-            }
-            *r = *t = '\0';
-
-            rcA = Leash_afs_klog("afs", cell, "", lifetime);
-            rcB = Leash_afs_klog("afs", "", "", lifetime);
-            if (!(rcA && rcB))
-                rcA = 0;
-            else if (!rcA)
-                rcA = rcB;
-
-          cleanup:
-            if (me)
-                pkrb5_free_principal(ctx, me);
-            if (cc)
-                pkrb5_cc_close(ctx, cc);
-            if (ctx)
-                pkrb5_free_context(ctx);
-        }
-#endif /* NO_AFS */
-        return 1;
-    }
+    /* Import functionality has been removed. */
     return 0;
 }
 
 long
 Leash_kdestroy(void)
 {
-    Leash_afs_unlog();
     Leash_krb5_kdestroy();
 
     return 0;
 }
 
-long FAR
-not_an_API_LeashFreeTicketList(TicketList** ticketList)
-{
-    TicketList* tempList = *ticketList, *killList;
-
-    //if (tempList == NULL)
-    //return -1;
-
-    while (tempList)
-    {
-        killList = tempList;
-
-        tempList = (TicketList*)tempList->next;
-        free(killList->service);
-        if (killList->encTypes)
-            free(killList->encTypes);
-        free(killList);
-    }
-
-    *ticketList = NULL;
-    return 0;
-}
-
-long
-not_an_API_LeashKRB4GetTickets(TICKETINFO FAR* ticketinfo,
-                               TicketList** ticketList)
-{
-    return(KFAILURE);
-}
-
 long FAR Leash_klist(HWND hlist, TICKETINFO FAR *ticketinfo)
 {
-    return(KFAILURE);
+    return(255);
 }
 
 
@@ -1018,7 +842,7 @@ config_boolean_to_int(const char *s)
  * - string resource in the leash DLL
  */
 
-BOOL
+static BOOL
 get_DWORD_from_registry(
     HKEY hBaseKey,
     char * key,
@@ -1036,33 +860,6 @@ get_DWORD_from_registry(
 
     dwCount = sizeof(DWORD);
     rc = RegQueryValueEx(hKey, value, 0, 0, (LPBYTE) result, &dwCount);
-    RegCloseKey(hKey);
-
-    return rc?FALSE:TRUE;
-}
-
-BOOL
-get_STRING_from_registry(
-    HKEY hBaseKey,
-    char * key,
-    char * value,
-    char * outbuf,
-    DWORD  outlen
-    )
-{
-    HKEY hKey;
-    DWORD dwCount;
-    LONG rc;
-
-	if (!outbuf || outlen == 0)
-		return FALSE;
-
-    rc = RegOpenKeyEx(hBaseKey, key, 0, KEY_QUERY_VALUE, &hKey);
-    if (rc)
-        return FALSE;
-
-    dwCount = outlen;
-    rc = RegQueryValueEx(hKey, value, 0, 0, (LPBYTE) outbuf, &dwCount);
     RegCloseKey(hKey);
 
     return rc?FALSE:TRUE;
@@ -1167,7 +964,7 @@ Leash_get_default_lifetime(
                            use the form 'ticket_lifetime = 600' where
                            the unit is assumed to be minutes.  While
                            these are technically wrong (a unit needs
-                           to be specified), we try to accomodate for
+                           to be specified), we try to accommodate for
                            this using the safe assumption that the
                            unit is seconds and tack an 's' to the end
                            and see if that works. */
@@ -1319,7 +1116,7 @@ Leash_get_default_renew_till(
                            use the form 'ticket_lifetime = 600' where
                            the unit is assumed to be minutes.  While
                            these are technically wrong (a unit needs
-                           to be specified), we try to accomodate for
+                           to be specified), we try to accommodate for
                            this using the safe assumption that the
                            unit is seconds and tack an 's' to the end
                            and see if that works. */
@@ -1890,63 +1687,6 @@ Leash_get_default_publicip(
 
 static
 BOOL
-get_default_use_krb4_from_registry(
-    HKEY hBaseKey,
-    DWORD * result
-    )
-{
-    return get_DWORD_from_registry(hBaseKey,
-                                   LEASH_REGISTRY_KEY_NAME,
-                                   LEASH_REGISTRY_VALUE_USEKRB4,
-                                   result);
-}
-
-DWORD
-Leash_reset_default_use_krb4(
-    )
-{
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegOpenKeyEx(HKEY_CURRENT_USER, LEASH_REGISTRY_KEY_NAME, 0, KEY_WRITE, &hKey);
-    if (rc)
-        return rc;
-
-    rc = RegDeleteValue(hKey, LEASH_REGISTRY_VALUE_USEKRB4);
-    RegCloseKey(hKey);
-
-    return rc;
-}
-
-DWORD
-Leash_set_default_use_krb4(
-    DWORD minutes
-    )
-{
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegCreateKeyEx(HKEY_CURRENT_USER, LEASH_REGISTRY_KEY_NAME, 0,
-                        0, 0, KEY_WRITE, 0, &hKey, 0);
-    if (rc)
-        return rc;
-
-    rc = RegSetValueEx(hKey, LEASH_REGISTRY_VALUE_USEKRB4, 0, REG_DWORD,
-                       (LPBYTE) &minutes, sizeof(DWORD));
-    RegCloseKey(hKey);
-
-    return rc;
-}
-
-DWORD
-Leash_get_default_use_krb4(
-    )
-{
-    return 0;	/* don't use krb4 */
-}
-
-static
-BOOL
 get_hide_kinit_options_from_registry(
     HKEY hBaseKey,
     DWORD * result
@@ -2011,12 +1751,12 @@ Leash_get_hide_kinit_options(
     hmLeash = GetModuleHandle(LEASH_DLL);
     if (hmLeash)
     {
-        char use_krb4[80];
+        char hide_kinit_options[80];
         if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_KINIT_OPT,
-                       use_krb4, sizeof(use_krb4)))
+                       hide_kinit_options, sizeof(hide_kinit_options)))
         {
-            use_krb4[sizeof(use_krb4) - 1] = 0;
-            return atoi(use_krb4);
+            hide_kinit_options[sizeof(hide_kinit_options) - 1] = 0;
+            return atoi(hide_kinit_options);
         }
     }
     return 0;	/* hide unless otherwise indicated */
@@ -2090,12 +1830,12 @@ Leash_get_default_life_min(
     hmLeash = GetModuleHandle(LEASH_DLL);
     if (hmLeash)
     {
-        char use_krb4[80];
+        char life_min[80];
         if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_LIFE_MIN,
-                       use_krb4, sizeof(use_krb4)))
+                       life_min, sizeof(life_min)))
         {
-            use_krb4[sizeof(use_krb4) - 1] = 0;
-            return atoi(use_krb4);
+            life_min[sizeof(life_min) - 1] = 0;
+            return atoi(life_min);
         }
     }
     return 5; 	/* 5 minutes */
@@ -2167,12 +1907,12 @@ Leash_get_default_life_max(
     hmLeash = GetModuleHandle(LEASH_DLL);
     if (hmLeash)
     {
-        char use_krb4[80];
+        char life_max[80];
         if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_LIFE_MAX,
-                       use_krb4, sizeof(use_krb4)))
+                       life_max, sizeof(life_max)))
         {
-            use_krb4[sizeof(use_krb4) - 1] = 0;
-            return atoi(use_krb4);
+            life_max[sizeof(life_max) - 1] = 0;
+            return atoi(life_max);
         }
     }
     return 1440;
@@ -2244,12 +1984,12 @@ Leash_get_default_renew_min(
     hmLeash = GetModuleHandle(LEASH_DLL);
     if (hmLeash)
     {
-        char use_krb4[80];
+        char renew_min[80];
         if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_RENEW_MIN,
-                       use_krb4, sizeof(use_krb4)))
+                       renew_min, sizeof(renew_min)))
         {
-            use_krb4[sizeof(use_krb4) - 1] = 0;
-            return atoi(use_krb4);
+            renew_min[sizeof(renew_min) - 1] = 0;
+            return atoi(renew_min);
         }
     }
     return 600;  	/* 10 hours */
@@ -2321,92 +2061,15 @@ Leash_get_default_renew_max(
     hmLeash = GetModuleHandle(LEASH_DLL);
     if (hmLeash)
     {
-        char use_krb4[80];
+        char renew_max[80];
         if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_RENEW_MAX,
-                       use_krb4, sizeof(use_krb4)))
+                       renew_max, sizeof(renew_max)))
         {
-            use_krb4[sizeof(use_krb4) - 1] = 0;
-            return atoi(use_krb4);
+            renew_max[sizeof(renew_max) - 1] = 0;
+            return atoi(renew_max);
         }
     }
     return 60 * 24 * 30;
-}
-
-static
-BOOL
-get_lock_file_locations_from_registry(
-    HKEY hBaseKey,
-    DWORD * result
-    )
-{
-    return get_DWORD_from_registry(hBaseKey,
-                                   LEASH_REGISTRY_KEY_NAME,
-                                   LEASH_REGISTRY_VALUE_LOCK_LOCATION,
-                                   result);
-}
-
-DWORD
-Leash_reset_lock_file_locations(
-    )
-{
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegOpenKeyEx(HKEY_CURRENT_USER, LEASH_REGISTRY_KEY_NAME, 0, KEY_WRITE, &hKey);
-    if (rc)
-        return rc;
-
-    rc = RegDeleteValue(hKey, LEASH_REGISTRY_VALUE_LOCK_LOCATION);
-    RegCloseKey(hKey);
-
-    return rc;
-}
-
-DWORD
-Leash_set_lock_file_locations(
-    DWORD onoff
-    )
-{
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegCreateKeyEx(HKEY_CURRENT_USER, LEASH_REGISTRY_KEY_NAME, 0,
-                        0, 0, KEY_WRITE, 0, &hKey, 0);
-    if (rc)
-        return rc;
-
-    rc = RegSetValueEx(hKey, LEASH_REGISTRY_VALUE_LOCK_LOCATION, 0, REG_DWORD,
-                       (LPBYTE) &onoff, sizeof(DWORD));
-    RegCloseKey(hKey);
-
-    return rc;
-}
-
-DWORD
-Leash_get_lock_file_locations(
-    )
-{
-    HMODULE hmLeash;
-    DWORD result;
-
-    if (get_lock_file_locations_from_registry(HKEY_CURRENT_USER, &result) ||
-        get_lock_file_locations_from_registry(HKEY_LOCAL_MACHINE, &result))
-    {
-        return result;
-    }
-
-    hmLeash = GetModuleHandle(LEASH_DLL);
-    if (hmLeash)
-    {
-        char lock_file_locations[80];
-        if (LoadString(hmLeash, LSH_DEFAULT_DIALOG_LOCK_LOCATION,
-                       lock_file_locations, sizeof(lock_file_locations)))
-        {
-            lock_file_locations[sizeof(lock_file_locations) - 1] = 0;
-            return atoi(lock_file_locations);
-        }
-    }
-    return 0;
 }
 
 static
@@ -2486,34 +2149,11 @@ Leash_get_default_uppercaserealm(
     return 1;
 }
 
-static
-BOOL
-get_default_mslsa_import_from_registry(
-    HKEY hBaseKey,
-    DWORD * result
-    )
-{
-    return get_DWORD_from_registry(hBaseKey,
-                                   LEASH_SETTINGS_REGISTRY_KEY_NAME,
-                                   LEASH_SETTINGS_REGISTRY_VALUE_MSLSA_IMPORT,
-                                   result);
-}
-
 DWORD
 Leash_reset_default_mslsa_import(
     )
 {
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegOpenKeyEx(HKEY_CURRENT_USER, LEASH_SETTINGS_REGISTRY_KEY_NAME, 0, KEY_WRITE, &hKey);
-    if (rc)
-        return rc;
-
-    rc = RegDeleteValue(hKey, LEASH_SETTINGS_REGISTRY_VALUE_MSLSA_IMPORT);
-    RegCloseKey(hKey);
-
-    return rc;
+    return ERROR_INVALID_FUNCTION;
 }
 
 DWORD
@@ -2521,46 +2161,14 @@ Leash_set_default_mslsa_import(
     DWORD onoffmatch
     )
 {
-    HKEY hKey;
-    LONG rc;
-
-    rc = RegCreateKeyEx(HKEY_CURRENT_USER, LEASH_SETTINGS_REGISTRY_KEY_NAME, 0,
-                        0, 0, KEY_WRITE, 0, &hKey, 0);
-    if (rc)
-        return rc;
-
-    rc = RegSetValueEx(hKey, LEASH_SETTINGS_REGISTRY_VALUE_MSLSA_IMPORT, 0, REG_DWORD,
-                       (LPBYTE) &onoffmatch, sizeof(DWORD));
-    RegCloseKey(hKey);
-
-    return rc;
+    return ERROR_INVALID_FUNCTION;
 }
 
 DWORD
 Leash_get_default_mslsa_import(
     )
 {
-    HMODULE hmLeash;
-    DWORD result;
-
-    if (get_default_mslsa_import_from_registry(HKEY_CURRENT_USER, &result) ||
-        get_default_mslsa_import_from_registry(HKEY_LOCAL_MACHINE, &result))
-    {
-        return result;
-    }
-
-    hmLeash = GetModuleHandle(LEASH_DLL);
-    if (hmLeash)
-    {
-        char mslsa_import[80];
-        if (LoadString(hmLeash, LSH_DEFAULT_MSLSA_IMPORT,
-                       mslsa_import, sizeof(mslsa_import)))
-        {
-            mslsa_import[sizeof(mslsa_import) - 1] = 0;
-            return atoi(mslsa_import);
-        }
-    }
-    return 2;   /* import only when mslsa realm matches default */
+    return 0;
 }
 
 
@@ -2651,14 +2259,12 @@ Leash_reset_defaults(void)
     Leash_reset_default_noaddresses();
     Leash_reset_default_proxiable();
     Leash_reset_default_publicip();
-    Leash_reset_default_use_krb4();
     Leash_reset_hide_kinit_options();
     Leash_reset_default_life_min();
     Leash_reset_default_life_max();
     Leash_reset_default_renew_min();
     Leash_reset_default_renew_max();
     Leash_reset_default_uppercaserealm();
-    Leash_reset_default_mslsa_import();
     Leash_reset_default_preserve_kinit_settings();
 }
 
@@ -2985,9 +2591,7 @@ cleanup:
 static void
 acquire_tkt_no_princ(krb5_context context, char * ccname, int cclen)
 {
-    TicketList 		*list = NULL;
     krb5_context        ctx;
-    DWORD 		dwMsLsaImport = Leash_get_default_mslsa_import();
     DWORD		gle;
     char ccachename[272]="";
     char loginenv[16];
@@ -3009,71 +2613,6 @@ acquire_tkt_no_princ(krb5_context context, char * ccname, int cclen)
     }
 
     haveTickets = cc_default_have_tickets(ctx);
-    if ((!haveTickets) &&
-        dwMsLsaImport && Leash_importable() ) {
-        // We have the option of importing tickets from the MSLSA
-        // but should we?  Do the tickets in the MSLSA cache belong
-        // to the default realm used by Leash?  Does the default
-	// ccache name specify a principal name?  Only import if we
-	// aren't going to break the default identity as specified
-	// by the user in Network Identity Manager.
-        int import = 0;
-	BOOL isCCPrinc;
-
-	/* Determine if the default ccachename is principal name.  If so, don't
-	* import the MSLSA: credentials into it unless the names match.
-	*/
-	isCCPrinc = (strncmp("API:",ccachename, 4) == 0 && strchr(ccachename, '@'));
-
-        if ( dwMsLsaImport == 1 && !isCCPrinc ) { /* always import */
-            import = 1;
-        } else if ( dwMsLsaImport ) {      	  /* import when realms match */
-            krb5_error_code code;
-            krb5_ccache mslsa_ccache=NULL;
-            krb5_principal princ = NULL;
-	    char *mslsa_principal = NULL;
-            char ms_realm[128] = "", *def_realm = NULL, *r;
-            size_t i;
-
-            if (code = pkrb5_cc_resolve(ctx, "MSLSA:", &mslsa_ccache))
-                goto cleanup;
-
-            if (code = pkrb5_cc_get_principal(ctx, mslsa_ccache, &princ))
-                goto cleanup;
-
-            for ( r=ms_realm, i=0; i<krb5_princ_realm(ctx, princ)->length; r++, i++ ) {
-                *r = krb5_princ_realm(ctx, princ)->data[i];
-            }
-            *r = '\0';
-
-            if (code = pkrb5_get_default_realm(ctx, &def_realm))
-                goto cleanup;
-
-	    if (code = pkrb5_unparse_name(ctx, princ, &mslsa_principal))
-		goto cleanup;
-
-            import = (!isCCPrinc && !strcmp(def_realm, ms_realm)) ||
-		(isCCPrinc && !strcmp(&ccachename[4], mslsa_principal));
-
-          cleanup:
-	    if (mslsa_principal)
-		pkrb5_free_unparsed_name(ctx, mslsa_principal);
-
-            if (def_realm)
-                pkrb5_free_default_realm(ctx, def_realm);
-
-            if (princ)
-                pkrb5_free_principal(ctx, princ);
-
-            if (mslsa_ccache)
-                pkrb5_cc_close(ctx, mslsa_ccache);
-        }
-
-        if ( import ) {
-            Leash_import();
-            haveTickets = cc_default_have_tickets(ctx);
-        }
-    }
 
     if ( prompt && !haveTickets ) {
 	acquire_tkt_send_msg(ctx, NULL, ccachename, NULL, ccname, cclen);

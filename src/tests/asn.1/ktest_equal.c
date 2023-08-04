@@ -538,34 +538,6 @@ ktest_equal_ad_kdcissued(krb5_ad_kdcissued *ref, krb5_ad_kdcissued *var)
 }
 
 int
-ktest_equal_ad_signedpath_data(krb5_ad_signedpath_data *ref,
-                               krb5_ad_signedpath_data *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && ptr_equal(client,ktest_equal_principal_data);
-    p = p && scalar_equal(authtime);
-    p = p && ptr_equal(delegated,ktest_equal_sequence_of_principal);
-    p = p && ptr_equal(method_data,ktest_equal_sequence_of_pa_data);
-    p = p && ptr_equal(authorization_data,ktest_equal_authorization_data);
-    return p;
-}
-
-int
-ktest_equal_ad_signedpath(krb5_ad_signedpath *ref, krb5_ad_signedpath *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && scalar_equal(enctype);
-    p = p && struct_equal(checksum,ktest_equal_checksum);
-    p = p && ptr_equal(delegated,ktest_equal_sequence_of_principal);
-    p = p && ptr_equal(method_data,ktest_equal_sequence_of_pa_data);
-    return p;
-}
-
-int
 ktest_equal_iakerb_header(krb5_iakerb_header *ref, krb5_iakerb_header *var)
 {
     int p = TRUE;
@@ -853,6 +825,13 @@ ktest_equal_sequence_of_otp_tokeninfo(krb5_otp_tokeninfo **ref,
     array_compare(ktest_equal_otp_tokeninfo);
 }
 
+int
+ktest_equal_sequence_of_spake_factor(krb5_spake_factor **ref,
+                                     krb5_spake_factor **var)
+{
+    array_compare(ktest_equal_spake_factor);
+}
+
 #ifndef DISABLE_PKINIT
 
 static int
@@ -866,32 +845,6 @@ ktest_equal_pk_authenticator(krb5_pk_authenticator *ref,
     p = p && scalar_equal(ctime);
     p = p && scalar_equal(nonce);
     p = p && struct_equal(paChecksum, ktest_equal_checksum);
-    return p;
-}
-
-static int
-ktest_equal_pk_authenticator_draft9(krb5_pk_authenticator_draft9 *ref,
-                                    krb5_pk_authenticator_draft9 *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && ptr_equal(kdcName, ktest_equal_principal_data);
-    p = p && scalar_equal(cusec);
-    p = p && scalar_equal(ctime);
-    p = p && scalar_equal(nonce);
-    return p;
-}
-
-static int
-ktest_equal_subject_pk_info(krb5_subject_pk_info *ref,
-                            krb5_subject_pk_info *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && struct_equal(algorithm, ktest_equal_algorithm_identifier);
-    p = p && equal_str(subjectPublicKey);
     return p;
 }
 
@@ -927,18 +880,6 @@ ktest_equal_pa_pk_as_req(krb5_pa_pk_as_req *ref, krb5_pa_pk_as_req *var)
     p = p && ptr_equal(trustedCertifiers,
                        ktest_equal_sequence_of_external_principal_identifier);
     p = p && equal_str(kdcPkId);
-    return p;
-}
-
-int
-ktest_equal_pa_pk_as_req_draft9(krb5_pa_pk_as_req_draft9 *ref,
-                                krb5_pa_pk_as_req_draft9 *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && equal_str(signedAuthPack);
-    p = p && equal_str(kdcCert);
     return p;
 }
 
@@ -981,24 +922,11 @@ ktest_equal_auth_pack(krb5_auth_pack *ref, krb5_auth_pack *var)
     if (ref == var) return TRUE;
     else if (ref == NULL || var == NULL) return FALSE;
     p = p && struct_equal(pkAuthenticator, ktest_equal_pk_authenticator);
-    p = p && ptr_equal(clientPublicValue, ktest_equal_subject_pk_info);
+    p = p && equal_str(clientPublicValue);
     p = p && ptr_equal(supportedCMSTypes,
                        ktest_equal_sequence_of_algorithm_identifier);
     p = p && equal_str(clientDHNonce);
     p = p && ptr_equal(supportedKDFs, ktest_equal_sequence_of_data);
-    return p;
-}
-
-int
-ktest_equal_auth_pack_draft9(krb5_auth_pack_draft9 *ref,
-                             krb5_auth_pack_draft9 *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && struct_equal(pkAuthenticator,
-                          ktest_equal_pk_authenticator_draft9);
-    p = p && ptr_equal(clientPublicValue, ktest_equal_subject_pk_info);
     return p;
 }
 
@@ -1026,18 +954,6 @@ ktest_equal_reply_key_pack(krb5_reply_key_pack *ref, krb5_reply_key_pack *var)
     return p;
 }
 
-int
-ktest_equal_reply_key_pack_draft9(krb5_reply_key_pack_draft9 *ref,
-                                  krb5_reply_key_pack_draft9 *var)
-{
-    int p = TRUE;
-    if (ref == var) return TRUE;
-    else if (ref == NULL || var == NULL) return FALSE;
-    p = p && struct_equal(replyKey, ktest_equal_keyblock);
-    p = p && scalar_equal(nonce);
-    return p;
-}
-
 #endif /* not DISABLE_PKINIT */
 
 int
@@ -1048,7 +964,7 @@ ktest_equal_kkdcp_message(krb5_kkdcp_message *ref, krb5_kkdcp_message *var)
     else if (ref == NULL || var == NULL) return FALSE;
     p = p && data_eq(ref->kerb_message, var->kerb_message);
     p = p && data_eq(ref->target_domain, var->target_domain);
-    p = p && (ref->dclocator_hint == var->dclocator_hint);
+    p = p && scalar_equal(dclocator_hint);
     return p;
 }
 
@@ -1091,6 +1007,48 @@ ktest_equal_secure_cookie(krb5_secure_cookie *ref, krb5_secure_cookie *var)
     if (ref == var) return TRUE;
     else if (ref == NULL || var == NULL) return FALSE;
     p = p && ktest_equal_sequence_of_pa_data(ref->data, var->data);
-    p = p && ref->time == ref->time;
+    p = p && scalar_equal(time);
+    return p;
+}
+
+int
+ktest_equal_spake_factor(krb5_spake_factor *ref, krb5_spake_factor *var)
+{
+    int p = TRUE;
+    if (ref == var) return TRUE;
+    else if (ref == NULL || var == NULL) return FALSE;
+    p = p && scalar_equal(type);
+    p = p && ptr_equal(data,ktest_equal_data);
+    return p;
+}
+
+int
+ktest_equal_pa_spake(krb5_pa_spake *ref, krb5_pa_spake *var)
+{
+    int p = TRUE;
+    if (ref == var) return TRUE;
+    else if (ref == NULL || var == NULL) return FALSE;
+    else if (ref->choice != var->choice) return FALSE;
+    switch (ref->choice) {
+    case SPAKE_MSGTYPE_SUPPORT:
+        p = p && scalar_equal(u.support.ngroups);
+        p = p && (memcmp(ref->u.support.groups,var->u.support.groups,
+                         ref->u.support.ngroups * sizeof(int32_t)) == 0);
+        break;
+    case SPAKE_MSGTYPE_CHALLENGE:
+        p = p && struct_equal(u.challenge.pubkey,ktest_equal_data);
+        p = p && ptr_equal(u.challenge.factors,
+                           ktest_equal_sequence_of_spake_factor);
+        break;
+    case SPAKE_MSGTYPE_RESPONSE:
+        p = p && struct_equal(u.response.pubkey,ktest_equal_data);
+        p = p && struct_equal(u.response.factor,ktest_equal_enc_data);
+        break;
+    case SPAKE_MSGTYPE_ENCDATA:
+        p = p && struct_equal(u.encdata,ktest_equal_enc_data);
+        break;
+    default:
+        break;
+    }
     return p;
 }

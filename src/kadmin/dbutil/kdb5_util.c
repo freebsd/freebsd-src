@@ -77,17 +77,18 @@ kadm5_config_params global_params;
 void usage()
 {
     fprintf(stderr,
-            _("Usage: kdb5_util [-x db_args]* [-r realm] [-d dbname] "
-              "[-k mkeytype] [-M mkeyname]\n"
-              "\t        [-kv mkeyVNO] [-sf stashfilename] [-m] cmd "
-              "[cmd_options]\n"
+            _("Usage: kdb5_util [-r realm] [-d dbname] "
+              "[-k mkeytype] [-kv mkeyVNO]\n"
+              "\t        [-M mkeyname] [-m] [-sf stashfilename] "
+              "[-P password]\n"
+              "\t        [-x db_args]* cmd [cmd_options]\n"
               "\tcreate  [-s]\n"
               "\tdestroy [-f]\n"
               "\tstash   [-f keyfile]\n"
-              "\tdump    [-old|-ov|-b6|-b7|-r13|-r18] [-verbose]\n"
+              "\tdump    [-b7|-r13|-r18] [-verbose]\n"
               "\t        [-mkey_convert] [-new_mkey_file mkey_file]\n"
               "\t        [-rev] [-recurse] [filename [princs...]]\n"
-              "\tload    [-old|-ov|-b6|-b7|-r13|-r18] [-verbose] [-update] "
+              "\tload    [-b7|-r13|-r18] [-hash] [-verbose] [-update] "
               "filename\n"
               "\tark     [-e etype_list] principal\n"
               "\tadd_mkey [-e etype] [-s]\n"
@@ -221,7 +222,7 @@ int main(argc, argv)
         exit(1);
     }
     memset(cmd_argv, 0, sizeof(char *)*argc);
-    cmd_argc = 1;
+    cmd_argc = 0;
 
     argv++; argc--;
     while (*argv) {
@@ -287,11 +288,6 @@ int main(argc, argv)
             manual_mkey = TRUE;
             global_params.mkey_from_kbd = 1;
             global_params.mask |= KADM5_CONFIG_MKEY_FROM_KBD;
-        } else if (cmd_lookup(*argv) != NULL) {
-            if (cmd_argv[0] == NULL)
-                cmd_argv[0] = *argv;
-            else
-                usage();
         } else {
             cmd_argv[cmd_argc++] = *argv;
         }
@@ -299,6 +295,9 @@ int main(argc, argv)
     }
 
     if (cmd_argv[0] == NULL)
+        usage();
+    cmd = cmd_lookup(cmd_argv[0]);
+    if (cmd == NULL)
         usage();
 
     if( !util_context->default_realm )
@@ -317,7 +316,7 @@ int main(argc, argv)
                                      &global_params, &global_params);
     if (retval) {
         com_err(progname, retval,
-                _("while retreiving configuration parameters"));
+                _("while retrieving configuration parameters"));
         exit(1);
     }
 
@@ -334,12 +333,11 @@ int main(argc, argv)
                 "while setting up enctype %d", master_keyblock.enctype);
     }
 
-    cmd = cmd_lookup(cmd_argv[0]);
     if (cmd->opendb && open_db_and_mkey())
         return exit_status;
 
     if (global_params.iprop_enabled == TRUE)
-        ulog_set_role(util_context, IPROP_MASTER);
+        ulog_set_role(util_context, IPROP_PRIMARY);
     else
         ulog_set_role(util_context, IPROP_NULL);
 
@@ -357,44 +355,6 @@ int main(argc, argv)
     free(cmd_argv);
     return exit_status;
 }
-
-#if 0
-/*
- * This function is no longer used in kdb5_util (and it would no
- * longer work, anyway).
- */
-void set_dbname(argc, argv)
-    int argc;
-    char *argv[];
-{
-    krb5_error_code retval;
-
-    if (argc < 3) {
-        com_err(argv[0], 0, _("Too few arguments"));
-        com_err(progname, 0, _("Usage: %s dbpathname realmname"), argv[0]);
-        exit_status++;
-        return;
-    }
-    if (dbactive) {
-        if ((retval = krb5_db_fini(util_context)) && retval!= KRB5_KDB_DBNOTINITED) {
-            com_err(progname, retval, _("while closing previous database"));
-            exit_status++;
-            return;
-        }
-        if (valid_master_key) {
-            krb5_free_keyblock_contents(util_context, &master_keyblock);
-            master_keyblock.contents = NULL;
-            valid_master_key = 0;
-        }
-        krb5_free_principal(util_context, master_princ);
-        free(mkey_fullname);
-        dbactive = FALSE;
-    }
-
-    (void) set_dbname_help(progname, argv[1]);
-    return;
-}
-#endif
 
 /*
  * open_db_and_mkey: Opens the KDC and policy database, and sets the

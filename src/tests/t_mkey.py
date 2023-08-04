@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 import random
 import re
@@ -24,7 +23,7 @@ nprincs = len(realm.run([kadminl, 'listprincs']).splitlines())
 # have an activation time, and whether the key is expected to be
 # currently active.
 list_mkeys_re = re.compile(r'^KVNO: (\d+), Enctype: (\S+), '
-                           '(Active on: [^\*]+|No activate time set)( \*)?$')
+                           r'(Active on: [^\*]+|No activate time set)( \*)?$')
 def check_mkey_list(*expected):
     # Split the output of kdb5_util list_mkeys into lines and ignore the first.
     outlines = realm.run([kdb5_util, 'list_mkeys']).splitlines()[1:]
@@ -47,7 +46,7 @@ def check_mkey_list(*expected):
 
 
 # Get the K/M principal.  Verify that it has the expected mkvno.  Each
-# remaining argment must be a sequence of two elements: an expected
+# remaining argument must be a sequence of two elements: an expected
 # key version and an expected enctype.
 keyline_re = re.compile(r'^Key: vno (\d+), (\S+)$')
 def check_master_dbent(expected_mkvno, *expected_keys):
@@ -119,13 +118,13 @@ def add_mkey(options):
 # specified) and verify the output against the expected mkvno, number
 # of updated principals, and number of already-current principals.
 mkvno_re = {False: re.compile(r'^Principals whose keys are being re-encrypted '
-                              'to master key vno (\d+) if necessary:$'),
+                              r'to master key vno (\d+) if necessary:$'),
             True: re.compile(r'^Principals whose keys WOULD BE re-encrypted '
-                             'to master key vno (\d+):$')}
+                             r'to master key vno (\d+):$')}
 count_re = {False: re.compile(r'^(\d+) principals processed: (\d+) updated, '
-                              '(\d+) already current$'),
+                              r'(\d+) already current$'),
             True: re.compile(r'^(\d+) principals processed: (\d+) would be '
-                             'updated, (\d+) already current$')}
+                             r'updated, (\d+) already current$')}
 def update_princ_encryption(dry_run, expected_mkvno, expected_updated,
                             expected_current):
     opts = ['-f', '-v']
@@ -150,12 +149,14 @@ def update_princ_encryption(dry_run, expected_mkvno, expected_updated,
 
 
 # Check the initial state of the realm.
+mark('initial state')
 check_mkey_list((1, defetype, True, True))
 check_master_dbent(1, (1, defetype))
 check_stash((1, defetype))
 check_mkvno(realm.user_princ, 1)
 
 # Check that stash will fail if a temp stash file is already present.
+mark('temp stash collision')
 collisionfile = os.path.join(realm.testdir, 'stash_tmp')
 f = open(collisionfile, 'w')
 f.close()
@@ -170,6 +171,7 @@ os.unlink(collisionfile)
 #    encrypt that entry.
 # 3. The stash file is not modified (since we did not pass -s).
 # 4. The old key is used for password changes.
+mark('add_mkey (second master key)')
 add_mkey([])
 check_mkey_list((2, defetype, False, False), (1, defetype, True, True))
 check_master_dbent(2, (2, defetype), (1, defetype))
@@ -177,6 +179,7 @@ change_password_check_mkvno(True, realm.user_princ, 'abcd', 1)
 change_password_check_mkvno(False, realm.user_princ, 'user', 1)
 
 # Verify that use_mkey won't make all master keys inactive.
+mark('use_mkey (no active keys)')
 realm.run([kdb5_util, 'use_mkey', '1', 'now+1day'], expected_code=1,
           expected_msg='there must be one master key currently active')
 check_mkey_list((2, defetype, False, False), (1, defetype, True, True))
@@ -185,12 +188,14 @@ check_mkey_list((2, defetype, False, False), (1, defetype, True, True))
 # 1. The new key has an activation time in list_mkeys and is active.
 # 2. The new key is used for password changes.
 # 3. The running KDC can access the new key.
+mark('use_mkey')
 realm.run([kdb5_util, 'use_mkey', '2', 'now-1day'])
 check_mkey_list((2, defetype, True, True), (1, defetype, True, False))
 change_password_check_mkvno(True, realm.user_princ, 'abcd', 2)
 change_password_check_mkvno(False, realm.user_princ, 'user', 2)
 
 # Check purge_mkeys behavior with both master keys still in use.
+mark('purge_mkeys (nothing to purge)')
 realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'],
           expected_msg='All keys in use, nothing purged.')
 
@@ -204,6 +209,7 @@ realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'],
 # 4. The old stashed master key is sufficient to access the DB (via
 #    MKEY_AUX tl-data which keeps the current master key encrypted in
 #    each of the old master keys).
+mark('update_princ_encryption')
 update_princ_encryption(True, 2, nprincs - 2, 1)
 check_mkvno(realm.admin_princ, 1)
 update_princ_encryption(False, 2, nprincs - 2, 1)
@@ -214,6 +220,7 @@ realm.kinit(realm.user_princ, 'user')
 
 # Update all principals back to mkvno 1 and to mkvno 2 again, to
 # verify that update_princ_encryption targets the active master key.
+mark('update_princ_encryption (back and forth)')
 realm.run([kdb5_util, 'use_mkey', '2', 'now+1day'])
 update_princ_encryption(False, 1, nprincs - 1, 0)
 check_mkvno(realm.user_princ, 1)
@@ -222,11 +229,13 @@ update_princ_encryption(False, 2, nprincs - 1, 0)
 check_mkvno(realm.user_princ, 2)
 
 # Test the safety check for purging with an outdated stash file.
+mark('purge_mkeys (outdated stash file)')
 realm.run([kdb5_util, 'purge_mkeys', '-f'], expected_code=1,
           expected_msg='stash file needs updating')
 
 # Update the master stash file and check it.  Save a copy of the old
 # one for a later test.
+mark('update stash file')
 shutil.copy(stash_file, stash_file + '.old')
 realm.run([kdb5_util, 'stash'])
 check_stash((2, defetype), (1, defetype))
@@ -238,6 +247,7 @@ check_stash((2, defetype), (1, defetype))
 # 4. If the stash file is updated, it no longer contains mkvno 1.
 # 5. use_mkey now gives an error if we refer to mkvno 1.
 # 6. A second purge_mkeys gives the right message.
+mark('purge_mkeys')
 out = realm.run([kdb5_util, 'purge_mkeys', '-v', '-n', '-f'])
 if 'KVNO: 1' not in out or '1 key(s) would be purged' not in out:
     fail('Unexpected output from purge_mkeys dry-run')
@@ -263,6 +273,7 @@ realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'],
 # 2. The enctype argument is respected.
 # 3. The new master key is stashed (by itself, at the moment).
 # 4. We can roll over to the new master key and use it.
+mark('add_mkey and update_princ_encryption (third master key)')
 add_mkey(['-s', '-e', aes128])
 check_mkey_list((3, aes128, False, False), (2, defetype, True, True))
 check_master_dbent(3, (3, aes128), (2, defetype))
@@ -274,6 +285,7 @@ check_mkvno(realm.user_princ, 3)
 
 # Regression test for #7994 (randkey does not update principal mkvno)
 # and #7995 (-keepold does not re-encrypt old keys).
+mark('#7994 and #7995 regression test')
 add_mkey(['-s'])
 realm.run([kdb5_util, 'use_mkey', '4', 'now-1day'])
 realm.run([kadminl, 'cpw', '-randkey', '-keepold', realm.user_princ])
@@ -295,12 +307,13 @@ realm.stop()
 # created prior to master key rollover support.  Verify that:
 # 1. We can access the database using the old-format stash file.
 # 2. list_mkeys displays the same list as for a post-1.7 KDB.
+mark('pre-1.7 stash file')
 dumpfile = os.path.join(srctop, 'tests', 'dumpfiles', 'dump.16')
 os.remove(stash_file)
-f = open(stash_file, 'w')
+f = open(stash_file, 'wb')
 f.write(struct.pack('=HL24s', 16, 24,
-                    '\xF8\x3E\xFB\xBA\x6D\x80\xD9\x54\xE5\x5D\xF2\xE0'
-                    '\x94\xAD\x6D\x86\xB5\x16\x37\xEC\x7C\x8A\xBC\x86'))
+                    b'\xF8\x3E\xFB\xBA\x6D\x80\xD9\x54\xE5\x5D\xF2\xE0'
+                    b'\x94\xAD\x6D\x86\xB5\x16\x37\xEC\x7C\x8A\xBC\x86'))
 f.close()
 realm.run([kdb5_util, 'load', dumpfile])
 nprincs = len(realm.run([kadminl, 'listprincs']).splitlines())
@@ -312,6 +325,7 @@ check_mkey_list((1, des3, True, True))
 # 2. update_princ_encryption still targets mkvno 1.
 # 3. libkadm5 still uses mkvno 1 for key changes.
 # 4. use_mkey creates the same list as for a post-1.7 KDB.
+mark('rollover from pre-1.7 KDB')
 add_mkey([])
 check_mkey_list((2, defetype, False, False), (1, des3, True, True))
 update_princ_encryption(False, 1, 0, nprincs - 1)
@@ -322,6 +336,7 @@ check_mkey_list((2, defetype, True, True), (1, des3, True, False))
 
 # Regression test for #8395.  Purge the master key and verify that a
 # master key fetch does not segfault.
+mark('#8395 regression test')
 realm.run([kadminl, 'purgekeys', '-all', 'K/M'])
 realm.run([kadminl, 'getprinc', realm.user_princ], expected_code=1,
           expected_msg='Cannot find master key record in database')

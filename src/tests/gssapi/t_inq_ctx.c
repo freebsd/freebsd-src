@@ -32,7 +32,7 @@
 
 
 /*
- * Test program for inquiring about a security context, intented to be run from
+ * Test program for inquiring about a security context, intended to be run from
  * a Python test script.  Partially establishes a context to test inquiring
  * about an incomplete context, and then establishes full contexts and inquires
  * them.  Exits with status 0 if all operations are successful, or 1 if not.

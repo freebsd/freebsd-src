@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-boolean-struct:
+
+krb5_boolean
+============
+
+..
+.. c:type:: krb5_boolean
+..
+
+
+
+
+Declaration
+------------
+
+typedef unsigned int krb5_boolean
+
+

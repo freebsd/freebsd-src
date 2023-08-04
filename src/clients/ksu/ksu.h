@@ -23,7 +23,7 @@
  *     direct, indirect, or consequential damages with respect to any
  *     claim by the user or distributor of the ksu software.
  *
- * KSU was writen by:  Ari Medvinsky, ari@isi.edu
+ * KSU was written by:  Ari Medvinsky, ari@isi.edu
  */
 
 #include "k5-int.h"

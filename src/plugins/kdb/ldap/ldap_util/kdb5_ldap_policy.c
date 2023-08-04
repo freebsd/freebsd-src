@@ -432,7 +432,7 @@ kdb5_ldap_modify_policy(int argc, char *argv[])
     int i = 0;
 
     /* Check for number of arguments -- minimum is 3
-       since atleast one parameter should be given in
+       since at least one parameter should be given in
        addition to 'modify_policy' and policy DN */
     if ((argc < 3) || (argc > 16)) {
         goto err_usage;

@@ -1,14 +1,12 @@
 mydir=util$(S)profile
 BUILDTOP=$(REL)..$(S)..
 SUBDIRS=testmod
-PROG_LIBPATH=-L$(TOPLIBD) $(TCL_LIBPATH) -L.
-PROG_RPATH=$(KRB5_LIBDIR)$(TCL_RPATH)
+PROG_LIBPATH=-L$(TOPLIBD) -L.
 ##DOS##BUILDTOP = ..\..
 ##DOS##OBJFILE=$(OUTPRE)profile.lst
 ##DOS##LIBNAME=$(OUTPRE)profile.lib
 
-LOCALINCLUDES=-I. $(TCL_INCLUDES)
-# for tcl.h
+LOCALINCLUDES=-I.
 DEFINES=-DHAS_STDARG -DLIBDIR=\"$(KRB5_LIBDIR)\"
 
 STLIBOBJS = \
@@ -37,17 +35,16 @@ SRCS = $(srcdir)/prof_tree.c \
 	$(srcdir)/prof_init.c
 
 EXTRADEPSRCS=$(srcdir)/test_load.c $(srcdir)/test_parse.c \
-	$(srcdir)/test_profile.c $(srcdir)/test_vtable.c \
-	$(srcdir)/profile_tcl.c
+	$(srcdir)/test_profile.c $(srcdir)/test_vtable.c $(srcdir)/t_profile.c
 
 DEPLIBS = $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-MLIBS = -lcom_err $(SUPPORT_LIB) $(LIBS)
+MLIBS = $(COM_ERR_LIB) $(SUPPORT_LIB) $(LIBS)
 
 LIBBASE=profile
 LIBMAJOR=1
 LIBMINOR=1
 SHLIB_EXPDEPS = $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-SHLIB_EXPLIBS = -lcom_err $(SUPPORT_LIB) $(LIBS)
+SHLIB_EXPLIBS = $(COM_ERR_LIB) $(SUPPORT_LIB) $(LIBS)
 
 PROFILE_HDR=$(BUILDTOP)$(S)include$(S)profile.h
 
@@ -65,7 +62,7 @@ $(PROFILE_HDR): profile.h
 includes: $(PROFILE_HDR)
 
 clean-unix::
-	$(RM) $(BUILDTOP)/include/profile.h test2.ini test3.ini test2.ini.bak
+	$(RM) $(BUILDTOP)/include/profile.h
 
 ##DOS##LIBOBJS = $(OBJS)
 
@@ -88,6 +85,9 @@ test_vtable: test_vtable.$(OBJEXT) $(OBJS) $(DEPLIBS)
 
 test_load: test_load.$(OBJEXT) $(OBJS) $(DEPLIBS)
 	$(CC_LINK) -o test_load test_load.$(OBJEXT) $(OBJS) $(MLIBS)
+
+t_profile: t_profile.$(OBJEXT) $(OBJS) $(DEPLIBS)
+	$(CC_LINK) -o $@ t_profile.$(OBJEXT) $(OBJS) $(MLIBS)
 
 modtest.conf:
 	echo "module `pwd`/testmod/proftest$(DYNOBJEXT):teststring" > $@
@@ -117,39 +117,39 @@ prof_err.c: $(srcdir)/prof_err.et
 
 prof_err.o: prof_err.c
 
-# not built by default, but may be useful for testing
-$(srcdir)/profile_tcl.c: profile.swg
-#	(cd $(srcdir) && swig -tcl8 -nosafe -o profile_tcl.c profile.swg)
-profile_tcl.o: $(srcdir)/profile_tcl.c profile.h
-profile_tcl: profile_tcl.o $(PROF_DEPLIB) $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-	$(CC_LINK) -o profile_tcl profile_tcl.o \
-		$(TCL_MAYBE_RPATH) \
-		-L../et -L../.. -lprofile $(TCL_LIBS) $(MLIBS)
-
 clean-unix:: clean-libs clean-libobjs
 	$(RM) $(PROGS) *.o *~ core prof_err.h profile.h prof_err.c
-	$(RM) test_load test_parse test_profile test_vtable profile_tcl
-	$(RM) modtest.conf testinc.ini testinc2.ini
+	$(RM) test_load test_parse test_profile test_vtable t_profile
+	$(RM) modtest.conf testinc.ini testinc2.ini final.out test2* test3*
 	$(RM) -r test_include_dir
 
 clean-windows::
 	$(RM) $(PROFILE_HDR)
 
-check-unix: test_parse test_profile test_vtable test_load modtest.conf
+check-unix: test_parse test_profile modtest.conf
+check-unix: test_vtable test_load t_profile
 	$(RUN_TEST) ./test_vtable
 	$(RUN_TEST) ./test_load
-
-DO_TCL=@DO_TCL@
-check-unix: check-unix-tcl-$(DO_TCL)
-
-check-unix-tcl-:
-	@echo "+++"
-	@echo "+++ Tcl not available, some profile tests not run."
-	@echo "+++"
-
-check-unix-tcl-ok: profile_tcl
 	cp $(srcdir)/test.ini test2.ini
-	$(RUN_TEST) ./profile_tcl $(srcdir)/prof_test1
+	$(RUN_TEST) ./t_profile
+
+check-unix: check-unix-final
+
+F1=$(srcdir)/final1.ini
+F2=$(srcdir)/final2.ini
+F3=$(srcdir)/final3.ini
+F4=$(srcdir)/final4.ini
+F5=$(srcdir)/final5.ini
+QUERY=query section subsection key
+check-unix-final: test_profile
+	$(RM) final.out
+	(echo; $(RUN_TEST) ./test_profile $(F1):$(F1) $(QUERY)) > final.out
+	(echo; $(RUN_TEST) ./test_profile $(F2):$(F1) $(QUERY)) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F3):$(F1) $(QUERY)) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F4):$(F1) $(QUERY)) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F5):$(F1) $(QUERY)) >> final.out
+	cmp final.out $(srcdir)/final.expected
+	$(RM) final.out
 
 check-windows: $(OUTPRE)test_profile.exe $(OUTPRE)test_parse.exe
 	$(RM) $(OUTPRE)*.obj

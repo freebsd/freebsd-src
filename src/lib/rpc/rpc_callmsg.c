@@ -47,10 +47,10 @@ static char sccsid[] = "@(#)rpc_callmsg.c 1.4 87/08/11 Copyr 1984 Sun Micro";
  * XDR a call message
  */
 bool_t
-xdr_callmsg(register XDR *xdrs, register struct rpc_msg *cmsg)
+xdr_callmsg(XDR *xdrs, struct rpc_msg *cmsg)
 {
-	register rpc_inline_t *buf;
-	register struct opaque_auth *oa;
+	rpc_inline_t *buf;
+	struct opaque_auth *oa;
 
 	if (xdrs->x_op == XDR_ENCODE) {
 		if (cmsg->rm_call.cb_cred.oa_length > MAX_AUTH_BYTES) {

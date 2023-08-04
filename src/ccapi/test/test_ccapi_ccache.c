@@ -303,53 +303,12 @@ int check_cc_ccache_get_credentials_version(void) {
 		failure_count++;
 	}
 
-	// try it with added v4 creds
-	if (!err) {
-		err = cc_ccache_set_principal(ccache, cc_credentials_v4, "foo@BAR.ORG");
-	}
-	if (!err) {
-		check_once_cc_ccache_get_credentials_version(ccache, cc_credentials_v4_v5, ccNoError, "v5 with v4 creds added");
-	}
-	else {
-		log_error("cc_ccache_set_principal failed, can't complete test");
-		failure_count++;
-	}
-
 	if (ccache) {
 		cc_ccache_destroy(ccache);
 		ccache = NULL;
 	}
 
 	err = ccNoError;
-
-	// try one created with v4 creds
-	if (!err) {
-		err = cc_context_create_new_ccache(context, cc_credentials_v4, "foo@BAR.ORG", &ccache);
-	}
-	if (!err) {
-		check_once_cc_ccache_get_credentials_version(ccache, cc_credentials_v4, ccNoError, "v4 creds");
-	}
-	else {
-		log_error("cc_context_create_new_ccache failed, can't complete test");
-		failure_count++;
-	}
-
-	// try it with added v5 creds
-	if (!err) {
-		err = cc_ccache_set_principal(ccache, cc_credentials_v5, "foo@BAR.ORG");
-	}
-	if (!err) {
-		check_once_cc_ccache_get_credentials_version(ccache, cc_credentials_v4_v5, ccNoError, "v4 with v5 creds added");
-	}
-	else {
-		log_error("cc_ccache_set_principal failed, can't complete test");
-		failure_count++;
-	}
-
-	if (ccache) {
-		cc_ccache_destroy(ccache);
-		ccache = NULL;
-	}
 
 	if (context) { cc_context_release(context); }
 
@@ -582,31 +541,13 @@ int check_cc_ccache_get_principal(void) {
 		log_error("cc_context_create_new_ccache failed, can't complete test");
 		failure_count++;
 	}
-	if (ccache) {
-		cc_ccache_release(ccache);
-		ccache = NULL;
-	}
 
-	// try with krb4 principal
-	if (!err) {
-		err = cc_context_create_new_ccache(context, cc_credentials_v4, "foo.BAR@BAZ.ORG", &ccache);
-	}
-	if (!err) {
-		check_once_cc_ccache_get_principal(ccache, cc_credentials_v4, "foo.BAR@BAZ.ORG", ccNoError, "trying to get krb4 princ for krb4 ccache");
-	}
-	else {
-		log_error("cc_context_create_new_ccache failed, can't complete test");
-		failure_count++;
-	}
-
-	// try with bad param
-	if (!err) {
-		// cc_ccache_t doesn't have any concept of the difference between a v4 and v5 principal
-		check_once_cc_ccache_get_principal(ccache, cc_credentials_v4_v5, "foo.BAR@BAZ.ORG",
-			ccErrBadCredentialsVersion,
-			"passing cc_credentials_v4_v5 (shouldn't be allowed)");
-		check_once_cc_ccache_get_principal(ccache, cc_credentials_v5, NULL, ccErrBadParam, "passed null out param");
-	}
+        // try with bad param
+        if (!err) {
+            check_once_cc_ccache_get_principal(ccache, cc_credentials_v5,
+                                               NULL, ccErrBadParam,
+                                               "passed null out param");
+        }
 
 	if (ccache) {
 		cc_ccache_release(ccache);
@@ -643,99 +584,33 @@ int check_cc_ccache_set_principal(void) {
 		err = destroy_all_ccaches(context);
 	}
 
-	// bad params
-	if (!err) {
-		err = cc_context_create_new_ccache(context, cc_credentials_v5, "foo@BAZ.ORG", &ccache);
-	}
-	if (!err) {
-		check_once_cc_ccache_set_principal(ccache, cc_credentials_v4_v5, "foo/BAZ@BAR.ORG", ccErrBadCredentialsVersion, "cc_credentials_v4_v5 (not allowed)");
-		check_once_cc_ccache_set_principal(ccache, cc_credentials_v5, NULL, ccErrBadParam, "NULL principal");
-	}
-	else {
-		log_error("cc_context_create_new_ccache failed, can't complete test");
-		failure_count++;
-	}
-	if (ccache) {
-		cc_ccache_destroy(ccache);
-		ccache = NULL;
-	}
+        // replace v5 only ccache's principal
+        if (!err) {
+            err = cc_context_create_new_ccache(context, cc_credentials_v5,
+                                               "foo@BAZ.ORG", &ccache);
+        }
+        if (!err) {
+            check_once_cc_ccache_set_principal(
+                ccache, cc_credentials_v5, "foo/BAZ@BAR.ORG", ccNoError,
+                "replace v5 only ccache's principal (empty ccache)");
+        }
+        else {
+            log_error(
+                "cc_context_create_new_ccache failed, can't complete test");
+            failure_count++;
+        }
 
+        // bad params
+        if (!err) {
+            check_once_cc_ccache_set_principal(ccache, cc_credentials_v5,
+                                               NULL, ccErrBadParam,
+                                               "NULL principal");
+        }
 
-	// empty ccache
-
-		// replace v5 only ccache's principal
-		if (!err) {
-			err = cc_context_create_new_ccache(context, cc_credentials_v5, "foo@BAZ.ORG", &ccache);
-		}
-		if (!err) {
-			check_once_cc_ccache_set_principal(ccache, cc_credentials_v5, "foo/BAZ@BAR.ORG", ccNoError, "replace v5 only ccache's principal (empty ccache)");
-		}
-		else {
-			log_error("cc_context_create_new_ccache failed, can't complete test");
-			failure_count++;
-		}
-		if (ccache) {
-			cc_ccache_destroy(ccache);
-			ccache = NULL;
-		}
-
-		// add v4 principal to v5 only ccache
-		if (!err) {
-			err = cc_context_create_new_ccache(context, cc_credentials_v5, "foo@BAZ.ORG", &ccache);
-		}
-		if (!err) {
-			check_once_cc_ccache_set_principal(ccache, cc_credentials_v4, "foo.BAZ@BAR.ORG", ccNoError, "add v4 principal to v5 only ccache (empty ccache)");
-		}
-		else {
-			log_error("cc_context_create_new_ccache failed, can't complete test");
-			failure_count++;
-		}
-		if (ccache) {
-			cc_ccache_destroy(ccache);
-			ccache = NULL;
-		}
-
-		// replace v4 only ccache's principal
-		if (!err) {
-			err = cc_context_create_new_ccache(context, cc_credentials_v4, "foo@BAZ.ORG", &ccache);
-		}
-		if (!err) {
-			check_once_cc_ccache_set_principal(ccache, cc_credentials_v4, "foo.BAZ@BAR.ORG", ccNoError, "replace v4 only ccache's principal (empty ccache)");
-		}
-		else {
-			log_error("cc_context_create_new_ccache failed, can't complete test");
-			failure_count++;
-		}
-		if (ccache) {
-			cc_ccache_destroy(ccache);
-			ccache = NULL;
-		}
-
-		// add v5 principal to v4 only ccache
-		if (!err) {
-			err = cc_context_create_new_ccache(context, cc_credentials_v4, "foo@BAZ.ORG", &ccache);
-		}
-		if (!err) {
-			check_once_cc_ccache_set_principal(ccache, cc_credentials_v5, "foo/BAZ@BAR.ORG", ccNoError, "add v5 principal to v4 only ccache (empty ccache)");
-		}
-		else {
-			log_error("cc_context_create_new_ccache failed, can't complete test");
-			failure_count++;
-		}
-		if (ccache) {
-			cc_ccache_destroy(ccache);
-			ccache = NULL;
-		}
-
-	// with credentials
-
-		// replace v5 only ccache's principal
-
-		// add v4 principal to v5 only ccache
-
-		// replace v4 only ccache's principal
-
-		// add v5 principal to v4 only ccache
+        if (ccache) {
+            cc_ccache_destroy(ccache);
+            ccache = NULL;
+        }
 
 	if (context) {
 		err = destroy_all_ccaches(context);
@@ -843,21 +718,6 @@ int check_cc_ccache_store_credentials(void) {
 			creds_union.credentials.credentials_v5->client = NULL;
 		}
 		check_once_cc_ccache_store_credentials(ccache, &creds_union, ccErrBadParam, "invalid creds (NULL client string)");
-	}
-
-	if (&creds_union) { release_v5_creds_union(&creds_union); }
-
-	// bad creds version
-	if (!err) {
-		err = new_v5_creds_union(&creds_union, "BAR.ORG");
-	}
-
-	if (!err) {
-		creds_union.version = cc_credentials_v4_v5;
-		check_once_cc_ccache_store_credentials(ccache, &creds_union, ccErrBadCredentialsVersion, "v4_v5 creds (invalid) into a ccache with only v5 princ");
-		creds_union.version = cc_credentials_v4;
-		check_once_cc_ccache_store_credentials(ccache, &creds_union, ccErrBadCredentialsVersion, "v4 creds into a ccache with only v5 princ");
-		creds_union.version = cc_credentials_v5;
 	}
 
 	if (&creds_union) { release_v5_creds_union(&creds_union); }
@@ -1809,21 +1669,10 @@ int check_cc_ccache_get_kdc_time_offset(void) {
 		err = cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v5, time_offset);
 	}
 	if (!err) {
-		check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v5, &time_offset, ccNoError, "offset set for v5 but not v4");
+		check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v5, &time_offset, ccNoError, "offset set for v5");
 	}
-	if (!err) {
-		check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v4, &time_offset, ccErrTimeOffsetNotSet, "asking for v4 offset when only v5 is set");
-	}
-	if (!err) {
-		err = cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v4, time_offset);
-	}
-	if (!err) {
-		check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v4, &time_offset, ccNoError, "asking for v4 offset when v4 and v5 are set");
-	}
-
 
 	check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v5, NULL, ccErrBadParam, "NULL time_offset out param");
-	check_once_cc_ccache_get_kdc_time_offset(ccache, cc_credentials_v4_v5, &time_offset, ccErrBadCredentialsVersion, "v4_v5 creds_vers in param (invalid)");
 
 	if (ccache) { cc_ccache_release(ccache); }
 
@@ -1900,9 +1749,6 @@ int check_cc_ccache_set_kdc_time_offset(void) {
 	}
 
 	check_once_cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v5, 0, ccNoError, "first time setting offset (v5)");
-	check_once_cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v4, 0, ccNoError, "first time setting offset (v4)");
-
-	check_once_cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v4_v5, 0, ccErrBadCredentialsVersion, "invalid creds_vers (v4_v5)");
 
 	if (ccache) { cc_ccache_release(ccache); }
 
@@ -1978,15 +1824,10 @@ int check_cc_ccache_clear_kdc_time_offset(void) {
 	}
 
 	check_once_cc_ccache_clear_kdc_time_offset(ccache, cc_credentials_v5, ccNoError, "clearing an offset that was never set (v5)");
-	check_once_cc_ccache_clear_kdc_time_offset(ccache, cc_credentials_v4, ccNoError, "clearing an offset that was never set (v4)");
 
 	err = cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v5, 0);
-	err = cc_ccache_set_kdc_time_offset(ccache, cc_credentials_v4, 0);
 
 	check_once_cc_ccache_clear_kdc_time_offset(ccache, cc_credentials_v5, ccNoError, "clearing v5");
-	check_once_cc_ccache_clear_kdc_time_offset(ccache, cc_credentials_v4, ccNoError, "clearing v4");
-
-	check_once_cc_ccache_clear_kdc_time_offset(ccache, cc_credentials_v4_v5, ccErrBadCredentialsVersion, "bad in param creds vers (v4_v5)");
 
 	if (ccache) { cc_ccache_release(ccache); }
 

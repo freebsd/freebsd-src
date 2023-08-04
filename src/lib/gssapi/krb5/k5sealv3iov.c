@@ -144,9 +144,8 @@ gss_krb5int_make_seal_token_v3_iov(krb5_context context,
         /* TOK_ID */
         store_16_be(KG2_TOK_WRAP_MSG, outbuf);
         /* flags */
-        outbuf[2] = (acceptor_flag
-                     | (conf_req_flag ? FLAG_WRAP_CONFIDENTIAL : 0)
-                     | (ctx->have_acceptor_subkey ? FLAG_ACCEPTOR_SUBKEY : 0));
+        outbuf[2] = (acceptor_flag | FLAG_WRAP_CONFIDENTIAL |
+                     (ctx->have_acceptor_subkey ? FLAG_ACCEPTOR_SUBKEY : 0));
         /* filler */
         outbuf[3] = 0xFF;
         /* EC */

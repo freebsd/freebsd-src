@@ -47,21 +47,22 @@ encode_kdcver_encpart(krb5_enc_tkt_part *enc_tkt, krb5_authdata **contents,
 }
 
 /*
- * Create a CAMMAC for contents, using enc_tkt and the first key from krbtgt
- * for the KDC verifier.  Set *cammac_out to a single-element authdata list
- * containing the CAMMAC inside an IF-RELEVANT container.
+ * Create a CAMMAC for contents, using enc_tkt and tgt_key for the KDC
+ * verifier.  tgt_key must be the decrypted first key data entry in tgt.  Set
+ * *cammac_out to a single-element authdata list containing the CAMMAC inside
+ * an IF-RELEVANT container.
  */
 krb5_error_code
 cammac_create(krb5_context context, krb5_enc_tkt_part *enc_tkt,
-              krb5_keyblock *server_key, krb5_db_entry *krbtgt,
-              krb5_authdata **contents, krb5_authdata ***cammac_out)
+              krb5_keyblock *server_key, krb5_db_entry *tgt,
+              krb5_keyblock *tgt_key, krb5_authdata **contents,
+              krb5_authdata ***cammac_out)
 {
     krb5_error_code ret;
     krb5_data *der_authdata = NULL, *der_enctkt = NULL, *der_cammac = NULL;
     krb5_authdata ad, *list[2];
     krb5_cammac cammac;
     krb5_verifier_mac kdc_verifier, svc_verifier;
-    krb5_key_data *kd;
     krb5_keyblock tgtkey;
     krb5_checksum kdc_cksum, svc_cksum;
 
@@ -70,24 +71,16 @@ cammac_create(krb5_context context, krb5_enc_tkt_part *enc_tkt,
     memset(&kdc_cksum, 0, sizeof(kdc_cksum));
     memset(&svc_cksum, 0, sizeof(svc_cksum));
 
-    /* Fetch the first krbtgt key for the KDC verifier. */
-    ret = krb5_dbe_find_enctype(context, krbtgt, -1, -1, 0, &kd);
-    if (ret)
-        goto cleanup;
-    ret = krb5_dbe_decrypt_key_data(context, NULL, kd, &tgtkey, NULL);
-    if (ret)
-        goto cleanup;
-
     /* Checksum the reply with contents as authdata for the KDC verifier. */
     ret = encode_kdcver_encpart(enc_tkt, contents, &der_enctkt);
     if (ret)
         goto cleanup;
-    ret = krb5_c_make_checksum(context, 0, &tgtkey, KRB5_KEYUSAGE_CAMMAC,
+    ret = krb5_c_make_checksum(context, 0, tgt_key, KRB5_KEYUSAGE_CAMMAC,
                                der_enctkt, &kdc_cksum);
     if (ret)
         goto cleanup;
     kdc_verifier.princ = NULL;
-    kdc_verifier.kvno = kd->key_data_kvno;
+    kdc_verifier.kvno = current_kvno(tgt);
     kdc_verifier.enctype = ENCTYPE_NULL;
     kdc_verifier.checksum = kdc_cksum;
 
@@ -133,15 +126,19 @@ cleanup:
     return ret;
 }
 
-/* Return true if cammac's KDC verifier is valid for enc_tkt, using krbtgt to
- * retrieve the TGT key indicated by the verifier. */
+/*
+ * Return true if cammac's KDC verifier is valid for enc_tkt, using tgt to
+ * retrieve the TGT key indicated by the verifier.  tgt_key must be the
+ * decrypted first key data entry in tgt.
+ */
 krb5_boolean
 cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
-                    krb5_enc_tkt_part *enc_tkt, krb5_db_entry *krbtgt)
+                    krb5_enc_tkt_part *enc_tkt, krb5_db_entry *tgt,
+                    krb5_keyblock *tgt_key)
 {
     krb5_verifier_mac *ver = cammac->kdc_verifier;
     krb5_key_data *kd;
-    krb5_keyblock tgtkey;
+    krb5_keyblock tgtkey, *key;
     krb5_boolean valid = FALSE;
     krb5_data *der_enctkt = NULL;
 
@@ -152,10 +149,15 @@ cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
 
     /* Fetch the krbtgt key indicated by the KDC verifier.  Only allow the
      * first krbtgt key of the specified kvno. */
-    if (krb5_dbe_find_enctype(context, krbtgt, -1, -1, ver->kvno, &kd) != 0)
-        goto cleanup;
-    if (krb5_dbe_decrypt_key_data(context, NULL, kd, &tgtkey, NULL) != 0)
-        goto cleanup;
+    if (ver->kvno == current_kvno(tgt)) {
+        key = tgt_key;
+    } else {
+        if (krb5_dbe_find_enctype(context, tgt, -1, -1, ver->kvno, &kd) != 0)
+            goto cleanup;
+        if (krb5_dbe_decrypt_key_data(context, NULL, kd, &tgtkey, NULL) != 0)
+            goto cleanup;
+        key = &tgtkey;
+    }
     if (ver->enctype != ENCTYPE_NULL && tgtkey.enctype != ver->enctype)
         goto cleanup;
 
@@ -163,7 +165,7 @@ cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
      * elements as authdata. */
     if (encode_kdcver_encpart(enc_tkt, cammac->elements, &der_enctkt) != 0)
         goto cleanup;
-    (void)krb5_c_verify_checksum(context, &tgtkey, KRB5_KEYUSAGE_CAMMAC,
+    (void)krb5_c_verify_checksum(context, key, KRB5_KEYUSAGE_CAMMAC,
                                  der_enctkt, &ver->checksum, &valid);
 
 cleanup:

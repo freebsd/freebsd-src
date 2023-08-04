@@ -130,7 +130,7 @@ clnttcp_create(
 	u_int recvsz)
 {
 	CLIENT *h;
-	register struct ct_data *ct = 0;
+	struct ct_data *ct = 0;
 	struct timeval now;
 	struct rpc_msg call_msg;
 
@@ -168,9 +168,9 @@ clnttcp_create(
 	if (*sockp < 0) {
 		*sockp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		(void)bindresvport_sa(*sockp, NULL);
-		if ((*sockp < 0)
-		    || (connect(*sockp, (struct sockaddr *)raddr,
-		    sizeof(*raddr)) < 0)) {
+		if (*sockp < 0 || raddr == NULL ||
+		    connect(*sockp, (struct sockaddr *)raddr,
+			    sizeof(*raddr)) < 0) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
                         (void)closesocket(*sockp);
@@ -244,7 +244,7 @@ fooy:
 
 static enum clnt_stat
 clnttcp_call(
-	register CLIENT *h,
+	CLIENT *h,
 	rpcproc_t proc,
 	xdrproc_t xdr_args,
 	void * args_ptr,
@@ -252,12 +252,12 @@ clnttcp_call(
 	void * results_ptr,
 	struct timeval timeout)
 {
-	register struct ct_data *ct = (struct ct_data *) h->cl_private;
-	register XDR *xdrs = &(ct->ct_xdrs);
+	struct ct_data *ct = h->cl_private;
+	XDR *xdrs = &ct->ct_xdrs;
 	struct rpc_msg reply_msg;
 	uint32_t x_id;
 	uint32_t *msg_x_id = &ct->ct_u.ct_mcalli;	/* yuk */
-	register bool_t shipnow;
+	bool_t shipnow;
 	int refreshes = 2;
 	long procl = proc;
 
@@ -356,8 +356,7 @@ clnttcp_geterr(
 	CLIENT *h,
 	struct rpc_err *errp)
 {
-	register struct ct_data *ct =
-	    (struct ct_data *) h->cl_private;
+	struct ct_data *ct = h->cl_private;
 
 	*errp = ct->ct_error;
 }
@@ -368,8 +367,8 @@ clnttcp_freeres(
 	xdrproc_t xdr_res,
 	void * res_ptr)
 {
-	register struct ct_data *ct = (struct ct_data *)cl->cl_private;
-	register XDR *xdrs = &(ct->ct_xdrs);
+	struct ct_data *ct = cl->cl_private;
+	XDR *xdrs = &ct->ct_xdrs;
 
 	xdrs->x_op = XDR_FREE;
 	return ((*xdr_res)(xdrs, res_ptr));
@@ -387,7 +386,7 @@ clnttcp_control(
 	int request,
 	void *info)
 {
-	register struct ct_data *ct = (struct ct_data *)cl->cl_private;
+	struct ct_data *ct = cl->cl_private;
 	GETSOCKNAME_ARG3_TYPE len;
 
 	switch (request) {
@@ -417,8 +416,7 @@ clnttcp_control(
 static void
 clnttcp_destroy(CLIENT *h)
 {
-	register struct ct_data *ct =
-	    (struct ct_data *) h->cl_private;
+	struct ct_data *ct = h->cl_private;
 
 	if (ct->ct_closeit)
                 (void)closesocket(ct->ct_sock);
@@ -436,9 +434,9 @@ static int
 readtcp(
         char *ctptr,
 	caddr_t buf,
-	register int len)
+	int len)
 {
-  register struct ct_data *ct = (struct ct_data *)(void *)ctptr;
+  struct ct_data *ct = (void *)ctptr;
   struct timeval tout;
 #ifdef FD_SETSIZE
 	fd_set mask;
@@ -449,7 +447,7 @@ readtcp(
 	FD_ZERO(&mask);
 	FD_SET(ct->ct_sock, &mask);
 #else
-	register int mask = 1 << (ct->ct_sock);
+	int mask = 1 << (ct->ct_sock);
 	int readfds;
 
 	if (len == 0)
@@ -498,7 +496,7 @@ writetcp(
 	int len)
 {
 	struct ct_data *ct = (struct ct_data *)(void *)ctptr;
-	register int i, cnt;
+	int i, cnt;
 
 	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
 		if ((i = write(ct->ct_sock, buf, (size_t) cnt)) == -1) {

@@ -96,6 +96,8 @@ kt_test(krb5_context context, const char *name)
     krb5_principal princ;
     krb5_kt_cursor cursor, cursor2;
     int cnt;
+    krb5_enctype e1 = ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+        e2 = ENCTYPE_AES256_CTS_HMAC_SHA384_192;
 
     kret = krb5_kt_resolve(context, name, &kt);
     CHECK(kret, "resolve");
@@ -139,9 +141,9 @@ kt_test(krb5_context context, const char *name)
     /* ===================   Add entries to keytab ================= */
     /*
      * Add the following for this principal
-     * enctype 1, kvno 1, key = "1"
-     * enctype 2, kvno 1, key = "1"
-     * enctype 1, kvno 2, key = "2"
+     * enctype e1, kvno 1, key = "1"
+     * enctype e2, kvno 1, key = "1"
+     * enctype e1, kvno 2, key = "2"
      */
     memset(&kent, 0, sizeof(kent));
     kent.magic = KV5M_KEYTAB_ENTRY;
@@ -149,7 +151,7 @@ kt_test(krb5_context context, const char *name)
     kent.timestamp = 327689;
     kent.vno = 1;
     kent.key.magic = KV5M_KEYBLOCK;
-    kent.key.enctype = 1;
+    kent.key.enctype = e1;
     kent.key.length = 1;
     kent.key.contents = (krb5_octet *) "1";
 
@@ -157,11 +159,11 @@ kt_test(krb5_context context, const char *name)
     kret = krb5_kt_add_entry(context, kt, &kent);
     CHECK(kret, "Adding initial entry");
 
-    kent.key.enctype = 2;
+    kent.key.enctype = e2;
     kret = krb5_kt_add_entry(context, kt, &kent);
     CHECK(kret, "Adding second entry");
 
-    kent.key.enctype = 1;
+    kent.key.enctype = e1;
     kent.vno = 2;
     kent.key.contents = (krb5_octet *) "2";
     kret = krb5_kt_add_entry(context, kt, &kent);
@@ -183,7 +185,7 @@ kt_test(krb5_context context, const char *name)
     cnt = 0;
     while((kret = krb5_kt_next_entry(context, kt, &kent, &cursor)) == 0) {
         if(((kent.vno != 1) && (kent.vno != 2)) ||
-           ((kent.key.enctype != 1) && (kent.key.enctype != 2)) ||
+           ((kent.key.enctype != e1) && (kent.key.enctype != e2)) ||
            (kent.key.length != 1) ||
            (kent.key.contents[0] != kent.vno +'0')) {
             fprintf(stderr, "Error in read contents\n");
@@ -217,7 +219,7 @@ kt_test(krb5_context context, const char *name)
 
 
     kret = krb5_kt_get_entry(context, kt, princ, 0, 0, &kent);
-    CHECK_ERR(kret, KRB5_KT_NOTFOUND, "Getting non-existant entry");
+    CHECK_ERR(kret, KRB5_KT_NOTFOUND, "Getting nonexistent entry");
 
     krb5_free_principal(context, princ);
 
@@ -231,7 +233,7 @@ kt_test(krb5_context context, const char *name)
     /* Ensure a valid answer  - we did not specify an enctype or kvno */
     if (!krb5_principal_compare(context, princ, kent.principal) ||
         ((kent.vno != 1) && (kent.vno != 2)) ||
-        ((kent.key.enctype != 1) && (kent.key.enctype != 2)) ||
+        ((kent.key.enctype != e1) && (kent.key.enctype != e2)) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Retrieved principal does not check\n");
@@ -243,12 +245,12 @@ kt_test(krb5_context context, const char *name)
     /* Try to lookup a specific enctype - but unspecified kvno - should give
      * max kvno
      */
-    kret = krb5_kt_get_entry(context, kt, princ, 0, 1, &kent);
+    kret = krb5_kt_get_entry(context, kt, princ, 0, e1, &kent);
     CHECK(kret, "looking up principal");
 
     /* Ensure a valid answer  - we did specified an enctype */
     if (!krb5_principal_compare(context, princ, kent.principal) ||
-        (kent.vno != 2) || (kent.key.enctype != 1) ||
+        (kent.vno != 2) || (kent.key.enctype != e1) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Retrieved principal does not check\n");
@@ -266,7 +268,7 @@ kt_test(krb5_context context, const char *name)
 
     /* Ensure a valid answer  - we did not specify a kvno */
     if (!krb5_principal_compare(context, princ, kent.principal) ||
-        (kent.vno != 2) || (kent.key.enctype != 1) ||
+        (kent.vno != 2) || (kent.key.enctype != e1) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Retrieved principal does not check\n");
@@ -281,11 +283,11 @@ kt_test(krb5_context context, const char *name)
 
     /* Try to lookup specified enctype and kvno */
 
-    kret = krb5_kt_get_entry(context, kt, princ, 1, 1, &kent);
+    kret = krb5_kt_get_entry(context, kt, princ, 1, e1, &kent);
     CHECK(kret, "looking up principal");
 
     if (!krb5_principal_compare(context, princ, kent.principal) ||
-        (kent.vno != 1) || (kent.key.enctype != 1) ||
+        (kent.vno != 1) || (kent.key.enctype != e1) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Retrieved principal does not check\n");
@@ -334,7 +336,7 @@ kt_test(krb5_context context, const char *name)
 
     /* Try to lookup specified enctype and kvno  - that does not exist*/
 
-    kret = krb5_kt_get_entry(context, kt, princ, 3, 1, &kent);
+    kret = krb5_kt_get_entry(context, kt, princ, 3, e1, &kent);
     CHECK_ERR(kret, KRB5_KT_KVNONOTFOUND,
               "looking up specific principal, kvno, enctype");
 
@@ -347,12 +349,12 @@ kt_test(krb5_context context, const char *name)
     kret = krb5_parse_name(context, "test/test2@TEST.MIT.EDU", &princ);
     CHECK(kret, "parsing principal");
 
-    kret = krb5_kt_get_entry(context, kt, princ, 0, 1, &kent);
+    kret = krb5_kt_get_entry(context, kt, princ, 0, e1, &kent);
     CHECK(kret, "looking up principal");
 
-    /* Ensure a valid answer  - we are looking for max(kvno) and enc=1 */
+    /* Ensure a valid answer  - we are looking for max(kvno) and enc=e1 */
     if (!krb5_principal_compare(context, princ, kent.principal) ||
-        (kent.vno != 2) || (kent.key.enctype != 1) ||
+        (kent.vno != 2) || (kent.key.enctype != e1) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Retrieved principal does not check\n");
@@ -368,12 +370,12 @@ kt_test(krb5_context context, const char *name)
     krb5_free_keytab_entry_contents(context, &kent);
     /* And ensure gone */
 
-    kret = krb5_kt_get_entry(context, kt, princ, 0, 1, &kent);
+    kret = krb5_kt_get_entry(context, kt, princ, 0, e1, &kent);
     CHECK(kret, "looking up principal");
 
     /* Ensure a valid answer - kvno should now be 1 - we deleted 2 */
     if (!krb5_principal_compare(context, princ, kent.principal) ||
-        (kent.vno != 1) || (kent.key.enctype != 1) ||
+        (kent.vno != 1) || (kent.key.enctype != e1) ||
         (kent.key.length != 1) ||
         (kent.key.contents[0] != kent.vno +'0')) {
         fprintf(stderr, "Delete principal check failed\n");
@@ -441,16 +443,3 @@ main(void)
     return 0;
 
 }
-
-
-#if 0
-/* remove and add are functions, so that they can return NOWRITE
-   if not a writable keytab */
-krb5_error_code KRB5_CALLCONV krb5_kt_remove_entry
-(krb5_context,
- krb5_keytab,
- krb5_keytab_entry * );
-
-
-
-#endif

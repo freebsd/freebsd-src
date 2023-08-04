@@ -231,32 +231,6 @@ main(argc, argv)
      else
 	  gssrpc_xdr_free(xdr_wrapstring, echo_resp);
 
-     /*
-      * Test fix for secure-rpc/586, part 1: btree keys must be
-      * unique.  Create another context from the same credentials; it
-      * should have the same expiration time and will cause the server
-      * to abort if the clients are not differentiated.
-      *
-      * Test fix for secure-rpc/586, part 2: btree keys cannot be
-      * mutated in place.  To test this: a second client, *with a
-      * later expiration time*, must be run.  The second client should
-      * destroy itself *after* the first one; if the key-mutating bug
-      * is not fixed, the second client_data will be in the btree
-      * before the first, but its key will be larger; thus, when the
-      * first client calls AUTH_DESTROY, the server won't find it in
-      * the btree and call abort.
-      *
-      * For unknown reasons, running just a second client didn't
-      * tickle the bug; the btree code seemed to guess which node to
-      * look at first.  Running a total of three clients does ticket
-      * the bug.  Thus, the full test sequence looks like this:
-      *
-      * 	kinit -l 20m user && client server test@ddn 200
-      * 	sleep 1
-      * 	kini -l 30m user && client server test@ddn 300
-      * 	sleep 1
-      * 	kinit -l 40m user && client server test@ddn 400
-      */
      if (! auth_once) {
 	  tmp_auth = clnt->cl_auth;
 	  clnt->cl_auth = auth_gssapi_create_default(clnt, target);

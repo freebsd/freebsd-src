@@ -39,6 +39,8 @@
 static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
 #endif
 
+#define K5_GETOPT_C
+
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>

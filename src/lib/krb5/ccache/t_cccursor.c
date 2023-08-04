@@ -27,7 +27,7 @@
 /*
  * Displays a list of caches returned by the cccol cursor.  The first argument,
  * if given, is set to the default cache name for the context before iterating.
- * Any remaining argments are resolved as caches and kept open during the
+ * Any remaining arguments are resolved as caches and kept open during the
  * iteration.  If the argument "CONTENT" is given as one of the cache names,
  * immediately exit with status 0 if the collection contains credentials and 1
  * if it does not.

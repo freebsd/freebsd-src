@@ -149,7 +149,7 @@ int
 	by "*key", then after getting a new key, call the des_set_key() 
 	routine when needed.
 
-	No meaningfull value is returned.  Void is not used for compatibility
+	No meaningful value is returned.  Void is not used for compatibility
 	with other compilers.
 
 
@@ -157,8 +157,8 @@ int
 
 int
 	string_to_key(str,key)
-	register char		*str;
-	register C_Block	*key;
+	char		*str;
+	C_Block	*key;
 
 	This routines converts an arbitrary length, null terminated string
 	to an 8 byte DES key, with each byte parity set to odd, per FIPS spec.

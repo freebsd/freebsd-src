@@ -28,8 +28,6 @@
 #define __UTILITY_H__
 
 #include "k5-int.h"
-#include "krbasn1.h"
-#include "asn1buf.h"
 
 /* Aborts on failure.  ealloc returns zero-filled memory. */
 void *ealloc(size_t size);
@@ -48,12 +46,10 @@ void asn1_krb5_data_unparse(const krb5_data *code, char **s);
 void krb5_data_parse(krb5_data *d, const char *s);
 /* effects  Parses character string *s into krb5_data *d. */
 
-asn1_error_code krb5_data_hex_parse(krb5_data *d, const char *s);
+krb5_error_code krb5_data_hex_parse(krb5_data *d, const char *s);
 /* requires  *s is the string representation of a sequence of
               hexadecimal octets.  (e.g. "02 01 00")
    effects  Parses *s into krb5_data *d. */
-
-void asn1buf_print(const asn1buf *buf);
 
 extern krb5int_access acc;
 extern void init_access(const char *progname);

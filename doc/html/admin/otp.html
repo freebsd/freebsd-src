@@ -1,34 +1,32 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>OTP Preauthentication &mdash; MIT Kerberos Documentation</title>
-    
+    <title>OTP Preauthentication &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For administrators" href="index.html" />
-    <link rel="next" title="Principal names and DNS" href="princ_dns.html" />
+    <link rel="next" title="SPAKE Preauthentication" href="spake.html" />
     <link rel="prev" title="PKINIT configuration" href="pkinit.html" /> 
   </head>
   <body>
@@ -44,7 +42,7 @@
             accesskey="C">Contents</a> |
         <a href="pkinit.html" title="PKINIT configuration"
             accesskey="P">previous</a> |
-        <a href="princ_dns.html" title="Principal names and DNS"
+        <a href="spake.html" title="SPAKE Preauthentication"
             accesskey="N">next</a> |
         <a href="../genindex.html" title="General Index"
             accesskey="I">index</a> |
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="otp-preauthentication">
 <span id="otp-preauth"></span><h1>OTP Preauthentication<a class="headerlink" href="#otp-preauthentication" title="Permalink to this headline">¶</a></h1>
@@ -78,53 +76,53 @@ permits the use of a local companion daemon which can handle the
 details of authentication.</p>
 <div class="section" id="defining-token-types">
 <h2>Defining token types<a class="headerlink" href="#defining-token-types" title="Permalink to this headline">¶</a></h2>
-<p>Token types are defined in either <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> or
-<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> according to the following format:</p>
-<div class="highlight-python"><div class="highlight"><pre>[otp]
-    &lt;name&gt; = {
-        server = &lt;host:port or filename&gt; (default: see below)
-        secret = &lt;filename&gt;
-        timeout = &lt;integer&gt; (default: 5 [seconds])
-        retries = &lt;integer&gt; (default: 3)
-        strip_realm = &lt;boolean&gt; (default: true)
-        indicator = &lt;string&gt; (default: none)
-    }
+<p>Token types are defined in either <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> or
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> according to the following format:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
+    <span class="o">&lt;</span><span class="n">name</span><span class="o">&gt;</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">server</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">host</span><span class="p">:</span><span class="n">port</span> <span class="ow">or</span> <span class="n">filename</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">see</span> <span class="n">below</span><span class="p">)</span>
+        <span class="n">secret</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">integer</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="mi">5</span> <span class="p">[</span><span class="n">seconds</span><span class="p">])</span>
+        <span class="n">retries</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">integer</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">strip_realm</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">boolean</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">true</span><span class="p">)</span>
+        <span class="n">indicator</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">none</span><span class="p">)</span>
+    <span class="p">}</span>
 </pre></div>
 </div>
-<p>If the server field begins with &#8216;/&#8217;, it will be interpreted as a UNIX
+<p>If the server field begins with ‘/’, it will be interpreted as a UNIX
 socket.  Otherwise, it is assumed to be in the format host:port.  When
 a UNIX domain socket is specified, the secret field is optional and an
 empty secret is used by default.  If the server field is not
-specified, it defaults to <a class="reference internal" href="../mitK5defaults.html#paths"><em>RUNSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/&lt;name&gt;.socket</span></tt>.</p>
+specified, it defaults to <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">RUNSTATEDIR</span></a><code class="docutils literal"><span class="pre">/krb5kdc</span></code><code class="docutils literal"><span class="pre">/&lt;name&gt;.socket</span></code>.</p>
 <p>When forwarding the request over RADIUS, by default the principal is
 used in the User-Name attribute of the RADIUS packet.  The strip_realm
 parameter controls whether the principal is forwarded with or without
 the realm portion.</p>
 <p>If an indicator field is present, tickets issued using this token type
 will be annotated with the specified authentication indicator (see
-<a class="reference internal" href="auth_indicator.html#auth-indicator"><em>Authentication indicators</em></a>).  This key may be specified multiple times to
+<a class="reference internal" href="auth_indicator.html#auth-indicator"><span class="std std-ref">Authentication indicators</span></a>).  This key may be specified multiple times to
 add multiple indicators.</p>
 </div>
 <div class="section" id="the-default-token-type">
 <h2>The default token type<a class="headerlink" href="#the-default-token-type" title="Permalink to this headline">¶</a></h2>
 <p>A default token type is used internally when no token type is specified for a
 given user.  It is defined as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre>[otp]
-    DEFAULT = {
-        strip_realm = false
-    }
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
+    <span class="n">DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">strip_realm</span> <span class="o">=</span> <span class="n">false</span>
+    <span class="p">}</span>
 </pre></div>
 </div>
-<p>The administrator may override the internal <tt class="docutils literal"><span class="pre">DEFAULT</span></tt> token type
+<p>The administrator may override the internal <code class="docutils literal"><span class="pre">DEFAULT</span></code> token type
 simply by defining a configuration with the same name.</p>
 </div>
 <div class="section" id="token-instance-configuration">
 <h2>Token instance configuration<a class="headerlink" href="#token-instance-configuration" title="Permalink to this headline">¶</a></h2>
 <p>To enable OTP for a client principal, the administrator must define
 the <strong>otp</strong> string attribute for that principal.  (See
-<a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><em>set_string</em></a>.)  The <strong>otp</strong> user string is a JSON string of the
+<a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><span class="std std-ref">set_string</span></a>.)  The <strong>otp</strong> user string is a JSON string of the
 format:</p>
-<div class="highlight-xml"><div class="highlight"><pre>[{
+<div class="highlight-xml"><div class="highlight"><pre><span></span>[{
     &quot;type&quot;: <span class="nt">&lt;string&gt;</span>,
     &quot;username&quot;: <span class="nt">&lt;string&gt;</span>,
     &quot;indicators&quot;: [<span class="nt">&lt;string&gt;</span>, ...]
@@ -133,14 +131,14 @@ format:</p>
 </div>
 <p>This is an array of token objects.  Both fields of token objects are
 optional.  The <strong>type</strong> field names the token type of this token; if
-not specified, it defaults to <tt class="docutils literal"><span class="pre">DEFAULT</span></tt>.  The <strong>username</strong> field
+not specified, it defaults to <code class="docutils literal"><span class="pre">DEFAULT</span></code>.  The <strong>username</strong> field
 specifies the value to be sent in the User-Name RADIUS attribute.  If
 not specified, the principal name is sent, with or without realm as
 defined in the token type.  The <strong>indicators</strong> field specifies a list
 of authentication indicators to annotate tickets with, overriding any
 indicators specified in the token type.</p>
-<p>For ease of configuration, an empty array (<tt class="docutils literal"><span class="pre">[]</span></tt>) is treated as
-equivalent to one DEFAULT token (<tt class="docutils literal"><span class="pre">[{}]</span></tt>).</p>
+<p>For ease of configuration, an empty array (<code class="docutils literal"><span class="pre">[]</span></code>) is treated as
+equivalent to one DEFAULT token (<code class="docutils literal"><span class="pre">[{}]</span></code>).</p>
 </div>
 <div class="section" id="other-considerations">
 <h2>Other considerations<a class="headerlink" href="#other-considerations" title="Permalink to this headline">¶</a></h2>
@@ -176,15 +174,16 @@ equivalent to one DEFAULT token (<tt class="docutils literal"><span class="pre">
 <li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">OTP Preauthentication</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
@@ -224,8 +223,8 @@ equivalent to one DEFAULT token (<tt class="docutils literal"><span class="pre">
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 
@@ -233,7 +232,7 @@ equivalent to one DEFAULT token (<tt class="docutils literal"><span class="pre">
             >Contents</a> |
         <a href="pkinit.html" title="PKINIT configuration"
             >previous</a> |
-        <a href="princ_dns.html" title="Principal names and DNS"
+        <a href="spake.html" title="SPAKE Preauthentication"
             >next</a> |
         <a href="../genindex.html" title="General Index"
             >index</a> |

@@ -30,10 +30,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * This program exercises the init_creds APIs in ways kinit doesn't.  Right now
- * it is very simplistic, but it can be extended as needed.
- */
+/* This program exercises the init_creds APIs in ways kinit doesn't. */
 
 #include "k5-platform.h"
 #include <krb5.h>
@@ -56,10 +53,11 @@ check(krb5_error_code code)
 int
 main(int argc, char **argv)
 {
-    const char *princstr, *password;
+    const char *ktname = NULL, *sname = NULL, *princstr, *password;
     krb5_principal client;
     krb5_init_creds_context icc;
     krb5_get_init_creds_opt *opt;
+    krb5_keytab keytab = NULL;
     krb5_creds creds;
     krb5_boolean stepwise = FALSE;
     krb5_preauthtype ptypes[64];
@@ -69,14 +67,20 @@ main(int argc, char **argv)
     check(krb5_init_context(&ctx));
     check(krb5_get_init_creds_opt_alloc(ctx, &opt));
 
-    while ((c = getopt(argc, argv, "so:X:")) != -1) {
+    while ((c = getopt(argc, argv, "k:so:S:X:")) != -1) {
         switch (c) {
+        case 'k':
+            ktname = optarg;
+            break;
         case 's':
             stepwise = TRUE;
             break;
         case 'o':
             assert(nptypes < 64);
             ptypes[nptypes++] = atoi(optarg);
+            break;
+        case 'S':
+            sname = optarg;
             break;
         case 'X':
             val = strchr(optarg, '=');
@@ -93,12 +97,20 @@ main(int argc, char **argv)
 
     argc -= optind;
     argv += optind;
-    if (argc != 2)
+    if (argc != 1 && argc != 2)
         abort();
     princstr = argv[0];
     password = argv[1];
 
-    check(krb5_parse_name(ctx, princstr, &client));
+    if (sname != NULL) {
+        check(krb5_sname_to_principal(ctx, princstr, sname, KRB5_NT_SRV_HST,
+                                      &client));
+    } else {
+        check(krb5_parse_name(ctx, princstr, &client));
+    }
+
+    if (ktname != NULL)
+        check(krb5_kt_resolve(ctx, ktname, &keytab));
 
     if (nptypes > 0)
         krb5_get_init_creds_opt_set_preauth_list(opt, ptypes, nptypes);
@@ -106,9 +118,16 @@ main(int argc, char **argv)
     if (stepwise) {
         /* Use the stepwise interface. */
         check(krb5_init_creds_init(ctx, client, NULL, NULL, 0, NULL, &icc));
-        check(krb5_init_creds_set_password(ctx, icc, password));
+        if (keytab != NULL)
+            check(krb5_init_creds_set_keytab(ctx, icc, keytab));
+        if (password != NULL)
+            check(krb5_init_creds_set_password(ctx, icc, password));
         check(krb5_init_creds_get(ctx, icc));
         krb5_init_creds_free(ctx, icc);
+    } else if (keytab != NULL) {
+        check(krb5_get_init_creds_keytab(ctx, &creds, client, keytab, 0, NULL,
+                                         opt));
+        krb5_free_cred_contents(ctx, &creds);
     } else {
         /* Use the traditional one-shot interface. */
         check(krb5_get_init_creds_password(ctx, &creds, client, password, NULL,
@@ -116,6 +135,8 @@ main(int argc, char **argv)
         krb5_free_cred_contents(ctx, &creds);
     }
 
+    if (keytab != NULL)
+        krb5_kt_close(ctx, keytab);
     krb5_get_init_creds_opt_free(ctx, opt);
     krb5_free_principal(ctx, client);
     krb5_free_context(ctx);

@@ -22,7 +22,7 @@ klist: klist.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ klist.o $(KRB5_BASE_LIBS)
 
 ##WIN32##$(KLIST): $(OUTPRE)klist.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
-##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
 
 clean-unix::

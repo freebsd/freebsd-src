@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Test krb5 negotiation under SPNEGO for all enctype configurations.  Also
@@ -9,9 +8,12 @@ for realm in multipass_realms():
     realm.run(['./t_iov', '-s', 'p:' + realm.host_princ])
     realm.run(['./t_pcontok', 'p:' + realm.host_princ])
 
-### Test acceptor name behavior.
-
 realm = K5Realm()
+
+# Test gss_add_cred().
+realm.run(['./t_add_cred'])
+
+### Test acceptor name behavior.
 
 # Create some host-based principals and put most of them into the
 # keytab.  Rename one principal so that the keytab name matches the
@@ -21,10 +23,19 @@ realm.run([kadminl, 'addprinc', '-randkey', 'service1/barack'])
 realm.run([kadminl, 'addprinc', '-randkey', 'service2/calvin'])
 realm.run([kadminl, 'addprinc', '-randkey', 'service2/dwight'])
 realm.run([kadminl, 'addprinc', '-randkey', 'host/-nomatch-'])
+realm.run([kadminl, 'addprinc', '-randkey', 'http/localhost'])
 realm.run([kadminl, 'xst', 'service1/abraham'])
 realm.run([kadminl, 'xst', 'service1/barack'])
 realm.run([kadminl, 'xst', 'service2/calvin'])
+realm.run([kadminl, 'xst', 'http/localhost'])
 realm.run([kadminl, 'renprinc', 'service1/abraham', 'service1/andrew'])
+
+# Test with no default realm and no dots in the server name.
+realm.run(['./t_accname', 'h:http@localhost'], expected_msg='http/localhost')
+remove_default = {'libdefaults': {'default_realm': None}}
+no_default = realm.special_env('no_default', False, krb5_conf=remove_default)
+realm.run(['./t_accname', 'h:http@localhost'], expected_msg='http/localhost',
+          env=no_default)
 
 # Test with no acceptor name, including client/keytab principal
 # mismatch (non-fatal) and missing keytab entry (fatal).
@@ -46,6 +57,9 @@ realm.run(['./t_accname', 'p:service2/calvin', 'h:service2'],
           expected_msg='service2/calvin')
 realm.run(['./t_accname', 'p:service2/calvin', 'h:service1'], expected_code=1,
           expected_msg=' found in keytab but does not match server principal')
+# Regression test for #8892 (trailing @ in name).
+realm.run(['./t_accname', 'p:service1/andrew', 'h:service1@'],
+          expected_msg='service1/abraham')
 
 # Test with acceptor name containing service and host.  Use the
 # client's un-canonicalized hostname as acceptor input to mirror what
@@ -56,6 +70,22 @@ realm.run(['./t_accname', 'p:host/-nomatch-',
            'h:host@%s' % socket.gethostname()], expected_code=1,
           expected_msg=' not found in keytab')
 
+# If possible, test with an acceptor name requiring fallback to match
+# against a keytab entry.
+canonname = canonicalize_hostname(hostname)
+if canonname != hostname:
+    os.rename(realm.keytab, realm.keytab + '.save')
+    canonprinc = 'host/' + canonname
+    realm.run([kadminl, 'addprinc', '-randkey', canonprinc])
+    realm.extract_keytab(canonprinc, realm.keytab)
+    # Use the canonical name for the initiator's target name, since
+    # host/hostname exists in the KDB (but not the keytab).
+    realm.run(['./t_accname', 'h:host@' + canonname, 'h:host@' + hostname])
+    os.rename(realm.keytab + '.save', realm.keytab)
+else:
+    skipped('GSS acceptor name fallback test',
+            '%s does not canonicalize to a different name' % hostname)
+
 # Test krb5_gss_import_cred.
 realm.run(['./t_imp_cred', 'p:service1/barack'])
 realm.run(['./t_imp_cred', 'p:service1/barack', 'service1/barack'])
@@ -63,32 +93,11 @@ realm.run(['./t_imp_cred', 'p:service1/andrew', 'service1/abraham'])
 realm.run(['./t_imp_cred', 'p:service2/dwight'], expected_code=1,
           expected_msg=' not found in keytab')
 
-# Test credential store extension.
-tmpccname = 'FILE:' + os.path.join(realm.testdir, 'def_cache')
-realm.env['KRB5CCNAME'] = tmpccname
-storagecache = 'FILE:' + os.path.join(realm.testdir, 'user_store')
-servicekeytab = os.path.join(realm.testdir, 'kt')
-service_cs = 'service/cs@%s' % realm.realm
-realm.addprinc(service_cs)
-realm.extract_keytab(service_cs, servicekeytab)
-realm.kinit(service_cs, None, ['-k', '-t', servicekeytab])
-realm.run(['./t_credstore', '-s', 'p:' + service_cs, 'ccache', storagecache,
-           'keytab', servicekeytab])
-
-# Test rcache feature of cred stores.  t_credstore -r should produce a
-# replay error normally, but not with rcache set to "none:".
-output = realm.run(['./t_credstore', '-r', '-a', 'p:' + realm.host_princ],
-                   expected_code=1)
-if 'gss_accept_sec_context(2): Request is a replay' not in output:
-    fail('Expected replay error not seen in t_credstore output')
-realm.run(['./t_credstore', '-r', '-a', 'p:' + realm.host_princ,
-           'rcache', 'none:'])
-
 # Verify that we can't acquire acceptor creds without a keytab.
 os.remove(realm.keytab)
-output = realm.run(['./t_accname', 'p:abc'], expected_code=1)
-if ('gss_acquire_cred: Keytab' not in output or
-    'nonexistent or empty' not in output):
+out = realm.run(['./t_accname', 'p:abc'], expected_code=1)
+if ('gss_acquire_cred: Keytab' not in out or
+    'nonexistent or empty' not in out):
     fail('Expected error message not seen for nonexistent keytab')
 
 realm.stop()
@@ -143,23 +152,18 @@ shutil.copyfile(realm.keytab, realm.client_keytab)
 realm.run(['./t_inq_cred', '-k', '-b'], expected_msg=realm.host_princ)
 
 # Test gss_export_name behavior.
-out = realm.run(['./t_export_name', 'u:x'])
-if out != '0401000B06092A864886F7120102020000000D78404B5242544553542E434F4D\n':
-    fail('Unexpected output from t_export_name (krb5 username)')
-output = realm.run(['./t_export_name', '-s', 'u:xyz'])
-if output != '0401000806062B06010505020000000378797A\n':
-    fail('Unexpected output from t_export_name (SPNEGO username)')
-output = realm.run(['./t_export_name', 'p:a@b'])
-if output != '0401000B06092A864886F71201020200000003614062\n':
-    fail('Unexpected output from t_export_name (krb5 principal)')
-output = realm.run(['./t_export_name', '-s', 'p:a@b'])
-if output != '0401000806062B060105050200000003614062\n':
-    fail('Unexpected output from t_export_name (SPNEGO krb5 principal)')
+realm.run(['./t_export_name', 'u:x'], expected_msg=\
+          '0401000B06092A864886F7120102020000000D78404B5242544553542E434F4D\n')
+realm.run(['./t_export_name', '-s', 'u:xyz'],
+          expected_msg='0401000806062B06010505020000000378797A\n')
+realm.run(['./t_export_name', 'p:a@b'],
+          expected_msg='0401000B06092A864886F71201020200000003614062\n')
+realm.run(['./t_export_name', '-s', 'p:a@b'],
+          expected_msg='0401000806062B060105050200000003614062\n')
 
 # Test that composite-export tokens can be imported.
-output = realm.run(['./t_export_name', '-c', 'p:a@b'])
-if (output != '0402000B06092A864886F7120102020000000361406200000000\n'):
-    fail('Unexpected output from t_export_name (using COMPOSITE_EXPORT)')
+realm.run(['./t_export_name', '-c', 'p:a@b'], expected_msg=
+          '0402000B06092A864886F7120102020000000361406200000000\n')
 
 # Test gss_inquire_mechs_for_name behavior.
 krb5_mech = '{ 1 2 840 113554 1 2 2 }'
@@ -177,6 +181,7 @@ if krb5_mech not in out or spnego_mech not in out:
 # Test that accept_sec_context can produce an error token and
 # init_sec_context can interpret it.
 realm.run(['./t_err', 'p:' + realm.host_princ])
+realm.run(['./t_err', '--spnego', 'p:' + realm.host_princ])
 
 # Test the GSS_KRB5_CRED_NO_CI_FLAGS_X cred option.
 realm.run(['./t_ciflags', 'p:' + realm.host_princ])

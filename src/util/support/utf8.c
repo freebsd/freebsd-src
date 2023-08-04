@@ -33,10 +33,10 @@
  *
  * A copy of this license is available in the file LICENSE in the
  * top-level directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 
-/* This work is part of OpenLDAP Software <http://www.openldap.org/>. */
+/* This work is part of OpenLDAP Software <https://www.openldap.org/>. */
 
 /* Basic UTF-8 routines
  *
@@ -53,50 +53,6 @@
 #include "supp-int.h"
 
 /*
- * return the number of bytes required to hold the
- * NULL-terminated UTF-8 string NOT INCLUDING the
- * termination.
- */
-size_t krb5int_utf8_bytes(const char *p)
-{
-    size_t bytes;
-
-    for (bytes = 0; p[bytes]; bytes++)
-        ;
-
-    return bytes;
-}
-
-size_t krb5int_utf8_chars(const char *p)
-{
-    /* could be optimized and could check for invalid sequences */
-    size_t chars = 0;
-
-    for ( ; *p ; KRB5_UTF8_INCR(p))
-        chars++;
-
-    return chars;
-}
-
-size_t krb5int_utf8c_chars(const char *p, size_t length)
-{
-    /* could be optimized and could check for invalid sequences */
-    size_t chars = 0;
-    const char *end = p + length;
-
-    for ( ; p < end; KRB5_UTF8_INCR(p))
-        chars++;
-
-    return chars;
-}
-
-/* return offset to next character */
-int krb5int_utf8_offset(const char *p)
-{
-    return KRB5_UTF8_NEXT(p) - p;
-}
-
-/*
  * Returns length indicated by first byte.
  */
 const char krb5int_utf8_lentab[] = {
@@ -108,14 +64,6 @@ const char krb5int_utf8_lentab[] = {
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
     4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-int krb5int_utf8_charlen(const char *p)
-{
-    if (!(*p & 0x80))
-        return 1;
-
-    return krb5int_utf8_lentab[*(const unsigned char *)p ^ 0x80];
-}
 
 /*
  * Make sure the UTF-8 char used the shortest possible encoding
@@ -146,18 +94,6 @@ c krb5int_utf8_mintab[] = {
     (c)0x30, (c)0x80, (c)0x80, (c)0x80, (c)0x80, (c)0x00, (c)0x00, (c)0x00,
     (c)0x00, (c)0x00, (c)0x00, (c)0x00, (c)0x00, (c)0x00, (c)0x00, (c)0x00 };
 #undef c
-
-int krb5int_utf8_charlen2(const char *p)
-{
-    int i = KRB5_UTF8_CHARLEN(p);
-
-    if (i > 2) {
-        if (!(krb5int_utf8_mintab[*p & 0x1f] & p[1]))
-            i = 0;
-    }
-
-    return i;
-}
 
 /*
  * Convert a UTF8 character to a UCS4 character.  Return 0 on success,
@@ -191,17 +127,6 @@ int krb5int_utf8_to_ucs4(const char *p, krb5_ucs4 *out)
         return -1;
 
     *out = ch;
-    return 0;
-}
-
-int krb5int_utf8_to_ucs2(const char *p, krb5_ucs2 *out)
-{
-    krb5_ucs4 ch;
-
-    *out = 0;
-    if (krb5int_utf8_to_ucs4(p, &ch) == -1 || ch > 0xFFFF)
-        return -1;
-    *out = (krb5_ucs2) ch;
     return 0;
 }
 
@@ -240,294 +165,4 @@ size_t krb5int_ucs4_to_utf8(krb5_ucs4 c, char *buf)
     }
 
     return len;
-}
-
-size_t krb5int_ucs2_to_utf8(krb5_ucs2 c, char *buf)
-{
-    return krb5int_ucs4_to_utf8((krb5_ucs4)c, buf);
-}
-
-/*
- * Advance to the next UTF-8 character
- *
- * Ignores length of multibyte character, instead rely on
- * continuation markers to find start of next character.
- * This allows for "resyncing" of when invalid characters
- * are provided provided the start of the next character
- * is appears within the 6 bytes examined.
- */
-char *krb5int_utf8_next(const char *p)
-{
-    int i;
-    const unsigned char *u = (const unsigned char *) p;
-
-    if (KRB5_UTF8_ISASCII(u)) {
-        return (char *) &p[1];
-    }
-
-    for (i = 1; i < 6; i++) {
-        if ((u[i] & 0xc0) != 0x80) {
-            return (char *) &p[i];
-        }
-    }
-
-    return (char *) &p[i];
-}
-
-/*
- * Advance to the previous UTF-8 character
- *
- * Ignores length of multibyte character, instead rely on
- * continuation markers to find start of next character.
- * This allows for "resyncing" of when invalid characters
- * are provided provided the start of the next character
- * is appears within the 6 bytes examined.
- */
-char *krb5int_utf8_prev(const char *p)
-{
-    int i;
-    const unsigned char *u = (const unsigned char *) p;
-
-    for (i = -1; i>-6 ; i--) {
-        if ((u[i] & 0xc0 ) != 0x80) {
-            return (char *) &p[i];
-        }
-    }
-
-    return (char *) &p[i];
-}
-
-/*
- * Copy one UTF-8 character from src to dst returning
- * number of bytes copied.
- *
- * Ignores length of multibyte character, instead rely on
- * continuation markers to find start of next character.
- * This allows for "resyncing" of when invalid characters
- * are provided provided the start of the next character
- * is appears within the 6 bytes examined.
- */
-int krb5int_utf8_copy(char* dst, const char *src)
-{
-    int i;
-    const unsigned char *u = (const unsigned char *) src;
-
-    dst[0] = src[0];
-
-    if (KRB5_UTF8_ISASCII(u)) {
-        return 1;
-    }
-
-    for (i=1; i<6; i++) {
-        if ((u[i] & 0xc0) != 0x80) {
-            return i;
-        }
-        dst[i] = src[i];
-    }
-
-    return i;
-}
-
-#ifndef UTF8_ALPHA_CTYPE
-/*
- * UTF-8 ctype routines
- * Only deals with characters < 0x80 (ie: US-ASCII)
- */
-
-int krb5int_utf8_isascii(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    return KRB5_ASCII(c);
-}
-
-int krb5int_utf8_isdigit(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_DIGIT( c );
-}
-
-int krb5int_utf8_isxdigit(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_HEX(c);
-}
-
-int krb5int_utf8_isspace(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    switch(c) {
-    case ' ':
-    case '\t':
-    case '\n':
-    case '\r':
-    case '\v':
-    case '\f':
-        return 1;
-    }
-
-    return 0;
-}
-
-/*
- * These are not needed by the C SDK and are
- * not "good enough" for general use.
- */
-int krb5int_utf8_isalpha(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_ALPHA(c);
-}
-
-int krb5int_utf8_isalnum(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_ALNUM(c);
-}
-
-#if 0
-int krb5int_utf8_islower(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_LOWER(c);
-}
-
-int krb5int_utf8_isupper(const char * p)
-{
-    unsigned c = * (const unsigned char *) p;
-
-    if (!KRB5_ASCII(c))
-        return 0;
-
-    return KRB5_UPPER(c);
-}
-#endif
-#endif
-
-
-/*
- * UTF-8 string routines
- */
-
-/* like strchr() */
-char *krb5int_utf8_strchr(const char *str, const char *chr)
-{
-    krb5_ucs4 chs, ch;
-
-    if (krb5int_utf8_to_ucs4(chr, &ch) == -1)
-        return NULL;
-    for ( ; *str != '\0'; KRB5_UTF8_INCR(str)) {
-        if (krb5int_utf8_to_ucs4(str, &chs) == 0 && chs == ch)
-            return (char *)str;
-    }
-
-    return NULL;
-}
-
-/* like strcspn() but returns number of bytes, not characters */
-size_t krb5int_utf8_strcspn(const char *str, const char *set)
-{
-    const char *cstr, *cset;
-    krb5_ucs4 chstr, chset;
-
-    for (cstr = str; *cstr != '\0'; KRB5_UTF8_INCR(cstr)) {
-        for (cset = set; *cset != '\0'; KRB5_UTF8_INCR(cset)) {
-            if (krb5int_utf8_to_ucs4(cstr, &chstr) == 0
-                && krb5int_utf8_to_ucs4(cset, &chset) == 0 && chstr == chset)
-                return cstr - str;
-        }
-    }
-
-    return cstr - str;
-}
-
-/* like strspn() but returns number of bytes, not characters */
-size_t krb5int_utf8_strspn(const char *str, const char *set)
-{
-    const char *cstr, *cset;
-    krb5_ucs4 chstr, chset;
-
-    for (cstr = str; *cstr != '\0'; KRB5_UTF8_INCR(cstr)) {
-        for (cset = set; ; KRB5_UTF8_INCR(cset)) {
-            if (*cset == '\0')
-                return cstr - str;
-            if (krb5int_utf8_to_ucs4(cstr, &chstr) == 0
-                && krb5int_utf8_to_ucs4(cset, &chset) == 0 && chstr == chset)
-                break;
-        }
-    }
-
-    return cstr - str;
-}
-
-/* like strpbrk(), replaces strchr() as well */
-char *krb5int_utf8_strpbrk(const char *str, const char *set)
-{
-    const char *cset;
-    krb5_ucs4 chstr, chset;
-
-    for ( ; *str != '\0'; KRB5_UTF8_INCR(str)) {
-        for (cset = set; *cset != '\0'; KRB5_UTF8_INCR(cset)) {
-            if (krb5int_utf8_to_ucs4(str, &chstr) == 0
-                && krb5int_utf8_to_ucs4(cset, &chset) == 0 && chstr == chset)
-                return (char *)str;
-        }
-    }
-
-    return NULL;
-}
-
-/* like strtok_r(), not strtok() */
-char *krb5int_utf8_strtok(char *str, const char *sep, char **last)
-{
-    char *begin;
-    char *end;
-
-    if (last == NULL)
-        return NULL;
-
-    begin = str ? str : *last;
-
-    begin += krb5int_utf8_strspn(begin, sep);
-
-    if (*begin == '\0') {
-        *last = NULL;
-        return NULL;
-    }
-
-    end = &begin[krb5int_utf8_strcspn(begin, sep)];
-
-    if (*end != '\0') {
-        char *next = KRB5_UTF8_NEXT(end);
-        *end = '\0';
-        end = next;
-    }
-
-    *last = end;
-
-    return begin;
 }

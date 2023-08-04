@@ -54,7 +54,6 @@
 #include <adm_proto.h>
 #include "kdb_kt.h"  /* for krb5_ktkdb_set_context */
 #include <string.h>
-#include "kadm5/server_internal.h" /* XXX for kadm5_server_handle_t */
 #include <kdb_log.h>
 
 #include "misc.h"
@@ -76,10 +75,6 @@ char *kprop_port = NULL;
 
 static krb5_context context;
 static char *progname;
-
-#ifdef USE_PASSWORD_SERVER
-void kadm5_set_use_password_server(void);
-#endif
 
 static void
 usage()
@@ -106,7 +101,6 @@ fail_to_start(krb5_error_code code, const char *msg)
 {
     const char *errmsg;
 
-    fprintf(stderr, "%s: ", progname);
     if (code) {
         errmsg = krb5_get_error_message(context, code);
         fprintf(stderr, _("%s: %s while %s, aborting\n"), progname, errmsg,
@@ -138,44 +132,42 @@ write_pid_file(const char *pid_file)
 /* Set up the main loop.  If proponly is set, don't set up ports for kpasswd or
  * kadmin.  May set *ctx_out even on error. */
 static krb5_error_code
-setup_loop(int proponly, verto_ctx **ctx_out)
+setup_loop(kadm5_config_params *params, int proponly, verto_ctx **ctx_out)
 {
     krb5_error_code ret;
     verto_ctx *ctx;
-    kadm5_server_handle_t handle = global_server_handle;
 
     *ctx_out = ctx = loop_init(VERTO_EV_TYPE_SIGNAL);
     if (ctx == NULL)
         return ENOMEM;
-    ret = loop_setup_signals(ctx, global_server_handle, NULL);
+    ret = loop_setup_signals(ctx, &global_server_handle, NULL);
     if (ret)
         return ret;
     if (!proponly) {
-        ret = loop_add_udp_address(handle->params.kpasswd_port,
-                                   handle->params.kpasswd_listen);
+        ret = loop_add_udp_address(params->kpasswd_port,
+                                   params->kpasswd_listen);
         if (ret)
             return ret;
-        ret = loop_add_tcp_address(handle->params.kpasswd_port,
-                                   handle->params.kpasswd_listen);
+        ret = loop_add_tcp_address(params->kpasswd_port,
+                                   params->kpasswd_listen);
         if (ret)
             return ret;
-        ret = loop_add_rpc_service(handle->params.kadmind_port,
-                                   handle->params.kadmind_listen,
+        ret = loop_add_rpc_service(params->kadmind_port,
+                                   params->kadmind_listen,
                                    KADM, KADMVERS, kadm_1);
         if (ret)
             return ret;
     }
 #ifndef DISABLE_IPROP
-    if (handle->params.iprop_enabled) {
-        ret = loop_add_rpc_service(handle->params.iprop_port,
-                                   handle->params.iprop_listen,
+    if (params->iprop_enabled) {
+        ret = loop_add_rpc_service(params->iprop_port, params->iprop_listen,
                                    KRB5_IPROP_PROG, KRB5_IPROP_VERS,
                                    krb5_iprop_prog_1);
         if (ret)
             return ret;
     }
 #endif
-    return loop_setup_network(ctx, global_server_handle, progname,
+    return loop_setup_network(ctx, &global_server_handle, progname,
                               DEFAULT_TCP_LISTEN_BACKLOG);
 }
 
@@ -231,7 +223,7 @@ log_badverf(gss_name_t client_name, gss_name_t server_name,
         {14, "GET_PRINCS"},
         {15, "GET_POLS"},
         {16, "SETKEY_PRINCIPAL"},
-        {17, "SETV4KEY_PRINCIPAL"},
+        /* 17 was "SETV4KEY_PRINCIPAL" */
         {18, "CREATE_PRINCIPAL3"},
         {19, "CHPASS_PRINCIPAL3"},
         {20, "CHRAND_PRINCIPAL3"},
@@ -357,7 +349,7 @@ main(int argc, char *argv[])
     const char *pid_file = NULL;
     char **db_args = NULL, **tmpargs;
     const char *acl_file;
-    int ret, i, db_args_size = 0, strong_random = 1, proponly = 0;
+    int ret, i, db_args_size = 0, proponly = 0;
 
     setlocale(LC_ALL, "");
     setvbuf(stderr, NULL, _IONBF, 0);
@@ -400,10 +392,6 @@ main(int argc, char *argv[])
             params.mask |= KADM5_CONFIG_MKEY_FROM_KBD;
         } else if (strcmp(*argv, "-nofork") == 0) {
             nofork = 1;
-#ifdef USE_PASSWORD_SERVER
-        } else if (strcmp(*argv, "-passwordserver") == 0) {
-            kadm5_set_use_password_server();
-#endif
 #ifndef DISABLE_IPROP
         } else if (strcmp(*argv, "-proponly") == 0) {
             proponly = 1;
@@ -420,7 +408,7 @@ main(int argc, char *argv[])
                 usage();
             pid_file = *argv;
         } else if (strcmp(*argv, "-W") == 0) {
-            strong_random = 0;
+            /* Ignore (deprecated weak random option). */
         } else if (strcmp(*argv, "-p") == 0) {
             argc--, argv++;
             if (!argc)
@@ -472,8 +460,12 @@ main(int argc, char *argv[])
         fail_to_start(0, _("Missing required realm configuration"));
     if (!(params.mask & KADM5_CONFIG_ACL_FILE))
         fail_to_start(0, _("Missing required ACL file configuration"));
+    if (proponly && !params.iprop_enabled) {
+        fail_to_start(0, _("-proponly can only be used when "
+                           "iprop_enable is true"));
+    }
 
-    ret = setup_loop(proponly, &vctx);
+    ret = setup_loop(&params, proponly, &vctx);
     if (ret)
         fail_to_start(ret, _("initializing network"));
 
@@ -511,6 +503,11 @@ main(int argc, char *argv[])
     if (ret)
         fail_to_start(ret, _("initializing ACL file"));
 
+    /* Since some KDB modules are not fork-safe, we must reinitialize the
+     * server handle after daemonizing. */
+    kadm5_destroy(global_server_handle);
+    global_server_handle = NULL;
+
     if (!nofork && daemon(0, 0) != 0)
         fail_to_start(errno, _("spawning daemon process"));
     if (pid_file != NULL) {
@@ -519,13 +516,14 @@ main(int argc, char *argv[])
             fail_to_start(ret, _("creating PID file"));
     }
 
-    krb5_klog_syslog(LOG_INFO, _("Seeding random number generator"));
-    ret = krb5_c_random_os_entropy(context, strong_random, NULL);
+    ret = kadm5_init(context, "kadmind", NULL, NULL, &params,
+                     KADM5_STRUCT_VERSION, KADM5_API_VERSION_4, db_args,
+                     &global_server_handle);
     if (ret)
-        fail_to_start(ret, _("getting random seed"));
+        fail_to_start(ret, _("initializing"));
 
     if (params.iprop_enabled == TRUE) {
-        ulog_set_role(context, IPROP_MASTER);
+        ulog_set_role(context, IPROP_PRIMARY);
 
         ret = ulog_map(context, params.iprop_logfile, params.iprop_ulogsize);
         if (ret)
@@ -560,5 +558,5 @@ main(int argc, char *argv[])
 
     krb5_klog_close(context);
     krb5_free_context(context);
-    exit(2);
+    exit(0);
 }

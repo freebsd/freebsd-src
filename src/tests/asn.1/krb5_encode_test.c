@@ -640,23 +640,6 @@ main(argc, argv)
         ktest_empty_ad_kdcissued(&kdci);
     }
     /****************************************************************/
-    /* encode_krb5_ad_signedpath_data */
-    {
-        krb5_ad_signedpath_data spd;
-        ktest_make_sample_ad_signedpath_data(&spd);
-        encode_run(spd, "ad_signedpath_data", "",
-                   encode_krb5_ad_signedpath_data);
-        ktest_empty_ad_signedpath_data(&spd);
-    }
-    /****************************************************************/
-    /* encode_krb5_ad_signedpath */
-    {
-        krb5_ad_signedpath sp;
-        ktest_make_sample_ad_signedpath(&sp);
-        encode_run(sp, "ad_signedpath", "", encode_krb5_ad_signedpath);
-        ktest_empty_ad_signedpath(&sp);
-    }
-    /****************************************************************/
     /* encode_krb5_iakerb_header */
     {
         krb5_iakerb_header ih;
@@ -759,6 +742,35 @@ main(argc, argv)
         encode_run(cookie, "secure_cookie", "", encode_krb5_secure_cookie);
         ktest_empty_secure_cookie(&cookie);
     }
+    /****************************************************************/
+    /* encode_krb5_spake_factor */
+    {
+        krb5_spake_factor factor;
+        ktest_make_minimal_spake_factor(&factor);
+        encode_run(factor, "spake_factor", "(optionals NULL)",
+                   encode_krb5_spake_factor);
+        ktest_empty_spake_factor(&factor);
+        ktest_make_maximal_spake_factor(&factor);
+        encode_run(factor, "spake_factor", "", encode_krb5_spake_factor);
+        ktest_empty_spake_factor(&factor);
+    }
+    /****************************************************************/
+    /* encode_krb5_pa_spake */
+    {
+        krb5_pa_spake pa_spake;
+        ktest_make_support_pa_spake(&pa_spake);
+        encode_run(pa_spake, "pa_spake", "(support)", encode_krb5_pa_spake);
+        ktest_empty_pa_spake(&pa_spake);
+        ktest_make_challenge_pa_spake(&pa_spake);
+        encode_run(pa_spake, "pa_spake", "(challenge)", encode_krb5_pa_spake);
+        ktest_empty_pa_spake(&pa_spake);
+        ktest_make_response_pa_spake(&pa_spake);
+        encode_run(pa_spake, "pa_spake", "(response)", encode_krb5_pa_spake);
+        ktest_empty_pa_spake(&pa_spake);
+        ktest_make_encdata_pa_spake(&pa_spake);
+        encode_run(pa_spake, "pa_spake", "(encdata)", encode_krb5_pa_spake);
+        ktest_empty_pa_spake(&pa_spake);
+    }
 #ifndef DISABLE_PKINIT
     /****************************************************************/
     /* encode_krb5_pa_pk_as_req */
@@ -767,15 +779,6 @@ main(argc, argv)
         ktest_make_sample_pa_pk_as_req(&req);
         encode_run(req, "pa_pk_as_req", "", acc.encode_krb5_pa_pk_as_req);
         ktest_empty_pa_pk_as_req(&req);
-    }
-    /****************************************************************/
-    /* encode_krb5_pa_pk_as_req_draft9 */
-    {
-        krb5_pa_pk_as_req_draft9 req;
-        ktest_make_sample_pa_pk_as_req_draft9(&req);
-        encode_run(req, "pa_pk_as_req_draft9", "",
-                   acc.encode_krb5_pa_pk_as_req_draft9);
-        ktest_empty_pa_pk_as_req_draft9(&req);
     }
     /****************************************************************/
     /* encode_krb5_pa_pk_as_rep */
@@ -791,34 +794,12 @@ main(argc, argv)
         ktest_empty_pa_pk_as_rep(&rep);
     }
     /****************************************************************/
-    /* encode_krb5_pa_pk_as_rep_draft9 */
-    {
-        krb5_pa_pk_as_rep_draft9 rep;
-        ktest_make_sample_pa_pk_as_rep_draft9_dhSignedData(&rep);
-        encode_run(rep, "pa_pk_as_rep_draft9", "(dhSignedData)",
-                   acc.encode_krb5_pa_pk_as_rep_draft9);
-        ktest_empty_pa_pk_as_rep_draft9(&rep);
-        ktest_make_sample_pa_pk_as_rep_draft9_encKeyPack(&rep);
-        encode_run(rep, "pa_pk_as_rep_draft9", "(encKeyPack)",
-                   acc.encode_krb5_pa_pk_as_rep_draft9);
-        ktest_empty_pa_pk_as_rep_draft9(&rep);
-    }
-    /****************************************************************/
     /* encode_krb5_auth_pack */
     {
         krb5_auth_pack pack;
         ktest_make_sample_auth_pack(&pack);
         encode_run(pack, "auth_pack", "", acc.encode_krb5_auth_pack);
         ktest_empty_auth_pack(&pack);
-    }
-    /****************************************************************/
-    /* encode_krb5_auth_pack_draft9_draft9 */
-    {
-        krb5_auth_pack_draft9 pack;
-        ktest_make_sample_auth_pack_draft9(&pack);
-        encode_run(pack, "auth_pack_draft9", "",
-                   acc.encode_krb5_auth_pack_draft9);
-        ktest_empty_auth_pack_draft9(&pack);
     }
     /****************************************************************/
     /* encode_krb5_kdc_dh_key_info */
@@ -835,15 +816,6 @@ main(argc, argv)
         ktest_make_sample_reply_key_pack(&pack);
         encode_run(pack, "reply_key_pack", "", acc.encode_krb5_reply_key_pack);
         ktest_empty_reply_key_pack(&pack);
-    }
-    /****************************************************************/
-    /* encode_krb5_reply_key_pack_draft9 */
-    {
-        krb5_reply_key_pack_draft9 pack;
-        ktest_make_sample_reply_key_pack_draft9(&pack);
-        encode_run(pack, "reply_key_pack_draft9", "",
-                   acc.encode_krb5_reply_key_pack_draft9);
-        ktest_empty_reply_key_pack_draft9(&pack);
     }
     /****************************************************************/
     /* encode_krb5_sp80056a_other_info */

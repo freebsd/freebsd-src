@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (C) 2010,2012 by the Massachusetts Institute of Technology.
 # All rights reserved.
 #

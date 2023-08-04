@@ -38,9 +38,9 @@ int, krb5_principal type: Windows 2000 UPN and SID
 int, krb5_principal type: NT 4 style name
 int, krb5_principal type: NT 4 style name and SID
 int, krb5_principal type: ?
-krb5_pa_data **, display list of padata type numbers: 3, 0
+krb5_pa_data **, display list of padata type numbers: PA-PW-SALT (3), 0
 krb5_pa_data **, display list of padata type numbers: (empty)
-krb5_enctype, display shortest name of enctype: des-cbc-crc
+krb5_enctype, display shortest name of enctype: aes128-cts
 krb5_enctype *, display list of enctypes: 5, rc4-hmac-exp, 511
 krb5_enctype *, display list of enctypes: (empty)
 krb5_ccache, display type:name: FILE:/path/to/ccache

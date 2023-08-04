@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>klist &mdash; MIT Kerberos Documentation</title>
-    
+    <title>klist &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="User commands" href="index.html" />
     <link rel="next" title="kpasswd" href="kpasswd.html" />
     <link rel="prev" title="kinit" href="kinit.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="klist">
 <span id="klist-1"></span><h1>klist<a class="headerlink" href="#klist" title="Permalink to this headline">¶</a></h1>
@@ -71,8 +69,9 @@
 [<strong>-e</strong>]
 [[<strong>-c</strong>] [<strong>-l</strong>] [<strong>-A</strong>] [<strong>-f</strong>] [<strong>-s</strong>] [<strong>-a</strong> [<strong>-n</strong>]]]
 [<strong>-C</strong>]
-[<strong>-k</strong> [<strong>-t</strong>] [<strong>-K</strong>]]
+[<strong>-k</strong> [<strong>-i</strong>] [<strong>-t</strong>] [<strong>-K</strong>]]
 [<strong>-V</strong>]
+[<strong>-d</strong>]
 [<em>cache_name</em>|<em>keytab_name</em>]</p>
 </div>
 <div class="section" id="description">
@@ -99,20 +98,20 @@ neither <strong>-c</strong> nor <strong>-k</strong> is specified.</dd>
 <dt><strong>-f</strong></dt>
 <dd><p class="first">Shows the flags present in the credentials, using the following
 abbreviations:</p>
-<div class="last highlight-python"><div class="highlight"><pre>F    Forwardable
-f    forwarded
-P    Proxiable
-p    proxy
-D    postDateable
-d    postdated
-R    Renewable
-I    Initial
-i    invalid
-H    Hardware authenticated
-A    preAuthenticated
-T    Transit policy checked
-O    Okay as delegate
-a    anonymous
+<div class="last highlight-default"><div class="highlight"><pre><span></span><span class="n">F</span>    <span class="n">Forwardable</span>
+<span class="n">f</span>    <span class="n">forwarded</span>
+<span class="n">P</span>    <span class="n">Proxiable</span>
+<span class="n">p</span>    <span class="n">proxy</span>
+<span class="n">D</span>    <span class="n">postDateable</span>
+<span class="n">d</span>    <span class="n">postdated</span>
+<span class="n">R</span>    <span class="n">Renewable</span>
+<span class="n">I</span>    <span class="n">Initial</span>
+<span class="n">i</span>    <span class="n">invalid</span>
+<span class="n">H</span>    <span class="n">Hardware</span> <span class="n">authenticated</span>
+<span class="n">A</span>    <span class="n">preAuthenticated</span>
+<span class="n">T</span>    <span class="n">Transit</span> <span class="n">policy</span> <span class="n">checked</span>
+<span class="n">O</span>    <span class="n">Okay</span> <span class="k">as</span> <span class="n">delegate</span>
+<span class="n">a</span>    <span class="n">anonymous</span>
 </pre></div>
 </div>
 </dd>
@@ -140,6 +139,8 @@ keytab file.</dd>
 <dt><strong>-K</strong></dt>
 <dd>Display the value of the encryption key in each keytab entry in
 the keytab file.</dd>
+<dt><strong>-d</strong></dt>
+<dd>Display the authdata types (if any) for each entry.</dd>
 <dt><strong>-V</strong></dt>
 <dd>Display the Kerberos version number and exit.</dd>
 </dl>
@@ -150,29 +151,21 @@ value is used to locate the default ticket cache.</p>
 </div>
 <div class="section" id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
-<p>klist uses the following environment variable:</p>
-<dl class="docutils">
-<dt><strong>KRB5CCNAME</strong></dt>
-<dd>Location of the default Kerberos 5 credentials (ticket) cache, in
-the form <em>type</em>:<em>residual</em>.  If no <em>type</em> prefix is present, the
-<strong>FILE</strong> type is assumed.  The type of the default cache may
-determine the availability of a cache collection; for instance, a
-default cache of type <strong>DIR</strong> causes caches within the directory
-to be present in the collection.</dd>
-</dl>
+<p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="files">
 <h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
-<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCCNAME</em></a></dt>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a></dt>
 <dd>Default location of Kerberos 5 credentials cache</dd>
-<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFKTNAME</em></a></dt>
-<dd>Default location for the local host&#8217;s keytab file.</dd>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a></dt>
+<dd>Default location for the local host’s keytab file.</dd>
 </dl>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="kinit.html#kinit-1"><em>kinit</em></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><em>kdestroy</em></a></p>
+<p><a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </div>
 </div>
 
@@ -205,7 +198,7 @@ to be present in the collection.</dd>
 <li class="toctree-l2 current"><a class="reference internal" href="index.html">User commands</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="kdestroy.html">kdestroy</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kinit.html">kinit</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">klist</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">klist</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ksu.html">ksu</a></li>
@@ -244,8 +237,8 @@ to be present in the collection.</dd>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -6,12 +6,11 @@ SPHINX_BUILD=sphinx-build $(SPHINX_ARGS)
 DOXYGEN=doxygen
 
 docsrc=$(top_srcdir)/../doc
-localstatedir=@localstatedir@
-runstatedir=@runstatedir@
 sysconfdir=@sysconfdir@
 DEFCCNAME=@DEFCCNAME@
 DEFKTNAME=@DEFKTNAME@
 DEFCKTNAME=@DEFCKTNAME@
+PKCS11_MODNAME=@PKCS11_MODNAME@
 
 RST_SOURCES= _static \
 	_templates \
@@ -48,7 +47,7 @@ html: composite
 
 # Dummy target for use in an unconfigured source tree.
 htmlsrc:
-	$(MAKE) -f Makefile.in srcdir=. top_srcdir=.. PYTHON=python html clean
+	$(MAKE) -f Makefile.in srcdir=. top_srcdir=.. PYTHON=python3 html clean
 
 # Create HTML documentation in html_subst suitable for
 # installation by an OS package, with substitutions for configured
@@ -120,6 +119,7 @@ paths.py:
 	echo 'ccache = "``$(DEFCCNAME)``"' >> $@
 	echo 'keytab = "``$(DEFKTNAME)``"' >> $@
 	echo 'ckeytab = "``$(DEFCKTNAME)``"' >> $@
+	echo 'pkcs11_modname = "``$(PKCS11_MODNAME)``"' >> $@
 
 # Dummy rule that man/Makefile can invoke
 version.py: $(docsrc)/version.py

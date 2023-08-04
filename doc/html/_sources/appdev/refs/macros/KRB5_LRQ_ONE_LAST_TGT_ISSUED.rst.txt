@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-LRQ-ONE-LAST-TGT-ISSUED-data:
+
+KRB5_LRQ_ONE_LAST_TGT_ISSUED
+============================
+
+..
+.. data:: KRB5_LRQ_ONE_LAST_TGT_ISSUED
+..
+
+
+
+
+=================================== ======================
+``KRB5_LRQ_ONE_LAST_TGT_ISSUED``       ``(-3)``
+=================================== ======================

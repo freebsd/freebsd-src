@@ -86,14 +86,14 @@ static void xdralloc_destroy(XDR *xdrs)
 }
 
 static bool_t xdralloc_notsup_getlong(
-     register XDR *xdrs,
+     XDR *xdrs,
      long *lp)
 {
      return FALSE;
 }
 
 static bool_t xdralloc_putlong(
-     register XDR *xdrs,
+     XDR *xdrs,
      long *lp)
 {
      int l = htonl((uint32_t) *lp); /* XXX need bounds checking */
@@ -108,18 +108,18 @@ static bool_t xdralloc_putlong(
 
 
 static bool_t xdralloc_notsup_getbytes(
-     register XDR *xdrs,
+     XDR *xdrs,
      caddr_t addr,
-     register unsigned int len)
+     unsigned int len)
 {
      return FALSE;
 }
 
 
 static bool_t xdralloc_putbytes(
-     register XDR *xdrs,
+     XDR *xdrs,
      caddr_t addr,
-     register unsigned int len)
+     unsigned int len)
 {
      if (DynInsert((DynObject) xdrs->x_private,
 		   DynSize((DynObject) xdrs->x_private),
@@ -134,7 +134,7 @@ static unsigned int xdralloc_getpos(XDR *xdrs)
 }
 
 static bool_t xdralloc_notsup_setpos(
-     register XDR *xdrs,
+     XDR *xdrs,
      unsigned int lp)
 {
      return FALSE;
@@ -143,7 +143,7 @@ static bool_t xdralloc_notsup_setpos(
 
 
 static rpc_inline_t *xdralloc_inline(
-     register XDR *xdrs,
+     XDR *xdrs,
      int len)
 {
      return (rpc_inline_t *) 0;

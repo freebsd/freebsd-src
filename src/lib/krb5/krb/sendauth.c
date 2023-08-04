@@ -126,29 +126,6 @@ krb5_sendauth(krb5_context context, krb5_auth_context *auth_context,
         credsp = in_creds;
     }
 
-    if (ap_req_options & AP_OPTS_USE_SUBKEY) {
-        /* Provide some more fodder for random number code.
-           This isn't strong cryptographically; the point here is
-           not to guarantee randomness, but to make it less likely
-           that multiple sessions could pick the same subkey.  */
-        struct sockaddr_storage rnd_data;
-        GETPEERNAME_ARG3_TYPE len2;
-        krb5_data d = make_data(&rnd_data, sizeof(rnd_data));
-
-        len2 = sizeof(rnd_data);
-        if (getpeername(*(int *)fd, ss2sa(&rnd_data), &len2) == 0) {
-            d.length = len2;
-            (void)krb5_c_random_add_entropy(
-                context, KRB5_C_RANDSOURCE_EXTERNAL_PROTOCOL, &d);
-        }
-        len2 = sizeof(rnd_data);
-        if (getsockname(*(int *)fd, ss2sa(&rnd_data), &len2) == 0) {
-            d.length = len2;
-            (void)krb5_c_random_add_entropy(
-                context, KRB5_C_RANDSOURCE_EXTERNAL_PROTOCOL, &d);
-        }
-    }
-
     outbuf[0].data = NULL;      /* Coverity is confused otherwise */
     if ((retval = krb5_mk_req_extended(context, auth_context,
                                        ap_req_options, in_data, credsp,

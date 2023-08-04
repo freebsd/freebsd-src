@@ -51,11 +51,11 @@
 
 char *
 nstrtok(s, delim)
-    register char *s;
-    register const char *delim;
+    char *s;
+    const char *delim;
 {
-    register const char *spanp;
-    register int c, sc;
+    const char *spanp;
+    int c, sc;
     char *tok;
     static char *last;
 

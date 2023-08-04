@@ -131,7 +131,6 @@ typedef struct mit_des_ran_key_seed {
 /* the first byte of the key is already in the keyblock */
 
 #define MIT_DES_BLOCK_LENGTH            (8*sizeof(krb5_octet))
-#define MIT_DES_CBC_CRC_PAD_MINIMUM     CRC32_CKSUM_LENGTH
 /* This used to be 8*sizeof(krb5_octet) */
 #define MIT_DES_KEYSIZE                 8
 

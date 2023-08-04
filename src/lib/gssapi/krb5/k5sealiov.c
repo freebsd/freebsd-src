@@ -44,9 +44,10 @@ make_seal_token_v1_iov(krb5_context context,
     krb5_checksum cksum;
     size_t k5_headerlen = 0, k5_trailerlen = 0;
     size_t data_length = 0, assoc_data_length = 0;
-    size_t tmsglen = 0, tlen;
-    unsigned char *ptr;
+    size_t tmsglen = 0, cnflen = 0, tlen;
+    uint8_t *metadata, *checksum, *confounder;
     krb5_keyusage sign_usage = KG_USAGE_SIGN;
+    struct k5buf buf;
 
     md5cksum.length = cksum.length = 0;
     md5cksum.contents = cksum.contents = NULL;
@@ -65,17 +66,15 @@ make_seal_token_v1_iov(krb5_context context,
         trailer->buffer.length = 0;
 
     /* Determine confounder length */
-    if (toktype == KG_TOK_WRAP_MSG || conf_req_flag)
-        k5_headerlen = kg_confounder_size(context, ctx->enc->keyblock.enctype);
-
-    /* Check padding length */
     if (toktype == KG_TOK_WRAP_MSG) {
         size_t k5_padlen = (ctx->sealalg == SEAL_ALG_MICROSOFT_RC4) ? 1 : 8;
         size_t gss_padlen;
         size_t conf_data_length;
 
+        cnflen = kg_confounder_size(context, ctx->enc->keyblock.enctype);
+
         kg_iov_msglen(iov, iov_count, &data_length, &assoc_data_length);
-        conf_data_length = k5_headerlen + data_length - assoc_data_length;
+        conf_data_length = cnflen + data_length - assoc_data_length;
 
         if (k5_padlen == 1)
             gss_padlen = 1; /* one byte to indicate one byte of padding */
@@ -103,7 +102,7 @@ make_seal_token_v1_iov(krb5_context context,
         }
 
         if (ctx->gss_flags & GSS_C_DCE_STYLE)
-            tmsglen = k5_headerlen; /* confounder length */
+            tmsglen = cnflen; /* confounder length */
         else
             tmsglen = conf_data_length + padding->buffer.length;
     }
@@ -111,7 +110,7 @@ make_seal_token_v1_iov(krb5_context context,
     /* Determine token size */
     tlen = g_token_size(ctx->mech_used, 14 + ctx->cksum_size + tmsglen);
 
-    k5_headerlen += tlen - tmsglen;
+    k5_headerlen = cnflen + tlen - tmsglen;
 
     if (header->type & GSS_IOV_BUFFER_FLAG_ALLOCATE)
         code = kg_allocate_iov(header, k5_headerlen);
@@ -122,33 +121,33 @@ make_seal_token_v1_iov(krb5_context context,
 
     header->buffer.length = k5_headerlen;
 
-    ptr = (unsigned char *)header->buffer.value;
-    g_make_token_header(ctx->mech_used, 14 + ctx->cksum_size + tmsglen, &ptr, toktype);
+    k5_buf_init_fixed(&buf, header->buffer.value, k5_headerlen);
+    g_make_token_header(&buf, ctx->mech_used, 14 + ctx->cksum_size + tmsglen,
+                        toktype);
+    metadata = k5_buf_get_space(&buf, 14);
+    checksum = k5_buf_get_space(&buf, ctx->cksum_size);
+    assert(metadata != NULL && checksum != NULL);
 
     /* 0..1 SIGN_ALG */
-    store_16_le(ctx->signalg, &ptr[0]);
+    store_16_le(ctx->signalg, &metadata[0]);
 
     /* 2..3 SEAL_ALG or Filler */
     if (toktype == KG_TOK_WRAP_MSG && conf_req_flag) {
-        store_16_le(ctx->sealalg, &ptr[2]);
+        store_16_le(ctx->sealalg, &metadata[2]);
     } else {
         /* No seal */
-        ptr[2] = 0xFF;
-        ptr[3] = 0xFF;
+        metadata[2] = 0xFF;
+        metadata[3] = 0xFF;
     }
 
     /* 4..5 Filler */
-    ptr[4] = 0xFF;
-    ptr[5] = 0xFF;
+    metadata[4] = 0xFF;
+    metadata[5] = 0xFF;
 
     /* pad the plaintext, encrypt if needed, and stick it in the token */
 
     /* initialize the checksum */
     switch (ctx->signalg) {
-    case SGN_ALG_DES_MAC_MD5:
-    case SGN_ALG_MD2_5:
-        md5cksum.checksum_type = CKSUMTYPE_RSA_MD5;
-        break;
     case SGN_ALG_HMAC_SHA1_DES3_KD:
         md5cksum.checksum_type = CKSUMTYPE_HMAC_SHA1_DES3;
         break;
@@ -158,7 +157,6 @@ make_seal_token_v1_iov(krb5_context context,
             sign_usage = 15;
         break;
     default:
-    case SGN_ALG_DES_MAC:
         abort ();
     }
 
@@ -168,8 +166,10 @@ make_seal_token_v1_iov(krb5_context context,
     md5cksum.length = k5_trailerlen;
 
     if (k5_headerlen != 0 && toktype == KG_TOK_WRAP_MSG) {
+        confounder = k5_buf_get_space(&buf, cnflen);
+        assert(confounder != NULL);
         code = kg_make_confounder(context, ctx->enc->keyblock.enctype,
-                                  ptr + 14 + ctx->cksum_size);
+                                  confounder);
         if (code != 0)
             goto cleanup;
     }
@@ -183,33 +183,18 @@ make_seal_token_v1_iov(krb5_context context,
         goto cleanup;
 
     switch (ctx->signalg) {
-    case SGN_ALG_DES_MAC_MD5:
-    case SGN_ALG_3:
-        code = kg_encrypt_inplace(context, ctx->seq, KG_USAGE_SEAL,
-                                  (g_OID_equal(ctx->mech_used,
-                                               gss_mech_krb5_old) ?
-                                   ctx->seq->keyblock.contents : NULL),
-                                  md5cksum.contents, 16);
-        if (code != 0)
-            goto cleanup;
-
-        cksum.length = ctx->cksum_size;
-        cksum.contents = md5cksum.contents + 16 - cksum.length;
-
-        memcpy(ptr + 14, cksum.contents, cksum.length);
-        break;
     case SGN_ALG_HMAC_SHA1_DES3_KD:
         assert(md5cksum.length == ctx->cksum_size);
-        memcpy(ptr + 14, md5cksum.contents, md5cksum.length);
+        memcpy(checksum, md5cksum.contents, md5cksum.length);
         break;
     case SGN_ALG_HMAC_MD5:
-        memcpy(ptr + 14, md5cksum.contents, ctx->cksum_size);
+        memcpy(checksum, md5cksum.contents, ctx->cksum_size);
         break;
     }
 
     /* create the seq_num */
     code = kg_make_seq_num(context, ctx->seq, ctx->initiate ? 0 : 0xFF,
-                           (OM_uint32)ctx->seq_send, ptr + 14, ptr + 6);
+                           (OM_uint32)ctx->seq_send, checksum, metadata + 6);
     if (code != 0)
         goto cleanup;
 

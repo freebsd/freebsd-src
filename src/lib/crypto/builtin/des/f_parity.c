@@ -9,8 +9,10 @@
  * Mark Eichin -- Cygnus Support
  */
 
-
+#include "crypto_int.h"
 #include "des_int.h"
+
+#ifdef K5_BUILTIN_DES_KEY_PARITY
 
 /*
  * des_fixup_key_parity: Forces odd parity per byte; parity is bits
@@ -34,6 +36,10 @@ mit_des_fixup_key_parity(mit_des_cblock key)
     return;
 }
 
+#endif /* K5_BUILTIN_DES_KEY_PARITY */
+
+#ifdef K5_BUILTIN_DES
+
 /*
  * des_check_key_parity: returns true iff key has the correct des parity.
  *                       See des_fix_key_parity for the definition of
@@ -54,3 +60,5 @@ mit_des_check_key_parity(mit_des_cblock key)
 
     return(1);
 }
+
+#endif /* K5_BUILTIN_DES */

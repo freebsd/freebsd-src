@@ -29,7 +29,6 @@
 /* various externs for KDC */
 extern krb5_data        empty_string;   /* an empty string */
 extern krb5_timestamp   kdc_infinity;   /* greater than all other timestamps */
-extern krb5_keyblock    psr_key;        /* key for predicted sam response */
 extern const int        kdc_modifies_kdb;
 extern krb5_int32       max_dgram_reply_size; /* maximum datagram size */
 

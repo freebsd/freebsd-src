@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_pre_send_fn &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_pre_send_fn &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 types and structures" href="index.html" />
     <link rel="next" title="krb5_preauthtype" href="krb5_preauthtype.html" />
     <link rel="prev" title="krb5_post_recv_fn" href="krb5_post_recv_fn.html" /> 
   </head>
@@ -61,23 +59,23 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-pre-send-fn">
 <span id="krb5-pre-send-fn-struct"></span><h1>krb5_pre_send_fn<a class="headerlink" href="#krb5-pre-send-fn" title="Permalink to this headline">¶</a></h1>
 <dl class="type">
 <dt id="c.krb5_pre_send_fn">
-<tt class="descname">krb5_pre_send_fn</tt><a class="headerlink" href="#c.krb5_pre_send_fn" title="Permalink to this definition">¶</a></dt>
+<code class="descname">krb5_pre_send_fn</code><a class="headerlink" href="#c.krb5_pre_send_fn" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <p>Hook function for inspecting or modifying messages sent to KDCs.</p>
-<p>If the hook function sets <em>reply_out</em> , <em>message</em> will not be sent to the KDC, and the given reply will used instead.
+<p>If the hook function sets <em>new_reply_out</em> , <em>message</em> will not be sent to the KDC, and the given reply will used instead.
 If the hook function sets <em>new_message_out</em> , the given message will be sent to the KDC in place of <em>message</em> .
 If the hook function returns successfully without setting either output, <em>message</em> will be sent to the KDC normally.
-The hook function should use <a class="reference internal" href="../api/krb5_copy_data.html#c.krb5_copy_data" title="krb5_copy_data"><tt class="xref c c-func docutils literal"><span class="pre">krb5_copy_data()</span></tt></a> to construct the value for <em>new_message_out</em> or <em>reply_out</em> , to ensure that it can be freed correctly by the library.</p>
+The hook function should use <a class="reference internal" href="../api/krb5_copy_data.html#c.krb5_copy_data" title="krb5_copy_data"><code class="xref c c-func docutils literal"><span class="pre">krb5_copy_data()</span></code></a> to construct the value for <em>new_message_out</em> or <em>reply_out</em> , to ensure that it can be freed correctly by the library.</p>
 <div class="section" id="declaration">
 <h2>Declaration<a class="headerlink" href="#declaration" title="Permalink to this headline">¶</a></h2>
-<p>typedef krb5_error_code( * krb5_pre_send_fn)(krb5_context context, void *data, const krb5_data *realm, const krb5_data *message, krb5_data **new_message_out, krb5_data **new_reply_out)</p>
+<p>typedef krb5_error_code( * krb5_pre_send_fn) (krb5_context context, void *data, const krb5_data *realm, const krb5_data *message, krb5_data **new_message_out, krb5_data **new_reply_out)</p>
 </div>
 </div>
 
@@ -140,8 +138,8 @@ The hook function should use <a class="reference internal" href="../api/krb5_cop
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

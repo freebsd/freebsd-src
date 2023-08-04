@@ -1,4 +1,3 @@
-tohex
 krb5_ldap_open
 krb5_ldap_close
 krb5_ldap_db_init

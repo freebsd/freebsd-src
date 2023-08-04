@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Test gss_export_cred and gss_import_cred for initiator creds,

@@ -12,7 +12,7 @@
 static bool_t
 xdr_int16_t (XDR *xdrs, int16_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_short (xdrs, objp))
         return FALSE;
@@ -22,7 +22,7 @@ xdr_int16_t (XDR *xdrs, int16_t *objp)
 static bool_t
 xdr_int32_t (XDR *xdrs, int32_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_int (xdrs, objp))
         return FALSE;
@@ -32,7 +32,7 @@ xdr_int32_t (XDR *xdrs, int32_t *objp)
 static bool_t
 xdr_uint32_t (XDR *xdrs, uint32_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_u_int (xdrs, objp))
         return FALSE;
@@ -42,7 +42,7 @@ xdr_uint32_t (XDR *xdrs, uint32_t *objp)
 bool_t
 xdr_utf8str_t (XDR *xdrs, utf8str_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_bytes (xdrs, (char **)&objp->utf8str_t_val, (u_int *) &objp->utf8str_t_len, ~0))
         return FALSE;
@@ -52,7 +52,7 @@ xdr_utf8str_t (XDR *xdrs, utf8str_t *objp)
 bool_t
 xdr_kdb_sno_t (XDR *xdrs, kdb_sno_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_uint32_t (xdrs, objp))
         return FALSE;
@@ -62,7 +62,7 @@ xdr_kdb_sno_t (XDR *xdrs, kdb_sno_t *objp)
 bool_t
 xdr_kdbe_time_t (XDR *xdrs, kdbe_time_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_uint32_t (xdrs, &objp->seconds))
         return FALSE;
@@ -74,7 +74,7 @@ xdr_kdbe_time_t (XDR *xdrs, kdbe_time_t *objp)
 bool_t
 xdr_kdbe_key_t (XDR *xdrs, kdbe_key_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_int32_t (xdrs, &objp->k_ver))
         return FALSE;
@@ -92,7 +92,7 @@ xdr_kdbe_key_t (XDR *xdrs, kdbe_key_t *objp)
 bool_t
 xdr_kdbe_data_t (XDR *xdrs, kdbe_data_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_int32_t (xdrs, &objp->k_magic))
         return FALSE;
@@ -104,7 +104,7 @@ xdr_kdbe_data_t (XDR *xdrs, kdbe_data_t *objp)
 bool_t
 xdr_kdbe_princ_t (XDR *xdrs, kdbe_princ_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_utf8str_t (xdrs, &objp->k_realm))
         return FALSE;
@@ -119,7 +119,7 @@ xdr_kdbe_princ_t (XDR *xdrs, kdbe_princ_t *objp)
 bool_t
 xdr_kdbe_tl_t (XDR *xdrs, kdbe_tl_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_int16_t (xdrs, &objp->tl_type))
         return FALSE;
@@ -131,7 +131,7 @@ xdr_kdbe_tl_t (XDR *xdrs, kdbe_tl_t *objp)
 bool_t
 xdr_kdbe_pw_hist_t (XDR *xdrs, kdbe_pw_hist_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_array (xdrs, (char **)&objp->kdbe_pw_hist_t_val, (u_int *) &objp->kdbe_pw_hist_t_len, ~0,
                     sizeof (kdbe_key_t), (xdrproc_t) xdr_kdbe_key_t))
@@ -142,7 +142,7 @@ xdr_kdbe_pw_hist_t (XDR *xdrs, kdbe_pw_hist_t *objp)
 bool_t
 xdr_kdbe_attr_type_t (XDR *xdrs, kdbe_attr_type_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_enum (xdrs, (enum_t *) objp))
         return FALSE;
@@ -152,7 +152,7 @@ xdr_kdbe_attr_type_t (XDR *xdrs, kdbe_attr_type_t *objp)
 bool_t
 xdr_kdbe_val_t (XDR *xdrs, kdbe_val_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_kdbe_attr_type_t (xdrs, &objp->av_type))
         return FALSE;
@@ -251,7 +251,7 @@ xdr_kdbe_val_t (XDR *xdrs, kdbe_val_t *objp)
 bool_t
 xdr_kdbe_t (XDR *xdrs, kdbe_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_array (xdrs, (char **)&objp->kdbe_t_val, (u_int *) &objp->kdbe_t_len, ~0,
                     sizeof (kdbe_val_t), (xdrproc_t) xdr_kdbe_val_t))
@@ -262,7 +262,7 @@ xdr_kdbe_t (XDR *xdrs, kdbe_t *objp)
 bool_t
 xdr_kdb_incr_update_t (XDR *xdrs, kdb_incr_update_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_utf8str_t (xdrs, &objp->kdb_princ_name))
         return FALSE;
@@ -287,7 +287,7 @@ xdr_kdb_incr_update_t (XDR *xdrs, kdb_incr_update_t *objp)
 bool_t
 xdr_kdb_ulog_t (XDR *xdrs, kdb_ulog_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_array (xdrs, (char **)&objp->kdb_ulog_t_val, (u_int *) &objp->kdb_ulog_t_len, ~0,
                     sizeof (kdb_incr_update_t), (xdrproc_t) xdr_kdb_incr_update_t))
@@ -298,7 +298,7 @@ xdr_kdb_ulog_t (XDR *xdrs, kdb_ulog_t *objp)
 bool_t
 xdr_update_status_t (XDR *xdrs, update_status_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_enum (xdrs, (enum_t *) objp))
         return FALSE;
@@ -308,7 +308,7 @@ xdr_update_status_t (XDR *xdrs, update_status_t *objp)
 bool_t
 xdr_kdb_last_t (XDR *xdrs, kdb_last_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_kdb_sno_t (xdrs, &objp->last_sno))
         return FALSE;
@@ -320,7 +320,7 @@ xdr_kdb_last_t (XDR *xdrs, kdb_last_t *objp)
 bool_t
 xdr_kdb_incr_result_t (XDR *xdrs, kdb_incr_result_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_kdb_last_t (xdrs, &objp->lastentry))
         return FALSE;
@@ -334,7 +334,7 @@ xdr_kdb_incr_result_t (XDR *xdrs, kdb_incr_result_t *objp)
 bool_t
 xdr_kdb_fullresync_result_t (XDR *xdrs, kdb_fullresync_result_t *objp)
 {
-    register int32_t *buf;
+    int32_t *buf;
 
     if (!xdr_kdb_last_t (xdrs, &objp->lastentry))
         return FALSE;

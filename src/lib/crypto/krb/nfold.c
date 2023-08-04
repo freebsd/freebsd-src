@@ -98,19 +98,9 @@ krb5int_nfold(unsigned int inbits, const unsigned char *in, unsigned int outbits
         byte += out[i%outbits];
         out[i%outbits] = byte&0xff;
 
-#if 0
-        printf("msbit[%d] = %d\tbyte = %02x\tsum = %03x\n", i, msbit,
-               (((in[((inbits-1)-(msbit>>3))%inbits]<<8)|
-                 (in[((inbits)-(msbit>>3))%inbits]))
-                >>((msbit&7)+1))&0xff, byte);
-#endif
-
         /* keep around the carry bit, if any */
         byte >>= 8;
 
-#if 0
-        printf("carry=%d\n", byte);
-#endif
     }
 
     /* if there's a carry bit left over, add it back in */

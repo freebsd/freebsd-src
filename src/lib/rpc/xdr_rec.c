@@ -144,8 +144,7 @@ xdrrec_create(
 	int (*writeit)() /* like write, but pass it a tcp_handle, not sock */
 	)
 {
-	register RECSTREAM *rstrm =
-		(RECSTREAM *)mem_alloc(sizeof(RECSTREAM));
+	RECSTREAM *rstrm = mem_alloc(sizeof(RECSTREAM));
 
 	if (rstrm == NULL) {
 		(void)fprintf(stderr, "xdrrec_create: out of memory\n");
@@ -199,8 +198,8 @@ xdrrec_create(
 static bool_t
 xdrrec_getlong(XDR *xdrs, long *lp)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	register int32_t *buflp = (int32_t *)(void *)(rstrm->in_finger);
+	RECSTREAM *rstrm = xdrs->x_private;
+	int32_t *buflp = (void *)(rstrm->in_finger);
 	uint32_t mylong;
 
 	/* first try the inline, fast case */
@@ -222,8 +221,8 @@ xdrrec_getlong(XDR *xdrs, long *lp)
 static bool_t
 xdrrec_putlong(XDR *xdrs, long *lp)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	register int32_t *dest_lp = ((int32_t *)(void *)(rstrm->out_finger));
+	RECSTREAM *rstrm = xdrs->x_private;
+	int32_t *dest_lp = (void *)(rstrm->out_finger);
 
 	if (rstrm->out_boundry - rstrm->out_finger < BYTES_PER_XDR_UNIT) {
 		/*
@@ -243,8 +242,8 @@ xdrrec_putlong(XDR *xdrs, long *lp)
 static bool_t  /* must manage buffers, fragments, and records */
 xdrrec_getbytes(XDR *xdrs, caddr_t addr, u_int len)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	register u_int current;
+	RECSTREAM *rstrm = xdrs->x_private;
+	u_int current;
 
 	while (len > 0) {
 		current = rstrm->fbtbc;
@@ -268,8 +267,8 @@ xdrrec_getbytes(XDR *xdrs, caddr_t addr, u_int len)
 static bool_t
 xdrrec_putbytes(XDR *xdrs, caddr_t addr, u_int len)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	register size_t current;
+	RECSTREAM *rstrm = xdrs->x_private;
+	size_t current;
 
 	while (len > 0) {
 		current = (size_t) ((long)rstrm->out_boundry -
@@ -291,8 +290,8 @@ xdrrec_putbytes(XDR *xdrs, caddr_t addr, u_int len)
 static u_int
 xdrrec_getpos(XDR *xdrs)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
-	register int pos;
+	RECSTREAM *rstrm = xdrs->x_private;
+	int pos;
 
 	switch (xdrs->x_op) {
 
@@ -316,7 +315,7 @@ xdrrec_getpos(XDR *xdrs)
 static bool_t
 xdrrec_setpos(XDR *xdrs, u_int pos)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
+	RECSTREAM *rstrm = xdrs->x_private;
 	u_int currpos = xdrrec_getpos(xdrs);
 	int delta = currpos - pos;
 	caddr_t newpos;
@@ -353,7 +352,7 @@ xdrrec_setpos(XDR *xdrs, u_int pos)
 static rpc_inline_t *
 xdrrec_inline(XDR *xdrs, int len)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
+	RECSTREAM *rstrm = xdrs->x_private;
 	rpc_inline_t * buf = NULL;
 
 	if (len < 0)
@@ -386,7 +385,7 @@ xdrrec_inline(XDR *xdrs, int len)
 static void
 xdrrec_destroy(XDR *xdrs)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
+	RECSTREAM *rstrm = xdrs->x_private;
 
 	mem_free(rstrm->the_buffer,
 		rstrm->sendsize + rstrm->recvsize + BYTES_PER_XDR_UNIT);
@@ -405,7 +404,7 @@ xdrrec_destroy(XDR *xdrs)
 bool_t
 xdrrec_skiprecord(XDR *xdrs)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+	RECSTREAM *rstrm = xdrs->x_private;
 
 	while (rstrm->fbtbc > 0 || (! rstrm->last_frag)) {
 		if (! skip_input_bytes(rstrm, rstrm->fbtbc))
@@ -419,14 +418,14 @@ xdrrec_skiprecord(XDR *xdrs)
 }
 
 /*
- * Look ahead fuction.
+ * Look ahead function.
  * Returns TRUE iff there is no more input in the buffer
  * after consuming the rest of the current record.
  */
 bool_t
 xdrrec_eof(XDR *xdrs)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+	RECSTREAM *rstrm = xdrs->x_private;
 
 	while (rstrm->fbtbc > 0 || (! rstrm->last_frag)) {
 		if (! skip_input_bytes(rstrm, rstrm->fbtbc))
@@ -443,14 +442,14 @@ xdrrec_eof(XDR *xdrs)
 /*
  * The client must tell the package when an end-of-record has occurred.
  * The second paraemters tells whether the record should be flushed to the
- * (output) tcp stream.  (This let's the package support batched or
- * pipelined procedure calls.)  TRUE => immmediate flush to tcp connection.
+ * (output) tcp stream.  (This lets the package support batched or
+ * pipelined procedure calls.)  TRUE => immediate flush to tcp connection.
  */
 bool_t
 xdrrec_endofrecord(XDR *xdrs, bool_t sendnow)
 {
-	register RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	register uint32_t len;  /* fragment length */
+	RECSTREAM *rstrm = xdrs->x_private;
+	uint32_t len;  /* fragment length */
 
 	if (sendnow || rstrm->frag_sent ||
 		((long)rstrm->out_finger + BYTES_PER_XDR_UNIT >=
@@ -473,8 +472,8 @@ xdrrec_endofrecord(XDR *xdrs, bool_t sendnow)
 static bool_t
 flush_out(RECSTREAM *rstrm, bool_t eor)
 {
-	register uint32_t eormask = (eor == TRUE) ? LAST_FRAG : 0;
-	register uint32_t len = (u_long)(rstrm->out_finger) -
+	uint32_t eormask = (eor == TRUE) ? LAST_FRAG : 0;
+	uint32_t len = (u_long)(rstrm->out_finger) -
 		(u_long)(rstrm->frag_header) - BYTES_PER_XDR_UNIT;
 
 	*(rstrm->frag_header) = htonl(len | eormask);
@@ -490,9 +489,9 @@ flush_out(RECSTREAM *rstrm, bool_t eor)
 static bool_t  /* knows nothing about records!  Only about input buffers */
 fill_input_buf(RECSTREAM *rstrm)
 {
-	register caddr_t where;
+	caddr_t where;
 	u_int i;
-	register int len;
+	int len;
 
 	where = rstrm->in_base;
 	i = (u_int)((u_long)rstrm->in_boundry % BYTES_PER_XDR_UNIT);
@@ -509,7 +508,7 @@ fill_input_buf(RECSTREAM *rstrm)
 static bool_t  /* knows nothing about records!  Only about input buffers */
 get_input_bytes(RECSTREAM *rstrm, caddr_t addr, int len)
 {
-	register size_t current;
+	size_t current;
 
 	while (len > 0) {
 		current = (size_t)((long)rstrm->in_boundry -
@@ -530,7 +529,7 @@ get_input_bytes(RECSTREAM *rstrm, caddr_t addr, int len)
 
 static bool_t  /* next four bytes of input stream are treated as a header */
 set_input_fragment(rstrm)
-	register RECSTREAM *rstrm;
+	RECSTREAM *rstrm;
 {
 	uint32_t header;
 
@@ -545,7 +544,7 @@ set_input_fragment(rstrm)
 static bool_t  /* consumes input bytes; knows nothing about records! */
 skip_input_bytes(RECSTREAM *rstrm, int32_t cnt)
 {
-	register int current;
+	int current;
 
 	while (cnt > 0) {
 		current = (int)((long)rstrm->in_boundry -

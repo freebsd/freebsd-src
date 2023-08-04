@@ -55,8 +55,6 @@ krb5_ldap_create(krb5_context context, char *conf_section, char **db_args)
     krb5_error_code status = 0;
     krb5_ldap_realm_params *rparams = NULL;
     krb5_ldap_context *ldap_context=NULL;
-    krb5_boolean realm_obj_created = FALSE;
-    krb5_boolean krbcontainer_obj_created = FALSE;
     int mask = 0;
 
     /* Clear the global error string */
@@ -110,9 +108,6 @@ krb5_ldap_create(krb5_context context, char *conf_section, char **db_args)
     if ((status = krb5_ldap_create_realm(context, rparams, mask)))
         goto cleanup;
 
-    /* We just created the Realm container. Here starts our transaction tracking */
-    realm_obj_created = TRUE;
-
     /* verify realm object */
     if ((status = krb5_ldap_read_realm_params(context,
                                               rparams->realm_name,
@@ -121,15 +116,6 @@ krb5_ldap_create(krb5_context context, char *conf_section, char **db_args)
         goto cleanup;
 
 cleanup:
-    /* If the krbcontainer/realm creation is not complete, do the roll-back here */
-    if ((krbcontainer_obj_created) && (!realm_obj_created)) {
-        int rc;
-        rc = krb5_ldap_delete_krbcontainer(context,
-                                           ldap_context->container_dn);
-        k5_setmsg(context, rc, _("could not complete roll-back, error "
-                                 "deleting Kerberos Container"));
-    }
-
     if (rparams)
         krb5_ldap_free_realm_params(rparams);
 

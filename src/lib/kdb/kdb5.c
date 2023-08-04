@@ -104,13 +104,13 @@ kdb_unlock_list()
     k5_mutex_unlock(&db_lock);
 }
 
-/* Return true if the ulog is mapped in the master role. */
+/* Return true if the ulog is mapped in the primary role. */
 static inline krb5_boolean
 logging(krb5_context context)
 {
     kdb_log_context *log_ctx = context->kdblog_context;
 
-    return log_ctx != NULL && log_ctx->iproprole == IPROP_MASTER &&
+    return log_ctx != NULL && log_ctx->iproprole == IPROP_PRIMARY &&
         log_ctx->ulog != NULL;
 }
 
@@ -315,7 +315,6 @@ copy_vtable(const kdb_vftabl *in, kdb_vftabl *out)
     out->promote_db = in->promote_db;
     out->decrypt_key_data = in->decrypt_key_data;
     out->encrypt_key_data = in->encrypt_key_data;
-    out->sign_authdata = in->sign_authdata;
     out->check_transited_realms = in->check_transited_realms;
     out->check_policy_as = in->check_policy_as;
     out->check_policy_tgs = in->check_policy_tgs;
@@ -323,6 +322,9 @@ copy_vtable(const kdb_vftabl *in, kdb_vftabl *out)
     out->refresh_config = in->refresh_config;
     out->check_allowed_to_delegate = in->check_allowed_to_delegate;
     out->free_principal_e_data = in->free_principal_e_data;
+    out->get_s4u_x509_principal = in->get_s4u_x509_principal;
+    out->allowed_to_delegate_from = in->allowed_to_delegate_from;
+    out->issue_pac = in->issue_pac;
 
     /* Set defaults for optional fields. */
     if (out->fetch_master_key == NULL)
@@ -671,6 +673,8 @@ krb5_db_open(krb5_context kcontext, char **db_args, int mode)
         return status;
     status = v->init_module(kcontext, section, db_args, mode);
     free(section);
+    if (status)
+        (void)krb5_db_fini(kcontext);
     return status;
 }
 
@@ -698,6 +702,8 @@ krb5_db_create(krb5_context kcontext, char **db_args)
         return status;
     status = v->create(kcontext, section, db_args);
     free(section);
+    if (status)
+        (void)krb5_db_fini(kcontext);
     return status;
 }
 
@@ -1034,8 +1040,7 @@ krb5_db_rename_principal(krb5_context kcontext, krb5_principal source,
         logging(kcontext))
         return KRB5_PLUGIN_OP_NOTSUPP;
 
-    status = krb5_db_get_principal(kcontext, target, KRB5_KDB_FLAG_ALIAS_OK,
-                                   &entry);
+    status = krb5_db_get_principal(kcontext, target, 0, &entry);
     if (status == 0) {
         krb5_db_free_principal(kcontext, entry);
         return KRB5_KDB_INUSE;
@@ -1442,8 +1447,11 @@ krb5_db_setup_mkey_name(krb5_context context, const char *keyname,
     if (asprintf(&fname, "%s%s%s", keyname, REALM_SEP_STRING, realm) < 0)
         return ENOMEM;
 
-    if ((retval = krb5_parse_name(context, fname, principal)))
+    retval = krb5_parse_name(context, fname, principal);
+    if (retval) {
+        free(fname);
         return retval;
+    }
     if (fullname)
         *fullname = fname;
     else
@@ -2312,15 +2320,11 @@ krb5_dbe_compute_salt(krb5_context context, const krb5_key_data *key,
         if (retval)
             return retval;
         break;
-    case KRB5_KDB_SALTTYPE_V4:
-        sdata = empty_data();
-        break;
     case KRB5_KDB_SALTTYPE_NOREALM:
         retval = krb5_principal2salt_norealm(context, princ, &sdata);
         if (retval)
             return retval;
         break;
-    case KRB5_KDB_SALTTYPE_AFS3:
     case KRB5_KDB_SALTTYPE_ONLYREALM:
         return krb5_copy_data(context, &princ->realm, salt_out);
     case KRB5_KDB_SALTTYPE_SPECIAL:
@@ -2591,30 +2595,6 @@ krb5_db_set_context(krb5_context context, void *db_context)
 }
 
 krb5_error_code
-krb5_db_sign_authdata(krb5_context kcontext, unsigned int flags,
-                      krb5_const_principal client_princ, krb5_db_entry *client,
-                      krb5_db_entry *server, krb5_db_entry *krbtgt,
-                      krb5_keyblock *client_key, krb5_keyblock *server_key,
-                      krb5_keyblock *krbtgt_key, krb5_keyblock *session_key,
-                      krb5_timestamp authtime, krb5_authdata **tgt_auth_data,
-                      krb5_authdata ***signed_auth_data)
-{
-    krb5_error_code status = 0;
-    kdb_vftabl *v;
-
-    *signed_auth_data = NULL;
-    status = get_vftabl(kcontext, &v);
-    if (status)
-        return status;
-    if (v->sign_authdata == NULL)
-        return KRB5_PLUGIN_OP_NOTSUPP;
-    return v->sign_authdata(kcontext, flags, client_princ, client, server,
-                            krbtgt, client_key, server_key, krbtgt_key,
-                            session_key, authtime, tgt_auth_data,
-                            signed_auth_data);
-}
-
-krb5_error_code
 krb5_db_check_transited_realms(krb5_context kcontext,
                                const krb5_data *tr_contents,
                                const krb5_data *client_realm,
@@ -2717,6 +2697,51 @@ krb5_db_check_allowed_to_delegate(krb5_context kcontext,
     return v->check_allowed_to_delegate(kcontext, client, server, proxy);
 }
 
+krb5_error_code
+krb5_db_get_s4u_x509_principal(krb5_context kcontext,
+                               const krb5_data *client_cert,
+                               krb5_const_principal in_princ,
+                               unsigned int flags, krb5_db_entry **entry)
+{
+    krb5_error_code ret;
+    kdb_vftabl *v;
+
+    ret = get_vftabl(kcontext, &v);
+    if (ret)
+        return ret;
+    if (v->get_s4u_x509_principal == NULL)
+        return KRB5_PLUGIN_OP_NOTSUPP;
+    ret = v->get_s4u_x509_principal(kcontext, client_cert, in_princ, flags,
+                                    entry);
+    if (ret)
+        return ret;
+
+    /* Sort the keys in the db entry, same as get_principal(). */
+    if ((*entry)->key_data != NULL)
+        krb5_dbe_sort_key_data((*entry)->key_data, (*entry)->n_key_data);
+
+    return 0;
+}
+
+krb5_error_code
+krb5_db_allowed_to_delegate_from(krb5_context kcontext,
+                                 krb5_const_principal client,
+                                 krb5_const_principal server,
+                                 krb5_pac server_pac,
+                                 const krb5_db_entry *proxy)
+{
+    krb5_error_code ret;
+    kdb_vftabl *v;
+
+    ret = get_vftabl(kcontext, &v);
+    if (ret)
+        return ret;
+    if (v->allowed_to_delegate_from == NULL)
+        return KRB5_PLUGIN_OP_NOTSUPP;
+    return v->allowed_to_delegate_from(kcontext, client, server, server_pac,
+                                       proxy);
+}
+
 void
 krb5_dbe_sort_key_data(krb5_key_data *key_data, size_t key_data_length)
 {
@@ -2734,4 +2759,23 @@ krb5_dbe_sort_key_data(krb5_key_data *key_data, size_t key_data_length)
             j--;
         }
     }
+}
+
+krb5_error_code
+krb5_db_issue_pac(krb5_context context, unsigned int flags,
+                  krb5_db_entry *client, krb5_keyblock *replaced_reply_key,
+                  krb5_db_entry *server, krb5_db_entry *krbtgt,
+                  krb5_timestamp authtime, krb5_pac old_pac, krb5_pac new_pac,
+                  krb5_data ***auth_indicators)
+{
+    krb5_error_code ret;
+    kdb_vftabl *v;
+
+    ret = get_vftabl(context, &v);
+    if (ret)
+        return ret;
+    if (v->issue_pac == NULL)
+        return KRB5_PLUGIN_OP_NOTSUPP;
+    return v->issue_pac(context, flags, client, replaced_reply_key, server,
+                        krbtgt, authtime, old_pac, new_pac, auth_indicators);
 }

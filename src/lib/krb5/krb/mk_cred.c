@@ -1,308 +1,231 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/* lib/krb5/krb/mk_cred.c - definition of krb5_mk_ncred(), krb5_mk_1cred() */
 /*
- * NAME
- *    cred.c
+ * Copyright (C) 2019 by the Massachusetts Institute of Technology.
+ * All rights reserved.
  *
- * DESCRIPTION
- *    Provide an interface to assemble and disassemble krb5_cred
- *    structures.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the
+ *   distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "k5-int.h"
 #include "int-proto.h"
-#include "cleanup.h"
 #include "auth_con.h"
 
-#include <stddef.h>           /* NULL */
-#include <stdlib.h>           /* malloc */
-#include <errno.h>            /* ENOMEM */
-
-/*-------------------- encrypt_credencpart --------------------*/
-
-/*
- * encrypt the enc_part of krb5_cred
- */
+/* Encrypt the enc_part of krb5_cred.  key may be NULL to use the unencrypted
+ * KRB-CRED form (RFC 6448). */
 static krb5_error_code
-encrypt_credencpart(krb5_context context, krb5_cred_enc_part *pcredpart,
-                    krb5_key pkey, krb5_enc_data *pencdata)
+encrypt_credencpart(krb5_context context, krb5_cred_enc_part *encpart,
+                    krb5_key key, krb5_enc_data *encdata_out)
 {
-    krb5_error_code       retval;
-    krb5_data           * scratch;
+    krb5_error_code ret;
+    krb5_data *der_enccred;
 
-    /* start by encoding to-be-encrypted part of the message */
-    if ((retval = encode_krb5_enc_cred_part(pcredpart, &scratch)))
-        return retval;
+    /* Start by encoding to-be-encrypted part of the message. */
+    ret = encode_krb5_enc_cred_part(encpart, &der_enccred);
+    if (ret)
+        return ret;
 
-    /*
-     * If the keyblock is NULL, just copy the data from the encoded
-     * data to the ciphertext area.
-     */
-    if (pkey == NULL) {
-        pencdata->ciphertext.data = scratch->data;
-        pencdata->ciphertext.length = scratch->length;
-        free(scratch);
+    if (key == NULL) {
+        /* Just copy the encoded data to the ciphertext area. */
+        encdata_out->enctype = ENCTYPE_NULL;
+        encdata_out->ciphertext = *der_enccred;
+        free(der_enccred);
         return 0;
     }
 
-    /* call the encryption routine */
-    retval = k5_encrypt_keyhelper(context, pkey,
-                                  KRB5_KEYUSAGE_KRB_CRED_ENCPART, scratch,
-                                  pencdata);
+    ret = k5_encrypt_keyhelper(context, key, KRB5_KEYUSAGE_KRB_CRED_ENCPART,
+                               der_enccred, encdata_out);
 
-    memset(scratch->data, 0, scratch->length);
-    krb5_free_data(context, scratch);
-
-    return retval;
+    zapfreedata(der_enccred);
+    return ret;
 }
 
-/*----------------------- krb5_mk_ncred_basic -----------------------*/
-
+/*
+ * Marshal a KRB-CRED message into der_out, encrypted with key (or unencrypted
+ * if key is NULL).  Store the ciphertext in enc_out.  Use the timestamp and
+ * sequence number from rdata and the addresses from local_addr and remote_addr
+ * (either of which may be NULL).  der_out and enc_out should be freed by the
+ * caller when finished.
+ */
 static krb5_error_code
-krb5_mk_ncred_basic(krb5_context context,
-                    krb5_creds **ppcreds, krb5_int32 nppcreds,
-                    krb5_key key, krb5_replay_data *replaydata,
-                    krb5_address *local_addr, krb5_address *remote_addr,
-                    krb5_cred *pcred)
+create_krbcred(krb5_context context, krb5_creds **creds, krb5_key key,
+               const krb5_replay_data *rdata, krb5_address *local_addr,
+               krb5_address *remote_addr, krb5_data **der_out,
+               krb5_enc_data *enc_out)
 {
-    krb5_cred_enc_part    credenc;
-    krb5_error_code       retval;
-    size_t                size;
-    int                   i;
+    krb5_error_code ret;
+    krb5_cred_enc_part credenc;
+    krb5_cred cred;
+    krb5_ticket **tickets = NULL;
+    krb5_cred_info **ticket_info = NULL, *tinfos = NULL;
+    krb5_enc_data enc;
+    size_t i, ncreds;
 
-    credenc.magic = KV5M_CRED_ENC_PART;
+    *der_out = NULL;
+    memset(enc_out, 0, sizeof(*enc_out));
+    memset(&enc, 0, sizeof(enc));
 
-    credenc.s_address = 0;
-    credenc.r_address = 0;
-    if (local_addr) krb5_copy_addr(context, local_addr, &credenc.s_address);
-    if (remote_addr) krb5_copy_addr(context, remote_addr, &credenc.r_address);
+    for (ncreds = 0; creds[ncreds] != NULL; ncreds++);
 
-    credenc.nonce = replaydata->seq;
-    credenc.usec = replaydata->usec;
-    credenc.timestamp = replaydata->timestamp;
+    tickets = k5calloc(ncreds + 1, sizeof(*tickets), &ret);
+    if (tickets == NULL)
+        goto cleanup;
 
-    /* Get memory for creds and initialize it */
-    size = sizeof(krb5_cred_info *) * (nppcreds + 1);
-    credenc.ticket_info = (krb5_cred_info **) calloc(1, size);
-    if (credenc.ticket_info == NULL)
-        return ENOMEM;
+    ticket_info = k5calloc(ncreds + 1, sizeof(*ticket_info), &ret);
+    if (ticket_info == NULL)
+        goto cleanup;
 
-    /*
-     * For each credential in the list, initialize a cred info
-     * structure and copy the ticket into the ticket list.
-     */
-    for (i = 0; i < nppcreds; i++) {
-        credenc.ticket_info[i] = calloc(1, sizeof(krb5_cred_info));
-        if (credenc.ticket_info[i] == NULL) {
-            retval = ENOMEM;
-            goto cleanup;
-        }
-        credenc.ticket_info[i+1] = NULL;
+    tinfos = k5calloc(ncreds, sizeof(*tinfos), &ret);
+    if (tinfos == NULL)
+        goto cleanup;
 
-        credenc.ticket_info[i]->magic = KV5M_CRED_INFO;
-        credenc.ticket_info[i]->times = ppcreds[i]->times;
-        credenc.ticket_info[i]->flags = ppcreds[i]->ticket_flags;
-
-        if ((retval = decode_krb5_ticket(&ppcreds[i]->ticket,
-                                         &pcred->tickets[i])))
+    /* For each credential in the list, decode the ticket and create a cred
+     * info structure using alias pointers. */
+    for (i = 0; i < ncreds; i++) {
+        ret = decode_krb5_ticket(&creds[i]->ticket, &tickets[i]);
+        if (ret)
             goto cleanup;
 
-        if ((retval = krb5_copy_keyblock(context, &ppcreds[i]->keyblock,
-                                         &credenc.ticket_info[i]->session)))
-            goto cleanup;
-
-        if ((retval = krb5_copy_principal(context, ppcreds[i]->client,
-                                          &credenc.ticket_info[i]->client)))
-            goto cleanup;
-
-        if ((retval = krb5_copy_principal(context, ppcreds[i]->server,
-                                          &credenc.ticket_info[i]->server)))
-            goto cleanup;
-
-        if ((retval = krb5_copy_addresses(context, ppcreds[i]->addresses,
-                                          &credenc.ticket_info[i]->caddrs)))
-            goto cleanup;
+        tinfos[i].magic = KV5M_CRED_INFO;
+        tinfos[i].times = creds[i]->times;
+        tinfos[i].flags = creds[i]->ticket_flags;
+        tinfos[i].session = &creds[i]->keyblock;
+        tinfos[i].client = creds[i]->client;
+        tinfos[i].server = creds[i]->server;
+        tinfos[i].caddrs = creds[i]->addresses;
+        ticket_info[i] = &tinfos[i];
     }
 
-    /*
-     * NULL terminate the lists.
-     */
-    pcred->tickets[i] = NULL;
+    /* Encrypt the credential encrypted part. */
+    credenc.magic = KV5M_CRED_ENC_PART;
+    credenc.s_address = local_addr;
+    credenc.r_address = remote_addr;
+    credenc.nonce = rdata->seq;
+    credenc.usec = rdata->usec;
+    credenc.timestamp = rdata->timestamp;
+    credenc.ticket_info = ticket_info;
+    ret = encrypt_credencpart(context, &credenc, key, &enc);
+    if (ret)
+        goto cleanup;
 
-    /* encrypt the credential encrypted part */
-    retval = encrypt_credencpart(context, &credenc, key, &pcred->enc_part);
+    /* Encode the KRB-CRED message. */
+    cred.magic = KV5M_CRED;
+    cred.tickets = tickets;
+    cred.enc_part = enc;
+    ret = encode_krb5_cred(&cred, der_out);
+    if (ret)
+        goto cleanup;
+
+    *enc_out = enc;
+    memset(&enc, 0, sizeof(enc));
 
 cleanup:
-    krb5_free_cred_enc_part(context, &credenc);
-    return retval;
+    krb5_free_tickets(context, tickets);
+    krb5_free_data_contents(context, &enc.ciphertext);
+    free(tinfos);
+    free(ticket_info);
+    return ret;
 }
 
-/*----------------------- krb5_mk_ncred -----------------------*/
-
-/*
- * This functions takes as input an array of krb5_credentials, and
- * outputs an encoded KRB_CRED message suitable for krb5_rd_cred
- */
 krb5_error_code KRB5_CALLCONV
-krb5_mk_ncred(krb5_context context, krb5_auth_context auth_context,
-              krb5_creds **ppcreds, krb5_data **ppdata,
-              krb5_replay_data *outdata)
+krb5_mk_ncred(krb5_context context, krb5_auth_context authcon,
+              krb5_creds **creds, krb5_data **der_out,
+              krb5_replay_data *rdata_out)
 {
-    krb5_address * premote_fulladdr = NULL;
-    krb5_address * plocal_fulladdr = NULL;
-    krb5_address remote_fulladdr;
-    krb5_address local_fulladdr;
-    krb5_error_code     retval;
-    krb5_key            key;
-    krb5_replay_data    replaydata;
-    krb5_cred            * pcred;
-    krb5_int32          ncred;
-    krb5_boolean increased_sequence = FALSE;
+    krb5_error_code ret;
+    krb5_key key;
+    krb5_replay_data rdata;
+    krb5_data *der_krbcred = NULL;
+    krb5_enc_data enc;
+    krb5_address *local_addr, *remote_addr, lstorage, rstorage;
 
-    local_fulladdr.contents = 0;
-    remote_fulladdr.contents = 0;
-    memset(&replaydata, 0, sizeof(krb5_replay_data));
+    *der_out = NULL;
+    memset(&enc, 0, sizeof(enc));
+    memset(&lstorage, 0, sizeof(lstorage));
+    memset(&rstorage, 0, sizeof(rstorage));
 
-    if (ppcreds == NULL)
+    if (creds == NULL)
         return KRB5KRB_AP_ERR_BADADDR;
 
-    /*
-     * Allocate memory for a NULL terminated list of tickets.
-     */
-    for (ncred = 0; ppcreds[ncred]; ncred++)
-        ;
-
-    if ((pcred = (krb5_cred *)calloc(1, sizeof(krb5_cred))) == NULL)
-        return ENOMEM;
-
-    if ((pcred->tickets
-         = (krb5_ticket **)calloc((size_t)ncred+1,
-                                  sizeof(krb5_ticket *))) == NULL) {
-        retval = ENOMEM;
-        goto error;
+    ret = k5_privsafe_gen_rdata(context, authcon, &rdata, rdata_out);
+    if (ret)
+        goto cleanup;
+    /* Historically we always set the timestamp, so keep doing that. */
+    if (rdata.timestamp == 0) {
+        ret = krb5_us_timeofday(context, &rdata.timestamp, &rdata.usec);
+        if (ret)
+            goto cleanup;
     }
 
-    /* Get keyblock */
-    if ((key = auth_context->send_subkey) == NULL)
-        key = auth_context->key;
+    ret = k5_privsafe_gen_addrs(context, authcon, &lstorage, &rstorage,
+                                &local_addr, &remote_addr);
+    if (ret)
+        goto cleanup;
 
-    /* Get replay info */
-    if ((auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_DO_TIME) &&
-        (auth_context->rcache == NULL)) {
-        retval = KRB5_RC_REQUIRED;
-        goto error;
+    key = (authcon->send_subkey != NULL) ? authcon->send_subkey : authcon->key;
+    ret = create_krbcred(context, creds, key, &rdata, local_addr, remote_addr,
+                         &der_krbcred, &enc);
+    if (ret)
+        goto cleanup;
+
+    if (key != NULL) {
+        ret = k5_privsafe_check_replay(context, authcon, NULL, &enc, NULL);
+        if (ret)
+            goto cleanup;
     }
 
-    if (((auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_RET_TIME) ||
-         (auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE))
-        && (outdata == NULL)) {
-        /* Need a better error */
-        retval = KRB5_RC_REQUIRED;
-        goto error;
-    }
+    *der_out = der_krbcred;
+    der_krbcred = NULL;
+    if ((authcon->auth_context_flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) ||
+        (authcon->auth_context_flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE))
+        authcon->local_seq_number++;
 
-    if ((retval = krb5_us_timeofday(context, &replaydata.timestamp,
-                                    &replaydata.usec)))
-        goto error;
-    if (auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_RET_TIME) {
-        outdata->timestamp = replaydata.timestamp;
-        outdata->usec = replaydata.usec;
-    }
-    if ((auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) ||
-        (auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE)) {
-        replaydata.seq = auth_context->local_seq_number++;
-        increased_sequence = TRUE;
-        if (auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE)
-            outdata->seq = replaydata.seq;
-    }
-
-    if (auth_context->local_addr) {
-        if (auth_context->local_port) {
-            if ((retval = krb5_make_fulladdr(context, auth_context->local_addr,
-                                             auth_context->local_port,
-                                             &local_fulladdr)))
-                goto error;
-            plocal_fulladdr = &local_fulladdr;
-        } else {
-            plocal_fulladdr = auth_context->local_addr;
-        }
-    }
-
-    if (auth_context->remote_addr) {
-        if (auth_context->remote_port) {
-            if ((retval = krb5_make_fulladdr(context,auth_context->remote_addr,
-                                             auth_context->remote_port,
-                                             &remote_fulladdr)))
-                goto error;
-            premote_fulladdr = &remote_fulladdr;
-        } else {
-            premote_fulladdr = auth_context->remote_addr;
-        }
-    }
-
-    /* Setup creds structure */
-    if ((retval = krb5_mk_ncred_basic(context, ppcreds, ncred, key,
-                                      &replaydata, plocal_fulladdr,
-                                      premote_fulladdr, pcred))) {
-        goto error;
-    }
-
-    if (auth_context->auth_context_flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-        krb5_donot_replay replay;
-
-        if ((retval = krb5_gen_replay_name(context, auth_context->local_addr,
-                                           "_forw", &replay.client)))
-            goto error;
-
-        replay.server = "";             /* XXX */
-        replay.msghash = NULL;
-        replay.cusec = replaydata.usec;
-        replay.ctime = replaydata.timestamp;
-        if ((retval = krb5_rc_store(context, auth_context->rcache, &replay))) {
-            /* should we really error out here? XXX */
-            free(replay.client);
-            goto error;
-        }
-        free(replay.client);
-    }
-
-    /* Encode creds structure */
-    retval = encode_krb5_cred(pcred, ppdata);
-
-error:
-    free(local_fulladdr.contents);
-    free(remote_fulladdr.contents);
-    krb5_free_cred(context, pcred);
-
-    if (retval) {
-        if (increased_sequence)
-            auth_context->local_seq_number--;
-    }
-    return retval;
+cleanup:
+    krb5_free_data_contents(context, &enc.ciphertext);
+    free(lstorage.contents);
+    free(rstorage.contents);
+    zapfreedata(der_krbcred);
+    return ret;
 }
 
-/*----------------------- krb5_mk_1cred -----------------------*/
-
-/*
- * A convenience function that calls krb5_mk_ncred.
- */
 krb5_error_code KRB5_CALLCONV
-krb5_mk_1cred(krb5_context context, krb5_auth_context auth_context,
-              krb5_creds *pcreds, krb5_data **ppdata,
-              krb5_replay_data *outdata)
+krb5_mk_1cred(krb5_context context, krb5_auth_context authcon,
+              krb5_creds *creds, krb5_data **der_out,
+              krb5_replay_data *rdata_out)
 {
     krb5_error_code retval;
-    krb5_creds **ppcreds;
+    krb5_creds **list;
 
-    if ((ppcreds = (krb5_creds **)malloc(sizeof(*ppcreds) * 2)) == NULL) {
+    list = calloc(2, sizeof(*list));
+    if (list == NULL)
         return ENOMEM;
-    }
 
-    ppcreds[0] = pcreds;
-    ppcreds[1] = NULL;
-
-    retval = krb5_mk_ncred(context, auth_context, ppcreds,
-                           ppdata, outdata);
-
-    free(ppcreds);
+    list[0] = creds;
+    list[1] = NULL;
+    retval = krb5_mk_ncred(context, authcon, list, der_out, rdata_out);
+    free(list);
     return retval;
 }

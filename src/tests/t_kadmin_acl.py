@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 import os
 
@@ -84,6 +83,7 @@ realm.addprinc('selected', 'oldpw')
 realm.addprinc('unselected', 'oldpw')
 for pw in (['-pw', 'newpw'], ['-randkey']):
     for ks in ([], ['-e', 'aes256-cts']):
+        mark('cpw: %s %s' % (repr(pw), repr(ks)))
         args = pw + ks
         kadmin_as(all_changepw, ['cpw'] + args + ['unselected'])
         kadmin_as(some_changepw, ['cpw'] + args + ['selected'])
@@ -101,6 +101,7 @@ for pw in (['-pw', 'newpw'], ['-randkey']):
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('addpol')
 kadmin_as(all_add, ['addpol', 'policy'])
 realm.run([kadminl, 'delpol', 'policy'])
 kadmin_as(none, ['addpol', 'policy'], expected_code=1,
@@ -108,6 +109,7 @@ kadmin_as(none, ['addpol', 'policy'], expected_code=1,
 
 # addprinc can generate two different RPC calls depending on options.
 for ks in ([], ['-e', 'aes256-cts']):
+    mark('addprinc: %s' % repr(ks))
     args = ['-pw', 'pw'] + ks
     kadmin_as(all_add, ['addprinc'] + args + ['unselected'])
     realm.run([kadminl, 'delprinc', 'unselected'])
@@ -122,6 +124,7 @@ for ks in ([], ['-e', 'aes256-cts']):
     kadmin_as(some_add, ['addprinc'] + args + ['unselected'], expected_code=1,
               expected_msg="Operation requires ``add'' privilege")
 
+mark('delprinc')
 realm.addprinc('unselected', 'pw')
 kadmin_as(all_delete, ['delprinc', 'unselected'])
 realm.addprinc('selected', 'pw')
@@ -133,6 +136,7 @@ kadmin_as(some_delete, ['delprinc', 'unselected'], expected_code=1,
           expected_msg="Operation requires ``delete'' privilege")
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('getpol')
 kadmin_as(all_inquire, ['getpol', 'minlife'], expected_msg='Policy: minlife')
 kadmin_as(none, ['getpol', 'minlife'], expected_code=1,
           expected_msg="Operation requires ``get'' privilege")
@@ -140,6 +144,7 @@ realm.run([kadminl, 'modprinc', '-policy', 'minlife', 'none'])
 kadmin_as(none, ['getpol', 'minlife'], expected_msg='Policy: minlife')
 realm.run([kadminl, 'modprinc', '-clearpolicy', 'none'])
 
+mark('getprinc')
 realm.addprinc('selected', 'pw')
 realm.addprinc('unselected', 'pw')
 kadmin_as(all_inquire, ['getprinc', 'unselected'],
@@ -155,10 +160,12 @@ kadmin_as(none, ['getprinc', 'none'],
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('listprincs')
 kadmin_as(all_list, ['listprincs'], expected_msg='K/M@KRBTEST.COM')
 kadmin_as(none, ['listprincs'], expected_code=1,
           expected_msg="Operation requires ``list'' privilege")
 
+mark('getstrs')
 realm.addprinc('selected', 'pw')
 realm.addprinc('unselected', 'pw')
 realm.run([kadminl, 'setstr', 'selected', 'key', 'value'])
@@ -173,6 +180,7 @@ kadmin_as(none, ['getstrs', 'none'], expected_msg='(No string attributes.)')
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('modpol')
 out = kadmin_as(all_modify, ['modpol', '-maxlife', '1 hour', 'policy'],
                 expected_code=1)
 if 'Operation requires' in out:
@@ -180,6 +188,7 @@ if 'Operation requires' in out:
 kadmin_as(none, ['modpol', '-maxlife', '1 hour', 'policy'], expected_code=1,
           expected_msg="Operation requires ``modify'' privilege")
 
+mark('modprinc')
 realm.addprinc('selected', 'pw')
 realm.addprinc('unselected', 'pw')
 kadmin_as(all_modify, ['modprinc', '-maxlife', '1 hour',  'unselected'])
@@ -195,6 +204,7 @@ kadmin_as(some_modify, ['modprinc', '-maxlife', '1 hour', 'unselected'],
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('purgekeys')
 realm.addprinc('selected', 'pw')
 realm.addprinc('unselected', 'pw')
 kadmin_as(all_modify, ['purgekeys', 'unselected'])
@@ -207,6 +217,7 @@ kadmin_as(none, ['purgekeys', 'none'])
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('renprinc')
 realm.addprinc('from', 'pw')
 kadmin_as(all_rename, ['renprinc', 'from', 'to'])
 realm.run([kadminl, 'renprinc', 'to', 'from'])
@@ -225,6 +236,7 @@ kadmin_as(restricted_rename, ['renprinc', 'notfrom', 'to'], expected_code=1,
           expected_msg="Insufficient authorization for operation")
 realm.run([kadminl, 'delprinc', 'notfrom'])
 
+mark('setstr')
 realm.addprinc('selected', 'pw')
 realm.addprinc('unselected', 'pw')
 kadmin_as(all_modify, ['setstr', 'unselected', 'key', 'value'])
@@ -236,6 +248,7 @@ kadmin_as(some_modify, ['setstr', 'unselected', 'key', 'value'],
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
+mark('addprinc/delprinc (wildcard)')
 kadmin_as(admin, ['addprinc', '-pw', 'pw', 'anytarget'])
 realm.run([kadminl, 'delprinc', 'anytarget'])
 kadmin_as(wctarget, ['addprinc', '-pw', 'pw', 'wild/card'])
@@ -249,6 +262,7 @@ kadmin_as(admin, ['delprinc', 'none'], expected_code=1,
 realm.addprinc('four/one/three', 'pw')
 kadmin_as(onetwothreefour, ['delprinc', 'four/one/three'])
 
+mark('addprinc (restrictions)')
 kadmin_as(restrictions, ['addprinc', '-pw', 'pw', 'type1'])
 realm.run([kadminl, 'getprinc', 'type1'], expected_msg='Policy: minlife')
 realm.run([kadminl, 'delprinc', 'type1'])
@@ -268,6 +282,7 @@ kadmin_as(restrictions, ['addprinc', '-pw', 'pw', '-maxrenewlife', '1 day',
 realm.run([kadminl, 'getprinc', 'type3'],
           expected_msg='Maximum renewable life: 0 days 02:00:00')
 
+mark('extract')
 realm.run([kadminl, 'addprinc', '-pw', 'pw', 'extractkeys'])
 kadmin_as(all_wildcard, ['ktadd', '-norandkey', 'extractkeys'],
           expected_code=1,
@@ -276,6 +291,7 @@ kadmin_as(all_extract, ['ktadd', '-norandkey', 'extractkeys'])
 realm.kinit('extractkeys', flags=['-k'])
 os.remove(realm.keytab)
 
+mark('lockdown_keys')
 kadmin_as(all_modify, ['modprinc', '+lockdown_keys', 'extractkeys'])
 kadmin_as(all_changepw, ['cpw', '-pw', 'newpw', 'extractkeys'],
           expected_code=1,
@@ -297,6 +313,7 @@ realm.kinit('extractkeys', flags=['-k'])
 os.remove(realm.keytab)
 
 # Verify that self-service key changes require an initial ticket.
+mark('self-service initial ticket')
 realm.run([kadminl, 'cpw', '-pw', password('none'), 'none'])
 realm.run([kadminl, 'modprinc', '+allow_tgs_req', 'kadmin/admin'])
 realm.kinit('none', password('none'))
@@ -310,5 +327,26 @@ realm.run([kadmin, '-c', realm.ccache, 'cpw', '-randkey', 'none'],
           expected_code=1, expected_msg=msg)
 realm.run([kadmin, '-c', realm.ccache, 'cpw', '-randkey', '-e', 'aes256-cts',
            'none'], expected_code=1, expected_msg=msg)
+
+# Test authentication to kadmin/hostname.
+mark('authentication to kadmin/hostname')
+kadmin_hostname = 'kadmin/' + hostname
+realm.addprinc(kadmin_hostname)
+realm.run([kadminl, 'delprinc', 'kadmin/admin'])
+msgs = ('Getting initial credentials for user/admin@KRBTEST.COM',
+        'Setting initial creds service to kadmin/admin',
+        '/Server not found in Kerberos database',
+        'Getting initial credentials for user/admin@KRBTEST.COM',
+        'Setting initial creds service to ' + kadmin_hostname,
+        'Decrypted AS reply')
+realm.run([kadmin, '-p', 'user/admin', 'listprincs'], expected_code=1,
+          expected_msg="Operation requires ``list'' privilege",
+          input=password('user/admin'), expected_trace=msgs)
+
+# Test operations disallowed at the libkadm5 layer.
+realm.run([kadminl, 'delprinc', 'K/M'],
+          expected_code=1, expected_msg='Cannot change protected principal')
+realm.run([kadminl, 'cpw', '-pw', 'pw', 'kadmin/history'],
+          expected_code=1, expected_msg='Cannot change protected principal')
 
 success('kadmin ACL enforcement')

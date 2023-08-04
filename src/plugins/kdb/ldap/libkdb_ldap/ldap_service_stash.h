@@ -37,7 +37,4 @@ krb5_error_code
 krb5_ldap_readpassword(krb5_context context, const char *filename,
                        const char *name, char **password_out);
 
-int
-tohex(krb5_data, krb5_data *);
-
 #endif

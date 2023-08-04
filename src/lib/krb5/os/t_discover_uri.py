@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 entries = ('URI _kerberos.TEST krb5srv::kkdcp:https://kdc1 1 1\n',

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-UPN-DNS-INFO-data:
+
+KRB5_PAC_UPN_DNS_INFO
+=====================
+
+..
+.. data:: KRB5_PAC_UPN_DNS_INFO
+..
+
+User principal name and DNS info.
+
+
+
+============================ ======================
+``KRB5_PAC_UPN_DNS_INFO``       ``12``
+============================ ======================

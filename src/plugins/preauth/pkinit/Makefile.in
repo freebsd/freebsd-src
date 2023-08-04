@@ -10,14 +10,14 @@ RELDIR=../plugins/preauth/pkinit
 SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT)
-SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto -lcrypto $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
+SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto -lcrypto $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
 
 STLIBOBJS= \
 	pkinit_accessor.o \
 	pkinit_srv.o \
 	pkinit_lib.o \
 	pkinit_clnt.o \
-	pkinit_kdf_constants.o \
+	pkinit_constants.o \
 	pkinit_profile.o \
 	pkinit_identity.o \
 	pkinit_matching.o \
@@ -28,7 +28,7 @@ SRCS= \
 	$(srcdir)/pkinit_srv.c \
 	$(srcdir)/pkinit_lib.c \
 	$(srcdir)/pkinit_kdf_test.c \
-	$(srcdir)/pkinit_kdf_constants.c \
+	$(srcdir)/pkinit_constants.c \
 	$(srcdir)/pkinit_clnt.c \
 	$(srcdir)/pkinit_profile.c \
 	$(srcdir)/pkinit_identity.c \

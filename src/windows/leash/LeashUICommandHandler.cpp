@@ -104,7 +104,7 @@ LeashUICommandHandler::QueryInterface(REFIID iid, void **ppv)
 // ribbon.)  Just proxy these commands through to the existing MFC
 // handlers by sendding the appropriate message to the main window.
 // Action only needs to be taken on the EXECUTE verb, so we can
-// ignore the additional properties surrouding the action, which would
+// ignore the additional properties surrounding the action, which would
 // be relevant for other verbs.
 //
 // The commandIds are taken from the XML ribbon description.

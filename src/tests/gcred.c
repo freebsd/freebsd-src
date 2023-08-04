@@ -33,7 +33,7 @@
 /*
  * This program is intended to be run from a python script as:
  *
- *     gcred nametype princname
+ *     gcred [-f] [-t] nametype princname
  *
  * where nametype is one of "unknown", "principal", "srv-inst", and "srv-hst",
  * and princname is the name of the service principal.  gcred acquires
@@ -41,6 +41,9 @@
  * the server principal name of the obtained credentials to stdout and exits
  * with status 0.  On failure, gcred displays the error message for the failed
  * operation to stderr and exits with status 1.
+ *
+ * The -f and -t flags set the KRB5_GC_FORWARDABLE and KRB5_GC_NO_TRANSIT_CHECK
+ * options respectively.
  */
 
 #include "k5-int.h"
@@ -66,20 +69,36 @@ main(int argc, char **argv)
     krb5_principal client, server;
     krb5_ccache ccache;
     krb5_creds in_creds, *creds;
+    krb5_ticket *ticket;
+    krb5_flags options = 0;
     char *name;
+    int c;
 
     check(krb5_init_context(&ctx));
 
-    /* Parse arguments. */
-    assert(argc == 3);
-    check(krb5_parse_name(ctx, argv[2], &server));
-    if (strcmp(argv[1], "unknown") == 0)
+    while ((c = getopt(argc, argv, "ft")) != -1) {
+        switch (c) {
+        case 'f':
+            options |= KRB5_GC_FORWARDABLE;
+            break;
+        case 't':
+            options |= KRB5_GC_NO_TRANSIT_CHECK;
+            break;
+        default:
+            abort();
+        }
+    }
+    argc -= optind;
+    argv += optind;
+    assert(argc == 2);
+    check(krb5_parse_name(ctx, argv[1], &server));
+    if (strcmp(argv[0], "unknown") == 0)
         server->type = KRB5_NT_UNKNOWN;
-    else if (strcmp(argv[1], "principal") == 0)
+    else if (strcmp(argv[0], "principal") == 0)
         server->type = KRB5_NT_PRINCIPAL;
-    else if (strcmp(argv[1], "srv-inst") == 0)
+    else if (strcmp(argv[0], "srv-inst") == 0)
         server->type = KRB5_NT_SRV_INST;
-    else if (strcmp(argv[1], "srv-hst") == 0)
+    else if (strcmp(argv[0], "srv-hst") == 0)
         server->type = KRB5_NT_SRV_HST;
     else
         abort();
@@ -89,10 +108,12 @@ main(int argc, char **argv)
     memset(&in_creds, 0, sizeof(in_creds));
     in_creds.client = client;
     in_creds.server = server;
-    check(krb5_get_credentials(ctx, 0, ccache, &in_creds, &creds));
-    check(krb5_unparse_name(ctx, creds->server, &name));
+    check(krb5_get_credentials(ctx, options, ccache, &in_creds, &creds));
+    check(krb5_decode_ticket(&creds->ticket, &ticket));
+    check(krb5_unparse_name(ctx, ticket->server, &name));
     printf("%s\n", name);
 
+    krb5_free_ticket(ctx, ticket);
     krb5_free_unparsed_name(ctx, name);
     krb5_free_creds(ctx, creds);
     krb5_free_principal(ctx, client);

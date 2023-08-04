@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>kpropd &mdash; MIT Kerberos Documentation</title>
-    
+    <title>kpropd &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="Administration programs" href="index.html" />
     <link rel="next" title="kproplog" href="kproplog.html" />
     <link rel="prev" title="kprop" href="kprop.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="kpropd">
 <span id="kpropd-8"></span><h1>kpropd<a class="headerlink" href="#kpropd" title="Permalink to this headline">¶</a></h1>
@@ -71,31 +69,33 @@
 [<strong>-r</strong> <em>realm</em>]
 [<strong>-A</strong> <em>admin_server</em>]
 [<strong>-a</strong> <em>acl_file</em>]
-[<strong>-f</strong> <em>slave_dumpfile</em>]
+[<strong>-f</strong> <em>replica_dumpfile</em>]
 [<strong>-F</strong> <em>principal_database</em>]
 [<strong>-p</strong> <em>kdb5_util_prog</em>]
 [<strong>-P</strong> <em>port</em>]
-[<strong>&#8211;pid-file</strong>=<em>pid_file</em>]
+[<strong>–pid-file</strong>=<em>pid_file</em>]
+[<strong>-D</strong>]
 [<strong>-d</strong>]
-[<strong>-t</strong>]</p>
+[<strong>-s</strong> <em>keytab_file</em>]</p>
 </div>
 <div class="section" id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
-<p>The <em>kpropd</em> command runs on the slave KDC server.  It listens for
-update requests made by the <a class="reference internal" href="kprop.html#kprop-8"><em>kprop</em></a> program.  If incremental
+<p>The <em>kpropd</em> command runs on the replica KDC server.  It listens for
+update requests made by the <a class="reference internal" href="kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> program.  If incremental
 propagation is enabled, it periodically requests incremental updates
-from the master KDC.</p>
-<p>When the slave receives a kprop request from the master, kpropd
+from the primary KDC.</p>
+<p>When the replica receives a kprop request from the primary, kpropd
 accepts the dumped KDC database and places it in a file, and then runs
-<a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> to load the dumped database into the active
-database which is used by <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a>.  This allows the master
-Kerberos server to use <a class="reference internal" href="kprop.html#kprop-8"><em>kprop</em></a> to propagate its database to
-the slave servers.  Upon a successful download of the KDC database
-file, the slave Kerberos server will have an up-to-date KDC database.</p>
+<a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> to load the dumped database into the active
+database which is used by <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a>.  This allows the primary
+Kerberos server to use <a class="reference internal" href="kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> to propagate its database to
+the replica servers.  Upon a successful download of the KDC database
+file, the replica Kerberos server will have an up-to-date KDC
+database.</p>
 <p>Where incremental propagation is not used, kpropd is commonly invoked
 out of inetd(8) as a nowait service.  This is done by adding a line to
-the <tt class="docutils literal"><span class="pre">/etc/inetd.conf</span></tt> file which looks like this:</p>
-<div class="highlight-python"><div class="highlight"><pre>kprop  stream  tcp  nowait  root  /usr/local/sbin/kpropd  kpropd
+the <code class="docutils literal"><span class="pre">/etc/inetd.conf</span></code> file which looks like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kprop</span>  <span class="n">stream</span>  <span class="n">tcp</span>  <span class="n">nowait</span>  <span class="n">root</span>  <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">sbin</span><span class="o">/</span><span class="n">kpropd</span>  <span class="n">kpropd</span>
 </pre></div>
 </div>
 <p>kpropd can also run as a standalone daemon, backgrounding itself and
@@ -107,75 +107,77 @@ not.  Prior to release 1.11, the <strong>-S</strong> option is required to run
 kpropd in standalone mode; this option is now accepted for backward
 compatibility but does nothing.</p>
 <p>Incremental propagation may be enabled with the <strong>iprop_enable</strong>
-variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.  If incremental propagation is
-enabled, the slave periodically polls the master KDC for updates, at
-an interval determined by the <strong>iprop_slave_poll</strong> variable.  If the
-slave receives updates, kpropd updates its log file with any updates
-from the master.  <a class="reference internal" href="kproplog.html#kproplog-8"><em>kproplog</em></a> can be used to view a summary of
-the update entry log on the slave KDC.  If incremental propagation is
-enabled, the principal <tt class="docutils literal"><span class="pre">kiprop/slavehostname&#64;REALM</span></tt> (where
-<em>slavehostname</em> is the name of the slave KDC host, and <em>REALM</em> is the
-name of the Kerberos realm) must be present in the slave&#8217;s keytab
-file.</p>
-<p><a class="reference internal" href="kproplog.html#kproplog-8"><em>kproplog</em></a> can be used to force full replication when iprop is
+variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.  If incremental propagation is
+enabled, the replica periodically polls the primary KDC for updates, at
+an interval determined by the <strong>iprop_replica_poll</strong> variable.  If the
+replica receives updates, kpropd updates its log file with any updates
+from the primary.  <a class="reference internal" href="kproplog.html#kproplog-8"><span class="std std-ref">kproplog</span></a> can be used to view a summary of
+the update entry log on the replica KDC.  If incremental propagation
+is enabled, the principal <code class="docutils literal"><span class="pre">kiprop/replicahostname&#64;REALM</span></code> (where
+<em>replicahostname</em> is the name of the replica KDC host, and <em>REALM</em> is
+the name of the Kerberos realm) must be present in the replica’s
+keytab file.</p>
+<p><a class="reference internal" href="kproplog.html#kproplog-8"><span class="std std-ref">kproplog</span></a> can be used to force full replication when iprop is
 enabled.</p>
 </div>
 <div class="section" id="options">
 <h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>-r</strong> <em>realm</em></dt>
-<dd>Specifies the realm of the master server.</dd>
+<dd>Specifies the realm of the primary server.</dd>
 <dt><strong>-A</strong> <em>admin_server</em></dt>
 <dd>Specifies the server to be contacted for incremental updates; by
-default, the master admin server is contacted.</dd>
+default, the primary admin server is contacted.</dd>
 <dt><strong>-f</strong> <em>file</em></dt>
 <dd>Specifies the filename where the dumped principal database file is
-to be stored; by default the dumped database file is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/from_master</span></tt>.</dd>
+to be stored; by default the dumped database file is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal"><span class="pre">/krb5kdc</span></code><code class="docutils literal"><span class="pre">/from_master</span></code>.</dd>
+<dt><strong>-F</strong> <em>kerberos_db</em></dt>
+<dd>Path to the Kerberos database file, if not the default.</dd>
 <dt><strong>-p</strong></dt>
-<dd>Allows the user to specify the pathname to the <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>
-program; by default the pathname used is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>SBINDIR</em></a><tt class="docutils literal"><span class="pre">/kdb5_util</span></tt>.</dd>
+<dd>Allows the user to specify the pathname to the <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>
+program; by default the pathname used is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">SBINDIR</span></a><code class="docutils literal"><span class="pre">/kdb5_util</span></code>.</dd>
+<dt><strong>-D</strong></dt>
+<dd>In this mode, kpropd will not detach itself from the current job
+and run in the background.  Instead, it will run in the
+foreground.</dd>
 <dt><strong>-d</strong></dt>
-<dd>Turn on debug mode.  In this mode, kpropd will not detach
-itself from the current job and run in the background.  Instead,
-it will run in the foreground and print out debugging messages
-during the database propagation.</dd>
-<dt><strong>-t</strong></dt>
-<dd>In standalone mode without incremental propagation, exit after one
-dump file is received.  In incremental propagation mode, exit as
-soon as the database is up to date, or if the master returns an
-error.</dd>
+<dd>Turn on debug mode.  kpropd will print out debugging messages
+during the database propogation and will run in the foreground
+(implies <strong>-D</strong>).</dd>
 <dt><strong>-P</strong></dt>
 <dd>Allow for an alternate port number for kpropd to listen on.  This
 is only useful in combination with the <strong>-S</strong> option.</dd>
 <dt><strong>-a</strong> <em>acl_file</em></dt>
 <dd>Allows the user to specify the path to the kpropd.acl file; by
-default the path used is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kpropd.acl</span></tt>.</dd>
-<dt><strong>&#8211;pid-file</strong>=<em>pid_file</em></dt>
+default the path used is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal"><span class="pre">/krb5kdc</span></code><code class="docutils literal"><span class="pre">/kpropd.acl</span></code>.</dd>
+<dt><strong>–pid-file</strong>=<em>pid_file</em></dt>
 <dd>In standalone mode, write the process ID of the daemon into
 <em>pid_file</em>.</dd>
+<dt><strong>-s</strong> <em>keytab_file</em></dt>
+<dd>Path to a keytab to use for acquiring acceptor credentials.</dd>
+<dt><strong>-x</strong> <em>db_args</em></dt>
+<dd>Database-specific arguments.  See <a class="reference internal" href="kadmin_local.html#dboptions"><span class="std std-ref">Database Options</span></a> in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for supported arguments.</dd>
 </dl>
-</div>
-<div class="section" id="environment">
-<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
-<p>kpropd uses the following environment variables:</p>
-<ul class="simple">
-<li><strong>KRB5_CONFIG</strong></li>
-<li><strong>KRB5_KDC_PROFILE</strong></li>
-</ul>
 </div>
 <div class="section" id="files">
 <h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt>kpropd.acl</dt>
 <dd>Access file for kpropd; the default location is
-<tt class="docutils literal"><span class="pre">/usr/local/var/krb5kdc/kpropd.acl</span></tt>.  Each entry is a line
+<code class="docutils literal"><span class="pre">/usr/local/var/krb5kdc/kpropd.acl</span></code>.  Each entry is a line
 containing the principal of a host from which the local machine
-will allow Kerberos database propagation via <a class="reference internal" href="kprop.html#kprop-8"><em>kprop</em></a>.</dd>
+will allow Kerberos database propagation via <a class="reference internal" href="kprop.html#kprop-8"><span class="std std-ref">kprop</span></a>.</dd>
 </dl>
+</div>
+<div class="section" id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="kprop.html#kprop-8"><em>kprop</em></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>, <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a>, inetd(8)</p>
+<p><a class="reference internal" href="kprop.html#kprop-8"><span class="std std-ref">kprop</span></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a>,
+<a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a>, inetd(8)</p>
 </div>
 </div>
 
@@ -191,8 +193,8 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 <li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
 <li><a class="reference internal" href="#description">DESCRIPTION</a></li>
 <li><a class="reference internal" href="#options">OPTIONS</a></li>
-<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
 <li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
 <li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
 </ul>
 </li>
@@ -207,6 +209,7 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 <li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
@@ -214,6 +217,8 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 <li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
@@ -225,7 +230,7 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 <li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
 <li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">kpropd</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kpropd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
 <li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
@@ -266,8 +271,8 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

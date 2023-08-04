@@ -181,34 +181,44 @@ finish_ofile(char *ofile, char **tmpname)
 }
 
 /* Create the .dump_ok file. */
-static int
-prep_ok_file(krb5_context context, char *file_name, int *fd)
+static krb5_boolean
+prep_ok_file(krb5_context context, char *file_name, int *fd_out)
 {
     static char ok[] = ".dump_ok";
     krb5_error_code retval;
-    char *file_ok;
+    char *file_ok = NULL;
+    int fd = -1;
+    krb5_boolean success = FALSE;
+
+    *fd_out = -1;
 
     if (asprintf(&file_ok, "%s%s", file_name, ok) < 0) {
         com_err(progname, ENOMEM, _("while allocating dump_ok filename"));
-        exit_status++;
-        return 0;
+        goto cleanup;
     }
 
-    *fd = open(file_ok, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    if (*fd == -1) {
+    fd = open(file_ok, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd == -1) {
         com_err(progname, errno, _("while creating 'ok' file, '%s'"), file_ok);
-        exit_status++;
-        free(file_ok);
-        return 0;
+        goto cleanup;
     }
-    retval = krb5_lock_file(context, *fd, KRB5_LOCKMODE_EXCLUSIVE);
+    retval = krb5_lock_file(context, fd, KRB5_LOCKMODE_EXCLUSIVE);
     if (retval) {
         com_err(progname, retval, _("while locking 'ok' file, '%s'"), file_ok);
-        free(file_ok);
-        return 0;
+        goto cleanup;
     }
+
+    *fd_out = fd;
+    fd = -1;
+    success = TRUE;
+
+cleanup:
     free(file_ok);
-    return 1;
+    if (fd != -1)
+        close(fd);
+    if (!success)
+        exit_status++;
+    return success;
 }
 
 /*
@@ -465,83 +475,6 @@ dump_r1_11_policy(void *data, osa_policy_ent_t entry)
     fprintf(arg->ofile, "\n");
 }
 
-static void
-print_key_data(FILE *f, krb5_key_data *kd)
-{
-    int c;
-
-    fprintf(f, "%d\t%d\t", kd->key_data_type[0], kd->key_data_length[0]);
-    for (c = 0; c < kd->key_data_length[0]; c++)
-        fprintf(f, "%02x ", kd->key_data_contents[0][c]);
-}
-
-/* Output osa_adb_princ_ent data in a printable serialized format, suitable for
- * ovsec_adm_import consumption. */
-static krb5_error_code
-dump_ov_princ(krb5_context context, krb5_db_entry *entry, const char *name,
-              FILE *fp, krb5_boolean verbose, krb5_boolean omit_nra)
-{
-    char *princstr;
-    unsigned int x;
-    int y, foundcrc;
-    krb5_tl_data tl_data;
-    osa_princ_ent_rec adb;
-    XDR xdrs;
-    krb5_key_data *key_data;
-
-    tl_data.tl_data_type = KRB5_TL_KADM_DATA;
-    if (krb5_dbe_lookup_tl_data(context, entry, &tl_data) ||
-        tl_data.tl_data_length == 0)
-        return 0;
-
-    memset(&adb, 0, sizeof(adb));
-    xdrmem_create(&xdrs, (caddr_t)tl_data.tl_data_contents,
-                  tl_data.tl_data_length, XDR_DECODE);
-    if (!xdr_osa_princ_ent_rec(&xdrs, &adb)) {
-        xdr_destroy(&xdrs);
-        return KADM5_XDR_FAILURE;
-    }
-    xdr_destroy(&xdrs);
-
-    krb5_unparse_name(context, entry->princ, &princstr);
-    fprintf(fp, "princ\t%s\t", princstr);
-    if (adb.policy == NULL)
-        fputc('\t', fp);
-    else
-        fprintf(fp, "%s\t", adb.policy);
-    fprintf(fp, "%lx\t%d\t%d\t%d", adb.aux_attributes, adb.old_key_len,
-            adb.old_key_next, adb.admin_history_kvno);
-
-    for (x = 0; x < adb.old_key_len; x++) {
-        foundcrc = 0;
-        for (y = 0; y < adb.old_keys[x].n_key_data; y++) {
-            key_data = &adb.old_keys[x].key_data[y];
-            if (key_data->key_data_type[0] != ENCTYPE_DES_CBC_CRC)
-                continue;
-            if (foundcrc) {
-                fprintf(stderr, _("Warning!  Multiple DES-CBC-CRC keys for "
-                                  "principal %s; skipping duplicates.\n"),
-                        princstr);
-                continue;
-            }
-            foundcrc++;
-
-            fputc('\t', fp);
-            print_key_data(fp, key_data);
-        }
-        if (!foundcrc) {
-            fprintf(stderr, _("Warning!  No DES-CBC-CRC key for principal %s, "
-                              "cannot generate OV-compatible record; "
-                              "skipping\n"), princstr);
-        }
-    }
-
-    fputc('\n', fp);
-    free(princstr);
-    xdr_free(xdr_osa_princ_ent_rec, &adb);
-    return 0;
-}
-
 static krb5_error_code
 dump_iterator(void *ptr, krb5_db_entry *entry)
 {
@@ -735,6 +668,10 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
     }
 
     /* Get memory for flattened principal name */
+    if (u2 > UINT_MAX / 2) {
+        load_err(fname, *linenop, _("cannot allocate principal (too large)"));
+        goto fail;
+    }
     name = malloc(u2 + 1);
     if (name == NULL)
         goto fail;
@@ -749,6 +686,10 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
     dbentry->n_tl_data = u3;
 
     /* Get memory for key list */
+    if (u4 > INT16_MAX) {
+        load_err(fname, *linenop, _("invalid key_data size"));
+        goto fail;
+    }
     if (u4 && (kp = calloc(u4, sizeof(krb5_key_data))) == NULL)
         goto fail;
 
@@ -789,7 +730,7 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
     dbentry->fail_auth_count = u5;
     dbentry->mask = KADM5_LOAD | KADM5_PRINCIPAL | KADM5_ATTRIBUTES |
         KADM5_MAX_LIFE | KADM5_MAX_RLIFE |
-        KADM5_PRINC_EXPIRE_TIME | KADM5_LAST_SUCCESS |
+        KADM5_PRINC_EXPIRE_TIME | KADM5_PW_EXPIRATION | KADM5_LAST_SUCCESS |
         KADM5_LAST_FAILED | KADM5_FAIL_AUTH_COUNT;
 
     /* Read tagged data. */
@@ -836,13 +777,17 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
             load_err(fname, *linenop, _("unsupported key_data_ver version"));
             goto fail;
         }
+        if (t2 < 0 || t2 > UINT16_MAX) {
+            load_err(fname, *linenop, _("invalid kvno"));
+            goto fail;
+        }
 
         kd->key_data_ver = t1;
         kd->key_data_kvno = t2;
 
         for (j = 0; j < t1; j++) {
             nread = fscanf(filep, "%d\t%d\t", &t3, &t4);
-            if (nread != 2 || t4 < 0) {
+            if (nread != 2 || t4 < 0 || t4 > UINT16_MAX) {
                 load_err(fname, *linenop,
                          _("cannot read key type and length"));
                 goto fail;
@@ -1083,14 +1028,6 @@ process_k5beta7_record(krb5_context context, const char *fname, FILE *filep,
 }
 
 static int
-process_ov_record(krb5_context context, const char *fname, FILE *filep,
-                  krb5_boolean verbose, int *linenop)
-{
-    return process_tagged(context, fname, filep, verbose, linenop,
-                          process_ov_principal, process_k5beta7_policy);
-}
-
-static int
 process_r1_8_record(krb5_context context, const char *fname, FILE *filep,
                     krb5_boolean verbose, int *linenop)
 {
@@ -1115,16 +1052,6 @@ dump_version beta7_version = {
     dump_k5beta7_princ,
     dump_k5beta7_policy,
     process_k5beta7_record,
-};
-dump_version ov_version = {
-    "OpenV*Secure V1.0",
-    "OpenV*Secure V1.0\t",
-    1,
-    0,
-    0,
-    dump_ov_princ,
-    dump_k5beta7_policy,
-    process_ov_record
 };
 dump_version r1_3_version = {
     "Kerberos version 5 release 1.3",
@@ -1227,16 +1154,17 @@ current_dump_sno_in_ulog(krb5_context context, const char *ifile)
     update_status_t status;
     dump_version *junk;
     kdb_last_t last;
-    char buf[BUFSIZ];
+    char buf[BUFSIZ], *r;
     FILE *f;
 
     f = fopen(ifile, "r");
     if (f == NULL)
         return 0;              /* aliasing other errors to ENOENT here is OK */
 
-    if (fgets(buf, sizeof(buf), f) == NULL)
-        return errno ? -1 : 0;
+    r = fgets(buf, sizeof(buf), f);
     fclose(f);
+    if (r == NULL)
+        return errno ? -1 : 0;
 
     if (!parse_iprop_header(buf, &junk, &last))
         return 0;
@@ -1245,12 +1173,6 @@ current_dump_sno_in_ulog(krb5_context context, const char *ifile)
     return status == UPDATE_OK || status == UPDATE_NIL;
 }
 
-/*
- * usage is:
- *      dump_db [-b7] [-ov] [-r13] [-r18] [-verbose] [-mkey_convert]
- *              [-new_mkey_file mkey_file] [-rev] [-recurse]
- *              [filename [principals...]]
- */
 void
 dump_db(int argc, char **argv)
 {
@@ -1282,12 +1204,14 @@ dump_db(int argc, char **argv)
         if (!strcmp(argv[aindex], "-b7")) {
             dump = &beta7_version;
         } else if (!strcmp(argv[aindex], "-ov")) {
-            dump = &ov_version;
+            fprintf(stderr, _("OV dump format not supported\n"));
+            goto error;
         } else if (!strcmp(argv[aindex], "-r13")) {
             dump = &r1_3_version;
         } else if (!strcmp(argv[aindex], "-r18")) {
             dump = &r1_8_version;
         } else if (!strncmp(argv[aindex], "-i", 2)) {
+            /* Intentionally undocumented - only used by kadmin. */
             if (log_ctx && log_ctx->iproprole) {
                 /* ipropx_version is the maximum version acceptable. */
                 ipropx_version = atoi(argv[aindex] + 2);
@@ -1295,7 +1219,7 @@ dump_db(int argc, char **argv)
                 /*
                  * dump_sno is used to indicate if the serial number should be
                  * populated in the output file to be used later by iprop for
-                 * updating the slave's update log when loading.
+                 * updating the replica's update log when loading.
                  */
                 dump_sno = TRUE;
                 /* FLAG_OMIT_NRA is set to indicate that non-replicated
@@ -1453,7 +1377,8 @@ dump_db(int argc, char **argv)
         goto error;
     }
 
-    if (dump->dump_policy != NULL) {
+    /* Don't dump policies if specific principal entries were requested. */
+    if (dump->dump_policy != NULL && args.nnames == 0) {
         ret = krb5_db_iter_policy(util_context, "*", dump->dump_policy, &args);
         if (ret) {
             com_err(progname, ret, _("performing %s dump"), dump->name);
@@ -1493,10 +1418,6 @@ restore_dump(krb5_context context, char *dumpfile, FILE *f,
     return 0;
 }
 
-/*
- * Usage: load_db [-ov] [-b7] [-r13] [-verbose] [-update] [-hash]
- *                filename
- */
 void
 load_db(int argc, char **argv)
 {
@@ -1519,12 +1440,14 @@ load_db(int argc, char **argv)
         if (!strcmp(argv[aindex], "-b7")){
             load = &beta7_version;
         } else if (!strcmp(argv[aindex], "-ov")) {
-            load = &ov_version;
+            fprintf(stderr, _("OV dump format not supported\n"));
+            goto error;
         } else if (!strcmp(argv[aindex], "-r13")) {
             load = &r1_3_version;
         } else if (!strcmp(argv[aindex], "-r18")){
             load = &r1_8_version;
         } else if (!strcmp(argv[aindex], "-i")) {
+            /* Intentionally undocumented - only used by kadmin. */
             if (log_ctx && log_ctx->iproprole) {
                 load = &iprop_version;
                 iprop_load = TRUE;
@@ -1584,9 +1507,6 @@ load_db(int argc, char **argv)
             load = &r1_8_version;
         } else if (strcmp(buf, r1_11_version.header) == 0) {
             load = &r1_11_version;
-        } else if (strncmp(buf, ov_version.header,
-                           strlen(ov_version.header)) == 0) {
-            load = &ov_version;
         } else {
             fprintf(stderr, _("%s: dump header bad in %s\n"), progname,
                     dumpfile);
@@ -1649,7 +1569,7 @@ load_db(int argc, char **argv)
     if (log_ctx != NULL && log_ctx->iproprole && !update) {
         /* Don't record updates we are making to the temporary DB.  We will
          * reinitialize or update the ulog header after promoting it. */
-        log_ctx->iproprole = IPROP_SLAVE;
+        log_ctx->iproprole = IPROP_REPLICA;
         if (iprop_load) {
             /* Parse the iprop header information. */
             if (!parse_iprop_header(buf, &load, &last))

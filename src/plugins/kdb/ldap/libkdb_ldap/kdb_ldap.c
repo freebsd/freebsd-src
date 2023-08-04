@@ -294,7 +294,7 @@ krb5_ldap_check_allowed_to_delegate(krb5_context context,
     krb5_error_code code;
     krb5_tl_data *tlp;
 
-    code = KRB5KDC_ERR_POLICY;
+    code = KRB5KDC_ERR_BADOPTION;
 
     for (tlp = server->tl_data; tlp != NULL; tlp = tlp->tl_data_next) {
         krb5_principal acl;
@@ -305,7 +305,7 @@ krb5_ldap_check_allowed_to_delegate(krb5_context context,
         if (krb5_parse_name(context, (char *)tlp->tl_data_contents, &acl) != 0)
             continue;
 
-        if (krb5_principal_compare(context, proxy, acl)) {
+        if (proxy == NULL || krb5_principal_compare(context, proxy, acl)) {
             code = 0;
             krb5_free_principal(context, acl);
             break;

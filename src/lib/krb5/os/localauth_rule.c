@@ -130,10 +130,8 @@ do_replacement(const char *regstr, const char *repl, krb5_boolean doall,
     }
     regfree(&re);
     k5_buf_add(&buf, instr);
-    if (k5_buf_status(&buf) != 0)
-        return ENOMEM;
-    *outstr = buf.data;
-    return 0;
+    *outstr = k5_buf_cstring(&buf);
+    return (*outstr == NULL) ? ENOMEM : 0;
 }
 
 /*
@@ -146,7 +144,7 @@ aname_replacer(const char *string, const char **contextp, char **result)
 {
     krb5_error_code ret = 0;
     const char *cp, *ep, *tp;
-    char *current, *newstr, *rule = NULL, *repl = NULL;
+    char *newstr, *rule = NULL, *repl = NULL, *current = NULL;
     krb5_boolean doglobal;
 
     *result = NULL;
@@ -192,8 +190,10 @@ aname_replacer(const char *string, const char **contextp, char **result)
         current = newstr;
     }
     *result = current;
+    current = NULL;
 
 cleanup:
+    free(current);
     free(repl);
     free(rule);
     return ret;
@@ -263,11 +263,10 @@ aname_get_selstring(krb5_context context, krb5_const_principal aname,
         return KRB5_CONFIG_BADFORMAT;
     }
 
-    if (k5_buf_status(&selstring) != 0)
+    *selstring_out = k5_buf_cstring(&selstring);
+    if (*selstring_out == NULL)
         return ENOMEM;
-
     *contextp = current + 1;
-    *selstring_out = selstring.data;
     return 0;
 }
 

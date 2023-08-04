@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<WixLocalization Culture="en-US">
+<WixLocalization Culture="en-US" xmlns="http://schemas.microsoft.com/wix/2006/localization">
 <!--
 
   Copyright (C) 2004 by the Massachusetts Institute of Technology.

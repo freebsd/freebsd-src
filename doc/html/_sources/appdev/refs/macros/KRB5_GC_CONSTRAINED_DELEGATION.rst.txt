@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-GC-CONSTRAINED-DELEGATION-data:
+
+KRB5_GC_CONSTRAINED_DELEGATION
+==============================
+
+..
+.. data:: KRB5_GC_CONSTRAINED_DELEGATION
+..
+
+Constrained delegation.
+
+
+
+===================================== ======================
+``KRB5_GC_CONSTRAINED_DELEGATION``       ``64``
+===================================== ======================

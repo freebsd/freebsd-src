@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Create a realm with the KDC one hour in the past.
@@ -7,6 +6,7 @@ realm.start_kdc(['-T', '-3600'])
 
 # kinit (no preauth) should work, and should set a clock skew allowing
 # kvno to work, with or without FAST.
+mark('kdc_timesync enabled, no preauth')
 realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ])
 realm.kinit(realm.user_princ, password('user'), flags=['-T', realm.ccache])
@@ -14,6 +14,7 @@ realm.run([kvno, realm.host_princ])
 realm.run([kdestroy])
 
 # kinit (with preauth) should work, with or without FAST.
+mark('kdc_timesync enabled, with preauth')
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'user'])
 realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ])
@@ -37,12 +38,14 @@ realm.kinit(realm.user_princ, password('user'),
 
 # kinit should detect too much skew in the KDC response.  kinit with
 # FAST should fail from the KDC since the armor AP-REQ won't be valid.
+mark('KDC timesync disabled, no preauth')
 realm.kinit(realm.user_princ, password('user'), expected_code=1,
             expected_msg='Clock skew too great in KDC reply')
 realm.kinit(realm.user_princ, None, flags=['-T', fast_cache], expected_code=1,
             expected_msg='Clock skew too great while')
 
 # kinit (with preauth) should fail from the KDC, with or without FAST.
+mark('KDC timesync disabled, with preauth')
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'user'])
 realm.kinit(realm.user_princ, password('user'), expected_code=1,
             expected_msg='Clock skew too great while')

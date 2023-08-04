@@ -55,20 +55,15 @@
 
 extern const krb5_kt_ops krb5_ktf_ops;
 extern const krb5_kt_ops krb5_ktf_writable_ops;
-extern const krb5_kt_ops krb5_kts_ops;
 extern const krb5_kt_ops krb5_mkt_ops;
 
 struct krb5_kt_typelist {
     const krb5_kt_ops *ops;
     const struct krb5_kt_typelist *next;
 };
-const static struct krb5_kt_typelist krb5_kt_typelist_srvtab = {
-    &krb5_kts_ops,
-    NULL
-};
 const static struct krb5_kt_typelist krb5_kt_typelist_memory = {
     &krb5_mkt_ops,
-    &krb5_kt_typelist_srvtab
+    NULL
 };
 const static struct krb5_kt_typelist krb5_kt_typelist_wrfile  = {
     &krb5_ktf_writable_ops,
@@ -223,79 +218,4 @@ krb5_kt_dup(krb5_context context, krb5_keytab in, krb5_keytab *out)
     return err ? err : krb5_kt_resolve(context, name, out);
 }
 
-/*
- * Routines to deal with externalizingt krb5_keytab.
- *      keytab_size();
- *      keytab_externalize();
- *      keytab_internalize();
- */
-static krb5_error_code keytab_size
-(krb5_context, krb5_pointer, size_t *);
-static krb5_error_code keytab_externalize
-(krb5_context, krb5_pointer, krb5_octet **, size_t *);
-static krb5_error_code keytab_internalize
-(krb5_context,krb5_pointer *, krb5_octet **, size_t *);
-
-/*
- * Serialization entry for this type.
- */
-static const krb5_ser_entry krb5_keytab_ser_entry = {
-    KV5M_KEYTAB,                        /* Type                 */
-    keytab_size,                   /* Sizer routine        */
-    keytab_externalize,            /* Externalize routine  */
-    keytab_internalize             /* Internalize routine  */
-};
-
-static krb5_error_code
-keytab_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
-{
-    krb5_error_code     kret;
-    krb5_keytab         keytab;
-    krb5_ser_handle     shandle;
-
-    kret = EINVAL;
-    if ((keytab = (krb5_keytab) arg) &&
-        keytab->ops &&
-        (shandle = (krb5_ser_handle) keytab->ops->serializer) &&
-        shandle->sizer)
-        kret = (*shandle->sizer)(kcontext, arg, sizep);
-    return(kret);
-}
-
-static krb5_error_code
-keytab_externalize(krb5_context kcontext, krb5_pointer arg,
-                   krb5_octet **buffer, size_t *lenremain)
-{
-    krb5_error_code     kret;
-    krb5_keytab         keytab;
-    krb5_ser_handle     shandle;
-
-    kret = EINVAL;
-    if ((keytab = (krb5_keytab) arg) &&
-        keytab->ops &&
-        (shandle = (krb5_ser_handle) keytab->ops->serializer) &&
-        shandle->externalizer)
-        kret = (*shandle->externalizer)(kcontext, arg, buffer, lenremain);
-    return(kret);
-}
-
-static krb5_error_code
-keytab_internalize(krb5_context kcontext, krb5_pointer *argp,
-                   krb5_octet **buffer, size_t *lenremain)
-{
-    krb5_error_code     kret;
-    krb5_ser_handle     shandle;
-
-    kret = EINVAL;
-    if ((shandle = (krb5_ser_handle) krb5_kt_dfl_ops.serializer) &&
-        shandle->internalizer)
-        kret = (*shandle->internalizer)(kcontext, argp, buffer, lenremain);
-    return(kret);
-}
-
-krb5_error_code KRB5_CALLCONV
-krb5_ser_keytab_init(krb5_context kcontext)
-{
-    return(krb5_register_serializer(kcontext, &krb5_keytab_ser_entry));
-}
 #endif /* LEAN_CLIENT */

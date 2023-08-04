@@ -44,36 +44,9 @@
 
 const char *whoami;
 
-#if 0
-static void printhex (size_t len, const char *p)
-{
-    while (len--)
-        printf ("%02x", 0xff & *p++);
-}
-
-static void printstringhex (const char *p) { printhex (strlen (p), p); }
-
-static void printdata (krb5_data *d) { printhex (d->length, d->data); }
-
-static void printkey (krb5_keyblock *k) { printhex (k->length, k->contents); }
-#endif
-
-
 #define JURISIC "Juri\305\241i\304\207" /* hi Miro */
 #define ESZETT "\303\237"
 #define GCLEF  "\360\235\204\236" /* outside BMP, woo hoo!  */
-
-#if 0
-static void
-check_error (int r, int line) {
-    if (r != 0) {
-        fprintf (stderr, "%s:%d: %s\n", __FILE__, line,
-                 error_message (r));
-        exit (1);
-    }
-}
-#define CHECK check_error(r, __LINE__)
-#endif
 
 static void printd (const char *descr, krb5_data *d) {
     unsigned int i, j;

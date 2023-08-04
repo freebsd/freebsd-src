@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-PA-AS-FRESHNESS-data:
+
+KRB5_KEYUSAGE_PA_AS_FRESHNESS
+=============================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_AS_FRESHNESS
+..
+
+Used for freshness tokens.
+
+
+
+==================================== ======================
+``KRB5_KEYUSAGE_PA_AS_FRESHNESS``       ``514``
+==================================== ======================

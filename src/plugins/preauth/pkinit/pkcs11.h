@@ -12,7 +12,7 @@
    PURPOSE.  */
 
 /* Please submit changes back to the Scute project at
-   http://www.scute.org/ (or send them to marcus@g10code.com), so that
+   https://www.scute.org/ (or send them to marcus@g10code.com), so that
    they can be picked up by other projects from there as well.  */
 
 /* This file is a modified implementation of the PKCS #11 standard by

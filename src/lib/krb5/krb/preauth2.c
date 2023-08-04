@@ -132,6 +132,8 @@ k5_init_preauth_context(krb5_context context)
     /* Auto-register built-in modules. */
     k5_plugin_register_dyn(context, PLUGIN_INTERFACE_CLPREAUTH, "pkinit",
                            "preauth");
+    k5_plugin_register_dyn(context, PLUGIN_INTERFACE_CLPREAUTH, "spake",
+                           "preauth");
     k5_plugin_register(context, PLUGIN_INTERFACE_CLPREAUTH,
                        "encrypted_challenge",
                        clpreauth_encrypted_challenge_initvt);
@@ -201,18 +203,6 @@ cleanup:
     free_handles(context, list);
 }
 
-/* Reset the memory of which preauth types we have already tried. */
-void
-k5_reset_preauth_types_tried(krb5_init_creds_context ctx)
-{
-    krb5_preauth_req_context reqctx = ctx->preauth_reqctx;
-
-    if (reqctx == NULL)
-        return;
-    free(reqctx->failed);
-    reqctx->failed = NULL;
-}
-
 /* Add pa_type to the list of types which has previously failed. */
 krb5_error_code
 k5_preauth_note_failed(krb5_init_creds_context ctx, krb5_preauthtype pa_type)
@@ -273,6 +263,10 @@ k5_preauth_request_context_init(krb5_context context,
      * preauth context's array of handles. */
     for (count = 0; pctx->handles[count] != NULL; count++);
     reqctx->modreqs = calloc(count, sizeof(*reqctx->modreqs));
+    if (reqctx->modreqs == NULL) {
+        free(reqctx);
+        return;
+    }
     for (i = 0; i < count; i++) {
         h = pctx->handles[i];
         if (h->vt.request_init != NULL)
@@ -428,7 +422,11 @@ grow_pa_list(krb5_pa_data ***out_pa_list, int *out_pa_list_size,
 static krb5_enctype
 get_etype(krb5_context context, krb5_clpreauth_rock rock)
 {
-    return ((krb5_init_creds_context)rock)->etype;
+    krb5_init_creds_context ctx = (krb5_init_creds_context)rock;
+
+    if (ctx->reply != NULL)
+        return ctx->reply->enc_part.enctype;
+    return ctx->etype;
 }
 
 static krb5_keyblock *
@@ -551,8 +549,14 @@ set_cc_config(krb5_context context, krb5_clpreauth_rock rock,
     return ret;
 }
 
+static void
+disable_fallback(krb5_context context, krb5_clpreauth_rock rock)
+{
+    ((krb5_init_creds_context)rock)->fallback_disabled = TRUE;
+}
+
 static struct krb5_clpreauth_callbacks_st callbacks = {
-    2,
+    3,
     get_etype,
     fast_armor,
     get_as_key,
@@ -562,7 +566,8 @@ static struct krb5_clpreauth_callbacks_st callbacks = {
     responder_get_answer,
     need_as_key,
     get_cc_config,
-    set_cc_config
+    set_cc_config,
+    disable_fallback
 };
 
 /* Tweak the request body, for now adding any enctypes which the module claims
@@ -781,9 +786,9 @@ get_salt(krb5_context context, krb5_init_creds_context ctx,
 }
 
 /* Set etype info parameters in rock based on padata. */
-static krb5_error_code
-get_etype_info(krb5_context context, krb5_init_creds_context ctx,
-               krb5_pa_data **padata)
+krb5_error_code
+k5_get_etype_info(krb5_context context, krb5_init_creds_context ctx,
+                  krb5_pa_data **padata)
 {
     krb5_error_code ret = 0;
     krb5_pa_data *pa;
@@ -876,49 +881,6 @@ error:
     free(pa->contents);
     free(pa);
     return ENOMEM;
-}
-
-static krb5_error_code
-add_s4u_x509_user_padata(krb5_context context, krb5_s4u_userid *userid,
-                         krb5_principal client, krb5_pa_data ***out_pa_list,
-                         int *out_pa_list_size)
-{
-    krb5_pa_data *s4u_padata;
-    krb5_error_code code;
-    krb5_principal client_copy;
-
-    if (userid == NULL)
-        return EINVAL;
-    code = krb5_copy_principal(context, client, &client_copy);
-    if (code != 0)
-        return code;
-    krb5_free_principal(context, userid->user);
-    userid->user = client_copy;
-
-    if (userid->subject_cert.length != 0) {
-        s4u_padata = malloc(sizeof(*s4u_padata));
-        if (s4u_padata == NULL)
-            return ENOMEM;
-
-        s4u_padata->magic = KV5M_PA_DATA;
-        s4u_padata->pa_type = KRB5_PADATA_S4U_X509_USER;
-        s4u_padata->contents = k5memdup(userid->subject_cert.data,
-                                        userid->subject_cert.length, &code);
-        if (s4u_padata->contents == NULL) {
-            free(s4u_padata);
-            return code;
-        }
-        s4u_padata->length = userid->subject_cert.length;
-
-        code = grow_pa_list(out_pa_list, out_pa_list_size, &s4u_padata, 1);
-        if (code) {
-            free(s4u_padata->contents);
-            free(s4u_padata);
-            return code;
-        }
-    }
-
-    return 0;
 }
 
 /*
@@ -1016,13 +978,14 @@ k5_preauth(krb5_context context, krb5_init_creds_context ctx,
     *padata_out = NULL;
     *pa_type_out = KRB5_PADATA_NONE;
 
-    if (in_padata == NULL)
+    /* We should never invoke preauth modules when identifying the realm. */
+    if (in_padata == NULL || ctx->identify_realm)
         return 0;
 
     TRACE_PREAUTH_INPUT(context, in_padata);
 
     /* Scan the padata list and process etype-info or salt elements. */
-    ret = get_etype_info(context, ctx, in_padata);
+    ret = k5_get_etype_info(context, ctx, in_padata);
     if (ret)
         return ret;
 
@@ -1030,16 +993,6 @@ k5_preauth(krb5_context context, krb5_init_creds_context ctx,
     ret = copy_cookie(context, in_padata, &out_pa_list, &out_pa_list_size);
     if (ret)
         goto error;
-
-    if (krb5int_find_pa_data(context, in_padata,
-                             KRB5_PADATA_S4U_X509_USER) != NULL) {
-        /* Fulfill a private contract with krb5_get_credentials_for_user. */
-        ret = add_s4u_x509_user_padata(context, ctx->gak_data,
-                                       ctx->request->client,
-                                       &out_pa_list, &out_pa_list_size);
-        if (ret)
-            goto error;
-    }
 
     /* If we can't initialize the preauth context, stop with what we have. */
     k5_init_preauth_context(context);

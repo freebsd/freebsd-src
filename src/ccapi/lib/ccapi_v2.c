@@ -44,10 +44,7 @@ static cc_int32 cci_remap_version (cc_int32   in_v2_version,
     if (!out_v3_version) { err = cci_check_error (ccErrBadParam); }
 
     if (!err) {
-        if (in_v2_version == CC_CRED_V4) {
-            *out_v3_version = cc_credentials_v4;
-
-        } else if (in_v2_version == CC_CRED_V5) {
+        if (in_v2_version == CC_CRED_V5) {
             *out_v3_version = cc_credentials_v5;
 
         } else {
@@ -450,10 +447,7 @@ cc_result cc_get_cred_version (apiCB    *in_context,
     }
 
     if (!err) {
-        if (compat_version == cc_credentials_v4) {
-            *out_version = CC_CRED_V4;
-
-        } else if (compat_version == cc_credentials_v5) {
+        if (compat_version == cc_credentials_v5) {
             *out_version = CC_CRED_V5;
 
         } else {
@@ -642,10 +636,6 @@ cc_result cc_seq_fetch_NCs_next (apiCB       *in_context,
     if (!out_ccache ) { err = cci_check_error (ccErrBadParam); }
     if (!in_iterator) { err = cci_check_error (ccErrBadParam); }
 
-    /* CCache iterators need to return some ccaches twice (when v3 ccache has
-     * two kinds of credentials). To do that, we return such ccaches twice
-     * v4 first, then v5. */
-
     if (!err) {
         err = cci_ccache_iterator_get_saved_ccache_name (iterator,
                                                          &saved_ccache_name);
@@ -674,25 +664,7 @@ cc_result cc_seq_fetch_NCs_next (apiCB       *in_context,
             }
 
             if (!err) {
-                if (version == cc_credentials_v4_v5) {
-                    cc_string_t name = NULL;
-
-                    err = cci_ccache_set_compat_version (ccache, cc_credentials_v4);
-
-                    if (!err) {
-                        err = ccapi_ccache_get_name (ccache, &name);
-                    }
-
-                    if (!err) {
-                        err = cci_ccache_iterator_set_saved_ccache_name (iterator,
-                                                                         name->data);
-                    }
-
-                    if (name) { ccapi_string_release (name); }
-
-                } else {
-                    err = cci_ccache_set_compat_version (ccache, version);
-                }
+                err = cci_ccache_set_compat_version (ccache, version);
             }
         }
     }

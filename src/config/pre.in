@@ -192,7 +192,8 @@ INSTALL_PREFIX=$(prefix)
 INSTALL_EXEC_PREFIX=@exec_prefix@
 exec_prefix=@exec_prefix@
 datarootdir=@datarootdir@
-
+localstatedir=@localstatedir@
+runstatedir=@runstatedir@
 datadir = @datadir@
 EXAMPLEDIR = $(datadir)/examples/krb5
 
@@ -209,6 +210,8 @@ ADMIN_CATDIR = $(KRB5MANROOT)/cat8
 SERVER_CATDIR = $(KRB5MANROOT)/cat8
 CLIENT_CATDIR = $(KRB5MANROOT)/cat1
 FILE_CATDIR = $(KRB5MANROOT)/cat5
+OVERVIEW_MANDIR = $(KRB5MANROOT)/man7
+OVERVIEW_CATDIR = $(KRB5MANROOT)/cat7
 KRB5_LIBDIR = @libdir@
 KRB5_INCDIR = @includedir@
 MODULE_DIR = @libdir@/krb5/plugins
@@ -225,35 +228,11 @@ KRB5_INCSUBDIRS = \
 	$(KRB5_INCDIR)/gssapi \
 	$(KRB5_INCDIR)/gssrpc
 
-#
-# Macros used by the KADM5 (OV-based) unit test system.
-# XXX check which of these are actually used!
-#
 SKIPTESTS	= $(BUILDTOP)/skiptests
-TESTDIR		= $(BUILDTOP)/kadmin/testing
-STESTDIR	= $(top_srcdir)/kadmin/testing
-ENV_SETUP	= $(TESTDIR)/scripts/env-setup.sh
-CLNTTCL		= $(TESTDIR)/util/kadm5_clnt_tcl
-SRVTCL		= $(TESTDIR)/util/kadm5_srv_tcl
-# Dejagnu variables.
-# We have to set the host with --host so that setup_xfail will work.
-# If we don't set it, then the host type used is "native", which
-# doesn't match "*-*-*".
-host=@krb5_cv_host@
-DEJAFLAGS	= --debug --srcdir $(srcdir) --host $(host)
-RUNTEST		= runtest $(DEJAFLAGS)
 
 RUNPYTEST	= PYTHONPATH=$(top_srcdir)/util VALGRIND="$(VALGRIND)" \
 			$(PYTHON)
 
-START_SERVERS	= $(STESTDIR)/scripts/start_servers $(TEST_SERVER) $(TEST_PATH)
-START_SERVERS_LOCAL = $(STESTDIR)/scripts/start_servers_local
-
-STOP_SERVERS	= $(STESTDIR)/scripts/stop_servers $(TEST_SERVER) $(TEST_PATH)
-STOP_SERVERS_LOCAL = $(STESTDIR)/scripts/stop_servers_local
-#
-# End of macros for the KADM5 unit test system.
-#
 
 transform = @program_transform_name@
 
@@ -329,6 +308,7 @@ COM_ERR_DEPLIB	= $(COM_ERR_DEPLIB-@COM_ERR_VERSION@)
 COM_ERR_DEPLIB-sys = # empty
 COM_ERR_DEPLIB-intlsys = # empty
 COM_ERR_DEPLIB-k5 = $(TOPLIBD)/libcom_err$(DEPLIBEXT)
+COM_ERR_LIB = @COM_ERR_LIB@
 SUPPORT_LIBNAME=krb5support
 SUPPORT_DEPLIB	= $(TOPLIBD)/lib$(SUPPORT_LIBNAME)$(DEPLIBEXT)
 
@@ -389,10 +369,10 @@ DL_LIB		= @DL_LIB@
 
 CMOCKA_LIBS	= @CMOCKA_LIBS@
 LDAP_LIBS	= @LDAP_LIBS@
+LMDB_LIBS	= @LMDB_LIBS@
 
 KRB5_LIB			= -lkrb5
 K5CRYPTO_LIB			= -lk5crypto
-COM_ERR_LIB			= -lcom_err
 GSS_KRB5_LIB			= -lgssapi_krb5
 SUPPORT_LIB			= -l$(SUPPORT_LIBNAME)
 
@@ -423,25 +403,26 @@ RUN_VARS=@KRB5_RUN_VARS@
 RUN_TEST=$(RUN_SETUP) KRB5_CONFIG=$(top_srcdir)/config-files/krb5.conf \
     LC_ALL=C $(VALGRIND)
 
-#
-# variables for --with-tcl=
-TCL_LIBS	= @TCL_LIBS@
-TCL_LIBPATH	= @TCL_LIBPATH@
-TCL_RPATH	= @TCL_RPATH@
-TCL_MAYBE_RPATH = @TCL_MAYBE_RPATH@
-TCL_INCLUDES	= @TCL_INCLUDES@
-
-# Crypto and PRNG back-end selections
-CRYPTO_IMPL	= @CRYPTO_IMPL@
-PRNG_ALG	= @PRNG_ALG@
+# libk5crypto dependencies
+CRYPTO_IMPL_CFLAGS	= @CRYPTO_IMPL_CFLAGS@
+CRYPTO_IMPL_LIBS	= @CRYPTO_IMPL_LIBS@
 
 # TLS implementation selection
 TLS_IMPL	= @TLS_IMPL@
 TLS_IMPL_CFLAGS = @TLS_IMPL_CFLAGS@
 TLS_IMPL_LIBS	= @TLS_IMPL_LIBS@
 
+# SPAKE preauth back-end libraries
+SPAKE_OPENSSL_LIBS = @SPAKE_OPENSSL_LIBS@
+
 # Whether we have the SASL header file for the LDAP KDB module
 HAVE_SASL = @HAVE_SASL@
+
+# Whether we are building support for NIST SPAKE groups using OpenSSL
+HAVE_SPAKE_OPENSSL = @HAVE_SPAKE_OPENSSL@
+
+# Whether we are building the LMDB KDB module
+HAVE_LMDB = @HAVE_LMDB@
 
 # Whether we have libresolv 1.1.5 for URI discovery tests
 HAVE_RESOLV_WRAPPER = @HAVE_RESOLV_WRAPPER@

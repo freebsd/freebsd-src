@@ -12,7 +12,7 @@
  * Generated files:
  * lib/kdb/iprop_xdr.c
  * include/iprop.h
- * slave/kpropd_rpc.c (clnt)
+ * kprop/kpropd_rpc.c (clnt)
  *
  * Derived files:
  * kadmin/server/ipropd_svc.c
@@ -174,7 +174,7 @@ struct kdb_incr_update_t {
 	kdbe_t		kdb_update; 	/* Attributes modified */
 	bool		kdb_deleted;	/* Is this update a DELETION ? */
 	bool		kdb_commit;	/* Is the entry committed or not ? */
-	utf8str_t	kdb_kdcs_seen_by<>; /* Names of slaves that have */
+	utf8str_t	kdb_kdcs_seen_by<>; /* Names of replicass that have */
 					    /* seen this update - for */
 					    /* future use */
 	opaque		kdb_futures<>;	/* futures */

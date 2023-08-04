@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Supported date and time formats &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Supported date and time formats &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="Kerberos V5 concepts" href="index.html" />
     <link rel="next" title="Protocols and file formats" href="../formats/index.html" />
     <link rel="prev" title="stash file" href="stash_file_def.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="supported-date-and-time-formats">
 <span id="datetime"></span><h1>Supported date and time formats<a class="headerlink" href="#supported-date-and-time-formats" title="Permalink to this headline">¶</a></h1>
@@ -103,13 +101,13 @@ configuration files and user commands.  The allowed formats are:</p>
 <p class="last">The time interval should not exceed 2147483647 seconds.</p>
 </div>
 <p>Examples:</p>
-<div class="highlight-python"><div class="highlight"><pre>Request a ticket valid for one hour, five hours, 30 minutes
-and 10 days respectively:
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Request</span> <span class="n">a</span> <span class="n">ticket</span> <span class="n">valid</span> <span class="k">for</span> <span class="n">one</span> <span class="n">hour</span><span class="p">,</span> <span class="n">five</span> <span class="n">hours</span><span class="p">,</span> <span class="mi">30</span> <span class="n">minutes</span>
+<span class="ow">and</span> <span class="mi">10</span> <span class="n">days</span> <span class="n">respectively</span><span class="p">:</span>
 
-  kinit -l 3600
-  kinit -l 5:00
-  kinit -l 30m
-  kinit -l &quot;10d 0h 0m 0s&quot;
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">3600</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">5</span><span class="p">:</span><span class="mi">00</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">30</span><span class="n">m</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="s2">&quot;10d 0h 0m 0s&quot;</span>
 </pre></div>
 </div>
 </div>
@@ -126,7 +124,7 @@ strings are:</p>
 <col width="37%" />
 </colgroup>
 <thead valign="bottom">
-<tr class="row-odd"><th class="head">&nbsp;</th>
+<tr class="row-odd"><th class="head">&#160;</th>
 <th class="head">Format</th>
 <th class="head">Example</th>
 </tr>
@@ -165,14 +163,14 @@ time</td>
 </tbody>
 </table>
 </div></blockquote>
-<p>(See <a class="reference internal" href="#abbreviation"><em>Abbreviations used in this document</em></a>.)</p>
+<p>(See <a class="reference internal" href="#abbreviation"><span class="std std-ref">Abbreviations used in this document</span></a>.)</p>
 <p>Examples:</p>
-<div class="highlight-python"><div class="highlight"><pre>Create a principal that expires on the date indicated:
-    addprinc test1 -expire &quot;3/27/12 10:00:07 EST&quot;
-    addprinc test2 -expire &quot;January 23, 2015 10:05pm&quot;
-    addprinc test3 -expire &quot;22:00 GMT&quot;
-Add a principal that will expire in 30 minutes:
-    addprinc test4 -expire &quot;30 minutes&quot;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Create</span> <span class="n">a</span> <span class="n">principal</span> <span class="n">that</span> <span class="n">expires</span> <span class="n">on</span> <span class="n">the</span> <span class="n">date</span> <span class="n">indicated</span><span class="p">:</span>
+    <span class="n">addprinc</span> <span class="n">test1</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;3/27/12 10:00:07 EST&quot;</span>
+    <span class="n">addprinc</span> <span class="n">test2</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;January 23, 2015 10:05pm&quot;</span>
+    <span class="n">addprinc</span> <span class="n">test3</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;22:00 GMT&quot;</span>
+<span class="n">Add</span> <span class="n">a</span> <span class="n">principal</span> <span class="n">that</span> <span class="n">will</span> <span class="n">expire</span> <span class="ow">in</span> <span class="mi">30</span> <span class="n">minutes</span><span class="p">:</span>
+    <span class="n">addprinc</span> <span class="n">test4</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;30 minutes&quot;</span>
 </pre></div>
 </div>
 </div>
@@ -213,7 +211,7 @@ before 2015</td>
 </tr>
 <tr class="row-odd"><td>hh:mm:ss</td>
 <td>20:00:00</td>
-<td rowspan="2">8 o&#8217;clock in
+<td rowspan="2">8 o’clock in
 the evening</td>
 </tr>
 <tr class="row-even"><td>hhmmss</td>
@@ -222,10 +220,10 @@ the evening</td>
 </tbody>
 </table>
 </div></blockquote>
-<p>(See <a class="reference internal" href="#abbreviation"><em>Abbreviations used in this document</em></a>.)</p>
+<p>(See <a class="reference internal" href="#abbreviation"><span class="std std-ref">Abbreviations used in this document</span></a>.)</p>
 <p>Example:</p>
-<div class="highlight-python"><div class="highlight"><pre>Set the default expiration date to July 27, 2012 at 20:30
-default_principal_expiration = 20120727203000
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Set</span> <span class="n">the</span> <span class="n">default</span> <span class="n">expiration</span> <span class="n">date</span> <span class="n">to</span> <span class="n">July</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">2012</span> <span class="n">at</span> <span class="mi">20</span><span class="p">:</span><span class="mi">30</span>
+<span class="n">default_principal_expiration</span> <span class="o">=</span> <span class="mi">20120727203000</span>
 </pre></div>
 </div>
 <div class="section" id="abbreviations-used-in-this-document">
@@ -289,9 +287,7 @@ enclose it in double quotes;</li>
 <li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
 <li class="toctree-l2"><a class="reference internal" href="rcache_def.html">replay cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Supported date and time formats</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Supported date and time formats</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
@@ -317,8 +313,8 @@ enclose it in double quotes;</li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

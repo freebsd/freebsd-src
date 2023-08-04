@@ -35,10 +35,22 @@ WIXINCLUDES= \
 
 CUSTOMDLL=custom\custom.dll
 
+!if !defined(CPU) || "$(CPU)" == ""
+CPU=$(PROCESSOR_ARCHITECTURE)
+!endif # CPU
+
+!if ( "$(CPU)" == "X86" ) || ( "$(CPU)" == "x86" ) || ( "$(CPU)" == "i386" )
+WIXARCH = x86
+!elseif ( "$(CPU)" == "AMD64" )
+WIXARCH = x64
+!else
+!error "Architecture $(CPU) not supported by installer"
+!endif
+
 all: $(MSIFILE)
 
 $(OBJFILE): kfw.wxs $(WIXINCLUDES)
-	$(CANDLE) -out $@ kfw.wxs \
+	$(CANDLE) -arch $(WIXARCH) -out $@ kfw.wxs \
 		"-dDate=%DATE%" \
 		"-dTime=%TIME%" \
 		-dBuildLang=$(LANG)

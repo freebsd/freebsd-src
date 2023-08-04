@@ -116,19 +116,12 @@ trees, and a mutex to protect it.
 
 libk5crypto
 
-Uses of the Yarrow code from the krb5 crypto interface are protected
-by a single mutex.  Initialization of the Yarrow state will be done
-once, the first time these routines are called.  Calls directly to the
-Yarrow functions are not protected.
-
 Uses ctype macros; what happens if the locale is changed in a
 multi-threaded program?
 
 Debug var in pbkdf2.c.
 
 Statics: pbkdf2.c: debug variable.
-
-Statics: prng.c: Global Yarrow data and mutex.
 
 Statics: crypto_libinit.c: library initializer aux data.
 

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _ENCTYPE-DES-CBC-CRC-data:
+
+ENCTYPE_DES_CBC_CRC
+===================
+
+..
+.. data:: ENCTYPE_DES_CBC_CRC
+..
+
+
+
+
+========================== ======================
+``ENCTYPE_DES_CBC_CRC``       ``0x0001``
+========================== ======================

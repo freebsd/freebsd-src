@@ -29,7 +29,7 @@ import sys
 import re
 
 def warn(fname, ln, msg):
-    print '%s: %d: %s' % (fname, ln + 1, msg)
+    print('%s: %d: %s' % (fname, ln + 1, msg))
 
 def indicates_license(line):
     return 'Copyright' in line or 'COPYRIGHT' in line or 'License' in line

@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_set_kdc_recv_hook - Set a KDC post-receive hook function. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_set_kdc_recv_hook - Set a KDC post-receive hook function. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_set_kdc_send_hook - Set a KDC pre-send hook function." href="krb5_set_kdc_send_hook.html" />
     <link rel="prev" title="krb5_set_error_message - Set an extended error message for an error code." href="krb5_set_error_message.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-set-kdc-recv-hook-set-a-kdc-post-receive-hook-function">
 <h1>krb5_set_kdc_recv_hook -  Set a KDC post-receive hook function.<a class="headerlink" href="#krb5-set-kdc-recv-hook-set-a-kdc-post-receive-hook-function" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_set_kdc_recv_hook">
-void <tt class="descname">krb5_set_kdc_recv_hook</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_post_recv_fn.html#c.krb5_post_recv_fn" title="krb5_post_recv_fn">krb5_post_recv_fn</a><em>&nbsp;recv_hook</em>, void *<em>&nbsp;data</em><big>)</big><a class="headerlink" href="#c.krb5_set_kdc_recv_hook" title="Permalink to this definition">¶</a></dt>
+void <code class="descname">krb5_set_kdc_recv_hook</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_post_recv_fn.html#c.krb5_post_recv_fn" title="krb5_post_recv_fn">krb5_post_recv_fn</a><em>&nbsp;recv_hook</em>, void *<em>&nbsp;data</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_set_kdc_recv_hook" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -82,7 +80,7 @@ void <tt class="descname">krb5_set_kdc_recv_hook</tt><big>(</big><a class="refer
 </tbody>
 </table>
 <blockquote>
-<div><em>recv_hook</em> will be called after a reply is received from a KDC during a call to a library function such as <a class="reference internal" href="krb5_get_credentials.html#c.krb5_get_credentials" title="krb5_get_credentials"><tt class="xref c c-func docutils literal"><span class="pre">krb5_get_credentials()</span></tt></a> . The hook function may inspect or override the reply. This hook will not be executed if the pre-send hook returns a synthetic reply.</div></blockquote>
+<div><em>recv_hook</em> will be called after a reply is received from a KDC during a call to a library function such as <a class="reference internal" href="krb5_get_credentials.html#c.krb5_get_credentials" title="krb5_get_credentials"><code class="xref c c-func docutils literal"><span class="pre">krb5_get_credentials()</span></code></a> . The hook function may inspect or override the reply. This hook will not be executed if the pre-send hook returns a synthetic reply.</div></blockquote>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">New in 1.15</p>
@@ -145,8 +143,8 @@ void <tt class="descname">krb5_set_kdc_recv_hook</tt><big>(</big><a class="refer
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

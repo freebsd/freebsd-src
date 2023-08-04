@@ -34,7 +34,7 @@ krb5_unpack_full_ipaddr(krb5_context context, const krb5_address *inaddr, krb5_i
 {
     unsigned long smushaddr;
     unsigned short smushport;
-    register krb5_octet *marshal;
+    krb5_octet *marshal;
     krb5_addrtype temptype;
     krb5_ui_4 templength;
 

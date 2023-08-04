@@ -51,19 +51,20 @@
                     Level="$(var.DebugSymLowLevel)" 
                     Title="!(loc.StrKerberosClientDebugTitle)">
                     <ComponentRef Id="cmf_bin_debug"/>
+                    <ComponentRef Id="cmf_preauth_debug"/>
 		    <ComponentRef Id="cmp_ClientSystemDebug"/>
                     <?include runtime_debug.wxi?>
 	        </Feature>
 	    <?endif?>
-      <?if $(var.Platform)="x64"?>
+      <?if $(sys.BUILDARCH)="x64"?>
           <ComponentRef Id="cmf_comerr64_dll" />
           <ComponentRef Id="cmf_gssapi64_dll" />
           <ComponentRef Id="cmf_k5sprt64_dll" />
           <ComponentRef Id="cmf_krb5_64_dll" />
           <ComponentRef Id="cmf_krbcc64_dll" />
           <ComponentRef Id="cmf_leashw64_dll" />
-          <ComponentRef Id="cmf_wshelp64_dll" />
           <ComponentRef Id="cmf_xpprof64_dll" />
+          <ComponentRef Id="cmf_spake64_dll" />
        <?endif?>
 
             <ComponentRef Id="cmf_comerr32_dll" />
@@ -84,8 +85,8 @@
             <ComponentRef Id="cmf_ccapiserver_exe" />
             <ComponentRef Id="cmf_ms2mit_exe" />
             <ComponentRef Id="cmf_mit2ms_exe" />
-            <ComponentRef Id="cmf_wshelp32_dll" />
             <ComponentRef Id="cmf_xpprof32_dll" />
+            <ComponentRef Id="cmf_spake32_dll" />
 
             <ComponentRef Id="cmf_leashw32_dll" />
 
@@ -100,11 +101,8 @@
             <ComponentRef Id="rcm_krb5_3" />
 
             <!-- Leash config options -->
-            <ComponentRef Id="rcm_leash_1" />
             <ComponentRef Id="rcm_leash_2" />
             <ComponentRef Id="rcm_leash_3" />
-            <ComponentRef Id="rcm_leash_5" />
-            <ComponentRef Id="rcm_leash_6" />
             
             <ComponentRef Id="cmf_leash32_chm" />
             
@@ -116,7 +114,6 @@
             <ComponentRef Id="rcm_leashdll_5" />
             <ComponentRef Id="rcm_leashdll_6" />
             <ComponentRef Id="rcm_leashdll_7" />
-            <ComponentRef Id="rcm_leashdll_8" />
             <ComponentRef Id="rcm_leashdll_9" />
             <ComponentRef Id="rcm_leashdll_10" />
             <ComponentRef Id="rcm_leashdll_11" />
@@ -148,7 +145,7 @@
             Level="130" 
             Title="!(loc.KerberosSDKTitle)">
             
-        <?if $(var.Platform) = "Intel" ?>
+        <?if $(sys.BUILDARCH) = "x86" ?>
             <ComponentRef Id="cmp_dirlib_i386" />
         <?else?>
             <ComponentRef Id="cmp_dirlib_amd64" />
@@ -159,8 +156,6 @@
 <!--            <ComponentRef Id="cmp_dirinc_krbcc" /> -->
             <ComponentRef Id="cmp_dirinc_leash" />
             <ComponentRef Id="cmp_dirinc_loadfuncs" />
-            <ComponentRef Id="cmp_dirinc_wshelper" />
-            <ComponentRef Id="cmp_dirinc_wshelper_arpa" />
             <ComponentRef Id="rcm_common" />
             <ComponentRef Id="rcm_sdk" />
         </Feature> <!-- /feaKfwSDK -->
@@ -173,10 +168,6 @@
             Level="30" 
             Title="!(loc.KerberosDocTitle)">
 
-<!--            <?if $(var.Platform) = "Intel"?>
-                    <ComponentRef Id="efl_leash_userdoc_pdf" />
-            <?endif?> -->
-            
             <ComponentRef Id="rcm_common" />
             <ComponentRef Id="rcm_docs" />
         </Feature>

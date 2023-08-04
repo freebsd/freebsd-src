@@ -42,7 +42,7 @@ kt_default_name(krb5_context context, char **name_out)
         *name_out = strdup(krb5_overridekeyname);
         return (*name_out == NULL) ? ENOMEM : 0;
     } else if (context->profile_secure == FALSE &&
-               (str = getenv("KRB5_KTNAME")) != NULL) {
+               (str = secure_getenv("KRB5_KTNAME")) != NULL) {
         *name_out = strdup(str);
         return (*name_out == NULL) ? ENOMEM : 0;
     } else if (profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
@@ -63,7 +63,7 @@ k5_kt_client_default_name(krb5_context context, char **name_out)
     char *str;
 
     if (context->profile_secure == FALSE &&
-        (str = getenv("KRB5_CLIENT_KTNAME")) != NULL) {
+        (str = secure_getenv("KRB5_CLIENT_KTNAME")) != NULL) {
         *name_out = strdup(str);
         return (*name_out == NULL) ? ENOMEM : 0;
     } else if (profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,

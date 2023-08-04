@@ -27,36 +27,10 @@
 #include "k5-int.h"
 #include "int-proto.h"
 
-/*
- * Routines to deal with externalizing the krb5_authdata:
- *      krb5_authdata_size();
- *      krb5_authdata_externalize();
- *      krb5_authdata_internalize();
- */
-static krb5_error_code krb5_authdata_size
-(krb5_context, krb5_pointer, size_t *);
-static krb5_error_code krb5_authdata_externalize
-(krb5_context, krb5_pointer, krb5_octet **, size_t *);
-static krb5_error_code krb5_authdata_internalize
-(krb5_context,krb5_pointer *, krb5_octet **, size_t *);
-
-/* Local data */
-static const krb5_ser_entry krb5_authdata_ser_entry = {
-    KV5M_AUTHDATA,                      /* Type                 */
-    krb5_authdata_size,                 /* Sizer routine        */
-    krb5_authdata_externalize,          /* Externalize routine  */
-    krb5_authdata_internalize           /* Internalize routine  */
-};
-
-/*
- * krb5_authdata_esize()        - Determine the size required to externalize
- *                                the krb5_authdata.
- */
-static krb5_error_code
-krb5_authdata_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
+krb5_error_code
+k5_size_authdata(krb5_authdata *authdata, size_t *sizep)
 {
     krb5_error_code     kret;
-    krb5_authdata       *authdata;
 
     /*
      * krb5_authdata requires:
@@ -67,7 +41,7 @@ krb5_authdata_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
      *  krb5_int32              for KV5M_AUTHDATA
      */
     kret = EINVAL;
-    if ((authdata = (krb5_authdata *) arg)) {
+    if (authdata != NULL) {
         *sizep += (sizeof(krb5_int32) +
                    sizeof(krb5_int32) +
                    sizeof(krb5_int32) +
@@ -78,14 +52,11 @@ krb5_authdata_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
     return(kret);
 }
 
-/*
- * krb5_authdata_externalize()  - Externalize the krb5_authdata.
- */
-static krb5_error_code
-krb5_authdata_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_externalize_authdata(krb5_authdata *authdata,
+                        krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
-    krb5_authdata       *authdata;
     size_t              required;
     krb5_octet          *bp;
     size_t              remain;
@@ -94,10 +65,9 @@ krb5_authdata_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **
     bp = *buffer;
     remain = *lenremain;
     kret = EINVAL;
-    if ((authdata = (krb5_authdata *) arg)) {
+    if (authdata != NULL) {
         kret = ENOMEM;
-        if (!krb5_authdata_size(kcontext, arg, &required) &&
-            (required <= remain)) {
+        if (!k5_size_authdata(authdata, &required) && required <= remain) {
             /* Our identifier */
             (void) krb5_ser_pack_int32(KV5M_AUTHDATA, &bp, &remain);
 
@@ -124,11 +94,9 @@ krb5_authdata_externalize(krb5_context kcontext, krb5_pointer arg, krb5_octet **
     return(kret);
 }
 
-/*
- * krb5_authdata_internalize()  - Internalize the krb5_authdata.
- */
-static krb5_error_code
-krb5_authdata_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet **buffer, size_t *lenremain)
+krb5_error_code
+k5_internalize_authdata(krb5_authdata **argp,
+                        krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code     kret;
     krb5_authdata       *authdata;
@@ -169,7 +137,7 @@ krb5_authdata_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet 
                     authdata->magic = KV5M_AUTHDATA;
                     *buffer = bp;
                     *lenremain = remain;
-                    *argp = (krb5_pointer) authdata;
+                    *argp = authdata;
                 }
                 else
                     kret = EINVAL;
@@ -182,13 +150,4 @@ krb5_authdata_internalize(krb5_context kcontext, krb5_pointer *argp, krb5_octet 
         }
     }
     return(kret);
-}
-
-/*
- * Register the authdata serializer.
- */
-krb5_error_code
-krb5_ser_authdata_init(krb5_context kcontext)
-{
-    return(krb5_register_serializer(kcontext, &krb5_authdata_ser_entry));
 }

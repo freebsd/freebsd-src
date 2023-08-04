@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import base64
 import socket
 from k5test import *

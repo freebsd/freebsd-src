@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-ENCRYPTED-CHALLENGE-data:
+
+KRB5_PADATA_ENCRYPTED_CHALLENGE
+===============================
+
+..
+.. data:: KRB5_PADATA_ENCRYPTED_CHALLENGE
+..
+
+RFC 6113.
+
+
+
+====================================== ======================
+``KRB5_PADATA_ENCRYPTED_CHALLENGE``       ``138``
+====================================== ======================

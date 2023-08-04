@@ -43,6 +43,11 @@ gss_complete_auth_token (OM_uint32 *minor_status,
     gss_union_ctx_id_t	ctx;
     gss_mechanism	mech;
 
+    if (minor_status == NULL)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    *minor_status = 0;
+    if (input_message_buffer == GSS_C_NO_BUFFER)
+	return GSS_S_CALL_INACCESSIBLE_READ;
     if (context_handle == GSS_C_NO_CONTEXT)
 	return GSS_S_NO_CONTEXT;
 

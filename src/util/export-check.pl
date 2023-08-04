@@ -49,6 +49,7 @@ map chop, @export;
 while (<NM>) {
     chop;
     s/^[0-9a-fA-F]+ +//;
+    s/@@.*$//;
     next if /^A /;
     if (!/^[TDRBGS] /) {
 	unlink $libfile;

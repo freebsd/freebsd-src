@@ -136,12 +136,16 @@ main(void)
         edirname = split_tests[i].posix_dirname;
         ebasename = split_tests[i].posix_basename;
 #endif
-        assert(k5_path_split(ipath, NULL, NULL) == 0);
-        assert(k5_path_split(ipath, &dirname, NULL) == 0);
+        if (k5_path_split(ipath, NULL, NULL) != 0)
+            abort();
+        if (k5_path_split(ipath, &dirname, NULL) != 0)
+            abort();
         free(dirname);
-        assert(k5_path_split(ipath, NULL, &basename) == 0);
+        if (k5_path_split(ipath, NULL, &basename) != 0)
+            abort();
         free(basename);
-        assert(k5_path_split(ipath, &dirname, &basename) == 0);
+        if (k5_path_split(ipath, &dirname, &basename) != 0)
+            abort();
         if (strcmp(dirname, edirname) != 0) {
             fprintf(stderr, "Split test %d: dirname %s != expected %s\n",
                     (int)i, dirname, edirname);
@@ -164,7 +168,8 @@ main(void)
 #else
         ejoined = join_tests[i].posix_result;
 #endif
-        assert(k5_path_join(path1, path2, &joined) == 0);
+        if (k5_path_join(path1, path2, &joined) != 0)
+            abort();
         if (strcmp(joined, ejoined) != 0) {
             fprintf(stderr, "Join test %d: %s != expected %s\n",
                     (int)i, joined, ejoined);

@@ -8,7 +8,7 @@
 # version and this one is the addition of U+2ADC FORKING.
 #
 # For more information, see
-# http://www.unicode.org/unicode/reports/tr15/#Primary Exclusion List Table
+# https://www.unicode.org/unicode/reports/tr15/#Primary Exclusion List Table
 # ================================================
 
 # (1) Script Specifics

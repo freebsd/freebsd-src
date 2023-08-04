@@ -32,8 +32,10 @@
 **********************************************************************
 */
 
-#include "k5-int.h"
+#include "crypto_int.h"
 #include "rsa-md4.h"
+
+#ifdef K5_BUILTIN_MD4
 
 /* forward declaration */
 static void Transform (krb5_ui_4 *, krb5_ui_4 *);
@@ -151,7 +153,7 @@ krb5int_MD4Final (krb5_MD4_CTX *mdContext)
  */
 static void Transform (krb5_ui_4 *buf, krb5_ui_4 *in)
 {
-    register krb5_ui_4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
+    krb5_ui_4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
 
 #if defined(CONFIG_SMALL) && !defined(CONFIG_SMALL_NO_CRYPTO)
     int i;
@@ -241,3 +243,5 @@ static void Transform (krb5_ui_4 *buf, krb5_ui_4 *in)
 ** End of md4.c                                                     **
 ******************************* (cut) ********************************
 */
+
+#endif /* K5_BUILTIN_MD4 */

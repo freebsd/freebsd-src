@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _MAX-KEYTAB-NAME-LEN-data:
+
+MAX_KEYTAB_NAME_LEN
+===================
+
+..
+.. data:: MAX_KEYTAB_NAME_LEN
+..
+
+Long enough for MAXPATHLEN + some extra.
+
+
+
+========================== ======================
+``MAX_KEYTAB_NAME_LEN``       ``1100``
+========================== ======================

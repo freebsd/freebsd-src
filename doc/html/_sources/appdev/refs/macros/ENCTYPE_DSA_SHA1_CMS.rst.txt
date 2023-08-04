@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-DSA-SHA1-CMS-data:
+
+ENCTYPE_DSA_SHA1_CMS
+====================
+
+..
+.. data:: ENCTYPE_DSA_SHA1_CMS
+..
+
+DSA with SHA1, CMS signature.
+
+
+
+=========================== ======================
+``ENCTYPE_DSA_SHA1_CMS``       ``0x0009``
+=========================== ======================

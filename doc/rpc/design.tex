@@ -519,7 +519,7 @@ flavor initialization routine.  The service side, however, is more
 complex.  In the normal course of events, an RPC call comes in, is
 authenticated, and is then dispatched to the appropriate procedure.
 For client- and service-side authentication flavors to communicate
-indepedent of the server implemented above the RPC layer, the
+independent of the server implemented above the RPC layer, the
 service-side flavor must be able to send a reply to the client
 directly and {\it prevent} the call from being dispatched.
 
@@ -580,7 +580,7 @@ Server Transport Mechanisms     & svc_udp.c \\
 
 \section{GSS-API Authentication Flavor}
 
-The following sections describe the implemetation of the GSS-API
+The following sections describe the implementation of the GSS-API
 authentication flavor for Sun RPC.
 
 \subsection{Authentication Algorithms}
@@ -640,7 +640,7 @@ output token is generated, it is returned to the client.  Note that
 since the application server may have registered multiple service
 names and there is no way to determine {\it a priori} which service a
 token is for, _svcauth_gssapi calls gss_accept_sec_context once for
-each registered credential until one of them succeedes.  The code
+each registered credential until one of them succeeds.  The code
 assumes that GSS_S_FAILURE is the only error that can result from a
 credential mismatch, so any other error terminates the loop
 immediately.
@@ -661,7 +661,7 @@ processed).  The reverse is also true.
 \subsubsection{RPC Calls}
 
 After the GSS-API context is established, both the server and the
-client posess a client handle and a corresponding sequence number.
+client possess a client handle and a corresponding sequence number.
 Each call from the client contains the client handle as the
 ``credential'' so that the server can identify which context to apply
 to the call.
@@ -704,7 +704,7 @@ The auth_msg field indicates whether the message is intended for the
 authentication mechanism for the actual server.  Any message whose
 auth_msg field is true is processed by the authentication mechanism;
 any message whose auth_msg is false is passed to the application
-server's dispatch function if authentication suceeds.  All messages
+server's dispatch function if authentication succeeds.  All messages
 must have an auth_msg of true until the context is established, since
 authentication cannot succeed until it is.
 
@@ -876,7 +876,7 @@ an RPC_SUCCESS response is received, verifies that the returned sequence
 number is one greater than the previous value sent by
 auth_gssapi_marshall.
 
-Finally, auth_gssapi_unwrap, invokved by the client-side RPC mechanism
+Finally, auth_gssapi_unwrap, invoked by the client-side RPC mechanism
 after auth_gssapi_validate succeeds, performs the same operation as
 svc_auth_gssapi_unwrap.
 
@@ -940,7 +940,7 @@ calls except the first one; the handle is obtained as the result of
 the first call.
 
 The sequence_number field contains the sequence number that will be
-used when transmitting RPC calls to the server and verifing the
+used when transmitting RPC calls to the server and verifying the
 server's responses after the context is initialized.
 
 The def_cred field is true if gss_init_sec_context created a default

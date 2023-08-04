@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KSU" "1" " " "1.16" "MIT Kerberos"
+.TH "KSU" "1" " " "1.21.1" "MIT Kerberos"
 .SH NAME
 ksu \- Kerberized super-user
 .
@@ -38,7 +38,8 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 [ \fB\-c\fP \fIsource_cache_name\fP ]
 [ \fB\-k\fP ]
 [ \fB\-r\fP time ]
-[ \fB\-pf\fP ]
+[ \fB\-p\fP | \fB\-P\fP]
+[ \fB\-f\fP | \fB\-F\fP]
 [ \fB\-l\fP \fIlifetime\fP ]
 [ \fB\-z | Z\fP ]
 [ \fB\-q\fP ]
@@ -99,7 +100,7 @@ option, see the OPTIONS section.
 Upon successful authentication, ksu checks whether the target
 principal is authorized to access the target account.  In the target
 user\(aqs home directory, ksu attempts to access two authorization files:
-\fI\&.k5login(5)\fP and .k5users.  In the .k5login file each line
+\&.k5login(5) and .k5users.  In the .k5login file each line
 contains the name of a principal that is authorized to access the
 account.
 .sp
@@ -175,14 +176,14 @@ wrong password is typed in, ksu fails.
 .INDENT 0.0
 .INDENT 3.5
 During authentication, only the tickets that could be
-obtained without providing a password are cached in in the
+obtained without providing a password are cached in the
 source cache.
 .UNINDENT
 .UNINDENT
 .SH OPTIONS
 .INDENT 0.0
 .TP
-.B \fB\-n\fP \fItarget_principal_name\fP
+\fB\-n\fP \fItarget_principal_name\fP
 Specify a Kerberos target principal name.  Used in authentication
 and authorization phases of ksu.
 .sp
@@ -263,33 +264,33 @@ krb5cc_1984.2
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fB\-k\fP
+\fB\-k\fP
 Do not delete the target cache upon termination of the target
 shell or a command (\fB\-e\fP command).  Without \fB\-k\fP, ksu deletes
 the target cache.
 .TP
-.B \fB\-z\fP
+\fB\-z\fP
 Restrict the copy of tickets from the source cache to the target
 cache to only the tickets where client == the target principal
 name.  Use the \fB\-n\fP option if you want the tickets for other then
 the default principal.  Note that the \fB\-z\fP option is mutually
 exclusive with the \fB\-Z\fP option.
 .TP
-.B \fB\-Z\fP
+\fB\-Z\fP
 Don\(aqt copy any tickets from the source cache to the target cache.
 Just create a fresh target cache, where the default principal name
 of the cache is initialized to the target principal name.  Note
 that the \fB\-Z\fP option is mutually exclusive with the \fB\-z\fP
 option.
 .TP
-.B \fB\-q\fP
+\fB\-q\fP
 Suppress the printing of status messages.
 .UNINDENT
 .sp
 Ticket granting ticket options:
 .INDENT 0.0
 .TP
-.B \fB\-l\fP \fIlifetime\fP \fB\-r\fP \fItime\fP \fB\-pf\fP
+\fB\-l\fP \fIlifetime\fP \fB\-r\fP \fItime\fP \fB\-p\fP \fB\-P\fP \fB\-f\fP \fB\-F\fP
 The ticket granting ticket options only apply to the case where
 there are no appropriate tickets in the cache to authenticate the
 source user.  In this case if ksu is configured to prompt users
@@ -297,25 +298,35 @@ for a Kerberos password (\fBGET_TGT_VIA_PASSWD\fP is defined), the
 ticket granting ticket options that are specified will be used
 when getting a ticket granting ticket from the Kerberos server.
 .TP
-.B \fB\-l\fP \fIlifetime\fP
-(\fIduration\fP string.)  Specifies the lifetime to be requested
+\fB\-l\fP \fIlifetime\fP
+(duration string.)  Specifies the lifetime to be requested
 for the ticket; if this option is not specified, the default ticket
 lifetime (12 hours) is used instead.
 .TP
-.B \fB\-r\fP \fItime\fP
-(\fIduration\fP string.)  Specifies that the \fBrenewable\fP option
+\fB\-r\fP \fItime\fP
+(duration string.)  Specifies that the \fBrenewable\fP option
 should be requested for the ticket, and specifies the desired
 total lifetime of the ticket.
 .TP
-.B \fB\-p\fP
+\fB\-p\fP
 specifies that the \fBproxiable\fP option should be requested for
 the ticket.
 .TP
-.B \fB\-f\fP
+\fB\-P\fP
+specifies that the \fBproxiable\fP option should not be requested
+for the ticket, even if the default configuration is to ask for
+proxiable tickets.
+.TP
+\fB\-f\fP
 option specifies that the \fBforwardable\fP option should be
 requested for the ticket.
 .TP
-.B \fB\-e\fP \fIcommand\fP [\fIargs\fP ...]
+\fB\-F\fP
+option specifies that the \fBforwardable\fP option should not be
+requested for the ticket, even if the default configuration is to
+ask for forwardable tickets.
+.TP
+\fB\-e\fP \fIcommand\fP [\fIargs\fP ...]
 ksu proceeds exactly the same as if it was invoked without the
 \fB\-e\fP option, except instead of executing the target shell, ksu
 executes the specified command. Example of usage:
@@ -379,7 +390,7 @@ then command can be either a full or a relative path leading to
 the target program.  Otherwise, the user must specify either a
 full path or just the program name.
 .TP
-.B \fB\-a\fP \fIargs\fP
+\fB\-a\fP \fIargs\fP
 Specify arguments to be passed to the target shell.  Note that all
 flags and parameters following \-a will be passed to the shell,
 thus all options intended for ksu must precede \fB\-a\fP\&.
@@ -404,7 +415,7 @@ used as follows:
 ksu can be compiled with the following four flags:
 .INDENT 0.0
 .TP
-.B \fBGET_TGT_VIA_PASSWD\fP
+\fBGET_TGT_VIA_PASSWD\fP
 In case no appropriate tickets are found in the source cache, the
 user will be prompted for a Kerberos password.  The password is
 then used to get a ticket granting ticket from the Kerberos
@@ -412,17 +423,17 @@ server.  The danger of configuring ksu with this macro is if the
 source user is logged in remotely and does not have a secure
 channel, the password may get exposed.
 .TP
-.B \fBPRINC_LOOK_AHEAD\fP
+\fBPRINC_LOOK_AHEAD\fP
 During the resolution of the default principal name,
 \fBPRINC_LOOK_AHEAD\fP enables ksu to find principal names in
 the .k5users file as described in the OPTIONS section
 (see \fB\-n\fP option).
 .TP
-.B \fBCMD_PATH\fP
+\fBCMD_PATH\fP
 Specifies a list of directories containing programs that users are
 authorized to execute (via .k5users file).
 .TP
-.B \fBHAVE_GETUSERSHELL\fP
+\fBHAVE_GETUSERSHELL\fP
 If the source user is non\-root, ksu insists that the target user\(aqs
 shell to be invoked is a "legal shell".  \fIgetusershell(3)\fP is
 called to obtain the names of "legal shells".  Note that the
@@ -453,9 +464,16 @@ ksu deletes all expired tickets from the source cache.
 .SH AUTHOR OF KSU
 .sp
 GENNADY (ARI) MEDVINSKY
+.SH ENVIRONMENT
+.sp
+See kerberos(7) for a description of Kerberos environment
+variables.
+.SH SEE ALSO
+.sp
+kerberos(7), kinit(1)
 .SH AUTHOR
 MIT
 .SH COPYRIGHT
-1985-2017, MIT
+1985-2023, MIT
 .\" Generated by docutils manpage writer.
 .

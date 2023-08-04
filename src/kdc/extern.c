@@ -37,7 +37,6 @@
 kdc_realm_t     **kdc_realmlist = (kdc_realm_t **) NULL;
 int             kdc_numrealms = 0;
 krb5_data empty_string = {0, 0, ""};
-krb5_keyblock   psr_key;
 krb5_int32      max_dgram_reply_size = MAX_DGRAM_SIZE;
 
 /* With ts_after(), this is the largest timestamp value. */

@@ -310,7 +310,7 @@ error:
  *
  * Arguments:
  *      db              (input) db handle
- *      func            (input) fucntion pointer to call
+ *      func            (input) function pointer to call
  *      data            opaque data type
  *      <return value>  0 on success error code on failure
  *
@@ -337,16 +337,16 @@ osa_adb_iter_policy(osa_adb_policy_t db, osa_adb_iter_policy_func func,
     }
 
     while (ret == 0) {
-        if (!(entry = (osa_policy_ent_t) malloc(sizeof(osa_policy_ent_rec)))) {
-            ret = ENOMEM;
+        entry = k5alloc(sizeof(osa_policy_ent_rec), &ret);
+        if (entry == NULL)
+            goto error;
+
+        aligned_data = k5memdup(dbdata.data, dbdata.size, &ret);
+        if (aligned_data == NULL) {
+            free(entry);
             goto error;
         }
 
-        aligned_data = k5memdup(dbdata.data, dbdata.size, &ret);
-        if (aligned_data == NULL)
-            goto error;
-
-        memset(entry, 0, sizeof(osa_policy_ent_rec));
         xdrmem_create(&xdrs, aligned_data, dbdata.size, XDR_DECODE);
         if(!xdr_osa_policy_ent_rec(&xdrs, entry)) {
             xdr_destroy(&xdrs);

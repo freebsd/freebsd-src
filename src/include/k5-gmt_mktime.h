@@ -38,16 +38,6 @@
 #ifndef K5_GMT_MKTIME_H
 #define K5_GMT_MKTIME_H
 
-#include "autoconf.h"
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
-#else
-#include <time.h>
-#endif
-
 time_t krb5int_gmt_mktime (struct tm *);
 
 #endif /* K5_GMT_MKTIME_H */

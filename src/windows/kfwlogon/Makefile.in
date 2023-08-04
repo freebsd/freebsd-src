@@ -3,7 +3,6 @@
 
 mydir=.
 BUILDTOP=$(REL)..$(S)..
-DEFINES = -DNO_KRB4
 LOCALINCLUDES = -I$(BUILDTOP) -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include
 PROG_LIBPATH=-L$(TOPLIBD) -L$(KRB5_LIBDIR)
 
@@ -35,11 +34,11 @@ $(EXERES): $(VERSIONRC)
 all-windows: $(OUTPRE)kfwlogon.dll $(OUTPRE)kfwcpcc.exe
 
 $(KFWLOGON): $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj $(LIBRES)
-    link $(DLL_LINKOPTS) -out:$@ $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj -entry:DllEntryPoint -def:kfwlogon.def $(SYSLIBS) $(KLIB) $(CLIB) $(SCLIB) ../lib/$(OUTPRE)libwin.lib $(LIBRES)
+    link $(DLL_LINKOPTS) -out:$@ $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj -entry:DllEntryPoint -def:kfwlogon.def $(SYSLIBS) $(KLIB) $(CLIB) ../lib/$(OUTPRE)libwin.lib $(LIBRES)
     $(_VC_MANIFEST_EMBED_DLL)
 
 $(KFWCPCC): $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(EXERES)
-    link $(EXE_LINKOPTS) -out:$@ $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(SYSLIBS) $(KLIB) $(CLIB) $(SCLIB) ../lib/$(OUTPRE)libwin.lib $(EXERES)
+    link $(EXE_LINKOPTS) -out:$@ $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(SYSLIBS) $(KLIB) $(CLIB) ../lib/$(OUTPRE)libwin.lib $(EXERES)
     $(_VC_MANIFEST_EMBED_EXE)
 
 install:

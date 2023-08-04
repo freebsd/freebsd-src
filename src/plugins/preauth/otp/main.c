@@ -158,19 +158,36 @@ on_response(void *data, krb5_error_code retval, otp_response response,
             char *const *indicators)
 {
     struct request_state rs = *(struct request_state *)data;
+    krb5_context context = rs.context;
+    krb5_keyblock *armor_key;
     char *const *ind;
 
     free(data);
 
     if (retval == 0 && response != otp_response_success)
         retval = KRB5_PREAUTH_FAILED;
+    if (retval)
+        goto done;
 
-    if (retval == 0)
-        rs.enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
+    rs.enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
+    armor_key = rs.preauth_cb->fast_armor(context, rs.rock);
+    if (armor_key == NULL) {
+        retval = ENOENT;
+        goto done;
+    }
 
-    for (ind = indicators; ind != NULL && *ind != NULL && retval == 0; ind++)
-        retval = rs.preauth_cb->add_auth_indicator(rs.context, rs.rock, *ind);
+    retval = rs.preauth_cb->replace_reply_key(context, rs.rock, armor_key,
+                                              FALSE);
+    if (retval)
+        goto done;
 
+    for (ind = indicators; ind != NULL && *ind != NULL; ind++) {
+        retval = rs.preauth_cb->add_auth_indicator(context, rs.rock, *ind);
+        if (retval)
+            goto done;
+    }
+
+done:
     rs.respond(rs.arg, retval, NULL, NULL, NULL);
 }
 
@@ -211,7 +228,7 @@ otp_edata(krb5_context context, krb5_kdc_req *request,
     krb5_pa_otp_challenge chl;
     krb5_pa_data *pa = NULL;
     krb5_error_code retval;
-    krb5_data *encoding;
+    krb5_data *encoding, nonce = empty_data();
     char *config;
 
     /* Determine if otp is enabled for the user. */
@@ -239,9 +256,10 @@ otp_edata(krb5_context context, krb5_kdc_req *request,
     ti.iteration_count = -1;
 
     /* Generate the nonce. */
-    retval = nonce_generate(context, armor_key->length, &chl.nonce);
+    retval = nonce_generate(context, armor_key->length, &nonce);
     if (retval != 0)
         goto out;
+    chl.nonce = nonce;
 
     /* Build the output pa-data. */
     retval = encode_krb5_pa_otp_challenge(&chl, &encoding);
@@ -258,6 +276,7 @@ otp_edata(krb5_context context, krb5_kdc_req *request,
     free(encoding);
 
 out:
+    krb5_free_data_contents(context, &nonce);
     (*respond)(arg, retval, pa);
 }
 
@@ -343,31 +362,6 @@ error:
     (*respond)(arg, retval, NULL, NULL, NULL);
 }
 
-static krb5_error_code
-otp_return_padata(krb5_context context, krb5_pa_data *padata,
-                  krb5_data *req_pkt, krb5_kdc_req *request,
-                  krb5_kdc_rep *reply, krb5_keyblock *encrypting_key,
-                  krb5_pa_data **send_pa_out, krb5_kdcpreauth_callbacks cb,
-                  krb5_kdcpreauth_rock rock, krb5_kdcpreauth_moddata moddata,
-                  krb5_kdcpreauth_modreq modreq)
-{
-    krb5_keyblock *armor_key = NULL;
-
-    if (padata->length == 0)
-        return 0;
-
-    /* Get the armor key. */
-    armor_key = cb->fast_armor(context, rock);
-    if (!armor_key) {
-      com_err("otp", ENOENT, "No armor key found when returning padata");
-      return ENOENT;
-    }
-
-    /* Replace the reply key with the FAST armor key. */
-    krb5_free_keyblock_contents(context, encrypting_key);
-    return krb5_copy_keyblock_contents(context, armor_key, encrypting_key);
-}
-
 krb5_error_code
 kdcpreauth_otp_initvt(krb5_context context, int maj_ver, int min_ver,
                       krb5_plugin_vtable vtable);
@@ -389,7 +383,6 @@ kdcpreauth_otp_initvt(krb5_context context, int maj_ver, int min_ver,
     vt->flags = otp_flags;
     vt->edata = otp_edata;
     vt->verify = otp_verify;
-    vt->return_padata = otp_return_padata;
 
     com_err("otp", 0, "Loaded");
 

@@ -3,8 +3,10 @@ krb5_db_open
 krb5_db_inited
 krb5_db_alloc
 krb5_db_free
+krb5_db_allowed_to_delegate_from
 krb5_db_audit_as_req
 krb5_db_check_allowed_to_delegate
+krb5_db_get_s4u_x509_principal
 krb5_db_check_policy_as
 krb5_db_check_policy_tgs
 krb5_db_check_transited_realms
@@ -19,6 +21,7 @@ krb5_db_get_age
 krb5_db_get_key_data_kvno
 krb5_db_get_context
 krb5_db_get_principal
+krb5_db_issue_pac
 krb5_db_iterate
 krb5_db_lock
 krb5_db_mkey_list_alias
@@ -27,7 +30,6 @@ krb5_db_refresh_config
 krb5_db_rename_principal
 krb5_db_set_context
 krb5_db_setup_mkey_name
-krb5_db_sign_authdata
 krb5_db_unlock
 krb5_db_store_master_key
 krb5_db_store_master_key_list

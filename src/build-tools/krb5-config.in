@@ -33,7 +33,6 @@ includedir=@includedir@
 libdir=@libdir@
 CC_LINK='@CC_LINK@'
 KDB5_DB_LIB=@KDB5_DB_LIB@
-LDFLAGS='@LDFLAGS@'
 RPATH_FLAG='@RPATH_FLAG@'
 PROG_RPATH_FLAGS='@PROG_RPATH_FLAGS@'
 PTHREAD_CFLAGS='@PTHREAD_CFLAGS@'
@@ -70,8 +69,7 @@ while test $# != 0; do
 	--defktname)
 	    do_defktname=1
 	    ;;
-	--deps)
-	    do_deps=1
+	--deps) # historically a no-op
 	    ;;
 	--exec-prefix)
 	    do_exec_prefix=1
@@ -221,7 +219,7 @@ if test -n "$do_libs"; then
 	    -e 's#\$(PROG_RPATH)#'$libdir'#' \
 	    -e 's#\$(PROG_LIBPATH)#'$libdirarg'#' \
 	    -e 's#\$(RPATH_FLAG)#'"$RPATH_FLAG"'#' \
-	    -e 's#\$(LDFLAGS)#'"$LDFLAGS"'#' \
+	    -e 's#\$(LDFLAGS)##' \
 	    -e 's#\$(PTHREAD_CFLAGS)#'"$PTHREAD_CFLAGS"'#' \
 	    -e 's#\$(CFLAGS)##'`
 
@@ -251,7 +249,7 @@ if test -n "$do_libs"; then
     fi
 
     if test $library = 'krb5'; then
-	lib_flags="$lib_flags -lkrb5 -lk5crypto -lcom_err"
+	lib_flags="$lib_flags -lkrb5 -lk5crypto @COM_ERR_LIB@"
     fi
 
     # If we ever support a flag to generate output suitable for static

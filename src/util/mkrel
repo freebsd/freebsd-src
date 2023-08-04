@@ -183,9 +183,9 @@ rm -rf $reldir/.git || true
 if test $dodoc = t; then
 	echo "Building doc..."
 	(cd $reldir/src/doc && make -f Makefile.in \
-	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python html pdf)
+	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python3 html pdf)
 	(cd $reldir/src/doc && make -f Makefile.in \
-	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python clean)
+	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python3 clean)
 fi
 
 echo "Generating tarfiles..."

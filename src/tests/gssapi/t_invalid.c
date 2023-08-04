@@ -85,17 +85,6 @@ struct test {
     const char *token;
 } tests[] = {
     {
-        ENCTYPE_DES_CBC_CRC, ENCTYPE_DES_CBC_RAW,
-        SEAL_ALG_DES, SGN_ALG_DES_MAC_MD5, 8,
-        8,
-        "\x26\xEC\xBA\xB6\xFE\xBA\x91\xCE",
-        53,
-        "\x60\x33\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x00"
-        "\x00\x00\x00\xFF\xFF\xF0\x0B\x90\x7B\xC4\xFC\xEB\xF4\x84\x9C\x5A"
-        "\xA8\x56\x41\x3E\xE1\x62\xEE\x38\xD1\x34\x9A\xE3\xFB\xC9\xFD\x0A"
-        "\xDC\x83\xE1\x4A\xE4"
-    },
-    {
         ENCTYPE_DES3_CBC_SHA1, ENCTYPE_DES3_CBC_RAW,
         SEAL_ALG_DES3KD, SGN_ALG_HMAC_SHA1_DES3_KD, 20,
         24,
@@ -160,8 +149,6 @@ make_fake_context(const struct test *test)
     gss_union_ctx_id_t uctx;
     krb5_gss_ctx_id_t kgctx;
     krb5_keyblock kb;
-    unsigned char encbuf[8];
-    size_t i;
 
     kgctx = calloc(1, sizeof(*kgctx));
     if (kgctx == NULL)
@@ -184,11 +171,6 @@ make_fake_context(const struct test *test)
     if (krb5_k_create_key(NULL, &kb, &kgctx->seq) != 0)
         abort();
 
-    if (kb.enctype == ENCTYPE_DES_CBC_RAW) {
-        for (i = 0; i < 8; i++)
-            encbuf[i] = kb.contents[i] ^ 0xF0;
-        kb.contents = encbuf;
-    }
     if (krb5_k_create_key(NULL, &kb, &kgctx->enc) != 0)
         abort();
 
@@ -248,7 +230,7 @@ test_bogus_1964_token(gss_ctx_id_t ctx)
     gss_iov_buffer_desc iov;
 
     store_16_be(KG_TOK_SIGN_MSG, tokbuf);
-    store_16_le(SGN_ALG_DES_MAC_MD5, tokbuf + 2);
+    store_16_le(SGN_ALG_HMAC_MD5, tokbuf + 2);
     store_16_le(SEAL_ALG_NONE, tokbuf + 4);
     store_16_le(0xFFFF, tokbuf + 6);
     memset(tokbuf + 8, 0, 16);

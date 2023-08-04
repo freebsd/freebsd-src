@@ -1,35 +1,33 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_merge_authdata - Merge two authorization data lists into a new list. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_merge_authdata - Merge two authorization data lists into a new list. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_mk_1cred - Format a KRB-CRED message for a single set of credentials." href="krb5_mk_1cred.html" />
-    <link rel="prev" title="krb5_make_authdata_kdc_issued - Encode and sign AD-KDCIssued authorization data." href="krb5_make_authdata_kdc_issued.html" /> 
+    <link rel="prev" title="krb5_marshal_credentials - Serialize a krb5_creds object." href="krb5_marshal_credentials.html" /> 
   </head>
   <body>
     <div class="header-wrapper">
@@ -42,7 +40,7 @@
                 
         <a href="../../../index.html" title="Full Table of Contents"
             accesskey="C">Contents</a> |
-        <a href="krb5_make_authdata_kdc_issued.html" title="krb5_make_authdata_kdc_issued - Encode and sign AD-KDCIssued authorization data."
+        <a href="krb5_marshal_credentials.html" title="krb5_marshal_credentials - Serialize a krb5_creds object."
             accesskey="P">previous</a> |
         <a href="krb5_mk_1cred.html" title="krb5_mk_1cred - Format a KRB-CRED message for a single set of credentials."
             accesskey="N">next</a> |
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-merge-authdata-merge-two-authorization-data-lists-into-a-new-list">
 <h1>krb5_merge_authdata -  Merge two authorization data lists into a new list.<a class="headerlink" href="#krb5-merge-authdata-merge-two-authorization-data-lists-into-a-new-list" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_merge_authdata">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_merge_authdata</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> *const *<em>&nbsp;inauthdat1</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> *const *<em>&nbsp;inauthdat2</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> ***<em>&nbsp;outauthdat</em><big>)</big><a class="headerlink" href="#c.krb5_merge_authdata" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_merge_authdata</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> *const *<em>&nbsp;inauthdat1</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> *const *<em>&nbsp;inauthdat2</em>, <a class="reference internal" href="../types/krb5_authdata.html#c.krb5_authdata" title="krb5_authdata">krb5_authdata</a> ***<em>&nbsp;outauthdat</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_merge_authdata" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -93,7 +91,7 @@
 </tr>
 </tbody>
 </table>
-<p>Merge two authdata arrays, such as the array from a ticket and authenticator. Use <a class="reference internal" href="krb5_free_authdata.html#c.krb5_free_authdata" title="krb5_free_authdata"><tt class="xref c c-func docutils literal"><span class="pre">krb5_free_authdata()</span></tt></a> to free <em>outauthdat</em> when it is no longer needed.</p>
+<p>Merge two authdata arrays, such as the array from a ticket and authenticator. Use <a class="reference internal" href="krb5_free_authdata.html#c.krb5_free_authdata" title="krb5_free_authdata"><code class="xref c c-func docutils literal"><span class="pre">krb5_free_authdata()</span></code></a> to free <em>outauthdat</em> when it is no longer needed.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">The last array entry in <em>inauthdat1</em> and <em>inauthdat2</em> must be a NULL pointer.</p>
@@ -156,14 +154,14 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 
         <a href="../../../index.html" title="Full Table of Contents"
             >Contents</a> |
-        <a href="krb5_make_authdata_kdc_issued.html" title="krb5_make_authdata_kdc_issued - Encode and sign AD-KDCIssued authorization data."
+        <a href="krb5_marshal_credentials.html" title="krb5_marshal_credentials - Serialize a krb5_creds object."
             >previous</a> |
         <a href="krb5_mk_1cred.html" title="krb5_mk_1cred - Format a KRB-CRED message for a single set of credentials."
             >next</a> |

@@ -53,19 +53,6 @@ data.so data.po $(OUTPRE)data.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h copyright.h data.c \
   ss.h ss_internal.h
-mk_cmds.so mk_cmds.po $(OUTPRE)mk_cmds.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
-  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
-  $(top_srcdir)/include/k5-thread.h copyright.h mk_cmds.c \
-  ss.h ss_internal.h
-utils.so utils.po $(OUTPRE)utils.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
-  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
-  $(top_srcdir)/include/k5-thread.h copyright.h ss.h \
-  ss_internal.h utils.c
-options.so options.po $(OUTPRE)options.$(OBJEXT): $(BUILDTOP)/include/ss/ss_err.h \
-  $(COM_ERR_DEPS) copyright.h options.c ss.h
-cmd_tbl.lex.o: cmd_tbl.lex.c ct.tab.h
-ct.tab.o: $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) \
-  ct.tab.c ss.h
 ss_err.so ss_err.po $(OUTPRE)ss_err.$(OBJEXT): $(COM_ERR_DEPS) \
   ss_err.c
 std_rqs.so std_rqs.po $(OUTPRE)std_rqs.$(OBJEXT): $(COM_ERR_DEPS) \

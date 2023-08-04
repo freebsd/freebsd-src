@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTH-CONTEXT-PERMIT-ALL-data:
+
+KRB5_AUTH_CONTEXT_PERMIT_ALL
+============================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_PERMIT_ALL
+..
+
+
+
+
+=================================== ======================
+``KRB5_AUTH_CONTEXT_PERMIT_ALL``       ``0x00000010``
+=================================== ======================

@@ -32,13 +32,13 @@ request ktutil_clear_list, "Clear the current keylist.",
 request ktutil_read_v5, "Read a krb5 keytab into the current keylist.",
 	read_kt, rkt;
 
-request ktutil_read_v4, "Read a krb4 srvtab into the current keylist.",
+request ktutil_read_v4, "Deprecated and removed.",
 	read_st, rst;
 
 request ktutil_write_v5, "Write the current keylist to a krb5 keytab.",
 	write_kt, wkt;
 
-request ktutil_write_v4, "Write the current keylist to a krb4 srvtab.",
+request ktutil_write_v4, "Deprecated and removed.",
 	write_st, wst;
 
 request ktutil_add_entry, "Add an entry to the current keylist.",

@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-tkt-creds-context-struct:
+
+krb5_tkt_creds_context
+======================
+
+..
+.. c:type:: krb5_tkt_creds_context
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_tkt_creds_context\* krb5_tkt_creds_context
+
+

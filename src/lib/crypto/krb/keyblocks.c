@@ -56,7 +56,7 @@ krb5int_c_init_keyblock(krb5_context context, krb5_enctype enctype,
 }
 
 void
-krb5int_c_free_keyblock(krb5_context context, register krb5_keyblock *val)
+krb5int_c_free_keyblock(krb5_context context, krb5_keyblock *val)
 {
     krb5int_c_free_keyblock_contents(context, val);
     free(val);

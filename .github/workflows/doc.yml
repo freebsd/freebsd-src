@@ -1,0 +1,41 @@
+name: Doc
+
+on:
+    push: {paths: [doc/**, src/doc/*, src/include/krb5/krb5.hin, .github/workflows/doc.yml]}
+    pull_request: {paths: [doc/**, src/doc/*, src/include/krb5/krb5.hin, .github/workflows/doc.yml]}
+
+jobs:
+    doc-older-sphinx:
+        runs-on: ubuntu-22.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v1
+            - name: Linux setup
+              run: |
+                sudo apt-get update -qq
+                sudo apt-get install -y doxygen python3-lxml python3-pip python3-sphinx
+                pip3 install Cheetah3
+            - name: Build documentation
+              run: |
+                cd src/doc
+                make -f Makefile.in SPHINX_ARGS=-W htmlsrc
+    doc-newest-sphinx:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v1
+            - name: Linux setup
+              run: |
+                sudo apt-get update -qq
+                sudo apt-get install -y doxygen python3-lxml python3-pip
+                pip3 install Cheetah3 sphinx
+            - name: Build documentation
+              run: |
+                cd src/doc
+                make -f Makefile.in SPHINX_ARGS=-W htmlsrc
+            - name: Upload HTML
+              uses: actions/upload-artifact@v2
+              with:
+                  name: html
+                  path: doc/html
+                  retention-days: 7

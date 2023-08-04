@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 # Unfortunately, we can't reliably test the k5login module.  We can control
@@ -26,6 +25,7 @@ def test_userok(env, aname, lname, ok, msg):
 # The default an2ln method works only in the default realm, and works
 # for a single-component principal or a two-component principal where
 # the second component is the default realm.
+mark('default')
 test_an2ln(None, 'user@KRBTEST.COM', 'user', 'default rule 1')
 test_an2ln(None, 'user/KRBTEST.COM@KRBTEST.COM', 'user', 'default rule 2')
 test_an2ln_err(None, 'user/KRBTEST.COM/x@KRBTEST.COM', 'No translation',
@@ -35,6 +35,7 @@ test_an2ln_err(None, 'user/X@KRBTEST.COM', 'No translation',
 test_an2ln_err(None, 'user@X', 'No translation', 'default rule realm mismatch')
 
 # auth_to_local_names matches ignore the realm but are case-sensitive.
+mark('auth_to_local_names')
 conf_names1 = {'realms': {'$realm': {'auth_to_local_names': {'user': 'abcd'}}}}
 names1 = realm.special_env('names1', False, conf_names1)
 test_an2ln(names1, 'user@KRBTEST.COM', 'abcd', 'auth_to_local_names match')
@@ -54,10 +55,12 @@ def a2l_realm(name, values):
     return realm.special_env(name, False, conf)
 
 # Test explicit use of default method.
+mark('explicit default')
 auth1 = a2l_realm('auth1', 'DEFAULT')
 test_an2ln(auth1, 'user@KRBTEST.COM', 'user', 'default rule')
 
 # Test some invalid auth_to_local values.
+mark('auth_to_local invalid')
 auth2 = a2l_realm('auth2', 'RULE')
 test_an2ln_err(auth2, 'user@X', 'Improper format', 'null rule')
 auth3 = a2l_realm('auth3', 'UNRECOGNIZED:stuff')
@@ -65,6 +68,7 @@ test_an2ln_err(auth3, 'user@X', 'Improper format', 'null rule')
 
 # An empty rule has the default selection string (unparsed principal
 # without realm) and no match or substitutions.
+mark('rule (empty)')
 rule1 = a2l_realm('rule1', 'RULE:')
 test_an2ln(rule1, 'user@KRBTEST.COM', 'user', 'empty rule')
 test_an2ln(rule1, 'user@X', 'user', 'empty rule (foreign realm)')
@@ -72,23 +76,27 @@ test_an2ln(rule1, 'a/b/c@X', 'a/b/c', 'empty rule (multi-component)')
 
 # Test explicit selection string.  Also test that the default method
 # is suppressed when auth_to_local values are present.
+mark('rule (selection string)')
 rule2 = a2l_realm('rule2', 'RULE:[2:$$0.$$2.$$1]')
 test_an2ln(rule2, 'aaron/burr@REALM', 'REALM.burr.aaron', 'selection string')
 test_an2ln_err(rule2, 'user@KRBTEST.COM', 'No translation', 'suppress default')
 
 # Test match string.
+mark('rule (match string)')
 rule3 = a2l_realm('rule3', 'RULE:(.*tail)')
 test_an2ln(rule3, 'withtail@X', 'withtail', 'rule match 1')
 test_an2ln(rule3, 'x/withtail@X', 'x/withtail', 'rule match 2')
 test_an2ln_err(rule3, 'tails@X', 'No translation', 'rule anchor mismatch')
 
 # Test substitutions.
+mark('rule (substitutions)')
 rule4 = a2l_realm('rule4', 'RULE:s/birds/bees/')
 test_an2ln(rule4, 'thebirdsbirdsbirds@X', 'thebeesbirdsbirds', 'subst 1')
 rule5 = a2l_realm('rule4', 'RULE:s/birds/bees/g  s/bees/birds/')
 test_an2ln(rule4, 'the/birdsbirdsbirds@x', 'the/birdsbeesbees', 'subst 2')
 
 # Test a bunch of auth_to_local values and rule features in combination.
+mark('rule (combo)')
 combo = a2l_realm('combo', ['RULE:[1:$$1-$$0](fred.*)s/-/ /g',
                             'DEFAULT',
                             'RULE:[3:$$1](z.*z)'])
@@ -100,10 +108,13 @@ test_an2ln(combo, 'zazz/b/c@X', 'zazz', 'combo 5')
 test_an2ln_err(combo, 'a/b@KRBTEST.COM', 'No translation', 'combo 6')
 
 # Test the an2ln userok method with the combo environment.
+mark('userok (an2ln)')
 test_userok(combo, 'fred@X', 'fred X', True, 'combo userok 1')
 test_userok(combo, 'user@KRBTEST.COM', 'user', True, 'combo userok 2')
 test_userok(combo, 'user@KRBTEST.COM', 'X', False, 'combo userok 3')
 test_userok(combo, 'a/b@KRBTEST.COM', 'a/b', False, 'combo userok 4')
+
+mark('test modules')
 
 # Register the two test modules and set up some auth_to_local and
 # auth_to_local_names entries.
@@ -121,7 +132,7 @@ conf = {'plugins': {'localauth': { 'module': [
 mod = realm.special_env('mod', False, conf)
 
 # test1's untyped an2ln method should come before the names method, mapping
-# test/a/b@X to its realm name (superceding auth_to_local_names).
+# test/a/b@X to its realm name (superseding auth_to_local_names).
 test_an2ln(mod, 'test/a/b@X', 'X', 'mod untyped an2ln')
 
 # Match the auth_to_local values in order.  test2's TYPEA should map

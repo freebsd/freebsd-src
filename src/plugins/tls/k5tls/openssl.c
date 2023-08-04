@@ -399,7 +399,7 @@ load_anchor(SSL_CTX *ctx, const char *location)
     } else if (strncmp(location, "DIR:", 4) == 0) {
         return load_anchor_dir(store, location + 4);
     } else if (strncmp(location, "ENV:", 4) == 0) {
-        envloc = getenv(location + 4);
+        envloc = secure_getenv(location + 4);
         if (envloc == NULL)
             return ENOENT;
         return load_anchor(ctx, envloc);
@@ -433,7 +433,7 @@ setup(krb5_context context, SOCKET fd, const char *servername,
       char **anchors, k5_tls_handle *handle_out)
 {
     int e;
-    long options;
+    long options = SSL_OP_NO_SSLv2;
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
     k5_tls_handle handle = NULL;
@@ -448,8 +448,19 @@ setup(krb5_context context, SOCKET fd, const char *servername,
     ctx = SSL_CTX_new(SSLv23_client_method());
     if (ctx == NULL)
         goto error;
-    options = SSL_CTX_get_options(ctx);
-    SSL_CTX_set_options(ctx, options | SSL_OP_NO_SSLv2);
+
+#ifdef SSL_OP_IGNORE_UNEXPECTED_EOF
+    /*
+     * For OpenSSL 3 and later, mark close_notify alerts as optional.  We don't
+     * need to worry about truncation attacks because the protocols this module
+     * is used with (Kerberos and change-password) receive a single
+     * length-delimited message from the server.  For prior versions of OpenSSL
+     * we check for SSL_ERROR_SYSCALL when reading instead (this error changes
+     * to SSL_ERROR_SSL in OpenSSL 3).
+     */
+    options |= SSL_OP_IGNORE_UNEXPECTED_EOF;
+#endif
+    SSL_CTX_set_options(ctx, options);
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
     X509_STORE_set_flags(SSL_CTX_get_cert_store(ctx), 0);

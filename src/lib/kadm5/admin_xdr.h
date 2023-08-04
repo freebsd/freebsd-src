@@ -37,7 +37,6 @@ bool_t	    xdr_mprinc_arg(XDR *xdrs, mprinc_arg *objp);
 bool_t	    xdr_rprinc_arg(XDR *xdrs, rprinc_arg *objp);
 bool_t	    xdr_chpass_arg(XDR *xdrs, chpass_arg *objp);
 bool_t      xdr_chpass3_arg(XDR *xdrs, chpass3_arg *objp);
-bool_t      xdr_setv4key_arg(XDR *xdrs, setv4key_arg *objp);
 bool_t      xdr_setkey_arg(XDR *xdrs, setkey_arg *objp);
 bool_t      xdr_setkey3_arg(XDR *xdrs, setkey3_arg *objp);
 bool_t      xdr_setkey4_arg(XDR *xdrs, setkey4_arg *objp);

@@ -49,7 +49,7 @@
  *
  * A copy of this license is available in file LICENSE in the
  * top-level directory of the distribution or, alternatively, at
- * <http://www.OpenLDAP.org/license.html>.
+ * <https://www.OpenLDAP.org/license.html>.
  */
 /*
  * Copyright (C) 2000 Novell, Inc. All Rights Reserved.
@@ -57,14 +57,14 @@
  * THIS WORK IS SUBJECT TO U.S. AND INTERNATIONAL COPYRIGHT LAWS AND TREATIES.
  * USE, MODIFICATION, AND REDISTRIBUTION OF THIS WORK IS SUBJECT TO VERSION
  * 2.0.1 OF THE OPENLDAP PUBLIC LICENSE, A COPY OF WHICH IS AVAILABLE AT
- * HTTP://WWW.OPENLDAP.ORG/LICENSE.HTML OR IN THE FILE "LICENSE" IN THE
+ * HTTPS://WWW.OPENLDAP.ORG/LICENSE.HTML OR IN THE FILE "LICENSE" IN THE
  * TOP-LEVEL DIRECTORY OF THE DISTRIBUTION. ANY USE OR EXPLOITATION OF THIS
  * WORK OTHER THAN AS AUTHORIZED IN VERSION 2.0.1 OF THE OPENLDAP PUBLIC
  * LICENSE, OR OTHER PRIOR WRITTEN CONSENT FROM NOVELL, COULD SUBJECT THE
  * PERPETRATOR TO CRIMINAL AND CIVIL LIABILITY.
  */
 
-/* This work is part of OpenLDAP Software <http://www.openldap.org/>. */
+/* This work is part of OpenLDAP Software <https://www.openldap.org/>. */
 
 #ifndef K5_UNICODE_H
 #define K5_UNICODE_H
@@ -87,44 +87,17 @@
 
 typedef krb5_ucs4 krb5_unicode;
 
-int krb5int_ucstrncmp(
-    const krb5_unicode *,
-    const krb5_unicode *,
-    size_t);
-
-int krb5int_ucstrncasecmp(
-    const krb5_unicode *,
-    const krb5_unicode *,
-    size_t);
-
-krb5_unicode *krb5int_ucstrnchr(
-    const krb5_unicode *,
-    size_t,
-    krb5_unicode);
-
-krb5_unicode *krb5int_ucstrncasechr(
-    const krb5_unicode *,
-    size_t,
-    krb5_unicode);
-
-void krb5int_ucstr2upper(
-    krb5_unicode *,
-    size_t);
-
 #define KRB5_UTF8_NOCASEFOLD    0x0U
 #define KRB5_UTF8_CASEFOLD      0x1U
 #define KRB5_UTF8_ARG1NFC       0x2U
 #define KRB5_UTF8_ARG2NFC       0x4U
 #define KRB5_UTF8_APPROX        0x8U
 
-krb5_error_code krb5int_utf8_normalize(
-    const krb5_data *,
-    krb5_data **,
-    unsigned);
-
 int krb5int_utf8_normcmp(
     const krb5_data *,
     const krb5_data *,
     unsigned);
+
+krb5_boolean k5_utf8_validate(const krb5_data *data);
 
 #endif /* K5_UNICODE_H */

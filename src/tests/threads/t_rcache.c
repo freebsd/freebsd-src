@@ -31,7 +31,7 @@
 
 krb5_context ctx;
 krb5_rcache rcache;
-krb5_data piece = { .data = "hello", .length = 5 };
+const char *rcname;
 time_t end_time;
 const char *prog;
 
@@ -60,18 +60,45 @@ static void wait_for_tick ()
     } while (now == next);
 }
 
+/* Encrypt data into out (preallocated by the caller) with a random key. */
+static krb5_error_code encrypt_data (krb5_data *data, krb5_enc_data *out)
+{
+    krb5_keyblock kb;
+    krb5_error_code err;
+
+    err = krb5_c_make_random_key(ctx, ENCTYPE_AES256_CTS_HMAC_SHA1_96,
+                                 &kb);
+    if (err)
+        return err;
+    err = krb5_c_encrypt(ctx, &kb, KRB5_KEYUSAGE_TGS_REQ_AUTH, NULL, data,
+                         out);
+    krb5_free_keyblock_contents(ctx, &kb);
+    return err;
+}
+
 static void try_one (struct tinfo *t)
 {
-    krb5_donot_replay r;
     krb5_error_code err;
-    char buf[100], buf2[100];
+    char buf[256], buf2[512];
     krb5_rcache my_rcache;
+    krb5_data d;
+    krb5_enc_data enc;
 
     snprintf(buf, sizeof(buf), "host/all-in-one.mit.edu/%p@ATHENA.MIT.EDU",
              buf);
-    r.server = buf;
-    r.client = (t->my_cusec & 7) + "abcdefgh@ATHENA.MIT.EDU";
-    r.msghash = NULL;
+
+    /* k5_rc_store() requires a ciphertext.  Create one by encrypting a dummy
+     * value in a random key. */
+    d = string2data(buf);
+    enc.ciphertext = make_data(buf2, sizeof(buf2));
+    err = encrypt_data(&d, &enc);
+    if (err != 0) {
+        const char *msg = krb5_get_error_message(ctx, err);
+        fprintf(stderr, "%s: encrypting authenticator: %s\n", prog, msg);
+        krb5_free_error_message(ctx, msg);
+        exit(1);
+    }
+
     if (t->now != t->my_ctime) {
         if (t->my_ctime != 0) {
             snprintf(buf2, sizeof(buf2), "%3d: %ld %5d\n", t->idx,
@@ -82,10 +109,8 @@ static void try_one (struct tinfo *t)
         t->my_cusec = 1;
     } else
         t->my_cusec++;
-    r.ctime = t->my_ctime;
-    r.cusec = t->my_cusec;
     if (!init_once) {
-        err = krb5_get_server_rcache(ctx, &piece, &my_rcache);
+        err = k5_rc_resolve(ctx, rcname, &my_rcache);
         if (err) {
             const char *msg = krb5_get_error_message(ctx, err);
             fprintf(stderr, "%s: %s while initializing replay cache\n", prog, msg);
@@ -94,19 +119,18 @@ static void try_one (struct tinfo *t)
         }
     } else
         my_rcache = rcache;
-    err = krb5_rc_store(ctx, my_rcache, &r);
+    err = k5_rc_store(ctx, my_rcache, &enc);
     if (err) {
         com_err(prog, err, "storing in replay cache");
         exit(1);
     }
     if (!init_once)
-        krb5_rc_close(ctx, my_rcache);
+        k5_rc_close(ctx, my_rcache);
 }
 
 static void *run_a_loop (void *x)
 {
     struct tinfo t = { 0 };
-/*    int chr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"[(*(int*)x) % 27]; */
 
     t.now = time(0);
     t.idx = *(int *)x;
@@ -117,19 +141,14 @@ static void *run_a_loop (void *x)
         t.now = time(0);
         try_one(&t);
         t.total++;
-#if 0
-        printf("%c", chr);
-        fflush(stdout);
-#endif
     }
-/*    printf("thread %u total %u\n", (unsigned) ((int *)x-ip), t.total);*/
     *(int*)x = t.total;
     return 0;
 }
 
 static void usage(void)
 {
-    fprintf (stderr, "usage: %s [ options ]\n", prog);
+    fprintf (stderr, "usage: %s [ options ] rcname\n", prog);
     fprintf (stderr, "options:\n");
     fprintf (stderr, "\t-1\tcreate one rcache handle for process\n");
     fprintf (stderr, "\t-t N\tnumber of threads to create (default: %d)\n",
@@ -168,6 +187,12 @@ static void process_options (int argc, char *argv[])
             break;
         }
     }
+
+    argc -= optind;
+    argv += optind;
+    if (argc != 1)
+        usage ();
+    rcname = argv[0];
 }
 
 int main (int argc, char *argv[])
@@ -183,31 +208,8 @@ int main (int argc, char *argv[])
         return 1;
     }
 
-    /*
-     * For consistency, run the tests without an existing replay
-     * cache.  Since there isn't a way to ask the library for the
-     * pathname that would be used for the rcache, we create an rcache
-     * object and then destroy it.
-     */
-    err = krb5_get_server_rcache(ctx, &piece, &rcache);
-    if (err) {
-        const char *msg = krb5_get_error_message(ctx, err);
-        fprintf(stderr, "%s: %s while initializing replay cache\n", prog, msg);
-        krb5_free_error_message(ctx, msg);
-        return 1;
-    }
-    err = krb5_rc_destroy(ctx, rcache);
-    if (err) {
-        const char *msg = krb5_get_error_message(ctx, err);
-        fprintf(stderr, "%s: %s while destroying old replay cache\n",
-                prog, msg);
-        krb5_free_error_message(ctx, msg);
-        return 1;
-    }
-    rcache = NULL;
-
     if (init_once) {
-        err = krb5_get_server_rcache(ctx, &piece, &rcache);
+        err = k5_rc_resolve(ctx, rcname, &rcache);
         if (err) {
             const char *msg = krb5_get_error_message(ctx, err);
             fprintf(stderr, "%s: %s while initializing new replay cache\n",
@@ -252,7 +254,7 @@ int main (int argc, char *argv[])
     free(ip);
 
     if (init_once)
-        krb5_rc_close(ctx, rcache);
+        k5_rc_close(ctx, rcache);
     krb5_free_context(ctx);
     return 0;
 }

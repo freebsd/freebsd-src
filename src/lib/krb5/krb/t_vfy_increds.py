@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (C) 2011 by the Massachusetts Institute of Technology.
 # All rights reserved.
 #
@@ -27,17 +25,20 @@ from k5test import *
 realm = K5Realm()
 
 # Verify the default test realm credentials with the default keytab.
+mark('default keytab')
 realm.run(['./t_vfy_increds'])
 realm.run(['./t_vfy_increds', '-n'])
 
 # Verify after updating the keytab (so the keytab contains an outdated
 # version 1 key followed by an up-to-date version 2 key).
+mark('updated keytab')
 realm.run([kadminl, 'ktadd', realm.host_princ])
 realm.run(['./t_vfy_increds'])
 realm.run(['./t_vfy_increds', '-n'])
 
 # Bump the host key without updating the keytab and make sure that
 # verification fails as we expect it to.
+mark('outdated keytab')
 realm.run([kadminl, 'change_password', '-randkey', realm.host_princ])
 realm.run(['./t_vfy_increds'], expected_code=1)
 realm.run(['./t_vfy_increds', '-n'], expected_code=1)
@@ -47,6 +48,7 @@ realm.run(['./t_vfy_increds', '-n'], expected_code=1)
 # matches.  Verify after updating the keytab with a host service
 # principal that has hostname that doesn't match the host running the
 # test.  Verify should succeed, with or without nofail.
+mark('hostname mismatch')
 realm.run([kadminl, 'addprinc', '-randkey', 'host/wrong.hostname'])
 realm.run([kadminl, 'ktadd', 'host/wrong.hostname'])
 realm.run(['./t_vfy_increds'])
@@ -54,6 +56,7 @@ realm.run(['./t_vfy_increds', '-n'])
 
 # Remove the keytab and verify again.  This should succeed if nofail
 # is not set, and fail if it is set.
+mark('no keytab')
 os.remove(realm.keytab)
 realm.run(['./t_vfy_increds'])
 realm.run(['./t_vfy_increds', '-n'], expected_code=1)
@@ -65,6 +68,7 @@ realm.run(['./t_vfy_increds', '-n'], expected_code=1)
 # set.  (An empty keytab file appears as corrupt to keytab calls,
 # causing a KRB5_KEYTAB_BADVNO error, so any tightening of the
 # krb5_verify_init_creds semantics needs to take this into account.)
+mark('empty keytab')
 open(realm.keytab, 'w').close()
 realm.run(['./t_vfy_increds'])
 realm.run(['./t_vfy_increds', '-n'], expected_code=1)
@@ -73,6 +77,7 @@ os.remove(realm.keytab)
 # Add an NFS service principal to keytab.  Verify should ignore it by
 # default (succeeding unless nofail is set), but should verify with it
 # when it is specifically requested.
+mark('keytab with NFS principal')
 realm.run([kadminl, 'addprinc', '-randkey', realm.nfs_princ])
 realm.run([kadminl, 'ktadd', realm.nfs_princ])
 realm.run(['./t_vfy_increds'])
@@ -83,6 +88,7 @@ realm.run(['./t_vfy_increds', '-n', realm.nfs_princ])
 # Invalidating the NFS keys in the keytab.  We should get the same
 # results with the default principal argument, but verification should
 # now fail if we request it specifically.
+mark('keytab with outdated NFS principal')
 realm.run([kadminl, 'change_password', '-randkey', realm.nfs_princ])
 realm.run(['./t_vfy_increds'])
 realm.run(['./t_vfy_increds', '-n'], expected_code=1)
@@ -91,6 +97,7 @@ realm.run(['./t_vfy_increds', '-n', realm.nfs_princ], expected_code=1)
 
 # Spot-check that verify_ap_req_nofail works equivalently to the
 # programmatic nofail option.
+mark('verify_ap_req_nofail')
 realm.stop()
 conf = {'libdefaults': {'verify_ap_req_nofail': 'true'}}
 realm = K5Realm(krb5_conf=conf)

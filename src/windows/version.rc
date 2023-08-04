@@ -41,7 +41,7 @@
 #define K5_PRODUCT_VERSION_STRING MAJOR_MINOR MAYBE_PATCH RELTAIL "\0"
 #define K5_PRODUCT_VERSION        KRB5_MAJOR_RELEASE, KRB5_MINOR_RELEASE, KRB5_PATCHLEVEL, KRB5_BUILDLEVEL
 
-#define K5_COPYRIGHT "Copyright (C) 1997-2017 by the Massachusetts Institute of Technology\0"
+#define K5_COPYRIGHT "Copyright (C) 1997-2023 by the Massachusetts Institute of Technology\0"
 #define K5_COMPANY_NAME "Massachusetts Institute of Technology.\0"
 
 /* 
@@ -144,50 +144,6 @@
 #endif
 #endif /* LEASHDLL_LIB */
 
-#ifdef WSHELPER_LIB
-#define K5_DESCRIPTION "Winsock Helper (wshelper) API - " KRB5_PRODUCTNAME_STR "\0"
-#define K5_INTERNAL_NAME "wshelper\0"
-#define K5_FILETYPE	VFT_DLL
-#if defined(_WIN64)
-#define K5_ORIGINAL_NAME "wshelper64.dll\0"
-#else
-#define K5_ORIGINAL_NAME "wshelper32.dll\0"
-#endif
-#endif /* WSHELPER_LIB */
-
-#ifdef KRB4_LIB
-#define K5_DESCRIPTION "Kerberos v4 - " KRB5_PRODUCTNAME_STR "\0"
-#define K5_INTERNAL_NAME "krb4\0"
-#define K5_FILETYPE	VFT_DLL
-#if !defined(_WIN32)
-#define K5_ORIGINAL_NAME "krb4_16.dll\0"
-#else
-#define K5_ORIGINAL_NAME "krb4_32.dll\0"
-#endif
-#endif /* KRB4 */
-
-#ifdef SAPKRB_LIB
-#define K5_DESCRIPTION "Kerberos v5 - " KRB5_PRODUCTNAME_STR " (for SAP)\0"
-#define K5_INTERNAL_NAME "sapkrb5\0"
-#define K5_FILETYPE	VFT_DLL
-#if !defined(_WIN32)
-#define K5_ORIGINAL_NAME "sapkrb16.dll\0"
-#else
-#define K5_ORIGINAL_NAME "sapkrb32.dll\0"
-#endif
-#endif /* SAPKRB */
-
-#ifdef SAPGSS_LIB
-#define K5_DESCRIPTION "GSSAPI - GSS API implementation for Kerberos 5 mechanism(for SAP)\0"
-#define K5_INTERNAL_NAME "sapgss\0"
-#define K5_FILETYPE	VFT_DLL
-#if !defined(_WIN32)
-#define K5_ORIGINAL_NAME "sapgss16.dll\0"
-#else
-#define K5_ORIGINAL_NAME "sapgss32.dll\0"
-#endif
-#endif /* SAPGSS */
-
 #ifdef KRB5_APP
 #define K5_DESCRIPTION "KRB5 Ticket Manager - " KRB5_PRODUCTNAME_STR "\0"
 #define K5_FILETYPE	VFT_APP
@@ -201,27 +157,6 @@
 #define K5_INTERNAL_NAME "GSS\0"
 #define K5_ORIGINAL_NAME "gss.exe\0"
 #endif
-
-#ifdef TELNET_APP
-#define K5_DESCRIPTION "Telnet - Telnet Application for " KRB5_PRODUCTNAME_STR "\0"
-#define K5_FILETYPE	VFT_APP
-#define K5_INTERNAL_NAME "TELNET\0"
-#define K5_ORIGINAL_NAME "telnet.exe\0"
-#endif
-
-#ifdef KRB524_LIB
-#define K5_DESCRIPTION "Kerberos v5 to v4 - " KRB5_PRODUCTNAME_STR "\0"
-#define K5_INTERNAL_NAME "krb524\0"
-#define K5_FILETYPE	VFT_DLL
-#define K5_ORIGINAL_NAME "krb524.dll\0"
-#endif /* KRB524_LIB */
-
-#ifdef KRB524_INIT
-#define K5_DESCRIPTION "Kerberos v5 to v4 Application - " KRB5_PRODUCTNAME_STR "\0"
-#define K5_INTERNAL_NAME "krb524_init\0"
-#define K5_FILETYPE	VFT_DLL
-#define K5_ORIGINAL_NAME "krb524_init.exe\0"
-#endif /* KRB524_INIT */
 
 #ifdef MS2MIT_APP
 #define K5_DESCRIPTION "Microsoft LSA to MIT Credential Cache Application - " KRB5_PRODUCTNAME_STR "\0"

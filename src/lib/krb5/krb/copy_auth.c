@@ -65,7 +65,7 @@ krb5_merge_authdata(krb5_context context,
 {
     krb5_error_code retval;
     krb5_authdata ** tempauthdat;
-    register unsigned int nelems = 0, nelems2 = 0;
+    unsigned int nelems = 0, nelems2 = 0;
 
     *outauthdat = NULL;
     if (!inauthdat1 && !inauthdat2) {

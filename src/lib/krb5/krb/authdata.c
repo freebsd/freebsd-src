@@ -44,7 +44,6 @@ static const char *objdirs[] = {
 /* Internal authdata systems */
 static krb5plugin_authdata_client_ftable_v0 *authdata_systems[] = {
     &k5_mspac_ad_client_ftable,
-    &k5_s4u2proxy_ad_client_ftable,
     &k5_authind_ad_client_ftable,
     NULL
 };
@@ -546,7 +545,7 @@ static krb5_error_code
 extract_cammacs(krb5_context kcontext, krb5_authdata **cammacs,
                 const krb5_keyblock *key, krb5_authdata ***ad_out)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
     krb5_authdata **list = NULL, **elements = NULL, **new_list;
     size_t i, n_elements, count = 0;
 
@@ -557,6 +556,8 @@ extract_cammacs(krb5_context kcontext, krb5_authdata **cammacs,
         if (ret && ret != KRB5KRB_AP_ERR_BAD_INTEGRITY)
             goto cleanup;
         ret = 0;
+        if (elements == NULL)
+            continue;
 
         /* Add the verified elements to list and free the container array. */
         for (n_elements = 0; elements[n_elements] != NULL; n_elements++);
@@ -976,9 +977,7 @@ krb5_authdata_export_internal(krb5_context kcontext,
 
     *ptr = NULL;
 
-    name.length = strlen(module_name);
-    name.data = (char *)module_name;
-
+    name = make_data((char *)module_name, strlen(module_name));
     module = k5_ad_find_module(kcontext, context, AD_USAGE_MASK, &name);
     if (module == NULL)
         return ENOENT;
@@ -1005,9 +1004,7 @@ krb5_authdata_free_internal(krb5_context kcontext,
     krb5_data name;
     struct _krb5_authdata_context_module *module;
 
-    name.length = strlen(module_name);
-    name.data = (char *)module_name;
-
+    name = make_data((char *)module_name, strlen(module_name));
     module = k5_ad_find_module(kcontext, context, AD_USAGE_MASK, &name);
     if (module == NULL)
         return ENOENT;
@@ -1153,13 +1150,11 @@ krb5_authdata_context_copy(krb5_context kcontext,
 /*
  * Calculate size of to-be-externalized authdata context.
  */
-static krb5_error_code
-krb5_authdata_context_size(krb5_context kcontext,
-                           krb5_pointer ptr,
-                           size_t *sizep)
+krb5_error_code
+k5_size_authdata_context(krb5_context kcontext, krb5_authdata_context context,
+                         size_t *sizep)
 {
     krb5_error_code code;
-    krb5_authdata_context context = (krb5_authdata_context)ptr;
 
     code = k5_ad_size(kcontext, context, AD_USAGE_MASK, sizep);
     if (code != 0)
@@ -1173,14 +1168,12 @@ krb5_authdata_context_size(krb5_context kcontext,
 /*
  * Externalize an authdata context.
  */
-static krb5_error_code
-krb5_authdata_context_externalize(krb5_context kcontext,
-                                  krb5_pointer ptr,
-                                  krb5_octet **buffer,
-                                  size_t *lenremain)
+krb5_error_code
+k5_externalize_authdata_context(krb5_context kcontext,
+                                krb5_authdata_context context,
+                                krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code code;
-    krb5_authdata_context context = (krb5_authdata_context)ptr;
     krb5_octet *bp;
     size_t remain;
 
@@ -1212,11 +1205,10 @@ krb5_authdata_context_externalize(krb5_context kcontext,
 /*
  * Internalize an authdata context.
  */
-static krb5_error_code
-krb5_authdata_context_internalize(krb5_context kcontext,
-                                  krb5_pointer *ptr,
-                                  krb5_octet **buffer,
-                                  size_t *lenremain)
+krb5_error_code
+k5_internalize_authdata_context(krb5_context kcontext,
+                                krb5_authdata_context *ptr,
+                                krb5_octet **buffer, size_t *lenremain)
 {
     krb5_error_code code;
     krb5_authdata_context context;
@@ -1261,23 +1253,6 @@ krb5_authdata_context_internalize(krb5_context kcontext,
     return 0;
 }
 
-static const krb5_ser_entry krb5_authdata_context_ser_entry = {
-    KV5M_AUTHDATA_CONTEXT,
-    krb5_authdata_context_size,
-    krb5_authdata_context_externalize,
-    krb5_authdata_context_internalize
-};
-
-/*
- * Register the authdata context serializer.
- */
-krb5_error_code
-krb5_ser_authdata_context_init(krb5_context kcontext)
-{
-    return krb5_register_serializer(kcontext,
-                                    &krb5_authdata_context_ser_entry);
-}
-
 krb5_error_code
 krb5int_copy_authdatum(krb5_context context,
                        const krb5_authdata *inad, krb5_authdata **outad)
@@ -1299,7 +1274,7 @@ krb5int_copy_authdatum(krb5_context context,
 void KRB5_CALLCONV
 krb5_free_authdata(krb5_context context, krb5_authdata **val)
 {
-    register krb5_authdata **temp;
+    krb5_authdata **temp;
 
     if (val == NULL)
         return;

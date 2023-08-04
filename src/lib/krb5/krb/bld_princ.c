@@ -25,6 +25,22 @@
  */
 
 #include "k5-int.h"
+#include "int-proto.h"
+
+krb5_int32
+k5_infer_principal_type(krb5_principal princ)
+{
+    /* RFC 4120 section 7.3 */
+    if (princ->length == 2 && data_eq_string(princ->data[0], KRB5_TGS_NAME))
+        return KRB5_NT_SRV_INST;
+
+    /* RFC 6111 section 3.1 */
+    if (princ->length >= 2 &&
+        data_eq_string(princ->data[0], KRB5_WELLKNOWN_NAMESTR))
+        return KRB5_NT_WELLKNOWN;
+
+    return KRB5_NT_PRINCIPAL;
+}
 
 static krb5_error_code
 build_principal_va(krb5_context context, krb5_principal princ,
@@ -65,11 +81,11 @@ build_principal_va(krb5_context context, krb5_principal princ,
     }
 
     if (!retval) {
-        princ->type = KRB5_NT_UNKNOWN;
         princ->magic = KV5M_PRINCIPAL;
         princ->realm = make_data(r, rlen);
         princ->data = data;
         princ->length = count;
+        princ->type = k5_infer_principal_type(princ);
         r = NULL;    /* take ownership */
         data = NULL; /* take ownership */
     }

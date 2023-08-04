@@ -16,7 +16,7 @@ $title
 :param:
 
 #for $param in $function.parameters:
-	#if $param.name is ''
+	#if $param.name == ''
 		#continue
 	#end if
 	#if $param.direction is not None

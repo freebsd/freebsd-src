@@ -81,7 +81,8 @@ util_seqstate.so util_seqstate.po $(OUTPRE)util_seqstate.$(OBJEXT): \
 util_token.so util_token.po $(OUTPRE)util_token.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/gssapi/gssapi.h \
   $(BUILDTOP)/include/gssapi/gssapi_alloc.h $(COM_ERR_DEPS) \
-  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-der.h \
+  $(top_srcdir)/include/k5-input.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h gssapiP_generic.h \
   gssapi_err_generic.h gssapi_ext.h gssapi_generic.h \
   util_token.c

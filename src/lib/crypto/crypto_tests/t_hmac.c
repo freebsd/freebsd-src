@@ -34,6 +34,7 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <k5-hex.h>
 #include "crypto_int.h"
 
 #define ASIZE(ARRAY) (sizeof(ARRAY)/sizeof(ARRAY[0]))
@@ -44,17 +45,6 @@ static void keyToData (krb5_keyblock *k, krb5_data *d) {
     d->length = k->length;
     d->data = (char *) k->contents;
 }
-
-#if 0
-static void check_error (int r, int line) {
-    if (r != 0) {
-        fprintf (stderr, "%s:%d: %s\n", __FILE__, line,
-                 error_message (r));
-        exit (1);
-    }
-}
-#define CHECK check_error(r, __LINE__)
-#endif
 
 static void printd (const char *descr, krb5_data *d) {
     unsigned int i, j;
@@ -136,12 +126,10 @@ static void test_hmac()
 {
     krb5_keyblock key;
     krb5_data in, out;
-    char outbuf[20];
-    char stroutbuf[80];
+    char outbuf[20], *hexdigest;
     krb5_error_code err;
-    unsigned int i, j;
+    unsigned int i;
     int lose = 0;
-    struct k5buf buf;
 
     /* RFC 2202 test vector.  */
     static const struct hmac_test md5tests[] = {
@@ -151,13 +139,13 @@ static void test_hmac()
                 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb,
             },
             8, "Hi There",
-            "0x9294727a3638bb1c13f48ef8158bfc9d"
+            "9294727a3638bb1c13f48ef8158bfc9d"
         },
 
         {
             4, "Jefe",
             28, "what do ya want for nothing?",
-            "0x750c783e6ab0b503eaa86e310a5db738"
+            "750c783e6ab0b503eaa86e310a5db738"
         },
 
         {
@@ -172,7 +160,7 @@ static void test_hmac()
                 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
                 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             },
-            "0x56be34521d144c88dbb8c733f0e8b3f6"
+            "56be34521d144c88dbb8c733f0e8b3f6"
         },
 
         {
@@ -188,7 +176,7 @@ static void test_hmac()
                 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd,
                 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd,
             },
-            "0x697eaf0aca3a3aea3a75164746ffaa79"
+            "697eaf0aca3a3aea3a75164746ffaa79"
         },
 
         {
@@ -197,7 +185,7 @@ static void test_hmac()
                 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c
             },
             20, "Test With Truncation",
-            "0x56461ef2342edc00f9bab995690efd4c"
+            "56461ef2342edc00f9bab995690efd4c"
         },
 
         {
@@ -212,7 +200,7 @@ static void test_hmac()
                 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
             },
             54, "Test Using Larger Than Block-Size Key - Hash Key First",
-            "0x6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd"
+            "6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd"
         },
 
         {
@@ -228,7 +216,7 @@ static void test_hmac()
             },
             73,
             "Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data",
-            "0x6f630fad67cda0ee1fb1f562db3aa53e"
+            "6f630fad67cda0ee1fb1f562db3aa53e"
         },
     };
 
@@ -246,19 +234,16 @@ static void test_hmac()
             exit(1);
         }
 
-        k5_buf_init_fixed(&buf, stroutbuf, sizeof(stroutbuf));
-        k5_buf_add(&buf, "0x");
-        for (j = 0; j < out.length; j++)
-            k5_buf_add_fmt(&buf, "%02x", 0xff & outbuf[j]);
-        if (k5_buf_status(&buf) != 0)
+        if (k5_hex_encode(out.data, out.length, FALSE, &hexdigest) != 0)
             abort();
-        if (strcmp(stroutbuf, md5tests[i].hexdigest)) {
+        if (strcmp(hexdigest, md5tests[i].hexdigest)) {
             printf("*** CHECK FAILED!\n"
-                   "\tReturned: %s.\n"
-                   "\tExpected: %s.\n", stroutbuf, md5tests[i].hexdigest);
+                   "\tReturned: 0x%s.\n"
+                   "\tExpected: 0x%s.\n", hexdigest, md5tests[i].hexdigest);
             lose++;
         } else
             printf("Matches expected result.\n");
+        free(hexdigest);
     }
 
     /* Do again with SHA-1 tests....  */

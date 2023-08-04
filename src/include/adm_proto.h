@@ -48,6 +48,7 @@ typedef struct ___krb5_key_salt_tuple krb5_key_salt_tuple;
 
 /* logger.c */
 krb5_error_code krb5_klog_init(krb5_context, char *, char *, krb5_boolean);
+void krb5_klog_set_context(krb5_context);
 void krb5_klog_close(krb5_context);
 int krb5_klog_syslog(int, const char *, ...)
 #if !defined(__cplusplus) && (__GNUC__ > 2)
@@ -57,7 +58,6 @@ int krb5_klog_syslog(int, const char *, ...)
 void krb5_klog_reopen (krb5_context);
 
 /* alt_prof.c */
-krb5_error_code krb5_aprof_init(char *, char *, krb5_pointer *);
 krb5_error_code krb5_aprof_getvals(krb5_pointer, const char **, char ***);
 krb5_error_code krb5_aprof_get_boolean(krb5_pointer, const char **, int,
                                        krb5_boolean *);
@@ -69,7 +69,6 @@ krb5_error_code krb5_aprof_get_string_all(krb5_pointer, const char **,
                                           char **);
 krb5_error_code krb5_aprof_get_int32(krb5_pointer, const char **,
                                      krb5_boolean, krb5_int32 *);
-krb5_error_code krb5_aprof_finish(krb5_pointer);
 
 /* str_conv.c */
 krb5_error_code krb5_flagspec_to_mask(const char *,

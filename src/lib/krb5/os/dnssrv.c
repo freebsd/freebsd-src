@@ -26,8 +26,8 @@
 
 #include "autoconf.h"
 #ifdef KRB5_DNS_LOOKUP
-
-#include "dnsglue.h"
+#include "k5-int.h"
+#include "os-proto.h"
 
 /*
  * Lookup a KDC via DNS SRV records
@@ -45,18 +45,18 @@ krb5int_free_srv_dns_data (struct srv_dns_entry *p)
     }
 }
 
-/* Construct a DNS label of the form "service.[protocol.]realm.", placing the
- * result into fixed_buf.  protocol may be NULL. */
-static krb5_error_code
-prepare_lookup_buf(const krb5_data *realm, const char *service,
-                   const char *protocol, char *fixed_buf, size_t bufsize)
+/* Construct a DNS label of the form "service.[protocol.]realm.".  protocol may
+ * be NULL. */
+static char *
+make_lookup_name(const krb5_data *realm, const char *service,
+                 const char *protocol)
 {
     struct k5buf buf;
 
     if (memchr(realm->data, 0, realm->length))
-        return EINVAL;
+        return NULL;
 
-    k5_buf_init_fixed(&buf, fixed_buf, bufsize);
+    k5_buf_init_dynamic(&buf);
     k5_buf_add_fmt(&buf, "%s.", service);
     if (protocol != NULL)
         k5_buf_add_fmt(&buf, "%s.", protocol);
@@ -72,7 +72,7 @@ prepare_lookup_buf(const krb5_data *realm, const char *service,
     if (buf.len > 0 && ((char *)buf.data)[buf.len - 1] != '.')
         k5_buf_add(&buf, ".");
 
-    return k5_buf_status(&buf);
+    return k5_buf_cstring(&buf);
 }
 
 /* Insert new into the list *head, ordering by priority.  Weight is not
@@ -102,13 +102,84 @@ place_srv_entry(struct srv_dns_entry **head, struct srv_dns_entry *new)
     }
 }
 
+#ifdef _WIN32
+
+#include <windns.h>
+
+krb5_error_code
+k5_make_uri_query(krb5_context context, const krb5_data *realm,
+                  const char *service, struct srv_dns_entry **answers)
+{
+    /* Windows does not currently support the URI record type or make it
+     * possible to query for a record type it does not have support for. */
+    *answers = NULL;
+    return 0;
+}
+
+krb5_error_code
+krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
+                             const char *service, const char *protocol,
+                             struct srv_dns_entry **answers)
+{
+    char *name = NULL;
+    DNS_STATUS st;
+    PDNS_RECORD records, rr;
+    struct srv_dns_entry *head = NULL, *srv = NULL;
+
+    *answers = NULL;
+
+    name = make_lookup_name(realm, service, protocol);
+    if (name == NULL)
+        return 0;
+
+    TRACE_DNS_SRV_SEND(context, name);
+
+    st = DnsQuery_UTF8(name, DNS_TYPE_SRV, DNS_QUERY_STANDARD, NULL, &records,
+                       NULL);
+    if (st != ERROR_SUCCESS)
+        return 0;
+
+    for (rr = records; rr != NULL; rr = rr->pNext) {
+        if (rr->wType != DNS_TYPE_SRV)
+            continue;
+
+        srv = malloc(sizeof(struct srv_dns_entry));
+        if (srv == NULL)
+            goto cleanup;
+
+        srv->priority = rr->Data.SRV.wPriority;
+        srv->weight = rr->Data.SRV.wWeight;
+        srv->port = rr->Data.SRV.wPort;
+        /* Make sure the name looks fully qualified to the resolver. */
+        if (asprintf(&srv->host, "%s.", rr->Data.SRV.pNameTarget) < 0) {
+            free(srv);
+            goto cleanup;
+        }
+
+        TRACE_DNS_SRV_ANS(context, srv->host, srv->port, srv->priority,
+                          srv->weight);
+        place_srv_entry(&head, srv);
+    }
+
+cleanup:
+    free(name);
+    if (records != NULL)
+        DnsRecordListFree(records, DnsFreeRecordList);
+    *answers = head;
+    return 0;
+}
+
+#else /* _WIN32 */
+
+#include "dnsglue.h"
+
 /* Query the URI RR, collecting weight, priority, and target. */
 krb5_error_code
 k5_make_uri_query(krb5_context context, const krb5_data *realm,
                   const char *service, struct srv_dns_entry **answers)
 {
     const unsigned char *p = NULL, *base = NULL;
-    char host[MAXDNAME];
+    char *name = NULL;
     int size, ret, rdlen;
     unsigned short priority, weight;
     struct krb5int_dns_state *ds = NULL;
@@ -117,13 +188,13 @@ k5_make_uri_query(krb5_context context, const krb5_data *realm,
     *answers = NULL;
 
     /* Construct service.realm. */
-    ret = prepare_lookup_buf(realm, service, NULL, host, sizeof(host));
-    if (ret)
+    name = make_lookup_name(realm, service, NULL);
+    if (name == NULL)
         return 0;
 
-    TRACE_DNS_URI_SEND(context, host);
+    TRACE_DNS_URI_SEND(context, name);
 
-    size = krb5int_dns_init(&ds, host, C_IN, T_URI);
+    size = krb5int_dns_init(&ds, name, C_IN, T_URI);
     if (size < 0)
         goto out;
 
@@ -146,7 +217,7 @@ k5_make_uri_query(krb5_context context, const krb5_data *realm,
         /* rdlen - 4 bytes remain after the priority and weight. */
         uri->host = k5memdup0(p, rdlen - 4, &ret);
         if (uri->host == NULL) {
-            ret = errno;
+            free(uri);
             goto out;
         }
 
@@ -156,6 +227,7 @@ k5_make_uri_query(krb5_context context, const krb5_data *realm,
 
 out:
     krb5int_dns_fini(ds);
+    free(name);
     *answers = head;
     return 0;
 }
@@ -173,7 +245,7 @@ krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
                              struct srv_dns_entry **answers)
 {
     const unsigned char *p = NULL, *base = NULL;
-    char host[MAXDNAME];
+    char *name = NULL, host[MAXDNAME];
     int size, ret, rdlen, nlen;
     unsigned short priority, weight, port;
     struct krb5int_dns_state *ds = NULL;
@@ -190,13 +262,13 @@ krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
      *
      */
 
-    ret = prepare_lookup_buf(realm, service, protocol, host, sizeof(host));
-    if (ret)
+    name = make_lookup_name(realm, service, protocol);
+    if (name == NULL)
         return 0;
 
-    TRACE_DNS_SRV_SEND(context, host);
+    TRACE_DNS_SRV_SEND(context, name);
 
-    size = krb5int_dns_init(&ds, host, C_IN, T_SRV);
+    size = krb5int_dns_init(&ds, name, C_IN, T_SRV);
     if (size < 0)
         goto out;
 
@@ -246,7 +318,10 @@ krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
 
 out:
     krb5int_dns_fini(ds);
+    free(name);
     *answers = head;
     return 0;
 }
-#endif
+
+#endif /* not _WIN32 */
+#endif /* KRB5_DNS_LOOKUP */

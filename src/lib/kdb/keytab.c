@@ -58,7 +58,6 @@ krb5_kt_ops krb5_kt_kdb_ops = {
     NULL,                       /* end_get */
     NULL,                       /* add (extended) */
     NULL,                       /* remove (extended) */
-    NULL,               /* (void *) &krb5_ktfile_ser_entry */
 };
 
 typedef struct krb5_ktkdb_data {

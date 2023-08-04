@@ -81,23 +81,6 @@ eighth_byte(unsigned char *b)
 }
 
 krb5_error_code
-k5_rand2key_des(const krb5_data *randombits, krb5_keyblock *keyblock)
-{
-    if (randombits->length != 7)
-        return(KRB5_CRYPTO_INTERNAL);
-
-    keyblock->magic = KV5M_KEYBLOCK;
-
-    /* Take the seven bytes, move them around into the top 7 bits of the
-     * 8 key bytes, then compute the parity bits. */
-    memcpy(keyblock->contents, randombits->data, randombits->length);
-    eighth_byte(keyblock->contents);
-    k5_des_fixup_key_parity(keyblock->contents);
-
-    return 0;
-}
-
-krb5_error_code
 k5_rand2key_des3(const krb5_data *randombits, krb5_keyblock *keyblock)
 {
     int i;

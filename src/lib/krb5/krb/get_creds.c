@@ -39,6 +39,7 @@
 
 #include "k5-int.h"
 #include "int-proto.h"
+#include "os-proto.h"
 #include "fast.h"
 
 /*
@@ -47,10 +48,10 @@
  * and options.  The fields of *mcreds will be aliased to the fields
  * of in_creds, so the contents of *mcreds should not be freed.
  */
-krb5_error_code
-krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
-                                 krb5_creds *in_creds, krb5_creds *mcreds,
-                                 krb5_flags *fields)
+static krb5_error_code
+construct_matching_creds(krb5_context context, krb5_flags options,
+                         krb5_creds *in_creds, krb5_creds *mcreds,
+                         krb5_flags *fields)
 {
     if (!in_creds || !in_creds->server || !in_creds->client)
         return EINVAL;
@@ -101,7 +102,56 @@ krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
             return KRB5_NO_2ND_TKT;
     }
 
+    /* For S4U2Proxy requests we don't know the impersonated client in this
+     * API, but matching against the second ticket is good enough. */
+    if (options & KRB5_GC_CONSTRAINED_DELEGATION)
+        mcreds->client = NULL;
+
     return 0;
+}
+
+/* Simple wrapper around krb5_cc_retrieve_cred which allocates the result
+ * container. */
+static krb5_error_code
+cache_get(krb5_context context, krb5_ccache ccache, krb5_flags flags,
+          krb5_creds *in_creds, krb5_creds **out_creds)
+{
+    krb5_error_code code;
+    krb5_creds *creds;
+
+    *out_creds = NULL;
+
+    creds = malloc(sizeof(*creds));
+    if (creds == NULL)
+        return ENOMEM;
+
+    code = krb5_cc_retrieve_cred(context, ccache, flags, in_creds, creds);
+    if (code != 0) {
+        free(creds);
+        return code;
+    }
+
+    *out_creds = creds;
+    return 0;
+}
+
+krb5_error_code
+k5_get_cached_cred(krb5_context context, krb5_flags options,
+                   krb5_ccache ccache, krb5_creds *in_creds,
+                   krb5_creds **creds_out)
+{
+    krb5_error_code code;
+    krb5_creds mcreds;
+    krb5_flags fields;
+
+    *creds_out = NULL;
+
+    code = construct_matching_creds(context, options, in_creds,
+                                    &mcreds, &fields);
+    if (code)
+        return code;
+
+    return cache_get(context, ccache, fields, &mcreds, creds_out);
 }
 
 /*
@@ -118,7 +168,7 @@ krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
  * generate the next request.  If it's time to advance to another state, any of
  * the three functions can make a tail call to begin_<nextstate> to do so.
  *
- * The overall process is as follows:
+ * The general process is as follows:
  *   1. Get a TGT for the service principal's realm (STATE_GET_TGT).
  *   2. Make one or more referrals queries (STATE_REFERRALS).
  *   3. In some cases, get a TGT for the fallback realm (STATE_GET_TGT again).
@@ -128,6 +178,9 @@ krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
  * getting_tgt_for field in the context keeps track of what state we will go to
  * after successfully obtaining the TGT, and the end_get_tgt() function
  * advances to the proper next state.
+ *
+ * If fallback DNS canonicalization is in use, the process can be repeated a
+ * second time for the second server principal canonicalization candidate.
  */
 
 enum state {
@@ -148,10 +201,13 @@ struct _krb5_tkt_creds_context {
     krb5_principal client;      /* Caller-requested client principal (alias) */
     krb5_principal server;      /* Server principal (alias) */
     krb5_principal req_server;  /* Caller-requested server principal */
-    krb5_ccache ccache;         /* Caller-provided ccache (alias) */
+    krb5_ccache ccache;         /* Caller-provided ccache */
+    krb5_data start_realm;      /* Realm of starting TGT in ccache */
     krb5_flags req_options;     /* Caller-requested KRB5_GC_* options */
     krb5_flags req_kdcopt;      /* Caller-requested options as KDC options */
     krb5_authdata **authdata;   /* Caller-requested authdata */
+    struct canonprinc iter;     /* Iterator over canonicalized server princs */
+    krb5_boolean referral_req;  /* Server initially contained referral realm */
 
     /* The following fields are used in multiple steps. */
     krb5_creds *cur_tgt;        /* TGT to be used for next query */
@@ -222,31 +278,6 @@ cleanup:
     krb5_free_data_contents(context, &out_copy);
     krb5_free_data_contents(context, &realm_copy);
     return code;
-}
-
-/* Simple wrapper around krb5_cc_retrieve_cred which allocates the result
- * container. */
-static krb5_error_code
-cache_get(krb5_context context, krb5_ccache ccache, krb5_flags flags,
-          krb5_creds *in_creds, krb5_creds **out_creds)
-{
-    krb5_error_code code;
-    krb5_creds *creds;
-
-    *out_creds = NULL;
-
-    creds = malloc(sizeof(*creds));
-    if (creds == NULL)
-        return ENOMEM;
-
-    code = krb5_cc_retrieve_cred(context, ccache, flags, in_creds, creds);
-    if (code != 0) {
-        free(creds);
-        return code;
-    }
-
-    *out_creds = creds;
-    return 0;
 }
 
 /*
@@ -331,8 +362,7 @@ make_request_for_service(krb5_context context, krb5_tkt_creds_context ctx,
     extra_options = ctx->req_kdcopt;
 
     /* Automatically set the enc-tkt-in-skey flag for user-to-user requests. */
-    if (ctx->in_creds->second_ticket.length != 0 &&
-        (extra_options & KDC_OPT_CNAME_IN_ADDL_TKT) == 0)
+    if (ctx->in_creds->second_ticket.length != 0)
         extra_options |= KDC_OPT_ENC_TKT_IN_SKEY;
 
     /* Set the canonicalize flag for referral requests. */
@@ -443,12 +473,6 @@ complete(krb5_context context, krb5_tkt_creds_context ctx)
         (void) krb5_cc_store_cred(context, ctx->ccache, ctx->reply_creds);
     }
 
-    /* If we were doing constrained delegation, make sure we got a forwardable
-     * ticket, or it won't work. */
-    if ((ctx->req_options & KRB5_GC_CONSTRAINED_DELEGATION)
-        && (ctx->reply_creds->ticket_flags & TKT_FLG_FORWARDABLE) == 0)
-        return KRB5_TKT_NOT_FORWARDABLE;
-
     ctx->state = STATE_COMPLETE;
     return 0;
 }
@@ -490,7 +514,7 @@ try_fallback(krb5_context context, krb5_tkt_creds_context ctx)
 
     /* If the request used a specified realm, make a non-referral request to
      * that realm (in case it's a KDC which rejects KDC_OPT_CANONICALIZE). */
-    if (!krb5_is_referral_realm(&ctx->req_server->realm))
+    if (!ctx->referral_req)
         return begin_non_referral(context, ctx);
 
     if (ctx->server->length < 2) {
@@ -548,10 +572,12 @@ step_referrals(krb5_context context, krb5_tkt_creds_context ctx)
     if (ctx->reply_code != 0)
         return try_fallback(context, ctx);
 
-    if (krb5_principal_compare(context, ctx->reply_creds->server,
-                               ctx->server)) {
-        /* We got the ticket we asked for... but we didn't necessarily ask for
-         * it with the right enctypes.  Try a non-referral request if so. */
+    /* Check if we got the ticket we asked for.  Allow the KDC to canonicalize
+     * the realm. */
+    if (krb5_principal_compare_any_realm(context, ctx->reply_creds->server,
+                                         ctx->server)) {
+        /* We didn't necessarily ask for it with the right enctypes.  Try a
+         * non-referral request if so. */
         if (wrong_enctype(context, ctx->reply_creds->keyblock.enctype)) {
             TRACE_TKT_CREDS_WRONG_ENCTYPE(context);
             return begin_non_referral(context, ctx);
@@ -789,7 +815,7 @@ get_cached_local_tgt(krb5_context context, krb5_tkt_creds_context ctx,
         return code;
 
     /* Construct the principal name. */
-    code = krb5int_tgtname(context, &ctx->client->realm, &ctx->client->realm,
+    code = krb5int_tgtname(context, &ctx->start_realm, &ctx->start_realm,
                            &tgtname);
     if (code != 0)
         return code;
@@ -827,7 +853,7 @@ init_realm_path(krb5_context context, krb5_tkt_creds_context ctx)
     size_t nrealms;
 
     /* Get the client realm path and count its length. */
-    code = k5_client_realm_path(context, &ctx->client->realm,
+    code = k5_client_realm_path(context, &ctx->start_realm,
                                 &ctx->server->realm, &realm_path);
     if (code != 0)
         return code;
@@ -939,7 +965,7 @@ step_get_tgt(krb5_context context, krb5_tkt_creds_context ctx)
                 ctx->cur_realm = path_realm;
                 ctx->next_realm = ctx->last_realm;
             }
-        } else if (data_eq(*tgt_realm, ctx->client->realm)) {
+        } else if (data_eq(*tgt_realm, ctx->start_realm)) {
             /* We were referred back to the local realm, which is bad. */
             return KRB5_KDCREP_MODIFIED;
         } else {
@@ -969,7 +995,7 @@ begin_get_tgt(krb5_context context, krb5_tkt_creds_context ctx)
 
     ctx->state = STATE_GET_TGT;
 
-    is_local_service = data_eq(ctx->client->realm, ctx->server->realm);
+    is_local_service = data_eq(ctx->start_realm, ctx->server->realm);
     if (!is_local_service) {
         /* See if we have a cached TGT for the server realm. */
         code = get_cached_tgt(context, ctx, &ctx->server->realm, &cached_tgt);
@@ -1019,20 +1045,13 @@ static krb5_error_code
 check_cache(krb5_context context, krb5_tkt_creds_context ctx)
 {
     krb5_error_code code;
-    krb5_creds mcreds;
-    krb5_flags fields;
+    krb5_creds req_in_creds;
 
-    /* For constrained delegation, the expected result is in second_ticket, so
-     * we can't really do a cache check here. */
-    if (ctx->req_options & KRB5_GC_CONSTRAINED_DELEGATION)
-        return (ctx->req_options & KRB5_GC_CACHED) ? KRB5_CC_NOTFOUND : 0;
-
-    /* Perform the cache lookup. */
-    code = krb5int_construct_matching_creds(context, ctx->req_options,
-                                            ctx->in_creds, &mcreds, &fields);
-    if (code)
-        return code;
-    code = cache_get(context, ctx->ccache, fields, &mcreds, &ctx->reply_creds);
+    /* Check the cache for the originally requested server principal. */
+    req_in_creds = *ctx->in_creds;
+    req_in_creds.server = ctx->req_server;
+    code = k5_get_cached_cred(context, ctx->req_options, ctx->ccache,
+                              &req_in_creds, &ctx->reply_creds);
     if (code == 0) {
         ctx->state = STATE_COMPLETE;
         return 0;
@@ -1055,14 +1074,11 @@ begin(krb5_context context, krb5_tkt_creds_context ctx)
 {
     krb5_error_code code;
 
-    code = check_cache(context, ctx);
-    if (code != 0 || ctx->state == STATE_COMPLETE)
-        return code;
-
-    /* If the server realm is unspecified, start with the client realm. */
-    if (krb5_is_referral_realm(&ctx->server->realm)) {
+    /* If the server realm is unspecified, start with the TGT realm. */
+    ctx->referral_req = krb5_is_referral_realm(&ctx->server->realm);
+    if (ctx->referral_req) {
         krb5_free_data_contents(context, &ctx->server->realm);
-        code = krb5int_copy_data_contents(context, &ctx->client->realm,
+        code = krb5int_copy_data_contents(context, &ctx->start_realm,
                                           &ctx->server->realm);
         TRACE_TKT_CREDS_REFERRAL_REALM(context, ctx->server);
         if (code != 0)
@@ -1083,6 +1099,7 @@ krb5_tkt_creds_init(krb5_context context, krb5_ccache ccache,
 {
     krb5_error_code code;
     krb5_tkt_creds_context ctx = NULL;
+    krb5_const_principal canonprinc;
 
     TRACE_TKT_CREDS(context, in_creds, ccache);
     ctx = k5alloc(sizeof(*ctx), &code);
@@ -1097,27 +1114,46 @@ krb5_tkt_creds_init(krb5_context context, krb5_ccache ccache,
         ctx->req_kdcopt |= KDC_OPT_FORWARDABLE;
     if (options & KRB5_GC_NO_TRANSIT_CHECK)
         ctx->req_kdcopt |= KDC_OPT_DISABLE_TRANSITED_CHECK;
-    if (options & KRB5_GC_CONSTRAINED_DELEGATION) {
-        if (options & KRB5_GC_USER_USER) {
-            code = EINVAL;
-            goto cleanup;
-        }
-        ctx->req_kdcopt |= KDC_OPT_FORWARDABLE | KDC_OPT_CNAME_IN_ADDL_TKT;
-    }
 
     ctx->state = STATE_BEGIN;
 
+    /* Copy the matching cred so we can modify it.  Steal the copy of the
+     * service principal name to remember the original request server. */
     code = krb5_copy_creds(context, in_creds, &ctx->in_creds);
     if (code != 0)
         goto cleanup;
-    ctx->client = ctx->in_creds->client;
-    ctx->server = ctx->in_creds->server;
-    code = krb5_copy_principal(context, ctx->server, &ctx->req_server);
+    ctx->req_server = ctx->in_creds->server;
+    ctx->in_creds->server = NULL;
+
+    /* Get the first canonicalization candidate for the requested server. */
+    ctx->iter.princ = ctx->req_server;
+
+    code = k5_canonprinc(context, &ctx->iter, &canonprinc);
+    if (code == 0 && canonprinc == NULL)
+        code = KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN;
     if (code != 0)
         goto cleanup;
+    code = krb5_copy_principal(context, canonprinc, &ctx->in_creds->server);
+    if (code != 0)
+        goto cleanup;
+
+    ctx->client = ctx->in_creds->client;
+    ctx->server = ctx->in_creds->server;
     code = krb5_cc_dup(context, ccache, &ctx->ccache);
     if (code != 0)
         goto cleanup;
+
+    /* Get the start realm from the cache config, defaulting to the client
+     * realm. */
+    code = krb5_cc_get_config(context, ccache, NULL, "start_realm",
+                              &ctx->start_realm);
+    if (code != 0) {
+        code = krb5int_copy_data_contents(context, &ctx->client->realm,
+                                          &ctx->start_realm);
+        if (code != 0)
+            goto cleanup;
+    }
+
     code = krb5_copy_authdata(context, in_creds->authdata, &ctx->authdata);
     if (code != 0)
         goto cleanup;
@@ -1156,7 +1192,9 @@ krb5_tkt_creds_free(krb5_context context, krb5_tkt_creds_context ctx)
         return;
     krb5int_fast_free_state(context, ctx->fast_state);
     krb5_free_creds(context, ctx->in_creds);
+    free_canonprinc(&ctx->iter);
     krb5_cc_close(context, ctx->ccache);
+    krb5_free_data_contents(context, &ctx->start_realm);
     krb5_free_principal(context, ctx->req_server);
     krb5_free_authdata(context, ctx->authdata);
     krb5_free_creds(context, ctx->cur_tgt);
@@ -1176,7 +1214,7 @@ krb5_tkt_creds_get(krb5_context context, krb5_tkt_creds_context ctx)
     krb5_data request = empty_data(), reply = empty_data();
     krb5_data realm = empty_data();
     unsigned int flags = 0;
-    int tcp_only = 0, use_master;
+    int tcp_only = 0, use_primary;
 
     for (;;) {
         /* Get the next request and realm.  Turn on TCP if necessary. */
@@ -1190,9 +1228,9 @@ krb5_tkt_creds_get(krb5_context context, krb5_tkt_creds_context ctx)
         krb5_free_data_contents(context, &reply);
 
         /* Send it to a KDC for the appropriate realm. */
-        use_master = 0;
+        use_primary = 0;
         code = krb5_sendto_kdc(context, &request, &realm,
-                               &reply, &use_master, tcp_only);
+                               &reply, &use_primary, tcp_only);
         if (code != 0)
             break;
 
@@ -1213,6 +1251,7 @@ krb5_tkt_creds_step(krb5_context context, krb5_tkt_creds_context ctx,
 {
     krb5_error_code code;
     krb5_boolean no_input = (in == NULL || in->length == 0);
+    krb5_const_principal canonprinc;
 
     *out = empty_data();
     *realm = empty_data();
@@ -1223,6 +1262,12 @@ krb5_tkt_creds_step(krb5_context context, krb5_tkt_creds_context ctx,
     if (no_input != (ctx->state == STATE_BEGIN) ||
         ctx->state == STATE_COMPLETE)
         return EINVAL;
+
+    if (ctx->state == STATE_BEGIN) {
+        code = check_cache(context, ctx);
+        if (code != 0 || ctx->state == STATE_COMPLETE)
+            return code;
+    }
 
     ctx->caller_out = out;
     ctx->caller_realm = realm;
@@ -1236,17 +1281,32 @@ krb5_tkt_creds_step(krb5_context context, krb5_tkt_creds_context ctx,
     }
 
     if (ctx->state == STATE_BEGIN)
-        return begin(context, ctx);
+        code = begin(context, ctx);
     else if (ctx->state == STATE_GET_TGT)
-        return step_get_tgt(context, ctx);
+        code = step_get_tgt(context, ctx);
     else if (ctx->state == STATE_GET_TGT_OFFPATH)
-        return step_get_tgt_offpath(context, ctx);
+        code = step_get_tgt_offpath(context, ctx);
     else if (ctx->state == STATE_REFERRALS)
-        return step_referrals(context, ctx);
+        code = step_referrals(context, ctx);
     else if (ctx->state == STATE_NON_REFERRAL)
-        return step_non_referral(context, ctx);
+        code = step_non_referral(context, ctx);
     else
-        return EINVAL;
+        code = EINVAL;
+
+    /* Terminate on success or most errors. */
+    if (code != KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN)
+        return code;
+
+    /* Restart with the next server principal canonicalization candidate. */
+    code = k5_canonprinc(context, &ctx->iter, &canonprinc);
+    if (code)
+        return code;
+    if (canonprinc == NULL)
+        return KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN;
+    krb5_free_principal(context, ctx->in_creds->server);
+    code = krb5_copy_principal(context, canonprinc, &ctx->in_creds->server);
+    ctx->server = ctx->in_creds->server;
+    return begin(context, ctx);
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -1259,6 +1319,13 @@ krb5_get_credentials(krb5_context context, krb5_flags options,
     krb5_tkt_creds_context ctx = NULL;
 
     *out_creds = NULL;
+
+    /* If S4U2Proxy is requested, use the synchronous implementation in
+     * s4u_creds.c. */
+    if (options & KRB5_GC_CONSTRAINED_DELEGATION) {
+        return k5_get_proxy_cred_from_kdc(context, options, ccache, in_creds,
+                                          out_creds);
+    }
 
     /* Allocate a container. */
     ncreds = k5alloc(sizeof(*ncreds), &code);

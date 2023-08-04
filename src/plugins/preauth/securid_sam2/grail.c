@@ -213,8 +213,7 @@ verify_grail_data(krb5_context context, krb5_db_entry *client,
         return KRB5KDC_ERR_PREAUTH_FAILED;
 
     ret = krb5_dbe_find_enctype(context, client,
-                                sr2->sam_enc_nonce_or_sad.enctype,
-                                KRB5_KDB_SALTTYPE_NORMAL,
+                                sr2->sam_enc_nonce_or_sad.enctype, -1,
                                 sr2->sam_enc_nonce_or_sad.kvno,
                                 &client_key_data);
     if (ret)

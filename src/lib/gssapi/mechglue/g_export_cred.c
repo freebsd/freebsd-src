@@ -66,7 +66,6 @@ gss_export_cred(OM_uint32 * minor_status, gss_cred_id_t cred_handle,
     gss_mechanism mech;
     gss_buffer_desc mech_token;
     struct k5buf buf;
-    char lenbuf[4];
     int i;
 
     status = val_exp_cred_args(minor_status, cred_handle, token);
@@ -81,7 +80,7 @@ gss_export_cred(OM_uint32 * minor_status, gss_cred_id_t cred_handle,
         mech_oid = &cred->mechs_array[i];
         public_oid = gssint_get_public_oid(mech_oid);
         mech = gssint_get_mechanism(mech_oid);
-        if (mech == NULL) {
+        if (public_oid == GSS_C_NO_OID || mech == NULL) {
             status = GSS_S_DEFECTIVE_CREDENTIAL;
             goto error;
         }
@@ -97,11 +96,9 @@ gss_export_cred(OM_uint32 * minor_status, gss_cred_id_t cred_handle,
         }
 
         /* Append the mech OID and token to buf. */
-        store_32_be(public_oid->length, lenbuf);
-        k5_buf_add_len(&buf, lenbuf, 4);
+        k5_buf_add_uint32_be(&buf, public_oid->length);
         k5_buf_add_len(&buf, public_oid->elements, public_oid->length);
-        store_32_be(mech_token.length, lenbuf);
-        k5_buf_add_len(&buf, lenbuf, 4);
+        k5_buf_add_uint32_be(&buf, mech_token.length);
         k5_buf_add_len(&buf, mech_token.value, mech_token.length);
         gss_release_buffer(&tmpmin, &mech_token);
     }

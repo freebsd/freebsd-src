@@ -29,45 +29,6 @@
 #include <stdlib.h>
 #include <opts.hxx>
 
-#if 0
-const struct Opts*
-GetOpts(
-    )
-{
-    bool done = false;
-    struct Opts* o;
-    if (!(o = new Opts))
-        goto cleanup;
-    if (!(o->pszString = new char[lstrlenA(opts.pszString) + 1]))
-        goto cleanup;
-    if (!(o->pszEndpoint = new char[lstrlenA(opts.pszEndpoint) + 1]))
-        goto cleanup;
-    strcpy(o->pszString, opts.pszString);
-    strcpy(o->pszEndpoint, opts.pszEndpoint);
-    done = true;
- cleanup:
-    if (!done) {
-        FreeOpts(o);
-        o = 0;
-    }
-    return o;
-}
-
-void
-FreeOpts(
-    struct Opts* o
-    )
-{
-    if (o) {
-        if (o->pszString)
-            delete [] o->pszString;
-        if (o->pszEndpoint)
-            delete [] o->pszEndpoint;
-        delete o;
-    }
-}
-#endif
-
 bool
 ParseOpts::IsValidOpt(
     char ch

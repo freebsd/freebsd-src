@@ -38,7 +38,7 @@ krb5_error_code
 krb5_make_fulladdr(krb5_context context, krb5_address *kaddr,
                    krb5_address *kport, krb5_address *raddr)
 {
-    register krb5_octet * marshal;
+    krb5_octet *marshal;
     krb5_int32 tmp32;
     krb5_int16 tmp16;
 

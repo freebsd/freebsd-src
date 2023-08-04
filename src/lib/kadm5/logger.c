@@ -116,7 +116,6 @@ struct log_entry {
         } log_file;
         struct log_syslog {
             int         ls_facility;
-            int         ls_severity;
         } log_syslog;
         struct log_device {
             FILE        *ld_filep;
@@ -127,7 +126,6 @@ struct log_entry {
 #define lfu_filep       log_union.log_file.lf_filep
 #define lfu_fname       log_union.log_file.lf_fname
 #define lsu_facility    log_union.log_syslog.ls_facility
-#define lsu_severity    log_union.log_syslog.ls_severity
 #define ldu_filep       log_union.log_device.ld_filep
 #define ldu_devname     log_union.log_device.ld_devname
 
@@ -173,142 +171,40 @@ klog_com_err_proc(const char *whoami, long int code, const char *format, va_list
 #endif
     ;
 
+/*
+ * Write com_err() messages to the configured logging devices.  Ignore whoami,
+ * as krb5_klog_init() already received a whoami value.  If code is nonzero,
+ * log its error message (retrieved using err_context) and the formatted
+ * message at error severity.  If code is zero, log the formatted message at
+ * informational severity.
+ */
 static void
 klog_com_err_proc(const char *whoami, long int code, const char *format, va_list ap)
 {
-    char        outbuf[KRB5_KLOG_MAX_ERRMSG_SIZE];
-    int         lindex;
-    const char  *actual_format;
-    int         log_pri = -1;
-    char        *cp;
-    char        *syslogp;
+    struct k5buf buf;
+    const char *emsg, *msg;
 
-    if (whoami == NULL || format == NULL)
+    if (format == NULL)
         return;
 
-    /* Make the header */
-    snprintf(outbuf, sizeof(outbuf), "%s: ", whoami);
-    /*
-     * Squirrel away address after header for syslog since syslog makes
-     * a header
-     */
-    syslogp = &outbuf[strlen(outbuf)];
+    k5_buf_init_dynamic(&buf);
 
-    /* If reporting an error message, separate it. */
     if (code) {
-        const char *emsg;
-        outbuf[sizeof(outbuf) - 1] = '\0';
-
-        emsg = krb5_get_error_message (err_context, code);
-        strncat(outbuf, emsg, sizeof(outbuf) - 1 - strlen(outbuf));
-        strncat(outbuf, " - ", sizeof(outbuf) - 1 - strlen(outbuf));
+        /* Start with the error message and a separator. */
+        emsg = krb5_get_error_message(err_context, code);
+        k5_buf_add(&buf, emsg);
         krb5_free_error_message(err_context, emsg);
-    }
-    cp = &outbuf[strlen(outbuf)];
-
-    actual_format = format;
-    /*
-     * This is an unpleasant hack.  If the first character is less than
-     * 8, then we assume that it is a priority.
-     *
-     * Since it is not guaranteed that there is a direct mapping between
-     * syslog priorities (e.g. Ultrix and old BSD), we resort to this
-     * intermediate representation.
-     */
-    if ((((unsigned char) *format) > 0) && (((unsigned char) *format) <= 8)) {
-        actual_format = (format + 1);
-        switch ((unsigned char) *format) {
-        case 1:
-            log_pri = LOG_EMERG;
-            break;
-        case 2:
-            log_pri = LOG_ALERT;
-            break;
-        case 3:
-            log_pri = LOG_CRIT;
-            break;
-        default:
-        case 4:
-            log_pri = LOG_ERR;
-            break;
-        case 5:
-            log_pri = LOG_WARNING;
-            break;
-        case 6:
-            log_pri = LOG_NOTICE;
-            break;
-        case 7:
-            log_pri = LOG_INFO;
-            break;
-        case 8:
-            log_pri = LOG_DEBUG;
-            break;
-        }
+        k5_buf_add(&buf, " - ");
     }
 
-    /* Now format the actual message */
-    vsnprintf(cp, sizeof(outbuf) - (cp - outbuf), actual_format, ap);
+    /* Add the formatted message. */
+    k5_buf_add_vfmt(&buf, format, ap);
 
-    /*
-     * Now that we have the message formatted, perform the output to each
-     * logging specification.
-     */
-    for (lindex = 0; lindex < log_control.log_nentries; lindex++) {
-        /* Omit messages marked as LOG_DEBUG for non-syslog outputs unless we
-         * are configured to include them. */
-        if (log_pri == LOG_DEBUG && !log_control.log_debug &&
-            log_control.log_entries[lindex].log_type != K_LOG_SYSLOG)
-            continue;
+    msg = k5_buf_cstring(&buf);
+    if (msg != NULL)
+        krb5_klog_syslog(code ? LOG_ERR : LOG_INFO, "%s", msg);
 
-        switch (log_control.log_entries[lindex].log_type) {
-        case K_LOG_FILE:
-        case K_LOG_STDERR:
-            /*
-             * Files/standard error.
-             */
-            if (fprintf(log_control.log_entries[lindex].lfu_filep, "%s\n",
-                        outbuf) < 0) {
-                /* Attempt to report error */
-                fprintf(stderr, log_file_err, whoami,
-                        log_control.log_entries[lindex].lfu_fname);
-            }
-            else {
-                fflush(log_control.log_entries[lindex].lfu_filep);
-            }
-            break;
-        case K_LOG_CONSOLE:
-        case K_LOG_DEVICE:
-            /*
-             * Devices (may need special handling)
-             */
-            if (DEVICE_PRINT(log_control.log_entries[lindex].ldu_filep,
-                             outbuf) < 0) {
-                /* Attempt to report error */
-                fprintf(stderr, log_device_err, whoami,
-                        log_control.log_entries[lindex].ldu_devname);
-            }
-            break;
-        case K_LOG_SYSLOG:
-            /*
-             * System log.
-             */
-            /*
-             * If we have specified a priority through our hackery, then
-             * use it, otherwise use the default.
-             */
-            if (log_pri >= 0)
-                log_pri |= log_control.log_entries[lindex].lsu_facility;
-            else
-                log_pri = log_control.log_entries[lindex].lsu_facility |
-                    log_control.log_entries[lindex].lsu_severity;
-
-            /* Log the message with our header trimmed off */
-            syslog(log_pri, "%s", syslogp);
-            break;
-        default:
-            break;
-        }
-    }
+    k5_buf_free(&buf);
 }
 
 /*
@@ -435,9 +331,8 @@ krb5_klog_init(krb5_context kcontext, char *ename, char *whoami, krb5_boolean do
                 else if (!strncasecmp(cp, "SYSLOG", 6)) {
                     error = 0;
                     log_control.log_entries[i].lsu_facility = LOG_AUTH;
-                    log_control.log_entries[i].lsu_severity = LOG_ERR;
                     /*
-                     * Is there a severify specified?
+                     * Is there a severify (which is now ignored) specified?
                      */
                     if (cp[6] == ':') {
                         /*
@@ -449,41 +344,6 @@ krb5_klog_init(krb5_context kcontext, char *ename, char *whoami, krb5_boolean do
                             *cp2 = '\0';
                             cp2++;
                         }
-
-                        /*
-                         * Match a severity.
-                         */
-                        if (!strcasecmp(&cp[7], "ERR")) {
-                            log_control.log_entries[i].lsu_severity = LOG_ERR;
-                        }
-                        else if (!strcasecmp(&cp[7], "EMERG")) {
-                            log_control.log_entries[i].lsu_severity =
-                                LOG_EMERG;
-                        }
-                        else if (!strcasecmp(&cp[7], "ALERT")) {
-                            log_control.log_entries[i].lsu_severity =
-                                LOG_ALERT;
-                        }
-                        else if (!strcasecmp(&cp[7], "CRIT")) {
-                            log_control.log_entries[i].lsu_severity = LOG_CRIT;
-                        }
-                        else if (!strcasecmp(&cp[7], "WARNING")) {
-                            log_control.log_entries[i].lsu_severity =
-                                LOG_WARNING;
-                        }
-                        else if (!strcasecmp(&cp[7], "NOTICE")) {
-                            log_control.log_entries[i].lsu_severity =
-                                LOG_NOTICE;
-                        }
-                        else if (!strcasecmp(&cp[7], "INFO")) {
-                            log_control.log_entries[i].lsu_severity = LOG_INFO;
-                        }
-                        else if (!strcasecmp(&cp[7], "DEBUG")) {
-                            log_control.log_entries[i].lsu_severity =
-                                LOG_DEBUG;
-                        }
-                        else
-                            error = 1;
 
                         /*
                          * If there is a facility present, then parse that.
@@ -638,7 +498,6 @@ krb5_klog_init(krb5_context kcontext, char *ename, char *whoami, krb5_boolean do
         log_control.log_entries->log_type = K_LOG_SYSLOG;
         log_control.log_entries->log_2free = (krb5_pointer) NULL;
         log_facility = log_control.log_entries->lsu_facility = LOG_AUTH;
-        log_control.log_entries->lsu_severity = LOG_ERR;
         do_openlog = 1;
         log_control.log_nentries = 1;
     }
@@ -660,6 +519,13 @@ krb5_klog_init(krb5_context kcontext, char *ename, char *whoami, krb5_boolean do
             (void) set_com_err_hook(klog_com_err_proc);
     }
     return((log_control.log_nentries) ? 0 : ENOENT);
+}
+
+/* Reset the context used by the com_err hook to retrieve error messages. */
+void
+krb5_klog_set_context(krb5_context kcontext)
+{
+    err_context = kcontext;
 }
 
 /*
@@ -771,9 +637,8 @@ klog_vsyslog(int priority, const char *format, va_list arglist)
     char        *syslogp;
     char        *cp;
     time_t      now;
-#ifdef  HAVE_STRFTIME
     size_t      soff;
-#endif  /* HAVE_STRFTIME */
+    struct tm  *tm;
 
     /*
      * Format a syslog-esque message of the format:
@@ -786,25 +651,19 @@ klog_vsyslog(int priority, const char *format, va_list arglist)
      */
     cp = outbuf;
     (void) time(&now);
-#ifdef  HAVE_STRFTIME
+
     /*
      * Format the date: mon dd hh:mm:ss
      */
-    soff = strftime(outbuf, sizeof(outbuf), "%b %d %H:%M:%S", localtime(&now));
+    tm = localtime(&now);
+    if (tm == NULL)
+        return(-1);
+    soff = strftime(outbuf, sizeof(outbuf), "%b %d %H:%M:%S", tm);
     if (soff > 0)
         cp += soff;
     else
         return(-1);
-#else   /* HAVE_STRFTIME */
-    /*
-     * Format the date:
-     * We ASSUME here that the output of ctime is of the format:
-     *  dow mon dd hh:mm:ss tzs yyyy\n
-     *  012345678901234567890123456789
-     */
-    strncpy(outbuf, ctime(&now) + 4, 15);
-    cp += 15;
-#endif  /* HAVE_STRFTIME */
+
 #ifdef VERBOSE_LOGS
     snprintf(cp, sizeof(outbuf) - (cp-outbuf), " %s %s[%ld](%s): ",
              log_control.log_hostname ? log_control.log_hostname : "",

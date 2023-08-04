@@ -32,6 +32,4 @@
 #define MAX_LEN                 1024
 #define MAX_SERVICE_PASSWD_LEN  256
 
-extern int tohex(krb5_data, krb5_data *);
-
 extern void kdb5_ldap_stash_service_password(int argc, char **argv);

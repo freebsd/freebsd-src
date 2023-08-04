@@ -125,7 +125,7 @@ hash_test(const struct krb5_hash_provider *hash, struct test *tests)
 
 	    if (hash == &krb5int_hash_sha256) {
 		/* Try again using k5_sha256(). */
-		if (k5_sha256(&iov.data, (uint8_t *)hval.data) != 0)
+		if (k5_sha256(&iov.data, 1, (uint8_t *)hval.data) != 0)
 		    abort();
 		if (memcmp(hval.data, t->hash, hval.length) != 0)
 		    abort();

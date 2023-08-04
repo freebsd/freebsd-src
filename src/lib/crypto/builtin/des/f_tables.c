@@ -34,8 +34,11 @@
  * Include the header file so something will complain if the
  * declarations get out of sync
  */
+#include "crypto_int.h"
 #include "des_int.h"
 #include "f_tables.h"
+
+#ifdef K5_BUILTIN_DES
 
 /*
  * These tables may be declared const if you want.  Many compilers
@@ -368,3 +371,5 @@ const unsigned DES_INT32 des_SP_table[8][64] = {
         0x40000000, 0x40080010, 0x40084010, 0x00084000
     },
 };
+
+#endif /* K5_BUILTIN_DES */

@@ -119,24 +119,18 @@ main(int argc, char **argv)
     krb5_error *error;
     krb5_kdc_rep *asrep;
     krb5_pa_data **padata;
-    krb5_enctype *enctypes, def[] = { ENCTYPE_NULL };
     krb5_preauthtype pa_type = KRB5_PADATA_NONE;
     unsigned int flags;
-    int master = 0;
+    int primary = 0;
 
-    if (argc < 2 && argc > 4) {
-        fprintf(stderr, "Usage: %s princname [enctypes] [patype]\n", argv[0]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: %s princname [patype]\n", argv[0]);
         exit(1);
     }
     check(krb5_init_context(&ctx));
     check(krb5_parse_name(ctx, argv[1], &client));
-    if (argc >= 3) {
-        check(krb5int_parse_enctype_list(ctx, "", argv[2], def, &enctypes));
-        krb5_set_default_in_tkt_ktypes(ctx, enctypes);
-        free(enctypes);
-    }
-    if (argc >= 4)
-        pa_type = atoi(argv[3]);
+    if (argc >= 3)
+        pa_type = atoi(argv[2]);
 
     check(krb5_get_init_creds_opt_alloc(ctx, &opt));
     if (pa_type != KRB5_PADATA_NONE)
@@ -146,7 +140,7 @@ main(int argc, char **argv)
     reply = empty_data();
     check(krb5_init_creds_step(ctx, icc, &reply, &request, &realm, &flags));
     assert(flags == KRB5_INIT_CREDS_STEP_FLAG_CONTINUE);
-    check(krb5_sendto_kdc(ctx, &request, &realm, &reply, &master, 0));
+    check(krb5_sendto_kdc(ctx, &request, &realm, &reply, &primary, 0));
 
     if (decode_krb5_error(&reply, &error) == 0) {
         decode_krb5_padata_sequence(&error->e_data, &padata);

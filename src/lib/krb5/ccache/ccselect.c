@@ -147,18 +147,19 @@ krb5_cc_select(krb5_context context, krb5_principal server,
         server->type == KRB5_NT_SRV_HST && server->length == 2) {
         ret = krb5_get_fallback_host_realm(context, &server->data[1],
                                            &fbrealms);
-        if (ret)
+        /* Continue without realm if we failed due to no default realm. */
+        if (ret && ret != KRB5_CONFIG_NODEFREALM)
             goto cleanup;
-
-        /* Make a copy with the first fallback realm. */
-        ret = krb5_copy_principal(context, server, &srvcp);
-        if (ret)
-            goto cleanup;
-        ret = krb5_set_principal_realm(context, srvcp, fbrealms[0]);
-        if (ret)
-            goto cleanup;
-
-        server = srvcp;
+        if (!ret) {
+            /* Make a copy with the first fallback realm. */
+            ret = krb5_copy_principal(context, server, &srvcp);
+            if (ret)
+                goto cleanup;
+            ret = krb5_set_principal_realm(context, srvcp, fbrealms[0]);
+            if (ret)
+                goto cleanup;
+            server = srvcp;
+        }
     }
 
     /* Consult authoritative modules first, then heuristic ones. */

@@ -26,6 +26,8 @@
 #include "des_int.h"
 #include "f_tables.h"
 
+#ifdef K5_BUILTIN_DES
+
 void
 krb5int_des3_cbc_encrypt(krb5_crypto_iov *data, unsigned long num_data,
                          const mit_des_key_schedule ks1,
@@ -131,3 +133,5 @@ krb5int_des3_cbc_decrypt(krb5_crypto_iov *data, unsigned long num_data,
         store_32_be(ocipherr, ivec + 4);
     }
 }
+
+#endif /* K5_BUILTIN_DES */

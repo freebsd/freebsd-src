@@ -2,11 +2,9 @@ mydir=lib$(S)krb5$(S)ccache
 BUILDTOP=$(REL)..$(S)..$(S)..
 SUBDIRS = # ccapi
 WINSUBDIRS = ccapi
-##WIN32##DEFINES = -DUSE_CCAPI -DUSE_CCAPI_V3
+##WIN32##DEFINES = -DUSE_CCAPI
 
-LOCALINCLUDES = -I$(srcdir)$(S)ccapi -I$(srcdir) -I. $(WIN_INCLUDES)
-
-##DOS##WIN_INCLUDES = -I$(top_srcdir)\windows\lib
+LOCALINCLUDES = -I$(srcdir)$(S)ccapi -I$(srcdir) -I.
 
 ##DOS##BUILDTOP = ..\..\..
 ##DOS##PREFIXDIR=ccache
@@ -27,6 +25,7 @@ KCMRPC_OBJ = $(KCMRPC_OBJ-@OSX@)
 
 
 STLIBOBJS= \
+	ccapi_util.o \
 	ccbase.o \
 	cccopy.o \
 	cccursor.o \
@@ -37,6 +36,7 @@ STLIBOBJS= \
 	ccselect_hostname.o \
 	ccselect_k5identity.o \
 	ccselect_realm.o \
+	cc_api_macos.o \
 	cc_dir.o \
 	cc_retr.o \
 	cc_file.o \
@@ -44,9 +44,10 @@ STLIBOBJS= \
 	cc_memory.o \
 	cc_keyring.o \
 	ccfns.o \
-	ser_cc.o $(KCMRPC_OBJ)
+	$(KCMRPC_OBJ)
 
-OBJS=	$(OUTPRE)ccbase.$(OBJEXT) \
+OBJS=	$(OUTPRE)ccapi_util.$(OBJEXT) \
+	$(OUTPRE)ccbase.$(OBJEXT) \
 	$(OUTPRE)cccopy.$(OBJEXT) \
 	$(OUTPRE)cccursor.$(OBJEXT) \
 	$(OUTPRE)ccdefault.$(OBJEXT) \
@@ -56,6 +57,7 @@ OBJS=	$(OUTPRE)ccbase.$(OBJEXT) \
 	$(OUTPRE)ccselect_hostname.$(OBJEXT) \
 	$(OUTPRE)ccselect_k5identity.$(OBJEXT) \
 	$(OUTPRE)ccselect_realm.$(OBJEXT) \
+	$(OUTPRE)cc_api_macos.$(OBJEXT) \
 	$(OUTPRE)cc_dir.$(OBJEXT) \
 	$(OUTPRE)cc_retr.$(OBJEXT) \
 	$(OUTPRE)cc_file.$(OBJEXT) \
@@ -63,9 +65,10 @@ OBJS=	$(OUTPRE)ccbase.$(OBJEXT) \
 	$(OUTPRE)cc_memory.$(OBJEXT) \
 	$(OUTPRE)cc_keyring.$(OBJEXT) \
 	$(OUTPRE)ccfns.$(OBJEXT) \
-	$(OUTPRE)ser_cc.$(OBJEXT) $(MSLSA_OBJ)
+	$(MSLSA_OBJ)
 
-SRCS=	$(srcdir)/ccbase.c \
+SRCS=	$(srcdir)/ccapi_util.c \
+	$(srcdir)/ccbase.c \
 	$(srcdir)/cccopy.c \
 	$(srcdir)/cccursor.c \
 	$(srcdir)/ccdefault.c \
@@ -75,6 +78,7 @@ SRCS=	$(srcdir)/ccbase.c \
 	$(srcdir)/ccselect_hostname.c \
 	$(srcdir)/ccselect_k5identity.c \
 	$(srcdir)/ccselect_realm.c \
+	$(srcdir)/cc_api_macos.c \
 	$(srcdir)/cc_dir.c \
 	$(srcdir)/cc_retr.c \
 	$(srcdir)/cc_file.c \
@@ -82,7 +86,7 @@ SRCS=	$(srcdir)/ccbase.c \
 	$(srcdir)/cc_memory.c \
 	$(srcdir)/cc_keyring.c \
 	$(srcdir)/ccfns.c \
-	$(srcdir)/ser_cc.c $(MSLSA_SRC)
+	$(MSLSA_SRC)
 
 EXTRADEPSRCS= \
 	$(srcdir)/t_cc.c \

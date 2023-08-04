@@ -75,12 +75,6 @@ enum auth_stat {
 };
 
 union des_block {
-#if 0 /* XXX nothing uses this, anyway */
-	struct {
-		uint32_t high;
-		uint32_t low;
-	} key;
-#endif
 	char c[8];
 };
 typedef union des_block des_block;
@@ -196,7 +190,6 @@ extern AUTH *authunix_create(char *machname, int uid, int gid, int len,
 			     int *aup_gids);
 extern AUTH *authunix_create_default(void);	/* takes no parameters */
 extern AUTH *authnone_create(void);		/* takes no parameters */
-extern AUTH *authdes_create();
 extern bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
 
 #define AUTH_NONE	0		/* no authentication */
@@ -206,15 +199,6 @@ extern bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
 #define AUTH_DES	3		/* des style (encrypted timestamps) */
 #define AUTH_GSSAPI	300001		/* GSS-API style */
 #define RPCSEC_GSS	6		/* RPCSEC_GSS */
-
-#if 0
-/*
- * BACKWARDS COMPATIBILIY!  OpenV*Secure 1.0 had AUTH_GSSAPI == 4.  We
- * need to accept this value until 1.0 is dead.
- */
-/* This conflicts with AUTH_KERB (Solaris). */
-#define AUTH_GSSAPI_COMPAT		4
-#endif
 
 GSSRPC__END_DECLS
 

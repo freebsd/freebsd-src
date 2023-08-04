@@ -748,9 +748,8 @@ req_to_value(krb5_kdc_req *req, const krb5_boolean ev_success,
             if (ret)
                 goto error;
             ret = addr_to_obj(req->addresses[i], tmpa);
-            if (ret)
-                goto error;
-            ret = k5_json_array_add(arra, tmpa);
+            if (!ret)
+                ret = k5_json_array_add(arra, tmpa);
             k5_json_release(tmpa);
             if (ret)
                 goto error;

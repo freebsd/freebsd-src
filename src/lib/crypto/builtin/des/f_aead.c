@@ -26,6 +26,8 @@
 #include "des_int.h"
 #include "f_tables.h"
 
+#ifdef K5_BUILTIN_DES
+
 const mit_des_cblock mit_des_zeroblock /* = all zero */;
 
 void
@@ -171,3 +173,5 @@ void krb5int_des_do_decrypt_2 (unsigned DES_INT32 *left,
     DES_DO_DECRYPT_1 (*left, *right, kp);
 }
 #endif
+
+#endif /* K5_BUILTIN_DES */

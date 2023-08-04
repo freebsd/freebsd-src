@@ -631,8 +631,7 @@ const struct _krb5_kt_ops krb5_mkt_ops = {
     krb5_mkt_get_next,
     krb5_mkt_end_get,
     krb5_mkt_add,
-    krb5_mkt_remove,
-    NULL
+    krb5_mkt_remove
 };
 
 #endif /* LEAN_CLIENT */

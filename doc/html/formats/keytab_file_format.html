@@ -1,34 +1,32 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Keytab file format &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Keytab file format &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="Protocols and file formats" href="index.html" />
-    <link rel="next" title="KDC cookie format" href="cookie.html" />
+    <link rel="next" title="Replay cache file format" href="rcache_file_format.html" />
     <link rel="prev" title="Credential cache file format" href="ccache_file_format.html" /> 
   </head>
   <body>
@@ -44,7 +42,7 @@
             accesskey="C">Contents</a> |
         <a href="ccache_file_format.html" title="Credential cache file format"
             accesskey="P">previous</a> |
-        <a href="cookie.html" title="KDC cookie format"
+        <a href="rcache_file_format.html" title="Replay cache file format"
             accesskey="N">next</a> |
         <a href="../genindex.html" title="General Index"
             accesskey="I">index</a> |
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="keytab-file-format">
 <span id="id1"></span><h1>Keytab file format<a class="headerlink" href="#keytab-file-format" title="Permalink to this headline">¶</a></h1>
@@ -81,26 +79,26 @@ zero-filled hole whose size is the inverse of the length.  A length of
 <p>A key entry may be smaller in size than the record length which
 precedes it, because it may have replaced a hole which is larger than
 the key entry.  Key entries use the following informal grammar:</p>
-<div class="highlight-python"><div class="highlight"><pre>entry ::=
-    principal
-    timestamp (32 bits)
-    key version (8 bits)
-    enctype (16 bits)
-    key length (16 bits)
-    key contents
-    key version (32 bits) [in release 1.14 and later]
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">entry</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">principal</span>
+    <span class="n">timestamp</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">version</span> <span class="p">(</span><span class="mi">8</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">enctype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">length</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">contents</span>
+    <span class="n">key</span> <span class="n">version</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="ow">in</span> <span class="n">release</span> <span class="mf">1.14</span> <span class="ow">and</span> <span class="n">later</span><span class="p">]</span>
 
-principal ::=
-    count of components (16 bits) [includes realm in version 1]
-    realm (data)
-    component1 (data)
-    component2 (data)
-    ...
-    name type (32 bits) [omitted in version 1]
+<span class="n">principal</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">count</span> <span class="n">of</span> <span class="n">components</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">includes</span> <span class="n">realm</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">realm</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component1</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component2</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="o">...</span>
+    <span class="n">name</span> <span class="nb">type</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">omitted</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
 
-data ::=
-    length (16 bits)
-    value (length bytes)
+<span class="n">data</span> <span class="p">::</span><span class="o">=</span>
+    <span class="n">length</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">value</span> <span class="p">(</span><span class="n">length</span> <span class="nb">bytes</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The 32-bit key version overrides the 8-bit key version.  To determine
@@ -135,10 +133,10 @@ value of the 32-bit integer contained in those bytes is non-zero.</p>
 <li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Keytab file format</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -163,8 +161,8 @@ value of the 32-bit integer contained in those bytes is non-zero.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 
@@ -172,7 +170,7 @@ value of the 32-bit integer contained in those bytes is non-zero.</p>
             >Contents</a> |
         <a href="ccache_file_format.html" title="Credential cache file format"
             >previous</a> |
-        <a href="cookie.html" title="KDC cookie format"
+        <a href="rcache_file_format.html" title="Replay cache file format"
             >next</a> |
         <a href="../genindex.html" title="General Index"
             >index</a> |

@@ -52,7 +52,7 @@ void free_alloc_p(void *pptr) {
 
 extern "C" DWORD alloc_textual_sid(
     PSID pSid,          // binary Sid
-    LPSTR *pTextualSid  // buffer for Textual representaion of Sid
+    LPSTR *pTextualSid  // buffer for Textual representation of Sid
     ) {
     PSID_IDENTIFIER_AUTHORITY psia;
     DWORD dwSubAuthorities;

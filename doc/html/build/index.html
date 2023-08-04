@@ -1,32 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Building Kerberos V5 &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Building Kerberos V5 &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
     <link rel="next" title="Organization of the source directory" href="directory_org.html" />
     <link rel="prev" title="KDC policy interface (kdcpolicy)" href="../plugindev/kdcpolicy.html" /> 
   </head>
@@ -60,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="building-kerberos-v5">
 <span id="build-v5"></span><h1>Building Kerberos V5<a class="headerlink" href="#building-kerberos-v5" title="Permalink to this headline">¶</a></h1>
@@ -72,7 +71,7 @@ from the source.</p>
 megabytes of disk space.  The exact amount will vary depending on the
 platform and whether the distribution is compiled with debugging
 symbol tables or not.</p>
-<p>Your C compiler must conform to ANSI C (ISO/IEC 9899:1990, &#8220;c89&#8221;).
+<p>Your C compiler must conform to ANSI C (ISO/IEC 9899:1990, “c89”).
 Some operating systems do not have an ANSI C compiler, or their
 default compiler requires extra command-line options to enable ANSI C
 conformance.</p>
@@ -85,24 +84,24 @@ tree.</p>
 <div class="section" id="obtaining-the-software">
 <h2>Obtaining the software<a class="headerlink" href="#obtaining-the-software" title="Permalink to this headline">¶</a></h2>
 <p>The source code can be obtained from MIT Kerberos Distribution page,
-at <a class="reference external" href="http://web.mit.edu/kerberos/dist/index.html">http://web.mit.edu/kerberos/dist/index.html</a>.
+at <a class="reference external" href="https://kerberos.org/dist/index.html">https://kerberos.org/dist/index.html</a>.
 The MIT Kerberos distribution comes in an archive file, generally
 named krb5-VERSION-signed.tar, where <em>VERSION</em> is a placeholder for
 the major and minor versions of MIT Kerberos.  (For example, MIT
-Kerberos 1.9 has major version &#8220;1&#8221; and minor version &#8220;9&#8221;.)</p>
+Kerberos 1.9 has major version “1” and minor version “9”.)</p>
 <p>The krb5-VERSION-signed.tar contains a compressed tar file consisting
 of the sources for all of Kerberos (generally named
 krb5-VERSION.tar.gz) and a PGP signature file for this source tree
 (generally named krb5-VERSION.tar.gz.asc).  MIT highly recommends that
 you verify the integrity of the source code using this signature,
 e.g., by running:</p>
-<div class="highlight-python"><div class="highlight"><pre>tar xf krb5-VERSION-signed.tar
-gpg --verify krb5-VERSION.tar.gz.asc
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">tar</span> <span class="n">xf</span> <span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">-</span><span class="n">signed</span><span class="o">.</span><span class="n">tar</span>
+<span class="n">gpg</span> <span class="o">--</span><span class="n">verify</span> <span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span><span class="o">.</span><span class="n">asc</span>
 </pre></div>
 </div>
 <p>Unpack krb5-VERSION.tar.gz in some directory. In this section we will assume
 that you have chosen the top directory of the distribution the directory
-<tt class="docutils literal"><span class="pre">/u1/krb5-VERSION</span></tt>.</p>
+<code class="docutils literal"><span class="pre">/u1/krb5-VERSION</span></code>.</p>
 <p>Review the README file for the license, copyright and other sprecific to the
 distribution information.</p>
 </div>
@@ -142,7 +141,7 @@ distribution information.</p>
 <li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="">Building Kerberos V5</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building Kerberos V5</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
 <li class="toctree-l2"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
 <li class="toctree-l2"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
@@ -173,8 +172,8 @@ distribution information.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

@@ -3,7 +3,7 @@
 %
 
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
-\ProvidesClass{sphinxmanual}[2009/06/02 Document class (Sphinx manual)]
+\ProvidesClass{sphinxmanual}[2017/03/26 v1.6 Document class (Sphinx manual)]
 
 % chapters starting at odd pages (overridden by 'openany' document option)
 \PassOptionsToClass{openright}{\sphinxdocclass}
@@ -34,29 +34,25 @@
 % ``Bjarne'' style a bit better.
 %
 \renewcommand{\maketitle}{%
+  \let\spx@tempa\relax
+  \ifHy@pageanchor\def\spx@tempa{\Hy@pageanchortrue}\fi
+  \hypersetup{pageanchor=false}% avoid duplicate destination warnings
   \begin{titlepage}%
     \let\footnotesize\small
     \let\footnoterule\relax
-    \rule{\textwidth}{1pt}%
-    \ifsphinxpdfoutput
-      \begingroup
-      % These \defs are required to deal with multi-line authors; it
-      % changes \\ to ', ' (comma-space), making it pass muster for
-      % generating document info in the PDF file.
-      \def\\{, }
-      \def\and{and }
-      \pdfinfo{
-        /Author (\@author)
-        /Title (\@title)
-      }
+    \noindent\rule{\textwidth}{1pt}\par
+      \begingroup % for PDF information dictionary
+       \def\endgraf{ }\def\and{\& }%
+       \pdfstringdefDisableCommands{\def\\{, }}% overwrite hyperref setup
+       \hypersetup{pdfauthor={\@author}, pdftitle={\@title}}%
       \endgroup
-    \fi
     \begin{flushright}%
-      \sphinxlogo%
-      {\rm\Huge\py@HeaderFamily \@title \par}%
-      {\em\LARGE\py@HeaderFamily \py@release\releaseinfo \par}
+      \sphinxlogo
+      \py@HeaderFamily
+      {\Huge \@title \par}
+      {\itshape\LARGE \py@release\releaseinfo \par}
       \vfill
-      {\LARGE\py@HeaderFamily
+      {\LARGE
         \begin{tabular}[t]{c}
           \@author
         \end{tabular}
@@ -70,52 +66,25 @@
     \end{flushright}%\par
     \@thanks
   \end{titlepage}%
-  \cleardoublepage%
   \setcounter{footnote}{0}%
   \let\thanks\relax\let\maketitle\relax
   %\gdef\@thanks{}\gdef\@author{}\gdef\@title{}
+  \if@openright\cleardoublepage\else\clearpage\fi
+  \spx@tempa
 }
 
-
-% Catch the end of the {abstract} environment, but here make sure the abstract
-% is followed by a blank page if the 'openright' option is used.
-%
-\let\py@OldEndAbstract=\endabstract
-\renewcommand{\endabstract}{
-  \if@openright
-    \ifodd\value{page}
-      \typeout{Adding blank page after the abstract.}
-      \vfil\pagebreak
-    \fi
-  \fi
-  \py@OldEndAbstract
-}
-
-% This wraps the \tableofcontents macro with all the magic to get the spacing
-% right and have the right number of pages if the 'openright' option has been
-% used.  This eliminates a fair amount of crud in the individual document files.
-%
-\let\py@OldTableofcontents=\tableofcontents
-\renewcommand{\tableofcontents}{%
+\newcommand{\sphinxtableofcontents}{%
   \pagenumbering{roman}%
-  \setcounter{page}{1}%
-  \pagebreak%
   \pagestyle{plain}%
-  {%
-    \parskip = 0mm%
-    \py@OldTableofcontents%
-    \if@openright%
-      \ifodd\value{page}%
-        \typeout{Adding blank page after the table of contents.}%
-        \pagebreak\hspace{0pt}%
-      \fi%
-    \fi%
-    \cleardoublepage%
-  }%
+  \begingroup
+    \parskip \z@skip
+    \tableofcontents
+  \endgroup
+  % before resetting page counter, let's do the right thing.
+  \if@openright\cleardoublepage\else\clearpage\fi
   \pagenumbering{arabic}%
-  \@ifundefined{fancyhf}{}{\pagestyle{normal}}%
+  \ifdefined\fancyhf\pagestyle{normal}\fi
 }
-\pagenumbering{alph}
 
 % This is needed to get the width of the section # area wide enough in the
 % library reference.  Doing it here keeps it the same for all the manuals.
@@ -126,23 +95,20 @@
 % Fix the bibliography environment to add an entry to the Table of
 % Contents.
 % For a report document class this environment is a chapter.
-\let\py@OldThebibliography=\thebibliography
-\renewcommand{\thebibliography}[1]{
-  \cleardoublepage
-  \phantomsection
-  \py@OldThebibliography{1}
-  \addcontentsline{toc}{chapter}{\bibname}
-}
+%
+\newenvironment{sphinxthebibliography}[1]{%
+  \if@openright\cleardoublepage\else\clearpage\fi
+  % \phantomsection % not needed here since TeXLive 2010's hyperref
+  \begin{thebibliography}{1}%
+  \addcontentsline{toc}{chapter}{\bibname}}{\end{thebibliography}}
 
 % Same for the indices.
 % The memoir class already does this, so we don't duplicate it in that case.
 %
-\@ifclassloaded{memoir}{}{
-  \let\py@OldTheindex=\theindex
-  \renewcommand{\theindex}{
-    \cleardoublepage
-    \phantomsection
-    \py@OldTheindex
-    \addcontentsline{toc}{chapter}{\indexname}
-  }
-}
+\@ifclassloaded{memoir}
+ {\newenvironment{sphinxtheindex}{\begin{theindex}}{\end{theindex}}}
+ {\newenvironment{sphinxtheindex}{%
+    \if@openright\cleardoublepage\else\clearpage\fi
+    \phantomsection % needed as no chapter, section, ... created
+    \begin{theindex}%
+    \addcontentsline{toc}{chapter}{\indexname}}{\end{theindex}}}

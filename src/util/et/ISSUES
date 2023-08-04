@@ -46,7 +46,7 @@ Fix needed: Update documentation.
 
 Values are currently computed as 32-bit values, sign-extended to
 "long", and output with "L" suffixes.  Type errcode_t is "long".
-Kerberos uses a seperately chosen signed type of at least 32 bits for
+Kerberos uses a separately chosen signed type of at least 32 bits for
 error codes.  The com_err library only look at the low 32 bits, so
 this is mostly just an issue for application code -- if anything
 truncates to 32 bits, and then widens without sign-extending, the

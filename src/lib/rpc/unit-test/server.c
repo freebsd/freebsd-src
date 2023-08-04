@@ -37,7 +37,7 @@ static void rpc_test_badverf(gss_name_t client, gss_name_t server,
 			     caddr_t data);
 
 #ifndef SERVICE_NAME
-#define SERVICE_NAME "server"
+#define SERVICE_NAME "host"
 #endif
 
 static void usage()
@@ -60,7 +60,7 @@ main(int argc, char **argv)
 {
      int c, prot;
      auth_gssapi_name names[2];
-     register SVCXPRT *transp;
+     SVCXPRT *transp;
      extern int optind;
 #ifdef POSIX_SIGNALS
      struct sigaction sa;
@@ -120,7 +120,6 @@ main(int argc, char **argv)
 		  prot == IPPROTO_TCP ? "tcp" : "udp");
 	  exit(1);
      }
-     printf("port: %d\n", (int)transp->xp_port);
 
      if (svcauth_gssapi_set_names(names, 0) == FALSE) {
 	  fprintf(stderr, "unable to set gssapi names\n");
@@ -144,6 +143,8 @@ main(int argc, char **argv)
      signal(SIGTERM, handlesig);
 #endif
      printf("running\n");
+     printf("port: %d\n", (int)transp->xp_port);
+     fflush(stdout);
 
      svc_run();
      fprintf(stderr, "svc_run returned");
@@ -177,6 +178,7 @@ static void rpc_test_badverf(gss_name_t client, gss_name_t server,
 	    inet_ntoa(rqst->rq_xprt->xp_raddr.sin_addr),
 	    ntohs(rqst->rq_xprt->xp_raddr.sin_port),
 	    (int) server_name.length, (char *) server_name.value);
+     fflush(stdout);
 
      (void) gss_release_buffer(&minor_stat, &client_name);
      (void) gss_release_buffer(&minor_stat, &server_name);
@@ -211,6 +213,7 @@ void rpc_test_badauth(OM_uint32 major, OM_uint32 minor,
      printf("rpc_test server: Authentication attempt failed: %s", a);
      log_badauth_display_status(major, minor);
      printf("\n");
+     fflush(stdout);
 }
 
 void log_miscerr(struct svc_req *rqst, struct rpc_msg *msg,
@@ -220,6 +223,7 @@ void log_miscerr(struct svc_req *rqst, struct rpc_msg *msg,
 
      a = inet_ntoa(rqst->rq_xprt->xp_raddr.sin_addr);
      printf("Miscellaneous RPC error: %s, %s\n", a, error);
+     fflush(stdout);
 }
 
 void log_badauth_display_status(OM_uint32 major, OM_uint32 minor)
@@ -243,10 +247,12 @@ void log_badauth_display_status_1(OM_uint32 code, int type, int rec)
 		    log_badauth_display_status_1(gssstat,GSS_C_GSS_CODE,1);
 		    log_badauth_display_status_1(minor_stat,
 						 GSS_C_MECH_CODE, 1);
-	       } else
+	       } else {
 		    printf("GSS-API authentication error %.*s: "
 			   "recursive failure!\n", (int) msg.length,
 			   (char *)msg.value);
+	       }
+	       fflush(stdout);
 	       return;
 	  }
 
@@ -256,4 +262,5 @@ void log_badauth_display_status_1(OM_uint32 code, int type, int rec)
 	  if (!msg_ctx)
 	       break;
      }
+     fflush(stdout);
 }

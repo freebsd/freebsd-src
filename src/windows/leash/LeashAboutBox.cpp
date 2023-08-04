@@ -327,21 +327,8 @@ void CLeashAboutBox::OnNotLoadedModules()
 {
     m_LB_DLLsLoaded.ResetContent();
 
-#ifndef NO_KRB4
-    if (!CLeashApp::m_hKrb4DLL)
-        m_LB_DLLsLoaded.AddString(KERB4DLL);
-#endif
-
     if (!CLeashApp::m_hKrb5DLL)
         m_LB_DLLsLoaded.AddString(KERB5DLL);
-
-    // NOTE: If the snippet below is commented back in,
-    // it should read
-    // if (!CLeashApp::m_hAfsDLL)
-    // m_LB_DLLsLoaded.AddString(AFSAuthentDLL());
-
-    //if (!CLeashApp::m_hAfsDLL)
-    //m_LB_DLLsLoaded.AddString(ASFDLL);
 
     HighlightFirstItem();
 }

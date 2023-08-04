@@ -4,37 +4,40 @@
  * Copyright 1994-2009,2014 by the Massachusetts Institute of Technology.
  * All Rights Reserved.
  *
- * Export of this software from the United States of America may
- *   require a specific license from the United States Government.
- *   It is the responsibility of any person or organization contemplating
- *   export to obtain such a license before exporting.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
- * distribute this software and its documentation for any purpose and
- * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of M.I.T. not be used in advertising or publicity pertaining
- * to distribution of the software without specific, written prior
- * permission.  Furthermore if you modify this software you must label
- * your software as modified software and not distribute it in such a
- * fashion that it might be confused with the original M.I.T. software.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is" without express
- * or implied warranty.
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the
+ *   distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "k5-int.h"
-#include "cleanup.h"
+#include "int-proto.h"
 #include "auth_con.h"
-
-#include <stdlib.h>
-#include <errno.h>
 
 /*
  * Decrypt and decode the enc_part of a krb5_cred using the receiving subkey or
  * the session key of authcon.  If neither key is present, ctext->ciphertext is
- * assumed to be unencrypted plain text.
+ * assumed to be unencrypted plain text (RFC 6448).
  */
 static krb5_error_code
 decrypt_encpart(krb5_context context, krb5_enc_data *ctext,
@@ -87,7 +90,7 @@ make_cred_list(krb5_context context, krb5_cred *krbcred,
     if (list == NULL)
         goto cleanup;
 
-    /* For each credential, create a strcture in the list of credentials and
+    /* For each credential, create a structure in the list of credentials and
      * copy the information. */
     for (i = 0; i < count; i++) {
         list[i] = k5alloc(sizeof(*list[i]), &ret);
@@ -145,7 +148,7 @@ krb5_rd_cred(krb5_context context, krb5_auth_context authcon,
     krb5_creds **credlist = NULL;
     krb5_cred *krbcred = NULL;
     krb5_cred_enc_part *encpart = NULL;
-    krb5_donot_replay replay;
+    krb5_replay_data rdata;
     const krb5_int32 flags = authcon->auth_context_flags;
 
     *creds_out = NULL;
@@ -153,9 +156,6 @@ krb5_rd_cred(krb5_context context, krb5_auth_context authcon,
     if (((flags & KRB5_AUTH_CONTEXT_RET_TIME) ||
          (flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE)) &&
         replaydata_out == NULL)
-        return KRB5_RC_REQUIRED;
-
-    if ((flags & KRB5_AUTH_CONTEXT_DO_TIME) && authcon->rcache == NULL)
         return KRB5_RC_REQUIRED;
 
     ret = decode_krb5_cred(creddata, &krbcred);
@@ -170,22 +170,10 @@ krb5_rd_cred(krb5_context context, krb5_auth_context authcon,
     if (ret)
         goto cleanup;
 
-    if (flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-        ret = krb5_check_clockskew(context, encpart->timestamp);
-        if (ret)
-            goto cleanup;
-
-        ret = krb5_gen_replay_name(context, authcon->remote_addr, "_forw",
-                                   &replay.client);
-        if (ret)
-            goto cleanup;
-
-        replay.server = "";
-        replay.msghash = NULL;
-        replay.cusec = encpart->usec;
-        replay.ctime = encpart->timestamp;
-        ret = krb5_rc_store(context, authcon->rcache, &replay);
-        free(replay.client);
+    if (authcon->recv_subkey != NULL || authcon->key != NULL) {
+        rdata.timestamp = encpart->timestamp;
+        ret = k5_privsafe_check_replay(context, authcon, &rdata,
+                                       &krbcred->enc_part, NULL);
         if (ret)
             goto cleanup;
     }

@@ -47,7 +47,7 @@ krb5_net_write(krb5_context context, int fd, const char *buf, int len)
 int
 krb5int_net_writev(krb5_context context, int fd, sg_buf *sgp, int nsg)
 {
-    int cc, len = 0;
+    ssize_t cc, len = 0;
     SOCKET_WRITEV_TEMP tmp;
 
     while (nsg > 0) {

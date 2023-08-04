@@ -95,6 +95,8 @@ check_min_life(void *server_handle, krb5_principal principal,
                 until = princ.last_pwd_change + pol.pw_min_life;
 
                 time_string = ctime(&until);
+                if (time_string == NULL)
+                    time_string = "(error)";
                 errstr = error_message(CHPASS_UTIL_PASSWORD_TOO_SOON);
 
                 if (strlen(errstr) + strlen(time_string) < msg_len) {
@@ -134,7 +136,7 @@ make_toolong_error (void *handle, krb5_data **out)
     krb5_error errpkt;
     krb5_error_code retval;
     krb5_data *scratch;
-    kadm5_server_handle_t server_handle = (kadm5_server_handle_t)handle;
+    kadm5_server_handle_t server_handle = *(void **)handle;
 
     retval = krb5_us_timeofday(server_handle->context, &errpkt.stime, &errpkt.susec);
     if (retval)
@@ -168,6 +170,6 @@ make_toolong_error (void *handle, krb5_data **out)
 
 krb5_context get_context(void *handle)
 {
-    kadm5_server_handle_t server_handle = (kadm5_server_handle_t)handle;
+    kadm5_server_handle_t server_handle = *(void **)handle;
     return server_handle->context;
 }

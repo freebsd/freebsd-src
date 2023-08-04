@@ -28,6 +28,13 @@
 
 static int exp_dummy, prompt_dummy;
 
+static void
+check(krb5_error_code code)
+{
+    if (code != 0)
+        abort();
+}
+
 static krb5_error_code
 prompter_cb(krb5_context ctx, void *data, const char *name,
             const char *banner, int num_prompts, krb5_prompt prompts[])
@@ -52,36 +59,48 @@ int
 main(int argc, char **argv)
 {
     krb5_context ctx;
+    krb5_init_creds_context icctx;
     krb5_get_init_creds_opt *opt;
     char *user, *password, *service = NULL;
-    krb5_boolean use_cb;
+    krb5_boolean use_cb, stepwise;
     krb5_principal client;
     krb5_creds creds;
 
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s username password {1|0} [service]\n",
+    if (argc < 5) {
+        fprintf(stderr, "Usage: %s username password {1|0} {1|0} [service]\n",
                 argv[0]);
         return 1;
     }
     user = argv[1];
     password = argv[2];
     use_cb = atoi(argv[3]);
-    if (argc >= 5)
-        service = argv[4];
+    stepwise = atoi(argv[4]);
+    if (argc >= 6)
+        service = argv[5];
 
-    assert(krb5_init_context(&ctx) == 0);
-    assert(krb5_get_init_creds_opt_alloc(ctx, &opt) == 0);
+    check(krb5_init_context(&ctx));
+    check(krb5_get_init_creds_opt_alloc(ctx, &opt));
     if (use_cb) {
-        assert(krb5_get_init_creds_opt_set_expire_callback(ctx, opt, expire_cb,
-                                                           &exp_dummy) == 0);
+        check(krb5_get_init_creds_opt_set_expire_callback(ctx, opt, expire_cb,
+                                                          &exp_dummy));
     }
-    assert(krb5_parse_name(ctx, user, &client) == 0);
-    assert(krb5_get_init_creds_password(ctx, &creds, client, password,
-                                        prompter_cb, &prompt_dummy, 0, service,
-                                        opt) == 0);
+    check(krb5_parse_name(ctx, user, &client));
+    if (stepwise) {
+        check(krb5_init_creds_init(ctx, client, prompter_cb, &prompt_dummy, 0,
+                                   opt, &icctx));
+        krb5_init_creds_set_password(ctx, icctx, password);
+        if (service != NULL)
+            check(krb5_init_creds_set_service(ctx, icctx, service));
+        check(krb5_init_creds_get(ctx, icctx));
+        krb5_init_creds_free(ctx, icctx);
+    } else {
+        check(krb5_get_init_creds_password(ctx, &creds, client, password,
+                                           prompter_cb, &prompt_dummy, 0,
+                                           service, opt));
+        krb5_free_cred_contents(ctx, &creds);
+    }
     krb5_get_init_creds_opt_free(ctx, opt);
     krb5_free_principal(ctx, client);
-    krb5_free_cred_contents(ctx, &creds);
     krb5_free_context(ctx);
     return 0;
 }

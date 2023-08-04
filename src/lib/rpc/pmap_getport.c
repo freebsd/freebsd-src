@@ -68,7 +68,7 @@ pmap_getport(
 {
 	unsigned short port = 0;
 	int sock = -1;
-	register CLIENT *client;
+	CLIENT *client;
 	struct pmap parms;
 
 	address->sin_port = htons(PMAPPORT);

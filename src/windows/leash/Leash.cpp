@@ -23,18 +23,10 @@
 #include "LeashAboutBox.h"
 
 #include "reminder.h"
-#include "mitwhich.h"
 #include <leasherr.h>
 #include "lglobals.h"
-#include "out2con.h"
 #include <krb5.h>
 #include <com_err.h>
-
-#include <wshelper.h>
-
-#ifndef NO_AFS
-#include "afscompat.h"
-#endif
 
 #include <errno.h>
 
@@ -46,20 +38,13 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-extern "C" int VScheckVersion(HWND hWnd, HANDLE hThisInstance);
-
 TicketInfoWrapper ticketinfo;
 
 HWND CLeashApp::m_hProgram = 0;
 HINSTANCE CLeashApp::m_hLeashDLL = 0;
 HINSTANCE CLeashApp::m_hComErr = 0;
-////@#+Remove
-#ifndef NO_KRB4
-HINSTANCE CLeashApp::m_hKrb4DLL = 0;
-#endif
 HINSTANCE CLeashApp::m_hKrb5DLL = 0;
 HINSTANCE CLeashApp::m_hKrb5ProfileDLL= 0;
-HINSTANCE CLeashApp::m_hAfsDLL = 0;
 HINSTANCE CLeashApp::m_hPsapi = 0;
 HINSTANCE CLeashApp::m_hToolHelp32 = 0;
 krb5_context CLeashApp::m_krbv5_context = 0;
@@ -118,12 +103,8 @@ CLeashApp::~CLeashApp()
     CloseHandle(ticketinfo.lockObj);
 #endif
 	AfxFreeLibrary(m_hLeashDLL);
-#ifndef NO_KRB4
-	AfxFreeLibrary(m_hKrb4DLL);
-#endif
 	AfxFreeLibrary(m_hKrb5DLL);
 	AfxFreeLibrary(m_hKrb5ProfileDLL);
-	AfxFreeLibrary(m_hAfsDLL);
 	AfxFreeLibrary(m_hPsapi);
     AfxFreeLibrary(m_hToolHelp32);
     AfxFreeLibrary(m_hKrbLSA);
@@ -257,26 +238,6 @@ BOOL CLeashApp::InitInstance()
                 }
                 return TRUE;
             }
-            else if (0 == stricmp(optionParam+1, "ms2mit") ||
-                     0 == stricmp(optionParam+1, "import") ||
-                     0 == stricmp(optionParam+1, "m"))
-            {
-                if (!pLeash_importable()) {
-                    MessageBox(hMsg,
-                               "The Microsoft Logon Session does not support importing Ticket Getting Tickets!",
-                               "Error", MB_OK);
-                    return FALSE;
-                }
-
-                if (!pLeash_import())
-                {
-                    MessageBox(hMsg,
-                               "There was an error importing tickets from the Microsoft Logon Session!",
-                               "Error", MB_OK);
-                    return FALSE;
-                }
-                return TRUE;
-            }
             else if (0 == stricmp(optionParam+1, "destroy") ||
                      0 == stricmp(optionParam+1, "d"))
             {
@@ -309,7 +270,10 @@ BOOL CLeashApp::InitInstance()
             else if (0 == stricmp(optionParam+1, "console") ||
                      0 == stricmp(optionParam+1, "c"))
             {
-                CreateConsoleEcho();
+                FILE *dummy;
+                AllocConsole();
+                freopen_s(&dummy, "CONOUT$", "w", stderr);
+                freopen_s(&dummy, "CONOUT$", "w", stdout);
             }
             else if (0 == stricmp(optionParam+1, "noribbon"))
             {
@@ -322,8 +286,7 @@ BOOL CLeashApp::InitInstance()
                             "'-renew' or '-r' to perform ticket renewal (and exit)\n"
                             "'-destroy' or '-d' to perform ticket destruction (and exit)\n"
                             "'-autoinit' or '-a' to perform automatic ticket initialization\n"
-                            "'-console' or '-c' to attach a console for debugging\n"
-                            "'-ms2mit' or '-import' or '-m' to perform ticket importation (and exit)",
+                            "'-console' or '-c' to attach a console for debugging\n",
                            "MIT Kerberos Error", MB_OK);
                 return FALSE;
             }
@@ -334,8 +297,7 @@ BOOL CLeashApp::InitInstance()
                         "'-kinit' or '-i' to perform ticket initialization (and exit)\n"
                         "'-renew' or '-r' to perform ticket renewal (and exit)\n"
                         "'-destroy' or '-d' to perform ticket destruction (and exit)\n"
-                        "'-autoinit' or '-a' to perform automatic ticket initialization\n"
-                        "'-ms2mit' or '-import' or '-m' to perform ticket importation (and exit)",
+                        "'-autoinit' or '-a' to perform automatic ticket initialization\n",
                        "MIT Kerberos Error", MB_OK);
             return FALSE;
         }
@@ -410,8 +372,8 @@ BOOL CLeashApp::InitInstance()
     if (!ProcessShellCommand(cmdInfo))
         return FALSE;
 
-    // Check to see if there are any tickets in the cache
-    // If not and the Windows Logon Session is Kerberos authenticated attempt an import
+    // Check to see if there are any tickets in the cache.  If not and
+    // autoinitialization is enabled, display the initial tickets dialog.
     {
         if (WaitForSingleObject( ticketinfo.lockObj, INFINITE ) != WAIT_OBJECT_0)
             throw("Unable to lock ticketinfo");
@@ -420,57 +382,6 @@ BOOL CLeashApp::InitInstance()
         LeashKRB5FreeTicketInfo(&ticketinfo.Krb5);
         ReleaseMutex(ticketinfo.lockObj);
 
-        DWORD dwMsLsaImport = pLeash_get_default_mslsa_import();
-
-        if ( b_autoinit && dwMsLsaImport && pLeash_importable() ) {
-            // We have the option of importing tickets from the MSLSA
-            // but should we?  Do the tickets in the MSLSA cache belong
-            // to the default realm used by Leash?  If so, import.
-            int import = 0;
-
-            if ( dwMsLsaImport == 1 ) {             /* always import */
-                import = 1;
-            } else if ( dwMsLsaImport == 2 ) {      /* import when realms match */
-                krb5_error_code code;
-                krb5_ccache mslsa_ccache=0;
-                krb5_principal princ = 0;
-                char ms_realm[128] = "", *def_realm = 0, *r;
-                int i;
-
-                if (code = pkrb5_cc_resolve(CLeashApp::m_krbv5_context, "MSLSA:", &mslsa_ccache))
-                    goto cleanup;
-
-                if (code = pkrb5_cc_get_principal(CLeashApp::m_krbv5_context, mslsa_ccache, &princ))
-                    goto cleanup;
-
-                for ( r=ms_realm, i=0; i<krb5_princ_realm(CLeashApp::m_krb5v5_context, princ)->length; r++, i++ ) {
-                    *r = krb5_princ_realm(CLeashApp::m_krb5v5_context, princ)->data[i];
-                }
-                *r = '\0';
-
-                if (code = pkrb5_get_default_realm(CLeashApp::m_krbv5_context, &def_realm))
-                    goto cleanup;
-
-                import = !strcmp(def_realm, ms_realm);
-
-              cleanup:
-                if (def_realm)
-                    pkrb5_free_default_realm(CLeashApp::m_krbv5_context, def_realm);
-
-                if (princ)
-                    pkrb5_free_principal(CLeashApp::m_krbv5_context, princ);
-
-                if (mslsa_ccache)
-                    pkrb5_cc_close(CLeashApp::m_krbv5_context, mslsa_ccache);
-            }
-
-            if (import && pLeash_import()) {
-                CLeashView::m_importedTickets = 1;
-                ::PostMessage(m_pMainWnd->m_hWnd, WM_COMMAND, ID_UPDATE_DISPLAY, 0);
-                b_autoinit = FALSE;
-            }
-        }
-
         if (autoInit) {
             if ( b_autoinit )
                 AfxBeginThread(InitWorker, m_pMainWnd->m_hWnd);
@@ -478,8 +389,6 @@ BOOL CLeashApp::InitInstance()
             IpAddrChangeMonitorInit(m_pMainWnd->m_hWnd);
         }
     }
-
-    VScheckVersion(m_pMainWnd->m_hWnd, AfxGetInstanceHandle());
 
     // The one and only window has been initialized, so show and update it.
     m_pMainWnd->SetWindowText("MIT Kerberos");
@@ -497,135 +406,30 @@ BOOL CLeashApp::InitInstance()
 // CLeashApp commands
 
 // leash functions
-DECL_FUNC_PTR(not_an_API_LeashKRB4GetTickets);
-DECL_FUNC_PTR(not_an_API_LeashAFSGetToken);
-DECL_FUNC_PTR(not_an_API_LeashGetTimeServerName);
 DECL_FUNC_PTR(Leash_kdestroy);
 DECL_FUNC_PTR(Leash_changepwd_dlg);
 DECL_FUNC_PTR(Leash_changepwd_dlg_ex);
 DECL_FUNC_PTR(Leash_kinit_dlg);
 DECL_FUNC_PTR(Leash_kinit_dlg_ex);
 DECL_FUNC_PTR(Leash_timesync);
-DECL_FUNC_PTR(Leash_get_default_lifetime);
-DECL_FUNC_PTR(Leash_set_default_lifetime);
-DECL_FUNC_PTR(Leash_get_default_forwardable);
-DECL_FUNC_PTR(Leash_set_default_forwardable);
-DECL_FUNC_PTR(Leash_get_default_renew_till);
-DECL_FUNC_PTR(Leash_set_default_renew_till);
-DECL_FUNC_PTR(Leash_get_default_noaddresses);
-DECL_FUNC_PTR(Leash_set_default_noaddresses);
-DECL_FUNC_PTR(Leash_get_default_proxiable);
-DECL_FUNC_PTR(Leash_set_default_proxiable);
-DECL_FUNC_PTR(Leash_get_default_publicip);
-DECL_FUNC_PTR(Leash_set_default_publicip);
-DECL_FUNC_PTR(Leash_get_default_use_krb4);
-DECL_FUNC_PTR(Leash_set_default_use_krb4);
-DECL_FUNC_PTR(Leash_get_default_life_min);
-DECL_FUNC_PTR(Leash_set_default_life_min);
-DECL_FUNC_PTR(Leash_get_default_life_max);
-DECL_FUNC_PTR(Leash_set_default_life_max);
-DECL_FUNC_PTR(Leash_get_default_renew_min);
-DECL_FUNC_PTR(Leash_set_default_renew_min);
-DECL_FUNC_PTR(Leash_get_default_renew_max);
-DECL_FUNC_PTR(Leash_set_default_renew_max);
-DECL_FUNC_PTR(Leash_get_default_renewable);
-DECL_FUNC_PTR(Leash_set_default_renewable);
-DECL_FUNC_PTR(Leash_get_lock_file_locations);
-DECL_FUNC_PTR(Leash_set_lock_file_locations);
 DECL_FUNC_PTR(Leash_get_default_uppercaserealm);
 DECL_FUNC_PTR(Leash_set_default_uppercaserealm);
-DECL_FUNC_PTR(Leash_get_default_mslsa_import);
-DECL_FUNC_PTR(Leash_set_default_mslsa_import);
-DECL_FUNC_PTR(Leash_get_default_preserve_kinit_settings);
-DECL_FUNC_PTR(Leash_set_default_preserve_kinit_settings);
-DECL_FUNC_PTR(Leash_import);
-DECL_FUNC_PTR(Leash_importable);
 DECL_FUNC_PTR(Leash_renew);
-DECL_FUNC_PTR(Leash_reset_defaults);
 
 FUNC_INFO leash_fi[] = {
-    MAKE_FUNC_INFO(not_an_API_LeashKRB4GetTickets),
-    MAKE_FUNC_INFO(not_an_API_LeashAFSGetToken),
-    MAKE_FUNC_INFO(not_an_API_LeashGetTimeServerName),
     MAKE_FUNC_INFO(Leash_kdestroy),
     MAKE_FUNC_INFO(Leash_changepwd_dlg),
     MAKE_FUNC_INFO(Leash_changepwd_dlg_ex),
     MAKE_FUNC_INFO(Leash_kinit_dlg),
 	MAKE_FUNC_INFO(Leash_kinit_dlg_ex),
     MAKE_FUNC_INFO(Leash_timesync),
-    MAKE_FUNC_INFO(Leash_get_default_lifetime),
-    MAKE_FUNC_INFO(Leash_set_default_lifetime),
-    MAKE_FUNC_INFO(Leash_get_default_renew_till),
-    MAKE_FUNC_INFO(Leash_set_default_renew_till),
-    MAKE_FUNC_INFO(Leash_get_default_forwardable),
-    MAKE_FUNC_INFO(Leash_set_default_forwardable),
-    MAKE_FUNC_INFO(Leash_get_default_noaddresses),
-    MAKE_FUNC_INFO(Leash_set_default_noaddresses),
-    MAKE_FUNC_INFO(Leash_get_default_proxiable),
-    MAKE_FUNC_INFO(Leash_set_default_proxiable),
-    MAKE_FUNC_INFO(Leash_get_default_publicip),
-    MAKE_FUNC_INFO(Leash_set_default_publicip),
-    MAKE_FUNC_INFO(Leash_get_default_use_krb4),
-    MAKE_FUNC_INFO(Leash_set_default_use_krb4),
-    MAKE_FUNC_INFO(Leash_get_default_life_min),
-    MAKE_FUNC_INFO(Leash_set_default_life_min),
-    MAKE_FUNC_INFO(Leash_get_default_life_max),
-    MAKE_FUNC_INFO(Leash_set_default_life_max),
-    MAKE_FUNC_INFO(Leash_get_default_renew_min),
-    MAKE_FUNC_INFO(Leash_set_default_renew_min),
-    MAKE_FUNC_INFO(Leash_get_default_renew_max),
-    MAKE_FUNC_INFO(Leash_set_default_renew_max),
-    MAKE_FUNC_INFO(Leash_get_default_renewable),
-    MAKE_FUNC_INFO(Leash_set_default_renewable),
-    MAKE_FUNC_INFO(Leash_get_lock_file_locations),
-    MAKE_FUNC_INFO(Leash_set_lock_file_locations),
     MAKE_FUNC_INFO(Leash_get_default_uppercaserealm),
     MAKE_FUNC_INFO(Leash_set_default_uppercaserealm),
-    MAKE_FUNC_INFO(Leash_get_default_mslsa_import),
-    MAKE_FUNC_INFO(Leash_set_default_mslsa_import),
-    MAKE_FUNC_INFO(Leash_get_default_preserve_kinit_settings),
-    MAKE_FUNC_INFO(Leash_set_default_preserve_kinit_settings),
-    MAKE_FUNC_INFO(Leash_import),
-    MAKE_FUNC_INFO(Leash_importable),
     MAKE_FUNC_INFO(Leash_renew),
-    MAKE_FUNC_INFO(Leash_reset_defaults),
     END_FUNC_INFO
 };
 
-////
-#ifndef NO_KRB4
-// krb4 functions
-DECL_FUNC_PTR(set_krb_debug);
-DECL_FUNC_PTR(set_krb_ap_req_debug);
-DECL_FUNC_PTR(krb_get_krbconf2);
-DECL_FUNC_PTR(krb_get_krbrealm2);
-DECL_FUNC_PTR(tkt_string);
-DECL_FUNC_PTR(krb_set_tkt_string);
-DECL_FUNC_PTR(krb_realmofhost);
-DECL_FUNC_PTR(krb_get_lrealm);
-DECL_FUNC_PTR(krb_get_krbhst);
-DECL_FUNC_PTR(tf_init);
-DECL_FUNC_PTR(tf_close);
-DECL_FUNC_PTR(krb_get_tf_realm);
-
-FUNC_INFO krb4_fi[] = {
-    MAKE_FUNC_INFO(set_krb_debug),
-    MAKE_FUNC_INFO(set_krb_ap_req_debug),
-    MAKE_FUNC_INFO(krb_get_krbconf2),
-    MAKE_FUNC_INFO(krb_get_krbrealm2),
-    MAKE_FUNC_INFO(tkt_string),
-    MAKE_FUNC_INFO(krb_set_tkt_string),
-    MAKE_FUNC_INFO(krb_realmofhost),
-    MAKE_FUNC_INFO(krb_get_lrealm),
-    MAKE_FUNC_INFO(krb_get_krbhst),
-    MAKE_FUNC_INFO(tf_init),
-    MAKE_FUNC_INFO(tf_close),
-    MAKE_FUNC_INFO(krb_get_tf_realm),
-    END_FUNC_INFO
-};
-#endif
-
-// com_err funcitons
+// com_err functions
 DECL_FUNC_PTR(error_message);
 FUNC_INFO ce_fi[] =  {
     MAKE_FUNC_INFO(error_message),
@@ -783,17 +587,9 @@ FUNC_INFO profile_fi[] = {
 BOOL CLeashApp::InitDLLs()
 {
     m_hLeashDLL = AfxLoadLibrary(LEASHDLL);
-#ifndef NO_KRB4
-    m_hKrb4DLL = AfxLoadLibrary(KERB4DLL);
-#endif
     m_hKrb5DLL = AfxLoadLibrary(KERB5DLL);
     m_hKrb5ProfileDLL = AfxLoadLibrary(KERB5_PPROFILE_DLL);
     m_hComErr = AfxLoadLibrary(COMERR_DLL);
-
-#ifndef NO_AFS
-    afscompat_init();
-    m_hAfsDLL = AfxLoadLibrary(AFSAuthentDLL());
-#endif
 
 #define PSAPIDLL "psapi.dll"
 #define TOOLHELPDLL "kernel32.dll"
@@ -824,19 +620,6 @@ BOOL CLeashApp::InitDLLs()
                    "Error", MB_OK);
         return FALSE;
     }
-////
-#ifndef NO_KRB4
-    if (m_hKrb4DLL)
-    {
-        if (!LoadFuncs(KERB4DLL, krb4_fi, 0, 0, 1, 0, 0))
-        {
-            MessageBox(hwnd,
-                       "Unexpected error while loading " KERB4DLL ".\n"
-                       "Kerberos 4 functionality will be disabled.\n",
-                       "Error", MB_OK);
-        }
-    }
-#endif
 
     if (m_hKrb5DLL)
     {
@@ -943,7 +726,6 @@ BOOL CLeashApp::FirstInstance()
 void
 CLeashApp::ValidateConfigFiles()
 {
-    CStdioFile krbCon;
     char confname[257];
     char realm[256]="";
 
@@ -953,8 +735,6 @@ CLeashApp::ValidateConfigFiles()
             return;
 
     if ( m_hKrb5DLL ) {
-        int krb_con_open = 0;
-
         // Create the empty KRB5.INI file
         if (!GetProfileFile(confname,sizeof(confname))) {
             const char *filenames[2];
@@ -971,16 +751,6 @@ CLeashApp::ValidateConfigFiles()
 				}
 			}
 
-
-            if ( !GetKrb4ConFile(confname,sizeof(confname)) ) {
-                if (!krbCon.Open(confname, CFile::modeNoTruncate | CFile::modeRead))
-                {
-                    if (krbCon.Open(confname, CFile::modeCreate | CFile::modeWrite))
-                    {
-                        krb_con_open = 1;
-                    }
-                }
-            }
 
             const char*  lookupKdc[] = {"libdefaults", "dns_lookup_kdc", NULL};
             const char*  lookupRealm[] = {"libdefaults", "dns_lookup_realm", NULL};
@@ -1031,10 +801,6 @@ CLeashApp::ValidateConfigFiles()
                 if ( domain[0] ) {
                     strncpy(realm,domain,256);
                     realm[255] = '\0';
-                    if ( krb_con_open ) {
-                        krbCon.WriteString(realm);
-                        krbCon.WriteString("\n");
-                    }
                     strncat(realmkey,domain,256-strlen(realmkey));
                     realmkey[255] = '\0';
                 }
@@ -1095,13 +861,6 @@ CLeashApp::ValidateConfigFiles()
                                                                     names,
                                                                     (const char *)p);
 
-                                    if ( krb_con_open ) {
-                                        krbCon.WriteString((const char *)subkey);
-                                        krbCon.WriteString("\t");
-                                        krbCon.WriteString((const char *)p);
-                                        krbCon.WriteString("\n");
-                                    }
-
                                     p += strlen((char*)p) + 1;
                                 }
                                 free(lpszValue);
@@ -1141,11 +900,6 @@ CLeashApp::ValidateConfigFiles()
                     realm[krb5_princ_realm(ctx,me)->length] = '\0';
                 }
 
-                if ( krb_con_open ) {
-                    krbCon.WriteString(realm);
-                    krbCon.WriteString("\n");
-                }
-
               no_k5_realm:
                 if ( me )
                     pkrb5_free_principal(ctx,me);
@@ -1179,192 +933,8 @@ CLeashApp::ValidateConfigFiles()
             pprofile_release(m_krbv5_profile);
             m_krbv5_profile = NULL;
 
-            // Close KRB.CON file
-            if ( krb_con_open ) {
-                krbCon.WriteString(".KERBEROS.OPTION. dns\n");
-                krbCon.Close();
-            }
-
-            // Create the empty KRBREALM.CON file
-            if ( !GetKrb4RealmFile(confname,sizeof(confname)) ) {
-                if (!krbCon.Open(confname, CFile::modeNoTruncate | CFile::modeRead))
-                {
-                    if (krbCon.Open(confname, CFile::modeCreate | CFile::modeWrite))
-                    {
-                        krbCon.Close();
-                    }
-                } else
-                    krbCon.Close();
-            }
-
         }
-////
-#ifndef NO_KRB4
-    } else if ( m_hKrb4DLL ) {
-        if ( !realm[0] ) {
-            /* Open ticket file */
-            char * file = ptkt_string();
-            int k_errno;
-
-            if (file != NULL && file[0]) {
-                if ((k_errno = ptf_init(file, R_TKT_FIL)) == KSUCCESS) {
-                    /* Close ticket file */
-                    (void) ptf_close();
-
-                    k_errno = pkrb_get_tf_realm(file, realm);
-                }
-                if (k_errno != KSUCCESS) {
-                    k_errno = pkrb_get_lrealm(realm, 1);
-                }
-            }
-        }
-
-        if ( !GetKrb4ConFile(confname,sizeof(confname)) ) {
-            if (!krbCon.Open(confname, CFile::modeNoTruncate | CFile::modeRead))
-            {
-                if (krbCon.Open(confname, CFile::modeCreate | CFile::modeWrite))
-                {
-                    if ( realm[0] )
-                        krbCon.WriteString(realm);
-                    krbCon.WriteString("\n.KERBEROS.OPTION. dns\n");
-                    krbCon.Close();
-                }
-            } else
-				krbCon.Close();
-        }
-
-        if ( !GetKrb4RealmFile(confname,sizeof(confname)) ) {
-            if (!krbCon.Open(confname, CFile::modeNoTruncate | CFile::modeRead))
-            {
-                if (krbCon.Open(confname, CFile::modeCreate | CFile::modeWrite))
-                {
-                    krbCon.Close();
-                }
-            } else
-				krbCon.Close();
-        }
-#endif
     }
-}
-
-////@#+Should this be just deleted or reworked?
-BOOL
-CLeashApp::GetKrb4ConFile(
-    LPSTR confname,
-    UINT szConfname
-    )
-{
-    if (m_hKrb5DLL
-////
-#ifndef NO_KRB4
-	&& !m_hKrb4DLL
-#endif
-	)
-	{ // hold krb.con where krb5.ini is located
-		CHAR krbConFile[MAX_PATH]="";
-	    //strcpy(krbConFile, CLeashApp::m_krbv5_profile->first_file->filename);
-        if (GetProfileFile(krbConFile, sizeof(krbConFile)))
-        {
-		    GetWindowsDirectory(krbConFile,sizeof(krbConFile));
-            krbConFile[MAX_PATH-1] = '\0';
-			strncat(krbConFile,"\\KRB5.INI",sizeof(krbConFile)-strlen(krbConFile)-1);
-            krbConFile[MAX_PATH-1] = '\0';
-        }
-
-		LPSTR pFind = strrchr(krbConFile, '\\');
-		if (pFind)
-		{
-			*pFind = 0;
-			strncat(krbConFile, "\\",MAX_PATH-1);
-            krbConFile[MAX_PATH-1] = '\0';
-			strncat(krbConFile, KRB_FILE,MAX_PATH-1);
-            krbConFile[MAX_PATH-1] = '\0';
-		}
-		else
-		  ASSERT(0);
-
-		strncpy(confname, krbConFile, szConfname);
-        confname[szConfname-1] = '\0';
-	}
-////
-#ifndef NO_KRB4
-	else if (m_hKrb4DLL)
-	{
-        unsigned int size = szConfname;
-        memset(confname, '\0', szConfname);
-		if (!pkrb_get_krbconf2(confname, &size))
-		{ // Error has happened
-		    GetWindowsDirectory(confname,szConfname);
-            confname[szConfname-1] = '\0';
-			strncat(confname, "\\",szConfname);
-            confname[szConfname-1] = '\0';
-			strncat(confname,KRB_FILE,szConfname);
-            confname[szConfname-1] = '\0';
-		}
-	}
-#endif
-
-    return FALSE;
-}
-
-BOOL
-CLeashApp::GetKrb4RealmFile(
-    LPSTR confname,
-    UINT szConfname
-    )
-{
-    if (m_hKrb5DLL
-////
-#ifndef NO_KRB4
-	&& !m_hKrb4DLL
-#endif
-	)
-	{ // hold krb.con where krb5.ini is located
-		CHAR krbRealmConFile[MAX_PATH];
-		//strcpy(krbRealmConFile, CLeashApp::m_krbv5_profile->first_file->filename);
-		if (GetProfileFile(krbRealmConFile, sizeof(krbRealmConFile)))
-        {
-		    GetWindowsDirectory(krbRealmConFile,sizeof(krbRealmConFile));
-            krbRealmConFile[MAX_PATH-1] = '\0';
-			strncat(krbRealmConFile,"\\KRB5.INI",sizeof(krbRealmConFile)-strlen(krbRealmConFile));
-            krbRealmConFile[MAX_PATH-1] = '\0';
-        }
-
-		LPSTR pFind = strrchr(krbRealmConFile, '\\');
-		if (pFind)
-		{
-			*pFind = 0;
-			strncat(krbRealmConFile, "\\",MAX_PATH-1-strlen(krbRealmConFile));
-            krbRealmConFile[MAX_PATH-1] = '\0';
-			strncat(krbRealmConFile, KRBREALM_FILE,MAX_PATH-1-strlen(krbRealmConFile));
-            krbRealmConFile[MAX_PATH-1] = '\0';
-		}
-		else
-		  ASSERT(0);
-
-		strncpy(confname, krbRealmConFile, szConfname);
-        confname[szConfname-1] = '\0';
-	}
-////
-#ifndef NO_KRB4
-	else if (m_hKrb4DLL)
-	{
-        unsigned int size = szConfname;
-        memset(confname, '\0', szConfname);
-        if (!pkrb_get_krbrealm2(confname, &size))
-		{
-		    GetWindowsDirectory(confname,szConfname);
-            confname[szConfname-1] = '\0';
-			strncat(confname, "\\",szConfname-strlen(confname));
-            confname[szConfname-1] = '\0';
-			strncat(confname,KRBREALM_FILE,szConfname-strlen(confname));
-            confname[szConfname-1] = '\0';
-            return TRUE;
-		}
-	}
-#endif
-
-    return FALSE;
 }
 
 BOOL
@@ -1504,40 +1074,17 @@ CLeashApp::ObtainTicketsViaUserIfNeeded(HWND hWnd)
     LeashKRB5FreeTicketInfo(&ticketinfo.Krb5);
     ReleaseMutex(ticketinfo.lockObj);
 
-    if ( !btickets ) {
-        if ( pLeash_importable() ) {
-            if (pLeash_import())
-                CLeashView::m_importedTickets = 1;
-        }
-        else if ( ProbeKDC() ) {
-            LSH_DLGINFO_EX ldi;
-            ldi.size = LSH_DLGINFO_EX_V1_SZ;
-            ldi.dlgtype = DLGTYPE_PASSWD;
-            ldi.title = "MIT Kerberos: Get Ticket";
-            ldi.username = NULL;
-            ldi.realm = NULL;
-            ldi.dlgtype = DLGTYPE_PASSWD;
-            ldi.use_defaults = 1;
+    if (ProbeKDC() && (!btickets || !pLeash_renew())) {
+        LSH_DLGINFO_EX ldi;
+        ldi.size = LSH_DLGINFO_EX_V1_SZ;
+        ldi.dlgtype = DLGTYPE_PASSWD;
+        ldi.title = "MIT Kerberos: Get Ticket";
+        ldi.username = NULL;
+        ldi.realm = NULL;
+        ldi.dlgtype = DLGTYPE_PASSWD;
+        ldi.use_defaults = 1;
 
-            pLeash_kinit_dlg_ex(hWnd, &ldi);
-        }
-    } else {
-        if ( CLeashView::m_importedTickets && pLeash_importable() ) {
-            if (pLeash_import())
-                CLeashView::m_importedTickets = 1;
-        }
-        else if ( ProbeKDC() && !pLeash_renew() ) {
-            LSH_DLGINFO_EX ldi;
-            ldi.size = LSH_DLGINFO_EX_V1_SZ;
-            ldi.dlgtype = DLGTYPE_PASSWD;
-            ldi.title = "MIT Kerberos: Get Ticket";
-            ldi.username = NULL;
-            ldi.realm = NULL;
-            ldi.dlgtype = DLGTYPE_PASSWD;
-            ldi.use_defaults = 1;
-
-            pLeash_kinit_dlg_ex(hWnd, &ldi);
-        }
+        pLeash_kinit_dlg_ex(hWnd, &ldi);
     }
     return;
 }
@@ -1590,7 +1137,7 @@ CLeashApp::IpAddrChangeMonitor(void * hWnd)
 
         NumOfAddrs = GetNumOfIpAddrs();
         if ( NumOfAddrs != prevNumOfAddrs ) {
-            // wait for the network state to stablize
+            // wait for the network state to stabilize
             Sleep(2000);
             // this call should probably be mutex protected
             ObtainTicketsViaUserIfNeeded((HWND)hWnd);

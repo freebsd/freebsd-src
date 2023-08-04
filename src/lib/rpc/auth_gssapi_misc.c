@@ -45,9 +45,11 @@ bool_t xdr_gss_buf(
      bool_t result;
      /* Fix type mismatches between APIs.  */
      unsigned int length = buf->length;
-     result = xdr_bytes(xdrs, (char **) &buf->value, &length,
+     char *cp = buf->value;
+     result = xdr_bytes(xdrs, &cp, &length,
 			(xdrs->x_op == XDR_DECODE && buf->value == NULL)
 			? (unsigned int) -1 : (unsigned int) buf->length);
+     buf->value = cp;
      buf->length = length;
      return result;
 }
@@ -204,6 +206,7 @@ bool_t auth_gssapi_wrap_data(
      XDR temp_xdrs;
      int conf_state;
      unsigned int length;
+     char *cp;
 
      PRINTF(("gssapi_wrap_data: starting\n"));
 
@@ -243,13 +246,13 @@ bool_t auth_gssapi_wrap_data(
 
      /* write the token */
      length = out_buf.length;
-     if (! xdr_bytes(out_xdrs, (char **) &out_buf.value,
-		     (unsigned int *) &length,
-		     out_buf.length)) {
+     cp = out_buf.value;
+     if (! xdr_bytes(out_xdrs, &cp, &length, out_buf.length)) {
 	  PRINTF(("gssapi_wrap_data: serializing encrypted data failed\n"));
 	  XDR_DESTROY(&temp_xdrs);
 	  return FALSE;
      }
+     out_buf.value = cp;
 
      *major = gss_release_buffer(minor, &out_buf);
 
@@ -272,6 +275,7 @@ bool_t auth_gssapi_unwrap_data(
      uint32_t verf_seq_num;
      int conf, qop;
      unsigned int length;
+     char *cp;
 
      PRINTF(("gssapi_unwrap_data: starting\n"));
 
@@ -280,14 +284,15 @@ bool_t auth_gssapi_unwrap_data(
 
      in_buf.value = NULL;
      out_buf.value = NULL;
-     if (! xdr_bytes(in_xdrs, (char **) &in_buf.value,
-		     &length, (unsigned int) -1)) {
+     cp = in_buf.value;
+     if (! xdr_bytes(in_xdrs, &cp, &length, (unsigned int) -1)) {
 	 PRINTF(("gssapi_unwrap_data: deserializing encrypted data failed\n"));
 	 temp_xdrs.x_op = XDR_FREE;
-	 (void)xdr_bytes(&temp_xdrs, (char **) &in_buf.value, &length,
-			 (unsigned int) -1);
+	 (void)xdr_bytes(&temp_xdrs, &cp, &length, (unsigned int) -1);
+	 in_buf.value = NULL;
 	 return FALSE;
      }
+     in_buf.value = cp;
      in_buf.length = length;
 
      *major = gss_unseal(minor, context, &in_buf, &out_buf, &conf,

@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_enc_kdc_rep_part &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_enc_kdc_rep_part &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 types and structures" href="index.html" />
     <link rel="next" title="krb5_enc_tkt_part" href="krb5_enc_tkt_part.html" />
     <link rel="prev" title="krb5_enc_data" href="krb5_enc_data.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-enc-kdc-rep-part">
 <span id="krb5-enc-kdc-rep-part-struct"></span><h1>krb5_enc_kdc_rep_part<a class="headerlink" href="#krb5-enc-kdc-rep-part" title="Permalink to this headline">¶</a></h1>
 <dl class="type">
 <dt id="c.krb5_enc_kdc_rep_part">
-<tt class="descname">krb5_enc_kdc_rep_part</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part" title="Permalink to this definition">¶</a></dt>
+<code class="descname">krb5_enc_kdc_rep_part</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <p>C representation of <em>EncKDCRepPart</em> protocol message.</p>
@@ -80,66 +78,66 @@
 <h2>Members<a class="headerlink" href="#members" title="Permalink to this headline">¶</a></h2>
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.magic">
-<a class="reference internal" href="krb5_magic.html#c.krb5_magic" title="krb5_magic">krb5_magic</a>        <tt class="descname">krb5_enc_kdc_rep_part.magic</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.magic" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_magic.html#c.krb5_magic" title="krb5_magic">krb5_magic</a>        <code class="descname">krb5_enc_kdc_rep_part.magic</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.magic" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.msg_type">
-<a class="reference internal" href="krb5_msgtype.html#c.krb5_msgtype" title="krb5_msgtype">krb5_msgtype</a>      <tt class="descname">krb5_enc_kdc_rep_part.msg_type</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.msg_type" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_msgtype.html#c.krb5_msgtype" title="krb5_msgtype">krb5_msgtype</a>      <code class="descname">krb5_enc_kdc_rep_part.msg_type</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.msg_type" title="Permalink to this definition">¶</a></dt>
 <dd><p>krb5 message type</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.session">
-<a class="reference internal" href="krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a>  *  <tt class="descname">krb5_enc_kdc_rep_part.session</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.session" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a>  *  <code class="descname">krb5_enc_kdc_rep_part.session</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.session" title="Permalink to this definition">¶</a></dt>
 <dd><p>Session key.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.last_req">
-<a class="reference internal" href="krb5_last_req_entry.html#c.krb5_last_req_entry" title="krb5_last_req_entry">krb5_last_req_entry</a>  **   <tt class="descname">krb5_enc_kdc_rep_part.last_req</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.last_req" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_last_req_entry.html#c.krb5_last_req_entry" title="krb5_last_req_entry">krb5_last_req_entry</a>  **   <code class="descname">krb5_enc_kdc_rep_part.last_req</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.last_req" title="Permalink to this definition">¶</a></dt>
 <dd><p>Array of pointers to entries.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.nonce">
-<a class="reference internal" href="krb5_int32.html#c.krb5_int32" title="krb5_int32">krb5_int32</a>        <tt class="descname">krb5_enc_kdc_rep_part.nonce</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.nonce" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_int32.html#c.krb5_int32" title="krb5_int32">krb5_int32</a>        <code class="descname">krb5_enc_kdc_rep_part.nonce</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.nonce" title="Permalink to this definition">¶</a></dt>
 <dd><p>Nonce from request.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.key_exp">
-<a class="reference internal" href="krb5_timestamp.html#c.krb5_timestamp" title="krb5_timestamp">krb5_timestamp</a>    <tt class="descname">krb5_enc_kdc_rep_part.key_exp</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.key_exp" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_timestamp.html#c.krb5_timestamp" title="krb5_timestamp">krb5_timestamp</a>    <code class="descname">krb5_enc_kdc_rep_part.key_exp</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.key_exp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Expiration date.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.flags">
-<a class="reference internal" href="krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a>        <tt class="descname">krb5_enc_kdc_rep_part.flags</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.flags" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a>        <code class="descname">krb5_enc_kdc_rep_part.flags</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.flags" title="Permalink to this definition">¶</a></dt>
 <dd><p>Ticket flags.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.times">
-<a class="reference internal" href="krb5_ticket_times.html#c.krb5_ticket_times" title="krb5_ticket_times">krb5_ticket_times</a> <tt class="descname">krb5_enc_kdc_rep_part.times</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.times" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_ticket_times.html#c.krb5_ticket_times" title="krb5_ticket_times">krb5_ticket_times</a> <code class="descname">krb5_enc_kdc_rep_part.times</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.times" title="Permalink to this definition">¶</a></dt>
 <dd><p>Lifetime info.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.server">
-<a class="reference internal" href="krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a>    <tt class="descname">krb5_enc_kdc_rep_part.server</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.server" title="Permalink to this definition">¶</a></dt>
-<dd><p>Server&#8217;s principal identifier.</p>
+<a class="reference internal" href="krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a>    <code class="descname">krb5_enc_kdc_rep_part.server</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Server’s principal identifier.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.caddrs">
-<a class="reference internal" href="krb5_address.html#c.krb5_address" title="krb5_address">krb5_address</a>  **  <tt class="descname">krb5_enc_kdc_rep_part.caddrs</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.caddrs" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_address.html#c.krb5_address" title="krb5_address">krb5_address</a>  **  <code class="descname">krb5_enc_kdc_rep_part.caddrs</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.caddrs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Array of ptrs to addrs, optional.</p>
 </dd></dl>
 
 <dl class="member">
 <dt id="c.krb5_enc_kdc_rep_part.enc_padata">
-<a class="reference internal" href="krb5_pa_data.html#c.krb5_pa_data" title="krb5_pa_data">krb5_pa_data</a>  **  <tt class="descname">krb5_enc_kdc_rep_part.enc_padata</tt><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.enc_padata" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="krb5_pa_data.html#c.krb5_pa_data" title="krb5_pa_data">krb5_pa_data</a>  **  <code class="descname">krb5_enc_kdc_rep_part.enc_padata</code><a class="headerlink" href="#c.krb5_enc_kdc_rep_part.enc_padata" title="Permalink to this definition">¶</a></dt>
 <dd><p>Encrypted preauthentication data.</p>
 </dd></dl>
 
@@ -206,8 +204,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

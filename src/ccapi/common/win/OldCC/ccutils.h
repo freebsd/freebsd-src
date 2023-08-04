@@ -29,9 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
-#endif
 
 #define REPLY_SUFFIX    (char*)"reply"
 #define LISTEN_SUFFIX   (char*)"listen"

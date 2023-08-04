@@ -121,14 +121,6 @@ clean-windows-files:
 !else
 	@if exist $(OUTPRE3)$(DIRNUL) deltree /y $(OUTPRE3)
 !endif
-!if 0
-	$(RM) .\$(OUTPRE)*.obj .\$(OUTPRE)*.res
-	$(RM) .\$(OUTPRE)*.exe .\$(OUTPRE)*.dll
-	$(RM) .\$(OUTPRE)*.lib .\$(OUTPRE)*.pdb
-	$(RM) .\$(OUTPRE)*.exp .\$(OUTPRE)*.map
-	$(RM) .\$(OUTPRE)*.idb .\$(OUTPRE)*.ilk
-	$(RM) .\$(OUTPRE)*.manifest
-!endif
 
 # Dependencies
 !if exist($(srcdir)/deps)

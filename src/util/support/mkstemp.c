@@ -75,9 +75,9 @@ int mkstemp(path)
 static int
 _gettemp(path, doopen)
 	char *path;
-	register int *doopen;
+	int *doopen;
 {
-	register char *start, *trv;
+	char *start, *trv;
 	struct stat sbuf;
 	u_int pid;
 

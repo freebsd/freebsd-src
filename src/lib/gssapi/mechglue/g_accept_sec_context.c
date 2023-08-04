@@ -66,6 +66,12 @@ val_acc_sec_ctx_args(
 	output_token->value = NULL;
     }
 
+    if (ret_flags != NULL)
+	*ret_flags = 0;
+
+    if (time_rec != NULL)
+	*time_rec = 0;
+
     if (d_cred != NULL)
 	*d_cred = GSS_C_NO_CREDENTIAL;
 
@@ -103,6 +109,10 @@ allow_mech_by_default(gss_OID mech)
     status = gss_inquire_attrs_for_mech(&minor, mech, &attrs, NULL);
     if (status)
 	return 0;
+
+    /* If the mechanism doesn't support RFC 5587, don't exclude it. */
+    if (attrs == GSS_C_NO_OID_SET)
+	return 1;
 
     /* Check for each attribute which would cause us to exclude this mech from
      * the default credential. */
@@ -222,20 +232,10 @@ gss_cred_id_t *		d_cred;
 
     /* Now create a new context if we didn't get one. */
     if (*context_handle == GSS_C_NO_CONTEXT) {
-	status = GSS_S_FAILURE;
-	union_ctx_id = (gss_union_ctx_id_t)
-	    malloc(sizeof(gss_union_ctx_id_desc));
-	if (!union_ctx_id)
-	    return (GSS_S_FAILURE);
-
-	union_ctx_id->loopback = union_ctx_id;
-	union_ctx_id->internal_ctx_id = GSS_C_NO_CONTEXT;
-	status = generic_gss_copy_oid(&temp_minor_status, selected_mech,
-				      &union_ctx_id->mech_type);
-	if (status != GSS_S_COMPLETE) {
-	    free(union_ctx_id);
+	status = gssint_create_union_context(minor_status, selected_mech,
+					     &union_ctx_id);
+	if (status != GSS_S_COMPLETE)
 	    return (status);
-	}
     }
 
     /*

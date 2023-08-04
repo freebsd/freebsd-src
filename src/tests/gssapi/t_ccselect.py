@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (C) 2011 by the Massachusetts Institute of Technology.
 # All rights reserved.
 
@@ -24,10 +22,14 @@
 
 from k5test import *
 
-# Create two independent realms (no cross-realm TGTs).
-r1 = K5Realm(create_user=False)
-r2 = K5Realm(create_user=False, realm='KRBTEST2.COM', portbase=62000,
-             testdir=os.path.join(r1.testdir, 'r2'))
+# Create two independent realms (no cross-realm TGTs).  For the
+# fallback realm tests we need to control the precise server hostname,
+# so turn off DNS canonicalization and shortname qualification.
+conf = {'libdefaults': {'dns_canonicalize_hostname': 'false',
+                        'qualify_shortname': ''}}
+r1 = K5Realm(create_user=False, krb5_conf=conf)
+r2 = K5Realm(create_user=False, krb5_conf=conf, realm='KRBTEST2.COM',
+             portbase=62000, testdir=os.path.join(r1.testdir, 'r2'))
 
 host1 = 'p:' + r1.host_princ
 host2 = 'p:' + r2.host_princ
@@ -75,8 +77,9 @@ r1.addprinc(bob, password('bob'))
 r2.addprinc(zaphod, password('zaphod'))
 
 # Create host principals and keytabs for fallback realm tests.
-r1.addprinc('host/localhost')
-r2.addprinc('host/localhost')
+if hostname != 'localhost':
+    r1.addprinc('host/localhost')
+    r2.addprinc('host/localhost')
 r1.addprinc('host/' + foo)
 r2.addprinc('host/' + foo2)
 r1.addprinc('host/' + foobar)

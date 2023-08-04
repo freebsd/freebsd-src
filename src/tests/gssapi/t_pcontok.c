@@ -43,7 +43,6 @@
 #include "k5-int.h"
 #include "common.h"
 
-#define SGN_ALG_DES_MAC_MD5       0x00
 #define SGN_ALG_HMAC_SHA1_DES3_KD 0x04
 #define SGN_ALG_HMAC_MD5          0x11
 
@@ -78,11 +77,7 @@ make_delete_token(gss_krb5_lucid_context_v1_t *lctx, gss_buffer_desc *out)
     ret = krb5_k_create_key(context, &seqkb, &seq);
     check_k5err(context, "krb5_k_create_key", ret);
 
-    if (signalg == SGN_ALG_DES_MAC_MD5) {
-        cktype = CKSUMTYPE_RSA_MD5;
-        cksize = 8;
-        ckusage = 0;
-    } else if (signalg == SGN_ALG_HMAC_SHA1_DES3_KD) {
+    if (signalg == SGN_ALG_HMAC_SHA1_DES3_KD) {
         cktype = CKSUMTYPE_HMAC_SHA1_DES3;
         cksize = 20;
         ckusage = 23;
@@ -122,14 +117,7 @@ make_delete_token(gss_krb5_lucid_context_v1_t *lctx, gss_buffer_desc *out)
     d = make_data(ptr - 8, 8);
     ret = krb5_k_make_checksum(context, cktype, seq, ckusage, &d, &cksum);
     check_k5err(context, "krb5_k_make_checksum", ret);
-    if (signalg == SGN_ALG_DES_MAC_MD5) {
-        iov.flags = KRB5_CRYPTO_TYPE_DATA;
-        iov.data = make_data(cksum.contents, 16);
-        ret = krb5_k_encrypt_iov(context, seq, 0, NULL, &iov, 1);
-        memcpy(ptr + 8, cksum.contents + 8, 8);
-    } else {
-        memcpy(ptr + 8, cksum.contents, cksize);
-    }
+    memcpy(ptr + 8, cksum.contents, cksize);
 
     /* Create the sequence number (8 bytes). */
     iov.flags = KRB5_CRYPTO_TYPE_DATA;

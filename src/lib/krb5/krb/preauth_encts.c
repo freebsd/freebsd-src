@@ -28,6 +28,7 @@
 #include <k5-int.h>
 #include <krb5/clpreauth_plugin.h>
 #include "int-proto.h"
+#include "init_creds_ctx.h"
 
 static krb5_error_code
 encts_prep_questions(krb5_context context, krb5_clpreauth_moddata moddata,
@@ -38,7 +39,10 @@ encts_prep_questions(krb5_context context, krb5_clpreauth_moddata moddata,
                      krb5_data *encoded_previous_request,
                      krb5_pa_data *pa_data)
 {
-    cb->need_as_key(context, rock);
+    krb5_init_creds_context ctx = (krb5_init_creds_context)rock;
+
+    if (!ctx->encts_disabled)
+        cb->need_as_key(context, rock);
     return 0;
 }
 
@@ -51,6 +55,7 @@ encts_process(krb5_context context, krb5_clpreauth_moddata moddata,
               krb5_prompter_fct prompter, void *prompter_data,
               krb5_pa_data ***out_padata)
 {
+    krb5_init_creds_context ctx = (krb5_init_creds_context)rock;
     krb5_error_code ret;
     krb5_pa_enc_ts pa_enc;
     krb5_data *ts = NULL, *enc_ts = NULL;
@@ -59,6 +64,13 @@ encts_process(krb5_context context, krb5_clpreauth_moddata moddata,
     krb5_keyblock *as_key;
 
     enc_data.ciphertext = empty_data();
+
+    if (ctx->encts_disabled) {
+        TRACE_PREAUTH_ENC_TS_DISABLED(context);
+        k5_setmsg(context, KRB5_PREAUTH_FAILED,
+                  _("Encrypted timestamp is disabled"));
+        return KRB5_PREAUTH_FAILED;
+    }
 
     ret = cb->get_as_key(context, rock, &as_key);
     if (ret)
@@ -108,6 +120,8 @@ encts_process(krb5_context context, krb5_clpreauth_moddata moddata,
     pa[1] = NULL;
     *out_padata = pa;
     pa = NULL;
+
+    cb->disable_fallback(context, rock);
 
 cleanup:
     krb5_free_data(context, ts);

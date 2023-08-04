@@ -45,20 +45,14 @@ extern krb5_error_code (*k5int_encode_##type)(const type **, krb5_data **); \
 extern krb5_error_code (*k5int_decode_##type)(const krb5_data *, type ***)
 
 DEF_EXT_FUNC_PTRS(krb5_auth_pack);
-DEF_EXT_FUNC_PTRS(krb5_auth_pack_draft9);
 DEF_EXT_FUNC_PTRS(krb5_kdc_dh_key_info);
 DEF_EXT_FUNC_PTRS(krb5_pa_pk_as_rep);
 DEF_EXT_FUNC_PTRS(krb5_pa_pk_as_req);
-DEF_EXT_FUNC_PTRS(krb5_pa_pk_as_req_draft9);
 DEF_EXT_FUNC_PTRS(krb5_reply_key_pack);
-DEF_EXT_FUNC_PTRS(krb5_reply_key_pack_draft9);
 
 /* special cases... */
 extern krb5_error_code (*k5int_decode_krb5_principal_name)
 	(const krb5_data *, krb5_principal_data **);
-
-extern krb5_error_code (*k5int_encode_krb5_pa_pk_as_rep_draft9)
-	(const krb5_pa_pk_as_rep_draft9 *, krb5_data **code);
 
 extern krb5_error_code (*k5int_encode_krb5_td_dh_parameters)
 	(krb5_algorithm_identifier *const *, krb5_data **code);

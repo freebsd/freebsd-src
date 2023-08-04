@@ -12,8 +12,8 @@ SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT) $(KADMSRV_DEPLIBS)
 ACELIB= -laceclnt
-SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(SUPPORT_LIB) $(KADMSRV_LIBS) \
-	$(LIBS) $(ACELIB)
+SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto $(SUPPORT_LIB) \
+	$(KADMSRV_LIBS) $(LIBS) $(ACELIB)
 
 STLIBOBJS=securid_sam2_main.o securid2.o grail.o
 

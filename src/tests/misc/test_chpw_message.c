@@ -55,7 +55,7 @@ static krb5_data result_ad_complex = {
 static krb5_data result_ad_length = {
     0, 30,
     "\0\0"             /* zero bytes */
-    "\0\0\0\x0d"       /* min length, 13 charaters */
+    "\0\0\0\x0d"       /* min length, 13 characters */
     "\0\0\0\0"         /* history */
     "\0\0\0\0"         /* properties */
     "\0\0\0\0\0\0\0\0" /* expire */

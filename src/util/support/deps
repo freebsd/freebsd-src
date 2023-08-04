@@ -63,6 +63,13 @@ t_path.so t_path.po $(OUTPRE)t_path.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   t_path.c
 t_json.so t_json.po $(OUTPRE)t_json.$(OBJEXT): $(top_srcdir)/include/k5-json.h \
   t_json.c
+t_hex.so t_hex.po $(OUTPRE)t_hex.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-hex.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h t_hex.c
+t_hashtab.so t_hashtab.po $(OUTPRE)t_hashtab.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-hashtab.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-queue.h \
+  $(top_srcdir)/include/k5-thread.h hashtab.c t_hashtab.c
 zap.so zap.po $(OUTPRE)zap.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   zap.c
@@ -76,12 +83,22 @@ json.so json.po $(OUTPRE)json.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-base64.h $(top_srcdir)/include/k5-buf.h \
   $(top_srcdir)/include/k5-json.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h json.c
+hex.so hex.po $(OUTPRE)hex.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-hex.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h hex.c
+hashtab.so hashtab.po $(OUTPRE)hashtab.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-hashtab.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-queue.h $(top_srcdir)/include/k5-thread.h \
+  hashtab.c
 bcmp.so bcmp.po $(OUTPRE)bcmp.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   bcmp.c
 strerror_r.so strerror_r.po $(OUTPRE)strerror_r.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h strerror_r.c
+dir_filenames.so dir_filenames.po $(OUTPRE)dir_filenames.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h dir_filenames.c
 t_utf8.so t_utf8.po $(OUTPRE)t_utf8.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   $(top_srcdir)/include/k5-utf8.h t_utf8.c
@@ -94,3 +111,6 @@ getopt.so getopt.po $(OUTPRE)getopt.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
 getopt_long.so getopt_long.po $(OUTPRE)getopt_long.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h getopt_long.c
+secure_getenv.so secure_getenv.po $(OUTPRE)secure_getenv.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h secure_getenv.c

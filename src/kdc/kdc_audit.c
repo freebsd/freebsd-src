@@ -146,7 +146,7 @@ kau_make_tkt_id(krb5_context context,
 {
     krb5_error_code ret = 0;
     char *hash = NULL, *ptr;
-    krb5_checksum cksum;
+    uint8_t hashbytes[K5_SHA256_HASHLEN];
     unsigned int i;
 
     *out = NULL;
@@ -154,19 +154,18 @@ kau_make_tkt_id(krb5_context context,
     if (ticket == NULL)
         return EINVAL;
 
-    ret = krb5_c_make_checksum(context, CKSUMTYPE_RSA_MD5, NULL, 0,
-                               &ticket->enc_part.ciphertext, &cksum);
+    ret = k5_sha256(&ticket->enc_part.ciphertext, 1, hashbytes);
     if (ret)
         return ret;
 
-    hash = k5alloc(cksum.length * 2 + 1, &ret);
-    if (hash != NULL) {
-        for (i = 0, ptr = hash; i < cksum.length; i++, ptr += 2)
-            snprintf(ptr, 3, "%02X", cksum.contents[i]);
-        *ptr = '\0';
-        *out = hash;
-    }
-    krb5_free_checksum_contents(context, &cksum);
+    hash = k5alloc(sizeof(hashbytes) * 2 + 1, &ret);
+    if (hash == NULL)
+        return ret;
+
+    for (i = 0, ptr = hash; i < sizeof(hashbytes); i++, ptr += 2)
+        snprintf(ptr, 3, "%02X", hashbytes[i]);
+    *ptr = '\0';
+    *out = hash;
 
     return 0;
 }
@@ -207,6 +206,8 @@ kau_init_kdc_req(krb5_context context,
 void
 kau_free_kdc_req(krb5_audit_state *state)
 {
+    if (state == NULL)
+        return;
     free(state->tkt_in_id);
     free(state->tkt_out_id);
     free(state->evid_tkt_id);

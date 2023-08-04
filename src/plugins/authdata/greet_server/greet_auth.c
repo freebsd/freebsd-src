@@ -83,10 +83,9 @@ greet_kdc_sign(krb5_context context,
     if (code == 0) {
         krb5_free_authdata(context, enc_tkt_reply->authorization_data);
         enc_tkt_reply->authorization_data = tkt_authdata;
-    } else {
-        krb5_free_authdata(context, if_relevant);
     }
 
+    krb5_free_authdata(context, if_relevant);
     krb5_free_authdata(context, kdc_issued);
 
     return code;

@@ -16,7 +16,7 @@
  */
 DECLARE(ss_self_identify)
 {
-    register ss_data *info = ss_info(sci_idx);
+    ss_data *info = ss_info(sci_idx);
     printf("%s version %s\n", info->subsystem_name,
            info->subsystem_version);
 }

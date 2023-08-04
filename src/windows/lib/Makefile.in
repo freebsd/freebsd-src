@@ -4,11 +4,10 @@ LOCALINCLUDES = -I$(BUILDTOP)\windows\include
 
 lib-windows: $(OUTPRE)libwin.lib
 
-SRCS=	vardlg.c gic.c registry.c loadfuncs.c
+SRCS=	loadfuncs.c
 
 
-OBJS=	$(OUTPRE)vardlg.obj $(OUTPRE)gic.obj $(OUTPRE)registry.obj \
-	$(OUTPRE)loadfuncs.obj
+OBJS=	$(OUTPRE)loadfuncs.obj
 
 
 $(OUTPRE)libwin.lib: $(OBJS)

@@ -56,17 +56,12 @@
 #include "brand.c"
 #include "../krb5_libinit.h"
 
-/* The des-mdX entries are last for now, because it's easy to
-   configure KDCs to issue TGTs with des-mdX keys and then not accept
-   them.  This'll be fixed, but for better compatibility, let's prefer
-   des-crc for now.  */
 static krb5_enctype default_enctype_list[] = {
     ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
     ENCTYPE_AES256_CTS_HMAC_SHA384_192, ENCTYPE_AES128_CTS_HMAC_SHA256_128,
     ENCTYPE_DES3_CBC_SHA1,
     ENCTYPE_ARCFOUR_HMAC,
     ENCTYPE_CAMELLIA128_CTS_CMAC, ENCTYPE_CAMELLIA256_CTS_CMAC,
-    ENCTYPE_DES_CBC_CRC, ENCTYPE_DES_CBC_MD5, ENCTYPE_DES_CBC_MD4,
     0
 };
 
@@ -99,6 +94,30 @@ get_boolean(krb5_context ctx, const char *name, int def_val, int *boolean_out)
     if (retval)
         TRACE_PROFILE_ERR(ctx, name, KRB5_CONF_LIBDEFAULTS, retval);
     return retval;
+}
+
+static krb5_error_code
+get_tristate(krb5_context ctx, const char *name, const char *third_option,
+             int third_option_val, int def_val, int *val_out)
+{
+    krb5_error_code retval;
+    char *str;
+    int match;
+
+    retval = profile_get_boolean(ctx->profile, KRB5_CONF_LIBDEFAULTS, name,
+                                 NULL, def_val, val_out);
+    if (retval != PROF_BAD_BOOLEAN)
+        return retval;
+    retval = profile_get_string(ctx->profile, KRB5_CONF_LIBDEFAULTS, name,
+                                NULL, NULL, &str);
+    if (retval)
+        return retval;
+    match = (strcasecmp(third_option, str) == 0);
+    free(str);
+    if (!match)
+        return EINVAL;
+    *val_out = third_option_val;
+    return 0;
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -138,13 +157,8 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
 {
     krb5_context ctx = 0;
     krb5_error_code retval;
-    struct {
-        krb5_timestamp now;
-        krb5_int32 now_usec;
-        long pid;
-    } seed_data;
-    krb5_data seed;
     int tmp;
+    char *plugin_dir = NULL;
 
     /* Verify some assumptions.  If the assumptions hold and the
        compiler is optimizing, this should result in no code being
@@ -207,50 +221,35 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
         goto cleanup;
     ctx->allow_weak_crypto = tmp;
 
+    retval = get_boolean(ctx, KRB5_CONF_ALLOW_DES3, 0, &tmp);
+    if (retval)
+        goto cleanup;
+    ctx->allow_des3 = tmp;
+
+    retval = get_boolean(ctx, KRB5_CONF_ALLOW_RC4, 0, &tmp);
+    if (retval)
+        goto cleanup;
+    ctx->allow_rc4 = tmp;
+
     retval = get_boolean(ctx, KRB5_CONF_IGNORE_ACCEPTOR_HOSTNAME, 0, &tmp);
     if (retval)
         goto cleanup;
     ctx->ignore_acceptor_hostname = tmp;
 
-    retval = get_boolean(ctx, KRB5_CONF_DNS_CANONICALIZE_HOSTNAME, 1, &tmp);
+    retval = get_boolean(ctx, KRB5_CONF_ENFORCE_OK_AS_DELEGATE, 0, &tmp);
+    if (retval)
+        goto cleanup;
+    ctx->enforce_ok_as_delegate = tmp;
+
+    retval = get_tristate(ctx, KRB5_CONF_DNS_CANONICALIZE_HOSTNAME, "fallback",
+                          CANONHOST_FALLBACK, 1, &tmp);
     if (retval)
         goto cleanup;
     ctx->dns_canonicalize_hostname = tmp;
 
-    /* initialize the prng (not well, but passable) */
-    if ((retval = krb5_c_random_os_entropy( ctx, 0, NULL)) !=0)
-        goto cleanup;
-    if ((retval = krb5_crypto_us_timeofday(&seed_data.now, &seed_data.now_usec)))
-        goto cleanup;
-    seed_data.pid = getpid ();
-    seed.length = sizeof(seed_data);
-    seed.data = (char *) &seed_data;
-    if ((retval = krb5_c_random_add_entropy(ctx, KRB5_C_RANDSOURCE_TIMING, &seed)))
-        goto cleanup;
-
     ctx->default_realm = 0;
     get_integer(ctx, KRB5_CONF_CLOCKSKEW, DEFAULT_CLOCKSKEW, &tmp);
     ctx->clockskew = tmp;
-
-#if 0
-    /* Default ticket lifetime is currently not supported */
-    profile_get_integer(ctx->profile, KRB5_CONF_LIBDEFAULTS, "tkt_lifetime",
-                        0, 10 * 60 * 60, &tmp);
-    ctx->tkt_lifetime = tmp;
-#endif
-
-    /* DCE 1.1 and below only support CKSUMTYPE_RSA_MD4 (2)  */
-    /* DCE add kdc_req_checksum_type = 2 to krb5.conf */
-    get_integer(ctx, KRB5_CONF_KDC_REQ_CHECKSUM_TYPE, CKSUMTYPE_RSA_MD5,
-                &tmp);
-    ctx->kdc_req_sumtype = tmp;
-
-    get_integer(ctx, KRB5_CONF_AP_REQ_CHECKSUM_TYPE, 0, &tmp);
-    ctx->default_ap_req_sumtype = tmp;
-
-    get_integer(ctx, KRB5_CONF_SAFE_CHECKSUM_TYPE, CKSUMTYPE_RSA_MD5_DES,
-                &tmp);
-    ctx->default_safe_sumtype = tmp;
 
     get_integer(ctx, KRB5_CONF_KDC_DEFAULT_OPTIONS, KDC_OPT_RENEWABLE_OK,
                 &tmp);
@@ -261,8 +260,9 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
 
     retval = profile_get_string(ctx->profile, KRB5_CONF_LIBDEFAULTS,
                                 KRB5_CONF_PLUGIN_BASE_DIR, 0,
-                                DEFAULT_PLUGIN_BASE_DIR,
-                                &ctx->plugin_base_dir);
+                                DEFAULT_PLUGIN_BASE_DIR, &plugin_dir);
+    if (!retval)
+        retval = k5_expand_path_tokens(ctx, plugin_dir, &ctx->plugin_base_dir);
     if (retval) {
         TRACE_PROFILE_ERR(ctx, KRB5_CONF_PLUGIN_BASE_DIR,
                           KRB5_CONF_LIBDEFAULTS, retval);
@@ -288,9 +288,10 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
     (void)profile_get_string(ctx->profile, KRB5_CONF_LIBDEFAULTS,
                              KRB5_CONF_ERR_FMT, NULL, NULL, &ctx->err_fmt);
     *context_out = ctx;
-    return 0;
+    ctx = NULL;
 
 cleanup:
+    profile_release_string(plugin_dir);
     krb5_free_context(ctx);
     return retval;
 }
@@ -302,16 +303,10 @@ krb5_free_context(krb5_context ctx)
         return;
     k5_os_free_context(ctx);
 
-    free(ctx->in_tkt_etypes);
-    ctx->in_tkt_etypes = NULL;
     free(ctx->tgs_etypes);
     ctx->tgs_etypes = NULL;
     free(ctx->default_realm);
     ctx->default_realm = 0;
-    if (ctx->ser_ctx_count && ctx->ser_ctx) {
-        free(ctx->ser_ctx);
-        ctx->ser_ctx = 0;
-    }
 
     krb5_clear_error_message(ctx);
     free(ctx->err_fmt);
@@ -335,9 +330,8 @@ krb5_free_context(krb5_context ctx)
 /*
  * Set the desired default ktypes, making sure they are valid.
  */
-static krb5_error_code
-set_default_etype_var(krb5_context context, const krb5_enctype *etypes,
-                      krb5_enctype **var)
+krb5_error_code KRB5_CALLCONV
+krb5_set_default_tgs_enctypes(krb5_context context, const krb5_enctype *etypes)
 {
     krb5_error_code code;
     krb5_enctype *list;
@@ -370,29 +364,20 @@ set_default_etype_var(krb5_context context, const krb5_enctype *etypes,
         list = NULL;
     }
 
-    free(*var);
-    *var = list;
+    free(context->tgs_etypes);
+    context->tgs_etypes = list;
     return 0;
 }
 
+/* Old name for above function.  This is not a public API, but Samba (as of
+ * 2021-02-12) uses this name if it finds it in the library. */
 krb5_error_code
-krb5_set_default_in_tkt_ktypes(krb5_context context,
-                               const krb5_enctype *etypes)
-{
-    return set_default_etype_var(context, etypes, &context->in_tkt_etypes);
-}
+krb5_set_default_tgs_ktypes(krb5_context context, const krb5_enctype *etypes);
 
-krb5_error_code KRB5_CALLCONV
-krb5_set_default_tgs_enctypes(krb5_context context, const krb5_enctype *etypes)
-{
-    return set_default_etype_var(context, etypes, &context->tgs_etypes);
-}
-
-/* Old name for above function. */
 krb5_error_code
 krb5_set_default_tgs_ktypes(krb5_context context, const krb5_enctype *etypes)
 {
-    return set_default_etype_var(context, etypes, &context->tgs_etypes);
+    return krb5_set_default_tgs_enctypes(context, etypes);
 }
 
 /*
@@ -475,10 +460,6 @@ krb5int_parse_enctype_list(krb5_context context, const char *profkey,
             /* Set all enctypes in the default list. */
             for (i = 0; default_list[i]; i++)
                 mod_list(default_list[i], sel, weak, &list);
-        } else if (strcasecmp(token, "des") == 0) {
-            mod_list(ENCTYPE_DES_CBC_CRC, sel, weak, &list);
-            mod_list(ENCTYPE_DES_CBC_MD5, sel, weak, &list);
-            mod_list(ENCTYPE_DES_CBC_MD4, sel, weak, &list);
         } else if (strcasecmp(token, "des3") == 0) {
             mod_list(ENCTYPE_DES3_CBC_SHA1, sel, weak, &list);
         } else if (strcasecmp(token, "aes") == 0) {
@@ -501,63 +482,40 @@ krb5int_parse_enctype_list(krb5_context context, const char *profkey,
 
     if (list == NULL)
         return ENOMEM;
-    *result = list;
-    return 0;
-}
-
-/*
- * Set *etypes_ptr to a zero-terminated list of enctypes.  ctx_list
- * (containing application-specified enctypes) is used if non-NULL;
- * otherwise the libdefaults profile string specified by profkey is
- * used.  default_list is the default enctype list to be used while
- * parsing profile strings, and is also used if the profile string is
- * not set.
- */
-static krb5_error_code
-get_profile_etype_list(krb5_context context, krb5_enctype **etypes_ptr,
-                       char *profkey, krb5_enctype *ctx_list,
-                       krb5_enctype *default_list)
-{
-    krb5_enctype *etypes;
-    krb5_error_code code;
-    char *profstr;
-
-    *etypes_ptr = NULL;
-
-    if (ctx_list) {
-        /* Use application defaults. */
-        code = k5_copy_etypes(ctx_list, &etypes);
-        if (code)
-            return code;
-    } else {
-        /* Parse profile setting, or "DEFAULT" if not specified. */
-        code = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
-                                  profkey, NULL, "DEFAULT", &profstr);
-        if (code)
-            return code;
-        code = krb5int_parse_enctype_list(context, profkey, profstr,
-                                          default_list, &etypes);
-        profile_release_string(profstr);
-        if (code)
-            return code;
-    }
-
-    if (etypes[0] == 0) {
-        free(etypes);
+    if (list[0] == ENCTYPE_NULL) {
+        free(list);
         return KRB5_CONFIG_ETYPE_NOSUPP;
     }
-
-    *etypes_ptr = etypes;
+    *result = list;
     return 0;
 }
 
 krb5_error_code
 krb5_get_default_in_tkt_ktypes(krb5_context context, krb5_enctype **ktypes)
 {
-    return get_profile_etype_list(context, ktypes,
-                                  KRB5_CONF_DEFAULT_TKT_ENCTYPES,
-                                  context->in_tkt_etypes,
-                                  default_enctype_list);
+    krb5_error_code ret;
+    char *profstr = NULL;
+    const char *profkey;
+
+    *ktypes = NULL;
+
+    profkey = KRB5_CONF_DEFAULT_TKT_ENCTYPES;
+    ret = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                             profkey, NULL, NULL, &profstr);
+    if (ret)
+        return ret;
+    if (profstr == NULL) {
+        profkey = KRB5_CONF_PERMITTED_ENCTYPES;
+        ret = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                                 profkey, NULL, "DEFAULT", &profstr);
+        if (ret)
+            return ret;
+    }
+
+    ret = krb5int_parse_enctype_list(context, profkey, profstr,
+                                     default_enctype_list, ktypes);
+    profile_release_string(profstr);
+    return ret;
 }
 
 void
@@ -567,29 +525,61 @@ krb5_free_enctypes(krb5_context context, krb5_enctype *val)
     free (val);
 }
 
-krb5_error_code
-KRB5_CALLCONV
-krb5_get_tgs_ktypes(krb5_context context, krb5_const_principal princ, krb5_enctype **ktypes)
+krb5_error_code KRB5_CALLCONV
+krb5_get_tgs_ktypes(krb5_context context, krb5_const_principal princ,
+                    krb5_enctype **ktypes)
 {
-    if (context->use_conf_ktypes)
-        /* This one is set *only* by reading the config file; it's not
-           set by the application.  */
-        return get_profile_etype_list(context, ktypes,
-                                      KRB5_CONF_DEFAULT_TGS_ENCTYPES, NULL,
-                                      default_enctype_list);
-    else
-        return get_profile_etype_list(context, ktypes,
-                                      KRB5_CONF_DEFAULT_TGS_ENCTYPES,
-                                      context->tgs_etypes,
-                                      default_enctype_list);
+    krb5_error_code ret;
+    char *profstr = NULL;
+    const char *profkey;
+
+    *ktypes = NULL;
+
+    /* Use only profile configuration when use_conf_ktypes is set. */
+    if (!context->use_conf_ktypes && context->tgs_etypes != NULL)
+        return k5_copy_etypes(context->tgs_etypes, ktypes);
+
+    profkey = KRB5_CONF_DEFAULT_TGS_ENCTYPES;
+    ret = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                             profkey, NULL, NULL, &profstr);
+    if (ret)
+        return ret;
+    if (profstr == NULL) {
+        profkey = KRB5_CONF_PERMITTED_ENCTYPES;
+        ret = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                                 profkey, NULL, "DEFAULT", &profstr);
+        if (ret)
+            return ret;
+    }
+
+    ret = krb5int_parse_enctype_list(context, profkey, profstr,
+                                     default_enctype_list, ktypes);
+    profile_release_string(profstr);
+    return ret;
 }
 
 krb5_error_code KRB5_CALLCONV
 krb5_get_permitted_enctypes(krb5_context context, krb5_enctype **ktypes)
 {
-    return get_profile_etype_list(context, ktypes,
-                                  KRB5_CONF_PERMITTED_ENCTYPES,
-                                  context->tgs_etypes, default_enctype_list);
+    krb5_error_code ret;
+    char *profstr = NULL;
+    const char *profkey;
+
+    *ktypes = NULL;
+
+    if (context->tgs_etypes != NULL)
+        return k5_copy_etypes(context->tgs_etypes, ktypes);
+
+    profkey = KRB5_CONF_PERMITTED_ENCTYPES;
+    ret = profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                             profkey, NULL, "DEFAULT", &profstr);
+    if (ret)
+        return ret;
+
+    ret = krb5int_parse_enctype_list(context, profkey, profstr,
+                                     default_enctype_list, ktypes);
+    profile_release_string(profstr);
+    return ret;
 }
 
 krb5_boolean

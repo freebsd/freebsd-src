@@ -260,7 +260,6 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
     krb5_keysalt          key_salt;
     krb5_keyblock         key;
     krb5_data             pwd;
-    krb5_data             afs_params = string2data("\1"), *s2k_params;
     int                   i, j;
     krb5_key_data        *kd_slot;
 
@@ -268,7 +267,6 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
         krb5_boolean similar;
 
         similar = 0;
-        s2k_params = NULL;
 
         /*
          * We could use krb5_keysalt_iterate to replace this loop, or use
@@ -316,18 +314,6 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
                                               &key_salt.data)))
                 return(retval);
             break;
-        case KRB5_KDB_SALTTYPE_V4:
-            key_salt.data.length = 0;
-            key_salt.data.data = 0;
-            break;
-        case KRB5_KDB_SALTTYPE_AFS3:
-            retval = krb5int_copy_data_contents(context,
-                                                &db_entry->princ->realm,
-                                                &key_salt.data);
-            if (retval)
-                return retval;
-            s2k_params = &afs_params;
-            break;
         case KRB5_KDB_SALTTYPE_SPECIAL:
             retval = make_random_salt(context, &key_salt);
             if (retval)
@@ -342,7 +328,7 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
         retval = krb5_c_string_to_key_with_params(context,
                                                   ks_tuple[i].ks_enctype,
                                                   &pwd, &key_salt.data,
-                                                  s2k_params, &key);
+                                                  NULL, &key);
         if (retval) {
             free(key_salt.data.data);
             return retval;

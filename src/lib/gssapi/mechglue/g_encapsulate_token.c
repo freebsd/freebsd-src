@@ -38,7 +38,7 @@ gss_encapsulate_token(gss_const_buffer_t input_token,
                       gss_buffer_t output_token)
 {
     unsigned int tokenSize;
-    unsigned char *buf;
+    struct k5buf buf;
 
     if (input_token == GSS_C_NO_BUFFER || token_oid == GSS_C_NO_OID)
         return GSS_S_CALL_INACCESSIBLE_READ;
@@ -51,14 +51,14 @@ gss_encapsulate_token(gss_const_buffer_t input_token,
     assert(tokenSize > 2);
     tokenSize -= 2; /* TOK_ID */
 
-    output_token->value = malloc(tokenSize);
+    output_token->value = gssalloc_malloc(tokenSize);
     if (output_token->value == NULL)
         return GSS_S_FAILURE;
 
-    buf = output_token->value;
-
-    g_make_token_header(token_oid, input_token->length, &buf, -1);
-    memcpy(buf, input_token->value, input_token->length);
+    k5_buf_init_fixed(&buf, output_token->value, tokenSize);
+    g_make_token_header(&buf, token_oid, input_token->length, -1);
+    k5_buf_add_len(&buf, input_token->value, input_token->length);
+    assert(buf.len == tokenSize);
     output_token->length = tokenSize;
 
     return GSS_S_COMPLETE;

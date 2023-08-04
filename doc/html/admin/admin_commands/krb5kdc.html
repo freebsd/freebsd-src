@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5kdc &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5kdc &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
-    <link rel="up" title="Administration programs" href="index.html" />
     <link rel="next" title="kprop" href="kprop.html" />
     <link rel="prev" title="kdb5_ldap_util" href="kdb5_ldap_util.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5kdc">
 <span id="krb5kdc-8"></span><h1>krb5kdc<a class="headerlink" href="#krb5kdc" title="Permalink to this headline">¶</a></h1>
@@ -88,31 +86,31 @@ Distribution Center (AS/KDC).</p>
 <div class="section" id="options">
 <h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
 <p>The <strong>-r</strong> <em>realm</em> option specifies the realm for which the server
-should provide service.</p>
+should provide service.  This option may be specified multiple times
+to serve multiple realms.  If no <strong>-r</strong> option is given, the default
+realm (as specified in <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>) will be served.</p>
 <p>The <strong>-d</strong> <em>dbname</em> option specifies the name under which the
 principal database can be found.  This option does not apply to the
 LDAP database.</p>
 <p>The <strong>-k</strong> <em>keytype</em> option specifies the key type of the master key
 to be entered manually as a password when <strong>-m</strong> is given; the default
-is <tt class="docutils literal"><span class="pre">des-cbc-crc</span></tt>.</p>
+is <code class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span></code>.</p>
 <p>The <strong>-M</strong> <em>mkeyname</em> option specifies the principal name for the
-master key in the database (usually <tt class="docutils literal"><span class="pre">K/M</span></tt> in the KDC&#8217;s realm).</p>
+master key in the database (usually <code class="docutils literal"><span class="pre">K/M</span></code> in the KDC’s realm).</p>
 <p>The <strong>-m</strong> option specifies that the master database password should
 be fetched from the keyboard rather than from a stash file.</p>
 <p>The <strong>-n</strong> option specifies that the KDC does not put itself in the
-background and does not disassociate itself from the terminal.  In
-normal operation, you should always allow the KDC to place itself in
-the background.</p>
+background and does not disassociate itself from the terminal.</p>
 <p>The <strong>-P</strong> <em>pid_file</em> option tells the KDC to write its PID into
 <em>pid_file</em> after it starts up.  This can be used to identify whether
 the KDC is still running and to allow init scripts to stop the correct
 process.</p>
-<p>The <strong>-p</strong> <em>portnum</em> option specifies the default UDP port numbers
-which the KDC should listen on for Kerberos version 5 requests, as a
-comma-separated list.  This value overrides the UDP port numbers
-specified in the <a class="reference internal" href="../conf_files/kdc_conf.html#kdcdefaults"><em>[kdcdefaults]</em></a> section of <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>, but
-may be overridden by realm-specific values.  If no value is given from
-any source, the default port is 88.</p>
+<p>The <strong>-p</strong> <em>portnum</em> option specifies the default UDP and TCP port
+numbers which the KDC should listen on for Kerberos version 5
+requests, as a comma-separated list.  This value overrides the port
+numbers specified in the <a class="reference internal" href="../conf_files/kdc_conf.html#kdcdefaults"><span class="std std-ref">[kdcdefaults]</span></a> section of
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, but may be overridden by realm-specific values.
+If no value is given from any source, the default port is 88.</p>
 <p>The <strong>-w</strong> <em>numworkers</em> option tells the KDC to fork <em>numworkers</em>
 processes to listen to the KDC ports and process requests in parallel.
 The top level KDC process (whose pid is recorded in the pid file if
@@ -120,15 +118,8 @@ the <strong>-P</strong> option is also given) acts as a supervisor.  The supervi
 will relay SIGHUP signals to the worker subprocesses, and will
 terminate the worker subprocess if the it is itself terminated or if
 any other worker process exits.</p>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">On operating systems which do not have <em>pktinfo</em> support,
-using worker processes will prevent the KDC from listening
-for UDP packets on network interfaces created after the KDC
-starts.</p>
-</div>
 <p>The <strong>-x</strong> <em>db_args</em> option specifies database-specific arguments.
-See <a class="reference internal" href="kadmin_local.html#dboptions"><em>Database Options</em></a> in <a class="reference internal" href="kadmin_local.html#kadmin-1"><em>kadmin</em></a> for
+See <a class="reference internal" href="kadmin_local.html#dboptions"><span class="std std-ref">Database Options</span></a> in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for
 supported arguments.</p>
 <p>The <strong>-T</strong> <em>offset</em> option specifies a time offset, in seconds, which
 the KDC will operate under.  It is intended only for testing purposes.</p>
@@ -140,29 +131,26 @@ The realms are listed on the command line.  Per-realm options that can
 be specified on the command line pertain for each realm that follows
 it and are superseded by subsequent definitions of the same option.</p>
 <p>For example:</p>
-<div class="highlight-python"><div class="highlight"><pre>krb5kdc -p 2001 -r REALM1 -p 2002 -r REALM2 -r REALM3
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">krb5kdc</span> <span class="o">-</span><span class="n">p</span> <span class="mi">2001</span> <span class="o">-</span><span class="n">r</span> <span class="n">REALM1</span> <span class="o">-</span><span class="n">p</span> <span class="mi">2002</span> <span class="o">-</span><span class="n">r</span> <span class="n">REALM2</span> <span class="o">-</span><span class="n">r</span> <span class="n">REALM3</span>
 </pre></div>
 </div>
 <p>specifies that the KDC listen on port 2001 for REALM1 and on port 2002
 for REALM2 and REALM3.  Additionally, per-realm parameters may be
-specified in the <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> file.  The location of this file
+specified in the <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file.  The location of this file
 may be specified by the <strong>KRB5_KDC_PROFILE</strong> environment variable.
 Per-realm parameters specified in this file take precedence over
-options specified on the command line.  See the <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>
+options specified on the command line.  See the <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>
 description for further details.</p>
 </div>
 <div class="section" id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
-<p>krb5kdc uses the following environment variables:</p>
-<ul class="simple">
-<li><strong>KRB5_CONFIG</strong></li>
-<li><strong>KRB5_KDC_PROFILE</strong></li>
-</ul>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>, <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>, <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>,
-<a class="reference internal" href="kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a></p>
+<p><a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>,
+<a class="reference internal" href="kdb5_ldap_util.html#kdb5-ldap-util-8"><span class="std std-ref">kdb5_ldap_util</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </div>
 </div>
 
@@ -194,6 +182,7 @@ description for further details.</p>
 <li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
@@ -201,6 +190,8 @@ description for further details.</p>
 <li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
@@ -210,7 +201,7 @@ description for further details.</p>
 <li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="">krb5kdc</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">krb5kdc</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
@@ -253,8 +244,8 @@ description for further details.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

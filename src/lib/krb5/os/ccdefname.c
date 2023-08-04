@@ -39,7 +39,7 @@ static int get_from_registry_indirect(char *name_buf, int name_size)
      * [HKEY_CURRENT_USER\Software\Gradient\DCE\Default\KRB5CCNAME]
      * to point at the cache file name (including the FILE: prefix).
      * By indirecting with the RegKRB5CCNAME entry in kerberos.ini,
-     * we can accomodate other versions that might set a registry
+     * we can accommodate other versions that might set a registry
      * variable.
      */
     char newkey[256];
@@ -300,7 +300,7 @@ krb5_cc_default_name(krb5_context context)
         return os_ctx->default_ccname;
 
     /* Try the environment variable first. */
-    envstr = getenv(KRB5_ENV_CCNAME);
+    envstr = secure_getenv(KRB5_ENV_CCNAME);
     if (envstr != NULL) {
         os_ctx->default_ccname = strdup(envstr);
         return os_ctx->default_ccname;

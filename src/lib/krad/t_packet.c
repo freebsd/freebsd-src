@@ -57,6 +57,14 @@ make_packet(krb5_context ctx, const krb5_data *username,
     krb5_error_code retval;
     const krb5_data *data;
     int i = 0;
+    krb5_data nas_id;
+
+    nas_id = string2data("12345678901234567890123456789012345678901234567890"
+                         "12345678901234567890123456789012345678901234567890"
+                         "12345678901234567890123456789012345678901234567890"
+                         "12345678901234567890123456789012345678901234567890"
+                         "12345678901234567890123456789012345678901234567890"
+                         "123");
 
     retval = krad_attrset_new(ctx, &set);
     if (retval != 0)
@@ -68,6 +76,11 @@ make_packet(krb5_context ctx, const krb5_data *username,
 
     retval = krad_attrset_add(set, krad_attr_name2num("User-Password"),
                               password);
+    if (retval != 0)
+        goto out;
+
+    retval = krad_attrset_add(set, krad_attr_name2num("NAS-Identifier"),
+                              &nas_id);
     if (retval != 0)
         goto out;
 

@@ -4,18 +4,17 @@ BUILDTOP=$(REL)..
 SPHINX_BUILD=sphinx-build
 GROFF=@GROFF@
 GROFF_MAN=$(GROFF) -mtty-char -Tascii -mandoc -c
-localstatedir=@localstatedir@
-runstatedir=@runstatedir@
 sysconfdir=@sysconfdir@
 DEFCCNAME=@DEFCCNAME@
 DEFKTNAME=@DEFKTNAME@
 DEFCKTNAME=@DEFCKTNAME@
+PKCS11_MODNAME=@PKCS11_MODNAME@
 
 MANSUBS=k5identity.sub k5login.sub k5srvutil.sub kadm5.acl.sub kadmin.sub \
 	kadmind.sub kdb5_ldap_util.sub kdb5_util.sub kdc.conf.sub \
 	kdestroy.sub kinit.sub klist.sub kpasswd.sub kprop.sub kpropd.sub \
 	kproplog.sub krb5.conf.sub krb5-config.sub krb5kdc.sub ksu.sub \
-	kswitch.sub ktutil.sub kvno.sub sclient.sub sserver.sub
+	kswitch.sub ktutil.sub kvno.sub sclient.sub sserver.sub kerberos.sub
 
 docsrc=$(top_srcdir)/../doc
 
@@ -49,16 +48,19 @@ $(docsrc)/version.py: $(top_srcdir)/patchlevel.h
 	    -e 's|@SYSCONFDIR@|$(sysconfdir)|g' \
 	    -e 's|@CCNAME@|$(DEFCCNAME)|g' \
 	    -e 's|@KTNAME@|$(DEFKTNAME)|g' \
-	    -e 's|@CKTNAME@|$(DEFCKTNAME)|g' $? > $@
+	    -e 's|@CKTNAME@|$(DEFCKTNAME)|g' \
+	    -e 's|@PKCS11MOD@|$(PKCS11_MODNAME)|g' $? > $@
 
 all: $(MANSUBS)
 
 clean:
 	rm -rf $(MANSUBS) rst_man
 
-install: install-clientman install-fileman install-adminman install-serverman
+install: install-clientman install-fileman install-adminman \
+	install-overviewman install-serverman
 
-install-catman: install-clientcat install-filecat install-admincat install-servercat
+install-catman: install-clientcat install-filecat install-admincat \
+	install-overviewcat install-servercat
 
 install-clientman:
 	$(INSTALL_DATA) k5srvutil.sub $(DESTDIR)$(CLIENT_MANDIR)/k5srvutil.1
@@ -84,6 +86,9 @@ install-fileman:
 	$(INSTALL_DATA) kadm5.acl.sub $(DESTDIR)$(FILE_MANDIR)/kadm5.acl.5
 	$(INSTALL_DATA) kdc.conf.sub $(DESTDIR)$(FILE_MANDIR)/kdc.conf.5
 	$(INSTALL_DATA) krb5.conf.sub $(DESTDIR)$(FILE_MANDIR)/krb5.conf.5
+
+install-overviewman:
+	$(INSTALL_DATA) kerberos.sub $(DESTDIR)$(OVERVIEW_MANDIR)/kerberos.7
 
 install-adminman:
 	$(INSTALL_DATA) $(srcdir)/kadmin.local.8 \
@@ -126,6 +131,9 @@ install-filecat:
 	$(GROFF_MAN) kadm5.acl.sub > $(DESTDIR)$(FILE_CATDIR)/kadm5.acl.5
 	$(GROFF_MAN) kdc.conf.sub > $(DESTDIR)$(FILE_CATDIR)/kdc.conf.5
 	$(GROFF_MAN) krb5.conf.sub > $(DESTDIR)$(FILE_CATDIR)/krb5.conf.5
+
+install-overviewcat:
+	$(GROFF_MAN) kerberos.sub > $(DESTDIR)$(OVERVIEW_CATDIR)/kerberos.7
 
 install-admincat:
 	($(RM) $(DESTDIR)$(ADMIN_CATDIR)/kadmin.local.8; \

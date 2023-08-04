@@ -67,16 +67,10 @@ void *alloca ();
 
 #include <sys/types.h>
 
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#else
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
+#endif
 #include <time.h>
-#endif
-#endif
 
 #ifdef timezone
 #undef timezone /* needed for sgi */
@@ -176,20 +170,20 @@ static time_t	yyRelSeconds;
 
 %}
 
-/* Mute shift/reduce warning as per header comment. */
-%expect 4
+/* This would mute the shift/reduce warnings as per header comment; however,
+ * it relies on bison extensions. */
+/* %expect 4 */
 
 %union {
     time_t		Number;
     enum _MERIDIAN	Meridian;
 }
 
-%token	tAGO tDAY tDAYZONE tID tMERIDIAN tMINUTE_UNIT tMONTH tMONTH_UNIT
-%token	tSEC_UNIT tSNUMBER tUNUMBER tZONE tDST tNEVER
-
-%type	<Number>	tDAY tDAYZONE tMINUTE_UNIT tMONTH tMONTH_UNIT
-%type	<Number>	tSEC_UNIT tSNUMBER tUNUMBER tZONE
-%type	<Meridian>	tMERIDIAN o_merid
+%token			tAGO tID tDST tNEVER
+%token	<Number>	tDAY tDAYZONE tMINUTE_UNIT tMONTH tMONTH_UNIT
+%token	<Number>	tSEC_UNIT tSNUMBER tUNUMBER tZONE
+%token	<Meridian>	tMERIDIAN
+%type	<Meridian>	o_merid
 
 %%
 
@@ -689,9 +683,9 @@ RelativeMonth(time_t Start, time_t RelMonth)
 static int
 LookupWord(char *buff)
 {
-    register char	*p;
-    register char	*q;
-    register const TABLE	*tp;
+    char	*p;
+    char	*q;
+    const TABLE	*tp;
     int			i;
     int			abbrev;
 
@@ -786,8 +780,8 @@ LookupWord(char *buff)
 static int
 yylex()
 {
-    register char	c;
-    register char	*p;
+    char		c;
+    char		*p;
     char		buff[20];
     int			Count;
     int			sign;

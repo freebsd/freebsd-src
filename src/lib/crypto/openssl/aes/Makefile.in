@@ -1,6 +1,0 @@
-# Placeholder since all crypto modules must have the same structure.
-mydir=lib$(S)crypto$(S)openssl$(S)aes
-BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
-all-unix: all-libobjs
-clean-unix:: clean-libobjs
-@libobj_frag@

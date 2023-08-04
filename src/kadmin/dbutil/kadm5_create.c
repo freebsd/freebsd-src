@@ -68,28 +68,22 @@ static int add_admin_princs(void *handle, krb5_context context, char *realm);
 int kadm5_create(kadm5_config_params *params)
 {
     int retval;
-    krb5_context context;
-
     kadm5_config_params lparams;
-
-    if ((retval = kadm5_init_krb5_context(&context)))
-        exit(ERR);
 
     /*
      * The lock file has to exist before calling kadm5_init, but
      * params->admin_lockfile may not be set yet...
      */
-    if ((retval = kadm5_get_config_params(context, 1,
-                                          params, &lparams))) {
+    retval = kadm5_get_config_params(util_context, 1, params, &lparams);
+    if (retval) {
         com_err(progname, retval, _("while looking up the Kerberos "
                                     "configuration"));
         return 1;
     }
 
-    retval = kadm5_create_magic_princs(&lparams, context);
+    retval = kadm5_create_magic_princs(&lparams, util_context);
 
-    kadm5_free_config_params(context, &lparams);
-    krb5_free_context(context);
+    kadm5_free_config_params(util_context, &lparams);
 
     return retval;
 }
@@ -145,60 +139,18 @@ int kadm5_create_magic_princs(kadm5_config_params *params,
 static int add_admin_princs(void *handle, krb5_context context, char *realm)
 {
     krb5_error_code ret = 0;
-    char *service_name = 0, *kiprop_name = 0, *canonhost = 0;
-    char localname[MAXHOSTNAMELEN];
-
-    if (gethostname(localname, MAXHOSTNAMELEN)) {
-        ret = errno;
-        perror("gethostname");
-        goto clean_and_exit;
-    }
-    ret = krb5_expand_hostname(context, localname, &canonhost);
-    if (ret) {
-        com_err(progname, ret, _("while canonicalizing local hostname"));
-        goto clean_and_exit;
-    }
-    if (asprintf(&service_name, "kadmin/%s", canonhost) < 0) {
-        ret = ENOMEM;
-        fprintf(stderr, _("Out of memory\n"));
-        goto clean_and_exit;
-    }
-    if (asprintf(&kiprop_name, "kiprop/%s", canonhost) < 0) {
-        ret = ENOMEM;
-        fprintf(stderr, _("Out of memory\n"));
-        goto clean_and_exit;
-    }
-
-    if ((ret = add_admin_princ(handle, context,
-                               service_name, realm,
-                               KRB5_KDB_DISALLOW_TGT_BASED |
-                               KRB5_KDB_LOCKDOWN_KEYS,
-                               ADMIN_LIFETIME)))
-        goto clean_and_exit;
 
     if ((ret = add_admin_princ(handle, context,
                                KADM5_ADMIN_SERVICE, realm,
                                KRB5_KDB_DISALLOW_TGT_BASED |
                                KRB5_KDB_LOCKDOWN_KEYS,
                                ADMIN_LIFETIME)))
-        goto clean_and_exit;
+        return ret;
 
-    if ((ret = add_admin_princ(handle, context,
-                               KADM5_CHANGEPW_SERVICE, realm,
-                               KRB5_KDB_DISALLOW_TGT_BASED |
-                               KRB5_KDB_PWCHANGE_SERVICE |
-                               KRB5_KDB_LOCKDOWN_KEYS,
-                               CHANGEPW_LIFETIME)))
-        goto clean_and_exit;
-
-    ret = add_admin_princ(handle, context, kiprop_name, realm, 0, 0);
-
-clean_and_exit:
-    krb5_free_string(context, canonhost);
-    free(service_name);
-    free(kiprop_name);
-
-    return ret;
+    return add_admin_princ(handle, context, KADM5_CHANGEPW_SERVICE, realm,
+                           KRB5_KDB_DISALLOW_TGT_BASED |
+                           KRB5_KDB_PWCHANGE_SERVICE | KRB5_KDB_LOCKDOWN_KEYS,
+                           CHANGEPW_LIFETIME);
 }
 
 /*
@@ -233,21 +185,24 @@ clean_and_exit:
 int add_admin_princ(void *handle, krb5_context context,
                     char *name, char *realm, int attrs, int lifetime)
 {
-    char *fullname;
+    char *fullname = NULL;
     krb5_error_code ret;
     kadm5_principal_ent_rec ent;
     long flags;
+    int fret;
 
     memset(&ent, 0, sizeof(ent));
 
     if (asprintf(&fullname, "%s@%s", name, realm) < 0) {
         com_err(progname, ENOMEM, _("while appending realm to principal"));
-        return ERR;
+        fret = ERR;
+        goto cleanup;
     }
     ret = krb5_parse_name(context, fullname, &ent.principal);
     if (ret) {
         com_err(progname, ret, _("while parsing admin principal name"));
-        return(ERR);
+        fret = ERR;
+        goto cleanup;
     }
     ent.max_life = lifetime;
     ent.attributes = attrs;
@@ -258,13 +213,13 @@ int add_admin_princ(void *handle, krb5_context context,
     ret = kadm5_create_principal(handle, &ent, flags, NULL);
     if (ret && ret != KADM5_DUP) {
         com_err(progname, ret, _("while creating principal %s"), fullname);
-        krb5_free_principal(context, ent.principal);
-        free(fullname);
-        return ERR;
+        fret = ERR;
+        goto cleanup;
     }
 
+    fret = OK;
+cleanup:
     krb5_free_principal(context, ent.principal);
     free(fullname);
-
-    return OK;
+    return fret;
 }

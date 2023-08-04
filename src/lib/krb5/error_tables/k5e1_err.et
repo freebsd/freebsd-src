@@ -42,4 +42,6 @@ error_code KRB5_KCM_MALFORMED_REPLY, "Malformed reply from KCM daemon"
 error_code KRB5_KCM_RPC_ERROR, "Mach RPC error communicating with KCM daemon"
 error_code KRB5_KCM_REPLY_TOO_BIG, "KCM daemon reply too big"
 error_code KRB5_KCM_NO_SERVER, "No KCM server found"
+error_code KRB5_CERTAUTH_HWAUTH, "Authorize and set hw-authent ticket flag"
+error_code KRB5_CERTAUTH_HWAUTH_PASS, "Set hw-authent ticket flag but do not authorize"
 end

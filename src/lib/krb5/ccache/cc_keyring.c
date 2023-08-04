@@ -230,7 +230,6 @@ typedef struct _krcc_data
     key_serial_t collection_id; /* collection containing this cache keyring */
     key_serial_t cache_id;      /* keyring representing ccache */
     key_serial_t princ_id;      /* key holding principal info */
-    krb5_timestamp changetime;
     krb5_boolean is_legacy_type;
 } krcc_data;
 
@@ -274,8 +273,6 @@ static krb5_error_code save_time_offsets(krb5_context context, krb5_ccache id,
 static krb5_error_code get_time_offsets(krb5_context context, krb5_ccache id,
                                         int32_t *time_offset,
                                         int32_t *usec_offset);
-
-static void krcc_update_change_time(krcc_data *d);
 
 /* Note the following is a stub function for Linux */
 extern krb5_error_code krb5_change_cache(void);
@@ -765,7 +762,7 @@ update_keyring_expiration(krb5_context context, krb5_ccache id)
 
     /* Setting the timeout to zero would reset the timeout, so we set it to one
      * second instead if creds are already expired. */
-    timeout = ts_after(endtime, now) ? ts_delta(endtime, now) : 1;
+    timeout = ts_after(endtime, now) ? ts_interval(now, endtime) : 1;
     (void)keyctl_set_timeout(data->cache_id, timeout);
 }
 
@@ -850,7 +847,6 @@ clear_cache_keyring(krb5_context context, krb5_ccache id)
             return errno;
     }
     data->princ_id = 0;
-    krcc_update_change_time(data);
 
     return 0;
 }
@@ -1032,40 +1028,44 @@ krcc_next_cred(krb5_context context, krb5_ccache id, krb5_cc_cursor *cursor,
 
     memset(creds, 0, sizeof(krb5_creds));
 
-    /* The cursor has the entire list of keys.  (Note that we don't support
-     * remove_cred.) */
+    /* The cursor has the entire list of keys. */
     krcursor = *cursor;
     if (krcursor == NULL)
         return KRB5_CC_END;
 
-    /* If we're pointing past the end of the keys array, there are no more. */
-    if (krcursor->currkey >= krcursor->numkeys)
-        return KRB5_CC_END;
+    while (krcursor->currkey < krcursor->numkeys) {
+        /* If we're pointing at the entry with the principal, or at the key
+         * with the time offsets, skip it. */
+        if (krcursor->keys[krcursor->currkey] == krcursor->princ_id ||
+            krcursor->keys[krcursor->currkey] == krcursor->offsets_id) {
+            krcursor->currkey++;
+            continue;
+        }
 
-    /* If we're pointing at the entry with the principal, or at the key
-     * with the time offsets, skip it. */
-    while (krcursor->keys[krcursor->currkey] == krcursor->princ_id ||
-           krcursor->keys[krcursor->currkey] == krcursor->offsets_id) {
+        /* Read the key; the right size buffer will be allocated and
+         * returned. */
+        psize = keyctl_read_alloc(krcursor->keys[krcursor->currkey],
+                                  &payload);
+        if (psize != -1) {
+            krcursor->currkey++;
+
+            /* Unmarshal the cred using the file ccache version 4 format. */
+            ret = k5_unmarshal_cred(payload, psize, 4, creds);
+            free(payload);
+            return ret;
+        } else if (errno != ENOKEY && errno != EACCES) {
+            DEBUG_PRINT(("Error reading key %d: %s\n",
+                         krcursor->keys[krcursor->currkey], strerror(errno)));
+            return KRB5_FCC_NOFILE;
+        }
+
+        /* The current key was unlinked, probably by a remove_cred call; move
+         * on to the next one. */
         krcursor->currkey++;
-        /* Check if we have now reached the end */
-        if (krcursor->currkey >= krcursor->numkeys)
-            return KRB5_CC_END;
     }
 
-    /* Read the key; the right size buffer will be allocated and returned. */
-    psize = keyctl_read_alloc(krcursor->keys[krcursor->currkey], &payload);
-    if (psize == -1) {
-        DEBUG_PRINT(("Error reading key %d: %s\n",
-                     krcursor->keys[krcursor->currkey],
-                     strerror(errno)));
-        return KRB5_FCC_NOFILE;
-    }
-    krcursor->currkey++;
-
-    /* Unmarshal the credential using the file ccache version 4 format. */
-    ret = k5_unmarshal_cred(payload, psize, 4, creds);
-    free(payload);
-    return ret;
+    /* No more keys in keyring. */
+    return KRB5_CC_END;
 }
 
 /* Release an iteration cursor. */
@@ -1113,9 +1113,7 @@ make_krcc_data(const char *anchor_name, const char *collection_name,
     data->princ_id = 0;
     data->cache_id = cache_id;
     data->collection_id = collection_id;
-    data->changetime = 0;
     data->is_legacy_type = (strcmp(anchor_name, KRCC_LEGACY_ANCHOR) == 0);
-    krcc_update_change_time(data);
 
     *data_out = data;
     return 0;
@@ -1248,12 +1246,41 @@ krcc_retrieve(krb5_context context, krb5_ccache id,
                                        creds);
 }
 
-/* Non-functional stub for removing a cred from the cache keyring. */
+/* Remove a credential from the cache keyring. */
 static krb5_error_code KRB5_CALLCONV
 krcc_remove_cred(krb5_context context, krb5_ccache cache,
                  krb5_flags flags, krb5_creds *creds)
 {
-    return KRB5_CC_NOSUPP;
+    krb5_error_code ret;
+    krcc_data *data = cache->data;
+    krb5_cc_cursor cursor;
+    krb5_creds c;
+    krcc_cursor krcursor;
+    key_serial_t key;
+    krb5_boolean match;
+
+    ret = krcc_start_seq_get(context, cache, &cursor);
+    if (ret)
+        return ret;
+
+    for (;;) {
+        ret = krcc_next_cred(context, cache, &cursor, &c);
+        if (ret)
+            break;
+        match = krb5int_cc_creds_match_request(context, flags, creds, &c);
+        krb5_free_cred_contents(context, &c);
+        if (match) {
+            krcursor = cursor;
+            key = krcursor->keys[krcursor->currkey - 1];
+            if (keyctl_unlink(key, data->cache_id) == -1) {
+                ret = errno;
+                break;
+            }
+        }
+    }
+
+    krcc_end_seq_get(context, cache, &cursor);
+    return (ret == KRB5_CC_END) ? 0 : ret;
 }
 
 /* Set flags on the cache.  (We don't care about any flags.) */
@@ -1295,7 +1322,7 @@ krcc_store(krb5_context context, krb5_ccache id, krb5_creds *creds)
         goto errout;
 
     /* Serialize credential using the file ccache version 4 format. */
-    k5_buf_init_dynamic(&buf);
+    k5_buf_init_dynamic_zap(&buf);
     k5_marshal_cred(&buf, 4, creds);
     ret = k5_buf_status(&buf);
     if (ret)
@@ -1309,8 +1336,6 @@ krcc_store(krb5_context context, krb5_ccache id, krb5_creds *creds)
     if (ret)
         goto errout;
 
-    krcc_update_change_time(data);
-
     /* Set appropriate timeouts on cache keys. */
     ret = krb5_timeofday(context, &now);
     if (ret)
@@ -1318,7 +1343,7 @@ krcc_store(krb5_context context, krb5_ccache id, krb5_creds *creds)
 
     if (ts_after(creds->times.endtime, now)) {
         (void)keyctl_set_timeout(cred_key,
-                                 ts_delta(creds->times.endtime, now));
+                                 ts_interval(now, creds->times.endtime));
     }
 
     update_keyring_expiration(context, id);
@@ -1328,20 +1353,6 @@ errout:
     krb5_free_unparsed_name(context, keyname);
     k5_cc_mutex_unlock(context, &data->lock);
     return ret;
-}
-
-/* Get the cache's last modification time.  (This is currently broken; it
- * returns only the last change made using this handle.) */
-static krb5_error_code KRB5_CALLCONV
-krcc_last_change_time(krb5_context context, krb5_ccache id,
-                      krb5_timestamp *change_time)
-{
-    krcc_data *data = id->data;
-
-    k5_cc_mutex_lock(context, &data->lock);
-    *change_time = data->changetime;
-    k5_cc_mutex_unlock(context, &data->lock);
-    return 0;
 }
 
 /* Lock the cache handle against other threads.  (This does not lock the cache
@@ -1403,7 +1414,6 @@ save_principal(krb5_context context, krb5_ccache id, krb5_principal princ)
     } else {
         data->princ_id = newkey;
         ret = 0;
-        krcc_update_change_time(data);
     }
 
     k5_buf_free(&buf);
@@ -1430,7 +1440,6 @@ save_time_offsets(krb5_context context, krb5_ccache id, int32_t time_offset,
                      data->cache_id);
     if (newkey == -1)
         return errno;
-    krcc_update_change_time(data);
     return 0;
 }
 
@@ -1672,21 +1681,6 @@ cleanup:
 }
 
 /*
- * Utility routine: called by krcc_* functions to keep
- * result of krcc_last_change_time up to date.
- * Value monotonically increases -- based on but not guaranteed to be actual
- * system time.
- */
-
-static void
-krcc_update_change_time(krcc_data *data)
-{
-    krb5_timestamp now_time = time(NULL);
-    data->changetime = ts_after(now_time, data->changetime) ?
-        now_time : ts_incr(data->changetime, 1);
-}
-
-/*
  * ccache implementation storing credentials in the Linux keyring facility
  * The default is to put them at the session keyring level.
  * If "KEYRING:process:" or "KEYRING:thread:" is specified, then they will
@@ -1714,7 +1708,6 @@ const krb5_cc_ops krb5_krcc_ops = {
     krcc_ptcursor_next,
     krcc_ptcursor_free,
     NULL, /* move */
-    krcc_last_change_time, /* lastchange */
     NULL, /* wasdefault */
     krcc_lock,
     krcc_unlock,
@@ -1744,7 +1737,6 @@ const krb5_cc_ops krb5_krcc_ops = {
     NULL,
     NULL,
     NULL,                       /* added after 1.4 release */
-    NULL,
     NULL,
     NULL,
     NULL,

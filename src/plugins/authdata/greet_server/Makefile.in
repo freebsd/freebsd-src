@@ -6,7 +6,7 @@ LIBMAJOR=1
 LIBMINOR=0
 SHLIB_EXPDEPS = $(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT)
-SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(SUPPORT_LIB) $(LIBS)
+SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto $(SUPPORT_LIB) $(LIBS)
 
 STLIBOBJS= greet_auth.o
 

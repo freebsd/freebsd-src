@@ -55,7 +55,7 @@ gss_decapsulate_token(gss_const_buffer_t input_token,
     if (minor != 0)
         return GSS_S_DEFECTIVE_TOKEN;
 
-    output_token->value = malloc(body_size);
+    output_token->value = gssalloc_malloc(body_size);
     if (output_token->value == NULL)
         return GSS_S_FAILURE;
 

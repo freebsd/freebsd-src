@@ -26,7 +26,7 @@
 
 /*
  * Set ccache name used by gssapi, and optionally obtain old ccache
- * name.  Caller should not free returned name.
+ * name.  Caller must not free returned name.
  */
 
 #include <string.h>
@@ -38,11 +38,9 @@ gss_krb5int_ccache_name(OM_uint32 *minor_status,
                         const gss_OID desired_object,
                         const gss_buffer_t value)
 {
-    char *old_name = NULL;
     OM_uint32 err = 0;
-    OM_uint32 minor = 0;
-    char *gss_out_name;
     struct krb5_gss_ccache_name_req *req;
+    char *old_name, *cur_name = NULL;
 
     err = gss_krb5int_initialize_library();
     if (err) {
@@ -57,45 +55,33 @@ gss_krb5int_ccache_name(OM_uint32 *minor_status,
 
     req = (struct krb5_gss_ccache_name_req *)value->value;
 
-    gss_out_name = k5_getspecific(K5_KEY_GSS_KRB5_SET_CCACHE_OLD_NAME);
+    /* Our job is simple if the caller doesn't want the current name. */
+    if (req->out_name == NULL)
+        return kg_set_ccache_name(minor_status, req->name);
 
-    if (req->out_name) {
-        const char *tmp_name = NULL;
+    /* Fetch the current name and change it. */
+    kg_get_ccache_name(&err, &cur_name);
+    if (err)
+        goto cleanup;
+    kg_set_ccache_name(&err, req->name);
+    if (err)
+        goto cleanup;
 
-        if (!err) {
-            kg_get_ccache_name (&err, &tmp_name);
-        }
-        if (!err) {
-            old_name = gss_out_name;
-            gss_out_name = (char *)tmp_name;
-        }
-    }
-    /* If out_name was NULL, we keep the same gss_out_name value, and
-       don't free up any storage (leave old_name NULL).  */
+    /* Store the current name in a thread-specific variable.  Free that
+     * variable's previous contents. */
+    old_name = k5_getspecific(K5_KEY_GSS_KRB5_SET_CCACHE_OLD_NAME);
+    err = k5_setspecific(K5_KEY_GSS_KRB5_SET_CCACHE_OLD_NAME, cur_name);
+    if (err)
+        goto cleanup;
+    free(old_name);
 
-    if (!err)
-        kg_set_ccache_name (&err, req->name);
+    /* Give the caller an alias to the stored value. */
+    *req->out_name = cur_name;
+    cur_name = NULL;
+    err = 0;
 
-    minor = k5_setspecific(K5_KEY_GSS_KRB5_SET_CCACHE_OLD_NAME, gss_out_name);
-    if (minor) {
-        /* Um.  Now what?  */
-        if (err == 0) {
-            err = minor;
-        }
-        free(gss_out_name);
-        gss_out_name = NULL;
-    }
-
-    if (!err) {
-        if (req->out_name) {
-            *(req->out_name) = gss_out_name;
-        }
-    }
-
-    if (old_name != NULL) {
-        free (old_name);
-    }
-
+cleanup:
+    free(cur_name);
     *minor_status = err;
     return (*minor_status == 0) ? GSS_S_COMPLETE : GSS_S_FAILURE;
 }

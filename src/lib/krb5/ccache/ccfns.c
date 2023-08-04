@@ -80,33 +80,8 @@ krb5_error_code KRB5_CALLCONV
 krb5_cc_store_cred(krb5_context context, krb5_ccache cache,
                    krb5_creds *creds)
 {
-    krb5_error_code ret;
-    krb5_ticket *tkt;
-    krb5_principal s1, s2;
-
     TRACE_CC_STORE(context, cache, creds);
-    ret = cache->ops->store(context, cache, creds);
-    if (ret) return ret;
-
-    /*
-     * If creds->server and the server in the decoded ticket differ,
-     * store both principals.
-     */
-    s1 = creds->server;
-    ret = decode_krb5_ticket(&creds->ticket, &tkt);
-    /* Bail out on errors in case someone is storing a non-ticket. */
-    if (ret) return 0;
-    s2 = tkt->server;
-    if (!krb5_principal_compare(context, s1, s2)) {
-        creds->server = s2;
-        TRACE_CC_STORE_TKT(context, cache, creds);
-        /* remove any dups */
-        krb5_cc_remove_cred(context, cache, KRB5_TC_MATCH_AUTHDATA, creds);
-        ret = cache->ops->store(context, cache, creds);
-        creds->server = s1;
-    }
-    krb5_free_ticket(context, tkt);
-    return ret;
+    return cache->ops->store(context, cache, creds);
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -121,7 +96,8 @@ krb5_cc_retrieve_cred(krb5_context context, krb5_ccache cache,
     TRACE_CC_RETRIEVE(context, cache, mcreds, ret);
     if (ret != KRB5_CC_NOTFOUND)
         return ret;
-    if (!krb5_is_referral_realm(&mcreds->server->realm))
+    if (mcreds->client == NULL || mcreds->server == NULL ||
+        !krb5_is_referral_realm(&mcreds->server->realm))
         return ret;
 
     /*
@@ -189,21 +165,14 @@ krb5_cc_get_type(krb5_context context, krb5_ccache cache)
     return cache->ops->prefix;
 }
 
-krb5_error_code KRB5_CALLCONV
-krb5_cc_last_change_time(krb5_context context, krb5_ccache ccache,
-                         krb5_timestamp *change_time)
-{
-    return ccache->ops->lastchange(context, ccache, change_time);
-}
-
-krb5_error_code KRB5_CALLCONV
-krb5_cc_lock(krb5_context context, krb5_ccache ccache)
+krb5_error_code
+k5_cc_lock(krb5_context context, krb5_ccache ccache)
 {
     return ccache->ops->lock(context, ccache);
 }
 
-krb5_error_code KRB5_CALLCONV
-krb5_cc_unlock(krb5_context context, krb5_ccache ccache)
+krb5_error_code
+k5_cc_unlock(krb5_context context, krb5_ccache ccache)
 {
     return ccache->ops->unlock(context, ccache);
 }
@@ -328,4 +297,24 @@ krb5_cc_switch(krb5_context context, krb5_ccache cache)
     if (cache->ops->switch_to == NULL)
         return 0;
     return cache->ops->switch_to(context, cache);
+}
+
+krb5_error_code
+k5_cc_store_primary_cred(krb5_context context, krb5_ccache cache,
+                         krb5_creds *creds)
+{
+    krb5_error_code ret;
+
+    /* Write a start realm if we're writing a TGT and the client realm isn't
+     * the same as the TGS realm. */
+    if (IS_TGS_PRINC(creds->server) &&
+        !data_eq(creds->client->realm, creds->server->data[1])) {
+        ret = krb5_cc_set_config(context, cache, NULL,
+                                 KRB5_CC_CONF_START_REALM,
+                                 &creds->server->data[1]);
+        if (ret)
+            return ret;
+    }
+
+    return krb5_cc_store_cred(context, cache, creds);
 }

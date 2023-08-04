@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-PROXIABLE-data:
+
+KDC_OPT_PROXIABLE
+=================
+
+..
+.. data:: KDC_OPT_PROXIABLE
+..
+
+
+
+
+======================== ======================
+``KDC_OPT_PROXIABLE``       ``0x10000000``
+======================== ======================

@@ -76,13 +76,13 @@ test_locate_kdc(krb5_context ctx, char *realm)
 {
     struct serverlist servers;
     size_t i;
-    int get_masters = FALSE;
+    int get_primaries = FALSE;
     krb5_data rlm;
     krb5_error_code retval;
 
     rlm.data = realm;
     rlm.length = strlen(realm);
-    retval = k5_locate_kdc(ctx, &rlm, &servers, get_masters, FALSE);
+    retval = k5_locate_kdc(ctx, &rlm, &servers, get_primaries, FALSE);
     if (retval) {
         com_err("krb5_locate_kdc", retval, 0);
         return;

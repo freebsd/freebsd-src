@@ -1,7 +1,6 @@
 _kadm5_check_handle
 _kadm5_chpass_principal_util
 hist_princ
-kadm5_set_use_password_server
 kadm5_chpass_principal
 kadm5_chpass_principal_3
 kadm5_chpass_principal_util
@@ -45,7 +44,6 @@ kadm5_set_string
 kadm5_setkey_principal
 kadm5_setkey_principal_3
 kadm5_setkey_principal_4
-kadm5_setv4key_principal
 kadm5_unlock
 kdb_delete_entry
 kdb_free_entry
@@ -53,14 +51,12 @@ kdb_init_hist
 kdb_init_master
 kdb_iter_entry
 kdb_put_entry
-krb5_aprof_finish
 krb5_aprof_get_boolean
 krb5_aprof_get_deltat
 krb5_aprof_get_int32
 krb5_aprof_get_string
 krb5_aprof_get_string_all
 krb5_aprof_getvals
-krb5_aprof_init
 krb5_copy_key_data_contents
 krb5_flagnum_to_string
 krb5_flagspec_to_mask
@@ -71,6 +67,7 @@ krb5_keysalt_iterate
 krb5_klog_close
 krb5_klog_init
 krb5_klog_reopen
+krb5_klog_set_context
 krb5_klog_syslog
 krb5_string_to_keysalts
 master_db
@@ -132,7 +129,6 @@ xdr_rprinc_arg
 xdr_setkey3_arg
 xdr_setkey4_arg
 xdr_setkey_arg
-xdr_setv4key_arg
 xdr_sstring_arg
 xdr_ui_4
 kadm5_init_iprop

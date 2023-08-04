@@ -52,7 +52,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#if TARGET_OS_MAC
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__) || defined(__i386__) || defined(__x86_64__))
 #pragma pack(push,2)
 #endif
 
@@ -104,19 +104,19 @@ extern "C" {
  * \section introduction Introduction
  *
  * This is the specification for an API which provides Credentials Cache
- * services for both Kerberos v5 and v4. The idea behind this API is that
- * multiple Kerberos implementations can share a single collection of
- * credentials caches, mediated by this API specification. On the Mac OS
- * and Microsoft Windows platforms this will allow single-login, even when
- * more than one Kerberos shared library is in use on a particular system.
+ * services for Kerberos v5 (and previously v4). The idea behind this API is
+ * that multiple Kerberos implementations can share a single collection of
+ * credentials caches, mediated by this API specification. On the Mac OS and
+ * Microsoft Windows platforms this will allow single-login, even when more
+ * than one Kerberos shared library is in use on a particular system.
  *
  * Abstractly, a credentials cache collection contains one or more credentials
  * caches, or ccaches. A ccache is uniquely identified by its name, which is
  * a string internal to the API and not intended to be presented to users.
  * The user presentable identifier of a ccache is its principal.
  *
- * Unlike the previous versions of the API, version 3 of the API stores both
- * Kerberos v4 and v5 credentials in the same ccache.
+ * Unlike the previous versions of the API, version 3 of the API could store
+ * credentials for multiple Kerberos versions in the same ccache.
  *
  * At any given time, one ccache is the "default" ccache. The exact meaning
  * of a default ccache is OS-specific; refer to implementation requirements
@@ -305,10 +305,9 @@ enum {
 /*!
  * Credentials versions
  *
- * These constants are used in several places in the API to discern
- * between Kerberos v4 and Kerberos v5. Not all values are valid
- * inputs and outputs for all functions; function specifications
- * below detail the allowed values.
+ * These constants are used in several places in the API to discern Kerberos
+ * versions. Not all values are valid inputs and outputs for all functions;
+ * function specifications below detail the allowed values.
  *
  * Kerberos version constants will always be a bit-field, and can be
  * tested as such; for example the following test will tell you if
@@ -317,9 +316,9 @@ enum {
  * if ((ccacheVersion & cc_credentials_v5) != 0)
  */
 enum cc_credential_versions {
-    cc_credentials_v4 = 1,
+    /* cc_credentials_v4 = 1, */
     cc_credentials_v5 = 2,
-    cc_credentials_v4_v5 = 3
+    /* cc_credentials_v4_v5 = 3 */
 };
 
 /*!
@@ -351,29 +350,6 @@ enum cc_lock_types {
 enum cc_lock_modes {
     cc_lock_noblock = 0,
     cc_lock_block = 1
-};
-
-/*!
- * Sizes of fields in cc_credentials_v4_t.
- */
-enum {
-    /* Make sure all of these are multiples of four (for alignment sanity) */
-    cc_v4_name_size     = 40,
-    cc_v4_instance_size = 40,
-    cc_v4_realm_size    = 40,
-    cc_v4_ticket_size   = 1254,
-    cc_v4_key_size      = 8
-};
-
-/*!
- * String to key type (Kerberos v4 only)
- */
-enum cc_string_to_key_type {
-    cc_v4_stk_afs = 0,
-    cc_v4_stk_des = 1,
-    cc_v4_stk_columbia_special = 2,
-    cc_v4_stk_krb5 = 3,
-    cc_v4_stk_unknown = 4
 };
 
 /*!@}*/
@@ -482,15 +458,13 @@ typedef cc_ccache_iterator_d *cc_ccache_iterator_t;
  * \defgroup cc_credentials_reference cc_credentials_t Overview
  * @{
  *
- * The cc_credentials_t type is used to store a single set of
- * credentials for either Kerberos v4 or Kerberos v5. In addition
- * to its only function, release(), it contains a pointer to a
- * cc_credentials_union structure. A cc_credentials_union
+ * The cc_credentials_t type is used to store a single set of credentials for
+ * Kerberos v5. In addition to its only function, release(), it contains a
+ * pointer to a cc_credentials_union structure. A cc_credentials_union
  * structure contains an integer of the enumerator type
- * cc_credentials_version, which is either #cc_credentials_v4 or
- * #cc_credentials_v5, and a pointer union, which contains either a
- * cc_credentials_v4_t pointer or a cc_credentials_v5_t pointer,
- * depending on the value in version.
+ * cc_credentials_version, which is #cc_credentials_v5, and a pointer union,
+ * which contains a cc_credentials_v5_t pointer, depending on the value in
+ * version.
  *
  * Variables of the type cc_credentials_t are allocated by the CCAPI
  * implementation, and should be released with their release()
@@ -500,43 +474,6 @@ typedef cc_ccache_iterator_d *cc_ccache_iterator_t;
  *
  * For API functions see \ref cc_credentials_f.
  */
-
-/*!
- * If a cc_credentials_t variable is used to store Kerberos v4
- * credentials, then credentials.credentials_v4 points to a v4
- * credentials structure.  This structure is similar to a
- * krb4 API CREDENTIALS structure.
- */
-struct cc_credentials_v4_t {
-    cc_uint32       version;
-    /*! A properly quoted string representation of the first component of the client principal */
-    char            principal [cc_v4_name_size];
-    /*! A properly quoted string representation of the second component of the client principal */
-    char            principal_instance [cc_v4_instance_size];
-    /*! A properly quoted string representation of the first component of the service principal */
-    char            service [cc_v4_name_size];
-    /*! A properly quoted string representation of the second component of the service principal */
-    char            service_instance [cc_v4_instance_size];
-    /*! A properly quoted string representation of the realm */
-    char            realm [cc_v4_realm_size];
-    /*! Ticket session key */
-    unsigned char   session_key [cc_v4_key_size];
-    /*! Key version number */
-    cc_int32        kvno;
-    /*! String to key type used.  See cc_string_to_key_type for valid values */
-    cc_int32        string_to_key_type;
-    /*! Time when the ticket was issued */
-    cc_time_t       issue_date;
-    /*! Ticket lifetime in 5 minute units */
-    cc_int32        lifetime;
-    /*! IPv4 address of the client the ticket was issued for */
-    cc_uint32       address;
-    /*! Ticket size (no greater than cc_v4_ticket_size) */
-    cc_int32        ticket_size;
-    /*! Ticket data */
-    unsigned char   ticket [cc_v4_ticket_size];
-};
-typedef struct cc_credentials_v4_t cc_credentials_v4_t;
 
 /*!
  * The CCAPI data structure.  This structure is similar to a krb5_data structure.
@@ -602,8 +539,6 @@ struct cc_credentials_union {
     cc_uint32                   version;
     /*! The credentials. */
     union {
-        /*! If \a version is #cc_credentials_v4, a pointer to a cc_credentials_v4_t. */
-        cc_credentials_v4_t*    credentials_v4;
         /*! If \a version is #cc_credentials_v5, a pointer to a cc_credentials_v5_t. */
         cc_credentials_v5_t*    credentials_v5;
     }                           credentials;
@@ -781,13 +716,11 @@ struct cc_context_f {
      * \return On success, #ccNoError.  On failure, an error code representing the failure.
      * \brief \b cc_context_create_ccache(): Create a new ccache.
      *
-     * Create a new credentials cache. The ccache is uniquely identified by its name.
-     * The principal given is also associated with the ccache and the credentials
-     * version specified. A NULL name is not allowed (and ccErrBadName is returned
-     * if one is passed in). Only cc_credentials_v4 and cc_credentials_v5 are valid
-     * input values for cred_vers. If you want to create a new ccache that will hold
-     * both versions of credentials, call cc_context_create_ccache() with one version,
-     * and then cc_ccache_set_principal() with the other version.
+     * Create a new credentials cache. The ccache is uniquely identified by
+     * its name.  The principal given is also associated with the ccache and
+     * the credentials version specified. A NULL name is not allowed (and
+     * ccErrBadName is returned if one is passed in). Only cc_credentials_v5
+     * can be an input value for cred_vers.
      *
      * If you want to create a new ccache (with a unique name), you should use
      * cc_context_create_new_ccache() instead. If you want to create or reinitialize
@@ -814,10 +747,9 @@ struct cc_context_f {
      * cc_context_get_default_ccache_name()); see the description of
      * cc_context_get_default_ccache_name() for details.
      *
-     * The principal should be a C string containing an unparsed Kerberos principal
-     * in the format of the appropriate Kerberos version, i.e. \verbatim foo.bar/@BAZ
-     * \endverbatim for Kerberos v4 and \verbatim foo/bar/@BAZ \endverbatim
-     * for Kerberos v5.
+     * The principal should be a C string containing an unparsed Kerberos
+     * principal in the format of the appropriate Kerberos version,
+     * i.e. \verbatim foo/bar/@BAZ \endverbatim for Kerberos v5.
      */
     cc_int32 (*create_ccache) (cc_context_t  in_context,
                                const char   *in_name,
@@ -1014,14 +946,11 @@ struct cc_ccache_f {
      * \return On success, #ccNoError.  On failure, an error code representing the failure.
      * \brief \b cc_ccache_get_credentials_version(): Get the credentials version of a ccache.
      *
-     * cc_ccache_get_credentials_version() returns one value of the enumerated type
-     * cc_credentials_vers. The possible return values are #cc_credentials_v4
-     * (if ccache's v4 principal has been set), #cc_credentials_v5
-     * (if ccache's v5 principal has been set), or #cc_credentials_v4_v5
-     * (if both ccache's v4 and v5 principals have been set). A ccache's
-     * principal is set with one of cc_context_create_ccache(),
-     * cc_context_create_new_ccache(), cc_context_create_default_ccache(), or
-     * cc_ccache_set_principal().
+     * cc_ccache_get_credentials_version() returns one value of the enumerated
+     * type cc_credentials_vers. The return value is #cc_credentials_v5 (if
+     * ccache's v5 principal has been set).  A ccache's principal is set with
+     * one of cc_context_create_ccache(), cc_context_create_new_ccache(),
+     * cc_context_create_default_ccache(), or cc_ccache_set_principal().
      */
     cc_int32 (*get_credentials_version) (cc_ccache_t  in_ccache,
                                          cc_uint32   *out_credentials_version);
@@ -1046,10 +975,7 @@ struct cc_ccache_f {
      *
      * Return the principal for the ccache that was set via cc_context_create_ccache(),
      * cc_context_create_default_ccache(), cc_context_create_new_ccache(), or
-     * cc_ccache_set_principal(). Principals for v4 and v5 are separate, but
-     * should be kept synchronized for each ccache; they can be retrieved by
-     * passing cc_credentials_v4 or cc_credentials_v5 in cred_vers. Passing
-     * cc_credentials_v4_v5 will result in the error ccErrBadCredentialsVersion.
+     * cc_ccache_set_principal().
      */
     cc_int32 (*get_principal) (cc_ccache_t  in_ccache,
                                cc_uint32    in_credentials_version,
@@ -1063,10 +989,7 @@ struct cc_ccache_f {
      * \return On success, #ccNoError.  On failure, an error code representing the failure.
      * \brief \b cc_ccache_set_principal(): Set the principal of a ccache.
      *
-     * Set the a principal for ccache. The v4 and v5 principals can be set
-     * independently, but they should always be kept equal, up to differences in
-     * string representation between v4 and v5. Passing cc_credentials_v4_v5 in
-     * cred_vers will result in the error ccErrBadCredentialsVersion.
+     * Set the a principal for ccache.
      */
     cc_int32 (*set_principal) (cc_ccache_t  io_ccache,
                                cc_uint32    in_credentials_version,
@@ -1083,12 +1006,13 @@ struct cc_ccache_f {
      * See the description of the credentials types for the meaning of
      * cc_credentials_union fields.
      *
-     * Before credentials of a specific credential type can be stored in a ccache,
-     * the corresponding principal version has to be set. For example, before you can
-     * store Kerberos v4 credentials in a ccache, the Kerberos v4 principal has to be set
-     * either by cc_context_create_ccache(), cc_context_create_default_ccache(),
-     * cc_context_create_new_ccache(), or cc_ccache_set_principal(); likewise for
-     * Kerberos v5. Otherwise, ccErrBadCredentialsVersion is returned.
+     * Before credentials of a specific credential type can be stored in a
+     * ccache, the corresponding principal version has to be set.  That is,
+     * before you can store Kerberos v5 credentials in a ccache, the Kerberos
+     * v5 principal has to be set either by cc_context_create_ccache(),
+     * cc_context_create_default_ccache(), cc_context_create_new_ccache(), or
+     * cc_ccache_set_principal(); otherwise, ccErrBadCredentialsVersion is
+     * returned.
      */
     cc_int32 (*store_credentials) (cc_ccache_t                 io_ccache,
                                    const cc_credentials_union *in_credentials_union);
@@ -1594,7 +1518,7 @@ CCACHE_API cc_int32 cc_initialize (cc_context_t  *out_context,
     ((iterator) -> functions -> clone (iterator, new_iterator))
 /*!@}*/
 
-#if TARGET_OS_MAC
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__) || defined(__i386__) || defined(__x86_64__))
 #pragma pack(pop)
 #endif
 

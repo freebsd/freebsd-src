@@ -45,20 +45,6 @@ static int compare_v5_creds_unions_compat(const cred_union *a, const cred_union 
                 a->cred.pV5Cred->starttime == b->cred.pV5Cred->starttime) {
                 retval = 0;
             }
-        } else if (a->cred_type == CC_CRED_V4) {
-            if (!strcmp (a->cred.pV4Cred->principal,
-                         b->cred.pV4Cred->principal) &&
-                !strcmp (a->cred.pV4Cred->principal_instance,
-                         b->cred.pV4Cred->principal_instance) &&
-                !strcmp (a->cred.pV4Cred->service,
-                         b->cred.pV4Cred->service) &&
-                !strcmp (a->cred.pV4Cred->service_instance,
-                         b->cred.pV4Cred->service_instance) &&
-                !strcmp (a->cred.pV4Cred->realm,
-                         b->cred.pV4Cred->realm) &&
-                a->cred.pV4Cred->issue_date == b->cred.pV4Cred->issue_date) {
-                retval = 0;
-            }
         }
     }
 
@@ -361,10 +347,6 @@ int check_cc_open(void) {
             err = check_once_cc_open(context, name, CC_CRED_V5, &ccache, CC_NOERROR, NULL);
         }
 
-        // check version
-        if (!err) {
-            err = check_once_cc_open(context, name, CC_CRED_V4, &ccache, CC_ERR_CRED_VERSION, NULL);
-        }
         // try bad parameters
         err = check_once_cc_open(context, NULL, CC_CRED_V5, &ccache, CC_BAD_PARM, NULL);
         err = check_once_cc_open(context, name, CC_CRED_V5, NULL, CC_BAD_PARM, NULL);
@@ -681,17 +663,6 @@ int check_cc_get_cred_version(void) {
 
     err = CC_NOERROR;
 
-    // try one created with v4 creds
-    if (!err) {
-        err = cc_create(context, name, "foo@BAR.ORG", CC_CRED_V4, 0, &ccache);
-    }
-    if (!err) {
-        check_once_cc_get_cred_version(context, ccache, CC_CRED_V4, CC_NOERROR, "v4 creds");
-    }
-    else {
-        log_error("cc_context_create_new_ccache failed, can't complete test");
-        failure_count++;
-    }
     if (ccache) {
         cc_destroy(context, &ccache);
         ccache = NULL;
@@ -840,7 +811,6 @@ int check_cc_get_principal(void) {
     apiCB *context = NULL;
     ccache_p *ccache = NULL;
     char *name_v5 = "TEST_CC_GET_PRINCIPAL_V5";
-    char *name_v4 = "TEST_CC_GET_PRINCIPAL_V4";
 
     BEGIN_TEST("cc_get_principal");
 
@@ -864,18 +834,6 @@ int check_cc_get_principal(void) {
     if (ccache) {
         cc_close(context, &ccache);
         ccache = NULL;
-    }
-
-    // try with krb4 principal
-    if (!err) {
-        err = cc_create(context, name_v4, "foo.BAR@BAZ.ORG", CC_CRED_V4, 0, &ccache);
-    }
-    if (!err) {
-        check_once_cc_get_principal(context, ccache, "foo.BAR@BAZ.ORG", CC_NOERROR, "trying to get krb4 princ for krb4 ccache");
-    }
-    else {
-        log_error("cc_create failed, can't complete test");
-        failure_count++;
     }
 
     // try with bad param
@@ -945,7 +903,6 @@ int check_cc_set_principal(void) {
     apiCB *context = NULL;
     ccache_p *ccache = NULL;
     char *name_v5 = "TEST_CC_GET_PRINCIPAL_V5";
-    char *name_v4 = "TEST_CC_GET_PRINCIPAL_V4";
 
     BEGIN_TEST("cc_set_principal");
 
@@ -972,37 +929,6 @@ int check_cc_set_principal(void) {
         ccache = NULL;
     }
 
-    // empty ccache
-
-    // replace v5 ccache's principal
-    if (!err) {
-        err = cc_create(context, name_v5, "foo@BAZ.ORG", CC_CRED_V5, 0, &ccache);
-     }
-    if (!err) {
-        check_once_cc_set_principal(context, ccache, CC_CRED_V5, "foo/BAZ@BAR.ORG", CC_NOERROR, "replace v5 only ccache's principal (empty ccache)");
-        check_once_cc_set_principal(context, ccache, CC_CRED_V4, "foo.BAZ@BAR.ORG", CC_ERR_CRED_VERSION, "replace v5 principal with v4");
-    }
-    else {
-        log_error("cc_create failed, can't complete test");
-        failure_count++;
-    }
-    if (ccache) {
-        cc_destroy(context, &ccache);
-        ccache = NULL;
-    }
-
-    // replace v4 ccache's principal
-    if (!err) {
-        err = cc_create(context, name_v4, "foo@BAZ.ORG", CC_CRED_V4, 0, &ccache);
-    }
-    if (!err) {
-        check_once_cc_set_principal(context, ccache, CC_CRED_V4, "foo.BAZ@BAR.ORG", CC_NOERROR, "replace v4 only ccache's principal (empty ccache)");
-        check_once_cc_set_principal(context, ccache, CC_CRED_V5, "foo/BAZ@BAR.ORG", CC_ERR_CRED_VERSION, "replace v4 principal with v5");
-    }
-    else {
-        log_error("cc_create failed, can't complete test");
-        failure_count++;
-    }
     if (ccache) {
         cc_destroy(context, &ccache);
         ccache = NULL;
@@ -1097,21 +1023,6 @@ int check_cc_store(void) {
                 creds_union.cred.pV5Cred->client = NULL;
             }
             check_once_cc_store(context, ccache, creds_union, CC_BAD_PARM, "invalid creds (NULL client string)");
-
-            release_v5_creds_union_compat(&creds_union);
-        }
-    }
-
-    // bad creds version
-    if (!err) {
-        err = new_v5_creds_union_compat(&creds_union, "BAR.ORG");
-
-        if (!err) {
-            creds_union.cred_type = CC_CRED_MAX;
-            check_once_cc_store(context, ccache, creds_union, CC_ERR_CRED_VERSION, "CC_CRED_MAX (invalid) into a ccache with only v5 princ");
-            creds_union.cred_type = CC_CRED_V4;
-            check_once_cc_store(context, ccache, creds_union, CC_ERR_CRED_VERSION, "v4 creds into a v5 ccache");
-            creds_union.cred_type = CC_CRED_V5;
 
             release_v5_creds_union_compat(&creds_union);
         }

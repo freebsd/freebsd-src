@@ -98,6 +98,7 @@
  */
 
 #include "k5-int.h"
+#include "k5-input.h"
 #include "gssapiP_krb5.h"
 #ifdef HAVE_MEMORY_H
 #include <memory.h>
@@ -215,7 +216,7 @@ rd_and_store_for_creds(context, auth_context, inbuf, out_cred)
     if ((retval = krb5_cc_initialize(context, ccache, creds[0]->client)))
         goto cleanup;
 
-    if ((retval = krb5_cc_store_cred(context, ccache, creds[0])))
+    if ((retval = k5_cc_store_primary_cred(context, ccache, creds[0])))
         goto cleanup;
 
     /* generate a delegated credential handle */
@@ -352,8 +353,8 @@ kg_accept_dce(minor_status, context_handle, verifier_cred_handle,
         *mech_type = ctx->mech_used;
 
     if (time_rec) {
-        *time_rec = ts_delta(ctx->krb_times.endtime, now) +
-            ctx->k5_context->clockskew;
+        *time_rec = ts_interval(ts_incr(now, -ctx->k5_context->clockskew),
+                                ctx->krb_times.endtime);
     }
 
     /* Never return GSS_C_DELEG_FLAG since we don't support DCE credential
@@ -413,6 +414,228 @@ kg_process_extension(krb5_context context,
     return code;
 }
 
+/* The length of the MD5 channel bindings in an 0x8003 checksum */
+#define CB_MD5_LEN 16
+
+/* The minimum length of an 0x8003 checksum value (4-byte channel bindings
+ * length, 16-byte channel bindings, 4-byte flags) */
+#define MIN_8003_LEN (4 + CB_MD5_LEN + 4)
+
+/* The flags we accept from the initiator's authenticator checksum. */
+#define INITIATOR_FLAGS (GSS_C_INTEG_FLAG | GSS_C_CONF_FLAG |           \
+                         GSS_C_MUTUAL_FLAG | GSS_C_REPLAY_FLAG |        \
+                         GSS_C_SEQUENCE_FLAG | GSS_C_DCE_STYLE |        \
+                         GSS_C_IDENTIFY_FLAG | GSS_C_EXTENDED_ERROR_FLAG)
+
+/* A zero-value channel binding, for comparison */
+static const uint8_t null_cb[CB_MD5_LEN];
+
+/* Look for AP_OPTIONS in authdata.  If present and the options include
+ * KERB_AP_OPTIONS_CBT, set *cbt_out to true. */
+static krb5_error_code
+check_cbt(krb5_context context, krb5_authdata *const *authdata,
+          krb5_boolean *cbt_out)
+{
+    krb5_error_code code;
+    krb5_authdata **ad;
+    uint32_t ad_ap_options;
+    const uint32_t KERB_AP_OPTIONS_CBT = 0x4000;
+
+    *cbt_out = FALSE;
+
+    code = krb5_find_authdata(context, NULL, authdata,
+                              KRB5_AUTHDATA_AP_OPTIONS, &ad);
+    if (code || ad == NULL)
+        return code;
+    if (ad[1] != NULL || ad[0]->length != 4) {
+        code = KRB5KRB_AP_ERR_MSG_TYPE;
+    } else {
+        ad_ap_options = load_32_le(ad[0]->contents);
+        if (ad_ap_options & KERB_AP_OPTIONS_CBT)
+            *cbt_out = TRUE;
+    }
+
+    krb5_free_authdata(context, ad);
+    return code;
+}
+
+/*
+ * The krb5 GSS mech appropriates the authenticator checksum field from RFC
+ * 4120 to store structured data instead of a checksum, indicated with checksum
+ * type 0x8003 (see RFC 4121 section 4.1.1).  Some implementations instead send
+ * no checksum, or a regular checksum over empty data.
+ *
+ * Interpret the checksum.  Read delegated creds into *deleg_out if it is not
+ * NULL.  Set *flags_out to the allowed subset of token flags, plus
+ * GSS_C_DELEG_FLAG if a delegated credential was present and
+ * GSS_C_CHANNEL_BOUND_FLAG if matching channel bindings are present.  Process
+ * any extensions found using exts.  On error, set *code_out to a krb5_error
+ * code for use as a minor status value.
+ */
+static OM_uint32
+process_checksum(OM_uint32 *minor_status, krb5_context context,
+                 gss_channel_bindings_t acceptor_cb,
+                 krb5_auth_context auth_context, krb5_flags ap_req_options,
+                 krb5_authenticator *authenticator, krb5_gss_ctx_ext_t exts,
+                 krb5_gss_cred_id_t *deleg_out, krb5_ui_4 *flags_out,
+                 krb5_error_code *code_out)
+{
+    krb5_error_code code = 0;
+    OM_uint32 status, option_id, token_flags;
+    size_t cb_len, option_len;
+    krb5_boolean valid, client_cbt, token_cb_present = FALSE, cb_match = FALSE;
+    krb5_key subkey;
+    krb5_data option, empty = empty_data();
+    krb5_checksum cb_cksum;
+    const uint8_t *token_cb, *option_bytes;
+    struct k5input in;
+    const krb5_checksum *cksum = authenticator->checksum;
+
+    cb_cksum.contents = NULL;
+
+    if (cksum == NULL) {
+        /*
+         * Some SMB client implementations use handcrafted GSSAPI code that
+         * does not provide a checksum.  MS-KILE documents that the Microsoft
+         * implementation considers a missing checksum acceptable; the server
+         * assumes all flags are unset in this case, and does not check channel
+         * bindings.
+         */
+        *flags_out = 0;
+    } else if (cksum->checksum_type != CKSUMTYPE_KG_CB) {
+        /* Samba sends a regular checksum. */
+        code = krb5_auth_con_getkey_k(context, auth_context, &subkey);
+        if (code) {
+            status = GSS_S_FAILURE;
+            goto fail;
+        }
+
+        /* Verifying the checksum ensures that this authenticator wasn't
+         * replayed from one with a checksum over actual data. */
+        code = krb5_k_verify_checksum(context, subkey,
+                                      KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM, &empty,
+                                      cksum, &valid);
+        krb5_k_free_key(context, subkey);
+        if (code || !valid) {
+            status = GSS_S_BAD_SIG;
+            goto fail;
+        }
+
+        /* Use ap_options from the request to guess the mutual flag. */
+        *flags_out = GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG;
+        if (ap_req_options & AP_OPTS_MUTUAL_REQUIRED)
+            *flags_out |= GSS_C_MUTUAL_FLAG;
+    } else {
+        /* The checksum must contain at least a fixed 24-byte part. */
+        if (cksum->length < MIN_8003_LEN) {
+            status = GSS_S_BAD_BINDINGS;
+            goto fail;
+        }
+
+        k5_input_init(&in, cksum->contents, cksum->length);
+        cb_len = k5_input_get_uint32_le(&in);
+        if (cb_len != CB_MD5_LEN) {
+            code = KG_BAD_LENGTH;
+            status = GSS_S_FAILURE;
+            goto fail;
+        }
+
+        token_cb = k5_input_get_bytes(&in, cb_len);
+        if (acceptor_cb != GSS_C_NO_CHANNEL_BINDINGS) {
+            code = kg_checksum_channel_bindings(context, acceptor_cb,
+                                                &cb_cksum);
+            if (code) {
+                status = GSS_S_BAD_BINDINGS;
+                goto fail;
+            }
+            assert(cb_cksum.length == cb_len);
+            token_cb_present = (k5_bcmp(token_cb, null_cb, cb_len) != 0);
+            cb_match = (k5_bcmp(token_cb, cb_cksum.contents, cb_len) == 0);
+            if (token_cb_present && !cb_match) {
+                status = GSS_S_BAD_BINDINGS;
+                goto fail;
+            }
+        }
+
+        /* Read the token flags and accept some of them as context flags. */
+        token_flags = k5_input_get_uint32_le(&in);
+        *flags_out = token_flags & INITIATOR_FLAGS;
+        if (cb_match)
+            *flags_out |= GSS_C_CHANNEL_BOUND_FLAG;
+
+        /* Read the delegated credential if present. */
+        if (in.len >= 4 && (token_flags & GSS_C_DELEG_FLAG)) {
+            option_id = k5_input_get_uint16_le(&in);
+            option_len = k5_input_get_uint16_le(&in);
+            option_bytes = k5_input_get_bytes(&in, option_len);
+            option = make_data((uint8_t *)option_bytes, option_len);
+            if (in.status) {
+                code = KG_BAD_LENGTH;
+                status = GSS_S_FAILURE;
+                goto fail;
+            }
+            if (option_id != KRB5_GSS_FOR_CREDS_OPTION) {
+                status = GSS_S_FAILURE;
+                goto fail;
+            }
+
+            /* Store the delegated credential. */
+            code = rd_and_store_for_creds(context, auth_context, &option,
+                                          deleg_out);
+            if (code) {
+                status = GSS_S_FAILURE;
+                goto fail;
+            }
+            *flags_out |= GSS_C_DELEG_FLAG;
+        }
+
+        /* Process any extensions at the end of the checksum.  Extensions use
+         * 4-byte big-endian tag and length instead of 2-byte little-endian. */
+        while (in.len > 0) {
+            option_id = k5_input_get_uint32_be(&in);
+            option_len = k5_input_get_uint32_be(&in);
+            option_bytes = k5_input_get_bytes(&in, option_len);
+            option = make_data((uint8_t *)option_bytes, option_len);
+            if (in.status) {
+                code = KG_BAD_LENGTH;
+                status = GSS_S_FAILURE;
+                goto fail;
+            }
+
+            code = kg_process_extension(context, auth_context, option_id,
+                                        &option, exts);
+            if (code) {
+                status = GSS_S_FAILURE;
+                goto fail;
+            }
+        }
+    }
+
+    /*
+     * If the client asserts the KERB_AP_OPTIONS_CBT flag (from MS-KILE) in the
+     * authenticator authdata, and the acceptor passed channel bindings,
+     * require matching channel bindings from the client.  The intent is to
+     * prevent an authenticator generated for use outside of a TLS channel from
+     * being used inside of one.
+     */
+    code = check_cbt(context, authenticator->authorization_data, &client_cbt);
+    if (code) {
+        status = GSS_S_FAILURE;
+        goto fail;
+    }
+    if (client_cbt && acceptor_cb != GSS_C_NO_CHANNEL_BINDINGS && !cb_match) {
+        status = GSS_S_BAD_BINDINGS;
+        goto fail;
+    }
+
+    status = GSS_S_COMPLETE;
+
+fail:
+    free(cb_cksum.contents);
+    *code_out = code;
+    return status;
+}
+
 static OM_uint32
 kg_accept_krb5(minor_status, context_handle,
                verifier_cred_handle, input_token,
@@ -433,17 +656,12 @@ kg_accept_krb5(minor_status, context_handle,
     krb5_gss_ctx_ext_t exts;
 {
     krb5_context context;
-    unsigned char *ptr, *ptr2;
-    char *sptr;
-    OM_uint32 tmp;
-    size_t md5len;
+    unsigned char *ptr;
     krb5_gss_cred_id_t cred = 0;
     krb5_data ap_rep, ap_req;
-    unsigned int i;
     krb5_error_code code;
     krb5_address addr, *paddr;
     krb5_authenticator *authdat = 0;
-    krb5_checksum reqcksum;
     krb5_gss_name_t name = NULL;
     krb5_ui_4 gss_flags = 0;
     krb5_gss_ctx_id_rec *ctx = NULL;
@@ -451,10 +669,8 @@ kg_accept_krb5(minor_status, context_handle,
     gss_buffer_desc token;
     krb5_auth_context auth_context = NULL;
     krb5_ticket * ticket = NULL;
-    int option_id;
-    krb5_data option;
     const gss_OID_desc *mech_used = NULL;
-    OM_uint32 major_status = GSS_S_FAILURE;
+    OM_uint32 major_status;
     OM_uint32 tmp_minor_status;
     krb5_error krb_error_data;
     krb5_data scratch;
@@ -463,12 +679,11 @@ kg_accept_krb5(minor_status, context_handle,
     krb5int_access kaccess;
     int cred_rcache = 0;
     int no_encap = 0;
-    int token_deleg_flag = 0;
     krb5_flags ap_req_options = 0;
     krb5_enctype negotiated_etype;
     krb5_authdata_context ad_context = NULL;
-    krb5_principal accprinc = NULL;
     krb5_ap_req *request = NULL;
+    struct k5buf buf;
 
     code = krb5int_accessor (&kaccess, KRB5INT_ACCESS_VERSION);
     if (code) {
@@ -489,7 +704,6 @@ kg_accept_krb5(minor_status, context_handle,
     output_token->length = 0;
     output_token->value = NULL;
     token.value = 0;
-    reqcksum.contents = 0;
     ap_req.data = 0;
     ap_rep.data = 0;
 
@@ -573,16 +787,13 @@ kg_accept_krb5(minor_status, context_handle,
     } else if (code == G_BAD_TOK_HEADER) {
         /* DCE style not encapsulated */
         ap_req.length = input_token->length;
-        ap_req.data = input_token->value;
         mech_used = gss_mech_krb5;
         no_encap = 1;
     } else {
         major_status = GSS_S_DEFECTIVE_TOKEN;
         goto fail;
     }
-
-    sptr = (char *) ptr;
-    TREAD_STR(sptr, ap_req.data, ap_req.length);
+    ap_req.data = (char *)ptr;
 
     /* construct the sender_addr */
 
@@ -634,17 +845,9 @@ kg_accept_krb5(minor_status, context_handle,
         }
     }
 
-    if (!cred->default_identity) {
-        if ((code = kg_acceptor_princ(context, cred->name, &accprinc))) {
-            major_status = GSS_S_FAILURE;
-            goto fail;
-        }
-    }
-
-    code = krb5_rd_req_decoded(context, &auth_context, request, accprinc,
-                               cred->keytab, &ap_req_options, NULL);
-
-    krb5_free_principal(context, accprinc);
+    code = krb5_rd_req_decoded(context, &auth_context, request,
+                               cred->acceptor_mprinc, cred->keytab,
+                               &ap_req_options, NULL);
     if (code) {
         major_status = GSS_S_FAILURE;
         goto fail;
@@ -654,206 +857,14 @@ kg_accept_krb5(minor_status, context_handle,
 
     krb5_auth_con_getauthenticator(context, auth_context, &authdat);
 
-#if 0
-    /* make sure the necessary parts of the authdat are present */
+    major_status = process_checksum(minor_status, context, input_chan_bindings,
+                                    auth_context, ap_req_options,
+                                    authdat, exts,
+                                    delegated_cred_handle ? &deleg_cred : NULL,
+                                    &gss_flags, &code);
 
-    if ((authdat->authenticator->subkey == NULL) ||
-        (authdat->ticket->enc_part2 == NULL)) {
-        code = KG_NO_SUBKEY;
-        major_status = GSS_S_FAILURE;
+    if (major_status != GSS_S_COMPLETE)
         goto fail;
-    }
-#endif
-
-    if (authdat->checksum == NULL) {
-        /*
-         * Some SMB client implementations use handcrafted GSSAPI code that
-         * does not provide a checksum.  MS-KILE documents that the Microsoft
-         * implementation considers a missing checksum acceptable; the server
-         * assumes all flags are unset in this case, and does not check channel
-         * bindings.
-         */
-        gss_flags = 0;
-    } else if (authdat->checksum->checksum_type != CKSUMTYPE_KG_CB) {
-        /* Samba does not send 0x8003 GSS-API checksums */
-        krb5_boolean valid;
-        krb5_key subkey;
-        krb5_data zero;
-
-        code = krb5_auth_con_getkey_k(context, auth_context, &subkey);
-        if (code) {
-            major_status = GSS_S_FAILURE;
-            goto fail;
-        }
-
-        zero.length = 0;
-        zero.data = "";
-
-        code = krb5_k_verify_checksum(context,
-                                      subkey,
-                                      KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM,
-                                      &zero,
-                                      authdat->checksum,
-                                      &valid);
-        krb5_k_free_key(context, subkey);
-        if (code || !valid) {
-            major_status = GSS_S_BAD_SIG;
-            goto fail;
-        }
-
-        /* Use ap_options from the request to guess the mutual flag. */
-        gss_flags = GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG;
-        if (ap_req_options & AP_OPTS_MUTUAL_REQUIRED)
-            gss_flags |= GSS_C_MUTUAL_FLAG;
-    } else {
-        /* gss krb5 v1 */
-
-        /* stash this now, for later. */
-        code = krb5_c_checksum_length(context, CKSUMTYPE_RSA_MD5, &md5len);
-        if (code) {
-            major_status = GSS_S_FAILURE;
-            goto fail;
-        }
-
-        /* verify that the checksum is correct */
-
-        /*
-          The checksum may be either exactly 24 bytes, in which case
-          no options are specified, or greater than 24 bytes, in which case
-          one or more options are specified. Currently, the only valid
-          option is KRB5_GSS_FOR_CREDS_OPTION ( = 1 ).
-        */
-
-        if ((authdat->checksum->checksum_type != CKSUMTYPE_KG_CB) ||
-            (authdat->checksum->length < 24)) {
-            code = 0;
-            major_status = GSS_S_BAD_BINDINGS;
-            goto fail;
-        }
-
-        ptr = (unsigned char *) authdat->checksum->contents;
-
-        TREAD_INT(ptr, tmp, 0);
-
-        if (tmp != md5len) {
-            code = KG_BAD_LENGTH;
-            major_status = GSS_S_FAILURE;
-            goto fail;
-        }
-
-        /*
-          The following section of code attempts to implement the
-          optional channel binding facility as described in RFC2743.
-
-          Since this facility is optional channel binding may or may
-          not have been provided by either the client or the server.
-
-          If the server has specified input_chan_bindings equal to
-          GSS_C_NO_CHANNEL_BINDINGS then we skip the check.  If
-          the server does provide channel bindings then we compute
-          a checksum and compare against those provided by the
-          client.         */
-
-        if ((code = kg_checksum_channel_bindings(context,
-                                                 input_chan_bindings,
-                                                 &reqcksum))) {
-            major_status = GSS_S_BAD_BINDINGS;
-            goto fail;
-        }
-
-        /* Always read the clients bindings - eventhough we might ignore them */
-        TREAD_STR(ptr, ptr2, reqcksum.length);
-
-        if (input_chan_bindings != GSS_C_NO_CHANNEL_BINDINGS ) {
-            if (memcmp(ptr2, reqcksum.contents, reqcksum.length) != 0) {
-                xfree(reqcksum.contents);
-                reqcksum.contents = 0;
-                code = 0;
-                major_status = GSS_S_BAD_BINDINGS;
-                goto fail;
-            }
-
-        }
-
-        xfree(reqcksum.contents);
-        reqcksum.contents = 0;
-
-        /* Read the token flags.  Remember if GSS_C_DELEG_FLAG was set, but
-         * mask it out until we actually read a delegated credential. */
-        TREAD_INT(ptr, gss_flags, 0);
-        token_deleg_flag = (gss_flags & GSS_C_DELEG_FLAG);
-        gss_flags &= ~GSS_C_DELEG_FLAG;
-
-        /* if the checksum length > 24, there are options to process */
-
-        i = authdat->checksum->length - 24;
-        if (i && token_deleg_flag) {
-            if (i >= 4) {
-                TREAD_INT16(ptr, option_id, 0);
-                TREAD_INT16(ptr, option.length, 0);
-                i -= 4;
-
-                if (i < option.length) {
-                    code = KG_BAD_LENGTH;
-                    major_status = GSS_S_FAILURE;
-                    goto fail;
-                }
-
-                /* have to use ptr2, since option.data is wrong type and
-                   macro uses ptr as both lvalue and rvalue */
-
-                TREAD_STR(ptr, ptr2, option.length);
-                option.data = (char *) ptr2;
-
-                i -= option.length;
-
-                if (option_id != KRB5_GSS_FOR_CREDS_OPTION) {
-                    major_status = GSS_S_FAILURE;
-                    goto fail;
-                }
-
-                /* store the delegated credential */
-
-                code = rd_and_store_for_creds(context, auth_context, &option,
-                                              (delegated_cred_handle) ?
-                                              &deleg_cred : NULL);
-                if (code) {
-                    major_status = GSS_S_FAILURE;
-                    goto fail;
-                }
-
-                gss_flags |= GSS_C_DELEG_FLAG;
-            } /* if i >= 4 */
-            /* ignore any additional trailing data, for now */
-        }
-        while (i > 0) {
-            /* Process Type-Length-Data options */
-            if (i < 8) {
-                code = KG_BAD_LENGTH;
-                major_status = GSS_S_FAILURE;
-                goto fail;
-            }
-            TREAD_INT(ptr, option_id, 1);
-            TREAD_INT(ptr, option.length, 1);
-            i -= 8;
-            if (i < option.length) {
-                code = KG_BAD_LENGTH;
-                major_status = GSS_S_FAILURE;
-                goto fail;
-            }
-            TREAD_STR(ptr, ptr2, option.length);
-            option.data = (char *)ptr2;
-
-            i -= option.length;
-
-            code = kg_process_extension(context, auth_context,
-                                        option_id, &option, exts);
-            if (code != 0) {
-                major_status = GSS_S_FAILURE;
-                goto fail;
-            }
-        }
-    }
 
     if (exts->iakerb.conv && !exts->iakerb.verified) {
         major_status = GSS_S_BAD_SIG;
@@ -880,12 +891,7 @@ kg_accept_krb5(minor_status, context_handle,
     ctx->mech_used = (gss_OID) mech_used;
     ctx->auth_context = auth_context;
     ctx->initiate = 0;
-    ctx->gss_flags = (GSS_C_TRANS_FLAG |
-                      ((gss_flags) & (GSS_C_INTEG_FLAG | GSS_C_CONF_FLAG |
-                                      GSS_C_MUTUAL_FLAG | GSS_C_REPLAY_FLAG |
-                                      GSS_C_SEQUENCE_FLAG | GSS_C_DELEG_FLAG |
-                                      GSS_C_DCE_STYLE | GSS_C_IDENTIFY_FLAG |
-                                      GSS_C_EXTENDED_ERROR_FLAG)));
+    ctx->gss_flags = gss_flags | GSS_C_TRANS_FLAG;
     ctx->seed_init = 0;
     ctx->cred_rcache = cred_rcache;
 
@@ -956,8 +962,7 @@ kg_accept_krb5(minor_status, context_handle,
 
     if (delegated_cred_handle != NULL &&
         deleg_cred == NULL && /* no unconstrained delegation */
-        cred->usage == GSS_C_BOTH &&
-        (ticket->enc_part2->flags & TKT_FLG_FORWARDABLE)) {
+        cred->usage == GSS_C_BOTH) {
         /*
          * Now, we always fabricate a delegated credentials handle
          * containing the service ticket to ourselves, which can be
@@ -974,7 +979,7 @@ kg_accept_krb5(minor_status, context_handle,
     {
         krb5_int32 seq_temp;
         krb5_auth_con_getremoteseqnumber(context, auth_context, &seq_temp);
-        ctx->seq_recv = seq_temp;
+        ctx->seq_recv = (uint32_t)seq_temp;
     }
 
     if ((code = krb5_timeofday(context, &now))) {
@@ -1001,7 +1006,6 @@ kg_accept_krb5(minor_status, context_handle,
     /* generate an AP_REP if necessary */
 
     if (ctx->gss_flags & GSS_C_MUTUAL_FLAG) {
-        unsigned char * ptr3;
         krb5_int32 seq_temp;
         int cfx_generate_subkey;
 
@@ -1022,9 +1026,6 @@ kg_accept_krb5(minor_status, context_handle,
             }
 
             switch (negotiated_etype) {
-            case ENCTYPE_DES_CBC_MD5:
-            case ENCTYPE_DES_CBC_MD4:
-            case ENCTYPE_DES_CBC_CRC:
             case ENCTYPE_DES3_CBC_SHA1:
             case ENCTYPE_ARCFOUR_HMAC:
             case ENCTYPE_ARCFOUR_HMAC_EXP:
@@ -1060,7 +1061,7 @@ kg_accept_krb5(minor_status, context_handle,
         }
 
         krb5_auth_con_getlocalseqnumber(context, auth_context, &seq_temp);
-        ctx->seq_send = seq_temp & 0xffffffffL;
+        ctx->seq_send = (uint32_t)seq_temp;
 
         if (cfx_generate_subkey) {
             /* Get the new acceptor subkey.  With the code above, there
@@ -1109,18 +1110,16 @@ kg_accept_krb5(minor_status, context_handle,
         ctx->established = 1;
 
         token.length = g_token_size(mech_used, ap_rep.length);
-
-        if ((token.value = (unsigned char *) gssalloc_malloc(token.length))
-            == NULL) {
+        token.value = gssalloc_malloc(token.length);
+        if (token.value == NULL) {
             major_status = GSS_S_FAILURE;
             code = ENOMEM;
             goto fail;
         }
-        ptr3 = token.value;
-        g_make_token_header(mech_used, ap_rep.length,
-                            &ptr3, KG_TOK_CTX_AP_REP);
-
-        TWRITE_STR(ptr3, ap_rep.data, ap_rep.length);
+        k5_buf_init_fixed(&buf, token.value, token.length);
+        g_make_token_header(&buf, mech_used, ap_rep.length, KG_TOK_CTX_AP_REP);
+        k5_buf_add_len(&buf, ap_rep.data, ap_rep.length);
+        assert(buf.len == token.length);
 
         ctx->established = 1;
 
@@ -1147,8 +1146,10 @@ kg_accept_krb5(minor_status, context_handle,
 
     /* Add the maximum allowable clock skew as a grace period for context
      * expiration, just as we do for the ticket. */
-    if (time_rec)
-        *time_rec = ts_delta(ctx->krb_times.endtime, now) + context->clockskew;
+    if (time_rec) {
+        *time_rec = ts_interval(ts_incr(now, -context->clockskew),
+                                ctx->krb_times.endtime);
+    }
 
     if (ret_flags)
         *ret_flags = ctx->gss_flags;
@@ -1177,8 +1178,6 @@ fail:
 
         krb5_auth_con_free(context, auth_context);
     }
-    if (reqcksum.contents)
-        xfree(reqcksum.contents);
     if (ap_rep.data)
         krb5_free_data_contents(context, &ap_rep);
     if (major_status == GSS_S_COMPLETE ||
@@ -1215,7 +1214,6 @@ fail:
          (request->ap_options & AP_OPTS_MUTUAL_REQUIRED) ||
          major_status == GSS_S_CONTINUE_NEEDED)) {
         unsigned int tmsglen;
-        int toktype;
 
         /*
          * The client is expecting a response, so we can send an
@@ -1237,17 +1235,16 @@ fail:
             goto done;
 
         tmsglen = scratch.length;
-        toktype = KG_TOK_CTX_ERROR;
 
         token.length = g_token_size(mech_used, tmsglen);
         token.value = gssalloc_malloc(token.length);
         if (!token.value)
             goto done;
+        k5_buf_init_fixed(&buf, token.value, token.length);
+        g_make_token_header(&buf, mech_used, tmsglen, KG_TOK_CTX_ERROR);
+        k5_buf_add_len(&buf, scratch.data, scratch.length);
+        assert(buf.len == token.length);
 
-        ptr = token.value;
-        g_make_token_header(mech_used, tmsglen, &ptr, toktype);
-
-        TWRITE_STR(ptr, scratch.data, scratch.length);
         krb5_free_data_contents(context, &scratch);
 
         *output_token = token;

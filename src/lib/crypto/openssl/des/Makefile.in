@@ -1,6 +1,6 @@
 mydir=lib$(S)crypto$(S)openssl$(S)des
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
-LOCALINCLUDES = -I$(srcdir)/../../krb -I$(srcdir)/..
+LOCALINCLUDES = -I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
 
 STLIBOBJS= des_keys.o
 

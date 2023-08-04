@@ -74,12 +74,6 @@ int main(   int argc, char *argv[]) {
 
     if ((dwTlsIndex = TlsAlloc()) == TLS_OUT_OF_INDEXES) return FALSE;
 
-//    send_test("krbcc.229026.0.ep");
-
-#if 0
-    err = cc_initialize(&context, ccapi_version_7, NULL, NULL);
-#endif
-
     if (!err) {
         err = cci_os_ipc_thread_init();
         }

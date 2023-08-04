@@ -39,10 +39,6 @@ krb5int_des_init_state(const krb5_keyblock *key, krb5_keyusage usage,
     if (alloc_data(state_out, 8))
         return ENOMEM;
 
-    /* des-cbc-crc uses the key as the initial ivec. */
-    if (key->enctype == ENCTYPE_DES_CBC_CRC)
-        memcpy(state_out->data, key->contents, state_out->length);
-
     return 0;
 }
 

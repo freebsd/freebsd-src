@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>krb5_fwd_tgt_creds - Get a forwarded TGT and format a KRB-CRED message. &mdash; MIT Kerberos Documentation</title>
-    
+    <title>krb5_fwd_tgt_creds - Get a forwarded TGT and format a KRB-CRED message. &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
-    <link rel="up" title="krb5 API" href="index.html" />
     <link rel="next" title="krb5_get_default_realm - Retrieve the default realm." href="krb5_get_default_realm.html" />
     <link rel="prev" title="krb5_free_principal - Free the storage assigned to a principal." href="krb5_free_principal.html" /> 
   </head>
@@ -61,13 +59,13 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="krb5-fwd-tgt-creds-get-a-forwarded-tgt-and-format-a-krb-cred-message">
 <h1>krb5_fwd_tgt_creds -  Get a forwarded TGT and format a KRB-CRED message.<a class="headerlink" href="#krb5-fwd-tgt-creds-get-a-forwarded-tgt-and-format-a-krb-cred-message" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_fwd_tgt_creds">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_fwd_tgt_creds</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a><em>&nbsp;auth_context</em>, const char *<em>&nbsp;rhost</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;client</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;server</em>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache">krb5_ccache</a><em>&nbsp;cc</em>, int<em>&nbsp;forwardable</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;outbuf</em><big>)</big><a class="headerlink" href="#c.krb5_fwd_tgt_creds" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_fwd_tgt_creds</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a><em>&nbsp;auth_context</em>, const char *<em>&nbsp;rhost</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;client</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;server</em>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache">krb5_ccache</a><em>&nbsp;cc</em>, int<em>&nbsp;forwardable</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;outbuf</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_fwd_tgt_creds" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -106,7 +104,7 @@
 </tr>
 </tbody>
 </table>
-<p>Get a TGT for use at the remote host <em>rhost</em> and format it into a KRB-CRED message. If <em>rhost</em> is NULL and <em>server</em> is of type <a class="reference internal" href="../macros/KRB5_NT_SRV_HST.html#KRB5_NT_SRV_HST" title="KRB5_NT_SRV_HST"><tt class="xref py py-data docutils literal"><span class="pre">KRB5_NT_SRV_HST</span></tt></a> , the second component of <em>server</em> will be used.</p>
+<p>Get a TGT for use at the remote host <em>rhost</em> and format it into a KRB-CRED message. If <em>rhost</em> is NULL and <em>server</em> is of type <a class="reference internal" href="../macros/KRB5_NT_SRV_HST.html#KRB5_NT_SRV_HST" title="KRB5_NT_SRV_HST"><code class="xref py py-data docutils literal"><span class="pre">KRB5_NT_SRV_HST</span></code></a> , the second component of <em>server</em> will be used.</p>
 </div>
 
 
@@ -165,8 +163,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

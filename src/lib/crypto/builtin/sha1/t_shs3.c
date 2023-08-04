@@ -17,7 +17,7 @@ static void test7(void);
 
 /* When run on a little-endian CPU we need to perform byte reversal on an
    array of longwords.  It is possible to make the code endianness-
-   independant by fiddling around with data at the byte level, but this
+   independent by fiddling around with data at the byte level, but this
    makes for very slow code, so we rely on the user to sort out endianness
    at compile time */
 

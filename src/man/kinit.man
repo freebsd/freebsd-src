@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KINIT" "1" " " "1.16" "MIT Kerberos"
+.TH "KINIT" "1" " " "1.21.1" "MIT Kerberos"
 .SH NAME
 kinit \- obtain and cache Kerberos ticket-granting ticket
 .
@@ -45,13 +45,14 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 [\fB\-E\fP]
 [\fB\-v\fP]
 [\fB\-R\fP]
-[\fB\-k\fP [\-\fBt\fP \fIkeytab_file\fP]]
+[\fB\-k\fP [\fB\-i\fP | \-\fBt\fP \fIkeytab_file\fP]]
 [\fB\-c\fP \fIcache_name\fP]
 [\fB\-n\fP]
 [\fB\-S\fP \fIservice_name\fP]
 [\fB\-I\fP \fIinput_ccache\fP]
 [\fB\-T\fP \fIarmor_ccache\fP]
 [\fB\-X\fP \fIattribute\fP[=\fIvalue\fP]]
+[\fB\-\-request\-pac\fP | \fB\-\-no\-request\-pac\fP]
 [\fIprincipal\fP]
 .SH DESCRIPTION
 .sp
@@ -63,11 +64,11 @@ choice of principal name.
 .SH OPTIONS
 .INDENT 0.0
 .TP
-.B \fB\-V\fP
+\fB\-V\fP
 display verbose output.
 .TP
-.B \fB\-l\fP \fIlifetime\fP
-(\fIduration\fP string.)  Requests a ticket with the lifetime
+\fB\-l\fP \fIlifetime\fP
+(duration string.)  Requests a ticket with the lifetime
 \fIlifetime\fP\&.
 .sp
 For example, \fBkinit \-l 5:30\fP or \fBkinit \-l 5h30m\fP\&.
@@ -77,62 +78,61 @@ If the \fB\-l\fP option is not specified, the default ticket lifetime
 longer than the maximum ticket lifetime (configured by each site)
 will not override the configured maximum ticket lifetime.
 .TP
-.B \fB\-s\fP \fIstart_time\fP
-(\fIduration\fP string.)  Requests a postdated ticket.  Postdated
+\fB\-s\fP \fIstart_time\fP
+(duration string.)  Requests a postdated ticket.  Postdated
 tickets are issued with the \fBinvalid\fP flag set, and need to be
 resubmitted to the KDC for validation before use.
 .sp
 \fIstart_time\fP specifies the duration of the delay before the ticket
 can become valid.
 .TP
-.B \fB\-r\fP \fIrenewable_life\fP
-(\fIduration\fP string.)  Requests renewable tickets, with a total
+\fB\-r\fP \fIrenewable_life\fP
+(duration string.)  Requests renewable tickets, with a total
 lifetime of \fIrenewable_life\fP\&.
 .TP
-.B \fB\-f\fP
+\fB\-f\fP
 requests forwardable tickets.
 .TP
-.B \fB\-F\fP
+\fB\-F\fP
 requests non\-forwardable tickets.
 .TP
-.B \fB\-p\fP
+\fB\-p\fP
 requests proxiable tickets.
 .TP
-.B \fB\-P\fP
+\fB\-P\fP
 requests non\-proxiable tickets.
 .TP
-.B \fB\-a\fP
+\fB\-a\fP
 requests tickets restricted to the host\(aqs local address[es].
 .TP
-.B \fB\-A\fP
+\fB\-A\fP
 requests tickets not restricted by address.
 .TP
-.B \fB\-C\fP
+\fB\-C\fP
 requests canonicalization of the principal name, and allows the
 KDC to reply with a different client principal from the one
 requested.
 .TP
-.B \fB\-E\fP
-treats the principal name as an enterprise name (implies the
-\fB\-C\fP option).
+\fB\-E\fP
+treats the principal name as an enterprise name.
 .TP
-.B \fB\-v\fP
+\fB\-v\fP
 requests that the ticket\-granting ticket in the cache (with the
 \fBinvalid\fP flag set) be passed to the KDC for validation.  If the
 ticket is within its requested time range, the cache is replaced
 with the validated ticket.
 .TP
-.B \fB\-R\fP
+\fB\-R\fP
 requests renewal of the ticket\-granting ticket.  Note that an
 expired ticket cannot be renewed, even if the ticket is still
 within its renewable life.
 .sp
 Note that renewable tickets that have expired as reported by
-\fIklist(1)\fP may sometimes be renewed using this option,
+klist(1) may sometimes be renewed using this option,
 because the KDC applies a grace period to account for client\-KDC
-clock skew.  See \fIkrb5.conf(5)\fP \fBclockskew\fP setting.
+clock skew.  See krb5.conf(5) \fBclockskew\fP setting.
 .TP
-.B \fB\-k\fP [\fB\-i\fP | \fB\-t\fP \fIkeytab_file\fP]
+\fB\-k\fP [\fB\-i\fP | \fB\-t\fP \fIkeytab_file\fP]
 requests a ticket, obtained from a key in the local host\(aqs keytab.
 The location of the keytab may be specified with the \fB\-t\fP
 \fIkeytab_file\fP option, or with the \fB\-i\fP option to specify the use
@@ -144,12 +144,12 @@ the KDC database and look up the key directly.  This permits an
 administrator to obtain tickets as any principal that supports
 authentication based on the key.
 .TP
-.B \fB\-n\fP
+\fB\-n\fP
 Requests anonymous processing.  Two types of anonymous principals
 are supported.
 .sp
 For fully anonymous Kerberos, configure pkinit on the KDC and
-configure \fBpkinit_anchors\fP in the client\(aqs \fIkrb5.conf(5)\fP\&.
+configure \fBpkinit_anchors\fP in the client\(aqs krb5.conf(5)\&.
 Then use the \fB\-n\fP option with a principal of the form \fB@REALM\fP
 (an empty principal name followed by the at\-sign and a realm
 name).  If permitted by the KDC, an anonymous ticket will be
@@ -177,7 +177,7 @@ preselecting the same methods of authenticating to the KDC.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fB\-T\fP \fIarmor_ccache\fP
+\fB\-T\fP \fIarmor_ccache\fP
 Specifies the name of a credentials cache that already contains a
 ticket.  If supported by the KDC, this cache will be used to armor
 the request, preventing offline dictionary attacks and allowing
@@ -185,7 +185,7 @@ the use of additional preauthentication mechanisms.  Armoring also
 makes sure that the response from the KDC is not modified in
 transit.
 .TP
-.B \fB\-c\fP \fIcache_name\fP
+\fB\-c\fP \fIcache_name\fP
 use \fIcache_name\fP as the Kerberos 5 credentials (ticket) cache
 location.  If this option is not used, the default cache location
 is used.
@@ -199,11 +199,11 @@ principal is selected or a new one is created and becomes the new
 primary cache.  Otherwise, any existing contents of the default
 cache are destroyed by kinit.
 .TP
-.B \fB\-S\fP \fIservice_name\fP
+\fB\-S\fP \fIservice_name\fP
 specify an alternate service name to use when getting initial
 tickets.
 .TP
-.B \fB\-X\fP \fIattribute\fP[=\fIvalue\fP]
+\fB\-X\fP \fIattribute\fP[=\fIvalue\fP]
 specify a pre\-authentication \fIattribute\fP and \fIvalue\fP to be
 interpreted by pre\-authentication modules.  The acceptable
 attribute and value values vary from module to module.  This
@@ -214,30 +214,31 @@ The following attributes are recognized by the PKINIT
 pre\-authentication mechanism:
 .INDENT 7.0
 .TP
-.B \fBX509_user_identity\fP=\fIvalue\fP
+\fBX509_user_identity\fP=\fIvalue\fP
 specify where to find user\(aqs X509 identity information
 .TP
-.B \fBX509_anchors\fP=\fIvalue\fP
+\fBX509_anchors\fP=\fIvalue\fP
 specify where to find trusted X509 anchor information
 .TP
-.B \fBflag_RSA_PROTOCOL\fP[\fB=yes\fP]
+\fBflag_RSA_PROTOCOL\fP[\fB=yes\fP]
 specify use of RSA, rather than the default Diffie\-Hellman
 protocol
+.TP
+\fBdisable_freshness\fP[\fB=yes\fP]
+disable sending freshness tokens (for testing purposes only)
 .UNINDENT
+.TP
+\fB\-\-request\-pac\fP | \fB\-\-no\-request\-pac\fP
+mutually exclusive.  If \fB\-\-request\-pac\fP is set, ask the KDC to
+include a PAC in authdata; if \fB\-\-no\-request\-pac\fP is set, ask the
+KDC not to include a PAC; if neither are set,  the KDC will follow
+its default, which is typically is to include a PAC if doing so is
+supported.
 .UNINDENT
 .SH ENVIRONMENT
 .sp
-kinit uses the following environment variables:
-.INDENT 0.0
-.TP
-.B \fBKRB5CCNAME\fP
-Location of the default Kerberos 5 credentials cache, in the form
-\fItype\fP:\fIresidual\fP\&.  If no \fItype\fP prefix is present, the \fBFILE\fP
-type is assumed.  The type of the default cache may determine the
-availability of a cache collection; for instance, a default cache
-of type \fBDIR\fP causes caches within the directory to be present
-in the collection.
-.UNINDENT
+See kerberos(7) for a description of Kerberos environment
+variables.
 .SH FILES
 .INDENT 0.0
 .TP
@@ -249,10 +250,10 @@ default location for the local host\(aqs keytab.
 .UNINDENT
 .SH SEE ALSO
 .sp
-\fIklist(1)\fP, \fIkdestroy(1)\fP, kerberos(1)
+klist(1), kdestroy(1), kerberos(7)
 .SH AUTHOR
 MIT
 .SH COPYRIGHT
-1985-2017, MIT
+1985-2023, MIT
 .\" Generated by docutils manpage writer.
 .

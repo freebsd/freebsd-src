@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 
 plugin = os.path.join(buildtop, "plugins", "hostrealm", "test",
@@ -41,7 +40,8 @@ def testd_error(realm, expected_error, msg, env=None):
 ###
 
 # The test2 module returns a fatal error on hosts beginning with 'z',
-# and an answer on hosts begining with 'a'.
+# and an answer on hosts beginning with 'a'.
+mark('test2 module')
 testh_error(realm, 'zoo', 'service not available', 'host_realm test2 z')
 testh(realm, 'abacus', ['a'], 'host_realm test2 a')
 
@@ -49,6 +49,7 @@ testh(realm, 'abacus', ['a'], 'host_realm test2 a')
 # 'X', due to [domain_realms].  There is also an entry for hostnames
 # ending in '1', but hostnames which appear to be IP or IPv6 addresses
 # should instead fall through to test1.
+mark('profile module')
 testh(realm, 'x', ['MATCH'], 'host_realm profile x')
 testh(realm, '.x', ['DOTMATCH'], 'host_realm profile .x')
 testh(realm, 'b.x', ['DOTMATCH'], 'host_realm profile b.x')
@@ -60,9 +61,11 @@ testh(realm, 'b:c.x', ['b:c', 'x'], 'host_realm profile b:c.x')
 testh(realm, 'X.', ['MATCH'], 'host_realm profile X.')
 
 # The test1 module returns a list of the hostname components.
+mark('test1 module')
 testh(realm, 'b.c.d', ['b', 'c', 'd'], 'host_realm test1')
 
 # If no module returns a result, we should get the referral realm.
+mark('no result')
 testh(realm, '', [''], 'host_realm referral realm')
 
 ###
@@ -76,10 +79,12 @@ def try_env(realm, testname, n):
 
 # The domain module will answer with the uppercased parent domain,
 # with no special configuration.
+mark('fallback: domain module')
 testf(realm, 'a.b.c', ['B.C'], 'fallback_realm domain a.b.c')
 
 # With realm_try_domains = 0, the hostname itself will be looked up as
 # a realm and returned if found.
+mark('fallback: realm_try_domains = 0')
 try0 = try_env(realm, 'try0', 0)
 testf(realm, 'krbtest.com', ['KRBTEST.COM'], 'fallback_realm try0', env=try0)
 testf(realm, 'a.b.krbtest.com', ['B.KRBTEST.COM'],
@@ -88,6 +93,7 @@ testf(realm, 'a.b.c', ['B.C'], 'fallback_realm try0 nomatch', env=try0)
 
 # With realm_try_domains = 2, the parent and grandparent will be
 # checked as well, but it stops there.
+mark('fallback: realm_try_domains = 2')
 try2 = try_env(realm, 'try2', 2)
 testf(realm, 'krbtest.com', ['KRBTEST.COM'], 'fallback_realm try2', env=try2)
 testf(realm, 'a.b.krbtest.com', ['KRBTEST.COM'],
@@ -97,10 +103,12 @@ testf(realm, 'a.b.c.krbtest.com', ['B.C.KRBTEST.COM'],
 
 # The test1 module answers with a list of components.  Use an IPv4
 # address to bypass the domain module.
+mark('fallback: test1 module')
 testf(realm, '1.2.3.4', ['1', '2', '3', '4'], 'fallback_realm test1')
 
 # If no module answers, the default realm is returned.  The test2
 # module returns an error when we try to look that up.
+mark('fallback: default realm')
 testf_error(realm, '', 'service not available', 'fallback_realm default')
 
 ###
@@ -108,10 +116,12 @@ testf_error(realm, '', 'service not available', 'fallback_realm default')
 ###
 
 # The test2 module returns an error.
+mark('default_realm: test2 module')
 testd_error(realm, 'service not available', 'default_realm test2')
 
 # The profile module returns the default realm from the profile.
 # Disable test2 to expose this behavior.
+mark('default_realm: profile module')
 disable_conf = {'plugins': {'hostrealm': {'disable': 'test2'}}}
 notest2 = realm.special_env('notest2', False, krb5_conf=disable_conf)
 testd(realm, 'KRBTEST.COM', 'default_realm profile', env=notest2)
@@ -119,8 +129,11 @@ testd(realm, 'KRBTEST.COM', 'default_realm profile', env=notest2)
 # The test1 module returns a list of two realms, of which we can only
 # see the first.  Remove the profile default_realm setting to expose
 # this behavior.
+mark('default_realm: test1 module')
 remove_default = {'libdefaults': {'default_realm': None}}
-nodefault_conf = dict(disable_conf.items() + remove_default.items())
+# Python 3.5+: nodefault_conf = {**disable_conf, **remove_default}
+nodefault_conf = dict(list(disable_conf.items()) +
+                      list(remove_default.items()))
 nodefault = realm.special_env('nodefault', False, krb5_conf=nodefault_conf)
 testd(realm, 'one', 'default_realm test1', env=nodefault)
 

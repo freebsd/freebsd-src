@@ -27,36 +27,6 @@
 #include "k5-int.h"
 #include "gssapiP_krb5.h"
 
-static int
-has_unexpired_creds(krb5_gss_cred_id_t kcred,
-                    const gss_OID desired_mech,
-                    int default_cred,
-                    gss_const_key_value_set_t cred_store)
-{
-    OM_uint32 major_status, minor;
-    gss_name_t cred_name;
-    gss_OID_set_desc desired_mechs;
-    gss_cred_id_t tmp_cred = GSS_C_NO_CREDENTIAL;
-    OM_uint32 time_rec;
-
-    desired_mechs.count = 1;
-    desired_mechs.elements = (gss_OID)desired_mech;
-
-    if (default_cred)
-        cred_name = GSS_C_NO_NAME;
-    else
-        cred_name = (gss_name_t)kcred->name;
-
-    major_status = krb5_gss_acquire_cred_from(&minor, cred_name, 0,
-                                              &desired_mechs, GSS_C_INITIATE,
-                                              cred_store, &tmp_cred, NULL,
-                                              &time_rec);
-
-    krb5_gss_release_cred(&minor, &tmp_cred);
-
-    return (GSS_ERROR(major_status) || time_rec);
-}
-
 static OM_uint32
 copy_initiator_creds(OM_uint32 *minor_status,
                      gss_cred_id_t input_cred_handle,
@@ -66,26 +36,19 @@ copy_initiator_creds(OM_uint32 *minor_status,
                      gss_const_key_value_set_t cred_store)
 {
     OM_uint32 major_status;
-    krb5_error_code code;
+    krb5_error_code ret;
     krb5_gss_cred_id_t kcred = NULL;
     krb5_context context = NULL;
-    krb5_ccache ccache = NULL;
-    const char *ccache_name;
+    krb5_ccache cache = NULL, defcache = NULL, mcc = NULL;
+    krb5_principal princ = NULL;
+    krb5_boolean switch_to_cache = FALSE;
+    const char *ccache_name, *deftype;
 
     *minor_status = 0;
 
-    if (!default_cred && cred_store == GSS_C_NO_CRED_STORE) {
-        *minor_status = G_STORE_NON_DEFAULT_CRED_NOSUPP;
-        major_status = GSS_S_FAILURE;
-        goto cleanup;
-    }
-
-    code = krb5_gss_init_context(&context);
-    if (code != 0) {
-        *minor_status = code;
-        major_status = GSS_S_FAILURE;
-        goto cleanup;
-    }
+    ret = krb5_gss_init_context(&context);
+    if (ret)
+        goto kerr_cleanup;
 
     major_status = krb5_gss_validate_cred_1(minor_status,
                                             input_cred_handle,
@@ -101,52 +64,69 @@ copy_initiator_creds(OM_uint32 *minor_status,
         goto cleanup;
     }
 
-    if (!overwrite_cred &&
-        has_unexpired_creds(kcred, desired_mech, default_cred, cred_store)) {
-        major_status = GSS_S_DUPLICATE_ELEMENT;
-        goto cleanup;
-    }
-
     major_status = kg_value_from_cred_store(cred_store,
                                             KRB5_CS_CCACHE_URN, &ccache_name);
     if (GSS_ERROR(major_status))
         goto cleanup;
 
     if (ccache_name != NULL) {
-        code = krb5_cc_resolve(context, ccache_name, &ccache);
-        if (code != 0) {
-            *minor_status = code;
-            major_status = GSS_S_CRED_UNAVAIL;
+        ret = krb5_cc_set_default_name(context, ccache_name);
+        if (ret)
+            goto kerr_cleanup;
+    } else {
+        major_status = kg_sync_ccache_name(context, minor_status);
+        if (major_status != GSS_S_COMPLETE)
+            goto cleanup;
+    }
+
+    /* Resolve the default ccache and get its type. */
+    ret = krb5_cc_default(context, &defcache);
+    if (ret)
+        goto kerr_cleanup;
+    deftype = krb5_cc_get_type(context, defcache);
+
+    if (krb5_cc_support_switch(context, deftype)) {
+        /* Use an existing or new cache within the collection. */
+        ret = krb5_cc_cache_match(context, kcred->name->princ, &cache);
+        if (!ret && !overwrite_cred) {
+            major_status = GSS_S_DUPLICATE_ELEMENT;
             goto cleanup;
         }
-        code = krb5_cc_initialize(context, ccache,
-                                  kcred->name->princ);
-        if (code != 0) {
-            *minor_status = code;
-            major_status = GSS_S_CRED_UNAVAIL;
+        if (ret == KRB5_CC_NOTFOUND)
+            ret = krb5_cc_new_unique(context, deftype, NULL, &cache);
+        if (ret)
+            goto kerr_cleanup;
+        switch_to_cache = default_cred;
+    } else {
+        /* Use the default cache. */
+        cache = defcache;
+        defcache = NULL;
+        ret = krb5_cc_get_principal(context, cache, &princ);
+        krb5_free_principal(context, princ);
+        if (!ret && !overwrite_cred) {
+            major_status = GSS_S_DUPLICATE_ELEMENT;
             goto cleanup;
         }
     }
 
-    if (ccache == NULL) {
-        if (!default_cred) {
-            *minor_status = G_STORE_NON_DEFAULT_CRED_NOSUPP;
-            major_status = GSS_S_FAILURE;
-            goto cleanup;
-        }
-        code = krb5int_cc_default(context, &ccache);
-        if (code != 0) {
-            *minor_status = code;
-            major_status = GSS_S_FAILURE;
-            goto cleanup;
-        }
-    }
+    ret = krb5_cc_new_unique(context, "MEMORY", NULL, &mcc);
+    if (ret)
+        goto kerr_cleanup;
+    ret = krb5_cc_initialize(context, mcc, kcred->name->princ);
+    if (ret)
+        goto kerr_cleanup;
+    ret = krb5_cc_copy_creds(context, kcred->ccache, mcc);
+    if (ret)
+        goto kerr_cleanup;
+    ret = krb5_cc_move(context, mcc, cache);
+    if (ret)
+        goto kerr_cleanup;
+    mcc = NULL;
 
-    code = krb5_cc_copy_creds(context, kcred->ccache, ccache);
-    if (code != 0) {
-        *minor_status = code;
-        major_status = GSS_S_FAILURE;
-        goto cleanup;
+    if (switch_to_cache) {
+        ret = krb5_cc_switch(context, cache);
+        if (ret)
+            goto kerr_cleanup;
     }
 
     *minor_status = 0;
@@ -155,11 +135,20 @@ copy_initiator_creds(OM_uint32 *minor_status,
 cleanup:
     if (kcred != NULL)
         k5_mutex_unlock(&kcred->lock);
-    if (ccache != NULL)
-        krb5_cc_close(context, ccache);
+    if (defcache != NULL)
+        krb5_cc_close(context, defcache);
+    if (cache != NULL)
+        krb5_cc_close(context, cache);
+    if (mcc != NULL)
+        krb5_cc_destroy(context, mcc);
     krb5_free_context(context);
 
     return major_status;
+
+kerr_cleanup:
+    *minor_status = ret;
+    major_status = GSS_S_FAILURE;
+    goto cleanup;
 }
 
 OM_uint32 KRB5_CALLCONV

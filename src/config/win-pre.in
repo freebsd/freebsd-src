@@ -34,6 +34,13 @@ CPU=i386
 !if ( "$(CPU)" != "i386" ) && ( "$(CPU)" != "ALPHA" ) && ( "$(CPU)" != "ALPHA64" ) && ( "$(CPU)" != "IA64" ) && ( "$(CPU)" != "AMD64" )
 !error Must specify CPU environment variable ( CPU=i386, CPU=ALPHA, CPU=ALPHA64,CPU=IA64, CPU=AMD64)
 !endif
+
+!if  ("$(CPU)" == "IA64" ) || ("$(CPU)" == "AMD64" ) || ("$(CPU)" == "ALPHA64" )
+BITS=64
+!else
+BITS=32
+!endif
+
 #
 # End of figuring out CPU
 #
@@ -88,25 +95,8 @@ C=.^\
 srcdir = .
 top_srcdir = $(srcdir)\$(BUILDTOP)
 
-DNS_LIB=$(BUILDTOP)\util\wshelper\$(OUTPRE)$(DLIB).lib
-DNS_INC=$(BUILDTOP)\windows\include
-
-!if defined(KRB5_NO_WSHELPER)
-DNSMSG=resolver
-!else
-DNSMSG=wshelper
-DNSFLAGS=-DWSHELPER=1
-!endif
-!if !defined(DNS_INC)
-!message Must define DNS_INC to point to $(DNSMSG) includes dir!
-!error
-!endif
-!if !defined(DNS_LIB)
-!message Must define DNS_LIB to point to $(DNSMSG) library!
-!error
-!endif
-DNSLIBS=$(DNS_LIB)
-DNSFLAGS=-I$(DNS_INC) $(DNSFLAGS) -DKRB5_DNS_LOOKUP=1
+DNSLIBS=dnsapi.lib
+DNSFLAGS=-DKRB5_DNS_LOOKUP=1
 !if defined(KRB5_USE_DNS_REALMS)
 DNSFLAGS=$(DNSFLAGS) -DKRB5_DNS_LOOKUP_REALM=1
 !endif
@@ -128,17 +118,20 @@ CC=cl
 
 PDB_OPTS=-Fd$(OUTPRE)\ -FD
 CPPFLAGS=-I$(top_srcdir)\include -I$(top_srcdir)\include\krb5 $(DNSFLAGS) -DWIN32_LEAN_AND_MEAN -DKRB5_DEPRECATED=1 -DKRB5_PRIVATE -D_CRT_SECURE_NO_DEPRECATE $(KFWFLAGS) $(TIME_T_FLAGS)
-CCOPTS=-nologo /EHsc /W3 $(PDB_OPTS) $(DLL_FILE_DEF)
+# Treat the following warnings as errors:
+#  4020: too many actual parameters
+#  4024: different types for formal and actual parameter
+#  4047: different levels of indirection
+CCOPTS=-nologo /EHsc /W3 /we4020 /we4024 /we4047 $(PDB_OPTS) $(DLL_FILE_DEF)
 LOPTS=-nologo -incremental:no -manifest
 
-!if  ("$(CPU)" == "IA64" ) || ("$(CPU)" == "AMD64" ) || ("$(CPU)" == "ALPHA64" )
+!if  ("$(BITS)" == "64" )
 ENTRYPOINT=_DllMainCRTStartup
 !else
 ENTRYPOINT=_DllMainCRTStartup@12
 !endif
 CCLINKOPTION=
-SCLIB=
-DEBUGOPT=/Zi
+DEBUGOPT=/guard:cf /Zi
 
 #if the compiler is vstudio 8, generate manifest
 !if exists("$(VCINSTALLDIR)\..\..\MICROSOFT VISUAL STUDIO 8")
@@ -194,28 +187,13 @@ PERL=perl
 WCONFIG_EXE=$(BUILDTOP)\$(OUTPRE)wconfig.exe
 WCONFIG=$(WCONFIG_EXE:.exe=) $(WCONFIG_FLAGS)
 
-CLIB=$(BUILDTOP)\lib\$(OUTPRE)comerr32.lib
-PLIB=$(BUILDTOP)\lib\$(OUTPRE)xpprof32.lib
-KLIB=$(BUILDTOP)\lib\$(OUTPRE)krb5_32.lib
-K4LIB=$(BUILDTOP)\lib\$(OUTPRE)krb4_32.lib
-SLIB=$(BUILDTOP)\lib\$(OUTPRE)k5sprt32.lib
-GLIB=$(BUILDTOP)\lib\$(OUTPRE)gssapi32.lib
-DLIB=wshelp32
-CCLIB=krbcc32
-WLIB=
-
-!if  ("$(CPU)" == "IA64" ) || ("$(CPU)" == "AMD64" ) || ("$(CPU)" == "ALPHA64" )
-CLIB=$(BUILDTOP)\lib\$(OUTPRE)comerr64.lib
-PLIB=$(BUILDTOP)\lib\$(OUTPRE)xpprof64.lib
-KLIB=$(BUILDTOP)\lib\$(OUTPRE)krb5_64.lib
-K4LIB=$(BUILDTOP)\lib\$(OUTPRE)krb4_64.lib
-SLIB=$(BUILDTOP)\lib\$(OUTPRE)k5sprt64.lib
-GLIB=$(BUILDTOP)\lib\$(OUTPRE)gssapi64.lib
-DLIB=wshelp64
-CCLIB=krbcc64
-WLIB=
-
-!endif
+CLIB=$(BUILDTOP)\lib\$(OUTPRE)comerr$(BITS).lib
+PLIB=$(BUILDTOP)\lib\$(OUTPRE)xpprof$(BITS).lib
+KLIB=$(BUILDTOP)\lib\$(OUTPRE)krb5_$(BITS).lib
+SLIB=$(BUILDTOP)\lib\$(OUTPRE)k5sprt$(BITS).lib
+GLIB=$(BUILDTOP)\lib\$(OUTPRE)gssapi$(BITS).lib
+CCLIB=krbcc$(BITS)
+SPAKELIB=spake$(BITS)
 
 KRB4_INCLUDES=-I$(BUILDTOP)/include/kerberosIV
 
@@ -230,9 +208,6 @@ MFLAGS=$(MAKEFLAGS)
 !ifdef MIGNORE
 MAKE=-$(MAKE)
 !endif
-
-CRYPTO_IMPL	= builtin
-PRNG_ALG	= fortuna
 
 CFLAGS = $(CCOPTS)
 ALL_CFLAGS = $(DEFS) $(DEFINES) $(LOCALINCLUDES) $(CPPFLAGS) $(CFLAGS)

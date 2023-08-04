@@ -17,8 +17,8 @@ ss_add_request_table(sci_idx, rqtbl_ptr, position, code_ptr)
     int position;           /* 1 -> becomes second... */
     int *code_ptr;
 {
-    register ss_data *info;
-    register int i, size;
+    ss_data *info;
+    int i, size;
 
     info = ss_info(sci_idx);
     for (size=0; info->rqt_tables[size] != (ssrt *)NULL; size++)
@@ -49,8 +49,8 @@ ss_delete_request_table(sci_idx, rqtbl_ptr, code_ptr)
     ssrt *rqtbl_ptr;
     int *code_ptr;
 {
-    register ss_data *info;
-    register ssrt **rt1, **rt2;
+    ss_data *info;
+    ssrt **rt1, **rt2;
 
     *code_ptr = SS_ET_TABLE_NOT_FOUND;
     info = ss_info(sci_idx);

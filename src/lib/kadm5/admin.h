@@ -291,6 +291,8 @@ typedef struct _kadm5_key_data {
  * functions
  */
 
+/* The use_kdc_config parameter is no longer used, as configuration is
+ * retrieved from the context profile. */
 krb5_error_code kadm5_get_config_params(krb5_context context,
                                         int use_kdc_config,
                                         kadm5_config_params *params_in,
@@ -394,9 +396,6 @@ kadm5_ret_t    kadm5_randkey_principal_3(void *server_handle,
                                          krb5_key_salt_tuple *ks_tuple,
                                          krb5_keyblock **keyblocks,
                                          int *n_keys);
-kadm5_ret_t    kadm5_setv4key_principal(void *server_handle,
-                                        krb5_principal principal,
-                                        krb5_keyblock *keyblock);
 
 kadm5_ret_t    kadm5_setkey_principal(void *server_handle,
                                       krb5_principal principal,

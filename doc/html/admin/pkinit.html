@@ -1,33 +1,31 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>PKINIT configuration &mdash; MIT Kerberos Documentation</title>
-    
+    <title>PKINIT configuration &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For administrators" href="index.html" />
     <link rel="next" title="OTP Preauthentication" href="otp.html" />
     <link rel="prev" title="Backups of secure hosts" href="backup_host.html" /> 
   </head>
@@ -61,7 +59,7 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="pkinit-configuration">
 <span id="pkinit"></span><h1>PKINIT configuration<a class="headerlink" href="#pkinit-configuration" title="Permalink to this headline">¶</a></h1>
@@ -86,21 +84,21 @@ a client to use an Active Directory KDC.</p>
 <h3>Generating a certificate authority certificate<a class="headerlink" href="#generating-a-certificate-authority-certificate" title="Permalink to this headline">¶</a></h3>
 <p>You can establish a new certificate authority (CA) for use with a
 PKINIT deployment with the commands:</p>
-<div class="highlight-python"><div class="highlight"><pre>openssl genrsa -out cakey.pem 2048
-openssl req -key cakey.pem -new -x509 -out cacert.pem -days 3650
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">openssl</span> <span class="n">genrsa</span> <span class="o">-</span><span class="n">out</span> <span class="n">cakey</span><span class="o">.</span><span class="n">pem</span> <span class="mi">2048</span>
+<span class="n">openssl</span> <span class="n">req</span> <span class="o">-</span><span class="n">key</span> <span class="n">cakey</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">new</span> <span class="o">-</span><span class="n">x509</span> <span class="o">-</span><span class="n">out</span> <span class="n">cacert</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">days</span> <span class="mi">3650</span>
 </pre></div>
 </div>
 <p>The second command will ask for the values of several certificate
 fields.  These fields can be set to any values.  You can adjust the
 expiration time of the CA certificate by changing the number after
-<tt class="docutils literal"><span class="pre">-days</span></tt>.  Since the CA certificate must be deployed to client
+<code class="docutils literal"><span class="pre">-days</span></code>.  Since the CA certificate must be deployed to client
 machines each time it changes, it should normally have an expiration
 time far in the future; however, expiration times after 2037 may cause
 interoperability issues in rare circumstances.</p>
 <p>The result of these commands will be two files, cakey.pem and
 cacert.pem.  cakey.pem will contain a 2048-bit RSA private key, which
 must be carefully protected.  cacert.pem will contain the CA
-certificate, which must be placed in the filesytems of the KDC and
+certificate, which must be placed in the filesystems of the KDC and
 each client host.  cakey.pem will be required to create KDC and client
 certificates.</p>
 </div>
@@ -109,7 +107,7 @@ certificates.</p>
 <p>A KDC certificate for use with PKINIT is required to have some unusual
 fields, which makes generating them with OpenSSL somewhat complicated.
 First, you will need a file containing the following:</p>
-<div class="highlight-python"><div class="highlight"><pre>[kdc_cert]
+<div class="highlight-default"><div class="highlight"><pre><span></span>[kdc_cert]
 basicConstraints=CA:FALSE
 keyUsage=nonRepudiation,digitalSignature,keyEncipherment,keyAgreement
 extendedKeyUsage=1.3.6.1.5.2.3.5
@@ -123,7 +121,7 @@ realm=EXP:0,GeneralString:${ENV::REALM}
 principal_name=EXP:1,SEQUENCE:kdc_principal_seq
 
 [kdc_principal_seq]
-name_type=EXP:0,INTEGER:1
+name_type=EXP:0,INTEGER:2
 name_string=EXP:1,SEQUENCE:kdc_principals
 
 [kdc_principals]
@@ -133,27 +131,27 @@ princ2=GeneralString:${ENV::REALM}
 </div>
 <p>If the above contents are placed in extensions.kdc, you can generate
 and sign a KDC certificate with the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre>openssl genrsa -out kdckey.pem 2048
-openssl req -new -out kdc.req -key kdckey.pem
-env REALM=YOUR_REALMNAME openssl x509 -req -in kdc.req \
-    -CAkey cakey.pem -CA cacert.pem -out kdc.pem -days 365 \
-    -extfile extensions.kdc -extensions kdc_cert -CAcreateserial
-rm kdc.req
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">openssl</span> <span class="n">genrsa</span> <span class="o">-</span><span class="n">out</span> <span class="n">kdckey</span><span class="o">.</span><span class="n">pem</span> <span class="mi">2048</span>
+<span class="n">openssl</span> <span class="n">req</span> <span class="o">-</span><span class="n">new</span> <span class="o">-</span><span class="n">out</span> <span class="n">kdc</span><span class="o">.</span><span class="n">req</span> <span class="o">-</span><span class="n">key</span> <span class="n">kdckey</span><span class="o">.</span><span class="n">pem</span>
+<span class="n">env</span> <span class="n">REALM</span><span class="o">=</span><span class="n">YOUR_REALMNAME</span> <span class="n">openssl</span> <span class="n">x509</span> <span class="o">-</span><span class="n">req</span> <span class="o">-</span><span class="ow">in</span> <span class="n">kdc</span><span class="o">.</span><span class="n">req</span> \
+    <span class="o">-</span><span class="n">CAkey</span> <span class="n">cakey</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">CA</span> <span class="n">cacert</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">out</span> <span class="n">kdc</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">days</span> <span class="mi">365</span> \
+    <span class="o">-</span><span class="n">extfile</span> <span class="n">extensions</span><span class="o">.</span><span class="n">kdc</span> <span class="o">-</span><span class="n">extensions</span> <span class="n">kdc_cert</span> <span class="o">-</span><span class="n">CAcreateserial</span>
+<span class="n">rm</span> <span class="n">kdc</span><span class="o">.</span><span class="n">req</span>
 </pre></div>
 </div>
 <p>The second command will ask for the values of certificate fields,
 which can be set to any values.  In the third command, substitute your
-KDC&#8217;s realm name for YOUR_REALMNAME.  You can adjust the certificate&#8217;s
-expiration date by changing the number after <tt class="docutils literal"><span class="pre">-days</span></tt>.  Remember to
+KDC’s realm name for YOUR_REALMNAME.  You can adjust the certificate’s
+expiration date by changing the number after <code class="docutils literal"><span class="pre">-days</span></code>.  Remember to
 create a new KDC certificate before the old one expires.</p>
 <p>The result of this operation will be in two files, kdckey.pem and
-kdc.pem.  Both files must be placed in the KDC&#8217;s filesystem.
-kdckey.pem, which contains the KDC&#8217;s private key, must be carefully
+kdc.pem.  Both files must be placed in the KDC’s filesystem.
+kdckey.pem, which contains the KDC’s private key, must be carefully
 protected.</p>
-<p>If you examine the KDC certificate with <tt class="docutils literal"><span class="pre">openssl</span> <span class="pre">x509</span> <span class="pre">-in</span> <span class="pre">kdc.pem</span>
-<span class="pre">-text</span> <span class="pre">-noout</span></tt>, OpenSSL will not know how to display the KDC principal
+<p>If you examine the KDC certificate with <code class="docutils literal"><span class="pre">openssl</span> <span class="pre">x509</span> <span class="pre">-in</span> <span class="pre">kdc.pem</span>
+<span class="pre">-text</span> <span class="pre">-noout</span></code>, OpenSSL will not know how to display the KDC principal
 name in the Subject Alternative Name extension, so it will appear as
-<tt class="docutils literal"><span class="pre">othername:&lt;unsupported&gt;</span></tt>.  This is normal and does not mean
+<code class="docutils literal"><span class="pre">othername:&lt;unsupported&gt;</span></code>.  This is normal and does not mean
 anything is wrong with the KDC certificate.</p>
 </div>
 <div class="section" id="generating-client-certificates">
@@ -162,7 +160,7 @@ anything is wrong with the KDC certificate.</p>
 fields.  To generate a client certificate with OpenSSL for a
 single-component principal name, you will need an extensions file
 (different from the KDC extensions file above) containing:</p>
-<div class="highlight-python"><div class="highlight"><pre>[client_cert]
+<div class="highlight-default"><div class="highlight"><pre><span></span>[client_cert]
 basicConstraints=CA:FALSE
 keyUsage=digitalSignature,keyEncipherment,keyAgreement
 extendedKeyUsage=1.3.6.1.5.2.3.4
@@ -185,85 +183,85 @@ princ1=GeneralString:${ENV::CLIENT}
 </div>
 <p>If the above contents are placed in extensions.client, you can
 generate and sign a client certificate with the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre>openssl genrsa -out clientkey.pem 2048
-openssl req -new -key clientkey.pem -out client.req
-env REALM=YOUR_REALMNAME CLIENT=YOUR_PRINCNAME openssl x509 \
-    -CAkey cakey.pem -CA cacert.pem -req -in client.req \
-    -extensions client_cert -extfile extensions.client \
-    -days 365 -out client.pem
-rm client.req
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">openssl</span> <span class="n">genrsa</span> <span class="o">-</span><span class="n">out</span> <span class="n">clientkey</span><span class="o">.</span><span class="n">pem</span> <span class="mi">2048</span>
+<span class="n">openssl</span> <span class="n">req</span> <span class="o">-</span><span class="n">new</span> <span class="o">-</span><span class="n">key</span> <span class="n">clientkey</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">out</span> <span class="n">client</span><span class="o">.</span><span class="n">req</span>
+<span class="n">env</span> <span class="n">REALM</span><span class="o">=</span><span class="n">YOUR_REALMNAME</span> <span class="n">CLIENT</span><span class="o">=</span><span class="n">YOUR_PRINCNAME</span> <span class="n">openssl</span> <span class="n">x509</span> \
+    <span class="o">-</span><span class="n">CAkey</span> <span class="n">cakey</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">CA</span> <span class="n">cacert</span><span class="o">.</span><span class="n">pem</span> <span class="o">-</span><span class="n">req</span> <span class="o">-</span><span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">req</span> \
+    <span class="o">-</span><span class="n">extensions</span> <span class="n">client_cert</span> <span class="o">-</span><span class="n">extfile</span> <span class="n">extensions</span><span class="o">.</span><span class="n">client</span> \
+    <span class="o">-</span><span class="n">days</span> <span class="mi">365</span> <span class="o">-</span><span class="n">out</span> <span class="n">client</span><span class="o">.</span><span class="n">pem</span>
+<span class="n">rm</span> <span class="n">client</span><span class="o">.</span><span class="n">req</span>
 </pre></div>
 </div>
 <p>Normally, the first two commands should be run on the client host, and
 the resulting client.req file transferred to the certificate authority
 host for the third command.  As in the previous steps, the second
 command will ask for the values of certificate fields, which can be
-set to any values.  In the third command, substitute your realm&#8217;s name
-for YOUR_REALMNAME and the client&#8217;s principal name (without realm) for
-YOUR_PRINCNAME.  You can adjust the certificate&#8217;s expiration date by
-changing the number after <tt class="docutils literal"><span class="pre">-days</span></tt>.</p>
+set to any values.  In the third command, substitute your realm’s name
+for YOUR_REALMNAME and the client’s principal name (without realm) for
+YOUR_PRINCNAME.  You can adjust the certificate’s expiration date by
+changing the number after <code class="docutils literal"><span class="pre">-days</span></code>.</p>
 <p>The result of this operation will be two files, clientkey.pem and
-client.pem.  Both files must be present on the client&#8217;s host;
-clientkey.pem, which contains the client&#8217;s private key, must be
+client.pem.  Both files must be present on the client’s host;
+clientkey.pem, which contains the client’s private key, must be
 protected from access by others.</p>
 <p>As in the KDC certificate, OpenSSL will display the client principal
-name as <tt class="docutils literal"><span class="pre">othername:&lt;unsupported&gt;</span></tt> in the Subject Alternative Name
+name as <code class="docutils literal"><span class="pre">othername:&lt;unsupported&gt;</span></code> in the Subject Alternative Name
 extension of a PKINIT client certificate.</p>
 <p>If the client principal name contains more than one component
-(e.g. <tt class="docutils literal"><span class="pre">host/example.com&#64;REALM</span></tt>), the <tt class="docutils literal"><span class="pre">[principals]</span></tt> section of
-<tt class="docutils literal"><span class="pre">extensions.client</span></tt> must be altered to contain multiple entries.
-(Simply setting <tt class="docutils literal"><span class="pre">CLIENT</span></tt> to <tt class="docutils literal"><span class="pre">host/example.com</span></tt> would generate a
-certificate for <tt class="docutils literal"><span class="pre">host\/example.com&#64;REALM</span></tt> which would not match the
+(e.g. <code class="docutils literal"><span class="pre">host/example.com&#64;REALM</span></code>), the <code class="docutils literal"><span class="pre">[principals]</span></code> section of
+<code class="docutils literal"><span class="pre">extensions.client</span></code> must be altered to contain multiple entries.
+(Simply setting <code class="docutils literal"><span class="pre">CLIENT</span></code> to <code class="docutils literal"><span class="pre">host/example.com</span></code> would generate a
+certificate for <code class="docutils literal"><span class="pre">host\/example.com&#64;REALM</span></code> which would not match the
 multi-component principal name.)  For a two-component principal, the
 section should read:</p>
-<div class="highlight-python"><div class="highlight"><pre>[principals]
+<div class="highlight-default"><div class="highlight"><pre><span></span>[principals]
 princ1=GeneralString:${ENV::CLIENT1}
 princ2=GeneralString:${ENV::CLIENT2}
 </pre></div>
 </div>
-<p>The environment variables <tt class="docutils literal"><span class="pre">CLIENT1</span></tt> and <tt class="docutils literal"><span class="pre">CLIENT2</span></tt> must then be set
-to the first and second components when running <tt class="docutils literal"><span class="pre">openssl</span> <span class="pre">x509</span></tt>.</p>
+<p>The environment variables <code class="docutils literal"><span class="pre">CLIENT1</span></code> and <code class="docutils literal"><span class="pre">CLIENT2</span></code> must then be set
+to the first and second components when running <code class="docutils literal"><span class="pre">openssl</span> <span class="pre">x509</span></code>.</p>
 </div>
 </div>
 <div class="section" id="configuring-the-kdc">
 <h2>Configuring the KDC<a class="headerlink" href="#configuring-the-kdc" title="Permalink to this headline">¶</a></h2>
 <p>The KDC must have filesystem access to the KDC certificate (kdc.pem)
 and the KDC private key (kdckey.pem).  Configure the following
-relation in the KDC&#8217;s <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> file, either in the
-<a class="reference internal" href="conf_files/kdc_conf.html#kdcdefaults"><em>[kdcdefaults]</em></a> section or in a <a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><em>[realms]</em></a> subsection (with
+relation in the KDC’s <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file, either in the
+<a class="reference internal" href="conf_files/kdc_conf.html#kdcdefaults"><span class="std std-ref">[kdcdefaults]</span></a> section or in a <a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><span class="std std-ref">[realms]</span></a> subsection (with
 appropriate pathnames):</p>
-<div class="highlight-python"><div class="highlight"><pre>pkinit_identity = FILE:/var/lib/krb5kdc/kdc.pem,/var/lib/krb5kdc/kdckey.pem
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_identity</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">kdc</span><span class="o">.</span><span class="n">pem</span><span class="p">,</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">kdckey</span><span class="o">.</span><span class="n">pem</span>
 </pre></div>
 </div>
 <p>If any clients will authenticate using regular (as opposed to
 anonymous) PKINIT, the KDC must also have filesystem access to the CA
 certificate (cacert.pem), and the following configuration (with the
 appropriate pathname):</p>
-<div class="highlight-python"><div class="highlight"><pre>pkinit_anchors = FILE:/var/lib/krb5kdc/cacert.pem
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_anchors</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">cacert</span><span class="o">.</span><span class="n">pem</span>
 </pre></div>
 </div>
 <p>Because of the larger size of requests and responses using PKINIT, you
 may also need to allow TCP access to the KDC:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">kdc_tcp_listen</span> <span class="o">=</span> <span class="mi">88</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kdc_tcp_listen</span> <span class="o">=</span> <span class="mi">88</span>
 </pre></div>
 </div>
-<p>Restart the <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a> daemon to pick up the configuration
+<p>Restart the <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon to pick up the configuration
 changes.</p>
 <p>The principal entry for each PKINIT-using client must be configured to
 require preauthentication.  Ensure this with the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>kadmin -q &#39;modprinc +requires_preauth YOUR_PRINCNAME&#39;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="o">-</span><span class="n">q</span> <span class="s1">&#39;modprinc +requires_preauth YOUR_PRINCNAME&#39;</span>
 </pre></div>
 </div>
 <p>Starting with release 1.12, it is possible to remove the long-term
 keys of a principal entry, which can save some space in the database
 and help to clarify some PKINIT-related error conditions by not asking
 for a password:</p>
-<div class="highlight-python"><div class="highlight"><pre>kadmin -q &#39;purgekeys -all YOUR_PRINCNAME&#39;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="o">-</span><span class="n">q</span> <span class="s1">&#39;purgekeys -all YOUR_PRINCNAME&#39;</span>
 </pre></div>
 </div>
 <p>These principal options can also be specified at principal creation
 time as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre>kadmin -q &#39;add_principal +requires_preauth -nokey YOUR_PRINCNAME&#39;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="o">-</span><span class="n">q</span> <span class="s1">&#39;add_principal +requires_preauth -nokey YOUR_PRINCNAME&#39;</span>
 </pre></div>
 </div>
 <p>By default, the KDC requires PKINIT client certificates to have the
@@ -273,16 +271,16 @@ client certificates based on the subject or other criteria instead of
 the standard PKINIT Subject Alternative Name, by setting the
 <strong>pkinit_cert_match</strong> string attribute on each client principal entry.
 For example:</p>
-<div class="highlight-python"><div class="highlight"><pre>kadmin set_string user@REALM pkinit_cert_match &quot;&lt;SUBJECT&gt;CN=user@REALM$&quot;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="n">set_string</span> <span class="n">user</span><span class="nd">@REALM</span> <span class="n">pkinit_cert_match</span> <span class="s2">&quot;&lt;SUBJECT&gt;CN=user@REALM$&quot;</span>
 </pre></div>
 </div>
 <p>The <strong>pkinit_cert_match</strong> string attribute follows the syntax used by
-the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> <strong>pkinit_cert_match</strong> relation.  To allow the
+the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> <strong>pkinit_cert_match</strong> relation.  To allow the
 use of non-PKINIT client certificates, it will also be necessary to
 disable key usage checking using the <strong>pkinit_eku_checking</strong> relation;
 for example:</p>
-<div class="highlight-python"><div class="highlight"><pre>[kdcdefaults]
-    pkinit_eku_checking = none
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">kdcdefaults</span><span class="p">]</span>
+    <span class="n">pkinit_eku_checking</span> <span class="o">=</span> <span class="n">none</span>
 </pre></div>
 </div>
 </div>
@@ -291,22 +289,22 @@ for example:</p>
 <p>Client hosts must be configured to trust the issuing authority for the
 KDC certificate.  For a newly established certificate authority, the
 client host must have filesystem access to the CA certificate
-(cacert.pem) and the following relation in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> in the
-appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><em>[realms]</em></a> subsection (with appropriate pathnames):</p>
-<div class="highlight-python"><div class="highlight"><pre>pkinit_anchors = FILE:/etc/krb5/cacert.pem
+(cacert.pem) and the following relation in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> in the
+appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> subsection (with appropriate pathnames):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_anchors</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">cacert</span><span class="o">.</span><span class="n">pem</span>
 </pre></div>
 </div>
 <p>If the KDC certificate is a commercially issued server certificate,
 the issuing certificate is most likely included in a system directory.
 You can specify it by filename as above, or specify the whole
 directory like so:</p>
-<div class="highlight-python"><div class="highlight"><pre>pkinit_anchors = DIR:/etc/ssl/certs
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_anchors</span> <span class="o">=</span> <span class="n">DIR</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">ssl</span><span class="o">/</span><span class="n">certs</span>
 </pre></div>
 </div>
 <p>A commercially issued server certificate will usually not have the
 standard PKINIT principal name or Extended Key Usage extensions, so
 the following additional configuration is required:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">pkinit_eku_checking</span> <span class="o">=</span> <span class="n">kpServerAuth</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_eku_checking</span> <span class="o">=</span> <span class="n">kpServerAuth</span>
 <span class="n">pkinit_kdc_hostname</span> <span class="o">=</span> <span class="n">hostname</span><span class="o">.</span><span class="n">of</span><span class="o">.</span><span class="n">kdc</span><span class="o">.</span><span class="n">certificate</span>
 </pre></div>
 </div>
@@ -318,14 +316,14 @@ necessary, but it should not be necessary to set
 <p>To perform regular (as opposed to anonymous) PKINIT authentication, a
 client host must have filesystem access to a client certificate
 (client.pem), and the corresponding private key (clientkey.pem).
-Configure the following relations in the client host&#8217;s
-<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> file in the appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><em>[realms]</em></a> subsection
+Configure the following relations in the client host’s
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file in the appropriate <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> subsection
 (with appropriate pathnames):</p>
-<div class="highlight-python"><div class="highlight"><pre>pkinit_identities = FILE:/etc/krb5/client.pem,/etc/krb5/clientkey.pem
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pkinit_identities</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">client</span><span class="o">.</span><span class="n">pem</span><span class="p">,</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">/</span><span class="n">clientkey</span><span class="o">.</span><span class="n">pem</span>
 </pre></div>
 </div>
 <p>If the KDC and client are properly configured, it should now be
-possible to run <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">username</span></tt> without entering a password.</p>
+possible to run <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">username</span></code> without entering a password.</p>
 </div>
 <div class="section" id="anonymous-pkinit">
 <span id="id1"></span><h2>Anonymous PKINIT<a class="headerlink" href="#anonymous-pkinit" title="Permalink to this headline">¶</a></h2>
@@ -338,14 +336,14 @@ a KDC certificate and configure the KDC host, but you do not need to
 generate any client certificates.  On the KDC, you must set the
 <strong>pkinit_identity</strong> variable to provide the KDC certificate, but do
 not need to set the <strong>pkinit_anchors</strong> variable or store the issuing
-certificate if you won&#8217;t have any client certificates to verify.  On
+certificate if you won’t have any client certificates to verify.  On
 client hosts, you must set the <strong>pkinit_anchors</strong> variable (and
 possibly <strong>pkinit_kdc_hostname</strong> and <strong>pkinit_eku_checking</strong>) in order
 to trust the issuing authority for the KDC certificate, but do not
 need to set the <strong>pkinit_identities</strong> variable.</p>
 <p>Anonymity support is not enabled by default.  To enable it, you must
-create the principal <tt class="docutils literal"><span class="pre">WELLKNOWN/ANONYMOUS</span></tt> using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>kadmin -q &#39;addprinc -randkey WELLKNOWN/ANONYMOUS&#39;
+create the principal <code class="docutils literal"><span class="pre">WELLKNOWN/ANONYMOUS</span></code> using the command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="o">-</span><span class="n">q</span> <span class="s1">&#39;addprinc -randkey WELLKNOWN/ANONYMOUS&#39;</span>
 </pre></div>
 </div>
 <p>Some Kerberos deployments include application servers which lack
@@ -354,12 +352,34 @@ can authenticate.  In such an environment, enabling anonymity support
 on the KDC would present a security issue.  If you need to enable
 anonymity support for TGTs (for use as FAST armor tickets) without
 enabling anonymous authentication to application servers, you can set
-the variable <strong>restrict_anonymous_to_tgt</strong> to <tt class="docutils literal"><span class="pre">true</span></tt> in the
-appropriate <a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><em>[realms]</em></a> subsection of the KDC&#8217;s
-<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> file.</p>
-<p>To obtain anonymous credentials on a client, run <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span></tt>, or
-<tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span> <span class="pre">&#64;REALMNAME</span></tt> to specify a realm.  The resulting tickets
-will have the client name <tt class="docutils literal"><span class="pre">WELLKNOWN/ANONYMOUS&#64;WELLKNOWN:ANONYMOUS</span></tt>.</p>
+the variable <strong>restrict_anonymous_to_tgt</strong> to <code class="docutils literal"><span class="pre">true</span></code> in the
+appropriate <a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><span class="std std-ref">[realms]</span></a> subsection of the KDC’s
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file.</p>
+<p>To obtain anonymous credentials on a client, run <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span></code>, or
+<code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span> <span class="pre">&#64;REALMNAME</span></code> to specify a realm.  The resulting tickets
+will have the client name <code class="docutils literal"><span class="pre">WELLKNOWN/ANONYMOUS&#64;WELLKNOWN:ANONYMOUS</span></code>.</p>
+</div>
+<div class="section" id="freshness-tokens">
+<h2>Freshness tokens<a class="headerlink" href="#freshness-tokens" title="Permalink to this headline">¶</a></h2>
+<p>Freshness tokens can ensure that the client has recently had access to
+its certificate private key.  If freshness tokens are not required by
+the KDC, a client program with temporary possession of the private key
+can compose requests for future timestamps and use them later.</p>
+<p>In release 1.17 and later, freshness tokens are supported by the
+client and are sent by the KDC when the client indicates support for
+them.  Because not all clients support freshness tokens yet, they are
+not required by default.  To check if freshness tokens are supported
+by a realm’s clients, look in the KDC logs for the lines:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">PKINIT</span><span class="p">:</span> <span class="n">freshness</span> <span class="n">token</span> <span class="n">received</span> <span class="kn">from</span> <span class="o">&lt;</span><span class="n">client</span> <span class="n">principal</span><span class="o">&gt;</span>
+<span class="n">PKINIT</span><span class="p">:</span> <span class="n">no</span> <span class="n">freshness</span> <span class="n">token</span> <span class="n">received</span> <span class="kn">from</span> <span class="o">&lt;</span><span class="n">client</span> <span class="n">principal</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>To require freshness tokens for all clients in a realm (except for
+clients authenticating anonymously), set the
+<strong>pkinit_require_freshness</strong> variable to <code class="docutils literal"><span class="pre">true</span></code> in the appropriate
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><span class="std std-ref">[realms]</span></a> subsection of the KDC’s <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file.  To
+test that this option is in effect, run <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-X</span> <span class="pre">disable_freshness</span></code>
+and verify that authentication is unsuccessful.</p>
 </div>
 </div>
 
@@ -381,6 +401,7 @@ will have the client name <tt class="docutils literal"><span class="pre">WELLKNO
 <li><a class="reference internal" href="#configuring-the-kdc">Configuring the KDC</a></li>
 <li><a class="reference internal" href="#configuring-the-clients">Configuring the clients</a></li>
 <li><a class="reference internal" href="#anonymous-pkinit">Anonymous PKINIT</a></li>
+<li><a class="reference internal" href="#freshness-tokens">Freshness tokens</a></li>
 </ul>
 </li>
 </ul>
@@ -394,15 +415,16 @@ will have the client name <tt class="docutils literal"><span class="pre">WELLKNO
 <li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">PKINIT configuration</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
@@ -442,8 +464,8 @@ will have the client name <tt class="docutils literal"><span class="pre">WELLKNO
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 

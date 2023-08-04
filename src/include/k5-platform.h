@@ -40,10 +40,13 @@
  * + [v]asprintf
  * + strerror_r
  * + mkstemp
- * + zap (support function; macro is in k5-int.h)
+ * + zap (support function and macro)
  * + constant time memory comparison
  * + path manipulation
  * + _, N_, dgettext, bindtextdomain (for localization)
+ * + getopt_long
+ * + secure_getenv
+ * + fetching filenames from a directory
  */
 
 #ifndef K5_PLATFORM_H
@@ -524,15 +527,11 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 # endif
 #elif TARGET_OS_MAC
 # include <architecture/byte_order.h>
-# if 0 /* This causes compiler warnings.  */
-#  define SWAP16                OSSwapInt16
-# else
-#  define SWAP16                k5_swap16
+# define SWAP16                k5_swap16
 static inline unsigned int k5_swap16 (unsigned int x) {
     x &= 0xffff;
     return (x >> 8) | ((x & 0xff) << 8);
 }
-# endif
 # define SWAP32                 OSSwapInt32
 # define SWAP64                 OSSwapInt64
 #elif defined(HAVE_SYS_BSWAP_H)
@@ -846,25 +845,6 @@ k5_ntohll (uint64_t val)
    business.  Probably most callers won't check the return status
    anyways.  */
 
-#if 0
-static inline void
-set_cloexec_fd(int fd)
-{
-#if defined(F_SETFD)
-# ifdef FD_CLOEXEC
-    (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
-# else
-    (void)fcntl(fd, F_SETFD, 1);
-# endif
-#endif
-}
-
-static inline void
-set_cloexec_file(FILE *f)
-{
-    return set_cloexec_fd(fileno(f));
-}
-#else
 /* Macros make the Sun compiler happier, and all variants of this do a
    single evaluation of the argument, and fcntl and fileno should
    produce reasonable error messages on type mismatches, on any system
@@ -879,9 +859,6 @@ set_cloexec_file(FILE *f)
 # define set_cloexec_fd(FD)     ((void)(FD))
 #endif
 #define set_cloexec_file(F)     set_cloexec_fd(fileno(F))
-#endif
-
-
 
 /* Since the original ANSI C spec left it undefined whether or
    how you could copy around a va_list, C 99 added va_copy.
@@ -1022,6 +999,55 @@ extern int krb5int_gettimeofday(struct timeval *tp, void *ignore);
 #define gettimeofday krb5int_gettimeofday
 #endif
 
+/*
+ * Attempt to zero memory in a way that compilers won't optimize out.
+ *
+ * This mechanism should work even for heap storage about to be freed,
+ * or automatic storage right before we return from a function.
+ *
+ * Then, even if we leak uninitialized memory someplace, or UNIX
+ * "core" files get created with world-read access, some of the most
+ * sensitive data in the process memory will already be safely wiped.
+ *
+ * We're not going so far -- yet -- as to try to protect key data that
+ * may have been written into swap space....
+ */
+#ifdef _WIN32
+# define zap(ptr, len) SecureZeroMemory(ptr, len)
+#elif defined(__STDC_LIB_EXT1__)
+/*
+ * Use memset_s() which cannot be optimized out.  Avoid memset_s(NULL, 0, 0, 0)
+ * which would cause a runtime constraint violation.
+ */
+static inline void zap(void *ptr, size_t len)
+{
+    if (len > 0)
+        memset_s(ptr, len, 0, len);
+}
+#elif defined(HAVE_EXPLICIT_BZERO)
+# define zap(ptr, len) explicit_bzero(ptr, len)
+#elif defined(HAVE_EXPLICIT_MEMSET)
+# define zap(ptr, len) explicit_memset(ptr, 0, len)
+#elif defined(__GNUC__) || defined(__clang__)
+/*
+ * Use an asm statement which declares a memory clobber to force the memset to
+ * be carried out.  Avoid memset(NULL, 0, 0) which has undefined behavior.
+ */
+static inline void zap(void *ptr, size_t len)
+{
+    if (len > 0)
+        memset(ptr, 0, len);
+    __asm__ __volatile__("" : : "g" (ptr) : "memory");
+}
+#else
+/*
+ * Use a function from libkrb5support to defeat inlining unless link-time
+ * optimization is used.  The function uses a volatile pointer, which prevents
+ * current compilers from optimizing out the memset.
+ */
+# define zap(ptr, len) krb5int_zap(ptr, len)
+#endif
+
 extern void krb5int_zap(void *ptr, size_t len);
 
 /*
@@ -1069,10 +1095,16 @@ int k5_path_isabs(const char *path);
 #define N_(s) s
 
 #if !defined(HAVE_GETOPT) || !defined(HAVE_UNISTD_H)
-extern int k5_opterr;
-extern int k5_optind;
-extern int k5_optopt;
-extern char *k5_optarg;
+/* Data objects imported from DLLs must be declared as such on Windows. */
+#if defined(_WIN32) && !defined(K5_GETOPT_C)
+#define K5_GETOPT_DECL __declspec(dllimport)
+#else
+#define K5_GETOPT_DECL
+#endif
+K5_GETOPT_DECL extern int k5_opterr;
+K5_GETOPT_DECL extern int k5_optind;
+K5_GETOPT_DECL extern int k5_optopt;
+K5_GETOPT_DECL extern char *k5_optarg;
 #define opterr k5_opterr
 #define optind k5_optind
 #define optopt k5_optopt
@@ -1102,5 +1134,18 @@ extern int k5_getopt_long(int nargc, char **nargv, char *options,
                           struct option *long_options, int *index);
 #define getopt_long k5_getopt_long
 #endif /* HAVE_GETOPT_LONG */
+
+#if defined(_WIN32)
+/* On Windows there is never a need to ignore the process environment. */
+#define secure_getenv getenv
+#elif !defined(HAVE_SECURE_GETENV)
+#define secure_getenv k5_secure_getenv
+extern char *k5_secure_getenv(const char *name);
+#endif
+
+/* Set *fnames_out to a null-terminated list of filenames within dirname,
+ * sorted according to strcmp().  Return 0 on success, or ENOENT/ENOMEM. */
+int k5_dir_filenames(const char *dirname, char ***fnames_out);
+void k5_free_filenames(char **fnames);
 
 #endif /* K5_PLATFORM_H */

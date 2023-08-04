@@ -27,14 +27,12 @@
 #include "crypto_int.h"
 #include "des_int.h"
 
+#ifdef K5_BUILTIN_DES_KEY_PARITY
+
 void
 k5_des_fixup_key_parity(unsigned char *keybits)
 {
     mit_des_fixup_key_parity(keybits);
 }
 
-krb5_boolean
-k5_des_is_weak_key(unsigned char *keybits)
-{
-    return mit_des_is_weak_key(keybits);
-}
+#endif /* K5_BUILTIN_DES_KEY_PARITY */

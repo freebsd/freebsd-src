@@ -109,7 +109,7 @@ struct cu_data {
  *     Caller may wish to set this something more useful.
  *
  * wait is the amount of time used between retransmitting a call if
- * no response has been heard;  retransmition occurs until the actual
+ * no response has been heard;  retransmission occurs until the actual
  * rpc call times out.
  *
  * sendsz and recvsz are the maximum allowable packet sizes that can be
@@ -121,12 +121,12 @@ clntudp_bufcreate(
 	rpcprog_t program,
 	rpcvers_t version,
 	struct timeval wait,
-	register int *sockp,
+	int *sockp,
 	u_int sendsz,
 	u_int recvsz)
 {
 	CLIENT *cl;
-	register struct cu_data *cu = 0;
+	struct cu_data *cu = 0;
 	struct timeval now;
 	struct rpc_msg call_msg;
 
@@ -196,7 +196,7 @@ clntudp_bufcreate(
 	}
 	if (connect(*sockp, (struct sockaddr *)raddr, sizeof(*raddr)) < 0)
 	     goto fooy;
-	     cu->cu_llen = sizeof(cu->cu_laddr);
+	cu->cu_llen = sizeof(cu->cu_laddr);
 	if (getsockname(*sockp, (struct sockaddr *)&cu->cu_laddr, &cu->cu_llen) < 0)
 	     goto fooy;
 
@@ -217,7 +217,7 @@ clntudp_create(
 	rpcprog_t program,
 	rpcvers_t version,
 	struct timeval wait,
-	register int *sockp)
+	int *sockp)
 {
 
 	return(clntudp_bufcreate(raddr, program, version, wait, sockp,
@@ -226,7 +226,7 @@ clntudp_create(
 
 static enum clnt_stat
 clntudp_call(
-	register CLIENT	*cl,		/* client handle */
+	CLIENT	*cl,			/* client handle */
 	rpcproc_t	proc,		/* procedure number */
 	xdrproc_t	xargs,		/* xdr routine for args */
 	void *		argsp,		/* pointer to args */
@@ -236,17 +236,17 @@ clntudp_call(
 					 * giving up */
 	)
 {
-	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	register XDR *xdrs;
-	register int outlen;
-	register ssize_t inlen;
+	struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	XDR *xdrs;
+	int outlen;
+	ssize_t inlen;
 	GETSOCKNAME_ARG3_TYPE fromlen; /* Assumes recvfrom uses same type */
 #ifdef FD_SETSIZE
 	fd_set readfds;
 	fd_set mask;
 #else
 	int readfds;
-	register int mask;
+	int mask;
 #endif /* def FD_SETSIZE */
 	struct sockaddr_in from;
 	struct rpc_msg reply_msg;
@@ -416,7 +416,7 @@ clntudp_geterr(
 	CLIENT *cl,
 	struct rpc_err *errp)
 {
-	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 
 	*errp = cu->cu_error;
 }
@@ -428,8 +428,8 @@ clntudp_freeres(
 	xdrproc_t xdr_res,
 	void *res_ptr)
 {
-	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	register XDR *xdrs = &(cu->cu_outxdrs);
+	struct cu_data *cu = cl->cl_private;
+	XDR *xdrs = &cu->cu_outxdrs;
 
 	xdrs->x_op = XDR_FREE;
 	return ((*xdr_res)(xdrs, res_ptr));
@@ -448,7 +448,7 @@ clntudp_control(
 	int request,
 	void *info)
 {
-	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	struct cu_data *cu = cl->cl_private;
 
 	switch (request) {
 	case CLSET_TIMEOUT:
@@ -478,7 +478,7 @@ clntudp_control(
 static void
 clntudp_destroy(CLIENT *cl)
 {
-	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 
 	if (cu->cu_closeit)
                 (void)closesocket(cu->cu_sock);

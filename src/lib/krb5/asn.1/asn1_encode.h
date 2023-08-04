@@ -29,53 +29,45 @@
 
 #include "k5-int.h"
 #include "krbasn1.h"
-#include "asn1buf.h"
 #include <time.h>
+
+typedef struct asn1buf_st asn1buf;
 
 typedef struct {
     asn1_class asn1class;
     asn1_construction construction;
     asn1_tagnum tagnum;
 
-    /* When decoding, stores the leading and trailing lengths of a tag.  Used
-     * by store_der(). */
+    /* When decoding, stores the leading length of a tag.  Used by
+     * store_der(). */
     size_t tag_len;
-    size_t tag_end_len;
 } taginfo;
 
 /* These functions are referenced by encoder structures.  They handle the
  * encoding of primitive ASN.1 types. */
-asn1_error_code k5_asn1_encode_bool(asn1buf *buf, intmax_t val,
-                                    size_t *len_out);
-asn1_error_code k5_asn1_encode_int(asn1buf *buf, intmax_t val,
-                                   size_t *len_out);
-asn1_error_code k5_asn1_encode_uint(asn1buf *buf, uintmax_t val,
-                                    size_t *len_out);
-asn1_error_code k5_asn1_encode_bytestring(asn1buf *buf,
-                                          unsigned char *const *val,
-                                          size_t len, size_t *len_out);
-asn1_error_code k5_asn1_encode_bitstring(asn1buf *buf,
-                                         unsigned char *const *val,
-                                         size_t len, size_t *len_out);
-asn1_error_code k5_asn1_encode_generaltime(asn1buf *buf, time_t val,
-                                           size_t *len_out);
+void k5_asn1_encode_bool(asn1buf *buf, intmax_t val);
+void k5_asn1_encode_int(asn1buf *buf, intmax_t val);
+void k5_asn1_encode_uint(asn1buf *buf, uintmax_t val);
+krb5_error_code k5_asn1_encode_bytestring(asn1buf *buf, uint8_t *const *val,
+                                          size_t len);
+krb5_error_code k5_asn1_encode_bitstring(asn1buf *buf, uint8_t *const *val,
+                                         size_t len);
+krb5_error_code k5_asn1_encode_generaltime(asn1buf *buf, time_t val);
 
 /* These functions are referenced by encoder structures.  They handle the
  * decoding of primitive ASN.1 types. */
-asn1_error_code k5_asn1_decode_bool(const unsigned char *asn1, size_t len,
+krb5_error_code k5_asn1_decode_bool(const uint8_t *asn1, size_t len,
                                     intmax_t *val);
-asn1_error_code k5_asn1_decode_int(const unsigned char *asn1, size_t len,
+krb5_error_code k5_asn1_decode_int(const uint8_t *asn1, size_t len,
                                    intmax_t *val);
-asn1_error_code k5_asn1_decode_uint(const unsigned char *asn1, size_t len,
+krb5_error_code k5_asn1_decode_uint(const uint8_t *asn1, size_t len,
                                     uintmax_t *val);
-asn1_error_code k5_asn1_decode_generaltime(const unsigned char *asn1,
-                                           size_t len, time_t *time_out);
-asn1_error_code k5_asn1_decode_bytestring(const unsigned char *asn1,
-                                          size_t len, unsigned char **str_out,
-                                          size_t *len_out);
-asn1_error_code k5_asn1_decode_bitstring(const unsigned char *asn1, size_t len,
-                                         unsigned char **bits_out,
-                                         size_t *len_out);
+krb5_error_code k5_asn1_decode_generaltime(const uint8_t *asn1, size_t len,
+                                           time_t *time_out);
+krb5_error_code k5_asn1_decode_bytestring(const uint8_t *asn1, size_t len,
+                                          uint8_t **str_out, size_t *len_out);
+krb5_error_code k5_asn1_decode_bitstring(const uint8_t *asn1, size_t len,
+                                         uint8_t **bits_out, size_t *len_out);
 
 /*
  * An atype_info structure specifies how to map a C object to an ASN.1 value.
@@ -152,9 +144,8 @@ struct atype_info {
 };
 
 struct fn_info {
-    asn1_error_code (*enc)(asn1buf *, const void *, taginfo *, size_t *);
-    asn1_error_code (*dec)(const taginfo *, const unsigned char *, size_t,
-                           void *);
+    krb5_error_code (*enc)(asn1buf *, const void *, taginfo *);
+    krb5_error_code (*dec)(const taginfo *, const uint8_t *, size_t, void *);
     int (*check_tag)(const taginfo *);
     void (*free_func)(void *);
 };
@@ -191,7 +182,7 @@ struct tagged_info {
 
 struct immediate_info {
     intmax_t val;
-    asn1_error_code err;
+    krb5_error_code err;
 };
 
 /* A cntype_info structure specifies how to map a C object and count (length or
@@ -202,7 +193,7 @@ enum cntype_type {
 
     /*
      * Apply an encoder function (contents only) and wrap it in a universal
-     * primitive tag.  The C object must be a char * or unsigned char *.  tinfo
+     * primitive tag.  The C object must be a char * or uint8_t *.  tinfo
      * is a struct string_info *.
      */
     cntype_string,
@@ -231,10 +222,8 @@ struct cntype_info {
 };
 
 struct string_info {
-    asn1_error_code (*enc)(asn1buf *, unsigned char *const *, size_t,
-                           size_t *);
-    asn1_error_code (*dec)(const unsigned char *, size_t, unsigned char **,
-                           size_t *);
+    krb5_error_code (*enc)(asn1buf *, uint8_t *const *, size_t);
+    krb5_error_code (*dec)(const uint8_t *, size_t, uint8_t **, size_t *);
     unsigned int tagval : 5;
 };
 
@@ -532,22 +521,22 @@ struct seq_info {
 
 /* Partially encode the contents of a type and return its tag information.
  * Used only by kdc_req_body. */
-asn1_error_code
+krb5_error_code
 k5_asn1_encode_atype(asn1buf *buf, const void *val, const struct atype_info *a,
-                     taginfo *tag_out, size_t *len_out);
+                     taginfo *tag_out);
 
 /* Decode the tag and contents of a type, storing the result in the
  * caller-allocated C object val.  Used only by kdc_req_body. */
-asn1_error_code
-k5_asn1_decode_atype(const taginfo *t, const unsigned char *asn1,
-                     size_t len, const struct atype_info *a, void *val);
+krb5_error_code
+k5_asn1_decode_atype(const taginfo *t, const uint8_t *asn1, size_t len,
+                     const struct atype_info *a, void *val);
 
 /* Returns a completed encoding, with tag and in the correct byte order, in an
  * allocated krb5_data. */
 extern krb5_error_code
 k5_asn1_full_encode(const void *rep, const struct atype_info *a,
                     krb5_data **code_out);
-asn1_error_code
+krb5_error_code
 k5_asn1_full_decode(const krb5_data *code, const struct atype_info *a,
                     void **rep_out);
 
@@ -563,7 +552,7 @@ k5_asn1_full_decode(const krb5_data *code, const struct atype_info *a,
     krb5_error_code                                                     \
     FNAME(const krb5_data *code, aux_type_##DESC **rep_out)             \
     {                                                                   \
-        asn1_error_code ret;                                            \
+        krb5_error_code ret;                                            \
         void *rep;                                                      \
         *rep_out = NULL;                                                \
         ret = k5_asn1_full_decode(code, &k5_atype_##DESC, &rep);        \

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-ARCFOUR-HMAC-EXP-data:
+
+ENCTYPE_ARCFOUR_HMAC_EXP
+========================
+
+..
+.. data:: ENCTYPE_ARCFOUR_HMAC_EXP
+..
+
+RFC 4757.
+
+
+
+=============================== ======================
+``ENCTYPE_ARCFOUR_HMAC_EXP``       ``0x0018``
+=============================== ======================

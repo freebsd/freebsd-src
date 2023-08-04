@@ -26,16 +26,6 @@
 
 #include "k5-int.h"
 
-static inline krb5_data
-key2data (krb5_keyblock k)
-{
-    krb5_data d;
-    d.magic = KV5M_DATA;
-    d.length = k.length;
-    d.data = (char *) k.contents;
-    return d;
-}
-
 krb5_error_code
 krb5_generate_subkey_extended(krb5_context context,
                               const krb5_keyblock *key,
@@ -43,16 +33,9 @@ krb5_generate_subkey_extended(krb5_context context,
                               krb5_keyblock **subkey)
 {
     krb5_error_code retval;
-    krb5_data seed;
     krb5_keyblock *keyblock;
 
     *subkey = NULL;
-
-    seed = key2data(*key);
-    retval = krb5_c_random_add_entropy(context, KRB5_C_RANDSOURCE_TRUSTEDPARTY,
-                                       &seed);
-    if (retval)
-        return retval;
 
     keyblock = malloc(sizeof(krb5_keyblock));
     if (!keyblock)

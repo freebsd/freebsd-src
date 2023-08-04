@@ -14,7 +14,6 @@ STLIBOBJS= \
 	ktfns.o		\
 	kt_file.o	\
 	kt_memory.o	\
-	kt_srvtab.o	\
 	read_servi.o
 
 OBJS=	\
@@ -26,7 +25,6 @@ OBJS=	\
 	$(OUTPRE)ktfns.$(OBJEXT)	\
 	$(OUTPRE)kt_file.$(OBJEXT)	\
 	$(OUTPRE)kt_memory.$(OBJEXT)	\
-	$(OUTPRE)kt_srvtab.$(OBJEXT)	\
 	$(OUTPRE)read_servi.$(OBJEXT)
 
 SRCS=	\
@@ -38,7 +36,6 @@ SRCS=	\
 	$(srcdir)/ktfns.c	\
 	$(srcdir)/kt_file.c	\
 	$(srcdir)/kt_memory.c	\
-	$(srcdir)/kt_srvtab.c	\
 	$(srcdir)/read_servi.c
 
 EXTRADEPSRCS= \

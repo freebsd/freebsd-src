@@ -7,6 +7,10 @@ parsed (and unparsed) principal(tytso/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t@FO
 parsed (and unparsed) principal(tytso\\0/\0@B\n\t\\GAG): MATCH
 parsed (and unparsed) principal(tytso/\n/\b\t@B\0hacky-test): MATCH
 parsed (and unparsed) principal(\/slash/\@atsign/octa\/thorpe@\/slash\@at\/sign): MATCH
+name_type principal(host/www.krb5.test@KRB5.TEST): 1
+name_type principal(krbtg/KRB5.TEST@KRB5.TEST): 1
+name_type principal(krbtgt/KRB5.TEST@KRB5.TEST): 2
+name_type principal(WELLKNOWN/ANONYMOUS@KRB5.TEST): 11
 425_converted principal(rcmd, e40-po, ATHENA.MIT.EDU): 'host/e40-po.mit.edu@ATHENA.MIT.EDU'
 425_converted principal(rcmd, mit, ATHENA.MIT.EDU): 'host/mit.edu@ATHENA.MIT.EDU'
 425_converted principal(rcmd, lithium, ATHENA.MIT.EDU): 'host/lithium.lcs.mit.edu@ATHENA.MIT.EDU'

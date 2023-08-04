@@ -201,7 +201,6 @@ class DocModel(object):
 
     def __repr__(self):
         obj = getattr(self,self.category)
-        print type(obj)
         return str(obj)
 
     def signature(self):
@@ -236,8 +235,8 @@ class DocModelTest(DocModel):
         self.test_save()
 
     def test_print(self):
-        print 'testing'
-        print self
+        print('testing')
+        print(self)
 
 
     def test_save(self):

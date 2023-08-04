@@ -9,7 +9,7 @@ DEFINES = @HESIOD_DEFS@
 ##DOSLIBNAME = libkadm5srv.lib
 
 LIBBASE=kadm5srv_mit
-LIBMAJOR=11
+LIBMAJOR=12
 LIBMINOR=0
 STOBJLISTS=../OBJS.ST OBJS.ST
 
@@ -20,8 +20,8 @@ SHLIB_EXPDEPS=\
 	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(COM_ERR_DEPLIB) $(SUPPORT_LIBDEP)
-SHLIB_EXPLIBS =	-lgssrpc -lgssapi_krb5 -lkdb5 $(KDB5_DB_LIB) \
-		-lkrb5 -lk5crypto $(SUPPORT_LIB) -lcom_err @GEN_LIB@ $(LIBS)
+SHLIB_EXPLIBS =	-lgssrpc -lgssapi_krb5 -lkdb5 $(KDB5_DB_LIB) -lkrb5 \
+		-lk5crypto $(SUPPORT_LIB) $(COM_ERR_LIB) @GEN_LIB@ $(LIBS)
 RELDIR=kadm5/srv
 
 SRCS =	$(srcdir)/pwqual.c \

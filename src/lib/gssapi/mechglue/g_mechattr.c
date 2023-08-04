@@ -100,15 +100,14 @@ gss_indicate_mechs_by_attrs(
     gss_OID_set     allMechs = GSS_C_NO_OID_SET;
     size_t          i;
 
-    if (minor == NULL)
+    if (minor != NULL)
+        *minor = 0;
+
+    if (mechs != NULL)
+        *mechs = GSS_C_NO_OID_SET;
+
+    if (minor == NULL || mechs == NULL)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor = 0;
-
-    if (mechs == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *mechs = GSS_C_NO_OID_SET;
 
     status = gss_indicate_mechs(minor, &allMechs);
     if (GSS_ERROR(status))
@@ -163,16 +162,17 @@ gss_inquire_attrs_for_mech(
     gss_OID         selected_mech, public_mech;
     gss_mechanism   mech;
 
-    if (minor == NULL)
-        return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor = 0;
+    if (minor != NULL)
+        *minor = 0;
 
     if (mech_attrs != NULL)
         *mech_attrs = GSS_C_NO_OID_SET;
 
     if (known_mech_attrs != NULL)
         *known_mech_attrs = GSS_C_NO_OID_SET;
+
+    if (minor == NULL)
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
 
     status = gssint_select_mech_type(minor, mech_oid, &selected_mech);
     if (status != GSS_S_COMPLETE)

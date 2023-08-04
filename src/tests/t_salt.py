@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from k5test import *
 import re
 
@@ -16,18 +15,14 @@ def test_salt(realm, e1, salt, e2):
     realm.run([kadminl, 'delprinc', 'user'])
 
 # Enctype/salt pairs chosen with non-default salt types.
-# The enctypes are mostly arbitrary, though afs3 must only be used with des.
-# We do not enforce that v4 salts must only be used with des, but it seems
-# like a good idea.
-salts = [('des-cbc-crc', 'afs3'),
-         ('des3-cbc-sha1', 'norealm'),
+# The enctypes are mostly arbitrary.
+salts = [('des3-cbc-sha1', 'norealm'),
          ('arcfour-hmac', 'onlyrealm'),
-         ('des-cbc-crc', 'v4'),
          ('aes128-cts-hmac-sha1-96', 'special')]
 # These enctypes are chosen to cover the different string-to-key routines.
 # Omit ":normal" from aes256 to check that salttype defaulting works.
 second_kstypes = ['aes256-cts-hmac-sha1-96', 'arcfour-hmac:normal',
-                  'des3-cbc-sha1:normal', 'des-cbc-crc:normal']
+                  'des3-cbc-sha1:normal']
 
 # Test using different salt types in a principal's key list.
 # Parameters from one key in the list must not leak over to later ones.
@@ -56,23 +51,5 @@ dup_kstypes = ['arcfour-hmac-md5:normal,rc4-hmac:normal',
 
 for ks in dup_kstypes:
     test_dup(realm, ks)
-
-# Attempt to create a principal with a non-des enctype and the afs3 salt,
-# verifying that the expected error is received and the principal creation
-# fails.
-def test_reject_afs3(realm, etype):
-    query = 'ank -e ' + etype + ':afs3 -pw password princ1'
-    realm.run([kadminl, 'ank', '-e', etype + ':afs3', '-pw', 'password',
-               'princ1'], expected_code=1,
-              expected_msg='Invalid key generation parameters from KDC')
-    realm.run([kadminl, 'getprinc', 'princ1'], expected_code=1,
-              expected_msg='Principal does not exist')
-
-# Verify that the afs3 salt is rejected for arcfour and pbkdf2 enctypes.
-# We do not currently do any verification on the key-generation parameters
-# for the triple-DES enctypes, so that test is commented out.
-test_reject_afs3(realm, 'arcfour-hmac')
-test_reject_afs3(realm, 'aes256-cts-hmac-sha1-96')
-#test_reject_afs3(realm, 'des3-cbc-sha1')
 
 success("Salt types")

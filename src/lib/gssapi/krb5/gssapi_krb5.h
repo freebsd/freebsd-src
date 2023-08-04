@@ -73,6 +73,16 @@ GSS_DLLIMP extern const gss_OID GSS_KRB5_NT_PRINCIPAL_NAME;
  * generic(1) string_uid_name(3)}.  The recommended symbolic name for
  * this type is "GSS_KRB5_NT_STRING_UID_NAME". */
 
+/* Kerberos Enterprise Name Form (see RFC 6806 section 5): */
+GSS_DLLIMP extern const gss_OID GSS_KRB5_NT_ENTERPRISE_NAME;
+/* {iso(1) member-body(2) United States(840) mit(113554) infosys(1) gssapi(2)
+ * krb5(2) krb5-enterprise-name(6)}. */
+
+/* Kerberos X.509 DER-encoded certificate */
+GSS_DLLIMP extern const gss_OID GSS_KRB5_NT_X509_CERT;
+/* {iso(1) member-body(2) United States(840) mit(113554) infosys(1) gssapi(2)
+ * krb5(2) krb5-x509-cert(7)}. */
+
 GSS_DLLIMP extern const gss_OID gss_mech_krb5;
 GSS_DLLIMP extern const gss_OID gss_mech_krb5_old;
 GSS_DLLIMP extern const gss_OID gss_mech_krb5_wrong;
@@ -119,7 +129,7 @@ typedef struct gss_krb5_lucid_key {
 } gss_krb5_lucid_key_t;
 
 typedef struct gss_krb5_rfc1964_keydata {
-    OM_uint32       sign_alg;       /* signing algorthm */
+    OM_uint32       sign_alg;       /* signing algorithm */
     OM_uint32       seal_alg;       /* seal/encrypt algorithm */
     gss_krb5_lucid_key_t    ctx_key;
     /* Context key

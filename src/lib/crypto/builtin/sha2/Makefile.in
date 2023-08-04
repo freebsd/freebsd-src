@@ -1,5 +1,6 @@
 mydir=lib$(S)crypto$(S)builtin$(S)sha2
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
 
 ##DOS##BUILDTOP = ..\..\..\..
 ##DOS##PREFIXDIR = builtin\sha2

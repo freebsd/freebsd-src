@@ -710,7 +710,7 @@ load(db, argv)
 	DB *db;
 	char **argv;
 {
-	register char *p, *t;
+	char *p, *t;
 	FILE *fp;
 	DBT data, key;
 	recno_t cnt;

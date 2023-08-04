@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-ETYPE-LIST-data:
+
+KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST
+==================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST
+..
+
+
+
+
+========================================= ======================
+``KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST``       ``0x0010``
+========================================= ======================

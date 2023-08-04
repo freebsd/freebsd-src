@@ -15,7 +15,7 @@ def dofile(fname, style):
     newname = fname + ".new"
     infile = open(fname)
     outfile = open(newname, "w")
-    first = infile.next()
+    first = next(infile)
     if (first != style):
         changed = True
         outfile.write(style)
@@ -43,5 +43,5 @@ parser.add_option("--cstyle", action="store", dest="style",
 (options, args) = parser.parse_args()
 
 for fname in args:
-    print fname
+    print(fname)
     dofile(fname, styles[options.style])

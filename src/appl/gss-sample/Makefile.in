@@ -32,11 +32,11 @@ gss-client: gss-client.o gss-misc.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o gss-client gss-client.o gss-misc.o $(GSS_LIBS) $(KRB5_BASE_LIBS)
 
 ##WIN32##$(GSSSERVER): $(OUTPRE)gss-server.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB) $(SERVERRES)
-##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
 
 ##WIN32##$(GSSCLIENT): $(OUTPRE)gss-client.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB) $(CLIENTRES)
-##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
 
 clean-unix::

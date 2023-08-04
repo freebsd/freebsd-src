@@ -1,5 +1,6 @@
 mydir=lib$(S)crypto$(S)builtin$(S)sha1
 BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
 
 ##DOS##BUILDTOP = ..\..\..\..
 ##DOS##PREFIXDIR = builtin\sha1
@@ -27,7 +28,9 @@ $(OUTPRE)t_shs.exe: $(OUTPRE)t_shs.obj $(OUTPRE)shs.obj
 t_shs3: t_shs3.o shs.o $(SUPPORT_DEPLIB)
 	$(CC_LINK) -o t_shs3 t_shs3.o shs.o $(SUPPORT_LIB)
 
-check-unix: t_shs t_shs3
+check-unix: check-unix-@CRYPTO_BUILTIN_TESTS@
+check-unix-no:
+check-unix-yes: t_shs t_shs3
 	$(RUN_TEST) $(C)t_shs -x
 	$(RUN_TEST) $(C)t_shs3
 

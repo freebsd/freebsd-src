@@ -47,8 +47,8 @@
  *
  *	enum auth_stat
  *	flavorx_auth(rqst, msg)
- *		register struct svc_req *rqst;
- *		register struct rpc_msg *msg;
+ *		struct svc_req *rqst;
+ *		struct rpc_msg *msg;
  *
  */
 
@@ -59,9 +59,6 @@ static struct svcauthsw_type {
 } svcauthsw[] = {
      {AUTH_GSSAPI, gssrpc__svcauth_gssapi},	/* AUTH_GSSAPI */
      {AUTH_NONE, gssrpc__svcauth_none},		/* AUTH_NONE */
-#if 0
-     {AUTH_GSSAPI_COMPAT, gssrpc__svcauth_gssapi}, /* AUTH_GSSAPI_COMPAT */
-#endif
      {AUTH_UNIX, gssrpc__svcauth_unix},		/* AUTH_UNIX */
      {AUTH_SHORT, gssrpc__svcauth_short},	/* AUTH_SHORT */
      {RPCSEC_GSS, gssrpc__svcauth_gss}		/* RPCSEC_GSS */
@@ -85,11 +82,11 @@ static int svcauthnum = sizeof(svcauthsw) / sizeof(struct svcauthsw_type);
  */
 enum auth_stat
 gssrpc__authenticate(
-	register struct svc_req *rqst,
+	struct svc_req *rqst,
 	struct rpc_msg *msg,
 	bool_t *no_dispatch)
 {
-	register int cred_flavor, i;
+	int cred_flavor, i;
 
 	rqst->rq_cred = msg->rm_call.cb_cred;
 	rqst->rq_xprt->xp_verf.oa_flavor = gssrpc__null_auth.oa_flavor;

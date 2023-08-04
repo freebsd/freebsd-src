@@ -129,6 +129,7 @@ static krb5_error_code get_credentials(context, cred, server, now,
     krb5_error_code     code;
     krb5_creds          in_creds, evidence_creds, mcreds, *result_creds = NULL;
     krb5_flags          flags = 0;
+    krb5_principal_data server_data;
 
     *out_creds = NULL;
 
@@ -139,8 +140,14 @@ static krb5_error_code get_credentials(context, cred, server, now,
 
     assert(cred->name != NULL);
 
+    /* Remove assumed realm from host-based S4U2Proxy requests as they must
+     * start in the client realm. */
+    server_data = *server->princ;
+    if (cred->impersonator != NULL && server_data.type == KRB5_NT_SRV_HST)
+        server_data.realm = empty_data();
+    in_creds.server = &server_data;
+
     in_creds.client = cred->name->princ;
-    in_creds.server = server->princ;
     in_creds.times.endtime = endtime;
     in_creds.authdata = NULL;
     in_creds.keyblock.enctype = 0;
@@ -158,45 +165,37 @@ static krb5_error_code get_credentials(context, cred, server, now,
             goto cleanup;
     }
 
-    /*
-     * For IAKERB or constrained delegation, only check the cache in this step.
-     * For IAKERB we will ask the server to make any necessary TGS requests;
-     * for constrained delegation we will adjust in_creds and make an S4U2Proxy
-     * request below if the cache lookup fails.
-     */
-    if (cred->impersonator != NULL || cred->iakerb_mech)
+    /* Try constrained delegation if we have proxy credentials. */
+    if (cred->impersonator != NULL) {
+        /* If we are trying to get a ticket to ourselves, we should use the
+         * the evidence ticket directly from cache. */
+        if (krb5_principal_compare(context, cred->impersonator,
+                                   server->princ)) {
+            flags |= KRB5_GC_CACHED;
+        } else {
+            memset(&mcreds, 0, sizeof(mcreds));
+            mcreds.magic = KV5M_CREDS;
+            mcreds.server = cred->impersonator;
+            mcreds.client = cred->name->princ;
+            code = krb5_cc_retrieve_cred(context, cred->ccache,
+                                         KRB5_TC_MATCH_AUTHDATA, &mcreds,
+                                         &evidence_creds);
+            if (code)
+                goto cleanup;
+
+            in_creds.client = cred->impersonator;
+            in_creds.second_ticket = evidence_creds.ticket;
+            flags = KRB5_GC_CANONICALIZE | KRB5_GC_CONSTRAINED_DELEGATION;
+        }
+    }
+
+    /* For IAKERB, only check the cache in this step.  We will ask the server
+     * to make any necessary TGS requests. */
+    if (cred->iakerb_mech)
         flags |= KRB5_GC_CACHED;
 
     code = krb5_get_credentials(context, flags, cred->ccache,
                                 &in_creds, &result_creds);
-
-    /*
-     * Try constrained delegation if we have proxy credentials, unless
-     * we are trying to get a ticket to ourselves (in which case we could
-     * just use the evidence ticket directly from cache).
-     */
-    if (code == KRB5_CC_NOTFOUND && cred->impersonator != NULL &&
-        !cred->iakerb_mech &&
-        !krb5_principal_compare(context, cred->impersonator, server->princ)) {
-
-        memset(&mcreds, 0, sizeof(mcreds));
-        mcreds.magic = KV5M_CREDS;
-        mcreds.server = cred->impersonator;
-        mcreds.client = cred->name->princ;
-        code = krb5_cc_retrieve_cred(context, cred->ccache,
-                                     KRB5_TC_MATCH_AUTHDATA, &mcreds,
-                                     &evidence_creds);
-        if (code)
-            goto cleanup;
-
-        assert(evidence_creds.ticket_flags & TKT_FLG_FORWARDABLE);
-        in_creds.client = cred->impersonator;
-        in_creds.second_ticket = evidence_creds.ticket;
-        flags = KRB5_GC_CANONICALIZE | KRB5_GC_CONSTRAINED_DELEGATION;
-        code = krb5_get_credentials(context, flags, cred->ccache,
-                                    &in_creds, &result_creds);
-    }
-
     if (code)
         goto cleanup;
 
@@ -247,14 +246,14 @@ make_gss_checksum (krb5_context context, krb5_auth_context auth_context,
 {
     krb5_error_code code;
     krb5_int32 con_flags;
-    unsigned char *ptr;
     struct gss_checksum_data *data = cksum_data;
     krb5_data credmsg;
     unsigned int junk;
     krb5_data *finished = NULL;
     krb5_key send_subkey;
+    struct k5buf buf;
 
-    data->checksum_data.data = 0;
+    data->checksum_data = empty_data();
     credmsg.data = 0;
     /* build the checksum field */
 
@@ -292,18 +291,12 @@ make_gss_checksum (krb5_context context, krb5_auth_context auth_context,
                request */
             data->ctx->gss_flags &= ~(GSS_C_DELEG_FLAG |
                                       GSS_C_DELEG_POLICY_FLAG);
-
-            data->checksum_data.length = 24;
         } else {
             if (credmsg.length+28 > KRB5_INT16_MAX) {
                 code = KRB5KRB_ERR_FIELD_TOOLONG;
                 goto cleanup;
             }
-
-            data->checksum_data.length = 28+credmsg.length;
         }
-    } else {
-        data->checksum_data.length = 24;
     }
 #ifdef CFX_EXERCISE
     if (data->ctx->auth_context->keyblock != NULL
@@ -336,40 +329,35 @@ make_gss_checksum (krb5_context context, krb5_auth_context auth_context,
         }
 
         krb5_k_free_key(context, key);
-        data->checksum_data.length += 8 + finished->length;
     }
-
-    data->checksum_data.length += junk;
 
     /* now allocate a buffer to hold the checksum data and
        (maybe) KRB_CRED msg */
+    k5_buf_init_dynamic(&buf);
+    k5_buf_add_uint32_le(&buf, data->md5.length);
+    k5_buf_add_len(&buf, data->md5.contents, data->md5.length);
+    k5_buf_add_uint32_le(&buf, data->ctx->gss_flags);
+    if (credmsg.data != NULL) {
+        k5_buf_add_uint16_le(&buf, KRB5_GSS_FOR_CREDS_OPTION);
+        k5_buf_add_uint16_le(&buf, credmsg.length);
+        k5_buf_add_len(&buf, credmsg.data, credmsg.length);
+    }
+    if (data->exts->iakerb.conv != NULL) {
+        k5_buf_add_uint32_be(&buf, KRB5_GSS_EXTS_IAKERB_FINISHED);
+        k5_buf_add_uint32_be(&buf, finished->length);
+        k5_buf_add_len(&buf, finished->data, finished->length);
+    }
+    while (junk--)
+        k5_buf_add_byte(&buf, 'i');
 
-    if ((data->checksum_data.data =
-         (char *) xmalloc(data->checksum_data.length)) == NULL) {
-        code = ENOMEM;
+    code = k5_buf_status(&buf);
+    if (code)
         goto cleanup;
-    }
 
-    ptr = (unsigned char *)data->checksum_data.data;
-
-    TWRITE_INT(ptr, data->md5.length, 0);
-    TWRITE_STR(ptr, data->md5.contents, data->md5.length);
-    TWRITE_INT(ptr, data->ctx->gss_flags, 0);
-
-    if (credmsg.data) {
-        TWRITE_INT16(ptr, KRB5_GSS_FOR_CREDS_OPTION, 0);
-        TWRITE_INT16(ptr, credmsg.length, 0);
-        TWRITE_STR(ptr, credmsg.data, credmsg.length);
-    }
-    if (data->exts->iakerb.conv) {
-        TWRITE_INT(ptr, KRB5_GSS_EXTS_IAKERB_FINISHED, 1);
-        TWRITE_INT(ptr, finished->length, 1);
-        TWRITE_STR(ptr, finished->data, finished->length);
-    }
-    if (junk)
-        memset(ptr, 'i', junk);
+    data->checksum_data = make_data(buf.data, buf.len);
     *out = &data->checksum_data;
     code = 0;
+
 cleanup:
     krb5_free_data_contents(context, &credmsg);
     krb5_free_data(context, finished);
@@ -394,9 +382,9 @@ make_ap_req_v1(context, ctx, cred, k_cred, ad_context,
     struct gss_checksum_data cksum_struct;
     krb5_checksum md5;
     krb5_data ap_req;
-    unsigned char *ptr;
     unsigned char *t;
     unsigned int tlen;
+    struct k5buf buf;
 
     k5_mutex_assert_locked(&cred->lock);
     ap_req.data = 0;
@@ -448,19 +436,15 @@ make_ap_req_v1(context, ctx, cred, k_cred, ad_context,
     } else {
         /* allocate space for the token */
         tlen = g_token_size((gss_OID) mech_type, ap_req.length);
-
-        if ((t = (unsigned char *) gssalloc_malloc(tlen)) == NULL) {
+        t = gssalloc_malloc(tlen);
+        if (t == NULL) {
             code = ENOMEM;
             goto cleanup;
         }
-
-        /* fill in the buffer */
-        ptr = t;
-
-        g_make_token_header(mech_type, ap_req.length,
-                            &ptr, KG_TOK_CTX_AP_REQ);
-
-        TWRITE_STR(ptr, ap_req.data, ap_req.length);
+        k5_buf_init_fixed(&buf, t, tlen);
+        g_make_token_header(&buf, mech_type, ap_req.length, KG_TOK_CTX_AP_REQ);
+        k5_buf_add_len(&buf, ap_req.data, ap_req.length);
+        assert(buf.len == tlen);
 
         /* pass it back */
 
@@ -557,6 +541,13 @@ kg_new_connection(
     ctx->seed_init = 0;
     ctx->seqstate = 0;
 
+    /* enforce_ok_as_delegate causes GSS_C_DELEG_FLAG to be treated as
+     * GSS_C_DELEG_POLICY_FLAG (so ok-as-delegate is always enforced). */
+    if (context->enforce_ok_as_delegate && (req_flags & GSS_C_DELEG_FLAG)) {
+        req_flags &= ~GSS_C_DELEG_FLAG;
+        req_flags |= GSS_C_DELEG_POLICY_FLAG;
+    }
+
     ctx->gss_flags = req_flags & (GSS_C_CONF_FLAG | GSS_C_INTEG_FLAG |
                                   GSS_C_MUTUAL_FLAG | GSS_C_REPLAY_FLAG |
                                   GSS_C_SEQUENCE_FLAG | GSS_C_DELEG_FLAG |
@@ -625,7 +616,7 @@ kg_new_connection(
         }
 
         krb5_auth_con_getlocalseqnumber(context, ctx->auth_context, &seq_temp);
-        ctx->seq_send = seq_temp;
+        ctx->seq_send = (uint32_t)seq_temp;
         code = krb5_auth_con_getsendsubkey(context, ctx->auth_context,
                                            &keyblock);
         if (code != 0)
@@ -658,7 +649,7 @@ kg_new_connection(
     if (time_rec) {
         if ((code = krb5_timeofday(context, &now)))
             goto cleanup;
-        *time_rec = ts_delta(ctx->krb_times.endtime, now);
+        *time_rec = ts_interval(now, ctx->krb_times.endtime);
     }
 
     /* set the other returns */
@@ -724,7 +715,6 @@ mutual_auth(
 {
     OM_uint32 major_status;
     unsigned char *ptr;
-    char *sptr;
     krb5_data ap_rep;
     krb5_ap_rep_enc_part *ap_rep_data;
     krb5_timestamp now;
@@ -773,7 +763,6 @@ mutual_auth(
     if (ctx->gss_flags & GSS_C_DCE_STYLE) {
         /* Raw AP-REP */
         ap_rep.length = input_token->length;
-        ap_rep.data = (char *)input_token->value;
     } else if (g_verify_token_header(ctx->mech_used,
                                      &(ap_rep.length),
                                      &ptr, KG_TOK_CTX_AP_REP,
@@ -785,9 +774,7 @@ mutual_auth(
 
             /* Handle a KRB_ERROR message from the server */
 
-            sptr = (char *) ptr;           /* PC compiler bug */
-            TREAD_STR(sptr, ap_rep.data, ap_rep.length);
-
+            ap_rep.data = (char *)ptr;
             code = krb5_rd_error(context, &ap_rep, &krb_error);
             if (code)
                 goto fail;
@@ -802,15 +789,13 @@ mutual_auth(
             return(GSS_S_DEFECTIVE_TOKEN);
         }
     }
-
-    sptr = (char *) ptr;                      /* PC compiler bug */
-    TREAD_STR(sptr, ap_rep.data, ap_rep.length);
+    ap_rep.data = (char *)ptr;
 
     /* decode the ap_rep */
     if ((code = krb5_rd_rep(context, ctx->auth_context, &ap_rep,
                             &ap_rep_data))) {
         /*
-         * XXX A hack for backwards compatiblity.
+         * XXX A hack for backwards compatibility.
          * To be removed in 1999 -- proven
          */
         krb5_auth_con_setuseruserkey(context, ctx->auth_context,
@@ -872,7 +857,7 @@ mutual_auth(
     if (time_rec) {
         if ((code = krb5_timeofday(context, &now)))
             goto fail;
-        *time_rec = ts_delta(ctx->krb_times.endtime, now);
+        *time_rec = ts_interval(now, ctx->krb_times.endtime);
     }
 
     if (ret_flags)

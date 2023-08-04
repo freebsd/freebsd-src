@@ -81,7 +81,7 @@ typedef struct SVCXPRT {
 #endif
 	u_short		xp_port;	 /* associated port number */
 	struct xp_ops {
-	    /* receive incomming requests */
+	    /* receive incoming requests */
 	    bool_t	(*xp_recv)(struct SVCXPRT *, struct rpc_msg *);
 	    /* get transport status */
 	    enum xprt_stat (*xp_stat)(struct SVCXPRT *);
@@ -103,7 +103,7 @@ typedef struct SVCXPRT {
 	SVCAUTH		*xp_auth;	 /* auth flavor of current req */
 	void		*xp_p1;		 /* private */
 	void		*xp_p2;		 /* private */
-	int		xp_laddrlen;	 /* lenght of local address */
+	int		xp_laddrlen;	 /* length of local address */
 	struct sockaddr_in xp_laddr;	 /* local address */
 } SVCXPRT;
 
@@ -289,16 +289,9 @@ extern int svc_fds;
 #endif /* def FD_SETSIZE */
 extern int svc_maxfd;
 
-/*
- * a small program implemented by the svc_rpc implementation itself;
- * also see clnt.h for protocol numbers.
- */
-extern void rpctest_service();
-
 extern void	svc_getreq(int);
 #ifdef FD_SETSIZE
 extern void	svc_getreqset(fd_set *);/* takes fdset instead of int */
-extern void	svc_getreqset2(fd_set *, int);
 #else
 extern void	svc_getreqset(int *);
 #endif

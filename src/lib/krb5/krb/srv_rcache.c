@@ -28,60 +28,14 @@
 #include <ctype.h>
 #include <stdio.h>
 
-/* Macro for valid RC name characters*/
-#define isvalidrcname(x) ((!ispunct(x))&&isgraph(x))
 krb5_error_code KRB5_CALLCONV
 krb5_get_server_rcache(krb5_context context, const krb5_data *piece,
                        krb5_rcache *rcptr)
 {
-    krb5_rcache rcache = 0;
-    char *cachetype;
-    krb5_error_code retval;
-    unsigned int i;
-    struct k5buf buf = EMPTY_K5BUF;
-#ifdef HAVE_GETEUID
-    unsigned long uid = geteuid();
-#endif
-
-    if (piece == NULL)
-        return ENOMEM;
-
-    cachetype = krb5_rc_default_type(context);
-
-    k5_buf_init_dynamic(&buf);
-    k5_buf_add(&buf, cachetype);
-    k5_buf_add(&buf, ":");
-    for (i = 0; i < piece->length; i++) {
-        if (piece->data[i] == '-')
-            k5_buf_add(&buf, "--");
-        else if (!isvalidrcname((int) piece->data[i]))
-            k5_buf_add_fmt(&buf, "-%03o", piece->data[i]);
-        else
-            k5_buf_add_len(&buf, &piece->data[i], 1);
-    }
-#ifdef HAVE_GETEUID
-    k5_buf_add_fmt(&buf, "_%lu", uid);
-#endif
-
-    if (k5_buf_status(&buf) != 0)
-        return ENOMEM;
-
-    retval = krb5_rc_resolve_full(context, &rcache, buf.data);
-    if (retval)
-        goto cleanup;
-
-    retval = krb5_rc_recover_or_initialize(context, rcache,
-                                           context->clockskew);
-    if (retval)
-        goto cleanup;
-
-    *rcptr = rcache;
-    rcache = 0;
-    retval = 0;
-
-cleanup:
-    if (rcache)
-        krb5_rc_close(context, rcache);
-    k5_buf_free(&buf);
-    return retval;
+    /*
+     * This function used to compose a name based on the first component of the
+     * server principal, but now ignores the piece argument and resolves the
+     * default replay cache.
+     */
+    return k5_rc_default(context, rcptr);
 }

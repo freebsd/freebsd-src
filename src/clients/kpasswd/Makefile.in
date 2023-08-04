@@ -29,5 +29,5 @@ install-all install-kdc install-server install-client install-unix:
 ##WIN32##all-windows: $(KPWD)
 
 ##WIN32##$(KPWD): $(OUTPRE)kpasswd.obj $(KLIB) $(CLIB) $(EXERES)
-##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** $(SCLIB)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $**
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)

@@ -28,6 +28,8 @@
 #include "crypto_int.h"
 #include "rsa-md4.h"
 
+#ifdef K5_BUILTIN_MD4
+
 static krb5_error_code
 k5_md4_hash(const krb5_crypto_iov *data, size_t num_data, krb5_data *output)
 {
@@ -59,3 +61,5 @@ const struct krb5_hash_provider krb5int_hash_md4 = {
     64,
     k5_md4_hash
 };
+
+#endif /* K5_BUILTIN_MD4 */

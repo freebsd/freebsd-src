@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _AP-OPTS-ETYPE-NEGOTIATION-data:
+
+AP_OPTS_ETYPE_NEGOTIATION
+=========================
+
+..
+.. data:: AP_OPTS_ETYPE_NEGOTIATION
+..
+
+
+
+
+================================ ======================
+``AP_OPTS_ETYPE_NEGOTIATION``       ``0x00000002``
+================================ ======================

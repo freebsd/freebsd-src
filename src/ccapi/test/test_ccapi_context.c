@@ -583,7 +583,6 @@ int check_cc_context_create_ccache(void) {
 
 		// try bad parameters
 		err = check_once_cc_context_create_ccache(context, NULL, cc_credentials_v5, "foo@BAR.ORG", &ccache, ccErrBadParam, "NULL name");                    // NULL name
-		err = check_once_cc_context_create_ccache(context, "name", cc_credentials_v4_v5, "foo@BAR.ORG", &ccache, ccErrBadCredentialsVersion, "invalid creds_vers"); // invalid creds_vers
 		err = check_once_cc_context_create_ccache(context, "name", cc_credentials_v5, NULL, &ccache, ccErrBadParam, "NULL principal");                          // NULL principal
 		err = check_once_cc_context_create_ccache(context, "name", cc_credentials_v5, "foo@BAR.ORG", NULL, ccErrBadParam, "NULL ccache");                    // NULL ccache
 	}
@@ -681,7 +680,6 @@ int check_cc_context_create_default_ccache(void) {
 		}
 
 		// try bad parameters
-		err = check_once_cc_context_create_default_ccache(context, cc_credentials_v4_v5, "foo@BAR.ORG", &ccache, ccErrBadCredentialsVersion, "invalid creds_vers"); // invalid creds_vers
 		err = check_once_cc_context_create_default_ccache(context, cc_credentials_v5, NULL, &ccache, ccErrBadParam, "NULL principal");                          // NULL principal
 		err = check_once_cc_context_create_default_ccache(context, cc_credentials_v5, "foo@BAR.ORG", NULL, ccErrBadParam, "NULL ccache");                    // NULL ccache
 	}
@@ -773,7 +771,6 @@ int check_cc_context_create_new_ccache(void) {
 		if (ccache) { cc_ccache_release(ccache); }
 
 		// try bad parameters
-		err = check_once_cc_context_create_new_ccache(context, 1, cc_credentials_v4_v5, "foo@BAR.ORG", &ccache, ccErrBadCredentialsVersion, "invalid creds_vers"); // invalid creds_vers
 		err = check_once_cc_context_create_new_ccache(context, 1, cc_credentials_v5, NULL, &ccache, ccErrBadParam, "NULL principal");                          // NULL principal
 		err = check_once_cc_context_create_new_ccache(context, 1, cc_credentials_v5, "foo@BAR.ORG", NULL, ccErrBadParam, "NULL ccache");                    // NULL ccache
 	}

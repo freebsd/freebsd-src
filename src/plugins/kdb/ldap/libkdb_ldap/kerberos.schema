@@ -410,7 +410,7 @@ attributetype ( 2.16.840.1.113719.1.301.4.41.1
 ##### Holds the default encryption/salt type combinations of principals for
 ##### the Realm. Stores in the form of key:salt strings. This will be
 ##### subset of the supported encryption/salt types.
-##### Example: des-cbc-crc:normal
+##### Example: aes256-cts-hmac-sha384-192:normal
 
 attributetype ( 2.16.840.1.113719.1.301.4.42.1
                 NAME 'krbDefaultEncSaltTypes'
@@ -428,7 +428,7 @@ attributetype ( 2.16.840.1.113719.1.301.4.42.1
 ##### ONLYREALM       
 ##### SPECIAL         
 ##### AFS3            
-##### Example: des-cbc-crc:normal
+##### Example: aes256-cts-hmac-sha384-192:normal
 
 attributetype ( 2.16.840.1.113719.1.301.4.43.1
                 NAME 'krbSupportedEncSaltTypes'

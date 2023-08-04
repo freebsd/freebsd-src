@@ -70,16 +70,12 @@ check_context(krb5_context c, krb5_context r)
     int i;
 
     /* Check fields which should have been propagated from r. */
-    compare_etypes(c->in_tkt_etypes, r->in_tkt_etypes);
     compare_etypes(c->tgs_etypes, r->tgs_etypes);
     check(c->os_context.time_offset == r->os_context.time_offset);
     check(c->os_context.usec_offset == r->os_context.usec_offset);
     check(c->os_context.os_flags == r->os_context.os_flags);
     compare_string(c->os_context.default_ccname, r->os_context.default_ccname);
     check(c->clockskew == r->clockskew);
-    check(c->kdc_req_sumtype == r->kdc_req_sumtype);
-    check(c->default_ap_req_sumtype == r->default_ap_req_sumtype);
-    check(c->default_safe_sumtype == r->default_safe_sumtype);
     check(c->kdc_default_options == r->kdc_default_options);
     check(c->library_options == r->library_options);
     check(c->profile_secure == r->profile_secure);
@@ -88,13 +84,12 @@ check_context(krb5_context c, krb5_context r)
     check(c->use_conf_ktypes == r->use_conf_ktypes);
     check(c->allow_weak_crypto == r->allow_weak_crypto);
     check(c->ignore_acceptor_hostname == r->ignore_acceptor_hostname);
+    check(c->enforce_ok_as_delegate == r->enforce_ok_as_delegate);
     check(c->dns_canonicalize_hostname == r->dns_canonicalize_hostname);
     compare_string(c->plugin_base_dir, r->plugin_base_dir);
 
     /* Check fields which don't propagate. */
     check(c->dal_handle == NULL);
-    check(c->ser_ctx_count == 0);
-    check(c->ser_ctx == NULL);
     check(c->prompt_types == NULL);
     check(c->libkrb5_plugins.files == NULL);
     check(c->preauth_context == NULL);
@@ -117,9 +112,8 @@ main(int argc, char **argv)
 {
     krb5_context ctx, ctx2;
     krb5_plugin_initvt_fn *mods;
-    const krb5_enctype etypes1[] = { ENCTYPE_DES3_CBC_SHA1, 0 };
-    const krb5_enctype etypes2[] = { ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-                                     ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 };
+    const krb5_enctype etypes[] = { ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+                                    ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 };
     krb5_prompt_type ptypes[] = { KRB5_PROMPT_TYPE_PASSWORD };
 
     /* Copy a default context and verify the result. */
@@ -130,22 +124,19 @@ main(int argc, char **argv)
 
     /* Set non-default values for all of the propagated fields in ctx. */
     ctx->allow_weak_crypto = TRUE;
-    check(krb5_set_default_in_tkt_ktypes(ctx, etypes1) == 0);
-    check(krb5_set_default_tgs_enctypes(ctx, etypes2) == 0);
+    check(krb5_set_default_tgs_enctypes(ctx, etypes) == 0);
     check(krb5_set_debugging_time(ctx, 1234, 5678) == 0);
     check(krb5_cc_set_default_name(ctx, "defccname") == 0);
     check(krb5_set_default_realm(ctx, "defrealm") == 0);
     ctx->clockskew = 18;
-    ctx->kdc_req_sumtype = CKSUMTYPE_NIST_SHA;
-    ctx->default_ap_req_sumtype = CKSUMTYPE_HMAC_SHA1_96_AES128;
-    ctx->default_safe_sumtype = CKSUMTYPE_HMAC_SHA1_96_AES256;
     ctx->kdc_default_options = KDC_OPT_FORWARDABLE;
     ctx->library_options = 0;
     ctx->profile_secure = TRUE;
     ctx->udp_pref_limit = 2345;
     ctx->use_conf_ktypes = TRUE;
     ctx->ignore_acceptor_hostname = TRUE;
-    ctx->dns_canonicalize_hostname = FALSE;
+    ctx->enforce_ok_as_delegate = TRUE;
+    ctx->dns_canonicalize_hostname = CANONHOST_FALSE;
     free(ctx->plugin_base_dir);
     check((ctx->plugin_base_dir = strdup("/a/b/c/d")) != NULL);
 

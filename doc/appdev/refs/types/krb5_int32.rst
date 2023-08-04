@@ -1,4 +1,4 @@
-.. highlightlang:: c
+.. highlight:: c
 
 .. _krb5-int32-struct:
 

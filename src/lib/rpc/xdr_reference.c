@@ -55,7 +55,7 @@ static char sccsid[] = "@(#)xdr_reference.c 1.11 87/08/11 SMI";
  * referenced by a pointer inside the structure that is currently being
  * translated.  pp references a pointer to storage. If *pp is null
  * the  necessary storage is allocated.
- * size is the sizeof the referneced structure.
+ * size is the sizeof the referenced structure.
  * proc is the routine to handle the referenced structure.
  */
 bool_t
@@ -66,8 +66,8 @@ xdr_reference(
 	xdrproc_t proc		/* xdr routine to handle the object */
 	)
 {
-	register caddr_t loc = *pp;
-	register bool_t stat;
+	caddr_t loc = *pp;
+	bool_t stat;
 
 	if (loc == NULL)
 		switch (xdrs->x_op) {

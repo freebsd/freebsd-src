@@ -9,10 +9,6 @@
 #include        <kadm5/admin.h>
 #include        <kdb.h>
 #include        "server_internal.h"
-#ifdef USE_PASSWORD_SERVER
-#include        <sys/wait.h>
-#include        <signal.h>
-#endif
 
 #include <krb5/kadm5_hook_plugin.h>
 
@@ -302,7 +298,7 @@ kadm5_create_principal_3(void *server_handle,
     kadm5_server_handle_t handle = server_handle;
     krb5_keyblock               *act_mkey;
     krb5_kvno                   act_kvno;
-    int                         new_n_ks_tuple = 0;
+    int                         new_n_ks_tuple = 0, i;
     krb5_key_salt_tuple         *new_ks_tuple = NULL;
 
     CHECK_HANDLE(server_handle);
@@ -330,6 +326,13 @@ kadm5_create_principal_3(void *server_handle,
         return KADM5_BAD_MASK;
     if((mask & ~ALL_PRINC_MASK))
         return KADM5_BAD_MASK;
+    if (mask & KADM5_TL_DATA) {
+        for (tl_data_tail = entry->tl_data; tl_data_tail != NULL;
+             tl_data_tail = tl_data_tail->tl_data_next) {
+            if (tl_data_tail->tl_data_type < 256)
+                return KADM5_BAD_TL_TYPE;
+        }
+    }
 
     /*
      * Check to see if the principal exists
@@ -349,6 +352,11 @@ kadm5_create_principal_3(void *server_handle,
     kdb = calloc(1, sizeof(*kdb));
     if (kdb == NULL)
         return ENOMEM;
+
+    /* In all cases the principal entry is new and key data is set; let the
+     * database provider know. */
+    kdb->mask = mask | KADM5_KEY_DATA | KADM5_PRINCIPAL;
+
     memset(&adb, 0, sizeof(osa_princ_ent_rec));
 
     /*
@@ -398,14 +406,12 @@ kadm5_create_principal_3(void *server_handle,
         kdb->expiration = handle->params.expiration;
 
     kdb->pw_expiration = 0;
-    if (have_polent) {
-        if(polent.pw_max_life)
-            kdb->pw_expiration = ts_incr(now, polent.pw_max_life);
-        else
-            kdb->pw_expiration = 0;
-    }
-    if ((mask & KADM5_PW_EXPIRATION))
+    if (mask & KADM5_PW_EXPIRATION) {
         kdb->pw_expiration = entry->pw_expiration;
+    } else if (have_polent && polent.pw_max_life) {
+        kdb->mask |= KADM5_PW_EXPIRATION;
+        kdb->pw_expiration = ts_incr(now, polent.pw_max_life);
+    }
 
     kdb->last_success = 0;
     kdb->last_failed = 0;
@@ -461,6 +467,10 @@ kadm5_create_principal_3(void *server_handle,
         /* Null password means create with random key (new in 1.8). */
         ret = krb5_dbe_crk(handle->context, &master_keyblock,
                            new_ks_tuple, new_n_ks_tuple, FALSE, kdb);
+        if (mask & KADM5_KVNO) {
+            for (i = 0; i < kdb->n_key_data; i++)
+                kdb->key_data[i].key_data_kvno = entry->kvno;
+        }
     }
     if (ret)
         goto cleanup;
@@ -492,9 +502,6 @@ kadm5_create_principal_3(void *server_handle,
         adb.policy = entry->policy;
     }
 
-    /* In all cases key and the principal data is set, let the database provider know */
-    kdb->mask = mask | KADM5_KEY_DATA | KADM5_PRINCIPAL ;
-
     /* store the new db entry */
     ret = kdb_put_entry(handle, kdb, &adb);
 
@@ -525,6 +532,10 @@ kadm5_delete_principal(void *server_handle, krb5_principal principal)
 
     if (principal == NULL)
         return EINVAL;
+
+    /* Deleting K/M is mostly unrecoverable, so don't allow it. */
+    if (krb5_principal_compare(handle->context, principal, master_princ))
+        return KADM5_PROTECT_PRINCIPAL;
 
     if ((ret = kdb_get_entry(handle, principal, &kdb, &adb)))
         return(ret);
@@ -590,6 +601,9 @@ kadm5_modify_principal(void *server_handle,
     if (ret)
         return(ret);
 
+    /* Let the mask propagate to the database provider. */
+    kdb->mask = mask;
+
     /*
      * This is pretty much the same as create ...
      */
@@ -605,11 +619,15 @@ kadm5_modify_principal(void *server_handle,
             free(adb.policy);
         adb.policy = strdup(entry->policy);
     }
-    if (have_pol) {
+
+    if (mask & KADM5_PW_EXPIRATION) {
+        kdb->pw_expiration = entry->pw_expiration;
+    } else if (have_pol) {
         /* set pw_max_life based on new policy */
+        kdb->mask |= KADM5_PW_EXPIRATION;
         if (pol.pw_max_life) {
             ret = krb5_dbe_lookup_last_pwd_change(handle->context, kdb,
-                                                  &(kdb->pw_expiration));
+                                                  &kdb->pw_expiration);
             if (ret)
                 goto done;
             kdb->pw_expiration = ts_incr(kdb->pw_expiration, pol.pw_max_life);
@@ -631,8 +649,6 @@ kadm5_modify_principal(void *server_handle,
         kdb->max_life = entry->max_life;
     if ((mask & KADM5_PRINC_EXPIRE_TIME))
         kdb->expiration = entry->princ_expire_time;
-    if (mask & KADM5_PW_EXPIRATION)
-        kdb->pw_expiration = entry->pw_expiration;
     if (mask & KADM5_MAX_RLIFE)
         kdb->max_renewable_life = entry->max_renewable_life;
 
@@ -644,7 +660,7 @@ kadm5_modify_principal(void *server_handle,
     if (mask & KADM5_TL_DATA) {
         krb5_tl_data *tl;
 
-        /* may have to change the version number of the API. Updates the list with the given tl_data rather than over-writting */
+        /* may have to change the version number of the API. Updates the list with the given tl_data rather than over-writing */
 
         for (tl = entry->tl_data; tl;
              tl = tl->tl_data_next)
@@ -670,9 +686,6 @@ kadm5_modify_principal(void *server_handle,
 
         kdb->fail_auth_count = 0;
     }
-
-    /* let the mask propagate to the database provider */
-    kdb->mask = mask;
 
     ret = k5_kadm5_hook_modify(handle->context, handle->hook_handles,
                                KADM5_HOOK_STAGE_PRECOMMIT, entry, mask);
@@ -1204,109 +1217,6 @@ static kadm5_ret_t add_to_history(krb5_context context,
     return(0);
 }
 
-/* FIXME: don't use global variable for this */
-krb5_boolean use_password_server = 0;
-
-#ifdef USE_PASSWORD_SERVER
-static krb5_boolean
-kadm5_use_password_server (void)
-{
-    return use_password_server;
-}
-#endif
-
-void kadm5_set_use_password_server (void);
-
-void
-kadm5_set_use_password_server (void)
-{
-    use_password_server = 1;
-}
-
-#ifdef USE_PASSWORD_SERVER
-
-/*
- * kadm5_launch_task () runs a program (task_path) to synchronize the
- * Apple password server with the Kerberos database.  Password server
- * programs can receive arguments on the command line (task_argv)
- * and a block of data via stdin (data_buffer).
- *
- * Because a failure to communicate with the tool results in the
- * password server falling out of sync with the database,
- * kadm5_launch_task() always fails if it can't talk to the tool.
- */
-
-static kadm5_ret_t
-kadm5_launch_task (krb5_context context,
-                   const char *task_path, char * const task_argv[],
-                   const char *buffer)
-{
-    kadm5_ret_t ret;
-    int data_pipe[2];
-
-    ret = pipe (data_pipe);
-    if (ret)
-        ret = errno;
-
-    if (!ret) {
-        pid_t pid = fork ();
-        if (pid == -1) {
-            ret = errno;
-            close (data_pipe[0]);
-            close (data_pipe[1]);
-        } else if (pid == 0) {
-            /* The child: */
-
-            if (dup2 (data_pipe[0], STDIN_FILENO) == -1)
-                _exit (1);
-
-            close (data_pipe[0]);
-            close (data_pipe[1]);
-
-            execv (task_path, task_argv);
-
-            _exit (1); /* Fail if execv fails */
-        } else {
-            /* The parent: */
-            int status;
-
-            ret = 0;
-
-            close (data_pipe[0]);
-
-            /* Write out the buffer to the child, add \n */
-            if (buffer) {
-                if (krb5_net_write (context, data_pipe[1], buffer, strlen (buffer)) < 0
-                    || krb5_net_write (context, data_pipe[1], "\n", 1) < 0)
-                {
-                    /* kill the child to make sure waitpid() won't hang later */
-                    ret = errno;
-                    kill (pid, SIGKILL);
-                }
-            }
-            close (data_pipe[1]);
-
-            waitpid (pid, &status, 0);
-
-            if (!ret) {
-                if (WIFEXITED (status)) {
-                    /* child read password and exited.  Check the return value. */
-                    if ((WEXITSTATUS (status) != 0) && (WEXITSTATUS (status) != 252)) {
-                        ret = KRB5KDC_ERR_POLICY; /* password change rejected */
-                    }
-                } else {
-                    /* child read password but crashed or was killed */
-                    ret = KRB5KRB_ERR_GENERIC; /* FIXME: better error */
-                }
-            }
-        }
-    }
-
-    return ret;
-}
-
-#endif
-
 kadm5_ret_t
 kadm5_chpass_principal(void *server_handle,
                        krb5_principal principal, char *password)
@@ -1350,6 +1260,11 @@ kadm5_chpass_principal_3(void *server_handle,
 
     if ((ret = kdb_get_entry(handle, principal, &kdb, &adb)))
         return(ret);
+
+    /* We will always be changing the key data, attributes, auth failure count,
+     * and password expiration time. */
+    kdb->mask = KADM5_KEY_DATA | KADM5_ATTRIBUTES | KADM5_FAIL_AUTH_COUNT |
+        KADM5_PW_EXPIRATION;
 
     ret = apply_keysalt_policy(handle, adb.policy, n_ks_tuple, ks_tuple,
                                &new_n_ks_tuple, &new_ks_tuple);
@@ -1396,6 +1311,7 @@ kadm5_chpass_principal_3(void *server_handle,
     if (ret)
         goto done;
 
+    kdb->pw_expiration = 0;
     if ((adb.aux_attributes & KADM5_POLICY)) {
         /* the policy was loaded before */
 
@@ -1428,40 +1344,7 @@ kadm5_chpass_principal_3(void *server_handle,
 
         if (pol.pw_max_life)
             kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
-        else
-            kdb->pw_expiration = 0;
-    } else {
-        kdb->pw_expiration = 0;
     }
-
-#ifdef USE_PASSWORD_SERVER
-    if (kadm5_use_password_server () &&
-        (krb5_princ_size (handle->context, principal) == 1)) {
-        krb5_data *princ = krb5_princ_component (handle->context, principal, 0);
-        const char *path = "/usr/sbin/mkpassdb";
-        char *argv[] = { "mkpassdb", "-setpassword", NULL, NULL };
-        char *pstring = NULL;
-
-        if (!ret) {
-            pstring = malloc ((princ->length + 1) * sizeof (char));
-            if (pstring == NULL) { ret = ENOMEM; }
-        }
-
-        if (!ret) {
-            memcpy (pstring, princ->data, princ->length);
-            pstring [princ->length] = '\0';
-            argv[2] = pstring;
-
-            ret = kadm5_launch_task (handle->context, path, argv, password);
-        }
-
-        if (pstring != NULL)
-            free (pstring);
-
-        if (ret)
-            goto done;
-    }
-#endif
 
     ret = krb5_dbe_update_last_pwd_change(handle->context, kdb, now);
     if (ret)
@@ -1469,11 +1352,6 @@ kadm5_chpass_principal_3(void *server_handle,
 
     /* unlock principal on this KDC */
     kdb->fail_auth_count = 0;
-
-    /* key data and attributes changed, let the database provider know */
-    kdb->mask = KADM5_KEY_DATA | KADM5_ATTRIBUTES |
-        KADM5_FAIL_AUTH_COUNT;
-    /* | KADM5_CPW_FUNCTION */
 
     if (hist_added)
         kdb->mask |= KADM5_KEY_HIST;
@@ -1549,6 +1427,11 @@ kadm5_randkey_principal_3(void *server_handle,
     if ((ret = kdb_get_entry(handle, principal, &kdb, &adb)))
         return(ret);
 
+    /* We will always be changing the key data, attributes, auth failure count,
+     * and password expiration time. */
+    kdb->mask = KADM5_KEY_DATA | KADM5_ATTRIBUTES | KADM5_FAIL_AUTH_COUNT |
+        KADM5_PW_EXPIRATION;
+
     ret = apply_keysalt_policy(handle, adb.policy, n_ks_tuple, ks_tuple,
                                &new_n_ks_tuple, &new_ks_tuple);
     if (ret)
@@ -1557,8 +1440,10 @@ kadm5_randkey_principal_3(void *server_handle,
     if (krb5_principal_compare(handle->context, principal, hist_princ)) {
         /* If changing the history entry, the new entry must have exactly one
          * key. */
-        if (keepold)
-            return KADM5_PROTECT_PRINCIPAL;
+        if (keepold) {
+            ret = KADM5_PROTECT_PRINCIPAL;
+            goto done;
+        }
         new_n_ks_tuple = 1;
     }
 
@@ -1586,14 +1471,10 @@ kadm5_randkey_principal_3(void *server_handle,
         if (ret)
             goto done;
     }
-    if (have_pol) {
-        if (pol.pw_max_life)
-            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
-        else
-            kdb->pw_expiration = 0;
-    } else {
-        kdb->pw_expiration = 0;
-    }
+
+    kdb->pw_expiration = 0;
+    if (have_pol && pol.pw_max_life)
+        kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
 
     ret = krb5_dbe_update_last_pwd_change(handle->context, kdb, now);
     if (ret)
@@ -1611,10 +1492,6 @@ kadm5_randkey_principal_3(void *server_handle,
             goto done;
     }
 
-    /* key data changed, let the database provider know */
-    kdb->mask = KADM5_KEY_DATA | KADM5_FAIL_AUTH_COUNT;
-    /* | KADM5_RANDKEY_USED */;
-
     ret = k5_kadm5_hook_chpass(handle->context, handle->hook_handles,
                                KADM5_HOOK_STAGE_PRECOMMIT, principal, keepold,
                                new_n_ks_tuple, new_ks_tuple, NULL);
@@ -1629,124 +1506,6 @@ kadm5_randkey_principal_3(void *server_handle,
     ret = KADM5_OK;
 done:
     free(new_ks_tuple);
-    kdb_free_entry(handle, kdb, &adb);
-    if (have_pol)
-        kadm5_free_policy_ent(handle->lhandle, &pol);
-
-    return ret;
-}
-
-/*
- * kadm5_setv4key_principal:
- *
- * Set only ONE key of the principal, removing all others.  This key
- * must have the DES_CBC_CRC enctype and is entered as having the
- * krb4 salttype.  This is to enable things like kadmind4 to work.
- */
-kadm5_ret_t
-kadm5_setv4key_principal(void *server_handle,
-                         krb5_principal principal,
-                         krb5_keyblock *keyblock)
-{
-    krb5_db_entry               *kdb;
-    osa_princ_ent_rec           adb;
-    krb5_timestamp              now;
-    kadm5_policy_ent_rec        pol;
-    krb5_keysalt                keysalt;
-    int                         i, kvno, ret;
-    krb5_boolean                have_pol = FALSE;
-    kadm5_server_handle_t       handle = server_handle;
-    krb5_key_data               tmp_key_data;
-    krb5_keyblock               *act_mkey;
-
-    memset( &tmp_key_data, 0, sizeof(tmp_key_data));
-
-    CHECK_HANDLE(server_handle);
-
-    krb5_clear_error_message(handle->context);
-
-    if (principal == NULL || keyblock == NULL)
-        return EINVAL;
-    if (hist_princ && /* this will be NULL when initializing the databse */
-        ((krb5_principal_compare(handle->context,
-                                 principal, hist_princ)) == TRUE))
-        return KADM5_PROTECT_PRINCIPAL;
-
-    if (keyblock->enctype != ENCTYPE_DES_CBC_CRC)
-        return KADM5_SETV4KEY_INVAL_ENCTYPE;
-
-    if ((ret = kdb_get_entry(handle, principal, &kdb, &adb)))
-        return(ret);
-
-    for (kvno = 0, i=0; i<kdb->n_key_data; i++)
-        if (kdb->key_data[i].key_data_kvno > kvno)
-            kvno = kdb->key_data[i].key_data_kvno;
-
-    if (kdb->key_data != NULL)
-        cleanup_key_data(handle->context, kdb->n_key_data, kdb->key_data);
-
-    kdb->key_data = calloc(1, sizeof(krb5_key_data));
-    if (kdb->key_data == NULL)
-        return ENOMEM;
-    kdb->n_key_data = 1;
-    keysalt.type = KRB5_KDB_SALTTYPE_V4;
-    /* XXX data.magic? */
-    keysalt.data.length = 0;
-    keysalt.data.data = NULL;
-
-    ret = kdb_get_active_mkey(handle, NULL, &act_mkey);
-    if (ret)
-        goto done;
-
-    /* use tmp_key_data as temporary location and reallocate later */
-    ret = krb5_dbe_encrypt_key_data(handle->context, act_mkey, keyblock,
-                                    &keysalt, kvno + 1, kdb->key_data);
-    if (ret) {
-        goto done;
-    }
-
-    kdb->attributes &= ~KRB5_KDB_REQUIRES_PWCHANGE;
-
-    ret = krb5_timeofday(handle->context, &now);
-    if (ret)
-        goto done;
-
-    if ((adb.aux_attributes & KADM5_POLICY)) {
-        ret = get_policy(handle, adb.policy, &pol, &have_pol);
-        if (ret)
-            goto done;
-    }
-    if (have_pol) {
-        if (pol.pw_max_life)
-            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
-        else
-            kdb->pw_expiration = 0;
-    } else {
-        kdb->pw_expiration = 0;
-    }
-
-    ret = krb5_dbe_update_last_pwd_change(handle->context, kdb, now);
-    if (ret)
-        goto done;
-
-    /* unlock principal on this KDC */
-    kdb->fail_auth_count = 0;
-
-    /* key data changed, let the database provider know */
-    kdb->mask = KADM5_KEY_DATA | KADM5_FAIL_AUTH_COUNT;
-
-    if ((ret = kdb_put_entry(handle, kdb, &adb)))
-        goto done;
-
-    ret = KADM5_OK;
-done:
-    for (i = 0; i < tmp_key_data.key_data_ver; i++) {
-        if (tmp_key_data.key_data_contents[i]) {
-            memset (tmp_key_data.key_data_contents[i], 0, tmp_key_data.key_data_length[i]);
-            free (tmp_key_data.key_data_contents[i]);
-        }
-    }
-
     kdb_free_entry(handle, kdb, &adb);
     if (have_pol)
         kadm5_free_policy_ent(handle->lhandle, &pol);
@@ -1868,6 +1627,11 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
     if (ret)
         return ret;
 
+    /* We will always be changing the key data, attributes, auth failure count,
+     * and password expiration time. */
+    kdb->mask = KADM5_KEY_DATA | KADM5_ATTRIBUTES | KADM5_FAIL_AUTH_COUNT |
+        KADM5_PW_EXPIRATION;
+
     if (kvno == 0) {
         /* Pick the next kvno. */
         for (i = 0; i < kdb->n_key_data; i++) {
@@ -1969,14 +1733,10 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
         if (ret)
             goto done;
     }
-    if (have_pol) {
-        if (pol.pw_max_life)
-            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
-        else
-            kdb->pw_expiration = 0;
-    } else {
-        kdb->pw_expiration = 0;
-    }
+
+    kdb->pw_expiration = 0;
+    if (have_pol && pol.pw_max_life)
+        kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
 
     ret = krb5_dbe_update_last_pwd_change(handle->context, kdb, now);
     if (ret)
@@ -1984,9 +1744,6 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
 
     /* Unlock principal on this KDC. */
     kdb->fail_auth_count = 0;
-
-    /* key data changed, let the database provider know */
-    kdb->mask = KADM5_KEY_DATA | KADM5_FAIL_AUTH_COUNT;
 
     ret = kdb_put_entry(handle, kdb, &adb);
     if (ret)
@@ -2084,14 +1841,8 @@ static int decrypt_key_data(krb5_context context,
         ret = krb5_dbe_decrypt_key_data(context, NULL, &key_data[i], &keys[i],
                                         NULL);
         if (ret) {
-            for (; i >= 0; i--) {
-                if (keys[i].contents) {
-                    memset (keys[i].contents, 0, keys[i].length);
-                    free( keys[i].contents );
-                }
-            }
-
-            memset(keys, 0, n_key_data*sizeof(krb5_keyblock));
+            for (; i >= 0; i--)
+                krb5_free_keyblock_contents(context, &keys[i]);
             free(keys);
             return ret;
         }
@@ -2122,7 +1873,7 @@ static int decrypt_key_data(krb5_context context,
  *      kvnop           (w) kvno to fill in, or NULL
  *
  * Effects: Searches the key_data array of entry, which must have been
- * retrived with kadm5_get_principal with the KADM5_KEY_DATA mask, to
+ * retrieved with kadm5_get_principal with the KADM5_KEY_DATA mask, to
  * find a key with a specified enctype, salt type, and kvno in a
  * principal entry.  If not found, return ENOENT.  Otherwise, decrypt
  * it with the master key, and return the key in keyblock, the salt

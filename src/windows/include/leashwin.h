@@ -2,9 +2,6 @@
 #define __LEASHWIN__
 
 ////Is this sufficient?
-#ifndef NO_KRB4
-#include <krb.h>
-#else
 #include <krb5.h>
 #define ANAME_SZ	        40
 #define	REALM_SZ	        40
@@ -12,7 +9,6 @@
 #define	INST_SZ		        40
 /* include space for '.' and '@' */
 #define	MAX_K_NAME_SZ	    (ANAME_SZ + INST_SZ + REALM_SZ + 2)
-#endif
 
 #define DLGTYPE_PASSWD   0
 #define DLGTYPE_CHPASSWD 1
@@ -185,9 +181,6 @@ DWORD Leash_reset_default_proxiable();
 DWORD Leash_get_default_publicip();
 DWORD Leash_set_default_publicip(DWORD ipv4addr);
 DWORD Leash_reset_default_publicip();
-DWORD Leash_get_default_use_krb4();
-DWORD Leash_set_default_use_krb4(DWORD onoff);
-DWORD Leash_reset_default_use_krb4();
 DWORD Leash_get_hide_kinit_options();
 DWORD Leash_set_hide_kinit_options(DWORD onoff);
 DWORD Leash_reset_hide_kinit_options();
@@ -203,9 +196,6 @@ DWORD Leash_reset_default_renew_min();
 DWORD Leash_get_default_renew_max();
 DWORD Leash_set_default_renew_max(DWORD minutes);
 DWORD Leash_reset_default_renew_max();
-DWORD Leash_get_lock_file_locations();
-DWORD Leash_set_lock_file_locations(DWORD onoff);
-DWORD Leash_reset_lock_file_locations();
 DWORD Leash_get_default_uppercaserealm();
 DWORD Leash_set_default_uppercaserealm(DWORD onoff);
 DWORD Leash_reset_default_uppercaserealm();

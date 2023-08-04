@@ -36,20 +36,6 @@ static struct {
     krb5_error_code expected_err_noweak;
     krb5_error_code expected_err_weak;
 } tests[] = {
-    /* Empty string, unused default list */
-    { "",
-      { ENCTYPE_DES_CBC_CRC, 0 },
-      { 0 },
-      { 0 },
-      0, 0
-    },
-    /* Single weak enctype */
-    { "des-cbc-md4",
-      { 0 },
-      { 0 },
-      { ENCTYPE_DES_CBC_MD4, 0 },
-      0, 0
-    },
     /* Single non-weak enctype */
     { "aes128-cts-hmac-sha1-96",
       { 0 },
@@ -57,35 +43,11 @@ static struct {
       { ENCTYPE_AES128_CTS_HMAC_SHA1_96, 0 },
       0, 0
     },
-    /* Two enctypes, one an alias, one weak */
-    { "rc4-hmac des-cbc-md5",
-      { 0 },
-      { ENCTYPE_ARCFOUR_HMAC, 0 },
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES_CBC_MD5, 0 },
-      0, 0
-    },
-    /* Three enctypes, all weak, case variation, funky separators */
-    { "  deS-HMac-shA1 , arCFour-hmaC-mD5-exp\tdeS3-Cbc-RAw\n",
-      { 0 },
-      { 0 },
-      { ENCTYPE_DES_HMAC_SHA1, ENCTYPE_ARCFOUR_HMAC_EXP,
-        ENCTYPE_DES3_CBC_RAW, 0 },
-      0, 0
-    },
-    /* Default set with enctypes added (one weak in each pair) */
-    { "DEFAULT des-cbc-raw +des3-hmac-sha1",
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_ARCFOUR_HMAC_EXP, 0 },
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES3_CBC_SHA1, 0 },
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_ARCFOUR_HMAC_EXP,
-        ENCTYPE_DES_CBC_RAW, ENCTYPE_DES3_CBC_SHA1, 0 },
-      0, 0
-    },
     /* Default set with enctypes removed */
     { "default -aes128-cts -des-hmac-sha1",
-      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-        ENCTYPE_DES_CBC_MD5, ENCTYPE_DES_HMAC_SHA1, 0 },
+      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96, 0 },
       { ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 },
-      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_DES_CBC_MD5, 0 },
+      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 },
       0, 0
     },
     /* Family followed by enctype */
@@ -105,31 +67,22 @@ static struct {
       { ENCTYPE_CAMELLIA128_CTS_CMAC, 0 },
       { ENCTYPE_CAMELLIA128_CTS_CMAC, 0 }
     },
-    /* Enctype followed by two families */
-    { "+rc4-hmAC des3 +des",
-      { 0 },
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES3_CBC_SHA1, 0 },
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES3_CBC_SHA1, ENCTYPE_DES_CBC_CRC,
-        ENCTYPE_DES_CBC_MD5, ENCTYPE_DES_CBC_MD4 },
-      0, 0
-    },
     /* Default set with family added and enctype removed */
     { "DEFAULT +aes -arcfour-hmac-md5",
-      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES3_CBC_SHA1, ENCTYPE_DES_CBC_CRC, 0 },
+      { ENCTYPE_ARCFOUR_HMAC, ENCTYPE_DES3_CBC_SHA1, 0 },
       { ENCTYPE_DES3_CBC_SHA1, ENCTYPE_AES256_CTS_HMAC_SHA1_96,
         ENCTYPE_AES128_CTS_HMAC_SHA1_96, ENCTYPE_AES256_CTS_HMAC_SHA384_192,
         ENCTYPE_AES128_CTS_HMAC_SHA256_128, 0 },
-      { ENCTYPE_DES3_CBC_SHA1, ENCTYPE_DES_CBC_CRC,
+      { ENCTYPE_DES3_CBC_SHA1,
         ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
         ENCTYPE_AES256_CTS_HMAC_SHA384_192, ENCTYPE_AES128_CTS_HMAC_SHA256_128,
         0 },
       0, 0
     },
     /* Default set with families removed and enctypes added (one redundant) */
-    { "DEFAULT -des -des3 rc4-hmac rc4-hmac-exp",
+    { "DEFAULT -des3 rc4-hmac rc4-hmac-exp",
       { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-        ENCTYPE_DES3_CBC_SHA1, ENCTYPE_ARCFOUR_HMAC,
-        ENCTYPE_DES_CBC_CRC, ENCTYPE_DES_CBC_MD5, ENCTYPE_DES_CBC_MD4, 0 },
+        ENCTYPE_DES3_CBC_SHA1, ENCTYPE_ARCFOUR_HMAC, 0 },
       { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
         ENCTYPE_ARCFOUR_HMAC, 0 },
       { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_AES128_CTS_HMAC_SHA1_96,
@@ -158,17 +111,17 @@ static struct {
     },
     /* Test krb5_set_default_in_tkt_ktypes */
     { NULL,
-      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_DES_CBC_CRC, 0 },
       { ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 },
-      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, ENCTYPE_DES_CBC_CRC, 0 },
+      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 },
+      { ENCTYPE_AES256_CTS_HMAC_SHA1_96, 0 },
       0, 0
     },
     /* Should get KRB5_CONFIG_ETYPE_NOSUPP if app-provided list has no strong
      * enctypes and allow_weak_crypto=false. */
     { NULL,
-      { ENCTYPE_DES_CBC_CRC, 0 },
+      { ENCTYPE_ARCFOUR_HMAC_EXP, 0 },
       { 0 },
-      { ENCTYPE_DES_CBC_CRC, 0 },
+      { ENCTYPE_ARCFOUR_HMAC_EXP, 0 },
       KRB5_CONFIG_ETYPE_NOSUPP, 0
     },
     /* Should get EINVAL if app provides an empty list. */
@@ -253,21 +206,21 @@ main(int argc, char **argv)
                  * instead. */
                 copy = NULL;
                 list = NULL;
-                ret = krb5_set_default_in_tkt_ktypes(ctx, tests[i].defaults);
+                ret = krb5_set_default_tgs_enctypes(ctx, tests[i].defaults);
                 if (ret != expected_err) {
                     com_err("krb5_set_default_in_tkt_ktypes", ret, "");
                     return 2;
                 }
             }
             if (!expected_err) {
-                compare(ctx, tests[i].str ? list : ctx->in_tkt_etypes,
+                compare(ctx, tests[i].str ? list : ctx->tgs_etypes,
                         (weak) ? tests[i].expected : tests[i].expected_noweak,
                         tests[i].str, weak);
             }
             free(copy);
             free(list);
             if (!tests[i].str)
-                krb5_set_default_in_tkt_ktypes(ctx, NULL);
+                krb5_set_default_tgs_enctypes(ctx, NULL);
         }
     }
 

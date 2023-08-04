@@ -169,11 +169,10 @@ gss_authorize_localname(OM_uint32 *minor,
 
 	if (minor == NULL)
 		return (GSS_S_CALL_INACCESSIBLE_WRITE);
+	*minor = 0;
 
 	if (name == GSS_C_NO_NAME || user == GSS_C_NO_NAME)
 		return (GSS_S_CALL_INACCESSIBLE_READ);
-
-	*minor = 0;
 
 	unionName = (gss_union_name_t)name;
 	unionUser = (gss_union_name_t)user;

@@ -31,16 +31,16 @@
 #include "ldap_main.h"
 #include "kdb_ldap.h"
 #include "ldap_service_stash.h"
+#include <k5-hex.h>
 #include <ctype.h>
 
 /* Decode a password of the form {HEX}<hexstring>. */
 static krb5_error_code
 dec_password(krb5_context context, const char *str, char **password_out)
 {
+    krb5_error_code ret;
+    uint8_t *bytes;
     size_t len;
-    const unsigned char *p;
-    unsigned char *password, *q;
-    unsigned int k;
 
     *password_out = NULL;
 
@@ -48,30 +48,15 @@ dec_password(krb5_context context, const char *str, char **password_out)
         k5_setmsg(context, EINVAL, _("Not a hexadecimal password"));
         return EINVAL;
     }
-    str += 5;
 
-    len = strlen(str);
-    if (len % 2 != 0) {
-        k5_setmsg(context, EINVAL, _("Password corrupt"));
-        return EINVAL;
+    ret = k5_hex_decode(str + 5, &bytes, &len);
+    if (ret) {
+        if (ret == EINVAL)
+            k5_setmsg(context, ret, _("Password corrupt"));
+        return ret;
     }
 
-    q = password = malloc(len / 2 + 1);
-    if (password == NULL)
-        return ENOMEM;
-
-    for (p = (unsigned char *)str; *p != '\0'; p += 2) {
-        if (!isxdigit(*p) || !isxdigit(p[1])) {
-            free(password);
-            k5_setmsg(context, EINVAL, _("Password corrupt"));
-            return EINVAL;
-        }
-        sscanf((char *)p, "%2x", &k);
-        *q++ = k;
-    }
-    *q = '\0';
-
-    *password_out = (char *)password;
+    *password_out = (char *)bytes;
     return 0;
 }
 
@@ -127,36 +112,4 @@ krb5_ldap_readpassword(krb5_context context, const char *filename,
 
     /* Extract the plain password information. */
     return dec_password(context, val, password_out);
-}
-
-/* Encodes a sequence of bytes in hexadecimal */
-
-int
-tohex(krb5_data in, krb5_data *ret)
-{
-    unsigned int       i=0;
-    int                err = 0;
-
-    ret->length = 0;
-    ret->data = NULL;
-
-    ret->data = malloc((unsigned int)in.length * 2 + 1 /*Null termination */);
-    if (ret->data == NULL) {
-        err = ENOMEM;
-        goto cleanup;
-    }
-    ret->length = in.length * 2;
-    ret->data[ret->length] = 0;
-
-    for (i = 0; i < in.length; i++)
-        snprintf(ret->data + 2 * i, 3, "%02x", in.data[i] & 0xff);
-
-cleanup:
-
-    if (ret->length == 0) {
-        free(ret->data);
-        ret->data = NULL;
-    }
-
-    return err;
 }

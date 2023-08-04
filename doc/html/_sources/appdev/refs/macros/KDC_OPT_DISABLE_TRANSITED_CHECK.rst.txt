@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-DISABLE-TRANSITED-CHECK-data:
+
+KDC_OPT_DISABLE_TRANSITED_CHECK
+===============================
+
+..
+.. data:: KDC_OPT_DISABLE_TRANSITED_CHECK
+..
+
+
+
+
+====================================== ======================
+``KDC_OPT_DISABLE_TRANSITED_CHECK``       ``0x00000020``
+====================================== ======================

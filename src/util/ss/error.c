@@ -36,7 +36,7 @@
 char * ss_name(sci_idx)
     int sci_idx;
 {
-    register ss_data *infop;
+    ss_data *infop;
 
     infop = ss_info(sci_idx);
     if (infop->current_request == (char const *)NULL) {
@@ -52,7 +52,7 @@ char * ss_name(sci_idx)
 
 void ss_error (int sci_idx, long code, const char * fmt, ...)
 {
-    register char *whoami;
+    char *whoami;
     va_list pvar;
     va_start (pvar, fmt);
     whoami = ss_name (sci_idx);

@@ -31,6 +31,8 @@
 #ifndef LEAN_CLIENT
 
 #include "k5-int.h"
+#include "../krb/int-proto.h"
+#include "../os/os-proto.h"
 
 const char * KRB5_CALLCONV
 krb5_kt_get_type (krb5_context context, krb5_keytab keytab)
@@ -127,6 +129,53 @@ no_entries:
                   _("Keytab %s is nonexistent or empty"), name);
     }
     return KRB5_KT_NOTFOUND;
+}
+
+static krb5_error_code
+match_entries(krb5_context context, krb5_keytab keytab,
+              krb5_const_principal mprinc)
+{
+    krb5_error_code ret;
+    krb5_keytab_entry ent;
+    krb5_kt_cursor cursor;
+    krb5_boolean match;
+
+    /* Scan the keytab for host-based entries matching accprinc. */
+    ret = krb5_kt_start_seq_get(context, keytab, &cursor);
+    if (ret)
+        return ret;
+    while ((ret = krb5_kt_next_entry(context, keytab, &ent, &cursor)) == 0) {
+        match = krb5_sname_match(context, mprinc, ent.principal);
+        (void)krb5_free_keytab_entry_contents(context, &ent);
+        if (match)
+            break;
+    }
+    (void)krb5_kt_end_seq_get(context, keytab, &cursor);
+    if (ret && ret != KRB5_KT_END)
+        return ret;
+    return match ? 0 : KRB5_KT_NOTFOUND;
+}
+
+krb5_error_code
+k5_kt_have_match(krb5_context context, krb5_keytab keytab,
+                 krb5_principal mprinc)
+{
+    krb5_error_code ret;
+    struct canonprinc iter = { mprinc, .no_hostrealm = TRUE };
+    krb5_const_principal canonprinc = NULL;
+
+    /* Don't try to canonicalize if we're going to ignore hostnames. */
+    if (k5_sname_wildcard_host(context, mprinc))
+        return match_entries(context, keytab, mprinc);
+
+    while ((ret = k5_canonprinc(context, &iter, &canonprinc)) == 0 &&
+           canonprinc != NULL) {
+        ret = match_entries(context, keytab, canonprinc);
+        if (ret != KRB5_KT_NOTFOUND)
+            break;
+    }
+    free_canonprinc(&iter);
+    return (ret == 0 && canonprinc == NULL) ? KRB5_KT_NOTFOUND : ret;
 }
 
 /*

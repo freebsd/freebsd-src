@@ -1,8 +1,0 @@
-mydir=kadmin$(S)testing
-BUILDTOP=$(REL)..$(S)..
-SUBDIRS = scripts util
-
-all:
-
-clean:
-	-$(RM) -r krb5-test-root admin_* init-* kadmin_* kdc_rcache.* ovsec-*

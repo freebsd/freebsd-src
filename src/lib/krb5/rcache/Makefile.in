@@ -6,45 +6,47 @@ BUILDTOP=$(REL)..$(S)..$(S)..
 ##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
 
 STLIBOBJS = \
+	memrcache.o	\
 	rc_base.o	\
 	rc_dfl.o 	\
-	rc_io.o		\
-	rcdef.o		\
-	rc_none.o	\
-	rc_conv.o	\
-	ser_rc.o	\
-	rcfns.o
+	rc_file2.o	\
+	rc_none.o
 
 OBJS=	\
+	$(OUTPRE)memrcache.$(OBJEXT)	\
 	$(OUTPRE)rc_base.$(OBJEXT)	\
 	$(OUTPRE)rc_dfl.$(OBJEXT) 	\
-	$(OUTPRE)rc_io.$(OBJEXT)	\
-	$(OUTPRE)rcdef.$(OBJEXT)	\
-	$(OUTPRE)rc_none.$(OBJEXT)	\
-	$(OUTPRE)rc_conv.$(OBJEXT)	\
-	$(OUTPRE)ser_rc.$(OBJEXT)	\
-	$(OUTPRE)rcfns.$(OBJEXT)
+	$(OUTPRE)rc_file2.$(OBJEXT) 	\
+	$(OUTPRE)rc_none.$(OBJEXT)
 
 SRCS=	\
+	$(srcdir)/memrcache.c	\
 	$(srcdir)/rc_base.c	\
 	$(srcdir)/rc_dfl.c 	\
-	$(srcdir)/rc_io.c	\
-	$(srcdir)/rcdef.c	\
+	$(srcdir)/rc_file2.c 	\
 	$(srcdir)/rc_none.c	\
-	$(srcdir)/rc_conv.c	\
-	$(srcdir)/ser_rc.c	\
-	$(srcdir)/rcfns.c	\
-	$(srcdir)/t_replay.c
+	$(srcdir)/t_memrcache.c	\
+	$(srcdir)/t_rcfile2.c
 
 ##DOS##LIBOBJS = $(OBJS)
 
 all-unix: all-libobjs
 clean-unix:: clean-libobjs
 
-T_REPLAY_OBJS= t_replay.o
+t_memrcache: t_memrcache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_memrcache.o $(KRB5_BASE_LIBS)
 
-t_replay: $(T_REPLAY_OBJS) $(KRB5_BASE_DEPLIBS)
-	$(CC_LINK) -o t_replay $(T_REPLAY_OBJS) $(KRB5_BASE_LIBS)
+t_rcfile2: t_rcfile2.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_rcfile2.o $(KRB5_BASE_LIBS)
+
+check-unix: t_memrcache t_rcfile2
+	$(RUN_TEST) ./t_memrcache
+	$(RUN_TEST) ./t_rcfile2 testrcache expiry 10000
+	$(RUN_TEST) ./t_rcfile2 testrcache concurrent 10 1000
+	$(RUN_TEST) ./t_rcfile2 testrcache race 10 100
+
+clean-unix::
+	$(RM) t_memrcache.o t_memrcache t_rcfile2.o t_rcfile2 testrcache
 
 @libobj_frag@
 

@@ -1,6 +1,6 @@
 mydir=lib$(S)kadm5
 BUILDTOP=$(REL)..$(S)..
-SUBDIRS = clnt srv unit-test
+SUBDIRS = clnt srv
 
 ##DOSBUILDTOP = ..\..
 
@@ -84,11 +84,21 @@ all-prerecurse: all-libobjs
 
 all-windows: $(OBJS)
 
+t_kadm5clnt: t_kadm5.o $(KADMCLNT_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_kadm5.o $(KADMCLNT_LIBS) $(KRB5_BASE_LIBS)
+
+t_kadm5srv: t_kadm5.o $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_kadm5.o $(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+
+check-pytests: t_kadm5clnt t_kadm5srv
+	$(RUNPYTEST) $(srcdir)/t_kadm5.py $(PYTESTFLAGS)
+
 generate-files-mac-prerecurse: includes
 
 check-windows:
 
 clean-unix:: clean-libobjs
+	$(RM) t_kadm5clnt t_kadm5srv t_kadm5.o
 
 clean-windows::
 

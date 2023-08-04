@@ -1,35 +1,33 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Principal names and DNS &mdash; MIT Kerberos Documentation</title>
-    
+    <title>Principal names and DNS &#8212; MIT Kerberos Documentation</title>
     <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.16',
+        VERSION:     '1.21.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
-    <link rel="up" title="For administrators" href="index.html" />
     <link rel="next" title="Encryption types" href="enctypes.html" />
-    <link rel="prev" title="OTP Preauthentication" href="otp.html" /> 
+    <link rel="prev" title="Addressing dictionary attack risks" href="dictionary.html" /> 
   </head>
   <body>
     <div class="header-wrapper">
@@ -42,7 +40,7 @@
                 
         <a href="../index.html" title="Full Table of Contents"
             accesskey="C">Contents</a> |
-        <a href="otp.html" title="OTP Preauthentication"
+        <a href="dictionary.html" title="Addressing dictionary attack risks"
             accesskey="P">previous</a> |
         <a href="enctypes.html" title="Encryption types"
             accesskey="N">next</a> |
@@ -61,54 +59,58 @@
             
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="principal-names-and-dns">
 <h1>Principal names and DNS<a class="headerlink" href="#principal-names-and-dns" title="Permalink to this headline">¶</a></h1>
 <p>Kerberos clients can do DNS lookups to canonicalize service principal
 names.  This can cause difficulties when setting up Kerberos
-application servers, especially when the client&#8217;s name for the service
+application servers, especially when the client’s name for the service
 is different from what the service thinks its name is.</p>
 <div class="section" id="service-principal-names">
 <h2>Service principal names<a class="headerlink" href="#service-principal-names" title="Permalink to this headline">¶</a></h2>
 <p>A frequently used kind of principal name is the host-based service
 principal name.  This kind of principal name has two components: a
-service name and a hostname.  For example, <tt class="docutils literal"><span class="pre">imap/imap.example.com</span></tt>
-is the principal name of the &#8220;imap&#8221; service on the host
-&#8220;imap.example.com&#8221;.  Other possible service names for the first
-component include &#8220;host&#8221; (remote login services such as ssh), &#8220;HTTP&#8221;,
-and &#8220;nfs&#8221; (Network File System).</p>
+service name and a hostname.  For example, <code class="docutils literal"><span class="pre">imap/imap.example.com</span></code>
+is the principal name of the “imap” service on the host
+“imap.example.com”.  Other possible service names for the first
+component include “host” (remote login services such as ssh), “HTTP”,
+and “nfs” (Network File System).</p>
 <p>Service administrators often publish well-known hostname aliases that
 they would prefer users to use instead of the canonical name of the
 service host.  This gives service administrators more flexibility in
 deploying services.  For example, a shell login server might be named
-&#8220;long-vanity-hostname.example.com&#8221;, but users will naturally prefer to
-type something like &#8220;login.example.com&#8221;.  Hostname aliases also allow
+“long-vanity-hostname.example.com”, but users will naturally prefer to
+type something like “login.example.com”.  Hostname aliases also allow
 for administrators to set up load balancing for some sorts of services
-based on rotating <tt class="docutils literal"><span class="pre">CNAME</span></tt> records in DNS.</p>
+based on rotating <code class="docutils literal"><span class="pre">CNAME</span></code> records in DNS.</p>
 </div>
 <div class="section" id="service-principal-canonicalization">
 <h2>Service principal canonicalization<a class="headerlink" href="#service-principal-canonicalization" title="Permalink to this headline">¶</a></h2>
-<p>MIT Kerberos clients currently always do forward resolution (looking
-up the IPv4 and possibly IPv6 addresses using <tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt>) of
-the hostname part of a host-based service principal to canonicalize
-the hostname.  They obtain the &#8220;canonical&#8221; name of the host when doing
-so.  By default, MIT Kerberos clients will also then do reverse DNS
-resolution (looking up the hostname associated with the IPv4 or IPv6
-address using <tt class="docutils literal"><span class="pre">getnameinfo()</span></tt>) of the hostname.  Using the
-<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> setting:</p>
-<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
-    rdns = false
-</pre></div>
-</div>
-<p>will disable reverse DNS lookup on clients.  The default setting is
-&#8220;true&#8221;.</p>
-<p>Operating system bugs may prevent a setting of <tt class="docutils literal"><span class="pre">rdns</span> <span class="pre">=</span> <span class="pre">false</span></tt> from
-disabling reverse DNS lookup.  Some versions of GNU libc have a bug in
-<tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt> that cause them to look up <tt class="docutils literal"><span class="pre">PTR</span></tt> records even when
-not required.  MIT Kerberos releases krb5-1.10.2 and newer have a
-workaround for this problem, as does the krb5-1.9.x series as of
-release krb5-1.9.4.</p>
+<p>In the MIT krb5 client library, canonicalization of host-based service
+principals is controlled by the <strong>dns_canonicalize_hostname</strong>,
+<strong>rnds</strong>, and <strong>qualify_shortname</strong> variables in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
+<p>If <strong>dns_canonicalize_hostname</strong> is set to <code class="docutils literal"><span class="pre">true</span></code> (the default
+value), the client performs forward resolution by looking up the IPv4
+and/or IPv6 addresses of the hostname using <code class="docutils literal"><span class="pre">getaddrinfo()</span></code>.  This
+process will typically add a domain suffix to the hostname if needed,
+and follow CNAME records in the DNS.  If <strong>rdns</strong> is also set to
+<code class="docutils literal"><span class="pre">true</span></code> (the default), the client will then perform a reverse lookup
+of the first returned Internet address using <code class="docutils literal"><span class="pre">getnameinfo()</span></code>,
+finding the name associated with the PTR record.</p>
+<p>If <strong>dns_canonicalize_hostname</strong> is set to <code class="docutils literal"><span class="pre">false</span></code>, the hostname is
+not canonicalized using DNS.  If the hostname has only one component
+(i.e. it contains no “.” characters), the host’s primary DNS search
+domain will be appended, if there is one.  The <strong>qualify_shortname</strong>
+variable can be used to override or disable this suffix.</p>
+<p>If <strong>dns_canonicalize_hostname</strong> is set to <code class="docutils literal"><span class="pre">fallback</span></code> (added in
+release 1.18), the hostname is initially treated according to the
+rules for <code class="docutils literal"><span class="pre">dns_canonicalize_hostname=false</span></code>.  If a ticket request
+fails because the service principal is unknown, the hostname will be
+canonicalized according to the rules for
+<code class="docutils literal"><span class="pre">dns_canonicalize_hostname=true</span></code> and the request will be retried.</p>
+<p>In all cases, the hostname is converted to lowercase, and any trailing
+dot is removed.</p>
 </div>
 <div class="section" id="reverse-dns-mismatches">
 <h2>Reverse DNS mismatches<a class="headerlink" href="#reverse-dns-mismatches" title="Permalink to this headline">¶</a></h2>
@@ -117,7 +119,7 @@ not its reverse DNS.  The reverse DNS is sometimes under the control
 of the Internet service provider of the enterprise, and the enterprise
 may not have much influence in setting up reverse DNS records for its
 address space.  If there are difficulties with getting forward and
-reverse DNS to match, it is best to set <tt class="docutils literal"><span class="pre">rdns</span> <span class="pre">=</span> <span class="pre">false</span></tt> on client
+reverse DNS to match, it is best to set <code class="docutils literal"><span class="pre">rdns</span> <span class="pre">=</span> <span class="pre">false</span></code> on client
 machines.</p>
 </div>
 <div class="section" id="overriding-application-behavior">
@@ -125,22 +127,22 @@ machines.</p>
 <p>Applications can choose to use a default hostname component in their
 service principal name when accepting authentication, which avoids
 some sorts of hostname mismatches.  Because not all relevant
-applications do this yet, using the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> setting:</p>
-<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
-    ignore_acceptor_hostname = true
+applications do this yet, using the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> setting:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">libdefaults</span><span class="p">]</span>
+    <span class="n">ignore_acceptor_hostname</span> <span class="o">=</span> <span class="n">true</span>
 </pre></div>
 </div>
-<p>will allow the Kerberos library to override the application&#8217;s choice
+<p>will allow the Kerberos library to override the application’s choice
 of service principal hostname and will allow a server program to
 accept incoming authentications using any key in its keytab that
 matches the service name and realm name (if given).  This setting
-defaults to &#8220;false&#8221; and is available in releases krb5-1.10 and later.</p>
+defaults to “false” and is available in releases krb5-1.10 and later.</p>
 </div>
 <div class="section" id="provisioning-keytabs">
 <h2>Provisioning keytabs<a class="headerlink" href="#provisioning-keytabs" title="Permalink to this headline">¶</a></h2>
 <p>One service principal entry that should be in the keytab is a
 principal whose hostname component is the canonical hostname that
-<tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt> reports for all known aliases for the host.  If the
+<code class="docutils literal"><span class="pre">getaddrinfo()</span></code> reports for all known aliases for the host.  If the
 reverse DNS information does not match this canonical hostname, an
 additional service principal entry should be in the keytab for this
 different hostname.</p>
@@ -149,12 +151,20 @@ different hostname.</p>
 <h2>Specific application advice<a class="headerlink" href="#specific-application-advice" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="secure-shell-ssh">
 <h3>Secure shell (ssh)<a class="headerlink" href="#secure-shell-ssh" title="Permalink to this headline">¶</a></h3>
-<p>Setting <tt class="docutils literal"><span class="pre">GSSAPIStrictAcceptorCheck</span> <span class="pre">=</span> <span class="pre">no</span></tt> in the configuration file
+<p>Setting <code class="docutils literal"><span class="pre">GSSAPIStrictAcceptorCheck</span> <span class="pre">=</span> <span class="pre">no</span></code> in the configuration file
 of modern versions of the openssh daemon will allow the daemon to try
 any key in its keytab when accepting a connection, rather than looking
-for the keytab entry that matches the host&#8217;s own idea of its name
-(typically the name that <tt class="docutils literal"><span class="pre">gethostname()</span></tt> returns).  This requires
+for the keytab entry that matches the host’s own idea of its name
+(typically the name that <code class="docutils literal"><span class="pre">gethostname()</span></code> returns).  This requires
 krb5-1.10 or later.</p>
+</div>
+<div class="section" id="openldap-ldapsearch-etc">
+<h3>OpenLDAP (ldapsearch, etc.)<a class="headerlink" href="#openldap-ldapsearch-etc" title="Permalink to this headline">¶</a></h3>
+<p>OpenLDAP’s SASL implementation performs reverse DNS lookup in order to
+canonicalize service principal names, even if <strong>rdns</strong> is set to
+<code class="docutils literal"><span class="pre">false</span></code> in the Kerberos configuration.  To disable this behavior,
+add <code class="docutils literal"><span class="pre">SASL_NOCANON</span> <span class="pre">on</span></code> to <code class="docutils literal"><span class="pre">ldap.conf</span></code>, or set the
+<code class="docutils literal"><span class="pre">LDAPSASL_NOCANON</span></code> environment variable.</p>
 </div>
 </div>
 </div>
@@ -175,6 +185,7 @@ krb5-1.10 or later.</p>
 <li><a class="reference internal" href="#provisioning-keytabs">Provisioning keytabs</a></li>
 <li><a class="reference internal" href="#specific-application-advice">Specific application advice</a><ul>
 <li><a class="reference internal" href="#secure-shell-ssh">Secure shell (ssh)</a></li>
+<li><a class="reference internal" href="#openldap-ldapsearch-etc">OpenLDAP (ldapsearch, etc.)</a></li>
 </ul>
 </li>
 </ul>
@@ -190,6 +201,7 @@ krb5-1.10 or later.</p>
 <li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
@@ -197,9 +209,9 @@ krb5-1.10 or later.</p>
 <li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="">Principal names and DNS</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Principal names and DNS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
@@ -238,14 +250,14 @@ krb5-1.10 or later.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.16</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            <div class="right" ><i>Release: 1.21.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
             </div>
             <div class="left">
                 
         <a href="../index.html" title="Full Table of Contents"
             >Contents</a> |
-        <a href="otp.html" title="OTP Preauthentication"
+        <a href="dictionary.html" title="Addressing dictionary attack risks"
             >previous</a> |
         <a href="enctypes.html" title="Encryption types"
             >next</a> |

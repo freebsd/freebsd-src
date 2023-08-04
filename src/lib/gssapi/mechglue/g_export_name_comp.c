@@ -39,6 +39,14 @@ gss_export_name_composite(OM_uint32 *minor_status,
     gss_union_name_t    union_name;
     gss_mechanism       mech;
 
+    if (minor_status != NULL)
+        *minor_status = 0;
+
+    if (exp_composite_name != GSS_C_NO_BUFFER) {
+        exp_composite_name->value = NULL;
+        exp_composite_name->length = 0;
+    }
+
     if (minor_status == NULL)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
 
@@ -47,8 +55,6 @@ gss_export_name_composite(OM_uint32 *minor_status,
 
     if (exp_composite_name == GSS_C_NO_BUFFER)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
-
-    *minor_status = 0;
 
     union_name = (gss_union_name_t)name;
 

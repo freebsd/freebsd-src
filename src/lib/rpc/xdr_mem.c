@@ -160,8 +160,8 @@ xdrmem_getpos(XDR *xdrs)
 static bool_t
 xdrmem_setpos(XDR *xdrs, u_int pos)
 {
-	register caddr_t newaddr = xdrs->x_base + pos;
-	register caddr_t lastaddr = (char *) xdrs->x_private + xdrs->x_handy;
+	caddr_t newaddr = xdrs->x_base + pos;
+	caddr_t lastaddr = (char *)xdrs->x_private + xdrs->x_handy;
 
 	if ((long)newaddr > (long)lastaddr)
 		return (FALSE);

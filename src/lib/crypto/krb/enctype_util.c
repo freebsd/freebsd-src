@@ -36,6 +36,18 @@
 
 #include "crypto_int.h"
 
+struct {
+    krb5_enctype etype;
+    const char *name;
+} unsupported_etypes[] = {
+    { ENCTYPE_DES_CBC_CRC, "des-cbc-crc" },
+    { ENCTYPE_DES_CBC_MD4, "des-cbc-md4" },
+    { ENCTYPE_DES_CBC_MD5, "des-cbc-md5" },
+    { ENCTYPE_DES_CBC_RAW, "des-cbc-raw" },
+    { ENCTYPE_DES_HMAC_SHA1, "des-hmac-sha1" },
+    { ENCTYPE_NULL, NULL }
+};
+
 krb5_boolean KRB5_CALLCONV
 krb5_c_valid_enctype(krb5_enctype etype)
 {
@@ -49,6 +61,13 @@ krb5int_c_weak_enctype(krb5_enctype etype)
 
     ktp = find_enctype(etype);
     return (ktp != NULL && (ktp->flags & ETYPE_WEAK) != 0);
+}
+
+krb5_boolean KRB5_CALLCONV
+krb5int_c_deprecated_enctype(krb5_enctype etype)
+{
+    const struct krb5_keytypes *ktp = find_enctype(etype);
+    return ktp == NULL || (ktp->flags & ETYPE_DEPRECATED) != 0;
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -114,6 +133,14 @@ krb5_enctype_to_name(krb5_enctype enctype, krb5_boolean shortest,
     const struct krb5_keytypes *ktp;
     const char *name;
     int i;
+
+    for (i = 0; unsupported_etypes[i].etype != ENCTYPE_NULL; i++) {
+        if (enctype == unsupported_etypes[i].etype) {
+            if (strlcpy(buffer, unsupported_etypes[i].name, buflen) >= buflen)
+                return ENOMEM;
+            return 0;
+        }
+    }
 
     ktp = find_enctype(enctype);
     if (ktp == NULL)

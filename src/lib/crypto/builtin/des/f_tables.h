@@ -156,7 +156,7 @@ extern const unsigned DES_INT32 des_SP_table[8][64];
  * temporary.  Use this more as a guide for rolling your own, though.
  * The best way to do the IP depends on the form of the data you
  * are dealing with.  If you use this, though, try to make left,
- * right and temp register unsigned DES_INT32s.
+ * right and temp unsigned DES_INT32s.
  */
 #define DES_INITIAL_PERM(left, right, temp) do {        \
         (temp) = DES_IP_RIGHT_BITS((left), (right));    \
@@ -228,8 +228,8 @@ extern const unsigned DES_INT32 des_SP_table[8][64];
  */
 #define DES_DO_ENCRYPT_1(left, right, kp)                               \
     do {                                                                \
-        register int i;                                                 \
-        register unsigned DES_INT32 temp1;                              \
+        int i;                                                          \
+        unsigned DES_INT32 temp1;                                       \
         DEB (("do_encrypt %8lX %8lX \n", left, right));                 \
         DES_INITIAL_PERM((left), (right), (temp1));                     \
         DEB (("  after IP %8lX %8lX\n", left, right));                  \
@@ -246,8 +246,8 @@ extern const unsigned DES_INT32 des_SP_table[8][64];
 
 #define DES_DO_DECRYPT_1(left, right, kp)                               \
     do {                                                                \
-        register int i;                                                 \
-        register unsigned DES_INT32 temp2;                              \
+        int i;                                                          \
+        unsigned DES_INT32 temp2;                                       \
         DES_INITIAL_PERM((left), (right), (temp2));                     \
         (kp) += (2 * 16);                                               \
         for (i = 0; i < 8; i++) {                                       \
