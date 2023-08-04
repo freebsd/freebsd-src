@@ -209,6 +209,7 @@ struct iflib_ctx {
 #define isc_legacy_intr ifc_txrx.ift_legacy_intr
 #define isc_txq_select ifc_txrx.ift_txq_select
 #define isc_txq_select_v2 ifc_txrx.ift_txq_select_v2
+
 	eventhandler_tag ifc_vlan_attach_event;
 	eventhandler_tag ifc_vlan_detach_event;
 	struct ether_addr ifc_mac;
@@ -1934,7 +1935,7 @@ iflib_rxsd_alloc(iflib_rxq_t rxq)
 	MPASS(scctx->isc_nrxd[rxq->ifr_fl_offset] > 0);
 
 	fl = rxq->ifr_fl;
-	for (int i = 0; i <  rxq->ifr_nfl; i++, fl++) {
+	for (int i = 0; i < rxq->ifr_nfl; i++, fl++) {
 		fl->ifl_size = scctx->isc_nrxd[rxq->ifr_fl_offset]; /* this isn't necessarily the same */
 		/* Set up DMA tag for RX buffers. */
 		err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
@@ -6501,7 +6502,8 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 }
 
 void
-iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, void *arg, int qid, const char *name)
+iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
+			    void *arg, int qid, const char *name)
 {
 	device_t dev;
 	struct grouptask *gtask;
@@ -6998,16 +7000,16 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
-			"# of txqs to use, 0 => use default #");
+		       "# of txqs to use, 0 => use default #");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_nrxqs",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_nrxqs, 0,
-			"# of rxqs to use, 0 => use default #");
+		       "# of rxqs to use, 0 => use default #");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
                        "permit #txq != #rxq");
 	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
-                      CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
-                      "disable MSI-X (default 0)");
+		       CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
+		       "disable MSI-X (default 0)");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0,
 		       "set the RX budget");
@@ -7019,8 +7021,8 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 		       CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
 		       "offset to start using cores at");
 	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "separate_txrx",
-		       CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
-		       "use separate cores for TX and RX");
+		      CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
+		      "use separate cores for TX and RX");
 	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "use_logical_cores",
 		      CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
 		      "try to make use of logical cores for TX and RX");
