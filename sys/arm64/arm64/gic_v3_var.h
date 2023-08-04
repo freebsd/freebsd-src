@@ -56,7 +56,7 @@ struct gic_redists {
 	/* Number of Re-Distributor regions */
 	u_int			nregions;
 	/* Per-CPU Re-Distributor data */
-	struct redist_pcpu	*pcpu[MAXCPU];
+	struct redist_pcpu	*pcpu;
 };
 
 struct gic_v3_softc {
@@ -138,8 +138,8 @@ void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 	u_int cpu = PCPU_GET(cpuid);		\
 						\
 	bus_read_##len(				\
-	    (sc)->gic_redists.pcpu[cpu]->res,	\
-	    (sc)->gic_redists.pcpu[cpu]->offset + (reg)); \
+	    (sc)->gic_redists.pcpu[cpu].res,	\
+	    (sc)->gic_redists.pcpu[cpu].offset + (reg)); \
 })
 
 #define	gic_r_write(sc, len, reg, val)		\
@@ -147,8 +147,8 @@ void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 	u_int cpu = PCPU_GET(cpuid);		\
 						\
 	bus_write_##len(			\
-	    (sc)->gic_redists.pcpu[cpu]->res,	\
-	    (sc)->gic_redists.pcpu[cpu]->offset + (reg), \
+	    (sc)->gic_redists.pcpu[cpu].res,	\
+	    (sc)->gic_redists.pcpu[cpu].offset + (reg), \
 	    (val));				\
 })
 

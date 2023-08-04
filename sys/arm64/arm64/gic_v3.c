@@ -226,8 +226,8 @@ gic_r_read_4(device_t dev, bus_size_t offset)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
-	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)].res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)].offset;
 	return (bus_read_4(rdist, offset));
 }
 
@@ -238,8 +238,8 @@ gic_r_read_8(device_t dev, bus_size_t offset)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
-	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)].res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)].offset;
 	return (bus_read_8(rdist, offset));
 }
 
@@ -250,8 +250,8 @@ gic_r_write_4(device_t dev, bus_size_t offset, uint32_t val)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
-	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)].res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)].offset;
 	bus_write_4(rdist, offset, val);
 }
 
@@ -262,8 +262,8 @@ gic_r_write_8(device_t dev, bus_size_t offset, uint64_t val)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
-	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)].res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)].offset;
 	bus_write_8(rdist, offset, val);
 }
 
@@ -431,7 +431,6 @@ int
 gic_v3_detach(device_t dev)
 {
 	struct gic_v3_softc *sc;
-	size_t i;
 	int rid;
 
 	sc = device_get_softc(dev);
@@ -446,8 +445,7 @@ gic_v3_detach(device_t dev)
 	for (rid = 0; rid < (sc->gic_redists.nregions + 1); rid++)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->gic_res[rid]);
 
-	for (i = 0; i <= mp_maxid; i++)
-		free(sc->gic_redists.pcpu[i], M_GIC_V3);
+	free(sc->gic_redists.pcpu, M_GIC_V3);
 
 	free(sc->ranges, M_GIC_V3);
 	free(sc->gic_res, M_GIC_V3);
@@ -497,7 +495,7 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		*result = (intr_nirq - sc->gic_nirqs) / sc->gic_nchildren;
 		return (0);
 	case GICV3_IVAR_REDIST:
-		*result = (uintptr_t)sc->gic_redists.pcpu[PCPU_GET(cpuid)];
+		*result = (uintptr_t)&sc->gic_redists.pcpu[PCPU_GET(cpuid)];
 		return (0);
 	case GIC_IVAR_HW_REV:
 		KASSERT(
@@ -1231,8 +1229,8 @@ gic_v3_wait_for_rwp(struct gic_v3_softc *sc, enum gic_v3_xdist xdist)
 		offset = 0;
 		break;
 	case REDIST:
-		res = sc->gic_redists.pcpu[cpuid]->res;
-		offset = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
+		res = sc->gic_redists.pcpu[cpuid].res;
+		offset = sc->gic_redists.pcpu[PCPU_GET(cpuid)].offset;
 		break;
 	default:
 		KASSERT(0, ("%s: Attempt to wait for unknown RWP", __func__));
@@ -1368,16 +1366,8 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 static int
 gic_v3_redist_alloc(struct gic_v3_softc *sc)
 {
-	u_int cpuid;
-
-	/* Allocate struct resource for all CPU's Re-Distributor registers */
-	for (cpuid = 0; cpuid <= mp_maxid; cpuid++)
-		if (CPU_ISSET(cpuid, &all_cpus) != 0)
-			sc->gic_redists.pcpu[cpuid] =
-				malloc(sizeof(*sc->gic_redists.pcpu[0]),
-				    M_GIC_V3, M_WAITOK);
-		else
-			sc->gic_redists.pcpu[cpuid] = NULL;
+	sc->gic_redists.pcpu = mallocarray(mp_maxid + 1,
+	    sizeof(sc->gic_redists.pcpu[0]), M_GIC_V3, M_WAITOK);
 	return (0);
 }
 
@@ -1423,12 +1413,12 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 		do {
 			typer = bus_read_8(r_res, offset + GICR_TYPER);
 			if ((typer >> GICR_TYPER_AFF_SHIFT) == aff) {
-				KASSERT(sc->gic_redists.pcpu[cpuid] != NULL,
+				KASSERT(cpuid <= mp_maxid,
 				    ("Invalid pointer to per-CPU redistributor"));
 				/* Copy res contents to its final destination */
-				sc->gic_redists.pcpu[cpuid]->res = r_res;
-				sc->gic_redists.pcpu[cpuid]->offset = offset;
-				sc->gic_redists.pcpu[cpuid]->lpi_enabled = false;
+				sc->gic_redists.pcpu[cpuid].res = r_res;
+				sc->gic_redists.pcpu[cpuid].offset = offset;
+				sc->gic_redists.pcpu[cpuid].lpi_enabled = false;
 				if (bootverbose) {
 					device_printf(sc->dev,
 					    "CPU%u Re-Distributor has been found\n",
