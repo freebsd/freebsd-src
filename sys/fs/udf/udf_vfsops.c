@@ -478,6 +478,11 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 	 */
 	sector = le32toh(udfmp->root_icb.loc.lb_num) + udfmp->part_start;
 	size = le32toh(udfmp->root_icb.len);
+	if (size < UDF_FENTRY_SIZE) {
+		printf("Invalid root directory file entry length %u\n",
+		    size);
+		goto bail;
+	}
 	if ((error = udf_readdevblks(udfmp, sector, size, &bp)) != 0) {
 		printf("Cannot read sector %d\n", sector);
 		goto bail;
