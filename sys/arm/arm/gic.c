@@ -146,7 +146,7 @@ static int gic_debug_spurious = 0;
 #endif
 TUNABLE_INT("hw.gic.debug_spurious", &gic_debug_spurious);
 
-static u_int arm_gic_map[MAXCPU];
+static u_int arm_gic_map[GIC_MAXCPU];
 
 static struct arm_gic_softc *gic_sc = NULL;
 
@@ -209,6 +209,7 @@ arm_gic_init_secondary(device_t dev)
 
 	/* Set the mask so we can find this CPU to send it IPIs */
 	cpu = PCPU_GET(cpuid);
+	MPASS(cpu < GIC_MAXCPU);
 	arm_gic_map[cpu] = gic_cpu_mask(sc);
 
 	for (irq = 0; irq < sc->nirqs; irq += 4)
@@ -317,6 +318,12 @@ arm_gic_attach(device_t dev)
 	if (gic_sc)
 		return (ENXIO);
 
+	if (mp_ncpus > GIC_MAXCPU) {
+		device_printf(dev, "Too many CPUs for IPIs to work (%d > %d)\n",
+		    mp_ncpus, GIC_MAXCPU);
+		return (ENXIO);
+	}
+
 	sc = device_get_softc(dev);
 
 	if (bus_alloc_resources(dev, arm_gic_spec, sc->gic_res)) {
@@ -362,6 +369,7 @@ arm_gic_attach(device_t dev)
 	/* Find the current cpu mask */
 	mask = gic_cpu_mask(sc);
 	/* Set the mask so we can find this CPU to send it IPIs */
+	MPASS(PCPU_GET(cpuid) < GIC_MAXCPU);
 	arm_gic_map[PCPU_GET(cpuid)] = mask;
 	/* Set all four targets to this cpu */
 	mask |= mask << 8;
@@ -649,7 +657,7 @@ gic_bind(struct arm_gic_softc *sc, u_int irq, cpuset_t *cpus)
 {
 	uint32_t cpu, end, mask;
 
-	end = min(mp_ncpus, 8);
+	end = min(mp_ncpus, GIC_MAXCPU);
 	for (cpu = end; cpu < MAXCPU; cpu++)
 		if (CPU_ISSET(cpu, cpus))
 			return (EINVAL);
@@ -988,9 +996,12 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
 	uint32_t val = 0, i;
 
-	for (i = 0; i < MAXCPU; i++)
-		if (CPU_ISSET(i, &cpus))
+	for (i = 0; i < MAXCPU; i++) {
+		if (CPU_ISSET(i, &cpus)) {
+			MPASS(i < GIC_MAXCPU);
 			val |= arm_gic_map[i] << GICD_SGI_TARGET_SHIFT;
+		}
+	}
 
 	gic_d_write_4(sc, GICD_SGIR, val | gi->gi_irq);
 }
