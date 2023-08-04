@@ -340,6 +340,13 @@ iso_mountfs(devvp, mp)
 		goto out;
 	}
 
+	if (logical_block_size < cp->provider->sectorsize) {
+		printf("cd9660: Unsupported logical block size %u\n",
+		    logical_block_size);
+		error = EINVAL;
+		goto out;
+	}
+
 	rootp = (struct iso_directory_record *)
 		(high_sierra?
 		 pri_sierra->root_directory_record:
