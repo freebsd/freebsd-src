@@ -187,11 +187,18 @@
 		    l_ulong arg
 		);
 	}
-30	AUE_NULL	STD	{
-		int linux_ioprio_set(void);
+30	AUE_SETPRIORITY	STD	{
+		int linux_ioprio_set(
+		    l_int which,
+		    l_int who,
+		    l_int ioprio
+		);
 	}
-31	AUE_NULL	STD	{
-		int linux_ioprio_get(void);
+31	AUE_GETPRIORITY	STD	{
+		int linux_ioprio_get(
+		    l_int which,
+		    l_int who
+		);
 	}
 32	AUE_FLOCK	NOPROTO	{
 		int flock(
