@@ -158,7 +158,7 @@ ncthwm_query_fan_speed(SYSCTL_HANDLER_ARGS)
 	NCTHWM_VERBOSE_PRINTF(sc->dev, "%s: read %u from bank %u offset 0x%x-0x%x\n",
 		fan->name, val, sc->nctdevp->fan_bank, fan->high_byte_offset, fan->low_byte_offset);
 
-	return (sysctl_handle_int(oidp, &val, 0, req));
+	return (sysctl_handle_16(oidp, &val, 0, req));
 }
 
 static int
