@@ -140,6 +140,7 @@ section_table:
 _end_header:
 
 	.text
+	.globl	_start
 _start:
 	/* Save the boot params to the stack */
 	push	{r0, r1}
