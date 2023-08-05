@@ -681,6 +681,41 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order,
 }
 
 /*
+ * Add the physical pages [m, m + npages) at the beginning of a power-of-two
+ * aligned and sized set to the specified free list.
+ *
+ * When this function is called by a page allocation function, the caller
+ * should request insertion at the head unless the lower-order queues are
+ * known to be empty.  The objective being to reduce the likelihood of long-
+ * term fragmentation by promoting contemporaneous allocation and (hopefully)
+ * deallocation.
+ *
+ * The physical page m's buddy must not be free.
+ */
+static void
+vm_phys_enq_beg(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
+{
+        int order;
+
+	KASSERT(npages == 0 ||
+	    (VM_PAGE_TO_PHYS(m) &
+	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
+	    ("%s: page %p and npages %u are misaligned",
+	    __func__, m, npages));
+        while (npages > 0) {
+		KASSERT(m->order == VM_NFREEORDER,
+		    ("%s: page %p has unexpected order %d",
+		    __func__, m, m->order));
+                order = fls(npages) - 1;
+		KASSERT(order < VM_NFREEORDER,
+		    ("%s: order %d is out of range", __func__, order));
+                vm_freelist_add(fl, m, order, tail);
+		m += 1 << order;
+                npages -= 1 << order;
+        }
+}
+
+/*
  * Add the physical pages [m, m + npages) at the end of a power-of-two aligned
  * and sized set to the specified free list.
  *
@@ -1190,14 +1225,7 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 		m += 1 << order;
 	}
 	/* Free blocks of diminishing size. */
-	while (m < m_end) {
-		KASSERT(seg == &vm_phys_segs[m->segind],
-		    ("%s: page range [%p,%p) spans multiple segments",
-		    __func__, m_end - npages, m));
-		order = flsl(m_end - m) - 1;
-		vm_freelist_add(fl, m, order, 1);
-		m += 1 << order;
-	}
+	vm_phys_enq_beg(m, m_end - m, fl, 1);
 }
 
 /*
