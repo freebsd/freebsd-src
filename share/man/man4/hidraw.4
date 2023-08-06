@@ -65,9 +65,9 @@ calls:
 .Xr uhid 4
 \-compatible calls:
 .Bl -tag -width indent
-.It Dv HID_GET_REPORT_ID Pq Vt int
+.It Dv HIDRAW_GET_REPORT_ID Pq Vt int
 Get the report identifier used by this HID report.
-.It Dv HID_GET_REPORT_DESC Pq Vt "struct hidraw_gen_descriptor"
+.It Dv HIDRAW_GET_REPORT_DESC Pq Vt "struct hidraw_gen_descriptor"
 Get the HID report descriptor.
 Copies a maximum of
 .Va hgd_maxlen
@@ -91,7 +91,7 @@ struct hidraw_gen_descriptor {
 	...
 };
 .Ed
-.It Dv HID_SET_IMMED Pq Vt int
+.It Dv HIDRAW_SET_IMMED Pq Vt int
 Sets the device in a mode where each
 .Xr read 2
 will return the current value of the input report.
@@ -102,7 +102,7 @@ will only return the data that the device reports on its
 interrupt pipe.
 This call may fail if the device does not support
 this feature.
-.It Dv HID_GET_REPORT Pq Vt "struct hidraw_gen_descriptor"
+.It Dv HIDRAW_GET_REPORT Pq Vt "struct hidraw_gen_descriptor"
 Get a report from the device without waiting for data on
 the interrupt pipe.
 Copies a maximum of
@@ -126,7 +126,7 @@ The report data begins from the second byte.
 For devices which do not use numbered reports, the report data begins at the
 first byte.
 This call may fail if the device does not support this feature.
-.It Dv HID_SET_REPORT Pq Vt "struct hidraw_gen_descriptor"
+.It Dv HIDRAW_SET_REPORT Pq Vt "struct hidraw_gen_descriptor"
 Set a report in the device.
 The
 .Va hgd_report_type
