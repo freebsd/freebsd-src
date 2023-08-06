@@ -801,17 +801,6 @@ DIRDEPS.arm64= \
 	usr.sbin/acpi \
 	usr.sbin/ofwdump
 
-DIRDEPS.mips= \
-	sbin/bsdlabel \
-	sbin/fdisk
-
-DIRDEPS.sparc64= \
-	sbin/bsdlabel \
-	sbin/sunlabel \
-	usr.sbin/eeprom \
-	usr.sbin/ofwdump \
-	usr.sbin/sade
-
 DIRDEPS.powerpc= \
 	usr.sbin/nvram \
 	usr.sbin/ofwdump
