@@ -213,7 +213,7 @@ acpi_spibus_get_apple_res(device_t spibus, ACPI_HANDLE dev,
 		    *(uint64_t *)comp[1].Buffer.Pointer : 0;
 
 		if (bootverbose)
-			printf("  %s: %zu\n", k, (intmax_t)val);
+			printf("  %s: %ju\n", k, (intmax_t)val);
 
 		if (strcmp(k, "spiSclkPeriod") == 0) {
 			if (val != 0)
