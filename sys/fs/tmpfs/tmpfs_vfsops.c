@@ -329,7 +329,7 @@ tmpfs_mount(struct mount *mp)
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
 	int error;
-	bool nomtime, nonc;
+	bool nomtime, nonc, pgread;
 	/* Size counters. */
 	u_quad_t pages;
 	off_t nodes_max, size_max, maxfilesize, ea_max_size;
@@ -412,6 +412,7 @@ tmpfs_mount(struct mount *mp)
 		ea_max_size = 0;
 	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
 	nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL, NULL) == 0;
+	pgread = vfs_getopt(mp->mnt_optnew, "pgread", NULL, NULL) == 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
@@ -462,6 +463,7 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	tmp->tm_nonc = nonc;
 	tmp->tm_nomtime = nomtime;
+	tmp->tm_pgread = pgread;
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid, root_gid,

@@ -428,6 +428,9 @@ struct tmpfs_mount {
 	bool			tm_nonc;
 	/* Do not update mtime on writes through mmaped areas. */
 	bool			tm_nomtime;
+
+	/* Read from page cache directly. */
+	bool			tm_pgread;
 };
 #define	TMPFS_LOCK(tm) mtx_lock(&(tm)->tm_allnode_lock)
 #define	TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->tm_allnode_lock)
