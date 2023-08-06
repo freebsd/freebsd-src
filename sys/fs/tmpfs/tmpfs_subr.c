@@ -1069,7 +1069,7 @@ loop:
 		VI_LOCK(vp);
 		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
 		vp->v_object = object;
-		vn_irflag_set_locked(vp, VIRF_PGREAD);
+		vn_irflag_set_locked(vp, (tm->tm_pgread ? VIRF_PGREAD : 0));
 		VI_UNLOCK(vp);
 		VM_OBJECT_WUNLOCK(object);
 		break;
