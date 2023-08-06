@@ -403,17 +403,15 @@
 #endif
 
 /*
- * GCC 2.95 provides `__restrict' as an extension to C90 to support the
- * C99-specific `restrict' type qualifier.  We happen to use `__restrict' as
- * a way to define the `restrict' type qualifier without disturbing older
- * software that is unaware of C99 keywords.
+ * We use `__restrict' as a way to define the `restrict' type qualifier
+ * without disturbing older software that is unaware of C99 keywords.
+ * GCC also provides `__restrict' as an extension to support C99-style
+ * restricted pointers in other language modes.
  */
-#if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
-#define	__restrict
-#else
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901
 #define	__restrict	restrict
-#endif
+#elif !__GNUC_PREREQ__(2, 95)
+#define	__restrict
 #endif
 
 /*
