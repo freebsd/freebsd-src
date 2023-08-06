@@ -531,10 +531,6 @@ std_powerpc64 ( ) {
 	NANO_ENDIAN=big
 }
 
-std_sparc64 ( ) {
-	NANO_ENDIAN=big
-}
-
 #
 # QEMU settings for the standard environments
 #
