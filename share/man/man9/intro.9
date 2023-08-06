@@ -6,7 +6,7 @@
 .\" This manual page was written by Mitchell Horne <mhorne@FreeBSD.org> under
 .\" sponsorship from the FreeBSD Foundation.
 .\"
-.Dd August 2, 2023
+.Dd August 6, 2023
 .Dt INTRO 9
 .Os
 .Sh NAME
@@ -16,7 +16,7 @@
 Welcome to the
 .Fx
 kernel documentation.
-Outside of the source code itself, this set of
+Outside the source code itself, this set of
 .Xr man 1
 pages is the primary resource for information on usage of the numerous
 programming interfaces available within the kernel.
@@ -33,7 +33,7 @@ the first time will be able to understand.
 .Pp
 To further set expectations, we acknowledge that kernel documentation, like the
 source code itself, is forever a work-in-progress.
-There will be large sections of the codebase whose documentation is subtly or
+There will be large sections of the codebase where documentation is subtly or
 severely outdated, or missing altogether.
 This documentation is a supplement to the source code, and can not always be
 taken at face value.
@@ -133,8 +133,9 @@ There is also
 .Ss Memory Management
 Dynamic memory allocations inside the kernel are generally done using
 .Xr malloc 9 .
-Frequently allocated objects may prefer to use
-.Xr uma 9 .
+For frequently allocated objects,
+.Xr uma 9
+may be preferable.
 .Pp
 .\" MHTODO: It would be useful to have a vm_page(9) or similar
 .\" high-level page which points to the following contents instead.
@@ -178,7 +179,7 @@ File system implementations register themselves with
 .Xr vfsconf 9 .
 .Pp
 The abstract and filesystem-independent representation of a file, directory, or
-other file-like entity within the kernel is the
+other file-like entity within the kernel, is the
 .Xr vnode 9 .
 .Pp
 The implementation of access control lists for filesystems is described by
@@ -346,7 +347,7 @@ To voluntarily yield the processor, use
 The various functions which will deliberately put a thread to sleep are
 described by
 .Xr sleep 9 .
-Sleeping threads are removed from the scheduler and placed on a
+Sleeping threads are removed from the scheduler and placed in a
 .Xr sleepqueue 9 .
 .\" TODO: This page is outdated and can't be included here yet.
 .\".Pp
@@ -371,7 +372,7 @@ Signals can be sent to processes or process groups using the functions
 described by
 .Xr psignal 9 .
 .Ss Security
-See the generic security overview in
+See the overview in
 .Xr security 7 .
 .Pp
 The basic structure for user credentials is
@@ -397,7 +398,7 @@ see
 .Xr mac 9 .
 .Pp
 Cryptographic services are provided by the OpenCrypto framework.
-This API provides and interface for both consumers and crypto drivers;
+This API provides an interface for both consumers and crypto drivers;
 see
 .Xr crypto 9 .
 .Pp
@@ -448,9 +449,9 @@ API.
 .Pp
 Kernel sanitizers can perform additional compiler-assisted checks against
 memory use/access.
-These runtimes are capable of detecting difficult-to-identify classes of bugs,
+These runtimes are capable of detecting difficult-to-identify classes of bug,
 at the cost of a large overhead.
-Supported is the Kernel Address Sanitizer
+Supported are the Kernel Address Sanitizer
 .Xr KASAN 9 ,
 and the Kernel Memory Sanitizer
 .Xr KMSAN 9 .
@@ -514,6 +515,6 @@ The kernel object implementation is described by
 .Xr man 1 ,
 .Xr style 9
 .Rs
-.%T "The FreeBSD Architecture Handbook"
-.%U "https://docs.freebsd.org/en/books/arch-handbook/"
+.%T The FreeBSD Architecture Handbook
+.%U https://docs.freebsd.org/en/books/arch-handbook/
 .Re
