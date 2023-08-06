@@ -49,6 +49,20 @@ struct hidraw_gen_descriptor {
 	uint8_t reserved[8];
 };
 
+/* Compatible with usb_device_info structure */
+struct hidraw_device_info {
+	uint16_t	hdi_product;
+	uint16_t	hdi_vendor;
+	uint16_t	hdi_version;
+	uint8_t		occupied[18];	/* by usb_device_info */
+	uint16_t	hdi_bustype;
+	uint8_t		reserved[14];	/* leave space for the future */
+	char		hdi_name[128];
+	char		hdi_phys[128];
+	char		hdi_uniq[64];
+	char		hdi_release[8];	/* decrypted USB bcdDevice */
+};
+
 struct hidraw_report_descriptor {
 	uint32_t	size;
 	uint8_t		value[HID_MAX_DESCRIPTOR_SIZE];
@@ -67,6 +81,7 @@ struct hidraw_devinfo {
 #define	HIDRAW_SET_REPORT	_IOW ('U', 24, struct hidraw_gen_descriptor)
 #define	HIDRAW_GET_REPORT_ID	_IOR ('U', 25, int)
 #define	HIDRAW_SET_REPORT_DESC	_IOW ('U', 26, struct hidraw_gen_descriptor)
+#define	HIDRAW_GET_DEVICEINFO	_IOR ('U', 112, struct hidraw_device_info)
 
 /* Linux hidraw-compatible ioctl interface */
 #define	HIDIOCGRDESCSIZE	_IOR('U', 30, int)

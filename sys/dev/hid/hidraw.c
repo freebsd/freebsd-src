@@ -564,9 +564,10 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #endif
 	void *buf;
 	struct hidraw_softc *sc;
+	struct hidraw_device_info *hdi;
 	struct hidraw_gen_descriptor *hgd;
 	struct hidraw_report_descriptor *hrd;
-	struct hidraw_devinfo *hdi;
+	struct hidraw_devinfo *hd;
 	const char *devname;
 	uint32_t size;
 	int id, len;
@@ -795,6 +796,23 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		*(int *)addr = 0;	/* XXX: we only support reportid 0? */
 		return (0);
 
+	case HIDRAW_GET_DEVICEINFO:
+		hdi = (struct hidraw_device_info *)addr;
+		bzero(hdi, sizeof(struct hidraw_device_info));
+		hdi->hdi_product = sc->sc_hw->idProduct;
+		hdi->hdi_vendor = sc->sc_hw->idVendor;
+		hdi->hdi_version = sc->sc_hw->idVersion;
+		hdi->hdi_bustype = sc->sc_hw->idBus;
+		strlcpy(hdi->hdi_name, sc->sc_hw->name,
+		    sizeof(hdi->hdi_name));
+		strlcpy(hdi->hdi_phys, device_get_nameunit(sc->sc_dev),
+		    sizeof(hdi->hdi_phys));
+		strlcpy(hdi->hdi_uniq, sc->sc_hw->serial,
+		    sizeof(hdi->hdi_uniq));
+		snprintf(hdi->hdi_release, sizeof(hdi->hdi_release), "%x.%02x",
+		    sc->sc_hw->idVersion >> 8, sc->sc_hw->idVersion & 0xff);
+		return(0);
+
 	case HIDIOCGRDESCSIZE:
 		*(int *)addr = sc->sc_hw->rdescsize;
 		return (0);
@@ -820,10 +838,10 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		return (error);
 
 	case HIDIOCGRAWINFO:
-		hdi = (struct hidraw_devinfo *)addr;
-		hdi->bustype = sc->sc_hw->idBus;
-		hdi->vendor = sc->sc_hw->idVendor;
-		hdi->product = sc->sc_hw->idProduct;
+		hd = (struct hidraw_devinfo *)addr;
+		hd->bustype = sc->sc_hw->idBus;
+		hd->vendor = sc->sc_hw->idVendor;
+		hd->product = sc->sc_hw->idProduct;
 		return (0);
 	}
 
