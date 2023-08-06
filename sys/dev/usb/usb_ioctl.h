@@ -120,7 +120,8 @@ struct usb_device_info {
 	uint8_t	udi_hubport;		/* parent HUB port */
 	uint8_t	udi_power_mode;		/* see "USB_POWER_MODE_XXX" */
 	uint8_t	udi_suspended;		/* set if device is suspended */
-	uint8_t	udi_reserved[16];	/* leave space for the future */
+	uint16_t udi_bustypeNo;
+	uint8_t	udi_reserved[14];	/* leave space for the future */
 	char	udi_product[128];
 	char	udi_vendor[128];
 	char	udi_serial[64];
