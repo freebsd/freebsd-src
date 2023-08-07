@@ -9,6 +9,7 @@ VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	5120m
 VMFS?=		ufs
+VMFSLIST?=	ufs zfs
 SWAPSIZE?=	1g
 VMBASE?=	vm
 
@@ -112,8 +113,10 @@ cw${_CW:tl}-package:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 CLEANDIRS+=	${VMTARGETS}
 . for FORMAT in ${VMFORMATS}
-CLEANFILES+=	${FORMAT}.img
-CLEANFILES+=	${VMBASE}.${FORMAT}
+.  for FS in ${VMFSLIST}
+CLEANFILES+=	${FORMAT}.${FS}.img
+CLEANFILES+=	${VMBASE}.${FS}.${FORMAT}
+.  endfor
 . endfor
 .endif
 
@@ -122,12 +125,14 @@ vm-base:	vm-image
 vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
+.  for FS in ${VMFSLIST}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
-		-i ${.OBJDIR}/${FORMAT}.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FORMAT}
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${FS} \
+		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT}
+.  endfor
 . endfor
 .endif
 	touch ${.TARGET}
@@ -154,15 +159,27 @@ vm-install:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 	mkdir -p ${DESTDIR}/vmimages
 . for FORMAT in ${VMFORMATS}
-	cp -p ${VMBASE}.${FORMAT} \
-		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  for FS in ${VMFSLIST}
+	cp -p ${VMBASE}.${FS}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+.  endfor
 . endfor
 . if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
 .  for FORMAT in ${VMFORMATS}
+.   for FS in ${VMFSLIST}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+.   endfor
 .  endfor
 . endif
+	# Compatibility hardlinks from "foo.bar" to "foo-${VMFS}.bar".
+. for FORMAT in ${VMFORMATS}
+.  if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+	ln -f ${DESTDIR}/vmimages/${OSRELEASE}-${VMFS}.${FORMAT}.xz ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}.xz
+.  else
+	ln -f ${DESTDIR}/vmimages/${OSRELEASE}-${VMFS}.${FORMAT} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endif
+. endfor
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
 		${DESTDIR}/vmimages/CHECKSUM.SHA512
 	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
