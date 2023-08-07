@@ -36,7 +36,7 @@
 	.set	strchrnul, __strchrnul
 
 ARCHFUNCS(__strchrnul)
-        ARCHFUNC(__strchrnul, scalar)
+	ARCHFUNC(__strchrnul, scalar)
 	ARCHFUNC(__strchrnul, baseline)
 ENDARCHFUNCS(__strchrnul)
 
