@@ -1244,19 +1244,25 @@ nvme_admin_qpair_enable(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker		*tr;
 	struct nvme_tracker		*tr_temp;
+	bool				rpt;
 
 	/*
 	 * Manually abort each outstanding admin command.  Do not retry
-	 *  admin commands found here, since they will be left over from
-	 *  a controller reset and its likely the context in which the
-	 *  command was issued no longer applies.
+	 * admin commands found here, since they will be left over from
+	 * a controller reset and its likely the context in which the
+	 * command was issued no longer applies.
 	 */
-	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
+	rpt = !TAILQ_EMPTY(&qpair->outstanding_tr);
+	if (rpt)
 		nvme_printf(qpair->ctrlr,
 		    "aborting outstanding admin command\n");
+	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
 		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, DO_NOT_RETRY, ERROR_PRINT_ALL);
 	}
+	if (rpt)
+		nvme_printf(qpair->ctrlr,
+		    "done aborting outstanding admin\n");
 
 	mtx_lock(&qpair->lock);
 	nvme_qpair_enable(qpair);
@@ -1270,17 +1276,22 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	struct nvme_tracker		*tr;
 	struct nvme_tracker		*tr_temp;
 	struct nvme_request		*req;
+	bool				report;
 
 	/*
 	 * Manually abort each outstanding I/O.  This normally results in a
-	 *  retry, unless the retry count on the associated request has
-	 *  reached its limit.
+	 * retry, unless the retry count on the associated request has
+	 * reached its limit.
 	 */
-	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
+	report = !TAILQ_EMPTY(&qpair->outstanding_tr);
+	if (report)
 		nvme_printf(qpair->ctrlr, "aborting outstanding i/o\n");
+	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
 		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_NO_RETRY);
 	}
+	if (report)
+		nvme_printf(qpair->ctrlr, "done aborting outstanding i/o\n");
 
 	mtx_lock(&qpair->lock);
 
@@ -1289,13 +1300,17 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	STAILQ_INIT(&temp);
 	STAILQ_SWAP(&qpair->queued_req, &temp, nvme_request);
 
+	report = !STAILQ_EMPTY(&temp);
+	if (report)
+		nvme_printf(qpair->ctrlr, "resubmitting queued i/o\n");
 	while (!STAILQ_EMPTY(&temp)) {
 		req = STAILQ_FIRST(&temp);
 		STAILQ_REMOVE_HEAD(&temp, stailq);
-		nvme_printf(qpair->ctrlr, "resubmitting queued i/o\n");
 		nvme_qpair_print_command(qpair, &req->cmd);
 		_nvme_qpair_submit_request(qpair, req);
 	}
+	if (report)
+		nvme_printf(qpair->ctrlr, "done resubmitting i/o\n");
 
 	mtx_unlock(&qpair->lock);
 }
