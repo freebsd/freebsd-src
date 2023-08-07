@@ -6,7 +6,7 @@
 .\" This manual page was written by Mitchell Horne <mhorne@FreeBSD.org> under
 .\" sponsorship from the FreeBSD Foundation.
 .\"
-.Dd August 6, 2023
+.Dd August 7, 2023
 .Dt INTRO 9
 .Os
 .Sh NAME
@@ -133,9 +133,8 @@ There is also
 .Ss Memory Management
 Dynamic memory allocations inside the kernel are generally done using
 .Xr malloc 9 .
-For frequently allocated objects,
-.Xr uma 9
-may be preferable.
+Frequently allocated objects may prefer to use
+.Xr uma 9 .
 .Pp
 .\" MHTODO: It would be useful to have a vm_page(9) or similar
 .\" high-level page which points to the following contents instead.
@@ -347,7 +346,7 @@ To voluntarily yield the processor, use
 The various functions which will deliberately put a thread to sleep are
 described by
 .Xr sleep 9 .
-Sleeping threads are removed from the scheduler and placed in a
+Sleeping threads are removed from the scheduler and placed on a
 .Xr sleepqueue 9 .
 .\" TODO: This page is outdated and can't be included here yet.
 .\".Pp
@@ -449,7 +448,7 @@ API.
 .Pp
 Kernel sanitizers can perform additional compiler-assisted checks against
 memory use/access.
-These runtimes are capable of detecting difficult-to-identify classes of bug,
+These runtimes are capable of detecting difficult-to-identify classes of bugs,
 at the cost of a large overhead.
 Supported are the Kernel Address Sanitizer
 .Xr KASAN 9 ,
