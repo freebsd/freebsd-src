@@ -1618,7 +1618,8 @@ num_components(const char *path)
 	size_t n;
 	const char *cp;
 
-	for (n = 0, cp = path; (cp = strchr(cp, '/')) != NULL; n++, cp++) {
+	for (n = 0, cp = path; (cp = strchr(cp, '/')) != NULL; n++) {
+		cp++;
 		while (*cp == '/')
 			cp++;		/* skip consecutive slashes */
 	}
