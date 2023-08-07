@@ -1077,11 +1077,7 @@ mca_startup(void *dummy)
 	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
 	    mca_ticks * SBT_1S, 0, C_PREL(1));
 }
-#ifdef EARLY_AP_STARTUP
 SYSINIT(mca_startup, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, mca_startup, NULL);
-#else
-SYSINIT(mca_startup, SI_SUB_SMP, SI_ORDER_ANY, mca_startup, NULL);
-#endif
 
 #ifdef DEV_APIC
 static void
