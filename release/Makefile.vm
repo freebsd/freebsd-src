@@ -25,27 +25,35 @@ CLOUDWARE?=	BASIC-CI \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
+AZURE_FSLIST=	ufs
 AZURE_DESC=	Microsoft Azure platform image
 AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
 BASIC-CI_FORMAT=	raw
+BASIC-CI_FSLIST=	ufs
 BASIC-CI_DESC=		Image for CI
 BASIC-CI_DISK=	${OSRELEASE}.${BASIC-CI_FORMAT}
 EC2_FORMAT=	raw
+EC2_FSLIST=	ufs
 EC2_DESC=	Amazon EC2 image
 EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
 GCE_FORMAT=	raw
+GCE_FSLIST=	ufs
 GCE_DESC=	Google Compute Engine image
 GCE_DISK=	disk.${GCE_FORMAT}
 OCI_FORMAT=	qcow2
+OCI_FSLIST=	ufs
 OCI_DESC=	Oracle Cloud Infrastructure image
 OCI_DISK=	${OSRELEASE}.${OCI_FORMAT}
 OPENSTACK_FORMAT=qcow2
+OPENSTACK_FSLIST=	ufs
 OPENSTACK_DESC=	OpenStack platform image
 OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
 VAGRANT-VIRTUALBOX_FORMAT=	vmdk
+VAGRANT-VIRTUALBOX_FSLIST=	ufs
 VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
 VAGRANT-VIRTUALBOX_DISK=	${OSRELEASE}.vbox.${VAGRANT_FORMAT}
 VAGRANT-VMWARE_FORMAT=	vmdk
+VAGRANT-VMWARE_FSLIST=	ufs
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
 VAGRANT-VMWARE_DISK=	${OSRELEASE}.vmware.${VAGRANT_FORMAT}
 
@@ -75,27 +83,38 @@ QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
-CLOUDTARGETS+=	cw-${_CW:tl}
-CLEANDIRS+=	cw-${_CW:tl}
-CLEANFILES+=	${_CW:tl}.img \
-		${_CW:tl}.${${_CW:tu}_FORMAT} \
-		${_CW:tl}.${${_CW:tu}_FORMAT}.raw \
-		cw${_CW:tl}-package
-CLOUDPACKAGE+=	cw${_CW:tl}-package
-${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
+.  for _FS in ${${_CW:tu}_FSLIST}
+CLOUDTARGETS+=	cw-${_CW:tl}-${_FS}
+CLEANDIRS+=	cw-${_CW:tl}-${_FS}
+CLEANFILES+=	${_CW:tl}.${_FS}.img \
+		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT} \
+		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw \
+		cw${_CW:tl}-package
+CLOUDPACKAGE+=	cw${_CW:tl}-package
+${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}
 
-cw-${_CW:tl}: emulator-portinstall
+cw-${_CW:tl}-${_FS}: emulator-portinstall
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
-		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}IMAGE} -c ${${_CW:tu}CONF}
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
+		-i ${.OBJDIR}/${_CW:tl}.${_FS}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
+.  endfor
+
+# Hardlinks from "foo.bar" to "foo-${VMFS}.bar".  These can go away once all
+# of the cloudware code knows how to handle multiple filesystem images (or
+# at least knows the name of the UFS image).
+CLOUDTARGETS+=	cw-${_CW:tl}
+CLEANFILES+=	${_CW:tl}.${${_CW:tu}_FORMAT}
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
+cw-${_CW:tl}: cw-${_CW:tl}-${VMFS}
+	ln -f ${${_CW:tu}${VMFS:tu}IMAGE} ${${_CW:tu}IMAGE}
 
 cw${_CW:tl}-package:
 	@# Special target to handle packaging cloud images in the formats
