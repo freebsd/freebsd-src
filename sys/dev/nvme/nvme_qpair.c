@@ -341,21 +341,22 @@ get_status_string(uint16_t sct, uint16_t sc)
 	return (entry->str);
 }
 
-static void
+void
 nvme_qpair_print_completion(struct nvme_qpair *qpair,
     struct nvme_completion *cpl)
 {
-	uint8_t sct, sc, crd, m, dnr;
+	uint8_t sct, sc, crd, m, dnr, p;
 
 	sct = NVME_STATUS_GET_SCT(cpl->status);
 	sc = NVME_STATUS_GET_SC(cpl->status);
 	crd = NVME_STATUS_GET_CRD(cpl->status);
 	m = NVME_STATUS_GET_M(cpl->status);
 	dnr = NVME_STATUS_GET_DNR(cpl->status);
+	p = NVME_STATUS_GET_P(cpl->status);
 
-	nvme_printf(qpair->ctrlr, "%s (%02x/%02x) crd:%x m:%x dnr:%x "
+	nvme_printf(qpair->ctrlr, "%s (%02x/%02x) crd:%x m:%x dnr:%x p:%d "
 	    "sqid:%d cid:%d cdw0:%x\n",
-	    get_status_string(sct, sc), sct, sc, crd, m, dnr,
+	    get_status_string(sct, sc), sct, sc, crd, m, dnr, p,
 	    cpl->sqid, cpl->cid, cpl->cdw0);
 }
 
@@ -654,8 +655,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			nvme_printf(qpair->ctrlr,
 			    "cpl (cid = %u) does not map to outstanding cmd\n",
 				cpl.cid);
-			/* nvme_dump_completion expects device endianess */
-			nvme_dump_completion(&qpair->cpl[qpair->cq_head]);
+			nvme_qpair_print_completion(qpair,
+			    &qpair->cpl[qpair->cq_head]);
 			KASSERT(0, ("received completion for unknown cmd"));
 		}
 
