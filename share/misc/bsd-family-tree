@@ -447,7 +447,7 @@ FreeBSD 5.2           |      |                 |                       |
  |  FreeBSD           |      |                    |                    |
  |   13.2             |      |                    |                    |
  |                    |      |                    |                    |
-FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
+FreeBSD 14.0-CURRENT  |  NetBSD-current  OpenBSD-current  DragonFly-DEVELOPMENT
  |                    |      |                    |                    |
  v                    v      v                    v                    v
 
