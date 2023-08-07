@@ -18,9 +18,6 @@ PUBLICSNAP=	--publicsnap
 EC2SNSREL=	${REVISION}-${BRANCH}
 EC2SNSVERS=	${GITBRANCH}@${GITREV}
 .endif
-.if defined(SSMPREFIX) && !empty(SSMPREFIX)
-SSMOPTS=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/base/${VMFS}/${REVISION}/${BRANCH}
-.endif
 .if ${TARGET_ARCH} != "amd64"
 EC2ARCH=	--${TARGET_ARCH:S/aarch64/arm64/}
 .endif
@@ -54,7 +51,12 @@ cw-ec2-portinstall:
 .endif
 	@touch ${.TARGET}
 
-ec2ami-${VMFS}: cw-ec2-${VMFS} ${CW_EC2_PORTINSTALL}
+.for _FS in ${EC2_FSLIST}
+.if defined(SSMPREFIX) && !empty(SSMPREFIX)
+SSMOPTS_${_FS}=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/base/${_FS}/${REVISION}/${BRANCH}
+.endif
+EC2AMILIST+=	ec2ami-${_FS}
+ec2ami-${_FS}: cw-ec2-${_FS} ${CW_EC2_PORTINSTALL}
 .if !defined(AWSKEYFILE) || !exists(${AWSKEYFILE})
 	@echo "--------------------------------------------------------------"
 	@echo ">>> AWSKEYFILE must point at AWS keys for EC2 AMI creation"
@@ -74,12 +76,14 @@ ec2ami-${VMFS}: cw-ec2-${VMFS} ${CW_EC2_PORTINSTALL}
 	@false
 .endif
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
-	    ${EC2ARCH} ${SSMOPTS} ${BOOTMODEOPT} --sriov --ena \
-	    ${.OBJDIR}/ec2.raw \
-	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX} ${AMIBOOTMETHOD} ${VMFS:tu}" \
+	    ${EC2ARCH} ${SSMOPTS_${_FS}} ${BOOTMODEOPT} --sriov --ena \
+	    ${.OBJDIR}/${EC2${_FS:tu}IMAGE} \
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX} ${AMIBOOTMETHOD} ${_FS:tu}" \
 	    "${TYPE}/${TARGET} ${GITBRANCH}@${GITREV}" \
 	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE} \
 	    ${EC2SNSTOPIC} ${EC2SNSREL} ${EC2SNSVERS}
 	@touch ${.TARGET}
+.endfor
 
 ec2ami: ec2ami-${VMFS}
+ec2amis: ${EC2AMILIST}
