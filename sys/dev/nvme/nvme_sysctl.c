@@ -72,7 +72,7 @@ nvme_dump_queue(struct nvme_qpair *qpair)
 	for (i = 0; i < qpair->num_entries; i++) {
 		cmd = &qpair->cmd[i];
 		printf("%05d: ", i);
-		nvme_dump_command(cmd);
+		nvme_qpair_print_command(qpair, cmd);
 	}
 }
 

@@ -443,7 +443,8 @@ void	nvme_ns_destruct(struct nvme_namespace *ns);
 
 void	nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr);
 
-void	nvme_dump_command(struct nvme_command *cmd);
+void	nvme_qpair_print_command(struct nvme_qpair *qpair,
+	    struct nvme_command *cmd);
 void	nvme_qpair_print_completion(struct nvme_qpair *qpair,
 	    struct nvme_completion *cpl);
 
