@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230807:
+	Following the general removal of MIPS support, the ath(4) AHB bus-
+	frontend has been removed, too, and building of the PCI support is
+	integrated with the ath(4) main module again. As a result, there's
+	no longer a need for if_ath_pci_load="YES" in /boot/loader.conf or
+	"device ath_pci" in the kernel configuration.
+
 20230803:
 	MAXCPU has been increased to 1024 in the amd64 GENERIC kernel config.
 	Out-of-tree kernel modules will need to be rebuilt.

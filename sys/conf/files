@@ -892,12 +892,6 @@ dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 #
-dev/ath/if_ath_pci.c		optional ath_pci pci \
-	compile-with "${ATH_C}"
-#
-dev/ath/if_ath_ahb.c		optional ath_ahb \
-	compile-with "${ATH_C}"
-#
 dev/ath/if_ath.c		optional ath \
 	compile-with "${ATH_C}"
 dev/ath/if_ath_alq.c		optional ath \
@@ -919,6 +913,8 @@ dev/ath/if_ath_ioctl.c		optional ath \
 dev/ath/if_ath_led.c		optional ath \
 	compile-with "${ATH_C}"
 dev/ath/if_ath_lna_div.c	optional ath \
+	compile-with "${ATH_C}"
+dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${ATH_C}"
 dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${ATH_C}"
