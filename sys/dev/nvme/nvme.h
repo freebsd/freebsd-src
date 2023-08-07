@@ -851,8 +851,14 @@ enum nvme_admin_opcode {
 	NVME_OPC_VIRTUALIZATION_MANAGEMENT	= 0x1c,
 	NVME_OPC_NVME_MI_SEND			= 0x1d,
 	NVME_OPC_NVME_MI_RECEIVE		= 0x1e,
-	/* 0x1f-0x7b - reserved */
+	/* 0x1f - reserved */
+	NVME_OPC_CAPACITY_MANAGEMENT		= 0x20,
+	/* 0x21-0x23 - reserved */
+	NVME_OPC_LOCKDOWN			= 0x24,
+	/* 0x15-0x7b - reserved */
 	NVME_OPC_DOORBELL_BUFFER_CONFIG		= 0x7c,
+	/* 0x7d-0x7e - reserved */
+	NVME_OPC_FABRICS_COMMANDS		= 0x7f,
 
 	NVME_OPC_FORMAT_NVM			= 0x80,
 	NVME_OPC_SECURITY_SEND			= 0x81,
@@ -882,6 +888,8 @@ enum nvme_nvm_opcode {
 	NVME_OPC_RESERVATION_ACQUIRE		= 0x11,
 	/* 0x12-0x14 - reserved */
 	NVME_OPC_RESERVATION_RELEASE		= 0x15,
+	/* 0x16-0x18 - reserved */
+	NVME_OPC_COPY				= 0x19,
 };
 
 enum nvme_feature {
