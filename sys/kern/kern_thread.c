@@ -478,7 +478,6 @@ thread_fini(void *mem, int size)
 
 	td = (struct thread *)mem;
 	EVENTHANDLER_DIRECT_INVOKE(thread_fini, td);
-	rlqentry_free(td->td_rlqe);
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);

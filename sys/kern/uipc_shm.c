@@ -184,13 +184,13 @@ SYSCTL_INT(_vm_largepages, OID_AUTO, reclaim_tries,
     "Number of contig reclaims before giving up for default alloc policy");
 
 #define	shm_rangelock_unlock(shmfd, cookie)				\
-	rangelock_unlock(&(shmfd)->shm_rl, (cookie), &(shmfd)->shm_mtx)
+	rangelock_unlock(&(shmfd)->shm_rl, (cookie))
 #define	shm_rangelock_rlock(shmfd, start, end)				\
-	rangelock_rlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+	rangelock_rlock(&(shmfd)->shm_rl, (start), (end))
 #define	shm_rangelock_tryrlock(shmfd, start, end)			\
-	rangelock_tryrlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+	rangelock_tryrlock(&(shmfd)->shm_rl, (start), (end))
 #define	shm_rangelock_wlock(shmfd, start, end)				\
-	rangelock_wlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+	rangelock_wlock(&(shmfd)->shm_rl, (start), (end))
 
 static int
 uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)

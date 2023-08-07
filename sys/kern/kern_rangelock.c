@@ -27,304 +27,335 @@
  */
 
 #include <sys/param.h>
+#include <sys/kassert.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rangelock.h>
-#include <sys/systm.h>
+#include <sys/sleepqueue.h>
+#include <sys/smr.h>
 
 #include <vm/uma.h>
 
+/*
+ * Implementation of range locks based on the paper
+ * https://doi.org/10.1145/3342195.3387533
+ * arXiv:2006.12144v1 [cs.OS] 22 Jun 2020
+ * Scalable Range Locks for Scalable Address Spaces and Beyond
+ * by Alex Kogan, Dave Dice, and Shady Issa
+ */
+
+static struct rl_q_entry *rl_e_unmark(const struct rl_q_entry *e);
+
+/*
+ * rl_q_next links all granted ranges in the lock.  We cannot free an
+ * rl_q_entry while in the smr section, and cannot reuse rl_q_next
+ * linkage since other threads might follow it even after CAS removed
+ * the range.  Use rl_q_free for local list of ranges to remove after
+ * the smr section is dropped.
+ */
 struct rl_q_entry {
-	TAILQ_ENTRY(rl_q_entry) rl_q_link;
+	struct rl_q_entry *rl_q_next;
+	struct rl_q_entry *rl_q_free;
 	off_t		rl_q_start, rl_q_end;
 	int		rl_q_flags;
+#ifdef INVARIANTS
+	struct thread	*rl_q_owner;
+#endif
 };
 
 static uma_zone_t rl_entry_zone;
+static smr_t rl_smr;
 
 static void
 rangelock_sys_init(void)
 {
-
 	rl_entry_zone = uma_zcreate("rl_entry", sizeof(struct rl_q_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct rl_q_entry),
+	    UMA_ZONE_SMR);
+	rl_smr = uma_zone_get_smr(rl_entry_zone);
 }
-SYSINIT(vfs, SI_SUB_LOCK, SI_ORDER_ANY, rangelock_sys_init, NULL);
+SYSINIT(rl, SI_SUB_LOCK, SI_ORDER_ANY, rangelock_sys_init, NULL);
 
 static struct rl_q_entry *
-rlqentry_alloc(void)
+rlqentry_alloc(vm_ooffset_t start, vm_ooffset_t end, int flags)
 {
+	struct rl_q_entry *e;
 
-	return (uma_zalloc(rl_entry_zone, M_WAITOK));
-}
-
-void
-rlqentry_free(struct rl_q_entry *rleq)
-{
-
-	uma_zfree(rl_entry_zone, rleq);
+	e = uma_zalloc_smr(rl_entry_zone, M_WAITOK);
+	e->rl_q_next = NULL;
+	e->rl_q_free = NULL;
+	e->rl_q_start = start;
+	e->rl_q_end = end;
+	e->rl_q_flags = flags;
+#ifdef INVARIANTS
+	e->rl_q_owner = curthread;
+#endif
+	return (e);
 }
 
 void
 rangelock_init(struct rangelock *lock)
 {
-
-	TAILQ_INIT(&lock->rl_waiters);
-	lock->rl_currdep = NULL;
+	lock->sleepers = false;
+	atomic_store_ptr(&lock->head, NULL);
 }
 
 void
 rangelock_destroy(struct rangelock *lock)
 {
+	struct rl_q_entry *e, *ep;
 
-	KASSERT(TAILQ_EMPTY(&lock->rl_waiters), ("Dangling waiters"));
-}
-
-/*
- * Two entries are compatible if their ranges do not overlap, or both
- * entries are for read.
- */
-static int
-ranges_overlap(const struct rl_q_entry *e1,
-    const struct rl_q_entry *e2)
-{
-
-	if (e1->rl_q_start < e2->rl_q_end && e1->rl_q_end > e2->rl_q_start)
-		return (1);
-	return (0);
-}
-
-/*
- * Recalculate the lock->rl_currdep after an unlock.
- */
-static void
-rangelock_calc_block(struct rangelock *lock)
-{
-	struct rl_q_entry *entry, *nextentry, *entry1;
-
-	for (entry = lock->rl_currdep; entry != NULL; entry = nextentry) {
-		nextentry = TAILQ_NEXT(entry, rl_q_link);
-		if (entry->rl_q_flags & RL_LOCK_READ) {
-			/* Reads must not overlap with granted writes. */
-			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
-			    !(entry1->rl_q_flags & RL_LOCK_READ);
-			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
-				if (ranges_overlap(entry, entry1))
-					goto out;
-			}
-		} else {
-			/* Write must not overlap with any granted locks. */
-			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
-			    entry1 != entry;
-			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
-				if (ranges_overlap(entry, entry1))
-					goto out;
-			}
-
-			/* Move grantable write locks to the front. */
-			TAILQ_REMOVE(&lock->rl_waiters, entry, rl_q_link);
-			TAILQ_INSERT_HEAD(&lock->rl_waiters, entry, rl_q_link);
-		}
-
-		/* Grant this lock. */
-		entry->rl_q_flags |= RL_LOCK_GRANTED;
-		wakeup(entry);
+	MPASS(!lock->sleepers);
+	for (e = (struct rl_q_entry *)atomic_load_ptr(&lock->head);
+	    e != NULL; e = rl_e_unmark(ep)) {
+		ep = atomic_load_ptr(&e->rl_q_next);
+		uma_zfree_smr(rl_entry_zone, e);
 	}
-out:
-	lock->rl_currdep = entry;
 }
 
-static void
-rangelock_unlock_locked(struct rangelock *lock, struct rl_q_entry *entry,
-    struct mtx *ilk, bool do_calc_block)
+static bool
+rl_e_is_marked(const struct rl_q_entry *e)
 {
+	return (((uintptr_t)e & 1) != 0);
+}
 
-	MPASS(lock != NULL && entry != NULL && ilk != NULL);
-	mtx_assert(ilk, MA_OWNED);
+static struct rl_q_entry *
+rl_e_unmark(const struct rl_q_entry *e)
+{
+	MPASS(rl_e_is_marked(e));
+	return ((struct rl_q_entry *)((uintptr_t)e & ~1));
+}
 
-	if (!do_calc_block) {
-		/*
-		 * This is the case where rangelock_enqueue() has been called
-		 * with trylock == true and just inserted this entry in the
-		 * queue.
-		 * If rl_currdep is this entry, rl_currdep needs to
-		 * be set to the next entry in the rl_waiters list.
-		 * However, since this entry is the last entry in the
-		 * list, the next entry is NULL.
-		 */
-		if (lock->rl_currdep == entry) {
-			KASSERT(TAILQ_NEXT(lock->rl_currdep, rl_q_link) == NULL,
-			    ("rangelock_enqueue: next entry not NULL"));
-			lock->rl_currdep = NULL;
-		}
-	} else
-		KASSERT(entry != lock->rl_currdep, ("stuck currdep"));
-
-	TAILQ_REMOVE(&lock->rl_waiters, entry, rl_q_link);
-	if (do_calc_block)
-		rangelock_calc_block(lock);
-	mtx_unlock(ilk);
-	if (curthread->td_rlqe == NULL)
-		curthread->td_rlqe = entry;
-	else
-		rlqentry_free(entry);
+static struct rl_q_entry *
+rl_q_load(struct rl_q_entry **p)
+{
+	return ((struct rl_q_entry *)atomic_load_acq_ptr((uintptr_t *)p));
 }
 
 void
-rangelock_unlock(struct rangelock *lock, void *cookie, struct mtx *ilk)
+rangelock_unlock(struct rangelock *lock, void *cookie)
 {
+	struct rl_q_entry *e;
 
-	MPASS(lock != NULL && cookie != NULL && ilk != NULL);
+	e = cookie;
+	MPASS(lock != NULL && e != NULL);
+	MPASS(!rl_e_is_marked(rl_q_load(&e->rl_q_next)));
+	MPASS(e->rl_q_owner == curthread);
 
-	mtx_lock(ilk);
-	rangelock_unlock_locked(lock, cookie, ilk, true);
+	sleepq_lock(&lock->sleepers);
+#ifdef INVARIANTS
+	int r = atomic_testandset_long((uintptr_t *)&e->rl_q_next, 0);
+	MPASS(r == 0);
+#else
+	atomic_set_ptr((uintptr_t *)&e->rl_q_next, 1);
+#endif
+	lock->sleepers = false;
+	sleepq_broadcast(&lock->sleepers, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(&lock->sleepers);
 }
 
 /*
- * Unlock the sub-range of granted lock.
+ * result: -1 if e1 before e2
+ *          1 if e1 after e2
+ *          0 if e1 and e2 overlap
  */
-void *
-rangelock_unlock_range(struct rangelock *lock, void *cookie, off_t start,
-    off_t end, struct mtx *ilk)
+static int
+rl_e_compare(const struct rl_q_entry *e1, const struct rl_q_entry *e2)
 {
-	struct rl_q_entry *entry;
-
-	MPASS(lock != NULL && cookie != NULL && ilk != NULL);
-	entry = cookie;
-	KASSERT(entry->rl_q_flags & RL_LOCK_GRANTED,
-	    ("Unlocking non-granted lock"));
-	KASSERT(entry->rl_q_start == start, ("wrong start"));
-	KASSERT(entry->rl_q_end >= end, ("wrong end"));
-
-	mtx_lock(ilk);
-	if (entry->rl_q_end == end) {
-		rangelock_unlock_locked(lock, cookie, ilk, true);
-		return (NULL);
-	}
-	entry->rl_q_end = end;
-	rangelock_calc_block(lock);
-	mtx_unlock(ilk);
-	return (cookie);
+	if (e1 == NULL)
+		return (1);
+	if (e1->rl_q_start >= e2->rl_q_end)
+		return (1);
+	if (e2->rl_q_start >= e1->rl_q_end)
+		return (-1);
+	return (0);
 }
 
-/*
- * Add the lock request to the queue of the pending requests for
- * rangelock.  Sleep until the request can be granted unless trylock == true.
- */
-static void *
-rangelock_enqueue(struct rangelock *lock, off_t start, off_t end, int mode,
-    struct mtx *ilk, bool trylock)
+static void
+rl_insert_sleep(struct rangelock *lock)
 {
-	struct rl_q_entry *entry;
-	struct thread *td;
+	smr_exit(rl_smr);
+	DROP_GIANT();
+	lock->sleepers = true;
+	sleepq_add(&lock->sleepers, NULL, "rangelk", 0, 0);
+	sleepq_wait(&lock->sleepers, PRI_USER);
+	PICKUP_GIANT();
+	smr_enter(rl_smr);
+}
 
-	MPASS(lock != NULL && ilk != NULL);
+static bool
+rl_q_cas(struct rl_q_entry **prev, struct rl_q_entry *old,
+    struct rl_q_entry *new)
+{
+	return (atomic_cmpset_rel_ptr((uintptr_t *)prev, (uintptr_t)old,
+	    (uintptr_t)new) != 0);
+}
 
-	td = curthread;
-	if (td->td_rlqe != NULL) {
-		entry = td->td_rlqe;
-		td->td_rlqe = NULL;
-	} else
-		entry = rlqentry_alloc();
-	MPASS(entry != NULL);
-	entry->rl_q_flags = mode;
-	entry->rl_q_start = start;
-	entry->rl_q_end = end;
+static bool
+rl_insert(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
+    struct rl_q_entry **free)
+{
+	struct rl_q_entry *cur, *next, **prev;
+	int r;
 
-	mtx_lock(ilk);
-	/*
-	 * XXXKIB TODO. Check that a thread does not try to enqueue a
-	 * lock that is incompatible with another request from the same
-	 * thread.
-	 */
+again:
+	prev = &lock->head;
+	if (rl_q_load(prev) == NULL && rl_q_cas(prev, NULL, e))
+		return (true);
 
-	TAILQ_INSERT_TAIL(&lock->rl_waiters, entry, rl_q_link);
-	/*
-	 * If rl_currdep == NULL, there is no entry waiting for a conflicting
-	 * range to be resolved, so set rl_currdep to this entry.  If there is
-	 * no conflicting entry for this entry, rl_currdep will be set back to
-	 * NULL by rangelock_calc_block().
-	 */
-	if (lock->rl_currdep == NULL)
-		lock->rl_currdep = entry;
-	rangelock_calc_block(lock);
-	while (!(entry->rl_q_flags & RL_LOCK_GRANTED)) {
-		if (trylock) {
-			/*
-			 * For this case, the range is not actually locked
-			 * yet, but removal from the list requires the same
-			 * steps, except for not doing a rangelock_calc_block()
-			 * call, since rangelock_calc_block() was called above.
-			 */
-			rangelock_unlock_locked(lock, entry, ilk, false);
-			return (NULL);
+	for (cur = rl_q_load(prev);;) {
+		if (rl_e_is_marked(cur))
+			goto again;
+
+		if (cur != NULL) {
+			next = rl_q_load(&cur->rl_q_next);
+			if (rl_e_is_marked(next)) {
+				next = rl_e_unmark(next);
+				if (rl_q_cas(prev, cur, next)) {
+#ifdef INVARIANTS
+					cur->rl_q_owner = NULL;
+#endif
+					cur->rl_q_free = *free;
+					*free = cur;
+				}
+				cur = next;
+				continue;
+			}
 		}
-		msleep(entry, ilk, 0, "range", 0);
+
+		r = rl_e_compare(cur, e);
+		if (r == -1) {
+			prev = &cur->rl_q_next;
+			cur = rl_q_load(prev);
+		} else if (r == 0) {
+			sleepq_lock(&lock->sleepers);
+			if (__predict_false(rl_e_is_marked(rl_q_load(
+			    &cur->rl_q_next)))) {
+				sleepq_release(&lock->sleepers);
+				continue;
+			}
+			if (trylock) {
+				sleepq_release(&lock->sleepers);
+				return (false);
+			}
+			rl_insert_sleep(lock);
+			/* e is still valid */
+			goto again;
+		} else /* r == 1 */ {
+			e->rl_q_next = cur;
+			if (rl_q_cas(prev, cur, e)) {
+				atomic_thread_fence_acq();
+				return (true);
+			}
+			/* Reset rl_q_next in case we hit fast path. */
+			e->rl_q_next = NULL;
+			cur = rl_q_load(prev);
+		}
 	}
-	mtx_unlock(ilk);
-	return (entry);
+}
+
+static struct rl_q_entry *
+rangelock_lock_int(struct rangelock *lock, struct rl_q_entry *e,
+    bool trylock)
+{
+	struct rl_q_entry *free, *x, *xp;
+	bool res;
+
+	free = NULL;
+	smr_enter(rl_smr);
+	res = rl_insert(lock, e, trylock, &free);
+	smr_exit(rl_smr);
+	MPASS(trylock || res);
+	if (!res) {
+		e->rl_q_free = free;
+		free = e;
+		e = NULL;
+	}
+	for (x = free; x != NULL; x = xp) {
+		MPASS(!rl_e_is_marked(x));
+		xp = x->rl_q_free;
+		MPASS(!rl_e_is_marked(xp));
+		uma_zfree_smr(rl_entry_zone, x);
+	}
+	return (e);
 }
 
 void *
-rangelock_rlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
+rangelock_rlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
+	struct rl_q_entry *e;
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk, false));
+	e = rlqentry_alloc(start, end, RL_LOCK_READ);
+	return (rangelock_lock_int(lock, e, false));
 }
 
 void *
-rangelock_tryrlock(struct rangelock *lock, off_t start, off_t end,
-    struct mtx *ilk)
+rangelock_tryrlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
+	struct rl_q_entry *e;
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk, true));
+	e = rlqentry_alloc(start, end, RL_LOCK_READ);
+	return (rangelock_lock_int(lock, e, true));
 }
 
 void *
-rangelock_wlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
+rangelock_wlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
+	struct rl_q_entry *e;
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, false));
+	e = rlqentry_alloc(start, end, RL_LOCK_WRITE);
+	return (rangelock_lock_int(lock, e, true));
 }
 
 void *
-rangelock_trywlock(struct rangelock *lock, off_t start, off_t end,
-    struct mtx *ilk)
+rangelock_trywlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
+	struct rl_q_entry *e;
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, true));
+	e = rlqentry_alloc(start, end, RL_LOCK_WRITE);
+	return (rangelock_lock_int(lock, e, true));
 }
 
 #ifdef INVARIANT_SUPPORT
 void
 _rangelock_cookie_assert(void *cookie, int what, const char *file, int line)
 {
-	struct rl_q_entry *entry;
-	int flags;
-
-	MPASS(cookie != NULL);
-	entry = cookie;
-	flags = entry->rl_q_flags;
-	switch (what) {
-	case RCA_LOCKED:
-		if ((flags & RL_LOCK_GRANTED) == 0)
-			panic("rangelock not held @ %s:%d\n", file, line);
-		break;
-	case RCA_RLOCKED:
-		if ((flags & (RL_LOCK_GRANTED | RL_LOCK_READ)) !=
-		    (RL_LOCK_GRANTED | RL_LOCK_READ))
-			panic("rangelock not rlocked @ %s:%d\n", file, line);
-		break;
-	case RCA_WLOCKED:
-		if ((flags & (RL_LOCK_GRANTED | RL_LOCK_WRITE)) !=
-		    (RL_LOCK_GRANTED | RL_LOCK_WRITE))
-			panic("rangelock not wlocked @ %s:%d\n", file, line);
-		break;
-	default:
-		panic("Unknown rangelock assertion: %d @ %s:%d", what, file,
-		    line);
-	}
 }
 #endif	/* INVARIANT_SUPPORT */
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(rangelock, db_show_rangelock)
+{
+	struct rangelock *lock;
+	struct rl_q_entry *e, *x;
+
+	if (!have_addr) {
+		db_printf("show rangelock addr\n");
+		return;
+	}
+
+	lock = (struct rangelock *)addr;
+	db_printf("rangelock %p sleepers %d\n", lock, lock->sleepers);
+	for (e = lock->head;;) {
+		x = rl_e_is_marked(e) ? rl_e_unmark(e) : e;
+		if (x == NULL)
+			break;
+		db_printf("  entry %p marked %d %d start %#jx end %#jx "
+		    "flags %x next %p",
+		    e, rl_e_is_marked(e), rl_e_is_marked(x->rl_q_next),
+		    x->rl_q_start, x->rl_q_end, x->rl_q_flags, x->rl_q_next);
+#ifdef INVARIANTS
+		db_printf(" owner %p (%d)", x->rl_q_owner,
+		    x->rl_q_owner != NULL ? x->rl_q_owner->td_tid : -1);
+#endif
+		db_printf("\n");
+		e = x->rl_q_next;
+	}
+}
+
+#endif	/* DDB */
