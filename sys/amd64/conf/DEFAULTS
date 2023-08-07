@@ -5,6 +5,8 @@
 
 machine		amd64
 
+options 	EARLY_AP_STARTUP
+
 # Bus support.
 device		isa
 
