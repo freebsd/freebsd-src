@@ -730,7 +730,8 @@ apei_attach(device_t dev)
 			TAILQ_INSERT_TAIL(&sc->nges.ges, ge, nlink);
 			if (sc->nges.swi_ih == NULL) {
 				swi_add(&clk_intr_event, "apei", apei_nmi_swi,
-				    &sc->nges, SWI_CLOCK, INTR_MPSAFE,
+				    &sc->nges, SWI_CLOCK,
+				    INTR_MPSAFE | INTR_MULTIPROC,
 				    &sc->nges.swi_ih);
 				apei_nmi_nges = &sc->nges;
 				apei_nmi = apei_nmi_handler;

@@ -569,7 +569,7 @@ start_softintr(void *dummy)
 	    __func__));
 
 	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
-	    INTR_MPSAFE, NULL))
+	    INTR_MPSAFE | INTR_MULTIPROC, NULL))
 		panic("died while creating clk swi ithread");
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
