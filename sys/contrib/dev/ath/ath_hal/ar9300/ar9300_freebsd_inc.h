@@ -51,19 +51,6 @@
 #define	AH_SUPPORT_POSEIDON		1
 #define	AH_SUPPORT_AR9300		1
 
-/* These are the embedded boards */
-#ifdef	AH_SUPPORT_AR9330
-#define AH_SUPPORT_HORNET		1
-#endif	/* AH_SUPPORT_AR9330 */
-#ifdef	AH_SUPPORT_AR9340
-#define AH_SUPPORT_WASP			1
-#endif	/* AH_SUPPORT_AR9340 */
-#ifdef	AH_SUPPORT_QCA9550
-#define AH_SUPPORT_SCORPION             1
-#endif	/* AH_SUPPORT_QCA9550 */
-#ifdef	AH_SUPPORT_QCA9530
-#define	AH_SUPPORT_HONEYBEE		1
-#endif	/* AH_SUPPORT_QCA9530 */
 #define FIX_NOISE_FLOOR                 1
 
 /* XXX this needs to be removed! No atomics in the HAL! */
