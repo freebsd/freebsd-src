@@ -366,13 +366,24 @@ is used, the resulting files compressed with
 compress to roughly the same size, regardless of the specified disk image
 size.
 .It Va VMFS
-Set to specify the file system type to use.
+(Deprecated.)
+Set to specify which of the filesystem(s) listed in
+.Va VMFSLIST
+is linked to the historical non-filesystem-labelled file name.
 Valid values are
 .Va ufs
 and
 .Va zfs .
 The default value is
 .Va ufs .
+.It Va VMFSLIST
+Set to specify the list of file system types to build images for.
+Valid values are one or both of
+.Va ufs
+and
+.Va zfs .
+The default value is
+.Va ufs zfs .
 .It Va VMFORMATS
 Set to the target virtual disk image format(s) to create.
 By default, the
