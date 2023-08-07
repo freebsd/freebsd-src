@@ -1068,10 +1068,14 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
 	struct intr_event *ie;
+	int ieflags = IE_SOFT;
 	int error = 0;
 
 	if (flags & INTR_ENTROPY)
 		return (EINVAL);
+
+	if (flags & INTR_MULTIPROC)
+		ieflags |= IE_MULTIPROC;
 
 	ie = (eventp != NULL) ? *eventp : NULL;
 
@@ -1079,7 +1083,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
+		error = intr_event_create(&ie, NULL, ieflags, 0,
 		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
@@ -1664,6 +1668,9 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 static void
 start_softintr(void *dummy)
 {
+
+	KASSERT(clk_intr_event == NULL, ("clk_intr_event non-NULL at %s()",
+	    __func__));
 
 	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
 	    INTR_MPSAFE, NULL))
