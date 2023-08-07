@@ -90,7 +90,7 @@ static TAILQ_HEAD(pics_head, pic) pics;
 u_int num_io_irqs;
 
 #if defined(SMP) && !defined(EARLY_AP_STARTUP)
-static int assign_cpu;
+#error EARLY_AP_STARTUP required on x86
 #endif
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
@@ -399,18 +399,10 @@ intr_assign_cpu(void *arg, int cpu)
 	struct intsrc *isrc;
 	int error;
 
-#ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
 
 	/* Nothing to do if there is only a single CPU. */
 	if (mp_ncpus > 1 && cpu != NOCPU) {
-#else
-	/*
-	 * Don't do anything during early boot.  We will pick up the
-	 * assignment once the APs are started.
-	 */
-	if (assign_cpu && cpu != NOCPU) {
-#endif
 		isrc = arg;
 		sx_xlock(&intrsrc_lock);
 		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
@@ -620,15 +612,9 @@ intr_next_cpu(int domain)
 {
 	u_int apic_id;
 
-#ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
 	if (mp_ncpus == 1)
 		return (PCPU_GET(apic_id));
-#else
-	/* Leave all interrupts on the BSP during boot. */
-	if (!assign_cpu)
-		return (PCPU_GET(apic_id));
-#endif
 
 	if (intr_no_domain)
 		domain = 0;
@@ -662,7 +648,6 @@ intr_add_cpu(u_int cpu)
 	CPU_SET(cpu, &intr_cpus);
 }
 
-#ifdef EARLY_AP_STARTUP
 static void
 intr_smp_startup(void *arg __unused)
 {
@@ -672,52 +657,6 @@ intr_smp_startup(void *arg __unused)
 }
 SYSINIT(intr_smp_startup, SI_SUB_SMP, SI_ORDER_SECOND, intr_smp_startup,
     NULL);
-
-#else
-/*
- * Distribute all the interrupt sources among the available CPUs once the
- * AP's have been launched.
- */
-static void
-intr_shuffle_irqs(void *arg __unused)
-{
-	struct intsrc *isrc;
-	u_int cpu, i;
-
-	intr_init_cpus();
-	/* Don't bother on UP. */
-	if (mp_ncpus == 1)
-		return;
-
-	/* Round-robin assign a CPU to each enabled source. */
-	sx_xlock(&intrsrc_lock);
-	assign_cpu = 1;
-	for (i = 0; i < num_io_irqs; i++) {
-		isrc = interrupt_sources[i];
-		if (isrc != NULL && isrc->is_handlers > 0) {
-			/*
-			 * If this event is already bound to a CPU,
-			 * then assign the source to that CPU instead
-			 * of picking one via round-robin.  Note that
-			 * this is careful to only advance the
-			 * round-robin if the CPU assignment succeeds.
-			 */
-			cpu = isrc->is_event->ie_cpu;
-			if (cpu == NOCPU)
-				cpu = current_cpu[isrc->is_domain];
-			if (isrc->is_pic->pic_assign_cpu(isrc,
-			    cpu_apic_ids[cpu]) == 0) {
-				isrc->is_cpu = cpu;
-				if (isrc->is_event->ie_cpu == NOCPU)
-					intr_next_cpu(isrc->is_domain);
-			}
-		}
-	}
-	sx_xunlock(&intrsrc_lock);
-}
-SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
-    NULL);
-#endif
 
 /*
  * TODO: Export this information in a non-MD fashion, integrate with vmstat -i.
