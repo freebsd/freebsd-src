@@ -174,7 +174,7 @@ nvme_io_qpair_print_command(struct nvme_qpair *qpair,
 	}
 }
 
-static void
+void
 nvme_qpair_print_command(struct nvme_qpair *qpair, struct nvme_command *cmd)
 {
 	if (qpair->id == 0)

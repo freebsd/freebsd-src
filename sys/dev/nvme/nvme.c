@@ -82,19 +82,6 @@ nvme_shutdown(device_t dev)
 	return (0);
 }
 
-void
-nvme_dump_command(struct nvme_command *cmd)
-{
-
-	printf(
-"opc:%x f:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
-	    cmd->opc, cmd->fuse, cmd->cid, le32toh(cmd->nsid),
-	    cmd->rsvd2, cmd->rsvd3,
-	    (uintmax_t)le64toh(cmd->mptr), (uintmax_t)le64toh(cmd->prp1), (uintmax_t)le64toh(cmd->prp2),
-	    le32toh(cmd->cdw10), le32toh(cmd->cdw11), le32toh(cmd->cdw12),
-	    le32toh(cmd->cdw13), le32toh(cmd->cdw14), le32toh(cmd->cdw15));
-}
-
 int
 nvme_attach(device_t dev)
 {
