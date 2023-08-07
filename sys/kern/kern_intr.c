@@ -641,6 +641,19 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		return (EINVAL);
 	}
 
+	if ((flags & INTR_MULTIPROC) && !(ie->ie_flags & IE_MULTIPROC)) {
+#if defined(INVARIANTS) || defined(DEBUG)
+		printf("%s: Requested multi-processor interupt, but got "
+		    "uniprocessor interrupt\n", name);
+#endif
+		return (ENODEV);
+	}
+#if defined(INVARIANTS) || defined(DEBUG)
+	if (!(flags & INTR_MULTIPROC) && (ie->ie_flags & IE_MULTIPROC))
+		printf("%s: Requested uniprocessor interupt, but got "
+		    "multi-processor interrupt\n", name);
+#endif
+
 	/* Allocate and populate an interrupt handler structure. */
 	ih = malloc(sizeof(struct intr_handler), M_ITHREAD, M_WAITOK | M_ZERO);
 	ih->ih_filter = filter;
