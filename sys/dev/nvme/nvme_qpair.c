@@ -99,12 +99,8 @@ static struct nvme_opcode_string io_opcode[] = {
 };
 
 static const char *
-get_admin_opcode_string(uint16_t opc)
+get_opcode_string(struct nvme_opcode_string *entry, uint16_t opc)
 {
-	struct nvme_opcode_string *entry;
-
-	entry = admin_opcode;
-
 	while (entry->opc != 0xFFFF) {
 		if (entry->opc == opc)
 			return (entry->str);
@@ -114,18 +110,15 @@ get_admin_opcode_string(uint16_t opc)
 }
 
 static const char *
+get_admin_opcode_string(uint16_t opc)
+{
+	return (get_opcode_string(admin_opcode, opc));
+}
+
+static const char *
 get_io_opcode_string(uint16_t opc)
 {
-	struct nvme_opcode_string *entry;
-
-	entry = io_opcode;
-
-	while (entry->opc != 0xFFFF) {
-		if (entry->opc == opc)
-			return (entry->str);
-		entry++;
-	}
-	return (entry->str);
+	return (get_opcode_string(io_opcode, opc));
 }
 
 static void
