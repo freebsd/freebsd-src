@@ -64,12 +64,10 @@
 #include <dev/etherswitch/arswitch/arswitch_phy.h>
 #include <dev/etherswitch/arswitch/arswitch_vlans.h>
 
-#include <dev/etherswitch/arswitch/arswitch_7240.h>
 #include <dev/etherswitch/arswitch/arswitch_8216.h>
 #include <dev/etherswitch/arswitch/arswitch_8226.h>
 #include <dev/etherswitch/arswitch/arswitch_8316.h>
 #include <dev/etherswitch/arswitch/arswitch_8327.h>
-#include <dev/etherswitch/arswitch/arswitch_9340.h>
 
 #include "mdio_if.h"
 #include "miibus_if.h"
@@ -105,24 +103,6 @@ arswitch_probe(device_t dev)
 	bzero(sc, sizeof(*sc));
 	sc->page = -1;
 
-	/* AR7240 probe */
-	if (ar7240_probe(dev) == 0) {
-		chipname = "AR7240";
-		sc->sc_switchtype = AR8X16_SWITCH_AR7240;
-		sc->is_internal_switch = 1;
-		id = 0;
-		goto done;
-	}
-
-	/* AR9340 probe */
-	if (ar9340_probe(dev) == 0) {
-		chipname = "AR9340";
-		sc->sc_switchtype = AR8X16_SWITCH_AR9340;
-		sc->is_internal_switch = 1;
-		id = 0;
-		goto done;
-	}
-
 	/* AR8xxx probe */
 	id = arswitch_readreg(dev, AR8X16_REG_MASK_CTRL);
 	sc->chip_rev = (id & AR8X16_MASK_CTRL_REV_MASK);
@@ -151,8 +131,6 @@ arswitch_probe(device_t dev)
 	default:
 		chipname = NULL;
 	}
-
-done:
 
 	DPRINTF(sc, ARSWITCH_DBG_ANY, "chipname=%s, id=%08x\n", chipname, id);
 	if (chipname != NULL) {
@@ -589,11 +567,7 @@ arswitch_attach(device_t dev)
 	/*
 	 * Attach switch related functions
 	 */
-	if (AR8X16_IS_SWITCH(sc, AR7240))
-		ar7240_attach(sc);
-	else if (AR8X16_IS_SWITCH(sc, AR9340))
-		ar9340_attach(sc);
-	else if (AR8X16_IS_SWITCH(sc, AR8216))
+	if (AR8X16_IS_SWITCH(sc, AR8216))
 		ar8216_attach(sc);
 	else if (AR8X16_IS_SWITCH(sc, AR8226))
 		ar8226_attach(sc);
