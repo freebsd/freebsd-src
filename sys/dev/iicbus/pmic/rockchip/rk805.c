@@ -193,8 +193,8 @@ DEFINE_CLASS_1(rk805_pmu, rk805_driver, rk805_methods,
     sizeof(struct rk8xx_softc), rk8xx_driver);
 
 EARLY_DRIVER_MODULE(rk805_pmu, iicbus, rk805_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(iicbus, rk805_pmu, iicbus_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(rk805_pmu, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(rk805_pmu, 1);
