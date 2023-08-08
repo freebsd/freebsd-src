@@ -20,6 +20,6 @@ PROGS+=		mmap_map_32bit_helper
 SUBDIR=		soxstack
 TESTS_SUBDIRS+=	stack
 
-SUBDIR_DEPENDS_stack=soxstack
+SUBDIR_DEPEND_stack=soxstack
 
 .include <bsd.test.mk>
