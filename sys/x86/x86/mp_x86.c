@@ -43,6 +43,7 @@
 #include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/cons.h>	/* cngetc() */
+#include <sys/clock.h>
 #include <sys/cpuset.h>
 #include <sys/csan.h>
 #include <sys/interrupt.h>
