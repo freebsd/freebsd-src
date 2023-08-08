@@ -506,7 +506,7 @@ TEST_P(LastLocalModify, vfs_vget)
 }
 
 
-INSTANTIATE_TEST_CASE_P(LLM, LastLocalModify,
+INSTANTIATE_TEST_SUITE_P(LLM, LastLocalModify,
 	Values(
 		"VOP_ALLOCATE",
 		"VOP_COPY_FILE_RANGE",

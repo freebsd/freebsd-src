@@ -509,14 +509,14 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
 	close(m_test_fd);
 }
 
-INSTANTIATE_TEST_CASE_P(Io, Io,
+INSTANTIATE_TEST_SUITE_P(Io, Io,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
 		Values(Uncached, Writethrough, Writeback, WritebackAsync)
 	)
 );
 
-INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
+INSTANTIATE_TEST_SUITE_P(Io, IoCacheable,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
 		Values(Writethrough, Writeback, WritebackAsync)

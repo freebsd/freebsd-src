@@ -493,8 +493,8 @@ TEST_P(FspacectlCache, clears_cache)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(FspacectlCache, FspacectlCache,
-	Values(Uncached, Writethrough, Writeback),
+INSTANTIATE_TEST_SUITE_P(FspacectlCache, FspacectlCache,
+	Values(Uncached, Writethrough, Writeback)
 );
 
 /*
