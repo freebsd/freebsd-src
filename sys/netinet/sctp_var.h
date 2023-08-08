@@ -321,6 +321,7 @@ struct sctp_tcb;
 struct sctphdr;
 
 void sctp_close(struct socket *so);
+void sctp_abort(struct socket *so);
 int sctp_disconnect(struct socket *so);
 ipproto_ctlinput_t sctp_ctlinput;
 int sctp_ctloutput(struct socket *, struct sockopt *);

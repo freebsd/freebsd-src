@@ -414,8 +414,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, getcred,
     0, 0, sctp_getcred, "S,ucred",
     "Get the ucred of a SCTP connection");
 
-#ifdef INET
-static void
+void
 sctp_abort(struct socket *so)
 {
 	struct epoch_tracker et;
@@ -453,6 +452,7 @@ sctp_abort(struct socket *so)
 	NET_EPOCH_EXIT(et);
 }
 
+#ifdef INET
 static int
 sctp_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNUSED)
 {
