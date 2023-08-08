@@ -52,7 +52,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20230807: Removal of the ath(4) AHB bus-frontend or MIPS
+# 20230807: Removal of the ath(4) AHB bus-frontend for MIPS
 OLD_FILES+=usr/share/man/man4/ath_ahb.4
 OLD_FILES+=usr/share/man/man4/ath_pci.4
 
