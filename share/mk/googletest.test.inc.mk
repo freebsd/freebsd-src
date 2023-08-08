@@ -21,6 +21,6 @@ GTESTS_CXXFLAGS+= -Wno-signed-unsigned-wchar
 # libgmock's, etc, headers.
 CXXFLAGS+=	-I${DESTDIR}${INCLUDEDIR}/private
 
-CXXSTD?=	c++11
+CXXSTD?=	c++14
 
 NO_WTHREAD_SAFETY=

@@ -1,11 +1,14 @@
-cmake_minimum_required(VERSION 2.8.8)
+# Note: CMake support is community-based. The maintainers do not use CMake
+# internally.
 
-if (POLICY CMP0048)
-  cmake_policy(SET CMP0048 NEW)
-endif (POLICY CMP0048)
+cmake_minimum_required(VERSION 3.13)
 
 project(googletest-distribution)
-set(GOOGLETEST_VERSION 1.9.0)
+set(GOOGLETEST_VERSION 1.14.0)
+
+if(NOT CYGWIN AND NOT MSYS AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL QNX)
+  set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
 
 enable_testing()
 
@@ -15,6 +18,7 @@ include(GNUInstallDirs)
 #Note that googlemock target already builds googletest
 option(BUILD_GMOCK "Builds the googlemock subproject" ON)
 option(INSTALL_GTEST "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" ON)
+option(GTEST_HAS_ABSL "Use Abseil and RE2. Requires Abseil and RE2 to be separately added to the build." OFF)
 
 if(BUILD_GMOCK)
   add_subdirectory( googlemock )

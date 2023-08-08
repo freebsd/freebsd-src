@@ -30,17 +30,16 @@ CXXFLAGS.gtest-death-test_ex_catch_test+=	\
 CXXFLAGS.gtest-death-test_ex_nocatch_test+=     \
 	-DGTEST_ENABLE_CATCH_EXCEPTIONS_=0
 
-SRCS.googletest-param-test-test=	\
-	googletest-param-test-test.cc	\
+SRCS.googletest-param-test-test=       \
+	googletest-param-test-test.cc   \
 	googletest-param-test2-test.cc
 
 LIBADD+=	gtest
 
+CXXFLAGS.clang+=	-Wno-error=missing-variable-declarations
+
 # XXX: explicitly listing -lpthread is incorrect. src.libnames.mk should be
 #      handling this.
-LIBADD.gtest_stress_test+=	pthread
-
-# The next release will resolve a number of build warnings issues.
-MK_WERROR=	no
+LIBADD.gtest_stress_test+=     pthread
 
 .include <bsd.test.mk>

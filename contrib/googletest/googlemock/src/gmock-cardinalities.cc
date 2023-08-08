@@ -27,7 +27,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // Google Mock - a framework for writing C++ mock classes.
 //
 // This file implements cardinalities.
@@ -35,9 +34,11 @@
 #include "gmock/gmock-cardinalities.h"
 
 #include <limits.h>
+
 #include <ostream>  // NOLINT
 #include <sstream>
 #include <string>
+
 #include "gmock/internal/gmock-internal-utils.h"
 #include "gtest/gtest.h"
 
@@ -49,8 +50,7 @@ namespace {
 class BetweenCardinalityImpl : public CardinalityInterface {
  public:
   BetweenCardinalityImpl(int min, int max)
-      : min_(min >= 0 ? min : 0),
-        max_(max >= min_ ? max : min_) {
+      : min_(min >= 0 ? min : 0), max_(max >= min_ ? max : min_) {
     std::stringstream ss;
     if (min < 0) {
       ss << "The invocation lower bound must be >= 0, "
@@ -62,32 +62,32 @@ class BetweenCardinalityImpl : public CardinalityInterface {
       internal::Expect(false, __FILE__, __LINE__, ss.str());
     } else if (min > max) {
       ss << "The invocation upper bound (" << max
-         << ") must be >= the invocation lower bound (" << min
-         << ").";
+         << ") must be >= the invocation lower bound (" << min << ").";
       internal::Expect(false, __FILE__, __LINE__, ss.str());
     }
   }
 
   // Conservative estimate on the lower/upper bound of the number of
   // calls allowed.
-  virtual int ConservativeLowerBound() const { return min_; }
-  virtual int ConservativeUpperBound() const { return max_; }
+  int ConservativeLowerBound() const override { return min_; }
+  int ConservativeUpperBound() const override { return max_; }
 
-  virtual bool IsSatisfiedByCallCount(int call_count) const {
+  bool IsSatisfiedByCallCount(int call_count) const override {
     return min_ <= call_count && call_count <= max_;
   }
 
-  virtual bool IsSaturatedByCallCount(int call_count) const {
+  bool IsSaturatedByCallCount(int call_count) const override {
     return call_count >= max_;
   }
 
-  virtual void DescribeTo(::std::ostream* os) const;
+  void DescribeTo(::std::ostream* os) const override;
 
  private:
   const int min_;
   const int max_;
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(BetweenCardinalityImpl);
+  BetweenCardinalityImpl(const BetweenCardinalityImpl&) = delete;
+  BetweenCardinalityImpl& operator=(const BetweenCardinalityImpl&) = delete;
 };
 
 // Formats "n times" in a human-friendly way.

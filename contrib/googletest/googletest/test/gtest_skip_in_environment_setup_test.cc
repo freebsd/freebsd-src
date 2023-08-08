@@ -1,4 +1,4 @@
-// Copyright 2019, Google Inc.
+// Copyright 2019, Google LLC.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC. nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -29,32 +29,22 @@
 //
 // This test verifies that skipping in the environment results in the
 // testcases being skipped.
-//
-// This is a reproduction case for
-// https://github.com/google/googletest/issues/2189 .
 
 #include <iostream>
-#include <gtest/gtest.h>
+
+#include "gtest/gtest.h"
 
 class SetupEnvironment : public testing::Environment {
-public:
-  void SetUp() override {
-    GTEST_SKIP() << "Skipping the entire environment";
-  }
+ public:
+  void SetUp() override { GTEST_SKIP() << "Skipping the entire environment"; }
 };
 
-TEST(Test, AlwaysPasses) {
-  EXPECT_EQ(true, true);
-}
-
-TEST(Test, AlwaysFails) {
-  EXPECT_EQ(true, false);
-}
+TEST(Test, AlwaysFails) { EXPECT_EQ(true, false); }
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
 
-  return (RUN_ALL_TESTS());
+  return RUN_ALL_TESTS();
 }

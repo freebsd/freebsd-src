@@ -6,17 +6,17 @@
 
 GTESTS+=	gmock-actions_test
 GTESTS+=	gmock-cardinalities_test
-GTESTS+=	gmock_ex_test
-GTESTS+=	gmock-generated-actions_test
-GTESTS+=	gmock-generated-function-mockers_test
-GTESTS+=	gmock-generated-internal-utils_test
-GTESTS+=	gmock-generated-matchers_test
+GTESTS+=	gmock-function-mocker_test
 GTESTS+=	gmock-internal-utils_test
-GTESTS+=	gmock-matchers_test
+GTESTS+=	gmock-matchers-arithmetic_test
+GTESTS+=	gmock-matchers-comparisons_test
+GTESTS+=	gmock-matchers-containers_test
+GTESTS+=	gmock-matchers-misc_test
 GTESTS+=	gmock-more-actions_test
 GTESTS+=	gmock-nice-strict_test
 GTESTS+=	gmock-port_test
 GTESTS+=	gmock-spec-builders_test
+GTESTS+=	gmock_ex_test
 GTESTS+=	gmock_link_test
 GTESTS+=	gmock_test
 
@@ -29,9 +29,11 @@ SRCS.gmock_link_test=		\
 	gmock_link_test.cc	\
 	gmock_link2_test.cc
 
-LIBADD=		gmock_main gmock gtest
+LIBADD=		gmock_main
 
-# The next release will resolve a number of build warnings issues.
-MK_WERROR=	no
+CXXFLAGS.clang+=	-Wno-error=inconsistent-missing-override
+CXXFLAGS.clang+=	-Wno-error=missing-variable-declarations
+CXXFLAGS.clang+=	-Wno-error=sign-compare
+CXXFLAGS.clang+=	-Wno-error=unused-parameter
 
 .include <bsd.test.mk>
