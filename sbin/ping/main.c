@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 			 */
 			if (inet_pton(AF_INET, optarg, &a) == 1)
 				ipv4 = true;
-			else if (inet_pton(AF_INET6, optarg, &a) == 1)
+			else if (inet_pton(AF_INET6, optarg, &a6) == 1)
 				ipv6 = true;
 			break;
 #endif
