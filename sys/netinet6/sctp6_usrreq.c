@@ -632,13 +632,6 @@ sctp6_close(struct socket *so)
 
 /* This could be made common with sctp_detach() since they are identical */
 
-static
-int
-sctp6_disconnect(struct socket *so)
-{
-	return (sctp_disconnect(so));
-}
-
 int
 sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p);
@@ -1184,7 +1177,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	.pr_detach =	sctp6_close,					\
 	.pr_sopoll =	sopoll_generic,					\
 	.pr_flush =	sctp_flush,					\
-	.pr_disconnect = sctp6_disconnect,				\
+	.pr_disconnect = sctp_disconnect,				\
 	.pr_listen =	sctp_listen,					\
 	.pr_peeraddr =	sctp6_getpeeraddr,				\
 	.pr_send =	sctp6_send,					\
