@@ -31,30 +31,32 @@
 // The Google C++ Testing and Mocking Framework (Google Test)
 
 #include "gtest/gtest-test-part.h"
+
+#include <ostream>
+#include <string>
+
+#include "gtest/internal/gtest-port.h"
 #include "src/gtest-internal-inl.h"
 
 namespace testing {
-
-using internal::GetUnitTestImpl;
 
 // Gets the summary of the failure message by omitting the stack trace
 // in it.
 std::string TestPartResult::ExtractSummary(const char* message) {
   const char* const stack_trace = strstr(message, internal::kStackTraceMarker);
-  return stack_trace == NULL ? message :
-      std::string(message, stack_trace);
+  return stack_trace == nullptr ? message : std::string(message, stack_trace);
 }
 
 // Prints a TestPartResult object.
 std::ostream& operator<<(std::ostream& os, const TestPartResult& result) {
-  return os << result.file_name() << ":" << result.line_number() << ": "
-            << (result.type() == TestPartResult::kSuccess
-                    ? "Success"
-                    : result.type() == TestPartResult::kSkip
-                          ? "Skipped"
-                          : result.type() == TestPartResult::kFatalFailure
-                                ? "Fatal failure"
-                                : "Non-fatal failure")
+  return os << internal::FormatFileLocation(result.file_name(),
+                                            result.line_number())
+            << " "
+            << (result.type() == TestPartResult::kSuccess ? "Success"
+                : result.type() == TestPartResult::kSkip  ? "Skipped"
+                : result.type() == TestPartResult::kFatalFailure
+                    ? "Fatal failure"
+                    : "Non-fatal failure")
             << ":\n"
             << result.message() << std::endl;
 }
@@ -71,7 +73,7 @@ const TestPartResult& TestPartResultArray::GetTestPartResult(int index) const {
     internal::posix::Abort();
   }
 
-  return array_[index];
+  return array_[static_cast<size_t>(index)];
 }
 
 // Returns the number of TestPartResult objects in the array.
@@ -83,8 +85,8 @@ namespace internal {
 
 HasNewFatalFailureHelper::HasNewFatalFailureHelper()
     : has_new_fatal_failure_(false),
-      original_reporter_(GetUnitTestImpl()->
-                         GetTestPartResultReporterForCurrentThread()) {
+      original_reporter_(
+          GetUnitTestImpl()->GetTestPartResultReporterForCurrentThread()) {
   GetUnitTestImpl()->SetTestPartResultReporterForCurrentThread(this);
 }
 
@@ -95,8 +97,7 @@ HasNewFatalFailureHelper::~HasNewFatalFailureHelper() {
 
 void HasNewFatalFailureHelper::ReportTestPartResult(
     const TestPartResult& result) {
-  if (result.fatally_failed())
-    has_new_fatal_failure_ = true;
+  if (result.fatally_failed()) has_new_fatal_failure_ = true;
   original_reporter_->ReportTestPartResult(result);
 }
 
