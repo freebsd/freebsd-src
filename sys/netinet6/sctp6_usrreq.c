@@ -460,52 +460,6 @@ SYSCTL_PROC(_net_inet6_sctp6, OID_AUTO, getcred,
     0, 0, sctp6_getcred, "S,ucred",
     "Get the ucred of a SCTP6 connection");
 
-/* This is the same as the sctp_abort() could be made common */
-static void
-sctp6_abort(struct socket *so)
-{
-	struct epoch_tracker et;
-	struct sctp_inpcb *inp;
-	uint32_t flags;
-
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return;
-	}
-	NET_EPOCH_ENTER(et);
-sctp_must_try_again:
-	flags = inp->sctp_flags;
-#ifdef SCTP_LOG_CLOSING
-	sctp_log_closing(inp, NULL, 17);
-#endif
-	if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-	    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
-#ifdef SCTP_LOG_CLOSING
-		sctp_log_closing(inp, NULL, 16);
-#endif
-		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
-		    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
-		SOCK_LOCK(so);
-		SCTP_SB_CLEAR(so->so_snd);
-		/*
-		 * same for the rcv ones, they are only here for the
-		 * accounting/select.
-		 */
-		SCTP_SB_CLEAR(so->so_rcv);
-		/* Now null out the reference, we are completely detached. */
-		so->so_pcb = NULL;
-		SOCK_UNLOCK(so);
-	} else {
-		flags = inp->sctp_flags;
-		if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
-			goto sctp_must_try_again;
-		}
-	}
-	NET_EPOCH_EXIT(et);
-	return;
-}
-
 static int
 sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNUSED)
 {
@@ -1191,7 +1145,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs sctp6_usrreqs = {
-	.pru_abort = sctp6_abort,
+	.pru_abort = sctp_abort,
 	.pru_accept = sctp_accept,
 	.pru_attach = sctp6_attach,
 	.pru_bind = sctp6_bind,
