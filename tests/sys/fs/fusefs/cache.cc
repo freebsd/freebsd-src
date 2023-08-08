@@ -197,7 +197,7 @@ TEST_P(Cache, truncate_by_surprise_invalidates_cache)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(Cache, Cache,
+INSTANTIATE_TEST_SUITE_P(Cache, Cache,
 	Combine(
 		/* Test every combination that:
 		 * - does not cache at least one of entries and attrs

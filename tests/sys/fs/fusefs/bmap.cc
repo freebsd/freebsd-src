@@ -253,6 +253,6 @@ TEST_P(BmapEof, eof)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(BE, BmapEof,
+INSTANTIATE_TEST_SUITE_P(BE, BmapEof,
 	Values(1, 2, 3)
 );

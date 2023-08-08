@@ -616,7 +616,7 @@ TEST_P(WriteRlimitFsize, rlimit_fsize_truncate)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(W, WriteRlimitFsize,
+INSTANTIATE_TEST_SUITE_P(W, WriteRlimitFsize,
 	Values(0, O_DIRECT)
 );
 
@@ -724,7 +724,7 @@ TEST_P(WriteEofDuringVnopStrategy, eof_during_vop_strategy)
 
 }
 
-INSTANTIATE_TEST_CASE_P(W, WriteEofDuringVnopStrategy,
+INSTANTIATE_TEST_SUITE_P(W, WriteEofDuringVnopStrategy,
 	Values(1, 2, 3)
 );
 
@@ -1546,7 +1546,7 @@ TEST_P(TimeGran, timestamps_during_setattr)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(RA, TimeGran, Range(0u, 10u));
+INSTANTIATE_TEST_SUITE_P(RA, TimeGran, Range(0u, 10u));
 
 /*
  * Without direct_io, writes should be committed to cache
