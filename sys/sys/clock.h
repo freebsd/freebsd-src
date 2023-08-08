@@ -195,6 +195,11 @@ void clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct);
 void clock_dbgprint_err(device_t dev, int rw, int err);
 void clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts);
 
+/*
+ * SWI for clock events
+ */
+extern struct	intr_event *clk_intr_event;
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CLOCK_H_ */
