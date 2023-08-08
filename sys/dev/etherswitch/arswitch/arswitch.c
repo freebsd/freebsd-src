@@ -126,7 +126,7 @@ arswitch_probe(device_t dev)
 	/* AR8xxx probe */
 	id = arswitch_readreg(dev, AR8X16_REG_MASK_CTRL);
 	sc->chip_rev = (id & AR8X16_MASK_CTRL_REV_MASK);
-	sc->chip_ver = (id & AR8X16_MASK_CTRL_VER_MASK) > AR8X16_MASK_CTRL_VER_SHIFT;
+	sc->chip_ver = (id & AR8X16_MASK_CTRL_VER_MASK) >> AR8X16_MASK_CTRL_VER_SHIFT;
 	switch (id & (AR8X16_MASK_CTRL_VER_MASK | AR8X16_MASK_CTRL_REV_MASK)) {
 	case 0x0101:
 		chipname = "AR8216";
