@@ -620,6 +620,11 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 	mtx_unlock(&msi_lock);
 	error = EOPNOTSUPP;
 #endif
+	if (error == EOPNOTSUPP && msi->msi_cpu > 0xff) {
+		printf("%s: unsupported destination APIC ID %u\n", __func__,
+		    msi->msi_cpu);
+		error = EINVAL;
+	}
 	if (error == EOPNOTSUPP) {
 		*addr = INTEL_ADDR(msi);
 		*data = INTEL_DATA(msi);
