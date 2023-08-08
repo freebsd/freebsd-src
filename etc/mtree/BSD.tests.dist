@@ -878,6 +878,8 @@
         vfs
         ..
         vm
+            stack
+            ..
         ..
         vmm
         ..
