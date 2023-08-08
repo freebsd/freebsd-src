@@ -583,7 +583,7 @@ TEST_P(IoCopyFileRange, copy_file_range_from_mapped_write)
 }
 
 
-INSTANTIATE_TEST_CASE_P(Io, Io,
+INSTANTIATE_TEST_SUITE_P(Io, Io,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
 		Values(Uncached, Writethrough, Writeback, WritebackAsync),
@@ -591,7 +591,7 @@ INSTANTIATE_TEST_CASE_P(Io, Io,
 	)
 );
 
-INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
+INSTANTIATE_TEST_SUITE_P(Io, IoCacheable,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
 		Values(Writethrough, Writeback, WritebackAsync),
@@ -599,7 +599,7 @@ INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
 	)
 );
 
-INSTANTIATE_TEST_CASE_P(Io, IoCopyFileRange,
+INSTANTIATE_TEST_SUITE_P(Io, IoCopyFileRange,
 	Combine(Bool(),					/* async read */
 		Values(0x10000),			/* m_maxwrite */
 		Values(Writethrough, Writeback, WritebackAsync),

@@ -1359,7 +1359,7 @@ TEST_P(ReadAhead, readahead) {
 	delete[] contents;
 }
 
-INSTANTIATE_TEST_CASE_P(RA, ReadAhead,
+INSTANTIATE_TEST_SUITE_P(RA, ReadAhead,
 	Values(tuple<bool, int>(false, 0),
 	       tuple<bool, int>(false, 1),
 	       tuple<bool, int>(false, 2),
@@ -1441,4 +1441,4 @@ TEST_P(TimeGran, atime_during_setattr)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_CASE_P(TG, TimeGran, Range(0u, 10u));
+INSTANTIATE_TEST_SUITE_P(TG, TimeGran, Range(0u, 10u));
