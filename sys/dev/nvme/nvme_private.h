@@ -119,11 +119,12 @@ struct nvme_request {
 	struct nvme_command		cmd;
 	struct nvme_qpair		*qpair;
 	struct memdesc			payload;
-	bool				payload_valid;
-	bool				timeout;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	int32_t				retries;
+	bool				payload_valid;
+	bool				timeout;
+	bool				spare[2];		/* Future use */
 	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
