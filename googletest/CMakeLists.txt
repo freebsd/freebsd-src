@@ -46,18 +46,8 @@ endif()
 
 # Project version:
 
-if (CMAKE_VERSION VERSION_LESS 3.0)
-  project(gtest CXX C)
-  set(PROJECT_VERSION ${GOOGLETEST_VERSION})
-else()
-  cmake_policy(SET CMP0048 NEW)
-  project(gtest VERSION ${GOOGLETEST_VERSION} LANGUAGES CXX C)
-endif()
-cmake_minimum_required(VERSION 2.6.4)
-
-if (POLICY CMP0063) # Visibility
-  cmake_policy(SET CMP0063 NEW)
-endif (POLICY CMP0063)
+cmake_minimum_required(VERSION 3.13)
+project(gtest VERSION ${GOOGLETEST_VERSION} LANGUAGES CXX C)
 
 if (COMMAND set_up_hermetic_build)
   set_up_hermetic_build()
@@ -92,22 +82,27 @@ include(cmake/internal_utils.cmake)
 
 config_compiler_and_linker()  # Defined in internal_utils.cmake.
 
+# Needed to set the namespace for both the export targets and the
+# alias libraries
+set(cmake_package_name GTest CACHE INTERNAL "")
+
 # Create the CMake package file descriptors.
 if (INSTALL_GTEST)
   include(CMakePackageConfigHelpers)
-  set(cmake_package_name GTest)
   set(targets_export_name ${cmake_package_name}Targets CACHE INTERNAL "")
   set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated" CACHE INTERNAL "")
   set(cmake_files_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${cmake_package_name}")
   set(version_file "${generated_dir}/${cmake_package_name}ConfigVersion.cmake")
   write_basic_package_version_file(${version_file} VERSION ${GOOGLETEST_VERSION} COMPATIBILITY AnyNewerVersion)
   install(EXPORT ${targets_export_name}
+    COMPONENT "${PROJECT_NAME}"
     NAMESPACE ${cmake_package_name}::
     DESTINATION ${cmake_files_install_dir})
   set(config_file "${generated_dir}/${cmake_package_name}Config.cmake")
   configure_package_config_file("${gtest_SOURCE_DIR}/cmake/Config.cmake.in"
     "${config_file}" INSTALL_DESTINATION ${cmake_files_install_dir})
   install(FILES ${version_file} ${config_file}
+    COMPONENT "${PROJECT_NAME}"
     DESTINATION ${cmake_files_install_dir})
 endif()
 
@@ -126,17 +121,34 @@ include_directories(${gtest_build_include_dirs})
 # are used for other targets, to ensure that gtest can be compiled by a user
 # aggressive about warnings.
 cxx_library(gtest "${cxx_strict}" src/gtest-all.cc)
+set_target_properties(gtest PROPERTIES VERSION ${GOOGLETEST_VERSION})
+if(GTEST_HAS_ABSL)
+  target_compile_definitions(gtest PUBLIC GTEST_HAS_ABSL=1)
+  target_link_libraries(gtest PUBLIC
+    absl::failure_signal_handler
+    absl::stacktrace
+    absl::symbolize
+    absl::flags_parse
+    absl::flags_reflection
+    absl::flags_usage
+    absl::strings
+    absl::any
+    absl::optional
+    absl::variant
+    re2::re2
+  )
+endif()
 cxx_library(gtest_main "${cxx_strict}" src/gtest_main.cc)
-# If the CMake version supports it, attach header directory information
-# to the targets for when we are part of a parent build (ie being pulled
-# in via add_subdirectory() rather than being a standalone build).
-if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
-  target_include_directories(gtest SYSTEM INTERFACE
-    "$<BUILD_INTERFACE:${gtest_build_include_dirs}>"
-    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
-  target_include_directories(gtest_main SYSTEM INTERFACE
-    "$<BUILD_INTERFACE:${gtest_build_include_dirs}>"
-    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+set_target_properties(gtest_main PROPERTIES VERSION ${GOOGLETEST_VERSION})
+string(REPLACE ";" "$<SEMICOLON>" dirs "${gtest_build_include_dirs}")
+target_include_directories(gtest SYSTEM INTERFACE
+  "$<BUILD_INTERFACE:${dirs}>"
+  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+target_include_directories(gtest_main SYSTEM INTERFACE
+  "$<BUILD_INTERFACE:${dirs}>"
+  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+if(CMAKE_SYSTEM_NAME MATCHES "QNX")
+  target_link_libraries(gtest PUBLIC regex)
 endif()
 target_link_libraries(gtest_main PUBLIC gtest)
 
@@ -181,20 +193,6 @@ if (gtest_build_tests)
   # This must be set in the root directory for the tests to be run by
   # 'make test' or ctest.
   enable_testing()
-
-  if (WIN32)
-    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/RunTest.ps1"
-         CONTENT
-"$project_bin = \"${CMAKE_BINARY_DIR}/bin/$<CONFIG>\"
-$env:Path = \"$project_bin;$env:Path\"
-& $args")
-  elseif (MINGW OR CYGWIN)
-    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/RunTest.ps1"
-         CONTENT
-"$project_bin = (cygpath --windows ${CMAKE_BINARY_DIR}/bin)
-$env:Path = \"$project_bin;$env:Path\"
-& $args")
-  endif()
 
   ############################################################
   # C++ tests built with standard compiler flags.
@@ -266,6 +264,7 @@ $env:Path = \"$project_bin;$env:Path\"
   cxx_executable(googletest-break-on-failure-unittest_ test gtest)
   py_test(googletest-break-on-failure-unittest)
 
+  py_test(gtest_skip_check_output_test)
   py_test(gtest_skip_environment_check_output_test)
 
   # Visual Studio .NET 2003 does not support STL with exceptions disabled.
@@ -316,6 +315,9 @@ $env:Path = \"$project_bin;$env:Path\"
 
   cxx_executable(googletest-uninitialized-test_ test gtest)
   py_test(googletest-uninitialized-test)
+
+  cxx_executable(gtest_list_output_unittest_ test gtest)
+  py_test(gtest_list_output_unittest)
 
   cxx_executable(gtest_xml_outfile1_test_ test gtest_main)
   cxx_executable(gtest_xml_outfile2_test_ test gtest_main)
