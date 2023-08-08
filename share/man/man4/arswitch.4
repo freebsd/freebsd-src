@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2021
+.Dd August 8, 2023
 .Dt ARSWITCH 4
 .Os
 .Sh NAME
@@ -39,9 +39,7 @@ The
 .Nm
 device driver provides a management interface to multiple Atheros
 fast ethernet switch chips:
-.Bl -tag -compact -width "AR7240"
-.It AR7240
-Wireless Network Processor SOC with five Fast Ethernet PHYs
+.Bl -tag -compact -width "AR8216"
 .It AR8216
 Fast Ethernet Switch
 .It AR8226
@@ -49,8 +47,6 @@ Fast Ethernet Switch
 Six-port Gigabit Ethernet Switch
 .It AR8327
 Seven-port Gigabit Ethernet Switch
-.It AR9340
-Wireless networking SoC
 .El
 .Pp
 The driver uses an
