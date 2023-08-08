@@ -175,6 +175,68 @@ ATF_TC_BODY(strvis_locale, tc)
 }
 #endif /* VIS_NOLOCALE */
 
+#ifdef __FreeBSD__
+#define	STRVIS_OVERFLOW_MARKER	0xff	/* Arbitrary */
+
+ATF_TC(strvis_overflow_mb);
+ATF_TC_HEAD(strvis_overflow_mb, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test strvis(3) multi-byte overflow");
+}
+
+ATF_TC_BODY(strvis_overflow_mb, tc)
+{
+	const char src[] = "\xf0\x9f\xa5\x91";
+	/* Extra byte to detect overflow */
+	char dst[sizeof(src) + 1];
+	int n;
+
+	setlocale(LC_CTYPE, "en_US.UTF-8");
+
+	/* Arbitrary */
+	memset(dst, STRVIS_OVERFLOW_MARKER, sizeof(dst));
+
+	/*
+	 * If we only provide four bytes of buffer, we shouldn't be able encode
+	 * a full 4-byte sequence.
+	 */
+	n = strnvis(dst, 4, src, VIS_SAFE);
+	ATF_REQUIRE(dst[4] == STRVIS_OVERFLOW_MARKER);
+	ATF_REQUIRE(n == -1);
+
+	n = strnvis(dst, sizeof(src), src, VIS_SAFE);
+	ATF_REQUIRE(n == sizeof(src) - 1);
+}
+
+ATF_TC(strvis_overflow_c);
+ATF_TC_HEAD(strvis_overflow_c, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test strvis(3) C locale overflow");
+}
+
+ATF_TC_BODY(strvis_overflow_c, tc)
+{
+	const char src[] = "AAAA";
+	/* Extra byte to detect overflow */
+	char dst[sizeof(src) + 1];
+	int n;
+
+	/* Arbitrary */
+	memset(dst, STRVIS_OVERFLOW_MARKER, sizeof(dst));
+
+	/*
+	 * If we only provide four bytes of buffer, we shouldn't be able encode
+	 * 4 bytes of input.
+	 */
+	n = strnvis(dst, 4, src, VIS_SAFE | VIS_NOLOCALE);
+	ATF_REQUIRE(dst[4] == STRVIS_OVERFLOW_MARKER);
+	ATF_REQUIRE(n == -1);
+
+	n = strnvis(dst, sizeof(src), src, VIS_SAFE | VIS_NOLOCALE);
+	ATF_REQUIRE(n == sizeof(src) - 1);
+}
+#endif /* __FreeBSD__ */
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -185,6 +247,10 @@ ATF_TP_ADD_TCS(tp)
 #ifdef VIS_NOLOCALE
 	ATF_TP_ADD_TC(tp, strvis_locale);
 #endif /* VIS_NOLOCALE */
+#ifdef __FreeBSD__
+	ATF_TP_ADD_TC(tp, strvis_overflow_mb);
+	ATF_TP_ADD_TC(tp, strvis_overflow_c);
+#endif
 
 	return atf_no_error();
 }
