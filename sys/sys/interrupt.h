@@ -158,8 +158,6 @@ struct intr_event {
 
 struct proc;
 
-extern struct	intr_event *clk_intr_event;
-
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif

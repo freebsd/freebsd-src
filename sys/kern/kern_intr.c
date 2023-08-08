@@ -36,6 +36,7 @@
 #include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/clock.h>
 #include <sys/cpuset.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
@@ -90,7 +91,6 @@ struct	intr_entropy {
 	uintptr_t event;
 };
 
-struct	intr_event *clk_intr_event;
 struct proc *intrproc;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
@@ -125,7 +125,6 @@ static void	ithread_execute_handlers(struct proc *p,
 		    struct intr_event *ie);
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
-static void	start_softintr(void *);
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -1687,23 +1686,6 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 	}
 }
 #endif /* DDB */
-
-/*
- * Start standard software interrupt threads
- */
-static void
-start_softintr(void *dummy)
-{
-
-	KASSERT(clk_intr_event == NULL, ("clk_intr_event non-NULL at %s()",
-	    __func__));
-
-	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
-	    INTR_MPSAFE, NULL))
-		panic("died while creating clk swi ithread");
-}
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
-    NULL);
 
 /*
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.

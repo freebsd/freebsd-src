@@ -88,6 +88,8 @@ static struct mtx time_lock;
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE2(sched, , , tick, "struct thread *", "struct proc *");
 
+struct	intr_event *clk_intr_event;
+
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
@@ -548,6 +550,23 @@ hardclock_sync(int cpu)
 	t = DPCPU_ID_PTR(cpu, pcputicks);
 	*t = ticksl;
 }
+
+/*
+ * Start standard software interrupt threads
+ */
+static void
+start_softintr(void *dummy)
+{
+
+	KASSERT(clk_intr_event == NULL, ("clk_intr_event non-NULL at %s()",
+	    __func__));
+
+	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
+	    INTR_MPSAFE, NULL))
+		panic("died while creating clk swi ithread");
+}
+SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
+    NULL);
 
 /*
  * Regular integer scaling formula without losing precision:
