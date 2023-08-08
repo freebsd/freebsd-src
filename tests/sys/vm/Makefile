@@ -17,4 +17,9 @@ ATF_TESTS_SH+=	mmap_map_32bit_test
 PROGS+=		mmap_map_32bit_helper
 .endif
 
+SUBDIR=		soxstack
+TESTS_SUBDIRS+=	stack
+
+SUBDIR_DEPENDS_stack=soxstack
+
 .include <bsd.test.mk>

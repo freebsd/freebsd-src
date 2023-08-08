@@ -897,6 +897,8 @@
         vfs
         ..
         vm
+            stack
+            ..
         ..
         vmm
         ..
