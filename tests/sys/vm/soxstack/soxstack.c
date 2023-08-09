@@ -16,7 +16,7 @@
 
 int	checkstack(void);
 
-#define	_STACK_FLAG_GROWS	KVME_FLAG_GROWS_UP | KVME_FLAG_GROWS_DOWN
+#define	_STACK_FLAG_GROWS	(KVME_FLAG_GROWS_UP | KVME_FLAG_GROWS_DOWN)
 int
 checkstack(void)
 {
