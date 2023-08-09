@@ -55,6 +55,7 @@
 # 20230807: Removal of the ath(4) AHB bus-frontend for MIPS
 OLD_FILES+=usr/share/man/man4/ath_ahb.4
 OLD_FILES+=usr/share/man/man4/ath_pci.4
+OLD_FILES+=usr/share/man/man4/if_ath_pci.4
 
 # 20230803: Removal of support for cloning pseudo interfaces from iflib(9)
 OLD_FILES+=usr/include/net/iflib_private.h
