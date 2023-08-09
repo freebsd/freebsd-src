@@ -1,3 +1,3 @@
 / {
-	freebsd,dts-version = "5.13";
+	freebsd,dts-version = "6.4";
 };
