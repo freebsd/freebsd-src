@@ -727,8 +727,8 @@ static driver_t rk_i2c_driver = {
 };
 
 EARLY_DRIVER_MODULE(rk_i2c, simplebus, rk_i2c_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(ofw_iicbus, rk_i2c, ofw_iicbus_driver,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(rk_i2c, iicbus, 1, 1, 1);
 MODULE_VERSION(rk_i2c, 1);
