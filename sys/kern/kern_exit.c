@@ -238,7 +238,14 @@ exit1(struct thread *td, int rval, int signo)
 	TSPROCEXIT(td->td_proc->p_pid);
 
 	p = td->td_proc;
-	if (p == initproc) {
+	/*
+	 * In case we're rebooting we just let init die in order to
+	 * work around an issues where pid 1 might get a fatal signal.
+	 * For instance, if network interface serving NFS root is
+	 * going down due to reboot, page-in requests for text are
+	 * failing.
+	 */
+	if (p == initproc && rebooting == 0) {
 		printf("init died (signal %d, exit %d)\n", signo, rval);
 		panic("Going nowhere without my init!");
 	}
