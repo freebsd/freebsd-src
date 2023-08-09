@@ -906,9 +906,6 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
 
-		/* Disable TSO on 82574L due to performance loss being investigated */
-		if (hw->mac.type == e1000_82574)
-			scctx->isc_capenable &= ~IFCAP_TSO;
 		/*
 		 * Disable TSO on SPT due to errata that downclocks DMA performance
 		 * i218-i219 Specification Update 1.5.4.5
