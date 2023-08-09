@@ -38,7 +38,7 @@ checkstack(void)
 		kve = &freep[i];
 		if (stack < kve->kve_start || stack > kve->kve_end)
 			continue;
-		if ((kve->kve_flags & _STACK_FLAG_GROWS) != 0 &&
+		if ((kve->kve_flags &(_STACK_FLAG_GROWS)) != 0 &&
 		    (kve->kve_protection & KVME_PROT_EXEC) != 0)
 			stack = 0;
 		break;
