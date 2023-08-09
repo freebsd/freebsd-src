@@ -851,7 +851,6 @@ done:
 	free(copy_fs, M_UFSMNT);
 	copy_fs = NULL;
 out:
-	NDFREE_PNBUF(&nd);
 	if (saved_nice > 0) {
 		struct proc *p;
 
@@ -869,14 +868,30 @@ out:
 	MNT_ILOCK(mp);
 	mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	MNT_IUNLOCK(mp);
-	if (error)
-		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED);
-	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
-	if (error)
-		vput(vp);
-	else
-		VOP_UNLOCK(vp);
+	NDFREE_PNBUF(&nd);
 	vrele(nd.ni_dvp);
+	if (error == 0) {
+		(void) ffs_syncvnode(vp, MNT_WAIT, 0);
+		VOP_UNLOCK(vp);
+	} else if (VN_IS_DOOMED(vp)) {
+		vput(vp);
+	} else {
+		int rmerr;
+
+		/* Remove snapshot as its creation has failed. */
+		vput(vp);
+		NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF, UIO_SYSSPACE,
+		    snapfile);
+		if ((rmerr = namei(&nd)) != 0 ||
+		    (rmerr = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd)) != 0)
+			printf("Delete of %s failed with error %d\n",
+			    nd.ni_dirp, rmerr);
+		NDFREE_PNBUF(&nd);
+		if (nd.ni_dvp != NULL)
+			vput(nd.ni_dvp);
+		if (nd.ni_vp != NULL)
+			vput(nd.ni_vp);
+	}
 	vn_finished_write(wrtmp);
 	process_deferred_inactive(mp);
 	return (error);
