@@ -18,6 +18,7 @@
 
 #include <openbsd/openbsd_queue.h>
 #include "../../../../crypto/openssh/openbsd-compat/sys-queue.h"
+#include <openbsd_device.h>
 
 #define NBPFILTER 0
 

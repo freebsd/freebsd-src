@@ -32,8 +32,8 @@
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _NETINET_IF_ETHER_H_
-#define _NETINET_IF_ETHER_H_
+#ifndef _OPENBSD_IF_ETHER_H_
+#define _OPENBSD_IF_ETHER_H_
 
 /*
  * Some basic Ethernet constants.
@@ -105,7 +105,7 @@ struct  ether_vlan_header {
 
 #define EVL_ENCAPLEN    4       /* length in octets of encapsulation */
 
-#include <net/ethertypes.h>
+//#include <net/ethertypes.h>
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
 #define	ETHER_IS_BROADCAST(addr) \
