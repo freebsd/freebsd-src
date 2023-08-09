@@ -83,7 +83,7 @@ name##_PCTRIE_INSERT(struct pctrie *ptree, struct type *ptr)		\
 	    allocfn);							\
 }									\
 									\
-static __inline struct type *						\
+static __inline __unused struct type *						\
 name##_PCTRIE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 {									\
 									\

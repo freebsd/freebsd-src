@@ -72,6 +72,8 @@ rs_node_free(struct pctrie *ptree __unused, void *node)
 	uma_zfree(rs_node_zone, node);
 }
 
+PCTRIE_DEFINE(RANGESET, rs_el, re_start, rs_node_alloc, rs_node_free);
+
 void
 rangeset_init(struct rangeset *rs, rs_dup_data_t dup_data,
     rs_free_data_t free_data, void *data_ctx, u_int alloc_flags)
@@ -96,16 +98,10 @@ bool
 rangeset_check_empty(struct rangeset *rs, uint64_t start, uint64_t end)
 {
 	struct rs_el *r;
-	uint64_t *r1;
 
 	rangeset_check(rs);
-	r1 = pctrie_lookup_le(&rs->rs_trie, end);
-	if (r1 != NULL) {
-		r = __containerof(r1, struct rs_el, re_start);
-		if (r->re_end > start)
-			return (false);
-	}
-	return (true);
+	r = RANGESET_PCTRIE_LOOKUP_LE(&rs->rs_trie, end);
+	return (r == NULL || r->re_end <= start);
 }
 
 int
@@ -122,7 +118,7 @@ rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end,
 	r = data;
 	r->re_start = start;
 	r->re_end = end;
-	error = pctrie_insert(&rs->rs_trie, &r->re_start, rs_node_alloc);
+	error = RANGESET_PCTRIE_INSERT(&rs->rs_trie, r);
 	rangeset_check(rs);
 	return (error);
 }
@@ -132,16 +128,14 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
     rs_pred_t pred)
 {
 	struct rs_el *r, *rn;
-	uint64_t *r1;
 	int error;
 
 	rangeset_check(rs);
 	error = 0;
 	for (; end > 0 && start < end;) {
-		r1 = pctrie_lookup_le(&rs->rs_trie, end - 1);
-		if (r1 == NULL)
+		r = RANGESET_PCTRIE_LOOKUP_LE(&rs->rs_trie, end - 1);
+		if (r == NULL)
 			break;
-		r = __containerof(r1, struct rs_el, re_start);
 
 		/*
 		 * ------============================--|-------|----
@@ -167,8 +161,8 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 			 */
 			end = r->re_start;
 			if (pred(rs->rs_data_ctx, r)) {
-				pctrie_remove(&rs->rs_trie, r->re_start,
-				    rs_node_free);
+				RANGESET_PCTRIE_REMOVE(&rs->rs_trie,
+				    r->re_start);
 				rs->rs_free_data(rs->rs_data_ctx, r);
 			}
 			continue;
@@ -180,11 +174,10 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 		 */
 		if (r->re_start >= start) {
 			if (pred(rs->rs_data_ctx, r)) {
-				pctrie_remove(&rs->rs_trie, r->re_start,
-				    rs_node_free);
+				RANGESET_PCTRIE_REMOVE(&rs->rs_trie,
+				    r->re_start);
 				r->re_start = end;
-				error = pctrie_insert(&rs->rs_trie,
-				    &r->re_start, rs_node_alloc);
+				error = RANGESET_PCTRIE_INSERT(&rs->rs_trie, r);
 				/*
 				 * The insert above must succeed
 				 * because rs_node zone is marked
@@ -215,8 +208,7 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 			}
 			rn->re_start = end;
 			rn->re_end = r->re_end;
-			error = pctrie_insert(&rs->rs_trie, &rn->re_start,
-			    rs_node_alloc);
+			error = RANGESET_PCTRIE_INSERT(&rs->rs_trie, rn);
 			if (error != 0) {
 				rs->rs_free_data(rs->rs_data_ctx, rn);
 				break;
@@ -247,14 +239,12 @@ void
 rangeset_remove_all(struct rangeset *rs)
 {
 	struct rs_el *r;
-	uint64_t *r1;
 
 	for (;;) {
-		r1 = pctrie_lookup_ge(&rs->rs_trie, 0);
-		if (r1 == NULL)
+		r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, 0);
+		if (r == NULL)
 			break;
-		r = __containerof(r1, struct rs_el, re_start);
-		pctrie_remove(&rs->rs_trie, r->re_start, rs_node_free);
+		RANGESET_PCTRIE_REMOVE(&rs->rs_trie, r->re_start);
 		rs->rs_free_data(rs->rs_data_ctx, r);
 	}
 }
@@ -263,13 +253,11 @@ void *
 rangeset_lookup(struct rangeset *rs, uint64_t place)
 {
 	struct rs_el *r;
-	uint64_t *r1;
 
 	rangeset_check(rs);
-	r1 = pctrie_lookup_le(&rs->rs_trie, place);
-	if (r1 == NULL)
+	r = RANGESET_PCTRIE_LOOKUP_LE(&rs->rs_trie, place);
+	if (r == NULL)
 		return (NULL);
-	r = __containerof(r1, struct rs_el, re_start);
 	if (r->re_end <= place)
 		return (NULL);
 	return (r);
@@ -279,7 +267,7 @@ int
 rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs)
 {
 	struct rs_el *src_r, *dst_r;
-	uint64_t cursor, *r1;
+	uint64_t cursor;
 	int error;
 
 	MPASS(pctrie_is_empty(&dst_rs->rs_trie));
@@ -288,17 +276,15 @@ rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs)
 
 	error = 0;
 	for (cursor = 0;; cursor = src_r->re_start + 1) {
-		r1 = pctrie_lookup_ge(&src_rs->rs_trie, cursor);
-		if (r1 == NULL)
+		src_r = RANGESET_PCTRIE_LOOKUP_GE(&src_rs->rs_trie, cursor);
+		if (src_r == NULL)
 			break;
-		src_r = __containerof(r1, struct rs_el, re_start);
 		dst_r = dst_rs->rs_dup_data(dst_rs->rs_data_ctx, src_r);
 		if (dst_r == NULL) {
 			error = ENOMEM;
 			break;
 		}
-		error = pctrie_insert(&dst_rs->rs_trie, &dst_r->re_start,
-		    rs_node_alloc);
+		error = RANGESET_PCTRIE_INSERT(&dst_rs->rs_trie, dst_r);
 		if (error != 0)
 			break;
 	}
@@ -312,13 +298,12 @@ static void
 rangeset_check(struct rangeset *rs)
 {
 	struct rs_el *r, *rp;
-	uint64_t cursor, *r1;
+	uint64_t cursor;
 
 	for (cursor = 0, rp = NULL;; cursor = r->re_start + 1, rp = r) {
-		r1 = pctrie_lookup_ge(&rs->rs_trie, cursor);
-		if (r1 == NULL)
+		r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, cursor);
+		if (r == NULL)
 			break;
-		r = __containerof(r1, struct rs_el, re_start);
 		KASSERT(r->re_start < r->re_end,
 		    ("invalid interval rs %p elem %p (%#jx, %#jx)",
 		    rs, r, (uintmax_t)r->re_start,  (uintmax_t)r->re_end));
@@ -343,7 +328,7 @@ DB_SHOW_COMMAND(rangeset, rangeset_show_fn)
 {
 	struct rangeset *rs;
 	struct rs_el *r;
-	uint64_t cursor, *r1;
+	uint64_t cursor;
 
 	if (!have_addr) {
 		db_printf("show rangeset addr\n");
@@ -353,10 +338,9 @@ DB_SHOW_COMMAND(rangeset, rangeset_show_fn)
 	rs = (struct rangeset *)addr;
 	db_printf("rangeset %p\n", rs);
 	for (cursor = 0;; cursor = r->re_start + 1) {
-		r1 = pctrie_lookup_ge(&rs->rs_trie, cursor);
-		if (r1 == NULL)
+		r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, cursor);
+		if (r == NULL)
 			break;
-		r = __containerof(r1, struct rs_el, re_start);
 		db_printf("  el %p start %#jx end %#jx\n",
 		    r, r->re_start, r->re_end);
 	}
