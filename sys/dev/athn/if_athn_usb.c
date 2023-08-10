@@ -80,6 +80,9 @@
 #define betoh64 be64toh
 #define letoh16 le16toh
 
+// map OpenBSD flag name to FreeBSD
+#define	IFF_RUNNING	IFF_DRV_RUNNING
+
 // map 3-argument OpenBSD free function to 2-argument FreeBSD one
 #define free(addr,type,size)	free(addr,type)
 
