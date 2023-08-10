@@ -35,6 +35,20 @@
 #ifndef _OPENBSD_ADAPT_H_
 #define _OPENBSD_ADAPT_H_
 
+#define M_USBDEV	0
+
+// map OpenBSD endian conversion macro names to FreeBSD
+#define betoh16 be16toh
+#define betoh32 be32toh
+#define betoh64 be64toh
+#define letoh16 le16toh
+
+// map OpenBSD flag name to FreeBSD
+#define	IFF_RUNNING	IFF_DRV_RUNNING
+
+// map 3-argument OpenBSD free function to 2-argument FreeBSD one
+#define free(addr,type,size)	free(addr,type)
+
 static inline uint64_t
 SEC_TO_NSEC(uint64_t seconds)
 {
