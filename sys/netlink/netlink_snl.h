@@ -33,6 +33,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -74,7 +75,7 @@ struct linear_buffer {
 	uint32_t		offset;	/* Currently used offset */
 	uint32_t		size;	/* Total buffer size */
 	struct linear_buffer	*next;	/* Buffer chaining */
-};
+} __aligned(alignof(__max_align_t));
 
 static inline struct linear_buffer *
 lb_init(uint32_t size)
@@ -98,7 +99,7 @@ lb_free(struct linear_buffer *lb)
 static inline char *
 lb_allocz(struct linear_buffer *lb, int len)
 {
-	len = roundup2(len, sizeof(uint64_t));
+	len = roundup2(len, alignof(__max_align_t));
 	if (lb->offset + len > lb->size)
 		return (NULL);
 	void *data = (void *)(lb->base + lb->offset);

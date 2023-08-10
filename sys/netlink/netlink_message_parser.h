@@ -41,12 +41,12 @@ struct linear_buffer {
 	char		*base;	/* Base allocated memory pointer */
 	uint32_t	offset;	/* Currently used offset */
 	uint32_t	size;	/* Total buffer size */
-};
+} __aligned(_Alignof(__max_align_t));
 
 static inline void *
 lb_alloc(struct linear_buffer *lb, int len)
 {
-	len = roundup2(len, sizeof(uint64_t));
+	len = roundup2(len, _Alignof(__max_align_t));
 	if (lb->offset + len > lb->size)
 		return (NULL);
 	void *data = (void *)(lb->base + lb->offset);
