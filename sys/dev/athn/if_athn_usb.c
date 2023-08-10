@@ -81,6 +81,9 @@
 #define betoh64 be64toh
 #define letoh16 le16toh
 
+// map OpenBSD flag name to FreeBSD
+#define	IFF_RUNNING	IFF_DRV_RUNNING
+
 static const struct athn_usb_type {
 	struct usb_devno	devno;
 	u_int			flags;
