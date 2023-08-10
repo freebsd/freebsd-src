@@ -251,11 +251,11 @@ struct usb_attach_arg {
 /* No match */
 #define UMATCH_NONE					 0
 
-#define	IPL_USB		IPL_BIO
-#define	IPL_SOFTUSB	IPL_SOFTNET
+// Get spl functions from FreeBSD
+#include <sys/systm.h>
 
-#define splusb()	splraise(IPL_SOFTUSB)
-#define splhardusb()	splraise(IPL_USB)
-
+// Simple conversion from OpenBSD spl functions to FreeBSD version
+#define splusb()	splnet()
+#define splhardusb()	spltty()
 
 #endif /* _USBDI_H_ */
