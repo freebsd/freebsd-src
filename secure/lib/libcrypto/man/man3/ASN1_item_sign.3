@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_ITEM_SIGN 3"
-.TH ASN1_ITEM_SIGN 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH ASN1_ITEM_SIGN 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -199,7 +199,7 @@ See \fBEVP_PKEY_CTX_set1_id()\fR for further info. The output parameters <algor1
 \&\fBASN1_item_sign()\fR is similar to \fBASN1_item_sign_ex()\fR but uses default values of
 \&\s-1NULL\s0 for the \fIid\fR, \fIlibctx\fR and \fIpropq\fR.
 .PP
-\&\fBASN1_item_sign_ctx()\fR is similiar to \fBASN1_item_sign()\fR but uses the parameters
+\&\fBASN1_item_sign_ctx()\fR is similar to \fBASN1_item_sign()\fR but uses the parameters
 contained in digest context \fIctx\fR.
 .PP
 \&\fBASN1_item_verify_ex()\fR is used to verify the signature \fIsignature\fR of internal
@@ -214,7 +214,7 @@ See \fBEVP_PKEY_CTX_set1_id()\fR for further info.
 \&\fBASN1_item_verify()\fR is similar to \fBASN1_item_verify_ex()\fR but uses default values of
 \&\s-1NULL\s0 for the \fIid\fR, \fIlibctx\fR and \fIpropq\fR.
 .PP
-\&\fBASN1_item_verify_ctx()\fR is similiar to \fBASN1_item_verify()\fR but uses the parameters
+\&\fBASN1_item_verify_ctx()\fR is similar to \fBASN1_item_verify()\fR but uses the parameters
 contained in digest context \fIctx\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -349,7 +349,7 @@ then output in \s-1DER\s0 format and then loaded back in and verified.
 \&\fBASN1_item_sign_ex()\fR and \fBASN1_item_verify_ex()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

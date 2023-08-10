@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_DECODER 3"
-.TH OSSL_DECODER 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_DECODER 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -252,7 +252,7 @@ multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
 by the \fIdecoder\fR object and should not be freed by the caller.
 .PP
-\&\fBOSSL_DECODER_get0_description()\fR returns a pointer to a decription, or \s-1NULL\s0 if
+\&\fBOSSL_DECODER_get0_description()\fR returns a pointer to a description, or \s-1NULL\s0 if
 there isn't one.
 .PP
 \&\fBOSSL_DECODER_names_do_all()\fR returns 1 if the callback was called for all
@@ -313,7 +313,7 @@ To list all decoders in a provider to a bio_out:
 The functions described here were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

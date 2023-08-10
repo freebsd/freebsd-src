@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_PARSE_URL 3"
-.TH OSSL_HTTP_PARSE_URL 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_HTTP_PARSE_URL 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -196,7 +196,7 @@ The path component is also optional and defaults to \f(CW\*(C`/\*(C'\fR.
 Each non-NULL result pointer argument \fIpscheme\fR, \fIpuser\fR, \fIphost\fR, \fIpport\fR,
 \&\fIppath\fR, \fIpquery\fR, and \fIpfrag\fR, is assigned the respective url component.
 On success, they are guaranteed to contain non-NULL string pointers, else \s-1NULL.\s0
-It is the reponsibility of the caller to free them using \fBOPENSSL_free\fR\|(3).
+It is the responsibility of the caller to free them using \fBOPENSSL_free\fR\|(3).
 If \fIpquery\fR is \s-1NULL,\s0 any given query component is handled as part of the path.
 A string returned via \fI*ppath\fR is guaranteed to begin with a \f(CW\*(C`/\*(C'\fR character.
 For absent scheme, userinfo, port, query, and fragment components
@@ -232,7 +232,7 @@ return 1 on success, 0 on error.
 \&\fBOCSP_parse_url()\fR was deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

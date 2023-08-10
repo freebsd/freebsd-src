@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_NEW 3"
-.TH X509_STORE_CTX_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH X509_STORE_CTX_NEW 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -316,7 +316,7 @@ administrator might only trust it for the former. An X.509 certificate extension
 exists that can record extended key usage information to supplement the purpose
 information described above. This extended mechanism is arbitrarily extensible
 and not well suited for a generic library \s-1API\s0; applications that need to
-validate extended key usage information in certifiates will need to define a
+validate extended key usage information in certificates will need to define a
 custom \*(L"purpose\*(R" (see below) or supply a nondefault verification callback
 (\fBX509_STORE_set_verify_cb_func\fR\|(3)).
 .PP
@@ -406,7 +406,7 @@ The \fBX509_STORE_CTX_new_ex()\fR function was added in OpenSSL 3.0.
 There is no need to call \fBX509_STORE_CTX_cleanup()\fR explicitly since OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

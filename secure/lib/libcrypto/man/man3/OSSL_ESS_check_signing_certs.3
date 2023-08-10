@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_ESS_CHECK_SIGNING_CERTS 3"
-.TH OSSL_ESS_CHECK_SIGNING_CERTS 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_ESS_CHECK_SIGNING_CERTS 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -183,7 +183,7 @@ while the list contained in \fIssv2\fR is of type \fB\s-1ESS_CERT_ID_V2\s0\fR.
 As far as these lists are present, they must be nonempty.
 The certificate identified by their first entry must be the first element of
 \&\fIchain\fR, i.e. the signer certificate.
-Any further certficates referenced in the list must also be found in \fIchain\fR.
+Any further certificates referenced in the list must also be found in \fIchain\fR.
 The matching is done using the given certificate hash algorithm and value.
 In addition to the checks required by RFCs 2624 and 5035,
 if the \fBissuerSerial\fR field is included in an \fBESSCertID\fR or \fBESSCertIDv2\fR
@@ -210,7 +210,7 @@ return a pointer to the new structure or \s-1NULL\s0 on malloc failure.
 \&\fBOSSL_ESS_check_signing_certs()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TMP_DH_CALLBACK 3"
-.TH SSL_CTX_SET_TMP_DH_CALLBACK 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH SSL_CTX_SET_TMP_DH_CALLBACK 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -212,9 +212,9 @@ the built-in parameter support described above. Applications wishing to supply
 their own \s-1DH\s0 parameters should call \fBSSL_CTX_set0_tmp_dh_pkey()\fR or
 \&\fBSSL_set0_tmp_dh_pkey()\fR to supply the parameters for the \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR
 respectively. The parameters should be supplied in the \fIdhpkey\fR argument as
-an \fB\s-1EVP_PKEY\s0\fR containg \s-1DH\s0 parameters. Ownership of the \fIdhpkey\fR value is
+an \fB\s-1EVP_PKEY\s0\fR containing \s-1DH\s0 parameters. Ownership of the \fIdhpkey\fR value is
 passed to the \fB\s-1SSL_CTX\s0\fR or \fB\s-1SSL\s0\fR object as a result of this call, and so the
-caller should not free it if the function call is succesful.
+caller should not free it if the function call is successful.
 .PP
 The deprecated macros \fBSSL_CTX_set_tmp_dh()\fR and \fBSSL_set_tmp_dh()\fR do the same
 thing as \fBSSL_CTX_set0_tmp_dh_pkey()\fR and \fBSSL_set0_tmp_dh_pkey()\fR except that the
@@ -248,7 +248,7 @@ All of these functions/macros return 1 for success or 0 on error.
 \&\fBopenssl\-ciphers\fR\|(1), \fBopenssl\-dhparam\fR\|(1)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

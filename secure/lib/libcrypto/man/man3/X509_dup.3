@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_DUP 3"
-.TH X509_DUP 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH X509_DUP 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -486,7 +486,7 @@ to generate the function bodies.
 \&\fB\f(BI\s-1TYPE\s0\fB_new\fR() allocates an empty object of the indicated type.
 The object returned must be released by calling \fB\f(BI\s-1TYPE\s0\fB_free\fR().
 .PP
-\&\fB\f(BI\s-1TYPE\s0\fB_new_ex\fR() is similiar to \fB\f(BI\s-1TYPE\s0\fB_new\fR() but also passes the
+\&\fB\f(BI\s-1TYPE\s0\fB_new_ex\fR() is similar to \fB\f(BI\s-1TYPE\s0\fB_new\fR() but also passes the
 library context \fIlibctx\fR and the property query \fIpropq\fR to use when retrieving
 algorithms from providers. This created object can then be used when loading
 binary data using \fBd2i_\f(BI\s-1TYPE\s0\fB\fR().
@@ -516,7 +516,7 @@ The functions \fBDSAparams_dup()\fR, \fBRSAPrivateKey_dup()\fR and \fBRSAPublicK
 deprecated in 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

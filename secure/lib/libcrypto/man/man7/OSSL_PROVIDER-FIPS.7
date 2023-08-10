@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PROVIDER-FIPS 7"
-.TH OSSL_PROVIDER-FIPS 7 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_PROVIDER-FIPS 7 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -546,6 +546,18 @@ A simple self test callback is shown below for illustrative purposes.
 \&    return ret;
 \&  }
 .Ve
+.SH "NOTES"
+.IX Header "NOTES"
+Some released versions of OpenSSL do not include a validated
+\&\s-1FIPS\s0 provider.  To determine which versions have undergone
+the validation process, please refer to the
+OpenSSL Downloads page <https://www.openssl.org/source/>.  If you
+require FIPS-approved functionality, it is essential to build your \s-1FIPS\s0
+provider using one of the validated versions listed there.  Normally,
+it is possible to utilize a \s-1FIPS\s0 provider constructed from one of the
+validated versions alongside \fIlibcrypto\fR and \fIlibssl\fR compiled from any
+release within the same major release series.  This flexibility enables
+you to address bug fixes and CVEs that fall outside the \s-1FIPS\s0 boundary.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBopenssl\-fipsinstall\fR\|(1),
@@ -555,7 +567,8 @@ A simple self test callback is shown below for illustrative purposes.
 \&\s-1\fBOSSL_PARAM\s0\fR\|(3),
 \&\fBopenssl\-core.h\fR\|(7),
 \&\fBopenssl\-core_dispatch.h\fR\|(7),
-\&\fBprovider\fR\|(7)
+\&\fBprovider\fR\|(7),
+<https://www.openssl.org/source/>
 .SH "HISTORY"
 .IX Header "HISTORY"
 This functionality was added in OpenSSL 3.0.

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-DHPARAM 1"
-.TH OPENSSL-DHPARAM 1 "2023-06-02" "3.0.9" "OpenSSL"
+.TH OPENSSL-DHPARAM 1 "2023-08-02" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -216,7 +216,7 @@ This option specifies that a parameter set should be generated of size
 the input file is ignored and parameters are generated instead. If
 this option is not present but a generator (\fB\-2\fR, \fB\-3\fR or \fB\-5\fR) is
 present, parameters are generated with a default length of 2048 bits.
-The minimim length is 512 bits. The maximum length is 10000 bits.
+The minimum length is 512 bits. The maximum length is 10000 bits.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
 This option inhibits the output of the encoded version of the parameters.
@@ -256,7 +256,7 @@ The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 The \fB\-C\fR option was removed in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

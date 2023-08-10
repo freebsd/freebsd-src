@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_NEW 3"
-.TH EVP_PKEY_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY_NEW 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -201,7 +201,7 @@ see \fBopenssl_user_macros\fR\|(7):
 \&\fB\s-1EVP_PKEY\s0\fR is a generic structure to hold diverse types of asymmetric keys
 (also known as \*(L"key pairs\*(R"), and can be used for diverse operations, like
 signing, verifying signatures, key derivation, etc.  The asymmetric keys
-themselves are often refered to as the \*(L"internal key\*(R", and are handled by
+themselves are often referred to as the \*(L"internal key\*(R", and are handled by
 backends, such as providers (through \s-1\fBEVP_KEYMGMT\s0\fR\|(3)) or \fB\s-1ENGINE\s0\fRs.
 .PP
 Conceptually, an \fB\s-1EVP_PKEY\s0\fR internal key may hold a private key, a public
@@ -342,7 +342,7 @@ be the private part of the keypair without the public part, where this was
 previously implied to be disallowed.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

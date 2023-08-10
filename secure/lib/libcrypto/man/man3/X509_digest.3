@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_DIGEST 3"
-.TH X509_DIGEST 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH X509_DIGEST 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -181,9 +181,9 @@ PKCS7_ISSUER_AND_SERIAL_digest
 using the same hash algorithm as in its signature, if the digest
 is an integral part of the certificate signature algorithm identifier.
 Otherwise, a fallback hash algorithm is determined as follows:
-\&\s-1SHA512\s0 if the signature alorithm is \s-1ED25519,
+\&\s-1SHA512\s0 if the signature algorithm is \s-1ED25519,
 SHAKE256\s0 if it is \s-1ED448,\s0 otherwise \s-1SHA256.\s0
-The output parmeters are assigned as follows.
+The output parameters are assigned as follows.
 Unless \fImd_used\fR is \s-1NULL,\s0 the hash algorithm used is provided
 in \fI*md_used\fR and must be freed by the caller (if it is not \s-1NULL\s0).
 Unless \fImd_is_fallback\fR is \s-1NULL,\s0
@@ -214,7 +214,7 @@ All other functions described here return 1 for success and 0 for failure.
 The \fBX509_digest_sig()\fR function was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

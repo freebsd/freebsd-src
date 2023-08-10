@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CHACHA20 3"
-.TH EVP_CHACHA20 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_CHACHA20 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,10 +156,10 @@ The ChaCha20 stream cipher for \s-1EVP.\s0
 .IP "\fBEVP_chacha20()\fR" 4
 .IX Item "EVP_chacha20()"
 The ChaCha20 stream cipher. The key length is 256 bits, the \s-1IV\s0 is 128 bits long.
-The first 32 bits consists of a counter in little-endian order followed by a 96
+The first 64 bits consists of a counter in little-endian order followed by a 64
 bit nonce. For example a nonce of:
 .Sp
-000000000000000000000002
+0000000000000002
 .Sp
 With an initial counter of 42 (2a in hex) would be expressed as:
 .Sp
@@ -176,6 +176,9 @@ Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
 \&\fBEVP_CIPHER_fetch\fR\|(3) instead.
 See \*(L"Performance\*(R" in \fBcrypto\fR\|(7) for further information.
+.PP
+\&\s-1RFC 7539\s0 <https://www.rfc-editor.org/rfc/rfc7539.html#section-2.4>
+uses a 32 bit counter and a 96 bit nonce for the \s-1IV.\s0
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 These functions return an \fB\s-1EVP_CIPHER\s0\fR structure that contains the

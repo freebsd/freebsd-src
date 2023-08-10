@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_S_CORE 3"
-.TH BIO_S_CORE 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH BIO_S_CORE 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -159,7 +159,7 @@ libcrypto into a provider supply an \s-1OSSL_CORE_BIO\s0 parameter. This represe
 a \s-1BIO\s0 within libcrypto, but cannot be used directly by a provider. Instead it
 should be wrapped using a \fBBIO_s_core()\fR.
 .PP
-Once a \s-1BIO\s0 is contructed based on \fBBIO_s_core()\fR, the associated \s-1OSSL_CORE_BIO\s0
+Once a \s-1BIO\s0 is constructed based on \fBBIO_s_core()\fR, the associated \s-1OSSL_CORE_BIO\s0
 object should be set on it using \fBBIO_set_data\fR\|(3). Note that the \s-1BIO\s0 will only
 operate correctly if it is associated with a library context constructed using
 \&\fBOSSL_LIB_CTX_new_from_dispatch\fR\|(3). To associate the \s-1BIO\s0 with a library context
@@ -197,7 +197,7 @@ Create a core \s-1BIO\s0 and write some data to it:
 .Ve
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_TODATA 3"
-.TH EVP_PKEY_TODATA 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY_TODATA 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -160,7 +160,7 @@ array of \s-1\fBOSSL_PARAM\s0\fR\|(3).
 \&\fBOSSL_PARAM_free\fR\|(3) should be used to free the returned parameters in
 \&\fI*params\fR.
 .PP
-\&\fBEVP_PKEY_export()\fR is similiar to \fBEVP_PKEY_todata()\fR but uses a callback
+\&\fBEVP_PKEY_export()\fR is similar to \fBEVP_PKEY_todata()\fR but uses a callback
 \&\fIexport_cb\fR that gets passed the value of \fIexport_cbarg\fR.
 See \fBopenssl\-core.h\fR\|(7) for more information about the callback. Note that the
 \&\s-1\fBOSSL_PARAM\s0\fR\|(3) array that is passed to the callback is not persistent after the
@@ -185,7 +185,7 @@ This is the mirror function to \fBEVP_PKEY_fromdata\fR\|(3).
 These functions were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

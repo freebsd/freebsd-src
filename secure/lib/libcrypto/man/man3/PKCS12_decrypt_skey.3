@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12_DECRYPT_SKEY 3"
-.TH PKCS12_DECRYPT_SKEY 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH PKCS12_DECRYPT_SKEY 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,7 +158,7 @@ decrypt functions
 \&\fBPKCS12_decrypt_skey()\fR Decrypt the PKCS#8 shrouded keybag contained within \fIbag\fR
 using the supplied password \fIpass\fR of length \fIpasslen\fR.
 .PP
-\&\fBPKCS12_decrypt_skey_ex()\fR is similar to the above but allows for a library contex
+\&\fBPKCS12_decrypt_skey_ex()\fR is similar to the above but allows for a library context
 \&\fIctx\fR and property query \fIpropq\fR to be used to select algorithm implementations.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -177,7 +177,7 @@ Both functions will return the decrypted key or \s-1NULL\s0 if an error occurred
 \&\fBPKCS12_decrypt_skey_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

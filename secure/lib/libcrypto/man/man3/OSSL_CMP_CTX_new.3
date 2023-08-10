@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_CMP_CTX_NEW 3"
-.TH OSSL_CMP_CTX_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_CMP_CTX_NEW 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -779,7 +779,7 @@ to a structure containing arguments, previously set by
 .PP
 \&\fBOSSL_CMP_CTX_get_status()\fR returns for client contexts the PKIstatus from
 the last received CertRepMessage or Revocation Response or error message:
-=item \fBOSSL_CMP_PKISTATUS_accepted\fR on sucessful receipt of a \s-1GENP\s0 message:
+=item \fBOSSL_CMP_PKISTATUS_accepted\fR on successful receipt of a \s-1GENP\s0 message:
 .IP "\fBOSSL_CMP_PKISTATUS_request\fR" 4
 .IX Item "OSSL_CMP_PKISTATUS_request"
 if an \s-1IR/CR/KUR/RR/GENM\s0 request message could not be produced,

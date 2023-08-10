@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_ENCODER_CTX 3"
-.TH OSSL_ENCODER_CTX 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_ENCODER_CTX 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -217,7 +217,7 @@ as \s-1DER\s0 to \s-1PEM,\s0 as well as more specialized encoders like \s-1RSA\s
 The final output type must be given, and a chain of encoders must end with
 an implementation that produces that output type.
 .PP
-At the beginning of the encoding process, a contructor provided by the
+At the beginning of the encoding process, a constructor provided by the
 caller is called to ensure that there is an appropriate provider-side object
 to start with.
 The constructor is set with \fBOSSL_ENCODER_CTX_set_construct()\fR.
@@ -277,7 +277,7 @@ The pointer that was set with \fBOSSL_ENCODE_CTX_set_construct_data()\fR.
 .PP
 The constructor is expected to return a valid (non-NULL) pointer to a
 provider-native object that can be used as first input of an encoding chain,
-or \s-1NULL\s0 to indicate that an error has occured.
+or \s-1NULL\s0 to indicate that an error has occurred.
 .PP
 These utility functions may be used by a constructor:
 .PP
@@ -336,7 +336,7 @@ of the output structure.
 The functions described here were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

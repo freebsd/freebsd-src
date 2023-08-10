@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_GETTABLE_PARAMS 3"
-.TH EVP_PKEY_GETTABLE_PARAMS 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY_GETTABLE_PARAMS 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -197,7 +197,7 @@ is allocated by the method.
 .PP
 \&\fBEVP_PKEY_get_utf8_string_param()\fR get a key \fIpkey\fR \s-1UTF8\s0 string value into a
 buffer \fIstr\fR of maximum size \fImax_buf_sz\fR associated with a name of
-\&\fIkey_name\fR.  The maximum size must be large enough to accomodate the string
+\&\fIkey_name\fR.  The maximum size must be large enough to accommodate the string
 value including a terminating \s-1NUL\s0 byte, or this function will fail.
 If \fIout_len\fR is not \s-1NULL,\s0 \fI*out_len\fR is set to the length of the string
 not including the terminating \s-1NUL\s0 byte. The required buffer size not including
@@ -258,7 +258,7 @@ buffer size to hold the value.
 These functions were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

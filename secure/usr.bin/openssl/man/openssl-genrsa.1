@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-GENRSA 1"
-.TH OPENSSL-GENRSA 1 "2023-06-02" "3.0.9" "OpenSSL"
+.TH OPENSSL-GENRSA 1 "2023-08-02" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -173,9 +173,6 @@ openssl\-genrsa \- generate an RSA private key
 [\fBnumbits\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-This command has been deprecated.
-The \fBopenssl\-genpkey\fR\|(1) command should be used instead.
-.PP
 This command generates an \s-1RSA\s0 private key.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
@@ -250,12 +247,9 @@ of a key.
 \&\fBopenssl\fR\|(1),
 \&\fBopenssl\-genpkey\fR\|(1),
 \&\fBopenssl\-gendsa\fR\|(1)
-.SH "HISTORY"
-.IX Header "HISTORY"
-This command was deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
