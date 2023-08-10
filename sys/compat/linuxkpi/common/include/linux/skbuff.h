@@ -1067,6 +1067,14 @@ skb_mark_for_recycle(struct sk_buff *skb)
 	SKB_TODO();
 }
 
+static inline int
+skb_cow_head(struct sk_buff *skb, unsigned int headroom)
+{
+	SKB_TRACE(skb);
+	SKB_TODO();
+	return (-1);
+}
+
 #define	SKB_WITH_OVERHEAD(_s)						\
 	(_s) - ALIGN(sizeof(struct skb_shared_info), CACHE_LINE_SIZE)
 
