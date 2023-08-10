@@ -1985,6 +1985,7 @@ igc_initialize_transmit_unit(if_ctx_t ctx)
  *  Enable receive unit.
  *
  **********************************************************************/
+#define BSIZEPKT_ROUNDUP	((1<<IGC_SRRCTL_BSIZEPKT_SHIFT)-1)
 
 static void
 igc_initialize_receive_unit(if_ctx_t ctx)
@@ -2050,23 +2051,18 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 		igc_initialize_rss_mapping(adapter);
 
 	if (if_getmtu(ifp) > ETHERMTU) {
-		/* Set maximum packet len */
-		if (adapter->rx_mbuf_sz <= 4096) {
-			srrctl |= 4096 >> IGC_SRRCTL_BSIZEPKT_SHIFT;
-			rctl |= IGC_RCTL_SZ_4096 | IGC_RCTL_BSEX;
-		} else if (adapter->rx_mbuf_sz > 4096) {
-			srrctl |= 8192 >> IGC_SRRCTL_BSIZEPKT_SHIFT;
-			rctl |= IGC_RCTL_SZ_8192 | IGC_RCTL_BSEX;
-		}
 		psize = scctx->isc_max_frame_size;
 		/* are we on a vlan? */
 		if (if_vlantrunkinuse(ifp))
 			psize += VLAN_TAG_SIZE;
 		IGC_WRITE_REG(&adapter->hw, IGC_RLPML, psize);
-	} else {
-		srrctl |= 2048 >> IGC_SRRCTL_BSIZEPKT_SHIFT;
-		rctl |= IGC_RCTL_SZ_2048;
 	}
+
+	/* Set maximum packet buffer len */
+	srrctl |= (adapter->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >>
+	    IGC_SRRCTL_BSIZEPKT_SHIFT;
+	/* srrctl above overrides this but set the register to a sane value */
+	rctl |= IGC_RCTL_SZ_2048;
 
 	/*
 	 * If TX flow control is disabled and there's >1 queue defined,
