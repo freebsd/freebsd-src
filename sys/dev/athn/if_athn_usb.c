@@ -49,8 +49,9 @@
 #include <net/if_var.h>
 // #include <net/if_types.h>
 
+#include <net/if_arp.h>
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
+//#include <netinet/if_ether.h>
 
 #include <openbsd/net80211/ieee80211_var.h>
 #include <openbsd/net80211/ieee80211_amrr.h>
