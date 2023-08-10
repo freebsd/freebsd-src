@@ -1603,9 +1603,8 @@ vm_map_lookup_entry(
 /*
  *	vm_map_insert:
  *
- *	Inserts the given whole VM object into the target
- *	map at the specified address range.  The object's
- *	size should match that of the address range.
+ *	Inserts the given VM object into the target map at the
+ *	specified address range.
  *
  *	Requires that the map be locked, and leaves it so.
  *
