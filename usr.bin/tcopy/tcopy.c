@@ -52,6 +52,7 @@ static const char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <sys/sysctl.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -82,6 +83,11 @@ main(int argc, char *argv[])
 	int ch, needeof;
 	char *buff;
 	const char *inf;
+	unsigned long maxphys = 0;
+	size_t l_maxphys = sizeof maxphys;
+
+	if (!sysctlbyname("kern.maxphys", &maxphys, &l_maxphys, NULL, 0))
+		maxblk = maxphys;
 
 	msg = stdout;
 	guesslen = 1;
