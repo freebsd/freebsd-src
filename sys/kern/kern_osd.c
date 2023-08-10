@@ -396,6 +396,9 @@ osd_call(u_int type, u_int method, void *obj, void *data)
 	error = 0;
 	sx_slock(&osdm[type].osd_module_lock);
 	for (i = 0; i < osdm[type].osd_ntslots; i++) {
+		/* Hole in the slot map; avoid dereferencing. */
+		if (osdm[type].osd_destructors[i] == NULL)
+			continue;
 		methodfun = osdm[type].osd_methods[i * osdm[type].osd_nmethods +
 		    method];
 		if (methodfun != NULL && (error = methodfun(obj, data)) != 0)
