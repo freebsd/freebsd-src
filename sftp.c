@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.229 2023/03/12 09:41:18 dtucker Exp $ */
+/* $OpenBSD: sftp.c,v 1.234 2023/04/12 08:53:54 jsg Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -225,7 +225,7 @@ killchild(int signo)
 	pid = sshpid;
 	if (pid > 1) {
 		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
+		(void)waitpid(pid, NULL, 0);
 	}
 
 	_exit(1);
@@ -616,15 +616,19 @@ escape_glob(const char *s)
 	return ret;
 }
 
+/*
+ * Arg p must be dynamically allocated.  make_absolute will either return it
+ * or free it and allocate a new one.  Caller must free returned string.
+ */
 static char *
-make_absolute_pwd_glob(const char *p, const char *pwd)
+make_absolute_pwd_glob(char *p, const char *pwd)
 {
 	char *ret, *escpwd;
 
 	escpwd = escape_glob(pwd);
 	if (p == NULL)
 		return escpwd;
-	ret = make_absolute(xstrdup(p), escpwd);
+	ret = make_absolute(p, escpwd);
 	free(escpwd);
 	return ret;
 }
@@ -637,7 +641,7 @@ process_get(struct sftp_conn *conn, const char *src, const char *dst,
 	glob_t g;
 	int i, r, err = 0;
 
-	abs_src = make_absolute_pwd_glob(src, pwd);
+	abs_src = make_absolute_pwd_glob(xstrdup(src), pwd);
 	memset(&g, 0, sizeof(g));
 
 	debug3("Looking up %s", abs_src);
@@ -765,6 +769,8 @@ process_put(struct sftp_conn *conn, const char *src, const char *dst,
 			goto out;
 		}
 
+		free(abs_dst);
+		abs_dst = NULL;
 		if (g.gl_matchc == 1 && tmp_dst) {
 			/* If directory specified, append filename */
 			if (dst_is_dir)
@@ -1997,12 +2003,10 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 
 	memset(&g, 0, sizeof(g));
 	if (remote != LOCAL) {
-		tmp2 = make_absolute_pwd_glob(tmp, remote_path);
-		free(tmp);
-		tmp = tmp2;
+		tmp = make_absolute_pwd_glob(tmp, remote_path);
 		remote_glob(conn, tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
 	} else
-		glob(tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
+		(void)glob(tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
 
 	/* Determine length of pwd so we can trim completion display */
 	for (hadglob = tmplen = pwdlen = 0; tmp[tmplen] != 0; tmplen++) {

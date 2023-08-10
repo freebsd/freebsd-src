@@ -1239,6 +1239,9 @@ TOKENS
      runtime:
 
            %%    A literal M-bM-^@M-^X%M-bM-^@M-^Y.
+           %C    Identifies the connection endpoints, containing four space-
+                 separated values: client address, client port number, server
+                 address, and server port number.
            %D    The routing domain in which the incoming connection was
                  received.
            %F    The fingerprint of the CA key.
@@ -1253,12 +1256,13 @@ TOKENS
            %U    The numeric user ID of the target user.
            %u    The username.
 
-     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %k, %t, %U, and %u.
+     AuthorizedKeysCommand accepts the tokens %%, %C, %D, %f, %h, %k, %t, %U,
+     and %u.
 
      AuthorizedKeysFile accepts the tokens %%, %h, %U, and %u.
 
-     AuthorizedPrincipalsCommand accepts the tokens %%, %F, %f, %h, %i, %K,
-     %k, %s, %T, %t, %U, and %u.
+     AuthorizedPrincipalsCommand accepts the tokens %%, %C, %D, %F, %f, %h,
+     %i, %K, %k, %s, %T, %t, %U, and %u.
 
      AuthorizedPrincipalsFile accepts the tokens %%, %h, %U, and %u.
 
@@ -1283,4 +1287,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.3                      March 3, 2023                     OpenBSD 7.3
+OpenBSD 7.3                      July 28, 2023                     OpenBSD 7.3

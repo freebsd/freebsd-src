@@ -434,21 +434,6 @@
 /* Define if you have /dev/ptc */
 #undef HAVE_DEV_PTS_AND_PTC
 
-/* Define to 1 if you have the `DH_get0_key' function. */
-#undef HAVE_DH_GET0_KEY
-
-/* Define to 1 if you have the `DH_get0_pqg' function. */
-#undef HAVE_DH_GET0_PQG
-
-/* Define to 1 if you have the `DH_set0_key' function. */
-#undef HAVE_DH_SET0_KEY
-
-/* Define to 1 if you have the `DH_set0_pqg' function. */
-#undef HAVE_DH_SET0_PQG
-
-/* Define to 1 if you have the `DH_set_length' function. */
-#undef HAVE_DH_SET_LENGTH
-
 /* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
 
@@ -463,30 +448,6 @@
 
 /* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
 #undef HAVE_DSA_GENERATE_PARAMETERS_EX
-
-/* Define to 1 if you have the `DSA_get0_key' function. */
-#undef HAVE_DSA_GET0_KEY
-
-/* Define to 1 if you have the `DSA_get0_pqg' function. */
-#undef HAVE_DSA_GET0_PQG
-
-/* Define to 1 if you have the `DSA_set0_key' function. */
-#undef HAVE_DSA_SET0_KEY
-
-/* Define to 1 if you have the `DSA_set0_pqg' function. */
-#undef HAVE_DSA_SET0_PQG
-
-/* Define to 1 if you have the `DSA_SIG_get0' function. */
-#undef HAVE_DSA_SIG_GET0
-
-/* Define to 1 if you have the `DSA_SIG_set0' function. */
-#undef HAVE_DSA_SIG_SET0
-
-/* Define to 1 if you have the `ECDSA_SIG_get0' function. */
-#undef HAVE_ECDSA_SIG_GET0
-
-/* Define to 1 if you have the `ECDSA_SIG_set0' function. */
-#undef HAVE_ECDSA_SIG_SET0
 
 /* Define to 1 if you have the `EC_KEY_METHOD_new' function. */
 #undef HAVE_EC_KEY_METHOD_NEW
@@ -548,17 +509,8 @@
 /* Define to 1 if you have the `EVP_MD_CTX_copy_ex' function. */
 #undef HAVE_EVP_MD_CTX_COPY_EX
 
-/* Define to 1 if you have the `EVP_MD_CTX_free' function. */
-#undef HAVE_EVP_MD_CTX_FREE
-
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #undef HAVE_EVP_MD_CTX_INIT
-
-/* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-#undef HAVE_EVP_MD_CTX_NEW
-
-/* Define to 1 if you have the `EVP_PKEY_get0_RSA' function. */
-#undef HAVE_EVP_PKEY_GET0_RSA
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
@@ -1042,9 +994,6 @@
 /* as a macro */
 #undef HAVE_OPENSSL_ADD_ALL_ALGORITHMS
 
-/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
-#undef HAVE_OPENSSL_INIT_CRYPTO
-
 /* Define to 1 if you have the `OpenSSL_version' function. */
 #undef HAVE_OPENSSL_VERSION
 
@@ -1154,47 +1103,8 @@
 /* Define to 1 if you have the `RSA_generate_key_ex' function. */
 #undef HAVE_RSA_GENERATE_KEY_EX
 
-/* Define to 1 if you have the `RSA_get0_crt_params' function. */
-#undef HAVE_RSA_GET0_CRT_PARAMS
-
-/* Define to 1 if you have the `RSA_get0_factors' function. */
-#undef HAVE_RSA_GET0_FACTORS
-
-/* Define to 1 if you have the `RSA_get0_key' function. */
-#undef HAVE_RSA_GET0_KEY
-
 /* Define to 1 if you have the `RSA_get_default_method' function. */
 #undef HAVE_RSA_GET_DEFAULT_METHOD
-
-/* Define to 1 if you have the `RSA_meth_dup' function. */
-#undef HAVE_RSA_METH_DUP
-
-/* Define to 1 if you have the `RSA_meth_free' function. */
-#undef HAVE_RSA_METH_FREE
-
-/* Define to 1 if you have the `RSA_meth_get_finish' function. */
-#undef HAVE_RSA_METH_GET_FINISH
-
-/* Define to 1 if you have the `RSA_meth_set1_name' function. */
-#undef HAVE_RSA_METH_SET1_NAME
-
-/* Define to 1 if you have the `RSA_meth_set_finish' function. */
-#undef HAVE_RSA_METH_SET_FINISH
-
-/* Define to 1 if you have the `RSA_meth_set_priv_dec' function. */
-#undef HAVE_RSA_METH_SET_PRIV_DEC
-
-/* Define to 1 if you have the `RSA_meth_set_priv_enc' function. */
-#undef HAVE_RSA_METH_SET_PRIV_ENC
-
-/* Define to 1 if you have the `RSA_set0_crt_params' function. */
-#undef HAVE_RSA_SET0_CRT_PARAMS
-
-/* Define to 1 if you have the `RSA_set0_factors' function. */
-#undef HAVE_RSA_SET0_FACTORS
-
-/* Define to 1 if you have the `RSA_set0_key' function. */
-#undef HAVE_RSA_SET0_KEY
 
 /* Define to 1 if you have the <sandbox.h> header file. */
 #undef HAVE_SANDBOX_H

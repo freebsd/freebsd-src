@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.76 2023/03/03 05:00:34 djm Exp $ */
+/* $OpenBSD: canohost.c,v 1.77 2023/03/31 04:42:29 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -163,6 +163,8 @@ get_sock_port(int sock, int local)
 	char strport[NI_MAXSERV];
 	int r;
 
+	if (sock < 0)
+		return -1;
 	/* Get IP address of client. */
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));

@@ -31,7 +31,7 @@ should be bound for user authentication or forwarding.
 When an agent received this message, it will verify the signature and
 check the consistency of its contents, including refusing to accept
 a duplicate session identifier, or any attempt to bind a connection
-previously bound for authentication. It will then then record the
+previously bound for authentication. It will then record the
 binding for the life of the connection for use later in testing per-key
 destination constraints.
 
@@ -81,4 +81,4 @@ the constraint is:
 
 This option is only valid for XMSS keys.
 
-$OpenBSD: PROTOCOL.agent,v 1.18 2022/09/21 22:26:50 dtucker Exp $
+$OpenBSD: PROTOCOL.agent,v 1.19 2023/04/12 08:53:54 jsg Exp $

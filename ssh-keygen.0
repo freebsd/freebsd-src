@@ -427,9 +427,9 @@ DESCRIPTION
              status.
 
      -Y sign
-             Cryptographically sign a file or some data using a SSH key.  When
-             signing, ssh-keygen accepts zero or more files to sign on the
-             command-line - if no files are specified then ssh-keygen will
+             Cryptographically sign a file or some data using an SSH key.
+             When signing, ssh-keygen accepts zero or more files to sign on
+             the command-line - if no files are specified then ssh-keygen will
              sign data presented on standard input.  Signatures are written to
              the path of the input file with M-bM-^@M-^\.sigM-bM-^@M-^] appended, or to standard
              output if the message to be signed was read from standard input.
@@ -907,4 +907,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                    February 10, 2023                   OpenBSD 7.3
+OpenBSD 7.3                      July 23, 2023                     OpenBSD 7.3

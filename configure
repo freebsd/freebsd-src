@@ -15581,26 +15581,29 @@ int
 main (void)
 {
 
-		FILE *fd;
-		int rc;
-
-		fd = fopen(DATA,"w");
-		if(fd == NULL)
+		FILE *f;
+		/* We need these legacy bits to warn for old libcrypto */
+		#ifndef OPENSSL_VERSION
+		# define OPENSSL_VERSION SSLEAY_VERSION
+		#endif
+		#ifndef HAVE_OPENSSL_VERSION
+		# define OpenSSL_version       SSLeay_version
+		#endif
+		#ifndef HAVE_OPENSSL_VERSION_NUM
+		# define OpenSSL_version_num   SSLeay
+		#endif
+		if ((f = fopen(DATA, "w")) == NULL)
 			exit(1);
-#ifndef OPENSSL_VERSION
-# define OPENSSL_VERSION SSLEAY_VERSION
-#endif
-#ifndef HAVE_OPENSSL_VERSION
-# define OpenSSL_version	SSLeay_version
-#endif
-#ifndef HAVE_OPENSSL_VERSION_NUM
-# define OpenSSL_version_num	SSLeay
-#endif
-		if ((rc = fprintf(fd, "%08lx (%s)\n",
+		if (fprintf(f, "%08lx (%s)",
 		    (unsigned long)OpenSSL_version_num(),
-		    OpenSSL_version(OPENSSL_VERSION))) < 0)
+		    OpenSSL_version(OPENSSL_VERSION)) < 0)
 			exit(1);
-
+#ifdef LIBRESSL_VERSION_NUMBER
+		if (fprintf(f, " libressl-%08lx", LIBRESSL_VERSION_NUMBER) < 0)
+			exit(1);
+#endif
+		if (fputc('\n', f) == EOF || fclose(f) == EOF)
+			exit(1);
 		exit(0);
 
   ;
@@ -15610,19 +15613,23 @@ _ACEOF
 if ac_fn_c_try_run "$LINENO"
 then :
 
-			ssl_library_ver=`cat conftest.ssllibver`
+			sslver=`cat conftest.ssllibver`
+			ssl_showver=`echo "$sslver" | sed 's/ libressl-.*//'`
 			# Check version is supported.
-			case "$ssl_library_ver" in
-			10000*|0*)
-				as_fn_error $? "OpenSSL >= 1.0.1 required (have \"$ssl_library_ver\")" "$LINENO" 5
-		                ;;
-			100*)   ;; # 1.0.x
-			101000[0123456]*)
-				# https://github.com/openssl/openssl/pull/4613
-				as_fn_error $? "OpenSSL 1.1.x versions prior to 1.1.0g have a bug that breaks their use with OpenSSH (have \"$ssl_library_ver\")" "$LINENO" 5
+			case "$sslver" in
+			100*|10100*) # 1.0.x, 1.1.0x
+				as_fn_error $? "OpenSSL >= 1.1.1 required (have \"$ssl_showver\")" "$LINENO" 5
 				;;
 			101*)   ;; # 1.1.x
-			200*)   ;; # LibreSSL
+			200*)   # LibreSSL
+				lver=`echo "$sslver" | sed 's/.*libressl-//'`
+				case "$lver" in
+				2*|300*) # 2.x, 3.0.0
+					as_fn_error $? "LibreSSL >= 3.1.0 required (have \"$ssl_showver\")" "$LINENO" 5
+					;;
+				*) ;;	# Assume all other versions are good.
+				esac
+				;;
 			300*)
 				# OpenSSL 3; we use the 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
@@ -15632,11 +15639,11 @@ then :
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
 		        *)
-				as_fn_error $? "Unknown/unsupported OpenSSL version (\"$ssl_library_ver\")" "$LINENO" 5
+				as_fn_error $? "Unknown/unsupported OpenSSL version (\"$ssl_showver\")" "$LINENO" 5
 		                ;;
 			esac
-			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ssl_library_ver" >&5
-printf "%s\n" "$ssl_library_ver" >&6; }
+			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ssl_showver" >&5
+printf "%s\n" "$ssl_showver" >&6; }
 
 else $as_nop
 
@@ -15652,7 +15659,7 @@ fi
 
 	case "$host" in
 	x86_64-*)
-		case "$ssl_library_ver" in
+		case "$sslver" in
 		3000004*)
 			as_fn_error $? "OpenSSL 3.0.4 has a potential RCE in its RSA implementation (CVE-2022-2274)" "$LINENO" 5
 			;;
@@ -15682,9 +15689,6 @@ int
 main (void)
 {
 
-#ifndef HAVE_OPENSSL_VERSION_NUM
-# define OpenSSL_version_num	SSLeay
-#endif
 		exit(OpenSSL_version_num() == OPENSSL_VERSION_NUMBER ? 0 : 1);
 
   ;
@@ -15871,92 +15875,8 @@ fi
 fi
 
 
-	# LibreSSL/OpenSSL 1.1x API
-	ac_fn_c_check_func "$LINENO" "OPENSSL_init_crypto" "ac_cv_func_OPENSSL_init_crypto"
-if test "x$ac_cv_func_OPENSSL_init_crypto" = xyes
-then :
-  printf "%s\n" "#define HAVE_OPENSSL_INIT_CRYPTO 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DH_get0_key" "ac_cv_func_DH_get0_key"
-if test "x$ac_cv_func_DH_get0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_DH_GET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DH_get0_pqg" "ac_cv_func_DH_get0_pqg"
-if test "x$ac_cv_func_DH_get0_pqg" = xyes
-then :
-  printf "%s\n" "#define HAVE_DH_GET0_PQG 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DH_set0_key" "ac_cv_func_DH_set0_key"
-if test "x$ac_cv_func_DH_set0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_DH_SET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DH_set_length" "ac_cv_func_DH_set_length"
-if test "x$ac_cv_func_DH_set_length" = xyes
-then :
-  printf "%s\n" "#define HAVE_DH_SET_LENGTH 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DH_set0_pqg" "ac_cv_func_DH_set0_pqg"
-if test "x$ac_cv_func_DH_set0_pqg" = xyes
-then :
-  printf "%s\n" "#define HAVE_DH_SET0_PQG 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_get0_key" "ac_cv_func_DSA_get0_key"
-if test "x$ac_cv_func_DSA_get0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_GET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_get0_pqg" "ac_cv_func_DSA_get0_pqg"
-if test "x$ac_cv_func_DSA_get0_pqg" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_GET0_PQG 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_set0_key" "ac_cv_func_DSA_set0_key"
-if test "x$ac_cv_func_DSA_set0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_SET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_set0_pqg" "ac_cv_func_DSA_set0_pqg"
-if test "x$ac_cv_func_DSA_set0_pqg" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_SET0_PQG 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_SIG_get0" "ac_cv_func_DSA_SIG_get0"
-if test "x$ac_cv_func_DSA_SIG_get0" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_SIG_GET0 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "DSA_SIG_set0" "ac_cv_func_DSA_SIG_set0"
-if test "x$ac_cv_func_DSA_SIG_set0" = xyes
-then :
-  printf "%s\n" "#define HAVE_DSA_SIG_SET0 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "ECDSA_SIG_get0" "ac_cv_func_ECDSA_SIG_get0"
-if test "x$ac_cv_func_ECDSA_SIG_get0" = xyes
-then :
-  printf "%s\n" "#define HAVE_ECDSA_SIG_GET0 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "ECDSA_SIG_set0" "ac_cv_func_ECDSA_SIG_set0"
-if test "x$ac_cv_func_ECDSA_SIG_set0" = xyes
-then :
-  printf "%s\n" "#define HAVE_ECDSA_SIG_SET0 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "EVP_CIPHER_CTX_iv" "ac_cv_func_EVP_CIPHER_CTX_iv"
+	# LibreSSL/OpenSSL API differences
+	ac_fn_c_check_func "$LINENO" "EVP_CIPHER_CTX_iv" "ac_cv_func_EVP_CIPHER_CTX_iv"
 if test "x$ac_cv_func_EVP_CIPHER_CTX_iv" = xyes
 then :
   printf "%s\n" "#define HAVE_EVP_CIPHER_CTX_IV 1" >>confdefs.h
@@ -15984,108 +15904,6 @@ ac_fn_c_check_func "$LINENO" "EVP_CIPHER_CTX_set_iv" "ac_cv_func_EVP_CIPHER_CTX_
 if test "x$ac_cv_func_EVP_CIPHER_CTX_set_iv" = xyes
 then :
   printf "%s\n" "#define HAVE_EVP_CIPHER_CTX_SET_IV 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_get0_crt_params" "ac_cv_func_RSA_get0_crt_params"
-if test "x$ac_cv_func_RSA_get0_crt_params" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_GET0_CRT_PARAMS 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_get0_factors" "ac_cv_func_RSA_get0_factors"
-if test "x$ac_cv_func_RSA_get0_factors" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_GET0_FACTORS 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_get0_key" "ac_cv_func_RSA_get0_key"
-if test "x$ac_cv_func_RSA_get0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_GET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_set0_crt_params" "ac_cv_func_RSA_set0_crt_params"
-if test "x$ac_cv_func_RSA_set0_crt_params" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_SET0_CRT_PARAMS 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_set0_factors" "ac_cv_func_RSA_set0_factors"
-if test "x$ac_cv_func_RSA_set0_factors" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_SET0_FACTORS 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_set0_key" "ac_cv_func_RSA_set0_key"
-if test "x$ac_cv_func_RSA_set0_key" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_SET0_KEY 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_free" "ac_cv_func_RSA_meth_free"
-if test "x$ac_cv_func_RSA_meth_free" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_FREE 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_dup" "ac_cv_func_RSA_meth_dup"
-if test "x$ac_cv_func_RSA_meth_dup" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_DUP 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_set1_name" "ac_cv_func_RSA_meth_set1_name"
-if test "x$ac_cv_func_RSA_meth_set1_name" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_SET1_NAME 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_get_finish" "ac_cv_func_RSA_meth_get_finish"
-if test "x$ac_cv_func_RSA_meth_get_finish" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_GET_FINISH 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_set_priv_enc" "ac_cv_func_RSA_meth_set_priv_enc"
-if test "x$ac_cv_func_RSA_meth_set_priv_enc" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_SET_PRIV_ENC 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_set_priv_dec" "ac_cv_func_RSA_meth_set_priv_dec"
-if test "x$ac_cv_func_RSA_meth_set_priv_dec" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_SET_PRIV_DEC 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "RSA_meth_set_finish" "ac_cv_func_RSA_meth_set_finish"
-if test "x$ac_cv_func_RSA_meth_set_finish" = xyes
-then :
-  printf "%s\n" "#define HAVE_RSA_METH_SET_FINISH 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "EVP_PKEY_get0_RSA" "ac_cv_func_EVP_PKEY_get0_RSA"
-if test "x$ac_cv_func_EVP_PKEY_get0_RSA" = xyes
-then :
-  printf "%s\n" "#define HAVE_EVP_PKEY_GET0_RSA 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "EVP_MD_CTX_new" "ac_cv_func_EVP_MD_CTX_new"
-if test "x$ac_cv_func_EVP_MD_CTX_new" = xyes
-then :
-  printf "%s\n" "#define HAVE_EVP_MD_CTX_NEW 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "EVP_MD_CTX_free" "ac_cv_func_EVP_MD_CTX_free"
-if test "x$ac_cv_func_EVP_MD_CTX_free" = xyes
-then :
-  printf "%s\n" "#define HAVE_EVP_MD_CTX_FREE 1" >>confdefs.h
-
-fi
-ac_fn_c_check_func "$LINENO" "EVP_chacha20" "ac_cv_func_EVP_chacha20"
-if test "x$ac_cv_func_EVP_chacha20" = xyes
-then :
-  printf "%s\n" "#define HAVE_EVP_CHACHA20 1" >>confdefs.h
 
 fi
 
@@ -16202,7 +16020,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
 
-	# Check for SHA256, SHA384 and SHA512 support in OpenSSL
+	# Check for various EVP support in OpenSSL
 	ac_fn_c_check_func "$LINENO" "EVP_sha256" "ac_cv_func_EVP_sha256"
 if test "x$ac_cv_func_EVP_sha256" = xyes
 then :
@@ -16219,6 +16037,12 @@ ac_fn_c_check_func "$LINENO" "EVP_sha512" "ac_cv_func_EVP_sha512"
 if test "x$ac_cv_func_EVP_sha512" = xyes
 then :
   printf "%s\n" "#define HAVE_EVP_SHA512 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "EVP_chacha20" "ac_cv_func_EVP_chacha20"
+if test "x$ac_cv_func_EVP_chacha20" = xyes
+then :
+  printf "%s\n" "#define HAVE_EVP_CHACHA20 1" >>confdefs.h
 
 fi
 

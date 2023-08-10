@@ -2802,42 +2802,49 @@ if test "x$openssl" = "xyes" ; then
 	#include <openssl/crypto.h>
 	#define DATA "conftest.ssllibver"
 		]], [[
-		FILE *fd;
-		int rc;
-
-		fd = fopen(DATA,"w");
-		if(fd == NULL)
+		FILE *f;
+		/* We need these legacy bits to warn for old libcrypto */
+		#ifndef OPENSSL_VERSION
+		# define OPENSSL_VERSION SSLEAY_VERSION
+		#endif
+		#ifndef HAVE_OPENSSL_VERSION
+		# define OpenSSL_version       SSLeay_version
+		#endif
+		#ifndef HAVE_OPENSSL_VERSION_NUM
+		# define OpenSSL_version_num   SSLeay
+		#endif
+		if ((f = fopen(DATA, "w")) == NULL)
 			exit(1);
-#ifndef OPENSSL_VERSION
-# define OPENSSL_VERSION SSLEAY_VERSION
-#endif
-#ifndef HAVE_OPENSSL_VERSION
-# define OpenSSL_version	SSLeay_version
-#endif
-#ifndef HAVE_OPENSSL_VERSION_NUM
-# define OpenSSL_version_num	SSLeay
-#endif
-		if ((rc = fprintf(fd, "%08lx (%s)\n",
+		if (fprintf(f, "%08lx (%s)",
 		    (unsigned long)OpenSSL_version_num(),
-		    OpenSSL_version(OPENSSL_VERSION))) < 0)
+		    OpenSSL_version(OPENSSL_VERSION)) < 0)
 			exit(1);
-
+#ifdef LIBRESSL_VERSION_NUMBER
+		if (fprintf(f, " libressl-%08lx", LIBRESSL_VERSION_NUMBER) < 0)
+			exit(1);
+#endif
+		if (fputc('\n', f) == EOF || fclose(f) == EOF)
+			exit(1);
 		exit(0);
 		]])],
 		[
-			ssl_library_ver=`cat conftest.ssllibver`
+			sslver=`cat conftest.ssllibver`
+			ssl_showver=`echo "$sslver" | sed 's/ libressl-.*//'`
 			# Check version is supported.
-			case "$ssl_library_ver" in
-			10000*|0*)
-				AC_MSG_ERROR([OpenSSL >= 1.0.1 required (have "$ssl_library_ver")])
-		                ;;
-			100*)   ;; # 1.0.x
-			101000[[0123456]]*)
-				# https://github.com/openssl/openssl/pull/4613
-				AC_MSG_ERROR([OpenSSL 1.1.x versions prior to 1.1.0g have a bug that breaks their use with OpenSSH (have "$ssl_library_ver")])
+			case "$sslver" in
+			100*|10100*) # 1.0.x, 1.1.0x
+				AC_MSG_ERROR([OpenSSL >= 1.1.1 required (have "$ssl_showver")])
 				;;
 			101*)   ;; # 1.1.x
-			200*)   ;; # LibreSSL
+			200*)   # LibreSSL
+				lver=`echo "$sslver" | sed 's/.*libressl-//'`
+				case "$lver" in
+				2*|300*) # 2.x, 3.0.0
+					AC_MSG_ERROR([LibreSSL >= 3.1.0 required (have "$ssl_showver")])
+					;;
+				*) ;;	# Assume all other versions are good.
+				esac
+				;;
 			300*)
 				# OpenSSL 3; we use the 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
@@ -2847,10 +2854,10 @@ if test "x$openssl" = "xyes" ; then
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
 		        *)
-				AC_MSG_ERROR([Unknown/unsupported OpenSSL version ("$ssl_library_ver")])
+				AC_MSG_ERROR([Unknown/unsupported OpenSSL version ("$ssl_showver")])
 		                ;;
 			esac
-			AC_MSG_RESULT([$ssl_library_ver])
+			AC_MSG_RESULT([$ssl_showver])
 		],
 		[
 			AC_MSG_RESULT([not found])
@@ -2863,7 +2870,7 @@ if test "x$openssl" = "xyes" ; then
 
 	case "$host" in
 	x86_64-*)
-		case "$ssl_library_ver" in
+		case "$sslver" in
 		3000004*)
 			AC_MSG_ERROR([OpenSSL 3.0.4 has a potential RCE in its RSA implementation (CVE-2022-2274)])
 			;;
@@ -2879,9 +2886,6 @@ if test "x$openssl" = "xyes" ; then
 	#include <openssl/opensslv.h>
 	#include <openssl/crypto.h>
 		]], [[
-#ifndef HAVE_OPENSSL_VERSION_NUM
-# define OpenSSL_version_num	SSLeay
-#endif
 		exit(OpenSSL_version_num() == OPENSSL_VERSION_NUMBER ? 0 : 1);
 		]])],
 		[
@@ -2955,44 +2959,13 @@ if test "x$openssl" = "xyes" ; then
 	    )
 	)
 
-	# LibreSSL/OpenSSL 1.1x API
+	# LibreSSL/OpenSSL API differences
 	AC_CHECK_FUNCS([ \
-		OPENSSL_init_crypto \
-		DH_get0_key \
-		DH_get0_pqg \
-		DH_set0_key \
-		DH_set_length \
-		DH_set0_pqg \
-		DSA_get0_key \
-		DSA_get0_pqg \
-		DSA_set0_key \
-		DSA_set0_pqg \
-		DSA_SIG_get0 \
-		DSA_SIG_set0 \
-		ECDSA_SIG_get0 \
-		ECDSA_SIG_set0 \
 		EVP_CIPHER_CTX_iv \
 		EVP_CIPHER_CTX_iv_noconst \
 		EVP_CIPHER_CTX_get_iv \
 		EVP_CIPHER_CTX_get_updated_iv \
 		EVP_CIPHER_CTX_set_iv \
-		RSA_get0_crt_params \
-		RSA_get0_factors \
-		RSA_get0_key \
-		RSA_set0_crt_params \
-		RSA_set0_factors \
-		RSA_set0_key \
-		RSA_meth_free \
-		RSA_meth_dup \
-		RSA_meth_set1_name \
-		RSA_meth_get_finish \
-		RSA_meth_set_priv_enc \
-		RSA_meth_set_priv_dec \
-		RSA_meth_set_finish \
-		EVP_PKEY_get0_RSA \
-		EVP_MD_CTX_new \
-		EVP_MD_CTX_free \
-		EVP_chacha20 \
 	])
 
 	if test "x$openssl_engine" = "xyes" ; then
@@ -3050,8 +3023,8 @@ if test "x$openssl" = "xyes" ; then
 		]
 	)
 
-	# Check for SHA256, SHA384 and SHA512 support in OpenSSL
-	AC_CHECK_FUNCS([EVP_sha256 EVP_sha384 EVP_sha512])
+	# Check for various EVP support in OpenSSL
+	AC_CHECK_FUNCS([EVP_sha256 EVP_sha384 EVP_sha512 EVP_chacha20])
 
 	# Check complete ECC support in OpenSSL
 	AC_MSG_CHECKING([whether OpenSSL has NID_X9_62_prime256v1])

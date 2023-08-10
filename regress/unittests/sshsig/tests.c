@@ -87,7 +87,7 @@ tests(void)
 
 #ifdef WITH_OPENSSL
 	OpenSSL_add_all_algorithms();
-	ERR_load_CRYPTO_strings();
+	ERR_load_crypto_strings();
 #endif
 
 	TEST_START("load data");

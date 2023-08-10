@@ -46,18 +46,19 @@ DESCRIPTION
              The allow-remote-pkcs11 option allows clients of a forwarded
              ssh-agent to load PKCS#11 or FIDO provider libraries.  By default
              only local clients may perform this operation.  Note that
-             signalling that a ssh-agent client remote is performed by ssh(1),
-             and use of other tools to forward access to the agent socket may
-             circumvent this restriction.
+             signalling that an ssh-agent client is remote is performed by
+             ssh(1), and use of other tools to forward access to the agent
+             socket, may circumvent this restriction.
 
-             The no-restrict-websafe, instructs ssh-agent to permit signatures
-             using FIDO keys that might be web authentication requests.  By
-             default, ssh-agent refuses signature requests for FIDO keys where
-             the key application string does not start with M-bM-^@M-^\ssh:M-bM-^@M-^] and when
-             the data to be signed does not appear to be a ssh(1) user
-             authentication request or a ssh-keygen(1) signature.  The default
-             behaviour prevents forwarded access to a FIDO key from also
-             implicitly forwarding the ability to authenticate to websites.
+             The no-restrict-websafe option instructs ssh-agent to permit
+             signatures using FIDO keys that might be web authentication
+             requests.  By default, ssh-agent refuses signature requests for
+             FIDO keys where the key application string does not start with
+             M-bM-^@M-^\ssh:M-bM-^@M-^] and when the data to be signed does not appear to be a
+             ssh(1) user authentication request or a ssh-keygen(1) signature.
+             The default behaviour prevents forwarded access to a FIDO key
+             from also implicitly forwarding the ability to authenticate to
+             websites.
 
      -P allowed_providers
              Specify a pattern-list of acceptable paths for PKCS#11 provider
@@ -136,4 +137,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                     October 7, 2022                    OpenBSD 7.3
+OpenBSD 7.3                      July 23, 2023                     OpenBSD 7.3

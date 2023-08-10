@@ -24,22 +24,13 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
-#ifdef HAVE_SHA2_H
-#include <sha2.h>
-#endif
 
 #include "crypto_api.h"
 #include "sk-api.h"
 
-#if defined(WITH_OPENSSL) && !defined(OPENSSL_HAS_ECC)
-# undef WITH_OPENSSL
-#endif
-
 #ifdef WITH_OPENSSL
-/* We don't use sha2 from OpenSSL and they can conflict with system sha2.h */
-#define OPENSSL_NO_SHA
-#define USE_LIBC_SHA2	/* NetBSD 9 */
 #include <openssl/opensslv.h>
+#include <openssl/sha.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/bn.h>
@@ -47,14 +38,14 @@
 #include <openssl/ecdsa.h>
 #include <openssl/pem.h>
 
-/* Compatibility with OpenSSH 1.0.x */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-#define ECDSA_SIG_get0(sig, pr, ps) \
-	do { \
-		(*pr) = sig->r; \
-		(*ps) = sig->s; \
-	} while (0)
-#endif
+/* Use OpenSSL SHA256 instead of libc */
+#define SHA256Init(x)		SHA256_Init(x)
+#define SHA256Update(x, y, z)	SHA256_Update(x, y, z)
+#define SHA256Final(x, y)	SHA256_Final(x, y)
+#define SHA2_CTX		SHA256_CTX
+
+#elif defined(HAVE_SHA2_H)
+#include <sha2.h>
 #endif /* WITH_OPENSSL */
 
 /* #define SK_DEBUG 1 */
