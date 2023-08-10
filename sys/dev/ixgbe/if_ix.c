@@ -921,6 +921,15 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		goto err_pci;
 	}
 
+	if (hw->mac.ops.fw_recovery_mode && hw->mac.ops.fw_recovery_mode(hw)) {
+		device_printf(dev, "Firmware recovery mode detected. Limiting "
+		    "functionality.\nRefer to the Intel(R) Ethernet Adapters "
+		    "and Devices User Guide for details on firmware recovery "
+		    "mode.");
+		error = ENOSYS;
+		goto err_pci;
+	}
+
 	if (hw->mbx.ops.init_params)
 		hw->mbx.ops.init_params(hw);
 
