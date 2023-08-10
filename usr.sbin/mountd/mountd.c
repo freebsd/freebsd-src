@@ -290,7 +290,7 @@ static int resvport_only = 1;
 static int nhosts = 0;
 static int dir_only = 1;
 static int dolog = 0;
-static int got_sighup = 0;
+static _Atomic(int) got_sighup = 0;
 static int xcreated = 0;
 
 static char *svcport_str = NULL;
