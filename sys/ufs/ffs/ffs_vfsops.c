@@ -324,6 +324,9 @@ ffs_fsfail_cleanup_locked(struct ufsmount *ump, int error)
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	if (error == ENXIO && (ump->um_flags & UM_FSFAIL_CLEANUP) == 0) {
 		ump->um_flags |= UM_FSFAIL_CLEANUP;
+		if (ump->um_mountp == rootvnode->v_mount)
+			panic("UFS: root fs would be forcibly unmounted");
+
 		/*
 		 * Queue an async forced unmount.
 		 */
