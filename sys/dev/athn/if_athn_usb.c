@@ -35,6 +35,7 @@
 #include <sys/conf.h>
 //#include <openbsd/openbsd_device.h>
 #include <sys/endian.h>
+#include <linux/time.h>
 
 #include <machine/bus.h>
 //#include <machine/intr.h>
@@ -251,6 +252,7 @@ tsleep_nsec(const void *ident, int priority, const char *wmesg,
     uint64_t nsecs)
 {
 	uint64_t to_ticks;
+	int tick_nsec = (NSEC_PER_SEC + hz / 2) / hz;
 
 	if (nsecs == INFSLP)
 		return tsleep(ident, priority, wmesg, 0);
