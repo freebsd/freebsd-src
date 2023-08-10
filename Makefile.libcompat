@@ -20,7 +20,7 @@ LIB${_LIBCOMPAT}WMAKEENV+= \
 		LIBDIR=/usr/lib${libcompat} \
 		SHLIBDIR=/usr/lib${libcompat} \
 		LIBDATADIR=/usr/lib${libcompat} \
-		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
+		DTRACE="${LIB${_LIBCOMPAT}DTRACE:U${DTRACE}}"
 .if ${MK_META_MODE} != "no"
 # Don't rebuild build-tools targets during normal build.
 LIB${_LIBCOMPAT}WMAKEENV+=	BUILD_TOOLS_META=.NOMETA
