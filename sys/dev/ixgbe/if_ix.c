@@ -2855,8 +2855,8 @@ ixgbe_setup_low_power_mode(if_ctx_t ctx)
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T &&
 	    hw->phy.ops.enter_lplu) {
 		/* Turn off support for APM wakeup. (Using ACPI instead) */
-		IXGBE_WRITE_REG(hw, IXGBE_GRC,
-		    IXGBE_READ_REG(hw, IXGBE_GRC) & ~(u32)2);
+		IXGBE_WRITE_REG(hw, IXGBE_GRC_BY_MAC(hw),
+		    IXGBE_READ_REG(hw, IXGBE_GRC_BY_MAC(hw)) & ~(u32)2);
 
 		/*
 		 * Clear Wake Up Status register to prevent any previous wakeup
