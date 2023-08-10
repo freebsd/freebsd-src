@@ -183,12 +183,11 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
 
 /*
  *	A map is a set of map entries.  These map entries are
- *	organized as a threaded binary search tree.  Both structures
- *	are ordered based upon the start and end addresses contained
+ *	organized as a threaded binary search tree.  The tree is
+ *	ordered based upon the start and end addresses contained
  *	within each map entry.  The largest gap between an entry in a
  *	subtree and one of its neighbors is saved in the max_free
- *	field, and that field is updated when the tree is
- *	restructured.
+ *	field, and that field is updated when the tree is restructured.
  *
  *	Sleator and Tarjan's top-down splay algorithm is employed to
  *	control height imbalance in the binary search tree.
