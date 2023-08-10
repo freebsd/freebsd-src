@@ -100,6 +100,7 @@
 #define IXGBE_DEV_ID_82599_KR			0x1517
 #define IXGBE_DEV_ID_82599_COMBO_BACKPLANE	0x10F8
 #define IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ	0x000C
+#define IXGBE_DEV_ID_82599_LS			0x154F
 #define IXGBE_DEV_ID_82599_CX4			0x10F9
 #define IXGBE_DEV_ID_82599_SFP			0x10FB
 #define IXGBE_SUBDEV_ID_82599_SFP		0x11A9
@@ -3758,6 +3759,7 @@ enum ixgbe_media_type {
 	ixgbe_media_type_fiber,
 	ixgbe_media_type_fiber_fixed,
 	ixgbe_media_type_fiber_qsfp,
+	ixgbe_media_type_fiber_lco,
 	ixgbe_media_type_copper,
 	ixgbe_media_type_backplane,
 	ixgbe_media_type_cx4,
