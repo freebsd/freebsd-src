@@ -133,14 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_ENCAPSULATE 3"
-.TH EVP_PKEY_ENCAPSULATE 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY_ENCAPSULATE 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
 EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
-\&\- Key encapsulation using a public key algorithm
+\&\- Key encapsulation using a KEM algorithm with a public key
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -148,7 +148,7 @@ EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
 \&
 \& int EVP_PKEY_encapsulate_init(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
 \& int EVP_PKEY_encapsulate(EVP_PKEY_CTX *ctx,
-\&                          unsigned char *out, size_t *outlen,
+\&                          unsigned char *wrappedkey, size_t *wrappedkeylen,
 \&                          unsigned char *genkey, size_t *genkeylen);
 .Ve
 .SH "DESCRIPTION"
@@ -156,18 +156,26 @@ EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
 The \fBEVP_PKEY_encapsulate_init()\fR function initializes a public key algorithm
 context \fIctx\fR for an encapsulation operation and then sets the \fIparams\fR
 on the context in the same way as calling \fBEVP_PKEY_CTX_set_params\fR\|(3).
+Note that \fIctx\fR is usually is produced using \fBEVP_PKEY_CTX_new_from_pkey\fR\|(3),
+specifying the public key to use.
 .PP
 The \fBEVP_PKEY_encapsulate()\fR function performs a public key encapsulation
-operation using \fIctx\fR with the name \fIname\fR.
-If \fIout\fR is \fB\s-1NULL\s0\fR then the maximum size of the output buffer is written to the
-\&\fI*outlen\fR parameter and the maximum size of the generated key buffer is written
-to \fI*genkeylen\fR. If \fIout\fR is not \fB\s-1NULL\s0\fR and the call is successful then the
+operation using \fIctx\fR.
+The symmetric secret generated in \fIgenkey\fR can be used as key material.
+The ciphertext in \fIwrappedkey\fR is its encapsulated form, which can be sent
+to another party, who can use \fBEVP_PKEY_decapsulate\fR\|(3) to retrieve it
+using their private key.
+If \fIwrappedkey\fR is \s-1NULL\s0 then the maximum size of the output buffer
+is written to the \fI*wrappedkeylen\fR parameter unless \fIwrappedkeylen\fR is \s-1NULL\s0
+and the maximum size of the generated key buffer is written to \fI*genkeylen\fR
+unless \fIgenkeylen\fR is \s-1NULL.\s0
+If \fIwrappedkey\fR is not \s-1NULL\s0 and the call is successful then the
 internally generated key is written to \fIgenkey\fR and its size is written to
 \&\fI*genkeylen\fR. The encapsulated version of the generated key is written to
-\&\fIout\fR and its size is written to \fI*outlen\fR.
+\&\fIwrappedkey\fR and its size is written to \fI*wrappedkeylen\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-After the call to \fBEVP_PKEY_encapsulate_init()\fR algorithm specific parameters
+After the call to \fBEVP_PKEY_encapsulate_init()\fR algorithm-specific parameters
 for the operation may be set or modified using \fBEVP_PKEY_CTX_set_params\fR\|(3).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -217,7 +225,7 @@ Encapsulate an \s-1RSASVE\s0 key (for \s-1RSA\s0 keys).
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBEVP_PKEY_CTX_new\fR\|(3),
+\&\fBEVP_PKEY_CTX_new_from_pkey\fR\|(3),
 \&\fBEVP_PKEY_decapsulate\fR\|(3),
 \&\s-1\fBEVP_KEM\-RSA\s0\fR\|(7),
 .SH "HISTORY"
@@ -225,7 +233,7 @@ Encapsulate an \s-1RSASVE\s0 key (for \s-1RSA\s0 keys).
 These functions were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2020\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_RESP_FIND_STATUS 3"
-.TH OCSP_RESP_FIND_STATUS 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OCSP_RESP_FIND_STATUS 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -268,7 +268,7 @@ in \*(L"\s-1VERIFICATION FLAGS\*(R"\s0 in \fBX509_VERIFY_PARAM_set_flags\fR\|(3)
 If \fIflags\fR contains \fB\s-1OCSP_NOCHAIN\s0\fR it ignores all certificates in \fIcerts\fR
 and in \fIbs\fR, else it takes them as untrusted intermediate \s-1CA\s0 certificates
 and uses them for constructing the validation path for the signer certificate.
-Certicate revocation status checks using CRLs is disabled during path validation
+Certificate revocation status checks using CRLs is disabled during path validation
 if the signer certificate contains the \fBid-pkix-ocsp-no-check\fR extension.
 After successful path
 validation the function returns success if the \fB\s-1OCSP_NOCHECKS\s0\fR flag is set.
@@ -343,7 +343,7 @@ parameters can be set to \s-1NULL\s0 if their value is not required.
 \&\fBX509_VERIFY_PARAM_set_flags\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

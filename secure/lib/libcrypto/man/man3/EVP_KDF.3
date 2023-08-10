@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_KDF 3"
-.TH EVP_KDF 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_KDF 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -320,7 +320,7 @@ For those \s-1KDF\s0 implementations that support it, this parameter sets the pa
 .ie n .IP """salt"" (\fB\s-1OSSL_KDF_PARAM_SALT\s0\fR) <octet string>" 4
 .el .IP "``salt'' (\fB\s-1OSSL_KDF_PARAM_SALT\s0\fR) <octet string>" 4
 .IX Item "salt (OSSL_KDF_PARAM_SALT) <octet string>"
-Some \s-1KDF\s0 implementations can take a salt.
+Some \s-1KDF\s0 implementations can take a non-secret unique cryptographic salt.
 For those \s-1KDF\s0 implementations that support it, this parameter sets the salt.
 .Sp
 The default value, if any, is implementation dependent.
@@ -360,6 +360,15 @@ implementations.
 Some \s-1KDF\s0 implementations require a key.
 For those \s-1KDF\s0 implementations that support it, this octet string parameter
 sets the key.
+.ie n .IP """info"" (\fB\s-1OSSL_KDF_PARAM_INFO\s0\fR) <octet string>" 4
+.el .IP "``info'' (\fB\s-1OSSL_KDF_PARAM_INFO\s0\fR) <octet string>" 4
+.IX Item "info (OSSL_KDF_PARAM_INFO) <octet string>"
+Some \s-1KDF\s0 implementations, such as \s-1\fBEVP_KDF\-HKDF\s0\fR\|(7), take an 'info' parameter
+for binding the derived key material
+to application\- and context-specific information.
+This parameter sets the info, fixed info, other info or shared info argument.
+You can specify this parameter multiple times, and each instance will
+be concatenated to form the final value.
 .ie n .IP """maclen"" (\fB\s-1OSSL_KDF_PARAM_MAC_SIZE\s0\fR) <unsigned integer>" 4
 .el .IP "``maclen'' (\fB\s-1OSSL_KDF_PARAM_MAC_SIZE\s0\fR) <unsigned integer>" 4
 .IX Item "maclen (OSSL_KDF_PARAM_MAC_SIZE) <unsigned integer>"
@@ -422,7 +431,7 @@ not be considered a breaking change to the \s-1API.\s0
 This functionality was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

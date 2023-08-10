@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_REQ_CTX 3"
-.TH OSSL_HTTP_REQ_CTX 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_HTTP_REQ_CTX 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -272,7 +272,7 @@ The function may need to be called again if its result is \-1, which indicates
 \&\fBBIO_should_retry\fR\|(3).  In such a case it is advisable to sleep a little in
 between, using \fBBIO_wait\fR\|(3) on the read \s-1BIO\s0 to prevent a busy loop.
 .PP
-\&\fBOSSL_HTTP_REQ_CTX_nbio_d2i()\fR is like \fBOSSL_HTTP_REQ_CTX_nbio()\fR but on successs
+\&\fBOSSL_HTTP_REQ_CTX_nbio_d2i()\fR is like \fBOSSL_HTTP_REQ_CTX_nbio()\fR but on success
 in addition parses the response, which must be a DER-encoded \s-1ASN.1\s0 structure,
 using the \s-1ASN.1\s0 template \fIit\fR and places the result in \fI*pval\fR.
 .PP
@@ -380,7 +380,7 @@ and the server did not disagree on keeping the connection open, else 0.
 The functions described here were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,14 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_AUX_CB 3"
-.TH ASN1_AUX_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH ASN1_AUX_CB 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
 ASN1_AUX, ASN1_PRINT_ARG, ASN1_STREAM_ARG, ASN1_aux_cb, ASN1_aux_const_cb
-\&\- ASN.1 auxilliary data
+\&\- ASN.1 auxiliary data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -182,7 +182,7 @@ ASN1_AUX, ASN1_PRINT_ARG, ASN1_STREAM_ARG, ASN1_aux_cb, ASN1_aux_const_cb
 additional information about the \s-1ASN.1\s0 structure. An \fB\s-1ASN1_AUX\s0\fR structure is
 associated with the structure during the definition of the \s-1ASN.1\s0 template. For
 example an \fB\s-1ASN1_AUX\s0\fR structure will be associated by using one of the various
-\&\s-1ASN.1\s0 template definition macros that supply auxilliary information such as
+\&\s-1ASN.1\s0 template definition macros that supply auxiliary information such as
 \&\fBASN1_SEQUENCE_enc()\fR, \fBASN1_SEQUENCE_ref()\fR, \fBASN1_SEQUENCE_cb_const_cb()\fR,
 \&\fBASN1_SEQUENCE_const_cb()\fR, \fBASN1_SEQUENCE_cb()\fR or \fBASN1_NDEF_SEQUENCE_cb()\fR.
 .PP
@@ -360,7 +360,7 @@ The \fBASN1_aux_const_cb()\fR callback and the \fB\s-1ASN1_OP_GET0_LIBCTX\s0\fR 
 \&\fB\s-1ASN1_OP_GET0_PROPQ\s0\fR operation types were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

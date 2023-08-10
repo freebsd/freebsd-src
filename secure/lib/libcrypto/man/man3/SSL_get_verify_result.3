@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_VERIFY_RESULT 3"
-.TH SSL_GET_VERIFY_RESULT 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH SSL_GET_VERIFY_RESULT 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -157,6 +157,13 @@ X509 certificate presented by the peer, if any.
 of a certificate can fail because of many reasons at the same time. Only
 the last verification error that occurred during the processing is available
 from \fBSSL_get_verify_result()\fR.
+.PP
+Sometimes there can be a sequence of errors leading to the verification
+failure as reported by \fBSSL_get_verify_result()\fR.
+To get the errors, it is necessary to setup a verify callback via
+\&\fBSSL_CTX_set_verify\fR\|(3) or \fBSSL_set_verify\fR\|(3) and retrieve the errors
+from the error stack there, because once \fBSSL_connect\fR\|(3) returns,
+these errors may no longer be available.
 .PP
 The verification result is part of the established session and is restored
 when a session is reused.
@@ -182,7 +189,7 @@ Documented in \fBopenssl\-verify\fR\|(1).
 \&\fBopenssl\-verify\fR\|(1)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

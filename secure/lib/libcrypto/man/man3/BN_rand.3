@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_RAND 3"
-.TH BN_RAND 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH BN_RAND 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -198,7 +198,7 @@ If \fIbits\fR is 1 then \fItop\fR cannot also be \fB\s-1BN_RAND_TOP_TWO\s0\fR.
 is always used.
 .PP
 \&\fBBN_rand_range_ex()\fR generates a cryptographically strong pseudo-random
-number \fIrnd\fR, of security stength at least \fIstrength\fR bits,
+number \fIrnd\fR, of security strength at least \fIstrength\fR bits,
 in the range 0 <= \fIrnd\fR < \fIrange\fR using the random number
 generator for the library context associated with \fIctx\fR. The parameter \fIctx\fR
 may be \s-1NULL\s0 in which case the default library context is used.
@@ -244,7 +244,7 @@ The \fBBN_rand_ex()\fR, \fBBN_priv_rand_ex()\fR, \fBBN_rand_range_ex()\fR and
 \&\fBBN_priv_rand_range_ex()\fR functions were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_BYTES 3"
-.TH RAND_BYTES 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH RAND_BYTES 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,7 +176,7 @@ and \s-1\fBEVP_RAND\s0\fR\|(7).
 .PP
 \&\fBRAND_bytes_ex()\fR and \fBRAND_priv_bytes_ex()\fR are the same as \fBRAND_bytes()\fR and
 \&\fBRAND_priv_bytes()\fR except that they both take additional \fIstrength\fR and
-\&\fIctx\fR parameters. The bytes genreated will have a security strength of at
+\&\fIctx\fR parameters. The bytes generated will have a security strength of at
 least \fIstrength\fR bits.
 The \s-1DRBG\s0 used for the operation is the public or private \s-1DRBG\s0 associated with
 the specified \fIctx\fR. The parameter can be \s-1NULL,\s0 in which case
@@ -226,7 +226,7 @@ The \fBRAND_priv_bytes()\fR function was added in OpenSSL 1.1.1.
 The \fBRAND_bytes_ex()\fR and \fBRAND_priv_bytes_ex()\fR functions were added in OpenSSL 3.0
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

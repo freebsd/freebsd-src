@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY-RSA 7"
-.TH EVP_PKEY-RSA 7 "2023-05-30" "3.0.9" "OpenSSL"
+.TH EVP_PKEY-RSA 7 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -349,7 +349,7 @@ both return 1 unconditionally.
 .PP
 For \s-1RSA\s0 keys, \fBEVP_PKEY_public_check\fR\|(3) conforms to the SP800\-56Br1 \fIpublic key
 check\fR when the OpenSSL \s-1FIPS\s0 provider is used. The OpenSSL default provider
-performs similiar tests but relaxes the keysize restrictions for backwards
+performs similar tests but relaxes the keysize restrictions for backwards
 compatibility.
 .PP
 For \s-1RSA\s0 keys, \fBEVP_PKEY_public_check_quick\fR\|(3) is the same as

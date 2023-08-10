@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_CMP_LOG_OPEN 3"
-.TH OSSL_CMP_LOG_OPEN 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OSSL_CMP_LOG_OPEN 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -228,7 +228,7 @@ As long as neither if the two is used any logging output is ignored.
 .PP
 \&\fBOSSL_CMP_log_close()\fR may be called when all activities are finished to flush
 any pending CMP-specific log output and deallocate related resources.
-It may be called multiple times. It does get called at OpenSSL stutdown.
+It may be called multiple times. It does get called at OpenSSL shutdown.
 .PP
 \&\fBOSSL_CMP_print_to_bio()\fR prints the given component info, filename, line number,
 severity level, and log message or error queue message to the given \fIbio\fR.
@@ -250,7 +250,7 @@ All other functions return 1 on success, 0 on error.
 The OpenSSL \s-1CMP\s0 support was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2007\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

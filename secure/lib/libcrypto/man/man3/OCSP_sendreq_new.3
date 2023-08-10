@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_SENDREQ_NEW 3"
-.TH OCSP_SENDREQ_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
+.TH OCSP_SENDREQ_NEW 3 "2023-08-01" "3.0.10" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -179,7 +179,7 @@ These functions perform an \s-1OCSP POST\s0 request / response transfer over \s-
 using the \s-1HTTP\s0 request functions described in \s-1\fBOSSL_HTTP_REQ_CTX\s0\fR\|(3).
 .PP
 The function \fBOCSP_sendreq_new()\fR builds a complete \fB\s-1OSSL_HTTP_REQ_CTX\s0\fR structure
-with the \fB\s-1BIO\s0\fR \fIio\fR to be used for requests and reponse, the \s-1URL\s0 path \fIpath\fR,
+with the \fB\s-1BIO\s0\fR \fIio\fR to be used for requests and response, the \s-1URL\s0 path \fIpath\fR,
 optionally the \s-1OCSP\s0 request \fIreq\fR, and a response header maximum line length
 of \fIbuf_size\fR. If \fIbuf_size\fR is zero a default value of 4KiB is used.
 The \fIreq\fR may be set to \s-1NULL\s0 and provided later using \fBOCSP_REQ_CTX_set1_req()\fR
@@ -254,7 +254,7 @@ and \fBOCSP_REQ_CTX_set1_req()\fR
 were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
