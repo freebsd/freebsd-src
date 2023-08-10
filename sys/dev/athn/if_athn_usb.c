@@ -75,6 +75,12 @@
 
 #include "if_athn_usb.h"
 
+// map OpenBSD endian conversion macro names to FreeBSD
+#define betoh16 be16toh
+#define betoh32 be32toh
+#define betoh64 be64toh
+#define letoh16 le16toh
+
 static const struct athn_usb_type {
 	struct usb_devno	devno;
 	u_int			flags;
