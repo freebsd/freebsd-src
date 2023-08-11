@@ -2067,14 +2067,22 @@ vlan_capabilities(struct ifvlan *ifv)
 	}
 
 	/*
-	 * If the parent interface can do LRO and checksum offloading on
-	 * VLANs, then guess it may do LRO on VLANs.  False positive here
-	 * cost nothing, while false negative may lead to some confusions.
+	* If the parent interface is not a bridge and can do LRO and
+	* checksum offloading on VLANs, then guess it may do LRO on VLANs.
+	* False positive here cost nothing, while false negative may lead
+	* to some confusions. According to Wikipedia:
+	*
+	* "LRO should not operate on machines acting as routers, as it breaks
+	* the end-to-end principle and can significantly impact performance."
+	*
+	* The same reasoning applies to machines acting as bridges.
 	 */
-	if (p->if_capabilities & IFCAP_VLAN_HWCSUM)
-		cap |= p->if_capabilities & IFCAP_LRO;
-	if (p->if_capenable & IFCAP_VLAN_HWCSUM)
-		ena |= p->if_capenable & IFCAP_LRO;
+	if (ifp->if_bridge == NULL) {
+		if (p->if_capabilities & IFCAP_VLAN_HWCSUM)
+			cap |= p->if_capabilities & IFCAP_LRO;
+		if (p->if_capenable & IFCAP_VLAN_HWCSUM)
+			ena |= p->if_capenable & IFCAP_LRO;
+	}
 
 	/*
 	 * If the parent interface can offload TCP connections over VLANs then
