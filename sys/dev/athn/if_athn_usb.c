@@ -24,6 +24,7 @@
 // #include "bpfilter.h"
 #define NBPFILTER 0 // TODO ?
 
+#include <dev/usb/usb.h>
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <openbsd/openbsd_mbuf.h>
@@ -71,8 +72,6 @@
 #include <openbsd/openbsd_usbdi_util.h>
 #include <openbsd/openbsd_usbdevs.h>
 
-#include <openbsd/openbsd_malloc.h>
-
 #include "if_athn_usb.h"
 
 // map OpenBSD endian conversion macro names to FreeBSD
@@ -83,6 +82,9 @@
 
 // map OpenBSD flag name to FreeBSD
 #define	IFF_RUNNING	IFF_DRV_RUNNING
+
+// map 3-argument OpenBSD free function to 2-argument FreeBSD one
+#define free(addr,type,size)	free(addr,type)
 
 static const struct athn_usb_type {
 	struct usb_devno	devno;
