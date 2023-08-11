@@ -1188,12 +1188,9 @@ amd64_syscall(struct thread *td, int traced)
 
 	kmsan_mark(td->td_frame, sizeof(*td->td_frame), KMSAN_STATE_INITED);
 
-#ifdef DIAGNOSTIC
-	if (!TRAPF_USERMODE(td->td_frame)) {
-		panic("syscall");
-		/* NOT REACHED */
-	}
-#endif
+	KASSERT(TRAPF_USERMODE(td->td_frame),
+	    ("%s: not from user mode", __func__));
+
 	syscallenter(td);
 
 	/*
