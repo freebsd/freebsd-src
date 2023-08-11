@@ -1948,7 +1948,7 @@ athn_usb_intr(struct usbd_xfer *xfer, void *priv,
 	struct ar_htc_msg_hdr *msg;
 	uint8_t *buf = usc->ibuf;
 	uint16_t msg_id;
-	int len;
+	u_int32_t len;
 
 	if (__predict_false(status != USBD_NORMAL_COMPLETION)) {
 		DPRINTF(("intr status=%d\n", status));
@@ -2198,7 +2198,8 @@ athn_usb_rxeof(struct usbd_xfer *xfer, void *priv,
 	struct ar_stream_hdr *hdr;
 	struct mbuf *m;
 	uint16_t pktlen;
-	int off, len;
+	int off;
+	u_int32_t len;
 
 	if (__predict_false(status != USBD_NORMAL_COMPLETION)) {
 		DPRINTF(("RX status=%d\n", status));
