@@ -69,7 +69,7 @@ ssh_rijndael_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
 
 static int
 ssh_rijndael_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src,
-    LIBCRYPTO_EVP_INL_TYPE len)
+    size_t len)
 {
 	struct ssh_rijndael_ctx *c;
 	u_char buf[RIJNDAEL_BLOCKSIZE];

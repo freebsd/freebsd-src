@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.433 2022/11/28 01:37:36 djm Exp $
-.Dd $Mdocdate: November 28 2022 $
+.\" $OpenBSD: ssh.1,v 1.437 2023/07/23 20:04:45 naddy Exp $
+.Dd $Mdocdate: July 23 2023 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -58,6 +58,7 @@
 .Op Fl m Ar mac_spec
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
+.Op Fl P Ar tag
 .Op Fl p Ar port
 .Op Fl Q Ar query_option
 .Op Fl R Ar address
@@ -322,7 +323,7 @@ by appending
 to identity filenames.
 .Pp
 .It Fl J Ar destination
-Connect to the target host by first making a
+Connect to the target host by first making an
 .Nm
 connection to the jump host described by
 .Ar destination
@@ -593,6 +594,16 @@ For full details of the options listed below, and their possible values, see
 .It XAuthLocation
 .El
 .Pp
+.It Fl P Ar tag
+Specify a tag name that may be used to select configuration in
+.Xr ssh_config 5 .
+Refer to the
+.Cm Tag
+and
+.Cm Match
+keywords in
+.Xr ssh_config 5
+for more information.
 .It Fl p Ar port
 Port to connect to on the remote host.
 This can be specified on a
@@ -614,6 +625,8 @@ flag),
 (key exchange algorithms),
 .Ar key
 (key types),
+.Ar key-ca-sign
+(valid CA signature algorithms for certificates),
 .Ar key-cert
 (certificate key types),
 .Ar key-plain

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# Copyright (c) 1999-2020 Philip Hands <phil@hands.com>
+# Copyright (c) 1999-2023 Philip Hands <phil@hands.com>
+#               2021 Carlos Rodríguez Gili <carlos.rodriguez-gili@upc.edu>
 #               2020 Matthias Blümel <blaimi@blaimi.de>
 #               2017 Sebastien Boyron <seb@boyron.eu>
 #               2013 Martin Kletzander <mkletzan@redhat.com>
@@ -63,13 +64,15 @@ fi
 # shellcheck disable=SC2010
 DEFAULT_PUB_ID_FILE=$(ls -t "${HOME}"/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
 SSH="ssh -a -x"
+TARGET_PATH=".ssh/authorized_keys"
 umask 0177
 
 usage () {
-  printf 'Usage: %s [-h|-?|-f|-n|-s] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf 'Usage: %s [-h|-?|-f|-n|-s|-x] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [-t target_path] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
   printf '\t-f: force mode -- copy keys without trying to check if they are already installed\n' >&2
   printf '\t-n: dry run    -- no keys are actually copied\n' >&2
   printf '\t-s: use sftp   -- use sftp instead of executing remote-commands. Can be useful if the remote only allows sftp\n' >&2
+  printf '\t-x: debug      -- enables -x in this shell, for debugging\n' >&2
   printf '\t-h|-?: print this help\n' >&2
   exit 1
 }
@@ -112,7 +115,7 @@ if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -L >/dev/null 2>&1 ; then
   GET_ID="ssh-add -L"
 fi
 
-while getopts "i:o:p:F:fnsh?" OPT
+while getopts "i:o:p:F:t:fnsxh?" OPT
 do
   case "$OPT" in
     i)
@@ -123,8 +126,8 @@ do
       SEEN_OPT_I="yes"
       use_id_file "${OPTARG:-$DEFAULT_PUB_ID_FILE}"
       ;;
-    o|p|F)
-      SSH_OPTS="${SSH_OPTS:+$SSH_OPTS }-$OPT '$(quote "${OPTARG}")'"
+    o|F)
+      OPTS_oF="${OPTS_oF:+$OPTS_oF }-$OPT '$(quote "${OPTARG}")'"
       ;;
     f)
       FORCED=1
@@ -132,14 +135,24 @@ do
     n)
       DRY_RUN=1
       ;;
+    p)
+      SSH_PORT=${OPTARG}
+      ;;
     s)
       SFTP=sftp
+      ;;
+    t)
+      TARGET_PATH="${OPTARG}"
+      ;;
+    x)
+      SET_X="set -x;"
+      set -x
       ;;
     h|\?)
       usage
       ;;
   esac
-done 
+done
 #shift all args to keep only USER_HOST
 shift $((OPTIND-1))
 
@@ -151,10 +164,10 @@ if [ $# != 1 ] ; then
   usage
 fi
 
-# drop trailing colon
 USER_HOST="$*"
 # tack the hostname onto SSH_OPTS
-SSH_OPTS="${SSH_OPTS:+$SSH_OPTS }'$(quote "$USER_HOST")'"
+OPTS_USER_HOST="${OPTS_oF:+$OPTS_oF }'$(quote "$USER_HOST")'"
+SSH_OPTS="${SSH_PORT:+-p $SSH_PORT }$OPTS_USER_HOST"
 # and populate "$@" for later use (only way to get proper quoting of options)
 eval set -- "$SSH_OPTS"
 
@@ -234,12 +247,8 @@ populate_new_ids() {
 }
 
 # installkey_sh [target_path]
-#    produce a one-liner to add the keys to remote authorized_keys file
-#    optionally takes an alternative path for authorized_keys
+#    produce a one-liner to add the keys to remote $TARGET_PATH
 installkeys_sh() {
-  AUTH_KEY_FILE=${1:-.ssh/authorized_keys}
-  AUTH_KEY_DIR=$(dirname "${AUTH_KEY_FILE}")
-
   # In setting INSTALLKEYS_SH:
   #    the tr puts it all on one line (to placate tcsh)
   #      (hence the excessive use of semi-colons (;) )
@@ -248,15 +257,21 @@ installkeys_sh() {
   #    the -z `tail ...` checks for a trailing newline. The echo adds one if was missing
   #    the cat adds the keys we're getting via STDIN
   #    and if available restorecon is used to restore the SELinux context
+  # OpenWrt has a special case for root only.
   INSTALLKEYS_SH=$(tr '\t\n' ' ' <<-EOF
+	$SET_X
 	cd;
 	umask 077;
-	mkdir -p "${AUTH_KEY_DIR}" &&
-		{ [ -z \`tail -1c ${AUTH_KEY_FILE} 2>/dev/null\` ] ||
-			echo >> "${AUTH_KEY_FILE}" || exit 1; } &&
-		cat >> "${AUTH_KEY_FILE}" || exit 1;
+	AUTH_KEY_FILE="${TARGET_PATH}";
+	[ -f /etc/openwrt_release ] && [ "\$LOGNAME" = "root" ] &&
+		AUTH_KEY_FILE=/etc/dropbear/authorized_keys;
+	AUTH_KEY_DIR=\`dirname "\${AUTH_KEY_FILE}"\`;
+	mkdir -p "\${AUTH_KEY_DIR}" &&
+		{ [ -z "\`tail -1c "\${AUTH_KEY_FILE}" 2>/dev/null\`" ] ||
+			echo >> "\${AUTH_KEY_FILE}" || exit 1; } &&
+		cat >> "\${AUTH_KEY_FILE}" || exit 1;
 	if type restorecon >/dev/null 2>&1; then
-		restorecon -F "${AUTH_KEY_DIR}" "${AUTH_KEY_FILE}";
+		restorecon -F "\${AUTH_KEY_DIR}" "\${AUTH_KEY_FILE}";
 	fi
 	EOF
   )
@@ -267,6 +282,8 @@ installkeys_sh() {
 
 #shellcheck disable=SC2120 # the 'eval set' confuses this
 installkeys_via_sftp() {
+  AUTH_KEY_FILE=${TARGET_PATH}
+  AUTH_KEY_DIR=$(dirname "${AUTH_KEY_FILE}")
 
   # repopulate "$@" inside this function
   eval set -- "$SSH_OPTS"
@@ -278,17 +295,17 @@ installkeys_via_sftp() {
   #shellcheck disable=SC2064
   trap "$L_CLEANUP" EXIT TERM INT QUIT
   sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
-	-get .ssh/authorized_keys $L_KEYS
+	-get "$AUTH_KEY_FILE" "$L_KEYS"
 	EOF
   # add a newline or create file if it's missing, same like above
   [ -z "$(tail -1c "$L_KEYS" 2>/dev/null)" ] || echo >> "$L_KEYS"
   # append the keys being piped in here
   cat >> "$L_KEYS"
   sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
-	-mkdir .ssh
-	chmod 700 .ssh
-	put $L_KEYS .ssh/authorized_keys
-	chmod 600 .ssh/authorized_keys
+	-mkdir "$AUTH_KEY_DIR"
+	chmod 700 "$AUTH_KEY_DIR"
+	put $L_KEYS "$AUTH_KEY_FILE"
+	chmod 600 "$AUTH_KEY_FILE"
 	EOF
   #shellcheck disable=SC2064
   eval "$L_CLEANUP" && trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
@@ -332,15 +349,8 @@ case "$REMOTE_VERSION" in
       exit 1
     fi
     ;;
-  dropbear*)
-    populate_new_ids 0
-    [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | \
-      $SSH "$@" "$(installkeys_sh /etc/dropbear/authorized_keys)" \
-      || exit 1
-    ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
-    ;;
   *)
-    # Assuming that the remote host treats ~/.ssh/authorized_keys as one might expect
+    # Assuming that the remote host treats $TARGET_PATH as one might expect
     populate_new_ids 0
     if ! [ "$DRY_RUN" ] ; then
       printf '%s\n' "$NEW_IDS" | \
@@ -364,11 +374,12 @@ if [ "$DRY_RUN" ] ; then
 	=-=-=-=-=-=-=-=
 	EOF
 else
+  [ -z "$SFTP" ] || PORT_OPT=P
   cat <<-EOF
 
 	Number of key(s) added: $ADDED
 
-	Now try logging into the machine, with:   "${SFTP:-ssh} $SSH_OPTS"
+	Now try logging into the machine, with:   "${SFTP:-ssh}${SSH_PORT:+ -${PORT_OPT:-p} $SSH_PORT} ${OPTS_USER_HOST}"
 	and check to make sure that only the key(s) you wanted were added.
 
 	EOF

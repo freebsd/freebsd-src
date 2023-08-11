@@ -55,7 +55,7 @@ EOF
 	if [ $r -ne 0 ]; then
 		fail "gdb failed: exit code $r"
 	fi
-	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace.*Permission denied.|procfs:.*: Invalid argument.|Unable to access task ' >/dev/null ${OBJ}/gdb.out
+	egrep 'Operation not permitted.|Permission denied.|Invalid argument.|Unable to access task|Inappropriate ioctl for device.' >/dev/null ${OBJ}/gdb.out
 	r=$?
 	rm -f ${OBJ}/gdb.out
 	if [ $r -ne 0 ]; then

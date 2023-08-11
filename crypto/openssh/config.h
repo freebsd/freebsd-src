@@ -441,21 +441,6 @@
 /* Define if you have /dev/ptc */
 /* #undef HAVE_DEV_PTS_AND_PTC */
 
-/* Define to 1 if you have the `DH_get0_key' function. */
-#define HAVE_DH_GET0_KEY 1
-
-/* Define to 1 if you have the `DH_get0_pqg' function. */
-#define HAVE_DH_GET0_PQG 1
-
-/* Define to 1 if you have the `DH_set0_key' function. */
-#define HAVE_DH_SET0_KEY 1
-
-/* Define to 1 if you have the `DH_set0_pqg' function. */
-#define HAVE_DH_SET0_PQG 1
-
-/* Define to 1 if you have the `DH_set_length' function. */
-#define HAVE_DH_SET_LENGTH 1
-
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
@@ -471,30 +456,6 @@
 /* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
 #define HAVE_DSA_GENERATE_PARAMETERS_EX 1
 
-/* Define to 1 if you have the `DSA_get0_key' function. */
-#define HAVE_DSA_GET0_KEY 1
-
-/* Define to 1 if you have the `DSA_get0_pqg' function. */
-#define HAVE_DSA_GET0_PQG 1
-
-/* Define to 1 if you have the `DSA_set0_key' function. */
-#define HAVE_DSA_SET0_KEY 1
-
-/* Define to 1 if you have the `DSA_set0_pqg' function. */
-#define HAVE_DSA_SET0_PQG 1
-
-/* Define to 1 if you have the `DSA_SIG_get0' function. */
-#define HAVE_DSA_SIG_GET0 1
-
-/* Define to 1 if you have the `DSA_SIG_set0' function. */
-#define HAVE_DSA_SIG_SET0 1
-
-/* Define to 1 if you have the `ECDSA_SIG_get0' function. */
-#define HAVE_ECDSA_SIG_GET0 1
-
-/* Define to 1 if you have the `ECDSA_SIG_set0' function. */
-#define HAVE_ECDSA_SIG_SET0 1
-
 /* Define to 1 if you have the `EC_KEY_METHOD_new' function. */
 #define HAVE_EC_KEY_METHOD_NEW 1
 
@@ -505,7 +466,7 @@
 #define HAVE_ENDGRENT 1
 
 /* Define to 1 if you have the <endian.h> header file. */
-/* #undef HAVE_ENDIAN_H */
+#define HAVE_ENDIAN_H 1
 
 /* Define to 1 if you have the `endutent' function. */
 /* #undef HAVE_ENDUTENT */
@@ -532,7 +493,7 @@
 /* #undef HAVE_EVP_CIPHER_CTX_GET_IV */
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_get_updated_iv' function. */
-/* #undef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
+#define HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV 1
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_iv' function. */
 #define HAVE_EVP_CIPHER_CTX_IV 1
@@ -555,17 +516,8 @@
 /* Define to 1 if you have the `EVP_MD_CTX_copy_ex' function. */
 #define HAVE_EVP_MD_CTX_COPY_EX 1
 
-/* Define to 1 if you have the `EVP_MD_CTX_free' function. */
-#define HAVE_EVP_MD_CTX_FREE 1
-
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 /* #undef HAVE_EVP_MD_CTX_INIT */
-
-/* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-#define HAVE_EVP_MD_CTX_NEW 1
-
-/* Define to 1 if you have the `EVP_PKEY_get0_RSA' function. */
-#define HAVE_EVP_PKEY_GET0_RSA 1
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
@@ -1049,9 +1001,6 @@
 /* as a macro */
 #define HAVE_OPENSSL_ADD_ALL_ALGORITHMS 1
 
-/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
-#define HAVE_OPENSSL_INIT_CRYPTO 1
-
 /* Define to 1 if you have the `OpenSSL_version' function. */
 #define HAVE_OPENSSL_VERSION 1
 
@@ -1161,47 +1110,8 @@
 /* Define to 1 if you have the `RSA_generate_key_ex' function. */
 #define HAVE_RSA_GENERATE_KEY_EX 1
 
-/* Define to 1 if you have the `RSA_get0_crt_params' function. */
-#define HAVE_RSA_GET0_CRT_PARAMS 1
-
-/* Define to 1 if you have the `RSA_get0_factors' function. */
-#define HAVE_RSA_GET0_FACTORS 1
-
-/* Define to 1 if you have the `RSA_get0_key' function. */
-#define HAVE_RSA_GET0_KEY 1
-
 /* Define to 1 if you have the `RSA_get_default_method' function. */
 #define HAVE_RSA_GET_DEFAULT_METHOD 1
-
-/* Define to 1 if you have the `RSA_meth_dup' function. */
-#define HAVE_RSA_METH_DUP 1
-
-/* Define to 1 if you have the `RSA_meth_free' function. */
-#define HAVE_RSA_METH_FREE 1
-
-/* Define to 1 if you have the `RSA_meth_get_finish' function. */
-#define HAVE_RSA_METH_GET_FINISH 1
-
-/* Define to 1 if you have the `RSA_meth_set1_name' function. */
-#define HAVE_RSA_METH_SET1_NAME 1
-
-/* Define to 1 if you have the `RSA_meth_set_finish' function. */
-#define HAVE_RSA_METH_SET_FINISH 1
-
-/* Define to 1 if you have the `RSA_meth_set_priv_dec' function. */
-#define HAVE_RSA_METH_SET_PRIV_DEC 1
-
-/* Define to 1 if you have the `RSA_meth_set_priv_enc' function. */
-#define HAVE_RSA_METH_SET_PRIV_ENC 1
-
-/* Define to 1 if you have the `RSA_set0_crt_params' function. */
-#define HAVE_RSA_SET0_CRT_PARAMS 1
-
-/* Define to 1 if you have the `RSA_set0_factors' function. */
-#define HAVE_RSA_SET0_FACTORS 1
-
-/* Define to 1 if you have the `RSA_set0_key' function. */
-#define HAVE_RSA_SET0_KEY 1
 
 /* Define to 1 if you have the <sandbox.h> header file. */
 /* #undef HAVE_SANDBOX_H */

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.61 2022/10/28 00:44:44 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.62 2023/06/21 05:10:26 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -264,7 +264,7 @@ int		 sshkey_ec_validate_public(const EC_GROUP *, const EC_POINT *);
 int		 sshkey_ec_validate_private(const EC_KEY *);
 const char	*sshkey_ssh_name(const struct sshkey *);
 const char	*sshkey_ssh_name_plain(const struct sshkey *);
-int		 sshkey_names_valid2(const char *, int);
+int		 sshkey_names_valid2(const char *, int, int);
 char		*sshkey_alg_list(int, int, int, char);
 
 int	 sshkey_from_blob(const u_char *, size_t, struct sshkey **);
