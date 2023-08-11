@@ -81,7 +81,8 @@ case "$config" in
 	    CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
 	    LDFLAGS="-fsanitize=memory"
 	    CPPFLAGS='-Dchroot=chdir -Dexplicit_bzero=bzero -DMSAN_OPTIONS=\"log_path='$SANLOGS'/msan.log\"'
-	    CONFIGFLAGS="--without-openssl --without-zlib --without-shadow"
+	    CONFIGFLAGS="--without-zlib --without-shadow"
+	    LIBCRYPTOFLAGS="--without-openssl"
 	    TEST_TARGET="t-exec"
 	    ;;
 	*-sanitize-undefined)
@@ -138,6 +139,10 @@ case "$config" in
     *pam)
 	CONFIGFLAGS="--with-pam"
 	SSHD_CONFOPTS="UsePam yes"
+	;;
+    boringssl)
+	CONFIGFLAGS="--disable-pkcs11"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/boringssl --with-rpath=-Wl,-rpath,"
 	;;
     libressl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
@@ -209,13 +214,15 @@ esac
 # The Solaris 64bit targets are special since they need a non-flag arg.
 case "$config" in
     sol64*)
-	CONFIGFLAGS="x86_64 --with-cflags=-m64 --with-ldflags=-m64 ${CONFIGFLAGS}"
-	LIBCRYPTOFLAGS="--with-ssl-dir=/usr/local/ssl64"
+	CONFIGFLAGS="--target=x86_64 --with-cflags=-m64 --with-ldflags=-m64 ${CONFIGFLAGS}"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/usr/local/ssl64 --with-rpath=-Wl,-rpath,"
 	;;
 esac
 
 case "${TARGET_HOST}" in
     aix*)
+	CONFIGFLAGS="--disable-security-key"
+	LIBCRYPTOFLAGS="--without-openssl"
 	# These are slow real or virtual machines so skip the slowest tests
 	# (which tend to be thw ones that transfer lots of data) so that the
 	# test run does not time out.
@@ -240,7 +247,8 @@ case "${TARGET_HOST}" in
 	SKIP_LTESTS="forwarding multiplex proxy-connect hostkey-agent agent-ptrace"
 	;;
     minix3)
-	LIBCRYPTOFLAGS="--without-openssl --disable-security-key"
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	LIBCRYPTOFLAGS="--without-openssl"
 	# Minix does not have a loopback interface so we have to skip any
 	# test that relies on one.
 	# Also, Minix seems to be very limited in the number of select()
@@ -264,7 +272,8 @@ case "${TARGET_HOST}" in
 	CONFIGFLAGS="${CONFIGFLAGS} --without-hardening --disable-security-key"
 	;;
     openwrt-*)
-	CONFIGFLAGS="${CONFIGFLAGS} --without-openssl --without-zlib"
+	CONFIGFLAGS="${CONFIGFLAGS} --without-zlib"
+	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET="t-exec"
 	;;
     sol10|sol11)
@@ -278,7 +287,8 @@ case "${TARGET_HOST}" in
 	;;
 esac
 
-case "`./config.guess`" in
+host=`./config.guess`
+case "$host" in
 *cygwin)
 	SUDO=""
 	# Don't run compat tests on cygwin as they don't currently compile.
@@ -289,17 +299,34 @@ case "`./config.guess`" in
 	# modern versions don't ship with libcrypto.
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
+	case "$host" in
+	*-darwin22.*)
+		# sudo -S nobody doesn't work on macos 13 for some reason.
+		SKIP_LTESTS="agent-getpeereid" ;;
+	esac
 	;;
 esac
 
-# If we have a local openssl/libressl, use that.
+# Unless specifically configured, search for a suitable version of OpenSSL,
+# otherwise build without it.
 if [ -z "${LIBCRYPTOFLAGS}" ]; then
+	LIBCRYPTOFLAGS="--without-openssl"
 	# last-match
-	for i in /usr/local /usr/local/ssl /usr/local/opt/openssl; do
+	for i in /usr /usr/local /usr/local/ssl /usr/local/opt/openssl; do
+		ver="none"
 		if [ -x ${i}/bin/openssl ]; then
-			LIBCRYPTOFLAGS="--with-ssl-dir=${i}"
+			ver="$(${i}/bin/openssl version)"
 		fi
+		case "$ver" in
+			none) ;;
+			"OpenSSL 0."*|"OpenSSL 1.0."*|"OpenSSL 1.1.0"*) ;;
+			"LibreSSL 2."*|"LibreSSL 3.0."*) ;;
+			*) LIBCRYPTOFLAGS="--with-ssl-dir=${i}" ;;
+		esac
 	done
+	if [ "${LIBCRYPTOFLAGS}" = "--without-openssl" ]; then
+		TEST_TARGET="t-exec"
+	fi
 fi
 
 CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"

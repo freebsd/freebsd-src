@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.45 2023/03/05 05:34:09 dtucker Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.46 2023/03/29 01:07:48 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -100,7 +100,7 @@ input_kex_dh_gex_request(int type, u_int32_t seq, struct ssh *ssh)
 	/* Contact privileged parent */
 	kex->dh = PRIVSEP(choose_dh(min, nbits, max));
 	if (kex->dh == NULL) {
-		sshpkt_disconnect(ssh, "no matching DH grp found");
+		(void)sshpkt_disconnect(ssh, "no matching DH grp found");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}

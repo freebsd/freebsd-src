@@ -50,9 +50,11 @@ main(void)
 {
 	char b[5];
 	char *src = NULL;
+	int ret;
 
-	snprintf(b,5,"123456789");
-	if (b[4] != '\0')
+	memset(b, 'X', sizeof(b));
+	ret = snprintf(b, 5, "123456789");
+	if (ret != 9 || b[4] != '\0')
 		fail("snprintf does not correctly terminate long strings");
 
 	/* check for read overrun on unterminated string */

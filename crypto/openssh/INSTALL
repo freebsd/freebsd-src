@@ -21,12 +21,8 @@ https://zlib.net/
 
 libcrypto from either of LibreSSL or OpenSSL.  Building without libcrypto
 is supported but severely restricts the available ciphers and algorithms.
- - LibreSSL (https://www.libressl.org/)
- - OpenSSL (https://www.openssl.org) with any of the following versions:
-   - 1.0.x >= 1.0.1 or 1.1.0 >= 1.1.0g or any 1.1.1
-
-Note that due to a bug in EVP_CipherInit OpenSSL 1.1 versions prior to
-1.1.0g can't be used.
+ - LibreSSL (https://www.libressl.org/) 3.1.0 or greater
+ - OpenSSL (https://www.openssl.org) 1.1.1 or greater
 
 LibreSSL/OpenSSL should be compiled as a position-independent library
 (i.e. -fPIC, eg by configuring OpenSSL as "./config [options] -fPIC"

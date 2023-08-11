@@ -57,7 +57,7 @@ test(const char *p, long long lb, long long ub, int ok)
 	}
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	test("1", 0, 10, 1);
 	test("0", -2, 5, 1);

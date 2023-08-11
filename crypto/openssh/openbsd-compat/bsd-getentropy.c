@@ -41,7 +41,7 @@
 int
 _ssh_compat_getentropy(void *s, size_t len)
 {
-#ifdef WITH_OPENSSL
+#if defined(WITH_OPENSSL) && defined(OPENSSL_PRNG_ONLY)
 	if (RAND_bytes(s, len) <= 0)
 		fatal("Couldn't obtain random bytes (error 0x%lx)",
 		    (unsigned long)ERR_get_error());
@@ -50,6 +50,10 @@ _ssh_compat_getentropy(void *s, size_t len)
 	ssize_t r;
 	size_t o = 0;
 
+#ifdef WITH_OPENSSL
+	if (RAND_bytes(s, len) == 1)
+		return 0;
+#endif
 #ifdef HAVE_GETENTROPY
 	if ((r = getentropy(s, len)) == 0)
 		return 0;

@@ -21,6 +21,7 @@
 #define _ssh_host_key_sign			Fssh__ssh_host_key_sign
 #define _ssh_host_private_key			Fssh__ssh_host_private_key
 #define _ssh_host_public_key			Fssh__ssh_host_public_key
+#define _ssh_mkstemp				Fssh__ssh_mkstemp
 #define _ssh_order_hostkeyalgs			Fssh__ssh_order_hostkeyalgs
 #define _ssh_read_banner			Fssh__ssh_read_banner
 #define _ssh_send_banner			Fssh__ssh_send_banner
@@ -266,6 +267,7 @@
 #define encode_dest_constraint_hop		Fssh_encode_dest_constraint_hop
 #define exited_cleanly				Fssh_exited_cleanly
 #define export_dns_rr				Fssh_export_dns_rr
+#define extension_section			Fssh_extension_section
 #define fd_ready				Fssh_fd_ready
 #define fe25519_reduce_add_sub			Fssh_fe25519_reduce_add_sub
 #define filter_list				Fssh_filter_list
@@ -375,6 +377,7 @@
 #define kexgex_hash				Fssh_kexgex_hash
 #define kexgex_server				Fssh_kexgex_server
 #define krl_dump				Fssh_krl_dump
+#define lib_contains_symbol			Fssh_lib_contains_symbol
 #define load_hostkeys				Fssh_load_hostkeys
 #define load_hostkeys_file			Fssh_load_hostkeys_file
 #define log_change_level			Fssh_log_change_level

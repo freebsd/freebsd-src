@@ -1,5 +1,4 @@
-
-/* $OpenBSD: servconf.c,v 1.392 2023/03/05 05:34:09 dtucker Exp $ */
+/* $OpenBSD: servconf.c,v 1.396 2023/07/17 05:26:38 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -973,7 +972,7 @@ process_permitopen(struct ssh *ssh, ServerOptions *options)
 
 /* Parse a ChannelTimeout clause "pattern=interval" */
 static int
-parse_timeout(const char *s, char **typep, u_int *secsp)
+parse_timeout(const char *s, char **typep, int *secsp)
 {
 	char *cp, *sdup;
 	int secs;
@@ -999,7 +998,7 @@ parse_timeout(const char *s, char **typep, u_int *secsp)
 	if (typep != NULL)
 		*typep = xstrdup(sdup);
 	if (secsp != NULL)
-		*secsp = (u_int)secs;
+		*secsp = secs;
 	free(sdup);
 	return 0;
 }
@@ -1007,7 +1006,8 @@ parse_timeout(const char *s, char **typep, u_int *secsp)
 void
 process_channel_timeouts(struct ssh *ssh, ServerOptions *options)
 {
-	u_int i, secs;
+	int secs;
+	u_int i;
 	char *type;
 
 	debug3_f("setting %u timeouts", options->num_channel_timeouts);
@@ -1346,6 +1346,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 {
 	char *str, ***chararrayptr, **charptr, *arg, *arg2, *p, *keyword;
 	int cmdline = 0, *intptr, value, value2, n, port, oactive, r, found;
+	int ca_only = 0;
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
 	ServerOpCodes opcode;
@@ -1587,6 +1588,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 
 	case sHostbasedAcceptedAlgorithms:
 		charptr = &options->hostbased_accepted_algos;
+		ca_only = 0;
  parse_pubkey_algos:
 		arg = argv_next(&ac, &av);
 		if (!arg || *arg == '\0')
@@ -1594,7 +1596,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			    filename, linenum);
 		if (*arg != '-' &&
 		    !sshkey_names_valid2(*arg == '+' || *arg == '^' ?
-		    arg + 1 : arg, 1))
+		    arg + 1 : arg, 1, ca_only))
 			fatal("%s line %d: Bad key types '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && *charptr == NULL)
@@ -1603,18 +1605,22 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 
 	case sHostKeyAlgorithms:
 		charptr = &options->hostkeyalgorithms;
+		ca_only = 0;
 		goto parse_pubkey_algos;
 
 	case sCASignatureAlgorithms:
 		charptr = &options->ca_sign_algorithms;
+		ca_only = 1;
 		goto parse_pubkey_algos;
 
 	case sPubkeyAuthentication:
 		intptr = &options->pubkey_authentication;
+		ca_only = 0;
 		goto parse_flag;
 
 	case sPubkeyAcceptedAlgorithms:
 		charptr = &options->pubkey_accepted_algos;
+		ca_only = 0;
 		goto parse_pubkey_algos;
 
 	case sPubkeyAuthOptions:
@@ -2417,7 +2423,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			fatal("%.200s line %d: %s must be an absolute path",
 			    filename, linenum, keyword);
 		}
-		if (*activep && options->authorized_keys_command == NULL)
+		if (*activep && *charptr == NULL)
 			*charptr = xstrdup(str + len);
 		argv_consume(&ac);
 		break;

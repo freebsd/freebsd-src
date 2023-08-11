@@ -1,4 +1,4 @@
-/* $OpenBSD: sk-usbhid.c,v 1.45 2022/09/14 00:14:37 djm Exp $ */
+/* $OpenBSD: sk-usbhid.c,v 1.46 2023/03/28 06:12:38 dtucker Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  * Copyright (c) 2020 Pedro Martelletto
@@ -20,7 +20,9 @@
 
 #ifdef ENABLE_SK_INTERNAL
 
-#include <stdint.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -104,14 +106,6 @@
 #define SELECT_MS		15000
 #define POLL_SLEEP_NS		200000000
 
-/* Compatibility with OpenSSH 1.0.x */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-#define ECDSA_SIG_get0(sig, pr, ps) \
-	do { \
-		(*pr) = sig->r; \
-		(*ps) = sig->s; \
-	} while (0)
-#endif
 #ifndef FIDO_ERR_OPERATION_DENIED
 #define FIDO_ERR_OPERATION_DENIED 0x27
 #endif

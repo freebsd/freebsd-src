@@ -25,9 +25,9 @@ jobs:
           - debian-i386
           - dfly30
           - dfly48
-          - dfly58
           - dfly60
           - dfly62
+          - dfly64
           - fbsd10
           - fbsd12
           - fbsd13

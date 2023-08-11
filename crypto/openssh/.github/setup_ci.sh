@@ -4,7 +4,9 @@ PACKAGES=""
 
  . .github/configs $@
 
-case "`./config.guess`" in
+host=`./config.guess`
+echo "config.guess: $host"
+case "$host" in
 *cygwin)
 	PACKAGER=setup
 	echo Setting CYGWIN system environment variable.
@@ -124,6 +126,10 @@ for TARGET in $TARGETS; do
         esac
         PACKAGES="${PACKAGES} putty-tools"
        ;;
+    boringssl)
+        INSTALL_BORINGSSL=1
+        PACKAGES="${PACKAGES} cmake ninja-build"
+       ;;
     valgrind*)
        PACKAGES="$PACKAGES valgrind"
        ;;
@@ -198,4 +204,13 @@ if [ ! -z "${INSTALL_LIBRESSL}" ]; then
          cd libressl-${INSTALL_LIBRESSL} &&
          ./configure --prefix=/opt/libressl && make -j2 && sudo make install)
     fi
+fi
+
+if [ ! -z "${INSTALL_BORINGSSL}" ]; then
+    (cd ${HOME} && git clone https://boringssl.googlesource.com/boringssl &&
+     cd ${HOME}/boringssl && mkdir build && cd build &&
+     cmake -GNinja  -DCMAKE_POSITION_INDEPENDENT_CODE=ON .. && ninja &&
+     mkdir -p /opt/boringssl/lib &&
+     cp ${HOME}/boringssl/build/crypto/libcrypto.a /opt/boringssl/lib &&
+     cp -r ${HOME}/boringssl/include /opt/boringssl)
 fi
