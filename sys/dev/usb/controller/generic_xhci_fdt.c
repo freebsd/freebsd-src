@@ -55,12 +55,16 @@
 
 #include "generic_xhci.h"
 
+/* Flags for the OFW compat data table */
+#define	XHCI_FDT_MATCH		0x01
+#define	XHCI_FDT_32BIT_DMA	0x02	/* Controller needs 32-bit DMA */
+
 static struct ofw_compat_data compat_data[] = {
-	{"marvell,armada-380-xhci",	true},
-	{"marvell,armada3700-xhci",	true},
-	{"marvell,armada-8k-xhci",	true},
-	{"generic-xhci",		true},
-	{NULL,				false}
+	{"marvell,armada-380-xhci",	XHCI_FDT_MATCH},
+	{"marvell,armada3700-xhci",	XHCI_FDT_MATCH},
+	{"marvell,armada-8k-xhci",	XHCI_FDT_MATCH},
+	{"generic-xhci",		XHCI_FDT_MATCH},
+	{NULL,				0}
 };
 
 static int
@@ -81,13 +85,19 @@ generic_xhci_fdt_probe(device_t dev)
 static int
 generic_xhci_fdt_attach(device_t dev)
 {
+	struct xhci_softc *sc = device_get_softc(dev);
 	phandle_t node;
 	phy_t phy;
+	int flags;
 
 	node = ofw_bus_get_node(dev);
 	if (phy_get_by_ofw_property(dev, node, "usb-phy", &phy) == 0)
 		if (phy_enable(phy) != 0)
 			device_printf(dev, "Cannot enable phy\n");
+
+	flags = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if ((flags & XHCI_FDT_32BIT_DMA) != 0)
+		sc->sc_quirks |= XHCI_QUIRK_DMA_32B;
 
 	return (generic_xhci_attach(dev));
 }
