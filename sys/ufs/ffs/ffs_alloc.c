@@ -116,6 +116,7 @@ static void	ffs_blkfree_cg(struct ufsmount *, struct fs *,
 #ifdef INVARIANTS
 static int	ffs_checkfreeblk(struct inode *, ufs2_daddr_t, long);
 #endif
+static void	ffs_checkcgintegrity(struct fs *, uint64_t, int);
 static ufs2_daddr_t ffs_clusteralloc(struct inode *, uint64_t, ufs2_daddr_t,
 				  int);
 static ino_t	ffs_dirpref(struct inode *);
@@ -1722,8 +1723,10 @@ ffs_fragextend(struct inode *ip,
 		return (0);
 	}
 	UFS_UNLOCK(ump);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0) {
+		ffs_checkcgintegrity(fs, cg, error);
 		goto fail;
+	}
 	bno = dtogd(fs, bprev);
 	blksfree = cg_blksfree(cgp);
 	for (i = numfrags(fs, osize); i < frags; i++)
@@ -1793,8 +1796,10 @@ ffs_alloccg(struct inode *ip,
 		return (0);
 	UFS_UNLOCK(ump);
 	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0 ||
-	   (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize))
+	   (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize)) {
+		ffs_checkcgintegrity(fs, cg, error);
 		goto fail;
+	}
 	if (size == fs->fs_bsize) {
 		UFS_LOCK(ump);
 		blkno = ffs_alloccgblk(ip, bp, bpref, rsize);
@@ -1971,6 +1976,7 @@ ffs_clusteralloc(struct inode *ip,
 		return (0);
 	UFS_UNLOCK(ump);
 	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0) {
+		ffs_checkcgintegrity(fs, cg, error);
 		UFS_LOCK(ump);
 		return (0);
 	}
@@ -2115,6 +2121,7 @@ check_nifree:
 		return (0);
 	UFS_UNLOCK(ump);
 	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0) {
+		ffs_checkcgintegrity(fs, cg, error);
 		UFS_LOCK(ump);
 		return (0);
 	}
@@ -2762,7 +2769,7 @@ ffs_checkfreeblk(struct inode *ip,
 	struct cg *cgp;
 	struct buf *bp;
 	ufs1_daddr_t cgbno;
-	int i, error, frags, blkalloced;
+	int i, frags, blkalloced;
 	uint8_t *blksfree;
 
 	fs = ITOFS(ip);
@@ -2773,9 +2780,8 @@ ffs_checkfreeblk(struct inode *ip,
 	}
 	if ((uint64_t)bno >= fs->fs_size)
 		panic("ffs_checkfreeblk: too big block %jd", (intmax_t)bno);
-	error = ffs_getcg(fs, ITODEVVP(ip), dtog(fs, bno), 0, &bp, &cgp);
-	if (error)
-		panic("ffs_checkfreeblk: cylinder group read failed");
+	if (ffs_getcg(fs, ITODEVVP(ip), dtog(fs, bno), 0, &bp, &cgp) != 0)
+		return (0);
 	blksfree = cg_blksfree(cgp);
 	cgbno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
@@ -3042,7 +3048,7 @@ ffs_getcg(struct fs *fs,
 		bp->b_flags &= ~B_CKHASH;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
-		return (EIO);
+		return (EINTEGRITY);
 	}
 	if (!cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
 		if (ppsratecheck(&VFSTOUFS(mp)->um_last_integritymsg,
@@ -3062,7 +3068,7 @@ ffs_getcg(struct fs *fs,
 		bp->b_flags &= ~B_CKHASH;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
-		return (EIO);
+		return (EINTEGRITY);
 	}
 	bp->b_flags &= ~B_CKHASH;
 	bp->b_xflags |= BX_BKGRDWRITE;
@@ -3094,6 +3100,37 @@ ffs_ckhash_cg(struct buf *bp)
 	cgp->cg_ckhash = 0;
 	bp->b_ckhash = calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
 	cgp->cg_ckhash = ckhash;
+}
+
+/*
+ * Called when a cylinder group read has failed. If an integrity check
+ * is the cause of failure then the cylinder group will not be usable
+ * until the filesystem has been unmounted and fsck has been run to
+ * repair it. To avoid future attempts to allocate resources from the
+ * cylinder group, its available resources are set to zero in the
+ * superblock summary information. Since it will appear to have no
+ * resources available, no further calls will be made to allocate
+ * resources from it. When resources are freed to the cylinder group
+ * the resource free routines will find the cylinder group unusable so
+ * the resource will simply be discarded and thus will not show up in
+ * the superblock summary information until they are recovered by fsck.
+ */
+static void
+ffs_checkcgintegrity(struct fs *fs,
+	uint64_t cg,
+	int error)
+{
+
+	if (error != EINTEGRITY)
+		return;
+	fs->fs_cstotal.cs_nffree -= fs->fs_cs(fs, cg).cs_nffree;
+	fs->fs_cs(fs, cg).cs_nffree = 0;
+	fs->fs_cstotal.cs_nbfree -= fs->fs_cs(fs, cg).cs_nbfree;
+	fs->fs_cs(fs, cg).cs_nbfree = 0;
+	fs->fs_cstotal.cs_nifree -= fs->fs_cs(fs, cg).cs_nifree;
+	fs->fs_cs(fs, cg).cs_nifree = 0;
+	fs->fs_maxcluster[cg] = 0;
+	fs->fs_fmod = 1;
 }
 
 /*
