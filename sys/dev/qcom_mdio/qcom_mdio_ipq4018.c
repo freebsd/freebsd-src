@@ -273,6 +273,9 @@ static device_method_t qcom_mdio_ipq4018_methods[] = {
 	DEVMETHOD(device_attach, qcom_mdio_ipq4018_attach),
 	DEVMETHOD(device_detach, qcom_mdio_ipq4018_detach),
 
+	/* Bus interface */
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
+
 	/* MDIO interface */
 	DEVMETHOD(mdio_readreg, qcom_mdio_ipq4018_readreg),
 	DEVMETHOD(mdio_writereg, qcom_mdio_ipq4018_writereg),
