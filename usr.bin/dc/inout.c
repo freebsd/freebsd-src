@@ -192,7 +192,7 @@ readnumber(struct source *src, u_int base, u_int bscale)
 	bool dot = false, sign = false;
 
 	n = new_number();
-	bn_check(BN_zero(n->number));
+	BN_zero(n->number);
 
 	while ((ch = (*src->vtable->readchar)(src)) != EOF) {
 
@@ -230,8 +230,8 @@ readnumber(struct source *src, u_int base, u_int bscale)
 		base_n = BN_new();
 		exponent = BN_new();
 		divisor = new_number();
-		bn_check(BN_zero(base_n));
-		bn_check(BN_zero(exponent));
+		BN_zero(base_n);
+		BN_zero(exponent);
 
 		bn_check(BN_add_word(base_n, base));
 		bn_check(BN_add_word(exponent, iscale));

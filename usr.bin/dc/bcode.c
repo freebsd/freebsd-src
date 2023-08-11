@@ -378,7 +378,7 @@ split_number(const struct number *n, BIGNUM *i, BIGNUM *f)
 	bn_checkp(BN_copy(i, n->number));
 
 	if (n->scale == 0 && f != NULL)
-		bn_check(BN_zero(f));
+		BN_zero(f);
 	else if (n->scale < sizeof(factors)/sizeof(factors[0])) {
 		rem = BN_div_word(i, factors[n->scale]);
 		if (f != NULL)
@@ -811,7 +811,7 @@ load(void)
 		v = stack_tos(&bmachine.reg[idx]);
 		if (v == NULL) {
 			n = new_number();
-			bn_check(BN_zero(n->number));
+			BN_zero(n->number);
 			push_number(n);
 		} else
 			push(stack_dup_value(v, &copy));
@@ -896,7 +896,7 @@ load_array(void)
 			v = frame_retrieve(stack, idx);
 			if (v == NULL || v->type == BCODE_NONE) {
 				n = new_number();
-				bn_check(BN_zero(n->number));
+				BN_zero(n->number);
 				push_number(n);
 			}
 			else
