@@ -820,7 +820,7 @@ ffs_reload(struct mount *mp, int flags)
 	    newfs->fs_bsize > MAXBSIZE ||
 	    newfs->fs_bsize < sizeof(struct fs)) {
 			brelse(bp);
-			return (EIO);		/* XXX needs translation */
+			return (EINTEGRITY);
 	}
 	/*
 	 * Preserve the summary information, read-only status, and
@@ -2079,6 +2079,11 @@ ffs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	    vpp, 0));
 }
 
+/*
+ * Return a vnode from a mounted filesystem for inode with specified
+ * generation number. Return ESTALE if the inode with given generation
+ * number no longer exists on that filesystem.
+ */
 int
 ffs_inotovp(struct mount *mp,
 	ino_t ino,
@@ -2094,7 +2099,6 @@ ffs_inotovp(struct mount *mp,
 	struct cg *cgp;
 	struct buf *bp;
 	uint64_t cg;
-	int error;
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
@@ -2109,9 +2113,8 @@ ffs_inotovp(struct mount *mp,
 	 */
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		cg = ino_to_cg(fs, ino);
-		error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp);
-		if (error != 0)
-			return (error);
+		if (ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp) != 0)
+			return (ESTALE);
 		if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
 			brelse(bp);
 			return (ESTALE);
@@ -2119,9 +2122,8 @@ ffs_inotovp(struct mount *mp,
 		brelse(bp);
 	}
 
-	error = ffs_vgetf(mp, ino, lflags, &nvp, ffs_flags);
-	if (error != 0)
-		return (error);
+	if (ffs_vgetf(mp, ino, lflags, &nvp, ffs_flags) != 0)
+		return (ESTALE);
 
 	ip = VTOI(nvp);
 	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
