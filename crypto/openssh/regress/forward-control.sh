@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.11 2022/04/21 01:36:46 dtucker Exp $
+#	$OpenBSD: forward-control.sh,v 1.12 2023/07/28 05:33:15 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"
@@ -36,7 +36,7 @@ check_lfwd() {
 	    -L$LFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
 	    -MS $CTL -o ControlPersist=yes \
-	    -f host true
+	    -Nf host
 	mux_cmd check >/dev/null || fatal "check_lfwd ssh fail: $_message"
 	${SSH} -F $OBJ/ssh_config -p $LFWD_PORT \
 	    -oConnectionAttempts=10 host true >/dev/null 2>&1
@@ -63,7 +63,7 @@ check_rfwd() {
 	    -R127.0.0.1:$RFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
 	    -MS $CTL -o ControlPersist=yes \
-	    -f host true
+	    -Nf host
 	mux_cmd check >/dev/null
 	_result=$?
 	_sshpid=`controlmaster_pid`

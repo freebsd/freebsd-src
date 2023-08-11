@@ -320,7 +320,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = va_arg (args, int);
 				if (fmtint(buffer, &currlen, maxlen,
 				    value, 10, min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'o':
 				flags |= DP_F_UNSIGNED;
@@ -340,7 +340,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
 				    8, min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'u':
 				flags |= DP_F_UNSIGNED;
@@ -360,7 +360,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
 				    10, min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'X':
 				flags |= DP_F_UP;
@@ -382,7 +382,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
 				    16, min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'f':
 				if (cflags == DP_C_LDOUBLE)
@@ -391,7 +391,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					fvalue = va_arg (args, double);
 				if (fmtfp(buffer, &currlen, maxlen, fvalue,
 				    min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'E':
 				flags |= DP_F_UP;
@@ -402,7 +402,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					fvalue = va_arg (args, double);
 				if (fmtfp(buffer, &currlen, maxlen, fvalue,
 				    min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'G':
 				flags |= DP_F_UP;
@@ -413,7 +413,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					fvalue = va_arg (args, double);
 				if (fmtfp(buffer, &currlen, maxlen, fvalue,
 				    min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'c':
 				DOPR_OUTCH(buffer, currlen, maxlen,
@@ -428,13 +428,13 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 				if (min > 0 && max >= 0 && min > max) max = min;
 				if (fmtstr(buffer, &currlen, maxlen,
 				    strvalue, flags, min, max) == -1)
-					return -1;
+					goto fail;
 				break;
 			case 'p':
 				strvalue = va_arg (args, void *);
 				if (fmtint(buffer, &currlen, maxlen,
 				    (long) strvalue, 16, min, max, flags) == -1)
-					return -1;
+					goto fail;
 				break;
 #if we_dont_want_this_in_openssh
 			case 'n':
@@ -494,8 +494,11 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 		else if (maxlen > 0)
 			buffer[maxlen - 1] = '\0';
 	}
-
+	va_end(args);
 	return currlen < INT_MAX ? (int)currlen : -1;
+ fail:
+	va_end(args);
+	return -1;
 }
 
 static int
@@ -711,7 +714,9 @@ fmtfp (char *buffer, size_t *currlen, size_t maxlen,
 	int fplace = 0;
 	int padlen = 0; /* amount to pad */
 	int zpadlen = 0;
+#if 0
 	int caps = 0;
+#endif
 	int idx;
 	double intpart;
 	double fracpart;
@@ -773,8 +778,7 @@ fmtfp (char *buffer, size_t *currlen, size_t maxlen,
 		idx = (int) ((temp -intpart +0.05)* 10.0);
 		/* idx = (int) (((double)(temp*0.1) -intpart +0.05) *10.0); */
 		/* printf ("%llf, %f, %x\n", temp, intpart, idx); */
-		iconvert[iplace++] =
-			(caps? "0123456789ABCDEF":"0123456789abcdef")[idx];
+		iconvert[iplace++] = "0123456789"[idx];
 	} while (intpart && (iplace < 311));
 	if (iplace == 311) iplace--;
 	iconvert[iplace] = 0;
@@ -788,8 +792,7 @@ fmtfp (char *buffer, size_t *currlen, size_t maxlen,
 			idx = (int) ((temp -fracpart +0.05)* 10.0);
 			/* idx = (int) ((((temp/10) -fracpart) +0.05) *10); */
 			/* printf ("%lf, %lf, %ld\n", temp, fracpart, idx ); */
-			fconvert[fplace++] =
-			(caps? "0123456789ABCDEF":"0123456789abcdef")[idx];
+			fconvert[fplace++] = "0123456789"[idx];
 		} while(fracpart && (fplace < 311));
 		if (fplace == 311) fplace--;
 	}

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.151 2023/02/10 06:41:53 jmc Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.153 2023/06/21 05:06:04 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -23,6 +23,7 @@
 #include <openssl/bn.h>
 #endif
 
+#include <limits.h>
 #include <netdb.h>
 #include <errno.h>
 #ifdef HAVE_POLL_H
@@ -131,15 +132,21 @@ fdlim_get(int hard)
 {
 #if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 	struct rlimit rlfd;
+	rlim_t lim;
 
 	if (getrlimit(RLIMIT_NOFILE, &rlfd) == -1)
-		return (-1);
-	if ((hard ? rlfd.rlim_max : rlfd.rlim_cur) == RLIM_INFINITY)
-		return SSH_SYSFDMAX;
-	else
-		return hard ? rlfd.rlim_max : rlfd.rlim_cur;
+		return -1;
+	lim = hard ? rlfd.rlim_max : rlfd.rlim_cur;
+	if (lim <= 0)
+		return -1;
+	if (lim == RLIM_INFINITY)
+		lim = SSH_SYSFDMAX;
+	if (lim >= INT_MAX)
+		lim = INT_MAX;
+	return lim;
 #else
-	return SSH_SYSFDMAX;
+	return (SSH_SYSFDMAX <= 0) ? -1 :
+	    ((SSH_SYSFDMAX >= INT_MAX) ? INT_MAX : SSH_SYSFDMAX);
 #endif
 }
 
@@ -313,6 +320,7 @@ keyprint_one(const char *host, struct sshkey *key)
 {
 	char *hostport = NULL, *hashed = NULL;
 	const char *known_host;
+	int r = 0;
 
 	found_one = 1;
 
@@ -327,9 +335,9 @@ keyprint_one(const char *host, struct sshkey *key)
 		fatal("host_hash failed");
 	known_host = hash_hosts ? hashed : hostport;
 	if (!get_cert)
-		fprintf(stdout, "%s ", known_host);
-	sshkey_write(key, stdout);
-	fputs("\n", stdout);
+		r = fprintf(stdout, "%s ", known_host);
+	if (r >= 0 && sshkey_write(key, stdout) == 0)
+		(void)fputs("\n", stdout);
 	free(hashed);
 	free(hostport);
 }

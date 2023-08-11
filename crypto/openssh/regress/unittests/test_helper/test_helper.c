@@ -131,7 +131,7 @@ main(int argc, char **argv)
 
 	seed_rng();
 #ifdef WITH_OPENSSL
-	ERR_load_CRYPTO_strings();
+	ERR_load_crypto_strings();
 #endif
 
 	/* Handle systems without __progname */

@@ -14,7 +14,9 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#endif
 #include <time.h>
 
 #include "../test_helper/test_helper.h"

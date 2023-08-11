@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.124 2023/03/01 09:29:32 dtucker Exp $
+#	$OpenBSD: Makefile,v 1.125 2023/05/17 05:52:01 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -222,7 +222,15 @@ t12: $(OBJ)/t12.out
 
 t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
+	_started=""; test -z "${LTESTS_FROM}" && _started=1 ;\
 	for TEST in ""$?; do \
+		if [ -z "$$_started" ] ; then \
+			if [ "x$$TEST" = "x${LTESTS_FROM}.sh" ]; then \
+				_started=1; \
+			else \
+				continue; \
+			fi ; \
+		fi ; \
 		skip=no; \
 		for t in ""$${SKIP_LTESTS}; do \
 			if [ "x$${t}.sh" = "x$${TEST}" ]; then skip=yes; fi; \

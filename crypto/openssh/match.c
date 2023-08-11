@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.43 2020/11/03 22:53:12 djm Exp $ */
+/* $OpenBSD: match.c,v 1.44 2023/04/06 03:19:32 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -246,6 +246,9 @@ match_user(const char *user, const char *host, const char *ipaddr,
 			return -1;
 		return 0;
 	}
+
+	if (user == NULL)
+		return 0; /* shouldn't happen */
 
 	if ((p = strchr(pattern, '@')) == NULL)
 		return match_pattern(user, pattern);

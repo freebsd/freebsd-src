@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.134 2022/10/28 02:47:04 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.137 2023/07/27 22:23:05 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -75,7 +75,7 @@
 #define AUTH_MAGIC		"openssh-key-v1"
 #define SALT_LEN		16
 #define DEFAULT_CIPHERNAME	"aes256-ctr"
-#define	DEFAULT_ROUNDS		16
+#define	DEFAULT_ROUNDS		24
 
 /* Version identification string for SSH v1 identity files. */
 #define LEGACY_BEGIN		"SSH PRIVATE KEY FILE FORMAT 1.1\n"
@@ -340,7 +340,7 @@ sshkey_alg_list(int certs_only, int plain_only, int include_sigonly, char sep)
 }
 
 int
-sshkey_names_valid2(const char *names, int allow_wildcard)
+sshkey_names_valid2(const char *names, int allow_wildcard, int plain_only)
 {
 	char *s, *cp, *p;
 	const struct sshkey_impl *impl;
@@ -371,6 +371,9 @@ sshkey_names_valid2(const char *names, int allow_wildcard)
 				if (impl != NULL)
 					continue;
 			}
+			free(s);
+			return 0;
+		} else if (plain_only && sshkey_type_is_cert(type)) {
 			free(s);
 			return 0;
 		}
@@ -2743,7 +2746,6 @@ sshkey_private_to_blob2(struct sshkey *prv, struct sshbuf *blob,
 {
 	u_char *cp, *key = NULL, *pubkeyblob = NULL;
 	u_char salt[SALT_LEN];
-	char *b64 = NULL;
 	size_t i, pubkeylen, keylen, ivlen, blocksize, authlen;
 	u_int check;
 	int r = SSH_ERR_INTERNAL_ERROR;
@@ -2860,8 +2862,6 @@ sshkey_private_to_blob2(struct sshkey *prv, struct sshbuf *blob,
 		freezero(key, keylen + ivlen);
 	if (pubkeyblob != NULL)
 		freezero(pubkeyblob, pubkeylen);
-	if (b64 != NULL)
-		freezero(b64, strlen(b64));
 	return r;
 }
 
@@ -3342,16 +3342,22 @@ translate_libcrypto_error(unsigned long pem_err)
 	case ERR_LIB_PEM:
 		switch (pem_reason) {
 		case PEM_R_BAD_PASSWORD_READ:
+#ifdef PEM_R_PROBLEMS_GETTING_PASSWORD
 		case PEM_R_PROBLEMS_GETTING_PASSWORD:
+#endif
+#ifdef PEM_R_BAD_DECRYPT
 		case PEM_R_BAD_DECRYPT:
+#endif
 			return SSH_ERR_KEY_WRONG_PASSPHRASE;
 		default:
 			return SSH_ERR_INVALID_FORMAT;
 		}
 	case ERR_LIB_EVP:
 		switch (pem_reason) {
+#ifdef EVP_R_BAD_DECRYPT
 		case EVP_R_BAD_DECRYPT:
 			return SSH_ERR_KEY_WRONG_PASSPHRASE;
+#endif
 #ifdef EVP_R_BN_DECODE_ERROR
 		case EVP_R_BN_DECODE_ERROR:
 #endif

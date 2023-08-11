@@ -1,9 +1,8 @@
+/* $OpenBSD: poly1305.c,v 1.4 2023/07/17 05:26:38 djm Exp $ */
 /* 
  * Public Domain poly1305 from Andrew Moon
  * poly1305-donna-unrolled.c from https://github.com/floodyberry/poly1305-donna
  */
-
-/* $OpenBSD: poly1305.c,v 1.3 2013/12/19 22:57:13 djm Exp $ */
 
 #include "includes.h"
 

@@ -1,5 +1,5 @@
 .ig \"  -*- nroff -*-
-Copyright (c) 1999-2020 hands.com Ltd. <http://hands.com/>
+Copyright (c) 1999-2023 hands.com Ltd. <http://hands.com/>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -32,9 +32,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .Op Fl f
 .Op Fl n
 .Op Fl s
+.Op Fl x
 .Op Fl i Op Ar identity_file
 .Op Fl p Ar port
 .Op Fl o Ar ssh_option
+.Op Fl t Ar target_path
 .Op Ar user Ns @ Ns
 .Ar hostname
 .Nm
@@ -46,17 +48,20 @@ is a script that uses
 .Xr ssh 1
 to log into a remote machine (presumably using a login password,
 so password authentication should be enabled, unless you've done some
-clever use of multiple identities).  It assembles a list of one or more
-fingerprints (as described below) and tries to log in with each key, to
-see if any of them are already installed (of course, if you are not using
+clever use of multiple identities).
+It assembles a list of one or more fingerprints (as described below)
+and tries to log in with each key,
+to see if any of them are already installed (of course, if you are not using
 .Xr ssh-agent 1
 this may result in you being repeatedly prompted for pass-phrases).
-It then assembles a list of those that failed to log in, and using ssh,
-enables logins with those keys on the remote server.  By default it adds
-the keys by appending them to the remote user's
+It then assembles a list of those that failed to log in and, using
+.Xr ssh 1 ,
+enables logins with those keys on the remote server.
+By default it adds the keys by appending them to the remote user's
 .Pa ~/.ssh/authorized_keys
-(creating the file, and directory, if necessary).  It is also capable
-of detecting if the remote system is a NetScreen, and using its
+(creating the file, and directory, if necessary).
+It is also capable of detecting if the remote system is a NetScreen,
+and using its
 .Ql set ssh pka-dsa key ...
 command instead.
 .Pp
@@ -71,7 +76,8 @@ or in the
 .Ic default_ID_file ) .
 If the filename does not end in
 .Pa .pub
-this is added.  If the filename is omitted, the 
+this is added.
+If the filename is omitted, the
 .Ic default_ID_file
 is used.
 .Pp
@@ -80,37 +86,51 @@ comment one prefers and/or extra options applied, by ensuring that the
 key file has these set as preferred before the copy is attempted.
 .It Fl f
 Forced mode: doesn't check if the keys are present on the remote server.
-This means that it does not need the private key.  Of course, this can result
-in more than one copy of the key being installed on the remote system.
+This means that it does not need the private key.
+Of course, this can result in more than one copy of the key being installed
+on the remote system.
 .It Fl n
-do a dry-run.  Instead of installing keys on the remote system simply
+do a dry-run.
+Instead of installing keys on the remote system simply
 prints the key(s) that would have been installed.
 .It Fl s
-SFTP mode: usually the public keys are installed by executing commands on the remote side.
+SFTP mode: usually the public keys are installed
+by executing commands on the remote side.
 With this option the user's
 .Pa ~/.ssh/authorized_keys
 file will be downloaded, modified locally and uploaded with sftp.
-This option is useful if the server has restrictions on commands which can be used on the remote side.
-.It Fl h , Fl ?
-Print Usage summary
+This option is useful if the server has restrictions
+on commands which can be used on the remote side.
+.It Fl t Ar target_path
+the path on the target system where the keys should be added
+(defaults to ".ssh/authorized_keys")
 .It Fl p Ar port , Fl o Ar ssh_option
 These two options are simply passed through untouched, along with their
 argument, to allow one to set the port or other
 .Xr ssh 1
 options, respectively.
 .Pp
-Rather than specifying these as command line options, it is often better to use (per-host) settings in
+Rather than specifying these as command line options,
+it is often better to use (per-host) settings in
 .Xr ssh 1 Ns 's
 configuration file:
 .Xr ssh_config 5 .
+.It Fl x
+This option is for debugging the
+.Nm
+script itself.
+It sets the shell's -x flag, so that you can see the commands being run.
+.It Fl h , Fl ?
+Print Usage summary
 .El
 .Pp
 Default behaviour without
 .Fl i ,
 is to check if
 .Ql ssh-add -L
-provides any output, and if so those keys are used.  Note that this results in
-the comment on the key being the filename that was given to
+provides any output, and if so those keys are used.
+Note that this results in the comment on the key
+being the filename that was given to
 .Xr ssh-add 1
 when the key was loaded into your
 .Xr ssh-agent 1
@@ -131,16 +151,16 @@ so if you create a key that is not the one you want
 .Nm
 to use, just use
 .Xr touch 1
-on your preferred key's 
+on your preferred key's
 .Pa .pub
 file to reinstate it as the most recent.
-.Pp
 .Sh EXAMPLES
 If you have already installed keys from one system on a lot of remote
 hosts, and you then create a new key, on a new client machine, say,
 it can be difficult to keep track of which systems on which you've
-installed the new key.  One way of dealing with this is to load both
-the new key and old key(s) into your
+installed the new key.
+One way of dealing with this is to load both the new key and old key(s)
+into your
 .Xr ssh-agent 1 .
 Load the new key first, without the
 .Fl c
@@ -162,7 +182,9 @@ asked for confirmation, which is your cue to log back out and run
 .Pp
 .D1 user@newclient$ ssh-copy-id -i someserver
 .Pp
-The reason you might want to specify the -i option in this case is to
+The reason you might want to specify the
+.Fl i
+option in this case is to
 ensure that the comment on the installed key is the one from the
 .Pa .pub
 file, rather than just the filename that was loaded into your agent.
@@ -180,15 +202,16 @@ option, you might consider using this whenever using agent forwarding
 to avoid your key being hijacked, but it is much better to instead use
 .Xr ssh 1 Ns 's
 .Ar ProxyCommand
-and 
+and
 .Fl W
 option,
 to bounce through remote servers while always doing direct end-to-end
-authentication. This way the middle hop(s) don't get access to your
+authentication.
+This way the middle hop(s) don't get access to your
 .Xr ssh-agent 1 .
 A web search for
 .Ql ssh proxycommand nc
-should prove enlightening (N.B. the modern approach is to use the
+should prove enlightening (NB the modern approach is to use the
 .Fl W
 option, rather than
 .Xr nc 1 ) .

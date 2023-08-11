@@ -13,7 +13,14 @@ jobs:
       fail-fast: false
       matrix:
         # First we test all OSes in the default configuration.
-        target: [ubuntu-20.04, ubuntu-22.04, macos-11, macos-12, windows-2019, windows-2022]
+        target:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - macos-11
+          - macos-12
+          - macos-13
+          - windows-2019
+          - windows-2022
         config: [default]
         # Then we include any extra configs we want to test for specific VMs.
         # Valgrind slows things down quite a bit, so start them first.
@@ -43,33 +50,27 @@ jobs:
           - { target: ubuntu-20.04, config: gcc-11-Werror }
           - { target: ubuntu-20.04, config: pam }
           - { target: ubuntu-20.04, config: kitchensink }
-          - { target: ubuntu-20.04, config: hardenedmalloc }
+          - { target: ubuntu-22.04, config: hardenedmalloc }
           - { target: ubuntu-20.04, config: tcmalloc }
           - { target: ubuntu-20.04, config: musl }
+          - { target: ubuntu-latest, config: boringssl }
           - { target: ubuntu-latest, config: libressl-master }
-          - { target: ubuntu-latest, config: libressl-2.2.9 }
-          - { target: ubuntu-latest, config: libressl-2.8.3 }
-          - { target: ubuntu-latest, config: libressl-3.0.2 }
           - { target: ubuntu-latest, config: libressl-3.2.6 }
           - { target: ubuntu-latest, config: libressl-3.3.6 }
           - { target: ubuntu-latest, config: libressl-3.4.3 }
           - { target: ubuntu-latest, config: libressl-3.5.3 }
           - { target: ubuntu-latest, config: libressl-3.6.1 }
-          - { target: ubuntu-latest, config: libressl-3.7.0 }
+          - { target: ubuntu-latest, config: libressl-3.7.2 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
-          - { target: ubuntu-latest, config: openssl-1.0.1 }
-          - { target: ubuntu-latest, config: openssl-1.0.1u }
-          - { target: ubuntu-latest, config: openssl-1.0.2u }
-          - { target: ubuntu-latest, config: openssl-1.1.0h }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
           - { target: ubuntu-latest, config: openssl-1.1.1k }
           - { target: ubuntu-latest, config: openssl-1.1.1n }
           - { target: ubuntu-latest, config: openssl-1.1.1q }
-          - { target: ubuntu-latest, config: openssl-1.1.1s }
+          - { target: ubuntu-latest, config: openssl-1.1.1t }
           - { target: ubuntu-latest, config: openssl-3.0.0 }
-          - { target: ubuntu-latest, config: openssl-3.0.5 }
           - { target: ubuntu-latest, config: openssl-3.0.7 }
+          - { target: ubuntu-latest, config: openssl-3.1.0 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
           - { target: ubuntu-22.04, config: pam }
@@ -82,6 +83,7 @@ jobs:
           - { target: ubuntu-22.04, config: without-openssl }
           - { target: macos-11, config: pam }
           - { target: macos-12, config: pam }
+          - { target: macos-13, config: pam }
     runs-on: ${{ matrix.target }}
     steps:
     - name: set cygwin git params
