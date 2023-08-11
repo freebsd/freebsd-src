@@ -4,6 +4,6 @@ PROG=   cpuset
 
 LIBADD=	jail
 
-SYMLINKS+=	${BINDIR}/cpuset	/usr/bin/cpuset
+SYMLINKS+=	../../bin/cpuset	/usr/bin/cpuset
 
 .include <bsd.prog.mk>
