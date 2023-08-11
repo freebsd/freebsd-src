@@ -66,6 +66,7 @@
 #include "athnreg.h"
 #include "ar5008reg.h"
 #include "athnvar.h"
+#include "openbsd_adapt.h"
 
 #include <openbsd/usb/openbsd_usb.h>
 #include <openbsd/openbsd_usbdi.h>
