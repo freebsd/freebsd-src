@@ -983,14 +983,12 @@ mana_query_vport_cfg(struct mana_port_context *apc, uint32_t vport_index,
 void
 mana_uncfg_vport(struct mana_port_context *apc)
 {
-	MANA_APC_LOCK_LOCK(apc);
 	apc->vport_use_count--;
 	if (apc->vport_use_count < 0) {
 		mana_err(NULL,
 		    "WARNING: vport_use_count less than 0: %u\n",
 		    apc->vport_use_count);
 	}
-	MANA_APC_LOCK_UNLOCK(apc);
 }
 
 int
@@ -1019,13 +1017,10 @@ mana_cfg_vport(struct mana_port_context *apc, uint32_t protection_dom_id,
 	 * QPs on a physical port up to the hardware limits independent of the
 	 * Ethernet usage on the same port.
 	 */
-	MANA_APC_LOCK_LOCK(apc);
 	if (apc->vport_use_count > 0) {
-		MANA_APC_LOCK_UNLOCK(apc);
 		return EBUSY;
 	}
 	apc->vport_use_count++;
-	MANA_APC_LOCK_UNLOCK(apc);
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_CONFIG_VPORT_TX,
 	    sizeof(req), sizeof(resp));
