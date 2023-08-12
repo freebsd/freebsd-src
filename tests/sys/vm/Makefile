@@ -10,7 +10,8 @@ ATF_TESTS_C+=	mlock_test \
 		shared_shadow_inval_test
 
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE} != "arm" && \
-	(${MACHINE} != "powerpc" || ${MACHINE_ARCH} != "powerpc")
+	(${MACHINE} != "powerpc" || (${MACHINE_ARCH} != "powerpc" && \
+					${MACHINE_ARCH} != "powerpcspe"))
 	# MAP_32BIT is only available on 64-bit platforms
 BINDIR=		${TESTSDIR}
 ATF_TESTS_SH+=	mmap_map_32bit_test
