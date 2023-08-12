@@ -369,6 +369,15 @@ restart:
 		}
 	}
 	/*
+	 * Change inode to snapshot type file. Before setting its block
+	 * pointers to BLK_SNAP and BLK_NOCOPY in cgaccount, we have to
+	 * set its type to SF_SNAPSHOT so that VOP_REMOVE will know that
+	 * they need to be rolled back before attempting deletion.
+	 */
+	ip->i_flags |= SF_SNAPSHOT;
+	DIP_SET(ip, i_flags, ip->i_flags);
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
+	/*
 	 * Copy all the cylinder group maps. Although the
 	 * filesystem is still active, we hope that only a few
 	 * cylinder groups will change between now and when we
@@ -393,12 +402,6 @@ restart:
 		if (error)
 			goto out;
 	}
-	/*
-	 * Change inode to snapshot type file.
-	 */
-	ip->i_flags |= SF_SNAPSHOT;
-	DIP_SET(ip, i_flags, ip->i_flags);
-	UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 	/*
 	 * Ensure that the snapshot is completely on disk.
 	 * Since we have marked it as a snapshot it is safe to
