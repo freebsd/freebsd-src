@@ -2074,7 +2074,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capabilities & IFCAP_VLAN_HWCSUM)
 		cap |= p->if_capabilities & IFCAP_LRO;
 	if (p->if_capenable & IFCAP_VLAN_HWCSUM)
-		ena |= p->if_capenable & IFCAP_LRO;
+		ena |= mena & IFCAP_LRO;
 
 	/*
 	 * If the parent interface can offload TCP connections over VLANs then
