@@ -2272,7 +2272,7 @@ int
 create_netdev(device_t dev)
 {
 	struct netfront_info *np;
-	int err;
+	int err, cap_enabled;
 	if_t ifp;
 
 	np = device_get_softc(dev);
@@ -2304,7 +2304,11 @@ create_netdev(device_t dev)
 	if_sethwassist(ifp, XN_CSUM_FEATURES);
 	/* Enable all supported features at device creation. */
 	if_setcapabilities(ifp, IFCAP_HWCSUM|IFCAP_TSO4|IFCAP_LRO);
-	if_setcapenable(ifp, if_getcapabilities(ifp));
+	cap_enabled = if_getcapabilities(ifp);
+	if (!xn_enable_lro) {
+		cap_enabled &= ~IFCAP_LRO;
+	}
+	if_setcapenable(ifp, cap_enabled);
 
 	if_sethwtsomax(ifp, 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
 	if_sethwtsomaxsegcount(ifp, MAX_TX_REQ_FRAGS);
