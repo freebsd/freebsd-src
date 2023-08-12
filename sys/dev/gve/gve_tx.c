@@ -696,10 +696,9 @@ gve_xmit_br(struct gve_tx_ring *tx)
 	struct ifnet *ifp = priv->ifp;
 	struct mbuf *mbuf;
 
-	while (!drbr_empty(ifp, tx->br) &&
-	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+	while ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+	    (mbuf = drbr_peek(ifp, tx->br)) != NULL) {
 
-		mbuf = drbr_peek(ifp, tx->br);
 		if (__predict_false(gve_xmit(tx, mbuf) != 0)) {
 			drbr_putback(ifp, tx->br, mbuf);
 			taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
