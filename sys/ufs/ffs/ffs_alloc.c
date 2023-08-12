@@ -3130,6 +3130,7 @@ ffs_checkcgintegrity(struct fs *fs,
 	fs->fs_cstotal.cs_nifree -= fs->fs_cs(fs, cg).cs_nifree;
 	fs->fs_cs(fs, cg).cs_nifree = 0;
 	fs->fs_maxcluster[cg] = 0;
+	fs->fs_flags |= FS_NEEDSFSCK;
 	fs->fs_fmod = 1;
 }
 
