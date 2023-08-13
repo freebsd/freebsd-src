@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -48,6 +49,7 @@ static struct option longopts[] = {
 	{ "dump",		no_argument,		NULL,	'd' },
 	{ "hints",		required_argument,	NULL,	'h' },
 	{ "nomatch",		required_argument,	NULL,	'p' },
+	{ "quiet",		no_argument,		NULL,	'q' },
 	{ "unbound",		no_argument,		NULL,	'u' },
 	{ "verbose",		no_argument,		NULL,	'v' },
 	{ NULL,			0,			NULL,	0 }
@@ -59,6 +61,7 @@ static int all_flag;
 static int dump_flag;
 static char *linker_hints;
 static char *nomatch_str;
+static int quiet_flag;
 static int unbound_flag;
 static int verbose_flag;
 
@@ -114,8 +117,12 @@ read_linker_hints(void)
 				continue;
 			break;
 		}
-		if (q == NULL)
-			errx(1, "Can't read linker hints file.");
+		if (q == NULL) {
+			if (quiet_flag)
+				exit(EX_UNAVAILABLE);
+			else
+				errx(EX_UNAVAILABLE, "Can't read linker hints file.");
+		}
 	} else {
 		hints = read_hints(linker_hints, &len);
 		if (hints == NULL)
@@ -565,7 +572,7 @@ main(int argc, char **argv)
 {
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "adh:p:uv",
+	while ((ch = getopt_long(argc, argv, "adh:p:quv",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -579,6 +586,9 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			nomatch_str = optarg;
+			break;
+		case 'q':
+			quiet_flag++;
 			break;
 		case 'u':
 			unbound_flag++;
