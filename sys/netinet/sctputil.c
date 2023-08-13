@@ -3636,7 +3636,6 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
-/* This always must be called with the read-queue LOCKED in the INP */
 static void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
     uint32_t val, int so_locked)
@@ -3651,6 +3650,8 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		/* event not enabled */
 		return;
 	}
+
+	SCTP_INP_READ_LOCK_ASSERT(stcb->sctp_ep);
 
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
