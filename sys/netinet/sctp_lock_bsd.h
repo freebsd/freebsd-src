@@ -232,12 +232,12 @@
  * or cookie secrets we lock the INP level.
  */
 
-#define SCTP_INP_READ_INIT(_inp) do {					\
+#define SCTP_INP_READ_LOCK_INIT(_inp) do {				\
 	mtx_init(&(_inp)->inp_rdata_mtx, "sctp-read", "inpr",		\
 	         MTX_DEF | MTX_DUPOK);					\
 } while (0)
 
-#define SCTP_INP_READ_DESTROY(_inp) do {				\
+#define SCTP_INP_READ_LOCK_DESTROY(_inp) do {				\
 	mtx_destroy(&(_inp)->inp_rdata_mtx);				\
 } while (0)
 
@@ -247,6 +247,11 @@
 
 #define SCTP_INP_READ_UNLOCK(_inp) do {					\
 	mtx_unlock(&(_inp)->inp_rdata_mtx);				\
+} while (0)
+
+#define SCTP_INP_READ_LOCK_ASSERT(_inp) do {				\
+	KASSERT(mtx_owned(&(_inp)->inp_rdata_mtx),			\
+	        ("Don't own INP read queue lock"));			\
 } while (0)
 
 #define SCTP_INP_LOCK_INIT(_inp) do {					\
