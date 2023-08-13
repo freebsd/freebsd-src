@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.c,v 1.74 2017/11/27 16:37:21 christos Exp $	*/
+/*	$NetBSD: vis.c,v 1.83 2023/08/12 12:48:52 riastradh Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -57,7 +57,7 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.74 2017/11/27 16:37:21 christos Exp $");
+__RCSID("$NetBSD: vis.c,v 1.83 2023/08/12 12:48:52 riastradh Exp $");
 #endif /* LIBC_SCCS and not lint */
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -353,12 +353,15 @@ makeextralist(int flags, const char *src)
 	wchar_t *dst, *d;
 	size_t len;
 	const wchar_t *s;
+	mbstate_t mbstate;
 
 	len = strlen(src);
 	if ((dst = calloc(len + MAXEXTRAS, sizeof(*dst))) == NULL)
 		return NULL;
 
-	if ((flags & VIS_NOLOCALE) || mbstowcs(dst, src, len) == (size_t)-1) {
+	memset(&mbstate, 0, sizeof(mbstate));
+	if ((flags & VIS_NOLOCALE)
+	    || mbsrtowcs(dst, &src, len, &mbstate) == (size_t)-1) {
 		size_t i;
 		for (i = 0; i < len; i++)
 			dst[i] = (wchar_t)(u_char)src[i];
@@ -393,20 +396,23 @@ static int
 istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
     int flags, const char *mbextra, int *cerr_ptr)
 {
+	char mbbuf[MB_LEN_MAX];
 	wchar_t *dst, *src, *pdst, *psrc, *start, *extra;
 	size_t len, olen;
 	uint64_t bmsk, wmsk;
 	wint_t c;
 	visfun_t f;
 	int clen = 0, cerr, error = -1, i, shft;
-	char *mbdst, *mdst;
-	ssize_t mbslength, maxolen;
+	char *mbdst, *mbwrite, *mdst;
+	size_t mbslength;
+	size_t maxolen;
+	mbstate_t mbstate;
 
 	_DIAGASSERT(mbdstp != NULL);
 	_DIAGASSERT(mbsrc != NULL || mblength == 0);
 	_DIAGASSERT(mbextra != NULL);
 
-	mbslength = (ssize_t)mblength;
+	mbslength = mblength;
 	/*
 	 * When inputing a single character, must also read in the
 	 * next character for nextc, the look-ahead character.
@@ -426,6 +432,14 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	 * This will then be converted back to a multibyte string to
 	 * return to the caller.
 	 */
+
+	/*
+	 * Guarantee the arithmetic on input to calloc won't overflow.
+	 */
+	if (mbslength > (SIZE_MAX - 1)/16) {
+		errno = ENOMEM;
+		return -1;
+	}
 
 	/* Allocate space for the wide char strings */
 	psrc = pdst = extra = NULL;
@@ -458,10 +472,18 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	 * stop at NULs because we may be processing a block of data
 	 * that includes NULs.
 	 */
+	memset(&mbstate, 0, sizeof(mbstate));
 	while (mbslength > 0) {
 		/* Convert one multibyte character to wchar_t. */
-		if (!cerr)
-			clen = mbtowc(src, mbsrc, MB_LEN_MAX);
+		if (!cerr) {
+			clen = mbrtowc(src, mbsrc,
+			    (mbslength < MB_LEN_MAX
+				? mbslength
+				: MB_LEN_MAX),
+			    &mbstate);
+			assert(clen < 0 || (size_t)clen <= mbslength);
+			assert(clen <= MB_LEN_MAX);
+		}
 		if (cerr || clen < 0) {
 			/* Conversion error, process as a byte instead. */
 			*src = (wint_t)(u_char)*mbsrc;
@@ -475,6 +497,20 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 			 */
 			clen = 1;
 		}
+		/*
+		 * Let n := MIN(mbslength, MB_LEN_MAX).  We have:
+		 *
+		 *	mbslength >= 1
+		 *	mbrtowc(..., n, &mbstate) <= n,
+		 *		by the contract of mbrtowc
+		 *
+		 *  clen is either
+		 *  (a) mbrtowc(..., n, &mbstate), in which case
+		 *      clen <= n <= mbslength; or
+		 *  (b) 1, in which case clen = 1 <= mbslength.
+		 */
+		assert(clen > 0);
+		assert((size_t)clen <= mbslength);
 		/* Advance buffer character pointer. */
 		src++;
 		/* Advance input pointer by number of bytes read. */
@@ -532,11 +568,49 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	 * output byte-by-byte here.  Else use wctomb().
 	 */
 	len = wcslen(start);
-	maxolen = dlen ? *dlen : (wcslen(start) * MB_LEN_MAX + 1);
+	if (dlen) {
+		maxolen = *dlen;
+		if (maxolen == 0) {
+			errno = ENOSPC;
+			goto out;
+		}
+	} else {
+		if (len > (SIZE_MAX - 1)/MB_LEN_MAX) {
+			errno = ENOSPC;
+			goto out;
+		}
+		maxolen = len*MB_LEN_MAX + 1;
+	}
 	olen = 0;
+	memset(&mbstate, 0, sizeof(mbstate));
 	for (dst = start; len > 0; len--) {
-		if (!cerr)
-			clen = wctomb(mbdst, *dst);
+		if (!cerr) {
+			/*
+			 * If we have at least MB_CUR_MAX bytes in the buffer,
+			 * we'll just do the conversion in-place into mbdst.  We
+			 * need to be a little more conservative when we get to
+			 * the end of the buffer, as we may not have MB_CUR_MAX
+			 * bytes but we may not need it.
+			 */
+			if (maxolen - olen > MB_CUR_MAX)
+				mbwrite = mbdst;
+			else
+				mbwrite = mbbuf;
+			clen = wcrtomb(mbwrite, *dst, &mbstate);
+			if (clen > 0 && mbwrite != mbdst) {
+				/*
+				 * Don't break past our output limit, noting
+				 * that maxolen includes the nul terminator so
+				 * we can't write past maxolen - 1 here.
+				 */
+				if (olen + clen >= maxolen) {
+					errno = ENOSPC;
+					goto out;
+				}
+
+				memcpy(mbdst, mbwrite, clen);
+			}
+		}
 		if (cerr || clen < 0) {
 			/*
 			 * Conversion error, process as a byte(s) instead.
@@ -551,16 +625,27 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 				shft = i * NBBY;
 				bmsk = (uint64_t)0xffLL << shft;
 				wmsk |= bmsk;
-				if ((*dst & wmsk) || i == 0)
+				if ((*dst & wmsk) || i == 0) {
+					if (olen + clen + 1 >= maxolen) {
+						errno = ENOSPC;
+						goto out;
+					}
+
 					mbdst[clen++] = (char)(
 					    (uint64_t)(*dst & bmsk) >>
 					    shft);
+				}
 			}
 			cerr = 1;
 		}
-		/* If this character would exceed our output limit, stop. */
-		if (olen + clen > (size_t)maxolen)
-			break;
+
+		/*
+		 * We'll be dereferencing mbdst[clen] after this to write the
+		 * nul terminator; the above paths should have checked for a
+		 * possible overflow already.
+		 */
+		assert(olen + clen < maxolen);
+
 		/* Advance output pointer by number of bytes written. */
 		mbdst += clen;
 		/* Advance buffer character pointer. */
@@ -570,6 +655,7 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	}
 
 	/* Terminate the output string. */
+	assert(olen < maxolen);
 	*mbdst = '\0';
 
 	if (flags & VIS_NOLOCALE) {
