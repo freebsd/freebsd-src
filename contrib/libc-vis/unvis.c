@@ -1,4 +1,4 @@
-/*	$NetBSD: unvis.c,v 1.44 2014/09/26 15:43:36 roy Exp $	*/
+/*	$NetBSD: unvis.c,v 1.45 2022/04/19 20:32:15 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -34,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: unvis.c,v 1.44 2014/09/26 15:43:36 roy Exp $");
+__RCSID("$NetBSD: unvis.c,v 1.45 2022/04/19 20:32:15 rillig Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 __FBSDID("$FreeBSD$");
@@ -514,7 +514,7 @@ strnunvisx(char *dst, size_t dlen, const char *src, int flag)
 			errno = ENOSPC; \
 			return -1; \
 		} \
-	} while (/*CONSTCOND*/0)
+	} while (0)
 
 	while ((c = *src++) != '\0') {
  again:
