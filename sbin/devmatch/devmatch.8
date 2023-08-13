@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2022
+.Dd August 13, 2023
 .Dt DEVMATCH 8
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Op Fl d | -dump
 .Op Oo Fl h | -hints Oc Ar file
 .Op Oo Fl p | -nomatch Oc Ar event
+.Op Fl q | -quiet
 .Op Fl u | -unbound
 .Op Fl v | -verbose
 .Sh DESCRIPTION
@@ -59,6 +60,10 @@ guessed from the current module load path.
 Parse and use a standard NOMATCH event from
 .Xr devd 8
 for matching instead of searching the device tree.
+.It Fl q Fl -quiet
+Suppress some error messages and simply return a non-zero exit code.
+This is helpful to avoid an endless list of warnings during bootup if
+no hints are available.
 .It Fl u Fl -unbound
 Attempt to produce a list of those drivers with PNP info whose driver
 tables with that PNP info cannot be found.
