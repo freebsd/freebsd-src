@@ -11,6 +11,44 @@
 
 ======================================================================
 
+	Major changes between "less" versions 633 and 643
+
+* Fix problem when a program piping into less reads from the tty,
+  like sudo asking for password (github #368).
+
+* Fix search modifier ^E after ^W.
+
+* Fix bug using negated (^N) search (github #374).
+
+* Fix bug setting colors with -D on Windows build (github #386).
+
+* Fix reading special chars like PageDown on Windows (github #378).
+
+* Fix mouse wheel scrolling on Windows (github #379).
+
+* Fix erroneous EOF when terminal window size changes (github #372).
+
+* Fix compile error with some definitions of ECHONL (github #395).
+
+* Fix crash on Windows when writing logfile (github #405).
+
+* Fix regression in exit code when stdin is /dev/null and 
+  output is a file (github #373).
+
+* Add lesstest test suite to production release (github #344).
+
+* Change lesstest output to conform with 
+  automake Simple Test Format (github #399).
+
+======================================================================
+
+	Major changes between "less" versions 632 and 633
+
+* Fix build on systems which have ncurses/termcap.h or 
+  ncursesw/termcap.h but not termcap.h.
+
+======================================================================
+
 	Major changes between "less" versions 608 and 632
 
 * Add LESSUTFCHARDEF environment variable (github #275).

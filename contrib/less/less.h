@@ -274,6 +274,15 @@ typedef off_t           LINENUM;
 #endif
 
 /*
+ * Flags for creat()
+ */
+#if MSDOS_COMPILER
+#define CREAT_RW        (S_IREAD|S_IWRITE)
+#else
+#define CREAT_RW        0644
+#endif
+
+/*
  * Set a file descriptor to binary mode.
  */
 #if MSDOS_COMPILER==MSOFTC

@@ -944,6 +944,8 @@ static void hilite_line(POSITION linepos, char *line, int line_len, int *chpos, 
 	do {
 		char *lep = sp[0];
 		int i;
+		if (sp[0] == NULL || ep[0] == NULL)
+			break;
 		for (i = 1;  i < nsp;  i++)
 		{
 			if (sp[i] == NULL || ep[i] == NULL)

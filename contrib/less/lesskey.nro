@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 632: 06 Apr 2023"
+.TH LESSKEY 1 "Version 643: 20 Jul 2023"
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
@@ -48,7 +48,7 @@ Customizes line-editing key bindings.
 .IP #env
 Defines environment variables.
 .PP
-Blank lines and lines which start with a pound sign (#) are ignored,
+Blank lines and lines which start with a hash mark (#) are ignored,
 except as noted below.
 .
 .SH "COMMAND SECTION"
@@ -108,7 +108,7 @@ l l.
 A backslash followed by any other character indicates that character is
 to be taken literally.
 Characters which must be preceded by backslash include
-caret, space, tab and the backslash itself.
+caret, space, tab, hash mark and the backslash itself.
 .PP
 An action may be followed by an "extra" string.
 When such a command is entered while running
@@ -361,6 +361,11 @@ the same variable's original definition (with an = line),
 without any intervening definitions of other variables.
 It can append only to a variable defined earlier in the file;
 it cannot append to a variable in the system environment.
+The string is appended literally, without any extra whitespace added,
+so if whitespace is desired,
+it should be appended to the end of the preceding line.
+(It cannot be added to the beginning of the += string because space after
+the equals sign is ignored, as noted above.)
 .
 .SH CONDITIONAL CONFIGURATION
 If a line begins with #version followed by a relational operator and a version number,
@@ -410,7 +415,9 @@ is run and, on version 595 and higher, adds a \-\-color option.
 .sp
 .nf
 	#env
-	LESS = \-i\ \-S
+	## (Note that there must be a space at the end of the next line,
+	##  to separate the --color option from the -S option.)
+	LESS = \-i\ \-S\ 
 	#version\ >=\ 595\ \ LESS\ +=\ \-\-color=Hkc
 .fi
 .

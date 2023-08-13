@@ -48,6 +48,7 @@ static int use_poll = TRUE;
 #endif
 #if USE_POLL
 #include <poll.h>
+static int any_data = FALSE;
 #endif
 
 /*
@@ -88,10 +89,10 @@ extern char *ttyin_name;
 
 public void init_poll(void)
 {
-    char *delay = lgetenv("LESS_DATA_DELAY");
-    int idelay = (delay == NULL) ? 0 : atoi(delay);
-    if (idelay > 0)
-        waiting_for_data_delay = idelay;
+	char *delay = lgetenv("LESS_DATA_DELAY");
+	int idelay = (delay == NULL) ? 0 : atoi(delay);
+	if (idelay > 0)
+		waiting_for_data_delay = idelay;
 #if USE_POLL
 #if defined(__APPLE__)
 	/* In old versions of MacOS, poll() does not work with /dev/tty. */
@@ -113,6 +114,15 @@ static int check_poll(int fd, int tty)
 {
 	struct pollfd poller[2] = { { fd, POLLIN, 0 }, { tty, POLLIN, 0 } };
 	int timeout = (waiting_for_data && !(scanning_eof && follow_mode == FOLLOW_NAME)) ? -1 : waiting_for_data_delay;
+	if (!any_data)
+	{
+		/*
+		 * Don't do polling if no data has yet been received,
+		 * to allow a program piping data into less to have temporary
+		 * access to the tty (like sudo asking for a password).
+		 */
+		return (0);
+	}
 	poll(poller, 2, timeout);
 #if LESSTEST
 	if (ttyin_name == NULL) /* Check for ^X only on a real tty. */
@@ -194,6 +204,11 @@ start:
 #endif
 #endif
 #endif
+#if !MSDOS_COMPILER
+		if (fd != tty && !ABORT_SIGS())
+			/* Non-interrupt signal like SIGWINCH. */
+			return (READ_AGAIN);
+#endif
 		return (READ_INTR);
 	}
 
@@ -207,7 +222,7 @@ start:
 		 * available, because that makes some background programs
 		 * believe DOS is busy in a way that prevents those
 		 * programs from working while "less" waits.
-         * {{ This code was added 12 Jan 2007; still needed? }}
+		 * {{ This code was added 12 Jan 2007; still needed? }}
 		 */
 		fd_set readfds;
 
@@ -234,11 +249,18 @@ start:
 	}
 #else
 #if MSDOS_COMPILER==WIN32C
-	if (win32_kbhit() && WIN32getch() == intr_char)
+	if (win32_kbhit())
 	{
-		sigs |= S_INTERRUPT;
-		reading = 0;
-		return (READ_INTR);
+		int c;
+
+		c = WIN32getch();
+		if (c == intr_char)
+		{
+			sigs |= S_INTERRUPT;
+			reading = 0;
+			return (READ_INTR);
+		}
+		WIN32ungetch(c);
 	}
 #endif
 #endif
@@ -282,6 +304,10 @@ start:
 #endif
 		return (READ_ERR);
 	}
+#if USE_POLL
+	if (fd != tty && n > 0)
+		any_data = TRUE;
+#endif
 	return (n);
 }
 

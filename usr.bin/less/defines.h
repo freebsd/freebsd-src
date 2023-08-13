@@ -262,11 +262,14 @@
 /* Define HAVE_LOCALE if you have locale.h and setlocale. */
 #define HAVE_LOCALE 1
 
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
-
 /* Define to 1 if you have the `nanosleep' function. */
 #define HAVE_NANOSLEEP 1
+
+/* Define to 1 if you have the <ncursesw/termcap.h> header file. */
+/* #undef HAVE_NCURSESW_TERMCAP_H */
+
+/* Define to 1 if you have the <ncurses/termcap.h> header file. */
+/* #undef HAVE_NCURSES_TERMCAP_H */
 
 /* Define HAVE_OSPEED if your termcap library has the ospeed variable. */
 #define HAVE_OSPEED 1
@@ -451,13 +454,10 @@
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 /* #undef STAT_MACROS_BROKEN */
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

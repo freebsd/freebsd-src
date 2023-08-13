@@ -406,6 +406,8 @@ public void sync_logfile(void)
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
 
+	if (logfile < 0)
+		return;
 	nblocks = (ch_fpos + LBUFSIZE - 1) / LBUFSIZE;
 	for (block = 0;  block < nblocks;  block++)
 	{

@@ -981,6 +981,18 @@ v629  2/26/23   Delay "waiting for data" message for 500 ms.
 v630  3/18/23   Add LESS_DATA_DELAY.
 v631  3/26/23   Fix input of dead keys on Windows.
 v632  4/6/23    Make lesstest work on MacOS; minor fixes.
+v633  5/3/23    Fix build on systems with ncurses/termcap.h or ncursesw/termcap.h.
+v634  5/29/23   Allow program piping into less to access tty;
+                fix search modifier ^E after ^W.
+v635  6/2/23    Fix crash with ! search modifier.
+v636  6/18/23   Fix -D in MS-DOS build; fix mouse wheel in MS-DOS build.
+v637  6/28/23   Fix early EOF when SIGWINCH is received.
+v638  6/29/23   Fix compile error with ECHONL.
+v639  6/29/23   Fix SIGWINCH while reading tty.
+v640  7/10/23   Add lesstest to release.
+v641  7/10/23   Fix release.
+v642  7/10/23   Fix release.
+v643  7/20/23   Fix crash on Windows with -o.
 */
 
-char version[] = "632";
+char version[] = "643";

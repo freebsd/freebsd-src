@@ -975,7 +975,7 @@ loop:
 		/*
 		 * Overwrite: create the file.
 		 */
-		logfile = creat(filename, 0644);
+		logfile = creat(filename, CREAT_RW);
 		break;
 	case 'A': case 'a':
 		/*

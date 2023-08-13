@@ -93,7 +93,7 @@ static int help_fixup(void *r, uintmax val, int rsize, int rsigned)
 			int *pr = r;
 			if (INT_MAX < val)
 				return TRUE;
-			*pr = val;
+			*pr = (int) val;
 #ifdef LLONG_MAX
 		} else if (rsize == sizeof (long long))
 		{
@@ -114,19 +114,19 @@ static int help_fixup(void *r, uintmax val, int rsize, int rsigned)
 			long *pr = r;
 			if (LONG_MAX < val)
 				return TRUE;
-			*pr = val;
+			*pr = (long) val;
 		}
 	} else {
 		if (rsize == sizeof (unsigned)) {
 			unsigned *pr = r;
 			if (UINT_MAX < val)
 				return TRUE;
-			*pr = val;
+			*pr = (unsigned) val;
 		} else if (rsize == sizeof (unsigned long)) {
 			unsigned long *pr = r;
 			if (ULONG_MAX < val)
 				return TRUE;
-			*pr = val;
+			*pr = (unsigned long) val;
 #ifdef ULLONG_MAX
 		} else if (rsize == sizeof (unsigned long long)) {
 			long long *pr = r;

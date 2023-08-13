@@ -196,7 +196,7 @@ public void opt_j(int type, char *s)
 			error("Position target at screen line %d", &parg);
 		} else
 		{
-			char buf[24];
+			char buf[INT_STRLEN_BOUND(long)+2];
 			SNPRINTF1(buf, sizeof(buf), ".%06ld", jump_sline_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
@@ -213,7 +213,7 @@ public void calc_jump_sline(void)
 {
 	if (jump_sline_fraction < 0)
 		return;
-	jump_sline = muldiv(sc_height, jump_sline_fraction, NUM_FRAC_DENOM);
+	jump_sline = (int) muldiv(sc_height, jump_sline_fraction, NUM_FRAC_DENOM);
 }
 
 /*
@@ -256,7 +256,7 @@ public void opt_shift(int type, char *s)
 			error("Horizontal shift %d columns", &parg);
 		} else
 		{
-			char buf[24];
+			char buf[INT_STRLEN_BOUND(long)+2];
 			SNPRINTF1(buf, sizeof(buf), ".%06ld", shift_count_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
@@ -273,7 +273,7 @@ public void calc_shift_count(void)
 {
 	if (shift_count_fraction < 0)
 		return;
-	shift_count = muldiv(sc_width, shift_count_fraction, NUM_FRAC_DENOM);
+	shift_count = (int) muldiv(sc_width, shift_count_fraction, NUM_FRAC_DENOM);
 }
 
 #if USERFILE
