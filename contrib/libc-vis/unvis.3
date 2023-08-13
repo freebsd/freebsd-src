@@ -1,5 +1,4 @@
-.\"	$NetBSD: unvis.3,v 1.29 2017/10/24 19:14:55 abhinav Exp $
-.\"	$FreeBSD$
+.\"	$NetBSD: unvis.3,v 1.30 2019/05/08 15:37:41 bad Exp $
 .\"
 .\" Copyright (c) 1989, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -30,7 +29,7 @@
 .\"
 .\"     @(#)unvis.3	8.2 (Berkeley) 12/11/93
 .\"
-.Dd March 12, 2011
+.Dd May 8, 2019
 .Dt UNVIS 3
 .Os
 .Sh NAME
@@ -100,16 +99,18 @@ should be equal to the size of
 .Pp
 The
 .Fn strunvisx
-function does the same as the
+and
+.Fn strnunvisx
+functions do the same as the
 .Fn strunvis
-function,
-but it allows you to add a flag that specifies the style the string
+and
+.Fn strnunvis
+functions,
+but take a flag that specifies the style the string
 .Ar src
 is encoded with.
-Currently, the supported flags are:
-.Dv VIS_HTTPSTYLE
-and
-.Dv VIS_MIMESTYLE .
+The meaning of the flag is the same as explained below for
+.Fn unvis .
 .Pp
 The
 .Fn unvis
@@ -157,6 +158,10 @@ to extract any remaining character (the character passed in is ignored).
 The
 .Fa flag
 argument is also used to specify the encoding style of the source.
+If set to
+.Dv VIS_NOESCAPE
+.Fn unvis
+will not decode backslash escapes.
 If set to
 .Dv VIS_HTTPSTYLE
 or

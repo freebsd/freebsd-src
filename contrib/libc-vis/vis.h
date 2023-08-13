@@ -1,5 +1,4 @@
-/*	$NetBSD: vis.h,v 1.25 2017/04/23 01:57:36 christos Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: vis.h,v 1.26 2022/05/20 21:31:24 andvar Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -41,7 +40,7 @@
  * to select alternate encoding format
  */
 #define	VIS_OCTAL	0x0001	/* use octal \ddd format */
-#define	VIS_CSTYLE	0x0002	/* use \[nrft0..] where appropiate */
+#define	VIS_CSTYLE	0x0002	/* use \[nrft0..] where appropriate */
 
 /*
  * to alter set of characters encoded (default is to encode all
