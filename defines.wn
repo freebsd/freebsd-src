@@ -260,11 +260,7 @@
 /* Define MUST_DEFINE_ERRNO if you have errno but it is not define 
  * in errno.h */
 #define HAVE_ERRNO 1
-#ifdef MINGW
 #define MUST_DEFINE_ERRNO 0
-#else
-#define MUST_DEFINE_ERRNO 1
-#endif
 
 /* Define HAVE_SYS_ERRLIST if you have the sys_errlist[] variable */
 #define HAVE_SYS_ERRLIST 1

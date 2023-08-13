@@ -230,7 +230,7 @@ public void forw(int n, POSITION pos, int force, int only_last, int nblank)
 		(forw_scroll >= 0 && n > forw_scroll && n != sc_height-1);
 
 #if HILITE_SEARCH
-	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col) {
+	if (pos != NULL_POSITION && (hilite_search == OPT_ONPLUS || is_filtering() || status_col)) {
 		prep_hilite(pos, pos + 4*size_linebuf, ignore_eoi ? 1 : -1);
 		pos = next_unfiltered(pos);
 	}
@@ -403,8 +403,8 @@ public void back(int n, POSITION pos, int force, int only_last)
 	squish_check();
 	do_repaint = (n > get_back_scroll() || (only_last && n > sc_height-1) || header_lines > 0);
 #if HILITE_SEARCH
-	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col) {
-		prep_hilite((pos < 3*size_linebuf) ?  0 : pos - 3*size_linebuf, pos, -1);
+	if (pos != NULL_POSITION && (hilite_search == OPT_ONPLUS || is_filtering() || status_col)) {
+		prep_hilite((pos < 3*size_linebuf) ? 0 : pos - 3*size_linebuf, pos, -1);
 	}
 #endif
 	while (--n >= 0)
@@ -487,7 +487,7 @@ public void forward(int n, int force, int only_last)
 				{
 					back(1, position(TOP), 1, 0);
 					pos = position(BOTTOM_PLUS_ONE);
-				} while (pos == NULL_POSITION);
+				} while (pos == NULL_POSITION && !ABORT_SIGS());
 			}
 		} else
 		{

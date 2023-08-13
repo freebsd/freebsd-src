@@ -1,0 +1,71 @@
+#!/usr/bin/env perl
+use strict;
+
+# Create a test file.
+# Wrapper for lesstest, using most common options.
+my $usage = "usage: maketest [-o lt-file] [-l less.exe] [-s lt_screen] [-t lesstest] [-w width] [-h height] [-O lesstest-opts] [-S lt_screen-opts] textfile\n";
+
+use Getopt::Std;
+
+exit main();
+sub main {
+	my %opt;
+	die $usage if not getopts('h:l:o:O:s:S:t:w:v', \%opt);
+	my $textfile = shift @ARGV;
+	die $usage if not defined $textfile;
+	my $lesstest  = ($opt{t} or "./lesstest");
+	my $lt_screen = ($opt{s} or "./lt_screen");
+	my $less      = ($opt{l} or "../obj/less");
+	my $lines     = ($opt{h} or $ENV{LINES}-1);
+	my $columns   = ($opt{w} or $ENV{COLUMNS}-1);
+	my $verbose   = ($opt{v} or 0);
+	my $lt_opts   = opts($opt{O} or "");
+	my $ls_opts   = opts($opt{S} or "");
+	my $ltfile    = $opt{o};
+	my $linked = 0;
+	if (not less_is_test($less)) {
+		print "$less is not compiled to support LESSTEST\n";
+		my ($dir) = $less =~ m|^(.*)/[^/]*$|;
+		print "To fix: cd $dir; make clean; make LESSTEST=1\n";
+		exit 1;
+	}
+	if ($textfile =~ m|/|) {
+		my ($basename) = $textfile =~ m|^.*/([^/]+)$|;
+		if (not link $textfile, $basename) {
+			print "cannot link $textfile to $basename: $!\n";
+			exit 1;
+		}
+		$linked = 1;
+		$textfile = $basename;
+	}
+	if (not defined $ltfile) {
+		for (my $i = 0;; ++$i) {
+			my $suffix = $i ? $i : "";
+			$ltfile = "lt/$textfile$suffix.lt";
+			last if not -e $ltfile;
+		}
+	}
+	$ls_opts = "-S$ls_opts" if $ls_opts;
+	my $cmd = "LINES=$lines COLUMNS=$columns $lesstest $lt_opts $ls_opts -s '$lt_screen' -o '$ltfile' -- $less '$textfile'";
+	print "$cmd\n" if $verbose;
+	my $err = system($cmd);
+	if ($err) {
+		unlink $ltfile;
+	} else {
+		print "created $ltfile\n";
+	}
+	unlink $textfile if $linked;
+	exit $err;
+}
+
+sub opts {
+	my ($opts) = @_;
+	$opts = "-$opts" if $opts =~ /^[^-]/;
+	return $opts;
+}
+
+sub less_is_test {
+	my ($less) = @_;
+	my $ver = `$less -V`;
+	return $ver =~ /LESSTEST/;
+}

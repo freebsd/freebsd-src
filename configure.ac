@@ -36,7 +36,7 @@ AC_CHECK_LIB(termlib, tgetent, [have_termlib=yes], [have_termlib=no])
 AC_SEARCH_LIBS([regcmp], [gen intl PW])
 
 # Checks for header files.
-AC_CHECK_HEADERS_ONCE([ctype.h errno.h fcntl.h inttypes.h limits.h stdckdint.h stdio.h stdlib.h string.h termcap.h termio.h termios.h time.h unistd.h values.h linux/magic.h sys/ioctl.h sys/stream.h sys/types.h sys/wait.h time.h wctype.h])
+AC_CHECK_HEADERS_ONCE([ctype.h errno.h fcntl.h inttypes.h limits.h stdckdint.h stdio.h stdlib.h string.h termcap.h ncurses/termcap.h ncursesw/termcap.h termio.h termios.h time.h unistd.h values.h linux/magic.h sys/ioctl.h sys/stream.h sys/types.h sys/wait.h time.h wctype.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -48,7 +48,7 @@ AC_TYPE_SIZE_T
 AC_MSG_CHECKING([for working terminal libraries])
 TERMLIBS=
 include_termcap_h=
-if test "x$ac_cv_header_termcap_h" = xyes; then include_termcap_h="#include <termcap.h>"; fi
+if test "x$ac_cv_header_termcap_h" = xyes; then include_termcap_h="#include <termcap.h>"; elif test "x$ac_cv_header_ncurses_termcap_h" = xyes; then include_termcap_h="#include <ncurses/termcap.h>"; elif test "x$ac_cv_header_ncursesw_termcap_h" = xyes; then include_termcap_h="#include <ncursesw/termcap.h>"; fi
 
 # Check for systems where curses is broken.
 curses_broken=0
@@ -63,10 +63,10 @@ fi
 
 if test $curses_broken = 0; then
 
-# -- Try tinfo.
+# -- Try tinfow.
 if test "x$TERMLIBS" = x; then
-  if test $have_tinfo = yes; then
-    TERMLIBS="-ltinfo"
+  if test $have_tinfow = yes; then
+    TERMLIBS="-ltinfow"
     SAVE_LIBS=$LIBS
     LIBS="$LIBS $TERMLIBS"
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[$include_termcap_h]], [[tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);]])],[termok=yes],[termok=no])
@@ -75,10 +75,10 @@ if test "x$TERMLIBS" = x; then
   fi
 fi
 
-# -- Try tinfow.
+# -- Try tinfo.
 if test "x$TERMLIBS" = x; then
-  if test $have_tinfow = yes; then
-    TERMLIBS="-ltinfow"
+  if test $have_tinfo = yes; then
+    TERMLIBS="-ltinfo"
     SAVE_LIBS=$LIBS
     LIBS="$LIBS $TERMLIBS"
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[$include_termcap_h]], [[tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);]])],[termok=yes],[termok=no])

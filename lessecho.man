@@ -9,7 +9,7 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
        [1mlessecho [4m[22m[-ox][24m [4m[-cx][24m [4m[-pn][24m [4m[-dn][24m [4m[-mx][24m [4m[-nn][24m [4m[-ex][24m [4m[-a][24m [4mfile[24m [4m...[0m
 
 [1mDESCRIPTION[0m
-       [1mlessecho  [22mis a program that simply echos its arguments on standard out-
+       [1mlessecho  [22mis a program that simply echos its arguments on standard out‐
        put.  But any metacharacter in the output is preceded  by  an  "escape"
        character, which by default is a backslash.
 
@@ -34,7 +34,7 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
 
        [1m-n[4m[22mn[24m    Specifies "[4mn[24m" to be a metachar, as an integer.
 
-       [1m-f[4m[22mn[24m    Specifies  "[4mn[24m"  to be the escape char for metachars, as an inte-
+       [1m-f[4m[22mn[24m    Specifies  "[4mn[24m"  to be the escape char for metachars, as an inte‐
               ger.
 
        [1m-a     [22mSpecifies that all arguments are to be quoted.  The  default  is
@@ -51,4 +51,4 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
 
 
 
-                           Version 632: 06 Apr 2023                LESSECHO(1)
+                           Version 643: 20 Jul 2023                LESSECHO(1)

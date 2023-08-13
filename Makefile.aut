@@ -42,7 +42,9 @@ DISTFILES = \
 	mkhelp.pl \
 	mkhelp.py \
 	mkutable $(UNICODE_FILES) \
+	$(shell ${MAKE} -s -f ${srcdir}/lesstest/Makefile echo_distfiles srcdir=${srcdir}/lesstest) \
 	${DISTFILES_W}
+
 
 all: help.c funcs.h $(UNICODE_FILES) ${srcdir}/configure 
 
@@ -138,8 +140,8 @@ dist: ${DISTFILES}
 	rm -rf $$RELDIR && mkdir $$RELDIR && \
 	echo "Preparing $$LESSREL" && \
 	rm -rf $$LESSREL && mkdir $$LESSREL && \
-	cp ${DISTFILES} $$LESSREL && \
-	cd $$LESSREL && chmod -w * && chmod +w ${DISTFILES_W} && chmod +x configure && cd .. && \
+	for f in ${DISTFILES}; do mkdir -p $$(dirname $$LESSREL/$$f); cp $$f $$LESSREL/$$f; done && \
+	cd $$LESSREL && chmod -w * && chmod +w ${DISTFILES_W} lesstest && chmod +x configure && cd .. && \
 	echo "Creating $$RELDIR/$$TARF" && \
 	tar -cf - $$LESSREL | gzip -c >$$RELDIR/$$TARF && \
 	echo "Signing $$RELDIR/$$TARF" && \
@@ -156,7 +158,7 @@ tagall:
 gnu_upload:
 	@if [ -z "${REL}" ]; then echo "Please set REL=nnn"; exit 1; fi; \
 	LESSREL=less-${REL} && RELDIR=release/$$LESSREL && \
-    TARF=$$LESSREL.tar.gz && \
+	TARF=$$LESSREL.tar.gz && \
 	if [ ! -s $$RELDIR/$$TARF ]; then echo "$$RELDIR/$$TARF does not exist"; exit 1; fi; \
 	cd $$RELDIR && \
 	gpg -b $$TARF && \

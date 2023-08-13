@@ -179,7 +179,7 @@ static void mca_search1(void)
 	{
 		if (search_type & SRCH_SUBSEARCH(i))
 		{
-			char buf[8];
+			char buf[INT_STRLEN_BOUND(int)+8];
 			SNPRINTF1(buf, sizeof(buf), "Sub-%d ", i);
 			cmd_putstr(buf);
 		}
@@ -554,6 +554,7 @@ static int mca_search_char(int c)
 	case '*':
 		if (mca != A_FILTER)
 			flag = SRCH_PAST_EOF;
+		search_type &= ~SRCH_WRAP;
 		break;
 	case CONTROL('F'): /* FIRST file */
 	case '@':
@@ -565,7 +566,7 @@ static int mca_search_char(int c)
 			flag = SRCH_NO_MOVE;
 		break;
 	case CONTROL('S'): { /* SUBSEARCH */
-		char buf[32];
+		char buf[INT_STRLEN_BOUND(int)+24];
 		SNPRINTF1(buf, sizeof(buf), "Sub-pattern (1-%d):", NUM_SEARCH_COLORS);
 		clear_bot();
 		cmd_putstr(buf);

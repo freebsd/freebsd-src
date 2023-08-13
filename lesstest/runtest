@@ -1,0 +1,107 @@
+#!/usr/bin/env perl
+use strict;
+
+# Run one or more test files.
+my $usage = "usage: runtest [-eE] [-d lesstest-dir] [-l less.exe] [-r temp-dir] [-s lt_screen] [-t lesstest] [-O lesstest-opts] [file.lt | dir]...\n";
+
+use Getopt::Std;
+use Cwd;
+
+my $rundir;
+my $lesstest;
+my $lt_screen;
+my $less;
+my $lt_opts;
+my $err_only;
+my $num_tests = 0;
+
+exit main();
+sub main {
+	my %opt;
+	die $usage if not getopts('d:eEl:O:r:s:t:', \%opt);
+	die $usage if not @ARGV;
+
+	my $cwd = getcwd();
+	my $srcdir = ($opt{d} or $cwd);
+	$rundir     = (rfile($opt{r}, $cwd) or "$srcdir/.runtest_dir");
+	$lesstest   = (rfile($opt{t}, $cwd) or "$srcdir/lesstest");
+	$lt_screen  = (rfile($opt{s}, $cwd) or "$srcdir/lt_screen");
+	$less       = (rfile($opt{l}, $cwd) or "$srcdir/../obj/less");
+	$lt_opts    = ($opt{O} or "");
+	$err_only   = $opt{E} ? 2 : $opt{e} ? 1 : 0;
+	$lt_opts = "-$lt_opts" if $lt_opts =~ /^[^-]/;
+	$lt_opts .= ($err_only == 2) ? " -E" : $err_only ? " -e" : "";
+	die "cannot execute $lesstest: $!"   if not -x $lesstest;
+	die "cannot execute $lt_screen: $!"  if not -x $lt_screen;
+	die "cannot execute $less: $!"       if not -x $less;
+	die "$less is not compiled to support LESSTEST" if not less_is_test($less);
+	die "cannot create $rundir: $!"      if system "rm -rf '$rundir' && mkdir -p '$rundir'";
+	die "cannot chdir to $rundir: $!"    if not chdir $rundir;
+
+	my $errs = 0;
+	foreach my $file (@ARGV) {
+		$errs += run(rfile($file, $cwd));
+	}
+	system "rm -rf '$rundir'";
+	print STDERR "RAN  $num_tests tests with $errs errors\n" if $errs > 0 or $err_only != 2;
+	return ($errs > 0);
+}
+
+# Run a test as directed by a lt file.
+sub run {
+	my ($file) = @_;
+	if (-d $file) {
+		return run_dir($file);
+	}
+	if ($file !~ /\.lt$/) {
+		print STDERR "SKIP unknown file suffix: $file\n";
+		return 0;
+	}
+	if (not -f $file) {
+		print STDERR "ERR  cannot open $file: $!\n";
+		return 1;
+	}
+	my ($basename) = $file =~ m|^.*/([^/]+)$|;
+	if ($file =~ /'/) {
+		print STDERR "ERR  invalid character in $file\n";
+		return 1;
+	}
+	print STDERR "TEST $basename\n" unless $err_only;
+	my $cmd = "$lesstest $lt_opts -s '$lt_screen' -t '$file' '$less'";
+	my $err = system $cmd;
+	++$num_tests;
+	if ($err) {
+		print STDERR "ERR  status $err from $cmd\n";
+		return 1;
+	}
+	return 0;
+}
+
+sub run_dir {
+	my ($dir) = @_;
+	my $errs = 0;
+	my $dd;
+	if (not opendir($dd, $dir)) {
+		print STDERR "ERR  cannot open directory $dir: $!\n";
+		return 1;
+	}
+	while (my $entry = readdir($dd)) {
+		next if $entry =~ /^\./;
+		$errs += run("$dir/$entry");
+	}
+	closedir $dd;
+	return $errs;
+}
+
+sub rfile {
+	my ($file, $cwd) = @_;
+	return undef if not defined $file;
+	$file = "$cwd/$file" unless $file =~ m|^/|;
+	return $file;
+}
+
+sub less_is_test {
+	my ($less) = @_;
+	my $ver = `$less -V`;
+	return $ver =~ /LESSTEST/;
+}
