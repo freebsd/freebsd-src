@@ -1835,8 +1835,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (error != 0)
 		goto bad;
 
+	skiped = outlen = 0;
 	maxlen = l_msghdr.msg_controllen;
-	l_msghdr.msg_controllen = 0;
 	if (control == NULL)
 		goto out;
 
@@ -1844,7 +1844,6 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	msg->msg_control = mtod(control, struct cmsghdr *);
 	msg->msg_controllen = control->m_len;
 	outbuf = PTRIN(l_msghdr.msg_control);
-	skiped = outlen = 0;
 	for (m = control; m != NULL; m = m->m_next) {
 		cm = mtod(m, struct cmsghdr *);
 		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type,
@@ -1910,9 +1909,9 @@ err:
 		error = EINVAL;
 		goto bad;
 	}
-	l_msghdr.msg_controllen = outlen;
 
 out:
+	l_msghdr.msg_controllen = outlen;
 	error = copyout(&l_msghdr, msghdr, sizeof(l_msghdr));
 
 bad:
