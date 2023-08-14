@@ -114,9 +114,10 @@ thr_get_name_np(struct pthread *thread, char *buf, size_t len)
 		buf[0] = '\0';
 }
 
-__weak_reference(_pthread_getname_np, pthread_getname_np);
+__weak_reference(_thr_getname_np, pthread_getname_np);
+__weak_reference(_thr_getname_np, _pthread_getname_np);
 int
-_pthread_getname_np(pthread_t thread, char *buf, size_t len)
+_thr_getname_np(pthread_t thread, char *buf, size_t len)
 {
 	struct pthread *curthread;
 	int res;
@@ -147,5 +148,5 @@ __weak_reference(_pthread_get_name_np, pthread_get_name_np);
 void
 _pthread_get_name_np(pthread_t thread, char *buf, size_t len)
 {
-	(void)_pthread_getname_np(thread, buf, len);
+	(void)_thr_getname_np(thread, buf, len);
 }

@@ -1073,6 +1073,7 @@ int _thr_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int _thr_detach(pthread_t);
 int _thr_equal(pthread_t, pthread_t);
 void _Tthr_exit(void *);
+int _thr_getname_np(pthread_t, char *, size_t);
 int _thr_key_create(pthread_key_t *, void (*)(void *));
 int _thr_key_delete(pthread_key_t);
 int _thr_setspecific(pthread_key_t, const void *);

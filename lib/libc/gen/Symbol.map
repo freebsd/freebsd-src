@@ -426,6 +426,7 @@ FBSD_1.6 {
 	eventfd_write;
 	getlogin_r;
 	memalign;
+	pthread_getname_np;
 	scandir_b;
 	sigandset;
 	sigisemptyset;
