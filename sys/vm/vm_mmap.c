@@ -272,11 +272,7 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	}
 	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_HASSEMAPHORE |
 	    MAP_STACK | MAP_NOSYNC | MAP_ANON | MAP_EXCL | MAP_NOCORE |
-	    MAP_PREFAULT_READ | MAP_GUARD |
-#ifdef MAP_32BIT
-	    MAP_32BIT |
-#endif
-	    MAP_ALIGNMENT_MASK)) != 0)
+	    MAP_PREFAULT_READ | MAP_GUARD | MAP_32BIT | MAP_ALIGNMENT_MASK)) != 0)
 		return (EINVAL);
 	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
 		return (EINVAL);
@@ -287,10 +283,7 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		return (EINVAL);
 	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || fd != -1 ||
 	    pos != 0 || (flags & ~(MAP_FIXED | MAP_GUARD | MAP_EXCL |
-#ifdef MAP_32BIT
-	    MAP_32BIT |
-#endif
-	    MAP_ALIGNMENT_MASK)) != 0))
+	    MAP_32BIT | MAP_ALIGNMENT_MASK)) != 0))
 		return (EINVAL);
 
 	/*
@@ -331,7 +324,6 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		/* Address range must be all in user VM space. */
 		if (!vm_map_range_valid(&vms->vm_map, addr, addr + size))
 			return (EINVAL);
-#ifdef MAP_32BIT
 		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
 			return (EINVAL);
 	} else if (flags & MAP_32BIT) {
@@ -342,7 +334,6 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		 */
 		if (addr + size > MAP_32BIT_MAX_ADDR)
 			addr = 0;
-#endif
 	} else {
 		/*
 		 * XXX for non-fixed mappings where no hint is provided or
@@ -1621,18 +1612,14 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		else
 			findspace = VMFS_OPTIMAL_SPACE;
 		max_addr = 0;
-#ifdef MAP_32BIT
 		if ((flags & MAP_32BIT) != 0)
 			max_addr = MAP_32BIT_MAX_ADDR;
-#endif
 		if (curmap) {
 			default_addr =
 			    round_page((vm_offset_t)td->td_proc->p_vmspace->
 			    vm_daddr + lim_max(td, RLIMIT_DATA));
-#ifdef MAP_32BIT
 			if ((flags & MAP_32BIT) != 0)
 				default_addr = 0;
-#endif
 			rv = vm_map_find_min(map, object, foff, addr, size,
 			    default_addr, max_addr, findspace, prot, maxprot,
 			    docow);
