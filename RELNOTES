@@ -20,7 +20,6 @@ Changes to this file should not be MFCed.
 	be accessed as indices of _ENV; e.g., _ENV['net.fibs'].
 
 bdc81eeda05d:
-
 	nda is now the default nvme device on all platforms. While nda creates
 	nvd links by default so fstab, etc continues to work, configuration
 	should be updated to the new nda devices.
