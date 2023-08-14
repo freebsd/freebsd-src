@@ -1695,6 +1695,39 @@ _Static_assert(sizeof(struct bintime) >= sizeof(struct timespec),
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
+recvmsg_scm_sol_socket(struct thread *td, l_int msg_type, l_int lmsg_type,
+    l_uint flags, socklen_t *datalen, void **data, void **udata)
+{
+	int error;
+
+	error = 0;
+	switch (msg_type) {
+	case SCM_RIGHTS:
+		error = recvmsg_scm_rights(td, flags, datalen,
+		    data, udata);
+		break;
+	case SCM_CREDS:
+		error = recvmsg_scm_creds(datalen, data, udata);
+		break;
+	case SCM_CREDS2:
+		error = recvmsg_scm_creds2(datalen, data, udata);
+		break;
+	case SCM_TIMESTAMP:
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+		error = recvmsg_scm_timestamp(lmsg_type, datalen,
+		    data, udata);
+#endif
+		break;
+	case SCM_BINTIME:
+		error = recvmsg_scm_timestampns(lmsg_type, datalen,
+		    data, udata);
+		break;
+	}
+
+	return (error);
+}
+
+static int
 recvmsg_scm_ip_origdstaddr(socklen_t *datalen, void **data, void **udata)
 {
 	struct l_sockaddr *lsa;
@@ -1705,6 +1738,23 @@ recvmsg_scm_ip_origdstaddr(socklen_t *datalen, void **data, void **udata)
 		*data = *udata = lsa;
 		*datalen = sizeof(*lsa);
 	}
+	return (error);
+}
+
+static int
+recvmsg_scm_ipproto_ip(l_int msg_type, l_int lmsg_type, socklen_t *datalen,
+    void **data, void **udata)
+{
+	int error;
+
+	error = 0;
+	switch (msg_type) {
+	case IP_ORIGDSTADDR:
+		error = recvmsg_scm_ip_origdstaddr(datalen, data,
+		    udata);
+		break;
+	}
+
 	return (error);
 }
 
@@ -1796,18 +1846,6 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		    cm->cmsg_level);
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
 
-		data = CMSG_DATA(cm);
-		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
-		udata = NULL;
-		error = 0;
-
-		/* Process non SOL_SOCKET types. */
-		if (cm->cmsg_level == IPPROTO_IP &&
-		    lcm->cmsg_type == LINUX_IP_ORIGDSTADDR) {
-			error = recvmsg_scm_ip_origdstaddr(&datalen, &data, &udata);
-			goto cont;
-		}
-
 		if (lcm->cmsg_type == -1 ||
 		    cm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
@@ -1817,33 +1855,22 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			skiped++;
 			continue;
 		}
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+		udata = NULL;
+		error = 0;
 
-		switch (cm->cmsg_type) {
-		case SCM_RIGHTS:
-			error = recvmsg_scm_rights(td, flags,
-			    &datalen, &data, &udata);
-			break;
-		case SCM_CREDS:
-			error = recvmsg_scm_creds(&datalen,
-			    &data, &udata);
-			break;
-		case SCM_CREDS2:
-			error = recvmsg_scm_creds2(&datalen,
-			    &data, &udata);
-			break;
-		case SCM_TIMESTAMP:
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-			error = recvmsg_scm_timestamp(lcm->cmsg_type,
-			    &datalen, &data, &udata);
-#endif
-			break;
-		case SCM_BINTIME:
-			error = recvmsg_scm_timestampns(lcm->cmsg_type,
-			    &datalen, &data, &udata);
-			break;
-		}
+		switch (cm->cmsg_level) {
+		case IPPROTO_IP:
+			error = recvmsg_scm_ipproto_ip(cm->cmsg_type,
+			    lcm->cmsg_type, &datalen, &data, &udata);
+ 			break;
+		case SOL_SOCKET:
+			error = recvmsg_scm_sol_socket(td, cm->cmsg_type,
+			    lcm->cmsg_type, flags, &datalen, &data, &udata);
+ 			break;
+ 		}
 
-cont:
 		if (error != 0)
 			goto bad;
 
