@@ -1822,7 +1822,6 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			goto bad;
 		}
 
-
 		switch (cm->cmsg_type) {
 		case SCM_RIGHTS:
 			error = recvmsg_scm_rights(td, flags,
