@@ -244,7 +244,7 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	struct msi_intsrc *sib, *msi = (struct msi_intsrc *)isrc;
 	int old_vector;
 	u_int old_id;
-	int i, vector;
+	int error, i, vector;
 
 	/*
 	 * Only allow CPUs to be assigned to the first message for an
@@ -274,31 +274,48 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	if (vector == 0)
 		return (ENOSPC);
 
+	/* Must be set before BUS_REMAP_INTR as it may call back into MSI. */
 	msi->msi_cpu = apic_id;
 	msi->msi_vector = vector;
 	if (msi->msi_intsrc.is_handlers > 0)
 		apic_enable_vector(msi->msi_cpu, msi->msi_vector);
-	if (bootverbose)
-		printf("msi: Assigning %s IRQ %d to local APIC %u vector %u\n",
-		    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
-		    msi->msi_cpu, msi->msi_vector);
 	for (i = 1; i < msi->msi_count; i++) {
 		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
-		sib->msi_cpu = apic_id;
-		sib->msi_vector = vector + i;
 		if (sib->msi_intsrc.is_handlers > 0)
-			apic_enable_vector(sib->msi_cpu, sib->msi_vector);
-		if (bootverbose)
-			printf(
-		    "msi: Assigning MSI IRQ %d to local APIC %u vector %u\n",
-			    sib->msi_irq, sib->msi_cpu, sib->msi_vector);
+			apic_enable_vector(apic_id, vector + i);
 	}
-	BUS_REMAP_INTR(device_get_parent(msi->msi_dev), msi->msi_dev,
+	error = BUS_REMAP_INTR(device_get_parent(msi->msi_dev), msi->msi_dev,
 	    msi->msi_irq);
+	if (error == 0) {
+		if (bootverbose) {
+			printf("msi: Assigning %s IRQ %d to local APIC %u vector %u\n",
+			    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
+			    msi->msi_cpu, msi->msi_vector);
+		}
+		for (i = 1; i < msi->msi_count; i++) {
+			sib = (struct msi_intsrc *)intr_lookup_source(
+			    msi->msi_irqs[i]);
+			sib->msi_cpu = apic_id;
+			sib->msi_vector = vector + i;
+			if (bootverbose)
+				printf("msi: Assigning MSI IRQ %d to local APIC %u vector %u\n",
+				    sib->msi_irq, sib->msi_cpu,
+				    sib->msi_vector);
+		}
+	} else {
+		device_printf(msi->msi_dev,
+		    "remap irq %u to APIC ID %u failed (error %d)\n",
+		    msi->msi_irq, apic_id, error);
+		msi->msi_cpu = old_id;
+		msi->msi_vector = old_vector;
+		old_id = apic_id;
+		old_vector = vector;
+	}
 
 	/*
 	 * Free the old vector after the new one is established.  This is done
-	 * to prevent races where we could miss an interrupt.
+	 * to prevent races where we could miss an interrupt.  If BUS_REMAP_INTR
+	 * failed then we disable and free the new, unused vector(s).
 	 */
 	if (msi->msi_intsrc.is_handlers > 0)
 		apic_disable_vector(old_id, old_vector);
@@ -309,7 +326,7 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 			apic_disable_vector(old_id, old_vector + i);
 		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
 	}
-	return (0);
+	return (error);
 }
 
 void
