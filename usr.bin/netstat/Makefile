@@ -62,4 +62,9 @@ LIBADD+=	netgraph
 CFLAGS+=-DNETGRAPH
 .endif
 
+.if ${MK_JAIL} != "no" && !defined(RESCUE)
+CFLAGS+= -DJAIL
+LIBADD+= jail
+.endif
+
 .include <bsd.prog.mk>
