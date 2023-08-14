@@ -203,7 +203,7 @@ struct nvme_qpair {
 
 	struct nvme_tracker	**act_tr;
 
-	struct mtx		lock __aligned(CACHE_LINE_SIZE);
+	struct mtx_padalign	lock;
 
 } __aligned(CACHE_LINE_SIZE);
 
