@@ -1728,7 +1728,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	struct sockaddr *sa;
 	caddr_t outbuf;
 	void *data, *udata;
-	int error;
+	int error, skiped;
 
 	error = copyin(msghdr, &l_msghdr, sizeof(l_msghdr));
 	if (error != 0)
@@ -1794,7 +1794,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	msg->msg_control = mtod(control, struct cmsghdr *);
 	msg->msg_controllen = control->m_len;
 	outbuf = PTRIN(l_msghdr.msg_control);
-	outlen = 0;
+	skiped = outlen = 0;
 	for (m = control; m != NULL; m = m->m_next) {
 		cm = mtod(m, struct cmsghdr *);
 		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type,
@@ -1814,12 +1814,13 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		}
 
 		if (lcm->cmsg_type == -1 ||
-		    cm->cmsg_level != SOL_SOCKET) {
+		    cm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
 			    "unsupported recvmsg cmsg level %d type %d",
 			    cm->cmsg_level, cm->cmsg_type);
-			error = EINVAL;
-			goto bad;
+			/* Skip unsupported messages */
+			skiped++;
+			continue;
 		}
 
 		switch (cm->cmsg_type) {
@@ -1876,6 +1877,10 @@ err:
 		free(udata, M_LINUX);
 		if (error != 0)
 			goto bad;
+	}
+	if (outlen == 0 && skiped > 0) {
+		error = EINVAL;
+		goto bad;
 	}
 	l_msghdr.msg_controllen = outlen;
 
