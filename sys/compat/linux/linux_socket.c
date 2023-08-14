@@ -1866,10 +1866,9 @@ cont:
 		lcm->cmsg_len = LINUX_CMSG_LEN(datalen);
 		error = copyout(lcm, outbuf, L_CMSG_HDRSZ);
 		if (error == 0) {
-			outbuf += L_CMSG_HDRSZ;
-			error = copyout(data, outbuf, datalen);
+			error = copyout(data, LINUX_CMSG_DATA(outbuf), datalen);
 			if (error == 0) {
-				outbuf += LINUX_CMSG_ALIGN(datalen);
+				outbuf += LINUX_CMSG_SPACE(datalen);
 				outlen += LINUX_CMSG_SPACE(datalen);
 			}
 		}
