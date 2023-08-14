@@ -1871,6 +1871,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
  			break;
  		}
 
+		/* The recvmsg_scm_ is responsible to free udata on error. */
 		if (error != 0)
 			goto bad;
 
