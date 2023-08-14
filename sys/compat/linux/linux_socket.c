@@ -1852,7 +1852,7 @@ cont:
 		if (error != 0)
 			goto bad;
 
-		if (outlen + LINUX_CMSG_SPACE(datalen) > maxlen) {
+		if (outlen + LINUX_CMSG_LEN(datalen) > maxlen) {
 			if (outlen == 0) {
 				error = EMSGSIZE;
 				goto err;
