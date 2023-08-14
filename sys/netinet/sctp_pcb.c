@@ -4774,20 +4774,15 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 						 * added right after this
 						 * msg.
 						 */
-						uint32_t strseq;
-
-						stcb->asoc.control_pdapi = sq;
-						strseq = (sq->sinfo_stream << 16) | (sq->mid & 0x0000ffff);
 						sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
 						    stcb,
 						    SCTP_PARTIAL_DELIVERY_ABORTED,
-						    (void *)&strseq,
+						    (void *)sq,
 						    SCTP_SO_LOCKED);
-						stcb->asoc.control_pdapi = NULL;
 					}
+					/* Add an end to wake them */
+					sq->end_added = 1;
 				}
-				/* Add an end to wake them */
-				sq->end_added = 1;
 			}
 		}
 		SCTP_INP_READ_UNLOCK(inp);

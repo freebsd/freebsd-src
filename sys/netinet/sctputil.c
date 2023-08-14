@@ -3638,7 +3638,8 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 
 static void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
-    uint32_t val, int so_locked)
+    struct sctp_queued_to_read *aborted_control,
+    int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_pdapi_event *pdapi;
@@ -3651,6 +3652,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		return;
 	}
 
+	KASSERT(aborted_control != NULL, ("aborted_control is NULL"));
 	SCTP_INP_READ_LOCK_ASSERT(stcb->sctp_ep);
 
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_NOWAIT, 1, MT_DATA);
@@ -3664,8 +3666,8 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	pdapi->pdapi_flags = 0;
 	pdapi->pdapi_length = sizeof(struct sctp_pdapi_event);
 	pdapi->pdapi_indication = error;
-	pdapi->pdapi_stream = (val >> 16);
-	pdapi->pdapi_seq = (val & 0x0000ffff);
+	pdapi->pdapi_stream = aborted_control->sinfo_stream;
+	pdapi->pdapi_seq = (uint16_t)aborted_control->mid;
 	pdapi->pdapi_assoc_id = sctp_get_associd(stcb);
 
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_pdapi_event);
@@ -3691,12 +3693,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 	}
 	control->end_added = 1;
-	if (stcb->asoc.control_pdapi)
-		TAILQ_INSERT_AFTER(&stcb->sctp_ep->read_queue, stcb->asoc.control_pdapi, control, next);
-	else {
-		/* we really should not see this case */
-		TAILQ_INSERT_TAIL(&stcb->sctp_ep->read_queue, control, next);
-	}
+	TAILQ_INSERT_AFTER(&stcb->sctp_ep->read_queue, aborted_control, control, next);
 	if (stcb->sctp_ep && stcb->sctp_socket) {
 		/* This should always be the case */
 		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
@@ -4132,14 +4129,10 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		    (struct sctp_tmit_chunk *)data, so_locked);
 		break;
 	case SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION:
-		{
-			uint32_t val;
-
-			val = *((uint32_t *)data);
-
-			sctp_notify_partial_delivery_indication(stcb, error, val, so_locked);
-			break;
-		}
+		sctp_notify_partial_delivery_indication(stcb, error,
+		    (struct sctp_queued_to_read *)data,
+		    so_locked);
+		break;
 	case SCTP_NOTIFY_ASSOC_LOC_ABORTED:
 		if ((SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) ||
 		    (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)) {
