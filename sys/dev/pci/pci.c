@@ -2466,6 +2466,8 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 	 * through all the slots that use this IRQ and update them.
 	 */
 	if (cfg->msix.msix_alloc > 0) {
+		bool found = false;
+
 		for (i = 0; i < cfg->msix.msix_alloc; i++) {
 			mv = &cfg->msix.msix_vectors[i];
 			if (mv->mv_irq == irq) {
@@ -2485,9 +2487,10 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 					pci_enable_msix(dev, j, addr, data);
 					pci_unmask_msix(dev, j);
 				}
+				found = true;
 			}
 		}
-		return (ENOENT);
+		return (found ? 0 : ENOENT);
 	}
 
 	return (ENOENT);
