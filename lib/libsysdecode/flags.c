@@ -913,20 +913,11 @@ sysdecode_mmap_flags(FILE *fp, int flags, int *rem)
 
 	/*
 	 * MAP_ALIGNED can't be handled directly by print_mask_int().
-	 * MAP_32BIT is also problematic since it isn't defined for
-	 * all platforms.
 	 */
 	printed = false;
 	align = flags & MAP_ALIGNMENT_MASK;
 	val = (unsigned)flags & ~MAP_ALIGNMENT_MASK;
 	print_mask_part(fp, mmapflags, &val, &printed);
-#ifdef MAP_32BIT
-	if (val & MAP_32BIT) {
-		fprintf(fp, "%sMAP_32BIT", printed ? "|" : "");
-		printed = true;
-		val &= ~MAP_32BIT;
-	}
-#endif
 	if (align != 0) {
 		if (printed)
 			fputc('|', fp);

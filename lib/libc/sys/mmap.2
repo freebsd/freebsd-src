@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2020
+.Dd August 14, 2023
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -145,7 +145,6 @@ Request a region in the first 2GB of the current process's address space.
 If a suitable region cannot be found,
 .Fn mmap
 will fail.
-This flag is only available on 64-bit platforms.
 .It Dv MAP_ALIGNED Ns Pq Fa n
 Align the region on a requested boundary.
 If a suitable region cannot be found,

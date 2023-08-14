@@ -1549,11 +1549,7 @@ shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
 
 	/* MAP_PRIVATE is disabled */
 	if ((flags & ~(MAP_SHARED | MAP_FIXED | MAP_EXCL |
-	    MAP_NOCORE |
-#ifdef MAP_32BIT
-	    MAP_32BIT |
-#endif
-	    MAP_ALIGNMENT_MASK)) != 0)
+	    MAP_NOCORE | MAP_32BIT | MAP_ALIGNMENT_MASK)) != 0)
 		return (EINVAL);
 
 	vms = td->td_proc->p_vmspace;
@@ -1573,10 +1569,8 @@ shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
 	if ((foff & mask) != 0)
 		return (EINVAL);
 	maxaddr = vm_map_max(map);
-#ifdef MAP_32BIT
 	if ((flags & MAP_32BIT) != 0 && maxaddr > MAP_32BIT_MAX_ADDR)
 		maxaddr = MAP_32BIT_MAX_ADDR;
-#endif
 	if (size == 0 || (size & mask) != 0 ||
 	    (*addr != 0 && ((*addr & mask) != 0 ||
 	    *addr + size < *addr || *addr + size > maxaddr)))

@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-_Static_assert(sizeof(vm_offset_t) >= 8, "Test is not intended for ILP32");
 #define MAP_32BIT_MAX_ADDR      ((vm_offset_t)1 << 31)
 
 int
