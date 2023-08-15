@@ -114,13 +114,12 @@ fi
 bsdinstall mount
 
 # Fetch missing distribution files, if any
-(
-	exec 3>&1
-	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&3)
-	FETCH_RESULT=$?
-	exec 3>&-
-	return $FETCH_RESULT
-) || error "Could not fetch remote distributions"
+exec 5>&1
+export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&5)
+FETCH_RESULT=$?
+exec 5>&-
+
+[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
 
 # Unpack distributions
 bsdinstall checksum
