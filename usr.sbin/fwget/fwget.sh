@@ -122,4 +122,4 @@ if [ "${DRY_RUN}" = "y" ]; then
 	exit 0
 fi
 
-pkg install -qy "${packages}"
+pkg install -qy ${packages}
