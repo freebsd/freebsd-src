@@ -56,7 +56,7 @@ ORG=	0x600
 # 2      stop bits (set = 2, clear = 1)
 # 1-0    data bits (00 = 5, 01 = 6, 10 = 7, 11 = 8)
 .if !defined(BOOT_BOOT0_COMCONSOLE_SPEED)
-BOOT_COMCONSOLE_SPEED?=	9600
+BOOT_COMCONSOLE_SPEED?=	9600	# BIOS interfaces do not support higher rates.
 .if ${BOOT_COMCONSOLE_SPEED} == 9600
 BOOT_BOOT0_COMCONSOLE_SPEED=	"7 << 5 + 3"
 .elif ${BOOT_COMCONSOLE_SPEED} == 4800
