@@ -200,7 +200,7 @@ xen_attach(device_t dev)
 static device_method_t xen_methods[] = {
 	DEVMETHOD(device_probe,		xen_probe),
 	DEVMETHOD(device_attach,	xen_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t xen_driver = {
