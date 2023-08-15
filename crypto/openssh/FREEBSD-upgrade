@@ -171,21 +171,12 @@
    A number of paths are changed to match FreeBSD's configuration (e.g.,
    using /usr/local/ instead of /uxr/X11R6/).
 
-10) Memory leaks
-
-   Coverity reported a memory leak for which we proposed a fix in
-   https://reviews.freebsd.org/D37253 and sent to the upstream mailing list at
-   https://lists.mindrot.org/pipermail/openssh-unix-dev/2022-November/040497.html
-
-   Upstream subsequently fixed only one of the related leaks, so we reverted
-   the partial fix and applied our change.
-
-11) Retired patches
+10) Retired patches
 
    We no longer have client-side VersionAddendum, but we recognize and ignore
    the configuration options to avoid breaking existing configurations.
 
-12) PrintLastLog bugfix
+11) PrintLastLog bugfix
 
    Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
    lastlog.ll_line, but uses it to disable the PrintLastLog configuration
