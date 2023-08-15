@@ -204,3 +204,10 @@ clean_dep   lib/libc        ffsll S
 clean_dep   lib/libc        fls   S
 clean_dep   lib/libc        flsl  S
 clean_dep   lib/libc        flsll S
+
+# 20230815  28f6c2f29280    GoogleTest update
+if [ -e "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o ] && \
+    grep -q '_ZN7testing8internal18g_linked_ptr_mutexE' "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o; then
+	echo "Removing stale fusefs GoogleTest objects"
+	run rm -rf "$OBJTOP"/tests/sys/fs/fusefs
+fi
