@@ -906,6 +906,9 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
 
+		/* Disable TSO on all em(4) until ring stalls can be debugged */
+		scctx->isc_capenable &= ~IFCAP_TSO;
+
 		/*
 		 * Disable TSO on SPT due to errata that downclocks DMA performance
 		 * i218-i219 Specification Update 1.5.4.5
@@ -937,6 +940,9 @@ em_if_attach_pre(if_ctx_t ctx)
 			scctx->isc_capabilities |= IFCAP_TSO6;
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO |
 		    CSUM_IP6_TCP | CSUM_IP6_UDP;
+
+		/* Disable TSO on all lem(4) until ring stalls can be debugged */
+		scctx->isc_capenable &= ~IFCAP_TSO;
 
 		/* 82541ER doesn't do HW tagging */
 		if (hw->device_id == E1000_DEV_ID_82541ER ||
