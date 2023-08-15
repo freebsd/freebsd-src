@@ -71,14 +71,14 @@ IP_ADDRESS=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $2); }'`
 NETMASK=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $4); }'`
 ROUTER=`netstat -rn -f inet | awk '/default/ {printf("%s\n", $2);}'`
 
-exec 3>&1
+exec 5>&1
 IF_CONFIG=$(bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --form 'Static Network Interface Configuration' 0 0 0 \
 	'IP Address' 1 1 "$IP_ADDRESS" 1 20 16 0 \
 	'Subnet Mask' 2 1 "$NETMASK" 2 20 16 0 \
 	'Default Router' 3 1 "$ROUTER" 3 20 16 0 \
-2>&1 1>&3)
+2>&1 1>&5)
 if [ $? -eq $BSDDIALOG_CANCEL ]; then exit 1; fi
-exec 3>&-
+exec 5>&-
 
 echo $INTERFACE $IF_CONFIG |
     awk -v prefix="$IFCONFIG_PREFIX" '{

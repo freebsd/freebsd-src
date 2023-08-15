@@ -35,7 +35,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 : ${BSDDIALOG_ESC=5}
 : ${BSDDIALOG_ERROR=255}
 
-exec 3>&1
+exec 5>&1
 MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
     --title "Mirror Selection" --extra-button --extra-label "Other" \
     --menu "Please select the best suitable site for you or \"other\" if you want to specify a different choice. The \"Main Site\" directs users to the nearest project managed mirror via GeoDNS (they carry the full range of possible distributions and support both IPv4 and IPv6). All other sites are known as \"Community Mirrors\"; not every site listed here carries more than the base distribution kits. Select a site!" \
@@ -88,9 +88,9 @@ MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
 	ftp://ftp5.us.freebsd.org 	"USA #5 - IPv6"\
 	ftp://ftp11.us.freebsd.org 	"USA #11 - IPv6"\
 	ftp://ftp14.us.freebsd.org 	"USA #14"\
-    2>&1 1>&3`
+    2>&1 1>&5`
 MIRROR_BUTTON=$?
-exec 3>&-
+exec 5>&-
 
 _UNAME_R=`uname -r`
 _UNAME_R=${_UNAME_R%-p*}
@@ -113,13 +113,13 @@ $BSDDIALOG_ERROR | $BSDDIALOG_CANCEL | $BSDDIALOG_ESC)
 $BSDDIALOG_OK)
 	;;
 $BSDDIALOG_EXTRA)
-	exec 3>&1
+	exec 5>&1
 	BSDINSTALL_DISTSITE=`bsddialog --backtitle "$OSNAME Installer" \
 	    --title "Mirror Selection" \
 	    --inputbox "Please enter the URL to an alternate $OSNAME mirror:" \
-	    0 74 "$BSDINSTALL_DISTSITE" 2>&1 1>&3`
+	    0 74 "$BSDINSTALL_DISTSITE" 2>&1 1>&5`
 	MIRROR_BUTTON=$?
-	exec 3>&-
+	exec 5>&-
 	test $MIRROR_BUTTON -eq $BSDDIALOG_OK || exec $0 $@
 	;;
 esac
