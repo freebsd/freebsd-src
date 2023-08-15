@@ -51,8 +51,6 @@
 #define	CRU_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
 #define	CRU_CLKGATE_CON(x)		((x) * 0x4 + 0x180)
 
-#define	PLIST(_name)	static const char *_name[]
-
 /* PLL clock */
 #define	RK_PLL(_id, _name, _pnames, _off, _shift)			\
 {									\
