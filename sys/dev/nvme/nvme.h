@@ -855,7 +855,7 @@ enum nvme_admin_opcode {
 	NVME_OPC_CAPACITY_MANAGEMENT		= 0x20,
 	/* 0x21-0x23 - reserved */
 	NVME_OPC_LOCKDOWN			= 0x24,
-	/* 0x15-0x7b - reserved */
+	/* 0x25-0x7b - reserved */
 	NVME_OPC_DOORBELL_BUFFER_CONFIG		= 0x7c,
 	/* 0x7d-0x7e - reserved */
 	NVME_OPC_FABRICS_COMMANDS		= 0x7f,
