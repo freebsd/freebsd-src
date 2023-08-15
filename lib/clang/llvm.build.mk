@@ -41,9 +41,9 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 # For all other targets, we stick with 'unknown'.
 .if ${TARGET_ARCH:Marm*}
 .if !defined(CPUTYPE) || ${CPUTYPE:M*soft*} == ""
-TARGET_ABI=	-gnueabihf
+TARGET_TRIPLE_ABI=-gnueabihf
 .else
-TARGET_ABI=	-gnueabi
+TARGET_TRIPLE_ABI=-gnueabi
 .endif
 .else
 TARGET_TRIPLE_ABI=
