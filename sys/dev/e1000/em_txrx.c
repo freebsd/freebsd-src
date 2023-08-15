@@ -290,7 +290,7 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 	    offsetof(struct ip, ip_sum);
 	if (csum_flags & CSUM_IP) {
 		*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
-		TXD->lower_setup.ip_fields.ipcse = htole16(hdr_len);
+		TXD->lower_setup.ip_fields.ipcse = htole16(hdr_len - 1);
 		cmd |= E1000_TXD_CMD_IP;
 	} else if (csum_flags & (CSUM_IP6_TCP | CSUM_IP6_UDP))
 		TXD->lower_setup.ip_fields.ipcse = htole16(0);
