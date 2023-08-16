@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from ppccpuid.pl. */
 .machine	"any"
 .text

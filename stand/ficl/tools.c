@@ -54,7 +54,6 @@
 ** Specify breakpoint default action
 */
 
-/* $FreeBSD$ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

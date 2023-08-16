@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from ecp_nistp521-ppc64.pl. */
 .machine	"any"
 .abiversion	2

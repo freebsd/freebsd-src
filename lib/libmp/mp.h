@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef _MP_H_
 #define _MP_H_

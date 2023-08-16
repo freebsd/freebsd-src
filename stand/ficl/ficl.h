@@ -41,7 +41,6 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
 
 #if !defined (__FICL_H__)
 #define __FICL_H__

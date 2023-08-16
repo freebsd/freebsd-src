@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /** @file
   This file provides a definition of the EFI IPv4 Configuration II
   Protocol.

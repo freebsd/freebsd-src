@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* check unwinding for main thread */
 
 #include <pthread.h>

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * ipsend.c (C) 1995-1998 Darren Reed
  *

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #define	charXX_t	char32_t
 #define	mbrtocXX	mbrtoc32
 #define	mbrtocXX_l	mbrtoc32_l

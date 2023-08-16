@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from chacha-armv8.pl. */
 #ifndef	__KERNEL__
 # include "arm_arch.h"

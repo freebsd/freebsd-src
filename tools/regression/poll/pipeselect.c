@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include <sys/socket.h>
 #include <sys/select.h>

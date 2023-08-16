@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Test stack unwinding for libc's sem */
 
 #include <pthread.h>

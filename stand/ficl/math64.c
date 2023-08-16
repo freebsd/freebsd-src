@@ -42,7 +42,6 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
 
 #include "ficl.h"
 #include "math64.h"

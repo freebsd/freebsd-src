@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #define	charXX_t	char32_t
 #define	cXXrtomb	c32rtomb
 #define	cXXrtomb_l	c32rtomb_l

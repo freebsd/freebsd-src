@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* 
     PE32+ header file
  */
