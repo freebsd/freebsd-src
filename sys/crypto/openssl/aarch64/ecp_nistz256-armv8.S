@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from ecp_nistz256-armv8.pl. */
 #include "arm_arch.h"
 

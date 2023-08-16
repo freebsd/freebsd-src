@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #ifndef ADF_DH895x_HW_DATA_H_
 #define ADF_DH895x_HW_DATA_H_
 

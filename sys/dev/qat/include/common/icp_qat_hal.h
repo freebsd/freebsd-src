@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #ifndef __ICP_QAT_HAL_H
 #define __ICP_QAT_HAL_H
 #include "adf_accel_devices.h"

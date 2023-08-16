@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause  */
 /* Copyright(c) 2021 Intel Corporation */
-/* $FreeBSD$ */
 #include "adf_gen2_hw_data.h"
 #include "icp_qat_hw.h"
 

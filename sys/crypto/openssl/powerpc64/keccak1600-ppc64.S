@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from keccak1600-ppc64.pl. */
 .abiversion	2
 .text

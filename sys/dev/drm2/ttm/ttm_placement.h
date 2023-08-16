@@ -27,7 +27,6 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/* $FreeBSD$ */
 
 #ifndef _TTM_PLACEMENT_H_
 #define _TTM_PLACEMENT_H_

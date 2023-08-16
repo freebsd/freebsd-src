@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /* $OpenBSD: deflate.h,v 1.3 2002/03/14 01:26:51 millert Exp $ */
 
 /*-

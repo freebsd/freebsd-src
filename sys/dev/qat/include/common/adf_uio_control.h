@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2023 Intel Corporation */
-/* $FreeBSD$ */
 #ifndef QAT_UIO_CONTROL_H
 #define QAT_UIO_CONTROL_H
 #include <sys/condvar.h>

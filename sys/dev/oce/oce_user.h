@@ -36,7 +36,6 @@
  * Costa Mesa, CA 92626
  */
 
-/* $FreeBSD$ */
 
 struct oce_mbx;
 struct oce_softc;

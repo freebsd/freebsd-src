@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #include "adf_c4xxx_hw_data.h"
 #include "adf_c4xxx_pke_replay_stats.h"
 #include "adf_common_drv.h"

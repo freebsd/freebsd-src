@@ -20,7 +20,6 @@
 
     ---------------------------------------------------------------------- */
 
-/*  $FreeBSD$ */
 
 #include <sys/ioccom.h>
 #ifndef USB_VENDOR_DIAMOND

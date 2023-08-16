@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from aes-gcm-avx512.pl. */
 .globl	ossl_vaes_vpclmulqdq_capable
 .type	ossl_vaes_vpclmulqdq_capable,@function

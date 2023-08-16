@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #include "adf_cfg_instance.h"
 #include "adf_cfg_device.h"
 #include "adf_cfg_section.h"

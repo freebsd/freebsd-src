@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from des-586.pl. */
 #ifdef PIC
 .text

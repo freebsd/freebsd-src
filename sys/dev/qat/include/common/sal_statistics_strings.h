@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #ifndef SAL_STATISTICS_STRINGS_H
 #define SAL_STATISTICS_STRINGS_H
 
