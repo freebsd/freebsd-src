@@ -28,7 +28,7 @@ C99_Exit.c: ${LIBC_SRCTOP}/stdlib/_Exit.c .NOMETA
 
 SYM_MAPS+= ${LIBC_SRCTOP}/stdlib/Symbol.map
 
-.include "${LIBC_SRCTOP}/stdlib/jemalloc/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdlib/malloc/Makefile.inc"
 
 # machine-dependent stdlib sources
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/stdlib/Makefile.inc"
