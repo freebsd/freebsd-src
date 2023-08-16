@@ -10,8 +10,8 @@ KMOD    = if_athn
 
 EXPORT_SYMS=    YES
 
-SRCS    = if_athn_usb.c ar9285.c \
-	bus_if.h device_if.h
+SRCS=   if_athn_usb.c ar9285.c athn.c
+SRCS+=	bus_if.h device_if.h
 SRCS+=  opt_inet.h opt_inet6.h opt_route.h opt_netlink.h
 
 SRCS+=	${LINUXKPI_GENSRCS}
