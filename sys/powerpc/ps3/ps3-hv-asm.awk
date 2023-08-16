@@ -9,7 +9,6 @@
 # $FreeBSD$
 
 BEGIN {
-	printf("/* $FreeBSD$ */\n\n");
 	printf("#include <machine/asm.h>\n\n");
 	printf("#define hc .long 0x44000022\n\n");
 }
