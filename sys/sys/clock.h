@@ -42,8 +42,6 @@
  * timezone instead of UTC and so on.
  *
  * All that code should go here for service.
- *
- * $FreeBSD$
  */
 
 #ifndef _SYS_CLOCK_H_

@@ -33,8 +33,6 @@
  *
  * This file was derived from src/sys/netgraph/ng_sample.h, revision 1.1
  * written by Julian Elischer, Whistle Communications.
- *
- * $FreeBSD$
  */
 
 #ifndef	_NETGRAPH_UDBP_H_

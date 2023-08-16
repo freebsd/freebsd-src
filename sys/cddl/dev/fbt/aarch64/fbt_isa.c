@@ -22,8 +22,6 @@
  * Portions Copyright 2013 Justin Hibbits jhibbits@freebsd.org
  * Portions Copyright 2013 Howard Su howardsu@freebsd.org
  * Portions Copyright 2015 Ruslan Bukin <br@bsdpad.com>
- *
- * $FreeBSD$
  */
 
 /*

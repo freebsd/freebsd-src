@@ -61,8 +61,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * From: sys/arm/include/bus.h
- *
- * $FreeBSD$
  */
 
 #ifdef __arm__

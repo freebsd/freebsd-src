@@ -4,8 +4,6 @@
  *
  * This is an implementation of the algorithms posted above.
  * This file is placed in the public domain by Peter Wemm.
- *
- * $FreeBSD$
  */
 #ifndef _SYS_FNV_HASH_H_
 #define	_SYS_FNV_HASH_H_

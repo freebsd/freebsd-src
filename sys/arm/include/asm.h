@@ -34,8 +34,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)asm.h	5.5 (Berkeley) 5/7/91
- *
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_ASM_H_

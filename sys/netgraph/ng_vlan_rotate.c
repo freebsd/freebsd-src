@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  *
  * Author: Lutz Donnerhacke <lutz@donnerhacke.de>
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

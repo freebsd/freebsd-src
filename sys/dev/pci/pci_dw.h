@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
- *
  */
 
 #ifndef _PCI_DW_H_

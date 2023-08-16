@@ -35,8 +35,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * Author: Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  */
 
 /*

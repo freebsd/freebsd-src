@@ -14,8 +14,6 @@
  * DISCLAIMER:  This code isn't warranted to do anything useful.  Anything
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
- *
- * $FreeBSD$
  */
 
 #ifndef _SYS_AIO_H_

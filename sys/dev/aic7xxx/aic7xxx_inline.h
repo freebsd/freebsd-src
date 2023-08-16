@@ -40,8 +40,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#47 $
- *
- * $FreeBSD$
  */
 
 #ifndef _AIC7XXX_INLINE_H_

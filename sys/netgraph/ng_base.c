@@ -33,8 +33,6 @@
  *
  * Authors: Julian Elischer <julian@freebsd.org>
  *          Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  * $Whistle: ng_base.c,v 1.39 1999/01/28 23:54:53 julian Exp $
  */
 

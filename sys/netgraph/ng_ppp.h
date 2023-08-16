@@ -36,8 +36,6 @@
  * OF SUCH DAMAGE.
  *
  * Author: Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  * $Whistle: ng_ppp.h,v 1.8 1999/01/25 02:40:02 archie Exp $
  */
 

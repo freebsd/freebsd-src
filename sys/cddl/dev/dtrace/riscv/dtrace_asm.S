@@ -20,8 +20,6 @@
  * CDDL HEADER END
  *
  * Portions Copyright 2016 Ruslan Bukin <br@bsdpad.com>
- *
- * $FreeBSD$
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.

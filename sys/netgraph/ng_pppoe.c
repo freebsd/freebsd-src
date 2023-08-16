@@ -36,8 +36,6 @@
  * OF SUCH DAMAGE.
  *
  * Author: Julian Elischer <julian@freebsd.org>
- *
- * $FreeBSD$
  * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 

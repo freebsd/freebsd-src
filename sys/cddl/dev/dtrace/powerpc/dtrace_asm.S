@@ -20,8 +20,6 @@
  * CDDL HEADER END
  *
  * Portions Copyright 2012,2013 Justin Hibbits <jhibbits@freebsd.org>
- *
- * $FreeBSD$
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.

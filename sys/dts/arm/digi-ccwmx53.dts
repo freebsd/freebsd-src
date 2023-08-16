@@ -28,8 +28,6 @@
  * SUCH DAMAGE.
  *
  * Digi ConnectCore Wi-i.MX53
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

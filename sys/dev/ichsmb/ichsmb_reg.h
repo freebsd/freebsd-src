@@ -34,8 +34,6 @@
  * OF SUCH DAMAGE.
  *
  * Author: Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  */
 
 #ifndef _DEV_ICHSMB_ICHSMB_REG_H_

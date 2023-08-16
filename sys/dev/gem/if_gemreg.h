@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  *	from: NetBSD: gemreg.h,v 1.9 2006/11/24 13:01:07 martin Exp
- *
- * $FreeBSD$
  */
 
 #ifndef	_IF_GEMREG_H
