@@ -26,8 +26,6 @@
 -- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 -- SUCH DAMAGE.
 --
--- $FreeBSD$
---
 
 -- The cli module should be included first here. Some of the functions that it
 -- defines are necessary for the Lua-based loader to operate in general.
