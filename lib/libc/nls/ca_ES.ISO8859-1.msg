@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for ca_ES.ISO8859-1 locale
 $

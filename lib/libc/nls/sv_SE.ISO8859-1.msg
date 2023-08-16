@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for sv_SE.ISO8859-1 locale
 $

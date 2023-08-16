@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for ja_JP.eucJP locale
 $

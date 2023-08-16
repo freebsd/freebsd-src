@@ -5,7 +5,6 @@ $ Based on uk_UA.KOI8-U translation by Olexander Kunytsa <kunia@istc.kiev.ua>
 $
 $ For ee patchlevel 3
 $
-$ $FreeBSD$
 $
 $
 $set 1

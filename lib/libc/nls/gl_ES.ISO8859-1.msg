@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for gl_ES.ISO8859-1 locale
 $
