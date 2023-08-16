@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <bootstrap.h>
 #include <sys/endian.h>
 #include <sys/param.h>

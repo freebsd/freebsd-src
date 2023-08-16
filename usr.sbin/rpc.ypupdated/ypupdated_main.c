@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "ypupdate_prot.h"
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */

@@ -43,8 +43,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <ctype.h>
 
 #define DHCP_OPTION_DATA

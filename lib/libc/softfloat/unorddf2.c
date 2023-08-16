@@ -9,8 +9,6 @@
 #include "softfloat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 flag __unorddf2(float64, float64);
 
 flag

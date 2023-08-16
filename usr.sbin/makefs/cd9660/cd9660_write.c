@@ -38,8 +38,6 @@
 #include "iso9660_rrip.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <util.h>
 
 static int cd9660_write_volume_descriptors(iso9660_disk *, FILE *);

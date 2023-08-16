@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 static const double
 S1  = -1.66666666666666324348e-01, /* 0xBFC55555, 0x55555549 */
 S2  =  8.33333333332248946124e-03, /* 0x3F811111, 0x1110F8A6 */

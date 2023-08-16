@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/dnv.h>
 #include <sys/nv.h>
 #include <netinet/in.h>

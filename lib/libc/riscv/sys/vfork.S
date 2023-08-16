@@ -33,7 +33,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 ENTRY(__sys_vfork)

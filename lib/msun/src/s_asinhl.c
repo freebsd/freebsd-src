@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * See s_asinh.c for complete comments.
  *

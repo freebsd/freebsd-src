@@ -54,8 +54,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <string.h>
 #include <sys/stat.h>
 #include <ufs/ffs/fs.h>

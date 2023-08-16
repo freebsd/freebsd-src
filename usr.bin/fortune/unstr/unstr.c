@@ -42,8 +42,6 @@ static const char sccsid[] = "@(#)unstr.c     8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  *	This program un-does what "strfile" makes, thereby obtaining the
  * original file again.  This can be invoked with the name of the output

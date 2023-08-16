@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define _WANT_FREEBSD11_DIRENT
 
 #include "namespace.h"

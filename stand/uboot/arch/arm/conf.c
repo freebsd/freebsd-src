@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stand.h>
 #include "bootstrap.h"
 #include "libuboot.h"

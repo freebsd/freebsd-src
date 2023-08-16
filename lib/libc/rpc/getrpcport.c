@@ -35,8 +35,6 @@ static char *sccsid2 = "@(#)getrpcport.c 1.3 87/08/11 SMI";
 static char *sccsid = "@(#)getrpcport.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Copyright (c) 1985 by Sun Microsystems, Inc.
  */

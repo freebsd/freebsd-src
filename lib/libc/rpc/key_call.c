@@ -33,8 +33,6 @@
 
 #ident	"@(#)key_call.c	1.25	94/04/24 SMI"
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * key_call.c, Interface to keyserver
  *

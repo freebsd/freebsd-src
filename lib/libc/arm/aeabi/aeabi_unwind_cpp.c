@@ -35,8 +35,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stdlib.h>
 
 void __aeabi_unwind_cpp_pr0(void) __hidden;

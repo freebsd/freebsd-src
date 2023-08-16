@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <fcntl.h>
 #include <getopt.h>
 #include <paths.h>

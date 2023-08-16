@@ -1,6 +1,4 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Tell <ctype.h> to generate extern versions of all its inline
  * functions.  The extern versions get called if the system doesn't

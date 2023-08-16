@@ -8,8 +8,6 @@
  */
 #include <sys/types.h>
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define	_SEARCH_PRIVATE
 #include <search.h>
 #include <stdint.h>	/* for uint8_t */

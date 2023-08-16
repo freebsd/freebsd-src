@@ -39,8 +39,6 @@
 static char sccsid[] = "@(#)svc_raw.c 1.25 89/01/31 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * svc_raw.c,   This a toy for simple testing and timing.
  * Interface to create an rpc client and server in the same UNIX process.

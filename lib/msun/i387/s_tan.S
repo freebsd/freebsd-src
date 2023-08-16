@@ -34,8 +34,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(tan)
 	fldl	4(%esp)
 	fptan

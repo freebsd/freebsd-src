@@ -44,8 +44,6 @@
 #include <unistd.h>
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "progress.h"
 
 static const char * const suffixes[] = {

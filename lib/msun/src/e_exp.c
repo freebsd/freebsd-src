@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* exp(x)
  * Returns the exponential of x.
  *

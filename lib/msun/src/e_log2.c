@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Return the base 2 logarithm of x.  See e_log.c and k_log.h for most
  * comments.

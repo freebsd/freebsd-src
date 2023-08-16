@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* asin(x)
  * Method :                  
  *	Since  asin(x) = x + x^3/6 + x^5*3/40 + x^7*15/336 + ...

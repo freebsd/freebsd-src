@@ -34,8 +34,6 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * look.c
  * Facility: m4 macro processor

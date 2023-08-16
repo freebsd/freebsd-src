@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * size_t
  * wcslen(const wchar_t *s) --

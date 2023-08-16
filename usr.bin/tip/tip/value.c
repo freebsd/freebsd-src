@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";

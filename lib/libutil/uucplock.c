@@ -30,7 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 __SCCSID("@(#)uucplock.c	8.1 (Berkeley) 6/6/93");
 
 #include <sys/types.h>

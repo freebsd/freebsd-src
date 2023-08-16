@@ -32,7 +32,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 RSYSCALL(syscall)

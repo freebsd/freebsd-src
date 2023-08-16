@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Return floating point absolute value of a double.
  */

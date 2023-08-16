@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <pthread.h>
 #include <pthread_np.h>
 #include <unistd.h>

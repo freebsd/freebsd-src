@@ -33,8 +33,6 @@
  * for localedef for processing by the higher level grammar processor.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>

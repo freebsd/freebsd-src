@@ -33,8 +33,6 @@
 static char sccsid[] = "@(#)killpg.c	8.1 (Berkeley) 6/2/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <signal.h>
 #include <errno.h>

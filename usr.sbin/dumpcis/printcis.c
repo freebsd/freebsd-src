@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* 
  * Code cleanup, bug-fix and extension
  * by Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>                   

@@ -1,6 +1,4 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>

@@ -98,8 +98,6 @@
   */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ctype.h>

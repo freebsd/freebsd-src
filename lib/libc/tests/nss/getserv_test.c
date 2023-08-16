@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>

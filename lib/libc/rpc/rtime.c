@@ -59,8 +59,6 @@
 static char sccsid[] = 	"@(#)rtime.c	2.2 88/08/10 4.0 RPCSRC; from 1.8 88/02/08 SMI";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 extern int _rpc_dtablesize( void );
 
 #define	NYEARS	(unsigned long)(1970 - 1900)

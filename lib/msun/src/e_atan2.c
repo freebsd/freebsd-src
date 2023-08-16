@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* atan2(y,x)
  * Method :
  *	1. Reduce y to positive by atan2(y,x)=-atan2(-y,x).

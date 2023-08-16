@@ -33,9 +33,6 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-
 extern char **environ;
 
 

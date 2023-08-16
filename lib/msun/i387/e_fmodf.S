@@ -4,8 +4,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(fmodf)
 	flds	8(%esp)
 	flds	4(%esp)

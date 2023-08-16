@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
 #ifndef WITHOUT_CAPSICUM

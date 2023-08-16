@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* ilogb(double x)
  * return the binary exponent of non-zero x
  * ilogb(0) = FP_ILOGB0

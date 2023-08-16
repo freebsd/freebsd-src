@@ -33,8 +33,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>

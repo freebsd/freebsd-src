@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ceill(x)
  * Return x rounded toward -inf to integral value

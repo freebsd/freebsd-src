@@ -1,6 +1,4 @@
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 	.section .init,"ax",%progbits
 	.align 4
 	.globl	_init

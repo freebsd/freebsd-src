@@ -41,8 +41,6 @@ static char sccsid[] = "@(#)hexdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>

@@ -14,8 +14,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * finitef(x) returns 1 is x is finite, else 0;
  * no branching!

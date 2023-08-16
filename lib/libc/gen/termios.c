@@ -31,8 +31,6 @@
 
 #include <sys/cdefs.h>
 __SCCSID("@(#)termios.c	8.2 (Berkeley) 2/21/94");
-__FBSDID("$FreeBSD$");
-
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/fcntl.h>

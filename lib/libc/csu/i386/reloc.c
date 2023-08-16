@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <machine/specialreg.h>
 #include <machine/cpufunc.h>
 

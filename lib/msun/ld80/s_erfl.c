@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * See s_erf.c for complete comments.
  *

@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <arpa/inet.h>

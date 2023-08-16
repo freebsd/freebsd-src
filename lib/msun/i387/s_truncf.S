@@ -4,8 +4,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(truncf)
 	pushl	%ebp
 	movl	%esp,%ebp

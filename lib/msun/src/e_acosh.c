@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* acosh(x)
  * Method :
  *	Based on 

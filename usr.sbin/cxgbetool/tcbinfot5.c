@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Auto-generated file.  Avoid direct editing.     */
 /* Edits will be lost when file regenerated.       */
 #include <stdio.h>

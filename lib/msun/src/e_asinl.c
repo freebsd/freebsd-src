@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * See comments in e_asin.c.
  * Converted to long double by David Schultz <das@FreeBSD.ORG>.

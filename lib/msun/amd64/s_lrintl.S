@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
-	
 ENTRY(lrintl)
 	fldt	8(%rsp)
 	subq	$8,%rsp

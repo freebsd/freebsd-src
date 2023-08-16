@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* 
  * fmod(x,y)
  * Return x mod y in exact arithmetic

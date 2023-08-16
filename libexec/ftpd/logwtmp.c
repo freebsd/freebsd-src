@@ -36,8 +36,6 @@ static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <netinet/in.h>

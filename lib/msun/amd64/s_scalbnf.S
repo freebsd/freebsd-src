@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(scalbnf)
 	movss	%xmm0,-8(%rsp)
 	movl	%edi,-4(%rsp)

@@ -34,8 +34,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(ceil)
 	pushl	%ebp
 	movl	%esp,%ebp

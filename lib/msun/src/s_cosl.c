@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Limited testing on pseudorandom numbers drawn within [-2e8:4e8] shows
  * an accuracy of <= 0.7412 ULP.

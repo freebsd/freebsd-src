@@ -60,8 +60,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "namespace.h"
 #include <string.h>
 #include <stdlib.h>

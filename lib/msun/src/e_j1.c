@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* j1(x), y1(x)
  * Bessel function of the first and second kinds of order zero.
  * Method -- j1(x):

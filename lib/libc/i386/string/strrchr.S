@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * strrchr(s, c)
  *	return a pointer to the last occurrence of the character c in

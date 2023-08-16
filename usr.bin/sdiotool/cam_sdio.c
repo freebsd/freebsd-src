@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "cam_sdio.h"
 
 /* Use CMD52 to read or write a single byte */

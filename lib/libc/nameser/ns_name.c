@@ -21,8 +21,6 @@
 static const char rcsid[] = "$Id: ns_name.c,v 1.11 2009/01/23 19:59:16 each Exp $";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "port_before.h"
 
 #include <sys/types.h>

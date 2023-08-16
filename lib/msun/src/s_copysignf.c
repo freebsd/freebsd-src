@@ -14,8 +14,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * copysignf(float x, float y)
  * copysignf(x,y) returns a value with the magnitude of x and

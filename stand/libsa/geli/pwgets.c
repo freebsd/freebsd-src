@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "stand.h"
 
 /* gets() with constrained input length, for passwords */

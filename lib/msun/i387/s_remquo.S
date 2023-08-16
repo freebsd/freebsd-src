@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
-	
 ENTRY(remquo)
 	fldl	12(%esp)
 	fldl	4(%esp)

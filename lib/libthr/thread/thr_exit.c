@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "namespace.h"
 #include <errno.h>
 #ifdef _PTHREAD_FORCED_UNWIND

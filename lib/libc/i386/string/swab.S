@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * void
  * swab (const void *src, void *dst, size_t len)

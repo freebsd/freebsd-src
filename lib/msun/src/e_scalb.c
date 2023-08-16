@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * scalb(x, fn) is provide for
  * passing various standard test suite. One 

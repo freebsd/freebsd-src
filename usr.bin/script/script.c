@@ -31,7 +31,6 @@
  */
 
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1992, 1993\n\

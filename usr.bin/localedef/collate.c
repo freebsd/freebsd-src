@@ -32,8 +32,6 @@
  * LC_COLLATE database generation routines for localedef.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <sys/tree.h>
 

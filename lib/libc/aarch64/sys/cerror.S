@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(cerror)
 	.hidden	cerror
 	sub	sp, sp, #16

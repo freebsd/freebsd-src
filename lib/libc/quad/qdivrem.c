@@ -37,8 +37,6 @@
 static char sccsid[] = "@(#)qdivrem.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Multiprecision divide.  This algorithm is from Knuth vol. 2 (2nd ed),
  * section 4.3.1, pp. 257--259.

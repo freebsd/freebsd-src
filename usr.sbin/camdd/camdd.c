@@ -38,8 +38,6 @@
  * - An example of how to use the asynchronous pass(4) driver interface.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/ioctl.h>
 #include <sys/stdint.h>
 #include <sys/types.h>

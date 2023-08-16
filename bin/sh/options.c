@@ -38,8 +38,6 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>

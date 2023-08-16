@@ -26,8 +26,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #include <machine/sysarch.h>
 
 ENTRY(__aeabi_read_tp)

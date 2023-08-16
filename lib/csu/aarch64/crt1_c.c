@@ -30,6 +30,4 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "csu_common.h"

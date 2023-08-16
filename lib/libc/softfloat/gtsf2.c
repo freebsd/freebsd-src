@@ -9,8 +9,6 @@
 #include "softfloat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 flag __gtsf2(float32, float32);
 
 flag

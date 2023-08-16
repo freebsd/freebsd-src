@@ -44,8 +44,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/ioctl.h>

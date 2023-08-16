@@ -4,8 +4,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #if 0
 	RCSID("$NetBSD: strcat.S,v 1.4 2004/07/26 18:51:21 drochner Exp $")
 #endif

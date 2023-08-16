@@ -6,8 +6,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(ldiv)
 	movq	%rdi,%rax
 	cqto

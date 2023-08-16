@@ -35,8 +35,6 @@ static char *sccsid2 = "from: @(#)pmap_getport.c 1.9 87/08/11 Copyr 1984 Sun Mic
 static char *sccsid = "from: @(#)pmap_getport.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * pmap_getport.c
  * Client interface to pmap rpc service.

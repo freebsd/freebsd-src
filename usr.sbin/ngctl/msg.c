@@ -38,8 +38,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <err.h>
 #include <netgraph.h>
 #include <stdio.h>

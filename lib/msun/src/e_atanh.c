@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* atanh(x)
  * Method :
  *    1.Reduced x to positive by atanh(-x) = -atanh(x)

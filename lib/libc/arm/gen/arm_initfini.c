@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * To properly implement setjmp/longjmp for the ARM AAPCS ABI, it has to be
  * aware of whether there is a FPU is present or not.  Regardless of whether

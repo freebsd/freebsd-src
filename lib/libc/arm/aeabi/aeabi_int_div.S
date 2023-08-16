@@ -26,8 +26,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Due to bug in libcompiler_rt, all symbols declared by
  * DEFINE_AEABI_FUNCTION_ALIAS() are not hidden. All these but

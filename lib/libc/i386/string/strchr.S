@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * strchr(s, c)
  *	return a pointer to the first occurrence of the character c in

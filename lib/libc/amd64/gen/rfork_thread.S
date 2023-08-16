@@ -26,8 +26,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * With thanks to John Dyson for the original version of this.
  */

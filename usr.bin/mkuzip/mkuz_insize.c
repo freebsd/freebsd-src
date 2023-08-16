@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/disk.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>

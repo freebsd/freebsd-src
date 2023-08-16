@@ -31,7 +31,6 @@
 #include <math.h>
 
 #ifndef type
-__FBSDID("$FreeBSD$");
 #define type		double
 #define	roundit		rint
 #define dtype		long

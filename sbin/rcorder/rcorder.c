@@ -40,8 +40,6 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/stat.h>
 
 #include <err.h>

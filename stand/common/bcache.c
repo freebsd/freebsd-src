@@ -27,8 +27,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Simple hashed block cache
  */

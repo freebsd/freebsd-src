@@ -41,8 +41,6 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

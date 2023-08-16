@@ -36,8 +36,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * RPC functions used by NFS and bootparams.
  * Note that bootparams requires the ability to find out the

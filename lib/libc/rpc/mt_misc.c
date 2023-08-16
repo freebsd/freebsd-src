@@ -2,8 +2,6 @@
 
 /* #pragma ident	"@(#)mt_misc.c	1.24	93/04/29 SMI" */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "namespace.h"
 #include "reentrant.h"
 #include <rpc/rpc.h>

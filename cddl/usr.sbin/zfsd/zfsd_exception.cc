@@ -52,8 +52,6 @@
 
 #include "vdev.h"
 #include "zfsd_exception.h"
-
-__FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::endl;
 using std::string;

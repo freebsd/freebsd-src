@@ -47,8 +47,6 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * login [ name ]
  * login -h hostname	(for telnetd, etc.)

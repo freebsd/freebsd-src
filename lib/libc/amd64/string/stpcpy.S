@@ -5,8 +5,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This stpcpy implementation copies a byte at a time until the
  * source pointer is aligned to a word boundary, it then copies by

@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * bzero (void *b, size_t len)
  *	write len zero bytes to the string b.

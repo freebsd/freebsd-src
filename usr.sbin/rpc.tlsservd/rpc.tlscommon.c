@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/queue.h>
 #include <sys/syslog.h>
 #include <sys/select.h>

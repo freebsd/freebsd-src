@@ -39,8 +39,6 @@
 #include <util.h>
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Partition Status Information from Apple Tech Note 1189
  */

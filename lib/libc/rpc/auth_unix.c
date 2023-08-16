@@ -35,8 +35,6 @@ static char *sccsid2 = "@(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * auth_unix.c, Implements UNIX style authentication parameters.
  *

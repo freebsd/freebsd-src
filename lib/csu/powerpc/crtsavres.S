@@ -22,8 +22,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 .text
 
 /*

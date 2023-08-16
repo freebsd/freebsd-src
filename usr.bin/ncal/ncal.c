@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <calendar.h>
 #include <ctype.h>
 #include <err.h>

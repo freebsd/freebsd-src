@@ -42,8 +42,6 @@ static char sccsid[] = "@(#)args.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Argument scanning and profile reading code.  Default parameters are set
  * here as well.

@@ -9,8 +9,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #include "amd64_archlevel.h"
 
 /*

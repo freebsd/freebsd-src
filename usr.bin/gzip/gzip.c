@@ -34,7 +34,6 @@
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006, 2008,\
  2009, 2010, 2011, 2015, 2017 Matthew R. Green.  All rights reserved.");
-__FBSDID("$FreeBSD$");
 #endif /* not lint */
 
 /*

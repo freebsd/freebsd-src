@@ -9,8 +9,6 @@
 #include "softfloat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifdef FLOAT128
 
 flag __letf2(float128, float128);

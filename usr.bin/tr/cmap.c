@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>

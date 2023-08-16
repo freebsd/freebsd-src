@@ -1,6 +1,4 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This material, written by Henry Spencer, was released by him
  * into the public domain and is thus not subject to any copyright.

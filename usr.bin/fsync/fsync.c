@@ -29,8 +29,6 @@
 #ifndef lint
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>

@@ -21,8 +21,6 @@
 static const char rcsid[] = "$Id: inet_pton.c,v 1.5 2005/07/28 06:51:47 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "port_before.h"
 #include <sys/param.h>
 #include <sys/socket.h>

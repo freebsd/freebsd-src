@@ -1,7 +1,6 @@
 /*	$NetBSD: mdreloc.c,v 1.23 2003/07/26 15:04:38 mrg Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
