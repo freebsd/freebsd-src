@@ -9,8 +9,6 @@ delim רר
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $FreeBSD$
-.\"
 .if n .ND
 .TI
 Timecounters: Efficient and precise timekeeping in SMP kernels.

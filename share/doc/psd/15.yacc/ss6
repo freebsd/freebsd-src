@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	@(#)ss6	8.1 (Berkeley) 6/8/93
-.\"
-.\" $FreeBSD$
 .SH
 6: Precedence
 .PP

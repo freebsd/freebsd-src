@@ -30,8 +30,6 @@
 .\"
 .\"	@(#)1.t	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
-.\"
 .sh 1 "NFS Implementation"
 .pp
 The 4.4BSD implementation of NFS and the alternate protocol nicknamed

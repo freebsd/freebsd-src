@@ -29,8 +29,6 @@
 .\" Feral Software
 .\" mjacob@feral.com
 .\"
-.\" $FreeBSD$
-.\"
 .Dd February 21, 2000
 .Dt GETENCSTAT 8
 .Os
