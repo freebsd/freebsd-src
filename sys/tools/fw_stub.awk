@@ -126,8 +126,7 @@ gsub(/[-\.]/, "_", modname);
 # Avoid a literal generated file tag here.
 generated = "@" "generated";
 printc("/*\
- * Automatically " generated " by:\
- * $FreeBSD$\
+ * Automatically " generated "\
  */");
 printc("#include <sys/param.h>");
 printc("#include <sys/errno.h>");
