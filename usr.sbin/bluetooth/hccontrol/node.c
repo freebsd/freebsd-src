@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: node.c,v 1.6 2003/07/22 21:14:02 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/ioctl.h>

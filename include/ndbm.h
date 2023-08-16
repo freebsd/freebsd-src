@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ndbm.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
  */
 
 #ifndef _NDBM_H_

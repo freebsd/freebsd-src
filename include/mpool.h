@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)mpool.h	8.4 (Berkeley) 11/2/95
- * $FreeBSD$
  */
 
 #ifndef _MPOOL_H_

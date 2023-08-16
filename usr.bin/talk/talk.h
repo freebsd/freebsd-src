@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)talk.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>

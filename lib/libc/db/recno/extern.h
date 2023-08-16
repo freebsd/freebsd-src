@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 6/4/94
- * $FreeBSD$
  */
 
 #include "../btree/extern.h"

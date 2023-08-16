@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: send_recv.c,v 1.2 2003/05/21 22:40:30 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -24,7 +24,6 @@
  * behaviour
  *
  * $OpenBSD: util.h,v 1.16 2014/12/13 10:31:07 tobias Exp $
- * $FreeBSD$
  */
 
 char		*fetchname(const char *, bool *, int);

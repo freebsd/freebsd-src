@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  */
 extern void setmodulus(char *modx);
 

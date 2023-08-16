@@ -32,7 +32,6 @@
 #include <unistd.h>
 
 /*
- * $FreeBSD$
  * This program just allocates as many pipes as it can to ensure
  * that using up all pipe memory doesn't cause a panic.
  */

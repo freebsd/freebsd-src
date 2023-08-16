@@ -24,7 +24,6 @@
  * behaviour
  *
  * $OpenBSD: inp.h,v 1.8 2003/08/15 08:00:51 otto Exp $
- * $FreeBSD$
  */
 
 void		re_input(void);

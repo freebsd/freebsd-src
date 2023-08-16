@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  * $Id: parser.y,v 1.7 2006/09/07 21:06:53 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/queue.h>

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id$
- * $FreeBSD$
  */
 
 #include <sys/types.h>

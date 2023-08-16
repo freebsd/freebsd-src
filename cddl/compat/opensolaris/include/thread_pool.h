@@ -25,7 +25,6 @@
  */
 
 /*
- * $FreeBSD$
  */
 
 #ifndef	_THREAD_POOL_H_

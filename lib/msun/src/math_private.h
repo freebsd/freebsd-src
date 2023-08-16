@@ -11,7 +11,6 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $FreeBSD$
  */
 
 #ifndef _MATH_PRIVATE_H_

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: sdpcontrol.h,v 1.1 2003/09/08 02:27:27 max Exp $
- * $FreeBSD$
  */
 
 #ifndef __SDPCONTROL_H__

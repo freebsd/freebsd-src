@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: sdp.c,v 1.3 2004/02/17 22:14:57 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/types.h>

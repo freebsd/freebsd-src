@@ -31,7 +31,6 @@
  *
  *	from: @(#)pmap_rmt.h 1.2 88/02/08 SMI
  *	from: @(#)pmap_rmt.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
  */
 
 /*

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: sdpcontrol.c,v 1.1 2003/09/08 02:27:27 max Exp $
- * $FreeBSD$
  */
 
 #include <assert.h>
