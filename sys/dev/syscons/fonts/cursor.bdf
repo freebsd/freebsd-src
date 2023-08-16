@@ -1,7 +1,5 @@
 STARTFONT 2.1
 COMMENT
-COMMENT $FreeBSD$
-COMMENT
 COMMENT Mouse cursors for syscons.  All except some unused ones are the
 COMMENT main 10x16 one scaled down to 9x13 and/or scaled to minimize
 COMMENT distortion with non-square pixels.  Details of the scaling are
