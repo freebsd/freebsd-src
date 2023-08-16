@@ -27,7 +27,6 @@
 /*	  All Rights Reserved  	*/
 
 /*
- * $FreeBSD$
  */
 
 #ifndef _DIS_TABLES_H

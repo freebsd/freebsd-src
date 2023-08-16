@@ -28,7 +28,6 @@
  */
 
 /*
- * $FreeBSD$
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.

@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)float.h	7.1 (Berkeley) 5/8/90
- * $FreeBSD$
  */
 
 #ifdef __arm__

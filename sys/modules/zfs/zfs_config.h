@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  */
 
 /* zfs_config.h.  Generated from zfs_config.h.in by configure.  */

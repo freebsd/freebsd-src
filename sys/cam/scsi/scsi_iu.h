@@ -1,6 +1,5 @@
 /*-
  * This file is in the public domain.
- * $FreeBSD$
  */
 #ifndef	_SCSI_SCSI_IU_H
 #define _SCSI_SCSI_IU_H 1

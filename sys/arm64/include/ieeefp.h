@@ -1,7 +1,6 @@
 /*-
  * Based on sys/sparc64/include/ieeefp.h
  * Public domain.
- * $FreeBSD$
  */
 
 #ifdef __arm__

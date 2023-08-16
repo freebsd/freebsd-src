@@ -25,7 +25,6 @@
  */
 
 /*
- * $FreeBSD$
  *
  * Monitors
  *

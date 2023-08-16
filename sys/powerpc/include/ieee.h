@@ -39,7 +39,6 @@
  *
  *	@(#)ieee.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: ieee.h,v 1.1.1.1 1998/06/20 04:58:51 eeh Exp
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_IEEE_H_

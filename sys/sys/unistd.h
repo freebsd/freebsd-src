@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $FreeBSD$
  */
 
 #ifndef _SYS_UNISTD_H_

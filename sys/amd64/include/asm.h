@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- * $FreeBSD$
  */
 
 #ifdef __i386__
