@@ -31,8 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * Macros which generate thread local storage handling code in NSS modules.
  */
 #ifndef _NSS_TLS_H_

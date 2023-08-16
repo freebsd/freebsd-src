@@ -1,7 +1,5 @@
 /*-
  * This file is in the public domain
- *
- * $FreeBSD$
  */
 
 /*
@@ -46,8 +44,6 @@
  *     When a new feature is actually used by the build system, update the
  *     %VERSREQ field in the Makefile.$ARCH of all the affected makefiles
  *     (typically all of them).
- *
- * $FreeBSD$
  */
 #define	CONFIGVERS	600018
 #define	MAJOR_VERS(x)	((x) / 100000)

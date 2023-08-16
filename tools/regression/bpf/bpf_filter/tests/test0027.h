@@ -1,7 +1,5 @@
 /*-
  * Test 0027:	BPF_ALU+BPF_DIV+BPF_X
- *
- * $FreeBSD$
  */
 
 /* BPF program */

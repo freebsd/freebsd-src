@@ -37,8 +37,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ar.h	8.2 (Berkeley) 1/21/94
- *
- * $FreeBSD$
  */
 
 #ifndef _AR_H_

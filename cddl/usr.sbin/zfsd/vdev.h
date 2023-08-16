@@ -28,8 +28,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
- *
- * $FreeBSD$
  */
 
 /**

@@ -39,8 +39,6 @@
  * Enterprises.  To learn more about the Internet Software Consortium,
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

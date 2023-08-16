@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * Textual conventions for OctetStrings
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

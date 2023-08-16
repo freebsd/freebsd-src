@@ -1,8 +1,6 @@
 /*
  * This file is in public domain.
  * Written by Dmitry Chagin <dchagin@FreeBSD.org>
- *
- * $FreeBSD$
  */
 
 	.text

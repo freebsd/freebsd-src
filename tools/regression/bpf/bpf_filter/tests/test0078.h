@@ -1,7 +1,5 @@
 /*-
  * Test 0078:	Check boundary conditions (BPF_STX)
- *
- * $FreeBSD$
  */
 
 /* BPF program */

@@ -1,7 +1,5 @@
 /*-
  * This program is in the public domain
- *
- * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,8 +1,6 @@
 /* dlg_config.h.  Generated automatically by configure.  */
 /*
  * The configure script expands this as a set of definitions
- *
- * $FreeBSD$
  */
 
 #define CURSES_WACS_ARRAY _nc_wacs

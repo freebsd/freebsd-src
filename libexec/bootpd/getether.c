@@ -6,8 +6,6 @@
  *
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
- *
- * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -8,8 +8,6 @@
  * You may copy, modify and distribute this software (natd.h) freely.
  *
  * Ari Suutari <suutari@iki.fi>
- *
- * $FreeBSD$
  */
 
 #define PIDFILE	"/var/run/natd.pid"

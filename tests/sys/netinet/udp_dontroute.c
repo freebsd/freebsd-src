@@ -28,8 +28,6 @@
  *  POSSIBILITY OF SUCH DAMAGES.
  *
  *  Authors: Alan Somers         (Spectra Logic Corporation)
- *
- * $FreeBSD$
  */
 
 #include <arpa/inet.h>

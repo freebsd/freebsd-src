@@ -17,8 +17,6 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $FreeBSD$
- *
  * altq interface
  */
 

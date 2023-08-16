@@ -27,8 +27,6 @@
  *
  * Bridge MIB implementation for SNMPd.
  * Bridge OS specific ioctls.
- *
- * $FreeBSD$
  */
 
 #include <sys/ioctl.h>

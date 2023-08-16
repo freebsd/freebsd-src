@@ -1,7 +1,5 @@
 /*-
  * Test 0020:	BPF_JMP+BPF_JGT+BPF_X
- *
- * $FreeBSD$
  */
 
 /* BPF program */

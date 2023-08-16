@@ -31,8 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * Compatibility header for the GNU C Library-style nsswitch interface.
  */
 #ifndef _NSS_H_

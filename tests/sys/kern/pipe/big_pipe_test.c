@@ -12,8 +12,6 @@
 /*
  * Test for the non-blocking big pipe bug (write(2) returning
  * EAGAIN while select(2) returns the descriptor as ready for write).
- *
- * $FreeBSD$
  */
 
 static void

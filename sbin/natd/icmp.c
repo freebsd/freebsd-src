@@ -8,8 +8,6 @@
  * You may copy, modify and distribute this software (icmp.c) freely.
  *
  * Ari Suutari <suutari@iki.fi>
- *
- * $FreeBSD$
  */
 
 #include <stdlib.h>

@@ -13,8 +13,6 @@
  * implied warranties, including, without limitation, the implied
  * warranties of merchantability and fitness for a particular
  * purpose.
- *
- * $FreeBSD$
  */
 
 /* build options: */
