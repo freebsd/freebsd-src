@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)tar.h	8.2 (Berkeley) 1/4/94
- *
- * $FreeBSD$
  */
 
 #ifndef _TAR_H

@@ -34,8 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)dumprestore.h	8.2 (Berkeley) 1/21/94
- *
- * $FreeBSD$
  */
 
 #ifndef _PROTOCOLS_DUMPRESTORE_H_

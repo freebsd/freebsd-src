@@ -5,8 +5,6 @@
  *
  * A netmap application to bridge two network interfaces,
  * or one interface and the host stack.
- *
- * $FreeBSD$
  */
 
 #include <libnetmap.h>

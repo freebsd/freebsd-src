@@ -1,7 +1,5 @@
 /*
  * trylook.c - test program for lookup.c
- *
- * $FreeBSD$
  */
 
 #include <sys/types.h>

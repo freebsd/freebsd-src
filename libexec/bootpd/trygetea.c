@@ -1,7 +1,5 @@
 /*
  * trygetea.c - test program for getether.c
- *
- * $FreeBSD$
  */
 
 #include <sys/types.h>

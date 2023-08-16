@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Bridge MIB implementation for SNMPd.
- *
- * $FreeBSD$
  */
 
 #ifndef	SNMP_BRIDGE_H

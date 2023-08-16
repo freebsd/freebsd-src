@@ -3,8 +3,6 @@
  *
  *  This file contains all the definitions necessary to use the hand-written
  *  screen package in "screen.c"
- *
- *  $FreeBSD$
  */
 
 #define TCputs(str)	tputs(str, 1, putchar)

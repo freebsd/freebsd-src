@@ -12,8 +12,6 @@
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *          Thomas Moestl <tmoestl@gmx.net>
  *          Eitan Adler <eadler@FreeBSD.org>
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

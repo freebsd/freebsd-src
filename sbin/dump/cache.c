@@ -2,8 +2,6 @@
  * CACHE.C
  *
  *	Block cache for dump
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
