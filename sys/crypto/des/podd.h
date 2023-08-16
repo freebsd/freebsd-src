@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: podd.h,v 1.4 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/podd.h */

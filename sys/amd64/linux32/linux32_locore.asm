@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include "linux32_assym.h"			/* system definitions */
 #include <machine/asmacros.h>			/* miscellaneous asm macros */

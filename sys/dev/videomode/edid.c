@@ -1,5 +1,4 @@
 /* $NetBSD: edid.c,v 1.12 2013/02/08 16:35:10 skrll Exp $ */
-/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 2006 Itronix Inc.

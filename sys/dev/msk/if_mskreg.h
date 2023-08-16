@@ -95,7 +95,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*$FreeBSD$*/
 
 /*
  * SysKonnect PCI vendor ID

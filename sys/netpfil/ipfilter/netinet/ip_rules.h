@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 
 extern int ipfrule_add(void);
 extern int ipfrule_remove(void);

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 		Driver Theory of Operation Manual
 

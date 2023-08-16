@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef _ARM_SYSARCH_H_
 #define _ARM_SYSARCH_H_

@@ -29,7 +29,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-/* $FreeBSD$ */
 
 /*
  * This file provides set of macros for logging:

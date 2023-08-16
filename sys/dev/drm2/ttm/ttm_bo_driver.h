@@ -27,7 +27,6 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/* $FreeBSD$ */
 
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_

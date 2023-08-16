@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from cmll-x86.pl. */
 #ifdef PIC
 .text

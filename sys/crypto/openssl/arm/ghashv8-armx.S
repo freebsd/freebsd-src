@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from ghashv8-armx.pl. */
 #include "arm_arch.h"
 

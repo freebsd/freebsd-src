@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #define logo_width 88
 #define logo_height 88

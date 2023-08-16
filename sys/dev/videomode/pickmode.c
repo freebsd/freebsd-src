@@ -1,5 +1,4 @@
 /* $NetBSD: pickmode.c,v 1.3 2011/04/09 18:22:31 jdc Exp $ */
-/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 2006 The NetBSD Foundation

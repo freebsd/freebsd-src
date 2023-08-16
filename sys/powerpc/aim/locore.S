@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifdef __powerpc64__
 #include <powerpc/aim/locore64.S>

@@ -115,7 +115,6 @@
  * valid on the LANCE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef _DEV_LE_LANCEREG_H_
 #define	_DEV_LE_LANCEREG_H_

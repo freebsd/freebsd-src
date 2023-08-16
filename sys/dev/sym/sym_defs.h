@@ -57,7 +57,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef SYM_DEFS_H
 #define SYM_DEFS_H

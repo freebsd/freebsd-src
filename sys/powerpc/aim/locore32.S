@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 /*-
  * Copyright (C) 2010-2016 Nathan Whitehorn

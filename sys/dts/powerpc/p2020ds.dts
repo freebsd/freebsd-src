@@ -57,7 +57,6 @@
  * You may select the license of your choice.
  *------------------------------------------------------------------
  */
-/* $FreeBSD$ */
 
 /dts-v1/;
 / {

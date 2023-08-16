@@ -1,7 +1,6 @@
 /*-
  * This file is in the public domain.
  */
-/* $FreeBSD$ */
 
 #ifndef _SYS__SEQC_H_
 #define _SYS__SEQC_H_

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: ah.h,v 1.13 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*-

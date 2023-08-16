@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifdef __arm__
 #include <arm/reloc.h>

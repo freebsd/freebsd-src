@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 #include <linux/iopoll.h>
 #include <linux/mutex.h>
 #include <linux/types.h>

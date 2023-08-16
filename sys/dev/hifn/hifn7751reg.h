@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$OpenBSD: hifn7751reg.h,v 1.35 2002/04/08 17:49:42 jason Exp $	*/
 
 /*-

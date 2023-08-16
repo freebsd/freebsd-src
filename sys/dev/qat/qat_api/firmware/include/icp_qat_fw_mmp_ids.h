@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /* Copyright(c) 2007-2022 Intel Corporation */
-/* $FreeBSD$ */
 
 
 /* --- (Automatically generated (relocation v. 1.3), do not modify manually) --- */
