@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	lib .WAIT \
 	libexec tools usr.bin usr.sbin

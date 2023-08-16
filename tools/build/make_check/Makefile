@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .MAKE.MODE=	normal
 

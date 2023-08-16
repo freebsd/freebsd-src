@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/contrib/ntp/util
 

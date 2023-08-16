@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 #	Name:             ISO/IEC 8859-4:1998 to Unicode
 #	Unicode version:  3.0

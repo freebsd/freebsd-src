@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: charset.pivot.MISC.src,v 1.11 2007/04/01 18:52:30 tnozaki Exp $
 
 ATARIST			UCS			1

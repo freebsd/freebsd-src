@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 class="eli"
 base=$(atf_get ident)

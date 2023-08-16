@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 class="uzip"
 base=`basename $0`

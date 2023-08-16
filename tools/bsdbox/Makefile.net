@@ -1,7 +1,6 @@
 #
 # This builds network tools.
 #
-# $FreeBSD$
 #
 
 CRUNCH_PROGS_sbin+=	route ping

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	vi viapwh summary
 

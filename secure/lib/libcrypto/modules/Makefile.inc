@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIBDIR=	${LIBDIR}/ossl-modules
 

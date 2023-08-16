@@ -22,7 +22,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 hline_choose_a_font="Choose a font"
 hline_choose_a_keyboard_map="Choose a keyboard map"

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ttls1
 LDFLAGS+= -L../libxx -lxx -Wl,--rpath=${.OBJDIR}/../libxx

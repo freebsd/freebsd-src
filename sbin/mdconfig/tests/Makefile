@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 ATF_TESTS_SH=	mdconfig_test
 

@@ -1,8 +1,6 @@
 # vim: filetype=sh
 # Common routines for replacement tests.
 
-# $FreeBSD$
-
 function check_vdev_action # <action> <expect> <opt> <disk1> [disk2]
 {
 	typeset action=$1

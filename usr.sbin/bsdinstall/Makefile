@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 OSNAME?=	FreeBSD
 SUBDIR=	distextract distfetch partedit runconsoles scripts

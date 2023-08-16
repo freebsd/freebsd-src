@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SRCS+= sysfake.c
 CLEANFILES+= sysfake.c

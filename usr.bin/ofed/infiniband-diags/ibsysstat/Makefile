@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibsysstat
 SRCS=	ibsysstat.c

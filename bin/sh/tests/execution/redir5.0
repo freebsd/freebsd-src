@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 { (echo bad) >/dev/null; } </dev/null

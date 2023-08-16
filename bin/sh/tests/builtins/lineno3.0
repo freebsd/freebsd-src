@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 echo before: $LINENO
 dummy=$'a\0

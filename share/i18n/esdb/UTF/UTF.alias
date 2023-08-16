@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: UTF.alias,v 1.5 2007/12/17 14:06:57 joerg Exp $
 
 7		csunicode11utf7

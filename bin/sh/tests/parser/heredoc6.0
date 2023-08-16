@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 r=
 ! command eval ": <<EOF; )" 2>/dev/null; command eval : hi \${r:=0}

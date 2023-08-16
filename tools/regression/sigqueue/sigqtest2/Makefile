@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=sigqtest2
 MAN=

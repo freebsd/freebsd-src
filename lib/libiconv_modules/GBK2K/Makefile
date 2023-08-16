@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB=	GBK2K
 SRCS+=	citrus_gbk2k.c

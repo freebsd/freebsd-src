@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 atf_test_case simple
 atf_test_case unified

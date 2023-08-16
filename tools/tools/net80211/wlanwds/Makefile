@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	wlanwds
 BINDIR=	/usr/local/bin

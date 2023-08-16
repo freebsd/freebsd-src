@@ -26,7 +26,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 # This script is called by cron to store bits of randomness which are
 # then used to seed /dev/random on boot.

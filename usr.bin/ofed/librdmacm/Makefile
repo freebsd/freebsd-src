@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	ucmatose mckey rping udaddy
 

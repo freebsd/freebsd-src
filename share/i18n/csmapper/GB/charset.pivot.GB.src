@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: charset.pivot.GB.src,v 1.5 2006/11/23 03:25:24 tnozaki Exp $
 
 GB12345			UCS			1

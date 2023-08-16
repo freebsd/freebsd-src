@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $OpenBSD: pf.os,v 1.27 2016/09/03 17:08:57 sthen Exp $
 # passive OS fingerprinting
 # -------------------------

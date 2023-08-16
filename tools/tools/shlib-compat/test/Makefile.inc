@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		test${TESTNUM}
 SHLIB_MAJOR=	0

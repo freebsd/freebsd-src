@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 PACKAGE=	runtime

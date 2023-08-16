@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 keywords='if then else elif fi while until for do done { } case esac ! in'
 

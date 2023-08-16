@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibping
 SRCS=	ibping.c

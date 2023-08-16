@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: CNS11643-4%UCS@BMP.src,v 1.1 2007/03/05 16:57:12 tnozaki Exp $
 
 TYPE		ROWCOL

@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 
 # netif is required for lo0 because syslogd tries to open a local socket

@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 [ "$(trap 'echo trapped' EXIT)" = trapped ]

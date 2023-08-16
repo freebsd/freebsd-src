@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 run_test() {
 	w='@ @'

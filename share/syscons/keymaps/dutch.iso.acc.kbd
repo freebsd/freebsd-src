@@ -5,7 +5,6 @@
 # Based on the US standard keymap
 # Accent coding by M. Blapp <mb@imp.ch>
 #
-# $FreeBSD$
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

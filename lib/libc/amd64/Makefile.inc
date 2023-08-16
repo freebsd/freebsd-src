@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Machine dependent definitions for the amd64 architecture.
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Checking for binary "scripts" without magic number is permitted but not
 # required by POSIX. However, it is preferable to getting errors like
 # Syntax error: word unexpected (expecting ")")

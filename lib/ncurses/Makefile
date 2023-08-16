@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	tinfo ncurses form menu panel
 

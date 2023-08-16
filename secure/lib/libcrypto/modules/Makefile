@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=		fips legacy
 SUBDIR_PARALLEL=

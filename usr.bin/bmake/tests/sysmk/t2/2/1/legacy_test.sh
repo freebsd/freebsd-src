@@ -1,5 +1,4 @@
 #! /bin/sh
-# $FreeBSD$
 
 . $(dirname $0)/../../../../common.sh
 

@@ -10,8 +10,6 @@
 # template (e.g. because the boot block or the CHRP script have grown),
 # you must install it from ports.
 
-# $FreeBSD$
-
 HFS_SIZE=400		#Size in 2048-byte blocks of the produced image
 LOADER_SIZE=500k
 

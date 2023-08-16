@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 #
 # ypinit.sh - setup a master or slave server.
 # (Taken from OpenBSD and modified for FreeBSD.)

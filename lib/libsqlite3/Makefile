@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=lib${LIB}
 PRIVATELIB=	yes

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 a1=$(alias)
 : $(alias testalias=abcd)

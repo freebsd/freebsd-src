@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CONFS=	freebsd-update.conf
 SCRIPTS=freebsd-update.sh

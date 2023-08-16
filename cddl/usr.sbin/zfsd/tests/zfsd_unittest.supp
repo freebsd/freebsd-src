@@ -29,7 +29,6 @@
 #
 # Authors: Alan Somers     (Spectra Logic Corporation)
 #
-# $FreeBSD$
 
 
 # This is a valgrind suppression file used for running zfsd_unittest with

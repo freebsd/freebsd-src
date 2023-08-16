@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	btxld
 MAN=	btxld.8

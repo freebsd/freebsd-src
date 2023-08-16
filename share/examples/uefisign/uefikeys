@@ -2,7 +2,6 @@
 #
 # See uefisign(8) manual page for usage instructions.
 #
-# $FreeBSD$
 #
 
 die() {

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=   posixshmcontrol
 LIBADD=	jail util

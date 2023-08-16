@@ -27,8 +27,6 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# $FreeBSD$
-
 #### Usage function -- called from command-line handling code.
 
 # Usage instructions.  Options not listed:

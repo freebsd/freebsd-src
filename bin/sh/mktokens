@@ -32,7 +32,6 @@
 # SUCH DAMAGE.
 #
 #	@(#)mktokens	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
 
 # The following is a list of tokens.  The second column is nonzero if the
 # token marks the end of a list.  The third column is the name to print in

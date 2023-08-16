@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=geom
 .PATH: ${.CURDIR:H:H}/misc ${SRCTOP}/sys/geom/eli ${SRCTOP}/sys/crypto/sha2

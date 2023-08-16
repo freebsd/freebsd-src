@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	devmatch
 LIB=	devinfo

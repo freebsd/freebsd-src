@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=utilities
 FILESDIR= ${SHAREDIR}/examples/smbfs/print

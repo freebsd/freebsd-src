@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Check that PWD is exported and accepted from the environment.
 set -e
 

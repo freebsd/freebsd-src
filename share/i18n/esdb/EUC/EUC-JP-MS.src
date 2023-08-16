@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: EUC-JP-MS.src,v 1.1 2003/07/19 20:20:43 tshiozak Exp $
 
 NAME		"EUC-JP-MS"

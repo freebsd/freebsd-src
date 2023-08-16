@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: JAVA.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
 
 NAME            "JAVA"

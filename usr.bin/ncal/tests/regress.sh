@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CAL_BIN="ncal"
 CAL="${CAL_BIN} -C"

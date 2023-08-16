@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 FILES=		${SRCTOP}/sys/contrib/dev/iwn/LICENSE
 FILESDIR=	${SHAREDIR}/doc/legal

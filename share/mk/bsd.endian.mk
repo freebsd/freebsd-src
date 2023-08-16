@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if ${MACHINE_CPUARCH} == "aarch64" || \
     ${MACHINE_CPUARCH} == "arm" || \

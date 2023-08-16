@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	intel_ipw \
 	intel_iwi \

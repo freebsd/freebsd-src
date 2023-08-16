@@ -1,4 +1,3 @@
-#	$FreeBSD$
 
 PROG=	ethermulti
 SRCS+=	ethermulti.c

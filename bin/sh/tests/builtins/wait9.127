@@ -1,3 +1,2 @@
-# $FreeBSD$
 # Init cannot be a child of the shell.
 wait 1

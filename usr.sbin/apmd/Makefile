@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CONFS=	apmd.conf
 PROG=	apmd

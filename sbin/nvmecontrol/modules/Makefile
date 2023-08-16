@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	intel wdc samsung
 

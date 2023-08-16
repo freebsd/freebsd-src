@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	camdd
 SRCS=	camdd.c

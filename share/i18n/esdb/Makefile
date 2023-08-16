@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: Makefile,v 1.14 2007/04/01 18:52:30 tnozaki Exp $
 
 FILESDIR= ${ESDBDIR}

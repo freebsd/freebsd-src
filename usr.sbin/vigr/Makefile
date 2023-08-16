@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS=	vigr
 MAN=	vigr.8

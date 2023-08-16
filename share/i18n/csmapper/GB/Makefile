@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: Makefile.inc,v 1.7 2006/11/23 03:25:24 tnozaki Exp $
 
 CODE=	GB

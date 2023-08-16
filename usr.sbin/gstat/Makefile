@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	gstat
 MAN=	gstat.8

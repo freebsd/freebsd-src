@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TAP_TESTS_C+=	legacy_test
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB=		soxstack
 SHLIB_NAME=	libsoxstack.so

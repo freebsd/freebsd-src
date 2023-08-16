@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: ISO646.alias,v 1.2 2006/07/05 15:31:50 tnozaki Exp $
 
 BASIC:1983	iso_646.basic:1983 ref

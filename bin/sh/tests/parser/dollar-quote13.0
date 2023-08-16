@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # This Unicode escape sequence that has never been in range should either
 # fail to expand or expand to a fallback.

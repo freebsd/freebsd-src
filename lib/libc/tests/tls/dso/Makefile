@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/tls/${.CURDIR:T}
 

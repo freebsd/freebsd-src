@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 key='must contain this'
 PS4="$key+ "

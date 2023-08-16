@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	memcontrol
 MAN=	memcontrol.8

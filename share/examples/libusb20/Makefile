@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/libusb20

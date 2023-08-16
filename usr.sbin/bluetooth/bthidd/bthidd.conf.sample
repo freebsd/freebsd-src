@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 device {
 	bdaddr			00:50:f2:e5:68:84;

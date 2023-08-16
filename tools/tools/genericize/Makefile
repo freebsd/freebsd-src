@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS=	genericize.pl
 BINDIR?=	/usr/local/bin

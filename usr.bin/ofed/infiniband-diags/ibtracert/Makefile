@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibtracert
 SRCS=	ibtracert.c

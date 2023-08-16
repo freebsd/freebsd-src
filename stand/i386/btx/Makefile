@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	btx btxldr lib
 

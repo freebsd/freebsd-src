@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB=	UTF7
 SRCS+=	citrus_utf7.c

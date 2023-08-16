@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	MdLoad
 LIBADD=	sbuf bsdxml

@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 # Test handling of write errors.
 

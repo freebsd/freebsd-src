@@ -1,7 +1,6 @@
 # default policy table based on RFC 3484.
 # usage: ip6addrctl install path_to_this_file
 #
-# $FreeBSD$
 #
 #Format:
 #Prefix       Precedence Label

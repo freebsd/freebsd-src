@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	pwm
 MAN=	pwm.8

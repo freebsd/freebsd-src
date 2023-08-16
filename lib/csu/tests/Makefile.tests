@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 ATF_TESTS_C+=	init_test
 ATF_TESTS_C+=	fini_test

@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Common Makefile code for all components of ATF.
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIBDIR=	${LIBDIR}/engines-3
 

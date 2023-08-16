@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if !target(__netbsd_tests.test.mk__)
 __netbsd_tests.test.mk__:

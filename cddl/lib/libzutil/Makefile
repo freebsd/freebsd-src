@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzutil
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzutil/os/freebsd

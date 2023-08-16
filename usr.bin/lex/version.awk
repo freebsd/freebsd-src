@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 BEGIN {
 	FS = "[ \t\.\"]+"

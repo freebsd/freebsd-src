@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 libkey() {
 	libkey="lib_symbols_$1"

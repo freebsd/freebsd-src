@@ -3,7 +3,6 @@
 # Script for creating a simple Mesh Point.
 # Topology is fully connected if every node is a neighbor of each other.
 #
-# $FreeBSD$
 #
 PATH=../:.:$PATH
 . config

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# $FreeBSD$
 
 from hashlib import pbkdf2_hmac
 import hashlib

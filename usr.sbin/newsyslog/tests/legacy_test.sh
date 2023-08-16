@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 # A regular expression matching the format of an RFC-5424 log line header,
 # including the timestamp up through the seconds indicator; it does not include
 # the (optional) timezone offset.

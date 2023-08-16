@@ -1,4 +1,3 @@
-# $FreeBSD$
 set -e
 
 L=$(getconf PATH_MAX / 2>/dev/null) || L=4096

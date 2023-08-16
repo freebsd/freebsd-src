@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 IFS=' '
 set -- `printf '\n '`

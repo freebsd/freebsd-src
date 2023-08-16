@@ -2,7 +2,6 @@
 #
 # Setup a TDMA master and bridge it to a wired NIC.
 #
-# $FreeBSD$
 #
 PATH=.:$PATH
 . config

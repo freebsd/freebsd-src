@@ -1,4 +1,3 @@
-# $FreeBSD$
 PROG=	mfiutil
 LINKS=	${BINDIR}/mfiutil ${BINDIR}/mrsasutil
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	fetch
 PROG=		fetch

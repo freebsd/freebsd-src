@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	tests
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/regex

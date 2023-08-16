@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	jexec
 MAN=	jexec.8

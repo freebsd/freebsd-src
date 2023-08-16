@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	dmagent \
 	dma-mbox-create

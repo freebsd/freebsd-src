@@ -1,4 +1,3 @@
-# $FreeBSD$
 set -e
 
 # PR 77067, 85267

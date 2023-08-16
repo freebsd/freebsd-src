@@ -1,5 +1,4 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $FreeBSD$
 
 #
 # This enables a simple local "raw" printer, hooked up to the first

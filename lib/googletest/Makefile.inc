@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include <googletest.test.inc.mk>
 

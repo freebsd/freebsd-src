@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	mwlstats
 BINDIR=	/usr/local/bin

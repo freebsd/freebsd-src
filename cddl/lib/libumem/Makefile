@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/cddl/compat/opensolaris/lib/libumem
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS=	save-entropy.sh
 

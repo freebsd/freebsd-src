@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ulog-helper
 BINOWN=	root

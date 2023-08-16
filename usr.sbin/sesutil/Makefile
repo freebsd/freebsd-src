@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	sesutil
 SRCS=	sesutil.c eltsub.c

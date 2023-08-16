@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 name=/var/empty/nosuch
 f() { true; } <$name

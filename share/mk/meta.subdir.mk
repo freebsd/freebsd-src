@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: meta.subdir.mk,v 1.12 2020/08/19 17:51:53 sjg Exp $
 
 #

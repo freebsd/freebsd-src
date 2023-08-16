@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if !target(_${_this}_)
 _${_this}_: .NOTMAIN

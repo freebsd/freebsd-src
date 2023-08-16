@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	acpidump
 MAN=	acpidump.8

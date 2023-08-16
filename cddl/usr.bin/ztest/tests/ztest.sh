@@ -1,6 +1,5 @@
 #
 # Test Case: ztest
-# $FreeBSD$
 #
 atf_test_case ztest
 ztest_head()

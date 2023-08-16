@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 1. Rethink protection glitches on REMOTE & PHONES
    files (setuid/setgid??).

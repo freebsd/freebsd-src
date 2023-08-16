@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 f_echoanddo() {
 	printf '%s\n' "$*"

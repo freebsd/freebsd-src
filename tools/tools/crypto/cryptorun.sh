@@ -11,7 +11,6 @@
 #
 # Test aes with 1, 2 and 4 processes, and at sizes of 256 and 512 bytes.
 #
-# $FreeBSD$
 #
 
 threads=1

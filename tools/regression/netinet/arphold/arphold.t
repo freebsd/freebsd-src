@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 
 make arphold 2>&1 > /dev/null
 

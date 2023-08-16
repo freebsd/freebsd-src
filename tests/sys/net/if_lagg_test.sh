@@ -29,7 +29,6 @@
 #
 #  Authors: Alan Somers         (Spectra Logic Corporation)
 #
-# $FreeBSD$
 
 atf_test_case create cleanup
 create_head()

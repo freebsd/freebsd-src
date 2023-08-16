@@ -4,7 +4,6 @@
 #
 # $Title: dwatch(8) module for send(2)/recv(2) $
 # $Copyright: 2014-2018 Devin Teske. All rights reserved. $
-# $FreeBSD$
 #
 ############################################################ DESCRIPTION
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 long_symlink_head()
 {

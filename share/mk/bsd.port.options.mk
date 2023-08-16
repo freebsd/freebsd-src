@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 USEOPTIONSMK=	yes
 INOPTIONSMK=	yes

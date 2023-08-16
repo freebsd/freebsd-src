@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/common/ctf
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libctf/common

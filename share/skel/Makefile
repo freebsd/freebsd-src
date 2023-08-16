@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
 
 FILES=		dot.cshrc dot.login dot.login_conf dot.mailrc dot.profile \
 		dot.shrc dot.mail_aliases

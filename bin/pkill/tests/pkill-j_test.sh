@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 jail_name_to_jid()
 {

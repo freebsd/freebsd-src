@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 [ "$(type type)" = "$(type -- type)" ]

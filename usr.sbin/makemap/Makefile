@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/10/97
-# $FreeBSD$
 
 SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/makemap

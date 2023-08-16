@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Build a bootstrap version of m4 (needed in order to build libelf and lex)
 .PATH: ${SRCTOP}/usr.bin/m4 ${.CURDIR}

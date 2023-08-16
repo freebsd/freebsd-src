@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TEST_CASES?=	test0001 test0002 test0003 test0004	\
 		test0005 test0006 test0007 test0008	\

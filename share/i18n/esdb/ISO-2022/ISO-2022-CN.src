@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: ISO-2022-CN.src,v 1.2 2006/03/17 16:37:10 tnozaki Exp $
 
 NAME		"ISO-2022-CN"

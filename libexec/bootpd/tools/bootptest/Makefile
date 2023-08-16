@@ -1,5 +1,4 @@
 # Makefile
-# $FreeBSD$
 
 PROG=	bootptest
 MAN=	bootptest.8

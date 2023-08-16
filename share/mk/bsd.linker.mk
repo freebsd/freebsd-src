@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Setup variables for the linker.
 #

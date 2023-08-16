@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS=	notescheck.py
 

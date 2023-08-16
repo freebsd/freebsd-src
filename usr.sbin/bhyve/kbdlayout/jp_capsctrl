@@ -3,7 +3,6 @@
 #
 # Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
 #
-# $FreeBSD$
 
 # Alphabet/Number/Sign Keys ---------------------------------------------------
 '"',0x1e;	"  (0x22)

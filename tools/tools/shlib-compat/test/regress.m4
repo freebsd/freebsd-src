@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 dnl A library of routines for doing regression tests for userland utilities.
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	daemon anchor checkconf control
 SUBDIR+= setup

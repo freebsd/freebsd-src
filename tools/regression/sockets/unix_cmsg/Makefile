@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	unix_cmsg
 SRCS=	${AUTOSRCS} unix_cmsg.c uc_common.h uc_common.c \

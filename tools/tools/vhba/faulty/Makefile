@@ -1,4 +1,3 @@
-# $FreeBSD$
 KMOD=	vfaulty
 SRCS=	vhba_faulty.c vhba.c
 CFLAGS += -I${.CURDIR}/.. -DVHBA_MOD=\"vfaulty\"

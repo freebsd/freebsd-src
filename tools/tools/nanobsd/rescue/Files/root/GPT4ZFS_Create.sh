@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 # some default sizes
 align=2048

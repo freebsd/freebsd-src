@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.6 (Berkeley) 5/8/95
-# $FreeBSD$
 
 PACKAGE=runtime
 PROG=	mount

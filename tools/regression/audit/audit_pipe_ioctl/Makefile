@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 PROG=	audit_pipe_ioctl

@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 # Quick script to build a suitable /boot dir somewhere in the tree for testing.
 # dir may be passed in, will default to /tmp/loadertest if not specified

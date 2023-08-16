@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB_MAJOR?=	11
 

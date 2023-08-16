@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Sometimes the "Killed" message is not flushed soon enough and it
 # is redirected along with the output of a builtin.
 # Do not change the semicolon to a newline as it would hide the bug.

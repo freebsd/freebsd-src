@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
 

@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 #	Format:  Three tab-separated columns
 #		 Column #1 is the US-ASCII code (in hex as 0xXX)

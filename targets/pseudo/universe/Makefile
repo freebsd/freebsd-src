@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # This target is "special".
 #

@@ -4,7 +4,6 @@
 #
 # $Title: dwatch(8) module for dtrace_proc(4) activity $
 # $Copyright: 2014-2018 Devin Teske. All rights reserved. $
-# $FreeBSD$
 #
 ############################################################ DESCRIPTION
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=ccdconfig
 PROG=	ccdconfig

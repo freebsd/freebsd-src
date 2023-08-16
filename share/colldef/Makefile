@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	locales
 LOCALEDIR=	${SHAREDIR}/locale

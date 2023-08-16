@@ -1,4 +1,3 @@
-# $FreeBSD$
 .include <src.opts.mk>
 
 PACKAGE=	tests

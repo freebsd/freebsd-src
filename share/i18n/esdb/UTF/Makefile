@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: Makefile.inc,v 1.5 2008/10/25 22:27:36 apb Exp $
 
 CODE=	UTF

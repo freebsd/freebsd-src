@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 # Our current make(1)-based approach to dependency tracking cannot cope with
 # certain source tree changes, including:

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 VOLUME=		psd/27.nfsrfc
 SRCS=		stubs nfs.rfc.ms

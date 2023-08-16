@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	ppp
 PROG=	pppctl

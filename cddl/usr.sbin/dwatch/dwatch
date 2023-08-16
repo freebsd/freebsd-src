@@ -27,7 +27,6 @@
 ############################################################ IDENT(1)
 #
 # $Title: Watch processes as they trigger a particular DTrace probe $
-# $FreeBSD$
 #
 ############################################################ CONFIGURATION
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Check that the return statement will not break the USR1 trap, ie. all
 # trap commands are executed before the script resumes.

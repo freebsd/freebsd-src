@@ -13,8 +13,6 @@
 # purpose.
 #
 
-# $FreeBSD$
-
 #include <bootargs.h>
 
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Makefile for the BOOTP programs:
 #   bootpd	- BOOTP server daemon

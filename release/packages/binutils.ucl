@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 name = "%PKG_NAME_PREFIX%-%PKGNAME%"

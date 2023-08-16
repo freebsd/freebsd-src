@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibroute
 SRCS=	ibroute.c

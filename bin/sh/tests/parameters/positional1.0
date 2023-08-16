@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 set -- a b c d e f g h i j
 [ "$1" = a ] || echo "error at line $LINENO"

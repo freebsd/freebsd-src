@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LOCKFILE = .lockfile
 ATSPOOL_DIR=/var/at/spool

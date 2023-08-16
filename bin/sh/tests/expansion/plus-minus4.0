@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # These may be a bit unclear in the POSIX spec or the proposed revisions,
 # and conflict with bash's interpretation, but I think ksh93's interpretation

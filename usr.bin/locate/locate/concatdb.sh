@@ -32,7 +32,6 @@
 #
 # Please note: the sequence of databases is important.
 #
-# $FreeBSD$
 
 # stop on first error
 set -e

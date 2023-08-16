@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	libtest1 \
 	libtest2 \

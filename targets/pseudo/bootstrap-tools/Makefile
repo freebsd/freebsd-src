@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # building clang is particularly tedious - so avoid re-inventing wheels
 

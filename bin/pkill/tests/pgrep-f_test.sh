@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 : ${ARG_MAX:=524288}
 base=$(dirname $(realpath "$0"))

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	natd
 NAME=		nbt

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 This is a little C-program that can be used to print out the list
 of blocks used by a requested list of inodes.

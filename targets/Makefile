@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # This is the top-level makefile - derived from the Junos version
 #

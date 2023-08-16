@@ -1,5 +1,4 @@
 # $Id: Makefile,v 1.7 2003/08/14 20:06:22 max Exp $
-# $FreeBSD$
 
 PACKAGE=	bluetooth
 PROG=		l2control

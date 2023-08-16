@@ -25,7 +25,6 @@
 #
 # Configure static NDP table
 #
-# $FreeBSD$
 #
 
 # PROVIDE: static_ndp

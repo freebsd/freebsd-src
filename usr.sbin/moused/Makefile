@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	console-tools
 PROG=	moused

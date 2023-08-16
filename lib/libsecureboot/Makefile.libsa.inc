@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 BRSSL_CFLAGS+= -DNO_STDIO
 

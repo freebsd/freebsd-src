@@ -1,5 +1,4 @@
 # Makefile
-# $FreeBSD$
 
 SUBDIR=	bootpef bootptest
 

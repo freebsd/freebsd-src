@@ -1,4 +1,3 @@
-# $FreeBSD$
 # A redirection error should not abort the shell if there is no command word.
 exec 2>/dev/null
 </var/empty/x

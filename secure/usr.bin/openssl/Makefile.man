@@ -1,4 +1,3 @@
-# $FreeBSD$
 MAN+= CA.pl.1
 MAN+= openssl-asn1parse.1
 MAN+= openssl-ca.1

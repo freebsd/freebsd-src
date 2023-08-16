@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # This file is included by libsa
 # It contains SRCS needed for loader

@@ -1,8 +1,6 @@
 # vim: filetype=sh
 # Common routines used by zpool_import*.
 
-# $FreeBSD$
-
 function setup_missing_test_pool # <tvd_type>
 {
 	typeset tvd_type=$1

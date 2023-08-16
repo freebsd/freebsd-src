@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/25/94
-# $FreeBSD$
 
 CONFS=	misc/mail.rc
 PROG=	mail

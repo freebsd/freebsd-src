@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB_NAME=	jail.so
 SHLIBDIR=	${LIBDIR}/flua

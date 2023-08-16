@@ -24,7 +24,6 @@
 # Copyright 2023 Axcient.  All rights reserved.
 # Use is subject to license terms.
 #
-# $FreeBSD$
 
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib

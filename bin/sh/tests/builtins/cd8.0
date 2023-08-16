@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # The exact wording of the error message is not standardized, but giving
 # a description of the errno is useful.

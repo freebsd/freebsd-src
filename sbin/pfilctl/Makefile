@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	pfilctl
 SRCS=	pfilctl.c

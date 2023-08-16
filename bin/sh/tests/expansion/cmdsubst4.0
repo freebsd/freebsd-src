@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 exec 2>/dev/null
 ! y=$(: </var/empty/nonexistent)

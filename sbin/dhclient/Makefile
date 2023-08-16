@@ -1,5 +1,4 @@
 # $OpenBSD: Makefile,v 1.9 2004/05/04 12:52:05 henning Exp $
-# $FreeBSD$
 #
 # Copyright (c) 1996, 1997 The Internet Software Consortium.
 # All rights reserved.

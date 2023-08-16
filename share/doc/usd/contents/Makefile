@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 VOLUME=	usd
 DOC=	contents

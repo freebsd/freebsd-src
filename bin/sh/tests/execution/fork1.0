@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 shname=${SH%% *}
 shname=${shname##*/}

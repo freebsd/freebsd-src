@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	smpdump
 SRCS=	smpdump.c

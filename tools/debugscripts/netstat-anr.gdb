@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 document netstat-anr

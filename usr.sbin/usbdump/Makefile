@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	usbdump
 SRCS=	usbdump.c

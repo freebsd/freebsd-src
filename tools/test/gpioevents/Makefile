@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG= gpioevents
 SRCS= gpioevents.c

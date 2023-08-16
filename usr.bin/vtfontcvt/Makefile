@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	vtfontcvt
 SRCS=	vtfontcvt.c lz4.c

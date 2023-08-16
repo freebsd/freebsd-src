@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 SHELL=/bin/sh; export SHELL
 

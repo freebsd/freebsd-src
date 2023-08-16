@@ -1,5 +1,4 @@
 # $Id $
-# $FreeBSD$
 
 SUBDIR=	\
 	bthost \

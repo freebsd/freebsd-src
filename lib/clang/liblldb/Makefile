@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include "../lldb.pre.mk"
 

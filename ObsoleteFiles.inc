@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # This file lists old files (OLD_FILES), libraries (OLD_LIBS, MOVED_LIBS)
 # and directories (OLD_DIRS) which should get removed after an update.

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PIDFILE=ggated.pid
 PLAINFILES=plainfiles

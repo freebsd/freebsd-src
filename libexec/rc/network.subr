@@ -22,7 +22,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 #
 IFCONFIG_CMD="/sbin/ifconfig"
 : ${netif_ipexpand_max:=2048}

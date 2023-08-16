@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=ssh
 LIB=	cbor

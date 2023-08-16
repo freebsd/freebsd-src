@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if ${MACHINE_ARCH} != "powerpcspe"
 SUBDIR+=	nvram

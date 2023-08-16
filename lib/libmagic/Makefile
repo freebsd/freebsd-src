@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Copyright (c) David E. O'Brien, 2000-2004, 2006, 2009
 
 PACKAGE=lib${LIB}

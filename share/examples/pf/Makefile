@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=examples
 FILES=	faq-example1 faq-example2 faq-example3 \

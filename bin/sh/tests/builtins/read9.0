@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 empty=''
 read a b c <<EOF

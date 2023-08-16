@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Copyright (c) 2013-2020 Hans Petter Selasky.
 # Copyright (c) 2014 SRI International

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 atf_test_case nl
 

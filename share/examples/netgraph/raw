@@ -1,7 +1,6 @@
 #!/bin/sh
 # script to connect a raw synchronous card to a system interface.
 # Assumes the file if_sr was compiled with options NETGRAPH.
-# $FreeBSD$
 
 CARD=sr0
 

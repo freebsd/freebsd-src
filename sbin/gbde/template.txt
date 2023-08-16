@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Sector size is the smallest unit of data which can be read or written.
 # Making it too small decreases performance and decreases available space.

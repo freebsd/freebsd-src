@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS= local-unbound-setup.sh
 MAN= #

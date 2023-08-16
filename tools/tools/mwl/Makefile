@@ -1,4 +1,3 @@
-#	$FreeBSD$
 
 SUBDIR=	mwlstats mwldebug
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # POSIX leaves the effect of NUL bytes in command substitution output
 # unspecified but we have always discarded them.
 

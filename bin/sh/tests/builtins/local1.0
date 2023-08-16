@@ -1,4 +1,3 @@
-# $FreeBSD$
 # A commonly used but non-POSIX builtin.
 
 f() {

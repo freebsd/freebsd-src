@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 PROG=	netblast

@@ -1,7 +1,6 @@
 #
 # Makefile for the NIS databases
 #
-# $FreeBSD$
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the

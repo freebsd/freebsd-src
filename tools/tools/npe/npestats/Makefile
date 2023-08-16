@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	npestats
 SRCS=	main.c npestats.c

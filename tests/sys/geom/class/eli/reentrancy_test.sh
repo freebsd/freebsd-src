@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Test various operations for geli-on-geli providers, to ensure that geli is
 # reentrant.

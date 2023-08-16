@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Author: Philip Paeps <philip@freebsd.org>
 

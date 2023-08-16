@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 IFS=2
 set -- $((123))

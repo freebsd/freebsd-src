@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SRCS+=	lex.l yacc.y
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../mkesdb \

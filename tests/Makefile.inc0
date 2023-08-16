@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # tests/... doesn't conform to bsd.lib.mk and bsd.prog.mk, so specify a sane
 # default for MK_CHECK_USE_SANDBOX. src.opts.mk will override the value if the

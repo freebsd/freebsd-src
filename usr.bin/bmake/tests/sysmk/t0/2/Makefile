@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/sysmk/t0/2
 

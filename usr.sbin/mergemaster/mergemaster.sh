@@ -8,8 +8,6 @@
 # Copyright (c) 1998-2012 Douglas Barton, All rights reserved
 # Please see detailed copyright below
 
-# $FreeBSD$
-
 PATH=/bin:/usr/bin:/usr/sbin
 
 display_usage () {

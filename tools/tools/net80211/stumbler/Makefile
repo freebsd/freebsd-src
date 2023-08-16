@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	stumbler
 BINDIR=	/usr/local/bin

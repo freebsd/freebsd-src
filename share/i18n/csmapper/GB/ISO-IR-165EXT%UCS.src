@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: ISO-IR-165EXT%UCS.src,v 1.2 2006/10/26 15:24:00 tnozaki Exp $
 
 TYPE		ROWCOL

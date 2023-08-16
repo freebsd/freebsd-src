@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CFLAGS+=	-DNO_COMPAT7
 

@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 #
 # Makefile for building virtual machine and cloud provider disk images.

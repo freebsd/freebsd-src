@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 name="$(mktemp -u concat.XXXXXX)"
 class="concat"

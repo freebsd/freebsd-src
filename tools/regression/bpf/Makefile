@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=		bpf_filter
 

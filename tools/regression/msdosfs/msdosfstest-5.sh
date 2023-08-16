@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 # A really simple script to create a swap-backed msdosfs filesystem, then
 # test to see if msdosfs_conv.c rev 1.45[2] works properly.
 # Note that this is a requisite condition but far away from sufficient condition.

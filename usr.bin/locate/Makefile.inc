@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIBEXECDIR?=	/usr/libexec
 

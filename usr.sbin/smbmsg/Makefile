@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 
 PROG=	smbmsg
 MAN=	smbmsg.8

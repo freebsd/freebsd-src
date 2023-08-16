@@ -13,8 +13,6 @@
 # purpose.
 #
 
-# $FreeBSD$
-
 #
 # BTX system calls.
 #

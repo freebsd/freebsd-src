@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		bus
 SHLIB_MAJOR=	0

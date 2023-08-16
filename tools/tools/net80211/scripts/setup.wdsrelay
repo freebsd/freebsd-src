@@ -6,7 +6,6 @@
 # traffic from stations associated to the (local) ap.  The sta
 # will follow it's peer ap, dragging the ap vap with it.
 #
-# $FreeBSD$
 #
 PATH=.:$PATH
 . config

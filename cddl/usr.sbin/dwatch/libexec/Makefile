@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	dwatch
 FILESDIR=	${LIBEXECDIR}/dwatch

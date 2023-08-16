@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Regression test for ccd's layout.
 #

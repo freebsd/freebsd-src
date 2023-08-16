@@ -1,7 +1,6 @@
 #
 # Build hostap/wpa_supplicant and supporting utilities.
 #
-# $FreeBSD$
 #
 .include <src.opts.mk>
 CRUNCH_PROGS_usr.sbin+=	hostapd hostapd_cli

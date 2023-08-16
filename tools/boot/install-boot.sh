@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 #
 # Installs/updates the necessary boot blocks for the desired boot environment
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 echo 1..21
 

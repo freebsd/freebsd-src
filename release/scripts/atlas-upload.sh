@@ -23,7 +23,6 @@
 #
 # Upload a Vagrant image to Hashicorp's Atlas service
 #
-# $FreeBSD$
 #
 
 ATLAS_API_URL=''

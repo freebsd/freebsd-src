@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=	cron
 INTERNALLIB=

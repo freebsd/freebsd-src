@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TAP_TESTS_PERL=	legacy_test
 

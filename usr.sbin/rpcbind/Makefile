@@ -1,5 +1,4 @@
 #	$NetBSD: Makefile,v 1.3 2000/06/20 13:56:43 fvdl Exp $
-# $FreeBSD$
 
 .include <src.opts.mk>
 

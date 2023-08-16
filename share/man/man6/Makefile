@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 MAN=	intro.6
 

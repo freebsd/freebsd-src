@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	perfquery
 SRCS=	perfquery.c

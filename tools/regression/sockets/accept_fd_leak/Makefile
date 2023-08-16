@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 PROG=	accept_fd_leak

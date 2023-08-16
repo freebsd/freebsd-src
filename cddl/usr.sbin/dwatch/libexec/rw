@@ -4,7 +4,6 @@
 #
 # $Title: dwatch(8) module for read(2), write(2), or similar entry $
 # $Copyright: 2014-2018 Devin Teske. All rights reserved. $
-# $FreeBSD$
 #
 ############################################################ DESCRIPTION
 #

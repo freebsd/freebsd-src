@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	smpquery
 SRCS=	smpquery.c

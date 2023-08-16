@@ -1,4 +1,3 @@
-#	$FreeBSD$
 #
 
 .PATH:	${SRCDIR}/cd9660

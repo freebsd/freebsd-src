@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 SRCS=	envctl.c
 PROG=	envctl

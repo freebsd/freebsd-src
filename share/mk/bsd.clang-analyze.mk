@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Support Clang static analyzer on SRCS.
 #

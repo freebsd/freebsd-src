@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ioatcontrol
 MAN=	ioatcontrol.8

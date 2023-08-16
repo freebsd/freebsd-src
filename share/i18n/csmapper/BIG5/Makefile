@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: Makefile.inc,v 1.2 2007/03/05 16:57:10 tnozaki Exp $
 
 CODE=	Big5

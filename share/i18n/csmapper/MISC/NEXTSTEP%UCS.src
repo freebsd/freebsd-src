@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: NEXTSTEP%UCS.src,v 1.1 2006/10/19 14:45:02 tnozaki Exp $
 
 TYPE		ROWCOL

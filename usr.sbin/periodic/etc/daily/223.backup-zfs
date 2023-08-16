@@ -1,6 +1,4 @@
 #!/bin/sh
-
-# $FreeBSD$
 # Created by: Miroslav Lachman <000.fbsd@quip.cz>
 
 # Backup of zpool list, zfs list, zpool properties and zfs properties

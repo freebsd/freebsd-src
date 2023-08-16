@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CONFS=	crontab
 PROG=	cron

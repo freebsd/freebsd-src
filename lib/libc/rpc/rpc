@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 # rpc 88/08/01 4.0 RPCSRC; from 1.12   99/07/25 SMI
 #
 rpcbind		100000  portmap sunrpc rpcbind

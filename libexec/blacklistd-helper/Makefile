@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 BLACKLIST_DIR=${SRCTOP}/contrib/blacklist
 

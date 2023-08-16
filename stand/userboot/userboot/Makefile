@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LOADER_MSDOS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes

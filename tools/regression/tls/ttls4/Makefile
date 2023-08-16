@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ttls4
 LIBADD=	pthread

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	rdma
 PROG=	ibv_devinfo

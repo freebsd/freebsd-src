@@ -27,7 +27,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 #
 # Partly from: src/sys/boot/i386/mbr/mbr.s 1.7
 

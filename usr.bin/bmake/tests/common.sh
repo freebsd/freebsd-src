@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Common code used run regression tests for usr.bin/make.
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 MDSRCS+= \
 	amd64_archlevel.c \

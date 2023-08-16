@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	wesside
 BINDIR=	/usr/local/bin

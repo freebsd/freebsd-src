@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	mfi_checkq
 MAN=

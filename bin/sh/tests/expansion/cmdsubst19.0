@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 b=200 c=30 d=5 x=4
 r=$(echo a)$(($(echo b) + ${x+$(echo c)} + ${x-$(echo d)}))$(echo e)

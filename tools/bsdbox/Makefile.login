@@ -1,7 +1,6 @@
 #
 # This builds login and friends.
 #
-# $FreeBSD$
 #
 
 CRUNCH_PROGS_libexec+=	getty

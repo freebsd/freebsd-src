@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibccquery
 SRCS=	ibccquery.c

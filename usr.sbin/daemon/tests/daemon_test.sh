@@ -25,8 +25,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# $FreeBSD$
-
 atf_test_case both_pidfile cleanup
 both_pidfile_head() {
 	atf_set "descr" "daemon should write pid files for itself and its child"

@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 
 if test -z "${DIR}" ; then DIR=$( make -V .OBJDIR ); fi

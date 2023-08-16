@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	sminfo
 SRCS=	sminfo.c

@@ -26,7 +26,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 usage() {
 	echo "usage: ssh-copy-id [-lv] [-i keyfile] [-o option] [-p port] [user@]hostname" >&2

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # The redirection does not apply to the background command, and therefore
 # does not override the implicit </dev/null.
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if !target(__<src.init.mk>__)
 __<src.init.mk>__:
