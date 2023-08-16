@@ -74,6 +74,8 @@
 
 #include "if_athn_usb.h"
 
+unsigned int ifq_oactive = 0;
+
 static const struct athn_usb_type {
 	struct usb_devno	devno;
 	u_int			flags;
@@ -2311,8 +2313,8 @@ athn_usb_txeof(struct usbd_xfer *xfer, void *priv,
 	sc->sc_tx_timer = 0;
 
 	/* We just released a Tx buffer, notify Tx. */
-	if (ALTQ_IS_CNDTNING(&ifp->if_snd)) {
-		ALTQ_CLEAR_CNDTNING(&ifp->if_snd);
+	if (ifq_is_oactive()) {
+		ifq_clr_oactive();
 		ifp->if_start(ifp);
 	}
 	splx(s);
@@ -2464,12 +2466,12 @@ athn_usb_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	if (!(ifp->if_flags & IFF_RUNNING) || ALTQ_IS_CNDTNING(&ifp->if_snd))
+	if (!(ifp->if_flags & IFF_RUNNING) || ifq_is_oactive())
 		return;
 
 	for (;;) {
 		if (TAILQ_EMPTY(&usc->tx_free_list)) {
-			ALTQ_SET_CNDTNING(&ifp->if_snd);
+			ifq_set_oactive();
 			break;
 		}
 		/* Send pending management frames first. */
@@ -2482,7 +2484,7 @@ athn_usb_start(struct ifnet *ifp)
 			break;
 
 		/* Encapsulate and send data frames. */
-		m = ifq_dequeue(&ifp->if_snd);
+		ALTQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
 #if NBPFILTER > 0
@@ -2713,7 +2715,7 @@ athn_usb_init(struct ifnet *ifp)
 	}
 	/* We're ready to go. */
 	ifp->if_flags |= IFF_RUNNING;
-	ALTQ_CLEAR_CNDTNING(&ifp->if_snd);
+	ifq_clr_oactive();
 
 #ifdef notyet
 	if (ic->ic_flags & IEEE80211_F_WEPON) {
@@ -2745,7 +2747,7 @@ athn_usb_stop(struct ifnet *ifp)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_flags &= ~IFF_RUNNING;
-	ALTQ_CLEAR_CNDTNING(&ifp->if_snd);
+	ifq_clr_oactive();
 
 	s = splusb();
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);

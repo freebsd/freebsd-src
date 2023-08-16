@@ -65,4 +65,26 @@ MSEC_TO_NSEC(uint64_t milliseconds)
 	return milliseconds * 1000000ULL;
 }
 
+// ifq_oactive is not available in FreeBSD.
+// Need to use additional variable to provide this functionality.
+extern unsigned int ifq_oactive;
+
+static inline void
+ifq_clr_oactive()
+{
+	ifq_oactive = 0;
+}
+
+static inline unsigned int
+ifq_is_oactive()
+{
+	return ifq_oactive;
+}
+
+static inline void
+ifq_set_oactive()
+{
+	ifq_oactive = 1;
+}
+
 #endif /* _OPENBSD_ADAPT_H_ */
