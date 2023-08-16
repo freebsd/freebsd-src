@@ -1,4 +1,3 @@
-/*	$FreeBSD$						*/
 /*	$OpenBSD: extern.h,v 1.4 2014/12/01 13:13:00 deraadt Exp $	*/
 
 /*

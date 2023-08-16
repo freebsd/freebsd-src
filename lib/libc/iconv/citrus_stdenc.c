@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: citrus_stdenc.c,v 1.4 2011/11/19 18:39:58 tnozaki Exp $	*/
 
 /*-

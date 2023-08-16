@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: citrus_hash.h,v 1.3 2004/01/02 21:49:35 itojun Exp $ */
 
 /*-

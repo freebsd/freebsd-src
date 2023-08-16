@@ -46,7 +46,6 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
 
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 

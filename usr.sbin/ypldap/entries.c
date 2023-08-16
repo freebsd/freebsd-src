@@ -1,5 +1,4 @@
 /*	$OpenBSD: entries.c,v 1.3 2015/01/16 06:40:22 deraadt Exp $ */
-/*	$FreeBSD$ */
 /*
  * Copyright (c) 2008 Pierre-Yves Ritschard <pyr@openbsd.org>
  *

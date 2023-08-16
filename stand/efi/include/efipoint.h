@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Copyright (C) 2014 by John Cronin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

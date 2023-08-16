@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*      $OpenBSD: tty.c,v 1.3 2015/09/05 09:49:24 jsg Exp $	*/
 
 /*

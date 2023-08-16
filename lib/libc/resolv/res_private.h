@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef res_private_h
 #define res_private_h

@@ -1,5 +1,4 @@
 /*	$OpenBSD: readpassphrase.h,v 1.5 2003/06/17 21:56:23 millert Exp $	*/
-/*	$FreeBSD$	*/
 
 /*-
  * SPDX-License-Identifier: ISC

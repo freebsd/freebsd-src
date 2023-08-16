@@ -27,7 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: client.c,v 1.2 2008/12/06 20:01:14 plunky Exp $");

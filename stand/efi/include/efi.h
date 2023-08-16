@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*++
 
 Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _EFI_ERR_H
 #define _EFI_ERR_H
 

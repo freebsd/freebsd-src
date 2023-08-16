@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include <errno.h>
 #include <stdlib.h>

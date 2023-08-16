@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #define _GNU_SOURCE         /* expose POLLRDHUP when testing on Linux */
 

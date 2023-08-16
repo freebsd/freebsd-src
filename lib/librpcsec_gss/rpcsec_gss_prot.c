@@ -36,7 +36,6 @@
 
   $Id: authgss_prot.c,v 1.18 2000/09/01 04:14:03 dugsong Exp $
 */
-/* $FreeBSD$ */
 
 #include <stdio.h>
 #include <stdlib.h>

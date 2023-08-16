@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 typedef void (*xxxxxxxxxxx) (int,
 							 char);
 

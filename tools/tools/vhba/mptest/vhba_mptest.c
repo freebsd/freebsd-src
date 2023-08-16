@@ -23,7 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
 /*
  * "Faulty" Multipath Device. Creates to devices to be set up as multipath,
  * makes one or both of them non existent (or re existent) on demand.

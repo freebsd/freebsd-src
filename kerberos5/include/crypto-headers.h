@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef __crypto_headers_h__
 #define __crypto_headers_h__
 

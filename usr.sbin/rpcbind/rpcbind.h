@@ -1,5 +1,4 @@
 /*	$NetBSD: rpcbind.h,v 1.1 2000/06/03 00:47:21 fvdl Exp $	*/
-/*	$FreeBSD$ */
 
 /*-
  * SPDX-License-Identifier: BSD-3-Clause

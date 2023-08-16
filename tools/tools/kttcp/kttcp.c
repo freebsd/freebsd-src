@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NetBSD: kttcp.c,v 1.5 2002/07/11 23:32:35 simonb Exp $	*/
 
 /*

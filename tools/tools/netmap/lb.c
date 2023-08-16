@@ -22,7 +22,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>

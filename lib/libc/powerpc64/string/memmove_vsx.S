@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #define MEMMOVE
 #define FN_NAME		__memmove_vsx

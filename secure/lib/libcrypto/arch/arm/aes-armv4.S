@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from aes-armv4.pl. */
 @ Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 @

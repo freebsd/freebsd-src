@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _EFI_PART_H
 #define _EFI_PART_H
 

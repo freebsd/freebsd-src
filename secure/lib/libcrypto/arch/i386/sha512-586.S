@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from sha512-586.pl. */
 #ifdef PIC
 .text

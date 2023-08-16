@@ -28,7 +28,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* $FreeBSD$ */
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 

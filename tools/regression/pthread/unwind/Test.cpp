@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 static int destructed;
 static int destructed2;

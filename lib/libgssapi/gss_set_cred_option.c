@@ -31,7 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
 /* RCSID("$Id: gss_set_cred_option.c 21126 2007-06-18 20:19:59Z lha $"); */
 
 #include <gssapi/gssapi.h>

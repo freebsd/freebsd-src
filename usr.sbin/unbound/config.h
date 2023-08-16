@@ -1,6 +1,5 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
-/* $FreeBSD$ */
 
 /* apply the noreturn attribute to a function that exits the program */
 #define ATTR_NORETURN __attribute__((__noreturn__))

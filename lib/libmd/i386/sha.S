@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* -*- Fundamental -*- Emacs' assembler mode hoses this file */
 #ifndef PIC
 /* Run the C pre-processor over this file with one of the following defined

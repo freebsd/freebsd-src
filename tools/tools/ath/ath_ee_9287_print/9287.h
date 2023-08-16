@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef	__9287_H__
 #define	__9287_H__

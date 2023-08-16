@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _EFI_UDP_H
 #define _EFI_UDP_H
 

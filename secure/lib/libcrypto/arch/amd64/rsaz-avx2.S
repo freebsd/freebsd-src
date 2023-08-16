@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from rsaz-avx2.pl. */
 .text	
 

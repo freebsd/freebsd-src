@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef TESTMAIN
 #include <machine/cpufunc.h>

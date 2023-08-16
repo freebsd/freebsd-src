@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include <sys/param.h>
 

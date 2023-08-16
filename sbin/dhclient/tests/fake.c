@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include <setjmp.h>
 #include <stdarg.h>

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 /* #undef HAVE_SYS_BYTEORDER_H */
 /* #undef HAVE_AVAILABILITY_MACROS_H */

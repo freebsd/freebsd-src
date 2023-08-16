@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: config.h,v 1.8 2003/06/17 08:26:22 itojun Exp $	*/
 
 /*-

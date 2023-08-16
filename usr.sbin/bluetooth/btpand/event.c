@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 /*
  * Hack to provide libevent (see devel/libevent port) like API.

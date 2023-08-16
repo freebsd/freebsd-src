@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef _EF_H_
 #define _EF_H_

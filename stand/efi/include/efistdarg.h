@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _EFISTDARG_H_
 #define _EFISTDARG_H_
 

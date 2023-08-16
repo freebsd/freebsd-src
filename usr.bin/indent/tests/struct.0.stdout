@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 int		f(struct x *a);
 

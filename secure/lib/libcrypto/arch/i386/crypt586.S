@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from crypt586.pl. */
 #ifdef PIC
 .text

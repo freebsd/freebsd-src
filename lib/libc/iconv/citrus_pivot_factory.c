@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: citrus_pivot_factory.c,v 1.7 2009/04/12 14:20:19 lukem Exp $ */
 
 /*-

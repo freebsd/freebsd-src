@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from aesni-sha256-x86_64.pl. */
 .text	
 

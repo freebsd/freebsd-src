@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: citrus_big5.c,v 1.13 2011/05/23 14:53:46 joerg Exp $	*/
 
 /*-

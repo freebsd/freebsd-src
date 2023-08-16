@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /** @file
   GUID has all zero values.
 

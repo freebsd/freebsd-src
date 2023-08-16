@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
 OUTPUT_ARCH(riscv64)
 ENTRY(_start)
