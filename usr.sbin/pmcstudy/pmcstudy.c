@@ -35,8 +35,6 @@
 #include <sys/wait.h>
 #include <getopt.h>
 #include "eval_expr.h"
-__FBSDID("$FreeBSD$");
-
 static int max_pmc_counters = 1;
 static int run_all = 0;
 

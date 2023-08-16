@@ -35,8 +35,6 @@
  */
 /* This file contains wrappers for sysctls used during build/install */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/sysctl.h>
 
 #include <err.h>

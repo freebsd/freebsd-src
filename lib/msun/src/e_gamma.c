@@ -13,8 +13,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* gamma(x)
  * Return the logarithm of the Gamma function of x.
  *

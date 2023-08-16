@@ -62,9 +62,6 @@
 #include <zfsd/zpool_list.h>
 
 #include "libmocks.h"
-
-__FBSDID("$FreeBSD$");
-
 /*================================== Macros ==================================*/
 #define	NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 

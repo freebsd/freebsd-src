@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* acos(x)
  * Method :                  
  *	acos(x)  = pi/2 - asin(x)

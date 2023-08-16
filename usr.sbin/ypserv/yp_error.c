@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv

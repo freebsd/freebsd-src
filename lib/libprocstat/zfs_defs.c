@@ -27,9 +27,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
-
-
 /*
  * Prevent some headers from getting included and fake some types
  * in order to allow this file to compile without bringing in

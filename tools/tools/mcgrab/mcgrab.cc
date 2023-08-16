@@ -30,8 +30,6 @@
 //
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 // C++ STL and other related includes
 #include <stdlib.h>
 #include <limits.h>

@@ -27,8 +27,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(_ctx_start)
 	blr	x19		/* Call func from makecontext */
 	mov	x0, x20		/* Load ucp saved in makecontext */

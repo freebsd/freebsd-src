@@ -29,9 +29,6 @@
  */
 
 #include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
-
 ENTRY(strncmp)
 /* if (len == 0) return 0 */
 	cmp	r2, #0

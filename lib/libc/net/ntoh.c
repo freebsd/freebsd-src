@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/endian.h>
 #define _BYTEORDER_FUNC_DEFINED
 #include <arpa/inet.h>

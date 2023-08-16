@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * modf(double x, double *iptr)
  * return fraction part of x, and return x's integral part in *iptr.

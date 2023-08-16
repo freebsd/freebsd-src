@@ -10,8 +10,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Float version of e_log10.c.  See the latter for most comments.
  */

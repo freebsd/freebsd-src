@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <rpc/rpc.h>
 #include <rpc/svc_dg.h>
 #include "yp_extern.h"

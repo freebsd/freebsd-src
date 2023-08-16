@@ -28,8 +28,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(.rtld_start)
 	.cfi_undefined	x30
 	mov	x19, x0		/* Put ps_strings in a callee-saved register */

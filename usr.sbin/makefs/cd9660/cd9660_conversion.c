@@ -36,8 +36,6 @@
 #include "cd9660.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 static char cd9660_compute_gm_offset(time_t);
 
 #if 0

@@ -36,8 +36,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 .syntax	unified
 
 /* LINTSTUB: Func: void *memcpy(void *dst, const void *src, size_t len) */

@@ -28,8 +28,6 @@
 
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #if 0
 	RCSID("$NetBSD: strcpy.S,v 1.0 2018/05/08 13:00:49 lbianc Exp $")
 #endif

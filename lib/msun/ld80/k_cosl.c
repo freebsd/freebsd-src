@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ld80 version of k_cos.c.  See ../src/k_cos.c for most comments.
  */

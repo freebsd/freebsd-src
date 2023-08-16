@@ -45,8 +45,6 @@
 #include <string>
 
 #include "guid.h"
-
-__FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::string;
 namespace DevdCtl

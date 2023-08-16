@@ -6,8 +6,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(div)
 	movl	%edi,%eax
 	cltd

@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * An interface to the FreeBSD kernel's bus/device information interface.
  *

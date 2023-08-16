@@ -9,8 +9,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <err.h>
 #include <stdbool.h>
 #include <stdlib.h>

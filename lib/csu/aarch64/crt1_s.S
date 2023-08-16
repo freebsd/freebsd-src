@@ -30,8 +30,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 	/*
 	 * The program entry point
 	 * void _start(char **ap, void (*cleanup)(void)) __dead2

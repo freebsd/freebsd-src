@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
