@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	tcpp
 INCS=	tcpp.h

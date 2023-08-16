@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	veriexec
 MAN=	veriexec.8

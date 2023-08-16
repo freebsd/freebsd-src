@@ -1,7 +1,6 @@
 #
 # Internet protocols
 #
-# $FreeBSD$
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # See also http://www.iana.org/assignments/protocol-numbers

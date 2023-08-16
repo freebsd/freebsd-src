@@ -1,4 +1,3 @@
-#	$FreeBSD$
 
 SHELL=	/bin/sh
 

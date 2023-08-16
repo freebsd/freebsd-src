@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Consider this file an example.
 #

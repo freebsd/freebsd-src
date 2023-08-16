@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 T=`mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXXXX`
 trap 'rm -rf $T' 0

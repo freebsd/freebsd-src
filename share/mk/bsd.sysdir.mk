@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .-include <local.sysdir.mk>
 

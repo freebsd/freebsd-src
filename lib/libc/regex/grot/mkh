@@ -1,6 +1,5 @@
 #! /bin/sh
 # mkh - pull headers out of C source
-# $FreeBSD$
 PATH=/bin:/usr/bin ; export PATH
 
 # egrep pattern to pick out marked lines

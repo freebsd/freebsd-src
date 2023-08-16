@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 all:	vm86_test
 

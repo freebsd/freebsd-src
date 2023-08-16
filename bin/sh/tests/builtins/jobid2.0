@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 : &
 p1=$(jobid)

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 import threading
 import logging

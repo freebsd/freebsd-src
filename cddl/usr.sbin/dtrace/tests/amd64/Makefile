@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TESTSDIR=	${TESTSBASE}/cddl/usr.sbin/dtrace/amd64
 TESTS_SUBDIRS+= arrays

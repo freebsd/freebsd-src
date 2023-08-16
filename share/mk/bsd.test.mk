@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Generic build infrastructure for test programs.
 #

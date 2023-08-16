@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 sysctl security.mac.portacl >/dev/null 2>&1
 if [ $? -ne 0 ]; then

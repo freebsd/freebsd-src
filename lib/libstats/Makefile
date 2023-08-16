@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		stats
 SHLIBDIR?= 	/lib

@@ -25,7 +25,6 @@
 #
 # Merges FreeBSD's several CD installation medias to the single DVD disk.
 #
-# $FreeBSD$
 
 ## Helper functions
 usage () {

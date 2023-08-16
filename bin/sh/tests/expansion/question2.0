@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 unset dummyvar
 msg=`(: ${dummyvar?}) 2>&1`

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 all:
 	${MK} ${MK_ARG}

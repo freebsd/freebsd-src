@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
-# $FreeBSD$
 
 DB=	freebsd-tips
 

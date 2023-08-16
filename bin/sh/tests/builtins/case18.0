@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 case x$(false) in
 x)	;&

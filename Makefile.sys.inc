@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # This is included very early from share/mk/src.sys.env.mk, after
 # /etc/src-env.conf but before /etc/make.conf, /etc/src.conf, or OBJDIR

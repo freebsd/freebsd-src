@@ -1,7 +1,6 @@
 #
 # @(#)Makefile	2.1 88/08/11 4.0 RPCSRC
 #
-# $FreeBSD$
 #
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/sunrpc/sort

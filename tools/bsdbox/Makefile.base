@@ -2,7 +2,6 @@
 # This builds a variety of "base" tools, useful for an embedded
 # system.
 #
-# $FreeBSD$
 #
 CRUNCH_PROGS_sbin+=	dmesg sysctl init reboot
 CRUNCH_PROGS_bin+=	ls cat dd df cp hostname kill mkdir sleep ps

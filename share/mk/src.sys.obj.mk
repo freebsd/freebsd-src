@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Early setup of MAKEOBJDIR
 #

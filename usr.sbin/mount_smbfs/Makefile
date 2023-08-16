@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	mount_smbfs
 PACKAGE=	smbutils

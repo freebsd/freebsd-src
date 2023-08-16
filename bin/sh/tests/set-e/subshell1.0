@@ -1,3 +1,2 @@
-# $FreeBSD$
 set -e
 (true)

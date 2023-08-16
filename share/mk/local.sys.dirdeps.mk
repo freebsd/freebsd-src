@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # local configuration specific to meta mode
 # we assume that MK_DIRDEPS_BUILD=yes

@@ -1,4 +1,3 @@
-# $FreeBSD$
 PACKAGE=lib${LIB}
 LIB=	vgl
 SHLIB_MAJOR= 6

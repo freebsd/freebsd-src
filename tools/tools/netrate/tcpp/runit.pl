@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 #
-# $FreeBSD$
 #
 
 if ($#ARGV != 0) {

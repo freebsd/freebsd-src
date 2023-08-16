@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 _spath=	${SRCTOP}/contrib/ofed/libibcm
 .PATH: ${_spath}

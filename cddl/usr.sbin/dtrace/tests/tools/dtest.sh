@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 usage()
 {
     cat >&2 <<__EOF__

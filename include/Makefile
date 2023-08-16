@@ -1,5 +1,4 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-# $FreeBSD$
 #
 # Doing a "make install" builds /usr/include.
 

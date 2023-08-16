@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	trim
 MAN=	trim.8

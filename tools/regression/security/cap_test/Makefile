@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	cap_test
 SRCS=	cap_test.c \

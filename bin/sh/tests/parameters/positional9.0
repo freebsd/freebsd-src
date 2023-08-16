@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Although POSIX leaves the result of expanding ${#@} and ${#*} unspecified,
 # make sure it is at least numeric.
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	wake
 MAN=	wake.8

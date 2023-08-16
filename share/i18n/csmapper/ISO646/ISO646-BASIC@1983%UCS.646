@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: ISO646-BASIC@1983%UCS.646,v 1.1 2003/06/27 08:40:38 tshiozak Exp $
 
 0xFFFFFFFF	# 0x23

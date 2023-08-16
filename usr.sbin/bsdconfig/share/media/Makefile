@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 FILESDIR=	${SHAREDIR}/bsdconfig/media
 FILES=		any.subr cdrom.subr common.subr directory.subr dos.subr \

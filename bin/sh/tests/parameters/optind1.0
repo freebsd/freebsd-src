@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 unset OPTIND && [ -z "$OPTIND" ]

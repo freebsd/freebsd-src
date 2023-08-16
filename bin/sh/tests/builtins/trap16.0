@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 traps=$(${SH} -c 'trap "echo bad" 0; trap - 0; trap')
 [ -z "$traps" ] || exit 1

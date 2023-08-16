@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 
 # Enable/Check the quotas (must be after ypbind if using NIS)

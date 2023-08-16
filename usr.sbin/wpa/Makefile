@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	src .WAIT \
 	wpa_supplicant \

@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 PROGS=	envctl retention timings
 

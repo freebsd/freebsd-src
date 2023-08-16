@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	mlxcontrol
 MAN=	mlxcontrol.8

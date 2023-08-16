@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Makefile for producing and uploading Vagrant boxes to Hashicorp Atlas
 #

@@ -22,7 +22,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 msg_configure_ttys="Configure TTYs"
 msg_help_text="Configuration of system TTYs requires editing the /etc/ttys file.\nTypical configuration activities might include enabling getty(8)\non the first serial port to allow login via serial console after\nreboot, or to enable xdm.  The default ttys file enables normal\nvirtual consoles, and most sites will not need to perform manual\nconfiguration.\n\nTo load /etc/ttys in the editor, select [Yes], otherwise, [No]."

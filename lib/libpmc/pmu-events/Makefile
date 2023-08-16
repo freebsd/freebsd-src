@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	jevents
 SRCS=	jevents.c jsmn.c json.c

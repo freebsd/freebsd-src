@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # It is not immediately obvious that this should work, and someone probably
 # relies on it.

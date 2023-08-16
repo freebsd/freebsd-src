@@ -1,5 +1,4 @@
 # Makefile for simple caller of syscall
-# $FreeBSD$
 
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/kld/test

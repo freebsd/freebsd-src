@@ -1,4 +1,3 @@
-# $FreeBSD$
 block in log quick from any with ipopts
 block in log quick proto tcp from any to any with short
 pass out on ed1 all head 150

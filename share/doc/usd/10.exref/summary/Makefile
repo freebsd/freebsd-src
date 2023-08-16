@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 DOC=		summary
 SRCS=		ex.summary

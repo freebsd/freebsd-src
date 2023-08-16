@@ -1,5 +1,4 @@
 #	$Id: Makefile,v 9.0 2012/10/19 15:13:11 zy Exp $
-# $FreeBSD$
 
 .include <bsd.own.mk>
 

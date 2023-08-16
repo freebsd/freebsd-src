@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB=	mapper_zone
 SRCS+=	citrus_mapper_zone.c

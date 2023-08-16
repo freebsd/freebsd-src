@@ -1,6 +1,5 @@
 #!/bin/sh -
 #
-# $FreeBSD$
 #	$NetBSD: newvers.sh,v 1.1 1997/07/26 01:50:38 thorpej Exp $
 #
 # Copyright (c) 1984, 1986, 1990, 1993

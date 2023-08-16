@@ -1,4 +1,3 @@
-#! $FreeBSD$
 
 .include <src.lua.mk>
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	open_to_operation
 MAN=

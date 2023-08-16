@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 acct_COMMENT= 		System Accounting Utilities

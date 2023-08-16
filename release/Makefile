@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Makefile for building releases and release media.
 #

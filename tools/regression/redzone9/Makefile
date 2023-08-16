@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	redzone
 SRCS=	redzone.c

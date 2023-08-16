@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # This tests if the cmdsubst optimization is still used if possible.
 
 failures=''

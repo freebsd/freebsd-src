@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibcacheedit
 SRCS=	ibcacheedit.c

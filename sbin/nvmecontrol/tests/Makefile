@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	tests
 ATF_TESTS_SH+=	basic

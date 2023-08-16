@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	certctl
 SCRIPTS=certctl.sh

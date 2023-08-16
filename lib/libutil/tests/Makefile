@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TAP_TESTS_C+=	flopen_test
 TAP_TESTS_C+=	grp_test

@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 #csh .cshrc file
 

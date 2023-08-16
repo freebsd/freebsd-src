@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 # Remove stale persistent host status files if the mailer supports it.
 #

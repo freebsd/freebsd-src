@@ -22,7 +22,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 msg_functions_in="Functions in %s:"
 msg_functions_in_matching="Functions in %s matching \`%s':"

@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 name="$(mktemp -u shsec.XXXXXX)"
 class="shsec"

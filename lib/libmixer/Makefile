@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		mixer
 SRCS=		${LIB}.c

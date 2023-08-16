@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${LIBC_SRCTOP}/posix1e
 

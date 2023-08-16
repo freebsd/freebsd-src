@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=	zstd
 SRCS=	entropy_common.c \

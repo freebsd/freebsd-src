@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${LDRSRC} ${BOOTSRC}/libsa
 

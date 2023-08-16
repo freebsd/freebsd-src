@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 BINDIR=		/usr/share/certs/untrusted
 

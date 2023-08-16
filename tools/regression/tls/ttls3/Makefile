@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 all: ttls3
 

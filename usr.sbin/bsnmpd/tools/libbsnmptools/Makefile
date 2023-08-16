@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 .PATH: ${.CURDIR}

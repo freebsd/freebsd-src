@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: Makefile.inc,v 1.6 2007/03/05 16:58:33 tnozaki Exp $
 
 CODE=	JIS

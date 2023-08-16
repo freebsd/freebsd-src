@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Utility functions for mac_ipacl tests
 
 . $(atf_get_srcdir)/../../common/vnet.subr

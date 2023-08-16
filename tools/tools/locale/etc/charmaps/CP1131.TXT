@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Obtained from 
 # http://haible.de/bruno/charsets/conversion-tables/CP1131.html

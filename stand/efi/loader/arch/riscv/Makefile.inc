@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 HAVE_FDT=yes
 

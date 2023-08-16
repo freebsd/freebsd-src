@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # When the '-V directory' option is provided, the directory must exist
 atf_test_case etcdir_must_exist

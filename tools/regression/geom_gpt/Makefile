@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	gctl_test_helper
 MAN=

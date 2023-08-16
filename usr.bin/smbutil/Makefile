@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	smbutil
 PACKAGE=	smbutils

@@ -9,7 +9,6 @@
 #
 # Don't use this unless you know why you're using it.
 #
-# $FreeBSD$
 #
 
 .include "${.CURDIR}/Makefile"

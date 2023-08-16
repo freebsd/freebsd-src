@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 #
 # Full list of all arches we don't build.
 #

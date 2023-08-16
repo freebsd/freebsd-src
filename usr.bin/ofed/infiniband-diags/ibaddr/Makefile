@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ibaddr
 SRCS=	ibaddr.c

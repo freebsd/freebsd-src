@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=   setfmac
 LINKS=	${BINDIR}/setfmac ${BINDIR}/setfsmac

@@ -13,7 +13,6 @@
 # references must include a dollar sign '$' in front of the
 # name to be expanded properly.
 #
-# $FreeBSD$
 #
 
 # Very basic and secure ruleset: Hide everything.

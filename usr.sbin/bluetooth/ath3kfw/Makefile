@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	bluetooth
 PROG=		ath3kfw

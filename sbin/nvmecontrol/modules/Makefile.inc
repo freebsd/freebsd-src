@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=nvme-tools
 NVMECONTROLDIR=	${SRCTOP}/sbin/nvmecontrol

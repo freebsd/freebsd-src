@@ -32,7 +32,6 @@
 # SUCH DAMAGE.
 #
 #	@(#)pushd	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
 
 # pushd, popd, and dirs --- written by Chris Bertin
 # Pixel Computer Inc. ...!wjh12!pixel!pixutl!chris

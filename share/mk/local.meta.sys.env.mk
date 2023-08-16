@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # local configuration specific to meta mode
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	zerosend
 MAN=

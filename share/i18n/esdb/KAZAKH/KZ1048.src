@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: KZ1048.src,v 1.1 2007/03/13 16:34:39 tnozaki Exp $
 
 NAME		"KZ1048"

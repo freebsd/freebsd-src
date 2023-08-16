@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # \u without any digits at all remains invalid.
 # Our choice is a parse error.

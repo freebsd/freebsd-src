@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 
 if [ -z "${1}" -o \! -f "${1}" ]; then

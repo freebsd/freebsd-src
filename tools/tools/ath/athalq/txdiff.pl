@@ -2,8 +2,6 @@
 
 use strict;
 
-# $FreeBSD$
-
 # [1360537229.753890] [100494] TXD
 # [1360537229.754292] [100494] TXSTATUS: TxDone=1, TS=0x5ccfa5c7
 

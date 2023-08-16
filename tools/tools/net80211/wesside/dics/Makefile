@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	dics
 BINDIR=	/usr/local/bin

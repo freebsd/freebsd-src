@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	apm
 MAN=	apm.8

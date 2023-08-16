@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 r=x
 f() { return 42; }

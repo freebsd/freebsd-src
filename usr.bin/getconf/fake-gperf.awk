@@ -1,5 +1,4 @@
 #!/usr/bin/awk -f
-# $FreeBSD$
 BEGIN {
   state = 0;
   struct_seen = "";

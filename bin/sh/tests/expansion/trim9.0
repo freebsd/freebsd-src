@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # POSIX does not specify these but they occasionally occur in the wild.
 # This just serves to keep working what currently works.

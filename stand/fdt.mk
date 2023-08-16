@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if ${MK_FDT} == "yes"
 CFLAGS+=	-I${FDTSRC}

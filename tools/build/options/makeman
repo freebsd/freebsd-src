@@ -1,7 +1,6 @@
 #!/bin/sh
 #
 # This file is in the public domain.
-# $FreeBSD$
 #
 # This script creates the src.conf.5 man page using template text contained
 # herein and the contents of the WITH_* and WITHOUT_* files in the same

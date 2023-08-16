@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	lib cron crontab
 

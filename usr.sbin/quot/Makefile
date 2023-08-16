@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	quot
 MAN=	quot.8

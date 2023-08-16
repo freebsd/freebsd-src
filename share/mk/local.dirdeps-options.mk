@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # avoid duplication
 DIRDEPS.AUDIT.yes= lib/libbsm

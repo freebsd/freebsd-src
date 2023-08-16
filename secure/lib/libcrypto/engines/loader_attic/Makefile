@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB_NAME?=	loader_attic.so
 

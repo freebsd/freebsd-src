@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	semtest
 SRCS=	semtest.c

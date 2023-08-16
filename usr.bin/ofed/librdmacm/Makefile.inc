@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 _spath=${SRCTOP}/contrib/ofed/librdmacm
 .PATH: ${_spath}/examples ${_spath}/man

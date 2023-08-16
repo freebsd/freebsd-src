@@ -1,5 +1,4 @@
 #!/usr/local/bin/tclsh8.3
-# $FreeBSD$
 
 set fo [open _.html w]
 

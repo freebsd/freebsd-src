@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $OpenBSD: queue3,v 1.3 2006/10/07 04:48:01 mcbride Exp $
 # simple PRIQ example
 

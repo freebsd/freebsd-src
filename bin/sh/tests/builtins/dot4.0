@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 v=abcd
 v=$v$v$v$v

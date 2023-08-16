@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=	devctl
 SRCS=	devctl.c

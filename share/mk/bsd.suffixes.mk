@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .sh:
 	cp -f ${.IMPSRC} ${.TARGET}

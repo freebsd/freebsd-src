@@ -2,7 +2,6 @@
 # Last update: gwr, Sun Dec 12 19:00:00 EDT 1993
 # Blank lines and lines beginning with '#' are ignored.
 #
-# $FreeBSD$
 #
 # Legend:	(see bootptab.5)
 #	first field -- hostname (not indented)
