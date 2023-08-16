@@ -1,5 +1,4 @@
 \ Menu.rc
-\ $FreeBSD$
 \
 \ You should not edit this file! Put any overrides in menu.rc.local
 \ instead as this file can be replaced during system updates.
