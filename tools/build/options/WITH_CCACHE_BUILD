@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Use
 .Xr ccache 1
 for the build.

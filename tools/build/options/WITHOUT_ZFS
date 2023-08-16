@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build the ZFS file system kernel module, libraries such as
 .Xr libbe 3 ,
 and user commands such as

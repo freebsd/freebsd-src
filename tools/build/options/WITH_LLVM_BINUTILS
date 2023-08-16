@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Install LLVM's binutils (without an llvm- prefix),
 instead of ELF Tool Chain's tools.
 This includes

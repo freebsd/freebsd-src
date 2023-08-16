@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build the base system or kernel with stack variables initialized
 to zero on function entry.
 This option requires that the clang compiler be used.

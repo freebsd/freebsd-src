@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build and install the DTrace test suite in
 .Pa /usr/tests/cddl/usr.sbin/dtrace .
 This test suite is considered experimental on architectures other than

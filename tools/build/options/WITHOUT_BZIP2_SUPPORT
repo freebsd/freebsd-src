@@ -1,2 +1,1 @@
-.\" $FreeBSD$
 Build some programs without optional bzip2 support.

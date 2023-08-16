@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Make libraries and programs use rtsock and
 .Xr sysctl 3
 interfaces instead of

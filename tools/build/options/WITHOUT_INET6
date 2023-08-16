@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Do not build
 programs and libraries related to IPv6 networking.

@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Do not build programs, libraries, and kernel modules
 related to NetWare Core protocol.

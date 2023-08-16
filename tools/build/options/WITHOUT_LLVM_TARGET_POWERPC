@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build LLVM target support for PowerPC.
 The
 .Va LLVM_TARGET_ALL

@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Do not install
 .Pa /var/db/services.db .

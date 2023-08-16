@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Do not add the trusted certificates from the Mozilla NSS bundle to
 base.

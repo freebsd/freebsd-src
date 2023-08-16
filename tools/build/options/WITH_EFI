@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build
 .Xr efivar 3
 and

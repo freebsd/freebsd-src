@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr gpioctl 8
 as part of the base system.

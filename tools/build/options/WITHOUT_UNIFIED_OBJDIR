@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Use the historical object directory format for
 .Xr build 7
 targets.

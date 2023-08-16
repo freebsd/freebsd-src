@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build radius support into various applications, like
 .Xr pam_radius 8
 and

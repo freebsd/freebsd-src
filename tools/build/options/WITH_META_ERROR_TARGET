@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Enable the META_MODE .ERROR target.
 .Pp
 This target will copy the meta file of a failed target

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build the
 .Xr genl 1
 utility.

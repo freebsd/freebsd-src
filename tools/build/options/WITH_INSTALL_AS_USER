@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Make install targets succeed for non-root users by installing
 files with owner and group attributes set to that of the user running
 the

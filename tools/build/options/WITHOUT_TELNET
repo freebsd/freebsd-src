@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr telnet 1
 and related programs.
