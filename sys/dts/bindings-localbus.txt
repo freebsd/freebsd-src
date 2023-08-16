@@ -1,4 +1,3 @@
-$FreeBSD$
 
 Marvell Device bus (localbus) configuration.
 ============================================
