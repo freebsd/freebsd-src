@@ -45,7 +45,7 @@
 /************************************************************************
  * Driver version
  ************************************************************************/
-char ixgbe_driver_version[] = "4.0.1-k";
+static const char ixgbe_driver_version[] = "4.0.1-k";
 
 /************************************************************************
  * PCI Device ID Table
@@ -56,7 +56,7 @@ char ixgbe_driver_version[] = "4.0.1-k";
  *
  *   { Vendor ID, Device ID, SubVendor ID, SubDevice ID, String Index }
  ************************************************************************/
-static pci_vendor_info_t ixgbe_vendor_info_array[] =
+static const pci_vendor_info_t ixgbe_vendor_info_array[] =
 {
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_DUAL_PORT,  "Intel(R) 82598EB AF (Dual Fiber)"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_SINGLE_PORT,  "Intel(R) 82598EB AF (Fiber)"),

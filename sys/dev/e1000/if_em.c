@@ -36,8 +36,8 @@
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.7.8-fbsd";
-char igb_driver_version[] = "2.5.19-fbsd";
+static const char em_driver_version[] = "7.7.8-fbsd";
+static const char igb_driver_version[] = "2.5.19-fbsd";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -49,7 +49,7 @@ char igb_driver_version[] = "2.5.19-fbsd";
  *  { Vendor ID, Device ID, SubVendor ID, SubDevice ID, String Index }
  *********************************************************************/
 
-static pci_vendor_info_t em_vendor_info_array[] =
+static const pci_vendor_info_t em_vendor_info_array[] =
 {
 	/* Intel(R) - lem-class legacy devices */
 	PVID(0x8086, E1000_DEV_ID_82540EM, "Intel(R) Legacy PRO/1000 MT 82540EM"),
@@ -214,7 +214,7 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID_END
 };
 
-static pci_vendor_info_t igb_vendor_info_array[] =
+static const pci_vendor_info_t igb_vendor_info_array[] =
 {
 	/* Intel(R) - igb-class devices */
 	PVID(0x8086, E1000_DEV_ID_82575EB_COPPER, "Intel(R) PRO/1000 82575EB (Copper)"),
