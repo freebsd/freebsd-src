@@ -30,9 +30,6 @@
  */
 
 #include "defs.h"
-
-__RCSID("$FreeBSD$");
-
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);
 static void input_route(naddr, naddr, struct rt_spare *, struct netinfo *);

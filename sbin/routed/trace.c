@@ -36,9 +36,6 @@
 #include <sys/signal.h>
 #include <fcntl.h>
 
-__RCSID("$FreeBSD$");
-
-
 
 int	tracelevel, new_tracelevel;
 FILE	*ftrace;			/* output trace file */
