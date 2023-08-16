@@ -1,6 +1,4 @@
 .\"
-.\" $FreeBSD$
-.\"
 .if n .ftr C R
 .ig TL
 .ds CH "

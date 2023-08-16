@@ -1,6 +1,4 @@
 .\"
-.\" $FreeBSD$
-.\"
 .NH
 Future Directions
 .PP

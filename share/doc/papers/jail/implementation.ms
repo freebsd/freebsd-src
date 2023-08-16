@@ -1,6 +1,4 @@
 .\"
-.\" $FreeBSD$
-.\"
 .NH
 Implementation jail in the FreeBSD kernel.
 .NH 2

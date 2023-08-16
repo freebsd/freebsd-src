@@ -30,8 +30,6 @@
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
-.\"
 .sh 1 "Not Quite NFS, Crash Tolerant Cache Consistency for NFS"
 .pp
 Not Quite NFS (NQNFS) is an NFS like protocol designed to maintain full cache

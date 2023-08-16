@@ -3,8 +3,6 @@
 .\" Agreement and your Software Agreement with AT&T (Western Electric).
 .\"
 .\"	@(#)p3	8.1 (Berkeley) 6/8/93
-.\"
-.\" $FreeBSD$
 .SH
 V. PROCESSES AND IMAGES
 .PP

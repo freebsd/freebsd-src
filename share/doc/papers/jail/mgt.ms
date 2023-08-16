@@ -1,6 +1,4 @@
 .\"
-.\" $FreeBSD$
-.\"
 .NH
 Managing Jails and the Jail File System Environment
 .NH 2

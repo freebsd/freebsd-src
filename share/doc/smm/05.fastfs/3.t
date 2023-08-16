@@ -27,8 +27,6 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
-.\"
 .ds RH New file system
 .NH
 New file system organization

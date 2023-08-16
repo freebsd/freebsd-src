@@ -29,8 +29,6 @@
 .\" Feral Software
 .\" mjacob@feral.com
 .\"
-.\" $FreeBSD$
-.\"
 .Dd November 5, 2012
 .Dt SESD 8
 .Os

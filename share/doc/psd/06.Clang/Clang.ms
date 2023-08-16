@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	@(#)Clang.ms	8.1 (Berkeley) 6/8/93
-.\"
-.\" $FreeBSD$
 .nr Cl 2
 .TL
 The C Programming Language - Reference Manual

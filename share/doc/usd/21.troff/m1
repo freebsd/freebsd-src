@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	@(#)m1	8.1 (Berkeley) 8/14/93
-.\"
-.\" $FreeBSD$
 .nr p 0 1
 .tr |
 .tr ~|
