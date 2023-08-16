@@ -32,7 +32,6 @@
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
 /*
