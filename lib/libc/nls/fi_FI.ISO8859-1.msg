@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for fi_FI.ISO8859-1 locale
 $

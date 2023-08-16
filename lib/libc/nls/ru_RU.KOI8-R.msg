@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for ru_RU.KOI8-R locale
 $

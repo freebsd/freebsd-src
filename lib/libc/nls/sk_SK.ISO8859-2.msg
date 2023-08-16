@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for sk_SK.ISO8859-2 locale
 $
