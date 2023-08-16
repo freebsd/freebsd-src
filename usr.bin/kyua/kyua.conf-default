@@ -1,4 +1,3 @@
--- $FreeBSD$
 --
 -- System-wide configuration file for kyua(1).  See kyua.conf(5) for details
 -- on the syntax.
