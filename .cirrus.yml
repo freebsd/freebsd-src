@@ -52,6 +52,7 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: amd64-gcc12
       TOOLCHAIN_PKG: ${TOOLCHAIN}
+      EXTRA_MAKE_FLAGS: -s
   - name: aarch64-gcc12 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
@@ -60,6 +61,7 @@ task:
       TARGET_ARCH: aarch64
       TOOLCHAIN: aarch64-gcc12
       TOOLCHAIN_PKG: ${TOOLCHAIN}
+      EXTRA_MAKE_FLAGS: -s
   - name: amd64-gcc12 World and kernel build and boot smoke test (FreeBSD repo)
     only_if: $CIRRUS_REPO_FULL_NAME == 'freebsd/freebsd-src'
     trigger_type: manual
@@ -68,6 +70,7 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: amd64-gcc12
       TOOLCHAIN_PKG: ${TOOLCHAIN}
+      EXTRA_MAKE_FLAGS: -s
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG} git-lite
@@ -82,7 +85,7 @@ task:
   - chown user:user /usr/obj/$(pwd -P)
 
   build_world_script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"
+  - su user -c "make -j$(sysctl -n hw.ncpu) ${EXTRA_MAKE_FLAGS} CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"
 
   build_kernel_script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildkernel"
