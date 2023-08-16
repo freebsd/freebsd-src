@@ -10,6 +10,46 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+41582f28ddf7:
+	FreeBSD 15.0 will not include support for 32-bit platforms.
+	However, 64-bit systems will still be able to run older 32-bit
+	binaries.
+
+	Support for executing 32-bit binaries on 64-bit platforms via
+	COMPAT_FREEBSD32 will remain supported for at least the
+	stable/15 and stable/16 branches.
+
+	Support for compiling individual 32-bit applications via
+	`cc -m32` will also be supported for at least the stable/15
+	branch which includes suitable headers in /usr/include and
+	libraries in /usr/lib32.
+
+	Support for 32-bit platforms in ports for 15.0 and later
+	releases is also deprecated, and these future releases may not
+	include binary packages for 32-bit platforms or support for
+	building 32-bit applications from ports.
+
+	stable/14 and earlier branches will retain existing 32-bit
+	kernel and world support.  Ports will retain existing support
+	for building ports and packages on 32-bit systems on stable/14
+	and earlier branches as long as those branches are supported
+	by the ports system.  However, all 32-bit platforms are Tier-2
+	or Tier-3 and support for individual ports should be expected
+	to degrade as upstreams deprecate 32-bit platforms.
+
+	With the current support schedule, stable/14 will be EOLed 5
+	years after the release of 14.0.  The EOL of stable/14 would
+	mark the end of support for 32-bit platforms including source
+	releases, pre-built packages, and support for building
+	applications from ports.  Given an estimated release date of
+	October 2023 for 14.0, support for 32-bit platforms would end
+	in October 2028.
+
+	The project may choose to alter this approach when 15.0 is
+	released by extending some level of 32-bit support for one or
+	more platforms in 15.0 or later.  Users should use the
+	stable/14 branch to migrate off of 32-bit platforms.
+
 3cb2f5f369ec:
 	The lua-flavored loader(8) will now interpret .lua files that appear in
 	loader_conf_files as lua, and execute them in a sandbox.  Existing
