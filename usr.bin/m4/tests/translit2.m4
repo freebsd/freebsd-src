@@ -1,4 +1,3 @@
-dnl $FreeBSD$
 translit(`[HAVE_abc/def.h
 ]', `
 /.', `/  ')

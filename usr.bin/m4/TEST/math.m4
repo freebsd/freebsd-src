@@ -1,4 +1,3 @@
-dnl $FreeBSD$
 dnl A regression test for m4 C operators		(ksb,petef)
 dnl If you think you have a short-circuiting m4, run us m4 -DSHORCIRCUIT=yes
 dnl
