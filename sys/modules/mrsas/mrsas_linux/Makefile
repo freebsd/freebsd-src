@@ -1,5 +1,4 @@
 # Makefile for mrsas driver
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/dev/mrsas
 

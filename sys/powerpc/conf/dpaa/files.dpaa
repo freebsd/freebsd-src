@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # NetCommSw drivers
 contrib/ncsw/etc/error.c				optional dpaa	\

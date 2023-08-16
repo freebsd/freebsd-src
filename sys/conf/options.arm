@@ -1,4 +1,3 @@
-#$FreeBSD$
 ARM_FORCE_DBG_MONITOR_DISABLE	opt_ddb.h
 CPSW_ETHERSWITCH	opt_cpsw.h
 CPU_ARM1176		opt_global.h

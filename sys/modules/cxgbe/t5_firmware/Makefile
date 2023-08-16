@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 T5FW=	${SRCTOP}/sys/dev/cxgbe/firmware

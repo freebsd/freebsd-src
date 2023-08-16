@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Copyright (c) 2018 Johannes Lundberg. All rights reserved.
 #

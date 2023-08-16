@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/contrib/libb2
 .PATH:	${SRCTOP}/sys/crypto/blake2

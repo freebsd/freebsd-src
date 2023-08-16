@@ -1,7 +1,6 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/RISC-V
 #
-# $FreeBSD$
 
 machine		riscv	riscv64
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Options specific to the i386 platform kernels
 
 AUTO_EOI_1		opt_auto_eoi.h

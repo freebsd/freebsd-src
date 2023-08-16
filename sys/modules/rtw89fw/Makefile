@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	\
 	rtw8852a \

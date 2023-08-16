@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Author: Gleb Smirnoff <glebius@freebsd.org>
 #

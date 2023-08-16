@@ -1,4 +1,3 @@
-# $FreeBSD$
 # DTS files for the 32-bit and 64-bit arm-based Raspberry Pi family of devices
 .if ${MACHINE_CPUARCH} == "arm"
 DTSO=	\

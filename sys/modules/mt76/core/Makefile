@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	mt76_core
 

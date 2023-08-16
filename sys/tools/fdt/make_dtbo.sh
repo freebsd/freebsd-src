@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 
 # Script generates dtbo file ($3) from dtso source ($2) in build tree S ($1)
 S=$1

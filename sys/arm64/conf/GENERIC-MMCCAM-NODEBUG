@@ -5,7 +5,6 @@
 # present to keep it building in tree since it wouldn't work in LINT.  This
 # version without debugging features.
 #
-# $FreeBSD$
 
 #NO_UNIVERSE
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Common information shared by all submodule builds.
 

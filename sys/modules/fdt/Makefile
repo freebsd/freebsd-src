@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Build dev/fdt modules.
 
 SUBDIR = \

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
 arm/broadcom/bcm2835/bcm2835_cpufreq.c		standard

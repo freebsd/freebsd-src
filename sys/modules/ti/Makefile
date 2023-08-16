@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Module for Alteon Networks Tigon PCI gigabit ethernet driver for FreeBSD.
 # Modules for Texas Instruments ARM SoCs are located in sys/modules/arm_ti.
 

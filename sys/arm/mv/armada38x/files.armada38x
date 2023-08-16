@@ -1,4 +1,3 @@
-# $FreeBSD$
 arm/mv/mpic.c			standard
 
 arm/mv/armada/thermal.c		optional fdt

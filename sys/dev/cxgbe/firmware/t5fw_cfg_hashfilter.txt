@@ -292,5 +292,4 @@
 	version = 0x1
 	checksum = 0x7a962d44
 #
-# $FreeBSD$
 #

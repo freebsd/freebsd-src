@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 DEVATH10KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath10k
 

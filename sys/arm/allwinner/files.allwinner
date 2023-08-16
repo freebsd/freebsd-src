@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/allwinner/a10_ahci.c		optional	ahci
 arm/allwinner/a10_codec.c		optional	sound

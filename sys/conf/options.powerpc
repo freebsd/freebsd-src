@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Options specific to the powerpc platform kernels
 
 AIM			opt_global.h

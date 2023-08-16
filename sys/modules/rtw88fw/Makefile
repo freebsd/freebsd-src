@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	\
 	rtw8723d \

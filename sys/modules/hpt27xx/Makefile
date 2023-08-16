@@ -1,4 +1,3 @@
-# $FreeBSD$
 HPT27XX=	${SRCTOP}/sys/dev/hpt27xx
 .PATH:	${HPT27XX}
 

@@ -3,7 +3,6 @@
 #
 # Custom kernel for GENERIC plus MMCCAM as opposed to the prior MMC stack.
 #
-# $FreeBSD$
 
 #NO_UNIVERSE
 

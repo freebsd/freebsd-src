@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 FWVERSION=	73
 NAME=		Qu-c0-hr-b0

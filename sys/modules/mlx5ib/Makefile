@@ -1,4 +1,3 @@
-# $FreeBSD$
 .PATH:	${SRCTOP}/sys/dev/mlx5/mlx5_ib
 
 KMOD=mlx5ib

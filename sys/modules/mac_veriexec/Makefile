@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${.PARSEDIR:H:H}/security/mac_veriexec
 

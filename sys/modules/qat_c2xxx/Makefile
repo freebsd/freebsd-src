@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/dev/qat_c2xxx
 

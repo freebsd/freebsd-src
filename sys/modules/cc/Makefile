@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	cc_newreno \
 	cc_cubic \

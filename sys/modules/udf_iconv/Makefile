@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/fs/udf
 KMOD=	udf_iconv

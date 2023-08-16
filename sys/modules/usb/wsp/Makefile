@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Copyright (c) 2012 Huang Wen Hui. All rights reserved.
 #
