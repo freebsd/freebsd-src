@@ -84,7 +84,11 @@ DIRDEPS_FILTER.xtras=
 DIRDEPS_FILTER.xtras+= Nusr.bin/clang/clang.host
 .endif
 
-.if ${DEP_MACHINE} != "host"
+.if ${DEP_MACHINE:Nhost*} == ""
+.if ${MK_host_egacy} == "yes" && ${DEP_RELDIR:Ntools/build:Ntargets/*:N*/stage} != ""
+DIRDEPS += tools/build
+.endif
+.else
 MK_host_egacy.${DEP_MACHINE}= no
 
 # this is how we can handle optional dependencies
