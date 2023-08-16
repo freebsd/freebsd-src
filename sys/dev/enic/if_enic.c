@@ -57,7 +57,7 @@
 static SYSCTL_NODE(_hw, OID_AUTO, enic, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "ENIC");
 
-static pci_vendor_info_t enic_vendor_info_array[] =
+static const pci_vendor_info_t enic_vendor_info_array[] =
 {
 	PVID(CISCO_VENDOR_ID, PCI_DEVICE_ID_CISCO_VIC_ENET,
 	     DRV_DESCRIPTION),

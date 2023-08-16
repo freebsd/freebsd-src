@@ -86,7 +86,7 @@
 #include "ifdi_if.h"
 #include "miibus_if.h"
 
-static pci_vendor_info_t mgb_vendor_info_array[] = {
+static const pci_vendor_info_t mgb_vendor_info_array[] = {
 	PVID(MGB_MICROCHIP_VENDOR_ID, MGB_LAN7430_DEVICE_ID,
 	    "Microchip LAN7430 PCIe Gigabit Ethernet Controller"),
 	PVID(MGB_MICROCHIP_VENDOR_ID, MGB_LAN7431_DEVICE_ID,

@@ -67,7 +67,7 @@
  * PCI Device ID Table
  */
 
-static pci_vendor_info_t bnxt_vendor_info_array[] =
+static const pci_vendor_info_t bnxt_vendor_info_array[] =
 {
     PVID(BROADCOM_VENDOR_ID, BCM57301,
 	"Broadcom BCM57301 NetXtreme-C 10Gb Ethernet Controller"),
@@ -300,7 +300,7 @@ static driver_t bnxt_iflib_driver = {
  */
 
 #define BNXT_DRIVER_VERSION	"2.20.0.1"
-char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
+const char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,

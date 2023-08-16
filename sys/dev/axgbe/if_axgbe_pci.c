@@ -137,7 +137,7 @@ static struct resource_spec axgbe_pci_mac_spec[] = {
 	{ -1, 0 }
 };
 
-static pci_vendor_info_t axgbe_vendor_info_array[] =
+static const pci_vendor_info_t axgbe_vendor_info_array[] =
 {
 	PVID(0x1022, 0x1458,  "AMD 10 Gigabit Ethernet Driver"),
 	PVID(0x1022, 0x1459,  "AMD 10 Gigabit Ethernet Driver"),
