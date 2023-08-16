@@ -7,7 +7,6 @@
 \ locstate: 0 = looking for -- or }}
 \           1 = found --
 \
-\ $FreeBSD$
 
 hide
 0 constant zero

@@ -22,7 +22,6 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \ 
-\ $FreeBSD$
 
 2 brandX ! 1 brandY ! \ Initialize brand placement defaults
 

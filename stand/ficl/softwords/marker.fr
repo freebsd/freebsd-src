@@ -3,7 +3,6 @@
 \ John Sadler, 4 Oct 98
 \ Requires ficl 2.02 FORGET-WID !!
 \
-\ $FreeBSD$
 
 : marker   ( "name" -- )
     create  

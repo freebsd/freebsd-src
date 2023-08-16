@@ -4,7 +4,6 @@
 \ ** submitted by Larry Hastings, larry@hastings.org
 \ **
 \
-\ $FreeBSD$
 
 : r/o 1 ;
 : r/w 3 ; 

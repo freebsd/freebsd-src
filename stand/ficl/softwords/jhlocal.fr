@@ -14,7 +14,6 @@
 \
 \ revised 2 June 2000 - { | a -- } now works correctly
 \
-\ $FreeBSD$
 
 hide
 

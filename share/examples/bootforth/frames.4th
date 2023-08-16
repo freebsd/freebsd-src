@@ -1,6 +1,5 @@
 \ Words implementing frame drawing
 \ XXX Filled boxes are left as an exercise for the reader... ;-/
-\ $FreeBSD$
 
 marker task-frames.4th
 
