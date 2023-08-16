@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  * $Id: parser.y,v 1.5 2003/06/07 21:22:30 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/fcntl.h>

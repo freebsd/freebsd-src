@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: bthidcontrol.c,v 1.2 2004/02/13 21:44:41 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/queue.h>

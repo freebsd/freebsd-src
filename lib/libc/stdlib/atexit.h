@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)atexit.h	8.2 (Berkeley) 7/3/94
- * $FreeBSD$
  */
 
 /* must be at least 32 to guarantee ANSI conformance */

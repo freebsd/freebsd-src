@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  */
 /* _Unwind_Backtrace should be exported with different version on ARM */
 GCC_3.3 {

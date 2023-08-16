@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)glob.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
  */
 
 #ifndef _GLOB_H_

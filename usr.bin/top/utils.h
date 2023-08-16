@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  *
  *  Top users/processes display for Unix
  *

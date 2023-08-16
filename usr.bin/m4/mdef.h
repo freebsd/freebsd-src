@@ -35,7 +35,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)mdef.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
  */
 
 #ifdef __GNUC__

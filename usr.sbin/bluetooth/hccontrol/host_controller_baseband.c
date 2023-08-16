@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: host_controller_baseband.c,v 1.4 2003/08/18 19:19:53 max Exp $
- * $FreeBSD$
  */
 
 #define L2CAP_SOCKET_CHECKED
