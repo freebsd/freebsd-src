@@ -34,14 +34,26 @@
 static inline int
 set_memory_uc(unsigned long addr, int numpages)
 {
-	return (pmap_change_attr(addr, numpages, VM_MEMATTR_UNCACHEABLE));
+	vm_offset_t va;
+	vm_size_t len;
+
+	va = PHYS_TO_DMAP(addr);
+	len = numpages << PAGE_SHIFT;
+
+	return (-pmap_change_attr(va, len, VM_MEMATTR_UNCACHEABLE));
 }
 
 static inline int
 set_memory_wc(unsigned long addr, int numpages)
 {
 #ifdef VM_MEMATTR_WRITE_COMBINING
-	return (pmap_change_attr(addr, numpages, VM_MEMATTR_WRITE_COMBINING));
+	vm_offset_t va;
+	vm_size_t len;
+
+	va = PHYS_TO_DMAP(addr);
+	len = numpages << PAGE_SHIFT;
+
+	return (-pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING));
 #else
 	return (set_memory_uc(addr, numpages));
 #endif
@@ -50,7 +62,13 @@ set_memory_wc(unsigned long addr, int numpages)
 static inline int
 set_memory_wb(unsigned long addr, int numpages)
 {
-	return (pmap_change_attr(addr, numpages, VM_MEMATTR_WRITE_BACK));
+	vm_offset_t va;
+	vm_size_t len;
+
+	va = PHYS_TO_DMAP(addr);
+	len = numpages << PAGE_SHIFT;
+
+	return (-pmap_change_attr(va, len, VM_MEMATTR_WRITE_BACK));
 }
 
 static inline int
