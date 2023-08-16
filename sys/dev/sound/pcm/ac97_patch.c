@@ -34,7 +34,7 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/ac97_patch.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("");
 
 void ad1886_patch(struct ac97_info* codec)
 {

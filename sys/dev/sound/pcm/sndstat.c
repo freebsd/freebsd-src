@@ -50,7 +50,7 @@
 #include <dev/sound/version.h>
 
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("");
 
 #define	SS_TYPE_MODULE		0
 #define	SS_TYPE_PCM		1

@@ -47,7 +47,7 @@
 #include "pin_patch.h"
 #include "pin_patch_realtek.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("");
 
 static const struct {
 	uint32_t model;
