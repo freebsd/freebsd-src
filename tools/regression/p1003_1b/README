@@ -1,4 +1,3 @@
-$FreeBSD$
 
 p1003_1b: Regression tests for the scheduling facilities.
 The following should always work as of the release of 4.0:

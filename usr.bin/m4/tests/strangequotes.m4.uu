@@ -1,4 +1,3 @@
-$FreeBSD$
 $OpenBSD: src/regress/usr.bin/m4/strangequotes.m4.uu,v 1.2 2001/09/19 19:15:08 espie Exp $
 
 begin 644 strangequotes.m4

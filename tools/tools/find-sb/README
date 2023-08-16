@@ -1,4 +1,3 @@
-$FreeBSD$
 
 find-sb is a program which scans the input file you specify (normally a
 raw disk slice) for filesystems.  It's not very smart, nor particularly

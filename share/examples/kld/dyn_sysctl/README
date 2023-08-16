@@ -4,5 +4,3 @@ wrong place, i.e. to a dynamic oid that could belong to someone else.
 The framework should deal with this case gracefully.
 
 Andrzej Bialecki <abial@freebsd.org>
-
-$FreeBSD$

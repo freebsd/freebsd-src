@@ -3,7 +3,6 @@
 	KAME Project
 	https://www.kame.net/
 	$KAME: IMPLEMENTATION,v 1.216 2001/05/25 07:43:01 jinmei Exp $
-	$FreeBSD$
 
 NOTE: The document tries to describe behaviors/implementation choices
 of the latest KAME/*BSD stack.  The description here may not be

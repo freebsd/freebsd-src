@@ -21,5 +21,3 @@ The following options are not implemented on Pentium CPUs:
 There is one mandatory argument, which is the event number to be
 monitored, defined in <machine/perfmon.h>.  All numbers can be
 specified in any format acceptable to strtol(3).
-
-$FreeBSD$
