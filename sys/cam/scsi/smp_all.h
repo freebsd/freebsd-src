@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id: //depot/users/kenm/FreeBSD-test/sys/cam/scsi/smp_all.h#4 $
- * $FreeBSD$
  */
 
 /*

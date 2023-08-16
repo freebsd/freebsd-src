@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_bluetooth.h,v 1.4 2003/04/26 22:32:34 max Exp $
- * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_BLUETOOTH_H_

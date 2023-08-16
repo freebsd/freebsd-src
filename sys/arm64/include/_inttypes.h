@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: $NetBSD: int_fmtio.h,v 1.4 2008/04/28 20:23:36 martin Exp $
- * $FreeBSD$
  */
 
 #ifdef __arm__

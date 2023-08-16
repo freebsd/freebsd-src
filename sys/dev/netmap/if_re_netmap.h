@@ -26,7 +26,6 @@
  */
 
 /*
- * $FreeBSD$
  *
  * netmap support for: re
  *

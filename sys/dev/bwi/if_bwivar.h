@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  * 
  * $DragonFly: src/sys/dev/netif/bwi/if_bwivar.h,v 1.14 2008/02/15 11:15:38 sephe Exp $
- * $FreeBSD$
  */
 
 #ifndef _IF_BWIVAR_H

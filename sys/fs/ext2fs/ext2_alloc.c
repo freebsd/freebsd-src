@@ -35,7 +35,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $FreeBSD$
  */
 
 #include <sys/param.h>

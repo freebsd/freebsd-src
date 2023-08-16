@@ -1,5 +1,4 @@
 /*-
- * $FreeBSD$
  */
 
 #ifndef	_SYS_KBIO_H_

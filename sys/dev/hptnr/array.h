@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
  */
 #include <dev/hptnr/hptnr_config.h>
 #ifndef _HPT_ARRAY_H_

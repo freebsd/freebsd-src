@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.h	8.2 (Berkeley) 12/5/94
- * $FreeBSD$
  */
 
 #ifndef _ISOFS_CD9660_CD9660_RRIP_H_

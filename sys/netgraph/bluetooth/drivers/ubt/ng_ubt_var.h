@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_ubt_var.h,v 1.2 2003/03/22 23:44:36 max Exp $
- * $FreeBSD$
  */
 
 #ifndef _NG_UBT_VAR_H_

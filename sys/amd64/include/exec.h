@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
  */
 
 #ifndef	_MACHINE_EXEC_H_

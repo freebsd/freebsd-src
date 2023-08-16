@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  *
  *	 $SourceForge: netflow.h,v 1.8 2004/09/16 17:05:11 glebius Exp $
- *	 $FreeBSD$
  */
 
 /* netflow timeouts in seconds */

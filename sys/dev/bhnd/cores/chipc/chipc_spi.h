@@ -30,7 +30,6 @@
  */
 
 /*
- * $FreeBSD$
  */
 
 #ifndef _BHND_CORES_CHIPC_CHIPC_SPI_H_

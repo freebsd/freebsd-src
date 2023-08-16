@@ -35,7 +35,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $FreeBSD$
  */
 
 #ifndef _FS_EXT2FS_EXT2_EXTERN_H_

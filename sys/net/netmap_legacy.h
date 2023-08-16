@@ -30,7 +30,6 @@
 #define _NET_NETMAP_LEGACY_H_
 
 /*
- * $FreeBSD$
  *
  * ioctl names and related fields
  *

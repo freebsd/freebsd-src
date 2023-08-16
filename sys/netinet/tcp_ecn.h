@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_ecn.h	8.4 (Berkeley) 5/24/95
- * $FreeBSD$
  */
 
 #ifndef _NETINET_TCP_ECN_H_

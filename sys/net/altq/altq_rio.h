@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  * $KAME: altq_rio.h,v 1.9 2003/07/10 12:07:49 kjc Exp $
- * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_RIO_H_

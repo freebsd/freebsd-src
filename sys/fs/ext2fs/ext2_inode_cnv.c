@@ -21,7 +21,6 @@
  * improvements that they make and grant CSL redistribution rights.
  *
  *      Utah $Hdr$
- * $FreeBSD$
  */
 
 /*

@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_hci_var.h,v 1.3 2003/04/26 22:35:21 max Exp $
- * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_HCI_VAR_H_

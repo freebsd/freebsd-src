@@ -24,7 +24,6 @@
 */
 
 /*
- * $FreeBSD$
  */
 
 #ifndef	__IF_BWN_TABLES_NPHY_H__

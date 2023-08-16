@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  * $KAME: altq_var.h,v 1.16 2003/10/03 05:05:15 kjc Exp $
- * $FreeBSD$
  */
 #ifndef _ALTQ_ALTQ_VAR_H_
 #define	_ALTQ_ALTQ_VAR_H_

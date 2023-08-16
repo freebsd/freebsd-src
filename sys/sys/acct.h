@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.4 (Berkeley) 1/9/95
- * $FreeBSD$
  */
 
 #ifndef _SYS_ACCT_H_

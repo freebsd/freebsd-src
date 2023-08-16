@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  *
  * linux-like bidirectional lists
  */

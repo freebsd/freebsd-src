@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl.h	8.6 (Berkeley) 3/28/94
- * $FreeBSD$
  */
 
 #ifndef	_SYS_IOCTL_H_

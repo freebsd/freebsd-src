@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $FreeBSD$
  */
 
 #ifndef _SYS_UN_H_

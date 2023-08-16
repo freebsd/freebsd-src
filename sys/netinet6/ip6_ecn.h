@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $
- * $FreeBSD$
  */
 
 /*

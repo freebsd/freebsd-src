@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_btsocket.h,v 1.8 2003/04/26 22:32:10 max Exp $
- * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_BTSOCKET_H_

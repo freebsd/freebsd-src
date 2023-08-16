@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $OpenBSD: hash.h,v 1.4 2004/05/25 18:37:23 jmc Exp $
- * $FreeBSD$
  */
 
 #ifndef _SYS_HASH_H_

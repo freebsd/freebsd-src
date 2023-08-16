@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $FreeBSD$
  */
 
 #ifndef	_SYS_CDEFS_H_

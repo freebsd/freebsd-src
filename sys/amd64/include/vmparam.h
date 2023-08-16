@@ -40,7 +40,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- * $FreeBSD$
  */
 
 #ifdef __i386__

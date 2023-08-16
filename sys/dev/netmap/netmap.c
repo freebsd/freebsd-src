@@ -31,7 +31,6 @@
 
 
 /*
- * $FreeBSD$
  *
  * This module supports memory mapped access to network devices,
  * see netmap(4).

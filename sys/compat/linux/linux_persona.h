@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  */
 
 #ifndef LINUX_PERSONALITY_H

@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.3 (Berkeley) 8/19/94
- * $FreeBSD$
  */
 
 #ifndef _UFS_UFS_QUOTA_H_
