@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for extra ACPI-controlled features found on HP laptops
  * that use a WMI enabled BIOS (e.g. HP Compaq 8510p and 6510p).

@@ -64,8 +64,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_directio.h"
 #include "opt_ffs.h"
 #include "opt_ufs.h"

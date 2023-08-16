@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "if_igc.h"
 #include <sys/sbuf.h>
 #include <machine/_inttypes.h>

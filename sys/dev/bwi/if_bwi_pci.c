@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * PCI/Cardbus front-end for the Broadcom Wireless LAN controller driver.
  */

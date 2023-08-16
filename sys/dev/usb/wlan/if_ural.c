@@ -20,8 +20,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*-
  * Ralink Technology RT2500USB chipset driver
  * http://www.ralinktech.com/

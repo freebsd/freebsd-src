@@ -57,8 +57,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the National Semiconductor's DP83843, DP83847 and DP83849
  * `PHYTER' Ethernet 10/100 PHYs

@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Routines for mapping device memory. */
 
 #include "opt_ddb.h"

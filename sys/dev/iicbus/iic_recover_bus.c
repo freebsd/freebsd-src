@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Helper code to recover a hung i2c bus by bit-banging a recovery sequence.
  *

@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define BXE_DRIVER_VERSION "1.78.91"
 
 #include "bxe.h"

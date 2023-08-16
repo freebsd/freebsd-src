@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Support functions for the PCI:PCI bridge driver.  This has to be in a
  * separate file because kernel configurations end up referencing the functions

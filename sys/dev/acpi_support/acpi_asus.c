@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for extra ACPI-controlled gadgets (hotkeys, leds, etc) found on
  * recent Asus (and Medion) laptops.  Inspired by the acpi4asus project which

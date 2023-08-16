@@ -64,8 +64,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for generic unknown ten-bit interfaces(1000BASE-{LX,SX}
  * fiber interfaces).

@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the SEEQ 80220 and 84220.
  * (Originally developed for the internal PHY on the SMSC LAN91C111.)

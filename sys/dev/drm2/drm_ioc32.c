@@ -23,8 +23,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifdef COMPAT_FREEBSD32
 
 #include <dev/drm2/drmP.h>

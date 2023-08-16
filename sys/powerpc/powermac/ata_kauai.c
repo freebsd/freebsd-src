@@ -28,8 +28,6 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Mac 'Kauai' PCI ATA controller
  */

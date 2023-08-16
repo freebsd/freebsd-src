@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Control socket and rule management routines for ipfw.
  * Control is currently implemented via IP_FW3 setsockopt() code.

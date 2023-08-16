@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Resource specifications and register maps for Broadcom PCI/PCIe cores 
  * configured as PCI-BHND bridges.

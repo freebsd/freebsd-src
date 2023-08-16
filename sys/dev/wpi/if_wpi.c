@@ -18,8 +18,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for Intel PRO/Wireless 3945ABG 802.11 network adapters.
  *

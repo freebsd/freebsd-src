@@ -30,8 +30,6 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for bcm2835 i2c-compatible two-wire bus, named 'BSC' on this SoC.
  *

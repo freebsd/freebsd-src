@@ -25,8 +25,6 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * SDHCI driver glue for Freescale i.MX SoC and QorIQ families.
  *

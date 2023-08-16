@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define	PMAP_PAE_COMP
 #include <sys/param.h>
 #include <vm/vm.h>

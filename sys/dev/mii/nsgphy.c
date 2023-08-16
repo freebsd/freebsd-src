@@ -40,8 +40,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the National Semiconductor DP83861, DP83865 and DP83891
  * 10/100/1000 PHYs.

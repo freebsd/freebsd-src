@@ -23,8 +23,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef DRM_FIXED_H
 #define DRM_FIXED_H
 

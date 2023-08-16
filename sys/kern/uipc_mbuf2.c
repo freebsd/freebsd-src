@@ -63,8 +63,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*#define PULLDOWN_DEBUG*/
 
 #include <sys/param.h>

@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for extra ACPI-controlled gadgets found on ThinkPad laptops.
  * Inspired by the ibm-acpi and tpb projects which implement these features

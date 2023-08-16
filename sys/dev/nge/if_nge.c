@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * National Semiconductor DP83820/DP83821 gigabit ethernet driver
  * for FreeBSD. Datasheets are available from:

@@ -25,7 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 /*
  * Analog Devices AD7418 chip sitting on the I2C bus.
  */

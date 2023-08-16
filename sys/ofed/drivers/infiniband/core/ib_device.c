@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/errno.h>

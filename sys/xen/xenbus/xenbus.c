@@ -40,8 +40,6 @@
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>

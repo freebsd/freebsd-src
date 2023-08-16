@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Pseudo-driver for internal NWAY support on DEC 21143 and workalike
  * controllers.  Technically we're abusing the miibus code to handle

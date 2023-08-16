@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for acpi-wmi mapping, provides an interface for vendor specific
  * implementations (e.g. HP and Acer laptops).

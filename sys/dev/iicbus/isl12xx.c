@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for ISL12xx family i2c realtime clocks:
  *  - ISL1209 = 2B sram, tamper/event timestamp

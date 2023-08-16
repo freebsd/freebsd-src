@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define	KTR_BE_IO	0
 #define	KTR_LE_IO	0
 

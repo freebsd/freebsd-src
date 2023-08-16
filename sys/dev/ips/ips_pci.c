@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/ips/ipsreg.h>
 #include <dev/ips/ips.h>
 

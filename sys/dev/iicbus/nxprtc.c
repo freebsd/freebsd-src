@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for NXP real-time clock/calendar chips:
  *  - PCF8563 = low power, countdown timer

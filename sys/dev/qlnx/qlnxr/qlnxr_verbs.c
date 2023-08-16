@@ -29,8 +29,6 @@
  * File: qlnxr_verbs.c
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "qlnxr_def.h"
 #include "rdma_common.h"
 #include "qlnxr_roce.h"

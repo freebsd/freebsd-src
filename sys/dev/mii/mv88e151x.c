@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Driver for the Marvell 88e151x gigabit ethernet PHY. */
 
 #include <sys/param.h>

@@ -52,9 +52,6 @@
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
 #include <machine/trap.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifdef KDTRACE_HOOKS
 	.bss
 	.align 4

@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Buffer allocation support routines for bus_dmamem_alloc implementations.
  */

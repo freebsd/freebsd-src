@@ -35,8 +35,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define BOUNCE_BUFFER_TEST	0
 
 #include <sys/param.h>

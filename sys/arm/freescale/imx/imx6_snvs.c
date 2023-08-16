@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for imx6 Secure Non-Volatile Storage system, which really means "all
  * the stuff that's powered by a battery when main power is off".  This includes

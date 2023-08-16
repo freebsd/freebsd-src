@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 #include <linux/compat.h>

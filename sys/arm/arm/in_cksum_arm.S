@@ -44,8 +44,6 @@
 
 #include <machine/asm.h>
 #include "assym.inc"
-__FBSDID("$FreeBSD$");
-
 	.syntax	unified
 /*
  * int in_cksum(struct mbuf *m, int len)

@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the Adaptec by PMC Series 6,7,8,... families of RAID controllers
  */

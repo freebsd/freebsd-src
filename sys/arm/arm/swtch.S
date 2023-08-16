@@ -84,9 +84,6 @@
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/vfp.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifdef VFP
 	.fpu vfp	/* allow VFP instructions */
 #endif

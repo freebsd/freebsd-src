@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * HID spec: https://www.usb.org/sites/default/files/documents/hid1_11.pdf
  */

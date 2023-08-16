@@ -36,8 +36,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>

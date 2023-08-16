@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 unsigned int vt_logo_width = 257;
 unsigned int vt_logo_height = 219;
 unsigned int vt_logo_depth = 1;

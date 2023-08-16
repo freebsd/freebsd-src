@@ -50,8 +50,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_ddb.h"
 #ifndef DDB
 #error "NetGDB cannot be used without DDB at this time"

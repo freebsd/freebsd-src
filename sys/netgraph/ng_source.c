@@ -39,8 +39,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This node is used for high speed packet geneneration.  It queues
  * all data received on its 'input' hook and when told to start via

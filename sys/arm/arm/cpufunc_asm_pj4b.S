@@ -30,8 +30,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #include <machine/param.h>
 
 .Lpj4b_sf_ctrl_reg:

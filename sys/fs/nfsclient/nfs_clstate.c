@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * These functions implement the client side state handling for NFSv4.
  * NFSv4 state handling:

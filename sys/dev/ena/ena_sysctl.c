@@ -29,8 +29,6 @@
  */
 #include <sys/cdefs.h>
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_rss.h"
 
 #include "ena_rss.h"

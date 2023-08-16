@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* file: alias_proxy.c
 
     This file encapsulates special operations related to transparent

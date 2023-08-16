@@ -7,8 +7,6 @@
 /* This file implements defines and helper functions. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/uio.h>

@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This code implements a system driver for legacy systems that do not
  * support ACPI or when ACPI support is not present in the kernel.

@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <lz4.h>
 
 static uint64_t zfs_crc64_table[256];

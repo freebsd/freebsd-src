@@ -36,8 +36,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Generic bus_space functions.
  */

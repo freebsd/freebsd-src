@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for Freescale Fast Ethernet Controller, found on imx-series SoCs among
  * others.  Also works for the ENET Gigibit controller found on imx6 and imx28,

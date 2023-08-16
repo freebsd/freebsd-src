@@ -53,8 +53,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #if !defined(DISABLE_ATAPI)
 
 #include <dev/isci/scil/scic_sds_stp_packet_request.h>

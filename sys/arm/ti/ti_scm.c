@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Based on sys/arm/ti/ti_sysc.c */
 
 #include <sys/param.h>

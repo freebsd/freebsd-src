@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>

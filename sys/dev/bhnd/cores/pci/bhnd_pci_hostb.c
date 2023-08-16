@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Broadcom BHND PCI/PCIe-Gen1 PCI-Host Bridge.
  * 

@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/completion.h>
 #include <linux/fs.h>
 #include <linux/module.h>

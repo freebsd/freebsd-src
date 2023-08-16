@@ -35,8 +35,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/xarray.h>
 #include "uverbs.h"
 #include "core_priv.h"

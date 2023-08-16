@@ -29,8 +29,6 @@
  * File: ql_boot.c
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "ql_os.h"
 
 unsigned int ql83xx_bootloader_version_major = 5;

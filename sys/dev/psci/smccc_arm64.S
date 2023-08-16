@@ -31,8 +31,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 .macro arm_smccc_1_0	insn
 ENTRY(arm_smccc_\insn)
 	\insn	#0

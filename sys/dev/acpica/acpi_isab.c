@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ISA Bridge driver for Generic ISA Bus Devices.  See section 10.7 of the
  * ACPI 2.0a specification for details on this device.

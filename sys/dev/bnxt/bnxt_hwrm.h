@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef _BNXT_HWRM_H
 #define _BNXT_HWRM_H
 

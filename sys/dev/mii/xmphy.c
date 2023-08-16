@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * driver for the XaQti XMAC II's internal PHY. This is sort of
  * like a 10/100 PHY, except the only thing we're really autoselecting

@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * General Desktop/System Controls usage page driver
  * https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf

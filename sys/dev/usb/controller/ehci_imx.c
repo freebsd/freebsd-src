@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * EHCI driver for Freescale i.MX SoCs which incorporate the USBOH3 controller.
  */

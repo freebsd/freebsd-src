@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Thermometer and thermal zones driver for Tegra SoCs.
  * Calibration data and algo are taken from Linux, because this part of SoC

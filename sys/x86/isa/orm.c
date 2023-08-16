@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver to take care of holes in ISA I/O memory occupied
  * by option rom(s)

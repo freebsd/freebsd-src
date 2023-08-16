@@ -34,9 +34,6 @@
 #include <machine/param.h>
 
 #include "assym.inc"
-
-__FBSDID("$FreeBSD$");
-
 /*
  * FIXME:
  * Need big.LITTLE awareness at some point.

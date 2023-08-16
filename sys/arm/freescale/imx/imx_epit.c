@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for imx Enhanced Programmable Interval Timer, a simple free-running
  * counter device that can be used as the system timecounter.  On imx5 a second

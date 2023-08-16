@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * 2000/3/24  added NetBSD/OpenBSD support (from Alex Nemirovsky)
  * 2000/3/07  use two bulk-pipe handles for read and write (Dirk)

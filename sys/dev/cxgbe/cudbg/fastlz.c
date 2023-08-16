@@ -24,8 +24,6 @@
    THE SOFTWARE.
    */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "osdep.h"
 #include "fastlz.h"
 

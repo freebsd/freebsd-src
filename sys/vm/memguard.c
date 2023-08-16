@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * MemGuard is a simple replacement allocator for debugging only
  * which provides ElectricFence-style memory barrier protection on

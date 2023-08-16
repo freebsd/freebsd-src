@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * driver for Sun Cassini/Cassini+ and National Semiconductor DP83065
  * Saturn Gigabit Ethernet controllers
