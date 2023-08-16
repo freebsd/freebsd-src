@@ -45,7 +45,7 @@
 /************************************************************************
  * Driver version
  ************************************************************************/
-char ixv_driver_version[] = "2.0.1-k";
+static const char ixv_driver_version[] = "2.0.1-k";
 
 /************************************************************************
  * PCI Device ID Table
@@ -56,7 +56,7 @@ char ixv_driver_version[] = "2.0.1-k";
  *
  *   { Vendor ID, Device ID, SubVendor ID, SubDevice ID, String Index }
  ************************************************************************/
-static pci_vendor_info_t ixv_vendor_info_array[] =
+static const pci_vendor_info_t ixv_vendor_info_array[] =
 {
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF, "Intel(R) X520 82599 Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF, "Intel(R) X540 Virtual Function"),

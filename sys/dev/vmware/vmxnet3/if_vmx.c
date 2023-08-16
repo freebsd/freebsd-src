@@ -77,7 +77,7 @@
 #define VMXNET3_VMWARE_VENDOR_ID	0x15AD
 #define VMXNET3_VMWARE_DEVICE_ID	0x07B0
 
-static pci_vendor_info_t vmxnet3_vendor_info_array[] =
+static const pci_vendor_info_t vmxnet3_vendor_info_array[] =
 {
 	PVID(VMXNET3_VMWARE_VENDOR_ID, VMXNET3_VMWARE_DEVICE_ID, "VMware VMXNET3 Ethernet Adapter"),
 	/* required last entry */

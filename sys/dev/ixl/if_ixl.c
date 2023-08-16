@@ -63,7 +63,7 @@
  *  ( Vendor ID, Device ID, Branding String )
  *********************************************************************/
 
-static pci_vendor_info_t ixl_vendor_info_array[] =
+static const pci_vendor_info_t ixl_vendor_info_array[] =
 {
 	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_XL710, "Intel(R) Ethernet Controller X710 for 10GbE SFP+"),
 	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_B, "Intel(R) Ethernet Controller XL710 for 40GbE backplane"),

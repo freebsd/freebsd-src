@@ -85,7 +85,7 @@ const uint8_t ice_rc_version = 0;
  * to most-generic entry; e.g. PVIDV_OEM()s for a device ID must come before
  * the PVIDV() for it.
  */
-static pci_vendor_info_t ice_vendor_info_array[] = {
+static const pci_vendor_info_t ice_vendor_info_array[] = {
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_BACKPLANE,
 		"Intel(R) Ethernet Controller E810-C for backplane"),
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
