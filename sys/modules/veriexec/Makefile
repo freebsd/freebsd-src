@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${.PARSEDIR:H:H}/dev/veriexec
 

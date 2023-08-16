@@ -1,6 +1,5 @@
 #! /usr/bin/awk -f
 #	$NetBSD: modelines2c.awk,v 1.4 2006/10/26 23:19:50 bjh21 Exp $
-#	$FreeBSD$
 #
 # Copyright (c) 2006 Itronix Inc.
 # All rights reserved.

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	alias_pptp
 SRCS=	alias_pptp.c

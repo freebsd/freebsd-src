@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 MODULES		 =
 MODULES		+= dummy

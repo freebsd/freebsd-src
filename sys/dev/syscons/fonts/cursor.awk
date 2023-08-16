@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # awk script to convert a bdf file to C declarations in a form specialized
 # for the mouse cursors in syscons/scvgarndr.c.  Usage:

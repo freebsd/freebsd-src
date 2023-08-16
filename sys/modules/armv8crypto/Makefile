@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/crypto/armv8
 .PATH: ${SRCTOP}/sys/crypto/openssl/aarch64

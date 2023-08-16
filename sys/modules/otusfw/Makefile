@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=otusfw_init otusfw_main
 

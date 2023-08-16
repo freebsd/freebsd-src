@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 

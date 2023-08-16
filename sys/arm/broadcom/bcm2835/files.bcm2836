@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/broadcom/bcm2835/bcm2836.c			standard
 arm/broadcom/bcm2835/bcm2836_mp.c		optional smp

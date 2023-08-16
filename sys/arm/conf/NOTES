@@ -1,5 +1,4 @@
 # arm-specific changes for doing a LINT build.
-# $FreeBSD$
 
 
 machine		arm armv7

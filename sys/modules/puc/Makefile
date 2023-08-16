@@ -1,6 +1,4 @@
 
-# $FreeBSD$
-
 .PATH:	${SRCTOP}/sys/dev/puc
 
 KMOD=	puc

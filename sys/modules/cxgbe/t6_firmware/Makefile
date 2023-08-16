@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 T6FW=	${SRCTOP}/sys/dev/cxgbe/firmware

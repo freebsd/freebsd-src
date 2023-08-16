@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 DEVDIR=	${SRCTOP}/sys/contrib/dev/athk
 

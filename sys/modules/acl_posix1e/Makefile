@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:  ${SRCTOP}/sys/kern
 KMOD=	acl_posix1e

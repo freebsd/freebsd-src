@@ -1,7 +1,6 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-# $FreeBSD$
 #
 # This file contains all the x86 devices and such that are
 # common between i386 and amd64, but aren't applicable to

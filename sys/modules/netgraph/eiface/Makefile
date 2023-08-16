@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	ng_eiface
 SRCS= 	ng_eiface.c

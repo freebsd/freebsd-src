@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 
 .PATH:  ${SRCTOP}/sys/x86/bios

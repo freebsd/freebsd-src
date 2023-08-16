@@ -1,4 +1,3 @@
-# $FreeBSD$
 #-
 # Copyright (c) 2009 by Matthew Jacob
 # All rights reserved.

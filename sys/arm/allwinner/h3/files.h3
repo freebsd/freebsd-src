@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/allwinner/clkng/ccu_h3.c		standard
 arm/allwinner/clkng/ccu_sun8i_r.c	standard

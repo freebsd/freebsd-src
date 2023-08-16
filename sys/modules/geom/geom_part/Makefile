@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	geom_part_apm \
 	geom_part_bsd \

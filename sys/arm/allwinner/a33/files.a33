@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 arm/allwinner/a33/a33_padconf.c		standard

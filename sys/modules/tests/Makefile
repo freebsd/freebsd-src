@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR+=	framework
 SUBDIR+=	.WAIT

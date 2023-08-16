@@ -2,7 +2,6 @@
 # WITHOUT_SOURCELESS_UCODE -- Disable drivers that include sourceless
 # microcode.
 #
-# $FreeBSD$
 
 nodevice	bce
 nodevice	fxp

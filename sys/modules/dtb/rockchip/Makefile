@@ -1,4 +1,3 @@
-# $FreeBSD$
 # All the dts files for rockchip systems we support.
 
 .if ${MACHINE_ARCH} == "armv7"

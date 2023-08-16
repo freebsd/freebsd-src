@@ -1,4 +1,3 @@
-# $FreeBSD$
 # All the dts files for Freescale (now NXP) systems we support.
 DTS=	freescale/fsl-ls1028a-rdb.dts \
 	freescale/fsl-lx2160a-clearfog-cx.dts \

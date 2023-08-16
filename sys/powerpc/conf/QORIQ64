@@ -2,7 +2,6 @@
 # Custom kernel for Freescale QorIQ (P5xxx, Txxxx) based boards, like
 # AmigaOne X5000
 #
-# $FreeBSD$
 #
 
 cpu		BOOKE

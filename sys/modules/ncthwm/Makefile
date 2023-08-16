@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/dev/ncthwm
 KMOD=	ncthwm

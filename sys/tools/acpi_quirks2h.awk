@@ -1,6 +1,5 @@
 #!/usr/bin/awk -f
 #
-# $FreeBSD$
 
 #-
 # SPDX-License-Identifier: BSD-2-Clause

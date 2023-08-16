@@ -1,7 +1,6 @@
 #! /usr/bin/awk -f
 #-
 #	$NetBSD: usb/devlist2h.awk,v 1.9 2001/01/18 20:28:22 jdolecek Exp $
-#  $FreeBSD$
 #
 # SPDX-License-Identifier: BSD-4-Clause
 #

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=		core
 SUBDIR+=	mt7915

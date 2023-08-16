@@ -1,4 +1,3 @@
-# $FreeBSD$
 .PATH: ${SRCTOP}/sys/contrib/rdma/krping
 
 KMOD= krping

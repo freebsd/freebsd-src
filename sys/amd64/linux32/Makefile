@@ -1,6 +1,5 @@
 # Makefile for syscall tables
 #
-# $FreeBSD$
 
 GENERATED_PREFIX=	linux32_
 

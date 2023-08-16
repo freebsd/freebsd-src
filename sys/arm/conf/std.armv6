@@ -1,6 +1,5 @@
 # Standard kernel config items for all ARMv6 systems.
 #
-# $FreeBSD$
 
 options 	HZ=1000
 options 	PREEMPTION		# Enable kernel thread preemption

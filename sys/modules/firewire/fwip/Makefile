@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Makefile for the fwip(4) module (IP over IEEE1394)
 

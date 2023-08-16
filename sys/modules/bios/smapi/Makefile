@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 
 .PATH:  ${SRCTOP}/sys/i386/bios

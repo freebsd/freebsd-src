@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/dev/mxge
 KMOD=	mxge_rss_ethp_z8e

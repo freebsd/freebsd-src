@@ -29,7 +29,6 @@
 # * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
 # */
 #
-# $FreeBSD$
 #
 
 #.PATH:  ${.CURDIR}

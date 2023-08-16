@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Copyright (c) 2008-2020 Hans Petter Selasky. All rights reserved.
 #

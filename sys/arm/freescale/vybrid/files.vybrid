@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/freescale/vybrid/vf_machdep.c		standard
 arm/freescale/vybrid/vf_ccm.c			standard

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 machine	arm armv6
 cpu	CPU_ARM1176

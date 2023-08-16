@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 include "../../conf/NOTES"
 include "../../x86/conf/NOTES"

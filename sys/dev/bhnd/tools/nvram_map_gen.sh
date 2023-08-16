@@ -3,8 +3,6 @@
 # Use C locale to ensure AWK string comparisons always produce
 # a stable sort order.
 
-# $FreeBSD$
-
 BHND_TOOLDIR="$(dirname $0)/"
 
 LC_ALL=C; export LC_ALL

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	ipw_bss	\
 	ipw_ibss \

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/fs/ext2fs
 KMOD=	ext2fs

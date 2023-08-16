@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # Copyright (c) Andriy Gapon <avg@FreeBSD.org>
 #

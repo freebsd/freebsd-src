@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	\
 	iwlwifi-3160-fw \

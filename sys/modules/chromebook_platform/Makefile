@@ -1,4 +1,3 @@
-#$FreeBSD$
 
 .PATH: ${SRCTOP}/sys/dev/chromebook_platform
 KMOD= chromebook_platform

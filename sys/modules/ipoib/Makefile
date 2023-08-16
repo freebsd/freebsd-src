@@ -1,4 +1,3 @@
-# $FreeBSD$
 .PATH:  ${SRCTOP}/sys/ofed/drivers/infiniband/ulp/ipoib
 
 KMOD=	ipoib

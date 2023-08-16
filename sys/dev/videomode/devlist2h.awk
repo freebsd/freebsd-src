@@ -1,6 +1,5 @@
 #! /usr/bin/awk -f
 #	$NetBSD: devlist2h.awk,v 1.9 2005/12/11 12:21:20 christos Exp $
-#	$FreeBSD$
 #
 # Copyright (c) 1995, 1996 Christopher G. Demetriou
 # All rights reserved.

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # All the dts files for imx6 systems we support.
 DTS=	\
 	imx6dl-cubox-i.dts \

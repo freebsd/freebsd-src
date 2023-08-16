@@ -1,4 +1,3 @@
-# $FreeBSD$
 kern/kern_clocksource.c			standard
 
 arm/rockchip/rk32xx_machdep.c		standard

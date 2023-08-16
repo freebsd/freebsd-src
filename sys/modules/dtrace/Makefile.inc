@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 IGNORE_PRAGMA=	1
 

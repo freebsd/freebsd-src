@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	runfw
 FIRMWS=	run.fw:runfw:1

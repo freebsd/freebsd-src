@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 FWVERSION=	73
 NAME=		cc-a0

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=		acpi_asus acpi_asus_wmi acpi_dock acpi_fujitsu acpi_hp	\
 		acpi_ged acpi_ibm acpi_panasonic acpi_sony acpi_toshiba	\

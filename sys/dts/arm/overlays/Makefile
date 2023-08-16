@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 DTSO!=ls ${.CURDIR}/*.dtso
 
