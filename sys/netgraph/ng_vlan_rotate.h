@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  *
  * Author: Lutz Donnerhacke <lutz@donnerhacke.de>
- *
- * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_NG_VLAN_ROTATE_H_

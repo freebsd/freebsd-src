@@ -18,8 +18,6 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
- *
  */
 
 /* ARGSUSED */

@@ -65,8 +65,6 @@
  *
  * Author:		Brooks Davis <brooks@FreeBSD.org>
  * Derived from:	ng_hole.c
- *
- * $FreeBSD$
  */
 
 /*

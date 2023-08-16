@@ -35,8 +35,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0var.h, rev 1
- *
- * $FreeBSD$
  */
 
 #ifndef _MVVAR_H_

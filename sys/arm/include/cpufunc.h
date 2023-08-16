@@ -39,8 +39,6 @@
  * cpufunc.h
  *
  * Prototypes for cpu, mmu and tlb related functions.
- *
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_CPUFUNC_H_

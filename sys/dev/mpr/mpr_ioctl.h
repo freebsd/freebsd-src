@@ -28,8 +28,6 @@
  * SUCH DAMAGE.
  *
  * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD userland interface
- *
- * $FreeBSD$
  */
 /*-
  * Copyright (c) 2011-2015 LSI Corp.
@@ -59,8 +57,6 @@
  * SUCH DAMAGE.
  *
  * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
- *
- * $FreeBSD$
  */
 
 #ifndef _MPR_IOCTL_H_

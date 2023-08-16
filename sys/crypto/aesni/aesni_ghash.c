@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  *
- *	$FreeBSD$
- *
  */
 
 /*

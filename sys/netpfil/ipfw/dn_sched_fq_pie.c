@@ -1,7 +1,5 @@
 /* 
  * FQ_PIE - The FlowQueue-PIE scheduler/AQM
- *
- * $FreeBSD$
  * 
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.

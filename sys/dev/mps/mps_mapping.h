@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
- *
- * $FreeBSD$
  */
 
 #ifndef _MPS_MAPPING_H

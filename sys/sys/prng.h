@@ -1,7 +1,5 @@
 /*-
  * This file is in the public domain.
- *
- * $FreeBSD$
  */
 
 #ifndef	_SYS_PRNG_H_

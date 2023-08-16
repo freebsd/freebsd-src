@@ -17,8 +17,6 @@
  *    is allowed if this notation is included.
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
- *
- * $FreeBSD$
  */
 
 #ifndef _SYS_PIPE_H_

@@ -18,8 +18,6 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
- *
  */
 
 #ifndef EARLY_AP_STARTUP

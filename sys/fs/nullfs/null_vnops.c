@@ -37,8 +37,6 @@
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
- *
- * $FreeBSD$
  */
 
 /*

@@ -1,8 +1,6 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $FreeBSD$
- *
  */
 
 #ifndef _NET_ETHERNET_H_

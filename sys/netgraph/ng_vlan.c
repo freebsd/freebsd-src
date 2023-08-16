@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * Author: Ruslan Ermilov <ru@FreeBSD.org>
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

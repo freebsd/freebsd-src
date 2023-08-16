@@ -28,8 +28,6 @@
  * SUCH DAMAGE.
  *
  * Author: Joe Marcus Clarke <marcus@FreeBSD.org>
- *
- * $FreeBSD$
  */
 
 #ifdef _KERNEL

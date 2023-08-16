@@ -18,8 +18,6 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
- *
  */
 
 static int dtrace_verbose_ioctl;

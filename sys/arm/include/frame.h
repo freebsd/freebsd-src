@@ -44,8 +44,6 @@
  *
  * Created      : 30/09/94
  *
- * $FreeBSD$
- *
  */
 
 #ifndef _MACHINE_FRAME_H_

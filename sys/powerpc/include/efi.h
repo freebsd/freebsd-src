@@ -1,7 +1,5 @@
 /*-
  * This file is in the public domain since it's just boilerplate.
- *
- * $FreeBSD$
  */
 
 #ifndef __POWERPC_INCLUDE_EFI_H_

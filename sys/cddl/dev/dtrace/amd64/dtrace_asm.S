@@ -20,8 +20,6 @@
  *
  * Portions Copyright 2008 John Birrell <jb@freebsd.org>
  *
- * $FreeBSD$
- *
  */
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.

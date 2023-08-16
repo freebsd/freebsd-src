@@ -25,8 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * Convert MS-DOS FAT format timestamps to and from unix timespecs
  *
  * FAT filestamps originally consisted of two 16 bit integers, encoded like

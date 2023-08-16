@@ -5,8 +5,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file included in this
  * release for licensing terms and conditions.
- *
- * $FreeBSD$
  */
 
 #ifndef _CXGB3_OFFLOAD_CTL_DEFS_H

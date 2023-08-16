@@ -27,8 +27,6 @@
  *
  * Copyright (C) Red Hat, Inc., 2009, 2010, 2011
  * Copyright (C) Amit Shah <amit.shah@redhat.com>, 2009, 2010, 2011
- *
- * $FreeBSD$
  */
 
 #ifndef _VIRTIO_CONSOLE_H

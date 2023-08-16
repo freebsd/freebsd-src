@@ -30,8 +30,6 @@
  * policies, either expressed or implied, of the FreeBSD Project.
  *
  * Ackowledgement to Fen Systems Ltd.
- *
- * $FreeBSD$
  */
 
 #ifndef	_SYS_EFX_TYPES_H

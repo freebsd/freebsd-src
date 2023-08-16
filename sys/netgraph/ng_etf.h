@@ -31,8 +31,6 @@
  * SUCH DAMAGE.
  *
  * Author: Julian Elischer <julian@freebsd.org>
- *
- * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_NG_ETF_H_

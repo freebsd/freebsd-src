@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
- *
  */
 
 #ifndef __PCI_HOST_GENERIC_FDT_H_

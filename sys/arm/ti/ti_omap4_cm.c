@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Based on sys/arm/ti/ti_sysc.c
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>

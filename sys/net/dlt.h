@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
- *
- * $FreeBSD$
  */
 
 #ifndef _NET_DLT_H_
