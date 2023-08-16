@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Do not build
 .Xr freebsd-update 8 .

@@ -26,7 +26,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)0.t	5.1 (Berkeley) 4/17/91
-.\" $FreeBSD$
 .\"
 .rm CM
 .nr PO 1.25i

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Include support for save and restore (snapshots) in
 .Xr bhyve 8
 and

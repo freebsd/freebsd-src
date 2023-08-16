@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr genl 1
 utility.

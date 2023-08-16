@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not opportunistically skip building a cross-compiler during the
 bootstrap phase of the build.
 Normally, if the currently installed compiler matches the planned bootstrap

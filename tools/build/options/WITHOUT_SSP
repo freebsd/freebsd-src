@@ -1,2 +1,1 @@
-.\" $FreeBSD$
 Do not build world with propolice stack smashing protection.

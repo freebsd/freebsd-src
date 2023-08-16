@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build and install
 .Lb libgmock ,
 .Lb libgtest ,

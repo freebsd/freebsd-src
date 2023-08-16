@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not install a
 .Pa /usr/bin/ld symlink
 to

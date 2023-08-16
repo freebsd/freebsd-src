@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build nor install the
 .Fx
 Test Suite in

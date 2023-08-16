@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Disable name caching in the
 .Pa nsswitch
 subsystem.

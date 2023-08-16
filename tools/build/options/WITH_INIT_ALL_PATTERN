@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build the base system or kernel with stack variables initialized to
 .Pq compiler defined
 debugging patterns on function entry.

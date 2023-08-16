@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .am vS
 ..
 .am vE

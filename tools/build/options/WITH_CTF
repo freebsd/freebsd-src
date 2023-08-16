@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Compile with CTF (Compact C Type Format) data.
 CTF data encapsulates a reduced form of debugging information
 similar to DWARF and the venerable stabs and is required for DTrace.

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr vt 4
 support files (fonts and keymaps).

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .Sh ADDITIONAL DOCUMENTATION
 .Fx
 uses

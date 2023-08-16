@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build the kernel with
 .Xr ipsec 4
 support.

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr syscons 4
 support files such as keyboard maps, fonts, and screen output maps.

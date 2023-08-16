@@ -1,2 +1,1 @@
-.\" $FreeBSD$
 Do not build programs and libraries related to IPv4 networking.

@@ -1,2 +1,1 @@
-.\" $FreeBSD$
 Build libraries, programs, and kernel modules without IPv6 support.

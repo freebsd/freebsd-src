@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Set this to not install optional libraries.
 For example, when creating a
 .Xr nanobsd 8

@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Enable threads in
 .Xr sort 1 .
