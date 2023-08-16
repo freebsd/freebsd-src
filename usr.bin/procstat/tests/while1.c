@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-
 #include <stdlib.h>
 #include <unistd.h>
 

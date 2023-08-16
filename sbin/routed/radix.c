@@ -36,9 +36,6 @@
  */
 
 #include "defs.h"
-
-__RCSID("$FreeBSD$");
-
 #define log(x, msg) syslog(x, msg)
 #define panic(s) {log(LOG_ERR,s); exit(1);}
 #define min(a,b) (((a)<(b))?(a):(b))

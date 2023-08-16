@@ -30,9 +30,6 @@
  */
 
 #include "defs.h"
-
-__RCSID("$FreeBSD$");
-
 static struct rt_spare *rts_better(struct rt_entry *);
 static struct rt_spare rts_empty = {0,0,0,HOPCNT_INFINITY,0,0,0};
 static void  set_need_flash(void);

@@ -33,9 +33,6 @@
 #include "pathnames.h"
 #include <sys/stat.h>
 
-__RCSID("$FreeBSD$");
-
-
 static struct parm *parms;
 struct intnet *intnets;
 struct r1net *r1nets;

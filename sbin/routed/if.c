@@ -33,9 +33,6 @@
 
 #include "defs.h"
 #include "pathnames.h"
-
-__RCSID("$FreeBSD$");
-
 struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
 struct ifhead remote_if = LIST_HEAD_INITIALIZER(remote_if);	/* remote interfaces */
 

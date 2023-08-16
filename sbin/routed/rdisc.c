@@ -33,9 +33,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-
-__RCSID("$FreeBSD$");
-
 /* router advertisement ICMP packet */
 struct icmp_ad {
 	u_int8_t    icmp_type;		/* type of message */

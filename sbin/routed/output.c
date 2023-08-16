@@ -31,9 +31,6 @@
 
 #include "defs.h"
 
-__RCSID("$FreeBSD$");
-
-
 u_int update_seqno;
 
 

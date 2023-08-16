@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
