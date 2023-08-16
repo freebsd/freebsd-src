@@ -1,6 +1,3 @@
-
-.PATH: ${LIBC_SRCTOP}/stdlib/jemalloc
-
 JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bitmap.c \
 	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hash.c hook.c \
 	large.c log.c malloc_io.c mutex.c mutex_pool.c nstime.c pages.c \
