@@ -58,5 +58,3 @@ Note that having a "sufficient" module as the last entry for a
 particular service and module type may result in surprising behaviour.
 To get the intended semantics, add a "required" entry listing the
 pam_deny module at the end of the chain.
-
-$FreeBSD$

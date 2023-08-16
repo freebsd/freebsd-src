@@ -131,4 +131,3 @@ from the relevant chain - which is sure to be a valid certificate
 signed by the corresponding trust anchor.
 
 --------------------
-$FreeBSD$

@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This is a very cut down implementation of a "busybox" style binary
 for FreeBSD.

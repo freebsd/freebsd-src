@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
     A MSDOS floppy image.
   </comment>
   <sectorsize>512</sectorsize>

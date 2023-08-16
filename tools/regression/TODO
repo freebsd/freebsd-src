@@ -1,4 +1,3 @@
-$FreeBSD$
 ---
 
 A lot of the tests written in C use assert(), only printing 'ok' at the end

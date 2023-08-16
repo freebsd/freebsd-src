@@ -1,4 +1,3 @@
-$FreeBSD$
 These tests are intended to make sure that NFS's use of the
 b_{valid,dirty}{off,end} fields of struct buf is consistent with the
 VM system's use of the underlying VM pages.

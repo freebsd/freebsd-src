@@ -1,5 +1,4 @@
 $NetBSD: softfloat-source.txt,v 1.2 2006/11/24 19:46:58 christos Exp $
-$FreeBSD$
 
 SoftFloat Release 2a Source Documentation
 

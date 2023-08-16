@@ -1,4 +1,3 @@
-$FreeBSD$
 
 1.2:	Userboot with lua or forth
 1.1:	Initial userland boot

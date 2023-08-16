@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This directory is for standalone test programs.  For the FreeBSD
 Test Suite, which uses Kyua, please see /usr/src/tests/

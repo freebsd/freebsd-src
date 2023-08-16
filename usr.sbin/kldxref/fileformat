@@ -1,4 +1,3 @@
-$FreeBSD$
 
 linker.hints file consists from the one or more records,
 and is processed by sys/kern/kern_linker.c::linker_hints_lookup()

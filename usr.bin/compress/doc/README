@@ -1,6 +1,5 @@
 
 	@(#)README	8.1 (Berkeley) 6/9/93
-  $FreeBSD$
 
 Compress version 4.0 improvements over 3.0:
 	o compress() speedup (10-50%) by changing division hash to xor

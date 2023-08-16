@@ -17,5 +17,3 @@ Operator					Associativity
 = += -= *= /= %= <<= >>= &= ^= |= throw		right to left
 ?: (C++, third operand)				right to left
 ,						left to right
-
-$FreeBSD$

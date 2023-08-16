@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This is a simple testing program for *at family of syscalls. It creates
 "tmp" subdirectory in a current directory and creates files etc. in it.

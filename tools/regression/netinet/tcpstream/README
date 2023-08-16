@@ -16,5 +16,3 @@ Now run the client on a second machine with the server's IP, port 8080, and
 seed of 100:
 
     tcpstream client 192.168.10.10 8080 100
-
-$FreeBSD$
