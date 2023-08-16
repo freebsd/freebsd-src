@@ -386,6 +386,15 @@ SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
     print_caddr_t, diag_warn);
 #endif
 
+#if __SIZEOF_LONG__ == 4
+static char ilp32_warn[] =
+    "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 15.0.\n";
+SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
+    print_caddr_t, ilp32_warn);
+SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
+    print_caddr_t, ilp32_warn);
+#endif
+
 static int
 null_fetch_syscall_args(struct thread *td __unused)
 {
