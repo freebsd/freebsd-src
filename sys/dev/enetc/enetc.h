@@ -28,8 +28,6 @@
 #define _ENETC_H_
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 
 #include <dev/enetc/enetc_hw.h>

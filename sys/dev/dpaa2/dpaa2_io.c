@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * QBMan command interface and the DPAA2 I/O (DPIO) driver.
  *

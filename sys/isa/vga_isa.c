@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_vga.h"
 #include "opt_fb.h"
 #include "opt_syscons.h"	/* should be removed in the future, XXX */

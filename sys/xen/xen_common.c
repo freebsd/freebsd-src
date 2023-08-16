@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h> /* required by xen/xen-os.h */
 
 #include <vm/vm.h>

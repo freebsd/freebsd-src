@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define	RB_AUGMENT_CHECK(entry) iommu_gas_augment_entry(entry)
 
 #include <sys/param.h>

@@ -10,8 +10,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*-
  * Just when we thought life were beautiful, reality pops its grim face over
  * the edge again:

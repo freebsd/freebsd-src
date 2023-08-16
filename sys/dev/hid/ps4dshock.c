@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Sony PS4 DualShock 4 driver
  * https://eleccelerator.com/wiki/index.php?title=DualShock_4

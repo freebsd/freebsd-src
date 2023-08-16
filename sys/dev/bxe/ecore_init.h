@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef ECORE_INIT_H
 #define ECORE_INIT_H
 

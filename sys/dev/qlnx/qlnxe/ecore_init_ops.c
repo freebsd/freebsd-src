@@ -29,8 +29,6 @@
  * File : ecore_init_ops.c
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* include the precompiled configuration values - only once */
 #include "bcm_osal.h"
 #include "ecore_hsi_common.h"

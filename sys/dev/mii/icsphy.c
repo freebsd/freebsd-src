@@ -57,8 +57,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * driver for Integrated Circuit Systems' ICS1889-1893 ethernet 10/100 PHY
  * datasheet from www.icst.com

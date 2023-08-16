@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This pager manages OBJT_SG objects.  These objects are backed by
  * a scatter/gather list of physical address ranges.

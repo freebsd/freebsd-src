@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the JMicron JMP211 10/100/1000, JMP202 10/100 PHY.
  */

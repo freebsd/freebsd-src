@@ -10,8 +10,6 @@
 /*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
 __RCSID("$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $");
 #endif /* not lint */
-__FBSDID("$FreeBSD$");
-
 bool_t
 xdr_nlm_stats(XDR *xdrs, nlm_stats *objp)
 {

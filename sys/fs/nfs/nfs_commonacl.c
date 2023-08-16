@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <fs/nfs/nfsport.h>
 
 extern int nfsrv_useacl;

@@ -39,8 +39,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <rdma/ib_smi.h>
 #include "smi.h"
 #include "opa_smi.h"

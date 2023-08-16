@@ -577,7 +577,6 @@
  * Embed the rcs id of a source file in the resulting library.  Note that in
  * more recent ELF binutils, we use .ident allowing the ID to be stripped.
  * Usage:
- *	__FBSDID("$FreeBSD$");
  */
 #ifndef	__FBSDID
 #if !defined(STRIP_FBSDID)

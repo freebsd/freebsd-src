@@ -28,8 +28,6 @@
 /* Arm CoreLink CMN-600 Coherent Mesh Network Driver */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_acpi.h"
 
 #include <sys/param.h>

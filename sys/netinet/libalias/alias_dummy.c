@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Alias_dummy is just an empty skeleton used to demostrate how to write
  * a module for libalias, that will run unalterated in userland or in

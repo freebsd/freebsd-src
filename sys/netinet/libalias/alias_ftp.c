@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
     Alias_ftp.c performs special processing for FTP sessions under
     TCP.  Specifically, when a PORT/EPRT command from the client

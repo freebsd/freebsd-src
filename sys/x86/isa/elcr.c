@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * The ELCR is a register that controls the trigger mode and polarity of
  * EISA and ISA interrupts.  In FreeBSD 3.x and 4.x, the ELCR was only

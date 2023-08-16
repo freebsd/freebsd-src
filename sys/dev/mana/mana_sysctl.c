@@ -28,9 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-
 #include "mana_sysctl.h"
 
 static int mana_sysctl_cleanup_thread_cpu(SYSCTL_HANDLER_ARGS);

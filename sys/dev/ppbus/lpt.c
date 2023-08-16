@@ -53,8 +53,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Device Driver for AT parallel printer port
  * Written by William Jolitz 12/18/90

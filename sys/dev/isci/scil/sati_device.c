@@ -53,8 +53,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /**
  * @file
  * @brief This file contains all of the defintions for the SATI remote

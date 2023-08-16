@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Functions that need to be different for different versions of BSD
  * kernel should be kept here, along with any global storage specific

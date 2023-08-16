@@ -1,6 +1,4 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <opencrypto/cbc_mac.h>
 #include <opencrypto/xform_auth.h>
 

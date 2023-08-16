@@ -29,8 +29,6 @@
  * File: qlnxr_os.c
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "qlnxr_def.h"
 
 SYSCTL_NODE(_dev, OID_AUTO, qnxr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,

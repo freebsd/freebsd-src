@@ -39,9 +39,6 @@
 #include <machine/asm.h>
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
-
-__FBSDID("$FreeBSD$");
-
 .macro __fpe_state_save p
 	/*
 	 * Enable FPE usage in supervisor mode,

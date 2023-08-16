@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ChangeLog:
  *  2001-11-16	Torsten Duwe <duwe@caldera.de>

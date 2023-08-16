@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "iwpm_util.h"
 
 #define IWPM_MAPINFO_HASH_SIZE	512

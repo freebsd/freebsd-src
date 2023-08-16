@@ -39,8 +39,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * AMRR rate control. See:
  * http://www-sop.inria.fr/rapports/sophia/RR-5208.html

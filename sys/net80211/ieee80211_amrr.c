@@ -19,8 +19,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*-
  * Naive implementation of the Adaptive Multi Rate Retry algorithm:
  *

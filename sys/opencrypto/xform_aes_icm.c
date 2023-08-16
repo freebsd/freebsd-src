@@ -48,8 +48,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <opencrypto/cbc_mac.h>
 #include <opencrypto/gmac.h>
 #include <opencrypto/xform_enc.h>

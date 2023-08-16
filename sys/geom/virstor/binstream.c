@@ -29,8 +29,6 @@
 // $Id: binstream.c,v 1.1 2006/07/05 10:47:54 ivoras Exp $
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/endian.h>
 #include <sys/param.h>
 

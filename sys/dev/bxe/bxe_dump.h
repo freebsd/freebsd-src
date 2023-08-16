@@ -29,8 +29,6 @@
 #define __BXE_DUMP_H__
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* WaitP Definitions */
 #define DRV_DUMP_XSTORM_WAITP_ADDRESS    0x2b8a80
 #define DRV_DUMP_TSTORM_WAITP_ADDRESS    0x1b8a80

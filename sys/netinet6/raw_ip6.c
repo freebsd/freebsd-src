@@ -62,8 +62,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_route.h"

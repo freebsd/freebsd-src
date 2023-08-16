@@ -26,8 +26,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This implements
  *  void __aeabi_memclr4(void *dest, size_t len)

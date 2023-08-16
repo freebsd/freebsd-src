@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Rpc op calls, generally called from the vnode op calls or through the
  * buffer cache, for NFS v2, 3 and 4.

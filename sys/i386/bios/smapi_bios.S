@@ -1,6 +1,4 @@
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This is cribbed from the Linux thinkpad-4.1 driver by
  * Thomas Hood.

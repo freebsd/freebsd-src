@@ -43,8 +43,6 @@
 /* This file is shared between kernel and userland. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/malloc.h>

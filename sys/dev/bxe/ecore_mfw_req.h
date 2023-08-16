@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef ECORE_MFW_REQ_H
 #define ECORE_MFW_REQ_H
 

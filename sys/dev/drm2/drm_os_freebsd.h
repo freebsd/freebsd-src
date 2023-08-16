@@ -4,8 +4,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef _DRM_OS_FREEBSD_H_
 #define	_DRM_OS_FREEBSD_H_
 

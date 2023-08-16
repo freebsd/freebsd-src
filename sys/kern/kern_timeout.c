@@ -37,8 +37,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_callout_profiling.h"
 #include "opt_ddb.h"
 #include "opt_rss.h"

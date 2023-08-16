@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Simple driver for PCI VGA display devices.  Drivers such as agp(4) and
  * drm(4) should attach as children of this device.

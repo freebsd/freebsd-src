@@ -40,8 +40,6 @@
 
 #include <machine/asm.h>
 #include <sys/errno.h>
-
-__FBSDID("$FreeBSD$");
 #include <arm/arm/bcopyinout_xscale.S>
 
 /*

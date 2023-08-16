@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_vga.h"
 
 #ifndef VGA_NO_MODE_CHANGE
