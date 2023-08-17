@@ -1,5 +1,3 @@
-/*
- */
 
 #ifndef LINUX_PERSONALITY_H
 #define LINUX_PERSONALITY_H
