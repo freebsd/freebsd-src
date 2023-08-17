@@ -34,6 +34,8 @@
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -300,3 +302,27 @@ allwinner_soc_family(void)
 {
 	return (soc_family);
 }
+
+/*
+ * Early putc routine for EARLY_PRINTF support.  To use, add to kernel config:
+ *   option SOCDEV_PA=0x01c28000
+ *   option SOCDEV_VA=0x01c28000
+ *   option EARLY_PRINTF
+ * Resist the temptation to change the #if 0 to #ifdef EARLY_PRINTF here. It
+ * makes sense now, but if multiple SOCs do that it will make early_putc another
+ * duplicate symbol to be eliminated on the path to a generic kernel.
+ */
+#if 0 
+static void 
+aw_early_putc(int c)
+{
+	volatile uint32_t * UART_STAT_REG = (uint32_t *)0x01c28014;
+	volatile uint32_t * UART_TX_REG   = (uint32_t *)0x01c28000;
+	const uint32_t      UART_TXRDY    = (1 << 5);
+
+	while ((*UART_STAT_REG & UART_TXRDY) == 0)
+		continue;
+	*UART_TX_REG = c;
+}
+early_putc_t *early_putc = aw_early_putc;
+#endif
