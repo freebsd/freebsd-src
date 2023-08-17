@@ -95,6 +95,7 @@ forkpty(int *amaster, char *name, struct termios *termp, struct winsize *winp)
 		return (-1);
 	switch (pid = fork()) {
 	case -1:
+		(void)close(master);
 		(void)close(slave);
 		return (-1);
 	case 0:
