@@ -2607,8 +2607,7 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 	    arg->offset != NULL ? &offset64 : NULL, arg->count);
 
 	if (error == 0 && arg->offset != NULL) {
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(__amd64__) && defined(COMPAT_LINUX32))
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 		if (offset64 > INT32_MAX)
 			return (EOVERFLOW);
 #endif
@@ -2619,9 +2618,7 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 	return (error);
 }
 
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(__amd64__) && defined(COMPAT_LINUX32))
-
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_sendfile64(struct thread *td, struct linux_sendfile64_args *arg)
 {
@@ -2731,4 +2728,4 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 	linux_msg(td, "socket type %d not implemented", args->what);
 	return (ENOSYS);
 }
-#endif /* __i386__ || __arm__ || (__amd64__ && COMPAT_LINUX32) */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
