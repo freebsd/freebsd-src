@@ -64,7 +64,7 @@
 #define	COM4_IRQ	3
 
 #define	DEFAULT_RCLK	1843200
-#define	DEFAULT_BAUD	9600
+#define	DEFAULT_BAUD	115200
 
 #define	FCR_RX_MASK	0xC0
 
