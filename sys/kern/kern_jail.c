@@ -3939,6 +3939,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 */
 	case PRIV_SEEOTHERGIDS:
 	case PRIV_SEEOTHERUIDS:
+	case PRIV_SEEJAILPROC:
 
 		/*
 		 * Jail implements inter-process debugging limits already, so
