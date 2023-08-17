@@ -1,7 +1,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd December 15, 2022
+.Dd August 18, 2023
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -149,31 +149,37 @@ its scope.
 The following controls are provided for this:
 .Bl -tag -width security.bsd.unprivileged_proc_debug
 .It Dv security.bsd.allow_ptrace
-Setting this sysctl to zero value makes
+Setting this sysctl to zero makes
 .Nm
 return
 .Er ENOSYS
 always as if the syscall is not implemented by the kernel.
 .It Dv security.bsd.unprivileged_proc_debug
-Setting this sysctl to zero disallows use of
+Setting this sysctl to zero disallows the use of
 .Fn ptrace
 by unprivileged processes.
 .It Dv security.bsd.see_other_uids
-Setting this sysctl to zero value disallows
+Setting this sysctl to zero prevents
 .Fn ptrace
-requests from targeting processes with the real user identifier different
-from the real user identifier of the caller.
-The requests return
-.Er ESRCH
-if policy is not met.
+requests from targeting processes with a real user identifier different
+from the caller's.
+These requests will fail with error
+.Er ESRCH .
 .It Dv security.bsd.see_other_gids
-Setting this sysctl to zero value disallows
+Setting this sysctl to zero disallows
 .Fn ptrace
-requests from process belonging to a group that is not also one of
-the group of the target process.
-The requests return
-.Er ESRCH
-if policy is not met.
+requests from processes that have no groups in common with the target process,
+considering their sets of real and supplementary groups.
+These requests will fail with error
+.Er ESRCH .
+.It Dv security.bsd.see_jail_proc
+Setting this sysctl to zero disallows
+.Fn ptrace
+requests from processes belonging to a different jail than that of the target
+process, even if the requesting process' jail is an ancestor of the target
+process'.
+These requests will fail with error
+.Er ESRCH .
 .It Dv securelevel and init
 The
 .Xr init 1
