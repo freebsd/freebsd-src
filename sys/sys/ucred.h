@@ -158,8 +158,8 @@ void	crcowfree(struct thread *td);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	cru2xt(struct thread *td, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
-int	groupmember(gid_t gid, struct ucred *cred);
-int	realgroupmember(gid_t gid, struct ucred *cred);
+bool	groupmember(gid_t gid, struct ucred *cred);
+bool	realgroupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_UCRED_H_ */
