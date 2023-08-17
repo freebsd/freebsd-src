@@ -31,7 +31,7 @@ Changes to this file should not be MFCed.
 
 	stable/14 and earlier branches will retain existing 32-bit
 	kernel and world support.  Ports will retain existing support
-	for building ports and packages on 32-bit systems on stable/14
+	for building ports and packages for 32-bit systems on stable/14
 	and earlier branches as long as those branches are supported
 	by the ports system.  However, all 32-bit platforms are Tier-2
 	or Tier-3 and support for individual ports should be expected
