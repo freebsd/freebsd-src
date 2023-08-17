@@ -26,17 +26,17 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .Dd November 11, 2003
-.Dt CR_SEEOTHERGIDS 9
+.Dt CR_CANSEEOTHERUIDS 9
 .Os
 .Sh NAME
-.Nm cr_seeothergids
-.Nd determine visibility of objects given their group memberships
+.Nm cr_canseeotheruids
+.Nd determine visibility of objects given their user credentials
 .Sh SYNOPSIS
 .Ft int
-.Fn cr_seeothergids "struct ucred *u1" "struct ucred *u2"
+.Fn cr_canseeotheruids "struct ucred *u1" "struct ucred *u2"
 .Sh DESCRIPTION
 This function determines the visibility of objects in the
-kernel based on the group IDs in the credentials
+kernel based on the real user IDs in the credentials
 .Fa u1
 and
 .Fa u2
@@ -45,23 +45,23 @@ associated with them.
 The visibility of objects is influenced by the
 .Xr sysctl 8
 variable
-.Va security.bsd.see_other_gids .
+.Va security.bsd.see_other_uids .
 If this variable is non-zero then all objects in the kernel
-are visible to each other irrespective of their group membership.
+are visible to each other irrespective of their user IDs.
 If this variable is zero then the object with credentials
 .Fa u2
 is visible to the object with credentials
 .Fa u1
 if either
 .Fa u1
-is the super-user credential, or if at least one of
-.Fa u1 Ns 's
-group IDs is present in
-.Fa u2 Ns 's
-group set.
+is the super-user credential, or if
+.Fa u1
+and
+.Fa u2
+have the same real user ID.
 .Sh SYSCTL VARIABLES
 .Bl -tag -width indent
-.It Va security.bsd.see_other_gids
+.It Va security.bsd.see_other_uids
 Must be non-zero if objects with unprivileged credentials are to be
 able to see each other.
 .El
@@ -76,5 +76,5 @@ or
 .Er ESRCH
 otherwise.
 .Sh SEE ALSO
-.Xr cr_seeotheruids 9 ,
+.Xr cr_canseeothergids 9 ,
 .Xr p_candebug 9
