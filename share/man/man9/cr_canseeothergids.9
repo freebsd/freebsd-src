@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 2003 Joseph Koshy <jkoshy@FreeBSD.org>
+.\" Copyright (c) 2023 Olivier Certner <olce.freebsd@certner.fr>
 .\"
 .\" All rights reserved.
 .\"
@@ -25,56 +26,58 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 11, 2003
+.Dd August 18, 2023
 .Dt CR_CANSEEOTHERGIDS 9
 .Os
 .Sh NAME
 .Nm cr_canseeothergids
-.Nd determine visibility of objects given their group memberships
+.Nd determine if subjects may see entities in a disjoint group set
 .Sh SYNOPSIS
 .Ft int
 .Fn cr_canseeothergids "struct ucred *u1" "struct ucred *u2"
 .Sh DESCRIPTION
-This function determines the visibility of objects in the
-kernel based on the group IDs in the credentials
-.Fa u1
-and
-.Fa u2
-associated with them.
+.Bf -emphasis
+This function is internal.
+Its functionality is integrated into the function
+.Xr cr_bsd_visible 9 ,
+which should be called instead.
+.Ef
 .Pp
-The visibility of objects is influenced by the
+This function checks if a subject associated to credentials
+.Fa u1
+is denied seeing a subject or object associated to credentials
+.Fa u2
+by a policy that requires both credentials to have at least one group in common.
+For this determination, the effective and supplementary group IDs are used, but
+not the real group IDs, as per
+.Xr groupmember 9 .
+.Pp
+This policy is active if and only if the
 .Xr sysctl 8
 variable
-.Va security.bsd.see_other_gids .
-If this variable is non-zero then all objects in the kernel
-are visible to each other irrespective of their group membership.
-If this variable is zero then the object with credentials
-.Fa u2
-is visible to the object with credentials
-.Fa u1
-if either
-.Fa u1
-is the super-user credential, or if at least one of
-.Fa u1 Ns 's
-group IDs is present in
-.Fa u2 Ns 's
-group set.
-.Sh SYSCTL VARIABLES
-.Bl -tag -width indent
-.It Va security.bsd.see_other_gids
-Must be non-zero if objects with unprivileged credentials are to be
-able to see each other.
-.El
+.Va security.bsd.see_other_gids
+is set to zero.
+.Pp
+As usual, the superuser (effective user ID 0) is exempt from this policy
+provided that the
+.Xr sysctl 8
+variable
+.Va security.bsd.suser_enabled
+is non-zero and no active MAC policy explicitly denies the exemption
+.Po
+see
+.Xr priv_check_cred 9
+.Pc .
 .Sh RETURN VALUES
-This function returns zero if the object with credential
+The
+.Fn cr_canseeothergids
+function returns 0 if the policy is disabled, the credentials share at least one
+common group, or if
 .Fa u1
-can
-.Dq see
-the object with credential
-.Fa u2 ,
-or
-.Er ESRCH
-otherwise.
+has privilege exempting it from the policy.
+Otherwise, it returns
+.Er ESRCH .
 .Sh SEE ALSO
-.Xr cr_canseeotheruids 9 ,
-.Xr p_candebug 9
+.Xr cr_bsd_visible 9 ,
+.Xr groupmember 9 ,
+.Xr priv_check_cred 9
