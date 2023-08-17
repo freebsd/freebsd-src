@@ -21,7 +21,8 @@ DTS=	\
 	sun8i-h3-orangepi-one.dts \
 	sun8i-h3-orangepi-pc.dts \
 	sun8i-h3-orangepi-pc-plus.dts \
-	sun8i-h3-orangepi-plus2e.dts
+	sun8i-h3-orangepi-plus2e.dts \
+	olimex-som-evb.dts
 
 DTSO=	sun8i-a83t-sid.dtso \
 	sun8i-h3-i2c0.dtso \
