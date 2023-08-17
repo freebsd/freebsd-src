@@ -1273,36 +1273,43 @@ sys___setugid(struct thread *td, struct __setugid_args *uap)
 }
 
 /*
- * Check if gid is a member of the group set.
+ * Returns whether gid designates a supplementary group in cred.
+ */
+static int
+supplementary_group_member(gid_t gid, struct ucred *cred)
+{
+	int l, h, m;
+
+	/*
+	 * Perform a binary search of the supplemental groups.  This is possible
+	 * because we sort the groups in crsetgroups().
+	 */
+	l = 1;
+	h = cred->cr_ngroups;
+
+	while (l < h) {
+		m = l + (h - l) / 2;
+		if (cred->cr_groups[m] < gid)
+			l = m + 1;
+		else
+			h = m;
+	}
+
+	return (l < cred->cr_ngroups && cred->cr_groups[l] == gid);
+}
+
+/*
+ * Check if gid is a member of the (effective) group set (i.e., effective and
+ * supplementary groups).
  */
 int
 groupmember(gid_t gid, struct ucred *cred)
 {
-	int l;
-	int h;
-	int m;
 
 	if (cred->cr_groups[0] == gid)
-		return(1);
-
-	/*
-	 * If gid was not our primary group, perform a binary search
-	 * of the supplemental groups.  This is possible because we
-	 * sort the groups in crsetgroups().
-	 */
-	l = 1;
-	h = cred->cr_ngroups;
-	while (l < h) {
-		m = l + ((h - l) / 2);
-		if (cred->cr_groups[m] < gid)
-			l = m + 1; 
-		else
-			h = m; 
-	}
-	if ((l < cred->cr_ngroups) && (cred->cr_groups[l] == gid))
 		return (1);
 
-	return (0);
+	return (supplementary_group_member(gid, cred));
 }
 
 /*
