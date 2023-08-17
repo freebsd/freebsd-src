@@ -2376,7 +2376,7 @@ out:
 
 static int
 linux_sendfile_common(struct thread *td, l_int out, l_int in,
-    l_loff_t *offset, l_size_t count)
+    off_t *offset, l_size_t count)
 {
 	off_t bytes_read;
 	int error;
@@ -2447,8 +2447,8 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 	 *   returns 0.  We use the 'bytes read' parameter to get this value.
 	 */
 
-	l_loff_t offset64;
-	l_long offset;
+	off_t offset64;
+	l_off_t offset;
 	int ret;
 	int error;
 
@@ -2456,7 +2456,7 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 		error = copyin(arg->offset, &offset, sizeof(offset));
 		if (error != 0)
 			return (error);
-		offset64 = (l_loff_t)offset;
+		offset64 = offset;
 	}
 
 	ret = linux_sendfile_common(td, arg->out, arg->in,
@@ -2468,7 +2468,7 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 		if (offset64 > INT32_MAX)
 			return (EOVERFLOW);
 #endif
-		offset = (l_long)offset64;
+		offset = (l_off_t)offset64;
 		error = copyout(&offset, arg->offset, sizeof(offset));
 		if (error != 0)
 			return (error);
@@ -2483,7 +2483,7 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 int
 linux_sendfile64(struct thread *td, struct linux_sendfile64_args *arg)
 {
-	l_loff_t offset;
+	off_t offset;
 	int ret;
 	int error;
 
