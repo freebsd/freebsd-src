@@ -113,9 +113,9 @@ Process
 is not visible to thread
 .Fa td
 as determined by
-.Xr cr_seeotheruids 9
+.Xr cr_canseeotheruids 9
 or
-.Xr cr_seeothergids 9 .
+.Xr cr_canseeothergids 9 .
 .It Bq Er ESRCH
 Thread
 .Fa td
@@ -129,8 +129,8 @@ The MAC subsystem denied debuggability.
 .Sh SEE ALSO
 .Xr jail 2 ,
 .Xr sysctl 8 ,
-.Xr cr_seeothergids 9 ,
-.Xr cr_seeotheruids 9 ,
+.Xr cr_canseeothergids 9 ,
+.Xr cr_canseeotheruids 9 ,
 .Xr mac 9 ,
 .Xr p_cansee 9 ,
 .Xr prison_check 9

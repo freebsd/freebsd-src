@@ -50,9 +50,9 @@ variables
 and
 .Va security.bsd.see_other_uids ,
 as per the description in
-.Xr cr_seeothergids 9
+.Xr cr_canseeothergids 9
 and
-.Xr cr_seeotheruids 9
+.Xr cr_canseeotheruids 9
 respectively.
 .Sh RETURN VALUES
 This function returns zero if the object with credential
@@ -84,7 +84,7 @@ does not belong to the same jail as
 The MAC subsystem denied visibility.
 .El
 .Sh SEE ALSO
-.Xr cr_seeothergids 9 ,
-.Xr cr_seeotheruids 9 ,
+.Xr cr_canseeothergids 9 ,
+.Xr cr_canseeotheruids 9 ,
 .Xr mac 9 ,
 .Xr p_cansee 9
