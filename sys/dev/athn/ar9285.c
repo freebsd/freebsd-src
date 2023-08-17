@@ -62,7 +62,7 @@
 #include "athnvar.h"
 
 #include "ar5008reg.h"
-//#include <dev/ic/ar9280reg.h>
+#include "ar9280reg.h"
 #include "ar9285reg.h"
 
 int	ar9285_attach(struct athn_softc *);
