@@ -2594,7 +2594,6 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 
 	off_t offset64;
 	l_off_t offset;
-	int ret;
 	int error;
 
 	if (arg->offset != NULL) {
@@ -2604,10 +2603,10 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 		offset64 = offset;
 	}
 
-	ret = linux_sendfile_common(td, arg->out, arg->in,
+	error = linux_sendfile_common(td, arg->out, arg->in,
 	    arg->offset != NULL ? &offset64 : NULL, arg->count);
 
-	if (arg->offset != NULL) {
+	if (error == 0 && arg->offset != NULL) {
 #if defined(__i386__) || defined(__arm__) || \
     (defined(__amd64__) && defined(COMPAT_LINUX32))
 		if (offset64 > INT32_MAX)
@@ -2615,11 +2614,9 @@ linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
 #endif
 		offset = (l_off_t)offset64;
 		error = copyout(&offset, arg->offset, sizeof(offset));
-		if (error != 0)
-			return (error);
 	}
 
-	return (ret);
+	return (error);
 }
 
 #if defined(__i386__) || defined(__arm__) || \
@@ -2629,7 +2626,6 @@ int
 linux_sendfile64(struct thread *td, struct linux_sendfile64_args *arg)
 {
 	off_t offset;
-	int ret;
 	int error;
 
 	if (arg->offset != NULL) {
@@ -2638,16 +2634,13 @@ linux_sendfile64(struct thread *td, struct linux_sendfile64_args *arg)
 			return (error);
 	}
 
-	ret = linux_sendfile_common(td, arg->out, arg->in,
+	error = linux_sendfile_common(td, arg->out, arg->in,
 		arg->offset != NULL ? &offset : NULL, arg->count);
 
-	if (arg->offset != NULL) {
+	if (error == 0 && arg->offset != NULL)
 		error = copyout(&offset, arg->offset, sizeof(offset));
-		if (error != 0)
-			return (error);
-	}
 
-	return (ret);
+	return (error);
 }
 
 /* Argument list sizes for linux_socketcall */
