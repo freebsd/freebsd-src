@@ -34,9 +34,9 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/ucred.h
-.Ft int
+.Ft bool
 .Fn groupmember "gid_t gid" "struct ucred *cred"
-.Ft int
+.Ft bool
 .Fn realgroupmember "gid_t gid" "struct ucred *cred"
 .Sh DESCRIPTION
 The
@@ -57,9 +57,17 @@ Function
 works the same except that it considers instead the real and supplementary
 groups, and not the effective one.
 .Sh RETURN VALUES
-If the
-.Fa gid
-is found, 1 is returned, otherwise 0.
+The
+.Fn groupmember
+and
+.Fn realgroupmember
+functions return
+.Dv true
+if the given credentials indicate membership of the group
+.Fa gid ,
+or
+.Dv false
+otherwise.
 .Sh SEE ALSO
 .Xr getgroups 2
 .Xr setgroups 2
