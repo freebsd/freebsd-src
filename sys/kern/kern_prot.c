@@ -91,6 +91,10 @@ static void crfree_final(struct ucred *cr);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
+static int cr_canseeotheruids(struct ucred *u1, struct ucred *u2);
+static int cr_canseeothergids(struct ucred *u1, struct ucred *u2);
+static int cr_canseejailproc(struct ucred *u1, struct ucred *u2);
+
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
@@ -1351,7 +1355,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-int
+static int
 cr_canseeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
@@ -1381,7 +1385,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-int
+static int
 cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
 	int i, match;
@@ -1423,7 +1427,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_jail_proc, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-int
+static int
 cr_canseejailproc(struct ucred *u1, struct ucred *u2)
 {
 	if (see_jail_proc || /* Policy deactivated. */
