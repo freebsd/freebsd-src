@@ -67,9 +67,7 @@ cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
 	if (error)
 		return (error);
 #endif
-	if (cr_canseeotheruids(cred, inp->inp_cred))
-		return (ENOENT);
-	if (cr_canseeothergids(cred, inp->inp_cred))
+	if (cr_bsd_visible(cred, inp->inp_cred))
 		return (ENOENT);
 
 	return (0);
