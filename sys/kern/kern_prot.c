@@ -1434,6 +1434,25 @@ cr_canseejailproc(struct ucred *u1, struct ucred *u2)
 	return (ESRCH);
 }
 
+/*
+ * Helper for cr_cansee*() functions to abide by system-wide security.bsd.see_*
+ * policies.  Determines if u1 "can see" u2 according to these policies.
+ * Returns: 0 for permitted, ESRCH otherwise
+ */
+int
+cr_bsd_visible(struct ucred *u1, struct ucred *u2)
+{
+	int error;
+
+	if ((error = cr_canseeotheruids(u1, u2)))
+		return (error);
+	if ((error = cr_canseeothergids(u1, u2)))
+		return (error);
+	if ((error = cr_canseejailproc(u1, u2)))
+		return (error);
+	return (0);
+}
+
 /*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
