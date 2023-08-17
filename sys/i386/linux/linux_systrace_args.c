@@ -1330,7 +1330,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sendfile_args *p = params;
 		iarg[a++] = p->out; /* l_int */
 		iarg[a++] = p->in; /* l_int */
-		uarg[a++] = (intptr_t)p->offset; /* l_long * */
+		uarg[a++] = (intptr_t)p->offset; /* l_off_t * */
 		iarg[a++] = p->count; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -5360,7 +5360,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 2:
-			p = "userland l_long *";
+			p = "userland l_off_t *";
 			break;
 		case 3:
 			p = "l_size_t";
