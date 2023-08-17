@@ -592,6 +592,15 @@ ixl_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
  *	Routines for multicast and vlan filter management.
  *
  *********************************************************************/
+
+/**
+ * ixl_add_multi - Add multicast filters to the hardware
+ * @vsi: The VSI structure
+ *
+ * In case number of multicast filters in the IFP exceeds 127 entries,
+ * multicast promiscuous mode will be enabled and the filters will be removed
+ * from the hardware
+ */
 void
 ixl_add_multi(struct ixl_vsi *vsi)
 {
@@ -599,14 +608,20 @@ ixl_add_multi(struct ixl_vsi *vsi)
 	struct i40e_hw		*hw = vsi->hw;
 	int			mcnt = 0;
 	struct ixl_add_maddr_arg cb_arg;
+	enum i40e_status_code	status;
 
 	IOCTL_DEBUGOUT("ixl_add_multi: begin");
 
 	mcnt = if_llmaddr_count(ifp);
 	if (__predict_false(mcnt >= MAX_MULTICAST_ADDR)) {
-		i40e_aq_set_vsi_multicast_promiscuous(hw,
-		    vsi->seid, TRUE, NULL);
-		/* delete all existing MC filters */
+		status = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
+		    TRUE, NULL);
+		if (status != I40E_SUCCESS)
+			if_printf(ifp, "Failed to enable multicast promiscuous "
+			    "mode, status: %s\n", i40e_stat_str(hw, status));
+		else
+			if_printf(ifp, "Enabled multicast promiscuous mode\n");
+		/* Delete all existing MC filters */
 		ixl_del_multi(vsi, true);
 		return;
 	}
@@ -632,30 +647,92 @@ ixl_match_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 		return (0);
 }
 
+/**
+ * ixl_dis_multi_promisc - Disable multicast promiscuous mode
+ * @vsi: The VSI structure
+ * @vsi_mcnt: Number of multicast filters in the VSI
+ *
+ * Disable multicast promiscuous mode based on number of entries in the IFP
+ * and the VSI, then re-add multicast filters.
+ *
+ */
+static void
+ixl_dis_multi_promisc(struct ixl_vsi *vsi, int vsi_mcnt)
+{
+	struct ifnet		*ifp = vsi->ifp;
+	struct i40e_hw		*hw = vsi->hw;
+	int			ifp_mcnt = 0;
+	enum i40e_status_code	status;
+
+	ifp_mcnt = if_llmaddr_count(ifp);
+	/*
+	 * Equal lists or empty ifp list mean the list has not been changed
+	 * and in such case avoid disabling multicast promiscuous mode as it
+	 * was not previously enabled. Case where multicast promiscuous mode has
+	 * been enabled is when vsi_mcnt == 0 && ifp_mcnt > 0.
+	 */
+	if (ifp_mcnt == vsi_mcnt || ifp_mcnt == 0 ||
+	    ifp_mcnt >= MAX_MULTICAST_ADDR)
+		return;
+
+	status = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
+	    FALSE, NULL);
+	if (status != I40E_SUCCESS) {
+		if_printf(ifp, "Failed to disable multicast promiscuous "
+		    "mode, status: %s\n", i40e_stat_str(hw, status));
+
+		return;
+	}
+
+	if_printf(ifp, "Disabled multicast promiscuous mode\n");
+
+	ixl_add_multi(vsi);
+}
+
+/**
+ * ixl_del_multi - Delete multicast filters from the hardware
+ * @vsi: The VSI structure
+ * @all: Bool to determine if all the multicast filters should be removed
+ *
+ * In case number of multicast filters in the IFP drops to 127 entries,
+ * multicast promiscuous mode will be disabled and the filters will be reapplied
+ * to the hardware.
+ */
 void
 ixl_del_multi(struct ixl_vsi *vsi, bool all)
 {
-	struct ixl_ftl_head	to_del;
+	int			to_del_cnt = 0, vsi_mcnt = 0;
 	if_t			ifp = vsi->ifp;
 	struct ixl_mac_filter	*f, *fn;
-	int			mcnt = 0;
+	struct ixl_ftl_head	to_del;
 
 	IOCTL_DEBUGOUT("ixl_del_multi: begin");
 
 	LIST_INIT(&to_del);
 	/* Search for removed multicast addresses */
 	LIST_FOREACH_SAFE(f, &vsi->ftl, ftle, fn) {
-		if ((f->flags & IXL_FILTER_MC) == 0 ||
-		    (!all && (if_foreach_llmaddr(ifp, ixl_match_maddr, f) == 0)))
+		if ((f->flags & IXL_FILTER_MC) == 0)
+			continue;
+
+		/* Count all the multicast filters in the VSI for comparison */
+		vsi_mcnt++;
+
+		if (!all && if_foreach_llmaddr(ifp, ixl_match_maddr, f) != 0)
 			continue;
 
 		LIST_REMOVE(f, ftle);
 		LIST_INSERT_HEAD(&to_del, f, ftle);
-		mcnt++;
+		to_del_cnt++;
 	}
 
-	if (mcnt > 0)
-		ixl_del_hw_filters(vsi, &to_del, mcnt);
+	if (to_del_cnt > 0) {
+		ixl_del_hw_filters(vsi, &to_del, to_del_cnt);
+		return;
+	}
+
+	ixl_dis_multi_promisc(vsi, vsi_mcnt);
+
+	IOCTL_DEBUGOUT("ixl_del_multi: end");
 }
 
 void
