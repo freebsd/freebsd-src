@@ -190,7 +190,7 @@ ar9285_get_spur_chans(struct athn_softc *sc, int is2ghz)
 {
 	const struct ar9285_eeprom *eep = sc->eep;
 
-	KASSERT(is2ghz);
+	KASSERT(is2ghz, ("is2ghz"));
 	return (eep->modalHeader.spurChans);
 }
 
