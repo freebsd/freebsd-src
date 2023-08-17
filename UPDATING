@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230817:
+	Serial communication (in boot loaders, kernel, and userland) has
+	been changed to default to 115200 bps, in line with common industry
+	practice and typcial firmware serial console redirection
+	configuration.
+
+	Note that the early x86 BIOS bootloader (i.e., boot0sio) does not
+	support rates above 9600 bps and is not chagned.  boot0sio users may
+	set BOOT_COMCONSOLE_SPEED=9600 to use 9600 for all of the boot
+	components, or use the standard boot0 and have the boot2 stage start
+	with the serial port at 115200.
+
 20230807:
 	Following the general removal of MIPS support, the ath(4) AHB bus-
 	frontend has been removed, too, and building of the PCI support is
