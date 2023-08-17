@@ -36,6 +36,8 @@
 .In sys/ucred.h
 .Ft int
 .Fn groupmember "gid_t gid" "struct ucred *cred"
+.Ft int
+.Fn realgroupmember "gid_t gid" "struct ucred *cred"
 .Sh DESCRIPTION
 The
 .Fn groupmember
@@ -49,6 +51,11 @@ Considered groups in
 .Fa cred
 are the effective and supplementary groups.
 The real group is not taken into account.
+.Pp
+Function
+.Fn realgroupmember
+works the same except that it considers instead the real and supplementary
+groups, and not the effective one.
 .Sh RETURN VALUES
 If the
 .Fa gid

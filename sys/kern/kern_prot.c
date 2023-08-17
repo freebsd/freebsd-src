@@ -1313,6 +1313,19 @@ groupmember(gid_t gid, struct ucred *cred)
 }
 
 /*
+ * Check if gid is a member of the real group set (i.e., real and supplementary
+ * groups).
+ */
+int
+realgroupmember(gid_t gid, struct ucred *cred)
+{
+	if (gid == cred->cr_rgid)
+		return (1);
+
+	return (supplementary_group_member(gid, cred));
+}
+
+/*
  * Test the active securelevel against a given level.  securelevel_gt()
  * implements (securelevel > level).  securelevel_ge() implements
  * (securelevel >= level).  Note that the logic is inverted -- these
