@@ -83,6 +83,10 @@ A pseudo-device to allow the VM to release memory back to the hypervisor is
 provided by the
 .Xr virtio_balloon 4
 device driver.
+.It Sy GPU
+Graphics support is provided by the
+.Xr virtio_gpu 4
+device driver.
 .It Sy SCSI
 An emulated SCSI HBA is provided by the
 .Xr virtio_scsi 4
@@ -92,6 +96,7 @@ device driver.
 .Xr virtio_balloon 4 ,
 .Xr virtio_blk 4 ,
 .Xr virtio_console 4 ,
+.Xr virtio_gpu 4 ,
 .Xr virtio_random 4 ,
 .Xr virtio_scsi 4 ,
 .Xr vtnet 4
