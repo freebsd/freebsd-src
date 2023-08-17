@@ -25,22 +25,23 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 11, 2003
+.Dd August 18, 2023
 .Dt PRISON_CHECK 9
 .Os
 .Sh NAME
 .Nm prison_check
-.Nd determine if two credentials belong to the same jail
+.Nd determine if subjects may see entities according to jail restrictions
 .Sh SYNOPSIS
 .In sys/jail.h
 .Ft int
 .Fn prison_check "struct ucred *cred1" "struct ucred *cred2"
 .Sh DESCRIPTION
-This function can be used to determine if the two credentials
+This function determines if a subject with credentials
 .Fa cred1
-and
+is denied access to subjects or objects with credentials
 .Fa cred2
-belong to the same jail.
+according to the policy that a subject can see subjects or objects in its own
+jail or any sub-jail of it.
 .Sh RETURN VALUES
 The
 .Fn prison_check
@@ -48,12 +49,9 @@ function
 returns
 .Er ESRCH
 if
-.Fa cred1
-has been jailed, and
-.Fa cred1
-and
 .Fa cred2
-do not belong to the same jail.
+is not in the same jail or a sub-jail of that of
+.Fa cred1 .
 In all other cases,
 .Fn prison_check
 returns zero.
