@@ -2278,6 +2278,9 @@ athn_usb_rxeof(struct usbd_xfer *xfer, void *priv,
 		buf += off;
 		len -= off;
 	}
+	// TODO Refactor functions which use mbuf_list.
+	// mbuf_list is OpenBSD specific and if_input uses the mbuf directly.
+	// In the next steps, we should remove mbuf_list support from this driver.
 	if_input(ifp, m);
 
  resubmit:
