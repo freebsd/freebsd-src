@@ -2272,6 +2272,12 @@ linux_ioctl_socket_ifreq(struct thread *td, int fd, u_int cmd,
 	case LINUX_SIOCGIFHWADDR:
 		cmd = SIOCGHWADDR;
 		break;
+	case LINUX_SIOCGIFMETRIC:
+		cmd = SIOCGIFMETRIC;
+		break;
+	case LINUX_SIOCSIFMETRIC:
+		cmd = SIOCSIFMETRIC;
+		break;
 	/*
 	 * XXX This is slightly bogus, but these ioctls are currently
 	 * XXX only used by the aironet (if_an) network driver.
