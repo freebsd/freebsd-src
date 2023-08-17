@@ -1020,7 +1020,7 @@
 		int linux_sendfile(
 		    l_int out,
 		    l_int in,
-		    l_long *offset,
+		    l_off_t *offset,
 		    l_size_t count
 		);
 	}
