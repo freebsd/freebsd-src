@@ -2289,6 +2289,9 @@ linux_ioctl_socket_ifreq(struct thread *td, int fd, u_int cmd,
 		cmd = SIOCGPRIVATE_1;
 		break;
 	default:
+		LINUX_RATELIMIT_MSG_OPT2(
+		    "ioctl_socket_ifreq fd=%d, cmd=0x%x is not implemented",
+		    fd, cmd);
 		return (ENOIOCTL);
 	}
 
