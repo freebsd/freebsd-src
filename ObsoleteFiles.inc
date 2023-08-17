@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230927: Man pages renamed to match the actual functions
+OLD_FILES+=usr/share/man/man9/cr_seeothergids.9.gz
+OLD_FILES+=usr/share/man/man9/cr_seeotheruids.9.gz
+
 # 20230925
 OLD_FILES+=usr/share/examples/diskless/ME
 OLD_FILES+=usr/share/examples/diskless/README.BOOTP
