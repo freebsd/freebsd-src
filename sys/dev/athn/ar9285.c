@@ -175,13 +175,13 @@ ar9285_swap_rom(struct athn_softc *sc)
 	int i;
 
 	eep->modalHeader.antCtrlCommon =
-	    swap32(eep->modalHeader.antCtrlCommon);
+	    bswap32(eep->modalHeader.antCtrlCommon);
 	eep->modalHeader.antCtrlChain =
-	    swap32(eep->modalHeader.antCtrlChain);
+	    bswap32(eep->modalHeader.antCtrlChain);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		eep->modalHeader.spurChans[i].spurChan =
-		    swap16(eep->modalHeader.spurChans[i].spurChan);
+		    bswap16(eep->modalHeader.spurChans[i].spurChan);
 	}
 }
 
