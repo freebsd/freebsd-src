@@ -989,11 +989,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = 0;
 		vm_cpuset = (struct vm_cpuset *)data;
 		size = vm_cpuset->cpusetsize;
-		if (size < sizeof(cpuset_t) || size > CPU_MAXSIZE / NBBY) {
+		if (size < 1 || size > CPU_MAXSIZE / NBBY) {
 			error = ERANGE;
 			break;
 		}
-		cpuset = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+		cpuset = malloc(max(size, sizeof(cpuset_t)), M_TEMP,
+		    M_WAITOK | M_ZERO);
 		if (vm_cpuset->which == VM_ACTIVE_CPUS)
 			*cpuset = vm_active_cpus(sc->vm);
 		else if (vm_cpuset->which == VM_SUSPENDED_CPUS)
@@ -1002,6 +1003,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			*cpuset = vm_debug_cpus(sc->vm);
 		else
 			error = EINVAL;
+		if (error == 0 && size < howmany(CPU_FLS(cpuset), NBBY))
+			error = ERANGE;
 		if (error == 0)
 			error = copyout(cpuset, vm_cpuset->cpus, size);
 		free(cpuset, M_TEMP);
