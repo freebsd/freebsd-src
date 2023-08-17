@@ -27,7 +27,7 @@
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 30, 2022
+.Dd August 18, 2023
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -184,8 +184,10 @@ Please refer to
 for more information on which tunables are available and how to set them.
 .Pp
 The string and integer information is summarized below.
-For a detailed description of these variable see
-.Xr sysctl 3 .
+For a detailed description of these variables see
+.Xr sysctl 3
+and
+.Xr security 7 .
 .Pp
 The changeable column indicates whether a process with appropriate
 privilege can change the value.
@@ -222,6 +224,8 @@ String and integer values can be set using
 .It "kern.logsigexit	integer	yes"
 .It "security.bsd.suser_enabled	integer	yes"
 .It "security.bsd.see_other_uids	integer	yes"
+.It "security.bsd.see_other_gids	integer	yes"
+.It "security.bsd.see_jail_proc	integer	yes"
 .It "security.bsd.unprivileged_proc_debug	integer	yes"
 .It "security.bsd.unprivileged_read_msgbuf	integer	yes"
 .It "vm.loadavg	struct	no"
@@ -311,6 +315,7 @@ option has been deprecated and is silently ignored.
 .Xr sysctl 3 ,
 .Xr loader.conf 5 ,
 .Xr sysctl.conf 5 ,
+.Xr security 7,
 .Xr loader 8
 .Sh HISTORY
 A
