@@ -130,7 +130,7 @@ static unsigned ucom_cons_tx_high = 0;
 
 static int ucom_cons_unit = -1;
 static int ucom_cons_subunit = 0;
-static int ucom_cons_baud = 9600;
+static int ucom_cons_baud = 115200;
 static struct ucom_softc *ucom_cons_softc = NULL;
 
 SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RWTUN,
