@@ -69,6 +69,7 @@ MAN=	accept_filter.9 \
 	counter.9 \
 	cpuset.9 \
 	cr_cansee.9 \
+	cr_canseejailproc.9 \
 	cr_canseeothergids.9 \
 	cr_canseeotheruids.9 \
 	critical_enter.9 \
