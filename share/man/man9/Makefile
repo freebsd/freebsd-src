@@ -67,9 +67,9 @@ MAN=	accept_filter.9 \
 	counter.9 \
 	cpuset.9 \
 	cr_cansee.9 \
+	cr_canseeothergids.9 \
+	cr_canseeotheruids.9 \
 	critical_enter.9 \
-	cr_seeothergids.9 \
-	cr_seeotheruids.9 \
 	crypto.9 \
 	crypto_asym.9 \
 	crypto_buffer.9 \
