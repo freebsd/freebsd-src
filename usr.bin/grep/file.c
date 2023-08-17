@@ -4,7 +4,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 James Howard and Dag-Erling Smørgrav
  * Copyright (C) 2008-2010 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2010 Dimitry Andric <dimitry@andric.com>
  * All rights reserved.
