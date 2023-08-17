@@ -68,6 +68,7 @@ MAN=	accept_filter.9 \
 	copy.9 \
 	counter.9 \
 	cpuset.9 \
+	cr_bsd_visible.9 \
 	cr_cansee.9 \
 	cr_canseejailproc.9 \
 	cr_canseeothergids.9 \
