@@ -1,7 +1,4 @@
 /*
- */
-
-/*
  * This file defines compatibility versions of several video structures
  * defined in the Linux videodev2.h header (linux_videodev2.h).  The
  * structures defined in this file are the ones that have been determined
