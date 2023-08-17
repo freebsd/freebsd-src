@@ -1157,6 +1157,7 @@ MLINKS+=g_provider.9 g_destroy_provider.9 \
 	g_provider.9 g_error_provider.9 \
 	g_provider.9 g_new_providerf.9
 MLINKS+=gone_in.9 gone_in_dev.9
+MLINKS+=groupmember.9 realgroupmember.9
 MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_buf.9 \
 	hash.9 hash32_str.9 \
