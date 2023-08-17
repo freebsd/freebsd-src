@@ -1426,9 +1426,12 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_jail_proc, CTLFLAG_RW,
 int
 cr_canseejailproc(struct ucred *u1, struct ucred *u2)
 {
-	if (u1->cr_uid == 0)
+	if (see_jail_proc || /* Policy deactivated. */
+	    u1->cr_prison == u2->cr_prison || /* Same jail. */
+	    priv_check_cred(u1, PRIV_SEEJAILPROC) == 0) /* Privileged. */
 		return (0);
-	return (!see_jail_proc && u1->cr_prison != u2->cr_prison ? ESRCH : 0);
+
+	return (ESRCH);
 }
 
 /*-
