@@ -2118,7 +2118,6 @@ athn_usb_rx_frame(struct athn_usb_softc *usc, struct mbuf *m,
 	if (rs->rs_status != 0) {
 		if (rs->rs_status & AR_RXS_RXERR_DECRYPT)
 			ic->ic_stats.is_ccmp_dec_errs++;
-		ifp->if_ierrors++;
 		goto skip;
 	}
 	m_adj(m, sizeof(*rs));	/* Strip Rx status. */
@@ -2157,7 +2156,6 @@ athn_usb_rx_frame(struct athn_usb_softc *usc, struct mbuf *m,
 	    (IEEE80211_IS_MULTICAST(wh->i_addr1) &&
 	    ni->ni_rsngroupcipher == IEEE80211_CIPHER_CCMP))) {
 		if (ar5008_ccmp_decap(sc, m, ni) != 0) {
-			ifp->if_ierrors++;
 			ieee80211_release_node(ic, ni);
 			splx(s);
 			goto skip;
@@ -2253,9 +2251,6 @@ athn_usb_rxeof(struct usbd_xfer *xfer, void *priv,
 		} else	/* Drop frames larger than MCLBYTES. */
 			m = NULL;
 
-		if (m == NULL)
-			ifp->if_ierrors++;
-
 		/*
 		 * NB: m can be NULL, in which case the next pktlen bytes
 		 * will be discarded from the Rx stream.
@@ -2309,7 +2304,6 @@ athn_usb_txeof(struct usbd_xfer *xfer, void *priv,
 		DPRINTF(("TX status=%d\n", status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(usc->tx_data_pipe);
-		ifp->if_oerrors++;
 		splx(s);
 		/* XXX Why return? */
 		return;
@@ -2504,12 +2498,10 @@ athn_usb_start(struct ifnet *ifp)
 #endif
 		if (athn_usb_tx(sc, m, ni) != 0) {
 			ieee80211_release_node(ic, ni);
-			ifp->if_oerrors++;
 			continue;
 		}
 
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
 	}
 }
 
@@ -2518,16 +2510,12 @@ athn_usb_watchdog(struct ifnet *ifp)
 {
 	struct athn_softc *sc = ifp->if_softc;
 
-	ifp->if_timer = 0;
-
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			printf("%s: device timeout\n", sc->sc_dev.dv_xname);
 			/* athn_usb_init(ifp); XXX needs a process context! */
-			ifp->if_oerrors++;
 			return;
 		}
-		ifp->if_timer = 1;
 	}
 	ieee80211_watchdog(ifp);
 }
@@ -2624,7 +2612,7 @@ athn_usb_init(struct ifnet *ifp)
 	extc = NULL;
 
 	/* In case a new MAC address has been configured. */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, LLADDR(ifp->if_sadl));
+	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 
 	error = athn_set_power_awake(sc);
 	if (error != 0)
@@ -2756,7 +2744,6 @@ athn_usb_stop(struct ifnet *ifp)
 	int s;
 
 	sc->sc_tx_timer = 0;
-	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_RUNNING;
 	ifq_clr_oactive(&ifp->if_snd);
 
