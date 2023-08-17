@@ -48,9 +48,9 @@ This function checks if a subject associated to credentials
 is denied seeing a subject or object associated to credentials
 .Fa u2
 by a policy that requires both credentials to have at least one group in common.
-For this determination, the effective and supplementary group IDs are used, but
-not the real group IDs, as per
-.Xr groupmember 9 .
+For this determination, the real and supplementary group IDs are used, but
+not the effective group IDs, as per
+.Xr realgroupmember 9 .
 .Pp
 This policy is active if and only if the
 .Xr sysctl 8
@@ -79,5 +79,5 @@ Otherwise, it returns
 .Er ESRCH .
 .Sh SEE ALSO
 .Xr cr_bsd_visible 9 ,
-.Xr groupmember 9 ,
+.Xr realgroupmember 9 ,
 .Xr priv_check_cred 9
