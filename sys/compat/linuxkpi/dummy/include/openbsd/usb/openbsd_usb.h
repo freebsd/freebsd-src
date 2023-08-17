@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include <sys/ioctl.h>
+//#include <sys/ioctl.h>
 
 #define USB_STACK_VERSION 2
 
