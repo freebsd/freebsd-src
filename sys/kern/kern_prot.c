@@ -1404,21 +1404,18 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
 int
 cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
-	int i, match;
-
 	if (!see_other_gids) {
-		match = 0;
-		for (i = 0; i < u1->cr_ngroups; i++) {
-			if (groupmember(u1->cr_groups[i], u2))
-				match = 1;
-			if (match)
-				break;
-		}
-		if (!match) {
-			if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) != 0)
-				return (ESRCH);
-		}
+		if (realgroupmember(u1->cr_rgid, u2))
+			return (0);
+
+		for (int i = 1; i < u1->cr_ngroups; i++)
+			if (realgroupmember(u1->cr_groups[i], u2))
+				return (0);
+
+		if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) != 0)
+			return (ESRCH);
 	}
+
 	return (0);
 }
 
