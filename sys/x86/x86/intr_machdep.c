@@ -578,10 +578,17 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 /*
  * Support for balancing interrupt sources across CPUs.  For now we just
  * allocate CPUs round-robin.
+ *
+ * XXX If the system has a domain with without any usable CPUs (e.g., where all
+ * APIC IDs are 256 or greater and we do not have an IOMMU) we use
+ * intr_no_domain to fall back to assigning interrupts without regard for
+ * domain.  Once we can rely on the presence of an IOMMU on all x86 platforms
+ * we can revert this.
  */
 
 cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu[MAXMEMDOM];
+static bool intr_no_domain;
 
 static void
 intr_init_cpus(void)
@@ -589,7 +596,15 @@ intr_init_cpus(void)
 	int i;
 
 	for (i = 0; i < vm_ndomains; i++) {
+		if (CPU_OVERLAP(&cpuset_domain[i], &intr_cpus) == 0) {
+			intr_no_domain = true;
+			printf("%s: unable to route interrupts to CPUs in domain %d\n",
+			    __func__, i);
+		}
+
 		current_cpu[i] = 0;
+		if (intr_no_domain && i > 0)
+			continue;
 		if (!CPU_ISSET(current_cpu[i], &intr_cpus) ||
 		    !CPU_ISSET(current_cpu[i], &cpuset_domain[i]))
 			intr_next_cpu(i);
@@ -615,6 +630,8 @@ intr_next_cpu(int domain)
 		return (PCPU_GET(apic_id));
 #endif
 
+	if (intr_no_domain)
+		domain = 0;
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu[domain]];
 	do {
@@ -622,7 +639,8 @@ intr_next_cpu(int domain)
 		if (current_cpu[domain] > mp_maxid)
 			current_cpu[domain] = 0;
 	} while (!CPU_ISSET(current_cpu[domain], &intr_cpus) ||
-	    !CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]));
+	    (!CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]) &&
+	    !intr_no_domain));
 	mtx_unlock_spin(&icu_lock);
 	return (apic_id);
 }
