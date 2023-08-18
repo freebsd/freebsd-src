@@ -5897,8 +5897,10 @@ distribute_static_tls(Objlist *list, RtldLockState *lockstate)
 		obj = elm->obj;
 		if (obj->marker || !obj->tls_static || obj->static_tls_copied)
 			continue;
+		lock_release(rtld_bind_lock, lockstate);
 		distrib(obj->tlsoffset, obj->tlsinit, obj->tlsinitsize,
 		    obj->tlssize);
+		wlock_acquire(rtld_bind_lock, lockstate);
 		obj->static_tls_copied = true;
 	}
 }
