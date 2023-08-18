@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2022 Intel Corporation
+ * Copyright (c) 2017 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -166,7 +166,7 @@ struct irdma_mcast_grp_ctx_entry_info {
 };
 
 struct irdma_mcast_grp_info {
-	u8 dest_mac_addr[ETH_ALEN];
+	u8 dest_mac_addr[ETHER_ADDR_LEN];
 	u16 vlan_id;
 	u16 hmc_fcn_id;
 	bool ipv4_valid:1;

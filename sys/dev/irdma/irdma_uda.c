@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2016 - 2022 Intel Corporation
+ * Copyright (c) 2016 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -58,12 +58,8 @@ irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
 	if (!wqe)
 		return -ENOSPC;
 
-	set_64bit_val(wqe, IRDMA_BYTE_0, LS_64_1(info->mac_addr[5], 16) |
-		      LS_64_1(info->mac_addr[4], 24) |
-		      LS_64_1(info->mac_addr[3], 32) |
-		      LS_64_1(info->mac_addr[2], 40) |
-		      LS_64_1(info->mac_addr[1], 48) |
-		      LS_64_1(info->mac_addr[0], 56));
+	set_64bit_val(wqe, IRDMA_BYTE_0,
+		      FIELD_PREP(IRDMAQPC_MACADDRESS, irdma_mac_to_u64(info->mac_addr)));
 
 	qw1 = FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_PDINDEXLO, info->pd_idx) |
 	    FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_TC, info->tc_tos) |
@@ -174,12 +170,7 @@ irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 	set_64bit_val(wqe, IRDMA_BYTE_16,
 		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_VLANID, info->vlan_id) |
 		      FIELD_PREP(IRDMA_UDA_CQPSQ_QS_HANDLE, info->qs_handle));
-	set_64bit_val(wqe, IRDMA_BYTE_0, LS_64_1(info->dest_mac_addr[5], 0) |
-		      LS_64_1(info->dest_mac_addr[4], 8) |
-		      LS_64_1(info->dest_mac_addr[3], 16) |
-		      LS_64_1(info->dest_mac_addr[2], 24) |
-		      LS_64_1(info->dest_mac_addr[1], 32) |
-		      LS_64_1(info->dest_mac_addr[0], 40));
+	set_64bit_val(wqe, IRDMA_BYTE_0, irdma_mac_to_u64(info->dest_mac_addr));
 	set_64bit_val(wqe, IRDMA_BYTE_8,
 		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_HMC_FCN_ID, info->hmc_fcn_id));
 

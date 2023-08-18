@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2022 Intel Corporation
+ * Copyright (c) 2021 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -62,21 +62,12 @@
 	ibdev.dma_device = (dev)
 #define set_max_sge(props, rf)  \
 	((props)->max_sge = (rf)->sc_dev.hw_attrs.uk_attrs.max_hw_wq_frags)
-#define kc_set_props_ip_gid_caps(props) \
-	((props)->port_cap_flags  |= IB_PORT_IP_BASED_GIDS)
 #define rdma_query_gid(ibdev, port, index, gid) \
 	ib_get_cached_gid(ibdev, port, index, gid, NULL)
 #define kmap(pg) page_address(pg)
 #define kmap_local_page(pg) page_address(pg)
 #define kunmap(pg)
 #define kunmap_local(pg)
-#if __FreeBSD_version >= 1400026
-#define kc_free_lsmm_dereg_mr(iwdev, iwqp) \
-	((iwdev)->ibdev.dereg_mr((iwqp)->lsmm_mr, NULL))
-#else
-#define kc_free_lsmm_dereg_mr(iwdev, iwqp) \
-	((iwdev)->ibdev.dereg_mr((iwqp)->lsmm_mr))
-#endif
 
 #define IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION IB_CQ_FLAGS_TIMESTAMP_COMPLETION
 #if __FreeBSD_version < 1400026
@@ -99,6 +90,7 @@ void kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev);
 struct irdma_tunable_info {
 	struct sysctl_ctx_list irdma_sysctl_ctx;
 	struct sysctl_oid *irdma_sysctl_tree;
+	struct sysctl_oid *sws_sysctl_tree;
 	char drv_ver[IRDMA_VER_LEN];
 	u8 roce_ena;
 };
@@ -210,8 +202,6 @@ void irdma_disassociate_ucontext(struct ib_ucontext *context);
 int kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp,
 			      struct ib_qp_attr *attr,
 			      u16 *vlan_id);
-struct irdma_device *kc_irdma_get_device(struct ifnet *netdev);
-void kc_irdma_put_device(struct irdma_device *iwdev);
 
 void kc_set_loc_seq_num_mss(struct irdma_cm_node *cm_node);
 u16 kc_rdma_get_udp_sport(u32 fl, u32 lqpn, u32 rqpn);
@@ -229,6 +219,8 @@ int irdma_addr_resolve_neigh(struct irdma_cm_node *cm_node, u32 dst_ip,
 int irdma_addr_resolve_neigh_ipv6(struct irdma_cm_node *cm_node, u32 *dest,
 				  int arpindex);
 void irdma_dcqcn_tunables_init(struct irdma_pci_f *rf);
+void irdma_sysctl_settings(struct irdma_pci_f *rf);
+void irdma_sw_stats_tunables_init(struct irdma_pci_f *rf);
 u32 irdma_create_stag(struct irdma_device *iwdev);
 void irdma_free_stag(struct irdma_device *iwdev, u32 stag);
 

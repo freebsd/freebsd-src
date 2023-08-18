@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -123,8 +123,7 @@ irdma_puda_ce_handler(struct irdma_pci_f *rf,
 		}
 		if (compl_error) {
 			irdma_debug(dev, IRDMA_DEBUG_ERR,
-				    "puda compl_err  =0x%x\n",
-				    compl_error);
+				    "puda compl_err = 0x%x\n", compl_error);
 			break;
 		}
 	} while (1);
@@ -193,12 +192,11 @@ static void
 irdma_complete_cqp_request(struct irdma_cqp *cqp,
 			   struct irdma_cqp_request *cqp_request)
 {
-	if (cqp_request->waiting) {
-		cqp_request->request_done = true;
+	WRITE_ONCE(cqp_request->request_done, true);
+	if (cqp_request->waiting)
 		wake_up(&cqp_request->waitq);
-	} else if (cqp_request->callback_fcn) {
+	else if (cqp_request->callback_fcn)
 		cqp_request->callback_fcn(cqp_request);
-	}
 	irdma_put_cqp_request(cqp, cqp_request);
 }
 
@@ -235,8 +233,9 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 
 		aeqcnt++;
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_AEQ,
-			    "ae_id = 0x%x bool qp=%d qp_id = %d tcp_state=%d iwarp_state=%d ae_src=%d\n",
-			    info->ae_id, info->qp, info->qp_cq_id, info->tcp_state,
+			    "ae_id = 0x%x (%s), is_qp = %d, qp_id = %d, tcp_state = %d, iwarp_state = %d, ae_src = %d\n",
+			    info->ae_id, irdma_get_ae_desc(info->ae_id),
+			    info->qp, info->qp_cq_id, info->tcp_state,
 			    info->iwarp_state, info->ae_src);
 
 		if (info->qp) {
@@ -322,7 +321,11 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 			break;
 		case IRDMA_AE_QP_SUSPEND_COMPLETE:
 			if (iwqp->iwdev->vsi.tc_change_pending) {
-				atomic_dec(&iwqp->sc_qp.vsi->qp_suspend_reqs);
+				if (!atomic_dec_return(&iwqp->sc_qp.vsi->qp_suspend_reqs))
+					wake_up(&iwqp->iwdev->suspend_wq);
+			}
+			if (iwqp->suspend_pending) {
+				iwqp->suspend_pending = false;
 				wake_up(&iwqp->iwdev->suspend_wq);
 			}
 			break;
@@ -392,8 +395,10 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 		case IRDMA_AE_LCE_FUNCTION_CATASTROPHIC:
 		case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
 		default:
-			irdma_dev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d  ae_source=%d\n",
-				      info->ae_id, info->qp, info->qp_cq_id, info->ae_src);
+			irdma_dev_err(&iwdev->ibdev,
+				      "AEQ: abnormal ae_id = 0x%x (%s), is_qp = %d, qp_id = %d, ae_source = %d\n",
+				      info->ae_id, irdma_get_ae_desc(info->ae_id),
+				      info->qp, info->qp_cq_id, info->ae_src);
 			if (rdma_protocol_roce(&iwqp->iwdev->ibdev, 1)) {
 				ctx_info->roce_info->err_rq_idx_valid = info->err_rq_idx_valid;
 				if (info->rq) {
@@ -697,8 +702,7 @@ irdma_destroy_ceq(struct irdma_pci_f *rf, struct irdma_ceq *iwceq)
 	status = irdma_sc_cceq_destroy_done(&iwceq->sc_ceq);
 	if (status)
 		irdma_debug(dev, IRDMA_DEBUG_ERR,
-			    "CEQ destroy completion failed %d\n",
-			    status);
+			    "CEQ destroy completion failed %d\n", status);
 exit:
 	spin_lock_destroy(&iwceq->ce_lock);
 	spin_lock_destroy(&iwceq->sc_ceq.req_cq_lock);
@@ -810,8 +814,7 @@ irdma_close_hmc_objects_type(struct irdma_sc_dev *dev,
 	info.privileged = privileged;
 	if (irdma_sc_del_hmc_obj(dev, &info, reset))
 		irdma_debug(dev, IRDMA_DEBUG_ERR,
-			    "del HMC obj of type %d failed\n",
-			    obj_type);
+			    "del HMC obj of type %d failed\n", obj_type);
 }
 
 /**
@@ -1025,7 +1028,7 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 		irdma_debug(dev, IRDMA_DEBUG_ERR,
 			    "cqp create failed - status %d maj_err %d min_err %d\n",
 			    status, maj_err, min_err);
-		goto err_create;
+		goto err_ctx;
 	}
 
 	INIT_LIST_HEAD(&cqp->cqp_avail_reqs);
@@ -1039,7 +1042,6 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	init_waitqueue_head(&cqp->remove_wq);
 	return 0;
 
-err_create:
 err_ctx:
 	irdma_free_dma_mem(dev->hw, &cqp->sq);
 err_sq:
@@ -1154,16 +1156,14 @@ irdma_irq_request(struct irdma_pci_f *rf,
 	msix_vec->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (!msix_vec->res) {
 		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR,
-			    "Unable to allocate bus resource int[%d]\n",
-			    rid);
+			    "Unable to allocate bus resource int[%d]\n", rid);
 		return -EINVAL;
 	}
 	err = bus_setup_intr(dev, msix_vec->res, INTR_TYPE_NET | INTR_MPSAFE,
 			     NULL, handler, argument, &msix_vec->tag);
 	if (err) {
 		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR,
-			    "Unable to register handler with %x status\n",
-			    err);
+			    "Unable to register handler with %x status\n", err);
 		status = -EINVAL;
 		goto fail_intr;
 	}
@@ -1229,20 +1229,21 @@ static int
 irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
 {
 	struct irdma_msix_vector *msix_vec = rf->iw_msixtbl;
-	u32 ret = 0;
+	int status = 0;
 
 	if (!rf->msix_shared) {
 		snprintf(msix_vec->name, sizeof(msix_vec->name) - 1,
 			 "irdma-%s-AEQ", dev_name(&rf->pcidev->dev));
 		tasklet_setup(&rf->dpc_tasklet, irdma_dpc);
-		ret = irdma_irq_request(rf, msix_vec, irdma_irq_handler, rf);
-		if (ret)
-			return ret;
+		status = irdma_irq_request(rf, msix_vec, irdma_irq_handler, rf);
+		if (status)
+			return status;
 		bus_describe_intr(rf->dev_ctx.dev, msix_vec->res, msix_vec->tag, "%s", msix_vec->name);
 	}
-	if (ret) {
+
+	if (status) {
 		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR, "aeq irq config fail\n");
-		return -EINVAL;
+		return status;
 	}
 
 	rf->sc_dev.irq_ops->irdma_cfg_aeq(&rf->sc_dev, msix_vec->idx, true);
@@ -1337,8 +1338,7 @@ irdma_setup_ceq_0(struct irdma_pci_f *rf)
 	status = irdma_create_ceq(rf, iwceq, 0, &rf->default_vsi);
 	if (status) {
 		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR,
-			    "create ceq status = %d\n",
-			    status);
+			    "create ceq status = %d\n", status);
 		goto exit;
 	}
 
@@ -1393,8 +1393,7 @@ irdma_setup_ceqs(struct irdma_pci_f *rf, struct irdma_sc_vsi *vsi)
 		status = irdma_create_ceq(rf, iwceq, ceq_id, vsi);
 		if (status) {
 			irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR,
-				    "create ceq status = %d\n",
-				    status);
+				    "create ceq status = %d\n", status);
 			goto del_ceqs;
 		}
 		spin_lock_init(&iwceq->ce_lock);
@@ -1633,8 +1632,8 @@ irdma_reinitialize_ieq(struct irdma_sc_vsi *vsi)
 static int
 irdma_hmc_setup(struct irdma_pci_f *rf)
 {
-	int status;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
+	int status;
 	u32 qpcnt;
 
 	qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
@@ -2428,8 +2427,9 @@ irdma_cqp_manage_apbvt_cmd(struct irdma_device *iwdev,
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.manage_apbvt_entry.cqp = &iwdev->rf->cqp.sc_cqp;
 	cqp_info->in.u.manage_apbvt_entry.scratch = (uintptr_t)cqp_request;
-	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_DEV, "%s: port=0x%04x\n",
-		    (!add_port) ? "DELETE" : "ADD", accel_local_port);
+	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_DEV,
+		    "%s: port=0x%04x\n", (!add_port) ? "DELETE" : "ADD",
+		    accel_local_port);
 
 	status = irdma_handle_cqp_op(iwdev->rf, cqp_request);
 	irdma_put_cqp_request(&iwdev->rf->cqp, cqp_request);
@@ -2590,6 +2590,9 @@ irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 	if (!cqp_request)
 		return -ENOMEM;
 
+	cminfo->cqp_request = cqp_request;
+	if (!wait)
+		atomic_inc(&cqp_request->refcnt);
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_qhash_table_entry.info;
 	memset(info, 0, sizeof(*info));
@@ -2630,19 +2633,24 @@ irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 	}
 	if (info->ipv4_valid)
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-			    "%s caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%pI4 rem_addr=%pI4 mac=%pM, vlan_id=%d cm_node=%p\n",
+			    "%s caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%x rem_addr=%x mac=%x:%x:%x:%x:%x:%x, vlan_id=%d cm_node=%p\n",
 			    (!mtype) ? "DELETE" : "ADD",
-			    __builtin_return_address(0), info->dest_port,
-			    info->src_port, info->dest_ip, info->src_ip,
-			    info->mac_addr, cminfo->vlan_id,
-			    cmnode ? cmnode : NULL);
+			    __builtin_return_address(0), info->src_port,
+			    info->dest_port, info->src_ip[0], info->dest_ip[0],
+			    info->mac_addr[0], info->mac_addr[1],
+			    info->mac_addr[2], info->mac_addr[3],
+			    info->mac_addr[4], info->mac_addr[5],
+			    cminfo->vlan_id, cmnode ? cmnode : NULL);
 	else
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-			    "%s caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%pI6 rem_addr=%pI6 mac=%pM, vlan_id=%d cm_node=%p\n",
+			    "%s caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%x:%x:%x:%x rem_addr=%x:%x:%x:%x mac=%x:%x:%x:%x:%x:%x, vlan_id=%d cm_node=%p\n",
 			    (!mtype) ? "DELETE" : "ADD",
-			    __builtin_return_address(0), info->dest_port,
-			    info->src_port, info->dest_ip, info->src_ip,
-			    info->mac_addr, cminfo->vlan_id,
+			    __builtin_return_address(0), info->src_port,
+			    info->dest_port, IRDMA_PRINT_IP6(info->src_ip),
+			    IRDMA_PRINT_IP6(info->dest_ip), info->mac_addr[0],
+			    info->mac_addr[1], info->mac_addr[2],
+			    info->mac_addr[3], info->mac_addr[4],
+			    info->mac_addr[5], cminfo->vlan_id,
 			    cmnode ? cmnode : NULL);
 
 	cqp_info->in.u.manage_qhash_table_entry.cqp = &iwdev->rf->cqp.sc_cqp;
@@ -2716,7 +2724,8 @@ irdma_hw_flush_wqes(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
 		    "qp_id=%d qp_type=%d qpstate=%d ibqpstate=%d last_aeq=%d hw_iw_state=%d maj_err_code=%d min_err_code=%d\n",
 		    iwqp->ibqp.qp_num, rf->protocol_used, iwqp->iwarp_state,
 		    iwqp->ibqp_state, iwqp->last_aeq, iwqp->hw_iwarp_state,
-		    cqp_request->compl_info.maj_err_code, cqp_request->compl_info.min_err_code);
+		    cqp_request->compl_info.maj_err_code,
+		    cqp_request->compl_info.min_err_code);
 put_cqp:
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
 

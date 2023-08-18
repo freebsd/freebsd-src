@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,6 +36,169 @@
 
 LIST_HEAD(irdma_handlers);
 DEFINE_SPINLOCK(irdma_handler_lock);
+
+static const struct ae_desc ae_desc_list[] = {
+	{IRDMA_AE_AMP_UNALLOCATED_STAG, "Unallocated memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_INVALID_STAG, "Invalid memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_BAD_QP,
+	"Memory protection error: Accessing Memory Window (MW) which belongs to a different QP"},
+	{IRDMA_AE_AMP_BAD_PD,
+	"Memory protection error: Accessing Memory Window (MW)/Memory Region (MR) which belongs to a different PD"},
+	{IRDMA_AE_AMP_BAD_STAG_KEY, "Bad memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_BAD_STAG_INDEX, "Bad memory key (L-Key/R-Key): Too large memory key index"},
+	{IRDMA_AE_AMP_BOUNDS_VIOLATION, "Memory Window (MW)/Memory Region (MR) bounds violation"},
+	{IRDMA_AE_AMP_RIGHTS_VIOLATION, "Memory Window (MW)/Memory Region (MR) rights violation"},
+	{IRDMA_AE_AMP_TO_WRAP,
+	"Memory protection error: The address within Memory Window (MW)/Memory Region (MR) wraps"},
+	{IRDMA_AE_AMP_FASTREG_VALID_STAG,
+	"Fastreg error: Registration to a valid MR"},
+	{IRDMA_AE_AMP_FASTREG_MW_STAG,
+	"Fastreg error: Registration to a valid Memory Window (MW)"},
+	{IRDMA_AE_AMP_FASTREG_INVALID_RIGHTS, "Fastreg error: Invalid rights"},
+	{IRDMA_AE_AMP_FASTREG_INVALID_LENGTH, "Fastreg error: Invalid length"},
+	{IRDMA_AE_AMP_INVALIDATE_SHARED, "Attempt to invalidate a shared MR"},
+	{IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS,
+	"Attempt to remotely invalidate Memory Window (MW)/Memory Region (MR) without rights"},
+	{IRDMA_AE_AMP_INVALIDATE_MR_WITH_BOUND_WINDOWS,
+	"Attempt to invalidate MR with a bound Memory Window (MW)"},
+	{IRDMA_AE_AMP_MWBIND_VALID_STAG,
+	"Attempt to bind an Memory Window (MW) with a valid MW memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_MWBIND_OF_MR_STAG,
+	"Attempt to bind an Memory Window (MW) with an MR memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_MWBIND_TO_ZERO_BASED_STAG,
+	"Attempt to bind an Memory Window (MW) to a zero based MR"},
+	{IRDMA_AE_AMP_MWBIND_TO_MW_STAG,
+	"Attempt to bind an Memory Window (MW) using MW memory key (L-Key/R-Key) instead of MR memory key (L-Key/R-Key)"},
+	{IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS, "Memory Window (MW) bind error: Invalid rights"},
+	{IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS, "Memory Window (MW) bind error: Invalid bounds"},
+	{IRDMA_AE_AMP_MWBIND_TO_INVALID_PARENT,
+	"Memory Window (MW) bind error: Invalid parent MR"},
+	{IRDMA_AE_AMP_MWBIND_BIND_DISABLED,
+	"Memory Window (MW) bind error: Disabled bind support"},
+	{IRDMA_AE_PRIV_OPERATION_DENIED,
+	"Denying a privileged operation on a non-privileged QP"},
+	{IRDMA_AE_AMP_INVALIDATE_TYPE1_MW, "Memory Window (MW) error: Invalidate type 1 MW"},
+	{IRDMA_AE_AMP_MWBIND_ZERO_BASED_TYPE1_MW,
+	"Memory Window (MW) bind error: Zero-based addressing for type 1 MW"},
+	{IRDMA_AE_AMP_FASTREG_INVALID_PBL_HPS_CFG,
+	"Fastreg error: Invalid host page size config"},
+	{IRDMA_AE_AMP_MWBIND_WRONG_TYPE, "MB bind error: Wrong Memory Window (MW) type"},
+	{IRDMA_AE_AMP_FASTREG_PBLE_MISMATCH,
+	"Fastreg error: Invalid request to change physical MR to virtual or vice versa"},
+	{IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG,
+	"Userspace Direct Access (UDA) QP xmit error: Packet length exceeds the QP MTU"},
+	{IRDMA_AE_UDA_XMIT_BAD_PD,
+	"Userspace Direct Access (UDA) QP xmit error: Attempt to access a different PD"},
+	{IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT,
+	"Userspace Direct Access (UDA) QP xmit error: Too short packet length"},
+	{IRDMA_AE_UDA_L4LEN_INVALID,
+	"Userspace Direct Access (UDA) error: Invalid packet length field"},
+	{IRDMA_AE_BAD_CLOSE,
+	"iWARP error: Data is received when QP state is closing"},
+	{IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE,
+	"iWARP error: FIN is received when xmit data is pending"},
+	{IRDMA_AE_CQ_OPERATION_ERROR, "CQ overflow"},
+	{IRDMA_AE_RDMA_READ_WHILE_ORD_ZERO,
+	"QP error: Attempted RDMA Read when the outbound RDMA Read queue depth is zero"},
+	{IRDMA_AE_STAG_ZERO_INVALID,
+	"Zero invalid memory key (L-Key/R-Key) on inbound RDMA R/W"},
+	{IRDMA_AE_IB_RREQ_AND_Q1_FULL,
+	"QP error: Received RDMA Read request when the inbound RDMA Read queue is full"},
+	{IRDMA_AE_IB_INVALID_REQUEST,
+	"QP error: Invalid operation detected by the remote peer"},
+	{IRDMA_AE_WQE_UNEXPECTED_OPCODE,
+	"QP error: Invalid opcode in SQ WQE"},
+	{IRDMA_AE_WQE_INVALID_PARAMETER,
+	"QP error: Invalid parameter in a WQE"},
+	{IRDMA_AE_WQE_INVALID_FRAG_DATA,
+	"QP error: Invalid fragment in a WQE"},
+	{IRDMA_AE_IB_REMOTE_ACCESS_ERROR,
+	"RoCEv2 error: Remote access error"},
+	{IRDMA_AE_IB_REMOTE_OP_ERROR,
+	"RoCEv2 error: Remote operation error"},
+	{IRDMA_AE_WQE_LSMM_TOO_LONG, "iWARP error: Connection error"},
+	{IRDMA_AE_DDP_INVALID_MSN_GAP_IN_MSN,
+	"iWARP error: Invalid message sequence number"},
+	{IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER,
+	"iWARP error: Inbound message is too long for the available buffer"},
+	{IRDMA_AE_DDP_UBE_INVALID_DDP_VERSION, "iWARP error: Invalid DDP protocol version"},
+	{IRDMA_AE_DDP_UBE_INVALID_MO, "Received message with too large offset"},
+	{IRDMA_AE_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE,
+	"iWARP error: Inbound Send message when no receive buffer is available"},
+	{IRDMA_AE_DDP_UBE_INVALID_QN, "iWARP error: Invalid QP number in inbound packet"},
+	{IRDMA_AE_DDP_NO_L_BIT,
+	"iWARP error: Last bit not set in an inbound packet which completes RDMA Read"},
+	{IRDMA_AE_RDMAP_ROE_INVALID_RDMAP_VERSION, "iWARP error: Invalid RDMAP protocol version"},
+	{IRDMA_AE_RDMAP_ROE_UNEXPECTED_OPCODE, "QP error: Invalid opcode"},
+	{IRDMA_AE_ROE_INVALID_RDMA_READ_REQUEST, "Inbound Read request when QP isn't enabled for RDMA Read"},
+	{IRDMA_AE_ROE_INVALID_RDMA_WRITE_OR_READ_RESP,
+	"Inbound RDMA Read response or RDMA Write when QP isn't enabled for RDMA R/W"},
+	{IRDMA_AE_ROCE_RSP_LENGTH_ERROR, "RoCEv2 error: Received packet with incorrect length field"},
+	{IRDMA_AE_ROCE_EMPTY_MCG, "RoCEv2 error: Multicast group has no valid members"},
+	{IRDMA_AE_ROCE_BAD_MC_IP_ADDR, "RoCEv2 error: Multicast IP address doesn't match"},
+	{IRDMA_AE_ROCE_BAD_MC_QPID, "RoCEv2 error: Multicast packet QP number isn't 0xffffff"},
+	{IRDMA_AE_MCG_QP_PROTOCOL_MISMATCH, "RoCEv2 error: Multicast packet protocol mismatch"},
+	{IRDMA_AE_INVALID_ARP_ENTRY, "Invalid ARP entry"},
+	{IRDMA_AE_INVALID_TCP_OPTION_RCVD, "iWARP error: Invalid TCP option"},
+	{IRDMA_AE_STALE_ARP_ENTRY, "Stale ARP entry"},
+	{IRDMA_AE_INVALID_AH_ENTRY, "Invalid AH entry"},
+	{IRDMA_AE_LLP_CLOSE_COMPLETE,
+	"iWARP event: Graceful close complete"},
+	{IRDMA_AE_LLP_CONNECTION_RESET,
+	"iWARP event: Received a TCP packet with a RST bit set"},
+	{IRDMA_AE_LLP_FIN_RECEIVED,
+	"iWARP event: Received a TCP packet with a FIN bit set"},
+	{IRDMA_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH,
+	"iWARP error: Unable to close a gap in the TCP sequence"},
+	{IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR, "Received an ICRC error"},
+	{IRDMA_AE_LLP_SEGMENT_TOO_SMALL,
+	"iWARP error: Received a packet with insufficient space for protocol headers"},
+	{IRDMA_AE_LLP_SYN_RECEIVED,
+	"iWARP event: Received a TCP packet with a SYN bit set"},
+	{IRDMA_AE_LLP_TERMINATE_RECEIVED,
+	"iWARP error: Received a terminate message"},
+	{IRDMA_AE_LLP_TOO_MANY_RETRIES, "Connection error: The max number of retries has been reached"},
+	{IRDMA_AE_LLP_TOO_MANY_KEEPALIVE_RETRIES,
+	"Connection error: The max number of keepalive retries has been reached"},
+	{IRDMA_AE_LLP_DOUBT_REACHABILITY,
+	"Connection error: Doubt reachability (usually occurs after the max number of retries has been reached)"},
+	{IRDMA_AE_LLP_CONNECTION_ESTABLISHED,
+	"iWARP event: Connection established"},
+	{IRDMA_AE_RESOURCE_EXHAUSTION,
+	"QP error: Resource exhaustion"},
+	{IRDMA_AE_RESET_SENT,
+	"Reset sent (as requested via Modify QP)"},
+	{IRDMA_AE_TERMINATE_SENT,
+	"Terminate sent (as requested via Modify QP)"},
+	{IRDMA_AE_RESET_NOT_SENT,
+	"Reset not sent (but requested via Modify QP)"},
+	{IRDMA_AE_LCE_QP_CATASTROPHIC,
+	"QP error: HW transaction resulted in catastrophic error"},
+	{IRDMA_AE_LCE_FUNCTION_CATASTROPHIC,
+	"PCIe function error: HW transaction resulted in catastrophic error"},
+	{IRDMA_AE_LCE_CQ_CATASTROPHIC,
+	"CQ error: HW transaction resulted in catastrophic error"},
+	{IRDMA_AE_QP_SUSPEND_COMPLETE, "QP event: Suspend complete"},
+};
+
+/**
+ * irdma_get_ae_desc - returns AE description
+ * @ae_id: the AE number
+ */
+const char *
+irdma_get_ae_desc(u16 ae_id)
+{
+	const char *desc = "";
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ae_desc_list); i++) {
+		if (ae_desc_list[i].id == ae_id) {
+			desc = ae_desc_list[i].desc;
+			break;
+		}
+	}
+	return desc;
+}
 
 /**
  * irdma_arp_table -manage arp table
@@ -241,7 +404,7 @@ irdma_free_cqp_request(struct irdma_cqp *cqp,
 	if (cqp_request->dynamic) {
 		kfree(cqp_request);
 	} else {
-		cqp_request->request_done = false;
+		WRITE_ONCE(cqp_request->request_done, false);
 		cqp_request->callback_fcn = NULL;
 		cqp_request->waiting = false;
 
@@ -276,7 +439,7 @@ irdma_free_pending_cqp_request(struct irdma_cqp *cqp,
 {
 	if (cqp_request->waiting) {
 		cqp_request->compl_info.error = true;
-		cqp_request->request_done = true;
+		WRITE_ONCE(cqp_request->request_done, true);
 		wake_up(&cqp_request->waitq);
 	}
 	wait_event_timeout(cqp->remove_wq,
@@ -327,23 +490,22 @@ irdma_wait_event(struct irdma_pci_f *rf,
 		 struct irdma_cqp_request *cqp_request)
 {
 	struct irdma_cqp_timeout cqp_timeout = {0};
-	int timeout_threshold = CQP_TIMEOUT_THRESHOLD;
 	bool cqp_error = false;
 	int err_code = 0;
 
-	cqp_timeout.compl_cqp_cmds = rf->sc_dev.cqp_cmd_stats[IRDMA_OP_CMPL_CMDS];
+	cqp_timeout.compl_cqp_cmds = atomic64_read(&rf->sc_dev.cqp->completed_ops);
 	do {
 		int wait_time_ms = rf->sc_dev.hw_attrs.max_cqp_compl_wait_time_ms;
 
 		irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
 		if (wait_event_timeout(cqp_request->waitq,
-				       cqp_request->request_done,
+				       READ_ONCE(cqp_request->request_done),
 				       msecs_to_jiffies(wait_time_ms)))
 			break;
 
 		irdma_check_cqp_progress(&cqp_timeout, &rf->sc_dev);
 
-		if (cqp_timeout.count < timeout_threshold)
+		if (cqp_timeout.count < CQP_TIMEOUT_THRESHOLD)
 			continue;
 
 		if (!rf->reset) {
@@ -396,7 +558,8 @@ static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS] = {
 	[IRDMA_OP_MANAGE_HMC_PM_FUNC_TABLE] = "Manage HMC PM Function Table Cmd",
 	[IRDMA_OP_SUSPEND] = "Suspend QP Cmd",
 	[IRDMA_OP_RESUME] = "Resume QP Cmd",
-	[IRDMA_OP_MANAGE_VF_PBLE_BP] = "Manage VF PBLE Backing Pages Cmd",
+	[IRDMA_OP_MANAGE_VCHNL_REQ_PBLE_BP] =
+	"Manage Virtual Channel Requester Function PBLE Backing Pages Cmd",
 	[IRDMA_OP_QUERY_FPM_VAL] = "Query FPM Values Cmd",
 	[IRDMA_OP_COMMIT_FPM_VAL] = "Commit FPM Values Cmd",
 	[IRDMA_OP_AH_CREATE] = "Create Address Handle Cmd",
@@ -1620,41 +1783,6 @@ exit:
 }
 
 /**
- * irdma_cqp_up_map_cmd - Set the up-up mapping
- * @dev: pointer to device structure
- * @cmd: map command
- * @map_info: pointer to up map info
- */
-int
-irdma_cqp_up_map_cmd(struct irdma_sc_dev *dev, u8 cmd,
-		     struct irdma_up_info *map_info)
-{
-	struct irdma_pci_f *rf = dev_to_rf(dev);
-	struct irdma_cqp *iwcqp = &rf->cqp;
-	struct irdma_sc_cqp *cqp = &iwcqp->sc_cqp;
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	int status;
-
-	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, false);
-	if (!cqp_request)
-		return -ENOMEM;
-
-	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
-	cqp_info->cqp_cmd = cmd;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.up_map.info = *map_info;
-	cqp_info->in.u.up_map.cqp = cqp;
-	cqp_info->in.u.up_map.scratch = (uintptr_t)cqp_request;
-
-	status = irdma_handle_cqp_op(rf, cqp_request);
-	irdma_put_cqp_request(&rf->cqp, cqp_request);
-
-	return status;
-}
-
-/**
  * irdma_ah_cqp_op - perform an AH cqp operation
  * @rf: RDMA PCI function
  * @sc_ah: address handle
@@ -1706,7 +1834,7 @@ irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		return -ENOMEM;
 
 	if (wait)
-		sc_ah->ah_info.ah_valid = (cmd == IRDMA_OP_AH_CREATE);
+		sc_ah->ah_info.ah_valid = (cmd != IRDMA_OP_AH_DESTROY);
 
 	return 0;
 }
@@ -1851,14 +1979,9 @@ irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 
 	sizeofbitmap = (u64)pchunk->size >> pprm->pble_shift;
 
-	pchunk->bitmapmem.size = sizeofbitmap >> 3;
-	pchunk->bitmapmem.va = kzalloc(pchunk->bitmapmem.size, GFP_KERNEL);
-
-	if (!pchunk->bitmapmem.va)
+	pchunk->bitmapbuf = bitmap_zalloc(sizeofbitmap, GFP_KERNEL);
+	if (!pchunk->bitmapbuf)
 		return -ENOMEM;
-
-	pchunk->bitmapbuf = pchunk->bitmapmem.va;
-	bitmap_zero(pchunk->bitmapbuf, sizeofbitmap);
 
 	pchunk->sizeofbitmap = sizeofbitmap;
 	/* each pble is 8 bytes hence shift by 3 */
@@ -2197,9 +2320,8 @@ irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw)
 		clear_qp_ctx_addr(dma_mem.va);
 		for (i = 0, j = 0; i < 32; i++, j += 4)
 			irdma_debug(dev, IRDMA_DEBUG_QP,
-				    "%d:\t [%08X %08x %08X %08X]\n",
-				    (j * 4), ctx[j], ctx[j + 1], ctx[j + 2],
-				    ctx[j + 3]);
+				    "%d:\t [%08X %08x %08X %08X]\n", (j * 4),
+				    ctx[j], ctx[j + 1], ctx[j + 2], ctx[j + 3]);
 	}
 error:
 	irdma_put_cqp_request(iwcqp, cqp_request);

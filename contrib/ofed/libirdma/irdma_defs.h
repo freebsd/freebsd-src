@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -312,7 +312,7 @@
 
 #define IRDMA_GET_CQ_ELEM_AT_OFFSET(_cq, _i, _cqe) \
 	{ \
-		register __u32 offset; \
+		__u32 offset; \
 		offset = IRDMA_GET_RING_OFFSET((_cq)->cq_ring, _i); \
 		(_cqe) = (_cq)->cq_base[offset].buf; \
 	}
@@ -338,7 +338,7 @@
 
 #define IRDMA_RING_MOVE_HEAD(_ring, _retcode) \
 	{ \
-		register u32 size; \
+		u32 size; \
 		size = (_ring).size;  \
 		if (!IRDMA_RING_FULL_ERR(_ring)) { \
 			(_ring).head = ((_ring).head + 1) % size; \
@@ -349,7 +349,7 @@
 	}
 #define IRDMA_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
 	{ \
-		register u32 size; \
+		u32 size; \
 		size = (_ring).size; \
 		if ((IRDMA_RING_USED_QUANTA(_ring) + (_count)) < size) { \
 			(_ring).head = ((_ring).head + (_count)) % size; \
@@ -360,7 +360,7 @@
 	}
 #define IRDMA_SQ_RING_MOVE_HEAD(_ring, _retcode) \
 	{ \
-		register u32 size; \
+		u32 size; \
 		size = (_ring).size;  \
 		if (!IRDMA_SQ_RING_FULL_ERR(_ring)) { \
 			(_ring).head = ((_ring).head + 1) % size; \
@@ -371,7 +371,7 @@
 	}
 #define IRDMA_SQ_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
 	{ \
-		register u32 size; \
+		u32 size; \
 		size = (_ring).size; \
 		if ((IRDMA_RING_USED_QUANTA(_ring) + (_count)) < (size - 256)) { \
 			(_ring).head = ((_ring).head + (_count)) % size; \
@@ -455,6 +455,19 @@ enum irdma_qp_wqe_size {
 	IRDMA_WQE_SIZE_96  = 96,
 	IRDMA_WQE_SIZE_128 = 128,
 	IRDMA_WQE_SIZE_256 = 256,
+};
+
+enum irdma_ws_op_type {
+	IRDMA_WS_OP_TYPE_NODE = 0,
+	IRDMA_WS_OP_TYPE_LEAF_NODE_GROUP,
+};
+
+enum irdma_ws_rate_limit_flags {
+	IRDMA_WS_RATE_LIMIT_FLAGS_VALID = 0x1,
+	IRDMA_WS_NO_RDMA_RATE_LIMIT = 0x2,
+	IRDMA_WS_LEAF_NODE_IS_PART_GROUP = 0x4,
+	IRDMA_WS_TREE_RATE_LIMITING = 0x8,
+	IRDMA_WS_PACING_CONTROL = 0x10,
 };
 
 /**

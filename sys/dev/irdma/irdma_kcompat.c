@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2018 - 2022 Intel Corporation
+ * Copyright (c) 2018 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -608,36 +608,37 @@ irdma_find_qp_update_qs(struct irdma_pci_f *rf,
 static void
 irdma_fill_ah_info(struct vnet *vnet, struct irdma_ah_info *ah_info,
 		   const struct ib_gid_attr *sgid_attr,
-		   struct sockaddr *sgid_addr, struct sockaddr *dgid_addr,
+		   union irdma_sockaddr *sgid_addr,
+		   union irdma_sockaddr *dgid_addr,
 		   u8 *dmac, u8 net_type)
 {
 	if (net_type == RDMA_NETWORK_IPV4) {
 		ah_info->ipv4_valid = true;
 		ah_info->dest_ip_addr[0] =
-		    ntohl(((struct sockaddr_in *)dgid_addr)->sin_addr.s_addr);
+		    ntohl(dgid_addr->saddr_in.sin_addr.s_addr);
 		ah_info->src_ip_addr[0] =
-		    ntohl(((struct sockaddr_in *)sgid_addr)->sin_addr.s_addr);
+		    ntohl(sgid_addr->saddr_in.sin_addr.s_addr);
 		CURVNET_SET_QUIET(vnet);
 		ah_info->do_lpbk = irdma_ipv4_is_lpb(ah_info->src_ip_addr[0],
 						     ah_info->dest_ip_addr[0]);
 		CURVNET_RESTORE();
-		if (ipv4_is_multicast(((struct sockaddr_in *)dgid_addr)->sin_addr.s_addr)) {
+		if (ipv4_is_multicast(dgid_addr->saddr_in.sin_addr.s_addr)) {
 			irdma_mcast_mac_v4(ah_info->dest_ip_addr, dmac);
 		}
 	} else {
 		irdma_copy_ip_ntohl(ah_info->dest_ip_addr,
-				    ((struct sockaddr_in6 *)dgid_addr)->sin6_addr.__u6_addr.__u6_addr32);
+				    dgid_addr->saddr_in6.sin6_addr.__u6_addr.__u6_addr32);
 		irdma_copy_ip_ntohl(ah_info->src_ip_addr,
-				    ((struct sockaddr_in6 *)sgid_addr)->sin6_addr.__u6_addr.__u6_addr32);
+				    sgid_addr->saddr_in6.sin6_addr.__u6_addr.__u6_addr32);
 		ah_info->do_lpbk = irdma_ipv6_is_lpb(ah_info->src_ip_addr,
 						     ah_info->dest_ip_addr);
-		if (rdma_is_multicast_addr(&((struct sockaddr_in6 *)dgid_addr)->sin6_addr)) {
+		if (rdma_is_multicast_addr(&dgid_addr->saddr_in6.sin6_addr)) {
 			irdma_mcast_mac_v6(ah_info->dest_ip_addr, dmac);
 		}
 	}
 }
 
-static inline u8 irdma_get_vlan_ndev_prio(if_t ndev, u8 prio)
+static inline u8 irdma_roce_get_vlan_prio(if_t ndev, u8 prio)
 {
 	return prio;
 }
@@ -665,10 +666,9 @@ irdma_create_ah_vlan_tag(struct irdma_device *iwdev,
 		ah_info->vlan_tag = 0;
 
 	if (ah_info->vlan_tag < VLAN_N_VID) {
-		if_t ndev = sgid_attr->ndev;
-
 		ah_info->insert_vlan_tag = true;
-		vlan_prio = (u16)irdma_get_vlan_ndev_prio(ndev, rt_tos2priority(ah_info->tc_tos));
+		vlan_prio = (u16)irdma_roce_get_vlan_prio(sgid_attr->ndev,
+							  rt_tos2priority(ah_info->tc_tos));
 		ah_info->vlan_tag |= vlan_prio << VLAN_PRIO_SHIFT;
 		irdma_find_qp_update_qs(iwdev->rf, pd, vlan_prio);
 	}
@@ -725,14 +725,10 @@ irdma_create_ah(struct ib_ah *ib_ah,
 	struct irdma_sc_ah *sc_ah;
 	u32 ah_id = 0;
 	struct irdma_ah_info *ah_info;
-	struct irdma_create_ah_resp uresp;
-	union {
-		struct sockaddr saddr;
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr, dgid_addr;
+	struct irdma_create_ah_resp uresp = {};
+	union irdma_sockaddr sgid_addr, dgid_addr;
 	int err;
-	u8 dmac[ETH_ALEN];
+	u8 dmac[ETHER_ADDR_LEN];
 	bool sleep = (flags & RDMA_CREATE_AH_SLEEPABLE) != 0;
 
 	if (udata && udata->outlen < IRDMA_CREATE_AH_MIN_RESP_LEN)
@@ -765,15 +761,11 @@ irdma_create_ah(struct ib_ah *ib_ah,
 	rdma_gid2ip((struct sockaddr *)&sgid_addr, &sgid);
 	rdma_gid2ip((struct sockaddr *)&dgid_addr, &attr->grh.dgid);
 	ah->av.attrs = *attr;
-	ah->av.net_type = kc_rdma_gid_attr_network_type(sgid_attr,
-							sgid_attr.gid_type,
-							&sgid);
+	ah->av.net_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 
 	if (sgid_attr.ndev)
 		dev_put(sgid_attr.ndev);
 
-	ah->av.sgid_addr.saddr = sgid_addr.saddr;
-	ah->av.dgid_addr.saddr = dgid_addr.saddr;
 	ah_info = &sc_ah->ah_info;
 	ah_info->ah_idx = ah_id;
 	ah_info->pd_idx = pd->sc_pd.pd_id;
@@ -787,7 +779,7 @@ irdma_create_ah(struct ib_ah *ib_ah,
 
 	ether_addr_copy(dmac, attr->dmac);
 
-	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
+	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr, &dgid_addr,
 			   dmac, ah->av.net_type);
 
 	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, &sgid_attr, dmac);
@@ -809,7 +801,7 @@ irdma_create_ah(struct ib_ah *ib_ah,
 
 	if (udata) {
 		uresp.ah_id = ah->sc_ah.ah_info.ah_idx;
-		err = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		err = ib_copy_to_udata(udata, &uresp, min(sizeof(uresp), udata->outlen));
 		if (err) {
 			irdma_ah_cqp_op(iwdev->rf, &ah->sc_ah,
 					IRDMA_OP_AH_DESTROY, false, NULL, ah);
@@ -887,14 +879,10 @@ irdma_create_ah(struct ib_pd *ibpd,
 	struct irdma_sc_ah *sc_ah;
 	u32 ah_id = 0;
 	struct irdma_ah_info *ah_info;
-	struct irdma_create_ah_resp uresp;
-	union {
-		struct sockaddr saddr;
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr, dgid_addr;
+	struct irdma_create_ah_resp uresp = {};
+	union irdma_sockaddr sgid_addr, dgid_addr;
 	int err;
-	u8 dmac[ETH_ALEN];
+	u8 dmac[ETHER_ADDR_LEN];
 	bool sleep = udata ? true : false;
 
 	if (udata && udata->outlen < IRDMA_CREATE_AH_MIN_RESP_LEN)
@@ -933,15 +921,11 @@ irdma_create_ah(struct ib_pd *ibpd,
 	rdma_gid2ip((struct sockaddr *)&sgid_addr, &sgid);
 	rdma_gid2ip((struct sockaddr *)&dgid_addr, &attr->grh.dgid);
 	ah->av.attrs = *attr;
-	ah->av.net_type = kc_rdma_gid_attr_network_type(sgid_attr,
-							sgid_attr.gid_type,
-							&sgid);
+	ah->av.net_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 
 	if (sgid_attr.ndev)
 		dev_put(sgid_attr.ndev);
 
-	ah->av.sgid_addr.saddr = sgid_addr.saddr;
-	ah->av.dgid_addr.saddr = dgid_addr.saddr;
 	ah_info = &sc_ah->ah_info;
 	ah_info->ah_idx = ah_id;
 	ah_info->pd_idx = pd->sc_pd.pd_id;
@@ -957,7 +941,7 @@ irdma_create_ah(struct ib_pd *ibpd,
 		ib_resolve_eth_dmac(ibpd->device, attr);
 	irdma_ether_copy(dmac, attr);
 
-	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
+	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr, &dgid_addr,
 			   dmac, ah->av.net_type);
 
 	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, &sgid_attr, dmac);
@@ -979,7 +963,7 @@ irdma_create_ah(struct ib_pd *ibpd,
 
 	if (udata) {
 		uresp.ah_id = ah->sc_ah.ah_info.ah_idx;
-		err = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		err = ib_copy_to_udata(udata, &uresp, min(sizeof(uresp), udata->outlen));
 		if (err) {
 			irdma_ah_cqp_op(iwdev->rf, &ah->sc_ah,
 					IRDMA_OP_AH_DESTROY, false, NULL, ah);
@@ -1128,6 +1112,8 @@ irdma_create_qp(struct ib_pd *ibpd,
 	init_waitqueue_head(&iwqp->waitq);
 	init_waitqueue_head(&iwqp->mod_qp_waitq);
 
+	spin_lock_init(&iwqp->dwork_flush_lock);
+
 	if (udata) {
 		init_info.qp_uk_init_info.abi_ver = iwpd->sc_pd.abi_ver;
 		err_code = irdma_setup_umode_qp(udata, iwdev, iwqp, &init_info, init_attr);
@@ -1256,15 +1242,9 @@ irdma_destroy_qp(struct ib_qp *ibqp)
 		list_del(&iwqp->ud_list_elem);
 	spin_unlock_irqrestore(&iwqp->iwpd->udqp_list_lock, flags);
 
-	if (iwqp->iwarp_state == IRDMA_QP_STATE_RTS)
+	if (iwqp->iwarp_state >= IRDMA_QP_STATE_IDLE)
 		irdma_modify_qp_to_err(&iwqp->sc_qp);
 
-	irdma_qp_rem_ref(&iwqp->ibqp);
-	wait_for_completion(&iwqp->free_qp);
-	irdma_free_lsmm_rsrc(iwqp);
-	if (!iwdev->rf->reset && irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp))
-		return (iwdev->rf->rdma_ver <= IRDMA_GEN_2 && !iwqp->user_mode) ? 0 : -ENOTRECOVERABLE;
-free_rsrc:
 	if (!iwqp->user_mode) {
 		if (iwqp->iwscq) {
 			irdma_clean_cqes(iwqp, iwqp->iwscq);
@@ -1272,6 +1252,12 @@ free_rsrc:
 				irdma_clean_cqes(iwqp, iwqp->iwrcq);
 		}
 	}
+	irdma_qp_rem_ref(&iwqp->ibqp);
+	wait_for_completion(&iwqp->free_qp);
+	irdma_free_lsmm_rsrc(iwqp);
+	if (!iwdev->rf->reset && irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp))
+		return (iwdev->rf->rdma_ver <= IRDMA_GEN_2 && !iwqp->user_mode) ? 0 : -ENOTRECOVERABLE;
+free_rsrc:
 	irdma_remove_push_mmap_entries(iwqp);
 	irdma_free_qp_rsrc(iwqp);
 
@@ -1463,7 +1449,7 @@ irdma_create_cq(struct ib_device *ibdev,
 
 		if (!iwcq->kmem_shadow.va) {
 			err_code = -ENOMEM;
-			goto cq_free_rsrc;
+			goto cq_kmem_free;
 		}
 		info.shadow_area_pa = iwcq->kmem_shadow.pa;
 		ukinfo->shadow_area = iwcq->kmem_shadow.va;
@@ -1471,19 +1457,18 @@ irdma_create_cq(struct ib_device *ibdev,
 		info.cq_base_pa = iwcq->kmem.pa;
 	}
 
-	if (dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
-		info.shadow_read_threshold = min(info.cq_uk_init_info.cq_size / 2,
-						 (u32)IRDMA_MAX_CQ_READ_THRESH);
+	info.shadow_read_threshold = min(info.cq_uk_init_info.cq_size / 2,
+					 (u32)IRDMA_MAX_CQ_READ_THRESH);
 	if (irdma_sc_cq_init(cq, &info)) {
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS, "init cq fail\n");
 		err_code = -EPROTO;
-		goto cq_free_rsrc;
+		goto cq_kmem_free;
 	}
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request) {
 		err_code = -ENOMEM;
-		goto cq_free_rsrc;
+		goto cq_kmem_free;
 	}
 	cqp_info = &cqp_request->info;
 	cqp_info->cqp_cmd = IRDMA_OP_CQ_CREATE;
@@ -1495,7 +1480,7 @@ irdma_create_cq(struct ib_device *ibdev,
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
 	if (status) {
 		err_code = -ENOMEM;
-		goto cq_free_rsrc;
+		goto cq_kmem_free;
 	}
 
 	if (udata) {
@@ -1521,8 +1506,13 @@ irdma_create_cq(struct ib_device *ibdev,
 #endif
 cq_destroy:
 	irdma_cq_wq_destroy(rf, cq);
+cq_kmem_free:
+	if (!iwcq->user_mode) {
+		irdma_free_dma_mem(dev->hw, &iwcq->kmem);
+		irdma_free_dma_mem(dev->hw, &iwcq->kmem_shadow);
+	}
 cq_free_rsrc:
-	irdma_cq_free_rsrc(rf, iwcq);
+	irdma_free_rsrc(rf, rf->allocated_cqs, cq_num);
 #if __FreeBSD_version >= 1400026
 	return err_code;
 #else
@@ -1736,9 +1726,7 @@ kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp, struct ib_qp_attr *attr,
 		ether_addr_copy(iwqp->ctx_info.roce_info->mac_addr, if_getlladdr(sgid_attr.ndev));
 	}
 
-	av->net_type = kc_rdma_gid_attr_network_type(sgid_attr,
-						     sgid_attr.gid_type,
-						     &sgid);
+	av->net_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid);
 	dev_put(sgid_attr.ndev);
 	iwqp->sc_qp.user_pri = iwqp->ctx_info.user_pri;
@@ -1835,6 +1823,9 @@ irdma_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	struct irdma_mr *iwmr;
 	int err_code;
 	u32 stag;
+
+	if (type != IB_MW_TYPE_1 && type != IB_MW_TYPE_2)
+		return ERR_PTR(-EINVAL);
 
 	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
 	if (!iwmr)
@@ -2153,7 +2144,7 @@ irdma_query_port(struct ib_device *ibdev, u8 port,
 
 	if (rdma_protocol_roce(ibdev, 1)) {
 		props->gid_tbl_len = 32;
-		kc_set_props_ip_gid_caps(props);
+	        props->port_cap_flags |= IB_PORT_IP_BASED_GIDS;
 		props->pkey_tbl_len = IRDMA_PKEY_TBL_SZ;
 	} else {
 		props->gid_tbl_len = 1;
@@ -2379,4 +2370,16 @@ ib_get_eth_speed(struct ib_device *ibdev, u32 port_num, u8 *speed, u8 *width)
 	}
 
 	return 0;
+}
+
+u64
+irdma_mac_to_u64(const u8 *eth_add)
+{
+	int idx;
+	u64 u64_eth_add;
+
+	for (idx = 0, u64_eth_add = 0; idx < ETHER_ADDR_LEN; idx++)
+		u64_eth_add = u64_eth_add << 8 | eth_add[idx];
+
+	return u64_eth_add;
 }

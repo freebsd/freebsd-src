@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -71,7 +71,7 @@ struct irdma_puda_cmpl_info {
 	bool ipv4:1;
 	bool smac_valid:1;
 	bool vlan_valid:1;
-	u8 smac[ETH_ALEN];
+	u8 smac[ETHER_ADDR_LEN];
 };
 
 struct irdma_puda_send_info {
@@ -108,7 +108,7 @@ struct irdma_puda_buf {
 	bool smac_valid:1;
 	u32 seqnum;
 	u32 ah_id;
-	u8 smac[ETH_ALEN];
+	u8 smac[ETHER_ADDR_LEN];
 	struct irdma_sc_vsi *vsi;
 };
 
