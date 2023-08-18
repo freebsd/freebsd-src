@@ -1468,7 +1468,7 @@ vm_map_entry_unlink(vm_map_t map, vm_map_entry_t entry,
 	if (op == UNLINK_MERGE_NEXT) {
 		rlist->start = root->start;
 		MPASS((rlist->eflags & (MAP_ENTRY_STACK_GAP_DN |
-		    MAP_ENTRY_STACK_GAP_UP) == 0);
+		    MAP_ENTRY_STACK_GAP_UP)) == 0);
 		rlist->offset = root->offset;
 	}
 	if (llist != header) {
