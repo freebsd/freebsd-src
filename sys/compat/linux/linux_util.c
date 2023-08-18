@@ -31,7 +31,6 @@
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/bus.h>
