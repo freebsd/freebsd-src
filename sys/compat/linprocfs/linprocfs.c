@@ -44,7 +44,7 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/systm.h>
 #include <sys/blist.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
@@ -61,6 +61,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/queue.h>
 #include <sys/resourcevar.h>
 #include <sys/resource.h>
 #include <sys/sbuf.h>
@@ -71,7 +72,6 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/user.h>
