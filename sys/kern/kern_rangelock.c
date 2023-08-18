@@ -134,6 +134,12 @@ rl_q_load(struct rl_q_entry **p)
 	return ((struct rl_q_entry *)atomic_load_acq_ptr((uintptr_t *)p));
 }
 
+static bool
+rl_e_is_rlock(const struct rl_q_entry *e)
+{
+	return ((e->rl_q_flags & RL_LOCK_TYPE_MASK) == RL_LOCK_READ);
+}
+
 void
 rangelock_unlock(struct rangelock *lock, void *cookie)
 {
