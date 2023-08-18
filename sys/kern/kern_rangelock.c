@@ -122,10 +122,27 @@ rl_e_is_marked(const struct rl_q_entry *e)
 }
 
 static struct rl_q_entry *
+rl_e_unmark_unchecked(const struct rl_q_entry *e)
+{
+	return ((struct rl_q_entry *)((uintptr_t)e & ~1));
+}
+
+static struct rl_q_entry *
 rl_e_unmark(const struct rl_q_entry *e)
 {
 	MPASS(rl_e_is_marked(e));
-	return ((struct rl_q_entry *)((uintptr_t)e & ~1));
+	return (rl_e_unmark_unchecked(e));
+}
+
+static void
+rl_e_mark(struct rl_q_entry *e)
+{
+#if defined(INVARIANTS) && defined(__LP64__)
+	int r = atomic_testandset_long((uintptr_t *)&e->rl_q_next, 0);
+	MPASS(r == 0);
+#else
+	atomic_set_ptr((uintptr_t *)&e->rl_q_next, 1);
+#endif
 }
 
 static struct rl_q_entry *
@@ -140,42 +157,49 @@ rl_e_is_rlock(const struct rl_q_entry *e)
 	return ((e->rl_q_flags & RL_LOCK_TYPE_MASK) == RL_LOCK_READ);
 }
 
-void
-rangelock_unlock(struct rangelock *lock, void *cookie)
+static void
+rangelock_unlock_int(struct rangelock *lock, struct rl_q_entry *e)
 {
-	struct rl_q_entry *e;
-
-	e = cookie;
 	MPASS(lock != NULL && e != NULL);
 	MPASS(!rl_e_is_marked(rl_q_load(&e->rl_q_next)));
 	MPASS(e->rl_q_owner == curthread);
 
-	sleepq_lock(&lock->sleepers);
-#ifdef INVARIANTS
-	int r = atomic_testandset_long((uintptr_t *)&e->rl_q_next, 0);
-	MPASS(r == 0);
-#else
-	atomic_set_ptr((uintptr_t *)&e->rl_q_next, 1);
-#endif
+	rl_e_mark(e);
 	lock->sleepers = false;
 	sleepq_broadcast(&lock->sleepers, SLEEPQ_SLEEP, 0, 0);
+}
+
+void
+rangelock_unlock(struct rangelock *lock, void *cookie)
+{
+	sleepq_lock(&lock->sleepers);
+	rangelock_unlock_int(lock, cookie);
 	sleepq_release(&lock->sleepers);
 }
 
 /*
- * result: -1 if e1 before e2
- *          1 if e1 after e2
- *          0 if e1 and e2 overlap
+ * result: -1 if e1 before e2, or both locks are readers and e1
+ *		starts before or at e2
+ *          1 if e1 after e2, or both locks are readers and e1
+ *		starts after e2
+ *          0 if e1 and e2 overlap and at least one lock is writer
  */
 static int
 rl_e_compare(const struct rl_q_entry *e1, const struct rl_q_entry *e2)
 {
+	bool rds;
+
 	if (e1 == NULL)
-		return (1);
-	if (e1->rl_q_start >= e2->rl_q_end)
 		return (1);
 	if (e2->rl_q_start >= e1->rl_q_end)
 		return (-1);
+	rds = rl_e_is_rlock(e1) && rl_e_is_rlock(e2);
+	if (e2->rl_q_start >= e1->rl_q_start && rds)
+		return (-1);
+	if (e1->rl_q_start >= e2->rl_q_end)
+		return (1);
+	if (e1->rl_q_start >= e2->rl_q_start && rds)
+		return (1);
 	return (0);
 }
 
@@ -199,7 +223,95 @@ rl_q_cas(struct rl_q_entry **prev, struct rl_q_entry *old,
 	    (uintptr_t)new) != 0);
 }
 
-static bool
+enum RL_INSERT_RES {
+	RL_TRYLOCK_FAILED,
+	RL_LOCK_SUCCESS,
+	RL_LOCK_RETRY,
+};
+
+static enum RL_INSERT_RES
+rl_r_validate(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
+    struct rl_q_entry **free)
+{
+	struct rl_q_entry *cur, *next, **prev;
+
+	prev = &e->rl_q_next;
+	cur = rl_q_load(prev);
+	MPASS(!rl_e_is_marked(cur));	/* nobody can unlock e yet */
+	for (;;) {
+		if (cur == NULL || cur->rl_q_start > e->rl_q_end)
+			return (RL_LOCK_SUCCESS);
+		next = rl_q_load(&cur->rl_q_next);
+		if (rl_e_is_marked(next)) {
+			next = rl_e_unmark(next);
+			if (rl_q_cas(prev, cur, next)) {
+				cur->rl_q_free = *free;
+				*free = cur;
+			}
+			cur = next;
+			continue;
+		}
+		if (rl_e_is_rlock(cur)) {
+			prev = &cur->rl_q_next;
+			cur = rl_e_unmark_unchecked(rl_q_load(prev));
+			continue;
+		}
+		if (!rl_e_is_marked(rl_q_load(&cur->rl_q_next))) {
+			sleepq_lock(&lock->sleepers);
+			if (rl_e_is_marked(rl_q_load(&cur->rl_q_next))) {
+				sleepq_release(&lock->sleepers);
+				continue;
+			}
+			rangelock_unlock_int(lock, e);
+			if (trylock) {
+				sleepq_release(&lock->sleepers);
+				return (RL_TRYLOCK_FAILED);
+			}
+			rl_insert_sleep(lock);
+			return (RL_LOCK_RETRY);
+		}
+	}
+}
+
+static enum RL_INSERT_RES
+rl_w_validate(struct rangelock *lock, struct rl_q_entry *e,
+    bool trylock, struct rl_q_entry **free)
+{
+	struct rl_q_entry *cur, *next, **prev;
+
+	prev = &lock->head;
+	cur = rl_q_load(prev);
+	MPASS(!rl_e_is_marked(cur));	/* head is not marked */
+	for (;;) {
+		if (cur == e)
+			return (RL_LOCK_SUCCESS);
+		next = rl_q_load(&cur->rl_q_next);
+		if (rl_e_is_marked(next)) {
+			next = rl_e_unmark(next);
+			if (rl_q_cas(prev, cur, next)) {
+				cur->rl_q_next = *free;
+				*free = cur;
+			}
+			cur = next;
+			continue;
+		}
+		if (cur->rl_q_end <= e->rl_q_start) {
+			prev = &cur->rl_q_next;
+			cur = rl_e_unmark_unchecked(rl_q_load(prev));
+			continue;
+		}
+		sleepq_lock(&lock->sleepers);
+		rangelock_unlock_int(lock, e);
+		if (trylock) {
+			sleepq_release(&lock->sleepers);
+			return (RL_TRYLOCK_FAILED);
+		}
+		rl_insert_sleep(lock);
+		return (RL_LOCK_RETRY);
+	}
+}
+
+static enum RL_INSERT_RES
 rl_insert(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
     struct rl_q_entry **free)
 {
@@ -208,14 +320,15 @@ rl_insert(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
 
 again:
 	prev = &lock->head;
-	if (rl_q_load(prev) == NULL && rl_q_cas(prev, NULL, e))
-		return (true);
+	cur = rl_q_load(prev);
+	if (cur == NULL && rl_q_cas(prev, NULL, e))
+		return (RL_LOCK_SUCCESS);
 
-	for (cur = rl_q_load(prev);;) {
-		if (rl_e_is_marked(cur))
-			goto again;
-
+	for (;;) {
 		if (cur != NULL) {
+			if (rl_e_is_marked(cur))
+				goto again;
+
 			next = rl_q_load(&cur->rl_q_next);
 			if (rl_e_is_marked(next)) {
 				next = rl_e_unmark(next);
@@ -244,7 +357,7 @@ again:
 			}
 			if (trylock) {
 				sleepq_release(&lock->sleepers);
-				return (false);
+				return (RL_TRYLOCK_FAILED);
 			}
 			rl_insert_sleep(lock);
 			/* e is still valid */
@@ -253,7 +366,9 @@ again:
 			e->rl_q_next = cur;
 			if (rl_q_cas(prev, cur, e)) {
 				atomic_thread_fence_acq();
-				return (true);
+				return (rl_e_is_rlock(e) ?
+				    rl_r_validate(lock, e, trylock, free) :
+				    rl_w_validate(lock, e, trylock, free));
 			}
 			/* Reset rl_q_next in case we hit fast path. */
 			e->rl_q_next = NULL;
@@ -263,27 +378,30 @@ again:
 }
 
 static struct rl_q_entry *
-rangelock_lock_int(struct rangelock *lock, struct rl_q_entry *e,
-    bool trylock)
+rangelock_lock_int(struct rangelock *lock, bool trylock, vm_ooffset_t start,
+    vm_ooffset_t end, int locktype)
 {
-	struct rl_q_entry *free, *x, *xp;
-	bool res;
+	struct rl_q_entry *e, *free, *x, *xp;
+	enum RL_INSERT_RES res;
 
-	free = NULL;
-	smr_enter(rl_smr);
-	res = rl_insert(lock, e, trylock, &free);
-	smr_exit(rl_smr);
-	MPASS(trylock || res);
-	if (!res) {
-		e->rl_q_free = free;
-		free = e;
-		e = NULL;
-	}
-	for (x = free; x != NULL; x = xp) {
-		MPASS(!rl_e_is_marked(x));
-		xp = x->rl_q_free;
-		MPASS(!rl_e_is_marked(xp));
-		uma_zfree_smr(rl_entry_zone, x);
+	for (res = RL_LOCK_RETRY; res == RL_LOCK_RETRY;) {
+		free = NULL;
+		e = rlqentry_alloc(start, end, locktype);
+		smr_enter(rl_smr);
+		res = rl_insert(lock, e, trylock, &free);
+		smr_exit(rl_smr);
+		if (res == RL_TRYLOCK_FAILED) {
+			MPASS(trylock);
+			e->rl_q_free = free;
+			free = e;
+			e = NULL;
+		}
+		for (x = free; x != NULL; x = xp) {
+		  MPASS(!rl_e_is_marked(x));
+		  xp = x->rl_q_free;
+		  MPASS(!rl_e_is_marked(xp));
+		  uma_zfree_smr(rl_entry_zone, x);
+		}
 	}
 	return (e);
 }
@@ -291,37 +409,25 @@ rangelock_lock_int(struct rangelock *lock, struct rl_q_entry *e,
 void *
 rangelock_rlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
-	struct rl_q_entry *e;
-
-	e = rlqentry_alloc(start, end, RL_LOCK_READ);
-	return (rangelock_lock_int(lock, e, false));
+	return (rangelock_lock_int(lock, false, start, end, RL_LOCK_READ));
 }
 
 void *
 rangelock_tryrlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
-	struct rl_q_entry *e;
-
-	e = rlqentry_alloc(start, end, RL_LOCK_READ);
-	return (rangelock_lock_int(lock, e, true));
+	return (rangelock_lock_int(lock, true, start, end, RL_LOCK_READ));
 }
 
 void *
 rangelock_wlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
-	struct rl_q_entry *e;
-
-	e = rlqentry_alloc(start, end, RL_LOCK_WRITE);
-	return (rangelock_lock_int(lock, e, true));
+	return (rangelock_lock_int(lock, true, start, end, RL_LOCK_WRITE));
 }
 
 void *
 rangelock_trywlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 {
-	struct rl_q_entry *e;
-
-	e = rlqentry_alloc(start, end, RL_LOCK_WRITE);
-	return (rangelock_lock_int(lock, e, true));
+	return (rangelock_lock_int(lock, true, start, end, RL_LOCK_WRITE));
 }
 
 #ifdef INVARIANT_SUPPORT
