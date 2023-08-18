@@ -32,7 +32,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
