@@ -66,7 +66,6 @@ define(`confCLIENT_CERT', `CERT_DIR/host.cert')dnl
 define(`confCLIENT_KEY', `CERT_DIR/host.key')dnl
 define(`confCACERT', `CERT_DIR/cacert.pem')dnl
 define(`confCACERT_PATH', `CERT_DIR')dnl
-define(`confDH_PARAMETERS', `CERT_DIR/dh.param')dnl
 
 dnl Uncomment to allow relaying based on your MX records.
 dnl NOTE: This can allow sites to use your server as a backup MX without
