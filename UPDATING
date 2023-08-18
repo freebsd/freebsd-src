@@ -34,7 +34,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	configuration.
 
 	Note that the early x86 BIOS bootloader (i.e., boot0sio) does not
-	support rates above 9600 bps and is not chagned.  boot0sio users may
+	support rates above 9600 bps and is not changed. boot0sio users may
 	set BOOT_COMCONSOLE_SPEED=9600 to use 9600 for all of the boot
 	components, or use the standard boot0 and have the boot2 stage start
 	with the serial port at 115200.
