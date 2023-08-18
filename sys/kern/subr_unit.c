@@ -340,6 +340,10 @@ free_iter_unr(void *handle)
 }
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
+#ifndef __diagused
+#define	__diagused
+#endif
+
 /*
  * Consistency check function.
  *
