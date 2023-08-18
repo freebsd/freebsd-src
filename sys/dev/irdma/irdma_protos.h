@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2016 - 2022 Intel Corporation
+ * Copyright (c) 2016 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -60,8 +60,6 @@ int irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 			       struct irdma_vsi_pestat *pestat, bool wait);
 int irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 			  struct irdma_ws_node_info *node_info);
-int irdma_cqp_up_map_cmd(struct irdma_sc_dev *dev, u8 cmd,
-			 struct irdma_up_info *map_info);
 int irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_ceq *sc_ceq,
 		      u8 op);
 int irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_aeq *sc_aeq,
@@ -130,8 +128,6 @@ int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
 				 struct irdma_dma_mem *val_mem, u16 hmc_fn_id);
 int irdma_alloc_query_fpm_buf(struct irdma_sc_dev *dev,
 			      struct irdma_dma_mem *mem);
-int irdma_cqp_manage_hmc_fcn_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_hmc_fcn_info *hmcfcninfo,
-				 u16 *pmf_idx);
 void *irdma_remove_cqp_head(struct irdma_sc_dev *dev);
+u64 irdma_mac_to_u64(const u8 *eth_add);
 #endif /* IRDMA_PROTOS_H */

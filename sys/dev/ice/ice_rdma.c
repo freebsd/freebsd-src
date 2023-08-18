@@ -121,11 +121,10 @@ ice_rdma_pf_reset(struct ice_rdma_peer *peer)
 {
 	struct ice_softc *sc = ice_rdma_peer_to_sc(peer);
 
-	/*
-	 * Request that the driver re-initialize by bringing the interface
-	 * down and up.
-	 */
-	ice_request_stack_reinit(sc);
+	/* Tell the base driver that RDMA is requesting a PFR */
+	ice_set_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
+
+	/* XXX: Base driver will notify RDMA when it's done */
 
 	return (0);
 }
@@ -331,6 +330,7 @@ ice_rdma_request_handler(struct ice_rdma_peer *peer,
 
 	switch(req->type) {
 	case ICE_RDMA_EVENT_RESET:
+		ice_rdma_pf_reset(peer);
 		break;
 	case ICE_RDMA_EVENT_QSET_REGISTER:
 		ice_rdma_qset_register_request(peer, &req->res);
@@ -863,5 +863,54 @@ ice_rdma_dcb_qos_update(struct ice_softc *sc, struct ice_port_info *pi)
 	sx_xlock(&ice_rdma.mtx);
 	if (sc->rdma_entry.attached && ice_rdma.registered)
 		IRDMA_EVENT_HANDLER(peer, &event);
+	sx_xunlock(&ice_rdma.mtx);
+}
+
+/**
+ *  ice_rdma_notify_pe_intr - notify irdma on incoming interrupts regarding PE
+ *  @sc: the ice driver softc
+ *  @oicr: interrupt cause
+ *
+ *  Pass the information about received interrupt to RDMA driver if it was
+ *  relating to PE. Specifically PE_CRITERR and HMC_ERR.
+ *  The irdma driver shall decide what should be done upon these interrupts.
+ */
+void
+ice_rdma_notify_pe_intr(struct ice_softc *sc, uint32_t oicr)
+{
+	struct ice_rdma_peer *peer = &sc->rdma_entry.peer;
+	struct ice_rdma_event event;
+
+	memset(&event, 0, sizeof(struct ice_rdma_event));
+	event.type = ICE_RDMA_EVENT_CRIT_ERR;
+	event.oicr_reg = oicr;
+
+	sx_xlock(&ice_rdma.mtx);
+	if (sc->rdma_entry.attached && ice_rdma.registered)
+		IRDMA_EVENT_HANDLER(peer, &event);
+	sx_xunlock(&ice_rdma.mtx);
+}
+
+/**
+ *  ice_rdma_notify_reset - notify irdma on incoming pf-reset
+ *  @sc: the ice driver softc
+ *
+ *  Inform irdma driver of an incoming PF reset.
+ *  The irdma driver shall set its state to reset, and avoid using CQP
+ *  anymore. Next step should be to call ice_rdma_pf_stop in order to
+ *  remove resources.
+ */
+void
+ice_rdma_notify_reset(struct ice_softc *sc)
+{
+	struct ice_rdma_peer *peer = &sc->rdma_entry.peer;
+	struct ice_rdma_event event;
+
+	memset(&event, 0, sizeof(struct ice_rdma_event));
+	event.type = ICE_RDMA_EVENT_RESET;
+
+	sx_xlock(&ice_rdma.mtx);
+	if (sc->rdma_entry.attached && ice_rdma.registered)
+	        IRDMA_EVENT_HANDLER(peer, &event);
 	sx_xunlock(&ice_rdma.mtx);
 }

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2022 Intel Corporation
+ * Copyright (c) 2021 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -273,12 +273,15 @@ irdma_add_ip(struct irdma_device *iwdev)
 {
 	struct ifnet *ifp = iwdev->netdev;
 	struct ifnet *ifv;
+	struct epoch_tracker et;
 	int i;
 
 	irdma_add_ipv4_addr(iwdev, ifp);
 	irdma_add_ipv6_addr(iwdev, ifp);
 	for (i = 0; if_getvlantrunk(ifp) != NULL && i < VLAN_N_VID; ++i) {
+		NET_EPOCH_ENTER(et);
 		ifv = VLAN_DEVAT(ifp, i);
+		NET_EPOCH_EXIT(et);
 		if (!ifv)
 			continue;
 		irdma_add_ipv4_addr(iwdev, ifv);
@@ -361,7 +364,8 @@ irdma_get_route_ifp(struct sockaddr *dst_sin, struct ifnet *netdev,
 	struct nhop_object *nh;
 
 	if (dst_sin->sa_family == AF_INET6)
-		nh = fib6_lookup(RT_DEFAULT_FIB, &((struct sockaddr_in6 *)dst_sin)->sin6_addr, 0, NHR_NONE, 0);
+		nh = fib6_lookup(RT_DEFAULT_FIB, &((struct sockaddr_in6 *)dst_sin)->sin6_addr,
+				 ((struct sockaddr_in6 *)dst_sin)->sin6_scope_id, NHR_NONE, 0);
 	else
 		nh = fib4_lookup(RT_DEFAULT_FIB, ((struct sockaddr_in *)dst_sin)->sin_addr, 0, NHR_NONE, 0);
 	if (!nh || (nh->nh_ifp != netdev &&
@@ -591,6 +595,188 @@ irdma_sysctl_dcqcn_update(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+enum irdma_cqp_stats_info {
+	IRDMA_CQP_REQ_CMDS = 28,
+	IRDMA_CQP_CMPL_CMDS = 29
+};
+
+static int
+irdma_sysctl_cqp_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct irdma_sc_cqp *cqp = (struct irdma_sc_cqp *)arg1;
+	char rslt[192] = "no cqp available yet";
+	int rslt_size = sizeof(rslt) - 1;
+	int option = (int)arg2;
+
+	if (!cqp) {
+		return sysctl_handle_string(oidp, rslt, sizeof(rslt), req);
+	}
+
+	snprintf(rslt, sizeof(rslt), "");
+	switch (option) {
+	case IRDMA_CQP_REQ_CMDS:
+		snprintf(rslt, rslt_size, "%lu", cqp->requested_ops);
+		break;
+	case IRDMA_CQP_CMPL_CMDS:
+		snprintf(rslt, rslt_size, "%lu", atomic64_read(&cqp->completed_ops));
+		break;
+	}
+
+	return sysctl_handle_string(oidp, rslt, sizeof(rslt), req);
+}
+
+struct irdma_sw_stats_tunable_info {
+	u8 op_type;
+	const char name[32];
+	const char desc[32];
+	uintptr_t value;
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_sws_list[] = {
+	{IRDMA_OP_CEQ_DESTROY, "ceq_destroy", "ceq_destroy", 0},
+	{IRDMA_OP_AEQ_DESTROY, "aeq_destroy", "aeq_destroy", 0},
+	{IRDMA_OP_DELETE_ARP_CACHE_ENTRY, "delete_arp_cache_entry",
+	"delete_arp_cache_entry", 0},
+	{IRDMA_OP_MANAGE_APBVT_ENTRY, "manage_apbvt_entry",
+	"manage_apbvt_entry", 0},
+	{IRDMA_OP_CEQ_CREATE, "ceq_create", "ceq_create", 0},
+	{IRDMA_OP_AEQ_CREATE, "aeq_create", "aeq_create", 0},
+	{IRDMA_OP_MANAGE_QHASH_TABLE_ENTRY, "manage_qhash_table_entry",
+	"manage_qhash_table_entry", 0},
+	{IRDMA_OP_QP_MODIFY, "qp_modify", "qp_modify", 0},
+	{IRDMA_OP_QP_UPLOAD_CONTEXT, "qp_upload_context", "qp_upload_context",
+	0},
+	{IRDMA_OP_CQ_CREATE, "cq_create", "cq_create", 0},
+	{IRDMA_OP_CQ_DESTROY, "cq_destroy", "cq_destroy", 0},
+	{IRDMA_OP_QP_CREATE, "qp_create", "qp_create", 0},
+	{IRDMA_OP_QP_DESTROY, "qp_destroy", "qp_destroy", 0},
+	{IRDMA_OP_ALLOC_STAG, "alloc_stag", "alloc_stag", 0},
+	{IRDMA_OP_MR_REG_NON_SHARED, "mr_reg_non_shared", "mr_reg_non_shared",
+	0},
+	{IRDMA_OP_DEALLOC_STAG, "dealloc_stag", "dealloc_stag", 0},
+	{IRDMA_OP_MW_ALLOC, "mw_alloc", "mw_alloc", 0},
+	{IRDMA_OP_QP_FLUSH_WQES, "qp_flush_wqes", "qp_flush_wqes", 0},
+	{IRDMA_OP_ADD_ARP_CACHE_ENTRY, "add_arp_cache_entry",
+	"add_arp_cache_entry", 0},
+	{IRDMA_OP_MANAGE_PUSH_PAGE, "manage_push_page", "manage_push_page", 0},
+	{IRDMA_OP_UPDATE_PE_SDS, "update_pe_sds", "update_pe_sds", 0},
+	{IRDMA_OP_MANAGE_HMC_PM_FUNC_TABLE, "manage_hmc_pm_func_table",
+	"manage_hmc_pm_func_table", 0},
+	{IRDMA_OP_SUSPEND, "suspend", "suspend", 0},
+	{IRDMA_OP_RESUME, "resume", "resume", 0},
+	{IRDMA_OP_MANAGE_VCHNL_REQ_PBLE_BP, "manage_vchnl_req_pble_bp",
+	"manage_vchnl_req_pble_bp", 0},
+	{IRDMA_OP_QUERY_FPM_VAL, "query_fpm_val", "query_fpm_val", 0},
+	{IRDMA_OP_COMMIT_FPM_VAL, "commit_fpm_val", "commit_fpm_val", 0},
+	{IRDMA_OP_AH_CREATE, "ah_create", "ah_create", 0},
+	{IRDMA_OP_AH_MODIFY, "ah_modify", "ah_modify", 0},
+	{IRDMA_OP_AH_DESTROY, "ah_destroy", "ah_destroy", 0},
+	{IRDMA_OP_MC_CREATE, "mc_create", "mc_create", 0},
+	{IRDMA_OP_MC_DESTROY, "mc_destroy", "mc_destroy", 0},
+	{IRDMA_OP_MC_MODIFY, "mc_modify", "mc_modify", 0},
+	{IRDMA_OP_STATS_ALLOCATE, "stats_allocate", "stats_allocate", 0},
+	{IRDMA_OP_STATS_FREE, "stats_free", "stats_free", 0},
+	{IRDMA_OP_STATS_GATHER, "stats_gather", "stats_gather", 0},
+	{IRDMA_OP_WS_ADD_NODE, "ws_add_node", "ws_add_node", 0},
+	{IRDMA_OP_WS_MODIFY_NODE, "ws_modify_node", "ws_modify_node", 0},
+	{IRDMA_OP_WS_DELETE_NODE, "ws_delete_node", "ws_delete_node", 0},
+	{IRDMA_OP_WS_FAILOVER_START, "ws_failover_start", "ws_failover_start",
+	0},
+	{IRDMA_OP_WS_FAILOVER_COMPLETE, "ws_failover_complete",
+	"ws_failover_complete", 0},
+	{IRDMA_OP_SET_UP_MAP, "set_up_map", "set_up_map", 0},
+	{IRDMA_OP_GEN_AE, "gen_ae", "gen_ae", 0},
+	{IRDMA_OP_QUERY_RDMA_FEATURES, "query_rdma_features",
+	"query_rdma_features", 0},
+	{IRDMA_OP_ALLOC_LOCAL_MAC_ENTRY, "alloc_local_mac_entry",
+	"alloc_local_mac_entry", 0},
+	{IRDMA_OP_ADD_LOCAL_MAC_ENTRY, "add_local_mac_entry",
+	"add_local_mac_entry", 0},
+	{IRDMA_OP_DELETE_LOCAL_MAC_ENTRY, "delete_local_mac_entry",
+	"delete_local_mac_entry", 0},
+	{IRDMA_OP_CQ_MODIFY, "cq_modify", "cq_modify", 0}
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_cmcs_list[] = {
+	{0, "cm_nodes_created", "cm_nodes_created",
+	offsetof(struct irdma_cm_core, stats_nodes_created)},
+	{0, "cm_nodes_destroyed", "cm_nodes_destroyed",
+	offsetof(struct irdma_cm_core, stats_nodes_destroyed)},
+	{0, "cm_listen_created", "cm_listen_created",
+	offsetof(struct irdma_cm_core, stats_listen_created)},
+	{0, "cm_listen_destroyed", "cm_listen_destroyed",
+	offsetof(struct irdma_cm_core, stats_listen_destroyed)},
+	{0, "cm_listen_nodes_created", "cm_listen_nodes_created",
+	offsetof(struct irdma_cm_core, stats_listen_nodes_created)},
+	{0, "cm_listen_nodes_destroyed", "cm_listen_nodes_destroyed",
+	offsetof(struct irdma_cm_core, stats_listen_nodes_destroyed)},
+	{0, "cm_lpbs", "cm_lpbs", offsetof(struct irdma_cm_core, stats_lpbs)},
+	{0, "cm_accepts", "cm_accepts", offsetof(struct irdma_cm_core,
+						 stats_accepts)},
+	{0, "cm_rejects", "cm_rejects", offsetof(struct irdma_cm_core,
+						 stats_rejects)},
+	{0, "cm_connect_errs", "cm_connect_errs",
+	offsetof(struct irdma_cm_core, stats_connect_errs)},
+	{0, "cm_passive_errs", "cm_passive_errs",
+	offsetof(struct irdma_cm_core, stats_passive_errs)},
+	{0, "cm_pkt_retrans", "cm_pkt_retrans", offsetof(struct irdma_cm_core,
+							 stats_pkt_retrans)},
+	{0, "cm_backlog_drops", "cm_backlog_drops",
+	offsetof(struct irdma_cm_core, stats_backlog_drops)},
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_ilqs32_list[] = {
+	{0, "ilq_avail_buf_count", "ilq_avail_buf_count",
+	offsetof(struct irdma_puda_rsrc, avail_buf_count)},
+	{0, "ilq_alloc_buf_count", "ilq_alloc_buf_count",
+	offsetof(struct irdma_puda_rsrc, alloc_buf_count)}
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_ilqs_list[] = {
+	{0, "ilq_stats_buf_alloc_fail", "ilq_stats_buf_alloc_fail",
+	offsetof(struct irdma_puda_rsrc, stats_buf_alloc_fail)},
+	{0, "ilq_stats_pkt_rcvd", "ilq_stats_pkt_rcvd",
+	offsetof(struct irdma_puda_rsrc, stats_pkt_rcvd)},
+	{0, "ilq_stats_pkt_sent", "ilq_stats_pkt_sent",
+	offsetof(struct irdma_puda_rsrc, stats_pkt_sent)},
+	{0, "ilq_stats_rcvd_pkt_err", "ilq_stats_rcvd_pkt_err",
+	offsetof(struct irdma_puda_rsrc, stats_rcvd_pkt_err)},
+	{0, "ilq_stats_sent_pkt_q", "ilq_stats_sent_pkt_q",
+	offsetof(struct irdma_puda_rsrc, stats_sent_pkt_q)}
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_ieqs32_list[] = {
+	{0, "ieq_avail_buf_count", "ieq_avail_buf_count",
+	offsetof(struct irdma_puda_rsrc, avail_buf_count)},
+	{0, "ieq_alloc_buf_count", "ieq_alloc_buf_count",
+	offsetof(struct irdma_puda_rsrc, alloc_buf_count)}
+};
+
+static const struct irdma_sw_stats_tunable_info irdma_ieqs_list[] = {
+	{0, "ieq_stats_buf_alloc_fail", "ieq_stats_buf_alloc_fail",
+	offsetof(struct irdma_puda_rsrc, stats_buf_alloc_fail)},
+	{0, "ieq_stats_pkt_rcvd", "ieq_stats_pkt_rcvd",
+	offsetof(struct irdma_puda_rsrc, stats_pkt_rcvd)},
+	{0, "ieq_stats_pkt_sent", "ieq_stats_pkt_sent",
+	offsetof(struct irdma_puda_rsrc, stats_pkt_sent)},
+	{0, "ieq_stats_rcvd_pkt_err", "ieq_stats_rcvd_pkt_err",
+	offsetof(struct irdma_puda_rsrc, stats_rcvd_pkt_err)},
+	{0, "ieq_stats_sent_pkt_q", "ieq_stats_sent_pkt_q",
+	offsetof(struct irdma_puda_rsrc, stats_sent_pkt_q)},
+	{0, "ieq_stats_bad_qp_id", "ieq_stats_bad_qp_id",
+	offsetof(struct irdma_puda_rsrc, stats_bad_qp_id)},
+	{0, "ieq_fpdu_processed", "ieq_fpdu_processed",
+	offsetof(struct irdma_puda_rsrc, fpdu_processed)},
+	{0, "ieq_bad_seq_num", "ieq_bad_seq_num",
+	offsetof(struct irdma_puda_rsrc, bad_seq_num)},
+	{0, "ieq_crc_err", "ieq_crc_err", offsetof(struct irdma_puda_rsrc,
+						   crc_err)},
+	{0, "ieq_pmode_count", "ieq_pmode_count",
+	offsetof(struct irdma_puda_rsrc, pmode_count)},
+	{0, "ieq_partials_handled", "ieq_partials_handled",
+	offsetof(struct irdma_puda_rsrc, partials_handled)},
+};
+
 /**
  * irdma_dcqcn_tunables_init - create tunables for dcqcn settings
  * @rf: RDMA PCI function
@@ -637,7 +823,7 @@ irdma_dcqcn_tunables_init(struct irdma_pci_f *rf)
 	rf->dcqcn_params.dcqcn_t = 0x37;
 	SYSCTL_ADD_U16(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_T", CTLFLAG_RDTUN, &rf->dcqcn_params.dcqcn_t, 0,
-		       "set number of usecs that should elapse before increasing the CWND in DCQCN mode, default=0x37");
+		       "number of us to elapse before increasing the CWND in DCQCN mode, default=0x37");
 
 	rf->dcqcn_params.dcqcn_b = 0x249f0;
 	SYSCTL_ADD_U32(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
@@ -661,6 +847,90 @@ irdma_dcqcn_tunables_init(struct irdma_pci_f *rf)
 		       OID_AUTO, "dcqcn_rreduce_mperiod", CTLFLAG_RDTUN,
 		       &rf->dcqcn_params.rreduce_mperiod, 0,
 		       "set minimum time between 2 consecutive rate reductions for a single flow, default=50");
+}
+
+/**
+ * irdma_sysctl_settings - sysctl runtime settings init
+ * @rf: RDMA PCI function
+ */
+void
+irdma_sysctl_settings(struct irdma_pci_f *rf)
+{
+	struct sysctl_oid_list *irdma_sysctl_oid_list;
+
+	irdma_sysctl_oid_list = SYSCTL_CHILDREN(rf->tun_info.irdma_sysctl_tree);
+
+	SYSCTL_ADD_BOOL(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
+			OID_AUTO, "upload_context", CTLFLAG_RWTUN,
+			&irdma_upload_context, 0,
+			"allow for generating QP's upload context, default=0");
+}
+
+void
+irdma_sw_stats_tunables_init(struct irdma_pci_f *rf)
+{
+	struct sysctl_oid_list *sws_oid_list;
+	struct sysctl_ctx_list *irdma_ctx = &rf->tun_info.irdma_sysctl_ctx;
+	struct irdma_sc_dev *dev = &rf->sc_dev;
+	struct irdma_cm_core *cm_core = &rf->iwdev->cm_core;
+	struct irdma_puda_rsrc *ilq = rf->iwdev->vsi.ilq;
+	struct irdma_puda_rsrc *ieq = rf->iwdev->vsi.ieq;
+	u64 *ll_ptr;
+	u32 *l_ptr;
+	int cqp_stat_cnt = sizeof(irdma_sws_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int cmcore_stat_cnt = sizeof(irdma_cmcs_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int ilqs_stat_cnt = sizeof(irdma_ilqs_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int ilqs32_stat_cnt = sizeof(irdma_ilqs32_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int ieqs_stat_cnt = sizeof(irdma_ieqs_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int ieqs32_stat_cnt = sizeof(irdma_ieqs32_list) / sizeof(struct irdma_sw_stats_tunable_info);
+	int i;
+
+	sws_oid_list = SYSCTL_CHILDREN(rf->tun_info.sws_sysctl_tree);
+
+	for (i = 0; i < cqp_stat_cnt; ++i) {
+		SYSCTL_ADD_U64(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_sws_list[i].name, CTLFLAG_RD,
+			       &dev->cqp_cmd_stats[irdma_sws_list[i].op_type],
+			       0, irdma_sws_list[i].desc);
+	}
+	SYSCTL_ADD_PROC(irdma_ctx, sws_oid_list, OID_AUTO,
+			"req_cmds", CTLFLAG_RD | CTLTYPE_STRING,
+			dev->cqp, IRDMA_CQP_REQ_CMDS, irdma_sysctl_cqp_stats, "A",
+			"req_cmds");
+	SYSCTL_ADD_PROC(irdma_ctx, sws_oid_list, OID_AUTO,
+			"cmpl_cmds", CTLFLAG_RD | CTLTYPE_STRING,
+			dev->cqp, IRDMA_CQP_CMPL_CMDS, irdma_sysctl_cqp_stats, "A",
+			"cmpl_cmds");
+	for (i = 0; i < cmcore_stat_cnt; ++i) {
+		ll_ptr = (u64 *)((uintptr_t)cm_core + irdma_cmcs_list[i].value);
+		SYSCTL_ADD_U64(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_cmcs_list[i].name, CTLFLAG_RD, ll_ptr,
+			       0, irdma_cmcs_list[i].desc);
+	}
+	for (i = 0; ilq && i < ilqs_stat_cnt; ++i) {
+		ll_ptr = (u64 *)((uintptr_t)ilq + irdma_ilqs_list[i].value);
+		SYSCTL_ADD_U64(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_ilqs_list[i].name, CTLFLAG_RD, ll_ptr,
+			       0, irdma_ilqs_list[i].desc);
+	}
+	for (i = 0; ilq && i < ilqs32_stat_cnt; ++i) {
+		l_ptr = (u32 *)((uintptr_t)ilq + irdma_ilqs32_list[i].value);
+		SYSCTL_ADD_U32(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_ilqs32_list[i].name, CTLFLAG_RD, l_ptr,
+			       0, irdma_ilqs32_list[i].desc);
+	}
+	for (i = 0; ieq && i < ieqs_stat_cnt; ++i) {
+		ll_ptr = (u64 *)((uintptr_t)ieq + irdma_ieqs_list[i].value);
+		SYSCTL_ADD_U64(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_ieqs_list[i].name, CTLFLAG_RD, ll_ptr,
+			       0, irdma_ieqs_list[i].desc);
+	}
+	for (i = 0; ieq && i < ieqs32_stat_cnt; ++i) {
+		l_ptr = (u32 *)((uintptr_t)ieq + irdma_ieqs32_list[i].value);
+		SYSCTL_ADD_U32(irdma_ctx, sws_oid_list, OID_AUTO,
+			       irdma_ieqs32_list[i].name, CTLFLAG_RD, l_ptr,
+			       0, irdma_ieqs32_list[i].desc);
+	}
 }
 
 /**
@@ -760,12 +1030,6 @@ irdma_free_dma_mem(struct irdma_hw *hw, struct irdma_dma_mem *mem)
 	mem->va = NULL;
 
 	return 0;
-}
-
-inline void
-irdma_prm_rem_bitmapmem(struct irdma_hw *hw, struct irdma_chunk *chunk)
-{
-	kfree(chunk->bitmapmem.va);
 }
 
 void

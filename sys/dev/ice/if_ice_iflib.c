@@ -1278,19 +1278,16 @@ ice_msix_admin(void *arg)
 		ice_set_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
 	}
 
-	if (oicr & PFINT_OICR_PE_CRITERR_M) {
-		device_printf(dev, "Critical Protocol Engine Error detected!\n");
-		ice_set_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
+	if (oicr & (PFINT_OICR_PE_CRITERR_M | PFINT_OICR_HMC_ERR_M)) {
+		if (oicr & PFINT_OICR_HMC_ERR_M)
+			/* Log the HMC errors */
+			ice_log_hmc_error(hw, dev);
+		ice_rdma_notify_pe_intr(sc, oicr);
 	}
 
 	if (oicr & PFINT_OICR_PCI_EXCEPTION_M) {
 		device_printf(dev, "PCI Exception detected!\n");
 		ice_set_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
-	}
-
-	if (oicr & PFINT_OICR_HMC_ERR_M) {
-		/* Log the HMC errors, but don't disable the interrupt cause */
-		ice_log_hmc_error(hw, dev);
 	}
 
 	return (FILTER_SCHEDULE_THREAD);
@@ -2298,6 +2295,8 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return;
 
+	/* inform the RDMA client */
+	ice_rdma_notify_reset(sc);
 	/* stop the RDMA client */
 	ice_rdma_pf_stop(sc);
 

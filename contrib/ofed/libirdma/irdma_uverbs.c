@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (C) 2019 - 2022 Intel Corporation
+ * Copyright (C) 2019 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -266,11 +266,13 @@ irdma_ualloc_mw(struct ibv_pd *pd, enum ibv_mw_type type)
 	if (!mw)
 		return NULL;
 
-	if (ibv_cmd_alloc_mw(pd, type, mw, &cmd, sizeof(cmd), &resp,
-			     sizeof(resp))) {
+	err = ibv_cmd_alloc_mw(pd, type, mw, &cmd, sizeof(cmd), &resp,
+			       sizeof(resp));
+	if (err) {
 		printf("%s: Failed to alloc memory window\n",
 		       __func__);
 		free(mw);
+		errno = err;
 		return NULL;
 	}
 
@@ -446,8 +448,10 @@ ucreate_cq(struct ibv_context *context,
 	if (!iwucq)
 		return NULL;
 
-	if (pthread_spin_init(&iwucq->lock, PTHREAD_PROCESS_PRIVATE)) {
+	ret = pthread_spin_init(&iwucq->lock, PTHREAD_PROCESS_PRIVATE);
+	if (ret) {
 		free(iwucq);
+		errno = ret;
 		return NULL;
 	}
 
@@ -464,8 +468,10 @@ ucreate_cq(struct ibv_context *context,
 
 	iwucq->buf_size = total_size;
 	info.cq_base = irdma_alloc_hw_buf(total_size);
-	if (!info.cq_base)
+	if (!info.cq_base) {
+		ret = ENOMEM;
 		goto err_cq_base;
+	}
 
 	memset(info.cq_base, 0, total_size);
 	reg_mr_cmd.reg_type = IRDMA_MEMREG_TYPE_CQ;
@@ -476,17 +482,17 @@ ucreate_cq(struct ibv_context *context,
 			     IBV_ACCESS_LOCAL_WRITE, &iwucq->vmr.ibv_mr,
 			     &reg_mr_cmd.ibv_cmd, sizeof(reg_mr_cmd),
 			     &reg_mr_resp, sizeof(reg_mr_resp));
-	if (ret) {
-		errno = ret;
+	if (ret)
 		goto err_dereg_mr;
-	}
 
 	iwucq->vmr.ibv_mr.pd = &iwvctx->iwupd->ibv_pd;
 
 	if (uk_attrs->feature_flags & IRDMA_FEATURE_CQ_RESIZE) {
 		info.shadow_area = irdma_alloc_hw_buf(IRDMA_DB_SHADOW_AREA_SIZE);
-		if (!info.shadow_area)
+		if (!info.shadow_area) {
+			ret = ENOMEM;
 			goto err_alloc_shadow;
+		}
 
 		memset(info.shadow_area, 0, IRDMA_DB_SHADOW_AREA_SIZE);
 		reg_mr_shadow_cmd.reg_type = IRDMA_MEMREG_TYPE_CQ;
@@ -499,7 +505,6 @@ ucreate_cq(struct ibv_context *context,
 				     &reg_mr_shadow_resp, sizeof(reg_mr_shadow_resp));
 		if (ret) {
 			irdma_free_hw_buf(info.shadow_area, IRDMA_DB_SHADOW_AREA_SIZE);
-			errno = ret;
 			goto err_alloc_shadow;
 		}
 
@@ -517,10 +522,8 @@ ucreate_cq(struct ibv_context *context,
 				   &cmd.ibv_cmd, sizeof(cmd.ibv_cmd), sizeof(cmd), &resp.ibv_resp,
 				   sizeof(resp.ibv_resp), sizeof(resp));
 	attr_ex->cqe = ncqe;
-	if (ret) {
-		errno = ret;
+	if (ret)
 		goto err_create_cq;
-	}
 
 	if (ext_cq)
 		irdma_ibvcq_ex_fill_priv_funcs(iwucq, attr_ex);
@@ -548,6 +551,7 @@ err_cq_base:
 
 	free(iwucq);
 
+	errno = ret;
 	return NULL;
 }
 
@@ -1560,7 +1564,8 @@ irdma_ucreate_qp(struct ibv_pd *pd,
 
 	memset(iwuqp, 0, sizeof(*iwuqp));
 
-	if (pthread_spin_init(&iwuqp->lock, PTHREAD_PROCESS_PRIVATE))
+	status = pthread_spin_init(&iwuqp->lock, PTHREAD_PROCESS_PRIVATE);
+	if (status)
 		goto err_free_qp;
 
 	info.sq_size = info.sq_depth >> info.sq_shift;
@@ -1575,35 +1580,37 @@ irdma_ucreate_qp(struct ibv_pd *pd,
 	}
 
 	iwuqp->recv_sges = calloc(attr->cap.max_recv_sge, sizeof(*iwuqp->recv_sges));
-	if (!iwuqp->recv_sges)
+	if (!iwuqp->recv_sges) {
+		status = errno;	/* preserve errno */
 		goto err_destroy_lock;
+	}
 
 	info.wqe_alloc_db = (u32 *)iwvctx->db;
 	info.legacy_mode = iwvctx->legacy_mode;
 	info.sq_wrtrk_array = calloc(info.sq_depth, sizeof(*info.sq_wrtrk_array));
-	if (!info.sq_wrtrk_array)
+	if (!info.sq_wrtrk_array) {
+		status = errno;	/* preserve errno */
 		goto err_free_rsges;
+	}
 
 	info.rq_wrid_array = calloc(info.rq_depth, sizeof(*info.rq_wrid_array));
-	if (!info.rq_wrid_array)
+	if (!info.rq_wrid_array) {
+		status = errno;	/* preserve errno */
 		goto err_free_sq_wrtrk;
+	}
 
 	iwuqp->sq_sig_all = attr->sq_sig_all;
 	iwuqp->qp_type = attr->qp_type;
 	status = irdma_vmapped_qp(iwuqp, pd, attr, &info, iwvctx->legacy_mode);
-	if (status) {
-		errno = status;
+	if (status)
 		goto err_free_rq_wrid;
-	}
 
 	iwuqp->qp.back_qp = iwuqp;
 	iwuqp->qp.lock = &iwuqp->lock;
 
 	status = irdma_uk_qp_init(&iwuqp->qp, &info);
-	if (status) {
-		errno = status;
+	if (status)
 		goto err_free_vmap_qp;
-	}
 
 	attr->cap.max_send_wr = (info.sq_depth - IRDMA_SQ_RSVD) >> info.sq_shift;
 	attr->cap.max_recv_wr = (info.rq_depth - IRDMA_RQ_RSVD) >> info.rq_shift;
@@ -1625,6 +1632,7 @@ err_free_qp:
 	printf("%s: failed to create QP\n", __func__);
 	free(iwuqp);
 
+	errno = status;
 	return NULL;
 }
 
@@ -2081,11 +2089,10 @@ irdma_ucreate_ah(struct ibv_pd *ibpd, struct ibv_ah_attr *attr)
 	struct irdma_ucreate_ah_resp resp = {};
 	int err;
 
-	err = ibv_query_gid(ibpd->context, attr->port_num, attr->grh.sgid_index,
-			    &sgid);
-	if (err) {
+	if (ibv_query_gid(ibpd->context, attr->port_num, attr->grh.sgid_index,
+			  &sgid)) {
 		fprintf(stderr, "irdma: Error from ibv_query_gid.\n");
-		errno = err;
+		errno = ENOENT;
 		return NULL;
 	}
 

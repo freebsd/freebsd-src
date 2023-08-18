@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -151,6 +151,11 @@ enum init_completion_state {
 	IP_ADDR_REGISTERED,  /* Last state of open */
 };
 
+struct ae_desc {
+	u16 id;
+	const char *desc;
+};
+
 struct irdma_rsrc_limits {
 	u32 qplimit;
 	u32 mrlimit;
@@ -179,8 +184,8 @@ struct irdma_cqp_request {
 	void (*callback_fcn)(struct irdma_cqp_request *cqp_request);
 	void *param;
 	struct irdma_cqp_compl_info compl_info;
+	bool request_done; /* READ/WRITE_ONCE macros operate on it */
 	bool waiting:1;
-	bool request_done:1;
 	bool dynamic:1;
 };
 
@@ -223,7 +228,7 @@ struct irdma_aeq {
 
 struct irdma_arp_entry {
 	u32 ip_addr[4];
-	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr[ETHER_ADDR_LEN];
 };
 
 struct irdma_msix_vector {
@@ -534,6 +539,7 @@ void irdma_put_cqp_request(struct irdma_cqp *cqp,
 int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx);
 int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx);
 void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx);
+const char *irdma_get_ae_desc(u16 ae_id);
 
 u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf);
 void irdma_port_ibevent(struct irdma_device *iwdev);

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2022 Intel Corporation
+ * Copyright (c) 2021 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,11 +50,11 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/atomic.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-#define ATOMIC atomic_t
 #define IOMEM
 #define IRDMA_NTOHS(a) ntohs(a)
 #define MAKEMASK(m, s) ((m) << (s))
@@ -95,6 +95,9 @@
 
 #define irdma_mb()	mb()
 #define irdma_wmb()	wmb()
+#ifndef smp_mb
+#define smp_mb()	mb()
+#endif
 #define irdma_get_virt_to_phy vtophys
 
 #define __aligned_u64 uint64_t __aligned(8)
@@ -110,7 +113,7 @@
 #define irdma_print(S, ...) printf("%s:%d "S, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define irdma_debug_buf(dev, mask, desc, buf, size)							\
 do {													\
-	u32    i;											\
+	u32 i;												\
 	if (!((mask) & (dev)->debug_mask)) {								\
 		break;											\
 	}												\
@@ -120,14 +123,14 @@ do {													\
 		irdma_debug(dev, mask, "index %03d val: %016lx\n", i, ((unsigned long *)(buf))[i / 8]);	\
 } while(0)
 
-#define irdma_debug(h, m, s, ...)					\
-do {									\
-	if (!(h)) {							\
-		if ((m) == IRDMA_DEBUG_INIT)				\
+#define irdma_debug(h, m, s, ...)				\
+do {								\
+	if (!(h)) {						\
+		if ((m) == IRDMA_DEBUG_INIT)			\
 			printf("irdma INIT " s, ##__VA_ARGS__);	\
-	} else if (((m) & (h)->debug_mask)) {				\
-		printf("irdma " s, ##__VA_ARGS__);			\
-	} 								\
+	} else if (((m) & (h)->debug_mask)) {			\
+		printf("irdma " s, ##__VA_ARGS__);		\
+	} 							\
 } while (0)
 #define irdma_dev_err(ibdev, fmt, ...) \
 	pr_err("%s:%s:%d ERR "fmt, (ibdev)->name, __func__, __LINE__, ##__VA_ARGS__)
@@ -136,17 +139,8 @@ do {									\
 #define irdma_dev_info(a, b, ...) printf(b, ##__VA_ARGS__)
 #define irdma_pr_warn printf
 
-#define dump_struct(s, sz, name)	\
-do {				\
-	unsigned char *a;	\
-	printf("%s %u", (name), (unsigned int)(sz));				\
-	for (a = (unsigned char*)(s); a < (unsigned char *)(s) + (sz) ; a ++) {	\
-		if ((u64)a % 8 == 0)		\
-			printf("\n%p ", a);	\
-		printf("%2x ", *a);		\
-	}			\
-	printf("\n");		\
-}while(0)
+#define IRDMA_PRINT_IP6(ip6) \
+	((u32*)ip6)[0], ((u32*)ip6)[1], ((u32*)ip6)[2], ((u32*)ip6)[3]
 
 /*
  * debug definition end
@@ -175,6 +169,7 @@ struct irdma_dev_ctx {
 	bus_size_t mem_bus_space_size;
 	void *dev;
 	struct irdma_task_arg task_arg;
+	atomic_t event_rfcnt;
 };
 
 #define irdma_pr_info(fmt, args ...) printf("%s: WARN "fmt, __func__, ## args)
@@ -186,38 +181,34 @@ struct irdma_dev_ctx {
 
 #define rt_tos2priority(tos) (tos >> 5)
 #define ah_attr_to_dmac(attr) ((attr).dmac)
-#define kc_ib_modify_qp_is_ok(cur_state, next_state, type, mask, ll) \
-        ib_modify_qp_is_ok(cur_state, next_state, type, mask)
-#define kc_rdma_gid_attr_network_type(sgid_attr, gid_type, gid) \
-        ib_gid_to_network_type(gid_type, gid)
 #define irdma_del_timer_compat(tt) del_timer((tt))
 #define IRDMA_TAILQ_FOREACH CK_STAILQ_FOREACH
 #define IRDMA_TAILQ_FOREACH_SAFE CK_STAILQ_FOREACH_SAFE
 #define between(a, b, c) (bool)(c-a >= b-a)
 
-#define rd32(a, reg)            irdma_rd32((a)->dev_context, (reg))
-#define wr32(a, reg, value)     irdma_wr32((a)->dev_context, (reg), (value))
+#define rd32(a, reg)		irdma_rd32((a)->dev_context, (reg))
+#define wr32(a, reg, value)	irdma_wr32((a)->dev_context, (reg), (value))
 
-#define rd64(a, reg)            irdma_rd64((a)->dev_context, (reg))
-#define wr64(a, reg, value)     irdma_wr64((a)->dev_context, (reg), (value))
+#define rd64(a, reg)		irdma_rd64((a)->dev_context, (reg))
+#define wr64(a, reg, value)	irdma_wr64((a)->dev_context, (reg), (value))
 #define db_wr32(value, a)	writel((value), (a))
 
 void *hw_to_dev(struct irdma_hw *hw);
 
 struct irdma_dma_mem {
-	void  *va;
-	u64    pa;
+	void *va;
+	u64 pa;
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;
 	bus_dma_segment_t seg;
 	bus_size_t size;
-	int    nseg;
-	int    flags;
+	int nseg;
+	int flags;
 };
 
 struct irdma_virt_mem {
-	void  *va;
-	u32    size;
+	void *va;
+	u32 size;
 };
 
 struct irdma_dma_info {
