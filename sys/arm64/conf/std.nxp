@@ -25,6 +25,9 @@ device		sdhci
 device		dpaa2			# Data Path Acceleration Architecture (2nd Gen)
 device		enetc			# QorIQ LS1028A NIC
 
+# SFF/SFP
+device		sff			# Small Form Factor Transceivers
+
 options 	FDT
 device		acpi
 

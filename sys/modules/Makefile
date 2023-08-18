@@ -355,6 +355,7 @@ SUBDIR=	\
 	${_sdhci_fdt} \
 	sdhci_pci \
 	sdio \
+	${_sff} \
 	sem \
 	send \
 	${_sfxge} \
@@ -678,6 +679,7 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto=	armv8crypto
 _dpaa2=		dpaa2
+_sff=		sff
 _em=		em
 _hyperv=  hyperv
 
