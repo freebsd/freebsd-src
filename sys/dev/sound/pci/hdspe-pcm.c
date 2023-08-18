@@ -40,8 +40,6 @@
 
 #include <mixer_if.h>
 
-SND_DECLARE_FILE("");
-
 struct hdspe_latency {
 	uint32_t n;
 	uint32_t period;

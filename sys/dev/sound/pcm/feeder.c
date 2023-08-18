@@ -35,8 +35,6 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("");
-
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
 #define MAXFEEDERS 	256

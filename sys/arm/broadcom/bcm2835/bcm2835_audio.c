@@ -38,8 +38,6 @@
 
 #include "vc_vchi_audioserv_defs.h"
 
-SND_DECLARE_FILE("");
-
 /* Audio destination */
 #define	DEST_AUTO		0
 #define	DEST_HEADPHONES		1

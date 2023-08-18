@@ -38,8 +38,6 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("");
-
 int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
 	&report_soft_formats, 0, "report software-emulated formats");
