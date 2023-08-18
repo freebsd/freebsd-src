@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <x86/cputypes.h>
 #include <x86/x86_var.h>
