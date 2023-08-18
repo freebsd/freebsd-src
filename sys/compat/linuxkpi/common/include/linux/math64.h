@@ -149,7 +149,7 @@ mul_u64_u64_div_u64(uint64_t x, uint64_t y, uint64_t z)
 	    "x %ju * y %ju", __func__, (uintmax_t)res, (uintmax_t)z,
 	    (uintmax_t)rem, (uintmax_t)x, (uintmax_t)y));
 	KASSERT(rem < z, ("%s: rem %ju >= z %ju\n", __func__,
-	    (uintmax_t)rem, (uintmax_t)z);
+	    (uintmax_t)rem, (uintmax_t)z));
 
 	return (res);
 }
