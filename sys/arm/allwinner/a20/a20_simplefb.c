@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2023 Nicolas Provost <dev@npsoft.fr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,8 +23,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -35,23 +35,7 @@
  * The device tree file must reflect the display resolution chosen by the boot-
  * loader (see dts/arm/olimex-som-evb.dts for an example), under the node
  * "allwinner,sun7i-a20-simplefb".
- *
- * The path for single display is:
- * DEFE0 (frontend) -> DEBE0 (backend) -> TCON0 (timing controller)
- *                                        |_ channel 0: LCD LVDS, or
- *                                        |_ channel 1: HDMI
- *
- * NOTE: if the bootloader (u-boot + loader.efi) has tagged the memory region
- * used for its framebuffer as 'reserved', we may lose this area when allocating
- * the new framebuffer. But for now (2023/08), some versions of loader.efi
- * which show this area as reserved fail to start FreeBSD for another reason.
- * The best way to start FreeBSD in this case is to use u-boot + ubldr.bin
- * instead of loader.efi: the u-boot framebuffer will simply be overwritten
- * by the kernel and our new framebuffer will go on.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
