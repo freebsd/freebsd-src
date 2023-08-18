@@ -569,7 +569,8 @@ static void sym_mfree(void *ptr, int size, char *name)
  * BUS handle. A reverse table (hashed) is maintained for virtual
  * to BUS address translation.
  */
-static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg __diagused,
+    int error)
 {
 	bus_addr_t *baddr;
 
