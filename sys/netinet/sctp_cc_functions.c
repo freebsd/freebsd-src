@@ -55,7 +55,7 @@
 #ifdef KDTRACE_HOOKS
 #define __dtrace
 #else
-#define	__dtrace	__unused
+#define __dtrace __unused
 #endif
 
 static void
