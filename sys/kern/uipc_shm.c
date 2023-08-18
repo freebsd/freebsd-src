@@ -178,6 +178,15 @@ SYSCTL_INT(_vm_largepages, OID_AUTO, reclaim_tries,
     CTLFLAG_RWTUN, &largepage_reclaim_tries, 0,
     "Number of contig reclaims before giving up for default alloc policy");
 
+#define	shm_rangelock_unlock(shmfd, cookie)				\
+	rangelock_unlock(&(shmfd)->shm_rl, (cookie), &(shmfd)->shm_mtx)
+#define	shm_rangelock_rlock(shmfd, start, end)				\
+	rangelock_rlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+#define	shm_rangelock_tryrlock(shmfd, start, end)			\
+	rangelock_tryrlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+#define	shm_rangelock_wlock(shmfd, start, end)				\
+	rangelock_wlock(&(shmfd)->shm_rl, (start), (end), &(shmfd)->shm_mtx)
+
 static int
 uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 {
@@ -452,10 +461,10 @@ shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		return (error);
 #endif
 	foffset_lock_uio(fp, uio, flags);
-	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
-	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+	rl_cookie = shm_rangelock_rlock(shmfd, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid);
 	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	foffset_unlock_uio(fp, uio, flags);
 	return (error);
 }
@@ -493,13 +502,10 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	} else {
 		size = uio->uio_offset + uio->uio_resid;
 	}
-	if ((flags & FOF_OFFSET) == 0) {
-		rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
-		    &shmfd->shm_mtx);
-	} else {
-		rl_cookie = rangelock_wlock(&shmfd->shm_rl, uio->uio_offset,
-		    size, &shmfd->shm_mtx);
-	}
+	if ((flags & FOF_OFFSET) == 0)
+		rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
+	else
+		rl_cookie = shm_rangelock_wlock(shmfd, uio->uio_offset, size);
 	if ((shmfd->shm_seals & F_SEAL_WRITE) != 0) {
 		error = EPERM;
 	} else {
@@ -512,7 +518,7 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			error = uiomove_object(shmfd->shm_object,
 			    shmfd->shm_size, uio);
 	}
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	foffset_unlock_uio(fp, uio, flags);
 	return (error);
 }
@@ -567,22 +573,20 @@ shm_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 		    conf->alloc_policy != SHM_LARGEPAGE_ALLOC_HARD)
 			return (EINVAL);
 
-		rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
-		    &shmfd->shm_mtx);
+		rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 		shmfd->shm_lp_psind = conf->psind;
 		shmfd->shm_lp_alloc_policy = conf->alloc_policy;
 		shmfd->shm_object->un_pager.phys.data_val = conf->psind;
-		rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+		shm_rangelock_unlock(shmfd, rl_cookie);
 		return (0);
 	case FIOGSHMLPGCNF:
 		if (!shm_largepage(shmfd))
 			return (ENOTTY);
 		conf = data;
-		rl_cookie = rangelock_rlock(&shmfd->shm_rl, 0, OFF_MAX,
-		    &shmfd->shm_mtx);
+		rl_cookie = shm_rangelock_rlock(shmfd, 0, OFF_MAX);
 		conf->psind = shmfd->shm_lp_psind;
 		conf->alloc_policy = shmfd->shm_lp_alloc_policy;
-		rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+		shm_rangelock_unlock(shmfd, rl_cookie);
 		return (0);
 	default:
 		return (ENOTTY);
@@ -899,10 +903,9 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 	void *rl_cookie;
 	int error;
 
-	rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
-	    &shmfd->shm_mtx);
+	rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 	error = shm_dotruncate_cookie(shmfd, length, rl_cookie);
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	return (error);
 }
 
@@ -1240,8 +1243,7 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 				error = ENOENT;
 			}
 		} else {
-			rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
-			    &shmfd->shm_mtx);
+			rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 
 			/*
 			 * kern_shm_open() likely shouldn't ever error out on
@@ -1313,8 +1315,7 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 				shmfd->shm_seals |= initial_seals;
 				shm_hold(shmfd);
 			}
-			rangelock_unlock(&shmfd->shm_rl, rl_cookie,
-			    &shmfd->shm_mtx);
+			shm_rangelock_unlock(shmfd, rl_cookie);
 		}
 		sx_xunlock(&shm_dict_lock);
 
@@ -1636,8 +1637,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	shmfd = fp->f_data;
 	maxprot = VM_PROT_NONE;
 
-	rl_cookie = rangelock_rlock(&shmfd->shm_rl, 0, objsize,
-	    &shmfd->shm_mtx);
+	rl_cookie = shm_rangelock_rlock(shmfd, 0, objsize);
 	/* FREAD should always be set. */
 	if ((fp->f_flag & FREAD) != 0)
 		maxprot |= VM_PROT_EXECUTE | VM_PROT_READ;
@@ -1711,7 +1711,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 		vm_object_deallocate(shmfd->shm_object);
 	}
 out:
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	return (error);
 }
 
@@ -1929,8 +1929,7 @@ shm_add_seals(struct file *fp, int seals)
 
 	error = 0;
 	shmfd = fp->f_data;
-	rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
-	    &shmfd->shm_mtx);
+	rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 
 	/* Even already-set seals should result in EPERM. */
 	if ((shmfd->shm_seals & F_SEAL_SEAL) != 0) {
@@ -1961,7 +1960,7 @@ shm_add_seals(struct file *fp, int seals)
 	}
 	shmfd->shm_seals |= nseals;
 out:
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	return (error);
 }
 
@@ -1997,11 +1996,10 @@ shm_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 	 * the shmfd is not necessarily a concern.  If other mechanisms are
 	 * added to grow a shmfd, this may need to be re-evaluated.
 	 */
-	rl_cookie = rangelock_wlock(&shmfd->shm_rl, offset, size,
-	    &shmfd->shm_mtx);
+	rl_cookie = shm_rangelock_wlock(shmfd, offset, size);
 	if (size > shmfd->shm_size)
 		error = shm_dotruncate_cookie(shmfd, size, rl_cookie);
-	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	shm_rangelock_unlock(shmfd, rl_cookie);
 	/* Translate to posix_fallocate(2) return value as needed. */
 	if (error == ENOMEM)
 		error = ENOSPC;
