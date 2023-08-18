@@ -32,7 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <netinet/sctp_os.h>
 #ifdef INET6
 #include <sys/proc.h>

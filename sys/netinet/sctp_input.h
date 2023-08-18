@@ -32,7 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifndef _NETINET_SCTP_INPUT_H_
 #define _NETINET_SCTP_INPUT_H_
 

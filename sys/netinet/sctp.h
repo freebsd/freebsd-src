@@ -32,10 +32,10 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifndef _NETINET_SCTP_H_
 #define _NETINET_SCTP_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #define SCTP_PACKED __attribute__((packed))
