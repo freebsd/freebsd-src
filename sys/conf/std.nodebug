@@ -4,6 +4,7 @@
 
 nooptions	INVARIANTS
 nooptions	INVARIANT_SUPPORT
+nooptions	DIAGNOSTIC
 nooptions	WITNESS
 nooptions	WITNESS_SKIPSPIN
 nooptions	DEBUG_VFS_LOCKS
