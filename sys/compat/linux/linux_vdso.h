@@ -28,8 +28,6 @@
 #ifndef _LINUX_VDSO_H_
 #define	_LINUX_VDSO_H_
 
-#include <sys/types.h>
-
 struct linux_vdso_sym {
 	SLIST_ENTRY(linux_vdso_sym) sym;
 	uint32_t	size;
