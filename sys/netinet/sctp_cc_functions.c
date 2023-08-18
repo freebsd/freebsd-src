@@ -52,7 +52,7 @@
 #define SHIFT_MPTCP_MULTI_Z 16
 #define SHIFT_MPTCP_MULTI 8
 
-#ifdef KDTRACE_HOOOKS
+#ifdef KDTRACE_HOOKS
 #define __dtrace
 #else
 #define	__dtrace	__unused
@@ -1403,11 +1403,7 @@ static void
 sctp_set_rtcc_initial_cc_param(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-#ifdef KDTRACE_HOOOKS
-	uint64_t vtag, probepoint;
-#else
-	uint64_t vtag __unused, probepoint __unused;
-#endif
+	uint64_t vtag __dtrace, probepoint __dtrace;
 
 	sctp_set_initial_cc_param(stcb, net);
 	stcb->asoc.use_precise_time = 1;
