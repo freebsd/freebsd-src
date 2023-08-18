@@ -153,6 +153,11 @@ SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_intr_allowed, CTLFLAG_RDTUN,
 	&hyperthreading_intr_allowed, 0,
 	"Allow interrupts on HTT logical CPUs");
 
+static int	intr_apic_id_limit = -1;
+SYSCTL_INT(_machdep, OID_AUTO, intr_apic_id_limit, CTLFLAG_RDTUN,
+	&intr_apic_id_limit, 0,
+	"Maximum permitted APIC ID for interrupt delivery (-1 is unlimited)");
+
 static struct topo_node topo_root;
 
 static int pkg_id_shift;
@@ -257,6 +262,22 @@ topo_probe_amd(void)
 	/* No multi-core capability. */
 	if ((amd_feature2 & AMDID2_CMP) == 0)
 		return;
+
+	/*
+	 * XXX Lack of an AMD IOMMU driver prevents use of APIC IDs above
+	 * xAPIC_MAX_APIC_ID.  This is a workaround so we boot and function on
+	 * AMD systems with high thread counts, albeit with reduced interrupt
+	 * performance.
+	 *
+	 * We should really set the limit to xAPIC_MAX_APIC_ID by default, and
+	 * have the IOMMU driver increase it.  That way if a driver is present
+	 * but disabled, or is otherwise not able to route the interrupts, the
+	 * system can fall back to a functional state.  That will require a more
+	 * substantial change though, including having the IOMMU initialize
+	 * earlier.
+	 */
+	if (intr_apic_id_limit == -1)
+		intr_apic_id_limit = xAPIC_MAX_APIC_ID;
 
 	/* For families 10h and newer. */
 	pkg_id_shift = (cpu_procinfo2 & AMDID_COREID_SIZE) >>
@@ -1169,6 +1190,8 @@ set_interrupt_apic_ids(void)
 		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
+			continue;
+		if (intr_apic_id_limit >= 0 && apic_id > intr_apic_id_limit)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
