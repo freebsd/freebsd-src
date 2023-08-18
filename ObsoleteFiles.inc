@@ -51,6 +51,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230807: GoogleTest 1.14.0 upgrade.
+OLD_FILES+=usr/include/private/gmock/gmock-generated-actions.h
+OLD_FILES+=usr/include/private/gmock/gmock-generated-function-mockers.h
+OLD_FILES+=usr/include/private/gmock/gmock-generated-matchers.h
+OLD_FILES+=usr/include/private/gmock/gmock-generated-nice-strict.h
+OLD_FILES+=usr/include/private/gmock/internal/gmock-generated-internal-utils.h
+OLD_FILES+=usr/include/private/gtest/internal/gtest-linked_ptr.h
+OLD_FILES+=usr/include/private/gtest/internal/gtest-param-util-generated.h
+OLD_FILES+=usr/include/private/gtest/internal/gtest-tuple.h
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-actions_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-function-mockers_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-internal-utils_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-matchers_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-matchers_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-linked-ptr-test
+
 # 20230807: Removal of the ath(4) AHB bus-frontend for MIPS
 OLD_FILES+=usr/share/man/man4/ath_ahb.4
 OLD_FILES+=usr/share/man/man4/ath_pci.4
