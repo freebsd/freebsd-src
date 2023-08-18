@@ -60,8 +60,6 @@
 
 #define SND_USE_FXDIV
 #include "snd_fxdiv_gen.h"
-
-SND_DECLARE_FILE("");
 #endif
 
 #include "feeder_rate_gen.h"

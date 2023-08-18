@@ -347,11 +347,7 @@ void snd_mtxassert(void *m);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
-void sndstat_registerfile(void *);
 int sndstat_unregister(device_t dev);
-void sndstat_unregisterfile(void *);
-
-#define SND_DECLARE_FILE(version)
 
 /* usage of flags in device config entry (config file) */
 #define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */

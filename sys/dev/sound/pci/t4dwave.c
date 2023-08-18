@@ -37,8 +37,6 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("");
-
 /* -------------------------------------------------------------------- */
 
 #define TDX_PCI_ID 	0x20001023

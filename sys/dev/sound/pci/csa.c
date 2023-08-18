@@ -54,8 +54,6 @@
 
 #include <dev/sound/pci/cs461x_dsp.h>
 
-SND_DECLARE_FILE("");
-
 /* This is the pci device id. */
 #define CS4610_PCI_ID 0x60011013
 #define CS4614_PCI_ID 0x60031013

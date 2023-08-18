@@ -40,8 +40,6 @@
 
 #include <mixer_if.h>
 
-SND_DECLARE_FILE("");
-
 static struct hdspe_channel chan_map_aio[] = {
 	{  0,  1,   "line", 1, 1 },
 	{  6,  7,  "phone", 1, 0 },

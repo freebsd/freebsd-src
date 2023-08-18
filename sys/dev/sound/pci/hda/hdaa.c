@@ -47,8 +47,6 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("");
-
 #define hdaa_lock(devinfo)	snd_mtxlock((devinfo)->lock)
 #define hdaa_unlock(devinfo)	snd_mtxunlock((devinfo)->lock)
 #define hdaa_lockassert(devinfo) snd_mtxassert((devinfo)->lock)

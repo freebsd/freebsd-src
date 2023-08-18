@@ -34,8 +34,6 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("");
-
 /* chain state */
 struct feeder_chain_state {
 	uint32_t afmt;				/* audio format */

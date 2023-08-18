@@ -37,8 +37,6 @@
 #include "feeder_if.h"
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("");
-
 static MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
 
 static int mixer_bypass = 1;

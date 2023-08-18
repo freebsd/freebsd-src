@@ -45,8 +45,6 @@
 
 #include <dev/sound/pci/cs4281.h>
 
-SND_DECLARE_FILE("");
-
 #define CS4281_DEFAULT_BUFSZ 16384
 
 /* Max fifo size for full duplex is 64 */

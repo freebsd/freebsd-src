@@ -43,8 +43,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-SND_DECLARE_FILE("");
-
 static int dsp_mmap_allow_prot_exec = 0;
 SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RWTUN,
     &dsp_mmap_allow_prot_exec, 0,

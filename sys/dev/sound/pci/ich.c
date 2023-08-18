@@ -38,8 +38,6 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("");
-
 /* -------------------------------------------------------------------- */
 
 #define ICH_TIMEOUT		1000 /* semaphore timeout polling count */

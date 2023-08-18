@@ -69,8 +69,6 @@
 
 #include <dev/sound/pci/atiixp.h>
 
-SND_DECLARE_FILE("");
-
 #define ATI_IXP_DMA_RETRY_MAX	100
 
 #define ATI_IXP_BUFSZ_MIN	4096

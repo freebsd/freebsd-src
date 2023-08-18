@@ -51,8 +51,6 @@
 
 #define HDA_DRV_TEST_REV	"20120126_0002"
 
-SND_DECLARE_FILE("");
-
 #define hdac_lock(sc)		snd_mtxlock((sc)->lock)
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
 #define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)

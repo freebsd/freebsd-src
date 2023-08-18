@@ -44,8 +44,6 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("");
-
 devclass_t pcm_devclass;
 
 int pcm_veto_load = 1;

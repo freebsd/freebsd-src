@@ -69,8 +69,6 @@
 #include <dev/sound/pci/allegro_reg.h>
 #include <dev/sound/pci/allegro_code.h>
 
-SND_DECLARE_FILE("");
-
 /* -------------------------------------------------------------------- */
 
 enum {CHANGE=0, CALL=1, INTR=2, BORING=3, NONE=-1};

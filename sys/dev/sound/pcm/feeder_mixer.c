@@ -37,8 +37,6 @@
 
 #define SND_USE_FXDIV
 #include "snd_fxdiv_gen.h"
-
-SND_DECLARE_FILE("");
 #endif
 
 #undef SND_FEEDER_MULTIFORMAT
