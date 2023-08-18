@@ -29,6 +29,7 @@
 #define	_LINUXKPI_LINUX_MATH64_H
 
 #include <sys/stdint.h>
+#include <sys/systm.h>
 
 #define	do_div(n, base) ({			\
 	uint32_t __base = (base);		\
