@@ -11,8 +11,7 @@ LIB=	unbound
 PRIVATELIB=
 PACKAGE=	unbound
 
-CFLAGS+= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
-CFLAGS+= -I${SRCTOP}/usr.sbin/unbound
+CFLAGS+= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR} -I${.CURDIR}
 CFLAGS+= -DOPENSSL_API_COMPAT=0x10100000L
 
 SRCS=	alloc.c as112.c authzone.c autotrust.c cachedb.c config_file.c \

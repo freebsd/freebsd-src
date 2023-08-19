@@ -2,13 +2,14 @@
 # Vendor sources and generated files
 LDNSDIR= ${SRCTOP}/contrib/ldns
 UNBOUNDDIR= ${SRCTOP}/contrib/unbound
+LIBUNBOUNDDIR=${SRCTOP}/lib/libunbound
 
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/util ${UNBOUNDDIR}/doc
 
 PROG=	local-unbound-control
 SRCS=	ub_event.c unbound-control.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
-CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
+CFLAGS+=	-I${LIBUNBOUNDDIR} -I${.CURDIR}
 LIBADD=	unbound crypto ssl pthread
 MAN=	local-unbound-control.8
 
