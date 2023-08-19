@@ -39,3 +39,4 @@ cd $unbound
 	--with-conf-file=/var/unbound/unbound.conf \
 	--with-run-dir=/var/unbound \
 	--with-username=unbound
+mv config.h ../../lib/libunbound
