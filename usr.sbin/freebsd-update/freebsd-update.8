@@ -260,3 +260,12 @@ stores temporary files and downloaded updates.
 .Xr nextboot 8
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh BUGS
+Merge conflicts involving
+.Pa /etc/
+are handled by
+.Nm
+in release upgrade situations, not in patch level situations (for example, 13.2-RELEASE-p1 up to 13.2-RELEASE-p2).
+If a locally modified file is not handled,
+.Nm
+will draw attention to the file, and progress no further.
