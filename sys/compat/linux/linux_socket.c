@@ -2381,16 +2381,24 @@ out:
  * with FreeBSD sendfile.
  */
 static bool
-is_stream_socket(struct file *fp)
+is_sendfile(struct file *fp, struct file *ofp)
 {
 	struct socket *so;
 
 	/*
+	 * FreeBSD sendfile() system call sends a regular file or
+	 * shared memory object out a stream socket.
+	 */
+	if ((fp->f_type != DTYPE_SHM && fp->f_type != DTYPE_VNODE) ||
+	    (fp->f_type == DTYPE_VNODE &&
+	    (fp->f_vnode == NULL || fp->f_vnode->v_type != VREG)))
+		return (false);
+	/*
 	 * The socket must be a stream socket and connected.
 	 */
-	if (fp->f_type != DTYPE_SOCKET)
+	if (ofp->f_type != DTYPE_SOCKET)
 		return (false);
-	so = fp->f_data;
+	so = ofp->f_data;
 	if (so->so_type != SOCK_STREAM)
 		return (false);
 	/*
@@ -2556,7 +2564,7 @@ linux_sendfile_common(struct thread *td, l_int out, l_int in,
 		    0);
 	} else {
 		sbytes = 0;
-		if (is_stream_socket(ofp))
+		if (is_sendfile(fp, ofp))
 			error = sendfile_sendfile(td, fp, out, offset, count,
 			    &sbytes);
 		else
