@@ -837,8 +837,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	int some_on_streamwheel;
 	int old_state;
 
-	SCTPDBG(SCTP_DEBUG_INPUT2,
-	    "sctp_handle_shutdown: handling SHUTDOWN\n");
+	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_shutdown: handling SHUTDOWN\n");
 	if (stcb == NULL)
 		return;
 	asoc = &stcb->asoc;
@@ -855,40 +854,12 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	if (*abort_flag) {
 		return;
 	}
-	if (asoc->control_pdapi) {
-		/*
-		 * With a normal shutdown we assume the end of last record.
-		 */
-		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-		if (asoc->control_pdapi->on_strm_q) {
-			struct sctp_stream_in *strm;
-
-			strm = &asoc->strmin[asoc->control_pdapi->sinfo_stream];
-			if (asoc->control_pdapi->on_strm_q == SCTP_ON_UNORDERED) {
-				/* Unordered */
-				TAILQ_REMOVE(&strm->uno_inqueue, asoc->control_pdapi, next_instrm);
-				asoc->control_pdapi->on_strm_q = 0;
-			} else if (asoc->control_pdapi->on_strm_q == SCTP_ON_ORDERED) {
-				/* Ordered */
-				TAILQ_REMOVE(&strm->inqueue, asoc->control_pdapi, next_instrm);
-				asoc->control_pdapi->on_strm_q = 0;
-#ifdef INVARIANTS
-			} else {
-				panic("Unknown state on ctrl:%p on_strm_q:%d",
-				    asoc->control_pdapi,
-				    asoc->control_pdapi->on_strm_q);
-#endif
-			}
-		}
-		asoc->control_pdapi->end_added = 1;
-		asoc->control_pdapi->pdapi_aborted = 1;
-		asoc->control_pdapi = NULL;
-		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-		if (stcb->sctp_socket) {
-			sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-		}
-	}
-	/* goto SHUTDOWN_RECEIVED state to block new requests */
+	/*
+	 * FIXME MT: Handle the case where there are still incomplete
+	 * received user messages or known missing user messages from the
+	 * peer. One way to handle this is to abort the associations in this
+	 * case.
+	 */
 	if (stcb->sctp_socket) {
 		if ((SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
@@ -949,8 +920,9 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
 	    "sctp_handle_shutdown_ack: handling SHUTDOWN ACK\n");
-	if (stcb == NULL)
+	if (stcb == NULL) {
 		return;
+	}
 
 	asoc = &stcb->asoc;
 	/* process according to association state */
@@ -967,17 +939,12 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	if (asoc->control_pdapi) {
-		/*
-		 * With a normal shutdown we assume the end of last record.
-		 */
-		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-		asoc->control_pdapi->end_added = 1;
-		asoc->control_pdapi->pdapi_aborted = 1;
-		asoc->control_pdapi = NULL;
-		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-	}
+	/*
+	 * FIXME MT: Handle the case where there are still incomplete
+	 * received user messages or known missing user messages from the
+	 * peer. One way to handle this is to abort the associations in this
+	 * case.
+	 */
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
