@@ -237,9 +237,8 @@ while true; do
 		[ -f ../tools/ministat.sh ] &&
 		    ../tools/ministat.sh $allelapsed $i
 		[ $((`date '+%s'` - start)) -gt 1980 ] &&
-		    printf "$ts *** Excessive run time: %s %d min\r\n" $i, \
-		        $(((`date '+%s'` - start) / 60)) |
-		    tee $console >> $allexcess
+		    printf "$ts $rev $i %d min\n" \
+		        $(((`date '+%s'` - start) / 60)) >> $allexcess
 		while pgrep -q "^swap$"; do
 			echo "swap still running"
 			sleep 2
