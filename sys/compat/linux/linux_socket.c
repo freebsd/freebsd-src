@@ -2570,6 +2570,8 @@ linux_sendfile_common(struct thread *td, l_int out, l_int in,
 		else
 			error = sendfile_fallback(td, fp, out, offset, count,
 			    &sbytes);
+		if (error == ENOBUFS && (ofp->f_flag & FNONBLOCK) != 0)
+			error = EAGAIN;
 		if (error == 0)
 			td->td_retval[0] = sbytes;
 	}
