@@ -56,7 +56,7 @@
 
 /* Configuration header defines */
 #define MPCH_SIG		"PCMP"
-#define MPCH_OEMID		"BHyVe   "
+#define MPCH_OEMID		"bhyve   "
 #define MPCH_OEMID_LEN          8
 #define MPCH_PRODID             "Hypervisor  "
 #define MPCH_PRODID_LEN         12

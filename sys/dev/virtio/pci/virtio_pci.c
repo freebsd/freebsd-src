@@ -476,7 +476,7 @@ vtpci_alloc_intr_msi(struct vtpci_common *cn)
 {
 	int error;
 
-	/* Only BHyVe supports MSI. */
+	/* Only bhyve supports MSI. */
 	if (cn->vtpci_flags & VTPCI_FLAG_NO_MSI)
 		return (ENOTSUP);
 

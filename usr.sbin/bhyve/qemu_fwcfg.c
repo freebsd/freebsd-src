@@ -425,7 +425,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 	int error;
 
 	/*
-	 * Bhyve supports fwctl (bhyve) and fwcfg (qemu) as firmware interfaces.
+	 * bhyve supports fwctl (bhyve) and fwcfg (qemu) as firmware interfaces.
 	 * Both are using the same ports. So, it's not possible to provide both
 	 * interfaces at the same time to the guest. Therefore, only create acpi
 	 * tables and register io ports for fwcfg, if it's used.

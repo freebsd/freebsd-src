@@ -12,7 +12,7 @@
 struct qemu_loader;
 
 /*
- * Some guest bios like seabios assume the RSDP to be located in the FSEG. Bhyve
+ * Some guest bios like seabios assume the RSDP to be located in the FSEG. bhyve
  * only supports OVMF which has no such requirement.
  */
 enum qemu_loader_zone {

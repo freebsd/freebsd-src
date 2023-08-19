@@ -430,7 +430,7 @@ vtpci_legacy_reinit(device_t dev, uint64_t features)
 
 	/*
 	 * Redrive the device initialization. This is a bit of an abuse of
-	 * the specification, but VirtualBox, QEMU/KVM, and BHyVe seem to
+	 * the specification, but VirtualBox, QEMU/KVM, and bhyve seem to
 	 * play nice.
 	 *
 	 * We do not allow the host device to change from what was originally

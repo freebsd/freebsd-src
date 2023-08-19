@@ -252,7 +252,7 @@ pm1_control_handler(struct vmctx *ctx, int in,
 		    (*eax & ~(PM1_SLP_EN | PM1_ALWAYS_ZERO));
 
 		/*
-		 * If SLP_EN is set, check for S5.  Bhyve's _S5_ method
+		 * If SLP_EN is set, check for S5.  bhyve's _S5_ method
 		 * says that '5' should be stored in SLP_TYP for S5.
 		 */
 		if (*eax & PM1_SLP_EN) {

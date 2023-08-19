@@ -90,7 +90,7 @@ vmgenc_write_dsdt(void)
 	dsdt_line("Name (_CID, \"VM_Gen_Counter\")");
 	dsdt_line("Method (_HID, 0, NotSerialized)");
 	dsdt_line("{");
-	dsdt_line("  Return (\"Bhyve_V_Gen_Counter_V1\")");
+	dsdt_line("  Return (\"bhyve_V_Gen_Counter_V1\")");
 	dsdt_line("}");
 	dsdt_line("Name (_UID, 0)");
 	dsdt_line("Name (_DDN, \"VM_Gen_Counter\")");

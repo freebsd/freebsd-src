@@ -287,7 +287,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			regs[1] = (threads << 8) |
 			    (vcpu_id >> log2(threads + 1));
 			/*
-			 * XXX Bhyve topology cannot yet represent >1 node per
+			 * XXX bhyve topology cannot yet represent >1 node per
 			 * processor.
 			 */
 			regs[2] = 0;
