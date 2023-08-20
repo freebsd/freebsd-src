@@ -388,16 +388,6 @@ struct l_user_desc {
 	(((desc)->b >> LINUX_ENTRY_B_USEABLE) & 1)
 
 #ifdef _KERNEL
-struct iovec;
-struct uio;
-
-struct l_iovec32 {
-	uint32_t	iov_base;
-	l_size_t	iov_len;
-};
-
-int linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt,
-			    struct iovec **iovp, int error);
 int linux_copyout_rusage(struct rusage *ru, void *uaddr);
 #endif /* _KERNEL */
 
