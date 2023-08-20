@@ -769,7 +769,7 @@
 145	AUE_READV	STD  {
 		int linux_readv(
 		    l_ulong fd,
-		    struct l_iovec32 *iovp,
+		    struct iovec32 *iovp,
 		    l_ulong iovcnt
 		);
 	}
