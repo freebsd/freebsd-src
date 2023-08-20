@@ -392,8 +392,8 @@
 		    l_size_t nbyte
 		);
 	}
-64	AUE_NULL	NOPROTO {
-		int write(
+64	AUE_NULL	STD {
+		int linux_write(
 		    int fd,
 		    char *buf,
 		    l_size_t nbyte
