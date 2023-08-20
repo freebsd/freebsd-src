@@ -36,7 +36,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_pread_args), .sy_call = (sy_call_t *)linux_pread, .sy_auevent = AUE_PREAD, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 17 = linux_pread */
 	{ .sy_narg = AS(linux_pwrite_args), .sy_call = (sy_call_t *)linux_pwrite, .sy_auevent = AUE_PWRITE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 18 = linux_pwrite */
 	{ .sy_narg = AS(readv_args), .sy_call = (sy_call_t *)sys_readv, .sy_auevent = AUE_READV, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 19 = readv */
-	{ .sy_narg = AS(writev_args), .sy_call = (sy_call_t *)sys_writev, .sy_auevent = AUE_WRITEV, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 20 = writev */
+	{ .sy_narg = AS(linux_writev_args), .sy_call = (sy_call_t *)linux_writev, .sy_auevent = AUE_WRITEV, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 20 = linux_writev */
 	{ .sy_narg = AS(linux_access_args), .sy_call = (sy_call_t *)linux_access, .sy_auevent = AUE_ACCESS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 21 = linux_access */
 	{ .sy_narg = AS(linux_pipe_args), .sy_call = (sy_call_t *)linux_pipe, .sy_auevent = AUE_PIPE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 22 = linux_pipe */
 	{ .sy_narg = AS(linux_select_args), .sy_call = (sy_call_t *)linux_select, .sy_auevent = AUE_SELECT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 23 = linux_select */

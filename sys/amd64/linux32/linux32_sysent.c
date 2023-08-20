@@ -8,6 +8,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <compat/linux/linux_sysproto.h>
+#include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 

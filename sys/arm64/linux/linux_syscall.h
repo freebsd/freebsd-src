@@ -62,7 +62,7 @@
 #define	LINUX_SYS_read	63
 #define	LINUX_SYS_linux_write	64
 #define	LINUX_SYS_readv	65
-#define	LINUX_SYS_writev	66
+#define	LINUX_SYS_linux_writev	66
 #define	LINUX_SYS_linux_pread	67
 #define	LINUX_SYS_linux_pwrite	68
 #define	LINUX_SYS_linux_preadv	69

@@ -135,7 +135,7 @@
 #define	LINUX_SYS_flock	143
 #define	LINUX_SYS_linux_msync	144
 #define	LINUX_SYS_readv	145
-#define	LINUX_SYS_writev	146
+#define	LINUX_SYS_linux_writev	146
 #define	LINUX_SYS_linux_getsid	147
 #define	LINUX_SYS_linux_fdatasync	148
 #define	LINUX_SYS_linux_sysctl	149
