@@ -176,7 +176,7 @@ ATF_TC_BODY(strvis_locale, tc)
 #endif /* VIS_NOLOCALE */
 
 #ifdef __FreeBSD__
-#define	STRVIS_OVERFLOW_MARKER	0xff	/* Arbitrary */
+#define	STRVIS_OVERFLOW_MARKER	((char)0xff)	/* Arbitrary */
 
 ATF_TC(strvis_overflow_mb);
 ATF_TC_HEAD(strvis_overflow_mb, tc)
