@@ -5,7 +5,7 @@
  */
 
 #define	LINUX_SYS_read	0
-#define	LINUX_SYS_write	1
+#define	LINUX_SYS_linux_write	1
 #define	LINUX_SYS_linux_open	2
 #define	LINUX_SYS_close	3
 #define	LINUX_SYS_linux_newstat	4

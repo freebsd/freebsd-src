@@ -20,7 +20,7 @@ struct sysent linux32_sysent[] = {
 	{ .sy_narg = AS(linux_exit_args), .sy_call = (sy_call_t *)linux_exit, .sy_auevent = AUE_EXIT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 1 = linux_exit */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fork, .sy_auevent = AUE_FORK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 2 = linux_fork */
 	{ .sy_narg = AS(read_args), .sy_call = (sy_call_t *)sys_read, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 3 = read */
-	{ .sy_narg = AS(write_args), .sy_call = (sy_call_t *)sys_write, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 4 = write */
+	{ .sy_narg = AS(linux_write_args), .sy_call = (sy_call_t *)linux_write, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 4 = linux_write */
 	{ .sy_narg = AS(linux_open_args), .sy_call = (sy_call_t *)linux_open, .sy_auevent = AUE_OPEN_RWTC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 5 = linux_open */
 	{ .sy_narg = AS(close_args), .sy_call = (sy_call_t *)sys_close, .sy_auevent = AUE_CLOSE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 6 = close */
 	{ .sy_narg = AS(linux_waitpid_args), .sy_call = (sy_call_t *)linux_waitpid, .sy_auevent = AUE_WAIT4, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 7 = linux_waitpid */

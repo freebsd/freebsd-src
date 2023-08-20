@@ -17,7 +17,7 @@
 struct sysent linux_sysent[] = {
 #define	nosys	linux_nosys
 	{ .sy_narg = AS(read_args), .sy_call = (sy_call_t *)sys_read, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 0 = read */
-	{ .sy_narg = AS(write_args), .sy_call = (sy_call_t *)sys_write, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 1 = write */
+	{ .sy_narg = AS(linux_write_args), .sy_call = (sy_call_t *)linux_write, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 1 = linux_write */
 	{ .sy_narg = AS(linux_open_args), .sy_call = (sy_call_t *)linux_open, .sy_auevent = AUE_OPEN_RWTC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 2 = linux_open */
 	{ .sy_narg = AS(close_args), .sy_call = (sy_call_t *)sys_close, .sy_auevent = AUE_CLOSE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 3 = close */
 	{ .sy_narg = AS(linux_newstat_args), .sy_call = (sy_call_t *)linux_newstat, .sy_auevent = AUE_STAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 4 = linux_newstat */
