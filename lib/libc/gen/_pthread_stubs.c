@@ -51,7 +51,7 @@ struct pthread {
 static struct pthread	main_thread;
 
 static int		stub_main(void);
-static void 		*stub_null(void);
+static void		*stub_null(void);
 static struct pthread	*stub_self(void);
 static int		stub_zero(void);
 static int		stub_fail(void);
@@ -242,7 +242,7 @@ STUB_FUNC2(pthread_mutexattr_getrobust, PJT_MUTEXATTR_GETROBUST, int, void *,
     int *)
 STUB_FUNC2(pthread_mutexattr_setrobust, PJT_MUTEXATTR_SETROBUST, int, void *,
     int)
-STUB_FUNC2(pthread_once, 	PJT_ONCE, int, void *, void *)
+STUB_FUNC2(pthread_once,	PJT_ONCE, int, void *, void *)
 STUB_FUNC1(pthread_rwlock_destroy, PJT_RWLOCK_DESTROY, int, void *)
 STUB_FUNC2(pthread_rwlock_init,	PJT_RWLOCK_INIT, int, void *, void *)
 STUB_FUNC1(pthread_rwlock_rdlock, PJT_RWLOCK_RDLOCK, int, void *)
