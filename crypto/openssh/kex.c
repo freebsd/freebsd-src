@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.178 2023/03/12 10:40:39 dtucker Exp $ */
+/* $OpenBSD: kex.c,v 1.179 2023/08/18 01:37:41 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -1334,7 +1334,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		for (;;) {
 			if (timeout_ms > 0) {
 				r = waitrfd(ssh_packet_get_connection_in(ssh),
-				    &timeout_ms);
+				    &timeout_ms, NULL);
 				if (r == -1 && errno == ETIMEDOUT) {
 					send_error(ssh, "Timed out waiting "
 					    "for SSH identification string.");

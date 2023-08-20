@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.103 2023/07/19 14:02:27 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.104 2023/08/18 01:37:41 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <signal.h>
 
 /* Data structure for representing a forwarding request. */
 struct Forward {
@@ -57,7 +58,7 @@ char	*get_rdomain(int);
 int	 set_rdomain(int, const char *);
 int	 get_sock_af(int);
 void	 set_sock_tos(int, int);
-int	 waitrfd(int, int *);
+int	 waitrfd(int, int *, volatile sig_atomic_t *);
 int	 timeout_connect(int, const struct sockaddr *, socklen_t, int *);
 int	 a2port(const char *);
 int	 a2tun(const char *, int *);
