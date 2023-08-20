@@ -1,0 +1,134 @@
+.\" Copyright (c) 2023 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 17, 2023
+.Dt ATOPCASE 4
+.Os
+.Sh NAME
+.Nm atopcase
+.Nd Apple HID-over-SPI transport driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device atopcase"
+.Cd "device intelspi"
+.Cd "device spibus"
+.Cd "device hidbus"
+.Cd "device hkbd"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+atopcase_load="YES"
+hkbd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Human Interface Devices (HID) on
+Serial Peripheral Interface (SPI) buses on Apple Intel Macs.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following MacBooks produced in 2015-2018 years:
+.Pp
+.Bl -bullet -compact
+.It
+Macbook8,1
+.It
+Macbook9,1
+.It
+Macbook10,1
+.It
+MacbookPro11,4
+.It
+MacbookPro12,1
+.It
+MacbookPro13,1
+.It
+MacbookPro13,2
+.It
+MacbookPro13,3
+.It
+MacbookPro14,1
+.It
+MacbookPro14,2
+.It
+MacbookPro14,3
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.hid.atopcase.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/backlight/atopcase0" -compact
+.It Pa /dev/backlight/atopcase0
+Keyboard
+.Xr backlight 8
+device node.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr backlight 8 ,
+.Xr loader 8 ,
+.Xr loader.conf 5 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 14.0.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written by
+.An Val Packett Aq Mt val@packett.cool
+and marginally improved upon by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Sh BUGS
+Device interrupts are not acknowledged on some hardware that results in
+interrupt storm.
+Installation of Darwin OSI in
+.Xr acpi 4
+driver fixes the issue.
+To install Darwin OSI add following lines to
+.Xr loader.conf 5 :
+.Bl -tag -width indent
+.It Va hw.acpi.install_interface="Darwin"
+.It Va hw.acpi.remove_interface="Windows 2009, Windows 2012"
+.El
