@@ -82,8 +82,7 @@ e.g.:
 .Pp
 In particular, the
 .Fx
-Security Team only builds updates for releases shipped in binary form
-by the
+Security Team only builds updates for releases shipped in binary form by the
 .Fx
 Release Engineering Team.
 .Sh OPTIONS
@@ -149,8 +148,8 @@ from
 or similar using this flag, see:
 .Nm Cm cron
 .It Fl -currently-running Ar release
-Do not detect the currently-running release; instead, assume that the
-system is running the specified
+Do not detect the currently-running release; instead, assume that the system is
+running the specified
 .Ar release .
 This is most likely to be useful when upgrading jails.
 .El
@@ -160,28 +159,26 @@ The
 can be any one of the following:
 .Bl -tag -width "rollback"
 .It Cm fetch
-Based on the currently installed world and the configuration
-options set, fetch all available binary updates.
+Based on the currently installed world and the configuration options set, fetch
+all available binary updates.
 .It Cm cron
-Sleep a random amount of time between 1 and 3600 seconds,
-then download updates as if the
+Sleep a random amount of time between 1 and 3600 seconds, then download updates
+as if the
 .Cm fetch
 command was used.
-If updates are downloaded, an email will be sent
-(to root or a different address if specified via the
+If updates are downloaded, an email will be sent (to root or a different
+address if specified via the
 .Fl t
 option or in the configuration file).
-As the name suggests, this command is designed for running
-from
+As the name suggests, this command is designed for running from
 .Xr cron 8 ;
-the random delay serves to minimize the probability that
-a large number of machines will simultaneously attempt to
-fetch updates.
+the random delay serves to minimize the probability that a large number of
+machines will simultaneously attempt to fetch updates.
 .It Cm upgrade
 Fetch files necessary for upgrading to a new release.
-Before using this command, make sure that you read the
-announcement and release notes for the new release in
-case there are any special steps needed for upgrading.
+Before using this command, make sure that you read the announcement and release
+notes for the new release in case there are any special steps needed for
+upgrading.
 Note that this command may require up to 500 MB of space in
 .Ar workdir
 depending on which components of the
@@ -192,19 +189,15 @@ Check if there are fetched updates ready to install.
 Returns exit code 2 if there are no updates to install.
 .It Cm install
 Install the most recently fetched updates or upgrade.
-Returns exit code 2 if there are no updates to install
-and the
+Returns exit code 2 if there are no updates to install and the
 .Cm fetch
-command wasn't passed as an earlier argument in the same
-invocation.
+command wasn't passed as an earlier argument in the same invocation.
 .It Cm rollback
 Uninstall the most recently installed updates.
 .It Cm IDS
-Compare the system against a "known good" index of the
-installed release.
+Compare the system against a "known good" index of the installed release.
 .It Cm showconfig
-Show configuration options after parsing conffile and command
-line options.
+Show configuration options after parsing conffile and command line options.
 .El
 .Sh TIPS
 .Bl -bullet
@@ -216,17 +209,15 @@ If your clock is set to local time, adding the line
 to
 .Pa /etc/crontab
 will check for updates every night.
-If your clock is set to UTC, please pick a random time
-other than 3AM, to avoid overly imposing an uneven load
-on the server(s) hosting the updates.
+If your clock is set to UTC, please pick a random time other than 3AM, to avoid
+overly imposing an uneven load on the server(s) hosting the updates.
 .It
 In spite of its name,
 .Nm
-IDS should not be relied upon as an "Intrusion Detection
-System", since if the system has been tampered with
-it cannot be trusted to operate correctly.
-If you intend to use this command for intrusion-detection
-purposes, make sure you boot from a secure disk (e.g., a CD).
+IDS should not be relied upon as an "Intrusion Detection System", since if the
+system has been tampered with it cannot be trusted to operate correctly.
+If you intend to use this command for intrusion-detection purposes, make sure
+you boot from a secure disk (e.g., a CD).
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width "PAGER"
@@ -265,7 +256,8 @@ required.
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org
 .Sh BUGS
-In patch level situations – for example, 13.2-RELEASE-p1 up to 13.2-RELEASE-p2: if any previous modification to a file in
+In patch level situations – for example, 13.2-RELEASE-p1 up to
+13.2-RELEASE-p2: if any previous modification to a file in
 .Pa /etc/
 will conflict with an available update, then
 .Nm
