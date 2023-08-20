@@ -1065,7 +1065,7 @@ linux_pwritev(struct thread *td, struct linux_pwritev_args *uap)
 		return (error);
 	error = kern_pwritev(td, uap->fd, auio, offset);
 	free(auio, M_IOV);
-	return (error);
+	return (linux_enobufs2eagain(td, uap->fd, error));
 }
 
 int
