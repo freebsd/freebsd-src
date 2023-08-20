@@ -111,36 +111,6 @@ linux_copyout_rusage(struct rusage *ru, void *uaddr)
 	return (copyout(&lru, uaddr, sizeof(struct l_rusage)));
 }
 
-CTASSERT(sizeof(struct l_iovec32) == 8);
-
-int
-linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp,
-    int error)
-{
-	struct l_iovec32 iov32;
-	struct iovec *iov;
-	uint32_t iovlen;
-	int i;
-
-	*iovp = NULL;
-	if (iovcnt > UIO_MAXIOV)
-		return (error);
-	iovlen = iovcnt * sizeof(struct iovec);
-	iov = malloc(iovlen, M_IOV, M_WAITOK);
-	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp32[i], &iov32, sizeof(struct l_iovec32));
-		if (error) {
-			free(iov, M_IOV);
-			return (error);
-		}
-		iov[i].iov_base = PTRIN(iov32.iov_base);
-		iov[i].iov_len = iov32.iov_len;
-	}
-	*iovp = iov;
-	return(0);
-
-}
-
 int
 linux_readv(struct thread *td, struct linux_readv_args *uap)
 {
