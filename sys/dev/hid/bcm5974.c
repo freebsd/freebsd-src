@@ -52,7 +52,7 @@
 
 #include "usbdevs.h"
 
-#define	BCM5974_BUFFER_MAX	(248 * 4)	/* 4 Type4 SPI frames */
+#define	BCM5974_BUFFER_MAX	(246 * 2)	/* 2 Type4 SPI frames */
 #define	BCM5974_TLC_PAGE	HUP_GENERIC_DESKTOP
 #define	BCM5974_TLC_USAGE	HUG_MOUSE
 
@@ -208,7 +208,11 @@ enum {
 	BCM5974_FLAG_WELLSPRING7,
 	BCM5974_FLAG_WELLSPRING7A,
 	BCM5974_FLAG_WELLSPRING8,
-	BCM5974_FLAG_WELLSPRING9,
+	BCM5974_FLAG_WELLSPRING9_MODEL3,
+	BCM5974_FLAG_WELLSPRING9_MODEL4,
+#define	BCM5974_FLAG_WELLSPRING9_MODEL_SPI	BCM5974_FLAG_WELLSPRING9_MODEL4
+	BCM5974_FLAG_WELLSPRING9_MODEL5,
+	BCM5974_FLAG_WELLSPRING9_MODEL6,
 	BCM5974_FLAG_MAGIC_TRACKPAD2_USB,
 	BCM5974_FLAG_MAX,
 };
@@ -352,12 +356,39 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 	 * No scientific measurements have been done :) but a really hard press
 	 * results in a value around 3500 on model 4.
 	 */
-	[BCM5974_FLAG_WELLSPRING9] = {
+	[BCM5974_FLAG_WELLSPRING9_MODEL3] = {
 		.tp = tp + TYPE4,
 		.p = { SN_PRESSURE, 0, 4096, 4096 },
 		.w = { SN_WIDTH, 0, 2048, 0 },
 		.x = { SN_COORD, -4828, 5345, 105 },
 		.y = { SN_COORD, -203, 6803, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
+	},
+	[BCM5974_FLAG_WELLSPRING9_MODEL4] = {
+		.tp = tp + TYPE4,
+		.p = { SN_PRESSURE, 0, 4096, 4096 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -5087, 5579, 105 },
+		.y = { SN_COORD, -182, 6089, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
+	},
+	[BCM5974_FLAG_WELLSPRING9_MODEL5] = {
+		.tp = tp + TYPE4,
+		.p = { SN_PRESSURE, 0, 4096, 4096 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -6243, 6749, 105 },
+		.y = { SN_COORD, -170, 7685, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
+	},
+	[BCM5974_FLAG_WELLSPRING9_MODEL6] = {
+		.tp = tp + TYPE4,
+		.p = { SN_PRESSURE, 0, 4096, 4096 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -7456, 7976, 105 },
+		.y = { SN_COORD, -163, 9283, 75 },
 		.o = { SN_ORIENT,
 		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
@@ -373,6 +404,12 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 
 #define	BCM5974_DEV(v,p,i)	{					\
 	HID_BVPI(BUS_USB, USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i),	\
+	HID_TLC(BCM5974_TLC_PAGE, BCM5974_TLC_USAGE),			\
+}
+
+#define	APPLE_HID	"APP000D"
+#define	BCM5974_DEV_SPI(hid, i)	{					\
+	HID_BUS(BUS_SPI), HID_PNP(hid), HID_DRIVER_INFO(i),		\
 	HID_TLC(BCM5974_TLC_PAGE, BCM5974_TLC_USAGE),			\
 }
 
@@ -439,13 +476,19 @@ static const struct hid_device_id bcm5974_devs[] = {
 	BCM5974_DEV(APPLE, WELLSPRING8_JIS, BCM5974_FLAG_WELLSPRING8),
 
 	/* MacbookPro12,1 MacbookPro11,4 */
-	BCM5974_DEV(APPLE, WELLSPRING9_ANSI, BCM5974_FLAG_WELLSPRING9),
-	BCM5974_DEV(APPLE, WELLSPRING9_ISO, BCM5974_FLAG_WELLSPRING9),
-	BCM5974_DEV(APPLE, WELLSPRING9_JIS, BCM5974_FLAG_WELLSPRING9),
+	BCM5974_DEV(APPLE, WELLSPRING9_ANSI, BCM5974_FLAG_WELLSPRING9_MODEL3),
+	BCM5974_DEV(APPLE, WELLSPRING9_ISO, BCM5974_FLAG_WELLSPRING9_MODEL3),
+	BCM5974_DEV(APPLE, WELLSPRING9_JIS, BCM5974_FLAG_WELLSPRING9_MODEL3),
+
+	/* Generic SPI device */
+	BCM5974_DEV_SPI(APPLE_HID, BCM5974_FLAG_WELLSPRING9_MODEL_SPI),
 
 	/* External "Magic" devices */
 	BCM5974_DEV(APPLE, MAGIC_TRACKPAD2, BCM5974_FLAG_MAGIC_TRACKPAD2_USB),
 };
+
+#define	BCM5974_WELLSPRING9_RDESC_SIZE		110
+#define	BCM5974_WELLSPRING9_MODEL_OFFSET	106
 
 struct bcm5974_softc {
 	device_t sc_dev;
@@ -593,6 +636,44 @@ bcm5974_set_device_mode(struct bcm5974_softc *sc, bool on)
 	return (err);
 }
 
+static uintptr_t
+bcm5974_get_wsp9_model(device_t dev)
+{
+	const struct hid_device_info *hw = hid_get_device_info(dev);
+	static uint8_t rdesc[BCM5974_WELLSPRING9_RDESC_SIZE];
+	uint8_t model_byte = 0;
+
+	bus_topo_assert();
+
+	if (hw->rdescsize == sizeof(rdesc) &&
+	    hid_get_rdesc(dev, rdesc, sizeof(rdesc)) == 0) {
+		model_byte = rdesc[BCM5974_WELLSPRING9_MODEL_OFFSET];
+		switch (model_byte) {
+		case 3:
+			/* MacbookPro12,1 MacbookPro11,4 */
+			return (BCM5974_FLAG_WELLSPRING9_MODEL3);
+		case 4:
+			/* Macbook8,1 Macbook9,1 Macbook10,1 */
+			return (BCM5974_FLAG_WELLSPRING9_MODEL4);
+		case 5:
+			/*
+			 * MacbookPro13,1 MacbookPro13,2
+			 * MacbookPro14,1 MacbookPro14,2
+			 */
+			return (BCM5974_FLAG_WELLSPRING9_MODEL5);
+		case 6:
+			/* MacbookPro13,3 MacbookPro14,3 */
+			return (BCM5974_FLAG_WELLSPRING9_MODEL6);
+		}
+	}
+
+	device_printf(dev, "Unexpected trackpad descriptor len=%u model_byte="
+	    "%u, not extracting model\n", hw->rdescsize, model_byte);
+
+	/* Fallback for unknown SPI versions */
+	return (BCM5974_FLAG_WELLSPRING9_MODEL_SPI);
+}
+
 static void
 bcm5974_identify(driver_t *driver, device_t parent)
 {
@@ -631,6 +712,7 @@ bcm5974_attach(device_t dev)
 {
 	struct bcm5974_softc *sc = device_get_softc(dev);
 	const struct hid_device_info *hw = hid_get_device_info(dev);
+	uintptr_t drv_info;
 	int err;
 
 	DPRINTFN(BCM5974_LLEVEL_INFO, "sc=%p\n", sc);
@@ -638,7 +720,10 @@ bcm5974_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	/* get device specific configuration */
-	sc->sc_params = bcm5974_dev_params + hidbus_get_driver_info(dev);
+	drv_info = hidbus_get_driver_info(dev);
+	if (drv_info == BCM5974_FLAG_WELLSPRING9_MODEL_SPI)
+		drv_info = bcm5974_get_wsp9_model(dev);
+	sc->sc_params = bcm5974_dev_params + drv_info;
 
 	sc->sc_evdev = evdev_alloc();
 	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
