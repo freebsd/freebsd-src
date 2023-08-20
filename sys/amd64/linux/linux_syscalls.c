@@ -7,7 +7,7 @@
 const char *linux_syscallnames[] = {
 #define	nosys	linux_nosys
 	"read",			/* 0 = read */
-	"write",			/* 1 = write */
+	"linux_write",			/* 1 = linux_write */
 	"linux_open",			/* 2 = linux_open */
 	"close",			/* 3 = close */
 	"linux_newstat",			/* 4 = linux_newstat */

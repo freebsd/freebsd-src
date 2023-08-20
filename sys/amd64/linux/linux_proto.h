@@ -34,6 +34,11 @@ struct thread;
 #endif
 
 #define	nosys	linux_nosys
+struct linux_write_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+	char nbyte_l_[PADL_(l_size_t)]; l_size_t nbyte; char nbyte_r_[PADR_(l_size_t)];
+};
 struct linux_open_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
@@ -1396,6 +1401,7 @@ struct linux_mount_setattr_args {
 	syscallarg_t dummy;
 };
 #define	nosys	linux_nosys
+int	linux_write(struct thread *, struct linux_write_args *);
 int	linux_open(struct thread *, struct linux_open_args *);
 int	linux_newstat(struct thread *, struct linux_newstat_args *);
 int	linux_newfstat(struct thread *, struct linux_newfstat_args *);
@@ -1693,6 +1699,7 @@ int	linux_faccessat2(struct thread *, struct linux_faccessat2_args *);
 int	linux_process_madvise(struct thread *, struct linux_process_madvise_args *);
 int	linux_epoll_pwait2(struct thread *, struct linux_epoll_pwait2_args *);
 int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
+#define	LINUX_SYS_AUE_linux_write	AUE_NULL
 #define	LINUX_SYS_AUE_linux_open	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_newstat	AUE_STAT
 #define	LINUX_SYS_AUE_linux_newfstat	AUE_FSTAT
