@@ -1002,7 +1002,8 @@ linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 	offset = uap->offset;
 #endif
 
-	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, offset));
+	return (linux_enobufs2eagain(td, uap->fd,
+	    kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, offset)));
 }
 
 #define HALF_LONG_BITS ((sizeof(l_long) * NBBY / 2))
