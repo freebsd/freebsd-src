@@ -261,11 +261,10 @@ stores temporary files and downloaded updates.
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org
 .Sh BUGS
-Merge conflicts involving
+In patch level situations – for example, 13.2-RELEASE-p1 up to 13.2-RELEASE-p2: if any previous modification to a file in
 .Pa /etc/
-are handled by
+conflicts with an available update, then 
 .Nm
-in release upgrade situations, not in patch level situations (for example, 13.2-RELEASE-p1 up to 13.2-RELEASE-p2).
-If a locally modified file is not handled,
+will make no attempt to merge. Instead,
 .Nm
-will draw attention to the file, and progress no further.
+will print a list of affected locally modified progress files, and progress no further.
