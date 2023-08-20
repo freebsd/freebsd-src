@@ -24,7 +24,7 @@
 #define	LINUX_SYS_linux_pread	17
 #define	LINUX_SYS_linux_pwrite	18
 #define	LINUX_SYS_readv	19
-#define	LINUX_SYS_writev	20
+#define	LINUX_SYS_linux_writev	20
 #define	LINUX_SYS_linux_access	21
 #define	LINUX_SYS_linux_pipe	22
 #define	LINUX_SYS_linux_select	23

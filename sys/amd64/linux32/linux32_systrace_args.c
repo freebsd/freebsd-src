@@ -979,7 +979,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 146: {
 		struct linux_writev_args *p = params;
 		iarg[a++] = p->fd; /* l_ulong */
-		uarg[a++] = (intptr_t)p->iovp; /* struct l_iovec32 * */
+		uarg[a++] = (intptr_t)p->iovp; /* struct iovec32 * */
 		iarg[a++] = p->iovcnt; /* l_ulong */
 		*n_args = 3;
 		break;
@@ -4753,7 +4753,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_ulong";
 			break;
 		case 1:
-			p = "userland struct l_iovec32 *";
+			p = "userland struct iovec32 *";
 			break;
 		case 2:
 			p = "l_ulong";

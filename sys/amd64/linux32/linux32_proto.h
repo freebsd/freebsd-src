@@ -464,7 +464,7 @@ struct linux_readv_args {
 };
 struct linux_writev_args {
 	char fd_l_[PADL_(l_ulong)]; l_ulong fd; char fd_r_[PADR_(l_ulong)];
-	char iovp_l_[PADL_(struct l_iovec32 *)]; struct l_iovec32 * iovp; char iovp_r_[PADR_(struct l_iovec32 *)];
+	char iovp_l_[PADL_(struct iovec32 *)]; struct iovec32 * iovp; char iovp_r_[PADR_(struct iovec32 *)];
 	char iovcnt_l_[PADL_(l_ulong)]; l_ulong iovcnt; char iovcnt_r_[PADR_(l_ulong)];
 };
 struct linux_getsid_args {

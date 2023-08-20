@@ -461,6 +461,11 @@ struct linux_msync_args {
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
 	char fl_l_[PADL_(l_int)]; l_int fl; char fl_r_[PADR_(l_int)];
 };
+struct linux_writev_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char iovp_l_[PADL_(struct iovec *)]; struct iovec * iovp; char iovp_r_[PADR_(struct iovec *)];
+	char iovcnt_l_[PADL_(u_int)]; u_int iovcnt; char iovcnt_r_[PADR_(u_int)];
+};
 struct linux_getsid_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
 };
@@ -1803,6 +1808,7 @@ int	linux_llseek(struct thread *, struct linux_llseek_args *);
 int	linux_getdents(struct thread *, struct linux_getdents_args *);
 int	linux_select(struct thread *, struct linux_select_args *);
 int	linux_msync(struct thread *, struct linux_msync_args *);
+int	linux_writev(struct thread *, struct linux_writev_args *);
 int	linux_getsid(struct thread *, struct linux_getsid_args *);
 int	linux_fdatasync(struct thread *, struct linux_fdatasync_args *);
 int	linux_sysctl(struct thread *, struct linux_sysctl_args *);
@@ -2168,6 +2174,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_getdents	AUE_GETDIRENTRIES
 #define	LINUX_SYS_AUE_linux_select	AUE_SELECT
 #define	LINUX_SYS_AUE_linux_msync	AUE_MSYNC
+#define	LINUX_SYS_AUE_linux_writev	AUE_WRITEV
 #define	LINUX_SYS_AUE_linux_getsid	AUE_GETSID
 #define	LINUX_SYS_AUE_linux_fdatasync	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sysctl	AUE_SYSCTL
