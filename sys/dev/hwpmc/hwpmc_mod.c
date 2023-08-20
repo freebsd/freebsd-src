@@ -3821,6 +3821,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		/* No flags currently implemented */
 		if (cl.pm_flags != 0) {
+			pmclog_proc_ignite(pmclog_proc_handle, NULL);
 			error = EINVAL;
 			break;
 		}
