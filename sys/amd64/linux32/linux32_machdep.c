@@ -196,20 +196,6 @@ linux_readv(struct thread *td, struct linux_readv_args *uap)
 	return (error);
 }
 
-int
-linux_writev(struct thread *td, struct linux_writev_args *uap)
-{
-	struct uio *auio;
-	int error;
-
-	error = linux32_copyinuio(uap->iovp, uap->iovcnt, &auio);
-	if (error)
-		return (error);
-	error = kern_writev(td, uap->fd, auio);
-	free(auio, M_IOV);
-	return (error);
-}
-
 struct l_ipc_kludge {
 	l_uintptr_t msgp;
 	l_long msgtyp;

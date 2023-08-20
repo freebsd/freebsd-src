@@ -47,6 +47,7 @@
 
 #ifdef COMPAT_LINUX32
 #include <compat/freebsd32/freebsd32_misc.h>
+#include <compat/freebsd32/freebsd32_util.h>
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
 #else
@@ -1854,4 +1855,22 @@ linux_write(struct thread *td, struct linux_write_args *args)
 	};
 
 	return (linux_enobufs2eagain(td, args->fd, sys_write(td, &bargs)));
+}
+
+int
+linux_writev(struct thread *td, struct linux_writev_args *args)
+{
+	struct uio *auio;
+	int error;
+
+#ifdef COMPAT_LINUX32
+	error = freebsd32_copyinuio(PTRIN(args->iovp), args->iovcnt, &auio);
+#else
+	error = copyinuio(args->iovp, args->iovcnt, &auio);
+#endif
+	if (error != 0)
+		return (error);
+	error = kern_writev(td, args->fd, auio);
+	free(auio, M_IOV);
+	return (linux_enobufs2eagain(td, args->fd, error));
 }
