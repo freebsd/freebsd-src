@@ -122,6 +122,7 @@ static inline int cq_validate_flags(u32 flags, u8 hw_rev)
 
 	return flags & ~IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION ? -EOPNOTSUPP : 0;
 }
+
 static inline u64 *irdma_next_pbl_addr(u64 *pbl, struct irdma_pble_info **pinfo,
 				       u32 *idx)
 {
@@ -133,6 +134,20 @@ static inline u64 *irdma_next_pbl_addr(u64 *pbl, struct irdma_pble_info **pinfo,
 
 	return (*pinfo)->addr;
 }
+
+static inline struct vnet *
+irdma_cmid_to_vnet(struct iw_cm_id *cm_id)
+{
+	struct rdma_cm_id *rdma_id;
+
+	if (!cm_id)
+		return &init_net;
+
+	rdma_id = (struct rdma_cm_id *)cm_id->context;
+
+	return rdma_id->route.addr.dev_addr.net;
+}
+
 struct ib_cq *irdma_create_cq(struct ib_device *ibdev,
 			      const struct ib_cq_init_attr *attr,
 			      struct ib_ucontext *context,
