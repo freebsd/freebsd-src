@@ -13,6 +13,7 @@ ATF_TESTS_C+=		memset_s_test
 ATF_TESTS_C+=		stpncpy_test
 ATF_TESTS_C+=		strcspn_test
 ATF_TESTS_C+=		strerror2_test
+ATF_TESTS_C+=		strspn_test
 ATF_TESTS_C+=		strverscmp_test
 ATF_TESTS_C+=		strxfrm_test
 ATF_TESTS_C+=		wcscasecmp_test
@@ -34,7 +35,6 @@ NETBSD_ATF_TESTS_C+=	strerror_test
 NETBSD_ATF_TESTS_C+=	strlen_test
 NETBSD_ATF_TESTS_C+=	strpbrk_test
 NETBSD_ATF_TESTS_C+=	strrchr_test
-NETBSD_ATF_TESTS_C+=	strspn_test
 NETBSD_ATF_TESTS_C+=	swab_test
 
 SRCS.strerror2_test=	strerror_test.c

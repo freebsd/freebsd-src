@@ -42,6 +42,12 @@ enum {
 
 enum { NOMATCH, MATCH };
 
+#ifdef STRSPN
+#define STRXSPN strspn
+#else
+#define STRXSPN strcspn
+#endif
+
 static void
 testcase(char *buf, size_t buflen, char *set, size_t setlen, int want_match)
 {
@@ -50,7 +56,11 @@ testcase(char *buf, size_t buflen, char *set, size_t setlen, int want_match)
 	assert(setlen < UCHAR_MAX - 2);
 
 	for (i = 0; i < buflen; i++)
+#ifdef STRSPN
+		buf[i] = UCHAR_MAX - i % (setlen > 0 ? setlen : 1);
+#else /* strcspn */
 		buf[i] = 1 + i % (UCHAR_MAX - setlen - 1);
+#endif
 
 	buf[i] = '\0';
 
@@ -59,15 +69,25 @@ testcase(char *buf, size_t buflen, char *set, size_t setlen, int want_match)
 
 	set[i] = '\0';
 
+#ifdef STRSPN
+	if (setlen == 0)
+		expected = 0;
+	else if (want_match == MATCH && buflen > 0) {
+		buf[buflen - 1] = 1;
+		expected = buflen - 1;
+	} else
+		expected = buflen;
+#else /* strcspn */
 	if (want_match == MATCH && buflen > 0 && setlen > 0) {
 		buf[buflen - 1] = UCHAR_MAX;
 		expected = buflen - 1;
 	} else
 		expected = buflen;
+#endif
 
-	outcome = strcspn(buf, set);
-	ATF_CHECK_EQ_MSG(expected, outcome, "strcspn(%p[%zu], %p[%zu]) = %zu != %zu",
-	    buf, buflen, set, setlen, outcome, expected);
+	outcome = STRXSPN(buf, set);
+	ATF_CHECK_EQ_MSG(expected, outcome, "%s(%p[%zu], %p[%zu]) = %zu != %zu",
+	    __XSTRING(STRXSPN), buf, buflen, set, setlen, outcome, expected);
 }
 
 /* test set with all alignments and lengths of buf */
