@@ -108,11 +108,6 @@ struct verbs_cq {
 	};
 };
 
-struct irdma_cmpl_gen {
-	LIST_ENTRY(irdma_cmpl_gen) list;
-	struct irdma_cq_poll_info cpi;
-};
-
 struct irdma_ucq {
 	struct verbs_cq verbs_cq;
 	struct verbs_mr vmr;
@@ -129,7 +124,6 @@ struct irdma_ucq {
 	struct list_head resize_list;
 	/* for extended CQ completion fields */
 	struct irdma_cq_poll_info cur_cqe;
-	struct list_head_cmpl cmpl_generated;
 };
 
 struct irdma_uqp {
@@ -149,7 +143,6 @@ struct irdma_uqp {
 	struct irdma_qp_uk qp;
 	enum ibv_qp_type qp_type;
 	struct irdma_sge *recv_sges;
-	pthread_t flush_thread;
 };
 
 /* irdma_uverbs.c */
@@ -206,5 +199,4 @@ void irdma_async_event(struct ibv_context *context,
 void irdma_set_hw_attrs(struct irdma_hw_attrs *attrs);
 void *irdma_mmap(int fd, off_t offset);
 void irdma_munmap(void *map);
-void *irdma_flush_thread(void *arg);
 #endif /* IRDMA_UMAIN_H */
