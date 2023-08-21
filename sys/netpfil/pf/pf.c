@@ -6729,8 +6729,8 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 			    pd.dir == PF_IN) {
 				struct mbuf *msyn;
 
-				msyn = pf_syncookie_recreate_syn(h->ip_ttl,
-				    off,&pd);
+				msyn = pf_syncookie_recreate_syn(h->ip_ttl, off,
+				    &pd);
 				if (msyn == NULL) {
 					action = PF_DROP;
 					break;
@@ -6738,29 +6738,22 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 
 				action = pf_test(dir, pflags, ifp, &msyn, inp);
 				m_freem(msyn);
+				if (action != PF_PASS)
+					break;
 
-				if (action == PF_PASS) {
-					action = pf_test_state_tcp(&s, dir,
-					    kif, m, off, h, &pd, &reason);
-					if (action != PF_PASS || s == NULL) {
-						action = PF_DROP;
-						break;
-					}
-
-					s->src.seqhi = ntohl(pd.hdr.tcp.th_ack)
-					    - 1;
-					s->src.seqlo = ntohl(pd.hdr.tcp.th_seq)
-					    - 1;
-					pf_set_protostate(s, PF_PEER_SRC,
-					    PF_TCPS_PROXY_DST);
-
-					action = pf_synproxy(&pd, &s, &reason);
-					if (action != PF_PASS)
-						break;
+				action = pf_test_state_tcp(&s, dir,
+				    kif, m, off, h, &pd, &reason);
+				if (action != PF_PASS || s == NULL) {
+					action = PF_DROP;
+					break;
 				}
+
+				s->src.seqhi = ntohl(pd.hdr.tcp.th_ack) - 1;
+				s->src.seqlo = ntohl(pd.hdr.tcp.th_seq) - 1;
+				pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_DST);
+				action = pf_synproxy(&pd, &s, &reason);
 				break;
-			}
-			else {
+			} else {
 				action = pf_test_rule(&r, &s, dir, kif, m, off,
 				    &pd, &a, &ruleset, inp);
 			}
