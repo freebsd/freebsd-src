@@ -23,8 +23,11 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/tree.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdarg.h>
