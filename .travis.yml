@@ -1,0 +1,35 @@
+language: c
+
+compiler:
+  - gcc
+  - clang
+
+matrix:
+ include:
+   - compiler: i586-mingw32msvc-gcc
+     env: BUILD_MINGW="yes"
+
+before_install:
+  - sudo apt-get -qq update
+
+install:
+  - if test "${BUILD_MINGW}" = "yes"; then sudo apt-get -qq install wine; fi
+
+script:
+  - if test "${BUILD_MINGW}" != "yes"; then
+      make &&
+      make test &&
+      make release;
+    else
+      export CC=i586-mingw32msvc-gcc;
+      echo -e '#!/bin/bash\nexec wine $0.exe "$@"' > unifdef;
+      chmod ugo+x unifdef;
+      make version.h &&
+      make -f win32/Makefile.mingw test;
+    fi
+
+## whitelist
+branches:
+  only:
+    - master
+    - tmp

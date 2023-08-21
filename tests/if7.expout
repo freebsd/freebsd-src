@@ -1,0 +1,46 @@
+/*
+Distributed under the two-clause BSD licence;
+see the COPYING file for details. */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int foo1() { return 0; }
+
+int foo2() { return 0; }
+
+int foo3() { return 0; }
+
+int foo4() { return 0; }
+
+int foo5() { return 0; }
+
+int foo6() { return 0; }
+
+int foo7() { return 0; }
+
+int foo8() { return 0; }
+
+int foo9() { return 0; }
+
+int foo10() { return 0; }
+
+int foo11() { return 0; }
+
+int foo12() { return 0; }
+
+int main()
+{
+  foo1();
+  foo2();
+  foo3();
+  foo4();
+  foo5();
+  foo6();
+  foo7();
+  foo8();
+  foo9();
+  foo10();
+  foo11();
+  foo12();
+}
