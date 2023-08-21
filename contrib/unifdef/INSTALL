@@ -1,0 +1,36 @@
+unifdef installation instructions
+---------------------------------
+
+Dependencies:
+ * unifdef is mostly ANSI C, with a few unixisms
+ * unifdefall is a Unix shell script
+ * the manual uses the nroff mdoc macros
+ * the support and test scripts are Unix shell scripts
+
+To build on Unix, type `make`. You can adjust the compilation options
+using the POSIX standard CFLAGS and LDFLAGS make variables.
+
+To install in your home directory, type `make install`
+or to install in /usr type `make prefix=/usr install`.
+See the start of the Makefile for the install location
+variables.
+
+The win32 subdirectory contains build files for MinGW and Visual
+Studio 2010 which make use of the FreeBSD code plus some other
+portability wrappers.
+
+To build with MinGW, type `mingw32-make -f win32/Makefile.mingw`.
+
+Unlike the Unix Makefile, the Windows builds do not automatically
+create or update version.h. The release tar and zip files include a
+pre-generated version.h but the git repository does not. To build from
+a git clone you need a Unix shell environment, which you can get as
+part of GitHub for Windows - http://windows.github.com/
+To update version.h, right-click on the fanf2/unifdef repository and
+select "open a shell here", then type `sh scripts\reversion.sh`.
+
+We assume Unix provides the BSD err.h functions and C99 stdbool.h. The
+FreeBSD subdirectory has copies of err.c and getopt.c for systems such
+as Windows that don't have them built in.
+
+- end -

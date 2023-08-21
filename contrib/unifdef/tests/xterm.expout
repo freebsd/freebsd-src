@@ -1,0 +1,83 @@
+#define RES_OFFSET(field)	XtOffsetOf(XTERM_RESOURCE, field)
+#include <xterm.h>
+#include <version.h>
+#include <X11/cursorfont.h>
+#include <X11/Xlocale.h>
+#include <pwd.h>
+#include <ctype.h>
+#include <data.h>
+#include <error.h>
+#include <menu.h>
+#include <main.h>
+#include <xstrings.h>
+#include <xtermcap.h>
+#include <xterm_io.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
+#define HAS_BSD_GROUPS
+#include <sys/param.h>		/* for NOFILE */
+#define WTMP
+#include <stdio.h>
+#define UTMP_STR utmp
+#include <libutil.h>		/* openpty() */
+#include <signal.h>
+#include <sys/wait.h>
+#define TERMCAP_ERASE "kb"
+#define VAL_INITIAL_ERASE A2E(8)
+#define VAL_LINE_SPEED B38400
+#define TERMIO_STRUCT struct termios
+#define ttySetAttr(fd, datap) tcsetattr(fd, TCSANOW, datap)
+#define ttyGetAttr(fd, datap) tcgetattr(fd, datap)
+#define ttyFlush(fd)          tcflush(fd, TCOFLUSH)
+#define TTYMODE(name) { name, sizeof(name)-1, 0, 0 }
+#define XTTYMODE_intr	0
+#define XTTYMODE_quit	1
+#define XTTYMODE_erase	2
+#define XTTYMODE_kill	3
+#define XTTYMODE_eof	4
+#define XTTYMODE_eol	5
+#define XTTYMODE_swtch	6
+#define XTTYMODE_start	7
+#define XTTYMODE_stop	8
+#define XTTYMODE_brk	9
+#define XTTYMODE_susp	10
+#define XTTYMODE_dsusp	11
+#define XTTYMODE_rprnt	12
+#define XTTYMODE_flush	13
+#define XTTYMODE_weras	14
+#define XTTYMODE_lnext	15
+#define XTTYMODE_status	16
+#define XTTYMODE_erase2	17
+#define XTTYMODE_eol2	18
+#define validTtyChar(data, n) \
+#define TMODE(ind,var) if (ttymodelist[ind].set) var = (cc_t) ttymodelist[ind].value
+#include <X11/Xmu/SysUtil.h>	/* XmuGetHostname */
+#define MIT_CONSOLE_LEN	12
+#define MIT_CONSOLE "MIT_CONSOLE_"
+#define SetUtmpHost(dst, screen) \
+{"#",		".iconGeometry",XrmoptionStickyArg,	(XPointer) NULL},
+{ "#geom",                 "icon window geometry" },
+    TRACE(("...decode_keyvalue %#x\n", value));
+#define isOption(string) (Boolean)((string)[0] == '-' || (string)[0] == '+')
+#define DATA(option,kind) { option, NULL, kind, (XtPointer) NULL }
+#undef DATA
+#define ITEM(n) ((Cardinal)(n) < XtNumber(optionDescList) \
+#undef ITEM
+#define disableSetUid()		/* nothing */
+#define disableSetGid()		/* nothing */
+#define DATA(name) { #name, es##name }
+#undef DATA
+#define USE_OPENPTY 1
+#define NO_FDS {-1, -1}
+#define TRACE_HANDSHAKE(tag, data)	/* nothing */
+    TRACE(("set_owner(%s, uid=%d, gid=%d, mode=%#o\n",
+		TRACE(("...stat uid=%d, gid=%d, mode=%#o\n",
+#define close_fd(fd) close(fd), fd = -1
+#define USE_NO_DEV_TTY 1
+	if ((ptr1 = x_strindex(oldtc, "co#")) == NULL) {
+	    strcat(oldtc, "co#80:");
+	    ptr1 = x_strindex(oldtc, "co#");
+	if ((ptr2 = x_strindex(oldtc, "li#")) == NULL) {
+	    strcat(oldtc, "li#24:");
+	    ptr2 = x_strindex(oldtc, "li#");
+	    TRACE(("...parsed #%d: %s=%#x\n", count, mp->name, c));
