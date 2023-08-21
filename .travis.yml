@@ -1,19 +1,42 @@
 language: c
 
+sudo: false
+
+os:
+  - linux
+  - osx
+
 compiler:
   - gcc
   - clang
 
 matrix:
- include:
-   - compiler: i586-mingw32msvc-gcc
-     env: BUILD_MINGW="yes"
-
-before_install:
-  - sudo apt-get -qq update
+  include:
+    ## Ubuntu 14.04 Trusty (beta), sudo required!
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      env: TRUSTY="yes"
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: clang
+      env: TRUSTY="yes"
+    ## MinGW / wine
+    - os: linux
+      sudo: required
+      compiler: i586-mingw32msvc-gcc
+      env: BUILD_MINGW="yes"
+  allow_failures:
+    - compiler: i586-mingw32msvc-gcc
 
 install:
-  - if test "${BUILD_MINGW}" = "yes"; then sudo apt-get -qq install wine; fi
+  - env | grep -v "encrypted" | LC_ALL=C sort
+  - if test "${BUILD_MINGW}" = "yes"; then
+      sudo apt-get -qq update &&
+      sudo apt-get -qq install wine;
+    fi
 
 script:
   - if test "${BUILD_MINGW}" != "yes"; then
@@ -28,8 +51,9 @@ script:
       make -f win32/Makefile.mingw test;
     fi
 
-## whitelist
 branches:
   only:
     - master
-    - tmp
+    - next
+    - /^travis.*/
+    - /^tmp.*/

@@ -182,9 +182,12 @@ utility understands just enough about C
 to know when one of the directives is inactive
 because it is inside
 a comment,
-or affected by a backslash-continued line.
+or cannot be evaluated because it is split by a backslash-continued line.
 It spots unusually-formatted preprocessor directives
-and knows when the layout is too odd for it to handle.
+and passes them through unchanged when the layout is too odd for it to handle.
+(See the
+.Sx BUGS
+section below.)
 .Pp
 A script called
 .Nm unifdefall
@@ -485,30 +488,43 @@ command appeared in
 support was added in
 .Fx 4.7 .
 .Sh AUTHORS
+.An -nosplit
 The original implementation was written by
-.An Dave Yost Aq Dave@Yost.com .
-.An Tony Finch Aq dot@dotat.at
+.An Dave Yost Aq Mt Dave@Yost.com .
+.An Tony Finch Aq Mt dot@dotat.at
 rewrote it to support
 .Tn ANSI\~C .
 .Sh BUGS
+.Bl -bullet
+.It
 Expression evaluation is very limited.
-.Pp
+.It
 Character constants are not evaluated.
 String literals and character constants in
 .Fl f
 definition files are ignored rather than parsed as
 part of a macro's replacement tokens.
-.Pp
-Handling one line at a time means
-preprocessor directives split across more than one physical line
+.It
+Only the basic form of C++ raw string literals is recognized,
+like
+.Li R"(string)"
+without delimiters as in
+.Li R"delimiter(string)delimiter" .
+.It
+Source files are processed one line at a time,
+so preprocessor directives split across more than one physical line
 (because of comments or backslash-newline)
 cannot be handled in every situation.
-.Pp
+.It
 Trigraphs are not recognized.
-.Pp
+.It
 There is no support for macros with different definitions at
 different points in the source file.
-.Pp
+.It
 The text-mode and ignore functionality does not correspond to modern
 .Xr cpp 1
 behaviour.
+.El
+.Pp
+Please send bug reports by email to
+.Aq Mt dot@dotat.at .

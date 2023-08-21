@@ -31,11 +31,11 @@
  * remove anything that might be in the way before renaming.
  */
 int
-replace(const char *old, const char *new)
+replace(const char *oldname, const char *newname)
 {
-	if (remove(new) < 0)
-		warn("can't remove \"%s\"", new);
-	return (rename(old, new));
+	if (remove(newname) < 0 && errno != ENOENT)
+		warn("can't remove \"%s\"", newname);
+	return (rename(oldname, newname));
 }
 
 FILE *
@@ -53,9 +53,13 @@ fbinmode(FILE *fp)
 }
 
 /*
- * Windows has _snprintf() but it does not work like real snprintf().
+ * This is more long-winded than seems necessary because MinGW
+ * doesn't have a proper implementation of _vsnprintf_s().
+ *
+ * This link has some useful info about snprintf() on Windows:
+ * http://stackoverflow.com/questions/2915672/snprintf-and-visual-studio-2010
  */
-int snprintf(char *buf, size_t buflen, const char *format, ...)
+int c99_snprintf(char *buf, size_t buflen, const char *format, ...)
 {
 	va_list ap;
 	int outlen, cpylen, tmplen;
@@ -73,7 +77,7 @@ int snprintf(char *buf, size_t buflen, const char *format, ...)
 	/* Paranoia about off-by-one errors in _snprintf() */
 	tmplen = outlen + 2;
 
-	tmp = malloc(tmplen);
+	tmp = (char *)malloc(tmplen);
 	if (tmp == NULL)
 		err(2, "malloc");
 	va_start(ap, format);

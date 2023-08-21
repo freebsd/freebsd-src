@@ -11,9 +11,6 @@ Please see the INSTALL file for installation instructions.
 
 Pre-formatted documentation can be found in unifdef.txt
 
-You can subscribe to release announcements at:
-	http://freecode.com/projects/unifdef
-
 You can download the latest release tar and zip files from:
 	http://dotat.at/prog/unifdef
 
@@ -23,9 +20,10 @@ You can clone the development repository using:
 I also maintain a copy at http://github.com/fanf2/unifdef
 (Warning: GitHub's zip download is incomplete and unusable.)
 
-Please send bug reports and patches to me. Unless you state otherwise,
-I will assume that any contributions are under the two-clause BSD
-licence. See the COPYING file for details.
+Please send bug reports and patches to me via email to the
+address above. Unless you state otherwise, I will assume that
+any contributions are under the two-clause BSD licence. See
+the COPYING file for details.
 
 Thanks to the following people for their contributions:
 
@@ -37,6 +35,9 @@ Jonathan Nieder <jrnieder@gmail.com>
 
 Anders H Kaseorg <andersk@mit.edu>
  - bug fixes and other improvements
+
+Ruediger Meier <ruediger.meier@ga-group.nl>
+ - build and portability cleanups
 
 Ben Hutchings at Solarflare Communications
  - lenient evaluation of && and ||

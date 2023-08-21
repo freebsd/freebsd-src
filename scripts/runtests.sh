@@ -10,6 +10,11 @@ do
 	sh ./${cmd} >${t}.out 2>${t}.err
 	echo $? >${t}.rc
 
+	# strip carriage returns from error output
+	# in case we are trying to run on MinGW
+	tr -d '' >${t}.xerr <${t}.err
+	mv ${t}.xerr ${t}.err
+
 	ok=true
 	for e in out err rc
 	do

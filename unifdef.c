@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 - 2015 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2020 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -114,7 +114,8 @@ typedef enum {
 	STARTING_COMMENT,	/* just after slash-backslash-newline */
 	FINISHING_COMMENT,	/* star-backslash-newline in a C comment */
 	CHAR_LITERAL,		/* inside '' */
-	STRING_LITERAL		/* inside "" */
+	STRING_LITERAL,		/* inside "" */
+	RAW_STRING_LITERAL	/* inside R"()" */
 } Comment_state;
 
 static char const * const comment_name[] = {
@@ -848,12 +849,14 @@ parseline(void)
 		if (fgets(tline + len, MAXLINE - len, input) == NULL) {
 			if (ferror(input))
 				err(2, "can't read %s", filename);
-			/* append the missing newline at eof */
+			debug("parser insert newline at EOF", linenum);
 			strcpy(tline + len, newline);
 			cp += strlen(newline);
 			linestate = LS_START;
 		} else {
-			linestate = LS_DIRTY;
+			debug("parser concatenate dangling whitespace");
+			++linenum;
+			cp = skipcomment(cp);
 		}
 	}
 	if (retval != LT_PLAIN && (wascomment || linestate != LS_START)) {
@@ -974,24 +977,24 @@ struct ops {
 	struct op op[5];
 };
 static const struct ops eval_ops[] = {
-	{ eval_table, { { "||", op_or } } },
-	{ eval_table, { { "&&", op_and } } },
-	{ eval_table, { { "|", op_bor, "|" } } },
-	{ eval_table, { { "^", op_bxor } } },
-	{ eval_table, { { "&", op_band, "&" } } },
-	{ eval_table, { { "==", op_eq },
-			{ "!=", op_ne } } },
-	{ eval_table, { { "<=", op_le },
-			{ ">=", op_ge },
-			{ "<", op_lt, "<=" },
-			{ ">", op_gt, ">=" } } },
-	{ eval_table, { { "<<", op_blsh },
-			{ ">>", op_brsh } } },
-	{ eval_table, { { "+", op_add },
-			{ "-", op_sub } } },
-	{ eval_unary, { { "*", op_mul },
-			{ "/", op_div },
-			{ "%", op_mod } } },
+	{ eval_table, { { "||", op_or,   NULL } } },
+	{ eval_table, { { "&&", op_and,  NULL } } },
+	{ eval_table, { { "|",  op_bor,  "|" } } },
+	{ eval_table, { { "^",  op_bxor, NULL } } },
+	{ eval_table, { { "&",  op_band, "&" } } },
+	{ eval_table, { { "==", op_eq,   NULL },
+			{ "!=", op_ne,   NULL } } },
+	{ eval_table, { { "<=", op_le,   NULL },
+			{ ">=", op_ge,   NULL },
+			{ "<",  op_lt,   "<=" },
+			{ ">",  op_gt,   ">=" } } },
+	{ eval_table, { { "<<", op_blsh, NULL },
+			{ ">>", op_brsh, NULL } } },
+	{ eval_table, { { "+",  op_add,  NULL },
+			{ "-",  op_sub,  NULL } } },
+	{ eval_unary, { { "*",  op_mul,  NULL },
+			{ "/",  op_div,  NULL },
+			{ "%",  op_mod,  NULL } } },
 };
 
 /* Current operator precedence level */
@@ -1264,6 +1267,10 @@ skipcomment(const char *cp)
 				incomment = STRING_LITERAL;
 				linestate = LS_DIRTY;
 				cp += 1;
+			} else if (strncmp(cp, "R\"(", 3) == 0) {
+				incomment = RAW_STRING_LITERAL;
+				linestate = LS_DIRTY;
+				cp += 3;
 			} else if (strncmp(cp, "\n", 1) == 0) {
 				linestate = LS_START;
 				cp += 1;
@@ -1295,6 +1302,13 @@ skipcomment(const char *cp)
 					error("Unterminated char literal");
 				else
 					error("Unterminated string literal");
+			} else
+				cp += 1;
+			continue;
+		case RAW_STRING_LITERAL:
+			if (strncmp(cp, ")\"", 2) == 0) {
+				incomment = NO_COMMENT;
+				cp += 2;
 			} else
 				cp += 1;
 			continue;
@@ -1626,7 +1640,7 @@ xstrdup(const char *start, const char *end)
 
 	if (end < start) abort(); /* bug */
 	n = (size_t)(end - start) + 1;
-	s = malloc(n);
+	s = (char *)malloc(n);
 	if (s == NULL)
 		err(2, "malloc");
 	snprintf(s, n, "%s", start);

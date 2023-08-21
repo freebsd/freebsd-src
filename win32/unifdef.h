@@ -52,11 +52,17 @@
 /* used by err.c and getopt.c */
 #define _getprogname() "unifdef"
 
+/*
+ * The snprintf() workaround is unnecessary in Visual Studio 2015 or later
+ * but dogma dictates that #if directives are not allowed inside unifdef.
+ */
+#define snprintf c99_snprintf
+
 /* win32.c */
-int replace(const char *old, const char *new);
+int replace(const char *oldname, const char *newname);
 FILE *mktempmode(char *tmp, int mode);
 FILE *fbinmode(FILE *fp);
-int snprintf(char *buf, size_t buflen, const char *format, ...);
+int c99_snprintf(char *buf, size_t buflen, const char *format, ...);
 
 /* err.c */
 void err(int, const char *, ...);
