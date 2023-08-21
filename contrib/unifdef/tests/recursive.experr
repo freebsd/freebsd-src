@@ -1,0 +1,120 @@
+unifdef: addsym FOO=BAR
+unifdef: addsym BAR=ZIG
+unifdef: addsym ZIG=BAR
+unifdef: addsym QUX=QUX
+unifdef: findsym BAR=ZIG
+unifdef: indir... FOO=BAR
+unifdef: ...ectsym FOO=ZIG
+unifdef: findsym ZIG=BAR
+unifdef: indir... BAR=ZIG
+unifdef: ...ectsym BAR=BAR
+unifdef: findsym BAR=BAR
+unifdef: findsym QUX=QUX
+unifdef: findsym ZIG=BAR
+unifdef: indir... FOO=ZIG
+unifdef: ...ectsym FOO=BAR
+unifdef: findsym BAR=BAR
+unifdef: findsym BAR=BAR
+unifdef: findsym QUX=QUX
+unifdef: findsym BAR=BAR
+unifdef: findsym BAR=BAR
+unifdef: findsym BAR=BAR
+unifdef: findsym QUX=QUX
+unifdef: parser line 1 state C comment START line
+unifdef: process line 1 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 2 state C comment START line
+unifdef: process line 2 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 3 state NO comment START line
+unifdef: process line 3 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 4 state NO comment START line
+unifdef: process line 4 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 5 state NO comment START line
+unifdef: process line 5 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 6 state NO comment START line
+unifdef: process line 6 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 7 state NO comment START line
+unifdef: process line 7 PLAIN -> OUTSIDE depth 0
+unifdef: eval  FOO
+
+unifdef: eval0
+unifdef: eval1
+unifdef: eval2
+unifdef: eval3
+unifdef: eval4
+unifdef: eval5
+unifdef: eval6
+unifdef: eval7
+unifdef: eval8
+unifdef: eval9
+unifdef: eval10 symbol
+unifdef: findsym FOO=BAR
+unifdef: eval = 0
+unifdef: parser line 8 state NO comment START line
+unifdef: process line 8 IF -> PASS_MIDDLE depth 1
+unifdef: parser line 9 state NO comment START line
+unifdef: process line 9 PLAIN -> PASS_MIDDLE depth 1
+unifdef: parser line 10 state NO comment START line
+unifdef: process line 10 ELSE -> PASS_ELSE depth 1
+unifdef: parser line 11 state NO comment START line
+unifdef: process line 11 PLAIN -> PASS_ELSE depth 1
+unifdef: parser line 12 state NO comment START line
+unifdef: process line 12 ENDIF -> OUTSIDE depth 0
+unifdef: parser line 13 state NO comment START line
+unifdef: process line 13 PLAIN -> OUTSIDE depth 0
+unifdef: eval  BAR
+
+unifdef: eval0
+unifdef: eval1
+unifdef: eval2
+unifdef: eval3
+unifdef: eval4
+unifdef: eval5
+unifdef: eval6
+unifdef: eval7
+unifdef: eval8
+unifdef: eval9
+unifdef: eval10 symbol
+unifdef: findsym BAR=BAR
+unifdef: eval = 0
+unifdef: parser line 14 state NO comment START line
+unifdef: process line 14 IF -> PASS_MIDDLE depth 1
+unifdef: parser line 15 state NO comment START line
+unifdef: process line 15 PLAIN -> PASS_MIDDLE depth 1
+unifdef: eval  FOO
+
+unifdef: eval0
+unifdef: eval1
+unifdef: eval2
+unifdef: eval3
+unifdef: eval4
+unifdef: eval5
+unifdef: eval6
+unifdef: eval7
+unifdef: eval8
+unifdef: eval9
+unifdef: eval10 symbol
+unifdef: findsym FOO=BAR
+unifdef: eval = 0
+unifdef: parser line 16 state NO comment START line
+unifdef: process line 16 ELIF -> PASS_MIDDLE depth 1
+unifdef: parser line 17 state NO comment START line
+unifdef: process line 17 PLAIN -> PASS_MIDDLE depth 1
+unifdef: parser line 18 state NO comment START line
+unifdef: process line 18 ELSE -> PASS_ELSE depth 1
+unifdef: parser line 19 state NO comment START line
+unifdef: process line 19 PLAIN -> PASS_ELSE depth 1
+unifdef: parser line 20 state NO comment START line
+unifdef: process line 20 ENDIF -> OUTSIDE depth 0
+unifdef: parser line 21 state NO comment START line
+unifdef: process line 21 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 22 state NO comment START line
+unifdef: process line 22 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 23 state NO comment START line
+unifdef: process line 23 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 24 state NO comment START line
+unifdef: process line 24 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 25 state NO comment START line
+unifdef: process line 25 PLAIN -> OUTSIDE depth 0
+unifdef: parser line 26 state NO comment START line
+unifdef: process line 26 PLAIN -> OUTSIDE depth 0
+unifdef: process line 27 EOF -> OUTSIDE depth 0
