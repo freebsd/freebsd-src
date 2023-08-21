@@ -22,45 +22,48 @@
  * Routines for AR9285 and AR9271 chipsets.
  */
 
-#include "athn_usb.h"
-#include "bpfilter.h"
+//#include "athn_usb.h"
+//#include "bpfilter.h"
 
 #include <sys/param.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
+#include <openbsd/openbsd_mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-#include <sys/timeout.h>
+//#include <sys/timeout.h>
 #include <sys/conf.h>
-#include <sys/device.h>
+//#include <sys/device.h>
 #include <sys/endian.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+//#include <machine/intr.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #endif
 #include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_arp.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
+//#include <netinet/if_ether.h>
 
-#include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_amrr.h>
-#include <net80211/ieee80211_ra.h>
-#include <net80211/ieee80211_radiotap.h>
+#include <openbsd/net80211/ieee80211_var.h>
+#include <openbsd/net80211/ieee80211_amrr.h>
+#include <openbsd/net80211/ieee80211_ra.h>
+#include <openbsd/net80211/ieee80211_radiotap.h>
 
-#include <dev/ic/athnreg.h>
-#include <dev/ic/athnvar.h>
+#include "athnreg.h"
+#include "athnvar.h"
 
-#include <dev/ic/ar5008reg.h>
-#include <dev/ic/ar9280reg.h>
-#include <dev/ic/ar9285reg.h>
+#include "ar5008reg.h"
+#include "ar9280reg.h"
+#include "ar9285reg.h"
 
 int	ar9285_attach(struct athn_softc *);
 void	ar9285_setup(struct athn_softc *);
@@ -172,13 +175,13 @@ ar9285_swap_rom(struct athn_softc *sc)
 	int i;
 
 	eep->modalHeader.antCtrlCommon =
-	    swap32(eep->modalHeader.antCtrlCommon);
+	    bswap32(eep->modalHeader.antCtrlCommon);
 	eep->modalHeader.antCtrlChain =
-	    swap32(eep->modalHeader.antCtrlChain);
+	    bswap32(eep->modalHeader.antCtrlChain);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		eep->modalHeader.spurChans[i].spurChan =
-		    swap16(eep->modalHeader.spurChans[i].spurChan);
+		    bswap16(eep->modalHeader.spurChans[i].spurChan);
 	}
 }
 
@@ -187,7 +190,7 @@ ar9285_get_spur_chans(struct athn_softc *sc, int is2ghz)
 {
 	const struct ar9285_eeprom *eep = sc->eep;
 
-	KASSERT(is2ghz);
+	KASSERT(is2ghz, ("is2ghz"));
 	return (eep->modalHeader.spurChans);
 }
 
