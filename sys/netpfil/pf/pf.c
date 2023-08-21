@@ -8108,6 +8108,15 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 		pd.p_len = pd.tot_len - off - (pd.hdr.tcp.th_off << 2);
 		pd.sport = &pd.hdr.tcp.th_sport;
 		pd.dport = &pd.hdr.tcp.th_dport;
+
+		/* Respond to SYN with a syncookie. */
+		if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) == TH_SYN &&
+		    pd.dir == PF_IN && pf_synflood_check(&pd)) {
+			pf_syncookie_send(m, off, &pd);
+			action = PF_DROP;
+			break;
+		}
+
 		action = pf_normalize_tcp(kif, m, 0, off, h, &pd);
 		if (action == PF_DROP)
 			goto done;
@@ -8117,9 +8126,45 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 				V_pfsync_update_state_ptr(s);
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, kif, m, off, &pd,
-			    &a, &ruleset, inp);
+		} else if (s == NULL) {
+			/* Validate remote SYN|ACK, re-create original SYN if
+			 * valid. */
+			if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) ==
+			    TH_ACK && pf_syncookie_validate(&pd) &&
+			    pd.dir == PF_IN) {
+				struct mbuf *msyn;
+
+				msyn = pf_syncookie_recreate_syn(h->ip6_hlim,
+				    off, &pd);
+				if (msyn == NULL) {
+					action = PF_DROP;
+					break;
+				}
+
+				action = pf_test6(dir, pflags, ifp, &msyn, inp,
+				    &pd.act);
+				m_freem(msyn);
+				if (action != PF_PASS)
+					break;
+
+				action = pf_test_state_tcp(&s, kif, m, off, h,
+				    &pd, &reason);
+				if (action != PF_PASS || s == NULL) {
+					action = PF_DROP;
+					break;
+				}
+
+				s->src.seqhi = ntohl(pd.hdr.tcp.th_ack) - 1;
+				s->src.seqlo = ntohl(pd.hdr.tcp.th_seq) - 1;
+				pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_DST);
+
+				action = pf_synproxy(&pd, &s, &reason);
+				break;
+			} else {
+				action = pf_test_rule(&r, &s, kif, m, off, &pd,
+				    &a, &ruleset, inp);
+			}
+		}
 		break;
 	}
 
