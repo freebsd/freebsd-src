@@ -77,10 +77,6 @@ typedef uint32_t pn_popmap_t;
 _Static_assert(sizeof(pn_popmap_t) <= sizeof(int),
     "pn_popmap_t too wide");
 
-/* Set of all flag bits stored in node pointers. */
-#define	PCTRIE_FLAGS	(PCTRIE_ISLEAF)
-#define	PCTRIE_PAD	PCTRIE_FLAGS
-
 struct pctrie_node;
 typedef SMR_POINTER(struct pctrie_node *) smr_pctnode_t;
 
@@ -120,53 +116,10 @@ pctrie_keybarr(struct pctrie_node *node, uint64_t index, int *slot)
 }
 
 /*
- * Allocate a node.  Pre-allocation should ensure that the request
- * will always be satisfied.
- */
-static struct pctrie_node *
-pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t index,
-    uint64_t newind)
-{
-	struct pctrie_node *node;
-
-	node = allocfn(ptree);
-	if (node == NULL)
-		return (NULL);
-
-	/*
-	 * We want to clear the last child pointer after the final section
-	 * has exited so lookup can not return false negatives.  It is done
-	 * here because it will be cache-cold in the dtor callback.
-	 */
-	if (node->pn_popmap != 0) {
-		pctrie_node_store(&node->pn_child[ffs(node->pn_popmap) - 1],
-		    PCTRIE_NULL, PCTRIE_UNSERIALIZED);
-		node->pn_popmap = 0;
-	}
-
-	/*
-	 * From the highest-order bit where the indexes differ,
-	 * compute the highest level in the trie where they differ.  Then,
-	 * compute the least index of this subtrie.
-	 */
-	KASSERT(index != newind, ("%s: passing the same key value %jx",
-	    __func__, (uintmax_t)index));
-	_Static_assert(sizeof(long long) >= sizeof(uint64_t),
-	    "uint64 too wide");
-	_Static_assert(sizeof(uint64_t) * NBBY <=
-	    (1 << (sizeof(node->pn_clev) * NBBY)), "pn_clev too narrow");
-	node->pn_clev = rounddown(flsll(index ^ newind) - 1, PCTRIE_WIDTH);
-	node->pn_owner = PCTRIE_COUNT;
-	node->pn_owner = index & -(node->pn_owner << node->pn_clev);
-	return (node);
-}
-
-/*
- * Free radix node.
+ * Check radix node.
  */
 static __inline void
-pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
-    pctrie_free_t freefn)
+pctrie_node_put(struct pctrie_node *node)
 {
 #ifdef INVARIANTS
 	int slot;
@@ -182,7 +135,6 @@ pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
 		    ("pctrie_node_put: node %p has a child", node));
 	}
 #endif
-	freefn(ptree, node);
 }
 
 /*
@@ -286,33 +238,6 @@ pctrie_addnode(struct pctrie_node *node, uint64_t index,
 }
 
 /*
- * Internal helper for pctrie_reclaim_allnodes().
- * This function is recursive.
- */
-static void
-pctrie_reclaim_allnodes_int(struct pctrie *ptree, struct pctrie_node *node,
-    pctrie_free_t freefn)
-{
-	struct pctrie_node *child;
-	int slot;
-
-	while (node->pn_popmap != 0) {
-		slot = ffs(node->pn_popmap) - 1;
-		child = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_UNSERIALIZED);
-		KASSERT(child != PCTRIE_NULL,
-		    ("%s: bad popmap slot %d in node %p",
-		    __func__, slot, node));
-		if (!pctrie_isleaf(child))
-			pctrie_reclaim_allnodes_int(ptree, child, freefn);
-		node->pn_popmap ^= 1 << slot;
-		pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL,
-		    PCTRIE_UNSERIALIZED);
-	}
-	pctrie_node_put(ptree, node, freefn);
-}
-
-/*
  * pctrie node zone initializer.
  */
 int
@@ -336,19 +261,18 @@ pctrie_node_size(void)
 }
 
 /*
- * Inserts the key-value pair into the trie.
- * Panics if the key already exists.
+ * Looks for where to insert the key-value pair into the trie.  Completes the
+ * insertion if it replaces a null leaf; otherwise, returns insertion location
+ * to caller.  Panics if the key already exists.
  */
-int
-pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
+void *
+pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val)
 {
-	uint64_t index, newind;
-	struct pctrie_node *leaf, *node, *parent;
-	smr_pctnode_t *parentp;
+	uint64_t index;
+	struct pctrie_node *node, *parent;
 	int slot;
 
 	index = *val;
-	leaf = pctrie_toleaf(val);
 
 	/*
 	 * The owner of record for root is not really important because it
@@ -360,43 +284,82 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 		if (pctrie_isleaf(node)) {
 			if (node == PCTRIE_NULL) {
 				if (parent == NULL)
-					ptree->pt_root = leaf;
+					ptree->pt_root = pctrie_toleaf(val);
 				else
-					pctrie_addnode(parent, index, leaf,
-					    PCTRIE_LOCKED);
-				return (0);
+					pctrie_addnode(parent, index,
+					    pctrie_toleaf(val), PCTRIE_LOCKED);
+				return (NULL);
 			}
-			newind = *pctrie_toval(node);
-			if (newind == index)
+			if (*pctrie_toval(node) == index)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			break;
 		}
-		if (pctrie_keybarr(node, index, &slot)) {
-			newind = node->pn_owner;
+		if (pctrie_keybarr(node, index, &slot))
 			break;
-		}
 		parent = node;
 		node = pctrie_node_load(&node->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
 
 	/*
-	 * A new node is needed because the right insertion level is reached.
-	 * Setup the new intermediate node and add the 2 children: the
-	 * new object and the older edge or object.
+	 * 'node' must be replaced in the tree with a new branch node, with
+	 * children 'node' and 'val'. Return the place that points to 'node'
+	 * now, and will point to to the new branching node later.
 	 */
-	parentp = (parent != NULL) ? &parent->pn_child[slot]:
-	    (smr_pctnode_t *)&ptree->pt_root;
-	parent = pctrie_node_get(ptree, allocfn, index, newind);
-	if (parent == NULL)
-		return (ENOMEM);
+	return ((parent != NULL) ? &parent->pn_child[slot]:
+	    (smr_pctnode_t *)&ptree->pt_root);
+}
+
+/*
+ * Uses new node to insert key-value pair into the trie at given location.
+ */
+void
+pctrie_insert_node(void *parentp, struct pctrie_node *parent, uint64_t *val)
+{
+	struct pctrie_node *node;
+	uint64_t index, newind;
+
+	/*
+	 * Clear the last child pointer of the newly allocated parent.  We want
+	 * to clear it after the final section has exited so lookup can not
+	 * return false negatives.  It is done here because it will be
+	 * cache-cold in the dtor callback.
+	 */
+	if (parent->pn_popmap != 0) {
+		pctrie_node_store(&parent->pn_child[ffs(parent->pn_popmap) - 1],
+		    PCTRIE_NULL, PCTRIE_UNSERIALIZED);
+		parent->pn_popmap = 0;
+	}
+
+	/*
+	 * Recover the values of the two children of the new parent node.  If
+	 * 'node' is not a leaf, this stores into 'newind' the 'owner' field,
+	 * which must be first in the node.
+	 */
+	index = *val;
+	node = pctrie_node_load(parentp, NULL, PCTRIE_UNSERIALIZED);
+	newind = *pctrie_toval(node);
+
+	/*
+	 * From the highest-order bit where the indexes differ,
+	 * compute the highest level in the trie where they differ.  Then,
+	 * compute the least index of this subtrie.
+	 */
+	_Static_assert(sizeof(long long) >= sizeof(uint64_t),
+	    "uint64 too wide");
+	_Static_assert(sizeof(uint64_t) * NBBY <=
+	    (1 << (sizeof(parent->pn_clev) * NBBY)), "pn_clev too narrow");
+	parent->pn_clev = rounddown(flsll(index ^ newind) - 1, PCTRIE_WIDTH);
+	parent->pn_owner = PCTRIE_COUNT;
+	parent->pn_owner = index & -(parent->pn_owner << parent->pn_clev);
+
+
 	/* These writes are not yet visible due to ordering. */
-	pctrie_addnode(parent, index, leaf, PCTRIE_UNSERIALIZED);
+	pctrie_addnode(parent, index, pctrie_toleaf(val), PCTRIE_UNSERIALIZED);
 	pctrie_addnode(parent, newind, node, PCTRIE_UNSERIALIZED);
 	/* Synchronize to make the above visible. */
 	pctrie_node_store(parentp, parent, PCTRIE_LOCKED);
-	return (0);
 }
 
 /*
@@ -598,17 +561,18 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 }
 
 /*
- * Remove the specified index from the tree.
- * Panics if the key is not present.
+ * Remove the specified index from the tree, and return the value stored at
+ * that index.  If the index is not present, return NULL.
  */
-void
-pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
+uint64_t *
+pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
+    struct pctrie_node **freenode)
 {
 	struct pctrie_node *child, *node, *parent;
 	uint64_t *m;
 	int slot;
 
-	node = NULL;
+	*freenode = node = NULL;
 	child = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	for (;;) {
 		if (pctrie_isleaf(child))
@@ -620,10 +584,10 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 		    PCTRIE_LOCKED);
 	}
 	if ((m = pctrie_toval(child)) == NULL || *m != index)
-		panic("%s: key not found", __func__);
+		return (NULL);
 	if (node == NULL) {
 		pctrie_root_store(ptree, PCTRIE_NULL, PCTRIE_LOCKED);
-		return;
+		return (m);
 	}
 	KASSERT((node->pn_popmap & (1 << slot)) != 0,
 	    ("%s: bad popmap slot %d in node %p",
@@ -631,7 +595,7 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 	node->pn_popmap ^= 1 << slot;
 	pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL, PCTRIE_LOCKED);
 	if (!powerof2(node->pn_popmap))
-		return;
+		return (m);
 	KASSERT(node->pn_popmap != 0, ("%s: bad popmap all zeroes", __func__));
 	slot = ffs(node->pn_popmap) - 1;
 	child = pctrie_node_load(&node->pn_child[slot], NULL, PCTRIE_LOCKED);
@@ -651,25 +615,115 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 	 * The child is still valid and we can not zero the
 	 * pointer until all SMR references are gone.
 	 */
-	pctrie_node_put(ptree, node, freefn);
+	pctrie_node_put(node);
+	*freenode = node;
+	return (m);
 }
 
 /*
- * Remove and free all the nodes from the tree.
- * This function is recursive but there is a tight control on it as the
- * maximum depth of the tree is fixed.
+ * Prune all the leaves of 'node' before its first non-leaf child, make child
+ * zero of 'node' point up to 'parent', make 'node' into 'parent' and that
+ * non-leaf child into 'node'.  Repeat until a node has been stripped of all
+ * children, and mark it for freeing, returning its parent.
  */
-void
-pctrie_reclaim_allnodes(struct pctrie *ptree, pctrie_free_t freefn)
+static struct pctrie_node *
+pctrie_reclaim_prune(struct pctrie_node **pnode,
+    struct pctrie_node *parent)
 {
-	struct pctrie_node *root;
+	struct pctrie_node *child, *node;
+	int slot;
 
-	root = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	if (root == PCTRIE_NULL)
-		return;
+	node = *pnode;
+	while (node->pn_popmap != 0) {
+		slot = ffs(node->pn_popmap) - 1;
+		node->pn_popmap ^= 1 << slot;
+		child = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_UNSERIALIZED);
+		pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL,
+		    PCTRIE_UNSERIALIZED);
+		if (pctrie_isleaf(child))
+			continue;
+		/* Climb one level down the trie. */
+		pctrie_node_store(&node->pn_child[0], parent,
+		    PCTRIE_UNSERIALIZED);
+		parent = node;
+		node = child;
+	}
+	*pnode = parent;
+	return (node);
+}
+
+/*
+ * Recover the node parent from its first child and continue pruning.
+ */
+struct pctrie_node *
+pctrie_reclaim_resume(struct pctrie_node **pnode)
+{
+	struct pctrie_node *parent, *node;
+
+	node = *pnode;
+	if (node == NULL)
+		return (NULL);
+	/* Climb one level up the trie. */
+	parent = pctrie_node_load(&node->pn_child[0], NULL,
+	    PCTRIE_UNSERIALIZED);
+	pctrie_node_store(&node->pn_child[0], PCTRIE_NULL, PCTRIE_UNSERIALIZED);
+	return (pctrie_reclaim_prune(pnode, parent));
+}
+
+/*
+ * Find the trie root, and start pruning with a NULL parent.
+ */
+struct pctrie_node *
+pctrie_reclaim_begin(struct pctrie_node **pnode,
+    struct pctrie *ptree)
+{
+	struct pctrie_node *node;
+
+	node = pctrie_root_load(ptree, NULL, PCTRIE_UNSERIALIZED);
 	pctrie_root_store(ptree, PCTRIE_NULL, PCTRIE_UNSERIALIZED);
-	if (!pctrie_isleaf(root))
-		pctrie_reclaim_allnodes_int(ptree, root, freefn);
+	if (pctrie_isleaf(node))
+		return (NULL);
+	*pnode = node;
+	return (pctrie_reclaim_prune(pnode, NULL));
+}
+
+/*
+ * Replace an existing value in the trie with another one.
+ * Panics if there is not an old value in the trie at the new value's index.
+ */
+uint64_t *
+pctrie_replace(struct pctrie *ptree, uint64_t *newval)
+{
+	struct pctrie_node *leaf, *parent, *node;
+	uint64_t *m;
+	uint64_t index;
+	int slot;
+
+	leaf = pctrie_toleaf(newval);
+	index = *newval;
+	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
+	parent = NULL;
+	for (;;) {
+		if (pctrie_isleaf(node)) {
+			if ((m = pctrie_toval(node)) != NULL && *m == index) {
+				if (parent == NULL)
+					ptree->pt_root = leaf;
+				else
+					pctrie_node_store(
+					    &parent->pn_child[slot], leaf,
+					    PCTRIE_LOCKED);
+				return (m);
+			}
+			break;
+		}
+		if (pctrie_keybarr(node, index, &slot))
+			break;
+		parent = node;
+		node = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+	}
+	panic("%s: original replacing value not found", __func__);
 }
 
 #ifdef DDB
