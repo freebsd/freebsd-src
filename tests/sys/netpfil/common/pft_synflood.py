@@ -35,7 +35,10 @@ def syn_flood(args):
 
 	# Set a src mac, to avoid doing lookups which really slow us down.
 	ether = sp.Ether(src='01:02:03:04:05')
-	ip = sp.IP(dst=args.to[0])
+	if args.ip6:
+		ip = sp.IPv6(dst=args.to[0])
+	else:
+		ip = sp.IP(dst=args.to[0])
 	for i in range(int(args.count[0])):
 		tcp = sp.TCP(flags='S', sport=1+i, dport=22, seq=500+i)
 		pkt = ether / ip / tcp
@@ -44,6 +47,9 @@ def syn_flood(args):
 def main():
 	parser = argparse.ArgumentParser("pft_synflood.py",
 		description="SYN flooding tool")
+	parser.add_argument('--ip6',
+		action='store_true',
+		help='Use IPv6 rather than IPv4')
 	parser.add_argument('--sendif', nargs=1,
 		required=True,
 		help='The interface through which the packet(s) will be sent')
