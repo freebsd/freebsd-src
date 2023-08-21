@@ -404,15 +404,120 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	} else
 #endif
-	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
-			return (0);
-	}
+	if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		return (0);
 
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
+
+/*
+ *  Interrupt source pre_ithread method for MI interrupt framework.
+ */
+static void
+intr_isrc_pre_ithread(void *arg)
+{
+	struct intr_irqsrc *isrc = arg;
+
+	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
+}
+
+/*
+ *  Interrupt source post_ithread method for MI interrupt framework.
+ */
+static void
+intr_isrc_post_ithread(void *arg)
+{
+	struct intr_irqsrc *isrc = arg;
+
+	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
+}
+
+/*
+ *  Interrupt source post_filter method for MI interrupt framework.
+ */
+static void
+intr_isrc_post_filter(void *arg)
+{
+	struct intr_irqsrc *isrc = arg;
+
+	PIC_POST_FILTER(isrc->isrc_dev, isrc);
+}
+
+/*
+ *  Interrupt source assign_cpu method for MI interrupt framework.
+ */
+static int
+intr_isrc_assign_cpu(void *arg, int cpu)
+{
+#ifdef SMP
+	struct intr_irqsrc *isrc = arg;
+	int error;
+
+	mtx_lock(&isrc_table_lock);
+	if (cpu == NOCPU) {
+		CPU_ZERO(&isrc->isrc_cpu);
+		isrc->isrc_flags &= ~INTR_ISRCF_BOUND;
+	} else {
+		CPU_SETOF(cpu, &isrc->isrc_cpu);
+		isrc->isrc_flags |= INTR_ISRCF_BOUND;
+	}
+
+	/*
+	 * In NOCPU case, it's up to PIC to either leave ISRC on same CPU or
+	 * re-balance it to another CPU or enable it on more CPUs. However,
+	 * PIC is expected to change isrc_cpu appropriately to keep us well
+	 * informed if the call is successful.
+	 */
+	if (irq_assign_cpu) {
+		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
+		if (error) {
+			CPU_ZERO(&isrc->isrc_cpu);
+			mtx_unlock(&isrc_table_lock);
+			return (error);
+		}
+	}
+	mtx_unlock(&isrc_table_lock);
+	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
+}
+
+/*
+ *  Create interrupt event for interrupt source.
+ */
+static int
+isrc_event_create(struct intr_irqsrc *isrc)
+{
+	int error;
+
+	error = intr_event_create(&isrc->isrc_event, isrc, 0, INTR_IRQ_INVALID,
+	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
+	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
+
+	return (error);
+}
+
+#ifdef notyet
+/*
+ *  Destroy interrupt event for interrupt source.
+ */
+static void
+isrc_event_destroy(struct intr_irqsrc *isrc)
+{
+	struct intr_event *ie;
+
+	mtx_lock(&isrc_table_lock);
+	ie = isrc->isrc_event;
+	isrc->isrc_event = NULL;
+	mtx_unlock(&isrc_table_lock);
+
+	if (ie != NULL)
+		intr_event_destroy(ie);
+}
+#endif
 
 /*
  *  Alloc unique interrupt number (resource handle) for interrupt source.
@@ -447,6 +552,7 @@ isrc_alloc_irq(struct intr_irqsrc *isrc)
 	return (ENOSPC);
 
 found:
+	isrc->isrc_event->ie_irq = irq;
 	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
@@ -464,6 +570,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 {
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
+	MPASS(isrc->isrc_event != NULL);
 
 	if (isrc->isrc_irq >= intr_nirq)
 		return (EINVAL);
@@ -512,10 +619,18 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
 	va_end(ap);
 
+	error = isrc_event_create(isrc);
+	if (error)
+		return (error);
+
 	mtx_lock(&isrc_table_lock);
 	error = isrc_alloc_irq(isrc);
 	if (error != 0) {
+		int rc;
 		mtx_unlock(&isrc_table_lock);
+		if ((rc = intr_event_destroy(isrc->isrc_event)) != 0)
+			printf("ERROR: %s(): intr_event_destroy() rc = %d!\n",
+			    __func__, rc);
 		return (error);
 	}
 	/*
@@ -603,131 +718,6 @@ iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
 #endif
 
 /*
- *  Interrupt source pre_ithread method for MI interrupt framework.
- */
-static void
-intr_isrc_pre_ithread(void *arg)
-{
-	struct intr_irqsrc *isrc = arg;
-
-	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
-}
-
-/*
- *  Interrupt source post_ithread method for MI interrupt framework.
- */
-static void
-intr_isrc_post_ithread(void *arg)
-{
-	struct intr_irqsrc *isrc = arg;
-
-	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
-}
-
-/*
- *  Interrupt source post_filter method for MI interrupt framework.
- */
-static void
-intr_isrc_post_filter(void *arg)
-{
-	struct intr_irqsrc *isrc = arg;
-
-	PIC_POST_FILTER(isrc->isrc_dev, isrc);
-}
-
-/*
- *  Interrupt source assign_cpu method for MI interrupt framework.
- */
-static int
-intr_isrc_assign_cpu(void *arg, int cpu)
-{
-#ifdef SMP
-	struct intr_irqsrc *isrc = arg;
-	int error;
-
-	mtx_lock(&isrc_table_lock);
-	if (cpu == NOCPU) {
-		CPU_ZERO(&isrc->isrc_cpu);
-		isrc->isrc_flags &= ~INTR_ISRCF_BOUND;
-	} else {
-		CPU_SETOF(cpu, &isrc->isrc_cpu);
-		isrc->isrc_flags |= INTR_ISRCF_BOUND;
-	}
-
-	/*
-	 * In NOCPU case, it's up to PIC to either leave ISRC on same CPU or
-	 * re-balance it to another CPU or enable it on more CPUs. However,
-	 * PIC is expected to change isrc_cpu appropriately to keep us well
-	 * informed if the call is successful.
-	 */
-	if (irq_assign_cpu) {
-		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
-		if (error) {
-			CPU_ZERO(&isrc->isrc_cpu);
-			mtx_unlock(&isrc_table_lock);
-			return (error);
-		}
-	}
-	mtx_unlock(&isrc_table_lock);
-	return (0);
-#else
-	return (EOPNOTSUPP);
-#endif
-}
-
-/*
- *  Create interrupt event for interrupt source.
- */
-static int
-isrc_event_create(struct intr_irqsrc *isrc)
-{
-	struct intr_event *ie;
-	int error;
-
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
-	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
-	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
-	if (error)
-		return (error);
-
-	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources. Let contested event wins.
-	 */
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-#else
-	if (isrc->isrc_event != NULL) {
-#endif
-		mtx_unlock(&isrc_table_lock);
-		intr_event_destroy(ie);
-		return (isrc->isrc_event != NULL ? EBUSY : 0);
-	}
-	isrc->isrc_event = ie;
-	mtx_unlock(&isrc_table_lock);
-
-	return (0);
-}
-#ifdef notyet
-/*
- *  Destroy interrupt event for interrupt source.
- */
-static void
-isrc_event_destroy(struct intr_irqsrc *isrc)
-{
-	struct intr_event *ie;
-
-	mtx_lock(&isrc_table_lock);
-	ie = isrc->isrc_event;
-	isrc->isrc_event = NULL;
-	mtx_unlock(&isrc_table_lock);
-
-	if (ie != NULL)
-		intr_event_destroy(ie);
-}
-#endif
-/*
  *  Add handler to interrupt source.
  */
 static int
@@ -736,12 +726,6 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
     enum intr_type flags, void **cookiep)
 {
 	int error;
-
-	if (isrc->isrc_event == NULL) {
-		error = isrc_event_create(isrc);
-		if (error)
-			return (error);
-	}
 
 	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
@@ -1295,8 +1279,7 @@ intr_irq_shuffle(void *arg __unused)
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
-		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
+		if (isrc->isrc_flags & INTR_ISRCF_BOUND &&
 		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
 			panic("%s: CPU inconsistency", __func__);
 
