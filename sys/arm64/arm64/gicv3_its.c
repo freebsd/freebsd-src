@@ -425,6 +425,52 @@ gicv3_its_cmdq_init(struct gicv3_its_softc *sc)
 }
 
 static int
+gicv3_its_table_page_size(struct gicv3_its_softc *sc, int table)
+{
+	uint64_t reg, tmp;
+	int page_size;
+
+	page_size = PAGE_SIZE_64K;
+	reg = gic_its_read_8(sc, GITS_BASER(table));
+
+	while (1) {
+		reg &= GITS_BASER_PSZ_MASK;
+		switch (page_size) {
+		case PAGE_SIZE_4K:	/* 4KB */
+			reg |= GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
+			break;
+		case PAGE_SIZE_16K:	/* 16KB */
+			reg |= GITS_BASER_PSZ_16K << GITS_BASER_PSZ_SHIFT;
+			break;
+		case PAGE_SIZE_64K:	/* 64KB */
+			reg |= GITS_BASER_PSZ_64K << GITS_BASER_PSZ_SHIFT;
+			break;
+		}
+
+		/* Write the new page size */
+		gic_its_write_8(sc, GITS_BASER(table), reg);
+
+		/* Read back to check */
+		tmp = gic_its_read_8(sc, GITS_BASER(table));
+
+		/* The page size is correct */
+		if ((tmp & GITS_BASER_PSZ_MASK) == (reg & GITS_BASER_PSZ_MASK))
+			return (page_size);
+
+		switch (page_size) {
+		default:
+			return (-1);
+		case PAGE_SIZE_16K:
+			page_size = PAGE_SIZE_4K;
+			break;
+		case PAGE_SIZE_64K:
+			page_size = PAGE_SIZE_16K;
+			break;
+		}
+	}
+}
+
+static int
 gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 {
 	vm_offset_t table;
@@ -460,20 +506,30 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		cache = GITS_BASER_CACHE_WAWB;
 	}
 	share = GITS_BASER_SHARE_IS;
-	page_size = PAGE_SIZE_64K;
 
 	for (i = 0; i < GITS_BASER_NUM; i++) {
 		reg = gic_its_read_8(sc, GITS_BASER(i));
 		/* The type of table */
 		type = GITS_BASER_TYPE(reg);
+		if (type == GITS_BASER_TYPE_UNIMPL)
+			continue;
+
 		/* The table entry size */
 		esize = GITS_BASER_ESIZE(reg);
+
+		/* Find the tables page size */
+		page_size = gicv3_its_table_page_size(sc, i);
+		if (page_size == -1) {
+			device_printf(dev, "No valid page size for table %d\n",
+			    i);
+			return (EINVAL);
+		}
 
 		switch(type) {
 		case GITS_BASER_TYPE_DEV:
 			nidents = (1 << devbits);
 			its_tbl_size = esize * nidents;
-			its_tbl_size = roundup2(its_tbl_size, PAGE_SIZE_64K);
+			its_tbl_size = roundup2(its_tbl_size, page_size);
 			break;
 		case GITS_BASER_TYPE_VP:
 		case GITS_BASER_TYPE_PP: /* Undocumented? */
@@ -538,18 +594,6 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				share = (tmp & GITS_BASER_SHARE_MASK) >>
 				    GITS_BASER_SHARE_SHIFT;
 				continue;
-			}
-
-			if ((tmp & GITS_BASER_PSZ_MASK) !=
-			    (reg & GITS_BASER_PSZ_MASK)) {
-				switch (page_size) {
-				case PAGE_SIZE_16K:
-					page_size = PAGE_SIZE_4K;
-					continue;
-				case PAGE_SIZE_64K:
-					page_size = PAGE_SIZE_16K;
-					continue;
-				}
 			}
 
 			if (tmp != reg) {
