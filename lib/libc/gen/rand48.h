@@ -9,8 +9,6 @@
  * This software is provided ``as is'', and comes with no warranties
  * of any kind. I shall in no event be liable for anything that happens
  * to anyone/anything when using this software.
- *
- * $FreeBSD$
  */
 
 #ifndef _RAND48_H_

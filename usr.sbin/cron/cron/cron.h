@@ -17,8 +17,6 @@
 
 /* cron.h - header for vixie's cron
  *
- * $FreeBSD$
- *
  * vix 14nov88 [rest of log is in RCS]
  * vix 14jan87 [0 or 7 can be sunday; thanks, mwm@berkeley]
  * vix 30dec86 [written]

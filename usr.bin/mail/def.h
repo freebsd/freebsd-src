@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)def.h	8.4 (Berkeley) 4/20/95
- *
- * $FreeBSD$
  */
 
 /*

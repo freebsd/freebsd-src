@@ -5,8 +5,6 @@
  * on the target architecture after arith.h has been generated.
  *
  * XXX I don't have ARM hardware, so I just guessed.  --das
- *
- * $FreeBSD$
  */
 
 #define f_QNAN 0x7fc00000

@@ -1,8 +1,6 @@
 /*
  * hwaddr.c - routines that deal with hardware addresses.
  * (i.e. Ethernet)
- *
- * $FreeBSD$
  */
 
 #include <sys/types.h>

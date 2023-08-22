@@ -27,8 +27,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * This script measures all time spent waiting on RPC replies for each
  * system call, and then generates a histogram of those times sorted by
  * system call name.

@@ -21,8 +21,6 @@
  *
  * Portions Copyright 2006-2008 John Birrell jb@freebsd.org
  * Portions Copyright 2018 Devin Teske dteske@freebsd.org
- *
- * $FreeBSD$
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.

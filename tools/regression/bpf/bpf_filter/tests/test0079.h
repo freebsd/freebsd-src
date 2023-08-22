@@ -1,7 +1,5 @@
 /*-
  * Test 0079:	An empty filter program.
- *
- * $FreeBSD$
  */
 
 /* BPF program */

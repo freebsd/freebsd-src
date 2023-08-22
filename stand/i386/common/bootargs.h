@@ -11,8 +11,6 @@
  * implied warranties, including, without limitation, the implied
  * warranties of merchantability and fitness for a particular
  * purpose.
- *
- * $FreeBSD$
  */
 
 #ifndef _BOOT_I386_ARGS_H_

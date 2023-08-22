@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  *
  * so there!
- *
- * $FreeBSD$
  */
 
 #pragma once

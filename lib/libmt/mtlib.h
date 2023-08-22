@@ -28,8 +28,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Ken Merry           (Spectra Logic Corporation)
- *
- * $FreeBSD$
  */
 
 #ifndef	_MTLIB_H

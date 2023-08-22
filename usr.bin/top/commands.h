@@ -8,8 +8,6 @@
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  *  Copyright (c) 2016, Randy Westlund
- *
- * $FreeBSD$
  */
 #ifndef COMMANDS_H
 #define COMMANDS_H

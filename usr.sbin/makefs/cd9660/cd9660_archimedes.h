@@ -30,8 +30,6 @@
  */
 /*
  * cd9660_archimedes.c - support for RISC OS "ARCHIMEDES" extension
- *
- * $FreeBSD$
  */
 
 struct ISO_ARCHIMEDES {

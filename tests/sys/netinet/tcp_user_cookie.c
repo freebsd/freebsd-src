@@ -28,8 +28,6 @@
  *  POSSIBILITY OF SUCH DAMAGES.
  *
  *  Authors: George Neville-Neil
- *
- * $FreeBSD$
  */
 
 #include <arpa/inet.h>

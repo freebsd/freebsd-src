@@ -1,7 +1,5 @@
 /*-
  * Test 0081:	Check unconditional jump range.
- *
- * $FreeBSD$
  */
 
 /* BPF program */

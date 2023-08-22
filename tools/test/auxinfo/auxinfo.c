@@ -1,8 +1,6 @@
 /*
  * This file is in public domain.
  * Written by Konstantin Belousov <kib@freebsd.org>
- *
- * $FreeBSD$
  */
 
 #include <sys/mman.h>
