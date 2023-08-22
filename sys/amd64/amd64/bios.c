@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Subset of the i386 bios support code.  We cannot make bios16 nor bios32
  * calls, so we can leave that out.  However, searching for bios rom

@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 struct clock_cell_info {
 	cell_t		*clock_cells;
 	uint8_t		*clock_cells_ncells;

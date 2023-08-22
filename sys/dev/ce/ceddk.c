@@ -16,8 +16,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/ce/machdep.h>
 #include <dev/ce/ceddk.h>
 

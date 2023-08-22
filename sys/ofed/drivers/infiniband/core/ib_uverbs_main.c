@@ -37,8 +37,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>

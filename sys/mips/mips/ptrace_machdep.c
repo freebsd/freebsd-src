@@ -28,8 +28,6 @@
 
 #if 0
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This file is a place holder for MIPS.  Some models of MIPS may need special
  * functions here, but for now nothing is needed.  The MI parts of ptrace

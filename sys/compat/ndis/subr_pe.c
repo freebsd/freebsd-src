@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This file contains routines for relocating and dynamically linking
  * executable object code files in the Windows(r) PE (Portable Executable)

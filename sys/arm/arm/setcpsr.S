@@ -49,8 +49,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /* Sets and clears bits in the CPSR register
  *
  *  r0 - bic mask

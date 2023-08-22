@@ -29,8 +29,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This implements an empty DFS module.
  */

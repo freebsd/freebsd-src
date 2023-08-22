@@ -45,8 +45,6 @@
 	.word	_C_LABEL(_arm_memcpy)
 .L_min_memcpy_size:
 	.word	_C_LABEL(_min_memcpy_size)
-
-__FBSDID("$FreeBSD$");
 #include <arm/arm/bcopyinout_xscale.S>
 
 /*

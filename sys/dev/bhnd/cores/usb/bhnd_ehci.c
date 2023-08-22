@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * BHND attachment driver for the USB Enhanced Host Controller.
  * Ported from ZRouter with insignificant adaptations for FreeBSD11.

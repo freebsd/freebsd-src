@@ -29,8 +29,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This implements some very basic bluetooth coexistence methods for
  * the ath(4) hardware.

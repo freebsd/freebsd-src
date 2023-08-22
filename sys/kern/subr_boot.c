@@ -36,8 +36,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Note: This is compiled in both the kernel and boot loader contexts */
 
 #include <sys/param.h>

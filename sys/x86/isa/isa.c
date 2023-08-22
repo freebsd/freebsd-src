@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*-
  * Modifications for Intel architecture by Garrett A. Wollman.
  * Copyright 1998 Massachusetts Institute of Technology

@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifdef GUPROF
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"

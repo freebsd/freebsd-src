@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Written using information gleaned from the
  * NVIDIA nForce/nForce2 AGPGART Linux Kernel Patch.

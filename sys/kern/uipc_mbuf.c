@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_param.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mbuf_profiling.h"

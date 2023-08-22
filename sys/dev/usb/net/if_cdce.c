@@ -48,8 +48,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/gsb_crc32.h>
 #include <sys/eventhandler.h>
 #include <sys/stdint.h>

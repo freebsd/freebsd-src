@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * The following controllers are supported by this driver:
  *   BCM5706C A2, A3

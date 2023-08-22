@@ -29,8 +29,6 @@ POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <cxgb_include.h>
 
 /* Marvell PHY interrupt status bits. */

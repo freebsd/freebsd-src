@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/vt/vt.h>
 
 #ifndef SC_NO_CUTPASTE

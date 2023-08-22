@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This is a driver for the Quad-SPI Flash Controller in the Xilinx
  * Zynq-7000 SoC.

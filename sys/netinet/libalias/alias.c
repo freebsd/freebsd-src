@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
     Alias.c provides supervisory control for the functions of the
     packet aliasing software.  It consists of routines to monitor

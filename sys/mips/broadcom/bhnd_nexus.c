@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * bhnd(4) driver mix-in providing shared common methods for
  * bhnd bus devices attached via a MIPS root nexus.

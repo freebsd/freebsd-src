@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  *  iir_pci.c:  PCI Bus Attachment for Intel Integrated RAID Controller driver
  *

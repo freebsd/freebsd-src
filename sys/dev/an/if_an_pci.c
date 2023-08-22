@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This is a PCI shim for the Aironet PC4500/4800 wireless network
  * driver. Aironet makes PCMCIA, ISA and PCI versions of these devices,

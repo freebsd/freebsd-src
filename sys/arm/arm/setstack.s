@@ -49,8 +49,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #include <machine/armreg.h>
 
 /* To set the stack pointer for a particular mode we must switch

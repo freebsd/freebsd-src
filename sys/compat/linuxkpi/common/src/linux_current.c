@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/mm.h>

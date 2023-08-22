@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Support APIs for Host to PCI bridge drivers and drivers that
  * provide PCI domains.

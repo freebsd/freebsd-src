@@ -36,8 +36,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Support for the SMBus controller logical device which is part of the
  * Intel 81801AA (ICH) and 81801AB (ICH0) I/O controller hub chips.

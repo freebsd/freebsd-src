@@ -58,8 +58,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Driver for the AMI MegaRaid family of controllers.
  */

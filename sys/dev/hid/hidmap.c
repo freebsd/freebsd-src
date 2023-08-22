@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Abstract 1 to 1 HID input usage to evdev event mapper driver.
  */

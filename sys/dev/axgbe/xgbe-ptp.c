@@ -114,8 +114,6 @@
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "xgbe.h"
 
 static u64 xgbe_cc_read(const struct cyclecounter *cc)

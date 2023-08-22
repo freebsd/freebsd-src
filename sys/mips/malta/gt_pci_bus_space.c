@@ -73,8 +73,6 @@
  *	from: src/sys/alpha/include/bus.h,v 1.5 1999/08/28 00:38:40 peter
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Analog PLL and power regulator driver for Freescale i.MX6 family of SoCs.
  * Also, temperature montoring and cpu frequency control.  It was Freescale who

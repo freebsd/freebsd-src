@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This code implements a `root nexus' for Intel Architecture
  * machines.  The function of the root nexus is to serve as an

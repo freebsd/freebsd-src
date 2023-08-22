@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * driver for AMD AM79c873 PHYs
  * This driver also works for Davicom DM910{1,2} PHYs, which appear

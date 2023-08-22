@@ -23,8 +23,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /** @file drm_scatter.c
  * Allocation of memory for scatter-gather mappings by the graphics chip.
  * The memory allocated here is then made into an aperture in the card

@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ChipCommon attachment support for the bhnd(4) PMU driver.
  * 

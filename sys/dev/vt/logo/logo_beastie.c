@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/vt/vt.h>
 
 const unsigned int vt_logo_sprite_width = 80;

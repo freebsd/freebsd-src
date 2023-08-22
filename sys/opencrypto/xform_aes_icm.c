@@ -48,8 +48,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <opencrypto/xform_enc.h>
 
 static	int aes_icm_setkey(void *, const uint8_t *, int);

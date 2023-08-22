@@ -18,8 +18,6 @@
  * $Cronyx: cpddk.c,v 1.13.4.37 2004/12/11 16:14:39 rik Exp $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/cp/machdep.h>
 
 #define CPDDK_COBF_SAFE

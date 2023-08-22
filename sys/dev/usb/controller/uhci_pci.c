@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Universal Host Controller Interface
  *
  * UHCI spec: http://www.intel.com/

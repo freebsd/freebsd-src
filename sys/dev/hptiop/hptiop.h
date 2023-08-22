@@ -29,8 +29,6 @@
 #define _HPTIOP_H
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define DBG 0
 
 #ifdef DBG

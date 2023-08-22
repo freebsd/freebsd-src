@@ -29,8 +29,6 @@ POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <common/cxgb_common.h>
 
 enum {

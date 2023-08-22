@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Debugging tables for MPT2 */
 
 /* TODO Move headers to mpsvar */

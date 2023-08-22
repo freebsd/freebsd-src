@@ -22,8 +22,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef __noinline
 #	ifdef __GNUC__
 #	   if __GNUC__ >= 3

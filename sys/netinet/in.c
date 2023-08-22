@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define IN_HISTORICAL_NETS		/* include class masks */
 
 #include <sys/param.h>

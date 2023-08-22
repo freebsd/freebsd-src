@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * MII bus layer, glues MII-capable network interface drivers to sharable
  * PHY drivers.  This exports an interface compatible with BSD/OS 3.0's,

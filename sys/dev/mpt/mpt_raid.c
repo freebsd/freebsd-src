@@ -43,8 +43,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/mpt/mpt.h>
 #include <dev/mpt/mpt_raid.h>
 

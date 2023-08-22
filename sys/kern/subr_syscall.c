@@ -42,9 +42,6 @@
 
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
-
-__FBSDID("$FreeBSD$");
-
 #include <sys/capsicum.h>
 #include <sys/ktr.h>
 #include <sys/vmmeter.h>

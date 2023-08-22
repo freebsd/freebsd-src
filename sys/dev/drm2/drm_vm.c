@@ -34,8 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /** @file drm_vm.c
  * Support code for mapping of DRM maps.
  */

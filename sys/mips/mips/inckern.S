@@ -23,8 +23,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(_start)
 	PTR_LA	t0, kernel_end
 	move	sp, t0

@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * VPD decoder for IBM systems (Thinkpads)
  * http://www-1.ibm.com/support/docview.wss?uid=psg1MIGR-45120

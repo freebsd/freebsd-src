@@ -45,8 +45,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define _IIR_C_
 
 /* #include "opt_iir.h" */

@@ -1,7 +1,6 @@
 /* This file is in the public domain. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 #include <sodium/randombytes.h>

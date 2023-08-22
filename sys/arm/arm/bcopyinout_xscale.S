@@ -36,8 +36,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 	.syntax	unified
 	.text
 	.align	2

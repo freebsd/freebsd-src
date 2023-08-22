@@ -67,8 +67,6 @@
 #ifdef ICL_KERNEL_PROXY
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>

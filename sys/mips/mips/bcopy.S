@@ -36,8 +36,6 @@
 
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #include <machine/endian.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)

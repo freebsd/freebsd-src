@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/mutex.h>

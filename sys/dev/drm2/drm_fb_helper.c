@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <dev/drm2/drmP.h>

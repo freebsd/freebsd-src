@@ -48,8 +48,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <crypto/sha1.h>
 #include <opencrypto/xform_auth.h>
 

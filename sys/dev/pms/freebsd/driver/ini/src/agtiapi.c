@@ -20,7 +20,6 @@
 *******************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #include <dev/pms/config.h>
 
 #define MAJOR_REVISION	    1

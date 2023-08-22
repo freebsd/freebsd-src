@@ -28,8 +28,6 @@
 /* A driver for the Davicom DM9000 MAC. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

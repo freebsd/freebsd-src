@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
