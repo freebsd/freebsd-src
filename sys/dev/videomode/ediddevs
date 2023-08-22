@@ -1,5 +1,4 @@
 $NetBSD: ediddevs,v 1.2 2007/03/07 18:47:13 macallan Exp $
-$FreeBSD$
 
 /*-
  * Copyright (c) 2006 Itronix Inc.

@@ -1,4 +1,3 @@
- $FreeBSD$
 
 ; Linux ABI system call name/number map, based on Linux file
 ; arch/arm/kernel/calls.S

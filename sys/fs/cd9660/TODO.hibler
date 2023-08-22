@@ -1,4 +1,3 @@
-$FreeBSD$
 
 1. Investiate making ISOFS another UFS shared filesystem (ala FFS/MFS/LFS).
    Since it was modelled after the inode code, we might be able to merge
