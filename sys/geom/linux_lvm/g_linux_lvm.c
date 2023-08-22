@@ -67,7 +67,8 @@ static int	g_llvm_read_label(struct g_consumer *, struct g_llvm_label *);
 static int	g_llvm_read_md(struct g_consumer *, struct g_llvm_metadata *,
 		    struct g_llvm_label *);
 
-static int	llvm_label_decode(const u_char *, struct g_llvm_label *, int);
+static int	llvm_label_decode(const u_char *, struct g_llvm_label *,
+		    int, u_int);
 static int	llvm_md_decode(const u_char *, struct g_llvm_metadata *,
 		    struct g_llvm_label *);
 static int	llvm_textconf_decode(u_char *, int,
@@ -637,7 +638,8 @@ g_llvm_read_label(struct g_consumer *cp, struct g_llvm_label *ll)
 
 	/* Search the four sectors for the LVM label. */
 	for (i = 0; i < 4; i++) {
-		error = llvm_label_decode(&buf[i * pp->sectorsize], ll, i);
+		error = llvm_label_decode(&buf[i * pp->sectorsize], ll, i,
+			    pp->sectorsize);
 		if (error == 0)
 			break;	/* found it */
 	}
@@ -703,7 +705,8 @@ g_llvm_read_md(struct g_consumer *cp, struct g_llvm_metadata *md,
 }
 
 static int
-llvm_label_decode(const u_char *data, struct g_llvm_label *ll, int sector)
+llvm_label_decode(const u_char *data, struct g_llvm_label *ll, int sector,
+    u_int sectorsize)
 {
 	uint64_t off;
 	char *uuid;
@@ -725,6 +728,13 @@ llvm_label_decode(const u_char *data, struct g_llvm_label *ll, int sector)
 	if (ll->ll_sector != sector) {
 		G_LLVM_DEBUG(0, "Expected sector %ju, found at %d",
 		    ll->ll_sector, sector);
+		return (EINVAL);
+	}
+
+	/* XXX The minimal possible size of physical volume header is 88 */
+	if (ll->ll_offset < 32 || ll->ll_offset > sectorsize - 88) {
+		G_LLVM_DEBUG(0, "Invalid physical volume header offset %u",
+		    ll->ll_offset);
 		return (EINVAL);
 	}
 
