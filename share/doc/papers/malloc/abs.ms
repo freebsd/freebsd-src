@@ -6,8 +6,6 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $FreeBSD$
-.\"
 .if n .ND
 .TL
 Malloc(3) in modern Virtual Memory environments.

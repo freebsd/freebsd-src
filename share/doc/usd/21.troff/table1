@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	@(#)table1	8.1 (Berkeley) 8/14/93
-.\"
-.\" $FreeBSD$
 .pn 30
 .rm mx
 .br

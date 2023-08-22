@@ -38,8 +38,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\"	@(#)implement	8.1 (Berkeley) 6/8/93
-.\"
-.\" $FreeBSD$
 .EH 'PSD:2-%''UNIX Implementation'
 .OH 'UNIX Implementation''PSD:2-%'
 .de P1

@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	@(#)ss7	8.1 (Berkeley) 6/8/93
-.\"
-.\" $FreeBSD$
 .SH
 7: Error Handling
 .PP
