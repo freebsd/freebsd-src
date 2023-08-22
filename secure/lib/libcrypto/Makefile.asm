@@ -79,11 +79,12 @@ sha256-armv8.S:	sha512-armv8.pl
 SRCS=	x86_64cpuid.pl
 
 # aes
-SRCS+=	aesni-mb-x86_64.pl aesni-sha1-x86_64.pl aesni-sha256-x86_64.pl \
-	aesni-x86_64.pl vpaes-x86_64.pl
+SRCS+=	aes-x86_64.pl \
+	aesni-mb-x86_64.pl aesni-sha1-x86_64.pl aesni-sha256-x86_64.pl \
+	aesni-x86_64.pl bsaes-x86_64.pl vpaes-x86_64.pl
 
 # bn
-SRCS+=	rsaz-avx2.pl rsaz-avx512.S rsaz-x86_64.pl x86_64-gf2m.pl \
+SRCS+=	rsaz-avx2.pl rsaz-avx512.pl rsaz-x86_64.pl x86_64-gf2m.pl \
 	x86_64-mont.pl x86_64-mont5.pl
 
 # camellia
@@ -221,7 +222,7 @@ aes-armv4.S:	aes-armv4.pl
 SRCS=	x86cpuid.pl
 
 # aes
-SRCS+=	aesni-x86.pl vpaes-x86.pl
+SRCS+=	aes-586.pl aesni-x86.pl vpaes-x86.pl
 
 # blowfish
 SRCS+=	bf-586.pl
