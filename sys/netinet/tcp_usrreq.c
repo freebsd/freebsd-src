@@ -125,7 +125,7 @@ static int	tcp6_connect(struct tcpcb *, struct sockaddr_in6 *,
 #endif /* INET6 */
 static void	tcp_disconnect(struct tcpcb *);
 static void	tcp_usrclosed(struct tcpcb *);
-static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
+static void	tcp_fill_info(const struct tcpcb *, struct tcp_info *);
 
 static int	tcp_pru_options_support(struct tcpcb *tp, int flags);
 
@@ -1538,11 +1538,11 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
  * constants -- for example, the numeric values for tcpi_state will differ
  * from Linux.
  */
-static void
-tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
+void
+tcp_fill_info(const struct tcpcb *tp, struct tcp_info *ti)
 {
 
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	INP_LOCK_ASSERT(tptoinpcb(tp));
 	bzero(ti, sizeof(*ti));
 
 	ti->tcpi_state = tp->t_state;

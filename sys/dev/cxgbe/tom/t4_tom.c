@@ -810,12 +810,12 @@ fill_tcp_info(struct adapter *sc, u_int tid, struct tcp_info *ti)
  * the tcp_info for an offloaded connection.
  */
 static void
-t4_tcp_info(struct toedev *tod, struct tcpcb *tp, struct tcp_info *ti)
+t4_tcp_info(struct toedev *tod, const struct tcpcb *tp, struct tcp_info *ti)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct toepcb *toep = tp->t_toe;
 
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	INP_LOCK_ASSERT(tptoinpcb(tp));
 	MPASS(ti != NULL);
 
 	fill_tcp_info(sc, toep->tid, ti);
