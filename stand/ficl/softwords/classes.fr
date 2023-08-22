@@ -4,7 +4,6 @@
 \ john sadler  1 sep 98
 \ Needs oop.fr
 \
-\ $FreeBSD$
 
 also oop definitions
 
