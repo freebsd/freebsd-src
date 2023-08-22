@@ -1,7 +1,7 @@
 # Use this to help generate the asm *.S files after an import.  It is not
 # perfect by any means, but does what is needed.
 # Do a 'make -f Makefile.asm all' and it will generate *.S.  Move them
-# to the arch subdir, and correct any exposed paths and $ FreeBSD $ tags.
+# to the arch subdir, and correct any exposed paths.
 
 .include "Makefile.inc"
 
