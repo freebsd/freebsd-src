@@ -35,7 +35,6 @@
 #include <unistd.h>
 
 /*
- * $FreeBSD$
  * This program tests how sys_pipe.c handles the case where there
  * is ample memory to allocate a pipe, but the file descriptor
  * limit for that user has been exceeded.

@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.10 (Berkeley) 7/20/94
- * $FreeBSD$
  */
 
 int	 __bt_close(DB *);

@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
  */
 
 #define	_PATH_DEF	".termcap /usr/share/misc/termcap /etc/termcap.small"

@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  */
 FBSD_1.0 {
 	__has_sse;

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: main.c,v 1.8 2004/01/13 19:31:54 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/select.h>

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  *
  * $Id: server.c,v 1.6 2004/01/13 01:54:39 max Exp $
- * $FreeBSD$
  */
 
 #include <sys/param.h>

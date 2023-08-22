@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)netstat.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
  */
 
 #ifndef _NETSTAT_COMMON_H_

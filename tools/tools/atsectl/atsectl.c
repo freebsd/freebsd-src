@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  *
  * $ FreeBSD: head/usr.sbin/isfctl/isfctl.c 239685 2012-08-25 18:08:20Z brooks $
- * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)fts.h	8.3 (Berkeley) 8/14/94
- * $FreeBSD$
  */
 
 #ifndef	_FTS_H_

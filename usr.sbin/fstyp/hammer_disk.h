@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/vfs/hammer/hammer_disk.h,v 1.55 2008/11/13 02:18:43 dillon Exp $
- * $FreeBSD$
  */
 
 #ifndef VFS_HAMMER_DISK_H_

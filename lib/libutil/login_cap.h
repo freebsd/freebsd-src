@@ -22,7 +22,6 @@
  * Low-level routines relating to the user capabilities database
  *
  *	Was login_cap.h,v 1.9 1997/05/07 20:00:01 eivind Exp
- * $FreeBSD$
  */
 
 #ifndef _LOGIN_CAP_H_
