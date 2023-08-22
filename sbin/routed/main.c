@@ -38,8 +38,6 @@
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993 "
 	    "The Regents of the University of California."
 	    "  All rights reserved.");
-__RCSID("$FreeBSD$");
-
 pid_t	mypid;
 
 naddr	myaddr;				/* system address */
