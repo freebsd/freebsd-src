@@ -12,8 +12,6 @@
  * roots in a similar driver written by Phil Cockcroft (formerly) at
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
- *
- * $FreeBSD$
  */
 
 #ifndef _NET_IF_TUN_H_

@@ -28,8 +28,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * Netgraph module for UNI 4.0
  */
 #ifndef _NETGRAPH_ATM_NG_UNI_H_

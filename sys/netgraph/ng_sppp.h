@@ -13,8 +13,6 @@
  * modify and redistribute this software in source and binary forms,
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
- *
- * $FreeBSD$
  * Cronyx Id: ng_sppp.h,v 1.1.2.6 2004/03/01 15:17:21 rik Exp $
  */
 

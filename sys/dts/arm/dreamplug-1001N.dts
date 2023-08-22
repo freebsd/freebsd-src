@@ -31,8 +31,6 @@
  *
  * This source is for version 10 revision 01 units with NAND flash.
  * These units are marked "1001N" on the serial number label.
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * Marvell DB-88F6281 Device Tree Source.
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

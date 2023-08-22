@@ -31,8 +31,6 @@
  * SUCH DAMAGE.
  *
  * Author: Julian Elischer <julian@freebsd.org>
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

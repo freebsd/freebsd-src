@@ -42,8 +42,6 @@
  * roots in a similar driver written by Phil Cockcroft (formerly) at
  * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
- *
- * $FreeBSD$
  */
 
 #include "opt_inet.h"

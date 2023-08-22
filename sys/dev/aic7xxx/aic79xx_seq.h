@@ -4,8 +4,6 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#119 $
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#76 $
- *
- * $FreeBSD$
  */
 static uint8_t seqprog[] = {
 	0xff, 0x02, 0x06, 0x78,

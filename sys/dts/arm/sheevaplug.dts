@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * Marvell SheevaPlug Device Tree Source.
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

@@ -25,8 +25,6 @@
  * in respect of its properties, including, but not limited to, correctness
  * and/or fitness for purpose.
  * ---------------------------------------------------------------------------
- *
- * $FreeBSD$
  */
 
 #ifndef	_MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_

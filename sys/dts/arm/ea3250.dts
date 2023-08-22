@@ -23,8 +23,6 @@
  * SUCH DAMAGE.
  *
  * Embedded Artists LPC3250-Kit Device Tree Source.
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

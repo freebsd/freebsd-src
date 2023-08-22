@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  *
  * Customisation of the SSCFU code to ng_sscfu.
- *
- * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/types.h>

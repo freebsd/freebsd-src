@@ -13,8 +13,6 @@
  * hash(), hash2(), hash3, and mix() are externally useful functions.
  * Routines to test the hash are included if SELF_TEST is defined.
  * You can use this free for any purpose.  It has no warranty.
- *
- * $FreeBSD$
  */
 
 /* NOTE: Arguments are modified. */

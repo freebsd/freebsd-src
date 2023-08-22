@@ -29,8 +29,6 @@
 
 /*
  * API for writing an Active Queue Management algorithm for Dummynet
- *
- * $FreeBSD$
  */
 
 #ifndef _IP_DN_AQM_H

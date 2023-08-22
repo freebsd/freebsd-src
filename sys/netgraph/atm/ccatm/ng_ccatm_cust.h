@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  *
  * Customisation of call control source to the NG environment.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

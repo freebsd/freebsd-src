@@ -53,8 +53,6 @@
  *	v 1.2 89/08/15 18:28:21 rab Exp	 SPRITE (DECWRL)
  * from: Header: /sprite/src/kernel/vm/ds3100.md/RCS/vmPmaxConst.h,
  *	v 9.1 89/09/18 17:33:00 shirriff Exp  SPRITE (DECWRL)
- *
- * $FreeBSD$
  */
 
 #ifndef _MIPS_CPUREGS_H_

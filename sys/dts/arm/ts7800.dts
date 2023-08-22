@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  *
  * Technologic Systems TS-7800 Device Tree Source.
- *
- * $FreeBSD$
  */
 
 /dts-v1/;

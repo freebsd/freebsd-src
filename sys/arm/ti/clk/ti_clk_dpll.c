@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  *
  * based on sys/arm/allwinner/clkng/aw_clk_np.c
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
