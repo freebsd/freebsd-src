@@ -1,7 +1,6 @@
 #
 # DB120 - the AR9344 SoC reference design
 #
-# $FreeBSD$
 #
 
 # Include the default AR934x parameters

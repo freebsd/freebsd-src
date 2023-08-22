@@ -2,7 +2,6 @@
 # PB92 -- Kernel configuration file for FreeBSD/mips for Atheros PB92 reference
 #         board (AR7242)
 #
-# $FreeBSD$
 #
 
 ident		PB92

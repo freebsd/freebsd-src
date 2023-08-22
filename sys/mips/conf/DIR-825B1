@@ -11,8 +11,6 @@
 # + 64MB RAM
 # + uboot environment
 
-# $FreeBSD$
-
 #NO_UNIVERSE
 
 include		"AR71XX_BASE"

@@ -1,4 +1,3 @@
-#	$FreeBSD$
 
 .PATH:	${SRCTOP}/sys/dev/acpica
 .if ${MACHINE_CPUARCH} == "aarch64"

@@ -1,5 +1,4 @@
 # Makefile for mrsas driver
-# $FreeBSD$
 
 KMOD=mrsas
 .PATH: ${SRCTOP}/sys/dev/${KMOD}

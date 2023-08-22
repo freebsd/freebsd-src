@@ -3,7 +3,6 @@
 #
 # This includes all the common drivers for the AR5315 boards
 #
-# $FreeBSD$
 #
 
 machine		mips mips

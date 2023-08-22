@@ -4,7 +4,6 @@
 # This includes all the common drivers for the AR71XX boards along with
 # the usb, net80211 and atheros driver code.
 #
-# $FreeBSD$
 #
 
 machine		mips mips

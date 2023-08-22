@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 mips/ingenic/jz4780_dwc_fdt.c	optional dwcotg
 mips/ingenic/jz4780_ehci.c	optional ehci

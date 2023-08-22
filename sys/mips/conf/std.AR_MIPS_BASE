@@ -5,7 +5,6 @@
 # all of the Atheros MIPS platforms without a lot of configuration file
 # duplication.
 #
-# $FreeBSD$
 
 # debugging
 options 	EARLY_PRINTF

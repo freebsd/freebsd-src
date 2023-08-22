@@ -1,6 +1,4 @@
 
-# $FreeBSD$
-
 # There's two interfaces, but only one socket is populated.
 #
 # There's an AR8021 PHY attached to arge1.

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # device.hints
 # hint.uart.0.at="nexus"
 # hint.uart.0.maddr="0x180003f8"

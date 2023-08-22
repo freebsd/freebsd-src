@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Compile netmap as a module, useful if you want a netmap bridge
 # or loadable drivers.

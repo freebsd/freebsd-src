@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${.CURDIR}/../../security/mac_veriexec
 .PATH: ${.CURDIR}/../../crypto/sha2

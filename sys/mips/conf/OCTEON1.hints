@@ -1,4 +1,3 @@
-# $FreeBSD$
 # device.hints
 # All these values are complete nonsense...
 hw.uart.console="io:0x1"

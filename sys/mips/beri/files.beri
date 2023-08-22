@@ -1,4 +1,3 @@
-# $FreeBSD$
 dev/altera/atse/if_atse.c		optional altera_atse
 dev/altera/atse/if_atse_fdt.c		optional altera_atse fdt
 dev/altera/atse/if_atse_nexus.c		optional altera_atse

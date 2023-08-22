@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

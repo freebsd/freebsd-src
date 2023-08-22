@@ -8,7 +8,6 @@
 # * 16MB flash
 # * Integrated 1x1 2GHz wifi and optional 10/100 ethernet
 #
-# $FreeBSD$
 #
 
 #NO_UNIVERSE

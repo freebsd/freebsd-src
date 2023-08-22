@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 IMG=	rt2561s
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	rsurtl8712fw
 

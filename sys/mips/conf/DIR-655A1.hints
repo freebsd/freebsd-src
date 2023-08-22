@@ -2,8 +2,6 @@
 # I'm assuming this is an AP135-020. The AP136-010 in openwrt has
 # the ethernet ports wired up to the switch in the reverse way.
 
-# $FreeBSD$
-
 # QCA955X_ETH_CFG_RGMII_EN (1 << 0)
 hint.qca955x_gmac.0.gmac_cfg=0x1
 

@@ -2,7 +2,6 @@
 # Ubiquiti Routerstation Pro: boot from first DOS-partitioned, BSD
 # sliced flash disk.
 #
-# $FreeBSD$
 #
 
 include		"AR71XX_BASE"

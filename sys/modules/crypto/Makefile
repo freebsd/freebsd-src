@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIBSODIUM=${SRCTOP}/sys/contrib/libsodium/src/libsodium
 

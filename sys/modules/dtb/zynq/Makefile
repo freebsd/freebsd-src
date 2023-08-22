@@ -1,4 +1,3 @@
-# $FreeBSD$
 # All the dts files for Zynq systems we support.
 DTS=	\
 	zedboard.dts \

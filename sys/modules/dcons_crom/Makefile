@@ -1,5 +1,4 @@
 # $Id: Makefile,v 1.6 2003/10/24 15:43:24 simokawa Exp $
-# $FreeBSD$
 
 .PATH:	${SRCTOP}/sys/dev/dcons
 

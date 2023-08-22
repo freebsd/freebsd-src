@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # arge0 MDIO bus - there's no arge1 MDIO bus for AR71xx
 hint.argemdio.0.at="nexus0"

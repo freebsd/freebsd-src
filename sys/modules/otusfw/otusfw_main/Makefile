@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 KMOD=	otusfw_main
 FIRMWS=	otusfw_main:otusfw_main:1

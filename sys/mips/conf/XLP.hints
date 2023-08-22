@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # RTC
 hint.ds13rtc.0.at="iicbus1"

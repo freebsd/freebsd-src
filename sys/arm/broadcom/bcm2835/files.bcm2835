@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 arm/broadcom/bcm2835/bcm2835_systimer.c		standard

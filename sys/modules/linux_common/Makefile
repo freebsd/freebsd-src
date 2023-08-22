@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/compat/linux
 .if ${MACHINE_CPUARCH} == "amd64"

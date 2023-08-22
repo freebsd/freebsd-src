@@ -1,6 +1,5 @@
 # CANNA -- Kernel config for Ingenic CANNA board
 #
-# $FreeBSD$
 
 #NO_UNIVERSE
 

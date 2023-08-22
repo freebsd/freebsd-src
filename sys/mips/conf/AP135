@@ -9,7 +9,6 @@
 # PCIe host controllers - there's two of them, and the existing
 # PCIe code here doesn't support that just yet.
 #
-# $FreeBSD$
 #
 
 #NO_UNIVERSE

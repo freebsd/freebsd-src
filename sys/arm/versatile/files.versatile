@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 arm/versatile/pl050.c				optional sc
 arm/versatile/sp804.c				standard

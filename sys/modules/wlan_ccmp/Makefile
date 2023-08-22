@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/net80211
 .PATH: ${SRCTOP}/sys/crypto/rijndael

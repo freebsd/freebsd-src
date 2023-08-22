@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=test00
 MAN=

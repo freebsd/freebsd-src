@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 mips/mediatek/mtk_machdep.c 		standard
 mips/mediatek/mtk_sysctl.c 		standard

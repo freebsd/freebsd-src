@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=	teken
 SHLIB_MAJOR= 0

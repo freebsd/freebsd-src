@@ -4,7 +4,6 @@
 # reference configuration.  This kernel configration must be further
 # specialized to include a root filesystem specification.
 #
-# $FreeBSD$
 #
 
 include "std.BERI"

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 include LINT
 ident LINT-NOIP

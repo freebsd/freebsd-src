@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 SUBDIR_PARALLEL=	yes

@@ -1,7 +1,6 @@
 #
 # This file adds to the values in AR91XX_BASE.hints.
 #
-# $FreeBSD$
 
 # Hard-code the PHY for now, until there's switch phy support.
 # hint.arge.0.phymask=0x000c

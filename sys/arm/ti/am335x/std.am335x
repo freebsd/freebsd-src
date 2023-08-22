@@ -1,5 +1,4 @@
 # AM335x generic configuration
-#$FreeBSD$
 files		"../ti/am335x/files.am335x"
 include		"../ti/std.ti"
 

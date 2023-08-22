@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Copyright (c) 2004-06 Applied Micro Circuits Corporation.
 # All rights reserved.

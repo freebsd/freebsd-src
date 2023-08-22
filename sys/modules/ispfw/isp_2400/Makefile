@@ -24,8 +24,6 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$
-
 .PATH: ${SRCTOP}/sys/dev/ispfw
 
 KMOD=	isp_2400

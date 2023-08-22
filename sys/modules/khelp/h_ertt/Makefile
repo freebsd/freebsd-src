@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/netinet/khelp
 KMOD=	h_ertt

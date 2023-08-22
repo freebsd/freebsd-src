@@ -4,7 +4,6 @@
 # configuration.  This kernel configration must be further specialized to
 # to include a root filesystem specification.
 #
-# $FreeBSD$
 #
 
 #NO_UNIVERSE

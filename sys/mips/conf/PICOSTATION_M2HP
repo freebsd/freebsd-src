@@ -10,8 +10,6 @@
 # + 32MB RAM
 # + uboot environment
 
-# $FreeBSD$
-
 #NO_UNIVERSE
 
 include		"std.AR724X"

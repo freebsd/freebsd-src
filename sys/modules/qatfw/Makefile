@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	qat_c2xxx \
 	qat_c3xxx \

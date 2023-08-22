@@ -1,4 +1,3 @@
-# $FreeBSD$
 files	"../beri/files.beri"
 
 cpu		CPU_MIPS4KC

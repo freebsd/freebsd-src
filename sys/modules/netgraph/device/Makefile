@@ -1,4 +1,3 @@
-# $FreeBSD$
 KMOD=   ng_device
 SRCS=   ng_device.c
 

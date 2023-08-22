@@ -1,6 +1,5 @@
 # CI20 -- Kernel config for Creator CI20 board
 #
-# $FreeBSD$
 
 #NO_UNIVERSE
 

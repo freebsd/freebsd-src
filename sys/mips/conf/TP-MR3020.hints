@@ -1,7 +1,6 @@
 #
 # This file adds to the values in AR933X_BASE.hints
 #
-# $FreeBSD$
 
 # mdiobus on arge1
 hint.argemdio.0.at="nexus0"

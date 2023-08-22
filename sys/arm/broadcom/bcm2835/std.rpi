@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 options		LINUX_BOOT_ABI

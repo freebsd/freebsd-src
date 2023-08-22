@@ -1,4 +1,3 @@
-# $FreeBSD$
 # 5/31/2012
 #PATH shall include all directories
 

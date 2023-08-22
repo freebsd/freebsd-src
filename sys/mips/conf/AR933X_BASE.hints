@@ -4,8 +4,6 @@
 # then override the default options (adding devices as needed) and adding
 # hints as needed (for example, the GPIO and LAN PHY.)
 
-# $FreeBSD$
-
 hint.apb.0.at="nexus0"
 hint.apb.0.irq=4
 

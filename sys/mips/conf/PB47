@@ -10,7 +10,6 @@
 # * 8MB NOR SPI flash
 # * 64MB RAM
 #
-# $FreeBSD$
 #
 
 #NO_UNIVERSE

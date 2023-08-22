@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR= mxge
 SUBDIR+=mxge_eth_z8e
