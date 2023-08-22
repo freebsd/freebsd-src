@@ -1,5 +1,4 @@
 /*
- * $FreeBSD$
  *
  * Testing program for schedulers
  *

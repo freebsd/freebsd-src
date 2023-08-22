@@ -1,5 +1,4 @@
 /*
- *  $FreeBSD$
  */
 
 #include <sys/cdefs.h>

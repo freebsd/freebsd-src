@@ -28,7 +28,6 @@
  */
 
 /*
- * $FreeBSD$
  */
 
 #ifdef _KERNEL

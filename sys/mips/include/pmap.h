@@ -42,7 +42,6 @@
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
  *	from: src/sys/i386/include/pmap.h,v 1.65.2.2 2000/11/30 01:54:42 peter
  *	JNPR: pmap.h,v 1.7.2.1 2007/09/10 07:44:12 girish
- *      $FreeBSD$
  */
 
 #ifndef _MACHINE_PMAP_H_

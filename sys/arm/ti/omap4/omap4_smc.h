@@ -25,7 +25,6 @@
  */
 
 /*
- * $FreeBSD$
  */
 
 #ifndef OMAP4_SMC_H_

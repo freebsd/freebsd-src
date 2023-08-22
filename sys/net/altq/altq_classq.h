@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  * $KAME: altq_classq.h,v 1.6 2003/01/07 07:33:38 kjc Exp $
- * $FreeBSD$
  */
 /*
  * class queue definitions extracted from rm_class.h.

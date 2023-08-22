@@ -29,7 +29,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: $NetBSD: int_fmtio.h,v 1.2 2001/04/26 16:25:21 kleink Exp $
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_INTTYPES_H_

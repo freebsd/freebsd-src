@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id: //depot/users/kenm/FreeBSD-test2/sys/cam/ctl/ctl_util.h#2 $
- * $FreeBSD$
  */
 /*
  * CAM Target Layer SCSI library interface

@@ -35,7 +35,6 @@
  *
  *	@(#)proc.h	8.1 (Berkeley) 6/10/93
  *	JNPR: proc.h,v 1.7.2.1 2007/09/10 06:25:24 girish
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_PROC_H_

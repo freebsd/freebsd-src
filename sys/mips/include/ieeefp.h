@@ -5,7 +5,6 @@
  * Public domain.
  *
  *	JNPR: ieeefp.h,v 1.1 2006/08/07 05:38:57 katta
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_IEEEFP_H_

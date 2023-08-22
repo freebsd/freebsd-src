@@ -1,6 +1,5 @@
 /*-
  * This file is in the public domain.
- * $FreeBSD$
  */
 
 /* Messages (1 byte) */		     /* I/T (M)andatory or (O)ptional */

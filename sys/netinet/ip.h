@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- * $FreeBSD$
  */
 
 #ifndef _NETINET_IP_H_

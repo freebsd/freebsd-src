@@ -34,7 +34,6 @@
 /*	  All Rights Reserved	*/
 
 /*
- * $FreeBSD$
  */
 
 #include	"dis_tables.h"

@@ -5,7 +5,6 @@
  *
  *	JNPR: clock.h,v 1.6.2.1 2007/08/29 09:36:05 girish
  *	from: src/sys/alpha/include/clock.h,v 1.5 1999/12/29 04:27:55 peter
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_CLOCK_H_

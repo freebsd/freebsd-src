@@ -26,7 +26,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
  * NETLOGIC_BSD
- * $FreeBSD$
  */
 
 #include <machine/asm.h>

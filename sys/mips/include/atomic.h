@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  *
  *	from: src/sys/alpha/include/atomic.h,v 1.21.2.3 2005/10/06 18:12:05 jhb
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_ATOMIC_H_

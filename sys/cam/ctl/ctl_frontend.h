@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id: //depot/users/kenm/FreeBSD-test2/sys/cam/ctl/ctl_frontend.h#2 $
- * $FreeBSD$
  */
 /*
  * CAM Target Layer front end registration hooks

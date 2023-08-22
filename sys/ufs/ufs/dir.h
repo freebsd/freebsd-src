@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
  */
 
 #ifndef _UFS_UFS_DIR_H_

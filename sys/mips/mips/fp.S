@@ -32,7 +32,6 @@
  *
  *	from: @(#)fp.s	8.1 (Berkeley) 6/10/93
  *	JNPR: fp.S,v 1.1 2006/08/07 05:38:57 katta
- * $FreeBSD$
  */
 
 /*

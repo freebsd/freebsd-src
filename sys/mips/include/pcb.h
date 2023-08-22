@@ -38,7 +38,6 @@
  *	from: Utah Hdr: pcb.h 1.13 89/04/23
  *	from: @(#)pcb.h 8.1 (Berkeley) 6/10/93
  *	JNPR: pcb.h,v 1.2 2006/08/07 11:51:17 katta
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_PCB_H_

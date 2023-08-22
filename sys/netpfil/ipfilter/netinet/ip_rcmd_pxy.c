@@ -9,7 +9,6 @@
  *
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
- * $FreeBSD$
  */
 
 #define	IPF_RCMD_PROXY

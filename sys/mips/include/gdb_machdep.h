@@ -27,7 +27,6 @@
  *
  *	from: src/sys/alpha/include/gdb_machdep.h,v 1.3 2005/01/05 20:05:50 imp
  *	JNPR: gdb_machdep.h,v 1.1 2007/08/09 12:25:25 katta
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_GDB_MACHDEP_H_

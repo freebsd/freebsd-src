@@ -43,7 +43,6 @@
 #define __OCTEON_IRQ_H__
 
 /*
- * $FreeBSD$
  */
 
 /**

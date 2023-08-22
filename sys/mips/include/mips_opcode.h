@@ -35,7 +35,6 @@
  *
  *	from: @(#)mips_opcode.h 8.1 (Berkeley) 6/10/93
  *	JNPR: mips_opcode.h,v 1.1 2006/08/07 05:38:57 katta
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_MIPS_OPCODE_H_

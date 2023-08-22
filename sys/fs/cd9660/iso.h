@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $FreeBSD$
  */
 
 #ifndef _ISOFS_CD9660_ISO_H_

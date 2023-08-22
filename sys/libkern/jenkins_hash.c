@@ -1,6 +1,5 @@
 /*
  * Taken from http://burtleburtle.net/bob/c/lookup3.c
- * $FreeBSD$
  */
 
 #include <sys/hash.h>

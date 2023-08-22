@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
  */
 
 #ifndef _NFSSERVER_NFSRVCACHE_H_

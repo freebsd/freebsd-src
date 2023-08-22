@@ -38,7 +38,6 @@
  *	from: Utah Hdr: reg.h 1.1 90/07/09
  *	@(#)reg.h	8.2 (Berkeley) 1/11/94
  *	JNPR: regnum.h,v 1.6 2007/08/09 11:23:32 katta
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_REGNUM_H_
