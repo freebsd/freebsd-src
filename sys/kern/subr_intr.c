@@ -457,7 +457,6 @@ isrc_set_irq(struct intr_irqsrc *isrc, u_int irq)
 	MPASS(irq < intr_nirq);
 	MPASS(irq_sources[irq] == NULL);
 
-	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
 	irq_next_free = irq + 1;
@@ -474,13 +473,13 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (isrc->isrc_irq >= intr_nirq)
+	if (isrc->isrc_event.ie_irq >= intr_nirq)
 		return (EINVAL);
-	if (irq_sources[isrc->isrc_irq] != isrc)
+	if (irq_sources[isrc->isrc_event.ie_irq] != isrc)
 		return (EINVAL);
 
-	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+	irq_sources[isrc->isrc_event.ie_irq] = NULL;
+	isrc->isrc_event.ie_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
 	 * If we are recovering from the state irq_sources table is full,
@@ -514,7 +513,7 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	va_list ap;
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_event.ie_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
 
 	mtx_lock(&isrc_table_lock);
@@ -1092,7 +1091,8 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 		{
 		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
 		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
+		debugf("irq %u add handler error %d on %s\n",
+		    isrc->isrc_event.ie_irq, error, name);
 	}
 	if (error != 0)
 		return (error);

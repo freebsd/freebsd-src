@@ -450,7 +450,7 @@ mv_ap806_sei_release_msi(device_t dev, device_t child, int count, struct intr_ir
 
 	for (i = 0; i < count; i++) {
 		BIT_SET(MV_AP806_SEI_CP_SIZE,
-		    srcs[i]->isrc_irq - MV_AP806_SEI_CP_FIRST,
+		    srcs[i]->isrc_event.ie_irq - MV_AP806_SEI_CP_FIRST,
 		    &sc->msi_bitmap);
 	}
 
@@ -466,7 +466,7 @@ mv_ap806_sei_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->mem_res) + MV_AP806_SEI_SETSPI_OFFSET;
-	*data = isrc->isrc_irq;
+	*data = isrc->isrc_event.ie_irq;
 
 	return (0);
 }
