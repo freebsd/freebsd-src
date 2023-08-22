@@ -420,5 +420,3 @@ r347532:
 	wirings (e.g., by mlock(2)).  Kernel wirings no long count towards
 	the global limit, which is renamed to vm.max_user_wired.  bhyve -S
 	allocates user-wired memory and is now subject to that limit.
-
-$FreeBSD$

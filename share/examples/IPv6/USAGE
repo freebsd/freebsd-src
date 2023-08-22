@@ -1,7 +1,6 @@
 	USAGE
 	KAME Project
 	$KAME: USAGE,v 1.33 2000/11/22 10:22:57 itojun Exp $
-	$FreeBSD$
 
 This is an introduction of how to use the commands provided in the KAME
 kit.  For more information, please refer to each man page.

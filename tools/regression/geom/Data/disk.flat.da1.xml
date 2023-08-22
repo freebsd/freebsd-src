@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
     This image contains an interesting setup: there is an MBR+BSD
     but also another BSD at sector one which is valid but bogus.
   </comment>

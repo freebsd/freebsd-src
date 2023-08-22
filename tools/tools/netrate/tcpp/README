@@ -103,6 +103,3 @@ kldload if_cxgb
 # Consider turning off TSO and/or adjusting the MTU for some scenarios:
 ifconfig cxgb0 -tso
 ifconfig cxgb0 mtu 1500
-
-
-$FreeBSD$

@@ -19,5 +19,3 @@ was sourced from.
 There are a number of exceptions, and those should be added to the
 script to skip over, e.g. `SDT_PROBE`.  The last one is added because
 adding the numbered args is a bit redundant.
-
-$FreeBSD$

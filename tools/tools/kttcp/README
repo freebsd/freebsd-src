@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This is a port of Jason Thorpe's kttcp tool for testing network
 performance for in-kernel applications (like NFS).  The tool consists

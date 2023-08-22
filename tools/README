@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This directory tree contains tools used for the maintenance and
 testing of FreeBSD.  There is no toplevel Makefile structure since

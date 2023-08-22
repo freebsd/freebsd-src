@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This directory has various tools for use with the net80211 layer.
 Some may not work depending on the capabilities of the underyling

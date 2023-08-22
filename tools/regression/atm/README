@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This directory contains tests for the ATM stuff.  All tests can be run
 from the top-level or from their sub-directories by starting RunTest.sh.

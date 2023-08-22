@@ -1,4 +1,3 @@
-$FreeBSD$
 
 For the printing and parsing functionalit, we use the Tianocore routines directly.
 

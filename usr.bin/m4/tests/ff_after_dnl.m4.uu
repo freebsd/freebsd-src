@@ -1,4 +1,3 @@
-$FreeBSD$
 $OpenBSD: src/regress/usr.bin/m4/ff_after_dnl.m4.uu,v 1.1.1.1 2000/07/01 00:31:01 espie Exp $
 $NetBSD: ff_after_dnl.m4.uu,v 1.1 1997/12/30 23:30:53 cgd Exp $
 

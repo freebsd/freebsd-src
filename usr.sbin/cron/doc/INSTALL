@@ -15,8 +15,6 @@
  * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
  */
 
-$FreeBSD$
-
 Read the comments at the top of the Makefile, then edit the area marked
 'configurable stuff'.
 

@@ -1,4 +1,3 @@
-$FreeBSD$
 
 This tool generates raw 802.11 frames.  The resulting frame will
 depend on the capabilities of the hardware.  Some hardware mangles
