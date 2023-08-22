@@ -2384,14 +2384,10 @@ _bootstrap_tools_links+=crunchgen
 # The ATKBD_DFLT_KEYMAP, UKBD_DFLT_KEYMAP and KBDMUX_DFLT_KEYMAP kernel options
 # require kbdcontrol. Note that, even on FreeBSD, the host will lack kbdcontrol
 # if built with WITHOUT_LEGACY_CONSOLE.
-#
-# XXX: kbdcontrol cannot currently be bootstrapped on non-FreeBSD systems
-.if !defined(CROSSBUILD_HOST)
 .if defined(BOOTSTRAP_ALL_TOOLS) || !exists(/usr/sbin/kbdcontrol)
 _kbdcontrol=	usr.sbin/kbdcontrol
 .else
 _bootstrap_tools_links+=kbdcontrol
-.endif
 .endif
 
 .if ${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"

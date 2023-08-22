@@ -46,12 +46,14 @@
 
 #define	SPECIAL		0x80000000
 
+#ifndef BOOTSTRAP_KBDCONTROL
 static const char ctrl_names[32][4] = {
 	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
 	"dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
 	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "us "
 	};
+#endif
 
 static const char acc_names[15][5] = {
 	"dgra", "dacu", "dcir", "dtil", "dmac", "dbre", "ddot",
@@ -65,6 +67,7 @@ static const char acc_names_u[15][5] = {
 	"DCAR",
 	};
 
+#ifndef BOOTSTRAP_KBDCONTROL
 static const char fkey_table[96][MAXFK] = {
 /* 01-04 */	"\033[M", "\033[N", "\033[O", "\033[P",
 /* 05-08 */	"\033[Q", "\033[R", "\033[S", "\033[T",
@@ -91,10 +94,13 @@ static const char fkey_table[96][MAXFK] = {
 /* 89-92 */	""      , ""      , ""      , ""      ,
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
+#endif
 
+#ifndef BOOTSTRAP_KBDCONTROL
 static const int ndelays = nitems(kbdelays);
 static const int nrepeats = nitems(kbrates);
 static int	hex = 0;
+#endif
 static int	paths_configured = 0;
 static int	token;
 
@@ -109,9 +115,12 @@ static int	get_accent_definition_line(accentmap_t *);
 static int	get_entry(void);
 static int	get_key_definition_line(keymap_t *);
 static void	load_keymap(char *opt, int dumponly);
+#ifndef BOOTSTRAP_KBDCONTROL
 static void	load_default_functionkeys(void);
+#endif
 static char *	nextarg(int ac, char **av, int *indp, int oc);
 static char *	mkfullname(const char *s1, const char *s2, const char *s3);
+#ifndef BOOTSTRAP_KBDCONTROL
 static void	print_accent_definition_line(FILE *fp, int accent,
 		struct acc_t *key);
 static void	print_entry(FILE *fp, int value);
@@ -125,6 +134,7 @@ static void	set_functionkey(char *keynumstr, char *string);
 static void	set_keyboard(char *device);
 static void	set_keyrates(char *opt);
 static void	show_kbd_info(void);
+#endif
 static void	usage(void) __dead2;
 
 struct pathent {
@@ -133,6 +143,7 @@ struct pathent {
 };
 static STAILQ_HEAD(, pathent) pathlist = STAILQ_HEAD_INITIALIZER(pathlist);
 
+#ifndef BOOTSTRAP_KBDCONTROL
 /* Detect presence of vt(4). */
 static int
 is_vt4(void)
@@ -144,6 +155,7 @@ is_vt4(void)
 		return (0);
 	return (strcmp(vty_name, "vt") == 0);
 }
+#endif
 
 static char *
 nextarg(int ac, char **av, int *indp, int oc)
@@ -390,6 +402,7 @@ get_accent_definition_line(accentmap_t *map)
 	return (accent + 1);
 }
 
+#ifndef BOOTSTRAP_KBDCONTROL
 static void
 print_entry(FILE *fp, int value)
 {
@@ -590,6 +603,7 @@ print_accent_definition_line(FILE *fp, int accent, struct acc_t *key)
 	}
 	fprintf(fp, "\n");
 }
+#endif
 
 static void
 dump_entry(int value)
@@ -836,10 +850,12 @@ load_keymap(char *opt, int dumponly)
 		if (cp != NULL)
 			add_keymap_path(cp);
 		add_keymap_path("");
+#ifndef BOOTSTRAP_KBDCONTROL
 		if (is_vt4())
 			add_keymap_path(vt_keymap_path);
 		else
 			add_keymap_path(keymap_path);
+#endif
 		paths_configured = 1;
 	}
 
@@ -875,6 +891,7 @@ load_keymap(char *opt, int dumponly)
 		dump_accent_definition(opt, &accentmap);
 		return;
 	}
+#ifndef BOOTSTRAP_KBDCONTROL
 	if ((keymap.n_keys > 0) && (ioctl(0, PIO_KEYMAP, &keymap) < 0)) {
 		warn("setting keymap");
 		fclose(file);
@@ -892,6 +909,7 @@ load_keymap(char *opt, int dumponly)
 			return;
 		}
 	}
+#endif
 }
 
 #ifdef OPIO_DEADKEYMAP
@@ -911,6 +929,7 @@ to_new_accentmap(oaccentmap_t *from, accentmap_t *to)
 }
 #endif /* OPIO_DEADKEYMAP */
 
+#ifndef BOOTSTRAP_KBDCONTROL
 static void
 print_keymap(void)
 {
@@ -1240,14 +1259,20 @@ mux_keyboard(u_int op, char *kbd)
 	if (ioctl(0, op, &info) == -1)
 		warn("unable to (un)mux the keyboard");
 }
+#endif
 
 static void
 usage(void)
 {
+#ifdef BOOTSTRAP_KBDCONTROL
+	fprintf(stderr, "%s\n",
+"usage: kbdcontrol [-L mapfile] [-P path]");
+#else
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-k device] [-L mapfile] [-P path]");
+#endif
 	exit(1);
 }
 
@@ -1255,7 +1280,11 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+#ifdef BOOTSTRAP_KBDCONTROL
+	const char	*optstring = "L:P:";
+#else
 	const char	*optstring = "A:a:b:df:iKk:Fl:L:P:r:x";
+#endif
 	int		opt;
 
 	/* Collect any -P arguments, regardless of where they appear. */
@@ -1269,6 +1298,7 @@ main(int argc, char **argv)
 	optind = optreset = 1;
 	while ((opt = getopt(argc, argv, optstring)) != -1)
 		switch(opt) {
+#ifndef BOOTSTRAP_KBDCONTROL
 		case 'A':
 		case 'a':
 			mux_keyboard((opt == 'A')? KBRELKBD : KBADDKBD, optarg);
@@ -1282,11 +1312,13 @@ main(int argc, char **argv)
 		case 'l':
 			load_keymap(optarg, 0);
 			break;
+#endif
 		case 'L':
 			load_keymap(optarg, 1);
 			break;
 		case 'P':
 			break;
+#ifndef BOOTSTRAP_KBDCONTROL
 		case 'f':
 			set_functionkey(optarg,
 			    nextarg(argc, argv, &optind, 'f'));
@@ -1309,6 +1341,7 @@ main(int argc, char **argv)
 		case 'x':
 			hex = 1;
 			break;
+#endif
 		default:
 			usage();
 		}
