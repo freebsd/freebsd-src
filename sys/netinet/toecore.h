@@ -107,7 +107,7 @@ struct toedev {
 	void (*tod_ctloutput)(struct toedev *, struct tcpcb *, int, int);
 
 	/* Update software state */
-	void (*tod_tcp_info)(struct toedev *, struct tcpcb *,
+	void (*tod_tcp_info)(struct toedev *, const struct tcpcb *,
 	    struct tcp_info *);
 
 	/* Create a TLS session */

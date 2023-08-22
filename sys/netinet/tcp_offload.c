@@ -186,12 +186,12 @@ tcp_offload_ctloutput(struct tcpcb *tp, int sopt_dir, int sopt_name)
 }
 
 void
-tcp_offload_tcp_info(struct tcpcb *tp, struct tcp_info *ti)
+tcp_offload_tcp_info(const struct tcpcb *tp, struct tcp_info *ti)
 {
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	INP_LOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_tcp_info(tod, tp, ti);
 }
