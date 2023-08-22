@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _EFINET_H
 #define _EFINET_H
 

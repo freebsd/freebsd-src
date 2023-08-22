@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef VERSION_HIDDEN
 #define VERSION_HIDDEN
 #endif

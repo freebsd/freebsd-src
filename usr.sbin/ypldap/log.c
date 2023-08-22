@@ -1,5 +1,4 @@
 /*	$OpenBSD: log.c,v 1.1 2008/06/26 15:10:01 pyr Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>

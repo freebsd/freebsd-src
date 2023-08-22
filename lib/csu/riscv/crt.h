@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef _CRT_H_
 #define _CRT_H_

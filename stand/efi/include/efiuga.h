@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /** @file
   UGA Draw protocol from the EFI 1.1 specification.
 

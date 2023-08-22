@@ -1,4 +1,3 @@
-/* $FreeBSD$
  */
 
 #ifndef	BPTYPES_H

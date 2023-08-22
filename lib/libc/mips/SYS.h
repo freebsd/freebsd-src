@@ -1,5 +1,4 @@
 /*	$NetBSD: SYS.h,v 1.19 2009/12/14 01:07:41 matt Exp $ */
-/* $FreeBSD$ */
 
 /*-
  * SPDX-License-Identifier: (BSD-4-Clause AND BSD-3-Clause)

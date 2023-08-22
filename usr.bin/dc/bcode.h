@@ -1,4 +1,3 @@
-/*	$FreeBSD$						*/
 /*	$OpenBSD: bcode.h,v 1.7 2012/11/07 11:06:14 otto Exp $	*/
 
 /*

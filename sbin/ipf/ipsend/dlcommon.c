@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 
 /*
  * Common (shared) DLPI test routines.

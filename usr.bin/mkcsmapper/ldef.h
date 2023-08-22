@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: ldef.h,v 1.2 2006/09/09 14:35:17 tnozaki Exp $	*/
 
 /*-

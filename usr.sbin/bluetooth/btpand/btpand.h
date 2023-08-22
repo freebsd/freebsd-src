@@ -27,7 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #include <sys/types.h>
 #include <sys/queue.h>

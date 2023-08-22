@@ -1,5 +1,4 @@
 /*	$NetBSD: getopt.h,v 1.4 2000/07/07 10:43:54 ad Exp $	*/
-/*	$FreeBSD$ */
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause

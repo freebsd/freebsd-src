@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #ifndef _DEVPATH_H
 #define _DEVPATH_H
 

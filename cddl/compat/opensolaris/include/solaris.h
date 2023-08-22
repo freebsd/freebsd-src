@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef	_SOLARIS_H_
 #define	_SOLARIS_H_

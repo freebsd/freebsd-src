@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #define KEYMAP_PATH	"/usr/share/syscons/keymaps/"
 #define FONT_PATH	"/usr/share/syscons/fonts/"

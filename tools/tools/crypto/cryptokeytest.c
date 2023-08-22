@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * The big num stuff is a bit broken at the moment and I've not yet fixed it.
  * The symtom is that odd size big nums will fail.  Test code below (it only

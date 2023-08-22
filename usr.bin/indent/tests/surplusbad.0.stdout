@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* See r303599 */
 #if defined(__i386__)
 int		a;

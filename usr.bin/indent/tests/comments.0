@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 typedef enum x {
 	aaaaaaaaaaaaaaaaaaaaaa = 1 << 0,	/* test a */
 	bbbbbbbbbbbbbbbbb = 1 << 1,	/* test b */

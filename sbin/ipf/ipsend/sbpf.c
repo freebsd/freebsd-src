@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * (C)opyright 1995-1998 Darren Reed. (from tcplog)
  *

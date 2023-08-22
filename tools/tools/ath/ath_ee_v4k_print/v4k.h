@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #ifndef	__V4K_H__
 #define	__V4K_H__

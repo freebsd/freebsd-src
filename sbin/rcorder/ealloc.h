@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NetBSD: ealloc.h,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $	*/
 
 void	*emalloc(size_t len);

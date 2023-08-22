@@ -1,4 +1,3 @@
-/*	$FreeBSD$ */
 /*	from $OpenBSD: ifconfig.c,v 1.82 2003/10/19 05:43:35 mcbride Exp $ */
 
 /*-

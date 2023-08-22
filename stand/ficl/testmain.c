@@ -37,7 +37,6 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
 
 #include <stdlib.h>
 #include <stdio.h>

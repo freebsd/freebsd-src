@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NetBSD: unpack.c,v 1.3 2017/08/04 07:27:08 mrg Exp $	*/
 
 /*-

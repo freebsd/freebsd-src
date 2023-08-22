@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /** @file
   This file defines the EFI HTTP Protocol interface. It is split into
   the following two main sections:

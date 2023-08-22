@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #include <paths.h>
 
 #define	_PATH_DEVPCI	"/dev/pci"

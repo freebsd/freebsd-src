@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 extern int __thread yy1;
 int __thread xx1 = 1;

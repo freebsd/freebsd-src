@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 /*
  * report() - calls syslog

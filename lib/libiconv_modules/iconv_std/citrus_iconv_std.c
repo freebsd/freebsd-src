@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: citrus_iconv_std.c,v 1.16 2012/02/12 13:51:29 wiz Exp $	*/
 
 /*-

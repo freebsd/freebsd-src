@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: lex.l,v 1.3 2006/02/09 22:03:15 dogcow Exp $	*/
 
 %{

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: libpfkey.h,v 1.6 2001/03/05 18:22:17 thorpej Exp $	*/
 
 /*-

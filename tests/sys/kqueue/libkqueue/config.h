@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #define HAVE_ERR_H 1
 #define HAVE_SYS_EVENT_H 1

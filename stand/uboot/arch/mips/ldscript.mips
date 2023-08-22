@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 OUTPUT_ARCH(mips)
 ENTRY(_start)

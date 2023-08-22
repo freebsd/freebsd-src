@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 
 /* Copyright 1993,1994 by Paul Vixie
  * All rights reserved

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: iconv.c,v 1.16 2009/02/20 15:28:21 yamt Exp $ */
 
 /*-

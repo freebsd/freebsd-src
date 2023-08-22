@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 #include <sys/poll.h>
 #include <sys/socket.h>

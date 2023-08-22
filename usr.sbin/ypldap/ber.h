@@ -1,5 +1,4 @@
 /*	$OpenBSD: ber.h,v 1.2 2008/12/29 15:48:13 aschrijver Exp $ */
-/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 2007 Reyk Floeter <reyk@vantronix.net>
