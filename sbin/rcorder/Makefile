@@ -1,5 +1,4 @@
 #       $NetBSD: Makefile,v 1.1 1999/11/23 05:28:20 mrg Exp $
-# $FreeBSD$
 
 PACKAGE=rc
 PROG=   rcorder

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 atf_test_case bmpat
 bmpat_head()

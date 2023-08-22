@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=iscsilegacy
 SRCS= iscontrol.c pdu.c fsm.c config.c login.c auth_subr.c misc.c

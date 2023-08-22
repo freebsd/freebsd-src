@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 VOLUME=	smm
 DOC=	contents

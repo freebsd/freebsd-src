@@ -12,7 +12,6 @@
 #  3) If no label has been found, use MYADDR if it exists.
 #
 #
-# $FreeBSD$
 #
 #########################################################################
 

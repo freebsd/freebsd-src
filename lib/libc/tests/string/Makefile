@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # ensure libc functions are tested, not clang's builtins
 CFLAGS+=	-fno-builtin

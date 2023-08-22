@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Character ranges in a locale other than the POSIX locale, not specified
 # by POSIX.

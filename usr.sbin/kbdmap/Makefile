@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	kbdmap
 LINKS=	${BINDIR}/kbdmap ${BINDIR}/vidfont

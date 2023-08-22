@@ -32,7 +32,6 @@
 #
 # Sequence of databases is important.
 #
-# $FreeBSD$
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR

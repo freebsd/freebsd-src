@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG?=	boot0
 STRIP=

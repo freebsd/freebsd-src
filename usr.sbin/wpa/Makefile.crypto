@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	ssl crypto

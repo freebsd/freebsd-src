@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CONFS=	openssl.cnf
 CONFSDIR=	/etc/ssl

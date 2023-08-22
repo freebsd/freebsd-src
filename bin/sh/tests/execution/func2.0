@@ -1,4 +1,3 @@
-# $FreeBSD$
 # The empty pairs of braces here are to test that this does not cause a crash.
 
 f() { }

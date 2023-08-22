@@ -1,5 +1,4 @@
 #	Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp
-# $FreeBSD$
 
 .PATH:	${LIBC_SRCTOP}/stdtime ${SRCTOP}/contrib/tzcode
 

@@ -1,5 +1,4 @@
 #  @(#)Makefile 5.1beta 93/09/24
-# $FreeBSD$
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.

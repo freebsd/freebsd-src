@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: Shift_JIS.src,v 1.2 2003/07/16 06:57:36 tshiozak Exp $
 
 NAME		"Shift_JIS"

@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: Big5.src,v 1.1 2006/06/19 17:28:25 tnozaki Exp $
 
 NAME		"encoding"

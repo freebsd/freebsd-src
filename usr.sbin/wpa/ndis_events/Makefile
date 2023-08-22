@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ndis_events
 SRCS+=	ndis_events.c

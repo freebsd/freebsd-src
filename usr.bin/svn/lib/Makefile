@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	libapr \
 	libapr_util \

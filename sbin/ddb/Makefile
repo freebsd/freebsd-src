@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 CONFS=	ddb.conf
 PACKAGE=runtime

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	udps
 BINDIR=	/usr/local/bin

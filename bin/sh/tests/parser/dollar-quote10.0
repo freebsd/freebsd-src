@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # a umlaut
 s=$(printf '\303\244')

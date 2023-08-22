@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .if !defined(SVNDIR)
 

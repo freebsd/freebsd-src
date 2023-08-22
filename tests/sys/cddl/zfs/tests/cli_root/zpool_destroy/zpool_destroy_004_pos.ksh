@@ -3,8 +3,6 @@
 # Copyright 2015 Spectra Logic Corporation.
 #
 
-# $FreeBSD$
-
 . $STF_SUITE/include/libtest.kshlib
 
 ################################################################################

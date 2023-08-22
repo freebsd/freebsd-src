@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 case aZ_ in
 [[:alpha:]_][[:upper:]_][[:alpha:]_]) ;;

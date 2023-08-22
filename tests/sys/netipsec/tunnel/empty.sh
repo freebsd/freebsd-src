@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 . $(atf_get_srcdir)/utils.subr
 

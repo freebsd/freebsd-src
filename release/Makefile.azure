@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 #
 # Makefile for uploading Microsoft Azure disk images.

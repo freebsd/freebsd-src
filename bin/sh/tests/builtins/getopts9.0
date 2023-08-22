@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 args='-ab'
 getopts ab opt $args

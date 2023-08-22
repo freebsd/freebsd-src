@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # This Makefile differs from the other examples, in the sense that its purpose
 # is to install the upstream provided googletest sample unit tests.

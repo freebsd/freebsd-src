@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 NANO_SRC=$(pwd)
 NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/rescue}

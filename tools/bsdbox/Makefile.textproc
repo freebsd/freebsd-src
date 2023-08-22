@@ -2,7 +2,6 @@
 # This builds a variety of text processing tools that
 # may be useful on an embedded device.
 #
-# $FreeBSD$
 #
 
 # Sed

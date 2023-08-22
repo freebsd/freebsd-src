@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 ! echo echo bad | ${SH} -c 2>/dev/null

@@ -24,7 +24,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
 # On entry to this script the entire system consists of a read-only root
 # mounted via NFS. The kernel has run BOOTP and configured an interface

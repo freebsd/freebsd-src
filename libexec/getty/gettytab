@@ -1,4 +1,3 @@
-# $FreeBSD$
 #	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
 #
 # Most of the table entries here are just copies of the old getty table,

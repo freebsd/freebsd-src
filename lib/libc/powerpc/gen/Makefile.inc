@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include "${LIBC_SRCTOP}/powerpc/gen/Makefile.common"
 

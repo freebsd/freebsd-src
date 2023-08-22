@@ -1,5 +1,4 @@
 #	$NetBSD: Makefile,v 1.4 2011/02/16 01:31:33 joerg Exp $
-#	$FreeBSD$
 #	$OpenBSD: Makefile,v 1.6 2003/06/25 15:00:04 millert Exp $
 
 .include <src.opts.mk>

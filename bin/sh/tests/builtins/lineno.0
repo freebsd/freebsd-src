@@ -1,4 +1,3 @@
-# $FreeBSD$
 echo $LINENO
 echo $LINENO
 

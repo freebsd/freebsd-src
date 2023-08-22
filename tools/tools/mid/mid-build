@@ -4,7 +4,6 @@
 #
 # create a Message-ID, In-Reply-To look(1) index database
 #
-# $FreeBSD$
 
 
 TMPDIR=/var/tmp; export TMPDIR

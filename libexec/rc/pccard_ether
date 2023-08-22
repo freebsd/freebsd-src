@@ -1,6 +1,5 @@
 #!/bin/sh -
 #
-# $FreeBSD$
 #
 # pccard_ether interfacename [start|stop|restart]
 #

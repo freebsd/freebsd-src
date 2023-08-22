@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	valectl
 MAN=	valectl.8

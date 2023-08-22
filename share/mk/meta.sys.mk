@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: meta.sys.mk,v 1.38 2020/08/19 17:51:53 sjg Exp $
 
 #

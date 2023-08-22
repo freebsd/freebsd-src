@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # The construct ${#?} is ambiguous in POSIX.1-2008: it could be the length
 # of $? or it could be $# giving an error in the (impossible) case that it

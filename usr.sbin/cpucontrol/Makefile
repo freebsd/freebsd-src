@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	cpucontrol
 MAN=	cpucontrol.8

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $NetBSD: UCS%CP10029.src,v 1.2 2006/04/08 15:47:40 tnozaki Exp $
 
 TYPE		ROWCOL

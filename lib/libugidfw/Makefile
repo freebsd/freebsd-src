@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		ugidfw
 SHLIB_MAJOR=	5

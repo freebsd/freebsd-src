@@ -1,7 +1,6 @@
 # This is a generated file, do NOT edit!
 # See contrib/bmake/bsd.after-import.mk
 #
-# $FreeBSD$
 # $Id: Makefile,v 1.174 2022/02/09 02:42:59 sjg Exp $
 #
 # $NetBSD: Makefile,v 1.303 2022/02/07 22:43:50 rillig Exp $

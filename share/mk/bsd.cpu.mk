@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Set default CPU compile flags and baseline CPUTYPE for each arch.  The
 # compile flags must support the minimum CPU type for each architecture but

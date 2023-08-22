@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 
 .sinclude <src.opts.mk>
 

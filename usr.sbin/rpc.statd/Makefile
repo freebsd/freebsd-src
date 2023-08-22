@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	rpc.statd
 MAN=	rpc.statd.8

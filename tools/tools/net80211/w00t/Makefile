@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	libw00t ap assoc expand prga redir
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	find-sb
 MAN=

@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # To disable this repository, instead of modifying or removing this file,
 # create a /usr/local/etc/pkg/repos/FreeBSD.conf file:

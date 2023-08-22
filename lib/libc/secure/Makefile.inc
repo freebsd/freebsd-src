@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # libc sources related to security
 

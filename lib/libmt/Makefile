@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=		mt
 SHLIBDIR?=	/lib

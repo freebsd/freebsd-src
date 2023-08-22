@@ -25,7 +25,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 #
 # This is a helper script for the Makefile in the parent directory.
 # When the localization definitions are generated in the draft area,

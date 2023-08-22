@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS=mergemaster.sh
 MAN=	mergemaster.8

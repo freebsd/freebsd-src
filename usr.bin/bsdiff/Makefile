@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	bsdiff bspatch
 

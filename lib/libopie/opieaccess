@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # This file controls whether UNIX passwords are to be permitted.  Rules
 # are matched in order, and the search terminates when the first matching

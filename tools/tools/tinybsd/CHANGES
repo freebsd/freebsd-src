@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 0.9:
 - Added function personal_directories, you can create on conf dir your custom 

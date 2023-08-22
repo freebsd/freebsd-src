@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LOADER_INTERP=4th
 

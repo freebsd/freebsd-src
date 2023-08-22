@@ -1,4 +1,3 @@
-# $FreeBSD$
 # RCSid:
 #       $Id: dirdeps-targets.mk,v 1.22 2020/08/15 18:00:11 sjg Exp $
 #

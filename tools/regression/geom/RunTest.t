@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 MD=34
 TMP=/tmp/$$

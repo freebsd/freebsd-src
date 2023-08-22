@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Use the following command to build local debug version of dynamic
 # linker:

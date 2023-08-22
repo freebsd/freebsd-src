@@ -1,4 +1,3 @@
-# $FreeBSD$ 
 # $NetBSD: UTF.src,v 1.1 2003/06/27 08:40:59 tshiozak Exp $
 
 NAME		"UTF-x"

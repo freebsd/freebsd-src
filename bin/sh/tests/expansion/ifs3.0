@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 failures=0
 unset LC_ALL

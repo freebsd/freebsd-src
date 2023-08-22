@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 # Remove garbage files more than $daily_clean_disks_days days old
 #

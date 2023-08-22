@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	vidcontrol
 SRCS=	vidcontrol.c decode.c

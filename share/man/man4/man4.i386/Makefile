@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 MAN=	apm.4 \
 	ce.4 \

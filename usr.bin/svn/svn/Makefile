@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include "${.CURDIR:H}/Makefile.inc"
 

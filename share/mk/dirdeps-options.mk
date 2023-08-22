@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: dirdeps-options.mk,v 1.17 2020/08/07 01:57:38 sjg Exp $
 #
 #	@(#) Copyright (c) 2018-2020, Simon J. Gerraty

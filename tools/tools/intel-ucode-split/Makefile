@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	intel-ucode-split
 MAN=

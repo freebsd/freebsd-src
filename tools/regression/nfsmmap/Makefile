@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR= test1 test2
 

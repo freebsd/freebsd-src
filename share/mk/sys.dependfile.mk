@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: sys.dependfile.mk,v 1.7 2016/02/20 01:57:39 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty

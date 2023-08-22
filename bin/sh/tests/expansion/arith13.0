@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Pre-increment and pre-decrement in arithmetic expansion are not in POSIX.
 # Require either an error or a correct implementation.
 

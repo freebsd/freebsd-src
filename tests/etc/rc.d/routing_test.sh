@@ -29,7 +29,6 @@
 # 
 #  Authors: Alan Somers         (Spectra Logic Corporation)
 #
-# $FreeBSD$
 
 atf_test_case static_ipv4_loopback_route_for_each_fib cleanup
 static_ipv4_loopback_route_for_each_fib_head()

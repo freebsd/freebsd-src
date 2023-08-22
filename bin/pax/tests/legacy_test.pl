@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 use strict;
 use warnings;

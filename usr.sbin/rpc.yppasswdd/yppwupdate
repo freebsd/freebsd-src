@@ -8,7 +8,6 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-# $FreeBSD$
 #
 
 PATH=/bin:/usr/bin; export PATH

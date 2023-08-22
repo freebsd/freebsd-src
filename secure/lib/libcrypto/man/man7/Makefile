@@ -1,4 +1,3 @@
-# $FreeBSD$
 MAN+= Ed25519.7
 MAN+= RAND.7
 MAN+= RAND_DRBG.7

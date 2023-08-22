@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 {
 	trap '' garbage && exit 3

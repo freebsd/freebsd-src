@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .include "${SRCTOP}/share/mk/src.opts.mk"
 

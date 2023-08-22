@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 export key='must contain this'
 unset x

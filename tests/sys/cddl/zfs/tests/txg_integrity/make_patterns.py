@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 
-# $FreeBSD$
-
 # Generate random IO patterns for the txg_integrity test
 # We do this statically and embed the results into the code so that the
 # Testing will be more repeatable compared to generating the tables at runtime

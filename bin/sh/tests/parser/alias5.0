@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 alias alias0=exit
 eval '</dev/null alias0 0'

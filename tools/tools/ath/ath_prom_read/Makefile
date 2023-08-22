@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ath_prom_read
 

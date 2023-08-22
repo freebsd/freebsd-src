@@ -20,8 +20,6 @@
 # CDDL HEADER END
 #
 
-# $FreeBSD$
-
 #
 # ident	"@(#)zvol_ENOSPC_001_pos.ksh	1.2	07/01/09 SMI"
 #

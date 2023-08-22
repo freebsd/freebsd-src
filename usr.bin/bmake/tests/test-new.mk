@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 NEW_DIR!=	make -C ${.CURDIR}/../../../../usr.bin/make -V .OBJDIR
 

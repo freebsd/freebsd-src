@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Some builtins should not be overridable via PATH.
 
 set -e

@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 # This script sets up an Ethernet bridging network across multiple
 # Ethernet interfaces using the ng_bridge(4) and ng_ether(4) netgraph
 # node types.

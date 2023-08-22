@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SCRIPTS= auto adduser bootconfig checksum config docsinstall entropy \
          fetchmissingdists hardening hostname jail keymap mirrorselect mount \

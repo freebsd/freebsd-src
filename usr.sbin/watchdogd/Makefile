@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	watchdogd
 LINKS=	${BINDIR}/watchdogd ${BINDIR}/watchdog

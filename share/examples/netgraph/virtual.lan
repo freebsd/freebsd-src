@@ -12,7 +12,6 @@
 # the author assume any responsibility for damages incurred with
 # its use.
 #
-# $FreeBSD$
 #
 # This script adds virtual nodes to one of the physical interfaces
 # visible on your local area network (LAN). Virtual nodes seems real

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: meta.stage.mk,v 1.60 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty

@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 # The user-driven targets are:
 #

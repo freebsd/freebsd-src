@@ -1,4 +1,3 @@
-# $FreeBSD$
 # The redirection overrides the </dev/null implicit in a background command.
 
 echo yes | ${SH} -c '{ cat & wait; } <&0'

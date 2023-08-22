@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 HOME=/root
 export HOME

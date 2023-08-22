@@ -1,4 +1,3 @@
-# $FreeBSD$
 # These defines are needed for both libarchive and the tests. If we don't keep
 # them in sync we can get run-time crashes while running tests due to mismatches
 # between structures such as archive_md5_ctx, etc.

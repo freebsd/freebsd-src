@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 #
 # Full list of all arches, but we only build a subset. All different mips add any
 # value, and there's a few others we just don't support.

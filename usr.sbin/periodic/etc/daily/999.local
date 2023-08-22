@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 #
 # Run the old /etc/daily.local script.  This is really for backwards
 # compatibility more than anything else.

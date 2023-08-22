@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # Long double is 64-bits
 SRCS+=machdep_ldisd.c

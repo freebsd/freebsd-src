@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 : ${DIALOG_OK=0}
 : ${DIALOG_CANCEL=1}

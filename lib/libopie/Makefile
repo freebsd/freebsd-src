@@ -1,6 +1,5 @@
 # Makefile for libopie
 #
-# $FreeBSD$
 #
 
 CONFS=	opieaccess

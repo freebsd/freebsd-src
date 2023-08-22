@@ -32,7 +32,6 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkbuiltins	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
 
 temp=`mktemp -t ka`
 srcdir=$1

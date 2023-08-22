@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: meta.autodep.mk,v 1.53 2020/11/08 05:47:56 sjg Exp $
 
 #

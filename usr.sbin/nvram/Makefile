@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	nvram
 MAN=	nvram.8

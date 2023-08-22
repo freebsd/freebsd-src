@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Test that attached options after c are processed
 
 case `${SH} -ca 'echo $-:$0' moo` in

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 FILES=	mech qop
 NO_OBJ=

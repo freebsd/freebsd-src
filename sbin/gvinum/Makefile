@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=geom
 PROG=	gvinum

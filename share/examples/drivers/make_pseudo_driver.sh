@@ -6,7 +6,6 @@
 #
 # Trust me, RUN THIS SCRIPT :)
 #
-# $FreeBSD$
 #
 #-------cut here------------------
 

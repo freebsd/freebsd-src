@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: install-new.mk,v 1.3 2012/03/24 18:25:49 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty

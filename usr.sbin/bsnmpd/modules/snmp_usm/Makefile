@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Author: Shteryana Shopova <syrinx@freebsd.org>
 

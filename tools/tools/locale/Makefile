@@ -1,4 +1,3 @@
-# $FreeBSD$
 # See https://wiki.freebsd.org/LocaleNewApproach
 # Taken from FreeBSD svn [base]/user/edwin/locale/cldr
 #

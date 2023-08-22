@@ -5,7 +5,6 @@
 #
 # Please see src/share/examples/etc/bsd-style-copyright.
 #
-# $FreeBSD$
 #
 
 set -e

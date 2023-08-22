@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${.CURDIR}/../boot0
 

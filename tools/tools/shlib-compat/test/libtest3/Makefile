@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 TESTNUM=	3
 

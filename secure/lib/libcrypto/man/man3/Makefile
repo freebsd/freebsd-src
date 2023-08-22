@@ -1,4 +1,3 @@
-# $FreeBSD$
 MAN+= ADMISSIONS.3
 MAN+= ASN1_INTEGER_get_int64.3
 MAN+= ASN1_ITEM_lookup.3

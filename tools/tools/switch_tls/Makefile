@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	switch_tls
 MAN=

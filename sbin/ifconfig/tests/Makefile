@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 NETBSD_ATF_TESTS_SH=		nonexistent_test
 

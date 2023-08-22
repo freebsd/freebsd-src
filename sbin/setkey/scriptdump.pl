@@ -1,5 +1,4 @@
 #! @LOCALPREFIX@/bin/perl
-# $FreeBSD$
 
 if ($< != 0) {
 	print STDERR "must be root to invoke this\n";

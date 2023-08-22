@@ -1,4 +1,3 @@
-# $FreeBSD$
 #
 # Mail relay access control list.  Default is to reject mail unless the
 # destination is local, or listed in /etc/mail/local-host-names

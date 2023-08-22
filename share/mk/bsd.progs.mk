@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: progs.mk,v 1.11 2012/11/06 17:18:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty

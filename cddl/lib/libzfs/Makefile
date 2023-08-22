@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/contrib/openzfs/module/icp
 .PATH: ${SRCTOP}/sys/contrib/openzfs/module/zcommon

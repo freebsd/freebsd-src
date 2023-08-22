@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 $SH -c 'LC_ALL=C true; kill -INT $$; echo continued'
 r=$?

@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 cd `dirname $0`
 cmd="./`basename $0 .t`"

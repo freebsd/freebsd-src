@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	ancontrol
 MAN=	ancontrol.8

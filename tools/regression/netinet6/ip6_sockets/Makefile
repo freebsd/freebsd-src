@@ -1,5 +1,4 @@
 #
-# $FreeBSD$
 #
 
 PROG=	ip6_sockets

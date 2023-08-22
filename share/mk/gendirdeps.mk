@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: gendirdeps.mk,v 1.46 2020/08/19 17:51:53 sjg Exp $
 
 # Copyright (c) 2011-2020, Simon J. Gerraty

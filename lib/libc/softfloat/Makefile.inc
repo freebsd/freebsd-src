@@ -1,5 +1,4 @@
 #	$NetBSD: Makefile.inc,v 1.10 2011/07/04 02:53:15 mrg Exp $
-# $FreeBSD$
 
 SOFTFLOAT_BITS?=64
 .PATH:		${LIBC_ARCH}/softfloat \

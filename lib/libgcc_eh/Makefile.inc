@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 COMPILERRTDIR=	${SRCTOP}/contrib/llvm-project/compiler-rt
 UNWINDINCDIR=	${SRCTOP}/contrib/llvm-project/libunwind/include

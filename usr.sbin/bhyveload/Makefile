@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	bhyveload
 SRCS=	bhyveload.c

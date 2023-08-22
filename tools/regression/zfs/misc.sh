@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 ntest=1
 os=`uname -s`

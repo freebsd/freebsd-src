@@ -1,4 +1,3 @@
-# $FreeBSD$
 # This tests a quality of implementation issue.
 # Shells are not required to reject executing binary files as shell scripts
 # but executing, for example, ELF files for a different architecture as

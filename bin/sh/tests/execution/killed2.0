@@ -1,4 +1,3 @@
-# $FreeBSD$
 # Most shells print a message when a foreground job is killed by a signal.
 # POSIX allows this, provided the message is sent to stderr, not stdout.
 # Some trickery is needed to capture the message as redirecting stderr of

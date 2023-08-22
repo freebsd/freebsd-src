@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	kbdcontrol
 MAN=	kbdcontrol.1 kbdmap.5

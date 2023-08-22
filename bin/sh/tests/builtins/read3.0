@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 printf '%s\n' 'a\ b c'	| { read a b; printf '%s\n' "x${a}x${b}x"; }
 printf '%s\n' 'a b\ c'	| { read a b; printf '%s\n' "x${a}x${b}x"; }

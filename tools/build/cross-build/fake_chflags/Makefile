@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 NO_OBJ=
 SCRIPTS=	chflags

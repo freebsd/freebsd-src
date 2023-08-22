@@ -22,7 +22,6 @@
 #   VAP on a physical interface, which shares the MAC address of
 #   the physical NIC.
 #
-# $FreeBSD$
 #
 PATH=.:$PATH
 . config

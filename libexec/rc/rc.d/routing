@@ -2,7 +2,6 @@
 #
 # Configure routing and miscellaneous network tunables
 #
-# $FreeBSD$
 #
 
 # PROVIDE: routing

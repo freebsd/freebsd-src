@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 fatal() {
 	echo -e "$*" >&2

@@ -1,6 +1,5 @@
 #!/bin/sh -
 #
-#	$FreeBSD$
 #
 
 if [ x"$#" != x"2" ]; then

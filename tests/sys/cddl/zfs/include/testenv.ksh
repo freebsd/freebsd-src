@@ -1,8 +1,6 @@
 . ${STF_SUITE}/include/libtest.kshlib
 . ${STF_SUITE}/include/commands.cfg
 
-# $FreeBSD$
-
 # Environment-dependent constants.
 for d in `geom disk list | awk '/Name:/ {print $3}'`; do
 	# Clear the GPT label first to avoid spurious create failures.

@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 Files in this directory are used to generate locale source files
 from files in CLDR (Unicode Common Locale Data Repository). 

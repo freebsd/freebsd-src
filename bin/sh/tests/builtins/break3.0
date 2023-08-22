@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 # We accept this and people might rely on it.
 # However, various other shells do not accept it.

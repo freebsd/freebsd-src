@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
 
 GREP=grep
 mountpoint=$(df . | tail -1 | awk '{print $6}')

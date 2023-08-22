@@ -1,4 +1,3 @@
-# $FreeBSD$
 machine		i386
 cpu		I586_CPU
 ident		TINYBSD

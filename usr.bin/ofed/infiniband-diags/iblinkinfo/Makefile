@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	iblinkinfo
 SRCS=	iblinkinfo.c

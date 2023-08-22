@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 
 #
 # About:

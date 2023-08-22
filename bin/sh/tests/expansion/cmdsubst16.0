@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 f() { return 3; }
 f

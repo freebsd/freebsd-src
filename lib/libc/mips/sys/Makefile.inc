@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SRCS+=	trivial-vdso_tc.c \
 	sched_getcpu_gen.c

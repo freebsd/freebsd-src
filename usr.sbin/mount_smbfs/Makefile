@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	mount_smbfs
 SRCS=	mount_smbfs.c getmntopts.c

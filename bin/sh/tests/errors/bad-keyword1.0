@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 echo ':; fi' | ${SH} -n 2>/dev/null && exit 1
 exit 0

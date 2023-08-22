@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	portsnap make_index
 

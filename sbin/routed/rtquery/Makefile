@@ -1,6 +1,5 @@
 # Make `routed` tools for BSD/OS
 # $Revision: 1.6 $
-# $FreeBSD$
 
 PACKAGE=runtime
 PROG=	rtquery

@@ -5,7 +5,6 @@
 # Read and display random numbers.
 # Try tapping shift/alt/ctrl to get more randomness.
 #
-# $FreeBSD$
 #
 
 for (;;) {

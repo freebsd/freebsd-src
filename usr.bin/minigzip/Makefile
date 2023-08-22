@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SRCDIR=	${SRCTOP}/sys/contrib/zlib/test
 .PATH:	${SRCDIR}

@@ -1,3 +1,2 @@
-# $FreeBSD$
 
 test "$(trap 'printf trap; echo ped' EXIT; f() { :; }; f)" = trapped || exit 1

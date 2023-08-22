@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $FreeBSD$
-
 rm -rf siks
 mkdir -p siks
 

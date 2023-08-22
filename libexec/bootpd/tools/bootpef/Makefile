@@ -1,5 +1,4 @@
 # Makefile
-# $FreeBSD$
 
 PROG=	bootpef
 MAN=	bootpef.8

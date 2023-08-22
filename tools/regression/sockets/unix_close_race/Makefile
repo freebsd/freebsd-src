@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PROG=	unix_close_race
 MAN=

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # $Id: dirdeps.mk,v 1.130 2020/11/02 00:34:30 sjg Exp $
 
 # Copyright (c) 2010-2020, Simon J. Gerraty

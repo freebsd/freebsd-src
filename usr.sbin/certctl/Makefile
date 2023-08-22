@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 PACKAGE=	caroot
 SCRIPTS=certctl.sh

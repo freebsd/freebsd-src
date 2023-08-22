@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 LIB=	intel
 SRCS=	intel.c

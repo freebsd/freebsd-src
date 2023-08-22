@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 ${SH} <<\EOF
 echo one >&2

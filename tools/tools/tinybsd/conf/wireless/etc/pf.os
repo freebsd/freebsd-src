@@ -1,4 +1,3 @@
-# $FreeBSD$
 # passive OS fingerprinting
 # -------------------------
 #

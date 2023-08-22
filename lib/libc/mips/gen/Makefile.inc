@@ -1,5 +1,4 @@
 #	$NetBSD: Makefile.inc,v 1.27 2005/10/07 17:16:40 tsutsui Exp $
-# $FreeBSD$
 
 SRCS+=	infinity.c fabs.c ldexp.c flt_rounds.c
 

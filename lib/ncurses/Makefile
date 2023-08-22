@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SUBDIR=	ncurses form menu panel
 

@@ -1,4 +1,3 @@
-# $FreeBSD$
 # This test checks the code reading archive files. The archive file
 # is a BSD4.4 file with __.SYMTAB and #1/N long file names.
 #

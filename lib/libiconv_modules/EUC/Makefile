@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 SHLIB=	EUC
 SRCS+=	citrus_euc.c
