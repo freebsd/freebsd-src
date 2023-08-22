@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>		/* u_short etc */
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>

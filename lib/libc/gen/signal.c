@@ -31,8 +31,6 @@
 
 #include <sys/cdefs.h>
 __SCCSID("@(#)signal.c	8.1 (Berkeley) 6/4/93");
-__FBSDID("$FreeBSD$");
-
 /*
  * Almost backwards compatible signal.
  */

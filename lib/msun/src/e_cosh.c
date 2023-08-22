@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* cosh(x)
  * Method : 
  * mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2

@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rstat.c	1.2 91/03/11 TIRPC 1.0; from 1.6 89/03/24 SMI";
 #endif

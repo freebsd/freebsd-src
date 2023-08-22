@@ -24,8 +24,6 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Small amount of shim code needed to get zfs_zstd.c to compile. These items
  * here should all be defined in the SPL or as part of libsa somewhere, but

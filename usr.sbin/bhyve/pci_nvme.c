@@ -57,8 +57,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <net/ieee_oui.h>

@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This code is derived from section 14.3 and the given source
  * in section V of Applied Cryptography, second edition.

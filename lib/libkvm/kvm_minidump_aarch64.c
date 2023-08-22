@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * ARM64 (AArch64) machine dependent routines for kvm and minidumps.
  */

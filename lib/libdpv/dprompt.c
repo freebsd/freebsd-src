@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 
 #define _BSD_SOURCE /* to get dprintf() prototype in stdio.h below */

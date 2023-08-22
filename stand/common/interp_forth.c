@@ -25,8 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>		/* to pick up __FreeBSD_version */
 #include <string.h>
 #include <stand.h>

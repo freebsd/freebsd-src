@@ -17,8 +17,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <openssl/ssl.h>
 #include <ctype.h>
 #include <err.h>

@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * wchar_t *
  * wmemchr(const wchar_t *buf, wchar_t c, size_t n) --

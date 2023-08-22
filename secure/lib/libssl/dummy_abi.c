@@ -1,8 +1,6 @@
 /* This file is in the public domain. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <stdbool.h>
 #include <unistd.h>
 

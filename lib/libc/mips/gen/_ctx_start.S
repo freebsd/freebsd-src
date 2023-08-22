@@ -25,8 +25,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This requires makecontext() to setup a valid GP for locating
  * _ctx_done rather than deriving GP from T9 on entry.  Currently this

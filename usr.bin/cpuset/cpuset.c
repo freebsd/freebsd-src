@@ -30,8 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define _WANT_FREEBSD_BITSET
 
 #include <sys/param.h>

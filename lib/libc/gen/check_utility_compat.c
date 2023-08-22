@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * I din't use "namespace.h" here because none of the relevant utilities
  * are threaded, so I'm not concerned about cancellation points or other

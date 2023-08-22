@@ -12,8 +12,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* remainder(x,p)
  * Return :                  
  * 	returns  x REM p  =  x - [x/p]*p as if in infinite 

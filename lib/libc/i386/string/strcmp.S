@@ -29,8 +29,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * strcmp(s1, s2)
  *	return an integer greater than, equal to, or less than 0, 

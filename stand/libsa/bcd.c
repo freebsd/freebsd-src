@@ -4,8 +4,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 
 u_char const bcd2bin_data[] = {

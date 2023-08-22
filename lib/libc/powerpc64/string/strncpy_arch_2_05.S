@@ -27,8 +27,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 ENTRY(__strncpy_arch_2_05)
 	stdu	%r1,-40(%r1)
 	mflr	%r0

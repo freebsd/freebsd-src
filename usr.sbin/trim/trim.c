@@ -45,8 +45,6 @@
 #include <unistd.h>
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 static bool	candelete(int fd);
 static off_t	getsize(const char *path);
 static int	opendev(const char *path, int flags);

@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This file implements a small portion of the Winpcap API for the
  * Windows NDIS interface in wpa_supplicant. It provides just enough

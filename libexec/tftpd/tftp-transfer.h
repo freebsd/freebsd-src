@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 void	tftp_send(int peer, uint16_t *block, struct tftp_stats *tp);
 void	tftp_receive(int peer, uint16_t *block, struct tftp_stats *tp,
 	    struct tftphdr *firstblock, size_t fb_size);

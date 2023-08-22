@@ -14,8 +14,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* __ieee754_rem_pio2(x,y)
  * 
  * return the remainder of x rem pi/2 in y[0]+y[1] 

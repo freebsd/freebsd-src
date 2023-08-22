@@ -33,8 +33,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #if defined(LIBC_SCCS) && !defined(lint)
 	ASMSTR("from: @(#)rindex.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: rindex.S,v 1.7 2003/08/07 16:42:16 agc Exp $")

@@ -36,8 +36,6 @@
 
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #define _LOCORE		/* XXX not really, just assembly-code source */
 #include <machine/endian.h>
 

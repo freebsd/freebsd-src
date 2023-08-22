@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* atan(x)
  * Method
  *   1. Reduce x to positive by atan(x) = -atan(-x).

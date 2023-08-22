@@ -24,8 +24,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 	.section .init,"ax",@progbits
 	lwz 11,0(1)
 	lwz 0,4(11)

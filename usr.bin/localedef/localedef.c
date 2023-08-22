@@ -32,8 +32,6 @@
  * POSIX localedef.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/types.h>

@@ -34,8 +34,6 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
-
 /*
  * ctlinfo - This collection of routines will know everything there is to
  * know about the information inside a control file ('cf*') which is used

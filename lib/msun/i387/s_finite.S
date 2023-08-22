@@ -34,8 +34,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
-
 ENTRY(finite)
 	movl	8(%esp),%eax
 	andl	$0x7ff00000, %eax

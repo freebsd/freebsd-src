@@ -31,8 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define _WANT_P_OSREL
 #include <sys/param.h>
 #include <machine/cpufunc.h>

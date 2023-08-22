@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * significand(x) computes just
  * 	scalb(x, (double) -ilogb(x)),

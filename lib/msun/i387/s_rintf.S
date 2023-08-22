@@ -4,8 +4,6 @@
  */
 
 #include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
 /* RCSID("$NetBSD: s_rintf.S,v 1.3 1995/05/09 00:17:22 jtc Exp $") */
 
 ENTRY(rintf)

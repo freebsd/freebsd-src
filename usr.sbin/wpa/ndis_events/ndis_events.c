@@ -33,8 +33,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * This program simulates the behavior of the ndis_events utility
  * supplied with wpa_supplicant for Windows. The original utility

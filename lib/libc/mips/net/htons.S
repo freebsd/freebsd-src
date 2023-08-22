@@ -30,9 +30,6 @@
  */
 
 #include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
-
 LEAF(htons)
 #ifdef __MIPSEB__
         move    v0, a0

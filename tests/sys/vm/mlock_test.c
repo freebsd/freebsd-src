@@ -26,8 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>

@@ -40,8 +40,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "../libsecureboot-priv.h"
 #ifdef _STANDALONE
 #define warnx printf

@@ -11,8 +11,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * double logb(x)
  * IEEE 754 logb. Included to pass IEEE test suite. Not recommend.

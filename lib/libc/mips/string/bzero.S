@@ -33,8 +33,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
 	ASMSTR("from: @(#)bzero.s	8.1 (Berkeley) 6/4/93")

@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <langinfo.h>
 #include <limits.h>
 #include <locale.h>

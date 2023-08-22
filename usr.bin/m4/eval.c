@@ -36,9 +36,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-
 /*
  * eval.c
  * Facility: m4 macro processor

@@ -26,8 +26,6 @@
 /*      $NetBSD: cerror.S,v 1.5 2000/01/27 14:58:48 kleink Exp $        */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-	
 #include "SYS.h"
 
 	.globl  HIDENAME(cerror)

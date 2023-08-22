@@ -3,8 +3,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <math.h>
 
 /* bytes for +Infinity on a 387 */

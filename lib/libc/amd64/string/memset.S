@@ -27,8 +27,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Note: this routine was written with kernel use in mind (read: no simd),
  * it is only present in userspace as a temporary measure until something
