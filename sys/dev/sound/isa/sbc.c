@@ -36,7 +36,7 @@
 
 #include <isa/isavar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("");
 
 #define IO_MAX	3
 #define IRQ_MAX	1
