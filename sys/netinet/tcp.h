@@ -398,8 +398,17 @@ struct tcp_info {
 	u_int32_t	__tcpi_received_e0_bytes;
 	u_int32_t	__tcpi_received_ce_bytes;
 
+	u_int32_t	__tcpi_total_tlp;	/* tail loss probes sent */
+	u_int64_t	__tcpi_total_tlp_bytes;	/* tail loss probe bytes sent */
+
+	u_int32_t	tcpi_snd_una;		/* Unacked seqno sent */
+	u_int32_t	tcpi_snd_max;		/* Highest seqno sent */
+	u_int32_t	tcpi_rcv_numsacks;	/* Distinct SACK blks present */
+	u_int32_t	tcpi_rcv_adv;		/* Peer advertised window */
+	u_int32_t	tcpi_dupacks;		/* Consecutive dup ACKs recvd */
+
 	/* Padding to grow without breaking ABI. */
-	u_int32_t	__tcpi_pad[18];		/* Padding. */
+	u_int32_t	__tcpi_pad[10];		/* Padding. */
 };
 
 /*
