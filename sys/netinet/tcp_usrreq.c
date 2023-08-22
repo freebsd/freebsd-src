@@ -1591,6 +1591,11 @@ tcp_fill_info(const struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_snd_rexmitpack = tp->t_sndrexmitpack;
 	ti->tcpi_rcv_ooopack = tp->t_rcvoopack;
 	ti->tcpi_snd_zerowin = tp->t_sndzerowin;
+	ti->tcpi_snd_una = tp->snd_una;
+	ti->tcpi_snd_max = tp->snd_max;
+	ti->tcpi_rcv_numsacks = tp->rcv_numsacks;
+	ti->tcpi_rcv_adv = tp->rcv_adv;
+	ti->tcpi_dupacks = tp->t_dupacks;
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE) {
 		ti->tcpi_options |= TCPI_OPT_TOE;
