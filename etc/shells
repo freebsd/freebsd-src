@@ -1,4 +1,3 @@
-#
 # List of acceptable shells for chpass(1).
 # ftpd(8) will not allow users to connect who are not using
 # one of these shells.
