@@ -30,6 +30,7 @@
 #include <sys/bus.h>
 
 #include <sys/bitset.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -390,7 +391,7 @@ mv_ap806_gicp_release_msi(device_t dev, device_t child, int count,
 
 	for (i = 0; i < count; i++) {
 		BIT_SET(sc->msi_bitmap_size,
-		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_irq),
+		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_event->ie_irq),
 		    sc->msi_bitmap);
 	}
 
@@ -406,7 +407,7 @@ mv_ap806_gicp_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->res);
-	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_irq);
+	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_event->ie_irq);
 
 	return (0);
 }

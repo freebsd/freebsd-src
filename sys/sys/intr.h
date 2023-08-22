@@ -80,7 +80,6 @@ struct intr_pic;
 /* Interrupt source definition. */
 struct intr_irqsrc {
 	device_t		isrc_dev;	/* where isrc is mapped */
-	u_int			isrc_irq;	/* unique identificator */
 	u_int			isrc_flags;
 	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
