@@ -122,9 +122,6 @@
     ((struct iavf_sc *)iflib_get_softc(_ctx))
 
 /* Use the correct assert function for each lock type */
-#define IFLIB_CTX_ASSERT(_ctx) \
-    sx_assert(iflib_ctx_lock_get(_ctx), SA_XLOCKED)
-
 #define IAVF_VC_LOCK(_sc)                mtx_lock(&(_sc)->vc_mtx)
 #define IAVF_VC_UNLOCK(_sc)              mtx_unlock(&(_sc)->vc_mtx)
 #define IAVF_VC_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->vc_mtx)

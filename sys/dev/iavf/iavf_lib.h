@@ -204,20 +204,6 @@ MALLOC_DECLARE(M_IAVF);
 	IAVF_DEFAULT_RSS_HENA_BASE |			\
 	IAVF_DEFAULT_ADV_RSS_HENA)
 
-/* Pre-11 counter(9) compatibility */
-#define IAVF_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
-#define IAVF_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
-#define IAVF_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
-#define IAVF_SET_OERRORS(vsi, count)	(vsi)->oerrors = (count)
-#define IAVF_SET_COLLISIONS(vsi, count)	/* Do nothing; collisions is always 0. */
-#define IAVF_SET_IBYTES(vsi, count)	(vsi)->ibytes = (count)
-#define IAVF_SET_OBYTES(vsi, count)	(vsi)->obytes = (count)
-#define IAVF_SET_IMCASTS(vsi, count)	(vsi)->imcasts = (count)
-#define IAVF_SET_OMCASTS(vsi, count)	(vsi)->omcasts = (count)
-#define IAVF_SET_IQDROPS(vsi, count)	(vsi)->iqdrops = (count)
-#define IAVF_SET_OQDROPS(vsi, count)	(vsi)->oqdrops = (count)
-#define IAVF_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
-
 /* For stats sysctl naming */
 #define IAVF_QUEUE_NAME_LEN 32
 

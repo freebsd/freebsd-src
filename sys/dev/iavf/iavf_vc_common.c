@@ -39,10 +39,6 @@
  */
 #include "iavf_vc_common.h"
 
-/* busy wait delay in msec */
-#define IAVF_BUSY_WAIT_DELAY 10
-#define IAVF_BUSY_WAIT_COUNT 50
-
 /* Static function decls */
 static void iavf_handle_link_event(struct iavf_sc *sc,
     struct virtchnl_pf_event *vpe);
@@ -662,27 +658,19 @@ void
 iavf_update_stats_counters(struct iavf_sc *sc, struct iavf_eth_stats *es)
 {
 	struct iavf_vsi *vsi = &sc->vsi;
-	uint64_t tx_discards;
-
-	tx_discards = es->tx_discards;
 
 	/* Update ifnet stats */
-	IAVF_SET_IPACKETS(vsi, es->rx_unicast +
-	                   es->rx_multicast +
-			   es->rx_broadcast);
-	IAVF_SET_OPACKETS(vsi, es->tx_unicast +
-	                   es->tx_multicast +
-			   es->tx_broadcast);
-	IAVF_SET_IBYTES(vsi, es->rx_bytes);
-	IAVF_SET_OBYTES(vsi, es->tx_bytes);
-	IAVF_SET_IMCASTS(vsi, es->rx_multicast);
-	IAVF_SET_OMCASTS(vsi, es->tx_multicast);
+	vsi->ipackets = es->rx_unicast + es->rx_multicast + es->rx_broadcast;
+	vsi->opackets = es->tx_unicast + es->tx_multicast + es->tx_broadcast;
+	vsi->ibytes = es->rx_bytes;
+	vsi->obytes = es->tx_bytes;
+	vsi->imcasts = es->rx_multicast;
+	vsi->omcasts = es->tx_multicast;
 
-	IAVF_SET_OERRORS(vsi, es->tx_errors);
-	IAVF_SET_IQDROPS(vsi, es->rx_discards);
-	IAVF_SET_OQDROPS(vsi, tx_discards);
-	IAVF_SET_NOPROTO(vsi, es->rx_unknown_protocol);
-	IAVF_SET_COLLISIONS(vsi, 0);
+	vsi->oerrors = es->tx_errors;
+	vsi->iqdrops = es->rx_discards;
+	vsi->oqdrops = es->tx_discards;
+	vsi->noproto = es->rx_unknown_protocol;
 
 	vsi->eth_stats = *es;
 }

@@ -728,7 +728,7 @@ iavf_if_init(if_ctx_t ctx)
 
 	INIT_DBG_IF(ifp, "begin");
 
-	IFLIB_CTX_ASSERT(ctx);
+	sx_assert(iflib_ctx_lock_get(ctx), SA_XLOCKED);
 
 	error = iavf_reset_complete(hw);
 	if (error) {
@@ -870,7 +870,7 @@ iavf_if_msix_intr_assign(if_ctx_t ctx, int msix __unused)
 fail:
 	iflib_irq_free(ctx, &vsi->irq);
 	rx_que = vsi->rx_queues;
-	for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++)
+	for (i = 0; i < vsi->num_rx_queues; i++, rx_que++)
 		iflib_irq_free(ctx, &rx_que->que_irq);
 	return (err);
 }
