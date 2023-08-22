@@ -6,8 +6,6 @@
 -- this stuff is worth it, you can buy me a beer in return.   -Philip Paeps
 -- ----------------------------------------------------------------------------
 --
--- $FreeBSD$
---
 
 BEGEMOT-PF-MIB DEFINITIONS ::= BEGIN
 
