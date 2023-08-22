@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build the
 .Nm libkvm
 library as a part of the base system.

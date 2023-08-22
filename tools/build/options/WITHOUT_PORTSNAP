@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build or install
 .Xr portsnap 8
 and related files.

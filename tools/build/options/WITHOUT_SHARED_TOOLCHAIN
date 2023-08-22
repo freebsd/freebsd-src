@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build the toolchain binaries as statically linked executables.
 The set includes
 .Xr cc 1 ,

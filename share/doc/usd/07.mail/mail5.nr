@@ -26,7 +26,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail5.nr	8.1 (Berkeley) 6/8/93
-.\" $FreeBSD$
 .\"
 .bp
 .sh 1 "Additional features"

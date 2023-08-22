@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build and install
 .Pa /bin/csh
 (which is

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Do not build
 .Xr at 1
 and related utilities.

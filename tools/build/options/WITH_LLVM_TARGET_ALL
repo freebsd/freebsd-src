@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build support for all LLVM targets.
 This option is always applied to the bootstrap compiler for buildworld when
 LLVM is used.

@@ -1,3 +1,2 @@
-.\" $FreeBSD$
 Build dynamically linked binaries as
 Position-Independent Executable (PIE).

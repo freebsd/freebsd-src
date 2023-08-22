@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 Build the toolchain binaries as dynamically linked executables.
 The set includes
 .Xr cc 1 ,

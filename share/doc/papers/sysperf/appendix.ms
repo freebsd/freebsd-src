@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .am vS
 ..
 .am vE
@@ -843,7 +842,6 @@ rnd()
 
 .vE
 '-F
-.\" $FreeBSD$
 .am vS
 ..
 .am vE

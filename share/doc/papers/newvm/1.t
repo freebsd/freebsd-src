@@ -26,7 +26,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\" $FreeBSD$
 .\"
 .NH
 Motivations for a New Virtual Memory System
