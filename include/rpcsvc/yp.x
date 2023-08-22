@@ -37,7 +37,6 @@
 
 #ifndef RPC_HDR
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
 #endif
 
 const YPMAXRECORD = 16777216;
