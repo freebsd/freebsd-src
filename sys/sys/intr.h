@@ -95,7 +95,6 @@ struct intr_pic;
 /* Interrupt source definition. */
 struct intr_irqsrc {
 	struct intr_event	isrc_event;
-	u_int			isrc_irq;	/* unique identificator */
 	u_int			isrc_flags;
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	u_int			isrc_index;
