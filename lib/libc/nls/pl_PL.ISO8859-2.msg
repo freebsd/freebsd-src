@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $ Message catalog for pl_PL.ISO8859-2 locale
 $

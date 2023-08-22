@@ -1,4 +1,3 @@
-$ $FreeBSD$
 $
 $set 1
 $quote "
