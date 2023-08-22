@@ -1,5 +1,4 @@
 // $NetBSD: modelines,v 1.8 2011/03/21 19:28:37 jdc Exp $
-// $FreeBSD$
 //
 // This file was imported from XFree86, and is made of the contents of both
 // the vesamodes and extramodes files.  As a result these should correspond

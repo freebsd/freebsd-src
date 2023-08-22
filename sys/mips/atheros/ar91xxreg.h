@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef	__AR91XX_REG_H__
 #define	__AR91XX_REG_H__

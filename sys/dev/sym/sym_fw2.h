@@ -57,7 +57,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 /*
  *  Scripts for SYMBIOS-Processor

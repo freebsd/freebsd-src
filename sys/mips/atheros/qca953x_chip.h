@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef	__QCA953X_CHIP_H__
 #define	__QCA953X_CHIP_H__

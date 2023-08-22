@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-/*$FreeBSD$*/
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_

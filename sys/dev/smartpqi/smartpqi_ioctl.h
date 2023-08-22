@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef	_PQI_IOCTL_H_
 #define	_PQI_IOCTL_H_

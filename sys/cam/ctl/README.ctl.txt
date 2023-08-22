@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 CTL - CAM Target Layer Description
 

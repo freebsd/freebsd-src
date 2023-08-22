@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef	__AR933X_CHIP_H__
 #define	__AR933X_CHIP_H__

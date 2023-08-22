@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from vpaes-ppc.pl. */
 .machine	"any"
 

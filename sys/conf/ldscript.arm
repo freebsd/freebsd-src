@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 

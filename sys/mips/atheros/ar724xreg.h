@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef	__AR72XX_REG_H__
 #define	__AR72XX_REG_H__

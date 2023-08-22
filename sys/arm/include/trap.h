@@ -1,5 +1,4 @@
 /*	$NetBSD: trap.h,v 1.1 2001/02/23 03:48:19 ichiro Exp $	*/
-/* $FreeBSD$ */
 
 #ifndef _MACHINE_TRAP_H_
 #define _MACHINE_TRAP_H_

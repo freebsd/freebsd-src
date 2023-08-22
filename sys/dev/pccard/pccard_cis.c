@@ -1,5 +1,4 @@
 /* $NetBSD: pcmcia_cis.c,v 1.17 2000/02/10 09:01:52 chopps Exp $ */
-/* $FreeBSD$ */
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause

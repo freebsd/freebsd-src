@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 /*
  * Management interface for smartpqi driver

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 ENTRY(_start)
 

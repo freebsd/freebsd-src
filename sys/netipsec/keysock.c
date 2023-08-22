@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: keysock.c,v 1.25 2001/08/13 20:07:41 itojun Exp $	*/
 
 /*-

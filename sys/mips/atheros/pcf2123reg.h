@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef __PCF2123REG_H__
 #define	__PCF2123REG_H__

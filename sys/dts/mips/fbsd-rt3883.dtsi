@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 &pci {
 	#address-cells = <3>;

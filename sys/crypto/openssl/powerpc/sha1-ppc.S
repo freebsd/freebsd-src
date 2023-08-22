@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from sha1-ppc.pl. */
 .machine	"any"
 .text

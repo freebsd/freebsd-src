@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 
 #ifndef _AM53C974_H_
 #define	_AM53C974_H_

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 
 &palmbus {
 	gpio@600 {

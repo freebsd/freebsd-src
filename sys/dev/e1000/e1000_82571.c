@@ -31,7 +31,6 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
 
 /* 82571EB Gigabit Ethernet Controller
  * 82571EB Gigabit Ethernet Controller (Copper)

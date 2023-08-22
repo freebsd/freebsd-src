@@ -1,4 +1,3 @@
-/*	$FreeBSD$ */
 /*	$NetBSD: pfil.h,v 1.22 2003/06/23 12:57:08 martin Exp $	*/
 
 /*-

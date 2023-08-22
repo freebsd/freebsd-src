@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
 #include "if_em.h"
 #include <sys/sbuf.h>
 #include <machine/_inttypes.h>

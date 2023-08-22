@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*-
  * Generic defines for LSI '909 FC  adapters.
  * FreeBSD Version.
