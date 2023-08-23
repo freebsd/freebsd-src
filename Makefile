@@ -582,6 +582,17 @@ MAKE_PARAMS_${arch}?=	CROSS_TOOLCHAIN=${TOOLCHAIN_${arch}}
 UNIVERSE_TARGET?=	buildworld
 KERNSRCDIR?=		${.CURDIR}/sys
 
+.if ${.MAKE.OS} == "FreeBSD"
+UNIVERSE_TOOLCHAIN_TARGET?=		${MACHINE}
+UNIVERSE_TOOLCHAIN_TARGET_ARCH?=	${MACHINE_ARCH}
+.else
+# MACHINE/MACHINE_ARCH may not follow the same naming as us (e.g. x86_64 vs
+# amd64) on non-FreeBSD. Rather than attempt to sanitise it, arbitrarily use
+# amd64 as the default universe toolchain target.
+UNIVERSE_TOOLCHAIN_TARGET?=		amd64
+UNIVERSE_TOOLCHAIN_TARGET_ARCH?=	amd64
+.endif
+
 targets:	.PHONY
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
 .for target in ${TARGETS}
@@ -613,7 +624,8 @@ universe-toolchain: .PHONY universe_prologue
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}; \
 	    env PATH=${PATH:Q} ${SUB_MAKE} ${JFLAG} kernel-toolchain \
-	    TARGET=${MACHINE} TARGET_ARCH=${MACHINE_ARCH} \
+	    TARGET=${UNIVERSE_TOOLCHAIN_TARGET} \
+	    TARGET_ARCH=${UNIVERSE_TOOLCHAIN_TARGET_ARCH} \
 	    OBJTOP="${HOST_OBJTOP}" \
 	    WITHOUT_SYSTEM_COMPILER=yes \
 	    WITHOUT_SYSTEM_LINKER=yes \
