@@ -557,13 +557,14 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			/* Clear the fields we will be setting */
 			reg &= ~(GITS_BASER_VALID | GITS_BASER_INDIRECT |
 			    GITS_BASER_CACHE_MASK | GITS_BASER_TYPE_MASK |
-			    GITS_BASER_PA_MASK |
+			    GITS_BASER_ESIZE_MASK | GITS_BASER_PA_MASK |
 			    GITS_BASER_SHARE_MASK | GITS_BASER_PSZ_MASK |
 			    GITS_BASER_SIZE_MASK);
 			/* Set the new values */
 			reg |= GITS_BASER_VALID |
 			    (cache << GITS_BASER_CACHE_SHIFT) |
 			    (type << GITS_BASER_TYPE_SHIFT) |
+			    ((esize - 1) << GITS_BASER_ESIZE_SHIFT) |
 			    paddr | (share << GITS_BASER_SHARE_SHIFT) |
 			    (nitspages - 1);
 
