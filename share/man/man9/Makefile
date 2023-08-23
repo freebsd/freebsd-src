@@ -268,6 +268,7 @@ MAN=	accept_filter.9 \
 	pmap_copy.9 \
 	pmap_enter.9 \
 	pmap_extract.9 \
+	pmap_kextract.9 \
 	pmap_growkernel.9 \
 	pmap_init.9 \
 	pmap_is_modified.9 \
@@ -1807,6 +1808,7 @@ MLINKS+=PHOLD.9 PRELE.9 \
 	PHOLD.9 PROC_ASSERT_NOT_HELD.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
+MLINKS+=pmap_kextract.9 vtophys.9
 MLINKS+=pmap_init.9 pmap_init2.9
 MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
