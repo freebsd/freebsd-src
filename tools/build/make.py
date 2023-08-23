@@ -100,7 +100,8 @@ def bootstrap_bmake(source_root, objdir_prefix):
                   bmake_installed_version + "', treating as not present")
 
     configure_args = [
-        "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
+        "--with-default-sys-path=.../share/mk:" +
+        str(bmake_install_dir / "share/mk"),
         "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
         "--without-filemon", "--prefix=" + str(bmake_install_dir)]
 
