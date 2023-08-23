@@ -501,8 +501,6 @@ int t4_write_page_pods_for_buf(struct adapter *, struct toepcb *,
 int t4_write_page_pods_for_sgl(struct adapter *, struct toepcb *,
     struct ppod_reservation *, struct ctl_sg_entry *, int, int, struct mbufq *);
 void t4_free_page_pods(struct ppod_reservation *);
-int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
-    struct mbuf **, struct mbuf **, int *);
 int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
