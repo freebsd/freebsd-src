@@ -537,9 +537,6 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			its_tbl_size = page_size;
 			break;
 		default:
-			if (bootverbose)
-				device_printf(dev, "Unhandled table type %lx\n",
-				    type);
 			continue;
 		}
 		npages = howmany(its_tbl_size, PAGE_SIZE);
