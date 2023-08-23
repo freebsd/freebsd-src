@@ -1,0 +1,58 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This manual page was written by Mina Galić <FreeBSD@igalic.co> under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.Dd August 24, 2023
+.Dt PMAP_KEXTRACT 9
+.Os
+.Sh NAME
+.Nm pmap_kextract ,
+.Nm vtophys
+.Nd extract from kernel page table to a physical address
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft vm_paddr_t
+.Fo pmap_kextract
+.Fa "vm_offset_t va"
+.Fc
+.Ft vm_paddr_t
+.Fo vtophys
+.Fa "vm_offset_t va"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pmap_kextract
+function, and its alias
+.Fn vtophys ,
+map a kernel virtual address to a physical page.
+.Sh RETURN VALUES
+The
+.Fn pmap_kextract
+function will return the physical page address
+.Ft ( vm_paddr_t )
+associated with the kernel virtual address
+.Fa va
+inside the physical map of the address space.
+In case of failure,
+.Fn pmap_kextract
+will
+.Xr panic 9
+on armv6 and riscv, where most other platforms would
+.Xr KASSERT 9 .
+The function will return 0 on arm64.
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mina Galić Aq Mt FreeBSD@igalic.co ,
+based on the
+.Xr pmap_extract 9
+page written by
+.An Bruce M Simpson Aq Mt bms@spc.org .
