@@ -72,31 +72,71 @@ def run(cmd, **kwargs):
     subprocess.check_call(cmd, **kwargs)
 
 
+# Always bootstraps in order to control bmake's config to ensure compatibility
 def bootstrap_bmake(source_root, objdir_prefix):
     bmake_source_dir = source_root / "contrib/bmake"
     bmake_build_dir = objdir_prefix / "bmake-build"
     bmake_install_dir = objdir_prefix / "bmake-install"
     bmake_binary = bmake_install_dir / "bin/bmake"
+    bmake_config = bmake_install_dir / ".make-py-config"
 
-    if (bmake_install_dir / "bin/bmake").exists():
-        return bmake_binary
-    print("Bootstrapping bmake...")
-    # TODO: check if the host system bmake is new enough and use that instead
-    if not bmake_build_dir.exists():
-        os.makedirs(str(bmake_build_dir))
-    env = os.environ.copy()
-    global new_env_vars
-    env.update(new_env_vars)
+    bmake_source_version = subprocess.run([
+        "sh", "-c", ". \"$0\"/VERSION; echo $_MAKE_VERSION",
+        bmake_source_dir], capture_output=True).stdout.strip()
+    try:
+        bmake_source_version = int(bmake_source_version)
+    except ValueError:
+        sys.exit("Invalid source bmake version '" + bmake_source_version + "'")
+
+    bmake_installed_version = 0
+    if bmake_binary.exists():
+        bmake_installed_version = subprocess.run([
+            bmake_binary, "-r", "-f", "/dev/null", "-V", "MAKE_VERSION"],
+            capture_output=True).stdout.strip()
+        try:
+            bmake_installed_version = int(bmake_installed_version.strip())
+        except ValueError:
+            print("Invalid installed bmake version '" +
+                  bmake_installed_version + "', treating as not present")
 
     configure_args = [
         "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
         "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
         "--without-filemon", "--prefix=" + str(bmake_install_dir)]
+
+    configure_args_str = ' '.join([shlex.quote(x) for x in configure_args])
+    if bmake_config.exists():
+        last_configure_args_str = bmake_config.read_text()
+    else:
+        last_configure_args_str = ""
+
+    debug("Source bmake version: " + str(bmake_source_version))
+    debug("Installed bmake version: " + str(bmake_installed_version))
+    debug("Configure args: " + configure_args_str)
+    debug("Last configure args: " + last_configure_args_str)
+
+    if bmake_installed_version == bmake_source_version and \
+       configure_args_str == last_configure_args_str:
+        return bmake_binary
+
+    print("Bootstrapping bmake...")
+    if bmake_build_dir.exists():
+        shutil.rmtree(str(bmake_build_dir))
+    if bmake_install_dir.exists():
+        shutil.rmtree(str(bmake_install_dir))
+
+    os.makedirs(str(bmake_build_dir))
+
+    env = os.environ.copy()
+    global new_env_vars
+    env.update(new_env_vars)
+
     run(["sh", bmake_source_dir / "boot-strap"] + configure_args,
         cwd=str(bmake_build_dir), env=env)
-
     run(["sh", bmake_source_dir / "boot-strap", "op=install"] + configure_args,
         cwd=str(bmake_build_dir))
+    bmake_config.write_text(configure_args_str)
+
     print("Finished bootstrapping bmake...")
     return bmake_binary
 
