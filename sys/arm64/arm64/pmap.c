@@ -1949,6 +1949,10 @@ pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 	return (true);
 }
 
+/*
+ *  Extract from the kernel page table the physical address
+ *  that is mapped by the given virtual address "va".
+ */
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
