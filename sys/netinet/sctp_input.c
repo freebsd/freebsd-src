@@ -830,6 +830,38 @@ sctp_start_net_timers(struct sctp_tcb *stcb)
 }
 
 static void
+sctp_check_data_from_peer(struct sctp_tcb *stcb, int *abort_flag)
+{
+	char msg[SCTP_DIAG_INFO_LEN];
+	struct sctp_association *asoc;
+	struct mbuf *op_err;
+	unsigned int i;
+
+	*abort_flag = 0;
+	asoc = &stcb->asoc;
+	if (SCTP_TSN_GT(asoc->highest_tsn_inside_map, asoc->cumulative_tsn) ||
+	    SCTP_TSN_GT(asoc->highest_tsn_inside_nr_map, asoc->cumulative_tsn)) {
+		SCTP_SNPRINTF(msg, sizeof(msg), "Missing TSN");
+		*abort_flag = 1;
+	}
+	if (!*abort_flag) {
+		for (i = 0; i < asoc->streamincnt; i++) {
+			if (!TAILQ_EMPTY(&asoc->strmin[i].inqueue) ||
+			    !TAILQ_EMPTY(&asoc->strmin[i].uno_inqueue)) {
+				SCTP_SNPRINTF(msg, sizeof(msg), "Missing user data");
+				*abort_flag = 1;
+				break;
+			}
+		}
+	}
+	if (*abort_flag) {
+		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INPUT + SCTP_LOC_9;
+		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, false, SCTP_SO_NOT_LOCKED);
+	}
+}
+
+static void
 sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net, int *abort_flag)
 {
@@ -852,12 +884,10 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	if (*abort_flag) {
 		return;
 	}
-	/*
-	 * FIXME MT: Handle the case where there are still incomplete
-	 * received user messages or known missing user messages from the
-	 * peer. One way to handle this is to abort the associations in this
-	 * case.
-	 */
+	sctp_check_data_from_peer(stcb, abort_flag);
+	if (*abort_flag) {
+		return;
+	}
 	if (stcb->sctp_socket) {
 		if ((SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
@@ -914,6 +944,8 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
+	int abort_flag;
+
 	SCTPDBG(SCTP_DEBUG_INPUT2,
 	    "sctp_handle_shutdown_ack: handling SHUTDOWN ACK\n");
 	if (stcb == NULL) {
@@ -934,12 +966,10 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	/*
-	 * FIXME MT: Handle the case where there are still incomplete
-	 * received user messages or known missing user messages from the
-	 * peer. One way to handle this is to abort the associations in this
-	 * case.
-	 */
+	sctp_check_data_from_peer(stcb, &abort_flag);
+	if (abort_flag) {
+		return;
+	}
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&stcb->asoc.send_queue) ||
 	    !TAILQ_EMPTY(&stcb->asoc.sent_queue) ||
