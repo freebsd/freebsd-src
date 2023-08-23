@@ -78,8 +78,6 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 			errno = EINVAL;
 			return (-1);
 		}
-		handle->cv_shared->ci_discard_ilseq = false;
-		handle->cv_shared->ci_hooks = NULL;
 		cs->srcbuf_len = cs->dstbuf_len = 0;
 		cs->initialized = true;
 		if (s == NULL)

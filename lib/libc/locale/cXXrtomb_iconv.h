@@ -75,8 +75,6 @@ cXXrtomb_l(char * __restrict s, charXX_t c, mbstate_t * __restrict ps,
 			errno = EINVAL;
 			return (-1);
 		}
-		handle->cv_shared->ci_discard_ilseq = false;
-		handle->cv_shared->ci_hooks = NULL;
 		cs->srcbuf_len = 0;
 		cs->initialized = true;
 		if (s == NULL)
