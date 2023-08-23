@@ -1277,21 +1277,44 @@ its_device_alloc(struct gicv3_its_softc *sc, int devid)
 
 	/* No device table */
 	if (sc->sc_dev_table_idx < 0) {
-		if (devid < (1 << sc->sc_devbits))
-			return (true);
-		return (false);
+		if (devid >= (1 << sc->sc_devbits)) {
+			if (bootverbose) {
+				device_printf(sc->dev,
+				    "%s: Device out of range for hardware "
+				    "(%x >= %x)\n", __func__, devid,
+				    1 << sc->sc_devbits);
+			}
+			return (false);
+		}
+		return (true);
 	}
 
 	ptable = &sc->sc_its_ptab[sc->sc_dev_table_idx];
 	/* Check the devid is within the table limit */
 	if (!ptable->ptab_indirect) {
-		return (devid < ptable->ptab_l1_nidents);
+		if (devid >= ptable->ptab_l1_nidents) {
+			if (bootverbose) {
+				device_printf(sc->dev,
+				    "%s: Device out of range for table "
+				    "(%x >= %x)\n", __func__, devid,
+				    ptable->ptab_l1_nidents);
+			}
+			return (false);
+		}
+
+		return (true);
 	}
 
 	/* Check the devid is within the allocated range */
 	index = devid / ptable->ptab_l2_nidents;
-	if (index >= ptable->ptab_l1_nidents)
+	if (index >= ptable->ptab_l1_nidents) {
+		if (bootverbose) {
+			device_printf(sc->dev,
+			    "%s: Index out of range for table (%x >= %x)\n",
+			    __func__, index, ptable->ptab_l1_nidents);
+		}
 		return (false);
+	}
 
 	table = (uint64_t *)ptable->ptab_vaddr;
 	/* We have an second level table */
