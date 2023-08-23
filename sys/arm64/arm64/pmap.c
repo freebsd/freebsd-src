@@ -1949,6 +1949,12 @@ pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 	return (true);
 }
 
+/*
+ *	Routine:	pmap_kextract
+ *	Function:
+ *		Extract the physical page address associated with the given kernel
+ *		virtual address.
+ */
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {

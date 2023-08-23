@@ -3846,7 +3846,7 @@ pmap_flush_cache_phys_range(vm_paddr_t spa, vm_paddr_t epa, vm_memattr_t mattr)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_paddr_t 
+vm_paddr_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	pdp_entry_t *pdpe;
@@ -3933,6 +3933,12 @@ out:
 	return (m);
 }
 
+/*
+ *	Routine:	pmap_kextract
+ *	Function:
+ *		Extract the physical page address associated with the given kernel
+ *		virtual address.
+ */
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
