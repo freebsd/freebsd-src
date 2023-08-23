@@ -480,6 +480,7 @@ thread_fini(void *mem, int size)
 	EVENTHANDLER_DIRECT_INVOKE(thread_fini, td);
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
+	rangelock_entry_free(td->td_rlqe);
 	umtx_thread_fini(td);
 	MPASS(td->td_sel == NULL);
 }
