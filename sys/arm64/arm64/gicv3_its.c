@@ -221,10 +221,7 @@ struct its_cmd {
 /* An ITS private table */
 struct its_ptable {
 	vm_offset_t	ptab_vaddr;
-	/* Size of the L1 table */
-	size_t		ptab_l1_size;
-	/* Number of L1 entries */
-	int		ptab_l1_nidents;
+	unsigned long	ptab_size;
 };
 
 /* ITS collection description. */
@@ -249,8 +246,6 @@ struct gicv3_its_softc {
 	cpuset_t	sc_cpus;
 	struct domainset *sc_ds;
 	u_int		gic_irq_cpu;
-	int		sc_devbits;
-	int		sc_dev_table_idx;
 
 	struct its_ptable sc_its_ptab[GITS_BASER_NUM];
 	struct its_col *sc_its_cols[MAXCPU];	/* Per-CPU collections */
@@ -481,8 +476,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 	vm_offset_t table;
 	vm_paddr_t paddr;
 	uint64_t cache, reg, share, tmp, type;
-	size_t its_tbl_size, nitspages, npages;
-	size_t l1_esize, l1_nidents;
+	size_t esize, its_tbl_size, nidents, nitspages, npages;
 	int i, page_size;
 	int devbits;
 
@@ -511,7 +505,6 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		devbits = GITS_TYPER_DEVB(gic_its_read_8(sc, GITS_TYPER));
 		cache = GITS_BASER_CACHE_WAWB;
 	}
-	sc->sc_devbits = devbits;
 	share = GITS_BASER_SHARE_IS;
 
 	for (i = 0; i < GITS_BASER_NUM; i++) {
@@ -522,7 +515,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			continue;
 
 		/* The table entry size */
-		l1_esize = GITS_BASER_ESIZE(reg);
+		esize = GITS_BASER_ESIZE(reg);
 
 		/* Find the tables page size */
 		page_size = gicv3_its_table_page_size(sc, i);
@@ -534,13 +527,8 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 
 		switch(type) {
 		case GITS_BASER_TYPE_DEV:
-			if (sc->sc_dev_table_idx != -1)
-				device_printf(dev,
-				    "Warning: Multiple device tables found\n");
-
-			sc->sc_dev_table_idx = i;
-			l1_nidents = (1 << devbits);
-			its_tbl_size = l1_esize * l1_nidents;
+			nidents = (1 << devbits);
+			its_tbl_size = esize * nidents;
 			its_tbl_size = roundup2(its_tbl_size, page_size);
 			break;
 		case GITS_BASER_TYPE_VP:
@@ -562,8 +550,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		    (1ul << 48) - 1, PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
-		sc->sc_its_ptab[i].ptab_l1_size = its_tbl_size;
-		sc->sc_its_ptab[i].ptab_l1_nidents = l1_nidents;
+		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
 
 		paddr = vtophys(table);
 
@@ -887,7 +874,6 @@ gicv3_its_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->sc_dev_table_idx = -1;
 	sc->sc_irq_length = gicv3_get_nirqs(dev);
 	sc->sc_irq_base = GIC_FIRST_LPI;
 	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
@@ -1214,23 +1200,6 @@ its_device_find(device_t dev, device_t child)
 	return (its_dev);
 }
 
-static bool
-its_device_alloc(struct gicv3_its_softc *sc, int devid)
-{
-	struct its_ptable *ptable;
-
-	/* No device table */
-	if (sc->sc_dev_table_idx < 0) {
-		if (devid < (1 << sc->sc_devbits))
-			return (true);
-		return (false);
-	}
-
-	ptable = &sc->sc_its_ptab[sc->sc_dev_table_idx];
-	/* Check the devid is within the table limit */
-	return (devid < ptable->ptab_l1_nidents);
-}
-
 static struct its_dev *
 its_device_get(device_t dev, device_t child, u_int nvecs)
 {
@@ -1255,11 +1224,6 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	its_dev->lpis.lpi_busy = 0;
 	its_dev->lpis.lpi_num = nvecs;
 	its_dev->lpis.lpi_free = nvecs;
-
-	if (!its_device_alloc(sc, its_dev->devid)) {
-		free(its_dev, M_GICV3_ITS);
-		return (NULL);
-	}
 
 	if (vmem_alloc(sc->sc_irq_alloc, nvecs, M_FIRSTFIT | M_NOWAIT,
 	    &irq_base) != 0) {
