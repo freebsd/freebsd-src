@@ -109,13 +109,13 @@ xlnx_dwc3_attach(device_t dev)
 		}
 	}
 	if (hwreset_get_by_ofw_name(dev, node, "usb_hibrst", &sc->rst_hibrst) == 0) {
-		if (hwreset_deassert(sc->rst_crst) != 0) {
+		if (hwreset_deassert(sc->rst_hibrst) != 0) {
 			device_printf(dev, "Cannot deassert reset\n");
 			return (ENXIO);
 		}
 	}
 	if (hwreset_get_by_ofw_name(dev, node, "usb_apbrst", &sc->rst_apbrst) == 0) {
-		if (hwreset_deassert(sc->rst_crst) != 0) {
+		if (hwreset_deassert(sc->rst_apbrst) != 0) {
 			device_printf(dev, "Cannot deassert reset\n");
 			return (ENXIO);
 		}
