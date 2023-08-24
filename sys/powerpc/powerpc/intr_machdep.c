@@ -219,8 +219,7 @@ intrcnt_add(const char *name, u_long **countp)
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
-	char intrname[16];
-	struct powerpc_intr *i, *iscan;
+	struct powerpc_intr *i;
 	unsigned int vector;
 
 	for (vector = 0; vector < nvectors; vector++) {
@@ -229,6 +228,23 @@ intr_lookup(u_int irq)
 		if (i->irq == irq)
 			return (i);
 	}
+
+	return (NULL);
+}
+
+static struct powerpc_intr *
+intr_lookup_creat(u_register_t irq)
+{
+	char intrname[16];
+	struct powerpc_intr *i, *iscan;
+	unsigned int vector = nvectors;
+
+	/* ensure nvectors is read before intr_lookup() */
+	rmb();
+
+	i = intr_lookup(irq);
+	if (i != NULL)
+		return (i);
 
 	/* not found, but table is already full */
 	if (__predict_false(vector >= num_io_irqs))
@@ -520,7 +536,7 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 	struct powerpc_intr *i;
 	int error, enable = 0;
 
-	i = intr_lookup(irq);
+	i = intr_lookup_creat(irq);
 	if (i == NULL)
 		return (ENOMEM);
 
@@ -602,7 +618,7 @@ powerpc_fw_config_intr(int irq, int sense_code)
 {
 	struct powerpc_intr *i;
 
-	i = intr_lookup(irq);
+	i = intr_lookup_creat(irq);
 	if (i == NULL)
 		return (ENOMEM);
 
@@ -624,7 +640,8 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct powerpc_intr *i;
 
-	i = intr_lookup(irq);
+	/* Seems odd, likely wants intr_lookup(), but no documentation */
+	i = intr_lookup_creat(irq);
 	if (i == NULL)
 		return (ENOMEM);
 
