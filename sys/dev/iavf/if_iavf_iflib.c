@@ -74,6 +74,7 @@ static void	 iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static uint64_t	 iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt);
 static void	 iavf_if_init(if_ctx_t ctx);
 static void	 iavf_if_stop(if_ctx_t ctx);
+static bool	 iavf_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static int	iavf_allocate_pci_resources(struct iavf_sc *);
 static void	iavf_free_pci_resources(struct iavf_sc *);
@@ -169,6 +170,7 @@ static device_method_t iavf_if_methods[] = {
 	DEVMETHOD(ifdi_vlan_register, iavf_if_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, iavf_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, iavf_if_get_counter),
+	DEVMETHOD(ifdi_needs_restart, iavf_if_needs_restart),
 	DEVMETHOD_END
 };
 
@@ -1494,6 +1496,25 @@ iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		return (vsi->noproto);
 	default:
 		return (if_get_counter_default(ifp, cnt));
+	}
+}
+
+/* iavf_if_needs_restart - Tell iflib when the driver needs to be reinitialized
+ * @ctx: iflib context
+ * @event: event code to check
+ *
+ * Defaults to returning false for unknown events.
+ *
+ * @returns true if iflib needs to reinit the interface
+ */
+static bool
+iavf_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+{
+	switch (event) {
+	case IFLIB_RESTART_VLAN_CONFIG:
+		return (true);
+	default:
+		return (false);
 	}
 }
 
