@@ -12,20 +12,8 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
-	FreeBSD 14.x has many debugging features turned on, in both the kernel
-	and userland.  These features attempt to detect incorrect use of
-	system primitives, and encourage loud failure through extra sanity
-	checking and fail stop semantics.  They also substantially impact
-	system performance.  If you want to do performance measurement,
-	benchmarking, and optimization, you'll want to turn them off.  This
-	includes various WITNESS- related kernel options, INVARIANTS, malloc
-	debugging flags in userland, and various verbose features in the
-	kernel.  Many developers choose to disable these features on build
-	machines to maximize performance.  (To completely disable malloc
-	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
-	world, or to merely disable the most expensive debugging functionality
-	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+20230818:
+	__FreeBSD_version 1400095 after the branching stable/14 from main.
 
 20230817:
 	Serial communication (in boot loaders, kernel, and userland) has

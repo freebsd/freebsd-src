@@ -18,7 +18,7 @@ GITSRC="src.git"
 GITPORTS="ports.git"
 
 ## Set the src/, ports/, and doc/ branches or tags.
-SRCBRANCH="main"
+SRCBRANCH="stable/14"
 PORTBRANCH="main"
 
 ## Sample configuration for using git from ports.
