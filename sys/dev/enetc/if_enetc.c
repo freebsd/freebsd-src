@@ -96,6 +96,7 @@ static int	enetc_mtu_set(if_ctx_t, uint32_t);
 static void	enetc_setup_multicast(if_ctx_t);
 static void	enetc_timer(if_ctx_t, uint16_t);
 static void	enetc_update_admin_status(if_ctx_t);
+static bool	enetc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static miibus_readreg_t		enetc_miibus_readreg;
 static miibus_writereg_t	enetc_miibus_writereg;
@@ -201,6 +202,8 @@ static device_method_t enetc_iflib_methods[] = {
 	DEVMETHOD(ifdi_promisc_set,		enetc_promisc_set),
 	DEVMETHOD(ifdi_timer,			enetc_timer),
 	DEVMETHOD(ifdi_update_admin_status,	enetc_update_admin_status),
+
+	DEVMETHOD(ifdi_needs_restart,		enetc_if_needs_restart),
 
 	DEVMETHOD_END
 };
@@ -1407,6 +1410,16 @@ enetc_update_admin_status(if_ctx_t ctx)
 	if (!sc->fixed_link) {
 		miid = device_get_softc(sc->miibus);
 		mii_tick(miid);
+	}
+}
+
+static bool
+enetc_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+{
+	switch (event) {
+	case IFLIB_RESTART_VLAN_CONFIG:
+	default:
+		return (false);
 	}
 }
 
