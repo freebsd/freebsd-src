@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,9 +26,6 @@
 
 #include "smartpqi_includes.h"
 
-/* 5 mins timeout for quiesce */
-#define PQI_QUIESCE_TIMEOUT	300000
-
 /*
  * Request the adapter to get PQI capabilities supported.
  */
@@ -36,7 +33,7 @@ static int
 pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	
+
 	DBG_FUNC("IN\n");
 
 	gen_adm_req_iu_t	admin_req;
@@ -49,7 +46,6 @@ pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	capability = os_mem_alloc(softs, sizeof(*capability));
 	if (!capability) {
 		DBG_ERR("Failed to allocate memory for capability\n");
-		ret = PQI_STATUS_FAILURE;
 		goto err_out;
 	}
 
@@ -57,7 +53,7 @@ pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	memset(&admin_resp, 0, sizeof(admin_resp));
 
 	memset(&pqi_cap_dma_buf, 0, sizeof(struct dma_mem));
-	pqi_cap_dma_buf.tag = "pqi_cap_buf";
+	os_strlcpy(pqi_cap_dma_buf.tag, "pqi_cap_buf", sizeof(pqi_cap_dma_buf.tag));
 	pqi_cap_dma_buf.size = REPORT_PQI_DEV_CAP_DATA_BUF_SIZE;
 	pqi_cap_dma_buf.align = PQISRC_DEFAULT_DMA_ALIGN;
 
@@ -110,6 +106,12 @@ pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	DBG_INIT("softs->ib_spanning_supported: %d\n", softs->ib_spanning_supported);
 	DBG_INIT("softs->ob_spanning_supported: %d\n", softs->ob_spanning_supported);
 
+	/* Not expecting these to change, could cause problems if they do */
+	ASSERT(softs->pqi_dev_cap.max_iq_elem_len == PQISRC_OP_MAX_ELEM_SIZE);
+	ASSERT(softs->pqi_dev_cap.min_iq_elem_len == PQISRC_OP_MIN_ELEM_SIZE);
+	ASSERT(softs->max_ib_iu_length_per_fw == PQISRC_MAX_SPANNING_IU_LENGTH);
+	ASSERT(softs->ib_spanning_supported == true);
+
 
 	os_mem_free(softs, (void *)capability,
 		    REPORT_PQI_DEV_CAP_DATA_BUF_SIZE);
@@ -135,6 +137,7 @@ err_out:
 void
 pqisrc_free_rcb(pqisrc_softstate_t *softs, int req_count)
 {
+
 	uint32_t num_req;
 	size_t size;
 	int i;
@@ -152,6 +155,7 @@ pqisrc_free_rcb(pqisrc_softstate_t *softs, int req_count)
 
 /*
  * Allocate memory for rcb and SG descriptors.
+ * TODO : Sg list should be created separately
  */
 static int
 pqisrc_allocate_rcb(pqisrc_softstate_t *softs)
@@ -168,11 +172,11 @@ pqisrc_allocate_rcb(pqisrc_softstate_t *softs)
 	/* Set maximum outstanding requests */
 	/* The valid tag values are from 1, 2, ..., softs->max_outstanding_io
 	 * The rcb will be accessed by using the tag as index
-	 * As 0 tag index is not used, we need to allocate one extra.
+     * As 0 tag index is not used, we need to allocate one extra.
 	 */
 	softs->max_outstanding_io = softs->pqi_cap.max_outstanding_io;
 	num_req = softs->max_outstanding_io + 1;
-	DBG_INIT("Max Outstanding IO reset to %d\n", num_req);
+	DBG_INIT("Max Outstanding IO reset to %u\n", num_req);
 
 	alloc_size = num_req * sizeof(rcb_t);
 
@@ -192,9 +196,10 @@ pqisrc_allocate_rcb(pqisrc_softstate_t *softs)
 	prcb = &softs->rcb[1];
 	/* Initialize rcb */
 	for(i=1; i < num_req; i++) {
+		/* TODO:Here tag is local variable */
 		char tag[15];
 		sprintf(tag, "sg_dma_buf%d", i);
-		softs->sg_dma_desc[i].tag = tag;
+		os_strlcpy(softs->sg_dma_desc[i].tag, tag, sizeof(softs->sg_dma_desc[i].tag));
 		softs->sg_dma_desc[i].size = sg_buf_size;
 		softs->sg_dma_desc[i].align = PQISRC_DEFAULT_DMA_ALIGN;
 
@@ -231,7 +236,9 @@ pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 
 	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d",
 		softs->intr_count, softs->num_cpus_online);
-	
+
+	/* TODO : Get the number of IB and OB queues from OS layer */
+
 	if (softs->intr_count == 1 || softs->num_cpus_online == 1) {
 		/* Share the event and Operational queue. */
 		softs->num_op_obq = 1;
@@ -244,32 +251,33 @@ pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 		softs->share_opq_and_eventq = false;
 	}
 	/* If the available interrupt count is more than one,
-	we dont need to share the interrupt for IO and event queue */
+	we don’t need to share the interrupt for IO and event queue */
 	if (softs->intr_count > 1)
 		softs->share_opq_and_eventq = false;
 
-	DBG_INIT("softs->num_op_obq : %d\n",softs->num_op_obq);
+	DBG_INIT("softs->num_op_obq : %u\n",softs->num_op_obq);
+
+	/* TODO : Reset the interrupt count based on number of queues*/
 
 	softs->num_op_raid_ibq = softs->num_op_obq;
 	softs->num_op_aio_ibq = softs->num_op_raid_ibq;
-	softs->ibq_elem_size =  softs->pqi_dev_cap.max_iq_elem_len * 16;
-	softs->obq_elem_size = softs->pqi_dev_cap.max_oq_elem_len * 16;
+	softs->max_ibq_elem_size =  softs->pqi_dev_cap.max_iq_elem_len * 16;
+	softs->max_obq_elem_size = softs->pqi_dev_cap.max_oq_elem_len * 16;
 	if (softs->max_ib_iu_length_per_fw == 256 &&
 	    softs->ob_spanning_supported) {
 		/* older f/w that doesn't actually support spanning. */
-		softs->max_ib_iu_length = softs->ibq_elem_size;
+		softs->max_ib_iu_length = softs->max_ibq_elem_size;
 	} else {
 		/* max. inbound IU length is an multiple of our inbound element size. */
-		softs->max_ib_iu_length =
-			(softs->max_ib_iu_length_per_fw / softs->ibq_elem_size) *
-			 softs->ibq_elem_size;
-
+		softs->max_ib_iu_length = PQISRC_ROUND_DOWN(softs->max_ib_iu_length_per_fw,
+			softs->max_ibq_elem_size);
 	}
+
 	/* If Max. Outstanding IO came with Max. Spanning element count then,
 		needed elements per IO are multiplication of
 		Max.Outstanding IO and  Max.Spanning element */
 	total_iq_elements = (softs->max_outstanding_io *
-		(softs->max_ib_iu_length / softs->ibq_elem_size));
+		(softs->max_ib_iu_length / softs->max_ibq_elem_size));
 
 	softs->num_elem_per_op_ibq = total_iq_elements / softs->num_op_raid_ibq;
 	softs->num_elem_per_op_ibq = MIN(softs->num_elem_per_op_ibq,
@@ -279,15 +287,23 @@ pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 	softs->num_elem_per_op_obq = MIN(softs->num_elem_per_op_obq,
 		softs->pqi_dev_cap.max_oq_elements);
 
-	softs->max_sg_per_iu = ((softs->max_ib_iu_length -
-				softs->ibq_elem_size) /
-				sizeof(sgt_t)) +
-				MAX_EMBEDDED_SG_IN_FIRST_IU;
+	/* spanning elements should be 9 (1152/128) */
+	softs->max_spanning_elems = softs->max_ib_iu_length/softs->max_ibq_elem_size;
+	ASSERT(softs->max_spanning_elems == PQISRC_MAX_SPANNING_ELEMS);
 
-	DBG_INIT("softs->max_ib_iu_length: %d\n", softs->max_ib_iu_length);
-	DBG_INIT("softs->num_elem_per_op_ibq: %d\n", softs->num_elem_per_op_ibq);
-	DBG_INIT("softs->num_elem_per_op_obq: %d\n", softs->num_elem_per_op_obq);
-	DBG_INIT("softs->max_sg_per_iu: %d\n", softs->max_sg_per_iu);
+	/* max SGs should be 8 (128/16) */
+	softs->max_sg_per_single_iu_element = softs->max_ibq_elem_size / sizeof(sgt_t);
+	ASSERT(softs->max_sg_per_single_iu_element == MAX_EMBEDDED_SG_IN_IU);
+
+	/* max SGs for spanning cmd should be 68*/
+	softs->max_sg_per_spanning_cmd = (softs->max_spanning_elems - 1) * softs->max_sg_per_single_iu_element;
+	softs->max_sg_per_spanning_cmd += MAX_EMBEDDED_SG_IN_FIRST_IU_DEFAULT;
+
+	DBG_INIT("softs->max_ib_iu_length: %d\n", softs->max_ib_iu_length);       /* 1152 per FW advertisement */
+	DBG_INIT("softs->num_elem_per_op_ibq: %u\n", softs->num_elem_per_op_ibq); /* 32 for xcal */
+	DBG_INIT("softs->num_elem_per_op_obq: %u\n", softs->num_elem_per_op_obq); /* 256 for xcal */
+	DBG_INIT("softs->max_spanning_elems: %d\n", softs->max_spanning_elems);   /* 9 */
+	DBG_INIT("softs->max_sg_per_spanning_cmd: %u\n", softs->max_sg_per_spanning_cmd); /* 68 until we add AIO writes */
 
 	DBG_FUNC("OUT\n");
 }
@@ -384,293 +400,6 @@ err_out:
 	return ret;
 }
 
-/* PQI Feature processing */
-static int
-pqisrc_config_table_update(struct pqisrc_softstate *softs,
-	uint16_t first_section, uint16_t last_section)
-{
-	pqi_vendor_general_request_t request;
-	int ret = PQI_STATUS_FAILURE;
-
-	memset(&request, 0, sizeof(request));
-
-	request.header.iu_type = PQI_REQUEST_IU_VENDOR_GENERAL;
-	request.header.iu_length = sizeof(request) - PQI_REQUEST_HEADER_LENGTH;
-	request.function_code = PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE;
-	request.data.config_table_update.first_section = first_section;
-	request.data.config_table_update.last_section = last_section;
-
-	ret = pqisrc_build_send_vendor_request(softs, &request, NULL);
-
-	if (ret != PQI_STATUS_SUCCESS) {
-		DBG_ERR("Failed to submit vendor general request IU, Ret status: %d\n", ret);
-		return PQI_STATUS_FAILURE;
-	}
-
-	return PQI_STATUS_SUCCESS;
-}
-
-static inline
-boolean_t pqi_is_firmware_feature_supported(
-	struct pqi_conf_table_firmware_features *firmware_feature_list,
-	unsigned int bit_position)
-{
-	unsigned int byte_index;
-
-	byte_index = bit_position / BITS_PER_BYTE;
-
-	if (byte_index >= firmware_feature_list->num_elements)
-		return false;
-
-	return firmware_feature_list->features_supported[byte_index] &
-		(1 << (bit_position % BITS_PER_BYTE)) ? true : false;
-}
-
-static inline
-boolean_t pqi_is_firmware_feature_enabled(
-	struct pqi_conf_table_firmware_features *firmware_feature_list,
-	uint8_t *firmware_features_addr, unsigned int bit_position)
-{
-	unsigned int byte_index;
-	uint8_t *feature_enabled_addr;
-
-	byte_index = (bit_position / BITS_PER_BYTE) +
-		(firmware_feature_list->num_elements * 2);
-
-	feature_enabled_addr = firmware_features_addr +
-		offsetof(struct pqi_conf_table_firmware_features,
-			features_supported) + byte_index;
-
-	return *feature_enabled_addr &
-		(1 << (bit_position % BITS_PER_BYTE)) ? true : false;
-}
-
-static inline void
-pqi_request_firmware_feature(
-	struct pqi_conf_table_firmware_features *firmware_feature_list,
-	unsigned int bit_position)
-{
-	unsigned int byte_index;
-
-	byte_index = (bit_position / BITS_PER_BYTE) +
-		firmware_feature_list->num_elements;
-
-	firmware_feature_list->features_supported[byte_index] |=
-		(1 << (bit_position % BITS_PER_BYTE));
-}
-
-/* Update PQI config table firmware features section and inform the firmware */
-static int
-pqisrc_set_host_requested_firmware_feature(pqisrc_softstate_t *softs,
-	struct pqi_conf_table_firmware_features *firmware_feature_list)
-{
-	uint8_t *request_feature_addr;
-	void *request_feature_abs_addr;
-
-	request_feature_addr = firmware_feature_list->features_supported +
-		firmware_feature_list->num_elements;
-	request_feature_abs_addr = softs->fw_features_section_abs_addr +
-		(request_feature_addr - (uint8_t*)firmware_feature_list);
-
-	os_io_memcpy(request_feature_abs_addr, request_feature_addr,
-			firmware_feature_list->num_elements);
-
-	return pqisrc_config_table_update(softs,
-		PQI_CONF_TABLE_SECTION_FIRMWARE_FEATURES,
-		PQI_CONF_TABLE_SECTION_FIRMWARE_FEATURES);
-}
-
-/* Check firmware has enabled the feature specified in the respective bit position. */
-inline boolean_t
-pqisrc_is_firmware_feature_enabled(pqisrc_softstate_t *softs,
-		struct pqi_conf_table_firmware_features *firmware_feature_list, uint16_t bit_position)
-{
-	uint16_t byte_index;
-	uint8_t *features_enabled_abs_addr;
-
-	byte_index = (bit_position / BITS_PER_BYTE) +
-		(firmware_feature_list->num_elements * 2);
-
-	features_enabled_abs_addr = softs->fw_features_section_abs_addr +
-	offsetof(struct pqi_conf_table_firmware_features,features_supported) + byte_index;
-
-	return *features_enabled_abs_addr &
-		(1 << (bit_position % BITS_PER_BYTE)) ? true : false;
-}
-
-static void
-pqi_firmware_feature_status(struct pqisrc_softstate	*softs,
-	struct pqi_firmware_feature *firmware_feature)
-{
-	switch(firmware_feature->feature_bit) {
-	case PQI_FIRMWARE_FEATURE_OFA:
-		break;
-	case PQI_FIRMWARE_FEATURE_TIMEOUT_IN_RAID_IU_SUPPORT:
-		softs->timeout_in_passthrough = true;
-		break;
-	case PQI_FIRMWARE_FEATURE_TIMEOUT_IN_TMF_IU_SUPPORT:
-		softs->timeout_in_tmf = true;
-		break;
-	default:
-		DBG_NOTE("Nothing to do \n");
-	}
-}
-
-/* Firmware features supported by the driver */
-static struct
-pqi_firmware_feature pqi_firmware_features[] = {
-	{
-		.feature_name = "Support timeout for pass-through commands",
-		.feature_bit = PQI_FIRMWARE_FEATURE_TIMEOUT_IN_RAID_IU_SUPPORT,
-		.feature_status = pqi_firmware_feature_status,
-	},
-	{
-		.feature_name = "Support timeout for LUN Reset TMF",
-		.feature_bit = PQI_FIRMWARE_FEATURE_TIMEOUT_IN_TMF_IU_SUPPORT,
-		.feature_status = pqi_firmware_feature_status,
-	}
-};
-
-static void
-pqisrc_process_firmware_features(pqisrc_softstate_t *softs)
-{
-	int rc;
-	struct pqi_conf_table_firmware_features *firmware_feature_list;
-	unsigned int i;
-	unsigned int num_features_requested;
-
-	firmware_feature_list = (struct pqi_conf_table_firmware_features*)
-		softs->fw_features_section_abs_addr;
-
-	/* Check features and request those supported by firmware and driver.*/
-	for (i = 0, num_features_requested = 0;
-		i < ARRAY_SIZE(pqi_firmware_features); i++) {
-		/* Firmware support it ? */
-		if (pqi_is_firmware_feature_supported(firmware_feature_list,
-				pqi_firmware_features[i].feature_bit)) {
-			pqi_request_firmware_feature(firmware_feature_list,
-				pqi_firmware_features[i].feature_bit);
-			pqi_firmware_features[i].supported = true;
-			num_features_requested++;
-			DBG_NOTE("%s supported by driver, requesting firmware to enable it\n",
-					pqi_firmware_features[i].feature_name);
-		} else {
-			DBG_NOTE("%s supported by driver, but not by current firmware\n",
-					pqi_firmware_features[i].feature_name);
-		}
-	}
-	if (num_features_requested == 0)
-		return;
-
-	rc = pqisrc_set_host_requested_firmware_feature(softs, firmware_feature_list);
-	if (rc) {
-		DBG_ERR("Failed to update pqi config table\n");
-		return;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
-		if (pqi_is_firmware_feature_enabled(firmware_feature_list,
-			softs->fw_features_section_abs_addr, pqi_firmware_features[i].feature_bit)) {
-			pqi_firmware_features[i].enabled = true;
-			DBG_NOTE("Firmware feature %s enabled \n",pqi_firmware_features[i].feature_name);
-			if(pqi_firmware_features[i].feature_status)
-				pqi_firmware_features[i].feature_status(softs, &(pqi_firmware_features[i]));
-		}
-	}
-}
-
-/*
- * Get the PQI configuration table parameters.
- * Currently using for heart-beat counter scratch-pad register.
- */
-int
-pqisrc_process_config_table(pqisrc_softstate_t *softs)
-{
-	int ret = PQI_STATUS_FAILURE;
-	uint32_t config_table_size;
-	uint32_t section_off;
-	uint8_t *config_table_abs_addr __unused;
-	struct pqi_conf_table *conf_table;
-	struct pqi_conf_table_section_header *section_hdr;
-
-	config_table_size = softs->pqi_cap.conf_tab_sz;
-
-	if (config_table_size < sizeof(*conf_table) ||
-		config_table_size > PQI_CONF_TABLE_MAX_LEN) {
-		DBG_ERR("Invalid PQI conf table length of %u\n",
-			config_table_size);
-		return ret;
-	}
-
-	conf_table = os_mem_alloc(softs, config_table_size);
-	if (!conf_table) {
-		DBG_ERR("Failed to allocate memory for PQI conf table\n");
-		return ret;
-	}
-
-	if (config_table_size < sizeof(conf_table) ||
-		config_table_size > PQI_CONF_TABLE_MAX_LEN) {
-		DBG_ERR("Invalid PQI conf table length of %u\n",
-			config_table_size);
-		goto out;
-	}
-
-	config_table_abs_addr = (uint8_t *)(softs->pci_mem_base_vaddr +
-					softs->pqi_cap.conf_tab_off);
-
-	PCI_MEM_GET_BUF(softs, config_table_abs_addr,
-			softs->pqi_cap.conf_tab_off,
-			(uint8_t*)conf_table, config_table_size);
-
-
-	if (memcmp(conf_table->sign, PQI_CONF_TABLE_SIGNATURE,
-			sizeof(conf_table->sign)) != 0) {
-		DBG_ERR("Invalid PQI config signature\n");
-		goto out;
-	}
-
-	section_off = LE_32(conf_table->first_section_off);
-
-	while (section_off) {
-
-		if (section_off+ sizeof(*section_hdr) >= config_table_size) {
-			DBG_INFO("Reached end of PQI config table. Breaking off.\n");
-			break;
-		}
-
-		section_hdr = (struct pqi_conf_table_section_header *)((uint8_t *)conf_table + section_off);
-
-		switch (LE_16(section_hdr->section_id)) {
-		case PQI_CONF_TABLE_SECTION_GENERAL_INFO:
-		case PQI_CONF_TABLE_SECTION_FIRMWARE_ERRATA:
-		case PQI_CONF_TABLE_SECTION_DEBUG:
-			break;
-		case PQI_CONF_TABLE_SECTION_FIRMWARE_FEATURES:
-			softs->fw_features_section_off = softs->pqi_cap.conf_tab_off + section_off;
-			softs->fw_features_section_abs_addr = softs->pci_mem_base_vaddr + softs->fw_features_section_off;
-			pqisrc_process_firmware_features(softs);
-		break;
-		case PQI_CONF_TABLE_SECTION_HEARTBEAT:
-		softs->heartbeat_counter_off = softs->pqi_cap.conf_tab_off +
-						section_off +
-						offsetof(struct pqi_conf_table_heartbeat,
-						heartbeat_counter);
-		softs->heartbeat_counter_abs_addr = (uint64_t *)(softs->pci_mem_base_vaddr +
-							softs->heartbeat_counter_off);
-		ret = PQI_STATUS_SUCCESS;
-		break;
-		default:
-		DBG_INFO("unrecognized PQI config table section ID: 0x%x\n",
-					LE_16(section_hdr->section_id));
-		break;
-		}
-		section_off = LE_16(section_hdr->next_section_off);
-	}
-out:
-	os_mem_free(softs, (void *)conf_table,config_table_size);
-	return ret;
-}
-
 /* Wait for PQI reset completion for the adapter*/
 int
 pqisrc_wait_for_pqi_reset_completion(pqisrc_softstate_t *softs)
@@ -721,6 +450,7 @@ pqi_reset(pqisrc_softstate_t *softs)
 			val |= SIS_PQI_RESET_QUIESCE;
 			PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 					LEGACY_SIS_IDBR, LE_32(val));
+			OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 			ret = pqisrc_sis_wait_for_db_bit_to_clear(softs, SIS_PQI_RESET_QUIESCE);
 			if (ret) {
 				DBG_ERR("failed with error %d during quiesce\n", ret);
@@ -734,6 +464,7 @@ pqi_reset(pqisrc_softstate_t *softs)
 
 		PCI_MEM_PUT32(softs, &softs->pqi_reg->dev_reset, PQI_DEV_RESET,
 			LE_32(pqi_reset_reg.all_bits));
+		OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 
 		ret = pqisrc_wait_for_pqi_reset_completion(softs);
 		if (ret) {
@@ -827,10 +558,9 @@ pqisrc_pqi_init(pqisrc_softstate_t *softs)
 	/* Create Operational queues */
 	ret = pqisrc_create_op_queues(softs);
 	if(ret) {
-                DBG_ERR("Failed to create op queue\n");
-                ret = PQI_STATUS_FAILURE;
-                goto err_create_opq;
-        }
+		DBG_ERR("Failed to create op queue\n");
+		goto err_create_opq;
+	}
 
 	softs->ctrl_online = true;
 
@@ -851,13 +581,14 @@ err_out:
 	return PQI_STATUS_FAILURE;
 }
 
+/* */
 int
 pqisrc_force_sis(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 
 	if (SIS_IS_KERNEL_PANIC(softs)) {
-		DBG_INIT("Controller FW is not running");
+		DBG_ERR("Controller FW is not running\n");
 		return PQI_STATUS_FAILURE;
 	}
 
@@ -888,18 +619,22 @@ pqisrc_force_sis(pqisrc_softstate_t *softs)
 	return ret;
 }
 
-static int
+/* 5 mins timeout for quiesce */
+#define PQI_QUIESCE_TIMEOUT	300000
+
+int
 pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
 {
+
 	int count = 0;
 	int ret = PQI_STATUS_SUCCESS;
 
-	DBG_NOTE("softs->taglist.num_elem : %d",softs->taglist.num_elem);
+	DBG_NOTE("softs->taglist.num_elem : %u",softs->taglist.num_elem);
 
 	if (softs->taglist.num_elem == softs->max_outstanding_io)
 		return ret;
 	else {
-		DBG_WARN("%d commands pending\n",
+		DBG_WARN("%u commands pending\n",
 		softs->max_outstanding_io - softs->taglist.num_elem);
 
 		while(1) {
@@ -928,7 +663,7 @@ pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
 	return ret;
 }
 
-static void
+void
 pqisrc_complete_internal_cmds(pqisrc_softstate_t *softs)
 {
 
@@ -938,7 +673,7 @@ pqisrc_complete_internal_cmds(pqisrc_softstate_t *softs)
 	for (tag = 1; tag <= softs->max_outstanding_io; tag++) {
 		rcb = &softs->rcb[tag];
 		if(rcb->req_pending && is_internal_req(rcb)) {
-			rcb->status = REQUEST_FAILED;
+			rcb->status = PQI_STATUS_TIMEOUT;
 			rcb->req_pending = false;
 		}
 	}
@@ -951,7 +686,7 @@ pqisrc_complete_internal_cmds(pqisrc_softstate_t *softs)
 void
 pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 {
-	int i, ret;
+	int ret;
 
 	DBG_FUNC("IN\n");
 
@@ -975,25 +710,10 @@ pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 		softs->devlist_lockcreated = false;
 	}
 
-	for (i = 0; i <  softs->num_op_raid_ibq; i++) {
-		/* OP RAID IB Q */
-		if(softs->op_raid_ib_q[i].lockcreated==true){
-			OS_UNINIT_PQILOCK(&softs->op_raid_ib_q[i].lock);
-			softs->op_raid_ib_q[i].lockcreated = false;
-		}
-		/* OP AIO IB Q */
-		if(softs->op_aio_ib_q[i].lockcreated==true){
-			OS_UNINIT_PQILOCK(&softs->op_aio_ib_q[i].lock);
-			softs->op_aio_ib_q[i].lockcreated = false;
-		}
-	}
-
-	/* Free Op queues */
-	os_dma_mem_free(softs, &softs->op_ibq_dma_mem);
-	os_dma_mem_free(softs, &softs->op_obq_dma_mem);
-	os_dma_mem_free(softs, &softs->event_q_dma_mem);
-
-
+	/* Free all queues */
+	pqisrc_destroy_op_ib_queues(softs);
+	pqisrc_destroy_op_ob_queues(softs);
+	pqisrc_destroy_event_queue(softs);
 
 	/* Free  rcb */
 	pqisrc_free_rcb(softs, softs->max_outstanding_io + 1);
@@ -1001,13 +721,8 @@ pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	/* Free request id lists */
 	pqisrc_destroy_taglist(softs,&softs->taglist);
 
-	if(softs->admin_ib_queue.lockcreated==true) {
-		OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);
-		softs->admin_ib_queue.lockcreated = false;
-	}
-
 	/* Free Admin Queue */
-	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);
+	pqisrc_destroy_admin_queue(softs);
 
 	/* Switch back to SIS mode */
 	if (pqisrc_force_sis(softs)) {
@@ -1017,6 +732,30 @@ pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	DBG_FUNC("OUT\n");
 }
 
+
+/*
+ * Function to do any sanity checks for OS macros
+ */
+void
+sanity_check_os_behavior(pqisrc_softstate_t *softs)
+{
+#ifdef OS_ATOMIC64_INC
+	OS_ATOMIC64_T atomic_test_var = 0;
+	OS_ATOMIC64_T atomic_ret = 0;
+
+	atomic_ret = OS_ATOMIC64_INC(&atomic_test_var);
+	ASSERT(atomic_ret == 1);
+
+	atomic_ret = OS_ATOMIC64_INC(&atomic_test_var);
+	ASSERT(atomic_ret == 2);
+
+	atomic_ret = OS_ATOMIC64_DEC(&atomic_test_var);
+	ASSERT(atomic_ret == 1);
+#else
+	DBG_INIT("OS needs to define/implement atomic macros\n");
+#endif
+}
+
 /*
  * Function to initialize the adapter settings.
  */
@@ -1024,24 +763,53 @@ int
 pqisrc_init(pqisrc_softstate_t *softs)
 {
 	int ret = 0;
-	int i = 0, j = 0;
+	uint32_t	ctrl_type;
 
 	DBG_FUNC("IN\n");
 
+	sanity_check_os_behavior(softs);
+
 	check_struct_sizes();
+
+	/*Get verbose flags, defined in OS code XX_debug.h or so*/
+#ifdef DISABLE_ERR_RESP_VERBOSE
+	softs->err_resp_verbose = false;
+#else
+	softs->err_resp_verbose = true;
+#endif
+
+	/* prevent attachment of revA hardware. */
+	ctrl_type = PQI_GET_CTRL_TYPE(softs);
+	if (ctrl_type == PQI_CTRL_PRODUCT_ID_GEN2_REV_A) {
+		DBG_ERR("adapter at B.D.F=%u.%u.%u: unsupported RevA card.\n",
+			softs->bus_id, softs->device_id, softs->func_id);
+		ret = PQI_STATUS_FAILURE;
+		goto err_out;
+	}
+
+	/* Increment the global adapter ID and tie it to this BDF */
+#ifdef OS_ATOMIC64_INC
+	static OS_ATOMIC64_T g_adapter_cnt = 0;
+	softs->adapter_num = (uint8_t)OS_ATOMIC64_INC(&g_adapter_cnt);
+#else
+	static uint64_t g_adapter_cnt = 0;
+   softs->adapter_num = (uint8_t)++g_adapter_cnt;
+#endif
+	DBG_NOTE("Initializing adapter %u\n", (uint32_t)softs->adapter_num);
+
+	ret = os_create_semaphore("scan_lock", 1, &softs->scan_lock);
+	if(ret != PQI_STATUS_SUCCESS){
+		DBG_ERR(" Failed to initialize scan lock\n");
+		goto err_out;
+	}
 
 	/* Init the Sync interface */
 	ret = pqisrc_sis_init(softs);
 	if (ret) {
 		DBG_ERR("SIS Init failed with error %d\n", ret);
-		goto err_out;
+		goto err_sis;
 	}
 
-	ret = os_create_semaphore("scan_lock", 1, &softs->scan_lock);
-	if(ret != PQI_STATUS_SUCCESS){
-		DBG_ERR(" Failed to initialize scan lock\n");
-		goto err_scan_lock;
-	}
 
 	/* Init the PQI interface */
 	ret = pqisrc_pqi_init(softs);
@@ -1058,25 +826,25 @@ pqisrc_init(pqisrc_softstate_t *softs)
 	}
 
 	/* Report event configuration */
-        ret = pqisrc_report_event_config(softs);
-        if(ret){
-                DBG_ERR(" Failed to configure Report events\n");
+	ret = pqisrc_report_event_config(softs);
+	if(ret){
+				DBG_ERR(" Failed to configure Report events\n");
 		goto err_event;
 	}
 
 	/* Set event configuration*/
-        ret = pqisrc_set_event_config(softs);
-        if(ret){
-                DBG_ERR(" Failed to configure Set events\n");
-                goto err_event;
-        }
+	ret = pqisrc_set_event_config(softs);
+	if(ret){
+				DBG_ERR(" Failed to configure Set events\n");
+				goto err_event;
+	}
 
 	/* Check for For PQI spanning */
 	ret = pqisrc_get_ctrl_fw_version(softs);
-        if(ret){
-                DBG_ERR(" Failed to get ctrl fw version\n");
-		goto err_fw_version;
-        }
+	if(ret){
+				DBG_ERR(" Failed to get ctrl fw version\n");
+	goto err_fw_version;
+	}
 
 	/* update driver version in to FW */
 	ret = pqisrc_write_driver_version_to_host_wellness(softs);
@@ -1085,6 +853,12 @@ pqisrc_init(pqisrc_softstate_t *softs)
 		goto err_host_wellness;
 	}
 
+	/* Setup sense features */
+	ret = pqisrc_QuerySenseFeatures(softs);
+	if (ret) {
+		DBG_ERR("Failed to get sense features\n");
+		goto err_sense;
+	}
 
 	os_strlcpy(softs->devlist_lock_name, "devlist_lock", LOCKNAME_SIZE);
 	ret = os_init_spinlock(softs, &softs->devlist_lock, softs->devlist_lock_name);
@@ -1104,12 +878,8 @@ pqisrc_init(pqisrc_softstate_t *softs)
 
 	softs->prev_heartbeat_count = CTRLR_HEARTBEAT_CNT(softs) - OS_FW_HEARTBEAT_TIMER_INTERVAL;
 
-	/* Init device list */
-	for(i = 0; i < PQI_MAX_DEVICES; i++)
-		for(j = 0; j < PQI_MAX_MULTILUN; j++)
-			softs->device_list[i][j] = NULL;
-
-	pqisrc_init_targetid_pool(softs);
+	memset(softs->dev_list, 0, sizeof(*softs->dev_list));
+	pqisrc_init_bitmap(softs);
 
 	DBG_FUNC("OUT\n");
 	return ret;
@@ -1124,11 +894,12 @@ err_fw_version:
 err_event:
 err_host_wellness:
 err_intr:
+err_sense:
 	pqisrc_pqi_uninit(softs);
 err_pqi:
-	os_destroy_semaphore(&softs->scan_lock);
-err_scan_lock:
 	pqisrc_sis_uninit(softs);
+err_sis:
+	os_destroy_semaphore(&softs->scan_lock);
 err_out:
 	DBG_FUNC("OUT failed\n");
 	return ret;
@@ -1162,16 +933,18 @@ pqisrc_flush_cache( pqisrc_softstate_t *softs,
 
 	memset(&request, 0, sizeof(request));
 
-	rval = pqisrc_build_send_raid_request(softs, &request, flush_buff,
-			sizeof(*flush_buff), SA_CACHE_FLUSH, 0,
-			(uint8_t *)RAID_CTLR_LUNID, NULL);
+	request.data_direction = SOP_DATA_DIR_FROM_DEVICE;
+	request.cmd.bmic_cdb.op_code = BMIC_WRITE;
+	request.cmd.bmic_cdb.cmd = BMIC_CACHE_FLUSH;
+	request.cmd.bmic_cdb.xfer_len = BE_16(sizeof(*flush_buff));
+
+	rval = pqisrc_prepare_send_ctrlr_request(softs, &request, flush_buff, sizeof(*flush_buff));
+
 	if (rval) {
 		DBG_ERR("error in build send raid req ret=%d\n", rval);
 	}
 
-	if (flush_buff)
-		os_mem_free(softs, (void *)flush_buff,
-			sizeof(pqisrc_bmic_flush_cache_t));
+	os_mem_free(softs, (void *)flush_buff, sizeof(pqisrc_bmic_flush_cache_t));
 
 	DBG_FUNC("OUT\n");
 

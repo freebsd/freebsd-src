@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,9 +36,13 @@ pqisrc_submit_cmnd(pqisrc_softstate_t *softs, ib_queue_t *ib_q, void *req)
 	char *slot = NULL;
 	uint32_t offset;
 	iu_header_t *hdr = (iu_header_t *)req;
+	/*TODO : Can be fixed a size copying of IU ? */
 	uint32_t iu_len = hdr->iu_length + 4 ; /* header size */
 	int i = 0;
 	DBG_FUNC("IN\n");
+
+	/* The code below assumes we only take 1 element (no spanning) */
+	ASSERT(iu_len <= ib_q->elem_size);
 
 	PQI_LOCK(&ib_q->lock);
 
@@ -55,15 +59,15 @@ pqisrc_submit_cmnd(pqisrc_softstate_t *softs, ib_queue_t *ib_q, void *req)
 
 	/* Copy the IU */
 	memcpy(slot, req, iu_len);
-	DBG_INFO("IU : \n");
+	DBG_IO("IU : \n");
 	for(i = 0; i< iu_len; i++)
-		DBG_INFO(" IU [ %d ] : %x\n", i, *((unsigned char *)(slot + i)));
+		DBG_IO(" IU [ %d ] : %x\n", i, *((unsigned char *)(slot + i)));
 
 	/* Update the local PI */
 	ib_q->pi_local = (ib_q->pi_local + 1) % ib_q->num_elem;
-	DBG_INFO("ib_q->pi_local : %x IU size : %d\n",
+	DBG_IO("ib_q->pi_local : %x IU size : %d\n",
 			 ib_q->pi_local, hdr->iu_length);
-	DBG_INFO("*ib_q->ci_virt_addr: %x\n",
+	DBG_IO("*ib_q->ci_virt_addr: %x\n",
 				*(ib_q->ci_virt_addr));
 
 	/* Inform the fw about the new IU */

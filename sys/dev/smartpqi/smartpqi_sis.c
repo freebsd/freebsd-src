@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +39,7 @@ sis_disable_msix(pqisrc_softstate_t *softs)
 	db_reg &= ~SIS_ENABLE_MSIX;
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, db_reg);
+	OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 
 	DBG_FUNC("OUT\n");
 }
@@ -55,6 +56,7 @@ sis_enable_intx(pqisrc_softstate_t *softs)
 	db_reg |= SIS_ENABLE_INTX;
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, db_reg);
+	OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 	if (pqisrc_sis_wait_for_db_bit_to_clear(softs,SIS_ENABLE_INTX)
 		!= PQI_STATUS_SUCCESS) {
 		DBG_ERR("Failed to wait for enable intx db bit to clear\n");
@@ -74,6 +76,7 @@ sis_disable_intx(pqisrc_softstate_t *softs)
 	db_reg &= ~SIS_ENABLE_INTX;
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, db_reg);
+	OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 
 	DBG_FUNC("OUT\n");
 }
@@ -90,7 +93,7 @@ sis_disable_interrupt(pqisrc_softstate_t *softs)
 			break;
 		case INTR_TYPE_MSI:
 		case INTR_TYPE_MSIX:
-			sis_disable_msix(softs);
+ 			sis_disable_msix(softs);
 			break;
 		default:
 			DBG_ERR("Inerrupt mode none!\n");
@@ -124,6 +127,7 @@ pqisrc_reenable_sis(pqisrc_softstate_t *softs)
 
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
         LEGACY_SIS_IDBR, LE_32(REENABLE_SIS));
+	OS_SLEEP(1000);     /* 1 ms delay for PCI W/R ordering issue */
 
 	COND_WAIT(((PCI_MEM_GET32(softs, &softs->ioa_reg->ioa_to_host_db, LEGACY_SIS_ODBR_R) &
 				REENABLE_SIS) == 0), timeout)
@@ -284,6 +288,21 @@ pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
 		softs->pqi_cap.max_sg_elem = mb[1];
 		softs->pqi_cap.max_transfer_size = mb[2];
 		softs->pqi_cap.max_outstanding_io = mb[3];
+		if (softs->pqi_cap.max_outstanding_io >
+			PQISRC_MAX_OUTSTANDING_REQ) {
+			DBG_WARN("Controller-supported max outstanding "
+				"commands %u reduced to %d to align with "
+				"driver-supported max.\n",
+				softs->pqi_cap.max_outstanding_io,
+				PQISRC_MAX_OUTSTANDING_REQ);
+			softs->pqi_cap.max_outstanding_io =
+				PQISRC_MAX_OUTSTANDING_REQ;
+		}
+
+#ifdef DEVICE_HINT
+		bsd_set_hint_adapter_cap(softs);
+#endif
+
 		softs->pqi_cap.conf_tab_off = mb[4];
 		softs->pqi_cap.conf_tab_sz =  mb[5];
 
@@ -295,6 +314,11 @@ pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
 					softs->pqi_cap.max_transfer_size);
 		DBG_INIT("max_outstanding_io = %x\n",
 					softs->pqi_cap.max_outstanding_io);
+	/*	DBG_INIT("config_table_offset = %x\n",
+					softs->pqi_cap.conf_tab_off);
+		DBG_INIT("config_table_size = %x\n",
+					softs->pqi_cap.conf_tab_sz);
+	*/
 	}
 
 	DBG_FUNC("OUT\n");
@@ -318,7 +342,7 @@ pqisrc_init_struct_base(pqisrc_softstate_t *softs)
 	memset(&init_struct_mem, 0, sizeof(struct dma_mem));
 	init_struct_mem.size = sizeof(struct init_base_struct);
 	init_struct_mem.align = PQISRC_INIT_STRUCT_DMA_ALIGN;
-	init_struct_mem.tag = "init_struct";
+	os_strlcpy(init_struct_mem.tag, "init_struct", sizeof(init_struct_mem.tag));
 	ret = os_dma_mem_alloc(softs, &init_struct_mem);
 	if (ret) {
 		DBG_ERR("Failed to Allocate error buffer ret : %d\n",
@@ -337,7 +361,7 @@ pqisrc_init_struct_base(pqisrc_softstate_t *softs)
 
 	/* Allocate error buffer */
 	softs->err_buf_dma_mem.align = PQISRC_ERR_BUF_DMA_ALIGN;
-	softs->err_buf_dma_mem.tag = "error_buffer";
+	os_strlcpy(softs->err_buf_dma_mem.tag, "error_buffer", sizeof(softs->err_buf_dma_mem.tag));
 	ret = os_dma_mem_alloc(softs, &softs->err_buf_dma_mem);
 	if (ret) {
 		DBG_ERR("Failed to Allocate error buffer ret : %d\n",
@@ -422,7 +446,7 @@ pqisrc_sis_init(pqisrc_softstate_t *softs)
 	if (ext_prop & SIS_SUPPORT_PQI_RESET_QUIESCE)
 		softs->pqi_reset_quiesce_allowed = true;
 
-	/* Send GET_COMM_PREFERRED_SETTINGS (26h)  */
+	/* Send GET_COMM_PREFERRED_SETTINGS (26h), TODO : is it required */
 	ret = pqisrc_get_preferred_settings(softs);
 	if (ret) {
 		DBG_ERR("Failed to get adapter pref settings\n");

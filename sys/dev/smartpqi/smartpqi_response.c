@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,12 +32,29 @@
 void
 pqisrc_process_internal_raid_response_success(pqisrc_softstate_t *softs,rcb_t *rcb)
 {
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
 
-	rcb->status = REQUEST_SUCCESS;
+	rcb->status = PQI_STATUS_SUCCESS;
 	rcb->req_pending = false;
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
+}
+
+/* Safely determines if cdb is available and if so, will return SCSI opcode or
+   BMIC cmd if BMIC op code is detected */
+uint8_t
+pqisrc_get_cmd_from_rcb(rcb_t *rcb)
+{
+	uint8_t opcode = 0xFF;
+
+	if (rcb && rcb->cdbp)
+	{
+		opcode = rcb->cdbp[0];
+		if (IS_BMIC_OPCODE(opcode))
+			return rcb->cdbp[6];
+	}
+
+	return opcode;
 }
 
 /*
@@ -49,33 +66,40 @@ pqisrc_process_internal_raid_response_error(pqisrc_softstate_t *softs,
 {
 	raid_path_error_info_elem_t error_info;
 
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
 
 	rcb->error_info = (char *) (softs->err_buf_dma_mem.virt_addr) +
 			  (err_idx * PQI_ERROR_BUFFER_ELEMENT_LENGTH);
 
 	memcpy(&error_info, rcb->error_info, sizeof(error_info));
 
-	DBG_INFO("error_status 0x%x data_in_result 0x%x data_out_result 0x%x\n",
-		error_info.status, error_info.data_in_result, error_info.data_out_result);
-
-	rcb->status = REQUEST_FAILED;
+	rcb->status = PQI_STATUS_TIMEOUT;
 
 	switch (error_info.data_out_result) {
 	case PQI_RAID_DATA_IN_OUT_GOOD:
 		if (error_info.status == PQI_RAID_DATA_IN_OUT_GOOD)
-			rcb->status = REQUEST_SUCCESS;
+			rcb->status = PQI_STATUS_SUCCESS;
 		break;
 	case PQI_RAID_DATA_IN_OUT_UNDERFLOW:
 		if (error_info.status == PQI_RAID_DATA_IN_OUT_GOOD ||
 				error_info.status == PQI_RAID_STATUS_CHECK_CONDITION)
-			rcb->status = REQUEST_SUCCESS;
+			rcb->status = PQI_STATUS_SUCCESS;
 		break;
+	default:
+		DBG_WARN("error_status 0x%x data_in_result 0x%x data_out_result 0x%x cmd rcb tag 0x%x\n",
+		error_info.status, error_info.data_in_result, error_info.data_out_result, rcb->tag);
+	}
+
+	if (rcb->status != PQI_STATUS_SUCCESS)
+	{
+		DBG_INFO("error_status=0x%x data_in=0x%x data_out=0x%x detail=0x%x\n",
+			error_info.status, error_info.data_in_result, error_info.data_out_result,
+			pqisrc_get_cmd_from_rcb(rcb));
 	}
 
 	rcb->req_pending = false;
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 }
 
 /*
@@ -84,11 +108,11 @@ pqisrc_process_internal_raid_response_error(pqisrc_softstate_t *softs,
 void
 pqisrc_process_io_response_success(pqisrc_softstate_t *softs, rcb_t *rcb)
 {
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
 
 	os_io_response_success(rcb);
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 }
 
 static void
@@ -120,6 +144,23 @@ pqisrc_extract_sense_data(sense_data_u_t *sense_data, uint8_t *key, uint8_t *asc
 	}
 }
 
+/* Suppress common errors unless verbose debug flag is on */
+boolean_t
+suppress_innocuous_error_prints(pqisrc_softstate_t *softs, rcb_t *rcb)
+{
+	uint8_t opcode = rcb->cdbp ? rcb->cdbp[0] : 0xFF;
+
+	if ((opcode == SCSI_INQUIRY ||           /* 0x12 */
+		opcode == SCSI_MODE_SENSE ||     /* 0x1a */
+		opcode == SCSI_REPORT_LUNS ||    /* 0xa0 */
+		opcode == SCSI_LOG_SENSE ||      /* 0x4d */
+		opcode == SCSI_ATA_PASSTHRU16)   /* 0x85 */
+		&& (softs->err_resp_verbose == false))
+		return true;
+
+	return false;
+}
+
 static void
 pqisrc_show_sense_data_simple(pqisrc_softstate_t *softs, rcb_t *rcb, sense_data_u_t *sense_data)
 {
@@ -136,6 +177,9 @@ pqisrc_show_sense_data_simple(pqisrc_softstate_t *softs, rcb_t *rcb, sense_data_
 void
 pqisrc_show_sense_data_full(pqisrc_softstate_t *softs, rcb_t *rcb, sense_data_u_t *sense_data)
 {
+	if (suppress_innocuous_error_prints(softs, rcb))
+		return;
+
 	pqisrc_print_buffer(softs, "sense data", sense_data, 32, 0);
 
 	pqisrc_show_sense_data_simple(softs, rcb, sense_data);
@@ -143,6 +187,105 @@ pqisrc_show_sense_data_full(pqisrc_softstate_t *softs, rcb_t *rcb, sense_data_u_
 	/* add more detail here as needed */
 }
 
+
+/*  dumps the aio error info and sense data then breaks down the output */
+void
+pqisrc_show_aio_error_info(pqisrc_softstate_t *softs, rcb_t *rcb, aio_path_error_info_elem_t *aio_err)
+{
+	DBG_NOTE("\n");
+	DBG_NOTE("aio err: status=0x%x serv_resp=0x%x data_pres=0x%x data_len=0x%x\n",
+		aio_err->status, aio_err->service_resp, aio_err->data_pres, aio_err->data_len);
+
+	pqisrc_print_buffer(softs, "aio err info", aio_err,
+		offsetof(aio_path_error_info_elem_t, data), PRINT_FLAG_HDR_COLUMN);
+
+	pqisrc_show_sense_data_full(softs, rcb, &aio_err->sense_data);
+}
+
+
+/*  dumps the raid error info and sense data then breaks down the output */
+void
+pqisrc_show_raid_error_info(pqisrc_softstate_t *softs, rcb_t *rcb, raid_path_error_info_elem_t *raid_err)
+{
+	DBG_NOTE("\n");
+	DBG_NOTE("raid err: data_in=0x%x out=0x%x status=0x%x sense_len=0x%x resp_len=0x%x\n",
+		raid_err->data_in_result, raid_err->data_in_result,
+		raid_err->status, raid_err->sense_data_len, raid_err->resp_data_len);
+
+	pqisrc_print_buffer(softs, "raid err info", raid_err,
+		offsetof(raid_path_error_info_elem_t, data), PRINT_FLAG_HDR_COLUMN);
+
+	pqisrc_show_sense_data_full(softs, rcb, &raid_err->sense_data);
+}
+
+/*  return true if this an innocuous error */
+boolean_t
+pqisrc_is_innocuous_error(pqisrc_softstate_t *softs, rcb_t *rcb, void *err_info)
+{
+	uint8_t opcode = rcb->cdbp ? rcb->cdbp[0] : 0xFF;
+
+	/* These SCSI cmds are frequently cause "underrun" and other minor "error"
+		conditions while determining log page length, support, etc. */
+	if (opcode != SCSI_INQUIRY &&        /* 0x12 */
+		 opcode != SCSI_MODE_SENSE &&     /* 0x1a */
+		 opcode != SCSI_REPORT_LUNS &&    /* 0xa0 */
+		 opcode != SCSI_LOG_SENSE &&      /* 0x4d */
+		 opcode != SCSI_ATA_PASSTHRU16)   /* 0x85 */
+	{
+		return false;
+	}
+
+	/* treat all cmds above as innocuous unless verbose flag is set. */
+	if (softs->err_resp_verbose == false)
+		return true;
+
+	if (rcb->path == AIO_PATH)
+	{
+		aio_path_error_info_elem_t *aio_err = err_info;
+		uint8_t key, asc, ascq;
+
+		/* Byte[0]=Status=0x51, Byte[1]=service_resp=0x01 */
+		if (aio_err->status == PQI_AIO_STATUS_UNDERRUN &&
+			aio_err->service_resp == PQI_AIO_SERV_RESPONSE_FAILURE)
+		{
+			return true;
+		}
+
+		/* get the key info so we can apply more filters... */
+		pqisrc_extract_sense_data(&aio_err->sense_data, &key, &asc, &ascq);
+
+		/* Seeing a lot of invalid field in CDB for REPORT LUNs on AIO path.
+			Example CDB = a0 00 11 00 00 00 00 00 20 08 00 00
+			So filter out the full dump info for now.  Also wonder if we should
+			just send REPORT LUNS to raid path? */
+		if (opcode == SCSI_REPORT_LUNS &&
+			key == 5 && asc == 0x24)
+		{
+			pqisrc_show_sense_data_simple(softs, rcb, &aio_err->sense_data);
+			return true;
+		}
+
+		/* may want to return true here eventually? */
+	}
+	else
+	{
+		raid_path_error_info_elem_t *raid_err = err_info;
+
+		/* Byte[1]=data_out=0x01 */
+		if (raid_err->data_out_result == PQI_RAID_DATA_IN_OUT_UNDERFLOW)
+			return true;
+
+		/* We get these a alot: leave a tiny breadcrumb about the error,
+			but don't do full spew about it */
+		if (raid_err->status == PQI_AIO_STATUS_CHECK_CONDITION)
+		{
+			pqisrc_show_sense_data_simple(softs, rcb, &raid_err->sense_data);
+			return true;
+		}
+	}
+
+	return false;
+}
 
 /*
  * Process the error info for AIO in the case of failure.
@@ -153,20 +296,30 @@ pqisrc_process_aio_response_error(pqisrc_softstate_t *softs,
 {
 	aio_path_error_info_elem_t *err_info = NULL;
 
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
+
+	ASSERT(rcb->path == AIO_PATH);
 
 	err_info = (aio_path_error_info_elem_t*)
 			softs->err_buf_dma_mem.virt_addr +
 			err_idx;
 
 	if(err_info == NULL) {
-		DBG_ERR("err_info structure is NULL  err_idx :%x", err_idx);
+		DBG_ERR("err_info structure is NULL  err_idx :%x\n", err_idx);
 		return;
+	}
+
+	/* filter out certain underrun/success "errors" from printing */
+	if (!pqisrc_is_innocuous_error(softs, rcb, err_info)) {
+
+		if (softs->err_resp_verbose == true)
+			pqisrc_show_rcb_details(softs, rcb,
+					"aio error", err_info);
 	}
 
 	os_aio_response_error(rcb, err_info);
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 }
 
 /*
@@ -178,20 +331,31 @@ pqisrc_process_raid_response_error(pqisrc_softstate_t *softs,
 {
 	raid_path_error_info_elem_t *err_info = NULL;
 
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
+
+	ASSERT(rcb->path == RAID_PATH);
 
 	err_info = (raid_path_error_info_elem_t*)
 			softs->err_buf_dma_mem.virt_addr +
 			err_idx;
 
 	if(err_info == NULL) {
-		DBG_ERR("err_info structure is NULL  err_idx :%x", err_idx);
+		DBG_ERR("err_info structure is NULL  err_idx :%x\n", err_idx);
 		return;
+	}
+
+	/* filter out certain underrun/success "errors" from printing */
+	if (!pqisrc_is_innocuous_error(softs, rcb, err_info)) {
+
+		if( softs->err_resp_verbose == true )
+			pqisrc_show_rcb_details(softs, rcb,
+					"raid error", err_info);
+
 	}
 
 	os_raid_response_error(rcb, err_info);
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 }
 
 /*
@@ -201,7 +365,7 @@ int
 pqisrc_process_task_management_response(pqisrc_softstate_t *softs,
 			pqi_tmf_resp_t *tmf_resp)
 {
-	int ret = REQUEST_SUCCESS;
+	int ret = PQI_STATUS_SUCCESS;
 	uint32_t tag = (uint32_t)tmf_resp->req_id;
 	rcb_t *rcb = &softs->rcb[tag];
 
@@ -212,18 +376,19 @@ pqisrc_process_task_management_response(pqisrc_softstate_t *softs,
 	switch (tmf_resp->resp_code) {
 	case SOP_TASK_MANAGEMENT_FUNCTION_COMPLETE:
 	case SOP_TASK_MANAGEMENT_FUNCTION_SUCCEEDED:
-		ret = REQUEST_SUCCESS;
+		ret = PQI_STATUS_SUCCESS;
 		break;
 	default:
-		DBG_WARN("TMF Failed, Response code : 0x%x\n", tmf_resp->resp_code);
-		ret = REQUEST_FAILED;
+		DBG_ERR("Tag #0x%08x TMF Failed, Response code : 0x%x\n",
+			rcb->tag, tmf_resp->resp_code);
+		ret = PQI_STATUS_TIMEOUT;
 		break;
 	}
 
 	rcb->status = ret;
 	rcb->req_pending = false;
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 	return ret;
 }
 
@@ -231,7 +396,7 @@ static int
 pqisrc_process_vendor_general_response(pqi_vendor_general_response_t *response)
 {
 
-	int ret = REQUEST_SUCCESS;
+	int ret = PQI_STATUS_SUCCESS;
 
 	switch(response->status) {
 	case PQI_VENDOR_RESPONSE_IU_SUCCESS:
@@ -239,7 +404,7 @@ pqisrc_process_vendor_general_response(pqi_vendor_general_response_t *response)
 	case PQI_VENDOR_RESPONSE_IU_UNSUCCESS:
 	case PQI_VENDOR_RESPONSE_IU_INVALID_PARAM:
 	case PQI_VENDOR_RESPONSE_IU_INSUFF_RESRC:
-		ret = REQUEST_FAILED;
+		ret = PQI_STATUS_TIMEOUT;
 		break;
 	}
 
@@ -256,21 +421,22 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 	ob_queue_t *ob_q;
 	struct pqi_io_response *response;
 	uint32_t oq_pi, oq_ci;
-	pqi_scsi_dev_t  *dvp = NULL;
+	pqi_scsi_dev_t	*dvp = NULL;
 
-	DBG_FUNC("IN");
+
+	DBG_FUNC("IN\n");
 
 	ob_q = &softs->op_ob_q[oq_id - 1]; /* zero for event Q */
 	oq_ci = ob_q->ci_local;
 	oq_pi = *(ob_q->pi_virt_addr);
 
-	DBG_INFO("ci : %d pi : %d qid : %d\n", oq_ci, oq_pi, ob_q->q_id);
+	DBG_IO("ci : %u pi : %u qid : %u\n", oq_ci, oq_pi, ob_q->q_id);
 
 	while (1) {
+		boolean_t os_scsi_cmd = false;
 		rcb_t *rcb = NULL;
 		uint32_t tag = 0;
 		uint32_t offset;
-		boolean_t os_scsi_cmd = false;
 
 		if (oq_pi == oq_ci)
 			break;
@@ -282,7 +448,7 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 		rcb = &softs->rcb[tag];
 		/* Make sure we are processing a valid response. */
 		if ((rcb->tag != tag) || (rcb->req_pending == false)) {
-			DBG_ERR("No such request pending with tag : %x", tag);
+			DBG_ERR("No such request pending with tag : %x rcb->tag : %x", tag, rcb->tag);
 			oq_ci = (oq_ci + 1) % ob_q->num_elem;
 			break;
 		}
@@ -291,13 +457,21 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 		 * pqisrc_wait_on_condition(softs,rcb,timeout).
 		 */
 		if (rcb->timedout) {
-			DBG_WARN("timed out request completing from firmware, driver already completed it with failure , free the tag %d\n", tag);
+			DBG_WARN("timed out request completing from firmware, driver already completed it with failure , free the tag 0x%x\n", tag);
 			oq_ci = (oq_ci + 1) % ob_q->num_elem;
 			os_reset_rcb(rcb);
 			pqisrc_put_tag(&softs->taglist, tag);
 			break;
 		}
 
+		if (rcb->host_wants_to_abort_this)
+		{
+			DBG_INFO("cmd that was aborted came back. tag=%u\n", rcb->tag);
+		}
+		if (rcb->is_abort_cmd_from_host)
+		{
+			DBG_INFO("abort cmd came back. tag=%u\n", rcb->tag);
+		}
 		if (IS_OS_SCSICMD(rcb)) {
 			dvp = rcb->dvp;
 			if (dvp)
@@ -306,8 +480,7 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 				DBG_WARN("Received IO completion for the Null device!!!\n");
 		}
 
-
-		DBG_INFO("response.header.iu_type : %x \n", response->header.iu_type);
+		DBG_IO("response.header.iu_type : %x \n", response->header.iu_type);
 
 		switch (response->header.iu_type) {
 		case PQI_RESPONSE_IU_RAID_PATH_IO_SUCCESS:
@@ -315,7 +488,6 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 			rcb->success_cmp_callback(softs, rcb);
 			if (os_scsi_cmd)
 				pqisrc_decrement_device_active_io(softs, dvp);
-
 			break;
 		case PQI_RESPONSE_IU_RAID_PATH_IO_ERROR:
 		case PQI_RESPONSE_IU_AIO_PATH_IO_ERROR:
@@ -345,6 +517,6 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 
 	ob_q->ci_local = oq_ci;
 	PCI_MEM_PUT32(softs, ob_q->ci_register_abs,
-        ob_q->ci_register_offset, ob_q->ci_local );
-	DBG_FUNC("OUT");
+		ob_q->ci_register_offset, ob_q->ci_local );
+	DBG_FUNC("OUT\n");
 }

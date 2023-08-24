@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,7 @@
 
 #include "smartpqi_includes.h"
 
+
 /*
  * Function to get processor count
  */
@@ -34,6 +35,7 @@ os_get_processor_config(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
 	softs->num_cpus_online = mp_ncpus;
+	bsd_set_hint_adapter_cpu_config(softs);
 	DBG_FUNC("OUT\n");
 
 	return PQI_STATUS_SUCCESS;
@@ -86,9 +88,9 @@ os_get_intr_config(pqisrc_softstate_t *softs)
 		softs->intr_count = 1;
 	}
 
-	DBG_FUNC("OUT\n");
-
 	error = bsd_status_to_pqi_status(BSD_SUCCESS);
+
+	DBG_FUNC("OUT\n");
 
 	return error;
 }
@@ -117,7 +119,7 @@ shared_ithread_routine(void *arg)
 
 	DBG_FUNC("IN\n");
 
-	if (softs == NULL)
+	if (!softs)
 		return;
 
 	pqisrc_process_response_queue(softs, oq_id);
@@ -138,7 +140,7 @@ common_ithread_routine(void *arg)
 
 	DBG_FUNC("IN\n");
 
-	if (softs == NULL)
+	if (!softs)
 		return;
 
 	pqisrc_process_response_queue(softs, oq_id);
@@ -155,7 +157,7 @@ event_ithread_routine(void *arg)
 
 	DBG_FUNC("IN\n");
 
-	if (softs == NULL)
+	if (!softs)
 		return;
 
 	pqisrc_process_event_intr_src(softs, oq_id);
@@ -170,9 +172,11 @@ int
 register_legacy_intr(pqisrc_softstate_t *softs)
 {
 	int error = BSD_SUCCESS;
-	device_t dev = softs->os_specific.pqi_dev;
+	device_t dev;
 
 	DBG_FUNC("IN\n");
+
+	dev = softs->os_specific.pqi_dev;
 
 	softs->os_specific.pqi_irq_rid[0] = 0;
 	softs->os_specific.pqi_irq[0] = bus_alloc_resource_any(dev, \
@@ -216,12 +220,13 @@ register_msix_intr(pqisrc_softstate_t *softs)
 	int i = 0;
 	device_t dev = softs->os_specific.pqi_dev;
 	int msix_count = softs->intr_count;
+	size_t msix_size =  sizeof(pqi_intr_ctx_t) * msix_count;
 
 	DBG_FUNC("IN\n");
 
-	softs->os_specific.msi_ctx = os_mem_alloc(softs, sizeof(pqi_intr_ctx_t) * msix_count);
+	softs->os_specific.msi_ctx = os_mem_alloc(softs, msix_size);
 	if (!softs->os_specific.msi_ctx) {
-		DBG_ERR("Memory allocation failed\n");
+		DBG_ERR("Memory allocation failed, Requested memory:%lu bytes\n", (unsigned long)msix_size);
 		return ENXIO;
 	}
 
@@ -282,7 +287,7 @@ register_msix_intr(pqisrc_softstate_t *softs)
 			return error;
 		}
 		softs->os_specific.intr_registered[i] = TRUE;
-		/* Add interrupt handlers*/	
+		/* Add interrupt handlers*/
 		for (i = 1; i < msix_count; ++i) {
 			softs->os_specific.pqi_irq_rid[i] = i+1;
 			softs->os_specific.pqi_irq[i] = \
@@ -335,7 +340,7 @@ os_setup_intr(pqisrc_softstate_t *softs)
 		bsd_status = register_msix_intr(softs);
 	}
 
-	if(bsd_status)
+	if (bsd_status)
 		DBG_WARN("interrupt registration is failed, error = %d\n", bsd_status);
 
 	pqi_status = bsd_status_to_pqi_status(bsd_status);
@@ -422,8 +427,8 @@ os_destroy_intr(pqisrc_softstate_t *softs)
 	if (softs->os_specific.msi_enabled) {
 		pci_release_msi(dev);
 		softs->os_specific.msi_enabled = FALSE;
-	} 
-	
+	}
+
 	DBG_FUNC("OUT\n");
 
 	return PQI_STATUS_SUCCESS;

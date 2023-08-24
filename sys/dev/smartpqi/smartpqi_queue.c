@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +28,7 @@
 
 /*
  * Submit an admin IU to the adapter.
+ * TODO : Admin command implemented using polling,
  * Add interrupt support, if required
  */
 int
@@ -120,10 +121,10 @@ pqisrc_get_admin_queue_config(pqisrc_softstate_t *softs)
 	softs->admin_ib_queue.elem_size = ((val & 0xFF0000) >> 16) * 16;
 	softs->admin_ob_queue.elem_size = ((val & 0xFF000000) >> 24) * 16;
 
-	DBG_FUNC(" softs->admin_ib_queue.num_elem : %d\n",
-			softs->admin_ib_queue.num_elem);
-	DBG_FUNC(" softs->admin_ib_queue.elem_size : %d\n",
-			softs->admin_ib_queue.elem_size);
+	DBG_INIT(" admin ib: num_elem=%u elem_size=%u\n",
+			softs->admin_ib_queue.num_elem, softs->admin_ib_queue.elem_size);
+	DBG_INIT(" admin ob: num_elem=%u elem_size=%u\n",
+			softs->admin_ob_queue.num_elem, softs->admin_ob_queue.elem_size);
 }
 
 /*
@@ -142,79 +143,66 @@ pqisrc_decide_admin_queue_config(pqisrc_softstate_t *softs)
 }
 
 /*
- * Allocate DMA memory for admin queue and initialize.
+ * Allocate DMA memory for inbound queue and initialize.
  */
 int
-pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
+pqisrc_allocate_and_init_inbound_q(pqisrc_softstate_t *softs, ib_queue_t *ib_q, char *tag)
 {
+	struct dma_mem *dma_mem = &ib_q->alloc_dma;
 	uint32_t ib_array_size = 0;
-	uint32_t ob_array_size = 0;
 	uint32_t alloc_size = 0;
 	char *virt_addr = NULL;
 	dma_addr_t dma_addr = 0;
 	int ret = PQI_STATUS_SUCCESS;
 
-	ib_array_size = (softs->admin_ib_queue.num_elem *
-			softs->admin_ib_queue.elem_size);
+	ib_array_size = ib_q->num_elem * ib_q->elem_size;
+	ASSERT(ib_array_size > 0);
 
-	ob_array_size = (softs->admin_ob_queue.num_elem *
-			softs->admin_ob_queue.elem_size);
+	alloc_size = ib_array_size + PQI_CI_PI_ALIGN + PQI_ADDR_ALIGN; /* for IB CI and OB PI */
 
-	alloc_size = ib_array_size + ob_array_size +
-			2 * sizeof(uint32_t) + PQI_ADDR_ALIGN_MASK_64 + 1; /* for IB CI and OB PI */
-	/* Allocate memory for Admin Q */
-	softs->admin_queue_dma_mem.tag = "admin_queue";
-	softs->admin_queue_dma_mem.size = alloc_size;
-	softs->admin_queue_dma_mem.align = PQI_ADMINQ_ELEM_ARRAY_ALIGN;
-	ret = os_dma_mem_alloc(softs, &softs->admin_queue_dma_mem);
+	/* Allocate memory for the Q */
+	memset(dma_mem, 0, sizeof(*dma_mem));
+	os_strlcpy(dma_mem->tag, tag, sizeof(dma_mem->tag));
+	dma_mem->size = alloc_size;
+	dma_mem->align = PQI_ADDR_ALIGN;
+	ret = os_dma_mem_alloc(softs, &ib_q->alloc_dma);
 	if (ret) {
-		DBG_ERR("Failed to Allocate Admin Q ret : %d\n", ret);
+		DBG_ERR("Failed to Allocate Q tag=%s ret=%d\n", dma_mem->tag, ret);
 		goto err_out;
 	}
 
+	DBG_INIT("alloc tag=%s size=0x%x align=0x%x virt_addr=%p dma_addr=%p\n",
+		dma_mem->tag, dma_mem->size, dma_mem->align, dma_mem->virt_addr, (void*)dma_mem->dma_addr);
+
 	/* Setup the address */
-	virt_addr = softs->admin_queue_dma_mem.virt_addr;
-	dma_addr = softs->admin_queue_dma_mem.dma_addr;
+	virt_addr = dma_mem->virt_addr;
+	dma_addr = dma_mem->dma_addr;
+	ASSERT(!((uint64_t)virt_addr & PQI_ADDR_ALIGN_MASK));
+	ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK));
 
 	/* IB */
-	softs->admin_ib_queue.q_id = 0;
-	softs->admin_ib_queue.array_virt_addr = virt_addr;
-	softs->admin_ib_queue.array_dma_addr = dma_addr;
-	softs->admin_ib_queue.pi_local = 0;
-	/* OB */
-	softs->admin_ob_queue.q_id = 0;
-	softs->admin_ob_queue.array_virt_addr = virt_addr + ib_array_size;
-	softs->admin_ob_queue.array_dma_addr = dma_addr + ib_array_size;
-	softs->admin_ob_queue.ci_local = 0;
+	ASSERT(!(dma_addr &  PQI_ADDR_ALIGN_MASK));
+	ib_q->array_virt_addr = virt_addr;
+	ib_q->array_dma_addr = dma_addr;
+	ib_q->pi_local = 0;
+
+	/* update addr for the next user */
+	virt_addr += ib_array_size;
+	dma_addr += ib_array_size;
 
 	/* IB CI */
-	softs->admin_ib_queue.ci_virt_addr =
-		(uint32_t*)((uint8_t*)softs->admin_ob_queue.array_virt_addr
-				+ ob_array_size);
-	softs->admin_ib_queue.ci_dma_addr =
-		(dma_addr_t)((uint8_t*)softs->admin_ob_queue.array_dma_addr +
-				ob_array_size);
+	ASSERT(!(dma_addr & PQI_CI_PI_ALIGN_MASK));
+	ib_q->ci_virt_addr = (uint32_t*)virt_addr;
+	ib_q->ci_dma_addr = dma_addr;
 
-	/* OB PI */
-	softs->admin_ob_queue.pi_virt_addr =
-		(uint32_t*)((uint8_t*)(softs->admin_ib_queue.ci_virt_addr) +
-		PQI_ADDR_ALIGN_MASK_64 + 1);
-	softs->admin_ob_queue.pi_dma_addr =
-		(dma_addr_t)((uint8_t*)(softs->admin_ib_queue.ci_dma_addr) +
-		PQI_ADDR_ALIGN_MASK_64 + 1);
+	/* update addr for the next user */
+	virt_addr += PQI_CI_PI_ALIGN;
 
-	DBG_INIT("softs->admin_ib_queue.ci_dma_addr : %p,softs->admin_ob_queue.pi_dma_addr :%p\n",
-				(void*)softs->admin_ib_queue.ci_dma_addr, (void*)softs->admin_ob_queue.pi_dma_addr );
+	DBG_INIT("ib_q: virt_addr=%p, ci_dma_addr=%p elem=%u size=%u\n",
+		ib_q->array_virt_addr, (void*)ib_q->ci_dma_addr, ib_q->num_elem, ib_array_size);
 
-	/* Verify alignment */
-	ASSERT(!(softs->admin_ib_queue.array_dma_addr &
-				PQI_ADDR_ALIGN_MASK_64));
-	ASSERT(!(softs->admin_ib_queue.ci_dma_addr &
-				PQI_ADDR_ALIGN_MASK_64));
-	ASSERT(!(softs->admin_ob_queue.array_dma_addr &
-				PQI_ADDR_ALIGN_MASK_64));
-	ASSERT(!(softs->admin_ob_queue.pi_dma_addr &
-				PQI_ADDR_ALIGN_MASK_64));
+	/* Verify we aren't out of bounds from allocation */
+	ASSERT(virt_addr <= ((char*)dma_mem->virt_addr + alloc_size));
 
 	DBG_FUNC("OUT\n");
 	return ret;
@@ -222,6 +210,106 @@ pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
 err_out:
 	DBG_FUNC("failed OUT\n");
 	return PQI_STATUS_FAILURE;
+}
+
+
+/*
+ * Allocate DMA memory for outbound queue and initialize.
+ */
+int
+pqisrc_allocate_and_init_outbound_q(pqisrc_softstate_t *softs, ob_queue_t *ob_q,
+	char *tag)
+{
+	struct dma_mem *dma_mem = &ob_q->alloc_dma;
+	uint32_t ob_array_size = 0;
+	uint32_t alloc_size = 0;
+	char *virt_addr = NULL;
+	dma_addr_t dma_addr = 0;
+	int ret = PQI_STATUS_SUCCESS;
+
+	ob_array_size = ob_q->num_elem * ob_q->elem_size;
+	ASSERT(ob_array_size > 0);
+
+	alloc_size = ob_array_size + PQI_CI_PI_ALIGN + PQI_ADDR_ALIGN; /* for OB PI */
+
+	/* Allocate memory for the Q */
+	memset(dma_mem, 0, sizeof(*dma_mem));
+	os_strlcpy(dma_mem->tag, tag, sizeof(dma_mem->tag));
+	dma_mem->size = alloc_size;
+	dma_mem->align = PQI_ADDR_ALIGN;
+	ret = os_dma_mem_alloc(softs, &ob_q->alloc_dma);
+	if (ret) {
+		DBG_ERR("Failed to Allocate Q tag=%s ret=%d\n", dma_mem->tag, ret);
+		goto err_out;
+	}
+
+	DBG_INIT("alloc tag=%s size=0x%x align=0x%x virt_addr=%p dma_addr=%p\n",
+		dma_mem->tag, dma_mem->size, dma_mem->align, dma_mem->virt_addr, (void*)dma_mem->dma_addr);
+
+	/* Setup the address */
+	virt_addr = dma_mem->virt_addr;
+	dma_addr = dma_mem->dma_addr;
+	ASSERT(!((uint64_t)virt_addr & PQI_ADDR_ALIGN_MASK));
+	ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK));
+
+	ob_q->array_virt_addr = virt_addr;
+	ob_q->array_dma_addr = dma_addr;
+	ob_q->ci_local = 0;
+
+	/* update addr for the next user */
+	virt_addr += ob_array_size;
+	dma_addr += ob_array_size;
+
+	/* OB PI */
+	ASSERT(!(dma_addr & PQI_CI_PI_ALIGN_MASK));
+	ob_q->pi_virt_addr = (uint32_t*)virt_addr;
+	ob_q->pi_dma_addr = dma_addr;
+
+	/* update addr to show the end next user */
+	virt_addr += PQI_CI_PI_ALIGN;
+
+	DBG_INIT("ob_q: virt_addr=%p, pi_dma_addr=%p elem=%u size=%u\n",
+		ob_q->array_virt_addr, (void*)ob_q->pi_dma_addr, ob_q->num_elem, ob_array_size);
+
+	/* Verify we aren't out of bounds from allocation */
+	ASSERT(virt_addr <= ((char*)dma_mem->virt_addr + alloc_size));
+
+	DBG_FUNC("OUT\n");
+	return ret;
+
+err_out:
+	DBG_FUNC("failed OUT\n");
+	return PQI_STATUS_FAILURE;
+}
+
+/*
+ * Allocate DMA memory for admin queue and initialize.
+ */
+int pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
+{
+	int ret;
+	ib_queue_t *admin_ib_q = &softs->admin_ib_queue;
+	ob_queue_t *admin_ob_q = &softs->admin_ob_queue;
+
+	ret = pqisrc_allocate_and_init_inbound_q(softs, admin_ib_q, "admin_queue");
+	if (!ret) {
+		admin_ib_q->q_id = PQI_ADMIN_IB_QUEUE_ID;
+		ret = pqisrc_allocate_and_init_outbound_q(softs, admin_ob_q, "admin_queue");
+		if(!ret)
+			admin_ob_q->q_id = PQI_ADMIN_OB_QUEUE_ID;
+		else {
+			if(softs->admin_ib_queue.lockcreated==true) {
+				OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);
+				softs->admin_ib_queue.lockcreated = false;
+			}
+			if (softs->admin_ib_queue.alloc_dma.virt_addr)
+				os_dma_mem_free(softs, &softs->admin_ib_queue.alloc_dma);
+		}
+	}
+	else
+		DBG_ERR("Failed to create Admin Queue pair\n");
+
+	return ret;
 }
 
 /*
@@ -264,17 +352,17 @@ pqisrc_print_adminq_config(pqisrc_softstate_t *softs)
 		(void*)softs->admin_ib_queue.array_dma_addr);
 	DBG_INFO(" softs->admin_ib_queue.array_virt_addr : %p\n",
 		(void*)softs->admin_ib_queue.array_virt_addr);
-	DBG_INFO(" softs->admin_ib_queue.num_elem : %d\n",
+	DBG_INFO(" softs->admin_ib_queue.num_elem : %u\n",
 		softs->admin_ib_queue.num_elem);
-	DBG_INFO(" softs->admin_ib_queue.elem_size : %d\n",
+	DBG_INFO(" softs->admin_ib_queue.elem_size : %u\n",
 		softs->admin_ib_queue.elem_size);
 	DBG_INFO(" softs->admin_ob_queue.array_dma_addr : %p\n",
 		(void*)softs->admin_ob_queue.array_dma_addr);
 	DBG_INFO(" softs->admin_ob_queue.array_virt_addr : %p\n",
 		(void*)softs->admin_ob_queue.array_virt_addr);
-	DBG_INFO(" softs->admin_ob_queue.num_elem : %d\n",
+	DBG_INFO(" softs->admin_ob_queue.num_elem : %u\n",
 		softs->admin_ob_queue.num_elem);
-	DBG_INFO(" softs->admin_ob_queue.elem_size : %d\n",
+	DBG_INFO(" softs->admin_ob_queue.elem_size : %u\n",
 		softs->admin_ob_queue.elem_size);
 	DBG_INFO(" softs->admin_ib_queue.pi_register_abs : %p\n",
 		(void*)softs->admin_ib_queue.pi_register_abs);
@@ -289,6 +377,7 @@ int
 pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
+/*	struct pqi_dev_adminq_cap *pqi_cap; */
 	uint32_t admin_q_param = 0;
 
 	DBG_FUNC("IN\n");
@@ -371,8 +460,11 @@ pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 	return ret;
 
 err_lock:
+#if 0
+	pqisrc_create_delete_adminq(softs, PQI_ADMIN_QUEUE_CONF_FUNC_DEL_Q_PAIR);
+#endif
 err_q_create:
-	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);
+	 pqisrc_destroy_admin_queue(softs);
 err_out:
 	DBG_FUNC("failed OUT\n");
 	return ret;
@@ -425,13 +517,14 @@ pqisrc_destroy_event_queue(pqisrc_softstate_t *softs)
 		int ret = PQI_STATUS_SUCCESS;
 		ret = pqisrc_delete_op_queue(softs, softs->event_q.q_id, false);
 		if (ret) {
-			DBG_ERR("Failed to Delete Event Q %d\n", softs->event_q.q_id);
+			DBG_ERR("Failed to Delete Event Q %u\n", softs->event_q.q_id);
 		}
 		softs->event_q.created = false;
 	}
 
 	/* Free the memory */
-	os_dma_mem_free(softs, &softs->event_q_dma_mem);
+	if (softs->event_q.alloc_dma.virt_addr)
+		os_dma_mem_free(softs, &softs->event_q.alloc_dma);
 
 	DBG_FUNC("OUT\n");
 }
@@ -444,44 +537,42 @@ pqisrc_destroy_op_ib_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	ib_queue_t *op_ib_q = NULL;
+	uint32_t total_op_ibq = softs->num_op_raid_ibq;
 	int i;
 
 	DBG_FUNC("IN\n");
 
-	for (i = 0; i <  softs->num_op_raid_ibq; i++) {
-		/* OP RAID IB Q */
+	for (i = 0; i < total_op_ibq; i++) {
+                int repeat = 0;
+		/* RAID first */
 		op_ib_q = &softs->op_raid_ib_q[i];
+release_queue:
 		if (op_ib_q->created == true) {
-			ret = pqisrc_delete_op_queue(softs, op_ib_q->q_id, true);
+			ret = pqisrc_delete_op_queue(softs, op_ib_q->q_id,
+							true);
 			if (ret) {
-				DBG_ERR("Failed to Delete Raid IB Q %d\n",op_ib_q->q_id);
+				DBG_ERR("Failed to Delete IB Q %u\n",
+					op_ib_q->q_id);
 			}
 			op_ib_q->created = false;
 		}
 
-        if(op_ib_q->lockcreated==true){
-		OS_UNINIT_PQILOCK(&op_ib_q->lock);
-            	op_ib_q->lockcreated = false;
-        }
-
-		/* OP AIO IB Q */
-		op_ib_q = &softs->op_aio_ib_q[i];
-		if (op_ib_q->created == true) {
-			ret = pqisrc_delete_op_queue(softs, op_ib_q->q_id, true);
-			if (ret) {
-				DBG_ERR("Failed to Delete AIO IB Q %d\n",op_ib_q->q_id);
-			}
-			op_ib_q->created = false;
+		if (op_ib_q->lockcreated == true) {
+			OS_UNINIT_PQILOCK(&op_ib_q->lock);
+			op_ib_q->lockcreated = false;
 		}
 
-        if(op_ib_q->lockcreated==true){
-		OS_UNINIT_PQILOCK(&op_ib_q->lock);
-		op_ib_q->lockcreated = false;
-        }
+		/* Free the memory */
+		if (op_ib_q->alloc_dma.virt_addr)
+			os_dma_mem_free(softs, &op_ib_q->alloc_dma);
+
+		if (repeat < 1) {
+			repeat++;
+			op_ib_q = &softs->op_aio_ib_q[i];
+			goto release_queue;
+		}
 	}
 
-	/* Free the memory */
-	os_dma_mem_free(softs, &softs->op_ibq_dma_mem);
 	DBG_FUNC("OUT\n");
 }
 
@@ -493,23 +584,27 @@ pqisrc_destroy_op_ob_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	int i;
+	ob_queue_t *op_ob_q = NULL;
 
 	DBG_FUNC("IN\n");
 
 	for (i = 0; i <  softs->num_op_obq; i++) {
-		ob_queue_t *op_ob_q = NULL;
 		op_ob_q = &softs->op_ob_q[i];
+
 		if (op_ob_q->created == true) {
 			ret = pqisrc_delete_op_queue(softs, op_ob_q->q_id, false);
 			if (ret) {
-				DBG_ERR("Failed to Delete OB Q %d\n",op_ob_q->q_id);
+				DBG_ERR("Failed to Delete OB Q %u\n",op_ob_q->q_id);
 			}
 			op_ob_q->created = false;
 		}
+
+		/* Free the memory */
+		if (op_ob_q->alloc_dma.virt_addr)
+			os_dma_mem_free(softs, &op_ob_q->alloc_dma);
 	}
 
 	/* Free the memory */
-	os_dma_mem_free(softs, &softs->op_obq_dma_mem);
 	DBG_FUNC("OUT\n");
 }
 
@@ -522,11 +617,22 @@ pqisrc_destroy_admin_queue(pqisrc_softstate_t *softs)
 	int ret = PQI_STATUS_SUCCESS;
 
 	DBG_FUNC("IN\n");
+
+	if(softs->admin_ib_queue.lockcreated==true) {
+		OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);
+		softs->admin_ib_queue.lockcreated = false;
+	}
+
 #if 0
 	ret = pqisrc_create_delete_adminq(softs,
 				PQI_ADMIN_QUEUE_CONF_FUNC_DEL_Q_PAIR);
 #endif
-	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);
+
+	if (softs->admin_ib_queue.alloc_dma.virt_addr)
+		os_dma_mem_free(softs, &softs->admin_ib_queue.alloc_dma);
+
+	if (softs->admin_ob_queue.alloc_dma.virt_addr)
+		os_dma_mem_free(softs, &softs->admin_ob_queue.alloc_dma);
 
 	DBG_FUNC("OUT\n");
 	return ret;
@@ -689,15 +795,8 @@ int
 pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	uint32_t alloc_size = 0;
 	uint32_t num_elem;
-	char *virt_addr = NULL;
-	dma_addr_t dma_addr = 0;
-	uint64_t event_q_pi_dma_start_offset = 0;
-	uint32_t event_q_pi_virt_start_offset = 0;
-	char *event_q_pi_virt_start_addr = NULL;
-	ob_queue_t *event_q = NULL;
-
+	ob_queue_t *event_q = &softs->event_q;
 
 	DBG_FUNC("IN\n");
 
@@ -710,47 +809,26 @@ pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *softs)
 	 * for queue size calculation.
 	 */
 #ifdef SHARE_EVENT_QUEUE_FOR_IO
-	num_elem = MIN(softs->num_elem_per_op_obq, PQISRC_NUM_EVENT_Q_ELEM);
+	num_elem = MIN(softs->num_elem_per_op_obq, PQISRC_MAX_EVENT_QUEUE_ELEM_NUM);
 #else
-	num_elem = PQISRC_NUM_EVENT_Q_ELEM;
+	num_elem = PQISRC_MAX_EVENT_QUEUE_ELEM_NUM;
 #endif
 
-	alloc_size = num_elem *  PQISRC_EVENT_Q_ELEM_SIZE;
-	event_q_pi_dma_start_offset = alloc_size;
-	event_q_pi_virt_start_offset = alloc_size;
-	alloc_size += sizeof(uint32_t); /*For IBQ CI*/
+	event_q->num_elem = num_elem;
+	event_q->elem_size = PQISRC_EVENT_Q_ELEM_SIZE_BYTES;
 
-	/* Allocate memory for event queues */
-	softs->event_q_dma_mem.tag = "event_queue";
-	softs->event_q_dma_mem.size = alloc_size;
-	softs->event_q_dma_mem.align = PQI_OPQ_ELEM_ARRAY_ALIGN;
-	ret = os_dma_mem_alloc(softs, &softs->event_q_dma_mem);
+	ret = pqisrc_allocate_and_init_outbound_q(softs, event_q, "event_queue");
+
 	if (ret) {
-		DBG_ERR("Failed to Allocate Event Q ret : %d\n"
-				, ret);
+		DBG_ERR("Failed to Allocate EventQ\n");
 		goto err_out;
 	}
-
-	/* Set up the address */
-	virt_addr = softs->event_q_dma_mem.virt_addr;
-	dma_addr = softs->event_q_dma_mem.dma_addr;
-	event_q_pi_dma_start_offset += dma_addr;
-	event_q_pi_virt_start_addr = virt_addr + event_q_pi_virt_start_offset;
-
-	event_q = &softs->event_q;
-	ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK_64));
-	FILL_QUEUE_ARRAY_ADDR(event_q,virt_addr,dma_addr);
 	event_q->q_id = PQI_OP_EVENT_QUEUE_ID;
-	event_q->num_elem = num_elem;
-	event_q->elem_size = PQISRC_EVENT_Q_ELEM_SIZE;
-	event_q->pi_dma_addr = event_q_pi_dma_start_offset;
-	event_q->pi_virt_addr = (uint32_t *)event_q_pi_virt_start_addr;
 	event_q->intr_msg_num = 0; /* vector zero for event */
-	ASSERT(!(event_q->pi_dma_addr & PQI_ADDR_ALIGN_MASK_4));
 
 	ret = pqisrc_create_op_obq(softs,event_q);
 	if (ret) {
-		DBG_ERR("Failed to Create EventQ %d\n",event_q->q_id);
+		DBG_ERR("Failed to Create EventQ %u\n",event_q->q_id);
 		goto err_out_create;
 	}
 	event_q->created  = true;
@@ -772,115 +850,62 @@ int
 pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	uint32_t alloc_size = 0;
-	char *virt_addr = NULL;
-	dma_addr_t dma_addr = 0;
-	uint32_t ibq_size = 0;
-	uint64_t ib_ci_dma_start_offset = 0;
-	char *ib_ci_virt_start_addr = NULL;
-	uint32_t ib_ci_virt_start_offset = 0;
-	uint32_t ibq_id = PQI_MIN_OP_IB_QUEUE_ID;
 	ib_queue_t *op_ib_q = NULL;
-	uint32_t num_op_ibq = softs->num_op_raid_ibq +
-				softs->num_op_aio_ibq;
+	uint32_t ibq_id = PQI_MIN_OP_IB_QUEUE_ID;
+	uint32_t total_op_ibq = softs->num_op_raid_ibq + softs->num_op_aio_ibq;
 	int i = 0;
+	char *string = NULL;
 
 	DBG_FUNC("IN\n");
 
-	/* Calculate memory requirements */
-	ibq_size = softs->num_elem_per_op_ibq *  softs->ibq_elem_size;
-	alloc_size =  num_op_ibq * ibq_size;
-	/* CI indexes starts after Queue element array */
-	ib_ci_dma_start_offset = alloc_size;
-	ib_ci_virt_start_offset = alloc_size;
-	alloc_size += num_op_ibq * sizeof(uint32_t); /*For IBQ CI*/
-
-	/* Allocate memory for IB queues */
-	softs->op_ibq_dma_mem.tag = "op_ib_queue";
-	softs->op_ibq_dma_mem.size = alloc_size;
-	softs->op_ibq_dma_mem.align = PQI_OPQ_ELEM_ARRAY_ALIGN;
-	ret = os_dma_mem_alloc(softs, &softs->op_ibq_dma_mem);
-	if (ret) {
-		DBG_ERR("Failed to Allocate Operational IBQ memory ret : %d\n",
-						ret);
-		goto err_out;
-	}
-
-	/* Set up the address */
-	virt_addr = softs->op_ibq_dma_mem.virt_addr;
-	dma_addr = softs->op_ibq_dma_mem.dma_addr;
-	ib_ci_dma_start_offset += dma_addr;
-	ib_ci_virt_start_addr = virt_addr + ib_ci_virt_start_offset;
-
 	ASSERT(softs->num_op_raid_ibq == softs->num_op_aio_ibq);
 
-	for (i = 0; i <  softs->num_op_raid_ibq; i++) {
+	for (i = 0; i < total_op_ibq; i++) {
+
 		/* OP RAID IB Q */
-		op_ib_q = &softs->op_raid_ib_q[i];
-		ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK_64));
-		FILL_QUEUE_ARRAY_ADDR(op_ib_q,virt_addr,dma_addr);
+		if (i % 2 == 0)
+		{
+			op_ib_q = &softs->op_raid_ib_q[i/2];
+			string = "raid";
+		}
+		else
+		{
+			op_ib_q = &softs->op_aio_ib_q[i/2];
+			string = "aio";
+		}
+
+		/* Allocate memory for IB queues */
+		op_ib_q->num_elem = softs->num_elem_per_op_ibq;
+		op_ib_q->elem_size = softs->max_ibq_elem_size;
+
+		ret = pqisrc_allocate_and_init_inbound_q(softs, op_ib_q, "op_ib_queue");
+		if (ret) {
+			DBG_ERR("Failed to Allocate Operational IBQ memory ret : %d\n",
+							ret);
+			goto err_out;
+		}
 		op_ib_q->q_id = ibq_id++;
 
-        snprintf(op_ib_q->lockname, LOCKNAME_SIZE, "raid_ibqlock%d", i);
+		snprintf(op_ib_q->lockname, LOCKNAME_SIZE, "%s_ibqlock_%d", string, i);
 		ret = OS_INIT_PQILOCK(softs, &op_ib_q->lock, op_ib_q->lockname);
-        if(ret){
-            /* TODO: error handling */
-            DBG_ERR("raid_ibqlock %d init failed\n", i);
-            op_ib_q->lockcreated = false;
-            goto err_lock;
+		if(ret){
+			/* TODO: error handling */
+			DBG_ERR("%s %d init failed\n", string, i);
+			op_ib_q->lockcreated = false;
+			goto err_lock;
 		}
-        op_ib_q->lockcreated = true;
+		op_ib_q->lockcreated = true;
 
-		op_ib_q->num_elem = softs->num_elem_per_op_ibq;
-		op_ib_q->elem_size = softs->ibq_elem_size;
-		op_ib_q->ci_dma_addr = ib_ci_dma_start_offset +
-					(2 * i * sizeof(uint32_t));
-		op_ib_q->ci_virt_addr = (uint32_t*)(ib_ci_virt_start_addr +
-					(2 * i * sizeof(uint32_t)));
-		ASSERT(!(op_ib_q->ci_dma_addr & PQI_ADDR_ALIGN_MASK_4));
-
-		ret = pqisrc_create_op_raid_ibq(softs, op_ib_q);
+		if (i % 2 == 0)
+			ret = pqisrc_create_op_raid_ibq(softs, op_ib_q);
+		else
+			ret = pqisrc_create_op_aio_ibq(softs, op_ib_q);
 		if (ret) {
-			DBG_ERR("[ %s ] Failed to Create OP Raid IBQ %d\n",
-					__func__, op_ib_q->q_id);
+			DBG_ERR("Failed to Create OP IBQ type=%s id=%u\n",
+					string, op_ib_q->q_id);
 			goto err_out_create;
 		}
 		op_ib_q->created  = true;
-
-		/* OP AIO IB Q */
-		virt_addr += ibq_size;
-		dma_addr += ibq_size;
-		op_ib_q = &softs->op_aio_ib_q[i];
-		ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK_64));
-		FILL_QUEUE_ARRAY_ADDR(op_ib_q,virt_addr,dma_addr);
-		op_ib_q->q_id = ibq_id++;
-        snprintf(op_ib_q->lockname, LOCKNAME_SIZE, "aio_ibqlock%d", i);
-		ret = OS_INIT_PQILOCK(softs, &op_ib_q->lock, op_ib_q->lockname);
-        if(ret){
-            /* TODO: error handling */
-            DBG_ERR("aio_ibqlock %d init failed\n", i);
-            op_ib_q->lockcreated = false;
-            goto err_lock;
-        }
-        op_ib_q->lockcreated = true;
-
-		op_ib_q->num_elem = softs->num_elem_per_op_ibq;
-		op_ib_q->elem_size = softs->ibq_elem_size;
-		op_ib_q->ci_dma_addr = ib_ci_dma_start_offset +
-					(((2 * i) + 1) * sizeof(uint32_t));
-		op_ib_q->ci_virt_addr = (uint32_t*)(ib_ci_virt_start_addr +
-					(((2 * i) + 1) * sizeof(uint32_t)));
-		ASSERT(!(op_ib_q->ci_dma_addr & PQI_ADDR_ALIGN_MASK_4));
-
-		ret = pqisrc_create_op_aio_ibq(softs, op_ib_q);
-		if (ret) {
-			DBG_ERR("Failed to Create OP AIO IBQ %d\n",op_ib_q->q_id);
-			goto err_out_create;
-		}
-		op_ib_q->created  = true;
-
-		virt_addr += ibq_size;
-		dma_addr += ibq_size;
 	}
 
 	DBG_FUNC("OUT\n");
@@ -888,8 +913,8 @@ pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *softs)
 
 err_lock:
 err_out_create:
-	pqisrc_destroy_op_ib_queues(softs);
 err_out:
+	pqisrc_destroy_op_ib_queues(softs);
 	DBG_FUNC("OUT failed %d\n", ret);
 	return PQI_STATUS_FAILURE;
 }
@@ -901,16 +926,8 @@ int
 pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	uint32_t alloc_size = 0;
-	char *virt_addr = NULL;
-	dma_addr_t dma_addr = 0;
-	uint32_t obq_size = 0;
-	uint64_t ob_pi_dma_start_offset = 0;
-	uint32_t ob_pi_virt_start_offset = 0;
-	char *ob_pi_virt_start_addr = NULL;
 	uint32_t obq_id = PQI_MIN_OP_OB_QUEUE_ID;
 	ob_queue_t *op_ob_q = NULL;
- 	uint32_t num_op_obq = softs->num_op_obq;
 	int i = 0;
 
 	DBG_FUNC("IN\n");
@@ -923,65 +940,41 @@ pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *softs)
 	 */
 
 	ALIGN_BOUNDARY(softs->num_elem_per_op_obq, 4);
-	obq_size = softs->num_elem_per_op_obq *  softs->obq_elem_size;
-	alloc_size += num_op_obq * obq_size;
-	/* PI indexes starts after Queue element array */
-	ob_pi_dma_start_offset = alloc_size;
-	ob_pi_virt_start_offset = alloc_size;
-	alloc_size += num_op_obq * sizeof(uint32_t); /*For OBQ PI*/
 
-	/* Allocate memory for OB queues */
-	softs->op_obq_dma_mem.tag = "op_ob_queue";
-	softs->op_obq_dma_mem.size = alloc_size;
-	softs->op_obq_dma_mem.align = PQI_OPQ_ELEM_ARRAY_ALIGN;
-	ret = os_dma_mem_alloc(softs, &softs->op_obq_dma_mem);
-	if (ret) {
-		DBG_ERR("Failed to Allocate Operational OBQ memory ret : %d\n",
-						ret);
-		goto err_out;
-	}
-
-	/* Set up the address */
-	virt_addr = softs->op_obq_dma_mem.virt_addr;
-	dma_addr = softs->op_obq_dma_mem.dma_addr;
-	ob_pi_dma_start_offset += dma_addr;
-	ob_pi_virt_start_addr = virt_addr + ob_pi_virt_start_offset;
-
-	DBG_INFO("softs->num_op_obq %d\n",softs->num_op_obq);
+	DBG_INIT("softs->num_op_obq %u max_obq_elem_size=%u\n",softs->num_op_obq, softs->max_obq_elem_size);
 
 	for (i = 0; i <  softs->num_op_obq; i++) {
 		op_ob_q = &softs->op_ob_q[i];
-		ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK_64));
-		FILL_QUEUE_ARRAY_ADDR(op_ob_q,virt_addr,dma_addr);
+
+		/* Allocate memory for OB queues */
+		op_ob_q->num_elem = softs->num_elem_per_op_obq;
+		op_ob_q->elem_size = PQISRC_OP_OBQ_ELEM_SIZE_BYTES;
+		ret = pqisrc_allocate_and_init_outbound_q(softs, op_ob_q, "op_ob_queue");
+		if (ret) {
+			DBG_ERR("Failed to Allocate Operational OBQ memory ret : %d\n",
+							ret);
+			goto err_out;
+		}
 		op_ob_q->q_id = obq_id++;
 		if(softs->share_opq_and_eventq == true)
 			op_ob_q->intr_msg_num = i;
 		else
 			op_ob_q->intr_msg_num = i + 1; /* msg num zero for event */
-		op_ob_q->num_elem = softs->num_elem_per_op_obq;
-		op_ob_q->elem_size = softs->obq_elem_size;
-		op_ob_q->pi_dma_addr = ob_pi_dma_start_offset +
-					(i * sizeof(uint32_t));
-		op_ob_q->pi_virt_addr = (uint32_t*)(ob_pi_virt_start_addr +
-					(i * sizeof(uint32_t)));
-		ASSERT(!(op_ob_q->pi_dma_addr & PQI_ADDR_ALIGN_MASK_4));
 
-		ret = pqisrc_create_op_obq(softs,op_ob_q);
+		ret = pqisrc_create_op_obq(softs, op_ob_q);
 		if (ret) {
-			DBG_ERR("Failed to Create OP OBQ %d\n",op_ob_q->q_id);
+			DBG_ERR("Failed to Create OP OBQ %u\n",op_ob_q->q_id);
 			goto err_out_create;
 		}
 		op_ob_q->created  = true;
-		virt_addr += obq_size;
-		dma_addr += obq_size;
 	}
 
 	DBG_FUNC("OUT\n");
 	return ret;
 
 err_out_create:
-	pqisrc_destroy_op_ob_queues(softs);
 err_out:
+	pqisrc_destroy_op_ob_queues(softs);
 	DBG_FUNC("OUT failed %d\n", ret);
 	return PQI_STATUS_FAILURE;
 }
