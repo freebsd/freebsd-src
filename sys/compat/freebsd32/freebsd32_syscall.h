@@ -326,6 +326,7 @@
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
 #define	FREEBSD32_SYS_freebsd32_sendfile	393
+#define	FREEBSD32_SYS_mac_syscall	394
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getfsstat	395
 #define	FREEBSD32_SYS_freebsd11_statfs	396
 #define	FREEBSD32_SYS_freebsd11_fstatfs	397
