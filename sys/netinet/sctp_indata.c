@@ -1290,14 +1290,17 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 	 * control and free up the chunk resources.
 	 */
 	uint32_t added = 0;
-	int i_locked = 0;
+	bool i_locked = false;
 
-	if (control->on_read_q && (hold_rlock == 0)) {
-		/*
-		 * Its being pd-api'd so we must do some locks.
-		 */
-		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-		i_locked = 1;
+	if (control->on_read_q) {
+		if (hold_rlock == 0) {
+			/* Its being pd-api'd so we must do some locks. */
+			SCTP_INP_READ_LOCK(stcb->sctp_ep);
+			i_locked = true;
+		}
+		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ) {
+			goto out;
+		}
 	}
 	if (control->data == NULL) {
 		control->data = chk->data;
@@ -1346,6 +1349,7 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 		control->end_added = 1;
 		control->last_frag_seen = 1;
 	}
+out:
 	if (i_locked) {
 		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
 	}
