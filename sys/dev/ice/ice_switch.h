@@ -51,18 +51,6 @@
 #define ICE_PROFID_IPV6_GTPU_IPV6_TCP		70
 
 #define DUMMY_ETH_HDR_LEN		16
-#define ICE_SW_RULE_RX_TX_ETH_HDR_SIZE \
-	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr) + \
-	 (DUMMY_ETH_HDR_LEN * \
-	  sizeof(((struct ice_sw_rule_lkup_rx_tx *)0)->hdr[0])))
-#define ICE_SW_RULE_RX_TX_NO_HDR_SIZE \
-	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr))
-#define ICE_SW_RULE_LG_ACT_SIZE(n) \
-	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lg_act.act) + \
-	 ((n) * sizeof(((struct ice_sw_rule_lg_act *)0)->act[0])))
-#define ICE_SW_RULE_VSI_LIST_SIZE(n) \
-	(offsetof(struct ice_aqc_sw_rules_elem, pdata.vsi_list.vsi) + \
-	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi[0])))
 
 /* Worst case buffer length for ice_aqc_opc_get_res_alloc */
 #define ICE_MAX_RES_TYPES 0x80
@@ -191,6 +179,40 @@ struct ice_adv_lkup_elem {
 	enum ice_protocol_type type;
 	union ice_prot_hdr h_u;	/* Header values */
 	union ice_prot_hdr m_u;	/* Mask of header values to match */
+};
+
+struct entry_vsi_fwd {
+	u16 vsi_list;
+	u8 list;
+	u8 valid;
+};
+
+struct entry_to_q {
+	u16 q_idx;
+	u8 q_region_sz;
+	u8 q_pri;
+};
+
+struct entry_prune {
+	u16 vsi_list;
+	u8 list;
+	u8 egr;
+	u8 ing;
+	u8 prune_t;
+};
+
+struct entry_mirror {
+	u16 mirror_vsi;
+};
+
+struct entry_generic_act {
+	u16 generic_value;
+	u8 offset;
+	u8 priority;
+};
+
+struct entry_statistics {
+	u8 counter_idx;
 };
 
 struct ice_sw_act_ctrl {
@@ -382,14 +404,16 @@ struct ice_adv_fltr_mgmt_list_entry {
 };
 
 enum ice_promisc_flags {
-	ICE_PROMISC_UCAST_RX = 0x1,
-	ICE_PROMISC_UCAST_TX = 0x2,
-	ICE_PROMISC_MCAST_RX = 0x4,
-	ICE_PROMISC_MCAST_TX = 0x8,
-	ICE_PROMISC_BCAST_RX = 0x10,
-	ICE_PROMISC_BCAST_TX = 0x20,
-	ICE_PROMISC_VLAN_RX = 0x40,
-	ICE_PROMISC_VLAN_TX = 0x80,
+	ICE_PROMISC_UCAST_RX = 0,
+	ICE_PROMISC_UCAST_TX,
+	ICE_PROMISC_MCAST_RX,
+	ICE_PROMISC_MCAST_TX,
+	ICE_PROMISC_BCAST_RX,
+	ICE_PROMISC_BCAST_TX,
+	ICE_PROMISC_VLAN_RX,
+	ICE_PROMISC_VLAN_TX,
+	/* Max value */
+	ICE_PROMISC_MAX,
 };
 
 struct ice_dummy_pkt_offsets {
@@ -405,7 +429,7 @@ ice_find_dummy_packet(struct ice_adv_lkup_elem *lkups, u16 lkups_cnt,
 
 enum ice_status
 ice_fill_adv_dummy_packet(struct ice_adv_lkup_elem *lkups, u16 lkups_cnt,
-			  struct ice_aqc_sw_rules_elem *s_rule,
+			  struct ice_sw_rule_lkup_rx_tx *s_rule,
 			  const u8 *dummy_pkt, u16 pkt_len,
 			  const struct ice_dummy_pkt_offsets *offsets);
 
@@ -516,22 +540,22 @@ ice_cfg_dflt_vsi(struct ice_port_info *pi, u16 vsi_handle, bool set,
 bool ice_check_if_dflt_vsi(struct ice_port_info *pi, u16 vsi_handle,
 			   bool *rule_exists);
 enum ice_status
-ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
-		    u16 vid);
+ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
+		    ice_bitmap_t *promisc_mask, u16 vid);
 enum ice_status
-ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
-		      u16 vid);
+ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
+		      ice_bitmap_t *promisc_mask, u16 vid);
 enum ice_status
-ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
-			 bool rm_vlan_promisc);
+ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
+			 ice_bitmap_t *promisc_mask, bool rm_vlan_promisc);
 
 /* Get VSIs Promisc/defport settings */
 enum ice_status
-ice_get_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
-		    u16 *vid);
+ice_get_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
+		    ice_bitmap_t *promisc_mask, u16 *vid);
 enum ice_status
-ice_get_vsi_vlan_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
-			 u16 *vid);
+ice_get_vsi_vlan_promisc(struct ice_hw *hw, u16 vsi_handle,
+			 ice_bitmap_t *promisc_mask, u16 *vid);
 
 enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
 
