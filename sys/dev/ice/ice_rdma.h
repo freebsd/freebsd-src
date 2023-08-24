@@ -92,6 +92,15 @@
  *
  * If the version specified is not compatible, then the registration will
  * of the RDMA driver will fail.
+ *
+ * @var ice_rdma_info::major_version
+ * 	describe major changes in the interface
+ * @var ice_rdma_info::minor_version
+ * 	describe changes and fixes with backward compatibility
+ * @var ice_rdma_info::patch_version
+ * 	changes without impact on compatibility or features
+ * @var ice_rdma_info::rdma_class
+ * 	kobject class
  */
 struct ice_rdma_info {
 	uint16_t major_version;
@@ -113,6 +122,7 @@ DECLARE_CLASS(ice_rdma_di_class);
  *
  * Defines a mapping for MSI-X vectors being requested by the peer RDMA driver
  * for a given PF.
+ *
  */
 struct ice_rdma_msix_mapping {
 	uint8_t itr_indx;
@@ -165,6 +175,25 @@ struct ice_qos_app_priority_table {
  * @brief Holds all necessary data for RDMA to work with DCB
  *
  * Struct to hold QoS info
+ * @var ice_qos_params::tc_info
+ *	traffic class information
+ * @var ice_qos_params::up2tc
+ *	mapping from user priority to traffic class
+ * @var ice_qos_params::vsi_relative_bw
+ *	bandwidth settings
+ * @var ice_qos_params::vsi_priority_type
+ *	priority type
+ * @var ice_qos_params::num_apps
+ *	app count
+ * @var ice_qos_params::pfc_mode
+ *	PFC mode
+ * @var ice_qos_params::dscp_map
+ *	dscp mapping
+ * @var ice_qos_params::apps
+ *	apps
+ * @var ice_qos_params::num_tc
+ *	number of traffic classes
+};
  */
 struct ice_qos_params {
 	struct ice_qos_info tc_info[IEEE_8021QAZ_MAX_TCS];
@@ -187,6 +216,23 @@ struct ice_qos_params {
  *
  * Because the definition of this structure is shared between the two drivers,
  * its ABI should be handled carefully.
+ *
+ * @var ice_rdma_peer::ifp
+ *	pointer to ifnet structure
+ * @var ice_rdma_peer::dev
+ *	device pointer
+ * @var ice_rdma_peer::pci_mem
+ *	information about PCI
+ * @var ice_rdma_peer::initial_qos_info
+ *	initial information on QoS
+ * @var ice_rdma_peer::msix
+ *	info about msix vectors
+ * @var ice_rdma_peer::mtu
+ *	initial mtu size
+ * @var ice_rdma_peer::pf_vsi_num
+ *	id of vsi
+ * @var ice_rdma_peer::pf_id
+ *	id of PF
  */
 struct ice_rdma_peer {
 	/**
@@ -221,12 +267,23 @@ enum ice_res_type {
 /**
  * @struct ice_rdma_qset_params
  * @brief struct to hold per RDMA Qset info
+ *
+ * @var ice_rdma_qset_params::teid
+ *	qset teid
+ * @var ice_rdma_qset_params::qs_handle
+ *	qset from rdma driver
+ * @var ice_rdma_qset_params::vsi_id
+ *	vsi index
+ * @var ice_rdma_qset_params::tc
+ *	traffic class to which qset should belong to
+ * @var ice_rdma_qset_params::reserved
+ *	for future use
  */
 struct ice_rdma_qset_params {
-	uint32_t teid;  /* qset TEID */
-	uint16_t qs_handle; /* RDMA driver provides this */
-	uint16_t vsi_id; /* VSI index */
-	uint8_t tc; /* TC branch the QSet should belong to */
+	uint32_t teid;
+	uint16_t qs_handle;
+	uint16_t vsi_id;
+	uint8_t tc;
 	uint8_t reserved[3];
 };
 
@@ -234,6 +291,15 @@ struct ice_rdma_qset_params {
 /**
  * @struct ice_rdma_qset_update
  * @brief struct used to register and unregister qsets for RDMA driver
+ *
+ * @var ice_rdma_qset_update::res_type
+ *	ALLOC or FREE
+ * @var ice_rdma_qset_update::cnt_req
+ *	how many qsets are requested
+ * @var ice_rdma_qset_update::res_allocated
+ *	how many qsets are allocated
+ * @var ice_rdma_qset_update::qsets
+ *	rdma qset info
  */
 struct ice_rdma_qset_update {
 	enum ice_res_type res_type;
@@ -263,6 +329,9 @@ enum ice_rdma_event_type {
 /**
  * @struct ice_rdma_event
  * @brief struct for event information to pass to RDMA driver
+ *
+ * @var ice_rdma_event::type
+ *	event type
  */
 struct ice_rdma_event {
 	enum ice_rdma_event_type type;
@@ -292,6 +361,9 @@ struct ice_rdma_event {
 /**
  * @struct ice_rdma_request
  * @brief struct with data for a request from the RDMA driver
+ *
+ * @var ice_rdma_request::type
+ *	event type
  */
 struct ice_rdma_request {
 	enum ice_rdma_event_type type;

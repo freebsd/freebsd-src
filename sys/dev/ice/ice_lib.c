@@ -126,7 +126,6 @@ static int ice_add_ethertype_to_list(struct ice_vsi *vsi,
 				     struct ice_list_head *list,
 				     u16 ethertype, u16 direction,
 				     enum ice_sw_fwd_act_type action);
-static void ice_add_rx_lldp_filter(struct ice_softc *sc);
 static void ice_del_rx_lldp_filter(struct ice_softc *sc);
 static u16 ice_aq_phy_types_to_link_speeds(u64 phy_type_low,
 					   u64 phy_type_high);
@@ -172,7 +171,6 @@ static void ice_sbuf_print_ets_cfg(struct sbuf *sbuf, const char *name,
 				   struct ice_dcb_ets_cfg *ets);
 static void ice_stop_pf_vsi(struct ice_softc *sc);
 static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt);
-static void ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib);
 static int ice_config_pfc(struct ice_softc *sc, u8 new_mode);
 void
 ice_add_dscp2tc_map_sysctls(struct ice_softc *sc,
@@ -241,6 +239,9 @@ static int ice_sysctl_pfc_mode(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_fw_debug_dump_cluster_setting(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_allow_no_fec_mod_in_auto(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_set_link_active(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_debug_set_link(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_temperature(SYSCTL_HANDLER_ARGS);
 
 /**
  * ice_map_bar - Map PCIe BAR memory
@@ -2076,7 +2077,7 @@ ice_process_link_event(struct ice_softc *sc,
 	if (!(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE)) {
 		if (!ice_testandset_state(&sc->state, ICE_STATE_NO_MEDIA)) {
 			status = ice_aq_set_link_restart_an(pi, false, NULL);
-			if (status != ICE_SUCCESS)
+			if (status != ICE_SUCCESS && hw->adminq.sq_last_status != ICE_AQ_RC_EMODE)
 				device_printf(dev,
 				    "%s: ice_aq_set_link_restart_an: status %s, aq_err %s\n",
 				    __func__, ice_status_str(status),
@@ -2110,9 +2111,6 @@ ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
 	switch (opcode) {
 	case ice_aqc_opc_get_link_status:
 		ice_process_link_event(sc, event);
-		break;
-	case ice_mbx_opc_send_msg_to_pf:
-		/* TODO: handle IOV event */
 		break;
 	case ice_aqc_opc_fw_logs_event:
 		ice_handle_fw_log_event(sc, &event->desc, event->msg_buf);
@@ -3126,6 +3124,9 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 
 	pi->phy.curr_user_speed_req = sysctl_speeds;
 
+	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) && !sc->link_up)
+		return 0;
+
 	/* Apply settings requested by user */
 	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS);
 }
@@ -3195,6 +3196,9 @@ ice_sysctl_fec_config(SYSCTL_HANDLER_ARGS)
 
 	/* Cache user FEC mode for later link ups */
 	pi->phy.curr_user_fec_req = new_mode;
+
+	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) && !sc->link_up)
+		return 0;
 
 	/* Apply settings requested by user */
 	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_FEC);
@@ -3363,6 +3367,9 @@ ice_sysctl_fc_config(SYSCTL_HANDLER_ARGS)
 		if (ret)
 			return (ret);
 	}
+
+	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) && !sc->link_up)
+		return 0;
 
 	/* Apply settings requested by user */
 	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_FC);
@@ -3817,7 +3824,7 @@ ice_sysctl_fw_lldp_agent(SYSCTL_HANDLER_ARGS)
 
 	/* Block transition to FW LLDP if DSCP mode is enabled */
 	local_dcbx_cfg = &hw->port_info->qos_cfg.local_dcbx_cfg;
-	if ((local_dcbx_cfg->pfc_mode == ICE_QOS_MODE_DSCP) &&
+	if ((local_dcbx_cfg->pfc_mode == ICE_QOS_MODE_DSCP) ||
 	    ice_dscp_is_mapped(local_dcbx_cfg)) {
 		device_printf(dev,
 			      "Cannot enable FW-LLDP agent while DSCP QoS is active.\n");
@@ -3863,7 +3870,18 @@ retry_start_lldp:
 			}
 		}
 		ice_start_dcbx_agent(sc);
-		hw->port_info->qos_cfg.is_sw_lldp = false;
+
+		/* Init DCB needs to be done during enabling LLDP to properly
+		 * propagate the configuration.
+		 */
+		status = ice_init_dcb(hw, true);
+		if (status) {
+			device_printf(dev,
+			    "%s: ice_init_dcb failed; status %s, aq_err %s\n",
+			    __func__, ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
+			hw->port_info->qos_cfg.dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
+		}
 	}
 
 	return (ret);
@@ -4183,9 +4201,12 @@ ice_sysctl_pfc_config(SYSCTL_HANDLER_ARGS)
 	/* If LFC is active and PFC is going to be turned on, turn LFC off */
 	if (user_pfc != 0 && pi->phy.curr_user_fc_req != ICE_FC_NONE) {
 		pi->phy.curr_user_fc_req = ICE_FC_NONE;
-		ret = ice_apply_saved_phy_cfg(sc, ICE_APPLY_FC);
-		if (ret)
-			return (ret);
+		if (ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) ||
+			 sc->link_up) {
+			ret = ice_apply_saved_phy_cfg(sc, ICE_APPLY_FC);
+			if (ret)
+				return (ret);
+		}
 	}
 
 	return ice_config_pfc(sc, user_pfc);
@@ -4282,6 +4303,70 @@ ice_sysctl_pfc_mode(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+#define ICE_SYSCTL_HELP_SET_LINK_ACTIVE \
+"\nKeep link active after setting interface down:" \
+"\n\t0 - disable" \
+"\n\t1 - enable"
+
+/**
+ * ice_sysctl_set_link_active
+ * @oidp: sysctl oid structure
+ * @arg1: pointer to private data structure
+ * @arg2: unused
+ * @req: sysctl request pointer
+ *
+ * Set the link_active_on_if_down sysctl flag.
+ */
+static int
+ice_sysctl_set_link_active(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg1;
+	bool mode;
+	int ret;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	mode = ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
+
+	ret = sysctl_handle_bool(oidp, &mode, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
+
+	if (mode)
+		ice_set_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
+	else
+		ice_clear_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
+
+	return (0);
+}
+
+/**
+ * ice_sysctl_debug_set_link
+ * @oidp: sysctl oid structure
+ * @arg1: pointer to private data structure
+ * @arg2: unused
+ * @req: sysctl request pointer
+ *
+ * Set link up/down in debug session.
+ */
+static int
+ice_sysctl_debug_set_link(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg1;
+	bool mode;
+	int ret;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	ret = sysctl_handle_bool(oidp, &mode, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
+
+	ice_set_link(sc, mode != 0);
+
+	return (0);
+}
+
 /**
  * ice_add_device_sysctls - add device specific dynamic sysctls
  * @sc: device private structure
@@ -4311,6 +4396,12 @@ ice_add_device_sysctls(struct ice_softc *sc)
 		SYSCTL_ADD_PROC(ctx, ctx_list,
 		    OID_AUTO, "pba_number", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 		    ice_sysctl_pba_number, "A", "Product Board Assembly Number");
+	}
+	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_TEMP_SENSOR)) {
+		SYSCTL_ADD_PROC(ctx, ctx_list,
+		    OID_AUTO, "temp", CTLTYPE_S8 | CTLFLAG_RD,
+		    sc, 0, ice_sysctl_temperature, "CU",
+		    "Device temperature in degrees Celcius (C)");
 	}
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
@@ -4362,6 +4453,10 @@ ice_add_device_sysctls(struct ice_softc *sc)
 	    CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    sc, 0, ice_sysctl_allow_no_fec_mod_in_auto, "CU",
 	    "Allow \"No FEC\" mode in FEC auto-negotiation");
+
+	SYSCTL_ADD_PROC(ctx, ctx_list,
+	    OID_AUTO, "link_active_on_if_down", CTLTYPE_U8 | CTLFLAG_RWTUN,
+	    sc, 0, ice_sysctl_set_link_active, "CU", ICE_SYSCTL_HELP_SET_LINK_ACTIVE);
 
 	ice_add_dscp2tc_map_sysctls(sc, ctx, ctx_list);
 
@@ -6398,6 +6493,13 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 		 * sysctl read call.
 		 */
 		if (input_buf[0] == '1') {
+			if (!sc->fw_debug_dump_cluster_mask) {
+				device_printf(dev,
+				    "%s: Debug Dump failed because no cluster was specified with the \"clusters\" sysctl.\n",
+				    __func__);
+				return (EINVAL);
+			}
+
 			ice_set_state(&sc->state, ICE_STATE_DO_FW_DEBUG_DUMP);
 			return (0);
 		}
@@ -6407,13 +6509,6 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 
 	/* --- FW debug dump state is set --- */
 
-	if (!sc->fw_debug_dump_cluster_mask) {
-		device_printf(dev,
-		    "%s: Debug Dump failed because no cluster was specified.\n",
-		    __func__);
-		ret = EINVAL;
-		goto out;
-	}
 
 	/* Caller just wants the upper bound for size */
 	if (req->oldptr == NULL && req->newptr == NULL) {
@@ -6441,7 +6536,6 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 	sbuf_finish(sbuf);
 	sbuf_delete(sbuf);
 
-out:
 	ice_clear_state(&sc->state, ICE_STATE_DO_FW_DEBUG_DUMP);
 	return (ret);
 }
@@ -6504,6 +6598,10 @@ ice_add_debug_sysctls(struct ice_softc *sc)
 			ICE_CTLFLAG_DEBUG | CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 			ice_sysctl_dump_state_flags, "A",
 			"Driver State Flags");
+
+	SYSCTL_ADD_PROC(ctx, debug_list, OID_AUTO, "set_link",
+			ICE_CTLFLAG_DEBUG | CTLTYPE_U8 | CTLFLAG_RW, sc, 0,
+			ice_sysctl_debug_set_link, "CU", "Set link");
 
 	SYSCTL_ADD_PROC(ctx, debug_list, OID_AUTO, "phy_type_low",
 			ICE_CTLFLAG_DEBUG | CTLTYPE_U64 | CTLFLAG_RW, sc, 0,
@@ -6736,11 +6834,11 @@ ice_vsi_set_rss_params(struct ice_vsi *vsi)
 	case ICE_VSI_PF:
 		/* The PF VSI inherits RSS instance of the PF */
 		vsi->rss_table_size = cap->rss_table_size;
-		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF;
+		vsi->rss_lut_type = ICE_LUT_PF;
 		break;
 	case ICE_VSI_VF:
 		vsi->rss_table_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
-		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI;
+		vsi->rss_lut_type = ICE_LUT_VSI;
 		break;
 	default:
 		device_printf(sc->dev,
@@ -7344,6 +7442,10 @@ ice_load_pkg_file(struct ice_softc *sc)
 				    "Transmit balancing feature disabled\n");
 			ice_set_bit(ICE_FEATURE_TX_BALANCE, sc->feat_en);
 			return (status);
+		} else if (status == ICE_ERR_CFG) {
+			/* Status is ICE_ERR_CFG when DDP does not support transmit balancing */
+			device_printf(dev,
+			    "DDP package does not support transmit balancing feature - please update to the latest DDP package and try again\n");
 		}
 	}
 
@@ -8632,7 +8734,7 @@ ice_set_default_local_mib_settings(struct ice_softc *sc)
  * Reconfigures the PF LAN VSI based on updated DCB configuration
  * found in the hw struct's/port_info's/ local dcbx configuration.
  */
-static void
+void
 ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib)
 {
 	struct ice_aqc_port_ets_elem port_ets = { 0 };
@@ -8943,7 +9045,7 @@ free_ethertype_list:
  * VSI. Called when the fw_lldp_agent is disabled, to allow the LLDP frames to
  * be forwarded to the stack.
  */
-static void
+void
 ice_add_rx_lldp_filter(struct ice_softc *sc)
 {
 	struct ice_list_head ethertype_list;
@@ -9103,14 +9205,18 @@ ice_init_link_configuration(struct ice_softc *sc)
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		ice_clear_state(&sc->state, ICE_STATE_NO_MEDIA);
 		/* Apply default link settings */
-		ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
+		if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN)) {
+			ice_set_link(sc, false);
+			ice_set_state(&sc->state, ICE_STATE_LINK_STATUS_REPORTED);
+		} else
+			ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
 	} else {
 		 /* Set link down, and poll for media available in timer. This prevents the
 		  * driver from receiving spurious link-related events.
 		  */
 		ice_set_state(&sc->state, ICE_STATE_NO_MEDIA);
 		status = ice_aq_set_link_restart_an(pi, false, NULL);
-		if (status != ICE_SUCCESS)
+		if (status != ICE_SUCCESS && hw->adminq.sq_last_status != ICE_AQ_RC_EMODE)
 			device_printf(dev,
 			    "%s: ice_aq_set_link_restart_an: status %s, aq_err %s\n",
 			    __func__, ice_status_str(status),
@@ -9473,6 +9579,45 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	 * won't change during the driver's lifetime.
 	 */
 	sc->ldo_tlv = tlv;
+}
+
+/**
+ * ice_set_link -- Set up/down link on phy
+ * @sc: device private structure
+ * @enabled: link status to set up
+ *
+ * This should be called when change of link status is needed.
+ */
+void
+ice_set_link(struct ice_softc *sc, bool enabled)
+{
+	struct ice_hw *hw = &sc->hw;
+	device_t dev = sc->dev;
+	enum ice_status status;
+
+	if (ice_driver_is_detaching(sc))
+		return;
+
+	if (ice_test_state(&sc->state, ICE_STATE_NO_MEDIA))
+		return;
+
+	if (enabled)
+		ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
+	else {
+		status = ice_aq_set_link_restart_an(hw->port_info, false, NULL);
+		if (status != ICE_SUCCESS) {
+			if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
+				device_printf(dev,
+				    "%s: Link control not enabled in current device mode\n",
+				    __func__);
+			else
+				device_printf(dev,
+				    "%s: ice_aq_set_link_restart_an: status %s, aq_err %s\n",
+				    __func__, ice_status_str(status),
+				    ice_aq_str(hw->adminq.sq_last_status));
+		} else
+			sc->link_up = false;
+	}
 }
 
 /**
@@ -10898,3 +11043,47 @@ ice_sysctl_allow_no_fec_mod_in_auto(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/**
+ * ice_sysctl_temperature - Retrieve NIC temp via AQ command
+ * @oidp: sysctl oid structure
+ * @arg1: pointer to private data structure
+ * @arg2: unused
+ * @req: sysctl request pointer
+ *
+ * If ICE_DBG_DIAG is set in the debug.debug_mask sysctl, then this will print
+ * temperature threshold information in the kernel message log, too.
+ */
+static int
+ice_sysctl_temperature(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_aqc_get_sensor_reading_resp resp;
+	struct ice_softc *sc = (struct ice_softc *)arg1;
+	struct ice_hw *hw = &sc->hw;
+	device_t dev = sc->dev;
+	enum ice_status status;
+
+	UNREFERENCED_PARAMETER(oidp);
+	UNREFERENCED_PARAMETER(arg2);
+
+	if (ice_driver_is_detaching(sc))
+		return (ESHUTDOWN);
+
+	status = ice_aq_get_sensor_reading(hw, ICE_AQC_INT_TEMP_SENSOR,
+	    ICE_AQC_INT_TEMP_FORMAT, &resp, NULL);
+	if (status != ICE_SUCCESS) {
+		device_printf(dev,
+		    "Get Sensor Reading AQ call failed, err %s aq_err %s\n",
+		    ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EIO);
+	}
+
+	ice_debug(hw, ICE_DBG_DIAG, "%s: Warning Temp Threshold: %d\n", __func__,
+	    resp.data.s0f0.temp_warning_threshold);
+	ice_debug(hw, ICE_DBG_DIAG, "%s: Critical Temp Threshold: %d\n", __func__,
+	    resp.data.s0f0.temp_critical_threshold);
+	ice_debug(hw, ICE_DBG_DIAG, "%s: Fatal Temp Threshold: %d\n", __func__,
+	    resp.data.s0f0.temp_fatal_threshold);
+
+	return sysctl_handle_8(oidp, &resp.data.s0f0.temp, 0, req);
+}
