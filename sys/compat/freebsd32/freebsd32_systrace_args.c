@@ -1848,6 +1848,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 8;
 		break;
 	}
+	/* mac_syscall */
+	case 394: {
+		struct mac_syscall_args *p = params;
+		uarg[a++] = (intptr_t)p->policy; /* const char * */
+		iarg[a++] = p->call; /* int */
+		uarg[a++] = (intptr_t)p->arg; /* void * */
+		*n_args = 3;
+		break;
+	}
 	/* ksem_close */
 	case 400: {
 		struct ksem_close_args *p = params;
@@ -6328,6 +6337,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* mac_syscall */
+	case 394:
+		switch (ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* ksem_close */
 	case 400:
 		switch (ndx) {
@@ -10142,6 +10167,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sendfile */
 	case 393:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mac_syscall */
+	case 394:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
