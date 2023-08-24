@@ -2351,11 +2351,11 @@ dasysctlinit(void *context, int pending)
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)DA_FLAG_ROTATING, dabitsysctl, "I",
-	    "Rotating media *DEPRECATED* gone in FreeBSD 14");
+	    "Rotating media *DEPRECATED* gone in FreeBSD 15");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)DA_FLAG_UNMAPPEDIO, dabitsysctl, "I",
-	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 14");
+	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 15");
 
 #ifdef CAM_TEST_FAILURE
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
