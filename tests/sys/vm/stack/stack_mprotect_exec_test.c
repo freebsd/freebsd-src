@@ -12,8 +12,15 @@
 #include <vm/vm_param.h>
 
 #include <atf-c.h>
+#include <signal.h>
 #include <unistd.h>
 
+static void
+sigsegv_handler(int sig __unused)
+{
+
+	atf_tc_fail("Invalid stack protection mode after grows");
+}
 
 ATF_TC_WITHOUT_HEAD(mprotect_exec_test);
 ATF_TC_BODY(mprotect_exec_test, tc)
@@ -21,6 +28,8 @@ ATF_TC_BODY(mprotect_exec_test, tc)
 	long pagesize;
 	char *addr, *guard;
 	size_t alloc_size;
+
+	signal(SIGSEGV, sigsegv_handler);
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	ATF_REQUIRE(pagesize > 0);
