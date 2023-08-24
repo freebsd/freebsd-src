@@ -328,7 +328,6 @@ dev/wbwd/wbwd.c			optional	wbwd
 dev/wdatwd/wdatwd.c		optional	wdatwd
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/kern_intrtab.c		standard
 libkern/strcmp.c		standard
 libkern/strncmp.c		standard
 libkern/x86/crc32_sse42.c	standard
