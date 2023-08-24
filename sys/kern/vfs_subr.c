@@ -1298,7 +1298,7 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
 				TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 				TAILQ_INSERT_HEAD(&vnode_list, mvp, v_vnodelist);
 				vp = mvp;
-				retried++;
+				retried = true;
 				continue;
 			}
 
