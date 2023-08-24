@@ -345,6 +345,7 @@ MAN+=	abort2.2 \
 	timer_create.2 \
 	timer_delete.2 \
 	timer_settime.2 \
+	timerfd.2 \
 	truncate.2 \
 	umask.2 \
 	undelete.2 \
@@ -496,6 +497,9 @@ MLINKS+=symlink.2 symlinkat.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
+MLINKS+=timerfd.2 timerfd_create.2 \
+	timerfd.2 timerfd_gettime.2 \
+	timerfd.2 timerfd_settime.2
 MLINKS+=thr_kill.2 thr_kill2.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2

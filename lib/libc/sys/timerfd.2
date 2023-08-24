@@ -1,0 +1,340 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 Jake Freeland <jfree@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 21, 2023
+.Dt TIMERFD 2
+.Os
+.Sh NAME
+.Nm timerfd ,
+.Nm timerfd_create ,
+.Nm timerfd_gettime ,
+.Nm timerfd_settime
+.Nd timers with file descriptor semantics
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/timerfd.h
+.Ft int
+.Fo timerfd_create
+.Fa "int clockid"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo timerfd_gettime
+.Fa "int fd"
+.Fa "struct itimerspec *curr_value"
+.Fc
+.Ft int
+.Fo timerfd_settime
+.Fa "int fd"
+.Fa "int flags"
+.Fa "const struct itimerspec *new_value"
+.Fa "struct itimerspec *old_value"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+system calls operate on timers, identified by special
+.Nm
+file descriptors.
+These calls are analogous to
+.Fn timer_create ,
+.Fn timer_gettime ,
+and
+.Fn timer_settime
+per-process timer functions, but use a
+.Nm
+descriptor in place of
+.Fa timerid .
+.Pp
+All
+.Nm
+descriptors possess traditional file descriptor semantics; they may be passed
+to other processes, preserved across
+.Xr fork 2 ,
+and monitored via
+.Xr kevent 2 ,
+.Xr poll 2 ,
+or
+.Xr select 2 .
+When a
+.Nm
+descriptor is no longer needed, it may be disposed of using
+.Xr close 2 .
+.Bl -tag -width "Fn timerfd_settime"
+.It Fn timerfd_create
+Initialize a
+.Nm
+object and return its file descriptor.
+The
+.Fa clockid
+argument specifies the clock used as a timing base and may be:
+.Pp
+.Bl -tag -width "Dv CLOCK_MONOTONIC" -compact
+.It Dv CLOCK_REALTIME
+Increments as a wall clock should.
+.It Dv CLOCK_MONOTONIC
+Increments monotonically in SI seconds.
+.El
+.Pp
+The
+.Fa flags
+argument may contain the result of
+.Em or Ns 'ing
+the following values:
+.Pp
+.Bl -tag -width "Dv TFD_NONBLOCK" -compact
+.It Dv TFD_CLOEXEC
+The newly generated file descriptor will close-on-exec.
+.It Dv TFD_NONBLOCK
+Do not block on read/write operations.
+.El
+.It Fn timerfd_gettime
+Retrieve the current state of the timer denoted by
+.Fa fd .
+The result is stored in
+.Fa curr_value
+as a
+.Dv struct itimerspec .
+The
+.Fa it_value
+and
+.Fa it_interval
+members of
+.Fa curr_value
+represent the relative time until the next expiration and the interval
+reload value last set by
+.Fn timerfd_settime ,
+respectively.
+.It Fn timerfd_settime
+Update the timer denoted by
+.Fa fd
+with the
+.Dv struct itimerspec
+in
+.Fa new_value .
+The
+.Fa it_value
+member of
+.Fa new_value
+should contain the amount of time before the timer expires, or zero if the
+timer should be disarmed.
+The
+.Fa it_interval
+member should contain the reload time if an interval timer is desired.
+.Pp
+The previous timer state will be stored in
+.Fa old_value
+given
+.Fa old_value
+is not
+.Dv NULL .
+.Pp
+The
+.Fa flags
+argument may contain the result of
+.Em or Ns 'ing
+the following values:
+.Pp
+.Bl -tag -width TFD_TIMER_CANCEL_ON_SET -compact
+.It Dv TFD_TIMER_ABSTIME
+Expiration will occur at the absolute time provided in
+.Fa new_value .
+Normally,
+.Fa new_value
+represents a relative time compared to the timer's
+.Fa clockid
+clock.
+.It Dv TFD_TIMER_CANCEL_ON_SET
+If
+.Fa clockid
+has been set to
+.Dv CLOCK_REALTIME
+and the realtime clock has experienced a discontinuous jump,
+then the timer will be canceled and the next
+.Xr read 2
+will fail with
+.Dv ECANCELED .
+.El
+.El
+.Pp
+File operations have the following semantics:
+.Bl -tag -width ioctl
+.It Xr read 2
+Transfer the number of timer expirations that have occurred since the last
+successful
+.Xr read 2
+or
+.Fn timerfd_settime
+into the output buffer of size
+.Vt uint64_t .
+If the expiration counter is zero,
+.Xr read 2
+blocks until a timer expiration occurs unless
+.Dv TFD_NONBLOCK
+is set, where
+.Dv EAGAIN
+is returned.
+.It Xr poll 2
+The file descriptor is readable when its timer expiration counter is greater
+than zero.
+.It Xr ioctl 2
+.Bl -tag -width FIONREAD
+.It Dv FIOASYNC int
+A non-zero input will set the FASYNC flag.
+A zero input will clear the FASYNC flag.
+.It Dv FIONBIO int
+A non-zero input will set the FNONBLOCK flag.
+A zero input will clear the FNONBLOCK flag.
+.El
+.El
+.Sh RETURN VALUES
+The
+.Fn timerfd_create
+system call creates a
+.Nm
+object and returns its file descriptor.
+If an error occurs, -1 is returned and the global variable
+.Fa errno
+is set to indicate the error.
+.Pp
+The
+.Fn timerfd_gettime
+and
+.Fn timerfd_settime
+system calls return 0 on success.
+If an error occurs, -1 is returned and the global variable
+.Fa errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn timerfd_create
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified
+.Fa clockid
+is not supported.
+.It Bq Er EINVAL
+The provided
+.Fa flags
+are invalid.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOMEM
+The kernel failed to allocate enough memory for the timer.
+.El
+.Pp
+Both
+.Fn timerfd_gettime
+and
+.Fn timerfd_settime
+system calls fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The provided
+.Fa fd
+is invalid.
+.It Bq Er EFAULT
+The addresses provided by
+.Fa curr_value ,
+.Fa new_value ,
+or
+.Fa old_value
+are invalid.
+.It Bq Er EINVAL
+The provided
+.Fa fd
+is valid, but was not generated by
+.Fn timerfd_create .
+.El
+.Pp
+The following errors only apply to
+.Fn timerfd_settime :
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The provided
+.Fa flags
+are invalid.
+.It Bq Er EINVAL
+A nanosecond field in the
+.Fa new_value
+argument specified a value less than zero, or greater than or equal to 10^9.
+.It Bq Er ECANCELED
+The timer was created with the clock ID
+.Dv CLOCK_REALTIME ,
+was configured with the
+.Dv TFD_TIMER_CANCEL_ON_SET
+flag, and the system realtime clock experienced a discontinuous change without
+being read.
+.El
+.Pp
+A read from a
+.Nm
+object fails if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The timer's expiration counter is zero and the
+.Nm
+object is is set for non-blocking I/O.
+.It Bq Er ECANCELED
+The timer was created with the clock ID
+.Dv CLOCK_REALTIME ,
+was configured with the
+.Dv TFD_TIMER_CANCEL_ON_SET
+flag, and the system realtime clock experienced a discontinuous change.
+.It Bq Er EINVAL
+The size of the read buffer is not large enough to hold the
+.Vt uint64_t
+sized timer expiration counter.
+.El
+.Sh SEE ALSO
+.Xr eventfd 2 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr read 2 ,
+.Xr timer_create 2 ,
+.Xr timer_gettime 2 ,
+.Xr timer_settime 2
+.Sh STANDARDS
+The
+.Nm
+system calls originated from Linux and are non-standard.
+.Sh HISTORY
+.An -nosplit
+The
+.Nm
+facility was originally ported to
+.Fx Ns 's
+Linux compatibility layer by
+.An Dmitry Chagin Aq Mt dchagin@FreeBSD.org
+in
+.Fx 12.0 .
+It was revised and adapted to be native by
+.An Jake Freeland Aq Mt jfree@FreeBSD.org
+in
+.Fx 14.0 .
