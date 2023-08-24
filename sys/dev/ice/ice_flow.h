@@ -262,8 +262,10 @@ struct ice_flow_fld_info {
 
 struct ice_flow_seg_info {
 	u32 hdrs;	/* Bitmask indicating protocol headers present */
-	u64 match;	/* Bitmask indicating header fields to be matched */
-	u64 range;	/* Bitmask indicating header fields matched as ranges */
+	/* Bitmask indicating header fields to be matched */
+	ice_declare_bitmap(match, ICE_FLOW_FIELD_IDX_MAX);
+	/* Bitmask indicating header fields matched as ranges */
+	ice_declare_bitmap(range, ICE_FLOW_FIELD_IDX_MAX);
 
 	struct ice_flow_fld_info fields[ICE_FLOW_FIELD_IDX_MAX];
 };
