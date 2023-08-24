@@ -180,6 +180,7 @@ static void	vmxnet3_enable_intr(struct vmxnet3_softc *, int);
 static void	vmxnet3_disable_intr(struct vmxnet3_softc *, int);
 static void	vmxnet3_intr_enable_all(if_ctx_t);
 static void	vmxnet3_intr_disable_all(if_ctx_t);
+static bool	vmxnet3_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 typedef enum {
 	VMXNET3_BARRIER_RD,
@@ -246,6 +247,8 @@ static device_method_t vmxnet3_iflib_methods[] = {
 	DEVMETHOD(ifdi_shutdown, vmxnet3_shutdown),
 	DEVMETHOD(ifdi_suspend, vmxnet3_suspend),
 	DEVMETHOD(ifdi_resume, vmxnet3_resume),
+
+	DEVMETHOD(ifdi_needs_restart, vmxnet3_if_needs_restart),
 
 	DEVMETHOD_END
 };
@@ -2503,6 +2506,16 @@ vmxnet3_intr_disable_all(if_ctx_t ctx)
 		sc->vmx_ds->ictrl |= VMXNET3_ICTRL_DISABLE_ALL;
 	for (i = 0; i < VMXNET3_MAX_INTRS; i++)
 		vmxnet3_disable_intr(sc, i);
+}
+
+static bool
+vmxnet3_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+{
+	switch (event) {
+	case IFLIB_RESTART_VLAN_CONFIG:
+	default:
+		return (false);
+	}
 }
 
 /*
