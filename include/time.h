@@ -182,9 +182,15 @@ time_t posix2time(time_t t);
 #if defined(__BSD_VISIBLE) || __ISO_C_VISIBLE >= 2011 || \
     (defined(__cplusplus) && __cplusplus >= 201703)
 #include <sys/_timespec.h>
-/* ISO/IEC 9899:201x 7.27.2.5 The timespec_get function */
+/* ISO/IEC 9899:2011 7.27.2.5 The timespec_get function */
 #define TIME_UTC	1	/* time elapsed since epoch */
 int timespec_get(struct timespec *ts, int base);
+#if defined (__BSD_VISIBLE) || __ISO_C_VISIBLE >= 2023
+/* ISO/IEC 9899:2024 7.29.1 Components of time */
+#define TIME_MONOTONIC	2	/* monotonic time */
+/* ISO/IEC 9899:2024 7.29.2.7 The timespec_getres function */
+int timespec_getres(struct timespec *, int);
+#endif
 #endif
 
 __END_DECLS

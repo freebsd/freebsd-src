@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 10, 2018
+.Dd August 21, 2023
 .Dt TIMESPEC_GET 3
 .Os
 .Sh NAME
@@ -55,6 +55,14 @@ In
 .Fx ,
 this corresponds to
 .Dv CLOCK_REALTIME .
+.Pp
+The base
+.Dv TIME_MONOTONIC
+returns a monotonically-increasing time since an unspecified point in the past.
+In
+.Fx ,
+this corresponds to
+.Dv CLOCK_MONOTONIC .
 .Sh RETURN VALUES
 The
 .Nm
@@ -66,7 +74,8 @@ on failure.
 .Sh SEE ALSO
 .Xr clock_gettime 2 ,
 .Xr gettimeofday 2 ,
-.Xr time 3
+.Xr time 3 ,
+.Xr timespec_getres 3
 .Sh STANDARDS
 The
 .Nm
@@ -76,6 +85,10 @@ of
 .Dv TIME_UTC
 conforms to
 .St -isoC-2011 .
+.\" The
+.\" .Dv TIME_MONOTONIC
+.\" base conforms to
+.\" -isoC-2023 .
 .Sh HISTORY
 This interface first appeared in
 .Fx 12 .
