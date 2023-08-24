@@ -2402,7 +2402,7 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
  * @ctx: iflib context
  * @event: event code to check
  *
- * Defaults to returning true for unknown events.
+ * Defaults to returning false for unknown events.
  *
  * @returns true if iflib needs to reinit the interface
  */
@@ -2411,9 +2411,8 @@ igc_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
-		return (false);
 	default:
-		return (true);
+		return (false);
 	}
 }
 

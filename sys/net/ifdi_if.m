@@ -115,7 +115,7 @@ CODE {
 	static bool
 	null_needs_restart(if_ctx_t _ctx __unused, enum iflib_restart_event _event __unused)
 	{
-		return (true);
+		return (false);
 	}
 };
 
