@@ -48,7 +48,7 @@ struct rl_q_entry;
  * owners are for read.
  */
 struct rangelock {
-	struct rl_q_entry *head;
+	uintptr_t head;
 	bool sleepers;
 };
 
