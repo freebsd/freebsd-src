@@ -83,7 +83,7 @@ static int ice_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static int ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int ice_if_suspend(if_ctx_t ctx);
 static int ice_if_resume(if_ctx_t ctx);
-static bool ice_if_needs_restart(if_ctx_t, enum iflib_restart_event);
+static bool ice_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
 
 static int ice_msix_que(void *arg);
 static int ice_msix_admin(void *arg);
@@ -110,6 +110,7 @@ static int ice_allocate_msix(struct ice_softc *sc);
 static void ice_admin_timer(void *arg);
 static void ice_transition_recovery_mode(struct ice_softc *sc);
 static void ice_transition_safe_mode(struct ice_softc *sc);
+static void ice_set_default_promisc_mask(ice_bitmap_t *promisc_mask);
 
 /*
  * Device Interface Declaration
@@ -342,6 +343,7 @@ ice_setup_scctx(struct ice_softc *sc)
 {
 	if_softc_ctx_t scctx = sc->scctx;
 	struct ice_hw *hw = &sc->hw;
+	device_t dev = sc->dev;
 	bool safe_mode, recovery_mode;
 
 	safe_mode = ice_is_bit_set(sc->feat_en, ICE_FEATURE_SAFE_MODE);
@@ -393,7 +395,7 @@ ice_setup_scctx(struct ice_softc *sc)
 	scctx->isc_tx_tso_size_max = ICE_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = ICE_MAX_DMA_SEG_SIZE;
 
-	scctx->isc_msix_bar = PCIR_BAR(ICE_MSIX_BAR);
+	scctx->isc_msix_bar = pci_msix_table_bar(dev);
 	scctx->isc_rss_table_size = hw->func_caps.common_cap.rss_table_size;
 
 	/*
@@ -511,6 +513,9 @@ reinit_hw:
 	}
 
 	ice_init_device_features(sc);
+
+	/* Keep flag set by default */
+	ice_set_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
 
 	/* Notify firmware of the device driver version */
 	err = ice_send_version(sc);
@@ -695,7 +700,8 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 		if (sc->link_up) { /* link is up */
 			uint64_t baudrate = ice_aq_speed_to_rate(sc->hw.port_info);
 
-			ice_set_default_local_lldp_mib(sc);
+			if (!(hw->port_info->phy.link_info_old.link_info & ICE_AQ_LINK_UP))
+				ice_set_default_local_lldp_mib(sc);
 
 			iflib_link_state_change(sc->ctx, LINK_STATE_UP, baudrate);
 			ice_rdma_link_change(sc, LINK_STATE_UP, baudrate);
@@ -709,7 +715,7 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 	}
 
 	/* Update the supported media types */
-	if (update_media) {
+	if (update_media && !ice_test_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET)) {
 		status = ice_add_media_types(sc, sc->media);
 		if (status)
 			device_printf(sc->dev, "Error adding device media types: %s aq_err %s\n",
@@ -731,6 +737,7 @@ ice_if_attach_post(if_ctx_t ctx)
 {
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
+	enum ice_status status;
 	int err;
 
 	ASSERT_CTX_LOCKED(sc);
@@ -793,6 +800,15 @@ ice_if_attach_post(if_ctx_t ctx)
 
 	ice_cfg_pba_num(sc);
 
+	/* Set a default value for PFC mode on attach since the FW state is unknown
+	 * before sysctl tunables are executed and it can't be queried. This fixes an
+	 * issue when loading the driver with the FW LLDP agent enabled but the FW
+	 * was previously in DSCP PFC mode.
+	 */
+	status = ice_aq_set_pfc_mode(&sc->hw, ICE_AQC_PFC_VLAN_BASED_PFC, NULL);
+	if (status != ICE_SUCCESS)
+		device_printf(sc->dev, "Setting pfc mode failed, status %s\n", ice_status_str(status));
+
 	ice_add_device_sysctls(sc);
 
 	/* Get DCBX/LLDP state and start DCBX agent */
@@ -816,6 +832,10 @@ ice_if_attach_post(if_ctx_t ctx)
 	mtx_lock(&sc->admin_mtx);
 	callout_reset(&sc->admin_timer, hz/2, ice_admin_timer, sc);
 	mtx_unlock(&sc->admin_mtx);
+
+	if (ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) &&
+		 !ice_test_state(&sc->state, ICE_STATE_NO_MEDIA))
+		ice_set_state(&sc->state, ICE_STATE_FIRST_INIT_LINK);
 
 	ice_clear_state(&sc->state, ICE_STATE_ATTACHING);
 
@@ -895,6 +915,7 @@ ice_if_detach(if_ctx_t ctx)
 {
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 	struct ice_vsi *vsi = &sc->pf_vsi;
+	enum ice_status status;
 	int i;
 
 	ASSERT_CTX_LOCKED(sc);
@@ -952,6 +973,14 @@ ice_if_detach(if_ctx_t ctx)
 
 	if (!ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		ice_deinit_hw(&sc->hw);
+
+	IFLIB_CTX_UNLOCK(sc);
+	status = ice_reset(&sc->hw, ICE_RESET_PFR);
+	IFLIB_CTX_LOCK(sc);
+	if (status) {
+		device_printf(sc->dev, "device PF reset failed, err %s\n",
+			      ice_status_str(status));
+	}
 
 	ice_free_pci_mapping(sc);
 
@@ -1733,6 +1762,25 @@ ice_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
 }
 
 /**
+ * ice_set_default_promisc_mask - Set default config for promisc settings
+ * @promisc_mask: bitmask to setup
+ *
+ * The ice_(set|clear)_vsi_promisc() function expects a mask of promiscuous
+ * modes to operate on. The mask used in here is the default one for the
+ * driver, where promiscuous is enabled/disabled for all types of
+ * non-VLAN-tagged/VLAN 0 traffic.
+ */
+static void
+ice_set_default_promisc_mask(ice_bitmap_t *promisc_mask)
+{
+	ice_zero_bitmap(promisc_mask, ICE_PROMISC_MAX);
+	ice_set_bit(ICE_PROMISC_UCAST_TX, promisc_mask);
+	ice_set_bit(ICE_PROMISC_UCAST_RX, promisc_mask);
+	ice_set_bit(ICE_PROMISC_MCAST_TX, promisc_mask);
+	ice_set_bit(ICE_PROMISC_MCAST_RX, promisc_mask);
+}
+
+/**
  * ice_if_promisc_set - Set device promiscuous mode
  * @ctx: iflib context structure
  * @flags: promiscuous flags to configure
@@ -1750,17 +1798,20 @@ ice_if_promisc_set(if_ctx_t ctx, int flags)
 	enum ice_status status;
 	bool promisc_enable = flags & IFF_PROMISC;
 	bool multi_enable = flags & IFF_ALLMULTI;
+	ice_declare_bitmap(promisc_mask, ICE_PROMISC_MAX);
 
 	/* Do not support configuration when in recovery mode */
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return (ENOSYS);
+	
+	ice_set_default_promisc_mask(promisc_mask);
 
 	if (multi_enable)
 		return (EOPNOTSUPP);
 
 	if (promisc_enable) {
 		status = ice_set_vsi_promisc(hw, sc->pf_vsi.idx,
-					     ICE_VSI_PROMISC_MASK, 0);
+					     promisc_mask, 0);
 		if (status && status != ICE_ERR_ALREADY_EXISTS) {
 			device_printf(dev,
 				      "Failed to enable promiscuous mode for PF VSI, err %s aq_err %s\n",
@@ -1770,7 +1821,7 @@ ice_if_promisc_set(if_ctx_t ctx, int flags)
 		}
 	} else {
 		status = ice_clear_vsi_promisc(hw, sc->pf_vsi.idx,
-					       ICE_VSI_PROMISC_MASK, 0);
+					       promisc_mask, 0);
 		if (status) {
 			device_printf(dev,
 				      "Failed to disable promiscuous mode for PF VSI, err %s aq_err %s\n",
@@ -1983,6 +2034,11 @@ ice_if_init(if_ctx_t ctx)
 	/* Configure promiscuous mode */
 	ice_if_promisc_set(ctx, if_getflags(sc->ifp));
 
+	if (!ice_testandclear_state(&sc->state, ICE_STATE_FIRST_INIT_LINK))
+		if (!sc->link_up && ((if_getflags(sc->ifp) & IFF_UP) ||
+			 ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN)))
+			ice_set_link(sc, true);
+
 	ice_rdma_pf_init(sc);
 
 	ice_set_state(&sc->state, ICE_STATE_DRIVER_INITIALIZED);
@@ -2020,14 +2076,18 @@ ice_poll_for_media_avail(struct ice_softc *sc)
 			enum ice_status status;
 
 			/* Re-enable link and re-apply user link settings */
-			ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
+			if (ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) ||
+			    (if_getflags(sc->ifp) & IFF_UP)) {
+				ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
 
-			/* Update the OS about changes in media capability */
-			status = ice_add_media_types(sc, sc->media);
-			if (status)
-				device_printf(sc->dev, "Error adding device media types: %s aq_err %s\n",
-					      ice_status_str(status),
-					      ice_aq_str(hw->adminq.sq_last_status));
+				/* Update the OS about changes in media capability */
+				status = ice_add_media_types(sc, sc->media);
+				if (status)
+					device_printf(sc->dev,
+					    "Error adding device media types: %s aq_err %s\n",
+					    ice_status_str(status),
+					    ice_aq_str(hw->adminq.sq_last_status));
+			}
 
 			ice_clear_state(&sc->state, ICE_STATE_NO_MEDIA);
 		}
@@ -2311,7 +2371,7 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	ice_clear_hw_tbls(hw);
 
 	if (hw->port_info)
-		ice_sched_clear_port(hw->port_info);
+		ice_sched_cleanup_all(hw);
 
 	ice_shutdown_all_ctrlq(hw, false);
 }
@@ -2554,6 +2614,9 @@ ice_rebuild(struct ice_softc *sc)
 		goto err_deinit_pf_vsi;
 	}
 
+	if (hw->port_info->qos_cfg.is_sw_lldp)
+		ice_add_rx_lldp_filter(sc);
+
 	/* Refresh link status */
 	ice_clear_state(&sc->state, ICE_STATE_LINK_STATUS_REPORTED);
 	sc->hw.port_info->phy.get_link_info = true;
@@ -2578,8 +2641,13 @@ ice_rebuild(struct ice_softc *sc)
 	 * because the state of IFC_DO_RESET is cached within task_fn_admin in
 	 * the iflib core, we also want re-run the admin task so that iflib
 	 * resets immediately instead of waiting for the next interrupt.
+	 * If LLDP is enabled we need to reconfig DCB to properly reinit all TC
+	 * queues, not only 0. It contains ice_request_stack_reinit as well.
 	 */
-	ice_request_stack_reinit(sc);
+	if (hw->port_info->qos_cfg.is_sw_lldp)
+		ice_request_stack_reinit(sc);
+	else
+		ice_do_dcb_reconfig(sc, false);
 
 	return;
 
@@ -2706,6 +2774,8 @@ ice_handle_pf_reset_request(struct ice_softc *sc)
 static void
 ice_init_device_features(struct ice_softc *sc)
 {
+	struct ice_hw *hw = &sc->hw;
+
 	/* Set capabilities that all devices support */
 	ice_set_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_RSS, sc->feat_cap);
@@ -2720,22 +2790,22 @@ ice_init_device_features(struct ice_softc *sc)
 	ice_set_bit(ICE_FEATURE_TX_BALANCE, sc->feat_cap);
 
 	/* Disable features due to hardware limitations... */
-	if (!sc->hw.func_caps.common_cap.rss_table_size)
+	if (!hw->func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
-	if (!sc->hw.func_caps.common_cap.iwarp || !ice_enable_irdma)
+	if (!hw->func_caps.common_cap.iwarp || !ice_enable_irdma)
 		ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
-	if (!sc->hw.func_caps.common_cap.dcb)
+	if (!hw->func_caps.common_cap.dcb)
 		ice_clear_bit(ICE_FEATURE_DCB, sc->feat_cap);
 	/* Disable features due to firmware limitations... */
-	if (!ice_is_fw_health_report_supported(&sc->hw))
+	if (!ice_is_fw_health_report_supported(hw))
 		ice_clear_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_cap);
-	if (!ice_fwlog_supported(&sc->hw))
+	if (!ice_fwlog_supported(hw))
 		ice_clear_bit(ICE_FEATURE_FW_LOGGING, sc->feat_cap);
-	if (sc->hw.fwlog_cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
+	if (hw->fwlog_cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
 		if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_FW_LOGGING))
 			ice_set_bit(ICE_FEATURE_FW_LOGGING, sc->feat_en);
 		else
-			ice_fwlog_unregister(&sc->hw);
+			ice_fwlog_unregister(hw);
 	}
 
 	/* Disable capabilities not supported by the OS */
@@ -2748,6 +2818,11 @@ ice_init_device_features(struct ice_softc *sc)
 	/* Disable features based on sysctl settings */
 	if (!ice_tx_balance_en)
 		ice_clear_bit(ICE_FEATURE_TX_BALANCE, sc->feat_cap);
+
+	if (hw->dev_caps.supported_sensors & ICE_SENSOR_SUPPORT_E810_INT_TEMP) {
+		ice_set_bit(ICE_FEATURE_TEMP_SENSOR, sc->feat_cap);
+		ice_set_bit(ICE_FEATURE_TEMP_SENSOR, sc->feat_en);
+	}
 }
 
 /**
@@ -2898,6 +2973,10 @@ ice_if_stop(if_ctx_t ctx)
 	/* Disable the Tx and Rx queues */
 	ice_vsi_disable_tx(&sc->pf_vsi);
 	ice_control_all_rx_queues(&sc->pf_vsi, false);
+
+	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) &&
+		 !(if_getflags(sc->ifp) & IFF_UP) && sc->link_up)
+		ice_set_link(sc, false);
 }
 
 /**
@@ -3078,8 +3157,9 @@ ice_if_resume(if_ctx_t ctx)
 	return (0);
 }
 
-/* ice_if_needs_restart - Tell iflib when the driver needs to be reinitialized
- * @ctx: iflib context
+/**
+ * ice_if_needs_restart - Tell iflib when the driver needs to be reinitialized
+ * @ctx: iflib context pointer
  * @event: event code to check
  *
  * Defaults to returning false for unknown events.

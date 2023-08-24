@@ -46,6 +46,7 @@ INTERFACE irdma;
  *
  * Called by the ice driver during attach to notify the RDMA client driver
  * that a new PF has been initialized.
+ * @returns 0 on success, EIO, ENOMEM, EINVAL, EBUSY if a problem is encountered
  */
 METHOD int probe {
 	struct ice_rdma_peer *peer;
@@ -57,6 +58,7 @@ METHOD int probe {
  *
  * Called by the ice driver during the if_init routine to notify the RDMA
  * client driver that a PF has been activated.
+ * @returns 0
  */
 METHOD int open {
 	struct ice_rdma_peer *peer;
@@ -68,6 +70,7 @@ METHOD int open {
  *
  * Called by the ice driver during the if_stop routine to notify the RDMA
  * client driver that a PF has been deactivated.
+ * @returns 0
  */
 METHOD int close {
 	struct ice_rdma_peer *peer;
@@ -79,6 +82,7 @@ METHOD int close {
  *
  * Called by the ice driver during detach to notify the RDMA client driver
  * that a PF has been removed.
+ * @returns 0
  */
 METHOD int remove {
 	struct ice_rdma_peer *peer;
