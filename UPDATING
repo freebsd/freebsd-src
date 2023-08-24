@@ -12,8 +12,8 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
-20230818:
-	__FreeBSD_version 1400095 after the branching stable/14 from main.
+20230824:
+	__FreeBSD_version 1400097 after the branching stable/14 from main.
 
 20230817:
 	Serial communication (in boot loaders, kernel, and userland) has
