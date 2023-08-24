@@ -251,6 +251,7 @@ static device_method_t mgb_iflib_methods[] = {
 	 */
 	DEVMETHOD(ifdi_vlan_register, mgb_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, mgb_vlan_unregister),
+	DEVMETHOD(ifdi_needs_restart, mgb_if_needs_restart),
 
 	/*
 	 * Needed for WOL support

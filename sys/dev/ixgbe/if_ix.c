@@ -1256,7 +1256,7 @@ ixgbe_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req)
  * @ctx: iflib context
  * @event: event code to check
  *
- * Defaults to returning true for unknown events.
+ * Defaults to returning false for unknown events.
  *
  * @returns true if iflib needs to reinit the interface
  */
@@ -1265,9 +1265,8 @@ ixgbe_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
-		return (false);
 	default:
-		return (true);
+		return (false);
 	}
 }
 
