@@ -221,23 +221,21 @@ intr_lookup(u_int irq)
 {
 	char intrname[16];
 	struct powerpc_intr *i, *iscan;
-	int vector;
+	unsigned int vector;
 
-	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
 		MPASS(i != NULL);
-		if (i->irq == irq) {
-			mtx_unlock(&intr_table_lock);
+		if (i->irq == irq)
 			return (i);
-		}
 	}
 
-	i = malloc(sizeof(*i), M_INTR, M_NOWAIT);
-	if (i == NULL) {
-		mtx_unlock(&intr_table_lock);
+	/* not found, but table is already full */
+	if (__predict_false(vector >= num_io_irqs))
 		return (NULL);
-	}
+
+	i = malloc(sizeof(*i), M_INTR, M_WAITOK);
+	/* waiting always succeeds (unless panic()) */
 
 	i->event = NULL;
 	i->cntp = NULL;
@@ -256,30 +254,35 @@ intr_lookup(u_int irq)
 	CPU_SETOF(0, &i->pi_cpuset);
 #endif
 
-	for (vector = 0; vector < num_io_irqs && vector <= nvectors;
-	    vector++) {
+	/* restart scanning from where we left off */
+	mtx_lock(&intr_table_lock);
+	/* reason for before-loop table full check */
+	MPASS(vector < nvectors || nvectors < num_io_irqs);
+	while (vector < nvectors) {
 		iscan = powerpc_intrs[vector];
-		if (iscan != NULL && iscan->irq == irq)
-			break;
-		if (iscan == NULL && i->vector == -1)
-			i->vector = vector;
-		iscan = NULL;
+		MPASS(iscan != NULL);
+
+		/* lost a race during allocation/sleep */
+		if (iscan->irq == irq || ++vector >= num_io_irqs) {
+			mtx_unlock(&intr_table_lock);
+			free(i, M_INTR);
+
+			/* iscan for found, NULL for table full */
+			return (iscan->irq == irq ? iscan : NULL);
+		}
 	}
 
-	if (iscan == NULL && i->vector != -1) {
-		powerpc_intrs[i->vector] = i;
-		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
-		i->cntp = &intrcnt[i->cntindex];
-		sprintf(intrname, "irq%u:", i->irq);
-		intrcnt_setname(intrname, i->cntindex);
-		nvectors++;
-	}
+	i->vector = vector;
+	powerpc_intrs[i->vector] = i;
+	i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
+	i->cntp = &intrcnt[i->cntindex];
+	sprintf(intrname, "irq%u:", i->irq);
+	intrcnt_setname(intrname, i->cntindex);
+
+	/* barrier, so other threads can read the table without lock */
+	wmb();
+	nvectors++;
 	mtx_unlock(&intr_table_lock);
-
-	if (iscan != NULL || i->vector == -1) {
-		free(i, M_INTR);
-		i = iscan;
-	}
 
 	return (i);
 }
