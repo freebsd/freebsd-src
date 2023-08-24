@@ -521,4 +521,7 @@
 #define	SYS_swapoff	582
 #define	SYS_kqueuex	583
 #define	SYS_membarrier	584
-#define	SYS_MAXSYSCALL	585
+#define	SYS_timerfd_create	585
+#define	SYS_timerfd_gettime	586
+#define	SYS_timerfd_settime	587
+#define	SYS_MAXSYSCALL	588

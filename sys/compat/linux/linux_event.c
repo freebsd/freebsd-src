@@ -44,6 +44,7 @@
 #include <sys/specialfd.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
+#include <sys/timerfd.h>
 #include <sys/timespec.h>
 #include <sys/user.h>
 
@@ -98,55 +99,6 @@ struct epoll_copyout_args {
 	uint32_t		count;
 	int			error;
 };
-
-/* timerfd */
-typedef uint64_t	timerfd_t;
-
-static fo_rdwr_t	timerfd_read;
-static fo_ioctl_t	timerfd_ioctl;
-static fo_poll_t	timerfd_poll;
-static fo_kqfilter_t	timerfd_kqfilter;
-static fo_stat_t	timerfd_stat;
-static fo_close_t	timerfd_close;
-static fo_fill_kinfo_t	timerfd_fill_kinfo;
-
-static struct fileops timerfdops = {
-	.fo_read = timerfd_read,
-	.fo_write = invfo_rdwr,
-	.fo_truncate = invfo_truncate,
-	.fo_ioctl = timerfd_ioctl,
-	.fo_poll = timerfd_poll,
-	.fo_kqfilter = timerfd_kqfilter,
-	.fo_stat = timerfd_stat,
-	.fo_close = timerfd_close,
-	.fo_chmod = invfo_chmod,
-	.fo_chown = invfo_chown,
-	.fo_sendfile = invfo_sendfile,
-	.fo_fill_kinfo = timerfd_fill_kinfo,
-	.fo_flags = DFLAG_PASSABLE
-};
-
-static void	filt_timerfddetach(struct knote *kn);
-static int	filt_timerfdread(struct knote *kn, long hint);
-
-static struct filterops timerfd_rfiltops = {
-	.f_isfd = 1,
-	.f_detach = filt_timerfddetach,
-	.f_event = filt_timerfdread
-};
-
-struct timerfd {
-	clockid_t	tfd_clockid;
-	struct itimerspec tfd_time;
-	struct callout	tfd_callout;
-	timerfd_t	tfd_count;
-	bool		tfd_canceled;
-	struct selinfo	tfd_sel;
-	struct mtx	tfd_lock;
-};
-
-static void	linux_timerfd_expire(void *);
-static void	linux_timerfd_curval(struct timerfd *, struct itimerspec *);
 
 static int
 epoll_create_common(struct thread *td, int flags)
@@ -658,255 +610,14 @@ linux_eventfd2(struct thread *td, struct linux_eventfd2_args *args)
 int
 linux_timerfd_create(struct thread *td, struct linux_timerfd_create_args *args)
 {
-	struct timerfd *tfd;
-	struct file *fp;
 	clockid_t clockid;
-	int fflags, fd, error;
-
-	if ((args->flags & ~LINUX_TFD_CREATE_FLAGS) != 0)
-		return (EINVAL);
+	int error;
 
 	error = linux_to_native_clockid(&clockid, args->clockid);
 	if (error != 0)
 		return (error);
-	if (clockid != CLOCK_REALTIME && clockid != CLOCK_MONOTONIC)
-		return (EINVAL);
 
-	fflags = 0;
-	if ((args->flags & LINUX_TFD_CLOEXEC) != 0)
-		fflags |= O_CLOEXEC;
-
-	error = falloc(td, &fp, &fd, fflags);
-	if (error != 0)
-		return (error);
-
-	tfd = malloc(sizeof(*tfd), M_EPOLL, M_WAITOK | M_ZERO);
-	tfd->tfd_clockid = clockid;
-	mtx_init(&tfd->tfd_lock, "timerfd", NULL, MTX_DEF);
-
-	callout_init_mtx(&tfd->tfd_callout, &tfd->tfd_lock, 0);
-	knlist_init_mtx(&tfd->tfd_sel.si_note, &tfd->tfd_lock);
-
-	fflags = FREAD;
-	if ((args->flags & LINUX_O_NONBLOCK) != 0)
-		fflags |= FNONBLOCK;
-
-	finit(fp, fflags, DTYPE_LINUXTFD, tfd, &timerfdops);
-	fdrop(fp, td);
-
-	td->td_retval[0] = fd;
-	return (error);
-}
-
-static int
-timerfd_close(struct file *fp, struct thread *td)
-{
-	struct timerfd *tfd;
-
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL)
-		return (EINVAL);
-
-	timespecclear(&tfd->tfd_time.it_value);
-	timespecclear(&tfd->tfd_time.it_interval);
-
-	callout_drain(&tfd->tfd_callout);
-
-	seldrain(&tfd->tfd_sel);
-	knlist_destroy(&tfd->tfd_sel.si_note);
-
-	fp->f_ops = &badfileops;
-	mtx_destroy(&tfd->tfd_lock);
-	free(tfd, M_EPOLL);
-
-	return (0);
-}
-
-static int
-timerfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-	struct timerfd *tfd;
-	timerfd_t count;
-	int error;
-
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL)
-		return (EINVAL);
-
-	if (uio->uio_resid < sizeof(timerfd_t))
-		return (EINVAL);
-
-	error = 0;
-	mtx_lock(&tfd->tfd_lock);
-retry:
-	if (tfd->tfd_canceled) {
-		tfd->tfd_count = 0;
-		mtx_unlock(&tfd->tfd_lock);
-		return (ECANCELED);
-	}
-	if (tfd->tfd_count == 0) {
-		if ((fp->f_flag & FNONBLOCK) != 0) {
-			mtx_unlock(&tfd->tfd_lock);
-			return (EAGAIN);
-		}
-		error = mtx_sleep(&tfd->tfd_count, &tfd->tfd_lock, PCATCH, "ltfdrd", 0);
-		if (error == 0)
-			goto retry;
-	}
-	if (error == 0) {
-		count = tfd->tfd_count;
-		tfd->tfd_count = 0;
-		mtx_unlock(&tfd->tfd_lock);
-		error = uiomove(&count, sizeof(timerfd_t), uio);
-	} else
-		mtx_unlock(&tfd->tfd_lock);
-
-	return (error);
-}
-
-static int
-timerfd_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-	struct timerfd *tfd;
-	int revents = 0;
-
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL)
-		return (POLLERR);
-
-	mtx_lock(&tfd->tfd_lock);
-	if ((events & (POLLIN|POLLRDNORM)) && tfd->tfd_count > 0)
-		revents |= events & (POLLIN|POLLRDNORM);
-	if (revents == 0)
-		selrecord(td, &tfd->tfd_sel);
-	mtx_unlock(&tfd->tfd_lock);
-
-	return (revents);
-}
-
-static int
-timerfd_kqfilter(struct file *fp, struct knote *kn)
-{
-	struct timerfd *tfd;
-
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL)
-		return (EINVAL);
-
-	if (kn->kn_filter == EVFILT_READ)
-		kn->kn_fop = &timerfd_rfiltops;
-	else
-		return (EINVAL);
-
-	kn->kn_hook = tfd;
-	knlist_add(&tfd->tfd_sel.si_note, kn, 0);
-
-	return (0);
-}
-
-static void
-filt_timerfddetach(struct knote *kn)
-{
-	struct timerfd *tfd = kn->kn_hook;
-
-	mtx_lock(&tfd->tfd_lock);
-	knlist_remove(&tfd->tfd_sel.si_note, kn, 1);
-	mtx_unlock(&tfd->tfd_lock);
-}
-
-static int
-filt_timerfdread(struct knote *kn, long hint)
-{
-	struct timerfd *tfd = kn->kn_hook;
-
-	return (tfd->tfd_count > 0);
-}
-
-static int
-timerfd_ioctl(struct file *fp, u_long cmd, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	if (fp->f_data == NULL || fp->f_type != DTYPE_LINUXTFD)
-		return (EINVAL);
-
-	switch (cmd) {
-	case FIONBIO:
-	case FIOASYNC:
-		return (0);
-	}
-
-	return (ENOTTY);
-}
-
-static int
-timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred)
-{
-
-	return (ENXIO);
-}
-
-static int
-timerfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
-{
-
-	kif->kf_type = KF_TYPE_UNKNOWN;
-	return (0);
-}
-
-static void
-linux_timerfd_clocktime(struct timerfd *tfd, struct timespec *ts)
-{
-
-	if (tfd->tfd_clockid == CLOCK_REALTIME)
-		getnanotime(ts);
-	else	/* CLOCK_MONOTONIC */
-		getnanouptime(ts);
-}
-
-static void
-linux_timerfd_curval(struct timerfd *tfd, struct itimerspec *ots)
-{
-	struct timespec cts;
-
-	linux_timerfd_clocktime(tfd, &cts);
-	*ots = tfd->tfd_time;
-	if (ots->it_value.tv_sec != 0 || ots->it_value.tv_nsec != 0) {
-		timespecsub(&ots->it_value, &cts, &ots->it_value);
-		if (ots->it_value.tv_sec < 0 ||
-		    (ots->it_value.tv_sec == 0 &&
-		     ots->it_value.tv_nsec == 0)) {
-			ots->it_value.tv_sec  = 0;
-			ots->it_value.tv_nsec = 1;
-		}
-	}
-}
-
-static int
-linux_timerfd_gettime_common(struct thread *td, int fd, struct itimerspec *ots)
-{
-	struct timerfd *tfd;
-	struct file *fp;
-	int error;
-
-	error = fget(td, fd, &cap_read_rights, &fp);
-	if (error != 0)
-		return (error);
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
-	mtx_lock(&tfd->tfd_lock);
-	linux_timerfd_curval(tfd, ots);
-	mtx_unlock(&tfd->tfd_lock);
-
-out:
-	fdrop(fp, td);
-	return (error);
+	return (kern_timerfd_create(td, clockid, args->flags));
 }
 
 int
@@ -916,12 +627,40 @@ linux_timerfd_gettime(struct thread *td, struct linux_timerfd_gettime_args *args
 	struct itimerspec ots;
 	int error;
 
-	error = linux_timerfd_gettime_common(td, args->fd, &ots);
+	error = kern_timerfd_gettime(td, args->fd, &ots);
 	if (error != 0)
 		return (error);
+
 	error = native_to_linux_itimerspec(&lots, &ots);
 	if (error == 0)
 		error = copyout(&lots, args->old_value, sizeof(lots));
+
+	return (error);
+}
+
+int
+linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args)
+{
+	struct l_itimerspec lots;
+	struct itimerspec nts, ots;
+	int error;
+
+	error = copyin(args->new_value, &lots, sizeof(lots));
+	if (error != 0)
+		return (error);
+	error = linux_to_native_itimerspec(&nts, &lots);
+	if (error != 0)
+		return (error);
+	if (args->old_value == NULL)
+		error = kern_timerfd_settime(td, args->fd, args->flags, &nts, NULL);
+	else
+		error = kern_timerfd_settime(td, args->fd, args->flags, &nts, &ots);
+	if (error == 0 && args->old_value != NULL) {
+		error = native_to_linux_itimerspec(&lots, &ots);
+		if (error == 0)
+			error = copyout(&lots, args->old_value, sizeof(lots));
+	}
+
 	return (error);
 }
 
@@ -933,100 +672,22 @@ linux_timerfd_gettime64(struct thread *td, struct linux_timerfd_gettime64_args *
 	struct itimerspec ots;
 	int error;
 
-	error = linux_timerfd_gettime_common(td, args->fd, &ots);
+	error = kern_timerfd_gettime(td, args->fd, &ots);
 	if (error != 0)
 		return (error);
+
 	error = native_to_linux_itimerspec64(&lots, &ots);
 	if (error == 0)
 		error = copyout(&lots, args->old_value, sizeof(lots));
-	return (error);
-}
-#endif
 
-static int
-linux_timerfd_settime_common(struct thread *td, int fd, int flags,
-    struct itimerspec *nts, struct itimerspec *oval)
-{
-	struct timespec cts, ts;
-	struct timerfd *tfd;
-	struct timeval tv;
-	struct file *fp;
-	int error;
-
-	if ((flags & ~LINUX_TFD_SETTIME_FLAGS) != 0)
-		return (EINVAL);
-
-	error = fget(td, fd, &cap_write_rights, &fp);
-	if (error != 0)
-		return (error);
-	tfd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXTFD || tfd == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
-	mtx_lock(&tfd->tfd_lock);
-	if (!timespecisset(&nts->it_value))
-		timespecclear(&nts->it_interval);
-	if (oval != NULL)
-		linux_timerfd_curval(tfd, oval);
-
-	bcopy(nts, &tfd->tfd_time, sizeof(*nts));
-	tfd->tfd_count = 0;
-	if (timespecisset(&nts->it_value)) {
-		linux_timerfd_clocktime(tfd, &cts);
-		ts = nts->it_value;
-		if ((flags & LINUX_TFD_TIMER_ABSTIME) == 0) {
-			timespecadd(&tfd->tfd_time.it_value, &cts,
-				&tfd->tfd_time.it_value);
-		} else {
-			timespecsub(&ts, &cts, &ts);
-		}
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		callout_reset(&tfd->tfd_callout, tvtohz(&tv),
-			linux_timerfd_expire, tfd);
-		tfd->tfd_canceled = false;
-	} else {
-		tfd->tfd_canceled = true;
-		callout_stop(&tfd->tfd_callout);
-	}
-	mtx_unlock(&tfd->tfd_lock);
-
-out:
-	fdrop(fp, td);
 	return (error);
 }
 
-int
-linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args)
-{
-	struct l_itimerspec lots;
-	struct itimerspec nts, ots, *pots;
-	int error;
-
-	error = copyin(args->new_value, &lots, sizeof(lots));
-	if (error != 0)
-		return (error);
-	error = linux_to_native_itimerspec(&nts, &lots);
-	if (error != 0)
-		return (error);
-	pots = (args->old_value != NULL ? &ots : NULL);
-	error = linux_timerfd_settime_common(td, args->fd, args->flags,
-	    &nts, pots);
-	if (error == 0 && args->old_value != NULL) {
-		error = native_to_linux_itimerspec(&lots, &ots);
-		if (error == 0)
-			error = copyout(&lots, args->old_value, sizeof(lots));
-	}
-	return (error);
-}
-
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_timerfd_settime64(struct thread *td, struct linux_timerfd_settime64_args *args)
 {
 	struct l_itimerspec64 lots;
-	struct itimerspec nts, ots, *pots;
+	struct itimerspec nts, ots;
 	int error;
 
 	error = copyin(args->new_value, &lots, sizeof(lots));
@@ -1035,50 +696,16 @@ linux_timerfd_settime64(struct thread *td, struct linux_timerfd_settime64_args *
 	error = linux_to_native_itimerspec64(&nts, &lots);
 	if (error != 0)
 		return (error);
-	pots = (args->old_value != NULL ? &ots : NULL);
-	error = linux_timerfd_settime_common(td, args->fd, args->flags,
-	    &nts, pots);
+	if (args->old_value == NULL)
+		error = kern_timerfd_settime(td, args->fd, args->flags, &nts, NULL);
+	else
+		error = kern_timerfd_settime(td, args->fd, args->flags, &nts, &ots);
 	if (error == 0 && args->old_value != NULL) {
 		error = native_to_linux_itimerspec64(&lots, &ots);
 		if (error == 0)
 			error = copyout(&lots, args->old_value, sizeof(lots));
 	}
+
 	return (error);
 }
 #endif
-
-static void
-linux_timerfd_expire(void *arg)
-{
-	struct timespec cts, ts;
-	struct timeval tv;
-	struct timerfd *tfd;
-
-	tfd = (struct timerfd *)arg;
-
-	linux_timerfd_clocktime(tfd, &cts);
-	if (timespeccmp(&cts, &tfd->tfd_time.it_value, >=)) {
-		if (timespecisset(&tfd->tfd_time.it_interval))
-			timespecadd(&tfd->tfd_time.it_value,
-				    &tfd->tfd_time.it_interval,
-				    &tfd->tfd_time.it_value);
-		else
-			/* single shot timer */
-			timespecclear(&tfd->tfd_time.it_value);
-		if (timespecisset(&tfd->tfd_time.it_value)) {
-			timespecsub(&tfd->tfd_time.it_value, &cts, &ts);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts);
-			callout_reset(&tfd->tfd_callout, tvtohz(&tv),
-				linux_timerfd_expire, tfd);
-		}
-		tfd->tfd_count++;
-		KNOTE_LOCKED(&tfd->tfd_sel.si_note, 0);
-		selwakeup(&tfd->tfd_sel);
-		wakeup(&tfd->tfd_count);
-	} else if (timespecisset(&tfd->tfd_time.it_value)) {
-		timespecsub(&tfd->tfd_time.it_value, &cts, &ts);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		callout_reset(&tfd->tfd_callout, tvtohz(&tv),
-		    linux_timerfd_expire, tfd);
-	}
-}

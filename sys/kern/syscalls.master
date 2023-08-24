@@ -3318,6 +3318,26 @@
 		    int cpu_id
 		);
 	}
+585	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_create(
+		    int clockid,
+		    int flags
+		);
+	}
+586	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_gettime(
+		    int fd,
+		    _Out_ _Contains_long_timet_ struct itimerspec *curr_value
+		);
+	}
+587	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_settime(
+		    int fd,
+		    int flags,
+		    _In_ _Contains_long_timet_ const struct itimerspec *new_value,
+		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
+		);
+	}
 
 
 ; vim: syntax=off
