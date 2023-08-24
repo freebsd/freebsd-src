@@ -873,7 +873,7 @@ struct pf_ksrc_node {
 	struct pf_addr	 raddr;
 	struct pf_krule_slist	 match_rules;
 	union pf_krule_ptr rule;
-	struct pfi_kkif	*kif;
+	struct pfi_kkif	*rkif;
 	counter_u64_t	 bytes[2];
 	counter_u64_t	 packets[2];
 	u_int32_t	 states;
@@ -2474,7 +2474,8 @@ int			 pf_step_out_of_keth_anchor(struct pf_keth_anchor_stackframe *,
 
 u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
-			    struct pf_addr *, struct pf_ksrc_node **);
+			    struct pfi_kkif **nkif, struct pf_addr *,
+			    struct pf_ksrc_node **);
 struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    int, struct pfi_kkif *, struct pf_ksrc_node **,
 			    struct pf_state_key **, struct pf_state_key **,
