@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,12 +49,15 @@ update_sim_properties(struct cam_sim *sim, struct ccb_pathinq *cpi)
 	cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 	cpi->hba_eng_cnt = 0;
 	cpi->max_lun = PQI_MAX_MULTILUN;
-	cpi->max_target = 1088;
+	cpi->max_target = MAX_TARGET_DEVICES;
 	cpi->maxio = (softs->pqi_cap.max_sg_elem - 1) * PAGE_SIZE;
 	cpi->initiator_id = 255;
-	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-	strlcpy(cpi->hba_vid, "Microsemi", HBA_IDLEN);
-	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+	strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN-1);
+	cpi->sim_vid[sizeof(cpi->sim_vid)-1] = '\0';
+	strncpy(cpi->hba_vid, "Microsemi", HBA_IDLEN-1);
+	cpi->hba_vid[sizeof(cpi->hba_vid)-1] = '\0';
+	strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN-1);
+	cpi->dev_name[sizeof(cpi->dev_name)-1] = '\0';
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 1200000; /* Base bus speed in KB/sec */
@@ -73,7 +76,7 @@ update_sim_properties(struct cam_sim *sim, struct ccb_pathinq *cpi)
 }
 
 /*
- * Get transport settings of the smartpqi adapter 
+ * Get transport settings of the smartpqi adapter.
  */
 static void
 get_transport_settings(struct pqisrc_softstate *softs,
@@ -84,7 +87,7 @@ get_transport_settings(struct pqisrc_softstate *softs,
 	struct ccb_trans_settings_spi	*spi = &cts->xport_specific.spi;
 
 	DBG_FUNC("IN\n");
-	
+
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_SPC4;
 	cts->transport = XPORT_SPI;
@@ -106,10 +109,12 @@ void
 os_add_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 {
 	union ccb *ccb;
+	uint64_t lun;
 
 	DBG_FUNC("IN\n");
 
-	if(softs->os_specific.sim_registered) {	
+	lun = (device->is_multi_lun) ? CAM_LUN_WILDCARD : device->lun;
+	if(softs->os_specific.sim_registered) {
 		if ((ccb = xpt_alloc_ccb_nowait()) == NULL) {
 			DBG_ERR("rescan failed (can't allocate CCB)\n");
 			return;
@@ -117,7 +122,7 @@ os_add_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 
 		if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			cam_sim_path(softs->os_specific.sim),
-			device->target, device->lun) != CAM_REQ_CMP) {
+			device->target, lun) != CAM_REQ_CMP) {
 			DBG_ERR("rescan failed (can't create path)\n");
 			xpt_free_ccb(ccb);
 			return;
@@ -134,20 +139,25 @@ os_add_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 void
 os_remove_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 {
-	struct cam_path *tmppath;
+	struct cam_path *tmppath = NULL;
+	uint64_t lun;
 
 	DBG_FUNC("IN\n");
-	
+
+	lun = (device->is_multi_lun) ? CAM_LUN_WILDCARD : device->lun;
 	if(softs->os_specific.sim_registered) {
-		if (xpt_create_path(&tmppath, NULL, 
+		if (xpt_create_path(&tmppath, NULL,
 			cam_sim_path(softs->os_specific.sim),
-			device->target, device->lun) != CAM_REQ_CMP) {
-			DBG_ERR("unable to create path for async event");
+			device->target, lun) != CAM_REQ_CMP) {
+			DBG_ERR("unable to create path for async event\n");
 			return;
 		}
 		xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 		xpt_free_path(tmppath);
-		softs->device_list[device->target][device->lun] = NULL;
+		/* softs->device_list[device->target][device->lun] = NULL; */
+		int index = pqisrc_find_device_list_index(softs,device);
+		if (index >= 0 && index < PQI_MAX_DEVICES)
+			softs->dev_list[index] = NULL;
 		pqisrc_free_device(softs, device);
 	}
 
@@ -191,22 +201,20 @@ pqi_synch_request(rcb_t *rcb)
 		return;
 
 	if (rcb->bcount != 0 ) {
-		if (rcb->data_dir == SOP_DATA_DIR_FROM_DEVICE)
+		if ((rcb->cm_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
-					rcb->cm_datamap,
-					BUS_DMASYNC_POSTREAD);
-		if (rcb->data_dir == SOP_DATA_DIR_TO_DEVICE)
+					rcb->cm_datamap,BUS_DMASYNC_POSTREAD);
+		if ((rcb->cm_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
-					rcb->cm_datamap,
-					BUS_DMASYNC_POSTWRITE);
+					rcb->cm_datamap,BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(softs->os_specific.pqi_buffer_dmat,
-					rcb->cm_datamap);
+			rcb->cm_datamap);
 	}
 	rcb->cm_flags &= ~PQI_CMD_MAPPED;
 
 	if(rcb->sgt && rcb->nseg)
 		os_mem_free(rcb->softs, (void*)rcb->sgt,
-				rcb->nseg*sizeof(sgt_t));
+			rcb->nseg*sizeof(sgt_t));
 
 	DBG_IO("OUT\n");
 }
@@ -242,6 +250,7 @@ smartpqi_fix_ld_inquiry(pqisrc_softstate_t *softs, struct ccb_scsiio *csio)
 
  	cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
 		(uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
+
 	if(cdb[0] == INQUIRY &&
 		(cdb[1] & SI_EVPD) == 0 &&
 		(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
@@ -249,23 +258,31 @@ smartpqi_fix_ld_inquiry(pqisrc_softstate_t *softs, struct ccb_scsiio *csio)
 
 		inq = (struct scsi_inquiry_data *)csio->data_ptr;
 
-		device = softs->device_list[csio->ccb_h.target_id][csio->ccb_h.target_lun];
+		/* device = softs->device_list[csio->ccb_h.target_id][csio->ccb_h.target_lun]; */
+		int target = csio->ccb_h.target_id;
+		int lun = csio->ccb_h.target_lun;
+		int index = pqisrc_find_btl_list_index(softs,softs->bus_id,target,lun);
+		if (index != INVALID_ELEM)
+			device = softs->dev_list[index];
 
 		/* Let the disks be probed and dealt with via CAM. Only for LD
 		  let it fall through and inquiry be tweaked */
-		if (!device || !pqisrc_is_logical_device(device) ||
-				(device->devtype != DISK_DEVICE) ||
+		if( !device || 	!pqisrc_is_logical_device(device) ||
+				(device->devtype != DISK_DEVICE)  ||
 				pqisrc_is_external_raid_device(device)) {
  	 		return;
 		}
 
 		strncpy(inq->vendor, device->vendor,
-				SID_VENDOR_SIZE);
+				SID_VENDOR_SIZE-1);
+		inq->vendor[sizeof(inq->vendor)-1] = '\0';
 		strncpy(inq->product,
 				pqisrc_raidlevel_to_string(device->raid_level),
-				SID_PRODUCT_SIZE);
+				SID_PRODUCT_SIZE-1);
+		inq->product[sizeof(inq->product)-1] = '\0';
 		strncpy(inq->revision, device->volume_offline?"OFF":"OK",
-				SID_REVISION_SIZE);
+				SID_REVISION_SIZE-1);
+		inq->revision[sizeof(inq->revision)-1] = '\0';
     	}
 
 	DBG_FUNC("OUT\n");
@@ -308,7 +325,7 @@ os_io_response_success(rcb_t *rcb)
 	if (csio == NULL)
 		panic("csio is null");
 
-	rcb->status = REQUEST_SUCCESS;
+	rcb->status = PQI_STATUS_SUCCESS;
 	csio->ccb_h.status = CAM_REQ_CMP;
 
 	pqi_complete_scsi_io(csio, rcb);
@@ -383,10 +400,11 @@ os_raid_response_error(rcb_t *rcb, raid_path_error_info_elem_t *err_info)
 					uint8_t *sense_data = NULL;
 					if (sense_data_len)
 						sense_data = err_info->data;
+
 					copy_sense_data_to_csio(csio, sense_data, sense_data_len);
 					csio->ccb_h.status = CAM_SCSI_STATUS_ERROR
-							| CAM_AUTOSNS_VALID
-							| CAM_REQ_CMP_ERR;
+						| CAM_AUTOSNS_VALID
+						| CAM_REQ_CMP_ERR;
 
 				}
 				break;
@@ -425,7 +443,7 @@ os_aio_response_error(rcb_t *rcb, aio_path_error_info_elem_t *err_info)
 	if (rcb == NULL)
 		panic("rcb is null");
 
-	rcb->status = REQUEST_SUCCESS;
+	rcb->status = PQI_STATUS_SUCCESS;
 	csio = (struct ccb_scsiio *)&rcb->cm_ccb->csio;
 	if (csio == NULL)
                 panic("csio is null");
@@ -462,7 +480,7 @@ os_aio_response_error(rcb_t *rcb, aio_path_error_info_elem_t *err_info)
 					/* Timed out TMF response comes here */
 					if (rcb->tm_req) {
 						rcb->req_pending = false;
-						rcb->status = REQUEST_SUCCESS;
+						rcb->status = PQI_STATUS_SUCCESS;
 						DBG_ERR("AIO Disabled for TMF\n");
 						return;
 					}
@@ -484,14 +502,14 @@ os_aio_response_error(rcb_t *rcb, aio_path_error_info_elem_t *err_info)
 		case PQI_AIO_SERV_RESPONSE_TMF_SUCCEEDED:
 			DBG_ERR("PQI_AIO_SERV_RESPONSE_TMF %s\n",
 				(err_info->service_resp == PQI_AIO_SERV_RESPONSE_TMF_COMPLETE) ? "COMPLETE" : "SUCCEEDED");
-			rcb->status = REQUEST_SUCCESS;
+			rcb->status = PQI_STATUS_SUCCESS;
 			rcb->req_pending = false;
 			return;
 		case PQI_AIO_SERV_RESPONSE_TMF_REJECTED:
 		case PQI_AIO_SERV_RESPONSE_TMF_INCORRECT_LUN:
 			DBG_ERR("PQI_AIO_SERV_RESPONSE_TMF %s\n",
 				(err_info->service_resp == PQI_AIO_SERV_RESPONSE_TMF_REJECTED) ? "REJECTED" : "INCORRECT LUN");
-			rcb->status = REQUEST_FAILED;
+			rcb->status = PQI_STATUS_TIMEOUT;
 			rcb->req_pending = false;
 			return;
 		default:
@@ -536,8 +554,9 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	pqisrc_softstate_t *softs = rcb->softs;
 	union ccb *ccb;
 
-	if (error || nseg > softs->pqi_cap.max_sg_elem) {
-		DBG_ERR_BTL(rcb->dvp, "map failed err = %d or nseg(%d) > sgelem(%d)\n",
+	if (error || nseg > softs->pqi_cap.max_sg_elem)
+	{
+		DBG_ERR_BTL(rcb->dvp, "map failed err = %d or nseg(%d) > sgelem(%u)\n",
 			error, nseg, softs->pqi_cap.max_sg_elem);
 		goto error_io;
 	}
@@ -556,15 +575,15 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		rcb->sgt[i].flags = 0;
 	}
 
-	if (rcb->data_dir == SOP_DATA_DIR_FROM_DEVICE)
-		bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
-			rcb->cm_datamap, BUS_DMASYNC_PREREAD);
-	if (rcb->data_dir == SOP_DATA_DIR_TO_DEVICE)
-		bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
-			rcb->cm_datamap, BUS_DMASYNC_PREWRITE);
+	if ((rcb->cm_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
+                bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
+                        rcb->cm_datamap, BUS_DMASYNC_PREREAD);
+	if ((rcb->cm_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+                bus_dmamap_sync(softs->os_specific.pqi_buffer_dmat,
+                        rcb->cm_datamap, BUS_DMASYNC_PREWRITE);
 
 	/* Call IO functions depending on pd or ld */
-	rcb->status = REQUEST_PENDING;
+	rcb->status = PQI_STATUS_FAILURE;
 
 	error = pqisrc_build_send_io(softs, rcb);
 
@@ -607,7 +626,7 @@ pqi_map_request(rcb_t *rcb)
 		bsd_status = bus_dmamap_load_ccb(softs->os_specific.pqi_buffer_dmat,
 			rcb->cm_datamap, ccb, pqi_request_map_helper, rcb, 0);
 		if (bsd_status != BSD_SUCCESS && bsd_status != EINPROGRESS) {
-			DBG_ERR_BTL(rcb->dvp, "bus_dmamap_load_ccb failed, return status = %d transfer length = %d\n",
+			DBG_ERR_BTL(rcb->dvp, "bus_dmamap_load_ccb failed, return status = %d transfer length = %u\n",
 					bsd_status, rcb->bcount);
 			return bsd_status;
 		}
@@ -618,7 +637,7 @@ pqi_map_request(rcb_t *rcb)
 		 * busdma.
 		 */
 		/* Call IO functions depending on pd or ld */
-		rcb->status = REQUEST_PENDING;
+		rcb->status = PQI_STATUS_FAILURE;
 
 		if (pqisrc_build_send_io(softs, rcb) != PQI_STATUS_SUCCESS) {
 			bsd_status = EIO;
@@ -695,7 +714,7 @@ smartpqi_lun_rescan(struct pqisrc_softstate *softs, int target,
 		return;
 	}
 
-	bzero(ccb, sizeof(union ccb));
+	memset(ccb, 0, sizeof(union ccb));
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
 	ccb->ccb_h.func_code = XPT_SCAN_LUN;
 	ccb->ccb_h.cbfcnp = smartpqi_lunrescan_cb;
@@ -712,15 +731,17 @@ smartpqi_lun_rescan(struct pqisrc_softstate *softs, int target,
 void
 smartpqi_target_rescan(struct pqisrc_softstate *softs)
 {
-	int target = 0, lun = 0;
+	pqi_scsi_dev_t *device;
+	int index;
 
 	DBG_FUNC("IN\n");
 
-	for(target = 0; target < PQI_MAX_DEVICES; target++){
-		for(lun = 0; lun < PQI_MAX_MULTILUN; lun++){
-			if(softs->device_list[target][lun]){
-				smartpqi_lun_rescan(softs, target, lun);
-			}
+	for(index = 0; index < PQI_MAX_DEVICES; index++){
+		/* if(softs->device_list[target][lun]){ */
+		if(softs->dev_list[index] != NULL) {
+			device = softs->dev_list[index];
+			DBG_INFO("calling smartpqi_lun_rescan with TL = %d:%d\n",device->target,device->lun);
+			smartpqi_lun_rescan(softs, device->target, device->lun);
 		}
 	}
 
@@ -758,7 +779,7 @@ void
 os_complete_outstanding_cmds_nodevice(pqisrc_softstate_t *softs)
 {
 	int tag = 0;
-	pqi_scsi_dev_t  *dvp = NULL;
+	pqi_scsi_dev_t	*dvp = NULL;
 
 	DBG_FUNC("IN\n");
 
@@ -771,7 +792,6 @@ os_complete_outstanding_cmds_nodevice(pqisrc_softstate_t *softs)
 			pqi_complete_scsi_io(&prcb->cm_ccb->csio, prcb);
 			if (dvp)
 				pqisrc_decrement_device_active_io(softs, dvp);
-
 		}
 	}
 
@@ -785,21 +805,36 @@ static int
 pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 {
 	rcb_t *rcb;
-	uint32_t tag, no_transfer = 0;
+	uint32_t tag;
 	pqisrc_softstate_t *softs = (struct pqisrc_softstate *)
 					cam_sim_softc(sim);
 	int32_t error;
 	pqi_scsi_dev_t *dvp;
+	int target, lun, index;
 
 	DBG_FUNC("IN\n");
 
-	if (softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun] == NULL) {
+	/* if( softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun] == NULL ) { */
+	target = ccb->ccb_h.target_id;
+	lun = ccb->ccb_h.target_lun;
+	index = pqisrc_find_btl_list_index(softs,softs->bus_id,target,lun);
+
+	if (index == INVALID_ELEM) {
+		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		DBG_INFO("Invalid index/device!!!, Device BTL %u:%d:%d\n", softs->bus_id, target, lun);
+		return ENXIO;
+	}
+
+	if( softs->dev_list[index] == NULL ) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		DBG_INFO("Device  = %d not there\n", ccb->ccb_h.target_id);
 		return ENXIO;
 	}
 
-	dvp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun];
+	/* DBG_INFO("starting IO on BTL = %d:%d:%d index = %d\n",softs->bus_id,target,lun,index); */
+
+	/* dvp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun]; */
+	dvp = softs->dev_list[index];
 	/* Check  controller state */
 	if (IN_PQI_RESET(softs)) {
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET
@@ -827,7 +862,7 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	tag = pqisrc_get_tag(&softs->taglist);
-	if (tag == INVALID_ELEM) {
+	if( tag == INVALID_ELEM ) {
 		DBG_ERR("Get Tag failed\n");
 		xpt_freeze_simq(softs->os_specific.sim, 1);
 		softs->os_specific.pqi_flags |= PQI_FLAG_BUSY;
@@ -835,7 +870,7 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 		return EIO;
 	}
 
-	DBG_IO("tag = %d &softs->taglist : %p\n", tag, &softs->taglist);
+	DBG_IO("tag = %u &softs->taglist : %p\n", tag, &softs->taglist);
 
 	rcb = &softs->rcb[tag];
 	os_reset_rcb(rcb);
@@ -844,30 +879,13 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 	rcb->cmdlen = ccb->csio.cdb_len;
 	ccb->ccb_h.sim_priv.entries[0].ptr = rcb;
 
-	switch (ccb->ccb_h.flags & CAM_DIR_MASK) {
-		case CAM_DIR_IN:
-			rcb->data_dir = SOP_DATA_DIR_FROM_DEVICE;
-			break;
-		case CAM_DIR_OUT:
-			rcb->data_dir = SOP_DATA_DIR_TO_DEVICE;
-			break;
-		case CAM_DIR_NONE:
-			no_transfer = 1;
-			break;
-		default:
-			DBG_ERR("Unknown Dir\n");
-			break;
-	}
 	rcb->cm_ccb = ccb;
-	rcb->dvp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun];
+	/* rcb->dvp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun]; */
+	rcb->dvp = softs->dev_list[index];
 
-	if (!no_transfer) {
-		rcb->cm_data = (void *)ccb->csio.data_ptr;
-		rcb->bcount = ccb->csio.dxfer_len;
-	} else {
-		rcb->cm_data = NULL;
-		rcb->bcount = 0;
-	}
+	rcb->cm_data = (void *)ccb->csio.data_ptr;
+	rcb->bcount = ccb->csio.dxfer_len;
+
 	/*
 	 * Submit the request to the adapter.
 	 *
@@ -900,7 +918,7 @@ static inline int
 pqi_tmf_status_to_bsd_tmf_status(int pqi_status, rcb_t *rcb)
 {
 	if (PQI_STATUS_SUCCESS == pqi_status &&
-			REQUEST_SUCCESS == rcb->status)
+			PQI_STATUS_SUCCESS == rcb->status)
 		return BSD_SUCCESS;
 	else
 		return EIO;
@@ -912,8 +930,8 @@ pqi_tmf_status_to_bsd_tmf_status(int pqi_status, rcb_t *rcb)
 static int
 pqisrc_scsi_abort_task(pqisrc_softstate_t *softs,  union ccb *ccb)
 {
-	struct ccb_hdr *ccb_h = &ccb->ccb_h;
 	rcb_t *rcb = NULL;
+	struct ccb_hdr *ccb_h = &ccb->ccb_h;
 	rcb_t *prcb = ccb->ccb_h.sim_priv.entries[0].ptr;
 	uint32_t tag;
 	int rval;
@@ -924,7 +942,7 @@ pqisrc_scsi_abort_task(pqisrc_softstate_t *softs,  union ccb *ccb)
 	rcb = &softs->rcb[tag];
 	rcb->tag = tag;
 
-	if (!rcb->dvp) {
+	if (rcb->dvp == NULL) {
 		DBG_ERR("dvp is null, tmf type : 0x%x\n", ccb_h->func_code);
 		rval = ENXIO;
 		goto error_tmf;
@@ -963,8 +981,9 @@ pqisrc_scsi_abort_task_set(pqisrc_softstate_t *softs, union ccb *ccb)
 	tag = pqisrc_get_tag(&softs->taglist);
 	rcb = &softs->rcb[tag];
 	rcb->tag = tag;
+	rcb->cm_ccb = ccb;
 
-	if (!rcb->dvp) {
+	if (rcb->dvp == NULL) {
 		DBG_ERR("dvp is null, tmf type : 0x%x\n", ccb_h->func_code);
 		rval = ENXIO;
 		goto error_tmf;
@@ -992,24 +1011,38 @@ error_tmf:
 static int
 pqisrc_target_reset( pqisrc_softstate_t *softs,  union ccb *ccb)
 {
+
+	/* pqi_scsi_dev_t *devp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun]; */
 	struct ccb_hdr  *ccb_h = &ccb->ccb_h;
-	pqi_scsi_dev_t *devp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun];
 	rcb_t *rcb = NULL;
 	uint32_t tag;
 	int rval;
 
+	int bus, target, lun;
+	int index;
+
 	DBG_FUNC("IN\n");
 
+	bus = softs->bus_id;
+	target = ccb->ccb_h.target_id;
+	lun = ccb->ccb_h.target_lun;
+
+	index = pqisrc_find_btl_list_index(softs,bus,target,lun);
+	if (index == INVALID_ELEM) {
+		DBG_ERR("device not found at BTL %d:%d:%d\n",bus,target,lun);
+		return (-1);
+	}
+
+	pqi_scsi_dev_t *devp = softs->dev_list[index];
 	if (devp == NULL) {
 		DBG_ERR("bad target %d, tmf type : 0x%x\n", ccb_h->target_id, ccb_h->func_code);
-		return ENXIO;
+		return (-1);
 	}
 
 	tag = pqisrc_get_tag(&softs->taglist);
 	rcb = &softs->rcb[tag];
 	rcb->tag = tag;
-
-	devp->reset_in_progress = true;
+	rcb->cm_ccb = ccb;
 
 	rcb->tm_req = true;
 
@@ -1017,6 +1050,7 @@ pqisrc_target_reset( pqisrc_softstate_t *softs,  union ccb *ccb)
 		SOP_TASK_MANAGEMENT_LUN_RESET);
 
 	rval = pqi_tmf_status_to_bsd_tmf_status(rval, rcb);
+
 	devp->reset_in_progress = false;
 
 	os_reset_rcb(rcb);
@@ -1137,9 +1171,9 @@ smartpqi_adjust_queue_depth(struct cam_path *path, uint32_t queue_depth)
 {
 	struct ccb_relsim crs;
 
-	DBG_INFO("IN\n");
+	DBG_FUNC("IN\n");
 
-	memset(&crs, 0, sizeof(crs));
+	memset(&crs, 0, sizeof(struct ccb_relsim));
 	xpt_setup_ccb(&crs.ccb_h, path, 5);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.ccb_h.flags = CAM_DEV_QFREEZE;
@@ -1150,7 +1184,7 @@ smartpqi_adjust_queue_depth(struct cam_path *path, uint32_t queue_depth)
 		printf("XPT_REL_SIMQ failed stat=%d\n", crs.ccb_h.status);
 	}
 
-	DBG_INFO("OUT\n");
+	DBG_FUNC("OUT\n");
 }
 
 /*
@@ -1175,15 +1209,20 @@ smartpqi_async(void *callback_arg, u_int32_t code,
 			}
 			uint32_t t_id = cgd->ccb_h.target_id;
 
-			if (t_id <= (PQI_CTLR_INDEX - 1)) {
+			/* if (t_id <= (PQI_CTLR_INDEX - 1)) { */
+			if (t_id >= PQI_CTLR_INDEX) {
 				if (softs != NULL) {
-					pqi_scsi_dev_t *dvp = softs->device_list[t_id][cgd->ccb_h.target_lun];
-					if (dvp == NULL) {
-						DBG_ERR("Target is null, target id=%d\n", t_id);
-						break;
+					/* pqi_scsi_dev_t *dvp = softs->device_list[t_id][cgd->ccb_h.target_lun]; */
+					int lun = cgd->ccb_h.target_lun;
+					int index = pqisrc_find_btl_list_index(softs,softs->bus_id,t_id,lun);
+					if (index != INVALID_ELEM) {
+						pqi_scsi_dev_t *dvp = softs->dev_list[index];
+						if (dvp == NULL) {
+							DBG_ERR("Target is null, target id=%u\n", t_id);
+							break;
+						}
+						smartpqi_adjust_queue_depth(path, dvp->queue_depth);
 					}
-					smartpqi_adjust_queue_depth(path,
-							dvp->queue_depth);
 				}
 			}
 			break;
@@ -1203,7 +1242,7 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 {
 	int max_transactions;
 	union ccb   *ccb = NULL;
-	int error;
+	cam_status status = 0;
 	struct ccb_setasync csa;
 	struct cam_sim *sim;
 
@@ -1230,9 +1269,9 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 
 	softs->os_specific.sim = sim;
 	mtx_lock(&softs->os_specific.cam_lock);
-	error = xpt_bus_register(sim, softs->os_specific.pqi_dev, 0);
-	if (error != CAM_SUCCESS) {
-		DBG_ERR("xpt_bus_register failed errno %d\n", error);
+	status = xpt_bus_register(sim, softs->os_specific.pqi_dev, 0);
+	if (status != CAM_SUCCESS) {
+		DBG_ERR("xpt_bus_register failed status=%d\n", status);
 		cam_sim_free(softs->os_specific.sim, FALSE);
 		cam_simq_free(softs->os_specific.devq);
 		mtx_unlock(&softs->os_specific.cam_lock);
@@ -1258,11 +1297,11 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 		return ENXIO;
 	}
 	/*
- 	 * Callback to set the queue depth per target which is 
+	 * Callback to set the queue depth per target which is
 	 * derived from the FW.
- 	 */
+	 */
 	softs->os_specific.path = ccb->ccb_h.path;
-	memset(&csa, 0, sizeof(csa));
+	memset(&csa, 0, sizeof(struct ccb_setasync));
 	xpt_setup_ccb(&csa.ccb_h, softs->os_specific.path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_FOUND_DEVICE;
@@ -1270,12 +1309,12 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 	csa.callback_arg = softs;
 	xpt_action((union ccb *)&csa);
 	if (csa.ccb_h.status != CAM_REQ_CMP) {
-		DBG_ERR("Unable to register smartpqi_aysnc handler: %d!\n", 
+		DBG_ERR("Unable to register smartpqi_aysnc handler: %d!\n",
 			csa.ccb_h.status);
 	}
 
 	mtx_unlock(&softs->os_specific.cam_lock);
-	DBG_INFO("OUT\n");
+	DBG_FUNC("OUT\n");
 
 	return BSD_SUCCESS;
 }
@@ -1287,15 +1326,14 @@ void
 deregister_sim(struct pqisrc_softstate *softs)
 {
 	struct ccb_setasync csa;
-	
+
 	DBG_FUNC("IN\n");
 
 	if (softs->os_specific.mtx_init) {
 		mtx_lock(&softs->os_specific.cam_lock);
 	}
 
-
-	memset(&csa, 0, sizeof(csa));
+	memset(&csa, 0, sizeof(struct ccb_setasync));
 	xpt_setup_ccb(&csa.ccb_h, softs->os_specific.path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = 0;
@@ -1331,23 +1369,23 @@ deregister_sim(struct pqisrc_softstate *softs)
 void
 os_rescan_target(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 {
-       struct cam_path *tmppath;
+	struct cam_path *tmppath = NULL;
 
-       DBG_FUNC("IN\n");
+	DBG_FUNC("IN\n");
 
-       if(softs->os_specific.sim_registered) {
-               if (xpt_create_path(&tmppath, NULL,
-                       cam_sim_path(softs->os_specific.sim),
-                       device->target, device->lun) != CAM_REQ_CMP) {
-                       DBG_ERR("unable to create path for async event!!! Bus: %d Target: %d Lun: %d\n",
-                               device->bus, device->target, device->lun);
-                       return;
-               }
-               xpt_async(AC_INQ_CHANGED, tmppath, NULL);
-               xpt_free_path(tmppath);
-       }
+	if(softs->os_specific.sim_registered) {
+		if (xpt_create_path(&tmppath, NULL,
+			cam_sim_path(softs->os_specific.sim),
+			device->target, device->lun) != CAM_REQ_CMP) {
+			DBG_ERR("unable to create path for async event!!! Bus: %d Target: %d Lun: %d\n",
+				device->bus, device->target, device->lun);
+			return;
+		}
+		xpt_async(AC_INQ_CHANGED, tmppath, NULL);
+		xpt_free_path(tmppath);
+	}
 
-       device->scsi_rescan = false;
+	device->scsi_rescan = false;
 
-       DBG_FUNC("OUT\n");
+	DBG_FUNC("OUT\n");
 }

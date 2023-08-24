@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -168,9 +168,9 @@ os_dma_mem_free(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 void
 *os_mem_alloc(pqisrc_softstate_t *softs, size_t size)
 {
-	void *addr  = NULL;
+	void *addr;
 
-	/* DBG_FUNC("IN\n"); */
+	/* DBG_FUNC("IN\n");  */
 
 	addr = malloc((unsigned long)size, M_SMARTPQI,
 			M_NOWAIT | M_ZERO);
@@ -184,7 +184,7 @@ void
  * Mem resource deallocation wrapper function
  */
 void
-os_mem_free(pqisrc_softstate_t *softs, char *addr, size_t size)
+os_mem_free(pqisrc_softstate_t *softs, void *addr, size_t size)
 {
 	/* DBG_FUNC("IN\n"); */
 
@@ -205,6 +205,6 @@ os_resource_free(pqisrc_softstate_t *softs)
 	if (softs->os_specific.pqi_regs_res0 != NULL)
                 bus_release_resource(softs->os_specific.pqi_dev,
 				SYS_RES_MEMORY,
-				softs->os_specific.pqi_regs_rid0, 
+				softs->os_specific.pqi_regs_rid0,
 				softs->os_specific.pqi_regs_res0);
 }

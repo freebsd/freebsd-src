@@ -372,6 +372,7 @@ dev/smartpqi/smartpqi_cam.c     optional 	smartpqi
 dev/smartpqi/smartpqi_cmd.c     optional 	smartpqi
 dev/smartpqi/smartpqi_discovery.c	optional	smartpqi
 dev/smartpqi/smartpqi_event.c   optional 	smartpqi
+dev/smartpqi/smartpqi_features.c   optional 	smartpqi
 dev/smartpqi/smartpqi_helper.c  optional 	smartpqi
 dev/smartpqi/smartpqi_init.c    optional 	smartpqi
 dev/smartpqi/smartpqi_intr.c    optional 	smartpqi

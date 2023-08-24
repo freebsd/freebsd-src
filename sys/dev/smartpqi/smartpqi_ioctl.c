@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@ os_copy_from_user(struct pqisrc_softstate *softs, void *dest_buf,
 }
 
 /*
- * Device open function for ioctl entry 
+ * Device open function for ioctl entry
  */
 static int
 smartpqi_open(struct cdev *cdev, int flags, int devtype,
@@ -81,10 +81,10 @@ smartpqi_get_driver_info_ioctl(caddr_t udata, struct cdev *cdev)
 
 	DBG_FUNC("IN udata = %p cdev = %p\n", udata, cdev);
 
-	driver_info->major_version = PQISRC_OS_VERSION;
-	driver_info->minor_version = PQISRC_FEATURE_VERSION;
-	driver_info->release_version = PQISRC_PATCH_VERSION;
-	driver_info->build_revision = PQISRC_BUILD_VERSION;
+	driver_info->major_version = PQISRC_DRIVER_MAJOR;
+	driver_info->minor_version = PQISRC_DRIVER_MINOR;
+	driver_info->release_version = PQISRC_DRIVER_RELEASE;
+	driver_info->build_revision = PQISRC_DRIVER_REVISION;
 	driver_info->max_targets = PQI_MAX_DEVICES - 1;
 	driver_info->max_io = softs->max_io_for_scsi_ml;
 	driver_info->max_transfer_length = softs->pqi_cap.max_transfer_size;
@@ -117,6 +117,7 @@ smartpqi_get_pci_info_ioctl(caddr_t udata, struct cdev *cdev)
 	vendor = pci_get_vendor(dev);
 	device =  pci_get_device(dev);
 	pci_info->chip_id = ((device << 16) & 0xffff0000) | vendor;
+
 	DBG_FUNC("OUT\n");
 }
 
@@ -175,6 +176,7 @@ smartpqi_ioctl(struct cdev *cdev, u_long cmd, caddr_t udata,
 	}
 
 	DBG_FUNC("OUT error = %d\n", bsd_status);
+
 	return bsd_status;
 }
 
@@ -232,7 +234,7 @@ destroy_char_dev(struct pqisrc_softstate *softs)
 int
 pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 {
-	int ret = PQI_STATUS_SUCCESS;
+	int ret;
 	char *drv_buf = NULL;
 	uint32_t tag = 0;
 	IOCTL_Command_struct *iocommand = (IOCTL_Command_struct *)arg;
@@ -246,18 +248,18 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	memset(&request, 0, sizeof(request));
 	memset(&error_info, 0, sizeof(error_info));
 
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
 
 	if (pqisrc_ctrl_offline(softs))
 		return PQI_STATUS_FAILURE;
 
 	if (!arg)
-		return (PQI_STATUS_FAILURE);
+		return PQI_STATUS_FAILURE;
 
 	if (iocommand->buf_size < 1 &&
 		iocommand->Request.Type.Direction != PQIIOCTL_NONE)
 		return PQI_STATUS_FAILURE;
-	if (iocommand->Request.CDBLen > sizeof(request.cdb))
+	if (iocommand->Request.CDBLen > sizeof(request.cmd.cdb))
 		return PQI_STATUS_FAILURE;
 
 	switch (iocommand->Request.Type.Direction) {
@@ -272,26 +274,23 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 
 	if (iocommand->buf_size > 0) {
 		memset(&ioctl_dma_buf, 0, sizeof(struct dma_mem));
-		ioctl_dma_buf.tag = "Ioctl_PassthruCmd_Buffer";
+		os_strlcpy(ioctl_dma_buf.tag, "Ioctl_PassthruCmd_Buffer", sizeof(ioctl_dma_buf.tag));
 		ioctl_dma_buf.size = iocommand->buf_size;
 		ioctl_dma_buf.align = PQISRC_DEFAULT_DMA_ALIGN;
 		/* allocate memory */
 		ret = os_dma_mem_alloc(softs, &ioctl_dma_buf);
 		if (ret) {
 			DBG_ERR("Failed to Allocate dma mem for Ioctl PassthruCmd Buffer : %d\n", ret);
-			ret = PQI_STATUS_FAILURE;
 			goto out;
 		}
 
-		DBG_INFO("ioctl_dma_buf.dma_addr  = %p\n",(void*)ioctl_dma_buf.dma_addr);
-		DBG_INFO("ioctl_dma_buf.virt_addr = %p\n",(void*)ioctl_dma_buf.virt_addr);
+		DBG_IO("ioctl_dma_buf.dma_addr  = %p\n",(void*)ioctl_dma_buf.dma_addr);
+		DBG_IO("ioctl_dma_buf.virt_addr = %p\n",(void*)ioctl_dma_buf.virt_addr);
 
 		drv_buf = (char *)ioctl_dma_buf.virt_addr;
 		if (iocommand->Request.Type.Direction & PQIIOCTL_WRITE) {
-			if ((ret = os_copy_from_user(softs, (void *)drv_buf,
-					(void *)iocommand->buf,
-					iocommand->buf_size, mode)) != 0) {
-				ret = PQI_STATUS_FAILURE;
+			ret = os_copy_from_user(softs, (void *)drv_buf, (void *)iocommand->buf, iocommand->buf_size, mode);
+			if (ret != 0) {
 				goto free_mem;
 			}
 		}
@@ -302,7 +301,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 									PQI_REQUEST_HEADER_LENGTH;
 	memcpy(request.lun_number, iocommand->LUN_info.LunAddrBytes,
 		sizeof(request.lun_number));
-	memcpy(request.cdb, iocommand->Request.CDB, iocommand->Request.CDBLen);
+	memcpy(request.cmd.cdb, iocommand->Request.CDB, iocommand->Request.CDBLen);
 	request.additional_cdb_bytes_usage = PQI_ADDITIONAL_CDB_BYTES_0;
 
 	switch (iocommand->Request.Type.Direction) {
@@ -330,7 +329,6 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	tag = pqisrc_get_tag(&softs->taglist);
 	if (INVALID_ELEM == tag) {
 		DBG_ERR("Tag not available\n");
-		ret = PQI_STATUS_FAILURE;
 		goto free_mem;
 	}
 	request.request_id = tag;
@@ -352,8 +350,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		goto err_out;
 	}
 
-	ret = pqisrc_wait_on_condition(softs, rcb,
-			PQISRC_PASSTHROUGH_CMD_TIMEOUT);
+	ret = pqisrc_wait_on_condition(softs, rcb, PQISRC_PASSTHROUGH_CMD_TIMEOUT);
 	if (ret != PQI_STATUS_SUCCESS) {
 		DBG_ERR("Passthru IOCTL cmd timed out !!\n");
 		goto err_out;
@@ -386,29 +383,29 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 			iocommand->error_info.SenseLen = sense_data_length;
 		}
 
-		if (error_info.data_out_result ==
-				PQI_RAID_DATA_IN_OUT_UNDERFLOW){
-			rcb->status = REQUEST_SUCCESS;
+		if (error_info.data_out_result == PQI_RAID_DATA_IN_OUT_UNDERFLOW) {
+			rcb->status = PQI_STATUS_SUCCESS;
 		}
 	}
 
-	if (rcb->status == REQUEST_SUCCESS && iocommand->buf_size > 0 &&
+	if (rcb->status == PQI_STATUS_SUCCESS && iocommand->buf_size > 0 &&
 		(iocommand->Request.Type.Direction & PQIIOCTL_READ)) {
 
-		if ((ret = os_copy_to_user(softs, (void*)iocommand->buf,
-			(void*)drv_buf, iocommand->buf_size, mode)) != 0) {
-				DBG_ERR("Failed to copy the response\n");
-				goto err_out;
+		ret = os_copy_to_user(softs, (void*)iocommand->buf, (void*)drv_buf, iocommand->buf_size, mode);
+		if (ret != 0) {
+			DBG_ERR("Failed to copy the response\n");
+			goto err_out;
 		}
 	}
 
 	os_reset_rcb(rcb);
 	pqisrc_put_tag(&softs->taglist, request.request_id);
 	if (iocommand->buf_size > 0)
-			os_dma_mem_free(softs,&ioctl_dma_buf);
+		os_dma_mem_free(softs,&ioctl_dma_buf);
 
 	DBG_FUNC("OUT\n");
-	return ret;
+	return PQI_STATUS_SUCCESS;
+
 err_out:
 	os_reset_rcb(rcb);
 	pqisrc_put_tag(&softs->taglist, request.request_id);
