@@ -222,7 +222,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	struct pf_addr		init_addr;
 
 	bzero(&init_addr, sizeof(init_addr));
-	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
+	if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
 		return (1);
 
 	bzero(&key, sizeof(key));
@@ -299,7 +299,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			 * pick a different source address since we're out
 			 * of free port choices for the current one.
 			 */
-			if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
+			if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
 				return (1);
 			break;
 		case PF_POOL_NONE:
@@ -350,7 +350,8 @@ pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 
 u_short
 pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
-    struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
+    struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr,
+    struct pf_ksrc_node **sn)
 {
 	u_short			 reason = 0;
 	struct pf_kpool		*rpool = &r->rpool;
@@ -377,11 +378,15 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		}
 
 		PF_ACPY(naddr, &(*sn)->raddr, af);
+		if (nkif)
+			*nkif = (*sn)->rkif;
 		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
 			printf("pf_map_addr: src tracking maps ");
 			pf_print_host(saddr, 0, af);
 			printf(" to ");
 			pf_print_host(naddr, 0, af);
+			if (nkif)
+				printf("@%s", (*nkif)->pfik_name);
 			printf("\n");
 		}
 		goto done;
@@ -539,13 +544,22 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		break;
 	    }
 	}
-	if (*sn != NULL)
+
+	if (nkif)
+		*nkif = rpool->cur->kif;
+
+	if (*sn != NULL) {
 		PF_ACPY(&(*sn)->raddr, naddr, af);
+		if (nkif)
+			(*sn)->rkif = *nkif;
+	}
 
 	if (V_pf_status.debug >= PF_DEBUG_NOISY &&
 	    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
 		printf("pf_map_addr: selected address ");
 		pf_print_host(naddr, 0, af);
+		if (nkif)
+			printf("@%s", (*nkif)->pfik_name);
 		printf("\n");
 	}
 
@@ -711,7 +725,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		}
 		break;
 	case PF_RDR: {
-		if (pf_map_addr(pd->af, r, saddr, naddr, NULL, sn))
+		if (pf_map_addr(pd->af, r, saddr, naddr, NULL, NULL, sn))
 			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
 			PF_POOLMASK(naddr, naddr, &r->rpool.cur->addr.v.a.mask,
