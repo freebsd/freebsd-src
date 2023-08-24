@@ -3818,6 +3818,7 @@ kern/kern_fork.c		standard
 kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
+kern/kern_intrtab.c		standard
 kern/kern_jail.c		standard
 kern/kern_kcov.c		optional kcov			\
 	compile-with "${NOSAN_C} ${MSAN_CFLAGS}"
