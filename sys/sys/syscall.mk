@@ -426,4 +426,7 @@ MIASM =  \
 	sched_getcpu.o \
 	swapoff.o \
 	kqueuex.o \
-	membarrier.o
+	membarrier.o \
+	timerfd_create.o \
+	timerfd_gettime.o \
+	timerfd_settime.o

@@ -684,6 +684,16 @@ struct freebsd32_aio_writev_args {
 struct freebsd32_aio_readv_args {
 	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
 };
+struct freebsd32_timerfd_gettime_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char curr_value_l_[PADL_(struct itimerspec32 *)]; struct itimerspec32 * curr_value; char curr_value_r_[PADR_(struct itimerspec32 *)];
+};
+struct freebsd32_timerfd_settime_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char new_value_l_[PADL_(const struct itimerspec32 *)]; const struct itimerspec32 * new_value; char new_value_r_[PADR_(const struct itimerspec32 *)];
+	char old_value_l_[PADL_(struct itimerspec32 *)]; struct itimerspec32 * old_value; char old_value_r_[PADR_(struct itimerspec32 *)];
+};
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
@@ -799,6 +809,8 @@ int	freebsd32_cpuset_setdomain(struct thread *, struct freebsd32_cpuset_setdomai
 int	freebsd32___sysctlbyname(struct thread *, struct freebsd32___sysctlbyname_args *);
 int	freebsd32_aio_writev(struct thread *, struct freebsd32_aio_writev_args *);
 int	freebsd32_aio_readv(struct thread *, struct freebsd32_aio_readv_args *);
+int	freebsd32_timerfd_gettime(struct thread *, struct freebsd32_timerfd_gettime_args *);
+int	freebsd32_timerfd_settime(struct thread *, struct freebsd32_timerfd_settime_args *);
 
 #ifdef COMPAT_43
 
@@ -1292,6 +1304,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32___sysctlbyname	AUE_SYSCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_writev	AUE_AIO_WRITEV
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_readv	AUE_AIO_READV
+#define	FREEBSD32_SYS_AUE_freebsd32_timerfd_gettime	AUE_TIMERFD
+#define	FREEBSD32_SYS_AUE_freebsd32_timerfd_settime	AUE_TIMERFD
 
 #undef PAD_
 #undef PADL_

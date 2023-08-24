@@ -421,6 +421,9 @@ FBSD_1.7 {
 	kqueuex;
 	membarrier;
 	swapoff;
+	timerfd_create;
+	timerfd_gettime;
+	timerfd_settime;
 };
 
 FBSDprivate_1.0 {

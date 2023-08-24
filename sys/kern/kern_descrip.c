@@ -5001,8 +5001,8 @@ file_type_to_name(short type)
 		return ("proc");
 	case DTYPE_EVENTFD:
 		return ("eventfd");
-	case DTYPE_LINUXTFD:
-		return ("ltimer");
+	case DTYPE_TIMERFD:
+		return ("timerfd");
 	default:
 		return ("unkn");
 	}

@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2007 Roman Divacky
- * Copyright (c) 2014 Dmitry Chagin <dchagin@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2023 Jake Freeland <jfree@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,34 +25,42 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUX_EVENT_H_
-#define	_LINUX_EVENT_H_
+#ifndef _SYS_TIMERFD_H_
+#define _SYS_TIMERFD_H_
 
-#define	LINUX_EPOLLIN		0x001
-#define	LINUX_EPOLLPRI		0x002
-#define	LINUX_EPOLLOUT		0x004
-#define	LINUX_EPOLLRDNORM	0x040
-#define	LINUX_EPOLLRDBAND	0x080
-#define	LINUX_EPOLLWRNORM	0x100
-#define	LINUX_EPOLLWRBAND	0x200
-#define	LINUX_EPOLLMSG		0x400
-#define	LINUX_EPOLLERR		0x008
-#define	LINUX_EPOLLHUP		0x010
-#define	LINUX_EPOLLRDHUP	0x2000
-#define	LINUX_EPOLLWAKEUP	1u<<29
-#define	LINUX_EPOLLONESHOT	1u<<30
-#define	LINUX_EPOLLET		1u<<31
+#include <sys/types.h>
+#include <sys/fcntl.h>
+#include <sys/proc.h>
+#include <sys/timespec.h>
 
-#define	LINUX_EPOLL_EVRD	(LINUX_EPOLLIN|LINUX_EPOLLRDNORM)
-#define	LINUX_EPOLL_EVWR	(LINUX_EPOLLOUT|LINUX_EPOLLWRNORM)
-#define	LINUX_EPOLL_EVSUP	(LINUX_EPOLLET|LINUX_EPOLLONESHOT	\
-		|LINUX_EPOLLHUP|LINUX_EPOLLERR|LINUX_EPOLLPRI		\
-		|LINUX_EPOLL_EVRD|LINUX_EPOLL_EVWR|LINUX_EPOLLRDHUP)
+typedef	uint64_t	timerfd_t;
 
-#define	LINUX_EPOLL_CTL_ADD	1
-#define	LINUX_EPOLL_CTL_DEL	2
-#define	LINUX_EPOLL_CTL_MOD	3
+/* Creation flags. */
+#define TFD_NONBLOCK	O_NONBLOCK
+#define TFD_CLOEXEC	O_CLOEXEC
 
-#define	LINUX_EFD_SEMAPHORE	(1 << 0)
+/* Timer flags. */
+#define	TFD_TIMER_ABSTIME	0x01
+#define	TFD_TIMER_CANCEL_ON_SET	0x02
 
-#endif	/* !_LINUX_EVENT_H_ */
+#ifndef _KERNEL
+
+__BEGIN_DECLS
+int timerfd_create(int clockid, int flags);
+int timerfd_gettime(int fd, struct itimerspec *curr_value);
+int timerfd_settime(int fd, int flags, const struct itimerspec *new_value,
+    struct itimerspec *old_value);
+__END_DECLS
+
+#else /* _KERNEL */
+
+int kern_timerfd_create(struct thread *td, int clockid, int flags);
+int kern_timerfd_gettime(struct thread *td, int fd,
+    struct itimerspec *curr_value);
+int kern_timerfd_settime(struct thread *td, int fd, int flags,
+    const struct itimerspec *new_value, struct itimerspec *old_value);
+void timerfd_jumped(void);
+
+#endif /* !_KERNEL */
+
+#endif /* !_SYS_TIMERFD_H_ */
