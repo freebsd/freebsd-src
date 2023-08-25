@@ -149,8 +149,6 @@ struct nvme_tracker {
 
 enum nvme_recovery {
 	RECOVERY_NONE = 0,		/* Normal operations */
-	RECOVERY_START,			/* Deadline has passed, start recovering */
-	RECOVERY_RESET,			/* This pass, initiate reset of controller */
 	RECOVERY_WAITING,		/* waiting for the reset to complete */
 };
 struct nvme_qpair {
