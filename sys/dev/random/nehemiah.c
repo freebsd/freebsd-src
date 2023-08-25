@@ -43,8 +43,6 @@
 
 #include <dev/random/randomdev.h>
 
-static void random_nehemiah_init(void);
-static void random_nehemiah_deinit(void);
 static u_int random_nehemiah_read(void *, u_int);
 
 static struct random_source random_nehemiah = {
@@ -52,8 +50,6 @@ static struct random_source random_nehemiah = {
 	.rs_source = RANDOM_PURE_NEHEMIAH,
 	.rs_read = random_nehemiah_read
 };
-
-static struct fpu_kern_ctx *fpu_ctx_save;
 
 /* This H/W source never stores more than 8 bytes in one go */
 /* ARGSUSED */
@@ -75,20 +71,6 @@ VIA_RNG_store(void *buf)
 	return (0);
 }
 
-static void
-random_nehemiah_init(void)
-{
-
-	fpu_ctx_save = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
-}
-
-static void
-random_nehemiah_deinit(void)
-{
-
-	fpu_kern_free_ctx(fpu_ctx_save);
-}
-
 /* It is specifically allowed that buf is a multiple of sizeof(long) */
 static u_int
 random_nehemiah_read(void *buf, u_int c)
@@ -97,14 +79,14 @@ random_nehemiah_read(void *buf, u_int c)
 	size_t count, ret;
 	uint64_t tmp;
 
-	fpu_kern_enter(curthread, fpu_ctx_save, FPU_KERN_NORMAL);
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 	b = buf;
 	for (count = c; count > 0; count -= ret) {
 		ret = MIN(VIA_RNG_store(&tmp), count);
 		memcpy(b, &tmp, ret);
 		b += ret;
 	}
-	fpu_kern_leave(curthread, fpu_ctx_save);
+	fpu_kern_leave(curthread, NULL);
 
 	return (c);
 }
@@ -119,13 +101,11 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 		if (via_feature_rng & VIA_HAS_RNG) {
 			random_source_register(&random_nehemiah);
 			printf("random: fast provider: \"%s\"\n", random_nehemiah.rs_ident);
-			random_nehemiah_init();
 		}
 		break;
 
 	case MOD_UNLOAD:
 		if (via_feature_rng & VIA_HAS_RNG) {
-			random_nehemiah_deinit();
 			random_source_deregister(&random_nehemiah);
 		}
 		break;
