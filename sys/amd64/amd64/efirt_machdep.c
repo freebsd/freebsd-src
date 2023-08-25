@@ -280,11 +280,6 @@ fail:
  * reason to bother with the virtual map, and no need to add a
  * complexity into loader.
  *
- * The fpu_kern_enter() call allows firmware to use FPU, as mandated
- * by the specification.  In particular, CR0.TS bit is cleared.  Also
- * it enters critical section, giving us neccessary protection against
- * context switch.
- *
  * There is no need to disable interrupts around the change of %cr3,
  * the kernel mappings are correct, while we only grabbed the
  * userspace portion of VA.  Interrupts handlers must not access
