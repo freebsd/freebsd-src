@@ -945,6 +945,30 @@ nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 }
 
 static void
+nvme_abort_complete(void *arg, const struct nvme_completion *status)
+{
+	struct nvme_tracker     *tr = arg;
+
+	/*
+	 * If cdw0 == 1, the controller was not able to abort the command
+	 *  we requested.  We still need to check the active tracker array,
+	 *  to cover race where I/O timed out at same time controller was
+	 *  completing the I/O.
+	 */
+	if (status->cdw0 == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
+		/*
+		 * An I/O has timed out, and the controller was unable to
+		 *  abort it for some reason.  Construct a fake completion
+		 *  status, and then complete the I/O's tracker manually.
+		 */
+		nvme_printf(tr->qpair->ctrlr,
+		    "abort command failed, aborting command manually\n");
+		nvme_qpair_manual_complete_tracker(tr,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_ALL);
+	}
+}
+
+static void
 nvme_qpair_timeout(void *arg)
 {
 	struct nvme_qpair	*qpair = arg;
@@ -952,36 +976,44 @@ nvme_qpair_timeout(void *arg)
 	struct nvme_tracker	*tr;
 	sbintime_t		now;
 	bool			idle;
+	bool			expired;
 	uint32_t		csts;
 	uint8_t			cfs;
 
 	mtx_lock(&qpair->lock);
 	idle = TAILQ_EMPTY(&qpair->outstanding_tr);
+
 again:
 	switch (qpair->recovery_state) {
 	case RECOVERY_NONE:
-		if (idle)
-			break;
+		/*
+		 * Check to see if we need to timeout any commands. If we do, then
+		 * we also enter a recovery phase.
+		 */
 		now = getsbinuptime();
-		idle = true;
+		expired = false;
 		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
 			if (tr->deadline == SBT_MAX)
 				continue;
 			idle = false;
 			if (now > tr->deadline) {
-				/*
-				 * We're now passed our earliest deadline. We
-				 * need to do expensive things to cope, but next
-				 * time. Flag that and close the door to any
-				 * further processing.
-				 */
-				qpair->recovery_state = RECOVERY_START;
-				nvme_printf(ctrlr, "RECOVERY_START %jd vs %jd\n",
-				    (uintmax_t)now, (uintmax_t)tr->deadline);
-				break;
+				expired = true;
+				nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
+				    nvme_abort_complete, tr);
 			}
 		}
-		break;
+		if (!expired)
+			break;
+
+		/*
+		 * We're now passed our earliest deadline. We need to do
+		 * expensive things to cope, but next time. Flag that
+		 * and close the door to any further processing.
+		 */
+		qpair->recovery_state = RECOVERY_START;
+		nvme_printf(ctrlr, "RECOVERY_START %jd vs %jd\n",
+		    (uintmax_t)now, (uintmax_t)tr->deadline);
+		/* FALLTHROUGH */
 	case RECOVERY_START:
 		/*
 		 * Read csts to get value of cfs - controller fatal status.
