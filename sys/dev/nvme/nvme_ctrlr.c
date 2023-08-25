@@ -416,6 +416,34 @@ nvme_ctrlr_disable_qpairs(struct nvme_controller *ctrlr)
 	}
 }
 
+static void
+nvme_pre_reset(struct nvme_controller *ctrlr)
+{
+	/*
+	 * Make sure that all the ISRs are done before proceeding with the reset
+	 * (and also keep any stray interrupts that happen during this process
+	 * from racing this process). For startup, this is a nop, since the
+	 * hardware is in a good state. But for recovery, where we randomly
+	 * reset the hardware, this ensure that we're not racing the ISRs.
+	 */
+	mtx_lock(&ctrlr->adminq.recovery);
+	for (int i = 0; i < ctrlr->num_io_queues; i++) {
+		mtx_lock(&ctrlr->ioq[i].recovery);
+	}
+}
+
+static void
+nvme_post_reset(struct nvme_controller *ctrlr)
+{
+	/*
+	 * Reset complete, unblock ISRs
+	 */
+	mtx_unlock(&ctrlr->adminq.recovery);
+	for (int i = 0; i < ctrlr->num_io_queues; i++) {
+		mtx_unlock(&ctrlr->ioq[i].recovery);
+	}
+}
+
 static int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
@@ -427,9 +455,11 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	err = nvme_ctrlr_disable(ctrlr);
 	if (err != 0)
-		return err;
+		goto out;
 
 	err = nvme_ctrlr_enable(ctrlr);
+out:
+
 	TSEXIT();
 	return (err);
 }
@@ -1157,6 +1187,11 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
+	/*
+	 * Don't call pre/post reset here. We've not yet created the qpairs,
+	 * haven't setup the ISRs, so there's no need to 'drain' them or
+	 * 'exclude' them.
+	 */
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
 fail:
 		nvme_ctrlr_fail(ctrlr);
@@ -1201,16 +1236,9 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	int			status;
 
 	nvme_ctrlr_devctl_log(ctrlr, "RESET", "resetting controller");
+	nvme_pre_reset(ctrlr);
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	/*
-	 * Use pause instead of DELAY, so that we yield to any nvme interrupt
-	 *  handlers on this CPU that were blocked on a qpair lock. We want
-	 *  all nvme interrupts completed before proceeding with restarting the
-	 *  controller.
-	 *
-	 * XXX - any way to guarantee the interrupt handlers have quiesced?
-	 */
-	pause("nvmereset", hz / 10);
+	nvme_post_reset(ctrlr);
 	if (status == 0)
 		nvme_ctrlr_start(ctrlr, true);
 	else
@@ -1697,6 +1725,7 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 	if (ctrlr->is_failed)
 		return (0);
 
+	nvme_pre_reset(ctrlr);
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
 		goto fail;
 #ifdef NVME_2X_RESET
@@ -1708,6 +1737,7 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
 		goto fail;
 #endif
+	nvme_post_reset(ctrlr);
 
 	/*
 	 * Now that we've reset the hardware, we can restart the controller. Any
@@ -1724,6 +1754,7 @@ fail:
 	 * the controller. However, we have to return success for the resume
 	 * itself, due to questionable APIs.
 	 */
+	nvme_post_reset(ctrlr);
 	nvme_printf(ctrlr, "Failed to reset on resume, failing.\n");
 	nvme_ctrlr_fail(ctrlr);
 	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
