@@ -157,6 +157,11 @@ clk_fixed_probe(device_t dev)
 	clk_type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	switch (clk_type) {
 	case CLK_TYPE_FIXED:
+		if (OF_hasprop(ofw_bus_get_node(dev), "clock-frequency") == 0) {
+			device_printf(dev,
+			    "clock-fixed has no clock-frequency\n");
+			return (ENXIO);
+		}
 		device_set_desc(dev, "Fixed clock");
 		return (BUS_PROBE_DEFAULT);
 	case CLK_TYPE_FIXED_FACTOR:
