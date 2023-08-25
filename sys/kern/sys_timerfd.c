@@ -129,6 +129,9 @@ timerfd_jumped(void)
 	struct timerfd *tfd;
 	struct timespec boottime, diff;
 
+	if (LIST_EMPTY(&timerfd_list))
+		return;
+
 	timerfd_getboottime(&boottime);
 	sx_xlock(&timerfd_list_lock);
 	LIST_FOREACH(tfd, &timerfd_list, entry) {
@@ -418,7 +421,7 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 {
 	struct file *fp;
 	struct timerfd *tfd;
-	int error, fd, fflags = 0;
+	int error, fd, fflags;
 
 	AUDIT_ARG_VALUE(clockid);
 	AUDIT_ARG_FFLAGS(flags);
@@ -427,8 +430,12 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 		return (EINVAL);
 	if ((flags & ~(TFD_CLOEXEC | TFD_NONBLOCK)) != 0)
 		return (EINVAL);
+
+	fflags = FREAD;
 	if ((flags & TFD_CLOEXEC) != 0)
 		fflags |= O_CLOEXEC;
+	if ((flags & TFD_NONBLOCK) != 0)
+		fflags |= FNONBLOCK;
 
 	error = falloc(td, &fp, &fd, fflags);
 	if (error != 0)
@@ -447,9 +454,6 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	LIST_INSERT_HEAD(&timerfd_list, tfd, entry);
 	sx_xunlock(&timerfd_list_lock);
 
-	fflags = FREAD;
-	if ((flags & TFD_NONBLOCK) != 0)
-		fflags |= FNONBLOCK;
 	finit(fp, fflags, DTYPE_TIMERFD, tfd, &timerfdops);
 
 	fdrop(fp, td);
