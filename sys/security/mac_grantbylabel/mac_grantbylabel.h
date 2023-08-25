@@ -1,7 +1,7 @@
-/*-
+/*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011-2023, Juniper Networks, Inc.
+ * Copyright (c) 2018-2023, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,30 +26,38 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __LIBVERIEXEC_H__
-#define __LIBVERIEXEC_H__
+#ifndef	_SECURITY_MAC_GRANTBYLABEL_H
+#define	_SECURITY_MAC_GRANTBYLABEL_H
 
-struct mac_veriexec_syscall_params;
+#include <security/mac_veriexec/mac_veriexec.h>
 
-int	veriexec_check_fd_mode(int, unsigned int);
-int	veriexec_check_path_mode(const char *, unsigned int);
-int	veriexec_check_fd(int);
-int	veriexec_check_path(const char *);
-int	veriexec_get_pid_params(pid_t, struct mac_veriexec_syscall_params *);
-int	veriexec_get_path_params(const char *,
-	    struct mac_veriexec_syscall_params *);
-int	veriexec_check_path_label(const char *, const char *);
-int	veriexec_check_pid_label(pid_t, const char *);
-char *	veriexec_get_path_label(const char *, char *, size_t);
-char *	veriexec_get_pid_label(pid_t, char *, size_t);
-unsigned int gbl_check_path(const char *);
-unsigned int gbl_check_pid(pid_t);
-int	execv_script(const char *, char * const *);
+#define	MAC_GRANTBYLABEL_NAME	"mac_grantbylabel"
 
-#define HAVE_GBL_CHECK_PID 1
-#define HAVE_VERIEXEC_CHECK_PATH_LABEL 1
-#define HAVE_VERIEXEC_CHECK_PID_LABEL 1
-#define HAVE_VERIEXEC_GET_PATH_LABEL 1
-#define HAVE_VERIEXEC_GET_PID_LABEL 1
+/* the bits we use to represent tokens */
+#define GBL_EMPTY	(1<<0)
+#define GBL_BIND	(1<<1)
+#define GBL_IPC		(1<<2)
+#define GBL_NET		(1<<3)
+#define GBL_PROC	(1<<4)
+#define GBL_RTSOCK	(1<<5)
+#define GBL_SYSCTL	(1<<6)
+#define GBL_VACCESS	(1<<7)
+#define GBL_VERIEXEC	(1<<8)
+#define GBL_KMEM	(1<<9)
+#define GBL_MAX		9
 
-#endif  /* __LIBVERIEXEC_H__ */
+/* this should suffice for now */
+typedef uint32_t	gbl_label_t;
+
+#define MAC_GRANTBYLABEL_FETCH_GBL	1
+#define MAC_GRANTBYLABEL_FETCH_PID_GBL	2
+
+struct mac_grantbylabel_fetch_gbl_args {
+	union {
+		int	fd;
+		pid_t	pid;
+	} u;
+	gbl_label_t	gbl;
+};
+
+#endif

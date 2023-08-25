@@ -67,7 +67,9 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	netinet/netdump \
 	netinet/tcp_stacks \
 	netlink/route \
-	security/mac_biba security/mac_bsdextended security/mac_lomac \
+	security/mac_biba security/mac_bsdextended \
+	security/mac_grantbylabel \
+	security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	security/mac_veriexec \
 	sys/disk \
