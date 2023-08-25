@@ -416,18 +416,6 @@ check_device_pending_commands_to_complete(pqisrc_softstate_t *softs, pqi_scsi_de
 }
 #endif
 
-extern inline uint64_t
-pqisrc_increment_device_active_io(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device);
-
-extern inline uint64_t
-pqisrc_decrement_device_active_io(pqisrc_softstate_t *softs,  pqi_scsi_dev_t *device);
-
-extern inline void
-pqisrc_init_device_active_io(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device);
-
-extern inline uint64_t
-pqisrc_read_device_active_io(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device);
-
 void
 pqisrc_wait_for_device_commands_to_complete(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 {
