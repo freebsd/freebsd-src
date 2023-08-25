@@ -224,6 +224,19 @@ if_nametoindex_nl(struct snl_state *ss, const char *ifname)
 	return (link.ifi_index);
 }
 
+ifType
+convert_iftype(ifType iftype)
+{
+	switch (iftype) {
+	case IFT_IEEE8023ADLAG:
+		return (IFT_ETHER);
+	case IFT_INFINIBANDLAG:
+		return (IFT_INFINIBAND);
+	default:
+		return (iftype);
+	}
+}
+
 static void
 prepare_ifaddrs(struct snl_state *ss, struct ifmap *ifmap)
 {
@@ -282,7 +295,7 @@ match_iface(struct ifconfig_args *args, struct iface *iface)
 		struct sockaddr_dl sdl = {
 			.sdl_len = sizeof(struct sockaddr_dl),
 			.sdl_family = AF_LINK,
-			.sdl_type = link->ifi_type,
+			.sdl_type = convert_iftype(link->ifi_type),
 			.sdl_alen = NLA_DATA_LEN(link->ifla_address),
 		};
 		return (match_ether(&sdl));
