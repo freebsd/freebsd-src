@@ -53,6 +53,7 @@
 #include <sys/libkern.h>
 #include <sys/pcpu.h>
 #include <sys/uio.h>
+#include <machine/fpu.h>
 
 #include <opencrypto/cryptodev.h>
 #include <crypto/rijndael/rijndael.h>
@@ -221,10 +222,10 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptop *crp,
 	}
 
 	td = curthread;
-	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
+	fpu_kern_enter(td, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 	padlock_cbc(abuf, abuf, crp->crp_payload_length / AES_BLOCK_LEN, key,
 	    cw, iv);
-	fpu_kern_leave(td, ses->ses_fpu_ctx);
+	fpu_kern_leave(td, NULL);
 
 	if (allocated) {
 		crypto_copyback(crp, crp->crp_payload_start,
