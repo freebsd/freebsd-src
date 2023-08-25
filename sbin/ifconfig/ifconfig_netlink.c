@@ -299,7 +299,13 @@ match_iface(struct ifconfig_args *args, struct iface *iface)
 			.sdl_alen = NLA_DATA_LEN(link->ifla_address),
 		};
 		return (match_ether(&sdl));
-	}
+	} else if (args->afp->af_af == AF_LINK)
+		/*
+		 * The rtnetlink(4) RTM_GETADDR does not list link level
+		 * addresses, so latter cycle won't match anything.  Short
+		 * circuit on RTM_GETLINK has provided us an address.
+		 */
+		return (link->ifla_address != NULL);
 
 	for (struct ifa *ifa = iface->ifa; ifa != NULL; ifa = ifa->next) {
 		if (args->afp->af_af == ifa->addr.ifa_family)
