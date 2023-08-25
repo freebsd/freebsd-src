@@ -43,6 +43,7 @@
 #include <sys/queue.h>
 #include <sys/selinfo.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -59,7 +60,11 @@
 #endif
 
 static MALLOC_DEFINE(M_TIMERFD, "timerfd", "timerfd structures");
-static LIST_HEAD(, timerfd) timerfd_head;
+
+static struct sx timerfd_list_lock;
+static LIST_HEAD(, timerfd) timerfd_list;
+SX_SYSINIT(timerfd, &timerfd_list_lock, "timerfd_list_lock");
+
 static struct unrhdr64 tfdino_unr;
 
 #define	TFD_NOJUMP	0	/* Realtime clock has not jumped. */
@@ -125,7 +130,8 @@ timerfd_jumped(void)
 	struct timespec boottime, diff;
 
 	timerfd_getboottime(&boottime);
-	LIST_FOREACH(tfd, &timerfd_head, entry) {
+	sx_xlock(&timerfd_list_lock);
+	LIST_FOREACH(tfd, &timerfd_list, entry) {
 		mtx_lock(&tfd->tfd_lock);
 		if (tfd->tfd_clockid != CLOCK_REALTIME ||
 		    (tfd->tfd_timflags & TFD_TIMER_ABSTIME) == 0 ||
@@ -160,6 +166,7 @@ timerfd_jumped(void)
 		tfd->tfd_boottim = boottime;
 		mtx_unlock(&tfd->tfd_lock);
 	}
+	sx_xunlock(&timerfd_list_lock);
 }
 
 static int
@@ -314,11 +321,14 @@ timerfd_close(struct file *fp, struct thread *td)
 {
 	struct timerfd *tfd = fp->f_data;
 
+	sx_xlock(&timerfd_list_lock);
+	LIST_REMOVE(tfd, entry);
+	sx_xunlock(&timerfd_list_lock);
+
 	callout_drain(&tfd->tfd_callout);
 	seldrain(&tfd->tfd_sel);
 	knlist_destroy(&tfd->tfd_sel.si_note);
 	mtx_destroy(&tfd->tfd_lock);
-	LIST_REMOVE(tfd, entry);
 	free(tfd, M_TIMERFD);
 	fp->f_ops = &badfileops;
 
@@ -420,9 +430,11 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	if ((flags & TFD_CLOEXEC) != 0)
 		fflags |= O_CLOEXEC;
 
+	error = falloc(td, &fp, &fd, fflags);
+	if (error != 0)
+		return (error);
+
 	tfd = malloc(sizeof(*tfd), M_TIMERFD, M_WAITOK | M_ZERO);
-	if (tfd == NULL)
-		return (ENOMEM);
 	tfd->tfd_clockid = (clockid_t)clockid;
 	tfd->tfd_flags = flags;
 	tfd->tfd_ino = alloc_unr64(&tfdino_unr);
@@ -431,16 +443,15 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	knlist_init_mtx(&tfd->tfd_sel.si_note, &tfd->tfd_lock);
 	timerfd_getboottime(&tfd->tfd_boottim);
 	getnanotime(&tfd->tfd_birthtim);
-	LIST_INSERT_HEAD(&timerfd_head, tfd, entry);
+	sx_xlock(&timerfd_list_lock);
+	LIST_INSERT_HEAD(&timerfd_list, tfd, entry);
+	sx_xunlock(&timerfd_list_lock);
 
-	error = falloc(td, &fp, &fd, fflags);
-	if (error != 0)
-		return (error);
 	fflags = FREAD;
 	if ((flags & TFD_NONBLOCK) != 0)
 		fflags |= FNONBLOCK;
-
 	finit(fp, fflags, DTYPE_TIMERFD, tfd, &timerfdops);
+
 	fdrop(fp, td);
 
 	td->td_retval[0] = fd;
