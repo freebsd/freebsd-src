@@ -52,22 +52,25 @@ ARCHENTRY(__strchrnul, scalar)
 	movabs	$0x0101010101010101, %r8
 	mov	(%rdi), %rax		# load first word
 	imul	%r8, %rsi		# replicate char 8 times
-	movabs	$0x8080808080808080, %r9
 
 	/*
 	 * Unaligned input: align to 8 bytes.  Then proceed the same
-	 * way as with aligned input, but ignore matches before the
-	 * beginning of the string.  This is achieved by shifting r9
-	 * into r10 to have 0x00 bytes before the string begins.
+	 * way as with aligned input, but prevent matches before the
+	 * beginning of the string.  This is achieved by oring 0x01
+	 * into each byte of the buffer before the string
 	 */
 	shl	$3, %ecx
-	mov	%r9, %r10
+	mov	%r8, %r10
 	add	$8, %rdi
-	shl	%cl, %r10		# 0x80 where the string is
+	shl	%cl, %r10		# 0x01 where the string is
+	xor	%r8, %r10		# 0x01 where it is not
 	neg	%r8			# negate 01..01 so we can use lea
+	movabs	$0x8080808080808080, %r9
 
 	mov	%rsi, %rcx
 	xor	%rax, %rcx		# str ^ c
+	or	%r10, %rax		# str without NUL bytes before it
+	or	%r10, %rcx		# (str ^ c) without matches before it
 	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
 	lea	(%rcx, %r8, 1), %r11	# (str ^ c) - 0x01..01
 	not	%rax			# ~str
@@ -75,7 +78,7 @@ ARCHENTRY(__strchrnul, scalar)
 	and	%rdx, %rax		# (str - 0x01..01) & ~str
 	and	%r11, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
 	or	%rcx, %rax		# matches for both
-	and	%r10, %rax		# not including junk bytes or bytes before the string
+	and	%r9, %rax		# not including junk bytes
 	jnz	1f
 
 	/* main loop unrolled twice */
