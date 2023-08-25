@@ -36,6 +36,7 @@
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #endif
@@ -392,13 +393,13 @@ padlock_hash_process(struct padlock_session *ses, struct cryptop *crp,
 	int error;
 
 	td = curthread;
-	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
+	fpu_kern_enter(td, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 	if (crp->crp_auth_key != NULL)
 		padlock_hash_key_setup(ses, crp->crp_auth_key,
 		    csp->csp_auth_klen);
 
 	error = padlock_authcompute(ses, crp);
-	fpu_kern_leave(td, ses->ses_fpu_ctx);
+	fpu_kern_leave(td, NULL);
 	return (error);
 }
 
