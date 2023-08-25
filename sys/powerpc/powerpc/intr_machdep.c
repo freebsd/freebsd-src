@@ -72,6 +72,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
@@ -114,7 +115,6 @@ struct pic {
 
 static u_int intrcnt_index = 0;
 static struct mtx intr_table_lock;
-static struct powerpc_intr **powerpc_intrs;
 static struct pic piclist[MAX_PICS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int npics;		/* PICs registered */
@@ -140,6 +140,9 @@ u_int num_io_irqs = 768;
 #else
 u_int num_io_irqs = 256;
 #endif
+
+static struct rman intr_mgr;
+static struct resource *intr_res;
 
 device_t root_pic;
 
@@ -167,8 +170,20 @@ static void
 intr_init_sources(void *arg __unused)
 {
 
-	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
-	    M_INTR, M_WAITOK | M_ZERO);
+	intr_mgr.rm_start = 0;
+	intr_mgr.rm_end = num_io_irqs - 1;
+	intr_mgr.rm_type = RMAN_ARRAY;
+	intr_mgr.rm_descr = "PowerPC interrupt event manager";
+	if (rman_init(&intr_mgr) ||
+	    rman_manage_region(&intr_mgr, intr_mgr.rm_start, intr_mgr.rm_end))
+		panic("%s(): failure initializing interrupt rman", __func__);
+
+	intrtab_setup(&intr_mgr);
+	intrtab_init();
+
+	intr_res = rman_reserve_resource(&intr_mgr, 0, intr_mgr.rm_end,
+	    num_io_irqs, RF_ACTIVE | RF_UNMAPPED, NULL);
+
 	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
@@ -197,7 +212,7 @@ smp_intr_init(void *dummy __unused)
 	int vector;
 
 	for (vector = 0; vector < nvectors; vector++) {
-		i = powerpc_intrs[vector];
+		i = intrtab_lookup(vector);
 		if (i != NULL && i->event != NULL && i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
 	}
@@ -227,7 +242,7 @@ intr_lookup(u_int irq)
 
 	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
-		i = powerpc_intrs[vector];
+		i = intrtab_lookup(vector);
 		if (i != NULL && i->irq == irq) {
 			mtx_unlock(&intr_table_lock);
 			return (i);
@@ -259,7 +274,7 @@ intr_lookup(u_int irq)
 
 	for (vector = 0; vector < num_io_irqs && vector <= nvectors;
 	    vector++) {
-		iscan = powerpc_intrs[vector];
+		iscan = intrtab_lookup(vector);
 		if (iscan != NULL && iscan->irq == irq)
 			break;
 		if (iscan == NULL && i->vector == -1)
@@ -268,7 +283,9 @@ intr_lookup(u_int irq)
 	}
 
 	if (iscan == NULL && i->vector != -1) {
-		powerpc_intrs[i->vector] = i;
+		int rc = intrtab_set(intr_res, vector, i, NULL);
+		if (rc != 0)
+			panic("Failed to modify interrupt table rc = %d", rc);
 		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
 		i->cntp = &intrcnt[i->cntindex];
 		sprintf(intrname, "irq%u:", i->irq);
@@ -283,15 +300,6 @@ intr_lookup(u_int irq)
 	}
 
 	return (i);
-}
-
-interrupt_t *
-intrtab_lookup(u_int intr)
-{
-
-	if (intr >= num_io_irqs)
-		return (NULL);
-	return (powerpc_intrs[intr]);
 }
 
 struct intr_event *
@@ -503,7 +511,7 @@ powerpc_enable_intr(void)
 #endif
 
 	for (vector = 0; vector < nvectors; vector++) {
-		i = powerpc_intrs[vector];
+		i = intrtab_lookup(vector);
 		if (i == NULL)
 			continue;
 
@@ -651,7 +659,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	struct powerpc_intr *i;
 	struct intr_event *ie;
 
-	i = powerpc_intrs[vector];
+	i = intrtab_lookup(vector);
 	if (i == NULL)
 		goto stray;
 
