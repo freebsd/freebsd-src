@@ -26,20 +26,20 @@
 
 #include <sys/param.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
+//#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-#include <sys/timeout.h>
+//#include <sys/timeout.h>
 #include <sys/conf.h>
-#include <linux/device.h>
+//#include <linux/device.h>
 #include <sys/stdint.h>	/* uintptr_t */
 #include <sys/endian.h>
-
+#include <openbsd/openbsd_mbuf.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+//#include <machine/intr.h>
 
 // #if NBPFILTER > 0
 // #include <net/bpf.h>
@@ -49,9 +49,10 @@
 #include <net/if_media.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
+//#include <netinet/if_ether.h>
 
 // #include <linux/ieee80211.h>
+#include <net/if_arp.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_ra.h>
@@ -61,6 +62,7 @@
 // #include <dev/ic/athnvar.h>
 #include "athnreg.h"
 #include "athnvar.h"
+#include "openbsd_adapt.h"
 
 // TODO missing macro def
 #define NATHN_USB 0
@@ -2580,8 +2582,8 @@ athn_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
 	int ridx, i, j;
 
 	// TODO implicit declaration of function 'ieee80211_amrr_node_init'
-	// if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
-	// 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
+	 if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+	 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
 	else if (ic->ic_opmode == IEEE80211_M_STA)
 		ieee80211_ra_node_init(&an->rn);
 
@@ -2917,16 +2919,18 @@ athn_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	if (!(ifp->if_flags & IFF_DRV_RUNNING) || ifq_is_oactive(&ifp->if_snd))
+	if (!(ifp->if_flags & IFF_DRV_RUNNING) || ifq_is_oactive())
 		return;
 
 	for (;;) {
 		if (SIMPLEQ_EMPTY(&sc->txbufs)) {
-			ifq_set_oactive(&ifp->if_snd);
+			ifq_set_oactive();
 			break;
 		}
 		/* Send pending management frames first. */
-		m = mq_dequeue(&ic->ic_mgtq);
+		//OpenBSD->FreeBSD prev code:
+		//m = mq_dequeue(&ic->ic_mgtq);
+		m = ml_dequeue(&ic->ic_mgtq.mq_list);
 		if (m != NULL) {
 			ni = m->m_pkthdr.ph_cookie;
 			goto sendit;
@@ -2934,7 +2938,9 @@ athn_start(struct ifnet *ifp)
 		if (ic->ic_state != IEEE80211_S_RUN)
 			break;
 
-		m = mq_dequeue(&ic->ic_pwrsaveq);
+		//OpenBSD->FreeBSD prev code:
+		//m = mq_dequeue(&ic->ic_pwrsaveq);
+		m = ml_dequeue(&ic->ic_pwrsaveq.mq_list);
 		if (m != NULL) {
 			ni = m->m_pkthdr.ph_cookie;
 			goto sendit;
@@ -2943,7 +2949,7 @@ athn_start(struct ifnet *ifp)
 			break;
 
 		/* Encapsulate and send data frames. */
-		m = ifq_dequeue(&ifp->if_snd);
+		ALTQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
 #if NBPFILTER > 0
@@ -2959,12 +2965,10 @@ athn_start(struct ifnet *ifp)
 #endif
 		if (sc->ops.tx(sc, m, ni, 0) != 0) {
 			ieee80211_release_node(ic, ni);
-			ifp->if_oerrors++;
 			continue;
 		}
 
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
 	}
 }
 
@@ -2973,7 +2977,6 @@ athn_watchdog(struct ifnet *ifp)
 {
 	struct athn_softc *sc = ifp->if_softc;
 
-	ifp->if_timer = 0;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
@@ -2981,10 +2984,8 @@ athn_watchdog(struct ifnet *ifp)
 			// printf("%s: device timeout\n", sc->sc_dev.dv_xname);
 			athn_stop(ifp, 1);
 			(void)athn_init(ifp);
-			ifp->if_oerrors++;
 			return;
 		}
-		ifp->if_timer = 1;
 	}
 
 	ieee80211_watchdog(ifp);
@@ -3113,7 +3114,7 @@ athn_init(struct ifnet *ifp)
 	extc = NULL;
 
 	/* In case a new MAC address has been configured. */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, LLADDR(ifp->if_sadl));
+	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 
 	/* For CardBus, power on the socket. */
 	if (sc->sc_enable != NULL) {
@@ -3175,7 +3176,7 @@ athn_init(struct ifnet *ifp)
 		athn_btcoex_enable(sc);
 #endif
 
-	ifq_clr_oactive(&ifp->if_snd);
+	ifq_clr_oactive();
 	ifp->if_flags |= IFF_DRV_RUNNING;
 
 #ifdef notyet
@@ -3203,9 +3204,8 @@ athn_stop(struct ifnet *ifp, int disable)
 	__attribute__((unused)) struct ieee80211com *ic = &sc->sc_ic;
 	int qid, i;
 
-	ifp->if_timer = sc->sc_tx_timer = 0;
 	ifp->if_flags &= ~IFF_DRV_RUNNING;
-	ifq_clr_oactive(&ifp->if_snd);
+	ifq_clr_oactive();
 
 	timeout_del(&sc->scan_to);
 

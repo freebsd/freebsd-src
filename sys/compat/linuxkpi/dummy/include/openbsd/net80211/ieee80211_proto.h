@@ -72,8 +72,8 @@ extern	void ieee80211_inputm(struct ifnet *, struct mbuf *,
 		struct mbuf_list *);
 extern	void ieee80211_input(struct ifnet *, struct mbuf *,
 		struct ieee80211_node *, struct ieee80211_rxinfo *);
-extern	int ieee80211_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		struct rtentry *);
+// extern	int ieee80211_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+// 		struct rtentry *);
 extern	void ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, struct ieee80211_rxinfo *, int);
 extern	int ieee80211_send_mgmt(struct ieee80211com *, struct ieee80211_node *,
