@@ -768,7 +768,7 @@ match_afp(const struct afswtch *afp, int sa_family, const struct sockaddr_dl *sd
 		return (true);
 	/* special case for "ether" address family */
 	if (!strcmp(afp->af_name, "ether")) {
-		if (sdl == NULL && !match_ether(sdl))
+		if (sdl == NULL || !match_ether(sdl))
 			return (false);
 		return (true);
 	}
