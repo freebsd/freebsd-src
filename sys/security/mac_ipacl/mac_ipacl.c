@@ -315,7 +315,7 @@ SYSCTL_PROC(_security_mac_ipacl, OID_AUTO, rules,
 
 static int
 rules_check(struct ucred *cred,
-    struct ipacl_addr *ip_addr, struct ifnet *ifp)
+    struct ipacl_addr *ip_addr, if_t ifp)
 {
 	struct ip_rule *rule;
 	int error;
@@ -342,7 +342,7 @@ rules_check(struct ucred *cred,
 			continue;
 
 		if (strcmp(rule->if_name, "\0") &&
-		    strcmp(rule->if_name, ifp->if_xname))
+		    strcmp(rule->if_name, if_name(ifp)))
 			continue;
 
 		switch (rule->af) {
@@ -395,7 +395,7 @@ rules_check(struct ucred *cred,
 #ifdef INET
 static int
 ipacl_ip4_check_jail(struct ucred *cred,
-    const struct in_addr *ia, struct ifnet *ifp)
+    const struct in_addr *ia, if_t ifp)
 {
 	struct ipacl_addr ip4_addr;
 
@@ -415,7 +415,7 @@ ipacl_ip4_check_jail(struct ucred *cred,
 #ifdef INET6
 static int
 ipacl_ip6_check_jail(struct ucred *cred,
-    const struct in6_addr *ia6, struct ifnet *ifp)
+    const struct in6_addr *ia6, if_t ifp)
 {
 	struct ipacl_addr ip6_addr;
 
