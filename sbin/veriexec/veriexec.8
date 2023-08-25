@@ -1,5 +1,7 @@
 .\"-
-.\" Copyright (c) 2018, Juniper Networks, Inc.
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2018-2023, Juniper Networks, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 8, 2022
+.Dd August 8, 2023
 .Dt VERIEXEC 8
 .Os
 .Sh NAME
@@ -38,6 +40,9 @@
 .Fl z Ar state
 .Nm
 .Fl i Ar state
+.Nm
+.Fl l
+.Ar file ...
 .Nm
 .Fl x
 .Ar file ...
@@ -66,6 +71,14 @@ and with
 .Fl i
 to query the current
 .Ar state .
+.Pp
+With
+.Fl l
+.Nm
+will report any labels associated with the remaining arguments
+assumed to be files.
+If only a single file argument is given, the bare label (if any)
+will be reported, otherwise the pathname followed by label.
 .Pp
 The final form with
 .Fl x

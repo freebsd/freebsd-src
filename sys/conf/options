@@ -168,6 +168,7 @@ MAC_SEEOTHERUIDS	opt_dontuse.h
 MAC_STATIC	opt_mac.h
 MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
+MAC_GRANTBYLABEL	opt_dontuse.h
 MAC_VERIEXEC	opt_dontuse.h
 MAC_VERIEXEC_SHA1	opt_dontuse.h
 MAC_VERIEXEC_SHA256	opt_dontuse.h

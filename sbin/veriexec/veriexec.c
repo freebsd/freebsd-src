@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018, Juniper Networks, Inc.
+ * Copyright (c) 2018-2023, Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,7 +53,7 @@ static int
 veriexec_usage(void)
 {
 	printf("%s",
-	    "Usage:\tveriexec [-h] [-i state] [-C] [-xv state|verbosity] [path]\n");
+	    "Usage:\tveriexec [-C path] [-hlxv] [-[iz] state] [path]\n");
 
 	return (0);
 }
@@ -135,6 +135,45 @@ veriexec_state_modify(const char *arg_text)
 	return (state);
 }
 
+#ifdef HAVE_VERIEXEC_GET_PATH_LABEL
+static void
+veriexec_check_labels(int argc, char *argv[])
+{
+	char buf[BUFSIZ];
+	char *cp;
+	int n;
+
+	n = (argc - optind);
+	for (; optind < argc; optind++) {
+		cp = veriexec_get_path_label(argv[optind], buf, sizeof(buf));
+		if (cp) {
+			if (n > 1)
+				printf("%s: %s\n", argv[optind], cp);
+			else
+				printf("%s\n", cp);
+			if (cp != buf)
+				free(cp);
+		}
+	}
+	exit(EX_OK);
+}
+#endif
+
+static void
+veriexec_check_paths(int argc, char *argv[])
+{
+	int x;
+
+	x = EX_OK;
+	for (; optind < argc; optind++) {
+		if (veriexec_check_path(argv[optind])) {
+			warn("%s", argv[optind]);
+			x = 2;
+		}
+	}
+	exit(x);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -147,7 +186,7 @@ main(int argc, char *argv[])
 
 	dev_fd = open(_PATH_DEV_VERIEXEC, O_WRONLY, 0);
 
-	while ((c = getopt(argc, argv, "hC:i:Sxvz:")) != -1) {
+	while ((c = getopt(argc, argv, "C:hi:lSxvz:")) != -1) {
 		switch (c) {
 		case 'h':
 			/* Print usage info */
@@ -173,6 +212,11 @@ main(int argc, char *argv[])
 
 			exit((x & state) == 0);
 			break;
+#ifdef HAVE_VERIEXEC_GET_PATH_LABEL
+		case 'l':
+			veriexec_check_labels(argc, argv);
+			break;
+#endif
 		case 'S':
 			/* Strictly enforce certificate validity */
 			ve_enforce_validity_set(1);
@@ -188,13 +232,7 @@ main(int argc, char *argv[])
 			/*
 			 * -x says all other args are paths to check.
 			 */
-			for (x = EX_OK; optind < argc; optind++) {
-				if (veriexec_check_path(argv[optind])) {
-					warn("%s", argv[optind]);
-					x = 2;
-				}
-			}
-			exit(x);
+			veriexec_check_paths(argc, argv);
 			break;
 		case 'z':
 			/* Modify the state */

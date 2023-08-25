@@ -59,7 +59,7 @@ veriexec_get_pid_params(pid_t pid,
 }
 
 /**
- * @brief get veriexec params for a process
+ * @brief get veriexec params for a path
  *
  * @return
  * @li 0 if successful
@@ -80,7 +80,117 @@ veriexec_get_path_params(const char *file,
 }
 
 /**
+ * @brief return label associated with a path
+ *
+ * @param[in] file
+ *	pathname of file to lookup.
+ *
+ * @prarm[in] buf
+ *	if not NULL and big enough copy label to buf.
+ *	otherwise return a copy of label.
+ *
+ * @param[in] bufsz
+ *	size of buf, must be greater than found label length.
+ *
+ * @return
+ * @li NULL if no label
+ * @li pointer to label
+ */
+char *
+veriexec_get_path_label(const char *file, char *buf, size_t bufsz)
+{
+	struct mac_veriexec_syscall_params params;
+	char *cp;
+
+	cp = NULL;
+	if (veriexec_get_path_params(file, &params) == 0) {
+		/* Does label contain a label */
+		if (params.labellen > 0) {
+			if (buf != NULL && bufsz > params.labellen) {
+				strlcpy(buf, params.label, bufsz);
+				cp = buf;
+			} else
+				cp = strdup(params.label);
+		}
+	}
+	return cp;
+}
+
+/**
+ * @brief return label of a process
+ *
+ *
+ * @param[in] pid
+ *	process id of interest.
+ *
+ * @prarm[in] buf
+ *	if not NULL and big enough copy label to buf.
+ *	otherwise return a copy of label.
+ *
+ * @param[in] bufsz
+ *	size of buf, must be greater than found label length.
+ *
+ * @return
+ * @li NULL if no label
+ * @li pointer to label
+ */
+char *
+veriexec_get_pid_label(pid_t pid, char *buf, size_t bufsz)
+{
+	struct mac_veriexec_syscall_params params;
+	char *cp;
+
+	cp = NULL;
+	if (veriexec_get_pid_params(pid, &params) == 0) {
+		/* Does label contain a label */
+		if (params.labellen > 0) {
+			if (buf != NULL && bufsz > params.labellen) {
+				strlcpy(buf, params.label, bufsz);
+				cp = buf;
+			} else
+				cp = strdup(params.label);
+		}
+	}
+	return cp;
+}
+
+/*
+ * we match
+ * ^want$
+ * ^want,
+ * ,want,
+ * ,want$
+ *
+ * and if want ends with / then we match that prefix too.
+ */
+static int
+check_label_want(const char *label, size_t labellen,
+    const char *want, size_t wantlen)
+{
+	char *cp;
+
+	/* Does label contain [,]<want>[,] ? */
+	if (labellen > 0 && wantlen > 0 &&
+	    (cp = strstr(label, want)) != NULL) {
+		if (cp == label || cp[-1] == ',') {
+			if (cp[wantlen] == '\0' || cp[wantlen] == ',' ||
+			    (cp[wantlen-1] == '/' && want[wantlen-1] == '/'))
+				return 1; /* yes */
+		}
+	}
+	return 0;			/* no */
+}
+	
+/**
  * @brief check if a process has label that contains what we want
+ *
+ * @param[in] pid
+ *	process id of interest.
+ *
+ * @param[in] want
+ *	the label we are looking for
+ *	if want ends with ``/`` it is assumed a prefix
+ *	otherwise we expect it to be followed by ``,`` or end of string.
  *
  * @return
  * @li 0 if no
@@ -90,26 +200,27 @@ int
 veriexec_check_pid_label(pid_t pid, const char *want)
 {
 	struct mac_veriexec_syscall_params params;
-	char *cp;
 	size_t n;
 
 	if (want != NULL &&
+	    (n = strlen(want)) > 0 &&
 	    veriexec_get_pid_params(pid, &params) == 0) {
-		/* Does label contain [,]<want>[,] ? */
-		if (params.labellen > 0 &&
-		    (cp = strstr(params.label, want)) != NULL) {
-			if (cp == params.label || cp[-1] == ',') {
-				n = strlen(want);
-				if (cp[n] == '\0' || cp[n] == ',')
-					return 1; /* yes */
-			}
-		}
+		return check_label_want(params.label, params.labellen,
+		    want, n);
 	}
 	return 0;			/* no */
 }
 
 /**
  * @brief check if a path has label that contains what we want
+ *
+ * @param[in] path
+ *	pathname of interest.
+ *
+ * @param[in] want
+ *	the label we are looking for
+ *	if want ends with ``/`` it is assumed a prefix
+ *	otherwise we expect it to be followed by ``,`` or end of string.
  *
  * @return
  * @li 0 if no
@@ -119,20 +230,13 @@ int
 veriexec_check_path_label(const char *file, const char *want)
 {
 	struct mac_veriexec_syscall_params params;
-	char *cp;
 	size_t n;
 
 	if (want != NULL && file != NULL &&
+	    (n = strlen(want)) > 0 &&
 	    veriexec_get_path_params(file, &params) == 0) {
-		/* Does label contain [,]<want>[,] ? */
-		if (params.labellen > 0 &&
-		    (cp = strstr(params.label, want)) != NULL) {
-			if (cp == params.label || cp[-1] == ',') {
-				n = strlen(want);
-				if (cp[n] == '\0' || cp[n] == ',')
-					return 1; /* yes */
-			}
-		}
+		return check_label_want(params.label, params.labellen,
+		    want, n);
 	}
 	return 0;			/* no */
 }
@@ -167,13 +271,19 @@ main(int argc, char *argv[])
 {
 	struct mac_veriexec_syscall_params params;
 	pid_t pid;
+	char buf[BUFSIZ];
+	const char *cp;
 	char *want = NULL;
+	int lflag = 0;
 	int pflag = 0;
 	int error;
 	int c;
 
-	while ((c = getopt(argc, argv, "pw:")) != -1) {
+	while ((c = getopt(argc, argv, "lpw:")) != -1) {
 		switch (c) {
+		case 'l':
+			lflag = 1;
+			break;
 		case 'p':
 			pflag = 1;
 			break;
@@ -188,6 +298,12 @@ main(int argc, char *argv[])
 
 		if (pflag) {
 			pid = atoi(argv[optind]);
+			if (lflag) {
+				cp = veriexec_get_pid_label(pid, buf, sizeof(buf));
+				if (cp)
+					printf("pid=%d label='%s'\n", pid, cp);
+				continue;
+			}
 			if (want) {
 				error = veriexec_check_pid_label(pid, want);
 				printf("pid=%d want='%s': %d\n",
@@ -196,6 +312,20 @@ main(int argc, char *argv[])
 			}
 			error = veriexec_get_pid_params(pid, &params);
 		} else {
+			if (lflag) {
+				cp = veriexec_get_path_label(argv[optind],
+				    buf, sizeof(buf));
+				if (cp)
+					printf("path='%s' label='%s'\n",
+					    argv[optind], cp);
+				continue;
+			}
+			if (want) {
+				error = veriexec_check_path_label(argv[optind], want);
+				printf("path='%s' want='%s': %d\n",
+				    argv[optind], want, error);
+				continue;
+			}
 			error = veriexec_get_path_params(argv[optind], &params);
 		}
 		if (error) {
