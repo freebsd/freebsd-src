@@ -19,6 +19,7 @@ LIBADD= \
 	md \
 	nvpair \
 	pthread \
+	rt \
 	umem \
 	util \
 	uutil \

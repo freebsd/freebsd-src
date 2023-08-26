@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libexpat \
 	lib/libgeom \
 	lib/libmd \
+	lib/librt \
 	lib/libthr \
 	lib/libutil \
 	lib/libz \
