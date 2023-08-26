@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230826:
+OLD_FILES+=usr/share/man/man9/knlist_remove_inevent.9.gz
+
 # 20230825: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/E-Tugra_Certification_Authority.pem
 OLD_FILES+=usr/share/certs/trusted/E-Tugra_Global_Root_CA_ECC_v3.pem
