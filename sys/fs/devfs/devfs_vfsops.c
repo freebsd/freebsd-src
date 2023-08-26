@@ -224,7 +224,7 @@ static int
 devfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 
-	sbp->f_flags = 0;
+	sbp->f_flags = mp->mnt_flag & MNT_IGNORE;
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
 	sbp->f_blocks = 2;		/* 1K to keep df happy */
