@@ -181,7 +181,11 @@ bi_status_to_errno(blk_status_t status)
 		return (ENOLINK);
 	case BLK_STS_TARGET:
 		return (EREMOTEIO);
+#ifdef HAVE_BLK_STS_RESV_CONFLICT
+	case BLK_STS_RESV_CONFLICT:
+#else
 	case BLK_STS_NEXUS:
+#endif
 		return (EBADE);
 	case BLK_STS_MEDIUM:
 		return (ENODATA);
@@ -215,7 +219,11 @@ errno_to_bi_status(int error)
 	case EREMOTEIO:
 		return (BLK_STS_TARGET);
 	case EBADE:
+#ifdef HAVE_BLK_STS_RESV_CONFLICT
+		return (BLK_STS_RESV_CONFLICT);
+#else
 		return (BLK_STS_NEXUS);
+#endif
 	case ENODATA:
 		return (BLK_STS_MEDIUM);
 	case EILSEQ:
@@ -337,6 +345,9 @@ zfs_check_media_change(struct block_device *bdev)
 	return (0);
 }
 #define	vdev_bdev_reread_part(bdev)	zfs_check_media_change(bdev)
+#elif defined(HAVE_DISK_CHECK_MEDIA_CHANGE)
+#define	vdev_bdev_reread_part(bdev)	disk_check_media_change(bdev->bd_disk)
+#define	zfs_check_media_change(bdev)	disk_check_media_change(bdev->bd_disk)
 #else
 /*
  * This is encountered if check_disk_change() and bdev_check_media_change()
@@ -386,6 +397,12 @@ vdev_lookup_bdev(const char *path, dev_t *dev)
 #error "Unsupported kernel"
 #endif
 }
+
+#if defined(HAVE_BLK_MODE_T)
+#define	blk_mode_is_open_write(flag)	((flag) & BLK_OPEN_WRITE)
+#else
+#define	blk_mode_is_open_write(flag)	((flag) & FMODE_WRITE)
+#endif
 
 /*
  * Kernels without bio_set_op_attrs use bi_rw for the bio flags.
