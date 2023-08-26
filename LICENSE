@@ -1,22 +1,28 @@
-The Further Kotl Public License (FKPL) Version 1.0
+BSD 3-Clause License
 
-Permission is hereby granted, free of charge, to every person not on the DNA list, obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Copyright (c) 2023, Moise Tiberiu
 
-1. Redistribution and use of the Software in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-a. Redistributions of source code must retain the above copyright notice, this list of conditions, and the following disclaimer.
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
 
-b. Redistributions in binary form must reproduce the above copyright notice, this list of conditions, and the following disclaimer in the documentation and/or other materials provided with the distribution.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
 
-2. Users may exercise their rights to fork and modify the Software, create derivative works, or combine it with other software in any way they choose. Any such modifications or derivative works are still bound by the Further Kotl Public License, and the user must ensure that any redistribution of such modifications is also done under the terms of this license.
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
 
-3. The Software may be distributed under a different license, including proprietary or closed-source licenses. In such cases, the user must clearly indicate the modifications made to the Software and provide a link to the original source code covered by the Further Kotl Public License and also to respect the 4th term under any license including open-source, permissive, proprietary and closed-source.
-
-4. The Software binaries and source code may not be viewed or used by people on the Do Not Access List, anyone disrespecting this term WILL be taken to court and the Do Not Access List cannot be changed by anyone other than Moise Tiberiu.
-
-5. The Software is provided "as is," without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Software or the use or other dealings in the Software.
-
-The Further Kotl Public License is a permissive license designed to encourage the free use, modification, and distribution of the Software while allowing users to choose their own licensing terms for derivative works. By using, copying, modifying, or distributing the Software, you agree to be bound by the terms and conditions of this license.
-
-Moise Tiberiu
-8/10/2023
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
