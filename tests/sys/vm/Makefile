@@ -8,7 +8,7 @@ ATF_TESTS_C+=	mlock_test \
 		page_fault_signal \
 		shared_shadow_inval_test
 
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE} != "arm" && \
+.if ${MACHINE_ARCH} != "i386" && ${MACHINE} != "arm" && ${MACHINE} != "mips" && \
 	(${MACHINE} != "powerpc" || (${MACHINE_ARCH} != "powerpc" && \
 					${MACHINE_ARCH} != "powerpcspe"))
 	# MAP_32BIT is only available on 64-bit platforms
