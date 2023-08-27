@@ -522,7 +522,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		return (ENOMEM);
 
 	if (i->event == NULL) {
-		error = intr_event_create(&i->event, (void *)i, 0, irq,
+		error = intr_event_create(&i->event, (void *)i, 0, i->vector,
 		    powerpc_intr_pre_ithread, powerpc_intr_post_ithread,
 		    powerpc_intr_eoi, powerpc_assign_intr_cpu, "irq%u:", irq);
 		if (error)
