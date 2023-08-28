@@ -1524,7 +1524,7 @@ mana_post_pkt_rxq(struct mana_rxq *rxq)
 
 	recv_buf_oob = &rxq->rx_oobs[curr_index];
 
-	err = mana_gd_post_and_ring(rxq->gdma_rq, &recv_buf_oob->wqe_req,
+	err = mana_gd_post_work_request(rxq->gdma_rq, &recv_buf_oob->wqe_req,
 	    &recv_buf_oob->wqe_inf);
 	if (err) {
 		mana_err(NULL, "WARNING: rxq %u post pkt err %d\n",
@@ -1755,6 +1755,13 @@ mana_poll_rx_cq(struct mana_cq *cq)
 		}
 
 		mana_process_rx_cqe(cq->rxq, cq, &comp[i]);
+	}
+
+	if (comp_read > 0) {
+		struct gdma_context *gc =
+		    cq->rxq->gdma_rq->gdma_dev->gdma_context;
+
+		mana_gd_wq_ring_doorbell(gc, cq->rxq->gdma_rq);
 	}
 
 	tcp_lro_flush_all(&cq->rxq->lro);
