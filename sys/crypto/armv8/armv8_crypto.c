@@ -44,12 +44,10 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/queue.h>
-#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/uio.h>
 
@@ -62,9 +60,7 @@
 #include <crypto/rijndael/rijndael.h>
 
 struct armv8_crypto_softc {
-	int		dieing;
 	int32_t		cid;
-	struct rwlock	lock;
 	bool		has_pmul;
 };
 
@@ -119,7 +115,6 @@ armv8_crypto_attach(device_t dev)
 	uint64_t reg;
 
 	sc = device_get_softc(dev);
-	sc->dieing = 0;
 
 	reg = READ_SPECIALREG(id_aa64isar0_el1);
 
@@ -133,8 +128,6 @@ armv8_crypto_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	rw_init(&sc->lock, "armv8crypto");
-
 	return (0);
 }
 
@@ -145,12 +138,7 @@ armv8_crypto_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	rw_wlock(&sc->lock);
-	sc->dieing = 1;
-	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
-
-	rw_destroy(&sc->lock);
 
 	return (0);
 }
@@ -273,21 +261,12 @@ static int
 armv8_crypto_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
-	struct armv8_crypto_softc *sc;
 	struct armv8_crypto_session *ses;
 	int error;
-
-	sc = device_get_softc(dev);
-	rw_wlock(&sc->lock);
-	if (sc->dieing) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
 
 	ses = crypto_get_driver_session(cses);
 	error = armv8_crypto_cipher_setup(ses, csp, csp->csp_cipher_key,
 	    csp->csp_cipher_klen);
-	rw_wunlock(&sc->lock);
 	return (error);
 }
 
