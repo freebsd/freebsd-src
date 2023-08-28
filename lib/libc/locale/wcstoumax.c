@@ -86,6 +86,13 @@ wcstoumax_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 		s += 2;
 		base = 16;
 	}
+	if ((base == 0 || base == 2) &&
+	    c == L'0' && (*s == L'b' || *s == L'B') &&
+	    (s[1] >= L'0' && s[1] <= L'1')) {
+		c = s[1];
+		s += 2;
+		base = 2;
+	}
 	if (base == 0)
 		base = c == L'0' ? 8 : 10;
 	acc = any = 0;

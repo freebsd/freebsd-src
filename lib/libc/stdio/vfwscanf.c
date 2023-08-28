@@ -9,6 +9,8 @@
  *
  * Copyright (c) 2011 The FreeBSD Foundation
  *
+ * Copyright (c) 2023 Dag-Erling Smørgrav
+ *
  * Portions of this software were developed by David Chisnall
  * under sponsorship from the FreeBSD Foundation.
  *
@@ -77,16 +79,6 @@ static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #define	SIZET		0x2000	/* z: size_t */
 #define	SHORTSHORT	0x4000	/* hh: char */
 #define	UNSIGNED	0x8000	/* %[oupxX] conversions */
-
-/*
- * The following are used in integral conversions only:
- * SIGNOK, NDIGITS, PFXOK, and NZDIGITS
- */
-#define	SIGNOK		0x40	/* +/- is (still) legal */
-#define	NDIGITS		0x80	/* no digits detected */
-#define	PFXOK		0x100	/* 0x prefix is (still) legal */
-#define	NZDIGITS	0x200	/* no zero digits detected */
-#define	HAVESIGN	0x10000	/* sign detected */
 
 /*
  * Conversion types.
@@ -289,128 +281,161 @@ convert_wstring(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 	return (nread);
 }
 
+enum parseint_state {
+	begin,
+	havesign,
+	havezero,
+	haveprefix,
+	any,
+};
+
+static __inline int
+parseint_fsm(wchar_t c, enum parseint_state *state, int *base)
+{
+	switch (c) {
+	case '+':
+	case '-':
+		if (*state == begin) {
+			*state = havesign;
+			return 1;
+		}
+		break;
+	case '0':
+		if (*state == begin || *state == havesign) {
+			*state = havezero;
+		} else {
+			*state = any;
+		}
+		return 1;
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+		if (*state == havezero && *base == 0) {
+			*base = 8;
+		}
+		/* FALL THROUGH */
+	case '8':
+	case '9':
+		if (*state == begin ||
+		    *state == havesign) {
+			if (*base == 0) {
+				*base = 10;
+			}
+		}
+		if (*state == begin ||
+		    *state == havesign ||
+		    *state == havezero ||
+		    *state == haveprefix ||
+		    *state == any) {
+			if (*base > c - '0') {
+				*state = any;
+				return 1;
+			}
+		}
+		break;
+	case 'b':
+		if (*state == havezero) {
+			if (*base == 0 || *base == 2) {
+				*state = haveprefix;
+				*base = 2;
+				return 1;
+			}
+		}
+		/* FALL THROUGH */
+	case 'a':
+	case 'c':
+	case 'd':
+	case 'e':
+	case 'f':
+		if (*state == begin ||
+		    *state == havesign ||
+		    *state == havezero ||
+		    *state == haveprefix ||
+		    *state == any) {
+			if (*base > c - 'a' + 10) {
+				*state = any;
+				return 1;
+			}
+		}
+		break;
+	case 'B':
+		if (*state == havezero) {
+			if (*base == 0 || *base == 2) {
+				*state = haveprefix;
+				*base = 2;
+				return 1;
+			}
+		}
+		/* FALL THROUGH */
+	case 'A':
+	case 'C':
+	case 'D':
+	case 'E':
+	case 'F':
+		if (*state == begin ||
+		    *state == havesign ||
+		    *state == havezero ||
+		    *state == haveprefix ||
+		    *state == any) {
+			if (*base > c - 'A' + 10) {
+				*state = any;
+				return 1;
+			}
+		}
+		break;
+	case 'x':
+	case 'X':
+		if (*state == havezero) {
+			if (*base == 0 || *base == 16) {
+				*state = haveprefix;
+				*base = 16;
+				return 1;
+			}
+		}
+		break;
+	}
+	return 0;
+}
+
 /*
- * Read an integer, storing it in buf.  The only relevant bit in the
- * flags argument is PFXOK.
+ * Read an integer, storing it in buf.
  *
  * Return 0 on a match failure, and the number of characters read
  * otherwise.
  */
 static __inline int
-parseint(FILE *fp, wchar_t *buf, int width, int base, int flags,
+parseint(FILE *fp, wchar_t * __restrict buf, int width, int base,
     locale_t locale)
 {
-	/* `basefix' is used to avoid `if' tests */
-	static const short basefix[17] =
-		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+	enum parseint_state state = begin;
 	wchar_t *wcp;
 	int c;
 
-	flags |= SIGNOK | NDIGITS | NZDIGITS;
 	for (wcp = buf; width; width--) {
 		c = __fgetwc(fp, locale);
-		/*
-		 * Switch on the character; `goto ok' if we accept it
-		 * as a part of number.
-		 */
-		switch (c) {
-
-		/*
-		 * The digit 0 is always legal, but is special.  For
-		 * %i conversions, if no digits (zero or nonzero) have
-		 * been scanned (only signs), we will have base==0.
-		 * In that case, we should set it to 8 and enable 0x
-		 * prefixing.  Also, if we have not scanned zero
-		 * digits before this, do not turn off prefixing
-		 * (someone else will turn it off if we have scanned
-		 * any nonzero digits).
-		 */
-		case '0':
-			if (base == 0) {
-				base = 8;
-				flags |= PFXOK;
-			}
-			if (flags & NZDIGITS)
-				flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
-			else
-				flags &= ~(SIGNOK|PFXOK|NDIGITS);
-			goto ok;
-
-		/* 1 through 7 always legal */
-		case '1': case '2': case '3':
-		case '4': case '5': case '6': case '7':
-			base = basefix[base];
-			flags &= ~(SIGNOK | PFXOK | NDIGITS);
-			goto ok;
-
-		/* digits 8 and 9 ok iff decimal or hex */
-		case '8': case '9':
-			base = basefix[base];
-			if (base <= 8)
-				break;	/* not legal here */
-			flags &= ~(SIGNOK | PFXOK | NDIGITS);
-			goto ok;
-
-		/* letters ok iff hex */
-		case 'A': case 'B': case 'C':
-		case 'D': case 'E': case 'F':
-		case 'a': case 'b': case 'c':
-		case 'd': case 'e': case 'f':
-			/* no need to fix base here */
-			if (base <= 10)
-				break;	/* not legal here */
-			flags &= ~(SIGNOK | PFXOK | NDIGITS);
-			goto ok;
-
-		/* sign ok only as first character */
-		case '+': case '-':
-			if (flags & SIGNOK) {
-				flags &= ~SIGNOK;
-				flags |= HAVESIGN;
-				goto ok;
-			}
+		if (c == WEOF)
 			break;
-
-		/*
-		 * x ok iff flag still set & 2nd char (or 3rd char if
-		 * we have a sign).
-		 */
-		case 'x': case 'X':
-			if (flags & PFXOK && wcp ==
-			    buf + 1 + !!(flags & HAVESIGN)) {
-				base = 16;	/* if %i */
-				flags &= ~PFXOK;
-				goto ok;
-			}
+		if (!parseint_fsm(c, &state, &base))
 			break;
-		}
-
-		/*
-		 * If we got here, c is not a legal character for a
-		 * number.  Stop accumulating digits.
-		 */
-		if (c != WEOF)
-			__ungetwc(c, fp, locale);
-		break;
-	ok:
-		/*
-		 * c is legal: store it and look at the next.
-		 */
 		*wcp++ = (wchar_t)c;
 	}
 	/*
-	 * If we had only a sign, it is no good; push back the sign.
-	 * If the number ends in `x', it was [sign] '0' 'x', so push
-	 * back the x and treat it as [sign] '0'.
+	 * If we only had a sign, push it back.  If we only had a 0b or 0x
+	 * prefix (possibly preceded by a sign), we view it as "0" and
+	 * push back the letter.  In all other cases, if we stopped
+	 * because we read a non-number character, push it back.
 	 */
-	if (flags & NDIGITS) {
-		if (wcp > buf)
-			__ungetwc(*--wcp, fp, locale);
-		return (0);
-	}
-	c = wcp[-1];
-	if (c == 'x' || c == 'X') {
-		--wcp;
+	if (state == havesign) {
+		wcp--;
+		__ungetwc(*wcp, fp, locale);
+	} else if (state == haveprefix) {
+		wcp--;
+		__ungetwc(c, fp, locale);
+	} else if (width && c != WEOF) {
 		__ungetwc(c, fp, locale);
 	}
 	return (wcp - buf);
@@ -536,6 +561,13 @@ literal:
 		/*
 		 * Conversions.
 		 */
+		case 'B':
+		case 'b':
+			c = CT_INT;
+			flags |= UNSIGNED;
+			base = 2;
+			break;
+
 		case 'd':
 			c = CT_INT;
 			base = 10;
@@ -560,7 +592,6 @@ literal:
 
 		case 'X':
 		case 'x':
-			flags |= PFXOK;	/* enable 0x prefixing */
 			c = CT_INT;
 			flags |= UNSIGNED;
 			base = 16;
@@ -606,7 +637,7 @@ literal:
 			break;
 
 		case 'p':	/* pointer format is like hex */
-			flags |= POINTER | PFXOK;
+			flags |= POINTER;
 			c = CT_INT;		/* assumes sizeof(uintmax_t) */
 			flags |= UNSIGNED;	/*      >= sizeof(uintptr_t) */
 			base = 16;
@@ -716,7 +747,7 @@ literal:
 			    sizeof(*buf) - 1)
 				width = sizeof(buf) / sizeof(*buf) - 1;
 
-			nr = parseint(fp, buf, width, base, flags, locale);
+			nr = parseint(fp, buf, width, base, locale);
 			if (nr == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
