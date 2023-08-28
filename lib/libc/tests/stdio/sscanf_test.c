@@ -237,6 +237,22 @@ ATF_TC_BODY(sscanf_i, tc)
 	}
 }
 
+/*
+ * Test termination cases: non-numeric character, fixed width, EOF
+ */
+ATF_TC_WITHOUT_HEAD(sscanf_termination);
+ATF_TC_BODY(sscanf_termination, tc)
+{
+	int a = 0, b = 0, c = 0;
+	char d = 0;
+
+	ATF_CHECK_EQ(4, sscanf("3.1415", "%d%c%2d%d", &a, &d, &b, &c));
+	ATF_CHECK_EQ(3, a);
+	ATF_CHECK_EQ(14, b);
+	ATF_CHECK_EQ(15, c);
+	ATF_CHECK_EQ('.', d);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
@@ -245,5 +261,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sscanf_d);
 	ATF_TP_ADD_TC(tp, sscanf_x);
 	ATF_TP_ADD_TC(tp, sscanf_i);
+	ATF_TP_ADD_TC(tp, sscanf_termination);
 	return (atf_no_error());
 }

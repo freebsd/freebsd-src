@@ -435,7 +435,7 @@ parseint(FILE *fp, wchar_t * __restrict buf, int width, int base,
 	} else if (state == haveprefix) {
 		wcp--;
 		__ungetwc(c, fp, locale);
-	} else if (c != WEOF) {
+	} else if (width && c != WEOF) {
 		__ungetwc(c, fp, locale);
 	}
 	return (wcp - buf);

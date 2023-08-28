@@ -452,7 +452,7 @@ parseint(FILE *fp, char * __restrict buf, int width, int base)
 	} else if (state == haveprefix) {
 		p--;
 		(void) __ungetc(c, fp);
-	} else if (c != EOF) {
+	} else if (width && c != EOF) {
 		(void) __ungetc(c, fp);
 	}
 	return (p - buf);
