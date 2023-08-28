@@ -16,6 +16,9 @@ ATF_TESTS_C+=		print_positional_test
 ATF_TESTS_C+=		printbasic_test
 ATF_TESTS_C+=		printfloat_test
 ATF_TESTS_C+=		scanfloat_test
+ATF_TESTS_C+=		snprintf_test
+ATF_TESTS_C+=		sscanf_test
+ATF_TESTS_C+=		swscanf_test
 
 SRCS.fopen2_test=	fopen_test.c
 
