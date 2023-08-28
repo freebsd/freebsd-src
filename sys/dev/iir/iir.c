@@ -1855,7 +1855,7 @@ int gdt_read_event(int handle, gdt_evt_str *estr)
         eindex = handle;
     estr->event_source = 0;
 
-    if (eindex >= GDT_MAX_EVENTS) {
+    if (eindex < 0 || eindex >= GDT_MAX_EVENTS) {
 	mtx_unlock(&elock);
         return eindex;
     }
