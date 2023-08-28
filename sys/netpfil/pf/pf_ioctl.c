@@ -2125,31 +2125,6 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 }
 
 static int
-pf_state_kill_to_kstate_kill(const struct pfioc_state_kill *psk,
-    struct pf_kstate_kill *kill)
-{
-	int ret;
-
-	bzero(kill, sizeof(*kill));
-
-	bcopy(&psk->psk_pfcmp, &kill->psk_pfcmp, sizeof(kill->psk_pfcmp));
-	kill->psk_af = psk->psk_af;
-	kill->psk_proto = psk->psk_proto;
-	bcopy(&psk->psk_src, &kill->psk_src, sizeof(kill->psk_src));
-	bcopy(&psk->psk_dst, &kill->psk_dst, sizeof(kill->psk_dst));
-	ret = pf_user_strcpy(kill->psk_ifname, psk->psk_ifname,
-	    sizeof(kill->psk_ifname));
-	if (ret != 0)
-		return (ret);
-	ret = pf_user_strcpy(kill->psk_label, psk->psk_label,
-	    sizeof(kill->psk_label));
-	if (ret != 0)
-		return (ret);
-
-	return (0);
-}
-
-static int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
     struct thread *td)
@@ -3694,33 +3669,8 @@ DIOCCHANGERULE_error:
 		break;
 	}
 
-	case DIOCCLRSTATES: {
-		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
-		struct pf_kstate_kill	 kill;
-
-		error = pf_state_kill_to_kstate_kill(psk, &kill);
-		if (error)
-			break;
-
-		psk->psk_killed = pf_clear_states(&kill);
-		break;
-	}
-
 	case DIOCCLRSTATESNV: {
 		error = pf_clearstates_nv((struct pfioc_nv *)addr);
-		break;
-	}
-
-	case DIOCKILLSTATES: {
-		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
-		struct pf_kstate_kill	 kill;
-
-		error = pf_state_kill_to_kstate_kill(psk, &kill);
-		if (error)
-			break;
-
-		psk->psk_killed = 0;
-		pf_killstates(&kill, &psk->psk_killed);
 		break;
 	}
 
