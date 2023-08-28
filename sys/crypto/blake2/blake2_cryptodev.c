@@ -29,11 +29,9 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 #include <sys/smp.h>
 
 #include <blake2.h>
@@ -49,9 +47,7 @@ struct blake2_session {
 CTASSERT((size_t)BLAKE2B_KEYBYTES > (size_t)BLAKE2S_KEYBYTES);
 
 struct blake2_softc {
-	bool	dying;
 	int32_t cid;
-	struct rwlock lock;
 };
 
 static int blake2_cipher_setup(struct blake2_session *ses,
@@ -84,7 +80,6 @@ blake2_attach(device_t dev)
 	struct blake2_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->dying = false;
 
 	sc->cid = crypto_get_driverid(dev, sizeof(struct blake2_session),
 	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC |
@@ -93,8 +88,6 @@ blake2_attach(device_t dev)
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
 	}
-
-	rw_init(&sc->lock, "blake2_lock");
 
 	return (0);
 }
@@ -106,12 +99,7 @@ blake2_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	rw_wlock(&sc->lock);
-	sc->dying = true;
-	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
-
-	rw_destroy(&sc->lock);
 
 	return (0);
 }
@@ -142,20 +130,10 @@ static int
 blake2_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
-	struct blake2_softc *sc;
 	struct blake2_session *ses;
 	int error;
 
-	sc = device_get_softc(dev);
-
 	ses = crypto_get_driver_session(cses);
-
-	rw_rlock(&sc->lock);
-	if (sc->dying) {
-		rw_runlock(&sc->lock);
-		return (EINVAL);
-	}
-	rw_runlock(&sc->lock);
 
 	error = blake2_cipher_setup(ses, csp);
 	if (error != 0) {
