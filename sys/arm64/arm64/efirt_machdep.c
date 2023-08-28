@@ -46,10 +46,7 @@
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 
-#include <machine/metadata.h>
-#include <machine/pcb.h>
 #include <machine/pte.h>
-#include <machine/vfp.h>
 #include <machine/vmparam.h>
 
 #include <vm/vm.h>
