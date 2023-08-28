@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230828
+MOVED_LIBS+=usr/lib/librt.so.1
+
 # 20230826:
 OLD_FILES+=usr/share/man/man9/knlist_remove_inevent.9.gz
 
