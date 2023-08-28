@@ -45,11 +45,8 @@
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 #include <isa/rtc.h>
-#include <machine/fpu.h>
 #include <machine/efi.h>
-#include <machine/metadata.h>
 #include <machine/md_var.h>
-#include <machine/smp.h>
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
