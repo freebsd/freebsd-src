@@ -3,7 +3,7 @@
 
 PACKAGE=clibs
 LIB=rt
-SHLIBDIR=/lib
+SHLIBDIR?=/lib
 SHLIB_MAJOR= 1
 CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}
 .ifndef NO_THREAD_STACK_UNWIND
