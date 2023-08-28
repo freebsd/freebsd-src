@@ -92,6 +92,64 @@ setkey_cleanup()
 	geli_test_cleanup
 }
 
+atf_test_case setkey_passphrase cleanup
+setkey_passphrase_head()
+{
+	atf_set "descr" "geli setkey can change the passphrase for a provider"
+	atf_set "require.user" "root"
+}
+setkey_passphrase_body()
+{
+	geli_test_setup
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+
+	atf_check dd if=/dev/random of=rnd bs=512 count=${sectors} status=none
+	hash1=`dd if=rnd bs=512 count=${sectors} status=none | md5`
+	atf_check_equal 0 $?
+	atf_check dd if=/dev/random of=pass1 bs=512 count=32 status=none
+	atf_check dd if=/dev/random of=pass2 bs=512 count=32 status=none
+	atf_check dd if=/dev/random of=pass3 bs=512 count=32 status=none
+
+	atf_check geli init -B none -J pass1 ${md}
+	atf_check geli attach -j pass1 ${md}
+
+	atf_check \
+		dd if=rnd of=/dev/${md}.eli bs=512 count=${sectors} status=none
+	hash2=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
+
+	atf_check geli detach ${md}
+
+	# Change from passphrase 1 to passphrase 2 for the detached provider.
+	atf_check -s exit:0 -o ignore geli setkey -j pass1 -J pass2 ${md}
+
+	# Make sure that we can attach with passphrase 2 but not with
+	# passphrase 1.
+	atf_check -s not-exit:0 -e match:"Wrong key" \
+		geli attach -j pass1 ${md}
+	atf_check -s exit:0 geli attach -j pass2 ${md}
+	hash3=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+
+	# Change from passphrase 2 to passphrase 3 for the attached provider.
+	atf_check -s exit:0 -o ignore geli setkey -j pass2 -J pass3 ${md}
+	hash4=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check geli detach ${md}
+
+        # Make sure that we cannot attach with passphrase 2 anymore.
+	atf_check -s not-exit:0 -e match:"Wrong key" \
+		geli attach -j pass2 ${md}
+
+	atf_check_equal ${hash1} ${hash2}
+	atf_check_equal ${hash1} ${hash3}
+	atf_check_equal ${hash1} ${hash4}
+}
+setkey_passphrase_cleanup()
+{
+	geli_test_cleanup
+}
+
 atf_test_case setkey_readonly cleanup
 setkey_readonly_head()
 {
@@ -157,6 +215,7 @@ nokey_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case setkey
+	atf_add_test_case setkey_passphrase
 	atf_add_test_case setkey_readonly
 	atf_add_test_case nokey
 }
