@@ -5216,7 +5216,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	} else
 		critical_exit(); /* pp == NULL */
 
-
+out:
 	/*
 	 * If the process owned PMCs, free them up and free up
 	 * memory.
