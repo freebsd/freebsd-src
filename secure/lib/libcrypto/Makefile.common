@@ -7,12 +7,14 @@ CFLAGS+=	-DL_ENDIAN
 CFLAGS+=	-DB_ENDIAN
 .endif
 
+.ifndef WITHOUT_AUTO_ASM
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386"
 ASM_${MACHINE_CPUARCH}=
 .elif ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64" || \
     ${MACHINE_ARCH} == "powerpc64le"
 ASM_${MACHINE_ARCH}=
+.endif
 .endif
 
 .if defined(ASM_${MACHINE_CPUARCH}) || defined(ASM_${MACHINE_ARCH})
