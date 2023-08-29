@@ -976,8 +976,7 @@ acpi_wmi_wmistat_read(struct cdev *dev, struct uio *buf, int flag)
 	sc = dev->si_drv1;
 
 	ACPI_SERIAL_BEGIN(acpi_wmi);
-	if (sc->wmistat_open_pid != buf->uio_td->td_proc->p_pid ||
-			sc->wmistat_bufptr == -1) {
+	if (sc->wmistat_bufptr == -1) {
 		ret = EBADF;
 	}
 	else {
