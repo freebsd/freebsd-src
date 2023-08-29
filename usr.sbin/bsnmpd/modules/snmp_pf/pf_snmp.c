@@ -54,7 +54,7 @@ static int dev = -1;
 static int started;
 static uint64_t pf_tick;
 
-static struct pf_status pfs;
+static struct pfctl_status *pfs;
 
 enum { IN, OUT };
 enum { IPV4, IPV6 };
@@ -166,18 +166,18 @@ pf_status(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 		switch (which) {
 			case LEAF_pfStatusRunning:
-			    val->v.uint32 = pfs.running;
+			    val->v.uint32 = pfs->running;
 			    break;
 			case LEAF_pfStatusRuntime:
-			    runtime = (pfs.since > 0) ?
-				time(NULL) - pfs.since : 0;
+			    runtime = (pfs->since > 0) ?
+				time(NULL) - pfs->since : 0;
 			    val->v.uint32 = runtime * 100;
 			    break;
 			case LEAF_pfStatusDebug:
-			    val->v.uint32 = pfs.debug;
+			    val->v.uint32 = pfs->debug;
 			    break;
 			case LEAF_pfStatusHostId:
-			    sprintf(str, "0x%08x", ntohl(pfs.hostid));
+			    sprintf(str, "0x%08x", ntohl(pfs->hostid));
 			    return (string_get(val, str, strlen(str)));
 
 			default:
@@ -205,22 +205,22 @@ pf_counter(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 		switch (which) {
 			case LEAF_pfCounterMatch:
-				val->v.counter64 = pfs.counters[PFRES_MATCH];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_MATCH);
 				break;
 			case LEAF_pfCounterBadOffset:
-				val->v.counter64 = pfs.counters[PFRES_BADOFF];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_BADOFF);
 				break;
 			case LEAF_pfCounterFragment:
-				val->v.counter64 = pfs.counters[PFRES_FRAG];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_FRAG);
 				break;
 			case LEAF_pfCounterShort:
-				val->v.counter64 = pfs.counters[PFRES_SHORT];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_SHORT);
 				break;
 			case LEAF_pfCounterNormalize:
-				val->v.counter64 = pfs.counters[PFRES_NORM];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_NORM);
 				break;
 			case LEAF_pfCounterMemDrop:
-				val->v.counter64 = pfs.counters[PFRES_MEMORY];
+				val->v.counter64 = pfctl_status_counter(pfs, PFRES_MEMORY);
 				break;
 
 			default:
@@ -248,19 +248,19 @@ pf_statetable(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 		switch (which) {
 			case LEAF_pfStateTableCount:
-				val->v.uint32 = pfs.states;
+				val->v.uint32 = pfs->states;
 				break;
 			case LEAF_pfStateTableSearches:
 				val->v.counter64 =
-				    pfs.fcounters[FCNT_STATE_SEARCH];
+				    pfctl_status_fcounter(pfs, FCNT_STATE_SEARCH);
 				break;
 			case LEAF_pfStateTableInserts:
 				val->v.counter64 =
-				    pfs.fcounters[FCNT_STATE_INSERT];
+				    pfctl_status_fcounter(pfs, FCNT_STATE_INSERT);
 				break;
 			case LEAF_pfStateTableRemovals:
 				val->v.counter64 =
-				    pfs.fcounters[FCNT_STATE_REMOVALS];
+				    pfctl_status_fcounter(pfs, FCNT_STATE_REMOVALS);
 				break;
 
 			default:
@@ -288,19 +288,19 @@ pf_srcnodes(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 		switch (which) {
 			case LEAF_pfSrcNodesCount:
-				val->v.uint32 = pfs.src_nodes;
+				val->v.uint32 = pfs->src_nodes;
 				break;
 			case LEAF_pfSrcNodesSearches:
 				val->v.counter64 =
-				    pfs.scounters[SCNT_SRC_NODE_SEARCH];
+				    pfctl_status_scounter(pfs, SCNT_SRC_NODE_SEARCH);
 				break;
 			case LEAF_pfSrcNodesInserts:
 				val->v.counter64 =
-				    pfs.scounters[SCNT_SRC_NODE_INSERT];
+				    pfctl_status_scounter(pfs, SCNT_SRC_NODE_INSERT);
 				break;
 			case LEAF_pfSrcNodesRemovals:
 				val->v.counter64 =
-				    pfs.scounters[SCNT_SRC_NODE_REMOVALS];
+				    pfctl_status_scounter(pfs, SCNT_SRC_NODE_REMOVALS);
 				break;
 
 			default:
@@ -461,51 +461,51 @@ pf_logif(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 		switch (which) {
 	 		case LEAF_pfLogInterfaceName:
-				strlcpy(str, pfs.ifname, sizeof str);
+				strlcpy(str, pfs->ifname, sizeof str);
 				return (string_get(val, str, strlen(str)));
 			case LEAF_pfLogInterfaceIp4BytesIn:
-				val->v.counter64 = pfs.bcounters[IPV4][IN];
+				val->v.counter64 = pfs->bcounters[IPV4][IN];
 				break;
 			case LEAF_pfLogInterfaceIp4BytesOut:
-				val->v.counter64 = pfs.bcounters[IPV4][OUT];
+				val->v.counter64 = pfs->bcounters[IPV4][OUT];
 				break;
 			case LEAF_pfLogInterfaceIp4PktsInPass:
 				val->v.counter64 =
-				    pfs.pcounters[IPV4][IN][PF_PASS];
+				    pfs->pcounters[IPV4][IN][PF_PASS];
 				break;
 			case LEAF_pfLogInterfaceIp4PktsInDrop:
 				val->v.counter64 =
-				    pfs.pcounters[IPV4][IN][PF_DROP];
+				    pfs->pcounters[IPV4][IN][PF_DROP];
 				break;
 			case LEAF_pfLogInterfaceIp4PktsOutPass:
 				val->v.counter64 =
-				    pfs.pcounters[IPV4][OUT][PF_PASS];
+				    pfs->pcounters[IPV4][OUT][PF_PASS];
 				break;
 			case LEAF_pfLogInterfaceIp4PktsOutDrop:
 				val->v.counter64 =
-				    pfs.pcounters[IPV4][OUT][PF_DROP];
+				    pfs->pcounters[IPV4][OUT][PF_DROP];
 				break;
 			case LEAF_pfLogInterfaceIp6BytesIn:
-				val->v.counter64 = pfs.bcounters[IPV6][IN];
+				val->v.counter64 = pfs->bcounters[IPV6][IN];
 				break;
 			case LEAF_pfLogInterfaceIp6BytesOut:
-				val->v.counter64 = pfs.bcounters[IPV6][OUT];
+				val->v.counter64 = pfs->bcounters[IPV6][OUT];
 				break;
 			case LEAF_pfLogInterfaceIp6PktsInPass:
 				val->v.counter64 =
-				    pfs.pcounters[IPV6][IN][PF_PASS];
+				    pfs->pcounters[IPV6][IN][PF_PASS];
 				break;
 			case LEAF_pfLogInterfaceIp6PktsInDrop:
 				val->v.counter64 =
-				    pfs.pcounters[IPV6][IN][PF_DROP];
+				    pfs->pcounters[IPV6][IN][PF_DROP];
 				break;
 			case LEAF_pfLogInterfaceIp6PktsOutPass:
 				val->v.counter64 =
-				    pfs.pcounters[IPV6][OUT][PF_PASS];
+				    pfs->pcounters[IPV6][OUT][PF_PASS];
 				break;
 			case LEAF_pfLogInterfaceIp6PktsOutDrop:
 				val->v.counter64 =
-				    pfs.pcounters[IPV6][OUT][PF_DROP];
+				    pfs->pcounters[IPV6][OUT][PF_DROP];
 				break;
 
 			default:
@@ -1286,9 +1286,10 @@ pfs_refresh(void)
 	if (started && this_tick <= pf_tick)
 		return (0);
 
-	bzero(&pfs, sizeof(struct pf_status));
+	pfctl_free_status(pfs);
+	pfs = pfctl_get_status(dev);
 
-	if (ioctl(dev, DIOCGETSTATUS, &pfs)) {
+	if (pfs == NULL) {
 		syslog(LOG_ERR, "pfs_refresh(): ioctl(): %s",
 		    strerror(errno));
 		return (-1);
@@ -1754,6 +1755,9 @@ pf_fini(void)
 		free(l1);
 		l1 = l2;
 	}
+
+	pfctl_free_status(pfs);
+	pfs = NULL;
 
 	close(dev);
 	return (0);
