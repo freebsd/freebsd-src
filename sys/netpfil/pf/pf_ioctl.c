@@ -2463,14 +2463,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	if (securelevel_gt(td->td_ucred, 2))
 		switch (cmd) {
 		case DIOCGETRULES:
-		case DIOCGETRULE:
 		case DIOCGETRULENV:
 		case DIOCGETADDRS:
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
 		case DIOCGETSTATENV:
 		case DIOCSETSTATUSIF:
-		case DIOCGETSTATUS:
 		case DIOCGETSTATUSNV:
 		case DIOCCLRSTATUS:
 		case DIOCNATLOOK:
@@ -2532,7 +2530,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
 		case DIOCGETSTATENV:
-		case DIOCGETSTATUS:
 		case DIOCGETSTATUSNV:
 		case DIOCGETSTATES:
 		case DIOCGETSTATESV2:
@@ -2579,11 +2576,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				break; /* dummy operation ok */
 			}
 			return (EACCES);
-		case DIOCGETRULE:
-			if (((struct pfioc_rule *)addr)->action ==
-			    PF_GET_CLR_CNTR)
-				return (EACCES);
-			break;
 		default:
 			return (EACCES);
 		}
@@ -3228,63 +3220,6 @@ DIOCADDRULENV_error:
 		break;
 	}
 
-	case DIOCGETRULE: {
-		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
-		struct pf_kruleset	*ruleset;
-		struct pf_krule		*rule;
-		int			 rs_num;
-
-		pr->anchor[sizeof(pr->anchor) - 1] = 0;
-
-		PF_RULES_WLOCK();
-		ruleset = pf_find_kruleset(pr->anchor);
-		if (ruleset == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		rs_num = pf_get_ruleset_number(pr->rule.action);
-		if (rs_num >= PF_RULESET_MAX) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		if (pr->ticket != ruleset->rules[rs_num].active.ticket) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-		rule = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
-		while ((rule != NULL) && (rule->nr != pr->nr))
-			rule = TAILQ_NEXT(rule, entries);
-		if (rule == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-
-		pf_krule_to_rule(rule, &pr->rule);
-
-		if (pf_kanchor_copyout(ruleset, rule, pr)) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-		pf_addr_copyout(&pr->rule.src.addr);
-		pf_addr_copyout(&pr->rule.dst.addr);
-
-		if (pr->action == PF_GET_CLR_CNTR) {
-			pf_counter_u64_zero(&rule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				pf_counter_u64_zero(&rule->packets[i]);
-				pf_counter_u64_zero(&rule->bytes[i]);
-			}
-			counter_u64_zero(rule->states_tot);
-		}
-		PF_RULES_WUNLOCK();
-		break;
-	}
-
 	case DIOCGETRULENV: {
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvrule = NULL;
@@ -3868,39 +3803,6 @@ DIOCGETSTATESV2_full:
 		ps->ps_len = nr * sizeof(struct pf_state_export);
 		free(pstore, M_TEMP);
 
-		break;
-	}
-
-	case DIOCGETSTATUS: {
-		struct pf_status *s = (struct pf_status *)addr;
-
-		PF_RULES_RLOCK();
-		s->running = V_pf_status.running;
-		s->since   = V_pf_status.since;
-		s->debug   = V_pf_status.debug;
-		s->hostid  = V_pf_status.hostid;
-		s->states  = V_pf_status.states;
-		s->src_nodes = V_pf_status.src_nodes;
-
-		for (int i = 0; i < PFRES_MAX; i++)
-			s->counters[i] =
-			    counter_u64_fetch(V_pf_status.counters[i]);
-		for (int i = 0; i < LCNT_MAX; i++)
-			s->lcounters[i] =
-			    counter_u64_fetch(V_pf_status.lcounters[i]);
-		for (int i = 0; i < FCNT_MAX; i++)
-			s->fcounters[i] =
-			    pf_counter_u64_fetch(&V_pf_status.fcounters[i]);
-		for (int i = 0; i < SCNT_MAX; i++)
-			s->scounters[i] =
-			    counter_u64_fetch(V_pf_status.scounters[i]);
-
-		bcopy(V_pf_status.ifname, s->ifname, IFNAMSIZ);
-		bcopy(V_pf_status.pf_chksum, s->pf_chksum,
-		    PF_MD5_DIGEST_LENGTH);
-
-		pfi_update_status(s->ifname, s);
-		PF_RULES_RUNLOCK();
 		break;
 	}
 
