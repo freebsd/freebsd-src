@@ -23,7 +23,7 @@ CLOUDWARE_TYPES?= BASIC-CI \
 		OCI \
 		VAGRANT
 AZURE_FORMAT=	vhdf
-AZURE_FSLIST=	ufs
+AZURE_FSLIST=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
 BASIC-CI_FORMAT=	raw
 BASIC-CI_FSLIST=	ufs
