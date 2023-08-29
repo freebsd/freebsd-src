@@ -594,8 +594,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 		break;
 	}
 
-	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
-
 	/* Do work */
 	if (csp->csp_mode == CSP_MODE_ETA) {
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
@@ -612,7 +610,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 	else
 		error = aesni_cipher_crypt(ses, crp, csp);
 
-	fpu_kern_leave(curthread, NULL);
 	return (error);
 }
 
@@ -676,6 +673,8 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		outbuf = buf;
 		outcopy = allocated;
 	}
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 
 	error = 0;
 	encflag = CRYPTO_OP_IS_ENCRYPT(crp->crp_op);
@@ -749,6 +748,9 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		}
 		break;
 	}
+
+	fpu_kern_leave(curthread, NULL);
+
 	if (outcopy && error == 0)
 		crypto_copyback(crp, CRYPTO_HAS_OUTPUT_BUFFER(crp) ?
 		    crp->crp_payload_output_start : crp->crp_payload_start,
@@ -783,6 +785,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 	else
 		key = csp->csp_auth_key;
 	keylen = csp->csp_auth_klen;
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 
 	if (ses->hmac) {
 		uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
@@ -848,6 +852,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 
 		ses->hash_finalize(res, &sctx);
 	}
+
+	fpu_kern_leave(curthread, NULL);
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
 		uint32_t res2[SHA2_256_HASH_LEN / sizeof(uint32_t)];
