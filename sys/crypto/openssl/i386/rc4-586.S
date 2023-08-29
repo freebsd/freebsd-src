@@ -6,6 +6,11 @@
 .align	16
 RC4:
 .L_RC4_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -272,6 +277,11 @@ RC4:
 .align	16
 RC4_set_key:
 .L_RC4_set_key_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -350,6 +360,11 @@ RC4_set_key:
 .align	16
 RC4_options:
 .L_RC4_options_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	call	.L018pic_point
 .L018pic_point:
 	popl	%eax
@@ -380,6 +395,23 @@ RC4_options:
 .align	64
 .size	RC4_options,.-.L_RC4_options_begin
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
 .globl	RC4
@@ -387,6 +419,11 @@ RC4_options:
 .align	16
 RC4:
 .L_RC4_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -650,6 +687,11 @@ RC4:
 .align	16
 RC4_set_key:
 .L_RC4_set_key_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -725,6 +767,11 @@ RC4_set_key:
 .align	16
 RC4_options:
 .L_RC4_options_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	call	.L016pic_point
 .L016pic_point:
 	popl	%eax
@@ -752,4 +799,21 @@ RC4_options:
 .align	64
 .size	RC4_options,.-.L_RC4_options_begin
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif
