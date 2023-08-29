@@ -38,7 +38,7 @@ azure-check-depends:
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y py38-azure-cli
+	env ASSUME_ALWAYS_YES=yes pkg install -y sysutils/py-azure-cli
 . else
 	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli BATCH=1 all install clean
 . endif
