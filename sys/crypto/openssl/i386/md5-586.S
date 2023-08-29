@@ -1,11 +1,16 @@
 /* Do not modify. This file is auto-generated from md5-586.pl. */
 #ifdef PIC
 .text
-.globl	md5_block_asm_data_order
-.type	md5_block_asm_data_order,@function
+.globl	ossl_md5_block_asm_data_order
+.type	ossl_md5_block_asm_data_order,@function
 .align	16
-md5_block_asm_data_order:
-.L_md5_block_asm_data_order_begin:
+ossl_md5_block_asm_data_order:
+.L_ossl_md5_block_asm_data_order_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%edi
@@ -677,14 +682,36 @@ md5_block_asm_data_order:
 	popl	%edi
 	popl	%esi
 	ret
-.size	md5_block_asm_data_order,.-.L_md5_block_asm_data_order_begin
+.size	ossl_md5_block_asm_data_order,.-.L_ossl_md5_block_asm_data_order_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
-.globl	md5_block_asm_data_order
-.type	md5_block_asm_data_order,@function
+.globl	ossl_md5_block_asm_data_order
+.type	ossl_md5_block_asm_data_order,@function
 .align	16
-md5_block_asm_data_order:
-.L_md5_block_asm_data_order_begin:
+ossl_md5_block_asm_data_order:
+.L_ossl_md5_block_asm_data_order_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%edi
@@ -1356,5 +1383,22 @@ md5_block_asm_data_order:
 	popl	%edi
 	popl	%esi
 	ret
-.size	md5_block_asm_data_order,.-.L_md5_block_asm_data_order_begin
+.size	ossl_md5_block_asm_data_order,.-.L_ossl_md5_block_asm_data_order_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif

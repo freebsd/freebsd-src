@@ -6,6 +6,11 @@
 .align	16
 fcrypt_body:
 .L_fcrypt_body_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -878,6 +883,23 @@ fcrypt_body:
 	popl	%ebp
 	ret
 .size	fcrypt_body,.-.L_fcrypt_body_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
 .globl	fcrypt_body
@@ -885,6 +907,11 @@ fcrypt_body:
 .align	16
 fcrypt_body:
 .L_fcrypt_body_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1753,4 +1780,21 @@ fcrypt_body:
 	popl	%ebp
 	ret
 .size	fcrypt_body,.-.L_fcrypt_body_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif

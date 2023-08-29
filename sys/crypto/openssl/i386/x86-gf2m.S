@@ -4,6 +4,11 @@
 .type	_mul_1x1_mmx,@function
 .align	16
 _mul_1x1_mmx:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -107,6 +112,11 @@ _mul_1x1_mmx:
 .type	_mul_1x1_ialu,@function
 .align	16
 _mul_1x1_ialu:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -241,6 +251,11 @@ _mul_1x1_ialu:
 .align	16
 bn_GF2m_mul_2x2:
 .L_bn_GF2m_mul_2x2_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	call	.L000PIC_me_up
 .L000PIC_me_up:
 	popl	%edx
@@ -345,11 +360,33 @@ bn_GF2m_mul_2x2:
 .byte	112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103
 .byte	62,0
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
 .type	_mul_1x1_mmx,@function
 .align	16
 _mul_1x1_mmx:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -453,6 +490,11 @@ _mul_1x1_mmx:
 .type	_mul_1x1_ialu,@function
 .align	16
 _mul_1x1_ialu:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -587,6 +629,11 @@ _mul_1x1_ialu:
 .align	16
 bn_GF2m_mul_2x2:
 .L_bn_GF2m_mul_2x2_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	leal	OPENSSL_ia32cap_P,%edx
 	movl	(%edx),%eax
 	movl	4(%edx),%edx
@@ -688,4 +735,21 @@ bn_GF2m_mul_2x2:
 .byte	112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103
 .byte	62,0
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif
