@@ -915,6 +915,8 @@ imf_purge(struct in_mfilter *imf)
 	imf->imf_st[0] = imf->imf_st[1] = MCAST_UNDEFINED;
 	KASSERT(RB_EMPTY(&imf->imf_sources),
 	    ("%s: imf_sources not empty", __func__));
+	if (imf->imf_inm != NULL)
+		mbufq_drain(&imf->imf_inm->inm_scq);
 }
 
 /*
