@@ -54,7 +54,7 @@
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd May 22, 2015
+.Dd August 29, 2023
 .Dt IOSTAT 8
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl CdhIKoTxz?\&
+.Op Fl CdhIKoTxz
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl n Ar devs
@@ -90,6 +90,13 @@ averaged over that time.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
+.It Fl C
+Display CPU statistics.
+This is on by default, unless
+.Fl d
+or
+.Fl x
+is specified.
 .It Fl c
 Repeat the display
 .Ar count
@@ -102,13 +109,6 @@ is specified.
 With
 .Fl w
 the default repeat count is infinity, otherwise it is 1.
-.It Fl C
-Display CPU statistics.
-This is on by default, unless
-.Fl d
-or
-.Fl x
-is specified.
 .It Fl d
 Display only device statistics.
 If this flag is turned on, only device statistics will be displayed, unless
@@ -136,6 +136,9 @@ then the device native block size.
 Extract values associated with the name list from the specified core
 instead of the default
 .Dq Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default
+.Dq Pa /boot/kernel/kernel .
 .It Fl n
 Display up to
 .Ar devs
@@ -145,9 +148,6 @@ The
 utility will display fewer devices if there are not
 .Ar devs
 devices present.
-.It Fl N
-Extract the name list from the specified system instead of the default
-.Dq Pa /boot/kernel/kernel .
 .It Fl o
 Display old-style
 .Nm
@@ -158,6 +158,13 @@ If
 .Fl I
 is specified, total blocks/sectors, total transfers, and
 milliseconds per seek are displayed.
+.It Fl T
+Display TTY statistics.
+This is on by default, unless
+.Fl d
+or
+.Fl x
+is specified.
 .It Fl t
 Specify which types of devices to display.
 There are three different categories of devices:
@@ -228,13 +235,6 @@ argument will be included in the
 .Nm
 output, up to the number of devices that can be displayed in
 80 columns, or the maximum number of devices specified by the user.
-.It Fl T
-Display TTY statistics.
-This is on by default, unless
-.Fl d
-or
-.Fl x
-is specified.
 .It Fl w
 Pause
 .Ar wait
@@ -267,8 +267,6 @@ is also specified to enable the display of CPU or TTY statistics.
 If
 .Fl x
 is specified, omit lines for devices with no activity.
-.It Fl ?\&
-Display a usage statement and exit.
 .El
 .Pp
 The
