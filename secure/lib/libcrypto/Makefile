@@ -618,12 +618,12 @@ buildasm cleanasm:
 PICFLAG+=	-DOPENSSL_PIC
 
 .if defined(ASM_${MACHINE_CPUARCH})
-.PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)
 .PATH:	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
 .elif defined(ASM_${MACHINE_ARCH})
-.PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_ARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_ARCH}
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
