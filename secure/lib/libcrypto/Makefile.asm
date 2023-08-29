@@ -51,12 +51,12 @@ CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/} sha256-armv8.s
 
 sha256-armv8.S:	sha512-armv8.pl
 	env CC=cc perl ${.ALLSRC} linux64 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} linux64 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .elif defined(ASM_amd64)
@@ -192,7 +192,7 @@ aes-armv4.S:	aes-armv4.pl
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} linux32 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .elif defined(ASM_i386)
@@ -331,22 +331,22 @@ CLEANFILES=	${ASM}
 
 bn-ppc.S:	ppc.pl
 	env CC=cc perl ${.ALLSRC} linux32 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256-ppc.S:	sha512-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux32 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256p8-ppc.S:	sha512p8-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux32 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} linux32 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .elif defined(ASM_powerpc64)
@@ -398,22 +398,22 @@ CLEANFILES=	${ASM}
 
 bn-ppc.S:	ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64v2 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256-ppc.S:	sha512-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64v2 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256p8-ppc.S:	sha512p8-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64v2 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} linux64v2 ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .elif defined(ASM_powerpc64le)
@@ -465,22 +465,22 @@ CLEANFILES=	${ASM}
 
 bn-ppc.S:	ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64le ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256-ppc.S:	sha512-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64le ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 sha256p8-ppc.S:	sha512p8-ppc.pl
 	env CC=cc perl ${.ALLSRC} linux64le ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} linux64le ${.TARGET:R:S/$/.s/}
-	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	( echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .endif
