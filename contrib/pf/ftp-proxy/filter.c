@@ -169,7 +169,7 @@ do_rollback(void)
 void
 init_filter(const char *opt_qname, const char *opt_tagname, int opt_verbose)
 {
-	struct pf_status status;
+	struct pfctl_status *status;
 
 	qname = opt_qname;
 	tagname = opt_tagname;
@@ -182,10 +182,13 @@ init_filter(const char *opt_qname, const char *opt_tagname, int opt_verbose)
 	dev = open("/dev/pf", O_RDWR);	
 	if (dev == -1)
 		err(1, "open /dev/pf");
-	if (ioctl(dev, DIOCGETSTATUS, &status) == -1)
+	status = pfctl_get_status(dev);
+	if (status == NULL)
 		err(1, "DIOCGETSTATUS");
-	if (!status.running)
+	if (!status->running)
 		errx(1, "pf is disabled");
+
+	pfctl_free_status(status);
 }
 
 int
