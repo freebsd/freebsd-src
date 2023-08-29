@@ -6,6 +6,11 @@
 .align	16
 ripemd160_block_asm_data_order:
 .L_ripemd160_block_asm_data_order_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	pushl	%esi
@@ -1964,6 +1969,23 @@ ripemd160_block_asm_data_order:
 	popl	%esi
 	ret
 .size	ripemd160_block_asm_data_order,.-.L_ripemd160_block_asm_data_order_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
 .globl	ripemd160_block_asm_data_order
@@ -1971,6 +1993,11 @@ ripemd160_block_asm_data_order:
 .align	16
 ripemd160_block_asm_data_order:
 .L_ripemd160_block_asm_data_order_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	pushl	%esi
@@ -3929,4 +3956,21 @@ ripemd160_block_asm_data_order:
 	popl	%esi
 	ret
 .size	ripemd160_block_asm_data_order,.-.L_ripemd160_block_asm_data_order_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif
