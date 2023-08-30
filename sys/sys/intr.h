@@ -39,10 +39,10 @@
 
 typedef struct intr_irqsrc interrupt_t;
 
-extern interrupt_t *intrtab_lookup(u_int irq) __pure;
-
 #define	_intr2event(intr)	((intr)->isrc_event)
 #define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
+
+#include <sys/intrtab.h>
 
 /* FreeBSD standard interrupt controller interface */
 
@@ -85,6 +85,8 @@ typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
+#define INTR_ISRCF_NOIRQ	0x10	/* don't allocate interrupt # */
+#define INTR_ISRCF_IRQ		0x20	/* allocate an interrupt # */
 
 struct intr_pic;
 

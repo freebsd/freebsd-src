@@ -3,6 +3,7 @@
 ## Kernel
 ##
 
+kern/kern_intrtab.c				optional intrng
 kern/msi_if.m					optional intrng
 kern/pic_if.m					optional intrng
 kern/subr_devmap.c				standard

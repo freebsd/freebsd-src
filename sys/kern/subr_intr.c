@@ -51,6 +51,7 @@
 #include <sys/conf.h>
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -154,7 +155,10 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, u_int flags);
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc **irq_sources;
-static u_int irq_next_free;
+static u_int irq_next_free = INTR_IRQ_INVALID;
+
+static struct rman intr_mgr;
+static struct resource *intrng_res;
 
 #ifdef SMP
 #ifdef EARLY_AP_STARTUP
@@ -215,8 +219,21 @@ intr_irq_init(void *dummy __unused)
 	/* Allocate the bitmap tracking counter allocations. */
 	intrcnt_bitmap = bit_alloc(nintrcnt, M_INTRNG, M_WAITOK | M_ZERO);
 
-	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc*),
-	    M_INTRNG, M_WAITOK | M_ZERO);
+	intr_mgr.rm_start = 0;
+	intr_mgr.rm_end = intr_nirq;
+	intr_mgr.rm_type = RMAN_ARRAY;
+	intr_mgr.rm_descr = "INTRNG interrupt event manager";
+	if (rman_init(&intr_mgr) || rman_manage_region(&intr_mgr, 0, intr_nirq))
+		panic("%s(): failure initializing interrupt rman", __func__);
+
+	intrtab_setup(&intr_mgr);
+	intrtab_init();
+
+	intrng_res = rman_reserve_resource(&intr_mgr, intr_nirq, intr_nirq, 0,
+	    RF_ACTIVE | RF_UNMAPPED, NULL);
+	if (intrng_res == NULL)
+		panic("%s(): unable to initialize INTRNG interrupt region",
+		    __func__);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
 
@@ -409,18 +426,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 }
 
 /*
- *  Lookup an interrupt source by number.
- */
-interrupt_t *
-intrtab_lookup(u_int irq)
-{
-
-	if (irq >= intr_nirq)
-		return (NULL);
-	return (irq_sources[irq]);
-}
-
-/*
  *  Alloc unique interrupt number (resource handle) for interrupt source.
  *
  *  There could be various strategies how to allocate free interrupt number
@@ -433,28 +438,44 @@ intrtab_lookup(u_int irq)
 static inline int
 isrc_alloc_irq(struct intr_irqsrc *isrc)
 {
+	u_int limit = rman_get_start(intrng_res);
 	u_int irq;
+	int rc;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (irq_next_free >= intr_nirq)
+	if (irq_next_free < intr_nirq) {
+		for (irq = irq_next_free; irq < intr_nirq; irq++) {
+			if (intrtab_lookup(irq) == NULL)
+				goto found;
+		}
+		for (irq = limit; irq < irq_next_free; irq++) {
+			if (intrtab_lookup(irq) == NULL)
+				goto found;
+		}
+	}
+
+	if (limit <= 0) {
+		irq_next_free = intr_nirq;
 		return (ENOSPC);
+	} else if (limit >= 10)
+		limit -= 10;
+	else
+		limit = 0;
 
-	for (irq = irq_next_free; irq < intr_nirq; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
-	}
-	for (irq = 0; irq < irq_next_free; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
+	if (rman_adjust_resource(intrng_res, limit, intr_nirq) != 0) {
+		irq_next_free = intr_nirq;
+		return (ENOSPC);
 	}
 
-	irq_next_free = intr_nirq;
-	return (ENOSPC);
+	irq = limit;
+	irq_next_free = limit + 1;
 
 found:
 	isrc->isrc_irq = irq;
-	irq_sources[irq] = isrc;
+	rc = intrtab_set(intrng_res, irq, isrc, NULL);
+	if (rc != 0)
+		panic("Failed to modify interrupt table rc = %d", rc);
 
 	irq_next_free = irq + 1;
 	if (irq_next_free >= intr_nirq)
@@ -468,6 +489,7 @@ found:
 static inline int
 isrc_free_irq(struct intr_irqsrc *isrc)
 {
+	int rc;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
@@ -476,7 +498,9 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	if (irq_sources[isrc->isrc_irq] != isrc)
 		return (EINVAL);
 
-	irq_sources[isrc->isrc_irq] = NULL;
+	rc = intrtab_set(intrng_res, isrc->isrc_irq, NULL, isrc);
+	if (rc != 0)
+		panic("Failed to modify interrupt table rc = %d", rc);
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
@@ -486,7 +510,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	 * order.
 	 */
 	if (irq_next_free >= intr_nirq)
-		irq_next_free = 0;
+		irq_next_free = rman_get_start(intrng_res);
 
 	return (0);
 }
@@ -501,6 +525,16 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	int error;
 	va_list ap;
 
+	if (!(flags & (INTR_ISRCF_NOIRQ | INTR_ISRCF_IRQ))) {
+#ifdef notyet
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+		printf("WARNING: %s() called without specifying interrupt "
+		    "approach\n", __func__);
+#endif
+#endif
+		flags |= INTR_ISRCF_IRQ;
+	}
+
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
@@ -511,10 +545,12 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	va_end(ap);
 
 	mtx_lock(&isrc_table_lock);
-	error = isrc_alloc_irq(isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		return (error);
+	if (flags & INTR_ISRCF_IRQ) {
+		error = isrc_alloc_irq(isrc);
+		if (error != 0) {
+			mtx_unlock(&isrc_table_lock);
+			return (error);
+		}
 	}
 	/*
 	 * Setup interrupt counters, but not for IPI sources. Those are setup
@@ -533,12 +569,15 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 int
 intr_isrc_deregister(struct intr_irqsrc *isrc)
 {
-	int error;
+	int error = 0;
 
 	mtx_lock(&isrc_table_lock);
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
+	if (isrc->isrc_irq >= rman_get_start(intrng_res) &&
+	    isrc->isrc_irq <= rman_get_end(intrng_res)) {
+		error = isrc_free_irq(isrc);
+	}
 	mtx_unlock(&isrc_table_lock);
 	return (error);
 }
@@ -1285,7 +1324,7 @@ intr_irq_shuffle(void *arg __unused)
 	mtx_lock(&isrc_table_lock);
 	irq_assign_cpu = true;
 	for (i = 0; i < intr_nirq; i++) {
-		isrc = irq_sources[i];
+		isrc = intrtab_lookup(i);
 		if (isrc == NULL || isrc->isrc_handlers == 0 ||
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
@@ -1585,7 +1624,7 @@ DB_SHOW_COMMAND_FLAGS(irqs, db_show_irqs, DB_CMD_MEMSAFE)
 	struct intr_irqsrc *isrc;
 
 	for (irqsum = 0, i = 0; i < intr_nirq; i++) {
-		isrc = irq_sources[i];
+		isrc = intrtab_lookup(i);
 		if (isrc == NULL)
 			continue;
 
