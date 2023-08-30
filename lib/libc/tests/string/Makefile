@@ -2,6 +2,7 @@
 # ensure libc functions are tested, not clang's builtins
 CFLAGS+=	-fno-builtin
 
+ATF_TESTS_C+=		bcmp_test
 ATF_TESTS_C+=		ffs_test
 ATF_TESTS_C+=		ffsl_test
 ATF_TESTS_C+=		ffsll_test
@@ -16,6 +17,8 @@ ATF_TESTS_C+=		strerror2_test
 ATF_TESTS_C+=		strspn_test
 ATF_TESTS_C+=		strverscmp_test
 ATF_TESTS_C+=		strxfrm_test
+ATF_TESTS_C+=		timingsafe_bcmp_test
+ATF_TESTS_C+=		timingsafe_memcmp_test
 ATF_TESTS_C+=		wcscasecmp_test
 ATF_TESTS_C+=		wcscoll_test
 ATF_TESTS_C+=		wcsnlen_test
