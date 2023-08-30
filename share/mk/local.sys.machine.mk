@@ -1,5 +1,5 @@
 
-.-include <local.sys.machine.mk>
+.-include <site.sys.machine.mk>
 
 PSEUDO_MACHINE_LIST?= common host
 TARGET_MACHINE_LIST?= amd64 arm arm64 i386 powerpc riscv
