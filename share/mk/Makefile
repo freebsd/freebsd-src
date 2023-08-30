@@ -60,8 +60,11 @@ FILES=	\
 	bsd.test.mk \
 	dirdeps.mk \
 	dirdeps-options.mk \
+	dirdeps-targets.mk \
 	gendirdeps.mk \
+	host-target.mk \
 	install-new.mk \
+	jobs.mk \
 	meta.autodep.mk \
 	meta.stage.mk \
 	meta.subdir.mk \
@@ -70,6 +73,7 @@ FILES=	\
 	stage-install.sh \
 	sys.mk \
 	sys.dependfile.mk \
+	sys.dirdeps.mk \
 	version_gen.awk
 
 FILESDIR=	${BINDIR}/mk
