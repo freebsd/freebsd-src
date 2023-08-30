@@ -443,8 +443,11 @@ ether_set_pcp(struct mbuf **mp, struct ifnet *ifp, uint8_t pcp)
 	struct ether_header *eh;
 
 	eh = mtod(*mp, struct ether_header *);
-	if (ntohs(eh->ether_type) == ETHERTYPE_VLAN ||
-	    ether_8021q_frame(mp, ifp, ifp, 0, pcp))
+	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+		(*mp)->m_flags &= ~M_VLANTAG;
+		return (true);
+	}
+	if (ether_8021q_frame(mp, ifp, ifp, 0, pcp))
 		return (true);
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (false);
@@ -1373,6 +1376,7 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 			if_printf(ife, "unable to prepend 802.1Q header");
 			return (false);
 		}
+		(*mp)->m_flags &= ~M_VLANTAG;
 	}
 	return (true);
 }
