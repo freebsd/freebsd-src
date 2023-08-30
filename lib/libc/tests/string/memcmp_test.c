@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2016 Jilles Tjoelker <jilles@FreeBSD.org>
+ * Copyright (c) 2023 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert Clausecker
+ * <fuz@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,14 +36,40 @@
 
 #include <atf-c.h>
 
+#ifndef MEMCMP
+#define MEMCMP memcmp
+#endif
+
+/*
+ * On FreeBSD we demand that memcmp returns the difference between the
+ * characters at the first site of mismatch.  However, ISO/IEC 9899:1990
+ * only specifies that a number greater than, equal to, or less than
+ * zero shall be returned.  If a unit test for this less strict
+ * behaviour is desired, define RES(x) to be (((x) > 0) - ((x) < 0)).
+ */
+#ifndef RES
+#define RES(x) (x)
+#endif
+
 static int (*memcmp_fn)(const void *, const void *, size_t);
+
+static void
+check_memcmp(const char *a, const char *b, size_t len, int expected)
+{
+	int got;
+
+	got = memcmp_fn(a, b, len);
+	ATF_CHECK_EQ_MSG(RES(expected), RES(got),
+	    "%s(%p, %p, %zu) gave %d, but wanted %d",
+	    __XSTRING(MEMCMP), a, b, len, got, expected);
+}
 
 ATF_TC_WITHOUT_HEAD(zero);
 ATF_TC_BODY(zero, tc)
 {
 
-	assert(memcmp_fn("a", "b", 0) == 0);
-	assert(memcmp_fn("", "", 0) == 0);
+	check_memcmp("a", "b", 0, 0);
+	check_memcmp("", "", 0, 0);
 }
 
 ATF_TC_WITHOUT_HEAD(eq);
@@ -51,9 +81,9 @@ ATF_TC_BODY(eq, tc)
 	for (i = 0; i < 256; i++)
 		data1[i] = data2[i] = i ^ 0x55;
 	for (i = 1; i < 256; i++)
-		assert(memcmp_fn(data1, data2, i) == 0);
+		check_memcmp(data1, data2, i, 0);
 	for (i = 1; i < 256; i++)
-		assert(memcmp_fn(data1 + i, data2 + i, 256 - i) == 0);
+		check_memcmp(data1 + i, data2 + i, 256 - i, 0);
 }
 
 ATF_TC_WITHOUT_HEAD(neq);
@@ -67,9 +97,9 @@ ATF_TC_BODY(neq, tc)
 		data2[i] = i ^ 0x55;
 	}
 	for (i = 1; i < 256; i++)
-		assert(memcmp_fn(data1, data2, i) != 0);
+		check_memcmp(data1, data2, i, -0x55);
 	for (i = 1; i < 256; i++)
-		assert(memcmp_fn(data1 + i, data2 + i, 256 - i) != 0);
+		check_memcmp(data1 + i, data2 + i, 256 - i, i - (i ^ 0x55));
 }
 
 ATF_TC_WITHOUT_HEAD(diff);
@@ -83,32 +113,32 @@ ATF_TC_BODY(diff, tc)
 	data1[128] = 255;
 	data2[128] = 0;
 	for (i = 1; i < 66; i++) {
-		assert(memcmp_fn(data1 + 128, data2 + 128, i) == 255);
-		assert(memcmp_fn(data2 + 128, data1 + 128, i) == -255);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i) == 255);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i) == -255);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i * 2) == 255);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i * 2) == -255);
+		check_memcmp(data1 + 128, data2 + 128, i, 255);
+		check_memcmp(data2 + 128, data1 + 128, i, -255);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i, 255);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i, -255);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i * 2, 255);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i * 2, -255);
 	}
 	data1[128] = 'c';
 	data2[128] = 'e';
 	for (i = 1; i < 66; i++) {
-		assert(memcmp_fn(data1 + 128, data2 + 128, i) == -2);
-		assert(memcmp_fn(data2 + 128, data1 + 128, i) == 2);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i) == -2);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i) == 2);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i * 2) == -2);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i * 2) == 2);
+		check_memcmp(data1 + 128, data2 + 128, i, -2);
+		check_memcmp(data2 + 128, data1 + 128, i, 2);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i, -2);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i, 2);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i * 2, -2);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i * 2, 2);
 	}
 	memset(data1 + 129, 'A', sizeof(data1) - 129);
 	memset(data2 + 129, 'Z', sizeof(data2) - 129);
 	for (i = 1; i < 66; i++) {
-		assert(memcmp_fn(data1 + 128, data2 + 128, i) == -2);
-		assert(memcmp_fn(data2 + 128, data1 + 128, i) == 2);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i) == -2);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i) == 2);
-		assert(memcmp_fn(data1 + 129 - i, data2 + 129 - i, i * 2) == -2);
-		assert(memcmp_fn(data2 + 129 - i, data1 + 129 - i, i * 2) == 2);
+		check_memcmp(data1 + 128, data2 + 128, i, -2);
+		check_memcmp(data2 + 128, data1 + 128, i, 2);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i, -2);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i, 2);
+		check_memcmp(data1 + 129 - i, data2 + 129 - i, i * 2, -2);
+		check_memcmp(data2 + 129 - i, data1 + 129 - i, i * 2, 2);
 	}
 }
 
@@ -117,9 +147,9 @@ ATF_TP_ADD_TCS(tp)
 	void *dl_handle;
 
 	dl_handle = dlopen(NULL, RTLD_LAZY);
-	memcmp_fn = dlsym(dl_handle, "test_memcmp");
+	memcmp_fn = dlsym(dl_handle, "test_" __XSTRING(MEMCMP));
 	if (memcmp_fn == NULL)
-		memcmp_fn = memcmp;
+		memcmp_fn = MEMCMP;
 
 	ATF_TP_ADD_TC(tp, zero);
 	ATF_TP_ADD_TC(tp, eq);
