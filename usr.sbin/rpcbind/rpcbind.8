@@ -1,7 +1,7 @@
 .\" @(#)rpcbind.1m 1.19 92/09/14 SMI; from SVr4
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
-.Dd April 19, 2017
+.Dd August 31, 2023
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -9,7 +9,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl 6adiLlswW
+.Op Fl 6adiLlNswW
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
@@ -122,6 +122,11 @@ Without this flag, local connections are only allowed over a local socket,
 .Pa /var/run/rpcbind.sock .
 .It Fl l
 Turn on libwrap connection logging.
+.It Fl N
+Run in foreground mode.
+In this mode,
+.Nm
+will not fork when it starts.
 .It Fl s
 Cause
 .Nm
