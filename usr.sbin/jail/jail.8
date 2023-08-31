@@ -23,32 +23,45 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 12, 2023
+.Dd August 26, 2023
 .Dt JAIL 8
 .Os
 .Sh NAME
 .Nm jail
 .Nd "manage system jails"
 .Sh SYNOPSIS
+.Ss From Configuration File
 .Nm
+.Op Fl cm
+.Op Fl dqv
+.Op Fl f Ar conf_file
+.Op Fl p Ar limit
+.Op Ar jail
+.Nm
+.Op Fl r
+.Op Fl qv
+.Op Fl f Ar conf_file
+.Op Fl p Ar limit
+.Op Cm * | Ar jail ...
+.Ss Without Configuration File
+.Nm
+.Op Fl cm
 .Op Fl dhilqv
 .Op Fl J Ar jid_file
 .Op Fl u Ar username
 .Op Fl U Ar username
-.Op Fl cmr
 .Ar param Ns = Ns Ar value ...
 .Op Cm command Ns = Ns Ar command ...
 .Nm
-.Op Fl dqv
-.Op Fl f Ar conf_file
-.Op Fl p Ar limit
-.Op Fl cmr
-.Op Ar jail
-.Nm
-.Op Fl qv
-.Op Fl f Ar conf_file
 .Op Fl rR
+.Op Fl qv
 .Op Cm * | Ar jail ...
+.Ss Show Parameters
+.Nm
+.Op Fl f Ar conf_file
+.Fl e
+.Ar separator
+.Ss Backward Compatibility
 .Nm
 .Op Fl dhilqv
 .Op Fl J Ar jid_file
@@ -58,10 +71,6 @@
 .Op Fl s Ar securelevel
 .Ar path hostname ip Ns Op Cm \&, Ns Ar ...
 .Ar command ...
-.Nm
-.Op Fl f Ar conf_file
-.Fl e
-.Ar separator
 .Sh DESCRIPTION
 The
 .Nm
@@ -238,10 +247,10 @@ would apply to jails with names like
 and
 .Dq foo.bar.baz .
 .Pp
-A jail may be specified with parameters directly on the command line.
-In this case, the
-.Xr jail.conf 5
-file will not be used.
+A jail may also be specified via parameters directly on the command line in
+.Dq name=value
+form, ignoring the contents of
+.Xr jail.conf 5 .
 For backward compatibility, the command line may also have four fixed
 parameters, without names:
 .Ar path ,
@@ -249,11 +258,6 @@ parameters, without names:
 .Ar ip ,
 and
 .Ar command .
-This mode will always create a new jail, and the
-.Fl c
-and
-.Fl m
-options do not apply (and must not be present).
 .Ss Jail Parameters
 Parameters in the
 .Xr jail.conf 5
