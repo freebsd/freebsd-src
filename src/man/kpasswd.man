@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KPASSWD" "1" " " "1.21.1" "MIT Kerberos"
+.TH "KPASSWD" "1" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kpasswd \- change a user's Kerberos password
 .

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KINIT" "1" " " "1.21.1" "MIT Kerberos"
+.TH "KINIT" "1" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kinit \- obtain and cache Kerberos ticket-granting ticket
 .

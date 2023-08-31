@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KPROPLOG" "8" " " "1.21.1" "MIT Kerberos"
+.TH "KPROPLOG" "8" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kproplog \- display the contents of the Kerberos principal update log
 .

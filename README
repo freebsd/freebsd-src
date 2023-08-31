@@ -97,6 +97,18 @@ removed.
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
 
+Major changes in 1.21.2 (2023-08-14)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix double-free in KDC TGS processing [CVE-2023-39975].
+
+krb5-1.21.2 changes by ticket ID
+--------------------------------
+
+9101    Fix double-free in KDC TGS processing
+
 Major changes in 1.21.1 (2023-07-10)
 ------------------------------------
 

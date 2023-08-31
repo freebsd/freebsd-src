@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KDB5_LDAP_UTIL" "8" " " "1.21.1" "MIT Kerberos"
+.TH "KDB5_LDAP_UTIL" "8" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kdb5_ldap_util \- Kerberos configuration utility
 .

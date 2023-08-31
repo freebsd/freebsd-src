@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KVNO" "1" " " "1.21.1" "MIT Kerberos"
+.TH "KVNO" "1" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kvno \- print key version numbers of Kerberos principals
 .

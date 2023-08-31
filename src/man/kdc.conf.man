@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KDC.CONF" "5" " " "1.21.1" "MIT Kerberos"
+.TH "KDC.CONF" "5" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 kdc.conf \- Kerberos V5 KDC configuration file
 .

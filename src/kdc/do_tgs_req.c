@@ -1010,8 +1010,9 @@ tgs_issue_ticket(kdc_realm_t *realm, struct tgs_req_info *t,
     }
 
     if (t->req->kdc_options & (KDC_OPT_VALIDATE | KDC_OPT_RENEW)) {
-        /* Copy the whole header ticket except for authorization data. */
-        ticket_reply = *t->header_tkt;
+        /* Copy the header ticket server and all enc-part fields except for
+         * authorization data. */
+        ticket_reply.server = t->header_tkt->server;
         enc_tkt_reply = *t->header_tkt->enc_part2;
         enc_tkt_reply.authorization_data = NULL;
     } else {

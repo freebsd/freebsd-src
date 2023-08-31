@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KTUTIL" "1" " " "1.21.1" "MIT Kerberos"
+.TH "KTUTIL" "1" " " "1.21.2" "MIT Kerberos"
 .SH NAME
 ktutil \- Kerberos keytab file maintenance utility
 .
