@@ -336,14 +336,14 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 		crypto_cursor_copy(&fromc, &toc);
 	}
 
-	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
-
 	if (crp->crp_cipher_key != NULL) {
 		armv8_crypto_cipher_setup(ses, csp, crp->crp_cipher_key,
 		    csp->csp_cipher_klen);
 	}
 
 	crypto_read_iv(crp, iv);
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 
 	error = 0;
 	switch (csp->csp_cipher_alg) {
