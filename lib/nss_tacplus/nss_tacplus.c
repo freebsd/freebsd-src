@@ -271,12 +271,43 @@ nss_tacplus_getpwnam_r(void *retval, void *mdata __unused, va_list ap)
 	return (ret);
 }
 
+static int
+nss_tacplus_setpwent(void *retval __unused, void *mdata __unused,
+    va_list ap __unused)
+{
+	return (NS_SUCCESS);
+}
+
+static int
+nss_tacplus_getpwent_r(void *retval, void *mdata __unused, va_list ap)
+{
+	struct passwd *pwd __unused = va_arg(ap, struct passwd *);
+	char *buffer __unused = va_arg(ap, char *);
+	size_t bufsize __unused = va_arg(ap, size_t);
+	int *result = va_arg(ap, int *);
+
+	*(void **)retval = NULL;
+	*result = 0;
+	return (NS_SUCCESS);
+
+}
+
+static int
+nss_tacplus_endpwent(void *retval __unused, void *mdata __unused,
+    va_list ap __unused)
+{
+	return (NS_SUCCESS);
+}
+
 ns_mtab *
 nss_module_register(const char *name __unused, unsigned int *plen,
     nss_module_unregister_fn *unreg)
 {
 	static ns_mtab mtab[] = {
 		{ "passwd", "getpwnam_r", &nss_tacplus_getpwnam_r, NULL },
+		{ "passwd", "setpwent", &nss_tacplus_setpwent, NULL },
+		{ "passwd", "getpwent_r", &nss_tacplus_getpwent_r, NULL },
+		{ "passwd", "endpwent", &nss_tacplus_endpwent, NULL },
 	};
 
 	*plen = nitems(mtab);
