@@ -173,6 +173,8 @@ static struct atpic_intsrc atintrs[] = {
 
 CTASSERT(nitems(atintrs) == NUM_ISA_IRQS);
 
+static struct resource *isa_intrs;
+
 static __inline void
 _atpic_eoi_master(struct intsrc *isrc)
 {
@@ -226,6 +228,8 @@ atpic_register_sources(struct pic *pic)
 	 */
 	if (ap != &atpics[MASTER])
 		return;
+	if (isa_intrs == NULL)
+		return;
 	for (i = 0; i < NUM_ISA_IRQS; i++)
 		if (intrtab_lookup(i) != NULL)
 			return;
@@ -234,7 +238,7 @@ atpic_register_sources(struct pic *pic)
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(i, &ai->at_intsrc);
+		intr_register_source(isa_intrs, i, &ai->at_intsrc);
 	}
 }
 
@@ -511,8 +515,13 @@ atpic_init(void *dummy __unused)
 	    intr_register_pic(&atpics[1].at_pic) != 0)
 		panic("Unable to register ATPICs");
 
-	if (num_io_irqs == 0)
-		num_io_irqs = NUM_ISA_IRQS;
+	isa_intrs = intrtab_alloc_intr(NULL, NUM_ISA_IRQS);
+	if (isa_intrs == NULL)
+		panic("%s(): failed reserving interrupts", __func__);
+	if (rman_get_start(isa_intrs) != 0) {
+		intrtab_release_intr(isa_intrs);
+		isa_intrs = NULL;
+	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_FOURTH, atpic_init, NULL);
 
