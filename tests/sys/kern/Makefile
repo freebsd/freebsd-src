@@ -30,6 +30,7 @@ ATF_TESTS_C+=	sigaltstack
 ATF_TESTS_C+=	sigwait
 ATF_TESTS_C+=	socket_accf
 ATF_TESTS_C+=	socket_msg_trunc
+ATF_TESTS_C+=	socket_msg_waitall
 TEST_METADATA.sigwait+=	is_exclusive="true"
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == ""
 ATF_TESTS_C+=	subr_physmem_test
@@ -71,6 +72,7 @@ LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util
+LIBADD.socket_msg_waitall+=		pthread
 LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 LIBADD.sigwait+=			rt
