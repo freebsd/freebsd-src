@@ -37,7 +37,7 @@ IMPORTS
     begemot
 	FROM BEGEMOT-MIB;
 
-begemotLoos MODULE-IDENTITY
+begemotLm75 MODULE-IDENTITY
     LAST-UPDATED "201402240000Z"
     ORGANIZATION "FreeBSD"
     CONTACT-INFO
@@ -61,7 +61,7 @@ begemotLm75Objects	OBJECT IDENTIFIER ::= { begemotLm75 1 }
 -- Configuration parameters
 -- ---------------------------------------------------------- --
 
-lm75Sensor	OBJECT IDENTIFIER ::= { begemotlm75Objects 1 }
+lm75Sensor	OBJECT IDENTIFIER ::= { begemotLm75Objects 1 }
 
 lm75Sensors	OBJECT-TYPE
     SYNTAX	Integer32
@@ -69,7 +69,7 @@ lm75Sensors	OBJECT-TYPE
     STATUS	current
     DESCRIPTION
 	"Number of LM75 sensors in the system."
-    ::= { lm75Sensors 1 }
+    ::= { lm75Sensor 1 }
 
 -- ---------------------------------------------------------- --
 -- TempSensor Table
@@ -82,7 +82,7 @@ lm75SensorTable OBJECT-TYPE
 	"A table containing information about all temperature sensors."
     ::= { begemotLm75Objects 2 }
 
-loosTempSensorEntry OBJECT-TYPE
+lm75SensorEntry OBJECT-TYPE
     SYNTAX	Lm75SensorEntry
     MAX-ACCESS	not-accessible
     STATUS	current
