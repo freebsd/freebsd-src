@@ -2513,6 +2513,7 @@ vmxnet3_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
+		return (true);
 	default:
 		return (false);
 	}
