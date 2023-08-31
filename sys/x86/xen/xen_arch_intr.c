@@ -117,7 +117,7 @@ static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
  */
 static struct mtx	xen_intr_x86_lock;
 
-static u_int		first_evtchn_irq;
+static struct resource	*intrs;
 
 static u_int		xen_intr_auto_vector_count;
 
@@ -137,10 +137,9 @@ void
 xen_intr_alloc_irqs(void)
 {
 
-	if (num_io_irqs > UINT_MAX - NR_EVENT_CHANNELS)
+	intrs = intrtab_alloc_intr(NULL, NR_EVENT_CHANNELS);
+	if (intrs == NULL)
 		panic("IRQ allocation overflow (num_msi_irqs too high?)");
-	first_evtchn_irq = num_io_irqs;
-	num_io_irqs += NR_EVENT_CHANNELS;
 }
 
 static void
@@ -326,7 +325,7 @@ xen_arch_intr_alloc(void)
 		return (NULL);
 	}
 
-	vector = first_evtchn_irq + xen_intr_auto_vector_count;
+	vector = rman_get_start(intrs) + xen_intr_auto_vector_count;
 	xen_intr_auto_vector_count++;
 
 	KASSERT((intrtab_lookup(vector) == NULL),
@@ -335,7 +334,7 @@ xen_arch_intr_alloc(void)
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
 	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
-	error = intr_register_source(vector, &isrc->xi_arch.intsrc);
+	error = intr_register_source(intrs, vector, &isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);

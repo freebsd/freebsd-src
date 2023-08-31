@@ -150,6 +150,8 @@ struct pic msi_pic = {
 	.pic_reprogram_pin = NULL,
 };
 
+struct resource *msi_intrs;
+
 u_int first_msi_irq;
 SYSCTL_UINT(_machdep, OID_AUTO, first_msi_irq, CTLFLAG_RD, &first_msi_irq, 0,
     "Number of first IRQ reserved for MSI and MSI-X interrupts");
@@ -356,10 +358,10 @@ msi_init(void)
 	if (num_msi_irqs == 0)
 		return;
 
-	first_msi_irq = num_io_irqs;
-	if (num_msi_irqs > UINT_MAX - first_msi_irq)
+	msi_intrs = intrtab_alloc_intr(NULL, num_msi_irqs);
+	if (msi_intrs == NULL)
 		panic("num_msi_irqs too high");
-	num_io_irqs = first_msi_irq + num_msi_irqs;
+	first_msi_irq = rman_get_start(msi_intrs);
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);
@@ -383,7 +385,7 @@ msi_create_source(void)
 
 	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
 	msi->msi_intsrc.is_pic = &msi_pic;
-	intr_register_source(irq, &msi->msi_intsrc);
+	intr_register_source(msi_intrs, irq, &msi->msi_intsrc);
 	nexus_add_irq(irq);
 }
 
