@@ -228,7 +228,11 @@ and
 .Va MAKEOBJDIRPREFIX
 as they are environment-only variables.
 .Pp
-The values of variables are ignored regardless of their setting;
+The values of
+.Va WITH_
+and
+.Va WITHOUT_
+variables are ignored regardless of their setting;
 even if they would be set to
 .Dq Li FALSE
 or
