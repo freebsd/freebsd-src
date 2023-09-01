@@ -104,6 +104,7 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #define	RCVBUF_MINSIZE	(80 * 1024)	/* minimum size of dgram rcv buffer */
 
 #include <sys/param.h>
+#include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
@@ -371,6 +372,16 @@ static const char *TypeNames[] = {
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
+static const int sigcatch[] = {
+	SIGHUP,
+	SIGINT,
+	SIGQUIT,
+	SIGPIPE,
+	SIGALRM,
+	SIGTERM,
+	SIGCHLD,
+};
+
 static bool	Debug;		/* debug flag */
 static bool	Foreground = false; /* Run in foreground, instead of daemonizing */
 static bool	resolve = true;	/* resolve hostname */
@@ -402,12 +413,9 @@ static bool	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
 static bool	KeepKernFac;	/* Keep remotely logged kernel facility */
-static bool	needdofsync = false; /* Are any file(s) waiting to be fsynced? */
+static bool	needdofsync = true; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
-static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
 static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
-
-static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
 struct iovlist;
 
@@ -421,9 +429,7 @@ static int	deadq_remove(struct deadq_entry *);
 static int	deadq_removebypid(pid_t);
 static int	decode(const char *, const CODE *);
 static void	die(int) __dead2;
-static void	dodie(int);
 static void	dofsync(void);
-static void	domark(int);
 static void	fprintlog_first(struct filed *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
 static void	fprintlog_write(struct filed *, struct iovlist *, int);
@@ -437,8 +443,6 @@ static void	markit(void);
 static int	socksetup(struct peer *);
 static int	socklist_recv_file(struct socklist *);
 static int	socklist_recv_sock(struct socklist *);
-static int	socklist_recv_signal(struct socklist *);
-static void	sighandler(int);
 static int	skip_message(const char *, const char *, int);
 static int	evaluate_prop_filter(const struct prop_filter *filter,
     const char *value);
@@ -526,14 +530,14 @@ addsock(struct addrinfo *ai, struct socklist *sl0)
 int
 main(int argc, char *argv[])
 {
-	int ch, i, s, fdsrmax = 0;
-	bool bflag = false, pflag = false, Sflag = false;
-	fd_set *fdsr = NULL;
-	struct timeval tv, *tvp;
-	struct peer *pe;
+	sigset_t sigset = { };
+	struct kevent ev;
 	struct socklist *sl;
-	pid_t ppid = 1, spid;
+	struct peer *pe;
+	pid_t ppid = -1, spid;
+	int ch, kq, s;
 	char *p;
+	bool bflag = false, pflag = false, Sflag = false;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
@@ -705,17 +709,6 @@ main(int argc, char *argv[])
 	if (RFC3164OutputFormat && MaxForwardLen > 1024)
 		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
-	/* Pipe to catch a signal during select(). */
-	s = pipe2(sigpipe, O_CLOEXEC);
-	if (s < 0) {
-		err(1, "cannot open a pipe for signals");
-	} else {
-		addsock(NULL, &(struct socklist){
-		    .sl_socket = sigpipe[0],
-		    .sl_recv = socklist_recv_signal
-		});
-	}
-
 	/* Listen by default: /dev/klog. */
 	s = open(_PATH_KLOG, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
 	if (s < 0) {
@@ -767,108 +760,82 @@ main(int argc, char *argv[])
 	(void)strlcpy(consfile.fu_fname, ctty + sizeof _PATH_DEV - 1,
 	    sizeof(consfile.fu_fname));
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
-	(void)signal(SIGTERM, dodie);
-	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
-	(void)signal(SIGQUIT, Debug ? dodie : SIG_IGN);
-	(void)signal(SIGHUP, sighandler);
-	(void)signal(SIGCHLD, sighandler);
-	(void)signal(SIGALRM, domark);
-	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
+
+	kq = kqueue();
+	if (kq == -1) {
+		warn("failed to initialize kqueue");
+		pidfile_remove(pfh);
+		exit(1);
+	}
+	STAILQ_FOREACH(sl, &shead, next) {
+		EV_SET(&ev, sl->sl_socket, EVFILT_READ, EV_ADD, 0, 0, sl);
+		if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
+			warn("failed to add kevent to kqueue");
+			pidfile_remove(pfh);
+			exit(1);
+		}
+	}
+	for (size_t i = 0; i < nitems(sigcatch); ++i) {
+		EV_SET(&ev, sigcatch[i], EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+		if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
+			warn("failed to add kevent to kqueue");
+			pidfile_remove(pfh);
+			exit(1);
+		}
+		(void)sigaddset(&sigset, sigcatch[i]);
+	}
+	if (sigprocmask(SIG_BLOCK, &sigset, NULL) != 0) {
+		warn("failed to apply signal mask");
+		pidfile_remove(pfh);
+		exit(1);
+	}
 	(void)alarm(TIMERINTVL);
 
 	/* tuck my process id away */
 	pidfile_write(pfh);
 
 	dprintf("off & running....\n");
-
-	tvp = &tv;
-	tv.tv_sec = tv.tv_usec = 0;
-
-	STAILQ_FOREACH(sl, &shead, next) {
-		if (sl->sl_socket > fdsrmax)
-			fdsrmax = sl->sl_socket;
-	}
-	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
-	    sizeof(*fdsr));
-	if (fdsr == NULL)
-		errx(1, "calloc fd_set");
-
+	init(false);
 	for (;;) {
-		if (!Initialized)
-			init(0);
-		else if (WantInitialize)
-			init(WantInitialize);
-		if (WantReapchild)
-			reapchild(WantReapchild);
-		if (MarkSet)
-			markit();
-		if (WantDie) {
-			free(fdsr);
-			die(WantDie);
-		}
-
-		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
-		    sizeof(*fdsr));
-
-		STAILQ_FOREACH(sl, &shead, next) {
-			if (sl->sl_socket != -1 && sl->sl_recv != NULL)
-				FD_SET(sl->sl_socket, fdsr);
-		}
-		i = select(fdsrmax + 1, fdsr, NULL, NULL,
-		    needdofsync ? &tv : tvp);
-		switch (i) {
-		case 0:
+		if (needdofsync) {
 			dofsync();
-			needdofsync = false;
-			if (tvp) {
-				tvp = NULL;
-				if (ppid != 1)
-					kill(ppid, SIGALRM);
+			if (ppid != -1) {
+				kill(ppid, SIGALRM);
+				ppid = -1;
 			}
-			continue;
-		case -1:
+		}
+		if (kevent(kq, NULL, 0, &ev, 1, NULL) == -1) {
 			if (errno != EINTR)
-				logerror("select");
+				logerror("kevent");
 			continue;
 		}
-		STAILQ_FOREACH(sl, &shead, next) {
-			if (FD_ISSET(sl->sl_socket, fdsr))
-				(*sl->sl_recv)(sl);
-		}
-	}
-	free(fdsr);
-}
-
-static int
-socklist_recv_signal(struct socklist *sl __unused)
-{
-	ssize_t len;
-	int i, nsig, signo;
-
-	if (ioctl(sigpipe[0], FIONREAD, &i) != 0) {
-		logerror("ioctl(FIONREAD)");
-		err(1, "signal pipe read failed");
-	}
-	nsig = i / sizeof(signo);
-	dprintf("# of received signals = %d\n", nsig);
-	for (i = 0; i < nsig; i++) {
-		len = read(sigpipe[0], &signo, sizeof(signo));
-		if (len != sizeof(signo)) {
-			logerror("signal pipe read failed");
-			err(1, "signal pipe read failed");
-		}
-		dprintf("Received signal: %d from fd=%d\n", signo,
-		    sigpipe[0]);
-		switch (signo) {
-		case SIGHUP:
-			WantInitialize = 1;
+		switch (ev.filter) {
+		case EVFILT_READ:
+			sl = ev.udata;
+			if (sl->sl_socket != -1 && sl->sl_recv != NULL)
+				sl->sl_recv(sl);
 			break;
-		case SIGCHLD:
-			WantReapchild = 1;
+		case EVFILT_SIGNAL:
+			switch (ev.ident) {
+			case SIGHUP:
+				init(true);
+				break;
+			case SIGINT:
+			case SIGQUIT:
+			case SIGTERM:
+				if (ev.ident == SIGTERM || Debug)
+					die(ev.ident);
+				break;
+			case SIGALRM:
+				markit();
+				break;
+			case SIGCHLD:
+				reapchild(ev.ident);
+				break;
+			}
 			break;
 		}
 	}
-	return (0);
 }
 
 static int
@@ -1758,6 +1725,7 @@ dofsync(void)
 			(void)fsync(f->f_file);
 		}
 	}
+	needdofsync = false;
 }
 
 /*
@@ -2259,7 +2227,6 @@ reapchild(int signo __unused)
 			}
 		}
 	}
-	WantReapchild = 0;
 }
 
 /*
@@ -2296,20 +2263,6 @@ cvthname(struct sockaddr *f)
 	if (RFC3164OutputFormat)
 		trimdomain(hname, hl);
 	return (hname);
-}
-
-static void
-dodie(int signo)
-{
-
-	WantDie = signo;
-}
-
-static void
-domark(int signo __unused)
-{
-
-	MarkSet = 1;
 }
 
 /*
@@ -2536,14 +2489,6 @@ readconfigfile(const char *path)
 	}
 }
 
-static void
-sighandler(int signo)
-{
-
-	/* Send an wake-up signal to the select() loop. */
-	write(sigpipe[1], &signo, sizeof(signo));
-}
-
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
@@ -2558,7 +2503,6 @@ init(int signo)
 	char bootfileMsg[MAXLINE + 1];
 
 	dprintf("init\n");
-	WantInitialize = 0;
 
 	/*
 	 * Load hostname (may have changed).
@@ -3245,7 +3189,6 @@ markit(void)
 			dq->dq_timeout--;
 		}
 	}
-	MarkSet = 0;
 	(void)alarm(TIMERINTVL);
 }
 
@@ -3621,6 +3564,7 @@ validate(struct sockaddr *sa, const char *hname)
 static int
 p_open(const char *prog, pid_t *rpid)
 {
+	sigset_t sigset = { };
 	int pfd[2], nulldesc;
 	pid_t pid;
 	char *argv[4]; /* sh -c cmd NULL */
@@ -3650,10 +3594,12 @@ p_open(const char *prog, pid_t *rpid)
 
 		alarm(0);
 
-		/* Restore signals marked as SIG_IGN. */
-		(void)signal(SIGINT, SIG_DFL);
-		(void)signal(SIGQUIT, SIG_DFL);
-		(void)signal(SIGPIPE, SIG_DFL);
+		for (size_t i = 0; i < nitems(sigcatch); ++i)
+			(void)sigaddset(&sigset, sigcatch[i]);
+		if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) != 0) {
+			logerror("sigprocmask");
+			exit(1);
+		}
 
 		dup2(pfd[0], STDIN_FILENO);
 		dup2(nulldesc, STDOUT_FILENO);
