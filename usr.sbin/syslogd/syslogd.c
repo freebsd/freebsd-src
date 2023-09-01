@@ -175,6 +175,7 @@ static const char include_ext[] = ".conf";
 	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
 #endif
+
 /*
  * List of peers and sockets that can't be bound until
  * flags have been parsed.
@@ -337,11 +338,10 @@ static TAILQ_HEAD(, deadq_entry) deadq_head =
 #define	 DQ_TIMO_INIT	2
 
 /*
- * Struct to hold records of network addresses that are allowed to log
- * to us.
+ * Network addresses that are allowed to log to us.
  */
 struct allowedpeer {
-	int isnumeric;
+	bool isnumeric;
 	u_short port;
 	union {
 		struct {
@@ -356,7 +356,6 @@ struct allowedpeer {
 	STAILQ_ENTRY(allowedpeer)	next;
 };
 static STAILQ_HEAD(, allowedpeer) aphead = STAILQ_HEAD_INITIALIZER(aphead);
-
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -458,7 +457,7 @@ static int	p_open(const char *, pid_t *);
 static void	reapchild(int);
 static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
-static int	validate(struct sockaddr *, const char *);
+static bool	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
 static void	wallmsg(struct filed *, struct iovec *, const int iovlen);
 static int	waitdaemon(int);
@@ -3391,7 +3390,7 @@ allowaddr(char *s __unused)
 		.ai_flags = AI_PASSIVE | AI_NUMERICHOST
 	};
 	if (getaddrinfo(s, NULL, &hints, &res) == 0) {
-		ap->isnumeric = 1;
+		ap->isnumeric = true;
 		memcpy(&ap->a_addr, res->ai_addr, res->ai_addrlen);
 		ap->a_mask = (struct sockaddr_storage){
 			.ss_family = res->ai_family,
@@ -3452,7 +3451,7 @@ allowaddr(char *s __unused)
 		freeaddrinfo(res);
 	} else {
 		/* arg `s' is domain name */
-		ap->isnumeric = 0;
+		ap->isnumeric = false;
 		ap->a_name = s;
 		if (cp1)
 			*cp1 = '/';
@@ -3495,7 +3494,7 @@ err:
 /*
  * Validate that the remote peer has permission to log to us.
  */
-static int
+static bool
 validate(struct sockaddr *sa, const char *hname)
 {
 	int i;
@@ -3509,15 +3508,10 @@ validate(struct sockaddr *sa, const char *hname)
 #endif
 	struct addrinfo hints, *res;
 	u_short sport;
-	int num = 0;
 
-	STAILQ_FOREACH(ap, &aphead, next) {
-		num++;
-	}
-	dprintf("# of validation rule: %d\n", num);
-	if (num == 0)
-		/* traditional behaviour, allow everything */
-		return (1);
+	/* traditional behaviour, allow everything */
+	if (STAILQ_EMPTY(&aphead))
+		return (true);
 
 	(void)strlcpy(name, hname, sizeof(name));
 	hints = (struct addrinfo){
@@ -3533,7 +3527,7 @@ validate(struct sockaddr *sa, const char *hname)
 	}
 	if (getnameinfo(sa, sa->sa_len, ip, sizeof(ip), port, sizeof(port),
 			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
-		return (0);	/* for safety, should not occur */
+		return (false);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
 		ip, port, name);
 	sport = atoi(port);
@@ -3593,9 +3587,9 @@ validate(struct sockaddr *sa, const char *hname)
 			}
 		}
 		dprintf("accepted in rule %d.\n", i);
-		return (1);	/* hooray! */
+		return (true);	/* hooray! */
 	}
-	return (0);
+	return (false);
 }
 
 /*
