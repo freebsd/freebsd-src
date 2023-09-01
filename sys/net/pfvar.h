@@ -900,7 +900,10 @@ struct pf_state_scrub {
 #define PFSS_DATA_NOTS	0x0080		/* no timestamp on data packets	*/
 	u_int8_t	pfss_ttl;	/* stashed TTL			*/
 	u_int8_t	pad;
-	u_int32_t	pfss_ts_mod;	/* timestamp modulation		*/
+	union {
+		u_int32_t	pfss_ts_mod;	/* timestamp modulation		*/
+		u_int32_t	pfss_v_tag;	/* SCTP verification tag	*/
+	};
 };
 
 struct pf_state_host {
@@ -1583,6 +1586,7 @@ struct pf_pdesc {
 #define PFDESC_SCTP_DATA	0x0040
 #define PFDESC_SCTP_ASCONF	0x0080
 #define PFDESC_SCTP_OTHER	0x0100
+#define PFDESC_SCTP_ADD_IP	0x0200
 	u_int16_t	 sctp_flags;
 	u_int32_t	 sctp_initiate_tag;
 
@@ -2297,6 +2301,8 @@ int	pf_normalize_tcp_init(struct mbuf *, int, struct pf_pdesc *,
 int	pf_normalize_tcp_stateful(struct mbuf *, int, struct pf_pdesc *,
 	    u_short *, struct tcphdr *, struct pf_kstate *,
 	    struct pf_state_peer *, struct pf_state_peer *, int *);
+int	pf_normalize_sctp_init(struct mbuf *, int, struct pf_pdesc *,
+	    struct pf_state_peer *, struct pf_state_peer *);
 int	pf_normalize_sctp(int, struct pfi_kkif *, struct mbuf *, int,
 	    int, void *, struct pf_pdesc *);
 u_int32_t
