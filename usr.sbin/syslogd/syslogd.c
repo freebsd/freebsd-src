@@ -434,7 +434,7 @@ static void	fprintlog_first(struct filed *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
 static void	fprintlog_write(struct filed *, struct iovlist *, int);
 static void	fprintlog_successive(struct filed *, int);
-static void	init(int);
+static void	init(bool);
 static void	logerror(const char *);
 static void	logmsg(int, const struct logtime *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
@@ -2493,7 +2493,7 @@ readconfigfile(const char *path)
  *  INIT -- Initialize syslogd from configuration table
  */
 static void
-init(int signo)
+init(bool reload)
 {
 	int i;
 	struct filed *f;
@@ -2507,7 +2507,7 @@ init(int signo)
 	/*
 	 * Load hostname (may have changed).
 	 */
-	if (signo != 0)
+	if (reload)
 		(void)strlcpy(oldLocalHostName, LocalHostName,
 		    sizeof(oldLocalHostName));
 	if (gethostname(LocalHostName, sizeof(LocalHostName)))
@@ -2651,9 +2651,9 @@ init(int signo)
 	    NULL, NULL, "restart", 0);
 	dprintf("syslogd: restarted\n");
 	/*
-	 * Log a change in hostname, but only on a restart.
+	 * Log a change in hostname, but only on reload.
 	 */
-	if (signo != 0 && strcmp(oldLocalHostName, LocalHostName) != 0) {
+	if (reload && strcmp(oldLocalHostName, LocalHostName) != 0) {
 		(void)snprintf(hostMsg, sizeof(hostMsg),
 		    "hostname changed, \"%s\" to \"%s\"",
 		    oldLocalHostName, LocalHostName);
@@ -2663,9 +2663,9 @@ init(int signo)
 	}
 	/*
 	 * Log the kernel boot file if we aren't going to use it as
-	 * the prefix, and if this is *not* a restart.
+	 * the prefix, and if this is *not* a reload.
 	 */
-	if (signo == 0 && !use_bootfile) {
+	if (!reload && !use_bootfile) {
 		(void)snprintf(bootfileMsg, sizeof(bootfileMsg),
 		    "kernel boot file is %s", bootfile);
 		logmsg(LOG_KERN | LOG_INFO, NULL, LocalHostName, "syslogd",
