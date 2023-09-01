@@ -597,7 +597,6 @@ int
 main(int argc, char *argv[])
 {
 	struct sigaction act = { };
-	sigset_t sigset = { };
 	struct kevent ev;
 	struct socklist *sl;
 	pid_t ppid = -1, spid;
@@ -838,6 +837,14 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+
+	/*
+	 * Syslogd will not reap its children via wait().
+	 * When SIGCHLD is ignored, zombie processes are
+	 * not created. A child's PID will be recycled
+	 * upon its exit.
+	 */
+	act.sa_handler = SIG_IGN;
 	for (size_t i = 0; i < nitems(sigcatch); ++i) {
 		EV_SET(&ev, sigcatch[i], EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
 		if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
@@ -845,22 +852,13 @@ main(int argc, char *argv[])
 			pidfile_remove(pfh);
 			exit(1);
 		}
-		(void)sigaddset(&sigset, sigcatch[i]);
-	}
-	if (sigprocmask(SIG_BLOCK, &sigset, NULL) != 0) {
-		warn("failed to apply signal mask");
-		pidfile_remove(pfh);
-		exit(1);
+		if (sigaction(sigcatch[i], &act, NULL) == -1) {
+			warn("failed to apply signal handler");
+			pidfile_remove(pfh);
+			exit(1);
+		}
 	}
 	(void)alarm(TIMERINTVL);
-
-	/* Do not create zombie processes. */
-	act.sa_flags = SA_NOCLDWAIT;
-	if (sigaction(SIGCHLD, &act, NULL) == -1) {
-		warn("failed to apply signal handler");
-		pidfile_remove(pfh);
-		exit(1);
-	}
 
 	/* tuck my process id away */
 	pidfile_write(pfh);
@@ -3598,7 +3596,7 @@ validate(struct sockaddr *sa, const char *hname)
 static int
 p_open(const char *prog, int *rpd)
 {
-	sigset_t sigset = { };
+	struct sigaction act = { };
 	int pfd[2], pd;
 	pid_t pid;
 	char *argv[4]; /* sh -c cmd NULL */
@@ -3623,12 +3621,12 @@ p_open(const char *prog, int *rpd)
 		}
 
 		alarm(0);
-
-		for (size_t i = 0; i < nitems(sigcatch); ++i)
-			(void)sigaddset(&sigset, sigcatch[i]);
-		if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) != 0) {
-			logerror("sigprocmask");
-			exit(1);
+		act.sa_handler = SIG_DFL;
+		for (size_t i = 0; i < nitems(sigcatch); ++i) {
+			if (sigaction(sigcatch[i], &act, NULL) == -1) {
+				logerror("sigaction");
+				exit(1);
+			}
 		}
 
 		dup2(pfd[0], STDIN_FILENO);
