@@ -228,6 +228,12 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 	LOADER_VERIEXEC_VECTX/LOADER_VERIEXEC \
 	VERIEXEC/BEARSSL \
 
+__SINGLE_OPTIONS = \
+	LIBC_MALLOC
+
+__LIBC_MALLOC_OPTIONS=	jemalloc
+__LIBC_MALLOC_DEFAULT=	jemalloc
+
 # MK_*_SUPPORT options which default to "yes" unless their corresponding
 # MK_* variable is set to "no".
 #
