@@ -2865,6 +2865,107 @@ error:
 	return (NULL);
 }
 
+static const char *
+parse_selector(const char *p, struct filed *f)
+{
+	int i, pri;
+	int pri_done = 0, pri_cmp = 0, pri_invert = 0;
+	char *bp, buf[LINE_MAX], ebuf[100];
+	const char *q;
+
+	/* find the end of this facility name list */
+	for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.';)
+		continue;
+
+	/* get the priority comparison */
+	if (*q == '!') {
+		pri_invert = 1;
+		q++;
+	}
+	while (!pri_done) {
+		switch (*q) {
+			case '<':
+				pri_cmp |= PRI_LT;
+				q++;
+				break;
+			case '=':
+				pri_cmp |= PRI_EQ;
+				q++;
+				break;
+			case '>':
+				pri_cmp |= PRI_GT;
+				q++;
+				break;
+			default:
+				pri_done++;
+				break;
+		}
+	}
+
+	/* collect priority name */
+	for (bp = buf; *q != '\0' && !strchr("\t,; ", *q); )
+		*bp++ = *q++;
+	*bp = '\0';
+
+	/* skip cruft */
+	while (strchr(",;", *q))
+		q++;
+
+	/* decode priority name */
+	if (*buf == '*') {
+		pri = LOG_PRIMASK;
+		pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
+	} else {
+		/* Ignore trailing spaces. */
+		for (i = strlen(buf) - 1; i >= 0 && buf[i] == ' '; i--)
+			buf[i] = '\0';
+
+		pri = decode(buf, prioritynames);
+		if (pri < 0) {
+			errno = 0;
+			(void)snprintf(ebuf, sizeof ebuf,
+			    "unknown priority name \"%s\"", buf);
+			logerror(ebuf);
+			free(f);
+			return (NULL);
+		}
+	}
+	if (!pri_cmp)
+		pri_cmp = UniquePriority ? PRI_EQ : (PRI_EQ | PRI_GT);
+	if (pri_invert)
+		pri_cmp ^= PRI_LT | PRI_EQ | PRI_GT;
+
+	/* scan facilities */
+	while (*p != '\0' && !strchr("\t.; ", *p)) {
+		for (bp = buf; *p != '\0' && !strchr("\t,;. ", *p); )
+			*bp++ = *p++;
+		*bp = '\0';
+
+		if (*buf == '*') {
+			for (i = 0; i < LOG_NFACILITIES; i++) {
+				f->f_pmask[i] = pri;
+				f->f_pcmp[i] = pri_cmp;
+			}
+		} else {
+			i = decode(buf, facilitynames);
+			if (i < 0) {
+				errno = 0;
+				(void)snprintf(ebuf, sizeof ebuf,
+				    "unknown facility name \"%s\"",
+				    buf);
+				logerror(ebuf);
+				free(f);
+				return (NULL);
+			}
+			f->f_pmask[i >> 3] = pri;
+			f->f_pcmp[i >> 3] = pri_cmp;
+		}
+		while (*p == ',' || *p == ' ')
+			p++;
+	}
+	return (q);
+}
+
 /*
  * Crack a configuration file line
  */
@@ -2874,9 +2975,8 @@ cfline(const char *line, const char *prog, const char *host,
 {
 	struct filed *f;
 	struct addrinfo hints, *res;
-	int error, i, pri;
+	int error, i;
 	const char *p, *q;
-	char *bp, buf[LINE_MAX], ebuf[100];
 	bool syncfile;
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
@@ -2931,110 +3031,8 @@ cfline(const char *line, const char *prog, const char *host,
 	}
 
 	/* scan through the list of selectors */
-	for (p = line; *p && *p != '\t' && *p != ' ';) {
-		int pri_done;
-		int pri_cmp;
-		int pri_invert;
-
-		/* find the end of this facility name list */
-		for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.'; )
-			continue;
-
-		/* get the priority comparison */
-		pri_cmp = 0;
-		pri_done = 0;
-		pri_invert = 0;
-		if (*q == '!') {
-			pri_invert = 1;
-			q++;
-		}
-		while (!pri_done) {
-			switch (*q) {
-			case '<':
-				pri_cmp |= PRI_LT;
-				q++;
-				break;
-			case '=':
-				pri_cmp |= PRI_EQ;
-				q++;
-				break;
-			case '>':
-				pri_cmp |= PRI_GT;
-				q++;
-				break;
-			default:
-				pri_done++;
-				break;
-			}
-		}
-
-		/* collect priority name */
-		for (bp = buf; *q && !strchr("\t,; ", *q); )
-			*bp++ = *q++;
-		*bp = '\0';
-
-		/* skip cruft */
-		while (strchr(",;", *q))
-			q++;
-
-		/* decode priority name */
-		if (*buf == '*') {
-			pri = LOG_PRIMASK;
-			pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
-		} else {
-			/* Ignore trailing spaces. */
-			for (i = strlen(buf) - 1; i >= 0 && buf[i] == ' '; i--)
-				buf[i] = '\0';
-
-			pri = decode(buf, prioritynames);
-			if (pri < 0) {
-				errno = 0;
-				(void)snprintf(ebuf, sizeof ebuf,
-				    "unknown priority name \"%s\"", buf);
-				logerror(ebuf);
-				free(f);
-				return;
-			}
-		}
-		if (!pri_cmp)
-			pri_cmp = (UniquePriority)
-				  ? (PRI_EQ)
-				  : (PRI_EQ | PRI_GT)
-				  ;
-		if (pri_invert)
-			pri_cmp ^= PRI_LT | PRI_EQ | PRI_GT;
-
-		/* scan facilities */
-		while (*p && !strchr("\t.; ", *p)) {
-			for (bp = buf; *p && !strchr("\t,;. ", *p); )
-				*bp++ = *p++;
-			*bp = '\0';
-
-			if (*buf == '*') {
-				for (i = 0; i < LOG_NFACILITIES; i++) {
-					f->f_pmask[i] = pri;
-					f->f_pcmp[i] = pri_cmp;
-				}
-			} else {
-				i = decode(buf, facilitynames);
-				if (i < 0) {
-					errno = 0;
-					(void)snprintf(ebuf, sizeof ebuf,
-					    "unknown facility name \"%s\"",
-					    buf);
-					logerror(ebuf);
-					free(f);
-					return;
-				}
-				f->f_pmask[i >> 3] = pri;
-				f->f_pcmp[i >> 3] = pri_cmp;
-			}
-			while (*p == ',' || *p == ' ')
-				p++;
-		}
-
-		p = q;
-	}
+	for (p = line; *p != '\0' && *p != '\t' && *p != ' ';)
+		p = parse_selector(p, f);
 
 	/* skip to action part */
 	while (*p == '\t' || *p == ' ')
