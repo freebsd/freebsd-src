@@ -459,8 +459,7 @@ static int	socklist_recv_sock(struct socklist *);
 static int	skip_message(const char *, const char *, int);
 static int	evaluate_prop_filter(const struct prop_filter *filter,
     const char *value);
-static int	prop_filter_compile(struct prop_filter *pfilter,
-    char *filterstr);
+static struct prop_filter *prop_filter_compile(const char *);
 static void	parsemsg(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
@@ -2707,17 +2706,31 @@ init(bool reload)
 
 /*
  * Compile property-based filter.
- * Returns 0 on success, -1 otherwise.
  */
-static int
-prop_filter_compile(struct prop_filter *pfilter, char *filter)
+static struct prop_filter *
+prop_filter_compile(const char *cfilter)
 {
-	char *filter_endpos, *p;
+	struct prop_filter *pfilter;
+	char *filter, *filter_endpos, *filter_begpos, *p;
 	char **ap, *argv[2] = {NULL, NULL};
 	int re_flags = REG_NOSUB;
 	int escaped;
 
-	bzero(pfilter, sizeof(struct prop_filter));
+	pfilter = calloc(1, sizeof(*pfilter));
+	if (pfilter == NULL) {
+		logerror("pfilter calloc");
+		exit(1);
+	}
+	if (*cfilter == '*') {
+		pfilter->prop_type = FILT_PROP_NOOP;
+		return (pfilter);
+	}
+	filter = strdup(cfilter);
+	if (filter == NULL) {
+		logerror("strdup");
+		exit(1);
+	}
+	filter_begpos = filter;
 
 	/*
 	 * Here's some filter examples mentioned in syslog.conf(5)
@@ -2738,7 +2751,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 
 	if (argv[0] == NULL || argv[1] == NULL) {
 		logerror("filter parse error");
-		return (-1);
+		goto error;
 	}
 
 	/* fill in prop_type */
@@ -2752,7 +2765,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 		pfilter->prop_type = FILT_PROP_PROGNAME;
 	else {
 		logerror("unknown property");
-		return (-1);
+		goto error;
 	}
 
 	/* full in cmp_flags (i.e. !contains, icase_regex, etc.) */
@@ -2779,7 +2792,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 		re_flags |= REG_EXTENDED;
 	} else {
 		logerror("unknown cmp function");
-		return (-1);
+		goto error;
 	}
 
 	/*
@@ -2791,7 +2804,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 	filter += strspn(filter, ", \t\n");
 	if (*filter != '"' || strlen(filter) < 3) {
 		logerror("property value parse error");
-		return (-1);
+		goto error;
 	}
 	filter++;
 
@@ -2823,30 +2836,33 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 	/* We should not have anything but whitespace left after closing '"' */
 	if (*p != '\0' && strspn(p, " \t\n") != strlen(p)) {
 		logerror("property value parse error");
-		return (-1);
+		goto error;
 	}
 
 	if (pfilter->cmp_type == FILT_CMP_REGEX) {
 		pfilter->pflt_re = calloc(1, sizeof(*pfilter->pflt_re));
 		if (pfilter->pflt_re == NULL) {
 			logerror("RE calloc() error");
-			free(pfilter->pflt_re);
-			return (-1);
+			goto error;
 		}
 		if (pfilter->cmp_flags & FILT_FLAG_ICASE)
 			re_flags |= REG_ICASE;
 		if (regcomp(pfilter->pflt_re, filter, re_flags) != 0) {
 			logerror("RE compilation error");
-			free(pfilter->pflt_re);
-			return (-1);
+			goto error;
 		}
 	} else {
 		pfilter->pflt_strval = strdup(filter);
 		pfilter->pflt_strlen = strlen(filter);
 	}
 
-	return (0);
-
+	free(filter_begpos);
+	return (pfilter);
+error:
+	free(filter_begpos);
+	free(pfilter->pflt_re);
+	free(pfilter);
+	return (NULL);
 }
 
 /*
@@ -2860,8 +2876,7 @@ cfline(const char *line, const char *prog, const char *host,
 	struct addrinfo hints, *res;
 	int error, i, pri;
 	const char *p, *q;
-	char *bp, *pfilter_dup;
-	char buf[LINE_MAX], ebuf[100];
+	char *bp, buf[LINE_MAX], ebuf[100];
 	bool syncfile;
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
@@ -2908,23 +2923,10 @@ cfline(const char *line, const char *prog, const char *host,
 	}
 
 	if (pfilter) {
-		f->f_prop_filter = calloc(1, sizeof(*(f->f_prop_filter)));
+		f->f_prop_filter = prop_filter_compile(pfilter);
 		if (f->f_prop_filter == NULL) {
-			logerror("pfilter calloc");
+			logerror("filter compile error");
 			exit(1);
-		}
-		if (*pfilter == '*')
-			f->f_prop_filter->prop_type = FILT_PROP_NOOP;
-		else {
-			pfilter_dup = strdup(pfilter);
-			if (pfilter_dup == NULL) {
-				logerror("strdup");
-				exit(1);
-			}
-			if (prop_filter_compile(f->f_prop_filter, pfilter_dup)) {
-				logerror("filter compile error");
-				exit(1);
-			}
 		}
 	}
 
