@@ -130,6 +130,7 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <libgen.h>
 #include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
@@ -198,7 +199,8 @@ struct socklist {
 #define	sl_salen	sl_ai.ai_addrlen
 #define	sl_family	sl_ai.ai_family
 	int			sl_socket;
-	const char		*sl_name;
+	char			*sl_name;
+	int			sl_dirfd;
 	int			(*sl_recv)(struct socklist *);
 	STAILQ_ENTRY(socklist)	next;
 };
@@ -2341,8 +2343,12 @@ die(int signo)
 		logerror(buf);
 	}
 	STAILQ_FOREACH(sl, &shead, next) {
-		if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
-			unlink(sl->sl_name);
+		if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL) {
+			if (unlinkat(sl->sl_dirfd, sl->sl_name, 0) == -1) {
+				dprintf("Failed to unlink %s: %s", sl->sl_name,
+				    strerror(errno));
+			}
+		}
 	}
 	pidfile_remove(pfh);
 
@@ -3782,7 +3788,16 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 	if (sl == NULL)
 		err(1, "malloc failed");
 	sl->sl_socket = s;
-	sl->sl_name = name;
+	if (ai->ai_family == AF_LOCAL) {
+		char *name2 = strdup(name);
+		if (name2 == NULL)
+			err(1, "strdup failed");
+		sl->sl_name = strdup(basename(name2));
+		sl->sl_dirfd = open(dirname(name2), O_DIRECTORY);
+		if (sl->sl_name == NULL || sl->sl_dirfd == -1)
+			err(1, "failed to save dir info for %s", name);
+		free(name2);
+	}
 	sl->sl_recv = sl_recv;
 	(void)memcpy(&sl->sl_ai, ai, sizeof(*ai));
 	if (ai->ai_addrlen > 0) {
