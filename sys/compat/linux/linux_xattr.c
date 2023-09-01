@@ -77,6 +77,13 @@ struct getxattr_args {
 	int		follow;
 };
 
+struct removexattr_args {
+	int		fd;
+	const char	*path;
+	const char	*name;
+	int		follow;
+};
+
 static char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
 
 
@@ -227,38 +234,7 @@ linux_flistxattr(struct thread *td, struct linux_flistxattr_args *args)
 }
 
 static int
-linux_path_removexattr(struct thread *td, const char *upath, const char *uname,
-    int follow)
-{
-	char attrname[LINUX_XATTR_NAME_MAX + 1];
-	int attrnamespace, error;
-
-	error = xatrr_to_extattr(uname, &attrnamespace, attrname);
-	if (error != 0)
-		return (error);
-
-	return (kern_extattr_delete_path(td, upath, attrnamespace,
-	    attrname, follow, UIO_USERSPACE));
-}
-
-int
-linux_removexattr(struct thread *td, struct linux_removexattr_args *args)
-{
-
-	return (linux_path_removexattr(td, args->path, args->name,
-	    FOLLOW));
-}
-
-int
-linux_lremovexattr(struct thread *td, struct linux_lremovexattr_args *args)
-{
-
-	return (linux_path_removexattr(td, args->path, args->name,
-	    NOFOLLOW));
-}
-
-int
-linux_fremovexattr(struct thread *td, struct linux_fremovexattr_args *args)
+removexattr(struct thread *td, struct removexattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
@@ -266,8 +242,52 @@ linux_fremovexattr(struct thread *td, struct linux_fremovexattr_args *args)
 	error = xatrr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
-	return (kern_extattr_delete_fd(td, args->fd, attrnamespace,
-	    attrname));
+	if (args->path != NULL)
+		error = kern_extattr_delete_path(td, args->path, attrnamespace,
+		    attrname, args->follow, UIO_USERSPACE);
+	else
+		error = kern_extattr_delete_fd(td, args->fd, attrnamespace,
+		    attrname);
+	return (error);
+}
+
+int
+linux_removexattr(struct thread *td, struct linux_removexattr_args *args)
+{
+	struct removexattr_args eargs = {
+		.fd = -1,
+		.path = args->path,
+		.name = args->name,
+		.follow = FOLLOW,
+	};
+
+	return (removexattr(td, &eargs));
+}
+
+int
+linux_lremovexattr(struct thread *td, struct linux_lremovexattr_args *args)
+{
+	struct removexattr_args eargs = {
+		.fd = -1,
+		.path = args->path,
+		.name = args->name,
+		.follow = NOFOLLOW,
+	};
+
+	return (removexattr(td, &eargs));
+}
+
+int
+linux_fremovexattr(struct thread *td, struct linux_fremovexattr_args *args)
+{
+	struct removexattr_args eargs = {
+		.fd = args->fd,
+		.path = NULL,
+		.name = args->name,
+		.follow = 0,
+	};
+
+	return (removexattr(td, &eargs));
 }
 
 static int
