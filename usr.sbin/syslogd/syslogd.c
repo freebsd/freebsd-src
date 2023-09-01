@@ -371,15 +371,15 @@ static const char *TypeNames[] = {
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
-static int	Debug;		/* debug flag */
-static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
-static int	resolve = 1;	/* resolve hostname */
+static bool	Debug;		/* debug flag */
+static bool	Foreground = false; /* Run in foreground, instead of daemonizing */
+static bool	resolve = true;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
-static int	Initialized;	/* set when we have initialized ourselves */
+static bool	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 static int	MarkSeq;	/* mark sequence number */
-static int	NoBind;		/* don't bind() as suggested by RFC 3164 */
+static bool	NoBind;		/* don't bind() as suggested by RFC 3164 */
 static int	SecureMode;	/* when true, receive only unix domain socks */
 static int	MaxForwardLen = 1024;	/* max length of forwared message */
 #ifdef INET6
@@ -395,14 +395,14 @@ static int	logflags = O_WRONLY|O_APPEND; /* flags used to open log files */
 
 static char	bootfile[MAXPATHLEN]; /* booted kernel file */
 
-static int	RemoteAddDate;	/* Always set the date on remote messages */
-static int	RemoteHostname;	/* Log remote hostname from the message */
+static bool	RemoteAddDate;	/* Always set the date on remote messages */
+static bool	RemoteHostname;	/* Log remote hostname from the message */
 
-static int	UniquePriority;	/* Only log specified priority? */
+static bool	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
-static int	KeepKernFac;	/* Keep remotely logged kernel facility */
-static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
+static bool	KeepKernFac;	/* Keep remotely logged kernel facility */
+static bool	needdofsync = false; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
 static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
@@ -526,7 +526,8 @@ addsock(struct addrinfo *ai, struct socklist *sl0)
 int
 main(int argc, char *argv[])
 {
-	int ch, i, s, fdsrmax = 0, bflag = 0, pflag = 0, Sflag = 0;
+	int ch, i, s, fdsrmax = 0;
+	bool bflag = false, pflag = false, Sflag = false;
 	fd_set *fdsr = NULL;
 	struct timeval tv, *tvp;
 	struct peer *pe;
@@ -554,14 +555,14 @@ main(int argc, char *argv[])
 			mask_C1 = 0;
 			break;
 		case 'A':
-			send_to_all++;
+			send_to_all = true;
 			break;
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
 				usage();
 			break;
 		case 'b':
-			bflag = 1;
+			bflag = true;
 			p = strchr(optarg, ']');
 			if (p != NULL)
 				p = strchr(p + 1, ':');
@@ -593,19 +594,19 @@ main(int argc, char *argv[])
 			logflags |= O_CREAT;
 			break;
 		case 'd':		/* debug */
-			Debug++;
+			Debug = true;
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
 			break;
 		case 'F':		/* run in foreground instead of daemon */
-			Foreground++;
+			Foreground = true;
 			break;
 		case 'H':
-			RemoteHostname = 1;
+			RemoteHostname = true;
 			break;
 		case 'k':		/* keep remote kern fac */
-			KeepKernFac = 1;
+			KeepKernFac = true;
 			break;
 		case 'l':
 		case 'p':
@@ -619,10 +620,10 @@ main(int argc, char *argv[])
 				mode = DEFFILEMODE;
 			else if (ch == 'p') {
 				mode = DEFFILEMODE;
-				pflag = 1;
+				pflag = true;
 			} else {
 				mode = S_IRUSR | S_IWUSR;
-				Sflag = 1;
+				Sflag = true;
 			}
 			if (optarg[0] == '/')
 				name = optarg;
@@ -660,12 +661,12 @@ main(int argc, char *argv[])
 			MarkInterval = atoi(optarg) * 60;
 			break;
 		case 'N':
-			NoBind = 1;
+			NoBind = true;
 			if (!SecureMode)
 				SecureMode = 1;
 			break;
 		case 'n':
-			resolve = 0;
+			resolve = false;
 			break;
 		case 'O':
 			if (strcmp(optarg, "bsd") == 0 ||
@@ -678,7 +679,7 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'o':
-			use_bootfile = 1;
+			use_bootfile = true;
 			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
@@ -687,10 +688,10 @@ main(int argc, char *argv[])
 			SecureMode++;
 			break;
 		case 'T':
-			RemoteAddDate = 1;
+			RemoteAddDate = true;
 			break;
 		case 'u':		/* only log specified priority */
-			UniquePriority++;
+			UniquePriority = true;
 			break;
 		case 'v':		/* log facility and priority */
 		  	LogFacPri++;
@@ -793,7 +794,7 @@ main(int argc, char *argv[])
 		errx(1, "calloc fd_set");
 
 	for (;;) {
-		if (Initialized == 0)
+		if (!Initialized)
 			init(0);
 		else if (WantInitialize)
 			init(WantInitialize);
@@ -818,7 +819,7 @@ main(int argc, char *argv[])
 		switch (i) {
 		case 0:
 			dofsync();
-			needdofsync = 0;
+			needdofsync = false;
 			if (tvp) {
 				tvp = NULL;
 				if (ppid != 1)
@@ -1917,7 +1918,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			}
 		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC)) {
 			f->f_flags |= FFLAG_NEEDSYNC;
-			needdofsync = 1;
+			needdofsync = true;
 		}
 		break;
 
@@ -2597,7 +2598,7 @@ init(int signo)
 	/*
 	 *  Close all open log files.
 	 */
-	Initialized = 0;
+	Initialized = false;
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
@@ -2641,7 +2642,7 @@ init(int signo)
 	}
 
 	readconfigfile(ConfFile);
-	Initialized = 1;
+	Initialized = true;
 
 	if (Debug) {
 		int port;
