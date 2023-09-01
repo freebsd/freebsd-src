@@ -825,6 +825,8 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	STAILQ_FOREACH(sl, &shead, next) {
+		if (sl->sl_recv == NULL)
+			continue;
 		EV_SET(&ev, sl->sl_socket, EVFILT_READ, EV_ADD, 0, 0, sl);
 		if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
 			warn("failed to add kevent to kqueue");
@@ -3741,9 +3743,6 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 		return (NULL);
 	}
 	dprintf("new socket fd is %d\n", s);
-	if (ai->ai_socktype != SOCK_DGRAM) {
-		listen(s, 5);
-	}
 	sl_recv = socklist_recv_sock;
 #if defined(INET) || defined(INET6)
 	if (SecureMode && (ai->ai_family == AF_INET ||
