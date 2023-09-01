@@ -1,6 +1,6 @@
 Specify the
 .Xr malloc 3
-implementaiton used by libc.
+implementation used by libc.
 The default value is
 .Li jemalloc .
 Valid values are:
