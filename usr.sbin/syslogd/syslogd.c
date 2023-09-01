@@ -247,6 +247,17 @@ struct prop_filter {
 	size_t	pflt_strlen;
 };
 
+enum f_type {
+	F_UNUSED,	/* unused entry */
+	F_FILE,		/* regular file */
+	F_TTY,		/* terminal */
+	F_CONSOLE,	/* console terminal */
+	F_FORW,		/* remote machine */
+	F_USERS,	/* list of users */
+	F_WALL,		/* everyone logged on */
+	F_PIPE,		/* pipe to program */
+};
+
 /*
  * This structure represents the files that will have log
  * copies printed.
@@ -256,8 +267,8 @@ struct prop_filter {
 
 struct filed {
 	STAILQ_ENTRY(filed)	next;	/* next in linked list */
-	short	f_type;			/* entry type, see below */
-	short	f_file;			/* file descriptor */
+	enum f_type f_type;
+	int	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
 	char	*f_host;		/* host from which to recd. */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
@@ -350,16 +361,6 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 				if (++(f)->f_repeatcount > MAXREPEAT)	\
 					(f)->f_repeatcount = MAXREPEAT;	\
 			} while (0)
-
-/* values for f_type */
-#define F_UNUSED	0		/* unused entry */
-#define F_FILE		1		/* regular file */
-#define F_TTY		2		/* terminal */
-#define F_CONSOLE	3		/* console terminal */
-#define F_FORW		4		/* remote machine */
-#define F_USERS		5		/* list of users */
-#define F_WALL		6		/* everyone logged on */
-#define F_PIPE		7		/* pipe to program */
 
 static const char *TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
@@ -472,7 +473,6 @@ close_filed(struct filed *f)
 			f->fu_forw_addr = NULL;
 		}
 		/* FALLTHROUGH */
-
 	case F_FILE:
 	case F_TTY:
 	case F_CONSOLE:
@@ -480,6 +480,8 @@ close_filed(struct filed *f)
 		break;
 	case F_PIPE:
 		f->fu_pipe_pid = 0;
+		break;
+	default:
 		break;
 	}
 	(void)close(f->f_file);
@@ -1978,6 +1980,8 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		iovlist_append(il, "\r\n");
 		wallmsg(f, il->iov, il->iovcnt);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -2616,6 +2620,8 @@ init(int signo)
 			deadq_enter(f->fu_pipe_pid, f->fu_pipe_pname);
 			close_filed(f);
 			break;
+		default:
+			break;
 		}
 	}
 	while(!STAILQ_EMPTY(&fhead)) {
@@ -2712,6 +2718,8 @@ init(int signo)
 			case F_USERS:
 				for (i = 0; i < MAXUNAMES && *f->fu_uname[i]; i++)
 					printf("%s, ", f->fu_uname[i]);
+				break;
+			default:
 				break;
 			}
 			if (f->f_program)
