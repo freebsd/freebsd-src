@@ -1565,10 +1565,27 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 void
 pf_normalize_tcp_cleanup(struct pf_kstate *state)
 {
+	/* XXX Note: this also cleans up SCTP. */
 	uma_zfree(V_pf_state_scrub_z, state->src.scrub);
 	uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
+}
+int
+pf_normalize_sctp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
+	    struct pf_state_peer *src, struct pf_state_peer *dst)
+{
+	src->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
+	if (src->scrub == NULL)
+		return (1);
+
+	dst->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
+	if (dst->scrub == NULL) {
+		uma_zfree(V_pf_state_scrub_z, src);
+		return (1);
+	}
+
+	return (0);
 }
 
 int
