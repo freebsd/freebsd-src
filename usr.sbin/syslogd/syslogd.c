@@ -2521,13 +2521,60 @@ readconfigfile(const char *path)
 }
 
 /*
+ * Close all open log files.
+ */
+static void
+closelogfiles(void)
+{
+	struct filed *f;
+
+	while (!STAILQ_EMPTY(&fhead)) {
+		f = STAILQ_FIRST(&fhead);
+		STAILQ_REMOVE_HEAD(&fhead, next);
+
+		/* flush any pending output */
+		if (f->f_prevcount)
+			fprintlog_successive(f, 0);
+
+		switch (f->f_type) {
+		case F_FILE:
+		case F_FORW:
+		case F_CONSOLE:
+		case F_TTY:
+		case F_PIPE:
+			close_filed(f);
+			break;
+		default:
+			break;
+		}
+
+		free(f->f_program);
+		free(f->f_host);
+		if (f->f_prop_filter) {
+			switch (f->f_prop_filter->cmp_type) {
+			case FILT_CMP_REGEX:
+				regfree(f->f_prop_filter->pflt_re);
+				free(f->f_prop_filter->pflt_re);
+				break;
+			case FILT_CMP_CONTAINS:
+			case FILT_CMP_EQUAL:
+			case FILT_CMP_STARTS:
+				free(f->f_prop_filter->pflt_strval);
+				break;
+			}
+			free(f->f_prop_filter);
+		}
+		free(f);
+	}
+}
+
+/*
  *  INIT -- Initialize syslogd from configuration table
  */
 static void
 init(bool reload)
 {
 	int i;
-	struct filed *f;
 	char *p;
 	char oldLocalHostName[MAXHOSTNAMELEN];
 	char hostMsg[2*MAXHOSTNAMELEN+40];
@@ -2570,56 +2617,15 @@ init(bool reload)
 		unsetenv("TZ");
 	}
 
-	/*
-	 *  Close all open log files.
-	 */
 	Initialized = false;
-	while (!STAILQ_EMPTY(&fhead)) {
-		f = STAILQ_FIRST(&fhead);
-		STAILQ_REMOVE_HEAD(&fhead, next);
-
-		/* flush any pending output */
-		if (f->f_prevcount)
-			fprintlog_successive(f, 0);
-
-		switch (f->f_type) {
-		case F_FILE:
-		case F_FORW:
-		case F_CONSOLE:
-		case F_TTY:
-			close_filed(f);
-			break;
-		case F_PIPE:
-			close_filed(f);
-			break;
-		default:
-			break;
-		}
-
-		free(f->f_program);
-		free(f->f_host);
-		if (f->f_prop_filter) {
-			switch (f->f_prop_filter->cmp_type) {
-			case FILT_CMP_REGEX:
-				regfree(f->f_prop_filter->pflt_re);
-				free(f->f_prop_filter->pflt_re);
-				break;
-			case FILT_CMP_CONTAINS:
-			case FILT_CMP_EQUAL:
-			case FILT_CMP_STARTS:
-				free(f->f_prop_filter->pflt_strval);
-				break;
-			}
-			free(f->f_prop_filter);
-		}
-		free(f);
-	}
-
+	closelogfiles();
 	readconfigfile(ConfFile);
 	Initialized = true;
 
 	if (Debug) {
+		struct filed *f;
 		int port;
+
 		STAILQ_FOREACH(f, &fhead, next) {
 			for (i = 0; i <= LOG_NFACILITIES; i++)
 				if (f->f_pmask[i] == INTERNAL_NOPRI)
