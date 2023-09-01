@@ -222,34 +222,35 @@ struct logtime {
 #define	RFC3164_DATELEN	15
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
 
+enum filt_proptype {
+	FILT_PROP_NOOP,
+	FILT_PROP_MSG,
+	FILT_PROP_HOSTNAME,
+	FILT_PROP_PROGNAME,
+};
+
+enum filt_cmptype {
+	FILT_CMP_CONTAINS,
+	FILT_CMP_EQUAL,
+	FILT_CMP_STARTS,
+	FILT_CMP_REGEX,
+};
+
 /*
  * This structure holds a property-based filter
  */
-
 struct prop_filter {
-	uint8_t	prop_type;
-#define	PROP_TYPE_NOOP		0
-#define	PROP_TYPE_MSG		1
-#define	PROP_TYPE_HOSTNAME	2
-#define	PROP_TYPE_PROGNAME	3
-
-	uint8_t	cmp_type;
-#define	PROP_CMP_CONTAINS	1
-#define	PROP_CMP_EQUAL		2
-#define	PROP_CMP_STARTS		3
-#define	PROP_CMP_REGEX		4
-
-	uint16_t cmp_flags;
-#define	PROP_FLAG_EXCLUDE	(1 << 0)
-#define	PROP_FLAG_ICASE		(1 << 1)
-
+	enum filt_proptype prop_type;
+	enum filt_cmptype cmp_type;
+	uint8_t cmp_flags;
+#define	FILT_FLAG_EXCLUDE	(1 << 0)
+#define	FILT_FLAG_ICASE		(1 << 1)
 	union {
 		char *p_strval;
 		regex_t *p_re;
 	} pflt_uniptr;
 #define	pflt_strval	pflt_uniptr.p_strval
 #define	pflt_re		pflt_uniptr.p_re
-
 	size_t	pflt_strlen;
 };
 
@@ -1519,13 +1520,13 @@ static int
 evaluate_prop_filter(const struct prop_filter *filter, const char *value)
 {
 	const char *s = NULL;
-	const int exclude = ((filter->cmp_flags & PROP_FLAG_EXCLUDE) > 0);
+	const int exclude = ((filter->cmp_flags & FILT_FLAG_EXCLUDE) > 0);
 	size_t valuelen;
 
 	if (value == NULL)
 		return (-1);
 
-	if (filter->cmp_type == PROP_CMP_REGEX) {
+	if (filter->cmp_type == FILT_CMP_REGEX) {
 		if (regexec(filter->pflt_re, value, 0, NULL, 0) == 0)
 			return (exclude);
 		else
@@ -1535,31 +1536,31 @@ evaluate_prop_filter(const struct prop_filter *filter, const char *value)
 	valuelen = strlen(value);
 
 	/* a shortcut for equal with different length is always false */
-	if (filter->cmp_type == PROP_CMP_EQUAL &&
+	if (filter->cmp_type == FILT_CMP_EQUAL &&
 	    valuelen != filter->pflt_strlen)
 		return (!exclude);
 
-	if (filter->cmp_flags & PROP_FLAG_ICASE)
+	if (filter->cmp_flags & FILT_FLAG_ICASE)
 		s = strcasestr(value, filter->pflt_strval);
 	else
 		s = strstr(value, filter->pflt_strval);
 
 	/*
-	 * PROP_CMP_CONTAINS	true if s
-	 * PROP_CMP_STARTS	true if s && s == value
-	 * PROP_CMP_EQUAL	true if s && s == value &&
+	 * FILT_CMP_CONTAINS	true if s
+	 * FILT_CMP_STARTS	true if s && s == value
+	 * FILT_CMP_EQUAL	true if s && s == value &&
 	 *			    valuelen == filter->pflt_strlen
 	 *			    (and length match is checked
 	 *			     already)
 	 */
 
 	switch (filter->cmp_type) {
-	case PROP_CMP_STARTS:
-	case PROP_CMP_EQUAL:
+	case FILT_CMP_STARTS:
+	case FILT_CMP_EQUAL:
 		if (s != value)
 			return (!exclude);
 	/* FALLTHROUGH */
-	case PROP_CMP_CONTAINS:
+	case FILT_CMP_CONTAINS:
 		if (s)
 			return (exclude);
 		else
@@ -1685,19 +1686,19 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 
 		/* skip messages if a property does not match filter */
 		if (f->f_prop_filter != NULL &&
-		    f->f_prop_filter->prop_type != PROP_TYPE_NOOP) {
+		    f->f_prop_filter->prop_type != FILT_PROP_NOOP) {
 			switch (f->f_prop_filter->prop_type) {
-			case PROP_TYPE_MSG:
+			case FILT_PROP_MSG:
 				if (evaluate_prop_filter(f->f_prop_filter,
 				    msg))
 					continue;
 				break;
-			case PROP_TYPE_HOSTNAME:
+			case FILT_PROP_HOSTNAME:
 				if (evaluate_prop_filter(f->f_prop_filter,
 				    hostname))
 					continue;
 				break;
-			case PROP_TYPE_PROGNAME:
+			case FILT_PROP_PROGNAME:
 				if (evaluate_prop_filter(f->f_prop_filter,
 				    app_name == NULL ? "" : app_name))
 					continue;
@@ -2610,13 +2611,13 @@ init(bool reload)
 		free(f->f_host);
 		if (f->f_prop_filter) {
 			switch (f->f_prop_filter->cmp_type) {
-			case PROP_CMP_REGEX:
+			case FILT_CMP_REGEX:
 				regfree(f->f_prop_filter->pflt_re);
 				free(f->f_prop_filter->pflt_re);
 				break;
-			case PROP_CMP_CONTAINS:
-			case PROP_CMP_EQUAL:
-			case PROP_CMP_STARTS:
+			case FILT_CMP_CONTAINS:
+			case FILT_CMP_EQUAL:
+			case FILT_CMP_STARTS:
 				free(f->f_prop_filter->pflt_strval);
 				break;
 			}
@@ -2752,13 +2753,13 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 
 	/* fill in prop_type */
 	if (strcasecmp(argv[0], "msg") == 0)
-		pfilter->prop_type = PROP_TYPE_MSG;
+		pfilter->prop_type = FILT_PROP_MSG;
 	else if(strcasecmp(argv[0], "hostname") == 0)
-		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+		pfilter->prop_type = FILT_PROP_HOSTNAME;
 	else if(strcasecmp(argv[0], "source") == 0)
-		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+		pfilter->prop_type = FILT_PROP_HOSTNAME;
 	else if(strcasecmp(argv[0], "programname") == 0)
-		pfilter->prop_type = PROP_TYPE_PROGNAME;
+		pfilter->prop_type = FILT_PROP_PROGNAME;
 	else {
 		logerror("unknown property");
 		return (-1);
@@ -2766,25 +2767,25 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 
 	/* full in cmp_flags (i.e. !contains, icase_regex, etc.) */
 	if (*argv[1] == '!') {
-		pfilter->cmp_flags |= PROP_FLAG_EXCLUDE;
+		pfilter->cmp_flags |= FILT_FLAG_EXCLUDE;
 		argv[1]++;
 	}
 	if (strncasecmp(argv[1], "icase_", (sizeof("icase_") - 1)) == 0) {
-		pfilter->cmp_flags |= PROP_FLAG_ICASE;
+		pfilter->cmp_flags |= FILT_FLAG_ICASE;
 		argv[1] += sizeof("icase_") - 1;
 	}
 
 	/* fill in cmp_type */
 	if (strcasecmp(argv[1], "contains") == 0)
-		pfilter->cmp_type = PROP_CMP_CONTAINS;
+		pfilter->cmp_type = FILT_CMP_CONTAINS;
 	else if (strcasecmp(argv[1], "isequal") == 0)
-		pfilter->cmp_type = PROP_CMP_EQUAL;
+		pfilter->cmp_type = FILT_CMP_EQUAL;
 	else if (strcasecmp(argv[1], "startswith") == 0)
-		pfilter->cmp_type = PROP_CMP_STARTS;
+		pfilter->cmp_type = FILT_CMP_STARTS;
 	else if (strcasecmp(argv[1], "regex") == 0)
-		pfilter->cmp_type = PROP_CMP_REGEX;
+		pfilter->cmp_type = FILT_CMP_REGEX;
 	else if (strcasecmp(argv[1], "ereregex") == 0) {
-		pfilter->cmp_type = PROP_CMP_REGEX;
+		pfilter->cmp_type = FILT_CMP_REGEX;
 		re_flags |= REG_EXTENDED;
 	} else {
 		logerror("unknown cmp function");
@@ -2835,14 +2836,14 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 		return (-1);
 	}
 
-	if (pfilter->cmp_type == PROP_CMP_REGEX) {
+	if (pfilter->cmp_type == FILT_CMP_REGEX) {
 		pfilter->pflt_re = calloc(1, sizeof(*pfilter->pflt_re));
 		if (pfilter->pflt_re == NULL) {
 			logerror("RE calloc() error");
 			free(pfilter->pflt_re);
 			return (-1);
 		}
-		if (pfilter->cmp_flags & PROP_FLAG_ICASE)
+		if (pfilter->cmp_flags & FILT_FLAG_ICASE)
 			re_flags |= REG_ICASE;
 		if (regcomp(pfilter->pflt_re, filter, re_flags) != 0) {
 			logerror("RE compilation error");
@@ -2922,7 +2923,7 @@ cfline(const char *line, const char *prog, const char *host,
 			exit(1);
 		}
 		if (*pfilter == '*')
-			f->f_prop_filter->prop_type = PROP_TYPE_NOOP;
+			f->f_prop_filter->prop_type = FILT_PROP_NOOP;
 		else {
 			pfilter_dup = strdup(pfilter);
 			if (pfilter_dup == NULL) {
