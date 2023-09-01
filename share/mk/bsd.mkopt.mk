@@ -1,7 +1,7 @@
 #
 #
 # Generic mechanism to deal with WITH and WITHOUT options and turn
-# them into MK_ options.
+# them into MK_ options.  Also turn group options into OPT_ options.
 #
 # For each option FOO in __DEFAULT_YES_OPTIONS, MK_FOO is set to
 # "yes", unless WITHOUT_FOO is defined, in which case it is set to
@@ -30,6 +30,15 @@
 # Users should generally define WITH_FOO or WITHOUT_FOO, but the build
 # system should use MK_FOO={yes,no} when it needs to override the
 # user's desires or default behavior.
+#
+# For each option in __SINGLE_OPTIONS, OPT_FOO is set to FOO if
+# defined and __FOO_DEFAULT if not.  Valid values for FOO are specified
+# by __FOO_OPTIONS.
+#
+# Other parts of the build system will set BROKEN_SINGLE_OPTIONS to a
+# list of 3-tuples of the form: "OPTION broken_value replacment_value".
+# This will not be unset before returning. Clients are expected to
+# always += this variable.
 #
 
 #
@@ -91,6 +100,33 @@ MK_${var}:=	no
 #
 .for var in ${BROKEN_OPTIONS}
 MK_${var}:=	no
+.endfor
+
+#
+# Group options set an OPT_FOO variable for each option.
+#
+.for opt in ${__SINGLE_OPTIONS}
+.if !defined(__${opt}_OPTIONS) || empty(__${opt}_OPTIONS)
+.error __${opt}_OPTIONS undefined or empty
+.endif
+.if !defined(__${opt}_DEFAULT) || empty(__${opt}_DEFAULT)
+.error __${opt}_DEFAULT undefined or empty
+.endif
+.if defined(${opt})
+OPT_${opt}:=	${${opt}}
+.else
+OPT_${opt}:=	${__${opt}_DEFAULT}
+.endif
+.if empty(OPT_${opt}) || ${__${opt}_OPTIONS:M${OPT_${opt}}} != ${OPT_${opt}}
+.error Invalid option OPT_${opt} (${OPT_${opt}}), must be one of: ${__${opt}_OPTIONS}
+.endif
+.endfor
+.undef __SINGLE_OPTIONS
+
+.for opt val rep in ${BROKEN_SINGLE_OPTIONS}
+.if ${OPT_${opt}} == ${val}
+OPT_${opt}:=    ${rep}
+.endif
 .endfor
 
 .for vv in ${__DEFAULT_DEPENDENT_OPTIONS}

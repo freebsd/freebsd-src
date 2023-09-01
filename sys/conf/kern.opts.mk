@@ -141,6 +141,33 @@ MK_${var}:=	no
 MK_${var}:=	no
 .endfor
 .undef BROKEN_OPTIONS
+
+#
+# Group options set an OPT_FOO variable for each option.
+#
+.for opt in ${__SINGLE_OPTIONS}
+.if !defined(__${opt}_OPTIONS) || empty(__${opt}_OPTIONS)
+.error __${opt}_OPTIONS not defined or empty
+.endif
+.if !defined(__${opt}_DEFAULT) || empty(__${opt}_DEFAULT)
+.error __${opt}_DEFAULT undefined or empty
+.endif
+.if defined(${opt})
+OPT_${opt}:=	${${opt}}
+.else
+OPT_${opt}:=	${__${opt}_DEFAULT}
+.endif
+.if empty(OPT_${opt}) || ${__${opt}_OPTIONS:M${OPT_${opt}}} != ${OPT_${opt}}
+.error Invalid option OPT_${opt} (${OPT_${opt}}), must be one of: ${__${opt}_OPTIONS}
+.endif
+.endfor
+.undef __SINGLE_OPTIONS
+
+.for opt val rep in ${BROKEN_SINGLE_OPTIONS}
+.if ${OPT_${opt}} == ${val}
+OPT_${opt}:=	${rep}
+.endif
+.endfor
 #end of bsd.mkopt.mk expanded inline.
 
 #
