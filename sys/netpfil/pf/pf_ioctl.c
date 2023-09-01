@@ -1878,20 +1878,6 @@ pf_pooladdr_to_kpooladdr(const struct pf_pooladdr *pool,
 }
 
 static void
-pf_kpool_to_pool(const struct pf_kpool *kpool, struct pf_pool *pool)
-{
-	bzero(pool, sizeof(*pool));
-
-	bcopy(&kpool->key, &pool->key, sizeof(pool->key));
-	bcopy(&kpool->counter, &pool->counter, sizeof(pool->counter));
-
-	pool->tblidx = kpool->tblidx;
-	pool->proxy_port[0] = kpool->proxy_port[0];
-	pool->proxy_port[1] = kpool->proxy_port[1];
-	pool->opts = kpool->opts;
-}
-
-static void
 pf_pool_to_kpool(const struct pf_pool *pool, struct pf_kpool *kpool)
 {
 	_Static_assert(sizeof(pool->key) == sizeof(kpool->key), "");
@@ -1904,107 +1890,6 @@ pf_pool_to_kpool(const struct pf_pool *pool, struct pf_kpool *kpool)
 	kpool->proxy_port[0] = pool->proxy_port[0];
 	kpool->proxy_port[1] = pool->proxy_port[1];
 	kpool->opts = pool->opts;
-}
-
-static void
-pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
-{
-
-	bzero(rule, sizeof(*rule));
-
-	bcopy(&krule->src, &rule->src, sizeof(rule->src));
-	bcopy(&krule->dst, &rule->dst, sizeof(rule->dst));
-
-	for (int i = 0; i < PF_SKIP_COUNT; ++i) {
-		if (rule->skip[i].ptr == NULL)
-			rule->skip[i].nr = -1;
-		else
-			rule->skip[i].nr = krule->skip[i].ptr->nr;
-	}
-
-	strlcpy(rule->label, krule->label[0], sizeof(rule->label));
-	strlcpy(rule->ifname, krule->ifname, sizeof(rule->ifname));
-	strlcpy(rule->qname, krule->qname, sizeof(rule->qname));
-	strlcpy(rule->pqname, krule->pqname, sizeof(rule->pqname));
-	strlcpy(rule->tagname, krule->tagname, sizeof(rule->tagname));
-	strlcpy(rule->match_tagname, krule->match_tagname,
-	    sizeof(rule->match_tagname));
-	strlcpy(rule->overload_tblname, krule->overload_tblname,
-	    sizeof(rule->overload_tblname));
-
-	pf_kpool_to_pool(&krule->rpool, &rule->rpool);
-
-	rule->evaluations = pf_counter_u64_fetch(&krule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		rule->packets[i] = pf_counter_u64_fetch(&krule->packets[i]);
-		rule->bytes[i] = pf_counter_u64_fetch(&krule->bytes[i]);
-	}
-
-	/* kif, anchor, overload_tbl are not copied over. */
-
-	rule->os_fingerprint = krule->os_fingerprint;
-
-	rule->rtableid = krule->rtableid;
-	bcopy(krule->timeout, rule->timeout, sizeof(krule->timeout));
-	rule->max_states = krule->max_states;
-	rule->max_src_nodes = krule->max_src_nodes;
-	rule->max_src_states = krule->max_src_states;
-	rule->max_src_conn = krule->max_src_conn;
-	rule->max_src_conn_rate.limit = krule->max_src_conn_rate.limit;
-	rule->max_src_conn_rate.seconds = krule->max_src_conn_rate.seconds;
-	rule->qid = krule->qid;
-	rule->pqid = krule->pqid;
-	rule->nr = krule->nr;
-	rule->prob = krule->prob;
-	rule->cuid = krule->cuid;
-	rule->cpid = krule->cpid;
-
-	rule->return_icmp = krule->return_icmp;
-	rule->return_icmp6 = krule->return_icmp6;
-	rule->max_mss = krule->max_mss;
-	rule->tag = krule->tag;
-	rule->match_tag = krule->match_tag;
-	rule->scrub_flags = krule->scrub_flags;
-
-	bcopy(&krule->uid, &rule->uid, sizeof(krule->uid));
-	bcopy(&krule->gid, &rule->gid, sizeof(krule->gid));
-
-	rule->rule_flag = krule->rule_flag;
-	rule->action = krule->action;
-	rule->direction = krule->direction;
-	rule->log = krule->log;
-	rule->logif = krule->logif;
-	rule->quick = krule->quick;
-	rule->ifnot = krule->ifnot;
-	rule->match_tag_not = krule->match_tag_not;
-	rule->natpass = krule->natpass;
-
-	rule->keep_state = krule->keep_state;
-	rule->af = krule->af;
-	rule->proto = krule->proto;
-	rule->type = krule->type;
-	rule->code = krule->code;
-	rule->flags = krule->flags;
-	rule->flagset = krule->flagset;
-	rule->min_ttl = krule->min_ttl;
-	rule->allow_opts = krule->allow_opts;
-	rule->rt = krule->rt;
-	rule->return_ttl = krule->return_ttl;
-	rule->tos = krule->tos;
-	rule->set_tos = krule->set_tos;
-	rule->anchor_relative = krule->anchor_relative;
-	rule->anchor_wildcard = krule->anchor_wildcard;
-
-	rule->flush = krule->flush;
-	rule->prio = krule->prio;
-	rule->set_prio[0] = krule->set_prio[0];
-	rule->set_prio[1] = krule->set_prio[1];
-
-	bcopy(&krule->divert, &rule->divert, sizeof(krule->divert));
-
-	rule->u_states_cur = counter_u64_fetch(krule->states_cur);
-	rule->u_states_tot = counter_u64_fetch(krule->states_tot);
-	rule->u_src_nodes = counter_u64_fetch(krule->src_nodes);
 }
 
 static int
