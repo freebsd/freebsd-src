@@ -307,6 +307,10 @@ struct filed {
 #define	FFLAG_SYNC 0x01
 #define	FFLAG_NEEDSYNC	0x02
 };
+static STAILQ_HEAD(, filed) fhead =
+    STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
+static struct filed consfile;	/* Console */
+
 
 /*
  * Queue of about-to-be dead processes we should watch out for.
@@ -366,10 +370,6 @@ static const char *TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
-
-static STAILQ_HEAD(, filed) fhead =
-    STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
-static struct filed consfile;	/* Console */
 
 static int	Debug;		/* debug flag */
 static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
