@@ -2575,7 +2575,10 @@ init(bool reload)
 	 *  Close all open log files.
 	 */
 	Initialized = false;
-	STAILQ_FOREACH(f, &fhead, next) {
+	while (!STAILQ_EMPTY(&fhead)) {
+		f = STAILQ_FIRST(&fhead);
+		STAILQ_REMOVE_HEAD(&fhead, next);
+
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
@@ -2593,10 +2596,7 @@ init(bool reload)
 		default:
 			break;
 		}
-	}
-	while(!STAILQ_EMPTY(&fhead)) {
-		f = STAILQ_FIRST(&fhead);
-		STAILQ_REMOVE_HEAD(&fhead, next);
+
 		free(f->f_program);
 		free(f->f_host);
 		if (f->f_prop_filter) {
