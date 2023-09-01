@@ -574,8 +574,9 @@ If the
 MIB entry is zero, this will be restricted to the root user.
 .It Va allow.socket_af
 Sockets within a jail are normally restricted to IPv4, IPv6, local
-(UNIX), and route.  This allows access to other protocol stacks that
-have not had jail functionality added to them.
+(UNIX), and route.
+This allows access to other protocol stacks that have not had jail
+functionality added to them.
 .It Va allow.mlock
 Locking or unlocking physical pages in memory are normally not available
 within a jail.
@@ -671,7 +672,7 @@ and only when
 .Va enforce_statfs
 is set to a value lower than 2.
 .It Va allow.mount.fusefs
-privileged users inside the jail will be able to mount and unmount 
+privileged users inside the jail will be able to mount and unmount
 fuse-based file systems.
 This permission is effective only together with
 .Va allow.mount
@@ -764,7 +765,7 @@ the jail cannot perform any sysvmsg-related system calls.
 .It Va sysvsem, sysvshm
 Allow access to SYSV IPC semaphore and shared memory primitives, in the
 same manner as
-.Va sysvmsg.
+.Va sysvmsg .
 .El
 .Pp
 There are pseudo-parameters that are not passed to the kernel, but are
