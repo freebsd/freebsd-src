@@ -441,7 +441,6 @@ static void	cfline(const char *, const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(int);
 static void	deadq_remove(struct deadq_entry *);
-static bool	deadq_removebypid(pid_t);
 static int	decode(const char *, const CODE *);
 static void	die(int) __dead2;
 static void	dofsync(void);
@@ -453,7 +452,6 @@ static void	init(bool);
 static void	logerror(const char *);
 static void	logmsg(int, const struct logtime *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
-static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static struct socklist *socksetup(struct addrinfo *, const char *, mode_t);
 static int	socklist_recv_file(struct socklist *);
@@ -466,7 +464,6 @@ static int	prop_filter_compile(struct prop_filter *pfilter,
 static void	parsemsg(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
-static void	reapchild(int);
 static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
 static bool	validate(struct sockaddr *, const char *);
@@ -598,6 +595,7 @@ addfile(int fd)
 int
 main(int argc, char *argv[])
 {
+	struct sigaction act = { };
 	sigset_t sigset = { };
 	struct kevent ev;
 	struct socklist *sl;
@@ -846,6 +844,14 @@ main(int argc, char *argv[])
 	}
 	(void)alarm(TIMERINTVL);
 
+	/* Do not create zombie processes. */
+	act.sa_flags = SA_NOCLDWAIT;
+	if (sigaction(SIGCHLD, &act, NULL) == -1) {
+		warn("failed to apply signal handler");
+		pidfile_remove(pfh);
+		exit(1);
+	}
+
 	/* tuck my process id away */
 	pidfile_write(pfh);
 
@@ -883,9 +889,6 @@ main(int argc, char *argv[])
 				break;
 			case SIGALRM:
 				markit();
-				break;
-			case SIGCHLD:
-				reapchild(ev.ident);
 				break;
 			}
 			break;
@@ -2256,38 +2259,6 @@ ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
 	return (ttymsg(iov, iovcnt, line, tmout));
 }
 
-static void
-reapchild(int signo __unused)
-{
-	int status;
-	pid_t pid, pipe_pid;
-	struct filed *f;
-
-	while ((pid = wait3(&status, WNOHANG, (struct rusage *)NULL)) > 0) {
-		/* First, look if it's a process from the dead queue. */
-		if (deadq_removebypid(pid))
-			continue;
-
-		/* Now, look in list of active processes. */
-		STAILQ_FOREACH(f, &fhead, next) {
-			if (f->f_type == F_PIPE) {
-				if (pdgetpid(f->fu_pipe_pd, &pipe_pid) == -1) {
-					dprintf("Failed to query PID: %s\n",
-					    strerror(errno));
-					continue;
-				}
-				if (pipe_pid != pid)
-					continue;
-				/* Do not enter into deadq. */
-				f->fu_pipe_pd = -1;
-				close_filed(f);
-				log_deadchild(pid, status, f->fu_pipe_pname);
-				break;
-			}
-		}
-	}
-}
-
 /*
  * Return a printable representation of a host address.
  */
@@ -3228,19 +3199,11 @@ markit(void)
 		switch (dq->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
-			if (pdkill(dq->dq_procdesc, SIGKILL) != 0)
-				(void)deadq_remove(dq);
+			(void)pdkill(dq->dq_procdesc, SIGKILL);
+			(void)deadq_remove(dq);
 			break;
 
 		case 1:
-			/*
-			 * Timed out on dead queue, send terminate
-			 * signal.  Note that we leave the removal
-			 * from the dead queue to reapchild(), which
-			 * will also log the event (unless the process
-			 * didn't even really exist, in case we simply
-			 * drop it from the dead queue).
-			 */
 			if (pdkill(dq->dq_procdesc, SIGTERM) != 0)
 				(void)deadq_remove(dq);
 			else
@@ -3713,48 +3676,6 @@ deadq_remove(struct deadq_entry *dq)
 	TAILQ_REMOVE(&deadq_head, dq, dq_entries);
 	close(dq->dq_procdesc);
 	free(dq);
-}
-
-static bool
-deadq_removebypid(pid_t pid)
-{
-	struct deadq_entry *dq;
-	pid_t dq_pid;
-
-	TAILQ_FOREACH(dq, &deadq_head, dq_entries) {
-		if (pdgetpid(dq->dq_procdesc, &dq_pid) == -1) {
-			dprintf("Failed to query PID: %s\n", strerror(errno));
-			continue;
-		}
-		if (dq_pid == pid) {
-			deadq_remove(dq);
-			return (true);
-		}
-	}
-	return (false);
-}
-
-static void
-log_deadchild(pid_t pid, int status, const char *name)
-{
-	int code;
-	char buf[256];
-	const char *reason;
-
-	errno = 0; /* Keep strerror() stuff out of logerror messages. */
-	if (WIFSIGNALED(status)) {
-		reason = "due to signal";
-		code = WTERMSIG(status);
-	} else {
-		reason = "with status";
-		code = WEXITSTATUS(status);
-		if (code == 0)
-			return;
-	}
-	(void)snprintf(buf, sizeof buf,
-		       "Logging subprocess %d (%s) exited %s %d.",
-		       pid, name, reason, code);
-	logerror(buf);
 }
 
 static struct socklist *
