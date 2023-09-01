@@ -271,52 +271,56 @@ enum f_type {
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
  * or if f_type is F_PIPE and f_pid > 0.
  */
-
 struct filed {
-	STAILQ_ENTRY(filed)	next;	/* next in linked list */
 	enum f_type f_type;
-	int	f_file;			/* file descriptor */
-	time_t	f_time;			/* time this was last written */
-	char	*f_host;		/* host from which to recd. */
+
+	/* Used for filtering. */
+	char	*f_host;			/* host from which to recd. */
+	char	*f_program;			/* program this applies to */
+	struct prop_filter *f_prop_filter;	/* property-based filter */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
 	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
 #define PRI_LT	0x1
 #define PRI_EQ	0x2
 #define PRI_GT	0x4
-	char	*f_program;		/* program this applies to */
-	struct prop_filter *f_prop_filter; /* property-based filter */
+
+	/* Logging destinations. */
+	int	f_file;				/* file descriptor */
+	int	f_flags;			/* file-specific flags */
+#define	FFLAG_SYNC	0x01
+#define	FFLAG_NEEDSYNC	0x02
 	union {
-		char	f_uname[MAXUNAMES][MAXLOGNAME];
+		char	f_uname[MAXUNAMES][MAXLOGNAME];	/* F_WALL, F_USERS */
+		char	f_fname[MAXPATHLEN];	/* F_FILE, F_CONSOLE, F_TTY */
 		struct {
 			char	f_hname[MAXHOSTNAMELEN];
 			struct addrinfo *f_addr;
-
-		} f_forw;		/* forwarding address */
-		char	f_fname[MAXPATHLEN];
+		} f_forw;			/* F_FORW */
 		struct {
 			char	f_pname[MAXPATHLEN];
 			pid_t	f_pid;
-		} f_pipe;
+		} f_pipe;			/* F_PIPE */
 	} f_un;
 #define	fu_uname	f_un.f_uname
+#define	fu_fname	f_un.f_fname
 #define	fu_forw_hname	f_un.f_forw.f_hname
 #define	fu_forw_addr	f_un.f_forw.f_addr
-#define	fu_fname	f_un.f_fname
 #define	fu_pipe_pname	f_un.f_pipe.f_pname
 #define	fu_pipe_pid	f_un.f_pipe.f_pid
+
+	/* Book-keeping. */
 	char	f_prevline[MAXSVLINE];		/* last message logged */
+	time_t	f_time;				/* time this was last written */
 	struct logtime f_lasttime;		/* time of last occurrence */
 	int	f_prevpri;			/* pri of f_prevline */
 	size_t	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
-	int	f_flags;			/* file-specific flags */
-#define	FFLAG_SYNC 0x01
-#define	FFLAG_NEEDSYNC	0x02
+	STAILQ_ENTRY(filed) next;		/* next in linked list */
 };
 static STAILQ_HEAD(, filed) fhead =
     STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
-static struct filed consfile;	/* Console */
+static struct filed consfile;		/* Console */
 
 
 /*
