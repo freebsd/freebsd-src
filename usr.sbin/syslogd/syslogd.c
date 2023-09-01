@@ -2966,77 +2966,13 @@ parse_selector(const char *p, struct filed *f)
 	return (q);
 }
 
-/*
- * Crack a configuration file line
- */
 static void
-cfline(const char *line, const char *prog, const char *host,
-    const char *pfilter)
+parse_action(const char *p, struct filed *f)
 {
-	struct filed *f;
 	struct addrinfo hints, *res;
 	int error, i;
-	const char *p, *q;
+	const char *q;
 	bool syncfile;
-
-	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
-	    host, pfilter);
-
-	f = calloc(1, sizeof(*f));
-	if (f == NULL) {
-		logerror("malloc");
-		exit(1);
-	}
-	errno = 0;	/* keep strerror() stuff out of logerror messages */
-
-	for (i = 0; i <= LOG_NFACILITIES; i++)
-		f->f_pmask[i] = INTERNAL_NOPRI;
-
-	/* save hostname if any */
-	if (host && *host == '*')
-		host = NULL;
-	if (host) {
-		int hl;
-
-		f->f_host = strdup(host);
-		if (f->f_host == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-		hl = strlen(f->f_host);
-		if (hl > 0 && f->f_host[hl-1] == '.')
-			f->f_host[--hl] = '\0';
-		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
-			trimdomain(f->f_host, hl);
-	}
-
-	/* save program name if any */
-	if (prog && *prog == '*')
-		prog = NULL;
-	if (prog) {
-		f->f_program = strdup(prog);
-		if (f->f_program == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-	}
-
-	if (pfilter) {
-		f->f_prop_filter = prop_filter_compile(pfilter);
-		if (f->f_prop_filter == NULL) {
-			logerror("filter compile error");
-			exit(1);
-		}
-	}
-
-	/* scan through the list of selectors */
-	for (p = line; *p != '\0' && *p != '\t' && *p != ' ';)
-		p = parse_selector(p, f);
-
-	/* skip to action part */
-	while (*p == '\t' || *p == ' ')
-		p++;
 
 	if (*p == '-') {
 		syncfile = false;
@@ -3140,9 +3076,80 @@ cfline(const char *line, const char *prog, const char *host,
 		f->f_type = F_USERS;
 		break;
 	}
-	STAILQ_INSERT_TAIL(&fhead, f, next);
 }
 
+/*
+ * Crack a configuration file line
+ */
+static void
+cfline(const char *line, const char *prog, const char *host,
+    const char *pfilter)
+{
+	struct filed *f;
+	const char *p;
+
+	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
+	    host, pfilter);
+
+	f = calloc(1, sizeof(*f));
+	if (f == NULL) {
+		logerror("malloc");
+		exit(1);
+	}
+	errno = 0;	/* keep strerror() stuff out of logerror messages */
+
+	for (int i = 0; i <= LOG_NFACILITIES; i++)
+		f->f_pmask[i] = INTERNAL_NOPRI;
+
+	/* save hostname if any */
+	if (host && *host == '*')
+		host = NULL;
+	if (host) {
+		int hl;
+
+		f->f_host = strdup(host);
+		if (f->f_host == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
+		hl = strlen(f->f_host);
+		if (hl > 0 && f->f_host[hl-1] == '.')
+			f->f_host[--hl] = '\0';
+		/* RFC 5424 prefers logging FQDNs. */
+		if (RFC3164OutputFormat)
+			trimdomain(f->f_host, hl);
+	}
+
+	/* save program name if any */
+	if (prog && *prog == '*')
+		prog = NULL;
+	if (prog) {
+		f->f_program = strdup(prog);
+		if (f->f_program == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
+	}
+
+	if (pfilter) {
+		f->f_prop_filter = prop_filter_compile(pfilter);
+		if (f->f_prop_filter == NULL) {
+			logerror("filter compile error");
+			exit(1);
+		}
+	}
+
+	/* scan through the list of selectors */
+	for (p = line; *p != '\0' && *p != '\t' && *p != ' ';)
+		p = parse_selector(p, f);
+
+	/* skip to action part */
+	while (*p == '\t' || *p == ' ')
+		p++;
+	parse_action(p, f);
+
+	STAILQ_INSERT_TAIL(&fhead, f, next);
+}
 
 /*
  *  Decode a symbolic name to a numeric value
