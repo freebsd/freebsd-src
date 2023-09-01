@@ -135,6 +135,7 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #include <limits.h>
 #include <netdb.h>
 #include <paths.h>
+#include <poll.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -471,7 +472,6 @@ static bool	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
 static void	wallmsg(struct filed *, struct iovec *, const int iovlen);
 static int	waitdaemon(int);
-static void	timedout(int);
 static void	increase_rcvbuf(int);
 
 static void
@@ -599,8 +599,8 @@ main(int argc, char *argv[])
 	struct sigaction act = { };
 	struct kevent ev;
 	struct socklist *sl;
-	pid_t ppid = -1, spid;
-	int ch, kq, s;
+	pid_t spid;
+	int ch, kq, ppipe_w = -1, s;
 	char *p;
 	bool bflag = false, pflag = false, Sflag = false;
 
@@ -813,14 +813,9 @@ main(int argc, char *argv[])
 
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 
-	if ((!Foreground) && (!Debug)) {
-		ppid = waitdaemon(30);
-		if (ppid < 0) {
-			warn("could not become daemon");
-			pidfile_remove(pfh);
-			exit(1);
-		}
-	} else if (Debug)
+	if (!Foreground && !Debug)
+		ppipe_w = waitdaemon(30);
+	else if (Debug)
 		setlinebuf(stdout);
 
 	kq = kqueue();
@@ -868,9 +863,14 @@ main(int argc, char *argv[])
 	for (;;) {
 		if (needdofsync) {
 			dofsync();
-			if (ppid != -1) {
-				kill(ppid, SIGALRM);
-				ppid = -1;
+			if (ppipe_w != -1) {
+				/*
+				 * Close our end of the pipe so our
+				 * parent knows that we have finished
+				 * initialization.
+				 */
+				(void)close(ppipe_w);
+				ppipe_w = -1;
 			}
 		}
 		if (kevent(kq, NULL, 0, &ev, 1, NULL) == -1) {
@@ -3237,64 +3237,52 @@ markit(void)
 /*
  * fork off and become a daemon, but wait for the child to come online
  * before returning to the parent, or we get disk thrashing at boot etc.
- * Set a timer so we don't hang forever if it wedges.
  */
 static int
 waitdaemon(int maxwait)
 {
-	int status;
-	pid_t pid, childpid;
+	struct pollfd pollfd;
+	int events, pipefd[2], status;
+	pid_t pid;
 
-	switch (childpid = fork()) {
-	case -1:
-		return (-1);
-	case 0:
-		break;
-	default:
-		signal(SIGALRM, timedout);
-		alarm(maxwait);
-		while ((pid = wait3(&status, 0, NULL)) != -1) {
+	if (pipe(pipefd) == -1) {
+		warn("failed to daemonize, pipe");
+		die(0);
+	}
+	pid = fork();
+	if (pid == -1) {
+		warn("failed to daemonize, fork");
+		die(0);
+	} else if (pid > 0) {
+		close(pipefd[1]);
+		pollfd.fd = pipefd[0];
+		pollfd.events = POLLHUP;
+		events = poll(&pollfd, 1, maxwait * 1000);
+		if (events == -1)
+			err(1, "failed to daemonize, poll");
+		else if (events == 0)
+			errx(1, "timed out waiting for child");
+		if (waitpid(pid, &status, WNOHANG) > 0) {
 			if (WIFEXITED(status))
 				errx(1, "child pid %d exited with return code %d",
-					pid, WEXITSTATUS(status));
+				    pid, WEXITSTATUS(status));
 			if (WIFSIGNALED(status))
 				errx(1, "child pid %d exited on signal %d%s",
-					pid, WTERMSIG(status),
-					WCOREDUMP(status) ? " (core dumped)" :
-					"");
-			if (pid == childpid)	/* it's gone... */
-				break;
+				    pid, WTERMSIG(status),
+				    WCOREDUMP(status) ? " (core dumped)" : "");
 		}
 		exit(0);
 	}
-
-	if (setsid() == -1)
-		return (-1);
-
+	close(pipefd[0]);
+	if (setsid() == -1) {
+		warn("failed to daemonize, setsid");
+		die(0);
+	}
 	(void)chdir("/");
 	(void)dup2(nulldesc, STDIN_FILENO);
 	(void)dup2(nulldesc, STDOUT_FILENO);
 	(void)dup2(nulldesc, STDERR_FILENO);
-	return (getppid());
-}
-
-/*
- * We get a SIGALRM from the child when it's running and finished doing it's
- * fsync()'s or O_SYNC writes for all the boot messages.
- *
- * We also get a signal from the kernel if the timer expires, so check to
- * see what happened.
- */
-static void
-timedout(int sig __unused)
-{
-	int left;
-	left = alarm(0);
-	signal(SIGALRM, SIG_DFL);
-	if (left == 0)
-		errx(1, "timed out waiting for child");
-	else
-		_exit(0);
+	return (pipefd[1]);
 }
 
 /*
