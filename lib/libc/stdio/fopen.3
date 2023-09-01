@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)fopen.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd May 1, 2020
+.Dd September 1, 2023
 .Dt FOPEN 3
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@
 .Ft FILE *
 .Fn freopen "const char *path" "const char *mode" "FILE *stream"
 .Ft FILE *
-.Fn fmemopen "void *restrict *buf" "size_t size" "const char * restrict mode"
+.Fn fmemopen "void * restrict buf" "size_t size" "const char * restrict mode"
 .Sh DESCRIPTION
 The
 .Fn fopen
@@ -144,8 +144,10 @@ Reads and writes may be intermixed on read/write streams in any order,
 and do not require an intermediate seek as in previous versions of
 .Em stdio .
 This is not portable to other systems, however;
-.Tn ANSI C
-requires that
+.St -isoC
+and
+.St -p1003.1
+both require that
 a file positioning function intervene between output and input, unless
 an input operation encounters end-of-file.
 .Pp
@@ -246,9 +248,10 @@ byte.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn fopen ,
-.Fn fdopen
-and
+.Fn fdopen ,
 .Fn freopen
+and
+.Fn fmemopen
 return a
 .Tn FILE
 pointer.
