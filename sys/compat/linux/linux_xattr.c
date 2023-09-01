@@ -285,7 +285,7 @@ getxattr(struct thread *td, struct getxattr_args *args)
 	else
 		error = kern_extattr_get_fd(td, args->fd, attrnamespace,
 		    attrname, args->value, args->size);
-	return (error);
+	return (error == EPERM ? ENOATTR : error);
 }
 
 int
