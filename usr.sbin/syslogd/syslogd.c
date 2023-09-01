@@ -2314,7 +2314,7 @@ logerror(const char *msg)
 		msg = buf;
 	}
 	errno = 0;
-	dprintf("%s\n", buf);
+	dprintf("%s\n", msg);
 	logmsg(LOG_SYSLOG|LOG_ERR, NULL, LocalHostName, "syslogd", NULL, NULL,
 	    NULL, msg, 0);
 	recursed--;
