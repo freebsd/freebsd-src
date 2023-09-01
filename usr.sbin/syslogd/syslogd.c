@@ -133,6 +133,7 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #include <limits.h>
 #include <netdb.h>
 #include <paths.h>
+#include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -142,7 +143,6 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #include <sysexits.h>
 #include <unistd.h>
 #include <utmpx.h>
-#include <regex.h>
 
 #include "pathnames.h"
 #include "ttymsg.h"
@@ -372,8 +372,14 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 			} while (0)
 
 static const char *TypeNames[] = {
-	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
-	"FORW",		"USERS",	"WALL",		"PIPE"
+	"UNUSED",
+	"FILE",
+	"TTY",
+	"CONSOLE",
+	"FORW",
+	"USERS",
+	"WALL",
+	"PIPE",
 };
 
 static const int sigcatch[] = {
@@ -1480,7 +1486,7 @@ skip_message(const char *name, const char *spec, int checkcase)
 	/* Behaviour on explicit match */
 
 	if (spec == NULL)
-		return 0;
+		return (0);
 	switch (*spec) {
 	case '-':
 		exclude = 1;
@@ -1503,12 +1509,12 @@ skip_message(const char *name, const char *spec, int checkcase)
 		if (prev == ',' && (next == '\0' || next == ','))
 			/* Explicit match: skip iff the spec is an
 			   exclusive one. */
-			return exclude;
+			return (exclude);
 	}
 
 	/* No explicit match for this name: skip the message iff
 	   the spec is an inclusive one. */
-	return !exclude;
+	return (!exclude);
 }
 
 /*
@@ -1760,8 +1766,8 @@ dofsync(void)
 	struct filed *f;
 
 	STAILQ_FOREACH(f, &fhead, next) {
-		if ((f->f_type == F_FILE) &&
-		    (f->f_flags & FFLAG_NEEDSYNC)) {
+		if (f->f_type == F_FILE &&
+		    (f->f_flags & FFLAG_NEEDSYNC) != 0) {
 			f->f_flags &= ~FFLAG_NEEDSYNC;
 			(void)fsync(f->f_file);
 		}
@@ -2243,7 +2249,7 @@ ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
 	if ((sb.st_mode & S_IWGRP) == 0)
 		/* Messages disabled. */
 		return (NULL);
-	return ttymsg(iov, iovcnt, line, tmout);
+	return (ttymsg(iov, iovcnt, line, tmout));
 }
 
 static void
@@ -2398,7 +2404,7 @@ parseconfigfile(FILE *cf, bool allow_includes)
 	/*
 	 *  Foreach line in the conf table, open that file.
 	 */
-	include_len = sizeof(include_str) -1;
+	include_len = sizeof(include_str) - 1;
 	(void)strlcpy(host, "*", sizeof(host));
 	(void)strlcpy(prog, "*", sizeof(prog));
 	(void)strlcpy(pfilter, "*", sizeof(pfilter));
@@ -2410,7 +2416,7 @@ parseconfigfile(FILE *cf, bool allow_includes)
 		 */
 		for (p = cline; isspace(*p); ++p)
 			continue;
-		if (*p == 0)
+		if (*p == '\0')
 			continue;
 		if (allow_includes &&
 		    strncmp(p, include_str, include_len) == 0 &&
@@ -2457,7 +2463,7 @@ parseconfigfile(FILE *cf, bool allow_includes)
 			host[0] = *p++;
 			while (isspace(*p))
 				p++;
-			if ((!*p) || (*p == '*')) {
+			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(host, "*", sizeof(host));
 				continue;
 			}
@@ -2474,8 +2480,9 @@ parseconfigfile(FILE *cf, bool allow_includes)
 		}
 		if (*p == '!') {
 			p++;
-			while (isspace(*p)) p++;
-			if ((!*p) || (*p == '*')) {
+			while (isspace(*p))
+				p++;
+			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(prog, "*", sizeof(prog));
 				continue;
 			}
@@ -2484,14 +2491,14 @@ parseconfigfile(FILE *cf, bool allow_includes)
 					break;
 				prog[i] = p[i];
 			}
-			prog[i] = 0;
+			prog[i] = '\0';
 			continue;
 		}
 		if (*p == ':') {
 			p++;
 			while (isspace(*p))
 				p++;
-			if ((!*p) || (*p == '*')) {
+			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(pfilter, "*", sizeof(pfilter));
 				continue;
 			}
@@ -2754,11 +2761,11 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 	/* fill in prop_type */
 	if (strcasecmp(argv[0], "msg") == 0)
 		pfilter->prop_type = FILT_PROP_MSG;
-	else if(strcasecmp(argv[0], "hostname") == 0)
+	else if (strcasecmp(argv[0], "hostname") == 0)
 		pfilter->prop_type = FILT_PROP_HOSTNAME;
-	else if(strcasecmp(argv[0], "source") == 0)
+	else if (strcasecmp(argv[0], "source") == 0)
 		pfilter->prop_type = FILT_PROP_HOSTNAME;
-	else if(strcasecmp(argv[0], "programname") == 0)
+	else if (strcasecmp(argv[0], "programname") == 0)
 		pfilter->prop_type = FILT_PROP_PROGNAME;
 	else {
 		logerror("unknown property");
@@ -2868,10 +2875,11 @@ cfline(const char *line, const char *prog, const char *host,
 {
 	struct filed *f;
 	struct addrinfo hints, *res;
-	int error, i, pri, syncfile;
+	int error, i, pri;
 	const char *p, *q;
 	char *bp, *pfilter_dup;
 	char buf[LINE_MAX], ebuf[100];
+	bool syncfile;
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
 	    host, pfilter);
@@ -3048,10 +3056,10 @@ cfline(const char *line, const char *prog, const char *host,
 		p++;
 
 	if (*p == '-') {
-		syncfile = 0;
+		syncfile = false;
 		p++;
 	} else
-		syncfile = 1;
+		syncfile = true;
 
 	switch (*p) {
 	case '@':
