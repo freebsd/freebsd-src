@@ -4909,11 +4909,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		if (s->state_flags & PFSTATE_SCRUB_TCP &&
 		    pf_normalize_tcp_init(m, off, pd, th, &s->src, &s->dst)) {
 			REASON_SET(&reason, PFRES_MEMORY);
-			pf_src_tree_remove_state(s);
-			s->timeout = PFTM_UNLINKED;
-			STATE_DEC_COUNTERS(s);
-			pf_free_state(s);
-			return (PF_DROP);
+			goto drop;
 		}
 		if (s->state_flags & PFSTATE_SCRUB_TCP && s->src.scrub &&
 		    pf_normalize_tcp_stateful(m, off, pd, &reason, th, s,
@@ -4922,12 +4918,13 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    ("pf_normalize_tcp_stateful failed on first "
 			     "pkt\n"));
-			pf_src_tree_remove_state(s);
-			s->timeout = PFTM_UNLINKED;
-			STATE_DEC_COUNTERS(s);
-			pf_free_state(s);
-			return (PF_DROP);
+			goto drop;
 		}
+	} else if (pd->proto == IPPROTO_SCTP) {
+		if (pf_normalize_sctp_init(m, off, pd, &s->src, &s->dst))
+			goto drop;
+		if (! (pd->sctp_flags & (PFDESC_SCTP_INIT | PFDESC_SCTP_ADD_IP)))
+			goto drop;
 	}
 	s->direction = pd->dir;
 
@@ -5023,6 +5020,13 @@ csfailed:
 		PF_SRC_NODE_UNLOCK(nsn);
 	}
 
+	return (PF_DROP);
+
+drop:
+	pf_src_tree_remove_state(s);
+	s->timeout = PFTM_UNLINKED;
+	STATE_DEC_COUNTERS(s);
+	pf_free_state(s);
 	return (PF_DROP);
 }
 
@@ -5891,6 +5895,13 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 		}
 	}
 
+	if (src->scrub != NULL) {
+		if (src->scrub->pfss_v_tag == 0) {
+			src->scrub->pfss_v_tag = pd->hdr.sctp.v_tag;
+		} else  if (src->scrub->pfss_v_tag != pd->hdr.sctp.v_tag)
+			return (PF_DROP);
+	}
+
 	(*state)->expire = time_uptime;
 
 	/* translate source/destination address, if necessary */
@@ -5931,6 +5942,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 
 	TAILQ_FOREACH_SAFE(j, &pd->sctp_multihome_jobs, next, tmp) {
 		PF_RULES_RLOCK();
+		j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
 		action = pf_test_rule(&r, &sm, kif,
 		    j->m, off, &j->pd, &ra, &rs, NULL);
 		PF_RULES_RUNLOCK();
