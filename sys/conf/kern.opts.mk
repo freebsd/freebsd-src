@@ -57,8 +57,6 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BHYVE_SNAPSHOT \
     EXTRA_TCP_STACKS \
-    INIT_ALL_PATTERN \
-    INIT_ALL_ZERO \
     KERNEL_RETPOLINE \
     RATELIMIT \
     REPRODUCIBLE_BUILD \
@@ -71,12 +69,6 @@ __DEFAULT_NO_OPTIONS = \
 # and sometimes what is in the opt_*.h files by default.
 # Kernel config files are unaffected, though some targets can be
 # affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
-
-# Things that don't work based on the CPU
-.if ${MACHINE} == "amd64"
-# PR251083 conflict between INIT_ALL_ZERO and ifunc memset
-BROKEN_OPTIONS+= INIT_ALL_ZERO
-.endif
 
 # Broken on 32-bit arm, kernel module compile errors
 .if ${MACHINE_CPUARCH} == "arm"
@@ -97,6 +89,16 @@ BROKEN_OPTIONS+=EFI
 __DEFAULT_NO_OPTIONS += FDT
 .else
 __DEFAULT_YES_OPTIONS += FDT
+.endif
+
+__SINGLE_OPTIONS = \
+	INIT_ALL
+
+__INIT_ALL_OPTIONS=	none pattern zero
+__INIT_ALL_DEFAULT=	none
+.if ${MACHINE} == "amd64"
+# PR251083 conflict between INIT_ALL_ZERO and ifunc memset
+BROKEN_SINGLE_OPTIONS+=	INIT_ALL zero none
 .endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
