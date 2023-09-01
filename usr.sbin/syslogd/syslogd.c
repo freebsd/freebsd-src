@@ -809,7 +809,7 @@ main(int argc, char *argv[])
 		setlinebuf(stdout);
 
 	consfile.f_type = F_CONSOLE;
-	(void)strlcpy(consfile.fu_fname, ctty + sizeof _PATH_DEV - 1,
+	(void)strlcpy(consfile.fu_fname, ctty + sizeof(_PATH_DEV) - 1,
 	    sizeof(consfile.fu_fname));
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 
@@ -2923,7 +2923,7 @@ parse_selector(const char *p, struct filed *f)
 		pri = decode(buf, prioritynames);
 		if (pri < 0) {
 			errno = 0;
-			(void)snprintf(ebuf, sizeof ebuf,
+			(void)snprintf(ebuf, sizeof(ebuf),
 			    "unknown priority name \"%s\"", buf);
 			logerror(ebuf);
 			free(f);
@@ -2950,7 +2950,7 @@ parse_selector(const char *p, struct filed *f)
 			i = decode(buf, facilitynames);
 			if (i < 0) {
 				errno = 0;
-				(void)snprintf(ebuf, sizeof ebuf,
+				(void)snprintf(ebuf, sizeof(ebuf),
 				    "unknown facility name \"%s\"",
 				    buf);
 				logerror(ebuf);
@@ -3461,11 +3461,11 @@ allowaddr(char *s __unused)
 			printf("numeric, ");
 			getnameinfo(sstosa(&ap->a_addr),
 				    (sstosa(&ap->a_addr))->sa_len,
-				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
+				    ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
 			printf("addr = %s, ", ip);
 			getnameinfo(sstosa(&ap->a_mask),
 				    (sstosa(&ap->a_mask))->sa_len,
-				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
+				    ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
 			printf("mask = %s; ", ip);
 		} else {
 			printf("domainname = %s; ", ap->a_name);
@@ -3513,8 +3513,8 @@ validate(struct sockaddr *sa, const char *hname)
 	if (getaddrinfo(name, NULL, &hints, &res) == 0)
 		freeaddrinfo(res);
 	else if (strchr(name, '.') == NULL) {
-		strlcat(name, ".", sizeof name);
-		strlcat(name, LocalDomain, sizeof name);
+		strlcat(name, ".", sizeof(name));
+		strlcat(name, LocalDomain, sizeof(name));
 	}
 	if (getnameinfo(sa, sa->sa_len, ip, sizeof(ip), port, sizeof(port),
 			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
@@ -3648,7 +3648,7 @@ p_open(const char *prog, int *rpd)
 	 */
 	if (fcntl(pfd[1], F_SETFL, O_NONBLOCK) == -1) {
 		/* This is bad. */
-		(void)snprintf(errmsg, sizeof errmsg,
+		(void)snprintf(errmsg, sizeof(errmsg),
 			       "Warning: cannot change pipe to PID %d to "
 			       "non-blocking behaviour.",
 			       (int)pid);
