@@ -154,7 +154,6 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 
 static const char *ConfFile = _PATH_LOGCONF;
 static const char *PidFile = _PATH_LOGPID;
-static const char ctty[] = _PATH_CONSOLE;
 static const char include_str[] = "include";
 static const char include_ext[] = ".conf";
 
@@ -800,6 +799,12 @@ main(int argc, char *argv[])
 	if (Sflag == 0)
 		addsock(_PATH_LOG_PRIV, NULL, S_IRUSR | S_IWUSR);
 
+	consfile.f_type = F_CONSOLE;
+	consfile.f_file = -1;
+	(void)strlcpy(consfile.fu_fname, _PATH_CONSOLE + sizeof(_PATH_DEV) - 1,
+	    sizeof(consfile.fu_fname));
+	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
+
 	if ((!Foreground) && (!Debug)) {
 		ppid = waitdaemon(30);
 		if (ppid < 0) {
@@ -809,11 +814,6 @@ main(int argc, char *argv[])
 		}
 	} else if (Debug)
 		setlinebuf(stdout);
-
-	consfile.f_type = F_CONSOLE;
-	(void)strlcpy(consfile.fu_fname, ctty + sizeof(_PATH_DEV) - 1,
-	    sizeof(consfile.fu_fname));
-	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 
 	kq = kqueue();
 	if (kq == -1) {
@@ -1651,20 +1651,9 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
-		f = &consfile;
-		/*
-		 * Open in non-blocking mode to avoid hangs during open
-		 * and close(waiting for the port to drain).
-		 */
-		f->f_file = open(ctty, O_WRONLY | O_NONBLOCK, 0);
-
-		if (f->f_file >= 0) {
-			f->f_lasttime = *timestamp;
-			fprintlog_first(f, hostname, app_name, procid, msgid,
-			    structured_data, msg, flags);
-			close(f->f_file);
-			f->f_file = -1;
-		}
+		consfile.f_lasttime = *timestamp;
+		fprintlog_first(&consfile, hostname, app_name, procid,
+		    msgid, structured_data, msg, flags);
 		return;
 	}
 
@@ -3049,12 +3038,15 @@ parse_action(const char *p, struct filed *f)
 		if (syncfile)
 			f->f_flags |= FFLAG_SYNC;
 		if (isatty(f->f_file)) {
-			if (strcmp(p, ctty) == 0)
+			if (strcmp(p, _PATH_CONSOLE) == 0)
 				f->f_type = F_CONSOLE;
 			else
 				f->f_type = F_TTY;
 			(void)strlcpy(f->fu_fname, p + sizeof(_PATH_DEV) - 1,
 			    sizeof(f->fu_fname));
+			/* This will be reopened by ttymsg(). */
+			close(f->f_file);
+			f->f_file = -1;
 		} else {
 			(void)strlcpy(f->fu_fname, p, sizeof(f->fu_fname));
 			f->f_type = F_FILE;
