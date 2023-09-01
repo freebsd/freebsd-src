@@ -68,6 +68,15 @@ struct setxattr_args {
 	int		follow;
 };
 
+struct getxattr_args {
+	int		fd;
+	const char	*path;
+	const char	*name;
+	void 		*value;
+	l_size_t	size;
+	int		follow;
+};
+
 static char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
 
 
@@ -262,38 +271,7 @@ linux_fremovexattr(struct thread *td, struct linux_fremovexattr_args *args)
 }
 
 static int
-linux_path_getxattr(struct thread *td, const char *upath, const char *uname,
-    void *value, l_size_t size, int follow)
-{
-	char attrname[LINUX_XATTR_NAME_MAX + 1];
-	int attrnamespace, error;
-
-	error = xatrr_to_extattr(uname, &attrnamespace, attrname);
-	if (error != 0)
-		return (error);
-
-	return (kern_extattr_get_path(td, upath, attrnamespace,
-	    attrname, value, size, follow, UIO_USERSPACE));
-}
-
-int
-linux_getxattr(struct thread *td, struct linux_getxattr_args *args)
-{
-
-	return (linux_path_getxattr(td, args->path, args->name,
-	    args->value, args->size, FOLLOW));
-}
-
-int
-linux_lgetxattr(struct thread *td, struct linux_lgetxattr_args *args)
-{
-
-	return (linux_path_getxattr(td, args->path, args->name,
-	    args->value, args->size, NOFOLLOW));
-}
-
-int
-linux_fgetxattr(struct thread *td, struct linux_fgetxattr_args *args)
+getxattr(struct thread *td, struct getxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
@@ -301,8 +279,58 @@ linux_fgetxattr(struct thread *td, struct linux_fgetxattr_args *args)
 	error = xatrr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
-	return (kern_extattr_get_fd(td, args->fd, attrnamespace,
-	    attrname, args->value, args->size));
+	if (args->path != NULL)
+		error = kern_extattr_get_path(td, args->path, attrnamespace,
+		    attrname, args->value, args->size, args->follow, UIO_USERSPACE);
+	else
+		error = kern_extattr_get_fd(td, args->fd, attrnamespace,
+		    attrname, args->value, args->size);
+	return (error);
+}
+
+int
+linux_getxattr(struct thread *td, struct linux_getxattr_args *args)
+{
+	struct getxattr_args eargs = {
+		.fd = -1,
+		.path = args->path,
+		.name = args->name,
+		.value = args->value,
+		.size = args->size,
+		.follow = FOLLOW,
+	};
+
+	return (getxattr(td, &eargs));
+}
+
+int
+linux_lgetxattr(struct thread *td, struct linux_lgetxattr_args *args)
+{
+	struct getxattr_args eargs = {
+		.fd = -1,
+		.path = args->path,
+		.name = args->name,
+		.value = args->value,
+		.size = args->size,
+		.follow = NOFOLLOW,
+	};
+
+	return (getxattr(td, &eargs));
+}
+
+int
+linux_fgetxattr(struct thread *td, struct linux_fgetxattr_args *args)
+{
+	struct getxattr_args eargs = {
+		.fd = args->fd,
+		.path = NULL,
+		.name = args->name,
+		.value = args->value,
+		.size = args->size,
+		.follow = 0,
+	};
+
+	return (getxattr(td, &eargs));
 }
 
 static int
