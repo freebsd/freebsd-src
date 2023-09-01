@@ -220,6 +220,7 @@ static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 #ifdef VIMAGE
 	{"allow.nfsd", "allow.nonfsd", PR_ALLOW_NFSD},
 #endif
+	{"allow.extattr", "allow.noextattr", PR_ALLOW_EXTATTR},
 };
 static unsigned pr_allow_all = PR_ALLOW_ALL_STATIC;
 const size_t pr_flag_allow_size = sizeof(pr_flag_allow);
@@ -4060,6 +4061,17 @@ prison_priv_check(struct ucred *cred, int priv)
 		return (0);
 
 		/*
+		 * Conditionally allow privileged process in the jail to
+		 * manipulate filesystem extended attributes in the system
+		 * namespace.
+		 */
+	case PRIV_VFS_EXTATTR_SYSTEM:
+		if ((cred->cr_prison->pr_allow & PR_ALLOW_EXTATTR) != 0)
+			return (0);
+		else
+			return (EPERM);
+
+		/*
 		 * Conditionnaly allow locking (unlocking) physical pages
 		 * in memory.
 		 */
@@ -4552,6 +4564,8 @@ SYSCTL_JAIL_PARAM(_allow, suser, CTLTYPE_INT | CTLFLAG_RW,
 SYSCTL_JAIL_PARAM(_allow, nfsd, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Mountd/nfsd may run in the jail");
 #endif
+SYSCTL_JAIL_PARAM(_allow, extattr, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may set system-level filesystem extended attributes");
 
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
