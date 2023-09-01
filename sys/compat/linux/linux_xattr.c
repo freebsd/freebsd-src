@@ -88,6 +88,16 @@ static char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
 
 
 static int
+error_to_xattrerror(int attrnamespace, int error)
+{
+
+	if (attrnamespace == EXTATTR_NAMESPACE_SYSTEM && error == EPERM)
+		return (ENOTSUP);
+	else
+		return (error);
+}
+
+static int
 xatrr_to_extattr(const char *uattrname, int *attrnamespace, char *attrname)
 {
 	char uname[LINUX_XATTR_NAME_MAX + 1], *dot;
@@ -188,7 +198,7 @@ listxattr(struct thread *td, struct listxattr_args *args)
 	if (error == 0)
 		td->td_retval[0] = cnt;
 	free(data, M_LINUX);
-	return (error);
+	return (error_to_xattrerror(attrnamespace, error));
 }
 
 int
@@ -248,7 +258,7 @@ removexattr(struct thread *td, struct removexattr_args *args)
 	else
 		error = kern_extattr_delete_fd(td, args->fd, attrnamespace,
 		    attrname);
-	return (error);
+	return (error_to_xattrerror(attrnamespace, error));
 }
 
 int
@@ -392,7 +402,7 @@ setxattr(struct thread *td, struct setxattr_args *args)
 		    attrname, args->value, args->size);
 out:
 	td->td_retval[0] = 0;
-	return (error);
+	return (error_to_xattrerror(attrnamespace, error));
 }
 
 int
