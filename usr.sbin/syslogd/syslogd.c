@@ -398,6 +398,7 @@ static const int sigcatch[] = {
 	SIGCHLD,
 };
 
+static int	nulldesc;	/* /dev/null descriptor */
 static bool	Debug;		/* debug flag */
 static bool	Foreground = false; /* Run in foreground, instead of daemonizing */
 static bool	resolve = true;	/* resolve hostname */
@@ -803,6 +804,14 @@ main(int argc, char *argv[])
 	consfile.f_file = -1;
 	(void)strlcpy(consfile.fu_fname, _PATH_CONSOLE + sizeof(_PATH_DEV) - 1,
 	    sizeof(consfile.fu_fname));
+
+	nulldesc = open(_PATH_DEVNULL, O_RDWR);
+	if (nulldesc == -1) {
+		warn("cannot open %s", _PATH_DEVNULL);
+		pidfile_remove(pfh);
+		exit(1);
+	}
+
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 
 	if ((!Foreground) && (!Debug)) {
@@ -3235,7 +3244,6 @@ markit(void)
 static int
 waitdaemon(int maxwait)
 {
-	int fd;
 	int status;
 	pid_t pid, childpid;
 
@@ -3266,13 +3274,9 @@ waitdaemon(int maxwait)
 		return (-1);
 
 	(void)chdir("/");
-	if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-		(void)dup2(fd, STDIN_FILENO);
-		(void)dup2(fd, STDOUT_FILENO);
-		(void)dup2(fd, STDERR_FILENO);
-		if (fd > STDERR_FILENO)
-			(void)close(fd);
-	}
+	(void)dup2(nulldesc, STDIN_FILENO);
+	(void)dup2(nulldesc, STDOUT_FILENO);
+	(void)dup2(nulldesc, STDERR_FILENO);
 	return (getppid());
 }
 
@@ -3595,20 +3599,16 @@ static int
 p_open(const char *prog, int *rpd)
 {
 	sigset_t sigset = { };
-	int nulldesc, pfd[2], pd;
+	int pfd[2], pd;
 	pid_t pid;
 	char *argv[4]; /* sh -c cmd NULL */
 	char errmsg[200];
 
 	if (pipe(pfd) == -1)
 		return (-1);
-	if ((nulldesc = open(_PATH_DEVNULL, O_RDWR)) == -1)
-		/* we are royally screwed anyway */
-		return (-1);
 
 	switch ((pid = pdfork(&pd, PD_CLOEXEC))) {
 	case -1:
-		close(nulldesc);
 		return (-1);
 
 	case 0:
@@ -3639,7 +3639,6 @@ p_open(const char *prog, int *rpd)
 		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
 	}
-	close(nulldesc);
 	close(pfd[0]);
 	/*
 	 * Avoid blocking on a hung pipe.  With O_NONBLOCK, we are
