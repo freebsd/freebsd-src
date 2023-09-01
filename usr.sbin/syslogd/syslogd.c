@@ -176,7 +176,8 @@ static const char include_ext[] = ".conf";
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
 #endif
 /*
- * List of peers and sockets for binding.
+ * List of peers and sockets that can't be bound until
+ * flags have been parsed.
  */
 struct peer {
 	const char	*pe_name;
@@ -186,13 +187,16 @@ struct peer {
 };
 static STAILQ_HEAD(, peer) pqueue = STAILQ_HEAD_INITIALIZER(pqueue);
 
+/*
+ * Sockets used for logging; monitored by kevent().
+ */
 struct socklist {
 	struct addrinfo		sl_ai;
 #define	sl_sa		sl_ai.ai_addr
 #define	sl_salen	sl_ai.ai_addrlen
 #define	sl_family	sl_ai.ai_family
 	int			sl_socket;
-	struct peer		*sl_peer;
+	const char		*sl_name;
 	int			(*sl_recv)(struct socklist *);
 	STAILQ_ENTRY(socklist)	next;
 };
@@ -419,9 +423,9 @@ static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
 
 struct iovlist;
 
-static int	allowaddr(char *);
-static int	addpeer(struct peer *);
-static int	addsock(struct addrinfo *, struct socklist *);
+static bool	allowaddr(char *);
+static void	addpeer(const char *, const char *, mode_t);
+static void	addsock(const char *, const char *, mode_t);
 static void	cfline(const char *, const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
@@ -440,7 +444,7 @@ static void	logmsg(int, const struct logtime *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
-static int	socksetup(struct peer *);
+static struct socklist *socksetup(struct addrinfo *, const char *, mode_t);
 static int	socklist_recv_file(struct socklist *);
 static int	socklist_recv_sock(struct socklist *);
 static int	skip_message(const char *, const char *, int);
@@ -490,41 +494,91 @@ close_filed(struct filed *f)
 	f->f_file = -1;
 }
 
-static int
-addpeer(struct peer *pe0)
+static void
+addpeer(const char *name, const char *serv, mode_t mode)
 {
-	struct peer *pe;
-
-	pe = calloc(1, sizeof(*pe));
+	struct peer *pe = calloc(1, sizeof(*pe));
 	if (pe == NULL)
 		err(1, "malloc failed");
-	*pe = *pe0;
+	pe->pe_name = name;
+	pe->pe_serv = serv;
+	pe->pe_mode = mode;
 	STAILQ_INSERT_TAIL(&pqueue, pe, next);
-
-	return (0);
 }
 
-static int
-addsock(struct addrinfo *ai, struct socklist *sl0)
+static void
+addsock(const char *name, const char *serv, mode_t mode)
 {
+	struct addrinfo hints = { }, *res, *res0;
 	struct socklist *sl;
+	int error;
+	char *cp, *msgbuf;
 
-	/* Copy *ai->ai_addr to the tail of struct socklist if any. */
-	sl = calloc(1, sizeof(*sl) + ((ai != NULL) ? ai->ai_addrlen : 0));
+	/*
+	 * We have to handle this case for backwards compatibility:
+	 * If there are two (or more) colons but no '[' and ']',
+	 * assume this is an inet6 address without a service.
+	 */
+	if (name != NULL) {
+#ifdef INET6
+		if (name[0] == '[' &&
+		    (cp = strchr(name + 1, ']')) != NULL) {
+			name = &name[1];
+			*cp = '\0';
+			if (cp[1] == ':' && cp[2] != '\0')
+				serv = cp + 2;
+		} else {
+#endif
+			cp = strchr(name, ':');
+			if (cp != NULL && strchr(cp + 1, ':') == NULL) {
+				*cp = '\0';
+				if (cp[1] != '\0')
+					serv = cp + 1;
+				if (cp == name)
+					name = NULL;
+			}
+#ifdef INET6
+		}
+#endif
+	}
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE;
+	if (name != NULL)
+		dprintf("Trying peer: %s\n", name);
+	if (serv == NULL)
+		serv = "syslog";
+	error = getaddrinfo(name, serv, &hints, &res0);
+	if (error) {
+		asprintf(&msgbuf, "getaddrinfo failed for %s%s: %s",
+		    name == NULL ? "" : name, serv,
+		    gai_strerror(error));
+		errno = 0;
+		if (msgbuf == NULL)
+			logerror(gai_strerror(error));
+		else
+			logerror(msgbuf);
+		free(msgbuf);
+		die(0);
+	}
+	for (res = res0; res != NULL; res = res->ai_next) {
+		sl = socksetup(res, name, mode);
+		if (sl == NULL)
+			continue;
+		STAILQ_INSERT_TAIL(&shead, sl, next);
+	}
+	freeaddrinfo(res0);
+}
+
+static void
+addfile(int fd)
+{
+	struct socklist *sl = calloc(1, sizeof(*sl));
 	if (sl == NULL)
 		err(1, "malloc failed");
-	*sl = *sl0;
-	if (ai != NULL) {
-		memcpy(&sl->sl_ai, ai, sizeof(*ai));
-		if (ai->ai_addrlen > 0) {
-			memcpy((sl + 1), ai->ai_addr, ai->ai_addrlen);
-			sl->sl_sa = (struct sockaddr *)(sl + 1);
-		} else
-			sl->sl_sa = NULL;
-	}
+	sl->sl_socket = fd;
+	sl->sl_recv = socklist_recv_file;
 	STAILQ_INSERT_TAIL(&shead, sl, next);
-
-	return (0);
 }
 
 int
@@ -533,7 +587,6 @@ main(int argc, char *argv[])
 	sigset_t sigset = { };
 	struct kevent ev;
 	struct socklist *sl;
-	struct peer *pe;
 	pid_t ppid = -1, spid;
 	int ch, kq, s;
 	char *p;
@@ -562,7 +615,7 @@ main(int argc, char *argv[])
 			send_to_all = true;
 			break;
 		case 'a':		/* allow specific network addresses only */
-			if (allowaddr(optarg) == -1)
+			if (!allowaddr(optarg))
 				usage();
 			break;
 		case 'b':
@@ -577,18 +630,12 @@ main(int argc, char *argv[])
 			}
 			if (p == NULL) {
 				/* A hostname or filename only. */
-				addpeer(&(struct peer){
-					.pe_name = optarg,
-					.pe_serv = "syslog"
-				});
+				addpeer(optarg, "syslog", 0);
 			} else {
 				/* The case of "name:service". */
 				*p++ = '\0';
-				addpeer(&(struct peer){
-					.pe_serv = p,
-					.pe_name = (strlen(optarg) == 0) ?
-					    NULL : optarg,
-				});
+				addpeer(strlen(optarg) == 0 ? NULL : optarg,
+				    p, 0);
 			}
 			break;
 		case 'c':
@@ -649,10 +696,7 @@ main(int argc, char *argv[])
 			} else
 				errx(1, "invalid filename %s, exiting",
 				    optarg);
-			addpeer(&(struct peer){
-				.pe_name = name,
-				.pe_mode = mode
-			});
+			addpeer(name, NULL, mode);
 			break;
 		   }
 		case 'M':		/* max length of forwarded message */
@@ -709,42 +753,39 @@ main(int argc, char *argv[])
 	if (RFC3164OutputFormat && MaxForwardLen > 1024)
 		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
-	/* Listen by default: /dev/klog. */
-	s = open(_PATH_KLOG, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
-	if (s < 0) {
-		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
-	} else {
-		addsock(NULL, &(struct socklist){
-			.sl_socket = s,
-			.sl_recv = socklist_recv_file,
-		});
-	}
-	/* Listen by default: *:514 if no -b flag. */
-	if (bflag == 0)
-		addpeer(&(struct peer){
-			.pe_serv = "syslog"
-		});
-	/* Listen by default: /var/run/log if no -p flag. */
-	if (pflag == 0)
-		addpeer(&(struct peer){
-			.pe_name = _PATH_LOG,
-			.pe_mode = DEFFILEMODE,
-		});
-	/* Listen by default: /var/run/logpriv if no -S flag. */
-	if (Sflag == 0)
-		addpeer(&(struct peer){
-			.pe_name = _PATH_LOG_PRIV,
-			.pe_mode = S_IRUSR | S_IWUSR,
-		});
-	STAILQ_FOREACH(pe, &pqueue, next)
-		socksetup(pe);
-
 	pfh = pidfile_open(PidFile, 0600, &spid);
 	if (pfh == NULL) {
 		if (errno == EEXIST)
 			errx(1, "syslogd already running, pid: %d", spid);
 		warn("cannot open pid file");
 	}
+
+	/*
+	 * Now that flags have been parsed, we know if we're in
+	 * secure mode. Add peers to the socklist, if allowed.
+	 */
+	while (!STAILQ_EMPTY(&pqueue)) {
+		struct peer *pe = STAILQ_FIRST(&pqueue);
+		STAILQ_REMOVE_HEAD(&pqueue, next);
+		addsock(pe->pe_name, pe->pe_serv, pe->pe_mode);
+		free(pe);
+	}
+	/* Listen by default: /dev/klog. */
+	s = open(_PATH_KLOG, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
+	if (s < 0) {
+		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
+	} else {
+		addfile(s);
+	}
+	/* Listen by default: *:514 if no -b flag. */
+	if (bflag == 0)
+		addsock(NULL, "syslog", 0);
+	/* Listen by default: /var/run/log if no -p flag. */
+	if (pflag == 0)
+		addsock(_PATH_LOG, NULL, DEFFILEMODE);
+	/* Listen by default: /var/run/logpriv if no -S flag. */
+	if (Sflag == 0)
+		addsock(_PATH_LOG_PRIV, NULL, S_IRUSR | S_IWUSR);
 
 	if ((!Foreground) && (!Debug)) {
 		ppid = waitdaemon(30);
@@ -2312,7 +2353,7 @@ die(int signo)
 	}
 	STAILQ_FOREACH(sl, &shead, next) {
 		if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
-			unlink(sl->sl_peer->pe_name);
+			unlink(sl->sl_name);
 	}
 	pidfile_remove(pfh);
 
@@ -3272,9 +3313,9 @@ timedout(int sig __unused)
  *
  *    netaddr/maskbits[:{servicename|portnumber|*}]
  *
- * Returns -1 on error, 0 if the argument was valid.
+ * Returns false on error, true if the argument was valid.
  */
-static int
+static bool
 #if defined(INET) || defined(INET6)
 allowaddr(char *s)
 #else
@@ -3442,13 +3483,13 @@ allowaddr(char *s __unused)
 		printf("port = %d\n", ap->port);
 	}
 
-	return (0);
+	return (true);
 err:
 	if (res != NULL)
 		freeaddrinfo(res);
 	free(ap);
 #endif
-	return (-1);
+	return (false);
 }
 
 /*
@@ -3710,167 +3751,107 @@ log_deadchild(pid_t pid, int status, const char *name)
 	logerror(buf);
 }
 
-static int
-socksetup(struct peer *pe)
+static struct socklist *
+socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 {
-	struct addrinfo hints, *res, *res0;
-	int error;
-	char *cp;
+	struct socklist *sl;
 	int (*sl_recv)(struct socklist *);
+	int s, optval = 1;
+
+	if (ai->ai_family != AF_LOCAL && SecureMode > 1) {
+		/* Only AF_LOCAL in secure mode. */
+		return (NULL);
+	}
+	if (family != AF_UNSPEC && ai->ai_family != AF_LOCAL &&
+	    ai->ai_family != family)
+		return (NULL);
+
+	s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+	if (s < 0) {
+		logerror("socket");
+		return (NULL);
+	}
+#ifdef INET6
+	if (ai->ai_family == AF_INET6) {
+		if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &optval,
+		    sizeof(int)) < 0) {
+			logerror("setsockopt(IPV6_V6ONLY)");
+			close(s);
+			return (NULL);
+		}
+	}
+#endif
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &optval,
+	    sizeof(int)) < 0) {
+		logerror("setsockopt(SO_REUSEADDR)");
+		close(s);
+		return (NULL);
+	}
+
 	/*
-	 * We have to handle this case for backwards compatibility:
-	 * If there are two (or more) colons but no '[' and ']',
-	 * assume this is an inet6 address without a service.
+	 * Bind INET and UNIX-domain sockets.
+	 *
+	 * A UNIX-domain socket is always bound to a pathname
+	 * regardless of -N flag.
+	 *
+	 * For INET sockets, RFC 3164 recommends that client
+	 * side message should come from the privileged syslogd port.
+	 *
+	 * If the system administrator chooses not to obey
+	 * this, we can skip the bind() step so that the
+	 * system will choose a port for us.
 	 */
-	if (pe->pe_name != NULL) {
-#ifdef INET6
-		if (pe->pe_name[0] == '[' &&
-		    (cp = strchr(pe->pe_name + 1, ']')) != NULL) {
-			pe->pe_name = &pe->pe_name[1];
-			*cp = '\0';
-			if (cp[1] == ':' && cp[2] != '\0')
-				pe->pe_serv = cp + 2;
-		} else {
-#endif
-			cp = strchr(pe->pe_name, ':');
-			if (cp != NULL && strchr(cp + 1, ':') == NULL) {
-				*cp = '\0';
-				if (cp[1] != '\0')
-					pe->pe_serv = cp + 1;
-				if (cp == pe->pe_name)
-					pe->pe_name = NULL;
-			}
-#ifdef INET6
-		}
-#endif
-	}
-	hints = (struct addrinfo){
-		.ai_family = AF_UNSPEC,
-		.ai_socktype = SOCK_DGRAM,
-		.ai_flags = AI_PASSIVE
-	};
-	if (pe->pe_name != NULL)
-		dprintf("Trying peer: %s\n", pe->pe_name);
-	if (pe->pe_serv == NULL)
-		pe->pe_serv = "syslog";
-	error = getaddrinfo(pe->pe_name, pe->pe_serv, &hints, &res0);
-	if (error) {
-		char *msgbuf;
-
-		asprintf(&msgbuf, "getaddrinfo failed for %s%s: %s",
-		    pe->pe_name == NULL ? "" : pe->pe_name, pe->pe_serv,
-		    gai_strerror(error));
-		errno = 0;
-		if (msgbuf == NULL)
-			logerror(gai_strerror(error));
-		else
-			logerror(msgbuf);
-		free(msgbuf);
-		die(0);
-	}
-	for (res = res0; res != NULL; res = res->ai_next) {
-		int s;
-
-		if (res->ai_family != AF_LOCAL &&
-		    SecureMode > 1) {
-			/* Only AF_LOCAL in secure mode. */
-			continue;
-		}
-		if (family != AF_UNSPEC &&
-		    res->ai_family != AF_LOCAL && res->ai_family != family)
-			continue;
-
-		s = socket(res->ai_family, res->ai_socktype,
-		    res->ai_protocol);
-		if (s < 0) {
-			logerror("socket");
-			error++;
-			continue;
-		}
-#ifdef INET6
-		if (res->ai_family == AF_INET6) {
-			if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-			       &(int){1}, sizeof(int)) < 0) {
-				logerror("setsockopt(IPV6_V6ONLY)");
-				close(s);
-				error++;
-				continue;
-			}
-		}
-#endif
-		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
-		    &(int){1}, sizeof(int)) < 0) {
-			logerror("setsockopt(SO_REUSEADDR)");
+	if (ai->ai_family == AF_LOCAL)
+		unlink(name);
+	if (ai->ai_family == AF_LOCAL || NoBind == 0 || name != NULL) {
+		if (bind(s, ai->ai_addr, ai->ai_addrlen) < 0) {
+			logerror("bind");
 			close(s);
-			error++;
-			continue;
+			return (NULL);
 		}
-
-		/*
-		 * Bind INET and UNIX-domain sockets.
-		 *
-		 * A UNIX-domain socket is always bound to a pathname
-		 * regardless of -N flag.
-		 *
-		 * For INET sockets, RFC 3164 recommends that client
-		 * side message should come from the privileged syslogd port.
-		 *
-		 * If the system administrator chooses not to obey
-		 * this, we can skip the bind() step so that the
-		 * system will choose a port for us.
-		 */
-		if (res->ai_family == AF_LOCAL)
-			unlink(pe->pe_name);
-		if (res->ai_family == AF_LOCAL ||
-		    NoBind == 0 || pe->pe_name != NULL) {
-			if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
-				logerror("bind");
-				close(s);
-				error++;
-				continue;
-			}
-			if (res->ai_family == AF_LOCAL ||
-			    SecureMode == 0)
-				increase_rcvbuf(s);
-		}
-		if (res->ai_family == AF_LOCAL &&
-		    chmod(pe->pe_name, pe->pe_mode) < 0) {
-			dprintf("chmod %s: %s\n", pe->pe_name,
-			    strerror(errno));
-			close(s);
-			error++;
-			continue;
-		}
-		dprintf("new socket fd is %d\n", s);
-		if (res->ai_socktype != SOCK_DGRAM) {
-			listen(s, 5);
-		}
-		sl_recv = socklist_recv_sock;
+		if (ai->ai_family == AF_LOCAL || SecureMode == 0)
+			increase_rcvbuf(s);
+	}
+	if (ai->ai_family == AF_LOCAL && chmod(name, mode) < 0) {
+		dprintf("chmod %s: %s\n", name, strerror(errno));
+		close(s);
+		return (NULL);
+	}
+	dprintf("new socket fd is %d\n", s);
+	if (ai->ai_socktype != SOCK_DGRAM) {
+		listen(s, 5);
+	}
+	sl_recv = socklist_recv_sock;
 #if defined(INET) || defined(INET6)
-		if (SecureMode && (res->ai_family == AF_INET ||
-		    res->ai_family == AF_INET6)) {
-			dprintf("shutdown\n");
-			/* Forbid communication in secure mode. */
-			if (shutdown(s, SHUT_RD) < 0 &&
-			    errno != ENOTCONN) {
-				logerror("shutdown");
-				if (!Debug)
-					die(0);
-			}
-			sl_recv = NULL;
-		} else
+	if (SecureMode && (ai->ai_family == AF_INET ||
+	    ai->ai_family == AF_INET6)) {
+		dprintf("shutdown\n");
+		/* Forbid communication in secure mode. */
+		if (shutdown(s, SHUT_RD) < 0 && errno != ENOTCONN) {
+			logerror("shutdown");
+			if (!Debug)
+				die(0);
+		}
+		sl_recv = NULL;
+	} else
 #endif
-			dprintf("listening on socket\n");
-		dprintf("sending on socket\n");
-		addsock(res, &(struct socklist){
-			.sl_socket = s,
-			.sl_peer = pe,
-			.sl_recv = sl_recv
-		});
+		dprintf("listening on socket\n");
+	dprintf("sending on socket\n");
+	/* Copy *ai->ai_addr to the tail of struct socklist if any. */
+	sl = calloc(1, sizeof(*sl) + ai->ai_addrlen);
+	if (sl == NULL)
+		err(1, "malloc failed");
+	sl->sl_socket = s;
+	sl->sl_name = name;
+	sl->sl_recv = sl_recv;
+	(void)memcpy(&sl->sl_ai, ai, sizeof(*ai));
+	if (ai->ai_addrlen > 0) {
+		(void)memcpy((sl + 1), ai->ai_addr, ai->ai_addrlen);
+		sl->sl_sa = (struct sockaddr *)(sl + 1);
+	} else {
+		sl->sl_sa = NULL;
 	}
-	freeaddrinfo(res0);
-
-	return(error);
+	return (sl);
 }
 
 static void
