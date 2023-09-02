@@ -112,6 +112,17 @@ template <> struct MappingTraits<FormatStyle::AlignConsecutiveStyle> {
 };
 
 template <>
+struct MappingTraits<FormatStyle::ShortCaseStatementsAlignmentStyle> {
+  static void mapping(IO &IO,
+                      FormatStyle::ShortCaseStatementsAlignmentStyle &Value) {
+    IO.mapOptional("Enabled", Value.Enabled);
+    IO.mapOptional("AcrossEmptyLines", Value.AcrossEmptyLines);
+    IO.mapOptional("AcrossComments", Value.AcrossComments);
+    IO.mapOptional("AlignCaseColons", Value.AlignCaseColons);
+  }
+};
+
+template <>
 struct ScalarEnumerationTraits<FormatStyle::AttributeBreakingStyle> {
   static void enumeration(IO &IO, FormatStyle::AttributeBreakingStyle &Value) {
     IO.enumCase(Value, "Always", FormatStyle::ABS_Always);
@@ -375,6 +386,7 @@ template <> struct ScalarEnumerationTraits<FormatStyle::LanguageKind> {
     IO.enumCase(Value, "TextProto", FormatStyle::LK_TextProto);
     IO.enumCase(Value, "CSharp", FormatStyle::LK_CSharp);
     IO.enumCase(Value, "Json", FormatStyle::LK_Json);
+    IO.enumCase(Value, "Verilog", FormatStyle::LK_Verilog);
   }
 };
 
@@ -446,6 +458,7 @@ struct ScalarEnumerationTraits<FormatStyle::PackConstructorInitializersStyle> {
     IO.enumCase(Value, "BinPack", FormatStyle::PCIS_BinPack);
     IO.enumCase(Value, "CurrentLine", FormatStyle::PCIS_CurrentLine);
     IO.enumCase(Value, "NextLine", FormatStyle::PCIS_NextLine);
+    IO.enumCase(Value, "NextLineOnly", FormatStyle::PCIS_NextLineOnly);
   }
 };
 
@@ -497,6 +510,16 @@ struct ScalarEnumerationTraits<FormatStyle::ReferenceAlignmentStyle> {
     IO.enumCase(Value, "Middle", FormatStyle::RAS_Middle);
     IO.enumCase(Value, "Left", FormatStyle::RAS_Left);
     IO.enumCase(Value, "Right", FormatStyle::RAS_Right);
+  }
+};
+
+template <>
+struct ScalarEnumerationTraits<FormatStyle::RemoveParenthesesStyle> {
+  static void enumeration(IO &IO, FormatStyle::RemoveParenthesesStyle &Value) {
+    IO.enumCase(Value, "Leave", FormatStyle::RPS_Leave);
+    IO.enumCase(Value, "MultipleParentheses",
+                FormatStyle::RPS_MultipleParentheses);
+    IO.enumCase(Value, "ReturnStatement", FormatStyle::RPS_ReturnStatement);
   }
 };
 
@@ -699,6 +722,22 @@ template <> struct MappingTraits<FormatStyle::SpacesInLineComment> {
   }
 };
 
+template <> struct MappingTraits<FormatStyle::SpacesInParensCustom> {
+  static void mapping(IO &IO, FormatStyle::SpacesInParensCustom &Spaces) {
+    IO.mapOptional("InCStyleCasts", Spaces.InCStyleCasts);
+    IO.mapOptional("InConditionalStatements", Spaces.InConditionalStatements);
+    IO.mapOptional("InEmptyParentheses", Spaces.InEmptyParentheses);
+    IO.mapOptional("Other", Spaces.Other);
+  }
+};
+
+template <> struct ScalarEnumerationTraits<FormatStyle::SpacesInParensStyle> {
+  static void enumeration(IO &IO, FormatStyle::SpacesInParensStyle &Value) {
+    IO.enumCase(Value, "Never", FormatStyle::SIPO_Never);
+    IO.enumCase(Value, "Custom", FormatStyle::SIPO_Custom);
+  }
+};
+
 template <> struct ScalarEnumerationTraits<FormatStyle::TrailingCommaStyle> {
   static void enumeration(IO &IO, FormatStyle::TrailingCommaStyle &Value) {
     IO.enumCase(Value, "None", FormatStyle::TCS_None);
@@ -814,6 +853,11 @@ template <> struct MappingTraits<FormatStyle> {
     bool DeriveLineEnding = true;
     bool UseCRLF = false;
 
+    bool SpaceInEmptyParentheses = false;
+    bool SpacesInConditionalStatement = false;
+    bool SpacesInCStyleCastParentheses = false;
+    bool SpacesInParentheses = false;
+
     // For backward compatibility.
     if (!IO.outputting()) {
       IO.mapOptional("AlignEscapedNewlinesLeft", Style.AlignEscapedNewlines);
@@ -832,6 +876,12 @@ template <> struct MappingTraits<FormatStyle> {
       IO.mapOptional("PointerBindsToType", Style.PointerAlignment);
       IO.mapOptional("SpaceAfterControlStatementKeyword",
                      Style.SpaceBeforeParens);
+      IO.mapOptional("SpaceInEmptyParentheses", SpaceInEmptyParentheses);
+      IO.mapOptional("SpacesInConditionalStatement",
+                     SpacesInConditionalStatement);
+      IO.mapOptional("SpacesInCStyleCastParentheses",
+                     SpacesInCStyleCastParentheses);
+      IO.mapOptional("SpacesInParentheses", SpacesInParentheses);
       IO.mapOptional("UseCRLF", UseCRLF);
     }
 
@@ -845,6 +895,8 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("AlignConsecutiveDeclarations",
                    Style.AlignConsecutiveDeclarations);
     IO.mapOptional("AlignConsecutiveMacros", Style.AlignConsecutiveMacros);
+    IO.mapOptional("AlignConsecutiveShortCaseStatements",
+                   Style.AlignConsecutiveShortCaseStatements);
     IO.mapOptional("AlignEscapedNewlines", Style.AlignEscapedNewlines);
     IO.mapOptional("AlignOperands", Style.AlignOperands);
     IO.mapOptional("AlignTrailingComments", Style.AlignTrailingComments);
@@ -878,6 +930,8 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("BinPackArguments", Style.BinPackArguments);
     IO.mapOptional("BinPackParameters", Style.BinPackParameters);
     IO.mapOptional("BitFieldColonSpacing", Style.BitFieldColonSpacing);
+    IO.mapOptional("BracedInitializerIndentWidth",
+                   Style.BracedInitializerIndentWidth);
     IO.mapOptional("BraceWrapping", Style.BraceWrapping);
     IO.mapOptional("BreakAfterAttributes", Style.BreakAfterAttributes);
     IO.mapOptional("BreakAfterJavaFieldAnnotations",
@@ -938,6 +992,7 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("JavaScriptWrapImports", Style.JavaScriptWrapImports);
     IO.mapOptional("KeepEmptyLinesAtTheStartOfBlocks",
                    Style.KeepEmptyLinesAtTheStartOfBlocks);
+    IO.mapOptional("KeepEmptyLinesAtEOF", Style.KeepEmptyLinesAtEOF);
     IO.mapOptional("LambdaBodyIndentation", Style.LambdaBodyIndentation);
     IO.mapOptional("LineEnding", Style.LineEnding);
     IO.mapOptional("MacroBlockBegin", Style.MacroBlockBegin);
@@ -984,6 +1039,7 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("ReferenceAlignment", Style.ReferenceAlignment);
     IO.mapOptional("ReflowComments", Style.ReflowComments);
     IO.mapOptional("RemoveBracesLLVM", Style.RemoveBracesLLVM);
+    IO.mapOptional("RemoveParentheses", Style.RemoveParentheses);
     IO.mapOptional("RemoveSemicolon", Style.RemoveSemicolon);
     IO.mapOptional("RequiresClausePosition", Style.RequiresClausePosition);
     IO.mapOptional("RequiresExpressionIndentation",
@@ -1008,6 +1064,7 @@ template <> struct MappingTraits<FormatStyle> {
                    Style.SpaceBeforeCtorInitializerColon);
     IO.mapOptional("SpaceBeforeInheritanceColon",
                    Style.SpaceBeforeInheritanceColon);
+    IO.mapOptional("SpaceBeforeJsonColon", Style.SpaceBeforeJsonColon);
     IO.mapOptional("SpaceBeforeParens", Style.SpaceBeforeParens);
     IO.mapOptional("SpaceBeforeParensOptions", Style.SpaceBeforeParensOptions);
     IO.mapOptional("SpaceBeforeRangeBasedForLoopColon",
@@ -1015,29 +1072,29 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("SpaceBeforeSquareBrackets",
                    Style.SpaceBeforeSquareBrackets);
     IO.mapOptional("SpaceInEmptyBlock", Style.SpaceInEmptyBlock);
-    IO.mapOptional("SpaceInEmptyParentheses", Style.SpaceInEmptyParentheses);
     IO.mapOptional("SpacesBeforeTrailingComments",
                    Style.SpacesBeforeTrailingComments);
     IO.mapOptional("SpacesInAngles", Style.SpacesInAngles);
-    IO.mapOptional("SpacesInConditionalStatement",
-                   Style.SpacesInConditionalStatement);
     IO.mapOptional("SpacesInContainerLiterals",
                    Style.SpacesInContainerLiterals);
-    IO.mapOptional("SpacesInCStyleCastParentheses",
-                   Style.SpacesInCStyleCastParentheses);
     IO.mapOptional("SpacesInLineCommentPrefix",
                    Style.SpacesInLineCommentPrefix);
-    IO.mapOptional("SpacesInParentheses", Style.SpacesInParentheses);
+    IO.mapOptional("SpacesInParens", Style.SpacesInParens);
+    IO.mapOptional("SpacesInParensOptions", Style.SpacesInParensOptions);
     IO.mapOptional("SpacesInSquareBrackets", Style.SpacesInSquareBrackets);
     IO.mapOptional("Standard", Style.Standard);
     IO.mapOptional("StatementAttributeLikeMacros",
                    Style.StatementAttributeLikeMacros);
     IO.mapOptional("StatementMacros", Style.StatementMacros);
     IO.mapOptional("TabWidth", Style.TabWidth);
+    IO.mapOptional("TypeNames", Style.TypeNames);
     IO.mapOptional("TypenameMacros", Style.TypenameMacros);
     IO.mapOptional("UseTab", Style.UseTab);
+    IO.mapOptional("VerilogBreakBetweenInstancePorts",
+                   Style.VerilogBreakBetweenInstancePorts);
     IO.mapOptional("WhitespaceSensitiveMacros",
                    Style.WhitespaceSensitiveMacros);
+    IO.mapOptional("Macros", Style.Macros);
 
     // If AlwaysBreakAfterDefinitionReturnType was specified but
     // AlwaysBreakAfterReturnType was not, initialize the latter from the
@@ -1089,6 +1146,30 @@ template <> struct MappingTraits<FormatStyle> {
         Style.LineEnding = UseCRLF ? FormatStyle::LE_CRLF : FormatStyle::LE_LF;
       else if (UseCRLF)
         Style.LineEnding = FormatStyle::LE_DeriveCRLF;
+    }
+
+    if (Style.SpacesInParens != FormatStyle::SIPO_Custom &&
+        (SpacesInParentheses || SpaceInEmptyParentheses ||
+         SpacesInConditionalStatement || SpacesInCStyleCastParentheses)) {
+      if (SpacesInParentheses) {
+        // set all options except InCStyleCasts and InEmptyParentheses
+        // to true for backward compatibility.
+        Style.SpacesInParensOptions.InConditionalStatements = true;
+        Style.SpacesInParensOptions.InCStyleCasts =
+            SpacesInCStyleCastParentheses;
+        Style.SpacesInParensOptions.InEmptyParentheses =
+            SpaceInEmptyParentheses;
+        Style.SpacesInParensOptions.Other = true;
+      } else {
+        Style.SpacesInParensOptions = {};
+        Style.SpacesInParensOptions.InConditionalStatements =
+            SpacesInConditionalStatement;
+        Style.SpacesInParensOptions.InCStyleCasts =
+            SpacesInCStyleCastParentheses;
+        Style.SpacesInParensOptions.InEmptyParentheses =
+            SpaceInEmptyParentheses;
+      }
+      Style.SpacesInParens = FormatStyle::SIPO_Custom;
     }
   }
 };
@@ -1294,6 +1375,14 @@ static void expandPresetsSpaceBeforeParens(FormatStyle &Expanded) {
   }
 }
 
+static void expandPresetsSpacesInParens(FormatStyle &Expanded) {
+  if (Expanded.SpacesInParens == FormatStyle::SIPO_Custom)
+    return;
+  assert(Expanded.SpacesInParens == FormatStyle::SIPO_Never);
+  // Reset all flags
+  Expanded.SpacesInParensOptions = {};
+}
+
 FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   FormatStyle LLVMStyle;
   LLVMStyle.InheritsParentConfig = false;
@@ -1312,6 +1401,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.AlignConsecutiveBitFields = {};
   LLVMStyle.AlignConsecutiveDeclarations = {};
   LLVMStyle.AlignConsecutiveMacros = {};
+  LLVMStyle.AlignConsecutiveShortCaseStatements = {};
   LLVMStyle.AlignTrailingComments = {};
   LLVMStyle.AlignTrailingComments.Kind = FormatStyle::TCAS_Always;
   LLVMStyle.AlignTrailingComments.OverEmptyLines = 0;
@@ -1332,6 +1422,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.BitFieldColonSpacing = FormatStyle::BFCS_Both;
   LLVMStyle.BinPackArguments = true;
   LLVMStyle.BinPackParameters = true;
+  LLVMStyle.BracedInitializerIndentWidth = std::nullopt;
   LLVMStyle.BraceWrapping = {/*AfterCaseLabel=*/false,
                              /*AfterClass=*/false,
                              /*AfterControlStatement=*/FormatStyle::BWACS_Never,
@@ -1401,6 +1492,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
       /*Hex=*/0,     /*HexMinDigits=*/0};
   LLVMStyle.JavaScriptQuotes = FormatStyle::JSQS_Leave;
   LLVMStyle.JavaScriptWrapImports = true;
+  LLVMStyle.KeepEmptyLinesAtEOF = false;
   LLVMStyle.KeepEmptyLinesAtTheStartOfBlocks = true;
   LLVMStyle.LambdaBodyIndentation = FormatStyle::LBI_Signature;
   LLVMStyle.LineEnding = FormatStyle::LE_DeriveLF;
@@ -1418,6 +1510,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.ReferenceAlignment = FormatStyle::RAS_Pointer;
   LLVMStyle.ReflowComments = true;
   LLVMStyle.RemoveBracesLLVM = false;
+  LLVMStyle.RemoveParentheses = FormatStyle::RPS_Leave;
   LLVMStyle.RemoveSemicolon = false;
   LLVMStyle.RequiresClausePosition = FormatStyle::RCPS_OwnLine;
   LLVMStyle.RequiresExpressionIndentation = FormatStyle::REI_OuterScope;
@@ -1433,6 +1526,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.SpaceBeforeCaseColon = false;
   LLVMStyle.SpaceBeforeCtorInitializerColon = true;
   LLVMStyle.SpaceBeforeInheritanceColon = true;
+  LLVMStyle.SpaceBeforeJsonColon = false;
   LLVMStyle.SpaceBeforeParens = FormatStyle::SBPO_ControlStatements;
   LLVMStyle.SpaceBeforeParensOptions = {};
   LLVMStyle.SpaceBeforeParensOptions.AfterControlStatements = true;
@@ -1443,21 +1537,19 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.SpaceBeforeCpp11BracedList = false;
   LLVMStyle.SpaceBeforeSquareBrackets = false;
   LLVMStyle.SpaceInEmptyBlock = false;
-  LLVMStyle.SpaceInEmptyParentheses = false;
   LLVMStyle.SpacesBeforeTrailingComments = 1;
   LLVMStyle.SpacesInAngles = FormatStyle::SIAS_Never;
   LLVMStyle.SpacesInContainerLiterals = true;
-  LLVMStyle.SpacesInCStyleCastParentheses = false;
   LLVMStyle.SpacesInLineCommentPrefix = {/*Minimum=*/1, /*Maximum=*/-1u};
-  LLVMStyle.SpacesInParentheses = false;
+  LLVMStyle.SpacesInParens = FormatStyle::SIPO_Never;
   LLVMStyle.SpacesInSquareBrackets = false;
-  LLVMStyle.SpacesInConditionalStatement = false;
   LLVMStyle.Standard = FormatStyle::LS_Latest;
   LLVMStyle.StatementAttributeLikeMacros.push_back("Q_EMIT");
   LLVMStyle.StatementMacros.push_back("Q_UNUSED");
   LLVMStyle.StatementMacros.push_back("QT_REQUIRE_VERSION");
   LLVMStyle.TabWidth = 8;
   LLVMStyle.UseTab = FormatStyle::UT_Never;
+  LLVMStyle.VerilogBreakBetweenInstancePorts = true;
   LLVMStyle.WhitespaceSensitiveMacros.push_back("BOOST_PP_STRINGIZE");
   LLVMStyle.WhitespaceSensitiveMacros.push_back("CF_SWIFT_NAME");
   LLVMStyle.WhitespaceSensitiveMacros.push_back("NS_SWIFT_NAME");
@@ -1485,6 +1577,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
     break;
   case FormatStyle::LK_Verilog:
     LLVMStyle.IndentCaseLabels = true;
+    LLVMStyle.SpacesInContainerLiterals = false;
     break;
   default:
     break;
@@ -1931,6 +2024,7 @@ std::string configurationAsText(const FormatStyle &Style) {
   FormatStyle NonConstStyle = Style;
   expandPresetsBraceWrapping(NonConstStyle);
   expandPresetsSpaceBeforeParens(NonConstStyle);
+  expandPresetsSpacesInParens(NonConstStyle);
   Output << NonConstStyle;
 
   return Stream.str();
@@ -1967,6 +2061,50 @@ FormatStyle::GetLanguageStyle(FormatStyle::LanguageKind Language) const {
 }
 
 namespace {
+
+class ParensRemover : public TokenAnalyzer {
+public:
+  ParensRemover(const Environment &Env, const FormatStyle &Style)
+      : TokenAnalyzer(Env, Style) {}
+
+  std::pair<tooling::Replacements, unsigned>
+  analyze(TokenAnnotator &Annotator,
+          SmallVectorImpl<AnnotatedLine *> &AnnotatedLines,
+          FormatTokenLexer &Tokens) override {
+    AffectedRangeMgr.computeAffectedLines(AnnotatedLines);
+    tooling::Replacements Result;
+    removeParens(AnnotatedLines, Result);
+    return {Result, 0};
+  }
+
+private:
+  void removeParens(SmallVectorImpl<AnnotatedLine *> &Lines,
+                    tooling::Replacements &Result) {
+    const auto &SourceMgr = Env.getSourceManager();
+    for (auto *Line : Lines) {
+      removeParens(Line->Children, Result);
+      if (!Line->Affected)
+        continue;
+      for (const auto *Token = Line->First; Token && !Token->Finalized;
+           Token = Token->Next) {
+        if (!Token->Optional || !Token->isOneOf(tok::l_paren, tok::r_paren))
+          continue;
+        auto *Next = Token->Next;
+        assert(Next && Next->isNot(tok::eof));
+        SourceLocation Start;
+        if (Next->NewlinesBefore == 0) {
+          Start = Token->Tok.getLocation();
+          Next->WhitespaceRange = Token->WhitespaceRange;
+        } else {
+          Start = Token->WhitespaceRange.getBegin();
+        }
+        const auto &Range =
+            CharSourceRange::getCharRange(Start, Token->Tok.getEndLoc());
+        cantFail(Result.add(tooling::Replacement(SourceMgr, Range, " ")));
+      }
+    }
+  }
+};
 
 class BracesInserter : public TokenAnalyzer {
 public:
@@ -2459,7 +2597,7 @@ private:
   }
 
   bool containsOnlyComments(const AnnotatedLine &Line) {
-    for (FormatToken *Tok = Line.First; Tok != nullptr; Tok = Tok->Next)
+    for (FormatToken *Tok = Line.First; Tok; Tok = Tok->Next)
       if (Tok->isNot(tok::comment))
         return false;
     return true;
@@ -2676,6 +2814,8 @@ private:
         "CGSizeMake",
         "CGVector",
         "CGVectorMake",
+        "FOUNDATION_EXPORT", // This is an alias for FOUNDATION_EXTERN.
+        "FOUNDATION_EXTERN",
         "NSAffineTransform",
         "NSArray",
         "NSAttributedString",
@@ -2691,6 +2831,8 @@ private:
         "NSDecimalNumber",
         "NSDictionary",
         "NSEdgeInsets",
+        "NSError",
+        "NSErrorDomain",
         "NSHashTable",
         "NSIndexPath",
         "NSIndexSet",
@@ -2730,6 +2872,7 @@ private:
         "NSURLQueryItem",
         "NSUUID",
         "NSValue",
+        "NS_ASSUME_NONNULL_BEGIN",
         "UIImage",
         "UIView",
     };
@@ -2752,6 +2895,7 @@ private:
                                 FormatTok->TokenText)) ||
             FormatTok->is(TT_ObjCStringLiteral) ||
             FormatTok->isOneOf(Keywords.kw_NS_CLOSED_ENUM, Keywords.kw_NS_ENUM,
+                               Keywords.kw_NS_ERROR_ENUM,
                                Keywords.kw_NS_OPTIONS, TT_ObjCBlockLBrace,
                                TT_ObjCBlockLParen, TT_ObjCDecl, TT_ObjCForIn,
                                TT_ObjCMethodExpr, TT_ObjCMethodSpecifier,
@@ -2795,7 +2939,7 @@ struct JavaImportDirective {
 // Determines whether 'Ranges' intersects with ('Start', 'End').
 static bool affectsRange(ArrayRef<tooling::Range> Ranges, unsigned Start,
                          unsigned End) {
-  for (auto Range : Ranges) {
+  for (const auto &Range : Ranges) {
     if (Range.getOffset() < End &&
         Range.getOffset() + Range.getLength() > Start) {
       return true;
@@ -3008,13 +3152,10 @@ tooling::Replacements sortCppIncludes(const FormatStyle &Style, StringRef Code,
     if (Trimmed.contains(RawStringTermination))
       FormattingOff = false;
 
-    if (Trimmed == "// clang-format off" ||
-        Trimmed == "/* clang-format off */") {
+    if (isClangFormatOff(Trimmed))
       FormattingOff = true;
-    } else if (Trimmed == "// clang-format on" ||
-               Trimmed == "/* clang-format on */") {
+    else if (isClangFormatOn(Trimmed))
       FormattingOff = false;
-    }
 
     const bool EmptyLineSkipped =
         Trimmed.empty() &&
@@ -3191,9 +3332,9 @@ tooling::Replacements sortJavaImports(const FormatStyle &Style, StringRef Code,
         Code.substr(Prev, (Pos != StringRef::npos ? Pos : Code.size()) - Prev);
 
     StringRef Trimmed = Line.trim();
-    if (Trimmed == "// clang-format off")
+    if (isClangFormatOff(Trimmed))
       FormattingOff = true;
-    else if (Trimmed == "// clang-format on")
+    else if (isClangFormatOn(Trimmed))
       FormattingOff = false;
 
     if (ImportRegex.match(Line, &Matches)) {
@@ -3409,8 +3550,10 @@ reformat(const FormatStyle &Style, StringRef Code,
   FormatStyle Expanded = Style;
   expandPresetsBraceWrapping(Expanded);
   expandPresetsSpaceBeforeParens(Expanded);
+  expandPresetsSpacesInParens(Expanded);
   Expanded.InsertBraces = false;
   Expanded.RemoveBracesLLVM = false;
+  Expanded.RemoveParentheses = FormatStyle::RPS_Leave;
   Expanded.RemoveSemicolon = false;
   switch (Expanded.RequiresClausePosition) {
   case FormatStyle::RCPS_SingleLine:
@@ -3439,11 +3582,11 @@ reformat(const FormatStyle &Style, StringRef Code,
     tooling::Replacements Replaces =
         Formatter(*Env, Style, Status).process().first;
     // add a replacement to remove the "x = " from the result.
-    if (!Replaces.add(tooling::Replacement(FileName, 0, 4, ""))) {
-      // apply the reformatting changes and the removal of "x = ".
-      if (applyAllReplacements(Code, Replaces))
-        return {Replaces, 0};
-    }
+    Replaces = Replaces.merge(
+        tooling::Replacements(tooling::Replacement(FileName, 0, 4, "")));
+    // apply the reformatting changes and the removal of "x = ".
+    if (applyAllReplacements(Code, Replaces))
+      return {Replaces, 0};
     return {tooling::Replacements(), 0};
   }
 
@@ -3455,26 +3598,29 @@ reformat(const FormatStyle &Style, StringRef Code,
   typedef std::function<std::pair<tooling::Replacements, unsigned>(
       const Environment &)>
       AnalyzerPass;
-  SmallVector<AnalyzerPass, 8> Passes;
+
+  SmallVector<AnalyzerPass, 16> Passes;
 
   Passes.emplace_back([&](const Environment &Env) {
     return IntegerLiteralSeparatorFixer().process(Env, Expanded);
   });
 
   if (Style.isCpp()) {
-    if (Style.QualifierAlignment != FormatStyle::QAS_Leave) {
-      Passes.emplace_back([&](const Environment &Env) {
-        return QualifierAlignmentFixer(Env, Expanded, Code, Ranges,
-                                       FirstStartColumn, NextStartColumn,
-                                       LastStartColumn, FileName)
-            .process();
+    if (Style.QualifierAlignment != FormatStyle::QAS_Leave)
+      addQualifierAlignmentFixerPasses(Expanded, Passes);
+
+    if (Style.RemoveParentheses != FormatStyle::RPS_Leave) {
+      FormatStyle S = Expanded;
+      S.RemoveParentheses = Style.RemoveParentheses;
+      Passes.emplace_back([&, S = std::move(S)](const Environment &Env) {
+        return ParensRemover(Env, S).process(/*SkipAnnotation=*/true);
       });
     }
 
     if (Style.InsertBraces) {
       FormatStyle S = Expanded;
       S.InsertBraces = true;
-      Passes.emplace_back([&, S](const Environment &Env) {
+      Passes.emplace_back([&, S = std::move(S)](const Environment &Env) {
         return BracesInserter(Env, S).process(/*SkipAnnotation=*/true);
       });
     }
@@ -3482,7 +3628,7 @@ reformat(const FormatStyle &Style, StringRef Code,
     if (Style.RemoveBracesLLVM) {
       FormatStyle S = Expanded;
       S.RemoveBracesLLVM = true;
-      Passes.emplace_back([&, S](const Environment &Env) {
+      Passes.emplace_back([&, S = std::move(S)](const Environment &Env) {
         return BracesRemover(Env, S).process(/*SkipAnnotation=*/true);
       });
     }
@@ -3490,7 +3636,7 @@ reformat(const FormatStyle &Style, StringRef Code,
     if (Style.RemoveSemicolon) {
       FormatStyle S = Expanded;
       S.RemoveSemicolon = true;
-      Passes.emplace_back([&, S](const Environment &Env) {
+      Passes.emplace_back([&, S = std::move(S)](const Environment &Env) {
         return SemiRemover(Env, S).process(/*SkipAnnotation=*/true);
       });
     }
@@ -3552,6 +3698,24 @@ reformat(const FormatStyle &Style, StringRef Code,
           return {};
       }
     }
+  }
+
+  if (Style.QualifierAlignment != FormatStyle::QAS_Leave) {
+    // Don't make replacements that replace nothing. QualifierAlignment can
+    // produce them if one of its early passes changes e.g. `const volatile` to
+    // `volatile const` and then a later pass changes it back again.
+    tooling::Replacements NonNoOpFixes;
+    for (const tooling::Replacement &Fix : Fixes) {
+      StringRef OriginalCode = Code.substr(Fix.getOffset(), Fix.getLength());
+      if (!OriginalCode.equals(Fix.getReplacementText())) {
+        auto Err = NonNoOpFixes.add(Fix);
+        if (Err) {
+          llvm::errs() << "Error adding replacements : "
+                       << llvm::toString(std::move(Err)) << "\n";
+        }
+      }
+    }
+    Fixes = std::move(NonNoOpFixes);
   }
 
   return {Fixes, Penalty};
@@ -3669,33 +3833,33 @@ const char *StyleOptionHelpDescription =
 static FormatStyle::LanguageKind getLanguageByFileName(StringRef FileName) {
   if (FileName.endswith(".java"))
     return FormatStyle::LK_Java;
-  if (FileName.endswith_insensitive(".js") ||
-      FileName.endswith_insensitive(".mjs") ||
-      FileName.endswith_insensitive(".ts")) {
+  if (FileName.ends_with_insensitive(".js") ||
+      FileName.ends_with_insensitive(".mjs") ||
+      FileName.ends_with_insensitive(".ts")) {
     return FormatStyle::LK_JavaScript; // (module) JavaScript or TypeScript.
   }
   if (FileName.endswith(".m") || FileName.endswith(".mm"))
     return FormatStyle::LK_ObjC;
-  if (FileName.endswith_insensitive(".proto") ||
-      FileName.endswith_insensitive(".protodevel")) {
+  if (FileName.ends_with_insensitive(".proto") ||
+      FileName.ends_with_insensitive(".protodevel")) {
     return FormatStyle::LK_Proto;
   }
-  if (FileName.endswith_insensitive(".textpb") ||
-      FileName.endswith_insensitive(".pb.txt") ||
-      FileName.endswith_insensitive(".textproto") ||
-      FileName.endswith_insensitive(".asciipb")) {
+  if (FileName.ends_with_insensitive(".textpb") ||
+      FileName.ends_with_insensitive(".pb.txt") ||
+      FileName.ends_with_insensitive(".textproto") ||
+      FileName.ends_with_insensitive(".asciipb")) {
     return FormatStyle::LK_TextProto;
   }
-  if (FileName.endswith_insensitive(".td"))
+  if (FileName.ends_with_insensitive(".td"))
     return FormatStyle::LK_TableGen;
-  if (FileName.endswith_insensitive(".cs"))
+  if (FileName.ends_with_insensitive(".cs"))
     return FormatStyle::LK_CSharp;
-  if (FileName.endswith_insensitive(".json"))
+  if (FileName.ends_with_insensitive(".json"))
     return FormatStyle::LK_Json;
-  if (FileName.endswith_insensitive(".sv") ||
-      FileName.endswith_insensitive(".svh") ||
-      FileName.endswith_insensitive(".v") ||
-      FileName.endswith_insensitive(".vh")) {
+  if (FileName.ends_with_insensitive(".sv") ||
+      FileName.ends_with_insensitive(".svh") ||
+      FileName.ends_with_insensitive(".v") ||
+      FileName.ends_with_insensitive(".vh")) {
     return FormatStyle::LK_Verilog;
   }
   return FormatStyle::LK_Cpp;
@@ -3769,7 +3933,7 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
 
   // User provided clang-format file using -style=file:path/to/format/file.
   if (!Style.InheritsParentConfig &&
-      StyleName.startswith_insensitive("file:")) {
+      StyleName.starts_with_insensitive("file:")) {
     auto ConfigFile = StyleName.substr(5);
     llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Text =
         loadAndParseConfigFile(ConfigFile, FS, &Style, AllowUnknownOptions);
@@ -3897,6 +4061,26 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
   }
 
   return FallbackStyle;
+}
+
+static bool isClangFormatOnOff(StringRef Comment, bool On) {
+  if (Comment == (On ? "/* clang-format on */" : "/* clang-format off */"))
+    return true;
+
+  static const char ClangFormatOn[] = "// clang-format on";
+  static const char ClangFormatOff[] = "// clang-format off";
+  const unsigned Size = (On ? sizeof ClangFormatOn : sizeof ClangFormatOff) - 1;
+
+  return Comment.startswith(On ? ClangFormatOn : ClangFormatOff) &&
+         (Comment.size() == Size || Comment[Size] == ':');
+}
+
+bool isClangFormatOn(StringRef Comment) {
+  return isClangFormatOnOff(Comment, /*On=*/true);
+}
+
+bool isClangFormatOff(StringRef Comment) {
+  return isClangFormatOnOff(Comment, /*On=*/false);
 }
 
 } // namespace format

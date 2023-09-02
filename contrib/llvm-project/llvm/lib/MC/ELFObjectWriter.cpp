@@ -14,6 +14,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/iterator.h"
@@ -43,11 +44,11 @@
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -128,11 +129,11 @@ struct ELFWriter {
   /// @}
 
   // This holds the symbol table index of the last local symbol.
-  unsigned LastLocalSymbolIndex;
+  unsigned LastLocalSymbolIndex = ~0u;
   // This holds the .strtab section index.
-  unsigned StringTableIndex;
+  unsigned StringTableIndex = ~0u;
   // This holds the .symtab section index.
-  unsigned SymbolTableIndex;
+  unsigned SymbolTableIndex = ~0u;
 
   // Sections in the order they are to be output in the section table.
   std::vector<const MCSectionELF *> SectionTable;

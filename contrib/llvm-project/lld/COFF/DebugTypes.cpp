@@ -15,6 +15,7 @@
 #include "TypeMerger.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeRecordHelpers.h"
@@ -1021,7 +1022,8 @@ uint32_t GHashTable::insert(COFFLinkerContext &ctx, GloballyHashedType ghash,
   // type records are. Swap the byte order for better entropy. A better ghash
   // won't need this.
   uint32_t startIdx =
-      ByteSwap_64(*reinterpret_cast<uint64_t *>(&ghash)) % tableSize;
+      llvm::byteswap<uint64_t>(*reinterpret_cast<uint64_t *>(&ghash)) %
+      tableSize;
 
   // Do a linear probe starting at startIdx.
   uint32_t idx = startIdx;
