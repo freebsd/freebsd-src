@@ -39,6 +39,7 @@ DIRDEPS = \
 	lib/libmd \
 	lib/libmt \
 	lib/libnv \
+	lib/librt \
 	lib/libsbuf \
 	lib/libthr \
 	lib/libufs \

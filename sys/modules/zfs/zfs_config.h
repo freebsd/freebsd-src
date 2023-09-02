@@ -213,6 +213,9 @@
 /* blk_queue_write_cache() is GPL-only */
 /* #undef HAVE_BLK_QUEUE_WRITE_CACHE_GPL_ONLY */
 
+/* BLK_STS_RESV_CONFLICT is defined */
+/* #undef HAVE_BLK_STS_RESV_CONFLICT */
+
 /* Define if revalidate_disk() in block_device_operations */
 /* #undef HAVE_BLOCK_DEVICE_OPERATIONS_REVALIDATE_DISK */
 
@@ -270,6 +273,9 @@
 
 /* sops->dirty_inode() wants flags */
 /* #undef HAVE_DIRTY_INODE_WITH_FLAGS */
+
+/* disk_check_media_change() exists */
+/* #undef HAVE_DISK_CHECK_MEDIA_CHANGE */
 
 /* disk_*_io_acct() available */
 /* #undef HAVE_DISK_IO_ACCT */
@@ -849,6 +855,15 @@
 /* iops->getattr() takes a vfsmount */
 /* #undef HAVE_VFSMOUNT_IOPS_GETATTR */
 
+/* fops->clone_file_range() is available */
+/* #undef HAVE_VFS_CLONE_FILE_RANGE */
+
+/* fops->copy_file_range() is available */
+/* #undef HAVE_VFS_COPY_FILE_RANGE */
+
+/* fops->dedupe_file_range() is available */
+/* #undef HAVE_VFS_DEDUPE_FILE_RANGE */
+
 /* aops->direct_IO() uses iovec */
 /* #undef HAVE_VFS_DIRECT_IO_IOVEC */
 
@@ -863,6 +878,12 @@
 
 /* filemap_dirty_folio exists */
 /* #undef HAVE_VFS_FILEMAP_DIRTY_FOLIO */
+
+/* file_operations_extend takes .copy_file_range() and .clone_file_range() */
+/* #undef HAVE_VFS_FILE_OPERATIONS_EXTEND */
+
+/* generic_copy_file_range() is available */
+/* #undef HAVE_VFS_GENERIC_COPY_FILE_RANGE */
 
 /* All required iov_iter interfaces are available */
 /* #undef HAVE_VFS_IOV_ITER */
@@ -881,6 +902,9 @@
 
 /* read_folio exists */
 /* #undef HAVE_VFS_READ_FOLIO */
+
+/* fops->remap_file_range() is available */
+/* #undef HAVE_VFS_REMAP_FILE_RANGE */
 
 /* fops->read/write_iter() are available */
 /* #undef HAVE_VFS_RW_ITERATE */
@@ -1050,7 +1074,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.0-FreeBSD_g009d3288"
+#define ZFS_META_ALIAS "zfs-2.2.0-FreeBSD_g32949f256"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1059,7 +1083,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.3"
+#define ZFS_META_KVER_MAX "6.4"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1080,7 +1104,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g009d3288"
+#define ZFS_META_RELEASE "FreeBSD_g32949f256"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.0"

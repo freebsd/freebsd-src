@@ -27,6 +27,7 @@ sbin/zfs
 sbin/zfs_ids_to_path
 sbin/zgenhostid
 sbin/zhack
+sbin/zinject
 sbin/zpool
 sbin/zstream
 sbin/zstreamdump
@@ -59,7 +60,6 @@ usr/share/man/man8/zfs-get.8
 usr/share/man/man8/zfs-groupspace.8
 usr/share/man/man8/zfs-hold.8
 usr/share/man/man8/zfs-inherit.8
-usr/share/man/man8/zfs-jail.8
 usr/share/man/man8/zfs-list.8
 usr/share/man/man8/zfs-load-key.8
 usr/share/man/man8/zfs-mount-generator.8
@@ -79,7 +79,6 @@ usr/share/man/man8/zfs-set.8
 usr/share/man/man8/zfs-share.8
 usr/share/man/man8/zfs-snapshot.8
 usr/share/man/man8/zfs-unallow.8
-usr/share/man/man8/zfs-unjail.8
 usr/share/man/man8/zfs-unload-key.8
 usr/share/man/man8/zfs-unmount.8
 usr/share/man/man8/zfs-unzone.8
@@ -92,6 +91,7 @@ usr/share/man/man8/zfs_ids_to_path.8
 usr/share/man/man7/zfsconcepts.7
 usr/share/man/man7/zfsprops.7
 usr/share/man/man8/zgenhostid.8
+usr/share/man/man8/zinject.8
 usr/share/man/man8/zpool-add.8
 usr/share/man/man8/zpool-attach.8
 usr/share/man/man8/zpool-checkpoint.8
