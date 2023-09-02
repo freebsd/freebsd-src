@@ -27,6 +27,7 @@ setup()
 {
 	check_ko
 	mkdir mnt
+	[ -c /dev/mdctl ] || atf_skip "no /dev/mdctl to create md devices"
 	mdmfs -s 25m md mnt \
 		|| atf_fail "failed to mount md device"
 	chmod a+rwx mnt

@@ -4,6 +4,11 @@
 
 . `dirname $0`/conf.sh
 
+if ! [ -c /dev/mdctl ]; then
+    echo "1..0 # SKIP no /dev/mdctl to create md devices"
+    exit 0
+fi
+
 echo 1..1
 
 ddbs=2048

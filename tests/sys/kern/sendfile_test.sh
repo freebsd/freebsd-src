@@ -124,6 +124,7 @@ alloc_md()
 {
 	local md
 
+	[ -c /dev/mdctl ] || atf_skip "no /dev/mdctl to create md devices"
 	md=$(mdconfig -a -t swap -s 256M) || atf_fail "mdconfig -a failed"
 	echo ${md} >> $MD_DEVS
 	echo ${md}

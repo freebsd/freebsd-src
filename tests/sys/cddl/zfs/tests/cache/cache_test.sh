@@ -280,6 +280,7 @@ cache_010_neg_body()
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
 
+	[ -c /dev/mdctl ] || atf_skip "no /dev/mdctl to create md devices"
 	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/cache_010_neg.ksh || atf_fail "Testcase failed"
