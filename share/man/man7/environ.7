@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
 .\"
-.Dd August 5, 2020
+.Dd September 3, 2023
 .Dt ENVIRON 7
 .Os
 .Sh NAME
@@ -66,6 +66,13 @@ are documented in the
 section of the appropriate manual page.
 .Sh ENVIRONMENT
 .Bl -tag -width LD_LIBRARY_PATH
+.It Ev ARCHLEVEL
+On
+.Em amd64 ,
+controls the level of SIMD enhancements used.
+See
+.Xr simd 7
+for details.
 .It Ev BLOCKSIZE
 The size of the block units used by several disk-related commands,
 most notably
@@ -305,7 +312,8 @@ built-in command in
 .Xr setlocale 3 ,
 .Xr system 3 ,
 .Xr termcap 3 ,
-.Xr termcap 5
+.Xr termcap 5 ,
+.Xr simd 7
 .Sh HISTORY
 The
 .Nm
