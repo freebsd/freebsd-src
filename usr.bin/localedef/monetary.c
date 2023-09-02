@@ -93,7 +93,7 @@ add_monetary_num(int n)
 
 	(void) asprintf(&str, "%d", n);
 	if (str == NULL) {
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 		return;
 	}
 
@@ -167,7 +167,7 @@ add_monetary_group(int n)
 		(void) asprintf(&s, "%s;%d", mon.mon_grouping, n);
 	}
 	if (s == NULL)
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 
 	free((char *)mon.mon_grouping);
 	mon.mon_grouping = s;
