@@ -86,7 +86,7 @@ static const struct {
 	{ "ampersand",		'&' },
 	{ "apostrophe",		'\'' },
 	{ "left-parenthesis",	'(' },
-	{ "right-parenthesis",	'(' },
+	{ "right-parenthesis",	')' },
 	{ "asterisk",		'*' },
 	{ "plus-sign",		'+' },
 	{ "comma",		 ','},
