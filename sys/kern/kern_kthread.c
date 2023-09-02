@@ -78,13 +78,12 @@ kproc_start(const void *udata)
  * flags are flags to fork1 (in unistd.h)
  * fmt and following will be *printf'd into (*newpp)->p_comm (for ps, etc.).
  */
-int
-kproc_create(void (*func)(void *), void *arg,
-    struct proc **newpp, int flags, int pages, const char *fmt, ...)
+static int
+kproc_create1(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, int pages, const char *tdname)
 {
 	struct fork_req fr;
 	int error;
-	va_list ap;
 	struct thread *td;
 	struct proc *p2;
 
@@ -105,13 +104,9 @@ kproc_create(void (*func)(void *), void *arg,
 		*newpp = p2;
 
 	/* set up arg0 for 'ps', et al */
-	va_start(ap, fmt);
-	vsnprintf(p2->p_comm, sizeof(p2->p_comm), fmt, ap);
-	va_end(ap);
+	strcpy(p2->p_comm, tdname);
 	td = FIRST_THREAD_IN_PROC(p2);
-	va_start(ap, fmt);
-	vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
-	va_end(ap);
+	strcpy(td->td_name, tdname);
 #ifdef KTR
 	sched_clear_tdname(td);
 #endif
@@ -140,6 +135,23 @@ kproc_create(void (*func)(void *), void *arg,
 		thread_unlock(td);
 
 	return (0);
+}
+
+int
+kproc_create(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, int pages, const char *fmt, ...)
+{
+	va_list ap;
+	int error;
+	char tdname[MAXCOMLEN + 1];
+
+	va_start(ap, fmt);
+	vsnprintf(tdname, sizeof(tdname), fmt, ap);
+	va_end(ap);
+	DROP_GIANT();
+	error = kproc_create1(func, arg, newpp, flags, pages, tdname);
+	PICKUP_GIANT();
+	return (error);
 }
 
 void
@@ -250,11 +262,10 @@ kthread_start(const void *udata)
  *  ** XXX fix this --> flags are flags to fork1 (in unistd.h) 
  * fmt and following will be *printf'd into (*newtd)->td_name (for ps, etc.).
  */
-int
-kthread_add(void (*func)(void *), void *arg, struct proc *p,
-    struct thread **newtdp, int flags, int pages, const char *fmt, ...)
+static int
+kthread_add1(void (*func)(void *), void *arg, struct proc *p,
+    struct thread **newtdp, int flags, int pages, const char *tdname)
 {
-	va_list ap;
 	struct thread *newtd, *oldtd;
 
 	if (!proc0.p_stats)
@@ -278,9 +289,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
 	/* set up arg0 for 'ps', et al */
-	va_start(ap, fmt);
-	vsnprintf(newtd->td_name, sizeof(newtd->td_name), fmt, ap);
-	va_end(ap);
+	strcpy(newtd->td_name, tdname);
 
 	TSTHREAD(newtd, newtd->td_name);
 
@@ -321,6 +330,23 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	if (newtdp)
 		*newtdp = newtd;
 	return (0);
+}
+
+int
+kthread_add(void (*func)(void *), void *arg, struct proc *p,
+    struct thread **newtdp, int flags, int pages, const char *fmt, ...)
+{
+	va_list ap;
+	int error;
+	char tdname[MAXCOMLEN + 1];
+
+	va_start(ap, fmt);
+	vsnprintf(tdname, sizeof(tdname), fmt, ap);
+	va_end(ap);
+	DROP_GIANT();
+	error = kthread_add1(func, arg, p, newtdp, flags, pages, tdname);
+	PICKUP_GIANT();
+	return (error);
 }
 
 void
