@@ -29,52 +29,134 @@ class SourceMgr;
 class Twine;
 
 namespace tgtok {
-  enum TokKind {
-    // Markers
-    Eof, Error,
+enum TokKind {
+  // Markers
+  Eof,
+  Error,
 
-    // Tokens with no info.
-    minus, plus,        // - +
-    l_square, r_square, // [ ]
-    l_brace, r_brace,   // { }
-    l_paren, r_paren,   // ( )
-    less, greater,      // < >
-    colon, semi,        // : ;
-    comma, dot,         // , .
-    equal, question,    // = ?
-    paste,              // #
-    dotdotdot,          // ...
+  // Tokens with no info.
+  minus,     // -
+  plus,      // +
+  l_square,  // [
+  r_square,  // ]
+  l_brace,   // {
+  r_brace,   // }
+  l_paren,   // (
+  r_paren,   // )
+  less,      // <
+  greater,   // >
+  colon,     // :
+  semi,      // ;
+  comma,     // ,
+  dot,       // .
+  equal,     // =
+  question,  // ?
+  paste,     // #
+  dotdotdot, // ...
 
-    // Reserved keywords. ('ElseKW' is named to distinguish it from the
-    // existing 'Else' that means the preprocessor #else.)
-    Assert, Bit, Bits, Class, Code, Dag, Def, Defm, Defset, Defvar, ElseKW,
-    FalseKW, Field, Foreach, If, In, Include, Int, Let, List, MultiClass,
-    String, Then, TrueKW,
+  // Reserved keywords. ('ElseKW' is named to distinguish it from the
+  // existing 'Else' that means the preprocessor #else.)
+  Assert,
+  Bit,
+  Bits,
+  Class,
+  Code,
+  Dag,
+  Def,
+  Defm,
+  Defset,
+  Defvar,
+  ElseKW,
+  FalseKW,
+  Field,
+  Foreach,
+  If,
+  In,
+  Include,
+  Int,
+  Let,
+  List,
+  MultiClass,
+  String,
+  Then,
+  TrueKW,
 
-    // Bang operators.
-    XConcat, XADD, XSUB, XMUL, XDIV, XNOT, XLOG2, XAND, XOR, XXOR, XSRA, XSRL,
-    XSHL, XListConcat, XListSplat, XStrConcat, XInterleave, XSubstr, XFind,
-    XCast, XSubst, XForEach, XFilter, XFoldl, XHead, XTail, XSize, XEmpty, XIf,
-    XCond, XEq, XIsA, XDag, XNe, XLe, XLt, XGe, XGt, XSetDagOp, XGetDagOp,
-    XExists, XListRemove,
+  // Bang operators.
+  XConcat,
+  XADD,
+  XSUB,
+  XMUL,
+  XDIV,
+  XNOT,
+  XLOG2,
+  XAND,
+  XOR,
+  XXOR,
+  XSRA,
+  XSRL,
+  XSHL,
+  XListConcat,
+  XListSplat,
+  XStrConcat,
+  XInterleave,
+  XSubstr,
+  XFind,
+  XCast,
+  XSubst,
+  XForEach,
+  XFilter,
+  XFoldl,
+  XHead,
+  XTail,
+  XSize,
+  XEmpty,
+  XIf,
+  XCond,
+  XEq,
+  XIsA,
+  XDag,
+  XNe,
+  XLe,
+  XLt,
+  XGe,
+  XGt,
+  XSetDagOp,
+  XGetDagOp,
+  XExists,
+  XListRemove,
+  XToLower,
+  XToUpper,
+  XRange,
+  XGetDagArg,
+  XGetDagName,
+  XSetDagArg,
+  XSetDagName,
 
-    // Boolean literals.
-    TrueVal, FalseVal,
+  // Boolean literals.
+  TrueVal,
+  FalseVal,
 
-    // Integer value.
-    IntVal,
+  // Integer value.
+  IntVal,
 
-    // Binary constant.  Note that these are sized according to the number of
-    // bits given.
-    BinaryIntVal,
+  // Binary constant.  Note that these are sized according to the number of
+  // bits given.
+  BinaryIntVal,
 
-    // String valued tokens.
-    Id, StrVal, VarName, CodeFragment,
+  // String valued tokens.
+  Id,
+  StrVal,
+  VarName,
+  CodeFragment,
 
-    // Preprocessing tokens for internal usage by the lexer.
-    // They are never returned as a result of Lex().
-    Ifdef, Ifndef, Else, Endif, Define
-  };
+  // Preprocessing tokens for internal usage by the lexer.
+  // They are never returned as a result of Lex().
+  Ifdef,
+  Ifndef,
+  Else,
+  Endif,
+  Define
+};
 }
 
 /// TGLexer - TableGen Lexer class.

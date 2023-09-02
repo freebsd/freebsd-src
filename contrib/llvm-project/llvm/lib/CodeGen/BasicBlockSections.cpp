@@ -91,7 +91,7 @@ cl::opt<std::string> llvm::BBSectionsColdTextPrefix(
     cl::desc("The text prefix to use for cold basic block clusters"),
     cl::init(".text.split."), cl::Hidden);
 
-cl::opt<bool> BBSectionsDetectSourceDrift(
+static cl::opt<bool> BBSectionsDetectSourceDrift(
     "bbsections-detect-source-drift",
     cl::desc("This checks if there is a fdo instr. profile hash "
              "mismatch for this function"),
@@ -123,10 +123,16 @@ public:
 } // end anonymous namespace
 
 char BasicBlockSections::ID = 0;
-INITIALIZE_PASS(BasicBlockSections, "bbsections-prepare",
-                "Prepares for basic block sections, by splitting functions "
-                "into clusters of basic blocks.",
-                false, false)
+INITIALIZE_PASS_BEGIN(
+    BasicBlockSections, "bbsections-prepare",
+    "Prepares for basic block sections, by splitting functions "
+    "into clusters of basic blocks.",
+    false, false)
+INITIALIZE_PASS_DEPENDENCY(BasicBlockSectionsProfileReader)
+INITIALIZE_PASS_END(BasicBlockSections, "bbsections-prepare",
+                    "Prepares for basic block sections, by splitting functions "
+                    "into clusters of basic blocks.",
+                    false, false)
 
 // This function updates and optimizes the branching instructions of every basic
 // block in a given function to account for changes in the layout.
@@ -300,7 +306,7 @@ static bool hasInstrProfHashMismatch(MachineFunction &MF) {
   if (Existing) {
     MDTuple *Tuple = cast<MDTuple>(Existing);
     for (const auto &N : Tuple->operands())
-      if (cast<MDString>(N.get())->getString() == MetadataName)
+      if (N.equalsStr(MetadataName))
         return true;
   }
 

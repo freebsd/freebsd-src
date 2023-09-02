@@ -99,14 +99,18 @@ void elf::reportRangeError(uint8_t *loc, const Relocation &rel, const Twine &v,
                            int64_t min, uint64_t max) {
   ErrorPlace errPlace = getErrorPlace(loc);
   std::string hint;
-  if (rel.sym && !rel.sym->isSection())
-    hint = "; references " + lld::toString(*rel.sym);
+  if (rel.sym) {
+    if (!rel.sym->isSection())
+      hint = "; references '" + lld::toString(*rel.sym) + '\'';
+    else if (auto *d = dyn_cast<Defined>(rel.sym))
+      hint = ("; references section '" + d->section->name + "'").str();
+  }
   if (!errPlace.srcLoc.empty())
     hint += "\n>>> referenced by " + errPlace.srcLoc;
   if (rel.sym && !rel.sym->isSection())
     hint += getDefinedLocation(*rel.sym);
 
-  if (errPlace.isec && errPlace.isec->name.startswith(".debug"))
+  if (errPlace.isec && errPlace.isec->name.starts_with(".debug"))
     hint += "; consider recompiling with -fdebug-types-section to reduce size "
             "of debug sections";
 
@@ -120,7 +124,8 @@ void elf::reportRangeError(uint8_t *loc, int64_t v, int n, const Symbol &sym,
   ErrorPlace errPlace = getErrorPlace(loc);
   std::string hint;
   if (!sym.getName().empty())
-    hint = "; references " + lld::toString(sym) + getDefinedLocation(sym);
+    hint =
+        "; references '" + lld::toString(sym) + '\'' + getDefinedLocation(sym);
   errorOrWarn(errPlace.loc + msg + " is out of range: " + Twine(v) +
               " is not in [" + Twine(llvm::minIntN(n)) + ", " +
               Twine(llvm::maxIntN(n)) + "]" + hint);
@@ -190,8 +195,8 @@ static bool isAbsoluteValue(const Symbol &sym) {
 
 // Returns true if Expr refers a PLT entry.
 static bool needsPlt(RelExpr expr) {
-  return oneof<R_PLT, R_PLT_PC, R_PLT_GOTPLT, R_PPC32_PLTREL, R_PPC64_CALL_PLT>(
-      expr);
+  return oneof<R_PLT, R_PLT_PC, R_PLT_GOTPLT, R_LOONGARCH_PLT_PAGE_PC,
+               R_PPC32_PLTREL, R_PPC64_CALL_PLT>(expr);
 }
 
 // Returns true if Expr refers a GOT entry. Note that this function
@@ -200,7 +205,8 @@ static bool needsPlt(RelExpr expr) {
 static bool needsGot(RelExpr expr) {
   return oneof<R_GOT, R_GOT_OFF, R_MIPS_GOT_LOCAL_PAGE, R_MIPS_GOT_OFF,
                R_MIPS_GOT_OFF32, R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTPLT,
-               R_AARCH64_GOT_PAGE>(expr);
+               R_AARCH64_GOT_PAGE, R_LOONGARCH_GOT, R_LOONGARCH_GOT_PAGE_PC>(
+      expr);
 }
 
 // True if this expression is of the form Sym - X, where X is a position in the
@@ -208,12 +214,14 @@ static bool needsGot(RelExpr expr) {
 static bool isRelExpr(RelExpr expr) {
   return oneof<R_PC, R_GOTREL, R_GOTPLTREL, R_MIPS_GOTREL, R_PPC64_CALL,
                R_PPC64_RELAX_TOC, R_AARCH64_PAGE_PC, R_RELAX_GOT_PC,
-               R_RISCV_PC_INDIRECT, R_PPC64_RELAX_GOT_PC>(expr);
+               R_RISCV_PC_INDIRECT, R_PPC64_RELAX_GOT_PC, R_LOONGARCH_PAGE_PC>(
+      expr);
 }
-
 
 static RelExpr toPlt(RelExpr expr) {
   switch (expr) {
+  case R_LOONGARCH_PAGE_PC:
+    return R_LOONGARCH_PLT_PAGE_PC;
   case R_PPC64_CALL:
     return R_PPC64_CALL_PLT;
   case R_PC:
@@ -232,6 +240,8 @@ static RelExpr fromPlt(RelExpr expr) {
   case R_PLT_PC:
   case R_PPC32_PLTREL:
     return R_PC;
+  case R_LOONGARCH_PLT_PAGE_PC:
+    return R_LOONGARCH_PAGE_PC;
   case R_PPC64_CALL_PLT:
     return R_PPC64_CALL;
   case R_PLT:
@@ -651,7 +661,7 @@ static const Symbol *getAlternativeSpelling(const Undefined &sym,
 
   // The reference may be a mangled name while the definition is not. Suggest a
   // missing extern "C".
-  if (name.startswith("_Z")) {
+  if (name.starts_with("_Z")) {
     std::string buf = name.str();
     llvm::ItaniumPartialDemangler d;
     if (!d.partialDemangle(buf.c_str()))
@@ -753,12 +763,12 @@ static void reportUndefinedSymbol(const UndefinedDiag &undef,
     }
   }
 
-  if (sym.getName().startswith("_ZTV"))
+  if (sym.getName().starts_with("_ZTV"))
     msg +=
         "\n>>> the vtable symbol may be undefined because the class is missing "
         "its key function (see https://lld.llvm.org/missingkeyfunction)";
   if (config->gcSections && config->zStartStopGC &&
-      sym.getName().startswith("__start_")) {
+      sym.getName().starts_with("__start_")) {
     msg += "\n>>> the encapsulation symbol needs to be retained under "
            "--gc-sections properly; consider -z nostart-stop-gc "
            "(see https://lld.llvm.org/ELF/start-stop-gc)";
@@ -946,7 +956,9 @@ bool RelocationScanner::isStaticLinkTimeConstant(RelExpr e, RelType type,
             R_MIPS_GOTREL, R_MIPS_GOT_OFF, R_MIPS_GOT_OFF32, R_MIPS_GOT_GP_PC,
             R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTONLY_PC, R_GOTPLTONLY_PC,
             R_PLT_PC, R_PLT_GOTPLT, R_PPC32_PLTREL, R_PPC64_CALL_PLT,
-            R_PPC64_RELAX_TOC, R_RISCV_ADD, R_AARCH64_GOT_PAGE>(e))
+            R_PPC64_RELAX_TOC, R_RISCV_ADD, R_AARCH64_GOT_PAGE,
+            R_LOONGARCH_PLT_PAGE_PC, R_LOONGARCH_GOT, R_LOONGARCH_GOT_PAGE_PC>(
+          e))
     return true;
 
   // These never do, except if the entire file is position dependent or if
@@ -1050,7 +1062,9 @@ void RelocationScanner::processAux(RelExpr expr, RelType type, uint64_t offset,
       // for detailed description:
       // ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/mipsabi.pdf
       in.mipsGot->addEntry(*sec->file, sym, addend, expr);
-    } else {
+    } else if (!sym.isTls() || config->emachine != EM_LOONGARCH) {
+      // Many LoongArch TLS relocs reuse the R_LOONGARCH_GOT type, in which
+      // case the NEEDS_GOT flag shouldn't get set.
       sym.setFlags(NEEDS_GOT);
     }
   } else if (needsPlt(expr)) {
@@ -1090,7 +1104,8 @@ void RelocationScanner::processAux(RelExpr expr, RelType type, uint64_t offset,
                     (isa<EhInputSection>(sec) && config->emachine != EM_MIPS));
   if (canWrite) {
     RelType rel = target->getDynRel(type);
-    if (expr == R_GOT || (rel == target->symbolicRel && !sym.isPreemptible)) {
+    if (oneof<R_GOT, R_LOONGARCH_GOT>(expr) ||
+        (rel == target->symbolicRel && !sym.isPreemptible)) {
       addRelativeReloc<true>(*sec, offset, sym, addend, expr, type);
       return;
     } else if (rel != 0) {
@@ -1242,11 +1257,13 @@ static unsigned handleTlsRelocation(RelType type, Symbol &sym,
     return 1;
   }
 
-  // ARM, Hexagon and RISC-V do not support GD/LD to IE/LE relaxation.  For
-  // PPC64, if the file has missing R_PPC64_TLSGD/R_PPC64_TLSLD, disable
+  // ARM, Hexagon, LoongArch and RISC-V do not support GD/LD to IE/LE
+  // relaxation.
+  // For PPC64, if the file has missing R_PPC64_TLSGD/R_PPC64_TLSLD, disable
   // relaxation as well.
   bool toExecRelax = !config->shared && config->emachine != EM_ARM &&
                      config->emachine != EM_HEXAGON &&
+                     config->emachine != EM_LOONGARCH &&
                      config->emachine != EM_RISCV &&
                      !c.file->ppc64DisableTLSRelax;
 
@@ -1263,8 +1280,7 @@ static unsigned handleTlsRelocation(RelType type, Symbol &sym,
   // being suitable for being dynamically loaded via dlopen. GOT[e0] is the
   // module index, with a special value of 0 for the current module. GOT[e1] is
   // unused. There only needs to be one module index entry.
-  if (oneof<R_TLSLD_GOT, R_TLSLD_GOTPLT, R_TLSLD_PC, R_TLSLD_HINT>(
-          expr)) {
+  if (oneof<R_TLSLD_GOT, R_TLSLD_GOTPLT, R_TLSLD_PC, R_TLSLD_HINT>(expr)) {
     // Local-Dynamic relocs can be relaxed to Local-Exec.
     if (toExecRelax) {
       c.addReloc({target->adjustTlsExpr(type, R_RELAX_TLS_LD_TO_LE), type,
@@ -1295,7 +1311,8 @@ static unsigned handleTlsRelocation(RelType type, Symbol &sym,
   }
 
   if (oneof<R_AARCH64_TLSDESC_PAGE, R_TLSDESC, R_TLSDESC_CALL, R_TLSDESC_PC,
-            R_TLSDESC_GOTPLT, R_TLSGD_GOT, R_TLSGD_GOTPLT, R_TLSGD_PC>(expr)) {
+            R_TLSDESC_GOTPLT, R_TLSGD_GOT, R_TLSGD_GOTPLT, R_TLSGD_PC,
+            R_LOONGARCH_TLSGD_PAGE_PC>(expr)) {
     if (!toExecRelax) {
       sym.setFlags(NEEDS_TLSGD);
       c.addReloc({expr, type, offset, addend, &sym});
@@ -1315,8 +1332,8 @@ static unsigned handleTlsRelocation(RelType type, Symbol &sym,
     return target->getTlsGdRelaxSkip(type);
   }
 
-  if (oneof<R_GOT, R_GOTPLT, R_GOT_PC, R_AARCH64_GOT_PAGE_PC, R_GOT_OFF,
-            R_TLSIE_HINT>(expr)) {
+  if (oneof<R_GOT, R_GOTPLT, R_GOT_PC, R_AARCH64_GOT_PAGE_PC,
+            R_LOONGARCH_GOT_PAGE_PC, R_GOT_OFF, R_TLSIE_HINT>(expr)) {
     ctx.hasTlsIe.store(true, std::memory_order_relaxed);
     // Initial-Exec relocs can be relaxed to Local-Exec if the symbol is locally
     // defined.
@@ -1529,16 +1546,10 @@ template <class ELFT> void elf::scanRelocations() {
           scanner.template scanSection<ELFT>(*s);
       }
     };
-    if (serial)
-      fn();
-    else
-      tg.execute(fn);
+    tg.spawn(fn, serial);
   }
 
-  // Both the main thread and thread pool index 0 use getThreadIndex()==0. Be
-  // careful that they don't concurrently run scanSections. When serial is
-  // true, fn() has finished at this point, so running execute is safe.
-  tg.execute([] {
+  tg.spawn([] {
     RelocationScanner scanner;
     for (Partition &part : partitions) {
       for (EhInputSection *sec : part.ehFrame->sections)

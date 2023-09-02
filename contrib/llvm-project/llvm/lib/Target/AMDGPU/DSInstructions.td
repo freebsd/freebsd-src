@@ -26,8 +26,6 @@ class DS_Pseudo <string opName, dag outs, dag ins, string asmOps, list<dag> patt
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 
-  let AsmMatchConverter = "cvtDS";
-
   string Mnemonic = opName;
   string AsmOperands = asmOps;
 
@@ -65,7 +63,6 @@ class DS_Real <DS_Pseudo ps, string opName = ps.Mnemonic> :
   // copy relevant pseudo op flags
   let SubtargetPredicate = ps.SubtargetPredicate;
   let OtherPredicates    = ps.OtherPredicates;
-  let AsmMatchConverter  = ps.AsmMatchConverter;
   let SchedRW            = ps.SchedRW;
   let mayLoad            = ps.mayLoad;
   let mayStore           = ps.mayStore;
@@ -164,7 +161,6 @@ class DS_1A2D_Off8_NORET <string opName, RegisterClass rc = VGPR_32,
 
   let has_vdst = 0;
   let has_offset = 0;
-  let AsmMatchConverter = "cvtDSOffset01";
 }
 
 multiclass DS_1A2D_Off8_NORET_mc <string opName, RegisterClass rc = VGPR_32> {
@@ -187,7 +183,6 @@ class DS_0A1D_RET_GDS<string opName, RegisterClass rc = VGPR_32, RegisterClass s
   let has_data1 = 0;
   let has_gds = 0;
   let gdsValue = 1;
-  let AsmMatchConverter = "cvtDSGds";
   let hasSideEffects = 1;
 }
 
@@ -220,7 +215,7 @@ multiclass DS_1A1D_RET_mc_gfx9 <string opName, RegisterClass rc = VGPR_32,
   let has_m0_read = 0 in {
     def "" : DS_1A1D_RET<opName, rc>,
       AtomicNoRet<!if(!eq(NoRetOp, ""), "", NoRetOp),
-                  !if(!eq(NoRetOp, ""), 0, 1)>;
+                  !ne(NoRetOp, "")>;
   }
 }
 
@@ -262,8 +257,6 @@ class DS_1A2D_Off8_RET<string opName,
   " $vdst, $addr, $data0, $data1$offset0$offset1$gds"> {
 
   let has_offset = 0;
-  let AsmMatchConverter = "cvtDSOffset01";
-
   let hasPostISelHook = 1;
 }
 
@@ -325,7 +318,6 @@ class DS_1A_Off8_RET <string opName, RegisterClass rc = VGPR_32>
   let has_offset = 0;
   let has_data0 = 0;
   let has_data1 = 0;
-  let AsmMatchConverter = "cvtDSOffset01";
 }
 
 multiclass DS_1A_Off8_RET_mc <string opName, RegisterClass rc = VGPR_32> {
@@ -345,7 +337,6 @@ class DS_1A_RET_GDS <string opName> : DS_Pseudo<opName,
   let has_data1 = 0;
   let has_gds = 0;
   let gdsValue = 1;
-  let AsmMatchConverter = "cvtDSGds";
 }
 
 class DS_0A_RET <string opName> : DS_Pseudo<opName,
@@ -393,7 +384,6 @@ class DS_GWS <string opName, dag ins, string asmOps>
 
   let has_gds   = 0;
   let gdsValue  = 1;
-  let AsmMatchConverter = "cvtDSGds";
 }
 
 class DS_GWS_0D <string opName>
@@ -417,7 +407,6 @@ class DS_VOID <string opName> : DS_Pseudo<opName,
   let mayStore = 0;
   let hasSideEffects = 1;
   let UseNamedOperandTable = 0;
-  let AsmMatchConverter = "";
 
   let has_vdst = 0;
   let has_addr = 0;
@@ -436,7 +425,7 @@ class DS_1A1D_PERMUTE <string opName, SDPatternOperator node = null_frag,
   (ins VGPR_32:$addr, data_op:$data0, offset:$offset),
   " $vdst, $addr, $data0$offset",
   [(set i32:$vdst,
-   (node (DS1Addr1Offset i32:$addr, i16:$offset), i32:$data0))] > {
+   (node (DS1Addr1Offset i32:$addr, i32:$offset), i32:$data0))] > {
 
   let mayLoad = 0;
   let mayStore = 0;
@@ -494,12 +483,12 @@ let SubtargetPredicate = isGFX90APlus in {
   defm DS_ADD_RTN_F64 : DS_1A1D_RET_mc_gfx9<"ds_add_rtn_f64", VReg_64, "ds_add_f64">;
 } // End SubtargetPredicate = isGFX90APlus
 
-let SubtargetPredicate = isGFX940Plus in {
+let SubtargetPredicate = HasAtomicDsPkAdd16Insts in {
   defm DS_PK_ADD_F16      : DS_1A1D_NORET_mc_gfx9<"ds_pk_add_f16">;
   defm DS_PK_ADD_RTN_F16  : DS_1A1D_RET_mc_gfx9<"ds_pk_add_rtn_f16", VGPR_32, "ds_pk_add_f16">;
   defm DS_PK_ADD_BF16     : DS_1A1D_NORET_mc_gfx9<"ds_pk_add_bf16">;
   defm DS_PK_ADD_RTN_BF16 : DS_1A1D_RET_mc_gfx9<"ds_pk_add_rtn_bf16", VGPR_32, "ds_pk_add_bf16">;
-} // End SubtargetPredicate = isGFX940Plus
+} // End SubtargetPredicate = HasAtomicDsPkAdd16Insts
 
 defm DS_CMPSTORE_B32     : DS_1A2D_NORET_mc<"ds_cmpstore_b32">;
 defm DS_CMPSTORE_F32     : DS_1A2D_NORET_mc<"ds_cmpstore_f32">;
@@ -631,7 +620,7 @@ def DS_WRITE_SRC2_B64 : DS_1A<"ds_write_src2_b64">;
 } // End SubtargetPredicate = HasDsSrc2Insts
 
 let Uses = [EXEC], mayLoad = 0, mayStore = 0, isConvergent = 1 in {
-def DS_SWIZZLE_B32 : DS_1A_RET <"ds_swizzle_b32", VGPR_32, 0, SwizzleImm>;
+def DS_SWIZZLE_B32 : DS_1A_RET <"ds_swizzle_b32", VGPR_32, 0, Swizzle>;
 }
 
 let mayStore = 0 in {
@@ -740,7 +729,7 @@ def : GCNPat <
 >;
 
 class DSReadPat <DS_Pseudo inst, ValueType vt, PatFrag frag, int gds=0> : GCNPat <
-  (vt (frag (DS1Addr1Offset i32:$ptr, i16:$offset))),
+  (vt (frag (DS1Addr1Offset i32:$ptr, i32:$offset))),
   (inst $ptr, offset:$offset, (i1 gds))
 >;
 
@@ -756,7 +745,7 @@ multiclass DSReadPat_mc<DS_Pseudo inst, ValueType vt, string frag> {
 }
 
 class DSReadPat_D16 <DS_Pseudo inst, PatFrag frag, ValueType vt> : GCNPat <
-  (frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$in),
+  (frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$in),
   (inst $ptr, offset:$offset, (i1 0), $in)
 >;
 
@@ -800,7 +789,7 @@ def : DSReadPat_D16<DS_READ_I8_D16, sextloadi8_d16_lo_local, v2f16>;
 }
 
 class DSWritePat <DS_Pseudo inst, ValueType vt, PatFrag frag, int gds=0> : GCNPat <
-  (frag vt:$value, (DS1Addr1Offset i32:$ptr, i16:$offset)),
+  (frag vt:$value, (DS1Addr1Offset i32:$ptr, i32:$offset)),
   (inst $ptr, getVregSrcForVT<vt>.ret:$value, offset:$offset, (i1 gds))
 >;
 
@@ -817,7 +806,7 @@ multiclass DSWritePat_mc <DS_Pseudo inst, ValueType vt, string frag> {
 // Irritatingly, atomic_store reverses the order of operands from a
 // normal store.
 class DSAtomicWritePat <DS_Pseudo inst, ValueType vt, PatFrag frag> : GCNPat <
-  (frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$value),
+  (frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$value),
   (inst $ptr, getVregSrcForVT<vt>.ret:$value, offset:$offset, (i1 0))
 >;
 
@@ -965,7 +954,7 @@ defm : DSWritePat_mc <DS_WRITE_B128, vt, "store_align_less_than_4_local">;
 } // End AddedComplexity = 100
 
 class DSAtomicRetPat<DS_Pseudo inst, ValueType vt, PatFrag frag, int complexity = 0,
-  bit gds=0> : GCNPat <(frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$value),
+  bit gds=0> : GCNPat <(frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$value),
   (inst $ptr, getVregSrcForVT<vt>.ret:$value, offset:$offset, (i1 gds))> {
   let AddedComplexity = complexity;
 }
@@ -1014,7 +1003,7 @@ let SubtargetPredicate = isGFX6GFX7GFX8GFX9GFX10 in {
 // Caution, the order of src and cmp is the *opposite* of the BUFFER_ATOMIC_CMPSWAP opcode.
 class DSAtomicCmpXChgSwapped<DS_Pseudo inst, ValueType vt, PatFrag frag,
   int complexity = 0, bit gds=0> : GCNPat<
-  (frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$cmp, vt:$swap),
+  (frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$cmp, vt:$swap),
   (inst $ptr, getVregSrcForVT<vt>.ret:$cmp, getVregSrcForVT<vt>.ret:$swap, offset:$offset, (i1 gds))> {
   let AddedComplexity = complexity;
 }
@@ -1046,7 +1035,7 @@ let SubtargetPredicate = isGFX11Plus in {
 // The order of src and cmp agrees with the BUFFER_ATOMIC_CMPSWAP opcode.
 class DSAtomicCmpXChg<DS_Pseudo inst, ValueType vt, PatFrag frag,
   int complexity = 0, bit gds=0> : GCNPat<
-  (frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$cmp, vt:$swap),
+  (frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$cmp, vt:$swap),
   (inst $ptr, getVregSrcForVT<vt>.ret:$swap, getVregSrcForVT<vt>.ret:$cmp, offset:$offset, (i1 gds))> {
   let AddedComplexity = complexity;
 }
@@ -1069,8 +1058,8 @@ multiclass DSAtomicCmpXChg_mc<DS_Pseudo inst, DS_Pseudo noRetInst, ValueType vt,
 defm : DSAtomicRetPat_mc<DS_WRXCHG_RTN_B32, i32, "atomic_swap">;
 defm : DSAtomicRetNoRetPat_mc<DS_ADD_RTN_U32, DS_ADD_U32, i32, "atomic_load_add">;
 defm : DSAtomicRetNoRetPat_mc<DS_SUB_RTN_U32, DS_SUB_U32, i32, "atomic_load_sub">;
-defm : DSAtomicRetNoRetPat_mc<DS_INC_RTN_U32, DS_INC_U32, i32, "atomic_inc">;
-defm : DSAtomicRetNoRetPat_mc<DS_DEC_RTN_U32, DS_DEC_U32, i32, "atomic_dec">;
+defm : DSAtomicRetNoRetPat_mc<DS_INC_RTN_U32, DS_INC_U32, i32, "atomic_load_uinc_wrap">;
+defm : DSAtomicRetNoRetPat_mc<DS_DEC_RTN_U32, DS_DEC_U32, i32, "atomic_load_udec_wrap">;
 defm : DSAtomicRetNoRetPat_mc<DS_AND_RTN_B32, DS_AND_B32, i32, "atomic_load_and">;
 defm : DSAtomicRetNoRetPat_mc<DS_OR_RTN_B32, DS_OR_B32, i32, "atomic_load_or">;
 defm : DSAtomicRetNoRetPat_mc<DS_XOR_RTN_B32, DS_XOR_B32, i32, "atomic_load_xor">;
@@ -1097,8 +1086,8 @@ defm : DSAtomicRetNoRetPat_mc<DS_ADD_RTN_F32, DS_ADD_F32, f32, "atomic_load_fadd
 defm : DSAtomicRetPat_mc<DS_WRXCHG_RTN_B64, i64, "atomic_swap">;
 defm : DSAtomicRetNoRetPat_mc<DS_ADD_RTN_U64, DS_ADD_U64, i64, "atomic_load_add">;
 defm : DSAtomicRetNoRetPat_mc<DS_SUB_RTN_U64, DS_SUB_U64, i64, "atomic_load_sub">;
-defm : DSAtomicRetNoRetPat_mc<DS_INC_RTN_U64, DS_INC_U64, i64, "atomic_inc">;
-defm : DSAtomicRetNoRetPat_mc<DS_DEC_RTN_U64, DS_DEC_U64, i64, "atomic_dec">;
+defm : DSAtomicRetNoRetPat_mc<DS_INC_RTN_U64, DS_INC_U64, i64, "atomic_load_uinc_wrap">;
+defm : DSAtomicRetNoRetPat_mc<DS_DEC_RTN_U64, DS_DEC_U64, i64, "atomic_load_udec_wrap">;
 defm : DSAtomicRetNoRetPat_mc<DS_AND_RTN_B64, DS_AND_B64, i64, "atomic_load_and">;
 defm : DSAtomicRetNoRetPat_mc<DS_OR_RTN_B64, DS_OR_B64, i64, "atomic_load_or">;
 defm : DSAtomicRetNoRetPat_mc<DS_XOR_RTN_B64, DS_XOR_B64, i64, "atomic_load_xor">;
@@ -1124,7 +1113,7 @@ def : DSAtomicRetPat<DS_ADD_F64, f64, atomic_load_fadd_local_noret_64>;
 
 class DSAtomicRetPatIntrinsic<DS_Pseudo inst, ValueType vt, PatFrag frag,
   bit gds=0> : GCNPat <
-  (vt (frag (DS1Addr1Offset i32:$ptr, i16:$offset), vt:$value)),
+  (vt (frag (DS1Addr1Offset i32:$ptr, i32:$offset), vt:$value)),
   (inst $ptr, getVregSrcForVT<vt>.ret:$value, offset:$offset, (i1 gds))> {
 }
 
@@ -1133,7 +1122,7 @@ let AddedComplexity = 1 in
 def : DSAtomicRetPatIntrinsic<DS_ADD_F64, f64, int_amdgcn_flat_atomic_fadd_noret_local_addrspace>;
 }
 
-let SubtargetPredicate = isGFX940Plus in {
+let SubtargetPredicate = HasAtomicDsPkAdd16Insts in {
 def : DSAtomicRetPat<DS_PK_ADD_RTN_F16, v2f16, atomic_load_fadd_v2f16_local_32>;
 let AddedComplexity = 1 in
 def : DSAtomicRetPat<DS_PK_ADD_F16, v2f16, atomic_load_fadd_v2f16_local_noret_32>;
@@ -1146,7 +1135,7 @@ def : GCNPat <
   (v2i16 (int_amdgcn_ds_fadd_v2bf16_noret i32:$ptr, v2i16:$src)),
   (DS_PK_ADD_BF16 VGPR_32:$ptr, VGPR_32:$src, 0, 0)
 >;
-}
+} // End SubtargetPredicate = HasAtomicDsPkAdd16Insts
 
 def : Pat <
   (SIds_ordered_count i32:$value, i16:$offset),

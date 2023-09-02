@@ -622,6 +622,8 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     if (D->isConstexprSpecified() && !D->isExplicitlyDefaulted())
       Out << "constexpr ";
     if (D->isConsteval())        Out << "consteval ";
+    else if (D->isImmediateFunction())
+      Out << "immediate ";
     ExplicitSpecifier ExplicitSpec = ExplicitSpecifier::getFromDecl(D);
     if (ExplicitSpec.isSpecified())
       printExplicitSpecifier(ExplicitSpec, Out, Policy, Indentation, Context);
@@ -947,9 +949,9 @@ void DeclPrinter::VisitStaticAssertDecl(StaticAssertDecl *D) {
   Out << "static_assert(";
   D->getAssertExpr()->printPretty(Out, nullptr, Policy, Indentation, "\n",
                                   &Context);
-  if (StringLiteral *SL = D->getMessage()) {
+  if (Expr *E = D->getMessage()) {
     Out << ", ";
-    SL->printPretty(Out, nullptr, Policy, Indentation, "\n", &Context);
+    E->printPretty(Out, nullptr, Policy, Indentation, "\n", &Context);
   }
   Out << ")";
 }
@@ -997,7 +999,10 @@ void DeclPrinter::VisitCXXRecordDecl(CXXRecordDecl *D) {
   prettyPrintAttributes(D);
 
   if (D->getIdentifier()) {
-    Out << ' ' << *D;
+    Out << ' ';
+    if (auto *NNS = D->getQualifier())
+      NNS->print(Out, Policy);
+    Out << *D;
 
     if (auto S = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
       ArrayRef<TemplateArgument> Args = S->getTemplateArgs().asArray();

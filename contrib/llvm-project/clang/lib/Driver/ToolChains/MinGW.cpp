@@ -135,7 +135,7 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("arm64pe");
     break;
   default:
-    llvm_unreachable("Unsupported target architecture.");
+    D.Diag(diag::err_target_unknown_triple) << TC.getEffectiveTriple().str();
   }
 
   Arg *SubsysArg =
@@ -192,7 +192,6 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   } else
     CmdArgs.push_back(OutputFile);
 
-  Args.AddAllArgs(CmdArgs, options::OPT_e);
   // FIXME: add -N, -n flags
   Args.AddLastArg(CmdArgs, options::OPT_r);
   Args.AddLastArg(CmdArgs, options::OPT_s);
@@ -519,8 +518,6 @@ toolchains::MinGW::MinGW(const Driver &D, const llvm::Triple &Triple,
           .equals_insensitive("lld");
 }
 
-bool toolchains::MinGW::IsIntegratedAssemblerDefault() const { return true; }
-
 Tool *toolchains::MinGW::getTool(Action::ActionClass AC) const {
   switch (AC) {
   case Action::PreprocessJobClass:
@@ -701,6 +698,9 @@ void toolchains::MinGW::addClangTargetOptions(
           << A->getSpelling() << GuardArgs;
     }
   }
+
+  if (Arg *A = DriverArgs.getLastArgNoClaim(options::OPT_mthreads))
+    A->ignoreTargetSpecific();
 }
 
 void toolchains::MinGW::AddClangCXXStdlibIncludeArgs(
