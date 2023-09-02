@@ -271,7 +271,7 @@ SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, autokey,
 
 static int sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_bucket_limit,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_NEEDGIANT,
     NULL, 0, &sysctl_net_inet_tcp_fastopen_ccache_bucket_limit, "IU",
     "Max entries per bucket in client cookie cache");
 
@@ -393,7 +393,8 @@ tcp_fastopen_init(void)
 	V_tcp_fastopen_keys.newest = TCP_FASTOPEN_MAX_KEYS - 1;
 	V_tcp_fastopen_keys.newest_psk = TCP_FASTOPEN_MAX_PSKS - 1;
 
-	/* May already be non-zero if kernel tunable was set */
+	TUNABLE_INT_FETCH("net.inet.tcp.fastopen.ccache_bucket_limit",
+	    &V_tcp_fastopen_ccache.bucket_limit);
 	if (V_tcp_fastopen_ccache.bucket_limit == 0)
 		V_tcp_fastopen_ccache.bucket_limit =
 		    TCP_FASTOPEN_CCACHE_BUCKET_LIMIT_DEFAULT;
