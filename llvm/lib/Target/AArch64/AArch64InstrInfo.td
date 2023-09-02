@@ -262,6 +262,8 @@ def UseNegativeImmediates
 
 def UseScalarIncVL : Predicate<"Subtarget->useScalarIncVL()">;
 
+def UseSVEFPLD1R : Predicate<"!Subtarget->noSVEFPLD1R()">;
+
 def IsNeonAvailable : Predicate<"Subtarget->isNeonAvailable()">;
 
 def AArch64LocalRecover : SDNode<"ISD::LOCAL_RECOVER",
@@ -2251,7 +2253,7 @@ def : Pat<(int_aarch64_irg_sp i64:$Rm), (IRGstack SP, i64:$Rm)>;
 
 // Large STG to be expanded into a loop. $sz is the size, $Rn is start address.
 // $Rn_wback is one past the end of the range. $Rm is the loop counter.
-let isCodeGenOnly=1, mayStore=1 in {
+let isCodeGenOnly=1, mayStore=1, Defs=[NZCV] in {
 def STGloop_wback
     : Pseudo<(outs GPR64common:$Rm, GPR64sp:$Rn_wback), (ins i64imm:$sz, GPR64sp:$Rn),
              [], "$Rn = $Rn_wback,@earlyclobber $Rn_wback,@earlyclobber $Rm" >,
@@ -4355,16 +4357,23 @@ def FMOVS0 : Pseudo<(outs FPR32:$Rd), (ins), [(set f32:$Rd, (fpimm0))]>,
 def FMOVD0 : Pseudo<(outs FPR64:$Rd), (ins), [(set f64:$Rd, (fpimm0))]>,
     Sched<[WriteF]>;
 }
+
 // Similarly add aliases
 def : InstAlias<"fmov $Rd, #0.0", (FMOVWHr FPR16:$Rd, WZR), 0>,
     Requires<[HasFullFP16]>;
 def : InstAlias<"fmov $Rd, #0.0", (FMOVWSr FPR32:$Rd, WZR), 0>;
 def : InstAlias<"fmov $Rd, #0.0", (FMOVXDr FPR64:$Rd, XZR), 0>;
 
-// Pattern for FP16 immediates
+def : Pat<(bf16 fpimm0),
+          (FMOVH0)>;
+
+// Pattern for FP16 and BF16 immediates
 let Predicates = [HasFullFP16] in {
   def : Pat<(f16 fpimm:$in),
-    (FMOVWHr (MOVi32imm (bitcast_fpimm_to_i32 f16:$in)))>;
+            (FMOVWHr (MOVi32imm (bitcast_fpimm_to_i32 f16:$in)))>;
+
+  def : Pat<(bf16 fpimm:$in),
+            (FMOVWHr (MOVi32imm (bitcast_fpimm_to_i32 bf16:$in)))>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -4615,6 +4624,11 @@ let isPseudo = 1 in {
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1 in {
 defm FMOV : FPMoveImmediate<"fmov">;
+}
+
+let Predicates = [HasFullFP16] in {
+  def : Pat<(bf16 fpimmbf16:$in),
+            (FMOVHi (fpimm16XForm bf16:$in))>;
 }
 
 //===----------------------------------------------------------------------===//

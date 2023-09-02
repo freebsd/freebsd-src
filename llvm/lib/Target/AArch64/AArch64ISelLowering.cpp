@@ -1091,6 +1091,7 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
 
     if (Subtarget->hasFullFP16()) {
       setOperationAction(ISD::ConstantFP, MVT::f16, Legal);
+      setOperationAction(ISD::ConstantFP, MVT::bf16, Legal);
 
       setOperationAction(ISD::SINT_TO_FP, MVT::v8i8, Custom);
       setOperationAction(ISD::UINT_TO_FP, MVT::v8i8, Custom);
@@ -9757,7 +9758,7 @@ bool AArch64TargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT,
     IsLegal = AArch64_AM::getFP64Imm(ImmInt) != -1 || Imm.isPosZero();
   else if (VT == MVT::f32)
     IsLegal = AArch64_AM::getFP32Imm(ImmInt) != -1 || Imm.isPosZero();
-  else if (VT == MVT::f16)
+  else if (VT == MVT::f16 || VT == MVT::bf16)
     IsLegal =
         (Subtarget->hasFullFP16() && AArch64_AM::getFP16Imm(ImmInt) != -1) ||
         Imm.isPosZero();
@@ -15479,15 +15480,15 @@ bool AArch64TargetLowering::isLegalAddressingMode(const DataLayout &DL,
   if (!AM.HasBaseReg)
     return false;
 
-  // FIXME: Update this method to support scalable addressing modes.
-  if (Ty->isScalableTargetExtTy())
-    return AM.HasBaseReg && !AM.BaseOffs && !AM.Scale;
+  if (Ty->isScalableTy()) {
+    if (isa<ScalableVectorType>(Ty)) {
+      uint64_t VecElemNumBytes =
+          DL.getTypeSizeInBits(cast<VectorType>(Ty)->getElementType()) / 8;
+      return AM.HasBaseReg && !AM.BaseOffs &&
+             (AM.Scale == 0 || (uint64_t)AM.Scale == VecElemNumBytes);
+    }
 
-  if (isa<ScalableVectorType>(Ty)) {
-    uint64_t VecElemNumBytes =
-        DL.getTypeSizeInBits(cast<VectorType>(Ty)->getElementType()) / 8;
-    return AM.HasBaseReg && !AM.BaseOffs &&
-           (AM.Scale == 0 || (uint64_t)AM.Scale == VecElemNumBytes);
+    return AM.HasBaseReg && !AM.BaseOffs && !AM.Scale;
   }
 
   // check reg + imm case:

@@ -1863,15 +1863,10 @@ void Clang::AddLoongArchTargetArgs(const ArgList &Args,
 
   // Handle -mtune.
   if (const Arg *A = Args.getLastArg(options::OPT_mtune_EQ)) {
-    StringRef TuneCPU = A->getValue();
-    if (TuneCPU == "native") {
-      TuneCPU = llvm::sys::getHostCPUName();
-      if (TuneCPU == "generic")
-        TuneCPU = llvm::LoongArch::getDefaultArch(Triple.isLoongArch64());
-    }
+    std::string TuneCPU = A->getValue();
+    TuneCPU = loongarch::postProcessTargetCPUString(TuneCPU, Triple);
     CmdArgs.push_back("-tune-cpu");
     CmdArgs.push_back(Args.MakeArgString(TuneCPU));
-    llvm::LoongArch::setTuneCPU(TuneCPU);
   }
 }
 
@@ -2067,6 +2062,12 @@ void Clang::AddPPCTargetArgs(const ArgList &Args,
       A->claim();
     } else if (V == "vec-extabi") {
       VecExtabi = true;
+      A->claim();
+    } else if (V == "elfv1") {
+      ABIName = "elfv1";
+      A->claim();
+    } else if (V == "elfv2") {
+      ABIName = "elfv2";
       A->claim();
     } else if (V != "altivec")
       // The ppc64 linux abis are all "altivec" abis by default. Accept and ignore
@@ -7374,22 +7375,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                                                     << "-fsanitize=cfi";
   if (SplitLTOUnit)
     CmdArgs.push_back("-fsplit-lto-unit");
-
-  if (Arg *A = Args.getLastArg(options::OPT_ffat_lto_objects,
-                               options::OPT_fno_fat_lto_objects)) {
-    if (IsUsingLTO && A->getOption().matches(options::OPT_ffat_lto_objects)) {
-      assert(LTOMode == LTOK_Full || LTOMode == LTOK_Thin);
-      if (!Triple.isOSBinFormatELF()) {
-        D.Diag(diag::err_drv_unsupported_opt_for_target)
-            << A->getAsString(Args) << TC.getTripleString();
-      }
-      CmdArgs.push_back(Args.MakeArgString(
-          Twine("-flto=") + (LTOMode == LTOK_Thin ? "thin" : "full")));
-      CmdArgs.push_back("-flto-unit");
-      CmdArgs.push_back("-ffat-lto-objects");
-      A->render(Args, CmdArgs);
-    }
-  }
 
   if (Arg *A = Args.getLastArg(options::OPT_fglobal_isel,
                                options::OPT_fno_global_isel)) {

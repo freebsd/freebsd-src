@@ -127,31 +127,11 @@ void loongarch::getLoongArchTargetFeatures(const Driver &D,
                                            const llvm::Triple &Triple,
                                            const ArgList &Args,
                                            std::vector<StringRef> &Features) {
-  StringRef ArchName;
-  if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
+  std::string ArchName;
+  if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
     ArchName = A->getValue();
-
-    // Handle -march=native.
-    if (ArchName == "native") {
-      ArchName = llvm::sys::getHostCPUName();
-      if (ArchName == "generic")
-        ArchName = llvm::LoongArch::getDefaultArch(Triple.isLoongArch64());
-    }
-
-    if (!llvm::LoongArch::isValidArchName(ArchName)) {
-      D.Diag(clang::diag::err_drv_invalid_arch_name) << A->getAsString(Args);
-      return;
-    }
-  }
-
-  // Select a default arch name.
-  if (ArchName.empty())
-    ArchName = llvm::LoongArch::getDefaultArch(Triple.isLoongArch64());
-
-  if (!ArchName.empty()) {
-    llvm::LoongArch::getArchFeatures(ArchName, Features);
-    llvm::LoongArch::setArch(ArchName);
-  }
+  ArchName = postProcessTargetCPUString(ArchName, Triple);
+  llvm::LoongArch::getArchFeatures(ArchName, Features);
 
   // Select floating-point features determined by -mdouble-float,
   // -msingle-float, -msoft-float and -mfpu.
@@ -195,4 +175,26 @@ void loongarch::getLoongArchTargetFeatures(const Driver &D,
     A->ignoreTargetSpecific();
   if (Arg *A = Args.getLastArgNoClaim(options::OPT_mfpu_EQ))
     A->ignoreTargetSpecific();
+}
+
+std::string loongarch::postProcessTargetCPUString(const std::string &CPU,
+                                                  const llvm::Triple &Triple) {
+  std::string CPUString = CPU;
+  if (CPUString == "native") {
+    CPUString = llvm::sys::getHostCPUName();
+    if (CPUString == "generic")
+      CPUString = llvm::LoongArch::getDefaultArch(Triple.isLoongArch64());
+  }
+  if (CPUString.empty())
+    CPUString = llvm::LoongArch::getDefaultArch(Triple.isLoongArch64());
+  return CPUString;
+}
+
+std::string loongarch::getLoongArchTargetCPU(const llvm::opt::ArgList &Args,
+                                             const llvm::Triple &Triple) {
+  std::string CPU;
+  // If we have -march, use that.
+  if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
+    CPU = A->getValue();
+  return postProcessTargetCPUString(CPU, Triple);
 }
