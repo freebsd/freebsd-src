@@ -174,4 +174,4 @@ const char *get_wide_encoding(void);
 int max_wide(void);
 
 //#define	_(x)	gettext(x)
-#define	INTERR	fprintf(stderr,"internal fault (%s:%d)", __FILE__, __LINE__)
+#define	INTERR	fprintf(stderr,"internal fault (%s:%d)\n", __FILE__, __LINE__)

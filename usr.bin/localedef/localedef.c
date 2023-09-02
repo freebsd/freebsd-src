@@ -167,7 +167,7 @@ copy_category(char *src)
 	}
 
 	if (rv != 0) {
-		fprintf(stderr,"source locale data unavailable: %s", src);
+		fprintf(stderr,"source locale data unavailable: %s\n", src);
 		return;
 	}
 
@@ -182,7 +182,7 @@ copy_category(char *src)
 		(void) mkdir(dirname(category_file()), 0755);
 
 	if (link(srcpath, category_file()) != 0) {
-		fprintf(stderr,"unable to copy locale data: %s",
+		fprintf(stderr,"unable to copy locale data: %s\n",
 			strerror(errno));
 		return;
 	}
