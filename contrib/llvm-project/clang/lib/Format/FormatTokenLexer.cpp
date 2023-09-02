@@ -71,6 +71,9 @@ FormatTokenLexer::FormatTokenLexer(
     auto Identifier = &IdentTable.get(StatementAttributeLikeMacro);
     Macros.insert({Identifier, TT_StatementAttributeLikeMacro});
   }
+
+  for (const auto &TypeName : Style.TypeNames)
+    TypeNames.insert(&IdentTable.get(TypeName));
 }
 
 ArrayRef<FormatToken *> FormatTokenLexer::lex() {
@@ -102,6 +105,8 @@ void FormatTokenLexer::tryMergePreviousTokens() {
   if (tryMergeConflictMarkers())
     return;
   if (tryMergeLessLess())
+    return;
+  if (tryMergeGreaterGreater())
     return;
   if (tryMergeForEach())
     return;
@@ -460,18 +465,41 @@ bool FormatTokenLexer::tryMergeLessLess() {
     return false;
 
   auto X = Tokens.size() > 3 ? First[-1] : nullptr;
-  auto Y = First[2];
-  if ((X && X->is(tok::less)) || Y->is(tok::less))
+  if (X && X->is(tok::less))
     return false;
 
-  // Do not remove a whitespace between the two "<" e.g. "operator< <>".
-  if (X && X->is(tok::kw_operator) && Y->is(tok::greater))
+  auto Y = First[2];
+  if ((!X || X->isNot(tok::kw_operator)) && Y->is(tok::less))
     return false;
 
   First[0]->Tok.setKind(tok::lessless);
   First[0]->TokenText = "<<";
   First[0]->ColumnWidth += 1;
   Tokens.erase(Tokens.end() - 2);
+  return true;
+}
+
+bool FormatTokenLexer::tryMergeGreaterGreater() {
+  // Merge kw_operator,greater,greater into kw_operator,greatergreater.
+  if (Tokens.size() < 2)
+    return false;
+
+  auto First = Tokens.end() - 2;
+  if (First[0]->isNot(tok::greater) || First[1]->isNot(tok::greater))
+    return false;
+
+  // Only merge if there currently is no whitespace between the first two ">".
+  if (First[1]->hasWhitespaceBefore())
+    return false;
+
+  auto Tok = Tokens.size() > 2 ? First[-1] : nullptr;
+  if (Tok && Tok->isNot(tok::kw_operator))
+    return false;
+
+  First[0]->Tok.setKind(tok::greatergreater);
+  First[0]->TokenText = ">>";
+  First[0]->ColumnWidth += 1;
+  Tokens.erase(Tokens.end() - 1);
   return true;
 }
 
@@ -1197,7 +1225,8 @@ FormatToken *FormatTokenLexer::getNextToken() {
   }
 
   if (Style.isCpp()) {
-    auto it = Macros.find(FormatTok->Tok.getIdentifierInfo());
+    auto *Identifier = FormatTok->Tok.getIdentifierInfo();
+    auto it = Macros.find(Identifier);
     if (!(Tokens.size() > 0 && Tokens.back()->Tok.getIdentifierInfo() &&
           Tokens.back()->Tok.getIdentifierInfo()->getPPKeywordID() ==
               tok::pp_define) &&
@@ -1215,6 +1244,8 @@ FormatToken *FormatTokenLexer::getNextToken() {
         FormatTok->setType(TT_MacroBlockBegin);
       else if (MacroBlockEndRegex.match(Text))
         FormatTok->setType(TT_MacroBlockEnd);
+      else if (TypeNames.contains(Identifier))
+        FormatTok->setFinalizedType(TT_TypeName);
     }
   }
 
@@ -1286,17 +1317,13 @@ void FormatTokenLexer::readRawToken(FormatToken &Tok) {
     Tok.Tok.setKind(tok::string_literal);
   }
 
-  if (Tok.is(tok::comment) && (Tok.TokenText == "// clang-format on" ||
-                               Tok.TokenText == "/* clang-format on */")) {
+  if (Tok.is(tok::comment) && isClangFormatOn(Tok.TokenText))
     FormattingDisabled = false;
-  }
 
   Tok.Finalized = FormattingDisabled;
 
-  if (Tok.is(tok::comment) && (Tok.TokenText == "// clang-format off" ||
-                               Tok.TokenText == "/* clang-format off */")) {
+  if (Tok.is(tok::comment) && isClangFormatOff(Tok.TokenText))
     FormattingDisabled = true;
-  }
 }
 
 void FormatTokenLexer::resetLexer(unsigned Offset) {

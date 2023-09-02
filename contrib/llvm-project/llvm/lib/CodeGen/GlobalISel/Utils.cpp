@@ -230,10 +230,7 @@ bool llvm::isTriviallyDead(const MachineInstr &MI,
     return false;
 
   // Instructions without side-effects are dead iff they only define dead vregs.
-  for (const auto &MO : MI.operands()) {
-    if (!MO.isReg() || !MO.isDef())
-      continue;
-
+  for (const auto &MO : MI.all_defs()) {
     Register Reg = MO.getReg();
     if (Reg.isPhysical() || !MRI.use_nodbg_empty(Reg))
       return false;
@@ -711,14 +708,14 @@ bool llvm::isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
 
 Align llvm::inferAlignFromPtrInfo(MachineFunction &MF,
                                   const MachinePointerInfo &MPO) {
-  auto PSV = MPO.V.dyn_cast<const PseudoSourceValue *>();
+  auto PSV = dyn_cast_if_present<const PseudoSourceValue *>(MPO.V);
   if (auto FSPV = dyn_cast_or_null<FixedStackPseudoSourceValue>(PSV)) {
     MachineFrameInfo &MFI = MF.getFrameInfo();
     return commonAlignment(MFI.getObjectAlign(FSPV->getFrameIndex()),
                            MPO.Offset);
   }
 
-  if (const Value *V = MPO.V.dyn_cast<const Value *>()) {
+  if (const Value *V = dyn_cast_if_present<const Value *>(MPO.V)) {
     const Module *M = MF.getFunction().getParent();
     return V->getPointerAlignment(M->getDataLayout());
   }
@@ -797,7 +794,7 @@ llvm::ConstantFoldCTLZ(Register Src, const MachineRegisterInfo &MRI) {
     auto MaybeCst = getIConstantVRegVal(R, MRI);
     if (!MaybeCst)
       return std::nullopt;
-    return MaybeCst->countLeadingZeros();
+    return MaybeCst->countl_zero();
   };
   if (Ty.isVector()) {
     // Try to constant fold each element.

@@ -78,8 +78,8 @@ void InitializePlatformInterceptors();
 # define ASAN_INTERCEPT___LONGJMP_CHK 0
 #endif
 
-#if ASAN_HAS_EXCEPTIONS && !SANITIZER_WINDOWS && !SANITIZER_SOLARIS && \
-    !SANITIZER_NETBSD
+#if ASAN_HAS_EXCEPTIONS && !SANITIZER_SOLARIS && !SANITIZER_NETBSD && \
+    (!SANITIZER_WINDOWS || (defined(__MINGW32__) && defined(__i386__)))
 # define ASAN_INTERCEPT___CXA_THROW 1
 # define ASAN_INTERCEPT___CXA_RETHROW_PRIMARY_EXCEPTION 1
 # if defined(_GLIBCXX_SJLJ_EXCEPTIONS) || (SANITIZER_IOS && defined(__arm__))
@@ -110,6 +110,14 @@ void InitializePlatformInterceptors();
 # define ASAN_INTERCEPT___STRDUP 1
 #else
 # define ASAN_INTERCEPT___STRDUP 0
+#endif
+
+#if SANITIZER_GLIBC && ASAN_INTERCEPT_PTHREAD_CREATE
+# define ASAN_INTERCEPT_TIMEDJOIN 1
+# define ASAN_INTERCEPT_TRYJOIN 1
+#else
+# define ASAN_INTERCEPT_TIMEDJOIN 0
+# define ASAN_INTERCEPT_TRYJOIN 0
 #endif
 
 #if SANITIZER_LINUX &&                                                \
@@ -157,6 +165,12 @@ DECLARE_REAL(char*, strstr, const char *s1, const char *s2)
 // OS X interceptors don't need to be initialized with INTERCEPT_FUNCTION.
 #    define ASAN_INTERCEPT_FUNC(name)
 #  endif  // SANITIZER_APPLE
+
+#define ASAN_INTERCEPTOR_ENTER(ctx, func)                                      \
+  AsanInterceptorContext _ctx = {#func};                                       \
+  ctx = (void *)&_ctx;                                                         \
+  (void) ctx;
+#define COMMON_INTERCEPT_FUNCTION(name) ASAN_INTERCEPT_FUNC(name)
 
 #endif  // !SANITIZER_FUCHSIA
 

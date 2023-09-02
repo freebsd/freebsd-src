@@ -185,7 +185,7 @@ std::set<const FileEntry *> GetAffectingModuleMaps(const Preprocessor &PP,
     if (!HFI || (HFI->isModuleHeader && !HFI->isCompilingModuleHeader))
       continue;
 
-    for (const auto &KH : HS.findAllModulesForHeader(File)) {
+    for (const auto &KH : HS.findResolvedModulesForHeader(File)) {
       if (!KH.getModule())
         continue;
       ModulesToProcess.push_back(KH.getModule());
@@ -200,7 +200,9 @@ std::set<const FileEntry *> GetAffectingModuleMaps(const Preprocessor &PP,
     CB(F);
     FileID FID = SourceMgr.translateFile(F);
     SourceLocation Loc = SourceMgr.getIncludeLoc(FID);
-    while (Loc.isValid()) {
+    // The include location of inferred module maps can point into the header
+    // file that triggered the inferring. Cut off the walk if that's the case.
+    while (Loc.isValid() && isModuleMap(SourceMgr.getFileCharacteristic(Loc))) {
       FID = SourceMgr.getFileID(Loc);
       CB(*SourceMgr.getFileEntryRefForID(FID));
       Loc = SourceMgr.getIncludeLoc(FID);
@@ -209,11 +211,18 @@ std::set<const FileEntry *> GetAffectingModuleMaps(const Preprocessor &PP,
 
   auto ProcessModuleOnce = [&](const Module *M) {
     for (const Module *Mod = M; Mod; Mod = Mod->Parent)
-      if (ProcessedModules.insert(Mod).second)
+      if (ProcessedModules.insert(Mod).second) {
+        auto Insert = [&](FileEntryRef F) { ModuleMaps.insert(F); };
+        // The containing module map is affecting, because it's being pointed
+        // into by Module::DefinitionLoc.
+        if (auto ModuleMapFile = MM.getContainingModuleMapFile(Mod))
+          ForIncludeChain(*ModuleMapFile, Insert);
+        // For inferred modules, the module map that allowed inferring is not in
+        // the include chain of the virtual containing module map file. It did
+        // affect the compilation, though.
         if (auto ModuleMapFile = MM.getModuleMapFileForUniquing(Mod))
-          ForIncludeChain(*ModuleMapFile, [&](FileEntryRef F) {
-            ModuleMaps.insert(F);
-          });
+          ForIncludeChain(*ModuleMapFile, Insert);
+      }
   };
 
   for (const Module *CurrentModule : ModulesToProcess) {
@@ -866,7 +875,6 @@ void ASTWriter::WriteBlockInfoBlock() {
   RECORD(CUDA_PRAGMA_FORCE_HOST_DEVICE_DEPTH);
   RECORD(PP_CONDITIONAL_STACK);
   RECORD(DECLS_TO_CHECK_FOR_DEFERRED_DIAGS);
-  RECORD(PP_INCLUDED_FILES);
   RECORD(PP_ASSUME_NONNULL_LOC);
 
   // SourceManager Block.
@@ -1243,6 +1251,8 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang maj.
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang min.
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Relocatable
+  // Standard C++ module
+  MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1));
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Timestamps
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Errors
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // SVN branch/tag
@@ -1250,15 +1260,15 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
   assert((!WritingModule || isysroot.empty()) &&
          "writing module as a relocatable PCH?");
   {
-    RecordData::value_type Record[] = {
-        METADATA,
-        VERSION_MAJOR,
-        VERSION_MINOR,
-        CLANG_VERSION_MAJOR,
-        CLANG_VERSION_MINOR,
-        !isysroot.empty(),
-        IncludeTimestamps,
-        ASTHasCompilerErrors};
+    RecordData::value_type Record[] = {METADATA,
+                                       VERSION_MAJOR,
+                                       VERSION_MINOR,
+                                       CLANG_VERSION_MAJOR,
+                                       CLANG_VERSION_MINOR,
+                                       !isysroot.empty(),
+                                       isWritingStdCXXNamedModules(),
+                                       IncludeTimestamps,
+                                       ASTHasCompilerErrors};
     Stream.EmitRecordWithBlob(MetadataAbbrevCode, Record,
                               getClangFullRepositoryVersion());
   }
@@ -1277,8 +1287,9 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
     SmallString<128> BaseDir;
     if (PP.getHeaderSearchInfo().getHeaderSearchOpts().ModuleFileHomeIsCwd) {
       // Use the current working directory as the base path for all inputs.
-      auto *CWD =
-          Context.getSourceManager().getFileManager().getDirectory(".").get();
+      auto CWD =
+          Context.getSourceManager().getFileManager().getOptionalDirectoryRef(
+              ".");
       BaseDir.assign(CWD->getName());
     } else {
       BaseDir.assign(WritingModule->Directory->getName());
@@ -1288,11 +1299,11 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
     // If the home of the module is the current working directory, then we
     // want to pick up the cwd of the build process loading the module, not
     // our cwd, when we load this module.
-    if (!(PP.getHeaderSearchInfo()
+    if (!PP.getHeaderSearchInfo().getHeaderSearchOpts().ModuleFileHomeIsCwd &&
+        (!PP.getHeaderSearchInfo()
               .getHeaderSearchOpts()
               .ModuleMapFileHomeIsCwd ||
-          PP.getHeaderSearchInfo().getHeaderSearchOpts().ModuleFileHomeIsCwd) ||
-        WritingModule->Directory->getName() != StringRef(".")) {
+         WritingModule->Directory->getName() != StringRef("."))) {
       // Module directory.
       auto Abbrev = std::make_shared<BitCodeAbbrev>();
       Abbrev->Add(BitCodeAbbrevOp(MODULE_DIRECTORY));
@@ -1349,6 +1360,7 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
         continue;
 
       Record.push_back((unsigned)M.Kind); // FIXME: Stable encoding
+      Record.push_back(M.StandardCXXModule);
       AddSourceLocation(M.ImportLoc, Record);
 
       // If we have calculated signature, there is no need to store
@@ -1759,6 +1771,7 @@ namespace {
 
     struct data_type {
       const HeaderFileInfo &HFI;
+      bool AlreadyIncluded;
       ArrayRef<ModuleMap::KnownHeader> KnownHeaders;
       UnresolvedModule Unresolved;
     };
@@ -1804,7 +1817,8 @@ namespace {
       endian::Writer LE(Out, little);
       uint64_t Start = Out.tell(); (void)Start;
 
-      unsigned char Flags = (Data.HFI.isImport << 5)
+      unsigned char Flags = (Data.AlreadyIncluded << 6)
+                          | (Data.HFI.isImport << 5)
                           | (Data.HFI.isPragmaOnce << 4)
                           | (Data.HFI.DirInfo << 1)
                           | Data.HFI.IndexHeaderMapHeader;
@@ -1884,7 +1898,7 @@ void ASTWriter::WriteHeaderSearch(const HeaderSearch &HS) {
 
       // If the file didn't exist, we can still create a module if we were given
       // enough information in the module map.
-      for (auto U : M->MissingHeaders) {
+      for (const auto &U : M->MissingHeaders) {
         // Check that we were given enough information to build a module
         // without this file existing on disk.
         if (!U.Size || (!U.ModTime && IncludeTimestamps)) {
@@ -1903,18 +1917,16 @@ void ASTWriter::WriteHeaderSearch(const HeaderSearch &HS) {
         SavedStrings.push_back(FilenameDup.data());
 
         HeaderFileInfoTrait::key_type Key = {
-          FilenameDup, *U.Size, IncludeTimestamps ? *U.ModTime : 0
-        };
+            FilenameDup, *U.Size, IncludeTimestamps ? *U.ModTime : 0};
         HeaderFileInfoTrait::data_type Data = {
-          Empty, {}, {M, ModuleMap::headerKindToRole(U.Kind)}
-        };
+            Empty, false, {}, {M, ModuleMap::headerKindToRole(U.Kind)}};
         // FIXME: Deal with cases where there are multiple unresolved header
         // directives in different submodules for the same header.
         Generator.insert(Key, Data, GeneratorTrait);
         ++NumHeaderSearchEntries;
       }
-
-      Worklist.append(M->submodule_begin(), M->submodule_end());
+      auto SubmodulesRange = M->submodules();
+      Worklist.append(SubmodulesRange.begin(), SubmodulesRange.end());
     }
   }
 
@@ -1950,11 +1962,13 @@ void ASTWriter::WriteHeaderSearch(const HeaderSearch &HS) {
       SavedStrings.push_back(Filename.data());
     }
 
+    bool Included = PP->alreadyIncluded(File);
+
     HeaderFileInfoTrait::key_type Key = {
       Filename, File->getSize(), getTimestampForOutput(File)
     };
     HeaderFileInfoTrait::data_type Data = {
-      *HFI, HS.getModuleMap().findResolvedModulesForHeader(File), {}
+      *HFI, Included, HS.getModuleMap().findResolvedModulesForHeader(File), {}
     };
     Generator.insert(Key, Data, GeneratorTrait);
     ++NumHeaderSearchEntries;
@@ -2260,29 +2274,6 @@ static bool shouldIgnoreMacro(MacroDirective *MD, bool IsModule,
   return false;
 }
 
-void ASTWriter::writeIncludedFiles(raw_ostream &Out, const Preprocessor &PP) {
-  using namespace llvm::support;
-
-  const Preprocessor::IncludedFilesSet &IncludedFiles = PP.getIncludedFiles();
-
-  std::vector<uint32_t> IncludedInputFileIDs;
-  IncludedInputFileIDs.reserve(IncludedFiles.size());
-
-  for (const FileEntry *File : IncludedFiles) {
-    auto InputFileIt = InputFileIDs.find(File);
-    if (InputFileIt == InputFileIDs.end())
-      continue;
-    IncludedInputFileIDs.push_back(InputFileIt->second);
-  }
-
-  llvm::sort(IncludedInputFileIDs);
-
-  endian::Writer LE(Out, little);
-  LE.write<uint32_t>(IncludedInputFileIDs.size());
-  for (uint32_t ID : IncludedInputFileIDs)
-    LE.write<uint32_t>(ID);
-}
-
 /// Writes the block containing the serialized form of the
 /// preprocessor.
 void ASTWriter::WritePreprocessor(const Preprocessor &PP, bool IsModule) {
@@ -2531,20 +2522,6 @@ void ASTWriter::WritePreprocessor(const Preprocessor &PP, bool IsModule) {
                                        MacroOffsetsBase - ASTBlockStartOffset};
     Stream.EmitRecordWithBlob(MacroOffsetAbbrev, Record, bytes(MacroOffsets));
   }
-
-  {
-    auto Abbrev = std::make_shared<BitCodeAbbrev>();
-    Abbrev->Add(BitCodeAbbrevOp(PP_INCLUDED_FILES));
-    Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned IncludedFilesAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
-
-    SmallString<2048> Buffer;
-    raw_svector_ostream Out(Buffer);
-    writeIncludedFiles(Out, PP);
-    RecordData::value_type Record[] = {PP_INCLUDED_FILES};
-    Stream.EmitRecordWithBlob(IncludedFilesAbbrev, Record, Buffer.data(),
-                              Buffer.size());
-  }
 }
 
 void ASTWriter::WritePreprocessorDetail(PreprocessingRecord &PPRec,
@@ -2701,9 +2678,8 @@ unsigned ASTWriter::getSubmoduleID(Module *Mod) {
 /// given module).
 static unsigned getNumberOfModules(Module *Mod) {
   unsigned ChildModules = 0;
-  for (auto Sub = Mod->submodule_begin(), SubEnd = Mod->submodule_end();
-       Sub != SubEnd; ++Sub)
-    ChildModules += getNumberOfModules(*Sub);
+  for (auto *Submodule : Mod->submodules())
+    ChildModules += getNumberOfModules(Submodule);
 
   return ChildModules + 1;
 }
@@ -2719,7 +2695,8 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_DEFINITION));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // ID
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Parent
-  Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); // Kind
+  Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 4)); // Kind
+  Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Definition location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsFramework
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsExplicit
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsSystem
@@ -2820,12 +2797,16 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
       ParentID = SubmoduleIDs[Mod->Parent];
     }
 
+    uint64_t DefinitionLoc =
+        SourceLocationEncoding::encode(getAdjustedLocation(Mod->DefinitionLoc));
+
     // Emit the definition of the block.
     {
       RecordData::value_type Record[] = {SUBMODULE_DEFINITION,
                                          ID,
                                          ParentID,
                                          (RecordData::value_type)Mod->Kind,
+                                         DefinitionLoc,
                                          Mod->IsFramework,
                                          Mod->IsExplicit,
                                          Mod->IsSystem,
@@ -2845,14 +2826,16 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
     }
 
     // Emit the umbrella header, if there is one.
-    if (auto UmbrellaHeader = Mod->getUmbrellaHeader()) {
+    if (std::optional<Module::Header> UmbrellaHeader =
+            Mod->getUmbrellaHeaderAsWritten()) {
       RecordData::value_type Record[] = {SUBMODULE_UMBRELLA_HEADER};
       Stream.EmitRecordWithBlob(UmbrellaAbbrev, Record,
-                                UmbrellaHeader.NameAsWritten);
-    } else if (auto UmbrellaDir = Mod->getUmbrellaDir()) {
+                                UmbrellaHeader->NameAsWritten);
+    } else if (std::optional<Module::DirectoryName> UmbrellaDir =
+                   Mod->getUmbrellaDirAsWritten()) {
       RecordData::value_type Record[] = {SUBMODULE_UMBRELLA_DIR};
       Stream.EmitRecordWithBlob(UmbrellaDirAbbrev, Record,
-                                UmbrellaDir.NameAsWritten);
+                                UmbrellaDir->NameAsWritten);
     }
 
     // Emit the headers.
@@ -2876,10 +2859,9 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
 
     // Emit the top headers.
     {
-      auto TopHeaders = Mod->getTopHeaders(PP->getFileManager());
       RecordData::value_type Record[] = {SUBMODULE_TOPHEADER};
-      for (auto *H : TopHeaders) {
-        SmallString<128> HeaderName(H->getName());
+      for (FileEntryRef H : Mod->getTopHeaders(PP->getFileManager())) {
+        SmallString<128> HeaderName(H.getName());
         PreparePathForOutput(HeaderName);
         Stream.EmitRecordWithBlob(TopHeaderAbbrev, Record, HeaderName);
       }
@@ -2995,20 +2977,41 @@ void ASTWriter::WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
     assert(Flags == EncodeDiagStateFlags(State) &&
            "diag state flags vary in single AST file");
 
+    // If we ever serialize non-pragma mappings outside the initial state, the
+    // code below will need to consider more than getDefaultMapping.
+    assert(!IncludeNonPragmaStates ||
+           State == Diag.DiagStatesByLoc.FirstDiagState);
+
     unsigned &DiagStateID = DiagStateIDMap[State];
     Record.push_back(DiagStateID);
 
     if (DiagStateID == 0) {
       DiagStateID = ++CurrID;
+      SmallVector<std::pair<unsigned, DiagnosticMapping>> Mappings;
 
       // Add a placeholder for the number of mappings.
       auto SizeIdx = Record.size();
       Record.emplace_back();
       for (const auto &I : *State) {
-        if (I.second.isPragma() || IncludeNonPragmaStates) {
-          Record.push_back(I.first);
-          Record.push_back(I.second.serialize());
-        }
+        // Maybe skip non-pragmas.
+        if (!I.second.isPragma() && !IncludeNonPragmaStates)
+          continue;
+        // Skip default mappings. We have a mapping for every diagnostic ever
+        // emitted, regardless of whether it was customized.
+        if (!I.second.isPragma() &&
+            I.second == DiagnosticIDs::getDefaultMapping(I.first))
+          continue;
+        Mappings.push_back(I);
+      }
+
+      // Sort by diag::kind for deterministic output.
+      llvm::sort(Mappings, [](const auto &LHS, const auto &RHS) {
+        return LHS.first < RHS.first;
+      });
+
+      for (const auto &I : Mappings) {
+        Record.push_back(I.first);
+        Record.push_back(I.second.serialize());
       }
       // Update the placeholder.
       Record[SizeIdx] = (Record.size() - SizeIdx) / 2;
@@ -3175,6 +3178,13 @@ void ASTWriter::WriteComments() {
   auto _ = llvm::make_scope_exit([this] { Stream.ExitBlock(); });
   if (!PP->getPreprocessorOpts().WriteCommentListToPCH)
     return;
+
+  // Don't write comments to BMI to reduce the size of BMI.
+  // If language services (e.g., clangd) want such abilities,
+  // we can offer a special option then.
+  if (isWritingStdCXXNamedModules())
+    return;
+
   RecordData Record;
   for (const auto &FO : Context->Comments.OrderedComments) {
     for (const auto &OC : FO.second) {
@@ -3543,26 +3553,24 @@ public:
     // the mapping from persistent IDs to strings.
     Writer.SetIdentifierOffset(II, Out.tell());
 
+    auto MacroOffset = Writer.getMacroDirectivesOffset(II);
+
     // Emit the offset of the key/data length information to the interesting
     // identifiers table if necessary.
-    if (InterestingIdentifierOffsets && isInterestingIdentifier(II))
+    if (InterestingIdentifierOffsets &&
+        isInterestingIdentifier(II, MacroOffset))
       InterestingIdentifierOffsets->push_back(Out.tell());
 
     unsigned KeyLen = II->getLength() + 1;
     unsigned DataLen = 4; // 4 bytes for the persistent ID << 1
-    auto MacroOffset = Writer.getMacroDirectivesOffset(II);
     if (isInterestingIdentifier(II, MacroOffset)) {
       DataLen += 2; // 2 bytes for builtin ID
       DataLen += 2; // 2 bytes for flags
       if (MacroOffset)
         DataLen += 4; // MacroDirectives offset.
 
-      if (NeedDecls) {
-        for (IdentifierResolver::iterator D = IdResolver.begin(II),
-                                       DEnd = IdResolver.end();
-             D != DEnd; ++D)
-          DataLen += 4;
-      }
+      if (NeedDecls)
+        DataLen += std::distance(IdResolver.begin(II), IdResolver.end()) * 4;
     }
     return emitULEBKeyDataLength(KeyLen, DataLen, Out);
   }
@@ -3607,8 +3615,7 @@ public:
       // "stat"), but the ASTReader adds declarations to the end of the list
       // (so we need to see the struct "stat" before the function "stat").
       // Only emit declarations that aren't from a chained PCH, though.
-      SmallVector<NamedDecl *, 16> Decls(IdResolver.begin(II),
-                                         IdResolver.end());
+      SmallVector<NamedDecl *, 16> Decls(IdResolver.decls(II));
       for (NamedDecl *D : llvm::reverse(Decls))
         LE.write<uint32_t>(
             Writer.getDeclID(getDeclForLocalLookup(PP.getLangOpts(), D)));
@@ -3634,9 +3641,8 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
   // strings.
   {
     llvm::OnDiskChainedHashTableGenerator<ASTIdentifierTableTrait> Generator;
-    ASTIdentifierTableTrait Trait(
-        *this, PP, IdResolver, IsModule,
-        (getLangOpts().CPlusPlus && IsModule) ? &InterestingIdents : nullptr);
+    ASTIdentifierTableTrait Trait(*this, PP, IdResolver, IsModule,
+                                  IsModule ? &InterestingIdents : nullptr);
 
     // Look for any identifiers that were named while processing the
     // headers, but are otherwise not needed. We add these to the hash
@@ -3645,13 +3651,13 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
     // file.
     SmallVector<const IdentifierInfo *, 128> IIs;
     for (const auto &ID : PP.getIdentifierTable())
-      IIs.push_back(ID.second);
-    // Sort the identifiers lexicographically before getting them references so
+      if (Trait.isInterestingNonMacroIdentifier(ID.second))
+        IIs.push_back(ID.second);
+    // Sort the identifiers lexicographically before getting the references so
     // that their order is stable.
     llvm::sort(IIs, llvm::deref<std::less<>>());
     for (const IdentifierInfo *II : IIs)
-      if (Trait.isInterestingNonMacroIdentifier(II))
-        getIdentifierRef(II);
+      getIdentifierRef(II);
 
     // Create the on-disk hash table representation. We only store offsets
     // for identifiers that appear here for the first time.
@@ -4252,6 +4258,7 @@ void ASTWriter::WriteLateParsedTemplates(Sema &SemaRef) {
     LateParsedTemplate &LPT = *LPTMapEntry.second;
     AddDeclRef(FD, Record);
     AddDeclRef(LPT.D, Record);
+    Record.push_back(LPT.FPO.getAsOpaqueInt());
     Record.push_back(LPT.Toks.size());
 
     for (const auto &Tok : LPT.Toks) {
@@ -4382,6 +4389,7 @@ void ASTRecordWriter::AddAttr(const Attr *A) {
   Record.push_back(A->getParsedKind());
   Record.push_back(A->getSyntax());
   Record.push_back(A->getAttributeSpellingListIndexRaw());
+  Record.push_back(A->isRegularKeywordAttribute());
 
 #include "clang/Serialization/AttrPCHWrite.inc"
 }
@@ -4412,6 +4420,14 @@ void ASTWriter::AddToken(const Token &Tok, RecordDataImpl &Record) {
         AddToken(T, Record);
       break;
     }
+    case tok::annot_pragma_pack: {
+      auto *Info =
+          static_cast<Sema::PragmaPackInfo *>(Tok.getAnnotationValue());
+      Record.push_back(static_cast<unsigned>(Info->Action));
+      AddString(Info->SlotLabel, Record);
+      AddToken(Info->Alignment, Record);
+      break;
+    }
     // Some annotation tokens do not use the PtrData field.
     case tok::annot_pragma_openmp:
     case tok::annot_pragma_openmp_end:
@@ -4435,6 +4451,11 @@ void ASTWriter::AddString(StringRef Str, RecordDataImpl &Record) {
 
 bool ASTWriter::PreparePathForOutput(SmallVectorImpl<char> &Path) {
   assert(Context && "should have context when outputting path");
+
+  // Leave special file names as they are.
+  StringRef PathStr(Path.data(), Path.size());
+  if (PathStr == "<built-in>" || PathStr == "<command line>")
+    return false;
 
   bool Changed =
       cleanPathForOutput(Context->getSourceManager().getFileManager(), Path);
@@ -4873,13 +4894,9 @@ ASTFileSignature ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
     }
     // Sort the identifiers to visit based on their name.
     llvm::sort(IIs, llvm::deref<std::less<>>());
-    for (const IdentifierInfo *II : IIs) {
-      for (IdentifierResolver::iterator D = SemaRef.IdResolver.begin(II),
-                                     DEnd = SemaRef.IdResolver.end();
-           D != DEnd; ++D) {
-        GetDeclRef(*D);
-      }
-    }
+    for (const IdentifierInfo *II : IIs)
+      for (const Decl *D : SemaRef.IdResolver.decls(II))
+        GetDeclRef(D);
   }
 
   // For method pool in the module, if it contains an entry for a selector,
@@ -5101,7 +5118,7 @@ ASTFileSignature ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
     };
     llvm::SmallVector<ModuleInfo, 64> Imports;
     for (const auto *I : Context.local_imports()) {
-      assert(SubmoduleIDs.find(I->getImportedModule()) != SubmoduleIDs.end());
+      assert(SubmoduleIDs.contains(I->getImportedModule()));
       Imports.push_back(ModuleInfo(SubmoduleIDs[I->getImportedModule()],
                          I->getImportedModule()));
     }
@@ -5167,6 +5184,7 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
     const Decl *D = DeclUpdate.first;
 
     bool HasUpdatedBody = false;
+    bool HasAddedVarDefinition = false;
     RecordData RecordData;
     ASTRecordWriter Record(*this, RecordData);
     for (auto &Update : DeclUpdate.second) {
@@ -5176,6 +5194,8 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
       // to skip over the lazy body to reach statements for other records.
       if (Kind == UPD_CXX_ADDED_FUNCTION_DEFINITION)
         HasUpdatedBody = true;
+      else if (Kind == UPD_CXX_ADDED_VAR_DEFINITION)
+        HasAddedVarDefinition = true;
       else
         Record.push_back(Kind);
 
@@ -5188,20 +5208,13 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
         break;
 
       case UPD_CXX_ADDED_FUNCTION_DEFINITION:
+      case UPD_CXX_ADDED_VAR_DEFINITION:
         break;
 
       case UPD_CXX_POINT_OF_INSTANTIATION:
         // FIXME: Do we need to also save the template specialization kind here?
         Record.AddSourceLocation(Update.getLoc());
         break;
-
-      case UPD_CXX_ADDED_VAR_DEFINITION: {
-        const VarDecl *VD = cast<VarDecl>(D);
-        Record.push_back(VD->isInline());
-        Record.push_back(VD->isInlineSpecified());
-        Record.AddVarDeclInit(VD);
-        break;
-      }
 
       case UPD_CXX_INSTANTIATED_DEFAULT_ARGUMENT:
         Record.AddStmt(const_cast<Expr *>(
@@ -5314,12 +5327,20 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
       }
     }
 
+    // Add a trailing update record, if any. These must go last because we
+    // lazily load their attached statement.
     if (HasUpdatedBody) {
       const auto *Def = cast<FunctionDecl>(D);
       Record.push_back(UPD_CXX_ADDED_FUNCTION_DEFINITION);
       Record.push_back(Def->isInlined());
       Record.AddSourceLocation(Def->getInnerLocStart());
       Record.AddFunctionDefinition(Def);
+    } else if (HasAddedVarDefinition) {
+      const auto *VD = cast<VarDecl>(D);
+      Record.push_back(UPD_CXX_ADDED_VAR_DEFINITION);
+      Record.push_back(VD->isInline());
+      Record.push_back(VD->isInlineSpecified());
+      Record.AddVarDeclInit(VD);
     }
 
     OffsetsRecord.push_back(GetDeclRef(D));
@@ -5449,7 +5470,7 @@ MacroID ASTWriter::getMacroID(MacroInfo *MI) {
   if (!MI || MI->isBuiltinMacro())
     return 0;
 
-  assert(MacroIDs.find(MI) != MacroIDs.end() && "Macro not emitted!");
+  assert(MacroIDs.contains(MI) && "Macro not emitted!");
   return MacroIDs[MI];
 }
 
@@ -5624,7 +5645,7 @@ DeclID ASTWriter::getDeclID(const Decl *D) {
   if (D->isFromASTFile())
     return D->getGlobalID();
 
-  assert(DeclIDs.find(D) != DeclIDs.end() && "Declaration not emitted!");
+  assert(DeclIDs.contains(D) && "Declaration not emitted!");
   return DeclIDs[D];
 }
 
@@ -5909,6 +5930,7 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
 
   // getODRHash will compute the ODRHash if it has not been previously computed.
   Record->push_back(D->getODRHash());
+
   bool ModulesDebugInfo =
       Writer->Context->getLangOpts().ModulesDebugInfo && !D->isDependentType();
   Record->push_back(ModulesDebugInfo);
@@ -5917,24 +5939,24 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
 
   // IsLambda bit is already saved.
 
-  Record->push_back(Data.NumBases);
-  if (Data.NumBases > 0)
-    AddCXXBaseSpecifiers(Data.bases());
-
-  // FIXME: Make VBases lazily computed when needed to avoid storing them.
-  Record->push_back(Data.NumVBases);
-  if (Data.NumVBases > 0)
-    AddCXXBaseSpecifiers(Data.vbases());
-
   AddUnresolvedSet(Data.Conversions.get(*Writer->Context));
   Record->push_back(Data.ComputedVisibleConversions);
   if (Data.ComputedVisibleConversions)
     AddUnresolvedSet(Data.VisibleConversions.get(*Writer->Context));
   // Data.Definition is the owning decl, no need to write it.
-  AddDeclRef(D->getFirstFriend());
 
-  // Add lambda-specific data.
-  if (Data.IsLambda) {
+  if (!Data.IsLambda) {
+    Record->push_back(Data.NumBases);
+    if (Data.NumBases > 0)
+      AddCXXBaseSpecifiers(Data.bases());
+
+    // FIXME: Make VBases lazily computed when needed to avoid storing them.
+    Record->push_back(Data.NumVBases);
+    if (Data.NumVBases > 0)
+      AddCXXBaseSpecifiers(Data.vbases());
+
+    AddDeclRef(D->getFirstFriend());
+  } else {
     auto &Lambda = D->getLambdaData();
     Record->push_back(Lambda.DependencyKind);
     Record->push_back(Lambda.IsGenericLambda);
@@ -5944,7 +5966,8 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
     Record->push_back(Lambda.HasKnownInternalLinkage);
     Record->push_back(Lambda.ManglingNumber);
     Record->push_back(D->getDeviceLambdaManglingNumber());
-    AddDeclRef(D->getLambdaContextDecl());
+    // The lambda context declaration and index within the context are provided
+    // separately, so that they can be used for merging.
     AddTypeSourceInfo(Lambda.MethodTyInfo);
     for (unsigned I = 0, N = Lambda.NumCaptures; I != N; ++I) {
       const LambdaCapture &Capture = Lambda.Captures.front()[I];
@@ -5976,13 +5999,20 @@ void ASTRecordWriter::AddVarDeclInit(const VarDecl *VD) {
     return;
   }
 
-  unsigned Val = 1;
+  uint64_t Val = 1;
   if (EvaluatedStmt *ES = VD->getEvaluatedStmt()) {
     Val |= (ES->HasConstantInitialization ? 2 : 0);
     Val |= (ES->HasConstantDestruction ? 4 : 0);
-    // FIXME: Also emit the constant initializer value.
+    APValue *Evaluated = VD->getEvaluatedValue();
+    // If the evaluted result is constant, emit it.
+    if (Evaluated && (Evaluated->isInt() || Evaluated->isFloat()))
+      Val |= 8;
   }
   push_back(Val);
+  if (Val & 8) {
+    AddAPValue(*VD->getEvaluatedValue());
+  }
+
   writeStmtRef(Init);
 }
 
@@ -6049,12 +6079,12 @@ void ASTWriter::SelectorRead(SelectorID ID, Selector S) {
 
 void ASTWriter::MacroDefinitionRead(serialization::PreprocessedEntityID ID,
                                     MacroDefinitionRecord *MD) {
-  assert(MacroDefinitions.find(MD) == MacroDefinitions.end());
+  assert(!MacroDefinitions.contains(MD));
   MacroDefinitions[MD] = ID;
 }
 
 void ASTWriter::ModuleRead(serialization::SubmoduleID ID, Module *Mod) {
-  assert(SubmoduleIDs.find(Mod) == SubmoduleIDs.end());
+  assert(!SubmoduleIDs.contains(Mod));
   SubmoduleIDs[Mod] = ID;
 }
 
@@ -7126,6 +7156,19 @@ void OMPClauseWriter::VisitOMPXDynCGroupMemClause(OMPXDynCGroupMemClause *C) {
   VisitOMPClauseWithPreInit(C);
   Record.AddStmt(C->getSize());
   Record.AddSourceLocation(C->getLParenLoc());
+}
+
+void OMPClauseWriter::VisitOMPDoacrossClause(OMPDoacrossClause *C) {
+  Record.push_back(C->varlist_size());
+  Record.push_back(C->getNumLoops());
+  Record.AddSourceLocation(C->getLParenLoc());
+  Record.push_back(C->getDependenceType());
+  Record.AddSourceLocation(C->getDependenceLoc());
+  Record.AddSourceLocation(C->getColonLoc());
+  for (auto *VE : C->varlists())
+    Record.AddStmt(VE);
+  for (unsigned I = 0, E = C->getNumLoops(); I < E; ++I)
+    Record.AddStmt(C->getLoopData(I));
 }
 
 void ASTRecordWriter::writeOMPTraitInfo(const OMPTraitInfo *TI) {

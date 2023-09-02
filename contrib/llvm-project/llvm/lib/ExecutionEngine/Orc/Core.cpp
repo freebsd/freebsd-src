@@ -167,15 +167,16 @@ AsynchronousSymbolQuery::AsynchronousSymbolQuery(
   OutstandingSymbolsCount = Symbols.size();
 
   for (auto &KV : Symbols)
-    ResolvedSymbols[KV.first] = nullptr;
+    ResolvedSymbols[KV.first] = ExecutorSymbolDef();
 }
 
 void AsynchronousSymbolQuery::notifySymbolMetRequiredState(
-    const SymbolStringPtr &Name, JITEvaluatedSymbol Sym) {
+    const SymbolStringPtr &Name, ExecutorSymbolDef Sym) {
   auto I = ResolvedSymbols.find(Name);
   assert(I != ResolvedSymbols.end() &&
          "Resolving symbol outside the requested set");
-  assert(I->second.getAddress() == 0 && "Redundantly resolving symbol Name");
+  assert(I->second == ExecutorSymbolDef() &&
+         "Redundantly resolving symbol Name");
 
   // If this is a materialization-side-effects-only symbol then drop it,
   // otherwise update its map entry with its resolved address.
@@ -447,8 +448,8 @@ void ReExportsMaterializationUnit::materialize(
           if (KV.second.AliasFlags.hasMaterializationSideEffectsOnly())
             continue;
 
-          ResolutionMap[KV.first] = JITEvaluatedSymbol(
-              (*Result)[KV.second.Aliasee].getAddress(), KV.second.AliasFlags);
+          ResolutionMap[KV.first] = {(*Result)[KV.second.Aliasee].getAddress(),
+                                     KV.second.AliasFlags};
         }
         if (auto Err = QueryInfo->R->notifyResolved(ResolutionMap)) {
           ES.reportError(std::move(Err));
@@ -688,11 +689,15 @@ void JITDylib::removeGenerator(DefinitionGenerator &G) {
 }
 
 Expected<SymbolFlagsMap>
-JITDylib::defineMaterializing(SymbolFlagsMap SymbolFlags) {
+JITDylib::defineMaterializing(MaterializationResponsibility &FromMR,
+                              SymbolFlagsMap SymbolFlags) {
 
   return ES.runSessionLocked([&]() -> Expected<SymbolFlagsMap> {
-    std::vector<SymbolTable::iterator> AddedSyms;
-    std::vector<SymbolFlagsMap::iterator> RejectedWeakDefs;
+    if (FromMR.RT->isDefunct())
+      return make_error<ResourceTrackerDefunct>(FromMR.RT);
+
+    std::vector<NonOwningSymbolStringPtr> AddedSyms;
+    std::vector<NonOwningSymbolStringPtr> RejectedWeakDefs;
 
     for (auto SFItr = SymbolFlags.begin(), SFEnd = SymbolFlags.end();
          SFItr != SFEnd; ++SFItr) {
@@ -708,27 +713,27 @@ JITDylib::defineMaterializing(SymbolFlagsMap SymbolFlags) {
         // If this is a strong definition then error out.
         if (!Flags.isWeak()) {
           // Remove any symbols already added.
-          for (auto &SI : AddedSyms)
-            Symbols.erase(SI);
+          for (auto &S : AddedSyms)
+            Symbols.erase(Symbols.find_as(S));
 
           // FIXME: Return all duplicates.
           return make_error<DuplicateDefinition>(std::string(*Name));
         }
 
         // Otherwise just make a note to discard this symbol after the loop.
-        RejectedWeakDefs.push_back(SFItr);
+        RejectedWeakDefs.push_back(NonOwningSymbolStringPtr(Name));
         continue;
       } else
         EntryItr =
           Symbols.insert(std::make_pair(Name, SymbolTableEntry(Flags))).first;
 
-      AddedSyms.push_back(EntryItr);
+      AddedSyms.push_back(NonOwningSymbolStringPtr(Name));
       EntryItr->second.setState(SymbolState::Materializing);
     }
 
     // Remove any rejected weak definitions from the SymbolFlags map.
     while (!RejectedWeakDefs.empty()) {
-      SymbolFlags.erase(RejectedWeakDefs.back());
+      SymbolFlags.erase(SymbolFlags.find_as(RejectedWeakDefs.back()));
       RejectedWeakDefs.pop_back();
     }
 
@@ -944,7 +949,7 @@ Error JITDylib::resolve(MaterializationResponsibility &MR,
 
         struct WorklistEntry {
           SymbolTable::iterator SymI;
-          JITEvaluatedSymbol ResolvedSym;
+          ExecutorSymbolDef ResolvedSym;
         };
 
         SymbolNameSet SymbolsInErrorState;
@@ -964,7 +969,7 @@ Error JITDylib::resolve(MaterializationResponsibility &MR,
                  "Resolving symbol with materializer attached?");
           assert(SymI->second.getState() == SymbolState::Materializing &&
                  "Symbol should be materializing");
-          assert(SymI->second.getAddress() == 0 &&
+          assert(SymI->second.getAddress() == ExecutorAddr() &&
                  "Symbol has already been resolved");
 
           if (SymI->second.getFlags().hasError())
@@ -976,8 +981,7 @@ Error JITDylib::resolve(MaterializationResponsibility &MR,
                        (SymI->second.getFlags() & ~JITSymbolFlags::Common) &&
                    "Resolved flags should match the declared flags");
 
-            Worklist.push_back(
-                {SymI, JITEvaluatedSymbol(KV.second.getAddress(), Flags)});
+            Worklist.push_back({SymI, {KV.second.getAddress(), Flags}});
           }
         }
 
@@ -1328,6 +1332,18 @@ void JITDylib::setLinkOrder(JITDylibSearchOrder NewLinkOrder,
   });
 }
 
+void JITDylib::addToLinkOrder(const JITDylibSearchOrder &NewLinks) {
+  ES.runSessionLocked([&]() {
+    for (auto &KV : NewLinks) {
+      // Skip elements of NewLinks that are already in the link order.
+      if (llvm::find(LinkOrder, KV) != LinkOrder.end())
+        continue;
+
+      LinkOrder.push_back(std::move(KV));
+    }
+  });
+}
+
 void JITDylib::addToLinkOrder(JITDylib &JD, JITDylibLookupFlags JDLookupFlags) {
   ES.runSessionLocked([&]() { LinkOrder.push_back({&JD, JDLookupFlags}); });
 }
@@ -1437,16 +1453,23 @@ void JITDylib::dump(raw_ostream &OS) {
     OS << "Link order: " << LinkOrder << "\n"
        << "Symbol table:\n";
 
-    for (auto &KV : Symbols) {
+    // Sort symbols so we get a deterministic order and can check them in tests.
+    std::vector<std::pair<SymbolStringPtr, SymbolTableEntry *>> SymbolsSorted;
+    for (auto &KV : Symbols)
+      SymbolsSorted.emplace_back(KV.first, &KV.second);
+    std::sort(SymbolsSorted.begin(), SymbolsSorted.end(),
+              [](const auto &L, const auto &R) { return *L.first < *R.first; });
+
+    for (auto &KV : SymbolsSorted) {
       OS << "    \"" << *KV.first << "\": ";
-      if (auto Addr = KV.second.getAddress())
-        OS << format("0x%016" PRIx64, Addr);
+      if (auto Addr = KV.second->getAddress())
+        OS << Addr;
       else
         OS << "<not resolved> ";
 
-      OS << " " << KV.second.getFlags() << " " << KV.second.getState();
+      OS << " " << KV.second->getFlags() << " " << KV.second->getState();
 
-      if (KV.second.hasMaterializerAttached()) {
+      if (KV.second->hasMaterializerAttached()) {
         OS << " (Materializer ";
         auto I = UnmaterializedInfos.find(KV.first);
         assert(I != UnmaterializedInfos.end() &&
@@ -1940,6 +1963,7 @@ JITDylib *ExecutionSession::getJITDylibByName(StringRef Name) {
 JITDylib &ExecutionSession::createBareJITDylib(std::string Name) {
   assert(!getJITDylibByName(Name) && "JITDylib with that name already exists");
   return runSessionLocked([&, this]() -> JITDylib & {
+    assert(SessionOpen && "Cannot create JITDylib after session is closed");
     JDs.push_back(new JITDylib(*this, std::move(Name)));
     return *JDs.back();
   });
@@ -2156,7 +2180,7 @@ ExecutionSession::lookup(const JITDylibSearchOrder &SearchOrder,
 #endif
 }
 
-Expected<JITEvaluatedSymbol>
+Expected<ExecutorSymbolDef>
 ExecutionSession::lookup(const JITDylibSearchOrder &SearchOrder,
                          SymbolStringPtr Name, SymbolState RequiredState) {
   SymbolLookupSet Names({Name});
@@ -2170,13 +2194,13 @@ ExecutionSession::lookup(const JITDylibSearchOrder &SearchOrder,
     return ResultMap.takeError();
 }
 
-Expected<JITEvaluatedSymbol>
+Expected<ExecutorSymbolDef>
 ExecutionSession::lookup(ArrayRef<JITDylib *> SearchOrder, SymbolStringPtr Name,
                          SymbolState RequiredState) {
   return lookup(makeJITDylibSearchOrder(SearchOrder), Name, RequiredState);
 }
 
-Expected<JITEvaluatedSymbol>
+Expected<ExecutorSymbolDef>
 ExecutionSession::lookup(ArrayRef<JITDylib *> SearchOrder, StringRef Name,
                          SymbolState RequiredState) {
   return lookup(SearchOrder, intern(Name), RequiredState);
@@ -2213,9 +2237,9 @@ Error ExecutionSession::registerJITDispatchHandlers(
   return Error::success();
 }
 
-void ExecutionSession::runJITDispatchHandler(
-    SendResultFunction SendResult, JITTargetAddress HandlerFnTagAddr,
-    ArrayRef<char> ArgBuffer) {
+void ExecutionSession::runJITDispatchHandler(SendResultFunction SendResult,
+                                             ExecutorAddr HandlerFnTagAddr,
+                                             ArrayRef<char> ArgBuffer) {
 
   std::shared_ptr<JITDispatchHandlerFunction> F;
   {
@@ -2666,7 +2690,7 @@ void ExecutionSession::OL_completeLookup(
             // whether it has a materializer attached, and if so prepare to run
             // it.
             if (SymI->second.hasMaterializerAttached()) {
-              assert(SymI->second.getAddress() == 0 &&
+              assert(SymI->second.getAddress() == ExecutorAddr() &&
                      "Symbol not resolved but already has address?");
               auto UMII = JD.UnmaterializedInfos.find(Name);
               assert(UMII != JD.UnmaterializedInfos.end() &&
@@ -2946,7 +2970,7 @@ Error ExecutionSession::OL_defineMaterializing(
            << NewSymbolFlags << "\n";
   });
   if (auto AcceptedDefs =
-          MR.JD.defineMaterializing(std::move(NewSymbolFlags))) {
+          MR.JD.defineMaterializing(MR, std::move(NewSymbolFlags))) {
     // Add all newly accepted symbols to this responsibility object.
     for (auto &KV : *AcceptedDefs)
       MR.SymbolFlags.insert(KV);

@@ -18,9 +18,9 @@ def RocketModel : SchedMachineModel {
   let MispredictPenalty = 3;
   let CompleteModel = false;
   let UnsupportedFeatures = [HasStdExtZbkb, HasStdExtZbkc, HasStdExtZbkx,
-                             HasStdExtZknd, HasStdExtZkne, HasStdExtZknh,
-                             HasStdExtZksed, HasStdExtZksh, HasStdExtZkr,
-                             HasVInstructions, HasVInstructionsI64];
+                             HasStdExtZcmt, HasStdExtZknd, HasStdExtZkne,
+                             HasStdExtZknh, HasStdExtZksed, HasStdExtZksh,
+                             HasStdExtZkr, HasVInstructions, HasVInstructionsI64];
 }
 
 //===----------------------------------------------------------------------===//
@@ -51,7 +51,6 @@ let SchedModel = RocketModel in {
 def : WriteRes<WriteJmp, [RocketUnitB]>;
 def : WriteRes<WriteJal, [RocketUnitB]>;
 def : WriteRes<WriteJalr, [RocketUnitB]>;
-def : WriteRes<WriteJmpReg, [RocketUnitB]>;
 
 // Integer arithmetic and logic
 def : WriteRes<WriteIALU32, [RocketUnitALU]>;
@@ -244,6 +243,7 @@ defm : UnsupportedSchedZbc;
 defm : UnsupportedSchedZbs;
 defm : UnsupportedSchedZbkb;
 defm : UnsupportedSchedZbkx;
+defm : UnsupportedSchedZfa;
 defm : UnsupportedSchedZfh;
 defm : UnsupportedSchedSFB;
 }

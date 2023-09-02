@@ -13,7 +13,7 @@
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
-#include "llvm/Support/Host.h"
+#include "llvm/TargetParser/Host.h"
 
 using namespace clang::driver;
 using namespace clang::driver::tools;
@@ -85,7 +85,8 @@ std::string ppc::getPPCTuneCPU(const ArgList &Args, const llvm::Triple &T) {
 }
 
 /// Get the (LLVM) name of the PowerPC cpu we are targeting.
-std::string ppc::getPPCTargetCPU(const ArgList &Args, const llvm::Triple &T) {
+std::string ppc::getPPCTargetCPU(const Driver &D, const ArgList &Args,
+                                 const llvm::Triple &T) {
   if (Arg *A = Args.getLastArg(clang::driver::options::OPT_mcpu_EQ))
     return normalizeCPUName(A->getValue(), T);
   return getPPCGenericTargetCPU(T);
@@ -111,7 +112,8 @@ void ppc::getPPCTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (Triple.getSubArch() == llvm::Triple::PPCSubArch_spe)
     Features.push_back("+spe");
 
-  handleTargetFeaturesGroup(Args, Features, options::OPT_m_ppc_Features_Group);
+  handleTargetFeaturesGroup(D, Triple, Args, Features,
+                            options::OPT_m_ppc_Features_Group);
 
   ppc::FloatABI FloatABI = ppc::getPPCFloatABI(D, Args);
   if (FloatABI == ppc::FloatABI::Soft)
@@ -126,8 +128,7 @@ ppc::ReadGOTPtrMode ppc::getPPCReadGOTPtrMode(const Driver &D, const llvm::Tripl
                                               const ArgList &Args) {
   if (Args.getLastArg(options::OPT_msecure_plt))
     return ppc::ReadGOTPtrMode::SecurePlt;
-  if ((Triple.isOSFreeBSD() && Triple.getOSMajorVersion() >= 13) ||
-      Triple.isOSNetBSD() || Triple.isOSOpenBSD() || Triple.isMusl())
+  if (Triple.isPPC32SecurePlt())
     return ppc::ReadGOTPtrMode::SecurePlt;
   else
     return ppc::ReadGOTPtrMode::Bss;

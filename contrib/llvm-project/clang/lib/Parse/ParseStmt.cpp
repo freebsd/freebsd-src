@@ -19,6 +19,7 @@
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/EnterExpressionEvaluationContext.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
 #include "llvm/ADT/STLExtras.h"
@@ -334,7 +335,12 @@ Retry:
 
   case tok::kw_asm: {
     for (const ParsedAttr &AL : CXX11Attrs)
-      Diag(AL.getRange().getBegin(), diag::warn_attribute_ignored) << AL;
+      // Could be relaxed if asm-related regular keyword attributes are
+      // added later.
+      (AL.isRegularKeywordAttribute()
+           ? Diag(AL.getRange().getBegin(), diag::err_keyword_not_allowed)
+           : Diag(AL.getRange().getBegin(), diag::warn_attribute_ignored))
+          << AL;
     // Prevent these from being interpreted as statement attributes later on.
     CXX11Attrs.clear();
     ProhibitAttributes(GNUAttrs);
@@ -543,9 +549,22 @@ StmtResult Parser::ParseExprStatement(ParsedStmtContext StmtCtx) {
     return ParseCaseStatement(StmtCtx, /*MissingCase=*/true, Expr);
   }
 
-  // Otherwise, eat the semicolon.
-  ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-  return handleExprStmt(Expr, StmtCtx);
+  Token *CurTok = nullptr;
+  // If the semicolon is missing at the end of REPL input, consider if
+  // we want to do value printing. Note this is only enabled in C++ mode
+  // since part of the implementation requires C++ language features.
+  // Note we shouldn't eat the token since the callback needs it.
+  if (Tok.is(tok::annot_repl_input_end) && Actions.getLangOpts().CPlusPlus)
+    CurTok = &Tok;
+  else
+    // Otherwise, eat the semicolon.
+    ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
+
+  StmtResult R = handleExprStmt(Expr, StmtCtx);
+  if (CurTok && !R.isInvalid())
+    CurTok->setAnnotationValue(R.get());
+
+  return R;
 }
 
 /// ParseSEHTryBlockCommon
@@ -1052,7 +1071,7 @@ void Parser::ParseCompoundStatementLeadingPragmas() {
 
 void Parser::DiagnoseLabelAtEndOfCompoundStatement() {
   if (getLangOpts().CPlusPlus) {
-    Diag(Tok, getLangOpts().CPlusPlus2b
+    Diag(Tok, getLangOpts().CPlusPlus23
                   ? diag::warn_cxx20_compat_label_end_of_compound_statement
                   : diag::ext_cxx_label_end_of_compound_statement);
   } else {
@@ -1100,7 +1119,7 @@ StmtResult Parser::handleExprStmt(ExprResult E, ParsedStmtContext StmtCtx) {
       ++LookAhead;
     }
     // Then look to see if the next two tokens close the statement expression;
-    // if so, this expression statement is the last statement in a statment
+    // if so, this expression statement is the last statement in a statement
     // expression.
     IsStmtExprResult = GetLookAheadToken(LookAhead).is(tok::r_brace) &&
                        GetLookAheadToken(LookAhead + 1).is(tok::r_paren);
@@ -1456,7 +1475,7 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
     }
 
     if (Tok.is(tok::kw_consteval)) {
-      Diag(Tok, getLangOpts().CPlusPlus2b ? diag::warn_cxx20_compat_consteval_if
+      Diag(Tok, getLangOpts().CPlusPlus23 ? diag::warn_cxx20_compat_consteval_if
                                           : diag::ext_consteval_if);
       IsConsteval = true;
       ConstevalLoc = ConsumeToken();
@@ -1606,7 +1625,7 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   IfScope.Exit();
 
   // If the then or else stmt is invalid and the other is valid (and present),
-  // make turn the invalid one into a null stmt to avoid dropping the other
+  // turn the invalid one into a null stmt to avoid dropping the other
   // part.  If both are invalid, return error.
   if ((ThenStmt.isInvalid() && ElseStmt.isInvalid()) ||
       (ThenStmt.isInvalid() && ElseStmt.get() == nullptr) ||
@@ -1617,7 +1636,7 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
 
   if (IsConsteval) {
     auto IsCompoundStatement = [](const Stmt *S) {
-      if (const auto *Outer = dyn_cast_or_null<AttributedStmt>(S))
+      if (const auto *Outer = dyn_cast_if_present<AttributedStmt>(S))
         S = Outer->getSubStmt();
       return isa_and_nonnull<clang::CompoundStmt>(S);
     };
@@ -1928,7 +1947,7 @@ bool Parser::isForRangeIdentifier() {
 /// [C++] for-init-statement:
 /// [C++]   expression-statement
 /// [C++]   simple-declaration
-/// [C++2b] alias-declaration
+/// [C++23] alias-declaration
 ///
 /// [C++0x] for-range-declaration:
 /// [C++0x]   attribute-specifier-seq[opt] type-specifier-seq declarator
@@ -2035,15 +2054,15 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
       Diag(Tok, diag::warn_gcc_variable_decl_in_for_loop);
     }
     DeclGroupPtrTy DG;
+    SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
     if (Tok.is(tok::kw_using)) {
       DG = ParseAliasDeclarationInInitStatement(DeclaratorContext::ForInit,
                                                 attrs);
+      FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
     } else {
       // In C++0x, "for (T NS:a" might not be a typo for ::
       bool MightBeForRangeStmt = getLangOpts().CPlusPlus;
       ColonProtectionRAIIObject ColonProtection(*this, MightBeForRangeStmt);
-
-      SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
       ParsedAttributes DeclSpecAttrs(AttrFactory);
       DG = ParseSimpleDeclaration(
           DeclaratorContext::ForInit, DeclEnd, attrs, DeclSpecAttrs, false,
@@ -2183,9 +2202,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     if (Tok.isNot(tok::semi)) {
       if (!SecondPart.isInvalid())
         Diag(Tok, diag::err_expected_semi_for);
-      else
-        // Skip until semicolon or rparen, don't consume it.
-        SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
+      SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
     }
 
     if (Tok.is(tok::semi)) {
@@ -2411,7 +2428,7 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
                             ArgsUnion(Hint.ValueExpr)};
     TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
                      Hint.PragmaNameLoc->Loc, ArgHints, 4,
-                     ParsedAttr::AS_Pragma);
+                     ParsedAttr::Form::Pragma());
   }
 
   // Get the next statement.

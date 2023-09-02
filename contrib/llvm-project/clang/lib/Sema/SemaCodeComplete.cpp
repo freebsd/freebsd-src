@@ -4148,7 +4148,7 @@ static void AddPrettyFunctionResults(const LangOptions &LangOpts,
 
 static void HandleCodeCompleteResults(Sema *S,
                                       CodeCompleteConsumer *CodeCompleter,
-                                      CodeCompletionContext Context,
+                                      const CodeCompletionContext &Context,
                                       CodeCompletionResult *Results,
                                       unsigned NumResults) {
   if (CodeCompleter)
@@ -4309,16 +4309,13 @@ void Sema::CodeCompleteModuleImport(SourceLocation ImportLoc,
                                         /*IsInclusionDirective=*/false);
     // Enumerate submodules.
     if (Mod) {
-      for (Module::submodule_iterator Sub = Mod->submodule_begin(),
-                                      SubEnd = Mod->submodule_end();
-           Sub != SubEnd; ++Sub) {
-
+      for (auto *Submodule : Mod->submodules()) {
         Builder.AddTypedTextChunk(
-            Builder.getAllocator().CopyString((*Sub)->Name));
+            Builder.getAllocator().CopyString(Submodule->Name));
         Results.AddResult(Result(
             Builder.TakeString(), CCP_Declaration, CXCursor_ModuleImportDecl,
-            (*Sub)->isAvailable() ? CXAvailability_Available
-                                  : CXAvailability_NotAvailable));
+            Submodule->isAvailable() ? CXAvailability_Available
+                                     : CXAvailability_NotAvailable));
       }
     }
   }
@@ -6217,7 +6214,7 @@ getNextAggregateIndexAfterDesignatedInit(const ResultCandidate &Aggregate,
 
   // Look for designated initializers.
   // They're in their syntactic form, not yet resolved to fields.
-  IdentifierInfo *DesignatedFieldName = nullptr;
+  const IdentifierInfo *DesignatedFieldName = nullptr;
   unsigned ArgsAfterDesignator = 0;
   for (const Expr *Arg : Args) {
     if (const auto *DIE = dyn_cast<DesignatedInitExpr>(Arg)) {
@@ -6423,7 +6420,7 @@ static QualType getDesignatedType(QualType BaseType, const Designation &Desig) {
       assert(D.isFieldDesignator());
       auto *RD = getAsRecordDecl(BaseType);
       if (RD && RD->isCompleteDefinition()) {
-        for (const auto *Member : RD->lookup(D.getField()))
+        for (const auto *Member : RD->lookup(D.getFieldDecl()))
           if (const FieldDecl *FD = llvm::dyn_cast<FieldDecl>(Member)) {
             NextType = FD->getType();
             break;
@@ -8463,6 +8460,24 @@ void Sema::CodeCompleteObjCInterfaceDecl(Scope *S) {
                             Results.data(), Results.size());
 }
 
+void Sema::CodeCompleteObjCClassForwardDecl(Scope *S) {
+  ResultBuilder Results(*this, CodeCompleter->getAllocator(),
+                        CodeCompleter->getCodeCompletionTUInfo(),
+                        CodeCompletionContext::CCC_ObjCClassForwardDecl);
+  Results.EnterNewScope();
+
+  if (CodeCompleter->includeGlobals()) {
+    // Add all classes.
+    AddInterfaceResults(Context.getTranslationUnitDecl(), CurContext, false,
+                        false, Results);
+  }
+
+  Results.ExitScope();
+
+  HandleCodeCompleteResults(this, CodeCompleter, Results.getCompletionContext(),
+                            Results.data(), Results.size());
+}
+
 void Sema::CodeCompleteObjCSuperclass(Scope *S, IdentifierInfo *ClassName,
                                       SourceLocation ClassNameLoc) {
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
@@ -10033,11 +10048,11 @@ void Sema::CodeCompleteIncludedFile(llvm::StringRef Dir, bool Angled) {
         break;
       case llvm::sys::fs::file_type::regular_file: {
         // Only files that really look like headers. (Except in special dirs).
-        const bool IsHeader = Filename.endswith_insensitive(".h") ||
-                              Filename.endswith_insensitive(".hh") ||
-                              Filename.endswith_insensitive(".hpp") ||
-                              Filename.endswith_insensitive(".hxx") ||
-                              Filename.endswith_insensitive(".inc") ||
+        const bool IsHeader = Filename.ends_with_insensitive(".h") ||
+                              Filename.ends_with_insensitive(".hh") ||
+                              Filename.ends_with_insensitive(".hpp") ||
+                              Filename.ends_with_insensitive(".hxx") ||
+                              Filename.ends_with_insensitive(".inc") ||
                               (ExtensionlessHeaders && !Filename.contains('.'));
         if (!IsHeader)
           break;
@@ -10058,12 +10073,12 @@ void Sema::CodeCompleteIncludedFile(llvm::StringRef Dir, bool Angled) {
       // header maps are not (currently) enumerable.
       break;
     case DirectoryLookup::LT_NormalDir:
-      AddFilesFromIncludeDir(IncludeDir.getDir()->getName(), IsSystem,
+      AddFilesFromIncludeDir(IncludeDir.getDirRef()->getName(), IsSystem,
                              DirectoryLookup::LT_NormalDir);
       break;
     case DirectoryLookup::LT_Framework:
-      AddFilesFromIncludeDir(IncludeDir.getFrameworkDir()->getName(), IsSystem,
-                             DirectoryLookup::LT_Framework);
+      AddFilesFromIncludeDir(IncludeDir.getFrameworkDirRef()->getName(),
+                             IsSystem, DirectoryLookup::LT_Framework);
       break;
     }
   };
@@ -10075,9 +10090,8 @@ void Sema::CodeCompleteIncludedFile(llvm::StringRef Dir, bool Angled) {
   using llvm::make_range;
   if (!Angled) {
     // The current directory is on the include path for "quoted" includes.
-    const FileEntry *CurFile = PP.getCurrentFileLexer()->getFileEntry();
-    if (CurFile && CurFile->getDir())
-      AddFilesFromIncludeDir(CurFile->getDir()->getName(), false,
+    if (auto CurFile = PP.getCurrentFileLexer()->getFileEntry())
+      AddFilesFromIncludeDir(CurFile->getDir().getName(), false,
                              DirectoryLookup::LT_NormalDir);
     for (const auto &D : make_range(S.quoted_dir_begin(), S.quoted_dir_end()))
       AddFilesFromDirLookup(D, false);

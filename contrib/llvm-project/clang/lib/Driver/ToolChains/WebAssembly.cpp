@@ -101,12 +101,15 @@ void wasm::Linker::ConstructJob(Compilation &C, const JobAction &JA,
           << CM << A->getOption().getName();
     }
   }
-  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles))
+  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles, options::OPT_shared))
     CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath(Crt1)));
   if (Entry) {
     CmdArgs.push_back(Args.MakeArgString("--entry"));
     CmdArgs.push_back(Args.MakeArgString(Entry));
   }
+
+  if (Args.hasArg(options::OPT_shared))
+    CmdArgs.push_back(Args.MakeArgString("-shared"));
 
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
@@ -208,8 +211,6 @@ bool WebAssembly::isPIEDefault(const llvm::opt::ArgList &Args) const {
 }
 
 bool WebAssembly::isPICDefaultForced() const { return false; }
-
-bool WebAssembly::IsIntegratedAssemblerDefault() const { return true; }
 
 bool WebAssembly::hasBlocksRuntime() const { return false; }
 
@@ -459,6 +460,9 @@ SanitizerMask WebAssembly::getSupportedSanitizers() const {
   if (getTriple().isOSEmscripten()) {
     Res |= SanitizerKind::Vptr | SanitizerKind::Leak | SanitizerKind::Address;
   }
+  // -fsanitize=function places two words before the function label, which are
+  // -unsupported.
+  Res &= ~SanitizerKind::Function;
   return Res;
 }
 

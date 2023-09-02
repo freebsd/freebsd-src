@@ -27,6 +27,7 @@ namespace clang {
 namespace tooling {
 namespace dependencies {
 
+class DependencyActionController;
 class DependencyConsumer;
 
 /// Modular dependency that has already been built prior to the dependency scan.
@@ -58,7 +59,13 @@ struct ModuleID {
   std::string ContextHash;
 
   bool operator==(const ModuleID &Other) const {
-    return ModuleName == Other.ModuleName && ContextHash == Other.ContextHash;
+    return std::tie(ModuleName, ContextHash) ==
+           std::tie(Other.ModuleName, Other.ContextHash);
+  }
+
+  bool operator<(const ModuleID& Other) const {
+    return std::tie(ModuleName, ContextHash) <
+           std::tie(Other.ModuleName, Other.ContextHash);
   }
 };
 
@@ -147,9 +154,9 @@ class ModuleDepCollectorPP final : public PPCallbacks {
 public:
   ModuleDepCollectorPP(ModuleDepCollector &MDC) : MDC(MDC) {}
 
-  void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                   SrcMgr::CharacteristicKind FileType,
-                   FileID PrevFID) override;
+  void LexedFileChanged(FileID FID, LexedFileChangeReason Reason,
+                        SrcMgr::CharacteristicKind FileType, FileID PrevFID,
+                        SourceLocation Loc) override;
   void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                           StringRef FileName, bool IsAngled,
                           CharSourceRange FilenameRange,
@@ -201,6 +208,7 @@ class ModuleDepCollector final : public DependencyCollector {
 public:
   ModuleDepCollector(std::unique_ptr<DependencyOutputOptions> Opts,
                      CompilerInstance &ScanInstance, DependencyConsumer &C,
+                     DependencyActionController &Controller,
                      CompilerInvocation OriginalCI, bool OptimizeArgs,
                      bool EagerLoadModules, bool IsStdModuleP1689Format);
 
@@ -218,6 +226,8 @@ private:
   CompilerInstance &ScanInstance;
   /// The consumer of collected dependency information.
   DependencyConsumer &Consumer;
+  /// Callbacks for computing dependency information.
+  DependencyActionController &Controller;
   /// Path to the main source file.
   std::string MainFile;
   /// Hash identifying the compilation conditions of the current TU.

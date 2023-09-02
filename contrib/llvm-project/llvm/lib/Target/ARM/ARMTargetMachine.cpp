@@ -20,7 +20,6 @@
 #include "TargetInfo/ARMTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/ExecutionDomainFix.h"
 #include "llvm/CodeGen/GlobalISel/CSEInfo.h"
@@ -41,13 +40,14 @@
 #include "llvm/IR/Function.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/ARMTargetParser.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/TargetParser.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/TargetParser/ARMTargetParser.h"
+#include "llvm/TargetParser/TargetParser.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/CFGuard.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
@@ -242,7 +242,8 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, const Triple &TT,
     if ((TargetTriple.getEnvironment() == Triple::GNUEABI ||
          TargetTriple.getEnvironment() == Triple::GNUEABIHF ||
          TargetTriple.getEnvironment() == Triple::MuslEABI ||
-         TargetTriple.getEnvironment() == Triple::MuslEABIHF) &&
+         TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
+         TargetTriple.getEnvironment() == Triple::OpenHOS) &&
         !(TargetTriple.isOSWindows() || TargetTriple.isOSDarwin()))
       this->Options.EABIVersion = EABI::GNU;
     else
@@ -481,7 +482,7 @@ bool ARMPassConfig::addPreISel() {
   }
 
   if (TM->getOptLevel() != CodeGenOpt::None) {
-    addPass(createHardwareLoopsPass());
+    addPass(createHardwareLoopsLegacyPass());
     addPass(createMVETailPredicationPass());
     // FIXME: IR passes can delete address-taken basic blocks, deleting
     // corresponding blockaddresses. ARMConstantPoolConstant holds references to

@@ -8,7 +8,6 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Demangle/Demangle.h"
@@ -20,6 +19,7 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/WithColor.h"
+#include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -107,7 +107,7 @@ static std::string getPrintableName(StringRef Name) {
   std::string OutputName = "'";
   OutputName += Name;
   OutputName += "'";
-  std::string DemangledName(demangle(Name.str()));
+  std::string DemangledName(demangle(Name));
   if (Name != DemangledName) {
     OutputName += " aka ";
     OutputName += DemangledName;

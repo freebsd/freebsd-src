@@ -4,7 +4,7 @@
 .PATH:		${CLANG_SRCS}/lib/Headers
 
 INCSGROUPS=	INCS CUDA HLSL OMP ORC PPC
-INCSDIR=	${LIBDIR}/clang/16/include
+INCSDIR=	${LIBDIR}/clang/17/include
 CUDADIR=	${INCSDIR}/cuda_wrappers
 HLSLDIR=	${INCSDIR}/hlsl
 OMPDIR=		${INCSDIR}/openmp_wrappers
@@ -31,6 +31,7 @@ INCS+=		__wmmintrin_pclmul.h
 INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h
+INCS+=		amxcomplexintrin.h
 INCS+=		amxfp16intrin.h
 INCS+=		amxintrin.h
 INCS+=		arm64intr.h
@@ -70,6 +71,7 @@ INCS+=		avx512vpopcntdqvlintrin.h
 INCS+=		avxifmaintrin.h
 INCS+=		avxintrin.h
 INCS+=		avxneconvertintrin.h
+INCS+=		avxvnniint16intrin.h
 INCS+=		avxvnniint8intrin.h
 INCS+=		avxvnniintrin.h
 INCS+=		bmi2intrin.h
@@ -126,11 +128,17 @@ INCS+=		ptwriteintrin.h
 INCS+=		raointintrin.h
 INCS+=		rdpruintrin.h
 INCS+=		rdseedintrin.h
+INCS+=		riscv_ntlh.h
+INCS+=		riscv_vector.h
 INCS+=		rtmintrin.h
 INCS+=		s390intrin.h
 INCS+=		serializeintrin.h
 INCS+=		sgxintrin.h
+INCS+=		sha512intrin.h
 INCS+=		shaintrin.h
+INCS+=		sifive_vector.h
+INCS+=		sm3intrin.h
+INCS+=		sm4intrin.h
 INCS+=		smmintrin.h
 INCS+=		tbmintrin.h
 INCS+=		tmmintrin.h
@@ -178,6 +186,7 @@ INCS+=		varargs.h
 .endif # INSTALL_CONFLICTING_CLANG_HEADERS
 
 CUDA+=		cuda_wrappers/algorithm
+CUDA+=		cuda_wrappers/bits/shared_ptr_base.h
 CUDA+=		cuda_wrappers/cmath
 CUDA+=		cuda_wrappers/complex
 CUDA+=		cuda_wrappers/new
@@ -214,6 +223,12 @@ arm_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 GENINCS+=	arm_${hdr:H}.h
 .endfor
+
+arm_sme_draft_spec_subject_to_change.h: ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+	${CLANG_TBLGEN} -gen-arm-sme-header \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+GENINCS+=	arm_sme_draft_spec_subject_to_change.h
 
 .for hdr in vector/vector-header
 riscv_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td

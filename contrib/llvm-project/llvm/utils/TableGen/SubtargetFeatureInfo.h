@@ -9,9 +9,11 @@
 #ifndef LLVM_UTIL_TABLEGEN_SUBTARGETFEATUREINFO_H
 #define LLVM_UTIL_TABLEGEN_SUBTARGETFEATUREINFO_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/TableGen/Record.h"
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace llvm {
@@ -67,8 +69,8 @@ struct SubtargetFeatureInfo {
   ///
   /// \param TargetName The name of the target as used in class prefixes (e.g.
   ///                   <TargetName>Subtarget)
-  /// \param ClassName  The name of the class (without the <Target> prefix)
-  ///                   that will contain the generated functions.
+  /// \param ClassName  The name of the class that will contain the generated
+  ///                   functions (including the target prefix.)
   /// \param FuncName   The name of the function to emit.
   /// \param SubtargetFeatures A map of TableGen records to the
   ///                          SubtargetFeatureInfo equivalent.

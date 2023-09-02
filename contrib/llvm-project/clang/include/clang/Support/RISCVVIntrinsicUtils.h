@@ -58,6 +58,13 @@ enum class VectorTypeModifier : uint8_t {
   SFixedLog2LMUL1,
   SFixedLog2LMUL2,
   SFixedLog2LMUL3,
+  Tuple2,
+  Tuple3,
+  Tuple4,
+  Tuple5,
+  Tuple6,
+  Tuple7,
+  Tuple8,
 };
 
 // Similar to basic type but used to describe what's kind of type related to
@@ -243,6 +250,8 @@ class RVVType {
   unsigned ElementBitwidth = 0;
   VScaleVal Scale = 0;
   bool Valid;
+  bool IsTuple = false;
+  unsigned NF = 0;
 
   std::string BuiltinStr;
   std::string ClangBuiltinStr;
@@ -293,10 +302,15 @@ public:
   }
   bool isConstant() const { return IsConstant; }
   bool isPointer() const { return IsPointer; }
+  bool isTuple() const { return IsTuple; }
   unsigned getElementBitwidth() const { return ElementBitwidth; }
 
   ScalarTypeKind getScalarType() const { return ScalarType; }
   VScaleVal getScale() const { return Scale; }
+  unsigned getNF() const {
+    assert(NF > 1 && NF <= 8 && "Only legal NF should be fetched");
+    return NF;
+  }
 
 private:
   // Verify RVV vector type and set Valid.
@@ -383,7 +397,7 @@ public:
                const RVVTypes &Types,
                const std::vector<int64_t> &IntrinsicTypes,
                const std::vector<llvm::StringRef> &RequiredFeatures,
-               unsigned NF, Policy PolicyAttrs);
+               unsigned NF, Policy PolicyAttrs, bool HasFRMRoundModeOp);
   ~RVVIntrinsic() = default;
 
   RVVTypePtr getOutputType() const { return OutputType; }
@@ -444,7 +458,7 @@ public:
   computeBuiltinTypes(llvm::ArrayRef<PrototypeDescriptor> Prototype,
                       bool IsMasked, bool HasMaskedOffOperand, bool HasVL,
                       unsigned NF, PolicyScheme DefaultScheme,
-                      Policy PolicyAttrs);
+                      Policy PolicyAttrs, bool IsTuple);
 
   static llvm::SmallVector<Policy> getSupportedUnMaskedPolicies();
   static llvm::SmallVector<Policy>
@@ -453,7 +467,7 @@ public:
   static void updateNamesAndPolicy(bool IsMasked, bool HasPolicy,
                                    std::string &Name, std::string &BuiltinName,
                                    std::string &OverloadedName,
-                                   Policy &PolicyAttrs);
+                                   Policy &PolicyAttrs, bool HasFRMRoundModeOp);
 };
 
 // RVVRequire should be sync'ed with target features, but only
@@ -461,9 +475,9 @@ public:
 enum RVVRequire : uint8_t {
   RVV_REQ_None = 0,
   RVV_REQ_RV64 = 1 << 0,
-  RVV_REQ_FullMultiply = 1 << 1,
+  RVV_REQ_Xsfvcp = 1 << 1,
 
-  LLVM_MARK_AS_BITMASK_ENUM(RVV_REQ_FullMultiply)
+  LLVM_MARK_AS_BITMASK_ENUM(RVV_REQ_Xsfvcp)
 };
 
 // Raw RVV intrinsic info, used to expand later.
@@ -511,6 +525,8 @@ struct RVVIntrinsicRecord {
   bool HasMaskedOffOperand : 1;
   bool HasTailPolicy : 1;
   bool HasMaskPolicy : 1;
+  bool HasFRMRoundModeOp : 1;
+  bool IsTuple : 1;
   uint8_t UnMaskedPolicyScheme : 2;
   uint8_t MaskedPolicyScheme : 2;
 };

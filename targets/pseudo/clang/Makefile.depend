@@ -8,6 +8,7 @@ DIRDEPS = \
 	share/doc/llvm/clang \
 	usr.bin/clang/clang \
 	usr.bin/clang/clang-tblgen \
+	usr.bin/clang/llvm-min-tblgen \
 	usr.bin/clang/llvm-objdump \
 	usr.bin/clang/llvm-tblgen \
 

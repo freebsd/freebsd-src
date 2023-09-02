@@ -2693,239 +2693,244 @@ SWIG_Lua_dostring(lua_State *L, const char *str) {
 #define SWIGTYPE_p_f_p_q_const__char_p_void__void swig_types[2]
 #define SWIGTYPE_p_f_p_void__p_void swig_types[3]
 #define SWIGTYPE_p_f_p_void_p_q_const__void_size_t__void swig_types[4]
-#define SWIGTYPE_p_int swig_types[5]
-#define SWIGTYPE_p_lldb__ConnectionStatus swig_types[6]
-#define SWIGTYPE_p_lldb__SBAddress swig_types[7]
-#define SWIGTYPE_p_lldb__SBAttachInfo swig_types[8]
-#define SWIGTYPE_p_lldb__SBBlock swig_types[9]
-#define SWIGTYPE_p_lldb__SBBreakpoint swig_types[10]
-#define SWIGTYPE_p_lldb__SBBreakpointList swig_types[11]
-#define SWIGTYPE_p_lldb__SBBreakpointLocation swig_types[12]
-#define SWIGTYPE_p_lldb__SBBreakpointName swig_types[13]
-#define SWIGTYPE_p_lldb__SBBroadcaster swig_types[14]
-#define SWIGTYPE_p_lldb__SBCommandInterpreter swig_types[15]
-#define SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions swig_types[16]
-#define SWIGTYPE_p_lldb__SBCommandReturnObject swig_types[17]
-#define SWIGTYPE_p_lldb__SBCommunication swig_types[18]
-#define SWIGTYPE_p_lldb__SBCompileUnit swig_types[19]
-#define SWIGTYPE_p_lldb__SBData swig_types[20]
-#define SWIGTYPE_p_lldb__SBDebugger swig_types[21]
-#define SWIGTYPE_p_lldb__SBDeclaration swig_types[22]
-#define SWIGTYPE_p_lldb__SBEnvironment swig_types[23]
-#define SWIGTYPE_p_lldb__SBError swig_types[24]
-#define SWIGTYPE_p_lldb__SBEvent swig_types[25]
-#define SWIGTYPE_p_lldb__SBExecutionContext swig_types[26]
-#define SWIGTYPE_p_lldb__SBExpressionOptions swig_types[27]
-#define SWIGTYPE_p_lldb__SBFile swig_types[28]
-#define SWIGTYPE_p_lldb__SBFileSpec swig_types[29]
-#define SWIGTYPE_p_lldb__SBFileSpecList swig_types[30]
-#define SWIGTYPE_p_lldb__SBFrame swig_types[31]
-#define SWIGTYPE_p_lldb__SBFunction swig_types[32]
-#define SWIGTYPE_p_lldb__SBHostOS swig_types[33]
-#define SWIGTYPE_p_lldb__SBInstruction swig_types[34]
-#define SWIGTYPE_p_lldb__SBInstructionList swig_types[35]
-#define SWIGTYPE_p_lldb__SBLanguageRuntime swig_types[36]
-#define SWIGTYPE_p_lldb__SBLaunchInfo swig_types[37]
-#define SWIGTYPE_p_lldb__SBLineEntry swig_types[38]
-#define SWIGTYPE_p_lldb__SBListener swig_types[39]
-#define SWIGTYPE_p_lldb__SBMemoryRegionInfo swig_types[40]
-#define SWIGTYPE_p_lldb__SBMemoryRegionInfoList swig_types[41]
-#define SWIGTYPE_p_lldb__SBModule swig_types[42]
-#define SWIGTYPE_p_lldb__SBModuleSpec swig_types[43]
-#define SWIGTYPE_p_lldb__SBModuleSpecList swig_types[44]
-#define SWIGTYPE_p_lldb__SBPlatform swig_types[45]
-#define SWIGTYPE_p_lldb__SBPlatformConnectOptions swig_types[46]
-#define SWIGTYPE_p_lldb__SBPlatformShellCommand swig_types[47]
-#define SWIGTYPE_p_lldb__SBProcess swig_types[48]
-#define SWIGTYPE_p_lldb__SBProcessInfo swig_types[49]
-#define SWIGTYPE_p_lldb__SBQueue swig_types[50]
-#define SWIGTYPE_p_lldb__SBQueueItem swig_types[51]
-#define SWIGTYPE_p_lldb__SBReproducer swig_types[52]
-#define SWIGTYPE_p_lldb__SBSection swig_types[53]
-#define SWIGTYPE_p_lldb__SBSourceManager swig_types[54]
-#define SWIGTYPE_p_lldb__SBStream swig_types[55]
-#define SWIGTYPE_p_lldb__SBStringList swig_types[56]
-#define SWIGTYPE_p_lldb__SBStructuredData swig_types[57]
-#define SWIGTYPE_p_lldb__SBSymbol swig_types[58]
-#define SWIGTYPE_p_lldb__SBSymbolContext swig_types[59]
-#define SWIGTYPE_p_lldb__SBSymbolContextList swig_types[60]
-#define SWIGTYPE_p_lldb__SBTarget swig_types[61]
-#define SWIGTYPE_p_lldb__SBThread swig_types[62]
-#define SWIGTYPE_p_lldb__SBThreadCollection swig_types[63]
-#define SWIGTYPE_p_lldb__SBThreadPlan swig_types[64]
-#define SWIGTYPE_p_lldb__SBTrace swig_types[65]
-#define SWIGTYPE_p_lldb__SBTraceCursor swig_types[66]
-#define SWIGTYPE_p_lldb__SBType swig_types[67]
-#define SWIGTYPE_p_lldb__SBTypeCategory swig_types[68]
-#define SWIGTYPE_p_lldb__SBTypeEnumMember swig_types[69]
-#define SWIGTYPE_p_lldb__SBTypeEnumMemberList swig_types[70]
-#define SWIGTYPE_p_lldb__SBTypeFilter swig_types[71]
-#define SWIGTYPE_p_lldb__SBTypeFormat swig_types[72]
-#define SWIGTYPE_p_lldb__SBTypeList swig_types[73]
-#define SWIGTYPE_p_lldb__SBTypeMember swig_types[74]
-#define SWIGTYPE_p_lldb__SBTypeMemberFunction swig_types[75]
-#define SWIGTYPE_p_lldb__SBTypeNameSpecifier swig_types[76]
-#define SWIGTYPE_p_lldb__SBTypeSummary swig_types[77]
-#define SWIGTYPE_p_lldb__SBTypeSummaryOptions swig_types[78]
-#define SWIGTYPE_p_lldb__SBTypeSynthetic swig_types[79]
-#define SWIGTYPE_p_lldb__SBUnixSignals swig_types[80]
-#define SWIGTYPE_p_lldb__SBValue swig_types[81]
-#define SWIGTYPE_p_lldb__SBValueList swig_types[82]
-#define SWIGTYPE_p_lldb__SBVariablesOptions swig_types[83]
-#define SWIGTYPE_p_lldb__SBWatchpoint swig_types[84]
-#define SWIGTYPE_p_long_double swig_types[85]
-#define SWIGTYPE_p_long_long swig_types[86]
-#define SWIGTYPE_p_p_void swig_types[87]
-#define SWIGTYPE_p_pthread_rwlock_t swig_types[88]
-#define SWIGTYPE_p_pthread_t swig_types[89]
-#define SWIGTYPE_p_short swig_types[90]
-#define SWIGTYPE_p_signed_char swig_types[91]
-#define SWIGTYPE_p_size_t swig_types[92]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ABI_t swig_types[93]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Baton_t swig_types[94]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Block_t swig_types[95]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointLocation_t swig_types[96]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointPrecondition_t swig_types[97]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointResolver_t swig_types[98]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointSite_t swig_types[99]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Breakpoint_t swig_types[100]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BroadcasterManager_t swig_types[101]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Broadcaster_t swig_types[102]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CommandObject_t swig_types[103]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CompileUnit_t swig_types[104]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Connection_t swig_types[105]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataBuffer_t swig_types[106]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataExtractor_t swig_types[107]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Debugger_t swig_types[108]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Disassembler_t swig_types[109]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventDataStructuredData_t swig_types[110]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventData_t swig_types[111]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t swig_types[112]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExecutionContextRef_t swig_types[113]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExpressionVariable_t swig_types[114]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__File_t swig_types[115]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__FuncUnwinders_t swig_types[116]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Function_t swig_types[117]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOHandler_t swig_types[118]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOObject_t swig_types[119]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IRExecutionUnit_t swig_types[120]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InlineFunctionInfo_t swig_types[121]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Instruction_t swig_types[122]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InstrumentationRuntime_t swig_types[123]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__JITLoader_t swig_types[124]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__LanguageRuntime_t swig_types[125]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Listener_t swig_types[126]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryHistory_t swig_types[127]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t swig_types[128]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Module_t swig_types[129]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectContainer_t swig_types[130]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[131]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFile_t swig_types[132]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValueProperties_t swig_types[133]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValue_t swig_types[134]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Platform_t swig_types[135]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t swig_types[136]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t swig_types[137]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Process_t swig_types[138]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t swig_types[139]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t swig_types[140]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__REPL_t swig_types[141]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t swig_types[142]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t swig_types[143]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterContext_t swig_types[144]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegularExpression_t swig_types[145]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptInterpreter_t swig_types[146]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t swig_types[147]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t swig_types[148]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t swig_types[149]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SearchFilter_t swig_types[150]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SectionLoadList_t swig_types[151]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Section_t swig_types[152]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameList_t swig_types[153]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t swig_types[154]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrame_t swig_types[155]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StopInfo_t swig_types[156]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[157]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[158]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[159]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[160]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[161]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[162]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[163]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[164]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[165]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[166]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[167]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[168]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t swig_types[169]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[170]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t swig_types[171]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Trace_t swig_types[172]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t swig_types[173]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t swig_types[174]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t swig_types[175]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFormatImpl_t swig_types[176]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeImpl_t swig_types[177]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeMemberFunctionImpl_t swig_types[178]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t swig_types[179]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t swig_types[180]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t swig_types[181]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystemClang_t swig_types[182]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystem_t swig_types[183]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Type_t swig_types[184]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnixSignals_t swig_types[185]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindAssembly_t swig_types[186]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindPlan_t swig_types[187]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UserExpression_t swig_types[188]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObjectList_t swig_types[189]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObject_t swig_types[190]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Value_t swig_types[191]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__VariableList_t swig_types[192]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Variable_t swig_types[193]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Watchpoint_t swig_types[194]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__WritableDataBuffer_t swig_types[195]
-#define SWIGTYPE_p_std__string swig_types[196]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicCheckerFunctions_t swig_types[197]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicLoader_t swig_types[198]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__File_t swig_types[199]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__JITLoaderList_t swig_types[200]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t swig_types[201]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__OperatingSystem_t swig_types[202]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t swig_types[203]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t swig_types[204]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SectionList_t swig_types[205]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SourceManager_t swig_types[206]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t swig_types[207]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[208]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[209]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[210]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__TraceExporter_t swig_types[211]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[212]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[213]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[214]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[215]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[216]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[217]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[218]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[219]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[220]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[221]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[222]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[223]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[224]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[225]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ThreadPlan_t swig_types[226]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[227]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__TypeSystem_t swig_types[228]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[229]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[230]
-#define SWIGTYPE_p_unsigned_char swig_types[231]
-#define SWIGTYPE_p_unsigned_int swig_types[232]
-#define SWIGTYPE_p_unsigned_long_long swig_types[233]
-#define SWIGTYPE_p_unsigned_short swig_types[234]
-#define SWIGTYPE_p_void swig_types[235]
-static swig_type_info *swig_types[237];
-static swig_module_info swig_module = {swig_types, 236, 0, 0, 0, 0};
+#define SWIGTYPE_p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError swig_types[5]
+#define SWIGTYPE_p_f_unsigned_long_long_p_void__void swig_types[6]
+#define SWIGTYPE_p_int swig_types[7]
+#define SWIGTYPE_p_lldb__ConnectionStatus swig_types[8]
+#define SWIGTYPE_p_lldb__SBAddress swig_types[9]
+#define SWIGTYPE_p_lldb__SBAttachInfo swig_types[10]
+#define SWIGTYPE_p_lldb__SBBlock swig_types[11]
+#define SWIGTYPE_p_lldb__SBBreakpoint swig_types[12]
+#define SWIGTYPE_p_lldb__SBBreakpointList swig_types[13]
+#define SWIGTYPE_p_lldb__SBBreakpointLocation swig_types[14]
+#define SWIGTYPE_p_lldb__SBBreakpointName swig_types[15]
+#define SWIGTYPE_p_lldb__SBBroadcaster swig_types[16]
+#define SWIGTYPE_p_lldb__SBCommandInterpreter swig_types[17]
+#define SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions swig_types[18]
+#define SWIGTYPE_p_lldb__SBCommandReturnObject swig_types[19]
+#define SWIGTYPE_p_lldb__SBCommunication swig_types[20]
+#define SWIGTYPE_p_lldb__SBCompileUnit swig_types[21]
+#define SWIGTYPE_p_lldb__SBData swig_types[22]
+#define SWIGTYPE_p_lldb__SBDebugger swig_types[23]
+#define SWIGTYPE_p_lldb__SBDeclaration swig_types[24]
+#define SWIGTYPE_p_lldb__SBEnvironment swig_types[25]
+#define SWIGTYPE_p_lldb__SBError swig_types[26]
+#define SWIGTYPE_p_lldb__SBEvent swig_types[27]
+#define SWIGTYPE_p_lldb__SBExecutionContext swig_types[28]
+#define SWIGTYPE_p_lldb__SBExpressionOptions swig_types[29]
+#define SWIGTYPE_p_lldb__SBFile swig_types[30]
+#define SWIGTYPE_p_lldb__SBFileSpec swig_types[31]
+#define SWIGTYPE_p_lldb__SBFileSpecList swig_types[32]
+#define SWIGTYPE_p_lldb__SBFrame swig_types[33]
+#define SWIGTYPE_p_lldb__SBFunction swig_types[34]
+#define SWIGTYPE_p_lldb__SBHostOS swig_types[35]
+#define SWIGTYPE_p_lldb__SBInstruction swig_types[36]
+#define SWIGTYPE_p_lldb__SBInstructionList swig_types[37]
+#define SWIGTYPE_p_lldb__SBLanguageRuntime swig_types[38]
+#define SWIGTYPE_p_lldb__SBLaunchInfo swig_types[39]
+#define SWIGTYPE_p_lldb__SBLineEntry swig_types[40]
+#define SWIGTYPE_p_lldb__SBListener swig_types[41]
+#define SWIGTYPE_p_lldb__SBMemoryRegionInfo swig_types[42]
+#define SWIGTYPE_p_lldb__SBMemoryRegionInfoList swig_types[43]
+#define SWIGTYPE_p_lldb__SBModule swig_types[44]
+#define SWIGTYPE_p_lldb__SBModuleSpec swig_types[45]
+#define SWIGTYPE_p_lldb__SBModuleSpecList swig_types[46]
+#define SWIGTYPE_p_lldb__SBPlatform swig_types[47]
+#define SWIGTYPE_p_lldb__SBPlatformConnectOptions swig_types[48]
+#define SWIGTYPE_p_lldb__SBPlatformShellCommand swig_types[49]
+#define SWIGTYPE_p_lldb__SBProcess swig_types[50]
+#define SWIGTYPE_p_lldb__SBProcessInfo swig_types[51]
+#define SWIGTYPE_p_lldb__SBQueue swig_types[52]
+#define SWIGTYPE_p_lldb__SBQueueItem swig_types[53]
+#define SWIGTYPE_p_lldb__SBReproducer swig_types[54]
+#define SWIGTYPE_p_lldb__SBScriptObject swig_types[55]
+#define SWIGTYPE_p_lldb__SBSection swig_types[56]
+#define SWIGTYPE_p_lldb__SBSourceManager swig_types[57]
+#define SWIGTYPE_p_lldb__SBStream swig_types[58]
+#define SWIGTYPE_p_lldb__SBStringList swig_types[59]
+#define SWIGTYPE_p_lldb__SBStructuredData swig_types[60]
+#define SWIGTYPE_p_lldb__SBSymbol swig_types[61]
+#define SWIGTYPE_p_lldb__SBSymbolContext swig_types[62]
+#define SWIGTYPE_p_lldb__SBSymbolContextList swig_types[63]
+#define SWIGTYPE_p_lldb__SBTarget swig_types[64]
+#define SWIGTYPE_p_lldb__SBThread swig_types[65]
+#define SWIGTYPE_p_lldb__SBThreadCollection swig_types[66]
+#define SWIGTYPE_p_lldb__SBThreadPlan swig_types[67]
+#define SWIGTYPE_p_lldb__SBTrace swig_types[68]
+#define SWIGTYPE_p_lldb__SBTraceCursor swig_types[69]
+#define SWIGTYPE_p_lldb__SBType swig_types[70]
+#define SWIGTYPE_p_lldb__SBTypeCategory swig_types[71]
+#define SWIGTYPE_p_lldb__SBTypeEnumMember swig_types[72]
+#define SWIGTYPE_p_lldb__SBTypeEnumMemberList swig_types[73]
+#define SWIGTYPE_p_lldb__SBTypeFilter swig_types[74]
+#define SWIGTYPE_p_lldb__SBTypeFormat swig_types[75]
+#define SWIGTYPE_p_lldb__SBTypeList swig_types[76]
+#define SWIGTYPE_p_lldb__SBTypeMember swig_types[77]
+#define SWIGTYPE_p_lldb__SBTypeMemberFunction swig_types[78]
+#define SWIGTYPE_p_lldb__SBTypeNameSpecifier swig_types[79]
+#define SWIGTYPE_p_lldb__SBTypeSummary swig_types[80]
+#define SWIGTYPE_p_lldb__SBTypeSummaryOptions swig_types[81]
+#define SWIGTYPE_p_lldb__SBTypeSynthetic swig_types[82]
+#define SWIGTYPE_p_lldb__SBUnixSignals swig_types[83]
+#define SWIGTYPE_p_lldb__SBValue swig_types[84]
+#define SWIGTYPE_p_lldb__SBValueList swig_types[85]
+#define SWIGTYPE_p_lldb__SBVariablesOptions swig_types[86]
+#define SWIGTYPE_p_lldb__SBWatchpoint swig_types[87]
+#define SWIGTYPE_p_long_double swig_types[88]
+#define SWIGTYPE_p_long_long swig_types[89]
+#define SWIGTYPE_p_p_void swig_types[90]
+#define SWIGTYPE_p_pthread_rwlock_t swig_types[91]
+#define SWIGTYPE_p_pthread_t swig_types[92]
+#define SWIGTYPE_p_short swig_types[93]
+#define SWIGTYPE_p_signed_char swig_types[94]
+#define SWIGTYPE_p_size_t swig_types[95]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ABI_t swig_types[96]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Baton_t swig_types[97]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Block_t swig_types[98]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointLocation_t swig_types[99]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointPrecondition_t swig_types[100]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointResolver_t swig_types[101]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointSite_t swig_types[102]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Breakpoint_t swig_types[103]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BroadcasterManager_t swig_types[104]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Broadcaster_t swig_types[105]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CommandObject_t swig_types[106]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CompileUnit_t swig_types[107]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Connection_t swig_types[108]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataBuffer_t swig_types[109]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataExtractor_t swig_types[110]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Debugger_t swig_types[111]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Disassembler_t swig_types[112]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventDataStructuredData_t swig_types[113]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventData_t swig_types[114]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t swig_types[115]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExecutionContextRef_t swig_types[116]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExpressionVariable_t swig_types[117]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__File_t swig_types[118]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__FuncUnwinders_t swig_types[119]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Function_t swig_types[120]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOHandler_t swig_types[121]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOObject_t swig_types[122]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IRExecutionUnit_t swig_types[123]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InlineFunctionInfo_t swig_types[124]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Instruction_t swig_types[125]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InstrumentationRuntime_t swig_types[126]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__JITLoader_t swig_types[127]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__LanguageRuntime_t swig_types[128]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Listener_t swig_types[129]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryHistory_t swig_types[130]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t swig_types[131]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Module_t swig_types[132]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectContainer_t swig_types[133]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[134]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFile_t swig_types[135]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValueProperties_t swig_types[136]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValue_t swig_types[137]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Platform_t swig_types[138]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t swig_types[139]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t swig_types[140]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Process_t swig_types[141]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t swig_types[142]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t swig_types[143]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__REPL_t swig_types[144]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t swig_types[145]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t swig_types[146]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterContext_t swig_types[147]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t swig_types[148]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegularExpression_t swig_types[149]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptInterpreter_t swig_types[150]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t swig_types[151]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedMetadata_t swig_types[152]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t swig_types[153]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t swig_types[154]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SearchFilter_t swig_types[155]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SectionLoadList_t swig_types[156]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Section_t swig_types[157]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameList_t swig_types[158]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t swig_types[159]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrame_t swig_types[160]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StopInfo_t swig_types[161]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[162]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[163]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[164]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[165]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[166]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[167]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[168]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[169]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[170]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[171]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[172]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[173]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t swig_types[174]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[175]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t swig_types[176]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Trace_t swig_types[177]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t swig_types[178]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t swig_types[179]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t swig_types[180]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFormatImpl_t swig_types[181]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeImpl_t swig_types[182]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeMemberFunctionImpl_t swig_types[183]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t swig_types[184]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t swig_types[185]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t swig_types[186]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystemClang_t swig_types[187]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystem_t swig_types[188]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Type_t swig_types[189]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnixSignals_t swig_types[190]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindAssembly_t swig_types[191]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindPlan_t swig_types[192]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UserExpression_t swig_types[193]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObjectList_t swig_types[194]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObject_t swig_types[195]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Value_t swig_types[196]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__VariableList_t swig_types[197]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Variable_t swig_types[198]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Watchpoint_t swig_types[199]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__WritableDataBuffer_t swig_types[200]
+#define SWIGTYPE_p_std__string swig_types[201]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicCheckerFunctions_t swig_types[202]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicLoader_t swig_types[203]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__File_t swig_types[204]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__JITLoaderList_t swig_types[205]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t swig_types[206]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__OperatingSystem_t swig_types[207]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t swig_types[208]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t swig_types[209]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SectionList_t swig_types[210]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SourceManager_t swig_types[211]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t swig_types[212]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[213]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[214]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[215]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__TraceExporter_t swig_types[216]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[217]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[218]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[219]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[220]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[221]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[222]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[223]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[224]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[225]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[226]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[227]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[228]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[229]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[230]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ThreadPlan_t swig_types[231]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[232]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__TypeSystem_t swig_types[233]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[234]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[235]
+#define SWIGTYPE_p_unsigned_char swig_types[236]
+#define SWIGTYPE_p_unsigned_int swig_types[237]
+#define SWIGTYPE_p_unsigned_long_long swig_types[238]
+#define SWIGTYPE_p_unsigned_short swig_types[239]
+#define SWIGTYPE_p_void swig_types[240]
+static swig_type_info *swig_types[242];
+static swig_module_info swig_module = {swig_types, 241, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3205,6 +3210,7 @@ SWIGINTERN void SWIG_write_ptr_array(lua_State* L,void **array,int size,swig_typ
 #include "lldb/API/SBQueue.h"
 #include "lldb/API/SBQueueItem.h"
 #include "lldb/API/SBReproducer.h"
+#include "lldb/API/SBScriptObject.h"
 #include "lldb/API/SBSection.h"
 #include "lldb/API/SBSourceManager.h"
 #include "lldb/API/SBStream.h"
@@ -3308,14 +3314,14 @@ SWIGINTERN std::string lldb_SBCommandReturnObject___repr__(lldb::SBCommandReturn
     return std::string(desc, desc_len);
   }
 SWIGINTERN void lldb_SBCommandReturnObject_SetImmediateOutputFile__SWIG_2(lldb::SBCommandReturnObject *self,lldb::FileSP BORROWED,bool transfer_ownership){
-            self->SetImmediateOutputFile(BORROWED);
-        }
+        self->SetImmediateOutputFile(BORROWED);
+    }
 SWIGINTERN void lldb_SBCommandReturnObject_SetImmediateErrorFile__SWIG_2(lldb::SBCommandReturnObject *self,lldb::FileSP BORROWED,bool transfer_ownership){
-            self->SetImmediateErrorFile(BORROWED);
-        }
+        self->SetImmediateErrorFile(BORROWED);
+    }
 SWIGINTERN void lldb_SBCommandReturnObject_Print(lldb::SBCommandReturnObject *self,char const *str){
-            self->Printf("%s", str);
-        }
+        self->Printf("%s", str);
+    }
 SWIGINTERN std::string lldb_SBCompileUnit___repr__(lldb::SBCompileUnit *self){
     lldb::SBStream stream;
     self->GetDescription (stream);
@@ -3336,15 +3342,6 @@ SWIGINTERN std::string lldb_SBData___repr__(lldb::SBData *self){
     }
     return std::string(desc, desc_len);
   }
-SWIGINTERN lldb::FileSP lldb_SBDebugger_GetInputFileHandle(lldb::SBDebugger *self){
-            return self->GetInputFile().GetFile();
-        }
-SWIGINTERN lldb::FileSP lldb_SBDebugger_GetOutputFileHandle(lldb::SBDebugger *self){
-            return self->GetOutputFile().GetFile();
-        }
-SWIGINTERN lldb::FileSP lldb_SBDebugger_GetErrorFileHandle(lldb::SBDebugger *self){
-            return self->GetErrorFile().GetFile();
-        }
 SWIGINTERN std::string lldb_SBDebugger___repr__(lldb::SBDebugger *self){
     lldb::SBStream stream;
     self->GetDescription (stream);
@@ -3355,6 +3352,15 @@ SWIGINTERN std::string lldb_SBDebugger___repr__(lldb::SBDebugger *self){
     }
     return std::string(desc, desc_len);
   }
+SWIGINTERN lldb::FileSP lldb_SBDebugger_GetInputFileHandle(lldb::SBDebugger *self){
+        return self->GetInputFile().GetFile();
+    }
+SWIGINTERN lldb::FileSP lldb_SBDebugger_GetOutputFileHandle(lldb::SBDebugger *self){
+        return self->GetOutputFile().GetFile();
+    }
+SWIGINTERN lldb::FileSP lldb_SBDebugger_GetErrorFileHandle(lldb::SBDebugger *self){
+        return self->GetErrorFile().GetFile();
+    }
 SWIGINTERN std::string lldb_SBDeclaration___repr__(lldb::SBDeclaration *self){
     lldb::SBStream stream;
     self->GetDescription (stream);
@@ -3376,14 +3382,14 @@ SWIGINTERN std::string lldb_SBError___repr__(lldb::SBError *self){
     return std::string(desc, desc_len);
   }
 SWIGINTERN lldb::SBFile lldb_SBFile_MakeBorrowed(lldb::FileSP BORROWED){
-            return lldb::SBFile(BORROWED);
-        }
+        return lldb::SBFile(BORROWED);
+    }
 SWIGINTERN lldb::SBFile lldb_SBFile_MakeForcingIOMethods(lldb::FileSP FORCE_IO_METHODS){
-            return lldb::SBFile(FORCE_IO_METHODS);
-        }
+        return lldb::SBFile(FORCE_IO_METHODS);
+    }
 SWIGINTERN lldb::SBFile lldb_SBFile_MakeBorrowedForcingIOMethods(lldb::FileSP BORROWED_FORCE_IO_METHODS){
-            return lldb::SBFile(BORROWED_FORCE_IO_METHODS);
-        }
+        return lldb::SBFile(BORROWED_FORCE_IO_METHODS);
+    }
 SWIGINTERN std::string lldb_SBFileSpec___repr__(lldb::SBFileSpec *self){
     lldb::SBStream stream;
     self->GetDescription (stream);
@@ -3505,8 +3511,8 @@ SWIGINTERN std::string lldb_SBSection___repr__(lldb::SBSection *self){
     return std::string(desc, desc_len);
   }
 SWIGINTERN void lldb_SBStream_RedirectToFileHandle(lldb::SBStream *self,lldb::FileSP file,bool transfer_fh_ownership){
-            self->RedirectToFile(file);
-        }
+        self->RedirectToFile(file);
+    }
 SWIGINTERN std::string lldb_SBSymbol___repr__(lldb::SBSymbol *self){
     lldb::SBStream stream;
     self->GetDescription (stream);
@@ -3700,7 +3706,8 @@ SWIGINTERN std::string lldb_SBWatchpoint___repr__(lldb::SBWatchpoint *self){
 template <typename T> void PushSBClass(lua_State * L, T * obj);
 
 // This function is called from Lua::CallBreakpointCallback
-llvm::Expected<bool> lldb_private::LLDBSwigLuaBreakpointCallbackFunction(
+llvm::Expected<bool>
+lldb_private::lua::SWIGBridge::LLDBSwigLuaBreakpointCallbackFunction(
     lua_State * L, lldb::StackFrameSP stop_frame_sp,
     lldb::BreakpointLocationSP bp_loc_sp,
     const StructuredDataImpl &extra_args_impl) {
@@ -3738,7 +3745,8 @@ llvm::Expected<bool> lldb_private::LLDBSwigLuaBreakpointCallbackFunction(
 }
 
 // This function is called from Lua::CallWatchpointCallback
-llvm::Expected<bool> lldb_private::LLDBSwigLuaWatchpointCallbackFunction(
+llvm::Expected<bool>
+lldb_private::lua::SWIGBridge::LLDBSwigLuaWatchpointCallbackFunction(
     lua_State * L, lldb::StackFrameSP stop_frame_sp, lldb::WatchpointSP wp_sp) {
   lldb::SBFrame sb_frame(stop_frame_sp);
   lldb::SBWatchpoint sb_wp(wp_sp);
@@ -4321,6 +4329,41 @@ static int _wrap_SBAddress_GetLoadAddress(lua_State* L) {
 }
 
 
+static int _wrap_SBAddress_SetAddress(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAddress *arg1 = (lldb::SBAddress *) 0 ;
+    lldb::SBSection arg2 ;
+    lldb::addr_t arg3 ;
+    lldb::SBSection *argp2 ;
+    
+    SWIG_check_num_args("lldb::SBAddress::SetAddress",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::SetAddress",1,"lldb::SBAddress *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAddress::SetAddress",2,"lldb::SBSection");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBAddress::SetAddress",3,"lldb::addr_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBAddress_SetAddress",1,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBSection,0))){
+      SWIG_fail_ptr("SBAddress_SetAddress",2,SWIGTYPE_p_lldb__SBSection);
+    }
+    arg2 = *argp2;
+    
+    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
+    (arg1)->SetAddress(arg2,arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBAddress_SetLoadAddress(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -4412,6 +4455,36 @@ static int _wrap_SBAddress_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBAddress_GetSymbolContext(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAddress *arg1 = (lldb::SBAddress *) 0 ;
+    uint32_t arg2 ;
+    lldb::SBSymbolContext result;
+    
+    SWIG_check_num_args("lldb::SBAddress::GetSymbolContext",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",1,"lldb::SBAddress *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",2,"uint32_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBAddress_GetSymbolContext",1,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    result = (arg1)->GetSymbolContext(arg2);
+    {
+      lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBSymbolContext,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBAddress_GetSection(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -4454,71 +4527,6 @@ static int _wrap_SBAddress_GetOffset(lua_State* L) {
     
     result = (lldb::addr_t)(arg1)->GetOffset();
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBAddress_SetAddress(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBAddress *arg1 = (lldb::SBAddress *) 0 ;
-    lldb::SBSection arg2 ;
-    lldb::addr_t arg3 ;
-    lldb::SBSection *argp2 ;
-    
-    SWIG_check_num_args("lldb::SBAddress::SetAddress",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::SetAddress",1,"lldb::SBAddress *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAddress::SetAddress",2,"lldb::SBSection");
-    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBAddress::SetAddress",3,"lldb::addr_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
-      SWIG_fail_ptr("SBAddress_SetAddress",1,SWIGTYPE_p_lldb__SBAddress);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBSection,0))){
-      SWIG_fail_ptr("SBAddress_SetAddress",2,SWIGTYPE_p_lldb__SBSection);
-    }
-    arg2 = *argp2;
-    
-    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
-    (arg1)->SetAddress(arg2,arg3);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBAddress_GetSymbolContext(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBAddress *arg1 = (lldb::SBAddress *) 0 ;
-    uint32_t arg2 ;
-    lldb::SBSymbolContext result;
-    
-    SWIG_check_num_args("lldb::SBAddress::GetSymbolContext",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",1,"lldb::SBAddress *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",2,"uint32_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
-      SWIG_fail_ptr("SBAddress_GetSymbolContext",1,SWIGTYPE_p_lldb__SBAddress);
-    }
-    
-    arg2 = (uint32_t)lua_tointeger(L, 2); 
-    result = (arg1)->GetSymbolContext(arg2);
-    {
-      lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBSymbolContext,1); SWIG_arg++;
-    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -4734,13 +4742,13 @@ static swig_lua_method swig_SBAddress_methods[]= {
     { "Clear", _wrap_SBAddress_Clear},
     { "GetFileAddress", _wrap_SBAddress_GetFileAddress},
     { "GetLoadAddress", _wrap_SBAddress_GetLoadAddress},
+    { "SetAddress", _wrap_SBAddress_SetAddress},
     { "SetLoadAddress", _wrap_SBAddress_SetLoadAddress},
     { "OffsetAddress", _wrap_SBAddress_OffsetAddress},
     { "GetDescription", _wrap_SBAddress_GetDescription},
+    { "GetSymbolContext", _wrap_SBAddress_GetSymbolContext},
     { "GetSection", _wrap_SBAddress_GetSection},
     { "GetOffset", _wrap_SBAddress_GetOffset},
-    { "SetAddress", _wrap_SBAddress_SetAddress},
-    { "GetSymbolContext", _wrap_SBAddress_GetSymbolContext},
     { "GetModule", _wrap_SBAddress_GetModule},
     { "GetCompileUnit", _wrap_SBAddress_GetCompileUnit},
     { "GetFunction", _wrap_SBAddress_GetFunction},
@@ -5850,6 +5858,172 @@ static int _wrap_SBAttachInfo_SetListener(lua_State* L) {
 }
 
 
+static int _wrap_SBAttachInfo_GetShadowListener(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    lldb::SBListener result;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::GetShadowListener",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::GetShadowListener",1,"lldb::SBAttachInfo *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_GetShadowListener",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    result = (arg1)->GetShadowListener();
+    {
+      lldb::SBListener * resultptr = new lldb::SBListener(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBListener,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBAttachInfo_SetShadowListener(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    lldb::SBListener *arg2 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::SetShadowListener",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetShadowListener",1,"lldb::SBAttachInfo *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetShadowListener",2,"lldb::SBListener &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_SetShadowListener",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBListener,0))){
+      SWIG_fail_ptr("SBAttachInfo_SetShadowListener",2,SWIGTYPE_p_lldb__SBListener);
+    }
+    
+    (arg1)->SetShadowListener(*arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBAttachInfo_GetScriptedProcessClassName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::GetScriptedProcessClassName",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::GetScriptedProcessClassName",1,"lldb::SBAttachInfo const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_GetScriptedProcessClassName",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    result = (char *)((lldb::SBAttachInfo const *)arg1)->GetScriptedProcessClassName();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBAttachInfo_SetScriptedProcessClassName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    char *arg2 = (char *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::SetScriptedProcessClassName",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetScriptedProcessClassName",1,"lldb::SBAttachInfo *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetScriptedProcessClassName",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_SetScriptedProcessClassName",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    (arg1)->SetScriptedProcessClassName((char const *)arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBAttachInfo_GetScriptedProcessDictionary(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    lldb::SBStructuredData result;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::GetScriptedProcessDictionary",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::GetScriptedProcessDictionary",1,"lldb::SBAttachInfo const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_GetScriptedProcessDictionary",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    result = ((lldb::SBAttachInfo const *)arg1)->GetScriptedProcessDictionary();
+    {
+      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBAttachInfo_SetScriptedProcessDictionary(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) 0 ;
+    lldb::SBStructuredData arg2 ;
+    lldb::SBStructuredData *argp2 ;
+    
+    SWIG_check_num_args("lldb::SBAttachInfo::SetScriptedProcessDictionary",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetScriptedProcessDictionary",1,"lldb::SBAttachInfo *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetScriptedProcessDictionary",2,"lldb::SBStructuredData");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
+      SWIG_fail_ptr("SBAttachInfo_SetScriptedProcessDictionary",1,SWIGTYPE_p_lldb__SBAttachInfo);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBAttachInfo_SetScriptedProcessDictionary",2,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    arg2 = *argp2;
+    
+    (arg1)->SetScriptedProcessDictionary(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBAttachInfo(void *obj) {
 lldb::SBAttachInfo *arg1 = (lldb::SBAttachInfo *) obj;
 delete arg1;
@@ -5894,6 +6068,12 @@ static swig_lua_method swig_SBAttachInfo_methods[]= {
     { "ParentProcessIDIsValid", _wrap_SBAttachInfo_ParentProcessIDIsValid},
     { "GetListener", _wrap_SBAttachInfo_GetListener},
     { "SetListener", _wrap_SBAttachInfo_SetListener},
+    { "GetShadowListener", _wrap_SBAttachInfo_GetShadowListener},
+    { "SetShadowListener", _wrap_SBAttachInfo_SetShadowListener},
+    { "GetScriptedProcessClassName", _wrap_SBAttachInfo_GetScriptedProcessClassName},
+    { "SetScriptedProcessClassName", _wrap_SBAttachInfo_SetScriptedProcessClassName},
+    { "GetScriptedProcessDictionary", _wrap_SBAttachInfo_GetScriptedProcessDictionary},
+    { "SetScriptedProcessDictionary", _wrap_SBAttachInfo_SetScriptedProcessDictionary},
     {0,0}
 };
 static swig_lua_method swig_SBAttachInfo_meta[] = {
@@ -6173,33 +6353,6 @@ static int _wrap_SBBlock_GetParent(lua_State* L) {
 }
 
 
-static int _wrap_SBBlock_GetContainingInlinedBlock(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBlock *arg1 = (lldb::SBBlock *) 0 ;
-    lldb::SBBlock result;
-    
-    SWIG_check_num_args("lldb::SBBlock::GetContainingInlinedBlock",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetContainingInlinedBlock",1,"lldb::SBBlock *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
-      SWIG_fail_ptr("SBBlock_GetContainingInlinedBlock",1,SWIGTYPE_p_lldb__SBBlock);
-    }
-    
-    result = (arg1)->GetContainingInlinedBlock();
-    {
-      lldb::SBBlock * resultptr = new lldb::SBBlock(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBlock,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBBlock_GetSibling(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -6362,37 +6515,6 @@ static int _wrap_SBBlock_GetRangeIndexForBlockAddress(lua_State* L) {
     
     result = (uint32_t)(arg1)->GetRangeIndexForBlockAddress(arg2);
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBBlock_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBlock *arg1 = (lldb::SBBlock *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBBlock::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetDescription",1,"lldb::SBBlock *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBlock::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
-      SWIG_fail_ptr("SBBlock_GetDescription",1,SWIGTYPE_p_lldb__SBBlock);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBBlock_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -6590,6 +6712,64 @@ static int _wrap_SBBlock_GetVariables(lua_State* L) {
 }
 
 
+static int _wrap_SBBlock_GetContainingInlinedBlock(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBlock *arg1 = (lldb::SBBlock *) 0 ;
+    lldb::SBBlock result;
+    
+    SWIG_check_num_args("lldb::SBBlock::GetContainingInlinedBlock",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetContainingInlinedBlock",1,"lldb::SBBlock *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
+      SWIG_fail_ptr("SBBlock_GetContainingInlinedBlock",1,SWIGTYPE_p_lldb__SBBlock);
+    }
+    
+    result = (arg1)->GetContainingInlinedBlock();
+    {
+      lldb::SBBlock * resultptr = new lldb::SBBlock(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBlock,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBBlock_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBlock *arg1 = (lldb::SBBlock *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBBlock::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetDescription",1,"lldb::SBBlock *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBlock::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
+      SWIG_fail_ptr("SBBlock_GetDescription",1,SWIGTYPE_p_lldb__SBBlock);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBBlock_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBBlock___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -6637,15 +6817,15 @@ static swig_lua_method swig_SBBlock_methods[]= {
     { "GetInlinedCallSiteLine", _wrap_SBBlock_GetInlinedCallSiteLine},
     { "GetInlinedCallSiteColumn", _wrap_SBBlock_GetInlinedCallSiteColumn},
     { "GetParent", _wrap_SBBlock_GetParent},
-    { "GetContainingInlinedBlock", _wrap_SBBlock_GetContainingInlinedBlock},
     { "GetSibling", _wrap_SBBlock_GetSibling},
     { "GetFirstChild", _wrap_SBBlock_GetFirstChild},
     { "GetNumRanges", _wrap_SBBlock_GetNumRanges},
     { "GetRangeStartAddress", _wrap_SBBlock_GetRangeStartAddress},
     { "GetRangeEndAddress", _wrap_SBBlock_GetRangeEndAddress},
     { "GetRangeIndexForBlockAddress", _wrap_SBBlock_GetRangeIndexForBlockAddress},
-    { "GetDescription", _wrap_SBBlock_GetDescription},
     { "GetVariables", _wrap_SBBlock_GetVariables},
+    { "GetContainingInlinedBlock", _wrap_SBBlock_GetContainingInlinedBlock},
+    { "GetDescription", _wrap_SBBlock_GetDescription},
     { "__tostring", _wrap_SBBlock___tostring},
     {0,0}
 };
@@ -7082,13 +7262,13 @@ static int _wrap_SBBreakpoint_IsOneShot(lua_State* L) {
     bool result;
     
     SWIG_check_num_args("lldb::SBBreakpoint::IsOneShot",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::IsOneShot",1,"lldb::SBBreakpoint *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::IsOneShot",1,"lldb::SBBreakpoint const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
       SWIG_fail_ptr("SBBreakpoint_IsOneShot",1,SWIGTYPE_p_lldb__SBBreakpoint);
     }
     
-    result = (bool)(arg1)->IsOneShot();
+    result = (bool)((lldb::SBBreakpoint const *)arg1)->IsOneShot();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -7624,36 +7804,6 @@ static int _wrap_SBBreakpoint_SetScriptCallbackFunction(lua_State* L) {
 }
 
 
-static int _wrap_SBBreakpoint_SetScriptCallbackBody(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBBreakpoint::SetScriptCallbackBody",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SetScriptCallbackBody",1,"lldb::SBBreakpoint *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetScriptCallbackBody",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
-      SWIG_fail_ptr("SBBreakpoint_SetScriptCallbackBody",1,SWIGTYPE_p_lldb__SBBreakpoint);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->SetScriptCallbackBody((char const *)arg2);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBBreakpoint_SetCommandLineCommands(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -7706,6 +7856,36 @@ static int _wrap_SBBreakpoint_GetCommandLineCommands(lua_State* L) {
     
     result = (bool)(arg1)->GetCommandLineCommands(*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBBreakpoint_SetScriptCallbackBody(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBBreakpoint::SetScriptCallbackBody",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SetScriptCallbackBody",1,"lldb::SBBreakpoint *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetScriptCallbackBody",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
+      SWIG_fail_ptr("SBBreakpoint_SetScriptCallbackBody",1,SWIGTYPE_p_lldb__SBBreakpoint);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->SetScriptCallbackBody((char const *)arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -8037,67 +8217,6 @@ static int _wrap_SBBreakpoint_GetDescription(lua_State* L) {
 }
 
 
-static int _wrap_SBBreakpoint_AddLocation(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
-    lldb::SBAddress *arg2 = 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBBreakpoint::AddLocation",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::AddLocation",1,"lldb::SBBreakpoint *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::AddLocation",2,"lldb::SBAddress &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
-      SWIG_fail_ptr("SBBreakpoint_AddLocation",1,SWIGTYPE_p_lldb__SBBreakpoint);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBAddress,0))){
-      SWIG_fail_ptr("SBBreakpoint_AddLocation",2,SWIGTYPE_p_lldb__SBAddress);
-    }
-    
-    result = (arg1)->AddLocation(*arg2);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBBreakpoint_SerializeToStructuredData(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
-    lldb::SBStructuredData result;
-    
-    SWIG_check_num_args("lldb::SBBreakpoint::SerializeToStructuredData",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SerializeToStructuredData",1,"lldb::SBBreakpoint *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
-      SWIG_fail_ptr("SBBreakpoint_SerializeToStructuredData",1,SWIGTYPE_p_lldb__SBBreakpoint);
-    }
-    
-    result = (arg1)->SerializeToStructuredData();
-    {
-      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBBreakpoint_EventIsBreakpointEvent(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -8234,14 +8353,75 @@ static int _wrap_SBBreakpoint_IsHardware(lua_State* L) {
     bool result;
     
     SWIG_check_num_args("lldb::SBBreakpoint::IsHardware",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::IsHardware",1,"lldb::SBBreakpoint *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::IsHardware",1,"lldb::SBBreakpoint const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
       SWIG_fail_ptr("SBBreakpoint_IsHardware",1,SWIGTYPE_p_lldb__SBBreakpoint);
     }
     
-    result = (bool)(arg1)->IsHardware();
+    result = (bool)((lldb::SBBreakpoint const *)arg1)->IsHardware();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBBreakpoint_AddLocation(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
+    lldb::SBAddress *arg2 = 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBBreakpoint::AddLocation",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::AddLocation",1,"lldb::SBBreakpoint *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::AddLocation",2,"lldb::SBAddress &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
+      SWIG_fail_ptr("SBBreakpoint_AddLocation",1,SWIGTYPE_p_lldb__SBBreakpoint);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBBreakpoint_AddLocation",2,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    result = (arg1)->AddLocation(*arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBBreakpoint_SerializeToStructuredData(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
+    lldb::SBStructuredData result;
+    
+    SWIG_check_num_args("lldb::SBBreakpoint::SerializeToStructuredData",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SerializeToStructuredData",1,"lldb::SBBreakpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
+      SWIG_fail_ptr("SBBreakpoint_SerializeToStructuredData",1,SWIGTYPE_p_lldb__SBBreakpoint);
+    }
+    
+    result = (arg1)->SerializeToStructuredData();
+    {
+      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -8321,9 +8501,9 @@ static swig_lua_method swig_SBBreakpoint_methods[]= {
     { "SetQueueName", _wrap_SBBreakpoint_SetQueueName},
     { "GetQueueName", _wrap_SBBreakpoint_GetQueueName},
     { "SetScriptCallbackFunction", _wrap_SBBreakpoint_SetScriptCallbackFunction},
-    { "SetScriptCallbackBody", _wrap_SBBreakpoint_SetScriptCallbackBody},
     { "SetCommandLineCommands", _wrap_SBBreakpoint_SetCommandLineCommands},
     { "GetCommandLineCommands", _wrap_SBBreakpoint_GetCommandLineCommands},
+    { "SetScriptCallbackBody", _wrap_SBBreakpoint_SetScriptCallbackBody},
     { "AddName", _wrap_SBBreakpoint_AddName},
     { "AddNameWithErrorHandling", _wrap_SBBreakpoint_AddNameWithErrorHandling},
     { "RemoveName", _wrap_SBBreakpoint_RemoveName},
@@ -8332,9 +8512,9 @@ static swig_lua_method swig_SBBreakpoint_methods[]= {
     { "GetNumResolvedLocations", _wrap_SBBreakpoint_GetNumResolvedLocations},
     { "GetNumLocations", _wrap_SBBreakpoint_GetNumLocations},
     { "GetDescription", _wrap_SBBreakpoint_GetDescription},
+    { "IsHardware", _wrap_SBBreakpoint_IsHardware},
     { "AddLocation", _wrap_SBBreakpoint_AddLocation},
     { "SerializeToStructuredData", _wrap_SBBreakpoint_SerializeToStructuredData},
-    { "IsHardware", _wrap_SBBreakpoint_IsHardware},
     { "__tostring", _wrap_SBBreakpoint___tostring},
     {0,0}
 };
@@ -8993,30 +9173,6 @@ static int _wrap_SBBreakpointLocation_GetCondition(lua_State* L) {
 }
 
 
-static int _wrap_SBBreakpointLocation_GetAutoContinue(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBBreakpointLocation *arg1 = (lldb::SBBreakpointLocation *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBBreakpointLocation::GetAutoContinue",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointLocation::GetAutoContinue",1,"lldb::SBBreakpointLocation *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointLocation,0))){
-      SWIG_fail_ptr("SBBreakpointLocation_GetAutoContinue",1,SWIGTYPE_p_lldb__SBBreakpointLocation);
-    }
-    
-    result = (bool)(arg1)->GetAutoContinue();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBBreakpointLocation_SetAutoContinue(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -9034,6 +9190,30 @@ static int _wrap_SBBreakpointLocation_SetAutoContinue(lua_State* L) {
     arg2 = (lua_toboolean(L, 2)!=0);
     (arg1)->SetAutoContinue(arg2);
     
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBBreakpointLocation_GetAutoContinue(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBreakpointLocation *arg1 = (lldb::SBBreakpointLocation *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBBreakpointLocation::GetAutoContinue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointLocation::GetAutoContinue",1,"lldb::SBBreakpointLocation *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointLocation,0))){
+      SWIG_fail_ptr("SBBreakpointLocation_GetAutoContinue",1,SWIGTYPE_p_lldb__SBBreakpointLocation);
+    }
+    
+    result = (bool)(arg1)->GetAutoContinue();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -9597,8 +9777,8 @@ static swig_lua_method swig_SBBreakpointLocation_methods[]= {
     { "SetIgnoreCount", _wrap_SBBreakpointLocation_SetIgnoreCount},
     { "SetCondition", _wrap_SBBreakpointLocation_SetCondition},
     { "GetCondition", _wrap_SBBreakpointLocation_GetCondition},
-    { "GetAutoContinue", _wrap_SBBreakpointLocation_GetAutoContinue},
     { "SetAutoContinue", _wrap_SBBreakpointLocation_SetAutoContinue},
+    { "GetAutoContinue", _wrap_SBBreakpointLocation_GetAutoContinue},
     { "SetScriptCallbackFunction", _wrap_SBBreakpointLocation_SetScriptCallbackFunction},
     { "SetScriptCallbackBody", _wrap_SBBreakpointLocation_SetScriptCallbackBody},
     { "SetCommandLineCommands", _wrap_SBBreakpointLocation_SetCommandLineCommands},
@@ -11581,6 +11761,37 @@ static int _wrap_SBBroadcaster___eq(lua_State* L) {
 }
 
 
+static int _wrap_SBBroadcaster___lt(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBBroadcaster *arg1 = (lldb::SBBroadcaster *) 0 ;
+    lldb::SBBroadcaster *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBBroadcaster::operator <",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::operator <",1,"lldb::SBBroadcaster const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::operator <",2,"lldb::SBBroadcaster const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
+      SWIG_fail_ptr("SBBroadcaster___lt",1,SWIGTYPE_p_lldb__SBBroadcaster);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBBroadcaster,0))){
+      SWIG_fail_ptr("SBBroadcaster___lt",2,SWIGTYPE_p_lldb__SBBroadcaster);
+    }
+    
+    result = (bool)((lldb::SBBroadcaster const *)arg1)->operator <((lldb::SBBroadcaster const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBBroadcaster(void *obj) {
 lldb::SBBroadcaster *arg1 = (lldb::SBBroadcaster *) obj;
 delete arg1;
@@ -11607,10 +11818,12 @@ static swig_lua_method swig_SBBroadcaster_methods[]= {
     { "EventTypeHasListeners", _wrap_SBBroadcaster_EventTypeHasListeners},
     { "RemoveListener", _wrap_SBBroadcaster_RemoveListener},
     { "__eq", _wrap_SBBroadcaster___eq},
+    { "__lt", _wrap_SBBroadcaster___lt},
     {0,0}
 };
 static swig_lua_method swig_SBBroadcaster_meta[] = {
     { "__eq", _wrap_SBBroadcaster___eq},
+    { "__lt", _wrap_SBBroadcaster___lt},
     {0,0}
 };
 
@@ -11751,190 +11964,6 @@ static int _wrap_SBCommandInterpreter_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBCommandInterpreter_GetIOHandlerControlSequence(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    char arg2 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",1,"lldb::SBCommandInterpreter *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",2,"char");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_GetIOHandlerControlSequence",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    arg2 = (lua_tostring(L, 2))[0];
-    result = (char *)(arg1)->GetIOHandlerControlSequence(arg2);
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_GetPromptOnQuit(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::GetPromptOnQuit",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetPromptOnQuit",1,"lldb::SBCommandInterpreter *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_GetPromptOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    result = (bool)(arg1)->GetPromptOnQuit();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_SetPromptOnQuit(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    bool arg2 ;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::SetPromptOnQuit",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::SetPromptOnQuit",1,"lldb::SBCommandInterpreter *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::SetPromptOnQuit",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_SetPromptOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    (arg1)->SetPromptOnQuit(arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_AllowExitCodeOnQuit(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    bool arg2 ;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",1,"lldb::SBCommandInterpreter *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_AllowExitCodeOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    (arg1)->AllowExitCodeOnQuit(arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_HasCustomQuitExitCode(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::HasCustomQuitExitCode",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::HasCustomQuitExitCode",1,"lldb::SBCommandInterpreter *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_HasCustomQuitExitCode",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    result = (bool)(arg1)->HasCustomQuitExitCode();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_GetQuitStatus(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    int result;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::GetQuitStatus",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetQuitStatus",1,"lldb::SBCommandInterpreter *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_GetQuitStatus",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    result = (int)(arg1)->GetQuitStatus();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandInterpreter_ResolveCommand(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBCommandReturnObject *arg3 = 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandInterpreter::ResolveCommand",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",1,"lldb::SBCommandInterpreter *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",2,"char const *");
-    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",3,"lldb::SBCommandReturnObject &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_ResolveCommand",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_ResolveCommand",3,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    (arg1)->ResolveCommand((char const *)arg2,*arg3);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBCommandInterpreter_CommandExists(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -11952,6 +11981,33 @@ static int _wrap_SBCommandInterpreter_CommandExists(lua_State* L) {
     
     arg2 = (char *)lua_tostring(L, 2);
     result = (bool)(arg1)->CommandExists((char const *)arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_UserCommandExists(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    char *arg2 = (char *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::UserCommandExists",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::UserCommandExists",1,"lldb::SBCommandInterpreter *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::UserCommandExists",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_UserCommandExists",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (bool)(arg1)->UserCommandExists((char const *)arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -12183,7 +12239,7 @@ static int _wrap_SBCommandInterpreter_GetDebugger(lua_State* L) {
 }
 
 
-static int _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory(lua_State* L) {
+static int _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
@@ -12210,6 +12266,108 @@ static int _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory(lua_State* L
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    lldb::SBCommandReturnObject *arg2 = 0 ;
+    bool arg3 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory",1,"lldb::SBCommandInterpreter *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory",2,"lldb::SBCommandReturnObject &");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory",3,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_SourceInitFileInHomeDirectory",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_SourceInitFileInHomeDirectory",2,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    arg3 = (lua_toboolean(L, 3)!=0);
+    (arg1)->SourceInitFileInHomeDirectory(*arg2,arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory(lua_State* L) {
+  int argc;
+  int argv[4]={
+    1,2,3,4
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandInterpreter, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandInterpreter, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isboolean(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBCommandInterpreter_SourceInitFileInHomeDirectory__SWIG_1(L);
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandInterpreter_SourceInitFileInHomeDirectory'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory(lldb::SBCommandReturnObject &)\n"
+    "    lldb::SBCommandInterpreter::SourceInitFileInHomeDirectory(lldb::SBCommandReturnObject &,bool)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -12709,6 +12867,54 @@ static int _wrap_SBCommandInterpreter_HandleCompletionWithDescriptions(lua_State
 }
 
 
+static int _wrap_SBCommandInterpreter_WasInterrupted(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::WasInterrupted",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::WasInterrupted",1,"lldb::SBCommandInterpreter const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_WasInterrupted",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    result = (bool)((lldb::SBCommandInterpreter const *)arg1)->WasInterrupted();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_InterruptCommand(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::InterruptCommand",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::InterruptCommand",1,"lldb::SBCommandInterpreter *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_InterruptCommand",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    result = (bool)(arg1)->InterruptCommand();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBCommandInterpreter_IsActive(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -12733,21 +12939,181 @@ static int _wrap_SBCommandInterpreter_IsActive(lua_State* L) {
 }
 
 
-static int _wrap_SBCommandInterpreter_WasInterrupted(lua_State* L) {
+static int _wrap_SBCommandInterpreter_GetIOHandlerControlSequence(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    char arg2 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",1,"lldb::SBCommandInterpreter *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetIOHandlerControlSequence",2,"char");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_GetIOHandlerControlSequence",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    arg2 = (lua_tostring(L, 2))[0];
+    result = (char *)(arg1)->GetIOHandlerControlSequence(arg2);
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_GetPromptOnQuit(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
     bool result;
     
-    SWIG_check_num_args("lldb::SBCommandInterpreter::WasInterrupted",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::WasInterrupted",1,"lldb::SBCommandInterpreter const *");
+    SWIG_check_num_args("lldb::SBCommandInterpreter::GetPromptOnQuit",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetPromptOnQuit",1,"lldb::SBCommandInterpreter *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
-      SWIG_fail_ptr("SBCommandInterpreter_WasInterrupted",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+      SWIG_fail_ptr("SBCommandInterpreter_GetPromptOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
     }
     
-    result = (bool)((lldb::SBCommandInterpreter const *)arg1)->WasInterrupted();
+    result = (bool)(arg1)->GetPromptOnQuit();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_SetPromptOnQuit(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::SetPromptOnQuit",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::SetPromptOnQuit",1,"lldb::SBCommandInterpreter *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::SetPromptOnQuit",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_SetPromptOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetPromptOnQuit(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_AllowExitCodeOnQuit(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",1,"lldb::SBCommandInterpreter *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::AllowExitCodeOnQuit",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_AllowExitCodeOnQuit",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->AllowExitCodeOnQuit(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_HasCustomQuitExitCode(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::HasCustomQuitExitCode",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::HasCustomQuitExitCode",1,"lldb::SBCommandInterpreter *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_HasCustomQuitExitCode",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    result = (bool)(arg1)->HasCustomQuitExitCode();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_GetQuitStatus(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    int result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::GetQuitStatus",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::GetQuitStatus",1,"lldb::SBCommandInterpreter *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_GetQuitStatus",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    result = (int)(arg1)->GetQuitStatus();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreter_ResolveCommand(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreter *arg1 = (lldb::SBCommandInterpreter *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBCommandReturnObject *arg3 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreter::ResolveCommand",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",1,"lldb::SBCommandInterpreter *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::ResolveCommand",3,"lldb::SBCommandReturnObject &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_ResolveCommand",1,SWIGTYPE_p_lldb__SBCommandInterpreter);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandInterpreter_ResolveCommand",3,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    (arg1)->ResolveCommand((char const *)arg2,*arg3);
+    
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -12774,14 +13140,8 @@ static swig_lua_attribute swig_SBCommandInterpreter_attributes[] = {
 };
 static swig_lua_method swig_SBCommandInterpreter_methods[]= {
     { "IsValid", _wrap_SBCommandInterpreter_IsValid},
-    { "GetIOHandlerControlSequence", _wrap_SBCommandInterpreter_GetIOHandlerControlSequence},
-    { "GetPromptOnQuit", _wrap_SBCommandInterpreter_GetPromptOnQuit},
-    { "SetPromptOnQuit", _wrap_SBCommandInterpreter_SetPromptOnQuit},
-    { "AllowExitCodeOnQuit", _wrap_SBCommandInterpreter_AllowExitCodeOnQuit},
-    { "HasCustomQuitExitCode", _wrap_SBCommandInterpreter_HasCustomQuitExitCode},
-    { "GetQuitStatus", _wrap_SBCommandInterpreter_GetQuitStatus},
-    { "ResolveCommand", _wrap_SBCommandInterpreter_ResolveCommand},
     { "CommandExists", _wrap_SBCommandInterpreter_CommandExists},
+    { "UserCommandExists", _wrap_SBCommandInterpreter_UserCommandExists},
     { "AliasExists", _wrap_SBCommandInterpreter_AliasExists},
     { "GetBroadcaster", _wrap_SBCommandInterpreter_GetBroadcaster},
     { "HasCommands", _wrap_SBCommandInterpreter_HasCommands},
@@ -12796,8 +13156,16 @@ static swig_lua_method swig_SBCommandInterpreter_methods[]= {
     { "HandleCommandsFromFile", _wrap_SBCommandInterpreter_HandleCommandsFromFile},
     { "HandleCompletion", _wrap_SBCommandInterpreter_HandleCompletion},
     { "HandleCompletionWithDescriptions", _wrap_SBCommandInterpreter_HandleCompletionWithDescriptions},
-    { "IsActive", _wrap_SBCommandInterpreter_IsActive},
     { "WasInterrupted", _wrap_SBCommandInterpreter_WasInterrupted},
+    { "InterruptCommand", _wrap_SBCommandInterpreter_InterruptCommand},
+    { "IsActive", _wrap_SBCommandInterpreter_IsActive},
+    { "GetIOHandlerControlSequence", _wrap_SBCommandInterpreter_GetIOHandlerControlSequence},
+    { "GetPromptOnQuit", _wrap_SBCommandInterpreter_GetPromptOnQuit},
+    { "SetPromptOnQuit", _wrap_SBCommandInterpreter_SetPromptOnQuit},
+    { "AllowExitCodeOnQuit", _wrap_SBCommandInterpreter_AllowExitCodeOnQuit},
+    { "HasCustomQuitExitCode", _wrap_SBCommandInterpreter_HasCustomQuitExitCode},
+    { "GetQuitStatus", _wrap_SBCommandInterpreter_GetQuitStatus},
+    { "ResolveCommand", _wrap_SBCommandInterpreter_ResolveCommand},
     {0,0}
 };
 static swig_lua_method swig_SBCommandInterpreter_meta[] = {
@@ -12838,7 +13206,7 @@ static swig_lua_class *swig_SBCommandInterpreter_bases[] = {0};
 static const char *swig_SBCommandInterpreter_base_names[] = {0};
 static swig_lua_class _wrap_class_SBCommandInterpreter = { "SBCommandInterpreter", "SBCommandInterpreter", &SWIGTYPE_p_lldb__SBCommandInterpreter,_proxy__wrap_new_SBCommandInterpreter, swig_delete_SBCommandInterpreter, swig_SBCommandInterpreter_methods, swig_SBCommandInterpreter_attributes, &swig_SBCommandInterpreter_Sf_SwigStatic, swig_SBCommandInterpreter_meta, swig_SBCommandInterpreter_bases, swig_SBCommandInterpreter_base_names };
 
-static int _wrap_new_SBCommandInterpreterRunOptions(lua_State* L) {
+static int _wrap_new_SBCommandInterpreterRunOptions__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBCommandInterpreterRunOptions *result = 0 ;
@@ -12852,6 +13220,63 @@ static int _wrap_new_SBCommandInterpreterRunOptions(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_new_SBCommandInterpreterRunOptions__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = 0 ;
+    lldb::SBCommandInterpreterRunOptions *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::SBCommandInterpreterRunOptions",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SBCommandInterpreterRunOptions",1,"lldb::SBCommandInterpreterRunOptions const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("new_SBCommandInterpreterRunOptions",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    result = (lldb::SBCommandInterpreterRunOptions *)new lldb::SBCommandInterpreterRunOptions((lldb::SBCommandInterpreterRunOptions const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBCommandInterpreterRunOptions(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 0) {
+    return _wrap_new_SBCommandInterpreterRunOptions__SWIG_0(L);
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBCommandInterpreterRunOptions__SWIG_1(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBCommandInterpreterRunOptions'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandInterpreterRunOptions::SBCommandInterpreterRunOptions()\n"
+    "    lldb::SBCommandInterpreterRunOptions::SBCommandInterpreterRunOptions(lldb::SBCommandInterpreterRunOptions const &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -13055,6 +13480,56 @@ static int _wrap_SBCommandInterpreterRunOptions_SetEchoCommands(lua_State* L) {
 }
 
 
+static int _wrap_SBCommandInterpreterRunOptions_GetEchoCommentCommands(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::GetEchoCommentCommands",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::GetEchoCommentCommands",1,"lldb::SBCommandInterpreterRunOptions const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_GetEchoCommentCommands",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    result = (bool)((lldb::SBCommandInterpreterRunOptions const *)arg1)->GetEchoCommentCommands();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreterRunOptions_SetEchoCommentCommands(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::SetEchoCommentCommands",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetEchoCommentCommands",1,"lldb::SBCommandInterpreterRunOptions *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetEchoCommentCommands",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_SetEchoCommentCommands",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetEchoCommentCommands(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBCommandInterpreterRunOptions_GetPrintResults(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -13205,6 +13680,106 @@ static int _wrap_SBCommandInterpreterRunOptions_SetAddToHistory(lua_State* L) {
 }
 
 
+static int _wrap_SBCommandInterpreterRunOptions_GetAutoHandleEvents(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::GetAutoHandleEvents",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::GetAutoHandleEvents",1,"lldb::SBCommandInterpreterRunOptions const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_GetAutoHandleEvents",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    result = (bool)((lldb::SBCommandInterpreterRunOptions const *)arg1)->GetAutoHandleEvents();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreterRunOptions_SetAutoHandleEvents(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::SetAutoHandleEvents",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetAutoHandleEvents",1,"lldb::SBCommandInterpreterRunOptions *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetAutoHandleEvents",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_SetAutoHandleEvents",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetAutoHandleEvents(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreterRunOptions_GetSpawnThread(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::GetSpawnThread",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::GetSpawnThread",1,"lldb::SBCommandInterpreterRunOptions const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_GetSpawnThread",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    result = (bool)((lldb::SBCommandInterpreterRunOptions const *)arg1)->GetSpawnThread();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandInterpreterRunOptions_SetSpawnThread(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBCommandInterpreterRunOptions::SetSpawnThread",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetSpawnThread",1,"lldb::SBCommandInterpreterRunOptions *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreterRunOptions::SetSpawnThread",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions,0))){
+      SWIG_fail_ptr("SBCommandInterpreterRunOptions_SetSpawnThread",1,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetSpawnThread(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBCommandInterpreterRunOptions(void *obj) {
 lldb::SBCommandInterpreterRunOptions *arg1 = (lldb::SBCommandInterpreterRunOptions *) obj;
 delete arg1;
@@ -13229,12 +13804,18 @@ static swig_lua_method swig_SBCommandInterpreterRunOptions_methods[]= {
     { "SetStopOnCrash", _wrap_SBCommandInterpreterRunOptions_SetStopOnCrash},
     { "GetEchoCommands", _wrap_SBCommandInterpreterRunOptions_GetEchoCommands},
     { "SetEchoCommands", _wrap_SBCommandInterpreterRunOptions_SetEchoCommands},
+    { "GetEchoCommentCommands", _wrap_SBCommandInterpreterRunOptions_GetEchoCommentCommands},
+    { "SetEchoCommentCommands", _wrap_SBCommandInterpreterRunOptions_SetEchoCommentCommands},
     { "GetPrintResults", _wrap_SBCommandInterpreterRunOptions_GetPrintResults},
     { "SetPrintResults", _wrap_SBCommandInterpreterRunOptions_SetPrintResults},
     { "GetPrintErrors", _wrap_SBCommandInterpreterRunOptions_GetPrintErrors},
     { "SetPrintErrors", _wrap_SBCommandInterpreterRunOptions_SetPrintErrors},
     { "GetAddToHistory", _wrap_SBCommandInterpreterRunOptions_GetAddToHistory},
     { "SetAddToHistory", _wrap_SBCommandInterpreterRunOptions_SetAddToHistory},
+    { "GetAutoHandleEvents", _wrap_SBCommandInterpreterRunOptions_GetAutoHandleEvents},
+    { "SetAutoHandleEvents", _wrap_SBCommandInterpreterRunOptions_SetAutoHandleEvents},
+    { "GetSpawnThread", _wrap_SBCommandInterpreterRunOptions_GetSpawnThread},
+    { "SetSpawnThread", _wrap_SBCommandInterpreterRunOptions_SetSpawnThread},
     {0,0}
 };
 static swig_lua_method swig_SBCommandInterpreterRunOptions_meta[] = {
@@ -13412,206 +13993,6 @@ static int _wrap_SBCommandReturnObject_GetError__SWIG_0(lua_State* L) {
 }
 
 
-static int _wrap_SBCommandReturnObject_GetOutputSize(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    size_t result;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::GetOutputSize",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutputSize",1,"lldb::SBCommandReturnObject *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_GetOutputSize",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    result = (arg1)->GetOutputSize();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetErrorSize(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    size_t result;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::GetErrorSize",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetErrorSize",1,"lldb::SBCommandReturnObject *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_GetErrorSize",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    result = (arg1)->GetErrorSize();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetOutput__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    bool arg2 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::GetOutput",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutput",1,"lldb::SBCommandReturnObject *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutput",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_GetOutput",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    result = (char *)(arg1)->GetOutput(arg2);
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetOutput(lua_State* L) {
-  int argc;
-  int argv[3]={
-    1,2,3
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_SBCommandReturnObject_GetOutput__SWIG_0(L);
-    }
-  }
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = lua_isboolean(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBCommandReturnObject_GetOutput__SWIG_1(L);
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_GetOutput'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBCommandReturnObject::GetOutput()\n"
-    "    lldb::SBCommandReturnObject::GetOutput(bool)\n");
-  lua_error(L);return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetError__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    bool arg2 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::GetError",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetError",1,"lldb::SBCommandReturnObject *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetError",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_GetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    result = (char *)(arg1)->GetError(arg2);
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetError(lua_State* L) {
-  int argc;
-  int argv[3]={
-    1,2,3
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_SBCommandReturnObject_GetError__SWIG_0(L);
-    }
-  }
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = lua_isboolean(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBCommandReturnObject_GetError__SWIG_1(L);
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_GetError'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBCommandReturnObject::GetError()\n"
-    "    lldb::SBCommandReturnObject::GetError(bool)\n");
-  lua_error(L);return 0;
-}
-
-
 static int _wrap_SBCommandReturnObject_PutOutput__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -13635,39 +14016,6 @@ static int _wrap_SBCommandReturnObject_PutOutput__SWIG_0(lua_State* L) {
     arg2 = *argp2;
     
     result = (arg1)->PutOutput(arg2);
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_PutError__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    lldb::SBFile arg2 ;
-    lldb::SBFile *argp2 ;
-    size_t result;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::PutError",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutError",1,"lldb::SBCommandReturnObject *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutError",2,"lldb::SBFile");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_PutError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBFile,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_PutError",2,SWIGTYPE_p_lldb__SBFile);
-    }
-    arg2 = *argp2;
-    
-    result = (arg1)->PutError(arg2);
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
@@ -13768,6 +14116,87 @@ static int _wrap_SBCommandReturnObject_PutOutput(lua_State* L) {
     "    lldb::SBCommandReturnObject::PutOutput(lldb::SBFile)\n"
     "    lldb::SBCommandReturnObject::PutOutput(lldb::FileSP)\n");
   lua_error(L);return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetOutputSize(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    size_t result;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::GetOutputSize",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutputSize",1,"lldb::SBCommandReturnObject *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_GetOutputSize",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    result = (arg1)->GetOutputSize();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetErrorSize(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    size_t result;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::GetErrorSize",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetErrorSize",1,"lldb::SBCommandReturnObject *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_GetErrorSize",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    result = (arg1)->GetErrorSize();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_PutError__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    lldb::SBFile arg2 ;
+    lldb::SBFile *argp2 ;
+    size_t result;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::PutError",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutError",1,"lldb::SBCommandReturnObject *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutError",2,"lldb::SBFile");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_PutError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBFile,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_PutError",2,SWIGTYPE_p_lldb__SBFile);
+    }
+    arg2 = *argp2;
+    
+    result = (arg1)->PutError(arg2);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
 }
 
 
@@ -13887,6 +14316,30 @@ static int _wrap_SBCommandReturnObject_Clear(lua_State* L) {
 }
 
 
+static int _wrap_SBCommandReturnObject_GetStatus(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    lldb::ReturnStatus result;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::GetStatus",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetStatus",1,"lldb::SBCommandReturnObject *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_GetStatus",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    result = (lldb::ReturnStatus)(arg1)->GetStatus();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBCommandReturnObject_SetStatus(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -13904,208 +14357,6 @@ static int _wrap_SBCommandReturnObject_SetStatus(lua_State* L) {
     arg2 = (lldb::ReturnStatus)lua_tointeger(L, 2); 
     (arg1)->SetStatus(arg2);
     
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_SetError__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    lldb::SBError *arg2 = 0 ;
-    char *arg3 = (char *) 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"lldb::SBError &");
-    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",3,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_SetError",2,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    arg3 = (char *)lua_tostring(L, 3);
-    (arg1)->SetError(*arg2,(char const *)arg3);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_SetError__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    lldb::SBError *arg2 = 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"lldb::SBError &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_SetError",2,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    (arg1)->SetError(*arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_SetError__SWIG_2(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    char *arg2 = (char *) 0 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    (arg1)->SetError((char const *)arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_SetError(lua_State* L) {
-  int argc;
-  int argv[4]={
-    1,2,3,4
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        void *ptr;
-        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
-          _v = 0;
-        } else {
-          _v = 1;
-        }
-      }
-      if (_v) {
-        return _wrap_SBCommandReturnObject_SetError__SWIG_1(L);
-      }
-    }
-  }
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = SWIG_lua_isnilstring(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBCommandReturnObject_SetError__SWIG_2(L);
-      }
-    }
-  }
-  if (argc == 3) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        void *ptr;
-        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
-          _v = 0;
-        } else {
-          _v = 1;
-        }
-      }
-      if (_v) {
-        {
-          _v = SWIG_lua_isnilstring(L,argv[2]);
-        }
-        if (_v) {
-          return _wrap_SBCommandReturnObject_SetError__SWIG_0(L);
-        }
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_SetError'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBCommandReturnObject::SetError(lldb::SBError &,char const *)\n"
-    "    lldb::SBCommandReturnObject::SetError(lldb::SBError &)\n"
-    "    lldb::SBCommandReturnObject::SetError(char const *)\n");
-  lua_error(L);return 0;
-}
-
-
-static int _wrap_SBCommandReturnObject_GetStatus(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    lldb::ReturnStatus result;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::GetStatus",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetStatus",1,"lldb::SBCommandReturnObject *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_GetStatus",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    result = (lldb::ReturnStatus)(arg1)->GetStatus();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -14371,6 +14622,457 @@ static int _wrap_SBCommandReturnObject_SetImmediateErrorFile__SWIG_1(lua_State* 
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_PutCString__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    char *arg2 = (char *) 0 ;
+    int arg3 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::PutCString",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",1,"lldb::SBCommandReturnObject *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_PutCString",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    {
+      if (lua_isnil(L, 2)) {
+        arg2 = NULL;
+        arg3 = 0;
+      } else {
+        arg2 = (char *)luaL_checklstring(L, 2, (size_t *)&arg3);
+      }
+    }
+    (arg1)->PutCString((char const *)arg2,arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_PutCString__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    char *arg2 = (char *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::PutCString",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",1,"lldb::SBCommandReturnObject *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_PutCString",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    (arg1)->PutCString((char const *)arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_PutCString(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        if (argc <= 2) {
+          return _wrap_SBCommandReturnObject_PutCString__SWIG_0(L);
+        }
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBCommandReturnObject_PutCString__SWIG_0(L);
+        }
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBCommandReturnObject_PutCString__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_PutCString'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandReturnObject::PutCString(char const *,int)\n"
+    "    lldb::SBCommandReturnObject::PutCString(char const *)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetOutput__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    bool arg2 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::GetOutput",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutput",1,"lldb::SBCommandReturnObject *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetOutput",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_GetOutput",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    result = (char *)(arg1)->GetOutput(arg2);
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetOutput(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBCommandReturnObject_GetOutput__SWIG_0(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isboolean(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBCommandReturnObject_GetOutput__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_GetOutput'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandReturnObject::GetOutput()\n"
+    "    lldb::SBCommandReturnObject::GetOutput(bool)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetError__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    bool arg2 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::GetError",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetError",1,"lldb::SBCommandReturnObject *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::GetError",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_GetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    result = (char *)(arg1)->GetError(arg2);
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_GetError(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBCommandReturnObject_GetError__SWIG_0(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isboolean(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBCommandReturnObject_GetError__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_GetError'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandReturnObject::GetError()\n"
+    "    lldb::SBCommandReturnObject::GetError(bool)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_SetError__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    lldb::SBError *arg2 = 0 ;
+    char *arg3 = (char *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"lldb::SBError &");
+    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",3,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_SetError",2,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    arg3 = (char *)lua_tostring(L, 3);
+    (arg1)->SetError(*arg2,(char const *)arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_SetError__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    lldb::SBError *arg2 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_SetError",2,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    (arg1)->SetError(*arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_SetError__SWIG_2(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
+    char *arg2 = (char *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBCommandReturnObject::SetError",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",1,"lldb::SBCommandReturnObject *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::SetError",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
+      SWIG_fail_ptr("SBCommandReturnObject_SetError",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    (arg1)->SetError((char const *)arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCommandReturnObject_SetError(lua_State* L) {
+  int argc;
+  int argv[4]={
+    1,2,3,4
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBCommandReturnObject_SetError__SWIG_1(L);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBCommandReturnObject_SetError__SWIG_2(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBCommandReturnObject, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = SWIG_lua_isnilstring(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBCommandReturnObject_SetError__SWIG_0(L);
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBCommandReturnObject_SetError'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBCommandReturnObject::SetError(lldb::SBError &,char const *)\n"
+    "    lldb::SBCommandReturnObject::SetError(lldb::SBError &)\n"
+    "    lldb::SBCommandReturnObject::SetError(char const *)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -14640,39 +15342,6 @@ static int _wrap_SBCommandReturnObject_SetImmediateErrorFile(lua_State* L) {
 }
 
 
-static int _wrap_SBCommandReturnObject_PutCString(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCommandReturnObject *arg1 = (lldb::SBCommandReturnObject *) 0 ;
-    char *arg2 = (char *) 0 ;
-    int arg3 ;
-    
-    SWIG_check_num_args("lldb::SBCommandReturnObject::PutCString",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",1,"lldb::SBCommandReturnObject *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
-      SWIG_fail_ptr("SBCommandReturnObject_PutCString",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
-    }
-    
-    {
-      if (lua_isnil(L, 2)) {
-        arg2 = NULL;
-        arg3 = 0;
-      } else {
-        arg2 = (char *)luaL_checklstring(L, 2, (size_t *)&arg3);
-      }
-    }
-    (arg1)->PutCString((char const *)arg2,arg3);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBCommandReturnObject_Print(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -14716,25 +15385,25 @@ static swig_lua_attribute swig_SBCommandReturnObject_attributes[] = {
 };
 static swig_lua_method swig_SBCommandReturnObject_methods[]= {
     { "IsValid", _wrap_SBCommandReturnObject_IsValid},
+    { "PutOutput", _wrap_SBCommandReturnObject_PutOutput},
     { "GetOutputSize", _wrap_SBCommandReturnObject_GetOutputSize},
     { "GetErrorSize", _wrap_SBCommandReturnObject_GetErrorSize},
-    { "GetOutput", _wrap_SBCommandReturnObject_GetOutput},
-    { "GetError", _wrap_SBCommandReturnObject_GetError},
-    { "PutOutput", _wrap_SBCommandReturnObject_PutOutput},
     { "PutError", _wrap_SBCommandReturnObject_PutError},
     { "Clear", _wrap_SBCommandReturnObject_Clear},
-    { "SetStatus", _wrap_SBCommandReturnObject_SetStatus},
-    { "SetError", _wrap_SBCommandReturnObject_SetError},
     { "GetStatus", _wrap_SBCommandReturnObject_GetStatus},
+    { "SetStatus", _wrap_SBCommandReturnObject_SetStatus},
     { "Succeeded", _wrap_SBCommandReturnObject_Succeeded},
     { "HasResult", _wrap_SBCommandReturnObject_HasResult},
     { "AppendMessage", _wrap_SBCommandReturnObject_AppendMessage},
     { "AppendWarning", _wrap_SBCommandReturnObject_AppendWarning},
     { "GetDescription", _wrap_SBCommandReturnObject_GetDescription},
+    { "PutCString", _wrap_SBCommandReturnObject_PutCString},
+    { "GetOutput", _wrap_SBCommandReturnObject_GetOutput},
+    { "GetError", _wrap_SBCommandReturnObject_GetError},
+    { "SetError", _wrap_SBCommandReturnObject_SetError},
     { "__tostring", _wrap_SBCommandReturnObject___tostring},
     { "SetImmediateOutputFile", _wrap_SBCommandReturnObject_SetImmediateOutputFile},
     { "SetImmediateErrorFile", _wrap_SBCommandReturnObject_SetImmediateErrorFile},
-    { "PutCString", _wrap_SBCommandReturnObject_PutCString},
     { "Print", _wrap_SBCommandReturnObject_Print},
     {0,0}
 };
@@ -15993,37 +16662,6 @@ static int _wrap_SBCompileUnit_GetLanguage(lua_State* L) {
 }
 
 
-static int _wrap_SBCompileUnit_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBCompileUnit *arg1 = (lldb::SBCompileUnit *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBCompileUnit::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::GetDescription",1,"lldb::SBCompileUnit *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
-      SWIG_fail_ptr("SBCompileUnit_GetDescription",1,SWIGTYPE_p_lldb__SBCompileUnit);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBCompileUnit_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBCompileUnit___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -16045,6 +16683,37 @@ static int _wrap_SBCompileUnit___eq(lua_State* L) {
     }
     
     result = (bool)((lldb::SBCompileUnit const *)arg1)->operator ==((lldb::SBCompileUnit const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBCompileUnit_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBCompileUnit *arg1 = (lldb::SBCompileUnit *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBCompileUnit::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::GetDescription",1,"lldb::SBCompileUnit *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
+      SWIG_fail_ptr("SBCompileUnit_GetDescription",1,SWIGTYPE_p_lldb__SBCompileUnit);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBCompileUnit_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -16105,8 +16774,8 @@ static swig_lua_method swig_SBCompileUnit_methods[]= {
     { "FindSupportFileIndex", _wrap_SBCompileUnit_FindSupportFileIndex},
     { "GetTypes", _wrap_SBCompileUnit_GetTypes},
     { "GetLanguage", _wrap_SBCompileUnit_GetLanguage},
-    { "GetDescription", _wrap_SBCompileUnit_GetDescription},
     { "__eq", _wrap_SBCompileUnit___eq},
+    { "GetDescription", _wrap_SBCompileUnit_GetDescription},
     { "__tostring", _wrap_SBCompileUnit___tostring},
     {0,0}
 };
@@ -16831,40 +17500,6 @@ static int _wrap_SBData_GetString(lua_State* L) {
 }
 
 
-static int _wrap_SBData_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBData *arg1 = (lldb::SBData *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    lldb::addr_t arg3 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBData::GetDescription",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetDescription",1,"lldb::SBData *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetDescription",2,"lldb::SBStream &");
-    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetDescription",3,"lldb::addr_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
-      SWIG_fail_ptr("SBData_GetDescription",1,SWIGTYPE_p_lldb__SBData);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
-    result = (bool)(arg1)->GetDescription(*arg2,arg3);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBData_ReadRawData(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -16915,6 +17550,140 @@ static int _wrap_SBData_ReadRawData(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBData_GetDescription__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBData *arg1 = (lldb::SBData *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::addr_t arg3 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBData::GetDescription",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetDescription",1,"lldb::SBData *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetDescription",2,"lldb::SBStream &");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetDescription",3,"lldb::addr_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
+      SWIG_fail_ptr("SBData_GetDescription",1,SWIGTYPE_p_lldb__SBData);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
+    result = (bool)(arg1)->GetDescription(*arg2,arg3);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBData_GetDescription__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBData *arg1 = (lldb::SBData *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBData::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetDescription",1,"lldb::SBData *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
+      SWIG_fail_ptr("SBData_GetDescription",1,SWIGTYPE_p_lldb__SBData);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBData_GetDescription(lua_State* L) {
+  int argc;
+  int argv[4]={
+    1,2,3,4
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBData_GetDescription__SWIG_1(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBData_GetDescription__SWIG_0(L);
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBData_GetDescription'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBData::GetDescription(lldb::SBStream &,lldb::addr_t)\n"
+    "    lldb::SBData::GetDescription(lldb::SBStream &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -17727,8 +18496,8 @@ static swig_lua_method swig_SBData_methods[]= {
     { "GetSignedInt32", _wrap_SBData_GetSignedInt32},
     { "GetSignedInt64", _wrap_SBData_GetSignedInt64},
     { "GetString", _wrap_SBData_GetString},
-    { "GetDescription", _wrap_SBData_GetDescription},
     { "ReadRawData", _wrap_SBData_ReadRawData},
+    { "GetDescription", _wrap_SBData_GetDescription},
     { "SetData", _wrap_SBData_SetData},
     { "SetDataWithOwnership", _wrap_SBData_SetDataWithOwnership},
     { "Append", _wrap_SBData_Append},
@@ -17777,6 +18546,124 @@ static swig_lua_class *swig_SBData_bases[] = {0};
 static const char *swig_SBData_base_names[] = {0};
 static swig_lua_class _wrap_class_SBData = { "SBData", "SBData", &SWIGTYPE_p_lldb__SBData,_proxy__wrap_new_SBData, swig_delete_SBData, swig_SBData_methods, swig_SBData_attributes, &swig_SBData_Sf_SwigStatic, swig_SBData_meta, swig_SBData_bases, swig_SBData_base_names };
 
+static int _wrap_new_SBDebugger__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SBDebugger",0,0)
+    result = (lldb::SBDebugger *)new lldb::SBDebugger();
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBDebugger,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBDebugger__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = 0 ;
+    lldb::SBDebugger *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SBDebugger",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBDebugger::SBDebugger",1,"lldb::SBDebugger const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("new_SBDebugger",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (lldb::SBDebugger *)new lldb::SBDebugger((lldb::SBDebugger const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBDebugger,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBDebugger(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 0) {
+    return _wrap_new_SBDebugger__SWIG_0(L);
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBDebugger__SWIG_1(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBDebugger'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBDebugger::SBDebugger()\n"
+    "    lldb::SBDebugger::SBDebugger(lldb::SBDebugger const &)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBDebugger_GetBroadcasterClass(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetBroadcasterClass",0,0)
+    result = (char *)lldb::SBDebugger::GetBroadcasterClass();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetBroadcaster(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    lldb::SBBroadcaster result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetBroadcaster",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetBroadcaster",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetBroadcaster",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (arg1)->GetBroadcaster();
+    {
+      lldb::SBBroadcaster * resultptr = new lldb::SBBroadcaster(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBroadcaster,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBDebugger_GetProgressFromEvent(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -17817,6 +18704,33 @@ static int _wrap_SBDebugger_GetProgressFromEvent(lua_State* L) {
 }
 
 
+static int _wrap_SBDebugger_GetProgressDataFromEvent(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEvent *arg1 = 0 ;
+    lldb::SBStructuredData result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetProgressDataFromEvent",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetProgressDataFromEvent",1,"lldb::SBEvent const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
+      SWIG_fail_ptr("SBDebugger_GetProgressDataFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
+    }
+    
+    result = lldb::SBDebugger::GetProgressDataFromEvent((lldb::SBEvent const &)*arg1);
+    {
+      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBDebugger_GetDiagnosticFromEvent(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -17834,33 +18748,6 @@ static int _wrap_SBDebugger_GetDiagnosticFromEvent(lua_State* L) {
     {
       lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_GetBroadcaster(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    lldb::SBBroadcaster result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetBroadcaster",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetBroadcaster",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetBroadcaster",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = (arg1)->GetBroadcaster();
-    {
-      lldb::SBBroadcaster * resultptr = new lldb::SBBroadcaster(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBroadcaster,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -17913,6 +18800,22 @@ static int _wrap_SBDebugger_PrintStackTraceOnError(lua_State* L) {
     
     SWIG_check_num_args("lldb::SBDebugger::PrintStackTraceOnError",0,0)
     lldb::SBDebugger::PrintStackTraceOnError();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_PrintDiagnosticsOnError(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    
+    SWIG_check_num_args("lldb::SBDebugger::PrintDiagnosticsOnError",0,0)
+    lldb::SBDebugger::PrintDiagnosticsOnError();
     
     return SWIG_arg;
     
@@ -18118,80 +19021,6 @@ static int _wrap_SBDebugger_MemoryPressureDetected(lua_State* L) {
 }
 
 
-static int _wrap_new_SBDebugger__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBDebugger::SBDebugger",0,0)
-    result = (lldb::SBDebugger *)new lldb::SBDebugger();
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBDebugger,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBDebugger__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = 0 ;
-    lldb::SBDebugger *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBDebugger::SBDebugger",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBDebugger::SBDebugger",1,"lldb::SBDebugger const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("new_SBDebugger",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = (lldb::SBDebugger *)new lldb::SBDebugger((lldb::SBDebugger const &)*arg1);
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBDebugger,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBDebugger(lua_State* L) {
-  int argc;
-  int argv[2]={
-    1,2
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 0) {
-    return _wrap_new_SBDebugger__SWIG_0(L);
-  }
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, SWIG_POINTER_NO_NULL)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_new_SBDebugger__SWIG_1(L);
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBDebugger'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBDebugger::SBDebugger()\n"
-    "    lldb::SBDebugger::SBDebugger(lldb::SBDebugger const &)\n");
-  lua_error(L);return 0;
-}
-
-
 static int _wrap_SBDebugger_IsValid(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -18230,181 +19059,6 @@ static int _wrap_SBDebugger_Clear(lua_State* L) {
     
     (arg1)->Clear();
     
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_SetAsync(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    bool arg2 ;
-    
-    SWIG_check_num_args("lldb::SBDebugger::SetAsync",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetAsync",1,"lldb::SBDebugger *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetAsync",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_SetAsync",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    (arg1)->SetAsync(arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_GetAsync(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetAsync",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetAsync",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetAsync",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = (bool)(arg1)->GetAsync();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_SkipLLDBInitFiles(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    bool arg2 ;
-    
-    SWIG_check_num_args("lldb::SBDebugger::SkipLLDBInitFiles",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SkipLLDBInitFiles",1,"lldb::SBDebugger *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SkipLLDBInitFiles",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_SkipLLDBInitFiles",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    (arg1)->SkipLLDBInitFiles(arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_GetInputFileHandle(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetInputFileHandle",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetInputFileHandle",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetInputFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = lldb_SBDebugger_GetInputFileHandle(arg1);
-    {
-      lldb::FileSP sp = result;
-      if (sp && sp->IsValid()) {
-        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
-        p->closef = &LLDBSwigLuaCloseFileHandle;
-        p->f = sp->GetStream();
-        luaL_setmetatable(L, LUA_FILEHANDLE);
-        SWIG_arg++;
-      }
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_GetOutputFileHandle(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetOutputFileHandle",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetOutputFileHandle",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetOutputFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = lldb_SBDebugger_GetOutputFileHandle(arg1);
-    {
-      lldb::FileSP sp = result;
-      if (sp && sp->IsValid()) {
-        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
-        p->closef = &LLDBSwigLuaCloseFileHandle;
-        p->f = sp->GetStream();
-        luaL_setmetatable(L, LUA_FILEHANDLE);
-        SWIG_arg++;
-      }
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger_GetErrorFileHandle(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetErrorFileHandle",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetErrorFileHandle",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetErrorFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = lldb_SBDebugger_GetErrorFileHandle(arg1);
-    {
-      lldb::FileSP sp = result;
-      if (sp && sp->IsValid()) {
-        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
-        p->closef = &LLDBSwigLuaCloseFileHandle;
-        p->f = sp->GetStream();
-        luaL_setmetatable(L, LUA_FILEHANDLE);
-        SWIG_arg++;
-      }
-    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -18517,6 +19171,108 @@ static int _wrap_SBDebugger_GetSetting(lua_State* L) {
     "    lldb::SBDebugger::GetSetting(char const *)\n"
     "    lldb::SBDebugger::GetSetting()\n");
   lua_error(L);return 0;
+}
+
+
+static int _wrap_SBDebugger_SetAsync(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SetAsync",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetAsync",1,"lldb::SBDebugger *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetAsync",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SetAsync",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetAsync(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetAsync(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetAsync",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetAsync",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetAsync",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (bool)(arg1)->GetAsync();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_SkipLLDBInitFiles(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SkipLLDBInitFiles",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SkipLLDBInitFiles",1,"lldb::SBDebugger *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SkipLLDBInitFiles",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SkipLLDBInitFiles",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SkipLLDBInitFiles(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_SkipAppInitFiles(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SkipAppInitFiles",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SkipAppInitFiles",1,"lldb::SBDebugger *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SkipAppInitFiles",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SkipAppInitFiles",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SkipAppInitFiles(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
 }
 
 
@@ -19027,6 +19783,52 @@ static int _wrap_SBDebugger_GetErrorFile(lua_State* L) {
 }
 
 
+static int _wrap_SBDebugger_SaveInputTerminalState(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SaveInputTerminalState",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SaveInputTerminalState",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SaveInputTerminalState",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    (arg1)->SaveInputTerminalState();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_RestoreInputTerminalState(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::RestoreInputTerminalState",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::RestoreInputTerminalState",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_RestoreInputTerminalState",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    (arg1)->RestoreInputTerminalState();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBDebugger_GetCommandInterpreter(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -19071,6 +19873,76 @@ static int _wrap_SBDebugger_HandleCommand(lua_State* L) {
     arg2 = (char *)lua_tostring(L, 2);
     (arg1)->HandleCommand((char const *)arg2);
     
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_RequestInterrupt(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::RequestInterrupt",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::RequestInterrupt",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_RequestInterrupt",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    (arg1)->RequestInterrupt();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_CancelInterruptRequest(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::CancelInterruptRequest",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::CancelInterruptRequest",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_CancelInterruptRequest",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    (arg1)->CancelInterruptRequest();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_InterruptRequested(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::InterruptRequested",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::InterruptRequested",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_InterruptRequested",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (bool)(arg1)->InterruptRequested();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -20170,6 +21042,57 @@ static int _wrap_SBDebugger_GetUseColor(lua_State* L) {
 }
 
 
+static int _wrap_SBDebugger_SetUseSourceCache(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool arg2 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SetUseSourceCache",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetUseSourceCache",1,"lldb::SBDebugger *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetUseSourceCache",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SetUseSourceCache",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    result = (bool)(arg1)->SetUseSourceCache(arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetUseSourceCache(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetUseSourceCache",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetUseSourceCache",1,"lldb::SBDebugger const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetUseSourceCache",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (bool)((lldb::SBDebugger const *)arg1)->GetUseSourceCache();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBDebugger_GetDefaultArchitecture(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -20231,6 +21154,36 @@ static int _wrap_SBDebugger_GetScriptingLanguage(lua_State* L) {
     arg2 = (char *)lua_tostring(L, 2);
     result = (lldb::ScriptLanguage)(arg1)->GetScriptingLanguage((char const *)arg2);
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetScriptInterpreterInfo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    lldb::ScriptLanguage arg2 ;
+    lldb::SBStructuredData result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetScriptInterpreterInfo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetScriptInterpreterInfo",1,"lldb::SBDebugger *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetScriptInterpreterInfo",2,"lldb::ScriptLanguage");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetScriptInterpreterInfo",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lldb::ScriptLanguage)lua_tointeger(L, 2); 
+    result = (arg1)->GetScriptInterpreterInfo(arg2);
+    {
+      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -20420,6 +21373,39 @@ static int _wrap_SBDebugger_SetLoggingCallback(lua_State* L) {
       lua_settable(L, LUA_REGISTRYINDEX);
     }
     (arg1)->SetLoggingCallback(arg2,arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_SetDestroyCallback(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    lldb::SBDebuggerDestroyCallback arg2 = (lldb::SBDebuggerDestroyCallback) 0 ;
+    void *arg3 = (void *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SetDestroyCallback",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetDestroyCallback",1,"lldb::SBDebugger *");
+    if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetDestroyCallback",2,"lldb::SBDebuggerDestroyCallback");
+    if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBDebugger::SetDestroyCallback",3,"void *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SetDestroyCallback",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_f_unsigned_long_long_p_void__void,0))){
+      SWIG_fail_ptr("SBDebugger_SetDestroyCallback",2,SWIGTYPE_p_f_unsigned_long_long_p_void__void);
+    }
+    
+    arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBDebugger_SetDestroyCallback");
+    (arg1)->SetDestroyCallback(arg2,arg3);
     
     return SWIG_arg;
     
@@ -20825,6 +21811,56 @@ static int _wrap_SBDebugger_SetScriptLanguage(lua_State* L) {
     
     arg2 = (lldb::ScriptLanguage)lua_tointeger(L, 2); 
     (arg1)->SetScriptLanguage(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetREPLLanguage(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    lldb::LanguageType result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetREPLLanguage",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetREPLLanguage",1,"lldb::SBDebugger const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetREPLLanguage",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (lldb::LanguageType)((lldb::SBDebugger const *)arg1)->GetREPLLanguage();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_SetREPLLanguage(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    lldb::LanguageType arg2 ;
+    
+    SWIG_check_num_args("lldb::SBDebugger::SetREPLLanguage",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetREPLLanguage",1,"lldb::SBDebugger *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetREPLLanguage",2,"lldb::LanguageType");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_SetREPLLanguage",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    arg2 = (lldb::LanguageType)lua_tointeger(L, 2); 
+    (arg1)->SetREPLLanguage(arg2);
     
     return SWIG_arg;
     
@@ -21281,60 +22317,6 @@ static int _wrap_SBDebugger_GetSyntheticForType(lua_State* L) {
 }
 
 
-static int _wrap_SBDebugger_GetScriptInterpreterInfo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    lldb::ScriptLanguage arg2 ;
-    lldb::SBStructuredData result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::GetScriptInterpreterInfo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetScriptInterpreterInfo",1,"lldb::SBDebugger *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetScriptInterpreterInfo",2,"lldb::ScriptLanguage");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger_GetScriptInterpreterInfo",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    arg2 = (lldb::ScriptLanguage)lua_tointeger(L, 2); 
-    result = (arg1)->GetScriptInterpreterInfo(arg2);
-    {
-      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBDebugger___tostring(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
-    std::string result;
-    
-    SWIG_check_num_args("lldb::SBDebugger::__repr__",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::__repr__",1,"lldb::SBDebugger *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
-      SWIG_fail_ptr("SBDebugger___tostring",1,SWIGTYPE_p_lldb__SBDebugger);
-    }
-    
-    result = lldb_SBDebugger___repr__(arg1);
-    lua_pushlstring(L,(&result)->data(),(&result)->size()); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBDebugger_RunCommandInterpreter(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -21463,6 +22445,129 @@ static int _wrap_SBDebugger_LoadTraceFromFile(lua_State* L) {
 }
 
 
+static int _wrap_SBDebugger___tostring(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    std::string result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::__repr__",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::__repr__",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger___tostring",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = lldb_SBDebugger___repr__(arg1);
+    lua_pushlstring(L,(&result)->data(),(&result)->size()); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetInputFileHandle(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetInputFileHandle",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetInputFileHandle",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetInputFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = lldb_SBDebugger_GetInputFileHandle(arg1);
+    {
+      lldb::FileSP sp = result;
+      if (sp && sp->IsValid()) {
+        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
+        p->closef = &LLDBSwigLuaCloseFileHandle;
+        p->f = sp->GetStream();
+        luaL_setmetatable(L, LUA_FILEHANDLE);
+        SWIG_arg++;
+      }
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetOutputFileHandle(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetOutputFileHandle",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetOutputFileHandle",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetOutputFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = lldb_SBDebugger_GetOutputFileHandle(arg1);
+    {
+      lldb::FileSP sp = result;
+      if (sp && sp->IsValid()) {
+        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
+        p->closef = &LLDBSwigLuaCloseFileHandle;
+        p->f = sp->GetStream();
+        luaL_setmetatable(L, LUA_FILEHANDLE);
+        SWIG_arg++;
+      }
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBDebugger_GetErrorFileHandle(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
+    
+    SWIG_check_num_args("lldb::SBDebugger::GetErrorFileHandle",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetErrorFileHandle",1,"lldb::SBDebugger *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBDebugger_GetErrorFileHandle",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = lldb_SBDebugger_GetErrorFileHandle(arg1);
+    {
+      lldb::FileSP sp = result;
+      if (sp && sp->IsValid()) {
+        luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
+        p->closef = &LLDBSwigLuaCloseFileHandle;
+        p->f = sp->GetStream();
+        luaL_setmetatable(L, LUA_FILEHANDLE);
+        SWIG_arg++;
+      }
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBDebugger(void *obj) {
 lldb::SBDebugger *arg1 = (lldb::SBDebugger *) obj;
 delete arg1;
@@ -21482,13 +22587,11 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetBroadcaster", _wrap_SBDebugger_GetBroadcaster},
     { "IsValid", _wrap_SBDebugger_IsValid},
     { "Clear", _wrap_SBDebugger_Clear},
+    { "GetSetting", _wrap_SBDebugger_GetSetting},
     { "SetAsync", _wrap_SBDebugger_SetAsync},
     { "GetAsync", _wrap_SBDebugger_GetAsync},
     { "SkipLLDBInitFiles", _wrap_SBDebugger_SkipLLDBInitFiles},
-    { "GetInputFileHandle", _wrap_SBDebugger_GetInputFileHandle},
-    { "GetOutputFileHandle", _wrap_SBDebugger_GetOutputFileHandle},
-    { "GetErrorFileHandle", _wrap_SBDebugger_GetErrorFileHandle},
-    { "GetSetting", _wrap_SBDebugger_GetSetting},
+    { "SkipAppInitFiles", _wrap_SBDebugger_SkipAppInitFiles},
     { "SetInputString", _wrap_SBDebugger_SetInputString},
     { "SetInputFile", _wrap_SBDebugger_SetInputFile},
     { "SetOutputFile", _wrap_SBDebugger_SetOutputFile},
@@ -21496,8 +22599,13 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetInputFile", _wrap_SBDebugger_GetInputFile},
     { "GetOutputFile", _wrap_SBDebugger_GetOutputFile},
     { "GetErrorFile", _wrap_SBDebugger_GetErrorFile},
+    { "SaveInputTerminalState", _wrap_SBDebugger_SaveInputTerminalState},
+    { "RestoreInputTerminalState", _wrap_SBDebugger_RestoreInputTerminalState},
     { "GetCommandInterpreter", _wrap_SBDebugger_GetCommandInterpreter},
     { "HandleCommand", _wrap_SBDebugger_HandleCommand},
+    { "RequestInterrupt", _wrap_SBDebugger_RequestInterrupt},
+    { "CancelInterruptRequest", _wrap_SBDebugger_CancelInterruptRequest},
+    { "InterruptRequested", _wrap_SBDebugger_InterruptRequested},
     { "GetListener", _wrap_SBDebugger_GetListener},
     { "HandleProcessEvent", _wrap_SBDebugger_HandleProcessEvent},
     { "CreateTargetWithFileAndTargetTriple", _wrap_SBDebugger_CreateTargetWithFileAndTargetTriple},
@@ -21525,9 +22633,13 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetUseExternalEditor", _wrap_SBDebugger_GetUseExternalEditor},
     { "SetUseColor", _wrap_SBDebugger_SetUseColor},
     { "GetUseColor", _wrap_SBDebugger_GetUseColor},
+    { "SetUseSourceCache", _wrap_SBDebugger_SetUseSourceCache},
+    { "GetUseSourceCache", _wrap_SBDebugger_GetUseSourceCache},
     { "GetScriptingLanguage", _wrap_SBDebugger_GetScriptingLanguage},
+    { "GetScriptInterpreterInfo", _wrap_SBDebugger_GetScriptInterpreterInfo},
     { "EnableLog", _wrap_SBDebugger_EnableLog},
     { "SetLoggingCallback", _wrap_SBDebugger_SetLoggingCallback},
+    { "SetDestroyCallback", _wrap_SBDebugger_SetDestroyCallback},
     { "DispatchInput", _wrap_SBDebugger_DispatchInput},
     { "DispatchInputInterrupt", _wrap_SBDebugger_DispatchInputInterrupt},
     { "DispatchInputEndOfFile", _wrap_SBDebugger_DispatchInputEndOfFile},
@@ -21541,6 +22653,8 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetReproducerPath", _wrap_SBDebugger_GetReproducerPath},
     { "GetScriptLanguage", _wrap_SBDebugger_GetScriptLanguage},
     { "SetScriptLanguage", _wrap_SBDebugger_SetScriptLanguage},
+    { "GetREPLLanguage", _wrap_SBDebugger_GetREPLLanguage},
+    { "SetREPLLanguage", _wrap_SBDebugger_SetREPLLanguage},
     { "GetCloseInputOnEOF", _wrap_SBDebugger_GetCloseInputOnEOF},
     { "SetCloseInputOnEOF", _wrap_SBDebugger_SetCloseInputOnEOF},
     { "GetCategory", _wrap_SBDebugger_GetCategory},
@@ -21553,11 +22667,13 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetSummaryForType", _wrap_SBDebugger_GetSummaryForType},
     { "GetFilterForType", _wrap_SBDebugger_GetFilterForType},
     { "GetSyntheticForType", _wrap_SBDebugger_GetSyntheticForType},
-    { "GetScriptInterpreterInfo", _wrap_SBDebugger_GetScriptInterpreterInfo},
-    { "__tostring", _wrap_SBDebugger___tostring},
     { "RunCommandInterpreter", _wrap_SBDebugger_RunCommandInterpreter},
     { "RunREPL", _wrap_SBDebugger_RunREPL},
     { "LoadTraceFromFile", _wrap_SBDebugger_LoadTraceFromFile},
+    { "__tostring", _wrap_SBDebugger___tostring},
+    { "GetInputFileHandle", _wrap_SBDebugger_GetInputFileHandle},
+    { "GetOutputFileHandle", _wrap_SBDebugger_GetOutputFileHandle},
+    { "GetErrorFileHandle", _wrap_SBDebugger_GetErrorFileHandle},
     {0,0}
 };
 static swig_lua_method swig_SBDebugger_meta[] = {
@@ -21575,11 +22691,14 @@ static swig_lua_const_info swig_SBDebugger_Sf_SwigStatic_constants[]= {
     {0,0,0,0,0,0}
 };
 static swig_lua_method swig_SBDebugger_Sf_SwigStatic_methods[]= {
+    { "GetBroadcasterClass", _wrap_SBDebugger_GetBroadcasterClass},
     { "GetProgressFromEvent", _wrap_SBDebugger_GetProgressFromEvent},
+    { "GetProgressDataFromEvent", _wrap_SBDebugger_GetProgressDataFromEvent},
     { "GetDiagnosticFromEvent", _wrap_SBDebugger_GetDiagnosticFromEvent},
     { "Initialize", _wrap_SBDebugger_Initialize},
     { "InitializeWithErrorHandling", _wrap_SBDebugger_InitializeWithErrorHandling},
     { "PrintStackTraceOnError", _wrap_SBDebugger_PrintStackTraceOnError},
+    { "PrintDiagnosticsOnError", _wrap_SBDebugger_PrintDiagnosticsOnError},
     { "Terminate", _wrap_SBDebugger_Terminate},
     { "Create", _wrap_SBDebugger_Create},
     { "Destroy", _wrap_SBDebugger_Destroy},
@@ -21785,37 +22904,6 @@ static int _wrap_SBDeclaration_GetColumn(lua_State* L) {
 }
 
 
-static int _wrap_SBDeclaration_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBDeclaration *arg1 = (lldb::SBDeclaration *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBDeclaration::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDeclaration::GetDescription",1,"lldb::SBDeclaration *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBDeclaration::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDeclaration,0))){
-      SWIG_fail_ptr("SBDeclaration_GetDescription",1,SWIGTYPE_p_lldb__SBDeclaration);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBDeclaration_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBDeclaration_SetFileSpec(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -21931,6 +23019,37 @@ static int _wrap_SBDeclaration___eq(lua_State* L) {
 }
 
 
+static int _wrap_SBDeclaration_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDeclaration *arg1 = (lldb::SBDeclaration *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBDeclaration::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDeclaration::GetDescription",1,"lldb::SBDeclaration *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBDeclaration::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDeclaration,0))){
+      SWIG_fail_ptr("SBDeclaration_GetDescription",1,SWIGTYPE_p_lldb__SBDeclaration);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBDeclaration_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBDeclaration___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -21975,11 +23094,11 @@ static swig_lua_method swig_SBDeclaration_methods[]= {
     { "GetFileSpec", _wrap_SBDeclaration_GetFileSpec},
     { "GetLine", _wrap_SBDeclaration_GetLine},
     { "GetColumn", _wrap_SBDeclaration_GetColumn},
-    { "GetDescription", _wrap_SBDeclaration_GetDescription},
     { "SetFileSpec", _wrap_SBDeclaration_SetFileSpec},
     { "SetLine", _wrap_SBDeclaration_SetLine},
     { "SetColumn", _wrap_SBDeclaration_SetColumn},
     { "__eq", _wrap_SBDeclaration___eq},
+    { "GetDescription", _wrap_SBDeclaration_GetDescription},
     { "__tostring", _wrap_SBDeclaration___tostring},
     {0,0}
 };
@@ -22055,6 +23174,26 @@ static int _wrap_new_SBError__SWIG_1(lua_State* L) {
 }
 
 
+static int _wrap_new_SBError__SWIG_2(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *arg1 = (char *) 0 ;
+    lldb::SBError *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBError::SBError",1,1)
+    if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBError::SBError",1,"char const *");
+    arg1 = (char *)lua_tostring(L, 1);
+    result = (lldb::SBError *)new lldb::SBError((char const *)arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_new_SBError(lua_State* L) {
   int argc;
   int argv[2]={
@@ -22079,11 +23218,21 @@ static int _wrap_new_SBError(lua_State* L) {
       return _wrap_new_SBError__SWIG_1(L);
     }
   }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      _v = SWIG_lua_isnilstring(L,argv[0]);
+    }
+    if (_v) {
+      return _wrap_new_SBError__SWIG_2(L);
+    }
+  }
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBError'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBError::SBError()\n"
-    "    lldb::SBError::SBError(lldb::SBError const &)\n");
+    "    lldb::SBError::SBError(lldb::SBError const &)\n"
+    "    lldb::SBError::SBError(char const *)\n");
   lua_error(L);return 0;
 }
 
@@ -22797,30 +23946,6 @@ static int _wrap_new_SBEnvironment(lua_State* L) {
 }
 
 
-static int _wrap_SBEnvironment_GetNumValues(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBEnvironment *arg1 = (lldb::SBEnvironment *) 0 ;
-    size_t result;
-    
-    SWIG_check_num_args("lldb::SBEnvironment::GetNumValues",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBEnvironment::GetNumValues",1,"lldb::SBEnvironment *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEnvironment,0))){
-      SWIG_fail_ptr("SBEnvironment_GetNumValues",1,SWIGTYPE_p_lldb__SBEnvironment);
-    }
-    
-    result = (arg1)->GetNumValues();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBEnvironment_Get(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -22839,6 +23964,30 @@ static int _wrap_SBEnvironment_Get(lua_State* L) {
     arg2 = (char *)lua_tostring(L, 2);
     result = (char *)(arg1)->Get((char const *)arg2);
     lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBEnvironment_GetNumValues(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEnvironment *arg1 = (lldb::SBEnvironment *) 0 ;
+    size_t result;
+    
+    SWIG_check_num_args("lldb::SBEnvironment::GetNumValues",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBEnvironment::GetNumValues",1,"lldb::SBEnvironment *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEnvironment,0))){
+      SWIG_fail_ptr("SBEnvironment_GetNumValues",1,SWIGTYPE_p_lldb__SBEnvironment);
+    }
+    
+    result = (arg1)->GetNumValues();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -23087,8 +24236,8 @@ static swig_lua_attribute swig_SBEnvironment_attributes[] = {
     {0,0,0}
 };
 static swig_lua_method swig_SBEnvironment_methods[]= {
-    { "GetNumValues", _wrap_SBEnvironment_GetNumValues},
     { "Get", _wrap_SBEnvironment_Get},
+    { "GetNumValues", _wrap_SBEnvironment_GetNumValues},
     { "GetNameAtIndex", _wrap_SBEnvironment_GetNameAtIndex},
     { "GetValueAtIndex", _wrap_SBEnvironment_GetValueAtIndex},
     { "GetEntries", _wrap_SBEnvironment_GetEntries},
@@ -23451,7 +24600,38 @@ static int _wrap_SBEvent_GetCStringFromEvent(lua_State* L) {
 }
 
 
-static int _wrap_SBEvent_GetDescription(lua_State* L) {
+static int _wrap_SBEvent_GetDescription__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEvent *arg1 = (lldb::SBEvent *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBEvent::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBEvent::GetDescription",1,"lldb::SBEvent *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBEvent::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
+      SWIG_fail_ptr("SBEvent_GetDescription",1,SWIGTYPE_p_lldb__SBEvent);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBEvent_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBEvent_GetDescription__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBEvent *arg1 = (lldb::SBEvent *) 0 ;
@@ -23479,6 +24659,70 @@ static int _wrap_SBEvent_GetDescription(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBEvent_GetDescription(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBEvent, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBEvent_GetDescription__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBEvent, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBEvent_GetDescription__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBEvent_GetDescription'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBEvent::GetDescription(lldb::SBStream &)\n"
+    "    lldb::SBEvent::GetDescription(lldb::SBStream &) const\n");
+  lua_error(L);return 0;
 }
 
 
@@ -25865,32 +27109,6 @@ static int _wrap_new_SBFile__SWIG_0(lua_State* L) {
 static int _wrap_new_SBFile__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
-    int arg1 ;
-    char *arg2 = (char *) 0 ;
-    bool arg3 ;
-    lldb::SBFile *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBFile::SBFile",3,3)
-    if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBFile::SBFile",1,"int");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFile::SBFile",2,"char const *");
-    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBFile::SBFile",3,"bool");
-    arg1 = (int)lua_tointeger(L, 1); 
-    arg2 = (char *)lua_tostring(L, 2);
-    arg3 = (lua_toboolean(L, 3)!=0);
-    result = (lldb::SBFile *)new lldb::SBFile(arg1,(char const *)arg2,arg3);
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBFile__SWIG_2(lua_State* L) {
-  {
-    int SWIG_arg = 0;
     SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
     lldb::SBFile *result = 0 ;
     
@@ -25904,6 +27122,32 @@ static int _wrap_new_SBFile__SWIG_2(lua_State* L) {
       arg1 = file_sp;
     }
     result = (lldb::SBFile *)new lldb::SBFile(arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBFile__SWIG_2(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    int arg1 ;
+    char *arg2 = (char *) 0 ;
+    bool arg3 ;
+    lldb::SBFile *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBFile::SBFile",3,3)
+    if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBFile::SBFile",1,"int");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFile::SBFile",2,"char const *");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBFile::SBFile",3,"bool");
+    arg1 = (int)lua_tointeger(L, 1); 
+    arg2 = (char *)lua_tostring(L, 2);
+    arg3 = (lua_toboolean(L, 3)!=0);
+    result = (lldb::SBFile *)new lldb::SBFile(arg1,(char const *)arg2,arg3);
     SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++; 
     return SWIG_arg;
     
@@ -25931,7 +27175,7 @@ static int _wrap_new_SBFile(lua_State* L) {
       (luaL_testudata(L, argv[0], LUA_FILEHANDLE) != nullptr);
     }
     if (_v) {
-      return _wrap_new_SBFile__SWIG_2(L);
+      return _wrap_new_SBFile__SWIG_1(L);
     }
   }
   if (argc == 3) {
@@ -25948,7 +27192,7 @@ static int _wrap_new_SBFile(lua_State* L) {
           _v = lua_isboolean(L,argv[2]);
         }
         if (_v) {
-          return _wrap_new_SBFile__SWIG_1(L);
+          return _wrap_new_SBFile__SWIG_2(L);
         }
       }
     }
@@ -25957,96 +27201,9 @@ static int _wrap_new_SBFile(lua_State* L) {
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBFile'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBFile::SBFile()\n"
-    "    lldb::SBFile::SBFile(int,char const *,bool)\n"
-    "    lldb::SBFile::SBFile(lldb::FileSP)\n");
+    "    lldb::SBFile::SBFile(lldb::FileSP)\n"
+    "    lldb::SBFile::SBFile(int,char const *,bool)\n");
   lua_error(L);return 0;
-}
-
-
-static int _wrap_SBFile_MakeBorrowed(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
-    lldb::SBFile result;
-    
-    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeBorrowed",1,1)
-    {
-      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
-      lldb::FileSP file_sp;
-      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
-      if (!file_sp->IsValid())
-      return luaL_error(L, "Invalid file");
-      arg1 = file_sp;
-    }
-    result = lldb_SBFile_MakeBorrowed(SWIG_STD_MOVE(arg1));
-    {
-      lldb::SBFile * resultptr = new lldb::SBFile(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBFile_MakeForcingIOMethods(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
-    lldb::SBFile result;
-    
-    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeForcingIOMethods",1,1)
-    {
-      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
-      lldb::FileSP file_sp;
-      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
-      if (!file_sp->IsValid())
-      return luaL_error(L, "Invalid file");
-      arg1 = file_sp;
-    }
-    result = lldb_SBFile_MakeForcingIOMethods(SWIG_STD_MOVE(arg1));
-    {
-      lldb::SBFile * resultptr = new lldb::SBFile(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBFile_MakeBorrowedForcingIOMethods(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
-    lldb::SBFile result;
-    
-    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeBorrowedForcingIOMethods",1,1)
-    {
-      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
-      lldb::FileSP file_sp;
-      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
-      if (!file_sp->IsValid())
-      return luaL_error(L, "Invalid file");
-      arg1 = file_sp;
-    }
-    result = lldb_SBFile_MakeBorrowedForcingIOMethods(SWIG_STD_MOVE(arg1));
-    {
-      lldb::SBFile * resultptr = new lldb::SBFile(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
 }
 
 
@@ -26142,6 +27299,7 @@ static int _wrap_SBFile_Flush(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBFile *arg1 = (lldb::SBFile *) 0 ;
+    lldb::SBError result;
     
     SWIG_check_num_args("lldb::SBFile::Flush",1,1)
     if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFile::Flush",1,"lldb::SBFile *");
@@ -26150,8 +27308,11 @@ static int _wrap_SBFile_Flush(lua_State* L) {
       SWIG_fail_ptr("SBFile_Flush",1,SWIGTYPE_p_lldb__SBFile);
     }
     
-    (arg1)->Flush();
-    
+    result = (arg1)->Flush();
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -26219,13 +27380,13 @@ static int _wrap_SBFile_GetFile(lua_State* L) {
     SwigValueWrapper< std::shared_ptr< lldb_private::File > > result;
     
     SWIG_check_num_args("lldb::SBFile::GetFile",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFile::GetFile",1,"lldb::SBFile *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFile::GetFile",1,"lldb::SBFile const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFile,0))){
       SWIG_fail_ptr("SBFile_GetFile",1,SWIGTYPE_p_lldb__SBFile);
     }
     
-    result = (arg1)->GetFile();
+    result = ((lldb::SBFile const *)arg1)->GetFile();
     {
       lldb::FileSP sp = result;
       if (sp && sp->IsValid()) {
@@ -26235,6 +27396,93 @@ static int _wrap_SBFile_GetFile(lua_State* L) {
         luaL_setmetatable(L, LUA_FILEHANDLE);
         SWIG_arg++;
       }
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBFile_MakeBorrowed(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
+    lldb::SBFile result;
+    
+    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeBorrowed",1,1)
+    {
+      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+      lldb::FileSP file_sp;
+      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
+      if (!file_sp->IsValid())
+      return luaL_error(L, "Invalid file");
+      arg1 = file_sp;
+    }
+    result = lldb_SBFile_MakeBorrowed(SWIG_STD_MOVE(arg1));
+    {
+      lldb::SBFile * resultptr = new lldb::SBFile(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBFile_MakeForcingIOMethods(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
+    lldb::SBFile result;
+    
+    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeForcingIOMethods",1,1)
+    {
+      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+      lldb::FileSP file_sp;
+      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
+      if (!file_sp->IsValid())
+      return luaL_error(L, "Invalid file");
+      arg1 = file_sp;
+    }
+    result = lldb_SBFile_MakeForcingIOMethods(SWIG_STD_MOVE(arg1));
+    {
+      lldb::SBFile * resultptr = new lldb::SBFile(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBFile_MakeBorrowedForcingIOMethods(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg1 ;
+    lldb::SBFile result;
+    
+    SWIG_check_num_args("lldb::SBFile::lldb_SBFile_MakeBorrowedForcingIOMethods",1,1)
+    {
+      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+      lldb::FileSP file_sp;
+      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
+      if (!file_sp->IsValid())
+      return luaL_error(L, "Invalid file");
+      arg1 = file_sp;
+    }
+    result = lldb_SBFile_MakeBorrowedForcingIOMethods(SWIG_STD_MOVE(arg1));
+    {
+      lldb::SBFile * resultptr = new lldb::SBFile(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFile,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -28081,7 +29329,7 @@ static int _wrap_SBFrame_EvaluateExpression__SWIG_3(lua_State* L) {
     SWIG_check_num_args("lldb::SBFrame::EvaluateExpression",3,3)
     if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::EvaluateExpression",1,"lldb::SBFrame *");
     if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFrame::EvaluateExpression",2,"char const *");
-    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBFrame::EvaluateExpression",3,"lldb::SBExpressionOptions &");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBFrame::EvaluateExpression",3,"lldb::SBExpressionOptions const &");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
       SWIG_fail_ptr("SBFrame_EvaluateExpression",1,SWIGTYPE_p_lldb__SBFrame);
@@ -28093,7 +29341,7 @@ static int _wrap_SBFrame_EvaluateExpression__SWIG_3(lua_State* L) {
       SWIG_fail_ptr("SBFrame_EvaluateExpression",3,SWIGTYPE_p_lldb__SBExpressionOptions);
     }
     
-    result = (arg1)->EvaluateExpression((char const *)arg2,*arg3);
+    result = (arg1)->EvaluateExpression((char const *)arg2,(lldb::SBExpressionOptions const &)*arg3);
     {
       lldb::SBValue * resultptr = new lldb::SBValue(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
@@ -28221,7 +29469,7 @@ static int _wrap_SBFrame_EvaluateExpression(lua_State* L) {
     "    lldb::SBFrame::EvaluateExpression(char const *)\n"
     "    lldb::SBFrame::EvaluateExpression(char const *,lldb::DynamicValueType)\n"
     "    lldb::SBFrame::EvaluateExpression(char const *,lldb::DynamicValueType,bool)\n"
-    "    lldb::SBFrame::EvaluateExpression(char const *,lldb::SBExpressionOptions &)\n");
+    "    lldb::SBFrame::EvaluateExpression(char const *,lldb::SBExpressionOptions const &)\n");
   lua_error(L);return 0;
 }
 
@@ -28641,6 +29889,36 @@ static int _wrap_SBFrame_GetRegisters(lua_State* L) {
 }
 
 
+static int _wrap_SBFrame_FindRegister(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBFrame *arg1 = (lldb::SBFrame *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBValue result;
+    
+    SWIG_check_num_args("lldb::SBFrame::FindRegister",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::FindRegister",1,"lldb::SBFrame *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFrame::FindRegister",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
+      SWIG_fail_ptr("SBFrame_FindRegister",1,SWIGTYPE_p_lldb__SBFrame);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->FindRegister((char const *)arg2);
+    {
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBFrame_FindVariable__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -28763,67 +30041,7 @@ static int _wrap_SBFrame_FindVariable(lua_State* L) {
 }
 
 
-static int _wrap_SBFrame_FindRegister(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBFrame *arg1 = (lldb::SBFrame *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBFrame::FindRegister",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::FindRegister",1,"lldb::SBFrame *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFrame::FindRegister",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
-      SWIG_fail_ptr("SBFrame_FindRegister",1,SWIGTYPE_p_lldb__SBFrame);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->FindRegister((char const *)arg2);
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBFrame_GetValueForVariablePath__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBFrame *arg1 = (lldb::SBFrame *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBFrame::GetValueForVariablePath",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::GetValueForVariablePath",1,"lldb::SBFrame *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFrame::GetValueForVariablePath",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
-      SWIG_fail_ptr("SBFrame_GetValueForVariablePath",1,SWIGTYPE_p_lldb__SBFrame);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->GetValueForVariablePath((char const *)arg2);
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBFrame_GetValueForVariablePath__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBFrame *arg1 = (lldb::SBFrame *) 0 ;
@@ -28843,6 +30061,36 @@ static int _wrap_SBFrame_GetValueForVariablePath__SWIG_1(lua_State* L) {
     arg2 = (char *)lua_tostring(L, 2);
     arg3 = (lldb::DynamicValueType)lua_tointeger(L, 3); 
     result = (arg1)->GetValueForVariablePath((char const *)arg2,arg3);
+    {
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBFrame_GetValueForVariablePath__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBFrame *arg1 = (lldb::SBFrame *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBValue result;
+    
+    SWIG_check_num_args("lldb::SBFrame::GetValueForVariablePath",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::GetValueForVariablePath",1,"lldb::SBFrame *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFrame::GetValueForVariablePath",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
+      SWIG_fail_ptr("SBFrame_GetValueForVariablePath",1,SWIGTYPE_p_lldb__SBFrame);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->GetValueForVariablePath((char const *)arg2);
     {
       lldb::SBValue * resultptr = new lldb::SBValue(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
@@ -28878,7 +30126,7 @@ static int _wrap_SBFrame_GetValueForVariablePath(lua_State* L) {
         _v = SWIG_lua_isnilstring(L,argv[1]);
       }
       if (_v) {
-        return _wrap_SBFrame_GetValueForVariablePath__SWIG_0(L);
+        return _wrap_SBFrame_GetValueForVariablePath__SWIG_1(L);
       }
     }
   }
@@ -28901,7 +30149,7 @@ static int _wrap_SBFrame_GetValueForVariablePath(lua_State* L) {
           _v = lua_isnumber(L,argv[2]);
         }
         if (_v) {
-          return _wrap_SBFrame_GetValueForVariablePath__SWIG_1(L);
+          return _wrap_SBFrame_GetValueForVariablePath__SWIG_0(L);
         }
       }
     }
@@ -28909,8 +30157,8 @@ static int _wrap_SBFrame_GetValueForVariablePath(lua_State* L) {
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBFrame_GetValueForVariablePath'\n"
     "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBFrame::GetValueForVariablePath(char const *)\n"
-    "    lldb::SBFrame::GetValueForVariablePath(char const *,lldb::DynamicValueType)\n");
+    "    lldb::SBFrame::GetValueForVariablePath(char const *,lldb::DynamicValueType)\n"
+    "    lldb::SBFrame::GetValueForVariablePath(char const *)\n");
   lua_error(L);return 0;
 }
 
@@ -29153,8 +30401,8 @@ static swig_lua_method swig_SBFrame_methods[]= {
     { "__eq", _wrap_SBFrame___eq},
     { "GetVariables", _wrap_SBFrame_GetVariables},
     { "GetRegisters", _wrap_SBFrame_GetRegisters},
-    { "FindVariable", _wrap_SBFrame_FindVariable},
     { "FindRegister", _wrap_SBFrame_FindRegister},
+    { "FindVariable", _wrap_SBFrame_FindVariable},
     { "GetValueForVariablePath", _wrap_SBFrame_GetValueForVariablePath},
     { "FindValue", _wrap_SBFrame_FindValue},
     { "GetDescription", _wrap_SBFrame_GetDescription},
@@ -29713,37 +30961,6 @@ static int _wrap_SBFunction_GetIsOptimized(lua_State* L) {
 }
 
 
-static int _wrap_SBFunction_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBFunction *arg1 = (lldb::SBFunction *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBFunction::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFunction::GetDescription",1,"lldb::SBFunction *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBFunction::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFunction,0))){
-      SWIG_fail_ptr("SBFunction_GetDescription",1,SWIGTYPE_p_lldb__SBFunction);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBFunction_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBFunction___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -29765,6 +30982,37 @@ static int _wrap_SBFunction___eq(lua_State* L) {
     }
     
     result = (bool)((lldb::SBFunction const *)arg1)->operator ==((lldb::SBFunction const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBFunction_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBFunction *arg1 = (lldb::SBFunction *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBFunction::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFunction::GetDescription",1,"lldb::SBFunction *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBFunction::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFunction,0))){
+      SWIG_fail_ptr("SBFunction_GetDescription",1,SWIGTYPE_p_lldb__SBFunction);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBFunction_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -29828,8 +31076,8 @@ static swig_lua_method swig_SBFunction_methods[]= {
     { "GetBlock", _wrap_SBFunction_GetBlock},
     { "GetLanguage", _wrap_SBFunction_GetLanguage},
     { "GetIsOptimized", _wrap_SBFunction_GetIsOptimized},
-    { "GetDescription", _wrap_SBFunction_GetDescription},
     { "__eq", _wrap_SBFunction___eq},
+    { "GetDescription", _wrap_SBFunction_GetDescription},
     { "__tostring", _wrap_SBFunction___tostring},
     {0,0}
 };
@@ -31065,7 +32313,7 @@ static int _wrap_SBInstructionList_GetInstructionAtIndex(lua_State* L) {
 }
 
 
-static int _wrap_SBInstructionList_GetInstructionsCount(lua_State* L) {
+static int _wrap_SBInstructionList_GetInstructionsCount__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBInstructionList *arg1 = (lldb::SBInstructionList *) 0 ;
@@ -31103,6 +32351,133 @@ static int _wrap_SBInstructionList_GetInstructionsCount(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBInstructionList_GetInstructionsCount__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBInstructionList *arg1 = (lldb::SBInstructionList *) 0 ;
+    lldb::SBAddress *arg2 = 0 ;
+    lldb::SBAddress *arg3 = 0 ;
+    size_t result;
+    
+    SWIG_check_num_args("lldb::SBInstructionList::GetInstructionsCount",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionsCount",1,"lldb::SBInstructionList *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionsCount",2,"lldb::SBAddress const &");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionsCount",3,"lldb::SBAddress const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBInstructionList,0))){
+      SWIG_fail_ptr("SBInstructionList_GetInstructionsCount",1,SWIGTYPE_p_lldb__SBInstructionList);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBInstructionList_GetInstructionsCount",2,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBInstructionList_GetInstructionsCount",3,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    result = (arg1)->GetInstructionsCount((lldb::SBAddress const &)*arg2,(lldb::SBAddress const &)*arg3);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBInstructionList_GetInstructionsCount(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBInstructionList, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_SBInstructionList_GetInstructionsCount__SWIG_1(L);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBInstructionList, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          {
+            _v = lua_isboolean(L,argv[3]);
+          }
+          if (_v) {
+            return _wrap_SBInstructionList_GetInstructionsCount__SWIG_0(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBInstructionList_GetInstructionsCount'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBInstructionList::GetInstructionsCount(lldb::SBAddress const &,lldb::SBAddress const &,bool)\n"
+    "    lldb::SBInstructionList::GetInstructionsCount(lldb::SBAddress const &,lldb::SBAddress const &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -31859,6 +33234,63 @@ static int _wrap_SBLaunchInfo_SetListener(lua_State* L) {
     }
     
     (arg1)->SetListener(*arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBLaunchInfo_GetShadowListener(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBLaunchInfo *arg1 = (lldb::SBLaunchInfo *) 0 ;
+    lldb::SBListener result;
+    
+    SWIG_check_num_args("lldb::SBLaunchInfo::GetShadowListener",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::GetShadowListener",1,"lldb::SBLaunchInfo *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
+      SWIG_fail_ptr("SBLaunchInfo_GetShadowListener",1,SWIGTYPE_p_lldb__SBLaunchInfo);
+    }
+    
+    result = (arg1)->GetShadowListener();
+    {
+      lldb::SBListener * resultptr = new lldb::SBListener(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBListener,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBLaunchInfo_SetShadowListener(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBLaunchInfo *arg1 = (lldb::SBLaunchInfo *) 0 ;
+    lldb::SBListener *arg2 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBLaunchInfo::SetShadowListener",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::SetShadowListener",1,"lldb::SBLaunchInfo *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetShadowListener",2,"lldb::SBListener &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
+      SWIG_fail_ptr("SBLaunchInfo_SetShadowListener",1,SWIGTYPE_p_lldb__SBLaunchInfo);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBListener,0))){
+      SWIG_fail_ptr("SBLaunchInfo_SetShadowListener",2,SWIGTYPE_p_lldb__SBListener);
+    }
+    
+    (arg1)->SetShadowListener(*arg2);
     
     return SWIG_arg;
     
@@ -32828,6 +34260,8 @@ static swig_lua_method swig_SBLaunchInfo_methods[]= {
     { "SetExecutableFile", _wrap_SBLaunchInfo_SetExecutableFile},
     { "GetListener", _wrap_SBLaunchInfo_GetListener},
     { "SetListener", _wrap_SBLaunchInfo_SetListener},
+    { "GetShadowListener", _wrap_SBLaunchInfo_GetShadowListener},
+    { "SetShadowListener", _wrap_SBLaunchInfo_SetShadowListener},
     { "GetNumArguments", _wrap_SBLaunchInfo_GetNumArguments},
     { "GetArgumentAtIndex", _wrap_SBLaunchInfo_GetArgumentAtIndex},
     { "SetArguments", _wrap_SBLaunchInfo_SetArguments},
@@ -33119,37 +34553,6 @@ static int _wrap_SBLineEntry_GetColumn(lua_State* L) {
 }
 
 
-static int _wrap_SBLineEntry_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBLineEntry *arg1 = (lldb::SBLineEntry *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBLineEntry::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLineEntry::GetDescription",1,"lldb::SBLineEntry *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBLineEntry::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLineEntry,0))){
-      SWIG_fail_ptr("SBLineEntry_GetDescription",1,SWIGTYPE_p_lldb__SBLineEntry);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBLineEntry_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBLineEntry_SetFileSpec(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -33265,6 +34668,37 @@ static int _wrap_SBLineEntry___eq(lua_State* L) {
 }
 
 
+static int _wrap_SBLineEntry_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBLineEntry *arg1 = (lldb::SBLineEntry *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBLineEntry::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLineEntry::GetDescription",1,"lldb::SBLineEntry *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBLineEntry::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLineEntry,0))){
+      SWIG_fail_ptr("SBLineEntry_GetDescription",1,SWIGTYPE_p_lldb__SBLineEntry);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBLineEntry_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBLineEntry___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -33311,11 +34745,11 @@ static swig_lua_method swig_SBLineEntry_methods[]= {
     { "GetFileSpec", _wrap_SBLineEntry_GetFileSpec},
     { "GetLine", _wrap_SBLineEntry_GetLine},
     { "GetColumn", _wrap_SBLineEntry_GetColumn},
-    { "GetDescription", _wrap_SBLineEntry_GetDescription},
     { "SetFileSpec", _wrap_SBLineEntry_SetFileSpec},
     { "SetLine", _wrap_SBLineEntry_SetLine},
     { "SetColumn", _wrap_SBLineEntry_SetColumn},
     { "__eq", _wrap_SBLineEntry___eq},
+    { "GetDescription", _wrap_SBLineEntry_GetDescription},
     { "__tostring", _wrap_SBLineEntry___tostring},
     {0,0}
 };
@@ -33575,7 +35009,7 @@ static int _wrap_SBListener_StopListeningForEventClass(lua_State* L) {
     lldb::SBDebugger *arg2 = 0 ;
     char *arg3 = (char *) 0 ;
     uint32_t arg4 ;
-    uint32_t result;
+    bool result;
     
     SWIG_check_num_args("lldb::SBListener::StopListeningForEventClass",4,4)
     if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",1,"lldb::SBListener *");
@@ -33594,8 +35028,8 @@ static int _wrap_SBListener_StopListeningForEventClass(lua_State* L) {
     
     arg3 = (char *)lua_tostring(L, 3);
     arg4 = (uint32_t)lua_tointeger(L, 4); 
-    result = (uint32_t)(arg1)->StopListeningForEventClass(*arg2,(char const *)arg3,arg4);
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    result = (bool)(arg1)->StopListeningForEventClass(*arg2,(char const *)arg3,arg4);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -34183,6 +35617,38 @@ static int _wrap_new_SBMemoryRegionInfo__SWIG_2(lua_State* L) {
 }
 
 
+static int _wrap_new_SBMemoryRegionInfo__SWIG_3(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *arg1 = (char *) 0 ;
+    lldb::addr_t arg2 ;
+    lldb::addr_t arg3 ;
+    uint32_t arg4 ;
+    bool arg5 ;
+    lldb::SBMemoryRegionInfo *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",5,5)
+    if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",1,"char const *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",2,"lldb::addr_t");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",3,"lldb::addr_t");
+    if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",4,"uint32_t");
+    if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBMemoryRegionInfo::SBMemoryRegionInfo",5,"bool");
+    arg1 = (char *)lua_tostring(L, 1);
+    arg2 = (lldb::addr_t)lua_tointeger(L, 2); 
+    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
+    arg4 = (uint32_t)lua_tointeger(L, 4); 
+    arg5 = (lua_toboolean(L, 5)!=0);
+    result = (lldb::SBMemoryRegionInfo *)new lldb::SBMemoryRegionInfo((char const *)arg1,arg2,arg3,arg4,arg5);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBMemoryRegionInfo,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_new_SBMemoryRegionInfo(lua_State* L) {
   int argc;
   int argv[7]={
@@ -34205,6 +35671,35 @@ static int _wrap_new_SBMemoryRegionInfo(lua_State* L) {
     }
     if (_v) {
       return _wrap_new_SBMemoryRegionInfo__SWIG_1(L);
+    }
+  }
+  if (argc == 5) {
+    int _v = 0;
+    {
+      _v = SWIG_lua_isnilstring(L,argv[0]);
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          {
+            _v = lua_isnumber(L,argv[3]);
+          }
+          if (_v) {
+            {
+              _v = lua_isboolean(L,argv[4]);
+            }
+            if (_v) {
+              return _wrap_new_SBMemoryRegionInfo__SWIG_3(L);
+            }
+          }
+        }
+      }
     }
   }
   if (argc == 6) {
@@ -34246,7 +35741,8 @@ static int _wrap_new_SBMemoryRegionInfo(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBMemoryRegionInfo::SBMemoryRegionInfo()\n"
     "    lldb::SBMemoryRegionInfo::SBMemoryRegionInfo(lldb::SBMemoryRegionInfo const &)\n"
-    "    lldb::SBMemoryRegionInfo::SBMemoryRegionInfo(char const *,lldb::addr_t,lldb::addr_t,uint32_t,bool,bool)\n");
+    "    lldb::SBMemoryRegionInfo::SBMemoryRegionInfo(char const *,lldb::addr_t,lldb::addr_t,uint32_t,bool,bool)\n"
+    "    lldb::SBMemoryRegionInfo::SBMemoryRegionInfo(char const *,lldb::addr_t,lldb::addr_t,uint32_t,bool)\n");
   lua_error(L);return 0;
 }
 
@@ -35430,6 +36926,102 @@ static int _wrap_SBModule_SetRemoteInstallFileSpec(lua_State* L) {
 }
 
 
+static int _wrap_SBModule_GetByteOrder(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    lldb::ByteOrder result;
+    
+    SWIG_check_num_args("lldb::SBModule::GetByteOrder",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetByteOrder",1,"lldb::SBModule *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_GetByteOrder",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    result = (lldb::ByteOrder)(arg1)->GetByteOrder();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModule_GetAddressByteSize(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    uint32_t result;
+    
+    SWIG_check_num_args("lldb::SBModule::GetAddressByteSize",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetAddressByteSize",1,"lldb::SBModule *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_GetAddressByteSize",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    result = (uint32_t)(arg1)->GetAddressByteSize();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModule_GetTriple(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBModule::GetTriple",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetTriple",1,"lldb::SBModule *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_GetTriple",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    result = (char *)(arg1)->GetTriple();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModule_GetUUIDBytes(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    uint8_t *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBModule::GetUUIDBytes",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetUUIDBytes",1,"lldb::SBModule const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_GetUUIDBytes",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    result = (uint8_t *)((lldb::SBModule const *)arg1)->GetUUIDBytes();
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_unsigned_char,0); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBModule_GetUUIDString(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -36175,6 +37767,83 @@ static int _wrap_SBModule_FindFunctions(lua_State* L) {
 }
 
 
+static int _wrap_SBModule_FindGlobalVariables(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    lldb::SBTarget *arg2 = 0 ;
+    char *arg3 = (char *) 0 ;
+    uint32_t arg4 ;
+    lldb::SBValueList result;
+    
+    SWIG_check_num_args("lldb::SBModule::FindGlobalVariables",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",1,"lldb::SBModule *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",2,"lldb::SBTarget &");
+    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",3,"char const *");
+    if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",4,"uint32_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_FindGlobalVariables",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBModule_FindGlobalVariables",2,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg3 = (char *)lua_tostring(L, 3);
+    arg4 = (uint32_t)lua_tointeger(L, 4); 
+    result = (arg1)->FindGlobalVariables(*arg2,(char const *)arg3,arg4);
+    {
+      lldb::SBValueList * resultptr = new lldb::SBValueList(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValueList,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModule_FindFirstGlobalVariable(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+    lldb::SBTarget *arg2 = 0 ;
+    char *arg3 = (char *) 0 ;
+    lldb::SBValue result;
+    
+    SWIG_check_num_args("lldb::SBModule::FindFirstGlobalVariable",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",1,"lldb::SBModule *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",2,"lldb::SBTarget &");
+    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",3,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBModule_FindFirstGlobalVariable",1,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBModule_FindFirstGlobalVariable",2,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg3 = (char *)lua_tostring(L, 3);
+    result = (arg1)->FindFirstGlobalVariable(*arg2,(char const *)arg3);
+    {
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBModule_FindFirstType(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -36401,155 +38070,6 @@ static int _wrap_SBModule_GetTypes(lua_State* L) {
 }
 
 
-static int _wrap_SBModule_FindGlobalVariables(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
-    lldb::SBTarget *arg2 = 0 ;
-    char *arg3 = (char *) 0 ;
-    uint32_t arg4 ;
-    lldb::SBValueList result;
-    
-    SWIG_check_num_args("lldb::SBModule::FindGlobalVariables",4,4)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",1,"lldb::SBModule *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",2,"lldb::SBTarget &");
-    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",3,"char const *");
-    if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",4,"uint32_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBModule_FindGlobalVariables",1,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBModule_FindGlobalVariables",2,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg3 = (char *)lua_tostring(L, 3);
-    arg4 = (uint32_t)lua_tointeger(L, 4); 
-    result = (arg1)->FindGlobalVariables(*arg2,(char const *)arg3,arg4);
-    {
-      lldb::SBValueList * resultptr = new lldb::SBValueList(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValueList,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBModule_FindFirstGlobalVariable(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
-    lldb::SBTarget *arg2 = 0 ;
-    char *arg3 = (char *) 0 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBModule::FindFirstGlobalVariable",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",1,"lldb::SBModule *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",2,"lldb::SBTarget &");
-    if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBModule::FindFirstGlobalVariable",3,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBModule_FindFirstGlobalVariable",1,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBModule_FindFirstGlobalVariable",2,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg3 = (char *)lua_tostring(L, 3);
-    result = (arg1)->FindFirstGlobalVariable(*arg2,(char const *)arg3);
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBModule_GetByteOrder(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
-    lldb::ByteOrder result;
-    
-    SWIG_check_num_args("lldb::SBModule::GetByteOrder",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetByteOrder",1,"lldb::SBModule *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBModule_GetByteOrder",1,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    result = (lldb::ByteOrder)(arg1)->GetByteOrder();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBModule_GetAddressByteSize(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
-    uint32_t result;
-    
-    SWIG_check_num_args("lldb::SBModule::GetAddressByteSize",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetAddressByteSize",1,"lldb::SBModule *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBModule_GetAddressByteSize",1,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    result = (uint32_t)(arg1)->GetAddressByteSize();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBModule_GetTriple(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBModule::GetTriple",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetTriple",1,"lldb::SBModule *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBModule_GetTriple",1,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    result = (char *)(arg1)->GetTriple();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBModule_GetVersion(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -36755,6 +38275,10 @@ static swig_lua_method swig_SBModule_methods[]= {
     { "SetPlatformFileSpec", _wrap_SBModule_SetPlatformFileSpec},
     { "GetRemoteInstallFileSpec", _wrap_SBModule_GetRemoteInstallFileSpec},
     { "SetRemoteInstallFileSpec", _wrap_SBModule_SetRemoteInstallFileSpec},
+    { "GetByteOrder", _wrap_SBModule_GetByteOrder},
+    { "GetAddressByteSize", _wrap_SBModule_GetAddressByteSize},
+    { "GetTriple", _wrap_SBModule_GetTriple},
+    { "GetUUIDBytes", _wrap_SBModule_GetUUIDBytes},
     { "GetUUIDString", _wrap_SBModule_GetUUIDString},
     { "__eq", _wrap_SBModule___eq},
     { "FindSection", _wrap_SBModule_FindSection},
@@ -36771,16 +38295,13 @@ static swig_lua_method swig_SBModule_methods[]= {
     { "GetNumSections", _wrap_SBModule_GetNumSections},
     { "GetSectionAtIndex", _wrap_SBModule_GetSectionAtIndex},
     { "FindFunctions", _wrap_SBModule_FindFunctions},
+    { "FindGlobalVariables", _wrap_SBModule_FindGlobalVariables},
+    { "FindFirstGlobalVariable", _wrap_SBModule_FindFirstGlobalVariable},
     { "FindFirstType", _wrap_SBModule_FindFirstType},
     { "FindTypes", _wrap_SBModule_FindTypes},
     { "GetTypeByID", _wrap_SBModule_GetTypeByID},
     { "GetBasicType", _wrap_SBModule_GetBasicType},
     { "GetTypes", _wrap_SBModule_GetTypes},
-    { "FindGlobalVariables", _wrap_SBModule_FindGlobalVariables},
-    { "FindFirstGlobalVariable", _wrap_SBModule_FindFirstGlobalVariable},
-    { "GetByteOrder", _wrap_SBModule_GetByteOrder},
-    { "GetAddressByteSize", _wrap_SBModule_GetAddressByteSize},
-    { "GetTriple", _wrap_SBModule_GetTriple},
     { "GetVersion", _wrap_SBModule_GetVersion},
     { "GetSymbolFileSpec", _wrap_SBModule_GetSymbolFileSpec},
     { "GetObjectFileHeaderAddress", _wrap_SBModule_GetObjectFileHeaderAddress},
@@ -37295,6 +38816,106 @@ static int _wrap_SBModuleSpec_SetUUIDBytes(lua_State* L) {
 }
 
 
+static int _wrap_SBModuleSpec_GetObjectOffset(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModuleSpec *arg1 = (lldb::SBModuleSpec *) 0 ;
+    uint64_t result;
+    
+    SWIG_check_num_args("lldb::SBModuleSpec::GetObjectOffset",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpec::GetObjectOffset",1,"lldb::SBModuleSpec *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpec,0))){
+      SWIG_fail_ptr("SBModuleSpec_GetObjectOffset",1,SWIGTYPE_p_lldb__SBModuleSpec);
+    }
+    
+    result = (uint64_t)(arg1)->GetObjectOffset();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModuleSpec_SetObjectOffset(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModuleSpec *arg1 = (lldb::SBModuleSpec *) 0 ;
+    uint64_t arg2 ;
+    
+    SWIG_check_num_args("lldb::SBModuleSpec::SetObjectOffset",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpec::SetObjectOffset",1,"lldb::SBModuleSpec *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModuleSpec::SetObjectOffset",2,"uint64_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpec,0))){
+      SWIG_fail_ptr("SBModuleSpec_SetObjectOffset",1,SWIGTYPE_p_lldb__SBModuleSpec);
+    }
+    
+    arg2 = (uint64_t)lua_tointeger(L, 2); 
+    (arg1)->SetObjectOffset(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModuleSpec_GetObjectSize(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModuleSpec *arg1 = (lldb::SBModuleSpec *) 0 ;
+    uint64_t result;
+    
+    SWIG_check_num_args("lldb::SBModuleSpec::GetObjectSize",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpec::GetObjectSize",1,"lldb::SBModuleSpec *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpec,0))){
+      SWIG_fail_ptr("SBModuleSpec_GetObjectSize",1,SWIGTYPE_p_lldb__SBModuleSpec);
+    }
+    
+    result = (uint64_t)(arg1)->GetObjectSize();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBModuleSpec_SetObjectSize(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBModuleSpec *arg1 = (lldb::SBModuleSpec *) 0 ;
+    uint64_t arg2 ;
+    
+    SWIG_check_num_args("lldb::SBModuleSpec::SetObjectSize",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpec::SetObjectSize",1,"lldb::SBModuleSpec *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModuleSpec::SetObjectSize",2,"uint64_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpec,0))){
+      SWIG_fail_ptr("SBModuleSpec_SetObjectSize",1,SWIGTYPE_p_lldb__SBModuleSpec);
+    }
+    
+    arg2 = (uint64_t)lua_tointeger(L, 2); 
+    (arg1)->SetObjectSize(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBModuleSpec_GetDescription(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -37381,6 +39002,10 @@ static swig_lua_method swig_SBModuleSpec_methods[]= {
     { "GetUUIDBytes", _wrap_SBModuleSpec_GetUUIDBytes},
     { "GetUUIDLength", _wrap_SBModuleSpec_GetUUIDLength},
     { "SetUUIDBytes", _wrap_SBModuleSpec_SetUUIDBytes},
+    { "GetObjectOffset", _wrap_SBModuleSpec_GetObjectOffset},
+    { "SetObjectOffset", _wrap_SBModuleSpec_SetObjectOffset},
+    { "GetObjectSize", _wrap_SBModuleSpec_GetObjectSize},
+    { "SetObjectSize", _wrap_SBModuleSpec_SetObjectSize},
     { "GetDescription", _wrap_SBModuleSpec_GetDescription},
     { "__tostring", _wrap_SBModuleSpec___tostring},
     {0,0}
@@ -38697,6 +40322,30 @@ static int _wrap_new_SBPlatform__SWIG_1(lua_State* L) {
 }
 
 
+static int _wrap_new_SBPlatform__SWIG_2(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBPlatform *arg1 = 0 ;
+    lldb::SBPlatform *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBPlatform::SBPlatform",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBPlatform::SBPlatform",1,"lldb::SBPlatform const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
+      SWIG_fail_ptr("new_SBPlatform",1,SWIGTYPE_p_lldb__SBPlatform);
+    }
+    
+    result = (lldb::SBPlatform *)new lldb::SBPlatform((lldb::SBPlatform const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBPlatform,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_new_SBPlatform(lua_State* L) {
   int argc;
   int argv[2]={
@@ -38706,6 +40355,20 @@ static int _wrap_new_SBPlatform(lua_State* L) {
   argc = lua_gettop(L);
   if (argc == 0) {
     return _wrap_new_SBPlatform__SWIG_0(L);
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBPlatform, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBPlatform__SWIG_2(L);
+    }
   }
   if (argc == 1) {
     int _v = 0;
@@ -38720,7 +40383,8 @@ static int _wrap_new_SBPlatform(lua_State* L) {
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBPlatform'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBPlatform::SBPlatform()\n"
-    "    lldb::SBPlatform::SBPlatform(char const *)\n");
+    "    lldb::SBPlatform::SBPlatform(char const *)\n"
+    "    lldb::SBPlatform::SBPlatform(lldb::SBPlatform const &)\n");
   lua_error(L);return 0;
 }
 
@@ -39142,47 +40806,6 @@ static int _wrap_SBPlatform_SetSDKRoot(lua_State* L) {
 }
 
 
-static int _wrap_SBPlatform_Get(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBPlatform *arg1 = (lldb::SBPlatform *) 0 ;
-    lldb::SBFileSpec *arg2 = 0 ;
-    lldb::SBFileSpec *arg3 = 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBPlatform::Get",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::Get",1,"lldb::SBPlatform *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBPlatform::Get",2,"lldb::SBFileSpec &");
-    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBPlatform::Get",3,"lldb::SBFileSpec &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
-      SWIG_fail_ptr("SBPlatform_Get",1,SWIGTYPE_p_lldb__SBPlatform);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBFileSpec,0))){
-      SWIG_fail_ptr("SBPlatform_Get",2,SWIGTYPE_p_lldb__SBFileSpec);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
-      SWIG_fail_ptr("SBPlatform_Get",3,SWIGTYPE_p_lldb__SBFileSpec);
-    }
-    
-    result = (arg1)->Get(*arg2,*arg3);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBPlatform_Put(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -39211,6 +40834,47 @@ static int _wrap_SBPlatform_Put(lua_State* L) {
     }
     
     result = (arg1)->Put(*arg2,*arg3);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBPlatform_Get(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBPlatform *arg1 = (lldb::SBPlatform *) 0 ;
+    lldb::SBFileSpec *arg2 = 0 ;
+    lldb::SBFileSpec *arg3 = 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBPlatform::Get",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::Get",1,"lldb::SBPlatform *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBPlatform::Get",2,"lldb::SBFileSpec &");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBPlatform::Get",3,"lldb::SBFileSpec &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
+      SWIG_fail_ptr("SBPlatform_Get",1,SWIGTYPE_p_lldb__SBPlatform);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBFileSpec,0))){
+      SWIG_fail_ptr("SBPlatform_Get",2,SWIGTYPE_p_lldb__SBFileSpec);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
+      SWIG_fail_ptr("SBPlatform_Get",3,SWIGTYPE_p_lldb__SBFileSpec);
+    }
+    
+    result = (arg1)->Get(*arg2,*arg3);
     {
       lldb::SBError * resultptr = new lldb::SBError(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
@@ -39552,13 +41216,13 @@ static int _wrap_SBPlatform_GetUnixSignals(lua_State* L) {
     lldb::SBUnixSignals result;
     
     SWIG_check_num_args("lldb::SBPlatform::GetUnixSignals",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::GetUnixSignals",1,"lldb::SBPlatform *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::GetUnixSignals",1,"lldb::SBPlatform const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
       SWIG_fail_ptr("SBPlatform_GetUnixSignals",1,SWIGTYPE_p_lldb__SBPlatform);
     }
     
-    result = (arg1)->GetUnixSignals();
+    result = ((lldb::SBPlatform const *)arg1)->GetUnixSignals();
     {
       lldb::SBUnixSignals * resultptr = new lldb::SBUnixSignals(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBUnixSignals,1); SWIG_arg++;
@@ -39589,6 +41253,43 @@ static int _wrap_SBPlatform_GetEnvironment(lua_State* L) {
     {
       lldb::SBEnvironment * resultptr = new lldb::SBEnvironment(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBEnvironment,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBPlatform_SetLocateModuleCallback(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBPlatform *arg1 = (lldb::SBPlatform *) 0 ;
+    lldb::SBPlatformLocateModuleCallback arg2 = (lldb::SBPlatformLocateModuleCallback) 0 ;
+    void *arg3 = (void *) 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBPlatform::SetLocateModuleCallback",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::SetLocateModuleCallback",1,"lldb::SBPlatform *");
+    if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBPlatform::SetLocateModuleCallback",2,"lldb::SBPlatformLocateModuleCallback");
+    if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBPlatform::SetLocateModuleCallback",3,"void *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
+      SWIG_fail_ptr("SBPlatform_SetLocateModuleCallback",1,SWIGTYPE_p_lldb__SBPlatform);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError,0))){
+      SWIG_fail_ptr("SBPlatform_SetLocateModuleCallback",2,SWIGTYPE_p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError);
+    }
+    
+    arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBPlatform_SetLocateModuleCallback");
+    result = (arg1)->SetLocateModuleCallback(arg2,arg3);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -39631,8 +41332,8 @@ static swig_lua_method swig_SBPlatform_methods[]= {
     { "GetOSMinorVersion", _wrap_SBPlatform_GetOSMinorVersion},
     { "GetOSUpdateVersion", _wrap_SBPlatform_GetOSUpdateVersion},
     { "SetSDKRoot", _wrap_SBPlatform_SetSDKRoot},
-    { "Get", _wrap_SBPlatform_Get},
     { "Put", _wrap_SBPlatform_Put},
+    { "Get", _wrap_SBPlatform_Get},
     { "Install", _wrap_SBPlatform_Install},
     { "Run", _wrap_SBPlatform_Run},
     { "Launch", _wrap_SBPlatform_Launch},
@@ -39642,6 +41343,7 @@ static swig_lua_method swig_SBPlatform_methods[]= {
     { "SetFilePermissions", _wrap_SBPlatform_SetFilePermissions},
     { "GetUnixSignals", _wrap_SBPlatform_GetUnixSignals},
     { "GetEnvironment", _wrap_SBPlatform_GetEnvironment},
+    { "SetLocateModuleCallback", _wrap_SBPlatform_SetLocateModuleCallback},
     {0,0}
 };
 static swig_lua_method swig_SBPlatform_meta[] = {
@@ -40694,18 +42396,18 @@ static int _wrap_SBProcess_GetQueueAtIndex(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
-    uint32_t arg2 ;
+    size_t arg2 ;
     lldb::SBQueue result;
     
     SWIG_check_num_args("lldb::SBProcess::GetQueueAtIndex",2,2)
     if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",1,"lldb::SBProcess *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",2,"uint32_t");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",2,"size_t");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
       SWIG_fail_ptr("SBProcess_GetQueueAtIndex",1,SWIGTYPE_p_lldb__SBProcess);
     }
     
-    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    arg2 = (size_t)lua_tointeger(L, 2); 
     result = (arg1)->GetQueueAtIndex(arg2);
     {
       lldb::SBQueue * resultptr = new lldb::SBQueue(result);
@@ -40972,7 +42674,7 @@ static int _wrap_SBProcess_Kill(lua_State* L) {
 }
 
 
-static int _wrap_SBProcess_Detach(lua_State* L) {
+static int _wrap_SBProcess_Detach__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
@@ -40996,6 +42698,85 @@ static int _wrap_SBProcess_Detach(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBProcess_Detach__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    bool arg2 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBProcess::Detach",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::Detach",1,"lldb::SBProcess *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBProcess::Detach",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
+      SWIG_fail_ptr("SBProcess_Detach",1,SWIGTYPE_p_lldb__SBProcess);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    result = (arg1)->Detach(arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBProcess_Detach(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBProcess, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBProcess_Detach__SWIG_0(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBProcess, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isboolean(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBProcess_Detach__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBProcess_Detach'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBProcess::Detach()\n"
+    "    lldb::SBProcess::Detach(bool)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -41047,6 +42828,29 @@ static int _wrap_SBProcess_GetUnixSignals(lua_State* L) {
       lldb::SBUnixSignals * resultptr = new lldb::SBUnixSignals(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBUnixSignals,1); SWIG_arg++;
     }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBProcess_SendAsyncInterrupt(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBProcess::SendAsyncInterrupt",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::SendAsyncInterrupt",1,"lldb::SBProcess *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
+      SWIG_fail_ptr("SBProcess_SendAsyncInterrupt",1,SWIGTYPE_p_lldb__SBProcess);
+    }
+    
+    (arg1)->SendAsyncInterrupt();
+    
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -41156,19 +42960,52 @@ static int _wrap_SBProcess_GetStopID(lua_State* L) {
 }
 
 
-static int _wrap_SBProcess_SendAsyncInterrupt(lua_State* L) {
+static int _wrap_SBProcess_GetStopEventForStopID(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    uint32_t arg2 ;
+    lldb::SBEvent result;
     
-    SWIG_check_num_args("lldb::SBProcess::SendAsyncInterrupt",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::SendAsyncInterrupt",1,"lldb::SBProcess *");
+    SWIG_check_num_args("lldb::SBProcess::GetStopEventForStopID",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetStopEventForStopID",1,"lldb::SBProcess *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetStopEventForStopID",2,"uint32_t");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
-      SWIG_fail_ptr("SBProcess_SendAsyncInterrupt",1,SWIGTYPE_p_lldb__SBProcess);
+      SWIG_fail_ptr("SBProcess_GetStopEventForStopID",1,SWIGTYPE_p_lldb__SBProcess);
     }
     
-    (arg1)->SendAsyncInterrupt();
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    result = (arg1)->GetStopEventForStopID(arg2);
+    {
+      lldb::SBEvent * resultptr = new lldb::SBEvent(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBEvent,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBProcess_ForceScriptedState(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    lldb::StateType arg2 ;
+    
+    SWIG_check_num_args("lldb::SBProcess::ForceScriptedState",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::ForceScriptedState",1,"lldb::SBProcess *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::ForceScriptedState",2,"lldb::StateType");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
+      SWIG_fail_ptr("SBProcess_ForceScriptedState",1,SWIGTYPE_p_lldb__SBProcess);
+    }
+    
+    arg2 = (lldb::StateType)lua_tointeger(L, 2); 
+    (arg1)->ForceScriptedState(arg2);
     
     return SWIG_arg;
     
@@ -41647,6 +43484,23 @@ static int _wrap_SBProcess_GetBroadcaster(lua_State* L) {
 }
 
 
+static int _wrap_SBProcess_GetBroadcasterClass(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBProcess::GetBroadcasterClass",0,0)
+    result = (char *)lldb::SBProcess::GetBroadcasterClass();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBProcess_GetDescription(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -41736,7 +43590,7 @@ static int _wrap_SBProcess_GetNumSupportedHardwareWatchpoints(lua_State* L) {
 }
 
 
-static int _wrap_SBProcess_LoadImage(lua_State* L) {
+static int _wrap_SBProcess_LoadImage__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
@@ -41771,6 +43625,145 @@ static int _wrap_SBProcess_LoadImage(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBProcess_LoadImage__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    lldb::SBFileSpec *arg2 = 0 ;
+    lldb::SBFileSpec *arg3 = 0 ;
+    lldb::SBError *arg4 = 0 ;
+    uint32_t result;
+    
+    SWIG_check_num_args("lldb::SBProcess::LoadImage",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::LoadImage",1,"lldb::SBProcess *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBProcess::LoadImage",2,"lldb::SBFileSpec const &");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBProcess::LoadImage",3,"lldb::SBFileSpec const &");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBProcess::LoadImage",4,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
+      SWIG_fail_ptr("SBProcess_LoadImage",1,SWIGTYPE_p_lldb__SBProcess);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBFileSpec,0))){
+      SWIG_fail_ptr("SBProcess_LoadImage",2,SWIGTYPE_p_lldb__SBFileSpec);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
+      SWIG_fail_ptr("SBProcess_LoadImage",3,SWIGTYPE_p_lldb__SBFileSpec);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBProcess_LoadImage",4,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (uint32_t)(arg1)->LoadImage((lldb::SBFileSpec const &)*arg2,(lldb::SBFileSpec const &)*arg3,*arg4);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBProcess_LoadImage(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBProcess, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_SBProcess_LoadImage__SWIG_0(L);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBProcess, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBProcess_LoadImage__SWIG_1(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBProcess_LoadImage'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBProcess::LoadImage(lldb::SBFileSpec &,lldb::SBError &)\n"
+    "    lldb::SBProcess::LoadImage(lldb::SBFileSpec const &,lldb::SBFileSpec const &,lldb::SBError &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -42282,6 +44275,33 @@ static int _wrap_SBProcess_DeallocateMemory(lua_State* L) {
 }
 
 
+static int _wrap_SBProcess_GetScriptedImplementation(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBProcess *arg1 = (lldb::SBProcess *) 0 ;
+    SwigValueWrapper< lldb::SBScriptObject > result;
+    
+    SWIG_check_num_args("lldb::SBProcess::GetScriptedImplementation",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetScriptedImplementation",1,"lldb::SBProcess *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
+      SWIG_fail_ptr("SBProcess_GetScriptedImplementation",1,SWIGTYPE_p_lldb__SBProcess);
+    }
+    
+    result = (arg1)->GetScriptedImplementation();
+    {
+      lldb::SBScriptObject * resultptr = new lldb::SBScriptObject(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBScriptObject,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBProcess___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -42360,8 +44380,10 @@ static swig_lua_method swig_SBProcess_methods[]= {
     { "Detach", _wrap_SBProcess_Detach},
     { "Signal", _wrap_SBProcess_Signal},
     { "GetUnixSignals", _wrap_SBProcess_GetUnixSignals},
-    { "GetStopID", _wrap_SBProcess_GetStopID},
     { "SendAsyncInterrupt", _wrap_SBProcess_SendAsyncInterrupt},
+    { "GetStopID", _wrap_SBProcess_GetStopID},
+    { "GetStopEventForStopID", _wrap_SBProcess_GetStopEventForStopID},
+    { "ForceScriptedState", _wrap_SBProcess_ForceScriptedState},
     { "ReadMemory", _wrap_SBProcess_ReadMemory},
     { "WriteMemory", _wrap_SBProcess_WriteMemory},
     { "ReadCStringFromMemory", _wrap_SBProcess_ReadCStringFromMemory},
@@ -42385,6 +44407,7 @@ static swig_lua_method swig_SBProcess_methods[]= {
     { "GetProcessInfo", _wrap_SBProcess_GetProcessInfo},
     { "AllocateMemory", _wrap_SBProcess_AllocateMemory},
     { "DeallocateMemory", _wrap_SBProcess_DeallocateMemory},
+    { "GetScriptedImplementation", _wrap_SBProcess_GetScriptedImplementation},
     { "__tostring", _wrap_SBProcess___tostring},
     {0,0}
 };
@@ -42416,6 +44439,7 @@ static swig_lua_method swig_SBProcess_Sf_SwigStatic_methods[]= {
     { "GetStructuredDataFromEvent", _wrap_SBProcess_GetStructuredDataFromEvent},
     { "EventIsProcessEvent", _wrap_SBProcess_EventIsProcessEvent},
     { "EventIsStructuredDataEvent", _wrap_SBProcess_EventIsStructuredDataEvent},
+    { "GetBroadcasterClass", _wrap_SBProcess_GetBroadcasterClass},
     {0,0}
 };
 static swig_lua_class* swig_SBProcess_Sf_SwigStatic_classes[]= {
@@ -42515,13 +44539,13 @@ static int _wrap_SBProcessInfo_IsValid(lua_State* L) {
     bool result;
     
     SWIG_check_num_args("lldb::SBProcessInfo::IsValid",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcessInfo::IsValid",1,"lldb::SBProcessInfo *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcessInfo::IsValid",1,"lldb::SBProcessInfo const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcessInfo,0))){
       SWIG_fail_ptr("SBProcessInfo_IsValid",1,SWIGTYPE_p_lldb__SBProcessInfo);
     }
     
-    result = (bool)(arg1)->IsValid();
+    result = (bool)((lldb::SBProcessInfo const *)arg1)->IsValid();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -42928,17 +44952,17 @@ static int _wrap_new_SBQueue__SWIG_0(lua_State* L) {
 static int _wrap_new_SBQueue__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
-    lldb::QueueSP *arg1 = 0 ;
+    lldb::SBQueue *arg1 = 0 ;
     lldb::SBQueue *result = 0 ;
     
     SWIG_check_num_args("lldb::SBQueue::SBQueue",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBQueue::SBQueue",1,"lldb::QueueSP const &");
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBQueue::SBQueue",1,"lldb::SBQueue const &");
     
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t,0))){
-      SWIG_fail_ptr("new_SBQueue",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t);
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueue,0))){
+      SWIG_fail_ptr("new_SBQueue",1,SWIGTYPE_p_lldb__SBQueue);
     }
     
-    result = (lldb::SBQueue *)new lldb::SBQueue((lldb::QueueSP const &)*arg1);
+    result = (lldb::SBQueue *)new lldb::SBQueue((lldb::SBQueue const &)*arg1);
     SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBQueue,1); SWIG_arg++; 
     return SWIG_arg;
     
@@ -42963,7 +44987,7 @@ static int _wrap_new_SBQueue(lua_State* L) {
     int _v = 0;
     {
       void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t, SWIG_POINTER_NO_NULL)) {
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBQueue, SWIG_POINTER_NO_NULL)) {
         _v = 0;
       } else {
         _v = 1;
@@ -42977,7 +45001,7 @@ static int _wrap_new_SBQueue(lua_State* L) {
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBQueue'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBQueue::SBQueue()\n"
-    "    lldb::SBQueue::SBQueue(lldb::QueueSP const &)\n");
+    "    lldb::SBQueue::SBQueue(lldb::SBQueue const &)\n");
   lua_error(L);return 0;
 }
 
@@ -43095,30 +45119,6 @@ static int _wrap_SBQueue_GetName(lua_State* L) {
     
     result = (char *)((lldb::SBQueue const *)arg1)->GetName();
     lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBQueue_GetKind(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBQueue *arg1 = (lldb::SBQueue *) 0 ;
-    lldb::QueueKind result;
-    
-    SWIG_check_num_args("lldb::SBQueue::GetKind",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBQueue::GetKind",1,"lldb::SBQueue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueue,0))){
-      SWIG_fail_ptr("SBQueue_GetKind",1,SWIGTYPE_p_lldb__SBQueue);
-    }
-    
-    result = (lldb::QueueKind)(arg1)->GetKind();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -43284,6 +45284,30 @@ static int _wrap_SBQueue_GetNumRunningItems(lua_State* L) {
 }
 
 
+static int _wrap_SBQueue_GetKind(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBQueue *arg1 = (lldb::SBQueue *) 0 ;
+    lldb::QueueKind result;
+    
+    SWIG_check_num_args("lldb::SBQueue::GetKind",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBQueue::GetKind",1,"lldb::SBQueue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueue,0))){
+      SWIG_fail_ptr("SBQueue_GetKind",1,SWIGTYPE_p_lldb__SBQueue);
+    }
+    
+    result = (lldb::QueueKind)(arg1)->GetKind();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBQueue(void *obj) {
 lldb::SBQueue *arg1 = (lldb::SBQueue *) obj;
 delete arg1;
@@ -43305,13 +45329,13 @@ static swig_lua_method swig_SBQueue_methods[]= {
     { "GetProcess", _wrap_SBQueue_GetProcess},
     { "GetQueueID", _wrap_SBQueue_GetQueueID},
     { "GetName", _wrap_SBQueue_GetName},
-    { "GetKind", _wrap_SBQueue_GetKind},
     { "GetIndexID", _wrap_SBQueue_GetIndexID},
     { "GetNumThreads", _wrap_SBQueue_GetNumThreads},
     { "GetThreadAtIndex", _wrap_SBQueue_GetThreadAtIndex},
     { "GetNumPendingItems", _wrap_SBQueue_GetNumPendingItems},
     { "GetPendingItemAtIndex", _wrap_SBQueue_GetPendingItemAtIndex},
     { "GetNumRunningItems", _wrap_SBQueue_GetNumRunningItems},
+    { "GetKind", _wrap_SBQueue_GetKind},
     {0,0}
 };
 static swig_lua_method swig_SBQueue_meta[] = {
@@ -43343,7 +45367,7 @@ static swig_lua_class *swig_SBQueue_bases[] = {0};
 static const char *swig_SBQueue_base_names[] = {0};
 static swig_lua_class _wrap_class_SBQueue = { "SBQueue", "SBQueue", &SWIGTYPE_p_lldb__SBQueue,_proxy__wrap_new_SBQueue, swig_delete_SBQueue, swig_SBQueue_methods, swig_SBQueue_attributes, &swig_SBQueue_Sf_SwigStatic, swig_SBQueue_meta, swig_SBQueue_bases, swig_SBQueue_base_names };
 
-static int _wrap_new_SBQueueItem__SWIG_0(lua_State* L) {
+static int _wrap_new_SBQueueItem(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBQueueItem *result = 0 ;
@@ -43357,63 +45381,6 @@ static int _wrap_new_SBQueueItem__SWIG_0(lua_State* L) {
   }
   lua_error(L);
   return 0;
-}
-
-
-static int _wrap_new_SBQueueItem__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::QueueItemSP *arg1 = 0 ;
-    lldb::SBQueueItem *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBQueueItem::SBQueueItem",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBQueueItem::SBQueueItem",1,"lldb::QueueItemSP const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t,0))){
-      SWIG_fail_ptr("new_SBQueueItem",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t);
-    }
-    
-    result = (lldb::SBQueueItem *)new lldb::SBQueueItem((lldb::QueueItemSP const &)*arg1);
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBQueueItem,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBQueueItem(lua_State* L) {
-  int argc;
-  int argv[2]={
-    1,2
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 0) {
-    return _wrap_new_SBQueueItem__SWIG_0(L);
-  }
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t, SWIG_POINTER_NO_NULL)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_new_SBQueueItem__SWIG_1(L);
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBQueueItem'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBQueueItem::SBQueueItem()\n"
-    "    lldb::SBQueueItem::SBQueueItem(lldb::QueueItemSP const &)\n");
-  lua_error(L);return 0;
 }
 
 
@@ -43573,36 +45540,6 @@ static int _wrap_SBQueueItem_SetAddress(lua_State* L) {
 }
 
 
-static int _wrap_SBQueueItem_SetQueueItem(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBQueueItem *arg1 = (lldb::SBQueueItem *) 0 ;
-    lldb::QueueItemSP *arg2 = 0 ;
-    
-    SWIG_check_num_args("lldb::SBQueueItem::SetQueueItem",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBQueueItem::SetQueueItem",1,"lldb::SBQueueItem *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBQueueItem::SetQueueItem",2,"lldb::QueueItemSP const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueueItem,0))){
-      SWIG_fail_ptr("SBQueueItem_SetQueueItem",1,SWIGTYPE_p_lldb__SBQueueItem);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t,0))){
-      SWIG_fail_ptr("SBQueueItem_SetQueueItem",2,SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t);
-    }
-    
-    (arg1)->SetQueueItem((lldb::QueueItemSP const &)*arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBQueueItem_GetExtendedBacktraceThread(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -43655,7 +45592,6 @@ static swig_lua_method swig_SBQueueItem_methods[]= {
     { "SetKind", _wrap_SBQueueItem_SetKind},
     { "GetAddress", _wrap_SBQueueItem_GetAddress},
     { "SetAddress", _wrap_SBQueueItem_SetAddress},
-    { "SetQueueItem", _wrap_SBQueueItem_SetQueueItem},
     { "GetExtendedBacktraceThread", _wrap_SBQueueItem_GetExtendedBacktraceThread},
     {0,0}
 };
@@ -43834,6 +45770,224 @@ static swig_lua_namespace swig_SBReproducer_Sf_SwigStatic = {
 static swig_lua_class *swig_SBReproducer_bases[] = {0};
 static const char *swig_SBReproducer_base_names[] = {0};
 static swig_lua_class _wrap_class_SBReproducer = { "SBReproducer", "SBReproducer", &SWIGTYPE_p_lldb__SBReproducer,_proxy__wrap_new_SBReproducer, swig_delete_SBReproducer, swig_SBReproducer_methods, swig_SBReproducer_attributes, &swig_SBReproducer_Sf_SwigStatic, swig_SBReproducer_meta, swig_SBReproducer_bases, swig_SBReproducer_base_names };
+
+static int _wrap_new_SBScriptObject__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::ScriptObjectPtr arg1 = (lldb::ScriptObjectPtr) (lldb::ScriptObjectPtr)0 ;
+    lldb::ScriptLanguage arg2 ;
+    lldb::SBScriptObject *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBScriptObject::SBScriptObject",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBScriptObject::SBScriptObject",1,"lldb::ScriptObjectPtr const");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBScriptObject::SBScriptObject",2,"lldb::ScriptLanguage");
+    arg1=(lldb::ScriptObjectPtr)SWIG_MustGetPtr(L,1,0,0,1,"new_SBScriptObject");
+    arg2 = (lldb::ScriptLanguage)lua_tointeger(L, 2); 
+    result = (lldb::SBScriptObject *)new lldb::SBScriptObject(arg1,arg2);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBScriptObject,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBScriptObject__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBScriptObject *arg1 = 0 ;
+    lldb::SBScriptObject *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBScriptObject::SBScriptObject",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBScriptObject::SBScriptObject",1,"lldb::SBScriptObject const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBScriptObject,0))){
+      SWIG_fail_ptr("new_SBScriptObject",1,SWIGTYPE_p_lldb__SBScriptObject);
+    }
+    
+    result = (lldb::SBScriptObject *)new lldb::SBScriptObject((lldb::SBScriptObject const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBScriptObject,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBScriptObject(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBScriptObject, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBScriptObject__SWIG_1(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, 0, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_new_SBScriptObject__SWIG_0(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBScriptObject'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBScriptObject::SBScriptObject(lldb::ScriptObjectPtr const,lldb::ScriptLanguage)\n"
+    "    lldb::SBScriptObject::SBScriptObject(lldb::SBScriptObject const &)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBScriptObject_IsValid(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBScriptObject *arg1 = (lldb::SBScriptObject *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBScriptObject::IsValid",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBScriptObject::IsValid",1,"lldb::SBScriptObject const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBScriptObject,0))){
+      SWIG_fail_ptr("SBScriptObject_IsValid",1,SWIGTYPE_p_lldb__SBScriptObject);
+    }
+    
+    result = (bool)((lldb::SBScriptObject const *)arg1)->IsValid();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBScriptObject_GetPointer(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBScriptObject *arg1 = (lldb::SBScriptObject *) 0 ;
+    lldb::ScriptObjectPtr result;
+    
+    SWIG_check_num_args("lldb::SBScriptObject::GetPointer",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBScriptObject::GetPointer",1,"lldb::SBScriptObject const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBScriptObject,0))){
+      SWIG_fail_ptr("SBScriptObject_GetPointer",1,SWIGTYPE_p_lldb__SBScriptObject);
+    }
+    
+    result = (lldb::ScriptObjectPtr)((lldb::SBScriptObject const *)arg1)->GetPointer();
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_void,0); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBScriptObject_GetLanguage(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBScriptObject *arg1 = (lldb::SBScriptObject *) 0 ;
+    lldb::ScriptLanguage result;
+    
+    SWIG_check_num_args("lldb::SBScriptObject::GetLanguage",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBScriptObject::GetLanguage",1,"lldb::SBScriptObject const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBScriptObject,0))){
+      SWIG_fail_ptr("SBScriptObject_GetLanguage",1,SWIGTYPE_p_lldb__SBScriptObject);
+    }
+    
+    result = (lldb::ScriptLanguage)((lldb::SBScriptObject const *)arg1)->GetLanguage();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static void swig_delete_SBScriptObject(void *obj) {
+lldb::SBScriptObject *arg1 = (lldb::SBScriptObject *) obj;
+delete arg1;
+}
+static int _proxy__wrap_new_SBScriptObject(lua_State *L) {
+    assert(lua_istable(L,1));
+    lua_pushcfunction(L,_wrap_new_SBScriptObject);
+    assert(!lua_isnil(L,-1));
+    lua_replace(L,1); /* replace our table with real constructor */
+    lua_call(L,lua_gettop(L)-1,1);
+    return 1;
+}
+static swig_lua_attribute swig_SBScriptObject_attributes[] = {
+    {0,0,0}
+};
+static swig_lua_method swig_SBScriptObject_methods[]= {
+    { "IsValid", _wrap_SBScriptObject_IsValid},
+    { "GetPointer", _wrap_SBScriptObject_GetPointer},
+    { "GetLanguage", _wrap_SBScriptObject_GetLanguage},
+    {0,0}
+};
+static swig_lua_method swig_SBScriptObject_meta[] = {
+    {0,0}
+};
+
+static swig_lua_attribute swig_SBScriptObject_Sf_SwigStatic_attributes[] = {
+    {0,0,0}
+};
+static swig_lua_const_info swig_SBScriptObject_Sf_SwigStatic_constants[]= {
+    {0,0,0,0,0,0}
+};
+static swig_lua_method swig_SBScriptObject_Sf_SwigStatic_methods[]= {
+    {0,0}
+};
+static swig_lua_class* swig_SBScriptObject_Sf_SwigStatic_classes[]= {
+    0
+};
+
+static swig_lua_namespace swig_SBScriptObject_Sf_SwigStatic = {
+    "SBScriptObject",
+    swig_SBScriptObject_Sf_SwigStatic_methods,
+    swig_SBScriptObject_Sf_SwigStatic_attributes,
+    swig_SBScriptObject_Sf_SwigStatic_constants,
+    swig_SBScriptObject_Sf_SwigStatic_classes,
+    0
+};
+static swig_lua_class *swig_SBScriptObject_bases[] = {0};
+static const char *swig_SBScriptObject_base_names[] = {0};
+static swig_lua_class _wrap_class_SBScriptObject = { "SBScriptObject", "SBScriptObject", &SWIGTYPE_p_lldb__SBScriptObject,_proxy__wrap_new_SBScriptObject, swig_delete_SBScriptObject, swig_SBScriptObject_methods, swig_SBScriptObject_attributes, &swig_SBScriptObject_Sf_SwigStatic, swig_SBScriptObject_meta, swig_SBScriptObject_bases, swig_SBScriptObject_base_names };
 
 static int _wrap_new_SBSection__SWIG_0(lua_State* L) {
   {
@@ -44405,37 +46559,6 @@ static int _wrap_SBSection_GetAlignment(lua_State* L) {
 }
 
 
-static int _wrap_SBSection_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBSection *arg1 = (lldb::SBSection *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBSection::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSection::GetDescription",1,"lldb::SBSection *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSection::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSection,0))){
-      SWIG_fail_ptr("SBSection_GetDescription",1,SWIGTYPE_p_lldb__SBSection);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBSection_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBSection___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -44457,6 +46580,37 @@ static int _wrap_SBSection___eq(lua_State* L) {
     }
     
     result = (bool)(arg1)->operator ==((lldb::SBSection const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBSection_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBSection *arg1 = (lldb::SBSection *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBSection::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSection::GetDescription",1,"lldb::SBSection *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSection::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSection,0))){
+      SWIG_fail_ptr("SBSection_GetDescription",1,SWIGTYPE_p_lldb__SBSection);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBSection_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -44523,8 +46677,8 @@ static swig_lua_method swig_SBSection_methods[]= {
     { "GetPermissions", _wrap_SBSection_GetPermissions},
     { "GetTargetByteSize", _wrap_SBSection_GetTargetByteSize},
     { "GetAlignment", _wrap_SBSection_GetAlignment},
-    { "GetDescription", _wrap_SBSection_GetDescription},
     { "__eq", _wrap_SBSection___eq},
+    { "GetDescription", _wrap_SBSection_GetDescription},
     { "__tostring", _wrap_SBSection___tostring},
     {0,0}
 };
@@ -44559,7 +46713,55 @@ static swig_lua_class *swig_SBSection_bases[] = {0};
 static const char *swig_SBSection_base_names[] = {0};
 static swig_lua_class _wrap_class_SBSection = { "SBSection", "SBSection", &SWIGTYPE_p_lldb__SBSection,_proxy__wrap_new_SBSection, swig_delete_SBSection, swig_SBSection_methods, swig_SBSection_attributes, &swig_SBSection_Sf_SwigStatic, swig_SBSection_meta, swig_SBSection_bases, swig_SBSection_base_names };
 
-static int _wrap_new_SBSourceManager(lua_State* L) {
+static int _wrap_new_SBSourceManager__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBDebugger *arg1 = 0 ;
+    lldb::SBSourceManager *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBSourceManager::SBSourceManager",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBSourceManager::SBSourceManager",1,"lldb::SBDebugger const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("new_SBSourceManager",1,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    result = (lldb::SBSourceManager *)new lldb::SBSourceManager((lldb::SBDebugger const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBSourceManager,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBSourceManager__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = 0 ;
+    lldb::SBSourceManager *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBSourceManager::SBSourceManager",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBSourceManager::SBSourceManager",1,"lldb::SBTarget const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("new_SBSourceManager",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (lldb::SBSourceManager *)new lldb::SBSourceManager((lldb::SBTarget const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBSourceManager,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBSourceManager__SWIG_2(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBSourceManager *arg1 = 0 ;
@@ -44580,6 +46782,65 @@ static int _wrap_new_SBSourceManager(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_new_SBSourceManager(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBSourceManager__SWIG_0(L);
+    }
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBSourceManager__SWIG_1(L);
+    }
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBSourceManager, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBSourceManager__SWIG_2(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBSourceManager'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBSourceManager::SBSourceManager(lldb::SBDebugger const &)\n"
+    "    lldb::SBSourceManager::SBSourceManager(lldb::SBTarget const &)\n"
+    "    lldb::SBSourceManager::SBSourceManager(lldb::SBSourceManager const &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -45028,41 +47289,6 @@ static int _wrap_SBStream_RedirectToFile(lua_State* L) {
 }
 
 
-static int _wrap_SBStream_RedirectToFileHandle(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBStream *arg1 = (lldb::SBStream *) 0 ;
-    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg2 ;
-    bool arg3 ;
-    
-    SWIG_check_num_args("lldb::SBStream::RedirectToFileHandle",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStream::RedirectToFileHandle",1,"lldb::SBStream *");
-    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBStream::RedirectToFileHandle",3,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBStream_RedirectToFileHandle",1,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    {
-      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 2, LUA_FILEHANDLE);
-      lldb::FileSP file_sp;
-      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
-      if (!file_sp->IsValid())
-      return luaL_error(L, "Invalid file");
-      arg2 = file_sp;
-    }
-    arg3 = (lua_toboolean(L, 3)!=0);
-    lldb_SBStream_RedirectToFileHandle(arg1,SWIG_STD_MOVE(arg2),arg3);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBStream_RedirectToFileDescriptor(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -45115,6 +47341,41 @@ static int _wrap_SBStream_Clear(lua_State* L) {
 }
 
 
+static int _wrap_SBStream_RedirectToFileHandle(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStream *arg1 = (lldb::SBStream *) 0 ;
+    SwigValueWrapper< std::shared_ptr< lldb_private::File > > arg2 ;
+    bool arg3 ;
+    
+    SWIG_check_num_args("lldb::SBStream::RedirectToFileHandle",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStream::RedirectToFileHandle",1,"lldb::SBStream *");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBStream::RedirectToFileHandle",3,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBStream_RedirectToFileHandle",1,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    {
+      luaL_Stream *p = (luaL_Stream *)luaL_checkudata(L, 2, LUA_FILEHANDLE);
+      lldb::FileSP file_sp;
+      file_sp = std::make_shared<lldb_private::NativeFile>(p->f, false);
+      if (!file_sp->IsValid())
+      return luaL_error(L, "Invalid file");
+      arg2 = file_sp;
+    }
+    arg3 = (lua_toboolean(L, 3)!=0);
+    lldb_SBStream_RedirectToFileHandle(arg1,SWIG_STD_MOVE(arg2),arg3);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBStream(void *obj) {
 lldb::SBStream *arg1 = (lldb::SBStream *) obj;
 delete arg1;
@@ -45136,9 +47397,9 @@ static swig_lua_method swig_SBStream_methods[]= {
     { "GetSize", _wrap_SBStream_GetSize},
     { "Print", _wrap_SBStream_Print},
     { "RedirectToFile", _wrap_SBStream_RedirectToFile},
-    { "RedirectToFileHandle", _wrap_SBStream_RedirectToFileHandle},
     { "RedirectToFileDescriptor", _wrap_SBStream_RedirectToFileDescriptor},
     { "Clear", _wrap_SBStream_Clear},
+    { "RedirectToFileHandle", _wrap_SBStream_RedirectToFileHandle},
     {0,0}
 };
 static swig_lua_method swig_SBStream_meta[] = {
@@ -45468,7 +47729,7 @@ static int _wrap_SBStringList_GetSize(lua_State* L) {
 }
 
 
-static int _wrap_SBStringList_GetStringAtIndex(lua_State* L) {
+static int _wrap_SBStringList_GetStringAtIndex__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBStringList *arg1 = (lldb::SBStringList *) 0 ;
@@ -45492,6 +47753,87 @@ static int _wrap_SBStringList_GetStringAtIndex(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBStringList_GetStringAtIndex__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStringList *arg1 = (lldb::SBStringList *) 0 ;
+    size_t arg2 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBStringList::GetStringAtIndex",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStringList::GetStringAtIndex",1,"lldb::SBStringList const *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStringList::GetStringAtIndex",2,"size_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStringList,0))){
+      SWIG_fail_ptr("SBStringList_GetStringAtIndex",1,SWIGTYPE_p_lldb__SBStringList);
+    }
+    
+    arg2 = (size_t)lua_tointeger(L, 2); 
+    result = (char *)((lldb::SBStringList const *)arg1)->GetStringAtIndex(arg2);
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStringList_GetStringAtIndex(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStringList, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBStringList_GetStringAtIndex__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStringList, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBStringList_GetStringAtIndex__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBStringList_GetStringAtIndex'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBStringList::GetStringAtIndex(size_t)\n"
+    "    lldb::SBStringList::GetStringAtIndex(size_t) const\n");
+  lua_error(L);return 0;
 }
 
 
@@ -45615,17 +47957,26 @@ static int _wrap_new_SBStructuredData__SWIG_1(lua_State* L) {
 static int _wrap_new_SBStructuredData__SWIG_2(lua_State* L) {
   {
     int SWIG_arg = 0;
-    lldb::EventSP *arg1 = 0 ;
+    SwigValueWrapper< lldb::SBScriptObject > arg1 ;
+    lldb::SBDebugger *arg2 = 0 ;
+    lldb::SBScriptObject *argp1 ;
     lldb::SBStructuredData *result = 0 ;
     
-    SWIG_check_num_args("lldb::SBStructuredData::SBStructuredData",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SBStructuredData",1,"lldb::EventSP const &");
+    SWIG_check_num_args("lldb::SBStructuredData::SBStructuredData",2,2)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SBStructuredData",1,"lldb::SBScriptObject const");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::SBStructuredData",2,"lldb::SBDebugger const &");
     
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t,0))){
-      SWIG_fail_ptr("new_SBStructuredData",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t);
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&argp1,SWIGTYPE_p_lldb__SBScriptObject,0))){
+      SWIG_fail_ptr("new_SBStructuredData",1,SWIGTYPE_p_lldb__SBScriptObject);
+    }
+    arg1 = *argp1;
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("new_SBStructuredData",2,SWIGTYPE_p_lldb__SBDebugger);
     }
     
-    result = (lldb::SBStructuredData *)new lldb::SBStructuredData((lldb::EventSP const &)*arg1);
+    result = (lldb::SBStructuredData *)new lldb::SBStructuredData(arg1,(lldb::SBDebugger const &)*arg2);
     SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++; 
     return SWIG_arg;
     
@@ -45638,8 +47989,8 @@ static int _wrap_new_SBStructuredData__SWIG_2(lua_State* L) {
 
 static int _wrap_new_SBStructuredData(lua_State* L) {
   int argc;
-  int argv[2]={
-    1,2
+  int argv[3]={
+    1,2,3
   };
   
   argc = lua_gettop(L);
@@ -45660,18 +48011,28 @@ static int _wrap_new_SBStructuredData(lua_State* L) {
       return _wrap_new_SBStructuredData__SWIG_1(L);
     }
   }
-  if (argc == 1) {
+  if (argc == 2) {
     int _v = 0;
     {
       void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t, SWIG_POINTER_NO_NULL)) {
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBScriptObject, SWIG_POINTER_NO_NULL)) {
         _v = 0;
       } else {
         _v = 1;
       }
     }
     if (_v) {
-      return _wrap_new_SBStructuredData__SWIG_2(L);
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_new_SBStructuredData__SWIG_2(L);
+      }
     }
   }
   
@@ -45679,7 +48040,7 @@ static int _wrap_new_SBStructuredData(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBStructuredData::SBStructuredData()\n"
     "    lldb::SBStructuredData::SBStructuredData(lldb::SBStructuredData const &)\n"
-    "    lldb::SBStructuredData::SBStructuredData(lldb::EventSP const &)\n");
+    "    lldb::SBStructuredData::SBStructuredData(lldb::SBScriptObject const,lldb::SBDebugger const &)\n");
   lua_error(L);return 0;
 }
 
@@ -45708,6 +48069,129 @@ static int _wrap_SBStructuredData_IsValid(lua_State* L) {
 }
 
 
+static int _wrap_SBStructuredData_SetFromJSON__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::SetFromJSON",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",1,"lldb::SBStructuredData *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_SetFromJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBStructuredData_SetFromJSON",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (arg1)->SetFromJSON(*arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_SetFromJSON__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::SetFromJSON",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",1,"lldb::SBStructuredData *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_SetFromJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->SetFromJSON((char const *)arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_SetFromJSON(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBStructuredData_SetFromJSON__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBStructuredData_SetFromJSON__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBStructuredData_SetFromJSON'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBStructuredData::SetFromJSON(lldb::SBStream &)\n"
+    "    lldb::SBStructuredData::SetFromJSON(char const *)\n");
+  lua_error(L);return 0;
+}
+
+
 static int _wrap_SBStructuredData_Clear(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -45722,6 +48206,74 @@ static int _wrap_SBStructuredData_Clear(lua_State* L) {
     
     (arg1)->Clear();
     
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetAsJSON(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetAsJSON",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetAsJSON",1,"lldb::SBStructuredData const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetAsJSON",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetAsJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBStructuredData_GetAsJSON",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = ((lldb::SBStructuredData const *)arg1)->GetAsJSON(*arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetDescription",1,"lldb::SBStructuredData const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetDescription",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBStructuredData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = ((lldb::SBStructuredData const *)arg1)->GetDescription(*arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -45867,6 +48419,206 @@ static int _wrap_SBStructuredData_GetItemAtIndex(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetUnsignedIntegerValue__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    uint64_t arg2 ;
+    uint64_t result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetUnsignedIntegerValue",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetUnsignedIntegerValue",1,"lldb::SBStructuredData const *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetUnsignedIntegerValue",2,"uint64_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetUnsignedIntegerValue",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    arg2 = (uint64_t)lua_tointeger(L, 2); 
+    result = (uint64_t)((lldb::SBStructuredData const *)arg1)->GetUnsignedIntegerValue(arg2);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetUnsignedIntegerValue__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    uint64_t result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetUnsignedIntegerValue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetUnsignedIntegerValue",1,"lldb::SBStructuredData const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetUnsignedIntegerValue",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    result = (uint64_t)((lldb::SBStructuredData const *)arg1)->GetUnsignedIntegerValue();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetUnsignedIntegerValue(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBStructuredData_GetUnsignedIntegerValue__SWIG_1(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBStructuredData_GetUnsignedIntegerValue__SWIG_0(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBStructuredData_GetUnsignedIntegerValue'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBStructuredData::GetUnsignedIntegerValue(uint64_t) const\n"
+    "    lldb::SBStructuredData::GetUnsignedIntegerValue() const\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetSignedIntegerValue__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    int64_t arg2 ;
+    int64_t result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetSignedIntegerValue",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetSignedIntegerValue",1,"lldb::SBStructuredData const *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetSignedIntegerValue",2,"int64_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetSignedIntegerValue",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    arg2 = (int64_t)lua_tointeger(L, 2); 
+    result = (int64_t)((lldb::SBStructuredData const *)arg1)->GetSignedIntegerValue(arg2);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetSignedIntegerValue__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
+    int64_t result;
+    
+    SWIG_check_num_args("lldb::SBStructuredData::GetSignedIntegerValue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetSignedIntegerValue",1,"lldb::SBStructuredData const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("SBStructuredData_GetSignedIntegerValue",1,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    result = (int64_t)((lldb::SBStructuredData const *)arg1)->GetSignedIntegerValue();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBStructuredData_GetSignedIntegerValue(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBStructuredData_GetSignedIntegerValue__SWIG_1(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBStructuredData_GetSignedIntegerValue__SWIG_0(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBStructuredData_GetSignedIntegerValue'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBStructuredData::GetSignedIntegerValue(int64_t) const\n"
+    "    lldb::SBStructuredData::GetSignedIntegerValue() const\n");
+  lua_error(L);return 0;
 }
 
 
@@ -46213,30 +48965,23 @@ static int _wrap_SBStructuredData_GetStringValue(lua_State* L) {
 }
 
 
-static int _wrap_SBStructuredData_GetAsJSON(lua_State* L) {
+static int _wrap_SBStructuredData_GetGenericValue(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    lldb::SBError result;
+    SwigValueWrapper< lldb::SBScriptObject > result;
     
-    SWIG_check_num_args("lldb::SBStructuredData::GetAsJSON",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetAsJSON",1,"lldb::SBStructuredData const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetAsJSON",2,"lldb::SBStream &");
+    SWIG_check_num_args("lldb::SBStructuredData::GetGenericValue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetGenericValue",1,"lldb::SBStructuredData const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
-      SWIG_fail_ptr("SBStructuredData_GetAsJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
+      SWIG_fail_ptr("SBStructuredData_GetGenericValue",1,SWIGTYPE_p_lldb__SBStructuredData);
     }
     
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBStructuredData_GetAsJSON",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = ((lldb::SBStructuredData const *)arg1)->GetAsJSON(*arg2);
+    result = ((lldb::SBStructuredData const *)arg1)->GetGenericValue();
     {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+      lldb::SBScriptObject * resultptr = new lldb::SBScriptObject(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBScriptObject,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -46244,163 +48989,6 @@ static int _wrap_SBStructuredData_GetAsJSON(lua_State* L) {
   }
   lua_error(L);
   return 0;
-}
-
-
-static int _wrap_SBStructuredData_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBStructuredData::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetDescription",1,"lldb::SBStructuredData const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
-      SWIG_fail_ptr("SBStructuredData_GetDescription",1,SWIGTYPE_p_lldb__SBStructuredData);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBStructuredData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = ((lldb::SBStructuredData const *)arg1)->GetDescription(*arg2);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBStructuredData_SetFromJSON__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBStructuredData::SetFromJSON",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",1,"lldb::SBStructuredData *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
-      SWIG_fail_ptr("SBStructuredData_SetFromJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBStructuredData_SetFromJSON",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (arg1)->SetFromJSON(*arg2);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBStructuredData_SetFromJSON__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBStructuredData *arg1 = (lldb::SBStructuredData *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBError result;
-    
-    SWIG_check_num_args("lldb::SBStructuredData::SetFromJSON",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",1,"lldb::SBStructuredData *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBStructuredData::SetFromJSON",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
-      SWIG_fail_ptr("SBStructuredData_SetFromJSON",1,SWIGTYPE_p_lldb__SBStructuredData);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->SetFromJSON((char const *)arg2);
-    {
-      lldb::SBError * resultptr = new lldb::SBError(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBStructuredData_SetFromJSON(lua_State* L) {
-  int argc;
-  int argv[3]={
-    1,2,3
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        void *ptr;
-        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBStream, SWIG_POINTER_NO_NULL)) {
-          _v = 0;
-        } else {
-          _v = 1;
-        }
-      }
-      if (_v) {
-        return _wrap_SBStructuredData_SetFromJSON__SWIG_0(L);
-      }
-    }
-  }
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = SWIG_lua_isnilstring(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBStructuredData_SetFromJSON__SWIG_1(L);
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBStructuredData_SetFromJSON'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBStructuredData::SetFromJSON(lldb::SBStream &)\n"
-    "    lldb::SBStructuredData::SetFromJSON(char const *)\n");
-  lua_error(L);return 0;
 }
 
 
@@ -46421,19 +49009,22 @@ static swig_lua_attribute swig_SBStructuredData_attributes[] = {
 };
 static swig_lua_method swig_SBStructuredData_methods[]= {
     { "IsValid", _wrap_SBStructuredData_IsValid},
+    { "SetFromJSON", _wrap_SBStructuredData_SetFromJSON},
     { "Clear", _wrap_SBStructuredData_Clear},
+    { "GetAsJSON", _wrap_SBStructuredData_GetAsJSON},
+    { "GetDescription", _wrap_SBStructuredData_GetDescription},
     { "GetType", _wrap_SBStructuredData_GetType},
     { "GetSize", _wrap_SBStructuredData_GetSize},
     { "GetKeys", _wrap_SBStructuredData_GetKeys},
     { "GetValueForKey", _wrap_SBStructuredData_GetValueForKey},
     { "GetItemAtIndex", _wrap_SBStructuredData_GetItemAtIndex},
+    { "GetUnsignedIntegerValue", _wrap_SBStructuredData_GetUnsignedIntegerValue},
+    { "GetSignedIntegerValue", _wrap_SBStructuredData_GetSignedIntegerValue},
     { "GetIntegerValue", _wrap_SBStructuredData_GetIntegerValue},
     { "GetFloatValue", _wrap_SBStructuredData_GetFloatValue},
     { "GetBooleanValue", _wrap_SBStructuredData_GetBooleanValue},
     { "GetStringValue", _wrap_SBStructuredData_GetStringValue},
-    { "GetAsJSON", _wrap_SBStructuredData_GetAsJSON},
-    { "GetDescription", _wrap_SBStructuredData_GetDescription},
-    { "SetFromJSON", _wrap_SBStructuredData_SetFromJSON},
+    { "GetGenericValue", _wrap_SBStructuredData_GetGenericValue},
     {0,0}
 };
 static swig_lua_method swig_SBStructuredData_meta[] = {
@@ -46929,6 +49520,37 @@ static int _wrap_SBSymbol_GetType(lua_State* L) {
 }
 
 
+static int _wrap_SBSymbol___eq(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBSymbol *arg1 = (lldb::SBSymbol *) 0 ;
+    lldb::SBSymbol *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBSymbol::operator ==",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbol::operator ==",1,"lldb::SBSymbol const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSymbol::operator ==",2,"lldb::SBSymbol const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbol,0))){
+      SWIG_fail_ptr("SBSymbol___eq",1,SWIGTYPE_p_lldb__SBSymbol);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBSymbol,0))){
+      SWIG_fail_ptr("SBSymbol___eq",2,SWIGTYPE_p_lldb__SBSymbol);
+    }
+    
+    result = (bool)((lldb::SBSymbol const *)arg1)->operator ==((lldb::SBSymbol const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBSymbol_GetDescription(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -47008,37 +49630,6 @@ static int _wrap_SBSymbol_IsSynthetic(lua_State* L) {
 }
 
 
-static int _wrap_SBSymbol___eq(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBSymbol *arg1 = (lldb::SBSymbol *) 0 ;
-    lldb::SBSymbol *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBSymbol::operator ==",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbol::operator ==",1,"lldb::SBSymbol const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSymbol::operator ==",2,"lldb::SBSymbol const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbol,0))){
-      SWIG_fail_ptr("SBSymbol___eq",1,SWIGTYPE_p_lldb__SBSymbol);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBSymbol,0))){
-      SWIG_fail_ptr("SBSymbol___eq",2,SWIGTYPE_p_lldb__SBSymbol);
-    }
-    
-    result = (bool)((lldb::SBSymbol const *)arg1)->operator ==((lldb::SBSymbol const &)*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBSymbol___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -47090,10 +49681,10 @@ static swig_lua_method swig_SBSymbol_methods[]= {
     { "GetSize", _wrap_SBSymbol_GetSize},
     { "GetPrologueByteSize", _wrap_SBSymbol_GetPrologueByteSize},
     { "GetType", _wrap_SBSymbol_GetType},
+    { "__eq", _wrap_SBSymbol___eq},
     { "GetDescription", _wrap_SBSymbol_GetDescription},
     { "IsExternal", _wrap_SBSymbol_IsExternal},
     { "IsSynthetic", _wrap_SBSymbol_IsSynthetic},
-    { "__eq", _wrap_SBSymbol___eq},
     { "__tostring", _wrap_SBSymbol___tostring},
     {0,0}
 };
@@ -47892,6 +50483,37 @@ static int _wrap_SBSymbolContextList_GetContextAtIndex(lua_State* L) {
 }
 
 
+static int _wrap_SBSymbolContextList_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBSymbolContextList *arg1 = (lldb::SBSymbolContextList *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBSymbolContextList::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbolContextList::GetDescription",1,"lldb::SBSymbolContextList *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSymbolContextList::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbolContextList,0))){
+      SWIG_fail_ptr("SBSymbolContextList_GetDescription",1,SWIGTYPE_p_lldb__SBSymbolContextList);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBSymbolContextList_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBSymbolContextList_Append__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -48016,37 +50638,6 @@ static int _wrap_SBSymbolContextList_Append(lua_State* L) {
 }
 
 
-static int _wrap_SBSymbolContextList_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBSymbolContextList *arg1 = (lldb::SBSymbolContextList *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBSymbolContextList::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbolContextList::GetDescription",1,"lldb::SBSymbolContextList *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSymbolContextList::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbolContextList,0))){
-      SWIG_fail_ptr("SBSymbolContextList_GetDescription",1,SWIGTYPE_p_lldb__SBSymbolContextList);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBSymbolContextList_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBSymbolContextList_Clear(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -48113,8 +50704,8 @@ static swig_lua_method swig_SBSymbolContextList_methods[]= {
     { "IsValid", _wrap_SBSymbolContextList_IsValid},
     { "GetSize", _wrap_SBSymbolContextList_GetSize},
     { "GetContextAtIndex", _wrap_SBSymbolContextList_GetContextAtIndex},
-    { "Append", _wrap_SBSymbolContextList_Append},
     { "GetDescription", _wrap_SBSymbolContextList_GetDescription},
+    { "Append", _wrap_SBSymbolContextList_Append},
     { "Clear", _wrap_SBSymbolContextList_Clear},
     { "__tostring", _wrap_SBSymbolContextList___tostring},
     {0,0}
@@ -48220,23 +50811,6 @@ static int _wrap_new_SBTarget(lua_State* L) {
     "    lldb::SBTarget::SBTarget()\n"
     "    lldb::SBTarget::SBTarget(lldb::SBTarget const &)\n");
   lua_error(L);return 0;
-}
-
-
-static int _wrap_SBTarget_GetBroadcasterClassName(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetBroadcasterClassName",0,0)
-    result = (char *)lldb::SBTarget::GetBroadcasterClassName();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
 }
 
 
@@ -48369,6 +50943,23 @@ static int _wrap_SBTarget_GetModuleAtIndexFromEvent(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget_GetBroadcasterClassName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetBroadcasterClassName",0,0)
+    result = (char *)lldb::SBTarget::GetBroadcasterClassName();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_GetProcess(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -48396,6 +50987,83 @@ static int _wrap_SBTarget_GetProcess(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget_SetCollectingStats(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    bool arg2 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::SetCollectingStats",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetCollectingStats",1,"lldb::SBTarget *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBTarget::SetCollectingStats",2,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_SetCollectingStats",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    (arg1)->SetCollectingStats(arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetCollectingStats(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetCollectingStats",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetCollectingStats",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetCollectingStats",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (bool)(arg1)->GetCollectingStats();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetStatistics(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBStructuredData result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetStatistics",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetStatistics",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetStatistics",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (arg1)->GetStatistics();
+    {
+      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_GetPlatform(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -48413,6 +51081,33 @@ static int _wrap_SBTarget_GetPlatform(lua_State* L) {
     {
       lldb::SBPlatform * resultptr = new lldb::SBPlatform(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBPlatform,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetEnvironment(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBEnvironment result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetEnvironment",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetEnvironment",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetEnvironment",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (arg1)->GetEnvironment();
+    {
+      lldb::SBEnvironment * resultptr = new lldb::SBEnvironment(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBEnvironment,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -48566,6 +51261,137 @@ static int _wrap_SBTarget_Launch__SWIG_0(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBTarget_LoadCore__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBProcess result;
+    
+    SWIG_check_num_args("lldb::SBTarget::LoadCore",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::LoadCore",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::LoadCore",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_LoadCore",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->LoadCore((char const *)arg2);
+    {
+      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_LoadCore__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBError *arg3 = 0 ;
+    lldb::SBProcess result;
+    
+    SWIG_check_num_args("lldb::SBTarget::LoadCore",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::LoadCore",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::LoadCore",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::LoadCore",3,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_LoadCore",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBTarget_LoadCore",3,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->LoadCore((char const *)arg2,*arg3);
+    {
+      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_LoadCore(lua_State* L) {
+  int argc;
+  int argv[4]={
+    1,2,3,4
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBTarget_LoadCore__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_SBTarget_LoadCore__SWIG_1(L);
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBTarget_LoadCore'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBTarget::LoadCore(char const *)\n"
+    "    lldb::SBTarget::LoadCore(char const *,lldb::SBError &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -48820,137 +51646,6 @@ static int _wrap_SBTarget_Launch(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBTarget::Launch(lldb::SBListener &,char const **,char const **,char const *,char const *,char const *,char const *,uint32_t,bool,lldb::SBError &)\n"
     "    lldb::SBTarget::Launch(lldb::SBLaunchInfo &,lldb::SBError &)\n");
-  lua_error(L);return 0;
-}
-
-
-static int _wrap_SBTarget_LoadCore__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBProcess result;
-    
-    SWIG_check_num_args("lldb::SBTarget::LoadCore",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::LoadCore",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::LoadCore",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_LoadCore",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->LoadCore((char const *)arg2);
-    {
-      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_LoadCore__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBError *arg3 = 0 ;
-    lldb::SBProcess result;
-    
-    SWIG_check_num_args("lldb::SBTarget::LoadCore",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::LoadCore",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::LoadCore",2,"char const *");
-    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::LoadCore",3,"lldb::SBError &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_LoadCore",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBTarget_LoadCore",3,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    result = (arg1)->LoadCore((char const *)arg2,*arg3);
-    {
-      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_LoadCore(lua_State* L) {
-  int argc;
-  int argv[4]={
-    1,2,3,4
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = SWIG_lua_isnilstring(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBTarget_LoadCore__SWIG_0(L);
-      }
-    }
-  }
-  if (argc == 3) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = SWIG_lua_isnilstring(L,argv[1]);
-      }
-      if (_v) {
-        {
-          void *ptr;
-          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
-            _v = 0;
-          } else {
-            _v = 1;
-          }
-        }
-        if (_v) {
-          return _wrap_SBTarget_LoadCore__SWIG_1(L);
-        }
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBTarget_LoadCore'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBTarget::LoadCore(char const *)\n"
-    "    lldb::SBTarget::LoadCore(char const *,lldb::SBError &)\n");
   lua_error(L);return 0;
 }
 
@@ -49744,6 +52439,60 @@ static int _wrap_SBTarget_GetABIName(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget_GetLabel(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetLabel",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetLabel",1,"lldb::SBTarget const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetLabel",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (char *)((lldb::SBTarget const *)arg1)->GetLabel();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_SetLabel(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBError result;
+    
+    SWIG_check_num_args("lldb::SBTarget::SetLabel",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetLabel",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::SetLabel",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_SetLabel",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->SetLabel((char const *)arg2);
+    {
+      lldb::SBError * resultptr = new lldb::SBError(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_GetDataByteSize(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -49896,14 +52645,14 @@ static int _wrap_SBTarget_SetModuleLoadAddress(lua_State* L) {
     int SWIG_arg = 0;
     lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
     lldb::SBModule arg2 ;
-    int64_t arg3 ;
+    uint64_t arg3 ;
     lldb::SBModule *argp2 ;
     lldb::SBError result;
     
     SWIG_check_num_args("lldb::SBTarget::SetModuleLoadAddress",3,3)
     if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",1,"lldb::SBTarget *");
     if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",2,"lldb::SBModule");
-    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",3,"int64_t");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",3,"uint64_t");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
       SWIG_fail_ptr("SBTarget_SetModuleLoadAddress",1,SWIGTYPE_p_lldb__SBTarget);
@@ -49915,7 +52664,7 @@ static int _wrap_SBTarget_SetModuleLoadAddress(lua_State* L) {
     }
     arg2 = *argp2;
     
-    arg3 = (int64_t)lua_tointeger(L, 3); 
+    arg3 = (uint64_t)lua_tointeger(L, 3); 
     result = (arg1)->SetModuleLoadAddress(arg2,arg3);
     {
       lldb::SBError * resultptr = new lldb::SBError(result);
@@ -50085,123 +52834,6 @@ static int _wrap_SBTarget_FindFunctions(lua_State* L) {
     "    lldb::SBTarget::FindFunctions(char const *,uint32_t)\n"
     "    lldb::SBTarget::FindFunctions(char const *)\n");
   lua_error(L);return 0;
-}
-
-
-static int _wrap_SBTarget_FindFirstType(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBType result;
-    
-    SWIG_check_num_args("lldb::SBTarget::FindFirstType",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindFirstType",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindFirstType",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_FindFirstType",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->FindFirstType((char const *)arg2);
-    {
-      lldb::SBType * resultptr = new lldb::SBType(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_FindTypes(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBTypeList result;
-    
-    SWIG_check_num_args("lldb::SBTarget::FindTypes",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindTypes",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindTypes",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_FindTypes",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    result = (arg1)->FindTypes((char const *)arg2);
-    {
-      lldb::SBTypeList * resultptr = new lldb::SBTypeList(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTypeList,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetBasicType(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::BasicType arg2 ;
-    lldb::SBType result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetBasicType",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBasicType",1,"lldb::SBTarget *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBasicType",2,"lldb::BasicType");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetBasicType",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (lldb::BasicType)lua_tointeger(L, 2); 
-    result = (arg1)->GetBasicType(arg2);
-    {
-      lldb::SBType * resultptr = new lldb::SBType(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetSourceManager(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    SwigValueWrapper< lldb::SBSourceManager > result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetSourceManager",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetSourceManager",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetSourceManager",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (arg1)->GetSourceManager();
-    {
-      lldb::SBSourceManager * resultptr = new lldb::SBSourceManager(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBSourceManager,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
 }
 
 
@@ -51203,6 +53835,50 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_2(lua_State* L) {
     int SWIG_arg = 0;
     lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
     char *arg2 = (char *) 0 ;
+    lldb::SBFileSpecList *arg3 = 0 ;
+    lldb::SBFileSpecList *arg4 = 0 ;
+    lldb::SBBreakpoint result;
+    
+    SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByName",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",3,"lldb::SBFileSpecList const &");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",4,"lldb::SBFileSpecList const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByName",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpecList,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByName",3,SWIGTYPE_p_lldb__SBFileSpecList);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBFileSpecList,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByName",4,SWIGTYPE_p_lldb__SBFileSpecList);
+    }
+    
+    result = (arg1)->BreakpointCreateByName((char const *)arg2,(lldb::SBFileSpecList const &)*arg3,(lldb::SBFileSpecList const &)*arg4);
+    {
+      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_BreakpointCreateByName__SWIG_3(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
     uint32_t arg3 ;
     lldb::SBFileSpecList *arg4 = 0 ;
     lldb::SBFileSpecList *arg5 = 0 ;
@@ -51245,7 +53921,7 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_2(lua_State* L) {
 }
 
 
-static int _wrap_SBTarget_BreakpointCreateByName__SWIG_3(lua_State* L) {
+static int _wrap_SBTarget_BreakpointCreateByName__SWIG_4(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
@@ -51345,6 +54021,45 @@ static int _wrap_SBTarget_BreakpointCreateByName(lua_State* L) {
       }
     }
   }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpecList, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpecList, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBTarget_BreakpointCreateByName__SWIG_2(L);
+          }
+        }
+      }
+    }
+  }
   if (argc == 5) {
     int _v = 0;
     {
@@ -51382,7 +54097,7 @@ static int _wrap_SBTarget_BreakpointCreateByName(lua_State* L) {
               }
             }
             if (_v) {
-              return _wrap_SBTarget_BreakpointCreateByName__SWIG_2(L);
+              return _wrap_SBTarget_BreakpointCreateByName__SWIG_3(L);
             }
           }
         }
@@ -51430,7 +54145,7 @@ static int _wrap_SBTarget_BreakpointCreateByName(lua_State* L) {
                 }
               }
               if (_v) {
-                return _wrap_SBTarget_BreakpointCreateByName__SWIG_3(L);
+                return _wrap_SBTarget_BreakpointCreateByName__SWIG_4(L);
               }
             }
           }
@@ -51443,6 +54158,7 @@ static int _wrap_SBTarget_BreakpointCreateByName(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBTarget::BreakpointCreateByName(char const *,char const *)\n"
     "    lldb::SBTarget::BreakpointCreateByName(char const *)\n"
+    "    lldb::SBTarget::BreakpointCreateByName(char const *,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n"
     "    lldb::SBTarget::BreakpointCreateByName(char const *,uint32_t,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n"
     "    lldb::SBTarget::BreakpointCreateByName(char const *,uint32_t,lldb::LanguageType,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n");
   lua_error(L);return 0;
@@ -51936,6 +54652,50 @@ static int _wrap_SBTarget_BreakpointCreateByRegex__SWIG_2(lua_State* L) {
     int SWIG_arg = 0;
     lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
     char *arg2 = (char *) 0 ;
+    lldb::SBFileSpecList *arg3 = 0 ;
+    lldb::SBFileSpecList *arg4 = 0 ;
+    lldb::SBBreakpoint result;
+    
+    SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByRegex",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByRegex",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByRegex",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByRegex",3,"lldb::SBFileSpecList const &");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByRegex",4,"lldb::SBFileSpecList const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByRegex",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpecList,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByRegex",3,SWIGTYPE_p_lldb__SBFileSpecList);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBFileSpecList,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointCreateByRegex",4,SWIGTYPE_p_lldb__SBFileSpecList);
+    }
+    
+    result = (arg1)->BreakpointCreateByRegex((char const *)arg2,(lldb::SBFileSpecList const &)*arg3,(lldb::SBFileSpecList const &)*arg4);
+    {
+      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_BreakpointCreateByRegex__SWIG_3(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
     lldb::LanguageType arg3 ;
     lldb::SBFileSpecList *arg4 = 0 ;
     lldb::SBFileSpecList *arg5 = 0 ;
@@ -52028,6 +54788,45 @@ static int _wrap_SBTarget_BreakpointCreateByRegex(lua_State* L) {
       }
     }
   }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpecList, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpecList, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBTarget_BreakpointCreateByRegex__SWIG_2(L);
+          }
+        }
+      }
+    }
+  }
   if (argc == 5) {
     int _v = 0;
     {
@@ -52065,7 +54864,7 @@ static int _wrap_SBTarget_BreakpointCreateByRegex(lua_State* L) {
               }
             }
             if (_v) {
-              return _wrap_SBTarget_BreakpointCreateByRegex__SWIG_2(L);
+              return _wrap_SBTarget_BreakpointCreateByRegex__SWIG_3(L);
             }
           }
         }
@@ -52077,6 +54876,7 @@ static int _wrap_SBTarget_BreakpointCreateByRegex(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBTarget::BreakpointCreateByRegex(char const *,char const *)\n"
     "    lldb::SBTarget::BreakpointCreateByRegex(char const *)\n"
+    "    lldb::SBTarget::BreakpointCreateByRegex(char const *,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n"
     "    lldb::SBTarget::BreakpointCreateByRegex(char const *,lldb::LanguageType,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n");
   lua_error(L);return 0;
 }
@@ -52489,33 +55289,6 @@ static int _wrap_SBTarget_BreakpointCreateByAddress(lua_State* L) {
 }
 
 
-static int _wrap_SBTarget_GetEnvironment(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBEnvironment result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetEnvironment",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetEnvironment",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetEnvironment",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (arg1)->GetEnvironment();
-    {
-      lldb::SBEnvironment * resultptr = new lldb::SBEnvironment(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBEnvironment,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTarget_BreakpointCreateBySBAddress(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -52771,279 +55544,6 @@ static int _wrap_SBTarget_BreakpointCreateFromScript(lua_State* L) {
     "    lldb::SBTarget::BreakpointCreateFromScript(char const *,lldb::SBStructuredData &,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &,bool)\n"
     "    lldb::SBTarget::BreakpointCreateFromScript(char const *,lldb::SBStructuredData &,lldb::SBFileSpecList const &,lldb::SBFileSpecList const &)\n");
   lua_error(L);return 0;
-}
-
-
-static int _wrap_SBTarget_GetNumBreakpoints(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    uint32_t result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetNumBreakpoints",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetNumBreakpoints",1,"lldb::SBTarget const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetNumBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (uint32_t)((lldb::SBTarget const *)arg1)->GetNumBreakpoints();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetBreakpointAtIndex(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    uint32_t arg2 ;
-    lldb::SBBreakpoint result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetBreakpointAtIndex",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",1,"lldb::SBTarget const *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",2,"uint32_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetBreakpointAtIndex",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (uint32_t)lua_tointeger(L, 2); 
-    result = ((lldb::SBTarget const *)arg1)->GetBreakpointAtIndex(arg2);
-    {
-      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_BreakpointDelete(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::break_id_t arg2 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::BreakpointDelete",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",1,"lldb::SBTarget *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",2,"lldb::break_id_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_BreakpointDelete",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (lldb::break_id_t)lua_tointeger(L, 2); 
-    result = (bool)(arg1)->BreakpointDelete(arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_FindBreakpointByID(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::break_id_t arg2 ;
-    lldb::SBBreakpoint result;
-    
-    SWIG_check_num_args("lldb::SBTarget::FindBreakpointByID",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",1,"lldb::SBTarget *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",2,"lldb::break_id_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_FindBreakpointByID",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (lldb::break_id_t)lua_tointeger(L, 2); 
-    result = (arg1)->FindBreakpointByID(arg2);
-    {
-      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_FindBreakpointsByName(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    lldb::SBBreakpointList *arg3 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::FindBreakpointsByName",3,3)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",2,"char const *");
-    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",3,"lldb::SBBreakpointList &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_FindBreakpointsByName",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBBreakpointList,0))){
-      SWIG_fail_ptr("SBTarget_FindBreakpointsByName",3,SWIGTYPE_p_lldb__SBBreakpointList);
-    }
-    
-    result = (bool)(arg1)->FindBreakpointsByName((char const *)arg2,*arg3);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_DeleteBreakpointName(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    char *arg2 = (char *) 0 ;
-    
-    SWIG_check_num_args("lldb::SBTarget::DeleteBreakpointName",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DeleteBreakpointName",1,"lldb::SBTarget *");
-    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::DeleteBreakpointName",2,"char const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_DeleteBreakpointName",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (char *)lua_tostring(L, 2);
-    (arg1)->DeleteBreakpointName((char const *)arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetBreakpointNames(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBStringList *arg2 = 0 ;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetBreakpointNames",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointNames",1,"lldb::SBTarget *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointNames",2,"lldb::SBStringList &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetBreakpointNames",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStringList,0))){
-      SWIG_fail_ptr("SBTarget_GetBreakpointNames",2,SWIGTYPE_p_lldb__SBStringList);
-    }
-    
-    (arg1)->GetBreakpointNames(*arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_EnableAllBreakpoints(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::EnableAllBreakpoints",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::EnableAllBreakpoints",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_EnableAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (bool)(arg1)->EnableAllBreakpoints();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_DisableAllBreakpoints(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::DisableAllBreakpoints",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DisableAllBreakpoints",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_DisableAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (bool)(arg1)->DisableAllBreakpoints();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_DeleteAllBreakpoints(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::DeleteAllBreakpoints",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DeleteAllBreakpoints",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_DeleteAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (bool)(arg1)->DeleteAllBreakpoints();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
 }
 
 
@@ -53463,6 +55963,279 @@ static int _wrap_SBTarget_BreakpointsWriteToFile(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget_GetNumBreakpoints(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    uint32_t result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetNumBreakpoints",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetNumBreakpoints",1,"lldb::SBTarget const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetNumBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (uint32_t)((lldb::SBTarget const *)arg1)->GetNumBreakpoints();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetBreakpointAtIndex(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    uint32_t arg2 ;
+    lldb::SBBreakpoint result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetBreakpointAtIndex",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",1,"lldb::SBTarget const *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",2,"uint32_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetBreakpointAtIndex",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    result = ((lldb::SBTarget const *)arg1)->GetBreakpointAtIndex(arg2);
+    {
+      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_BreakpointDelete(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::break_id_t arg2 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::BreakpointDelete",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",1,"lldb::SBTarget *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",2,"lldb::break_id_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_BreakpointDelete",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (lldb::break_id_t)lua_tointeger(L, 2); 
+    result = (bool)(arg1)->BreakpointDelete(arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_FindBreakpointByID(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::break_id_t arg2 ;
+    lldb::SBBreakpoint result;
+    
+    SWIG_check_num_args("lldb::SBTarget::FindBreakpointByID",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",1,"lldb::SBTarget *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",2,"lldb::break_id_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_FindBreakpointByID",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (lldb::break_id_t)lua_tointeger(L, 2); 
+    result = (arg1)->FindBreakpointByID(arg2);
+    {
+      lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_FindBreakpointsByName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBBreakpointList *arg3 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::FindBreakpointsByName",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointsByName",3,"lldb::SBBreakpointList &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_FindBreakpointsByName",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBBreakpointList,0))){
+      SWIG_fail_ptr("SBTarget_FindBreakpointsByName",3,SWIGTYPE_p_lldb__SBBreakpointList);
+    }
+    
+    result = (bool)(arg1)->FindBreakpointsByName((char const *)arg2,*arg3);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetBreakpointNames(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBStringList *arg2 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetBreakpointNames",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointNames",1,"lldb::SBTarget *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointNames",2,"lldb::SBStringList &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetBreakpointNames",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStringList,0))){
+      SWIG_fail_ptr("SBTarget_GetBreakpointNames",2,SWIGTYPE_p_lldb__SBStringList);
+    }
+    
+    (arg1)->GetBreakpointNames(*arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_DeleteBreakpointName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::DeleteBreakpointName",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DeleteBreakpointName",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::DeleteBreakpointName",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_DeleteBreakpointName",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    (arg1)->DeleteBreakpointName((char const *)arg2);
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_EnableAllBreakpoints(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::EnableAllBreakpoints",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::EnableAllBreakpoints",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_EnableAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (bool)(arg1)->EnableAllBreakpoints();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_DisableAllBreakpoints(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::DisableAllBreakpoints",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DisableAllBreakpoints",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_DisableAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (bool)(arg1)->DisableAllBreakpoints();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_DeleteAllBreakpoints(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::DeleteAllBreakpoints",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DeleteAllBreakpoints",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_DeleteAllBreakpoints",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (bool)(arg1)->DeleteAllBreakpoints();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_GetNumWatchpoints(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -53574,6 +56347,52 @@ static int _wrap_SBTarget_FindWatchpointByID(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget_WatchAddress(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::addr_t arg2 ;
+    size_t arg3 ;
+    bool arg4 ;
+    bool arg5 ;
+    lldb::SBError *arg6 = 0 ;
+    lldb::SBWatchpoint result;
+    
+    SWIG_check_num_args("lldb::SBTarget::WatchAddress",6,6)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",1,"lldb::SBTarget *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",2,"lldb::addr_t");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",3,"size_t");
+    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",4,"bool");
+    if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",5,"bool");
+    if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",6,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_WatchAddress",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (lldb::addr_t)lua_tointeger(L, 2); 
+    arg3 = (size_t)lua_tointeger(L, 3); 
+    arg4 = (lua_toboolean(L, 4)!=0);
+    arg5 = (lua_toboolean(L, 5)!=0);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBTarget_WatchAddress",6,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->WatchAddress(arg2,arg3,arg4,arg5,*arg6);
+    {
+      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_EnableAllWatchpoints(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -53646,52 +56465,6 @@ static int _wrap_SBTarget_DeleteAllWatchpoints(lua_State* L) {
 }
 
 
-static int _wrap_SBTarget_WatchAddress(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::addr_t arg2 ;
-    size_t arg3 ;
-    bool arg4 ;
-    bool arg5 ;
-    lldb::SBError *arg6 = 0 ;
-    lldb::SBWatchpoint result;
-    
-    SWIG_check_num_args("lldb::SBTarget::WatchAddress",6,6)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",1,"lldb::SBTarget *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",2,"lldb::addr_t");
-    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",3,"size_t");
-    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",4,"bool");
-    if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",5,"bool");
-    if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",6,"lldb::SBError &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_WatchAddress",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (lldb::addr_t)lua_tointeger(L, 2); 
-    arg3 = (size_t)lua_tointeger(L, 3); 
-    arg4 = (lua_toboolean(L, 4)!=0);
-    arg5 = (lua_toboolean(L, 5)!=0);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBTarget_WatchAddress",6,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    result = (arg1)->WatchAddress(arg2,arg3,arg4,arg5,*arg6);
-    {
-      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTarget_GetBroadcaster(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -53709,6 +56482,96 @@ static int _wrap_SBTarget_GetBroadcaster(lua_State* L) {
     {
       lldb::SBBroadcaster * resultptr = new lldb::SBBroadcaster(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBroadcaster,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_FindFirstType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBTarget::FindFirstType",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindFirstType",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindFirstType",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_FindFirstType",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->FindFirstType((char const *)arg2);
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_FindTypes(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBTypeList result;
+    
+    SWIG_check_num_args("lldb::SBTarget::FindTypes",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindTypes",1,"lldb::SBTarget *");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindTypes",2,"char const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_FindTypes",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    result = (arg1)->FindTypes((char const *)arg2);
+    {
+      lldb::SBTypeList * resultptr = new lldb::SBTypeList(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTypeList,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetBasicType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::BasicType arg2 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetBasicType",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBasicType",1,"lldb::SBTarget *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBasicType",2,"lldb::BasicType");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetBasicType",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    arg2 = (lldb::BasicType)lua_tointeger(L, 2); 
+    result = (arg1)->GetBasicType(arg2);
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -53838,6 +56701,33 @@ static int _wrap_SBTarget_CreateValueFromExpression(lua_State* L) {
     {
       lldb::SBValue * resultptr = new lldb::SBValue(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetSourceManager(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    SwigValueWrapper< lldb::SBSourceManager > result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetSourceManager",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetSourceManager",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetSourceManager",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (arg1)->GetSourceManager();
+    {
+      lldb::SBSourceManager * resultptr = new lldb::SBSourceManager(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBSourceManager,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -54215,6 +57105,37 @@ static int _wrap_SBTarget_FindSymbols(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget___eq(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBTarget *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::operator ==",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::operator ==",1,"lldb::SBTarget const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::operator ==",2,"lldb::SBTarget const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget___eq",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget___eq",2,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = (bool)((lldb::SBTarget const *)arg1)->operator ==((lldb::SBTarget const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTarget_GetDescription(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -54239,226 +57160,6 @@ static int _wrap_SBTarget_GetDescription(lua_State* L) {
     
     arg3 = (lldb::DescriptionLevel)lua_tointeger(L, 3); 
     result = (bool)(arg1)->GetDescription(*arg2,arg3);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetStackRedZoneSize(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::addr_t result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetStackRedZoneSize",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetStackRedZoneSize",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetStackRedZoneSize",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (lldb::addr_t)(arg1)->GetStackRedZoneSize();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_IsLoaded(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBModule *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::IsLoaded",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::IsLoaded",1,"lldb::SBTarget const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::IsLoaded",2,"lldb::SBModule const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_IsLoaded",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBModule,0))){
-      SWIG_fail_ptr("SBTarget_IsLoaded",2,SWIGTYPE_p_lldb__SBModule);
-    }
-    
-    result = (bool)((lldb::SBTarget const *)arg1)->IsLoaded((lldb::SBModule const &)*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetLaunchInfo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    SwigValueWrapper< lldb::SBLaunchInfo > result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetLaunchInfo",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetLaunchInfo",1,"lldb::SBTarget const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetLaunchInfo",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = ((lldb::SBTarget const *)arg1)->GetLaunchInfo();
-    {
-      lldb::SBLaunchInfo * resultptr = new lldb::SBLaunchInfo(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBLaunchInfo,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_SetLaunchInfo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBLaunchInfo *arg2 = 0 ;
-    
-    SWIG_check_num_args("lldb::SBTarget::SetLaunchInfo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetLaunchInfo",1,"lldb::SBTarget *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::SetLaunchInfo",2,"lldb::SBLaunchInfo const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_SetLaunchInfo",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
-      SWIG_fail_ptr("SBTarget_SetLaunchInfo",2,SWIGTYPE_p_lldb__SBLaunchInfo);
-    }
-    
-    (arg1)->SetLaunchInfo((lldb::SBLaunchInfo const &)*arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_SetCollectingStats(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    bool arg2 ;
-    
-    SWIG_check_num_args("lldb::SBTarget::SetCollectingStats",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetCollectingStats",1,"lldb::SBTarget *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBTarget::SetCollectingStats",2,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_SetCollectingStats",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    (arg1)->SetCollectingStats(arg2);
-    
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetCollectingStats(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetCollectingStats",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetCollectingStats",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetCollectingStats",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (bool)(arg1)->GetCollectingStats();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget_GetStatistics(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBStructuredData result;
-    
-    SWIG_check_num_args("lldb::SBTarget::GetStatistics",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetStatistics",1,"lldb::SBTarget *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget_GetStatistics",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (arg1)->GetStatistics();
-    {
-      lldb::SBStructuredData * resultptr = new lldb::SBStructuredData(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTarget___eq(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    lldb::SBTarget *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTarget::operator ==",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::operator ==",1,"lldb::SBTarget const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::operator ==",2,"lldb::SBTarget const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget___eq",1,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget___eq",2,SWIGTYPE_p_lldb__SBTarget);
-    }
-    
-    result = (bool)((lldb::SBTarget const *)arg1)->operator ==((lldb::SBTarget const &)*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -54600,21 +57301,109 @@ static int _wrap_SBTarget_EvaluateExpression(lua_State* L) {
 }
 
 
-static int _wrap_SBTarget___tostring(lua_State* L) {
+static int _wrap_SBTarget_GetStackRedZoneSize(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
-    std::string result;
+    lldb::addr_t result;
     
-    SWIG_check_num_args("lldb::SBTarget::__repr__",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::__repr__",1,"lldb::SBTarget *");
+    SWIG_check_num_args("lldb::SBTarget::GetStackRedZoneSize",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetStackRedZoneSize",1,"lldb::SBTarget *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
-      SWIG_fail_ptr("SBTarget___tostring",1,SWIGTYPE_p_lldb__SBTarget);
+      SWIG_fail_ptr("SBTarget_GetStackRedZoneSize",1,SWIGTYPE_p_lldb__SBTarget);
     }
     
-    result = lldb_SBTarget___repr__(arg1);
-    lua_pushlstring(L,(&result)->data(),(&result)->size()); SWIG_arg++;
+    result = (lldb::addr_t)(arg1)->GetStackRedZoneSize();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_IsLoaded(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBModule *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTarget::IsLoaded",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::IsLoaded",1,"lldb::SBTarget const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::IsLoaded",2,"lldb::SBModule const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_IsLoaded",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBModule,0))){
+      SWIG_fail_ptr("SBTarget_IsLoaded",2,SWIGTYPE_p_lldb__SBModule);
+    }
+    
+    result = (bool)((lldb::SBTarget const *)arg1)->IsLoaded((lldb::SBModule const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_GetLaunchInfo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    SwigValueWrapper< lldb::SBLaunchInfo > result;
+    
+    SWIG_check_num_args("lldb::SBTarget::GetLaunchInfo",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetLaunchInfo",1,"lldb::SBTarget const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_GetLaunchInfo",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = ((lldb::SBTarget const *)arg1)->GetLaunchInfo();
+    {
+      lldb::SBLaunchInfo * resultptr = new lldb::SBLaunchInfo(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBLaunchInfo,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTarget_SetLaunchInfo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    lldb::SBLaunchInfo *arg2 = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTarget::SetLaunchInfo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetLaunchInfo",1,"lldb::SBTarget *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::SetLaunchInfo",2,"lldb::SBLaunchInfo const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget_SetLaunchInfo",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
+      SWIG_fail_ptr("SBTarget_SetLaunchInfo",2,SWIGTYPE_p_lldb__SBLaunchInfo);
+    }
+    
+    (arg1)->SetLaunchInfo((lldb::SBLaunchInfo const &)*arg2);
+    
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -54685,6 +57474,30 @@ static int _wrap_SBTarget_CreateTrace(lua_State* L) {
 }
 
 
+static int _wrap_SBTarget___tostring(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+    std::string result;
+    
+    SWIG_check_num_args("lldb::SBTarget::__repr__",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::__repr__",1,"lldb::SBTarget *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+      SWIG_fail_ptr("SBTarget___tostring",1,SWIGTYPE_p_lldb__SBTarget);
+    }
+    
+    result = lldb_SBTarget___repr__(arg1);
+    lua_pushlstring(L,(&result)->data(),(&result)->size()); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static void swig_delete_SBTarget(void *obj) {
 lldb::SBTarget *arg1 = (lldb::SBTarget *) obj;
 delete arg1;
@@ -54703,11 +57516,15 @@ static swig_lua_attribute swig_SBTarget_attributes[] = {
 static swig_lua_method swig_SBTarget_methods[]= {
     { "IsValid", _wrap_SBTarget_IsValid},
     { "GetProcess", _wrap_SBTarget_GetProcess},
+    { "SetCollectingStats", _wrap_SBTarget_SetCollectingStats},
+    { "GetCollectingStats", _wrap_SBTarget_GetCollectingStats},
+    { "GetStatistics", _wrap_SBTarget_GetStatistics},
     { "GetPlatform", _wrap_SBTarget_GetPlatform},
+    { "GetEnvironment", _wrap_SBTarget_GetEnvironment},
     { "Install", _wrap_SBTarget_Install},
+    { "LoadCore", _wrap_SBTarget_LoadCore},
     { "LaunchSimple", _wrap_SBTarget_LaunchSimple},
     { "Launch", _wrap_SBTarget_Launch},
-    { "LoadCore", _wrap_SBTarget_LoadCore},
     { "Attach", _wrap_SBTarget_Attach},
     { "AttachToProcessWithID", _wrap_SBTarget_AttachToProcessWithID},
     { "AttachToProcessWithName", _wrap_SBTarget_AttachToProcessWithName},
@@ -54725,6 +57542,8 @@ static swig_lua_method swig_SBTarget_methods[]= {
     { "GetAddressByteSize", _wrap_SBTarget_GetAddressByteSize},
     { "GetTriple", _wrap_SBTarget_GetTriple},
     { "GetABIName", _wrap_SBTarget_GetABIName},
+    { "GetLabel", _wrap_SBTarget_GetLabel},
+    { "SetLabel", _wrap_SBTarget_SetLabel},
     { "GetDataByteSize", _wrap_SBTarget_GetDataByteSize},
     { "GetCodeByteSize", _wrap_SBTarget_GetCodeByteSize},
     { "GetMaximumNumberOfChildrenToDisplay", _wrap_SBTarget_GetMaximumNumberOfChildrenToDisplay},
@@ -54733,10 +57552,6 @@ static swig_lua_method swig_SBTarget_methods[]= {
     { "SetModuleLoadAddress", _wrap_SBTarget_SetModuleLoadAddress},
     { "ClearModuleLoadAddress", _wrap_SBTarget_ClearModuleLoadAddress},
     { "FindFunctions", _wrap_SBTarget_FindFunctions},
-    { "FindFirstType", _wrap_SBTarget_FindFirstType},
-    { "FindTypes", _wrap_SBTarget_FindTypes},
-    { "GetBasicType", _wrap_SBTarget_GetBasicType},
-    { "GetSourceManager", _wrap_SBTarget_GetSourceManager},
     { "FindFirstGlobalVariable", _wrap_SBTarget_FindFirstGlobalVariable},
     { "FindGlobalVariables", _wrap_SBTarget_FindGlobalVariables},
     { "FindGlobalFunctions", _wrap_SBTarget_FindGlobalFunctions},
@@ -54753,50 +57568,50 @@ static swig_lua_method swig_SBTarget_methods[]= {
     { "BreakpointCreateBySourceRegex", _wrap_SBTarget_BreakpointCreateBySourceRegex},
     { "BreakpointCreateForException", _wrap_SBTarget_BreakpointCreateForException},
     { "BreakpointCreateByAddress", _wrap_SBTarget_BreakpointCreateByAddress},
-    { "GetEnvironment", _wrap_SBTarget_GetEnvironment},
     { "BreakpointCreateBySBAddress", _wrap_SBTarget_BreakpointCreateBySBAddress},
     { "BreakpointCreateFromScript", _wrap_SBTarget_BreakpointCreateFromScript},
+    { "BreakpointsCreateFromFile", _wrap_SBTarget_BreakpointsCreateFromFile},
+    { "BreakpointsWriteToFile", _wrap_SBTarget_BreakpointsWriteToFile},
     { "GetNumBreakpoints", _wrap_SBTarget_GetNumBreakpoints},
     { "GetBreakpointAtIndex", _wrap_SBTarget_GetBreakpointAtIndex},
     { "BreakpointDelete", _wrap_SBTarget_BreakpointDelete},
     { "FindBreakpointByID", _wrap_SBTarget_FindBreakpointByID},
     { "FindBreakpointsByName", _wrap_SBTarget_FindBreakpointsByName},
-    { "DeleteBreakpointName", _wrap_SBTarget_DeleteBreakpointName},
     { "GetBreakpointNames", _wrap_SBTarget_GetBreakpointNames},
+    { "DeleteBreakpointName", _wrap_SBTarget_DeleteBreakpointName},
     { "EnableAllBreakpoints", _wrap_SBTarget_EnableAllBreakpoints},
     { "DisableAllBreakpoints", _wrap_SBTarget_DisableAllBreakpoints},
     { "DeleteAllBreakpoints", _wrap_SBTarget_DeleteAllBreakpoints},
-    { "BreakpointsCreateFromFile", _wrap_SBTarget_BreakpointsCreateFromFile},
-    { "BreakpointsWriteToFile", _wrap_SBTarget_BreakpointsWriteToFile},
     { "GetNumWatchpoints", _wrap_SBTarget_GetNumWatchpoints},
     { "GetWatchpointAtIndex", _wrap_SBTarget_GetWatchpointAtIndex},
     { "DeleteWatchpoint", _wrap_SBTarget_DeleteWatchpoint},
     { "FindWatchpointByID", _wrap_SBTarget_FindWatchpointByID},
+    { "WatchAddress", _wrap_SBTarget_WatchAddress},
     { "EnableAllWatchpoints", _wrap_SBTarget_EnableAllWatchpoints},
     { "DisableAllWatchpoints", _wrap_SBTarget_DisableAllWatchpoints},
     { "DeleteAllWatchpoints", _wrap_SBTarget_DeleteAllWatchpoints},
-    { "WatchAddress", _wrap_SBTarget_WatchAddress},
     { "GetBroadcaster", _wrap_SBTarget_GetBroadcaster},
+    { "FindFirstType", _wrap_SBTarget_FindFirstType},
+    { "FindTypes", _wrap_SBTarget_FindTypes},
+    { "GetBasicType", _wrap_SBTarget_GetBasicType},
     { "CreateValueFromAddress", _wrap_SBTarget_CreateValueFromAddress},
     { "CreateValueFromData", _wrap_SBTarget_CreateValueFromData},
     { "CreateValueFromExpression", _wrap_SBTarget_CreateValueFromExpression},
+    { "GetSourceManager", _wrap_SBTarget_GetSourceManager},
     { "ReadInstructions", _wrap_SBTarget_ReadInstructions},
     { "GetInstructions", _wrap_SBTarget_GetInstructions},
     { "GetInstructionsWithFlavor", _wrap_SBTarget_GetInstructionsWithFlavor},
     { "FindSymbols", _wrap_SBTarget_FindSymbols},
+    { "__eq", _wrap_SBTarget___eq},
     { "GetDescription", _wrap_SBTarget_GetDescription},
+    { "EvaluateExpression", _wrap_SBTarget_EvaluateExpression},
     { "GetStackRedZoneSize", _wrap_SBTarget_GetStackRedZoneSize},
     { "IsLoaded", _wrap_SBTarget_IsLoaded},
     { "GetLaunchInfo", _wrap_SBTarget_GetLaunchInfo},
     { "SetLaunchInfo", _wrap_SBTarget_SetLaunchInfo},
-    { "SetCollectingStats", _wrap_SBTarget_SetCollectingStats},
-    { "GetCollectingStats", _wrap_SBTarget_GetCollectingStats},
-    { "GetStatistics", _wrap_SBTarget_GetStatistics},
-    { "__eq", _wrap_SBTarget___eq},
-    { "EvaluateExpression", _wrap_SBTarget_EvaluateExpression},
-    { "__tostring", _wrap_SBTarget___tostring},
     { "GetTrace", _wrap_SBTarget_GetTrace},
     { "CreateTrace", _wrap_SBTarget_CreateTrace},
+    { "__tostring", _wrap_SBTarget___tostring},
     {0,0}
 };
 static swig_lua_method swig_SBTarget_meta[] = {
@@ -54817,11 +57632,11 @@ static swig_lua_const_info swig_SBTarget_Sf_SwigStatic_constants[]= {
     {0,0,0,0,0,0}
 };
 static swig_lua_method swig_SBTarget_Sf_SwigStatic_methods[]= {
-    { "GetBroadcasterClassName", _wrap_SBTarget_GetBroadcasterClassName},
     { "EventIsTargetEvent", _wrap_SBTarget_EventIsTargetEvent},
     { "GetTargetFromEvent", _wrap_SBTarget_GetTargetFromEvent},
     { "GetNumModulesFromEvent", _wrap_SBTarget_GetNumModulesFromEvent},
     { "GetModuleAtIndexFromEvent", _wrap_SBTarget_GetModuleAtIndexFromEvent},
+    { "GetBroadcasterClassName", _wrap_SBTarget_GetBroadcasterClassName},
     {0,0}
 };
 static swig_lua_class* swig_SBTarget_Sf_SwigStatic_classes[]= {
@@ -54839,6 +57654,23 @@ static swig_lua_namespace swig_SBTarget_Sf_SwigStatic = {
 static swig_lua_class *swig_SBTarget_bases[] = {0};
 static const char *swig_SBTarget_base_names[] = {0};
 static swig_lua_class _wrap_class_SBTarget = { "SBTarget", "SBTarget", &SWIGTYPE_p_lldb__SBTarget,_proxy__wrap_new_SBTarget, swig_delete_SBTarget, swig_SBTarget_methods, swig_SBTarget_attributes, &swig_SBTarget_Sf_SwigStatic, swig_SBTarget_meta, swig_SBTarget_bases, swig_SBTarget_base_names };
+
+static int _wrap_SBThread_GetBroadcasterClassName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBThread::GetBroadcasterClassName",0,0)
+    result = (char *)lldb::SBThread::GetBroadcasterClassName();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
 
 static int _wrap_new_SBThread__SWIG_0(lua_State* L) {
   {
@@ -54914,91 +57746,23 @@ static int _wrap_new_SBThread(lua_State* L) {
 }
 
 
-static int _wrap_SBThread_GetBroadcasterClassName(lua_State* L) {
+static int _wrap_SBThread_GetQueue(lua_State* L) {
   {
     int SWIG_arg = 0;
-    char *result = 0 ;
+    lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
+    lldb::SBQueue result;
     
-    SWIG_check_num_args("lldb::SBThread::GetBroadcasterClassName",0,0)
-    result = (char *)lldb::SBThread::GetBroadcasterClassName();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
+    SWIG_check_num_args("lldb::SBThread::GetQueue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetQueue",1,"lldb::SBThread const *");
     
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThread_EventIsThreadEvent(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBEvent *arg1 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBThread::EventIsThreadEvent",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::EventIsThreadEvent",1,"lldb::SBEvent const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
-      SWIG_fail_ptr("SBThread_EventIsThreadEvent",1,SWIGTYPE_p_lldb__SBEvent);
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
+      SWIG_fail_ptr("SBThread_GetQueue",1,SWIGTYPE_p_lldb__SBThread);
     }
     
-    result = (bool)lldb::SBThread::EventIsThreadEvent((lldb::SBEvent const &)*arg1);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThread_GetStackFrameFromEvent(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBEvent *arg1 = 0 ;
-    lldb::SBFrame result;
-    
-    SWIG_check_num_args("lldb::SBThread::GetStackFrameFromEvent",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::GetStackFrameFromEvent",1,"lldb::SBEvent const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
-      SWIG_fail_ptr("SBThread_GetStackFrameFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
-    }
-    
-    result = lldb::SBThread::GetStackFrameFromEvent((lldb::SBEvent const &)*arg1);
+    result = ((lldb::SBThread const *)arg1)->GetQueue();
     {
-      lldb::SBFrame * resultptr = new lldb::SBFrame(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFrame,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThread_GetThreadFromEvent(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBEvent *arg1 = 0 ;
-    lldb::SBThread result;
-    
-    SWIG_check_num_args("lldb::SBThread::GetThreadFromEvent",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::GetThreadFromEvent",1,"lldb::SBEvent const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
-      SWIG_fail_ptr("SBThread_GetThreadFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
-    }
-    
-    result = lldb::SBThread::GetThreadFromEvent((lldb::SBEvent const &)*arg1);
-    {
-      lldb::SBThread * resultptr = new lldb::SBThread(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThread,1); SWIG_arg++;
+      lldb::SBQueue * resultptr = new lldb::SBQueue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBQueue,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -55403,33 +58167,6 @@ static int _wrap_SBThread_GetInfoItemByPathAsString(lua_State* L) {
     
     result = (bool)(arg1)->GetInfoItemByPathAsString((char const *)arg2,*arg3);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThread_GetQueue(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
-    lldb::SBQueue result;
-    
-    SWIG_check_num_args("lldb::SBThread::GetQueue",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetQueue",1,"lldb::SBThread const *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
-      SWIG_fail_ptr("SBThread_GetQueue",1,SWIGTYPE_p_lldb__SBThread);
-    }
-    
-    result = ((lldb::SBThread const *)arg1)->GetQueue();
-    {
-      lldb::SBQueue * resultptr = new lldb::SBQueue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBQueue,1); SWIG_arg++;
-    }
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -57165,6 +59902,84 @@ static int _wrap_SBThread_SetSelectedFrame(lua_State* L) {
 }
 
 
+static int _wrap_SBThread_EventIsThreadEvent(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEvent *arg1 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBThread::EventIsThreadEvent",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::EventIsThreadEvent",1,"lldb::SBEvent const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
+      SWIG_fail_ptr("SBThread_EventIsThreadEvent",1,SWIGTYPE_p_lldb__SBEvent);
+    }
+    
+    result = (bool)lldb::SBThread::EventIsThreadEvent((lldb::SBEvent const &)*arg1);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThread_GetStackFrameFromEvent(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEvent *arg1 = 0 ;
+    lldb::SBFrame result;
+    
+    SWIG_check_num_args("lldb::SBThread::GetStackFrameFromEvent",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::GetStackFrameFromEvent",1,"lldb::SBEvent const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
+      SWIG_fail_ptr("SBThread_GetStackFrameFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
+    }
+    
+    result = lldb::SBThread::GetStackFrameFromEvent((lldb::SBEvent const &)*arg1);
+    {
+      lldb::SBFrame * resultptr = new lldb::SBFrame(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFrame,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThread_GetThreadFromEvent(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBEvent *arg1 = 0 ;
+    lldb::SBThread result;
+    
+    SWIG_check_num_args("lldb::SBThread::GetThreadFromEvent",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThread::GetThreadFromEvent",1,"lldb::SBEvent const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
+      SWIG_fail_ptr("SBThread_GetThreadFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
+    }
+    
+    result = lldb::SBThread::GetThreadFromEvent((lldb::SBEvent const &)*arg1);
+    {
+      lldb::SBThread * resultptr = new lldb::SBThread(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThread,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBThread_GetProcess(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -57183,6 +59998,37 @@ static int _wrap_SBThread_GetProcess(lua_State* L) {
       lldb::SBProcess * resultptr = new lldb::SBProcess(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
     }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThread___eq(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
+    lldb::SBThread *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBThread::operator ==",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::operator ==",1,"lldb::SBThread const *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::operator ==",2,"lldb::SBThread const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
+      SWIG_fail_ptr("SBThread___eq",1,SWIGTYPE_p_lldb__SBThread);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBThread,0))){
+      SWIG_fail_ptr("SBThread___eq",2,SWIGTYPE_p_lldb__SBThread);
+    }
+    
+    result = (bool)((lldb::SBThread const *)arg1)->operator ==((lldb::SBThread const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -57347,37 +60193,6 @@ static int _wrap_SBThread_GetStatus(lua_State* L) {
     }
     
     result = (bool)((lldb::SBThread const *)arg1)->GetStatus(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThread___eq(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
-    lldb::SBThread *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBThread::operator ==",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::operator ==",1,"lldb::SBThread const *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::operator ==",2,"lldb::SBThread const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
-      SWIG_fail_ptr("SBThread___eq",1,SWIGTYPE_p_lldb__SBThread);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBThread,0))){
-      SWIG_fail_ptr("SBThread___eq",2,SWIGTYPE_p_lldb__SBThread);
-    }
-    
-    result = (bool)((lldb::SBThread const *)arg1)->operator ==((lldb::SBThread const &)*arg2);
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -57587,6 +60402,7 @@ static swig_lua_attribute swig_SBThread_attributes[] = {
     {0,0,0}
 };
 static swig_lua_method swig_SBThread_methods[]= {
+    { "GetQueue", _wrap_SBThread_GetQueue},
     { "IsValid", _wrap_SBThread_IsValid},
     { "Clear", _wrap_SBThread_Clear},
     { "GetStopReason", _wrap_SBThread_GetStopReason},
@@ -57602,7 +60418,6 @@ static swig_lua_method swig_SBThread_methods[]= {
     { "GetQueueName", _wrap_SBThread_GetQueueName},
     { "GetQueueID", _wrap_SBThread_GetQueueID},
     { "GetInfoItemByPathAsString", _wrap_SBThread_GetInfoItemByPathAsString},
-    { "GetQueue", _wrap_SBThread_GetQueue},
     { "StepOver", _wrap_SBThread_StepOver},
     { "StepInto", _wrap_SBThread_StepInto},
     { "StepOut", _wrap_SBThread_StepOut},
@@ -57623,9 +60438,9 @@ static swig_lua_method swig_SBThread_methods[]= {
     { "GetSelectedFrame", _wrap_SBThread_GetSelectedFrame},
     { "SetSelectedFrame", _wrap_SBThread_SetSelectedFrame},
     { "GetProcess", _wrap_SBThread_GetProcess},
+    { "__eq", _wrap_SBThread___eq},
     { "GetDescription", _wrap_SBThread_GetDescription},
     { "GetStatus", _wrap_SBThread_GetStatus},
-    { "__eq", _wrap_SBThread___eq},
     { "GetExtendedBacktraceThread", _wrap_SBThread_GetExtendedBacktraceThread},
     { "GetExtendedBacktraceOriginatingIndexID", _wrap_SBThread_GetExtendedBacktraceOriginatingIndexID},
     { "GetCurrentException", _wrap_SBThread_GetCurrentException},
@@ -57921,30 +60736,6 @@ static int _wrap_new_SBThreadPlan__SWIG_1(lua_State* L) {
 static int _wrap_new_SBThreadPlan__SWIG_2(lua_State* L) {
   {
     int SWIG_arg = 0;
-    lldb::ThreadPlanSP *arg1 = 0 ;
-    lldb::SBThreadPlan *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBThreadPlan::SBThreadPlan",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::SBThreadPlan",1,"lldb::ThreadPlanSP const &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t,0))){
-      SWIG_fail_ptr("new_SBThreadPlan",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t);
-    }
-    
-    result = (lldb::SBThreadPlan *)new lldb::SBThreadPlan((lldb::ThreadPlanSP const &)*arg1);
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBThreadPlan__SWIG_3(lua_State* L) {
-  {
-    int SWIG_arg = 0;
     lldb::SBThread *arg1 = 0 ;
     char *arg2 = (char *) 0 ;
     lldb::SBThreadPlan *result = 0 ;
@@ -57969,10 +60760,44 @@ static int _wrap_new_SBThreadPlan__SWIG_3(lua_State* L) {
 }
 
 
+static int _wrap_new_SBThreadPlan__SWIG_3(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThread *arg1 = 0 ;
+    char *arg2 = (char *) 0 ;
+    lldb::SBStructuredData *arg3 = 0 ;
+    lldb::SBThreadPlan *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::SBThreadPlan",3,3)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::SBThreadPlan",1,"lldb::SBThread &");
+    if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::SBThreadPlan",2,"char const *");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::SBThreadPlan",3,"lldb::SBStructuredData &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
+      SWIG_fail_ptr("new_SBThreadPlan",1,SWIGTYPE_p_lldb__SBThread);
+    }
+    
+    arg2 = (char *)lua_tostring(L, 2);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBStructuredData,0))){
+      SWIG_fail_ptr("new_SBThreadPlan",3,SWIGTYPE_p_lldb__SBStructuredData);
+    }
+    
+    result = (lldb::SBThreadPlan *)new lldb::SBThreadPlan(*arg1,(char const *)arg2,*arg3);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_new_SBThreadPlan(lua_State* L) {
   int argc;
-  int argv[3]={
-    1,2,3
+  int argv[4]={
+    1,2,3,4
   };
   
   argc = lua_gettop(L);
@@ -57993,20 +60818,6 @@ static int _wrap_new_SBThreadPlan(lua_State* L) {
       return _wrap_new_SBThreadPlan__SWIG_1(L);
     }
   }
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t, SWIG_POINTER_NO_NULL)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_new_SBThreadPlan__SWIG_2(L);
-    }
-  }
   if (argc == 2) {
     int _v = 0;
     {
@@ -58022,7 +60833,36 @@ static int _wrap_new_SBThreadPlan(lua_State* L) {
         _v = SWIG_lua_isnilstring(L,argv[1]);
       }
       if (_v) {
-        return _wrap_new_SBThreadPlan__SWIG_3(L);
+        return _wrap_new_SBThreadPlan__SWIG_2(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThread, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBStructuredData, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_new_SBThreadPlan__SWIG_3(L);
+        }
       }
     }
   }
@@ -58031,37 +60871,13 @@ static int _wrap_new_SBThreadPlan(lua_State* L) {
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBThreadPlan::SBThreadPlan()\n"
     "    lldb::SBThreadPlan::SBThreadPlan(lldb::SBThreadPlan const &)\n"
-    "    lldb::SBThreadPlan::SBThreadPlan(lldb::ThreadPlanSP const &)\n"
-    "    lldb::SBThreadPlan::SBThreadPlan(lldb::SBThread &,char const *)\n");
+    "    lldb::SBThreadPlan::SBThreadPlan(lldb::SBThread &,char const *)\n"
+    "    lldb::SBThreadPlan::SBThreadPlan(lldb::SBThread &,char const *,lldb::SBStructuredData &)\n");
   lua_error(L);return 0;
 }
 
 
 static int _wrap_SBThreadPlan_IsValid__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBThreadPlan::IsValid",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::IsValid",1,"lldb::SBThreadPlan *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
-      SWIG_fail_ptr("SBThreadPlan_IsValid",1,SWIGTYPE_p_lldb__SBThreadPlan);
-    }
-    
-    result = (bool)(arg1)->IsValid();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBThreadPlan_IsValid__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
@@ -58082,50 +60898,6 @@ static int _wrap_SBThreadPlan_IsValid__SWIG_1(lua_State* L) {
   }
   lua_error(L);
   return 0;
-}
-
-
-static int _wrap_SBThreadPlan_IsValid(lua_State* L) {
-  int argc;
-  int argv[2]={
-    1,2
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_SBThreadPlan_IsValid__SWIG_0(L);
-    }
-  }
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_SBThreadPlan_IsValid__SWIG_1(L);
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_IsValid'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBThreadPlan::IsValid()\n"
-    "    lldb::SBThreadPlan::IsValid() const\n");
-  lua_error(L);return 0;
 }
 
 
@@ -58359,6 +61131,74 @@ static int _wrap_SBThreadPlan_IsPlanStale(lua_State* L) {
 }
 
 
+static int _wrap_SBThreadPlan_IsValid__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::IsValid",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::IsValid",1,"lldb::SBThreadPlan *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+      SWIG_fail_ptr("SBThreadPlan_IsValid",1,SWIGTYPE_p_lldb__SBThreadPlan);
+    }
+    
+    result = (bool)(arg1)->IsValid();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThreadPlan_IsValid(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBThreadPlan_IsValid__SWIG_1(L);
+    }
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBThreadPlan_IsValid__SWIG_0(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_IsValid'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBThreadPlan::IsValid() const\n"
+    "    lldb::SBThreadPlan::IsValid()\n");
+  lua_error(L);return 0;
+}
+
+
 static int _wrap_SBThreadPlan_GetStopOthers(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -58409,7 +61249,7 @@ static int _wrap_SBThreadPlan_SetStopOthers(lua_State* L) {
 }
 
 
-static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
@@ -58446,7 +61286,135 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
 }
 
 
-static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange(lua_State* L) {
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+    lldb::SBAddress *arg2 = 0 ;
+    lldb::addr_t arg3 ;
+    lldb::SBError *arg4 = 0 ;
+    lldb::SBThreadPlan result;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",1,"lldb::SBThreadPlan *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",2,"lldb::SBAddress &");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",3,"lldb::addr_t");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",4,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOverRange",1,SWIGTYPE_p_lldb__SBThreadPlan);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOverRange",2,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOverRange",4,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->QueueThreadPlanForStepOverRange(*arg2,arg3,*arg4);
+    {
+      lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange__SWIG_0(L);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange__SWIG_1(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_QueueThreadPlanForStepOverRange'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepOverRange(lldb::SBAddress &,lldb::addr_t)\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepOverRange(lldb::SBAddress &,lldb::addr_t,lldb::SBError &)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
@@ -58480,6 +61448,134 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+    lldb::SBAddress *arg2 = 0 ;
+    lldb::addr_t arg3 ;
+    lldb::SBError *arg4 = 0 ;
+    lldb::SBThreadPlan result;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",1,"lldb::SBThreadPlan *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",2,"lldb::SBAddress &");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",3,"lldb::addr_t");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",4,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepInRange",1,SWIGTYPE_p_lldb__SBThreadPlan);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepInRange",2,SWIGTYPE_p_lldb__SBAddress);
+    }
+    
+    arg3 = (lldb::addr_t)lua_tointeger(L, 3); 
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepInRange",4,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->QueueThreadPlanForStepInRange(*arg2,arg3,*arg4);
+    {
+      lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          return _wrap_SBThreadPlan_QueueThreadPlanForStepInRange__SWIG_0(L);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBThreadPlan_QueueThreadPlanForStepInRange__SWIG_1(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_QueueThreadPlanForStepInRange'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepInRange(lldb::SBAddress &,lldb::addr_t)\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepInRange(lldb::SBAddress &,lldb::addr_t,lldb::SBError &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -58546,10 +61642,50 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut__SWIG_1(lua_State* L) {
 }
 
 
+static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut__SWIG_2(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+    uint32_t arg2 ;
+    bool arg3 ;
+    lldb::SBError *arg4 = 0 ;
+    lldb::SBThreadPlan result;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepOut",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",1,"lldb::SBThreadPlan *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,"uint32_t");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",3,"bool");
+    if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",4,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOut",1,SWIGTYPE_p_lldb__SBThreadPlan);
+    }
+    
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    arg3 = (lua_toboolean(L, 3)!=0);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOut",4,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->QueueThreadPlanForStepOut(arg2,arg3,*arg4);
+    {
+      lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut(lua_State* L) {
   int argc;
-  int argv[4]={
-    1,2,3,4
+  int argv[5]={
+    1,2,3,4,5
   };
   
   argc = lua_gettop(L);
@@ -58596,16 +61732,51 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut(lua_State* L) {
       }
     }
   }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        {
+          _v = lua_isboolean(L,argv[2]);
+        }
+        if (_v) {
+          {
+            void *ptr;
+            if (lua_isuserdata(L,argv[3])==0 || SWIG_ConvertPtr(L,argv[3], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+              _v = 0;
+            } else {
+              _v = 1;
+            }
+          }
+          if (_v) {
+            return _wrap_SBThreadPlan_QueueThreadPlanForStepOut__SWIG_2(L);
+          }
+        }
+      }
+    }
+  }
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_QueueThreadPlanForStepOut'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBThreadPlan::QueueThreadPlanForStepOut(uint32_t,bool)\n"
-    "    lldb::SBThreadPlan::QueueThreadPlanForStepOut(uint32_t)\n");
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepOut(uint32_t)\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForStepOut(uint32_t,bool,lldb::SBError &)\n");
   lua_error(L);return 0;
 }
 
 
-static int _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress(lua_State* L) {
+static int _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
@@ -58638,6 +61809,123 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+    lldb::SBAddress arg2 ;
+    lldb::SBError *arg3 = 0 ;
+    lldb::SBAddress *argp2 ;
+    lldb::SBThreadPlan result;
+    
+    SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForRunToAddress",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForRunToAddress",1,"lldb::SBThreadPlan *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForRunToAddress",2,"lldb::SBAddress");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForRunToAddress",3,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForRunToAddress",1,SWIGTYPE_p_lldb__SBThreadPlan);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBAddress,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForRunToAddress",2,SWIGTYPE_p_lldb__SBAddress);
+    }
+    arg2 = *argp2;
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForRunToAddress",3,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->QueueThreadPlanForRunToAddress(arg2,*arg3);
+    {
+      lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThreadPlan,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress(lua_State* L) {
+  int argc;
+  int argv[4]={
+    1,2,3,4
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        return _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBThreadPlan, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBAddress, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_SBThreadPlan_QueueThreadPlanForRunToAddress__SWIG_1(L);
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBThreadPlan_QueueThreadPlanForRunToAddress'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForRunToAddress(lldb::SBAddress)\n"
+    "    lldb::SBThreadPlan::QueueThreadPlanForRunToAddress(lldb::SBAddress,lldb::SBError &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -58872,7 +62160,6 @@ static swig_lua_attribute swig_SBThreadPlan_attributes[] = {
     {0,0,0}
 };
 static swig_lua_method swig_SBThreadPlan_methods[]= {
-    { "IsValid", _wrap_SBThreadPlan_IsValid},
     { "Clear", _wrap_SBThreadPlan_Clear},
     { "GetStopReason", _wrap_SBThreadPlan_GetStopReason},
     { "GetStopReasonDataCount", _wrap_SBThreadPlan_GetStopReasonDataCount},
@@ -58882,6 +62169,7 @@ static swig_lua_method swig_SBThreadPlan_methods[]= {
     { "SetPlanComplete", _wrap_SBThreadPlan_SetPlanComplete},
     { "IsPlanComplete", _wrap_SBThreadPlan_IsPlanComplete},
     { "IsPlanStale", _wrap_SBThreadPlan_IsPlanStale},
+    { "IsValid", _wrap_SBThreadPlan_IsValid},
     { "GetStopOthers", _wrap_SBThreadPlan_GetStopOthers},
     { "SetStopOthers", _wrap_SBThreadPlan_SetStopOthers},
     { "QueueThreadPlanForStepOverRange", _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange},
@@ -58937,6 +62225,47 @@ static int _wrap_new_SBTrace(lua_State* L) {
 }
 
 
+static int _wrap_SBTrace_LoadTraceFromFile(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBError *arg1 = 0 ;
+    lldb::SBDebugger *arg2 = 0 ;
+    lldb::SBFileSpec *arg3 = 0 ;
+    lldb::SBTrace result;
+    
+    SWIG_check_num_args("lldb::SBTrace::LoadTraceFromFile",3,3)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBTrace::LoadTraceFromFile",1,"lldb::SBError &");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::LoadTraceFromFile",2,"lldb::SBDebugger &");
+    if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTrace::LoadTraceFromFile",3,"lldb::SBFileSpec const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBTrace_LoadTraceFromFile",1,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBDebugger,0))){
+      SWIG_fail_ptr("SBTrace_LoadTraceFromFile",2,SWIGTYPE_p_lldb__SBDebugger);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
+      SWIG_fail_ptr("SBTrace_LoadTraceFromFile",3,SWIGTYPE_p_lldb__SBFileSpec);
+    }
+    
+    result = lldb::SBTrace::LoadTraceFromFile(*arg1,*arg2,(lldb::SBFileSpec const &)*arg3);
+    {
+      lldb::SBTrace * resultptr = new lldb::SBTrace(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTrace,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTrace_CreateNewCursor(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -58969,30 +62298,6 @@ static int _wrap_SBTrace_CreateNewCursor(lua_State* L) {
       lldb::SBTraceCursor * resultptr = new lldb::SBTraceCursor(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTraceCursor,1); SWIG_arg++;
     }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBTrace_GetStartConfigurationHelp(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBTrace::GetStartConfigurationHelp",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::GetStartConfigurationHelp",1,"lldb::SBTrace *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
-      SWIG_fail_ptr("SBTrace_GetStartConfigurationHelp",1,SWIGTYPE_p_lldb__SBTrace);
-    }
-    
-    result = (char *)(arg1)->GetStartConfigurationHelp();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -59173,6 +62478,30 @@ static int _wrap_SBTrace_SaveToDisk(lua_State* L) {
     "    lldb::SBTrace::SaveToDisk(lldb::SBError &,lldb::SBFileSpec const &,bool)\n"
     "    lldb::SBTrace::SaveToDisk(lldb::SBError &,lldb::SBFileSpec const &)\n");
   lua_error(L);return 0;
+}
+
+
+static int _wrap_SBTrace_GetStartConfigurationHelp(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTrace::GetStartConfigurationHelp",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::GetStartConfigurationHelp",1,"lldb::SBTrace *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
+      SWIG_fail_ptr("SBTrace_GetStartConfigurationHelp",1,SWIGTYPE_p_lldb__SBTrace);
+    }
+    
+    result = (char *)(arg1)->GetStartConfigurationHelp();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
 }
 
 
@@ -59481,8 +62810,8 @@ static swig_lua_attribute swig_SBTrace_attributes[] = {
 };
 static swig_lua_method swig_SBTrace_methods[]= {
     { "CreateNewCursor", _wrap_SBTrace_CreateNewCursor},
-    { "GetStartConfigurationHelp", _wrap_SBTrace_GetStartConfigurationHelp},
     { "SaveToDisk", _wrap_SBTrace_SaveToDisk},
+    { "GetStartConfigurationHelp", _wrap_SBTrace_GetStartConfigurationHelp},
     { "Start", _wrap_SBTrace_Start},
     { "Stop", _wrap_SBTrace_Stop},
     { "IsValid", _wrap_SBTrace_IsValid},
@@ -59499,6 +62828,7 @@ static swig_lua_const_info swig_SBTrace_Sf_SwigStatic_constants[]= {
     {0,0,0,0,0,0}
 };
 static swig_lua_method swig_SBTrace_Sf_SwigStatic_methods[]= {
+    { "LoadTraceFromFile", _wrap_SBTrace_LoadTraceFromFile},
     {0,0}
 };
 static swig_lua_class* swig_SBTrace_Sf_SwigStatic_classes[]= {
@@ -59517,7 +62847,7 @@ static swig_lua_class *swig_SBTrace_bases[] = {0};
 static const char *swig_SBTrace_base_names[] = {0};
 static swig_lua_class _wrap_class_SBTrace = { "SBTrace", "SBTrace", &SWIGTYPE_p_lldb__SBTrace,_proxy__wrap_new_SBTrace, swig_delete_SBTrace, swig_SBTrace_methods, swig_SBTrace_attributes, &swig_SBTrace_Sf_SwigStatic, swig_SBTrace_meta, swig_SBTrace_bases, swig_SBTrace_base_names };
 
-static int _wrap_new_SBTraceCursor__SWIG_0(lua_State* L) {
+static int _wrap_new_SBTraceCursor(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBTraceCursor *result = 0 ;
@@ -59531,65 +62861,6 @@ static int _wrap_new_SBTraceCursor__SWIG_0(lua_State* L) {
   }
   lua_error(L);
   return 0;
-}
-
-
-static int _wrap_new_SBTraceCursor__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    SwigValueWrapper< std::shared_ptr< lldb_private::TraceCursor > > arg1 ;
-    lldb::TraceCursorSP *argp1 ;
-    lldb::SBTraceCursor *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBTraceCursor::SBTraceCursor",1,1)
-    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::SBTraceCursor",1,"lldb::TraceCursorSP");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&argp1,SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t,0))){
-      SWIG_fail_ptr("new_SBTraceCursor",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t);
-    }
-    arg1 = *argp1;
-    
-    result = (lldb::SBTraceCursor *)new lldb::SBTraceCursor(arg1);
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTraceCursor,1); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_new_SBTraceCursor(lua_State* L) {
-  int argc;
-  int argv[2]={
-    1,2
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 0) {
-    return _wrap_new_SBTraceCursor__SWIG_0(L);
-  }
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t, SWIG_POINTER_NO_NULL)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_new_SBTraceCursor__SWIG_1(L);
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBTraceCursor'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBTraceCursor::SBTraceCursor()\n"
-    "    lldb::SBTraceCursor::SBTraceCursor(lldb::TraceCursorSP)\n");
-  lua_error(L);return 0;
 }
 
 
@@ -59673,13 +62944,13 @@ static int _wrap_SBTraceCursor_HasValue(lua_State* L) {
     bool result;
     
     SWIG_check_num_args("lldb::SBTraceCursor::HasValue",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::HasValue",1,"lldb::SBTraceCursor *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::HasValue",1,"lldb::SBTraceCursor const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
       SWIG_fail_ptr("SBTraceCursor_HasValue",1,SWIGTYPE_p_lldb__SBTraceCursor);
     }
     
-    result = (bool)(arg1)->HasValue();
+    result = (bool)((lldb::SBTraceCursor const *)arg1)->HasValue();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -60348,6 +63619,40 @@ static int _wrap_SBTypeMember_GetBitfieldSizeInBits(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeMember_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeMember *arg1 = (lldb::SBTypeMember *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::DescriptionLevel arg3 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeMember::GetDescription",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeMember::GetDescription",1,"lldb::SBTypeMember *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeMember::GetDescription",2,"lldb::SBStream &");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTypeMember::GetDescription",3,"lldb::DescriptionLevel");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeMember,0))){
+      SWIG_fail_ptr("SBTypeMember_GetDescription",1,SWIGTYPE_p_lldb__SBTypeMember);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBTypeMember_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    arg3 = (lldb::DescriptionLevel)lua_tointeger(L, 3); 
+    result = (bool)(arg1)->GetDescription(*arg2,arg3);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeMember___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -60395,6 +63700,7 @@ static swig_lua_method swig_SBTypeMember_methods[]= {
     { "GetOffsetInBits", _wrap_SBTypeMember_GetOffsetInBits},
     { "IsBitfield", _wrap_SBTypeMember_IsBitfield},
     { "GetBitfieldSizeInBits", _wrap_SBTypeMember_GetBitfieldSizeInBits},
+    { "GetDescription", _wrap_SBTypeMember_GetDescription},
     { "__tostring", _wrap_SBTypeMember___tostring},
     {0,0}
 };
@@ -60928,13 +64234,13 @@ static int _wrap_SBType_IsValid(lua_State* L) {
     bool result;
     
     SWIG_check_num_args("lldb::SBType::IsValid",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::IsValid",1,"lldb::SBType *");
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::IsValid",1,"lldb::SBType const *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
       SWIG_fail_ptr("SBType_IsValid",1,SWIGTYPE_p_lldb__SBType);
     }
     
-    result = (bool)(arg1)->IsValid();
+    result = (bool)((lldb::SBType const *)arg1)->IsValid();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -61371,60 +64677,6 @@ static int _wrap_SBType_GetUnqualifiedType(lua_State* L) {
 }
 
 
-static int _wrap_SBType_GetCanonicalType(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    lldb::SBType result;
-    
-    SWIG_check_num_args("lldb::SBType::GetCanonicalType",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetCanonicalType",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetCanonicalType",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (arg1)->GetCanonicalType();
-    {
-      lldb::SBType * resultptr = new lldb::SBType(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBType_GetEnumerationIntegerType(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    lldb::SBType result;
-    
-    SWIG_check_num_args("lldb::SBType::GetEnumerationIntegerType",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetEnumerationIntegerType",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetEnumerationIntegerType",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (arg1)->GetEnumerationIntegerType();
-    {
-      lldb::SBType * resultptr = new lldb::SBType(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBType_GetArrayElementType(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -61496,6 +64748,60 @@ static int _wrap_SBType_GetVectorElementType(lua_State* L) {
     }
     
     result = (arg1)->GetVectorElementType();
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetCanonicalType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBType::GetCanonicalType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetCanonicalType",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetCanonicalType",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (arg1)->GetCanonicalType();
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetEnumerationIntegerType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBType::GetEnumerationIntegerType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetEnumerationIntegerType",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetEnumerationIntegerType",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (arg1)->GetEnumerationIntegerType();
     {
       lldb::SBType * resultptr = new lldb::SBType(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
@@ -61801,105 +65107,6 @@ static int _wrap_SBType_GetEnumMembers(lua_State* L) {
 }
 
 
-static int _wrap_SBType_GetModule(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    lldb::SBModule result;
-    
-    SWIG_check_num_args("lldb::SBType::GetModule",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetModule",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetModule",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (arg1)->GetModule();
-    {
-      lldb::SBModule * resultptr = new lldb::SBModule(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBModule,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBType_GetName(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBType::GetName",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetName",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetName",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (char *)(arg1)->GetName();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBType_GetDisplayTypeName(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    char *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBType::GetDisplayTypeName",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetDisplayTypeName",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetDisplayTypeName",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (char *)(arg1)->GetDisplayTypeName();
-    lua_pushstring(L,(const char *)result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBType_GetTypeClass(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
-    lldb::TypeClass result;
-    
-    SWIG_check_num_args("lldb::SBType::GetTypeClass",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetTypeClass",1,"lldb::SBType *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
-      SWIG_fail_ptr("SBType_GetTypeClass",1,SWIGTYPE_p_lldb__SBType);
-    }
-    
-    result = (lldb::TypeClass)(arg1)->GetTypeClass();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBType_GetNumberOfTemplateArguments(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -62089,6 +65296,105 @@ static int _wrap_SBType_GetMemberFunctionAtIndex(lua_State* L) {
 }
 
 
+static int _wrap_SBType_GetModule(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    lldb::SBModule result;
+    
+    SWIG_check_num_args("lldb::SBType::GetModule",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetModule",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetModule",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (arg1)->GetModule();
+    {
+      lldb::SBModule * resultptr = new lldb::SBModule(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBModule,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBType::GetName",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetName",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetName",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (char *)(arg1)->GetName();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetDisplayTypeName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBType::GetDisplayTypeName",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetDisplayTypeName",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetDisplayTypeName",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (char *)(arg1)->GetDisplayTypeName();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetTypeClass(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    lldb::TypeClass result;
+    
+    SWIG_check_num_args("lldb::SBType::GetTypeClass",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetTypeClass",1,"lldb::SBType *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetTypeClass",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    result = (lldb::TypeClass)(arg1)->GetTypeClass();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBType_IsTypeComplete(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -62128,6 +65434,40 @@ static int _wrap_SBType_GetTypeFlags(lua_State* L) {
     
     result = (uint32_t)(arg1)->GetTypeFlags();
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBType_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    lldb::DescriptionLevel arg3 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBType::GetDescription",3,3)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetDescription",1,"lldb::SBType *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBType::GetDescription",2,"lldb::SBStream &");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBType::GetDescription",3,"lldb::DescriptionLevel");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+      SWIG_fail_ptr("SBType_GetDescription",1,SWIGTYPE_p_lldb__SBType);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBType_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    arg3 = (lldb::DescriptionLevel)lua_tointeger(L, 3); 
+    result = (bool)(arg1)->GetDescription(*arg2,arg3);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -62226,11 +65566,11 @@ static swig_lua_method swig_SBType_methods[]= {
     { "GetTypedefedType", _wrap_SBType_GetTypedefedType},
     { "GetDereferencedType", _wrap_SBType_GetDereferencedType},
     { "GetUnqualifiedType", _wrap_SBType_GetUnqualifiedType},
-    { "GetCanonicalType", _wrap_SBType_GetCanonicalType},
-    { "GetEnumerationIntegerType", _wrap_SBType_GetEnumerationIntegerType},
     { "GetArrayElementType", _wrap_SBType_GetArrayElementType},
     { "GetArrayType", _wrap_SBType_GetArrayType},
     { "GetVectorElementType", _wrap_SBType_GetVectorElementType},
+    { "GetCanonicalType", _wrap_SBType_GetCanonicalType},
+    { "GetEnumerationIntegerType", _wrap_SBType_GetEnumerationIntegerType},
     { "GetBasicType", _wrap_SBType_GetBasicType},
     { "GetNumberOfFields", _wrap_SBType_GetNumberOfFields},
     { "GetNumberOfDirectBaseClasses", _wrap_SBType_GetNumberOfDirectBaseClasses},
@@ -62239,10 +65579,6 @@ static swig_lua_method swig_SBType_methods[]= {
     { "GetDirectBaseClassAtIndex", _wrap_SBType_GetDirectBaseClassAtIndex},
     { "GetVirtualBaseClassAtIndex", _wrap_SBType_GetVirtualBaseClassAtIndex},
     { "GetEnumMembers", _wrap_SBType_GetEnumMembers},
-    { "GetModule", _wrap_SBType_GetModule},
-    { "GetName", _wrap_SBType_GetName},
-    { "GetDisplayTypeName", _wrap_SBType_GetDisplayTypeName},
-    { "GetTypeClass", _wrap_SBType_GetTypeClass},
     { "GetNumberOfTemplateArguments", _wrap_SBType_GetNumberOfTemplateArguments},
     { "GetTemplateArgumentType", _wrap_SBType_GetTemplateArgumentType},
     { "GetTemplateArgumentKind", _wrap_SBType_GetTemplateArgumentKind},
@@ -62250,8 +65586,13 @@ static swig_lua_method swig_SBType_methods[]= {
     { "GetFunctionArgumentTypes", _wrap_SBType_GetFunctionArgumentTypes},
     { "GetNumberOfMemberFunctions", _wrap_SBType_GetNumberOfMemberFunctions},
     { "GetMemberFunctionAtIndex", _wrap_SBType_GetMemberFunctionAtIndex},
+    { "GetModule", _wrap_SBType_GetModule},
+    { "GetName", _wrap_SBType_GetName},
+    { "GetDisplayTypeName", _wrap_SBType_GetDisplayTypeName},
+    { "GetTypeClass", _wrap_SBType_GetTypeClass},
     { "IsTypeComplete", _wrap_SBType_IsTypeComplete},
     { "GetTypeFlags", _wrap_SBType_GetTypeFlags},
+    { "GetDescription", _wrap_SBType_GetDescription},
     { "__eq", _wrap_SBType___eq},
     { "__tostring", _wrap_SBType___tostring},
     {0,0}
@@ -62287,7 +65628,7 @@ static swig_lua_class *swig_SBType_bases[] = {0};
 static const char *swig_SBType_base_names[] = {0};
 static swig_lua_class _wrap_class_SBType = { "SBType", "SBType", &SWIGTYPE_p_lldb__SBType,_proxy__wrap_new_SBType, swig_delete_SBType, swig_SBType_methods, swig_SBType_attributes, &swig_SBType_Sf_SwigStatic, swig_SBType_meta, swig_SBType_bases, swig_SBType_base_names };
 
-static int _wrap_new_SBTypeList(lua_State* L) {
+static int _wrap_new_SBTypeList__SWIG_0(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBTypeList *result = 0 ;
@@ -62301,6 +65642,63 @@ static int _wrap_new_SBTypeList(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_new_SBTypeList__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeList *arg1 = 0 ;
+    lldb::SBTypeList *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBTypeList::SBTypeList",1,1)
+    if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBTypeList::SBTypeList",1,"lldb::SBTypeList const &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeList,0))){
+      SWIG_fail_ptr("new_SBTypeList",1,SWIGTYPE_p_lldb__SBTypeList);
+    }
+    
+    result = (lldb::SBTypeList *)new lldb::SBTypeList((lldb::SBTypeList const &)*arg1);
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTypeList,1); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_new_SBTypeList(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 0) {
+    return _wrap_new_SBTypeList__SWIG_0(L);
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTypeList, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBTypeList__SWIG_1(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBTypeList'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBTypeList::SBTypeList()\n"
+    "    lldb::SBTypeList::SBTypeList(lldb::SBTypeList const &)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -63528,6 +66926,37 @@ static int _wrap_SBTypeCategory_DeleteTypeSynthetic(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeCategory___eq(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeCategory *arg1 = (lldb::SBTypeCategory *) 0 ;
+    lldb::SBTypeCategory *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeCategory::operator ==",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::operator ==",1,"lldb::SBTypeCategory *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::operator ==",2,"lldb::SBTypeCategory &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
+      SWIG_fail_ptr("SBTypeCategory___eq",1,SWIGTYPE_p_lldb__SBTypeCategory);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeCategory,0))){
+      SWIG_fail_ptr("SBTypeCategory___eq",2,SWIGTYPE_p_lldb__SBTypeCategory);
+    }
+    
+    result = (bool)(arg1)->operator ==(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeCategory___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -63600,10 +67029,12 @@ static swig_lua_method swig_SBTypeCategory_methods[]= {
     { "DeleteTypeFilter", _wrap_SBTypeCategory_DeleteTypeFilter},
     { "AddTypeSynthetic", _wrap_SBTypeCategory_AddTypeSynthetic},
     { "DeleteTypeSynthetic", _wrap_SBTypeCategory_DeleteTypeSynthetic},
+    { "__eq", _wrap_SBTypeCategory___eq},
     { "__tostring", _wrap_SBTypeCategory___tostring},
     {0,0}
 };
 static swig_lua_method swig_SBTypeCategory_meta[] = {
+    { "__eq", _wrap_SBTypeCategory___eq},
     { "__tostring", _wrap_SBTypeCategory___tostring},
     {0,0}
 };
@@ -64306,37 +67737,6 @@ static int _wrap_SBTypeFilter_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBTypeFilter_IsEqualTo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTypeFilter *arg1 = (lldb::SBTypeFilter *) 0 ;
-    lldb::SBTypeFilter *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTypeFilter::IsEqualTo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::IsEqualTo",1,"lldb::SBTypeFilter *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::IsEqualTo",2,"lldb::SBTypeFilter &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFilter,0))){
-      SWIG_fail_ptr("SBTypeFilter_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeFilter);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeFilter,0))){
-      SWIG_fail_ptr("SBTypeFilter_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeFilter);
-    }
-    
-    result = (bool)(arg1)->IsEqualTo(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTypeFilter_GetNumberOfExpressionPaths(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -64551,6 +67951,37 @@ static int _wrap_SBTypeFilter_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeFilter_IsEqualTo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeFilter *arg1 = (lldb::SBTypeFilter *) 0 ;
+    lldb::SBTypeFilter *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeFilter::IsEqualTo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::IsEqualTo",1,"lldb::SBTypeFilter *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::IsEqualTo",2,"lldb::SBTypeFilter &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFilter,0))){
+      SWIG_fail_ptr("SBTypeFilter_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeFilter);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeFilter,0))){
+      SWIG_fail_ptr("SBTypeFilter_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeFilter);
+    }
+    
+    result = (bool)(arg1)->IsEqualTo(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeFilter___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -64623,7 +68054,6 @@ static swig_lua_attribute swig_SBTypeFilter_attributes[] = {
 };
 static swig_lua_method swig_SBTypeFilter_methods[]= {
     { "IsValid", _wrap_SBTypeFilter_IsValid},
-    { "IsEqualTo", _wrap_SBTypeFilter_IsEqualTo},
     { "GetNumberOfExpressionPaths", _wrap_SBTypeFilter_GetNumberOfExpressionPaths},
     { "GetExpressionPathAtIndex", _wrap_SBTypeFilter_GetExpressionPathAtIndex},
     { "ReplaceExpressionPathAtIndex", _wrap_SBTypeFilter_ReplaceExpressionPathAtIndex},
@@ -64632,6 +68062,7 @@ static swig_lua_method swig_SBTypeFilter_methods[]= {
     { "GetOptions", _wrap_SBTypeFilter_GetOptions},
     { "SetOptions", _wrap_SBTypeFilter_SetOptions},
     { "GetDescription", _wrap_SBTypeFilter_GetDescription},
+    { "IsEqualTo", _wrap_SBTypeFilter_IsEqualTo},
     { "__eq", _wrap_SBTypeFilter___eq},
     { "__tostring", _wrap_SBTypeFilter___tostring},
     {0,0}
@@ -64901,37 +68332,6 @@ static int _wrap_SBTypeFormat_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBTypeFormat_IsEqualTo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTypeFormat *arg1 = (lldb::SBTypeFormat *) 0 ;
-    lldb::SBTypeFormat *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTypeFormat::IsEqualTo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFormat::IsEqualTo",1,"lldb::SBTypeFormat *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::IsEqualTo",2,"lldb::SBTypeFormat &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFormat,0))){
-      SWIG_fail_ptr("SBTypeFormat_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeFormat);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeFormat,0))){
-      SWIG_fail_ptr("SBTypeFormat_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeFormat);
-    }
-    
-    result = (bool)(arg1)->IsEqualTo(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTypeFormat_GetFormat(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -65116,6 +68516,37 @@ static int _wrap_SBTypeFormat_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeFormat_IsEqualTo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeFormat *arg1 = (lldb::SBTypeFormat *) 0 ;
+    lldb::SBTypeFormat *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeFormat::IsEqualTo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFormat::IsEqualTo",1,"lldb::SBTypeFormat *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::IsEqualTo",2,"lldb::SBTypeFormat &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFormat,0))){
+      SWIG_fail_ptr("SBTypeFormat_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeFormat);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeFormat,0))){
+      SWIG_fail_ptr("SBTypeFormat_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeFormat);
+    }
+    
+    result = (bool)(arg1)->IsEqualTo(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeFormat___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -65188,7 +68619,6 @@ static swig_lua_attribute swig_SBTypeFormat_attributes[] = {
 };
 static swig_lua_method swig_SBTypeFormat_methods[]= {
     { "IsValid", _wrap_SBTypeFormat_IsValid},
-    { "IsEqualTo", _wrap_SBTypeFormat_IsEqualTo},
     { "GetFormat", _wrap_SBTypeFormat_GetFormat},
     { "GetTypeName", _wrap_SBTypeFormat_GetTypeName},
     { "GetOptions", _wrap_SBTypeFormat_GetOptions},
@@ -65196,6 +68626,7 @@ static swig_lua_method swig_SBTypeFormat_methods[]= {
     { "SetTypeName", _wrap_SBTypeFormat_SetTypeName},
     { "SetOptions", _wrap_SBTypeFormat_SetOptions},
     { "GetDescription", _wrap_SBTypeFormat_GetDescription},
+    { "IsEqualTo", _wrap_SBTypeFormat_IsEqualTo},
     { "__eq", _wrap_SBTypeFormat___eq},
     { "__tostring", _wrap_SBTypeFormat___tostring},
     {0,0}
@@ -65476,37 +68907,6 @@ static int _wrap_SBTypeNameSpecifier_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBTypeNameSpecifier_IsEqualTo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTypeNameSpecifier *arg1 = (lldb::SBTypeNameSpecifier *) 0 ;
-    lldb::SBTypeNameSpecifier *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTypeNameSpecifier::IsEqualTo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::IsEqualTo",1,"lldb::SBTypeNameSpecifier *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::IsEqualTo",2,"lldb::SBTypeNameSpecifier &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeNameSpecifier,0))){
-      SWIG_fail_ptr("SBTypeNameSpecifier_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeNameSpecifier);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeNameSpecifier,0))){
-      SWIG_fail_ptr("SBTypeNameSpecifier_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeNameSpecifier);
-    }
-    
-    result = (bool)(arg1)->IsEqualTo(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTypeNameSpecifier_GetName(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -65640,6 +69040,37 @@ static int _wrap_SBTypeNameSpecifier_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeNameSpecifier_IsEqualTo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeNameSpecifier *arg1 = (lldb::SBTypeNameSpecifier *) 0 ;
+    lldb::SBTypeNameSpecifier *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeNameSpecifier::IsEqualTo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::IsEqualTo",1,"lldb::SBTypeNameSpecifier *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::IsEqualTo",2,"lldb::SBTypeNameSpecifier &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeNameSpecifier,0))){
+      SWIG_fail_ptr("SBTypeNameSpecifier_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeNameSpecifier);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeNameSpecifier,0))){
+      SWIG_fail_ptr("SBTypeNameSpecifier_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeNameSpecifier);
+    }
+    
+    result = (bool)(arg1)->IsEqualTo(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeNameSpecifier___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -65712,12 +69143,12 @@ static swig_lua_attribute swig_SBTypeNameSpecifier_attributes[] = {
 };
 static swig_lua_method swig_SBTypeNameSpecifier_methods[]= {
     { "IsValid", _wrap_SBTypeNameSpecifier_IsValid},
-    { "IsEqualTo", _wrap_SBTypeNameSpecifier_IsEqualTo},
     { "GetName", _wrap_SBTypeNameSpecifier_GetName},
     { "GetType", _wrap_SBTypeNameSpecifier_GetType},
     { "GetMatchType", _wrap_SBTypeNameSpecifier_GetMatchType},
     { "IsRegex", _wrap_SBTypeNameSpecifier_IsRegex},
     { "GetDescription", _wrap_SBTypeNameSpecifier_GetDescription},
+    { "IsEqualTo", _wrap_SBTypeNameSpecifier_IsEqualTo},
     { "__eq", _wrap_SBTypeNameSpecifier___eq},
     { "__tostring", _wrap_SBTypeNameSpecifier___tostring},
     {0,0}
@@ -66365,37 +69796,6 @@ static int _wrap_SBTypeSummary_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBTypeSummary_IsEqualTo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTypeSummary *arg1 = (lldb::SBTypeSummary *) 0 ;
-    lldb::SBTypeSummary *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTypeSummary::IsEqualTo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::IsEqualTo",1,"lldb::SBTypeSummary *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::IsEqualTo",2,"lldb::SBTypeSummary &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSummary,0))){
-      SWIG_fail_ptr("SBTypeSummary_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeSummary);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeSummary,0))){
-      SWIG_fail_ptr("SBTypeSummary_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeSummary);
-    }
-    
-    result = (bool)(arg1)->IsEqualTo(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTypeSummary_IsFunctionCode(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -66654,6 +70054,70 @@ static int _wrap_SBTypeSummary_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeSummary_DoesPrintValue(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeSummary *arg1 = (lldb::SBTypeSummary *) 0 ;
+    lldb::SBValue arg2 ;
+    lldb::SBValue *argp2 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeSummary::DoesPrintValue",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::DoesPrintValue",1,"lldb::SBTypeSummary *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::DoesPrintValue",2,"lldb::SBValue");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSummary,0))){
+      SWIG_fail_ptr("SBTypeSummary_DoesPrintValue",1,SWIGTYPE_p_lldb__SBTypeSummary);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBTypeSummary_DoesPrintValue",2,SWIGTYPE_p_lldb__SBValue);
+    }
+    arg2 = *argp2;
+    
+    result = (bool)(arg1)->DoesPrintValue(arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTypeSummary_IsEqualTo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeSummary *arg1 = (lldb::SBTypeSummary *) 0 ;
+    lldb::SBTypeSummary *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeSummary::IsEqualTo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::IsEqualTo",1,"lldb::SBTypeSummary *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::IsEqualTo",2,"lldb::SBTypeSummary &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSummary,0))){
+      SWIG_fail_ptr("SBTypeSummary_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeSummary);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeSummary,0))){
+      SWIG_fail_ptr("SBTypeSummary_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeSummary);
+    }
+    
+    result = (bool)(arg1)->IsEqualTo(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeSummary___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -66726,7 +70190,6 @@ static swig_lua_attribute swig_SBTypeSummary_attributes[] = {
 };
 static swig_lua_method swig_SBTypeSummary_methods[]= {
     { "IsValid", _wrap_SBTypeSummary_IsValid},
-    { "IsEqualTo", _wrap_SBTypeSummary_IsEqualTo},
     { "IsFunctionCode", _wrap_SBTypeSummary_IsFunctionCode},
     { "IsFunctionName", _wrap_SBTypeSummary_IsFunctionName},
     { "IsSummaryString", _wrap_SBTypeSummary_IsSummaryString},
@@ -66737,6 +70200,8 @@ static swig_lua_method swig_SBTypeSummary_methods[]= {
     { "GetOptions", _wrap_SBTypeSummary_GetOptions},
     { "SetOptions", _wrap_SBTypeSummary_SetOptions},
     { "GetDescription", _wrap_SBTypeSummary_GetDescription},
+    { "DoesPrintValue", _wrap_SBTypeSummary_DoesPrintValue},
+    { "IsEqualTo", _wrap_SBTypeSummary_IsEqualTo},
     { "__eq", _wrap_SBTypeSummary___eq},
     { "__tostring", _wrap_SBTypeSummary___tostring},
     {0,0}
@@ -67049,37 +70514,6 @@ static int _wrap_SBTypeSynthetic_IsValid(lua_State* L) {
 }
 
 
-static int _wrap_SBTypeSynthetic_IsEqualTo(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBTypeSynthetic *arg1 = (lldb::SBTypeSynthetic *) 0 ;
-    lldb::SBTypeSynthetic *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBTypeSynthetic::IsEqualTo",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::IsEqualTo",1,"lldb::SBTypeSynthetic *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::IsEqualTo",2,"lldb::SBTypeSynthetic &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
-      SWIG_fail_ptr("SBTypeSynthetic_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeSynthetic);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
-      SWIG_fail_ptr("SBTypeSynthetic_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeSynthetic);
-    }
-    
-    result = (bool)(arg1)->IsEqualTo(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBTypeSynthetic_IsClassCode(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -67094,6 +70528,30 @@ static int _wrap_SBTypeSynthetic_IsClassCode(lua_State* L) {
     }
     
     result = (bool)(arg1)->IsClassCode();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBTypeSynthetic_IsClassName(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeSynthetic *arg1 = (lldb::SBTypeSynthetic *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeSynthetic::IsClassName",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::IsClassName",1,"lldb::SBTypeSynthetic *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
+      SWIG_fail_ptr("SBTypeSynthetic_IsClassName",1,SWIGTYPE_p_lldb__SBTypeSynthetic);
+    }
+    
+    result = (bool)(arg1)->IsClassName();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -67264,6 +70722,37 @@ static int _wrap_SBTypeSynthetic_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBTypeSynthetic_IsEqualTo(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBTypeSynthetic *arg1 = (lldb::SBTypeSynthetic *) 0 ;
+    lldb::SBTypeSynthetic *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBTypeSynthetic::IsEqualTo",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::IsEqualTo",1,"lldb::SBTypeSynthetic *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::IsEqualTo",2,"lldb::SBTypeSynthetic &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
+      SWIG_fail_ptr("SBTypeSynthetic_IsEqualTo",1,SWIGTYPE_p_lldb__SBTypeSynthetic);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
+      SWIG_fail_ptr("SBTypeSynthetic_IsEqualTo",2,SWIGTYPE_p_lldb__SBTypeSynthetic);
+    }
+    
+    result = (bool)(arg1)->IsEqualTo(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBTypeSynthetic___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -67336,14 +70825,15 @@ static swig_lua_attribute swig_SBTypeSynthetic_attributes[] = {
 };
 static swig_lua_method swig_SBTypeSynthetic_methods[]= {
     { "IsValid", _wrap_SBTypeSynthetic_IsValid},
-    { "IsEqualTo", _wrap_SBTypeSynthetic_IsEqualTo},
     { "IsClassCode", _wrap_SBTypeSynthetic_IsClassCode},
+    { "IsClassName", _wrap_SBTypeSynthetic_IsClassName},
     { "GetData", _wrap_SBTypeSynthetic_GetData},
     { "SetClassName", _wrap_SBTypeSynthetic_SetClassName},
     { "SetClassCode", _wrap_SBTypeSynthetic_SetClassCode},
     { "GetOptions", _wrap_SBTypeSynthetic_GetOptions},
     { "SetOptions", _wrap_SBTypeSynthetic_SetOptions},
     { "GetDescription", _wrap_SBTypeSynthetic_GetDescription},
+    { "IsEqualTo", _wrap_SBTypeSynthetic_IsEqualTo},
     { "__eq", _wrap_SBTypeSynthetic___eq},
     { "__tostring", _wrap_SBTypeSynthetic___tostring},
     {0,0}
@@ -69410,106 +72900,6 @@ static int _wrap_SBValue_GetChildAtIndex__SWIG_0(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetChildAtIndex__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    uint32_t arg2 ;
-    lldb::DynamicValueType arg3 ;
-    bool arg4 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetChildAtIndex",4,4)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",1,"lldb::SBValue *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
-    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",3,"lldb::DynamicValueType");
-    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",4,"bool");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetChildAtIndex",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    arg2 = (uint32_t)lua_tointeger(L, 2); 
-    arg3 = (lldb::DynamicValueType)lua_tointeger(L, 3); 
-    arg4 = (lua_toboolean(L, 4)!=0);
-    result = (arg1)->GetChildAtIndex(arg2,arg3,arg4);
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetChildAtIndex(lua_State* L) {
-  int argc;
-  int argv[5]={
-    1,2,3,4,5
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = lua_isnumber(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBValue_GetChildAtIndex__SWIG_0(L);
-      }
-    }
-  }
-  if (argc == 4) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = lua_isnumber(L,argv[1]);
-      }
-      if (_v) {
-        {
-          _v = lua_isnumber(L,argv[2]);
-        }
-        if (_v) {
-          {
-            _v = lua_isboolean(L,argv[3]);
-          }
-          if (_v) {
-            return _wrap_SBValue_GetChildAtIndex__SWIG_1(L);
-          }
-        }
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBValue_GetChildAtIndex'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBValue::GetChildAtIndex(uint32_t)\n"
-    "    lldb::SBValue::GetChildAtIndex(uint32_t,lldb::DynamicValueType,bool)\n");
-  lua_error(L);return 0;
-}
-
-
 static int _wrap_SBValue_CreateChildAtOffset(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -69825,23 +73215,32 @@ static int _wrap_SBValue_CreateValueFromData(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetType(lua_State* L) {
+static int _wrap_SBValue_GetChildAtIndex__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBType result;
+    uint32_t arg2 ;
+    lldb::DynamicValueType arg3 ;
+    bool arg4 ;
+    lldb::SBValue result;
     
-    SWIG_check_num_args("lldb::SBValue::GetType",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetType",1,"lldb::SBValue *");
+    SWIG_check_num_args("lldb::SBValue::GetChildAtIndex",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",1,"lldb::SBValue *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
+    if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",3,"lldb::DynamicValueType");
+    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",4,"bool");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetType",1,SWIGTYPE_p_lldb__SBValue);
+      SWIG_fail_ptr("SBValue_GetChildAtIndex",1,SWIGTYPE_p_lldb__SBValue);
     }
     
-    result = (arg1)->GetType();
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    arg3 = (lldb::DynamicValueType)lua_tointeger(L, 3); 
+    arg4 = (lua_toboolean(L, 4)!=0);
+    result = (arg1)->GetChildAtIndex(arg2,arg3,arg4);
     {
-      lldb::SBType * resultptr = new lldb::SBType(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -69849,6 +73248,70 @@ static int _wrap_SBValue_GetType(lua_State* L) {
   }
   lua_error(L);
   return 0;
+}
+
+
+static int _wrap_SBValue_GetChildAtIndex(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBValue_GetChildAtIndex__SWIG_0(L);
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          {
+            _v = lua_isboolean(L,argv[3]);
+          }
+          if (_v) {
+            return _wrap_SBValue_GetChildAtIndex__SWIG_1(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBValue_GetChildAtIndex'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBValue::GetChildAtIndex(uint32_t)\n"
+    "    lldb::SBValue::GetChildAtIndex(uint32_t,lldb::DynamicValueType,bool)\n");
+  lua_error(L);return 0;
 }
 
 
@@ -70031,232 +73494,6 @@ static int _wrap_SBValue_GetValueForExpressionPath(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetDeclaration(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBDeclaration result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetDeclaration",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetDeclaration",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetDeclaration",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (arg1)->GetDeclaration();
-    {
-      lldb::SBDeclaration * resultptr = new lldb::SBDeclaration(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBDeclaration,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_MightHaveChildren(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBValue::MightHaveChildren",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::MightHaveChildren",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_MightHaveChildren",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (bool)(arg1)->MightHaveChildren();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_IsRuntimeSupportValue(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBValue::IsRuntimeSupportValue",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::IsRuntimeSupportValue",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_IsRuntimeSupportValue",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (bool)(arg1)->IsRuntimeSupportValue();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetNumChildren__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    uint32_t result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetNumChildren",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetNumChildren",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (uint32_t)(arg1)->GetNumChildren();
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetNumChildren__SWIG_1(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    uint32_t arg2 ;
-    uint32_t result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetNumChildren",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",1,"lldb::SBValue *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",2,"uint32_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetNumChildren",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    arg2 = (uint32_t)lua_tointeger(L, 2); 
-    result = (uint32_t)(arg1)->GetNumChildren(arg2);
-    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetNumChildren(lua_State* L) {
-  int argc;
-  int argv[3]={
-    1,2,3
-  };
-  
-  argc = lua_gettop(L);
-  if (argc == 1) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      return _wrap_SBValue_GetNumChildren__SWIG_0(L);
-    }
-  }
-  if (argc == 2) {
-    int _v = 0;
-    {
-      void *ptr;
-      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
-        _v = 0;
-      } else {
-        _v = 1;
-      }
-    }
-    if (_v) {
-      {
-        _v = lua_isnumber(L,argv[1]);
-      }
-      if (_v) {
-        return _wrap_SBValue_GetNumChildren__SWIG_1(L);
-      }
-    }
-  }
-  
-  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBValue_GetNumChildren'\n"
-    "  Possible C/C++ prototypes are:\n"
-    "    lldb::SBValue::GetNumChildren()\n"
-    "    lldb::SBValue::GetNumChildren(uint32_t)\n");
-  lua_error(L);return 0;
-}
-
-
-static int _wrap_SBValue_GetOpaqueType(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    void *result = 0 ;
-    
-    SWIG_check_num_args("lldb::SBValue::GetOpaqueType",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetOpaqueType",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetOpaqueType",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (void *)(arg1)->GetOpaqueType();
-    SWIG_NewPointerObj(L,result,SWIGTYPE_p_void,0); SWIG_arg++; 
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_Dereference(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBValue::Dereference",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Dereference",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_Dereference",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (arg1)->Dereference();
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBValue_AddressOf(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -70284,21 +73521,21 @@ static int _wrap_SBValue_AddressOf(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_TypeIsPointerType(lua_State* L) {
+static int _wrap_SBValue_GetLoadAddress(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    bool result;
+    lldb::addr_t result;
     
-    SWIG_check_num_args("lldb::SBValue::TypeIsPointerType",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::TypeIsPointerType",1,"lldb::SBValue *");
+    SWIG_check_num_args("lldb::SBValue::GetLoadAddress",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetLoadAddress",1,"lldb::SBValue *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_TypeIsPointerType",1,SWIGTYPE_p_lldb__SBValue);
+      SWIG_fail_ptr("SBValue_GetLoadAddress",1,SWIGTYPE_p_lldb__SBValue);
     }
     
-    result = (bool)(arg1)->TypeIsPointerType();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    result = (lldb::addr_t)(arg1)->GetLoadAddress();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -70308,253 +73545,24 @@ static int _wrap_SBValue_TypeIsPointerType(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetTarget(lua_State* L) {
+static int _wrap_SBValue_GetAddress(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBTarget result;
+    lldb::SBAddress result;
     
-    SWIG_check_num_args("lldb::SBValue::GetTarget",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetTarget",1,"lldb::SBValue *");
+    SWIG_check_num_args("lldb::SBValue::GetAddress",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetAddress",1,"lldb::SBValue *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetTarget",1,SWIGTYPE_p_lldb__SBValue);
+      SWIG_fail_ptr("SBValue_GetAddress",1,SWIGTYPE_p_lldb__SBValue);
     }
     
-    result = (arg1)->GetTarget();
+    result = (arg1)->GetAddress();
     {
-      lldb::SBTarget * resultptr = new lldb::SBTarget(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTarget,1); SWIG_arg++;
+      lldb::SBAddress * resultptr = new lldb::SBAddress(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBAddress,1); SWIG_arg++;
     }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetProcess(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBProcess result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetProcess",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetProcess",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetProcess",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (arg1)->GetProcess();
-    {
-      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetThread(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBThread result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetThread",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetThread",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetThread",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (arg1)->GetThread();
-    {
-      lldb::SBThread * resultptr = new lldb::SBThread(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThread,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetFrame(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBFrame result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetFrame",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetFrame",1,"lldb::SBValue *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetFrame",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    result = (arg1)->GetFrame();
-    {
-      lldb::SBFrame * resultptr = new lldb::SBFrame(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFrame,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_Watch(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    bool arg2 ;
-    bool arg3 ;
-    bool arg4 ;
-    lldb::SBError *arg5 = 0 ;
-    lldb::SBWatchpoint result;
-    
-    SWIG_check_num_args("lldb::SBValue::Watch",5,5)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Watch",1,"lldb::SBValue *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBValue::Watch",2,"bool");
-    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBValue::Watch",3,"bool");
-    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::Watch",4,"bool");
-    if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBValue::Watch",5,"lldb::SBError &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_Watch",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    arg3 = (lua_toboolean(L, 3)!=0);
-    arg4 = (lua_toboolean(L, 4)!=0);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBValue_Watch",5,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    result = (arg1)->Watch(arg2,arg3,arg4,*arg5);
-    {
-      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_WatchPointee(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    bool arg2 ;
-    bool arg3 ;
-    bool arg4 ;
-    lldb::SBError *arg5 = 0 ;
-    lldb::SBWatchpoint result;
-    
-    SWIG_check_num_args("lldb::SBValue::WatchPointee",5,5)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::WatchPointee",1,"lldb::SBValue *");
-    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBValue::WatchPointee",2,"bool");
-    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBValue::WatchPointee",3,"bool");
-    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::WatchPointee",4,"bool");
-    if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBValue::WatchPointee",5,"lldb::SBError &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_WatchPointee",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    arg2 = (lua_toboolean(L, 2)!=0);
-    arg3 = (lua_toboolean(L, 3)!=0);
-    arg4 = (lua_toboolean(L, 4)!=0);
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
-      SWIG_fail_ptr("SBValue_WatchPointee",5,SWIGTYPE_p_lldb__SBError);
-    }
-    
-    result = (arg1)->WatchPointee(arg2,arg3,arg4,*arg5);
-    {
-      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetDescription(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetDescription",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetDescription",1,"lldb::SBValue *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetDescription",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetDescription",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBValue_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetDescription(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
-static int _wrap_SBValue_GetExpressionPath__SWIG_0(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBStream *arg2 = 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBValue::GetExpressionPath",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetExpressionPath",1,"lldb::SBValue *");
-    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetExpressionPath",2,"lldb::SBStream &");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetExpressionPath",1,SWIGTYPE_p_lldb__SBValue);
-    }
-    
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
-      SWIG_fail_ptr("SBValue_GetExpressionPath",2,SWIGTYPE_p_lldb__SBStream);
-    }
-    
-    result = (bool)(arg1)->GetExpressionPath(*arg2);
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -70823,20 +73831,95 @@ static int _wrap_SBValue_Clone(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetLoadAddress(lua_State* L) {
+static int _wrap_SBValue_GetDeclaration(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::addr_t result;
+    lldb::SBDeclaration result;
     
-    SWIG_check_num_args("lldb::SBValue::GetLoadAddress",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetLoadAddress",1,"lldb::SBValue *");
+    SWIG_check_num_args("lldb::SBValue::GetDeclaration",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetDeclaration",1,"lldb::SBValue *");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetLoadAddress",1,SWIGTYPE_p_lldb__SBValue);
+      SWIG_fail_ptr("SBValue_GetDeclaration",1,SWIGTYPE_p_lldb__SBValue);
     }
     
-    result = (lldb::addr_t)(arg1)->GetLoadAddress();
+    result = (arg1)->GetDeclaration();
+    {
+      lldb::SBDeclaration * resultptr = new lldb::SBDeclaration(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBDeclaration,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_MightHaveChildren(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBValue::MightHaveChildren",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::MightHaveChildren",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_MightHaveChildren",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (bool)(arg1)->MightHaveChildren();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_IsRuntimeSupportValue(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBValue::IsRuntimeSupportValue",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::IsRuntimeSupportValue",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_IsRuntimeSupportValue",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (bool)(arg1)->IsRuntimeSupportValue();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetNumChildren__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    uint32_t result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetNumChildren",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetNumChildren",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (uint32_t)(arg1)->GetNumChildren();
     lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
     return SWIG_arg;
     
@@ -70847,23 +73930,282 @@ static int _wrap_SBValue_GetLoadAddress(lua_State* L) {
 }
 
 
-static int _wrap_SBValue_GetAddress(lua_State* L) {
+static int _wrap_SBValue_GetNumChildren__SWIG_1(lua_State* L) {
   {
     int SWIG_arg = 0;
     lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
-    lldb::SBAddress result;
+    uint32_t arg2 ;
+    uint32_t result;
     
-    SWIG_check_num_args("lldb::SBValue::GetAddress",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetAddress",1,"lldb::SBValue *");
+    SWIG_check_num_args("lldb::SBValue::GetNumChildren",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",1,"lldb::SBValue *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",2,"uint32_t");
     
     if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
-      SWIG_fail_ptr("SBValue_GetAddress",1,SWIGTYPE_p_lldb__SBValue);
+      SWIG_fail_ptr("SBValue_GetNumChildren",1,SWIGTYPE_p_lldb__SBValue);
     }
     
-    result = (arg1)->GetAddress();
+    arg2 = (uint32_t)lua_tointeger(L, 2); 
+    result = (uint32_t)(arg1)->GetNumChildren(arg2);
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetNumChildren(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v = 0;
     {
-      lldb::SBAddress * resultptr = new lldb::SBAddress(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBAddress,1); SWIG_arg++;
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBValue_GetNumChildren__SWIG_0(L);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBValue_GetNumChildren__SWIG_1(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBValue_GetNumChildren'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBValue::GetNumChildren()\n"
+    "    lldb::SBValue::GetNumChildren(uint32_t)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBValue_GetOpaqueType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    void *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBValue::GetOpaqueType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetOpaqueType",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetOpaqueType",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (void *)(arg1)->GetOpaqueType();
+    SWIG_NewPointerObj(L,result,SWIGTYPE_p_void,0); SWIG_arg++; 
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetTarget(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBTarget result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetTarget",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetTarget",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetTarget",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->GetTarget();
+    {
+      lldb::SBTarget * resultptr = new lldb::SBTarget(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTarget,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetProcess(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBProcess result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetProcess",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetProcess",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetProcess",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->GetProcess();
+    {
+      lldb::SBProcess * resultptr = new lldb::SBProcess(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBProcess,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetThread(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBThread result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetThread",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetThread",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetThread",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->GetThread();
+    {
+      lldb::SBThread * resultptr = new lldb::SBThread(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBThread,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetFrame(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBFrame result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetFrame",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetFrame",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetFrame",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->GetFrame();
+    {
+      lldb::SBFrame * resultptr = new lldb::SBFrame(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFrame,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_Dereference(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBValue result;
+    
+    SWIG_check_num_args("lldb::SBValue::Dereference",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Dereference",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_Dereference",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->Dereference();
+    {
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_TypeIsPointerType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBValue::TypeIsPointerType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::TypeIsPointerType",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_TypeIsPointerType",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (bool)(arg1)->TypeIsPointerType();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetType",1,"lldb::SBValue *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetType",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    result = (arg1)->GetType();
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
     }
     return SWIG_arg;
     
@@ -70892,6 +74234,68 @@ static int _wrap_SBValue_Persist(lua_State* L) {
       lldb::SBValue * resultptr = new lldb::SBValue(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
     }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetDescription(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetDescription",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetDescription",1,"lldb::SBValue *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetDescription",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetDescription",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBValue_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetDescription(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_GetExpressionPath__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    lldb::SBStream *arg2 = 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBValue::GetExpressionPath",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetExpressionPath",1,"lldb::SBValue *");
+    if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetExpressionPath",2,"lldb::SBStream &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_GetExpressionPath",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBStream,0))){
+      SWIG_fail_ptr("SBValue_GetExpressionPath",2,SWIGTYPE_p_lldb__SBStream);
+    }
+    
+    result = (bool)(arg1)->GetExpressionPath(*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
     fail: SWIGUNUSED;
@@ -71210,6 +74614,212 @@ static int _wrap_SBValue_EvaluateExpression(lua_State* L) {
 }
 
 
+static int _wrap_SBValue_Watch__SWIG_0(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool arg2 ;
+    bool arg3 ;
+    bool arg4 ;
+    lldb::SBError *arg5 = 0 ;
+    lldb::SBWatchpoint result;
+    
+    SWIG_check_num_args("lldb::SBValue::Watch",5,5)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Watch",1,"lldb::SBValue *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBValue::Watch",2,"bool");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBValue::Watch",3,"bool");
+    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::Watch",4,"bool");
+    if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBValue::Watch",5,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_Watch",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    arg3 = (lua_toboolean(L, 3)!=0);
+    arg4 = (lua_toboolean(L, 4)!=0);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBValue_Watch",5,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->Watch(arg2,arg3,arg4,*arg5);
+    {
+      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_Watch__SWIG_1(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool arg2 ;
+    bool arg3 ;
+    bool arg4 ;
+    lldb::SBWatchpoint result;
+    
+    SWIG_check_num_args("lldb::SBValue::Watch",4,4)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Watch",1,"lldb::SBValue *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBValue::Watch",2,"bool");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBValue::Watch",3,"bool");
+    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::Watch",4,"bool");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_Watch",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    arg3 = (lua_toboolean(L, 3)!=0);
+    arg4 = (lua_toboolean(L, 4)!=0);
+    result = (arg1)->Watch(arg2,arg3,arg4);
+    {
+      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValue_Watch(lua_State* L) {
+  int argc;
+  int argv[6]={
+    1,2,3,4,5,6
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 4) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isboolean(L,argv[1]);
+      }
+      if (_v) {
+        {
+          _v = lua_isboolean(L,argv[2]);
+        }
+        if (_v) {
+          {
+            _v = lua_isboolean(L,argv[3]);
+          }
+          if (_v) {
+            return _wrap_SBValue_Watch__SWIG_1(L);
+          }
+        }
+      }
+    }
+  }
+  if (argc == 5) {
+    int _v = 0;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBValue, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = lua_isboolean(L,argv[1]);
+      }
+      if (_v) {
+        {
+          _v = lua_isboolean(L,argv[2]);
+        }
+        if (_v) {
+          {
+            _v = lua_isboolean(L,argv[3]);
+          }
+          if (_v) {
+            {
+              void *ptr;
+              if (lua_isuserdata(L,argv[4])==0 || SWIG_ConvertPtr(L,argv[4], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+                _v = 0;
+              } else {
+                _v = 1;
+              }
+            }
+            if (_v) {
+              return _wrap_SBValue_Watch__SWIG_0(L);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBValue_Watch'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBValue::Watch(bool,bool,bool,lldb::SBError &)\n"
+    "    lldb::SBValue::Watch(bool,bool,bool)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBValue_WatchPointee(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+    bool arg2 ;
+    bool arg3 ;
+    bool arg4 ;
+    lldb::SBError *arg5 = 0 ;
+    lldb::SBWatchpoint result;
+    
+    SWIG_check_num_args("lldb::SBValue::WatchPointee",5,5)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::WatchPointee",1,"lldb::SBValue *");
+    if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBValue::WatchPointee",2,"bool");
+    if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBValue::WatchPointee",3,"bool");
+    if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::WatchPointee",4,"bool");
+    if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBValue::WatchPointee",5,"lldb::SBError &");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+      SWIG_fail_ptr("SBValue_WatchPointee",1,SWIGTYPE_p_lldb__SBValue);
+    }
+    
+    arg2 = (lua_toboolean(L, 2)!=0);
+    arg3 = (lua_toboolean(L, 3)!=0);
+    arg4 = (lua_toboolean(L, 4)!=0);
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
+      SWIG_fail_ptr("SBValue_WatchPointee",5,SWIGTYPE_p_lldb__SBError);
+    }
+    
+    result = (arg1)->WatchPointee(arg2,arg3,arg4,*arg5);
+    {
+      lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBWatchpoint,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBValue___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -71285,40 +74895,40 @@ static swig_lua_method swig_SBValue_methods[]= {
     { "GetTypeSummary", _wrap_SBValue_GetTypeSummary},
     { "GetTypeFilter", _wrap_SBValue_GetTypeFilter},
     { "GetTypeSynthetic", _wrap_SBValue_GetTypeSynthetic},
-    { "GetChildAtIndex", _wrap_SBValue_GetChildAtIndex},
     { "CreateChildAtOffset", _wrap_SBValue_CreateChildAtOffset},
     { "Cast", _wrap_SBValue_Cast},
     { "CreateValueFromExpression", _wrap_SBValue_CreateValueFromExpression},
     { "CreateValueFromAddress", _wrap_SBValue_CreateValueFromAddress},
     { "CreateValueFromData", _wrap_SBValue_CreateValueFromData},
-    { "GetType", _wrap_SBValue_GetType},
+    { "GetChildAtIndex", _wrap_SBValue_GetChildAtIndex},
     { "GetIndexOfChildWithName", _wrap_SBValue_GetIndexOfChildWithName},
     { "GetChildMemberWithName", _wrap_SBValue_GetChildMemberWithName},
     { "GetValueForExpressionPath", _wrap_SBValue_GetValueForExpressionPath},
+    { "AddressOf", _wrap_SBValue_AddressOf},
+    { "GetLoadAddress", _wrap_SBValue_GetLoadAddress},
+    { "GetAddress", _wrap_SBValue_GetAddress},
+    { "GetPointeeData", _wrap_SBValue_GetPointeeData},
+    { "GetData", _wrap_SBValue_GetData},
+    { "SetData", _wrap_SBValue_SetData},
+    { "Clone", _wrap_SBValue_Clone},
     { "GetDeclaration", _wrap_SBValue_GetDeclaration},
     { "MightHaveChildren", _wrap_SBValue_MightHaveChildren},
     { "IsRuntimeSupportValue", _wrap_SBValue_IsRuntimeSupportValue},
     { "GetNumChildren", _wrap_SBValue_GetNumChildren},
     { "GetOpaqueType", _wrap_SBValue_GetOpaqueType},
-    { "Dereference", _wrap_SBValue_Dereference},
-    { "AddressOf", _wrap_SBValue_AddressOf},
-    { "TypeIsPointerType", _wrap_SBValue_TypeIsPointerType},
     { "GetTarget", _wrap_SBValue_GetTarget},
     { "GetProcess", _wrap_SBValue_GetProcess},
     { "GetThread", _wrap_SBValue_GetThread},
     { "GetFrame", _wrap_SBValue_GetFrame},
-    { "Watch", _wrap_SBValue_Watch},
-    { "WatchPointee", _wrap_SBValue_WatchPointee},
-    { "GetDescription", _wrap_SBValue_GetDescription},
-    { "GetPointeeData", _wrap_SBValue_GetPointeeData},
-    { "GetData", _wrap_SBValue_GetData},
-    { "SetData", _wrap_SBValue_SetData},
-    { "Clone", _wrap_SBValue_Clone},
-    { "GetLoadAddress", _wrap_SBValue_GetLoadAddress},
-    { "GetAddress", _wrap_SBValue_GetAddress},
+    { "Dereference", _wrap_SBValue_Dereference},
+    { "TypeIsPointerType", _wrap_SBValue_TypeIsPointerType},
+    { "GetType", _wrap_SBValue_GetType},
     { "Persist", _wrap_SBValue_Persist},
+    { "GetDescription", _wrap_SBValue_GetDescription},
     { "GetExpressionPath", _wrap_SBValue_GetExpressionPath},
     { "EvaluateExpression", _wrap_SBValue_EvaluateExpression},
+    { "Watch", _wrap_SBValue_Watch},
+    { "WatchPointee", _wrap_SBValue_WatchPointee},
     { "__tostring", _wrap_SBValue___tostring},
     {0,0}
 };
@@ -71651,36 +75261,6 @@ static int _wrap_SBValueList_GetValueAtIndex(lua_State* L) {
 }
 
 
-static int _wrap_SBValueList_FindValueObjectByUID(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBValueList *arg1 = (lldb::SBValueList *) 0 ;
-    lldb::user_id_t arg2 ;
-    lldb::SBValue result;
-    
-    SWIG_check_num_args("lldb::SBValueList::FindValueObjectByUID",2,2)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",1,"lldb::SBValueList *");
-    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",2,"lldb::user_id_t");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValueList,0))){
-      SWIG_fail_ptr("SBValueList_FindValueObjectByUID",1,SWIGTYPE_p_lldb__SBValueList);
-    }
-    
-    arg2 = (lldb::user_id_t)lua_tointeger(L, 2); 
-    result = (arg1)->FindValueObjectByUID(arg2);
-    {
-      lldb::SBValue * resultptr = new lldb::SBValue(result);
-      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
-    }
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBValueList_GetFirstValueByName(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -71698,6 +75278,36 @@ static int _wrap_SBValueList_GetFirstValueByName(lua_State* L) {
     
     arg2 = (char *)lua_tostring(L, 2);
     result = ((lldb::SBValueList const *)arg1)->GetFirstValueByName((char const *)arg2);
+    {
+      lldb::SBValue * resultptr = new lldb::SBValue(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBValueList_FindValueObjectByUID(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBValueList *arg1 = (lldb::SBValueList *) 0 ;
+    lldb::user_id_t arg2 ;
+    lldb::SBValue result;
+    
+    SWIG_check_num_args("lldb::SBValueList::FindValueObjectByUID",2,2)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",1,"lldb::SBValueList *");
+    if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",2,"lldb::user_id_t");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValueList,0))){
+      SWIG_fail_ptr("SBValueList_FindValueObjectByUID",1,SWIGTYPE_p_lldb__SBValueList);
+    }
+    
+    arg2 = (lldb::user_id_t)lua_tointeger(L, 2); 
+    result = (arg1)->FindValueObjectByUID(arg2);
     {
       lldb::SBValue * resultptr = new lldb::SBValue(result);
       SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
@@ -71783,8 +75393,8 @@ static swig_lua_method swig_SBValueList_methods[]= {
     { "Append", _wrap_SBValueList_Append},
     { "GetSize", _wrap_SBValueList_GetSize},
     { "GetValueAtIndex", _wrap_SBValueList_GetValueAtIndex},
-    { "FindValueObjectByUID", _wrap_SBValueList_FindValueObjectByUID},
     { "GetFirstValueByName", _wrap_SBValueList_GetFirstValueByName},
+    { "FindValueObjectByUID", _wrap_SBValueList_FindValueObjectByUID},
     { "GetError", _wrap_SBValueList_GetError},
     { "__tostring", _wrap_SBValueList___tostring},
     {0,0}
@@ -72410,30 +76020,6 @@ static int _wrap_new_SBWatchpoint(lua_State* L) {
 }
 
 
-static int _wrap_SBWatchpoint_IsValid(lua_State* L) {
-  {
-    int SWIG_arg = 0;
-    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
-    bool result;
-    
-    SWIG_check_num_args("lldb::SBWatchpoint::IsValid",1,1)
-    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::IsValid",1,"lldb::SBWatchpoint *");
-    
-    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
-      SWIG_fail_ptr("SBWatchpoint_IsValid",1,SWIGTYPE_p_lldb__SBWatchpoint);
-    }
-    
-    result = (bool)(arg1)->IsValid();
-    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
-    return SWIG_arg;
-    
-    fail: SWIGUNUSED;
-  }
-  lua_error(L);
-  return 0;
-}
-
-
 static int _wrap_SBWatchpoint___eq(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -72455,6 +76041,30 @@ static int _wrap_SBWatchpoint___eq(lua_State* L) {
     }
     
     result = (bool)((lldb::SBWatchpoint const *)arg1)->operator ==((lldb::SBWatchpoint const &)*arg2);
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBWatchpoint_IsValid(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::IsValid",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::IsValid",1,"lldb::SBWatchpoint const *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_IsValid",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (bool)((lldb::SBWatchpoint const *)arg1)->IsValid();
     lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
     return SWIG_arg;
     
@@ -72796,6 +76406,29 @@ static int _wrap_SBWatchpoint_GetDescription(lua_State* L) {
 }
 
 
+static int _wrap_SBWatchpoint_Clear(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::Clear",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::Clear",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_Clear",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    (arg1)->Clear();
+    
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBWatchpoint_EventIsWatchpointEvent(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -72871,6 +76504,129 @@ static int _wrap_SBWatchpoint_GetWatchpointFromEvent(lua_State* L) {
 }
 
 
+static int _wrap_SBWatchpoint_GetType(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    lldb::SBType result;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::GetType",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::GetType",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_GetType",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (arg1)->GetType();
+    {
+      lldb::SBType * resultptr = new lldb::SBType(result);
+      SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+    }
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBWatchpoint_GetWatchValueKind(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    lldb::WatchpointValueKind result;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::GetWatchValueKind",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::GetWatchValueKind",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_GetWatchValueKind",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (lldb::WatchpointValueKind)(arg1)->GetWatchValueKind();
+    lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBWatchpoint_GetWatchSpec(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    char *result = 0 ;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::GetWatchSpec",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::GetWatchSpec",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_GetWatchSpec",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (char *)(arg1)->GetWatchSpec();
+    lua_pushstring(L,(const char *)result); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBWatchpoint_IsWatchingReads(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::IsWatchingReads",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::IsWatchingReads",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_IsWatchingReads",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (bool)(arg1)->IsWatchingReads();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
+static int _wrap_SBWatchpoint_IsWatchingWrites(lua_State* L) {
+  {
+    int SWIG_arg = 0;
+    lldb::SBWatchpoint *arg1 = (lldb::SBWatchpoint *) 0 ;
+    bool result;
+    
+    SWIG_check_num_args("lldb::SBWatchpoint::IsWatchingWrites",1,1)
+    if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::IsWatchingWrites",1,"lldb::SBWatchpoint *");
+    
+    if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
+      SWIG_fail_ptr("SBWatchpoint_IsWatchingWrites",1,SWIGTYPE_p_lldb__SBWatchpoint);
+    }
+    
+    result = (bool)(arg1)->IsWatchingWrites();
+    lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+    return SWIG_arg;
+    
+    fail: SWIGUNUSED;
+  }
+  lua_error(L);
+  return 0;
+}
+
+
 static int _wrap_SBWatchpoint___tostring(lua_State* L) {
   {
     int SWIG_arg = 0;
@@ -72911,8 +76667,8 @@ static swig_lua_attribute swig_SBWatchpoint_attributes[] = {
     {0,0,0}
 };
 static swig_lua_method swig_SBWatchpoint_methods[]= {
-    { "IsValid", _wrap_SBWatchpoint_IsValid},
     { "__eq", _wrap_SBWatchpoint___eq},
+    { "IsValid", _wrap_SBWatchpoint_IsValid},
     { "GetError", _wrap_SBWatchpoint_GetError},
     { "GetID", _wrap_SBWatchpoint_GetID},
     { "GetHardwareIndex", _wrap_SBWatchpoint_GetHardwareIndex},
@@ -72926,6 +76682,12 @@ static swig_lua_method swig_SBWatchpoint_methods[]= {
     { "GetCondition", _wrap_SBWatchpoint_GetCondition},
     { "SetCondition", _wrap_SBWatchpoint_SetCondition},
     { "GetDescription", _wrap_SBWatchpoint_GetDescription},
+    { "Clear", _wrap_SBWatchpoint_Clear},
+    { "GetType", _wrap_SBWatchpoint_GetType},
+    { "GetWatchValueKind", _wrap_SBWatchpoint_GetWatchValueKind},
+    { "GetWatchSpec", _wrap_SBWatchpoint_GetWatchSpec},
+    { "IsWatchingReads", _wrap_SBWatchpoint_IsWatchingReads},
+    { "IsWatchingWrites", _wrap_SBWatchpoint_IsWatchingWrites},
     { "__tostring", _wrap_SBWatchpoint___tostring},
     {0,0}
 };
@@ -73270,8 +77032,22 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eLanguageTypeC_plus_plus_14", lldb::eLanguageTypeC_plus_plus_14)},
     {SWIG_LUA_CONSTTAB_INT("eLanguageTypeFortran03", lldb::eLanguageTypeFortran03)},
     {SWIG_LUA_CONSTTAB_INT("eLanguageTypeFortran08", lldb::eLanguageTypeFortran08)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeRenderScript", lldb::eLanguageTypeRenderScript)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeBLISS", lldb::eLanguageTypeBLISS)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeKotlin", lldb::eLanguageTypeKotlin)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeZig", lldb::eLanguageTypeZig)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeCrystal", lldb::eLanguageTypeCrystal)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeC_plus_plus_17", lldb::eLanguageTypeC_plus_plus_17)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeC_plus_plus_20", lldb::eLanguageTypeC_plus_plus_20)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeC17", lldb::eLanguageTypeC17)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeFortran18", lldb::eLanguageTypeFortran18)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeAda2005", lldb::eLanguageTypeAda2005)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeAda2012", lldb::eLanguageTypeAda2012)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeHIP", lldb::eLanguageTypeHIP)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeAssembly", lldb::eLanguageTypeAssembly)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeC_sharp", lldb::eLanguageTypeC_sharp)},
+    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeMojo", lldb::eLanguageTypeMojo)},
     {SWIG_LUA_CONSTTAB_INT("eLanguageTypeMipsAssembler", lldb::eLanguageTypeMipsAssembler)},
-    {SWIG_LUA_CONSTTAB_INT("eLanguageTypeExtRenderScript", lldb::eLanguageTypeExtRenderScript)},
     {SWIG_LUA_CONSTTAB_INT("eNumLanguageTypes", lldb::eNumLanguageTypes)},
     {SWIG_LUA_CONSTTAB_INT("eInstrumentationRuntimeTypeAddressSanitizer", lldb::eInstrumentationRuntimeTypeAddressSanitizer)},
     {SWIG_LUA_CONSTTAB_INT("eInstrumentationRuntimeTypeThreadSanitizer", lldb::eInstrumentationRuntimeTypeThreadSanitizer)},
@@ -73386,6 +77162,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eArgTypeConnectURL", lldb::eArgTypeConnectURL)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeTargetID", lldb::eArgTypeTargetID)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeStopHookID", lldb::eArgTypeStopHookID)},
+    {SWIG_LUA_CONSTTAB_INT("eArgTypeCompletionType", lldb::eArgTypeCompletionType)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeLastArg", lldb::eArgTypeLastArg)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeAny", lldb::eSymbolTypeAny)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeInvalid", lldb::eSymbolTypeInvalid)},
@@ -73477,6 +77254,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eSectionTypeDWARFDebugLocDwo", lldb::eSectionTypeDWARFDebugLocDwo)},
     {SWIG_LUA_CONSTTAB_INT("eSectionTypeDWARFDebugLocListsDwo", lldb::eSectionTypeDWARFDebugLocListsDwo)},
     {SWIG_LUA_CONSTTAB_INT("eSectionTypeDWARFDebugTuIndex", lldb::eSectionTypeDWARFDebugTuIndex)},
+    {SWIG_LUA_CONSTTAB_INT("eSectionTypeCTF", lldb::eSectionTypeCTF)},
     {SWIG_LUA_CONSTTAB_INT("eEmulateInstructionOptionNone", lldb::eEmulateInstructionOptionNone)},
     {SWIG_LUA_CONSTTAB_INT("eEmulateInstructionOptionAutoAdvancePC", lldb::eEmulateInstructionOptionAutoAdvancePC)},
     {SWIG_LUA_CONSTTAB_INT("eEmulateInstructionOptionIgnoreConditions", lldb::eEmulateInstructionOptionIgnoreConditions)},
@@ -73532,6 +77310,8 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eStructuredDataTypeBoolean", lldb::eStructuredDataTypeBoolean)},
     {SWIG_LUA_CONSTTAB_INT("eStructuredDataTypeString", lldb::eStructuredDataTypeString)},
     {SWIG_LUA_CONSTTAB_INT("eStructuredDataTypeDictionary", lldb::eStructuredDataTypeDictionary)},
+    {SWIG_LUA_CONSTTAB_INT("eStructuredDataTypeSignedInteger", lldb::eStructuredDataTypeSignedInteger)},
+    {SWIG_LUA_CONSTTAB_INT("eStructuredDataTypeUnsignedInteger", lldb::eStructuredDataTypeUnsignedInteger)},
     {SWIG_LUA_CONSTTAB_INT("eTypeClassInvalid", lldb::eTypeClassInvalid)},
     {SWIG_LUA_CONSTTAB_INT("eTypeClassArray", lldb::eTypeClassArray)},
     {SWIG_LUA_CONSTTAB_INT("eTypeClassBlockPointer", lldb::eTypeClassBlockPointer)},
@@ -73709,6 +77489,36 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityNone", lldb::eDWIMPrintVerbosityNone)},
     {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityExpression", lldb::eDWIMPrintVerbosityExpression)},
     {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityFull", lldb::eDWIMPrintVerbosityFull)},
+    {SWIG_LUA_CONSTTAB_INT("eWatchPointValueKindInvalid", lldb::eWatchPointValueKindInvalid)},
+    {SWIG_LUA_CONSTTAB_INT("eWatchPointValueKindVariable", lldb::eWatchPointValueKindVariable)},
+    {SWIG_LUA_CONSTTAB_INT("eWatchPointValueKindExpression", lldb::eWatchPointValueKindExpression)},
+    {SWIG_LUA_CONSTTAB_INT("eNoCompletion", lldb::eNoCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eSourceFileCompletion", lldb::eSourceFileCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eDiskFileCompletion", lldb::eDiskFileCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eDiskDirectoryCompletion", lldb::eDiskDirectoryCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eSymbolCompletion", lldb::eSymbolCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eModuleCompletion", lldb::eModuleCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eSettingsNameCompletion", lldb::eSettingsNameCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("ePlatformPluginCompletion", lldb::ePlatformPluginCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eArchitectureCompletion", lldb::eArchitectureCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eVariablePathCompletion", lldb::eVariablePathCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eRegisterCompletion", lldb::eRegisterCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eBreakpointCompletion", lldb::eBreakpointCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eProcessPluginCompletion", lldb::eProcessPluginCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eDisassemblyFlavorCompletion", lldb::eDisassemblyFlavorCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eTypeLanguageCompletion", lldb::eTypeLanguageCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eFrameIndexCompletion", lldb::eFrameIndexCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eModuleUUIDCompletion", lldb::eModuleUUIDCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eStopHookIDCompletion", lldb::eStopHookIDCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eThreadIndexCompletion", lldb::eThreadIndexCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eWatchpointIDCompletion", lldb::eWatchpointIDCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eBreakpointNameCompletion", lldb::eBreakpointNameCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eProcessIDCompletion", lldb::eProcessIDCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eProcessNameCompletion", lldb::eProcessNameCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eRemoteDiskFileCompletion", lldb::eRemoteDiskFileCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eRemoteDiskDirectoryCompletion", lldb::eRemoteDiskDirectoryCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eTypeCategoryNameCompletion", lldb::eTypeCategoryNameCompletion)},
+    {SWIG_LUA_CONSTTAB_INT("eCustomCompletion", lldb::eCustomCompletion)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitThreadShouldExit", lldb::SBCommandInterpreter::eBroadcastBitThreadShouldExit)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitResetPrompt", lldb::SBCommandInterpreter::eBroadcastBitResetPrompt)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitQuitCommandReceived", lldb::SBCommandInterpreter::eBroadcastBitQuitCommandReceived)},
@@ -73758,11 +77568,14 @@ static swig_lua_method swig_SwigModule_methods[]= {
     { "SBData_CreateDataFromSInt64Array", _wrap_SBData_CreateDataFromSInt64Array},
     { "SBData_CreateDataFromSInt32Array", _wrap_SBData_CreateDataFromSInt32Array},
     { "SBData_CreateDataFromDoubleArray", _wrap_SBData_CreateDataFromDoubleArray},
+    { "SBDebugger_GetBroadcasterClass", _wrap_SBDebugger_GetBroadcasterClass},
     { "SBDebugger_GetProgressFromEvent", _wrap_SBDebugger_GetProgressFromEvent},
+    { "SBDebugger_GetProgressDataFromEvent", _wrap_SBDebugger_GetProgressDataFromEvent},
     { "SBDebugger_GetDiagnosticFromEvent", _wrap_SBDebugger_GetDiagnosticFromEvent},
     { "SBDebugger_Initialize", _wrap_SBDebugger_Initialize},
     { "SBDebugger_InitializeWithErrorHandling", _wrap_SBDebugger_InitializeWithErrorHandling},
     { "SBDebugger_PrintStackTraceOnError", _wrap_SBDebugger_PrintStackTraceOnError},
+    { "SBDebugger_PrintDiagnosticsOnError", _wrap_SBDebugger_PrintDiagnosticsOnError},
     { "SBDebugger_Terminate", _wrap_SBDebugger_Terminate},
     { "SBDebugger_Create", _wrap_SBDebugger_Create},
     { "SBDebugger_Destroy", _wrap_SBDebugger_Destroy},
@@ -73807,19 +77620,21 @@ static swig_lua_method swig_SwigModule_methods[]= {
     { "SBProcess_GetStructuredDataFromEvent", _wrap_SBProcess_GetStructuredDataFromEvent},
     { "SBProcess_EventIsProcessEvent", _wrap_SBProcess_EventIsProcessEvent},
     { "SBProcess_EventIsStructuredDataEvent", _wrap_SBProcess_EventIsStructuredDataEvent},
+    { "SBProcess_GetBroadcasterClass", _wrap_SBProcess_GetBroadcasterClass},
     { "SBReproducer_Capture", _wrap_SBReproducer_Capture},
     { "SBReproducer_PassiveReplay", _wrap_SBReproducer_PassiveReplay},
     { "SBReproducer_SetAutoGenerate", _wrap_SBReproducer_SetAutoGenerate},
     { "SBReproducer_SetWorkingDirectory", _wrap_SBReproducer_SetWorkingDirectory},
-    { "SBTarget_GetBroadcasterClassName", _wrap_SBTarget_GetBroadcasterClassName},
     { "SBTarget_EventIsTargetEvent", _wrap_SBTarget_EventIsTargetEvent},
     { "SBTarget_GetTargetFromEvent", _wrap_SBTarget_GetTargetFromEvent},
     { "SBTarget_GetNumModulesFromEvent", _wrap_SBTarget_GetNumModulesFromEvent},
     { "SBTarget_GetModuleAtIndexFromEvent", _wrap_SBTarget_GetModuleAtIndexFromEvent},
+    { "SBTarget_GetBroadcasterClassName", _wrap_SBTarget_GetBroadcasterClassName},
     { "SBThread_GetBroadcasterClassName", _wrap_SBThread_GetBroadcasterClassName},
     { "SBThread_EventIsThreadEvent", _wrap_SBThread_EventIsThreadEvent},
     { "SBThread_GetStackFrameFromEvent", _wrap_SBThread_GetStackFrameFromEvent},
     { "SBThread_GetThreadFromEvent", _wrap_SBThread_GetThreadFromEvent},
+    { "SBTrace_LoadTraceFromFile", _wrap_SBTrace_LoadTraceFromFile},
     { "SBTypeSummary_CreateWithSummaryString", _wrap_SBTypeSummary_CreateWithSummaryString},
     { "SBTypeSummary_CreateWithFunctionName", _wrap_SBTypeSummary_CreateWithFunctionName},
     { "SBTypeSummary_CreateWithScriptCode", _wrap_SBTypeSummary_CreateWithScriptCode},
@@ -73878,6 +77693,7 @@ static swig_lua_class* swig_SwigModule_classes[]= {
 &_wrap_class_SBQueue,
 &_wrap_class_SBQueueItem,
 &_wrap_class_SBReproducer,
+&_wrap_class_SBScriptObject,
 &_wrap_class_SBSection,
 &_wrap_class_SBSourceManager,
 &_wrap_class_SBStream,
@@ -73935,6 +77751,8 @@ static swig_type_info _swigt__p_double = {"_p_double", "double *", 0, 0, (void*)
 static swig_type_info _swigt__p_f_p_q_const__char_p_void__void = {"_p_f_p_q_const__char_p_void__void", "lldb::LogOutputCallback|void (*)(char const *,void *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_void__p_void = {"_p_f_p_void__p_void", "lldb::thread_func_t|void *(*)(void *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_void_p_q_const__void_size_t__void = {"_p_f_p_void_p_q_const__void_size_t__void", "lldb::SBCommunication::ReadThreadBytesReceived|void (*)(void *,void const *,size_t)", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError = {"_p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError", "lldb::SBPlatformLocateModuleCallback|lldb::SBError (*)(void *,lldb::SBModuleSpec const &,lldb::SBFileSpec &,lldb::SBFileSpec &)", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_unsigned_long_long_p_void__void = {"_p_f_unsigned_long_long_p_void__void", "lldb::SBDebuggerDestroyCallback|void (*)(unsigned long long,void *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int = {"_p_int", "int32_t *|int_fast16_t *|int_fast32_t *|int_least32_t *|intptr_t *|lldb::break_id_t *|lldb::file_t *|lldb::pipe_t *|lldb::socket_t *|lldb::watch_id_t *|int *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_lldb__ConnectionStatus = {"_p_lldb__ConnectionStatus", "lldb::ConnectionStatus *|enum lldb::ConnectionStatus *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_lldb__SBAddress = {"_p_lldb__SBAddress", "lldb::SBAddress *", 0, 0, (void*)&_wrap_class_SBAddress, 0};
@@ -73983,6 +77801,7 @@ static swig_type_info _swigt__p_lldb__SBProcessInfo = {"_p_lldb__SBProcessInfo",
 static swig_type_info _swigt__p_lldb__SBQueue = {"_p_lldb__SBQueue", "lldb::SBQueue *", 0, 0, (void*)&_wrap_class_SBQueue, 0};
 static swig_type_info _swigt__p_lldb__SBQueueItem = {"_p_lldb__SBQueueItem", "lldb::SBQueueItem *", 0, 0, (void*)&_wrap_class_SBQueueItem, 0};
 static swig_type_info _swigt__p_lldb__SBReproducer = {"_p_lldb__SBReproducer", "lldb::SBReproducer *", 0, 0, (void*)&_wrap_class_SBReproducer, 0};
+static swig_type_info _swigt__p_lldb__SBScriptObject = {"_p_lldb__SBScriptObject", "lldb::SBScriptObject *", 0, 0, (void*)&_wrap_class_SBScriptObject, 0};
 static swig_type_info _swigt__p_lldb__SBSection = {"_p_lldb__SBSection", "lldb::SBSection *", 0, 0, (void*)&_wrap_class_SBSection, 0};
 static swig_type_info _swigt__p_lldb__SBSourceManager = {"_p_lldb__SBSourceManager", "lldb::SBSourceManager *", 0, 0, (void*)&_wrap_class_SBSourceManager, 0};
 static swig_type_info _swigt__p_lldb__SBStream = {"_p_lldb__SBStream", "lldb::SBStream *", 0, 0, (void*)&_wrap_class_SBStream, 0};
@@ -74075,9 +77894,11 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__REPL_t = {"_p_std
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t = {"_p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t", "lldb::RecognizedStackFrameSP *|std::shared_ptr< lldb_private::RecognizedStackFrame > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t = {"_p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t", "lldb::RegisterCheckpointSP *|std::shared_ptr< lldb_private::RegisterCheckpoint > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__RegisterContext_t = {"_p_std__shared_ptrT_lldb_private__RegisterContext_t", "lldb::RegisterContextSP *|std::shared_ptr< lldb_private::RegisterContext > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t = {"_p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t", "lldb::RegisterTypeBuilderSP *|std::shared_ptr< lldb_private::RegisterTypeBuilder > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__RegularExpression_t = {"_p_std__shared_ptrT_lldb_private__RegularExpression_t", "lldb::RegularExpressionSP *|std::shared_ptr< lldb_private::RegularExpression > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ScriptInterpreter_t = {"_p_std__shared_ptrT_lldb_private__ScriptInterpreter_t", "lldb::ScriptInterpreterSP *|std::shared_ptr< lldb_private::ScriptInterpreter > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t = {"_p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t", "lldb::ScriptSummaryFormatSP *|std::shared_ptr< lldb_private::ScriptSummaryFormat > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ScriptedMetadata_t = {"_p_std__shared_ptrT_lldb_private__ScriptedMetadata_t", "lldb::ScriptedMetadataSP *|std::shared_ptr< lldb_private::ScriptedMetadata > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t = {"_p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t", "lldb::ScriptedSyntheticChildrenSP *|std::shared_ptr< lldb_private::ScriptedSyntheticChildren > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t = {"_p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t", "lldb::ScriptedThreadInterfaceSP *|std::shared_ptr< lldb_private::ScriptedThreadInterface > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__SearchFilter_t = {"_p_std__shared_ptrT_lldb_private__SearchFilter_t", "lldb::SearchFilterSP *|std::shared_ptr< lldb_private::SearchFilter > *", 0, 0, (void*)0, 0};
@@ -74165,7 +77986,7 @@ static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "uint8_t *|
 static swig_type_info _swigt__p_unsigned_int = {"_p_unsigned_int", "lldb::cpu_id_t *|uint32_t *|uint_fast16_t *|uint_fast32_t *|uint_least32_t *|uintptr_t *|unsigned int *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_long_long = {"_p_unsigned_long_long", "lldb::addr_t *|lldb::offset_t *|lldb::pid_t *|lldb::process_t *|lldb::queue_id_t *|lldb::tid_t *|lldb::user_id_t *|uint64_t *|uint_fast64_t *|uint_least64_t *|uintmax_t *|unsigned long long *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_short = {"_p_unsigned_short", "uint16_t *|uint_least16_t *|unsigned short *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_void = {"_p_void", "lldb::ScriptObjectPtr|void *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_bool,
@@ -74173,6 +77994,8 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_f_p_q_const__char_p_void__void,
   &_swigt__p_f_p_void__p_void,
   &_swigt__p_f_p_void_p_q_const__void_size_t__void,
+  &_swigt__p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError,
+  &_swigt__p_f_unsigned_long_long_p_void__void,
   &_swigt__p_int,
   &_swigt__p_lldb__ConnectionStatus,
   &_swigt__p_lldb__SBAddress,
@@ -74221,6 +78044,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_lldb__SBQueue,
   &_swigt__p_lldb__SBQueueItem,
   &_swigt__p_lldb__SBReproducer,
+  &_swigt__p_lldb__SBScriptObject,
   &_swigt__p_lldb__SBSection,
   &_swigt__p_lldb__SBSourceManager,
   &_swigt__p_lldb__SBStream,
@@ -74313,9 +78137,11 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t,
   &_swigt__p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t,
   &_swigt__p_std__shared_ptrT_lldb_private__RegisterContext_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t,
   &_swigt__p_std__shared_ptrT_lldb_private__RegularExpression_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ScriptInterpreter_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__ScriptedMetadata_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t,
   &_swigt__p_std__shared_ptrT_lldb_private__SearchFilter_t,
@@ -74411,6 +78237,8 @@ static swig_cast_info _swigc__p_double[] = {  {&_swigt__p_double, 0, 0, 0},{0, 0
 static swig_cast_info _swigc__p_f_p_q_const__char_p_void__void[] = {  {&_swigt__p_f_p_q_const__char_p_void__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_void__p_void[] = {  {&_swigt__p_f_p_void__p_void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_void_p_q_const__void_size_t__void[] = {  {&_swigt__p_f_p_void_p_q_const__void_size_t__void, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError[] = {  {&_swigt__p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_f_unsigned_long_long_p_void__void[] = {  {&_swigt__p_f_unsigned_long_long_p_void__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_int[] = {  {&_swigt__p_int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__ConnectionStatus[] = {  {&_swigt__p_lldb__ConnectionStatus, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBAddress[] = {  {&_swigt__p_lldb__SBAddress, 0, 0, 0},{0, 0, 0, 0}};
@@ -74459,6 +78287,7 @@ static swig_cast_info _swigc__p_lldb__SBProcessInfo[] = {  {&_swigt__p_lldb__SBP
 static swig_cast_info _swigc__p_lldb__SBQueue[] = {  {&_swigt__p_lldb__SBQueue, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBQueueItem[] = {  {&_swigt__p_lldb__SBQueueItem, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBReproducer[] = {  {&_swigt__p_lldb__SBReproducer, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_lldb__SBScriptObject[] = {  {&_swigt__p_lldb__SBScriptObject, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBSection[] = {  {&_swigt__p_lldb__SBSection, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBSourceManager[] = {  {&_swigt__p_lldb__SBSourceManager, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBStream[] = {  {&_swigt__p_lldb__SBStream, 0, 0, 0},{0, 0, 0, 0}};
@@ -74551,9 +78380,11 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__REPL_t[] = {  {&_
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__RegisterContext_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__RegisterContext_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__RegularExpression_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__RegularExpression_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ScriptInterpreter_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ScriptInterpreter_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ScriptedMetadata_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ScriptedMetadata_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__SearchFilter_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__SearchFilter_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -74649,6 +78480,8 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_f_p_q_const__char_p_void__void,
   _swigc__p_f_p_void__p_void,
   _swigc__p_f_p_void_p_q_const__void_size_t__void,
+  _swigc__p_f_p_void_r_q_const__lldb__SBModuleSpec_r_lldb__SBFileSpec_r_lldb__SBFileSpec__lldb__SBError,
+  _swigc__p_f_unsigned_long_long_p_void__void,
   _swigc__p_int,
   _swigc__p_lldb__ConnectionStatus,
   _swigc__p_lldb__SBAddress,
@@ -74697,6 +78530,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_lldb__SBQueue,
   _swigc__p_lldb__SBQueueItem,
   _swigc__p_lldb__SBReproducer,
+  _swigc__p_lldb__SBScriptObject,
   _swigc__p_lldb__SBSection,
   _swigc__p_lldb__SBSourceManager,
   _swigc__p_lldb__SBStream,
@@ -74789,9 +78623,11 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t,
   _swigc__p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t,
   _swigc__p_std__shared_ptrT_lldb_private__RegisterContext_t,
+  _swigc__p_std__shared_ptrT_lldb_private__RegisterTypeBuilder_t,
   _swigc__p_std__shared_ptrT_lldb_private__RegularExpression_t,
   _swigc__p_std__shared_ptrT_lldb_private__ScriptInterpreter_t,
   _swigc__p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t,
+  _swigc__p_std__shared_ptrT_lldb_private__ScriptedMetadata_t,
   _swigc__p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t,
   _swigc__p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t,
   _swigc__p_std__shared_ptrT_lldb_private__SearchFilter_t,

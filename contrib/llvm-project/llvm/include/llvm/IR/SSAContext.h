@@ -43,8 +43,10 @@ public:
   using InstructionT = Instruction;
   using ValueRefT = Value *;
   using ConstValueRefT = const Value *;
-  static Value *ValueRefNull;
+  using UseT = Use;
   using DominatorTreeT = DominatorTreeBase<BlockT, false>;
+
+  static constexpr Value *ValueRefNull = nullptr;
 
   void setFunction(Function &Fn);
   Function *getFunction() const { return F; }
@@ -63,7 +65,7 @@ public:
                                const BasicBlock &block);
 
   static bool comesBefore(const Instruction *lhs, const Instruction *rhs);
-  static bool isConstantValuePhi(const Instruction &Instr);
+  static bool isConstantOrUndefValuePhi(const Instruction &Instr);
   const BasicBlock *getDefBlock(const Value *value) const;
 
   Printable print(const BasicBlock *Block) const;

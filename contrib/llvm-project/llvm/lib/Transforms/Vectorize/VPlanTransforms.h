@@ -25,23 +25,23 @@ class ScalarEvolution;
 class Loop;
 class PredicatedScalarEvolution;
 class TargetLibraryInfo;
+class VPBuilder;
+class VPRecipeBuilder;
 
 struct VPlanTransforms {
   /// Replaces the VPInstructions in \p Plan with corresponding
   /// widen recipes.
   static void
-  VPInstructionsToVPRecipes(Loop *OrigLoop, VPlanPtr &Plan,
+  VPInstructionsToVPRecipes(VPlanPtr &Plan,
                             function_ref<const InductionDescriptor *(PHINode *)>
                                 GetIntOrFpInductionDescriptor,
-                            SmallPtrSetImpl<Instruction *> &DeadInstructions,
                             ScalarEvolution &SE, const TargetLibraryInfo &TLI);
 
-  static bool sinkScalarOperands(VPlan &Plan);
-
-  /// Merge replicate regions in their successor region, if a replicate region
-  /// is connected to a successor replicate region with the same predicate by a
-  /// single, empty VPBasicBlock.
-  static bool mergeReplicateRegionsIntoSuccessors(VPlan &Plan);
+  /// Wrap predicated VPReplicateRecipes with a mask operand in an if-then
+  /// region block and remove the mask operand. Optimize the created regions by
+  /// iteratively sinking scalar operands into the region, followed by merging
+  /// regions until no improvements are remaining.
+  static void createAndOptimizeReplicateRegions(VPlan &Plan);
 
   /// Remove redundant VPBasicBlocks by merging them into their predecessor if
   /// the predecessor has a single successor.
@@ -70,6 +70,19 @@ struct VPlanTransforms {
   /// Remove redundant EpxandSCEVRecipes in \p Plan's entry block by replacing
   /// them with already existing recipes expanding the same SCEV expression.
   static void removeRedundantExpandSCEVRecipes(VPlan &Plan);
+
+  /// Sink users of fixed-order recurrences after the recipe defining their
+  /// previous value. Then introduce FirstOrderRecurrenceSplice VPInstructions
+  /// to combine the value from the recurrence phis and previous values. The
+  /// current implementation assumes all users can be sunk after the previous
+  /// value, which is enforced by earlier legality checks.
+  /// \returns true if all users of fixed-order recurrences could be re-arranged
+  /// as needed or false if it is not possible. In the latter case, \p Plan is
+  /// not valid.
+  static bool adjustFixedOrderRecurrences(VPlan &Plan, VPBuilder &Builder);
+
+  /// Clear NSW/NUW flags from reduction instructions if necessary.
+  static void clearReductionWrapFlags(VPlan &Plan);
 
   /// Optimize \p Plan based on \p BestVF and \p BestUF. This may restrict the
   /// resulting plan to \p BestVF and \p BestUF.

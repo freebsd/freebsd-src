@@ -11,7 +11,6 @@ MK_PROFILE=	no
 .PATH:		${SRCDIR}/src
 
 SRCS+=		experimental/memory_resource.cpp
-SRCS+=		format.cpp
 
 WARNS?=		0
 CXXFLAGS+=	${PICFLAG}

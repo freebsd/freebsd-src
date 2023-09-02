@@ -15,7 +15,9 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallBitVector.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/BuildID.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingReader.h"
@@ -25,6 +27,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -246,7 +249,7 @@ Error CoverageMapping::loadFunctionRecord(
   std::vector<uint64_t> Counts;
   if (Error E = ProfileReader.getFunctionCounts(Record.FunctionName,
                                                 Record.FunctionHash, Counts)) {
-    instrprof_error IPE = InstrProfError::take(std::move(E));
+    instrprof_error IPE = std::get<0>(InstrProfError::take(std::move(E)));
     if (IPE == instrprof_error::hash_mismatch) {
       FuncHashMismatches.emplace_back(std::string(Record.FunctionName),
                                       Record.FunctionHash);
@@ -381,12 +384,11 @@ Error CoverageMapping::loadFromFile(
   return Error::success();
 }
 
-Expected<std::unique_ptr<CoverageMapping>>
-CoverageMapping::load(ArrayRef<StringRef> ObjectFilenames,
-                      StringRef ProfileFilename, ArrayRef<StringRef> Arches,
-                      StringRef CompilationDir,
-                      const object::BuildIDFetcher *BIDFetcher) {
-  auto ProfileReaderOrErr = IndexedInstrProfReader::create(ProfileFilename);
+Expected<std::unique_ptr<CoverageMapping>> CoverageMapping::load(
+    ArrayRef<StringRef> ObjectFilenames, StringRef ProfileFilename,
+    vfs::FileSystem &FS, ArrayRef<StringRef> Arches, StringRef CompilationDir,
+    const object::BuildIDFetcher *BIDFetcher, bool CheckBinaryIDs) {
+  auto ProfileReaderOrErr = IndexedInstrProfReader::create(ProfileFilename, FS);
   if (Error E = ProfileReaderOrErr.takeError())
     return createFileError(ProfileFilename, std::move(E));
   auto ProfileReader = std::move(ProfileReaderOrErr.get());
@@ -429,13 +431,19 @@ CoverageMapping::load(ArrayRef<StringRef> ObjectFilenames,
 
     for (object::BuildIDRef BinaryID : BinaryIDsToFetch) {
       std::optional<std::string> PathOpt = BIDFetcher->fetch(BinaryID);
-      if (!PathOpt)
-        continue;
-      std::string Path = std::move(*PathOpt);
-      StringRef Arch = Arches.size() == 1 ? Arches.front() : StringRef();
-      if (Error E = loadFromFile(Path, Arch, CompilationDir, *ProfileReader,
-                                 *Coverage, DataFound))
-        return std::move(E);
+      if (PathOpt) {
+        std::string Path = std::move(*PathOpt);
+        StringRef Arch = Arches.size() == 1 ? Arches.front() : StringRef();
+        if (Error E = loadFromFile(Path, Arch, CompilationDir, *ProfileReader,
+                                  *Coverage, DataFound))
+          return std::move(E);
+      } else if (CheckBinaryIDs) {
+        return createFileError(
+            ProfileFilename,
+            createStringError(errc::no_such_file_or_directory,
+                              "Missing binary ID: " +
+                                  llvm::toHex(BinaryID, /*LowerCase=*/true)));
+      }
     }
   }
 

@@ -97,6 +97,14 @@ static uint64_t getSectionFlagsPreserveMask(uint64_t OldFlags,
   return (OldFlags & PreserveMask) | (NewFlags & ~PreserveMask);
 }
 
+static void setSectionType(SectionBase &Sec, uint64_t Type) {
+  // If Sec's type is changed from SHT_NOBITS due to --set-section-flags,
+  // Offset may not be aligned. Align it to max(Align, 1).
+  if (Sec.Type == ELF::SHT_NOBITS && Type != ELF::SHT_NOBITS)
+    Sec.Offset = alignTo(Sec.Offset, std::max(Sec.Align, uint64_t(1)));
+  Sec.Type = Type;
+}
+
 static void setSectionFlagsAndType(SectionBase &Sec, SectionFlag Flags) {
   Sec.Flags = getSectionFlagsPreserveMask(Sec.Flags, getNewShfFlags(Flags));
 
@@ -106,7 +114,7 @@ static void setSectionFlagsAndType(SectionBase &Sec, SectionFlag Flags) {
   if (Sec.Type == SHT_NOBITS &&
       (!(Sec.Flags & ELF::SHF_ALLOC) ||
        Flags & (SectionFlag::SecContents | SectionFlag::SecLoad)))
-    Sec.Type = SHT_PROGBITS;
+    setSectionType(Sec, ELF::SHT_PROGBITS);
 }
 
 static ElfType getOutputElfType(const Binary &Bin) {
@@ -162,13 +170,6 @@ static std::unique_ptr<Writer> createWriter(const CommonConfig &Config,
   default:
     return createELFWriter(Config, Obj, Out, OutputElfType);
   }
-}
-
-template <class... Ts>
-static Error makeStringError(std::error_code EC, const Twine &Msg,
-                             Ts &&...Args) {
-  std::string FullMsg = (EC.message() + ": " + Msg).str();
-  return createStringError(EC, FullMsg.c_str(), std::forward<Ts>(Args)...);
 }
 
 static Error dumpSectionToFile(StringRef SecName, StringRef Filename,
@@ -684,7 +685,7 @@ static Error handleArgs(const CommonConfig &Config, const ELFConfig &ELFConfig,
       }
       auto It2 = Config.SetSectionType.find(Sec.Name);
       if (It2 != Config.SetSectionType.end())
-        Sec.Type = It2->second;
+        setSectionType(Sec, It2->second);
     }
   }
 

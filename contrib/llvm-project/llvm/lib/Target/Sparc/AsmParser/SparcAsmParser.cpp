@@ -12,7 +12,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -31,6 +30,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -76,7 +76,7 @@ class SparcAsmParser : public MCTargetAsmParser {
                                         SMLoc &EndLoc) override;
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
-  bool ParseDirective(AsmToken DirectiveID) override;
+  ParseStatus parseDirective(AsmToken DirectiveID) override;
 
   unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
                                       unsigned Kind) override;
@@ -769,25 +769,23 @@ bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   return false;
 }
 
-bool SparcAsmParser::
-ParseDirective(AsmToken DirectiveID)
-{
+ParseStatus SparcAsmParser::parseDirective(AsmToken DirectiveID) {
   StringRef IDVal = DirectiveID.getString();
 
   if (IDVal == ".register") {
     // For now, ignore .register directive.
     Parser.eatToEndOfStatement();
-    return false;
+    return ParseStatus::Success;
   }
   if (IDVal == ".proc") {
     // For compatibility, ignore this directive.
     // (It's supposed to be an "optimization" in the Sun assembler)
     Parser.eatToEndOfStatement();
-    return false;
+    return ParseStatus::Success;
   }
 
   // Let the MC layer to handle other directives.
-  return true;
+  return ParseStatus::NoMatch;
 }
 
 OperandMatchResultTy

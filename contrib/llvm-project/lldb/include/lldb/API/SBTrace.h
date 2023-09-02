@@ -20,8 +20,6 @@ public:
   /// Default constructor for an invalid Trace object.
   SBTrace();
 
-  SBTrace(const lldb::TraceSP &trace_sp);
-
   /// See SBDebugger::LoadTraceFromFile.
   static SBTrace LoadTraceFromFile(SBError &error, SBDebugger &debugger,
                                    const SBFileSpec &trace_description_file);
@@ -50,7 +48,7 @@ public:
   /// \param[out] error
   ///   This will be set with an error in case of failures.
   ///
-  /// \param[in] directory
+  /// \param[in] bundle_dir
   ///   The directory where the trace files will be saved.
   ///
   /// \param[in] compact
@@ -137,6 +135,10 @@ public:
   bool IsValid();
 
 protected:
+  friend class SBTarget;
+
+  SBTrace(const lldb::TraceSP &trace_sp);
+
   lldb::TraceSP m_opaque_sp;
   /// deprecated
   lldb::ProcessWP m_opaque_wp;

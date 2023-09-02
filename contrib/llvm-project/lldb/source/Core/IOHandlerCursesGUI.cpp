@@ -3821,7 +3821,7 @@ protected:
 
 // This is a searcher delegate wrapper around CommandCompletions common
 // callbacks. The callbacks are only given the match string. The completion_mask
-// can be a combination of CommonCompletionTypes.
+// can be a combination of lldb::CompletionType.
 class CommonCompletionSearcherDelegate : public SearcherDelegate {
 public:
   typedef std::function<void(const std::string &)> CallbackType;
@@ -3840,7 +3840,7 @@ public:
   void UpdateMatches(const std::string &text) override {
     CompletionResult result;
     CompletionRequest request(text.c_str(), text.size(), result);
-    CommandCompletions::InvokeCommonCompletionCallbacks(
+    lldb_private::CommandCompletions::InvokeCommonCompletionCallbacks(
         m_debugger.GetCommandInterpreter(), m_completion_mask, request,
         nullptr);
     result.GetMatches(m_matches);
@@ -3852,7 +3852,7 @@ public:
 
 protected:
   Debugger &m_debugger;
-  // A compound mask from CommonCompletionTypes.
+  // A compound mask from lldb::CompletionType.
   uint32_t m_completion_mask;
   // A callback to execute once the user selects a match. The match is passed to
   // the callback as a string.
@@ -4522,7 +4522,7 @@ struct Row {
       if (valobj) {
         const size_t num_children = valobj->GetNumChildren();
         for (size_t i = 0; i < num_children; ++i) {
-          children.push_back(Row(valobj->GetChildAtIndex(i, true), this));
+          children.push_back(Row(valobj->GetChildAtIndex(i), this));
         }
       }
     }
@@ -5259,7 +5259,8 @@ public:
     for (size_t i = 0; i < num_threads; ++i) {
       ThreadSP thread = threads.GetThreadAtIndex(i);
       if (selected_thread->GetID() == thread->GetID()) {
-        selected_item = &root[i][thread->GetSelectedFrameIndex()];
+        selected_item =
+            &root[i][thread->GetSelectedFrameIndex(SelectMostRelevantFrame)];
         selection_index = selected_item->GetRowIndex();
         return;
       }
@@ -6411,7 +6412,8 @@ public:
         if (process && process->IsAlive() &&
             StateIsStoppedState(process->GetState(), true)) {
           Thread *thread = exe_ctx.GetThreadPtr();
-          uint32_t frame_idx = thread->GetSelectedFrameIndex();
+          uint32_t frame_idx =
+              thread->GetSelectedFrameIndex(SelectMostRelevantFrame);
           exe_ctx.GetThreadRef().StepOut(frame_idx);
         }
       }
@@ -6827,7 +6829,7 @@ public:
       if (process_alive) {
         thread = exe_ctx.GetThreadPtr();
         if (thread) {
-          frame_sp = thread->GetSelectedFrame();
+          frame_sp = thread->GetSelectedFrame(SelectMostRelevantFrame);
           auto tid = thread->GetID();
           thread_changed = tid != m_tid;
           m_tid = tid;
@@ -7374,7 +7376,8 @@ public:
         if (exe_ctx.HasThreadScope() &&
             StateIsStoppedState(exe_ctx.GetProcessRef().GetState(), true)) {
           Thread *thread = exe_ctx.GetThreadPtr();
-          uint32_t frame_idx = thread->GetSelectedFrameIndex();
+          uint32_t frame_idx =
+              thread->GetSelectedFrameIndex(SelectMostRelevantFrame);
           exe_ctx.GetThreadRef().StepOut(frame_idx);
         }
       }
@@ -7413,7 +7416,8 @@ public:
           m_debugger.GetCommandInterpreter().GetExecutionContext();
       if (exe_ctx.HasThreadScope()) {
         Thread *thread = exe_ctx.GetThreadPtr();
-        uint32_t frame_idx = thread->GetSelectedFrameIndex();
+        uint32_t frame_idx =
+            thread->GetSelectedFrameIndex(SelectMostRelevantFrame);
         if (frame_idx == UINT32_MAX)
           frame_idx = 0;
         if (c == 'u' && frame_idx + 1 < thread->GetStackFrameCount())
@@ -7421,7 +7425,7 @@ public:
         else if (c == 'd' && frame_idx > 0)
           --frame_idx;
         if (thread->SetSelectedFrameByIndex(frame_idx, true))
-          exe_ctx.SetFrameSP(thread->GetSelectedFrame());
+          exe_ctx.SetFrameSP(thread->GetSelectedFrame(SelectMostRelevantFrame));
       }
     }
       return eKeyHandled;

@@ -32,7 +32,7 @@ STATISTIC(NumDeadStore, "Number of dead stores eliminated");
 STATISTIC(NumGlobalCopies, "Number of allocas copied from constant global");
 
 static cl::opt<unsigned> MaxCopiedFromConstantUsers(
-    "instcombine-max-copied-from-constant-users", cl::init(128),
+    "instcombine-max-copied-from-constant-users", cl::init(300),
     cl::desc("Maximum users to visit in copy from constant transform"),
     cl::Hidden);
 
@@ -219,7 +219,7 @@ static Instruction *simplifyAllocaArraySize(InstCombinerImpl &IC,
       // Now that I is pointing to the first non-allocation-inst in the block,
       // insert our getelementptr instruction...
       //
-      Type *IdxTy = IC.getDataLayout().getIntPtrType(AI.getType());
+      Type *IdxTy = IC.getDataLayout().getIndexType(AI.getType());
       Value *NullIdx = Constant::getNullValue(IdxTy);
       Value *Idx[2] = {NullIdx, NullIdx};
       Instruction *GEP = GetElementPtrInst::CreateInBounds(
@@ -235,11 +235,12 @@ static Instruction *simplifyAllocaArraySize(InstCombinerImpl &IC,
   if (isa<UndefValue>(AI.getArraySize()))
     return IC.replaceInstUsesWith(AI, Constant::getNullValue(AI.getType()));
 
-  // Ensure that the alloca array size argument has type intptr_t, so that
-  // any casting is exposed early.
-  Type *IntPtrTy = IC.getDataLayout().getIntPtrType(AI.getType());
-  if (AI.getArraySize()->getType() != IntPtrTy) {
-    Value *V = IC.Builder.CreateIntCast(AI.getArraySize(), IntPtrTy, false);
+  // Ensure that the alloca array size argument has type equal to the offset
+  // size of the alloca() pointer, which, in the tyical case, is intptr_t,
+  // so that any casting is exposed early.
+  Type *PtrIdxTy = IC.getDataLayout().getIndexType(AI.getType());
+  if (AI.getArraySize()->getType() != PtrIdxTy) {
+    Value *V = IC.Builder.CreateIntCast(AI.getArraySize(), PtrIdxTy, false);
     return IC.replaceOperand(AI, 0, V);
   }
 
@@ -259,8 +260,8 @@ namespace {
 // instruction.
 class PointerReplacer {
 public:
-  PointerReplacer(InstCombinerImpl &IC, Instruction &Root)
-    : IC(IC), Root(Root) {}
+  PointerReplacer(InstCombinerImpl &IC, Instruction &Root, unsigned SrcAS)
+      : IC(IC), Root(Root), FromAS(SrcAS) {}
 
   bool collectUsers();
   void replacePointer(Value *V);
@@ -273,11 +274,21 @@ private:
     return I == &Root || Worklist.contains(I);
   }
 
+  bool isEqualOrValidAddrSpaceCast(const Instruction *I,
+                                   unsigned FromAS) const {
+    const auto *ASC = dyn_cast<AddrSpaceCastInst>(I);
+    if (!ASC)
+      return false;
+    unsigned ToAS = ASC->getDestAddressSpace();
+    return (FromAS == ToAS) || IC.isValidAddrSpaceCast(FromAS, ToAS);
+  }
+
   SmallPtrSet<Instruction *, 32> ValuesToRevisit;
   SmallSetVector<Instruction *, 4> Worklist;
   MapVector<Value *, Value *> WorkMap;
   InstCombinerImpl &IC;
   Instruction &Root;
+  unsigned FromAS;
 };
 } // end anonymous namespace
 
@@ -341,6 +352,8 @@ bool PointerReplacer::collectUsersRecursive(Instruction &I) {
       if (MI->isVolatile())
         return false;
       Worklist.insert(Inst);
+    } else if (isEqualOrValidAddrSpaceCast(Inst, FromAS)) {
+      Worklist.insert(Inst);
     } else if (Inst->isLifetimeStartOrEnd()) {
       continue;
     } else {
@@ -391,9 +404,8 @@ void PointerReplacer::replace(Instruction *I) {
   } else if (auto *BC = dyn_cast<BitCastInst>(I)) {
     auto *V = getReplacement(BC->getOperand(0));
     assert(V && "Operand not replaced");
-    auto *NewT = PointerType::getWithSamePointeeType(
-        cast<PointerType>(BC->getType()),
-        V->getType()->getPointerAddressSpace());
+    auto *NewT = PointerType::get(BC->getType()->getContext(),
+                                  V->getType()->getPointerAddressSpace());
     auto *NewI = new BitCastInst(V, NewT);
     IC.InsertNewInstWith(NewI, *BC);
     NewI->takeName(BC);
@@ -426,6 +438,22 @@ void PointerReplacer::replace(Instruction *I) {
 
     IC.eraseInstFromFunction(*MemCpy);
     WorkMap[MemCpy] = NewI;
+  } else if (auto *ASC = dyn_cast<AddrSpaceCastInst>(I)) {
+    auto *V = getReplacement(ASC->getPointerOperand());
+    assert(V && "Operand not replaced");
+    assert(isEqualOrValidAddrSpaceCast(
+               ASC, V->getType()->getPointerAddressSpace()) &&
+           "Invalid address space cast!");
+    auto *NewV = V;
+    if (V->getType()->getPointerAddressSpace() !=
+        ASC->getType()->getPointerAddressSpace()) {
+      auto *NewI = new AddrSpaceCastInst(V, ASC->getType(), "");
+      NewI->takeName(ASC);
+      IC.InsertNewInstWith(NewI, *ASC);
+      NewV = NewI;
+    }
+    IC.replaceInstUsesWith(*ASC, NewV);
+    IC.eraseInstFromFunction(*ASC);
   } else {
     llvm_unreachable("should never reach here");
   }
@@ -435,7 +463,7 @@ void PointerReplacer::replacePointer(Value *V) {
 #ifndef NDEBUG
   auto *PT = cast<PointerType>(Root.getType());
   auto *NT = cast<PointerType>(V->getType());
-  assert(PT != NT && PT->hasSameElementTypeAs(NT) && "Invalid usage");
+  assert(PT != NT && "Invalid usage");
 #endif
   WorkMap[&Root] = V;
 
@@ -518,7 +546,7 @@ Instruction *InstCombinerImpl::visitAllocaInst(AllocaInst &AI) {
         return NewI;
       }
 
-      PointerReplacer PtrReplacer(*this, AI);
+      PointerReplacer PtrReplacer(*this, AI, SrcAddrSpace);
       if (PtrReplacer.collectUsers()) {
         for (Instruction *Delete : ToDelete)
           eraseInstFromFunction(*Delete);
@@ -739,6 +767,11 @@ static Instruction *unpackLoadToAggregate(InstCombinerImpl &IC, LoadInst &LI) {
     // the knowledge that padding exists for the rest of the pipeline.
     const DataLayout &DL = IC.getDataLayout();
     auto *SL = DL.getStructLayout(ST);
+
+    // Don't unpack for structure with scalable vector.
+    if (SL->getSizeInBits().isScalable())
+      return nullptr;
+
     if (SL->hasPadding())
       return nullptr;
 
@@ -979,17 +1012,15 @@ static bool canReplaceGEPIdxWithZero(InstCombinerImpl &IC,
 // If we're indexing into an object with a variable index for the memory
 // access, but the object has only one element, we can assume that the index
 // will always be zero. If we replace the GEP, return it.
-template <typename T>
 static Instruction *replaceGEPIdxWithZero(InstCombinerImpl &IC, Value *Ptr,
-                                          T &MemI) {
+                                          Instruction &MemI) {
   if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(Ptr)) {
     unsigned Idx;
     if (canReplaceGEPIdxWithZero(IC, GEPI, &MemI, Idx)) {
       Instruction *NewGEPI = GEPI->clone();
       NewGEPI->setOperand(Idx,
         ConstantInt::get(GEPI->getOperand(Idx)->getType(), 0));
-      NewGEPI->insertBefore(GEPI);
-      MemI.setOperand(MemI.getPointerOperandIndex(), NewGEPI);
+      IC.InsertNewInstBefore(NewGEPI, *GEPI);
       return NewGEPI;
     }
   }
@@ -1024,6 +1055,8 @@ static bool canSimplifyNullLoadOrGEP(LoadInst &LI, Value *Op) {
 
 Instruction *InstCombinerImpl::visitLoadInst(LoadInst &LI) {
   Value *Op = LI.getOperand(0);
+  if (Value *Res = simplifyLoadInst(&LI, Op, SQ.getWithInstruction(&LI)))
+    return replaceInstUsesWith(LI, Res);
 
   // Try to canonicalize the loaded type.
   if (Instruction *Res = combineLoadToOperationType(*this, LI))
@@ -1036,10 +1069,8 @@ Instruction *InstCombinerImpl::visitLoadInst(LoadInst &LI) {
     LI.setAlignment(KnownAlign);
 
   // Replace GEP indices if possible.
-  if (Instruction *NewGEPI = replaceGEPIdxWithZero(*this, Op, LI)) {
-      Worklist.push(NewGEPI);
-      return &LI;
-  }
+  if (Instruction *NewGEPI = replaceGEPIdxWithZero(*this, Op, LI))
+    return replaceOperand(LI, 0, NewGEPI);
 
   if (Instruction *Res = unpackLoadToAggregate(*this, LI))
     return Res;
@@ -1065,13 +1096,7 @@ Instruction *InstCombinerImpl::visitLoadInst(LoadInst &LI) {
   // load null/undef -> unreachable
   // TODO: Consider a target hook for valid address spaces for this xforms.
   if (canSimplifyNullLoadOrGEP(LI, Op)) {
-    // Insert a new store to null instruction before the load to indicate
-    // that this code is not reachable.  We do this instead of inserting
-    // an unreachable instruction directly because we cannot modify the
-    // CFG.
-    StoreInst *SI = new StoreInst(PoisonValue::get(LI.getType()),
-                                  Constant::getNullValue(Op->getType()), &LI);
-    SI->setDebugLoc(LI.getDebugLoc());
+    CreateNonTerminatorUnreachable(&LI);
     return replaceInstUsesWith(LI, PoisonValue::get(LI.getType()));
   }
 
@@ -1261,6 +1286,11 @@ static bool unpackStoreToAggregate(InstCombinerImpl &IC, StoreInst &SI) {
     // the knowledge that padding exists for the rest of the pipeline.
     const DataLayout &DL = IC.getDataLayout();
     auto *SL = DL.getStructLayout(ST);
+
+    // Don't unpack for structure with scalable vector.
+    if (SL->getSizeInBits().isScalable())
+      return false;
+
     if (SL->hasPadding())
       return false;
 
@@ -1443,10 +1473,8 @@ Instruction *InstCombinerImpl::visitStoreInst(StoreInst &SI) {
     return eraseInstFromFunction(SI);
 
   // Replace GEP indices if possible.
-  if (Instruction *NewGEPI = replaceGEPIdxWithZero(*this, Ptr, SI)) {
-      Worklist.push(NewGEPI);
-      return &SI;
-  }
+  if (Instruction *NewGEPI = replaceGEPIdxWithZero(*this, Ptr, SI))
+    return replaceOperand(SI, 1, NewGEPI);
 
   // Don't hack volatile/ordered stores.
   // FIXME: Some bits are legal for ordered atomic stores; needs refactoring.
@@ -1530,6 +1558,16 @@ Instruction *InstCombinerImpl::visitStoreInst(StoreInst &SI) {
     return nullptr;  // Do not modify these!
   }
 
+  // This is a non-terminator unreachable marker. Don't remove it.
+  if (isa<UndefValue>(Ptr)) {
+    // Remove all instructions after the marker and guaranteed-to-transfer
+    // instructions before the marker.
+    if (handleUnreachableFrom(SI.getNextNode()) ||
+        removeInstructionsBeforeUnreachable(SI))
+      return &SI;
+    return nullptr;
+  }
+
   // store undef, Ptr -> noop
   // FIXME: This is technically incorrect because it might overwrite a poison
   // value. Change to PoisonValue once #52930 is resolved.
@@ -1571,6 +1609,17 @@ bool InstCombinerImpl::mergeStoreIntoSuccessor(StoreInst &SI) {
   if (!OtherBr || BBI == OtherBB->begin())
     return false;
 
+  auto OtherStoreIsMergeable = [&](StoreInst *OtherStore) -> bool {
+    if (!OtherStore ||
+        OtherStore->getPointerOperand() != SI.getPointerOperand())
+      return false;
+
+    auto *SIVTy = SI.getValueOperand()->getType();
+    auto *OSVTy = OtherStore->getValueOperand()->getType();
+    return CastInst::isBitOrNoopPointerCastable(OSVTy, SIVTy, DL) &&
+           SI.hasSameSpecialState(OtherStore);
+  };
+
   // If the other block ends in an unconditional branch, check for the 'if then
   // else' case. There is an instruction before the branch.
   StoreInst *OtherStore = nullptr;
@@ -1586,8 +1635,7 @@ bool InstCombinerImpl::mergeStoreIntoSuccessor(StoreInst &SI) {
     // If this isn't a store, isn't a store to the same location, or is not the
     // right kind of store, bail out.
     OtherStore = dyn_cast<StoreInst>(BBI);
-    if (!OtherStore || OtherStore->getOperand(1) != SI.getOperand(1) ||
-        !SI.isSameOperationAs(OtherStore))
+    if (!OtherStoreIsMergeable(OtherStore))
       return false;
   } else {
     // Otherwise, the other block ended with a conditional branch. If one of the
@@ -1601,12 +1649,10 @@ bool InstCombinerImpl::mergeStoreIntoSuccessor(StoreInst &SI) {
     // lives in OtherBB.
     for (;; --BBI) {
       // Check to see if we find the matching store.
-      if ((OtherStore = dyn_cast<StoreInst>(BBI))) {
-        if (OtherStore->getOperand(1) != SI.getOperand(1) ||
-            !SI.isSameOperationAs(OtherStore))
-          return false;
+      OtherStore = dyn_cast<StoreInst>(BBI);
+      if (OtherStoreIsMergeable(OtherStore))
         break;
-      }
+
       // If we find something that may be using or overwriting the stored
       // value, or if we run out of instructions, we can't do the transform.
       if (BBI->mayReadFromMemory() || BBI->mayThrow() ||
@@ -1624,14 +1670,17 @@ bool InstCombinerImpl::mergeStoreIntoSuccessor(StoreInst &SI) {
   }
 
   // Insert a PHI node now if we need it.
-  Value *MergedVal = OtherStore->getOperand(0);
+  Value *MergedVal = OtherStore->getValueOperand();
   // The debug locations of the original instructions might differ. Merge them.
   DebugLoc MergedLoc = DILocation::getMergedLocation(SI.getDebugLoc(),
                                                      OtherStore->getDebugLoc());
-  if (MergedVal != SI.getOperand(0)) {
-    PHINode *PN = PHINode::Create(MergedVal->getType(), 2, "storemerge");
-    PN->addIncoming(SI.getOperand(0), SI.getParent());
-    PN->addIncoming(OtherStore->getOperand(0), OtherBB);
+  if (MergedVal != SI.getValueOperand()) {
+    PHINode *PN =
+        PHINode::Create(SI.getValueOperand()->getType(), 2, "storemerge");
+    PN->addIncoming(SI.getValueOperand(), SI.getParent());
+    Builder.SetInsertPoint(OtherStore);
+    PN->addIncoming(Builder.CreateBitOrPointerCast(MergedVal, PN->getType()),
+                    OtherBB);
     MergedVal = InsertNewInstBefore(PN, DestBB->front());
     PN->setDebugLoc(MergedLoc);
   }

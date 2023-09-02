@@ -15,6 +15,7 @@
 #ifndef LLVM_LIB_FILECHECK_FILECHECKIMPL_H
 #define LLVM_LIB_FILECHECK_FILECHECKIMPL_H
 
+#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/FileCheck/FileCheck.h"
@@ -120,38 +121,14 @@ public:
 /// Class representing a numeric value.
 class ExpressionValue {
 private:
-  uint64_t Value;
-  bool Negative;
+  APInt Value;
 
 public:
+  // Store signed and unsigned 64-bit integers in a signed 65-bit APInt.
   template <class T>
-  explicit ExpressionValue(T Val) : Value(Val), Negative(Val < 0) {}
+  explicit ExpressionValue(T Val) : Value(65, Val, /*isSigned=*/Val < 0) {}
 
-  bool operator==(const ExpressionValue &Other) const {
-    return Value == Other.Value && isNegative() == Other.isNegative();
-  }
-
-  bool operator!=(const ExpressionValue &Other) const {
-    return !(*this == Other);
-  }
-
-  /// Returns true if value is signed and negative, false otherwise.
-  bool isNegative() const {
-    assert((Value != 0 || !Negative) && "Unexpected negative zero!");
-    return Negative;
-  }
-
-  /// \returns the value as a signed integer or an error if the value is out of
-  /// range.
-  Expected<int64_t> getSignedValue() const;
-
-  /// \returns the value as an unsigned integer or an error if the value is out
-  /// of range.
-  Expected<uint64_t> getUnsignedValue() const;
-
-  /// \returns an unsigned ExpressionValue instance whose value is the absolute
-  /// value to this object's value.
-  ExpressionValue getAbsolute() const;
+  APInt getAPIntValue() const { return Value; }
 };
 
 /// Performs operation and \returns its result or an error in case of failure,
@@ -269,7 +246,7 @@ private:
   std::optional<ExpressionValue> Value;
 
   /// The input buffer's string from which Value was parsed, or std::nullopt.
-  /// See comments on getStringValue for a discussion of the None case.
+  /// See comments on getStringValue for a discussion of the std::nullopt case.
   std::optional<StringRef> StrValue;
 
   /// Line number where this variable is defined, or std::nullopt if defined
@@ -280,7 +257,7 @@ private:
 public:
   /// Constructor for a variable \p Name with implicit format \p ImplicitFormat
   /// defined at line \p DefLineNumber or defined before input is parsed if
-  /// \p DefLineNumber is None.
+  /// \p DefLineNumber is std::nullopt.
   explicit NumericVariable(StringRef Name, ExpressionFormat ImplicitFormat,
                            std::optional<size_t> DefLineNumber = std::nullopt)
       : Name(Name), ImplicitFormat(ImplicitFormat),
@@ -304,7 +281,7 @@ public:
 
   /// Sets value of this numeric variable to \p NewValue, and sets the input
   /// buffer string from which it was parsed to \p NewStrValue.  See comments on
-  /// getStringValue for a discussion of when the latter can be None.
+  /// getStringValue for a discussion of when the latter can be std::nullopt.
   void setValue(ExpressionValue NewValue,
                 std::optional<StringRef> NewStrValue = std::nullopt) {
     Value = NewValue;

@@ -23,7 +23,6 @@
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryProfileInfo.h"
 #include "llvm/Analysis/ObjCARCAnalysisUtils.h"
@@ -42,6 +41,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InlineAsm.h"
@@ -98,10 +98,6 @@ static cl::opt<bool>
 PreserveAlignmentAssumptions("preserve-alignment-assumptions-during-inlining",
   cl::init(false), cl::Hidden,
   cl::desc("Convert align attributes to assumptions during inlining."));
-
-static cl::opt<bool> UpdateReturnAttributes(
-        "update-return-attrs", cl::init(true), cl::Hidden,
-            cl::desc("Update return attributes on calls within inlined body"));
 
 static cl::opt<unsigned> InlinerAttributeWindow(
     "max-inst-checked-for-throw-during-inlining", cl::Hidden,
@@ -879,9 +875,6 @@ static void propagateMemProfHelper(const CallBase *OrigCall,
 // inlined callee's callsite metadata with that of the inlined call,
 // and moving the subset of any memprof contexts to the inlined callee
 // allocations if they match the new inlined call stack.
-// FIXME: Replace memprof metadata with function attribute if all MIB end up
-// having the same behavior. Do other context trimming/merging optimizations
-// too.
 static void
 propagateMemProfMetadata(Function *Callee, CallBase &CB,
                          bool ContainsMemProfMetadata,
@@ -1368,9 +1361,6 @@ static AttrBuilder IdentifyValidAttributes(CallBase &CB) {
 }
 
 static void AddReturnAttributes(CallBase &CB, ValueToValueMapTy &VMap) {
-  if (!UpdateReturnAttributes)
-    return;
-
   AttrBuilder Valid = IdentifyValidAttributes(CB);
   if (!Valid.hasAttributes())
     return;
@@ -1460,84 +1450,10 @@ static void AddAlignmentAssumptions(CallBase &CB, InlineFunctionInfo &IFI) {
   }
 }
 
-/// Once we have cloned code over from a callee into the caller,
-/// update the specified callgraph to reflect the changes we made.
-/// Note that it's possible that not all code was copied over, so only
-/// some edges of the callgraph may remain.
-static void UpdateCallGraphAfterInlining(CallBase &CB,
-                                         Function::iterator FirstNewBlock,
-                                         ValueToValueMapTy &VMap,
-                                         InlineFunctionInfo &IFI) {
-  CallGraph &CG = *IFI.CG;
-  const Function *Caller = CB.getCaller();
-  const Function *Callee = CB.getCalledFunction();
-  CallGraphNode *CalleeNode = CG[Callee];
-  CallGraphNode *CallerNode = CG[Caller];
-
-  // Since we inlined some uninlined call sites in the callee into the caller,
-  // add edges from the caller to all of the callees of the callee.
-  CallGraphNode::iterator I = CalleeNode->begin(), E = CalleeNode->end();
-
-  // Consider the case where CalleeNode == CallerNode.
-  CallGraphNode::CalledFunctionsVector CallCache;
-  if (CalleeNode == CallerNode) {
-    CallCache.assign(I, E);
-    I = CallCache.begin();
-    E = CallCache.end();
-  }
-
-  for (; I != E; ++I) {
-    // Skip 'refererence' call records.
-    if (!I->first)
-      continue;
-
-    const Value *OrigCall = *I->first;
-
-    ValueToValueMapTy::iterator VMI = VMap.find(OrigCall);
-    // Only copy the edge if the call was inlined!
-    if (VMI == VMap.end() || VMI->second == nullptr)
-      continue;
-
-    // If the call was inlined, but then constant folded, there is no edge to
-    // add.  Check for this case.
-    auto *NewCall = dyn_cast<CallBase>(VMI->second);
-    if (!NewCall)
-      continue;
-
-    // We do not treat intrinsic calls like real function calls because we
-    // expect them to become inline code; do not add an edge for an intrinsic.
-    if (NewCall->getCalledFunction() &&
-        NewCall->getCalledFunction()->isIntrinsic())
-      continue;
-
-    // Remember that this call site got inlined for the client of
-    // InlineFunction.
-    IFI.InlinedCalls.push_back(NewCall);
-
-    // It's possible that inlining the callsite will cause it to go from an
-    // indirect to a direct call by resolving a function pointer.  If this
-    // happens, set the callee of the new call site to a more precise
-    // destination.  This can also happen if the call graph node of the caller
-    // was just unnecessarily imprecise.
-    if (!I->second->getFunction())
-      if (Function *F = NewCall->getCalledFunction()) {
-        // Indirect call site resolved to direct call.
-        CallerNode->addCalledFunction(NewCall, CG[F]);
-
-        continue;
-      }
-
-    CallerNode->addCalledFunction(NewCall, I->second);
-  }
-
-  // Update the call graph by deleting the edge from Callee to Caller.  We must
-  // do this after the loop above in case Caller and Callee are the same.
-  CallerNode->removeCallEdgeFor(*cast<CallBase>(&CB));
-}
-
 static void HandleByValArgumentInit(Type *ByValType, Value *Dst, Value *Src,
                                     Module *M, BasicBlock *InsertBlock,
-                                    InlineFunctionInfo &IFI) {
+                                    InlineFunctionInfo &IFI,
+                                    Function *CalledFunc) {
   IRBuilder<> Builder(InsertBlock, InsertBlock->begin());
 
   Value *Size =
@@ -1546,8 +1462,15 @@ static void HandleByValArgumentInit(Type *ByValType, Value *Dst, Value *Src,
   // Always generate a memcpy of alignment 1 here because we don't know
   // the alignment of the src pointer.  Other optimizations can infer
   // better alignment.
-  Builder.CreateMemCpy(Dst, /*DstAlign*/ Align(1), Src,
-                       /*SrcAlign*/ Align(1), Size);
+  CallInst *CI = Builder.CreateMemCpy(Dst, /*DstAlign*/ Align(1), Src,
+                                      /*SrcAlign*/ Align(1), Size);
+
+  // The verifier requires that all calls of debug-info-bearing functions
+  // from debug-info-bearing functions have a debug location (for inlining
+  // purposes). Assign a dummy location to satisfy the constraint.
+  if (!CI->getDebugLoc() && InsertBlock->getParent()->getSubprogram())
+    if (DISubprogram *SP = CalledFunc->getSubprogram())
+      CI->setDebugLoc(DILocation::get(SP->getContext(), 0, 0, SP));
 }
 
 /// When inlining a call site that has a byval argument,
@@ -1557,8 +1480,6 @@ static Value *HandleByValArgument(Type *ByValType, Value *Arg,
                                   const Function *CalledFunc,
                                   InlineFunctionInfo &IFI,
                                   MaybeAlign ByValAlignment) {
-  assert(cast<PointerType>(Arg->getType())
-             ->isOpaqueOrPointeeTypeMatches(ByValType));
   Function *Caller = TheCall->getFunction();
   const DataLayout &DL = Caller->getParent()->getDataLayout();
 
@@ -1709,6 +1630,12 @@ static void fixupLineNumbers(Function *Fn, Function::iterator FI,
       if (auto *AI = dyn_cast<AllocaInst>(BI))
         if (allocaWouldBeStaticInEntry(AI))
           continue;
+
+      // Do not force a debug loc for pseudo probes, since they do not need to
+      // be debuggable, and also they are expected to have a zero/null dwarf
+      // discriminator at this point which could be violated otherwise.
+      if (isa<PseudoProbeInst>(BI))
+        continue;
 
       BI->setDebugLoc(TheCallDL);
     }
@@ -2242,7 +2169,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     // Inject byval arguments initialization.
     for (ByValInit &Init : ByValInits)
       HandleByValArgumentInit(Init.Ty, Init.Dst, Init.Src, Caller->getParent(),
-                              &*FirstNewBlock, IFI);
+                              &*FirstNewBlock, IFI, CalledFunc);
 
     std::optional<OperandBundleUse> ParentDeopt =
         CB.getOperandBundle(LLVMContext::OB_deopt);
@@ -2292,10 +2219,6 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       }
     }
 
-    // Update the callgraph if requested.
-    if (IFI.CG)
-      UpdateCallGraphAfterInlining(CB, FirstNewBlock, VMap, IFI);
-
     // For 'nodebug' functions, the associated DISubprogram is always null.
     // Conservatively avoid propagating the callsite debug location to
     // instructions inlined from a function whose DISubprogram is not null.
@@ -2333,7 +2256,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       for (BasicBlock &NewBlock :
            make_range(FirstNewBlock->getIterator(), Caller->end()))
         for (Instruction &I : NewBlock)
-          if (auto *II = dyn_cast<CondGuardInst>(&I))
+          if (auto *II = dyn_cast<AssumeInst>(&I))
             IFI.GetAssumptionCache(*Caller).registerAssumption(II);
   }
 
@@ -2701,7 +2624,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // call graph updates weren't requested, as those provide value handle based
   // tracking of inlined call sites instead. Calls to intrinsics are not
   // collected because they are not inlineable.
-  if (InlinedFunctionInfo.ContainsCalls && !IFI.CG) {
+  if (InlinedFunctionInfo.ContainsCalls) {
     // Otherwise just collect the raw call sites that were inlined.
     for (BasicBlock &NewBB :
          make_range(FirstNewBlock->getIterator(), Caller->end()))
@@ -2734,7 +2657,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     if (!CB.use_empty()) {
       ReturnInst *R = Returns[0];
       if (&CB == R->getReturnValue())
-        CB.replaceAllUsesWith(UndefValue::get(CB.getType()));
+        CB.replaceAllUsesWith(PoisonValue::get(CB.getType()));
       else
         CB.replaceAllUsesWith(R->getReturnValue());
     }
@@ -2846,7 +2769,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     // using the return value of the call with the computed value.
     if (!CB.use_empty()) {
       if (&CB == Returns[0]->getReturnValue())
-        CB.replaceAllUsesWith(UndefValue::get(CB.getType()));
+        CB.replaceAllUsesWith(PoisonValue::get(CB.getType()));
       else
         CB.replaceAllUsesWith(Returns[0]->getReturnValue());
     }

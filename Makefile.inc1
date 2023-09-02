@@ -2497,6 +2497,7 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
     ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
+	usr.bin/clang/llvm-min-tblgen \
 	usr.bin/clang/llvm-tblgen
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLDB} != "no"
@@ -2507,8 +2508,10 @@ _clang_tblgen+= usr.bin/clang/clang-tblgen
 _clang_tblgen+=	usr.bin/clang/lldb-tblgen
 .endif
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
-${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-min-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-usr.bin/clang/llvm-min-tblgen
 .endif
 
 # C.UTF-8 is always built in share/ctypes and we need localedef for that.

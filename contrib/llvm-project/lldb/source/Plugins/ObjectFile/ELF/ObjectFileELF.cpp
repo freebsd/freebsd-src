@@ -13,7 +13,6 @@
 #include <optional>
 #include <unordered_map>
 
-#include "lldb/Core/FileSpecList.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
@@ -27,6 +26,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/FileSpecList.h"
 #include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RangeMap.h"
@@ -555,6 +555,14 @@ size_t ObjectFileELF::GetModuleSpecifications(
     if (header.Parse(data, &header_offset)) {
       if (data_sp) {
         ModuleSpec spec(file);
+        // In Android API level 23 and above, bionic dynamic linker is able to
+        // load .so file directly from zip file. In that case, .so file is
+        // page aligned and uncompressed, and this module spec should retain the
+        // .so file offset and file size to pass through the information from
+        // lldb-server to LLDB. For normal file, file_offset should be 0,
+        // length should be the size of the file.
+        spec.SetObjectOffset(file_offset);
+        spec.SetObjectSize(length);
 
         const uint32_t sub_type = subTypeFromElfHeader(header);
         spec.GetArchitecture().SetArchitecture(
@@ -586,8 +594,12 @@ size_t ObjectFileELF::GetModuleSpecifications(
                       __FUNCTION__, file.GetPath().c_str());
           }
 
+          // When ELF file does not contain GNU build ID, the later code will
+          // calculate CRC32 with this data_sp file_offset and length. It is
+          // important for Android zip .so file, which is a slice of a file,
+          // to not access the outside of the file slice range.
           if (data_sp->GetByteSize() < length)
-            data_sp = MapFileData(file, -1, file_offset);
+            data_sp = MapFileData(file, length, file_offset);
           if (data_sp)
             data.SetData(data_sp);
           // In case there is header extension in the section #0, the header we
@@ -623,7 +635,7 @@ size_t ObjectFileELF::GetModuleSpecifications(
             if (!gnu_debuglink_crc) {
               LLDB_SCOPED_TIMERF(
                   "Calculating module crc32 %s with size %" PRIu64 " KiB",
-                  file.GetLastPathComponent().AsCString(),
+                  file.GetFilename().AsCString(),
                   (length - file_offset) / 1024);
 
               // For core files - which usually don't happen to have a
@@ -1661,6 +1673,7 @@ static SectionType GetSectionTypeFromName(llvm::StringRef Name) {
       .Case(".ARM.exidx", eSectionTypeARMexidx)
       .Case(".ARM.extab", eSectionTypeARMextab)
       .Cases(".bss", ".tbss", eSectionTypeZeroFill)
+      .Case(".ctf", eSectionTypeDebug)
       .Cases(".data", ".tdata", eSectionTypeData)
       .Case(".eh_frame", eSectionTypeEHFrame)
       .Case(".gnu_debugaltlink", eSectionTypeDWARFGNUDebugAltLink)
@@ -2029,7 +2042,7 @@ unsigned ObjectFileELF::ParseSymbols(Symtab *symtab, user_id_t start_id,
   // contain the note section specifying the environment to Android but the
   // custom extension and file name makes it highly unlikely that this will
   // collide with anything else.
-  ConstString file_extension = m_file.GetFileNameExtension();
+  llvm::StringRef file_extension = m_file.GetFileNameExtension();
   bool skip_oatdata_oatexec =
       file_extension == ".oat" || file_extension == ".odex";
 
@@ -2637,6 +2650,44 @@ static void ApplyELF64ABS32Relocation(Symtab *symtab, ELFRelocation &rel,
   }
 }
 
+static void ApplyELF32ABS32RelRelocation(Symtab *symtab, ELFRelocation &rel,
+                                         DataExtractor &debug_data,
+                                         Section *rel_section) {
+  Log *log = GetLog(LLDBLog::Modules);
+  Symbol *symbol = symtab->FindSymbolByID(ELFRelocation::RelocSymbol32(rel));
+  if (symbol) {
+    addr_t value = symbol->GetAddressRef().GetFileAddress();
+    if (value == LLDB_INVALID_ADDRESS) {
+      const char *name = symbol->GetName().GetCString();
+      LLDB_LOGF(log, "Debug info symbol invalid: %s", name);
+      return;
+    }
+    assert(llvm::isUInt<32>(value) && "Valid addresses are 32-bit");
+    DataBufferSP &data_buffer_sp = debug_data.GetSharedDataBuffer();
+    // ObjectFileELF creates a WritableDataBuffer in CreateInstance.
+    WritableDataBuffer *data_buffer =
+        llvm::cast<WritableDataBuffer>(data_buffer_sp.get());
+    uint8_t *dst = data_buffer->GetBytes() + rel_section->GetFileOffset() +
+                   ELFRelocation::RelocOffset32(rel);
+    // Implicit addend is stored inline as a signed value.
+    int32_t addend;
+    memcpy(&addend, dst, sizeof(int32_t));
+    // The sum must be positive. This extra check prevents UB from overflow in
+    // the actual range check below.
+    if (addend < 0 && static_cast<uint32_t>(-addend) > value) {
+      LLDB_LOGF(log, "Debug info relocation overflow: 0x%" PRIx64,
+                static_cast<int64_t>(value) + addend);
+      return;
+    }
+    if (!llvm::isUInt<32>(value + addend)) {
+      LLDB_LOGF(log, "Debug info relocation out of range: 0x%" PRIx64, value);
+      return;
+    }
+    uint32_t addr = value + addend;
+    memcpy(dst, &addr, sizeof(uint32_t));
+  }
+}
+
 unsigned ObjectFileELF::ApplyRelocations(
     Symtab *symtab, const ELFHeader *hdr, const ELFSectionHeader *rel_hdr,
     const ELFSectionHeader *symtab_hdr, const ELFSectionHeader *debug_hdr,
@@ -2666,38 +2717,64 @@ unsigned ObjectFileELF::ApplyRelocations(
     Symbol *symbol = nullptr;
 
     if (hdr->Is32Bit()) {
-      switch (reloc_type(rel)) {
-      case R_386_32:
-        symbol = symtab->FindSymbolByID(reloc_symbol(rel));
-        if (symbol) {
-          addr_t f_offset =
-              rel_section->GetFileOffset() + ELFRelocation::RelocOffset32(rel);
-          DataBufferSP &data_buffer_sp = debug_data.GetSharedDataBuffer();
-          // ObjectFileELF creates a WritableDataBuffer in CreateInstance.
-          WritableDataBuffer *data_buffer =
-              llvm::cast<WritableDataBuffer>(data_buffer_sp.get());
-          uint32_t *dst = reinterpret_cast<uint32_t *>(
-              data_buffer->GetBytes() + f_offset);
-
-          addr_t value = symbol->GetAddressRef().GetFileAddress();
-          if (rel.IsRela()) {
-            value += ELFRelocation::RelocAddend32(rel);
-          } else {
-            value += *dst;
-          }
-          *dst = value;
-        } else {
-          GetModule()->ReportError(".rel{0}[{1}] unknown symbol id: {2:d}",
+      switch (hdr->e_machine) {
+      case llvm::ELF::EM_ARM:
+        switch (reloc_type(rel)) {
+        case R_ARM_ABS32:
+          ApplyELF32ABS32RelRelocation(symtab, rel, debug_data, rel_section);
+          break;
+        case R_ARM_REL32:
+          GetModule()->ReportError("unsupported AArch32 relocation:"
+                                   " .rel{0}[{1}], type {2}",
                                    rel_section->GetName().AsCString(), i,
-                                   reloc_symbol(rel));
+                                   reloc_type(rel));
+          break;
+        default:
+          assert(false && "unexpected relocation type");
         }
         break;
-      case R_386_PC32:
+      case llvm::ELF::EM_386:
+        switch (reloc_type(rel)) {
+        case R_386_32:
+          symbol = symtab->FindSymbolByID(reloc_symbol(rel));
+          if (symbol) {
+            addr_t f_offset =
+                rel_section->GetFileOffset() + ELFRelocation::RelocOffset32(rel);
+            DataBufferSP &data_buffer_sp = debug_data.GetSharedDataBuffer();
+            // ObjectFileELF creates a WritableDataBuffer in CreateInstance.
+            WritableDataBuffer *data_buffer =
+                llvm::cast<WritableDataBuffer>(data_buffer_sp.get());
+            uint32_t *dst = reinterpret_cast<uint32_t *>(
+                data_buffer->GetBytes() + f_offset);
+
+            addr_t value = symbol->GetAddressRef().GetFileAddress();
+            if (rel.IsRela()) {
+              value += ELFRelocation::RelocAddend32(rel);
+            } else {
+              value += *dst;
+            }
+            *dst = value;
+          } else {
+            GetModule()->ReportError(".rel{0}[{1}] unknown symbol id: {2:d}",
+                                    rel_section->GetName().AsCString(), i,
+                                    reloc_symbol(rel));
+          }
+          break;
+        case R_386_NONE:
+        case R_386_PC32:
+          GetModule()->ReportError("unsupported i386 relocation:"
+                                   " .rel{0}[{1}], type {2}",
+                                   rel_section->GetName().AsCString(), i,
+                                   reloc_type(rel));
+          break;
+        default:
+          assert(false && "unexpected relocation type");
+          break;
+        }
+        break;
       default:
-        GetModule()->ReportError("unsupported 32-bit relocation:"
-                                 " .rel{0}[{1}], type {2}",
-                                 rel_section->GetName().AsCString(), i,
-                                 reloc_type(rel));
+        GetModule()->ReportError("unsupported 32-bit ELF machine arch: {0}", hdr->e_machine);
+        break;
       }
     } else {
       switch (hdr->e_machine) {
@@ -2743,7 +2820,8 @@ unsigned ObjectFileELF::ApplyRelocations(
         }
         break;
       default:
-        assert(false && "unsupported machine");
+        GetModule()->ReportError("unsupported 64-bit ELF machine arch: {0}", hdr->e_machine);
+        break;
       }
     }
   }

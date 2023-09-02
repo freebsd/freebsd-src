@@ -133,7 +133,7 @@ protected:
   }
 
   template <typename U = ScalarTy>
-  friend constexpr std::enable_if_t<std::is_signed<U>::value, LeafTy>
+  friend constexpr std::enable_if_t<std::is_signed_v<U>, LeafTy>
   operator-(const LeafTy &LHS) {
     LeafTy Copy = LHS;
     return Copy *= -1;
@@ -322,8 +322,8 @@ public:
   static constexpr TypeSize getFixed(ScalarTy ExactSize) {
     return TypeSize(ExactSize, false);
   }
-  static constexpr TypeSize getScalable(ScalarTy MinimunSize) {
-    return TypeSize(MinimunSize, true);
+  static constexpr TypeSize getScalable(ScalarTy MinimumSize) {
+    return TypeSize(MinimumSize, true);
   }
   static constexpr TypeSize get(ScalarTy Quantity, bool Scalable) {
     return TypeSize(Quantity, Scalable);

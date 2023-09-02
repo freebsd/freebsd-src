@@ -1,4 +1,4 @@
-//===-- RISCVRegisterInfo.cpp - RISCV Register Information ------*- C++ -*-===//
+//===-- RISCVRegisterInfo.cpp - RISC-V Register Information -----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the RISCV implementation of the TargetRegisterInfo class.
+// This file contains the RISC-V implementation of the TargetRegisterInfo class.
 //
 //===----------------------------------------------------------------------===//
 
@@ -103,6 +103,10 @@ BitVector RISCVRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   if (TFI->hasBP(MF))
     markSuperRegs(Reserved, RISCVABI::getBPReg()); // bp
 
+  // Additionally reserve dummy register used to form the register pair
+  // beginning with 'x0' for instructions that take register pairs.
+  markSuperRegs(Reserved, RISCV::DUMMY_REG_PAIR_WITH_X0);
+
   // V registers for code generation. We handle them manually.
   markSuperRegs(Reserved, RISCV::VL);
   markSuperRegs(Reserved, RISCV::VTYPE);
@@ -149,7 +153,7 @@ bool RISCVRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
                                              Register Reg,
                                              int &FrameIdx) const {
   const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
-  if (!RVFI->useSaveRestoreLibCalls(MF))
+  if (!RVFI->useSaveRestoreLibCalls(MF) && !RVFI->isPushable(MF))
     return false;
 
   const auto *FII =
@@ -759,7 +763,7 @@ bool RISCVRegisterInfo::getRegAllocationHints(
 
   for (auto &MO : MRI->reg_nodbg_operands(VirtReg)) {
     const MachineInstr &MI = *MO.getParent();
-    unsigned OpIdx = MI.getOperandNo(&MO);
+    unsigned OpIdx = MO.getOperandNo();
     bool NeedGPRC;
     if (isCompressible(MI, NeedGPRC)) {
       if (OpIdx == 0 && MI.getOperand(1).isReg()) {

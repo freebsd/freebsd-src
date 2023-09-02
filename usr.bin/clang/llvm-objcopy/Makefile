@@ -5,9 +5,8 @@ PROG_CXX=	llvm-objcopy
 
 SRCDIR=		llvm/tools/llvm-objcopy
 SRCS+=		ObjcopyOptions.cpp
+SRCS+=		llvm-objcopy-driver.cpp
 SRCS+=		llvm-objcopy.cpp
-
-CFLAGS.llvm-objcopy.cpp+=	-Dllvm_objcopy_main=main
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 

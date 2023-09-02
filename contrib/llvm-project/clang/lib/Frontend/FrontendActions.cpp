@@ -202,7 +202,8 @@ GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
       /*AllowASTWithErrors=*/
       +CI.getFrontendOpts().AllowPCMWithCompilerErrors,
       /*IncludeTimestamps=*/
-      +CI.getFrontendOpts().BuildingImplicitModule,
+      +CI.getFrontendOpts().BuildingImplicitModule &&
+          +CI.getFrontendOpts().IncludeTimestamps,
       /*ShouldCacheASTInMemory=*/
       +CI.getFrontendOpts().BuildingImplicitModule));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
@@ -250,11 +251,6 @@ GenerateModuleFromModuleMapAction::CreateOutputFile(CompilerInstance &CI,
 
 bool GenerateModuleInterfaceAction::BeginSourceFileAction(
     CompilerInstance &CI) {
-  if (!CI.getLangOpts().ModulesTS && !CI.getLangOpts().CPlusPlusModules) {
-    CI.getDiagnostics().Report(diag::err_module_interface_requires_cpp_modules);
-    return false;
-  }
-
   CI.getLangOpts().setCompilingModule(LangOptions::CMK_ModuleInterface);
 
   return GenerateModuleAction::BeginSourceFileAction(CI);
@@ -376,6 +372,8 @@ private:
       return "ExplicitTemplateArgumentSubstitution";
     case CodeSynthesisContext::DeducedTemplateArgumentSubstitution:
       return "DeducedTemplateArgumentSubstitution";
+    case CodeSynthesisContext::LambdaExpressionSubstitution:
+      return "LambdaExpressionSubstitution";
     case CodeSynthesisContext::PriorTemplateArgumentSubstitution:
       return "PriorTemplateArgumentSubstitution";
     case CodeSynthesisContext::DefaultTemplateArgumentChecking:
@@ -414,6 +412,8 @@ private:
       return "MarkingClassDllexported";
     case CodeSynthesisContext::BuildingBuiltinDumpStructCall:
       return "BuildingBuiltinDumpStructCall";
+    case CodeSynthesisContext::BuildingDeductionGuides:
+      return "BuildingDeductionGuides";
     }
     return "";
   }
@@ -459,6 +459,8 @@ private:
       OS << "unnamed " << Decl->getKindName();
       return;
     }
+
+    assert(NamedCtx && "NamedCtx cannot be null");
 
     if (const auto *Decl = dyn_cast<ParmVarDecl>(NamedTemplate)) {
       OS << "unnamed function parameter " << Decl->getFunctionScopeIndex()
@@ -763,14 +765,18 @@ static StringRef ModuleKindName(Module::ModuleKind MK) {
     return "Module Map Module";
   case Module::ModuleInterfaceUnit:
     return "Interface Unit";
+  case Module::ModuleImplementationUnit:
+    return "Implementation Unit";
   case Module::ModulePartitionInterface:
     return "Partition Interface";
   case Module::ModulePartitionImplementation:
     return "Partition Implementation";
   case Module::ModuleHeaderUnit:
     return "Header Unit";
-  case Module::GlobalModuleFragment:
+  case Module::ExplicitGlobalModuleFragment:
     return "Global Module Fragment";
+  case Module::ImplicitGlobalModuleFragment:
+    return "Implicit Module Fragment";
   case Module::PrivateModuleFragment:
     return "Private Module Fragment";
   }
@@ -780,14 +786,12 @@ static StringRef ModuleKindName(Module::ModuleKind MK) {
 void DumpModuleInfoAction::ExecuteAction() {
   assert(isCurrentFileAST() && "dumping non-AST?");
   // Set up the output file.
-  std::unique_ptr<llvm::raw_fd_ostream> OutFile;
   CompilerInstance &CI = getCompilerInstance();
   StringRef OutputFileName = CI.getFrontendOpts().OutputFile;
   if (!OutputFileName.empty() && OutputFileName != "-") {
     std::error_code EC;
-    OutFile.reset(new llvm::raw_fd_ostream(OutputFileName.str(), EC,
-                                           llvm::sys::fs::OF_TextWithCRLF));
-    OutputStream = OutFile.get();
+    OutputStream.reset(new llvm::raw_fd_ostream(
+        OutputFileName.str(), EC, llvm::sys::fs::OF_TextWithCRLF));
   }
   llvm::raw_ostream &Out = OutputStream ? *OutputStream : llvm::outs();
 
@@ -884,7 +888,7 @@ void DumpModuleInfoAction::ExecuteAction() {
     }
 
     // Now let's print out any modules we did not see as part of the Primary.
-    for (auto SM : SubModMap) {
+    for (const auto &SM : SubModMap) {
       if (!SM.second.Seen && SM.second.Mod) {
         Out << "  " << ModuleKindName(SM.second.Kind) << " '" << SM.first
             << "' at index #" << SM.second.Idx

@@ -28,8 +28,14 @@ namespace dependencies {
 using LookupModuleOutputCallback =
     llvm::function_ref<std::string(const ModuleID &, ModuleOutputKind)>;
 
+/// Graph of modular dependencies.
+using ModuleDepsGraph = std::vector<ModuleDeps>;
+
 /// The full dependencies and module graph for a specific input.
-struct FullDependencies {
+struct TranslationUnitDeps {
+  /// The graph of direct and transitive modular dependencies.
+  ModuleDepsGraph ModuleGraph;
+
   /// The identifier of the C++20 module this translation unit exports.
   ///
   /// If the translation unit is not a module then \c ID.ModuleName is empty.
@@ -62,11 +68,6 @@ struct FullDependencies {
   std::vector<std::string> DriverCommandLine;
 };
 
-struct FullDependenciesResult {
-  FullDependencies FullDeps;
-  std::vector<ModuleDeps> DiscoveredModules;
-};
-
 struct P1689Rule {
   std::string PrimaryOutput;
   std::optional<P1689ModuleInfo> Provides;
@@ -84,14 +85,12 @@ public:
 
   /// Print out the dependency information into a string using the dependency
   /// file format that is specified in the options (-MD is the default) and
-  /// return it. If \p ModuleName isn't empty, this function returns the
-  /// dependency information of module \p ModuleName.
+  /// return it.
   ///
   /// \returns A \c StringError with the diagnostic output if clang errors
   /// occurred, dependency file contents otherwise.
   llvm::Expected<std::string>
-  getDependencyFile(const std::vector<std::string> &CommandLine, StringRef CWD,
-                    std::optional<StringRef> ModuleName = std::nullopt);
+  getDependencyFile(const std::vector<std::string> &CommandLine, StringRef CWD);
 
   /// Collect the module dependency in P1689 format for C++20 named modules.
   ///
@@ -105,9 +104,9 @@ public:
   /// \returns A \c StringError with the diagnostic output if clang errors
   /// occurred, P1689 dependency format rules otherwise.
   llvm::Expected<P1689Rule>
-  getP1689ModuleDependencyFile(
-      const clang::tooling::CompileCommand &Command, StringRef CWD,
-      std::string &MakeformatOutput, std::string &MakeformatOutputPath);
+  getP1689ModuleDependencyFile(const clang::tooling::CompileCommand &Command,
+                               StringRef CWD, std::string &MakeformatOutput,
+                               std::string &MakeformatOutputPath);
 
   /// Given a Clang driver command-line for a translation unit, gather the
   /// modular dependencies and return the information needed for explicit build.
@@ -122,18 +121,21 @@ public:
   ///                           arguments for dependencies.
   ///
   /// \returns a \c StringError with the diagnostic output if clang errors
-  /// occurred, \c FullDependencies otherwise.
-  llvm::Expected<FullDependenciesResult>
-  getFullDependencies(const std::vector<std::string> &CommandLine,
-                      StringRef CWD, const llvm::StringSet<> &AlreadySeen,
-                      LookupModuleOutputCallback LookupModuleOutput,
-                      std::optional<StringRef> ModuleName = std::nullopt);
+  /// occurred, \c TranslationUnitDeps otherwise.
+  llvm::Expected<TranslationUnitDeps>
+  getTranslationUnitDependencies(const std::vector<std::string> &CommandLine,
+                                 StringRef CWD,
+                                 const llvm::StringSet<> &AlreadySeen,
+                                 LookupModuleOutputCallback LookupModuleOutput);
 
-  llvm::Expected<FullDependenciesResult> getFullDependenciesLegacyDriverCommand(
-      const std::vector<std::string> &CommandLine, StringRef CWD,
-      const llvm::StringSet<> &AlreadySeen,
-      LookupModuleOutputCallback LookupModuleOutput,
-      std::optional<StringRef> ModuleName = std::nullopt);
+  /// Given a compilation context specified via the Clang driver command-line,
+  /// gather modular dependencies of module with the given name, and return the
+  /// information needed for explicit build.
+  llvm::Expected<ModuleDepsGraph>
+  getModuleDependencies(StringRef ModuleName,
+                        const std::vector<std::string> &CommandLine,
+                        StringRef CWD, const llvm::StringSet<> &AlreadySeen,
+                        LookupModuleOutputCallback LookupModuleOutput);
 
 private:
   DependencyScanningWorker Worker;
@@ -141,11 +143,8 @@ private:
 
 class FullDependencyConsumer : public DependencyConsumer {
 public:
-  FullDependencyConsumer(const llvm::StringSet<> &AlreadySeen,
-                         LookupModuleOutputCallback LookupModuleOutput,
-                         bool EagerLoadModules)
-      : AlreadySeen(AlreadySeen), LookupModuleOutput(LookupModuleOutput),
-        EagerLoadModules(EagerLoadModules) {}
+  FullDependencyConsumer(const llvm::StringSet<> &AlreadySeen)
+      : AlreadySeen(AlreadySeen) {}
 
   void handleBuildCommand(Command Cmd) override {
     Commands.push_back(std::move(Cmd));
@@ -169,15 +168,8 @@ public:
     ContextHash = std::move(Hash);
   }
 
-  std::string lookupModuleOutput(const ModuleID &ID,
-                                 ModuleOutputKind Kind) override {
-    return LookupModuleOutput(ID, Kind);
-  }
-
-  FullDependenciesResult getFullDependenciesLegacyDriverCommand(
-      const std::vector<std::string> &OriginalCommandLine) const;
-
-  FullDependenciesResult takeFullDependencies();
+  TranslationUnitDeps takeTranslationUnitDeps();
+  ModuleDepsGraph takeModuleGraphDeps();
 
 private:
   std::vector<std::string> Dependencies;
@@ -188,8 +180,31 @@ private:
   std::string ContextHash;
   std::vector<std::string> OutputPaths;
   const llvm::StringSet<> &AlreadySeen;
+};
+
+/// A simple dependency action controller that uses a callback. If no callback
+/// is provided, it is assumed that looking up module outputs is unreachable.
+class CallbackActionController : public DependencyActionController {
+public:
+  virtual ~CallbackActionController();
+
+  CallbackActionController(LookupModuleOutputCallback LMO)
+      : LookupModuleOutput(std::move(LMO)) {
+    if (!LookupModuleOutput) {
+      LookupModuleOutput = [](const ModuleID &,
+                              ModuleOutputKind) -> std::string {
+        llvm::report_fatal_error("unexpected call to lookupModuleOutput");
+      };
+    }
+  }
+
+  std::string lookupModuleOutput(const ModuleID &ID,
+                                 ModuleOutputKind Kind) override {
+    return LookupModuleOutput(ID, Kind);
+  }
+
+private:
   LookupModuleOutputCallback LookupModuleOutput;
-  bool EagerLoadModules;
 };
 
 } // end namespace dependencies

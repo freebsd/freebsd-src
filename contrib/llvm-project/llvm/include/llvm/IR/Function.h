@@ -417,10 +417,6 @@ public:
   /// gets the specified attribute from the list of attributes.
   Attribute getParamAttribute(unsigned ArgNo, Attribute::AttrKind Kind) const;
 
-  /// removes noundef and other attributes that imply undefined behavior if a
-  /// `undef` or `poison` value is passed from the list of attributes.
-  void removeParamUndefImplyingAttrs(unsigned ArgNo);
-
   /// Return the stack alignment for the function.
   MaybeAlign getFnStackAlign() const {
     return AttributeSets.getFnStackAlignment();
@@ -481,6 +477,11 @@ public:
   /// @param ArgNo AttributeList ArgNo, referring to an argument.
   uint64_t getParamDereferenceableOrNullBytes(unsigned ArgNo) const {
     return AttributeSets.getParamDereferenceableOrNullBytes(ArgNo);
+  }
+
+  /// Extract the nofpclass attribute for a parameter.
+  FPClassTest getParamNoFPClass(unsigned ArgNo) const {
+    return AttributeSets.getParamNoFPClass(ArgNo);
   }
 
   /// Determine if the function is presplit coroutine.
@@ -648,6 +649,15 @@ public:
   /// Returns the denormal handling type for the default rounding mode of the
   /// function.
   DenormalMode getDenormalMode(const fltSemantics &FPType) const;
+
+  /// Return the representational value of "denormal-fp-math". Code interested
+  /// in the semantics of the function should use getDenormalMode instead.
+  DenormalMode getDenormalModeRaw() const;
+
+  /// Return the representational value of "denormal-fp-math-f32". Code
+  /// interested in the semantics of the function should use getDenormalMode
+  /// instead.
+  DenormalMode getDenormalModeF32Raw() const;
 
   /// copyAttributesFrom - copy all additional attributes (those not needed to
   /// create a Function) from the Function Src to this one.

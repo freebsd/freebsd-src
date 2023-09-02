@@ -11,6 +11,7 @@
 #if SCUDO_LINUX
 
 #include "common.h"
+#include "internal_defs.h"
 #include "linux.h"
 #include "mutex.h"
 #include "string_utils.h"
@@ -128,11 +129,26 @@ void HybridMutex::unlock() {
   }
 }
 
+void HybridMutex::assertHeldImpl() {
+  CHECK(atomic_load(&M, memory_order_acquire) != Unlocked);
+}
+
 u64 getMonotonicTime() {
   timespec TS;
   clock_gettime(CLOCK_MONOTONIC, &TS);
   return static_cast<u64>(TS.tv_sec) * (1000ULL * 1000 * 1000) +
          static_cast<u64>(TS.tv_nsec);
+}
+
+u64 getMonotonicTimeFast() {
+#if defined(CLOCK_MONOTONIC_COARSE)
+  timespec TS;
+  clock_gettime(CLOCK_MONOTONIC_COARSE, &TS);
+  return static_cast<u64>(TS.tv_sec) * (1000ULL * 1000 * 1000) +
+         static_cast<u64>(TS.tv_nsec);
+#else
+  return getMonotonicTime();
+#endif
 }
 
 u32 getNumberOfCPUs() {

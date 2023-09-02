@@ -22,8 +22,6 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/IPO.h"
 #include <optional>
@@ -179,10 +177,8 @@ static void getSortedConstantKeys(std::vector<Value *> &SortedKeys,
 
   stable_sort(SortedKeys, [](const Value *LHS, const Value *RHS) {
     assert(LHS && RHS && "Expected non void values.");
-    const ConstantInt *LHSC = dyn_cast<ConstantInt>(LHS);
-    const ConstantInt *RHSC = dyn_cast<ConstantInt>(RHS);
-    assert(RHSC && "Not a constant integer in return value?");
-    assert(LHSC && "Not a constant integer in return value?");
+    const ConstantInt *LHSC = cast<ConstantInt>(LHS);
+    const ConstantInt *RHSC = cast<ConstantInt>(RHS);
 
     return LHSC->getLimitedValue() < RHSC->getLimitedValue();
   });
@@ -590,7 +586,7 @@ collectRegionsConstants(OutlinableRegion &Region,
       // While this value is a register, it might not have been previously,
       // make sure we don't already have a constant mapped to this global value
       // number.
-      if (GVNToConstant.find(GVN) != GVNToConstant.end())
+      if (GVNToConstant.contains(GVN))
         ConstantsTheSame = false;
 
       NotSame.insert(GVN);
@@ -818,7 +814,7 @@ static void mapInputsToGVNs(IRSimilarityCandidate &C,
   // replacement.
   for (Value *Input : CurrentInputs) {
     assert(Input && "Have a nullptr as an input");
-    if (OutputMappings.find(Input) != OutputMappings.end())
+    if (OutputMappings.contains(Input))
       Input = OutputMappings.find(Input)->second;
     assert(C.getGVN(Input) && "Could not find a numbering for the given input");
     EndInputNumbers.push_back(*C.getGVN(Input));
@@ -840,7 +836,7 @@ remapExtractedInputs(const ArrayRef<Value *> ArgInputs,
   // Get the global value number for each input that will be extracted as an
   // argument by the code extractor, remapping if needed for reloaded values.
   for (Value *Input : ArgInputs) {
-    if (OutputMappings.find(Input) != OutputMappings.end())
+    if (OutputMappings.contains(Input))
       Input = OutputMappings.find(Input)->second;
     RemappedArgInputs.insert(Input);
   }
@@ -1332,7 +1328,7 @@ findExtractedOutputToOverallOutputMapping(Module &M, OutlinableRegion &Region,
 
     unsigned AggArgIdx = 0;
     for (unsigned Jdx = TypeIndex; Jdx < ArgumentSize; Jdx++) {
-      if (Group.ArgumentTypes[Jdx] != PointerType::getUnqual(Output->getType()))
+      if (!isa<PointerType>(Group.ArgumentTypes[Jdx]))
         continue;
 
       if (AggArgsUsed.contains(Jdx))
@@ -1483,8 +1479,7 @@ CallInst *replaceCalledFunction(Module &M, OutlinableRegion &Region) {
     }
 
     // If it is a constant, we simply add it to the argument list as a value.
-    if (Region.AggArgToConstant.find(AggArgIdx) !=
-        Region.AggArgToConstant.end()) {
+    if (Region.AggArgToConstant.contains(AggArgIdx)) {
       Constant *CST = Region.AggArgToConstant.find(AggArgIdx)->second;
       LLVM_DEBUG(dbgs() << "Setting argument " << AggArgIdx << " to value "
                         << *CST << "\n");
@@ -1818,8 +1813,7 @@ replaceArgumentUses(OutlinableRegion &Region,
 
   for (unsigned ArgIdx = 0; ArgIdx < Region.ExtractedFunction->arg_size();
        ArgIdx++) {
-    assert(Region.ExtractedArgToAgg.find(ArgIdx) !=
-               Region.ExtractedArgToAgg.end() &&
+    assert(Region.ExtractedArgToAgg.contains(ArgIdx) &&
            "No mapping from extracted to outlined?");
     unsigned AggArgIdx = Region.ExtractedArgToAgg.find(ArgIdx)->second;
     Argument *AggArg = Group.OutlinedFunction->getArg(AggArgIdx);
@@ -2700,7 +2694,7 @@ void IROutliner::updateOutputMapping(OutlinableRegion &Region,
   if (!OutputIdx)
     return;
 
-  if (OutputMappings.find(Outputs[*OutputIdx]) == OutputMappings.end()) {
+  if (!OutputMappings.contains(Outputs[*OutputIdx])) {
     LLVM_DEBUG(dbgs() << "Mapping extracted output " << *LI << " to "
                       << *Outputs[*OutputIdx] << "\n");
     OutputMappings.insert(std::make_pair(LI, Outputs[*OutputIdx]));
@@ -3024,46 +3018,6 @@ bool IROutliner::run(Module &M) {
   return doOutline(M) > 0;
 }
 
-// Pass Manager Boilerplate
-namespace {
-class IROutlinerLegacyPass : public ModulePass {
-public:
-  static char ID;
-  IROutlinerLegacyPass() : ModulePass(ID) {
-    initializeIROutlinerLegacyPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
-    AU.addRequired<TargetTransformInfoWrapperPass>();
-    AU.addRequired<IRSimilarityIdentifierWrapperPass>();
-  }
-
-  bool runOnModule(Module &M) override;
-};
-} // namespace
-
-bool IROutlinerLegacyPass::runOnModule(Module &M) {
-  if (skipModule(M))
-    return false;
-
-  std::unique_ptr<OptimizationRemarkEmitter> ORE;
-  auto GORE = [&ORE](Function &F) -> OptimizationRemarkEmitter & {
-    ORE.reset(new OptimizationRemarkEmitter(&F));
-    return *ORE;
-  };
-
-  auto GTTI = [this](Function &F) -> TargetTransformInfo & {
-    return this->getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
-  };
-
-  auto GIRSI = [this](Module &) -> IRSimilarityIdentifier & {
-    return this->getAnalysis<IRSimilarityIdentifierWrapperPass>().getIRSI();
-  };
-
-  return IROutliner(GTTI, GIRSI, GORE).run(M);
-}
-
 PreservedAnalyses IROutlinerPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
@@ -3088,14 +3042,3 @@ PreservedAnalyses IROutlinerPass::run(Module &M, ModuleAnalysisManager &AM) {
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }
-
-char IROutlinerLegacyPass::ID = 0;
-INITIALIZE_PASS_BEGIN(IROutlinerLegacyPass, "iroutliner", "IR Outliner", false,
-                      false)
-INITIALIZE_PASS_DEPENDENCY(IRSimilarityIdentifierWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
-INITIALIZE_PASS_END(IROutlinerLegacyPass, "iroutliner", "IR Outliner", false,
-                    false)
-
-ModulePass *llvm::createIROutlinerPass() { return new IROutlinerLegacyPass(); }

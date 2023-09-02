@@ -18,6 +18,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DependenceFlags.h"
@@ -46,6 +47,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/TargetParser/RISCVTargetParser.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -158,7 +160,7 @@ unsigned ConstantArrayType::getNumAddressingBits(const ASTContext &Context,
   if ((ElementSize >> 32) == 0 && NumElements.getBitWidth() <= 64 &&
       (NumElements.getZExtValue() >> 32) == 0) {
     uint64_t TotalSize = NumElements.getZExtValue() * ElementSize;
-    return 64 - llvm::countLeadingZeros(TotalSize);
+    return llvm::bit_width(TotalSize);
   }
 
   // Otherwise, use APSInt to handle arbitrary sized values.
@@ -1486,7 +1488,13 @@ struct StripObjCKindOfTypeVisitor
 
 bool QualType::UseExcessPrecision(const ASTContext &Ctx) {
   const BuiltinType *BT = getTypePtr()->getAs<BuiltinType>();
-  if (BT) {
+  if (!BT) {
+    const VectorType *VT = getTypePtr()->getAs<VectorType>();
+    if (VT) {
+      QualType ElementType = VT->getElementType();
+      return ElementType.UseExcessPrecision(Ctx);
+    }
+  } else {
     switch (BT->getKind()) {
     case BuiltinType::Kind::Float16: {
       const TargetInfo &TI = Ctx.getTargetInfo();
@@ -1495,7 +1503,15 @@ bool QualType::UseExcessPrecision(const ASTContext &Ctx) {
               Ctx.getLangOpts().ExcessPrecisionKind::FPP_None)
         return true;
       return false;
-    }
+    } break;
+    case BuiltinType::Kind::BFloat16: {
+      const TargetInfo &TI = Ctx.getTargetInfo();
+      if (TI.hasBFloat16Type() && !TI.hasFullBFloat16Type() &&
+          Ctx.getLangOpts().getBFloat16ExcessPrecision() !=
+              Ctx.getLangOpts().ExcessPrecisionKind::FPP_None)
+        return true;
+      return false;
+    } break;
     default:
       return false;
     }
@@ -1928,6 +1944,11 @@ bool Type::hasIntegerRepresentation() const {
            (VT->getKind() >= BuiltinType::SveInt8 &&
             VT->getKind() <= BuiltinType::SveUint64);
   }
+  if (CanonicalType->isRVVVLSBuiltinType()) {
+    const auto *VT = cast<BuiltinType>(CanonicalType);
+    return (VT->getKind() >= BuiltinType::RvvInt8mf8 &&
+            VT->getKind() <= BuiltinType::RvvUint64m8);
+  }
 
   return isIntegerType();
 }
@@ -2154,8 +2175,9 @@ bool Type::isFloatingType() const {
 bool Type::hasFloatingRepresentation() const {
   if (const auto *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isFloatingType();
-  else
-    return isFloatingType();
+  if (const auto *MT = dyn_cast<MatrixType>(CanonicalType))
+    return MT->getElementType()->isFloatingType();
+  return isFloatingType();
 }
 
 bool Type::isRealFloatingType() const {
@@ -2176,8 +2198,7 @@ bool Type::isRealType() const {
 bool Type::isArithmeticType() const {
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
-           BT->getKind() <= BuiltinType::Ibm128 &&
-           BT->getKind() != BuiltinType::BFloat16;
+           BT->getKind() <= BuiltinType::Ibm128;
   if (const auto *ET = dyn_cast<EnumType>(CanonicalType))
     // GCC allows forward declaration of enum types (forbid by C99 6.7.2.3p2).
     // If a body isn't seen by the time we get here, return false.
@@ -2335,10 +2356,30 @@ bool Type::isSizelessBuiltinType() const {
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
       return true;
+      // WebAssembly reference types
+#define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/WebAssemblyReferenceTypes.def"
+      return true;
     default:
       return false;
     }
   }
+  return false;
+}
+
+bool Type::isWebAssemblyExternrefType() const {
+  if (const auto *BT = getAs<BuiltinType>())
+    return BT->getKind() == BuiltinType::WasmExternRef;
+  return false;
+}
+
+bool Type::isWebAssemblyTableType() const {
+  if (const auto *ATy = dyn_cast<ArrayType>(this))
+    return ATy->getElementType().isWebAssemblyReferenceType();
+
+  if (const auto *PTy = dyn_cast<PointerType>(this))
+    return PTy->getPointeeType().isWebAssemblyReferenceType();
+
   return false;
 }
 
@@ -2350,6 +2391,19 @@ bool Type::isSVESizelessBuiltinType() const {
       // SVE Types
 #define SVE_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/AArch64SVEACLETypes.def"
+      return true;
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+
+bool Type::isRVVSizelessBuiltinType() const {
+  if (const BuiltinType *BT = getAs<BuiltinType>()) {
+    switch (BT->getKind()) {
+#define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/RISCVVTypes.def"
       return true;
     default:
       return false;
@@ -2374,6 +2428,8 @@ bool Type::isVLSTBuiltinType() const {
     case BuiltinType::SveFloat64:
     case BuiltinType::SveBFloat16:
     case BuiltinType::SveBool:
+    case BuiltinType::SveBoolx2:
+    case BuiltinType::SveBoolx4:
       return true;
     default:
       return false;
@@ -2385,7 +2441,7 @@ bool Type::isVLSTBuiltinType() const {
 QualType Type::getSveEltType(const ASTContext &Ctx) const {
   assert(isVLSTBuiltinType() && "unsupported type!");
 
-  const BuiltinType *BTy = getAs<BuiltinType>();
+  const BuiltinType *BTy = castAs<BuiltinType>();
   if (BTy->getKind() == BuiltinType::SveBool)
     // Represent predicates as i8 rather than i1 to avoid any layout issues.
     // The type is bitcasted to a scalable predicate type when casting between
@@ -2393,6 +2449,27 @@ QualType Type::getSveEltType(const ASTContext &Ctx) const {
     return Ctx.UnsignedCharTy;
   else
     return Ctx.getBuiltinVectorTypeInfo(BTy).ElementType;
+}
+
+bool Type::isRVVVLSBuiltinType() const {
+  if (const BuiltinType *BT = getAs<BuiltinType>()) {
+    switch (BT->getKind()) {
+#define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned, IsFP) \
+    case BuiltinType::Id: \
+      return NF == 1;
+#include "clang/Basic/RISCVVTypes.def"
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+
+QualType Type::getRVVEltType(const ASTContext &Ctx) const {
+  assert(isRVVVLSBuiltinType() && "unsupported type!");
+
+  const BuiltinType *BTy = castAs<BuiltinType>();
+  return Ctx.getBuiltinVectorTypeInfo(BTy).ElementType;
 }
 
 bool QualType::isPODType(const ASTContext &Context) const {
@@ -2564,6 +2641,64 @@ bool QualType::isTriviallyRelocatableType(const ASTContext &Context) const {
   }
 }
 
+static bool
+HasNonDeletedDefaultedEqualityComparison(const CXXRecordDecl *Decl) {
+  if (Decl->isUnion())
+    return false;
+
+  auto IsDefaultedOperatorEqualEqual = [&](const FunctionDecl *Function) {
+    return Function->getOverloadedOperator() ==
+               OverloadedOperatorKind::OO_EqualEqual &&
+           Function->isDefaulted() && Function->getNumParams() > 0 &&
+           (Function->getParamDecl(0)->getType()->isReferenceType() ||
+            Decl->isTriviallyCopyable());
+  };
+
+  if (llvm::none_of(Decl->methods(), IsDefaultedOperatorEqualEqual) &&
+      llvm::none_of(Decl->friends(), [&](const FriendDecl *Friend) {
+        if (NamedDecl *ND = Friend->getFriendDecl()) {
+          return ND->isFunctionOrFunctionTemplate() &&
+                 IsDefaultedOperatorEqualEqual(ND->getAsFunction());
+        }
+        return false;
+      }))
+    return false;
+
+  return llvm::all_of(Decl->bases(),
+                      [](const CXXBaseSpecifier &BS) {
+                        if (const auto *RD = BS.getType()->getAsCXXRecordDecl())
+                          return HasNonDeletedDefaultedEqualityComparison(RD);
+                        return true;
+                      }) &&
+         llvm::all_of(Decl->fields(), [](const FieldDecl *FD) {
+           auto Type = FD->getType();
+           if (Type->isArrayType())
+             Type = Type->getBaseElementTypeUnsafe()->getCanonicalTypeUnqualified();
+
+           if (Type->isReferenceType() || Type->isEnumeralType())
+             return false;
+           if (const auto *RD = Type->getAsCXXRecordDecl())
+             return HasNonDeletedDefaultedEqualityComparison(RD);
+           return true;
+         });
+}
+
+bool QualType::isTriviallyEqualityComparableType(
+    const ASTContext &Context) const {
+  QualType CanonicalType = getCanonicalType();
+  if (CanonicalType->isIncompleteType() || CanonicalType->isDependentType() ||
+      CanonicalType->isEnumeralType() || CanonicalType->isArrayType())
+    return false;
+
+  if (const auto *RD = CanonicalType->getAsCXXRecordDecl()) {
+    if (!HasNonDeletedDefaultedEqualityComparison(RD))
+      return false;
+  }
+
+  return Context.hasUniqueObjectRepresentations(
+      CanonicalType, /*CheckIfTriviallyCopyable=*/false);
+}
+
 bool QualType::isNonWeakInMRRWithObjCWeak(const ASTContext &Context) const {
   return !Context.getLangOpts().ObjCAutoRefCount &&
          Context.getLangOpts().ObjCWeak &&
@@ -2580,6 +2715,19 @@ bool QualType::hasNonTrivialToPrimitiveDestructCUnion(const RecordDecl *RD) {
 
 bool QualType::hasNonTrivialToPrimitiveCopyCUnion(const RecordDecl *RD) {
   return RD->hasNonTrivialToPrimitiveCopyCUnion();
+}
+
+bool QualType::isWebAssemblyReferenceType() const {
+  return isWebAssemblyExternrefType() || isWebAssemblyFuncrefType();
+}
+
+bool QualType::isWebAssemblyExternrefType() const {
+  return getTypePtr()->isWebAssemblyExternrefType();
+}
+
+bool QualType::isWebAssemblyFuncrefType() const {
+  return getTypePtr()->isFunctionPointerType() &&
+         getAddressSpace() == LangAS::wasm_funcref;
 }
 
 QualType::PrimitiveDefaultInitializeKind
@@ -3150,6 +3298,10 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case Id:                                                                     \
     return Name;
 #include "clang/Basic/RISCVVTypes.def"
+#define WASM_TYPE(Name, Id, SingletonId)                                       \
+  case Id:                                                                     \
+    return Name;
+#include "clang/Basic/WebAssemblyReferenceTypes.def"
   }
 
   llvm_unreachable("Invalid builtin type.");
@@ -3240,7 +3392,10 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
   // Fill in the exception type array if present.
   if (getExceptionSpecType() == EST_Dynamic) {
     auto &ExtraBits = *getTrailingObjects<FunctionTypeExtraBitfields>();
-    ExtraBits.NumExceptionType = epi.ExceptionSpec.Exceptions.size();
+    size_t NumExceptions = epi.ExceptionSpec.Exceptions.size();
+    assert(NumExceptions <= UINT16_MAX &&
+           "Not enough bits to encode exceptions");
+    ExtraBits.NumExceptionType = NumExceptions;
 
     assert(hasExtraBitfields() && "missing trailing extra bitfields!");
     auto *exnSlot =
@@ -3638,6 +3793,10 @@ bool AttributedType::isMSTypeSpec() const {
     return true;
   }
   llvm_unreachable("invalid attr kind");
+}
+
+bool AttributedType::isWebAssemblyFuncrefSpec() const {
+  return getAttrKind() == attr::WebAssemblyFuncref;
 }
 
 bool AttributedType::isCallingConv() const {
@@ -4279,6 +4438,8 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/WebAssemblyReferenceTypes.def"
     case BuiltinType::BuiltinFn:
     case BuiltinType::NullPtr:
     case BuiltinType::IncompleteMatrixIdx:
@@ -4546,10 +4707,13 @@ AutoType::AutoType(QualType DeducedAsType, AutoTypeKeyword Keyword,
   AutoTypeBits.Keyword = (unsigned)Keyword;
   AutoTypeBits.NumArgs = TypeConstraintArgs.size();
   this->TypeConstraintConcept = TypeConstraintConcept;
+  assert(TypeConstraintConcept || AutoTypeBits.NumArgs == 0);
   if (TypeConstraintConcept) {
     auto *ArgBuffer =
         const_cast<TemplateArgument *>(getTypeConstraintArguments().data());
     for (const TemplateArgument &Arg : TypeConstraintArgs) {
+      // We only syntactically depend on the constraint arguments. They don't
+      // affect the deduced type, only its validity.
       addDependence(
           toSyntacticDependence(toTypeDependence(Arg.getDependence())));
 

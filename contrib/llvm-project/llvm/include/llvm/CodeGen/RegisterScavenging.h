@@ -32,9 +32,9 @@ class TargetRegisterClass;
 class TargetRegisterInfo;
 
 class RegScavenger {
-  const TargetRegisterInfo *TRI;
-  const TargetInstrInfo *TII;
-  MachineRegisterInfo* MRI;
+  const TargetRegisterInfo *TRI = nullptr;
+  const TargetInstrInfo *TII = nullptr;
+  MachineRegisterInfo *MRI = nullptr;
   MachineBasicBlock *MBB = nullptr;
   MachineBasicBlock::iterator MBBI;
   unsigned NumRegUnits = 0;
@@ -105,8 +105,8 @@ public:
   /// Move the internal MBB iterator and update register states until
   /// it has processed the specific iterator.
   void forward(MachineBasicBlock::iterator I) {
-    if (!Tracking && MBB->begin() != I) forward();
-    while (MBBI != I) forward();
+    while (!Tracking || MBBI != I)
+      forward();
   }
 
   /// Update internal register state and move MBB iterator backwards.
@@ -160,23 +160,6 @@ public:
         A.push_back(I.FrameIndex);
   }
 
-  /// Make a register of the specific register class
-  /// available and do the appropriate bookkeeping. SPAdj is the stack
-  /// adjustment due to call frame, it's passed along to eliminateFrameIndex().
-  /// Returns the scavenged register.
-  /// This is deprecated as it depends on the quality of the kill flags being
-  /// present; Use scavengeRegisterBackwards() instead!
-  ///
-  /// If \p AllowSpill is false, fail if a spill is required to make the
-  /// register available, and return NoRegister.
-  Register scavengeRegister(const TargetRegisterClass *RC,
-                            MachineBasicBlock::iterator I, int SPAdj,
-                            bool AllowSpill = true);
-  Register scavengeRegister(const TargetRegisterClass *RegClass, int SPAdj,
-                            bool AllowSpill = true) {
-    return scavengeRegister(RegClass, MBBI, SPAdj, AllowSpill);
-  }
-
   /// Make a register of the specific register class available from the current
   /// position backwards to the place before \p To. If \p RestoreAfter is true
   /// this includes the instruction following the current position.
@@ -216,15 +199,6 @@ private:
 
   /// Remove all Reg Units that \p Reg contains from \p BV.
   void removeRegUnits(BitVector &BV, MCRegister Reg);
-
-  /// Return the candidate register that is unused for the longest after
-  /// StartMI. UseMI is set to the instruction where the search stopped.
-  ///
-  /// No more than InstrLimit instructions are inspected.
-  Register findSurvivorReg(MachineBasicBlock::iterator StartMI,
-                           BitVector &Candidates,
-                           unsigned InstrLimit,
-                           MachineBasicBlock::iterator &UseMI);
 
   /// Initialize RegisterScavenger.
   void init(MachineBasicBlock &MBB);

@@ -318,6 +318,21 @@ public:
     : MachineTraceMetrics::Ensemble(mtm) {}
 };
 
+/// Pick only the current basic block for the trace and do not choose any
+/// predecessors/successors.
+class LocalEnsemble : public MachineTraceMetrics::Ensemble {
+  const char *getName() const override { return "Local"; }
+  const MachineBasicBlock *pickTracePred(const MachineBasicBlock *) override {
+    return nullptr;
+  };
+  const MachineBasicBlock *pickTraceSucc(const MachineBasicBlock *) override {
+    return nullptr;
+  };
+
+public:
+  LocalEnsemble(MachineTraceMetrics *MTM)
+      : MachineTraceMetrics::Ensemble(MTM) {}
+};
 } // end anonymous namespace
 
 // Select the preferred predecessor for MBB.
@@ -380,15 +395,19 @@ MinInstrCountEnsemble::pickTraceSucc(const MachineBasicBlock *MBB) {
 
 // Get an Ensemble sub-class for the requested trace strategy.
 MachineTraceMetrics::Ensemble *
-MachineTraceMetrics::getEnsemble(MachineTraceMetrics::Strategy strategy) {
-  assert(strategy < TS_NumStrategies && "Invalid trace strategy enum");
-  Ensemble *&E = Ensembles[strategy];
+MachineTraceMetrics::getEnsemble(MachineTraceStrategy strategy) {
+  assert(strategy < MachineTraceStrategy::TS_NumStrategies &&
+         "Invalid trace strategy enum");
+  Ensemble *&E = Ensembles[static_cast<size_t>(strategy)];
   if (E)
     return E;
 
   // Allocate new Ensemble on demand.
   switch (strategy) {
-  case TS_MinInstrCount: return (E = new MinInstrCountEnsemble(this));
+  case MachineTraceStrategy::TS_MinInstrCount:
+    return (E = new MinInstrCountEnsemble(this));
+  case MachineTraceStrategy::TS_Local:
+    return (E = new LocalEnsemble(this));
   default: llvm_unreachable("Invalid trace strategy enum");
   }
 }
@@ -655,9 +674,7 @@ static bool getDataDeps(const MachineInstr &UseMI,
     return false;
 
   bool HasPhysRegs = false;
-  for (MachineInstr::const_mop_iterator I = UseMI.operands_begin(),
-       E = UseMI.operands_end(); I != E; ++I) {
-    const MachineOperand &MO = *I;
+  for (const MachineOperand &MO : UseMI.operands()) {
     if (!MO.isReg())
       continue;
     Register Reg = MO.getReg();
@@ -669,7 +686,7 @@ static bool getDataDeps(const MachineInstr &UseMI,
     }
     // Collect virtual register reads.
     if (MO.readsReg())
-      Deps.push_back(DataDep(MRI, Reg, UseMI.getOperandNo(I)));
+      Deps.push_back(DataDep(MRI, Reg, MO.getOperandNo()));
   }
   return HasPhysRegs;
 }
@@ -703,9 +720,7 @@ static void updatePhysDepsDownwards(const MachineInstr *UseMI,
   SmallVector<MCRegister, 8> Kills;
   SmallVector<unsigned, 8> LiveDefOps;
 
-  for (MachineInstr::const_mop_iterator MI = UseMI->operands_begin(),
-       ME = UseMI->operands_end(); MI != ME; ++MI) {
-    const MachineOperand &MO = *MI;
+  for (const MachineOperand &MO : UseMI->operands()) {
     if (!MO.isReg() || !MO.getReg().isPhysical())
       continue;
     MCRegister Reg = MO.getReg().asMCReg();
@@ -714,17 +729,17 @@ static void updatePhysDepsDownwards(const MachineInstr *UseMI,
       if (MO.isDead())
         Kills.push_back(Reg);
       else
-        LiveDefOps.push_back(UseMI->getOperandNo(MI));
+        LiveDefOps.push_back(MO.getOperandNo());
     } else if (MO.isKill())
       Kills.push_back(Reg);
     // Identify dependencies.
     if (!MO.readsReg())
       continue;
-    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units) {
-      SparseSet<LiveRegUnit>::iterator I = RegUnits.find(*Units);
+    for (MCRegUnit Unit : TRI->regunits(Reg)) {
+      SparseSet<LiveRegUnit>::iterator I = RegUnits.find(Unit);
       if (I == RegUnits.end())
         continue;
-      Deps.push_back(DataDep(I->MI, I->Op, UseMI->getOperandNo(MI)));
+      Deps.push_back(DataDep(I->MI, I->Op, MO.getOperandNo()));
       break;
     }
   }
@@ -732,15 +747,14 @@ static void updatePhysDepsDownwards(const MachineInstr *UseMI,
   // Update RegUnits to reflect live registers after UseMI.
   // First kills.
   for (MCRegister Kill : Kills)
-    for (MCRegUnitIterator Units(Kill, TRI); Units.isValid(); ++Units)
-      RegUnits.erase(*Units);
+    for (MCRegUnit Unit : TRI->regunits(Kill))
+      RegUnits.erase(Unit);
 
   // Second, live defs.
   for (unsigned DefOp : LiveDefOps) {
-    for (MCRegUnitIterator Units(UseMI->getOperand(DefOp).getReg().asMCReg(),
-                                 TRI);
-         Units.isValid(); ++Units) {
-      LiveRegUnit &LRU = RegUnits[*Units];
+    for (MCRegUnit Unit :
+         TRI->regunits(UseMI->getOperand(DefOp).getReg().asMCReg())) {
+      LiveRegUnit &LRU = RegUnits[Unit];
       LRU.MI = UseMI;
       LRU.Op = DefOp;
     }
@@ -895,31 +909,27 @@ static unsigned updatePhysDepsUpwards(const MachineInstr &MI, unsigned Height,
                                       const TargetRegisterInfo *TRI) {
   SmallVector<unsigned, 8> ReadOps;
 
-  for (MachineInstr::const_mop_iterator MOI = MI.operands_begin(),
-                                        MOE = MI.operands_end();
-       MOI != MOE; ++MOI) {
-    const MachineOperand &MO = *MOI;
+  for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg())
       continue;
     Register Reg = MO.getReg();
     if (!Reg.isPhysical())
       continue;
     if (MO.readsReg())
-      ReadOps.push_back(MI.getOperandNo(MOI));
+      ReadOps.push_back(MO.getOperandNo());
     if (!MO.isDef())
       continue;
     // This is a def of Reg. Remove corresponding entries from RegUnits, and
     // update MI Height to consider the physreg dependencies.
-    for (MCRegUnitIterator Units(Reg.asMCReg(), TRI); Units.isValid();
-         ++Units) {
-      SparseSet<LiveRegUnit>::iterator I = RegUnits.find(*Units);
+    for (MCRegUnit Unit : TRI->regunits(Reg.asMCReg())) {
+      SparseSet<LiveRegUnit>::iterator I = RegUnits.find(Unit);
       if (I == RegUnits.end())
         continue;
       unsigned DepHeight = I->Cycle;
       if (!MI.isTransient()) {
         // We may not know the UseMI of this dependency, if it came from the
         // live-in list. SchedModel can handle a NULL UseMI.
-        DepHeight += SchedModel.computeOperandLatency(&MI, MI.getOperandNo(MOI),
+        DepHeight += SchedModel.computeOperandLatency(&MI, MO.getOperandNo(),
                                                       I->MI, I->Op);
       }
       Height = std::max(Height, DepHeight);
@@ -931,8 +941,8 @@ static unsigned updatePhysDepsUpwards(const MachineInstr &MI, unsigned Height,
   // Now we know the height of MI. Update any regunits read.
   for (size_t I = 0, E = ReadOps.size(); I != E; ++I) {
     MCRegister Reg = MI.getOperand(ReadOps[I]).getReg().asMCReg();
-    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units) {
-      LiveRegUnit &LRU = RegUnits[*Units];
+    for (MCRegUnit Unit : TRI->regunits(Reg)) {
+      LiveRegUnit &LRU = RegUnits[Unit];
       // Set the height to the highest reader of the unit.
       if (LRU.Cycle <= Height && LRU.MI != &MI) {
         LRU.Cycle = Height;
@@ -1087,10 +1097,7 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
     }
 
     // Go through the block backwards.
-    for (MachineBasicBlock::const_iterator BI = MBB->end(), BB = MBB->begin();
-         BI != BB;) {
-      const MachineInstr &MI = *--BI;
-
+    for (const MachineInstr &MI : reverse(*MBB)) {
       // Find the MI height as determined by virtual register uses in the
       // trace below.
       unsigned Cycle = 0;
@@ -1137,11 +1144,10 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
     }
 
     // Transfer the live regunits to the live-in list.
-    for (SparseSet<LiveRegUnit>::const_iterator
-         RI = RegUnits.begin(), RE = RegUnits.end(); RI != RE; ++RI) {
-      TBI.LiveIns.push_back(LiveInReg(RI->RegUnit, RI->Cycle));
-      LLVM_DEBUG(dbgs() << ' ' << printRegUnit(RI->RegUnit, MTM.TRI) << '@'
-                        << RI->Cycle);
+    for (const LiveRegUnit &RU : RegUnits) {
+      TBI.LiveIns.push_back(LiveInReg(RU.RegUnit, RU.Cycle));
+      LLVM_DEBUG(dbgs() << ' ' << printRegUnit(RU.RegUnit, MTM.TRI) << '@'
+                        << RU.Cycle);
     }
     LLVM_DEBUG(dbgs() << '\n');
 

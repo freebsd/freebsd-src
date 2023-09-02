@@ -36,7 +36,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/ObjCARCAliasAnalysis.h"
 #include "llvm/Analysis/ObjCARCAnalysisUtils.h"
 #include "llvm/Analysis/ObjCARCInstKind.h"
@@ -46,6 +45,7 @@
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InstIterator.h"
@@ -933,8 +933,8 @@ void ObjCARCOpt::OptimizeIndividualCallImpl(Function &F, Instruction *Inst,
     if (IsNullOrUndef(CI->getArgOperand(0))) {
       Changed = true;
       new StoreInst(ConstantInt::getTrue(CI->getContext()),
-                    UndefValue::get(Type::getInt1PtrTy(CI->getContext())), CI);
-      Value *NewValue = UndefValue::get(CI->getType());
+                    PoisonValue::get(Type::getInt1PtrTy(CI->getContext())), CI);
+      Value *NewValue = PoisonValue::get(CI->getType());
       LLVM_DEBUG(
           dbgs() << "A null pointer-to-weak-pointer is undefined behavior."
                     "\nOld = "
@@ -952,9 +952,9 @@ void ObjCARCOpt::OptimizeIndividualCallImpl(Function &F, Instruction *Inst,
         IsNullOrUndef(CI->getArgOperand(1))) {
       Changed = true;
       new StoreInst(ConstantInt::getTrue(CI->getContext()),
-                    UndefValue::get(Type::getInt1PtrTy(CI->getContext())), CI);
+                    PoisonValue::get(Type::getInt1PtrTy(CI->getContext())), CI);
 
-      Value *NewValue = UndefValue::get(CI->getType());
+      Value *NewValue = PoisonValue::get(CI->getType());
       LLVM_DEBUG(
           dbgs() << "A null pointer-to-weak-pointer is undefined behavior."
                     "\nOld = "

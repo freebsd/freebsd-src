@@ -22,7 +22,6 @@
 #include "SourceCoverageView.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Debuginfod/BuildIDFetcher.h"
 #include "llvm/Debuginfod/Debuginfod.h"
 #include "llvm/Debuginfod/HTTPClient.h"
@@ -42,6 +41,7 @@
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <functional>
 #include <map>
@@ -185,6 +185,8 @@ private:
   std::unique_ptr<SpecialCaseList> NameAllowlist;
 
   std::unique_ptr<object::BuildIDFetcher> BIDFetcher;
+
+  bool CheckBinaryIDs;
 };
 }
 
@@ -439,9 +441,10 @@ std::unique_ptr<CoverageMapping> CodeCoverageTool::load() {
     if (modifiedTimeGT(ObjectFilename, PGOFilename))
       warning("profile data may be out of date - object is newer",
               ObjectFilename);
-  auto CoverageOrErr =
-      CoverageMapping::load(ObjectFilenames, PGOFilename, CoverageArches,
-                            ViewOpts.CompilationDirectory, BIDFetcher.get());
+  auto FS = vfs::getRealFileSystem();
+  auto CoverageOrErr = CoverageMapping::load(
+      ObjectFilenames, PGOFilename, *FS, CoverageArches,
+      ViewOpts.CompilationDirectory, BIDFetcher.get(), CheckBinaryIDs);
   if (Error E = CoverageOrErr.takeError()) {
     error("Failed to load coverage: " + toString(std::move(E)));
     return nullptr;
@@ -760,6 +763,10 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
       "compilation-dir", cl::init(""),
       cl::desc("Directory used as a base for relative coverage mapping paths"));
 
+  cl::opt<bool> CheckBinaryIDs(
+      "check-binary-ids", cl::desc("Fail if an object couldn't be found for a "
+                                   "binary ID in the profile"));
+
   auto commandLineParser = [&, this](int argc, const char **argv) -> int {
     cl::ParseCommandLineOptions(argc, argv, "LLVM code coverage tool\n");
     ViewOpts.Debug = DebugDump;
@@ -769,6 +776,7 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
     } else {
       BIDFetcher = std::make_unique<object::BuildIDFetcher>(DebugFileDirectory);
     }
+    this->CheckBinaryIDs = CheckBinaryIDs;
 
     if (!CovFilename.empty())
       ObjectFilenames.emplace_back(CovFilename);

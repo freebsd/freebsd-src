@@ -290,6 +290,10 @@ HANDLE_TARGET_OPCODE(G_FRAME_INDEX)
 /// Generic reference to global value.
 HANDLE_TARGET_OPCODE(G_GLOBAL_VALUE)
 
+/// Generic instruction to materialize the address of an object in the constant
+/// pool.
+HANDLE_TARGET_OPCODE(G_CONSTANT_POOL)
+
 /// Generic instruction to extract blocks of bits from the register given
 /// (typically a sub-register COPY after instruction selection).
 HANDLE_TARGET_OPCODE(G_EXTRACT)
@@ -327,6 +331,9 @@ HANDLE_TARGET_OPCODE(G_BITCAST)
 
 /// Generic freeze.
 HANDLE_TARGET_OPCODE(G_FREEZE)
+
+/// Constant folding barrier.
+HANDLE_TARGET_OPCODE(G_CONSTANT_FOLD_BARRIER)
 
 // INTRINSIC fptrunc_round intrinsic.
 HANDLE_TARGET_OPCODE(G_INTRINSIC_FPTRUNC_ROUND)
@@ -609,6 +616,12 @@ HANDLE_TARGET_OPCODE(G_FLOG2)
 /// Floating point base-10 logarithm of a value.
 HANDLE_TARGET_OPCODE(G_FLOG10)
 
+/// Floating point x * 2^n
+HANDLE_TARGET_OPCODE(G_FLDEXP)
+
+/// Floating point extract fraction and exponent.
+HANDLE_TARGET_OPCODE(G_FFREXP)
+
 /// Generic FP negation.
 HANDLE_TARGET_OPCODE(G_FNEG)
 
@@ -758,6 +771,7 @@ HANDLE_TARGET_OPCODE(G_STRICT_FDIV)
 HANDLE_TARGET_OPCODE(G_STRICT_FREM)
 HANDLE_TARGET_OPCODE(G_STRICT_FMA)
 HANDLE_TARGET_OPCODE(G_STRICT_FSQRT)
+HANDLE_TARGET_OPCODE(G_STRICT_FLDEXP)
 
 /// read_register intrinsic
 HANDLE_TARGET_OPCODE(G_READ_REGISTER)

@@ -1078,6 +1078,9 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
 
     if (Flags.hasNoFPExcept())
       MI->setFlag(MachineInstr::MIFlag::NoFPExcept);
+
+    if (Flags.hasUnpredictable())
+      MI->setFlag(MachineInstr::MIFlag::Unpredictable);
   }
 
   // Emit all of the actual operands of this instruction, adding them to the
@@ -1159,6 +1162,13 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
             UsedRegs.push_back(Reg);
         }
     }
+  }
+
+  // Add rounding control registers as implicit def for function call.
+  if (II.isCall() && MF->getFunction().hasFnAttribute(Attribute::StrictFP)) {
+    ArrayRef<MCPhysReg> RCRegs = TLI->getRoundingControlRegisters();
+    for (MCPhysReg Reg : RCRegs)
+      UsedRegs.push_back(Reg);
   }
 
   // Finally mark unused registers as dead.

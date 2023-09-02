@@ -9,6 +9,7 @@
 #include "lld/Common/Strings.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/LLVM.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/GlobPattern.h"
 #include <algorithm>
@@ -19,8 +20,8 @@ using namespace llvm;
 using namespace lld;
 
 SingleStringMatcher::SingleStringMatcher(StringRef Pattern) {
-  if (Pattern.size() > 2 && Pattern.startswith("\"") &&
-      Pattern.endswith("\"")) {
+  if (Pattern.size() > 2 && Pattern.starts_with("\"") &&
+      Pattern.ends_with("\"")) {
     ExactMatch = true;
     ExactPattern = Pattern.substr(1, Pattern.size() - 2);
   } else {

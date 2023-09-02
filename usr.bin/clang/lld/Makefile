@@ -27,6 +27,7 @@ SRCDIR=		lld
 SRCS+=		Common/Args.cpp
 SRCS+=		Common/CommonLinkerContext.cpp
 SRCS+=		Common/DWARF.cpp
+SRCS+=		Common/DriverDispatcher.cpp
 SRCS+=		Common/ErrorHandler.cpp
 SRCS+=		Common/Filesystem.cpp
 SRCS+=		Common/Memory.cpp
@@ -41,6 +42,7 @@ SRCS+=		ELF/Arch/AMDGPU.cpp
 SRCS+=		ELF/Arch/ARM.cpp
 SRCS+=		ELF/Arch/AVR.cpp
 SRCS+=		ELF/Arch/Hexagon.cpp
+SRCS+=		ELF/Arch/LoongArch.cpp
 SRCS+=		ELF/Arch/MSP430.cpp
 SRCS+=		ELF/Arch/Mips.cpp
 SRCS+=		ELF/Arch/MipsArchTree.cpp
@@ -72,9 +74,8 @@ SRCS+=		ELF/SyntheticSections.cpp
 SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
+SRCS+=		lld-driver.cpp
 SRCS+=		tools/lld/lld.cpp
-
-CFLAGS.lld.cpp+=	-Dlld_main=main
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
 

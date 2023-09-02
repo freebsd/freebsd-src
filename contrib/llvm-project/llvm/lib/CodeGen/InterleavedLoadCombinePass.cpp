@@ -318,7 +318,7 @@ public:
 
     // See Proof(2): Trailing zero bits indicate a left shift. This removes
     // leading bits from the result even if they are undefined.
-    decErrorMSBs(C.countTrailingZeros());
+    decErrorMSBs(C.countr_zero());
 
     A *= C;
     pushBOperation(Mul, C);
@@ -475,7 +475,7 @@ public:
     //
     // If this can be proven add shiftAmt to the error counter
     // `ErrorMSBs`. Otherwise set all bits as undefined.
-    if (A.countTrailingZeros() < shiftAmt)
+    if (A.countr_zero() < shiftAmt)
       ErrorMSBs = A.getBitWidth();
     else
       incErrorMSBs(shiftAmt);
@@ -677,6 +677,8 @@ public:
   VectorInfo(FixedVectorType *VTy) : VTy(VTy) {
     EI = new ElementInfo[VTy->getNumElements()];
   }
+
+  VectorInfo &operator=(const VectorInfo &other) = delete;
 
   virtual ~VectorInfo() { delete[] EI; }
 

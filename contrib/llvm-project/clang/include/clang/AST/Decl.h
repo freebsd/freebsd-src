@@ -395,9 +395,7 @@ public:
 
   /// Get the linkage from a semantic point of view. Entities in
   /// anonymous namespaces are external (in c++98).
-  Linkage getFormalLinkage() const {
-    return clang::getFormalLinkage(getLinkageInternal());
-  }
+  Linkage getFormalLinkage() const;
 
   /// True if this decl has external linkage.
   bool hasExternalFormalLinkage() const {
@@ -902,7 +900,7 @@ struct EvaluatedStmt {
   bool HasICEInit : 1;
   bool CheckedForICEInit : 1;
 
-  Stmt *Value;
+  LazyDeclStmtPtr Value;
   APValue Evaluated;
 
   EvaluatedStmt()
@@ -1360,12 +1358,15 @@ public:
   EvaluatedStmt *getEvaluatedStmt() const;
 
   /// Attempt to evaluate the value of the initializer attached to this
-  /// declaration, and produce notes explaining why it cannot be evaluated or is
-  /// not a constant expression. Returns a pointer to the value if evaluation
-  /// succeeded, 0 otherwise.
+  /// declaration, and produce notes explaining why it cannot be evaluated.
+  /// Returns a pointer to the value if evaluation succeeded, 0 otherwise.
   APValue *evaluateValue() const;
-  APValue *evaluateValue(SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
+private:
+  APValue *evaluateValueImpl(SmallVectorImpl<PartialDiagnosticAt> &Notes,
+                             bool IsConstantInitialization) const;
+
+public:
   /// Return the already-evaluated value of this variable's
   /// initializer, or NULL if the value is not yet known. Returns pointer
   /// to untyped APValue if the value could not be evaluated.
@@ -2167,7 +2168,7 @@ public:
   /// declaration to the declaration that is a definition (if there is one).
   ///
   /// \param CheckForPendingFriendDefinition If \c true, also check for friend
-  ///        declarations that were instantiataed from function definitions.
+  ///        declarations that were instantiated from function definitions.
   ///        Such a declaration behaves as if it is a definition for the
   ///        purpose of redefinition checking, but isn't actually a "real"
   ///        definition until its body is instantiated.
@@ -2377,6 +2378,21 @@ public:
     return getConstexprKind() == ConstexprSpecKind::Consteval;
   }
 
+  void setBodyContainsImmediateEscalatingExpressions(bool Set) {
+    FunctionDeclBits.BodyContainsImmediateEscalatingExpression = Set;
+  }
+
+  bool BodyContainsImmediateEscalatingExpressions() const {
+    return FunctionDeclBits.BodyContainsImmediateEscalatingExpression;
+  }
+
+  bool isImmediateEscalating() const;
+
+  // The function is a C++ immediate function.
+  // This can be either a consteval function, or an immediate escalating
+  // function containing an immediate escalating expression.
+  bool isImmediateFunction() const;
+
   /// Whether the instantiation of this function is pending.
   /// This bit is set when the decision to instantiate this function is made
   /// and unset if and when the function body is created. That leaves out
@@ -2535,6 +2551,10 @@ public:
     return getCanonicalDecl()
         ->FunctionDeclBits.FriendConstraintRefersToEnclosingTemplate;
   }
+
+  /// Determine whether a function is a friend function that cannot be
+  /// redeclared outside of its class, per C++ [temp.friend]p9.
+  bool isMemberLikeConstrainedFriend() const;
 
   /// Gets the kind of multiversioning attribute this declaration has. Note that
   /// this can return a value even if the function is not multiversion, such as
@@ -2938,11 +2958,7 @@ public:
 
 /// Represents a member of a struct/union/class.
 class FieldDecl : public DeclaratorDecl, public Mergeable<FieldDecl> {
-  unsigned BitField : 1;
-  unsigned Mutable : 1;
-  mutable unsigned CachedFieldIndex : 30;
-
-  /// The kinds of value we can store in InitializerOrBitWidth.
+  /// The kinds of value we can store in StorageKind.
   ///
   /// Note that this is compatible with InClassInitStyle except for
   /// ISK_CapturedVLAType.
@@ -2965,10 +2981,15 @@ class FieldDecl : public DeclaratorDecl, public Mergeable<FieldDecl> {
     ISK_CapturedVLAType,
   };
 
+  unsigned BitField : 1;
+  unsigned Mutable : 1;
+  unsigned StorageKind : 2;
+  mutable unsigned CachedFieldIndex : 28;
+
   /// If this is a bitfield with a default member initializer, this
   /// structure is used to represent the two expressions.
-  struct InitAndBitWidth {
-    Expr *Init;
+  struct InitAndBitWidthStorage {
+    LazyDeclStmtPtr Init;
     Expr *BitWidth;
   };
 
@@ -2981,16 +3002,25 @@ class FieldDecl : public DeclaratorDecl, public Mergeable<FieldDecl> {
   /// and attached.
   // FIXME: Tail-allocate this to reduce the size of FieldDecl in the
   // overwhelmingly common case that we have none of these things.
-  llvm::PointerIntPair<void *, 2, InitStorageKind> InitStorage;
+  union {
+    // Active member if ISK is not ISK_CapturedVLAType and BitField is false.
+    LazyDeclStmtPtr Init;
+    // Active member if ISK is ISK_NoInit and BitField is true.
+    Expr *BitWidth;
+    // Active member if ISK is ISK_InClass*Init and BitField is true.
+    InitAndBitWidthStorage *InitAndBitWidth;
+    // Active member if ISK is ISK_CapturedVLAType.
+    const VariableArrayType *CapturedVLAType;
+  };
 
 protected:
   FieldDecl(Kind DK, DeclContext *DC, SourceLocation StartLoc,
-            SourceLocation IdLoc, IdentifierInfo *Id,
-            QualType T, TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
+            SourceLocation IdLoc, IdentifierInfo *Id, QualType T,
+            TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
             InClassInitStyle InitStyle)
-    : DeclaratorDecl(DK, DC, IdLoc, Id, T, TInfo, StartLoc),
-      BitField(false), Mutable(Mutable), CachedFieldIndex(0),
-      InitStorage(nullptr, (InitStorageKind) InitStyle) {
+      : DeclaratorDecl(DK, DC, IdLoc, Id, T, TInfo, StartLoc), BitField(false),
+        Mutable(Mutable), StorageKind((InitStorageKind)InitStyle),
+        CachedFieldIndex(0), Init() {
     if (BW)
       setBitWidth(BW);
   }
@@ -3029,10 +3059,7 @@ public:
   Expr *getBitWidth() const {
     if (!BitField)
       return nullptr;
-    void *Ptr = InitStorage.getPointer();
-    if (getInClassInitStyle())
-      return static_cast<InitAndBitWidth*>(Ptr)->BitWidth;
-    return static_cast<Expr*>(Ptr);
+    return hasInClassInitializer() ? InitAndBitWidth->BitWidth : BitWidth;
   }
 
   unsigned getBitWidthValue(const ASTContext &Ctx) const;
@@ -3043,11 +3070,11 @@ public:
     assert(!hasCapturedVLAType() && !BitField &&
            "bit width or captured type already set");
     assert(Width && "no bit width specified");
-    InitStorage.setPointer(
-        InitStorage.getInt()
-            ? new (getASTContext())
-                  InitAndBitWidth{getInClassInitializer(), Width}
-            : static_cast<void*>(Width));
+    if (hasInClassInitializer())
+      InitAndBitWidth =
+          new (getASTContext()) InitAndBitWidthStorage{Init, Width};
+    else
+      BitWidth = Width;
     BitField = true;
   }
 
@@ -3055,7 +3082,11 @@ public:
   // Note: used by some clients (i.e., do not remove it).
   void removeBitWidth() {
     assert(isBitField() && "no bitfield width to remove");
-    InitStorage.setPointer(getInClassInitializer());
+    if (hasInClassInitializer()) {
+      // Read the old initializer before we change the active union member.
+      auto ExistingInit = InitAndBitWidth->Init;
+      Init = ExistingInit;
+    }
     BitField = false;
   }
 
@@ -3069,11 +3100,14 @@ public:
   /// [[no_unique_address]] attribute.
   bool isZeroSize(const ASTContext &Ctx) const;
 
+  /// Determine if this field is of potentially-overlapping class type, that
+  /// is, subobject with the [[no_unique_address]] attribute
+  bool isPotentiallyOverlapping() const;
+
   /// Get the kind of (C++11) default member initializer that this field has.
   InClassInitStyle getInClassInitStyle() const {
-    InitStorageKind storageKind = InitStorage.getInt();
-    return (storageKind == ISK_CapturedVLAType
-              ? ICIS_NoInit : (InClassInitStyle) storageKind);
+    return (StorageKind == ISK_CapturedVLAType ? ICIS_NoInit
+                                               : (InClassInitStyle)StorageKind);
   }
 
   /// Determine whether this member has a C++11 default member initializer.
@@ -3081,44 +3115,44 @@ public:
     return getInClassInitStyle() != ICIS_NoInit;
   }
 
+  /// Determine whether getInClassInitializer() would return a non-null pointer
+  /// without deserializing the initializer.
+  bool hasNonNullInClassInitializer() const {
+    return hasInClassInitializer() && (BitField ? InitAndBitWidth->Init : Init);
+  }
+
   /// Get the C++11 default member initializer for this member, or null if one
   /// has not been set. If a valid declaration has a default member initializer,
   /// but this returns null, then we have not parsed and attached it yet.
-  Expr *getInClassInitializer() const {
-    if (!hasInClassInitializer())
-      return nullptr;
-    void *Ptr = InitStorage.getPointer();
-    if (BitField)
-      return static_cast<InitAndBitWidth*>(Ptr)->Init;
-    return static_cast<Expr*>(Ptr);
-  }
+  Expr *getInClassInitializer() const;
 
   /// Set the C++11 in-class initializer for this member.
-  void setInClassInitializer(Expr *Init) {
-    assert(hasInClassInitializer() && !getInClassInitializer());
-    if (BitField)
-      static_cast<InitAndBitWidth*>(InitStorage.getPointer())->Init = Init;
-    else
-      InitStorage.setPointer(Init);
-  }
+  void setInClassInitializer(Expr *NewInit);
 
+private:
+  void setLazyInClassInitializer(LazyDeclStmtPtr NewInit);
+
+public:
   /// Remove the C++11 in-class initializer from this member.
   void removeInClassInitializer() {
     assert(hasInClassInitializer() && "no initializer to remove");
-    InitStorage.setPointerAndInt(getBitWidth(), ISK_NoInit);
+    StorageKind = ISK_NoInit;
+    if (BitField) {
+      // Read the bit width before we change the active union member.
+      Expr *ExistingBitWidth = InitAndBitWidth->BitWidth;
+      BitWidth = ExistingBitWidth;
+    }
   }
 
   /// Determine whether this member captures the variable length array
   /// type.
   bool hasCapturedVLAType() const {
-    return InitStorage.getInt() == ISK_CapturedVLAType;
+    return StorageKind == ISK_CapturedVLAType;
   }
 
   /// Get the captured variable length array type.
   const VariableArrayType *getCapturedVLAType() const {
-    return hasCapturedVLAType() ? static_cast<const VariableArrayType *>(
-                                      InitStorage.getPointer())
-                                : nullptr;
+    return hasCapturedVLAType() ? CapturedVLAType : nullptr;
   }
 
   /// Set the captured variable length array type for this field.
@@ -3691,6 +3725,7 @@ public:
     return getExtInfo()->TemplParamLists[i];
   }
 
+  using TypeDecl::printName;
   void printName(raw_ostream &OS, const PrintingPolicy &Policy) const override;
 
   void setTemplateParameterListsInfo(ASTContext &Context,
@@ -4305,6 +4340,7 @@ class TopLevelStmtDecl : public Decl {
   friend class ASTDeclWriter;
 
   Stmt *Statement = nullptr;
+  bool IsSemiMissing = false;
 
   TopLevelStmtDecl(DeclContext *DC, SourceLocation L, Stmt *S)
       : Decl(TopLevelStmt, DC, L), Statement(S) {}
@@ -4318,6 +4354,12 @@ public:
   SourceRange getSourceRange() const override LLVM_READONLY;
   Stmt *getStmt() { return Statement; }
   const Stmt *getStmt() const { return Statement; }
+  void setStmt(Stmt *S) {
+    assert(IsSemiMissing && "Operation supported for printing values only!");
+    Statement = S;
+  }
+  bool isSemiMissing() const { return IsSemiMissing; }
+  void setSemiMissing(bool Missing = true) { IsSemiMissing = Missing; }
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == TopLevelStmt; }
@@ -4704,7 +4746,7 @@ public:
   static bool classofKind(Kind K) { return K == Import; }
 };
 
-/// Represents a C++ Modules TS module export declaration.
+/// Represents a standard C++ module export declaration.
 ///
 /// For example:
 /// \code

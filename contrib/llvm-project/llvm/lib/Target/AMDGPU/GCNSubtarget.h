@@ -15,10 +15,12 @@
 #define LLVM_LIB_TARGET_AMDGPU_GCNSUBTARGET_H
 
 #include "AMDGPUCallLowering.h"
+#include "AMDGPURegisterBankInfo.h"
 #include "AMDGPUSubtarget.h"
 #include "SIFrameLowering.h"
 #include "SIISelLowering.h"
 #include "SIInstrInfo.h"
+#include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 
 #define GET_SUBTARGETINFO_HEADER
@@ -51,7 +53,7 @@ private:
   std::unique_ptr<InlineAsmLowering> InlineAsmLoweringInfo;
   std::unique_ptr<InstructionSelector> InstSelector;
   std::unique_ptr<LegalizerInfo> Legalizer;
-  std::unique_ptr<RegisterBankInfo> RegBankInfo;
+  std::unique_ptr<AMDGPURegisterBankInfo> RegBankInfo;
 
 protected:
   // Basic subtarget description.
@@ -63,7 +65,6 @@ protected:
   unsigned MaxPrivateElementSize = 0;
 
   // Possibly statically set by tablegen, but may want to be overridden.
-  bool FastFMAF32 = false;
   bool FastDenormalF32 = false;
   bool HalfRate64Ops = false;
   bool FullRate64Ops = false;
@@ -132,7 +133,7 @@ protected:
   bool HasA16 = false;
   bool HasG16 = false;
   bool HasNSAEncoding = false;
-  unsigned NSAMaxSize = 0;
+  bool HasPartialNSAEncoding = false;
   bool GFX10_AEncoding = false;
   bool GFX10_BEncoding = false;
   bool HasDLInsts = false;
@@ -146,12 +147,17 @@ protected:
   bool HasDot7Insts = false;
   bool HasDot8Insts = false;
   bool HasDot9Insts = false;
+  bool HasDot10Insts = false;
   bool HasMAIInsts = false;
   bool HasFP8Insts = false;
   bool HasPkFmacF16Inst = false;
+  bool HasAtomicDsPkAdd16Insts = false;
+  bool HasAtomicFlatPkAdd16Insts = false;
   bool HasAtomicFaddRtnInsts = false;
   bool HasAtomicFaddNoRtnInsts = false;
-  bool HasAtomicPkFaddNoRtnInsts = false;
+  bool HasAtomicBufferGlobalPkAddF16NoRtnInsts = false;
+  bool HasAtomicBufferGlobalPkAddF16Insts = false;
+  bool HasAtomicGlobalPkAddBF16Inst = false;
   bool HasFlatAtomicFaddF32Inst = false;
   bool SupportsSRAMECC = false;
 
@@ -173,6 +179,7 @@ protected:
   bool ScalarFlatScratchInsts = false;
   bool HasArchitectedFlatScratch = false;
   bool EnableFlatScratch = false;
+  bool HasArchitectedSGPRs = false;
   bool AddNoCarryInsts = false;
   bool HasUnpackedD16VMem = false;
   bool LDSMisalignedBug = false;
@@ -198,6 +205,7 @@ protected:
   bool HasMADIntraFwdBug = false;
   bool HasVOPDInsts = false;
   bool HasVALUTransUseHazard = false;
+  bool HasForceStoreSC0SC1 = false;
 
   // Dummy feature to use for assembler in tablegen.
   bool FeatureDisable = false;
@@ -248,7 +256,7 @@ public:
     return Legalizer.get();
   }
 
-  const RegisterBankInfo *getRegBankInfo() const override {
+  const AMDGPURegisterBankInfo *getRegBankInfo() const override {
     return RegBankInfo.get();
   }
 
@@ -283,7 +291,7 @@ public:
 
   /// Return the number of high bits known to be zero for a frame index.
   unsigned getKnownHighZeroBitsForFrameIndex() const {
-    return countLeadingZeros(getMaxWaveScratchSize()) + getWavefrontSizeLog2();
+    return llvm::countl_zero(getMaxWaveScratchSize()) + getWavefrontSizeLog2();
   }
 
   int getLDSBankCount() const {
@@ -317,10 +325,6 @@ public:
 
   bool hasHWFP64() const {
     return FP64;
-  }
-
-  bool hasFastFMAF32() const {
-    return FastFMAF32;
   }
 
   bool hasHalfRate64Ops() const {
@@ -738,6 +742,10 @@ public:
     return HasDot9Insts;
   }
 
+  bool hasDot10Insts() const {
+    return HasDot10Insts;
+  }
+
   bool hasMAIInsts() const {
     return HasMAIInsts;
   }
@@ -750,6 +758,10 @@ public:
     return HasPkFmacF16Inst;
   }
 
+  bool hasAtomicDsPkAdd16Insts() const { return HasAtomicDsPkAdd16Insts; }
+
+  bool hasAtomicFlatPkAdd16Insts() const { return HasAtomicFlatPkAdd16Insts; }
+
   bool hasAtomicFaddInsts() const {
     return HasAtomicFaddRtnInsts || HasAtomicFaddNoRtnInsts;
   }
@@ -758,7 +770,17 @@ public:
 
   bool hasAtomicFaddNoRtnInsts() const { return HasAtomicFaddNoRtnInsts; }
 
-  bool hasAtomicPkFaddNoRtnInsts() const { return HasAtomicPkFaddNoRtnInsts; }
+  bool hasAtomicBufferGlobalPkAddF16NoRtnInsts() const {
+    return HasAtomicBufferGlobalPkAddF16NoRtnInsts;
+  }
+
+  bool hasAtomicBufferGlobalPkAddF16Insts() const {
+    return HasAtomicBufferGlobalPkAddF16Insts;
+  }
+
+  bool hasAtomicGlobalPkAddBF16Inst() const {
+    return HasAtomicGlobalPkAddBF16Inst;
+  }
 
   bool hasFlatAtomicFaddF32Inst() const { return HasFlatAtomicFaddF32Inst; }
 
@@ -924,7 +946,9 @@ public:
 
   bool hasNSAEncoding() const { return HasNSAEncoding; }
 
-  unsigned getNSAMaxSize() const { return NSAMaxSize; }
+  bool hasPartialNSAEncoding() const { return HasPartialNSAEncoding; }
+
+  unsigned getNSAMaxSize() const { return AMDGPU::getNSAMaxSize(*this); }
 
   bool hasGFX10_AEncoding() const {
     return GFX10_AEncoding;
@@ -1070,6 +1094,8 @@ public:
 
   bool hasVALUTransUseHazard() const { return HasVALUTransUseHazard; }
 
+  bool hasForceStoreSC0SC1() const { return HasForceStoreSC0SC1; }
+
   bool hasVALUMaskWriteHazard() const { return getGeneration() >= GFX11; }
 
   /// Return if operations acting on VGPR tuples require even alignment.
@@ -1125,6 +1151,9 @@ public:
   /// \returns true if the flat_scratch register is initialized by the HW.
   /// In this case it is readonly.
   bool flatScratchIsArchitected() const { return HasArchitectedFlatScratch; }
+
+  /// \returns true if the architected SGPRs are enabled.
+  bool hasArchitectedSGPRs() const { return HasArchitectedSGPRs; }
 
   /// \returns true if the machine has merged shaders in which s0-s7 are
   /// reserved by the hardware and user SGPRs start at s8
@@ -1323,6 +1352,14 @@ public:
   // \returns the number of address arguments from which to enable MIMG NSA
   // on supported architectures.
   unsigned getNSAThreshold(const MachineFunction &MF) const;
+
+  // \returns true if the subtarget has a hazard requiring an "s_nop 0"
+  // instruction before "s_sendmsg sendmsg(MSG_DEALLOC_VGPRS)".
+  bool requiresNopBeforeDeallocVGPRs() const {
+    // Currently all targets that support the dealloc VGPRs message also require
+    // the nop.
+    return true;
+  }
 };
 
 } // end namespace llvm

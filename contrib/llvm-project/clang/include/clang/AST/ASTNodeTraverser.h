@@ -104,7 +104,8 @@ public:
         Visit(Comment, Comment);
 
       // Decls within functions are visited by the body.
-      if (!isa<FunctionDecl>(*D) && !isa<ObjCMethodDecl>(*D)) {
+      if (!isa<FunctionDecl>(*D) && !isa<ObjCMethodDecl>(*D) &&
+          !isa<BlockDecl>(*D)) {
         if (Traversal != TK_AsIs) {
           if (const auto *CTSD = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
             auto SK = CTSD->getSpecializationKind();
@@ -384,7 +385,8 @@ public:
   }
   void VisitAttributedType(const AttributedType *T) {
     // FIXME: AttrKind
-    Visit(T->getModifiedType());
+    if (T->getModifiedType() != T->getEquivalentType())
+      Visit(T->getModifiedType());
   }
   void VisitBTFTagAttributedType(const BTFTagAttributedType *T) {
     Visit(T->getWrappedType());
@@ -731,8 +733,11 @@ public:
   }
 
   void VisitGenericSelectionExpr(const GenericSelectionExpr *E) {
-    Visit(E->getControllingExpr());
-    Visit(E->getControllingExpr()->getType()); // FIXME: remove
+    if (E->isExprPredicate()) {
+      Visit(E->getControllingExpr());
+      Visit(E->getControllingExpr()->getType()); // FIXME: remove
+    } else
+      Visit(E->getControllingType()->getType());
 
     for (const auto Assoc : E->associations()) {
       Visit(Assoc);

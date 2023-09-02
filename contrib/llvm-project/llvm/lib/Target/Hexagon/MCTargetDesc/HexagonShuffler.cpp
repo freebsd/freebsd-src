@@ -16,6 +16,7 @@
 #include "MCTargetDesc/HexagonMCInstrInfo.h"
 #include "MCTargetDesc/HexagonMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInst.h"
@@ -101,7 +102,7 @@ unsigned HexagonResource::setWeight(unsigned s) {
     return Weight = 0;
 
   unsigned Ctpop = llvm::popcount(Units);
-  unsigned Cttz = countTrailingZeros(Units);
+  unsigned Cttz = llvm::countr_zero(Units);
   Weight = (1u << (SlotWeight * s)) * ((MaskWeight - Ctpop) << Cttz);
   return Weight;
 }
