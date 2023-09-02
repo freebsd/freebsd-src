@@ -61,9 +61,9 @@
 
 static MALLOC_DEFINE(M_TIMERFD, "timerfd", "timerfd structures");
 
-static struct sx timerfd_list_lock;
+static struct mtx timerfd_list_lock;
 static LIST_HEAD(, timerfd) timerfd_list;
-SX_SYSINIT(timerfd, &timerfd_list_lock, "timerfd_list_lock");
+MTX_SYSINIT(timerfd, &timerfd_list_lock, "timerfd_list_lock", MTX_DEF);
 
 static struct unrhdr64 tfdino_unr;
 
@@ -133,7 +133,7 @@ timerfd_jumped(void)
 		return;
 
 	timerfd_getboottime(&boottime);
-	sx_xlock(&timerfd_list_lock);
+	mtx_lock(&timerfd_list_lock);
 	LIST_FOREACH(tfd, &timerfd_list, entry) {
 		mtx_lock(&tfd->tfd_lock);
 		if (tfd->tfd_clockid != CLOCK_REALTIME ||
@@ -169,7 +169,7 @@ timerfd_jumped(void)
 		tfd->tfd_boottim = boottime;
 		mtx_unlock(&tfd->tfd_lock);
 	}
-	sx_xunlock(&timerfd_list_lock);
+	mtx_unlock(&timerfd_list_lock);
 }
 
 static int
@@ -324,9 +324,9 @@ timerfd_close(struct file *fp, struct thread *td)
 {
 	struct timerfd *tfd = fp->f_data;
 
-	sx_xlock(&timerfd_list_lock);
+	mtx_lock(&timerfd_list_lock);
 	LIST_REMOVE(tfd, entry);
-	sx_xunlock(&timerfd_list_lock);
+	mtx_unlock(&timerfd_list_lock);
 
 	callout_drain(&tfd->tfd_callout);
 	seldrain(&tfd->tfd_sel);
@@ -450,9 +450,9 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	knlist_init_mtx(&tfd->tfd_sel.si_note, &tfd->tfd_lock);
 	timerfd_getboottime(&tfd->tfd_boottim);
 	getnanotime(&tfd->tfd_birthtim);
-	sx_xlock(&timerfd_list_lock);
+	mtx_lock(&timerfd_list_lock);
 	LIST_INSERT_HEAD(&timerfd_list, tfd, entry);
-	sx_xunlock(&timerfd_list_lock);
+	mtx_unlock(&timerfd_list_lock);
 
 	finit(fp, fflags, DTYPE_TIMERFD, tfd, &timerfdops);
 
