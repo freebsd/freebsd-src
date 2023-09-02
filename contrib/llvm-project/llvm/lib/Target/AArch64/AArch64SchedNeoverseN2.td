@@ -609,6 +609,16 @@ def N2Write_11cyc_9L01_9S_9V : SchedWriteRes<[N2UnitL01, N2UnitL01, N2UnitL01,
   let NumMicroOps = 27;
 }
 
+//===----------------------------------------------------------------------===//
+// Define types for arithmetic and logical ops with short shifts
+def N2Write_Arith : SchedWriteVariant<[
+                      SchedVar<IsCheapLSL,  [N2Write_1cyc_1I]>,
+                      SchedVar<NoSchedPred, [N2Write_2cyc_1M]>]>;
+
+def N2Write_Logical: SchedWriteVariant<[
+                       SchedVar<NeoverseNoLSL, [N2Write_1cyc_1I]>,
+                       SchedVar<NoSchedPred,   [N2Write_2cyc_1M]>]>;
+
 // Miscellaneous
 // -----------------------------------------------------------------------------
 
@@ -636,8 +646,19 @@ def : InstRW<[N2Write_1cyc_1B_1S], (instrs BL, BLR)>;
 def : SchedAlias<WriteI,     N2Write_1cyc_1I>;
 
 // ALU, extend and shift
-def : SchedAlias<WriteISReg, N2Write_2cyc_1M>;
 def : SchedAlias<WriteIEReg, N2Write_2cyc_1M>;
+
+// Arithmetic, LSL shift, shift <= 4
+// Arithmetic, flagset, LSL shift, shift <= 4
+// Arithmetic, LSR/ASR/ROR shift or LSL shift > 4
+def : SchedAlias<WriteISReg, N2Write_Arith>;
+
+// Logical, shift, no flagset
+def : InstRW<[N2Write_1cyc_1I],
+             (instregex "^(AND|BIC|EON|EOR|ORN|ORR)[WX]rs$")>;
+
+// Logical, shift, flagset
+def : InstRW<[N2Write_Logical], (instregex "^(AND|BIC)S[WX]rs$")>;
 
 // Arithmetic, immediate to logical address tag
 def : InstRW<[N2Write_2cyc_1M], (instrs ADDG, SUBG)>;
@@ -758,8 +779,8 @@ def : InstRW<[N2Write_1cyc_1L01_1D_1I], (instrs STGPreIndex, STGPostIndex,
 // Store allocation tag to two granules, zeroing, signed offset
 // Store allocation tag and reg pair to memory, signed offset
 // Store multiple allocation tags
-def : InstRW<[N2Write_1cyc_1L01_1D], (instrs STGOffset, ST2GOffset, STZGOffset,
-                                             STZ2GOffset, STGPi, STGM, STZGM)>;
+def : InstRW<[N2Write_1cyc_1L01_1D], (instrs STGi, ST2Gi, STZGi,
+                                             STZ2Gi, STGPi, STGM, STZGM)>;
 
 // FP data processing instructions
 // -----------------------------------------------------------------------------
@@ -1210,7 +1231,7 @@ def : InstRW<[N2Write_6cyc_4V], (instrs TBXv8i8Three, TBXv16i8Three)>;
 def : InstRW<[N2Write_6cyc_8V], (instrs TBXv8i8Four, TBXv16i8Four)>;
 
 // ASIMD transfer, gen reg to element
-def : InstRW<[N2Write_5cyc_1M0_1V], (instregex "^INSv")>;
+def : InstRW<[N2Write_5cyc_1M0_1V], (instregex "^INSvi(8|16|32|64)gpr$")>;
 
 // ASIMD load instructions
 // -----------------------------------------------------------------------------

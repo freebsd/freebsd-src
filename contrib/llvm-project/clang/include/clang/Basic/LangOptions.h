@@ -23,7 +23,7 @@
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -479,13 +479,17 @@ public:
   /// The seed used by the randomize structure layout feature.
   std::string RandstructSeed;
 
-  /// Indicates whether the __FILE__ macro should use the target's
-  /// platform-specific file separator or whether it should use the build
-  /// environment's platform-specific file separator.
+  /// Indicates whether to use target's platform-specific file separator when
+  /// __FILE__ macro is used and when concatenating filename with directory or
+  /// to use build environment environment's platform-specific file separator.
   ///
   /// The plaform-specific path separator is the backslash(\) for Windows and
   /// forward slash (/) elsewhere.
   bool UseTargetPathSeparator = false;
+
+  // Indicates whether we should keep all nullptr checks for pointers
+  // received as a result of a standard operator new (-fcheck-new)
+  bool CheckNew = false;
 
   LangOptions();
 

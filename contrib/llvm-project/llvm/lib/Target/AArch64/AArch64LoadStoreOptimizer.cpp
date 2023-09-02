@@ -237,10 +237,10 @@ static bool isTagStore(const MachineInstr &MI) {
   switch (MI.getOpcode()) {
   default:
     return false;
-  case AArch64::STGOffset:
-  case AArch64::STZGOffset:
-  case AArch64::ST2GOffset:
-  case AArch64::STZ2GOffset:
+  case AArch64::STGi:
+  case AArch64::STZGi:
+  case AArch64::ST2Gi:
+  case AArch64::STZ2Gi:
     return true;
   }
 }
@@ -293,6 +293,8 @@ static unsigned getMatchingNonSExtOpcode(unsigned Opc,
     return AArch64::LDRWui;
   case AArch64::LDURSWi:
     return AArch64::LDURWi;
+  case AArch64::LDRSWpre:
+    return AArch64::LDRWpre;
   }
 }
 
@@ -372,6 +374,8 @@ static unsigned getMatchingPairOpcode(unsigned Opc) {
   case AArch64::LDRSWui:
   case AArch64::LDURSWi:
     return AArch64::LDPSWi;
+  case AArch64::LDRSWpre:
+    return AArch64::LDPSWpre;
   }
 }
 
@@ -465,13 +469,13 @@ static unsigned getPreIndexedOpcode(unsigned Opc) {
     return AArch64::STPWpre;
   case AArch64::STPXi:
     return AArch64::STPXpre;
-  case AArch64::STGOffset:
+  case AArch64::STGi:
     return AArch64::STGPreIndex;
-  case AArch64::STZGOffset:
+  case AArch64::STZGi:
     return AArch64::STZGPreIndex;
-  case AArch64::ST2GOffset:
+  case AArch64::ST2Gi:
     return AArch64::ST2GPreIndex;
-  case AArch64::STZ2GOffset:
+  case AArch64::STZ2Gi:
     return AArch64::STZ2GPreIndex;
   case AArch64::STGPi:
     return AArch64::STGPpre;
@@ -544,13 +548,13 @@ static unsigned getPostIndexedOpcode(unsigned Opc) {
     return AArch64::STPWpost;
   case AArch64::STPXi:
     return AArch64::STPXpost;
-  case AArch64::STGOffset:
+  case AArch64::STGi:
     return AArch64::STGPostIndex;
-  case AArch64::STZGOffset:
+  case AArch64::STZGi:
     return AArch64::STZGPostIndex;
-  case AArch64::ST2GOffset:
+  case AArch64::ST2Gi:
     return AArch64::ST2GPostIndex;
-  case AArch64::STZ2GOffset:
+  case AArch64::STZ2Gi:
     return AArch64::STZ2GPostIndex;
   case AArch64::STGPi:
     return AArch64::STGPpost;
@@ -585,6 +589,8 @@ static bool isPreLdStPairCandidate(MachineInstr &FirstMI, MachineInstr &MI) {
     return (OpcB == AArch64::LDRWui) || (OpcB == AArch64::LDURWi);
   case AArch64::LDRXpre:
     return (OpcB == AArch64::LDRXui) || (OpcB == AArch64::LDURXi);
+  case AArch64::LDRSWpre:
+    return (OpcB == AArch64::LDRSWui) || (OpcB == AArch64::LDURSWi);
   }
 }
 
@@ -681,10 +687,10 @@ static bool isMergeableLdStUpdate(MachineInstr &MI) {
   case AArch64::LDRWui:
   case AArch64::LDRHHui:
   case AArch64::LDRBBui:
-  case AArch64::STGOffset:
-  case AArch64::STZGOffset:
-  case AArch64::ST2GOffset:
-  case AArch64::STZ2GOffset:
+  case AArch64::STGi:
+  case AArch64::STZGi:
+  case AArch64::ST2Gi:
+  case AArch64::STZ2Gi:
   case AArch64::STGPi:
   // Unscaled instructions.
   case AArch64::STURSi:
@@ -734,8 +740,11 @@ AArch64LoadStoreOpt::mergeNarrowZeroStores(MachineBasicBlock::iterator I,
     NextI = next_nodbg(NextI, E);
 
   unsigned Opc = I->getOpcode();
+  unsigned MergeMIOpc = MergeMI->getOpcode();
   bool IsScaled = !TII->hasUnscaledLdStOffset(Opc);
-  int OffsetStride = IsScaled ? 1 : TII->getMemScale(*I);
+  bool IsMergedMIScaled = !TII->hasUnscaledLdStOffset(MergeMIOpc);
+  int OffsetStride = IsScaled ? TII->getMemScale(*I) : 1;
+  int MergeMIOffsetStride = IsMergedMIScaled ? TII->getMemScale(*MergeMI) : 1;
 
   bool MergeForward = Flags.getMergeForward();
   // Insert our new paired instruction after whichever of the paired
@@ -748,18 +757,27 @@ AArch64LoadStoreOpt::mergeNarrowZeroStores(MachineBasicBlock::iterator I,
                    : AArch64InstrInfo::getLdStBaseOp(*I);
 
   // Which register is Rt and which is Rt2 depends on the offset order.
-  MachineInstr *RtMI;
-  if (AArch64InstrInfo::getLdStOffsetOp(*I).getImm() ==
-      AArch64InstrInfo::getLdStOffsetOp(*MergeMI).getImm() + OffsetStride)
-    RtMI = &*MergeMI;
+  int64_t IOffsetInBytes =
+      AArch64InstrInfo::getLdStOffsetOp(*I).getImm() * OffsetStride;
+  int64_t MIOffsetInBytes =
+      AArch64InstrInfo::getLdStOffsetOp(*MergeMI).getImm() *
+      MergeMIOffsetStride;
+  // Select final offset based on the offset order.
+  int64_t OffsetImm;
+  if (IOffsetInBytes > MIOffsetInBytes)
+    OffsetImm = MIOffsetInBytes;
   else
-    RtMI = &*I;
+    OffsetImm = IOffsetInBytes;
 
-  int OffsetImm = AArch64InstrInfo::getLdStOffsetOp(*RtMI).getImm();
-  // Change the scaled offset from small to large type.
-  if (IsScaled) {
-    assert(((OffsetImm & 1) == 0) && "Unexpected offset to merge");
-    OffsetImm /= 2;
+  int NewOpcode = getMatchingWideOpcode(Opc);
+  bool FinalIsScaled = !TII->hasUnscaledLdStOffset(NewOpcode);
+
+  // Adjust final offset if the result opcode is a scaled store.
+  if (FinalIsScaled) {
+    int NewOffsetStride = FinalIsScaled ? TII->getMemScale(NewOpcode) : 1;
+    assert(((OffsetImm % NewOffsetStride) == 0) &&
+           "Offset should be a multiple of the store memory scale");
+    OffsetImm = OffsetImm / NewOffsetStride;
   }
 
   // Construct the new instruction.
@@ -1328,7 +1346,7 @@ static bool areCandidatesToMergeOrPair(MachineInstr &FirstMI, MachineInstr &MI,
     return false;
 
   // The STR<S,D,Q,W,X>pre - STR<S,D,Q,W,X>ui and
-  // LDR<S,D,Q,W,X>pre-LDR<S,D,Q,W,X>ui
+  // LDR<S,D,Q,W,X,SW>pre-LDR<S,D,Q,W,X,SW>ui
   // are candidate pairs that can be merged.
   if (isPreLdStPairCandidate(FirstMI, MI))
     return true;

@@ -14,11 +14,13 @@
 // Include all information about LLVM intrinsics.
 include "llvm/IR/Intrinsics.td"
 
+class Predicate; // Forward def
+
 //===----------------------------------------------------------------------===//
 // Register file description - These classes are used to fill in the target
 // description classes.
 
-class HwMode<string FS> {
+class HwMode<string FS, list<Predicate> Ps> {
   // A string representing subtarget features that turn on this HW mode.
   // For example, "+feat1,-feat2" will indicate that the mode is active
   // when "feat1" is enabled and "feat2" is disabled at the same time.
@@ -26,12 +28,15 @@ class HwMode<string FS> {
   // When multiple modes are used, they should be mutually exclusive,
   // otherwise the results are unpredictable.
   string Features = FS;
+
+  // A list of predicates that turn on this HW mode.
+  list<Predicate> Predicates = Ps;
 }
 
 // A special mode recognized by tablegen. This mode is considered active
 // when no other mode is active. For targets that do not use specific hw
 // modes, this is the only mode.
-def DefaultMode : HwMode<"">;
+def DefaultMode : HwMode<"", []>;
 
 // A class used to associate objects with HW modes. It is only intended to
 // be used as a base class, where the derived class should contain a member
@@ -445,8 +450,6 @@ include "llvm/Target/TargetInstrPredicate.td"
 // Pull in the common support for scheduling
 //
 include "llvm/Target/TargetSchedule.td"
-
-class Predicate; // Forward def
 
 class InstructionEncoding {
   // Size of encoded instruction.
@@ -1058,45 +1061,6 @@ class InstrInfo {
   //
   // This option is a temporary migration help. It will go away.
   bit guessInstructionProperties = true;
-
-  // TableGen's instruction encoder generator has support for matching operands
-  // to bit-field variables both by name and by position. Support for matching
-  // by position is DEPRECATED, and WILL BE REMOVED. Positional matching is
-  // confusing to use, and makes it very easy to accidentally write buggy
-  // instruction definitions.
-  //
-  // In previous versions of LLVM, the ability to match operands by position was
-  // enabled unconditionally. It is now controllable by this option -- and
-  // disabled by default. The previous behavior can be restored by setting this
-  // option to true.
-  //
-  // This option is temporary, and will go away once all in-tree targets have
-  // migrated.
-  //
-  // TODO: clean up and remove these options.
-  bit useDeprecatedPositionallyEncodedOperands = false;
-
-  // If positional encoding rules are used for the encoder generator, they may
-  // also need to be used by the decoder generator -- if so, enable this
-  // variable.
-  //
-  // This option is a no-op unless useDeprecatedPositionallyEncodedOperands is
-  // true.
-  //
-  // This option is temporary, and will go away once all in-tree targets have
-  // migrated.
-  bit decodePositionallyEncodedOperands = false;
-
-  // When set, this indicates that there will be no overlap between those
-  // operands that are matched by ordering (positional operands) and those
-  // matched by name.
-  //
-  // This is a no-op unless useDeprecatedPositionallyEncodedOperands is true
-  // (though it does modify the "would've used positional operand XXX" error.)
-  //
-  // This option is temporary, and will go away once all in-tree targets have
-  // migrated.
-  bit noNamedPositionallyEncodedOperands = false;
 }
 
 // Standard Pseudo Instructions.
@@ -1693,18 +1657,24 @@ class Target {
 //===----------------------------------------------------------------------===//
 // SubtargetFeature - A characteristic of the chip set.
 //
-class SubtargetFeature<string n, string a,  string v, string d,
+class SubtargetFeature<string n, string f, string v, string d,
                        list<SubtargetFeature> i = []> {
   // Name - Feature name.  Used by command line (-mattr=) to determine the
   // appropriate target chip.
   //
   string Name = n;
 
-  // Attribute - Attribute to be set by feature.
+  // FieldName - Field in XXXSubtarget to be set by feature.
   //
-  string Attribute = a;
+  string FieldName = f;
 
-  // Value - Value the attribute to be set to by feature.
+  // Value - Value the XXXSubtarget field to be set to by feature.
+  //
+  // A value of "true" or "false" implies the field is a bool. Otherwise,
+  // it is assumed to be an integer. the integer value may be the name of an
+  // enum constant. If multiple features use the same integer field, the
+  // field will be set to the maximum value of all enabled features that
+  // share the field.
   //
   string Value = v;
 

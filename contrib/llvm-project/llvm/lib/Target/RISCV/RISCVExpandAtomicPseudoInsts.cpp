@@ -24,7 +24,7 @@
 using namespace llvm;
 
 #define RISCV_EXPAND_ATOMIC_PSEUDO_NAME                                        \
-  "RISCV atomic pseudo instruction expansion pass"
+  "RISC-V atomic pseudo instruction expansion pass"
 
 namespace {
 
@@ -58,15 +58,34 @@ private:
   bool expandAtomicCmpXchg(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI, bool IsMasked,
                            int Width, MachineBasicBlock::iterator &NextMBBI);
+#ifndef NDEBUG
+  unsigned getInstSizeInBytes(const MachineFunction &MF) const {
+    unsigned Size = 0;
+    for (auto &MBB : MF)
+      for (auto &MI : MBB)
+        Size += TII->getInstSizeInBytes(MI);
+    return Size;
+  }
+#endif
 };
 
 char RISCVExpandAtomicPseudo::ID = 0;
 
 bool RISCVExpandAtomicPseudo::runOnMachineFunction(MachineFunction &MF) {
-  TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  TII = MF.getSubtarget<RISCVSubtarget>().getInstrInfo();
+
+#ifndef NDEBUG
+  const unsigned OldSize = getInstSizeInBytes(MF);
+#endif
+
   bool Modified = false;
   for (auto &MBB : MF)
     Modified |= expandMBB(MBB);
+
+#ifndef NDEBUG
+  const unsigned NewSize = getInstSizeInBytes(MF);
+  assert(OldSize >= NewSize);
+#endif
   return Modified;
 }
 
@@ -159,7 +178,7 @@ static unsigned getSCForRMW32(AtomicOrdering Ordering) {
   case AtomicOrdering::AcquireRelease:
     return RISCV::SC_W_RL;
   case AtomicOrdering::SequentiallyConsistent:
-    return RISCV::SC_W_AQ_RL;
+    return RISCV::SC_W_RL;
   }
 }
 
@@ -193,7 +212,7 @@ static unsigned getSCForRMW64(AtomicOrdering Ordering) {
   case AtomicOrdering::AcquireRelease:
     return RISCV::SC_D_RL;
   case AtomicOrdering::SequentiallyConsistent:
-    return RISCV::SC_D_AQ_RL;
+    return RISCV::SC_D_RL;
   }
 }
 

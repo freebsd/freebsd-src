@@ -26,10 +26,6 @@ class Register;
 template <typename _FunctionT> class GenericSSAContext;
 template <typename, bool> class DominatorTreeBase;
 
-inline auto successors(const MachineBasicBlock *BB) { return BB->successors(); }
-inline auto predecessors(const MachineBasicBlock *BB) {
-  return BB->predecessors();
-}
 inline unsigned succ_size(const MachineBasicBlock *BB) {
   return BB->succ_size();
 }
@@ -40,7 +36,7 @@ inline auto instrs(const MachineBasicBlock &BB) { return BB.instrs(); }
 
 template <> class GenericSSAContext<MachineFunction> {
   const MachineRegisterInfo *RegInfo = nullptr;
-  MachineFunction *MF;
+  MachineFunction *MF = nullptr;
 
 public:
   using BlockT = MachineBasicBlock;
@@ -48,8 +44,10 @@ public:
   using InstructionT = MachineInstr;
   using ValueRefT = Register;
   using ConstValueRefT = Register;
-  static const Register ValueRefNull;
+  using UseT = MachineOperand;
   using DominatorTreeT = DominatorTreeBase<BlockT, false>;
+
+  static constexpr Register ValueRefNull = 0;
 
   void setFunction(MachineFunction &Fn);
   MachineFunction *getFunction() const { return MF; }
@@ -62,7 +60,7 @@ public:
   static void appendBlockTerms(SmallVectorImpl<const MachineInstr *> &terms,
                                const MachineBasicBlock &block);
   MachineBasicBlock *getDefBlock(Register) const;
-  static bool isConstantValuePhi(const MachineInstr &Phi);
+  static bool isConstantOrUndefValuePhi(const MachineInstr &Phi);
 
   Printable print(const MachineBasicBlock *Block) const;
   Printable print(const MachineInstr *Inst) const;
