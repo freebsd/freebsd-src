@@ -2597,10 +2597,10 @@ cache_enter_time_flags(struct vnode *dvp, struct vnode *vp, struct componentname
 	cache_enter_time(dvp, vp, cnp, tsp, dtsp);
 }
 
-static u_int
-cache_roundup_2(u_int val)
+static u_long
+cache_roundup_2(u_long val)
 {
-	u_int res;
+	u_long res;
 
 	for (res = 1; res <= val; res <<= 1)
 		continue;
@@ -2616,7 +2616,7 @@ nchinittbl(u_long elements, u_long *hashmask)
 
 	hashsize = cache_roundup_2(elements) / 2;
 
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), M_VFSCACHE, M_WAITOK);
+	hashtbl = malloc(hashsize * sizeof(*hashtbl), M_VFSCACHE, M_WAITOK);
 	for (i = 0; i < hashsize; i++)
 		CK_SLIST_INIT(&hashtbl[i]);
 	*hashmask = hashsize - 1;
@@ -2762,7 +2762,7 @@ cache_changesize(u_long newmaxvnodes)
 	struct namecache *ncp;
 	uint32_t hash;
 	u_long newncsize;
-	int i;
+	u_long i;
 
 	newncsize = newmaxvnodes * ncsizefactor;
 	newmaxvnodes = cache_roundup_2(newmaxvnodes * 2);
