@@ -129,7 +129,7 @@ static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
 static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 
-#define	GIC_INTR(sc, irq)	((sc)->gic_irqs[irq])
+#define	GIC_INTR(sc, irq)	(*(struct gic_irqsrc *)intrtab_lookup(rman_get_start((sc)->gic_intrs) + (irq)))
 #define	GIC_INTR_ISRC(sc, irq)	(&GIC_INTR((sc), (irq)).gi_isrc)
 
 static struct resource_spec arm_gic_spec[] = {
@@ -246,16 +246,20 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 {
 	int error;
 	uint32_t irq;
-	struct gic_irqsrc *irqs;
 	struct intr_irqsrc *isrc;
 	const char *name;
 
-	irqs = malloc(num * sizeof(struct gic_irqsrc), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->gic_intrs = intrtab_alloc_intr(sc->gic_dev, num);
+	if (sc->gic_intrs == NULL) {
+		device_printf(sc->gic_dev, "could not allocate interrupts\n");
+		return (ENOSPC);
+	}
 
 	name = device_get_nameunit(sc->gic_dev);
 	for (irq = 0; irq < num; irq++) {
-		struct gic_irqsrc *gi = irqs + irq;
+		struct gic_irqsrc *gi;
+
+		gi = malloc(sizeof(*gi), M_DEVBUF, M_WAITOK | M_ZERO);
 
 		gi->gi_irq = irq;
 		gi->gi_pol = INTR_POLARITY_CONFORM;
@@ -264,21 +268,29 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 		isrc = &gi->gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
 			error = intr_isrc_register(isrc, sc->gic_dev,
-			    INTR_ISRCF_IPI, "%s,i%u", name, irq - GIC_FIRST_SGI);
+			    INTR_ISRCF_NOIRQ | INTR_ISRCF_IPI, "%s,i%u", name,
+			    irq - GIC_FIRST_SGI);
 		} else if (irq <= GIC_LAST_PPI) {
 			error = intr_isrc_register(isrc, sc->gic_dev,
-			    INTR_ISRCF_PPI, "%s,p%u", name, irq - GIC_FIRST_PPI);
+			    INTR_ISRCF_NOIRQ | INTR_ISRCF_PPI, "%s,p%u", name,
+			    irq - GIC_FIRST_PPI);
 		} else {
-			error = intr_isrc_register(isrc, sc->gic_dev, 0,
-			    "%s,s%u", name, irq - GIC_FIRST_SPI);
+			error = intr_isrc_register(isrc, sc->gic_dev,
+			    INTR_ISRCF_NOIRQ, "%s,s%u", name,
+			    irq - GIC_FIRST_SPI);
 		}
 		if (error != 0) {
 			/* XXX call intr_isrc_deregister() */
-			free(irqs, M_DEVBUF);
+			free(gi, M_DEVBUF);
 			return (error);
 		}
+
+		if (intrtab_set(sc->gic_intrs, rman_get_start(sc->gic_intrs) +
+		    irq, &gi->gi_isrc, NULL) != 0)
+			panic("%s(): Failed when setting up IRQ %u (%lu)",
+			    __func__, irq,
+			    (u_long)rman_get_start(sc->gic_intrs) + irq);
 	}
-	sc->gic_irqs = irqs;
 	sc->nirqs = num;
 	return (0);
 }
@@ -412,8 +424,38 @@ arm_gic_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->gic_irqs != NULL)
-		free(sc->gic_irqs, M_DEVBUF);
+	if (sc->gic_intrs != NULL) {
+		unsigned long i;
+
+		for(i = rman_get_start(sc->gic_intrs);
+		    i <= rman_get_end(sc->gic_intrs); ++i) {
+			interrupt_t *gi = intrtab_lookup(i);
+			int error;
+
+			if (gi == NULL)
+				continue;
+
+			error = intrtab_set(sc->gic_intrs, i, NULL, gi);
+			if (error != 0) {
+				device_printf(sc->gic_dev, "%s(): failed to "
+				    "remove interrupt table entry %lu, leaking "
+				    "entry\n", __func__, i);
+				continue;
+			}
+
+			error = intr_isrc_deregister(gi);
+			if (error != 0) {
+				device_printf(sc->gic_dev, "%s(): failed to "
+				    "deregister interrupt, leaking memory\n",
+				    __func__);
+				continue;
+			}
+
+			free(gi, M_DEVBUF);
+		}
+
+		intrtab_release_intr(sc->gic_intrs);
+	}
 
 	bus_release_resources(dev, arm_gic_spec, sc->gic_res);
 

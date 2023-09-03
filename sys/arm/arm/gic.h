@@ -47,7 +47,7 @@
 struct arm_gic_softc {
 	device_t		gic_dev;
 	void *			gic_intrhand;
-	struct gic_irqsrc *	gic_irqs;
+	struct resource		*gic_intrs;
 #define	GIC_RES_DIST		0
 #define	GIC_RES_CPU		1
 	struct resource *	gic_res[3];
