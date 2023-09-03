@@ -355,12 +355,18 @@ gic_v3_attach(device_t dev)
 	if (sc->gic_nirqs > GIC_I_NUM_MAX)
 		sc->gic_nirqs = GIC_I_NUM_MAX;
 
-	sc->gic_irqs = malloc(sizeof(*sc->gic_irqs) * sc->gic_nirqs,
-	    M_GIC_V3, M_WAITOK | M_ZERO);
+	sc->gic_intrs = intrtab_alloc_intr(dev, sc->gic_nirqs);
+	if (sc->gic_intrs == NULL) {
+		device_printf(dev, "could not allocate interrupts\n");
+		return (ENOSPC);
+	}
+
 	name = device_get_nameunit(dev);
 	for (irq = 0; irq < sc->gic_nirqs; irq++) {
-		struct gic_v3_irqsrc *gi = &GIC_INTR(sc, irq);
+		struct gic_v3_irqsrc *gi;
 		struct intr_irqsrc *isrc;
+
+		gi = malloc(sizeof(*gi), M_GIC_V3, M_WAITOK | M_ZERO);
 
 		gi->gi_irq = irq;
 		gi->gi_pol = INTR_POLARITY_CONFORM;
@@ -369,19 +375,28 @@ gic_v3_attach(device_t dev)
 		isrc = &gi->gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
 			err = intr_isrc_register(isrc, sc->dev,
-			    INTR_ISRCF_IPI, "%s,i%u", name, irq - GIC_FIRST_SGI);
+			    INTR_ISRCF_NOIRQ | INTR_ISRCF_IPI, "%s,i%u", name,
+			    irq - GIC_FIRST_SGI);
 		} else if (irq <= GIC_LAST_PPI) {
 			err = intr_isrc_register(isrc, sc->dev,
-			    INTR_ISRCF_PPI, "%s,p%u", name, irq - GIC_FIRST_PPI);
+			    INTR_ISRCF_NOIRQ | INTR_ISRCF_PPI, "%s,p%u", name,
+			    irq - GIC_FIRST_PPI);
 		} else {
-			err = intr_isrc_register(isrc, sc->dev, 0,
-			    "%s,s%u", name, irq - GIC_FIRST_SPI);
+			err = intr_isrc_register(isrc, sc->dev,
+			    INTR_ISRCF_NOIRQ, "%s,s%u", name,
+			    irq - GIC_FIRST_SPI);
 		}
 		if (err != 0) {
 			/* XXX call intr_isrc_deregister() */
-			free(sc->gic_irqs, M_DEVBUF);
+			free(gi, M_GIC_V3);
 			return (err);
 		}
+
+		if (intrtab_set(sc->gic_intrs,
+		    rman_get_start(sc->gic_intrs) + irq, &gi->gi_isrc, NULL) !=
+		    0)
+			panic("%s(): Failed when setting up IRQ %u (%lu)",
+			    __func__, irq, rman_get_start(sc->gic_intrs) + irq);
 	}
 
 	mtx_init(&sc->gic_mbi_mtx, "GICv3 mbi lock", NULL, MTX_DEF);
@@ -442,6 +457,40 @@ gic_v3_detach(device_t dev)
 		if (sc->gic_registered)
 			panic("Trying to detach registered PIC");
 	}
+
+	if (sc->gic_intrs != NULL) {
+		unsigned long i;
+
+		for(i = rman_get_start(sc->gic_intrs);
+		    i <= rman_get_end(sc->gic_intrs); ++i) {
+			interrupt_t *gi = intrtab_lookup(i);
+			int error;
+
+			if (gi == NULL)
+				continue;
+
+			error = intrtab_set(sc->gic_intrs, i, NULL, gi);
+			if (error != 0) {
+				device_printf(sc->dev, "%s(): failed to remove "
+				    "interrupt table entry %lu, leaking "
+				    "entry\n", __func__, i);
+				continue;
+			}
+
+			error = intr_isrc_deregister(gi);
+			if (error != 0) {
+				device_printf(sc->dev, "%s(): failed to "
+				    "deregister interrupt, leaking memory\n",
+				    __func__);
+				continue;
+			}
+
+			free(gi, M_GIC_V3);
+		}
+
+		intrtab_release_intr(sc->gic_intrs);
+	}
+
 	for (rid = 0; rid < (sc->gic_redists.nregions + 1); rid++)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->gic_res[rid]);
 

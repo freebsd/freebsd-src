@@ -82,7 +82,7 @@ struct gic_v3_softc {
 	int			gic_nchildren;
 	device_t		*gic_children;
 	struct intr_pic		*gic_pic;
-	struct gic_v3_irqsrc	*gic_irqs;
+	struct resource		*gic_intrs;
 
 	int			nranges;
 	struct arm_gic_range *	ranges;
@@ -94,7 +94,7 @@ struct gic_v3_devinfo {
 	int is_vgic;
 };
 
-#define	GIC_INTR(sc, irq)	((sc)->gic_irqs[irq])
+#define	GIC_INTR(sc, irq)	(*(struct gic_v3_irqsrc *)intrtab_lookup(rman_get_start((sc)->gic_intrs) + (irq)))
 #define	GIC_INTR_ISRC(sc, irq)	(&GIC_INTR((sc), (irq)).gi_isrc)
 
 MALLOC_DECLARE(M_GIC_V3);
