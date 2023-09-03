@@ -128,7 +128,8 @@ static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
 static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 
-#define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#define	GIC_INTR(sc, irq)	((sc)->gic_irqs[irq])
+#define	GIC_INTR_ISRC(sc, irq)	(&GIC_INTR((sc), (irq)).gi_isrc)
 
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
@@ -253,11 +254,13 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 
 	name = device_get_nameunit(sc->gic_dev);
 	for (irq = 0; irq < num; irq++) {
-		irqs[irq].gi_irq = irq;
-		irqs[irq].gi_pol = INTR_POLARITY_CONFORM;
-		irqs[irq].gi_trig = INTR_TRIGGER_CONFORM;
+		struct gic_irqsrc *gi = irqs + irq;
 
-		isrc = &irqs[irq].gi_isrc;
+		gi->gi_irq = irq;
+		gi->gi_pol = INTR_POLARITY_CONFORM;
+		gi->gi_trig = INTR_TRIGGER_CONFORM;
+
+		isrc = &gi->gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
 			error = intr_isrc_register(isrc, sc->gic_dev,
 			    INTR_ISRCF_IPI, "%s,i%u", name, irq - GIC_FIRST_SGI);
@@ -291,18 +294,19 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
 	    start, count, sc->nirqs));
 	for (i = 0; i < count; i++) {
-		KASSERT(sc->gic_irqs[start + i].gi_isrc.isrc_handlers == 0,
+		struct gic_irqsrc *gi = &GIC_INTR(sc, start + i);
+		KASSERT(gi->gi_isrc.isrc_handlers == 0,
 		    ("%s: MSI interrupt %d already has a handler", __func__,
 		    count + i));
-		KASSERT(sc->gic_irqs[start + i].gi_pol == INTR_POLARITY_CONFORM,
+		KASSERT(gi->gi_pol == INTR_POLARITY_CONFORM,
 		    ("%s: MSI interrupt %d already has a polarity", __func__,
 		    count + i));
-		KASSERT(sc->gic_irqs[start + i].gi_trig == INTR_TRIGGER_CONFORM,
+		KASSERT(gi->gi_trig == INTR_TRIGGER_CONFORM,
 		    ("%s: MSI interrupt %d already has a trigger", __func__,
 		    count + i));
-		sc->gic_irqs[start + i].gi_pol = INTR_POLARITY_HIGH;
-		sc->gic_irqs[start + i].gi_trig = INTR_TRIGGER_EDGE;
-		sc->gic_irqs[start + i].gi_flags |= GI_FLAG_MSI;
+		gi->gi_pol = INTR_POLARITY_HIGH;
+		gi->gi_trig = INTR_TRIGGER_EDGE;
+		gi->gi_flags |= GI_FLAG_MSI;
 	}
 }
 
@@ -570,7 +574,7 @@ arm_gic_intr(void *arg)
 
 	tf = curthread->td_intr_frame;
 dispatch_irq:
-	gi = sc->gic_irqs + irq;
+	gi = &GIC_INTR(sc, irq);
 	/*
 	 * Note that GIC_FIRST_SGI is zero and is not used in 'if' statement
 	 * as compiler complains that comparing u_int >= 0 is always true.
@@ -781,7 +785,7 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		    &trig) != 0)
 			return (EINVAL);
 		KASSERT(irq >= sc->nirqs ||
-		    (sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) == 0,
+		    (GIC_INTR(sc, irq).gi_flags & GI_FLAG_MSI) == 0,
 		    ("%s: Attempting to map a MSI interrupt from FDT",
 		    __func__));
 		break;
@@ -1055,11 +1059,11 @@ arm_gic_alloc_msi(device_t dev, u_int mbi_start, u_int mbi_count, int count,
 				break;
 			}
 
-			KASSERT((sc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI)!= 0,
+			KASSERT((GIC_INTR(sc, end_irq).gi_flags & GI_FLAG_MSI)!= 0,
 			    ("%s: Non-MSI interrupt found", __func__));
 
 			/* This is already used */
-			if ((sc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI_USED) ==
+			if ((GIC_INTR(sc, end_irq).gi_flags & GI_FLAG_MSI_USED) ==
 			    GI_FLAG_MSI_USED) {
 				found = false;
 				break;
@@ -1077,12 +1081,12 @@ arm_gic_alloc_msi(device_t dev, u_int mbi_start, u_int mbi_count, int count,
 
 	for (i = 0; i < count; i++) {
 		/* Mark the interrupt as used */
-		sc->gic_irqs[irq + i].gi_flags |= GI_FLAG_MSI_USED;
+		GIC_INTR(sc, irq + i).gi_flags |= GI_FLAG_MSI_USED;
 	}
 	mtx_unlock_spin(&sc->mutex);
 
 	for (i = 0; i < count; i++)
-		isrc[i] = (struct intr_irqsrc *)&sc->gic_irqs[irq + i];
+		isrc[i] = GIC_INTR_ISRC(sc, irq + i);
 
 	return (0);
 }
@@ -1123,9 +1127,9 @@ arm_gic_alloc_msix(device_t dev, u_int mbi_start, u_int mbi_count,
 	mtx_lock_spin(&sc->mutex);
 	/* Find an unused interrupt */
 	for (irq = mbi_start; irq < mbi_start + mbi_count; irq++) {
-		KASSERT((sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) != 0,
+		KASSERT((GIC_INTR(sc, irq).gi_flags & GI_FLAG_MSI) != 0,
 		    ("%s: Non-MSI interrupt found", __func__));
-		if ((sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI_USED) == 0)
+		if ((GIC_INTR(sc, irq).gi_flags & GI_FLAG_MSI_USED) == 0)
 			break;
 	}
 	/* No free interrupt was found */
@@ -1135,10 +1139,10 @@ arm_gic_alloc_msix(device_t dev, u_int mbi_start, u_int mbi_count,
 	}
 
 	/* Mark the interrupt as used */
-	sc->gic_irqs[irq].gi_flags |= GI_FLAG_MSI_USED;
+	GIC_INTR(sc, irq).gi_flags |= GI_FLAG_MSI_USED;
 	mtx_unlock_spin(&sc->mutex);
 
-	*isrc = (struct intr_irqsrc *)&sc->gic_irqs[irq];
+	*isrc = GIC_INTR_ISRC(sc, irq);
 
 	return (0);
 }
