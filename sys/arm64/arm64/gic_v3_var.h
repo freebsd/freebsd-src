@@ -94,7 +94,8 @@ struct gic_v3_devinfo {
 	int is_vgic;
 };
 
-#define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#define	GIC_INTR(sc, irq)	((sc)->gic_irqs[irq])
+#define	GIC_INTR_ISRC(sc, irq)	(&GIC_INTR((sc), (irq)).gi_isrc)
 
 MALLOC_DECLARE(M_GIC_V3);
 
