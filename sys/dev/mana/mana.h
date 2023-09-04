@@ -186,6 +186,7 @@ struct mana_txq {
  */
 #define	MAX_MBUF_FRAGS		30
 #define MANA_TSO_MAXSEG_SZ	PAGE_SIZE
+#define MANA_TSO_MAX_SZ		IP_MAXPACKET
 
 /* mbuf data and frags dma mappings */
 struct mana_mbuf_head {

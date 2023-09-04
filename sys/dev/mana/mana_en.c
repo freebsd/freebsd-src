@@ -798,8 +798,7 @@ mana_init_port_context(struct mana_port_context *apc)
 	uint32_t tso_maxsize;
 	int err;
 
-	tso_maxsize = MAX_MBUF_FRAGS * MANA_TSO_MAXSEG_SZ -
-	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	tso_maxsize = MANA_TSO_MAX_SZ;
 
 	/* Create DMA tag for tx bufs */
 	err = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
@@ -2712,6 +2711,7 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 {
 	struct gdma_context *gc = ac->gdma_dev->gdma_context;
 	struct mana_port_context *apc;
+	uint32_t hwassist;
 	if_t ndev;
 	int err;
 
@@ -2774,10 +2774,20 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	if_setcapenable(ndev, if_getcapabilities(ndev));
 
 	/* TSO parameters */
-	if_sethwtsomax(ndev, MAX_MBUF_FRAGS * MANA_TSO_MAXSEG_SZ -
+	if_sethwtsomax(ndev, MANA_TSO_MAX_SZ -
 	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
 	if_sethwtsomaxsegcount(ndev, MAX_MBUF_FRAGS);
 	if_sethwtsomaxsegsize(ndev, PAGE_SIZE);
+
+	hwassist = 0;
+	if (if_getcapenable(ndev) & (IFCAP_TSO4 | IFCAP_TSO6))
+		hwassist |= CSUM_TSO;
+	if (if_getcapenable(ndev) & IFCAP_TXCSUM)
+		hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+	if (if_getcapenable(ndev) & IFCAP_TXCSUM_IPV6)
+		hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+	mana_dbg(NULL, "set hwassist 0x%x\n", hwassist);
+	if_sethwassist(ndev, hwassist);
 
 	ifmedia_init(&apc->media, IFM_IMASK,
 	    mana_ifmedia_change, mana_ifmedia_status);
