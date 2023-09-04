@@ -43,6 +43,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -210,6 +211,10 @@ pfkey_sadump(struct sadb_msg *m)
 	struct sadb_x_nat_t_type *natt_type;
 	struct sadb_x_nat_t_port *natt_sport, *natt_dport;
 	struct sadb_address *natt_oai, *natt_oar;
+	struct sadb_x_if_hw_offl *if_hw_offl;
+	caddr_t p, ep;
+	struct sadb_ext *ext;
+	bool first;
 
 	/* check pfkey message. */
 	if (pfkey_align(m, mhp)) {
@@ -242,6 +247,7 @@ pfkey_sadump(struct sadb_msg *m)
 	natt_oar = (struct sadb_address *)mhp[SADB_X_EXT_NAT_T_OAR];
 	m_lft_sw = (struct sadb_lifetime *)mhp[SADB_X_EXT_LFT_CUR_SW_OFFL];
 	m_lft_hw = (struct sadb_lifetime *)mhp[SADB_X_EXT_LFT_CUR_HW_OFFL];
+	if_hw_offl = (struct sadb_x_if_hw_offl *)mhp[SADB_X_EXT_IF_HW_OFFL];
 
 	/* source address */
 	if (m_saddr == NULL) {
@@ -332,6 +338,27 @@ pfkey_sadump(struct sadb_msg *m)
 	printf("state=");
 	GETMSGSTR(str_state, m_sa->sadb_sa_state);
 	printf("\n");
+
+	/* hw offload interface */
+	if (if_hw_offl != NULL) {
+		p = (caddr_t)m;
+		ep = p + PFKEY_UNUNIT64(m->sadb_msg_len);
+		p += sizeof(struct sadb_msg);
+		printf("\thw offl if: ");
+
+		for (first = true; p < ep; p += PFKEY_EXTLEN(ext)) {
+			ext = (struct sadb_ext *)p;
+			if (ext->sadb_ext_type != SADB_X_EXT_IF_HW_OFFL)
+				continue;
+			if_hw_offl = (struct sadb_x_if_hw_offl *)ext;
+			if (first)
+				first = false;
+			else
+				printf(",");
+			printf("%s", if_hw_offl->sadb_x_if_hw_offl_if);
+		}
+		printf("\n");
+	}
 
 	/* lifetime */
 	if (m_lftc != NULL) {
