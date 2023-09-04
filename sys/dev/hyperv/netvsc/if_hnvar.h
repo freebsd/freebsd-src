@@ -277,6 +277,8 @@ struct hn_softc {
 	u_int			hn_saved_tsomax;
 	u_int			hn_saved_tsosegcnt;
 	u_int			hn_saved_tsosegsz;
+	u_int			hn_saved_capenable;
+	u_int			hn_saved_hwassist;
 
 	/*
 	 * RSC switch, default off
