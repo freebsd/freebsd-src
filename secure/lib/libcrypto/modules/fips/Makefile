@@ -32,25 +32,25 @@ SRCS+=	mem_clr.c
 .endif
 
 # crypto/aes
-SRCS+=	aes_cbc.c aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
+SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_aarch64)
-SRCS+=	aes_core.c aesv8-armx.S vpaes-armv8.S
+SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
 ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
-SRCS+=	aes_core.c aesni-mb-x86_64.S aesni-sha1-x86_64.S aesni-sha256-x86_64.S
-SRCS+=	aesni-x86_64.S vpaes-x86_64.S
+SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
+SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
 .elif defined(ASM_arm)
-SRCS+=	aes-armv4.S aesv8-armx.S bsaes-armv7.S
+SRCS+=	aes_cbc.c aes-armv4.S aesv8-armx.S bsaes-armv7.S
 .elif defined(ASM_i386)
-SRCS+=	aes_core.c aesni-x86.S vpaes-x86.S
+SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .elif defined(ASM_powerpc)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .elif defined(ASM_powerpc64)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .else
-SRCS+=	aes_core.c
+SRCS+=	aes_cbc.c aes_core.c
 .endif
 
 # crypto/bn
