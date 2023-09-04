@@ -1261,60 +1261,21 @@ hn_ifaddr_event(void *arg, if_t ifp)
 }
 
 static int
-hn_xpnt_vf_iocsetcaps(struct hn_softc *sc, struct ifreq *ifr)
+hn_xpnt_vf_iocsetcaps(struct hn_softc *sc, struct ifreq *ifr __unused)
 {
 	if_t ifp, vf_ifp;
-	uint64_t tmp;
-	int error;
 
 	HN_LOCK_ASSERT(sc);
 	ifp = sc->hn_ifp;
 	vf_ifp = sc->hn_vf_ifp;
 
 	/*
-	 * Fix up requested capabilities w/ supported capabilities,
-	 * since the supported capabilities could have been changed.
+	 * Just sync up with VF's enabled capabilities.
 	 */
-	ifr->ifr_reqcap &= if_getcapabilities(ifp);
-	/* Pass SIOCSIFCAP to VF. */
-	error = ifhwioctl(SIOCSIFCAP, vf_ifp, (caddr_t)ifr, curthread);
+	if_setcapenable(ifp, if_getcapenable(vf_ifp));
+	if_sethwassist(ifp, if_gethwassist(vf_ifp));
 
-	/*
-	 * NOTE:
-	 * The error will be propagated to the callers, however, it
-	 * is _not_ useful here.
-	 */
-
-	/*
-	 * Merge VF's enabled capabilities.
-	 */
-	if_setcapenable(ifp, if_getcapenable(vf_ifp) & if_getcapabilities(ifp));
-
-	tmp = if_gethwassist(vf_ifp) & HN_CSUM_IP_HWASSIST(sc);
-	if (if_getcapenable(ifp) & IFCAP_TXCSUM)
-		if_sethwassistbits(ifp, tmp, 0);
-	else
-		if_sethwassistbits(ifp, 0, tmp);
-
-	tmp = if_gethwassist(vf_ifp) & HN_CSUM_IP6_HWASSIST(sc);
-	if (if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6)
-		if_sethwassistbits(ifp, tmp, 0);
-	else
-		if_sethwassistbits(ifp, 0, tmp);
-
-	tmp = if_gethwassist(vf_ifp) & CSUM_IP_TSO;
-	if (if_getcapenable(ifp) & IFCAP_TSO4)
-		if_sethwassistbits(ifp, tmp, 0);
-	else
-		if_sethwassistbits(ifp, 0, tmp);
-
-	tmp = if_gethwassist(vf_ifp) & CSUM_IP6_TSO;
-	if (if_getcapenable(ifp) & IFCAP_TSO6)
-		if_sethwassistbits(ifp, tmp, 0);
-	else
-		if_sethwassistbits(ifp, 0, tmp);
-
-	return (error);
+	return (0);
 }
 
 static int
@@ -1698,6 +1659,8 @@ hn_xpnt_vf_setready(struct hn_softc *sc)
 	sc->hn_saved_tsomax = if_gethwtsomax(ifp);
 	sc->hn_saved_tsosegcnt = if_gethwtsomaxsegcount(ifp);
 	sc->hn_saved_tsosegsz = if_gethwtsomaxsegsize(ifp);
+	sc->hn_saved_capenable = if_getcapenable(ifp);
+	sc->hn_saved_hwassist = if_gethwassist(ifp);
 
 	/*
 	 * Intersect supported/enabled capabilities.
@@ -2017,18 +1980,14 @@ hn_ifnet_detevent(void *xsc, if_t ifp)
 			 * The VF was ready; restore some settings.
 			 */
 			if_setcapabilities(ifp, sc->hn_saved_caps);
-			/*
-			 * NOTE:
-			 * There is _no_ need to fixup if_capenable and
-			 * if_hwassist, since the if_capabilities before
-			 * restoration was an intersection of the VF's
-			 * if_capabilites and the synthetic device's
-			 * if_capabilites.
-			 */
+
 			if_sethwtsomax(ifp, sc->hn_saved_tsomax);
 			if_sethwtsomaxsegcount(sc->hn_ifp,
 			    sc->hn_saved_tsosegcnt);
 			if_sethwtsomaxsegsize(ifp, sc->hn_saved_tsosegsz);
+
+			if_setcapenable(ifp, sc->hn_saved_capenable);
+			if_sethwassist(ifp, sc->hn_saved_hwassist);
 		}
 
 		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
