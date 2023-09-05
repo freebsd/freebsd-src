@@ -611,13 +611,18 @@ int
 linux_timerfd_create(struct thread *td, struct linux_timerfd_create_args *args)
 {
 	clockid_t clockid;
-	int error;
+	int error, flags;
 
 	error = linux_to_native_clockid(&clockid, args->clockid);
 	if (error != 0)
 		return (error);
+	flags = 0;
+	if ((args->flags & LINUX_TFD_CLOEXEC) != 0)
+		flags |= O_CLOEXEC;
+	if ((args->flags & LINUX_TFD_NONBLOCK) != 0)
+		flags |= TFD_NONBLOCK;
 
-	return (kern_timerfd_create(td, clockid, args->flags));
+	return (kern_timerfd_create(td, clockid, flags));
 }
 
 int
