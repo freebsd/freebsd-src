@@ -5941,17 +5941,57 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 	PF_RULES_RLOCK_TRACKER;
 
 	TAILQ_FOREACH_SAFE(j, &pd->sctp_multihome_jobs, next, tmp) {
-		PF_RULES_RLOCK();
-		j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
-		action = pf_test_rule(&r, &sm, kif,
-		    j->m, off, &j->pd, &ra, &rs, NULL);
-		PF_RULES_RUNLOCK();
-		SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, action);
-		if (sm) {
-			/* Inherit v_tag values. */
-			sm->src.scrub->pfss_v_tag = s->src.scrub->pfss_flags;
-			sm->dst.scrub->pfss_v_tag = s->dst.scrub->pfss_flags;
-			PF_STATE_UNLOCK(sm);
+		switch (j->op) {
+		case  SCTP_ADD_IP_ADDRESS: {
+			j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
+			PF_RULES_RLOCK();
+			action = pf_test_rule(&r, &sm, kif,
+			    j->m, off, &j->pd, &ra, &rs, NULL);
+			PF_RULES_RUNLOCK();
+			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, action);
+			if (sm) {
+				/* Inherit v_tag values. */
+				sm->src.scrub->pfss_v_tag = s->src.scrub->pfss_flags;
+				sm->dst.scrub->pfss_v_tag = s->dst.scrub->pfss_flags;
+				PF_STATE_UNLOCK(sm);
+			}
+			break;
+		}
+		case SCTP_DEL_IP_ADDRESS: {
+			struct pf_state_key_cmp key;
+			uint8_t psrc;
+
+			bzero(&key, sizeof(key));
+			key.af = j->pd.af;
+			key.proto = IPPROTO_SCTP;
+			if (j->pd.dir == PF_IN)	{	/* wire side, straight */
+				PF_ACPY(&key.addr[0], j->pd.src, key.af);
+				PF_ACPY(&key.addr[1], j->pd.dst, key.af);
+				key.port[0] = j->pd.hdr.sctp.src_port;
+				key.port[1] = j->pd.hdr.sctp.dest_port;
+			} else {			/* stack side, reverse */
+				PF_ACPY(&key.addr[1], j->pd.src, key.af);
+				PF_ACPY(&key.addr[0], j->pd.dst, key.af);
+				key.port[1] = j->pd.hdr.sctp.src_port;
+				key.port[0] = j->pd.hdr.sctp.dest_port;
+			}
+
+			sm = pf_find_state(kif, &key, j->pd.dir);
+			if (sm != NULL) {
+				PF_STATE_LOCK_ASSERT(sm);
+				if (j->pd.dir == sm->direction) {
+					psrc = PF_PEER_SRC;
+				} else {
+					psrc = PF_PEER_DST;
+				}
+				pf_set_protostate(sm, psrc, SCTP_SHUTDOWN_PENDING);
+				sm->timeout = PFTM_TCP_CLOSING;
+				PF_STATE_UNLOCK(sm);
+			}
+			break;
+		default:
+			panic("Unknown op %#x", j->op);
+		}
 		}
 
 		free(j, M_PFTEMP);
@@ -5960,7 +6000,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 
 static int
 pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
-    struct pfi_kkif *kif)
+    struct pfi_kkif *kif, int op)
 {
 	int			 off = 0;
 	struct pf_sctp_multihome_job	*job;
@@ -6022,6 +6062,7 @@ pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 			memcpy(&job->dst, pd->dst, sizeof(job->dst));
 			job->pd.dst = &job->dst;
 			job->m = m;
+			job->op = op;
 
 			TAILQ_INSERT_TAIL(&pd->sctp_multihome_jobs, job, next);
 			break;
@@ -6052,6 +6093,7 @@ pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 			memcpy(&job->dst, pd->dst, sizeof(job->dst));
 			job->pd.dst = &job->dst;
 			job->m = m;
+			job->op = op;
 
 			TAILQ_INSERT_TAIL(&pd->sctp_multihome_jobs, job, next);
 			break;
@@ -6066,7 +6108,22 @@ pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 				return (PF_DROP);
 
 			ret = pf_multihome_scan(m, start + off + sizeof(ah),
-			    ntohs(ah.ph.param_length) - sizeof(ah), pd, kif);
+			    ntohs(ah.ph.param_length) - sizeof(ah), pd, kif,
+			    SCTP_ADD_IP_ADDRESS);
+			if (ret != PF_PASS)
+				return (ret);
+			break;
+		}
+		case SCTP_DEL_IP_ADDRESS: {
+			int ret;
+			struct sctp_asconf_paramhdr ah;
+
+			if (!pf_pull_hdr(m, start + off, &ah, sizeof(ah),
+			    NULL, NULL, pd->af))
+				return (PF_DROP);
+			ret = pf_multihome_scan(m, start + off + sizeof(ah),
+			    ntohs(ah.ph.param_length) - sizeof(ah), pd, kif,
+			    SCTP_DEL_IP_ADDRESS);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -6087,7 +6144,7 @@ pf_multihome_scan_init(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 	start += sizeof(struct sctp_init_chunk);
 	len -= sizeof(struct sctp_init_chunk);
 
-	return (pf_multihome_scan(m, start, len, pd, kif));
+	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS));
 }
 
 int
@@ -6097,7 +6154,7 @@ pf_multihome_scan_asconf(struct mbuf *m, int start, int len,
 	start += sizeof(struct sctp_asconf_chunk);
 	len -= sizeof(struct sctp_asconf_chunk);
 
-	return (pf_multihome_scan(m, start, len, pd, kif));
+	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS));
 }
 
 static int
