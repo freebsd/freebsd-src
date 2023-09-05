@@ -149,7 +149,10 @@ print_with_symbol(const char *name, uint64_t value)
 		sym = db_search_symbol(value, DB_STGY_ANY, &offset);
 		if (sym != C_DB_SYM_NULL) {
 			db_symbol_values(sym, &sym_name, &sym_value);
-			printf(" (%s + 0x%lx)", sym_name, offset);
+			if (offset != 0)
+				printf(" (%s + 0x%lx)", sym_name, offset);
+			else
+				printf(" (%s)", sym_name);
 		}
 	}
 #endif
