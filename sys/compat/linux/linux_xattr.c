@@ -165,6 +165,8 @@ listxattr(struct thread *td, struct listxattr_args *args)
 			error = kern_extattr_list_fd(td, args->fd,
 			    attrnamespace, &auio);
 		rs = sz - auio.uio_resid;
+		if (error == EPERM)
+			break;
 		if (error != 0 || rs == 0)
 			continue;
 		prefix = extattr_namespace_names[attrnamespace];
