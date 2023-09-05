@@ -703,12 +703,6 @@ struct ieee80211_sta {
 	struct ieee80211_link_sta		deflink;
 	struct ieee80211_link_sta		*link[IEEE80211_MLD_MAX_NUM_LINKS];	/* rcu? */
 
-#ifndef __FOR_LATER_DRV_UPDATE
-	uint16_t				max_rc_amsdu_len;
-	uint16_t				max_amsdu_len;
-	uint16_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
-#endif
-
 	/* Must stay last. */
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
 };
@@ -1421,7 +1415,6 @@ ieee80211_is_back_req(__le16 fc)
 }
 
 static __inline bool
-#ifdef __FOR_LATER_DRV_UPDATE
 ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
@@ -1429,10 +1422,6 @@ ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 
 	mgmt = (struct ieee80211_mgmt *)skb->data;
 	fc = mgmt->frame_control;
-#else
-ieee80211_is_bufferable_mmpdu(__le16 fc)
-{
-#endif
 
 	/* 11.2.2 Bufferable MMPDUs, 80211-2020. */
 	/* XXX we do not care about IBSS yet. */
@@ -2022,10 +2011,7 @@ ieee80211_ie_split(const u8 *ies, size_t ies_len,
 }
 
 static __inline void
-ieee80211_request_smps(struct ieee80211_vif *vif,
-#ifdef __FOR_LATER_DRV_UPDATE
-    u_int link_id,
-#endif
+ieee80211_request_smps(struct ieee80211_vif *vif, u_int link_id,
     enum ieee80211_smps_mode smps)
 {
 	static const char *smps_mode_name[] = {
@@ -2222,10 +2208,7 @@ ieee80211_tx_dequeue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 
 static __inline void
 ieee80211_update_mu_groups(struct ieee80211_vif *vif,
-#ifdef __FOR_LATER_DRV_UPDATE
-    u_int _i,
-#endif
-    uint8_t *ms, uint8_t *up)
+    u_int _i, uint8_t *ms, uint8_t *up)
 {
 	TODO();
 }
@@ -2345,14 +2328,8 @@ ieee80211_proberesp_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static __inline struct sk_buff *
 ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-#ifdef __FOR_LATER_DRV_UPDATE
-    int linkid,
-#endif
-    bool qos)
+    int linkid, bool qos)
 {
-#ifndef __FOR_LATER_DRV_UPDATE
-	int linkid = 0;
-#endif
 
 	/* Only STA needs this.  Otherwise return NULL and panic bad drivers. */
 	if (vif->type != NL80211_IFTYPE_STATION)
