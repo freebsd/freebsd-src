@@ -3459,7 +3459,7 @@ cxgbe_media_status(if_t ifp, struct ifmediareq *ifmr)
 	struct adapter *sc = pi->adapter;
 	struct link_config *lc = &pi->link_cfg;
 
-	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4med") != 0)
+	if (begin_synchronized_op(sc, vi , SLEEP_OK | INTR_OK, "t4med") != 0)
 		return;
 	PORT_LOCK(pi);
 
