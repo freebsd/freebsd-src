@@ -342,6 +342,24 @@ class TestSCTP(VnetTestTemplate):
         assert re.search(r"all sctp 192.0.2.1:.*192.0.2.3:1234", states)
         assert re.search(r"all sctp 192.0.2.10:.*192.0.2.3:1234", states)
 
+        # Now remove 192.0.2.1 as an address
+        client.bindx("192.0.2.1", False)
+
+        # We can still communicate
+        try:
+            client.send(b"More data", 0)
+            rcvd = self.wait_object(srv_vnet.pipe, 5)
+            print(rcvd)
+            assert rcvd['ppid'] == 0
+            assert rcvd['data'] =="More data"
+        finally:
+            # Debug output
+            ToolsHelper.print_output("/sbin/pfctl -ss -vv")
+
+        # Verify that state is closing
+        states = ToolsHelper.get_output("/sbin/pfctl -ss")
+        assert re.search(r"all sctp 192.0.2.1:.*192.0.2.3:1234.*SHUTDOWN", states)
+
 class TestSCTPv6(VnetTestTemplate):
     REQUIRED_MODULES = ["sctp", "pf"]
     TOPOLOGY = {
@@ -440,3 +458,21 @@ class TestSCTPv6(VnetTestTemplate):
         states = ToolsHelper.get_output("/sbin/pfctl -ss")
         assert re.search(r"all sctp 2001:db8::1\[.*2001:db8::3\[1234\]", states)
         assert re.search(r"all sctp 2001:db8::10\[.*2001:db8::3\[1234\]", states)
+
+        # Now remove 2001:db8::1 as an address
+        client.bindx("2001:db8::1", False)
+
+        # Wecan still communicate
+        try:
+            client.send(b"More data", 0)
+            rcvd = self.wait_object(srv_vnet.pipe, 5)
+            print(rcvd)
+            assert rcvd['ppid'] == 0
+            assert rcvd['data'] == "More data"
+        finally:
+            # Debug output
+            ToolsHelper.print_output("/sbin/pfctl -ss -vv")
+
+        # Verify that the state is closing
+        states = ToolsHelper.get_output("/sbin/pfctl -ss")
+        assert re.search(r"all sctp 2001:db8::1\[.*2001:db8::3\[1234\].*SHUTDOWN", states)
