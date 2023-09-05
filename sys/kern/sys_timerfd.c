@@ -73,28 +73,36 @@ static struct unrhdr64 tfdino_unr;
 #define	TFD_CANCELED	4	/* Jumped, CANCEL_ON_SET=true. */
 #define	TFD_JUMPED	(TFD_ZREAD | TFD_CANCELED)
 
+/*
+ * One structure allocated per timerfd descriptor.
+ *
+ * Locking semantics:
+ * (t)	locked by tfd_lock mtx
+ * (l)	locked by timerfd_list_lock sx
+ * (c)	const until freeing
+ */
 struct timerfd {
 	/* User specified. */
-	struct itimerspec tfd_time;	/* tfd timer */
-	clockid_t	tfd_clockid;	/* timing base */
-	int		tfd_flags;	/* creation flags */
-	int		tfd_timflags;	/* timer flags */
+	struct itimerspec tfd_time;	/* (t) tfd timer */
+	clockid_t	tfd_clockid;	/* (c) timing base */
+	int		tfd_flags;	/* (c) creation flags */
+	int		tfd_timflags;	/* (t) timer flags */
 
 	/* Used internally. */
-	timerfd_t	tfd_count;	/* expiration count since last read */
-	bool		tfd_expired;	/* true upon initial expiration */
-	struct mtx	tfd_lock;	/* mtx lock */
-	struct callout	tfd_callout;	/* expiration notification */
-	struct selinfo	tfd_sel;	/* I/O alerts */
-	struct timespec	tfd_boottim;	/* cached boottime */
-	int		tfd_jumped;	/* timer jump status */
-	LIST_ENTRY(timerfd) entry;	/* entry in list */
+	timerfd_t	tfd_count;	/* (t) expiration count since read */
+	bool		tfd_expired;	/* (t) true upon initial expiration */
+	struct mtx	tfd_lock;	/* tfd mtx lock */
+	struct callout	tfd_callout;	/* (t) expiration notification */
+	struct selinfo	tfd_sel;	/* (t) I/O alerts */
+	struct timespec	tfd_boottim;	/* (t) cached boottime */
+	int		tfd_jumped;	/* (t) timer jump status */
+	LIST_ENTRY(timerfd) entry;	/* (l) entry in list */
 
 	/* For stat(2). */
-	ino_t		tfd_ino;	/* inode number */
-	struct timespec	tfd_atim;	/* time of last read */
-	struct timespec	tfd_mtim;	/* time of last settime */
-	struct timespec tfd_birthtim;	/* creation time */
+	ino_t		tfd_ino;	/* (c) inode number */
+	struct timespec	tfd_atim;	/* (t) time of last read */
+	struct timespec	tfd_mtim;	/* (t) time of last settime */
+	struct timespec tfd_birthtim;	/* (c) creation time */
 };
 
 static void
@@ -109,6 +117,7 @@ static inline void
 timerfd_getboottime(struct timespec *ts)
 {
 	struct timeval tv;
+
 	getboottime(&tv);
 	TIMEVAL_TO_TIMESPEC(&tv, ts);
 }
@@ -274,6 +283,8 @@ filt_timerfdread(struct knote *kn, long hint)
 {
 	struct timerfd *tfd = kn->kn_hook;
 
+	mtx_assert(&tfd->tfd_lock, MA_OWNED);
+	kn->kn_data = (int64_t)tfd->tfd_count;
 	return (tfd->tfd_count > 0);
 }
 
@@ -308,13 +319,13 @@ timerfd_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 	sb->st_uid = fp->f_cred->cr_uid;
 	sb->st_gid = fp->f_cred->cr_gid;
 	sb->st_blksize = PAGE_SIZE;
-
 	mtx_lock(&tfd->tfd_lock);
-	sb->st_ino = tfd->tfd_ino;
 	sb->st_atim = tfd->tfd_atim;
 	sb->st_mtim = tfd->tfd_mtim;
-	sb->st_birthtim = tfd->tfd_birthtim;
 	mtx_unlock(&tfd->tfd_lock);
+	sb->st_ctim = sb->st_mtim;
+	sb->st_ino = tfd->tfd_ino;
+	sb->st_birthtim = tfd->tfd_birthtim;
 
 	return (0);
 }
@@ -342,15 +353,12 @@ static int
 timerfd_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
-
 	struct timerfd *tfd = fp->f_data;
 
 	kif->kf_type = KF_TYPE_TIMERFD;
-	mtx_lock(&tfd->tfd_lock);
 	kif->kf_un.kf_timerfd.kf_timerfd_clockid = tfd->tfd_clockid;
 	kif->kf_un.kf_timerfd.kf_timerfd_flags = tfd->tfd_flags;
 	kif->kf_un.kf_timerfd.kf_timerfd_addr = (uintptr_t)tfd;
-	mtx_unlock(&tfd->tfd_lock);
 
 	return (0);
 }
@@ -376,6 +384,7 @@ timerfd_curval(struct timerfd *tfd, struct itimerspec *old_value)
 {
 	struct timespec curr_value;
 
+	mtx_assert(&tfd->tfd_lock, MA_OWNED);
 	*old_value = tfd->tfd_time;
 	if (timespecisset(&tfd->tfd_time.it_value)) {
 		nanouptime(&curr_value);
@@ -472,11 +481,11 @@ kern_timerfd_gettime(struct thread *td, int fd, struct itimerspec *curr_value)
 	error = fget(td, fd, &cap_write_rights, &fp);
 	if (error != 0)
 		return (error);
-	tfd = fp->f_data;
-	if (tfd == NULL || fp->f_type != DTYPE_TIMERFD) {
+	if (fp->f_type != DTYPE_TIMERFD) {
 		fdrop(fp, td);
 		return (EINVAL);
 	}
+	tfd = fp->f_data;
 
 	mtx_lock(&tfd->tfd_lock);
 	timerfd_curval(tfd, curr_value);
@@ -504,11 +513,11 @@ kern_timerfd_settime(struct thread *td, int fd, int flags,
 	error = fget(td, fd, &cap_write_rights, &fp);
 	if (error != 0)
 		return (error);
-	tfd = fp->f_data;
-	if (tfd == NULL || fp->f_type != DTYPE_TIMERFD) {
+	if (fp->f_type != DTYPE_TIMERFD) {
 		fdrop(fp, td);
 		return (EINVAL);
 	}
+	tfd = fp->f_data;
 
 	mtx_lock(&tfd->tfd_lock);
 	getnanotime(&tfd->tfd_mtim);
