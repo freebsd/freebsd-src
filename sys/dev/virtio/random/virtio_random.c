@@ -54,6 +54,8 @@ struct vtrnd_softc {
 	struct virtqueue	*vtrnd_vq;
 	eventhandler_tag	 eh;
 	bool			 inactive;
+	struct sglist		 *vtrnd_sg;
+	uint32_t		 *vtrnd_value;
 };
 
 static int	vtrnd_modevent(module_t, int, void *);
@@ -67,6 +69,7 @@ static int	vtrnd_negotiate_features(struct vtrnd_softc *);
 static int	vtrnd_setup_features(struct vtrnd_softc *);
 static int	vtrnd_alloc_virtqueue(struct vtrnd_softc *);
 static int	vtrnd_harvest(struct vtrnd_softc *, void *, size_t *);
+static void	vtrnd_enqueue(struct vtrnd_softc *sc);
 static unsigned	vtrnd_read(void *, unsigned);
 
 #define VTRND_FEATURES	0
@@ -138,11 +141,16 @@ static int
 vtrnd_attach(device_t dev)
 {
 	struct vtrnd_softc *sc, *exp;
+	size_t len;
 	int error;
 
 	sc = device_get_softc(dev);
 	sc->vtrnd_dev = dev;
 	virtio_set_feature_desc(dev, vtrnd_feature_desc);
+
+	len = sizeof(*sc->vtrnd_value) * HARVESTSIZE;
+	sc->vtrnd_value = malloc_aligned(len, len, M_DEVBUF, M_WAITOK);
+	sc->vtrnd_sg = sglist_build(sc->vtrnd_value, len, M_WAITOK);
 
 	error = vtrnd_setup_features(sc);
 	if (error) {
@@ -174,6 +182,8 @@ vtrnd_attach(device_t dev)
 	sc->inactive = false;
 	random_source_register(&random_vtrnd);
 
+	vtrnd_enqueue(sc);
+
 fail:
 	if (error)
 		vtrnd_detach(dev);
@@ -185,6 +195,7 @@ static int
 vtrnd_detach(device_t dev)
 {
 	struct vtrnd_softc *sc;
+	uint32_t rdlen;
 
 	sc = device_get_softc(dev);
 	KASSERT(
@@ -197,7 +208,13 @@ vtrnd_detach(device_t dev)
 		sc->eh = NULL;
 	}
 	random_source_deregister(&random_vtrnd);
+
+	/* clear the queue */
+	virtqueue_poll(sc->vtrnd_vq, &rdlen);
+
 	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
+	sglist_free(sc->vtrnd_sg);
+	zfree(sc->vtrnd_value, M_DEVBUF);
 	return (0);
 }
 
@@ -251,49 +268,45 @@ vtrnd_alloc_virtqueue(struct vtrnd_softc *sc)
 	return (virtio_alloc_virtqueues(dev, 0, 1, &vq_info));
 }
 
+static void
+vtrnd_enqueue(struct vtrnd_softc *sc)
+{
+	struct virtqueue *vq;
+	int error __diagused;
+
+	vq = sc->vtrnd_vq;
+
+	KASSERT(virtqueue_empty(vq), ("%s: non-empty queue", __func__));
+
+	error = virtqueue_enqueue(vq, sc, sc->vtrnd_sg, 0, 1);
+	KASSERT(error == 0, ("%s: virtqueue_enqueue returned error: %d",
+	    __func__, error));
+
+	virtqueue_notify(vq);
+}
+
 static int
 vtrnd_harvest(struct vtrnd_softc *sc, void *buf, size_t *sz)
 {
-	struct sglist_seg segs[1];
-	struct sglist sg;
 	struct virtqueue *vq;
-	uint32_t value[HARVESTSIZE] __aligned(sizeof(uint32_t) * HARVESTSIZE);
+	void *cookie;
 	uint32_t rdlen;
-	int error;
-
-	_Static_assert(sizeof(value) < PAGE_SIZE, "sglist assumption");
 
 	if (sc->inactive)
 		return (EDEADLK);
 
-	sglist_init(&sg, 1, segs);
-	error = sglist_append(&sg, value, *sz);
-	if (error != 0)
-		panic("%s: sglist_append error=%d", __func__, error);
-
 	vq = sc->vtrnd_vq;
-	KASSERT(virtqueue_empty(vq), ("%s: non-empty queue", __func__));
 
-	error = virtqueue_enqueue(vq, buf, &sg, 0, 1);
-	if (error != 0)
-		return (error);
-
-	/*
-	 * Poll for the response, but the command is likely already
-	 * done when we return from the notify.
-	 */
-	virtqueue_notify(vq);
-	virtqueue_poll(vq, &rdlen);
-
-	if (rdlen > *sz)
-		panic("%s: random device wrote %zu bytes beyond end of provided"
-		    " buffer %p:%zu", __func__, (size_t)rdlen - *sz,
-		    (void *)value, *sz);
-	else if (rdlen == 0)
+	cookie = virtqueue_dequeue(vq, &rdlen);
+	if (cookie == NULL)
 		return (EAGAIN);
+	KASSERT(cookie == sc, ("%s: cookie mismatch", __func__));
+
 	*sz = MIN(rdlen, *sz);
-	memcpy(buf, value, *sz);
-	explicit_bzero(value, *sz);
+	memcpy(buf, sc->vtrnd_value, *sz);
+
+	vtrnd_enqueue(sc);
+
 	return (0);
 }
 
