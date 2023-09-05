@@ -54,11 +54,6 @@
 
 #include <security/audit/audit.h>
 
-#ifdef COMPAT_FREEBSD32
-#include <compat/freebsd32/freebsd32.h>
-#include <compat/freebsd32/freebsd32_proto.h>
-#endif
-
 static MALLOC_DEFINE(M_TIMERFD, "timerfd", "timerfd structures");
 
 static struct mtx timerfd_list_lock;
@@ -598,59 +593,3 @@ sys_timerfd_settime(struct thread *td, struct timerfd_settime_args *uap)
 	}
 	return (error);
 }
-
-#ifdef COMPAT_FREEBSD32
-int
-freebsd32_timerfd_gettime(struct thread *td,
-    struct freebsd32_timerfd_gettime_args *uap)
-{
-	struct itimerspec curr_value;
-	struct itimerspec32 curr_value32;
-	int error;
-
-	error = kern_timerfd_gettime(td, uap->fd, &curr_value);
-	if (error == 0) {
-		CP(curr_value, curr_value32, it_value.tv_sec);
-		CP(curr_value, curr_value32, it_value.tv_nsec);
-		CP(curr_value, curr_value32, it_interval.tv_sec);
-		CP(curr_value, curr_value32, it_interval.tv_nsec);
-		error = copyout(&curr_value32, uap->curr_value,
-		    sizeof(curr_value32));
-	}
-
-	return (error);
-}
-
-int
-freebsd32_timerfd_settime(struct thread *td,
-    struct freebsd32_timerfd_settime_args *uap)
-{
-	struct itimerspec new_value, old_value;
-	struct itimerspec32 new_value32, old_value32;
-	int error;
-
-	error = copyin(uap->new_value, &new_value32, sizeof(new_value32));
-	if (error != 0)
-		return (error);
-	CP(new_value32, new_value, it_value.tv_sec);
-	CP(new_value32, new_value, it_value.tv_nsec);
-	CP(new_value32, new_value, it_interval.tv_sec);
-	CP(new_value32, new_value, it_interval.tv_nsec);
-	if (uap->old_value == NULL) {
-		error = kern_timerfd_settime(td, uap->fd, uap->flags,
-		    &new_value, NULL);
-	} else {
-		error = kern_timerfd_settime(td, uap->fd, uap->flags,
-		    &new_value, &old_value);
-		if (error == 0) {
-			CP(old_value, old_value32, it_value.tv_sec);
-			CP(old_value, old_value32, it_value.tv_nsec);
-			CP(old_value, old_value32, it_interval.tv_sec);
-			CP(old_value, old_value32, it_interval.tv_nsec);
-			error = copyout(&old_value32, uap->old_value,
-			    sizeof(old_value32));
-		}
-	}
-	return (error);
-}
-#endif
