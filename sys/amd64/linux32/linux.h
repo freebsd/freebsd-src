@@ -46,6 +46,10 @@
 #define	LINUX32_MAXSSIZ		(64 * 1024 * 1024)	/* 64MB */
 #define	LINUX32_MAXVMEM		0			/* Unlimited */
 
+#define	LINUX_ARCHWANT_MMAP2PGOFF	1	/* 32-bit off_t want offset
+						 * represented in multiples
+						 * of page size. */
+
 /*
  * Provide a separate set of types for the Linux types.
  */

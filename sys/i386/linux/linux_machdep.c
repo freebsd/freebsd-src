@@ -309,15 +309,6 @@ linux_set_upcall(struct thread *td, register_t stack)
 }
 
 int
-linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
-{
-
-	return (linux_mmap_common(td, args->addr, args->len, args->prot,
-		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
-		PAGE_SIZE));
-}
-
-int
 linux_mmap(struct thread *td, struct linux_mmap_args *args)
 {
 	int error;
