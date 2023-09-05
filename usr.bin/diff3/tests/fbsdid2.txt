@@ -1,0 +1,5 @@
+# $FreeBSD: head/local 12345 jhb $
+
+this is a file
+
+these are some local mods to the file
