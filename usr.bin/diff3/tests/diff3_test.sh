@@ -4,6 +4,7 @@ atf_test_case diff3_lesssimple
 atf_test_case diff3_ed
 atf_test_case diff3_A
 atf_test_case diff3_merge
+atf_test_case diff3_E_merge
 
 diff3_body()
 {
@@ -66,6 +67,36 @@ diff3_merge_body()
 		diff3 -m -L long-m.txt -L long-o.txt -L long-y.txt $(atf_get_srcdir)/long-m.txt $(atf_get_srcdir)/long-o.txt $(atf_get_srcdir)/long-y.txt
 }
 
+diff3_E_merge_body()
+{
+
+expected="<<<<<<< 2
+# \$FreeBSD: head/local 12000 jhb \$
+=======
+# \$FreeBSD: head/local 12345 jhb \$
+>>>>>>> 3
+# \$FreeBSD: head/local 12345 jhb \$
+
+this is a file
+
+these are some local mods to the file
+"
+	# first test the regular test
+	cp $(atf_get_srcdir)/fbsdid2.txt out.txt
+	atf_check -s exit:1 -o inline:"${expected}" \
+		diff3 -m -L 1 -L 2 -L 3 out.txt $(atf_get_srcdir)/fbsdid1.txt $(atf_get_srcdir)/fbsdid2.txt
+
+merged="# \$FreeBSD: head/local 12345 jhb \$
+
+this is a file
+
+these are some local mods to the file
+"
+	atf_check -s exit:0 -o inline:"${merged}" \
+		diff3 -E -m out.txt $(atf_get_srcdir)/fbsdid1.txt $(atf_get_srcdir)/fbsdid2.txt
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case diff3
@@ -73,4 +104,5 @@ atf_init_test_cases()
 	atf_add_test_case diff3_ed
 	atf_add_test_case diff3_A
 	atf_add_test_case diff3_merge
+	atf_add_test_case diff3_E_merge
 }
