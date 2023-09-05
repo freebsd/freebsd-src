@@ -4,7 +4,7 @@ SRCDIR=	${SRCTOP}/sys/contrib/zlib/test
 
 PROG=	minigzip
 
-WARNS?=	2
+WARNS?=	5
 CFLAGS+=-DUSE_MMAP
 LIBADD=	z
 
