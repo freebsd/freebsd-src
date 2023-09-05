@@ -163,9 +163,11 @@ SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
 SET_DECLARE(sysinit_set, struct sysinit);
 
 /*
- * The sysinit list itself.  Items are removed as they are run.
+ * The sysinit lists.  Items are moved to sysinit_done_list when done.
  */
 static STAILQ_HEAD(sysinitlist, sysinit) sysinit_list;
+static struct sysinitlist sysinit_done_list =
+    STAILQ_HEAD_INITIALIZER(sysinit_done_list);
 
 /*
  * Compare two sysinits; return -1, 0, or 1 if a comes before, at the same time
@@ -289,6 +291,7 @@ mi_startup(void)
 	 */
 	while ((sip = STAILQ_FIRST(&sysinit_list)) != NULL) {
 		STAILQ_REMOVE_HEAD(&sysinit_list, next);
+		STAILQ_INSERT_TAIL(&sysinit_done_list, sip, next);
 
 		if (sip->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
@@ -904,6 +907,11 @@ DB_SHOW_COMMAND_FLAGS(sysinit, db_show_sysinit, DB_CMD_MEMSAFE)
 	db_printf("SYSINIT vs Name(Ptr)\n");
 	db_printf("  Subsystem  Order\n");
 	db_printf("  Function(Name)(Arg)\n");
+	STAILQ_FOREACH(sip, &sysinit_done_list, next) {
+		db_show_print_syinit(sip, true);
+		if (db_pager_quit)
+			return;
+	}
 	STAILQ_FOREACH(sip, &sysinit_list, next) {
 		db_show_print_syinit(sip, true);
 		if (db_pager_quit)
