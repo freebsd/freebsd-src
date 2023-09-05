@@ -165,7 +165,7 @@ SET_DECLARE(sysinit_set, struct sysinit);
 /*
  * The sysinit list itself.  Items are removed as they are run.
  */
-static SLIST_HEAD(sysinitlist, sysinit) sysinit_list;
+static STAILQ_HEAD(sysinitlist, sysinit) sysinit_list;
 
 /*
  * Compare two sysinits; return -1, 0, or 1 if a comes before, at the same time
@@ -194,12 +194,12 @@ sysinit_mklist(struct sysinitlist *list, struct sysinit **set,
 
 	TSENTER();
 	TSENTER2("listify");
-	SLIST_INIT(list);
+	STAILQ_INIT(list);
 	for (sipp = set; sipp < set_end; sipp++)
-		SLIST_INSERT_HEAD(list, *sipp, next);
+		STAILQ_INSERT_TAIL(list, *sipp, next);
 	TSEXIT2("listify");
 	TSENTER2("mergesort");
-	SLIST_MERGESORT(list, NULL, sysinit_compar, sysinit, next);
+	STAILQ_MERGESORT(list, NULL, sysinit_compar, sysinit, next);
 	TSEXIT2("mergesort");
 	TSEXIT();
 }
@@ -218,9 +218,9 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 	sysinit_mklist(&new_list, set, set_end);
 
 	/* Merge the new list into the existing one. */
-	TSENTER2("SLIST_MERGE");
-	SLIST_MERGE(&sysinit_list, &new_list, NULL, sysinit_compar, sysinit, next);
-	TSEXIT2("SLIST_MERGE");
+	TSENTER2("STAILQ_MERGE");
+	STAILQ_MERGE(&sysinit_list, &new_list, NULL, sysinit_compar, sysinit, next);
+	TSEXIT2("STAILQ_MERGE");
 
 	TSEXIT();
 }
@@ -284,11 +284,11 @@ mi_startup(void)
 	 * Perform each system initialization task from the ordered list.  Note
 	 * that if sysinit_list is modified (e.g. by a KLD) we will nonetheless
 	 * always perform the earlist-sorted sysinit at each step; using the
-	 * SLIST_FOREACH macro would result in items being skipped if inserted
+	 * STAILQ_FOREACH macro would result in items being skipped if inserted
 	 * earlier than the "current item".
 	 */
-	while ((sip = SLIST_FIRST(&sysinit_list)) != NULL) {
-		SLIST_REMOVE_HEAD(&sysinit_list, next);
+	while ((sip = STAILQ_FIRST(&sysinit_list)) != NULL) {
+		STAILQ_REMOVE_HEAD(&sysinit_list, next);
 
 		if (sip->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
@@ -904,7 +904,7 @@ DB_SHOW_COMMAND_FLAGS(sysinit, db_show_sysinit, DB_CMD_MEMSAFE)
 	db_printf("SYSINIT vs Name(Ptr)\n");
 	db_printf("  Subsystem  Order\n");
 	db_printf("  Function(Name)(Arg)\n");
-	SLIST_FOREACH(sip, &sysinit_list, next) {
+	STAILQ_FOREACH(sip, &sysinit_list, next) {
 		db_show_print_syinit(sip, true);
 		if (db_pager_quit)
 			break;
