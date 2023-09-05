@@ -281,6 +281,10 @@ kthread_add1(void (*func)(void *), void *arg, struct proc *p,
 		return (ENOMEM);
 
 	PROC_LOCK(p);
+	if (p->p_state == PRS_ZOMBIE || (p->p_flag2 & P2_WEXIT) != 0) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
 	oldtd = FIRST_THREAD_IN_PROC(p);
 
 	bzero(&newtd->td_startzero,
