@@ -365,6 +365,23 @@ linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 	    uap->behav));
 }
 
+int
+linux_mmap2(struct thread *td, struct linux_mmap2_args *uap)
+{
+#if defined(LINUX_ARCHWANT_MMAP2PGOFF)
+	/*
+	 * For architectures with sizeof (off_t) < sizeof (loff_t) mmap is
+	 * implemented with mmap2 syscall and the offset is represented in
+	 * multiples of page size.
+	 */
+	return (linux_mmap_common(td, PTROUT(uap->addr), uap->len, uap->prot,
+	    uap->flags, uap->fd, (uint64_t)(uint32_t)uap->pgoff * PAGE_SIZE));
+#else
+	return (linux_mmap_common(td, PTROUT(uap->addr), uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pgoff));
+#endif
+}
+
 #ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_time(struct thread *td, struct linux_time_args *args)

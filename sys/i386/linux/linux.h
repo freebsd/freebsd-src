@@ -38,6 +38,8 @@
 
 #define	LINUX_DTRACE	linuxulator
 
+#define	LINUX_ARCHWANT_MMAP2PGOFF	1
+
 /*
  * Provide a separate set of types for the Linux types.
  */
