@@ -2022,10 +2022,7 @@ ieee80211_ie_split(const u8 *ies, size_t ies_len,
 }
 
 static __inline void
-ieee80211_request_smps(struct ieee80211_vif *vif,
-#ifdef __FOR_LATER_DRV_UPDATE
-    u_int link_id,
-#endif
+ieee80211_request_smps(struct ieee80211_vif *vif, u_int link_id,
     enum ieee80211_smps_mode smps)
 {
 	static const char *smps_mode_name[] = {
@@ -2345,14 +2342,8 @@ ieee80211_proberesp_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static __inline struct sk_buff *
 ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-#ifdef __FOR_LATER_DRV_UPDATE
-    int linkid,
-#endif
-    bool qos)
+    int linkid, bool qos)
 {
-#ifndef __FOR_LATER_DRV_UPDATE
-	int linkid = 0;
-#endif
 
 	/* Only STA needs this.  Otherwise return NULL and panic bad drivers. */
 	if (vif->type != NL80211_IFTYPE_STATION)
