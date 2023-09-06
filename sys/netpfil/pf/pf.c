@@ -4885,13 +4885,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (r->rt) {
 		/* pf_map_addr increases the reason counters */
 		if ((reason = pf_map_addr(pd->af, r, pd->src, &s->rt_addr,
-		    &s->rt_kif, NULL, &sn)) != 0) {
-			pf_src_tree_remove_state(s);
-			s->timeout = PFTM_UNLINKED;
-			STATE_DEC_COUNTERS(s);
-			pf_free_state(s);
+		    &s->rt_kif, NULL, &sn)) != 0)
 			goto csfailed;
-		}
 		s->rt = r->rt;
 	}
 
@@ -4947,11 +4942,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		REASON_SET(&reason, PFRES_STATEINS);
-		pf_src_tree_remove_state(s);
-		s->timeout = PFTM_UNLINKED;
-		STATE_DEC_COUNTERS(s);
-		pf_free_state(s);
-		return (PF_DROP);
+		goto drop;
 	} else
 		*sm = s;
 
@@ -5020,13 +5011,14 @@ csfailed:
 		PF_SRC_NODE_UNLOCK(nsn);
 	}
 
-	return (PF_DROP);
-
 drop:
-	pf_src_tree_remove_state(s);
-	s->timeout = PFTM_UNLINKED;
-	STATE_DEC_COUNTERS(s);
-	pf_free_state(s);
+	if (s != NULL) {
+		pf_src_tree_remove_state(s);
+		s->timeout = PFTM_UNLINKED;
+		STATE_DEC_COUNTERS(s);
+		pf_free_state(s);
+	}
+
 	return (PF_DROP);
 }
 
