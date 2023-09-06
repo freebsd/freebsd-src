@@ -14,15 +14,11 @@
 #ifndef _ICP_QAT_HW_20_COMP_H_
 #define _ICP_QAT_HW_20_COMP_H_
 
-#include "icp_qat_hw_20_comp_defs.h" // For HW definitions
-#include "icp_qat_fw.h"		     //For Set Field Macros.
+#include "icp_qat_hw_20_comp_defs.h" /* For HW definitions */
+#include "icp_qat_fw.h"		     /* For Set Field Macros. */
 
-#ifdef WIN32
-#include <stdlib.h> // built in support for _byteswap_ulong
-#define BYTE_SWAP_32 _byteswap_ulong
-#else
+
 #define BYTE_SWAP_32 __builtin_bswap32
-#endif
 
 /**
 *****************************************************************************
@@ -34,16 +30,17 @@
 *
 *****************************************************************************/
 typedef struct icp_qat_hw_comp_20_config_csr_lower_s {
-	// Fields programmable directly by the SW.
+	/* Fields programmable directly by the SW. */
 	icp_qat_hw_comp_20_extended_delay_match_mode_t edmm;
 	icp_qat_hw_comp_20_hw_comp_format_t algo;
 	icp_qat_hw_comp_20_search_depth_t sd;
 	icp_qat_hw_comp_20_hbs_control_t hbs;
-	// Fields programmable directly by the FW.
-	// Block Drop enable. (Set by FW)
+	/* Fields programmable directly by the FW. */
+	/* Block Drop enable. (Set by FW) */
 	icp_qat_hw_comp_20_abd_t abd;
 	icp_qat_hw_comp_20_lllbd_ctrl_t lllbd;
-	// Advanced HW control (Set to default vals)
+	/* Advanced HW control (Set to default vals) */
+	icp_qat_hw_comp_20_min_match_control_t mmctrl;
 	icp_qat_hw_comp_20_skip_hash_collision_t hash_col;
 	icp_qat_hw_comp_20_skip_hash_update_t hash_update;
 	icp_qat_hw_comp_20_byte_skip_t skip_ctrl;
@@ -62,7 +59,7 @@ static inline uint32_t
 ICP_QAT_FW_COMP_20_BUILD_CONFIG_LOWER(icp_qat_hw_comp_20_config_csr_lower_t csr)
 {
 	uint32_t val32 = 0;
-	// Programmable values
+	/* Programmable values */
 	QAT_FIELD_SET(val32,
 		      csr.algo,
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_HW_COMP_FORMAT_BITPOS,
@@ -85,9 +82,9 @@ ICP_QAT_FW_COMP_20_BUILD_CONFIG_LOWER(icp_qat_hw_comp_20_config_csr_lower_t csr)
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_HBS_CONTROL_MASK);
 
 	QAT_FIELD_SET(val32,
-		      csr.lllbd,
-		      ICP_QAT_HW_COMP_20_CONFIG_CSR_LLLBD_CTRL_BITPOS,
-		      ICP_QAT_HW_COMP_20_CONFIG_CSR_LLLBD_CTRL_MASK);
+		      csr.mmctrl,
+		      ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS,
+		      ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK);
 
 	QAT_FIELD_SET(val32,
 		      csr.hash_col,
@@ -103,7 +100,7 @@ ICP_QAT_FW_COMP_20_BUILD_CONFIG_LOWER(icp_qat_hw_comp_20_config_csr_lower_t csr)
 		      csr.skip_ctrl,
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_BYTE_SKIP_BITPOS,
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_BYTE_SKIP_MASK);
-	// Default values.
+	/* Default values. */
 
 	QAT_FIELD_SET(val32,
 		      csr.abd,
@@ -135,6 +132,7 @@ typedef struct icp_qat_hw_comp_20_config_csr_upper_s {
 	icp_qat_hw_comp_20_scb_unload_control_t scb_unload_ctrl;
 	icp_qat_hw_comp_20_disable_token_fusion_control_t
 	    disable_token_fusion_ctrl;
+	icp_qat_hw_comp_20_lbms_t lbms;
 	icp_qat_hw_comp_20_scb_mode_reset_mask_t scb_mode_reset;
 	uint16_t lazy;
 	uint16_t nice;
@@ -185,6 +183,11 @@ ICP_QAT_FW_COMP_20_BUILD_CONFIG_UPPER(icp_qat_hw_comp_20_config_csr_upper_t csr)
 	    ICP_QAT_HW_COMP_20_CONFIG_CSR_DISABLE_TOKEN_FUSION_CONTROL_MASK);
 
 	QAT_FIELD_SET(val32,
+		      csr.lbms,
+		      ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_BITPOS,
+		      ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_MASK);
+
+	QAT_FIELD_SET(val32,
 		      csr.scb_mode_reset,
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_BITPOS,
 		      ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_MASK);
@@ -214,8 +217,11 @@ ICP_QAT_FW_COMP_20_BUILD_CONFIG_UPPER(icp_qat_hw_comp_20_config_csr_upper_t csr)
 typedef struct icp_qat_hw_decomp_20_config_csr_lower_s {
 	/* Fields programmable directly by the SW. */
 	icp_qat_hw_decomp_20_hbs_control_t hbs;
+	icp_qat_hw_decomp_20_lbms_t lbms;
 	/* Advanced HW control (Set to default vals) */
 	icp_qat_hw_decomp_20_hw_comp_format_t algo;
+	icp_qat_hw_decomp_20_min_match_control_t mmctrl;
+	icp_qat_hw_decomp_20_lz4_block_checksum_present_t lbc;
 } icp_qat_hw_decomp_20_config_csr_lower_t;
 
 /**
@@ -238,9 +244,25 @@ ICP_QAT_FW_DECOMP_20_BUILD_CONFIG_LOWER(
 		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HBS_CONTROL_MASK);
 
 	QAT_FIELD_SET(val32,
+		      csr.lbms,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_BITPOS,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_MASK);
+
+	QAT_FIELD_SET(val32,
 		      csr.algo,
 		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_BITPOS,
 		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_MASK);
+
+	QAT_FIELD_SET(val32,
+		      csr.mmctrl,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK);
+
+	QAT_FIELD_SET(
+	    val32,
+	    csr.lbc,
+	    ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LZ4_BLOCK_CHECKSUM_PRESENT_BITPOS,
+	    ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LZ4_BLOCK_CHECKSUM_PRESENT_MASK);
 
 	return BYTE_SWAP_32(val32);
 }
@@ -257,7 +279,7 @@ ICP_QAT_FW_DECOMP_20_BUILD_CONFIG_LOWER(
 typedef struct icp_qat_hw_decomp_20_config_csr_upper_s {
 	/* Advanced HW control (Set to default vals) */
 	icp_qat_hw_decomp_20_speculative_decoder_control_t sdc;
-	icp_qat_hw_decomp_20_mini_cam_control_t mcc;
+	icp_qat_hw_decomp_20_reserved4_control_t res4;
 } icp_qat_hw_decomp_20_config_csr_upper_t;
 
 /**
@@ -281,11 +303,10 @@ ICP_QAT_FW_DECOMP_20_BUILD_CONFIG_UPPER(
 	    ICP_QAT_HW_DECOMP_20_CONFIG_CSR_SPECULATIVE_DECODER_CONTROL_MASK);
 
 	QAT_FIELD_SET(val32,
-		      csr.mcc,
-		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_BITPOS,
-		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_MASK);
+		      csr.res4,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_RESERVED4_CONTROL_BITPOS,
+		      ICP_QAT_HW_DECOMP_20_CONFIG_CSR_RESERVED4_CONTROL_MASK);
 
 	return BYTE_SWAP_32(val32);
 }
-
 #endif /* ICP_QAT_HW__2X_COMP_H_ */

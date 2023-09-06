@@ -52,14 +52,6 @@
 /* C string null terminator size */
 #define SAL_NULL_TERM_SIZE 1
 
-/* Type to access extended features bit fields */
-typedef struct dc_extended_features_s {
-	unsigned is_cnv : 1; /* Bit<0> */
-	unsigned padding : 7;
-	unsigned is_cnvnr : 1; /* Bit<8> */
-	unsigned not_used : 23;
-} dc_extd_ftrs_t;
-
 /*
  * Prints statistics for a compression instance
  */

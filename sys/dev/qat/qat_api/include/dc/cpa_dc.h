@@ -482,6 +482,9 @@ typedef enum _CpaDcReqStatus
      * (not supported) */
     CPA_DC_CRC_INTEG_ERR = -20,
     /**< A data integrity CRC error was detected */
+    CPA_DC_REGION_OUT_OF_BOUNDS = -21,
+    /**< Error returned when decompression ends before the specified partial
+     * decompression region was produced */
     CPA_DC_LZ4_MAX_BLOCK_SIZE_EXCEEDED = -93,
     /**< LZ4 max block size exceeded */
     CPA_DC_LZ4_BLOCK_OVERFLOW_ERR = -95,
@@ -898,7 +901,11 @@ typedef struct _CpaDcRqResults  {
         CpaDcReqStatus status;
           /**< Additional status details from accelerator */
         Cpa32U produced;
-          /**< Octets produced by the operation */
+          /**< Octets produced by the operation.
+           * For Data Plane "partial read" operations, the size of the produced
+           * data should be equal to the sum of the data offset and length of
+           * the requested decompressed data chunk.
+           * See ref @CpaDcDpPartialReadData. */
         Cpa32U consumed;
           /**< Octets consumed by the operation */
         Cpa32U checksum;
@@ -911,7 +918,11 @@ typedef struct _CpaDcRqResults  {
            * The checksum algorithm CPA_DC_XXHASH32 does not support passing an
            * input value in this parameter. Any initial value passed will be
            * ignored by the compression/decompression operation when this
-           * checksum algorithm is used. */
+           * checksum algorithm is used.
+           *
+           * For Data Plane "partial read" operations, the checksum is computed
+           * from the beginning of the decompressed data to the end of the
+           * requested chunk. See ref @CpaDcDpPartialReadData. */
         CpaBoolean endOfLastBlock;
           /**< Decompression operation has stopped at the end of the last
            * block in a deflate stream. */

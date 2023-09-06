@@ -20,7 +20,8 @@
 
 #define ADF_STATE_CALLOUT_TIME 10
 
-static const char *mtx_name = "state_callout_mtx";
+static const char *mtx_name = "state_mtx";
+static const char *mtx_callout_name = "callout_mtx";
 
 static d_open_t adf_processes_open;
 static void adf_processes_release(void *data);
@@ -36,6 +37,7 @@ static void adf_state_kqread_detach(struct knote *kn);
 
 static struct callout callout;
 static struct mtx mtx;
+static struct mtx callout_mtx;
 static struct service_hndl adf_state_hndl;
 
 struct entry_proc_events {
@@ -422,8 +424,8 @@ adf_state_set(int dev, enum adf_event event)
 			STAILQ_INSERT_TAIL(head, state, entries_state);
 		}
 	}
-	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
 	mtx_unlock(&mtx);
+	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
 }
 
 static int
@@ -484,7 +486,7 @@ adf_state_kqfilter(struct cdev *dev, struct knote *kn)
 	case EVFILT_READ:
 		kn->kn_fop = &adf_state_read_filterops;
 		kn->kn_hook = priv;
-		knlist_add(&priv->rsel.si_note, kn, 0);
+		knlist_add(&priv->rsel.si_note, kn, 1);
 		mtx_unlock(&mtx);
 		return 0;
 	default:
@@ -530,17 +532,16 @@ adf_state_init(void)
 				 ADF_DEV_STATE_NAME);
 	SLIST_INIT(&proc_events_head);
 	mtx_init(&mtx, mtx_name, NULL, MTX_DEF);
-	callout_init_mtx(&callout, &mtx, 0);
+	mtx_init(&callout_mtx, mtx_callout_name, NULL, MTX_DEF);
+	callout_init_mtx(&callout, &callout_mtx, 0);
 	explicit_bzero(&adf_state_hndl, sizeof(adf_state_hndl));
 	adf_state_hndl.event_hld = adf_state_event_handler;
 	adf_state_hndl.name = "adf_state_event_handler";
-	mtx_lock(&mtx);
 	adf_service_register(&adf_state_hndl);
 	callout_reset(&callout,
 		      ADF_STATE_CALLOUT_TIME,
 		      adf_state_callout_notify_ev,
 		      NULL);
-	mtx_unlock(&mtx);
 }
 
 void
@@ -548,17 +549,20 @@ adf_state_destroy(void)
 {
 	struct entry_proc_events *proc_events = NULL;
 
-	mtx_lock(&mtx);
 	adf_service_unregister(&adf_state_hndl);
+	mtx_lock(&callout_mtx);
 	callout_stop(&callout);
+	mtx_unlock(&callout_mtx);
+	mtx_destroy(&callout_mtx);
+	mtx_lock(&mtx);
 	while (!SLIST_EMPTY(&proc_events_head)) {
 		proc_events = SLIST_FIRST(&proc_events_head);
 		SLIST_REMOVE_HEAD(&proc_events_head, entries_proc_events);
 		free(proc_events, M_QAT);
 	}
-	destroy_dev(adf_state_dev);
 	mtx_unlock(&mtx);
 	mtx_destroy(&mtx);
+	destroy_dev(adf_state_dev);
 }
 
 static int
@@ -586,6 +590,7 @@ adf_state_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	SLIST_INSERT_HEAD(&proc_events_head,
 			  entry_proc_events,
 			  entries_proc_events);
+	mtx_unlock(&mtx);
 	ret = devfs_set_cdevpriv(prv_data, adf_state_release);
 	if (ret) {
 		SLIST_REMOVE(&proc_events_head,
@@ -596,7 +601,6 @@ adf_state_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		free(prv_data, M_QAT);
 	}
 	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
-	mtx_unlock(&mtx);
 	return ret;
 }
 
@@ -636,8 +640,8 @@ adf_state_read(struct cdev *dev, struct uio *uio, int ioflag)
 			KNOTE_UNLOCKED(&prv_data->rsel.si_note, 0);
 		}
 	}
-	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
 	mtx_unlock(&mtx);
+	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
 	return ret;
 }
 
