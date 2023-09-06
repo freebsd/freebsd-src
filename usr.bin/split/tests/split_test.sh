@@ -220,6 +220,25 @@ continue_body()
 	atf_check -o file:input cat xab
 }
 
+atf_test_case undocumented_kludge
+undocumented_kludge_body()
+{
+	seq 5000 >input
+	atf_check split -1000 input
+	atf_check -o file:xae seq 4001 5000
+	atf_check split -d1000 input
+	atf_check -o file:x04 seq 4001 5000
+}
+
+atf_test_case duplicate_linecount
+duplicate_linecount_body()
+{
+	atf_check -s exit:64 -e ignore split -5 -5 /dev/null
+	atf_check -s exit:64 -e ignore split -l5 -5 /dev/null
+	atf_check -s exit:64 -e ignore split -5 -l5 /dev/null
+	atf_check -s exit:64 -e ignore split -l5 -l5 /dev/null
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case bytes
@@ -231,4 +250,6 @@ atf_init_test_cases()
 	atf_add_test_case pattern
 	atf_add_test_case autoextend
 	atf_add_test_case continue
+	atf_add_test_case undocumented_kludge
+	atf_add_test_case duplicate_linecount
 }
