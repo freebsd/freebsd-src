@@ -268,13 +268,9 @@ sdhci_init_rk3399_emmccardclk(device_t dev)
 }
 
 static int
-sdhci_init_rk3399(device_t dev)
+sdhci_init_clocks(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	struct syscon *grf = NULL;
-	phandle_t node;
-	uint64_t freq;
-	uint32_t mask, val;
 	int error;
 
 	/* Get and activate clocks */
@@ -288,11 +284,6 @@ sdhci_init_rk3399(device_t dev)
 		device_printf(dev, "cannot enable xin clock\n");
 		return (ENXIO);
 	}
-	error = clk_get_freq(sc->clk_xin, &freq);
-	if (error != 0) {
-		device_printf(dev, "cannot get xin clock frequency\n");
-		return (ENXIO);
-	}
 	error = clk_get_by_ofw_name(dev, 0, "clk_ahb", &sc->clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
@@ -301,6 +292,25 @@ sdhci_init_rk3399(device_t dev)
 	error = clk_enable(sc->clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot enable ahb clock\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+sdhci_init_rk3399(device_t dev)
+{
+	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	struct syscon *grf = NULL;
+	phandle_t node;
+	uint64_t freq;
+	uint32_t mask, val;
+	int error;
+
+	error = clk_get_freq(sc->clk_xin, &freq);
+	if (error != 0) {
+		device_printf(dev, "cannot get xin clock frequency\n");
 		return (ENXIO);
 	}
 
@@ -561,7 +571,7 @@ sdhci_fdt_attach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 	struct sdhci_slot *slot;
-	int err, slots, rid, i;
+	int err, slots, rid, i, compat;
 
 	sc->dev = dev;
 
@@ -574,24 +584,33 @@ sdhci_fdt_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
-	    SDHCI_FDT_RK3399) {
-		/* Initialize SDHCI */
-		err = sdhci_init_rk3399(dev);
+	compat = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (compat) {
+	case SDHCI_FDT_RK3399:
+	case SDHCI_FDT_XLNX_ZMP:
+		err = sdhci_init_clocks(dev);
 		if (err != 0) {
-			device_printf(dev, "Cannot init RK3399 SDHCI\n");
+			device_printf(dev, "Cannot init clocks\n");
 			return (err);
 		}
-	}
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
-	    SDHCI_FDT_RK3568) {
+		if (compat == SDHCI_FDT_RK3399) {
+			err = sdhci_init_rk3399(dev);
+			if (err != 0) {
+				device_printf(dev, "Cannot init RK3399 SDHCI\n");
+				return (err);
+			}
+		}
+		break;
+	case SDHCI_FDT_RK3568:
 		/* setup & enable clocks */
 		if (clk_get_by_ofw_name(dev, 0, "core", &sc->clk_core)) {
 			device_printf(dev, "cannot get core clock\n");
 			return (ENXIO);
 		}
 		clk_enable(sc->clk_core);
+		break;
+	default:
+		break;
 	}
 
 	/* Scan all slots. */
