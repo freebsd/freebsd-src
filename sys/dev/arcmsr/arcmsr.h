@@ -40,6 +40,7 @@
 #define ARCMSR_MAX_XFER_SECTORS		4096
 #define ARCMSR_MAX_TARGETID		17	/*16 max target id + 1*/
 #define ARCMSR_MAX_TARGETLUN		8	/*8*/
+#define ARCMSR_VIRTUAL_DEVICE_ID	(ARCMSR_MAX_TARGETID - 1)
 #define ARCMSR_MAX_CHIPTYPE_NUM		4
 #define ARCMSR_MAX_OUTSTANDING_CMD	256
 #define ARCMSR_MAX_START_JOB		256
@@ -108,6 +109,7 @@ typedef struct mtx			arcmsr_lock_t;
 #define PCI_DEVICE_ID_ARECA_1680        0x1680 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1681        0x1681 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1880        0x1880 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1883        0x1883 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1884        0x1884 /* Device ID	*/
 
 #define ARECA_SUB_DEV_ID_1880	0x1880 /* Subsystem Device ID	*/
@@ -116,9 +118,11 @@ typedef struct mtx			arcmsr_lock_t;
 #define ARECA_SUB_DEV_ID_1884	0x1884 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1212	0x1212 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1213	0x1213 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1214	0x1214 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1216	0x1216 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1222	0x1222 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1223	0x1223 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1224	0x1224 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1226	0x1226 /* Subsystem Device ID	*/
 
 #define PCIDevVenIDARC1110              0x111017D3 /* Vendor Device ID	*/
@@ -136,6 +140,7 @@ typedef struct mtx			arcmsr_lock_t;
 #define PCIDevVenIDARC1220              0x122017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1222              0x122217D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1223              0x122317D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1224              0x122417D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1230              0x123017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1231              0x123117D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1260              0x126017D3 /* Vendor Device ID	*/
@@ -148,7 +153,9 @@ typedef struct mtx			arcmsr_lock_t;
 #define PCIDevVenIDARC1681              0x168117D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1880              0x188017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1882              0x188217D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1883              0x188317D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1884              0x188417D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1886_0            0x188617D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1886_             0x188917D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1886              0x188A17D3 /* Vendor Device ID	*/
 
@@ -1166,6 +1173,7 @@ typedef struct PHYS_ADDR64 {
 #define	ARCMSR_FW_VERS_OFFSET		17
 #define	ARCMSR_FW_DEVMAP_OFFSET		21
 #define	ARCMSR_FW_CFGVER_OFFSET		25
+#define	ARCMSR_FW_PICSTATUS		30
 
 struct FIRMWARE_INFO {
 	u_int32_t      signature;           /*0,00-03*/
@@ -1274,15 +1282,14 @@ struct ARCMSR_CDB {
 */
 struct CommandControlBlock {
 	struct ARCMSR_CDB	arcmsr_cdb;		/* 0  -503 (size of CDB=504): arcmsr messenger scsi command descriptor size 504 bytes */
-	u_int32_t		cdb_phyaddr_low;	/* 504-507 */
-	u_int32_t		arc_cdb_size;		/* 508-511 */
+	unsigned long		cdb_phyaddr;		/* 504-507 */
 	/*  ======================512+32 bytes============================  */
 	union ccb		*pccb;			/* 512-515 516-519 pointer of freebsd scsi command */
 	struct AdapterControlBlock	*acb;		/* 520-523 524-527 */
 	bus_dmamap_t		dm_segs_dmamap;		/* 528-531 532-535 */
 	u_int16_t   		srb_flags;		/* 536-537 */
 	u_int16_t		srb_state;              /* 538-539 */
-	u_int32_t		cdb_phyaddr_high;	/* 540-543 */
+	u_int32_t		arc_cdb_size;		/* 508-511 */
 	struct	callout		ccb_callout;
 	u_int32_t		smid;
     /*  ==========================================================  */
@@ -1298,6 +1305,8 @@ struct CommandControlBlock {
 #define		SRB_FLAG_DMAWRITE		0x0040
 #define		SRB_FLAG_PKTBIND		0x0080
 #define		SRB_FLAG_TIMER_START		0x0080
+#define		SRB_FLAG_DIRECT_IO		0x0100
+#define		SRB_FLAG_USE_SG			0x0200
 /*	srb_state */
 #define		ARCMSR_SRB_DONE   		0x0000
 #define		ARCMSR_SRB_UNBUILD 		0x0000
@@ -1359,6 +1368,8 @@ struct AdapterControlBlock {
 	u_int32_t		outbound_int_enable;
 
 	struct MessageUnit_UNION	*pmu;		/* message unit ATU inbound base address0 */
+	vm_offset_t		mem_base0;
+	vm_offset_t		mem_base1;
 	uint32_t		*message_wbuffer;	//0x000 - COMPORT_IN  (to be sent to ROC)
 	uint32_t		*message_rbuffer;	//0x100 - COMPORT_OUT (to be sent to Host)
 	uint32_t		*msgcode_rwbuffer;	//0x200 - BIOS_AREA
@@ -1397,6 +1408,7 @@ struct AdapterControlBlock {
 	char			firm_model[12];		/*15,60-67*/
 	char			firm_version[20];	/*17,68-83*/
 	char			device_map[20];		/*21,84-99 */
+	u_int32_t		firm_PicStatus;
 	struct	callout		devmap_callout;
 	u_int32_t		pktRequestCount;
 	u_int32_t		pktReturnCount;
@@ -1409,10 +1421,35 @@ struct AdapterControlBlock {
 	u_int32_t		out_doorbell;
 	u_int32_t		completionQ_entry;
 	pCompletion_Q		pCompletionQ;
+	int			xor_mega;
 	int			msix_vectors;
 	int			rid[2];
 	unsigned long		completeQ_phys;
+	u_int32_t		max_coherent_size;
+	u_int8_t		*xortable;
+	unsigned long		xor_sgtable_phy;
+	bus_dma_tag_t		xortable_dmat;		/* dmat for xor table */
+	bus_dmamap_t		xortable_dmamap;
+	u_int8_t		*xorptr;
+	bus_dma_tag_t		xor_dmat;		/* dmat for xor */
+	bus_dmamap_t		xor_dmamap;
+	unsigned int		init2cfg_size;
+	unsigned int		xorVirtOffset;
 };/* HW_DEVICE_EXTENSION */
+
+struct HostRamBuf {
+	u_int32_t	hrbSignature;	// must be "HRBS"
+	u_int32_t	hrbSize;	// total buffer size(must be multiples of MB, this version should be 128+3 MB, i.e. 0x8300000)
+	u_int32_t	hrbRes[2];	// reserved, must be set to 0
+};
+struct	XorSg {
+	u_int64_t	xorPhys;
+	u_int64_t	xorBufLen;
+};
+#define ARCMSR_XOR_SEG_SIZE	(1024 * 1024)
+#define ARCMSR_MAX_XOR_SEG	128 + 3
+#define ARCMSR_DMA_ALLOC_FLAG	(BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO | BUS_DMA_NOCACHE)
+
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
 #define ACB_F_MSG_STOP_BGRB             0x0002		/* stop RAID background rebuild */
@@ -1427,7 +1464,13 @@ struct AdapterControlBlock {
 #define ACB_F_CAM_DEV_QFRZN             0x0400
 #define ACB_F_BUS_HANG_ON               0x0800		/* need hardware reset bus */
 #define ACB_F_SRB_FUNCTION_POWER        0x1000
-#define	ACB_F_MSIX_ENABLED		0x2000
+#define ACB_F_MSIX_ENABLED		0x2000
+#define ACB_F_MSG_GET_CONFIG		0x4000
+#define ACB_F_DIRECT_IO			0x8000
+#define ACB_F_DMAMAP_SRB		0x10000
+#define ACB_F_DMAMAP_SGTABLE		0x20000
+#define ACB_F_DMAMAP_SG			0x40000
+#define ACB_F_MAPXOR_FAILD		0x80000
 /* devstate */
 #define ARECA_RAID_GONE         	0x55
 #define ARECA_RAID_GOOD         	0xaa

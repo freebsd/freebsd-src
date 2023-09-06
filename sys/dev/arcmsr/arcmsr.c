@@ -88,6 +88,8 @@
 ** 1.50.00.03   05/04/2021  Ching Huang     Fixed doorbell status arrived late on ARC-1886
 ** 1.50.00.04   12/08/2021  Ching Huang     Fixed boot up hung under ARC-1886 with no volume created
 ** 1.50.00.05   03/23/2023  Ching Huang     Fixed reading buffer empty length error
+** 1.50.00.06   08/07/2023  Ching Huang     Add support adapter using system memory as XOR buffer,
+**                                          Add support device ID 1883,1886
 ******************************************************************************************
 */
 
@@ -143,7 +145,7 @@
 
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.05 2023-03-23"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.06 2023-08-07"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -1071,7 +1073,7 @@ static void arcmsr_build_srb(struct CommandControlBlock *srb,
 */ 
 static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandControlBlock *srb)
 {
-	u_int32_t cdb_phyaddr_low = (u_int32_t) srb->cdb_phyaddr_low;
+	u_int32_t cdb_phyaddr_low = (u_int32_t) srb->cdb_phyaddr;
 	struct ARCMSR_CDB *arcmsr_cdb = (struct ARCMSR_CDB *)&srb->arcmsr_cdb;
 
 	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, (srb->srb_flags & SRB_FLAG_WRITE) ? BUS_DMASYNC_POSTWRITE:BUS_DMASYNC_POSTREAD);
@@ -1131,10 +1133,10 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 			ARCMSR_LOCK_ACQUIRE(&acb->postDone_lock);
 			postq_index = phbdmu->postq_index;
 			pinbound_srb = (struct InBound_SRB *)&phbdmu->post_qbuffer[postq_index & 0xFF];
-			pinbound_srb->addressHigh = srb->cdb_phyaddr_high;
-			pinbound_srb->addressLow = srb->cdb_phyaddr_low;
+			pinbound_srb->addressHigh = (u_int32_t)((srb->cdb_phyaddr >> 16) >> 16);
+			pinbound_srb->addressLow = (u_int32_t)srb->cdb_phyaddr;
 			pinbound_srb->length = srb->arc_cdb_size >> 2;
-			arcmsr_cdb->Context = srb->cdb_phyaddr_low;
+			arcmsr_cdb->Context = (u_int32_t)srb->cdb_phyaddr;
 			if (postq_index & 0x4000) {
 				index_stripped = postq_index & 0xFF;
 				index_stripped += 1;
@@ -1742,7 +1744,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBA_MessageUnit, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0], devicemap);
 			devicemap += 4;
 		}
 		break;
@@ -1751,7 +1753,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBB_RWBUFFER, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-			deviceMapCurrent[target]=bus_space_read_4(acb->btag[1], acb->bhandle[1],  devicemap);
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[1], acb->bhandle[1], devicemap);
 			devicemap += 4;
 		}
 		break;
@@ -1760,7 +1762,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBC_MessageUnit, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0], devicemap);
 			devicemap += 4;
 		}
 		break;
@@ -1768,7 +1770,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBD_MessageUnit, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0], devicemap);
 			devicemap += 4;
 		}
 		break;
@@ -1776,7 +1778,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBE_MessageUnit, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0], devicemap);
 			devicemap += 4;
 		}
 		break;
@@ -1813,14 +1815,15 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 				{
 					if(acb->device_map[target] & bit_check)
 					{/* unit departed */
-						printf("arcmsr_dr_handle: Target=%x, lun=%x, GONE!!!\n",target,lun);
+						if (target != 0x0f)
+							printf("arcmsr_dr_handle: Target=0x%x, lun=%x, GONE!!!\n",target,lun);
 						arcmsr_abort_dr_ccbs(acb, target, lun);
 						arcmsr_rescan_lun(acb, target, lun);
 						acb->devstate[target][lun] = ARECA_RAID_GONE;
 					}
 					else
 					{/* unit arrived */
-						printf("arcmsr_dr_handle: Target=%x, lun=%x, Plug-IN!!!\n",target,lun);
+						printf("arcmsr_dr_handle: Target=0x%x, lun=%x, Plug-IN!!!\n",target,lun);
 						arcmsr_rescan_lun(acb, target, lun);
 						acb->devstate[target][lun] = ARECA_RAID_GOOD;
 					}
@@ -3170,7 +3173,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 				return;
 			}
 
-			if(target == 16) {
+			if(target == ARCMSR_VIRTUAL_DEVICE_ID) {
 				/* virtual device for iop message transfer */
 				arcmsr_handle_virtual_command(acb, pccb);
 				return;
@@ -3216,7 +3219,9 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			else
 				cpi->base_transfer_speed = 300000;
 			if((acb->vendor_device_id == PCIDevVenIDARC1880) ||
+			   (acb->vendor_device_id == PCIDevVenIDARC1883) ||
 			   (acb->vendor_device_id == PCIDevVenIDARC1884) ||
+			   (acb->vendor_device_id == PCIDevVenIDARC1886) ||
 			   (acb->vendor_device_id == PCIDevVenIDARC1680) ||
 			   (acb->vendor_device_id == PCIDevVenIDARC1214))
 			{
@@ -3282,7 +3287,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 	case XPT_GET_TRAN_SETTINGS: {
 			struct ccb_trans_settings *cts;
 
-			if(pccb->ccb_h.target_id == 16) {
+			if(pccb->ccb_h.target_id == ARCMSR_VIRTUAL_DEVICE_ID) {
 				pccb->ccb_h.status |= CAM_FUNC_NOTAVAIL;
 				xpt_done(pccb);
 				break;
@@ -3299,7 +3304,9 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 				cts->protocol = PROTO_SCSI;
 
 				if((acb->vendor_device_id == PCIDevVenIDARC1880) ||
+				   (acb->vendor_device_id == PCIDevVenIDARC1883) ||
 				   (acb->vendor_device_id == PCIDevVenIDARC1884) ||
+				   (acb->vendor_device_id == PCIDevVenIDARC1886) ||
 				   (acb->vendor_device_id == PCIDevVenIDARC1680) ||
 				   (acb->vendor_device_id == PCIDevVenIDARC1214))
 				{
@@ -3344,7 +3351,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			break;
 		}
 	case XPT_CALC_GEOMETRY:
-			if(pccb->ccb_h.target_id == 16) {
+			if(pccb->ccb_h.target_id == ARCMSR_VIRTUAL_DEVICE_ID) {
 				pccb->ccb_h.status |= CAM_FUNC_NOTAVAIL;
 				xpt_done(pccb);
 				break;
@@ -4047,6 +4054,7 @@ static void arcmsr_get_hbf_config(struct AdapterControlBlock *acb)
 	acb->firm_sdram_size	= acb->msgcode_rwbuffer[3];	/*firm_sdram_size,    3, 12-15*/
 	acb->firm_ide_channels	= acb->msgcode_rwbuffer[4];	/*firm_ide_channels,  4, 16-19*/
 	acb->firm_cfg_version	= acb->msgcode_rwbuffer[ARCMSR_FW_CFGVER_OFFSET]; /*firm_cfg_version,  25*/
+	acb->firm_PicStatus	= acb->msgcode_rwbuffer[ARCMSR_FW_PICSTATUS]; /* firm_PicStatus, 30 */
 	if(acb->firm_numbers_queue > ARCMSR_MAX_OUTSTANDING_CMD)
 		acb->maxOutstanding = ARCMSR_MAX_OUTSTANDING_CMD - 1;
 	else
@@ -4340,6 +4348,12 @@ static u_int32_t arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 			acb->msgcode_rwbuffer[5] = cdb_phyaddr_lo32;
 			acb->msgcode_rwbuffer[6] = srb_phyaddr_hi32;
 			acb->msgcode_rwbuffer[7] = COMPLETION_Q_POOL_SIZE;
+			if (acb->xor_mega) {
+				acb->msgcode_rwbuffer[8] = 0x555AA;	//FreeBSD init 2
+				acb->msgcode_rwbuffer[9] = 0;
+				acb->msgcode_rwbuffer[10] = (uint32_t)acb->xor_sgtable_phy;
+				acb->msgcode_rwbuffer[11] = (uint32_t)((acb->xor_sgtable_phy >> 16) >> 16);
+			}
 			CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_SET_CONFIG);
 			acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 			CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
@@ -4414,20 +4428,48 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 		if((acb->adapter_type == ACB_ADAPTER_TYPE_C) || (acb->adapter_type == ACB_ADAPTER_TYPE_D)
 			 || (acb->adapter_type == ACB_ADAPTER_TYPE_E) || (acb->adapter_type == ACB_ADAPTER_TYPE_F))
 		{
-			srb_tmp->cdb_phyaddr_low = srb_phyaddr;
-			srb_tmp->cdb_phyaddr_high = (u_int32_t)((srb_phyaddr >> 16) >> 16);
+			srb_tmp->cdb_phyaddr = srb_phyaddr;
 		}
 		else
-			srb_tmp->cdb_phyaddr_low = srb_phyaddr >> 5;
+			srb_tmp->cdb_phyaddr = srb_phyaddr >> 5;
 		srb_tmp->acb = acb;
 		srb_tmp->smid = i << 16;
 		acb->srbworkingQ[i] = acb->psrb_pool[i] = srb_tmp;
 		srb_phyaddr = srb_phyaddr + SRB_SIZE;
 		srb_tmp = (struct CommandControlBlock *)((unsigned long)srb_tmp + SRB_SIZE);
 	}
-	if (acb->adapter_type == ACB_ADAPTER_TYPE_E)
+	srb_tmp = (struct CommandControlBlock *)(acb->uncacheptr + ARCMSR_SRBS_POOL_SIZE);
+	srb_phyaddr = (unsigned long)segs->ds_addr + ARCMSR_SRBS_POOL_SIZE;
+	switch (acb->adapter_type) {
+	case ACB_ADAPTER_TYPE_B: {
+		struct HBB_MessageUnit *phbbmu;
+
+		acb->pmu = (struct MessageUnit_UNION *)srb_tmp;
+		phbbmu = (struct HBB_MessageUnit *)acb->pmu;
+		phbbmu->hbb_doorbell = (struct HBB_DOORBELL *)acb->mem_base0;
+		phbbmu->hbb_rwbuffer = (struct HBB_RWBUFFER *)acb->mem_base1;
+		if (acb->vendor_device_id == PCIDevVenIDARC1203) {
+			phbbmu->drv2iop_doorbell = offsetof(struct HBB_DOORBELL_1203, drv2iop_doorbell);
+			phbbmu->drv2iop_doorbell_mask = offsetof(struct HBB_DOORBELL_1203, drv2iop_doorbell_mask);
+			phbbmu->iop2drv_doorbell = offsetof(struct HBB_DOORBELL_1203, iop2drv_doorbell);
+			phbbmu->iop2drv_doorbell_mask = offsetof(struct HBB_DOORBELL_1203, iop2drv_doorbell_mask);
+		} else {
+			phbbmu->drv2iop_doorbell = offsetof(struct HBB_DOORBELL, drv2iop_doorbell);
+			phbbmu->drv2iop_doorbell_mask = offsetof(struct HBB_DOORBELL, drv2iop_doorbell_mask);
+			phbbmu->iop2drv_doorbell = offsetof(struct HBB_DOORBELL, iop2drv_doorbell);
+			phbbmu->iop2drv_doorbell_mask = offsetof(struct HBB_DOORBELL, iop2drv_doorbell_mask);
+		}
+		}
+		break;
+	case ACB_ADAPTER_TYPE_D:
+		acb->pmu = (struct MessageUnit_UNION *)srb_tmp;
+		acb->pmu->muu.hbdmu.phbdmu = (struct HBD_MessageUnit *)acb->mem_base0;
+		break;
+	case ACB_ADAPTER_TYPE_E:
 		acb->pCompletionQ = (pCompletion_Q)srb_tmp;
-	else if (acb->adapter_type == ACB_ADAPTER_TYPE_F) {
+		break;
+	case ACB_ADAPTER_TYPE_F: {
+		unsigned long	host_buffer_dma;
 		acb->pCompletionQ = (pCompletion_Q)srb_tmp;
 		acb->completeQ_phys = srb_phyaddr;
 		memset(acb->pCompletionQ, 0xff, COMPLETION_Q_POOL_SIZE);
@@ -4435,9 +4477,62 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 		acb->message_rbuffer = (u_int32_t *)((unsigned long)acb->message_wbuffer + 0x100);
 		acb->msgcode_rwbuffer = (u_int32_t *)((unsigned long)acb->message_wbuffer + 0x200);
 		memset((void *)acb->message_wbuffer, 0, MESG_RW_BUFFER_SIZE);
+		arcmsr_wait_firmware_ready(acb);
+		host_buffer_dma = acb->completeQ_phys + COMPLETION_Q_POOL_SIZE;
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, (u_int32_t)(host_buffer_dma | 1));  /* host buffer low addr, bit0:1 all buffer active */
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr1, (u_int32_t)((host_buffer_dma >> 16) >> 16));/* host buffer high addr */
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBFMU_DOORBELL_SYNC1);       /* set host buffer physical address */
+		acb->firm_PicStatus = CHIP_REG_READ32(HBF_MessageUnit, 0, outbound_msgaddr1);	/* get firmware spec info */
+		break;
+		}
 	}
 	acb->vir2phy_offset = (unsigned long)srb_tmp - (unsigned long)srb_phyaddr;
 }
+
+static void arcmsr_map_xor_sgtable(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct AdapterControlBlock *acb = arg;
+
+	acb->xor_sgtable_phy = (unsigned long)segs->ds_addr;
+	if ((nseg != 1) || ((u_int32_t)segs->ds_len != acb->init2cfg_size)) {
+		acb->acb_flags |= ACB_F_MAPXOR_FAILD;
+		printf("arcmsr%d: alloc xor table seg num or size not as i wish!\n", acb->pci_unit);
+		return;
+	}
+}
+
+static void arcmsr_map_xor_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct AdapterControlBlock *acb = arg;
+	int	i;
+	struct HostRamBuf *pRamBuf;
+	struct XorSg *pxortable = (struct XorSg *)(acb->xortable + sizeof(struct HostRamBuf));
+
+	if (nseg != acb->xor_mega) {
+		acb->acb_flags |= ACB_F_MAPXOR_FAILD;
+		printf("arcmsr%d: alloc xor seg NUM not as i wish!\n", acb->pci_unit);
+		return;
+	}
+	for (i = 0; i < nseg; i++) {
+		if ((u_int32_t)segs->ds_len != ARCMSR_XOR_SEG_SIZE) {
+			acb->acb_flags |= ACB_F_MAPXOR_FAILD;
+			printf("arcmsr%d: alloc xor seg SIZE not as i wish!\n", acb->pci_unit);
+			return;
+		}
+		pxortable->xorPhys = (u_int64_t)segs->ds_addr;
+		pxortable->xorBufLen = (u_int64_t)segs->ds_len;
+		pxortable++;
+		segs++;
+	}
+	pRamBuf = (struct HostRamBuf *)acb->xortable;
+	pRamBuf->hrbSignature = 0x53425248;	//HRBS
+	pRamBuf->hrbSize = ARCMSR_XOR_SEG_SIZE * nseg;
+	pRamBuf->hrbRes[0] = 0;
+	pRamBuf->hrbRes[1] = 0;
+	bus_dmamap_sync(acb->xortable_dmat, acb->xortable_dmamap, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(acb->xor_dmat, acb->xor_dmamap, BUS_DMASYNC_PREWRITE);
+}
+
 /*
 ************************************************************************
 ************************************************************************
@@ -4448,11 +4543,55 @@ static void arcmsr_free_resource(struct AdapterControlBlock *acb)
 	if(acb->ioctl_dev != NULL) {
 		destroy_dev(acb->ioctl_dev);
 	}
-	bus_dmamap_unload(acb->srb_dmat, acb->srb_dmamap);
-	bus_dmamap_destroy(acb->srb_dmat, acb->srb_dmamap);
-	bus_dma_tag_destroy(acb->srb_dmat);
-	bus_dma_tag_destroy(acb->dm_segs_dmat);
-	bus_dma_tag_destroy(acb->parent_dmat);
+	if (acb->acb_flags & ACB_F_DMAMAP_SG)
+		bus_dmamap_unload(acb->xor_dmat, acb->xor_dmamap);
+	if (acb->xor_dmamap) {
+		bus_dmamem_free(acb->xor_dmat, acb->xorptr, acb->xor_dmamap);
+	}
+	if (acb->acb_flags & ACB_F_DMAMAP_SGTABLE)
+		bus_dmamap_unload(acb->xortable_dmat, acb->xortable_dmamap);
+	if (acb->xortable_dmamap) {
+		bus_dmamem_free(acb->xortable_dmat, acb->xortable, acb->xortable_dmamap);
+	}
+	if (acb->acb_flags & ACB_F_DMAMAP_SRB)
+		bus_dmamap_unload(acb->srb_dmat, acb->srb_dmamap);
+	if (acb->srb_dmamap) {
+		bus_dmamem_free(acb->srb_dmat, acb->uncacheptr, acb->srb_dmamap);
+	}
+	if (acb->srb_dmat)
+		bus_dma_tag_destroy(acb->srb_dmat);
+	if (acb->dm_segs_dmat)
+		bus_dma_tag_destroy(acb->dm_segs_dmat);
+	if (acb->parent_dmat)
+		bus_dma_tag_destroy(acb->parent_dmat);
+	switch(acb->adapter_type) {
+		case ACB_ADAPTER_TYPE_A:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(0), acb->sys_res_arcmsr[0]);
+			break;
+		case ACB_ADAPTER_TYPE_B:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(0), acb->sys_res_arcmsr[0]);
+			if (acb->sys_res_arcmsr[1])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(2), acb->sys_res_arcmsr[1]);
+			break;
+		case ACB_ADAPTER_TYPE_C:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(1), acb->sys_res_arcmsr[0]);
+			break;
+		case ACB_ADAPTER_TYPE_D:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(0), acb->sys_res_arcmsr[0]);
+			break;
+		case ACB_ADAPTER_TYPE_E:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(1), acb->sys_res_arcmsr[0]);
+			break;
+		case ACB_ADAPTER_TYPE_F:
+			if (acb->sys_res_arcmsr[0])
+				bus_release_resource(acb->pci_dev, SYS_RES_MEMORY, PCIR_BAR(0), acb->sys_res_arcmsr[0]);
+			break;
+	}
 }
 /*
 ************************************************************************
@@ -4480,21 +4619,16 @@ static void arcmsr_mutex_destroy(struct AdapterControlBlock *acb)
 ************************************************************************
 ************************************************************************
 */
-static u_int32_t arcmsr_initialize(device_t dev)
+static int arcmsr_define_adapter_type(struct AdapterControlBlock *acb)
 {
-	struct AdapterControlBlock *acb = device_get_softc(dev);
-	u_int16_t pci_command;
-	int i, j,max_coherent_size;
-	u_int32_t vendor_dev_id;
+	int rc = 0;
 
-	vendor_dev_id = pci_get_devid(dev);
-	acb->vendor_device_id = vendor_dev_id;
-	acb->sub_device_id = pci_read_config(dev, PCIR_SUBDEV_0, 2);
-	switch (vendor_dev_id) {
-	case PCIDevVenIDARC1880:
-	case PCIDevVenIDARC1882:
-	case PCIDevVenIDARC1213:
-	case PCIDevVenIDARC1223: {
+	switch (acb->vendor_device_id) {
+		case PCIDevVenIDARC1880:
+		case PCIDevVenIDARC1882:
+		case PCIDevVenIDARC1883:
+		case PCIDevVenIDARC1213:
+		case PCIDevVenIDARC1223: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_C;
 			if ((acb->sub_device_id == ARECA_SUB_DEV_ID_1883) ||
 			    (acb->sub_device_id == ARECA_SUB_DEV_ID_1216) ||
@@ -4502,71 +4636,264 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
 			else
 				acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
-			max_coherent_size = ARCMSR_SRBS_POOL_SIZE;
-		}
-		break;
-	case PCIDevVenIDARC1884:
-		acb->adapter_type = ACB_ADAPTER_TYPE_E;
-		acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
-		max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE;
-		acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
-		break;
-	case PCIDevVenIDARC1886_:
-	case PCIDevVenIDARC1886:
-		acb->adapter_type = ACB_ADAPTER_TYPE_F;
-		acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
-		max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE + MESG_RW_BUFFER_SIZE;
-		acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
-		break;
-	case PCIDevVenIDARC1214: {
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE;
+			}
+			break;
+		case PCIDevVenIDARC1884:
+			acb->adapter_type = ACB_ADAPTER_TYPE_E;
+			acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE;
+			acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
+			break;
+		case PCIDevVenIDARC1886_0:
+		case PCIDevVenIDARC1886_:
+		case PCIDevVenIDARC1886:
+			acb->adapter_type = ACB_ADAPTER_TYPE_F;
+			acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE + MESG_RW_BUFFER_SIZE;
+			acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
+			break;
+		case PCIDevVenIDARC1214:
+		case PCIDevVenIDARC1224: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_D;
 			acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
-			max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBD_MessageUnit0));
-		}
-		break;
-	case PCIDevVenIDARC1200:
-	case PCIDevVenIDARC1201: {
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBD_MessageUnit0));
+			}
+			break;
+		case PCIDevVenIDARC1200:
+		case PCIDevVenIDARC1201: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_B;
 			acb->adapter_bus_speed = ACB_BUS_SPEED_3G;
-			max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBB_MessageUnit));
-		}
-		break;
-	case PCIDevVenIDARC1203: {
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBB_MessageUnit));
+			}
+			break;
+		case PCIDevVenIDARC1203: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_B;
 			acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
-			max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBB_MessageUnit));
-		}
-		break;
-	case PCIDevVenIDARC1110:
-	case PCIDevVenIDARC1120:
-	case PCIDevVenIDARC1130:
-	case PCIDevVenIDARC1160:
-	case PCIDevVenIDARC1170:
-	case PCIDevVenIDARC1210:
-	case PCIDevVenIDARC1220:
-	case PCIDevVenIDARC1230:
-	case PCIDevVenIDARC1231:
-	case PCIDevVenIDARC1260:
-	case PCIDevVenIDARC1261:
-	case PCIDevVenIDARC1270:
-	case PCIDevVenIDARC1280:
-	case PCIDevVenIDARC1212:
-	case PCIDevVenIDARC1222:
-	case PCIDevVenIDARC1380:
-	case PCIDevVenIDARC1381:
-	case PCIDevVenIDARC1680:
-	case PCIDevVenIDARC1681: {
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE + (sizeof(struct HBB_MessageUnit));
+			}
+			break;
+		case PCIDevVenIDARC1110:
+		case PCIDevVenIDARC1120:
+		case PCIDevVenIDARC1130:
+		case PCIDevVenIDARC1160:
+		case PCIDevVenIDARC1170:
+		case PCIDevVenIDARC1210:
+		case PCIDevVenIDARC1220:
+		case PCIDevVenIDARC1230:
+		case PCIDevVenIDARC1231:
+		case PCIDevVenIDARC1260:
+		case PCIDevVenIDARC1261:
+		case PCIDevVenIDARC1270:
+		case PCIDevVenIDARC1280:
+		case PCIDevVenIDARC1212:
+		case PCIDevVenIDARC1222:
+		case PCIDevVenIDARC1380:
+		case PCIDevVenIDARC1381:
+		case PCIDevVenIDARC1680:
+		case PCIDevVenIDARC1681: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_A;
 			acb->adapter_bus_speed = ACB_BUS_SPEED_3G;
-			max_coherent_size = ARCMSR_SRBS_POOL_SIZE;
-		}
-		break;
-	default: {
+			acb->max_coherent_size = ARCMSR_SRBS_POOL_SIZE;
+			}
+			break;
+		default: {
 			printf("arcmsr%d:"
-			" unknown RAID adapter type \n", device_get_unit(dev));
-			return ENOMEM;
+			" unknown RAID adapter type \n", acb->pci_unit);
+			rc = ENOMEM;
 		}
 	}
+	return rc;
+}
+
+static int arcmsr_map_pcireg(device_t dev, struct AdapterControlBlock *acb)
+{
+	switch(acb->adapter_type) {
+	case ACB_ADAPTER_TYPE_A: {
+		u_int32_t rid0 = PCIR_BAR(0);
+		vm_offset_t	mem_base0;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", acb->pci_unit);
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
+		acb->rid[0] = rid0;
+		}
+		break;
+	case ACB_ADAPTER_TYPE_B: {
+		u_int32_t rid[]={ PCIR_BAR(0), PCIR_BAR(2) };
+		vm_offset_t	mem_base[]={0,0};
+		u_int16_t i;
+
+		for(i=0; i < 2; i++) {
+			acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid[i], RF_ACTIVE);
+			if(acb->sys_res_arcmsr[i] == NULL) {
+				arcmsr_free_resource(acb);
+				printf("arcmsr%d: bus_alloc_resource %d failure!\n", acb->pci_unit, i);
+				return ENOMEM;
+			}
+			if(rman_get_start(acb->sys_res_arcmsr[i]) <= 0) {
+				arcmsr_free_resource(acb);
+				printf("arcmsr%d: rman_get_start %d failure!\n", acb->pci_unit, i);
+				return ENXIO;
+			}
+			mem_base[i] = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[i]);
+			if(mem_base[i] == 0) {
+				arcmsr_free_resource(acb);
+				printf("arcmsr%d: rman_get_virtual %d failure!\n", acb->pci_unit, i);
+				return ENXIO;
+			}
+			acb->btag[i] = rman_get_bustag(acb->sys_res_arcmsr[i]);
+			acb->bhandle[i] = rman_get_bushandle(acb->sys_res_arcmsr[i]);
+		}
+		acb->mem_base0 = mem_base[0];
+		acb->mem_base1 = mem_base[1];
+		acb->rid[0] = rid[0];
+		acb->rid[1] = rid[1];
+		}
+		break;
+	case ACB_ADAPTER_TYPE_C: {
+		u_int32_t rid0 = PCIR_BAR(1);
+		vm_offset_t	mem_base0;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", acb->pci_unit);
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
+		acb->rid[0] = rid0;
+		}
+		break;
+	case ACB_ADAPTER_TYPE_D: {
+		u_int32_t rid0 = PCIR_BAR(0);
+		vm_offset_t	mem_base0;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", acb->pci_unit);
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->mem_base0 = mem_base0;
+		acb->rid[0] = rid0;
+		}
+		break;
+	case ACB_ADAPTER_TYPE_E: {
+		u_int32_t rid0 = PCIR_BAR(1);
+		vm_offset_t	mem_base0;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", acb->pci_unit);
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
+		acb->doneq_index = 0;
+		acb->in_doorbell = 0;
+		acb->out_doorbell = 0;
+		acb->rid[0] = rid0;
+		CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
+		CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
+		}
+		break;
+	case ACB_ADAPTER_TYPE_F: {
+		u_int32_t rid0 = PCIR_BAR(0);
+		vm_offset_t	mem_base0;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", acb->pci_unit);
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", acb->pci_unit);
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
+		acb->doneq_index = 0;
+		acb->in_doorbell = 0;
+		acb->out_doorbell = 0;
+		acb->rid[0] = rid0;
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
+		}
+		break;
+	}
+	return (0);
+}
+
+static int arcmsr_alloc_srb(device_t dev, struct AdapterControlBlock *acb)
+{
+	int rc;
+
 	if(bus_dma_tag_create(  /*PCI parent*/		bus_get_dma_tag(dev),
 				/*alignemnt*/		1,
 				/*boundary*/		0,
@@ -4582,7 +4909,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*lockarg*/		NULL,
 							&acb->parent_dmat) != 0)
 	{
-		printf("arcmsr%d: parent_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
+		printf("arcmsr%d: parent_dmat bus_dma_tag_create failure!\n", acb->pci_unit);
 		return ENOMEM;
 	}
 
@@ -4606,8 +4933,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*lockarg*/		&acb->isr_lock,
 							&acb->dm_segs_dmat) != 0)
 	{
-		bus_dma_tag_destroy(acb->parent_dmat);
-		printf("arcmsr%d: dm_segs_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: dm_segs_dmat bus_dma_tag_create failure!\n", acb->pci_unit);
 		return ENOMEM;
 	}
 
@@ -4619,7 +4946,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*highaddr*/		BUS_SPACE_MAXADDR,
 				/*filter*/		NULL,
 				/*filterarg*/		NULL,
-				/*maxsize*/		max_coherent_size,
+				/*maxsize*/		acb->max_coherent_size,
 				/*nsegments*/		1,
 				/*maxsegsz*/		BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/		0,
@@ -4627,238 +4954,133 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*lockarg*/		NULL,
 							&acb->srb_dmat) != 0)
 	{
-		bus_dma_tag_destroy(acb->dm_segs_dmat);
-		bus_dma_tag_destroy(acb->parent_dmat);
-		printf("arcmsr%d: srb_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: srb_dmat bus_dma_tag_create failure!\n", acb->pci_unit);
 		return ENXIO;
 	}
 	/* Allocation for our srbs */
-	if(bus_dmamem_alloc(acb->srb_dmat, (void **)&acb->uncacheptr, BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO, &acb->srb_dmamap) != 0) {
-		bus_dma_tag_destroy(acb->srb_dmat);
-		bus_dma_tag_destroy(acb->dm_segs_dmat);
-		bus_dma_tag_destroy(acb->parent_dmat);
-		printf("arcmsr%d: srb_dmat bus_dmamem_alloc failure!\n", device_get_unit(dev));
+	if(bus_dmamem_alloc(acb->srb_dmat, (void **)&acb->uncacheptr, ARCMSR_DMA_ALLOC_FLAG, &acb->srb_dmamap) != 0) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: srb_dmat bus_dmamem_alloc failure!\n", acb->pci_unit);
 		return ENXIO;
 	}
 	/* And permanently map them */
-	if(bus_dmamap_load(acb->srb_dmat, acb->srb_dmamap, acb->uncacheptr, max_coherent_size, arcmsr_map_free_srb, acb, /*flags*/0)) {
-		bus_dma_tag_destroy(acb->srb_dmat);
-		bus_dma_tag_destroy(acb->dm_segs_dmat);
-		bus_dma_tag_destroy(acb->parent_dmat);
-		printf("arcmsr%d: srb_dmat bus_dmamap_load failure!\n", device_get_unit(dev));
+	rc = bus_dmamap_load(acb->srb_dmat, acb->srb_dmamap, acb->uncacheptr, acb->max_coherent_size, arcmsr_map_free_srb, acb, /*flags*/0);
+	if((rc != 0) && (rc != EINPROGRESS)) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: srb_dmat bus_dmamap_load failure!\n", acb->pci_unit);
 		return ENXIO;
 	}
-	pci_command = pci_read_config(dev, PCIR_COMMAND, 2);
-	pci_command |= PCIM_CMD_BUSMASTEREN;
-	pci_command |= PCIM_CMD_PERRESPEN;
-	pci_command |= PCIM_CMD_MWRICEN;
-	/* Enable Busmaster */
-	pci_write_config(dev, PCIR_COMMAND, pci_command, 2);
-	switch(acb->adapter_type) {
-	case ACB_ADAPTER_TYPE_A: {
-		u_int32_t rid0 = PCIR_BAR(0);
-		vm_offset_t	mem_base0;
+	acb->acb_flags |= ACB_F_DMAMAP_SRB;
+	return (0);
+}
 
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
-		if(acb->sys_res_arcmsr[0] == NULL) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
-			return ENOMEM;
-		}
-		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
-		if(mem_base0 == 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
-		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
-		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->rid[0] = rid0;
-		}
-		break;
-	case ACB_ADAPTER_TYPE_B: {
-		struct HBB_MessageUnit *phbbmu;
-		struct CommandControlBlock *freesrb;
-		u_int32_t rid[]={ PCIR_BAR(0), PCIR_BAR(2) };
-		vm_offset_t	mem_base[]={0,0};
-		for(i=0; i < 2; i++) {
-			acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid[i], RF_ACTIVE);
-			if(acb->sys_res_arcmsr[i] == NULL) {
-				arcmsr_free_resource(acb);
-				printf("arcmsr%d: bus_alloc_resource %d failure!\n", device_get_unit(dev), i);
-				return ENOMEM;
-			}
-			if(rman_get_start(acb->sys_res_arcmsr[i]) <= 0) {
-				arcmsr_free_resource(acb);
-				printf("arcmsr%d: rman_get_start %d failure!\n", device_get_unit(dev), i);
-				return ENXIO;
-			}
-			mem_base[i] = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[i]);
-			if(mem_base[i] == 0) {
-				arcmsr_free_resource(acb);
-				printf("arcmsr%d: rman_get_virtual %d failure!\n", device_get_unit(dev), i);
-				return ENXIO;
-			}
-			acb->btag[i] = rman_get_bustag(acb->sys_res_arcmsr[i]);
-			acb->bhandle[i] = rman_get_bushandle(acb->sys_res_arcmsr[i]);
-		}
-		freesrb = (struct CommandControlBlock *)acb->uncacheptr;
-		acb->pmu = (struct MessageUnit_UNION *)((unsigned long)freesrb+ARCMSR_SRBS_POOL_SIZE);
-		phbbmu = (struct HBB_MessageUnit *)acb->pmu;
-		phbbmu->hbb_doorbell = (struct HBB_DOORBELL *)mem_base[0];
-		phbbmu->hbb_rwbuffer = (struct HBB_RWBUFFER *)mem_base[1];
-		if (vendor_dev_id == PCIDevVenIDARC1203) {
-			phbbmu->drv2iop_doorbell = offsetof(struct HBB_DOORBELL_1203, drv2iop_doorbell);
-			phbbmu->drv2iop_doorbell_mask = offsetof(struct HBB_DOORBELL_1203, drv2iop_doorbell_mask);
-			phbbmu->iop2drv_doorbell = offsetof(struct HBB_DOORBELL_1203, iop2drv_doorbell);
-			phbbmu->iop2drv_doorbell_mask = offsetof(struct HBB_DOORBELL_1203, iop2drv_doorbell_mask);
-		} else {
-			phbbmu->drv2iop_doorbell = offsetof(struct HBB_DOORBELL, drv2iop_doorbell);
-			phbbmu->drv2iop_doorbell_mask = offsetof(struct HBB_DOORBELL, drv2iop_doorbell_mask);
-			phbbmu->iop2drv_doorbell = offsetof(struct HBB_DOORBELL, iop2drv_doorbell);
-			phbbmu->iop2drv_doorbell_mask = offsetof(struct HBB_DOORBELL, iop2drv_doorbell_mask);
-		}
-		acb->rid[0] = rid[0];
-		acb->rid[1] = rid[1];
-		}
-		break;
-	case ACB_ADAPTER_TYPE_C: {
-		u_int32_t rid0 = PCIR_BAR(1);
-		vm_offset_t	mem_base0;
+static int arcmsr_alloc_xor_mem(device_t dev, struct AdapterControlBlock *acb)
+{
+	int rc, xor_ram;
 
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
-		if(acb->sys_res_arcmsr[0] == NULL) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
-			return ENOMEM;
-		}
-		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
-		if(mem_base0 == 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
-		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
-		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->rid[0] = rid0;
-		}
-		break;
-	case ACB_ADAPTER_TYPE_D: {
-		struct HBD_MessageUnit0 *phbdmu;
-		u_int32_t rid0 = PCIR_BAR(0);
-		vm_offset_t	mem_base0;
-
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
-		if(acb->sys_res_arcmsr[0] == NULL) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
-			return ENOMEM;
-		}
-		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
-		if(mem_base0 == 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
-		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
-		acb->pmu = (struct MessageUnit_UNION *)((unsigned long)acb->uncacheptr+ARCMSR_SRBS_POOL_SIZE);
-		phbdmu = (struct HBD_MessageUnit0 *)acb->pmu;
-		phbdmu->phbdmu = (struct HBD_MessageUnit *)mem_base0;
-		acb->rid[0] = rid0;
-		}
-		break;
-	case ACB_ADAPTER_TYPE_E: {
-		u_int32_t rid0 = PCIR_BAR(1);
-		vm_offset_t	mem_base0;
-
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
-		if(acb->sys_res_arcmsr[0] == NULL) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
-			return ENOMEM;
-		}
-		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
-		if(mem_base0 == 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
-		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
-		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->doneq_index = 0;
-		acb->in_doorbell = 0;
-		acb->out_doorbell = 0;
-		acb->rid[0] = rid0;
-		CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
-		CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
-		}
-		break;
-	case ACB_ADAPTER_TYPE_F: {
-		u_int32_t rid0 = PCIR_BAR(0);
-		vm_offset_t	mem_base0;
-		unsigned long	host_buffer_dma;
-
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
-		if(acb->sys_res_arcmsr[0] == NULL) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
-			return ENOMEM;
-		}
-		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
-		if(mem_base0 == 0) {
-			arcmsr_free_resource(acb);
-			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
-			return ENXIO;
-		}
-		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
-		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
-		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->doneq_index = 0;
-		acb->in_doorbell = 0;
-		acb->out_doorbell = 0;
-		acb->rid[0] = rid0;
-		CHIP_REG_WRITE32(HBF_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
-		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
-		arcmsr_wait_firmware_ready(acb);
-		host_buffer_dma = acb->completeQ_phys + COMPLETION_Q_POOL_SIZE;
-		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, (u_int32_t)(host_buffer_dma | 1));  /* host buffer low addr, bit0:1 all buffer active */
-		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr1, (u_int32_t)((host_buffer_dma >> 16) >> 16));/* host buffer high addr */
-		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBFMU_DOORBELL_SYNC1);       /* set host buffer physical address */
-		}
-		break;
-	}
-	if(acb->acb_flags & ACB_F_MAPFREESRB_FAILD) {
+	xor_ram = (acb->firm_PicStatus >> 24) & 0x0f;
+	acb->xor_mega = (xor_ram - 1) * 32 + 128 + 3;
+	acb->init2cfg_size = sizeof(struct HostRamBuf) + (sizeof(struct XorSg) * acb->xor_mega);
+	/* DMA tag for XOR engine of Raid 5,6 */
+	if(bus_dma_tag_create(  /*parent_dmat*/		acb->parent_dmat,
+				/*alignment*/		0x40,
+				/*boundary*/		0,
+				/*lowaddr*/		BUS_SPACE_MAXADDR_32BIT,
+				/*highaddr*/		BUS_SPACE_MAXADDR,
+				/*filter*/		NULL,
+				/*filterarg*/		NULL,
+				/*maxsize*/		acb->init2cfg_size,
+				/*nsegments*/		1,
+				/*maxsegsz*/		acb->init2cfg_size,
+				/*flags*/		0,
+				/*lockfunc*/		NULL,
+				/*lockarg*/		NULL,
+							&acb->xortable_dmat) != 0)
+	{
 		arcmsr_free_resource(acb);
-		printf("arcmsr%d: map free srb failure!\n", device_get_unit(dev));
+		printf("arcmsr%d: xor table bus_dma_tag_create failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	/* Allocation for xors */
+	if(bus_dmamem_alloc(acb->xortable_dmat, (void **)&acb->xortable, ARCMSR_DMA_ALLOC_FLAG, &acb->xortable_dmamap) != 0) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: xor table bus_dmamem_alloc failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	/* And permanently map xor segs */
+	rc = bus_dmamap_load(acb->xortable_dmat, acb->xortable_dmamap, acb->xortable, acb->init2cfg_size, arcmsr_map_xor_sgtable, acb, /*flags*/0);
+	if((rc != 0) && (rc != EINPROGRESS)) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: xor table bus_dmamap_load failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	acb->acb_flags |= ACB_F_DMAMAP_SGTABLE;
+
+	/* DMA tag for XOR engine of Raid 5,6 */
+	if(bus_dma_tag_create(  /*parent_dmat*/		acb->parent_dmat,
+				/*alignment*/		0x1000,
+				/*boundary*/		0,
+				/*lowaddr*/		BUS_SPACE_MAXADDR_32BIT,
+				/*highaddr*/		BUS_SPACE_MAXADDR,
+				/*filter*/		NULL,
+				/*filterarg*/		NULL,
+				/*maxsize*/		(ARCMSR_XOR_SEG_SIZE * acb->xor_mega),
+				/*nsegments*/		acb->xor_mega,
+				/*maxsegsz*/		ARCMSR_XOR_SEG_SIZE,
+				/*flags*/		0,
+				/*lockfunc*/		NULL,
+				/*lockarg*/		NULL,
+							&acb->xor_dmat) != 0)
+	{
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: xor bus_dma_tag_create failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	/* Allocation for xors */
+	if(bus_dmamem_alloc(acb->xor_dmat, (void **)&acb->xorptr, ARCMSR_DMA_ALLOC_FLAG, &acb->xor_dmamap) != 0) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: xor bus_dmamem_alloc failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	/* And permanently map xor segs */
+	rc = bus_dmamap_load(acb->xor_dmat, acb->xor_dmamap, acb->xorptr, (ARCMSR_XOR_SEG_SIZE * acb->xor_mega), arcmsr_map_xor_sg, acb, /*flags*/0);
+	if((rc != 0) && (rc != EINPROGRESS)) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: xor bus_dmamap_load failure!\n", acb->pci_unit);
+		return ENXIO;
+	}
+	acb->acb_flags |= ACB_F_DMAMAP_SG;
+	return (0);
+}
+
+static u_int32_t arcmsr_initialize(device_t dev)
+{
+	struct AdapterControlBlock *acb = device_get_softc(dev);
+	int i, j, rc;
+	u_int32_t vendor_dev_id;
+
+	vendor_dev_id = pci_get_devid(dev);
+	acb->vendor_device_id = vendor_dev_id;
+	acb->sub_device_id = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+	rc = arcmsr_define_adapter_type(acb);
+	if (rc)
+		return rc;
+	rc = arcmsr_map_pcireg(dev, acb);
+	if (rc)
+		return rc;
+	rc = arcmsr_alloc_srb(dev, acb);
+	if (rc)
+		return rc;
+	// allocate N times 1 MB physical continuous memory for XOR engine of Raid 5, 6.
+	if ((acb->firm_PicStatus >> 24) & 0x0f) {
+		rc = arcmsr_alloc_xor_mem(dev, acb);
+		if (rc)
+			return rc;
+	}
+	if(acb->acb_flags & (ACB_F_MAPFREESRB_FAILD | ACB_F_MAPXOR_FAILD)) {
+		arcmsr_free_resource(acb);
+		printf("arcmsr%d: map free srb or xor buffer failure!\n", acb->pci_unit);
 		return ENXIO;
 	}
 	acb->acb_flags  |= (ACB_F_MESSAGE_WQBUFFER_CLEARED|ACB_F_MESSAGE_RQBUFFER_CLEARED|ACB_F_MESSAGE_WQBUFFER_READ);
@@ -5055,23 +5277,32 @@ static int arcmsr_probe(device_t dev)
 		break;
 	case PCIDevVenIDARC1880:
 	case PCIDevVenIDARC1882:
+	case PCIDevVenIDARC1883:
 	case PCIDevVenIDARC1213:
 	case PCIDevVenIDARC1223:
 		if ((sub_device_id == ARECA_SUB_DEV_ID_1883) ||
 		    (sub_device_id == ARECA_SUB_DEV_ID_1216) ||
 		    (sub_device_id == ARECA_SUB_DEV_ID_1226))
-			type = "SAS 12G";
+			type = "SAS 12G,SATA 6G";
 		else
-			type = "SAS 6G";
+			type = "SAS,SATA 6G";
 		break;
 	case PCIDevVenIDARC1884:
 		type = "SAS 12G";
 		break;
+	case PCIDevVenIDARC1886_0:
 	case PCIDevVenIDARC1886_:
 	case PCIDevVenIDARC1886:
 		type = "NVME,SAS-12G,SATA-6G";
 		break;
 	case PCIDevVenIDARC1214:
+	case PCIDevVenIDARC1224:
+		if ((sub_device_id == ARECA_SUB_DEV_ID_1214) ||
+		    (sub_device_id == ARECA_SUB_DEV_ID_1224))
+			type = "SAS 6G";
+		else
+			type = "SATA 6G";
+		break;
 	case PCIDevVenIDARC1203:
 		type = "SATA 6G";
 		break;
@@ -5164,15 +5395,11 @@ static void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb)
 static int arcmsr_detach(device_t dev)
 {
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
-	int i;
 
 	callout_stop(&acb->devmap_callout);
 	arcmsr_teardown_intr(dev, acb);
 	arcmsr_shutdown(dev);
 	arcmsr_free_resource(acb);
-	for(i=0; (acb->sys_res_arcmsr[i]!=NULL) && (i<2); i++) {
-		bus_release_resource(dev, SYS_RES_MEMORY, acb->rid[i], acb->sys_res_arcmsr[i]);
-	}
 	ARCMSR_LOCK_ACQUIRE(&acb->isr_lock);
 	xpt_async(AC_LOST_DEVICE, acb->ppath, NULL);
 	xpt_free_path(acb->ppath);
