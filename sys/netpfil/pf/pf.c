@@ -4317,10 +4317,6 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (r->rt) {
 		if (pf_map_addr(pd->af, r, pd->src, &s->rt_addr, NULL, &sn)) {
 			REASON_SET(&reason, PFRES_MAPFAILED);
-			pf_src_tree_remove_state(s);
-			s->timeout = PFTM_UNLINKED;
-			STATE_DEC_COUNTERS(s);
-			pf_free_state(s);
 			goto csfailed;
 		}
 		s->rt_kif = r->rpool.cur->kif;
@@ -4381,11 +4377,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		REASON_SET(&reason, PFRES_STATEINS);
-		pf_src_tree_remove_state(s);
-		s->timeout = PFTM_UNLINKED;
-		STATE_DEC_COUNTERS(s);
-		pf_free_state(s);
-		return (PF_DROP);
+		goto drop;
 	} else
 		*sm = s;
 
@@ -4459,6 +4451,14 @@ csfailed:
 			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
 		}
 		PF_HASHROW_UNLOCK(sh);
+	}
+
+drop:
+	if (s != NULL) {
+		pf_src_tree_remove_state(s);
+		s->timeout = PFTM_UNLINKED;
+		STATE_DEC_COUNTERS(s);
+		pf_free_state(s);
 	}
 
 	return (PF_DROP);
