@@ -12,6 +12,23 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230906:
+	13.2-RELEASE-p3 FreeBSD-EN-23:09.freebsd-update
+			FreeBSD-EN-23:10.pci
+			FreeBSD-EN-23:11.caroot
+			FreeBSD-SA-23:10.pf
+			FreeBSD-SA-23:11.wifi
+
+	freebsd-update incorrectly merges files on upgrade [EN-23:09.freebsd-update]
+
+	PCI-e hot-plug is broken with certain devices [EN-23:10.pci-update]
+
+	Root certificate bundle update [EN-23:11.caroot]
+
+	pf incorrectly handles multiple IPv6 fragment headers [SA-23:10.pf]
+
+	Wi-Fi encryption bypass [SA-23:11.wifi]
+
 20230801:
 	13.2-RELEASE-p2	FreeBSD-EN-23:08.vnet
 			FreeBSD-SA-23:06.ipv6
