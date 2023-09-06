@@ -903,7 +903,12 @@ static void rtw89_fw_prog_cnt_dump(struct rtw89_dev *rtwdev)
 	for (index = 0; index < 15; index++) {
 		val32 = rtw89_read32(rtwdev, R_AX_DBG_PORT_SEL);
 		rtw89_err(rtwdev, "[ERR]fw PC = 0x%x\n", val32);
+#if defined(__linux__)
 		fsleep(10);
+#elif defined(__FreeBSD__)
+		/* Seems we are called from a context we cannot sleep. */
+		udelay(10);
+#endif
 	}
 }
 
@@ -3890,7 +3895,11 @@ static int rtw89_hw_scan_prehandle(struct rtw89_dev *rtwdev,
 
 	ret = rtw89_hw_scan_update_probe_req(rtwdev, rtwvif);
 	if (ret) {
+#if defined(__linux__)
 		rtw89_err(rtwdev, "Update probe request failed\n");
+#elif defined(__FreeBSD__)
+		rtw89_err(rtwdev, "Update probe request failed: ret %d\n", ret);
+#endif
 		goto out;
 	}
 	ret = rtw89_hw_scan_add_chan_list(rtwdev, rtwvif, connected);
