@@ -515,6 +515,11 @@ do {									\
 	((mstate)->dtms_scratch_base + (mstate)->dtms_scratch_size - \
 	(mstate)->dtms_scratch_ptr >= (alloc_sz))
 
+#define DTRACE_INSCRATCHPTR(mstate, ptr, howmany) \
+	((ptr) >= (mstate)->dtms_scratch_base && \
+	(ptr) <= \
+	((mstate)->dtms_scratch_base + (mstate)->dtms_scratch_size - (howmany)))
+
 #define	DTRACE_LOADFUNC(bits)						\
 /*CSTYLED*/								\
 uint##bits##_t								\
@@ -7739,8 +7744,23 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 			}
 
 			case DTRACEACT_PRINTM: {
-				/* The DIF returns a 'memref'. */
+				/*
+				 * printm() assumes that the DIF returns a
+				 * pointer returned by memref(). memref() is a
+				 * subroutine that is used to get around the
+				 * single-valued returns of DIF and is assumed
+				 * to always be allocated in the scratch space.
+				 * Therefore, we need to validate that the
+				 * pointer given to printm() is in the scratch
+				 * space in order to avoid a potential panic.
+				 */
 				uintptr_t *memref = (uintptr_t *)(uintptr_t) val;
+
+				if (!DTRACE_INSCRATCHPTR(&mstate,
+				    (uintptr_t)memref, 2 * sizeof(uintptr_t))) {
+					*flags |= CPU_DTRACE_BADADDR;
+					continue;
+				}
 
 				/* Get the size from the memref. */
 				size = memref[1];
