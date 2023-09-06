@@ -41,7 +41,6 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #endif
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
@@ -85,9 +84,9 @@ static void usage(void) __dead2;
 int
 main(int argc, char **argv)
 {
-	int ch;
-	int error;
-	char *ep, *p;
+	const char *p;
+	char *ep;
+	int ch, error;
 
 	setlocale(LC_ALL, "");
 
@@ -157,17 +156,22 @@ main(int argc, char **argv)
 	argv += optind;
 	argc -= optind;
 
-	if (*argv != NULL) {			/* Input file. */
+	if (argc > 0) {			/* Input file. */
 		if (strcmp(*argv, "-") == 0)
 			ifd = STDIN_FILENO;
 		else if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
 			err(EX_NOINPUT, "%s", *argv);
 		++argv;
+		--argc;
 	}
-	if (*argv != NULL)			/* File name prefix. */
-		if (strlcpy(fname, *argv++, sizeof(fname)) >= sizeof(fname))
-			errx(EX_USAGE, "file name prefix is too long");
-	if (*argv != NULL)
+	if (argc > 0) {			/* File name prefix. */
+		if (strlcpy(fname, *argv, sizeof(fname)) >= sizeof(fname))
+			errx(EX_USAGE, "file name prefix is too long: %s",
+			    *argv);
+		++argv;
+		--argc;
+	}
+	if (argc > 0)
 		usage();
 
 	if (strlen(fname) + (unsigned long)sufflen >= sizeof(fname))
@@ -400,7 +404,6 @@ newfile(void)
 		sufflen++;
 
 		/* Reset so we start back at all 'a's in our extended suffix. */
-		tfnum = 0;
 		fnum = 0;
 	}
 
