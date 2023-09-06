@@ -70,12 +70,11 @@
 
 #define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
-#define	SDHCI_FDT_GENERIC	2
-#define	SDHCI_FDT_XLNX_ZY7	3
-#define	SDHCI_FDT_QUALCOMM	4
-#define	SDHCI_FDT_RK3399	5
-#define	SDHCI_FDT_RK3568	6
-#define	SDHCI_FDT_XLNX_ZMP	7
+#define	SDHCI_FDT_XLNX_ZY7	2
+#define	SDHCI_FDT_QUALCOMM	3
+#define	SDHCI_FDT_RK3399	4
+#define	SDHCI_FDT_RK3568	5
+#define	SDHCI_FDT_XLNX_ZMP	6
 
 #define	RK3399_GRF_EMMCCORE_CON0		0xf000
 #define	 RK3399_CORECFG_BASECLKFREQ		0xff00
@@ -118,7 +117,6 @@
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
-	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
 	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "rockchip,rk3399-sdhci-5.1",	SDHCI_FDT_RK3399 },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
@@ -515,9 +513,6 @@ sdhci_fdt_probe(device_t dev)
 	case SDHCI_FDT_ARMADA38X:
 		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
 		device_set_desc(dev, "ARMADA38X SDHCI controller");
-		break;
-	case SDHCI_FDT_GENERIC:
-		device_set_desc(dev, "generic fdt SDHCI controller");
 		break;
 	case SDHCI_FDT_QUALCOMM:
 		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
