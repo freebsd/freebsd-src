@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2022 Klara Systems
+# Copyright (c) 2022-2023 Klara Systems
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -200,6 +200,26 @@ EOF
 	atf_check -o file:foo-ab cat split-ab
 }
 
+atf_test_case autoextend
+autoextend_body()
+{
+	seq $((26*25+1)) >input
+	atf_check split -l1 input
+	atf_check -o inline:"$((26*25))\n" cat xyz
+	atf_check -o inline:"$((26*25+1))\n" cat xzaaa
+}
+
+atf_test_case continue
+continue_body()
+{
+	echo hello >input
+	atf_check split input
+	atf_check -o file:input cat xaa
+	atf_check -s exit:1 -e ignore cat xab
+	atf_check split -c input
+	atf_check -o file:input cat xab
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case bytes
@@ -209,4 +229,6 @@ atf_init_test_cases()
 	atf_add_test_case numeric_suffix
 	atf_add_test_case larger_suffix_length
 	atf_add_test_case pattern
+	atf_add_test_case autoextend
+	atf_add_test_case continue
 }
