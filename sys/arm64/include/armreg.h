@@ -2167,7 +2167,7 @@
 #define	TCR_IRGN0_SHIFT		8
 #define	TCR_IRGN0_WBWA		(1UL << TCR_IRGN0_SHIFT)
 #define	TCR_EPD0_SHIFT		7
-#define	TCR_EPD0		(1UL << TCR_EPD1_SHIFT)
+#define	TCR_EPD0		(1UL << TCR_EPD0_SHIFT)
 /* Bit 6 is reserved */
 #define	TCR_T0SZ_SHIFT		0
 #define	TCR_T0SZ_MASK		0x3f
