@@ -146,6 +146,8 @@ struct sdhci_fdt_softc {
 	clk_t		clk_ahb;	/* ahb clock */
 	clk_t		clk_core;	/* core clock */
 	phy_t		phy;		/* phy to be used */
+
+	struct syscon	*syscon;	/* Handle to the syscon */
 };
 
 struct rk3399_emmccardclk_sc {
@@ -299,11 +301,48 @@ sdhci_init_clocks(device_t dev)
 }
 
 static int
+sdhci_init_phy(struct sdhci_fdt_softc *sc)
+{
+	int error;
+
+	/* Enable PHY */
+	error = phy_get_by_ofw_name(sc->dev, 0, "phy_arasan", &sc->phy);
+	if (error == ENOENT)
+		return (0);
+	if (error != 0) {
+		device_printf(sc->dev, "Could not get phy\n");
+		return (ENXIO);
+	}
+	error = phy_enable(sc->phy);
+	if (error != 0) {
+		device_printf(sc->dev, "Could not enable phy\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+sdhci_get_syscon(struct sdhci_fdt_softc *sc)
+{
+	phandle_t node;
+
+	/* Get syscon */
+	node = ofw_bus_get_node(sc->dev);
+	if (OF_hasprop(node, "arasan,soc-ctl-syscon") &&
+	    syscon_get_by_ofw_property(sc->dev, node,
+	    "arasan,soc-ctl-syscon", &sc->syscon) != 0) {
+		device_printf(sc->dev, "cannot get syscon handle\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
 sdhci_init_rk3399(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	struct syscon *grf = NULL;
-	phandle_t node;
 	uint64_t freq;
 	uint32_t mask, val;
 	int error;
@@ -317,36 +356,16 @@ sdhci_init_rk3399(device_t dev)
 	/* Register clock */
 	sdhci_init_rk3399_emmccardclk(dev);
 
-	/* Enable PHY */
-	error = phy_get_by_ofw_name(dev, 0, "phy_arasan", &sc->phy);
-	if (error != 0) {
-		device_printf(dev, "Could not get phy\n");
-		return (ENXIO);
-	}
-	error = phy_enable(sc->phy);
-	if (error != 0) {
-		device_printf(dev, "Could not enable phy\n");
-		return (ENXIO);
-	}
-	/* Get syscon */
-	node = ofw_bus_get_node(dev);
-	if (OF_hasprop(node, "arasan,soc-ctl-syscon") &&
-	    syscon_get_by_ofw_property(dev, node,
-	    "arasan,soc-ctl-syscon", &grf) != 0) {
-		device_printf(dev, "cannot get grf driver handle\n");
-		return (ENXIO);
-	}
-
 	/* Disable clock multiplier */
 	mask = RK3399_CORECFG_CLOCKMULTIPLIER;
 	val = 0;
-	SYSCON_WRITE_4(grf, RK3399_GRF_EMMCCORE_CON11, (mask << 16) | val);
+	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON11, (mask << 16) | val);
 
 	/* Set base clock frequency */
 	mask = RK3399_CORECFG_BASECLKFREQ;
 	val = SHIFTIN((freq + (1000000 / 2)) / 1000000,
 	    RK3399_CORECFG_BASECLKFREQ);
-	SYSCON_WRITE_4(grf, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
+	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
 
 	return (0);
 }
@@ -591,6 +610,14 @@ sdhci_fdt_attach(device_t dev)
 		err = sdhci_init_clocks(dev);
 		if (err != 0) {
 			device_printf(dev, "Cannot init clocks\n");
+			return (err);
+		}
+		if ((err = sdhci_init_phy(sc)) != 0) {
+			device_printf(dev, "Cannot init phy\n");
+			return (err);
+		}
+		if ((err = sdhci_get_syscon(sc)) != 0) {
+			device_printf(dev, "Cannot get syscon handle\n");
 			return (err);
 		}
 		if (compat == SDHCI_FDT_RK3399) {
