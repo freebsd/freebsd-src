@@ -278,7 +278,6 @@ static int adf_ctl_ioctl_reserve_ring(caddr_t arg)
 		mutex_unlock(&bundle->lock);
 		return -EINVAL;
 	}
-	mutex_unlock(&bundle->lock);
 
 	/* Find the list entry for this process */
 	mutex_lock(&bundle->list_lock);
@@ -292,11 +291,11 @@ static int adf_ctl_ioctl_reserve_ring(caddr_t arg)
 
 	if (!pid_entry_found) {
 		pr_err("QAT: process %d not found\n", curproc->p_pid);
+		mutex_unlock(&bundle->lock);
 		return -EINVAL;
 	}
 
 	instance_rings->ring_mask |= reserve.ring_mask;
-	mutex_lock(&bundle->lock);
 	bundle->rings_used |= reserve.ring_mask;
 	mutex_unlock(&bundle->lock);
 

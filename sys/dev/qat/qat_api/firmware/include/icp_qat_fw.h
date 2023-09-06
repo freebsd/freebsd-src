@@ -1386,21 +1386,9 @@ typedef struct icp_qat_fw_comn_resp_s {
 /**< Error Code constant value for submission of empty dynamic stored block to
  * slice  */
 
-#define ERR_CODE_EXCEED_MAX_REQ_TIME -24
-/**< Error Code constant for exceeding max request time */
-
-#define ERR_CODE_KPT_CRYPTO_SERVICE_FAIL_INVALID_HANDLE -20
-/**< Error Code constant for invalid handle in kpt crypto service */
-
-#define ERR_CODE_KPT_CRYPTO_SERVICE_FAIL_HMAC_FAILED -21
-/**< Error Code constant for failed hmac in kpt crypto service */
-
-#define ERR_CODE_KPT_CRYPTO_SERVICE_FAIL_INVALID_WRAPPING_ALGO -22
-/**< Error Code constant for invalid wrapping algo in kpt crypto service */
-
-#define ERR_CODE_KPT_DRNG_SEED_NOT_LOAD -23
-/**< Error Code constant for no drng seed is not loaded in kpt ecdsa signrs
-/service */
+#define ERR_CODE_REGION_OUT_OF_BOUNDS -21
+/**< Error returned when decompression ends before the specified partial
+ * decompression region was produced */
 
 #define ERR_CODE_MISC_ERROR -50
 /**< Error Code constant for error detected but the source

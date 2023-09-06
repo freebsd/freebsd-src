@@ -26,7 +26,7 @@
 
 /* Part name and number of the accelerator device  */
 #define SAL_INFO2_DRIVER_SW_VERSION_MAJ_NUMBER 3
-#define SAL_INFO2_DRIVER_SW_VERSION_MIN_NUMBER 13
+#define SAL_INFO2_DRIVER_SW_VERSION_MIN_NUMBER 14
 #define SAL_INFO2_DRIVER_SW_VERSION_PATCH_NUMBER 0
 
 /**
