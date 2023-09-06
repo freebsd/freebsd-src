@@ -119,6 +119,7 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
 static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
+static inline bool ether_do_pcp(struct ifnet *, struct mbuf *);
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
@@ -463,11 +464,8 @@ int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 	int error;
-	uint8_t pcp;
 
-	pcp = ifp->if_pcp;
-	if (pcp != IFNET_PCP_NONE && ifp->if_type != IFT_L2VLAN &&
-	    !ether_set_pcp(&m, ifp, pcp))
+	if (ether_do_pcp(ifp, m) && !ether_set_pcp(&m, ifp, ifp->if_pcp))
 		return (0);
 
 	if (PFIL_HOOKED(&V_link_pfil_hook)) {
@@ -1312,6 +1310,19 @@ int vlan_mtag_pcp = 0;
 SYSCTL_INT(_net_link_vlan, OID_AUTO, mtag_pcp, CTLFLAG_RW,
     &vlan_mtag_pcp, 0,
     "Retain VLAN PCP information as packets are passed up the stack");
+
+static inline bool
+ether_do_pcp(struct ifnet *ifp, struct mbuf *m)
+{
+	if (ifp->if_type == IFT_L2VLAN)
+		return (false);
+	if (ifp->if_pcp != IFNET_PCP_NONE || (m->m_flags & M_VLANTAG) != 0)
+		return (true);
+	if (vlan_mtag_pcp &&
+	    m_tag_locate(m, MTAG_8021Q, MTAG_8021Q_PCP_OUT, NULL) != NULL)
+		return (true);
+	return (false);
+}
 
 bool
 ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
