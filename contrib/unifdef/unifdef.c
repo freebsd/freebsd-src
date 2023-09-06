@@ -1550,8 +1550,12 @@ addsym2(bool ignorethis, const char *symname, const char *val)
 		sym->value = val;
 		r = RB_INSERT(MACROMAP, &macro_tree, sym);
 		assert(r == NULL);
+		debugsym("addsym", sym);
+	} else {
+		sym->ignore = ignorethis;
+		sym->value = val;
+		debugsym("updsym", sym);
 	}
-	debugsym("addsym", sym);
 }
 
 static void
