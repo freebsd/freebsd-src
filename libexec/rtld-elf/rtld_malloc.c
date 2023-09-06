@@ -188,7 +188,7 @@ __crt_aligned_alloc_offset(size_t align, size_t size, size_t offset)
 	x += offset;
 	ov = cp2op((void *)x);
 	ov1.ov_magic = AMAGIC;
-	ov1.ov_index = x - (uintptr_t)mem - sizeof(union overhead);
+	ov1.ov_index = x - (uintptr_t)mem + sizeof(union overhead);
 	memcpy(ov, &ov1, sizeof(ov1));
 	return ((void *)x);
 }
