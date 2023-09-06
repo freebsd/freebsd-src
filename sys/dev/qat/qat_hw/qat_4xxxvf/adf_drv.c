@@ -93,7 +93,7 @@ adf_attach(device_t dev)
 	struct adf_accel_dev *pf;
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
-	unsigned int i, bar_nr;
+	unsigned int bar_nr;
 	int ret = 0;
 	int rid;
 	struct adf_cfg_device *cfg_dev = NULL;
@@ -159,40 +159,30 @@ adf_attach(device_t dev)
 	hw_data->accel_capabilities_mask = adf_4xxxvf_get_hw_cap(accel_dev);
 
 	/* Find and map all the device's BARS */
-	i = 0;
-	for (bar_nr = 0; i < ADF_PCI_MAX_BARS && bar_nr < PCIR_MAX_BAR_0;
-	     bar_nr++) {
+	/* Logical BARs configuration for 64bit BARs:
+	     bar 0 and 1 - logical BAR0
+	     bar 2 and 3 - logical BAR1
+	     bar 4 and 5 - logical BAR3
+	*/
+	for (bar_nr = 0;
+	     bar_nr < (ADF_PCI_MAX_BARS * 2) && bar_nr < PCIR_MAX_BAR_0;
+	     bar_nr += 2) {
 		struct adf_bar *bar;
 
 		rid = PCIR_BAR(bar_nr);
-		if (bus_get_resource(dev, SYS_RES_MEMORY, rid, NULL, NULL) !=
-		    0) {
-			continue;
-		}
-		bar = &accel_pci_dev->pci_bars[i++];
+		bar = &accel_pci_dev->pci_bars[bar_nr / 2];
 		bar->virt_addr = bus_alloc_resource_any(dev,
 							SYS_RES_MEMORY,
 							&rid,
 							RF_ACTIVE);
 		if (!bar->virt_addr) {
-			device_printf(GET_DEV(accel_dev),
-				      "Failed to map BAR %d\n",
-				      bar_nr);
+			device_printf(dev, "Failed to map BAR %d\n", bar_nr);
 			ret = ENXIO;
 			goto out_err;
 		}
 		bar->base_addr = rman_get_start(bar->virt_addr);
 		bar->size = rman_get_size(bar->virt_addr);
 	}
-
-	if (i == 0) {
-		device_printf(
-		    GET_DEV(accel_dev),
-		    "No BARs mapped. Please check if PCI BARs are mapped correctly for device\n");
-		ret = ENXIO;
-		goto out_err;
-	}
-
 	pci_enable_busmaster(dev);
 
 	/* Completion for VF2PF request/response message exchange */
