@@ -1071,11 +1071,11 @@ do_whatis() {
 
 # User's PATH setting decides on the groff-suite to pick up.
 EQN=eqn
-NROFF='groff -S -P-h -Wall -mtty-char -man'
+NROFF='groff -S -P-h -Wall -mtty-char -mandoc'
 PIC=pic
 REFER=refer
 TBL=tbl
-TROFF='groff -S -man'
+TROFF='groff -S -mandoc'
 VGRIND=vgrind
 
 LOCALE=/usr/bin/locale
