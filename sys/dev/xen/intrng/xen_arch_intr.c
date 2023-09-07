@@ -121,7 +121,8 @@ static void xen_init(const void *arg __unused)
 	xatp.space = XENMAPSPACE_shared_info;
 	xatp.gpfn = shared_paddr >> PAGE_SHIFT;
 	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp);
-	KASSERT(rc == 0, ("Unable to map shared info\n"));
+	if (rc != 0)
+		panic("Unable to map shared info error=%d\n", rc);
 }
 
 /* xen_init() won't work during console probe, thus this */
