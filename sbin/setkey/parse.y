@@ -46,6 +46,7 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <netdb.h>
@@ -68,6 +69,7 @@ u_int p_natt_type;
 struct addrinfo *p_natt_oai, *p_natt_oar;
 int p_natt_sport, p_natt_dport;
 int p_natt_fraglen;
+bool esn;
 
 static int p_aiflags = 0, p_aifamily = PF_UNSPEC;
 
@@ -115,6 +117,7 @@ extern void yyerror(const char *);
 %token SPDADD SPDDELETE SPDDUMP SPDFLUSH
 %token F_POLICY PL_REQUESTS
 %token F_AIFLAGS F_NATT F_NATT_MTU
+%token F_ESN
 %token TAGGED
 
 %type <num> prefix protocol_spec upper_spec
@@ -538,6 +541,11 @@ extension
 	|	F_NATT_MTU DECSTRING
 		{
 			p_natt_fraglen = $2;
+		}
+	|	F_ESN
+		{
+			esn = true;
+			p_ext |= SADB_X_SAFLAGS_ESN;
 		}
 	;
 
@@ -1355,6 +1363,8 @@ parse_init(void)
 	p_natt_oai = p_natt_oar = NULL;
 	p_natt_sport = p_natt_dport = 0;
 	p_natt_fraglen = -1;
+
+	esn = false;
 }
 
 void
