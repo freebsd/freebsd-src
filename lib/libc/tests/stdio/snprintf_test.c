@@ -12,18 +12,19 @@
 
 #include <atf-c.h>
 
-#define SNPRINTF_TEST(output, format, ...) \
+#ifndef nitems
+#define nitems(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
+#define SNPRINTF_TEST(output, format, ...)				\
 	do {								\
 		char buf[256];						\
-		assert(output == NULL || strlen(output) < sizeof(buf));	\
-		int ret = snprintf(buf, sizeof(buf), format, __VA_ARGS__); \
-		if (output == NULL) {					\
-			ATF_CHECK_EQ(-1, ret);				\
-		} else {						\
-			ATF_CHECK_EQ(strlen(output), ret);		\
-			if (ret > 0) {					\
-				ATF_CHECK_STREQ(output, buf);		\
-			}						\
+		assert(strlen(output) < nitems(buf));			\
+		int ret = snprintf(buf, nitems(buf), format,		\
+		    __VA_ARGS__);					\
+		ATF_CHECK_EQ(strlen(output), ret);			\
+		if (ret > 0) {						\
+			ATF_CHECK_EQ(0, strcmp(output, buf));		\
 		}							\
 	} while (0)
 
