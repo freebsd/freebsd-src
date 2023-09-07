@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd August 21, 2023
+.Dd September 5, 2023
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -342,6 +342,8 @@ conversion:
 .It Cm ll No (ell ell) Ta Vt "long long" Ta Vt "unsigned long long" Ta Vt "long long *"
 .It Cm j Ta Vt intmax_t Ta Vt uintmax_t Ta Vt "intmax_t *"
 .It Cm t Ta Vt ptrdiff_t Ta (see note) Ta Vt "ptrdiff_t *"
+.It Cm w Ns Ar N Ta Vt intN_t Ta Vt uintN_t Ta Vt "intN_t *"
+.It Cm wf Ns Ar N Ta Vt int_fastN_t Ta Vt uint_fastN_t Ta Vt "int_fastN_t *"
 .It Cm z Ta (see note) Ta Vt size_t Ta (see note)
 .It Cm q Em (deprecated) Ta Vt quad_t Ta Vt u_quad_t Ta Vt "quad_t *"
 .El

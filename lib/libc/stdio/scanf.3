@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
 .\"
-.Dd August 21, 2023
+.Dd September 5, 2023
 .Dt SCANF 3
 .Os
 .Sh NAME
@@ -215,6 +215,34 @@ or
 .Cm n
 and the next pointer is a pointer to a
 .Vt ptrdiff_t
+(rather than
+.Vt int ) .
+.It Cm w Ns Ar N
+.Po
+where
+.Ar N
+is 8, 16, 32, or 64
+.Pc
+Indicates that the conversion will be one of
+.Cm bdioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt intN_t
+(rather than
+.Vt int ) .
+.It Cm wf Ns Ar N
+.Po
+where
+.Ar N
+is 8, 16, 32, or 64
+.Pc
+Indicates that the conversion will be one of
+.Cm bdioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt int_fastN_t
 (rather than
 .Vt int ) .
 .It Cm z
