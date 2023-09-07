@@ -30,7 +30,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h byteswap.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h sched.h \
 	search.h semaphore.h setjmp.h \
-	signal.h spawn.h stab.h stdalign.h stdbool.h stddef.h \
+	signal.h spawn.h stab.h stdalign.h stdbool.h stdckdint.h stddef.h \
 	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
