@@ -278,6 +278,8 @@
             ..
         ..
     ..
+    include
+    ..
     lib
         atf
             libatf-c
