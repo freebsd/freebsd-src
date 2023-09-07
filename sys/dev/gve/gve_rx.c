@@ -546,6 +546,7 @@ gve_rx(struct gve_priv *priv, struct gve_rx_ring *rx, struct gve_rx_desc *desc,
 
 	if (is_first_frag) {
 		mbuf->m_pkthdr.rcvif = priv->ifp;
+		ctx->is_tcp = desc->flags_seq & GVE_RXF_TCP;
 
 		if (gve_needs_rss(desc->flags_seq)) {
 			gve_set_rss_type(desc->flags_seq, mbuf);
@@ -567,7 +568,7 @@ gve_rx(struct gve_priv *priv, struct gve_rx_ring *rx, struct gve_rx_desc *desc,
 		do_if_input = true;
 
 		if (((if_getcapenable(priv->ifp) & IFCAP_LRO) != 0) &&      /* LRO is enabled */
-		    (desc->flags_seq & GVE_RXF_TCP) &&                      /* pkt is a TCP pkt */
+		    (ctx->is_tcp) &&                      		    /* pkt is a TCP pkt */
 		    ((mbuf->m_pkthdr.csum_flags & CSUM_DATA_VALID) != 0) && /* NIC verified csum */
 		    (rx->lro.lro_cnt != 0) &&                               /* LRO resources exist */
 		    (tcp_lro_rx(&rx->lro, mbuf, 0) == 0))
