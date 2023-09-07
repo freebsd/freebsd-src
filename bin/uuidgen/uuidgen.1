@@ -77,6 +77,30 @@ to each other, but operating system latency and processing time will be
 reflected in the distance between two successive identifiers.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Generate a batch of three UUIDs.
+Notice the similarity of the string before the first hyphen of the UUID
+(known as
+.Em time_low
+in
+.Em rfc4122
+):
+.Bd -literal -offset indent
+$ uuidgen -n3
+8bc44345-4d90-11ee-88c7-b42e991fc52e
+8bc44346-4d90-11ee-88c7-b42e991fc52e
+8bc44347-4d90-11ee-88c7-b42e991fc52e
+.Ed
+.Pp
+Generate a batch of random UUIDs without hyphens:
+.Bd -literal -offset indent
+$ uuidgen -r -c -n3
+5ad8b60a0f4e41f59c82d273202275f9
+6c41925486cd4bf59720a5bad85de2e4
+8144fdab63f648a1812d12453f975313
+.Ed
+.Pp
+Notice that the UUIDs are not similar to each other.
 .Sh SEE ALSO
 .Xr uuidgen 2 ,
 .Xr uuid 3
