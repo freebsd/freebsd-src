@@ -698,3 +698,5 @@ arm64/rockchip/clk/rk3568_pmucru.c		optional fdt soc_rockchip_rk3568
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq fdt
 arm/xilinx/zy7_gpio.c				optional gpio soc_xilinx_zynq fdt
 dev/usb/controller/xlnx_dwc3.c			optional xhci soc_xilinx_zynq fdt
+dev/firmware/xilinx/zynqmp_firmware.c		optional fdt soc_xilinx_zynq
+dev/firmware/xilinx/zynqmp_firmware_if.m	optional fdt soc_xilinx_zynq
