@@ -700,3 +700,10 @@ arm/xilinx/zy7_gpio.c				optional gpio soc_xilinx_zynq fdt
 dev/usb/controller/xlnx_dwc3.c			optional xhci soc_xilinx_zynq fdt
 dev/firmware/xilinx/zynqmp_firmware.c		optional fdt soc_xilinx_zynq
 dev/firmware/xilinx/zynqmp_firmware_if.m	optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clock.c			optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clk_div.c			optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clk_fixed.c		optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clk_gate.c		optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clk_mux.c			optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_clk_pll.c			optional fdt soc_xilinx_zynq
+dev/clk/xilinx/zynqmp_reset.c			optional fdt soc_xilinx_zynq
