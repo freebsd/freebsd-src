@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <limits.h>
 #include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -237,6 +238,68 @@ ATF_TC_BODY(sscanf_i, tc)
 	}
 }
 
+ATF_TC_WITHOUT_HEAD(sscanf_wN);
+ATF_TC_BODY(sscanf_wN, tc)
+{
+	const char x00[] = "0x00";
+	const char x7f[] = "0x7fffffffffffffff";
+	const char xff[] = "0xffffffffffffffff";
+
+#define SSCANF_WN_TEST(N, imin, umax)					\
+	do {								\
+		int##N##_t i;						\
+		uint##N##_t u;						\
+		ATF_CHECK_EQ(1, sscanf(x00, "%w" #N "i", &i));		\
+		ATF_CHECK_EQ(0, i);					\
+		ATF_CHECK_EQ(1, sscanf(x7f, "%w" #N "i", &i));		\
+		ATF_CHECK_EQ(imin, i);					\
+		ATF_CHECK_EQ(1, sscanf(x00, "%w" #N "x", &u));		\
+		ATF_CHECK_EQ(0, u);					\
+		ATF_CHECK_EQ(1, sscanf(xff, "%w" #N "x", &u));		\
+		ATF_CHECK_EQ(umax, u);					\
+	} while (0)
+	SSCANF_WN_TEST(8, -1, UCHAR_MAX);
+	SSCANF_WN_TEST(16, -1, USHRT_MAX);
+	SSCANF_WN_TEST(32, -1, UINT_MAX);
+	SSCANF_WN_TEST(64, LLONG_MAX, ULLONG_MAX);
+#undef SSCANF_WN_TEST
+
+	ATF_CHECK_EQ(0, sscanf(x00, "%wi", (int *)NULL));
+	ATF_CHECK_EQ(0, sscanf(x00, "%w1i", (int *)NULL));
+	ATF_CHECK_EQ(0, sscanf(x00, "%w128i", (int *)NULL));
+}
+
+ATF_TC_WITHOUT_HEAD(sscanf_wfN);
+ATF_TC_BODY(sscanf_wfN, tc)
+{
+	const char x00[] = "0x00";
+	const char x7f[] = "0x7fffffffffffffff";
+	const char xff[] = "0xffffffffffffffff";
+
+#define SSCANF_WFN_TEST(N, imin, umax)					\
+	do {								\
+		int_fast##N##_t i;					\
+		uint_fast##N##_t u;					\
+		ATF_CHECK_EQ(1, sscanf(x00, "%wf" #N "i", &i));		\
+		ATF_CHECK_EQ(0, i);					\
+		ATF_CHECK_EQ(1, sscanf(x7f, "%wf" #N "i", &i));		\
+		ATF_CHECK_EQ(imin, i);					\
+		ATF_CHECK_EQ(1, sscanf(x00, "%wf" #N "x", &u));		\
+		ATF_CHECK_EQ(0, u);					\
+		ATF_CHECK_EQ(1, sscanf(xff, "%wf" #N "x", &u));		\
+		ATF_CHECK_EQ(umax, u);					\
+	} while (0)
+	SSCANF_WFN_TEST(8, -1, UINT_MAX);
+	SSCANF_WFN_TEST(16, -1, UINT_MAX);
+	SSCANF_WFN_TEST(32, -1, UINT_MAX);
+	SSCANF_WFN_TEST(64, LLONG_MAX, ULLONG_MAX);
+#undef SSCANF_WFN_TEST
+
+	ATF_CHECK_EQ(0, sscanf(x00, "%wfi", (int *)NULL));
+	ATF_CHECK_EQ(0, sscanf(x00, "%wf1i", (int *)NULL));
+	ATF_CHECK_EQ(0, sscanf(x00, "%wf128i", (int *)NULL));
+}
+
 /*
  * Test termination cases: non-numeric character, fixed width, EOF
  */
@@ -261,6 +324,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sscanf_d);
 	ATF_TP_ADD_TC(tp, sscanf_x);
 	ATF_TP_ADD_TC(tp, sscanf_i);
+	ATF_TP_ADD_TC(tp, sscanf_wN);
+	ATF_TP_ADD_TC(tp, sscanf_wfN);
 	ATF_TP_ADD_TC(tp, sscanf_termination);
 	return (atf_no_error());
 }
