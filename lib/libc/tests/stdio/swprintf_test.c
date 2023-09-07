@@ -128,6 +128,70 @@ ATF_TC_BODY(swprintf_X, tc)
 	SWPRINTF_TEST("0X007FFFFFFF", "%#012X", INT_MAX);
 }
 
+ATF_TC_WITHOUT_HEAD(swprintf_wN);
+ATF_TC_BODY(swprintf_wN, tc)
+{
+	SWPRINTF_TEST("0", "%w8d", (int8_t)0);
+	SWPRINTF_TEST("-128", "%w8d", (int8_t)CHAR_MIN);
+	SWPRINTF_TEST("127", "%w8d", (int8_t)CHAR_MAX);
+	SWPRINTF_TEST("0", "%w8u", (uint8_t)0);
+	SWPRINTF_TEST("255", "%w8u", (uint8_t)UCHAR_MAX);
+
+	SWPRINTF_TEST("0", "%w16d", (int16_t)0);
+	SWPRINTF_TEST("-32768", "%w16d", (int16_t)SHRT_MIN);
+	SWPRINTF_TEST("32767", "%w16d", (int16_t)SHRT_MAX);
+	SWPRINTF_TEST("0", "%w16u", (uint16_t)0);
+	SWPRINTF_TEST("65535", "%w16u", (uint16_t)USHRT_MAX);
+
+	SWPRINTF_TEST("0", "%w32d", (int32_t)0);
+	SWPRINTF_TEST("-2147483648", "%w32d", (int32_t)INT_MIN);
+	SWPRINTF_TEST("2147483647", "%w32d", (int32_t)INT_MAX);
+	SWPRINTF_TEST("0", "%w32u", (uint32_t)0);
+	SWPRINTF_TEST("4294967295", "%w32u", (uint32_t)UINT_MAX);
+
+	SWPRINTF_TEST("0", "%w64d", (int64_t)0);
+	SWPRINTF_TEST("-9223372036854775808", "%w64d", (int64_t)LLONG_MIN);
+	SWPRINTF_TEST("9223372036854775807", "%w64d", (int64_t)LLONG_MAX);
+	SWPRINTF_TEST("0", "%w64u", (uint64_t)0);
+	SWPRINTF_TEST("18446744073709551615", "%w64u", (uint64_t)ULLONG_MAX);
+
+	SWPRINTF_TEST("wd", "%wd", 0);
+	SWPRINTF_TEST("w1d", "%w1d", 0);
+	SWPRINTF_TEST("w128d", "%w128d", 0);
+}
+
+ATF_TC_WITHOUT_HEAD(swprintf_wfN);
+ATF_TC_BODY(swprintf_wfN, tc)
+{
+	SWPRINTF_TEST("0", "%wf8d", (int_fast8_t)0);
+	SWPRINTF_TEST("-2147483648", "%wf8d", (int_fast8_t)INT_MIN);
+	SWPRINTF_TEST("2147483647", "%wf8d", (int_fast8_t)INT_MAX);
+	SWPRINTF_TEST("0", "%wf8u", (uint8_t)0);
+	SWPRINTF_TEST("4294967295", "%wf8u", (uint_fast8_t)UINT_MAX);
+
+	SWPRINTF_TEST("0", "%wf16d", (int_fast16_t)0);
+	SWPRINTF_TEST("-2147483648", "%wf16d", (int_fast16_t)INT_MIN);
+	SWPRINTF_TEST("2147483647", "%wf16d", (int_fast16_t)INT_MAX);
+	SWPRINTF_TEST("0", "%wf16u", (uint16_t)0);
+	SWPRINTF_TEST("4294967295", "%wf16u", (uint_fast16_t)UINT_MAX);
+
+	SWPRINTF_TEST("0", "%wf32d", (int_fast32_t)0);
+	SWPRINTF_TEST("-2147483648", "%wf32d", (int_fast32_t)INT_MIN);
+	SWPRINTF_TEST("2147483647", "%wf32d", (int_fast32_t)INT_MAX);
+	SWPRINTF_TEST("0", "%wf32u", (uint32_t)0);
+	SWPRINTF_TEST("4294967295", "%wf32u", (uint_fast32_t)UINT_MAX);
+
+	SWPRINTF_TEST("0", "%wf64d", (int_fast64_t)0);
+	SWPRINTF_TEST("-9223372036854775808", "%wf64d", (int_fast64_t)LLONG_MIN);
+	SWPRINTF_TEST("9223372036854775807", "%wf64d", (int_fast64_t)LLONG_MAX);
+	SWPRINTF_TEST("0", "%wf64u", (uint64_t)0);
+	SWPRINTF_TEST("18446744073709551615", "%wf64u", (uint_fast64_t)ULLONG_MAX);
+
+	SWPRINTF_TEST("wfd", "%wfd", 0);
+	SWPRINTF_TEST("wf1d", "%wf1d", 0);
+	SWPRINTF_TEST("wf128d", "%wf128d", 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
@@ -136,5 +200,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, swprintf_d);
 	ATF_TP_ADD_TC(tp, swprintf_x);
 	ATF_TP_ADD_TC(tp, swprintf_X);
+	ATF_TP_ADD_TC(tp, swprintf_wN);
+	ATF_TP_ADD_TC(tp, swprintf_wfN);
 	return (atf_no_error());
 }
