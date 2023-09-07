@@ -327,7 +327,7 @@
 #define HAVE_STAT_INO 1
 
 /* Define to 1 if you have the <stdckdint.h> header file. */
-/* #undef HAVE_STDCKDINT_H */
+#define HAVE_STDCKDINT_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
