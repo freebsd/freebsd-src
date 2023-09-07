@@ -75,6 +75,7 @@ static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #define	SUPPRESS	0x08	/* *: suppress assignment */
 #define	POINTER		0x10	/* p: void * (as hex) */
 #define	NOSKIP		0x20	/* [ or c: do not skip blanks */
+#define FASTINT		0x200	/* wfN: int_fastN_t */
 #define	LONGLONG	0x400	/* ll: long long (+ deprecated q: quad) */
 #define	INTMAXT		0x800	/* j: intmax_t */
 #define	PTRDIFFT	0x1000	/* t: ptrdiff_t */
@@ -554,6 +555,45 @@ literal:
 			goto again;
 		case 't':
 			flags |= PTRDIFFT;
+			goto again;
+		case 'w':
+			/*
+			 * Fixed-width integer types.  On all platforms we
+			 * support, int8_t is equivalent to char, int16_t
+			 * is equivalent to short, int32_t is equivalent
+			 * to int, int64_t is equivalent to long long int.
+			 * Furthermore, int_fast8_t, int_fast16_t and
+			 * int_fast32_t are equivalent to int, and
+			 * int_fast64_t is equivalent to long long int.
+			 */
+			flags &= ~(SHORTSHORT|SHORT|LONG|LONGLONG|SIZET|INTMAXT|PTRDIFFT);
+			if (fmt[0] == 'f') {
+				flags |= FASTINT;
+				fmt++;
+			} else {
+				flags &= ~FASTINT;
+			}
+			if (fmt[0] == '8') {
+				if (!(flags & FASTINT))
+					flags |= SHORTSHORT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 1;
+			} else if (fmt[0] == '1' && fmt[1] == '6') {
+				if (!(flags & FASTINT))
+					flags |= SHORT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '3' && fmt[1] == '2') {
+				/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '6' && fmt[1] == '4') {
+				flags |= LONGLONG;
+				fmt += 2;
+			} else {
+				goto match_failure;
+			}
 			goto again;
 		case 'z':
 			flags |= SIZET;
