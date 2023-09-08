@@ -685,8 +685,10 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 					printf("%s: unknown route interface: %s\n",
 					    __func__, sp->pfs_1400.rt_ifname);
 				if (flags & PFSYNC_SI_IOCTL)
-					return (EINVAL);
-				return (0);	/* skip this state */
+					error = EINVAL;
+				else
+					error = 0;
+				goto cleanup_keys;
 			}
 			break;
 		default:
@@ -734,6 +736,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 cleanup:
 	error = ENOMEM;
+cleanup_keys:
 	if (skw == sks)
 		sks = NULL;
 	uma_zfree(V_pf_state_key_z, skw);
