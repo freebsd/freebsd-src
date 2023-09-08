@@ -186,6 +186,7 @@ dump_regs(struct trapframe *frame)
 	print_with_symbol("tp", frame->tf_tp);
 	print_with_symbol("sepc", frame->tf_sepc);
 	printf("sstatus: 0x%016lx\n", frame->tf_sstatus);
+	printf("stval  : 0x%016lx\n", frame->tf_stval);
 }
 
 static void
