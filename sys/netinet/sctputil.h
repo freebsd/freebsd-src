@@ -80,12 +80,6 @@ int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, uint32_t, uint32_t, u
 
 void sctp_fill_random_store(struct sctp_pcb *);
 
-void
-sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin,
-    uint16_t numberout, int flag);
-void
-     sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32_t recv_tsn, int flag);
-
 /*
  * NOTE: sctp_timer_start() will increment the reference count of any relevant
  * structure the timer is referencing, in order to prevent a race condition
