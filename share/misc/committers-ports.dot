@@ -68,6 +68,7 @@ ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20\n2011/01/02"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07\n2018/11/06"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05\n2011/10/14"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02\n2020/10/05"]
+jbo [label="Joel Bodenmann\njbo@FreeBSD.org\n2023/09/06"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06\n2021/06/07"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31\n2013/08/18"]
@@ -791,6 +792,7 @@ tcberner -> adridg
 tcberner -> arrowd
 tcberner -> diizzy
 tcberner -> fernape
+tcberner -> jbo
 tcberner -> joneum
 tcberner -> kai
 tcberner -> lbartoletti
@@ -841,5 +843,7 @@ wxs -> swills
 wxs -> zi
 
 ygy -> yasu
+
+zirias -> jbo
 
 }
