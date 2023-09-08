@@ -1,0 +1,367 @@
+.\" Copyright © 2023 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Ed Maste <emaste@freebsd.org>, and
+.\" Olivier Certner <olce.freebsd@certner.fr> at Kumacom SAS, under
+.\" sponsorship of the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 6, 2023
+.Dt MITIGATIONS 7
+.Os
+.Sh NAME
+.Nm mitigations
+.Nd FreeBSD Security Vulnerability Mitigations
+.Sh SYNOPSIS
+In
+.Fx ,
+various security mitigations are employed to limit the impact of
+vulnerabilities and protect the system from malicious attacks.
+Some of these mitigations have run-time controls to enable them on a global
+or per-process basis, some are optionally enabled or disabled at compile time,
+and some are inherent to the implementation and have no controls.
+.Pp
+The following vulnerability mitigations are covered in this document:
+.Bl -bullet -compact
+.It
+Address Space Layout Randomization (ASLR)
+.It
+Position Independent Executable (PIE)
+.It
+Write XOR Execute page protection policy
+.It
+.Dv PROT_MAX
+.It
+Relocation Read-Only (RELRO)
+.It
+Bind Now
+.\".It
+.\"Stack Smashing Protection (SSP)
+.\".It
+.\"Supervisor Mode Memory Protection
+.It
+Hardware Vulnerability Mitigation Controls
+.It
+Capsicum
+.El
+.Pp
+Please note that the effectiveness and availability of these mitigations may
+vary depending on the
+.Fx
+version and system configuration.
+.Sh DESCRIPTION
+Security vulnerability mitigations are techniques employed in
+.Fx
+to limit the potential impact of security vulnerabilities in software and
+hardware.
+It is essential to understand that mitigations do not directly address the
+underlying security issues.
+They are not a substitute for secure coding practices.
+Mitigations serve as an additional layer of defense, helping to reduce the
+likelihood of a successful exploitation of vulnerabilities by making it
+more difficult for attackers to achieve their objectives.
+.Pp
+This manual page describes the security mitigations implemented in
+.Fx
+to enhance the overall security of the operating system.
+Each mitigation is designed to protect against specific types of attacks
+and vulnerabilities.
+.\"
+.Sh SOFTWARE VULNERABILITY MITIGATIONS
+.Ss Address Space Layout Randomization (ASLR)
+Address Space Layout Randomization (ASLR) is a security mitigation technique
+that works by randomizing the memory addresses where system and application
+code, data, and libraries are loaded, making it more challenging for attackers
+to predict the memory layout and exploit vulnerabilities.
+.Pp
+ASLR introduces randomness into the memory layout during process execution,
+reducing the predictability of memory addresses.
+ASLR is intended to make exploitation more difficult in the event that an
+attacker discovers a software vulnerability, such as a buffer overflow.
+.Pp
+ASLR can be enabled on both a global and per-process basis.
+Global control is provided by a separate set of
+.Xr sysctl 8
+knobs for 32- and 64-bit processes.
+It can be or disabled on a per-process basis via
+.Xr proccontrol 1 .
+Note that an ASLR mode change takes effect upon address space change,
+i.e., upon
+.Xr execve 2 .
+.Pp
+Global controls for 32-bit processes:
+.Bl -tag -width kern.elf32.aslr.pie_enable
+.It Va kern.elf32.aslr.enable
+Enable ASLR for 32-bit ELF binaries, other than Position Independent
+Exectutable (PIE) binaries.
+.It Va kern.elf32.aslr.pie_enable
+Enable ASLR for 32-bit Position Independent Executable (PIE) ELF binaries.
+.It Va kern.elf32.aslr.honor_sbrk
+Reserve the legacy
+.Xr sbrk 2
+region for compatibility with older binaries.
+.It Va kern.elf32.aslr.stack
+If ASLR is enabled for a process, also randomize the stack location.
+.El
+.Pp
+Global controls for 64-bit processes:
+.Bl -tag -width kern.elf64.aslr.pie_enable
+.It Va kern.elf64.aslr.enable
+Enable ASLR for 64-bit ELF binaries, other than Position Independent
+Exectutable (PIE) binaries.
+.It Va kern.elf64.aslr.pie_enable
+Enable ASLR for 64-bit Position Independent Executable (PIE) ELF binaries.
+.It Va kern.elf64.aslr.honor_sbrk
+Reserve the legacy
+.Xr sbrk 2
+region for compatibility with older binaries.
+.It Va kern.elf64.aslr.stack
+If ASLR is enabled for a process, also randomize the stack location.
+.El
+.Pp
+To execute a command with ASLR enabled or disabled:
+.Pp
+proccontrol
+.Fl m Ar aslr
+.Op Fl s Ar enable | disable
+.Ar command
+.\"
+.Ss Position Independent Executable (PIE)
+PIE binaries are executable files that do not have a fixed load address.
+They can be loaded at an arbitrary memory address by the
+.Xr rtld
+run-time linker.
+With ASLR they are loaded at a random address on each execution.
+.\"
+.Ss Write XOR Execute page protection policy
+Write XOR Execute (W^X) is a vulnerability mitigation strategy that strengthens
+the security of the system by controlling memory access permissions.
+.Pp
+Under the W^X mitigation, memory pages may be writable (W) or executable (E),
+but not both at the same time.
+This means that code execution is prevented in areas of memory that are
+designated as writable, and writing or modification of memory is restricted in
+areas marked for execution.
+Applications that perform Just In Time (JIT) compilation need to be adapted
+to be compatible with W^X.
+.Pp
+There are separate
+.Xr sysctl 8
+knobs to control W^X policy enforcement for 32- and 64-bit processes.
+The W^X policy is enabled by setting the appropriate
+.Dv allow_wx
+sysctl to 0.
+.Bl -tag -width kern.elf64.allow_wx
+.It Va kern.elf32.allow_wx
+Allow 32-bit processes to map pages simultaneously writable and executable.
+.It Va kern.elf64.allow_wx
+Allow 64-bit processes to map pages simultaneously writable and executable.
+.El
+.\"
+.Ss PROT_MAX
+.Dv PROT_MAX
+is a FreeBSD-specific extension to
+.Xr mmap 2 .
+.Dv PROT_MAX
+provides the ability to set the maximum protection of a region allocated by
+.Xr mmap
+and later altered by
+.Xr mprotect .
+For example, memory allocated originally with an mmap prot argument of
+PROT_MAX(PROT_READ | PROT_WRITE) | PROT_READ
+may be made writable by a future
+.Xr mprotect
+call, but may not be made executable.
+.\"
+.Ss Relocation Read-Only (RELRO)
+Relocation Read-Only (RELRO) is a mitigation tool that makes certain portions
+of a program's address space that contain ELF metadata read-only, after
+relocation processing by
+.Xr rtld 1 .
+.Pp
+When enabled in isolation the RELRO option provides
+.Em partial RELRO
+support.
+In this case the Procedure Linkage Table (PLT)-related part of the
+Global Offset Table (GOT) (in the section typically named .got.plt) remains
+writable.
+.Pp
+RELRO is enabled by default.
+The
+.Xr src.conf 5
+build-time option
+.Va WITHOUT_RELRO
+may be used to disable it.
+.Ss BIND_NOW
+The
+.Va WITH_BIND_NOW
+.Xr src.conf 5
+build-time option causes binaries to be built with the
+.Dv DF_BIND_NOW
+flag set.
+The run-time loader
+.Xr rtld 1
+will then perform all relocation processing when the process starts, instead of
+on demand (on the first access to each symbol).
+.Pp
+When enabled in combination with
+.Dv RELRO
+(which is enabled by default) this provides
+.Em full RELRO .
+The entire GOT (.got and .got.plt) are made read-only at program startup,
+preventing attacks on the relocation table.
+Note that this results in a nonstandard Application Binary Interface (ABI),
+and it is possible that some applications may not function correctly.
+.\"
+.\".Ss Stack Smashing Protection (SSP)
+.\"
+.\".Ss Supervisor mode memory protection
+.\"
+.Ss Hardware vulnerability controls
+See
+.Xr security 7
+for more information.
+.\"
+.Ss Capsicum
+Capsicum is a lightweight OS capability and sandbox framework.
+See
+.Xr capsicum 4
+for more information.
+.Pp
+.Sh HARDWARE VULNERABILITY MITIGATIONS
+Recent years have seen an unending stream of new hardware vulnerabilities,
+notably CPU ones generally caused by detectable microarchitectural side-effects
+of speculative execution which leak private data from some other thread or
+process or sometimes even internal CPU state that is normally inaccessible.
+Hardware vendors usually address these vulnerabilities as they are discovered by
+releasing microcode updates, which may then be bundled into platform firmware
+updates
+.Pq historically called BIOS updates for PCs .
+.Pp
+The best defense overall against hardware vulnerabilities is to timely apply
+these updates when available and to disable the affected hardware's problematic
+functionalities when possible (e.g., CPU Simultaneous Multi-Threading).
+Software mitigations are only partial substitutes for these, but they can be
+helpful on out-of-support hardware or as complements for just-discovered
+vulnerabilities not yet addressed by vendors.
+Some software mitigations depend on hardware capabilities provided by a
+microcode update.
+.Pp
+FreeBSD's usual policy is to apply by default all OS-level mitigations that do
+not require recompilation, except those the particular hardware it is running on
+is known not to be vulnerable to
+.Pq which sometimes requires firmware updates ,
+or those that are extremely detrimental to performance in proportion to the
+protection they actually provide.
+OS-level mitigations generally can have noticeable performance impacts on
+specific workloads.
+If your threat model allows it, you may want to try disabling some of them in
+order to possibly get better performance.
+Conversely, minimizing the risks may require you to explicitly enable the most
+expensive ones.
+The description of each vulnerability/mitigation indicates whether it is enabled
+or disabled by default and under which conditions.
+It also lists the knobs to tweak to force a particular status.
+.Ss Zenbleed
+The
+.Dq Zenbleed
+vulnerability exclusively affects AMD processors based on the Zen2
+microarchitecture.
+In contrast with, e.g., Meltdown and the different variants of Spectre, which
+leak data by leaving microarchitectural traces, Zenbleed is a genuine hardware
+bug affecting the CPU's architectural state.
+With particular sequences of instructions whose last ones are mispredicted by
+speculative execution, it is possible to make appear in an XMM register data
+previously put in some XMM register by some preceding or concurrent task
+executing on the same physical core
+.Po disabling Simultaneous Muti-Threading
+.Pq SMT
+is thus not a sufficient protection
+.Pc .
+.Pp
+According to the vulnerability's discoverer, all Zen2-based processors are
+affected
+.Po see
+.Lk https://lock.cmpxchg8b.com/zenbleed.html
+.Pc .
+As of August 2023, AMD has not publicly listed any corresponding errata but has
+issued a security bulletin
+.Pq AMD-SB-7008
+entitled
+.Dq Cross-Process Information Leak
+indicating that platform firmware fixing the vulnerability will be distributed
+to manufacturers no sooner than the end of 2023, except for Rome processors for
+which it is already available.
+No standalone CPU microcodes have been announced so far.
+The only readily-applicable fix mentioned by the discoverer is to set a bit of
+an undocumented MSR, which reportedly completely stops XMM register leaks.
+.Pp
+.Fx
+currently sets this bit by default on all Zen2 processors.
+In the future, it might set it by default only on those Zen2 processors whose
+microcode has not been updated to revisions fixing the vulnerability, once such
+microcode updates have been actually released and community-tested.
+To this mitigation are associated the following knobs:
+.Bl -tag -width indent
+.It Va machdep.mitigations.zenbleed.enable
+A read-write integer tunable and sysctl indicating whether the mitigation should
+be forcibly disabled (0), enabled (1) or if it is left to
+.Fx
+to selectively apply it (2).
+Any other integer value is silently converted to and treated as value 2.
+Note that this setting is silently ignored when running on non-Zen2 processors
+to ease applying a common configuration to heterogeneous machines.
+.It Va machdep.mitigations.zenbleed.state
+A read-only string indicating the current mitigation state.
+It can be either
+.Dq Not applicable ,
+if the processor is not Zen2-based,
+.Dq Mitigation enabled
+or
+.Dq Mitigation disabled .
+This state is automatically updated each time the sysctl
+.Va machdep.mitigations.zenbleed.enable
+is written to.
+Note that it can become inaccurate if the chicken bit is set or cleared
+directly via
+.Xr cpuctl 4
+.Po which includes the
+.Xr cpucontrol 8
+utility
+.Pc .
+.El
+.Pp
+The performance impact and threat models related to these mitigations
+should be considered when configuring and deploying them in a
+.Fx
+system.
+.Pp
+.Sh SEE ALSO
+.Xr elfctl 1 ,
+.Xr proccontrol 1 ,
+.Xr rtld 1 ,
+.Xr mmap 2 ,
+.Xr src.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr security 7 ,
+.Xr cpucontrol 8 ,
+.Xr sysctl 8
