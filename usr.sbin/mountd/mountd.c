@@ -317,6 +317,7 @@ static struct pidfh *pfh = NULL;
 #define	OP_QUIET	0x100
 #define OP_MASKLEN	0x200
 #define OP_SEC		0x400
+#define OP_CLASSMASK	0x800	/* mask not specified, is Class A/B/C default */
 
 #ifdef DEBUG
 static int debug = 1;
@@ -1747,6 +1748,11 @@ get_exportlist_one(int passno)
 			nextfield(&cp, &endcp);
 			len = endcp - cp;
 		}
+		if (opt_flags & OP_CLASSMASK)
+			syslog(LOG_WARNING,
+			    "WARNING: No mask specified for %s, "
+			    "using out-of-date default",
+			    (&grp->gr_ptr.gt_net)->nt_name);
 		if (check_options(dirhead)) {
 			getexp_err(ep, tgrp, NULL);
 			goto nextline;
@@ -3383,6 +3389,7 @@ get_net(char *cp, struct netmsk *net, int maskflg)
 			goto fail;
 		bcopy(sa, &net->nt_mask, sa->sa_len);
 		opt_flags |= OP_HAVEMASK;
+		opt_flags &= ~OP_CLASSMASK;
 	} else {
 		/* The specified sockaddr is a network address. */
 		bcopy(sa, &net->nt_net, sa->sa_len);
@@ -3416,9 +3423,6 @@ get_net(char *cp, struct netmsk *net, int maskflg)
 		    (opt_flags & OP_MASK) == 0) {
 			in_addr_t addr;
 
-			syslog(LOG_WARNING,
-			    "WARNING: No mask specified for %s, "
-			    "using out-of-date default", name);
 			addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
 			if (IN_CLASSA(addr))
 				preflen = 8;
@@ -3433,7 +3437,7 @@ get_net(char *cp, struct netmsk *net, int maskflg)
 
 			bcopy(sa, &net->nt_mask, sa->sa_len);
 			makemask(&net->nt_mask, (int)preflen);
-			opt_flags |= OP_HAVEMASK;
+			opt_flags |= OP_HAVEMASK | OP_CLASSMASK;
 		}
 	}
 
