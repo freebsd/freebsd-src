@@ -4115,7 +4115,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			sctp_notify_adaptation_layer(stcb, so_locked);
 		}
 		if (stcb->asoc.auth_supported == 0) {
-			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0, NULL, so_locked);
+			sctp_notify_authentication(stcb, SCTP_AUTH_NO_AUTH, 0, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_DOWN:
@@ -4180,7 +4180,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_ASSOC_RESTART:
 		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, NULL, false, false, so_locked);
 		if (stcb->asoc.auth_supported == 0) {
-			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0, NULL, so_locked);
+			sctp_notify_authentication(stcb, SCTP_AUTH_NO_AUTH, 0, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_STR_RESET_SEND:
