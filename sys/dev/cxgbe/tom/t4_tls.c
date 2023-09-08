@@ -794,7 +794,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct mbuf *tls_data;
 	struct tls_get_record *tgr;
 	struct mbuf *control;
-	int pdu_length, rx_credits, trailer_len;
+	int pdu_length, trailer_len;
 #if defined(KTR) || defined(INVARIANTS)
 	int len;
 #endif
@@ -975,16 +975,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		sbappendcontrol_locked(sb, m, control, 0);
 	else
 		sbappendstream_locked(sb, m, 0);
-	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-#ifdef VERBOSE_TRACES
-	CTR4(KTR_CXGBE, "%s: tid %u rx_credits %u rcv_wnd %u",
-	    __func__, tid, rx_credits, tp->rcv_wnd);
-#endif
-	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
-		rx_credits = send_rx_credits(sc, toep, rx_credits);
-		tp->rcv_wnd += rx_credits;
-		tp->rcv_adv += rx_credits;
-	}
+	t4_rcvd_locked(&toep->td->tod, tp);
 
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
