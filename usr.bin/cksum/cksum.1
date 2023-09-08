@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 28, 1995
+.Dd January 18, 2024
 .Dt CKSUM 1
 .Os
 .Sh NAME
@@ -149,6 +149,20 @@ The bit sequence is complemented and the result is the CRC.
 .Ed
 .Sh EXIT STATUS
 .Ex -std cksum sum
+.Sh EXAMPLES
+Compute the checksum for all available algorithms.
+Notice the difference in the size representation (in bytes for algorithm 1 and 2
+and in blocks for 3 and the default algorithm):
+.Bd -literal -offset indent
+$ echo "hello" | cksum
+3015617425 6
+$ echo "hello" | cksum -o 1
+36979 1
+$ echo "hello" | cksum -o 2
+542 1
+$ echo "hello" | cksum -o 3
+909783072 6
+.Ed
 .Sh SEE ALSO
 .Xr md5 1
 .Pp
