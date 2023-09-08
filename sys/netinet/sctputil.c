@@ -3140,9 +3140,10 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
 	struct sctp_queued_to_read *control;
+	struct sctp_inpcb *inp;
 	unsigned int notif_len;
-	uint16_t abort_len;
 	unsigned int i;
+	uint16_t abort_len;
 
 	KASSERT(abort == NULL || from_peer,
 	    ("sctp_notify_assoc_change: ABORT chunk provided for local termination"));
@@ -3151,7 +3152,8 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	if (stcb == NULL) {
 		return;
 	}
-	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
+	inp = stcb->sctp_ep;
+	if (sctp_stcb_is_feature_on(inp, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		notif_len = (unsigned int)sizeof(struct sctp_assoc_change);
 		if (abort != NULL) {
 			abort_len = ntohs(abort->ch.chunk_length);
@@ -3229,10 +3231,9 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 			control->spec_flags = M_NOTIFICATION;
 			/* not that we need this */
 			control->tail_mbuf = m_notify;
-			sctp_add_to_readq(stcb->sctp_ep, stcb,
-			    control,
-			    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD,
-			    so_locked);
+			sctp_add_to_readq(inp, stcb, control,
+			    &stcb->sctp_socket->so_rcv, 1,
+			    SCTP_READ_LOCK_NOT_HELD, so_locked);
 		} else {
 			sctp_m_freem(m_notify);
 		}
@@ -3242,8 +3243,8 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	 * comes in.
 	 */
 set_error:
-	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
+	if (((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
 		SOCK_LOCK(stcb->sctp_socket);
 		if (from_peer) {
@@ -3266,8 +3267,8 @@ set_error:
 		SOCK_UNLOCK(stcb->sctp_socket);
 	}
 	/* Wake ANY sleepers */
-	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
+	if (((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
 		socantrcvmore(stcb->sctp_socket);
 	}
@@ -3356,11 +3357,9 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 	    &stcb->sctp_socket->so_rcv, 1,
-	    SCTP_READ_LOCK_NOT_HELD,
-	    so_locked);
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
@@ -3487,11 +3486,9 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 	    &stcb->sctp_socket->so_rcv, 1,
-	    SCTP_READ_LOCK_NOT_HELD,
-	    so_locked);
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
@@ -3585,13 +3582,13 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
-sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
+sctp_notify_adaptation_layer(struct sctp_tcb *stcb, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_adaptation_event *sai;
@@ -3632,9 +3629,9 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
@@ -3702,7 +3699,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 }
 
 static void
-sctp_notify_shutdown_event(struct sctp_tcb *stcb)
+sctp_notify_shutdown_event(struct sctp_tcb *stcb, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_shutdown_event *sse;
@@ -3749,14 +3746,13 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
-sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
-    int so_locked)
+sctp_notify_sender_dry_event(struct sctp_tcb *stcb, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_sender_dry_event *event;
@@ -3798,11 +3794,12 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
-void
-sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t numberout, int flag)
+static void
+sctp_notify_stream_reset_add(struct sctp_tcb *stcb, int flag, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_queued_to_read *control;
@@ -3837,8 +3834,8 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 	stradd->strchange_flags = flag;
 	stradd->strchange_length = sizeof(struct sctp_stream_change_event);
 	stradd->strchange_assoc_id = sctp_get_associd(stcb);
-	stradd->strchange_instrms = numberin;
-	stradd->strchange_outstrms = numberout;
+	stradd->strchange_instrms = stcb->asoc.streamincnt;
+	stradd->strchange_outstrms = stcb->asoc.streamoutcnt;
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_stream_change_event);
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
@@ -3859,13 +3856,13 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
-void
-sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32_t recv_tsn, int flag)
+static void
+sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, int flag, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_queued_to_read *control;
@@ -3894,8 +3891,8 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 	strasoc->assocreset_flags = flag;
 	strasoc->assocreset_length = sizeof(struct sctp_assoc_reset_event);
 	strasoc->assocreset_assoc_id = sctp_get_associd(stcb);
-	strasoc->assocreset_local_tsn = sending_tsn;
-	strasoc->assocreset_remote_tsn = recv_tsn;
+	strasoc->assocreset_local_tsn = stcb->asoc.sending_seq;
+	strasoc->assocreset_remote_tsn = stcb->asoc.mapping_array_base_tsn + 1;
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_assoc_reset_event);
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
@@ -3916,14 +3913,14 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 static void
 sctp_notify_stream_reset(struct sctp_tcb *stcb,
-    int number_entries, uint16_t *list, int flag)
+    int number_entries, uint16_t *list, int flag, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_queued_to_read *control;
@@ -3980,13 +3977,14 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 	control->spec_flags = M_NOTIFICATION;
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
-	sctp_add_to_readq(stcb->sctp_ep, stcb,
-	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 static void
-sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_error_chunk *chunk)
+sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error,
+    struct sctp_error_chunk *chunk, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_remote_error *sre;
@@ -4041,10 +4039,9 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 		control->spec_flags = M_NOTIFICATION;
 		/* not that we need this */
 		control->tail_mbuf = m_notify;
-		sctp_add_to_readq(stcb->sctp_ep, stcb,
-		    control,
+		sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 		    &stcb->sctp_socket->so_rcv, 1,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    SCTP_READ_LOCK_NOT_HELD, so_locked);
 	} else {
 		sctp_m_freem(m_notify);
 	}
@@ -4086,11 +4083,10 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			stcb->asoc.assoc_up_sent = 1;
 		}
 		if (stcb->asoc.adaptation_needed && (stcb->asoc.adaptation_sent == 0)) {
-			sctp_notify_adaptation_layer(stcb);
+			sctp_notify_adaptation_layer(stcb, so_locked);
 		}
 		if (stcb->asoc.auth_supported == 0) {
-			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
-			    NULL, so_locked);
+			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0, NULL, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_DOWN:
@@ -4155,31 +4151,36 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_ASSOC_RESTART:
 		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, NULL, false, false, so_locked);
 		if (stcb->asoc.auth_supported == 0) {
-			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
-			    NULL, so_locked);
+			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0, NULL, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_STR_RESET_SEND:
-		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data), SCTP_STREAM_RESET_OUTGOING_SSN);
+		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data), SCTP_STREAM_RESET_OUTGOING_SSN, so_locked);
 		break;
 	case SCTP_NOTIFY_STR_RESET_RECV:
-		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data), SCTP_STREAM_RESET_INCOMING);
+		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data), SCTP_STREAM_RESET_INCOMING, so_locked);
 		break;
 	case SCTP_NOTIFY_STR_RESET_FAILED_OUT:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data),
-		    (SCTP_STREAM_RESET_OUTGOING_SSN | SCTP_STREAM_RESET_FAILED));
+		    (SCTP_STREAM_RESET_OUTGOING_SSN | SCTP_STREAM_RESET_FAILED), so_locked);
 		break;
 	case SCTP_NOTIFY_STR_RESET_DENIED_OUT:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data),
-		    (SCTP_STREAM_RESET_OUTGOING_SSN | SCTP_STREAM_RESET_DENIED));
+		    (SCTP_STREAM_RESET_OUTGOING_SSN | SCTP_STREAM_RESET_DENIED), so_locked);
 		break;
 	case SCTP_NOTIFY_STR_RESET_FAILED_IN:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data),
-		    (SCTP_STREAM_RESET_INCOMING | SCTP_STREAM_RESET_FAILED));
+		    (SCTP_STREAM_RESET_INCOMING | SCTP_STREAM_RESET_FAILED), so_locked);
 		break;
 	case SCTP_NOTIFY_STR_RESET_DENIED_IN:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *)data),
-		    (SCTP_STREAM_RESET_INCOMING | SCTP_STREAM_RESET_DENIED));
+		    (SCTP_STREAM_RESET_INCOMING | SCTP_STREAM_RESET_DENIED), so_locked);
+		break;
+	case SCTP_NOTIFY_STR_RESET_ADD:
+		sctp_notify_stream_reset_add(stcb, error, so_locked);
+		break;
+	case SCTP_NOTIFY_STR_RESET_TSN:
+		sctp_notify_stream_reset_tsn(stcb, error, so_locked);
 		break;
 	case SCTP_NOTIFY_ASCONF_ADD_IP:
 		sctp_notify_peer_addr_change(stcb, SCTP_ADDR_ADDED, data,
@@ -4194,7 +4195,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		    error, so_locked);
 		break;
 	case SCTP_NOTIFY_PEER_SHUTDOWN:
-		sctp_notify_shutdown_event(stcb);
+		sctp_notify_shutdown_event(stcb, so_locked);
 		break;
 	case SCTP_NOTIFY_AUTH_NEW_KEY:
 		sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY,
@@ -4212,7 +4213,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		sctp_notify_sender_dry_event(stcb, so_locked);
 		break;
 	case SCTP_NOTIFY_REMOTE_ERROR:
-		sctp_notify_remote_error(stcb, error, data);
+		sctp_notify_remote_error(stcb, error, data, so_locked);
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_UTIL1, "%s: unknown notification %xh (%u)\n",
