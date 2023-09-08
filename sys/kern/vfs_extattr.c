@@ -43,6 +43,7 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/extattr.h>
+#include <sys/syscallsubr.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
