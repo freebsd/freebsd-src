@@ -1004,7 +1004,7 @@ do_rx_data_tls(const struct cpl_rx_data *cpl, struct toepcb *toep,
 	struct tcpcb *tp;
 	struct socket *so;
 	struct sockbuf *sb;
-	int len, rx_credits;
+	int len;
 
 	len = m->m_pkthdr.len;
 
@@ -1075,22 +1075,6 @@ do_rx_data_tls(const struct cpl_rx_data *cpl, struct toepcb *toep,
 	so->so_error = EBADMSG;
 
 out:
-	/*
-	 * This connection is going to die anyway, so probably don't
-	 * need to bother with returning credits.
-	 */
-	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-#ifdef VERBOSE_TRACES
-	CTR4(KTR_CXGBE, "%s: tid %u rx_credits %u rcv_wnd %u",
-	    __func__, toep->tid, rx_credits, tp->rcv_wnd);
-#endif
-	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
-		rx_credits = send_rx_credits(toep->vi->adapter, toep,
-		    rx_credits);
-		tp->rcv_wnd += rx_credits;
-		tp->rcv_adv += rx_credits;
-	}
-
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
 
