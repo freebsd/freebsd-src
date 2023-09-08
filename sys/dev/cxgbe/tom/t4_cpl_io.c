@@ -1647,7 +1647,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	struct epoch_tracker et;
-	int len, rx_credits;
+	int len;
 	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
@@ -1779,12 +1779,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	sbappendstream_locked(sb, m, 0);
-	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
-		rx_credits = send_rx_credits(sc, toep, rx_credits);
-		tp->rcv_wnd += rx_credits;
-		tp->rcv_adv += rx_credits;
-	}
+	t4_rcvd_locked(&toep->td->tod, tp);
 
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
 	    sbavail(sb) != 0) {
