@@ -4195,19 +4195,16 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		sctp_notify_shutdown_event(stcb);
 		break;
 	case SCTP_NOTIFY_AUTH_NEW_KEY:
-		sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY, error,
-		    (uint16_t)(uintptr_t)data,
-		    so_locked);
+		sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY,
+		    *(uint16_t *)data, so_locked);
 		break;
 	case SCTP_NOTIFY_AUTH_FREE_KEY:
-		sctp_notify_authentication(stcb, SCTP_AUTH_FREE_KEY, error,
-		    (uint16_t)(uintptr_t)data,
-		    so_locked);
+		sctp_notify_authentication(stcb, SCTP_AUTH_FREE_KEY,
+		    *(uint16_t *)data, so_locked);
 		break;
 	case SCTP_NOTIFY_NO_PEER_AUTH:
-		sctp_notify_authentication(stcb, SCTP_AUTH_NO_AUTH, error,
-		    (uint16_t)(uintptr_t)data,
-		    so_locked);
+		sctp_notify_authentication(stcb, SCTP_AUTH_NO_AUTH,
+		    0, so_locked);
 		break;
 	case SCTP_NOTIFY_SENDER_DRY:
 		sctp_notify_sender_dry_event(stcb, so_locked);
