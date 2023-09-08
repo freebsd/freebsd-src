@@ -127,7 +127,7 @@ show()
 		exit 1
 		;;
 	esac
-	requireds=`env -i make -f ${srcdir}/share/mk/src.opts.mk \
+	requireds=`env -i ${make} -f ${srcdir}/share/mk/src.opts.mk \
 	    -V '${__REQUIRED_OPTIONS:ts,}'`
 	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
