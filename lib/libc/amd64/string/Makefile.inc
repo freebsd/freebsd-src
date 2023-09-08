@@ -11,7 +11,8 @@ MDSRCS+= \
 	strcat.S \
 	strchrnul.S \
 	strcmp.S \
+	strcpy.c \
 	strcspn.S \
 	strlen.S \
-	strcpy.c \
+	strnlen.c \
 	strspn.S
