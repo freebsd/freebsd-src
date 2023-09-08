@@ -935,10 +935,9 @@ static inline uint8_t *
 skb_mac_header(const struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
-	/* Make sure the mac_header was set as otherwise we return garbage. */
-	WARN_ON(skb->mac_header == 0);
 	return (skb->head + skb->mac_header);
 }
+
 static inline void
 skb_reset_mac_header(struct sk_buff *skb)
 {
