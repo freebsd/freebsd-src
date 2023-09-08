@@ -23,6 +23,7 @@ EFIRT				opt_efirt.h
 SOC_ALLWINNER_A64		opt_soc.h
 SOC_ALLWINNER_H5		opt_soc.h
 SOC_ALLWINNER_H6		opt_soc.h
+SOC_APPLE_T8103			opt_soc.h
 SOC_BRCM_BCM2837		opt_soc.h
 SOC_BRCM_BCM2838		opt_soc.h
 SOC_BRCM_NS2			opt_soc.h
