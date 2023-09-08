@@ -1201,7 +1201,7 @@ static void
 set_defaults(void)
 {
 
-	set_config_bool("acpi_tables", false);
+	set_config_bool("acpi_tables", true);
 	set_config_bool("acpi_tables_in_memory", true);
 	set_config_value("memory.size", "256M");
 	set_config_bool("x86.strictmsr", true);
@@ -1240,7 +1240,11 @@ main(int argc, char *argv[])
 			set_config_bool("x86.x2apic", false);
 			break;
 		case 'A':
-			set_config_bool("acpi_tables", true);
+			/*
+			 * NOP. For backward compatibility. Most systems don't
+			 * work properly without sane ACPI tables. Therefore,
+			 * we're always generating them.
+			 */
 			break;
 		case 'D':
 			set_config_bool("destroy_on_poweroff", true);
