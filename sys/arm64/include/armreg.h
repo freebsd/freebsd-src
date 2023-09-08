@@ -2100,6 +2100,7 @@
 #define	TCR_IPS_44BIT		(4UL << TCR_IPS_SHIFT)
 #define	TCR_IPS_48BIT		(5UL << TCR_IPS_SHIFT)
 #define	TCR_TG1_SHIFT		30
+#define	TCR_TG1_MASK		(3UL << TCR_TG1_SHIFT)
 #define	TCR_TG1_16K		(1UL << TCR_TG1_SHIFT)
 #define	TCR_TG1_4K		(2UL << TCR_TG1_SHIFT)
 #define	TCR_TG1_64K		(3UL << TCR_TG1_SHIFT)
@@ -2114,8 +2115,10 @@
 #define	TCR_A1_SHIFT		22
 #define	TCR_A1			(0x1UL << TCR_A1_SHIFT)
 #define	TCR_T1SZ_SHIFT		16
+#define	TCR_T1SZ_MASK		(0x3fUL << TCR_T1SZ_SHIFT)
 #define	TCR_T1SZ(x)		((x) << TCR_T1SZ_SHIFT)
 #define	TCR_TG0_SHIFT		14
+#define	TCR_TG0_MASK		(3UL << TCR_TG0_SHIFT)
 #define	TCR_TG0_4K		(0UL << TCR_TG0_SHIFT)
 #define	TCR_TG0_64K		(1UL << TCR_TG0_SHIFT)
 #define	TCR_TG0_16K		(2UL << TCR_TG0_SHIFT)
@@ -2129,7 +2132,7 @@
 #define	TCR_EPD0		(1UL << TCR_EPD0_SHIFT)
 /* Bit 6 is reserved */
 #define	TCR_T0SZ_SHIFT		0
-#define	TCR_T0SZ_MASK		0x3f
+#define	TCR_T0SZ_MASK		(0x3fUL << TCR_T0SZ_SHIFT)
 #define	TCR_T0SZ(x)		((x) << TCR_T0SZ_SHIFT)
 #define	TCR_TxSZ(x)		(TCR_T1SZ(x) | TCR_T0SZ(x))
 
