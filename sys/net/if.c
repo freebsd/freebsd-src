@@ -1128,6 +1128,8 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 	shutdown = VNET_IS_SHUTTING_DOWN(ifp->if_vnet);
 #endif
 
+	sx_assert(&ifnet_detach_sxlock, SX_XLOCKED);
+
 	/*
 	 * At this point we know the interface still was on the ifnet list
 	 * and we removed it so we are in a stable state.
