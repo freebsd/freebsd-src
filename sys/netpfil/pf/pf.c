@@ -5932,7 +5932,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
     struct pf_kstate *s)
 {
 	struct pf_sctp_multihome_job	*j, *tmp;
-	int			 action;;
+	int			 action __unused;
 	struct pf_kstate	*sm = NULL;
 	struct pf_krule		*ra = NULL;
 	struct pf_krule		*r = &V_pf_default_rule;
