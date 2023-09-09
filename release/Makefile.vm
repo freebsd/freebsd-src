@@ -17,12 +17,11 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-CLOUDWARE?=	BASIC-CI \
+CLOUDWARE_TYPES?= BASIC-CI \
 		EC2 \
 		GCE \
 		OCI \
-		VAGRANT-VIRTUALBOX \
-		VAGRANT-VMWARE
+		VAGRANT
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST=	ufs
 AZURE_DESC=	Microsoft Azure platform image
@@ -41,12 +40,25 @@ OCI_DESC=	Oracle Cloud Infrastructure image
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_FSLIST=	ufs
 OPENSTACK_DESC=	OpenStack platform image
-VAGRANT-VIRTUALBOX_FORMAT=	vmdk
-VAGRANT-VIRTUALBOX_FSLIST=	ufs
+VAGRANT_FORMAT=	vmdk
+VAGRANT_FSLIST=	ufs
+VAGRANT_FLAVOURS=	VIRTUALBOX VMWARE
 VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
-VAGRANT-VMWARE_FORMAT=	vmdk
-VAGRANT-VMWARE_FSLIST=	ufs
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
+
+.for _CWT in ${CLOUDWARE_TYPES}
+. if defined(${_CWT}_FLAVOURS)
+.  for _CWF in ${${_CWT}_FLAVOURS}
+CLOUDWARE_GEN+=	${_CWT}-${_CWF}
+${_CWT}-${_CWF}_FORMAT?=	${${_CWT}_FORMAT}
+${_CWT}-${_CWF}_FSLIST?=	${${_CWT}_FSLIST}
+${_CWT}-${_CWF}_DESC?=	${${_CWT}_DESC}
+.  endfor
+. else
+CLOUDWARE_GEN+=	${_CWT}
+. endif
+.endfor
+CLOUDWARE?=	${CLOUDWARE_GEN}
 
 .for _V in TYPE BRANCH REVISION
 . if !defined(${_V}) || empty(${_V})
