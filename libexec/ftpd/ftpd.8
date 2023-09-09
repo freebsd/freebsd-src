@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\"
-.Dd June 28, 2022
+.Dd September 9, 2023
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -43,6 +43,16 @@
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Op Fl u Ar umask
+.Sh DEPRECATION NOTICE
+The
+.Fx
+base system
+.Nm
+is deprecated, and will be removed in
+.Fx 15.0.
+Users are advised to install the
+.Pa ftp/freebsd-ftpd
+port or package instead.
 .Sh DESCRIPTION
 The
 .Nm
