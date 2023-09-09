@@ -510,9 +510,6 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	RB_INSERT(sysctl_oid_list, parent, oidp);
 
 	if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE &&
-#ifdef VIMAGE
-	    (oidp->oid_kind & CTLFLAG_VNET) == 0 &&
-#endif
 	    (oidp->oid_kind & CTLFLAG_TUN) != 0 &&
 	    (oidp->oid_kind & CTLFLAG_NOFETCH) == 0) {
 		/* only fetch value once */

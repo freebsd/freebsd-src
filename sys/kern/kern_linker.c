@@ -471,6 +471,9 @@ linker_load_file(const char *filename, linker_file_t *result)
 			}
 			modules = !TAILQ_EMPTY(&lf->modules);
 			linker_file_register_sysctls(lf, false);
+#ifdef VIMAGE
+			LINKER_PROPAGATE_VNETS(lf);
+#endif
 			linker_file_sysinit(lf);
 			lf->flags |= LINKER_FILE_LINKED;
 
