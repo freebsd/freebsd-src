@@ -138,7 +138,7 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct match_rr mrr;
 	struct adapter *sc;
 	if_t ifp;
-	int rc, unit;
+	int rc;
 	const uint8_t lla[ETHER_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
 
 	mrr.name = name;
@@ -166,21 +166,14 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		goto done;
 	}
 
-
-	unit = -1;
-	rc = ifc_alloc_unit(ifc, &unit);
-	if (rc != 0)
-		goto done;
-
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
 		rc = ENOMEM;
 		goto done;
 	}
 
-	/* Note that if_xname is not <if_dname><if_dunit>. */
-	if_initname(ifp, name, unit);
+	/* Note that if_xname is identical to the nexus nameunit */
+	if_initname(ifp, name, -1);
 	if_setdname(ifp, t4_cloner_name);
 	if_setinitfn(ifp, tracer_init);
 	if_setflags(ifp, IFF_SIMPLEX | IFF_DRV_RUNNING);
@@ -192,12 +185,14 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	    tracer_media_status);
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE, 0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE);
+	sx_xunlock(&t4_trace_lock);
 	ether_ifattach(ifp, lla);
-
+	sx_xlock(&t4_trace_lock);
 	mtx_lock(&sc->ifp_lock);
 	if_setsoftc(ifp, sc);
 	sc->ifp = ifp;
 	mtx_unlock(&sc->ifp_lock);
+	rc = 0;
 done:
 	sx_xunlock(&t4_trace_lock);
 	end_synchronized_op(sc, 0);
@@ -208,7 +203,6 @@ static int
 t4_cloner_destroy(struct if_clone *ifc, if_t ifp)
 {
 	struct adapter *sc;
-	int unit = if_getdunit(ifp);
 
 	sx_xlock(&t4_trace_lock);
 	sc = if_getsoftc(ifp);
@@ -219,10 +213,9 @@ t4_cloner_destroy(struct if_clone *ifc, if_t ifp)
 		mtx_unlock(&sc->ifp_lock);
 		ifmedia_removeall(&sc->media);
 	}
+	sx_xunlock(&t4_trace_lock);
 	ether_ifdetach(ifp);
 	if_free(ifp);
-	ifc_free_unit(ifc, unit);
-	sx_xunlock(&t4_trace_lock);
 
 	return (0);
 }
