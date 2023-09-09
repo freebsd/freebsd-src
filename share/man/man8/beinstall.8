@@ -41,10 +41,8 @@ source tree.
 also automatically performs
 .Pa /etc
 updates
-(using either
-.Xr etcupdate 8
-or
-.Xr mergemaster 8 )
+(using
+.Xr etcupdate 8 )
 and
 package updates using
 .Xr pkg-upgrade 8
@@ -88,17 +86,11 @@ from ports (sysutils/beadm).
 .It Ev CONFIG_UPDATER Pq default: Dq Li "etcupdate"
 Config updater:
 .Xr etcupdate 8
-and
-.Xr mergemaster 8
-are supported.
+is supported.
 Set to an empty string to skip.
 .It Ev ETCUPDATE_FLAGS Pq default: Dq Li "-F"
 Flags for
 .Xr etcupdate 8
-if used.
-.It Ev MERGEMASTER_FLAGS Pq default: Dq Li "-iFU"
-Flags for
-.Xr mergemaster 8
 if used.
 .It Ev NO_PKG_UPGRADE Pq default: Dq Li ""
 If not empty,
@@ -117,7 +109,6 @@ lives in the src tree.
 .Xr development 7 ,
 .Xr bectl 8 ,
 .Xr etcupdate 8 ,
-.Xr mergemaster 8 ,
 .Xr pkg 8
 .Sh HISTORY
 .Nm
