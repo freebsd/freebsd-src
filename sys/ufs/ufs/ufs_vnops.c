@@ -101,7 +101,7 @@ VFS_SMR_DECLARE;
 #include <ufs/ffs/ffs_extern.h>
 
 static vop_accessx_t	ufs_accessx;
-static vop_fplookup_vexec_t ufs_fplookup_vexec;
+vop_fplookup_vexec_t ufs_fplookup_vexec;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
 static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
     struct thread *);
@@ -475,7 +475,7 @@ ufs_accessx(
  * VOP_FPLOOKUP_VEXEC routines are subject to special circumstances, see
  * the comment above cache_fplookup for details.
  */
-static int
+int
 ufs_fplookup_vexec(
 	struct vop_fplookup_vexec_args /* {
 		struct vnode *a_vp;
