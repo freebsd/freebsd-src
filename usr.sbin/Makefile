@@ -38,7 +38,6 @@ SUBDIR=	adduser \
 	mailwrapper \
 	makefs \
 	memcontrol \
-	mergemaster \
 	mfiutil \
 	mixer \
 	mlxcontrol \

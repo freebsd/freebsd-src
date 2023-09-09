@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240716: retire mergemaster
+OLD_FILES+=usr/sbin/mergemaster
+OLD_FILES+=usr/share/man/man8/mergemaster.8.gz
+
 # 20240527: csh: Remove hardlink /.cshrc
 OLD_FILES+=.cshrc
 
