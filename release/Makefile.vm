@@ -26,35 +26,27 @@ CLOUDWARE?=	BASIC-CI \
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
-AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
 BASIC-CI_FORMAT=	raw
 BASIC-CI_FSLIST=	ufs
 BASIC-CI_DESC=		Image for CI
-BASIC-CI_DISK=	${OSRELEASE}.${BASIC-CI_FORMAT}
 EC2_FORMAT=	raw
 EC2_FSLIST=	ufs zfs
 EC2_DESC=	Amazon EC2 image
-EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
 GCE_FORMAT=	raw
 GCE_FSLIST=	ufs zfs
 GCE_DESC=	Google Compute Engine image
-GCE_DISK=	disk.${GCE_FORMAT}
 OCI_FORMAT=	qcow2
 OCI_FSLIST=	ufs
 OCI_DESC=	Oracle Cloud Infrastructure image
-OCI_DISK=	${OSRELEASE}.${OCI_FORMAT}
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_FSLIST=	ufs
 OPENSTACK_DESC=	OpenStack platform image
-OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
 VAGRANT-VIRTUALBOX_FORMAT=	vmdk
 VAGRANT-VIRTUALBOX_FSLIST=	ufs
 VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
-VAGRANT-VIRTUALBOX_DISK=	${OSRELEASE}.vbox.${VAGRANT_FORMAT}
 VAGRANT-VMWARE_FORMAT=	vmdk
 VAGRANT-VMWARE_FSLIST=	ufs
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
-VAGRANT-VMWARE_DISK=	${OSRELEASE}.vmware.${VAGRANT_FORMAT}
 
 .for _V in TYPE BRANCH REVISION
 . if !defined(${_V}) || empty(${_V})
@@ -90,9 +82,7 @@ CLOUDTARGETS+=	cw-${_CW:tl}-${_FS}
 CLEANDIRS+=	cw-${_CW:tl}-${_FS}
 CLEANFILES+=	${_CW:tl}.${_FS}.img \
 		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT} \
-		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw \
-		cw${_CW:tl}-package
-CLOUDPACKAGE+=	cw${_CW:tl}-package
+		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw
 ${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}
 
 cw-${_CW:tl}-${_FS}: emulator-portinstall
@@ -114,17 +104,6 @@ CLEANFILES+=	${_CW:tl}.${${_CW:tu}_FORMAT}
 ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 cw-${_CW:tl}: cw-${_CW:tl}-${VMFS}
 	ln -f ${${_CW:tu}${VMFS:tu}IMAGE} ${${_CW:tu}IMAGE}
-
-cw${_CW:tl}-package:
-	@# Special target to handle packaging cloud images in the formats
-	@# specific to each hosting provider.
-.if exists(${.CURDIR}/tools/${_CW:tl}-package.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/tools/${_CW:tl}-package.sh \
-		-D ${DESTDIR} -I ${${_CW}_DISK} -S ${WORLDDIR}
-.endif
-	touch ${.TARGET}
-
 . endfor
 .endif
 
