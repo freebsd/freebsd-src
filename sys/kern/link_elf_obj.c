@@ -546,7 +546,6 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				}
 				memcpy(vnet_data, ef->progtab[pb].addr,
 				    ef->progtab[pb].size);
-				vnet_data_copy(vnet_data, shdr[i].sh_size);
 				ef->progtab[pb].addr = vnet_data;
 #endif
 			} else if ((ef->progtab[pb].name != NULL &&
@@ -1113,18 +1112,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 					error = EINVAL;
 					goto out;
 				}
-				/* Initialize the per-cpu or vnet area. */
+				/* Initialize the per-cpu area. */
 				if (ef->progtab[pb].addr != (void *)mapbase &&
 				    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
-#ifdef VIMAGE
-				else if (ef->progtab[pb].addr !=
-				    (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
-					vnet_data_copy(ef->progtab[pb].addr,
-					    shdr[i].sh_size);
-#endif
 			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 
