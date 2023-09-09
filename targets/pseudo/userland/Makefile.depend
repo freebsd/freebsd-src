@@ -589,7 +589,6 @@ DIRDEPS+= \
 	usr.sbin/makemap \
 	usr.sbin/manctl \
 	usr.sbin/memcontrol \
-	usr.sbin/mergemaster \
 	usr.sbin/mfiutil \
 	usr.sbin/mixer \
 	usr.sbin/mld6query \
