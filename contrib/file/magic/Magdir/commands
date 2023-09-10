@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.69 2022/04/20 21:14:23 christos Exp $
+# $File: commands,v 1.73 2022/11/06 18:39:23 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -8,6 +8,8 @@
 !:mime	text/x-shellscript
 0	string/fwb	#!\ /bin/sh		POSIX shell script executable (binary data)
 !:mime	text/x-shellscript
+>10	string	#\040This\040script\040was\040generated\040using\040Makeself	\b, self-executable archive
+>>53	string	x	\b, Makeself %s
 
 0	string/fwt	#!\ /bin/csh		C shell script text executable
 !:mime	text/x-shellscript
@@ -96,9 +98,6 @@
 !:mime	text/x-shellscript
 0	string/fwt	#!\ /usr/bin/env\ fish		fish shell script text executable
 !:mime	text/x-shellscript
-
-0	string/wt	#!\ 	a
->&-1	string/T	x	%s script text executable
 
 0	search/1/fwt	#!\ /usr/bin/tclsh	Tcl/Tk script text executable
 !:mime  text/x-tcl
@@ -189,3 +188,14 @@
 # From Danny Weldon
 0	string	\x0b\x13\x08\x00
 >0x04   uleshort	<4      ksh byte-code version %d
+
+# From: arno <arenevier@fdn.fr>
+# mozilla xpconnect typelib
+# see https://www.mozilla.org/scriptable/typelib_file.html
+0	string 		XPCOM\nTypeLib\r\n\032		XPConnect Typelib
+>0x10  byte        x       version %d
+>>0x11 byte        x      \b.%d
+
+0	string/fwt	#!\ /usr/bin/env\ runghc	GHC script executable
+0	string/fwt	#!\ /usr/bin/env\ runhaskell	Haskell script executable
+0	string/fwt	#!\ /usr/bin/env\ julia	Julia script executable

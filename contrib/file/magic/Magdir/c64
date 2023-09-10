@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: c64,v 1.12 2022/05/14 20:03:39 christos Exp $
+# $File: c64,v 1.14 2023/06/16 19:24:06 christos Exp $
 # c64:  file(1) magic for various commodore 64 related files
 #
 # From: Dirk Jagdmann <doj@cubic.org>
@@ -194,7 +194,356 @@
 >100	byte		>0		\b, %u subsong(s)
 
 # CBM BASIC (cc65 compiled)
+# Summary:	binary executable or Basic program for Commodore C64 computers
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Commodore_BASIC_tokenized_file
+# Reference:	https://www.c64-wiki.com/wiki/BASIC_token
+#		https://github.com/thezerobit/bastext/blob/master/bastext.doc
+#		http://mark0.net/download/triddefs_xml.7z/defs/p/prg-c64.trid.xml
+# TODO:		unify Commodore BASIC/program sub routines
+# Note:		"PUCrunch archive data" moved from ./archive and merged with c64-exe
 0	leshort		0x0801
->2	leshort		0x080b
->6	string		\x9e		CBM BASIC
->7	string		>\0		\b, SYS %s
+# display Commodore C64 BASIC program (strength=50) after "Lynx archive" (strength=330) handled by ./archive
+#!:strength +0
+# if first token is not SYS this implies BASIC program in most cases
+>6		ubyte		!0x9e
+# but sELF-ExTRACTING-zIP executable unzp6420.prg contains SYS token at end of second BASIC line (at 0x35)
+>>23		search/30	\323ELF-E\330TRACTING-\332IP
+>>>0		use		c64-exe
+>>23		default		x
+>>>0		use		c64-prg
+# if first token is SYS this implies binary executable
+>6		ubyte		=0x9e
+>>0		use		c64-exe
+# display information about C64 binary executable (memory address, line number, token)
+0	name	c64-exe
+>0		uleshort	x	Commodore C64
+# http://a1bert.kapsi.fi/Dev/pucrunch/
+# start address 0801h; next offset 080bh; BASIC line number is 239=00EFh; BASIC instruction is SYS 2061
+# the above combination appartly also occur for other Commodore programs like: gunzip111.c64.prg
+# and there exist PUCrunch archive for other machines like C16 with other magics
+>0		string	\x01\x08\x0b\x08\xef\x00\x9e\x32\x30\x36\x31	program, probably PUCrunch archive data
+!:mime	application/x-compress-pucrunch
+!:ext	prg/pck
+>0		string	!\x01\x08\x0b\x08\xef\x00\x9e\x32\x30\x36\x31	program
+!:mime	application/x-commodore-exec
+!:ext	prg/
+# start address like: 801h
+>0		uleshort	!0x0801	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x800)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# valid 2nd BASIC fragment found only in sELF-ExTRACTING-zIP executable unzp6420.prg
+>>23		search/30	\323ELF-E\330TRACTING-\332IP
+# jump again from beginning
+>>>(2.s-0x800)	ubyte		x
+>>>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about tokenized C64 BASIC program (memory address, line number, token)
+0	name	c64-prg
+>0		uleshort	x	Commodore C64 BASIC program
+!:mime	application/x-commodore-basic
+# Tokenized BASIC programs were stored by Commodore as file type program "PRG" in separate field in directory structures.
+# So file name can have no suffix like in saveroms; When transferring to other platforms, they are often saved with .prg extensions.
+# BAS suffix is typically used for the BASIC source but also found in program pods.bas
+!:ext	prg/bas/
+# start address like: 801h
+>0		uleshort	!0x0801	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x0800)	ubyte		x	
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# 2nd BASIC fragment
+>>&0		use		basic-line
+# zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# Summary:	binary executable or Basic program for Commodore C128 computers
+# URL:		https://en.wikipedia.org/wiki/Commodore_128
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/prg-c128.trid.xml
+# From:		Joerg Jenderek
+# Note:		Commodore 128 BASIC 7.0 variant; there exist varaints with different start addresses
+0		leshort		0x1C01
+!:strength	+1
+# GRR: line above with strength 51 (50+1) is too generic because it matches SVr3 curses screen image, big-endian with strength (50) handled by ./terminfo
+# probably skip SVr3 curses images with "invalid high" second line offset 
+>2		uleshort	<0x1D02
+# skip foo with "invalid low" second line offset
+>>2		uleshort	>0x1C06
+# if first token is not SYS this implies BASIC program
+>>>6		ubyte		!0x9e
+>>>>0			use	c128-prg
+# if first token is SYS this implies binary executable
+>>>6		ubyte		=0x9e
+>>>>0		use		c128-exe
+# Summary:	binary executable or Basic program for Commodore C128 computers
+# Note:		Commodore 128 BASIC 7.1 extension by Rick Simon
+# start adress 132Dh
+#0		leshort		0x132D	THIS_IS_C128_7.1
+#>0			use	c128-prg
+# Summary:	binary executable or Basic program for Commodore C128 computers
+# Note:		Commodore 128 BASIC 7.0 saved with graphics mode enabled
+# start adress 4001h
+#0		leshort		0x4001	THIS_IS_C128_GRAPHIC
+#>0			use	c128-prg
+# display information about tokenized C128 BASIC program (memory address, line number, token)
+0	name	c128-prg
+>0		uleshort	x	Commodore C128 BASIC program
+!:mime	application/x-commodore-basic
+!:ext	prg
+# start address like: 1C01h
+>0		uleshort	!0x1C01	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x1C00)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# 2nd BASIC fragment
+>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about C128 program (memory address, line number, token)
+0	name	c128-exe
+>0		uleshort	x	Commodore C128 program
+!:mime	application/x-commodore-exec
+!:ext	prg/
+# start address like: 1C01h
+>0		uleshort	!0x1C01	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x1C00)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# no valid 2nd BASIC fragment in Commodore executables
+#>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# Summary:	binary executable or Basic program for Commodore C16/VIC-20/Plus4 computers
+# URL:		https://en.wikipedia.org/wiki/Commodore_Plus/4
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/prg-vic20.trid.xml
+#		defs/p/prg-plus4.trid.xml
+# From:		Joerg Jenderek
+# Note:		there exist VIC-20 variants with different start address
+# GRR: line below is too generic because it matches Novell LANalyzer capture
+# with regular trace header record handled by ./sniffer
+0		leshort		0x1001
+# skip regular Novell LANalyzer capture (novell-2.tr1 novell-lanalyzer.tr1 novell-win10.tr1) with "invalid low" token value 54h
+>6		ubyte		>0x7F
+# skip regular Novell LANalyzer capture (novell-2.tr1 novell-lanalyzer.tr1 novell-win10.tr1) with "invalid low" second line offset 4Ch
+#>>2		uleshort	>0x1006	OFFSET_NOT_TOO_LOW
+# skip foo with "invalid high" second line offset but not for 0x123b (Minefield.prg)
+#>>>2		uleshort	<0x1102	OFFSET_NOT_TOO_HIGH
+# if first token is not SYS this implies BASIC program
+>>6		ubyte		!0x9e
+# valid second end of line separator implies BASIC program
+>>>(2.s-0x1000)		ubyte	=0
+>>>>0			use	c16-prg
+# invalid second end of line separator !=0 implies binary executable like: Minefield.prg
+>>>(2.s-0x1000)		ubyte	!0
+>>>>0			use	c16-exe
+# if first token is SYS this implies binary executable
+>>6		ubyte		=0x9e
+>>>0		use		c16-exe
+# display information about C16 program (memory address, line number, token)
+0	name	c16-exe
+>0		uleshort	x	Commodore C16/VIC-20/Plus4 program
+!:mime	application/x-commodore-exec
+!:ext	prg/
+# start address like: 1001h
+>0		uleshort	!0x1001	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x1000)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# no valid 2nd BASIC fragment in excutables
+#>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about tokenized C16 BASIC program (memory address, line number, token)
+0	name	c16-prg
+>0		uleshort	x	Commodore C16/VIC-20/Plus4 BASIC program
+!:mime	application/x-commodore-basic
+!:ext	prg
+# start address like: 1001h
+>0		uleshort	!0x1001	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x1000)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# 2nd BASIC fragment
+>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# Summary:	binary executable or Basic program for Commodore VIC-20 computer with 8K RAM expansion
+# URL:		https://en.wikipedia.org/wiki/VIC-20
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/prg-vic20-8k.trid.xml
+# From:		Joerg Jenderek
+# Note:		Basic v2.0 with Basic v4.0 extension (VIC20); there exist VIC-20 variants with different start addresses
+# start adress 1201h
+0		leshort		0x1201
+# if first token is not SYS this implies BASIC program
+>6		ubyte		!0x9e
+>>0		use		vic-prg
+# if first token is SYS this implies binary executable
+>6		ubyte		=0x9e
+>>0		use		vic-exe
+# display information about Commodore VIC-20 BASIC+8K program (memory address, line number, token)
+0	name	vic-prg
+>0		uleshort	x	Commodore VIC-20 +8K BASIC program
+!:mime	application/x-commodore-basic
+!:ext	prg
+# start address like: 1201h
+>0		uleshort	!0x1201	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x1200)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# 2nd BASIC fragment
+>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about Commodore VIC-20 +8K program (memory address, line number, token)
+0	name	vic-exe
+>0		uleshort	x	Commodore VIC-20 +8K program
+!:mime	application/x-commodore-exec
+!:ext	prg/
+# start address like: 1201h
+>0		uleshort	!0x1201	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x0400)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# no valid 2nd BASIC fragment in excutables
+#>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# Summary:	binary executable or Basic program for Commodore PET computers
+# URL:		https://en.wikipedia.org/wiki/Commodore_PET
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/prg-pet.trid.xml
+# From:		Joerg Jenderek
+# start adress 0401h
+0		leshort		0x0401
+!:strength	+1
+# GRR: line above with strength 51 (50+1) is too generic because it matches TTComp archive data, ASCII, 1K dictionary
+# (strength=48=50-2) handled by ./archive and shared library (strength=50) handled by ./ibm6000
+# skip TTComp archive data, ASCII, 1K dictionary ttcomp-ascii-1k.bin with "invalid high" second line offset 4162h
+>2		uleshort	<0x0502
+# skip foo with "invalid low" second line offset
+#>>2		uleshort	>0x0406	OFFSET_NOT_TOO_LOW
+# skip bar with "invalid end of line" 
+#>>>(2.s-0x0400)	ubyte		=0	END_OF_LINE_OK
+# if first token is not SYS this implies BASIC program
+>>6		ubyte		!0x9e
+>>>0		use		pet-prg
+# if first token is SYS this implies binary executable
+>>6		ubyte		=0x9e
+>>>0		use		pet-exe
+# display information about Commodore PET BASIC program (memory address, line number, token)
+0	name	pet-prg
+>0		uleshort	x	Commodore PET BASIC program
+!:mime	application/x-commodore-basic
+!:ext	prg
+# start address like: 0401h
+>0		uleshort	!0x0401	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x0400)	ubyte		x
+# 2nd BASIC fragment
+>>&0		use		basic-line
+# zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about Commodore PET program (memory address, line number, token)
+0	name	pet-exe
+>0		uleshort	x	Commodore PET program
+!:mime	application/x-commodore-exec
+!:ext	prg/
+# start address like: 0401h
+>0		uleshort	!0x0401	\b, start address %#4.4x
+# 1st BASIC fragment
+>2		use		basic-line
+# jump to 1 byte before next BASIC fragment; this must be zero-byte marking the end of line
+>(2.s-0x0400)	ubyte		x
+>>&-1		ubyte		!0	\b, no EOL=%#x
+# no valid 2nd BASIC fragment in excutables
+#>>&0		use		basic-line
+# Zero-byte marking the end of the BASIC line
+>-3		ubyte		!0	\b, 3 last bytes %#2.2x
+# Two zero-bytes in place of the pointer to next BASIC line indicates the end of the program
+>>-2		ubeshort	x	\b%4.4x
+# display information about tokenized BASIC line (memory address, line number, Token)
+0	name	basic-line
+# pointer to memory address of beginning of "next" BASIC line
+# greater then previous offset but maximal 100h difference
+>0		uleshort	x	\b, offset %#4.4x
+# offset 0x0000 indicates the end of BASIC program; so bytes afterwards may be some other data
+>0		uleshort	0
+# not line number but first 2 data bytes 
+>>2		ubeshort	x	\b, data %#4.4x
+# not token but next 2 data bytes 
+>>4		ubeshort	x	\b%4.4x
+# not token arguments but next data bytes 
+>>6		ubequad		x 	\b%16.16llx
+>>14		ubequad		x 	\b%16.16llx...
+# like 0x0d20352020204c594e5820495820204259205749 "\r 5   LYNX IX  BY WILL CORLEY" for LyNX archive Darkon.lnx handled by ./archive
+#>>3		string		x 	"%-0.30s"
+>0		uleshort	>0
+# BASIC line number with range from 0 to 65520; practice to increment numbers by some value (5, 10 or 100)
+>>2		uleshort	x	\b, line %u
+# https://www.c64-wiki.com/wiki/BASIC_token
+# The "high-bit" bytes from #128-#254 stood for the various BASIC commands and mathematical operators
+>>4		ubyte		x	\b, token (%#x)
+# https://www.c64-wiki.com/wiki/REM
+>>4		string		\x8f	REM
+# remark string like: ** SYNTHESIZER BY RICOCHET **
+>>>5		string		>\0	%s
+#>>>>&1		uleshort	x	\b, NEXT OFFSET %#4.4x
+# https://www.c64-wiki.com/wiki/PRINT
+>>4		string		\x99	PRINT
+# string like: "Hello world" "\021 \323ELF-E\330TRACTING-\332IP (64 ONLY)\016\231":\2362141
+>>>5		string		x	%s
+#>>>>&0		ubequad		x	AFTER_PRINT=%#16.16llx
+# https://www.c64-wiki.com/wiki/POKE
+>>4		string		\x97	POKE
+# <Memory address>,<number>
+>>>5		regex		\^[0-9,\040]+	%s
+# BASIC command delimiter colon (:=3Ah)
+>>>>&-2		ubyte		=0x3A
+# after BASIC command delimiter colon remaining (<255) other tokenized BASIC commands
+>>>>>&0		string		x		"%s"
+# https://www.c64-wiki.com/wiki/SYS	0x9e=\236
+>>4		string		\x9e	SYS
+# SYS <Address> parameter is a 16-bit unsigned integer; in the range 0 - 65535
+>>>5		regex		\^[0-9]{1,5}	%s
+# maybe followed by spaces, "control-characters" or colon (:) followed by next commnds or in victracker.prg
+# (\302(43)\252256\254\302(44)\25236) /T.L.R/
+#>>>5		string		x	SYS_STRING="%s"
+# https://www.c64-wiki.com/wiki/GOSUB
+>>4		string		\x8d	GOSUB
+# <line>
+>>>5		string		>\0	%s

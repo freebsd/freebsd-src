@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.227 2022/09/11 20:58:52 christos Exp $
+# $File: images,v 1.243 2023/07/17 16:49:09 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -179,7 +179,7 @@
 # adding 65 to strength so that Netpbm images comes before "x86 boot sector" or
 # "DOS/MBR boot sector" identified by ./filesystems
 0	name		netpbm
->3	regex/s		=[0-9]{1,50}[\040\t\f\r\n]+[0-9]{1,50}	Netpbm image data
+>3	regex/s		=\^[0-9]{1,50}[\040\t\f\r\n]+[0-9]{1,50}	Netpbm image data
 >>&0	regex		=[0-9]{1,50} 			\b, size = %s x
 >>>&0	regex		=[0-9]{1,50}			\b %s
 
@@ -311,12 +311,12 @@
 0	string		MM\x00\x2a	TIFF image data, big-endian
 !:strength +70
 !:mime	image/tiff
-!:ext	tif,tiff
+!:ext	tif/tiff
 >(4.L)	use		\^tiff_ifd
 0	string		II\x2a\x00	TIFF image data, little-endian
 !:mime	image/tiff
 !:strength +70
-!:ext	tif,tiff
+!:ext	tif/tiff
 >(4.l)	use		tiff_ifd
 
 0	name		tiff_ifd
@@ -625,7 +625,7 @@
 >>8	string		x		"%s"
 # should be point character (2Eh) of version string according to TrID
 #>6	ubyte		!0x2E		\b, at 6 %#x
-# caret character (23h) at the beginning in most or probaly all exanples
+# caret character (23h) at the beginning in most or probably all examples
 #>0	ubyte		!0x23		\b, starting with character %#x
 # URL: 		http://fileformats.archiveteam.org/wiki/DeskMate_Draw
 #		http://en.wikipedia.org/wiki/Deskmate
@@ -652,7 +652,86 @@
 >24	string		SunGKS		\b, SunGKS
 
 # CGM image files
-0	string		BEGMF		clear text Computer Graphics Metafile
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/CGM
+#		https://en.wikipedia.org/wiki/Computer_Graphics_Metafile
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cgm-ct.trid.xml
+#		http://standards.iso.org/ittf/PubliclyAvailableStandards/c032381_ISO_IEC_8632-4_1999(E).zip
+# Note:		called "Computer Graphics Metafile (Clear Text)" by TrID and
+#		"Computer Graphics Metafile ASCII" by DROID or CGM by XnView
+#		verified by LibreOffice and partly by XnView `nconvert -info *.CGM`
+# According to TrID only letter B and M are always upcased and by DROID often only B is upcased for command BEGIN METAFILE
+0	string/c	begmf
+# skip SOME DROID fmt-301-signature-id-359.cgm fmt-301-signature-id-361.cgm fmt-302-signature-id-364.cgm
+# fmt-302-signature-id-365.cgm x-fmt-142-signature-id-350.cgm x-fmt-142-signature-id-351.cgm
+>5	short		!0
+# skip other versions of DROID fmt-301-signature-id-359.cgm fmt-301-signature-id-361.cgm fmt-302-signature-id-364.cgm
+# fmt-302-signature-id-365.cgm x-fmt-142-signature-id-350.cgm x-fmt-142-signature-id-351.cgm
+>>5	short		!0xABab		clear text Computer Graphics Metafile
+# https://reposcope.com/mimetype/image/cgm
+!:mime	image/cgm
+!:ext	cgm
+# SF:NAME like: 'metafile example';
+>>>5	string		x		%s
+# look for command METAFILE VERSION (MFVERSION <SOFTSEP> <I:VERSION>)
+>>>2	search/128/c	mfversion
+#>>>>&0	ubyte		x		SOFTSEP=%#x
+# version like: 1 3 4
+>>>>&1	ubyte		>0x31		\b, version %c
+# Summary:	Computer Graphics Metafile (binary)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cgm-bin.trid.xml
+#		https://standards.iso.org/ittf/PubliclyAvailableStandards/c032380_ISO_IEC_8632-3_1999(E).zip
+# Note:		called "Computer Graphics Metafile (binary)" by TrID and DROID or CGM by XnView
+#		verified by LibreOffice and partly by XnView `nconvert -info *.CGM`
+# look for BEGIN METAFILE (element Class 0 and ID 1 and "random" Parameter) that is binary C C C C 0 0 0 0 0 0 1 P P P P P
+0	ubeshort&0xFFe0		0x0020
+# skip SOME DROID fmt-303-signature-id-368.cgm fmt-304-signature-id-369.cgm fmt-305-signature-id-370.cgm fmt-306-signature-id-371.cgm
+# with containing only 28 bytes
+>28	ubyte			x
+# look for METAFILE VERSION (element class 1 and id 1 and parameter P1 with length 2) that is binary 0 0 0 1 i i i i i i 1 P P P 1 P
+# with "low" version; 2nd worst case argentin.cgm with parameter length 56
+# worst MS.CGM
+#>>2	search/73/b		\x10\x22\0	binary Computer Graphics Metafile
+>>2	search/128/b		\x10\x22\0	binary Computer Graphics Metafile
+!:mime	image/cgm
+!:ext	cgm
+# metafile 2 byte version number like: 1 (most) 2 3 4
+>>>&-1	ubeshort		>1		\b, version %u
+# length number of 1st parameter octets in range 0 to 30 implies short command
+>>>0	ubeshort&0x001F		<31		\b, parameter length %u
+# length of string like: 8 9 10 11 12 29
+#>>>>2		ubyte		x		\b, %u BYTES (SHORT)
+# string like: 'HiJaak 2' 'Example 1' 'sahara.cgm' 'MASTERCLIPS--Art Of Business '
+>>>>2		pstring		>\0		'%s'
+# after 1st short command with even parameter length comes 2nd command like: 1022h 0010h (EAF00010.CGM 'HiJaak 2' FLOPPY2.CGM TIGER.CGM 'B:\TIGER.CGM')
+>>>>0  		ubeshort&0x0001	=0
+>>>>>(2.b+3)	ubeshort	!0x1022		\b, 2nd command %#4.4x (short even)
+# after 1st short command with odd parameter length comes nil padding byte followed 2nd command like: 1022h
+>>>>0  		ubeshort&0x0001	=1
+#>>>>>(2.b+3)	ubyte		!0		\b, PADDING %#x
+>>>>>(2.b+4)	ubeshort	!0x1022		\b, 2nd command %#4.4x (short odd)
+# 11111 binary (decimal 31) in the parameter field indicates that the command is in long-form
+>>>0	ubeshort&0x001F		=0x1F
+# bit 15 is partition flag with 1 for 'not-last' partition and 0 for 'last' partition
+>>>>2  		ubeshort&0x8000	!0		\b, partition flag %#4.4x
+# bits 0 to 14 is parameter list length; the number of following parameter octets; range 0 to 32767
+# length of 1st long command parameter like: 53
+>>>>2  		ubeshort&0x7Fff	x		\b, parameter length %u (long)
+# The two header words are then followed by lenghth of 1st string like: 52
+#>>>>4		ubyte		x		\b, %u BYTES
+# string like: 'K:\PROJECTS\GRAPHICS\DWKS3.5\CLIPART\FLAGS\Italy.cgm'
+>>>>4		pstring/B	x		'%s'
+# odd long parameter length implies single null padding octet to start command on word boundary
+>>>>2  		ubeshort&0x0001	=1
+# after 1st long command with odd parameter length comes nil padding byte followed by 2nd command like: 1022h
+#>>>>>(4.b+5)		ubyte	!0		\b, PADDING %#x
+>>>>>(4.b+6)		ubeshort !0x1022	\b, 2nd command %#4.4x (long odd)
+# even long parameter length implies next command directly is following
+>>>>2  		ubeshort&0x0001	=0
+# after 1st long command with even parameter length comes 2nd command like: 1022h 0x1054 (MS.CGM)
+>>>>>(4.b+5)	ubeshort	!0x1022		\b, 2nd command %#4.4x (long even)
+# look for END METAFILE (element class 0 and id 2 and 0 parameter) that is binary 0 0 0 0 i i i i i 1 i P P P P P
+>>>-2	ubeshort		!0x0040		\b, NOT_FOUND_END_METAFILE
 
 # MGR bitmaps  (Michael Haardt, u31b3hs@pool.informatik.rwth-aachen.de)
 0	string	yz	MGR bitmap, modern format, 8-bit aligned
@@ -1138,7 +1217,7 @@
 0	string			/*\040
 # 9 byte c-comment "/* XPM */" not at the beginning like: mozicon16.xpm mozicon50.xpm (thunderbird)
 >0	search/0xCE		/*\ XPM\ */
-# skip DROID x-fmt-208-signature-id-620.xpm by looking for char aray without explict length
+# skip DROID x-fmt-208-signature-id-620.xpm by looking for char array without explict length
 # and match mh-logo.xpm (emacs)
 >>&0		search/1249	[]
 >>>0		use		xpm-image
@@ -1146,7 +1225,7 @@
 >0	default			x
 # words are separated by a white space which can be composed of space and tabulation characters
 >>0		search/0x52	static\040char\040
-# skip debug.c testmlc.c by looking for char aray without explict length
+# skip debug.c testmlc.c by looking for char array without explict length
 # https://www.clamav.net/downloads/production/clamav-0.104.2.tar.gz
 # clamav-0.104.2\libclammspack\mspack\debug.c 
 >>>&0		search/64	[]
@@ -1459,22 +1538,22 @@
 # skip g3test.g3 by test for unused bits of 2nd color entry
 >>4		ubeshort&0xF000	0
 #>>>0		beshort	x	1ST_VALUE=%x
->>>-0		offset	x	FILE_SIZE=%lld
+#>>>-0		offset	x	FILE_SIZE=%lld
 # standard DEGAS low-res uncompressed bitmap *.pi1 with file size 32034
->>>-0		offset	=32034	VARIANT_STANDARD
+>>>-0		offset	=32034
 #>>>>0		beshort	x	1st_VALUE=%x
 # like: 8ball.pi1 teddy.pi1 sonic01.pi1 
 >>>>0		use		degas-bitmap
 # about 61 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 32066
->>>-0		offset	=32066	VARIANT_ELITE
+>>>-0		offset	=32066
 # like: spider.pi1 pinkgirl.pi1 frog3.pi1
 >>>>0		use		degas-bitmap
 # about 55 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 32128
->>>-0		offset	=32128	VARIANT_3
+>>>-0		offset	=32128
 # like: mountain.pi1 bigspid.pi1 alf33.pi1
 >>>>0		use		degas-bitmap
 # 1 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 44834
->>>-0		offset	=44834	VARIANT_4
+>>>-0		offset	=44834
 # like: kenshin.pi1
 >>>>0		use		degas-bitmap
 # DEGAS mid-res uncompressed bitmap *.pi2 (strength=50) after GEM Images like:
@@ -1483,19 +1562,17 @@
 #!:strength +0
 # skip many control files like gnucash-4.8.setup.exe.aria2 by test for non black in 4 palette entries
 >2		quad		!0
-# skip control file load-v0001.aria2 by test for unused bits of 5th color palette entry
->>10		ubeshort&0xF000	0
-# skip many GEM Image data like DANCER.IMG GAMEOVR4.IMG SHIP.IMG by test for unused bits of 8th color palette entry
->>>16		ubeshort&0xF000	0
-# skip many GEM Image data like BEETHVEN.IMG CABINETS.IMG MEMO.IMG by test for unused bits of 14th color palette entry
->>>>28		ubeshort&0xF000	0
-# skip few GEM Image data like CHURCH.IMG by test for unused bits of 15th color palette entry
->>>>>30		ubeshort&0xF000	0
-# skip many GEM Image data like TIGER.IMG TURKEY.IMG XMAS.IMG by test for unused bits of 16th color palette entry
->>>>>>32	ubeshort&0xF000	0
-# skip GEM Image data like clinton.img by test for existing bytes at the end
->>>>>>>32026	quad		x
->>>>>>>>0	use		degas-bitmap
+# skip control file load-v0001.aria2 and many GEM Image data like
+# GAMEOVR4.IMG BEETHVEN.IMG CHURCH.IMG TURKEY.IMG clinton.img
+# by test for valid file sizes
+# standard DEGAS mid-res uncompressed bitmap *.pi2 with file size 32034
+>>-0		offset	=32034
+# (39/41) like: GEMINI03.PI2 ST_TOOLS.PI2 TBX_DEMO.PI2
+>>>0		use		degas-bitmap
+# few DEGAS Elite mid-res uncompressed bitmap *.pi2 with file size 32066
+>>-0		offset	=32066
+# (2/41) like: medres.pi2
+>>>0		use		degas-bitmap
 # DEGAS high-res uncompressed bitmap *.pi3
 0	beshort		0x0002
 # skip Intel ia64 COFF msvcrt.lib by test for unused bits of 1st atari color palette entry
@@ -1515,8 +1592,12 @@
 # 00000000 "LEREDACT.PI3" 03730773 "TBX_DEMO.PI3"
 #>>>>&8		ubelong			x	\b, LAST CHAR+NIL %8.8x
 >>>>&8		ubelong&0xff00ffFF	!0
+# skip many Adobe Photoshop Color swatch (ANPA-Farben.aco TOYO-Farbsystem.aco) with invalid 3rd color entry (1319 2201 2206 21f5 2480 24db 25fd)
+>>>>>6		ubeshort&0xF000	0
+# skip few Adobe Photoshop Color swatch (FOCOLTONE-Farben.aco "PANTONE process coated.aco") with invalid 4th color entry  (ffff)
+>>>>>>8		ubeshort&0xF000	0
 # many DEGAS bitmap like: ARABDEMO.PI3 ELMRSESN.PI3 GEMVIEW.PI3 LEREDACT.PI3 PICCOLO.PI3 REPRO_JR.PI3 ST_TOOLS.PI3 TBX_DEMO.PI3 evgem7.pi3
->>>>>0		use		degas-bitmap
+>>>>>>>0	use		degas-bitmap
 # test for last character of Adobe PhotoShop Brush UTF16-LE string and terminating nul char
 >>>>&8		ubelong&0xff00ffFF	=0
 # select last DEGAS bitmaps by invalid last char of brush note like BASICNES.PI3 DB_HELP.PI3 DB_WRITR.PI3 LEREDACT.PI3
@@ -1528,13 +1609,23 @@
 0		beshort			0x8000
 # skip lif files handled via ./lif by test for unused bits of 1st palette entry
 >2		ubeshort&0xF000		0
->>0		use		degas-bitmap
+# skip CRI ADX ADPCM audio (R04HT.adx R03T-15552.adx) with 44100 Hz misinterpreted as 5th color entry value AC44h
+>>10		ubeshort&0xF000		0
+# skip few (fmt-840-signature-id-1195.adx fmt-840-signature-id-1199.adx) by test for 4 first non black colors in palette entries
+>>>2		quad			!0
+>>>>0		use		degas-bitmap
 # DEGAS mid-res compressed bitmap *.pc2 like: abydos.pc2 ARTIS3.PC2 SMTHDRAW.PC2 STAR_2K.PC2 TX2_DEMO.PC2
 0		beshort			0x8001
->0		use		degas-bitmap
+# skip many (1274/1369) PostScript Type 1 font (DarkGardenMK.pfb coupbi.pfb MONOBOLD.PFB) with invalid 1st atari color palette entry 5506 5b06 6906 7906 7e06 fb15
+>2		ubeshort&0xF000		0
+# skip some (95/1369) PostScript Type 1 font (fmt-525-signature-id-816.pfb LUXEMBRG.PFB) with invalid 3rd atari color palette entry 2521
+>>6		ubeshort&0xF000		0
+>>>0		use		degas-bitmap
 # DEGAS high-res compressed bitmap *.pc3 like: abydos.pc3 COYOTE.PC3 ELEPHANT.PC3 TX2_DEMO.PC3 SMTHDRAW.PC3
 0		beshort			0x8002
->0		use		degas-bitmap
+# skip some (36/212) Python Pickle (factor_cache.pickle environment.pickle) with invalid 1st atari color entry (2863 6363 7d71)
+>2		ubeshort&0xF000		0
+>>0		use		degas-bitmap
 # display information of Atari DEGAS and DEGAS Elite bitmap images
 0	name		degas-bitmap
 >0	ubyte		x		Atari DEGAS
@@ -1619,6 +1710,19 @@
 #>32050  ubequad		!0		\b, channel directions %16.16llx
 # channel_delay[4]; 128 - channel delay, timebase 1/60 s
 #>32058  ubequad		!0		\b, channel delays %16.16llx
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/GED
+#		https://recoil.sourceforge.net/formats.html#Atari-8-bit
+# Reference:	https://sourceforge.net/projects/recoil/files/recoil/6.3.4/recoil-6.3.4.tar.gz
+#		recoil-6.3.4/recoil.c
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-ged.trid.xml
+# Note:		called "Atari GED bitmap" by TrID; file size 11302
+#		and verified by RECOIL graphic tool
+0	string		\xFF\xFF0SO\x7F		Atari GED bitmap, 160x200
+#!:mime	application/octet-stream
+!:mime	image/x-atari-ged
+!:ext	ged
 
 # From:		Joerg Jenderek
 # URL:		http://fileformats.archiveteam.org/wiki/ImageLab/PrintTechnic
@@ -1740,6 +1844,113 @@
 >>6   bequad&0xFFffFFffFFff0000 !0 \b, at offset 6
 >>>6  belong  x	 0x%8.8x
 >>>6  beshort x   \b%4.4x
+
+# From:		Joerg Jenderek
+# URL:		https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
+#		http://fileformats.archiveteam.org/wiki/Photoshop
+# Reference:	http://www.nomodes.com/aco.html
+# Note:		registers as Photoshop.SwatchesFile for Photoshop.exe on Windows
+# check for valid versions like: 2 (newest) 1 (old) 0 (oldest no examples)
+0		ubeshort				<3
+# skip few Atari DEGAS med-res bitmap (DIAGRAM1.PI2) and many ISO 9660 CD-ROM by check for invalid low color numbers (0)
+>2		ubeshort				>0
+# skip few Targa (bmpsuite-15col.tga rgb24_top_left_colormap.tga) by check for invalid high color space ID (F0 1D)
+>>4		ubeshort				<16
+# skip many (69/327) Targa image *.TGA by check of accessing near the ending of first color space section (size=nc*5*2)
+>>>(2.S*10)	ubelong					x
+# RGB branch for Adobe Photoshop Color swatch
+>>>>4		ubeshort				=0
+# skip many (220/327) Targa by check of for invalid high RGB color z value (hexadecimal 2 3 2e03 4600 5e04 7502 8002 8b05 c700)
+>>>>>12			ubeshort			=0
+# RGB branch for Adobe Photoshop Color swatch for older versions
+>>>>>>0				ubeshort		<2
+>>>>>>>0				use		adobe-aco
+# RGB branch for Adobe Photoshop Color swatch for newer version 2
+>>>>>>0				ubeshort		=2
+# skip many (74/176) Atari DEGAS hi-res bitmap (*.PI3) by check for invalid low color name length (0)
+>>>>>>>16				ubeshort	>0
+>>>>>>>>0					use	adobe-aco
+# non RGB branch for Adobe Photoshop Color swatch
+>>>>4		ubeshort				!0
+# non RGB branch for Adobe Photoshop Color swatch for older versions
+>>>>>0			ubeshort			<2
+# skip many GEM Image (CHURCH.IMG TIGER.IMG) by check for invalid second high color space ID (55 114 143 157 256 288 450)
+>>>>>>14			ubeshort		<16
+>>>>>>>0				use		adobe-aco
+# non RGB branch for Adobe Photoshop Color swatch for newer version 2
+>>>>>0			ubeshort			=2
+# skip few Atari DEGAS hi-res bitmap (pal1wb-blue.pi3) and few ABR by check for invalid "high" nil bytes (7) before color name length
+>>>>>>14			ubeshort		=0
+>>>>>>>0				use		adobe-aco
+#	display Adobe Photoshop Color swatch file information (version, number of colors, color spaces, coordinates, names)
+0	name		adobe-aco
+>0		ubeshort				x		Adobe Photoshop Color swatch, version %u
+#!:mime		application/octet-stream
+!:mime		application/x-adobe-aco
+!:apple		????8BCO
+!:ext		aco
+>0		ubeshort				<2
+>>(2.S*10)	ubelong					x
+# version 2 section after version 1 section
+>>>&0		ubeshort				2		and 2
+# nc; number of colors like: 20 50 86 88 126 204 300 1050 1137 1280 2092 3010 4096
+>2		ubeshort				x		\b, %u colors
+# maybe last 4 bytes of first section (probably y z color value) like: 0 0x66660000 0xfe700000 0xffff0000
+#>(2.S*10)	ubelong					x		1ST_SECTION_END=%#8.8x
+>0		ubeshort				<2		\b; 1st
+# first older Adobe Photoshop Color entry
+>>4			use				aco-color
+>>>2				ubeshort		>1		\b; 2nd
+# second older Adobe Photoshop Color entry
+>>>>14					use		aco-color
+>0		ubeshort				=2		\b; 1st
+# first new Adobe Photoshop Color entry
+>>4			use				aco-color-v2
+>>>2				ubeshort		>1		\b; 2nd
+# jump first color name length words
+>>>>(16.S*2)				ubequad		x
+# second new Adobe Photoshop Color entry
+>>>>>&10					use	aco-color-v2
+#	display Adobe Photoshop Color entry (color space, color coordinates)
+0	name		aco-color
+# each color spec entry occupies five words
+# color space: 0~RGB 1~HSB 2~CMYK 3~Pantone 4~Focoltone 5~Trumatch 6~Toyo 7~Lab 8~Grayscale 9?~wideCMYK 10~HKS ...
+#>0		ubeshort				x		COLOR_ENTRY
+>0		ubeshort				0		RGB
+>0		ubeshort				1		HSB
+>0		ubeshort				2		CMYK
+>0		ubeshort				3		Pantone
+>0		ubeshort				4		Focoltone
+>0		ubeshort				5		Trumatch
+>0		ubeshort				6		Toyo
+>0		ubeshort				7		Lab
+>0		ubeshort				8		Grayscale
+>0		ubeshort				9		wide CMYK
+>0		ubeshort				10		HKS
+# unofficial
+# >0		ubeshort				12		foo
+# >0		ubeshort				13		bar
+# >0		ubeshort				14		FOO
+# >0		ubeshort				15		BAR
+>0		ubeshort				x		space (%u)
+# color coordinate w
+>2		ubeshort				x		\b, w %#x
+# color coordinate x
+>4		ubeshort				x		\b, x %#x
+# color coordinate y
+>6		ubeshort				x		\b, y %#x
+# color coordinate z; zero for RGB space
+>8		ubeshort				x		\b, z %#x
+#	display Adobe Photoshop Color entry version 2 (color space, color coordinates names)
+0	name		aco-color-v2
+>0		use					aco-color
+#>10		ubeshort				x		\b, NUL_BYTES %#x
+# color name length plus one (len+1) like: 7 8 9 13 14 15 16 17 22 26
+#>>12		ubeshort			 	x		\b, LENGTH %u
+>>12		ubeshort-1				x		\b, %u chars
+# len words; UTF-16 representation of the color name like: "DIC 1s" "PANTONE Process Yellow PC"
+>>14		bestring16				x		"%s"
+# followed by nil word
 
 # XV thumbnail indicator (ThMO)
 # URL:		https://en.wikipedia.org/wiki/Xv_(software)
@@ -2351,7 +2562,7 @@
 # URL: http://local.wasp.uwa.edu.au/~pbourke/dataformats/pic/
 # Radiance HDR; usually has .pic or .hdr extension.
 0	string	#?RADIANCE\n	Radiance HDR image data
-#!mime	image/vnd.radiance
+!:mime	image/vnd.radiance
 
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
 # URL: https://www.mpi-inf.mpg.de/resources/pfstools/pfs_format_spec.pdf
@@ -2537,6 +2748,7 @@
 
 # BS encoded bitstreams
 2		uleshort	0x3800		BS image,
+# GRR: the above line is also true for binary Computer Graphics Metafile SAB00012.CGM with long parameter length 56 (=38h)
 >6		uleshort	x		Version %d,
 >4		uleshort	x		Quantization %d,
 >0		uleshort	x		(Decompresses to %d words)
@@ -3720,6 +3932,29 @@
 #	display ICC/ICM color profile by ./icc
 #>>>0x154	use		color-profile
 
+# URL:		http://fileformats.archiveteam.org/wiki/CorelDRAW
+#		https://en.wikipedia.org/wiki/CorelDRAW
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cdr-gen.trid.xml
+# Note:		called "CorelDRAW drawing (generic)" by TrID
+#		version til 2 WL-based; from version 3 til 13 handled by ./riff and from 14 zip based handled by ./archive
+0	ubelong&0xFFffF7ff	0x574C6500	Corel Draw Picture
+#!:mime						image/x-coreldraw
+!:mime						application/vnd.corel-draw
+!:ext						cdr
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cdr-corel-10.trid.xml
+# Note:		called "CorelDRAW drawing (v1.0)" by TrID and
+#		"CorelDraw Drawing" with version "1.0" by DROID via PUID fmt/467
+#		only DROID fmt-467-signature-id-726.cdr example
+>2	ubyte			0x65		\b, version 1.0
+#>>4	ubelong			!0x45000000	\b, at 4 %#8.8x
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cdr-corel-20.trid.xml
+# Note:		called "CorelDRAW drawing (v2.0)" by TrID and
+#		"CorelDraw Drawing" with version "2.0" by DROID via PUID fmt/466
+>2	ubyte			0x6D		\b, version 2.0
+# According to DROID 0xed080000 or 0x25050000
+#>>4	ubelong			!0xed080000
+#>>>4	ubelong			!0x25050000	\b, at 4 %#8.8x
+
 # Type: Crunch compressed texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # References:
@@ -3937,3 +4172,48 @@
 #!:mime	application/octet-stream
 !:mime	image/x-idf
 !:ext	idf
+
+# Type: ColoRIX VGA Paint Image File (.rix/.sci/.scX)
+# From: Eddy Jansson <github.com/eloj>
+# Reference: https://www.fileformat.info/format/rix/spec/
+#
+0	name		rix-header
+>0	uleshort	x	\b, %u x
+>2	uleshort	x	%u
+# palette type:
+# .. if direct color, low bits encode bpp
+>4	ubyte&128	0
+>>4 ubyte&127		x	\b %u bpp (direct color)
+# .. else palette
+>4	ubyte&128	128
+>>4	ubyte&7		0	\b x 2
+>>4	ubyte&7		1	\b x 4
+>>4	ubyte&7		2	\b x 8
+>>4	ubyte&7		3	\b x 16
+>>4	ubyte&7		4	\b x 32
+>>4	ubyte&7		5	\b x 64
+>>4	ubyte&7		6	\b x 128
+>>4	ubyte&7		7	\b x 256
+# storage type
+#>5	ubyte&15	0	\b, Linear
+>5	ubyte&15	1	\b, Planar (0213)
+>5	ubyte&15	2	\b, Planar
+>5	ubyte&15	3	\b, Text
+>5	ubyte&15	4	\b, Planar lines
+>5	ubyte&128	128	\b (compressed)
+>5	ubyte&64	64	\b (extension)
+>5	ubyte&32	32	\b (encrypted)
+
+0	string	RIX3	ColoRIX Image
+>4	use		rix-header
+
+0	string	RIX7	ColoRIX Slideshow
+
+# http://fileformats.archiveteam.org/wiki/PaperPort_(MAX)
+0	string 	ViG	Visioneer PaperPort
+>3	string	Ae	2
+>3	string	Be	2
+>3	string	Cj	3-4
+>3	string	Em	5-7
+>3	string	Fk	8-12
+>3	default	x	MAX

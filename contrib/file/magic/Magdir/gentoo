@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: gentoo,v 1.2 2022/09/12 13:13:28 christos Exp $
+# $File: gentoo,v 1.5 2022/12/26 17:16:55 christos Exp $
 # gentoo:  file(1) magic for gentoo specific formats
 #
 # Summary: Gentoo ebuild Manifest files (GLEP 74)
@@ -36,6 +36,7 @@
 # (<tag>'s already been matched prior to calling)
 0	name	gentoo-manifest
 >&0	regex	[[:space:]]+[[:print:]]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:alnum:]]+[[:space:]]+[[:xdigit:]]{32}	Gentoo Manifest (GLEP 74)
+!:mime	application/vnd.gentoo.manifest
 
 # Summary: Gentoo ebuild and eclass files
 # Reference: https://projects.gentoo.org/pms/8/pms.html
@@ -43,16 +44,20 @@
 0	search/512	EAPI=
 >0	regex		.*\n[\040\t]*EAPI=["']?	Gentoo ebuild
 >>&0	regex		[[:alnum:]+_.-]+	\b, EAPI %s
+!:mime	application/vnd.gentoo.ebuild
 
 0	search/512	@ECLASS:\040		Gentoo eclass
 >&0	string		x			%s
+!:mime	application/vnd.gentoo.eclass
 
 # Summary: Gentoo supplementary package and category metadata files
 # Reference: https://www.gentoo.org/glep/glep-0068.html
 # Submitted by: Michal Gorny <mgorny@gentoo.org>
 0	string		\<?xml
 >0	search/512	\<catmetadata		Gentoo category metadata file
+!:mime	application/vnd.gentoo.catmetadata+xml
 >0	search/512	\<pkgmetadata		Gentoo package metadata file
+!:mime	application/vnd.gentoo.pkgmetadata+xml
 
 # Summary: Gentoo GLEP 78 binary package
 # Reference: https://www.gentoo.org/glep/glep-0078.html
@@ -64,7 +69,7 @@
 257	string		ustar
 >0	search/100	/gpkg-1\0
 >>0	regex		[^/]+		Gentoo GLEP 78 (GPKG) binary package for "%s"
-!:mime	application/x-tar
+!:mime	application/vnd.gentoo.gpkg
 !:ext	tar
 # the logic below requires the gpkg-1 file to be empty
 >>>124	string	00000000000\0

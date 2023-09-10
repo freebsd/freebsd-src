@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.25 2022/05/31 18:40:20 christos Exp $
+# $File: games,v 1.31 2023/03/29 22:57:27 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -184,6 +184,15 @@
 0	string	MComprHD	MAME CHD compressed hard disk image,
 >12	belong	x		version %u
 
+# MAME input recordings
+
+0	string	MAMEINP\0		MAME input recording
+>8	leqdate	x			at %s,
+>16	leshort	x			format version %d.
+>18	leshort	x			\b%d,
+>20	string	x			%s driver,
+>32	string	x			%s
+
 # doom - submitted by Jon Dowland
 
 0	string	=IWAD		doom main IWAD data
@@ -293,12 +302,92 @@
 >2	regex/c	GM\\[21\\]			- twix Game
 
 # Epic Games/Unreal Engine Package
-#
-0	lelong		0x9E2A83C1	Unreal Engine Package,
->4	leshort		x		version: %i
->12	lelong		!0		\b, names: %i
->28	lelong		!0		\b, imports: %i
->20	lelong		!0		\b, exports: %i
+# URL: https://docs.unrealengine.com/udk/Three/ContentCooking.html
+#      https://eliotvu.com/page/unreal-package-file-format
+# Little-endian version (such as x86 PC)
+0		lelong		0x9E2A83C1	Unreal Engine package (little-endian)
+!:ext		xxx/tfc/upk/me1/u
+>4		uleshort	!0		\b, version %u
+>>6		uleshort	!0		\b/%03u
+>>0		use		upk_header
+# Big-endian version (such as PS3)
+0		belong		0x9E2A83C1	Unreal Engine package (big-endian)
+!:ext		xxx/tfc
+>6		ubeshort	!0		\b, version %u
+>>4		ubeshort	!0		\b/%03u
+>>0		use		\^upk_header
+
+0		name		upk_header
+# Identify game from version and licensee
+>4		ulelong		0x000002b2	(Alice Madness Returns)
+>4		ulelong		0x002f0313	(Aliens: Colonial Marines)
+>4		ulelong		0x005b021b	(Alpha Protocol)
+>4		ulelong		0x0000032c	(AntiChamber)
+>4		ulelong		0x00200223	(APB: All Points Bulletin)
+>4		ulelong		0x004b02d7	(Bioshock Infinite)
+>4		ulelong		0x00380340	(Borderlands 2)
+>4		ulelong		0x001d02e6	(Bulletstorm)
+>4		ulelong		0x00050240	(CrimeCraft)
+>4		ulelong		0x00000356	(Deadlight)
+>4		ulelong		0x001e0321	(Dishonored)
+>4		ulelong		0x000202a6	(Dungeon Defenders)
+>4		ulelong		0x000901ea	(Gears of War)
+>4		ulelong		0x0000023f	(Gears of War 2)
+>4		ulelong		0x0000033c	(Gears of War 3)
+>4		ulelong		0x0000034e	(Gears of War: Judgement)
+>4		ulelong		0x0004035c	(Hawken)
+>4		ulelong		0x0001034a	(Infinity Blade 2)
+>4		ulelong		0x00000350	(InMomentum)
+>4		ulelong		0x0015037D	(Life Is Strange)
+>4		ulelong		0x000b01a5	(Medal of Honor: Airborne)
+>4		ulelong		0x002b0218	(Mirrors Edge)
+>4		ulelong		0x0000027e	(Monday Night Combat)
+>4		ulelong		0x0000024b	(MoonBase Alpha)
+>4		ulelong		0x002e01d8	(Mortal Kombat Komplete Edition 2605)
+>4		ulelong		0x0000035c	(Painkiller HD)
+>4		ulelong		0x0000034d	(Q.U.B.E)
+>4		ulelong		0x80660340	(Quantum Conundrum)
+>4		ulelong		0x0000035b	(Ravaged)
+>4		ulelong		0x00150340	(Remember Me)
+>4		ulelong		0x00060171	(Roboblitz)
+>4		ulelong		0x00000325	(Rock of Ages)
+>4		ulelong		0x0000032a	(Sanctum)
+>4		ulelong		0x00030248	(Saw)
+>4		ulelong		0x007e0248	(Singularity)
+>4		ulelong		0x00090388	(Soldier Front 2)
+>4		ulelong		0x000701e6	(Stargate Worlds)
+>4		ulelong		0x00000334	(Super Monday Night Combat)
+>4		ulelong		0x000002c2	(The Ball)
+>4		ulelong		0x000e0262	(The Exiled Realm of Arborea or TERA)
+>4		ulelong		0x0000035b	(The Five Cores)
+>4		ulelong		0x00000349	(The Haunted: Hells Reach)
+>4		ulelong		0x00000354	(Unmechanical)
+>4		ulelong		0x035c0298	(Unreal Development Kit)
+>4		ulelong		0x00000200	(Unreal Tournament 3)
+>4		ulelong		0x0000032d	(Waves)
+>4		ulelong		0x003b034d	(XCOM: Enemy Unknown)
+# Newer versions insert more headers
+>4		ulelong&0xFFFF	<249
+>>12		lelong		!0		\b, names: %d
+>>28		lelong		!0		\b, imports: %d
+>>20		lelong		!0		\b, exports: %d
+>4		ulelong&0xFFFF	>248
+>>12		belong&0xFF	!0
+>>>12		string		x		\b, folder "%s"
+>>>>&5		lelong		!0		\b, names: %d
+>>>>&21		lelong		!0		\b, imports: %d
+>>>>&13		lelong		!0		\b, exports: %d
+>>12		belong&0xFF	0
+>>>16		belong&0xFF	!0
+>>>>16		string		x		\b, folder "%s"
+>>>>>&5		lelong		!0		\b, names: %d
+>>>>>&21	lelong		!0		\b, imports: %d
+>>>>>&13	lelong		!0		\b, exports: %d
+>>>16		belong&0xFF	0
+>>>>20		string		x		\b, folder "%s"
+>>>>>&5		lelong		!0		\b, names: %d
+>>>>>&21	lelong		!0		\b, imports: %d
+>>>>>&13	lelong		!0		\b, exports: %d
 
 0	string		ESVG
 >4	lelong		0x00160000
@@ -510,3 +599,98 @@
 >>0	ulelong&0xf	=8	RDR 2,
 >>4	ulelong 	x	%d bytes,
 >>>8	ulelong 	x	%d entries
+
+# Blitz3D Model File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/minetest/B3DExport/blob/master/B3DExport.py
+0	string		BB3D
+>4	lelong		>0
+>>8	lelong		>0	Blitz3D Model
+!:ext	b3d
+>>>8	lelong		x	\b, version %d
+
+# Minetest Schematic File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/minetest/minetest/blob/5.6.1/src/mapgen/mg_schematic.h
+0	string		MTSM	Minetest Schematic
+!:ext	mts
+>4	ubeshort	x	\b, version %d
+>6	ubeshort	x	\b, size [%d
+>8	ubeshort	x	\b, %d
+>10	ubeshort	x	\b, %d]
+
+# MagicaVoxel File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/ephtracy/voxel-model/blob/ee2216c28a78ebb68691dc6cfa9c4ba429117ea2/MagicaVoxel-file-format-vox.txt
+# Note: This format is used in Veloren voxel RPG.
+0	string		VOX\x20
+>4	lelong		>0	MagicaVoxel model
+!:ext	vox
+>>4	lelong		x	\b, version %d
+
+# Wwise SoundBank
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://wiki.xentax.com/index.php/Wwise_SoundBank_(*.bnk)
+0	string	BKHD
+# Little-endian version (such as x86 PC)
+>4	ulelong	<0x100		Wwise SoundBank (little-endian)
+!:ext	bnk
+>>0	use	wwise_bkhd
+# Big-endian version (such as PS3)
+>4	ubelong	<0x100		Wwise SoundBank (big-endian)
+!:ext	bnk
+>>0	use	\^wwise_bkhd
+
+0	name	wwise_bkhd
+>8	ulelong	x		\b, version %d
+>12	ulelong	x		\b, id %08X
+>16	ulelong	=0x00		\b, SFX
+>16	ulelong	=0x01		\b, arabic
+>16	ulelong	=0x02		\b, bulgarian
+>16	ulelong	=0x03		\b, chinese (HK)
+>16	ulelong	=0x04		\b, chinese (PRC)
+>16	ulelong	=0x05		\b, chinese (Taiwan)
+>16	ulelong	=0x06		\b, czech
+>16	ulelong	=0x07		\b, danish
+>16	ulelong	=0x08		\b, dutch
+>16	ulelong	=0x09		\b, english (Australia)
+>16	ulelong	=0x0A		\b, english (India)
+>16	ulelong	=0x0B		\b, english (UK)
+>16	ulelong	=0x0C		\b, english (US)
+>16	ulelong	=0x0D		\b, finnish
+>16	ulelong	=0x0E		\b, french (Canada)
+>16	ulelong	=0x0F		\b, french (France)
+>16	ulelong	=0x10		\b, german
+>16	ulelong	=0x11		\b, greek
+>16	ulelong	=0x12		\b, hebrew
+>16	ulelong	=0x13		\b, hungarian
+>16	ulelong	=0x14		\b, indonesian
+>16	ulelong	=0x15		\b, italian
+>16	ulelong	=0x16		\b, japanese
+>16	ulelong	=0x17		\b, korean
+>16	ulelong	=0x18		\b, latin
+>16	ulelong	=0x19		\b, norwegian
+>16	ulelong	=0x1A		\b, polish
+>16	ulelong	=0x1B		\b, portuguese (Brazil)
+>16	ulelong	=0x1C		\b, portuguese (Portugal)
+>16	ulelong	=0x1D		\b, romanian
+>16	ulelong	=0x1E		\b, russian
+>16	ulelong	=0x1F		\b, slovenian
+>16	ulelong	=0x20		\b, spanish (Mexico)
+>16	ulelong	=0x21		\b, spanish (Spain)
+>16	ulelong	=0x22		\b, spanish (US)
+>16	ulelong	=0x23		\b, swedish
+>16	ulelong	=0x24		\b, turkish
+>16	ulelong	=0x25		\b, ukrainian
+>16	ulelong	=0x26		\b, vietnamese
+
+# Wwise Audio Package
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://wiki.xentax.com/index.php/Wwise_Audio_PCK
+0	string	AKPK
+# Little-endian version (such as x86 PC)
+>8	ulelong	<0x100	Wwise Audio Package (little-endian)
+!:ext	pck
+# Big-endian version (such as PS3)
+>8	ubelong	<0x100	Wwise Audio Package (big-endian)
+!:ext	pck
