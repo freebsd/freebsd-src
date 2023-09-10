@@ -1,5 +1,49 @@
 
 #------------------------------------------------------------------------------
-# $File: crypto,v 1.2 2021/03/27 20:15:53 christos Exp $
+# $File: crypto,v 1.4 2023/07/17 16:41:48 christos Exp $
 # crypto:  file(1) magic for crypto formats
 #
+# Bitcoin block files
+0		lelong			0xD9B4BEF9	Bitcoin
+>(4.l+40)	lelong			0xD9B4BEF9	reverse block
+>>4		lelong			x		\b, size %u
+# normal block below
+>0		default			x		block
+>>4		lelong			x		\b, size %u
+>>8		lelong&0xE0000000	0x20000000
+>>>8		lelong			x		\b, BIP9 0x%x
+>>8		lelong&0xE0000000	!0x20000000
+>>>8		lelong			x		\b, version 0x%x
+>>76		ledate			x		\b, %s UTC
+# VarInt counter
+>>88		ubyte			<0xfd		\b, txcount %u
+>>88		ubyte			0xfd
+>>>89		leshort			x		\b, txcount %u
+>>88		ubyte			0xfe
+>>>89		lelong			x		\b, txcount %u
+>>88		ubyte			0xff
+>>>89		lequad			x		\b, txcount %llu
+!:ext	dat
+# option to find more blocks in the file
+#>>(4.l+8)	indirect	x			;
+
+# LevelDB
+-8		lequad		0xdb4775248b80fb57	LevelDB table data
+
+# http://www.tarsnap.com/scrypt.html
+# see scryptenc_setup() in lib/scryptenc/scryptenc.c
+0	string		scrypt\0	scrypt encrypted file
+>7	byte		x		\b, N=2**%d
+>8	belong		x		\b, r=%d
+>12	belong		x		\b, p=%d
+
+# https://age-encryption.org/
+# Only the first recipient is printed in detail to prevent repetitive output
+# in extreme cases ("ssh-rsa, ssh-rsa, ssh-rsa, ...").
+0	string		age-encryption.org/v1\n age encrypted file
+>25	regex/128	\^[^\040]+	\b, %s recipient
+>>25	string		scrypt
+>>>&0 regex/64		[0-9]+\$	(N=2**%s)
+>>&0	search/256	\n->\040 	\b, among others
+
+0	string		-----BEGIN\040AGE\040ENCRYPTED\040FILE-----	age encrypted file, ASCII armored

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: asf,v 1.3 2022/04/25 17:33:13 christos Exp $
+# $File: asf,v 1.4 2022/10/31 13:22:26 christos Exp $
 # asf:  file(1) magic for Microsoft Advanced Systems Format (ASF) files
 # http://www.staroceans.org/e-book/ASF_Specification.pdf
 
@@ -21,7 +21,7 @@
 # ASF_Stream_Properties_Object
 >0	guid	B7DC0791-A9B7-11CF-8EE6-00C00C205365
 #>>56	lequad	x		Time Offset %lld
-#>>64	lelong	x		Type-Specicic Data Length %d
+#>>64	lelong	x		Type-Specific Data Length %d
 #>>68	lelong	x		Error Correction Data Length %d
 #>>72	leshort	x		Flags %#x
 #>>74	lelong	x		Reserved %x

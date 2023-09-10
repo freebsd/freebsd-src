@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.46 2022/07/02 17:46:09 christos Exp $
+# $File: windows,v 1.63 2023/07/17 16:56:13 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -95,36 +95,207 @@
 >>40	lestring16	x		"%s"
 
 # Summary: Windows crash dump
-# Extension: .dmp
 # Created by: Andreas Schuster (https://computer.forensikblog.de/)
-# Reference (1): https://computer.forensikblog.de/en/2008/02/64bit_magic.html
+#		https://web.archive.org/web/20101125060849/https://computer.forensikblog.de/en/2008/02/64bit_magic.html
 # Modified by (1): Abel Cheung (Avoid match with first 4 bytes only)
+# Modified by (2): Joerg Jenderek (addtional fields, extension, URL)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dmp.trid.xml
+#		https://gitlab.com/qemu-project/qemu/-/blob/master/include/qemu/win_dump_defs.h
+# Note:		called "Windows memory dump" by TrID
+#		and verified by like Windows Kit `Dumpchk.exe 043022-18703-01.dmp`
+#		and partly by NirSoft `BlueScreenView.exe 043022-18703-01.dmp`
+# char Signature[4]
 0	string		PAGE
+# char ValidDump[4]
 >4	string		DUMP		MS Windows 32bit crash dump
+#!:mime	application/octet-stream
+!:mime	application/x-ms-dmp
+# like: Mini111013-01.dmp
+!:ext	dmp
+# major version like: 15
+>>8	ulelong		x		\b, version %u
+# minor version like: 2600
+>>12	ulelong		x		\b.%u
+# DirectoryTableBase like: 709000
+#>>16	ulelong		x		\b, DirectoryTableBase %#x
+# PfnDatabase like: 805620c8
+#>>20	ulelong		x		\b, PfnDatabase %#x
+# PsLoadedModuleList like: 8055d720
+#>>24	ulelong		x		\b, PsLoadedModuleList %#x
+# PsActiveProcessHead like:805638b8 
+#>>28	ulelong		x		\b, PsActiveProcessHead %#x
+# MachineImageType like: 14c (intel x86)
+>>32	ulelong		!0x14c		\b, MachineImageType %#x
+# NumberProcessors like: 2
+>>36	ulelong		x		\b, %u processors
+# BugcheckCode like: e2
+#>>40	ulelong		x		\b, BugcheckCode %#x
+# BugcheckParameter1 like: 0
+#>>44	ulelong		x		\b, BugcheckParameter1 %#x
+# BugcheckParameter2 like: 0
+#>>48	ulelong		x		\b, BugcheckParameter2 %#x
+# BugcheckParameter3 like: 0
+#>>52	ulelong		x		\b, BugcheckParameter3 %#x
+# BugcheckParameter4 like: 0
+#>>56	ulelong		x		\b, BugcheckParameter4 %#x
+# VersionUser[32]; like  "PAGEPAGEPAGEPAGEPAGEPAGEPAGEPAGE" ""
+#>>60	string		x		\b, VersionUser "%.32s"
+# uint32_t reserved0 like: 45474101
+#>>92	ulelong		x		\b, reserved0 %#x
 >>0x05c	byte            0		\b, no PAE
 >>0x05c	byte            1		\b, PAE
+# KdDebuggerDataBlock like: 8054d2e0
+#>>96	ulelong		x		\b, KdDebuggerDataBlock %#x
+# uint8_t PhysicalMemoryBlockBuffer[700]
+# WinDumpPhyMemDesc32 NumberOfRuns like: 45474150
+#>>100	ulelong		x		\b, NumberOfRuns %#x
+# WinDumpPhyMemDesc32 uint32_t NumberOfPages like: 1162297680
+#>>104	ulelong		x		\b, NumberOfPages %#x
+# WinDumpPhyMemRun32 Run[86]; 688 bytes
+#>>108	ulelong		x		\b, BasePage %#x
+#>>112	ulelong		x		\b, PageCount %#x
+# uint8_t reserved1[3200]
+#>>800	string		x		\b, reserved "%s"
+#>>4000	ulelong		x		\b, RequiredDumpSpace %#x
+# uint8_t reserved2[92];
+#>>4004	string		x		\b, reserved2 "%s"
 >>0xf88	lelong		1		\b, full dump
 >>0xf88	lelong		2		\b, kernel dump
 >>0xf88	lelong		3		\b, small dump
+# like: 4
+>>0xf88	lelong		>3		\b, dump type (%#x)
+# WinDumpPhyMemDesc32 uint32_t NumberOfPages like: 1162297680
+# GRR: IS THIS TRUE? VALUE IS SOMETIMES VERY HIGH!
+#>>104	ulelong		x		\b, NumberOfPages %#x
 >>0x068	lelong		x		\b, %d pages
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dmp-64.trid.xml113o
+# Note:		called "Windows 64bit Memory Dump" by TrID
+# char ValidDump[4]
 >4	string		DU64		MS Windows 64bit crash dump
->>0xf98	lelong		1		\b, full dump
->>0xf98	lelong		2		\b, kernel dump
->>0xf98	lelong		3		\b, small dump
+#!:mime	application/octet-stream
+!:mime	application/x-ms-dmp
+# like: c:\Windows\Minidump\020322-18890-01.dmp c:\Windows\MEMORY.DMP
+!:ext	dmp
+# major version like: 15
+>>8	ulelong		x		\b, version %u
+# minor version like: 9600 19041 22621
+>>12	ulelong		x		\b.%u
+# DirectoryTableBase like: 001ab000
+#>>16	ulequad		x		\b, DirectoryTableBase %#llx
+# PfnDatabase like: fffffa8000000000
+#>>24	ulequad		x		\b, PfnDatabase %#llx
+# PsLoadedModuleList like: fffff800c553f650
+#>>32	ulequad		x		\b, PsLoadedModuleList %#llx
+# PsActiveProcessHead like: fffff800c5525400
+#>>40	ulequad		x		\b, PsActiveProcessHead %#llx
+# MachineImageType like: 00008664
+>>48	ulelong		!0x8664		\b, MachineImageType %#x
+# NumberProcessors like: 2 4
+>>52	ulelong		x		\b, %u processors
+# BugcheckCode like: 1000007e
+#>>56	ulelong		x		\b, BugcheckCode %#x
+# unused0
+#>>60	ulelong		x		\b, unused0 %#x
+# BugcheckParameter1 like: ffffffffc0000005
+#>>64	ulequad		x		\b, BugcheckParameter1 %#llx
+# BugcheckParameter2 like: fffff801abb2158f
+#>>72	ulequad		x		\b, BugcheckParameter2 %#llx
+# BugcheckParameter3 like: ffffd000290d4288
+#>>80	ulequad		x		\b, BugcheckParameter3 %#llx
+# BugcheckParameter4 like: ffffd000290d3aa0
+#>>88	ulequad		x		\b, BugcheckParameter4 %#llx
+# VersionUser[32]; like "" "PAGEPAGEPAGEPAGEPAGEPAGEPAGEPAGE" ""
+#>>96	string		x		\b, VersionUser "%.32s"
+# KdDebuggerDataBlock like: fffff800c550c530
+#>>128	ulequad		x		\b, KdDebuggerDataBlock %#llx
+# uint8_t PhysicalMemoryBlockBuffer[704]
+# WinDumpPhyMemDesc64 NumberOfRuns like: 6 7 0x45474150
+#>>136	ulelong		x		\b, NumberOfRuns %#x
+# WinDumpPhyMemDesc64 unused like: 0 0x45474150
+#>>140	ulelong		x		\b, unused %#x
+# WinDumpPhyMemRun64 Run[43] BasePage like: 1
+#>>152	ulequad		x		\b, BasePage %#llx
+# WinDumpPhyMemRun64 Run[43] PageCount like: 57h
+#>>160	ulequad		x		\b, PageCount %#llx
+# uint8_t ContextBuffer[3000] like: "" "\001" "\0207J\266\001\340\377\377&8\007\312"
+#>>840	string		x		\b, ContextBuffer "%s"
+# WinDumpExceptionRecord ExceptionCode
+#>>3840	ulelong		x		\b, ExceptionCode %#x
+# WinDumpExceptionRecord ExceptionFlags
+#>>3844	ulelong		x		\b, ExceptionFlags %#x
+# WinDumpExceptionRecord ExceptionRecord
+#>>3848	ulequad		x		\b, ExceptionRecord %#llx
+# WinDumpExceptionRecord ExceptionAddress
+#>>3856	ulequad		x		\b, ExceptionAddress %#llx
+# WinDumpExceptionRecord NumberParameters
+#>>3864	ulelong		x		\b, NumberParameters %#x
+# WinDumpExceptionRecord unused
+#>>3868	ulelong		x		\b, unsed %#x
+# WinDumpExceptionRecord ExceptionInformation[15]
+#>>3872	ulequad		x		\b, ExceptionInformation[0] %#llx
+# https://learn.microsoft.com/en-us/troubleshoot/windows-server/performance/memory-dump-file-options
+# but DumpType like: 4~small 5~full (MEMORY.DMP) 6~kernel (MEMORY.DMP)
+>>0xf98 ulelong	x		\b,
+>>>0xf98	lelong		5		full dump
+>>>0xf98	lelong		6		kernel dump
+>>>0xf98	lelong		4		small dump
+# This probably never occur
+>>>0xf98	default		x		DumpType
+>>>>0xf98 	ulelong		x		(%#x)
+# WinDumpPhyMemDesc64 uint64_t NumberOfPages like: 3142425 8341923 8366500 1162297680 4992030524978970960
+# GRR: IS THIS TRUE? VALUE IS SOMETIMES VERY HIGH!
 >>0x090	lequad		x		\b, %lld pages
 
-
 # Summary: Vista Event Log
-# Extension: .evtx
 # Created by: Andreas Schuster (https://computer.forensikblog.de/)
-# Reference (1): https://computer.forensikblog.de/en/2007/05/some_magic.html
-0	string		ElfFile\0	MS Windows Vista Event Log
+# Update:	Joerg Jenderek
+# URL:		https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc
+# Reference (1): https://web.archive.org/web/20110803085000/
+#		https://computer.forensikblog.de/en/2007/05/some_magic.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/e/evtx.trid.xml
+# Note:		called "Vista Event Log" by TrID and "Event Log" by Windows
+# 		verified partly by `wevtutil.exe gli /lf:true dumpfile.evtx`
+0	string		ElfFile\0	MS Windows
+#!:mime		application/octet-stream
+!:mime		application/x-ms-evtx
+!:ext		evtx
+# Major+Minor format version: 3.1~Vista and later 3.2~Windows 10 (2004) and later 
+>0x24	ulelong		=0x00030001	Vista-8.1 Event Log
+>0x24	ulelong		!0x00030001	10-11 Event Log, version 
+>>0x26	uleshort	x		%u
+>>0x24	uleshort	x		\b.%u
 >0x2a	leshort		x		\b, %d chunks
 >>0x10	lelong		x		\b (no. %d in use)
 >0x18	lelong		>1		\b, next record no. %d
 >0x18	lelong		=1		\b, empty
 >0x78	lelong		&1		\b, DIRTY
 >0x78	lelong		&2		\b, FULL
+
+# Summary:	Windows Event Trace Log
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/ETL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/e/etl.trid.xml
+#		https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/etw/tracelog/trace_logfile_header.htm
+# Note:		called "Window tracing/diagnostic binary log" by TrID
+# 		verified by `tracerpt.EXE Wifi.etl -of EVTX`
+#		and by etl-parser `etl2xml --input AMSITrace.etl --output AMSITrace.xml`
+# Every ETL file begins with a WMI_BUFFER_HEADER, a SYSTEM_TRACE_HEADER and a TRACE_LOGFILE_HEADER
+0	ubyte			0
+# look for corresponding encoded as UTF-16 file name extension like in: boot_BASE+CSWITCH_1.etl
+>0	search/0x699087/b	.\0e\0t\0l\0\0\0
+# GRR: line above only works if in ../../src/file.h FILE_BYTES_MAX is raised above 699086h (6,59 MiB)
+>>0	use			trace-etl
+# display information of Windows Performance Analyzer Trace File (file name)
+0	name		trace-etl
+>0	ubyte			x		Windows Event Trace Log
+#!:mime		application/x-ms-etl
+# http://extension.nirsoft.net/etl
+!:mime		application/etl
+!:ext		etl
+# look for DOS drive letter part of log file name like: PhotosAppTracing_startedInBGMode.etl
+>0	search/0x2b4/sb	:\0\x5c\0	
+# like: "c:\Windows\Logs\NetSetup\service.0.etl" "C:\Windows\System32\LogFiles\WMI\Wifi.etl"
+>>&-2	lestring16		x		"%s"
 
 # Summary: Windows System Deployment Image
 # Created by: Joerg Jenderek
@@ -440,62 +611,248 @@
 >16	string		>\0			for "%s"
 
 # Summary: Hyper terminal
-# Extension: .ht
 # Created by: unknown
+# Update:	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/HyperACCESS
+#		https://www.hilgraeve.com/hyperterminal/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/ht.trid.xml
+# Note:		called "HyperTerminal data file" by TrID and "HyperTerminal File" on English Windows
 0	string		HyperTerminal\040
->15	string		1.0\ --\ HyperTerminal\ data\ file	MS Windows HyperTerminal profile
+>14	string		1.0\ --\ HyperTerminal\ data\ file	MS Windows HyperTerminal profile
+#!:mime	application/octet-stream
+!:mime	application/x-ms-ht
+!:ext	ht
 
 # https://ithreats.files.wordpress.com/2009/05/\040
 # lnk_the_windows_shortcut_file_format.pdf
 # Summary: Windows shortcut
-# Extension: .lnk
 # Created by: unknown
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Windows_Shortcut
+#		https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lnk-shortcut.trid.xml
+#		https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-SHLLINK/%5bMS-SHLLINK%5d.pdf
+# Note:		called "Windows Shortcut" by TrID, "Microsoft Windows Shortcut" by DROID via PUID x-fmt/428 and "Windows shortcut file" by ./msdos (v 1.158)
+# 		partly verified by command like `lnkinfo AOL.lnk`
 # 'L' + GUUID
+# HeaderSize + LinkCLSID 00021401-0000-0000-C000-000000000046
 0	string		\114\0\0\0\001\024\002\0\0\0\0\0\300\0\0\0\0\0\0\106	MS Windows shortcut
 !:mime	application/x-ms-shortcut
 !:ext	lnk
+# LinkFlags
+# HasLinkTargetIDList; if set a LinkTargetIDList structure MUST follow the ShellLinkHeader; If is not set, structure MUST NOT be present
 >20	lelong&1	1	\b, Item id list present
+# HasLinkInfo; if set a LinkInfo structure MUST follow the ShellLinkHeader or LinkTargetIDList; If is not set, structure MUST NOT be present
 >20	lelong&2	2	\b, Points to a file or directory
 >20	lelong&4	4	\b, Has Description string
 >20	lelong&8	8	\b, Has Relative path
 >20	lelong&16	16	\b, Has Working directory
 >20	lelong&32	32	\b, Has command line arguments
 >20	lelong&64	64	\b, Icon
+# IconIndex
 >>56	lelong		x	\b number=%d
+# IsUnicode; If set then StringData section contains Unicode-encoded strings
+>20	lelong&128	128	\b, Unicoded
+# ForceNoLinkInfo; LinkInfo structure is ignored
+>20	lelong&256	256	\b, NoLinkInfo
+# HasExpString; with an EnvironmentVariableDataBlock
+>20	lelong&512	512	\b, HasEnvironment
+# look for BlockSize 314h and EnvironmentVariableDataBlock BlockSignature A0000001h
+>>76	search/1972		\x14\x03\x00\x00\x01\x00\x00\xa0
+# TargetAnsi (260 bytes); NULL-terminated path to environment variable encoded with system default code page
+#>>>&0	string		x	'%s'
+# TargetUnicode (520 bytes): optional NULL-terminated path to same environment variable Unicode encoded
+# like: "%windir%\system32\calc.exe"
+>>>&260	lestring16	x	"%s"
+# RunInSeparateProcess; run in a separate virtual machine when launching a 16-bit application; no examples found
+>20	lelong&1024	1024	\b, RunInSeparateProcess
+# Unused1; undefined and MUST be ignored
+#>20	lelong&2048	2048	\b, Unused1
+# HasDarwinID; with a DarwinDataBlock
+>20	lelong&4096	4096	\b, HasDarwinID
+# look for BlockSize 314h and DarwinDataBlock BlockSignature A0000006h
+>>76	search/1972		\x14\x03\x00\x00\x06\x00\x00\xa0
+# DarwinDataAnsi (260 bytes); NULL-terminated application identifier encoded with system default code page; SHOULD be ignored
+#>>>&0	string		x	'%s'
+# DarwinDataUnicode (520 bytes); NULL-terminated application identifier Unicode encoded
+>>>&260	lestring16	x	"%s"
+# RunAsUser; target application is run as a different user
+>20	lelong&8192	8192	\b, RunAsUser
+# HasExpIcon; with an IconEnvironmentDataBlock
+>20	lelong&16384	16384	\b, HasExpIcon
+# look for BlockSize 314h and IconEnvironmentDataBlock BlockSignature A0000007h
+>>76	search/1972		\x14\x03\x00\x00\x07\x00\x00\xa0
+# TargetAnsi (260 bytes); NULL-terminated path to environment icon variable encoded with system default code page
+#>>>&0	string		x	'%s'
+# TargetUnicode (520 bytes); optional NULL-terminated path to same icon environment variable Unicode encoded
+# like: "%SystemDrive%\Program Files\YaCy\addon\YaCy.ico"
+>>>&260	lestring16	x	"%s"
+# NoPidlAlias; represented in the shell namespace; no examples found
+>20	lelong&32768	32768	\b, NoPidlAlias
+# Unused2; undefined and MUST be ignored
+#>20	lelong&65536	65536	\b, Unused2
+# RunWithShimLayer; with a ShimDataBlock; no examples found
+>20	lelong&131072	131072	\b, RunWithShimLayer
+# ForceNoLinkTrack; TrackerDataBlock is ignored; no examples found
+>20	lelong&262144	262144	\b, ForceNoLinkTrack
+>20	lelong&262144	0
+# look for BlockSize 60h, TrackerDataBlock BlockSignature A0000003h, it length 58h and Version 0
+>>76	search/1972		\x60\x00\x00\x00\x03\x00\x00\xa0\x58\x00\x00\x00\0\0\0\0
+# MachineID (16 bytes); a NULL-terminated NetBIOS name encoded with system default code page of the machine
+>>>&0	string		x			\b, MachineID %0.16s
+# Droid (32 bytes)
+#
+# DroidBirth (32 bytes)
+#
+# EnableTargetMetadata; collect target properties and store in PropertyStoreDataBlock
+>20	lelong&524288	524288	\b, EnableTargetMetadata
+# look for BlockSize >= Ch, PropertyStoreDataBlock BlockSignature A0000009h
+#>>76	search/1972		\x00\x00\x09\x00\x00\xa0
+# PropertyStore (variable)
+#
+# DisableLinkPathTracking; EnvironmentVariableDataBlock is ignored; no examples found
+>20	lelong&1048576	1048576	\b, DisableLinkPathTracking
+# DisableKnownFolderTracking; SpecialFolderDataBlock and KnownFolderDataBlock are ignored and not saved
+>20	lelong&2097152	2097152	\b, DisableKnownFolderTracking
+>20	lelong&2097152	0
+# look for BlockSize 1Ch and KnownFolderDataBlock BlockSignature A000000Bh
+>>76	search/1972		\x1c\x00\x00\x00\x0B\x00\x00\xa0
+# https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/known-folder-guids-for-file-dialog-custom-places
+# KnownFolderID specifies the folder GUID ID
+# ProgramFiles				905E63B6-C1BF-494E-B29C-65B732D3D21A
+# ProgramFilesX86			7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E
+>>>&0	guid	x			KnownFolderID %s
+# DisableKnownFolderAlias; unaliased form of the known folder IDList SHOULD be used; no examples found
+>20	lelong&4194304	4194304	\b, DisableKnownFolderAlias
+# AllowLinkToLink; link that references another link is enabled; no examples found
+>20	lelong&8388608	8388608	\b, AllowLinkToLink
+# UnaliasOnSave; unaliased form of that known folder or the target IDList SHOULD be used; no examples found
+>20	lelong&16777216 16777216	\b, UnaliasOnSave
+# PreferEnvironmentPath; path specified in the EnvironmentVariableDataBlock SHOULD be used
+>20	lelong&33554432	33554432	\b, PreferEnvironmentPath
+# KeepLocalIDListForUNCTarget; UNC name SHOULD be stored in local path IDList in PropertyStoreDataBlock; no examples found
+>20	lelong&67108864	67108864	\b, KeepLocalIDListForUNCTarget
+# FileAttributes
 >24	lelong&1	1	\b, Read-Only
 >24	lelong&2	2	\b, Hidden
 >24	lelong&4	4	\b, System
->24	lelong&8	8	\b, Volume Label
+# Reserved1; MUST be zero
+>24	lelong&8	8	\b, Reserved1
 >24	lelong&16	16	\b, Directory
 >24	lelong&32	32	\b, Archive
->24	lelong&64	64	\b, Encrypted
+# Reserved2; MUST be zero
+>24	lelong&64	64	\b, Reserved2
 >24	lelong&128	128	\b, Normal
 >24	lelong&256	256	\b, Temporary
+# no examples found
 >24	lelong&512	512	\b, Sparse
+# no examples found
 >24	lelong&1024	1024	\b, Reparse point
 >24	lelong&2048	2048	\b, Compressed
 >24	lelong&4096	4096	\b, Offline
->28	leqwdate	x	\b, ctime=%s
->36	leqwdate	x	\b, mtime=%s
->44	leqwdate	x	\b, atime=%s
+# FILE_ATTRIBUTE_NOT_CONTENT_INDEXED; contents need to be indexed
+>24	lelong&8192	8192	\b, NeedIndexed
+# FILE_ATTRIBUTE_ENCRYPTED; file or directory is encrypted
+>24	lelong&16384	16384	\b, Encrypted
+# value zero means there is no time set on the target
+>28	leqwdate	!0	\b, ctime=%s
+# Access time of target in UTC
+>36	leqwdate	!0	\b, atime=%s
+# write time of target in UTC
+>44	leqwdate	!0	\b, mtime=%s
+# FileSize; 32 bit size of target in bytes
 >52	lelong		x	\b, length=%u, window=
->60	lelong&1	1	\bhide
->60	lelong&2	2	\bnormal
->60	lelong&4	4	\bshowminimized
->60	lelong&8	8	\bshowmaximized
->60	lelong&16	16	\bshownoactivate
->60	lelong&32	32	\bminimize
->60	lelong&64	64	\bshowminnoactive
->60	lelong&128	128	\bshowna
->60	lelong&256	256	\brestore
->60	lelong&512	512	\bshowdefault
-#>20	lelong&1	0
-#>>20	lelong&2	2
-#>>>(72.l-64)	pstring/h	x	\b [%s]
-#>20	lelong&1	1
-#>>20	lelong&2	2
-#>>>(72.s)	leshort	x
-#>>>&75	pstring/h	x	\b [%s]
+# ShowCommand; 1~SW_SHOWNORMAL 3~SW_SHOWMAXIMIZED HerzlichMEDION.lnk 7~SW_SHOWMINNOACTIVE YaCy.lnk Privoxy.lnk; All other values like 2 MUST be treated as SW_SHOWNORMAL
+#>60	lelong		x	ShowCommand=%#x
+>60	lelong		x
+>>60	lelong		3	\bshowmaximized
+>>60	lelong		7	\bshowminnoactive
+>>60	default		x	\bnormal
+# Hotkey
+>64	uleshort	>0	\b, hot key
+# 41h~A 42h~B ...
+>>64	ubyte		x	%c
+# modifier keys: 0x01~HOTKEYF_SHIFT 0x02~HOTKEYF_CONTROL 0x04~HOTKEYF_ALT
+>>65	ubyte&1		1	\b+SHIFT
+>>65	ubyte&2		2	\b+CONTROL
+>>65	ubyte&4		4	\b+ALT
+# Reserved; MUST be zero
+#>66	uleshort	!0	\b, reserved %#x
+# Reserved2; MUST be zero
+#>68	ulelong		!0	\b, reserved2 %#x
+# Reserved3; MUST be zero
+#>72	ulelong		!0	\b, reserved3 %#x
+# optional LINKTARGET_IDLIST if LinkFlags bit HasLinkTargetIDList is set
+>20	lelong&1	1
+# IDListSize; size of IDList
+>>76	uleshort	x	\b, IDListSize %#4.4x
+# 1st item
+>>78	use		lnk-item
+# 2nd possible item
+>>(78.s+78)	uleshort	>0
+>>>(78.s+78)	use			lnk-item
+# 3rd possible item
+>>>&(&-2.s-2)	uleshort	>0
+>>>>&-2		use			lnk-item
+# 4th possible item
+>>>>&(&-2.s-2)	uleshort	>0
+>>>>>&-2	use			lnk-item
+# Because HasLinkInfo is set, a LinkInfo structure follows
+>20	lelong&2	2
+# if no LINKTARGET_IDLIST (no HasLinkTargetIDList) then direct after header; no example found
+>>20	lelong&1	=0
+>>>76	use			lnk-info
+# if LINKTARGET_IDLIST (HasLinkTargetIDList) then after LINKTARGET_IDLIST by addtional IDListSize bytes 
+>>20	lelong&1	=1
+>>>76	uleshort	>0
+#>>>>(76.s+78)	use		lnk-info
+>>>>(76.s+78)	ubelong	x
+# move pointer to beginnig of LinkInfo structure
+>>>>>&-8	ubelong	x
+#>>>>>>&16	ulelong	x	\b, LocalBasePathOffset=%#8.8x
+>>>>>>&(&16.l) string	x	\b, LocalBasePath "%s"
+# check and then display link item (size,data)
+0	name		lnk-item
+# size value 0x0000 means TerminalID; indicates the end of the item IDs list
+>0	uleshort	>0
+#>>0	uleshort	x	\b, ItemIDSize %#4.4x
+# item Data
+#>>2	ubequad		x	\b, Item data=%#16.16llx
+#>>2	ubyte		x	\b, Item type=%#x
+>>2	ubyte		=0x1f	\b, Root folder
+# like:	"26EE0668-A00A-44D7-9371-BEB064C98683"	Control Panel
+#	"20D04FE0-3AEA-1069-A2D8-08002B30309D"	My Computer
+#	"871C5380-42A0-1069-A2EA-08002B30309D"	Internet Explorer
+>>>4	guid		x	"%s"
+>>2	ubyte		=0x2f	\b, Volume
+# like: "C:\" "D:\"
+>>>3	string		x	"%s"
+# Control panel category
+#>>2	ubyte		foo	\b, Control panel category
+# display LinkInfo structure (size,flags,offsets)
+0	name		lnk-info
+# LinkInfoSize; size of the LinkInfo structure
+>0	ulelong		x	\b, LinkInfoSize %#x
+# LinkInfoHeaderSize; if 1C no optional fields; >=24 optional fields are specified
+>4	ulelong		x	\b, LinkInfoHeaderSize %#x
+# LinkInfoFlags; 
+#>8	ulelong	 	x	\b, LinkInfoFlags=%#x
+>8	ulelong&1 	1	\b, VolumeIDAndLocalBasePath
+# VolumeIDOffset; location of the VolumeID field (VolumeIDSize DriveType DriveSerialNumber VolumeLabelOffset ... ) inside LinkInfo structure
+>>12	ulelong	  	x	\b, VolumeIDOffset %#x
+# LocalBasePathOffset; location of LocalBasePath field like "C:\test\a.txt" inside LinkInfo structure
+>>16	ulelong		x	\b, LocalBasePathOffset %#x
+# LocalBasePathOffsetUnicode; location of the LocalBasePathUnicode field inside LinkInfo structure
+>>4	ulelong		>23
+>>>28	ulelong		x	\b, LocalBasePathOffsetUnicode %#x
+>8	ulelong&2 	2	\b, CommonNetworkRelativeLinkAndPathSuffix
+# CommonNetworkRelativeLinkOffset; location of the CommonNetworkRelativeLink field inside LinkInfo structure
+>>20	ulelong		x	\b, CommonNetworkRelativeLinkOffset %#x
+# CommonPathSuffixOffset; location of CommonPathSuffix field
+>24	ulelong		x	\b, CommonPathSuffixOffset %#x
+# CommonPathSuffixOffsetUnicode; location of CommonPathSuffixUnicode field inside LinkInfo structure
+>4	ulelong		>23
+>>32	ulelong		x	\b, CommonPathSuffixOffsetUnicode %#x
 
 # Summary: Outlook Personal Folders
 # Created by: unknown
@@ -752,6 +1109,27 @@
 # like: 12510866.CPX 
 !:ext	cpx
 # From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/File_Explorer
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/scf-exp.trid.xml,scf-exp-old.trid.xml
+# Note:		called "Windows Explorer Command Shell File" by TrID and "File Explorer Command" by Windows via SHCmdFile
+>>&0	regex/c		\^Shell]\r\n					Windows Explorer Shell Command File
+#!:mime	text/plain
+!:mime	text/x-ms-scf
+# like: channels.scf desktop.scf explorer.scf "Desktop anzeigen.scf"
+!:ext	scf
+# look for icon file directive maybe pointing to malicious file
+>>>1		search/128	IconFile=				\b, icon
+>>>>&0		string		x					"%s"
+# From:		Joerg Jenderek
+# URL:		http://en.wikipedia.org/wiki/VIA_Technologies
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/scf-via.trid.xml
+# Note:		called "VIA setup configuration file" by TrID
+>>&0	regex/c		\^SCF]\r\n					VIA setup configuration
+#!:mime	text/plain
+!:mime	text/x-via-scf
+# like: SETUP.SCF
+!:ext	scf
+# From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/InstallShield
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lid-is.trid.xml
 # Note:		contain also 3 keywords like: count Default key0
@@ -770,6 +1148,23 @@
 !:mime	text/x-ms-tag
 # like: DATA.TAG
 !:ext	tag
+# URL:		https://en.wikipedia.org/wiki/Flatpak
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/flatpakref.trid.xml
+# Note:		called "Flatpack Reference" by TrID
+>>&0	string		Flatpak\ Ref]					Flatpak repository reference
+#!:mime	text/plain
+# https://reposcope.com/mimetype/application/vnd.flatpak.ref
+!:mime	application/vnd.flatpak.ref
+!:ext	flatpakref
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/CloneCD
+# Reference:	https://en.wikipedia.org/wiki/CloneCD_Control_File
+#		http://mark0.net/download/triddefs_xml.7z/defs/c/cdimage-clonecd-cue.trid.xml
+# Note:		called "CloneCD CDImage (description)" by TrID and "CloneCD Control File" by DROID via PUID fmt/1760
+>>&0	string		CloneCD]					CloneCD CD-image Description
+#!:mime	text/plain
+!:mime	text/x-ccd
+!:ext	ccd
 # unknown keyword after opening bracket
 >>&0	default				x
 #>>>&0	string/c			x	UNKNOWN [%s
@@ -779,6 +1174,12 @@
 >>>>&0	string/c			version				Windows setup INFormation
 !:mime application/x-setupscript
 !:ext	inf
+# From:		Joerg Jenderek
+# URL:		https://cdrtfe.sourceforge.io/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cfp-cdrtfe.trid.xml
+>>>>&0	string				FileExplorer]			cdrtfe Project
+!:mime	text/x-cfp
+!:ext	cfp
 # https://en.wikipedia.org/wiki/Initialization_file	Windows Initialization File or other
 >>>>&0	default				x
 >>>>>&0	ubyte				x
@@ -790,6 +1191,10 @@
 !:mime	application/x-wine-extension-ini
 #!:mime	text/plain
 !:ext	ini/inf
+# samples with only 1 and unknown section name
+# XXX: matches a file containing '[1] 2'
+#>>>&0	default				x				Generic INItialization configuration
+#>>>>0	string				x				\b, 1st line "%s"
 # UTF-16 BOM
 0	ubeshort		=0xFFFE
 # look for phrase of Windows policy ADMinistrative template (UTF-16 by adm-uni.trid.xml)
@@ -871,21 +1276,24 @@
 >>>2		uleshort	<3
 # look for colon in WinDirPath after PNF header
 #>>>>0x59	search/18	:
->>>>0	use	PreCompiledInf
+# skip few Adobe Photoshop Color swatch ("Mac OS.aco" TRUMATCH-Farben.aco Windows.aco) and some
+# Targa image (money-256.tga XING_B_UCM8.tga x-fmt-367-signature-id-604.tga) with "invalid low section name" \0
+>>>>(20.l)	ubelong		>0x40004000
+>>>>>0	use	PreCompiledInf
 0	name	PreCompiledInf
 >0		uleshort	x	Windows Precompiled iNF
 !:mime	application/x-pnf
 !:ext	pnf
 # major version 1 for older Windows like XP and 3 since about Windows Vista
-# 101h~98-XP; 301h~Windows Vista-7 ; 302h~Windows 10 14393; 303h~Windows 10 18362
+# 101h~95-XP; 301h~Windows Vista-7 ; 302h~Windows 10 14393; 303h~Windows 10 18362-Windows11
 >1		ubyte		x		\b, version %u
 >0		ubyte		x		\b.%u
 >0		uleshort	=0x0101		(Windows
->>4	ulelong&0x00000001	!0x00000001	98)
+>>4	ulelong&0x00000001	!0x00000001	95-98)
 >>4	ulelong&0x00000001	=0x00000001	XP)
 >0		uleshort	=0x0301		(Windows Vista-8.1)
 >0		uleshort	=0x0302		(Windows 10 older)
->0		uleshort	=0x0303		(Windows 10)
+>0		uleshort	=0x0303		(Windows 10-11)
 # 1 ,2 (windows 98 SE)
 >2		uleshort	!2		\b, InfStyle %u
 #	PNF_FLAG_IS_UNICODE		0x00000001
@@ -927,7 +1335,7 @@
 >>(20.l)	string		x		"%s"
 # FILETIME is number of 100-nanosecond intervals since 1 January 1601
 #>24		ulequad		x		\b, InfVersionLastWriteTime %16.16llx
-#>24		foodate-0xbar	x		\b, InfVersionLastWriteTime %s
+>24		qwdate		x		\b, InfVersionLastWriteTime %s
 # for Windows 98, XP
 >0		uleshort	<0x0102
 # only found values lower 0x00ffFFff
@@ -965,6 +1373,7 @@
 >>>>>(72.l)	string		x		OsLoaderPath "%s"
 # 1fdh
 #>>>76		uleshort	x		\b, StringTableHashBucketCount %#x
+# https://docs.microsoft.com/en-us/openspecs/office_standards/ms-oe376/6c085406-a698-4e12-9d4d-c3b0ee3dbc4a
 # only 407h found
 >>>78		uleshort	!0x409		\b, LanguageID %x
 #>>>78		uleshort	=0x409		\b, LanguageID %x
@@ -1342,7 +1751,7 @@
 # 5000010021083f00 50000100b0335600 50000100cbfdf800 50000100dfbc4700
 #>4	ubequad		x		\b, at 4 %#16.16llx
 # copyright text like:	"Stirling Technologies, Inc.  (c) 1990-1994"
-#			"InstallSHIELD Software Coporation  (c) 1990-1997"
+#			"InstallSHIELD Software Corporation  (c) 1990-1997"
 >13	pstring/h	x		"%s"
 # look for specific ASCII variable names
 >1	search/0x121/s	SRCDIR	\b, variable names:
@@ -1370,3 +1779,44 @@
 # ... LOGHANDLE
 >0		ubelong		x	...
 #
+
+# Summary:	Microsoft Remote Desktop Protocol connection
+# From:		Joerg Jenderek
+# URL:		https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/clients/rdp-files
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/r/rdp.trid.xml
+# Note:		called "Remote Desktop Connection Settings" by TrID
+0	string		screen\040mode\040id:i:	Remote Desktop Protocol connection
+#!:mime	text/plain
+!:mime	text/x-ms-rdp
+!:ext	rdp
+# Screen mode: 1~session appear in a window 2~session appear full screen
+>17	string		1			\b, window mode
+>17	string		2			\b, full screen mode
+
+0	guid	7B5C52E4-D88C-4DA7-AEB1-5378D02996D3	Microsoft OneNote
+!:ext one
+!:mime	application/onenote
+0	guid	43FF2FA1-EFD9-4C76-9EE2-10EA5722765F	Microsoft OneNote Revision Store File
+
+# Microsoft XAML Binary Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/WalkingCat/XbfDump/blob/8832d2ffcaa738434d803fefa2ba99d3af37ed29/xbf_data.h
+0	string	XBF\0
+>12	ulelong	<0xFF
+>>16	ulelong	<0xFF	Microsoft XAML Binary Format
+!:ext xbf
+>>>12	ulelong	x	%d
+>>>16	ulelong	x	\b.%d
+>>>4	ulelong	x	\b, metadata size: %d bytes
+>>>8	ulelong	x	\b, node size: %d bytes
+
+# Metaswitch MetaView Service Assurance Server exports
+0	string	MetaView\x20Service\x20Assurance\x20Export\x20File	MetaView SAS export
+>39     string  Version\x20
+>>47    byte    x                                                       \b, version %c
+
+# Active Directory Group Policy Registry Policy File Format
+# From: Yuuta Liang <yuuta@yuuta.moe>
+# URL: https://learn.microsoft.com/en-us/previous-versions/windows/desktop/policy/registry-policy-file-format
+0	string	PReg
+>4	lelong	x	Group Policy Registry Policy, Version=%d

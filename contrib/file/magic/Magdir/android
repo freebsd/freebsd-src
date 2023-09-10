@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.19 2021/04/26 15:56:00 christos Exp $
+# $File: android,v 1.24 2023/02/20 16:51:59 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -180,7 +180,9 @@
 # In include/androidfw/ResourceTypes.h:
 # RES_XML_TYPE = 0x0003 followed by the size of the header (ResXMLTree_header),
 # which is 8 bytes (2 bytes type + 2 bytes header size + 4 bytes size).
+# The strength is increased to avoid misidentifying as Targa image data
 0	lelong	0x00080003	Android binary XML
+!:strength +1
 
 # Android cryptfs footer
 # From https://android.googlesource.com/\
@@ -207,3 +209,51 @@
 >8	string	>000	dex section version: %s,
 >12	lelong	>0	number of dex files: %d,
 >16	lelong	>0	verifier deps size: %d
+
+# Disassembled DEX files
+0	string/t	.class\x20
+>&0	regex/512	\^\\.super\x20L.*;$	disassembled Android DEX Java class (smali/baksmali)
+!:ext	smali
+
+# Android ART (baseline) profile + metadata: baseline.prof, baseline.profm
+# Reference: https://android.googlesource.com/platform/frameworks/support/\
+#            +/refs/heads/androidx-main/profileinstaller/profileinstaller/\
+#            src/main/java/androidx/profileinstaller/ProfileTranscoder.java
+# Reference: https://android.googlesource.com/platform/frameworks/support/\
+#            +/refs/heads/androidx-main/profileinstaller/profileinstaller/\
+#            src/main/java/androidx/profileinstaller/ProfileVersion.java
+0	string	pro\x00
+>0	regex	pro\x000[0-9][0-9]\x00	Android ART profile
+!:ext	prof
+>>4	string	001\x00	\b, version 001 N
+>>4	string	005\x00	\b, version 005 O
+>>4	string	009\x00	\b, version 009 O MR1
+>>4	string	010\x00	\b, version 010 P
+>>4	string	015\x00	\b, version 015 S
+0	string	prm\x00
+>0	regex	prm\x000[0-9][0-9]\x00	Android ART profile metadata
+!:ext	profm
+>>4	string	001\x00	\b, version 001 N
+>>4	string	002\x00	\b, version 002
+
+# Android package resource table (ARSC): resources.arsc
+# Reference: https://android.googlesource.com/platform/tools/base/\
+#            +/refs/heads/mirror-goog-studio-main/apkparser/binary-resources/\
+#            src/main/java/com/google/devrel/gmscore/tools/apk/arsc
+# 00: resource table type = 0x0002 (2) + header size = 12 (2)
+# 04: chunk size (4, skipped)
+# 08: #packages (4)
+0	ulelong	0x000c0002	Android package resource table (ARSC)
+!:ext	arsc
+>8	ulelong	!1	\b, %d packages
+# 12: string pool type = 0x0001 (2) + header size = 28 (2)
+# 16: chunk size (4, skipped)
+# 20: #strings (4), #styles (4), flags (4)
+>12	ulelong	0x001c0001
+>>20	ulelong	!0	\b, %d string(s)
+>>24	ulelong	!0	\b, %d style(s)
+>>28	ulelong	&1	\b, sorted
+>>28	ulelong	&256	\b, utf8
+
+# extracted APK Signing Block
+-16	string	APK\x20Sig\x20Block\x2042	APK Signing Block

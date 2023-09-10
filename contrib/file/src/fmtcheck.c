@@ -30,7 +30,7 @@
 
 #include "file.h"
 #ifndef lint
-FILE_RCSID("@(#)$File: fmtcheck.c,v 1.4 2022/09/13 18:46:07 christos Exp $")
+FILE_RCSID("@(#)$File: fmtcheck.c,v 1.6 2022/09/24 20:30:13 christos Exp $")
 #endif /* lint */
 
 #include <stdio.h>

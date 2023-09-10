@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: intel,v 1.22 2022/04/02 14:47:42 christos Exp $
+# $File: intel,v 1.23 2022/10/31 13:22:26 christos Exp $
 # intel:  file(1) magic for x86 Unix
 #
 # Various flavors of x86 UNIX executable/object (other than Xenix, which
@@ -141,7 +141,7 @@
 #	e80d0fcbh	PXE-Intel.rom
 #	b8004875h	orchid.bin
 >>3	ubelong			x	%#8.8x
-# For misidetified raspberry pi pieeprom-*.bin like: 0xf00f
+# For misidentified raspberry pi pieeprom-*.bin like: 0xf00f
 #>2	ubeshort		x	\b, AT 2 %#4.4x
 ################################################################################
 #		new sections for BIOS (ia32) ROM Extension
@@ -230,12 +230,12 @@
 # PCI data structure length like: 24h 28h
 >>(24.s+0xA)	uleshort	>0x28	\b, length %u
 # PCI data structure revision like: 0 3
->>(24.s+0xC)	ubyte		>0	\b, revison %u
+>>(24.s+0xC)	ubyte		>0	\b, revision %u
 # image length (hexadecimal) in multiple of 512 bytes like: 54 56 68 6a 76 78 7c 7d 7e 7f 80 81 83
 # Apparently this gives the same information as given by byte at offset 2 but as 16-bit
 #>>(24.s+0x10)	uleshort	x	\b, length %u*512
 # revision level of code/data like: 0 1 201h 502h
->>(24.s+0xC)	ubyte		>1	\b, code revison %#x
+>>(24.s+0xC)	ubyte		>1	\b, code revision %#x
 # code type: 0~Intel x86/PC-AT compatible 1~Open firmware standard for PCI42 FF~Reserved
 >>(24.s+0x14)	ubyte		>0	\b, code type %#x
 # last image indicator; bit 7 indicates "last image"; bits 0-6 are reserved

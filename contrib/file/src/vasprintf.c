@@ -108,7 +108,7 @@ you use strange formats.
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: vasprintf.c,v 1.20 2022/07/30 17:04:18 christos Exp $")
+FILE_RCSID("@(#)$File: vasprintf.c,v 1.23 2022/09/24 20:30:13 christos Exp $")
 #endif	/* lint */
 
 #include <assert.h>
@@ -139,8 +139,6 @@ typedef struct {
   size_t       pseudo_len;        /* total length of output text if it were not limited in size */
   size_t       maxlen;
   va_list      vargs;             /* pointer to current position into vargs */
-  char *       sprintf_string;
-  FILE *       fprintf_file;
 } xprintf_struct;
 
 /*
@@ -595,8 +593,6 @@ static int core(xprintf_struct *s)
   }
 
   /* for (v)asnprintf */
-  dummy_base = s->buffer_base;
-
   dummy_base = s->buffer_base + s->real_len;
   save_len = s->real_len;
 
@@ -625,6 +621,7 @@ int vasprintf(char **ptr, const char *format_string, va_list vargs)
   xprintf_struct s;
   int retval;
 
+  memset(&s, 0, sizeof(s));
   s.src_string = format_string;
 #ifdef va_copy
   va_copy (s.vargs, vargs);

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.67 2022/07/12 18:57:42 christos Exp $
+# $File: database,v 1.69 2023/01/12 00:14:04 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -387,8 +387,22 @@
 >>>>>20		ubelong&0xFF01209B	0x00000000
 # dBASE III
 >>>>>>16	ubyte		3
-# dBASE III DBT
->>>>>>>0	use		dbase3-memo-print
+# skip with invalid "low" 1st item "\0\0\0\0" StateRepository-Deployment.srd-shm "\001\010\0\0" gcry_cast5.mod
+>>>>>>>512	ubyte		>040
+# skip with valid 1st item "rintf" keylayouts.mod
+# by looking for valid terminating character Ctrl-Z like in test.dbt
+>>>>>>>>513 search/3308	\032
+# skip GRUB plan9.mod with invalid second terminating character 007
+# by checking second terminating character Ctrl-Z like in test.dbt
+>>>>>>>>>&0 ubyte		032
+# dBASE III DBT with two Ctr-Z terminating characters
+>>>>>>>>>>0	use		dbase3-memo-print
+# second terminating character \0 like in dbase-memo.dbt or GRUB nativedisk.mod
+>>>>>>>>>&0 ubyte		0
+# skip GRUB nativedisk.mod with grub_mod_init\0grub_mod_fini\0grub_fs_autoload_hook\0
+>>>>>>>>>>0x1ad string		!grub_mod_init
+# like dbase-memo.dbt
+>>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE III DBT without version, dBASE IV DBT , FoxPro FPT , or many ZIP , DBF garbage
 >>>>>>16	ubyte		0
 # unusual dBASE III DBT like angest.dbt, dBASE IV DBT with block size 0 , FoxPro FPT ,  or garbage PCX DBF
@@ -410,8 +424,25 @@
 >>>>>>>>>>513	ubyte		>037
 # skip DOS executables CPQ0TD.DRV E30ODI.COM IBM0MONO.DRV by looking for printable 1st character of 1st memo item
 >>>>>>>>>>>512	ubyte		>037
-# unusual dBASE III DBT like adressen.dbt
->>>>>>>>>>>>0	use		dbase3-memo-print
+# skip few (14/758) Microsoft Event Trace Logs (boot_BASE+CSWITCH_1.etl DlTel-Merge.etl UpdateUx.006.etl) with invalid "high" 1st item \377\377
+>>>>>>>>>>>>512	ubyte		<0377
+# skip some Commodore 64 Art Studio (Deep_Strike.aas dragon's_lair_ii.aas), some Atari DEGAS Elite bitmap (ELEPHANT.PC3 ST.PC2)
+# some probably old GRUB modules (part_sun.mod) and virtual-boy-wario-land.vb. 
+# by looking for valid terminating character Ctrl-Z
+>>>>>>>>>>>>>513 search/523	\032
+# Atari DEGAS bitmap ST.PC2 with 0370 as second terminating character
+#>>>>>>>>>>>>>>&0 ubyte		x		2ND_CHAR_IS=%o
+# dBASE III DBT with two Ctr-Z terminating characters like dbase3dbt0_1.dbt dbase_83.dbt
+>>>>>>>>>>>>>>&0 ubyte		032
+>>>>>>>>>>>>>>>0 use		dbase3-memo-print
+# second terminating character \0 like in pcidump.mod or fsadress.dbt umlaut-dbf-cmd.dbt
+>>>>>>>>>>>>>>&0 ubyte		0
+# look for old GRUB module pcidump.mod with specific content "pcidump\0Show raw dump of the PCI configuration space"
+>>>>>>>>>>>>>>>514 search/0x11E	pcidump\0Show
+# dBASE III DBT with Ctr-Z + \0 terminating characters like fsadress.dbt
+>>>>>>>>>>>>>>>514 default	x
+# unusual dBASE III DBT like fsadress.dbt umlaut-dbf-cmd.dbt
+>>>>>>>>>>>>>>>>0 use		dbase3-memo-print
 # dBASE III DBT like angest.dbt, or garbage PCX DBF
 >>>>>>>>8	ubelong		!0
 # skip PCX and some DBF by test for for reserved NULL bytes
@@ -424,7 +455,19 @@
 >>>>>>>>>>>>512	ubyte		<0200
 # skip gluon-ffhat-1.0-tp-link-tl-wr1043n-nd-v2-sysupgrade.bin by printable 2nd character
 >>>>>>>>>>>>>513 ubyte		>037
->>>>>>>>>>>>>>0	use		dbase3-memo-print
+# skip few (8/758) Microsoft Event Trace Logs (WBEngine.3.etl Wifi.etl) with valid 1st item like
+# "9600.20369.amd64fre.winblue_ltsb_escrow.220427-1727"
+# "9600.19846.amd64fre.winblue_ltsb_escrow.200923-1735"
+# "10586.494.amd64fre.th2_release_sec.160630-1736"
+# by looking for valid terminating character Ctrl-Z
+>>>>>>>>>>>>>>513 search/0x11E	\032
+# followed by second character Ctrl-Z implies typical DBT
+>>>>>>>>>>>>>>>&0	ubyte	032
+# examples like: angest.dbt
+>>>>>>>>>>>>>>>>0	use	dbase3-memo-print
+>>>>>>>>>>>>>>>&0	ubyte	0
+# no example found here with terminating sequence CTRL-Z + \0
+>>>>>>>>>>>>>>>>0	use	dbase3-memo-print
 # dBASE IV DBT with positive block size
 >>>>>>>20	uleshort	>0
 # dBASE IV DBT with valid block length like 512, 1024
@@ -446,11 +489,16 @@
 # no positive block length
 #>20	uleshort		=0		\b, block length %u
 >20	uleshort		!0		\b, block length %u
-# dBase III memo field terminated by \032\032
+# dBase III memo field terminated often by \032\032
 # like: "WHAT IS XBASE" test.dbt "Borges, Malte" biblio.dbt "First memo\032\032" T2.DBT
 >512	string			>\0		\b, 1st item "%s"
 # For DEBUGGING
 #>512	ubelong			x		\b, 1ST item %#8.8x
+#>513	search/0x225		\032		FOUND_TERMINATOR
+#>>&0	ubyte			032		2xCTRL_Z
+# fsadress.dbt has 1 Ctrl-Z terminator followed by nil byte
+#>>&0	ubyte			0		1xCTRL_Z
+
 # https://www.clicketyclick.dk/databases/xbase/format/dbt.html
 #		Print the information of dBase IV DBT memo file
 0	name				dbase4-memo-print

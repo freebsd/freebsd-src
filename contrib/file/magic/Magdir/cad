@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.29 2021/12/06 19:33:27 christos Exp $
+# $File: cad,v 1.31 2022/12/09 15:36:23 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -301,18 +301,50 @@
 # https://docs.techsoft3d.com/visualize/3df/latest/build/general/hsf/\
 # HSF_architecture.html
 # Stephane Charette <stephane.charette@gmail.com>
-0	string	;;\020HSF\020V		OpenHSF (Hoops Stream Format)
->7	regex/9 V[.0-9]{4,5}\020	%s
+0	string	;;\040HSF\040V		OpenHSF (Hoops Stream Format)
+>7	regex/9 V[.0-9]{4,5}\040	%s
 !:ext hsf
 
 # AutoCAD Drawing Exchange Format
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/DXF
+#		https://en.wikipedia.org/wiki/AutoCAD_DXF
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/
+#		dxf-var0.trid.xml dxf-var0u.trid.xml dxf-var2.trid.xml dxf-var2u.trid.xml
+# Note:		called "AutoCAD Drawing eXchange Format" by TrID and
+#		"Drawing Interchange File Format (ASCII)" by DROID
+# GRR: some samples does not match 1st test like: abydos.dxf
 0	regex		\^[\ \t]*0\r?\000$
 >1	regex		\^[\ \t]*SECTION\r?$
 >>2	regex		\^[\ \t]*2\r?$
+# GRR: some samples without HEADER section like: airplan2.dxf
 >>>3	regex		\^[\ \t]*HEADER\r?$	AutoCAD Drawing Exchange Format
-!:mime	application/x-dxf
+#!:mime	application/x-dxf
+!:mime	image/vnd.dxf
 !:ext	dxf
+# DROID PUID fmt/64	fmt-64-signature-id-99.dxf
+>>>>&1	search/8192	MC0.0			\b, 1.0
+# DROID PUID fmt/65	fmt-65-signature-id-100.dxf
+>>>>&1	search/8192	AC1.2			\b, 1.2
+# DROID PUID fmt/66	fmt-66-signature-id-101.dxf
+>>>>&1	search/8192	AC1.3			\b, 1.3
+# DROID PUID fmt/67	fmt-67-signature-id-102.dxf
+>>>>&1	search/8192	AC1.40			\b, 1.4
+# DROID PUID fmt/68	fmt-68-signature-id-103.dxf
+>>>>&1	search/8192	AC1.50			\b, 2.0
+# DROID PUID fmt/69	fmt-69-signature-id-104.dxf
+>>>>&1	search/8192	AC2.10			\b, 2.1
+# DROID PUID fmt/70	fmt-70-signature-id-105.dxf
+>>>>&1	search/8192	AC2.21			\b, 2.2
+# DROID PUID fmt/71	fmt-71-signature-id-106.dxf
+>>>>&1	search/8192	AC1002			\b, 2.5
+# DROID PUID fmt/72	fmt-72-signature-id-107.dxf
+>>>>&1	search/8192	AC1003			\b, 2.6
+# DROID PUID fmt/73	fmt-73-signature-id-108.dxf
+>>>>&1	search/8192	AC1004			\b, R9
 >>>>&1	search/8192	AC1006			\b, R10
+# http://cd.textfiles.com/amigaenv/DXF/OBJEKTE/LASTMINUTE/apple.dxf
+#>>>>&1	search/8192	AC1008			\b, Rfoo
 >>>>&1	search/8192	AC1009			\b, R11/R12
 >>>>&1	search/8192	AC1012			\b, R13
 >>>>&1	search/8192	AC1013			\b, R13c3

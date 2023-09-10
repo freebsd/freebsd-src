@@ -1,11 +1,13 @@
 
 #------------------------------------------------------------------------------
-# $File: rst,v 1.3 2020/04/27 01:50:36 christos Exp $
+# $File: rst,v 1.4 2023/07/27 18:26:32 christos Exp $
 # rst: ReStructuredText http://docutils.sourceforge.net/rst.html
 0	search/256	\=\=
 !:strength + 30
 >&0	regex/256	\^[\=]+$
->>&0	search/512	:Author:	ReStructuredText file
+>>&0	search/512	:Author:		ReStructuredText file
+>>&0	search/512	\012Authors:		ReStructuredText file
+>>&0	search/512	\012Author:		ReStructuredText file
 >>&0	default		x
 >>>&0	regex/512	\^\\.\\.[A-Za-z]	ReStructuredText file
 !:ext	rst

@@ -90,6 +90,9 @@
 /* Define to 1 if you have the `gnurx' library (-lgnurx). */
 /* #undef HAVE_LIBGNURX */
 
+/* Define to 1 if you have the `lz' library (-llz). */
+/* #undef HAVE_LIBLZ */
+
 /* Define to 1 if you have the `lzma' library (-llzma). */
 /* #undef HAVE_LIBLZMA */
 
@@ -99,8 +102,14 @@
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
 
+/* Define to 1 if you have the `zstd' library (-lzstd). */
+/* #undef HAVE_LIBZSTD */
+
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
+
+/* Define to 1 if you have the <lzlib.h> header file. */
+/* #undef HAVE_LZLIB_H */
 
 /* Define to 1 if you have the <lzma.h> header file. */
 /* #undef HAVE_LZMA_H */
@@ -281,8 +290,17 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
 
+/* Define to 1 if you have the <zstd_errors.h> header file. */
+/* #undef HAVE_ZSTD_ERRORS_H */
+
+/* Define to 1 if you have the <zstd.h> header file. */
+/* #undef HAVE_ZSTD_H */
+
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
+
+/* Enable lzlib compression support */
+/* #undef LZLIBSUPPORT */
 
 /* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
    */
@@ -302,7 +320,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.43"
+#define PACKAGE_STRING "file 5.45"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -311,7 +329,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.43"
+#define PACKAGE_VERSION "5.45"
 
 /* Define to 1 if all of the C90 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -410,7 +428,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.43"
+#define VERSION "5.45"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -429,6 +447,9 @@
 
 /* Enable zlib compression support */
 #define ZLIBSUPPORT 1
+
+/* Enable zstdlib compression support */
+/* #undef ZSTDLIBSUPPORT */
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

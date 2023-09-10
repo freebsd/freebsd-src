@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.19 2022/09/11 20:52:40 christos Exp $
+# $File: ole2compounddocs,v 1.26 2023/05/15 16:46:12 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -72,6 +72,7 @@
 #>67 	ubyte		x			\b, color %x
 # the DirIDs of the child nodes. Should both be -1 in the root storage entry
 #>68 	bequad		!0xffffffffffffffff	\b, DirIDs %llx
+# NEXT lines for DEBUGGING
 # second directory entry name like VisioDocument Control000 
 #>128	lestring16	x \b, 2nd %.20s
 # third directory entry like WordDocument
@@ -201,6 +202,18 @@
 !:ext	nfo
 #
 # From:		Joerg Jenderek
+# URL:		https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/arn-autoruns-v14.trid.xml
+# Note:		older versions til 13 about middle 2021 handled by ./windows
+#		called "Sysinternals Autoruns data (v14)" by TrID
+# second, third and fourth directory entry name like Header Items 0
+>>>>128 	lestring16	Header		: Microsoft sysinternals AutoRuns data, version 14
+#!:mime	application/x-ole-storage
+!:mime		application/x-ms-arn
+# like: MyHOSTNAME.arn
+!:ext		arn
+#
+# From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/Microsoft_Access
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mdz.trid.xml
 #		http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
@@ -249,9 +262,11 @@
 !:ext	tpl
 #
 # URL:	https://en.wikipedia.org/wiki/Hangul_(word_processor)
+#       https://www.hancom.com/etc/hwpDownload.do
 # Note:	"HWP Document File" signature found in FileHeader
+# Hangul Word Processor WORDIAN, 2002 and later is using HWP 5.0 format.
 # Second directory entry name FileHeader hint for Thinkfree Office document
->>>>128 	lestring16	FileHeader		: Hangul (Korean) 5.0 Word Processor File
+>>>>128 	lestring16	FileHeader		: Hancom HWP (Hangul Word Processor) file, version 5.0
 #!:mime	application/haansofthwp
 !:mime	application/x-hwp
 # https://example-files.online-convert.com/document/hwp/example.hwp
@@ -305,62 +320,93 @@
 # THIS WORKS PARTLY!
 >>>>>>&0	indirect	x
 #	remaining null clsid
->>>>128 	default		x			: UNKNOWN
-# second directory entry name like VisioDocument Control000
->>>>>128	lestring16	x with names %.20s
-# third directory entry like WordDocument
->>>>>256	lestring16	x %.20s
-# forth
->>>>>384	lestring16	x %.20s
-!:mime	application/x-ole-storage
-# according to file version 5.41 with -e soft option
-#!:mime	application/CDFV2
-#!:ext	???
+>>>>128 	default		x
+>>>>>0 	use		ole2-unknown
+# look for CLSID where "second" part is 0
+>>>80 	ubequad		!0x0
+#
+# Summary:	Family Tree Maker
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Family_Tree_Maker
+#		https://en.wikipedia.org/wiki/Family_Tree_Maker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/ftw.trid.xml
+# Note		called "Family Tree Maker Family Tree" by TrID and
+#		"FamilyTree Maker Database" with version "1-4" by DROID via PUID fmt/1352
+#		tested only with version 2.0
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe my.ftw`
+#		newer versions are SQLite based and handled by ./sql
+# directory names like: IND.DB AUX.DB GENERAL.DB NAME.NDX BIRTH.NDX EXTRA.DB
+>>>>80 	ubequad		0x5702000000000000	: Family Tree Maker Windows database, version 1-4
+# look for "File Format (C) Copyright 1993 Banner Blue Software Inc. - All Rights Reserved" in GENERAL.DB
+#>>>>>0	search/0x5460c/s	F\0i\0l\0e\0\040\0F\0o\0r\0m\0a\0t\0\040\0(\0C\0)\0	\b, VERSION
+# GRR: jump to version value like 2 does not work!
+#>>>>>>&-8	ubyte		x							%u
+#!:mime	application/x-ole-storage
+!:mime	application/x-fmt
+# FBK is used for backup of FTW
+!:ext	ftw/fbk
+#
+>>>>80 	default		x
+>>>>>0 	use		ole2-unknown
 #	look for known clsid GUID
 # - Visio documents
 # URL:	http://fileformats.archiveteam.org/wiki/Visio
 #   Last update on 10/23/2006 by Lester Hightower, 07/20/2019 by Joerg Jenderek
->>88 	ubequad		0xc000000000000046	: Microsoft
->>>80 	ubequad		0x131a020000000000	Visio 2000-2002 Document, stencil or template
+>>88 	ubequad		0xc000000000000046
+>>>80 	ubequad		0x131a020000000000	: Microsoft Visio 2000-2002 Document, stencil or template
 !:mime	application/vnd.visio
 # VSD~Drawing VSS~Stencil VST~Template 
 !:ext	vsd/vss/vst
->>>80 	ubequad		0x141a020000000000	Visio 2003-2010 Document, stencil or template
+>>>80 	ubequad		0x141a020000000000	: Microsoft Visio 2003-2010 Document, stencil or template
 !:mime	application/vnd.visio
 !:ext	vsd/vss/vst
 #
 # URL:	http://fileformats.archiveteam.org/wiki/Windows_Installer
->>>80 	ubequad		0x84100c0000000000	Windows Installer Package
+#	https://en.wikipedia.org/wiki/Windows_Installer#ICE_validation
+# Update: Joerg Jenderek
+# Windows Installer Package *.MSI or validation module *.CUB
+>>>80 	ubequad		0x84100c0000000000	: Microsoft Windows Installer Package or validation module
 !:mime	application/x-msi
 #!:mime	application/x-ms-win-installer
-!:ext	msi
->>>80 	ubequad		0x86100c0000000000	Windows Installer Patch
+#	https://learn.microsoft.com/en-us/windows/win32/msi/internal-consistency-evaluators-ices
+# cub is used for validation module like: Vstalogo.cub XPlogo.cub darice.cub logo.cub mergemod.cub
+#!:mime	application/x-ms-cub
+!:ext	msi/cub
+# From:		Joerg Jenderek
+# URL:		http://en.wikipedia.org/wiki/Windows_Installer
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mst.trid.xml
+#		called "Windows SDK Setup Transform script" by TrID
+>>>80 	ubequad		0x82100c0000000000	: Microsoft Windows Installer transform script
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-mst
+!:ext	mst
+>>>80 	ubequad		0x86100c0000000000	: Microsoft Windows Installer Patch
 # ??
 !:mime	application/x-wine-extension-msp
 #!:mime	application/x-ms-msp
 !:ext	msp
 #
 # URL:	http://fileformats.archiveteam.org/wiki/DOC
->>>80 	ubequad		0x0009020000000000	Word 6-95 document or template
+>>>80 	ubequad		0x0009020000000000	: Microsoft Word 6-95 document or template
 !:mime	application/msword
 # for template MSWDW8TN
 !:apple	MSWDWDBN
 !:ext	doc/dot
->>>80 	ubequad		0x0609020000000000	Word 97-2003 document or template
+>>>80 	ubequad		0x0609020000000000	: Microsoft Word 97-2003 document or template
 !:mime	application/msword
 !:apple	MSWDWDBN
 # dot for template; no extension on Macintosh
 !:ext	doc/dot/
 #
 # URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
->>>80 	ubequad		0x0213020000000000	Works 3-4 document or template
+>>>80 	ubequad		0x0213020000000000	: Microsoft Works 3-4 document or template
 !:mime	application/vnd.ms-works
 !:apple	????AWWP
 # ps for template	https://filext.com/file-extension/PS	bps for backup
 !:ext	wps/ps/bps
 #
 # URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Database
->>>80 	ubequad		0x0313020000000000	Works 3-4 database or template
+>>>80 	ubequad		0x0313020000000000	: Microsoft Works 3-4 database or template
 !:mime	application/vnd.ms-works-db
 # https://www.macdisk.com/macsigen.php
 !:apple	????AWDB
@@ -368,14 +414,14 @@
 !:ext	wdb/db/bdb
 #
 # URL:	https://en.wikipedia.org/wiki/Microsoft_Excel
->>>80 	ubequad		0x1008020000000000	Excel 5-95 worksheet, addin or template
+>>>80 	ubequad		0x1008020000000000	: Microsoft Excel 5-95 worksheet, addin or template
 !:mime	application/vnd.ms-excel
 # https://www.macdisk.com/macsigen.php
 !:apple	????XLS5
 # worksheet/addin/template/no extension on Macintosh
 !:ext	xls/xla/xlt/
 #
->>>80 	ubequad		0x2008020000000000	Excel 97-2003
+>>>80 	ubequad		0x2008020000000000	: Microsoft Excel 97-2003
 !:mime	application/vnd.ms-excel
 # https://www.macdisk.com/macsigen.php	XLS5 for Excel 5
 !:apple	????XLS9
@@ -391,23 +437,36 @@
 #!:ext	xls/xlt/
 #
 # URL:	http://fileformats.archiveteam.org/wiki/OLE2
->>>80 	ubequad		0x0b0d020000000000	Outlook 97-2003 item
-#>>>80 	ubequad		0x0b0d020000000000	Outlook 97-2003 Message
+>>>80 	ubequad		0x0b0d020000000000	: Microsoft Outlook 97-2003 item
+#>>>80 	ubequad		0x0b0d020000000000	: Microsoft Outlook 97-2003 Message
 #!:mime	application/vnd.ms-outlook
 !:mime	application/x-ms-msg
 !:ext	msg
 # URL:	https://wiki.fileformat.com/email/oft/
->>>80 	ubequad		0x46f0060000000000	Outlook 97-2003 item template
+>>>80 	ubequad		0x46f0060000000000	: Microsoft Outlook 97-2003 item template
 #!:mime	application/vnd.ms-outlook
 !:mime	application/x-ms-oft
 !:ext	oft
 #
 # URL:	http://fileformats.archiveteam.org/wiki/PPT
->>>80 	ubequad		0x5148040000000000	PowerPoint 4.0 presentation
+>>>80 	ubequad		0x5148040000000000	: Microsoft PowerPoint 4.0 presentation
 !:mime	application/vnd.ms-powerpoint
 # https://www.macdisk.com/macsigen.php
 !:apple	????PPT3
 !:ext	ppt
+# Summary:	"newer" Greenstreet Art drawing
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/GST_ART
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/art-gst-docfile.trid.xml
+# Note:		called like "Greenstreet Art drawing" by TrID
+# Note:		CONTENT stream contains binary part of older versions with phrase GST:ART at offset 16
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe BCARD2.ART`
+>>>80 	ubequad		0x602c020000000000	: Greenstreet Art drawing
+#!:mime	application/x-ole-storage
+!:mime	image/x-greenstreet-art
+!:ext	art
+>>>80 	default		x
+>>>>0 	use		ole2-unknown
 #??
 # URL:	http://www.checkfilename.com/view-details/Microsoft-Works/RespageIndex/0/sTab/2/
 >>88 	ubequad		0xa29a00aa004a1a72	: Microsoft
@@ -547,6 +606,19 @@
 !:apple	????WPC9
 !:ext	wpg
 #
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/CorelCAD
+#		https://en.wikipedia.org/wiki/CorelCAD
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/ccd-corelcad.trid.xml
+# Note:		called "CorelCAD Drawing" by TrID and CorelCAD
+# directory entry names like Contents ViewInfo CustomViewDescriptions LayerInfo
+>>88 	ubequad		0xbe26db67235e2689	: Corel
+>>>80 	ubequad		0x20f414de1cacce11	\bCAD Drawing or Template
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cad
+# CCT for CorelCAD Template 
+!:ext	ccd/cct
+#
 # URL:	http://fileformats.archiveteam.org/wiki/StarOffice_binary_formats
 >>88 	ubequad		0x996104021c007002	: StarOffice
 >>>80 	ubequad		0x407e5cdc5cb31b10	StarWriter 3.0 document or template
@@ -661,13 +733,28 @@
 #!:ext	max/chr
 # remaining non null clsid
 >>88 	default		x
-# GRR: check again for non null clsid because wrong when called by indirect directive
->>>88 	ubequad		!0			: UNKNOWN
+>>>0 	use		ole2-unknown
+# display information about directory for not detected CDF files
+0	name			ole2-unknown
+>80 	ubequad		x			: UNKNOWN
 # https://reposcope.com/mimetype/application/x-ole-storage
 !:mime	application/x-ole-storage
 # according to file version 5.41 with -e soft option
 #!:mime	application/CDFV2
 #!:ext	???
->>>>80 	ubequad		!0			\b, clsid %#16.16llx
->>>>88 	ubequad		x			\b%16.16llx
-
+>80 	ubequad		!0			\b, clsid %#16.16llx
+>>88 ubequad		x			\b%16.16llx
+# converted hexadecimal format to standard GUUID notation
+>>80	guid		x			{%s}
+# second directory entry name like VisioDocument Control000
+>128	lestring16	x with names %.20s
+# third directory entry like WordDocument Preview.dib
+>256	lestring16	x %.20s
+# forth like \005SummaryInformation
+>384	lestring16	x %.25s
+# 5th
+>512	lestring16	x %.10s
+# 6th
+>640	lestring16	x %.10s
+# 7th
+>768	lestring16	x %.10s

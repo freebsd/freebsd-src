@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.29 2022/06/17 18:02:19 christos Exp $
+# $File: mail.news,v 1.30 2022/10/31 13:22:26 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -65,7 +65,7 @@
 # other ID (like 02900000h) or TnefVersion ID (idTnefVersion=06900800h)
 >7	ubelong		!0x06900800	\b, 1st id %#8.8x
 >7	ubelong		=0x06900800
-# TnefVersion lenght like: 4
+# TnefVersion length like: 4
 >>11	ulelong		!4		\b, TnefVersion length %x
 # TNEFVersionData; TnefVersion data like: 00010000h
 >>15	ulelong		!0x00010000h	\b, version %#8.8x

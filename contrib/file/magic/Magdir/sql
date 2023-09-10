@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.24 2022/07/17 15:32:48 christos Exp $
+# $File: sql,v 1.26 2023/04/29 17:26:58 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -88,8 +88,14 @@
 # Version 1 used GDBM internally; its files cannot be distinguished
 # from other GDBM files.
 #
+# Update:	Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/sqlite-2x.trid.xml
+# Note:		called "SQLite 2.x database" by TrID and "SQLite Database File Format" version 2 by DROID via PUID fmt/1135
 # Version 2 used this format:
 0	string	**\ This\ file\ contains\ an\ SQLite  SQLite 2.x database
+!:mime	application/x-sqlite2
+# FileAttributesStore.db test.sqlite2
+!:ext	sqlite/sqlite2/db
 
 # URL:		https://en.wikipedia.org/wiki/SQLite
 # Reference:	https://www.sqlite.org/fileformat.html
@@ -201,6 +207,63 @@
 0	belong&0xfffffffe	0x377f0682	SQLite Write-Ahead Log,
 !:ext sqlite-wal/db-wal
 >4	belong	x	version %d
+# Summary:	SQLite Write-Ahead-Log index (shared memory)
+# From: 	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/SQLite
+# Reference:	http://www.sqlite.org/draft/walformat.html#walidxfmt
+# iVersion; WAL-index format version number; always 3007000=2DE218h
+0	ulelong		0x002DE218
+>0	use	shm-le
+# big endian variant not tested
+0	ubelong		0x002DE218
+>0	use	\^shm-le
+# show information about SQLite Write-Ahead-Log shared memory
+0	name	shm-le
+>0	ulelong		x		SQLite Write-Ahead Log shared memory
+#!:mime	application/octet-stream
+!:mime	application/vnd.sqlite3
+# db3-shm	Acronis	BackupAndRecovery			F4CEEE47-042C-4828-95A0-DE44EC267A28.db3-shm
+# dbx-shm	probably Dropbox				filecache.dbx-shm
+# aup3-shm	Audacity project				tada.aup3-shm
+# srd-shm	Microsoft Windows StateRepository service	StateRepository-Deployment.srd-shm StateRepository-Machine.srd-shm:
+!:ext	sqlite-shm/db-shm/db3-shm/dbx-shm/aup3-shm/srd-shm 
+# unused padding space; must be zero
+>4	ulelong		!0		\b, unused %x
+# iChange; unsigned integer counter, incremented with each transaction
+>8	ulelong		x		\b, counter %u
+# isInit; the "isInit" flag; 1 when the shm file has been initialized
+>12	ubyte		!1		\b, not initialized %u
+# bigEndCksum; true if the WAL file uses big-ending checksums; 0 if the WAL uses little-endian checksums
+>13	ubyte		!0		\b, checksum type %u
+# szPage; database page size in bytes, or 1 if the page size is 65536
+>14	uleshort	!1		\b, page size %u
+>14	uleshort	=1		\b, page size 65536
+# mxFrame; number of valid and committed frames in the WAL file
+>16	ulelong		x		\b, %u frames
+# nPage; size of the database file in pages
+>20	ulelong		x		\b, %u pages
+# aFrameCksum; checksum of the last frame in the WAL file
+>24	ulelong		x		\b, frame checksum %#x
+# aSalt; two salt value copied from the WAL file header in the byte-order of the WAL file; might be different from machine byte-order
+>32	ulequad		x		\b, salt %#llx
+# aCksum; checksum over bytes 0 through 39 of this header
+>40	ulelong		x		\b, header checksum %#x
+# a copy of bytes 0 through 47 of header
+>48	ulelong		!3007000	\b, iversion %u
+# nBackfill; number of WAL frames that have already been backfilled into the database by prior checkpoints
+>96	ulelong		!0		\b, %u backfilled
+# nBackfillAttempted; number of WAL frames that have attempted to be backfilled
+>>128	ulelong		x		(%u attempts)
+# read-mark[0..4]; five "read marks"; each read mark is a 32-bit unsigned integer
+>100	ulelong		!0		\b, read-mark[0] %#x
+>104	ulelong		x		\b, read-mark[1] %#x
+>108	ulelong		!0xffffffff	\b, read-mark[2] %#x
+>112	ulelong		!0xffffffff	\b, read-mark[3] %#x
+>116	ulelong		!0xffffffff	\b, read-mark[4] %#x
+# unused space set aside for 8 file locks
+>120	ulequad		!0		\b, space %#llx
+# unused space reserved for further expansion
+>132	ulelong		!0		\b, reserved %#x
 
 # SQLite Rollback Journal
 # https://www.sqlite.org/fileformat.html#rollbackjournal

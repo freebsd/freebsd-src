@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.45 2021/04/26 15:56:00 christos Exp $
+# $File: apple,v 1.48 2023/05/01 14:20:21 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -11,26 +11,48 @@
 0	belong		0x00051600		AppleSingle encoded Macintosh file
 0	belong		0x00051607		AppleDouble encoded Macintosh file
 
+# Type: Apple Emulator A2R format
+# From: Greg Wildman <greg@apple2.org.za>
+# Ref: https://applesaucefdc.com/a2r2-reference/
+# Ref: https://applesaucefdc.com/a2r/
+0	string		A2R
+>3	string		\x31\xFF\x0A\x0D\x0A	Applesauce A2R 1.x Disk Image
+>3	string		\x32\xFF\x0A\x0D\x0A	Applesauce A2R 2.x Disk Image
+>3	string		\x33\xFF\x0A\x0D\x0A	Applesauce A2R 3.x Disk Image
+>8	string		INFO
+>>49	byte		01			\b, 5.25″ SS 40trk
+>>49	byte		02			\b, 3.5″ DS 80trk
+>>49	byte		03			\b, 5.25″ DS 80trk
+>>49	byte		04			\b, 5.25″ DS 40trk
+>>49	byte		05			\b, 3.5″ DS 80trk
+>>49	byte		06			\b, 8″ DS
+>>50	byte		01			\b, write protected
+>>51	byte		01			\b, cross track synchronized
+>>17	string/T	x			\b, %.32s
+
 # Type: Apple Emulator WOZ format
 # From: Greg Wildman <greg@apple2.org.za>
 # Ref: https://applesaucefdc.com/woz/reference/
 # Ref: https://applesaucefdc.com/woz/reference2/
-#
-# Note: The following test are mostly identical. I would rather not
-# use a regex to identify the WOZ format number.
-0	string		WOZ1
->4	string		\xFF\x0A\x0D\x0A	Apple ][ WOZ 1.0 Disk Image
+0	string		WOZ
+>3	string		\x31\xFF\x0A\x0D\x0A	Apple ][ WOZ 1.0 Disk Image
+>3	string		\x32\xFF\x0A\x0D\x0A	Apple ][ WOZ 2.0 Disk Image
 >12	string		INFO
 >>21	byte		01			\b, 5.25 inch
 >>21	byte		02			\b, 3.5 inch
 >>22	byte		01			\b, write protected
 >>23	byte		01			\b, cross track synchronized
 >>25	string/T	x			\b, %.32s
-0	string		WOZ2
->4	string		\xFF\x0A\x0D\x0A	Apple ][ WOZ 2.0 Disk Image
+
+# Type: Apple Macintosh Emulator MOOF format
+# From: Greg Wildman <greg@apple2.org.za>
+# Ref: https://applesaucefdc.com/moof-reference/
+0	string		MOOF
+>4	string		\xFF\x0A\x0D\x0A	Apple Macintosh MOOF Disk Image
 >12	string		INFO
->>21	byte		01			\b, 5.25 inch
->>21	byte		02			\b, 3.5 inch
+>>21	byte		01			\b, SSDD GCR (400K)
+>>21	byte		02			\b, DSDD GCR (800K)
+>>21	byte		03			\b, DSHD MFM (1.44M)
 >>22	byte		01			\b, write protected
 >>23	byte		01			\b, cross track synchronized
 >>25	string/T	x			\b, %.32s
@@ -43,29 +65,79 @@
 >0x400		string	\x00\x00\x03\x00
 >>0x404		byte	&0xF0
 >>>0x405	string	x			\b, Volume /%s
->>>0x429	leshort	x			\b, %u Blocks
+>>>0x429	uleshort	x		\b, %u Blocks
 # ProDOS ordered ?
 >0xb00		string	\x00\x00\x03\x00
 >>0xb04		byte	&0xF0
 >>>0xb05	string	x			\b, Volume /%s
->>>0xb29	leshort	x			\b, %u Blocks
+>>>0xb29	uleshort	x		\b, %u Blocks
 #
-# DOS3.3 boot loader?
-0		string	\x01\xA5\x27\xC9\x09\xD0\x18\xA5\x2B
->0x11001	string	\x11\x0F\x03	Apple DOS 3.3 Image
->>0x11006	byte	x		\b, Volume %u
->>0x11034	byte	x		\b, %u Tracks
->>0x11035	byte	x		\b, %u Sectors
->>0x11036	leshort	x		\b, %u bytes per sector
-# DOS3.2 ?
->0x11001	string	\x11\x0C\x02	Apple DOS 3.2 Image
->>0x11006	byte	x		\b, Volume %u
->>0x11034	byte	x		\b, %u Tracks
->>0x11035	byte	x		\b, %u Sectors
->>0x11036	leshort	x		\b, %u bytes per sector
-# DOS3.1 ?
->0x11001	string	\x11\x0C\x01
->>0x11c00	string	\x00\x11\x0B	Apple DOS 3.1 Image
+# Proboot HD
+0		string	\x01\x8A\x48\xD8\x2C\x82\xC0\x8D\x0E\xC0\x8D\x0C	Apple ProDOS ProBoot Image
+>0x400		string	\x00\x00\x03\x00
+>>0x404		byte	&0xF0
+>>>0x405	string	x			\b, Volume /%s
+>>>0x429	uleshort	x		\b, %u Blocks
+>0xb00		string	\x00\x00\x03\x00
+>>0xb04		byte	&0xF0
+>>>0xb05	string	x			\b, Volume /%s
+>>>0xb29	uleshort	x		\b, %u Blocks
+0		string	\x01\xA8\x8A\x20\x7B\xF8\x29\x07\x09\xC0\x99\x30	Apple ProDOS ProBoot Image
+>0x400		string	\x00\x00\x03\x00
+>>0x404		byte	&0xF0
+>>>0x405	string	x			\b, Volume /%s
+>>>0x429	uleshort	x		\b, %u Blocks
+>0xb00		string	\x00\x00\x03\x00
+>>0xb04		byte	&0xF0
+>>>0xb05	string	x			\b, Volume /%s
+>>>0xb29	uleshort	x		\b, %u Blocks
+0		string	\x01\x4A\xD0\x34\xE6\x3D\x8A\x20\x7B\xF8\x09\xC0	Apple ProDOS ProBoot Image
+>0x400		string	\x00\x00\x03\x00
+>>0x404		byte	&0xF0
+>>>0x405	string	x			\b, Volume /%s
+>>>0x429	uleshort	x		\b, %u Blocks
+>0xb00		string	\x00\x00\x03\x00
+>>0xb04		byte	&0xF0
+>>>0xb05	string	x			\b, Volume /%s
+>>>0xb29	uleshort	x		\b, %u Blocks
+#
+# ProDOS formatted
+0		string	\x01\xBD\x88\xC0\x20\x2F\xFB\x20\x58\xFC\x20\x40	Apple ProDOS Unbootable Image
+>0x400		string	\x00\x00\x03\x00
+>>0x404		byte	&0xF0
+>>>0x405	string	x			\b, Volume /%s
+>>>0x429	uleshort	x		\b, %u Blocks
+>0xb00		string	\x00\x00\x03\x00
+>>0xb04		byte	&0xF0
+>>>0xb05	string	x			\b, Volume /%s
+>>>0xb29	uleshort	x		\b, %u Blocks
+0		string	\x01\x38\xB0\x03\x4C\x1C\x09\x78\x86\x43\xC9\x03	Apple ProDOS Unbootable Image
+>0x400		string	\x00\x00\x03\x00
+>>0x404		byte	&0xF0
+>>>0x405	string	x			\b, Volume /%s
+>>>0x429	uleshort	x		\b, %u Blocks
+>0xb00		string	\x00\x00\x03\x00
+>>0xb04		byte	&0xF0
+>>>0xb05	string	x			\b, Volume /%s
+>>>0xb29	uleshort	x		\b, %u Blocks
+#
+# DOS3 boot loader
+0		string	\x01\xA5\x27\xC9\x09\xD0
+>0x11001	byte	0x11
+>>0x11003	ubyte	x		Apple DOS 3.%u Image
+>>0x11006	ubyte	x		\b, Volume #%03u
+>>0x11034	ubyte	x		\b, %u Tracks
+>>0x11035	ubyte	x		\b, %u Sectors
+>>0x11036	uleshort	x		\b, %u bytes per sector
+#
+# DOS3 uninitialized disk
+0		string	\x01\xA6\x2B\xBD\x88\xC0\x8A\x4A\x4A
+>0x11001	byte	0x11
+>>0x11003	ubyte	x	Apple DOS 3.%u Unbootable Image
+>>>0x11006	ubyte	x		\b, Volume #%03u
+>>>0x11034	ubyte	x		\b, %u Tracks
+>>>0x11035	ubyte	x		\b, %u Sectors
+>>>0x11036	uleshort	x		\b, %u bytes per sector
 #
 # Pascal boot loader?
 0		string	\x01\xE0\x60\xF0\x03\x4C\xE3\x08\xAD
@@ -112,8 +184,69 @@
 >>0x440		string	\x00\x00\x03\x00
 >>>0x444	byte	&0xF0
 >>>>0x445	string	x		\b, Volume /%s
->>>>0x469	leshort	x		\b, %u Blocks
+>>>>0x469	uleshort	x		\b, %u Blocks
 >0xc		byte	02		\b, NIB data
+
+# Type: Peter Ferrie QBoot
+# From: Greg Wildman <greg@apple2.org.za>
+# Ref: https://github.com/peterferrie/qboot
+0	string	\x01\x4A\xA8\x69\x0F\x85\x27\xC9
+>8	string	\x12\xF0\x10\xE6\x3D\x86\xDA\x8A	Apple ][ QBoot Image
+
+# Type: Peter Ferrie 0Boot
+# From: Greg Wildman <greg@apple2.org.za>
+# Ref: https://github.com/peterferrie/0boot
+0	string	\x01\x4A\xA8\x69\x0F\x85\x27\xC9
+>8	string	\x12\xF0\x10\xE6\x3D\x86\xDA\x8A	Apple ][ 0Boot Image
+
+# Different proprietary boot sectors
+0	string	\x01\x0F\x21\x74\x00\x01\x6B\x00\x02\x30\x81\x5D	Apple ][ Disk Image
+0	string	\x01\x20\x58\xFC\xA2\x00\x8E\x78\x04\x8E\xF4\x03	Apple ][ Disk Image
+0	string	\x01\x20\x58\xFC\xAD\x51\xC0\xAD\x54\xC0\xA6\x2B	Apple ][ Disk Image
+0	string	\x01\x20\x89\xFE\x20\x93\xFE\xA6\x2B\xBD\x88\xC0	Apple ][ Disk Image
+0	string	\x01\x20\x93\xFE\x20\x89\xFE\x4C\x25\x08\x68\x85	Apple ][ Disk Image
+0	string	\x01\x20\x93\xFE\x20\x89\xFE\x4C\x2D\x08\x68\x85	Apple ][ Disk Image
+0	string	\x01\x38\x90\x2A\xC9\x01\xF0\x33\xA8\xC8\xC0\x10	Apple ][ Disk Image
+0	string	\x01\x38\xB0\x03\x4C\x32\xA1\x87\x43\xC9\x03\x08	Apple ][ Disk Image
+0	string	\x01\x4C\x04\x08\xA9\x2A\x8D\x02\x08\x86\x2B\xEE	Apple ][ Disk Image
+0	string	\x01\x4C\x60\x08\x09\xD0\x18\xA5\x2B\x4A\x4A\x4A	Apple ][ Disk Image
+0	string	\x01\x4C\x92\x08\x01\x08\xA2\x00\xB5\x00\x9D\x00	Apple ][ Disk Image
+0	string	\x01\x4C\xB3\x08\x09\xD0\x18\xA5\x2B\x4A\x4A\x4A	Apple ][ Disk Image
+0	string	\x01\x8D\xFB\x03\x8E\xFC\x03\x8C\xFD\x03\x8A\x29	Apple ][ Disk Image
+0	string	\x01\xA2\xFF\x9A\xD8\x20\x20\x08\x20\x34\x08\xAD	Apple ][ Disk Image
+0	string	\x01\xA5\x27\xBD\x88\xC0\x2C\x10\xC0\xA2\x00\xA9	Apple ][ Disk Image
+0	string	\x01\xA5\x2B\xAE\x51\xC0\xEA\xAA\xBD\x88\xC0\x20	Apple ][ Disk Image
+0	string	\x01\xA6\x27\xBD\x0B\x08\x48\xBD\x0A\x08\x48\x85	Apple ][ Disk Image
+0	string	\x01\xA6\x2B\xBD\x88\xC0\x20\x58\xFC\xA9\x01\x85	Apple ][ Disk Image
+0	string	\x01\xA6\x2B\xBD\x88\xC0\x20\x58\xFC\xA9\x25\x85	Apple ][ Disk Image
+0	string	\x01\xA8\xC0\x0F\x90\x16\xF0\x12\xA0\xFF\x18\xAD	Apple ][ Disk Image
+0	string	\x01\xA9\x00\x85\xF0\xA9\x04\x85\xF1\xA0\x00\xA9	Apple ][ Disk Image
+0	string	\x01\xA9\x5C\x8D\xF2\x03\xA9\xC6\x8D\xF3\x03\x49	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\x20\x2F\xFB\x20\x58\xFC	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\x20\x49\x08\xA9\x0A\x85	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\x2C\x82\xC0\xBD\x88\xC0	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\x86\x43\x8A\x4A\x4A\x4A	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\xA2\x00\x86\xFF\xB5\x00	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\xA2\x00\xB5\x00\x9D\x00	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\xA9\xB2\x8D\xF2\x03\xA9	Apple ][ Disk Image
+0	string	\x01\xA9\x60\x8D\x01\x08\xA9\xFF\x8D\xF3\x03\x8D	Apple ][ Disk Image
+0	string	\x01\xAC\x00\x08\xF0\x19\xB9\x30\x08\x85\x3D\xCE	Apple ][ Disk Image
+0	string	\x01\xAC\x23\x08\x30\x2E\xB9\x24\x08\x85\x3D\xCE	Apple ][ Disk Image
+0	string	\x01\xAD\x00\x08\xC9\x09\xB0\x20\x69\x02\x8D\x00	Apple ][ Disk Image
+0	string	\x01\xB0\x00\xA9\x3C\x8D\x02\x08\x86\x2B\x8A\x4A	Apple ][ Disk Image
+0	string	\x01\xB0\x00\xA9\x3C\x8D\x02\x08\xA9\xF5\x8D\xF2	Apple ][ Disk Image
+0	string	\x01\xB0\x00\xA9\x3F\x8D\x02\x08\x86\x2B\x8E\xF4	Apple ][ Disk Image
+0	string	\x01\xB0\x00\xA9\x48\x8D\x02\x08\x86\x2B\x8E\xF4	Apple ][ Disk Image
+0	string	\x01\xBD\x88\xC0\x8A\x4A\x4A\x4A\x4A\x09\xC0\x8D	Apple ][ Disk Image
+0	string	\x01\xBD\x88\xC0\x8A\x4A\x4A\x4A\x4A\x8D\x2F\x08	Apple ][ Disk Image
+0	string	\x01\xD8\x2C\x81\xC0\xA9\x60\x4D\x58\xFF\xD0\xFE	Apple ][ Disk Image
+0	string	\x01\xD8\x78\xBD\x88\xC0\xA9\xFD\x85\x37\x85\x39	Apple ][ Disk Image
+0	string	\x01\xE0\x60\xF0\x03\x4C\x16\x09\xAD\x00\x08\xC9	Apple ][ Disk Image
+0	string	\x01\xE0\x60\xF0\x03\x4C\xCB\x08\xAD\x00\x08\xC9	Apple ][ Disk Image
+0	string	\x01\xE0\x60\xF0\x03\x4C\xEE\x08\xAD\x00\x08\xC9	Apple ][ Disk Image
+0	string	\x01\xE0\x60\xF0\x03\x4C\xEF\x08\xAD\x00\x08\xC9	Apple ][ Disk Image
+0	string	\x01\xE0\x70\xB0\x04\xE0\x40\xB0\x39\xBD\x88\xC0	Apple ][ Disk Image
+0	string	\x01\xEA\x8D\xF4\x03\xA9\x60\x9D\x88\xC0\x8D\x51	Apple ][ Disk Image
 
 # magic for Newton PDA package formats
 # from Ruda Moura <ruda@helllabs.org>
@@ -291,7 +424,13 @@
 #>0x410	string	disk\ image	UDIF read/write image (UDRW)
 
 # From: Toby Peterson <toby@apple.com>
+# From https://www.nationalarchives.gov.uk/pronom/fmt/866
+0	string	bplist00
+>8	search/500	WebMainResource	Apple Safari Webarchive
+!:mime	application/x-webarchive
+!:strength +50
 0	string	bplist00	Apple binary property list
+!:mime	application/x-bplist
 
 # Apple binary property list (bplist)
 #  Assumes version bytes are hex.
@@ -491,9 +630,107 @@
 # Usually not in separate files, but have either filename rsrc with
 # no extension, or a filename corresponding to another file, with
 # extensions rsr/rsrc
+# URL:		http://fileformats.archiveteam.org/wiki/Macintosh_resource_file
+#		https://en.wikipedia.org/wiki/Resource_fork
+# Reference:	https://github.com/kreativekorp/ksfl/wiki/Macintosh-Resource-File-Format
+#		http://developer.apple.com/legacy/mac/library/documentation/mac/pdf/MoreMacintoshToolbox.pdf
+#		https://formats.kaitai.io/resource_fork/
+# Update:	Joerg Jenderek
+# Note:		verified often by command like `deark -m macrsrc Icon_.rsrc`
+# offset of resource data; usually starts at offset 0x0100
 0	string  \000\000\001\000
->4	leshort 0
->>16	lelong  0			Apple HFS/HFS+ resource fork
+# skip NPETraceSession.etl with invalid "low" map offset 0
+>4	ubelong	>0xFF
+# skip few Atari DEGAS Elite bitmap (eil2.pi1 nastro.pi1) with ivalid "high" 0x6550766 0x7510763 map length
+>>12	ubelong	<0x8001
+# most examples with zeroed system reserved field
+>>>16	lelong  =0
+>>>>0	use	apple-rsr
+# few samples with not zeroed system reserved field like: Empty.rsrc.rsr OpenSans-CondBold.dfont
+>>>16	lelong  !0
+# resource fork variant with not zeroed system reserved field and copy of header 
+>>>>(4.L)	ubelong	0x100
+# GRR: the line above only works if in ../../src/file.h FILE_BYTES_MAX is raised from 1 MiB above 0x6ab0f4 (HelveticaNeue.dfont)
+>>>>>0	use	apple-rsr
+# data fork variant with not zeroed system reserved field and no copy of header 
+>>>>(4.L)	ubelong	0
+>>>>>0	use	apple-rsr
+# Note: moved and merged from ./macintosh
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+# URL: https://en.wikipedia.org/wiki/Datafork_TrueType
+# Derived from the 'fondu' and 'ufond' source code (fondu.sf.net). 'sfnt' is
+# TrueType; 'POST' is PostScript. 'FONT' and 'NFNT' sometimes appear, but I
+# don't know what they mean.
+#	display information about Mac OSX datafork font DFONT
+0	name		apple-dfont
+>(4.L+30)	ubelong x		Mac OSX datafork font,
+# https://en.wikipedia.org/wiki/Datafork_TrueType
+!:mime		application/x-dfont
+!:ext		dfont
+# https://exiftool.org/TagNames/RSRC.html
+>(4.L+30)	ubelong	0x73666e74	TrueType
+>(4.L+30)	ubelong	0x464f4e54	'FONT'
+>(4.L+30)	ubelong	0x4e464e54	'NFNT'
+>(4.L+30)	ubelong	0x504f5354	PostScript
+>(4.L+30)	ubelong	0x464f4e44	'FOND'
+>(4.L+30)	ubelong	0x76657273	'vers'
+#	display information about Macintosh resource
+0	name		apple-rsr
+>(4.L+30)	ubelong	0x73666e74
+>>0	use	apple-dfont
+>(4.L+30)	ubelong	0x464f4e54
+>>0	use	apple-dfont
+>(4.L+30)	ubelong	0x4e464e54
+>>0	use	apple-dfont
+>(4.L+30)	ubelong	0x504f5354
+>>0	use	apple-dfont
+>(4.L+30)	ubelong	0x464f4e44
+>>0	use	apple-dfont
+>(4.L+30)	ubelong	0x76657273
+>>0	use	apple-dfont
+>(4.L+30)	default	x		Apple HFS/HFS+ resource fork
+#!:mime		application/octet-stream
+!:mime		application/x-apple-rsr
+!:ext		rsrc/rsr
+# offset to resource data; usually starts at offset 0x0100
+>0		ubelong		!0x100	\b, data offset %#x
+# offset to resource map; positive but not nil like in NPETraceSession.etl
+>4		ubelong		x	\b, map offset %#x
+# length of resource map; positive with 32K limitation but not
+# nil like in NPETraceSession.etl or high like 0x7510763 in nastro.pi1
+>12		ubelong		x	\b, map length %#x
+# length of resource data; positive but not nil like in NPETraceSession.etl
+>8		ubelong		x	\b, data length %#x
+# reserved 112 bytes for system use; apparently often nil, but 8fd20000h in Empty.rsrc.rsr and 0x00768c2b in OpenSans-CondBold.dfont
+>16		ubelong		!0	\b, at 16 %#8.8x
+# https://fontforge.org/docs/techref/macformats.html
+# jump to resource map
+# a copy of resource header or 16 bytes of zeros for data fork
+#>(4.L)		ubelong		x	\b, DATA offset %#x
+#>(4.L+4) 	ubelong 	x	\b, MAP offset %#x
+#>(4.L+8) 	ubelong 	x	\b, DATA length %#x
+#>(4.L+12) 	ubelong 	x	\b, MAP length %#x
+# nextResourceMap; handle to next resource map; used by the Resource Manager for internal bookkeeping; should be zero
+>(4.L+16) 	ubelong		!0	\b, nextResourceMap %#x
+# fileRef; file reference number; used by the Resource Manager for internal bookkeeping; should be zero
+>(4.L+20)	ubeshort	!0	\b, fileRef %#x
+# attributes; Resource fork attributes (80h~read-only 40h~compression needed 20h~changed); other bits are reserved and should be zero
+>(4.L+22)	ubeshort	!0	\b, attributes %#x
+# typeListOffset; offset from resource map to start of type list like: 1Ch
+>(4.L+24)	ubeshort	x	\b, list offset %#x
+# nameListOffset; offset from esource map to start of name list like: 32h 46h 56h (XLISP.RSR XLISPTIN.RSR) 13Eh (HelveticaNeue.dfont)
+>(4.L+26)	ubeshort	x	\b, name offset %#x
+# typeCount; number of types in the map minus 1; If there are no resources, this is 0xFFFF
+>(4.L+28)	beshort+1	>0	\b, %u type
+# plural s 
+>>(4.L+28)	beshort+1	>1	\bs
+# resource type list array; 1st resource type like: ALRT CODE FOND MPSR icns scsz
+>>(4.L+30)	ubelong		x	\b, %#x
+>>(4.L+30)	string		x	'%-.4s'
+# resourceCount; number of this type resources minus one. If there is one resource of this type, this is 0x0000
+>>(4.L+34)	beshort+1	x	* %d
+# resourceListOffset; offset from type list to resource list like: Ah 12h DAh
+>(4.L+36)	ubeshort	x	resource offset %#x
 
 #https://en.wikipedia.org/wiki/AppleScript
 0	string	FasdUAS			AppleScript compiled

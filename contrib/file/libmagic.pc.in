@@ -8,3 +8,4 @@ Description: Magic number recognition library
 Version: @VERSION@
 Libs: -L${libdir} -lmagic
 Libs.private: @LIBS@
+Cflags: -I${includedir}

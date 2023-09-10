@@ -1,7 +1,7 @@
 
 
 #------------------------------------------------------------------------------
-# $File: map,v 1.9 2021/04/26 15:56:00 christos Exp $
+# $File: map,v 1.10 2023/02/03 20:41:57 christos Exp $
 # map:  file(1) magic for Map data
 #
 
@@ -406,3 +406,8 @@
 >>>>5	byte	x		\b%d,
 >>>>6	leshort	x		product ID %04d)
 
+# Garmin firmware:
+# https://www.memotech.franken.de/FileFormats/Garmin_GCD_Format.pdf
+# https://www.gpsrchive.com/GPSMAP/GPSMAP%2066sr/Firmware.html
+0	string		GARMIN
+>6	uleshort	100	GARMIN firmware (version 1.0)

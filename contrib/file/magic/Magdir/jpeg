@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.37 2022/06/17 18:03:35 christos Exp $
+# $File: jpeg,v 1.38 2022/12/02 17:42:04 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -239,8 +239,7 @@
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl.trid.xml
 # Note:         called by TrID "JPEG XL bitmap"
 0	string	\xff\x0a				JPEG XL codestream
-#!:mime  image/jxl
-!:mime	image/x-jxl
+!:mime	image/jxl
 !:ext jxl
 
 # JPEG XL (transcoded JPEG file)
@@ -249,6 +248,5 @@
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl-iso.trid.xml 
 # Note:         called by TrID "JPEG XL bitmap (ISOBMFF)"
 0	string	\x00\x00\x00\x0cJXL\x20\x0d\x0a\x87\x0a	JPEG XL container
-#!:mime  image/jxl
-!:mime	image/x-jxl
+!:mime	image/jxl
 !:ext jxl

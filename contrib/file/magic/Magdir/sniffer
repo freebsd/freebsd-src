@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.32 2022/07/30 16:46:56 christos Exp $
+# $File: sniffer,v 1.34 2022/12/14 18:27:36 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -327,14 +327,79 @@
 
 #
 # Novell LANalyzer capture files.
-#
-0	leshort		0x1001		Novell LANalyzer capture file
-0	leshort		0x1007		Novell LANalyzer capture file
+# URL:		http://www.blacksheepnetworks.com/security/info/nw/lan/trace.txt
+# Reference:	https://github.com/wireshark/wireshark/blob/master/wiretap/lanalyzer.c
+# Update:	Joerg Jenderek
+# 
+# regular trace header record (RT_HeaderRegular)
+0	leshort		0x1001
+# GRR: line above is too generic because it matches Commodore Plus/4 BASIC V3.5
+# and VIC-20 BASIC V2 program
+# skip many Commodore Basic program (Microzodiac.prg Minefield.prg Vic-tac-toe.prg breakvic_joy.prg)
+# with invalid second record type 0 instead of "Trace receive channel name record"
+>(2.s+4)	leshort	=0x1006h
+>>0	use	novell-lanalyzer
+# cyclic trace header record (RT_HeaderCyclic)
+0	leshort		0x1007
+>0	use	novell-lanalyzer
+0	name	novell-lanalyzer
+>0	leshort		x		Novell LANalyzer capture file
+# https://reposcope.com/mimetype/application/x-lanalyzer
+!:mime	application/x-lanalyzer
+# maybe also TR2 .. TR9 TRA .. TRZ
+!:ext	tr1
+# version like: 1.5
+>4		ubyte	x		\b, version %u
+# minor version; one byte identifying the trace file minor version number
+>5		ubyte	x		\b.%u
+# Trace header record type like: 1001~regular or 1007~cyclic
+>0	leshort		!0x1001		\b, record type %4.4x
+# record_length[2] is the length of the data part of 1st reorcd (without "type" and "length" fields) like: 4Ch
+>2		leshort	x		\b, record length %#x
+# second record type like: 1006h~Trace receive channel name record
+>(2.s+4)	leshort	!0x1006h	\b, 2nd record type %#4.4x
+>(2.s+6)	leshort	x		\b, 2nd record length %#x
+# each channel name is a null-terminated, eight-byte ASCII string like: Channel1
+>(2.s+8)	string	x		\b, names %.9s
+# 2nd channel name like: Channel2
+>(2.s+17)	string	x		%.9s ...
 
 #
 # HP-UX "nettl" capture files.
-#
+# URL:		https://nixdoc.net/man-pages/HP-UX/man1m/nettl.1m.html
+# Reference:	https://github.com/wireshark/wireshark/blob/master/wiretap/nettl.c
+# Update:	Joerg Jenderek
+# Note:		Wireshark fills "meta information header fields" with "dummy" values 
+# nettl_magic_hpux9[12]; for HP-UX 9.x not tested
+0	string		\x00\x00\x00\x01\x00\x00\x00\x00\x00\x07\xD0\x00	HP/UX 9.x nettl capture file
+!:mime	application/x-nettl
+!:ext	trc0/trc1
+# nettl_magic_hpux10[12]; for HP-UX 10.x and 11.x
 0	string		\x54\x52\x00\x64\x00	HP/UX nettl capture file
+# https://reposcope.com/mimetype/application/x-nettl
+!:mime	application/x-nettl
+# maybe also TRC000 TRC001 TRC002 ...
+!:ext	trc0/trc1
+# file_name[56]; maybe also like /tmp/raw.tr.TRC000
+>12	string		!/tmp/wireshark.TRC000
+>>12	string		x			"%-.56s"
+# tz[20]; like UTC
+>68	string		!UTC			\b, tz
+>>68	string		x			%-.20s
+# host_name[9];
+>88	string		>\0			\b, host %-.9s
+# os_vers[9]; like B.11.11
+>97	string		!B.11.11		\b, os
+>>97	string		x			%-.9s
+# os_v; like 55h
+>>106	ubyte		x			(%#x)
+# xxa[8]; like 0
+>107	ubequad		!0			\b, xxa=%#16.16llx
+# model[11] like: 9000/800
+>115	string		!9000/800		\b, model
+>>115	string		x			%-.11s
+# unknown; probably just padding to 128 bytes like: 0406h
+>126	ubeshort	!0x0406h		\b, at 126 %#4.4x
 
 #
 # RADCOM WAN/LAN Analyzer capture files.

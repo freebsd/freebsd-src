@@ -1,3 +1,63 @@
+2023-07-27  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.45
+
+2023-07-17  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* PR/465: psrok1: Avoid muslc asctime_r crash
+
+2023-05-21  13:05  Christos Zoulas <christos@zoulas.com>
+	
+	* add SIMH tape format support
+
+2023-02-09  12:50  Christos Zoulas <christos@zoulas.com>
+	
+	* bump the max size of the elf section notes to be read to 128K
+	  and make it configurable
+
+2023-01-08   1:08  Christos Zoulas <christos@zoulas.com>
+
+	* PR/415: Fix decompression with program returning empty
+
+2022-12-26   1:47  Christos Zoulas <christos@zoulas.com>
+
+	* PR/408: fix -p with seccomp
+	* PR/412: fix MinGW compilation
+
+2022-12-26  12:26  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.44
+
+2022-12-14   9:24  Christos Zoulas <christos@zoulas.com>
+
+	* Handle nan's so that we don't get internal floating point exceptions
+	  when they are enabled (Vincent Mihalkovic)
+
+2022-10-23  10:21  Christos Zoulas <christos@zoulas.com>
+
+	* PR/397: Restore the ability to process files from stdin immediately.
+
+2022-09-20  17:12  Christos Zoulas <christos@zoulas.com>
+
+	* fixed various clustefuzz issues
+
+2022-09-19  15:54  Christos Zoulas <christos@zoulas.com>
+
+	* Fix error detection for decompression code (Vincent Mihalkovic)
+
+2022-09-15  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* Add MAGIC_NO_COMPRESS_FORK and use it to produce a more
+	  meaningful error message if we are sandboxing.
+
+2022-09-15  10:45  Christos Zoulas <christos@zoulas.com>
+
+	* Add built-in lzip decompression support (Michal Gorny)
+
+2022-09-14  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* Add built-in zstd decompression support (Martin Rodriguez Reboredo)
+
 2022-09-13  14:55  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.43
@@ -229,7 +289,7 @@
 2019-12-15  22:13  Christos Zoulas <christos@zoulas.com>
     Document changes since the previous release:
 	- Always accept -S (no sandbox) even if we don't support sandboxing
-	- More syscalls elided for sandboxiing
+	- More syscalls elided for sandboxing
 	- For ELF dynamic means having an interpreter not just PT_DYNAMIC
 	- Check for large ELF session header offset
 	- When saving and restoring a locale, keep the locale name in our
@@ -1759,7 +1819,7 @@
 
 	* Magic format checks (Dr. Werner Fink)
 
-	* Magic format function improvent (Karl Chen)
+	* Magic format function improvement (Karl Chen)
 
 2006-05-03 11:11 Christos Zoulas <christos@astron.com>
 

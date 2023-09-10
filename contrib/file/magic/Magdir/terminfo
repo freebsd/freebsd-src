@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: terminfo,v 1.12 2021/02/23 00:51:10 christos Exp $
+# $File: terminfo,v 1.13 2022/11/21 22:25:37 christos Exp $
 # terminfo:  file(1) magic for terminfo
 #
 # URL: https://invisible-island.net/ncurses/man/term.5.html
@@ -37,6 +37,7 @@
 # AIX and HPUX use the SVr4 big-endian format
 # Solaris uses the SVr3 formats (sparc and x86 differ endian-ness)
 0	beshort		0433 		SVr2 curses screen image, big-endian
+# GRR: line below too general as it catches Commodore C128 program (crc32.prg XLINK.PRG) with start address 1C01h handled by ./c64
 0	beshort		0434		SVr3 curses screen image, big-endian
 0	beshort		0435		SVr4 curses screen image, big-endian
 #

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: tex,v 1.21 2019/04/19 00:42:27 christos Exp $
+# $File: tex,v 1.22 2022/12/21 16:50:04 christos Exp $
 # tex:  file(1) magic for TeX files
 #
 # XXX - needs byte-endian stuff (big-endian and little-endian DVI?)
@@ -10,13 +10,15 @@
 # Although we may know the offset of certain text fields in TeX DVI
 # and font files, we can't use them reliably because they are not
 # zero terminated. [but we do anyway, christos]
-0	string		\367\002	TeX DVI file
+0	string		\367\002
+>(14.b+15)	string	\213
+>>14	pstring		>\0		TeX DVI file (%s)
 !:mime	application/x-dvi
->16	string		>\0		(%s)
 0	string		\367\203	TeX generic font data
 0	string		\367\131	TeX packed font data
 >3	string		>\0		(%s)
-0	string		\367\312	TeX virtual font data
+0	string		\367\312
+>(2.b+11)	string	\363	TeX virtual font data
 0	search/1	This\ is\ TeX,	TeX transcript text
 0	search/1	This\ is\ METAFONT,	METAFONT transcript text
 
