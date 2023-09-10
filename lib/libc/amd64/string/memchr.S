@@ -44,7 +44,9 @@ ARCHENTRY(__memchr, scalar)
 	je	.Lnomatch
 
 	lea	(, %rdi, 8), %ecx
-	add	%rdi, %rdx	# pointer to end of buffer
+	mov	$-1, %rax
+	add	%rdi, %rdx	# pointer to end of buffer or to end of
+	cmovc	%rax, %rdx	# address space (whichever comes first)
 	and	$~7, %rdi	# align to 8 bytes
 	mov	(%rdi), %rax	# load first word
 	movzbl	%sil, %esi	# clear stray high bits
@@ -118,14 +120,15 @@ ARCHENTRY(__memchr, baseline)
 
 	movd		%esi, %xmm2
 	mov		%edi, %ecx
-	add		%rdi, %rdx		# pointer to end of buffer
+	mov		$-1, %r9
+	add		%rdi, %rdx		# pointer to end of buffer or to end of
+	cmovc		%r9, %rdx		# address space (whichever comes first)
 	and		$~0x1f, %rdi		# align to 32 bytes
 	movdqa		(%rdi), %xmm0		# load first 32 bytes
 	movdqa		16(%rdi), %xmm1
 
 	punpcklbw	%xmm2, %xmm2		# c -> cc
 
-	mov		$-1, %r9d
 	shl		%cl, %r9d		# mask with zeroes before the string
 
 	punpcklwd	%xmm2, %xmm2		# cc -> cccc
