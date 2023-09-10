@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.150 2022/07/04 16:40:33 christos Exp $
+# $File: filesystems,v 1.158 2023/05/21 17:19:08 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -1596,7 +1596,8 @@
 >0x1e	lequad	x			%lld total clusters,
 >0x26	lequad	x			%lld clusters in use
 
-9564	lelong		0x00011954	Unix Fast File system [v1] (little-endian),
+
+0	name		ffsv1
 >8404	string		x		last mounted on %s,
 #>9504	ledate		x		last checked at %s,
 >8224	ledate		x		last written at %s,
@@ -1612,105 +1613,59 @@
 >8320	lelong		0		TIME optimization
 >8320	lelong		1		SPACE optimization
 
-42332	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
->&-1164	string		x		last mounted on %s,
->&-696	string		>\0		volume name %s,
->&-304	leqldate	x		last written at %s,
->&-1167	byte		x		clean flag %d,
->&-1168	byte		x		readonly flag %d,
->&-296	lequad		x		number of blocks %lld,
->&-288	lequad		x		number of data blocks %lld,
->&-1332	lelong		x		number of cylinder groups %d,
->&-1328	lelong		x		block size %d,
->&-1324	lelong		x		fragment size %d,
->&-180	lelong		x		average file size %d,
->&-176	lelong		x		average number of files in dir %d,
->&-272	lequad		x		pending blocks to free %lld,
->&-264	lelong		x		pending inodes to free %d,
->&-664	lequad		x		system-wide uuid %0llx,
->&-1316	lelong		x		minimum percentage of free blocks %d,
->&-1248	lelong		0		TIME optimization
->&-1248	lelong		1		SPACE optimization
-
-66908	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
->&-1164	string		x		last mounted on %s,
->&-696	string		>\0		volume name %s,
->&-304	leqldate	x		last written at %s,
->&-1167	byte		x		clean flag %d,
->&-1168	byte		x		readonly flag %d,
->&-296	lequad		x		number of blocks %lld,
->&-288	lequad		x		number of data blocks %lld,
->&-1332	lelong		x		number of cylinder groups %d,
->&-1328	lelong		x		block size %d,
->&-1324	lelong		x		fragment size %d,
->&-180	lelong		x		average file size %d,
->&-176	lelong		x		average number of files in dir %d,
->&-272	lequad		x		pending blocks to free %lld,
->&-264	lelong		x		pending inodes to free %d,
->&-664	lequad		x		system-wide uuid %0llx,
->&-1316	lelong		x		minimum percentage of free blocks %d,
->&-1248	lelong		0		TIME optimization
->&-1248	lelong		1		SPACE optimization
+9564	lelong		0x00011954	Unix Fast File system [v1] (little-endian),
+>0	use		ffsv1
 
 9564	belong		0x00011954	Unix Fast File system [v1] (big-endian),
 >7168   belong		0x4c41424c	Apple UFS Volume
 >>7186  string		x		named %s,
 >>7176  belong		x		volume label version %d,
 >>7180  bedate		x		created on %s,
->8404	string		x		last mounted on %s,
-#>9504	bedate		x		last checked at %s,
->8224	bedate		x		last written at %s,
->8401	byte		x		clean flag %d,
->8228	belong		x		number of blocks %d,
->8232	belong		x		number of data blocks %d,
->8236	belong		x		number of cylinder groups %d,
->8240	belong		x		block size %d,
->8244	belong		x		fragment size %d,
->8252	belong		x		minimum percentage of free blocks %d,
->8256	belong		x		rotational delay %dms,
->8260	belong		x		disk rotational speed %drps,
->8320	belong		0		TIME optimization
->8320	belong		1		SPACE optimization
+>0	use		\^ffsv1
+
+0	name		ffsv2
+>212	string		x		last mounted on %s,
+>680	string		>\0		volume name %s,
+>1072	leqldate	x		last written at %s,
+>209	byte		x		clean flag %d,
+>210	byte		x		readonly flag %d,
+>1080	lequad		x		number of blocks %lld,
+>1088	lequad		x		number of data blocks %lld,
+>44	lelong		x		number of cylinder groups %d,
+>48	lelong		x		block size %d,
+>52	lelong		x		fragment size %d,
+>1196	lelong		x		average file size %d,
+>1200	lelong		x		average number of files in dir %d,
+>1104	lequad		x		pending blocks to free %lld,
+>1112	lelong		x		pending inodes to free %d,
+>712	lequad		x		system-wide uuid %0llx,
+>60	lelong		x		minimum percentage of free blocks %d,
+>128	lelong		0		TIME optimization
+>128	lelong		1		SPACE optimization
+
+42332	lelong		0x19012038	Unix Fast File system [v2ea] (little-endian)
+>40960	use		ffsv2
+
+42332	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
+>40960	use		ffsv2
+
+42332	belong		0x19012038	Unix Fast File system [v2ea] (little-endian)
+>40960	use		\^ffsv2
 
 42332	belong		0x19540119	Unix Fast File system [v2] (big-endian)
->&-1164	string		x		last mounted on %s,
->&-696	string		>\0		volume name %s,
->&-304	beqldate	x		last written at %s,
->&-1167	byte		x		clean flag %d,
->&-1168	byte		x		readonly flag %d,
->&-296	bequad		x		number of blocks %lld,
->&-288	bequad		x		number of data blocks %lld,
->&-1332	belong		x		number of cylinder groups %d,
->&-1328	belong		x		block size %d,
->&-1324	belong		x		fragment size %d,
->&-180	belong		x		average file size %d,
->&-176	belong		x		average number of files in dir %d,
->&-272	bequad		x		pending blocks to free %lld,
->&-264	belong		x		pending inodes to free %d,
->&-664	bequad		x		system-wide uuid %0llx,
->&-1316	belong		x		minimum percentage of free blocks %d,
->&-1248	belong		0		TIME optimization
->&-1248	belong		1		SPACE optimization
+>40960	use		\^ffsv2
+
+66908	lelong		0x19012038	Unix Fast File system [v2ea] (little-endian)
+>65536	use		ffsv2
+
+66908	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
+>65536	use		ffsv2
+
+66908	belong		0x19012038	Unix Fast File system [v2ea] (little-endian)
+>65536	use		\^ffsv2
 
 66908	belong		0x19540119	Unix Fast File system [v2] (big-endian)
->&-1164	string		x		last mounted on %s,
->&-696	string		>\0		volume name %s,
->&-304	beqldate	x		last written at %s,
->&-1167	byte		x		clean flag %d,
->&-1168	byte		x		readonly flag %d,
->&-296	bequad		x		number of blocks %lld,
->&-288	bequad		x		number of data blocks %lld,
->&-1332	belong		x		number of cylinder groups %d,
->&-1328	belong		x		block size %d,
->&-1324	belong		x		fragment size %d,
->&-180	belong		x		average file size %d,
->&-176	belong		x		average number of files in dir %d,
->&-272	bequad		x		pending blocks to free %lld,
->&-264	belong		x		pending inodes to free %d,
->&-664	bequad		x		system-wide uuid %0llx,
->&-1316	belong		x		minimum percentage of free blocks %d,
->&-1248	belong		0		TIME optimization
->&-1248	belong		1		SPACE optimization
+>65536	use		\^ffsv2
 
 0	ulequad		0xc8414d4dc5523031	HAMMER filesystem (little-endian),
 >0x90	lelong+1	x			volume %d
@@ -2648,19 +2603,25 @@
 >10	ubelong		x	\b-%08x
 >14	ubeshort	x	\b%04x
 
-0x1018		string		\xc6\x85\x73\xf6\x4e\x1a\x45\xca\x82\x65\xf5\x7f\x48\xba\x6d\x81	bcachefs
->0x1068		lequad		8	\b, UUID=
->>0x1038	use		bcachefs-uuid
->>0x1048	string		>0	\b, label "%.32s"
->>0x1010	uleshort	x	\b, version %u
->>0x1012	uleshort	x	\b, min version %u
->>0x107a	byte		x	\b, device %d
+0	name	bcachefs	bcachefs
+>0x68	lequad		8	\b, UUID=
+>>0x38	use		bcachefs-uuid
+>>0x48	string		>0	\b, label "%.32s"
+>>0x10	uleshort	x	\b, version %u
+>>0x12	uleshort	x	\b, min version %u
+>>0x7a	byte		x	\b, device %d
 # assumes the first field is the members field
->>0x12f4	ulelong		0x01	\b/UUID=
->>>0x12f0	default		x
->>>&(0x107a.b*56)	use	bcachefs-uuid
->>0x107b	byte		x	\b, %d devices
->>0x1090	byte		^0x02	\b (unclean)
+>>0x2f4	ulelong		0x01	\b/UUID=
+>>>0x2f0	default		x
+>>>&(0x07a.b*56)	use	bcachefs-uuid
+>>0x07b	byte		x	\b, %d devices
+>>0x090	byte		^0x02	\b (unclean)
+
+0x1018		string		\xc6\x85\x73\xf6\x4e\x1a\x45\xca\x82\x65\xf5\x7f\x48\xba\x6d\x81
+>0x1000		use		bcachefs
+
+0x1018          string          \xc6\x85\x73\xf6\x66\xce\x90\xa9\xd9\x6a\x60\xcf\x80\x3d\xf7\xef
+>0x1000		use		bcachefs
 
 # EROFS
 # https://kernel.googlesource.com/pub/scm/linux/kernel/git/xiang/erofs-utils/\
@@ -2687,3 +2648,47 @@
 >>1104		lelong		&4		CHUNKED_FILE
 >>1104		lelong		&8		DEVICE_TABLE
 >>1104		lelong		&16		ZTAILPACKING
+
+# YAFFS
+# The layout itself is undocumented, determined by the memory layout of the 
+# reference implementation. This signature is derived from the
+# reference implementation code and generated test cases
+# We recognize the start of an object header defined by yaffs_obj_hdr:
+# (Note the values being encoded depending on platform endianess)
+
+# u32 type  /* enum yaffs_obj_type, valid 1-5  */
+# u32 parent_obj_id; /* 1 for root objects we recognize */
+# u16 sum_no_longer_used; /* checksum of name. Not used by YAFFS and memset to 0xFF */
+# YCHAR name[YAFFS_MAX_NAME_LENGTH + 1];
+
+# mkyaffsimage always writes a root directory with empty name, then processing the target directory contents
+# mkyaffs2image directly proceeds to writing entries with the appropriate u32 YAFFS_OBJECT_TYPE (1-5 valid), each with parent id 1
+
+0	name	yaffs
+>0	ulelong	1	\b, type file
+>0	ulelong	2	\b, type symlink
+>0	ulelong	3	\b, type root or directory
+>0	ulelong	4	\b, type hardlink
+>0	ulelong	5	\b, type special
+>0xA	byte	0	\b, v1 root directory
+>0xA	byte	!0	\b, object entry
+>>0xA	string	x	(name: "%s")
+
+# Little Endian: XX 00 00 00 01 00 00 00 FF FF YY
+# XX: 01 - 05 (object type)
+# YY: 00 for version 1 root directory, > 00 for version 2 (name data)
+0x1	string	\x00\x00\x00\x01\x00\x00\x00\xFF\xFF
+>0	ulelong	0
+>0	ulelong	>5
+>0	default	x	YAFFS filesystem root entry (little endian)
+>>0	use	yaffs
+
+# Big Endian: 00 00 00 XX 00 00 00 01 FF FF YY
+# XX: 01 - 05 (object type)
+# YY: 00 for version 1 root directory, > 00 for version 2 (name data)
+0x4	string	\x00\x00\x00\x01\xFF\xFF
+>0	string	\x00\x00\x00
+>>0	ubelong	0
+>>0	ubelong	>5
+>>0	default	x	YAFFS filesystem root entry (big endian)
+>>>0	use	\^yaffs

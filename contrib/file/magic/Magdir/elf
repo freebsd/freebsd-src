@@ -1,12 +1,14 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.87 2021/05/25 15:19:51 christos Exp $
+# $File: elf,v 1.88 2023/01/08 17:09:18 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
 # other stuff in the header is in.
 #
 # What're the correct byte orders for the nCUBE and the Fujitsu VPP500?
+#
+# https://www.sco.com/developers/gabi/latest/ch4.eheader.html
 #
 # Created by: unknown
 # Modified by (1): Daniel Quinlan <quinlan@yggdrasil.com>
@@ -282,6 +284,12 @@
 >18	leshort		216		Cognitive Smart Memory,
 >18	leshort		217		iCelero CoolEngine,
 >18	leshort		218		Nanoradio Optimized RISC,
+>18	leshort		219		CSR Kalimba architecture family
+>18	leshort		220		Zilog Z80
+>18	leshort		221		Controls and Data Services VISIUMcore processor
+>18	leshort		222		FTDI Chip FT32 high performance 32-bit RISC architecture
+>18	leshort		223		Moxie processor family
+>18	leshort		224		AMD GPU architecture
 >18	leshort		243		UCB RISC-V,
 # only for 32-bit
 >>4	byte		1

@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.146 2022/10/26 16:56:14 christos Exp $
-.Dd October 26, 2022
+.\" $File: file.man,v 1.150 2023/05/21 17:08:34 christos Exp $
+.Dd May 21, 2023
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -224,6 +224,8 @@ elf magic is found.
 Examines JSON (RFC-7159) files by parsing them for compliance.
 .It soft
 Consults magic files.
+.It simh
+Examines SIMH tape files.
 .It tar
 Examines tar files by verifying the checksum of the 512 byte tar header.
 Excluding this test can provide more detailed content description by using
@@ -337,16 +339,17 @@ attempt to preserve the access time of files analyzed, to pretend that
 never read them.
 .It Fl P , Fl Fl parameter Ar name=value
 Set various parameter limits.
-.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
+.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 .It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
-.It Li bytes Ta 1048576 Ta max number of bytes to read from file
+.It Li bytes Ta 1M Ta max number of bytes to read from file
 .It Li elf_notes Ta 256 Ta max ELF notes processed
-.It Li elf_phnum Ta 2048 Ta max ELF program sections processed
-.It Li elf_shnum Ta 32768 Ta max ELF sections processed
-.It Li encoding Ta 65536 Ta max number of bytes to scan for encoding evaluation
+.It Li elf_phnum Ta 2K Ta max ELF program sections processed
+.It Li elf_shnum Ta 32K Ta max ELF sections processed
+.It Li elf_shsize Ta 128MB Ta max ELF section size processed
+.It Li encoding Ta 65K Ta max number of bytes to determine encoding
 .It Li indir Ta 50 Ta recursion limit for indirect magic
 .It Li name Ta 50 Ta use count limit for name/use magic
-.It Li regex Ta 8192 Ta length limit for regex searches
+.It Li regex Ta 8K Ta length limit for regex searches
 .El
 .It Fl r , Fl Fl raw
 Don't translate unprintable characters to \eooo.
@@ -728,7 +731,7 @@ variable in file.h), then we don't seek to that offset, but we give up.
 It would be better if buffer managements was done when the file descriptor
 is available so we can seek around the file.
 One must be careful though because this has performance and thus security
-considerations, because one can slow down things by repeateadly seeking.
+considerations, because one can slow down things by repeatedly seeking.
 .Pp
 There is support now for keeping separate buffers and having offsets from
 the end of the file, but the internal buffer management still needs an

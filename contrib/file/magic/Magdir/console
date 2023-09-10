@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.68 2022/05/14 20:04:43 christos Exp $
+# $File: console,v 1.72 2023/06/16 19:24:06 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -68,7 +68,7 @@
 !:mime	application/x-nes-rom
 
 #------------------------------------------------------------------------------
-# fds: file(1) magic for Famciom Disk System disk images
+# fds: file(1) magic for Famicom Disk System disk images
 # Reference: https://wiki.nesdev.com/w/index.php/Family_Computer_Disk_System#.FDS_format
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # TODO: Check "Disk info block" and get info from that in addition to the optional header.
@@ -544,6 +544,19 @@
 0	string	CPE		CPE executable
 >3	byte	x		(version %d)
 
+# Sony PlayStation archive (PSARC)
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://www.psdevwiki.com/ps3/PlayStation_archive_(PSARC)
+0	string		PSAR	Sony PlayStation Archive
+!:ext	psarc
+>4	ubeshort	x	\b, version %d.
+>6	ubeshort	x	\b%d
+>8	string		zlib	\b, zlib compression
+>8	string		lzma	\b, LZMA compression
+>28	ubeshort&2	0	\b, relative paths
+>28	ubeshort&2	2	\b, absolute paths
+>28	ubeshort&1	1	\b, ignore case
+
 #------------------------------------------------------------------------------
 # Microsoft Xbox executables .xbe (Esa Hyytia <ehyytia@cc.hut.fi>)
 0	string	XBEH	Microsoft Xbox executable
@@ -684,12 +697,25 @@
 >6	string		BS93		Lynx homebrew cartridge
 !:mime	application/x-atari-lynx-rom
 >>2	beshort		x		\b, RAM start $%04x
+# Update:	Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lnx.trid.xml
+# Note:		called "Atari Lynx ROM" by TrID
 0	string		LYNX		Lynx cartridge
 !:mime	application/x-atari-lynx-rom
+!:ext	lnx
+# bank 0 page size like: 128 256 512
 >4	leshort/4	>0		\b, bank 0 %dk
 >6	leshort/4	>0		\b, bank 1 %dk
+# 32 bytes cart name like: "jconnort.lyx" "viking~1.lyx" "Eye of the Beholder" "C:\EMU\LYNX\ROMS\ULTCHESS.LYX"
 >10	string		>\0		\b, "%.32s"
+# 16 bytes manufacturer like: "Atari" "NuFX Inc." "Matthias Domin"
 >42	string		>\0		\b, "%.16s"
+# version number
+#>8	leshort		!1		\b, version number %u
+# rotation: 1~left Lexis (NA).lnx 2~right Centipede (Prototype).lnx
+>58	ubyte		>0		\b, rotation %u
+# spare
+#>59	lelong		!0		\b, spare %#x
 
 # Opera file system that is used on the 3DO console
 # From: Serge van den Boom <svdb@stack.nl>
@@ -759,6 +785,28 @@
 0	string	PPF10			Playstation Patch File version 1.0
 >5	byte	0			\b, Simple Encoding
 >6	string	x			\b, description: %s
+
+# Compressed ISO disc image (used mostly by PSP, PS2 and MegaDrive)
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://en.wikipedia.org/wiki/.CSO
+# NOTE: This is NOT the same as Compact ISO or GameCube/Wii disc image,
+# though it has the same magic number.
+0               string                  CISO
+# Match CISO version 1 with ISO-9660 sector size
+>20             ubyte                   <2
+>>16            ulelong                 =2048           CSO v1 disk image
+!:mime  application/x-compressed-iso
+!:ext   ciso/cso
+>>>8            ulequad                 x               \b, original size %llu bytes
+>>>16           ulelong                 x               \b, datablock size %u bytes
+# Match CISO version 2
+>20             ubyte                   =2
+>>22            uleshort                =0
+>>>4            ulelong                 =24             CSO v2 disk image
+!:mime  application/x-compressed-iso
+!:ext   ciso/cso
+>>>>8           ulequad                 x               \b, original size %llu bytes
+>>>>16          ulelong                 x               \b, datablock size %u bytes
 
 # From: Daniel Dawson <ddawson@icehouse.net>
 # SNES9x .smv "movie" file format.

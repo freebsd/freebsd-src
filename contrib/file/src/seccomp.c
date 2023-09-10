@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.22 2022/07/30 16:49:18 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.25 2022/12/26 18:57:29 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
@@ -233,6 +233,7 @@ enable_sandbox_full(void)
 	ALLOW_RULE(umask);	// Used in file_pipe2file()
 	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
 	ALLOW_RULE(unlink);
+	ALLOW_RULE(utimes);
 	ALLOW_RULE(write);
 	ALLOW_RULE(writev);
 

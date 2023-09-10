@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: uterus,v 1.3 2014/04/30 21:41:02 christos Exp $
+# $File: uterus,v 1.4 2022/10/31 13:22:26 christos Exp $
 # file(1) magic for uterus files
 # http://freecode.com/projects/uterus
 #
@@ -11,6 +11,6 @@
 >7	byte		x	\b%c
 >8	string		\<\>	\b, big-endian
 >>16	belong		>0	\b, slut size %u
->8	string		\>\<	\b, litte-endian
+>8	string		\>\<	\b, little-endian
 >>16	lelong		>0	\b, slut size %u
 >10	byte		&8	\b, compressed

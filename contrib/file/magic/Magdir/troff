@@ -1,24 +1,30 @@
 
 #------------------------------------------------------------------------------
-# $File: troff,v 1.13 2020/05/30 23:12:34 christos Exp $
+# $File: troff,v 1.14 2023/06/01 16:00:46 christos Exp $
 # troff:  file(1) magic for *roff
 #
 # updated by Daniel Quinlan (quinlan@yggdrasil.com)
 
 # troff input
 0	search/1	.\\"		troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 0	search/1	'\\"		troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 0	search/1	'.\\"		troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 0	search/1	\\"		troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 #0	search/1	'''		troff or preprocessor input text
 #!:mime	text/troff
 0	regex/20l	\^\\.[A-Za-z][A-Za-z0-9][\ \t]	troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 0	regex/20l	\^\\.[A-Za-z][A-Za-z0-9]$	troff or preprocessor input text
+!:strength +12
 !:mime	text/troff
 
 # ditroff intermediate output text

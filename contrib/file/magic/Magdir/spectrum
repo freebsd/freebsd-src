@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: spectrum,v 1.9 2021/04/26 15:56:00 christos Exp $
+# $File: spectrum,v 1.10 2023/05/08 01:33:36 christos Exp $
 # spectrum:  file(1) magic for Spectrum emulator files.
 #
 # John Elliott <jce@seasip.demon.co.uk>
@@ -22,21 +22,125 @@
 #
 # Update: Sanity-check string contents to be printable.
 #  -Adam Buchbinder <adam.buchbinder@gmail.com>
+# Update:	Joerg Jenderek 2023 May
+# URL:		http://fileformats.archiveteam.org/wiki/TAP_(ZX_Spectrum)
+# Reference:	http://web.archive.org/web/20110711141601/http://www.zxmodules.de/fileformats/tapformat.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/t/tap-zx.trid.xml
+# Note:		called "ZX Spectrum Tape image" by TrID and "TAP (ZX Spectrum)" by DROID via PUID fmt/801
+#		verified by fuse-emulator-utils `tzxlist EXAMPLES.TAP`
 #
+# headers length 19=023 and flag byte 0 indicating a standard ROM loading header 
 0       string          \023\000\000
 >4      string          >\0
->>4     string          <\177           Spectrum .TAP data "%-10.10s"
->>>3    byte            0               - BASIC program
->>>3    byte            1               - number array
->>>3    byte            2               - character array
->>>3    byte            3               - memory block
->>>>14  belong          0x001B0040      (screen)
+# skip {85CEE8D6-0F90-4492-B484-98E38862B28D}.2.ver0x0000000000000004.db {DDF571F2-BE98-426D-8288-1A9A39C3FDA2}.2.ver0x0000000000000001.db
+# inside c:\ProgramData\Microsoft\Windows\Caches according to TrID and DROID
+>>23	ubyte		=0xFF
+# skip DROID fmt-801-signature-id-1166.tap with invalid name \253\253\253\253\253\253\253\253\253\253
+# which looks like: "TF COPY II" "screen    " "\023\001TF" "  1943    "
+>>>4     string          <\177           Spectrum .TAP data "%-10.10s"
+#!:mime	application/octet-stream
+!:mime	application/x-spectrum-tap
+!:ext	tap
+>>>>3	byte		0	- BASIC program
+# autostart line; 0..9999 are valid; 32768 means "no auto-loading"
+>>>>>16	uleshort	x	\b, autostart line %u
+# program length; length of BASIC program
+>>>>>18	uleshort	x	\b, program length %u
+>>>>3	byte		1	- number array
+>>>>3	byte		2	- character array
+>>>>3	byte		3	- memory block
+# length of the following data 1B00h=6912 and start address 4000h=16384 in case of a SCREEN$ header
+>>>>>14 belong          0x001B0040      (screen)
+# unused 32768=8000h 
+>>>>>18	uleshort	!32768	\b, unused %u
+# zxlength; length of the following data after the header
+>>>>14	uleshort	x	\b, data length %u
+#>>14	uleshort	x	\b, data length %#x
+# checksum byte; simply all bytes (including flag byte) XORed 
+#>>>>20	ubyte		x	\b, checksum %#x
 
 # The following three blocks are from pak21-spectrum@srcf.ucam.org
 # TZX tape images
+# Update:	Joerg Jenderek 2023 May
+# URL:		http://fileformats.archiveteam.org/wiki/TZX
+# Reference:	https://worldofspectrum.net/TZXformat.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/t/tzx.trid.xml
+# Note:		called "ZX Spectrum Tape image" by TrID and "TZX Format" by DROID via PUID fmt/1000
 0      string          ZXTape!\x1a     Spectrum .TZX data
+#!:mime	application/octet-stream
+!:mime	application/x-spectrum-tzx
+# CDT is used for Amstrad tapes
+!:ext	tzx/cdt
 >8     byte            x               version %d
 >9     byte            x               \b.%d
+# ID of first block
+>10	ubyte		x		\b; ID %#x
+# turbo speed data block
+>10	ubyte		=0x11		(turbo)
+# length of PILOT tone (number of pulses) 
+>>21	uleshort	x		\b, %u pilot pulses
+# length of PILOT pulse
+>>11	uleshort	x		with %u tstates
+# length of SYNC first pulse
+>>13	uleshort	x		\b, %u and
+# length of SYNC second pulse
+>>15	uleshort	x		%u sync tstates
+# length of ZERO bit pulse
+>>17	uleshort	x		\b, %u zero tstates
+# length of ONE bit pulse
+>>19	uleshort	x		\b, %u one tstates
+# used bits in the last byte
+>>23	ubyte		x		\b, use %u bit
+# plural s
+>>23	ubyte		>1		\bs
+# pause after this block in milliseconds
+>>24	uleshort	x		\b, %u ms pause
+# BYTE[3]; length of data that follow
+>>26	ulelong&0x00FFffFF x		\b, %u data bytes 
+>10	ubyte		=0x20		(pause)
+# pause duration in milliseconds
+>>11	uleshort	x		%u ms
+# text description
+>10	ubyte		=0x30		(text)
+# length of the text description
+#>>11	ubyte		x		L=%u
+>>11	pstring		x		"%s"
+# archive text description in ASCII format
+>10	ubyte		=0x32		(archive info)
+# length of archive text
+>>11	uleshort	x		\b, %#x bytes
+# number of text strings
+>>13	ubyte		x		with %u (type) text parts
+# text type identification byte: 0~title 1~publisher 2~author 3~year 4~language 5~type 6~price 7~protection 8~origin ff~comment
+>>14	byte		<9		(%d)
+>>>14	byte		>-2
+# length of text string
+#>>>>15	ubyte		x		L=%u
+>>>>15	pstring		x		%s
+# 2nd possible text description
+>>>>>&0	byte		<9		(%d)
+>>>>>>&-1	byte	>-2
+>>>>>>>&0	pstring	x		%s
+# 3rd possible text description
+>>>>>>>>&0	byte	<9		(%d)
+>>>>>>>>>&-1	byte	>-2
+>>>>>>>>>>&0	pstring	x		%s
+# 4th possible text description
+>>>>>>>>>>>&0	byte	<9		(%d)
+>>>>>>>>>>>>&-1	byte	>-2
+>>>>>>>>>>>>>&0	pstring	x		%s
+# 5th possible text description
+>>>>>>>>>>>>>>&0	byte	<9	(%d)
+>>>>>>>>>>>>>>>&-1	byte	>-2
+>>>>>>>>>>>>>>>>&0	pstring	x	%s
+# 6th possible text description
+>>>>>>>>>>>>>>>>>&0	byte	<9	(%d)
+>>>>>>>>>>>>>>>>>>&-1	byte	>-2
+>>>>>>>>>>>>>>>>>>>&0	pstring	x	%s
+# 7th possible text description
+>>>>>>>>>>>>>>>>>>>>&0	byte	<9	(%d)
+>>>>>>>>>>>>>>>>>>>>>&-1 byte	>-2
+>>>>>>>>>>>>>>>>>>>>>>&0 pstring x	%s
 
 # RZX input recording files
 0      string          RZX!            Spectrum .RZX data

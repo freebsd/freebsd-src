@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.32 2021/04/26 15:56:00 christos Exp $
+# $File: macintosh,v 1.36 2022/12/06 18:45:20 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -95,7 +95,10 @@
 # MacBinary format (Eric Fischer, enf@pobox.com)
 # Update: Joerg Jenderek 
 # URL: https://en.wikipedia.org/wiki/MacBinary
+#	http://fileformats.archiveteam.org/wiki/MacBinary
 # Reference: https://files.stairways.com/other/macbinaryii-standard-info.txt
+# Note:	verified by macutils `macunpack -i -v BBEdit4.0.sit.bin` and
+#	`deark -l -d -m macbinary G3FirmwareUpdate1.1.smi.bin`
 #
 # Unfortunately MacBinary doesn't really have a magic number prior
 # to the MacBinary III format.
@@ -114,19 +117,19 @@
 >>>>74	byte	0
 # zero fill, must be zero for compatibility
 >>>>>82	byte	0
+# skip few DEGAS mid-res uncompressed bitmap (GEMINI03.PI2 CODE_RAM.PI2) with "too high" file names ffffff88 ffff4f00
+>>>>>>2	ubelong		<0xffff0000
 # MacBinary I		test for valid version numbers
->>>>>>122	ubeshort	0
-# additional check for creation date after 1 Jan 1970 ~ 7C25B080h
-#>>>>>>>91	ubelong		>0x7c25b07F
+>>>>>>>122	ubeshort	0
 # additional check for undefined header fields in MacBinary I
-#>>>>>>>101	ulong		0
->>>>>>>0	use	mac-bin
+#>>>>>>>>101	ulong		0
+>>>>>>>>0	use	mac-bin
 # MacBinary II		the newer versions begins at 129
->>>>>>122	ubeshort	0x8181
->>>>>>>0	use	mac-bin
+>>>>>>>122	ubeshort	0x8181
+>>>>>>>>0	use	mac-bin
 # MacBinary III with MacBinary II to read
->>>>>122	ubeshort	0x8281
->>>>>>0	use	mac-bin
+>>>>>>122	ubeshort	0x8281
+>>>>>>>0	use	mac-bin
 
 #	display information of MacBinary file
 0	name		mac-bin
@@ -139,7 +142,7 @@
 !:mime	application/x-macbinary
 !:apple	PSPTBINA
 !:ext	bin/macbin
-# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified as MacBinary
+# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidentified as MacBinary
 #>1	ubyte	>63		\b, name length %u too BIG!
 #>122	ubeshort	x	\b, version %#x
 # Finder flags if not 0
@@ -180,12 +183,16 @@
 # 124	beshort				# checksum
 #>124	ubeshort	!0		\b, CRC %#x
 # creation date in seconds since MacOS epoch start. So 1 Jan 1970 ~ 7C25B080
->91	beldate-0x7C25B080	x	\b, %s
-# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified or time overflow
+# few (31/1247) examples (hinkC4.0.sitx.bin InternetExplorer5.1.smi.bin G3FirmwareUpdate1.1.smi.bin Firewire2.3.3.smi.bin LR2image.bin) contain zeroed date fields
+>91	long		!0
+>>91	beldate-0x7C25B080	x	\b, %s
+# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidentified or time overflow
 >91	ubelong		<0x7c25b080	INVALID date
-#>91	belong-0x7C25B080	x	\b, DEBUG DATE %d
+# reported date seconds by deark
+#>91	ubelong		x		deark-DATE=%u
 # last modified date
->95	beldate-0x7C25B080	x	\b, modified %s
+>95	long		!0
+>>95	beldate-0x7C25B080	x	\b, modified %s
 # Apple creator+typ if not null
 # file creator (normally expressed as four characters)
 >69	ulong			!0	\b, creator
@@ -197,6 +204,7 @@
 # length of data segment
 >83	ubelong			!0	\b, %u bytes
 # filename (in the range 1-63)
+# like "BBEdit4.0.sit" "Archive.sitx" "MacPGP 2.2  (.sea)"
 >1	pstring			x	"%s"
 # print 1 space and then at offset 128 inspect data fork content if it has one
 >83	ubelong			!0	\b 
@@ -447,7 +455,7 @@
 >>>0x412	beshort			x	number of blocks: %d,
 >>>0x424	pstring			x	volume name: %s
 
-0x400	beshort			0x482B		Macintosh HFS Extended
+0	name			hfsplus
 >&0	beshort			x		version %d data
 >0	beshort			0x4C4B		(bootable)
 >0x404	belong			^0x00000100	(mounted)
@@ -465,6 +473,11 @@
 >&38	belong			x		block size: %d,
 >&42	belong			x		number of blocks: %d,
 >&46	belong			x		free blocks: %d
+
+0x400	beshort			0x482B		Apple HFS Plus
+>&0	use			hfsplus
+0x400	beshort			0x4858		Apple HFS Plus Extended
+>&0	use			hfsplus
 
 ## AFAIK, only the signature is different
 # same as Apple Partition Map
@@ -490,14 +503,3 @@
 # From: Remi Mommsen <mommsen@slac.stanford.edu>
 0		string		BOMStore	Mac OS X bill of materials (BOM) file
 
-# From: Adam Buchbinder <adam.buchbinder@gmail.com>
-# URL: https://en.wikipedia.org/wiki/Datafork_TrueType
-# Derived from the 'fondu' and 'ufond' source code (fondu.sf.net). 'sfnt' is
-# TrueType; 'POST' is PostScript. 'FONT' and 'NFNT' sometimes appear, but I
-# don't know what they mean.
-0	belong	0x100
->(0x4.L+24)	beshort	x
->>&4	belong	0x73666e74	Mac OSX datafork font, TrueType
->>&4	belong	0x464f4e54	Mac OSX datafork font, 'FONT'
->>&4	belong	0x4e464e54	Mac OSX datafork font, 'NFNT'
->>&4	belong	0x504f5354	Mac OSX datafork font, PostScript

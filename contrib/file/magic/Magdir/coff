@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: coff,v 1.6 2021/04/26 15:56:00 christos Exp $
+# $File: coff,v 1.7 2022/11/21 22:30:22 christos Exp $
 # coff: file(1) magic for Common Object Files not specific to known cpu types or manufactures
 #
 # COFF
@@ -37,6 +37,7 @@
 # ARM COFF (./arm)
 >>>>0	uleshort	0xaa64		Aarch64
 >>>>0	uleshort	0x01c0		ARM
+>>>>0	uleshort	0xa641		ARM64EC
 >>>>0	uleshort	0x01c2		ARM Thumb
 >>>>0	uleshort	0x01c4		ARMv7 Thumb
 # TODO for other COFFs

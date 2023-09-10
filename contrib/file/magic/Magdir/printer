@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: printer,v 1.29 2019/04/19 00:42:27 christos Exp $
+# $File: printer,v 1.34 2023/06/16 19:27:12 christos Exp $
 # printer:  file(1) magic for printer-formatted files
 #
 
@@ -30,13 +30,42 @@
 
 # DOS EPS Binary File Header
 # From: Ed Sznyter <ews@Black.Market.NET>
-0       belong          0xC5D0D3C6      DOS EPS Binary File
->4      long            >0              Postscript starts at byte %d
->>8     long            >0              length %d
->>>12   long            >0              Metafile starts at byte %d
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Encapsulated_PostScript
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/eps-adobe.trid.xml
+# Note:		called "Encapsulated PostScript binary" by TrID and 
+#		verified partly by ImageMagick `identify -verbose *` as EPT (Encapsulated PostScript with TIFF preview)
+0       belong          0xC5D0D3C6
+# skip DROID fmt-122-signature-id-174.eps fmt-123-signature-id-178.eps fmt-124-signature-id-180.eps
+# by looking for content after header
+# GRR: in version 5.44 unequal and not endian variant not working!
+>32	ulelong		>0		DOS EPS Binary File
+!:mime	image/x-eps
+# TODO: check that "long" is false on big endian machines
+# Postscript often (850/857) comes after header; so values like: 30 32 or 2788 10644 43350 71828  
+>>4      long            >0              at byte %d
+# 1 space char after length value to get phrase like "length 263893 PostScript document text"
+>>>8     long            >0              length %d 
+# PostScript document text handled by ./printer
+>>>>(4.l)	indirect		x
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/e/eps-wmf.trid.xml
+# Note:		called "Encapsulated PostScript binary (with WMF preview)" by TrID
+#		verified partly by XnView `nconvert -info *.EP?` as TIFF epsp
+>>>>12   long            >0               at byte %d
+!:ext	eps
+# GRR: in file version 5.44 calling indirect of ./msdos produce phrase like "length 452\012- Windows metafile"
 >>>>16  long            >0              length %d
->>>20   long            >0              TIFF starts at byte %d
->>>>24  long            >0              length %d
+# Windows metafile data handled by ./msdos
+>>>>>(12.l)	indirect		x
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/e/eps-tiff.trid.xml
+# Note:		called "Encapsulated PostScript binary (with TIFF preview)" by TrID
+>>>>20   long            >0              at byte %d
+# For the variant with the TIFF preview image sometimes the file extension ept is used
+!:ext	eps/ept
+# GRR: in file version 5.44 calling indirect of ./images produce phrase like "length 43320\012- TIFF image data,"
+>>>>>24  long            >0              length %d
+# TIFF image data handled by ./images
+>>>>>>(20.l)	indirect		x
 
 # Summary: Adobe's PostScript Printer Description File
 # Extension: .ppd
@@ -45,6 +74,8 @@
 #
 0	string		*PPD-Adobe:\x20	PPD file
 >&0	string		x		\b, version %s
+!:ext	ppd
+!:mime	application/vnd.cups-ppd
 
 # HP Printer Job Language
 0	string		\033%-12345X@PJL	HP Printer Job Language data
@@ -82,7 +113,16 @@
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=QPDL	- Samsung QPDL
 >0	search/10000	@PJL\ ENTER\ LANGUAGE\ =\ QPDL	- Samsung QPDL
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=ZJS	- HP ZJS
-
+# Summary:	Hewlett-Packard printer firmware update
+# From:		Joerg Jenderek
+# URL:		https://support.hp.com/us-en/drivers/selfservice/hp-envy-6000e-all-in-one-printer-series/2100187505/model/2100187513
+# Note:		firmware update tested with ENVY 6000 All-in-One Printer
+0	string		@PJL\ ENTER\ LANGUAGE=FWUPDATE2	HP Printer firmware update
+#!:mime	application/octet-stream
+#!:mime	application/x-hp-firmware
+# https://ftp.hp.com/pub/softlib/software13/printers/en6000/2214/EN6000_2214B.exe
+# vasari_base_dist_pp1_001.2214B_nonassert_appsigned_lbi_rootfs_secure_signed.ful2
+!:ext	ful2
 
 # HP Printer Control Language, Daniel Quinlan (quinlan@yggdrasil.com)
 0	string		\033E\033	HP PCL printer data
@@ -148,3 +188,91 @@
 # From: Paolo <oopla@users.sf.net>
 # Epson ESC/Page, ESC/PageColor
 0	string	\x1b\x01@EJL	Epson ESC/Page language printer data
+
+# Summary:	Hewlett-Packard Graphics Language
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/HP-GL
+#		https://en.wikipedia.org/wiki/HPGL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/hpg.trid.xml
+# Note:		called "Hewlett-Packard Graphics Language" by TrID and
+#		"Hewlett Packard Graphics Language" by DROID via PUID x-fmt/293 and
+#		HPGL by XnView command `nconvert -info *`
+# initialize, start a plotting job 
+0	string	IN;
+>0		use		hpgl
+# fill.plt
+0	string	INPS
+>0		use		hpgl
+# http://ftp.funet.fi/index/graphics/packages/hpgl2ps/hpgl2ps.tar.Z/hpgl2ps/test1.hpgl 
+0	string	DF;
+>0		use		hpgl
+# http://ftp.funet.fi/index/graphics/packages/hpgl2ps/hpgl2ps.tar.Z/hpgl2ps/test3.hpgl 
+# Select Pen n; If no pen number or 0, the controller performs an end of file command; n in range between -32767 and 32768 like: 6
+0	string	SP
+# skip text Linux-syscall-note inside qemu sources starting with SPDX-Exception-Identifier: Linux-syscall-note
+# by checking for valid Pen number
+>2	regex	\^([0-9]{1,5})
+#>2	regex	\^([0-9]{1,5})	PEN_NUMBER=%s
+>>0		use		hpgl
+# charsize.hp pages.hp	set the scaling points (P1 and P2) to their default positions
+0	string	IP0
+>0		use		hpgl
+# ci.hp
+0	string	CO\040
+>0		use		hpgl
+# iw.hp 286x192.5_lh.hpg 286x192.5_lq.hpg
+0	string	PS\040
+>0		use		hpgl
+# thick.hp
+0	string	PS9
+>0		use		hpgl
+# ul.hp
+0	string	PS4
+>0		use		hpgl
+# la.hp
+0	string	BP
+>0		use		hpgl
+# miter.hp
+# Plot Absolute x,y{,x,y{...}}; x and y in range between -32767 and 32768 like: PA4000,3000;
+0	string	PA
+# skip shell scripts test_msa_run_32r5eb.sh test_msa_run_32r5eb.sh with variable PATH_TO_QEMU
+# by checking for valid x coordinate
+>2	regex	\^([-]{0,1}[0-9]{1,5})
+#>2	regex	\^([-]{0,1}[0-9]{1,5})	COORDINATE=%s
+>>0		use		hpgl
+# pw.hpg	number of pens x
+0	string	NP
+>0		use		hpgl
+# win_1.hp
+#0	string	\003INCA		WHAT_IS_THAT
+#>0		use		hpgl
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/hpgl2.trid.xml
+# Note:		called "Hewlett-Packard Graphics Language 2" by TrID
+0	string	\033%-1B		Hewlett-Packard Graphics Language 2
+!:mime	application/vnd.hp-HPGL
+# like: dt.plt
+!:ext	plt
+#!:ext	plt/gl2/hpg2/spl
+# remaining part after escsape sequnce
+>5	string	x			with "%-.10s"
+#	display Hewlett-Packard Graphics Language vector graphic information
+0	name				hpgl
+>0	string	x			Hewlett-Packard Graphics Language
+#!:mime	vector/x-hpgl
+# https://www.iana.org/assignments/media-types/application/vnd.hp-HPGL
+!:mime	application/vnd.hp-HPGL
+# no example with HPL suffix found
+!:ext	hpgl/hpg/hp/plt
+# like: "IN;" "DF;IN;LT;PU1000,1000;PD2000,10" "SP6;DI0,1;SR0.70,1.90;SC0,800,"
+# "CO Concentric circles drawn with different linewidths;"
+>0	string	x			\b, starting with "%-.54s"
+# continue but not for 1 long line without CR or LF
+>>&0	ubyte	<0x0E
+#>>&0	ubyte	<0x0E			TERMINATOR=%x
+# second line after 1 terminator character
+>>>&0	string	>\r			with "%-.10s"
+# next character again CR or LF
+>>>&0	ubyte	<0x0E
+#>>>&0	ubyte	<0x0E			2ND_CHARACTER=%x
+# second line after 2 terminator characters
+>>>>&0	string	>\r			with "%-.10s"

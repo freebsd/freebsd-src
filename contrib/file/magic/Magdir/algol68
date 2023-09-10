@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: algol68,v 1.4 2021/08/15 06:00:55 christos Exp $
+# $File: algol68,v 1.6 2022/11/06 18:36:55 christos Exp $
 # algol68:  file(1) magic for Algol 68 source
 #
 # URL: 		https://en.wikipedia.org/wiki/ALGOL_68
@@ -9,14 +9,8 @@
 0	search/8192	(input,
 >0	use		algol_68
 # graph_2d.a68
-0	regex/4006	\^PROC
-#>&-4	string		x			\b, dBase or Algol "%s"
-# most xBase scripts *.prg with PROCEDURE like: Areacode BarCount Def_mens Vendors
-#>&-4	string		=PROCEDURE		\b, dBase PROCEDURE
-# skip xBase program scripts *.prg with PROCEDURE keyword
-# keyword proc probably followed by white space used to specify algol procedures
->&-4	string		!PROCEDURE
->>0	use		algol_68
+0	regex/4006	\^PROC[[:space:]][a-zA-Z0-9_[:space:]]*[[:space:]]=
+>0	use		algol_68
 0	regex/1024	\bMODE[\t\ ]
 >0	use		algol_68
 0	regex/1024	\bMODE[\t\ ]

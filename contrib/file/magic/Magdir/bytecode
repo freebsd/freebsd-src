@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: bytecode,v 1.3 2022/03/24 15:48:58 christos Exp $
+# $File: bytecode,v 1.5 2023/02/20 16:25:05 christos Exp $
 # magic for various bytecodes
 
 # From: Mikhail Gusarov <dottedmag@dottedmag.net>
@@ -28,3 +28,14 @@
 >11	string	4		\b, 32bit
 >11	string	8		\b, 64bit
 >13	regex	.\\..		\b, bytecode v%s
+
+# Racket file magic
+# From: Haelwenn (lanodan) Monnier <contact+libmagic@hacktivis.me>
+# https://racket-lang.org/
+# https://github.com/racket/racket/blob/master/racket/src/expander/compile/write-linklet.rkt
+0	string	#~
+>&0	pstring	x
+>>&0	pstring	racket
+>>>0	string	#~	Racket bytecode
+>>>>&0	pstring	x       (version %s)
+

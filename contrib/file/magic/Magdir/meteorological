@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: meteorological,v 1.2 2017/03/17 21:35:28 christos Exp $
+# $File: meteorological,v 1.4 2022/12/09 18:02:09 christos Exp $
 # rinex:  file(1) magic for RINEX files
 # http://igscb.jpl.nasa.gov/igscb/data/format/rinex210.txt
 # ftp://cddis.gsfc.nasa.gov/pub/reports/formats/rinex300.pdf
@@ -45,5 +45,9 @@
 
 # https://en.wikipedia.org/wiki/GRIB
 0	string	GRIB
->7	byte	=1	Gridded binary (GRIB) version 1
+>7	byte 	=1	Gridded binary (GRIB) version 1
+!:mime	application/x-grib
+!:ext	grb/grib
 >7	byte	=2	Gridded binary (GRIB) version 2
+!:mime	application/x-grib2
+!:ext	grb2/grib2

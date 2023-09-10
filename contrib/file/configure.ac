@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([file],[5.43],[christos@astron.com])
+AC_INIT([file],[5.45],[christos@astron.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -48,6 +48,16 @@ AC_MSG_CHECKING(for xzlib support)
 AC_ARG_ENABLE([xzlib],
 [AS_HELP_STRING([--disable-xzlib], [disable liblzma/xz compression support @<:@default=auto@:>@])])
 AC_MSG_RESULT($enable_xzlib)
+
+AC_MSG_CHECKING(for zstdlib support)
+AC_ARG_ENABLE([zstdlib],
+[AS_HELP_STRING([--disable-zstdlib], [disable zstdlib compression support @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_zstdlib)
+
+AC_MSG_CHECKING(for lzlib support)
+AC_ARG_ENABLE([lzlib],
+[AS_HELP_STRING([--disable-lzlib], [disable liblz (lzip) compression support @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_lzlib)
 
 AC_MSG_CHECKING(for libseccomp support)
 AC_ARG_ENABLE([libseccomp],
@@ -111,6 +121,12 @@ if test "$enable_bzlib" != "no"; then
 fi
 if test "$enable_xzlib" != "no"; then
   AC_CHECK_HEADERS(lzma.h)
+fi
+if test "$enable_zstdlib" != "no"; then
+  AC_CHECK_HEADERS(zstd.h zstd_errors.h)
+fi
+if test "$enable_lzlib" != "no"; then
+  AC_CHECK_HEADERS(lzlib.h)
 fi
 AC_CHECK_TYPE([sig_t],[AC_DEFINE([HAVE_SIG_T],1,[Have sig_t type])],,[#include <signal.h>])
 
@@ -180,6 +196,12 @@ fi
 if test "$enable_xzlib" != "no"; then
   AC_CHECK_LIB(lzma, lzma_stream_decoder)
 fi
+if test "$enable_zstdlib" != "no"; then
+  AC_CHECK_LIB(zstd, ZSTD_createDStream)
+fi
+if test "$enable_lzlib" != "no"; then
+  AC_CHECK_LIB(lz, LZ_decompress_open)
+fi
 if test "$enable_libseccomp" != "no"; then
     AC_CHECK_LIB(seccomp, seccomp_init)
 fi
@@ -214,6 +236,22 @@ if test "$enable_xzlib" = "yes"; then
 fi
 if  test "$ac_cv_header_lzma_h$ac_cv_lib_lzma_lzma_stream_decoder" = "yesyes"; then
   AC_DEFINE([XZLIBSUPPORT], 1, [Enable xzlib compression support])
+fi
+if test "$enable_zstdlib" = "yes"; then
+  if test "$ac_cv_header_zstd_h$ac_cv_lib_zstd_ZSTD_createDStream" != "yesyes"; then
+    AC_MSG_ERROR([zstdlib support requested but not found])
+  fi
+fi
+if  test "$ac_cv_header_zstd_h$ac_cv_lib_zstd_ZSTD_createDStream" = "yesyes"; then
+  AC_DEFINE([ZSTDLIBSUPPORT], 1, [Enable zstdlib compression support])
+fi
+if test "$enable_lzlib" = "yes"; then
+  if test "$ac_cv_header_lzlib_h$ac_cv_lib_lz_LZ_decompress_open" != "yesyes"; then
+    AC_MSG_ERROR([lzlib support requested but not found])
+  fi
+fi
+if  test "$ac_cv_header_lzlib_h$ac_cv_lib_lz_LZ_decompress_open" = "yesyes"; then
+  AC_DEFINE([LZLIBSUPPORT], 1, [Enable lzlib compression support])
 fi
 
 AC_CONFIG_FILES([Makefile src/Makefile magic/Makefile tests/Makefile doc/Makefile python/Makefile libmagic.pc])

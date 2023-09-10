@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: scientific,v 1.13 2019/04/19 00:42:27 christos Exp $
+# $File: scientific,v 1.14 2023/04/29 17:28:09 christos Exp $
 # scientific:  file(1) magic for scientific formats
 #
 # From: Joe Krahn <krahn@niehs.nih.gov>
@@ -62,15 +62,48 @@
 
 # Type: GEDCOM genealogical (family history) data
 # From: Giuseppe Bilotta
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/GEDCOM
+#		https://en.wikipedia.org/wiki/GEDCOM
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/
+#		ged.trid.xml ged-utf8.trid.xml ged-utf16.trid.xml
+# Note:		called "GEDCOM Family History" by TrID and "Genealogical Data Communication (GEDCOM) Format" by DROID via PUID fmt/851
 0       search/1/c	0\ HEAD         GEDCOM genealogy text
+#!:mime	text/plain
+#!:mime	application/x-gedcom
+# https://www.iana.org/assignments/media-types/text/vnd.familysearch.gedcom
+!:mime	text/vnd.familysearch.gedcom
+!:ext	ged
+# no gedcom sample found and ged suffix also used for other formats
+#!:ext	ged/gedcom
 >&0     search		1\ GEDC
 >>&0    search		2\ VERS         version
+# 4 5.0 5.3 5.4 5.5 5.5.1 5.5.5 5.6 7.0 or no version
 >>>&1   string		>\0		%s
 # From: Phil Endecott <phil05@chezphil.org>
-0	string	\000\060\000\040\000\110\000\105\000\101\000\104		GEDCOM data
-0	string	\060\000\040\000\110\000\105\000\101\000\104\000		GEDCOM data
-0	string	\376\377\000\060\000\040\000\110\000\105\000\101\000\104	GEDCOM data
-0	string	\377\376\060\000\040\000\110\000\105\000\101\000\104\000	GEDCOM data
+# 0\040HEAD as UTF-16 big endian without BOM
+0	string	\000\060\000\040\000\110\000\105\000\101\000\104		GEDCOM genealogy text
+!:mime	text/vnd.familysearch.gedcom
+!:ext	ged
+# look for VERS tag encoded as UTF-16 big endian
+>12		search/0x65	V\0E\0R\0S					version
+# version like: 5.5.1
+>>&2		bestring16	x						%s
+>>0		string		x						\b, UTF-16 (without BOM) big-endian text
+# 0\040HEAD as UTF-16 little endian without BOM
+0	string	\060\000\040\000\110\000\105\000\101\000\104\000		GEDCOM genealogy text
+!:mime	text/vnd.familysearch.gedcom
+!:ext	ged
+# look for VERS tag encoded as UTF-16 lttle endian
+>12		search/0x65	V\0E\0R\0S					version
+# version like: 5.5.1
+>>&3		lestring16	x						%s
+>>2		string		x						\b, UTF-16 (without BOM) little-endian text
+# Note:		UTF-16 with BOM variants already described above by first test as "GEDCOM genealogy text"
+# 0\040HEAD as UTF-16 big endian with BOM
+#0	string	\376\377\000\060\000\040\000\110\000\105\000\101\000\104	GEDCOM data
+# 0\040HEAD as UTF-16 little endian with BOM
+#0	string	\377\376\060\000\040\000\110\000\105\000\101\000\104\000	GEDCOM data
 
 # PDB: Protein Data Bank files
 # Adam Buchbinder <adam.buchbinder@gmail.com>

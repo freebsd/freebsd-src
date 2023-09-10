@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xilinx,v 1.9 2021/04/26 15:56:00 christos Exp $
+# $File: xilinx,v 1.10 2022/12/18 14:59:32 christos Exp $
 # This is Aaron's attempt at a MAGIC file for Xilinx .bit files.
 # Xilinx-Magic@RevRagnarok.com
 # Got the info from FPGA-FAQ 0026
@@ -38,3 +38,21 @@
 # Raw bitstream files
 0      long    0xffffffff
 >&0    belong  0xaa995566      Xilinx RAW bitstream (.BIN)
+
+# AXLF (xclbin) files used by AMD/Xilinx accelerators.
+# The file format is defined by XRT source tree:
+# https://github.com/Xilinx/XRT/blob/master/src/runtime_src/core/include/xclbin.h
+# Display file size, creation date, accelerator shell name, xclbin uuid and
+# number of sections.
+
+0       string      xclbin2     AMD/Xilinx accelerator AXLF (xclbin) file
+>0x130  lequad      x           \b, %lld bytes
+>0x138  leqdate     x           \b, created %s
+>0x160  string      >0          \b, shell "%.64s"
+>0x1a0  ubelong     x           \b, uuid %08x
+>0x1a4  ubeshort    x           \b-%04x
+>0x1a6  ubeshort    x           \b-%04x
+>0x1a8  ubeshort    x           \b-%04x
+>0x1aa  ubelong     x           \b-%08x
+>0x1ae  ubeshort    x           \b%04x
+>0x1c0  lelong      x           \b, %d sections

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sendmail,v 1.11 2019/04/19 00:42:27 christos Exp $
+# $File: sendmail,v 1.12 2022/10/31 13:22:26 christos Exp $
 # sendmail:  file(1) magic for sendmail config files
 #
 # XXX - byte order?
@@ -13,7 +13,7 @@
 # - version \330jK\354
 0	byte	046
 # https://www.sendmail.com/sm/open_source/docs/older_release_notes/
-# freezed configuration file (dbm format?) created from sendmal.cf with -bz
+# freezed configuration file (dbm format?) created from sendmail.cf with -bz
 # by older sendmail. til version 8.6 support for frozen configuration files is removed
 # valid version numbers look like "7.14.4" and should be similar to output of commands
 # "sendmail -d0 -bt < /dev/null |grep -i Version" or "egrep '^DZ' /etc/sendmail.cf"

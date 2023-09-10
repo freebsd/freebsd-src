@@ -1,6 +1,6 @@
 ## README for file(1) Command and the libmagic(3) library ##
 
-    @(#) $File: README.md,v 1.4 2021/10/21 01:51:31 christos Exp $
+    @(#) $File: README.md,v 1.5 2023/05/28 13:59:47 christos Exp $
 
 - Bug Tracker: <https://bugs.astron.com/>
 - Build Status: <https://travis-ci.org/file/file>
@@ -91,6 +91,7 @@ COPYING - read this first.
 * `src/gmtime_r.c` - replacement for OS's that don't have it.
 * `src/is_csv.c` - knows about Comma Separated Value file format (RFC 4180).
 * `src/is_json.c` - knows about JavaScript Object Notation format (RFC 8259).
+* `src/is_simh.c` - knows about SIMH tape file format.
 * `src/is_tar.c, tar.h` - knows about Tape ARchive format (courtesy John Gilmore).
 * `src/localtime_r.c` - replacement for OS's that don't have it.
 * `src/magic.h.in` - source file for magic.h

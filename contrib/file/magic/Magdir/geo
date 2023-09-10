@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: geo,v 1.8 2022/03/24 15:48:58 christos Exp $
+# $File: geo,v 1.10 2022/10/31 13:22:26 christos Exp $
 # Geo- files from Kurt Schwehr <schwehr@ccom.unh.edu>
 
 ######################################################################
@@ -54,7 +54,43 @@
 ######################################################################
 
 # GeoAcoustics - GeoSwath Plus
-4	beshort	0x2002	GeoSwath RDF
+# Update:	Joerg Jenderek
+# URL:		https://www.mbari.org/products/research-software/mb-system/
+# Reference:	http://ccom.unh.edu/sites/default/files/news-and-events/conferences/auv-bootcamp/
+#		GS%2B-6063-BB-GS%2B-Broadcast-Raw-Data-File-Format-Command-Specification.pdf
+# Note:		All data is written using Intel 80x86 byte ordering (LSB to MSB)
+# raw_header_siz; file header size is 544 bytes
+4	beshort	0x2002
+# GRR: line above is too general as it matches also some Microsoft Event Trace Logs *.ETL
+# skip many (63/753) Microsoft Event Trace Logs (AMSITrace.etl lxcore_kernel.etl NotificationUxBroker.052.etl WindowsBackup.4.etl) with invalid "low" ping header size 0
+>6	leshort	>0	GeoSwath RDF
+# skip foo samples with invalid "high" spare bytes
+#>>536	ulequad	=0	OK_THIS_IS_GeoSwath_RDF
+#!:mime	application/octet-stream
+!:mime	application/x-geoswath-rdf
+# http://ccom.unh.edu/sites/default/files/news-and-events/conferences/auv-bootcamp/060116342.rdf
+!:ext	rdf
+# filename; original file name like: "C:\GS+\Projects\Default\Raw Data Files\060116342.rdf"
+>>8	string	x	"%-.512s"
+# version[8]; recording software version number like: 3.16c
+>>527	string	x	\b, version %-.8s
+# creation; unsigned int file creation time; WHAT time format is this? 
+>>0	ulelong	x	\b, creation time %#8.8x
+# raw_ping_header_size; size of ping header in bytes like: 64
+>>6	leshort	!64	\b, ping header size %d
+# frequency; system frequency in hertz like: 500000
+>>520	lelong	x	\b, frequency %d
+# echo_type; Echosounder type index like: 1
+>>524	leshort	x	\b, echo type %#x
+# file_mode; file mode mask (0x00 bathy & sidescan, 0x80 bathy, 0x40 sidescan, 0x20 seismic)
+>>526	ubyte	!0	\b, file mode %#2.2x
+# pps_mode; PPS synch mode like: 2
+>>535	byte	x	\b, pps mode %#x
+# char spare[8]; apparently zeroed
+>>536	ubequad	!0	\b, spare %#16.16llx
+# Ping_number; 1st ping number like: 4944
+>>544	lelong	x	\b, 1st ping number %d
+
 0	string	Start:-	GeoSwatch auf text file
 
 # Seabeam 2100
@@ -88,7 +124,7 @@
 #
 ######################################################################
 
-# IVS - IVS3d.com Tagged Data Represetation
+# IVS - IVS3d.com Tagged Data Representation
 0	string	%%\ TDR\ 2.0	IVS Fledermaus TDR file
 
 # http://www.ecma-international.org/publications/standards/Ecma-363.htm

@@ -16,6 +16,7 @@ MAN=	libmagic.3 magic.5
 SRCS=	apprentice.c apptype.c ascmagic.c buffer.c cdf.c cdf_time.c \
 	compress.c der.c encoding.c fsmagic.c funcs.c is_json.c \
 	is_csv.c \
+	is_simh.c \
 	is_tar.c magic.c print.c readcdf.c readelf.c seccomp.c softmagic.c
 INCS=	magic.h
 

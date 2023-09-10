@@ -1,13 +1,24 @@
 
 #------------------------------------------------------------------------------
-# $File: blender,v 1.8 2019/04/19 00:42:27 christos Exp $
+# $File: blender,v 1.9 2022/12/21 15:53:27 christos Exp $
 # blender: file(1) magic for Blender 3D related files
 #
 # Native format rule v1.2. For questions use the developers list
 # https://lists.blender.org/mailman/listinfo/bf-committers
 # GLOB chunk was moved near start and provides subversion info since 2.42
-
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/BLEND
+#		http://www.blender.org/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/blend.trid.xml
+#		http://formats.kaitai.io/blender_blend/index.html
+# Note:		called "Blender 3D data" by TrID
+#		and gzip compressed variant handled by ./compress
 0		string	=BLENDER	Blender3D,
+#!:mime		application/octet-stream
+!:mime		application/x-blender
+!:ext		blend
+# no sample found with extension blender
+#!:ext		blend/blender
 >7		string	=_		saved as 32-bits
 >>8		string	=v		little endian
 >>>9		byte	x		with version %c.

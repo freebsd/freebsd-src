@@ -1,0 +1,57 @@
+
+#------------------------------------------------------------------------------
+# $File: playdate,v 1.1 2022/11/04 13:34:48 christos Exp $
+#
+# Various native file formats for the Playdate portable video game console.
+#
+# These are unofficially documented at
+# https://github.com/jaames/playdate-reverse-engineering
+# 
+# The SDK is a source for many test files, and can be used to
+# create others. https://play.date/dev/
+
+
+# pdi: static image
+0	string	Playdate\ IMG	Playdate image data
+>12	belong&0x80	0x80	(compressed)
+>>20	lelong	x	%d x
+>>24	lelong	x	%d
+>12	belong&0x80	0x00	(uncompressed)
+>>16	leshort	x	%d x
+>>18	leshort	x	%d
+
+# pdt: multiple static images
+0	string	Playdate\ IMT	Playdate image data set
+>12	belong&0x80	0x80	(compressed)
+>>20	lelong	x	%d x
+>>24	lelong	x	%d,
+>>28	lelong	x	%d cells
+>12	belong&0x80	0x00	(uncompressed)
+>>20	lelong	x	tile grid %d x
+>>24	lelong	x	%d
+
+# pds: string tables
+0	string	Playdate\ STR	Playdate localization strings
+>12	belong&0x80	0x80	(compressed)
+>12	belong&0x80	0x00	(uncompressed)
+
+# pda: audio
+0	string	Playdate\ AUD	Playdate audio file
+>12	lelong&0xffffff	x	%d Hz,
+>15	byte	0	unsigned, 8-bit PCM, 1 channel
+>15	byte	1	unsigned, 8-bit PCM, 2 channel
+>15	byte	2	signed, 16-bit little-endian PCM, 1 channel
+>15	byte	3	signed, 16-bit little-endian PCM, 1 channel
+>15	byte	4	4-bit ADPCM, 1 channel
+>15	byte	5	4-bit ADPCM, 2 channel
+
+# pda: video
+0	string	Playdate\ VID	Playdate video file
+>24	leshort	x	%d x
+>26	leshort	x	%d,
+>16	leshort	x	%d frames,
+>20	lefloat x	%.2f FPS
+
+# pdz: executable package
+# Not a lot we can do, as it's a stream of entries with no summary information.
+0	string	Playdate\ PDZ	Playdate executable package
