@@ -168,7 +168,7 @@ int
 main(int argc, char *argv[])
 {
 	unsigned long long fsize;
-	char ch;
+	int ch;
 
 	/* We have at least 2 arguments. */
 	if (argc < 3) {
