@@ -1,25 +1,32 @@
 
 #------------------------------------------------------------------------------
-# $File: tplink,v 1.7 2021/04/26 15:56:00 christos Exp $
+# $File: tplink,v 1.8 2023/05/15 16:41:02 christos Exp $
 # tplink: File magic for openwrt firmware files
 
 # URL: https://wiki.openwrt.org/doc/techref/header
 # Reference: https://git.openwrt.org/?p=openwrt.git;a=blob;f=tools/firmware-utils/src/mktplinkfw.c
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bin-tplink-v1.trid.xml
+# Note:		called "TP-Link router firmware (v1)" by TrID
 # From: Joerg Jenderek
 # check for valid header version 1 or 2
 0		ulelong		<3
 >0		ulelong		!0
 # test for header padding with nulls
 >>0x100		long		0
-# skip Norton Commander Cleanup Utility NCCLEAN.INI by looking for valid vendor
+# skip Norton Commander Cleanup Utility NCCLEAN.INI by looking for valid vendor name
 >>>4		ubelong		>0x1F000000
 # skip user.dbt by looking for positive hardware id
 >>>>0x40	ubeshort	>0
->>>>>0		use		firmware-tplink
+# skip cversions.1.db cversions.2.db cversions.3.db inside
+# c:\ProgramData\Microsoft\Windows\Caches
+# with invalid vendor names \240\0\0\0 \140\0\0\0 \040\0\0\0 
+>>>>>5		short		!0
+>>>>>>0		use		firmware-tplink
 
 0		name		firmware-tplink
 >0		ubyte		x		firmware
 !:mime application/x-tplink-bin
+# like: TL-WR1043ND-V1-FW0.0.3-stripped.bin gluon-ffrefugee-0.9.2-tp-link-archer-c5-v1-sysupgrade.bin
 !:ext	bin
 # hardware id like 10430001 07410001 09410004 09410006
 >0x40		ubeshort	x		%x

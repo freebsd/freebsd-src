@@ -139,8 +139,8 @@ am__DEPENDENCIES_1 =
 libmagic_la_DEPENDENCIES = $(LTLIBOBJS) $(am__DEPENDENCIES_1)
 am_libmagic_la_OBJECTS = buffer.lo magic.lo apprentice.lo softmagic.lo \
 	ascmagic.lo encoding.lo compress.lo is_csv.lo is_json.lo \
-	is_tar.lo readelf.lo print.lo fsmagic.lo funcs.lo apptype.lo \
-	der.lo cdf.lo cdf_time.lo readcdf.lo
+	is_simh.lo is_tar.lo readelf.lo print.lo fsmagic.lo funcs.lo \
+	apptype.lo der.lo cdf.lo cdf_time.lo readcdf.lo
 libmagic_la_OBJECTS = $(am_libmagic_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -181,10 +181,10 @@ am__depfiles_remade = $(DEPDIR)/asctime_r.Plo $(DEPDIR)/asprintf.Plo \
 	./$(DEPDIR)/encoding.Plo ./$(DEPDIR)/file.Po \
 	./$(DEPDIR)/fsmagic.Plo ./$(DEPDIR)/funcs.Plo \
 	./$(DEPDIR)/is_csv.Plo ./$(DEPDIR)/is_json.Plo \
-	./$(DEPDIR)/is_tar.Plo ./$(DEPDIR)/magic.Plo \
-	./$(DEPDIR)/print.Plo ./$(DEPDIR)/readcdf.Plo \
-	./$(DEPDIR)/readelf.Plo ./$(DEPDIR)/seccomp.Po \
-	./$(DEPDIR)/softmagic.Plo
+	./$(DEPDIR)/is_simh.Plo ./$(DEPDIR)/is_tar.Plo \
+	./$(DEPDIR)/magic.Plo ./$(DEPDIR)/print.Plo \
+	./$(DEPDIR)/readcdf.Plo ./$(DEPDIR)/readelf.Plo \
+	./$(DEPDIR)/seccomp.Po ./$(DEPDIR)/softmagic.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -364,16 +364,16 @@ nodist_include_HEADERS = magic.h
 AM_CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 AM_CFLAGS = $(CFLAG_VISIBILITY) @WARNINGS@
 libmagic_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
-	encoding.c compress.c is_csv.c is_json.c is_tar.c readelf.c print.c \
-	fsmagic.c funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
+	encoding.c compress.c is_csv.c is_json.c is_simh.c is_tar.c readelf.c \
+	print.c fsmagic.c funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
 	file_opts.h elfclass.h mygetopt.h cdf.c cdf_time.c readcdf.c cdf.h
 
 libmagic_la_LDFLAGS = -no-undefined -version-info 1:0:0
 @MINGW_FALSE@MINGWLIBS = 
 @MINGW_TRUE@MINGWLIBS = -lgnurx -lshlwapi
-libmagic_la_LIBADD = $(LTLIBOBJS) $(MINGWLIBS)
+libmagic_la_LIBADD = -lm $(LTLIBOBJS) $(MINGWLIBS)
 file_SOURCES = file.c seccomp.c
-file_LDADD = libmagic.la
+file_LDADD = libmagic.la -lm
 CLEANFILES = magic.h
 EXTRA_DIST = magic.h.in cdf.mk BNF memtest.c
 HDR = $(top_srcdir)/src/magic.h.in
@@ -538,6 +538,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/funcs.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_csv.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_json.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_simh.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_tar.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/magic.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/print.Plo@am__quote@ # am--include-marker
@@ -765,6 +766,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/funcs.Plo
 	-rm -f ./$(DEPDIR)/is_csv.Plo
 	-rm -f ./$(DEPDIR)/is_json.Plo
+	-rm -f ./$(DEPDIR)/is_simh.Plo
 	-rm -f ./$(DEPDIR)/is_tar.Plo
 	-rm -f ./$(DEPDIR)/magic.Plo
 	-rm -f ./$(DEPDIR)/print.Plo
@@ -845,6 +847,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/funcs.Plo
 	-rm -f ./$(DEPDIR)/is_csv.Plo
 	-rm -f ./$(DEPDIR)/is_json.Plo
+	-rm -f ./$(DEPDIR)/is_simh.Plo
 	-rm -f ./$(DEPDIR)/is_tar.Plo
 	-rm -f ./$(DEPDIR)/magic.Plo
 	-rm -f ./$(DEPDIR)/print.Plo

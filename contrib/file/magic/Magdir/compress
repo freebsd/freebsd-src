@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.83 2022/08/16 11:16:39 christos Exp $
+# $File: compress,v 1.91 2023/06/16 19:37:47 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -12,13 +12,14 @@
 0	string		\037\235	compress'd data
 !:mime	application/x-compress
 !:apple	LZIVZIVU
+!:ext	Z
 >2	byte&0x80	>0		block compressed
 >2	byte&0x1f	x		%d bits
 
 # gzip (GNU zip, not to be confused with Info-ZIP or PKWARE zip archiver)
 # URL: https://en.wikipedia.org/wiki/Gzip
 # Reference: https://tools.ietf.org/html/rfc1952
-# Update: Joerg Jenderek, Apr 2019
+# Update: Joerg Jenderek, Apr 2019, Dec 2022
 #   Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
 #	* Original filename is only at offset 10 if "extra field" absent
 #	* Produce shorter output - notably, only report compression methods
@@ -61,20 +62,24 @@
 !:mime	application/gzip
 >>>0	use	gzip-info
 # size of the original (uncompressed) input data modulo 2^32
->>-0	offset		>48
+# TODO: check for GXD MCD cad the reported size
 >>>-4	ulelong		x		\b, original size modulo 2^32 %u
->>-0	offset		<48		\b, truncated
 # gzipped TAR or VirtualBox extension package
 #!:mime	application/x-compressed-tar
 #!:mime	application/x-virtualbox-vbox-extpack
 # https://www.w3.org/TR/SVG/mimereg.html
-#!:mime	image/image/svg+xml-compressed
+#!:mime	image/svg+xml-compressed
 #	zlib.3.gz
 #	microcode-20180312.tgz
 #	tpz same as tgz
 #	lua-md5_1.2-1_i386_i486.ipk	https://en.wikipedia.org/wiki/Opkg
 #	Oracle_VM_VirtualBox_Extension_Pack-5.0.12-104815.vbox-extpack
-!:ext	gz/tgz/tpz/ipk/vbox-extpack/svgz
+#	trees.blend			http://fileformats.archiveteam.org/wiki/BLEND
+#	2020-07-19-Note-16-24.xoj	https://xournal.sourceforge.net/manual.html
+#	MYgnucash-gz.gnucash		https://wiki.gnucash.org/wiki/GnuCash_XML_format
+#	text-rotate.dia			https://en.wikipedia.org/wiki/Dia_(software)
+#	MYrdata.RData			https://en.wikipedia.org/wiki/R_(programming_language)
+!:ext	gz/tgz/tpz/ipk/vbox-extpack/svgz/blend/dia/gnucash/rdata/xoj
 # FNAME/FCOMMENT bit implies file name/comment as iso-8859-1 text
 >3	byte&0x18	>0		gzip compressed data
 !:mime	application/gzip
@@ -83,12 +88,13 @@
 #!:mime	application/x-abiword-compressed
 #!:mime	image/image/svg+xml-compressed
 #	kleopatra_splashscreen.svgz	gzipped .svg
-!:ext	gz/tgz/tpz/zabw/svgz
+#	RSI-Mega-Demo_Disk1.adz		gzipped .adf	http://fileformats.archiveteam.org/wiki/ADF_(Amiga)
+#	PostbankTest.kmy		gzipped XML	https://docs.kde.org/stable5/en/kmymoney/kmymoney/details.formats.compressed.html
+#	Logo.xcfgz			gzipped .xcf	http://fileformats.archiveteam.org/wiki/XCF
+!:ext	gz/tgz/tpz/zabw/svgz/adz/kmy/xcfgz
 >>0	use	gzip-info
 # size of the original (uncompressed) input data modulo 2^32
->>-0	offset		>48
->>>-4	ulelong		x		\b, original size modulo 2^32 %u
->>-0	offset		<48		\b, truncated
+>>-4	ulelong		x		\b, original size modulo 2^32 %u
 #	display information of gzip compressed files
 0	name				gzip-info
 #>2	byte		x		THIS iS GZIP
@@ -125,6 +131,7 @@
 # packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
 0	string		\037\036	packed data
 !:mime	application/octet-stream
+!:ext	z
 >2	belong		>1		\b, %d characters originally
 >2	belong		=1		\b, %d character originally
 #
@@ -159,6 +166,7 @@
 # lzip
 0	string		LZIP		lzip compressed data
 !:mime application/x-lzip
+!:ext lz
 >4	byte		x		\b, version: %d
 
 # squeeze and crunch
@@ -194,6 +202,7 @@
 
 # lzop from <markus.oberhumer@jk.uni-linz.ac.at>
 0	string		\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a	lzop compressed data
+!:ext	lzo
 >9	beshort		<0x0940
 >>9	byte&0xf0	=0x00		- version 0.
 >>9	beshort&0x0fff	x		\b%03x,
@@ -254,20 +263,24 @@
 !:mime	application/x-7z-compressed
 !:ext 7z/cb7
 
+0	name		lzma			LZMA compressed data,
+!:mime	application/x-lzma
+!:ext	lzma
+>5	lequad		=0xffffffffffffffff	streamed
+>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
+
 # Type: LZMA
 0	lelong&0xffffff	=0x5d
->12	leshort		0xff			LZMA compressed data,
-!:mime	application/x-lzma
->>5	lequad		=0xffffffffffffffff	streamed
->>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
->12	leshort		0			LZMA compressed data,
->>5	lequad		=0xffffffffffffffff	streamed
->>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
+>12	leshort		0xff
+>>0	use		lzma
+>12	leshort		0
+>>0	use		lzma
 
 # http://tukaani.org/xz/xz-file-format.txt
 0	ustring		\xFD7zXZ\x00		XZ compressed data, checksum
 !:strength * 2
 !:mime	application/x-xz
+!:ext	xz
 >7	byte&0xf	0x0			NONE
 >7	byte&0xf	0x1			CRC32
 >7	byte&0xf	0x4			CRC64
@@ -275,14 +288,15 @@
 
 # https://github.com/ckolivas/lrzip/blob/master/doc/magic.header.txt
 0	string		LRZI			LRZIP compressed data
+!:mime  application/x-lrzip
 >4	byte		x			- version %d
 >5	byte		x			\b.%d
 >22	byte		1			\b, encrypted
-!:mime	application/x-lrzip
 
 # https://fastcompression.blogspot.fi/2013/04/lz4-streaming-format-final.html
 0	lelong		0x184d2204	LZ4 compressed data (v1.4+)
 !:mime	application/x-lz4
+!:ext	lz4
 # Added by osm0sis@xda-developers.com
 0 	lelong		0x184c2103	LZ4 compressed data (v1.0-v1.3)
 !:mime	application/x-lz4
@@ -319,19 +333,26 @@
 # https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
 0     lelong       0xFD2FB522  Zstandard compressed data (v0.2)
 !:mime  application/zstd
+!:ext zst
 0     lelong       0xFD2FB523  Zstandard compressed data (v0.3)
 !:mime  application/zstd
+!:ext zst
 0     lelong       0xFD2FB524  Zstandard compressed data (v0.4)
 !:mime  application/zstd
+!:ext zst
 0     lelong       0xFD2FB525  Zstandard compressed data (v0.5)
 !:mime  application/zstd
+!:ext zst
 0     lelong       0xFD2FB526  Zstandard compressed data (v0.6)
 !:mime  application/zstd
+!:ext zst
 0     lelong       0xFD2FB527  Zstandard compressed data (v0.7)
 !:mime  application/zstd
+!:ext zst
 >4    use          zstd-dictionary-id
 0     lelong       0xFD2FB528  Zstandard compressed data (v0.8+)
 !:mime  application/zstd
+!:ext zst
 >4    use          zstd-dictionary-id
 
 # https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
@@ -407,3 +428,34 @@
 # http://www.shikadi.net/moddingwiki/PCX_Library
 0	string/b	pcxLib
 >0x0A	string/b	Copyright\020(c)\020Genus\020Microprogramming,\020Inc.	pcxLib compressed
+
+# https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/SW/ORA/ORAFormatSpecification.htm
+0	uleshort	0x7c49	
+>2	lelong		0x80	ORA FASTQ compressed file
+>>6	ulelong		x	\b, DNA size %u
+>>10	ulelong		x	\b, read names size %u
+>>14	ulelong		x	\b, quality buffer 1 size %u
+>>18	ulelong		x	\b, quality buffer 2 size %u
+>>22	ulelong		x	\b, sequence buffer size %u
+>>26	ulelong		x	\b, N-position buffer size %u
+>>30	ulelong		x	\b, crypto buffer size %u
+>>34	ulelong		x	\b, misc  buffer 1 size %u
+>>38	ulelong		x	\b, misc  buffer 2 size %u
+>>42	ulelong		x	\b, flags %#x
+>>46	lelong		x	\b, read size %d
+>>50	lelong		x	\b, number of reads %d
+>>54	leshort		x	\b, version %d
+
+# https://github.com/kspalaiologos/bzip3/blob/master/doc/file_format.md
+0	string/b	BZ3v1	bzip3 compressed data
+>5	ulelong		x	\b, blocksize %u
+
+
+# https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/\
+# SW/ORA/ORAFormatSpecification.htm
+# From Guillaume Rizk
+0	short	=0x7C49 DRAGEN ORA file,
+>-261	short	=0x7C49 with metadata:
+>-125	u8	x	NB reads: %llu,
+>-109	u8	x	NB bases: %llu.
+>-219	u4&0x02	2	File contains interleaved paired reads

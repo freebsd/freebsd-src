@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.82 2022/09/07 11:23:44 christos Exp $
+# $File: linux,v 1.85 2023/07/17 14:40:09 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -67,8 +67,8 @@
 >16	lelong		x		%d characters,
 >12	lelong&0x01	0		no directory,
 >12	lelong&0x01	!0		Unicode directory,
->24	lelong		x		%d
->28	lelong		x		\bx%d
+>28	lelong		x		%d
+>24	lelong		x		\bx%d
 
 # Linux swap and hibernate files
 # Linux kernel: include/linux/swap.h
@@ -380,26 +380,96 @@
 # Systemd journald files
 # See https://www.freedesktop.org/wiki/Software/systemd/journal-files/.
 # From: Zbigniew Jedrzejewski-Szmek <zbyszek@in.waw.pl>
-
-# check magic
+# Update: 	Joerg Jenderek
+# URL:		https://systemd.io/JOURNAL_FILE_FORMAT/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/j/journal-sysd.trid.xml
+# Note:		called "systemd journal" by TrID
+#		verified by `journalctl --file=user-1000.journal`
+# check magic signature[8]
 0	string	LPKSHHRH
 # check that state is one of known values
+# STATE_OFFLINE~0 STATE_ONLINE~1 STATE_ARCHIVED~2
 >16		ubyte&252	0
 # check that each half of three unique id128s is non-zero
+# file_id
 >>24		ubequad		>0
 >>>32		ubequad		>0
+# machine_id
 >>>>40		ubequad		>0
 >>>>>48		ubequad		>0
+# boot_id; last writer
 >>>>>>56	ubequad		>0
 >>>>>>>64	ubequad		>0	Journal file
-!:mime application/octet-stream
+#!:mime application/octet-stream
+!:mime application/x-linux-journal
 # provide more info
+# head_entry_realtime; contains a POSIX timestamp stored in microseconds
+>>>>>>>>184	leqdate/1000000	!0	\b, %s
 >>>>>>>>184	leqdate		0	empty
->>>>>>>>16	ubyte		0	\b, offline
->>>>>>>>16	ubyte		1	\b, online
+# If a file is closed after writing the state field should be set to STATE_OFFLINE
+>>>>>>>>16	ubyte		0	\b,
+# for offline and empty only journal~ extension found
+>>>>>>>>>184	leqdate		0	offline
+# https://man7.org/linux/man-pages/man8/systemd-journald.service.8.html
+# GRR: add char ~ inside parse_ext in ../../src/apprentice.c to avoid in file version 5.44 error like:
+# Magdir/linux, 463: Warning: EXTENSION type `		journal~' has bad char '~'
+!:ext		journal~
+# for offline and non empty often *.journal~ but also user-1001.journal
+>>>>>>>>>184	leqdate		!0	offline
+!:ext		journal/journal~
+# if a file is opened for writing the state field should be set to STATE_ONLINE
+>>>>>>>>16	ubyte		1	\b,
+# for online and empty only journal~ extension found
+>>>>>>>>>184	leqdate		0	online
+# system@0005febee06e2ff2-f7ea54d10e4346ff.journal~
+!:ext		journal~
+# for online and non empty only journal extension found
+>>>>>>>>>184	leqdate		!0	online
+# system.journal user-1000.journal
+!:ext		journal
+# after a file has been rotated it should be set to STATE_ARCHIVED
 >>>>>>>>16	ubyte		2	\b, archived
+!:ext		journal
+# no *.journal~ found
+#!:ext		journal/journal~
+# compatible_flags
 >>>>>>>>8	ulelong&1	1	\b, sealed
+# incompatible_flags; COMPRESSED_XZ~1 COMPRESSED_LZ4~2 KEYED_HASH~4 COMPRESSED_ZSTD~8 COMPACT~16
+#>>>>>>>>12	ulelong		x	FLAGS=%#x
 >>>>>>>>12	ulelong&1	1	\b, compressed
+>>>>>>>>12	ulelong&2	!0	\b, compressed lz4
+>>>>>>>>12	ulelong&4	!0	\b, keyed hash siphash24
+>>>>>>>>12	ulelong&8	!0	\b, compressed zstd
+>>>>>>>>12	ulelong&16	!0	\b, compact
+# uint8_t reserved[7]; apparently nil
+#>>17		long		!0	\b, reserved %#8.8x
+# seqnum_id; like: 0 e623691afec94b5aa968ae2d726c49cc f98b2af481924b29 8d6816ca3639edc6
+#>>>>>>>>72	ubequad		x	\b, seqnum_id %#16.16llx
+#>>>>>>>>80	ubequad		x	b%16.16llx
+# header_size like: 100h
+>>>>>>>>88	ulequad		!0x100h	\b, header size %#llx
+# arena_size  like: 0 7fff00h ffff00h 17fff00h
+#>>>>>>>>96	ulequad		>0	\b, arena size %#llx
+# data_hash_table_offset like: 0 15f0h 15f0h
+#>>>>>>>>104	ulequad		>0	\b, hash table offset %#llx
+# data_hash_table_size like: 0 38e380h
+#>>>>>>>>112	ulequad		>0	\b, hash table size %#llx
+# field_hash_table_offset like: 0 110h
+#>>>>>>>>120	ulequad		>0	\b, field hash table offset %#llx
+# field_hash_table_size like: 0 14d0h
+#>>>>>>>>128	ulequad		>0	\b, field hash table size %#llx
+# tail_object_offset like: 0 43edd8h 511278h c68968h d487d0h efaa98h
+#>>>>>>>>136	ulequad		>0	\b, tail object offset %#llx
+# n_objects like: 0 1032h 5a2eh 92bdh a8b5h aa75h 112adh 40c23h 4714eh
+#>>>>>>>>144	ulequad		>0	\b, objects %#llx
+# n_entries like: 0 3aeh 235ah 2dc4h 3125h 16129h 187a1h
+>>>>>>>>152	ulequad		>0	\b, entries %#llx
+# tail_entry_seqnum like: 0 1988h 16249h 24c12h 24c12h 41e64h 9fefdh
+#>>>>>>>>160	ulequad		>0	\b, tail entry seqnum %#llx
+# head_entry_seqnum like: 0 1h 15dbh 6552h 213bfh 213bfh 3e672h 9a28ah
+#>>>>>>>>168	ulequad		>0	\b, head entry seqnum %#llx
+# entry_array_offset like: 0 390058h 3909d8h 3909e0h
+#>>>>>>>>176	ulequad		>0	\b, entry array offset %#llx
 
 # BCache backing and cache devices
 # From: Gabriel de Perthuis <g2p.code@gmail.com>
@@ -492,9 +562,12 @@
 0		lelong		0x58313116	CRIU inventory
 
 # Kdump compressed dump files
-# https://sourceforge.net/p/makedumpfile/code/ci/master/tree/IMPLEMENTATION
+# https://github.com/makedumpfile/makedumpfile/blob/master/IMPLEMENTATION
 
-0		string		KDUMP          	Kdump compressed dump
+0		string		KDUMP\x20\x20\x20	Kdump compressed dump
+>0		use		kdump-compressed-dump
+
+0		name		kdump-compressed-dump
 >8		long		x		v%d
 >12		string		>\0		\b, system %s
 >77		string		>\0		\b, node %s
@@ -502,6 +575,12 @@
 >207		string		>\0		\b, version %s
 >272		string		>\0		\b, machine %s
 >337		string		>\0		\b, domain %s
+
+# Flattened format
+0		string		makedumpfile
+>16		bequad		1
+>>0x1010	string		KDUMP\x20\x20\x20	Flattened kdump compressed dump
+>>>0x1010	use		kdump-compressed-dump
 
 # Device Tree files
 0		search/1024	/dts-v1/	Device Tree File (v1)
