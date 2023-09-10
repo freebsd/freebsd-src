@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xenix,v 1.14 2021/04/26 15:56:00 christos Exp $
+# $File: xenix,v 1.15 2022/10/19 20:15:16 christos Exp $
 # xenix:  file(1) magic for Microsoft Xenix
 #
 # "Middle model" stuff, and "Xenix 8086 relocatable or 80286 small
@@ -28,20 +28,23 @@
 # skip examples like Xtable.Data FRACTAL.GEN SHR.VIEW by looking for positive string length
 >>>3	ubyte		>0
 # skip examples like OMBRE.6 with "UUUUUU" name by looking for valid high second record type
->>>>(1.s+3)	ubyte	>0x6D	8086 relocatable (Microsoft)
+>>>>(1.s+3)	ubyte	>0x6D
+# skip few Atari DEGAS bitmap TPDEMO.PC2 RECIPE.PC2 with invalid "high" second record type FEh FFh
+>>>>>(1.s+3)	ubyte	<0xF2	8086 relocatable (Microsoft)
 #!:mime	application/octet-stream
 !:mime	application/x-object
 !:ext	obj/o/a
 # T-module name often source name like "hello.c" or "jmppm32.asm" in JMPPM32.OBJ or
 # "kbhit" in KBHITS.OBJ or "CAUSEWAY_KERNAL" in CWAPI.OBJ
->>>>>3	pstring		x		\b, "%s"
+>>>>>>3	pstring		x		\b, "%s"
 # data length probably lower 256 according to TrID obj_omf.trid.xml
->>>>>1	uleshort	x		\b, 1st record data length %u
+>>>>>>1	uleshort	x		\b, 1st record data length %u
 # checksum
-#>>>>>(3.b+4)	ubyte	x		\b, checksum %#2.2x
+#>>>>>>(3.b+4)	ubyte	x		\b, checksum %#2.2x
 # second recordtype: 96h~LNAMES 88h~COMENT 8CH~EXTDEF
->>>>>(1.s+3)	ubyte	x		\b, 2nd record type %#x
->>>>>(1.s+4)	uleshort x		\b, 2nd record data length %u
+# highest F1h~Library End Record
+>>>>>>(1.s+3)	ubyte	x		\b, 2nd record type %#x
+>>>>>>(1.s+4)	uleshort x		\b, 2nd record data length %u
 0	leshort		0xff65		x.out
 >2	string		__.SYMDEF	 randomized
 >0	byte		x		archive
@@ -100,3 +103,4 @@
 >0x1e	leshort		&0x102		Huge Objects Enabled
 
 0	leshort		0x580		XENIX 8086 relocatable or 80286 small model
+# GRR: line above is too general as it catches also all 8086 relocatable (Microsoft) with 1st record data length 5 C0M.OBJ C0T.OBJ C0S.OBJ

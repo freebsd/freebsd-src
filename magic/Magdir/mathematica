@@ -1,48 +1,59 @@
 
 #------------------------------------------------------------------------------
-# $File: mathematica,v 1.14 2021/11/07 16:27:36 christos Exp $
+# $File: mathematica,v 1.17 2023/06/16 19:33:58 christos Exp $
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Mathematica a multi-purpose math program
 # versions 2.2 and 3.0
 
+0	name	wolfram
+>0	string	x	Mathematica notebook version 2.x
+!:ext mb
+!:mime application/vnd.wolfram.mathematica
+
 #mathematica .mb
-0	string	\064\024\012\000\035\000\000\000	Mathematica version 2 notebook
-!:ext mb
-0	string	\064\024\011\000\035\000\000\000	Mathematica version 2 notebook
-!:ext mb
+0	string	\064\024\012\000\035\000\000\000
+>0	use	wolfram
+0	string	\064\024\011\000\035\000\000\000
+>0	use	wolfram
+
+# 
+0	search/1000	Content-type:\040application/mathematica	Mathematica notebook version 2.x
+!:ext nb
+!:mime application/mathematica
+
 
 # .ma
 # multiple possibilities:
 
-0	string	(*^\n\n::[\011frontEndVersion\ =\ 	Mathematica notebook
+0	string	(*^\n\n::[\011frontEndVersion\ =
 #>41	string	>\0	%s
-!:ext mb
+>0	use	wolfram
 
-#0	string	(*^\n\n::[\011palette	Mathematica notebook version 2.x
+#0	string	(*^\n\n::[\011palette
 
-#0	string	(*^\n\n::[\011Information	Mathematica notebook version 2.x
+#0	string	(*^\n\n::[\011Information
 #>675	string	>\0	%s #doesn't work well
 
 # there may be 'cr' instead of 'nl' in some does this matter?
 
 # generic:
-0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\r\n\r\n::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\015			Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\n\r\n\r::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\r::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\r\n::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\n\n::[\011	Mathematica notebook version 2.x
-!:ext mb
-0	string	(*^\n::[\011	Mathematica notebook version 2.x
-!:ext mb
+0	string	(*^\r\r::[\011
+>0	use	wolfram
+0	string	(*^\r\n\r\n::[\011
+>0	use	wolfram
+0	string	(*^\015
+>0	use	wolfram
+0	string	(*^\n\r\n\r::[\011
+>0	use	wolfram
+0	string	(*^\r::[\011
+>0	use	wolfram
+0	string	(*^\r\n::[\011
+>0	use	wolfram
+0	string	(*^\n\n::[\011
+>0	use	wolfram
+0	string	(*^\n::[\011
+>0	use	wolfram
 
 
 # Mathematica .mx files
@@ -132,14 +143,18 @@
 >>>>0	ulelong		<53
 # skip tokens.dat and some Netwfw*.dat by check for valid imaginary flag value of MAT version 4
 >>>>>12	ulelong		<2
-# no misidentfied little endian MATrix example with "short" matrix name
+# no misidentified little endian MATrix example with "short" matrix name
 >>>>>>16	ulelong		<3
->>>>>>>0	use	\^matlab4
+# skip radeon firmware BONAIRE_sdma.bin HAWAII_sdma.bin KABINI_sdma.bin KAVERI_sdma.bin MULLINS_sdma.bin
+# by check for non zero matrix name length
+>>>>>>>16	ubelong		>0
+>>>>>>>>0	use	\^matlab4
 # little endian MATrix with "long" matrix name or some misidentified samples
 >>>>>>16	ulelong		>2
 # skip TileCacheLogo-*.dat with invalid 2nd character \001 of matrix name with length 96
 >>>>>>>21 ubyte	>0x1F
 >>>>>>>>0 use	\^matlab4
+# Note:		called 	"MATLAB Mat File" with version "Level 4" by DROID via PUID fmt/1550
 #	display information of Matlab v4 mat-file
 0	name	matlab4		Matlab v4 mat-file
 #!:mime	application/octet-stream

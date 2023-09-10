@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: der,v 1.5 2022/07/30 18:07:34 christos Exp $
+# $File: der,v 1.6 2023/01/11 23:59:49 christos Exp $
 # der: file(1) magic for DER encoded files
 #
 
@@ -137,3 +137,10 @@
 >>>>&0	der	seq
 >>>>>&0	der     obj_id3=550403
 >>>>>&0	der     utf8_str=x      \b, Subject=%s
+
+# PKCS#7 Signed Data (e.g. JAR Signature Block File)
+# OID 1.2.840.113549.1.7.2 (2a864886f70d010702)
+# Reference: https://www.rfc-editor.org/rfc/rfc2315
+0	der	seq
+>&0	der	obj_id9=2a864886f70d010702	DER Encoded PKCS#7 Signed Data
+!:ext	RSA/DSA/EC
