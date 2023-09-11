@@ -581,7 +581,8 @@ void UnwrappedLineParser::calculateBraceTypes(bool ExpectClassBody) {
           ProbablyBracedList =
               ProbablyBracedList ||
               (NextTok->is(tok::l_brace) && LBraceStack.back().PrevTok &&
-               LBraceStack.back().PrevTok->is(tok::identifier));
+               LBraceStack.back().PrevTok->isOneOf(tok::identifier,
+                                                   tok::greater));
 
           ProbablyBracedList =
               ProbablyBracedList ||
@@ -2464,7 +2465,7 @@ bool UnwrappedLineParser::parseParens(TokenType AmpAmpTokenType) {
         const auto *PrevPrev = Prev ? Prev->getPreviousNonComment() : nullptr;
         const bool Blacklisted =
             PrevPrev &&
-            (PrevPrev->is(tok::kw___attribute) ||
+            (PrevPrev->isOneOf(tok::kw___attribute, tok::kw_decltype) ||
              (SeenEqual &&
               (PrevPrev->isOneOf(tok::kw_if, tok::kw_while) ||
                PrevPrev->endsSequence(tok::kw_constexpr, tok::kw_if))));

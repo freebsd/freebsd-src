@@ -3037,8 +3037,7 @@ static bool needsDenormHandlingF32(const MachineFunction &MF, Register Src,
 std::pair<Register, Register>
 AMDGPULegalizerInfo::getScaledLogInput(MachineIRBuilder &B, Register Src,
                                        unsigned Flags) const {
-  if (allowApproxFunc(B.getMF(), Flags) ||
-      !needsDenormHandlingF32(B.getMF(), Src, Flags))
+  if (!needsDenormHandlingF32(B.getMF(), Src, Flags))
     return {};
 
   const LLT F32 = LLT::scalar(32);
@@ -3132,16 +3131,13 @@ bool AMDGPULegalizerInfo::legalizeFlogCommon(MachineInstr &MI,
 
   if (Ty == F16 || MI.getFlag(MachineInstr::FmAfn) ||
       TM.Options.ApproxFuncFPMath || TM.Options.UnsafeFPMath) {
-    const double Log2BaseInv =
-        IsLog10 ? numbers::ln2 / numbers::ln10 : numbers::ln2;
-
     if (Ty == F16 && !ST.has16BitInsts()) {
       Register LogVal = MRI.createGenericVirtualRegister(F32);
       auto PromoteSrc = B.buildFPExt(F32, X);
-      legalizeFlogUnsafe(B, LogVal, PromoteSrc.getReg(0), Log2BaseInv, Flags);
+      legalizeFlogUnsafe(B, LogVal, PromoteSrc.getReg(0), IsLog10, Flags);
       B.buildFPTrunc(Dst, LogVal);
     } else {
-      legalizeFlogUnsafe(B, Dst, X, Log2BaseInv, Flags);
+      legalizeFlogUnsafe(B, Dst, X, IsLog10, Flags);
     }
 
     MI.eraseFromParent();
@@ -3225,10 +3221,36 @@ bool AMDGPULegalizerInfo::legalizeFlogCommon(MachineInstr &MI,
 }
 
 bool AMDGPULegalizerInfo::legalizeFlogUnsafe(MachineIRBuilder &B, Register Dst,
-                                             Register Src,
-                                             double Log2BaseInverted,
+                                             Register Src, bool IsLog10,
                                              unsigned Flags) const {
+  const double Log2BaseInverted =
+      IsLog10 ? numbers::ln2 / numbers::ln10 : numbers::ln2;
+
   LLT Ty = B.getMRI()->getType(Dst);
+
+  if (Ty == LLT::scalar(32)) {
+    auto [ScaledInput, IsScaled] = getScaledLogInput(B, Src, Flags);
+    if (ScaledInput) {
+      auto LogSrc = B.buildIntrinsic(Intrinsic::amdgcn_log, {Ty}, false)
+                        .addUse(Src)
+                        .setMIFlags(Flags);
+      auto ScaledResultOffset = B.buildFConstant(Ty, -32.0 * Log2BaseInverted);
+      auto Zero = B.buildFConstant(Ty, 0.0);
+      auto ResultOffset =
+          B.buildSelect(Ty, IsScaled, ScaledResultOffset, Zero, Flags);
+      auto Log2Inv = B.buildFConstant(Ty, Log2BaseInverted);
+
+      if (ST.hasFastFMAF32())
+        B.buildFMA(Dst, LogSrc, Log2Inv, ResultOffset, Flags);
+      else {
+        auto Mul = B.buildFMul(Ty, LogSrc, Log2Inv, Flags);
+        B.buildFAdd(Dst, Mul, ResultOffset, Flags);
+      }
+
+      return true;
+    }
+  }
+
   auto Log2Operand = Ty == LLT::scalar(16)
                          ? B.buildFLog2(Ty, Src, Flags)
                          : B.buildIntrinsic(Intrinsic::amdgcn_log, {Ty}, false)
@@ -3264,11 +3286,10 @@ bool AMDGPULegalizerInfo::legalizeFExp2(MachineInstr &MI,
 
   assert(Ty == F32);
 
-  if (allowApproxFunc(B.getMF(), Flags) ||
-      !needsDenormHandlingF32(B.getMF(), Src, Flags)) {
+  if (!needsDenormHandlingF32(B.getMF(), Src, Flags)) {
     B.buildIntrinsic(Intrinsic::amdgcn_exp2, ArrayRef<Register>{Dst}, false)
-      .addUse(Src)
-      .setMIFlags(Flags);
+        .addUse(Src)
+        .setMIFlags(Flags);
     MI.eraseFromParent();
     return true;
   }
