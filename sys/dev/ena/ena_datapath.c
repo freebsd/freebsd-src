@@ -104,7 +104,7 @@ ena_cleanup(void *arg, int pending)
 
 	/* Signal that work is done and unmask interrupt */
 	ena_com_update_intr_reg(&intr_reg, ENA_RX_IRQ_INTERVAL,
-	    ENA_TX_IRQ_INTERVAL, true);
+	    ENA_TX_IRQ_INTERVAL, true, false);
 	counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 	ena_com_unmask_intr(io_cq, &intr_reg);
 }
