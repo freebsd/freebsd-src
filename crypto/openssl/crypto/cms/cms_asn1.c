@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -51,6 +51,7 @@ static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         EVP_PKEY_free(si->pkey);
         X509_free(si->signer);
         EVP_MD_CTX_free(si->mctx);
+        EVP_PKEY_CTX_free(si->pctx);
     }
     return 1;
 }
@@ -89,11 +90,21 @@ ASN1_SEQUENCE(CMS_OriginatorInfo) = {
         ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, crls, CMS_RevocationInfoChoice, 1)
 } static_ASN1_SEQUENCE_END(CMS_OriginatorInfo)
 
-ASN1_NDEF_SEQUENCE(CMS_EncryptedContentInfo) = {
+static int cms_ec_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+                     void *exarg)
+{
+    CMS_EncryptedContentInfo *ec = (CMS_EncryptedContentInfo *)*pval;
+
+    if (operation == ASN1_OP_FREE_POST)
+        OPENSSL_clear_free(ec->key, ec->keylen);
+    return 1;
+}
+
+ASN1_NDEF_SEQUENCE_cb(CMS_EncryptedContentInfo, cms_ec_cb) = {
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentType, ASN1_OBJECT),
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentEncryptionAlgorithm, X509_ALGOR),
         ASN1_IMP_OPT(CMS_EncryptedContentInfo, encryptedContent, ASN1_OCTET_STRING_NDEF, 0)
-} static_ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
+} ASN1_NDEF_SEQUENCE_END_cb(CMS_EncryptedContentInfo, CMS_EncryptedContentInfo)
 
 ASN1_SEQUENCE(CMS_KeyTransRecipientInfo) = {
         ASN1_EMBED(CMS_KeyTransRecipientInfo, version, INT32),
