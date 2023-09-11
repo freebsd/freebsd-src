@@ -259,27 +259,32 @@ ARCHENTRY(strcspn, x86_64_v2)
 	movdqu		48(%rsp, %rcx, 1), %xmm3 # second part of set
 
 	/* set is 17--32 bytes in size */
-	pcmpistri	$0, %xmm0, %xmm2	# match in head?
-	jbe		.Lheadmatchv2
-	pcmpistri	$0, %xmm0, %xmm3	# ZF=1 not possible here
+	pcmpistri	$0, %xmm0, %xmm2	# match in first set half?
 	jb		.Lheadmatchv2
+	pcmpistri	$0, %xmm0, %xmm3	# match in second set half or end of string?
+	jbe		.Lheadmatchv2
 
 	ALIGN_TEXT
 0:	movdqa		(%rax), %xmm0
 	pcmpistri	$0, %xmm0, %xmm2
-	jbe		1b
+	jb		2f			# match in first set half?
 	pcmpistri	$0, %xmm0, %xmm3
-	jb		1f			# ZF=1 not possible here
+	jbe		1f			# match in second set half or end of string?
 	movdqa		16(%rax), %xmm0
 	add		$32, %rax
 	pcmpistri	$0, %xmm0, %xmm2
-	jbe		3b
+	jb		3f			# match in first set half?
 	pcmpistri	$0, %xmm0, %xmm3
-	jae		0b			# ZF=1 not possible here
+	ja		0b			# neither match in 2nd half nor string end?
 
-	sub		$16, %rax		# go back to second half
-1:	add		%rcx, %rax
-	sub		%rdi, %rax
+3:	lea		-16(%rax), %rax		# go back to second half
+1:	jc		2f			# jump if match found
+	pxor		%xmm1, %xmm1
+	pcmpeqb		%xmm1, %xmm0		# where is the NUL byte?
+	pmovmskb	%xmm0, %ecx
+	tzcnt		%ecx, %ecx		# location of NUL byte in (%rax)
+2:	sub		%rdi, %rax		# offset of %xmm0 from beginning of string
+	add		%rcx, %rax		# prefix length before match/NUL
 	leave
 	ret
 
