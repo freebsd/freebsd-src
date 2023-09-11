@@ -95,7 +95,7 @@ The function CMS_sign() is a basic CMS signing function whose output will be
 suitable for many purposes. For finer control of the output format the
 B<certs>, B<signcert> and B<pkey> parameters can all be B<NULL> and the
 B<CMS_PARTIAL> flag set. Then one or more signers can be added using the
-function CMS_sign_add1_signer(), non default digests can be used and custom
+function CMS_add1_signer(), non default digests can be used and custom
 attributes added. CMS_final() must then be called to finalize the
 structure if streaming is not enabled.
 
@@ -119,7 +119,7 @@ it is supported for embedded data in OpenSSL 1.0.0 and later.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
