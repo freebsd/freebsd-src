@@ -1477,6 +1477,129 @@ SYSCTL_PROC(_machdep_mitigations_rngds, OID_AUTO, state,
     sysctl_rngds_state_handler, "A",
     "MCU Optimization state");
 
+
+/*
+ * Zenbleed.
+ *
+ * No corresponding errata is publicly listed.  AMD has issued a security
+ * bulletin (AMD-SB-7008), entitled "Cross-Process Information Leak".  This
+ * document lists (as of August 2023) platform firmware's availability target
+ * dates, with most being November/December 2023.  It will then be up to
+ * motherboard manufacturers to produce corresponding BIOS updates, which will
+ * happen with an inevitable lag.  Additionally, for a variety of reasons,
+ * operators might not be able to apply them everywhere due.  On the side of
+ * standalone CPU microcodes, no plans for availability have been published so
+ * far.  However, a developer appearing to be an AMD employee has hardcoded in
+ * Linux revision numbers of future microcodes that are presumed to fix the
+ * vulnerability.
+ *
+ * Given the stability issues encountered with early microcode releases for Rome
+ * (the only microcode publicly released so far) and the absence of official
+ * communication on standalone CPU microcodes, we have opted instead for
+ * matching by default all AMD Zen2 processors which, according to the
+ * vulnerability's discoverer, are all affected (see
+ * https://lock.cmpxchg8b.com/zenbleed.html).  This policy, also adopted by
+ * OpenBSD, may be overriden using the tunable/sysctl
+ * 'machdep.mitigations.zenbleed.enable'.  We might revise it later depending on
+ * official statements, microcode updates' public availability and community
+ * assessment that they actually fix the vulnerability without any instability
+ * side effects.
+ */
+
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, zenbleed,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Zenbleed OS-triggered prevention (via chicken bit)");
+
+/* 2 is auto, see below. */
+int zenbleed_enable = 2;
+
+void
+zenbleed_sanitize_enable(void)
+{
+	/* Default to auto (2). */
+	if (zenbleed_enable < 0 || zenbleed_enable > 2)
+		zenbleed_enable = 2;
+}
+
+static bool
+zenbleed_chicken_bit_applicable(void)
+{
+	/* Concerns only bare-metal AMD Zen2 processors. */
+	return (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x17 &&
+	    CPUID_TO_MODEL(cpu_id) >= 0x30 &&
+	    vm_guest == VM_GUEST_NO);
+}
+
+static bool
+zenbleed_chicken_bit_should_enable(void)
+{
+	/*
+	 * Obey tunable/sysctl.
+	 *
+	 * As explained above, currently, the automatic setting (2) and the "on"
+	 * one (1) have the same effect.  In the future, we might additionally
+	 * check for specific microcode revisions as part of the automatic
+	 * determination.
+	 */
+	return (zenbleed_enable != 0);
+}
+
+void
+zenbleed_check_and_apply(bool all_cpus)
+{
+	bool set;
+
+	if (!zenbleed_chicken_bit_applicable())
+		return;
+
+	set = zenbleed_chicken_bit_should_enable();
+
+	x86_msr_op(MSR_DE_CFG,
+	    (set ? MSR_OP_OR : MSR_OP_ANDNOT) |
+	    (all_cpus ? MSR_OP_RENDEZVOUS_ALL : MSR_OP_LOCAL),
+	    DE_CFG_ZEN2_FP_BACKUP_FIX_BIT, NULL);
+}
+
+static int
+sysctl_zenbleed_enable_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = zenbleed_enable;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	zenbleed_enable = val;
+	zenbleed_sanitize_enable();
+	zenbleed_check_and_apply(true);
+	return (0);
+}
+SYSCTL_PROC(_machdep_mitigations_zenbleed, OID_AUTO, enable, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_zenbleed_enable_handler, "I",
+    "Enable Zenbleed OS-triggered mitigation (chicken bit) "
+    "(0: Force disable, 1: Force enable, 2: Automatic determination)");
+
+static int
+sysctl_zenbleed_state_handler(SYSCTL_HANDLER_ARGS)
+{
+	const char *state;
+
+	if (!zenbleed_chicken_bit_applicable())
+		state = "Not applicable";
+	else if (zenbleed_chicken_bit_should_enable())
+		state = "Mitigation enabled";
+	else
+		state = "Mitigation disabled";
+	return (SYSCTL_OUT(req, state, strlen(state)));
+}
+SYSCTL_PROC(_machdep_mitigations_zenbleed, OID_AUTO, state,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_zenbleed_state_handler, "A",
+    "Zenbleed OS-triggered mitigation (chicken bit) state");
+
+
 /*
  * Enable and restore kernel text write permissions.
  * Callers must ensure that disable_wp()/restore_wp() are executed
