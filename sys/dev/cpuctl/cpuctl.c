@@ -546,6 +546,7 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	hw_mds_recalculate();
 	x86_taa_recalculate();
 	x86_rngds_mitg_recalculate(true);
+	zenbleed_check_and_apply(true);
 	printcpuinfo();
 	return (0);
 }

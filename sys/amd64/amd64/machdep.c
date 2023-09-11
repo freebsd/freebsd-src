@@ -1495,6 +1495,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TUNABLE_INT_FETCH("machdep.mitigations.rndgs.enable",
 	    &x86_rngds_mitg_enable);
 
+	TUNABLE_INT_FETCH("machdep.mitigations.zenbleed.enable",
+	    &zenbleed_enable);
+	zenbleed_sanitize_enable();
+
 	finishidentcpu();	/* Final stage of CPU initialization */
 
 	/*
