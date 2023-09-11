@@ -1633,7 +1633,7 @@ static device_method_t xbd_methods[] = {
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xbd_backend_changed),
 
-	{ 0, 0 } 
+	DEVMETHOD_END
 }; 
 
 static driver_t xbd_driver = { 
