@@ -447,10 +447,7 @@ FreeBSD 5.2           |      |                 |                       |
  |  FreeBSD           |      |                    |                    |
  |   13.2             |      |                    |                    |
  |                    |      |                    |                    |
- *--FreeBSD           |      |                    |                    |
- |   14.0 prerelease  |      |                    |                    |
- |                    |      |                    |                    |
-FreeBSD 15.0-CURRENT  |  NetBSD-current  OpenBSD-current  DragonFly-DEVELOPMENT
+FreeBSD-CURRENT       |  NetBSD-current  OpenBSD-current  DragonFly-DEVELOPMENT
  |                    |      |                    |                    |
  v                    v      v                    v                    v
 
