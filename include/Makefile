@@ -4,7 +4,7 @@
 
 .include <src.opts.mk>
 
-PACKAGE=runtime
+PACKAGE=clibs
 CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
 .if ${MACHINE_CPUARCH} == "amd64"
