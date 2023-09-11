@@ -814,7 +814,6 @@ ena_netmap_tx_cleanup(struct ena_netmap_ctx *ctx)
 		/* acknowledge completion of sent packets */
 		ctx->ring->next_to_clean = ctx->nt;
 		ena_com_comp_ack(ctx->ring->ena_com_io_sq, total_tx_descs);
-		ena_com_update_dev_comp_head(ctx->ring->ena_com_io_cq);
 	}
 }
 

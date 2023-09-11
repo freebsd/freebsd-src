@@ -298,7 +298,6 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 			ena_com_comp_ack(
 			    &adapter->ena_dev->io_sq_queues[ena_qid],
 			    total_done);
-			ena_com_update_dev_comp_head(io_cq);
 			total_done = 0;
 		}
 	} while (likely(--budget));
@@ -313,7 +312,6 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		tx_ring->next_to_clean = next_to_clean;
 		ena_com_comp_ack(&adapter->ena_dev->io_sq_queues[ena_qid],
 		    total_done);
-		ena_com_update_dev_comp_head(io_cq);
 	}
 
 	/*
@@ -690,7 +688,6 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	    ENA_RX_REFILL_THRESH_PACKET);
 
 	if (refill_required > refill_threshold) {
-		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
 		ena_refill_rx_bufs(rx_ring, refill_required);
 	}
 
