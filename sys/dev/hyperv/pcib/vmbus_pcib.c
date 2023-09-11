@@ -1705,9 +1705,9 @@ vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (res == NULL && start + count - 1 == end)
 		res = bus_generic_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags);
-	if (res) {
-		device_printf(dev,"vmbus_pcib_alloc_resource is successful\n");
-	}
+	if (res == NULL)
+		device_printf(dev, "vmbus_pcib_alloc_resource failed\n");
+
 	return (res);
 }
 
