@@ -131,8 +131,8 @@ ATF_TC_WITHOUT_HEAD(snprintf_wN);
 ATF_TC_BODY(snprintf_wN, tc)
 {
 	SNPRINTF_TEST("0", "%w8d", (int8_t)0);
-	SNPRINTF_TEST("-128", "%w8d", (int8_t)CHAR_MIN);
-	SNPRINTF_TEST("127", "%w8d", (int8_t)CHAR_MAX);
+	SNPRINTF_TEST("-128", "%w8d", (int8_t)SCHAR_MIN);
+	SNPRINTF_TEST("127", "%w8d", (int8_t)SCHAR_MAX);
 	SNPRINTF_TEST("0", "%w8u", (uint8_t)0);
 	SNPRINTF_TEST("255", "%w8u", (uint8_t)UCHAR_MAX);
 
