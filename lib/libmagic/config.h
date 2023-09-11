@@ -20,7 +20,9 @@
 #define HAVE_ASPRINTF 1
 
 /* Define to 1 if you have the <byteswap.h> header file. */
+#ifndef __APPLE__ /* Cross building tools on macOS */
 #define HAVE_BYTESWAP_H 1
+#endif
 
 /* Define to 1 if you have the <bzlib.h> header file. */
 /* #undef HAVE_BZLIB_H */
