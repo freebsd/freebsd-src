@@ -306,6 +306,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 		amd64_syscall_ret_flush_l1d_recalc();
 		hw_ssb_recalculate(true);
 		x86_rngds_mitg_recalculate(true);
+		zenbleed_check_and_apply(true);
 
 		AcpiSetFirmwareWakingVector(0, 0);
 	} else {
