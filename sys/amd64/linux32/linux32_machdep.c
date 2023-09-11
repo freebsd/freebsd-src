@@ -31,30 +31,16 @@
  */
 
 #include <sys/param.h>
-#include <sys/fcntl.h>
-#include <sys/imgact.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reg.h>
 #include <sys/syscallsubr.h>
 
-#include <machine/frame.h>
 #include <machine/md_var.h>
-#include <machine/pcb.h>
-#include <machine/psl.h>
-#include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <x86/ifunc.h>
-
-#include <vm/pmap.h>
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-
-#include <security/audit/audit.h>
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
