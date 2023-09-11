@@ -168,18 +168,26 @@ main(int argc, char *argv[])
 	struct ether_addr *ea;
 	const uint8_t *mac = NULL;
 	const char *ifname;
+#if 0
 	int allnodes = 0;
+#endif
 	int c, mode;
 
 	ifname = getenv("WLAN");
 	if (ifname == NULL)
 		ifname = "wlan0";
 	wf = wlanstats_new(ifname, getfmt("default"));
+#if 0
 	while ((c = getopt(argc, argv, "ahi:lm:o:")) != -1) {
+#else
+	while ((c = getopt(argc, argv, "hi:lm:o:")) != -1) {
+#endif
 		switch (c) {
+#if 0
 		case 'a':
 			allnodes++;
 			break;
+#endif
 		case 'h':
 			usage();
 			exit(0);
