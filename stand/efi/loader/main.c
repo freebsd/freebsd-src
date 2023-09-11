@@ -264,8 +264,8 @@ probe_zfs_currdev(uint64_t guid)
 		printf("zfs bootonce: %s\n", buf);
 		set_currdev(buf);
 		setenv("zfs-bootonce", buf, 1);
-		(void)zfs_attach_nvstore(&currdev);
 	}
+	(void)zfs_attach_nvstore(&currdev);
 
 	return (sanity_check_currdev());
 }
