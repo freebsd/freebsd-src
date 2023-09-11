@@ -1172,6 +1172,7 @@
 /* MSR_DE_CFG */
 #define DE_CFG_10H_12H_STACK_POINTER_JUMP_FIX_BIT	0x1
 #define DE_CFG_ZEN_LOAD_STALE_DATA_FIX_BIT		0x2000
+#define DE_CFG_ZEN2_FP_BACKUP_FIX_BIT			0x200
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
