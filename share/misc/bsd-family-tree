@@ -456,9 +456,9 @@ Time
 
 Time tolerance on 4.3BSD and earlier releases can be as large as six months due
 to the uncertainty of historical records; the early release to special groups;
-and the then slowness of tape duplication. Articles and books from the period
-have different dates, since they relied on different sources: newest file in
-the distribution vs public announcement vs first available tape.
+and the slowness of tape duplication. Articles and books from the period have
+different dates, since they relied on different sources: newest file in the
+distribution vs public announcement vs first available tape.
 
 [44B]  McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
 	Quarterman. The Design and Implementation of the 4.4BSD Operating System.
