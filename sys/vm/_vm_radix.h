@@ -31,13 +31,16 @@
 #ifndef __VM_RADIX_H_
 #define __VM_RADIX_H_
 
-#include <sys/_pctrie.h>
+/*
+ * Radix tree node.
+ */
+struct vm_radix_node;
 
 /*
- * Radix tree
+ * Radix tree root.
  */
 struct vm_radix {
-	struct pctrie	rt_trie;
+	struct vm_radix_node	*rt_root;
 };
 
 #endif /* !__VM_RADIX_H_ */
