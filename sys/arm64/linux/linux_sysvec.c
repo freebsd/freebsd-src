@@ -44,10 +44,8 @@
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 
-#include <vm/pmap.h>
 #include <vm/vm.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
