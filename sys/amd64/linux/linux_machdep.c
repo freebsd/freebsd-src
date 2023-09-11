@@ -33,7 +33,6 @@
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
@@ -41,25 +40,13 @@
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
 
-#include <security/mac/mac_framework.h>
-
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-
-#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/psl.h>
-#include <machine/segments.h>
 #include <machine/specialreg.h>
 
 #include <vm/pmap.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_map.h>
 
 #include <x86/ifunc.h>
 #include <x86/reg.h>
