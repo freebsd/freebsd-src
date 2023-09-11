@@ -3777,7 +3777,8 @@ static device_method_t xbb_methods[] = {
 
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xbb_frontend_changed),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t xbb_driver = {

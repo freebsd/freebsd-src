@@ -212,7 +212,8 @@ static device_method_t xenpci_methods[] = {
 	DEVMETHOD(device_attach,	xenpci_attach),
 	DEVMETHOD(device_detach,	xenpci_detach),
 	DEVMETHOD(device_resume,	xenpci_resume),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t xenpci_driver = {

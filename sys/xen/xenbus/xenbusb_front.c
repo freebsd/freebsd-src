@@ -182,7 +182,8 @@ static device_method_t xenbusb_front_methods[] = {
 	/* XenBus Bus Interface */
 	DEVMETHOD(xenbusb_enumerate_type, xenbusb_front_enumerate_type),
 	DEVMETHOD(xenbusb_get_otherend_node, xenbusb_front_get_otherend_node),
-	{ 0, 0 } 
+
+	DEVMETHOD_END
 }; 
 
 DEFINE_CLASS_0(xenbusb_front, xenbusb_front_driver, xenbusb_front_methods,
