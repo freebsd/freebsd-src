@@ -344,10 +344,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 17.0.0git"
+#define PACKAGE_STRING "LLVM 17.0.0rc"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "17.0.0git"
+#define PACKAGE_VERSION "17.0.0rc"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
