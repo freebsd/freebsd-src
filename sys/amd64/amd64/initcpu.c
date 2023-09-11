@@ -193,6 +193,9 @@ init_amd(void)
 			hw_lower_amd64_sharedpage = 1;
 		}
 	}
+
+	/* Zenbleed.  See the comments in 'cpu_machdep.c'. */
+	zenbleed_check_and_apply(false);
 }
 
 /*
