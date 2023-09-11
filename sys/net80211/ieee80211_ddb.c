@@ -506,7 +506,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	db_printf(" ht_sta_assoc %u", vap->iv_ht_sta_assoc);
 	db_printf(" ht40_sta_assoc %u", vap->iv_ht40_sta_assoc);
 	db_printf("\n");
-	db_printf(" nonerpsta %u", vap->iv_nonerpsta);
+	db_printf("\tnonerpsta %u", vap->iv_nonerpsta);
 	db_printf(" longslotsta %u", vap->iv_longslotsta);
 	db_printf(" lastnonerp %d", vap->iv_lastnonerp);
 	db_printf(" lastnonht %d", vap->iv_lastnonht);
@@ -550,7 +550,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf(" phytype %d", ic->ic_phytype);
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
 	db_printf("\n");
-	db_printf(" inact %p", &ic->ic_inact);
+	db_printf("\tinact %p", &ic->ic_inact);
 	db_printf("\n");
 
 	db_printf("\tflags=%b\n", ic->ic_flags, IEEE80211_F_BITS);
