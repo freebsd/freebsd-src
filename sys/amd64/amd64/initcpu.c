@@ -101,7 +101,8 @@ init_amd(void)
 	case 0x10:
 	case 0x12:
 		if ((cpu_feature2 & CPUID2_HV) == 0)
-			wrmsr(MSR_DE_CFG, rdmsr(MSR_DE_CFG) | 1);
+			wrmsr(MSR_DE_CFG, rdmsr(MSR_DE_CFG) |
+			    DE_CFG_10H_12H_STACK_POINTER_JUMP_FIX_BIT);
 		break;
 	}
 
@@ -151,7 +152,7 @@ init_amd(void)
 	    (cpu_feature2 & CPUID2_HV) == 0) {
 		/* 1021 */
 		msr = rdmsr(MSR_DE_CFG);
-		msr |= 0x2000;
+		msr |= DE_CFG_ZEN_LOAD_STALE_DATA_FIX_BIT;
 		wrmsr(MSR_DE_CFG, msr);
 
 		/* 1033 */
