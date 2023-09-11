@@ -2026,7 +2026,7 @@ ena_unmask_all_io_irqs(struct ena_adapter *adapter)
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		ena_qid = ENA_IO_TXQ_IDX(i);
 		io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
-		ena_com_update_intr_reg(&intr_reg, 0, 0, true);
+		ena_com_update_intr_reg(&intr_reg, 0, 0, true, false);
 		tx_ring = &adapter->tx_ring[i];
 		counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 		ena_com_unmask_intr(io_cq, &intr_reg);
