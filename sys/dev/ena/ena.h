@@ -487,6 +487,7 @@ struct ena_adapter {
 	struct ena_stats_dev dev_stats;
 	struct ena_hw_stats hw_stats;
 	struct ena_admin_eni_stats eni_metrics;
+	uint64_t *customer_metrics_array;
 
 	enum ena_regs_reset_reason_types reset_reason;
 };
