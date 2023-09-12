@@ -38,6 +38,7 @@ static void ena_sysctl_add_wd(struct ena_adapter *);
 static void ena_sysctl_add_stats(struct ena_adapter *);
 static void ena_sysctl_add_eni_metrics(struct ena_adapter *);
 static void ena_sysctl_add_customer_metrics(struct ena_adapter *);
+static void ena_sysctl_add_srd_info(struct ena_adapter *);
 static void ena_sysctl_add_tuneables(struct ena_adapter *);
 static void ena_sysctl_add_irq_affinity(struct ena_adapter *);
 /* Kernel option RSS prevents manipulation of key hash and indirection table. */
@@ -59,16 +60,44 @@ static int ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS);
 #define ENA_METRICS_MAX_SAMPLE_INTERVAL 3600
 #define ENA_HASH_KEY_MSG_SIZE (ENA_HASH_KEY_SIZE * 2 + 1)
 
-#define SYSCTL_GSTRING_LEN 64
+#define SYSCTL_GSTRING_LEN 128
 
 #define ENA_METRIC_ENI_ENTRY(stat, desc) { \
         .name = #stat, \
         .description = #desc, \
 }
 
+#define ENA_STAT_ENTRY(stat, desc, stat_type) { \
+        .name = #stat, \
+        .description = #desc, \
+        .stat_offset = offsetof(struct ena_admin_##stat_type, stat) / sizeof(u64), \
+}
+
+#define ENA_STAT_ENA_SRD_ENTRY(stat, desc) \
+	ENA_STAT_ENTRY(stat, desc, ena_srd_stats)
+
 struct ena_hw_metrics {
         char name[SYSCTL_GSTRING_LEN];
         char description[SYSCTL_GSTRING_LEN];
+};
+
+struct ena_srd_metrics {
+        char name[SYSCTL_GSTRING_LEN];
+        char description[SYSCTL_GSTRING_LEN];
+        int stat_offset;
+};
+
+static const struct ena_srd_metrics ena_srd_stats_strings[] = {
+        ENA_STAT_ENA_SRD_ENTRY(
+	    ena_srd_tx_pkts, Number of packets transmitted over ENA SRD),
+        ENA_STAT_ENA_SRD_ENTRY(
+	    ena_srd_eligible_tx_pkts, Number of packets transmitted or could
+	    have been transmitted over ENA SRD),
+        ENA_STAT_ENA_SRD_ENTRY(
+	    ena_srd_rx_pkts, Number of packets received over ENA SRD),
+        ENA_STAT_ENA_SRD_ENTRY(
+	    ena_srd_resource_utilization, Percentage of the ENA SRD resources
+	    that are in use),
 };
 
 static const struct ena_hw_metrics ena_hw_stats_strings[] = {
@@ -91,6 +120,7 @@ static const struct ena_hw_metrics ena_hw_stats_strings[] = {
 #endif
 
 #define ENA_CUSTOMER_METRICS_ARRAY_SIZE      ARRAY_SIZE(ena_hw_stats_strings)
+#define ENA_SRD_METRICS_ARRAY_SIZE           ARRAY_SIZE(ena_srd_stats_strings)
 
 static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ENA driver parameters");
@@ -152,6 +182,9 @@ ena_sysctl_add_nodes(struct ena_adapter *adapter)
 		ena_sysctl_add_customer_metrics(adapter);
 	else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS))
 		ena_sysctl_add_eni_metrics(adapter);
+
+	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO))
+		ena_sysctl_add_srd_info(adapter);
 
 	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
@@ -377,6 +410,47 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &admin_stats->out_of_space, 0, "Queue out of space");
 	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
 	    &admin_stats->no_completion, 0, "Commands not completed");
+}
+
+static void
+ena_sysctl_add_srd_info(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_oid *ena_srd_info;
+	struct sysctl_oid_list *srd_list;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	struct ena_admin_ena_srd_stats *srd_stats_ptr;
+	struct ena_srd_metrics cur_stat_strings;
+
+	int i;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	ena_srd_info = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "ena_srd_info",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ENA's SRD information");
+	srd_list = SYSCTL_CHILDREN(ena_srd_info);
+
+	SYSCTL_ADD_U64(ctx, srd_list, OID_AUTO, "ena_srd_mode",
+            CTLFLAG_RD, &adapter->ena_srd_info.flags, 0,
+            "Describes which ENA-express features are enabled");
+
+	srd_stats_ptr = &adapter->ena_srd_info.ena_srd_stats;
+
+	for (i = 0 ; i < ENA_SRD_METRICS_ARRAY_SIZE; i++) {
+		cur_stat_strings = ena_srd_stats_strings[i];
+		SYSCTL_ADD_U64(ctx, srd_list, OID_AUTO, cur_stat_strings.name,
+		    CTLFLAG_RD, (u64 *)srd_stats_ptr + cur_stat_strings.stat_offset,
+		    0, cur_stat_strings.description);
+	}
 }
 
 static void
