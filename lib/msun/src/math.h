@@ -76,9 +76,9 @@ extern const union __nan_un {
 
 #if __STDC_VERSION__ >= 201112L || __has_extension(c_generic_selections)
 #define	__fp_type_select(x, f, d, ld) __extension__ _Generic((x),	\
-    float: f(x),							\
-    double: d(x),							\
-    long double: ld(x))
+    float: f,								\
+    double: d,								\
+    long double: ld)(x)
 #elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
 #define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(		\
     __builtin_types_compatible_p(__typeof(x), long double), ld(x),	\
