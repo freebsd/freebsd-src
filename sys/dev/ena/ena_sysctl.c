@@ -48,14 +48,14 @@ static int ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_irq_base_cpu(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_irq_cpu_stride(SYSCTL_HANDLER_ARGS);
-static int ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS);
+static int ena_sysctl_metrics_interval(SYSCTL_HANDLER_ARGS);
 #ifndef RSS
 static int ena_sysctl_rss_key(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS);
 #endif
 
-/* Limit max ENI sample rate to be an hour. */
-#define ENI_METRICS_MAX_SAMPLE_INTERVAL 3600
+/* Limit max ENA sample rate to be an hour. */
+#define ENA_METRICS_MAX_SAMPLE_INTERVAL 3600
 #define ENA_HASH_KEY_MSG_SIZE (ENA_HASH_KEY_SIZE * 2 + 1)
 
 static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -368,16 +368,6 @@ ena_sysctl_add_eni_metrics(struct ena_adapter *adapter)
 	SYSCTL_ADD_U64(ctx, eni_list, OID_AUTO, "linklocal_allowance_exceeded",
 	    CTLFLAG_RD, &eni_metrics->linklocal_allowance_exceeded, 0,
 	    "Linklocal packet rate allowance exceeded");
-
-	/*
-	 * Tuneable, which determines how often ENI metrics will be read.
-	 * 0 means it's turned off. Maximum allowed value is limited by:
-	 * ENI_METRICS_MAX_SAMPLE_INTERVAL.
-	 */
-	SYSCTL_ADD_PROC(ctx, eni_list, OID_AUTO, "sample_interval",
-	    CTLTYPE_U16 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
-	    ena_sysctl_eni_metrics_interval, "SU",
-	    "Interval in seconds for updating ENI emetrics. 0 turns off the update.");
 }
 
 static void
@@ -411,6 +401,16 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "io_queues_nb",
 	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
 	    ena_sysctl_io_queues_nb, "I", "Number of IO queues.");
+
+	/*
+	 * Tuneable, which determines how often ENA metrics will be read.
+	 * 0 means it's turned off. Maximum allowed value is limited by:
+	 * ENA_METRICS_MAX_SAMPLE_INTERVAL.
+	 */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "stats_sample_interval",
+	    CTLTYPE_U16 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_metrics_interval, "SU",
+	    "Interval in seconds for updating Netword interface metrics. 0 turns off the update.");
 }
 
 /* Kernel option RSS prevents manipulation of key hash and indirection table. */
@@ -694,7 +694,7 @@ unlock:
 }
 
 static int
-ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
+ena_sysctl_metrics_interval(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
 	uint16_t interval;
@@ -708,32 +708,32 @@ ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_wire_old_buffer(req, sizeof(interval));
 	if (error == 0) {
-		interval = adapter->eni_metrics_sample_interval;
+		interval = adapter->metrics_sample_interval;
 		error = sysctl_handle_16(oidp, &interval, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
 		goto unlock;
 
-	if (interval > ENI_METRICS_MAX_SAMPLE_INTERVAL) {
+	if (interval > ENA_METRICS_MAX_SAMPLE_INTERVAL) {
 		ena_log(adapter->pdev, ERR,
-		    "ENI metrics update interval is out of range - maximum allowed value: %d seconds\n",
-		    ENI_METRICS_MAX_SAMPLE_INTERVAL);
+		    "ENA metrics update interval is out of range - maximum allowed value: %d seconds\n",
+		    ENA_METRICS_MAX_SAMPLE_INTERVAL);
 		error = EINVAL;
 		goto unlock;
 	}
 
 	if (interval == 0) {
 		ena_log(adapter->pdev, INFO,
-		    "ENI metrics update is now turned off\n");
+		    "ENA metrics update is now turned off\n");
 		bzero(&adapter->eni_metrics, sizeof(adapter->eni_metrics));
 	} else {
 		ena_log(adapter->pdev, INFO,
-		    "ENI metrics update interval is set to: %" PRIu16
+		    "ENA metrics update interval is set to: %" PRIu16
 		    " seconds\n",
 		    interval);
 	}
 
-	adapter->eni_metrics_sample_interval = interval;
+	adapter->metrics_sample_interval = interval;
 
 unlock:
 	ENA_LOCK_UNLOCK();
