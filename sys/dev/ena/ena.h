@@ -480,8 +480,8 @@ struct ena_adapter {
 	uint32_t missing_tx_threshold;
 	bool disable_meta_caching;
 
-	uint16_t eni_metrics_sample_interval;
-	uint16_t eni_metrics_sample_interval_cnt;
+	uint16_t metrics_sample_interval;
+	uint16_t metrics_sample_interval_cnt;
 
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
