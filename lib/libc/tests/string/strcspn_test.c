@@ -148,10 +148,74 @@ ATF_TC_BODY(set_alignments, tc)
 	test_set_alignments(buf, 30, NOMATCH);
 }
 
+#ifndef STRSPN
+/* test all positions in which set could match buf */
+static void
+test_match_positions(char *buf,  char *set, size_t buflen, size_t setlen)
+{
+	size_t i, j, outcome;
+
+	memset(buf, '-', buflen);
+
+	for (i = 0; i < setlen; i++)
+		set[i] = 'A' + i;
+
+	buf[buflen] = '\0';
+	set[setlen] = '\0';
+
+	/*
+	 * Check for (mis)match at buffer position i
+	 * against set position j.
+	 */
+	for (i = 0; i < buflen; i++) {
+		for (j = 0; j < setlen; j++) {
+			buf[i] = set[j];
+
+			outcome = strcspn(buf, set);
+			ATF_CHECK_EQ_MSG(i, outcome,
+			    "strcspn(\"%s\", \"%s\") = %zu != %zu",
+			    buf, set, outcome, i);
+		}
+
+		buf[i] = '-';
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(match_positions);
+ATF_TC_BODY(match_positions, tc)
+{
+	char buf[129], set[65];
+
+	test_match_positions(buf, set, 128, 64);
+	test_match_positions(buf, set, 64, 64);
+	test_match_positions(buf, set, 32, 64);
+	test_match_positions(buf, set, 16, 64);
+	test_match_positions(buf, set, 8, 64);
+	test_match_positions(buf, set, 128, 32);
+	test_match_positions(buf, set, 64, 32);
+	test_match_positions(buf, set, 32, 32);
+	test_match_positions(buf, set, 16, 32);
+	test_match_positions(buf, set, 8, 32);
+	test_match_positions(buf, set, 128, 16);
+	test_match_positions(buf, set, 64, 16);
+	test_match_positions(buf, set, 32, 16);
+	test_match_positions(buf, set, 16, 16);
+	test_match_positions(buf, set, 8, 16);
+	test_match_positions(buf, set, 128, 8);
+	test_match_positions(buf, set, 64, 8);
+	test_match_positions(buf, set, 32, 8);
+	test_match_positions(buf, set, 16, 8);
+	test_match_positions(buf, set, 8, 8);
+}
+#endif /* !defined(STRSPN) */
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, buf_alignments);
 	ATF_TP_ADD_TC(tp, set_alignments);
+#ifndef STRSPN
+	ATF_TP_ADD_TC(tp, match_positions);
+#endif
 
 	return (atf_no_error());
 }
