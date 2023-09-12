@@ -1624,10 +1624,13 @@ static u8 irdma_iw_get_vlan_prio(u32 *loc_addr, u8 prio, bool ipv4)
  * vlan id and mac for that address.
  */
 if_t
-irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
+irdma_netdev_vlan_ipv6(struct iw_cm_id *cm_id, u32 *addr, u16 *vlan_id, u8 *mac)
 {
 	if_t ip_dev = NULL;
 	struct in6_addr laddr6;
+#ifdef VIMAGE
+	struct vnet *vnet = irdma_cmid_to_vnet(cm_id);
+#endif
 	struct ifaddr *ifa;
 	u16 scope_id = 0;
 
@@ -1641,7 +1644,11 @@ irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 	    IN6_IS_ADDR_MC_INTFACELOCAL(&laddr6))
 		scope_id = ntohs(laddr6.__u6_addr.__u6_addr16[1]);
 
+#ifdef VIMAGE
+	ip_dev = ip6_ifp_find(vnet, laddr6, scope_id);
+#else
 	ip_dev = ip6_ifp_find(&init_net, laddr6, scope_id);
+#endif
 	if (ip_dev) {
 		if (vlan_id)
 			*vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
@@ -1658,12 +1665,19 @@ irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
  * @addr: local IPv4 address
  */
 u16
-irdma_get_vlan_ipv4(u32 *addr)
+irdma_get_vlan_ipv4(struct iw_cm_id *cm_id, u32 *addr)
 {
 	if_t netdev;
+#ifdef VIMAGE
+	struct vnet *vnet = irdma_cmid_to_vnet(cm_id);
+#endif
 	u16 vlan_id = 0xFFFF;
 
+#ifdef VIMAGE
+	netdev = ip_ifp_find(vnet, htonl(addr[0]));
+#else
 	netdev = ip_ifp_find(&init_net, htonl(addr[0]));
+#endif
 	if (netdev) {
 		vlan_id = rdma_vlan_dev_vlan_id(netdev);
 		dev_put(netdev);
@@ -2060,8 +2074,7 @@ irdma_cm_create_ah(struct irdma_cm_node *cm_node, bool wait)
 	struct irdma_ah_info ah_info = {0};
 	struct irdma_device *iwdev = cm_node->iwdev;
 #ifdef VIMAGE
-	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
-	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
+	struct vnet *vnet = irdma_cmid_to_vnet(cm_node->cm_id);
 #endif
 
 	ether_addr_copy(ah_info.mac_addr, if_getlladdr(iwdev->netdev));
@@ -3520,11 +3533,11 @@ irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (((struct sockaddr_in *)&cm_id->local_addr)->sin_family == AF_INET) {
 		cm_node->ipv4 = true;
-		cm_node->vlan_id = irdma_get_vlan_ipv4(cm_node->loc_addr);
+		cm_node->vlan_id = irdma_get_vlan_ipv4(cm_id, cm_node->loc_addr);
 	} else {
 		cm_node->ipv4 = false;
-		irdma_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id,
-				       NULL);
+		irdma_netdev_vlan_ipv6(cm_id, cm_node->loc_addr,
+				       &cm_node->vlan_id, NULL);
 	}
 	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM, "Accept vlan_id=%d\n",
 		    cm_node->vlan_id);
@@ -3719,7 +3732,7 @@ irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_info.rem_addr[0] = ntohl(raddr->sin_addr.s_addr);
 		cm_info.loc_port = ntohs(laddr->sin_port);
 		cm_info.rem_port = ntohs(raddr->sin_port);
-		cm_info.vlan_id = irdma_get_vlan_ipv4(cm_info.loc_addr);
+		cm_info.vlan_id = irdma_get_vlan_ipv4(cm_id, cm_info.loc_addr);
 	} else {
 		if (iwdev->vsi.mtu < IRDMA_MIN_MTU_IPV6)
 			return -EINVAL;
@@ -3731,7 +3744,7 @@ irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				    raddr6->sin6_addr.__u6_addr.__u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		cm_info.rem_port = ntohs(raddr6->sin6_port);
-		irdma_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id, NULL);
+		irdma_netdev_vlan_ipv6(cm_id, cm_info.loc_addr, &cm_info.vlan_id, NULL);
 	}
 	cm_info.cm_id = cm_id;
 	cm_info.qh_qpid = iwdev->vsi.ilq->qp_id;
@@ -3846,7 +3859,7 @@ irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_info.loc_port = ntohs(laddr->sin_port);
 
 		if (laddr->sin_addr.s_addr != htonl(INADDR_ANY)) {
-			cm_info.vlan_id = irdma_get_vlan_ipv4(cm_info.loc_addr);
+			cm_info.vlan_id = irdma_get_vlan_ipv4(cm_id, cm_info.loc_addr);
 		} else {
 			cm_info.vlan_id = 0xFFFF;
 			wildcard = true;
@@ -3860,7 +3873,7 @@ irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 				    laddr6->sin6_addr.__u6_addr.__u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		if (!IN6_IS_ADDR_UNSPECIFIED(&laddr6->sin6_addr)) {
-			irdma_netdev_vlan_ipv6(cm_info.loc_addr,
+			irdma_netdev_vlan_ipv6(cm_id, cm_info.loc_addr,
 					       &cm_info.vlan_id, NULL);
 		} else {
 			cm_info.vlan_id = 0xFFFF;
