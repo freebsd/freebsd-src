@@ -106,14 +106,13 @@
 #define HWQUIRK_PCLK		8
 
 static struct ofw_compat_data compat_data[] = {
-	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR | HWQUIRK_TXCLK },
-	{ "cdns,zynqmp-gem",		HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
+	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR | HWQUIRK_TXCLK }, /* Deprecated */
+	{ "cdns,zynqmp-gem",		HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK }, /* Deprecated */
+	{ "xlnx,zynq-gem",		HWQUIRK_RXHANGWAR | HWQUIRK_TXCLK },
+	{ "xlnx,zynqmp-gem",		HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
 	{ "microchip,mpfs-mss-gem",	HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
 	{ "sifive,fu540-c000-gem",	HWQUIRK_PCLK },
 	{ "sifive,fu740-c000-gem",	HWQUIRK_PCLK },
-	{ "cdns,gem",			HWQUIRK_NONE },
-	{ "cdns,macb",			HWQUIRK_NONE },
-	{ "cadence,gem",		HWQUIRK_NONE },
 	{ NULL,				0 }
 };
 
