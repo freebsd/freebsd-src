@@ -393,8 +393,7 @@ irdma_get_dst_mac(struct irdma_cm_node *cm_node, struct sockaddr *dst_sin, u8 *d
 {
 	struct ifnet *netdev = cm_node->iwdev->netdev;
 #ifdef VIMAGE
-	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
-	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
+	struct vnet *vnet = irdma_cmid_to_vnet(cm_node->cm_id);
 #endif
 	struct ifnet *ifp;
 	struct llentry *lle;
@@ -492,8 +491,7 @@ irdma_resolve_neigh_lpb_chk(struct irdma_device *iwdev, struct irdma_cm_node *cm
 			    struct irdma_cm_info *cm_info)
 {
 #ifdef VIMAGE
-	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
-	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
+	struct vnet *vnet = irdma_cmid_to_vnet(cm_node->cm_id);
 #endif
 	int arpindex;
 	int oldarpindex;
