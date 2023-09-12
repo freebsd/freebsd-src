@@ -3336,7 +3336,7 @@ irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	if (!ipv6_addr_v4mapped((struct in6_addr *)ibgid)) {
 		irdma_copy_ip_ntohl(ip_addr,
 				    sgid_addr.saddr_in6.sin6_addr.__u6_addr.__u6_addr32);
-		irdma_netdev_vlan_ipv6(ip_addr, &vlan_id, NULL);
+		irdma_netdev_vlan_ipv6(iwqp->cm_id, ip_addr, &vlan_id, NULL);
 		ipv4 = false;
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "qp_id=%d, IP6address=%x:%x:%x:%x\n", ibqp->qp_num,
@@ -3345,7 +3345,7 @@ irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	} else {
 		ip_addr[0] = ntohl(sgid_addr.saddr_in.sin_addr.s_addr);
 		ipv4 = true;
-		vlan_id = irdma_get_vlan_ipv4(ip_addr);
+		vlan_id = irdma_get_vlan_ipv4(iwqp->cm_id, ip_addr);
 		irdma_mcast_mac_v4(ip_addr, dmac);
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "qp_id=%d, IP4address=%x, MAC=%x:%x:%x:%x:%x:%x\n",
