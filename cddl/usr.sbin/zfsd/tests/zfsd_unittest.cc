@@ -766,3 +766,40 @@ TEST_F(ReEvaluateByGuidTest, ReEvaluateByGuid_five)
 	delete CaseFile4;
 	delete CaseFile5;
 }
+
+/*
+ * Test VdevIterator
+ */
+class VdevIteratorTest : public ::testing::Test
+{
+};
+
+bool VdevIteratorTestCB(Vdev &vdev, void *cbArg) {
+	return (false);
+}
+
+/*
+ * VdevIterator::Next should not crash when run on a pool that has a previously
+ * removed vdev.  Regression for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=273663
+ */
+TEST_F(VdevIteratorTest, VdevRemoval)
+{
+	nvlist_t* poolConfig, *rootVdev;
+
+	ASSERT_EQ(0, nvlist_alloc(&rootVdev, NV_UNIQUE_NAME, 0));
+	ASSERT_EQ(0, nvlist_add_uint64(rootVdev, ZPOOL_CONFIG_GUID, 0x5678));
+	/*
+	 * Note: pools with previously-removed top-level VDEVs will contain a
+	 * TLV in their labels that has 0 children.
+	 */
+	ASSERT_EQ(0, nvlist_add_nvlist_array(rootVdev, ZPOOL_CONFIG_CHILDREN,
+				NULL, 0));
+	ASSERT_EQ(0, nvlist_alloc(&poolConfig, NV_UNIQUE_NAME, 0));
+	ASSERT_EQ(0, nvlist_add_uint64(poolConfig,
+			ZPOOL_CONFIG_POOL_GUID, 0x1234));
+	ASSERT_EQ(0, nvlist_add_nvlist(poolConfig, ZPOOL_CONFIG_VDEV_TREE,
+				rootVdev));
+
+	VdevIterator(poolConfig).Each(VdevIteratorTestCB, NULL);
+}
