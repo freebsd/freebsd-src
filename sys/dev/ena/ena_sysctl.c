@@ -37,6 +37,7 @@
 static void ena_sysctl_add_wd(struct ena_adapter *);
 static void ena_sysctl_add_stats(struct ena_adapter *);
 static void ena_sysctl_add_eni_metrics(struct ena_adapter *);
+static void ena_sysctl_add_customer_metrics(struct ena_adapter *);
 static void ena_sysctl_add_tuneables(struct ena_adapter *);
 static void ena_sysctl_add_irq_affinity(struct ena_adapter *);
 /* Kernel option RSS prevents manipulation of key hash and indirection table. */
@@ -57,6 +58,39 @@ static int ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS);
 /* Limit max ENA sample rate to be an hour. */
 #define ENA_METRICS_MAX_SAMPLE_INTERVAL 3600
 #define ENA_HASH_KEY_MSG_SIZE (ENA_HASH_KEY_SIZE * 2 + 1)
+
+#define SYSCTL_GSTRING_LEN 64
+
+#define ENA_METRIC_ENI_ENTRY(stat, desc) { \
+        .name = #stat, \
+        .description = #desc, \
+}
+
+struct ena_hw_metrics {
+        char name[SYSCTL_GSTRING_LEN];
+        char description[SYSCTL_GSTRING_LEN];
+};
+
+static const struct ena_hw_metrics ena_hw_stats_strings[] = {
+        ENA_METRIC_ENI_ENTRY(
+	    bw_in_allowance_exceeded, Inbound BW allowance exceeded),
+        ENA_METRIC_ENI_ENTRY(
+	    bw_out_allowance_exceeded, Outbound BW allowance exceeded),
+        ENA_METRIC_ENI_ENTRY(
+	    pps_allowance_exceeded, PPS allowance exceeded),
+        ENA_METRIC_ENI_ENTRY(
+	    conntrack_allowance_exceeded, Connection tracking allowance exceeded),
+        ENA_METRIC_ENI_ENTRY(
+	    linklocal_allowance_exceeded, Linklocal packet rate allowance),
+        ENA_METRIC_ENI_ENTRY(
+	    conntrack_allowance_available, Number of available conntracks),
+};
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
+#define ENA_CUSTOMER_METRICS_ARRAY_SIZE      ARRAY_SIZE(ena_hw_stats_strings)
 
 static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ENA driver parameters");
@@ -98,12 +132,29 @@ SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
 
 int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
 
+int ena_sysctl_allocate_customer_metrics_buffer(struct ena_adapter *adapter)
+{
+	int rc = 0;
+
+	adapter->customer_metrics_array = malloc((sizeof(u64) * ENA_CUSTOMER_METRICS_ARRAY_SIZE),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (unlikely(adapter->customer_metrics_array == NULL))
+		rc = ENOMEM;
+
+	return rc;
+}
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
 {
+	struct ena_com_dev *dev = adapter->ena_dev;
+
+	if (ena_com_get_cap(dev, ENA_ADMIN_CUSTOMER_METRICS))
+		ena_sysctl_add_customer_metrics(adapter);
+	else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS))
+		ena_sysctl_add_eni_metrics(adapter);
+
 	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
-	ena_sysctl_add_eni_metrics(adapter);
 	ena_sysctl_add_tuneables(adapter);
 	ena_sysctl_add_irq_affinity(adapter);
 #ifndef RSS
@@ -326,6 +377,40 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &admin_stats->out_of_space, 0, "Queue out of space");
 	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
 	    &admin_stats->no_completion, 0, "Commands not completed");
+}
+
+static void
+ena_sysctl_add_customer_metrics(struct ena_adapter *adapter)
+{
+	device_t dev;
+	struct ena_com_dev *ena_dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	struct sysctl_oid *customer_metric;
+	struct sysctl_oid_list *customer_list;
+
+	int i;
+
+	dev = adapter->pdev;
+	ena_dev = adapter->ena_dev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+	customer_metric = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "customer_metrics",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ENA's customer metrics");
+	customer_list = SYSCTL_CHILDREN(customer_metric);
+
+	for (i = 0; i < ENA_CUSTOMER_METRICS_ARRAY_SIZE; i++) {
+	        if (ena_com_get_customer_metric_support(ena_dev, i)) {
+	                SYSCTL_ADD_U64(ctx, customer_list, OID_AUTO, ena_hw_stats_strings[i].name,
+	                    CTLFLAG_RD, &adapter->customer_metrics_array[i], 0,
+	                    ena_hw_stats_strings[i].description);
+	         }
+	 }
 }
 
 static void
