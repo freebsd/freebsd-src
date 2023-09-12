@@ -166,6 +166,7 @@ static int ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *);
 static void ena_update_on_link_change(void *, struct ena_admin_aenq_entry *);
 static void unimplemented_aenq_handler(void *, struct ena_admin_aenq_entry *);
 static int ena_copy_eni_metrics(struct ena_adapter *);
+static int ena_copy_srd_metrics(struct ena_adapter *);
 static int ena_copy_customer_metrics(struct ena_adapter *);
 static void ena_timer_service(void *);
 
@@ -3308,6 +3309,12 @@ ena_copy_eni_metrics(struct ena_adapter *adapter)
 }
 
 static int
+ena_copy_srd_metrics(struct ena_adapter *adapter)
+{
+	return ena_com_get_ena_srd_info(adapter->ena_dev, &adapter->ena_srd_info);
+}
+
+static int
 ena_copy_customer_metrics(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *dev;
@@ -3568,6 +3575,9 @@ ena_metrics_task(void *arg, int pending)
 		(void)ena_copy_customer_metrics(adapter);
 	else if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS))
 		(void)ena_copy_eni_metrics(adapter);
+
+	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO))
+		(void)ena_copy_srd_metrics(adapter);
 
 	ENA_LOCK_UNLOCK();
 }
