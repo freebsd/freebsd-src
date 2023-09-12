@@ -3322,19 +3322,19 @@ ena_timer_service(void *data)
 	check_for_empty_rx_ring(adapter);
 
 	/*
-	 * User controller update of the ENI metrics.
+	 * User controller update of the ENA metrics.
 	 * If the delay was set to 0, then the stats shouldn't be updated at
 	 * all.
-	 * Otherwise, wait 'eni_metrics_sample_interval' seconds, before
+	 * Otherwise, wait 'metrics_sample_interval' seconds, before
 	 * updating stats.
 	 * As timer service is executed every second, it's enough to increment
 	 * appropriate counter each time the timer service is executed.
 	 */
-	if ((adapter->eni_metrics_sample_interval != 0) &&
-	    (++adapter->eni_metrics_sample_interval_cnt >=
-	     adapter->eni_metrics_sample_interval)) {
+	if ((adapter->metrics_sample_interval != 0) &&
+	    (++adapter->metrics_sample_interval_cnt >=
+	    adapter->metrics_sample_interval)) {
 		taskqueue_enqueue(adapter->metrics_tq, &adapter->metrics_task);
-		adapter->eni_metrics_sample_interval_cnt = 0;
+		adapter->metrics_sample_interval_cnt = 0;
 	}
 
 
