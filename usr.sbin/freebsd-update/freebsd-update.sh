@@ -2894,6 +2894,15 @@ backup_kernel () {
 	set +f
 }
 
+# Check for and remove an existing directory that conflicts with the file or
+# symlink that we are going to install.
+dir_conflict () {
+	if [ -d "$1" ]; then
+		echo "Removing conflicting directory $1"
+		rm -rf -- "$1"
+	fi
+}
+
 # Install new files
 install_from_index () {
 	# First pass: Do everything apart from setting file flags.  We
@@ -2914,6 +2923,7 @@ install_from_index () {
 			    -m ${PERM} ${BASEDIR}/${FPATH}
 			;;
 		f)
+			dir_conflict "${BASEDIR}/${FPATH}"
 			if [ -z "${LINK}" ]; then
 				# Create a file, without setting flags.
 				gunzip < files/${HASH}.gz > ${HASH}
@@ -2926,6 +2936,7 @@ install_from_index () {
 			fi
 			;;
 		L)
+			dir_conflict "${BASEDIR}/${FPATH}"
 			# Create a symlink
 			ln -sfh ${HASH} ${BASEDIR}/${FPATH}
 			;;
@@ -2962,10 +2973,14 @@ install_delete () {
 			rmdir ${BASEDIR}/${FPATH}
 			;;
 		f)
-			rm ${BASEDIR}/${FPATH}
+			if [ -f "${BASEDIR}/${FPATH}" ]; then
+				rm "${BASEDIR}/${FPATH}"
+			fi
 			;;
 		L)
-			rm ${BASEDIR}/${FPATH}
+			if [ -L "${BASEDIR}/${FPATH}" ]; then
+				rm "${BASEDIR}/${FPATH}"
+			fi
 			;;
 		esac
 	done < killfiles
