@@ -40,6 +40,7 @@
 void ena_sysctl_add_nodes(struct ena_adapter *adapter);
 void ena_sysctl_update_queue_node_nb(struct ena_adapter *adapter, int old,
     int new);
+int ena_sysctl_allocate_customer_metrics_buffer(struct ena_adapter *adapter);
 
 extern int ena_enable_9k_mbufs;
 #define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)

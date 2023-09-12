@@ -166,6 +166,7 @@ static int ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *);
 static void ena_update_on_link_change(void *, struct ena_admin_aenq_entry *);
 static void unimplemented_aenq_handler(void *, struct ena_admin_aenq_entry *);
 static int ena_copy_eni_metrics(struct ena_adapter *);
+static int ena_copy_customer_metrics(struct ena_adapter *);
 static void ena_timer_service(void *);
 
 static char ena_version[] = ENA_DEVICE_NAME ENA_DRV_MODULE_NAME
@@ -3306,6 +3307,25 @@ ena_copy_eni_metrics(struct ena_adapter *adapter)
 	return (rc);
 }
 
+static int
+ena_copy_customer_metrics(struct ena_adapter *adapter)
+{
+	struct ena_com_dev *dev;
+	u32 supported_metrics_count;
+	int rc, len;
+
+	dev = adapter->ena_dev;
+
+	supported_metrics_count = ena_com_get_customer_metric_count(dev);
+	len = supported_metrics_count * sizeof(u64);
+
+	/* Fill the data buffer */
+	rc = ena_com_get_customer_metrics(adapter->ena_dev,
+	    (char *)(adapter->customer_metrics_array), len);
+
+	return (rc);
+}
+
 static void
 ena_timer_service(void *data)
 {
@@ -3543,7 +3563,12 @@ ena_metrics_task(void *arg, int pending)
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
 	ENA_LOCK_LOCK();
-	(void)ena_copy_eni_metrics(adapter);
+
+	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_CUSTOMER_METRICS))
+		(void)ena_copy_customer_metrics(adapter);
+	else if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS))
+		(void)ena_copy_eni_metrics(adapter);
+
 	ENA_LOCK_UNLOCK();
 }
 
@@ -3757,6 +3782,18 @@ ena_attach(device_t pdev)
 	/* initialize rings basic information */
 	ena_init_io_rings(adapter);
 
+	rc = ena_com_allocate_customer_metrics_buffer(ena_dev);
+	if (rc) {
+		ena_log(pdev, ERR, "Failed to allocate customer metrics buffer.\n");
+		goto err_msix_free;
+	}
+
+	rc = ena_sysctl_allocate_customer_metrics_buffer(adapter);
+	if (unlikely(rc)){
+		ena_log(pdev, ERR, "Failed to allocate sysctl customer metrics buffer.\n");
+		goto err_metrics_buffer_destroy;
+	}
+
 	/* Initialize statistics */
 	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
 	    sizeof(struct ena_stats_dev));
@@ -3768,7 +3805,7 @@ ena_attach(device_t pdev)
 	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
 	if (unlikely(rc != 0)) {
 		ena_log(pdev, ERR, "Error with network interface setup\n");
-		goto err_msix_free;
+		goto err_customer_metrics_alloc;
 	}
 
 	/* Initialize reset task queue */
@@ -3806,6 +3843,10 @@ ena_attach(device_t pdev)
 err_detach:
 	ether_ifdetach(adapter->ifp);
 #endif /* DEV_NETMAP */
+err_customer_metrics_alloc:
+	free(adapter->customer_metrics_array, M_DEVBUF);
+err_metrics_buffer_destroy:
+	ena_com_delete_customer_metrics_buffer(ena_dev);
 err_msix_free:
 	ena_free_stats(adapter);
 	ena_com_dev_reset(adapter->ena_dev, ENA_REGS_RESET_INIT_ERR);
@@ -3903,6 +3944,10 @@ ena_detach(device_t pdev)
 		ena_com_rss_destroy(ena_dev);
 
 	ena_com_delete_host_info(ena_dev);
+
+	free(adapter->customer_metrics_array, M_DEVBUF);
+
+	ena_com_delete_customer_metrics_buffer(ena_dev);
 
 	if_free(adapter->ifp);
 
