@@ -182,6 +182,12 @@ and/or ports.
 	after upgrading to restore all the component that were previously
 	installed.
 
+20221002:
+	OPIE has been removed from the base system.  If needed, it can
+	be installed from ports (security/opie) or packages (opie).
+	Otherwise, make sure that your PAM policies do not reference
+	pam_opie or pam_opieaccess.
+
 20220610:
 	LinuxKPI pm.h changes require an update to the latest drm-kmod version
 	before re-compiling to avoid errors.

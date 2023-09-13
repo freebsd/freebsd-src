@@ -148,6 +148,13 @@ f0bc4ed144fc:
 	instructions may be probed instead of logical entry and return
 	instructions.  The provider is currently amd64-only.
 
+0aa2700123e2:
+	OPIE has been removed from the base system.  If you still wish
+	to use it, install the security/opie port.  Otherwise, make
+	sure to remove or comment out any mention of pam_opie and
+	pam_opieaccess from your PAM policies (etcupdate will normally
+	take care of this for the stock policies).
+
 0eea46fb1f83:
 	Removed telnetd.
 
