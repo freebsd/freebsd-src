@@ -818,11 +818,9 @@ sctp_flush(struct socket *so, int how)
 		return (0);
 	}
 	stcb = LIST_FIRST(&inp->sctp_asoc_list);
-	if (stcb == NULL) {
-		SCTP_INP_WUNLOCK(inp);
-		return (ENOTCONN);
+	if (stcb != NULL) {
+		SCTP_TCB_LOCK(stcb);
 	}
-	SCTP_TCB_LOCK(stcb);
 	SCTP_INP_READ_LOCK(inp);
 	inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_CANT_READ;
 	SOCK_LOCK(so);
@@ -848,7 +846,7 @@ sctp_flush(struct socket *so, int how)
 	}
 	SOCK_UNLOCK(so);
 	SCTP_INP_READ_UNLOCK(inp);
-	if (need_to_abort) {
+	if (need_to_abort && (stcb != NULL)) {
 		inp->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 		SCTP_INP_WUNLOCK(inp);
 		op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
@@ -857,7 +855,9 @@ sctp_flush(struct socket *so, int how)
 		NET_EPOCH_EXIT(et);
 		return (ECONNABORTED);
 	}
-	SCTP_TCB_UNLOCK(stcb);
+	if (stcb != NULL) {
+		SCTP_TCB_UNLOCK(stcb);
+	}
 	SCTP_INP_WUNLOCK(inp);
 	return (0);
 }
