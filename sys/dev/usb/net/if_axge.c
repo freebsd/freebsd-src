@@ -959,8 +959,16 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	hdr_off = pkt_end = (rxhdr >> 16) & 0xFFFF;
 
 	/*
+	 * On older firmware:
 	 * <----------------------- actlen ------------------------>
 	 * [frame #0]...[frame #N][pkt_hdr #0]...[pkt_hdr #N][rxhdr]
+	 *
+	 * On newer firmware:
+	 * <----------------------- actlen -----------------
+	 * [frame #0]...[frame #N][pkt_hdr #0][dummy_hdr]...
+	 *                         -------------------------------->
+	 *                         ...[pkt_hdr #N][dummy_hdr][rxhdr]
+	 *
 	 * Each RX frame would be aligned on 8 bytes boundary. If
 	 * RCR_IPE bit is set in AXGE_RCR register, there would be 2
 	 * padding bytes and 6 dummy bytes(as the padding also should
@@ -968,6 +976,10 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	 * IP header on 32bits boundary.  Driver don't set RCR_IPE bit
 	 * of AXGE_RCR register, so there should be no padding bytes
 	 * which simplifies RX logic a lot.
+	 *
+	 * Further, newer firmware interweaves dummy headers that have
+	 * pktlen == 0 and should be skipped without being seen as
+	 * dropped frames.
 	 */
 	while (pkt_cnt--) {
 		/* verify the header offset */
@@ -978,6 +990,12 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 		usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
 		pkt_hdr.status = le32toh(pkt_hdr.status);
 		pktlen = AXGE_RXBYTES(pkt_hdr.status);
+		hdr_off += sizeof(pkt_hdr);
+
+		/* Skip dummy packet header. */
+		if (pktlen == 0)
+			continue;
+
 		if (pos + pktlen > pkt_end) {
 			DPRINTF("Data position reached end\n");
 			break;
@@ -989,7 +1007,6 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 		} else
 			axge_rxeof(ue, pc, pos, pktlen, pkt_hdr.status);
 		pos += (pktlen + 7) & ~7;
-		hdr_off += sizeof(pkt_hdr);
 	}
 }
 
