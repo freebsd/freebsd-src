@@ -1843,6 +1843,7 @@ mmu_radix_setup_pagetables(vm_size_t hwphyssz)
 
 	bzero(kernel_pmap, sizeof(struct pmap));
 	PMAP_LOCK_INIT(kernel_pmap);
+	vm_radix_init(&kernel_pmap->pm_radix);
 
 	ptpages = allocpages(3);
 	l1phys = moea64_bootstrap_alloc(RADIX_PGD_SIZE, RADIX_PGD_SIZE);
