@@ -18,7 +18,7 @@ SRCS+=	lua.c
 # FreeBSD Extensions
 .PATH: ${.CURDIR}/modules
 SRCS+=	linit_flua.c
-SRCS+=	lfs.c lposix.c
+SRCS+=	lfs.c lposix.c lfbsd.c
 
 CFLAGS+=	-I${SRCTOP}/lib/liblua -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
