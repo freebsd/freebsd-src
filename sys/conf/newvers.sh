@@ -57,6 +57,8 @@ BRANCH="CURRENT"
 if [ -n "${BRANCH_OVERRIDE}" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
+unset RELEASE
+unset VERSION
 
 if [ -z "${SYSDIR}" ]; then
 	SYSDIR=$(dirname $0)/..
