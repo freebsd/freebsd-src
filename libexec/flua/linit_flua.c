@@ -35,6 +35,7 @@
 #include "lauxlib.h"
 #include "lfs.h"
 #include "lposix.h"
+#include "lfbsd.h"
 #include "lua_ucl.h"
 
 /*
@@ -60,6 +61,7 @@ static const luaL_Reg loadedlibs[] = {
   {"posix.sys.stat", luaopen_posix_sys_stat},
   {"posix.unistd", luaopen_posix_unistd},
   {"ucl", luaopen_ucl},
+  {"fbsd", luaopen_fbsd},
   {NULL, NULL}
 };
 
