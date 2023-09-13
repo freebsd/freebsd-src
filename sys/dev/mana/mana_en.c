@@ -169,7 +169,7 @@ mana_ioctl(if_t ifp, u_long command, caddr_t data)
 	struct ifrsshash *ifrh;
 	struct ifreq *ifr;
 	uint16_t new_mtu;
-	int rc = 0;
+	int rc = 0, mask;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -212,6 +212,81 @@ mana_ioctl(if_t ifp, u_long command, caddr_t data)
 				MANA_APC_LOCK_UNLOCK(apc);
 			}
 		}
+		break;
+
+	case SIOCSIFCAP:
+		MANA_APC_LOCK_LOCK(apc);
+		ifr = (struct ifreq *)data;
+		/*
+		 * Fix up requested capabilities w/ supported capabilities,
+		 * since the supported capabilities could have been changed.
+		 */
+		mask = (ifr->ifr_reqcap & if_getcapabilities(ifp)) ^
+		    if_getcapenable(ifp);
+
+		if (mask & IFCAP_TXCSUM) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if_togglehwassist(ifp, (CSUM_TCP | CSUM_UDP | CSUM_IP));
+
+			if ((IFCAP_TSO4 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(ifp))) {
+				mask &= ~IFCAP_TSO4;
+				if_setcapenablebit(ifp, 0, IFCAP_TSO4);
+				if_sethwassistbits(ifp, 0, CSUM_IP_TSO);
+				mana_warn(NULL,
+				    "Also disabled tso4 due to -txcsum.\n");
+			}
+		}
+
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(ifp, (CSUM_UDP_IPV6 | CSUM_TCP_IPV6));
+
+			if ((IFCAP_TSO6 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(ifp))) {
+				mask &= ~IFCAP_TSO6;
+				if_setcapenablebit(ifp, 0, IFCAP_TSO6);
+				if_sethwassistbits(ifp, 0, CSUM_IP6_TSO);
+				mana_warn(ifp,
+				    "Also disabled tso6 due to -txcsum6.\n");
+			}
+		}
+
+		if (mask & IFCAP_RXCSUM)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
+		/* We can't diff IPv6 packets from IPv4 packets on RX path. */
+		if (mask & IFCAP_RXCSUM_IPV6)
+			if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
+
+		if (mask & IFCAP_LRO)
+			if_togglecapenable(ifp, IFCAP_LRO);
+
+		if (mask & IFCAP_TSO4) {
+			if (!(IFCAP_TSO4 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(ifp))) {
+				MANA_APC_LOCK_UNLOCK(apc);
+				if_printf(ifp, "Enable txcsum first.\n");
+				rc = EAGAIN;
+				goto out;
+			}
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if_togglehwassist(ifp, CSUM_IP_TSO);
+		}
+
+		if (mask & IFCAP_TSO6) {
+			if (!(IFCAP_TSO6 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(ifp))) {
+				MANA_APC_LOCK_UNLOCK(apc);
+				if_printf(ifp, "Enable txcsum6 first.\n");
+				rc = EAGAIN;
+				goto out;
+			}
+			if_togglecapenable(ifp, IFCAP_TSO6);
+			if_togglehwassist(ifp, CSUM_IP6_TSO);
+		}
+
+		MANA_APC_LOCK_UNLOCK(apc);
+out:
 		break;
 
 	case SIOCSIFMEDIA:
