@@ -328,12 +328,27 @@ ARCHENTRY(memcmp, baseline)
 	movdqu		16(%rsi, %rdi, 1), %xmm1
 	pcmpeqb		16(%rdi), %xmm1		# compare second half of this iteration
 	add		%rcx, %rdx		# pointer to last byte in buffer
-	pcmpeqb		%xmm2, %xmm0
+	jc		.Loverflow		# did this overflow?
+0:	pcmpeqb		%xmm2, %xmm0
 	pmovmskb	%xmm0, %eax
 	xor		$0xffff, %eax		# any mismatch?
 	jne		.Lmismatch_head
 	add		$64, %rdi		# advance to next iteration
 	jmp		1f			# and get going with the loop
+
+	/*
+	 * If we got here, a buffer length was passed to memcmp(a, b, len)
+	 * such that a + len < a.  While this sort of usage is illegal,
+	 * it is plausible that a caller tries to do something like
+	 * memcmp(a, b, SIZE_MAX) if a and b are known to differ, intending
+	 * for memcmp() to stop comparing at the first mismatch.  This
+	 * behaviour is not guaranteed by any version of ISO/IEC 9899,
+	 * but usually works out in practice.  Let's try to make this
+	 * case work by comparing until the end of the address space.
+	 */
+.Loverflow:
+	mov		$-1, %rdx		# compare until the end of memory
+	jmp		0b
 
 	/* process buffer 32 bytes at a time */
 	ALIGN_TEXT
