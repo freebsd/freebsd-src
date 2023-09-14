@@ -1557,9 +1557,11 @@ vnlru_kick_locked(void)
 }
 
 static void
-vnlru_kick(void)
+vnlru_kick_cond(void)
 {
 
+	if (vnlruproc_sig)
+		return;
 	mtx_lock(&vnode_list_mtx);
 	vnlru_kick_locked();
 	mtx_unlock(&vnode_list_mtx);
@@ -1812,7 +1814,7 @@ alloc:
 	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
 	rnumvnodes = atomic_fetchadd_long(&numvnodes, 1) + 1;
 	if (vnlru_under(rnumvnodes, vlowat))
-		vnlru_kick();
+		vnlru_kick_cond();
 	return (uma_zalloc_smr(vnode_zone, M_WAITOK));
 }
 
