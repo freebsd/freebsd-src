@@ -25,7 +25,6 @@ MAN=	arch.7 \
 	release.7 \
 	sdoc.7 \
 	security.7 \
-	simd.7 \
 	sizeof.7 \
 	sprog.7 \
 	stats.7 \
