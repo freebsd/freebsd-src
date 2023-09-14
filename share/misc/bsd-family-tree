@@ -907,11 +907,11 @@ URL: https://web.archive.org/web/20081230094857/http://www.byte.com/art/9410/sec
 Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
 
-BSD Release Announcements collection.
+FreeBSD Release Information 
 URL: https://www.FreeBSD.org/releases/
 
-BSD Hypertext Man Pages
-URL: https://www.FreeBSD.org/cgi/man.cgi
+FreeBSD Manual Pages
+URL: https://man.freebsd.org/cgi/man.cgi
 
 UNIX history graphing project
 URL: https://minnie.tuhs.org/Unix_History/index.html
@@ -933,5 +933,5 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2012 Wolfram Schneider <wosch@FreeBSD.ORG>
+Copyright (c) 1997-2023 Wolfram Schneider <wosch@FreeBSD.org>
 URL: https://cgit.freebsd.org/src/tree/share/misc/bsd-family-tree
