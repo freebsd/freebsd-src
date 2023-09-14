@@ -10,6 +10,8 @@ struct arp_opts {
 	bool nflag;
 	time_t expire_time;
 	int flags;
+	char *rifname;
+	unsigned int rifindex;
 };
 extern struct arp_opts opts;
 

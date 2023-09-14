@@ -98,8 +98,6 @@ static int get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr);
 static int set_rtsock(struct sockaddr_in *dst, struct sockaddr_dl *sdl_m,
     char *host);
 
-static char *rifname;
-
 struct if_nameindex *ifnameindex;
 
 struct arp_opts opts = {};
@@ -146,7 +144,7 @@ main(int argc, char *argv[])
 			SETFUNC(F_FILESET);
 			break;
 		case 'i':
-			rifname = optarg;
+			opts.rifname = optarg;
 			break;
 		case '?':
 		default:
@@ -157,15 +155,15 @@ main(int argc, char *argv[])
 
 	if (!func)
 		func = F_GET;
-	if (rifname) {
+	if (opts.rifname) {
 		if (func != F_GET && !(func == F_DELETE && opts.aflag))
 			xo_errx(1, "-i not applicable to this operation");
-		if (if_nametoindex(rifname) == 0) {
+		if ((opts.rifindex = if_nametoindex(opts.rifname)) == 0) {
 			if (errno == ENXIO)
 				xo_errx(1, "interface %s does not exist",
-				    rifname);
+				    opts.rifname);
 			else
-				xo_err(1, "if_nametoindex(%s)", rifname);
+				xo_err(1, "if_nametoindex(%s)", opts.rifname);
 		}
 	}
 	switch (func) {
@@ -179,7 +177,7 @@ main(int argc, char *argv[])
 			xo_open_list("arp-cache");
 
 			struct in_addr all_addrs = {};
-			print_entries(0, all_addrs);
+			print_entries(opts.rifindex, all_addrs);
 
 			xo_close_list("arp-cache");
 			xo_close_container("arp");
@@ -448,13 +446,13 @@ get(char *host)
 	xo_open_container("arp");
 	xo_open_list("arp-cache");
 
-	found = print_entries(0, addr->sin_addr);
+	found = print_entries(opts.rifindex, addr->sin_addr);
 
 	if (found == 0) {
 		xo_emit("{d:hostname/%s} ({d:ip-address/%s}) -- no entry",
 		    host, inet_ntoa(addr->sin_addr));
-		if (rifname)
-			xo_emit(" on {d:interface/%s}", rifname);
+		if (opts.rifname)
+			xo_emit(" on {d:interface/%s}", opts.rifname);
 		xo_emit("\n");
 	}
 
@@ -552,7 +550,6 @@ search(u_long addr, action_fn *action)
 	struct rt_msghdr *rtm;
 	struct sockaddr_in *sin2;
 	struct sockaddr_dl *sdl;
-	char ifname[IF_NAMESIZE];
 	int st, found_entry = 0;
 
 	mib[0] = CTL_NET;
@@ -586,14 +583,13 @@ search(u_long addr, action_fn *action)
 		rtm = (struct rt_msghdr *)next;
 		sin2 = (struct sockaddr_in *)(rtm + 1);
 		sdl = (struct sockaddr_dl *)((char *)sin2 + SA_SIZE(sin2));
-		if (rifname && if_indextoname(sdl->sdl_index, ifname) &&
-		    strcmp(ifname, rifname))
+		if (opts.rifindex &&
+		    (opts.rifindex != sdl->sdl_index))
 			continue;
-		if (addr) {
-			if (addr != sin2->sin_addr.s_addr)
-				continue;
-			found_entry = 1;
-		}
+		if (addr &&
+		    (addr != sin2->sin_addr.s_addr))
+			continue;
+		found_entry = 1;
 		(*action)(sdl, sin2, rtm);
 	}
 	free(buf);
