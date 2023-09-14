@@ -2590,8 +2590,10 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 		sr->sr_flags |= IEEE80211_IOC_SCAN_NOPICK;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-	    "%s: flags 0x%x%s duration 0x%x mindwell %u maxdwell %u nssid %d\n",
-	    __func__, sr->sr_flags,
+	    "%s: vap %p iv_state %#x (%s) flags 0x%x%s "
+	    "duration 0x%x mindwell %u maxdwell %u nssid %d\n",
+	    __func__, vap, vap->iv_state, ieee80211_state_name[vap->iv_state],
+	    sr->sr_flags,
 	    (vap->iv_ifp->if_flags & IFF_UP) == 0 ? " (!IFF_UP)" : "",
 	    sr->sr_duration, sr->sr_mindwell, sr->sr_maxdwell, sr->sr_nssid);
 	/*
