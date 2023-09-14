@@ -46,6 +46,96 @@ SYSCTL_INT(_hw_mana, OID_AUTO, log_level, CTLFLAG_RWTUN,
 SYSCTL_CONST_STRING(_hw_mana, OID_AUTO, driver_version, CTLFLAG_RD,
     DRV_MODULE_VERSION, "MANA driver version");
 
+static int
+mana_sysctl_rx_stat_agg_u64(SYSCTL_HANDLER_ARGS)
+{
+	struct mana_port_context *apc = arg1;
+	int offset = arg2, i, err;
+	struct mana_rxq *rxq;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < apc->num_queues; i++) {
+		rxq = apc->rxqs[i];
+		stat += *((uint64_t *)((uint8_t *)rxq + offset));
+	}
+
+	err = sysctl_handle_64(oidp, &stat, 0, req);
+	if (err || req->newptr == NULL)
+		return err;
+
+	for (i = 0; i < apc->num_queues; i++) {
+		rxq = apc->rxqs[i];
+		*((uint64_t *)((uint8_t *)rxq + offset)) = 0;
+	}
+	return 0;
+}
+
+static int
+mana_sysctl_rx_stat_u16(SYSCTL_HANDLER_ARGS)
+{
+	struct mana_port_context *apc = arg1;
+	int offset = arg2, err;
+	struct mana_rxq *rxq;
+	uint64_t stat;
+	uint16_t val;
+
+	rxq = apc->rxqs[0];
+	val = *((uint16_t *)((uint8_t *)rxq + offset));
+	stat = val;
+
+	err = sysctl_handle_64(oidp, &stat, 0, req);
+	if (err || req->newptr == NULL)
+		return err;
+	else
+		return 0;
+}
+
+static int
+mana_sysctl_rx_stat_u32(SYSCTL_HANDLER_ARGS)
+{
+	struct mana_port_context *apc = arg1;
+	int offset = arg2, err;
+	struct mana_rxq *rxq;
+	uint64_t stat;
+	uint32_t val;
+
+	rxq = apc->rxqs[0];
+	val = *((uint32_t *)((uint8_t *)rxq + offset));
+	stat = val;
+
+	err = sysctl_handle_64(oidp, &stat, 0, req);
+	if (err || req->newptr == NULL)
+		return err;
+	else
+		return 0;
+}
+
+static int
+mana_sysctl_tx_stat_agg_u64(SYSCTL_HANDLER_ARGS)
+{
+	struct mana_port_context *apc = arg1;
+	int offset = arg2, i, err;
+	struct mana_txq *txq;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < apc->num_queues; i++) {
+		txq = &apc->tx_qp[i].txq;
+		stat += *((uint64_t *)((uint8_t *)txq + offset));
+	}
+
+	err = sysctl_handle_64(oidp, &stat, 0, req);
+	if (err || req->newptr == NULL)
+		return err;
+
+	for (i = 0; i < apc->num_queues; i++) {
+		txq = &apc->tx_qp[i].txq;
+		*((uint64_t *)((uint8_t *)txq + offset)) = 0;
+	}
+	return 0;
+}
+
 void
 mana_sysctl_add_port(struct mana_port_context *apc)
 {
@@ -99,6 +189,52 @@ mana_sysctl_add_port(struct mana_port_context *apc)
 	    CTLFLAG_RD, &port_stats->rx_drops, "Receive packet drops");
 	SYSCTL_ADD_COUNTER_U64(ctx, stats_list, OID_AUTO, "tx_drops",
 	    CTLFLAG_RD, &port_stats->tx_drops, "Transmit packet drops");
+
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "rx_lro_queued",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_queued),
+	    mana_sysctl_rx_stat_agg_u64, "LU", "LRO queued");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "rx_lro_flushed",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_flushed),
+	    mana_sysctl_rx_stat_agg_u64, "LU", "LRO flushed");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "rx_lro_bad_csum",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_bad_csum),
+	    mana_sysctl_rx_stat_agg_u64, "LU", "LRO bad checksum");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "rx_lro_tried",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro_tried),
+	    mana_sysctl_rx_stat_agg_u64, "LU", "LRO tried");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "rx_lro_failed",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro_failed),
+	    mana_sysctl_rx_stat_agg_u64, "LU", "LRO failed");
+
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "lro_ackcnt_lim",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_ackcnt_lim),
+	    mana_sysctl_rx_stat_u16,
+	    "LU", "Max # of ACKs to be aggregated by LRO");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "lro_length_lim",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_length_lim),
+	    mana_sysctl_rx_stat_u32,
+	    "LU", "Max len of aggregated data in byte by LRO");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "lro_cnt",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_rxq, lro.lro_cnt),
+	    mana_sysctl_rx_stat_u32,
+	    "LU", "Max # or LRO packet count");
+
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "tx_tso_packets",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_txq, tso_pkts),
+	    mana_sysctl_tx_stat_agg_u64, "LU", "TSO packets");
+	SYSCTL_ADD_PROC(ctx, stats_list, OID_AUTO, "tx_tso_bytes",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS, apc,
+	    __offsetof(struct mana_txq, tso_bytes),
+	    mana_sysctl_tx_stat_agg_u64, "LU", "TSO bytes");
 }
 
 void
