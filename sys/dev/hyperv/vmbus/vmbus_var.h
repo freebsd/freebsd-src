@@ -129,6 +129,7 @@ struct vmbus_softc {
 	void *icookie;
 	int vector;
 #endif
+	bus_dma_tag_t   dmat;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
