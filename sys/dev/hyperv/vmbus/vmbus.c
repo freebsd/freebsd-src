@@ -137,6 +137,7 @@ static void			vmbus_intr_teardown(struct vmbus_softc *);
 static int			vmbus_doattach(struct vmbus_softc *);
 static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 				    int);
+static bus_dma_tag_t	vmbus_get_dma_tag(device_t parent, device_t child);
 static struct vmbus_softc	*vmbus_sc;
 
 SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
@@ -183,6 +184,7 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_cpus,			bus_generic_get_cpus),
+	DEVMETHOD(bus_get_dma_tag,		vmbus_get_dma_tag),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_alloc_msi,		vmbus_alloc_msi),
@@ -217,6 +219,13 @@ static __inline struct vmbus_softc *
 vmbus_get_softc(void)
 {
 	return vmbus_sc;
+}
+
+static bus_dma_tag_t
+vmbus_get_dma_tag(device_t dev, device_t child)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+	return (sc->dmat);
 }
 
 void
@@ -1382,6 +1391,9 @@ vmbus_doattach(struct vmbus_softc *sc)
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	int ret;
+	device_t dev_res;
+	ACPI_HANDLE handle;
+	unsigned int coherent;
 
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
@@ -1402,6 +1414,27 @@ vmbus_doattach(struct vmbus_softc *sc)
 	    sizeof(struct vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
+	/* Coherency attribute */
+	dev_res =  devclass_get_device(devclass_find("vmbus_res"), 0);
+	handle = acpi_get_handle(dev_res);
+
+	if (ACPI_FAILURE(acpi_GetInteger(handle, "_CCA", &coherent)))
+		coherent = 0;
+	if (bootverbose)
+		device_printf(sc->vmbus_dev, "Bus is%s cache-coherent\n",
+			coherent ? "" : " not");
+
+	bus_dma_tag_create(bus_get_dma_tag(sc->vmbus_dev),
+		1, 0,
+		BUS_SPACE_MAXADDR,
+		BUS_SPACE_MAXADDR,
+		NULL, NULL,
+		BUS_SPACE_MAXSIZE,
+		BUS_SPACE_UNRESTRICTED,
+		BUS_SPACE_MAXSIZE,
+		coherent ? BUS_DMA_COHERENT : 0,
+		NULL, NULL,
+		&sc->dmat);
 	/*
 	 * Create context for "post message" Hypercalls
 	 */
