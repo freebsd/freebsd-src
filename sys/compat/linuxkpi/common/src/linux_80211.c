@@ -3760,8 +3760,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	 * in any band so we can scale [(ext) sup rates] IE(s) accordingly.
 	 */
 	lhw->supbands = lhw->max_rates = 0;
-	for (band = 0; band < NUM_NL80211_BANDS &&
-	    hw->conf.chandef.chan == NULL; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *supband;
 		struct linuxkpi_ieee80211_channel *channels;
 
@@ -3771,6 +3770,10 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 		lhw->supbands++;
 		lhw->max_rates = max(lhw->max_rates, supband->n_bitrates);
+
+		/* If we have a channel, we need to keep counting supbands. */
+		if (hw->conf.chandef.chan != NULL)
+			continue;
 
 		channels = supband->channels;
 		for (i = 0; i < supband->n_channels; i++) {
