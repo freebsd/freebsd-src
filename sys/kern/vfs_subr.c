@@ -1528,23 +1528,6 @@ vnlru_under(u_long rnumvnodes, u_long limit)
 	return (space < limit);
 }
 
-static bool
-vnlru_under_unlocked(u_long rnumvnodes, u_long limit)
-{
-	long rfreevnodes, space;
-
-	if (__predict_false(rnumvnodes > desiredvnodes))
-		return (true);
-
-	space = desiredvnodes - rnumvnodes;
-	if (space < limit) {
-		rfreevnodes = atomic_load_long(&freevnodes);
-		if (rfreevnodes > wantfreevnodes)
-			space += rfreevnodes - wantfreevnodes;
-	}
-	return (space < limit);
-}
-
 static void
 vnlru_kick_locked(void)
 {
@@ -1826,7 +1809,7 @@ vn_alloc(struct mount *mp)
 	if (__predict_false(vn_alloc_cyclecount != 0))
 		return (vn_alloc_hard(mp));
 	rnumvnodes = atomic_fetchadd_long(&numvnodes, 1) + 1;
-	if (__predict_false(vnlru_under_unlocked(rnumvnodes, vlowat))) {
+	if (__predict_false(vnlru_under(rnumvnodes, vlowat))) {
 		atomic_subtract_long(&numvnodes, 1);
 		return (vn_alloc_hard(mp));
 	}
