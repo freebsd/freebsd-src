@@ -1820,11 +1820,19 @@ vn_alloc_hard(struct mount *mp)
 		mtx_unlock(&vnode_list_mtx);
 		goto alloc;
 	}
-	rfreevnodes = vnlru_read_freevnodes();
-	if (vn_alloc_cyclecount++ >= rfreevnodes) {
-		vn_alloc_cyclecount = 0;
-		vstir = true;
+
+	if (vn_alloc_cyclecount != 0) {
+		rfreevnodes = vnlru_read_freevnodes();
+		if (rfreevnodes < wantfreevnodes) {
+			if (vn_alloc_cyclecount++ >= rfreevnodes) {
+				vn_alloc_cyclecount = 0;
+				vstir = true;
+			}
+		} else {
+			vn_alloc_cyclecount = 0;
+		}
 	}
+
 	/*
 	 * Grow the vnode cache if it will not be above its target max
 	 * after growing.  Otherwise, if the free list is nonempty, try
