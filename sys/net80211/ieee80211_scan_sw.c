@@ -674,7 +674,7 @@ scan_start(void *arg, int pending)
 }
 
 static void
-scan_curchan_task(void *arg, int pending)
+scan_curchan_task(void *arg, int pending __unused)
 {
 	struct ieee80211_scan_state *ss = arg;
 	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
