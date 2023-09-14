@@ -170,6 +170,9 @@ struct mana_txq {
 	struct mtx		txq_mtx;
 	char			txq_mtx_name[16];
 
+	uint64_t		tso_pkts;
+	uint64_t		tso_bytes;
+
 	struct task		enqueue_task;
 	struct taskqueue	*enqueue_tq;
 
@@ -423,6 +426,8 @@ struct mana_rxq {
 
 	uint32_t			buf_index;
 
+	uint64_t			lro_tried;
+	uint64_t			lro_failed;
 	struct mana_stats		stats;
 
 	/* MUST BE THE LAST MEMBER:

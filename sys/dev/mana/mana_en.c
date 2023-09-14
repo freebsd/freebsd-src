@@ -501,6 +501,7 @@ mana_xmit(struct mana_txq *txq)
 	struct gdma_queue *gdma_sq;
 	struct mana_cq *cq;
 	int err, len;
+	bool is_tso;
 
 	gdma_sq = txq->gdma_sq;
 	cq = &apc->tx_qp[txq->idx].tx_cq;
@@ -578,7 +579,10 @@ mana_xmit(struct mana_txq *txq)
 		pkg.wqe_req.flags = 0;
 		pkg.wqe_req.client_data_unit = 0;
 
+		is_tso = false;
 		if (mbuf->m_pkthdr.csum_flags & CSUM_TSO) {
+			is_tso =  true;
+
 			if (MANA_L3_PROTO(mbuf) == ETHERTYPE_IP)
 				pkg.tx_oob.s_oob.is_outer_ipv4 = 1;
 			else
@@ -641,6 +645,11 @@ mana_xmit(struct mana_txq *txq)
 
 		packets++;
 		bytes += len;
+
+		if (is_tso) {
+			txq->tso_pkts++;
+			txq->tso_bytes += len;
+		}
 	}
 
 	counter_enter();
@@ -1697,9 +1706,12 @@ mana_rx_mbuf(struct mbuf *mbuf, struct mana_rxcomp_oob *cqe,
 
 	do_if_input = true;
 	if ((if_getcapenable(ndev) & IFCAP_LRO) && do_lro) {
+		rxq->lro_tried++;
 		if (rxq->lro.lro_cnt != 0 &&
 		    tcp_lro_rx(&rxq->lro, mbuf, 0) == 0)
 			do_if_input = false;
+		else
+			rxq->lro_failed++;
 	}
 	if (do_if_input) {
 		if_input(ndev, mbuf);
