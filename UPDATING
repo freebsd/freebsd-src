@@ -13,6 +13,11 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20230924:
+	Enable splitting out pkgbase manpages into separate packages by
+	default. To disable this, set WITHOUT_MANSPLITPKG=yes in src.conf.
+
+
+20230924:
 	Move standard include files to the clibs-dev package and move clang
 	internal libraries and headers to clang and clang-dev. Upgrading systems
 	installed using pkgbase past this change involves extra steps to allow
