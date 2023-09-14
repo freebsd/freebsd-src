@@ -1444,12 +1444,12 @@ static struct proc *vnlruproc;
 static int vnlruproc_sig;
 
 /*
- * The main freevnodes counter is only updated when threads requeue their vnode
- * batches. CPUs are conditionally walked to compute a more accurate total.
+ * The main freevnodes counter is only updated when a counter local to CPU
+ * diverges from 0 by more than VNLRU_FREEVNODES_SLOP. CPUs are conditionally
+ * walked to compute a more accurate total.
  *
- * Limit how much of a slop are we willing to tolerate. Note: the actual value
- * at any given moment can still exceed slop, but it should not be by significant
- * margin in practice.
+ * Note: the actual value at any given moment can still exceed slop, but it
+ * should not be by significant margin in practice.
  */
 #define VNLRU_FREEVNODES_SLOP 126
 
