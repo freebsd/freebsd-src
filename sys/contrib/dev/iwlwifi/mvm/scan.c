@@ -447,7 +447,11 @@ static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
 		if (!ssid_list[i].len)
 			break;
 		if (ssid_list[i].len == ssid_len &&
+#if defined(__linux__)
 		    !memcmp(ssid_list->ssid, ssid, ssid_len))
+#elif defined(__FreeBSD__)
+		    !memcmp(ssid_list[i].ssid, ssid, ssid_len))
+#endif
 			return i;
 	}
 	return -1;
