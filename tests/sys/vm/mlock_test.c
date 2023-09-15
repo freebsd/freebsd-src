@@ -28,11 +28,15 @@
 #include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -161,12 +165,122 @@ ATF_TC_BODY(mlock__truncate_and_unlock, tc)
 	ATF_REQUIRE(munlock(addr, len) == 0);
 }
 
+/*
+ * Exercise a corner case involving an interaction between mlock() and superpage
+ * creation: a truncation of the object backing a mapping results in the
+ * truncated region being unmapped by the pmap, but does not affect the logical
+ * mapping.  In particular, the truncated region remains mlock()ed.  If the
+ * mapping is later extended, a page fault in the formerly truncated region can
+ * result in superpage creation via a call to pmap_enter(psind = 1).
+ */
+ATF_TC(mlock__superpage_fault);
+ATF_TC_HEAD(mlock__superpage_fault, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(mlock__superpage_fault, tc)
+{
+	struct rlimit rlim;
+	void *addr1, *addr2;
+	size_t len, pagesizes[MAXPAGESIZES];
+	int count, error, shmfd;
+	char vec;
+
+	count = getpagesizes(pagesizes, MAXPAGESIZES);
+	ATF_REQUIRE_MSG(count >= 1,
+	    "failed to get page sizes: %s", strerror(errno));
+	if (count == 1)
+		atf_tc_skip("system does not support multiple page sizes");
+	len = pagesizes[1];
+
+	error = getrlimit(RLIMIT_MEMLOCK, &rlim);
+	ATF_REQUIRE_MSG(error == 0, "getrlimit: %s", strerror(errno));
+	rlim.rlim_cur += len;
+	rlim.rlim_max += len;
+	error = setrlimit(RLIMIT_MEMLOCK, &rlim);
+	ATF_REQUIRE_MSG(error == 0, "setrlimit: %s", strerror(errno));
+
+	shmfd = shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
+	ATF_REQUIRE_MSG(shmfd >= 0, "shm_open: %s", strerror(errno));
+	error = ftruncate(shmfd, len);
+	ATF_REQUIRE_MSG(error == 0, "ftruncate: %s", strerror(errno));
+
+	addr1 = mmap(NULL, len, PROT_READ | PROT_WRITE,
+	    MAP_SHARED | MAP_ALIGNED_SUPER, shmfd, 0);
+	ATF_REQUIRE_MSG(addr1 != MAP_FAILED, "mmap: %s", strerror(errno));
+	ATF_REQUIRE_MSG(((uintptr_t)addr1 & (len - 1)) == 0,
+	    "addr %p is misaligned", addr1);
+	addr2 = mmap(NULL, len, PROT_READ,
+	    MAP_SHARED | MAP_ALIGNED_SUPER, shmfd, 0);
+	ATF_REQUIRE_MSG(addr2 != MAP_FAILED, "mmap: %s", strerror(errno));
+	ATF_REQUIRE_MSG(((uintptr_t)addr2 & (len - 1)) == 0,
+	    "addr %p is misaligned", addr2);
+
+	memset(addr1, 0x42, len);
+	error = mincore(addr1, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	if ((vec & MINCORE_SUPER) == 0)
+		atf_tc_skip("initial superpage promotion failed");
+
+	error = mlock(addr2, len);
+	ATF_REQUIRE_MSG(error == 0, "mlock: %s", strerror(errno));
+	error = mincore(addr2, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	ATF_REQUIRE((vec & MINCORE_SUPER) != 0);
+
+	/*
+	 * Free a page back to the superpage reservation, demoting both
+	 * mappings.
+	 */
+	error = ftruncate(shmfd, len - pagesizes[0]);
+	ATF_REQUIRE_MSG(error == 0, "ftruncate: %s", strerror(errno));
+
+	/*
+	 * Extend the mapping back to its original size.
+	 */
+	error = ftruncate(shmfd, len);
+	ATF_REQUIRE_MSG(error == 0, "ftruncate: %s", strerror(errno));
+
+	/*
+	 * Trigger re-promotion.
+	 */
+	error = mincore(addr1, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	ATF_REQUIRE((vec & MINCORE_SUPER) == 0);
+	memset((char *)addr1 + len - pagesizes[0], 0x43, pagesizes[0]);
+	error = mincore(addr1, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	ATF_REQUIRE((vec & MINCORE_SUPER) != 0);
+
+	/*
+	 * Trigger a read fault, which should install a superpage mapping
+	 * without promotion.
+	 */
+	error = mincore(addr2, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	ATF_REQUIRE((vec & MINCORE_SUPER) == 0);
+	(void)atomic_load(
+	    (_Atomic int *)(void *)((char *)addr2 + len - pagesizes[0]));
+	error = mincore(addr2, pagesizes[0], &vec);
+	ATF_REQUIRE_MSG(error == 0, "mincore: %s", strerror(errno));
+	ATF_REQUIRE((vec & MINCORE_SUPER) != 0);
+
+	/*
+	 * Trigger demotion of the wired mapping.
+	 */
+	error = munlock(addr2, pagesizes[0]);
+	ATF_REQUIRE_MSG(error == 0, "munlock: %s", strerror(errno));
+
+	ATF_REQUIRE(close(shmfd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, mlock__copy_on_write_anon);
 	ATF_TP_ADD_TC(tp, mlock__copy_on_write_vnode);
 	ATF_TP_ADD_TC(tp, mlock__truncate_and_resize);
 	ATF_TP_ADD_TC(tp, mlock__truncate_and_unlock);
+	ATF_TP_ADD_TC(tp, mlock__superpage_fault);
 
 	return (atf_no_error());
 }
