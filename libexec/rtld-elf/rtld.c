@@ -1077,6 +1077,7 @@ _rtld_error(const char *fmt, ...)
 	    fmt, ap);
 	va_end(ap);
 	*lockinfo.dlerror_seen() = 0;
+	dbg("rtld_error: %s", lockinfo.dlerror_loc());
 	LD_UTRACE(UTRACE_RTLD_ERROR, NULL, NULL, 0, 0, lockinfo.dlerror_loc());
 }
 
