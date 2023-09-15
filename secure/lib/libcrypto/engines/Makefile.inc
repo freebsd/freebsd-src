@@ -16,6 +16,8 @@ CFLAGS+=	-DB_ENDIAN
 .endif
 CFLAGS+=	-DNDEBUG
 
+LIBADD=		crypto
+
 .PATH: ${LCRYPTO_SRC}/engines
 
 WARNS?=		0
