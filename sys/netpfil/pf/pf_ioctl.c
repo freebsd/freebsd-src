@@ -83,6 +83,7 @@
 #include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/ip_icmp.h>
+#include <netpfil/pf/pf_nl.h>
 #include <netpfil/pf/pf_nv.h>
 
 #ifdef INET6
@@ -6648,6 +6649,8 @@ pf_unload(void)
 	}
 	sx_xunlock(&pf_end_lock);
 
+	pf_nl_unregister();
+
 	if (pf_dev != NULL)
 		destroy_dev(pf_dev);
 
@@ -6683,6 +6686,7 @@ pf_modevent(module_t mod, int type, void *data)
 	switch(type) {
 	case MOD_LOAD:
 		error = pf_load();
+		pf_nl_register();
 		break;
 	case MOD_UNLOAD:
 		/* Handled in SYSUNINIT(pf_unload) to ensure it's done after
@@ -6703,4 +6707,5 @@ static moduledata_t pf_mod = {
 };
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
+MODULE_DEPEND(pf, netlink, 1, 1, 1);
 MODULE_VERSION(pf, PF_MODVER);

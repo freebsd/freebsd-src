@@ -40,6 +40,13 @@
 #include <net/pfvar.h>
 #include <netinet/in.h>
 
+#include <netpfil/pf/pf_nl.h>
+#include <netlink/netlink.h>
+#include <netlink/netlink_generic.h>
+#include <netlink/netlink_snl.h>
+#include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_snl_route.h>
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -1115,125 +1122,136 @@ pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
 	nvlist_destroy(nv);
 }
 
-static void
-pf_state_key_export_to_state_key(struct pfctl_state_key *ps,
-    const struct pf_state_key_export *s)
+static inline bool
+snl_attr_get_pfaddr(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
-	bcopy(s->addr, ps->addr, sizeof(ps->addr[0]) * 2);
-	ps->port[0] = s->port[0];
-	ps->port[1] = s->port[1];
+	memcpy(target, NLA_DATA(nla), NLA_DATA_LEN(nla));
+	return (true);
 }
 
-static void
-pf_state_peer_export_to_state_peer(struct pfctl_state_peer *ps,
-    const struct pf_state_peer_export *s)
+static inline bool
+snl_attr_store_ifname(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
-	/* Ignore scrub. */
-	ps->seqlo = s->seqlo;
-	ps->seqhi = s->seqhi;
-	ps->seqdiff = s->seqdiff;
-	/* Ignore max_win & mss */
-	ps->state = s->state;
-	ps->wscale = s->wscale;
+	size_t maxlen = NLA_DATA_LEN(nla);
+
+	if (strnlen((char *)NLA_DATA(nla), maxlen) < maxlen) {
+		strlcpy(target, (char *)NLA_DATA(nla), maxlen);
+		return (true);
+	}
+	return (false);
 }
 
-static void
-pf_state_export_to_state(struct pfctl_state *ps, const struct pf_state_export *s)
+#define	_OUT(_field)	offsetof(struct pfctl_state_peer, _field)
+static const struct snl_attr_parser nla_p_speer[] = {
+	{ .type = PF_STP_SEQLO, .off = _OUT(seqlo), .cb = snl_attr_get_uint32 },
+	{ .type = PF_STP_SEQHI, .off = _OUT(seqhi), .cb = snl_attr_get_uint32 },
+	{ .type = PF_STP_SEQDIFF, .off = _OUT(seqdiff), .cb = snl_attr_get_uint32 },
+	{ .type = PF_STP_STATE, .off = _OUT(state), .cb = snl_attr_get_uint8 },
+	{ .type = PF_STP_WSCALE, .off = _OUT(wscale), .cb = snl_attr_get_uint8 },
+};
+SNL_DECLARE_ATTR_PARSER(speer_parser, nla_p_speer);
+#undef _OUT
+
+#define	_OUT(_field)	offsetof(struct pf_state_key_export, _field)
+static const struct snl_attr_parser nla_p_skey[] = {
+	{ .type = PF_STK_ADDR0, .off = _OUT(addr[0]), .cb = snl_attr_get_pfaddr },
+	{ .type = PF_STK_ADDR1, .off = _OUT(addr[1]), .cb = snl_attr_get_pfaddr },
+	{ .type = PF_STK_PORT0, .off = _OUT(port[0]), .cb = snl_attr_get_uint16 },
+	{ .type = PF_STK_PORT1, .off = _OUT(port[1]), .cb = snl_attr_get_uint16 },
+};
+SNL_DECLARE_ATTR_PARSER(skey_parser, nla_p_skey);
+#undef _OUT
+
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pfctl_state, _field)
+static struct snl_attr_parser ap_state[] = {
+	{ .type = PF_ST_ID, .off = _OUT(id), .cb = snl_attr_get_uint64 },
+	{ .type = PF_ST_CREATORID, .off = _OUT(creatorid), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_IFNAME, .off = _OUT(ifname), .cb = snl_attr_store_ifname },
+	{ .type = PF_ST_ORIG_IFNAME, .off = _OUT(orig_ifname), .cb = snl_attr_store_ifname },
+	{ .type = PF_ST_KEY_WIRE, .off = _OUT(key[0]), .arg = &skey_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_ST_KEY_STACK, .off = _OUT(key[1]), .arg = &skey_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_ST_PEER_SRC, .off = _OUT(src), .arg = &speer_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_ST_PEER_DST, .off = _OUT(dst), .arg = &speer_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_ST_RT_ADDR, .off = _OUT(rt_addr), .cb = snl_attr_get_pfaddr },
+	{ .type = PF_ST_RULE, .off = _OUT(rule), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_ANCHOR, .off = _OUT(anchor), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_NAT_RULE, .off = _OUT(nat_rule), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ST_PACKETS0, .off = _OUT(packets[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_ST_PACKETS1, .off = _OUT(packets[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_ST_BYTES0, .off = _OUT(bytes[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_ST_BYTES1, .off = _OUT(bytes[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_ST_AF, .off = _OUT(key[0].af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_PROTO, .off = _OUT(key[0].proto), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_DIRECTION, .off = _OUT(direction), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_LOG, .off = _OUT(log), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_STATE_FLAGS, .off = _OUT(state_flags), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_SYNC_FLAGS, .off = _OUT(sync_flags), .cb = snl_attr_get_uint8 },
+};
+static struct snl_field_parser fp_state[] = {
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, fp_state, ap_state);
+
+static const struct snl_hdr_parser *all_parsers[] = {
+	&state_parser, &skey_parser, &speer_parser
+};
+
+static int
+pfctl_get_states_nl(struct snl_state *ss, struct pfctl_states *states)
 {
-	assert(s->version >= PF_STATE_VERSION);
+	SNL_VERIFY_PARSERS(all_parsers);
+	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
 
-	ps->id = s->id;
-	strlcpy(ps->ifname, s->ifname, sizeof(ps->ifname));
-	strlcpy(ps->orig_ifname, s->orig_ifname, sizeof(ps->orig_ifname));
-	strlcpy(ps->rt_ifname, s->rt_ifname, sizeof(ps->rt_ifname));
-	pf_state_key_export_to_state_key(&ps->key[0], &s->key[0]);
-	pf_state_key_export_to_state_key(&ps->key[1], &s->key[1]);
-	pf_state_peer_export_to_state_peer(&ps->src, &s->src);
-	pf_state_peer_export_to_state_peer(&ps->dst, &s->dst);
-	bcopy(&s->rt_addr, &ps->rt_addr, sizeof(ps->rt_addr));
-	ps->rule = ntohl(s->rule);
-	ps->anchor = ntohl(s->anchor);
-	ps->nat_rule = ntohl(s->nat_rule);
-	ps->creation = ntohl(s->creation);
-	ps->expire = ntohl(s->expire);
-	ps->packets[0] = s->packets[0];
-	ps->packets[1] = s->packets[1];
-	ps->bytes[0] = s->bytes[0];
-	ps->bytes[1] = s->bytes[1];
-	ps->creatorid = ntohl(s->creatorid);
-	ps->key[0].proto = s->proto;
-	ps->key[1].proto = s->proto;
-	ps->key[0].af = s->af;
-	ps->key[1].af = s->af;
-	ps->direction = s->direction;
-	ps->state_flags = ntohs(s->state_flags);
-	ps->sync_flags = ntohs(s->sync_flags);
-	ps->qid = ntohs(s->qid);
-	ps->pqid = ntohs(s->pqid);
-	ps->dnpipe = ntohs(s->dnpipe);
-	ps->dnrpipe = ntohs(s->dnrpipe);
-	ps->rtableid = ntohl(s->rtableid);
-	ps->min_ttl = s->min_ttl;
-	ps->set_tos = s->set_tos;
-	ps->max_mss = ntohs(s->max_mss);
-	ps->rt = s->rt;
-	ps->set_prio[0] = s->set_prio[0];
-	ps->set_prio[1] = s->set_prio[1];
-}
+	struct nlmsghdr *hdr;
+	struct snl_writer nw;
 
-int
-pfctl_get_states(int dev, struct pfctl_states *states)
-{
-	struct pfioc_states_v2 ps;
-	struct pf_state_export *p;
-	char *inbuf = NULL, *newinbuf = NULL;
-	unsigned int len = 0;
-	int i, error;
+	snl_init_writer(ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_finalize_msg(&nw);
+	uint32_t seq_id = hdr->nlmsg_seq;
 
-	bzero(&ps, sizeof(ps));
-	ps.ps_req_version = PF_STATE_VERSION;
+	snl_send_message(ss, hdr);
 
 	bzero(states, sizeof(*states));
 	TAILQ_INIT(&states->states);
 
-	for (;;) {
-		ps.ps_len = len;
-		if (len) {
-			newinbuf = realloc(inbuf, len);
-			if (newinbuf == NULL)
-				return (ENOMEM);
-			ps.ps_buf = inbuf = newinbuf;
-		}
-		if ((error = ioctl(dev, DIOCGETSTATESV2, &ps)) < 0) {
-			free(inbuf);
-			return (error);
-		}
-		if (ps.ps_len + sizeof(struct pfioc_states_v2) < len)
-			break;
-		if (len == 0 && ps.ps_len == 0)
-			goto out;
-		if (len == 0 && ps.ps_len != 0)
-			len = ps.ps_len;
-		if (ps.ps_len == 0)
-			goto out;      /* no states */
-		len *= 2;
-	}
-	p = ps.ps_states;
-
-	for (i = 0; i < ps.ps_len; i += sizeof(*p), p++) {
+	struct snl_errmsg_data e = {};
+	while ((hdr = snl_read_reply_multi(ss, seq_id, &e)) != NULL) {
 		struct pfctl_state *s = malloc(sizeof(*s));
+		bzero(s, sizeof(*s));
 		if (s == NULL) {
 			pfctl_free_states(states);
-			error = ENOMEM;
-			goto out;
+			return (ENOMEM);
 		}
+		if (!snl_parse_nlmsg(ss, hdr, &state_parser, s))
+			continue;
 
-		pf_state_export_to_state(s, p);
+		s->key[1].af = s->key[0].af;
+		s->key[1].proto = s->key[0].proto;
+
 		TAILQ_INSERT_TAIL(&states->states, s, entry);
 	}
 
-out:
-	free(inbuf);
+	return (0);
+}
+
+int
+pfctl_get_states(int dev __unused, struct pfctl_states *states)
+{
+	struct snl_state ss = {};
+	int error;
+
+	snl_init(&ss, NETLINK_GENERIC);
+	error = pfctl_get_states_nl(&ss, states);
+	snl_free(&ss);
+
 	return (error);
 }
 
