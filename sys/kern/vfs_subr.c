@@ -126,6 +126,15 @@ static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 		    daddr_t startlbn, daddr_t endlbn);
 static void	vnlru_recalc(void);
 
+static SYSCTL_NODE(_vfs, OID_AUTO, vnode, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "vnode configuration and statistics");
+static SYSCTL_NODE(_vfs_vnode, OID_AUTO, param, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "vnode configuration");
+static SYSCTL_NODE(_vfs_vnode, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "vnode statistics");
+static SYSCTL_NODE(_vfs_vnode, OID_AUTO, vnlru, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "vnode recycling");
+
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased in vdropl() for VIRF_DOOMED vnode.
@@ -133,10 +142,14 @@ static void	vnlru_recalc(void);
 static u_long __exclusive_cache_line numvnodes;
 
 SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
+    "Number of vnodes in existence (legacy)");
+SYSCTL_ULONG(_vfs_vnode_stats, OID_AUTO, count, CTLFLAG_RD, &numvnodes, 0,
     "Number of vnodes in existence");
 
 static counter_u64_t vnodes_created;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, vnodes_created, CTLFLAG_RD, &vnodes_created,
+    "Number of vnodes created by getnewvnode (legacy)");
+SYSCTL_COUNTER_U64(_vfs_vnode_stats, OID_AUTO, created, CTLFLAG_RD, &vnodes_created,
     "Number of vnodes created by getnewvnode");
 
 /*
@@ -188,14 +201,18 @@ static long freevnodes_old;
 
 static counter_u64_t recycles_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
+    "Number of vnodes recycled to meet vnode cache targets (legacy)");
+SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
     "Number of vnodes recycled to meet vnode cache targets");
 
 static counter_u64_t recycles_free_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
+    "Number of free vnodes recycled to meet vnode cache targets (legacy)");
+SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
     "Number of free vnodes recycled to meet vnode cache targets");
 
 static counter_u64_t vnode_skipped_requeues;
-SYSCTL_COUNTER_U64(_vfs, OID_AUTO, vnode_skipped_requeues, CTLFLAG_RD, &vnode_skipped_requeues,
+SYSCTL_COUNTER_U64(_vfs_vnode_stats, OID_AUTO, skipped_requeues, CTLFLAG_RD, &vnode_skipped_requeues,
     "Number of times LRU requeue was skipped due to lock contention");
 
 static u_long deferred_inact;
@@ -346,6 +363,9 @@ sysctl_maxvnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_maxvnodes,
+    "LU", "Target for maximum number of vnodes (legacy)");
+SYSCTL_PROC(_vfs_vnode_param, OID_AUTO, limit,
+    CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_maxvnodes,
     "LU", "Target for maximum number of vnodes");
 
 static int
@@ -358,6 +378,9 @@ sysctl_freevnodes(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_vfs, OID_AUTO, freevnodes,
+    CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_freevnodes,
+    "LU", "Number of \"free\" vnodes (legacy)");
+SYSCTL_PROC(_vfs_vnode_stats, OID_AUTO, free,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_freevnodes,
     "LU", "Number of \"free\" vnodes");
 
@@ -383,10 +406,13 @@ sysctl_wantfreevnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_vfs, OID_AUTO, wantfreevnodes,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_wantfreevnodes,
+    "LU", "Target for minimum number of \"free\" vnodes (legacy)");
+SYSCTL_PROC(_vfs_vnode_param, OID_AUTO, wantfree,
+    CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_wantfreevnodes,
     "LU", "Target for minimum number of \"free\" vnodes");
 
 static int vnlru_nowhere;
-SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW | CTLFLAG_STATS,
+SYSCTL_INT(_vfs_vnode_vnlru, OID_AUTO, failed_runs, CTLFLAG_RD | CTLFLAG_STATS,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
 
 static int
@@ -1755,7 +1781,7 @@ vtryrecycle(struct vnode *vp)
 static u_long vn_alloc_cyclecount;
 static u_long vn_alloc_sleeps;
 
-SYSCTL_ULONG(_vfs, OID_AUTO, vnode_alloc_sleeps, CTLFLAG_RD, &vn_alloc_sleeps, 0,
+SYSCTL_ULONG(_vfs_vnode_stats, OID_AUTO, alloc_sleeps, CTLFLAG_RD, &vn_alloc_sleeps, 0,
     "Number of times vnode allocation blocked waiting on vnlru");
 
 static struct vnode * __noinline
