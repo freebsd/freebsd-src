@@ -2980,7 +2980,7 @@ libraries: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
 	    ${MAKE} -f Makefile.inc1 _startup_libs; \
-	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs -DLIBCRYPTO_WITHOUT_SUBDIRS; \
 	    ${MAKE} -f Makefile.inc1 _generic_libs
 
 #
