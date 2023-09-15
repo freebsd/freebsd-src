@@ -1011,6 +1011,17 @@ nvme_qpair_timeout(void *arg)
 
 	mtx_assert(&qpair->recovery, MA_OWNED);
 
+	/*
+	 * If the controller has failed, give up. We're never going to change
+	 * state from a failed controller: no further transactions are possible.
+	 * We go ahead and let the timeout expire in many cases for simplicity.
+	 */
+	if (qpair->ctrlr->is_failed) {
+		nvme_printf(ctrlr, "Controller failed, giving up\n");
+		qpair->timer_armed = false;
+		return;
+	}
+
 	switch (qpair->recovery_state) {
 	case RECOVERY_NONE:
 		/*
@@ -1094,8 +1105,8 @@ nvme_qpair_timeout(void *arg)
 		idle = false;			/* We want to keep polling */
 		break;
 	case RECOVERY_WAITING:
-		nvme_printf(ctrlr, "waiting for reset to complete\n");
-		idle = false;			/* We want to keep polling */
+		nvme_printf(ctrlr, "Waiting for reset to complete\n");
+		idle = false;		/* We want to keep polling */
 		break;
 	}
 
