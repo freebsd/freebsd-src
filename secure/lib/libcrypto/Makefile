@@ -1,6 +1,8 @@
 
 SHLIBDIR?=	/lib
+.if !defined(LIBCRYPTO_WITHOUT_SUBDIRS)
 SUBDIR=		engines modules
+.endif
 
 .include <bsd.own.mk>
 .include <src.opts.mk>
