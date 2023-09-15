@@ -182,13 +182,13 @@ sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 static void
 sendfd(int sockfd, int send_fd)
 {
-	size_t len;
+	ssize_t len;
 	char ch;
 
 	ch = 0;
 	len = sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
 	ATF_REQUIRE_MSG(len == sizeof(ch),
-	    "sendmsg: %zu bytes sent; expected %zu; %s", len, sizeof(ch),
+	    "sendmsg: %zd bytes sent; expected %zu; %s", len, sizeof(ch),
 	    strerror(errno));
 }
 
@@ -532,10 +532,10 @@ ATF_TC_BODY(send_overflow, tc)
 	len = sendfd_payload(fd[0], putfd, buf, sendspace);
 #if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG(len == -1 && errno == EAGAIN,
-	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+	    "sendmsg: %zd bytes sent, errno %d", len, errno);
 #elif TEST_PROTO == SOCK_DGRAM
 	ATF_REQUIRE_MSG(len == -1 && errno == ENOBUFS,
-	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+	    "sendmsg: %zd bytes sent, errno %d", len, errno);
 #endif
 	close(putfd);
 	ATF_REQUIRE(nfiles == openfiles());
@@ -655,14 +655,14 @@ ATF_TC_BODY(rights_creds_payload, tc)
 #if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
 	ATF_REQUIRE_MSG((size_t)len < sendspace,
-	    "sendmsg: %zu bytes sent", len);
+	    "sendmsg: %zd bytes sent", len);
 	recvfd_payload(fd[1], &getfd, buf, len,
 	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 #endif
 #if TEST_PROTO == SOCK_DGRAM
 	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
 	ATF_REQUIRE_MSG((size_t)len == sendspace,
-	    "sendmsg: %zu bytes sent", len);
+	    "sendmsg: %zd bytes sent", len);
 	recvfd_payload(fd[1], &getfd, buf, len,
 	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 #endif
