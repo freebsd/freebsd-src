@@ -7493,9 +7493,8 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	pd_entry_t oldpde, *pde;
 	pt_entry_t PG_G, PG_RW, PG_V;
 	vm_page_t mt, pdpg;
+	vm_page_t uwptpg;
 
-	KASSERT(pmap == kernel_pmap || (newpde & PG_W) == 0,
-	    ("pmap_enter_pde: cannot create wired user mapping"));
 	PG_G = pmap_global_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 	KASSERT((newpde & (pmap_modified_bit(pmap) | PG_RW)) != PG_RW,
@@ -7592,6 +7591,22 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		}
 	}
 
+	/*
+	 * Allocate leaf ptpage for wired userspace pages.
+	 */
+	uwptpg = NULL;
+	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
+		uwptpg = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
+		    VM_ALLOC_WIRED);
+		if (uwptpg == NULL)
+			return (KERN_RESOURCE_SHORTAGE);
+		if (pmap_insert_pt_page(pmap, uwptpg, true, false)) {
+			pmap_free_pt_page(pmap, uwptpg, false);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+
+		uwptpg->ref_count = NPTEPG;
+	}
 	if ((newpde & PG_MANAGED) != 0) {
 		/*
 		 * Abort this mapping if its PV entry could not be created.
@@ -7599,6 +7614,14 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		if (!pmap_pv_insert_pde(pmap, va, newpde, flags, lockp)) {
 			if (pdpg != NULL)
 				pmap_abort_ptp(pmap, va, pdpg);
+			if (uwptpg != NULL) {
+				mt = pmap_remove_pt_page(pmap, va);
+				KASSERT(mt == uwptpg,
+				    ("removed pt page %p, expected %p", mt,
+				    uwptpg));
+				uwptpg->ref_count = 1;
+				pmap_free_pt_page(pmap, uwptpg, false);
+			}
 			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
 			return (KERN_RESOURCE_SHORTAGE);
