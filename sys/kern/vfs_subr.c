@@ -1528,21 +1528,22 @@ vfs_freevnodes_dec(void)
 static u_long
 vnlru_read_freevnodes(void)
 {
-	long slop, rfreevnodes;
+	long slop, rfreevnodes, rfreevnodes_old;
 	int cpu;
 
 	rfreevnodes = atomic_load_long(&freevnodes);
+	rfreevnodes_old = atomic_load_long(&freevnodes_old);
 
-	if (rfreevnodes > freevnodes_old)
-		slop = rfreevnodes - freevnodes_old;
+	if (rfreevnodes > rfreevnodes_old)
+		slop = rfreevnodes - rfreevnodes_old;
 	else
-		slop = freevnodes_old - rfreevnodes;
+		slop = rfreevnodes_old - rfreevnodes;
 	if (slop < VNLRU_FREEVNODES_SLOP)
 		return (rfreevnodes >= 0 ? rfreevnodes : 0);
-	freevnodes_old = rfreevnodes;
 	CPU_FOREACH(cpu) {
-		freevnodes_old += cpuid_to_pcpu[cpu]->pc_vfs_freevnodes;
+		rfreevnodes += cpuid_to_pcpu[cpu]->pc_vfs_freevnodes;
 	}
+	atomic_store_long(&freevnodes_old, rfreevnodes);
 	return (freevnodes_old >= 0 ? freevnodes_old : 0);
 }
 
