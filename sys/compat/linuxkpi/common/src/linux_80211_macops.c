@@ -444,7 +444,7 @@ out:
 
 int
 lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_chanctx_conf *chanctx_conf)
+    struct ieee80211_bss_conf *conf, struct ieee80211_chanctx_conf *chanctx_conf)
 {
 	struct lkpi_hw *lhw;
 	int error;
@@ -455,8 +455,9 @@ lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *
 		goto out;
 	}
 
-	LKPI_80211_TRACE_MO("hw %p vif %p chanctx_conf %p", hw, vif, chanctx_conf);
-	error = lhw->ops->assign_vif_chanctx(hw, vif, NULL, chanctx_conf);
+	LKPI_80211_TRACE_MO("hw %p vif %p bss_conf %p chanctx_conf %p",
+	    hw, vif, conf, chanctx_conf);
+	error = lhw->ops->assign_vif_chanctx(hw, vif, conf, chanctx_conf);
 	if (error == 0)
 		vif->chanctx_conf = chanctx_conf;
 
@@ -466,7 +467,7 @@ out:
 
 void
 lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_chanctx_conf **chanctx_conf)
+    struct ieee80211_bss_conf *conf, struct ieee80211_chanctx_conf **chanctx_conf)
 {
 	struct lkpi_hw *lhw;
 
@@ -477,8 +478,9 @@ lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif
 	if (*chanctx_conf == NULL)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p vif %p chanctx_conf %p", hw, vif, *chanctx_conf);
-	lhw->ops->unassign_vif_chanctx(hw, vif, NULL, *chanctx_conf);
+	LKPI_80211_TRACE_MO("hw %p vif %p bss_conf %p chanctx_conf %p",
+	    hw, vif, conf, *chanctx_conf);
+	lhw->ops->unassign_vif_chanctx(hw, vif, conf, *chanctx_conf);
 	*chanctx_conf = NULL;
 }
 
@@ -548,7 +550,7 @@ lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 
 int
 lkpi_80211_mo_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    uint16_t ac, const struct ieee80211_tx_queue_params *txqp)
+    uint32_t link_id, uint16_t ac, const struct ieee80211_tx_queue_params *txqp)
 {
 	struct lkpi_hw *lhw;
 	int error;
@@ -559,8 +561,9 @@ lkpi_80211_mo_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	LKPI_80211_TRACE_MO("hw %p vif %p ac %u txpq %p", hw, vif, ac, txqp);
-	error = lhw->ops->conf_tx(hw, vif, 0, ac, txqp);
+	LKPI_80211_TRACE_MO("hw %p vif %p link_id %u ac %u txpq %p",
+	    hw, vif, link_id, ac, txqp);
+	error = lhw->ops->conf_tx(hw, vif, link_id, ac, txqp);
 
 out:
 	return (error);
