@@ -325,7 +325,7 @@ u_long desiredvnodes;
 static u_long gapvnodes;		/* gap between wanted and desired */
 static u_long vhiwat;		/* enough extras after expansion */
 static u_long vlowat;		/* minimal extras before expansion */
-static u_long vstir;		/* nonzero to stir non-free vnodes */
+static bool vstir;		/* nonzero to stir non-free vnodes */
 static volatile int vsmalltrigger = 8;	/* pref to keep if > this many pages */
 
 static u_long vnlru_read_freevnodes(void);
@@ -1627,7 +1627,7 @@ vnlru_proc(void)
 		 */
 		if (vstir && force == 0) {
 			force = 1;
-			vstir = 0;
+			vstir = false;
 		}
 		if (force == 0 && !vnlru_under(rnumvnodes, vlowat)) {
 			vnlruproc_sig = 0;
@@ -1799,7 +1799,7 @@ vn_alloc_hard(struct mount *mp)
 	rfreevnodes = vnlru_read_freevnodes();
 	if (vn_alloc_cyclecount++ >= rfreevnodes) {
 		vn_alloc_cyclecount = 0;
-		vstir = 1;
+		vstir = true;
 	}
 	/*
 	 * Grow the vnode cache if it will not be above its target max
