@@ -1,0 +1,233 @@
+.\" Copyright (c) 2023 Nicolas Provost <dev@npsoft.fr>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 13, 2023
+.Dt GLUKS 8
+.Os
+.Sh NAME
+.Nm gluks
+.Nd "control utility for LUKS GEOM class"
+.Sh SYNOPSIS
+.Nm
+.Cm open
+.Op Fl h
+.Op Fl r
+.Op Fl o
+.Ar device
+.Ar pass
+.Nm
+.Cm format
+.Op Fl h
+.Op Fl y
+.Ar device
+.Ar scheme
+.Ar pass
+.Nm
+.Cm info
+.Op Fl q
+.Ar device
+.Nm
+.Cm close
+.Ar provider
+.Sh DESCRIPTION
+The
+.Nm
+utility (e.g.
+.Xr geom 8 luks)
+is used for opening and creating LUKS (Linux Unified Key Setup)
+devices. For now, only the version 1 of LUKS is supported together with the
+following encryption schemes:
+
+.Bd
+.Dl aes-ecb
+.Dl aes-cbc-plain
+.Dl aes-cbc-essiv:sha256
+.Dl aes-xts-plain64
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm open"
+.It Cm open
+Set up a LUKS provider for the given device <dev>.
+If the operation succeeds, the new provider will appear under the name
+.Pa /dev/ Ns Ao Ar dev Ac Ns Pa .luks .
+.It Cm format
+Format a device for using LUKS encryption. This will
+.Sy DESTROY ALL DATA
+on the target device. The underlying digest algorithm is SHA2-256. The
+master key length will be 256 bits, or 512 bits if xts-plain64 is specified.
+The passphrase which is provided is used to store the encrypted master key
+into the first key slot.
+.It Cm close
+Turn off the given LUKS provider.
+.It Cm info
+Test if the given device is a LUKS one and unless the
+.Fl q
+option is provided, send some information to the kernel log. The exit
+status of the command will be zero if the target device is a LUKS one
+else EOPNOTSUPP.
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+The kernel module
+.Pa geom_luks.ko
+will be loaded if it is not loaded already.
+.Pp
+Additional options:
+.Bl -tag
+.It Fl h
+Indicates that the passphrase is a sequence of two hexadecimal characters.
+The first hexadecimal pair is the first byte of the key and trailing or
+heading new line characters or spaces are not allowed.
+.It Fl r
+Open the device in read-only mode.
+.It Fl o
+Bring exclusive access to the first writer, even if it does not ask for
+exclusive access, and allow multiple non-exclusive readers. Or allow the
+first exclusive reader but no other, nor writers. If a logical volume
+manager such as linux_lvm GEOM is used above the LUKS device, then the
+logical volumes may be read-only.
+.It Fl y
+Does nothing but ensuring the user wants to DESTROY DATA on the device.
+.It Fl q
+Quiet mode.
+.Sh EXIT STATUS
+Exit status is 0 on success, and non-zero if the command fails.
+.Sh EXAMPLES
+The following example will open and mount the LUKS device
+.Pa /dev/da0
+using the passphrase 'my_pass', resulting in the creation of a new device
+.Pa /dev/da0.luks. The fourth command will destroy it.
+.Bd -literal -offset indent
+gluks open /dev/da0 my_pass
+mount -t ... /dev/da0.luks /mnt
+umount /mnt
+gluks close da0.luks
+
+.Ed
+Alternatively, if the file ~/my_key contains the text 6d795f70617373 (without
+any newline), then the first line of the above example can be replaced with:
+.Bd -literal -offset indent
+gluks open -h /dev/da0 $(cat ~/my_key)
+
+.Ed
+To input the passphrase using the keyboard, try:
+.Bd -literal -offset indent
+stty -noecho && read P && gluks open /dev/da0 "$P"
+
+.Ed
+To format /dev/da0 using the ESSIV and AES encryption scheme:
+.Bd -literal -offset indent
+gluks format /dev/da0 aes-cbc-essiv:sha256 my_passphrase
+(remember to add the -y flag for this command to work)
+
+.Ed
+The last command will destroy all data on /dev/da0. After this, you can
+issue one
+.Nm gluks
+.Nm open
+command and create a new filesystem on the device /dev/da0.luks.
+.Sh STANDARDS
+.Lk https://clemens.endorphin.org/nmihde/nmihde-A4-ds.pdf LUKS specification
+.Lk https://www.kernel.org/pub/linux/utils/cryptsetup The cryptsetup tool
+.Sh SECURITY CONSIDERATIONS
+Before a LUKS-format operation, it is recommended to fill the target device
+with random data, such as:
+.Bd -literal -offset indent
+dd if=/dev/random of=/dev/xxx bs=1M
+.Ed
+
+The Linux
+.Sy cryptsetup
+tool, described in the website above, now uses the version 2 of LUKS by
+default. The author of the LUKS specification, Clemens Fruhwirth, reported a
+mistake in the anti-forensic key splitting version 1 which is relative to the
+way the encrypted master key is stored into a key slot. This does not affect
+the cryptographic scheme itself. The essential concerns about the security remain:
+.Bl -bullet
+.It
+the scheme that is chosen to encrypt each sector: the cipher algorithm
+(AES here) and the block-mode (ecb, cbc, xts)
+.It
+the length of the master key and the passphrase
+.It
+a good random generator
+.El
+
+The fastest
+.Em aes-ecb
+scheme (ECB block encryption mode) should
+.Sy not
+be used anymore, as two identical
+blocks will be encrypted in the same way regardless of their offsets in the
+encrypted device.
+
+The
+.Em aes-xts-plain64
+scheme has a 512-bit master key; the first half is used to encrypt the data
+of each sector and the second only contributes to the initialization vector of
+the cipher algorithm. So two encryption operations are done per sector.
+
+Some years ago, the default scheme of Linux distributions was often
+.Em aes-cbc-essiv:sha256
+whereas it is more commonly
+.Em aes-xts-plain64
+nowadays.
+.Sh CAVEATS
+As explained, the
+.Nm cryptsetup
+utility under Linux is now using LUKS version 2. So to create a LUKS-encrypted
+device under Linux that can be opened using
+.Nm gluks
+the option
+.Fl -type=luks1
+must be added to
+.Nm cryptsetup
+.Nm luksFormat
+invocation, as well as a
+.Fl -cipher=..
+option with one scheme that is supported. Also, the empty passphrase
+is not allowed here. Note that LUKS does not ensure data integrity,
+this is left to the filesystem or another layer.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 14 .
+.Sh AUTHORS
+.An Nicolas Provost Aq Mt dev@npsoft.fr
