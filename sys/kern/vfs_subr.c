@@ -1477,6 +1477,10 @@ vnlru_recalc(void)
  */
 static struct proc *vnlruproc;
 static int vnlruproc_sig;
+static u_long vnlruproc_kicks;
+
+SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, kicks, CTLFLAG_RD, &vnlruproc_kicks, 0,
+    "Number of times vnlru got woken up due to vnode shortage");
 
 /*
  * The main freevnodes counter is only updated when a counter local to CPU
@@ -1571,6 +1575,7 @@ vnlru_kick_locked(void)
 	mtx_assert(&vnode_list_mtx, MA_OWNED);
 	if (vnlruproc_sig == 0) {
 		vnlruproc_sig = 1;
+		vnlruproc_kicks++;
 		wakeup(vnlruproc);
 	}
 }
