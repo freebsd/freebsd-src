@@ -385,8 +385,6 @@ SYSCTL_PROC(_vfs, OID_AUTO, wantfreevnodes,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_wantfreevnodes,
     "LU", "Target for minimum number of \"free\" vnodes");
 
-SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
-    &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
 static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW | CTLFLAG_STATS,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
