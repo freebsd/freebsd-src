@@ -991,7 +991,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		}
 		/* Assign vif chanctx. */
 		if (error == 0)
-			error = lkpi_80211_mo_assign_vif_chanctx(hw, vif, conf);
+			error = lkpi_80211_mo_assign_vif_chanctx(hw, vif,
+			    &vif->bss_conf, conf);
 		if (error == EOPNOTSUPP)
 			error = 0;
 		if (error != 0) {
@@ -1172,7 +1173,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 		conf = vif->chanctx_conf;
 		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->chanctx_conf);
+		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
 
 		/* Remove chan ctx. */
@@ -1447,7 +1448,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 		conf = vif->chanctx_conf;
 		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->chanctx_conf);
+		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
 
 		/* Remove chan ctx. */
@@ -1909,7 +1910,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 		conf = vif->chanctx_conf;
 		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->chanctx_conf);
+		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
 
 		/* Remove chan ctx. */
@@ -2200,7 +2201,7 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 		txqp.cw_max = wmep->wmep_logcwmax;
 		txqp.txop = wmep->wmep_txopLimit;
 		txqp.aifs = wmep->wmep_aifsn;
-		error = lkpi_80211_mo_conf_tx(hw, vif, ac, &txqp);
+		error = lkpi_80211_mo_conf_tx(hw, vif, /* link_id */0, ac, &txqp);
 		if (error != 0)
 			ic_printf(ic, "%s: conf_tx ac %u failed %d\n",
 			    __func__, ac, error);
