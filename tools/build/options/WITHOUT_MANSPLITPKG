@@ -1,0 +1,1 @@
+Do not split man pages into their own packages during make package.
