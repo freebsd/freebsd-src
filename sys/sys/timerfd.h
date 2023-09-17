@@ -30,8 +30,12 @@
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/timespec.h>
+/*
+ * We only need <sys/timespec.h>, but glibc pollutes the namespace
+ * with <time.h>. This pollution is expected by most programs, so
+ * reproduce it by including <sys/time.h> here.
+ */
+#include <sys/time.h>
 
 typedef	uint64_t	timerfd_t;
 
@@ -53,6 +57,8 @@ int timerfd_settime(int fd, int flags, const struct itimerspec *new_value,
 __END_DECLS
 
 #else /* _KERNEL */
+
+struct thread;
 
 int kern_timerfd_create(struct thread *td, int clockid, int flags);
 int kern_timerfd_gettime(struct thread *td, int fd,
