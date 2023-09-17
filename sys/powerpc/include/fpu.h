@@ -76,6 +76,26 @@ void    save_fpu(struct thread *);
 void    save_fpu_nodrop(struct thread *);
 void    cleanup_fpscr(void);
 u_int   get_fpu_exception(struct thread *);
+void    enable_fpu_kern(void);
+void    disable_fpu(struct thread *td);
+
+/*
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
+ */
+#define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
+#define	FPU_KERN_KTHR	0x0002
+#define	FPU_KERN_NOCTX	0x0004
+
+struct fpu_kern_ctx;
+
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
+void	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
+	    u_int flags);
+int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
+int	fpu_kern_thread(u_int flags);
+int	is_fpu_kern_thread(u_int flags);
 
 #endif /* _KERNEL */
 
