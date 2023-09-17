@@ -1,0 +1,76 @@
+%{?!packager: %define packager Brian Behlendorf <behlendorf1@llnl.gov>}
+
+%if ! 0%{?rhel}%{?fedora}%{?mageia}%{?suse_version}%{?openEuler}
+%define not_rpm 1
+%endif
+
+# Exclude input files from mangling
+%global __brp_mangle_shebangs_exclude_from ^/usr/src/.*$
+
+%define module  @PACKAGE@
+%define mkconf  scripts/dkms.mkconf
+
+Name:           %{module}-dkms
+
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Kernel module(s) (dkms)
+
+Group:          System Environment/Kernel
+License:        @ZFS_META_LICENSE@
+URL:            https://github.com/openzfs/zfs
+Source0:        %{module}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildArch:      noarch
+
+Requires:       dkms >= 2.2.0.3
+Requires(post): dkms >= 2.2.0.3
+Requires(preun): dkms >= 2.2.0.3
+Requires:       gcc, make, perl, diffutils
+Requires(post): gcc, make, perl, diffutils
+%if 0%{?rhel}%{?fedora}%{?mageia}%{?suse_version}%{?openEuler}
+Requires:       kernel-devel >= @ZFS_META_KVER_MIN@, kernel-devel <= @ZFS_META_KVER_MAX@.999
+Requires(post): kernel-devel >= @ZFS_META_KVER_MIN@, kernel-devel <= @ZFS_META_KVER_MAX@.999
+Obsoletes:      spl-dkms <= %{version}
+%endif
+Provides:       %{module}-kmod = %{version}
+AutoReqProv:    no
+
+%if (0%{?fedora}%{?suse_version}%{?openEuler}) || (0%{?rhel} && 0%{?rhel} < 9)
+# We don't directly use it, but if this isn't installed, rpmbuild as root can
+# crash+corrupt rpmdb
+# See issue #12071
+BuildRequires:  ncompress
+%endif
+
+%description
+This package contains the dkms ZFS kernel modules.
+
+%prep
+%setup -q -n %{module}-%{version}
+
+%build
+%{mkconf} -n %{module} -v %{version} -f dkms.conf
+
+%install
+if [ "$RPM_BUILD_ROOT" != "/" ]; then
+    rm -rf $RPM_BUILD_ROOT
+fi
+mkdir -p $RPM_BUILD_ROOT/usr/src/
+cp -rf ${RPM_BUILD_DIR}/%{module}-%{version} $RPM_BUILD_ROOT/usr/src/
+
+%clean
+if [ "$RPM_BUILD_ROOT" != "/" ]; then
+    rm -rf $RPM_BUILD_ROOT
+fi
+
+%files
+%defattr(-,root,root)
+/usr/src/%{module}-%{version}
+
+%preun
+dkms remove -m %{module} -v %{version} --all
+
+%posttrans
+/usr/lib/dkms/common.postinst %{module} %{version}
+

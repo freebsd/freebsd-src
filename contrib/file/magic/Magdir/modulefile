@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: modulefile,v 1.1 2019/10/15 18:04:40 christos Exp $
+# modulefile:  file(1) magic for user's environment modulefile
+# URL: http://modules.sourceforge.net/
+# Reference: https://modules.readthedocs.io/en/stable/modulefile.html
+# From: Xavier Delaruelle <xavier.delaruelle@cea.fr>
+0	string	#%Module	modulefile
+!:mime	text/x-modulefile

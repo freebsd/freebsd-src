@@ -1,0 +1,6 @@
+Do not build the
+.Nm libkvm
+library as a part of the base system.
+.Bf -symbolic
+The option has no effect yet.
+.Ef

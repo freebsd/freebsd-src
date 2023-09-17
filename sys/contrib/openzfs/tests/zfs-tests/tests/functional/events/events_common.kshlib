@@ -1,0 +1,166 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or https://opensource.org/licenses/CDDL-1.0.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
+# Use is subject to license terms.
+#
+# Copyright (c) 2020 by Delphix. All rights reserved.
+#
+
+. $STF_SUITE/include/libtest.shlib
+. $STF_SUITE/tests/functional/events/events.cfg
+
+#
+# wait for 'event' to show up in the log 'file'
+function file_wait_event # file event timeout
+{
+	file=$1
+	event=$2
+	timeout=${3:-120}
+
+	SECONDS=0
+
+	until grep -q "^ZEVENT_CLASS=$event" $ZED_DEBUG_LOG ; do
+		if [[ $SECONDS -gt $timeout ]]; then
+			echo file_wait_event exceeded $SECONDS seconds
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	return 0;
+}
+
+#
+# Wait for up to 'timeout' seconds for the 'file' to settle, i.e.
+# not be updated for a period of 'delay' seconds.
+#
+function file_wait # file delay timeout
+{
+	file=$1
+	delay=${2:-3}
+	timeout=${3:-120}
+
+	SECONDS=0
+
+	while [ $(( $(date +%s) - $(stat -c %Y $file) )) -lt $delay ]; do
+		if [[ $SECONDS -gt $timeout ]]; then
+			echo file_wait exceeded $SECONDS seconds
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	return 0;
+}
+
+function run_and_verify
+{
+	typeset event pool
+	set -A events
+
+	while getopts "e:p:" opt; do
+		case $opt in
+		e)
+			events+=("$OPTARG")
+			;;
+		p)
+			pool=$OPTARG
+			;;
+		esac
+	done
+	shift $(($OPTIND - 1))
+
+	pool=${pool:-$TESTPOOL}
+	fullcmd="$1"
+	read -r cmd _ <<<"$fullcmd"
+
+	# If we aren't running zpool or zfs, something is wrong
+	[[ $cmd == "zpool" || $cmd == "zfs" ]] || \
+	    log_fail "run_and_verify called with \"$cmd ($fullcmd)\""
+
+	log_note "Checking events for command: '$fullcmd'"
+
+	# Remove any previous events from the logs.
+	log_must zpool events -c
+	log_must truncate -s 0 $ZED_DEBUG_LOG
+
+	# Run the command as provided.
+	log_must eval "$fullcmd"
+
+	# Collect the new events and verify there are some.
+	sync_all_pools true
+	log_must eval "zpool events >$TMP_EVENTS 2>/dev/null"
+	log_must eval "zpool events -v > $TMP_EVENTS_FULL 2>/dev/null"
+
+	log_must test -s $TMP_EVENTS
+	log_must test -s $TMP_EVENTS_FULL
+
+	# If the only event is history then we don't observe zed debug log
+	if [[ "${events[0]}" != "sysevent.fs.zfs.history_event" ]]; then
+		# wait for all the non-history events to show up in the
+		# debug log, all-debug.sh filters history events.
+		for event in ${events[*]}; do
+			if [[ "$event" == \
+			    "sysevent.fs.zfs.history_event" ]]; then
+				continue
+			fi
+
+			log_must file_wait_event $ZED_DEBUG_LOG "$event"
+		done
+
+		log_must cp $ZED_DEBUG_LOG $TMP_EVENTS_ZED
+		log_must test -s $TMP_EVENTS_ZED
+
+		log_note "Events logged:"
+		grep "^ZEVENT_CLASS" $TMP_EVENTS_ZED
+	fi
+
+	log_note "Events generated:"
+	cat $TMP_EVENTS
+
+	# Verify all the expected events appear in the log.
+	for event in ${events[*]}; do
+
+		# Verify the event is in in the short output.
+		log_must grep -q "$event" $TMP_EVENTS
+
+		# Verify the event is in the verbose output with pool name.
+		log_mustnot awk -v event="$event" -v crit="pool = \"$pool\"" \
+		    'BEGIN{FS="\n"; RS=""} $0 ~ event && $0 ~ crit { exit 1 }' \
+		    $TMP_EVENTS_FULL
+
+		# all-debug.sh filters history events (seen in ZED_DEBUG_LOG)
+		if [ "$event" = "sysevent.fs.zfs.history_event" ]; then
+			continue
+		fi
+
+		# Verify the event was received by the ZED and logged.
+		log_mustnot awk -v event="$event" -v crit="\\nZEVENT_POOL=$pool" \
+		    'BEGIN{FS="\n"; RS=""} $0 ~ event && $0 ~ crit { exit 1 }' \
+		    $TMP_EVENTS_ZED
+	done
+
+	rm -f $TMP_EVENTS $TMP_EVENTS_FULL $TMP_EVENTS_ZED
+}

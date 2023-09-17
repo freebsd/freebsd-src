@@ -1,0 +1,10 @@
+0 R
+2 1
+1 0+pRpp
+34.x
+[lip0+si10]ip1+pR
+0 1 1++pR
+1 1+p?
+1 0+pRpp
+34.x
+[lip0+si10}ip1+si30li<L]sL0sJlLx

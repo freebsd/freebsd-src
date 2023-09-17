@@ -1,0 +1,250 @@
+.\"
+.\" Copyright (c) 2015 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 31, 2021
+.Dt DEVCTL 8
+.Os
+.Sh NAME
+.Nm devctl
+.Nd device control utility
+.Sh SYNOPSIS
+.Nm
+.Cm attach
+.Ar device
+.Nm
+.Cm clear driver
+.Op Fl f
+.Ar device
+.Nm
+.Cm detach
+.Op Fl f
+.Ar device
+.Nm
+.Cm disable
+.Op Fl f
+.Ar device
+.Nm
+.Cm enable
+.Ar device
+.Nm
+.Cm suspend
+.Ar device
+.Nm
+.Cm resume
+.Ar device
+.Nm
+.Cm set driver
+.Op Fl f
+.Ar device driver
+.Nm
+.Cm rescan
+.Ar device
+.Nm
+.Cm delete
+.Op Fl f
+.Ar device
+.Nm
+.Cm freeze
+.Nm
+.Cm thaw
+.Nm
+.Cm reset
+.Op Fl d
+.Ar device
+.Nm
+.Cm getpath
+.Ar locator
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility adjusts the state of individual devices in the kernel's
+internal device hierarchy.
+Each invocation of
+.Nm
+consists of a single command followed by command-specific arguments.
+Each command operates on a single device specified via the
+.Ar device
+argument.
+The
+.Ar device
+may be specified either as the name of an existing device or as a
+bus-specific address.
+More details on supported address formats can be found in
+.Xr devctl 3 .
+.Pp
+The following commands are supported:
+.Bl -tag -width indent
+.It Cm attach Ar device
+Force the kernel to re-probe the device.
+If a suitable driver is found,
+it is attached to the device.
+.It Xo Cm detach
+.Op Fl f
+.Ar device
+.Xc
+Detach the device from its current device driver.
+If the
+.Fl f
+flag is specified,
+the device driver will be detached even if the device is busy.
+.It Xo Cm disable
+.Op Fl f
+.Ar device
+.Xc
+Disable a device.
+If the device is currently attached to a device driver,
+the device driver will be detached from the device,
+but the device will retain its current name.
+If the
+.Fl f
+flag is specified,
+the device driver will be detached even if the device is busy.
+.It Cm enable Ar device
+Enable a device.
+The device will probe and attach if a suitable device driver is found.
+Note that this can re-enable a device disabled at boot time via a
+loader tunable.
+.It Cm suspend Ar device
+Suspend a device.
+This may include placing the device in a reduced power state.
+.It Cm resume Ar device
+Resume a suspended device to a fully working state.
+.It Xo Cm set driver
+.Op Fl f
+.Ar device driver
+.Xc
+Force the device to use a device driver named
+.Ar driver .
+If the device is already attached to a device driver and the
+.Fl f
+flag is specified,
+the device will be detached from its current device driver before it is
+attached to the new device driver.
+If the device is already attached to a device driver and the
+.Fl f
+flag is not specified,
+the device will not be changed.
+.It Xo Cm clear driver
+.Op Fl f
+.Ar device
+.Xc
+Clear a previously-forced driver name so that the device is able to use any
+valid device driver.
+After the previous name has been cleared,
+the device is reprobed so that other device drivers may attach to it.
+This can be used to undo an earlier
+.Cm set driver
+command.
+If the device is currently attached to a device driver and the
+.Fl f
+flag is not specified,
+the device will not be changed.
+.It Cm rescan Ar device
+Rescan a bus device checking for devices that have been added or
+removed.
+.It Xo Cm delete
+.Op Fl f
+.Ar device
+.Xc
+Delete the device from the device tree.
+If the
+.Fl f
+flag is specified,
+the device will be deleted even if it is physically present.
+This command should be used with care as a device that is deleted but present
+can no longer be used unless the parent bus device rediscovers the device via
+a rescan request.
+.It Cm freeze
+Freeze probe and attach processing initiated in response to drivers being
+loaded.
+Drivers are placed on a
+.Do
+frozen list
+.Dc
+and processed when a later
+.Do
+thaw
+.Dc
+occurs.
+.It Cm thaw
+Resume (thaw the freeze) probe and attach initiated in response to drivers
+being loaded.
+In addition to resuming, all pending actions that were frozen during the freeze
+are performed.
+.It Xo Cm reset
+.Op Fl d
+.Ar device
+.Xc
+Reset the device, using bus-specific reset method.
+Drivers for the devices being reset are suspended around the reset.
+If the
+.Fl d
+option is specified, drivers are detached instead.
+.Pp
+Currently, resets are implemented for PCIe buses and PCI devices.
+For PCIe bus, the link is disabled and then re-trained, causing all
+children of the bus to reset.
+Use
+.Fl p
+option of
+.Xr devinfo 8
+tool to report parent bus for the device.
+For PCI device, if Function-Level Reset is implemented by it, FLR is
+tried first; if failed or not implemented, power reset is tried.
+.Pp
+If you have detached or suspended a child device explicitly and then
+do a reset, the child device will end up attached.
+.It Xo Cm getpath
+.Ar locator
+.Ar device
+.Xc
+Prints the full path to the
+.Ar device
+using the
+.Ar locator
+method to get the path name.
+Currently, only the
+.Dq UEFI
+and
+.Dq FreeBSD
+locators are implemented.
+The UEFI locator constructs a path to the device using the rules
+outlines for DEVICE_PATH in the UEFI standard.
+The FreeBSD locator constructs a path back to the root of the tree
+with the nodes separated by slashes.
+.El
+.Sh SEE ALSO
+.Xr devctl 3 ,
+.Xr devinfo 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.3 .
+.Sh BUGS
+Currently there is no administrative flag to prevent re-attach or resume
+of the manually detached or suspended devices after reset.
+Similarly, there is no flag to prevent un-suspending of the manually
+suspended devices after system resume.

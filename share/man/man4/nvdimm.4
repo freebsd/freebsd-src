@@ -1,0 +1,132 @@
+.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 5, 2019
+.Dt NVDIMM 4
+.Os
+.Sh NAME
+.Nm nvdimm
+.Nd ACPI NVDIMM driver
+.Sh SYNOPSIS
+To load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvdimm_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Bf -symbolic
+Note:
+The
+.Nm
+driver is under development and has some important limitations
+described below.
+.Ef
+.Pp
+The
+.Nm
+driver provides access to Non-Volatile DIMM (NVDIMM) persistent memory
+devices, which are ACPI-enumerated under the root NVDIMM device
+with a
+.Va _HID
+of
+.Dv ACPI0012
+and in the
+.Dv NFIT
+table.
+.Pp
+For each System Physical Address (SPA) Range described by NFIT, a
+device node
+.Pa /dev/nvdimm_spaNNN
+is created, where
+.Dv NNN
+is the SPA position in the table.
+The node can be used to
+.Xr read 2 ,
+.Xr write 2 ,
+or
+.Xr mmap 2
+the device.
+.Pp
+Also, for each SPA, the geom provider
+.Pa spaNNN
+is created, which can be used to create a conventional filesystem (e.g.,
+by
+.Xr newfs 8 )
+and
+.Xr mount 8
+it as any storage volume.
+Content accessible by
+.Pa /dev/nvdimm_spaNNN
+and
+.Pa /dev/spaNNN
+is coherent.
+.Pp
+The
+.Nm
+driver has support for reading NVDIMM namespaces (if supported by your
+hardware and already configured by some other mechanism, e.g., a BIOS
+configuration screen).
+The driver will provide a
+.Pa /dev/nvdimm_spaNNNnsMMM
+device node and
+.Pa spaNNNnsMMM
+geom provider for each namespace in a SPA, which behave analogously to their
+full-SPA cousins described above.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr GEOM 4 ,
+.Xr geom 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr disk 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org ,
+and then updated by
+.An D. Scott Phillips Aq Mt scottph@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+driver does not utilize the Block Window interface, so if a write to an
+NVDIMM is interrupted due to a system crash or power outage,
+the corresponding page might be left in a partially updated state.
+.Pp
+There is no support for Device-Specific Methods (DSM), used to report and
+control device health and wearing.
+.Pp
+The driver depends on the
+.Xr pmap_largemap 9
+pmap interface, which is currently only implemented on amd64.
+The interface can be only reasonable implemented on 64bit architectures.

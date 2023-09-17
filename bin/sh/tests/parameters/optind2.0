@@ -1,0 +1,2 @@
+
+[ "$(OPTIND=42 ${SH} -c 'printf %s "$OPTIND"')" = 1 ]

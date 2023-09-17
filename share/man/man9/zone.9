@@ -1,0 +1,639 @@
+.\"-
+.\" Copyright (c) 2001 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 16, 2023
+.Dt UMA 9
+.Os
+.Sh NAME
+.Nm UMA
+.Nd general-purpose kernel object allocator
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/queue.h
+.In vm/uma.h
+.Bd -literal
+typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
+typedef void (*uma_dtor)(void *mem, int size, void *arg);
+typedef int (*uma_init)(void *mem, int size, int flags);
+typedef void (*uma_fini)(void *mem, int size);
+typedef int (*uma_import)(void *arg, void **store, int count, int domain,
+    int flags);
+typedef void (*uma_release)(void *arg, void **store, int count);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, int domain,
+    uint8_t *pflag, int wait);
+typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
+
+.Ed
+.Ft uma_zone_t
+.Fo uma_zcreate
+.Fa "char *name" "size_t size"
+.Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init zinit" "uma_fini zfini"
+.Fa "int align" "uint16_t flags"
+.Fc
+.Ft uma_zone_t
+.Fo uma_zcache_create
+.Fa "char *name" "int size"
+.Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init zinit" "uma_fini zfini"
+.Fa "uma_import zimport" "uma_release zrelease"
+.Fa "void *arg" "int flags"
+.Fc
+.Ft uma_zone_t
+.Fo uma_zsecond_create
+.Fa "char *name"
+.Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init zinit" "uma_fini zfini"
+.Fa "uma_zone_t master"
+.Fc
+.Ft void
+.Fn uma_zdestroy "uma_zone_t zone"
+.Ft "void *"
+.Fn uma_zalloc "uma_zone_t zone" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_arg "uma_zone_t zone" "void *arg" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_domain "uma_zone_t zone" "void *arg" "int domain" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_pcpu "uma_zone_t zone" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_pcpu_arg "uma_zone_t zone" "void *arg" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_smr "uma_zone_t zone" "int flags"
+.Ft void
+.Fn uma_zfree "uma_zone_t zone" "void *item"
+.Ft void
+.Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
+.Ft void
+.Fn uma_zfree_pcpu "uma_zone_t zone" "void *item"
+.Ft void
+.Fn uma_zfree_pcpu_arg "uma_zone_t zone" "void *item" "void *arg"
+.Ft void
+.Fn uma_zfree_smr "uma_zone_t zone" "void *item"
+.Ft void
+.Fn uma_prealloc "uma_zone_t zone" "int nitems"
+.Ft void
+.Fn uma_zone_reserve "uma_zone_t zone" "int nitems"
+.Ft void
+.Fn uma_zone_reserve_kva "uma_zone_t zone" "int nitems"
+.Ft void
+.Fn uma_reclaim "int req"
+.Ft void
+.Fn uma_reclaim_domain "int req" "int domain"
+.Ft void
+.Fn uma_zone_reclaim "uma_zone_t zone" "int req"
+.Ft void
+.Fn uma_zone_reclaim_domain "uma_zone_t zone" "int req" "int domain"
+.Ft void
+.Fn uma_zone_set_allocf "uma_zone_t zone" "uma_alloc allocf"
+.Ft void
+.Fn uma_zone_set_freef "uma_zone_t zone" "uma_free freef"
+.Ft int
+.Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
+.Ft void
+.Fn uma_zone_set_maxcache "uma_zone_t zone" "int nitems"
+.Ft int
+.Fn uma_zone_get_max "uma_zone_t zone"
+.Ft int
+.Fn uma_zone_get_cur "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
+.Ft void
+.Fn uma_zone_set_maxaction "uma_zone_t zone" "void (*maxaction)(uma_zone_t)"
+.Ft smr_t
+.Fn uma_zone_get_smr "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_smr "uma_zone_t zone" "smr_t smr"
+.In sys/sysctl.h
+.Fn SYSCTL_UMA_MAX parent nbr name access zone descr
+.Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
+.Fn SYSCTL_UMA_CUR parent nbr name access zone descr
+.Fn SYSCTL_ADD_UMA_CUR ctx parent nbr name access zone descr
+.Sh DESCRIPTION
+UMA (Universal Memory Allocator) provides an efficient interface for managing
+dynamically-sized collections of items of identical size, referred to as zones.
+Zones keep track of which items are in use and which
+are not, and UMA provides functions for allocating items from a zone and
+for releasing them back, making them available for subsequent allocation requests.
+Zones maintain per-CPU caches with linear scalability on SMP
+systems as well as round-robin and first-touch policies for NUMA
+systems.
+The number of items cached per CPU is bounded, and each zone additionally
+maintains an unbounded cache of items that is used to quickly satisfy
+per-CPU cache allocation misses.
+.Pp
+Two types of zones exist: regular zones and cache zones.
+In a regular zone, items are allocated from a slab, which is one or more
+virtually contiguous memory pages that have been allocated from the kernel's
+page allocator.
+Internally, slabs are managed by a UMA keg, which is responsible for allocating
+slabs and keeping track of their usage by one or more zones.
+In typical usage, there is one keg per zone, so slabs are not shared among
+multiple zones.
+.Pp
+Normal zones import items from a keg, and release items back to that keg if
+requested.
+Cache zones do not have a keg, and instead use custom import and release
+methods.
+For example, some collections of kernel objects are statically allocated
+at boot-time, and the size of the collection does not change.
+A cache zone can be used to implement an efficient allocator for the objects in
+such a collection.
+.Pp
+The
+.Fn uma_zcreate
+and
+.Fn uma_zcache_create
+functions create a new regular zone and cache zone, respectively.
+The
+.Fn uma_zsecond_create
+function creates a regular zone which shares the keg of the zone
+specified by the
+.Fa master
+argument.
+The
+.Fa name
+argument is a text name of the zone for debugging and stats; this memory
+should not be freed until the zone has been deallocated.
+.Pp
+The
+.Fa ctor
+and
+.Fa dtor
+arguments are callback functions that are called by
+the UMA subsystem at the time of the call to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+respectively.
+Their purpose is to provide hooks for initializing or
+destroying things that need to be done at the time of the allocation
+or release of a resource.
+A good usage for the
+.Fa ctor
+and
+.Fa dtor
+callbacks might be to initialize a data structure embedded in the item,
+such as a
+.Xr queue 3
+head.
+.Pp
+The
+.Fa zinit
+and
+.Fa zfini
+arguments are used to optimize the allocation of items from the zone.
+They are called by the UMA subsystem whenever
+it needs to allocate or free items to satisfy requests or memory pressure.
+A good use for the
+.Fa zinit
+and
+.Fa zfini
+callbacks might be to
+initialize and destroy a mutex contained within an item.
+This would allow one to avoid destroying and re-initializing the mutex
+each time the item is freed and re-allocated.
+They are not called on each call to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+but rather when an item is imported into a zone's cache, and when a zone
+releases an item to the slab allocator, typically as a response to memory
+pressure.
+.Pp
+For
+.Fn uma_zcache_create ,
+the
+.Fa zimport
+and
+.Fa zrelease
+functions are called to import items into the zone and to release items
+from the zone, respectively.
+The
+.Fa zimport
+function should store pointers to items in the
+.Fa store
+array, which contains a maximum of
+.Fa count
+entries.
+The function must return the number of imported items, which may be less than
+the maximum.
+Similarly, the
+.Fa store
+parameter to the
+.Fa zrelease
+function contains an array of
+.Fa count
+pointers to items.
+The
+.Fa arg
+parameter passed to
+.Fn uma_zcache_create
+is provided to the import and release functions.
+The
+.Fa domain
+parameter to
+.Fa zimport
+specifies the requested
+.Xr numa 4
+domain for the allocation.
+It is either a NUMA domain number or the special value
+.Dv UMA_ANYDOMAIN .
+.Pp
+The
+.Fa flags
+argument of
+.Fn uma_zcreate
+and
+.Fn uma_zcache_create
+is a subset of the following flags:
+.Bl -tag -width "foo"
+.It Dv UMA_ZONE_NOFREE
+Slabs allocated to the zone's keg are never freed.
+.It Dv UMA_ZONE_NODUMP
+Pages belonging to the zone will not be included in minidumps.
+.It Dv UMA_ZONE_PCPU
+An allocation from zone would have
+.Va mp_ncpu
+shadow copies, that are privately assigned to CPUs.
+A CPU can address its private copy using base the allocation address plus
+a multiple of the current CPU ID and
+.Fn sizeof "struct pcpu" :
+.Bd -literal -offset indent
+foo_zone = uma_zcreate(..., UMA_ZONE_PCPU);
+ ...
+foo_base = uma_zalloc(foo_zone, ...);
+ ...
+critical_enter();
+foo_pcpu = (foo_t *)zpcpu_get(foo_base);
+/* do something with foo_pcpu */
+critical_exit();
+
+.Ed
+Note that
+.Dv M_ZERO
+cannot be used when allocating items from a PCPU zone.
+To obtain zeroed memory from a PCPU zone, use the
+.Fn uma_zalloc_pcpu
+function and its variants instead, and pass
+.Dv M_ZERO .
+.It Dv UMA_ZONE_NOTOUCH
+The UMA subsystem may not directly touch (i.e. read or write) the slab memory.
+Otherwise, by default, book-keeping of items within a slab may be done in the
+slab page itself, and
+.Dv INVARIANTS
+kernels may also do use-after-free checking by accessing the slab memory.
+.It Dv UMA_ZONE_ZINIT
+The zone will have its
+.Ft uma_init
+method set to internal method that initializes a new allocated slab
+to all zeros.
+Do not mistake
+.Ft uma_init
+method with
+.Ft uma_ctor .
+A zone with
+.Dv UMA_ZONE_ZINIT
+flag would not return zeroed memory on every
+.Fn uma_zalloc .
+.It Dv UMA_ZONE_NOTPAGE
+An allocator function will be supplied with
+.Fn uma_zone_set_allocf
+and the memory that it returns may not be kernel virtual memory backed by VM
+pages in the page array.
+.It Dv UMA_ZONE_MALLOC
+The zone is for the
+.Xr malloc 9
+subsystem.
+.It Dv UMA_ZONE_VM
+The zone is for the VM subsystem.
+.It Dv UMA_ZONE_CONTIG
+Items in this zone must be contiguous in physical address space.
+Items will follow normal alignment constraints and may span page boundaries
+between pages with contiguous physical addresses.
+.It Dv UMA_ZONE_UNMANAGED
+By default, UMA zone caches are shrunk to help resolve free page shortages.
+Cached items that have not been used for a long period may also be freed from
+zone.
+When this flag is set, the system will not reclaim memory from the zone's
+caches.
+.It Dv UMA_ZONE_SMR
+Create a zone whose items will be synchronized using the
+.Xr smr 9
+mechanism.
+Upon creation the zone will have an associated
+.Dt smr_t
+structure which can be fetched using
+.Fn uma_zone_get_smr .
+.El
+.Pp
+Zones can be destroyed using
+.Fn uma_zdestroy ,
+freeing all memory that is cached in the zone.
+All items allocated from the zone must be freed to the zone before the zone
+may be safely destroyed.
+.Pp
+To allocate an item from a zone, simply call
+.Fn uma_zalloc
+with a pointer to that zone and set the
+.Fa flags
+argument to selected flags as documented in
+.Xr malloc 9 .
+It will return a pointer to an item if successful, or
+.Dv NULL
+in the rare case where all items in the zone are in use and the
+allocator is unable to grow the zone and
+.Dv M_NOWAIT
+is specified.
+.Pp
+Items are released back to the zone from which they were allocated by
+calling
+.Fn uma_zfree
+with a pointer to the zone and a pointer to the item.
+If
+.Fa item
+is
+.Dv NULL ,
+then
+.Fn uma_zfree
+does nothing.
+.Pp
+The variants
+.Fn uma_zalloc_arg
+and
+.Fn uma_zfree_arg
+allow callers to
+specify an argument for the
+.Dv ctor
+and
+.Dv dtor
+functions of the zone, respectively.
+The variants
+.Fn uma_zalloc_pcpu
+and
+.Fn uma_zfree_pcpu
+allocate and free
+.Va mp_ncpu
+shadow copies as described for
+.Dv UMA_ZONE_PCPU .
+If
+.Fa item
+is
+.Dv NULL ,
+then
+.Fn uma_zfree_pcpu
+does nothing.
+.Pp
+The
+.Fn uma_zalloc_smr
+and
+.Fn uma_zfree_smr
+functions allocate and free items from an SMR-enabled zone, that is,
+a zone created with
+.Dv UMA_ZONE_SMR
+or a zone that has had
+.Fn uma_zone_set_smr
+called.
+.Pp
+The
+.Fn uma_zalloc_domain
+function allows callers to specify a fixed
+.Xr numa 4
+domain to allocate from.
+This uses a guaranteed but slow path in the allocator which reduces
+concurrency.
+.Pp
+The
+.Fn uma_prealloc
+function allocates slabs for the requested number of items, typically following
+the initial creation of a zone.
+Subsequent allocations from the zone will be satisfied using the pre-allocated
+slabs.
+Note that slab allocation is performed with the
+.Dv M_WAITOK
+flag, so
+.Fn uma_prealloc
+may sleep.
+.Pp
+The
+.Fn uma_zone_reserve
+function sets the number of reserved items for the zone.
+.Fn uma_zalloc
+and variants will ensure that the zone contains at least the reserved number
+of free items.
+Reserved items may be allocated by specifying
+.Dv M_USE_RESERVE
+in the allocation request flags.
+.Fn uma_zone_reserve
+does not perform any pre-allocation by itself.
+.Pp
+The
+.Fn uma_zone_reserve_kva
+function pre-allocates kernel virtual address space for the requested
+number of items.
+Subsequent allocations from the zone will be satisfied using the pre-allocated
+address space.
+Note that unlike
+.Fn uma_zone_reserve ,
+.Fn uma_zone_reserve_kva
+does not restrict the use of the pre-allocation to
+.Dv M_USE_RESERVE
+requests.
+.Pp
+The
+.Fn uma_reclaim
+and
+.Fn uma_zone_reclaim
+functions reclaim cached items from UMA zones, releasing unused memory.
+The
+.Fn uma_reclaim
+function reclaims items from all regular zones, while
+.Fn uma_zone_reclaim
+reclaims items only from the specified zone.
+The
+.Fa req
+parameter must be one of three values which specify how aggressively
+items are to be reclaimed:
+.Bl -tag -width indent
+.It Dv UMA_RECLAIM_TRIM
+Reclaim items only in excess of the zone's estimated working set size.
+The working set size is periodically updated and tracks the recent history
+of the zone's usage.
+.It Dv UMA_RECLAIM_DRAIN
+Reclaim all items from the unbounded cache.
+Free items in the per-CPU caches are left alone.
+.It Dv UMA_RECLAIM_DRAIN_CPU
+Reclaim all cached items.
+.El
+The
+.Fn uma_reclaim_domain
+and
+.Fn uma_zone_reclaim_domain
+functions apply only to items allocated from the specified domain.
+In the case of domains using a round-robin NUMA policy, cached items from all
+domains are freed to the keg, but only slabs from the specific domain will
+be freed.
+.Pp
+The
+.Fn uma_zone_set_allocf
+and
+.Fn uma_zone_set_freef
+functions allow a zone's default slab allocation and free functions to be
+overridden.
+This is useful if memory with special constraints such as attributes,
+alignment, or address ranges must be used.
+.Pp
+The
+.Fn uma_zone_set_max
+function limits the number of items
+.Pq and therefore memory
+that can be allocated to
+.Fa zone .
+The
+.Fa nitems
+argument specifies the requested upper limit number of items.
+The effective limit is returned to the caller, as it may end up being higher
+than requested due to the implementation rounding up to ensure all memory pages
+allocated to the zone are utilised to capacity.
+The limit applies to the total number of items in the zone, which includes
+allocated items, free items and free items in the per-cpu caches.
+On systems with more than one CPU it may not be possible to allocate
+the specified number of items even when there is no shortage of memory,
+because all of the remaining free items may be in the caches of the
+other CPUs when the limit is hit.
+.Pp
+The
+.Fn uma_zone_set_maxcache
+function limits the number of free items which may be cached in the zone.
+This limit applies to both the per-CPU caches and the cache of free buckets.
+.Pp
+The
+.Fn uma_zone_get_max
+function returns the effective upper limit number of items for a zone.
+.Pp
+The
+.Fn uma_zone_get_cur
+function returns an approximation of the number of items currently allocated
+from the zone.
+The returned value is approximate because appropriate synchronisation to
+determine an exact value is not performed by the implementation.
+This ensures low overhead at the expense of potentially stale data being used
+in the calculation.
+.Pp
+The
+.Fn uma_zone_set_warning
+function sets a warning that will be printed on the system console when the
+given zone becomes full and fails to allocate an item.
+The warning will be printed no more often than every five minutes.
+Warnings can be turned off globally by setting the
+.Va vm.zone_warnings
+sysctl tunable to
+.Va 0 .
+.Pp
+The
+.Fn uma_zone_set_maxaction
+function sets a function that will be called when the given zone becomes full
+and fails to allocate an item.
+The function will be called with the zone locked.
+Also, the function
+that called the allocation function may have held additional locks.
+Therefore,
+this function should do very little work (similar to a signal handler).
+.Pp
+The
+.Fn uma_zone_set_smr
+function associates an existing
+.Xr smr 9
+structure with a UMA zone.
+The effect is similar to creating a zone with the
+.Dv UMA_ZONE_SMR
+flag, except that a new SMR structure is not created.
+This function must be called before any allocations from the zone are performed.
+.Pp
+The
+.Fn SYSCTL_UMA_MAX parent nbr name access zone descr
+macro declares a static
+.Xr sysctl 9
+oid that exports the effective upper limit number of items for a zone.
+The
+.Fa zone
+argument should be a pointer to
+.Vt uma_zone_t .
+A read of the oid returns value obtained through
+.Fn uma_zone_get_max .
+A write to the oid sets new value via
+.Fn uma_zone_set_max .
+The
+.Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
+macro is provided to create this type of oid dynamically.
+.Pp
+The
+.Fn SYSCTL_UMA_CUR parent nbr name access zone descr
+macro declares a static read-only
+.Xr sysctl 9
+oid that exports the approximate current occupancy of the zone.
+The
+.Fa zone
+argument should be a pointer to
+.Vt uma_zone_t .
+A read of the oid returns value obtained through
+.Fn uma_zone_get_cur .
+The
+.Fn SYSCTL_ADD_UMA_CUR ctx parent nbr name zone descr
+macro is provided to create this type of oid dynamically.
+.Sh IMPLEMENTATION NOTES
+The memory that these allocation calls return is not executable.
+The
+.Fn uma_zalloc
+function does not support the
+.Dv M_EXEC
+flag to allocate executable memory.
+Not all platforms enforce a distinction between executable and
+non-executable memory.
+.Sh SEE ALSO
+.Xr numa 4 ,
+.Xr vmstat 8 ,
+.Xr malloc 9 ,
+.Xr smr 9
+.Rs
+.%A Jeff Bonwick
+.%T "The Slab Allocator: An Object-Caching Kernel Memory Allocator"
+.%D 1994
+.Re
+.Sh HISTORY
+The zone allocator first appeared in
+.Fx 3.0 .
+It was radically changed in
+.Fx 5.0
+to function as a slab allocator.
+.Sh AUTHORS
+.An -nosplit
+The zone allocator was written by
+.An John S. Dyson .
+The zone allocator was rewritten in large parts by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org
+to function as a slab allocator.
+.Pp
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+Changes for UMA by
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org .

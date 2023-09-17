@@ -1,0 +1,4 @@
+Do not build or install
+.Xr talk 1
+and
+.Xr talkd 8 .

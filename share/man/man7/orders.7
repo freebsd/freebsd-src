@@ -1,0 +1,115 @@
+.\" $NetBSD: orders.7,v 1.6 2011/08/06 11:07:18 jruoho Exp $
+.\"
+.\" Copyright (c) 2010 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jukka Ruohonen.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd November 20, 2022
+.Dt ORDERS 7
+.Os
+.Sh NAME
+.Nm orders
+.Nd orders of magnitude
+.Sh DESCRIPTION
+The following table lists common multiples of bytes.
+.Bl -column -offset 2n \
+"Kilobyte" "Prefix" "Power of 2" "Power of 10"
+.It Sy Name Ta Sy Prefix Ta Sy Power of 2 Ta Sy Power of 10
+.It Kilobyte Ta kB Ta 2^10 Ta 10^3
+.It Megabyte Ta MB Ta 2^20 Ta 10^6
+.It Gigabyte Ta GB Ta 2^30 Ta 10^9
+.It Terabyte Ta TB Ta 2^40 Ta 10^12
+.It Petabyte Ta PB Ta 2^50 Ta 10^15
+.It Exabyte Ta EB Ta 2^60 Ta 10^18
+.It Zettabyte Ta ZB Ta 2^70 Ta 10^21
+.It Yottabyte Ta YB Ta 2^80 Ta 10^24
+.It Ronnabyte Ta RB Ta 2^90 Ta 10^27
+.It Quettabyte Ta QB Ta 2^100 Ta 10^30.
+El
+.Pp
+The following table lists common bit rates as a power of ten.
+.Bl -column -offset 2n \
+"Megabit per second" "Prefix" "Bit per second" "Byte per second"
+.It Sy Name Ta Sy Prefix Ta Sy Bit per second Ta Sy Byte per second
+.It Bit per second Ta bit/s Ta 1 Ta 0.125
+.It Byte per second Ta B/s Ta 8 Ta 1
+.It Kilobit per second Ta kbit/s Ta 10^3 Ta 125
+.It Kilobyte per second Ta kB/s Ta 8 * 10^3 Ta 1000
+.It Megabit per second Ta Mbit/s Ta 10^6 Ta 125000
+.It Megabyte per second Ta MB/s Ta 8 * 10^6 Ta 1000000
+.It Gigabit per second Ta Gbit/s Ta 10^9 Ta 125000000
+.It Gigabyte per second Ta GB/s Ta 8 * 10^9 Ta 1000000000
+.It Terabit per second Ta Tbit/s Ta 10^12 Ta 125000000000
+.It Terabyte per second Ta TB/s Ta 8 * 10^12 Ta 1000000000000
+.El
+.Pp
+The following table lists common orders of magnitude as a power of ten.
+.Bl -column -offset 2n \
+"Septillionth" "Order" "Prefix" "Symbol" "Decimal"
+.It Sy Name Ta Sy Order Ta Sy Prefix Ta Sy Symbol Ta Sy Decimal
+.It Nonillionth Ta 10^-30 Ta quecto Ta q Ta 0.000000000000000000000000000001
+.It Octillionth Ta 10^-27 Ta ronto Ta r Ta 0.000000000000000000000000001
+.It Septillionth Ta 10^-24 Ta yocto Ta y Ta 0.000000000000000000000001
+.It Sextillionth Ta 10^-21 Ta zepto Ta z Ta 0.000000000000000000001
+.It Quintillionth Ta 10^-18 Ta atto Ta a Ta 0.000000000000000001
+.It Quadrillionth Ta 10^-15 Ta femto Ta f Ta 0.000000000000001
+.It Trillionth Ta 10^-12 Ta pico Ta p Ta 0.000000000001
+.It Billionth Ta 10^-9 Ta nano Ta n Ta 0.000000001
+.It Millionth Ta 10^-6 Ta micro  Ta mu Ta 0.000001
+.It Thousandth Ta 10^-3 Ta milli Ta m Ta 0.001
+.It Hundredth Ta 10^-2 Ta centi Ta c Ta 0.01
+.It Tenth Ta 10^-1 Ta deci Ta d Ta 0.1
+.It One Ta 10^0 Ta - Ta - Ta 1
+.It Ten Ta 10^1 Ta deca Ta da Ta 10
+.It Hundred Ta 10^2 Ta hecto Ta h Ta 100
+.It Thousand Ta 10^3 Ta kilo Ta k Ta 1000
+.It Million Ta 10^6 Ta mega Ta M Ta 1000000
+.It Billion Ta 10^9 Ta giga Ta G Ta 1000000000
+.It Trillion Ta 10^12 Ta tera Ta T Ta 1000000000000
+.It Quadrillion Ta 10^15 Ta peta Ta P Ta 1000000000000000
+.It Quintillion Ta 10^18 Ta exa Ta E Ta 1000000000000000000
+.It Sextillion Ta 10^21 Ta zetta Ta Z Ta 1000000000000000000000
+.It Septillion Ta 10^24 Ta yotta Ta Y Ta 1000000000000000000000000
+.It Octillion Ta 10^27 Ta ronna Ta R Ta 1000000000000000000000000000
+.It Nonillion Ta 10^30 Ta quetta Ta Q Ta 1000000000000000000000000000000
+.El
+.Sh SEE ALSO
+.Xr units 1 ,
+.Xr number 6
+.Sh STANDARDS
+There have been various attempts to standardize the set of binary prefixes.
+Organizations such as International Electrotechnical Commission
+.Pq Tn IEC
+have proposed new prefixes such as
+.Dq kibi ,
+.Dq mebi ,
+.Dq gibi ,
+and
+.Dq yobi ,
+but the adoption has been slow at best.
+.Sh AUTHORS
+This manual page was written by
+.An Jukka Ruohonen Aq Mt jruoho@netbsd.org .

@@ -1,0 +1,218 @@
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\"
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Parts of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Jul 11, 2023
+.Dt FDESCFS 5
+.Os
+.Sh NAME
+.Nm fdescfs
+.Nd file-descriptor file system
+.Sh SYNOPSIS
+.Bd -literal
+fdescfs	/dev/fd	fdescfs rw 0 0
+.Ed
+.Sh DESCRIPTION
+The file-descriptor file system, or
+.Nm ,
+provides access to the per-process file descriptor
+namespace in the global file system namespace.
+The conventional mount point is
+.Pa /dev/fd .
+.Pp
+The file system's contents
+appear as a list of numbered files
+which correspond to the open files of the process reading the
+directory.
+The files
+.Pa /dev/fd/0
+through
+.Pa /dev/fd/#
+refer to file descriptors which can be accessed through the file
+system.
+.Pp
+The following mount options can be used when mounting
+.Nm
+filesystem:
+.Bl -tag -width linrdlnk
+.It Cm nodup
+For file descriptors referencing vnodes, instead of the
+.Xr dup 2
+semantic described above, implement re-opening of the referenced vnode.
+See below for more details.
+.It Cm linrdlnk
+Report the type of the
+.Nm
+vnode as
+.Dv VLNK
+instead of
+.Fx
+traditional
+.Dv VCHR .
+For
+.Xr linux 4
+ABI compatibility mount
+.Nm
+volume with the
+.Cm linrdlnk
+option.
+.It Cm rdlnk
+Treat
+.Nm
+vnodes as symbolic links consistently, in particular, follow
+the resolved name for the name lookups.
+This option is strictly stronger than the
+.Cm linrdlnk
+option, it changes not only the type returned by
+.Xr stat 2 ,
+but also causes the
+.Nm
+files to behave as symlinks.
+.El
+.Pp
+For
+.Nm
+mounted without the
+.Cm nodup
+mount option,
+if the file descriptor is open and the mode the file is being opened
+with is a subset of the mode of the existing descriptor, the call:
+.Bd -literal -offset indent
+fd = open("/dev/fd/0", mode);
+.Ed
+.Pp
+and the call:
+.Bd -literal -offset indent
+fd = fcntl(0, F_DUPFD, 0);
+.Ed
+.Pp
+are equivalent.
+Flags to the
+.Xr open 2
+call other than
+.Dv O_RDONLY ,
+.Dv O_WRONLY
+and
+.Dv O_RDWR
+are ignored.
+.Pp
+For
+.Nm
+mounted with the
+.Cm nodup
+option, and file descriptor referencing a vnode, the call:
+.Bd -literal -offset indent
+fd = open("/dev/fd/0", mode);
+.Ed
+.Pp
+reopens the referenced vnode with the specified
+.Fa mode .
+In other words, the
+.Fn open
+call above is equivalent to
+.Bd -literal -offset indent
+fd = openat(0, "", O_EMPTY_PATH, mode);
+.Ed
+.Pp
+In particular, if the file descriptor was opened with the
+.Dv O_PATH
+flag, then either
+.Dv O_EMPTY_PATH
+or
+.Fn open
+over
+.Nm
+mount with
+.Cm nodup
+option allows one to convert it to a regularly opened file,
+assuming that the current permissions allow the requested
+.Fa mode .
+.Pp
+.Em "Note:"
+.Pa /dev/fd/0 ,
+.Pa /dev/fd/1
+and
+.Pa /dev/fd/2
+files are created by default when devfs alone is mounted.
+.Nm
+creates entries for all file descriptors opened by the process.
+.Sh FILES
+.Bl -tag -width /dev/stderr -compact
+.It Pa /dev/fd/#
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+volume located on
+.Pa /dev/fd :
+.Pp
+.Dl "mount -t fdescfs none /dev/fd"
+.Pp
+For
+.Xr linux 4
+ABI compatibility:
+.Pp
+.Dl "mount -t fdescfs -o linrdlnk none /compat/linux/dev/fd"
+.Pp
+For substitute of
+.Dv O_EMPTY_PATH
+flag use:
+.Pp
+.Dl "mount -t fdescfs -o nodup none /dev/fdpath"
+.Sh SEE ALSO
+.Xr devfs 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+file system first appeared in
+.Bx 4.4 .
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org ,
+and was based on the
+manual page written by
+.An Jan-Simon Pendry .

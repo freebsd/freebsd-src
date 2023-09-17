@@ -1,0 +1,4 @@
+
+unset somestrangevar
+export somestrangevar
+[ "`$SH -c 'echo ${somestrangevar-unset}'`" = unset ]

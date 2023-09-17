@@ -1,0 +1,473 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" Copyright (c) 2006 Tom Rhodes <trhodes@FreeBSD.org>
+.\" Copyright (c) 2021 Mitchell Horne <mhorne@FreeBSD.org>
+.\" Copyright (c) 2022 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 30, 2022
+.Dt INTR_EVENT 9
+.Os
+.Sh NAME
+.Nm intr_event_add_handler ,
+.Nm intr_event_create ,
+.Nm intr_event_destroy ,
+.Nm intr_event_handle ,
+.Nm intr_event_remove_handler ,
+.Nm intr_priority
+.Nd "kernel interrupt handler and thread API"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/interrupt.h
+.Ft int
+.Fo intr_event_add_handler
+.Fa "struct intr_event *ie"
+.Fa "const char *name"
+.Fa "driver_filter_t filter"
+.Fa "driver_intr_t handler"
+.Fa "void *arg"
+.Fa "u_char pri"
+.Fa "enum intr_type flags"
+.Fa "void **cookiep"
+.Fc
+.Ft int
+.Fo intr_event_create
+.Fa "struct intr_event **event"
+.Fa "void *source"
+.Fa "int flags"
+.Fa "int irq"
+.Fa "void (*pre_ithread)(void *)"
+.Fa "void (*post_ithread)(void *)"
+.Fa "void (*post_filter)(void *)"
+.Fa "int (*assign_cpu)(void *, int)"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fn intr_event_destroy "struct intr_event *ie"
+.Ft int
+.Fn intr_event_handle "struct intr_event *ie" "struct trapframe *frame"
+.Ft int
+.Fn intr_event_remove_handler "void *cookie"
+.Ft u_char
+.Fn intr_priority "enum intr_type flags"
+.Sh DESCRIPTION
+The interrupt event API provides methods to manage the registration and
+execution of interrupt handlers and their associated thread contexts.
+.Pp
+Each interrupt event in the system corresponds to a single hardware or software
+interrupt source.
+Each interrupt event maintains a list of interrupt handlers, sorted by
+priority, which will be invoked when handling the event.
+An interrupt event will typically, but not always, have an associated
+.Xr kthread 9 ,
+known as the interrupt thread.
+Finally, each event contains optional callback functions which will be
+invoked before and after the handler functions themselves.
+.Pp
+An interrupt handler contains two distinct handler functions:
+the
+.Em filter
+and the thread
+.Em handler .
+The
+.Em filter
+function is run from interrupt context and is intended to perform quick
+handling such as acknowledging or masking a hardware interrupt,
+and queueing work for the ensuing thread
+.Em handler .
+Both functions are optional; each interrupt handler may choose to register a
+filter, a thread handler, or both.
+Each interrupt handler also consists of a name,
+a set of flags,
+and an opaque argument which will be passed to both the
+.Em filter
+and
+.Em handler
+functions.
+.Ss Handler Constraints
+The
+.Em filter
+function is executed inside a
+.Xr critical 9
+section.
+Therefore, filters may not yield the CPU for any reason, and may only use spin
+locks to access shared data.
+Allocating memory within a filter is not permitted.
+.Pp
+The
+.Em handler
+function executes from the context of the associated interrupt kernel thread.
+Sleeping is not permitted, but the interrupt thread may be preempted by higher
+priority threads.
+Thus, threaded handler functions may obtain non-sleepable locks, as described
+in
+.Xr locking 9 .
+Any memory or zone allocations in an interrupt thread must specify the
+.Dv M_NOWAIT
+flag, and any allocation errors must be handled.
+.Pp
+The exception to these constraints is software interrupt threads, which are
+allowed to sleep but should be allocated and scheduled using the
+.Xr swi 9
+interface.
+.Ss Function Descriptions
+The
+.Fn intr_event_create
+function creates a new interrupt event.
+The
+.Fa event
+argument points to a
+.Vt struct intr_event
+pointer that will reference the newly created event upon success.
+The
+.Fa source
+argument is an opaque pointer which will be passed to the
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter
+callbacks.
+The
+.Fa flags
+argument is a mask of properties of this thread.
+The only valid flag currently for
+.Fn intr_event_create
+is
+.Dv IE_SOFT
+to specify that this interrupt thread is a software interrupt.
+The
+.Fa enable
+and
+.Fa disable
+arguments specify optional functions used to enable and disable this
+interrupt thread's interrupt source.
+The
+.Fa irq
+argument is the unique interrupt vector number corresponding to the event.
+The
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter
+arguments are callback functions that are invoked at different
+points while handling an interrupt.
+This is described in more detail in the
+.Sx Handler Callbacks
+section, below.
+They may be
+.Va NULL
+to specify no callback.
+The
+.Fa assign_cpu
+argument points to a callback function that will be invoked when binding
+an interrupt to a particular CPU.
+It may be
+.Va NULL
+if binding is unsupported.
+The
+remaining arguments form a
+.Xr printf 9
+argument list that is used to build the base name of the new interrupt thread.
+The full name of an interrupt thread is formed by concatenating the base
+name of the interrupt thread with the names of all of its interrupt handlers.
+.Pp
+The
+.Fn intr_event_destroy
+function destroys a previously created interrupt event by releasing its
+resources.
+.\" The following is not true (yet):
+.\"and arranging for the backing kernel thread to terminate.
+An interrupt event can only be destroyed if it has no handlers remaining.
+.Pp
+The
+.Fn intr_event_add_handler
+function adds a new handler to an existing interrupt event specified by
+.Fa ie .
+The
+.Fa name
+argument specifies a name for this handler.
+The
+.Fa filter
+argument provide the filter function to execute.
+The
+.Fa handler
+argument provides the handler function to be executed from the
+event's interrupt thread.
+The
+.Fa arg
+argument will be passed to the
+.Fa filter
+and
+.Fa handler
+functions when they are invoked.
+The
+.Fa pri
+argument specifies the priority of this handler,
+corresponding to the values defined in
+.In sys/priority.h .
+It determines the order this handler is called relative to the other handlers
+for this event, as well as the scheduling priority of of the backing kernel
+thread.
+.Fa flags
+argument can be used to specify properties of this handler as defined in
+.In sys/bus.h .
+If
+.Fa cookiep
+is not
+.Dv NULL ,
+then it will be assigned a cookie that can be used later to remove this
+handler.
+.Pp
+The
+.Fn intr_event_handle
+function is the main entry point into the interrupt handling code.
+It must be called from an interrupt context.
+The function will execute all filter handlers associated with the interrupt
+event
+.Fa ie ,
+and schedule the associated interrupt thread to run, if applicable.
+The
+.Fa frame
+argument is used to pass a pointer to the
+.Vt struct trapframe
+containing the machine state at the time of the interrupt.
+The main body of this function runs within a
+.Xr critical 9
+section.
+.Pp
+The
+.Fn intr_event_remove_handler
+function removes an interrupt handler from the interrupt event specified by
+.Fa ie .
+The
+.Fa cookie
+argument, obtained from
+.Fn intr_event_add_handler ,
+identifies the handler to remove.
+.Pp
+The
+.Fn intr_priority
+function translates the
+.Dv INTR_TYPE_*
+interrupt flags into interrupt thread scheduling priorities.
+.Pp
+The interrupt flags not related to the type of a particular interrupt
+.Pq Dv INTR_TYPE_*
+can be used to specify additional properties of both hardware and software
+interrupt handlers.
+The
+.Dv INTR_EXCL
+flag specifies that this handler cannot share an interrupt thread with
+another handler.
+The
+.Dv INTR_MPSAFE
+flag specifies that this handler is MP safe in that it does not need the
+Giant mutex to be held while it is executed.
+The
+.Dv INTR_ENTROPY
+flag specifies that the interrupt source this handler is tied to is a good
+source of entropy, and thus that entropy should be gathered when an interrupt
+from the handler's source triggers.
+Presently, the
+.Dv INTR_ENTROPY
+flag is not valid for software interrupt handlers.
+.Ss Handler Callbacks
+Each
+.Vt struct intr_event
+is assigned three optional callback functions when it is created:
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter .
+These callbacks are intended to be defined by the interrupt controller driver,
+to allow for actions such as masking and unmasking hardware interrupt signals.
+.Pp
+When an interrupt is triggered, all filters are run to determine if any
+threaded interrupt handlers should be scheduled for execution by the associated
+interrupt thread. If no threaded handlers are scheduled, the
+.Fa post_filter
+callback is invoked which should acknowledge the interrupt and permit it to
+trigger in the future.
+If any threaded handlers are scheduled, the
+.Fa pre_ithread
+callback is invoked instead.
+This handler should acknowledge the interrupt, but it should also ensure that
+the interrupt will not fire continuously until after the threaded handlers have
+executed.
+Typically this callback masks level-triggered interrupts in an interrupt
+controller while leaving edge-triggered interrupts alone.
+Once all threaded handlers have executed,
+the
+.Fa post_ithread
+callback is invoked from the interrupt thread to enable future interrupts.
+Typically this callback unmasks level-triggered interrupts in an interrupt
+controller.
+.Sh RETURN VALUES
+The
+.Fn intr_event_add_handler ,
+.Fn intr_event_create ,
+.Fn intr_event_destroy ,
+.Fn intr_event_handle ,
+and
+.Fn intr_event_remove_handler
+functions return zero on success and non-zero on failure.
+The
+.Fn intr_priority
+function returns a process priority corresponding to the passed in interrupt
+flags.
+.Sh EXAMPLES
+The
+.Xr swi_add 9
+function demonstrates the use of
+.Fn intr_event_create
+and
+.Fn intr_event_add_handler .
+.Bd -literal -offset indent
+int
+swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
+    void *arg, int pri, enum intr_type flags, void **cookiep)
+{
+	struct intr_event *ie;
+	int error = 0;
+
+	if (flags & INTR_ENTROPY)
+		return (EINVAL);
+
+	ie = (eventp != NULL) ? *eventp : NULL;
+
+	if (ie != NULL) {
+		if (!(ie->ie_flags & IE_SOFT))
+			return (EINVAL);
+	} else {
+		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
+		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
+		if (error)
+			return (error);
+		if (eventp != NULL)
+			*eventp = ie;
+	}
+	if (handler != NULL) {
+		error = intr_event_add_handler(ie, name, NULL, handler, arg,
+		    PI_SWI(pri), flags, cookiep);
+	}
+	return (error);
+}
+.Ed
+.Sh ERRORS
+The
+.Fn intr_event_add_handler
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ie
+or
+.Fa name
+arguments are
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Fa handler
+and
+.Fa filter
+arguments are both
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Dv IH_EXCLUSIVE
+flag is specified and the interrupt thread
+.Fa ie
+already has at least one handler, or the interrupt thread
+.Fa ie
+already has an exclusive handler.
+.El
+.Pp
+The
+.Fn intr_event_create
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A flag other than
+.Dv IE_SOFT
+was specified in the
+.Fa flags
+parameter.
+.El
+.Pp
+The
+.Fn intr_event_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ie
+argument is
+.Dv NULL .
+.It Bq Er EBUSY
+The interrupt event pointed to by
+.Fa ie
+has at least one handler which has not been removed with
+.Fn intr_event_remove_handler .
+.El
+.Pp
+The
+.Fn intr_event_handle
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ie
+argument is
+.Dv NULL .
+.It Bq Er EINVAL
+There are no interrupt handlers assigned to
+.Fa ie .
+.It Bq Er EINVAL
+The interrupt was not acknowledged by any filter and has no associated thread
+handler.
+.El
+.Pp
+The
+.Fn intr_event_remove_handler
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa cookie
+argument is
+.Dv NULL .
+.El
+.Sh SEE ALSO
+.Xr critical 9 ,
+.Xr kthread 9 ,
+.Xr locking 9 ,
+.Xr malloc 9 ,
+.Xr swi 9 ,
+.Xr uma 9
+.Sh HISTORY
+Interrupt threads and their corresponding API first appeared in
+.Fx 5.0 .

@@ -1,0 +1,112 @@
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+The test programs and test cases run by
+.Nm
+are all executed in a deterministic environment.
+This known, clean environment serves to make the test execution as
+reproducible as possible and also to prevent clashes between tests that may,
+for example, create auxiliary files with overlapping names.
+.Pp
+For plain test programs and for TAP test programs, the whole test program
+is run under a single instance of the environment described in this page.
+For ATF test programs (see
+.Xr atf 7 ) ,
+each individual test case
+.Em and
+test cleanup routine are executed in separate environments.
+.Bl -tag -width XX
+.It Process space
+Each test is executed in an independent processes.
+Corollary: the test can do whatever it wants to the current process (such
+as modify global variables) without having to undo such changes.
+.It Session and process group
+The test is executed in its own session and its own process group.
+There is no controlling terminal attached to the session.
+.Pp
+Should the test spawn any children, the children should maintain the same
+session and process group.
+Modifying any of these settings prevents
+.Nm
+from being able to kill any stray subprocess as part of the cleanup phase.
+If modifying these settings is necessary, or if any subprocess started by
+the test decides to use a different process group or session, it is the
+responsibility of the test to ensure those subprocesses are forcibly
+terminated during cleanup.
+.It Work directory
+The test is executed in a temporary directory automatically created by the
+runtime engine.
+Corollary: the test can write to its current directory
+without needing to clean any files and/or directories it creates.
+The runtime engine takes care to recursively delete the temporary directories
+after the execution of a test case.
+Any file systems mounted within the temporary directory are also unmounted.
+.It Home directory
+The
+.Va HOME
+environment variable is set to the absolute path of the work directory.
+.It Umask
+The value of the umask is set to 0022.
+.It Environment
+The
+.Va LANG ,
+.Va LC_ALL ,
+.Va LC_COLLATE ,
+.Va LC_CTYPE ,
+.Va LC_MESSAGES ,
+.Va LC_MONETARY ,
+.Va LC_NUMERIC
+and
+.Va LC_TIME
+variables are unset.
+.Pp
+The
+.Va TZ
+variable is set to
+.Sq UTC .
+.Pp
+The
+.Va TMPDIR
+variable is set to the absolute path of the work directory.
+This is to prevent the test from mistakenly using a temporary directory
+outside of the automatically-managed work directory, should the test use the
+.Xr mktemp 3
+familiy of functions.
+.It Process limits
+The maximum soft core size limit is raised to its corresponding hard limit.
+This is a simple, best-effort attempt at allowing tests to dump core for
+further diagnostic purposes.
+.It Configuration varibles
+The test engine may pass run-time configuration variables to the test program
+via the environment.
+The name of the configuration variable is prefixed with
+.Sq TEST_ENV_
+so that a configuration variable of the form
+.Sq foo=bar
+becomes accessible in the environment as
+.Sq TEST_ENV_foo=bar .
+.El

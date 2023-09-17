@@ -1,0 +1,95 @@
+.\"  SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\"  Copyright (c) 2022, Jake Freeland <jfree@freebsd.org>
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"  SUCH DAMAGE.
+
+.Dd August 10, 2022
+.Dt LINDEBUGFS 5
+.Os
+.Sh NAME
+.Nm lindebugfs
+.Nd Linux file system for debugging
+.Sh SYNOPSIS
+.Bd -literal
+lindebugfs		/sys/kernel/debug	lindebugfs	rw 0 0
+.Ed
+.Sh DESCRIPTION
+The debug file system, or debugfs, makes process debugging easier by
+providing a simple API for data transfer between the kernel and user
+space.
+Debugfs is not a general-purpose file system and should not be used as
+a storage medium.
+Instead, developers can implement the debugfs interface in their code
+to generate debug information about their program at runtime.
+FreeBSD's
+.Nm
+uses the
+.Xr pseudofs 9
+file system construction kit to model itself after Linux's debugfs.
+The
+.Nm
+API is intended for use with programs that take advantage of FreeBSD's
+LinuxKPI compatibility layer.
+.Pp
+When mounted,
+.Nm
+will populate with pseudo files from any running process that calls
+.Nm debugfs_create_file() .
+Since
+.Nm
+is a pseudo file system, file contents will be generated dynamically
+based on program provided file operations.
+The current
+.Nm
+implementation formally supports seq_file and simple_attr_file virtual
+file formats.
+.Sh EXAMPLES
+Load the
+.Nm
+kernel module:
+.Pp
+.Dl "kldload lindebugfs"
+.Pp
+Mount the
+.Nm
+file system on
+.Pa /sys/kernel/debug :
+.Pp
+.Dl "mount -t lindebugfs lindebugfs /sys/kernel/debug"
+.Sh SEE ALSO
+.Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
+.Xr pseudofs 9 ,
+.Xr linux 4 ,
+.Xr mount 1
+.Sh HISTORY
+The
+.Nm
+file system first appeared in
+.Fx 12.1 .
+.Sh AUTHORS
+.An -nosplit
+The initial implementation for
+.Nm
+was created by Matthew Macy.
+This manual page was written by Jake Freeland.

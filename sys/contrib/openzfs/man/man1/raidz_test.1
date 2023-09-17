@@ -1,0 +1,101 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright (c) 2016 Gvozden Nešković. All rights reserved.
+.\"
+.Dd May 26, 2021
+.Dt RAIDZ_TEST 1
+.Os
+.
+.Sh NAME
+.Nm raidz_test
+.Nd raidz implementation verification and benchmarking tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl StBevTD
+.Op Fl a Ar ashift
+.Op Fl o Ar zio_off_shift
+.Op Fl d Ar raidz_data_disks
+.Op Fl s Ar zio_size_shift
+.Op Fl r Ar reflow_offset
+.
+.Sh DESCRIPTION
+The purpose of this tool is to run all supported raidz implementation and verify
+the results of all methods.
+It also contains a parameter sweep option where all
+parameters affecting a RAID-Z block are verified (like ashift size, data offset,
+data size, etc.).
+The tool also supports a benchmarking mode using the
+.Fl B
+option.
+.
+.Sh OPTION
+.Bl -tag -width "-B(enchmark)"
+.It Fl h
+Print a help summary.
+.It Fl a Ar ashift Pq default: Sy 9
+Ashift value.
+.It Fl o Ar zio_off_shift Pq default: Sy 0
+ZIO offset for each raidz block.
+The offset's value is
+.Em 2^zio_off_shift .
+.It Fl d Ar raidz_data_disks Pq default: Sy 8
+Number of raidz data disks to use.
+Additional disks will be used for parity.
+.It Fl s Ar zio_size_shift Pq default: Sy 19
+Size of data for raidz block.
+The real size is
+.Em 2^zio_size_shift .
+.It Fl r Ar reflow_offset Pq default: Sy uint max
+Set raidz expansion offset.
+The expanded raidz map allocation function will
+produce different map configurations depending on this value.
+.It Fl S Ns Pq weep
+Sweep parameter space while verifying the raidz implementations.
+This option
+will exhaust all most of valid values for the
+.Fl aods
+options.
+Runtime using this option will be long.
+.It Fl t Ns Pq imeout
+Wall time for sweep test in seconds.
+The actual runtime could be longer.
+.It Fl B Ns Pq enchmark
+All implementations are benchmarked using increasing per disk data size.
+Results are given as throughput per disk, measured in MiB/s.
+.It Fl e Ns Pq xpansion
+Use expanded raidz map allocation function.
+.It Fl v Ns Pq erbose
+Increase verbosity.
+.It Fl T Ns Pq est the test
+Debugging option: fail all tests.
+This is to check if tests would properly verify bit-exactness.
+.It Fl D Ns Pq ebug
+Debugging option: attach
+.Xr gdb 1
+when
+.Sy SIGSEGV
+or
+.Sy SIGABRT
+are received.
+.El
+.
+.Sh "SEE ALSO"
+.Xr ztest 1

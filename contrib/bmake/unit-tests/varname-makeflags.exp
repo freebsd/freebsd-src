@@ -1,0 +1,21 @@
+spaces_stage_0: MAKEFLAGS=< -r -k >
+spaces_stage_0: env MAKEFLAGS=< -r -k >
+spaces_stage_1: MAKEFLAGS=< -r -k -d 00000 -D VARNAME WITH SPACES >
+spaces_stage_1: env MAKEFLAGS=< -r -k -d 00000 -D VARNAME WITH SPACES >
+dollars_stage_0: MAKEFLAGS=< -r -k >
+dollars_stage_1: env MAKEFLAGS=< -r -k DOLLARS=\$\{varname\}>
+dollars_stage_1: MAKEFLAGS=< -r -k DOLLARS=\{varname\}>
+dollars_stage_1: MAKEFLAGS:q=< -r -k DOLLARS=\{varname\}>
+dollars_stage_2: env MAKEFLAGS=< -r -k DOLLARS=>
+dollars_stage_2: dollars=<>
+dollars_stage_2: MAKEFLAGS=< -r -k DOLLARS=>
+dollars_stage_3: env MAKEFLAGS=< -r -k DOLLARS=>
+dollars_stage_3: dollars=<>
+dollars_stage_3: MAKEFLAGS=< -r -k DOLLARS=>
+append_stage_0: MAKEFLAGS=< -r -k >
+append_stage_1: MAKEFLAGS=< -r -k -D before-0 -D after-0 VAR0=value>
+append_stage_2: MAKEFLAGS=< -r -k -D before-0 -D after-0 -D before-1 -D after-1 VAR0=value VAR1=value>
+append_stage_3: MAKEFLAGS=< -r -k -D before-0 -D after-0 -D before-1 -D after-1 -D before-2 -D after-2 VAR0=value VAR1=value VAR2=value>
+override_stage_1: run MAKEFLAGS=< -r -k STAGE=1 VAR=value>
+override_stage_2: STAGE=<2> VAR=<value>
+exit status 0

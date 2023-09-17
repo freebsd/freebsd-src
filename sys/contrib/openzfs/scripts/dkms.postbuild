@@ -1,0 +1,25 @@
+#!/bin/sh
+
+PROG=$0
+
+while getopts "a:k:n:t:v:" opt; do
+	case $opt in
+		a) arch=$OPTARG    ;;
+		k) kver=$OPTARG    ;;
+		n) pkgname=$OPTARG ;;
+		t) tree=$OPTARG    ;;
+		v) pkgver=$OPTARG  ;;
+		*) err=1           ;;
+	esac
+done
+
+if [ -z "${arch}" ] || [ -z "${kver}" ] || [ -z "${pkgname}" ] || \
+    [ -z "${tree}" ] || [ -z "${pkgver}" ] || [ -n "${err}" ]; then
+	echo "Usage: $PROG -a <arch> -k <kver> -n <pkgname>" \
+	    "-t <tree> -v <pkgver>"
+	exit 1
+fi
+
+exec cp "${tree}/${pkgname}/${pkgver}/build/zfs_config.h"     \
+   "${tree}/${pkgname}/${pkgver}/build/module/Module.symvers" \
+   "${tree}/${pkgname}/${pkgver}/${kver}/${arch}/"

@@ -1,0 +1,114 @@
+# Portuguese (Portugal) Translation for the dialog Package
+# This file is distributed under the same license as the dialog package.
+# Copyright 2003-2007,2008 Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+# Pedro Albuquerque <palbuquerque73@gmail.com>, 2019.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2019-09-25 07:33+0100\n"
+"Last-Translator: Pedro Albuquerque <palbuquerque73@gmail.com>\n"
+"Language-Team: Portuguese <translation-team-pt@lists.sourceforge.net>\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Sim"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Não"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "Aceitar"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "SAIR"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Ajuda"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mês"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Ano"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Renomear"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Pastas"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Ficheiros"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Sucesso"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Falha"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Passou"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Concluído"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Verificado"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Feito"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Ignorado"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Em Curso"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/D"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progresso geral"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Procurar"

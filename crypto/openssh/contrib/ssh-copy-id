@@ -1,0 +1,388 @@
+#!/bin/sh
+
+# Copyright (c) 1999-2023 Philip Hands <phil@hands.com>
+#               2021 Carlos Rodríguez Gili <carlos.rodriguez-gili@upc.edu>
+#               2020 Matthias Blümel <blaimi@blaimi.de>
+#               2017 Sebastien Boyron <seb@boyron.eu>
+#               2013 Martin Kletzander <mkletzan@redhat.com>
+#               2010 Adeodato =?iso-8859-1?Q?Sim=F3?= <asp16@alu.ua.es>
+#               2010 Eric Moret <eric.moret@gmail.com>
+#               2009 Xr <xr@i-jeuxvideo.com>
+#               2007 Justin Pryzby <justinpryzby@users.sourceforge.net>
+#               2004 Reini Urban <rurban@x-ray.at>
+#               2003 Colin Watson <cjwatson@debian.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Shell script to install your public key(s) on a remote machine
+# See the ssh-copy-id(1) man page for details
+
+# shellcheck shell=dash
+
+# check that we have something mildly sane as our shell, or try to find something better
+if false ^ printf "%s: WARNING: ancient shell, hunting for a more modern one... " "$0"
+then
+  SANE_SH=${SANE_SH:-/usr/bin/ksh}
+  if printf 'true ^ false\n' | "$SANE_SH"
+  then
+    printf "'%s' seems viable.\\n" "$SANE_SH"
+    exec "$SANE_SH" "$0" "$@"
+  else
+    cat <<-EOF
+	oh dear.
+
+	  If you have a more recent shell available, that supports \$(...) etc.
+	  please try setting the environment variable SANE_SH to the path of that
+	  shell, and then retry running this script. If that works, please report
+	  a bug describing your setup, and the shell you used to make it work.
+
+	EOF
+    printf '%s: ERROR: Less dimwitted shell required.\n' "$0"
+    exit 1
+  fi
+fi
+
+# shellcheck disable=SC2010
+DEFAULT_PUB_ID_FILE=$(ls -t "${HOME}"/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
+SSH="ssh -a -x"
+TARGET_PATH=".ssh/authorized_keys"
+umask 0177
+
+usage () {
+  printf 'Usage: %s [-h|-?|-f|-n|-s|-x] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [-t target_path] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf '\t-f: force mode -- copy keys without trying to check if they are already installed\n' >&2
+  printf '\t-n: dry run    -- no keys are actually copied\n' >&2
+  printf '\t-s: use sftp   -- use sftp instead of executing remote-commands. Can be useful if the remote only allows sftp\n' >&2
+  printf '\t-x: debug      -- enables -x in this shell, for debugging\n' >&2
+  printf '\t-h|-?: print this help\n' >&2
+  exit 1
+}
+
+# escape any single quotes in an argument
+quote() {
+  printf '%s\n' "$1" | sed -e "s/'/'\\\\''/g"
+}
+
+use_id_file() {
+  L_ID_FILE="$1"
+
+  if [ -z "$L_ID_FILE" ] ; then
+    printf '%s: ERROR: no ID file found\n' "$0"
+    exit 1
+  fi
+
+  if expr "$L_ID_FILE" : '.*\.pub$' >/dev/null ; then
+    PUB_ID_FILE="$L_ID_FILE"
+  else
+    PUB_ID_FILE="$L_ID_FILE.pub"
+  fi
+
+  [ "$FORCED" ] || PRIV_ID_FILE=$(dirname "$PUB_ID_FILE")/$(basename "$PUB_ID_FILE" .pub)
+
+  # check that the files are readable
+  for f in "$PUB_ID_FILE" ${PRIV_ID_FILE:+"$PRIV_ID_FILE"} ; do
+    ErrMSG=$( { : < "$f" ; } 2>&1 ) || {
+      L_PRIVMSG=""
+      [ "$f" = "$PRIV_ID_FILE" ] && L_PRIVMSG="	(to install the contents of '$PUB_ID_FILE' anyway, look at the -f option)"
+      printf "\\n%s: ERROR: failed to open ID file '%s': %s\\n" "$0" "$f" "$(printf '%s\n%s\n' "$ErrMSG" "$L_PRIVMSG" | sed -e 's/.*: *//')"
+      exit 1
+    }
+  done
+  printf '%s: INFO: Source of key(s) to be installed: "%s"\n' "$0" "$PUB_ID_FILE" >&2
+  GET_ID="cat \"$PUB_ID_FILE\""
+}
+
+if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -L >/dev/null 2>&1 ; then
+  GET_ID="ssh-add -L"
+fi
+
+while getopts "i:o:p:F:t:fnsxh?" OPT
+do
+  case "$OPT" in
+    i)
+      [ "${SEEN_OPT_I}" ] && {
+        printf '\n%s: ERROR: -i option must not be specified more than once\n\n' "$0"
+        usage
+      }
+      SEEN_OPT_I="yes"
+      use_id_file "${OPTARG:-$DEFAULT_PUB_ID_FILE}"
+      ;;
+    o|F)
+      OPTS_oF="${OPTS_oF:+$OPTS_oF }-$OPT '$(quote "${OPTARG}")'"
+      ;;
+    f)
+      FORCED=1
+      ;;
+    n)
+      DRY_RUN=1
+      ;;
+    p)
+      SSH_PORT=${OPTARG}
+      ;;
+    s)
+      SFTP=sftp
+      ;;
+    t)
+      TARGET_PATH="${OPTARG}"
+      ;;
+    x)
+      SET_X="set -x;"
+      set -x
+      ;;
+    h|\?)
+      usage
+      ;;
+  esac
+done
+#shift all args to keep only USER_HOST
+shift $((OPTIND-1))
+
+if [ $# = 0 ] ; then
+  usage
+fi
+if [ $# != 1 ] ; then
+  printf '%s: ERROR: Too many arguments.  Expecting a target hostname, got: %s\n\n' "$0" "$SAVEARGS" >&2
+  usage
+fi
+
+USER_HOST="$*"
+# tack the hostname onto SSH_OPTS
+OPTS_USER_HOST="${OPTS_oF:+$OPTS_oF }'$(quote "$USER_HOST")'"
+SSH_OPTS="${SSH_PORT:+-p $SSH_PORT }$OPTS_USER_HOST"
+# and populate "$@" for later use (only way to get proper quoting of options)
+eval set -- "$SSH_OPTS"
+
+# shellcheck disable=SC2086
+if [ -z "$(eval $GET_ID)" ] && [ -r "${PUB_ID_FILE:=$DEFAULT_PUB_ID_FILE}" ] ; then
+  use_id_file "$PUB_ID_FILE"
+fi
+
+# shellcheck disable=SC2086
+if [ -z "$(eval $GET_ID)" ] ; then
+  printf '%s: ERROR: No identities found\n' "$0" >&2
+  exit 1
+fi
+
+# filter_ids()
+# tries to log in using the keys piped to it, and filters out any that work
+filter_ids() {
+  L_SUCCESS="$1"
+  L_TMP_ID_FILE="$SCRATCH_DIR"/popids_tmp_id
+  L_OUTPUT_FILE="$SCRATCH_DIR"/popids_output
+
+  # repopulate "$@" inside this function
+  eval set -- "$SSH_OPTS"
+
+  while read -r ID || [ "$ID" ] ; do
+    printf '%s\n' "$ID" > "$L_TMP_ID_FILE"
+
+    # the next line assumes $PRIV_ID_FILE only set if using a single id file - this
+    # assumption will break if we implement the possibility of multiple -i options.
+    # The point being that if file based, ssh needs the private key, which it cannot
+    # find if only given the contents of the .pub file in an unrelated tmpfile
+    $SSH -i "${PRIV_ID_FILE:-$L_TMP_ID_FILE}" \
+      -o ControlPath=none \
+      -o LogLevel=INFO \
+      -o PreferredAuthentications=publickey \
+      -o IdentitiesOnly=yes "$@" exit >"$L_OUTPUT_FILE" 2>&1 </dev/null
+    if [ "$?" = "$L_SUCCESS" ] || {
+         [ "$SFTP" ] && grep 'allows sftp connections only' "$L_OUTPUT_FILE" >/dev/null
+         # this error counts as a success if we're setting up an sftp connection
+       }
+    then
+      : > "$L_TMP_ID_FILE"
+    else
+      grep 'Permission denied' "$L_OUTPUT_FILE" >/dev/null || {
+        sed -e 's/^/ERROR: /' <"$L_OUTPUT_FILE" >"$L_TMP_ID_FILE"
+        cat >/dev/null #consume the other keys, causing loop to end
+      }
+    fi
+
+    cat "$L_TMP_ID_FILE"
+  done
+}
+
+# populate_new_ids() uses several global variables ($USER_HOST, $SSH_OPTS ...)
+# and has the side effect of setting $NEW_IDS
+populate_new_ids() {
+  if [ "$FORCED" ] ; then
+    # shellcheck disable=SC2086
+    NEW_IDS=$(eval $GET_ID)
+    return
+  fi
+
+  printf '%s: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n' "$0" >&2
+  # shellcheck disable=SC2086
+  NEW_IDS=$(eval $GET_ID | filter_ids $1)
+
+  if expr "$NEW_IDS" : "^ERROR: " >/dev/null ; then
+    printf '\n%s: %s\n\n' "$0" "$NEW_IDS" >&2
+    exit 1
+  fi
+  if [ -z "$NEW_IDS" ] ; then
+    printf '\n%s: WARNING: All keys were skipped because they already exist on the remote system.\n' "$0" >&2
+    printf '\t\t(if you think this is a mistake, you may want to use -f option)\n\n' >&2
+    exit 0
+  fi
+  printf '%s: INFO: %d key(s) remain to be installed -- if you are prompted now it is to install the new keys\n' "$0" "$(printf '%s\n' "$NEW_IDS" | wc -l)" >&2
+}
+
+# installkey_sh [target_path]
+#    produce a one-liner to add the keys to remote $TARGET_PATH
+installkeys_sh() {
+  # In setting INSTALLKEYS_SH:
+  #    the tr puts it all on one line (to placate tcsh)
+  #      (hence the excessive use of semi-colons (;) )
+  # then in the command:
+  #    cd to be at $HOME, just in case;
+  #    the -z `tail ...` checks for a trailing newline. The echo adds one if was missing
+  #    the cat adds the keys we're getting via STDIN
+  #    and if available restorecon is used to restore the SELinux context
+  # OpenWrt has a special case for root only.
+  INSTALLKEYS_SH=$(tr '\t\n' ' ' <<-EOF
+	$SET_X
+	cd;
+	umask 077;
+	AUTH_KEY_FILE="${TARGET_PATH}";
+	[ -f /etc/openwrt_release ] && [ "\$LOGNAME" = "root" ] &&
+		AUTH_KEY_FILE=/etc/dropbear/authorized_keys;
+	AUTH_KEY_DIR=\`dirname "\${AUTH_KEY_FILE}"\`;
+	mkdir -p "\${AUTH_KEY_DIR}" &&
+		{ [ -z "\`tail -1c "\${AUTH_KEY_FILE}" 2>/dev/null\`" ] ||
+			echo >> "\${AUTH_KEY_FILE}" || exit 1; } &&
+		cat >> "\${AUTH_KEY_FILE}" || exit 1;
+	if type restorecon >/dev/null 2>&1; then
+		restorecon -F "\${AUTH_KEY_DIR}" "\${AUTH_KEY_FILE}";
+	fi
+	EOF
+  )
+
+  # to defend against quirky remote shells: use 'exec sh -c' to get POSIX;
+  printf "exec sh -c '%s'" "${INSTALLKEYS_SH}"
+}
+
+#shellcheck disable=SC2120 # the 'eval set' confuses this
+installkeys_via_sftp() {
+  AUTH_KEY_FILE=${TARGET_PATH}
+  AUTH_KEY_DIR=$(dirname "${AUTH_KEY_FILE}")
+
+  # repopulate "$@" inside this function
+  eval set -- "$SSH_OPTS"
+
+  L_KEYS=$SCRATCH_DIR/authorized_keys
+  L_SHARED_CON=$SCRATCH_DIR/master-conn
+  $SSH -f -N -M -S "$L_SHARED_CON" "$@"
+  L_CLEANUP="$SSH -S $L_SHARED_CON -O exit 'ignored' >/dev/null 2>&1 ; $SCRATCH_CLEANUP"
+  #shellcheck disable=SC2064
+  trap "$L_CLEANUP" EXIT TERM INT QUIT
+  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+	-get "$AUTH_KEY_FILE" "$L_KEYS"
+	EOF
+  # add a newline or create file if it's missing, same like above
+  [ -z "$(tail -1c "$L_KEYS" 2>/dev/null)" ] || echo >> "$L_KEYS"
+  # append the keys being piped in here
+  cat >> "$L_KEYS"
+  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+	-mkdir "$AUTH_KEY_DIR"
+	chmod 700 "$AUTH_KEY_DIR"
+	put $L_KEYS "$AUTH_KEY_FILE"
+	chmod 600 "$AUTH_KEY_FILE"
+	EOF
+  #shellcheck disable=SC2064
+  eval "$L_CLEANUP" && trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
+}
+
+
+# create a scratch dir for any temporary files needed
+if SCRATCH_DIR=$(mktemp -d ~/.ssh/ssh-copy-id.XXXXXXXXXX) &&
+    [ "$SCRATCH_DIR" ] && [ -d "$SCRATCH_DIR" ]
+then
+  chmod 0700 "$SCRATCH_DIR"
+  SCRATCH_CLEANUP="rm -rf \"$SCRATCH_DIR\""
+  #shellcheck disable=SC2064
+  trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
+else
+  printf '%s: ERROR: failed to create required temporary directory under ~/.ssh\n' "$0" >&2
+  exit 1
+fi
+
+REMOTE_VERSION=$($SSH -v -o PreferredAuthentications=',' -o ControlPath=none "$@" 2>&1 |
+                 sed -ne 's/.*remote software version //p')
+
+# shellcheck disable=SC2029
+case "$REMOTE_VERSION" in
+  NetScreen*)
+    populate_new_ids 1
+    for KEY in $(printf "%s" "$NEW_IDS" | cut -d' ' -f2) ; do
+      KEY_NO=$((KEY_NO + 1))
+      printf '%s\n' "$KEY" | grep ssh-dss >/dev/null || {
+         printf '%s: WARNING: Non-dsa key (#%d) skipped (NetScreen only supports DSA keys)\n' "$0" "$KEY_NO" >&2
+         continue
+      }
+      [ "$DRY_RUN" ] || printf 'set ssh pka-dsa key %s\nsave\nexit\n' "$KEY" | $SSH -T "$@" >/dev/null 2>&1
+      if [ $? = 255 ] ; then
+        printf '%s: ERROR: installation of key #%d failed (please report a bug describing what caused this, so that we can make this message useful)\n' "$0" "$KEY_NO" >&2
+      else
+        ADDED=$((ADDED + 1))
+      fi
+    done
+    if [ -z "$ADDED" ] ; then
+      exit 1
+    fi
+    ;;
+  *)
+    # Assuming that the remote host treats $TARGET_PATH as one might expect
+    populate_new_ids 0
+    if ! [ "$DRY_RUN" ] ; then
+      printf '%s\n' "$NEW_IDS" | \
+        if [ "$SFTP" ] ; then
+          #shellcheck disable=SC2119
+          installkeys_via_sftp
+        else
+          $SSH "$@" "$(installkeys_sh)"
+        fi || exit 1
+    fi
+    ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
+    ;;
+esac
+
+if [ "$DRY_RUN" ] ; then
+  cat <<-EOF
+	=-=-=-=-=-=-=-=
+	Would have added the following key(s):
+
+	$NEW_IDS
+	=-=-=-=-=-=-=-=
+	EOF
+else
+  [ -z "$SFTP" ] || PORT_OPT=P
+  cat <<-EOF
+
+	Number of key(s) added: $ADDED
+
+	Now try logging into the machine, with:   "${SFTP:-ssh}${SSH_PORT:+ -${PORT_OPT:-p} $SSH_PORT} ${OPTS_USER_HOST}"
+	and check to make sure that only the key(s) you wanted were added.
+
+	EOF
+fi
+
+# =-=-=-=

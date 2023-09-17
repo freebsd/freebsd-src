@@ -1,0 +1,2 @@
+Only build the required LLVM target support.
+This option is preferred to specific target support options.

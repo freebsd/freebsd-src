@@ -1,0 +1,116 @@
+
+#------------------------------------------------------------------------------
+# $File: pci_ids,v 1.1 2022/04/02 14:47:42 christos Exp $
+# pci.ids:  file(1) magic for PCI specific informations
+#
+
+# Vendor identification (ID)		https://pci-ids.ucw.cz/v2.2/pci.ids
+# show hexadecimal PCI vendor identification in human readable text form
+0	name	PCI-vendor
+#			ID	vendor name
+#>0	uleshort	=0x0f00	fOO
+>0	uleshort	=0x1000	Broadcom
+>0	uleshort	=0x1002	AMD/ATI
+>0	uleshort	=0x1013	Cirrus Logic
+>0	uleshort	=0x1014	IBM
+>0	uleshort	=0x1022	AMD
+>0	uleshort	=0x1050	Winbond
+>0	uleshort	=0x105a	Promise
+>0	uleshort	=0x1095	Silicon
+>0	uleshort	=0x10EC	Realtek
+>0	uleshort	=0x10de	NVIDIA
+>0	uleshort	=0x1106	VIA
+# Woodward McCoach, Inc. 
+>0	uleshort	=0x1231	Woodward
+#
+>0	uleshort	=0x1234	Bochs
+>0	uleshort	=0x15ad	VMware
+>0	uleshort	=0x1af4	Virtio
+>0	uleshort	=0x1b36	QEMU
+>0	uleshort	=0x1de1	Tekram
+# maybe also Promise?
+#>0	uleshort	=0x4289	Promise
+#>0	uleshort	=0x66a1	FOO
+>0	uleshort	=0x8086	Intel
+>0	uleshort	=0x9004	Adaptec
+# also Adaptec; but no example
+>0	uleshort	=0x9005	Adaptec
+# for unknown/missing manufactors
+>0	default		x	UNKNOWN
+>>0	uleshort		x	(%#4.4x)
+
+# https://blog.ladsai.com/pci-configuration-space-class-code.html
+# Base class code			https://wiki.osdev.org/PCI
+# show hexadecimal PCI class+sub+ProgIF identification in human readable text form
+0	name		PCI-class
+#>0	ubyte		x	CLASS=%x
+>0	ubyte		x
+# Device was built prior definition of the class code field
+>>0	ubyte		0x00	PRIOR
+# Any device except for VGA-Compatible devices like: 2975BIOS.BIN Trm3x5.bin
+# BUT also NVidia44.bin vgabios-stdvga-bin.rom
+#>>>0	ubyte		0x00		NOT VGA
+# VGA-Compatible Device; NO EXAMPLE found here!!
+#>>>0	ubyte		0x01		VGA
+# like 4243.bin
+#>>>0	ubyte		0x04		SUB_CLASS_4
+>>0	ubyte		0x01	storage controller
+# device sub-type and its definition is dependent upon the base-type code
+>>>1	ubyte		0x00		SCSI
+>>>1	ubyte		0x01		IDE
+>>>1	ubyte		0x02		Floppy
+>>>1	ubyte		0x03		IPI
+>>>0	ubyte		0x04		RAID
+>>>1	ubyte		0x05		ATA
+>>>1	ubyte		0x06		SATA
+>>>1	ubyte		0x07		SAS
+>>>1	ubyte		0x08		NVM
+# 4650_sr5.bin "PROMISE" "FT TX4650 Ary X"
+>>>1	ubyte		0x80		OTHER
+>>0	ubyte		0x02	network controller
+>>>1	ubyte		0x00		ethernet
+>>>1	ubyte		0x01		token ring
+>>>1	ubyte		0x02		FDDI
+>>>1	ubyte		0x03		ATM
+>>>1	ubyte		0x04		ISDN
+>>>1	ubyte		0x05		WorldFip
+# PICMG 2.14 Multi Computing
+>>>1	ubyte		0x06		PICMG
+>>>1	ubyte		0x80		OTHER
+>>0	ubyte		0x03	display controller
+>>0	ubyte		0x04	multimedia controller
+>>0	ubyte		0x05	memory controller
+>>0	ubyte		0x06	bridge device
+# Simple Communication Controllers
+>>0	ubyte		0x07	communication controller
+# Base System Peripherals
+>>0	ubyte		0x08	base peripheral
+# Input Devices
+>>0	ubyte		0x09	input device
+# Docking Stations
+>>0	ubyte		0x0A	docking station
+>>0	ubyte		0x0B	processor
+>>0	ubyte		0x0C	serial bus controller
+>>0	ubyte		0x0D	wireless controller
+# Intelligent I/O Controllers
+>>0	ubyte		0x0E	I/O controller
+# Satellite Communication Controllers
+>>0	ubyte		0x0F	satellite controller
+# Encryption/Decryption Controllers
+>>0	ubyte		0x10	encryption controller
+# Data Acquisition and Signal Processing Controllers
+>>0	ubyte		0x11	signal controller
+# Processing Accelerator 
+>>0	ubyte		0x12	processing accelerator
+# Non-Essential Instrumentation
+>>0	ubyte		0x13	non-essential
+# reserved or unassigned
+>>0	default		x
+# device does not fit any defined class; Unassigned Class (Vendor specific) 
+>>>0		ubyte	0xFF		UNASSIGNED
+# THIS SHOULD NOT HAPPEN! BUT CLASS=8f for Promise 4650_sr5.bin 8660_sr5.bin
+>>>0		default	x		RESERVED
+>>>>0 	ubyte	x		(%#x)
+# Prog IF of PCI class code?
+# defines the specific device programming interface
+>2	ubyte		>0	\b, ProgIF=%u

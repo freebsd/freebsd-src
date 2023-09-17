@@ -1,0 +1,5 @@
+Build some programs without Kerberos support, like
+.Xr ssh 1 ,
+.Xr telnet 1 ,
+and
+.Xr sshd 8 .

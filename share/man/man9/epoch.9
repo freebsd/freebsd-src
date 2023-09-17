@@ -1,0 +1,294 @@
+.\"
+.\" Copyright (C) 2018 Matthew Macy <mmacy@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.Dd April 30, 2020
+.Dt EPOCH 9
+.Os
+.Sh NAME
+.Nm epoch ,
+.Nm epoch_context ,
+.Nm epoch_alloc ,
+.Nm epoch_free ,
+.Nm epoch_enter ,
+.Nm epoch_exit ,
+.Nm epoch_wait ,
+.Nm epoch_enter_preempt ,
+.Nm epoch_exit_preempt ,
+.Nm epoch_wait_preempt ,
+.Nm epoch_call ,
+.Nm epoch_drain_callbacks ,
+.Nm in_epoch ,
+.Nm in_epoch_verbose
+.Nd kernel epoch based reclamation
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.In sys/epoch.h
+.\" Types
+.Bd -literal
+struct epoch;		/* Opaque */
+.Ed
+.Vt typedef "struct epoch *epoch_t" ;
+.Bd -literal
+struct epoch_context {
+	void	*data[2];
+};
+.Ed
+.Vt typedef "struct epoch_context *epoch_context_t" ;
+.Vt typedef "void epoch_callback_t(epoch_context_t)" ;
+.Bd -literal
+struct epoch_tracker;	/* Opaque */
+.Ed
+.Vt typedef "struct epoch_tracker *epoch_tracker_t" ;
+.\" Declarations
+.Ft epoch_t
+.Fn epoch_alloc "const char *name" "int flags"
+.Ft void
+.Fn epoch_free "epoch_t epoch"
+.Ft void
+.Fn epoch_enter "epoch_t epoch"
+.Ft void
+.Fn epoch_exit "epoch_t epoch"
+.Ft void
+.Fn epoch_wait "epoch_t epoch"
+.Ft void
+.Fn epoch_enter_preempt "epoch_t epoch" "epoch_tracker_t et"
+.Ft void
+.Fn epoch_exit_preempt "epoch_t epoch" "epoch_tracker_t et"
+.Ft void
+.Fn epoch_wait_preempt "epoch_t epoch"
+.Ft void
+.Fn epoch_call "epoch_t epoch" "epoch_callback_t callback" "epoch_context_t ctx"
+.Ft void
+.Fn epoch_drain_callbacks "epoch_t epoch"
+.Ft int
+.Fn in_epoch "epoch_t epoch"
+.Ft int
+.Fn in_epoch_verbose "epoch_t epoch" "int dump_onfail"
+.Sh DESCRIPTION
+Epochs are used to guarantee liveness and immutability of data by
+deferring reclamation and mutation until a grace period has elapsed.
+Epochs do not have any lock ordering issues.
+Entering and leaving an epoch section will never block.
+.Pp
+Epochs are allocated with
+.Fn epoch_alloc .
+The
+.Fa name
+argument is used for debugging convenience when the
+.Cd EPOCH_TRACE
+kernel option is configured.
+By default, epochs do not allow preemption during sections.
+By default mutexes cannot be held across
+.Fn epoch_wait_preempt .
+The
+.Fa flags
+specified are formed by
+.Em OR Ns 'ing
+the following values:
+.Bl -tag -offset indent -width Ds
+.It Dv EPOCH_LOCKED
+Permit holding mutexes across
+.Fn epoch_wait_preempt
+(requires
+.Dv EPOCH_PREEMPT ) .
+When doing this one must be cautious of creating a situation where a deadlock
+is possible.
+.It Dv EPOCH_PREEMPT
+The
+.Vt epoch
+will allow preemption during sections.
+Only non-sleepable locks may be acquired during a preemptible epoch.
+The functions
+.Fn epoch_enter_preempt ,
+.Fn epoch_exit_preempt ,
+and
+.Fn epoch_wait_preempt
+must be used in place of
+.Fn epoch_enter ,
+.Fn epoch_exit ,
+and
+.Fn epoch_wait ,
+respectively.
+.El
+.Pp
+.Vt epoch Ns s
+are freed with
+.Fn epoch_free .
+.Pp
+Threads indicate the start of an epoch critical section by calling
+.Fn epoch_enter
+(or
+.Fn epoch_enter_preempt
+for preemptible epochs).
+Threads call
+.Fn epoch_exit
+(or
+.Fn epoch_exit_preempt
+for preemptible epochs)
+to indicate the end of a critical section.
+.Vt struct epoch_tracker Ns s
+are stack objects whose pointers are passed to
+.Fn epoch_enter_preempt
+and
+.Fn epoch_exit_preempt
+(much like
+.Vt struct rm_priotracker ) .
+.Pp
+Threads can defer work until a grace period has expired since any thread has
+entered the epoch either synchronously or asynchronously.
+.Fn epoch_call
+defers work asynchronously by invoking the provided
+.Fa callback
+at a later time.
+.Fn epoch_wait
+(or
+.Fn epoch_wait_preempt )
+blocks the current thread until the grace period has expired and the work can be
+done safely.
+.Pp
+Default, non-preemptible epoch wait
+.Fn ( epoch_wait )
+is guaranteed to have much shorter completion times relative to
+preemptible epoch wait
+.Fn ( epoch_wait_preempt ) .
+(In the default type, none of the threads in an epoch section will be preempted
+before completing its section.)
+.Pp
+INVARIANTS can assert that a thread is in an epoch by using
+.Fn in_epoch .
+.Fn in_epoch "epoch"
+is equivalent to invoking
+.Fn in_epoch_verbose "epoch" "0" .
+If
+.Cd EPOCH_TRACE
+is enabled,
+.Fn in_epoch_verbose "epoch" "1"
+provides additional verbose debugging information.
+.Pp
+The epoch API currently does not support sleeping in epoch_preempt sections.
+A caller should never call
+.Fn epoch_wait
+in the middle of an epoch section for the same epoch as this will lead to a deadlock.
+.Pp
+The
+.Fn epoch_drain_callbacks
+function is used to drain all pending callbacks which have been invoked by prior
+.Fn epoch_call
+function calls on the same epoch.
+This function is useful when there are shared memory structure(s)
+referred to by the epoch callback(s) which are not refcounted and are
+rarely freed.
+The typical place for calling this function is right before freeing or
+invalidating the shared resource(s) used by the epoch callback(s).
+This function can sleep and is not optimized for performance.
+.Sh RETURN VALUES
+.Fn in_epoch curepoch
+will return 1 if curthread is in curepoch, 0 otherwise.
+.Sh EXAMPLES
+Async free example:
+Thread 1:
+.Bd -literal
+int
+in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_laddr *laddr,
+    struct ucred *cred)
+{
+    /* ... */
+    epoch_enter(net_epoch);
+    CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+        sa = ifa->ifa_addr;
+	if (sa->sa_family != AF_INET)
+	    continue;
+	sin = (struct sockaddr_in *)sa;
+	if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
+	     ia = (struct in_ifaddr *)ifa;
+	     break;
+	}
+    }
+    epoch_exit(net_epoch);
+    /* ... */
+}
+.Ed
+Thread 2:
+.Bd -literal
+void
+ifa_free(struct ifaddr *ifa)
+{
+
+    if (refcount_release(&ifa->ifa_refcnt))
+        epoch_call(net_epoch, ifa_destroy, &ifa->ifa_epoch_ctx);
+}
+
+void
+if_purgeaddrs(struct ifnet *ifp)
+{
+
+    /* .... *
+    IF_ADDR_WLOCK(ifp);
+    CK_STAILQ_REMOVE(&ifp->if_addrhead, ifa, ifaddr, ifa_link);
+    IF_ADDR_WUNLOCK(ifp);
+    ifa_free(ifa);
+}
+.Ed
+.Pp
+Thread 1 traverses the ifaddr list in an epoch.
+Thread 2 unlinks with the corresponding epoch safe macro, marks as logically free,
+and then defers deletion.
+More general mutation or a synchronous
+free would have to follow a call to
+.Fn epoch_wait .
+.Sh NOTES
+The
+.Nm
+kernel programming interface is under development and is subject to change.
+.Sh SEE ALSO
+.Xr callout 9 ,
+.Xr locking 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 11.0 .
+.Sh CAVEATS
+One must be cautious when using
+.Fn epoch_wait_preempt .
+Threads are pinned during epoch sections, so if a thread in a section is then
+preempted by a higher priority compute bound thread on that CPU, it can be
+prevented from leaving the section indefinitely.
+.Pp
+Epochs are not a straight replacement for read locks.
+Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
+When modifying a list referenced from an epoch section safe removal
+routines must be used and the caller can no longer modify a list entry
+in place.
+An item to be modified must be handled with copy on write
+and frees must be deferred until after a grace period has elapsed.

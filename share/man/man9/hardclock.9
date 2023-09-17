@@ -1,0 +1,116 @@
+.\"	$NetBSD: hardclock.9,v 1.3 2010/03/25 15:17:38 jruoho Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Thomas Klausner.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 27, 2023
+.Dt HARDCLOCK 9
+.Os
+.Sh NAME
+.Nm hardclock
+.Nd real-time timer
+.Sh SYNOPSIS
+.Ft void
+.Fn hardclock "int cnt" "int usermode"
+.Sh DESCRIPTION
+The
+.Fn hardclock
+function is called periodically based on pending work.
+The rate ranges from
+.Va hz
+times per second on a very busy system, to twice a second on an idle system.
+The
+.Fa cnt
+argument reports an estimate of the number of ticks since the last call.
+Over long timescales, the average sum of
+.Fa cnt
+over one second is
+.Va hz .
+See
+.Xr hz 9
+for important details over shorter time scales.
+The
+.Fa usermode
+argument is non-zero when
+.Fn hardclock
+is called from an context that interrupted usermode execution.
+.Pp
+.Fn hardclock
+may perform different tasks such as:
+.Bl -bullet -offset indent
+.It
+Run the current process's virtual and profile time (decrease the
+corresponding timers, if they are activated, and generate
+.Li SIGVTALRM
+or
+.Li SIGPROF ,
+respectively).
+.It
+Increment the time-of-day, taking care of any
+.Xr ntpd 8
+or
+.Xr adjtime 2
+induced changes and leap seconds, as well as any necessary
+compensations to keep in sync with PPS signals or external clocks, if
+supported by the kernel.
+.It
+Schedule softclock interrupts
+.Po
+.Xr swi 9
+.Pc
+processing.
+.It
+Collect
+.Xr hwpmc 4
+statistics.
+.It
+Do device polling, when enabled
+.Po
+see
+.Xr polling 4
+.Pc .
+.It
+Implement software
+.Xr watchdog 9
+processing.
+.It
+Enqueue
+.Xr epoch 9
+processing.
+.El
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr ntp_adjtime 2 ,
+.Xr signal 3 ,
+.Xr hwpmc 4 ,
+.Xr polling 4 ,
+.Xr ntpd 8 ,
+.Xr epoch 9 ,
+.Xr eventtimers 9 ,
+.Xr hz 9 ,
+.Xr swi 9 ,
+.Xr watchdog 9

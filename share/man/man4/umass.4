@@ -1,0 +1,115 @@
+.\" Copyright (c) 1999
+.\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 27, 2020
+.Dt UMASS 4
+.Os
+.Sh NAME
+.Nm umass
+.Nd USB Mass Storage Devices driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device usb"
+.Cd "device umass"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+umass_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Mass Storage devices that attach to the USB
+port.
+.Pp
+To use the
+.Nm
+driver,
+.Xr usb 4
+and one of
+.Xr uhci 4
+or
+.Xr ohci 4
+or
+.Xr ehci 4
+or
+.Xr xhci 4
+must be configured in the kernel.
+Additionally, since
+.Nm
+uses the SCSI subsystem and sometimes acts as a SCSI device, it
+requires
+.Xr da 4
+and
+.Xr scbus 4
+to be included in the kernel.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+device umass
+device scbus
+device da
+device pass
+.Ed
+.Pp
+Add the
+.Nm
+driver to the kernel.
+.Bd -literal -offset indent
+camcontrol rescan 0:0:0
+camcontrol rescan 0:0:1
+camcontrol rescan 0:0:2
+camcontrol rescan 0:0:3
+.Ed
+.Pp
+Rescan all slots on a multi-slot flash reader, where the slots map to separate
+LUNs on a single SCSI ID.
+Typically only the first slot will be enabled at boot time.
+This assumes that the flash reader is the first SCSI bus in the system and has 4 slots.
+.Sh SEE ALSO
+.Xr cfumass 4 ,
+.Xr ehci 4 ,
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr xhci 4 ,
+.Xr camcontrol 8
+.\".Sh HISTORY
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An MAEKAWA Masahide Aq Mt bishop@rr.iij4u.or.jp
+and
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .

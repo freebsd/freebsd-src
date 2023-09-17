@@ -1,0 +1,80 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 13, 2014
+.Dt KYUA-DB-EXEC 1
+.Os
+.Sh NAME
+.Nm "kyua db-exec"
+.Nd Executes a SQL statement in a results file
+.Sh SYNOPSIS
+.Nm
+.Op Fl -no-headers
+.Op Fl -results-file Ar file
+.Ar statement
+.Sh DESCRIPTION
+The
+.Nm
+command provides a way to execute an arbitrary SQL statement within the
+database.
+This command is mostly intended to aid in debugging, but can also be used to
+extract information from the database when the current interfaces do not
+provide the desired functionality.
+.Pp
+The input database must exist.
+It makes no sense to use
+.Nm
+on a nonexistent or empty database.
+.Pp
+The
+.Nm
+command takes one or more arguments, all of which are concatenated to form
+a single SQL statement.
+Once the statement is executed,
+.Nm
+prints the resulting table on the screen, if any.
+.Pp
+The following subcommand options are recognized:
+.Bl -tag -width XX
+.It Fl -no-headers
+Avoids printing the headers of the table in the output of the command.
+.It Fl -results-file Ar path , Fl s Ar path
+__include__ results-file-flag-read.mdoc
+.El
+.Ss Results files
+__include__ results-files.mdoc
+.Sh EXIT STATUS
+The
+.Nm
+command returns 0 on success or 1 if the SQL statement is invalid or fails
+to run.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr kyua-test 1

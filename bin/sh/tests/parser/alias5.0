@@ -1,0 +1,4 @@
+
+alias alias0=exit
+eval '</dev/null alias0 0'
+exit 1

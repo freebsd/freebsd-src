@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+#
+
+EMBEDDED_TARGET_ARCH="aarch64"
+EMBEDDED_TARGET="arm64"
+EMBEDDEDBUILD=1
+EMBEDDEDPORTS="sysutils/u-boot-pine64-lts"
+FAT_SIZE="54m -b 1m"
+FAT_TYPE="16"
+IMAGE_SIZE="5120M"
+KERNEL="GENERIC"
+MD_ARGS="-x 63 -y 255"
+PART_SCHEME="GPT"
+FDT_OVERLAYS="sun50i-a64-timer"
+export BOARDNAME="PINE64-LTS"
+
+arm_install_uboot() {
+	UBOOT_DIR="/usr/local/share/u-boot/u-boot-pine64-lts"
+	UBOOT_FILES="u-boot-sunxi-with-spl.bin"
+	chroot ${CHROOTDIR} dd if=${UBOOT_DIR}/${UBOOT_FILES} \
+		of=/dev/${mddev} bs=128k seek=1 conv=sync
+	
+	return 0
+}

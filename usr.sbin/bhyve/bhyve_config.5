@@ -1,0 +1,717 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 19, 2022
+.Dt BHYVE_CONFIG 5
+.Os
+.Sh NAME
+.Nm bhyve_config
+.Nd "bhyve configuration variables"
+.Sh DESCRIPTION
+.Xr bhyve 8
+uses a hierarchical tree of configuration variables to describe global and
+per-device settings.
+Internal nodes in this tree do not have a value,
+only leaf nodes have values.
+This manual describes the configuration variables understood by
+.Xr bhyve 8 .
+If additional variables are defined,
+.Xr bhyve 8
+will ignore them and will not emit errors for unknown variables.
+However, these additional variables can be referenced by other
+variables as described below.
+.Sh VARIABLE VALUES
+Configuration variable values are stored as strings.
+A configuration variable value may refer to one or more other
+configuration values by name.
+Instances of the pattern
+.Sq % Ns Pq Ar var
+are replaced by the value of the configuration variable
+.Va var .
+To avoid unwanted expansion,
+.Sq %
+characters can be escaped by a leading
+.Sq % .
+For example,
+if a configuration variable
+.Va disk
+uses the value
+.Pa /dev/zvol/bhyve/%(name) ,
+then the final value of the
+.Va disk
+variable will be set to the path of a ZFS volume whose name matches
+the name of the virtual machine on the pool
+.Pa bhyve .
+.Pp
+Some configuration variables may be interpreted as a boolean value.
+For those variables the following case-insensitive values may be used to
+indicate true:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+true
+.It
+on
+.It
+yes
+.It
+1
+.El
+.Pp
+The following values may be used to indicate false:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+false
+.It
+off
+.It
+no
+.It
+0
+.El
+.Pp
+Some configuration variables may be interperted as an integer.
+For those variables,
+any syntax supported by
+.Xr strtol 3
+may be used.
+.Sh GLOBAL SETTINGS
+.Ss Architecture Neutral Settings
+.Bl -column "memory.guest_in_core" "integer" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va name Ta string Ta Ta
+The name of the VM.
+.It Va cpus Ta integer Ta 1 Ta
+The total number of virtual CPUs.
+.It Va cores Ta integer Ta 1 Ta
+The number of virtual cores in each virtual socket.
+.It Va threads Ta integer Ta 1 Ta
+The number of virtual CPUs in each virtual core.
+.It Va sockets Ta integer Ta 1 Ta
+The number of virtual sockets.
+.It Va memory.guest_in_core Ta bool Ta false Ta
+Include guest memory in core file.
+.It Va memory.size Ta string Ta 256M Ta
+Guest physical memory size in bytes.
+The value must be formatted as described in
+.Xr expand_number 3 .
+.It Va memory.wired Ta bool Ta false Ta
+Wire guest memory.
+.It Va acpi_tables Ta bool Ta false Ta
+Generate ACPI tables.
+.It Va acpi_tables_in_memory Ta bool Ta true Ta
+.Xr bhyve 8
+always exposes ACPI tables by FwCfg.
+For backward compatibility bhyve copies them into the guest memory as well.
+This can cause problems if the guest uses the in-memory version, since certain
+advanced features, such as TPM emulation, are exposed only via FwCfg.
+Therefore, it is recommended to set this flag to false when running Windows guests.
+.It Va destroy_on_poweroff Ta bool Ta false Ta
+Destroy the VM on guest-initiated power-off.
+.It Va gdb.address Ta string Ta localhost Ta
+Hostname, IP address, or IPv6 address for the debug server.
+.It Va gdb.port Ta integer Ta 0 Ta
+TCP port number for the debug server.
+If this is set to a non-zero value, a debug server
+will listen for connections on this port.
+.It Va gdb.wait Ta bool Ta false Ta
+If the debug server is enabled, wait for a debugger to connect
+before starting the guest.
+.It Va keyboard.layout Ta string Ta Ta
+Specify the keyboard layout name with the file name in
+.Ar /usr/share/bhyve/kbdlayout .
+This value only works when loaded with UEFI mode for VNC, and
+used a VNC client that don't support QEMU Extended Key Event
+Message (e.g. TightVNC).
+.It Va tpm.path Ta string Ta Ta
+Path to the host TPM device.
+This is typically /dev/tpm0.
+.It Va tpm.type Ta string Ta Ta
+Type of the TPM device passed to the guest.
+Currently, only "passthru" is supported.
+.It Va tpm.version Ta string Ta 2.0 Ta
+Version of the TPM device according to the TCG specification.
+Currently, only version 2.0 is supported.
+.It Va rtc.use_localtime Ta bool Ta true Ta
+The real time clock uses the local time of the host.
+If this is set to false, the real time clock uses UTC.
+.It Va uuid Ta string Ta Ta
+The universally unique identifier (UUID) to use in the guest's
+System Management BIOS System Information structure.
+If an explicit value is not set, a valid UUID is generated from
+the host's hostname and the VM name.
+.It Va virtio_msix Ta bool Ta true Ta
+Use MSI-X interrupts for PCI VirtIO devices.
+If set to false, MSI interrupts are used instead.
+.It Va config.dump Ta bool Ta false Ta
+If this value is set to true after
+.Xr bhyve 8
+has finished parsing command line options,
+then
+.Xr bhyve 8
+will write all of its configuration variables to stdout and exit.
+No VM will be started.
+.It Va bios.vendor Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va bios.version Ta string Ta 14.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va bios.release_date Ta string Ta 10/17/2021 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.family_name Ta string Ta Virtual Machine Ta
+Family the computer belongs to.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.product_name Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.sku Ta string Ta None Ta
+Stock keeping unit of the computer.
+It's also called product ID or purchase order number.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.product_name Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.asset_tag Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.location Ta string Ta None Ta
+Describes the board's location within the chassis.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.asset_tag Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.sku Ta string Ta None Ta
+Stock keeping unit of the chassis.
+It's also called product ID or purchase order number.
+This value is used for the guest's System Management BIOS System Information structure.
+.El
+.Ss x86-Specific Settings
+.Bl -column "x86.vmexit_on_pause" "integer" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va x86.mptable Ta bool Ta true Ta
+Generate an MPTable.
+.It Va x86.x2apic Ta bool Ta false Ta
+Configure guest's local APICs in x2APIC mode.
+.It Va x86.strictio Ta bool Ta false Ta
+Exit if a guest accesses an I/O port that is not emulated.
+By default, writes are ignored and reads return all bits set.
+.It Va x86.strictmsr Ta bool Ta true Ta
+Inject a general protection fault if a guest accesses a Model Specific
+Register (MSR) that is not emulated.
+If this is false, writes are ignored and reads return zero.
+.It Va x86.vmexit_on_hlt Ta bool Ta false Ta
+Force a VM exit when a guest CPU executes the
+.Dv HLT
+instruction.
+This allows idle guest CPUs to yield the host CPU.
+.It Va x86.vmexit_on_pause Ta bool Ta false Ta
+Force a VM exit when a guest CPU executes the
+.Dv PAUSE
+instruction.
+.El
+.Sh DEVICE SETTINGS
+Device settings are stored under a device node.
+The device node's name is set by the parent bus of the device.
+.Ss PCI Device Settings
+PCI devices are described by a device node named
+.Dq pci . Ns Ar bus . Ns Ar slot . Ns Ar function
+where each of
+.Ar bus ,
+.Ar slot ,
+and
+.Ar function
+are formatted as decimal values with no padding.
+All PCI device nodes must contain a configuration variable named
+.Dq device
+which specifies the device model to use.
+The following PCI device models are supported:
+.Bl -tag -indent
+.It Li hostbridge
+Provide a simple PCI-Host bridge device.
+This is usually configured at pci0:0:0 and is required by most guest
+operating systems.
+.It Li ahci
+AHCI storage controller.
+.It Li e1000
+Intel e82545 network interface.
+.It Li fbuf
+VGA framebuffer device attached to VNC server.
+.It Li lpc
+LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
+a boot ROM,
+an optional fwcfg type,
+and an optional debug/test device.
+This device must be configured on bus 0.
+.It Li hda
+High Definition audio controller.
+.It Li nvme
+NVM Express (NVMe) controller.
+.It Li passthru
+PCI pass-through device.
+.It Li uart
+PCI 16550 serial device.
+.It Li virtio-9p
+VirtIO 9p (VirtFS) interface.
+.It Li virtio-blk
+VirtIO block storage interface.
+.It Li virtio-console
+VirtIO console interface.
+.It Li virtio-input
+VirtIO input interface.
+.It Li virtio-net
+VirtIO network interface.
+.It Li virtio-rnd
+VirtIO RNG interface.
+.It Li virtio-scsi
+VirtIO SCSI interface.
+.It Li xhci
+Extensible Host Controller Interface (XHCI) USB controller.
+.El
+.Ss USB Device Settings
+USB controller devices contain zero or more child USB devices
+attached to slots.
+Each USB device stores its settings in a node named
+.Dq slot. Ns Va N
+under the controller's device node.
+.Va N
+is the number of the slot to which the USB device is attached.
+Note that USB slot numbers begin at 1.
+All USB device nodes must contain a configuration variable named
+.Dq device
+which specifies the device model to use.
+The following USB device models are supported:
+.Bl -tag -indent
+.It Li tablet
+A USB tablet device which provides precise cursor synchronization
+when using VNC.
+.El
+.Ss Block Device Settings
+Block devices use the following settings to configure their backing store.
+These settings are stored in the configuration node of the respective device.
+.Bl -column "sectorsize" "logical[/physical]" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It path Ta string Ta Ta
+The path of the file or disk device to use as the backing store.
+.It nocache Ta bool Ta false Ta
+Disable caching on the backing file by opening the backing file with
+.Dv O_DIRECT .
+.It nodelete Ta bool Ta false Ta
+Disable emulation of guest trim requests via
+.Dv DIOCGDELETE
+requests.
+.It sync Ta bool Ta false Ta
+Write changes to the backing file with synchronous writes.
+.It direct Ta bool Ta false Ta
+An alias for
+.Va sync .
+.It ro Ta bool Ta false Ta
+Disable writes to the backing file.
+.It sectorsize Ta Va logical Ns Op / Ns Va physical Ta Ta
+Specify the logical and physical sector size of the emulated disk.
+If the physical size is not specified,
+it is equal to the logical size.
+.El
+.Ss Network Backend Settings
+Network devices use the following settings to configure their backend.
+The backend is responsible for passing packets between the device model
+and a desired destination.
+Configuring a backend requires setting the
+.Va backend
+variable.
+The type of a backend can either be set explicitly via the
+.Va type
+variable
+or it can be inferred from the value of
+.Va backend .
+.Pp
+The following types of backends are supported:
+.Bl -tag -width "netgraph"
+.It tap
+Use the
+.Xr tap 4
+interface named in
+.Va backend
+as the backend.
+.It netgraph
+Use a
+.Xr netgraph 4
+socket hook as the backend.
+This backend uses the following additional variables:
+.Bl -column "peerhook" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va path Ta string Ta Ta
+The name of the
+.Xr netgraph 4
+destination node.
+.It Va peerhook Ta string Ta Ta
+The name of the destination hook.
+.It Va socket Ta string Ta Ta
+The name of the created
+.Xr ng_socket 4
+node.
+.It Va hook Ta string Ta vmlink Ta
+The name of the source hook on the created
+.Xr ng_socket 4
+node.
+.El
+.It netmap
+Use
+.Xr netmap 4
+either on a network interface or a port on a
+.Xr vale 4
+bridge as the backend.
+The value of
+.Va backend
+is passed to
+.Xr nm_open
+to connect to a netmap port.
+.El
+.Pp
+If
+.Va type
+is not specified explicitly, then it is inferred from
+.Va backend
+based on the following patterns:
+.Bl -column -offset indent "valuebridge:port"
+.It Sy Pattern Ta Sy Type
+.It tap Ns Va N Ta tap
+.It vmnet Ns Va N Ta tap
+.It netgraph Ta netgraph
+.It netmap: Ns Va interface Ta netmap
+.It vale Ns Va bridge : Ns Va port Ta netmap
+.El
+.Ss UART Device Settings
+.Bl -column "Name" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va path Ta path Ta Ta
+Backend device for the serial port.
+Either the pathname of a character device or
+.Dq stdio
+to use standard input and output of the
+.Xr bhyve 8
+process.
+.El
+.Ss Host Bridge Settings
+.Bl -column "pcireg.*" "integer" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va pcireg.* Ta integer Ta Ta
+Values of PCI register.
+.Bl -column "device" "Default"
+.It Sy Name Ta Sy Default
+.It Va vendor Ta integer Ta 0x1275 Ta
+.It Va device Ta integer Ta 0x1275 Ta
+.El
+.El
+.Ss AHCI Controller Settings
+AHCI controller devices contain zero or more ports each of which
+provides a storage device.
+Each port stores its settings in a node named
+.Dq port. Ns Va N
+under the controller's device node.
+The
+.Va N
+values are formatted as successive decimal values starting with 0.
+In addition to the block device settings described above, each
+port supports the following settings:
+.Bl -column "model" "integer" "generated"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va type Ta string Ta Ta
+The type of storage device to emulate.
+Must be set to either
+.Dq cd
+or
+.Dq hd .
+.It Va nmrr Ta integer Ta 0 Ta
+Nominal Media Rotation Rate, also known as RPM.
+A value 1 of indicates a device with no rate such as a Solid State Disk.
+.It Va ser Ta string Ta generated Ta
+Serial number of up to twenty characters.
+A default serial number is generated using a hash of the backing
+store's pathname.
+.It Va rev Ta string Ta 001 Ta
+Revision number of up to eight characters.
+.It Va model Ta string Ta Ta
+Model number of up to forty characters.
+Separate default model strings are used for
+.Dq cd
+and
+.Dq hd
+device types.
+.El
+.Ss e1000 Settings
+In addition to the network backend settings,
+Intel e82545 network interfaces support the following variables:
+.Bl -column "Name" "MAC address" "generated"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va mac Ta MAC address Ta generated Ta
+MAC address.
+If an explicit address is not provided,
+a MAC address is generated from a hash of the device's PCI address.
+.El
+.Ss Frame Buffer Settings
+.Bl -column "password" "[IP:]port" "127.0.0.1:5900"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va wait Ta bool Ta false Ta
+Wait for a remote connection before starting the VM.
+.It Va rfb Ta Oo Ar IP Ns : Oc Ns Ar port Ta 127.0.0.1:5900 Ta
+TCP address to listen on for remote connections.
+The IP address must be given as a numeric address.
+IPv6 addresses must be enclosed in square brackets and
+support scoped identifiers as described in
+.Xr getaddrinfo 3 .
+A bare port number may be given in which case the IPv4
+localhost address is used.
+.It Va vga Ta string Ta io Ta
+VGA configuration.
+More details are provided in
+.Xr bhyve 8 .
+.It Va w Ta integer Ta 1024 Ta
+Frame buffer width in pixels.
+.It Va h Ta integer Ta 768 Ta
+Frame buffer height in pixels.
+.It Va password Ta string Ta Ta
+Password to use for VNC authentication.
+This type of authentication is known to be cryptographically weak and is not
+intended for use on untrusted networks.
+.El
+.Ss High Definition Audio Settings
+.Bl -column "Name" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va play Ta path Ta Ta
+Host playback device,
+typically
+.Pa /dev/dsp0 .
+.It Va rec Ta path Ta Ta
+Host recording device,
+typically
+.Pa /dev/dsp0 .
+.El
+.Ss LPC Device Settings
+The LPC bridge stores its configuration under a top-level
+.Va lpc
+node rather than under the PCI LPC device's node.
+The following nodes are available under
+.Va lpc :
+.Bl -column "pc-testdev" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va bootrom Ta path Ta Ta
+Path to a boot ROM.
+The contents of this file are copied into the guest's
+memory ending just before the 4GB physical address.
+If a boot ROM is present, a firmware interface device is
+also enabled for use by the boot ROM.
+.It Va bootvars Ta path Ta Ta
+Path to boot VARS.
+The contents of this file are copied beneath the boot ROM.
+Firmware can write to it to save variables.
+All variables will be persistent even on reboots of the guest.
+.It Va com1 Ta node Ta Ta
+Settings for the COM1 serial port device.
+.It Va com2 Ta node Ta Ta
+Settings for the COM2 serial port device.
+.It Va com3 Ta node Ta Ta
+Settings for the COM3 serial port device.
+.It Va com4 Ta node Ta Ta
+Settings for the COM4 serial port device.
+.It Va fwcfg Ta string Ta bhyve Ta
+The fwcfg type to be used.
+Supported values are
+.Dq bhyve
+for fwctl and
+.Dq qemu
+for fwcfg.
+.It Va pc-testdev Ta bool Ta false Ta
+Enable the PC debug/test device.
+.It Va pcireg.* Ta integer Ta Ta
+Values of PCI register.
+It also accepts the value
+.Ar host
+to use the pci id of the host system.
+This value is required for the Intel GOP driver to work properly.
+.Bl -column "subvendor" "Default"
+.It Sy Name Ta Sy Default
+.It Va vendor Ta 0x8086
+.It Va device Ta 0x7000
+.It Va revid Ta 0
+.It Va subvendor Ta 0
+.It Va subdevice Ta 0
+.El
+.El
+.Ss NVMe Controller Settings
+Each NVMe controller supports a single storage device.
+The device can be backed either by a memory disk described by the
+.Va ram
+variable, or a block device using the block device settings described above.
+In addition, each controller supports the following settings:
+.Bl -column "ioslots" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va maxq Ta integer Ta 16 Ta
+Maximum number of I/O submission and completion queue pairs.
+.It Va qsz Ta integer Ta 2058 Ta
+Number of elements in each I/O queue.
+.It Va ioslots Ta integer Ta 8 Ta
+Maximum number of concurrent I/O requests.
+.It Va sectsz Ta integer Ta Ta
+Sector size.
+Can be one of 512, 4096, or 8192.
+Devices backed by a memory disk use 4096 as the default.
+Devices backed by a block device use the block device's sector size
+as the default.
+.It Va ser Ta string Ta Ta
+Serial number of up to twenty characters.
+A default serial number is generated using a hash of the device's PCI address.
+.It Va eui64 Ta integer Ta Ta
+IEEE Extended Unique Identifier.
+If an EUI is not provided, a default is generated using a checksum of the
+device's PCI address.
+.It Va dsm Ta string Ta auto Ta
+Whether or not to advertise DataSet Management support.
+One of
+.Dq auto ,
+.Dq enable ,
+or
+.Dq disable .
+The
+.Dq auto
+setting only advertises support if the backing store supports
+resource freeing, for example via TRIM.
+.It Va ram Ta integer Ta Ta
+If set, allocate a memory disk as the backing store.
+The value of this variable is the size of the memory disk in megabytes.
+.El
+.Ss PCI Passthrough Settings
+The
+.Xr ppt 4
+device driver must be attached to the
+PCI device being passed through.
+The device to pass through can be identified either by name or its
+host PCI bus location.
+.Bl -column "Name" "integer" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va bus Ta integer Ta Ta
+Host PCI bus address of device to pass through.
+.It Va slot Ta integer Ta Ta
+Host PCI slot address of device to pass through.
+.It Va func Ta integer Ta Ta
+Host PCI function address of device to pass through.
+.It Va pptdev Ta string Ta Ta
+Name of a
+.Xr ppt 4
+device to pass through.
+.It Va rom Ta path Ta Ta
+ROM file of the device which will be executed by OVMF to init the device.
+.El
+.Ss VirtIO 9p Settings
+Each VirtIO 9p device exposes a single filesystem from a host path.
+.Bl -column "sharename" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va sharename Ta string Ta Ta
+The share name exposed to the guest.
+.It Va path Ta path Ta Ta
+The path of a directory on the host to export to the guest.
+.It Va ro Ta bool Ta false Ta
+If true, the guest filesystem is read-only.
+.El
+.Ss VirtIO Block Device Settings
+In addition to the block device settings described above, each
+VirtIO block device supports the following settings:
+.Bl -column "model" "integer" "generated"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va ser Ta string Ta generated Ta
+Serial number of up to twenty characters.
+A default serial number is generated using a hash of the backing
+store's pathname.
+.El
+.Ss VirtIO Console Device Settings
+Each VirtIO Console device contains one or more console ports.
+Each port stores its settings in a node named
+.Dq port. Ns Va N
+under the controller's device node.
+The
+.Va N
+values are formatted as successive decimal values starting with 0.
+Each port supports the following settings:
+.Bl -column "Name" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va name Ta string Ta Ta
+The name of the port exposed to the guest.
+.It Va path Ta path Ta Ta
+The path of a UNIX domain socket providing the host connection for the port.
+.El
+.Ss VirtIO Input Interface Settings
+Each VirtIO Input device contains one input event device.
+All input events of the input event device are send to the guest by VirtIO Input interface.
+VirtIO Input Interfaces support the following variables:
+.Bl -column "Name" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va path Ta path Ta Ta
+The path of the input event device exposed to the guest
+.El
+.Ss VirtIO Network Interface Settings
+In addition to the network backend settings,
+VirtIO network interfaces support the following variables:
+.Bl -column "Name" "MAC address" "generated"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va mac Ta MAC address Ta generated Ta
+MAC address.
+If an explicit address is not provided,
+a MAC address is generated from a hash of the device's PCI address.
+.It Va mtu Ta integer Ta 1500 Ta
+The largest supported MTU advertised to the guest.
+.El
+.Ss VirtIO SCSI Settings
+.Bl -column "Name" "integer" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va dev Ta path Ta Ta
+The path of a CAM target layer (CTL) device to export:
+.Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc .
+.It Va iid Ta integer Ta 0 Ta
+Initiator ID to use when sending requests to the CTL port.
+.El
+.Sh SEE ALSO
+.Xr expand_number 3 ,
+.Xr getaddrinfo 3 ,
+.Xr strtol 3 ,
+.Xr netgraph 4 ,
+.Xr netmap 4 ,
+.Xr ng_socket 4 ,
+.Xr tap 4 ,
+.Xr vale 4 ,
+.Xr vmnet 4 ,
+.Xr bhyve 8

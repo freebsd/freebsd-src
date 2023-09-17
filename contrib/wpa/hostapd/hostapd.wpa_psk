@@ -1,0 +1,21 @@
+# List of WPA PSKs. Each line, except for empty lines and lines starting
+# with #, must contain a MAC address and PSK separated with a space.
+# Special MAC address 00:00:00:00:00:00 can be used to configure PSKs that
+# anyone can use. PSK can be configured as an ASCII passphrase of 8..63
+# characters or as a 256-bit hex PSK (64 hex digits).
+# An optional key identifier can be added by prefixing the line with
+# keyid=<keyid_string>
+# An optional VLAN ID can be specified by prefixing the line with
+# vlanid=<VLAN ID>.
+# An optional WPS tag can be added by prefixing the line with
+# wps=<0/1> (default: 0). Any matching entry with that tag will be used when
+# generating a PSK for a WPS Enrollee instead of generating a new random
+# per-Enrollee PSK.
+00:00:00:00:00:00 secret passphrase
+00:11:22:33:44:55 another passphrase
+00:22:33:44:55:66 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+keyid=example_id 00:11:22:33:44:77 passphrase with keyid
+vlanid=3 00:00:00:00:00:00 passphrase with vlanid
+wps=1 00:00:00:00:00:00 passphrase for WPS
+wps=1 11:22:33:44:55:00 dev-specific passphrase for WPS
+00:00:00:00:00:00 another passphrase for all STAs

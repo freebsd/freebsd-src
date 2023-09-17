@@ -1,0 +1,519 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This manual page was written by Mitchell Horne <mhorne@FreeBSD.org> under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.Dd August 2, 2023
+.Dt INTRO 9
+.Os
+.Sh NAME
+.Nm intro
+.Nd "introduction to kernel programming interfaces"
+.Sh DESCRIPTION
+Welcome to the
+.Fx
+kernel documentation.
+Outside of the source code itself, this set of
+.Xr man 1
+pages is the primary resource for information on usage of the numerous
+programming interfaces available within the kernel.
+In some cases, it is also a source of truth for the implementation details
+and/or design decisions behind a particular subsystem or piece of code.
+.Pp
+The intended audience of this documentation is developers, and the primary
+authors are also developers.
+It is written assuming a certain familiarity with common programming or
+OS-level concepts and practices.
+However, this documentation should also attempt to provide enough background
+information that readers approaching a particular subsystem or interface for
+the first time will be able to understand.
+.Pp
+To further set expectations, we acknowledge that kernel documentation, like the
+source code itself, is forever a work-in-progress.
+There will be large sections of the codebase whose documentation is subtly or
+severely outdated, or missing altogether.
+This documentation is a supplement to the source code, and can not always be
+taken at face value.
+.Pp
+At its best, section 9 documentation will provide a description of a particular
+piece of code that, paired with its implementation, fully informs the reader of
+the intended and realized effects.
+.Pp
+.Xr man 1
+pages in this section most frequently describe functions, but may also
+describe types, global variables, macros, or high-level concepts.
+.Sh CODING GUIDELINES
+Code written for the
+.Fx
+kernel is expected to conform to the established style and coding conventions.
+Please see
+.Xr style 9
+for a detailed set of rules and guidelines.
+.Sh OVERVIEW
+Below is presented various subsystems.
+.Ss Data Structures
+There are implementations for many well-known data structures available in the
+kernel.
+.Bl -tag -width "Xr bitstring 3"
+.It Xr bitstring 3
+Simple bitmap implementation.
+.It Xr counter 9
+An SMP-safe general-purpose counter implementation.
+.It Xr hash 9
+Hash map implementation.
+.It Xr nv 9
+Name/value pairs.
+.It Xr queue 3
+Singly-linked and doubly-linked lists, and queues.
+.It Xr refcount 9
+An SMP-safe implementation of reference counts.
+.It Xr sbuf 9
+Dynamic string composition.
+.It Xr sglist 9
+A scatter/gather list implementation.
+.El
+.Ss Utility Functions
+Functions or facilities of general usefulness or convenience.
+See also the
+.Sx Testing and Debugging Tools
+or
+.Sx Miscellaneous
+sub-sections below.
+.Pp
+Formatted output and logging functions are described by
+.Xr printf 9 .
+.Pp
+Endian-swapping functions:
+.Xr byteorder 9 .
+.Pp
+Data output in hexadecimal format:
+.Xr hexdump 9 .
+.Pp
+A rich set of macros for declaring
+.Xr sysctl 8
+variables and functions is described by
+.Xr sysctl 9 .
+.Pp
+Non-recoverable errors in the kernel should trigger a
+.Xr panic 9 .
+Run-time assertions can be verified using the
+.Xr KASSERT 9
+macros.
+Compile-time assertions should use
+.Fn _Static_assert .
+.Pp
+The SYSINIT framework provides macros for declaring functions that will be
+executed during start-up and shutdown; see
+.Xr SYSINIT 9 .
+.Pp
+Deprecation messages may be emitted with
+.Xr gone_in 9 .
+.Pp
+A unit number facility is provided by
+.Xr unr 9 .
+.Ss Synchronization Primitives
+The
+.Xr locking 9
+man page gives an overview of the various types of locks available in the
+kernel and advice on their usage.
+.Pp
+Atomic primitives are described by
+.Xr atomic 9 .
+.Pp
+The
+.Xr epoch 9
+and
+.Xr smr 9
+facilities are used to create lock-free data structures.
+There is also
+.Xr seqc 9 .
+.Ss Memory Management
+Dynamic memory allocations inside the kernel are generally done using
+.Xr malloc 9 .
+Frequently allocated objects may prefer to use
+.Xr uma 9 .
+.Pp
+.\" MHTODO: It would be useful to have a vm_page(9) or similar
+.\" high-level page which points to the following contents instead.
+Much of the virtual memory system operates on
+.Vt vm_page_t
+structures.
+The following functions are documented:
+.Bd -ragged -offset indent
+.Xr vm_page_advise 9 ,
+.Xr vm_page_alloc 9 ,
+.Xr vm_page_bits 9 ,
+.Xr vm_page_aflag 9 ,
+.Xr vm_page_alloc 9 ,
+.Xr vm_page_bits 9 ,
+.Xr vm_page_busy 9 ,
+.Xr vm_page_deactivate 9 ,
+.Xr vm_page_free 9 ,
+.Xr vm_page_grab 9 ,
+.Xr vm_page_insert 9 ,
+.Xr vm_page_lookup 9 ,
+.Xr vm_page_rename 9 ,
+.Xr vm_page_sbusy 9 ,
+.Xr vm_page_wire 9
+.Ed
+.Pp
+Virtual address space maps are managed with the
+.Xr vm_map 9
+API.
+.Pp
+The machine-dependent portion of the virtual memory stack is the
+.Xr pmap 9
+module.
+.Pp
+Allocation policies for NUMA memory domains are managed with the
+.Xr domainset 9
+API.
+.Ss File Systems
+The kernel interface for file systems is
+.Xr VFS 9 .
+File system implementations register themselves with
+.Xr vfsconf 9 .
+.Pp
+The abstract and filesystem-independent representation of a file, directory, or
+other file-like entity within the kernel is the
+.Xr vnode 9 .
+.Pp
+The implementation of access control lists for filesystems is described by
+.Xr acl 9 .
+Also
+.Xr vaccess 9 .
+.Ss I/O and Storage
+.\" TODO: This page needs to be rewritten before it can be included here.
+.\" The buffer cache is described by:
+.\" .Xr buf 9
+.\" .Pp
+The GEOM framework represents I/O requests using the
+.Xr bio 9
+structure.
+.Pp
+Disk drivers connect themselves to GEOM using the
+.Xr disk 9
+API.
+.Pp
+The
+.Xr devstat 9
+facility provides an interface for recording device statistics in disk drivers.
+.Ss Networking
+Much of the networking stack uses the
+.Xr mbuf 9 ,
+a flexible memory management unit commonly used to store network packets.
+.Pp
+Network interfaces are implemented using the
+.Xr ifnet 9
+API, which has functions for drivers and consumers.
+.Pp
+A framework for managing packet output queues is described by
+.Xr altq 9 .
+.Pp
+To receive incoming packets, network protocols register themselves with
+.Xr netisr 9 .
+.Pp
+Virtualization of the network stack is provided by
+.Xr VNET 9 .
+.Pp
+The front-end for interfacing with network sockets from within the kernel is
+described by
+.Xr socket 9 .
+The back-end interface for socket implementations is
+.Xr domain 9 .
+.Pp
+The low-level packet filter interface is described by
+.Xr pfil 9 .
+.Pp
+The
+.Xr bpf 9
+interface provides a mechanism to redirect packets to userspace.
+.Pp
+The subsystem for IEEE 802.11 wireless networking is described by
+.Xr ieee80211 9 .
+.Pp
+A framework for modular TCP implementations is described by
+.Xr tcp_functions 9 .
+.Pp
+A framework for modular congestion control algorithms is described by
+.Xr mod_cc 9 .
+.Ss Device Drivers
+.\" TODO: a bus(9) or newbus(9) page, as well as updates to existing pages
+.\" would be helpful in laying out the high-level concepts of FreeBSD's device
+.\" structure, and explaining the organization of existing documentation.
+Consult the
+.Xr device 9
+and
+.Xr driver 9
+pages first.
+.Pp
+Most drivers act as devices, and provide a set of methods implementing the
+device interface.
+This includes methods such as
+.Xr DEVICE_PROBE 9 ,
+.Xr DEVICE_ATTACH 9 ,
+and
+.Xr DEVICE_DETACH 9 .
+.Pp
+In addition to devices, there are buses.
+Buses may have children, in the form of devices or other buses.
+Bus drivers will implement additional methods, such as
+.Xr BUS_ADD_CHILD 9 ,
+.Xr BUS_READ_IVAR 9 ,
+or
+.Xr BUS_RESCAN 9 .
+.Pp
+Buses often perform resource accounting on behalf of their children.
+For this there is the
+.Xr rman 9
+API.
+.Pp
+Drivers can request and manage their resources (e.g. memory-space or IRQ
+number) from their parent using the following sets of functions:
+.Bd -ragged -offset indent
+.Xr bus_alloc_resource 9 ,
+.Xr bus_adjust_resource 9 ,
+.Xr bus_get_resource 9 ,
+.Xr bus_map_resource 9 ,
+.Xr bus_release_resource 9 ,
+.Xr bus_set_resource 9
+.Ed
+.Pp
+Direct Memory Access (DMA) is handled using the
+.Xr busdma 9
+framework.
+.Pp
+Functions for accessing bus space (i.e. read/write) are provided by
+.Xr bus_space 9 .
+.Ss Clocks and Timekeeping
+The kernel clock frequency and overall system time model is described by
+.Xr hz 9 .
+.Pp
+A few global time variables, such as system up-time, are described by
+.Xr time 9 .
+.Pp
+Raw CPU cycles are provided by
+.Xr get_cyclecount 9 .
+.Ss Userspace Memory Access
+Direct read/write access of userspace memory from the kernel is not permitted,
+and memory transactions that cross the kernel/user boundary must go through one
+of several interfaces built for this task.
+.Pp
+Most device drivers use the
+.Xr uiomove 9
+set of routines.
+.Pp
+Simpler primitives for reading or writing smaller chunks of memory are
+described by
+.Xr casuword 9 ,
+.Xr copy 9 ,
+.Xr fetch 9 ,
+and
+.Xr store 9 .
+.Ss Kernel Threads, Tasks, and Callbacks
+Kernel threads and processes are created using the
+.Xr kthread 9
+and
+.Xr kproc 9
+interfaces, respectively.
+.Pp
+Where dedicated kernel threads are too heavyweight, there is also the
+.Xr taskqueue 9
+interface.
+.Pp
+For low-latency callback handling, the
+.Xr callout 9
+framework should be used.
+.Pp
+Dynamic handlers for pre-defined event hooks are registered and invoked using
+the
+.Xr EVENTHANDLER 9
+API.
+.Ss Thread Switching and Scheduling
+The machine-independent interface to a context switch is
+.Xr mi_switch 9 .
+.Pp
+To prevent preemption, use a
+.Xr critical 9
+section.
+.Pp
+To voluntarily yield the processor, use
+.Xr kern_yield 9 .
+.Pp
+The various functions which will deliberately put a thread to sleep are
+described by
+.Xr sleep 9 .
+Sleeping threads are removed from the scheduler and placed on a
+.Xr sleepqueue 9 .
+.\" TODO: This page is outdated and can't be included here yet.
+.\".Pp
+.\"The thread scheduler interface is described by
+.\".Xr scheduler 9 .
+.Ss Processes and Signals
+To locate a process or process group by its identifier, use
+.Xr pfind 9
+and
+.Xr pgfind 9 .
+Alternatively, the
+.Xr pget 9
+function provides additional search specificity.
+.Pp
+The "hold count" of a process can be manipulated with
+.Xr PHOLD 9 .
+.Pp
+The kernel interface for signals is described by
+.Xr signal 9 .
+.Pp
+Signals can be sent to processes or process groups using the functions
+described by
+.Xr psignal 9 .
+.Ss Security
+See the generic security overview in
+.Xr security 7 .
+.Pp
+The basic structure for user credentials is
+.Vt struct ucred ,
+managed by the
+.Xr ucred 9
+API.
+Thread credentials are verified using
+.Xr priv 9
+to allow or deny certain privileged actions.
+.Pp
+Policies influenced by
+.Va kern.securelevel
+must use the
+.Xr securelevel_gt 9
+or
+.Xr securelevel_ge 9
+functions.
+.Pp
+The Mandatory Access Control (MAC) framework provides a wide set of hooks,
+supporting dynamically-registered security modules;
+see
+.Xr mac 9 .
+.Pp
+Cryptographic services are provided by the OpenCrypto framework.
+This API provides and interface for both consumers and crypto drivers;
+see
+.Xr crypto 9 .
+.Pp
+For information on random number generation, see
+.Xr random 9
+and
+.Xr prng 9 .
+.Ss Kernel Modules
+The interfaces for declaring loadable kernel modules are described by
+.Xr module 9 .
+.Ss Interrupts
+The machine-independent portion of the interrupt framework supporting the
+registration and execution of interrupt handlers is described by
+.Xr intr_event 9 .
+.Pp
+Software interrupts are provided by
+.Xr swi 9 .
+.Pp
+Device drivers register their interrupt handlers using the
+.Xr bus_setup_intr 9
+function.
+.Ss Testing and Debugging Tools
+A kernel test framework:
+.Xr kern_testfrwk 9
+.Pp
+A facility for defining configurable fail points is described by
+.Xr fail 9 .
+.Pp
+Commands for the
+.Xr ddb 4
+kernel debugger are defined with the
+.Xr DB_COMMAND 9
+family of macros.
+.Pp
+The
+.Xr ktr 4
+tracing facility adds static tracepoints to many areas of the kernel.
+These tracepoints are defined using the macros described by
+.Xr ktr 9 .
+.Pp
+Static probes for DTrace are defined using the
+.Xr SDT 9
+macros.
+.Pp
+Stack traces can be captured and printed with the
+.Xr stack 9
+API.
+.Pp
+Kernel sanitizers can perform additional compiler-assisted checks against
+memory use/access.
+These runtimes are capable of detecting difficult-to-identify classes of bugs,
+at the cost of a large overhead.
+Supported is the Kernel Address Sanitizer
+.Xr KASAN 9 ,
+and the Kernel Memory Sanitizer
+.Xr KMSAN 9 .
+.Pp
+The
+.Cd LOCK_PROFILING
+kernel config option enables extra code to assist with profiling and/or
+debugging lock performance;
+see
+.Xr LOCK_PROFILING 9 .
+.Ss Driver Tools
+Defined functions/APIs for specific types of devices.
+.Bl -tag -width "Xr usbdi 9"
+.It Xr iflib 9
+Programming interface for
+.Xr iflib 4
+based network drivers.
+.It Xr pci 9
+Peripheral Component Interconnect (PCI) and PCI Express (PCIe) programming API.
+.It Xr pwmbus 9
+Pulse-Width Modulation (PWM) bus interface methods.
+.It Xr usbdi 9
+Universal Serial Bus programming interface.
+.It Xr superio 9
+Functions for Super I/O controller devices.
+.El
+.Ss Miscellaneous
+Dynamic per-CPU variables:
+.Xr dpcpu 9 .
+.Pp
+CPU bitmap management:
+.Xr cpuset 9 .
+.Pp
+Kernel environment management:
+.Xr getenv 9 .
+.Pp
+Contexts for CPU floating-point registers are managed by the
+.Xr fpu_kern 9
+facility.
+.Pp
+For details on the shutdown/reboot procedure and available shutdown hooks, see
+.Xr reboot 9 .
+.Pp
+A facility for asynchronous logging to files from within the kernel is provided
+by
+.Xr alq 9 .
+.Pp
+The
+.Xr osd 9
+framework provides a mechanism to dynamically extend core structures in a way
+that preserves KBI.
+See the
+.Xr hhook 9
+and
+.Xr khelp 9
+APIs for information on how this is used.
+.Pp
+The kernel object implementation is described by
+.Xr kobj 9 .
+.Sh SEE ALSO
+.Xr man 1 ,
+.Xr style 9
+.Rs
+.%T "The FreeBSD Architecture Handbook"
+.%U "https://docs.freebsd.org/en/books/arch-handbook/"
+.Re

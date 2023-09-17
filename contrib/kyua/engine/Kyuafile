@@ -1,0 +1,17 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="atf_test"}
+atf_test_program{name="atf_list_test"}
+atf_test_program{name="atf_result_test"}
+atf_test_program{name="config_test"}
+atf_test_program{name="exceptions_test"}
+atf_test_program{name="filters_test"}
+atf_test_program{name="kyuafile_test"}
+atf_test_program{name="plain_test"}
+atf_test_program{name="requirements_test"}
+atf_test_program{name="scanner_test"}
+atf_test_program{name="tap_test"}
+atf_test_program{name="tap_parser_test"}
+atf_test_program{name="scheduler_test"}

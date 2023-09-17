@@ -1,0 +1,22 @@
+24d
+16a
+||||||| long-o.txt
+This line is different in yours and mine, but the different in each
+=======
+This line is different in yours and mine, but the best in yours
+>>>>>>> long-y.txt
+.
+15a
+<<<<<<< long-m.txt
+.
+11a
+>>>>>>> long-y.txt
+.
+10a
+<<<<<<< long-o.txt
+This line is different in yours and mine, but the same
+=======
+.
+8c
+This line is different in yours, much butter
+.

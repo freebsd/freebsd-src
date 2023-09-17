@@ -1,0 +1,5 @@
+Build all binaries with the Relocation Read-Only (RELRO) vulnerability
+mitigation applied.
+See also the
+.Va BIND_NOW
+option.

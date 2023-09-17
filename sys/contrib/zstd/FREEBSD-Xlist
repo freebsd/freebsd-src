@@ -1,0 +1,12 @@
+$FreeBSD$
+
+.circleci
+.cirrus.yml
+.github
+.gitignore
+.travis.yml
+build
+contrib
+lib/dll
+programs/windres
+tests

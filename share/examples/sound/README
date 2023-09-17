@@ -1,0 +1,66 @@
+Briefly summarised, a general audio application will:
+- open(2)
+- ioctl(2)
+- read(2)
+- write(2)
+- close(2)
+
+In this example, read/write will be called in a loop for a duration of
+record/playback. Usually, /dev/dsp is the device you want to open, but it can
+be any OSS compatible device, even user space one created with virtual_oss. For
+configuring sample rate, bit depth and all other configuring of the device
+ioctl is used. As devices can support multiple sample rates and formats, what
+specific application should do in case there's an error issuing ioctl, as not
+all errors are fatal, is upon the developer to decide. As a general guideline
+Official OSS development howto should be used. FreeBSD OSS and virtual_oss are
+different to a small degree.
+
+For more advanced OSS and real-time applications, developers need to handle
+buffers more carefully. The size of the buffer in OSS is selected using fragment
+size size_selector and the buffer size is 2^size_selector for values between 4
+and 16. The formula on the official site is:
+
+int frag = (max_fragments << 16) | (size_selector);
+ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &frag);
+
+The max_fragments determines in how many fragments the buffer will be, hence if
+the size_selector is 4, the requested size is 2^4 = 16 and for the
+max_fragments of 2, the total buffer size will be
+
+(2 ^ size_selector) * max_fragments
+
+or in this case 32 bytes. Please note that size of buffer is in bytes not
+samples. For example, 24bit sample will be represented with 3 bytes. If you're
+porting audio app from Linux, you should be aware that 24 bit samples are
+represented with 4 bytes (usually int).
+
+FreeBSD kernel will round up max_fragments and size of fragment/buffer, so the
+last thing any OSS code should do is get info about buffer with audio_buf_info
+and SNDCTL_DSP_GETOSPACE. That also means that not all values of max_fragments
+are permitted.
+
+From kernel perspective, there are few points OSS developers should be aware of:
+- There is a software facing buffer (bs) and a hardware driver buffer (b)
+- The sizes can be seen with cat /dev/sndstat as [b:_/_/_] [bs:_/_/_] (needed:
+  sysctl hw.snd.verbose=2)
+- OSS ioctl only concern software buffer fragments, not hardware
+
+For USB the block size is according to hw.usb.uaudio.buffer_ms sysctl, meaning
+2ms at 48kHz gives 0.002 * 48000 = 96 samples per block, all multiples of this
+work well. Block size for virtual_oss, if used, should be set accordingly.
+
+OSS driver insists on reading / writing a certain number of samples at a time,
+one fragment full of samples. It is bound to do so in a fixed time frame, to
+avoid under- and overruns in communication with the hardware.
+
+The idea of a total buffer size that holds max_fragments fragments is to give
+some slack and allow application to be about max_fragments - 1 fragments late.
+Let's call this the jitter tolerance. The jitter tolerance may be much less if
+there is a slight mismatch between the period and the samples per fragment.
+
+Jitter tolerance gets better if we can make either the period or the samples
+per fragment considerably smaller than the other. In our case that means we
+divide the total buffer size into smaller fragments, keeping overall latency at
+the same level.
+
+Official OSS development howto: http://manuals.opensound.com/developer/DSP.html

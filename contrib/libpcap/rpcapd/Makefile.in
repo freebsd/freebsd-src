@@ -1,0 +1,142 @@
+#  Copyright (c) 1993, 1994, 1995, 1996
+#	The Regents of the University of California.  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that: (1) source code distributions
+#  retain the above copyright notice and this paragraph in its entirety, (2)
+#  distributions including binary code include the above copyright notice and
+#  this paragraph in its entirety in the documentation or other materials
+#  provided with the distribution, and (3) all advertising materials mentioning
+#  features or use of this software display the following acknowledgement:
+#  ``This product includes software developed by the University of California,
+#  Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+#  the University nor the names of its contributors may be used to endorse
+#  or promote products derived from this software without specific prior
+#  written permission.
+#  THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+#
+# Various configurable paths (remember to edit Makefile.in, not Makefile)
+#
+
+# Top level hierarchy
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+datarootdir = @datarootdir@
+# Pathname of directory to install the configure program
+bindir = @bindir@
+# Pathname of directory to install the rpcapd daemon
+sbindir = @sbindir@
+# Pathname of directory to install the include files
+includedir = @includedir@
+# Pathname of directory to install the library
+libdir =  @libdir@
+# Pathname of directory to install the man pages
+mandir = @mandir@
+
+# VPATH
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+
+#
+# You shouldn't need to edit anything below.
+#
+
+LD = /usr/bin/ld
+CC = @CC@
+AR = @AR@
+LN_S = @LN_S@
+MKDEP = @MKDEP@
+CCOPT = @V_CCOPT@
+INCLS = -I. -I.. -I@srcdir@ -I@srcdir@/.. @V_INCLS@
+DEFS = @DEFS@ @V_DEFS@
+ADDLOBJS = @ADDLOBJS@
+ADDLARCHIVEOBJS = @ADDLARCHIVEOBJS@
+LIBS = @LIBS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
+CROSSFLAGS=
+CFLAGS = @CFLAGS@   ${CROSSFLAGS}
+LDFLAGS = @LDFLAGS@ ${CROSSFLAGS}
+DYEXT = @DYEXT@
+V_RPATH_OPT = @V_RPATH_OPT@
+DEPENDENCY_CFLAG = @DEPENDENCY_CFLAG@
+PROG=libpcap
+RPCAPD_LIBS = @RPCAPD_LIBS@
+
+# Standard CFLAGS
+FULL_CFLAGS = $(CCOPT) @V_PROG_CCOPT_FAT@ $(INCLS) $(DEFS) $(CFLAGS)
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+# Explicitly define compilation rule since SunOS 4's make doesn't like gcc.
+# Also, gcc does not remove the .o before forking 'as', which can be a
+# problem if you don't own the file but can write to the directory.
+.c.o:
+	@rm -f $@
+	$(CC) $(FULL_CFLAGS) -c $(srcdir)/$*.c
+
+SRC =	daemon.c \
+	fileconf.c \
+	log.c \
+	rpcapd.c
+
+OBJ =	$(SRC:.c=.o) ../rpcap-protocol.o ../sockutils.o ../fmtutils.o ../sslutils.o
+PUBHDR =
+
+HDR = $(PUBHDR) log.h
+
+TAGFILES = \
+	$(SRC) $(HDR)
+
+CLEANFILES = $(OBJ) rpcapd
+
+MANADMIN = \
+	rpcapd.manadmin.in
+
+MANFILE = \
+	rpcapd-config.manfile.in
+
+rpcapd: $(OBJ) ../libpcap.a
+	$(CC) $(CCOPT) $(CFLAGS) $(LDFLAGS) @V_PROG_LDFLAGS_FAT@ \
+	    -o $@ $(OBJ) ../libpcap.a $(LIBS) $(RPCAPD_LIBS) $(PTHREAD_LIBS)
+clean:
+	rm -f $(CLEANFILES)
+
+distclean: clean
+	rm -f Makefile config.cache config.log config.status \
+	    config.h stamp-h stamp-h.in
+	rm -f $(MANADMIN:.in=) $(MANFILE:.in=)
+	rm -rf autom4te.cache
+
+install: rpcapd
+	[ -d $(DESTDIR)$(sbindir) ] || \
+	    (mkdir -p $(DESTDIR)$(sbindir); chmod 755 $(DESTDIR)$(sbindir))
+	$(INSTALL_PROGRAM) rpcapd $(DESTDIR)$(sbindir)/rpcapd
+	[ -d $(DESTDIR)$(mandir)/man@MAN_ADMIN_COMMANDS@ ] || \
+	    (mkdir -p $(DESTDIR)$(mandir)/man@MAN_ADMIN_COMMANDS@; chmod 755 $(DESTDIR)$(mandir)/man@MAN_ADMIN_COMMANDS@)
+	[ -d $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@ ] || \
+	    (mkdir -p $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@; chmod 755 $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@)
+	for i in $(MANADMIN); do \
+		$(INSTALL_DATA) `echo $$i | sed 's/.manadmin.in/.manadmin/'` \
+		    $(DESTDIR)$(mandir)/man@MAN_ADMIN_COMMANDS@/`echo $$i | sed 's/.manadmin.in/.@MAN_ADMIN_COMMANDS@/'`; done
+	for i in $(MANFILE); do \
+		$(INSTALL_DATA) `echo $$i | sed 's/.manfile.in/.manfile/'` \
+		    $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@/`echo $$i | sed 's/.manfile.in/.@MAN_FILE_FORMATS@/'`; done
+
+uninstall:
+	rm -f $(DESTDIR)$(sbindir)/rpcapd
+	for i in $(MANADMIN); do \
+		rm -f $(DESTDIR)$(mandir)/man@MAN_ADMIN_COMMANDS@/`echo $$i | sed 's/.manadmin.in/.@MAN_ADMIN_COMMANDS@/'`; done
+	for i in $(MANFILE); do \
+		rm -f $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@/`echo $$i | sed 's/.manfile.in/.@MAN_FILE_FORMATS@/'`; done
+
+tags: $(TAGFILES)
+	ctags -wtd $(TAGFILES)
+
+depend:
+	$(MKDEP) -c "$(CC)" -m "$(DEPENDENCY_CFLAG)" -s "$(srcdir)" $(CFLAGS) $(DEFS) $(INCLS) $(SRC)

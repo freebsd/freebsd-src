@@ -1,0 +1,196 @@
+.\" Copyright (c) 2020, Advanced Micro Devices Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of Advanced Micro Devices Inc., nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd February 19, 2021
+.Dt AXP 4
+.Os
+.Sh NAME
+.Nm axp
+.Nd "Advanced Micro Devices 10G Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device axp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_axp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver enables PCI-E based 10G Ethernet controller inbuilt in the
+AMD EPYC processors.
+.Pp
+The following features are supported.
+.Pp
+.Bl -bullet -compact
+.It
+1G/10G SFP+ Link
+.It
+Jumbo frames (9000 Bytes)
+.It
+Transmit and Receive checksum offload
+.It
+TCP segmentation offload (TSO)
+.It
+VLAN tag insertion/extraction
+.It
+VLAN checksum offload
+.It
+VLAN TSO
+.It
+Receive side steering (RSS)
+.It
+IPV4 and IPV6 capable
+.It
+MSI-X interrupts
+.It
+Split header
+.El
+.Pp
+All the above mentioned features are enabled by default.
+.Pp
+For hardware related questions, please refer the documentation supplied
+along with AMD EPYC processors.
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va dev.ax.X.mac_stats
+Dumps the transmit and receive statistics counter values for the controller.
+This includes statistics specific to each transmit and receive queue.
+.It Va dev.ax.X.channels_info
+Dumps the permissible and default configured transmit and receive channel
+information.
+.It Va dev.ax.X.ringparam_info
+Dumps the permissible and default configured descriptor information for the
+transmit and receive queue.
+.It Va dev.ax.X.link_ksettings_info
+Dumps the current link setting like link mode, speed, duplex settings.
+.It Va dev.ax.X.pauseparam_info
+Dumps the current flow-control settings.
+.It Va dev.ax.X.coalesce_info
+Dumps the current interrupt coalescing settings.
+.It Va dev.ax.X.link_info
+Dumps the current state of the Link.
+.It Va dev.ax.X.drv_info
+Dumps the driver and controller firmware version information.
+.It Va dev.ax.X.YYYY_register
+.It Va dev.ax.X.YYYY_register_values
+Sysctl to dump a specific register from a specific block of the controller.
+YYYY specifies the block.
+The following blocks are supported.
+.Bl -bullet -compact
+.It
+xpcs
+.It
+xgmac
+.It
+xprop
+.It
+xi2c
+.El
+.Pp
+Set the offset of the register to the first variable, and then read the value
+of the register by reading the second variable.
+.It Va dev.ax.X.axgbe_debug_level
+Configure the log-level for the driver.
+Default is 0.
+Supports 0-3.
+.It Va dev.ax.X.link_workaround
+This variable enables the workaround for an intermittent link issue.
+When link does not come up for long time, this variable can be set to 1 to
+reset the phy and bring up the link.
+.El
+.Sh LOADER TUNABLES
+The following variable is available as
+.Xr loader.conf 5
+tunable.
+.Bl -tag -width indent
+.It Va dev.ax.X.sph_enable
+This variable controls split header feature for the interface.
+Default is 1, meaning the split header support is enabled.
+.Pp
+This variable must be set before loading the driver, either via
+.Xr loader.conf 5
+or through
+.Xr kenv 1 .
+This cannot be modified when driver is loaded.
+.Pp
+Setting this variable in
+.Xr loader.conf 5
+needs the system to be restarted to take effect.
+When using
+.Xr kenv 1 ,
+use the wrapper variable
+.Va dev.ax.sph_enable ,
+which will configure(enable/disable) split header support for all
+.Nm
+interfaces.
+.Pp
+To use netmap with this device, split header support must be disabled
+(set this variable to 0).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr netmap 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 13.0 .
+.Pp
+Another version of the driver is already present in
+.Fx .
+This driver was named as "axgbe" earlier, which is renamed as "axa" now.
+This driver is for the ACPI based Ethernet controllers in the previous/older
+version of the hardware.
+This driver is authored by
+.Aq Mt andrew@FreeBSD.org .
+.Sh AUTHORS
+The
+.Nm
+device driver was written by
+.An Advanced Micro Devices Inc .
+.Pp
+For any issues and support requirements, email the details to
+.Aq Mt rajesh1.kumar@amd.com .

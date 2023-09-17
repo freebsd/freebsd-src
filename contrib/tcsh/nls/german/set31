@@ -1,0 +1,6 @@
+$ vms.termcap.c
+$set 31
+1 Kann TERMCAP nicht öffnen: [%s]\n
+2 Kann %s nicht öffnen.\n
+3 Fand %s in %s.\n
+4 Kein Eintrag für %s in Datei %s gefunden\n

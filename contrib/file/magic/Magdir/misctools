@@ -1,0 +1,140 @@
+
+#-----------------------------------------------------------------------------
+# $File: misctools,v 1.21 2023/02/03 20:43:48 christos Exp $
+# misctools:  file(1) magic for miscellaneous UNIX tools.
+#
+0	search/1	%%!!			X-Post-It-Note text
+# URL:		http://fileformats.archiveteam.org/wiki/ICalendar
+#		https://en.wikipedia.org/wiki/ICalendar
+# Update:	Joerg Jenderek
+# Reference:	https://www.rfc-editor.org/rfc/rfc5545
+#		http://mark0.net/download/triddefs_xml.7z/defs/v/vcs.trid.xml
+# Note:		called "iCalendar - vCalendar" by TrID
+0	string/c			BEGIN:vcalendar
+# skip DROID fmt-387-signature-id-572.vcs fmt-388-signature-id-573.ics
+# with invalid separator 0x0 or 0xAB instead of CarriageReturn (0x0D) or LineFeed (0x0A)
+>15	ubyte&0xF8			=0x08
+# look for VERSION keyword often on second line but sometimes later as in holidays_NRW_2014.ics
+>>0	search/188			VERSION
+# after VERSION keword :1.0 or often :2.0 but sometimes also ;VALUE=TEXT:2.0 like in Jewish religious Juish.ics
+# http://www.webcal.guru/de-DE/kalender_herunterladen?calendar_instance_id=217
+# \n\040:2.0 like in import-real-world-2004-11-19.ics found at
+# https://ftp.gnu.org/gnu/emacs/emacs-28.1.tar.xz
+# emacs-28.1/test/lisp/calendar/icalendar-resources/import-real-world-2004-11-19.ics
+#>>>&0		string			x		AFTER_VERSION=%.15s
+# Note:		called "Internet Calendar and Scheduling format" by DROID via PUID fmt/388
+# skip optional verparam=;other-param like ;VALUE=TEXT and look for version 2.0 that implies iCalendar variant
+>>>&0		search/81		:2.0		iCalendar calendar
+# look for Free/Busy component
+>>>>15			search/278	:VFREEBUSY	file, with Free/Busy component
+!:mime							text/calendar
+!:apple							????iFBf
+# no real examples found but only example on Wikipedia page
+!:ext							ifb
+# iCalendar calendar without Free/Busy component
+>>>>15			default		x
+# look for ALARM component
+>>>>>15				search/154 	:VALARM	file, with ALARM component
+!:mime							text/calendar
+!:apple							????iCal
+# found on macOS beneath /Users/$USER/Library/Calendars/ as EventAllDayAlarms.icsalarm or EventTimedAlarms.icsalarm
+# no isc examples found
+!:ext							icsalarm/ics
+# iCalendar calendar without Free/Busy component and ALARM component
+>>>>>15				default		x	file
+!:mime							text/calendar
+!:apple							????iCal
+# no examples found with .ical .icalender suffix
+!:ext							ics
+# if no VERSION 2.0 is found then assume it is VERSION 1.0, that is older vCalendar
+# URL:		http://fileformats.archiveteam.org/wiki/VCalendar
+# Note:		called "VCalendar format" by DROID via fmt/387
+>>>&0		default			x		vCalendar calendar file
+# deprecated
+!:mime							text/x-vcalendar
+!:ext							vcs
+# GRR: without VERSION keyword violates specification but accepted by Thunderbird like
+# https://ftp.gnu.org/gnu/emacs/emacs-28.1.tar.xz
+# emacs-28.1/test/lisp/calendar/icalendar-resources/import-with-timezone.ics
+>>0	default				x		vCalendar calendar file, without VERSION
+!:mime							text/x-vcalendar
+#!:mime							text/calendar
+# no vcs example found
+!:ext							ics/vcs
+# GRR: According to newest specification CarriageReturn (0xD) and LineFeed (0xA) should be used as separator but others accepted by Thunderbird
+# like CRLF,LF in Sport Today.vcs created by calendar plugin of TV-Browser https://enwiki.tvbrowser.org/index.php/Calendar_Export
+# or LF like https://www.schulferien.org/media/ical/deutschland/ferien_nordrhein-westfalen_2023.ics?k=foo
+>>15	ubeshort			!0x0D0A		\b, without CRLF
+
+# updated by Joerg Jenderek at Apr 2015, May 2021
+# https://en.wikipedia.org/wiki/VCard
+# URL: 	http://fileformats.archiveteam.org/wiki/VCard
+# https://datatracker.ietf.org/doc/html/rfc6350
+# the value is case-insensitive
+0	string/c	begin:vcard
+# skip DROID fmt-395-signature-id-634.vcf
+>13	string		!VERSION:END		vCard visiting card
+# deprecated
+#!:mime	text/x-vcard
+!:mime	text/vcard
+!:apple	????vCrd
+!:ext	vcf/vcard
+# VERSION must come right after BEGIN for 3.0 or 4.0 except in 2.1 , where it can be anywhere
+# Joerg_Jenderek_67.vcf
+>>12	search/0x113b4/c	version:
+# VERSION 2.1 , 3.0 or 4.0
+>>>&0	string		x			\b, version %-.3s
+>>>&0	string		!2.1
+>>>>13	string		!VERSION:		\b, 2nd line does not start with VERSION:
+# downcase violates RFC 6350, but some "bad" software produce such vcards
+>>0	string		!BEGIN			\b, not up case
+# http://ftp.mozilla.org/pub/thunderbird/candidates/
+# 78.10.1-candidates/build1/source/thunderbird-78.10.1.source.tar.xz
+# thunderbird-78.10.1/comm/mailnews/import/test/unit/resources/basic_vcard_addressbook.vcf
+>>11	beshort		!0x0D0A			\b, lines not separated by CRLF
+
+# Summary: Libtool library file
+# Extension: .la
+# Submitted by: Tomasz Trojanowski <tomek@uninet.com.pl>
+0	search/80	.la\ -\ a\ libtool\ library\ file	libtool library file
+
+# Summary: Libtool object file
+# Extension: .lo
+# Submitted by: Abel Cheung <abelcheung@gmail.com>
+0	search/80	.lo\ -\ a\ libtool\ object\ file	libtool object file
+
+# From: Daniel Novotny <dnovotny@redhat.com>
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Core_dump#User-mode_memory_dumps
+# Reference: https://msdn.microsoft.com/en-us/library/ms680378%28VS.85%29.aspx
+#
+# "Windows Minidump" by TrID
+# ./misctools (version 5.25) labeled the entry as "MDMP crash report data"
+0	string		MDMP					Mini DuMP crash report
+# https://filext.com/file-extension/DMP
+!:mime	application/x-dmp
+!:ext	dmp/mdmp
+# The high-order word is an internal value that is implementation specific.
+# The low-order word is MINIDUMP_VERSION 0xA793
+>4	ulelong&0x0000FFFF	!0xA793				\b, version %#4.4x
+# NumberOfStreams 8,9,10,13
+>8	ulelong			x				\b, %d streams
+# StreamDirectoryRva 0x20
+>12	ulelong			!0x20				\b, %#8.8x RVA
+# CheckSum 0
+>16	ulelong			!0				\b, CheckSum %#8.8x
+# Reserved or TimeDateStamp
+>20	ledate			x				\b, %s
+# https://msdn.microsoft.com/en-us/library/windows/desktop/ms680519%28v=vs.85%29.aspx
+# Flags MINIDUMP_TYPE enumeration type 0 0x121 0x800
+>24	ulelong			x				\b, %#x type
+# >24	ulelong			>0				\b; include
+# >>24	ulelong			&0x00000001			\b data sections,
+# >>24	ulelong			&0x00000020			\b list of unloaded modules,
+# >>24	ulelong			&0x00000100			\b process and thread information,
+# >>24	ulelong			&0x00000800			\b memory information,
+
+# Summary: abook addressbook file
+# Submitted by: Mark Schreiber <mark7@alumni.cmu.edu>
+0	string	#\x20abook\x20addressbook\x20file abook address book
+!:mime application/x-abook-addressbook

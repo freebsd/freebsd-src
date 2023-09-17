@@ -1,0 +1,239 @@
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 2, 2019
+.Dt ADS111x 4
+.Os
+.Sh NAME
+.Nm ads111x
+.Nd driver for ADS101x and ADS111x i2c analog to digital converters
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ads111x"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ads111x_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the ADS101x/ADS111x family of analog
+to digital converter (ADC) devices.
+The supported devices are all similar to each other, varying in
+features such as resolution and number of input channels.
+The devices offer a number of configuration options which can be
+set via hints, FDT data, and
+.Xr sysctl 8 .
+.Pp
+The
+.Xr sysctl 8
+utility provides access to the voltage measurements made by the device.
+Each time the
+.Va dev.ads111x.<unit>.<channel>.voltage
+variable is accessed for a given channel, the driver switches the
+chip's internal mux to choose the right input pins for that channel,
+directs it to make a single measurement, and returns the measured value
+in microvolts.
+The amount of time required to make the measurement is a function
+of the sampling rate configured for the device.
+While device is directed to make a single measurement, it still averages
+the input values for the same amount of time as it would to emit one
+sample if it were in continuous mode.
+For example, if the sample rate were configured as 125 samples per
+second, a single measurement would require 8 milliseconds.
+.Pp
+For devices that support multiple input pins, the device datasheet
+describes mux settings to control how those pins are interpeted when
+making either single-ended or differential measurements.
+There are eight possible ways to combine the inputs from the four pins.
+The
+.Nm
+driver models that by creating a separate output channel for each of
+the eight combinations.
+To make a measurement on a given pin or pair of pins, you simply access
+the voltage variable for the channel number that corresponds the mux
+setting number (0 through 7) shown in the datasheet.
+When the driver is configured with hints or FDT data, it creates
+sysctl variables for just the channels specified in the config data.
+When there is no channel config data, it creates all eight possible
+channels so that you can access whichever one(s) you need.
+.Pp
+For devices that include an
+.Va alert
+output pin, the
+.Nm
+driver does not directly support the pin in terms of sensing or
+acting on changes in the pin state.
+However, you may connect the pin to a gpio input or fan controller
+or other external device, and use the driver's sysctl variables to
+configure behavior and threshold values for the pin.
+The driver avoids perturbing your settings as it does other
+manipulations to the config register.
+.Sh SYSCTL VARIABLES
+Sysctl variables are used to access the voltage measurements, and to
+change the configuration of the channels.
+All writeable variables may also be set as
+.Xr loader 8
+tunables.
+Channel numbers in these sysctl variables range from 0 through 7.
+.Bl -tag -width indent
+.It Va dev.ads111x.<unit>.config
+Provides access to the configuration register bits that control the
+alert pin configuration.
+Other bits which are controlled by the driver are masked out, and
+cannot be viewed or changed using this variable.
+.It Va dev.ads111x.<unit>.lo_thresh
+Sets the low threshold for activating the alert pin.
+.It Va dev.ads111x.<unit>.hi_thresh
+Sets the high threshold for activating the alert pin.
+.It Va dev.ads111x.<unit>.<channel>.rate_index
+Sets the sample rate for the channel.
+The device datasheet documents eight available sample rates, chosen
+by setting a value of 0 through 7 into the corresponding control
+register bits.
+This variable sets the value used for those bits when making a
+measurement on the given channel.
+.Pp
+Because measurements are always made in single-shot mode, think of
+this variable as controlling the averaging time for a single sample;
+the time to make a measurement is 1 / samplerate.
+.It Va dev.ads111x.<unit>.<channel>.gain_index
+Sets the programmable gain amplifier for the channel on devices
+which have an internal amplifier.
+The device datasheet documents eight available gain values, chosen
+by setting a value of 0 through 7 into the corresponding control
+register bits.
+This variable sets the value used for those bits when making a
+measurement on the given channel.
+.It Va dev.ads111x.<unit>.<channel>.voltage
+Reading this variable causes the device to make a measurement on
+the corresponding input pin(s) and return the voltage in microvolts.
+.Pp
+Note that this variable does not appear when you list multiple
+sysctl variables -- you must access it specifically by name, because
+accessing it triggers device I/O.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following devices:
+.Pp
+.Bl -column -compact -offset indent "XXXXXXXX" "XXXXXXXX"
+.It ADS1013 Ta ADS1113
+.It ADS1014 Ta ADS1114
+.It ADS1015 Ta ADS1115
+.El
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, the
+.Nm
+device is defined as a slave device subnode
+of the i2c bus controller node.
+All properties documented in the
+.Va ads1015.txt
+bindings document can be used with the
+.Nm
+device.
+.Pp
+The following properties are required in the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va compatible
+One of the following:
+.Bl -column -compact -offset indent ".Dq ti,ads1013" ".Dq ti,ads1113"
+.It Dq ti,ads1013 Ta Dq ti,ads1113
+.It Dq ti,ads1014 Ta Dq ti,ads1114
+.It Dq ti,ads1015 Ta Dq ti,ads1115
+.El
+.It Va reg
+I2c slave address of device.
+.El
+.Pp
+Specific channels can be configured by adding child nodes to the
+.Nm
+node, as described in the standard ads1015.txt bindings document.
+If no channels are configured, sysctl variables will be created
+for all possible channels supported by the device type, otherwise
+only the specified channels are created.
+.Ss Example including channel configuration
+.Bd -unfilled -offset indent
+adc@48 {
+    compatible = "ti,ads1115";
+    reg = <0x48>;
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@6 {
+        reg = <6>;
+        ti,gain = <3>;
+        ti,datarate = <4>;
+    };
+    channel@7 {
+        reg = <7>;
+        ti,gain = <1>;
+        ti,datarate = <7>;
+    };
+};
+.Ed
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width indent
+.It Va hint.ads111x.<unit>.at
+The iicbus instance the
+.Nm
+instance is attached to.
+.It Va hint.ads111x.<unit>.<channel>.gain_index
+The amplifier gain, as described above for the sysctl variable
+.Va dev.ads111x.<unit>.<channel>.gain_index .
+.It Va hint.ads111x.<unit>.<channel>.rate_index
+The sample rate, as described above for the sysctl variable
+.Va dev.ads111x.<unit>.<channel>.rate_index .
+.El
+.Pp
+If no channels are configured, sysctl variables will be created
+for all possible channels supported by the device type, otherwise
+only the specified channels are created.
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .

@@ -1,0 +1,205 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" This manual page was written by Ka Ho Ng under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 25, 2021
+.Dt FSPACECTL 2
+.Os
+.Sh NAME
+.Nm fspacectl
+.Nd space management in a file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In fcntl.h
+.Ft int
+.Fo fspacectl
+.Fa "int fd"
+.Fa "int cmd"
+.Fa "const struct spacectl_range *rqsr"
+.Fa "int flags"
+.Fa "struct spacectl_range *rmsr"
+.Fc
+.Sh DESCRIPTION
+.Nm
+is a system call performing space management over a file.
+The
+.Fa fd
+argument specifies the file descriptor to be operated on by the
+.Fa cmd
+argument.
+The
+.Fa rqsr
+argument points to a
+.Fa spacectl_range
+structure that contains the requested operation range.
+The
+.Fa flags
+argument controls the behavior of the operation to take place.
+If the
+.Fa rmsr
+argument is non-NULL, the
+.Fa spacectl_range
+structure it points to is updated to contain the unprocessed operation range
+after the system call returns.
+.Pp
+For a successful completion without an unprocessed part in the requested
+operation range,
+.Fa "rmsr->r_len"
+is updated to be the value 0, and
+.Fa "rmsr->r_offset"
+is updated to be
+.Fa "rqsr->r_offset"
+plus the number of bytes zeroed before the end-of-file.
+The file descriptor's file offset is not used or modified by the system call.
+Both
+.Fa rqsr
+and
+.Fa rmsr
+arguments can point to the same structure.
+.Pp
+The
+.Fa spacectl_range
+structure is defined as:
+.Bd -literal
+struct spacectl_range {
+	off_t r_offset;
+	off_t r_len;
+};
+.Ed
+.Pp
+The operation specified by the
+.Fa cmd
+argument may be one of:
+.Bl -tag -width SPACECTL_DEALLOC
+.It Dv SPACECTL_DEALLOC
+Zero a region in the file specified by the
+.Fa rqsr
+argument.
+The
+.Fa "rqsr->r_offset"
+has to be a value greater than or equal to 0, and the
+.Fa "rqsr->r_len"
+has to be a value greater than 0.
+.Pp
+If the file system supports hole-punching,
+file system space deallocation may be performed in the given region.
+.El
+.Pp
+The
+.Fa flags
+argument needs to be the value 0 currently.
+.Sh RETURN VALUES
+Upon successful completion, the value 0 is returned;
+otherwise the value -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+Possible failure conditions:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor.
+.It Bq Er EBADF
+The
+.Fa fd
+argument references a file that was opened without write permission.
+.It Bq Er EINTR
+A signal was caught during execution.
+.It Bq Er EINVAL
+The
+.Fa cmd
+argument is not valid.
+.It Bq Er EINVAL
+If the
+.Fa cmd
+argument is
+.Dv SPACECTL_DEALLOC ,
+either the
+.Fa "rqsr->r_offset"
+argument was less than zero, or the
+.Fa "rqsr->r_len"
+argument was less than or equal to zero.
+.It Bq Er EINVAL
+The value of
+.Fa "rqsr->r_offset" +
+.Fa "rqsr->r_len"
+is greater than
+.Dv OFF_MAX .
+.It Bq Er EINVAL
+An invalid or unsupported flag is included in
+.Fa flags .
+.It Bq Er EINVAL
+A flag included in
+.Fa flags
+is not supported by the operation specified by the
+.Fa cmd
+argument.
+.It Bq Er EFAULT
+The
+.Fa rqsr
+or a non-NULL
+.Fa rmsr
+argument point outside the process' allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to a file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
+.It Bq Er ENODEV
+The
+.Fa fd
+argument does not refer to a file that supports
+.Nm .
+.It Bq Er ENOSPC
+There is insufficient free space remaining on the file system storage
+media.
+.It Bq Er ENOTCAPABLE
+The file descriptor
+.Fa fd
+has insufficient rights.
+.It Bq Er ESPIPE
+The
+.Fa fd
+argument is associated with a pipe or FIFO.
+.El
+.Sh SEE ALSO
+.Xr creat 2 ,
+.Xr ftruncate 2 ,
+.Xr open 2 ,
+.Xr unlink 2
+.Sh HISTORY
+The
+.Nm
+system call appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+.Nm
+and this manual page were written by
+.An Ka Ho Ng Aq Mt khng@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

@@ -1,0 +1,32 @@
+.Ss Workflow with results files
+If one runs the following command twice in a row:
+.Bd -literal -offset indent
+kyua test -k /usr/tests/Kyuafile
+.Ed
+.Pp
+the two executions will generate two different files with names like:
+.Bd -literal -offset indent
+~/.kyua/store/results.usr_tests.20140731-150500-196784.db
+~/.kyua/store/results.usr_tests.20140731-151730-997451.db
+.Ed
+.Pp
+Taking advantage of the default naming scheme, the following commands would all
+generate a report for the results of the
+.Em latest
+execution of the test suite:
+.Bd -literal -offset indent
+cd /usr/tests && kyua __REPORT_COMMAND__
+cd /usr/tests && kyua __REPORT_COMMAND__ --results-file=LATEST
+kyua __REPORT_COMMAND__ --results-file=/usr/tests
+kyua __REPORT_COMMAND__ --results-file=usr_tests
+kyua __REPORT_COMMAND__ --results-file=usr_tests.20140731-151730-997451
+.Ed
+.Pp
+But it is also possible to explicitly load data for older runs or from
+explicitly-named files:
+.Bd -literal -offset indent
+kyua __REPORT_COMMAND__ \\
+    --results-file=usr_tests.20140731-150500-196784
+kyua __REPORT_COMMAND__ \\
+    --results-file=~/.kyua/store/results.usr_tests.20140731-150500-196784.db
+.Ed

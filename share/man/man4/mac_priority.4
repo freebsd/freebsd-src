@@ -1,0 +1,128 @@
+.\" Copyright (c) 2021 Florian Walpen <dev@submerge.ch>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 14, 2021
+.Dt MAC_PRIORITY 4
+.Os
+.Sh NAME
+.Nm mac_priority
+.Nd "policy for scheduling privileges of non-root users"
+.Sh SYNOPSIS
+To compile the mac_priority policy into your kernel, place the following lines
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_PRIORITY"
+.Ed
+.Pp
+Alternately, to load the mac_priority policy module at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_priority_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy grants scheduling privileges based on
+.Xr group 5
+membership.
+Users or processes in the group
+.Sq realtime
+(gid 47) are allowed to run threads and processes with realtime scheduling
+priority.
+Users or processes in the group
+.Sq idletime
+(gid 48) are allowed to run threads and processes with idle scheduling
+priority.
+.Pp
+With the
+.Nm
+realtime policy active, privileged users may use the
+.Xr rtprio 1
+utility to start processes with realtime priority.
+Privileged applications can promote threads and processes to realtime
+priority through the
+.Xr rtprio 2
+system calls.
+.Pp
+When the idletime policy is active, privileged users may use the
+.Xr idprio 1
+utility to start processes with idle priority.
+Privileged applications can demote threads and processes to idle
+priority through the
+.Xr rtprio 2
+system calls.
+.Ss Privileges Granted
+The realtime policy grants the following kernel privileges to any process
+running with the realtime group id:
+.Bl -inset -offset indent -compact
+.It Dv PRIV_SCHED_RTPRIO
+.It Dv PRIV_SCHED_SETPOLICY
+.El
+.Pp
+The kernel privilege granted by the idletime policy is:
+.Bl -inset -offset indent -compact
+.It Dv PRIV_SCHED_IDPRIO
+.El
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning this MAC policy.
+All
+.Xr sysctl 8
+variables can also be set as
+.Xr loader 8
+tunables in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va security.mac.priority.realtime
+Enable the realtime policy.
+(Default: 1).
+.It Va security.mac.priority.realtime_gid
+The numeric gid of the realtime group.
+(Default: 47).
+.It Va security.mac.priority.idletime
+Enable the idletime policy.
+(Default: 1).
+.It Va security.mac.priority.idletime_gid
+The numeric gid of the idletime group.
+(Default: 48).
+.El
+.Sh SEE ALSO
+.Xr idprio 1 ,
+.Xr rtprio 1 ,
+.Xr rtprio 2 ,
+.Xr mac 4
+.Sh HISTORY
+MAC first appeared in
+.Fx 5.0
+and
+.Nm
+first appeared in
+.Fx 14.0 .

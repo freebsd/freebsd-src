@@ -1,0 +1,619 @@
+.\" Copyright (c) 2015 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 20, 2021
+.Dt BITSET 9
+.Os
+.Sh NAME
+.Nm bitset(9)
+\(em
+.Nm BITSET_DEFINE ,
+.Nm BITSET_T_INITIALIZER ,
+.Nm BITSET_FSET ,
+.Nm BIT_CLR ,
+.Nm BIT_COPY ,
+.Nm BIT_ISSET ,
+.Nm BIT_SET ,
+.Nm BIT_ZERO ,
+.Nm BIT_FILL ,
+.Nm BIT_SETOF ,
+.Nm BIT_EMPTY ,
+.Nm BIT_ISFULLSET ,
+.Nm BIT_FFS ,
+.Nm BIT_FFS_AT ,
+.Nm BIT_FLS ,
+.Nm BIT_FOREACH_ISSET ,
+.Nm BIT_FOREACH_ISCLR ,
+.Nm BIT_COUNT ,
+.Nm BIT_SUBSET ,
+.Nm BIT_OVERLAP ,
+.Nm BIT_CMP ,
+.Nm BIT_OR ,
+.Nm BIT_OR2 ,
+.Nm BIT_AND ,
+.Nm BIT_AND2 ,
+.Nm BIT_ANDNOT ,
+.Nm BIT_ANDNOT2 ,
+.Nm BIT_XOR ,
+.Nm BIT_XOR2 ,
+.Nm BIT_CLR_ATOMIC ,
+.Nm BIT_SET_ATOMIC ,
+.Nm BIT_SET_ATOMIC_ACQ ,
+.Nm BIT_TEST_SET_ATOMIC ,
+.Nm BIT_TEST_CLR_ATOMIC ,
+.Nm BIT_AND_ATOMIC ,
+.Nm BIT_OR_ATOMIC ,
+.Nm BIT_COPY_STORE_REL
+.Nd bitset manipulation macros
+.Sh SYNOPSIS
+.In sys/_bitset.h
+.In sys/bitset.h
+.\"
+.Fn BITSET_DEFINE "STRUCTNAME" "const SETSIZE"
+.Fn BITSET_T_INITIALIZER "ARRAY_CONTENTS"
+.Fn BITSET_FSET "N_WORDS"
+.\"
+.Fn BIT_CLR "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Fn BIT_COPY "const SETSIZE" "struct STRUCTNAME *from" "struct STRUCTNAME *to"
+.Ft bool
+.Fn BIT_ISSET "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Fn BIT_SET "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Fn BIT_ZERO "const SETSIZE" "struct STRUCTNAME *bitset"
+.Fn BIT_FILL "const SETSIZE" "struct STRUCTNAME *bitset"
+.Fn BIT_SETOF "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_EMPTY "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_ISFULLSET "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft long
+.Fn BIT_FFS "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft long
+.Fn BIT_FFS_AT "const SETSIZE" "struct STRUCTNAME *bitset" "long start"
+.Ft long
+.Fn BIT_FLS "const SETSIZE" "struct STRUCTNAME *bitset"
+.Fo BIT_FOREACH_ISSET
+.Fa "const SETSIZE"
+.Fa "size_t bit"
+.Fa "const struct STRUCTNAME *bitset"
+.Fc
+.Fo BIT_FOREACH_ISCLR
+.Fa "const SETSIZE"
+.Fa "size_t bit"
+.Fa "const struct STRUCTNAME *bitset"
+.Fc
+.Ft long
+.Fn BIT_COUNT "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fo BIT_SUBSET
+.Fa "const SETSIZE" "struct STRUCTNAME *haystack" "struct STRUCTNAME *needle"
+.Fc
+.Ft bool
+.Fo BIT_OVERLAP
+.Fa "const SETSIZE" "struct STRUCTNAME *bitset1" "struct STRUCTNAME *bitset2"
+.Fc
+.Ft bool
+.Fo BIT_CMP
+.Fa "const SETSIZE" "struct STRUCTNAME *bitset1" "struct STRUCTNAME *bitset2"
+.Fc
+.Fn BIT_OR "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_OR2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.Fn BIT_AND "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_AND2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.Fn BIT_ANDNOT "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_ANDNOT2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.Fn BIT_XOR "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_XOR2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.\"
+.Fn BIT_CLR_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Fn BIT_SET_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Fn BIT_SET_ATOMIC_ACQ "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_TEST_SET_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_TEST_CLR_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.\"
+.Fo BIT_AND_ATOMIC
+.Fa "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fc
+.Fo BIT_OR_ATOMIC
+.Fa "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fc
+.Fo BIT_COPY_STORE_REL
+.Fa "const SETSIZE" "struct STRUCTNAME *from" "struct STRUCTNAME *to"
+.Fc
+.Fd #define _WANT_FREEBSD_BITSET
+.Sh DESCRIPTION
+The
+.Nm
+family of macros provide a flexible and efficient bitset implementation if the
+maximum size of the set is known at compilation.
+Throughout this manual page, the name
+.Fa SETSIZE
+refers to the size of the bitset in bits.
+Individual bits in bitsets are referenced with indices zero through
+.Fa SETSIZE - 1 .
+One example use of
+.In sys/bitset.h
+is
+.In sys/cpuset.h .
+.Pp
+These macros are meant to be used in the kernel and are visible if
+.Dv _KERNEL is defined when
+.In sys/_bitset.h
+or
+.In sys/bitset.h
+are included in a program.
+Userland programs must define 
+.Dv _WANT_FREEBSD_BITSET
+before including these files to make the macros visible.
+.Pp
+The
+.Fn BITSET_DEFINE
+macro defines a bitset struct
+.Fa STRUCTNAME
+with room to represent
+.Fa SETSIZE
+bits.
+.Pp
+The
+.Fn BITSET_T_INITIALIZER
+macro allows one to initialize a bitset struct with a compile time literal
+value.
+.Pp
+The
+.Fn BITSET_FSET
+macro generates a compile time literal, usable by
+.Fn BITSET_T_INITIALIZER ,
+representing a full bitset (all bits set).
+For examples of
+.Fn BITSET_T_INITIALIZER
+and
+.Fn BITSET_FSET
+usage, see the
+.Sx BITSET_T_INITIALIZER EXAMPLE
+section.
+The
+.Fa N_WORDS
+parameter to
+.Fn BITSET_FSET
+should be:
+.Bd -literal -offset indent
+__bitset_words(SETSIZE)
+.Ed
+.Pp
+The
+.Fn BIT_CLR
+macro clears bit
+.Fa bit
+in the bitset pointed to by
+.Fa bitset .
+The
+.Fn BIT_CLR_ATOMIC
+macro is identical, but the bit is cleared atomically.
+The
+.Fn BIT_TEST_CLR_ATOMIC
+macro atomically clears the bit and returns whether it was set.
+.Pp
+The
+.Fn BIT_COPY
+macro copies the contents of the bitset
+.Fa from
+to the bitset
+.Fa to .
+.Fn BIT_COPY_STORE_REL
+is similar, but copies component machine words from
+.Fa from
+and writes them to
+.Fa to
+with atomic store with release semantics.
+(That is, if
+.Fa to
+is composed of multiple machine words,
+.Fn BIT_COPY_STORE_REL
+performs multiple individually atomic operations.)
+.Pp
+The
+.Fn BIT_ISSET
+macro returns
+.Dv true
+if the bit
+.Fa bit
+in the bitset pointed to by
+.Fa bitset
+is set.
+.Pp
+The
+.Fn BIT_SET
+macro sets bit
+.Fa bit
+in the bitset pointed to by
+.Fa bitset .
+The
+.Fn BIT_SET_ATOMIC
+macro is identical, but the bit is set atomically.
+The
+.Fn BIT_SET_ATOMIC_ACQ
+macro sets the bit with acquire semantics.
+The
+.Fn BIT_TEST_SET_ATOMIC
+macro atomically sets the bit and returns whether it was set.
+.Pp
+The
+.Fn BIT_ZERO
+macro clears all bits in
+.Fa bitset .
+.Pp
+The
+.Fn BIT_FILL
+macro sets all bits in
+.Fa bitset .
+.Pp
+The
+.Fn BIT_SETOF
+macro clears all bits in
+.Fa bitset
+before setting only bit
+.Fa bit .
+.Pp
+The
+.Fn BIT_EMPTY
+macro returns
+.Dv true
+if
+.Fa bitset
+is empty.
+.Pp
+The
+.Fn BIT_ISFULLSET
+macro returns
+.Dv true
+if
+.Fa bitset
+is full (all bits set).
+.Pp
+The
+.Fn BIT_FFS
+macro returns the 1-index of the first (lowest) set bit in
+.Fa bitset ,
+or zero if
+.Fa bitset
+is empty.
+Like with
+.Xr ffs 3 ,
+to use the non-zero result of
+.Fn BIT_FFS
+as a
+.Fa bit
+index parameter to any other
+.Nm
+macro, you must subtract one from the result.
+.Pp
+The
+.Fn BIT_FFS_AT
+macro returns the 1-index of the first (lowest) set bit in
+.Fa bitset ,
+which is greater than the given 1-indexed
+.Fa start ,
+or zero if no bits in
+.Fa bitset
+greater than
+.Fa start
+are set.
+.Pp
+The
+.Fn BIT_FLS
+macro returns the 1-index of the last (highest) set bit in
+.Fa bitset ,
+or zero if
+.Fa bitset
+is empty.
+Like with
+.Xr fls 3 ,
+to use the non-zero result of
+.Fn BIT_FLS
+as a
+.Fa bit
+index parameter to any other
+.Nm
+macro, you must subtract one from the result.
+.Pp
+The
+.Fn BIT_FOREACH_ISSET
+macro can be used to iterate over all set bits in
+.Fa bitset .
+The index variable
+.Fa bit
+must have been declared with type
+.Ft int ,
+and upon each iteration
+.Fa bit
+is set to the index of successive set bits.
+The value of
+.Fa bit
+after the loop terminates is undefined.
+Similarly,
+.Fn BIT_FOREACH_ISCLR
+iterates over all clear bits in
+.Fa bitset .
+In the loop body, the currently indexed bit may be set or cleared.
+However, setting or clearing bits other than the currently indexed
+bit does not guarantee that they will or will not be returned in
+subsequent iterations of the same loop.
+.Pp
+The
+.Fn BIT_COUNT
+macro returns the total number of set bits in
+.Fa bitset .
+.Pp
+The
+.Fn BIT_SUBSET
+macro returns
+.Dv true
+if
+.Fa needle
+is a subset of
+.Fa haystack .
+.Pp
+The
+.Fn BIT_OVERLAP
+macro returns
+.Dv true
+if
+.Fa bitset1
+and
+.Fa bitset2
+have any common bits.
+(That is, if
+.Fa bitset1
+AND
+.Fa bitset2
+is not the empty set.)
+.Pp
+The
+.Fn BIT_CMP
+macro returns
+.Dv true
+if
+.Fa bitset1
+is NOT equal to
+.Fa bitset2 .
+.Pp
+The
+.Fn BIT_OR
+macro sets bits present in
+.Fa src
+in
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+|=
+.Fa src . )
+.Fn BIT_OR_ATOMIC
+is similar, but sets bits in the component machine words in
+.Fa dst
+atomically.
+(That is, if
+.Fa dst
+is composed of multiple machine words,
+.Fn BIT_OR_ATOMIC
+performs multiple individually atomic operations.)
+.Pp
+The
+.Fn BIT_OR2
+macro computes
+.Fa src1
+bitwise or
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+|
+.Fa src2 . )
+.Pp
+The
+.Fn BIT_AND
+macro clears bits absent from
+.Fa src
+from
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+&=
+.Fa src . )
+.Fn BIT_AND_ATOMIC
+is similar, with the same atomic semantics as
+.Fn BIT_OR_ATOMIC .
+.Pp
+The
+.Fn BIT_AND2
+macro computes
+.Fa src1
+bitwise and
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+&
+.Fa src2 . )
+.Pp
+The
+.Fn BIT_ANDNOT
+macro clears bits set in
+.Fa src
+from
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+&=
+.Fa ~ src . )
+.Pp
+The
+.Fn BIT_ANDNOT2
+macro computes
+.Fa src1
+bitwise and not
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+& ~
+.Fa src2 . )
+.Pp
+The
+.Fn BIT_XOR
+macro toggles bits set in
+.Fa src
+in
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+^=
+.Fa src . )
+.Pp
+The
+.Fn BIT_XOR2
+macro computes
+.Fa src1
+bitwise exclusive or
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+^
+.Fa src2 . )
+.Sh BITSET_T_INITIALIZER EXAMPLE
+.Bd -literal
+BITSET_DEFINE(_myset, MYSETSIZE);
+
+struct _myset myset;
+
+/* Initialize myset to filled (all bits set) */
+myset = BITSET_T_INITIALIZER(BITSET_FSET(__bitset_words(MYSETSIZE)));
+
+/* Initialize myset to only the lowest bit set */
+myset = BITSET_T_INITIALIZER(0x1);
+.Ed
+.Sh SEE ALSO
+.Xr bitstring 3 ,
+.Xr cpuset 9
+.Sh HISTORY
+The
+.Nm
+macros first appeared in
+.Fx 10.0
+in January 2014.
+They were MFCed to
+.Fx 9.3 ,
+released in July 2014.
+.Pp
+This manual page first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+macros were generalized and pulled out of
+.In sys/cpuset.h
+as
+.In sys/_bitset.h
+and
+.In sys/bitset.h
+by
+.An Attilio Rao Aq Mt attilio@FreeBSD.org .
+This manual page was written by
+.An Conrad Meyer Aq Mt cem@FreeBSD.org .
+.Sh CAVEATS
+The
+.Fa SETSIZE
+argument to all of these macros must match the value given to
+.Fn BITSET_DEFINE .
+.Pp
+Unlike every other reference to individual set members, which are zero-indexed,
+.Fn BIT_FFS ,
+.Fn BIT_FFS_AT
+and
+.Fn BIT_FLS
+return a one-indexed result (or zero if the set is empty).
+.Pp
+In order to use the macros defined in
+.In sys/bitset.h
+and
+.In sys/_bitset.h
+in userland programs,
+.Dv _WANT_FREEBSD_BITSET
+has to be defined before including the header files.
+This requirements exists to prevent a name space pollution due to macros defined in
+.Nm
+in programs that include
+.In sys/cpuset.h
+or
+.In sched.h .

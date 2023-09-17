@@ -1,0 +1,179 @@
+.\"-
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mark Johnston under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 23, 2023
+.Dt KASAN 9
+.Os
+.Sh NAME
+.Nm KASAN
+.Nd Kernel Address SANitizer
+.Sh SYNOPSIS
+The
+.Pa GENERIC-KASAN
+kernel configuration can be used to compile a KASAN-enabled kernel using
+.Pa GENERIC
+as a base configuration.
+Alternately, to compile KASAN into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options KASAN"
+.Ed
+.Pp
+.In sys/asan.h
+.Ft void
+.Fn kasan_mark "const void *addr" "size_t size" "size_t redzsize" "uint8_t code"
+.Sh DESCRIPTION
+.Nm
+is a subsystem which leverages compiler instrumentation to detect invalid
+memory accesses in the kernel.
+Currently it is implemented on the amd64 and arm64 platforms.
+.Pp
+When
+.Nm
+is compiled into the kernel, the compiler is configured to emit function
+calls upon every memory access.
+The functions are implemented by
+.Nm
+and permit run-time detection of several types of bugs including
+use-after-frees, double frees and frees of invalid pointers, and out-of-bounds
+accesses.
+These protections apply to memory allocated by
+.Xr uma 9 ,
+.Xr malloc 9
+and related functions, and
+.Fn kmem_malloc
+and related functions,
+as well as global variables and kernel stacks.
+.Nm
+is conservative and will not detect all instances of these types of bugs.
+Memory accesses through the kernel map are sanitized, but accesses via the
+direct map are not.
+When
+.Nm
+is configured, the kernel aims to minimize its use of the direct map.
+.Sh IMPLEMENTATION NOTES
+.Nm
+is implemented using compiler instrumentation and a kernel runtime.
+When a
+kernel is built with the KASAN option enabled, the compiler inserts function calls
+before most memory accesses in the generated code.
+The runtime implements the corresponding functions, which decide whether a
+given access is valid.
+If not, the runtime prints a warning or panics the kernel, depending on the
+value of the
+.Sy debug.kasan.panic_on_violation
+sysctl/tunable.
+.Pp
+The
+.Nm
+runtime works by maintaining a shadow map for the kernel map.
+There exists a linear mapping between addresses in the kernel map and addresses
+in the shadow map.
+The shadow map is used to store information about the current state of
+allocations from the kernel map.
+For example, when a buffer is returned by
+.Xr malloc 9 ,
+the corresponding region of the shadow map is marked to indicate that the
+buffer is valid.
+When it is freed, the shadow map is updated to mark the buffer as invalid.
+Accesses to the buffer are intercepted by the
+.Nm
+runtime and validated using the contents of the shadow map.
+.Pp
+Upon booting, all kernel memory is marked as valid.
+Kernel allocators must mark cached but free buffers as invalid, and must mark
+them valid before freeing the kernel virtual address range.
+This slightly reduces the effectiveness of
+.Nm
+but simplifies its maintenance and integration into the kernel.
+.Pp
+Updates to the shadow map are performed by calling
+.Fn kasan_mark .
+Parameter
+.Fa addr
+is the address of the buffer whose shadow is to be updated,
+.Fa size
+is the usable size of the buffer, and
+.Fa redzsize
+is the full size of the buffer allocated from lower layers of the system.
+.Fa redzsize
+must be greater than or equal to
+.Fa size .
+In some cases kernel allocators will return a buffer larger than that requested
+by the consumer; the unused space at the end is referred to as a red zone and is
+always marked as invalid.
+.Fa code
+allows the caller to specify an identifier used when marking a buffer as invalid.
+The identifier is included in any reports generated by
+.Nm
+and helps identify the source of the invalid access.
+For instance, when an item is freed to a
+.Xr uma 9
+zone, the item is marked with
+.Dv KASAN_UMA_FREED .
+See
+.In sys/asan.h
+for the available identifiers.
+If the entire buffer is to be marked valid, i.e.,
+.Fa size
+and
+.Fa redzsize
+are equal,
+.Fa code
+should be 0.
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr KMSAN 9 ,
+.Xr malloc 9 ,
+.Xr memguard 9 ,
+.Xr redzone 9 ,
+.Xr uma 9
+.Sh HISTORY
+.Nm
+was ported from
+.Nx
+and first appeared in
+.Fx 14.0 .
+.Sh BUGS
+Accesses to kernel memory outside of the kernel map are ignored by the
+.Nm
+runtime.
+When
+.Nm
+is configured, the kernel memory allocators are configured to use the kernel
+map, but some uses of the direct map remain.
+For example, on amd64 and arm64, accesses to page table pages are not tracked.
+.Pp
+Some kernel memory allocators explicitly permit accesses after an object has
+been freed.
+These cannot be sanitized by
+.Nm .
+For example, memory from all
+.Xr uma 9
+zones initialized with the
+.Dv UMA_ZONE_NOFREE
+flag are not sanitized.

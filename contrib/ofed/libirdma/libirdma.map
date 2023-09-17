@@ -1,0 +1,8 @@
+/* Export symbols should be added below according to
+   Documentation/versioning.md document. */
+IRDMA_1.0 {
+        global:
+                libirdma_query_device;
+        local: *;
+};
+

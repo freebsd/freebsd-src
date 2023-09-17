@@ -1,0 +1,447 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-NM" "1" "2023-05-24" "16" "LLVM"
+.SH NAME
+llvm-nm \- list LLVM bitcode and object file's symbol table
+.SH SYNOPSIS
+.sp
+\fBllvm\-nm\fP [\fIoptions\fP] [\fIfilenames...\fP]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-nm\fP utility lists the names of symbols from LLVM bitcode
+files, object files, and archives. Each symbol is listed along with some simple
+information about its provenance. If no filename is specified, \fIa.out\fP is used
+as the input. If \fI\-\fP is used as a filename, \fBllvm\-nm\fP will read a file
+from its standard input stream.
+.sp
+\fBllvm\-nm\fP\(aqs default output format is the traditional BSD \fBnm\fP
+output format. Each such output record consists of an (optional) 8\-digit
+hexadecimal address, followed by a type code character, followed by a name, for
+each symbol. One record is printed per line; fields are separated by spaces.
+When the address is omitted, it is replaced by 8 spaces.
+.sp
+The supported type code characters are as follows. Where both lower and
+upper\-case characters are listed for the same meaning, a lower\-case character
+represents a local symbol, whilst an upper\-case character represents a global
+(external) symbol:
+.sp
+a, A
+.INDENT 0.0
+.INDENT 3.5
+Absolute symbol.
+.UNINDENT
+.UNINDENT
+.sp
+b, B
+.INDENT 0.0
+.INDENT 3.5
+Uninitialized data (bss) object.
+.UNINDENT
+.UNINDENT
+.sp
+C
+.INDENT 0.0
+.INDENT 3.5
+Common symbol. Multiple definitions link together into one definition.
+.UNINDENT
+.UNINDENT
+.sp
+d, D
+.INDENT 0.0
+.INDENT 3.5
+Writable data object.
+.UNINDENT
+.UNINDENT
+.sp
+i, I
+.INDENT 0.0
+.INDENT 3.5
+COFF: .idata symbol or symbol in a section with IMAGE_SCN_LNK_INFO set.
+.UNINDENT
+.UNINDENT
+.sp
+n
+.INDENT 0.0
+.INDENT 3.5
+ELF: local symbol from non\-alloc section.
+.sp
+COFF: debug symbol.
+.UNINDENT
+.UNINDENT
+.sp
+N
+.INDENT 0.0
+.INDENT 3.5
+ELF: debug section symbol, or global symbol from non\-alloc section.
+.UNINDENT
+.UNINDENT
+.sp
+s, S
+.INDENT 0.0
+.INDENT 3.5
+COFF: section symbol.
+.sp
+Mach\-O: absolute symbol or symbol from a section other than __TEXT_EXEC __text,
+__TEXT __text, __DATA __data, or __DATA __bss.
+.UNINDENT
+.UNINDENT
+.sp
+r, R
+.INDENT 0.0
+.INDENT 3.5
+Read\-only data object.
+.UNINDENT
+.UNINDENT
+.sp
+t, T
+.INDENT 0.0
+.INDENT 3.5
+Code (text) object.
+.UNINDENT
+.UNINDENT
+.sp
+u
+.INDENT 0.0
+.INDENT 3.5
+ELF: GNU unique symbol.
+.UNINDENT
+.UNINDENT
+.sp
+U
+.INDENT 0.0
+.INDENT 3.5
+Named object is undefined in this file.
+.UNINDENT
+.UNINDENT
+.sp
+v
+.INDENT 0.0
+.INDENT 3.5
+ELF: Undefined weak object. It is not a link failure if the object is not
+defined.
+.UNINDENT
+.UNINDENT
+.sp
+V
+.INDENT 0.0
+.INDENT 3.5
+ELF: Defined weak object symbol. This definition will only be used if no
+regular definitions exist in a link. If multiple weak definitions and no
+regular definitions exist, one of the weak definitions will be used.
+.UNINDENT
+.UNINDENT
+.sp
+w
+.INDENT 0.0
+.INDENT 3.5
+Undefined weak symbol other than an ELF object symbol. It is not a link failure
+if the symbol is not defined.
+.UNINDENT
+.UNINDENT
+.sp
+W
+.INDENT 0.0
+.INDENT 3.5
+Defined weak symbol other than an ELF object symbol. This definition will only
+be used if no regular definitions exist in a link. If multiple weak definitions
+and no regular definitions exist, one of the weak definitions will be used.
+.UNINDENT
+.UNINDENT
+.sp
+\-
+.INDENT 0.0
+.INDENT 3.5
+Mach\-O: N_STAB symbol.
+.UNINDENT
+.UNINDENT
+.sp
+?
+.INDENT 0.0
+.INDENT 3.5
+Something unrecognizable.
+.UNINDENT
+.UNINDENT
+.sp
+Because LLVM bitcode files typically contain objects that are not considered to
+have addresses until they are linked into an executable image or dynamically
+compiled \(dqjust\-in\-time\(dq, \fBllvm\-nm\fP does not print an address for any
+symbol in an LLVM bitcode file, even symbols which are defined in the bitcode
+file.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-B
+Use BSD output format. Alias for \fB\-\-format=bsd\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-X
+Specify the type of XCOFF object file, ELF object file, or IR object file input
+from command line or from archive files that llvm\-nm should examine. The
+mode must be one of the following:
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B 32
+Process only 32\-bit object files.
+.TP
+.B 64
+Process only 64\-bit object files.
+.TP
+.B 32_64
+Process both 32\-bit and 64\-bit object files.
+.TP
+.B any
+Process all the supported object files.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+On AIX OS, the default is to process 32\-bit object files only and to ignore
+64\-bit objects. The can be changed by setting the OBJECT_MODE environment
+variable. For example, OBJECT_MODE=64 causes \fBllvm\-nm\fP to process
+64\-bit objects and ignore 32\-bit objects. The \-X flag overrides the OBJECT_MODE
+variable.
+.sp
+On other operating systems, the default is to process all object files: the
+OBJECT_MODE environment variable is not supported.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-syms, \-a
+Show all symbols, even those usually suppressed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defined\-only, \-U
+Print only symbols defined in this file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-demangle, \-C
+Demangle symbol names.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dynamic, \-D
+Display dynamic symbols instead of normal symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-export\-symbols
+Print sorted symbols with their visibility (if applicable), with duplicates
+removed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-extern\-only, \-g
+Print only symbols whose definitions are external; that is, accessible from
+other files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-format=<format>, \-f
+Select an output format; \fIformat\fP may be \fIsysv\fP, \fIposix\fP, \fIdarwin\fP, \fIbsd\fP or
+\fIjust\-symbols\fP\&.
+The default is \fIbsd\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help, \-h
+Print a summary of command\-line options and their meanings.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-j
+Print just the symbol names. Alias for \fI\-\-format=just\-symbols\(ga\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-m
+Use Darwin format. Alias for \fB\-\-format=darwin\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-demangle
+Don\(aqt demangle symbol names. This is the default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-llvm\-bc
+Disable the LLVM bitcode reader.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-sort, \-p
+Show symbols in the order encountered.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-weak, \-W
+Don\(aqt print weak symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-numeric\-sort, \-n, \-v
+Sort symbols by address.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-portability, \-P
+Use POSIX.2 output format.  Alias for \fB\-\-format=posix\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-armap
+Print the archive symbol table, in addition to the symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-file\-name, \-A, \-o
+Precede each symbol with the file it came from.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-size, \-S
+Show symbol size as well as address (not applicable for Mach\-O).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-quiet
+Suppress \(aqno symbols\(aq diagnostic.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-radix=<RADIX>, \-t
+Specify the radix of the symbol address(es). Values accepted are \fId\fP (decimal),
+\fIx\fP (hexadecimal) and \fIo\fP (octal).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-reverse\-sort, \-r
+Sort symbols in reverse order.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-size\-sort
+Sort symbols by size.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-special\-syms
+Do not filter special symbols from the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-undefined\-only, \-u
+Print only undefined symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version, \-V
+Display the version of the \fBllvm\-nm\fP executable, then exit. Does not
+stack with other commands.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH MACH-O SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-add\-dyldinfo
+Add symbols from the dyldinfo, if they are not already in the symbol table.
+This is the default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-add\-inlinedinfo
+Add symbols from the inlined libraries, TBD file inputs only.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch=<arch1[,arch2,...]>
+Dump the symbols from the specified architecture(s).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyldinfo\-only
+Dump only symbols from the dyldinfo.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-dyldinfo
+Do not add any symbols from the dyldinfo.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-s <segment> <section>
+Dump only symbols from this segment and section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x
+Print symbol entry in hex.
+.UNINDENT
+.SH XCOFF SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-no\-rsrc
+Exclude resource file symbols (\fB__rsrc\fP) from export symbol list.
+.UNINDENT
+.SH BUGS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBllvm\-nm\fP does not support the full set of arguments that GNU
+\fBnm\fP does.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-nm\fP exits with an exit code of zero.
+.SH SEE ALSO
+.sp
+\fBllvm\-ar(1)\fP, \fBllvm\-objdump(1)\fP, \fBllvm\-readelf(1)\fP,
+\fBllvm\-readobj(1)\fP
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2023, LLVM Project
+.\" Generated by docutils manpage writer.
+.

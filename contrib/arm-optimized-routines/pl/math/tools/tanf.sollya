@@ -1,0 +1,78 @@
+// polynomial for approximating single precision tan(x)
+//
+// Copyright (c) 2022-2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+dtype = single;
+
+mthd = 0; // approximate tan
+deg = 5; // poly degree
+
+// // Uncomment for cotan
+// mthd = 1; // approximate cotan
+// deg = 3; // poly degree
+
+// interval bounds
+a = 0x1.0p-126;
+b = pi / 4;
+
+print("Print some useful constants");
+display = hexadecimal!;
+if (dtype==double) then { prec = 53!; }
+else if (dtype==single) then { prec = 23!; };
+
+print("pi/4");
+pi/4;
+
+// Setup precisions (display and computation)
+display = decimal!;
+prec=128!;
+save_prec=prec;
+
+//
+// Select function to approximate with Sollya
+//
+if(mthd==0) then {
+  s = "x + x^3 * P(x^2)";
+  g = tan(x);
+  F = proc(P) { return x + x^3 * P(x^2); };
+  f = (g(sqrt(x))-sqrt(x))/(x*sqrt(x));
+  init_poly = 0;
+  // Display info
+  print("Approximate g(x) =", g, "as F(x)=", s, ".");
+  poly = fpminimax(f, deg, [|dtype ...|], [a*a;b*b]);
+}
+else if (mthd==1) then {
+  s = "1/x + x * P(x^2)";
+  g = 1 / tan(x);
+  F = proc(P) { return 1/x + x * P(x^2); };
+  f = (g(sqrt(x))-1/sqrt(x))/(sqrt(x));
+  init_poly = 0;
+  deg_init_poly = -1; // a value such that we actually start by building constant coefficient
+  // Display info
+  print("Approximate g(x) =", g, "as F(x)=", s, ".");
+  // Fpminimax used to minimise absolute error
+  approx_fpminimax = proc(func, poly, d) {
+    return fpminimax(func - poly / x^-(deg-d), 0, [|dtype|], [a;b], absolute, floating);
+  };
+  // Optimise all coefficients at once
+  poly = fpminimax(f, [|0,...,deg|], [|dtype ...|], [a;b], absolute, floating);
+};
+
+
+//
+// Display coefficients in Sollya
+//
+display = hexadecimal!;
+if (dtype==double) then { prec = 53!; }
+else if (dtype==single) then { prec = 23!; };
+print("_coeffs :_ hex");
+for i from 0 to deg do coeff(poly, i);
+
+// Compute errors
+display = hexadecimal!;
+d_rel_err = dirtyinfnorm(1-F(poly)/g(x), [a;b]);
+d_abs_err = dirtyinfnorm(g(x)-F(poly), [a;b]);
+print("dirty rel error:", d_rel_err);
+print("dirty abs error:", d_abs_err);
+print("in [",a,b,"]");

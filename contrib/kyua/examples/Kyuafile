@@ -1,0 +1,5 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="syntax_test"}

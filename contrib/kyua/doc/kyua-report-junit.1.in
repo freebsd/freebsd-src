@@ -1,0 +1,87 @@
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 13, 2014
+.Dt KYUA-REPORT-JUNIT 1
+.Os
+.Sh NAME
+.Nm "kyua report-junit"
+.Nd Generates a JUnit report with the results of a test suite run
+.Sh SYNOPSIS
+.Nm
+.Op Fl -output Ar path
+.Op Fl -results-file Ar file
+.Sh DESCRIPTION
+The
+.Nm
+command provides a simple mechanism to generate JUnit reports of the
+execution of a test suite.
+The command processes a results file and then generates a single XML file
+that complies with the JUnit XSchema.
+.Pp
+The JUnit output is static and self-contained, so it can easily be plugged
+into any continuous integration system, like Jenkins.
+.Pp
+The following subcommand options are recognized:
+.Bl -tag -width XX
+.It Fl -output Ar directory
+Specifies the file into which to store the JUnit report.
+.It Fl -results-file Ar path , Fl s Ar path
+__include__ results-file-flag-read.mdoc
+.El
+.Ss Caveats
+Because of limitations in the JUnit XML schema, not all the data collected by
+Kyua can be properly represented in JUnit reports.
+However, because test data are extremely useful for debugging purposes, the
+.Nm
+command shovels these data into the JUnit output.
+In particular:
+.Bl -bullet
+.It
+The test case metadata values are prepended to the test case's standard error
+output.
+.It
+Test cases that report expected failures as their results are recorded as
+passed.
+The fact that they failed as expected is recorded in the test case's standard
+error output along with the corresponding reason.
+.El
+.Ss Results files
+__include__ results-files.mdoc
+.Sh EXIT STATUS
+The
+.Nm
+command always returns 0.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh EXAMPLES
+__include__ results-files-report-example.mdoc REPORT_COMMAND=report-junit
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr kyua-report 1 ,
+.Xr kyua-report-html 1

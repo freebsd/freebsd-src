@@ -1,0 +1,119 @@
+name: C/C++ CI self-hosted
+
+on:
+  push:
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', '**/Makefile.in', 'configure.ac' ]
+
+jobs:
+  selfhosted:
+    if: github.repository == 'openssh/openssh-portable-selfhosted'
+    runs-on: ${{ matrix.host }}
+    timeout-minutes: 600
+    env:
+      HOST: ${{ matrix.host }}
+      TARGET_HOST: ${{ matrix.target }}
+      TARGET_CONFIG: ${{ matrix.config }}
+    strategy:
+      fail-fast: false
+      # We use a matrix in two parts: firstly all of the VMs are tested with the
+      # default config.  "target" corresponds to a label associated with the
+      # worker.  The default is an ephemeral VM running under libvirt.
+      matrix:
+        target:
+          - alpine
+          - centos7
+          - debian-i386
+          - dfly30
+          - dfly48
+          - dfly60
+          - dfly62
+          - dfly64
+          - fbsd10
+          - fbsd12
+          - fbsd13
+          - minix3
+          - nbsd3
+          - nbsd4
+          - nbsd8
+          - nbsd9
+          - obsd51
+          - obsd67
+          - obsd69
+          - obsd70
+          - obsdsnap
+          - obsdsnap-i386
+          - openindiana
+          - sol10
+          - sol11
+        config:
+          - default
+        host:
+          - libvirt
+        include:
+          # Then we include extra libvirt test configs.
+          - { target: aix51, config: default, host: libvirt }
+          - { target: centos7, config: pam, host: libvirt }
+          - { target: debian-i386, config: pam, host: libvirt }
+          - { target: dfly30, config: without-openssl, host: libvirt}
+          - { target: dfly48, config: pam ,host: libvirt }
+          - { target: dfly58, config: pam, host: libvirt }
+          - { target: dfly60, config: pam, host: libvirt }
+          - { target: dfly62, config: pam, host: libvirt }
+          - { target: fbsd10, config: pam, host: libvirt }
+          - { target: fbsd12, config: pam, host: libvirt }
+          - { target: fbsd13, config: pam, host: libvirt }
+          - { target: nbsd8,  config: pam, host: libvirt }
+          - { target: nbsd9,  config: pam, host: libvirt }
+          - { target: openindiana, config: pam, host: libvirt }
+          - { target: sol10,  config: pam, host: libvirt }
+          - { target: sol11,  config: pam-krb5, host: libvirt }
+          - { target: sol11,  config: sol64, host: libvirt }
+          # VMs with persistent disks that have their own runner.
+          - { target: win10, config: default, host: win10 }
+          - { target: win10, config: cygwin-release, host: win10 }
+          # Physical hosts, with either native runners or remote via ssh.
+          - { target: ARM, config: default, host: ARM }
+          - { target: ARM64, config: default, host: ARM64 }
+          - { target: ARM64, config: pam, host: ARM64 }
+          - { target: debian-riscv64, config: default, host: debian-riscv64 }
+          - { target: openwrt-mips, config: default, host: openwrt-mips }
+          - { target: openwrt-mipsel, config: default, host: openwrt-mipsel }
+    steps:
+    - name: shutdown VM if running
+      run: vmshutdown
+      working-directory: ${{ runner.temp }}
+    - uses: actions/checkout@main
+    - name: autoreconf
+      run: autoreconf
+    - name: startup VM
+      run: vmstartup
+      working-directory: ${{ runner.temp }}
+    - name: configure
+      run: vmrun ./.github/configure.sh ${{ matrix.config }}
+    - name: save config
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ matrix.target }}-${{ matrix.config }}-config
+        path: config.h
+    - name: make clean
+      run: vmrun make clean
+    - name: make
+      run: vmrun make
+    - name: make tests
+      run: vmrun ./.github/run_test.sh ${{ matrix.config }}
+      timeout-minutes: 600
+    - name: save logs
+      if: failure()
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ matrix.target }}-${{ matrix.config }}-logs
+        path: |
+          config.h
+          config.log
+          regress/*.log
+          regress/log/*
+          regress/valgrind-out/
+    - name: shutdown VM
+      if: always()
+      run: vmshutdown
+      working-directory: ${{ runner.temp }}

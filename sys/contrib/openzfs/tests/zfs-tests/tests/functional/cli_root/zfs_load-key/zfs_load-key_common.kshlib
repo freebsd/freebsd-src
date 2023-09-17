@@ -1,0 +1,163 @@
+#
+# CDDL HEADER START
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 2017 Datto, Inc. All rights reserved.
+#
+
+. $STF_SUITE/include/libtest.shlib
+. $STF_SUITE/tests/functional/cli_root/zfs_load-key/zfs_load-key.cfg
+
+# Return 0 is a dataset key is available, 1 otherwise
+#
+# $1 - dataset
+#
+function key_available
+{
+	typeset ds=$1
+
+	datasetexists $ds || return 1
+
+	typeset val=$(get_prop keystatus $ds)
+	if [[ "$val" == "none" ]]; then
+		log_note "Dataset $ds is not encrypted"
+	elif [[ "$val" == "available" ]]; then
+		return 0
+	fi
+
+	return 1
+}
+
+function key_unavailable
+{
+	! key_available $1
+}
+
+function verify_keyformat
+{
+	typeset ds=$1
+	typeset format=$2
+	typeset fmt=$(get_prop keyformat $ds)
+
+	if [[ "$fmt" != "$format" ]]; then
+		log_fail "Expected keyformat $format, got $fmt"
+	fi
+
+	return 0
+}
+
+function verify_keylocation
+{
+	typeset ds=$1
+	typeset location=$2
+	typeset keyloc=$(get_prop keylocation $ds)
+
+	if [[ "$keyloc" != "$location" ]]; then
+		log_fail "Expected keylocation $location, got $keyloc"
+	fi
+
+	return 0
+}
+
+function verify_encryption_root
+{
+	typeset ds=$1
+	typeset val=$2
+	typeset eroot=$(get_prop encryptionroot $ds)
+
+	if [[ "$eroot" != "$val" ]]; then
+		log_note "Expected encryption root '$val', got '$eroot'"
+		return 1
+	fi
+
+	return 0
+}
+
+function verify_origin
+{
+	typeset ds=$1
+	typeset val=$2
+	typeset orig=$(get_prop origin $ds)
+
+	if [[ "$orig" != "$val" ]]; then
+		log_note "Expected origin '$val', got '$orig'"
+		return 1
+	fi
+
+	return 0
+}
+
+function setup_https
+{
+	log_must openssl req -x509 -newkey rsa:4096 -sha256 -days 1 -nodes -keyout "/$TESTPOOL/snakeoil.key" -out "$SSL_CA_CERT_FILE" -subj "/CN=$HTTPS_HOSTNAME"
+
+	python3 -uc "
+import http.server, ssl, sys, os, time, random
+
+sys.stdin.close()
+
+httpd, err, port = None, None, None
+for i in range(1, 100):
+	port = random.randint(0xC000, 0xFFFF) # ephemeral range
+	try:
+		httpd = http.server.HTTPServer(('$HTTPS_HOSTNAME', port), http.server.SimpleHTTPRequestHandler)
+		break
+	except:
+		err = sys.exc_info()[1]
+		time.sleep(i / 100)
+if not httpd:
+	raise err
+
+with open('$HTTPS_PORT_FILE', 'w') as portf:
+	print(port, file=portf)
+
+httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, keyfile='/$TESTPOOL/snakeoil.key', certfile='$SSL_CA_CERT_FILE', ssl_version=ssl.PROTOCOL_TLS)
+
+os.chdir('$STF_SUITE/tests/functional/cli_root/zfs_load-key')
+
+with open('/$TESTPOOL/snakeoil.pid', 'w') as pidf:
+	if os.fork() != 0:
+	  os._exit(0)
+	print(os.getpid(), file=pidf)
+
+sys.stdout.close()
+sys.stderr.close()
+try:
+	sys.stdout = sys.stderr = open('/tmp/ZTS-snakeoil.log', 'w', buffering=1) # line
+except:
+	sys.stdout = sys.stderr = open('/dev/null', 'w')
+
+print('{} start on {}'.format(os.getpid(), port))
+httpd.serve_forever()
+" || log_fail
+
+	typeset https_pid=
+	for d in $(seq 0 0.1 5); do
+		read -r https_pid 2>/dev/null < "/$TESTPOOL/snakeoil.pid" && [ -n "$https_pid" ] && break
+		sleep "$d"
+	done
+	[ -z "$https_pid" ] && log_fail "Couldn't start HTTPS server"
+	log_note "Started HTTPS server as $https_pid on port $(get_https_port)"
+}
+
+function cleanup_https
+{
+	typeset https_pid=
+	read -r https_pid 2>/dev/null < "/$TESTPOOL/snakeoil.pid" || return 0
+
+	log_must kill "$https_pid"
+	cat /tmp/ZTS-snakeoil.log
+	rm -f "/$TESTPOOL/snakeoil.pid" "/tmp/ZTS-snakeoil.log"
+}

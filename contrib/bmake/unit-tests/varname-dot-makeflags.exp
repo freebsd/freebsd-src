@@ -1,0 +1,10 @@
+make: "varname-dot-makeflags.mk" line 11: MAKEFLAGS=<undefined>
+make: "varname-dot-makeflags.mk" line 13: .MAKEFLAGS=< -r -k>
+make: "varname-dot-makeflags.mk" line 15: .MAKEOVERRIDES=<>
+make: "varname-dot-makeflags.mk" line 21: MAKEFLAGS=<undefined>
+make: "varname-dot-makeflags.mk" line 23: .MAKEFLAGS=< -r -k -D VARNAME -r>
+make: "varname-dot-makeflags.mk" line 25: .MAKEOVERRIDES=< VAR>
+runtime: MAKEFLAGS=< -r -k -D VARNAME -r VAR=value>
+runtime: .MAKEFLAGS=< -r -k -D VARNAME -r>
+runtime: .MAKEOVERRIDES=< VAR>
+exit status 0

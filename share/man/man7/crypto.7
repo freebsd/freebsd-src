@@ -1,0 +1,179 @@
+.\" Copyright (c) 2014-2021 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by John-Mark Gurney
+.\" under the sponsorship of the FreeBSD Foundation and
+.\" Rubicon Communications, LLC (Netgate).
+.\"
+.\" Portions of this documentation were written by Ararat River
+.\" Consulting, LLC under sponsorship of the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 11, 2022
+.Dt CRYPTO 7
+.Os
+.Sh NAME
+.Nm crypto
+.Nd OpenCrypto algorithms
+.Sh DESCRIPTION
+The in-kernel OpenCrypto framework supports several different encryption
+and authentication algorithms.
+This document describes the parameters and requirements of these algorithms.
+Unless otherwise noted, all sizes listed below are in bytes.
+.Ss Authenticators
+Authenticators compute a value (also known as a digest, hash, or tag)
+over an input of bytes.
+In-kernel requests can either compute the value for a given input,
+or verify if a given tag matches the computed tag for a given input.
+The following authentication algorithms are supported:
+.Bl -column "CRYPTO_AES_CCM_CBC_MAC" "XXX" "16, 24, 32" "Digest"
+.It Sy Name Ta Sy Nonce Ta Sy Key Sizes Ta Sy Digest Ta Sy Description
+.It Dv CRYPTO_AES_CCM_CBC_MAC Ta 12 Ta 16, 24, 32 Ta 16 Ta
+Authentication-only mode of AES-CCM
+.It Dv CRYPTO_AES_NIST_GMAC Ta 12 Ta 16, 24, 32 Ta 16 Ta
+Galois message authentication code
+.It Dv CRYPTO_BLAKE2B Ta Ta 0, 64 Ta 64 Ta
+Blake2b
+.It Dv CRYPTO_BLAKE2S Ta Ta 0, 32 Ta 32 Ta
+Blake2s
+.It Dv CRYPTO_NULL_HMAC Ta Ta Ta 12 Ta
+IPsec NULL HMAC
+.It Dv CRYPTO_POLY1305 Ta Ta 32 Ta 16 Ta
+Poly1305 authenticator
+.It Dv CRYPTO_RIPEMD160 Ta Ta Ta 20 Ta
+RIPE Message Digest-160
+.It Dv CRYPTO_RIPEMD160_HMAC Ta Ta 64 Ta 20 Ta
+RIPE Message Digest-160 HMAC
+.It Dv CRYPTO_SHA1 Ta Ta Ta 20 Ta
+SHA-1
+.It Dv CRYPTO_SHA1_HMAC Ta Ta 64 Ta 20 Ta
+SHA-1 HMAC
+.It Dv CRYPTO_SHA2_224 Ta Ta Ta 28 Ta
+SHA-2 224
+.It Dv CRYPTO_SHA2_224_HMAC Ta Ta 64 Ta 28 Ta
+SHA-2 224 HMAC
+.It Dv CRYPTO_SHA2_256 Ta Ta Ta 32 Ta
+SHA-2 256
+.It Dv CRYPTO_SHA2_256_HMAC Ta Ta 64 Ta 32 Ta
+SHA-2 256 HMAC
+.It Dv CRYPTO_SHA2_384 Ta Ta Ta 48 Ta
+SHA-2 384
+.It Dv CRYPTO_SHA2_384_HMAC Ta Ta 128 Ta 48 Ta
+SHA-2 384 HMAC
+.It Dv CRYPTO_SHA2_512 Ta Ta Ta 64 Ta
+SHA-2 512
+.It Dv CRYPTO_SHA2_512_HMAC Ta Ta 128 Ta 64 Ta
+SHA-2 512 HMAC
+.El
+.Ss Block Ciphers
+Block ciphers in OCF can only operate on messages whose length is an
+exact multiple of the cipher's block size.
+OCF supports the following block ciphers:
+.Bl -column "CRYPTO_CAMELLIA_CBC" "IV Size" "Block Size" "16, 24, 32"
+.It Sy Name Ta Sy IV Size Ta Sy Block Size Ta Sy Key Sizes Ta Sy Description
+.It Dv CRYPTO_AES_CBC Ta 16 Ta 16 Ta 16, 24, 32 Ta
+AES-CBC
+.It Dv CRYPTO_AES_XTS Ta 8 Ta 16 Ta 32, 64 Ta
+AES-XTS
+.It Dv CRYPTO_CAMELLIA_CBC Ta 16 Ta 16 Ta 16, 24, 32 Ta
+Camellia CBC
+.It Dv CRYPTO_NULL_CBC Ta 0 Ta 4 Ta 0-256 Ta
+IPsec NULL cipher
+.El
+.Pp
+.Dv CRYPTO_AES_XTS
+implements XEX Tweakable Block Cipher with Ciphertext Stealing
+as defined in NIST SP 800-38E.
+OCF consumers provide the first 8 bytes of the IV.
+The remaining 8 bytes are defined to be a block counter beginning at 0.
+.Pp
+NOTE: The ciphertext stealing part is not implemented in all backends
+which is why this cipher requires input that is a multiple of the block
+size.
+.Ss Stream Ciphers
+Stream ciphers can operate on messages with arbitrary lengths.
+OCF supports the following stream ciphers:
+.Bl -column "CRYPTO_CHACHA20" "IV Size" "16, 24, 32"
+.It Sy Name Ta Sy IV Size Ta Sy Key Sizes Ta Sy Description
+.It Dv CRYPTO_AES_ICM Ta 16 Ta 16, 24, 32 Ta
+AES Counter Mode
+.It Dv CRYPTO_CHACHA20 Ta 16 Ta 16, 32 Ta
+ChaCha20
+.El
+.Pp
+The IV for each request must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
+.Pp
+.Dv CRYPTO_AES_ICM
+uses the entire IV as a 128-bit big endian block counter.
+The IV sets the initial counter value for a message.
+If a consumer wishes to use an IV whose value is split into
+separate nonce and counter fields (e.g., IPsec),
+the consumer is responsible for splitting requests to handle
+counter rollover.
+.Pp
+.Dv CRYPTO_CHACHA20
+accepts a 16 byte IV.
+The first 8 bytes are used as a nonce.
+The last 8 bytes are used as a 64-bit little-endian block counter.
+.Ss Authenticated Encryption with Associated Data Algorithms
+AEAD algorithms in OCF combine a stream cipher with an authentication
+algorithm to provide both secrecy and authentication.
+AEAD algorithms accept additional authentication data (AAD)
+in addition to the ciphertext or plaintext.
+AAD is passed to the authentication algorithm as input in a method
+defined by the specific AEAD algorithm.
+.Pp
+AEAD algorithms in OCF accept a nonce that is combined with an
+algorithm-defined counter to construct the IV for the underlying
+stream cipher.
+This nonce must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
+Some AEAD algorithms support multiple nonce sizes.
+The first size listed is the default nonce size.
+.Pp
+The following AEAD algorithms are supported:
+.Bl -column "CRYPTO_AES_NIST_GCM_16" "12, 7-13" "16, 24, 32" "Tag"
+.It Sy Name Ta Sy Nonce Ta Sy Key Sizes Ta Sy Tag Ta Sy Description
+.It Dv CRYPTO_AES_NIST_GCM_16 Ta 12 Ta 16, 24, 32 Ta 16 Ta
+AES Galois/Counter Mode
+.It Dv CRYPTO_AES_CCM_16 Ta 12, 7-13 Ta 16, 24, 32 Ta 16 Ta
+AES Counter with CBC-MAC
+.It Dv CRYPTO_CHACHA20_POLY1305 Ta 12, 8 Ta 32 Ta 16 Ta
+ChaCha20-Poly1305
+.It Dv CRYPTO_XCHACHA20_POLY1305 Ta 24 Ta 32 Ta 16 Ta
+XChaCha20-Poly1305
+.El
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 10.1 .

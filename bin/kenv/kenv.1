@@ -1,0 +1,168 @@
+.\"-
+.\" Copyright (c) 2000  Peter Wemm <peter@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 20, 2021
+.Dt KENV 1
+.Os
+.Sh NAME
+.Nm kenv
+.Nd list or modify the kernel environment
+.Sh SYNOPSIS
+.Nm
+.Op Fl l | s
+.Op Fl hNq
+.Nm
+.Op Fl qv
+.Ar variable Ns Op = Ns Ar value
+.Nm
+.Op Fl q
+.Fl u
+.Ar variable
+.Sh DESCRIPTION
+The
+.Nm
+utility will list all variables in the kernel environment if
+invoked without arguments.
+.Pp
+If the
+.Fl l
+option is specified, then the static environment provided by
+.Xr loader 8
+will be listed instead.
+Similarly, the
+.Fl s
+option will list the static environment defined by the kernel config.
+Both of the
+.Fl l
+and
+.Fl s
+options are dependent on the kernel being configured to preserve early kernel
+environments.
+The default kernel configuration does not preserve these environments.
+.Pp
+If the
+.Fl h
+option is specified, it will limit the report to kernel probe hints.
+If an optional
+.Ar variable
+name is specified,
+.Nm
+will only report that value.
+If the
+.Fl N
+option is specified,
+.Nm
+will only display variable names and not their values.
+If the
+.Fl u
+option is specified,
+.Nm
+will delete the given environment variable.
+If the environment variable is followed by an optional
+.Ar value ,
+.Nm
+will set the environment variable to this value.
+.Pp
+If the
+.Fl q
+option is set, warnings normally printed as a result of being unable to
+perform the requested operation will be suppressed.
+.Pp
+If the
+.Fl v
+option is set, the variable name will be printed out for the
+environment variable in addition to the value when
+.Nm
+is executed with a variable name.
+.Pp
+Variables can be added to the kernel environment using the
+.Pa /boot/loader.conf
+file, or also statically compiled into the kernel using the statement
+.Pp
+.Dl Ic env Ar filename
+.Pp
+in the kernel config file.
+The file can contain lines of the form
+.Pp
+.Dl name = "value"  # this is a comment
+.Pp
+where whitespace around
+.Sq name
+and
+.Sq = ,
+and everything after a
+.Sq #
+character, are ignored.
+Almost any printable character except
+.Sq =
+is acceptable as part of a name.
+Quotes are optional and necessary only if the value contains whitespace.
+.Sh EXAMPLES
+Show kernel probe hints variable names and filter for the uart
+device
+.Bd -literal -offset indent
+$ kenv -h -N | grep uart
+hint.uart.0.at
+hint.uart.0.flags
+hint.uart.0.irq
+hint.uart.0.port
+hint.uart.1.at
+hint.uart.1.irq
+hint.uart.1.port
+.Ed
+.Pp
+Show the value of a specific variable:
+.Bd -literal -offset indent
+$ kenv hint.uart.1.at
+isa
+.Ed
+.Pp
+Same as above but adding the name of the variable in the report:
+.Bd -literal -offset indent
+$ kenv -v hint.uart.1.at
+hint.uart.1.at="isa"
+.Ed
+.Pp
+Try to delete a variable and suppress warnings if any:
+.Bd -literal -offset indent
+$ kenv -q -u hint.uart.1.at
+.Ed
+.Pp
+Set the value of the
+.Ev verbose_loading
+variable
+.Bd -literal -offset indent
+$ kenv verbose_loading="YES"
+verbose_loading="YES"
+.Ed
+.Sh SEE ALSO
+.Xr kenv 2 ,
+.Xr config 5 ,
+.Xr loader.conf 5 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.1.1 .

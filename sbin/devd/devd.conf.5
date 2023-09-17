@@ -1,0 +1,800 @@
+.\"
+.\" Copyright (c) 2002 M. Warner Losh <imp@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" The section on comments was taken from named.conf.5, which has the
+.\" following copyright:
+.\" Copyright (c) 1999-2000 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\" ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\" CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.Dd December 1, 2022
+.Dt DEVD.CONF 5
+.Os
+.Sh NAME
+.Nm devd.conf
+.Nd configuration file for
+.Xr devd 8
+.Sh DESCRIPTION
+.Ss General Syntax
+A
+.Xr devd 8
+configuration consists of two general features, statements
+and comments.
+All statements end with a semicolon.
+Many statements can contain substatements, which are also
+terminated with a semicolon.
+.Pp
+The following statements are supported:
+.Bl -tag -width ".Ic options"
+.It Ic attach
+Specifies various matching criteria and actions to perform when
+a newly attached device matches said criteria.
+.It Ic detach
+Specifies various matching criteria and actions to perform when
+a newly detached device matches said criteria.
+.It Ic nomatch
+Specifies various matching criteria and actions to perform when
+no device driver currently loaded in the kernel claims a (new)
+device.
+.It Ic notify
+Specifies various matching criteria and actions to perform when the kernel
+sends an event notification to userland.
+.It Ic options
+Specifies various options and parameters for the operation of
+.Xr devd 8 .
+.El
+.Pp
+Statements may occur in any order in the configuration file, and may be
+repeated as often as required.
+Further details on the syntax and meaning of each statement and their
+substatements are explained below.
+.Pp
+Each statement, except
+.Ic options
+has a priority (an arbitrary number) associated with it, where
+.Ql 0
+is defined as the lowest priority.
+If two statements match the same event, only the action of the statement with
+highest priority will be executed.
+In this way generic statements can be overridden for devices or
+notifications that require special attention.
+.Pp
+The general syntax of a statement is:
+.Bd -literal -offset indent
+statement priority {
+	substatement "value";
+	...
+	substatement "value";
+};
+.Ed
+.Ss Sub-statements
+The following sub-statements are supported within the
+.Ic options
+statement.
+.Bl -tag -width ".Ic directory"
+.It Ic directory Qq Ar /some/path ;
+Adds the given directory to the list of directories from which
+.Xr devd 8
+will read all files named "*.conf" as further
+configuration files.
+Any number of
+.Ic directory
+statements can be used.
+.It Ic pid-file Qq Pa /var/run/devd.pid ;
+Specifies PID file.
+.It Ic set Ar regexp-name Qq Ar (some|regexp) ;
+Creates a regular expression and assigns it to the variable
+.Ar regexp-name .
+The variable is available throughout the rest of
+the configuration file.
+If the string begins with
+.Ql \&! ,
+it matches if the regular expression formed by the rest of the string
+does not match.
+All regular expressions have an implicit
+.Ql ^$
+around them.
+.El
+.Pp
+The following sub-statements are supported within the
+.Ic attach
+and
+.Ic detach
+statements.
+.Bl -tag -width ".Ic directory"
+.It Ic action Qq Ar command ;
+Command to execute upon a successful match.
+Example
+.Dq Li "/etc/pccard_ether $device-name start" .
+.It Ic class Qq Ar string ;
+This is shorthand for
+.Dq Ic match Qo Li class Qc Qq Ar string .
+.It Ic device-name Qq string ;
+This is shorthand for
+.Dq Ic match Qo Li device-name Qc Qq Ar string .
+This matches a device named
+.Ar string ,
+which is allowed to be a regular expression or a variable previously created
+containing a regular expression.
+The
+.Dq Li device-name
+variable
+is available for later use with the
+.Ic action
+statement.
+.It Ic match Qo Ar variable Qc Qq Ar value ;
+Matches the content of
+.Ar value
+against
+.Ar variable ;
+the content of
+.Ar value
+may be a regular expression.
+Not required during
+.Ic attach
+nor
+.Ic detach
+events since the
+.Ic device-name
+statement takes care of all device matching.
+For a partial list of variables, see below.
+.It Ic media-type Qq Ar string ;
+For network devices,
+.Ic media-type
+will match devices that have the given media type.
+Valid media types are:
+.Dq Li Ethernet ,
+.Dq Li 802.11 ,
+and
+.Dq Li ATM .
+.It Ic subdevice Qq Ar string ;
+This is shorthand for
+.Dq Ic match Qo Li subdevice Qc Qq Ar string .
+.El
+.Pp
+The following sub-statements are supported within the
+.Ic nomatch
+statement.
+.Bl -tag -width ".Ic directory"
+.It Ic action Qq Ar command ;
+Same as above.
+.It Ic match Qo Ar variable Qc Qq Ar value ;
+Matches the content of
+.Ar value
+against
+.Ar variable ;
+the content of
+.Ar value
+may be a regular expression.
+For a partial list of variables, see below.
+.El
+.Pp
+The following sub-statements are supported within the
+.Ic notify
+statement.
+The
+.Dq Li notify
+variable is available inside this statement and contains, a value, depending
+on which system and subsystem that delivered the event.
+.Bl -tag -width ".Ic directory"
+.It Ic action Qq Ar command ;
+Command to execute upon a successful match.
+Example
+.Dq Li "/etc/rc.d/power_profile $notify" .
+.It Ic match Qo Ar system | subsystem | type | notify Qc Qq Ar value ;
+Any number of
+.Ic match
+statements can exist within a
+.Ic notify
+statement;
+.Ar value
+can be either a fixed string or a regular expression.
+Below is a list of available systems, subsystems, and types.
+.It Ic media-type Qq Ar string ;
+See above.
+.El
+.Ss Variables that can be used with the match statement
+A partial list of variables and their possible values that can be used together
+with the
+.Ic match
+statement.
+The variables are published by the bus based on characteristics of the device
+that generated the event (for device events).
+Variables for other classes of events are dependent on those events.
+.Pp
+.Bl -tag -width ".Li manufacturer" -compact
+.It Ic Variable
+.Ic Description
+.It Li *
+The entire message from the current event.
+.It Li _
+The entire message from the current event, after the initial type character.
+.It Li timestamp
+The time this event was processed, in seconds since 1970 dot fraction.
+.It Li bus
+Device name of parent bus.
+.It Li cdev
+Device node path if one is created by the
+.Xr devfs 5
+filesystem.
+.It Li class
+Device class.
+.It Li comm
+Executable name (kernel).
+.It Li core
+Path to core file (kernel).
+.It Li device
+Device ID.
+.It Li devclass
+Device Class (USB).
+.It Li devsubclass
+Device Sub-class (USB).
+.It Li device-name
+Name of attached/detached device.
+.It Li endpoints
+Endpoint count (USB).
+.It Li function
+Card functions.
+.It Li interface
+Interface ID (USB).
+.It Li intclass
+Interface Class (USB).
+.It Li intprotocol
+Interface Protocol (USB).
+.It Li intsubclass
+Interface Sub-class (USB).
+.It Li jail
+Jail name for the process triggering the rule (RCTL).
+.It Li mode
+Peripheral mode (USB).
+.It Li notify
+Match the value of the
+.Dq Li notify
+variable.
+.It Li parent
+Parent device.
+.It Li pid
+PID of the process triggering the rule (RCTL).
+.It Li port
+Hub port number (USB).
+.It Li product
+Product ID (USB).
+.It Li release
+Hardware revision (USB).
+.It Li ruid
+Real UID of the process triggering the rule (RCTL).
+.It Li rule
+Rule (RCTL).
+.It Li sernum
+Serial Number (USB).
+.It Li slot
+Card slot.
+.It Li subvendor
+Sub-vendor ID (PCI).
+.It Li subdevice
+Sub-device ID (PCI).
+.It Li subsystem
+Matches a subsystem of a system, see below.
+.It Li system
+Matches a system type, see below.
+.It Li type
+Type of notification, see below.
+.It Li vendor
+Vendor ID.
+.El
+.Ss Notify matching
+A partial list of systems, subsystems, and types used within the
+.Ic notify
+mechanism.
+.\"
+.\" Please keep these tables sorted. Also, please use the same parameters
+.\" for each of the tables so that things line up in columns nicely.
+.\" Please do not omit the type column for notifiers that omit it.
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ACPI Ta Ta Ta
+Events related to the ACPI Subsystem.
+.It Li ACPI Ta Li ACAD Ta Ta
+AC line state ($notify=0x00 is offline, 0x01 is online).
+.It Li ACPI Ta Li Button Ta Ta
+Button state ($notify=0x00 is power, 0x01 is sleep).
+.It Li ACPI Ta Li CMBAT Ta Ta
+Battery events.
+.It Li ACPI Ta Li Dock Ta Ta
+Dock state ($notify=0x00 is undocked, 0x01 is docked).
+.It Li ACPI Ta Li Lid Ta Ta
+Lid state ($notify=0x00 is closed, 0x01 is open).
+.It Li ACPI Ta Li PROCESSOR Ta Ta
+Processor state/configuration ($notify=0x81 is a change in available Cx states).
+.It Li ACPI Ta Li Resume Ta Ta
+Resume notification.
+.It Li ACPI Ta Li Suspend Ta Ta
+Suspend notification.
+.It Li ACPI Ta Li Thermal Ta Ta
+Thermal zone events.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li AEON Ta Li power Ta Li press Ta
+The power button on an Amiga has been pressed.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CAM Ta Ta Ta
+Events related to the
+.Xr cam 4
+system.
+.It Li CAM Ta Li periph Ta Ta
+Events related to peripheral devices.
+.It Li CAM Ta Li periph Ta Li error Ta
+Generic errors.
+.It Li CAM Ta Li periph Ta Li timeout Ta
+Command timeouts.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CARP Ta Ta Ta
+Events related to the
+.Xr carp 4
+protocol.
+.It CARP Ta Ar vhid@inet Ta Ta
+The
+.Dq subsystem
+contains the actual CARP vhid and the name of the network interface
+on which the event took place.
+.It CARP Ta Ar vhid@inet Ta MASTER Ta
+Node become the master for a virtual host.
+.It CARP Ta Ar vhid@inet Ta BACKUP Ta
+Node become the backup for a virtual host.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li coretemp Ta Ta Ta
+Events related to the
+.Xr coretemp 4
+device.
+.It Li coretemp Ta Li Thermal Ta Ta
+Notification that the CPU core has reached critical temperature.
+.It Li coretemp Ta Li Thermal Ta Li temperature Ta
+String containing the temperature of the core that has become too hot.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li DEVFS
+.It Li DEVFS Ta Li CDEV Ta Li CREATE Ta
+The
+.Xr devfs 5
+node is created.
+.It Li DEVFS Ta Li CDEV Ta Li DESTROY Ta
+The
+.Xr devfs 5
+node is destroyed.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ETHERNET Ta Ar inet Ta IFATTACH Ta
+Notification when the default VNET instance of the
+.Em inet
+interface is attached.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li GEOM Ta Ta Ta
+Events related to the
+.Xr geom 4
+framework.
+The difference compared to
+.Li DEVFS
+is that
+.Li GEOM
+only includes disk-like devices.
+.It Li GEOM Ta Li DEV Ta Li CREATE Ta
+A
+.Xr geom 4
+provider is created.
+.It Li GEOM Ta Li DEV Ta Li DESTROY Ta
+A
+.Xr geom 4
+provider is destroyed.
+.It Li GEOM Ta Li DEV Ta Li GEOM::physpath Ta
+The physical path of a device has changed.
+.It Li GEOM Ta Li DEV Ta Li GEOM::rotation_rate Ta
+The rotation rate of the disk has changed.
+.It Li GEOM Ta Li DEV Ta Li MEDIACHANGE Ta
+Physical media has changed.
+.It Li GEOM Ta Li DEV Ta Li SIZECHANGE Ta
+A
+.Xr geom 4
+provider size has changed.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li IFNET
+.It Li IFNET Ta Em inet Ta Ta
+The
+.Dq subsystem
+is the actual name of the network interface on which the event
+took place.
+.It Li IFNET Ta Em inet Ta Li LINK_UP Ta
+Carrier status changed to UP.
+.It Li IFNET Ta Em inet Ta Li LINK_DOWN Ta
+Carrier status changed to DOWN.
+.It Li IFNET Ta Em inet Ta Li ATTACH Ta
+The network interface is attached to the system.
+.It Li IFNET Ta Em inet Ta Li DETACH Ta
+The network interface is detached from the system.
+.It Li IFNET Ta Em inet Ta Li RENAME Ta
+The network interface is renamed.
+.It Li IFNET Ta Em inet Ta Li ADDR_ADD Ta
+The network interface address added.
+.It Li IFNET Ta Em inet Ta Li ADDR_DEL Ta
+The network interface address removed.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li kernel Ta Li signal Ta Li coredump Ta
+Notification that a process has crashed and dumped core.
+.It Li kernel Ta Li power Ta Li resume Ta
+Notification that the system has woken from the suspended state.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li PMU Ta Ta Ta
+Notification of events from various types of Power Management Units.
+.It Li PMU Ta Li "AC" Ta Ta
+Notifications of AC power related events.
+.It Li PMU Ta Li "AC" Ta Li overvoltage Ta
+An over-voltage condition was detected on the AC power line.
+.It Li PMU Ta Li "AC" Ta Li plugged Ta
+Power has been applied to the AC power line.
+.It Li PMU Ta Li "AC" Ta Li unplugged Ta
+Power has been removed from the AC power line.
+.It Li PMU Ta Li Battery Ta Ta
+.It Li PMU Ta Li Battery Ta absent Ta
+Battery is no longer absent.
+.It Li PMU Ta Li Battery Ta charged Ta
+The battery has become charged.
+.It Li PMU Ta Li Battery Ta charging Ta
+The battery has started charging.
+.It Li PMU Ta Li Battery Ta disconnected Ta
+The battery has been disconnected.
+.It Li PMU Ta Li Battery Ta high-temp Ta
+The battery reported a temperature over the limit.
+.It Li PMU Ta Li Battery Ta low-temp Ta
+The battery reported a temperature under the limit.
+.It Li PMU Ta Li Battery Ta plugged Ta
+The battery has become plugged (eg connected).
+.It Li PMU Ta Li Battery Ta shutdown-threshold Ta
+The power in the battery has fallen below the shutdown threshold.
+.It Li PMU Ta Li Battery Ta warning-threshold Ta
+The power in the battery has fallen below the warn the user threshold.
+.It Li PMU Ta Li Button Ta pressed Ta
+A button on a
+.Xr adb 4
+or
+.Xr pmu 4
+has been pressed.
+.It Li PMU Ta Li keys Ta Ta
+One of the keys on the
+.Xr adb 4
+keyboard has been pressed.
+.It Li PMU Ta Li keys Ta brightness Ta
+A brightness level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta mute Ta
+The mute key
+.It Li PMU Ta Li keys Ta volume Ta
+A volume level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta eject Ta
+An ejection has been requested.
+.It Li PMU Ta Li lid Ta close Ta
+The
+.Xr pmc 4
+device has detected the lid closing.
+.It Li PMU Ta Li lid Ta open Ta
+The
+.Xr pmc 4
+device has detected the lid openinging.
+.It Li PMU Ta Li POWER Ta ACLINE Ta
+The
+.Xr pmc 4
+device has detected an AC line state ($notify=0x00 is offline, 0x01 is online).
+.It Li PMU Ta Li USB Ta overvoltage Ta
+An over-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta plugged Ta
+A device has been plugged into a USB device.
+.It Li PMU Ta Li USB Ta undervoltage Ta
+An under-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta unplugged Ta
+A device has been unplugged into a USB device.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li RCTL Ta Ta Ta
+Events related to the
+.Xr rctl 8
+framework.
+.It Li RCTL Ta Li rule Ta Li matched Ta
+A rule with action specified as "devctl" was triggered.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li USB Ta Ta Ta
+Events related to the USB subsystem.
+.It Li USB Ta Li DEVICE Ta Li ATTACH Ta
+USB device is attached to the system.
+.It Li USB Ta Li DEVICE Ta Li DETACH Ta
+USB device is detached to the system.
+.It Li USB Ta Li INTERFACE Ta Li ATTACH Ta
+USB interface is attached to a device.
+.It Li USB Ta Li INTERFACE Ta Li DETACH Ta
+USB interface is detached from a device.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li VFS Ta Ta Ta
+Events from the vfs system.
+.It Li VFS Ta Li FS Ta Ta
+Events that change what is mounted to the system.
+.It Li VFS Ta Li FS Ta Li MOUNT Ta
+Notification of a filesystem is mounted for the first time.
+.It Li VFS Ta Li FS Ta Li REMOUNT Ta
+Notification of a filesystem is remounted (whether or not the options actually change).
+.It Li VFS Ta Li FS Ta Li UNMOUNT Ta
+Notification of a filesystem being unmounted.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li VT Ta BELL Ta RING Ta
+Notification that the console bell has rung.
+See
+.Xr vt 4
+for details.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ZFS Ta ZFS Ta Ta
+Events about the ZFS subsystem.
+See
+.Xr zfsd 8
+and
+.Pa /etc/devd/zfs.conf
+for details.
+.El
+.Pp
+.\"
+.\" End of tables
+.\"
+A link state change to UP on the interface
+.Dq Li fxp0
+would result in the following notify event:
+.Bd -literal -offset indent
+system=IFNET subsystem=fxp0 type=LINK_UP
+.Ed
+.Pp
+An AC line state change to
+.Dq offline
+would result in the following event:
+.Bd -literal -offset indent
+system=ACPI subsystem=ACAD notify=0x00
+.Ed
+.Ss Comments
+Comments may appear anywhere that whitespace may appear in a
+configuration file.
+To appeal to programmers of all kinds, they can
+be written in C, C++, or shell/Perl constructs.
+.Pp
+C-style comments start with the two characters
+.Ql /*
+(slash, star) and end with
+.Ql */
+(star, slash).
+Because they are completely delimited with these characters,
+they can be used to comment only a portion of a line or to span
+multiple lines.
+.Pp
+C-style comments cannot be nested.
+For example, the following is
+not valid because the entire comment ends with the first
+.Ql */ :
+.Bd -literal -offset indent
+/* This is the start of a comment.
+   This is still part of the comment.
+/* This is an incorrect attempt at nesting a comment. */
+   This is no longer in any comment. */
+.Ed
+.Pp
+C++-style comments start with the two characters
+.Ql //
+(slash, slash) and continue to the end of the physical line.
+They cannot be continued across multiple physical lines; to have
+one logical comment span multiple lines, each line must use the
+.Ql //
+pair.
+For example:
+.Bd -literal -offset indent
+// This is the start of a comment.  The next line
+// is a new comment, even though it is logically
+// part of the previous comment.
+.Ed
+.Ss Notes on Variable Expansion
+To prevent issues with special shell characters, the following happens for each
+variable
+.Ic $foo .
+.Bl -enum
+.It
+The characters
+.Dq $'
+are inserted.
+.It
+The string
+.Dq $foo
+is removed.
+.It
+The value of the
+.Ic foo
+variable is inserted into the buffer with all single quote characters
+prefixed by a backslash.
+.El
+.Pp
+See
+.Xr sh 1
+for what this construct means.
+It is safe in all context, except one: inside single quotes.
+If foo=meta and bar=var, then a rule like the following:
+.Bd -literal -offset indent -compact
+action "echo '$foo $bar'";
+.Ed
+will be presented to the shell via
+.Xr system 3
+as
+.Bd -literal -offset indent -compact
+echo '$'meta' $'var''
+.Ed
+which produces the following output:
+.Bd -literal -offset indent -compact
+$meta $var
+.Ed
+as its output.
+This is an unanticipated result.
+A future version of this software will change this behavior.
+Users are discouraged from using single quotes inside
+.Ic action
+value without due care.
+.Pp
+The above should be written as
+.Bd -literal -offset indent -compact
+action "echo $foo' '$bar"
+.Ed
+to produce a single argument to echo.
+Given the above expansion, juxtaposing bare variables with
+single quote expressions will produce the right output,
+regardless of the value of the variable.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/devd.conf" -compact
+.It Pa /etc/devd.conf
+The
+.Xr devd 8
+configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal
+#
+# This will catch link down events on the interfaces fxp0 and ath0
+#
+notify 0 {
+	match "system"			"IFNET";
+	match "subsystem"		"(fxp0|ath0)";
+	match "type"			"LINK_DOWN";
+	action "logger $subsystem is DOWN";
+};
+
+#
+# Match lid open/close events
+# These can be combined to a single event, by passing the
+# value of $notify to the external script.
+#
+notify 0 {
+	match "system"			"ACPI";
+	match "subsystem"		"Lid";
+	match "notify"			"0x00";
+	action "logger Lid closed, we can sleep now!";
+};
+
+notify 0 {
+	match "system"			"ACPI";
+	match "subsystem"		"Lid";
+	match "notify"			"0x01";
+	action "logger Lid opened, the sleeper must awaken!";
+};
+
+#
+# Match a USB device type
+#
+notify 0 {
+	match "system"			"USB";
+	match "subsystem"		"INTERFACE";
+	match "type"			"ATTACH";
+	match "intclass"		"0x0e";
+	action "logger USB video device attached";
+};
+
+#
+# Try to configure ath and iwn devices with pccard_ether
+# as they are attached.
+#
+attach 0 {
+        device-name "(ath|iwn)[0-9]+";
+        action "/etc/pccard_ether $device-name start";
+};
+
+#
+# Stop ath and iwn devices as they are detached from
+# the system.
+#
+detach 0 {
+        device-name "(ath|iwn)[0-9]+";
+        action "/etc/pccard_ether $device-name stop";
+};
+.Ed
+.Pp
+The installed
+.Pa /etc/devd.conf
+has many additional examples.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr coretemp 4 ,
+.Xr devfs 5 ,
+.Xr re_format 7 ,
+.Xr devd 8
+.Sh BUGS
+The variable expansion's interaction with single quotes is
+suboptimal and surprising.

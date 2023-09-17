@@ -1,0 +1,18 @@
+echo a
+a
+echo b1
+b1
+echo b
+b
+echo x
+x
+: Making 3a
+: Making 3a
+: Making 3a
+: Making 3b
+: Making 3b
+: Making 3b
+: Making 3c
+: Making 3c
+: Making 3c
+exit status 0

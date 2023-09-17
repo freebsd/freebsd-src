@@ -1,0 +1,7 @@
+#! /usr/bin/dc
+# To compare:
+# cmp -l .log_dc.txt .log_dc_test.txt | gawk '{printf "%08X %02X %02X\n", $1, strtonum(0$2), strtonum(0$3)}'
+_48apR
+20k
+1 1%aR
+0si[liapRlid1+sili65536>x]ddsxapRx

@@ -1,0 +1,1099 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd June 29, 2023
+.Dt TCP 4
+.Os
+.Sh NAME
+.Nm tcp
+.Nd Internet Transmission Control Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/tcp.h
+.Ft int
+.Fn socket AF_INET SOCK_STREAM 0
+.Sh DESCRIPTION
+The
+.Tn TCP
+protocol provides reliable, flow-controlled, two-way
+transmission of data.
+It is a byte-stream protocol used to
+support the
+.Dv SOCK_STREAM
+abstraction.
+.Tn TCP
+uses the standard
+Internet address format and, in addition, provides a per-host
+collection of
+.Dq "port addresses" .
+Thus, each address is composed
+of an Internet address specifying the host and network,
+with a specific
+.Tn TCP
+port on the host identifying the peer entity.
+.Pp
+Sockets utilizing the
+.Tn TCP
+protocol are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive
+sockets.
+By default,
+.Tn TCP
+sockets are created active; to create a
+passive socket, the
+.Xr listen 2
+system call must be used
+after binding the socket with the
+.Xr bind 2
+system call.
+Only passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.
+Only active sockets may use the
+.Xr connect 2
+call to initiate connections.
+.Pp
+Passive sockets may
+.Dq underspecify
+their location to match
+incoming connection requests from multiple networks.
+This technique, termed
+.Dq "wildcard addressing" ,
+allows a single
+server to provide service to clients on multiple networks.
+To create a socket which listens on all networks, the Internet
+address
+.Dv INADDR_ANY
+must be bound.
+The
+.Tn TCP
+port may still be specified
+at this time; if the port is not specified, the system will assign one.
+Once a connection has been established, the socket's address is
+fixed by the peer entity's location.
+The address assigned to the
+socket is the address associated with the network interface
+through which packets are being transmitted and received.
+Normally, this address corresponds to the peer entity's network.
+.Pp
+.Tn TCP
+supports a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width ".Dv TCP_FUNCTION_BLK"
+.It Dv TCP_INFO
+Information about a socket's underlying TCP session may be retrieved
+by passing the read-only option
+.Dv TCP_INFO
+to
+.Xr getsockopt 2 .
+It accepts a single argument: a pointer to an instance of
+.Vt "struct tcp_info" .
+.Pp
+This API is subject to change; consult the source to determine
+which fields are currently filled out by this option.
+.Fx
+specific additions include
+send window size,
+receive window size,
+and
+bandwidth-controlled window space.
+.It Dv TCP_CCALGOOPT
+Set or query congestion control algorithm specific parameters.
+See
+.Xr mod_cc 4
+for details.
+.It Dv TCP_CONGESTION
+Select or query the congestion control algorithm that TCP will use for the
+connection.
+See
+.Xr mod_cc 4
+for details.
+.It Dv TCP_FASTOPEN
+Enable or disable TCP Fast Open (TFO).
+To use this option, the kernel must be built with the
+.Dv TCP_RFC7413
+option.
+.Pp
+This option can be set on the socket either before or after the
+.Xr listen 2
+is invoked.
+Clearing this option on a listen socket after it has been set has no effect on
+existing TFO connections or TFO connections in progress; it only prevents new
+TFO connections from being established.
+.Pp
+For passively-created sockets, the
+.Dv TCP_FASTOPEN
+socket option can be queried to determine whether the connection was established
+using TFO.
+Note that connections that are established via a TFO
+.Tn SYN ,
+but that fall back to using a non-TFO
+.Tn SYN|ACK
+will have the
+.Dv TCP_FASTOPEN
+socket option set.
+.Pp
+In addition to the facilities defined in RFC7413, this implementation supports a
+pre-shared key (PSK) mode of operation in which the TFO server requires the
+client to be in posession of a shared secret in order for the client to be able
+to successfully open TFO connections with the server.
+This is useful, for example, in environments where TFO servers are exposed to
+both internal and external clients and only wish to allow TFO connections from
+internal clients.
+.Pp
+In the PSK mode of operation, the server generates and sends TFO cookies to
+requesting clients as usual.
+However, when validating cookies received in TFO SYNs from clients, the server
+requires the client-supplied cookie to equal
+.Bd -literal -offset left
+SipHash24(key=\fI16-byte-psk\fP, msg=\fIcookie-sent-to-client\fP)
+.Ed
+.Pp
+Multiple concurrent valid pre-shared keys are supported so that time-based
+rolling PSK invalidation policies can be implemented in the system.
+The default number of concurrent pre-shared keys is 2.
+.Pp
+This can be adjusted with the
+.Dv TCP_RFC7413_MAX_PSKS
+kernel option.
+.It Dv TCP_FUNCTION_BLK
+Select or query the set of functions that TCP will use for this connection.
+This allows a user to select an alternate TCP stack.
+The alternate TCP stack must already be loaded in the kernel.
+To list the available TCP stacks, see
+.Va functions_available
+in the
+.Sx MIB (sysctl) Variables
+section further down.
+To list the default TCP stack, see
+.Va functions_default
+in the
+.Sx MIB (sysctl) Variables
+section.
+.It Dv TCP_KEEPINIT
+This
+.Xr setsockopt 2
+option accepts a per-socket timeout argument of
+.Vt "u_int"
+in seconds, for new, non-established
+.Tn TCP
+connections.
+For the global default in milliseconds see
+.Va keepinit
+in the
+.Sx MIB (sysctl) Variables
+section further down.
+.It Dv TCP_KEEPIDLE
+This
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+for the amount of time, in seconds, that the connection must be idle
+before keepalive probes (if enabled) are sent for the connection of this
+socket.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default in milliseconds see
+.Va keepidle
+in the
+.Sx MIB (sysctl) Variables
+section further down.
+.It Dv TCP_KEEPINTVL
+This
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+to set the per-socket interval, in seconds, between keepalive probes sent
+to a peer.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default in milliseconds see
+.Va keepintvl
+in the
+.Sx MIB (sysctl) Variables
+section further down.
+.It Dv TCP_KEEPCNT
+This
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+and allows a per-socket tuning of the number of probes sent, with no response,
+before the connection will be dropped.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default see the
+.Va keepcnt
+in the
+.Sx MIB (sysctl) Variables
+section further down.
+.It Dv TCP_NODELAY
+Under most circumstances,
+.Tn TCP
+sends data when it is presented;
+when outstanding data has not yet been acknowledged, it gathers
+small amounts of output to be sent in a single packet once
+an acknowledgement is received.
+For a small number of clients, such as window systems
+that send a stream of mouse events which receive no replies,
+this packetization may cause significant delays.
+The boolean option
+.Dv TCP_NODELAY
+defeats this algorithm.
+
+.It Dv TCP_MAXSEG
+By default, a sender- and
+.No receiver- Ns Tn TCP
+will negotiate among themselves to determine the maximum segment size
+to be used for each connection.
+The
+.Dv TCP_MAXSEG
+option allows the user to determine the result of this negotiation,
+and to reduce it if desired.
+.It Dv TCP_MAXUNACKTIME
+This
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+to set the per-socket interval, in seconds, in which the connection must
+make progress. Progress is defined by at least 1 byte being acknowledged within
+the set time period. If a connection fails to make progress, then the
+.Tn TCP
+stack will terminate the connection with a reset. Note that the default
+value for this is zero which indicates no progress checks should be made.
+.It Dv TCP_NOOPT
+.Tn TCP
+usually sends a number of options in each packet, corresponding to
+various
+.Tn TCP
+extensions which are provided in this implementation.
+The boolean option
+.Dv TCP_NOOPT
+is provided to disable
+.Tn TCP
+option use on a per-connection basis.
+.It Dv TCP_NOPUSH
+By convention, the
+.No sender- Ns Tn TCP
+will set the
+.Dq push
+bit, and begin transmission immediately (if permitted) at the end of
+every user call to
+.Xr write 2
+or
+.Xr writev 2 .
+When this option is set to a non-zero value,
+.Tn TCP
+will delay sending any data at all until either the socket is closed,
+or the internal send buffer is filled.
+.It Dv TCP_MD5SIG
+This option enables the use of MD5 digests (also known as TCP-MD5)
+on writes to the specified socket.
+Outgoing traffic is digested;
+digests on incoming traffic are verified.
+When this option is enabled on a socket, all inbound and outgoing
+TCP segments must be signed with MD5 digests.
+.Pp
+One common use for this in a
+.Fx
+router deployment is to enable
+based routers to interwork with Cisco equipment at peering points.
+Support for this feature conforms to RFC 2385.
+.Pp
+In order for this option to function correctly, it is necessary for the
+administrator to add a tcp-md5 key entry to the system's security
+associations database (SADB) using the
+.Xr setkey 8
+utility.
+This entry can only be specified on a per-host basis at this time.
+.Pp
+If an SADB entry cannot be found for the destination,
+the system does not send any outgoing segments and drops any inbound segments.
+However, during connection negotiation, a non-signed segment will be accepted if
+an SADB entry does not exist between hosts.
+When a non-signed segment is accepted, the established connection is not
+protected with MD5 digests.
+.It Dv TCP_STATS
+Manage collection of connection level statistics using the
+.Xr stats 3
+framework.
+.Pp
+Each dropped segment is taken into account in the TCP protocol statistics.
+.It Dv TCP_TXTLS_ENABLE
+Enable in-kernel Transport Layer Security (TLS) for data written to this
+socket.
+See
+.Xr ktls 4
+for more details.
+.It Dv TCP_TXTLS_MODE
+The integer argument can be used to get or set the current TLS transmit mode
+of a socket.
+See
+.Xr ktls 4
+for more details.
+.It Dv TCP_RXTLS_ENABLE
+Enable in-kernel TLS for data read from this socket.
+See
+.Xr ktls 4
+for more details.
+.It Dv TCP_REUSPORT_LB_NUMA
+Changes NUMA affinity filtering for an established TCP listen
+socket.
+This option takes a single integer argument which specifies
+the NUMA domain to filter on for this listen socket.
+The argument can also have the follwing special values:
+.Bl -tag -width "Dv TCP_REUSPORT_LB_NUMA"
+.It Dv TCP_REUSPORT_LB_NUMA_NODOM
+Remove NUMA filtering for this listen socket.
+.It Dv TCP_REUSPORT_LB_NUMA_CURDOM
+Filter traffic associated with the domain where the calling thread is
+currently executing.
+This is typically used after a process or thread inherits a listen
+socket from its parent, and sets its CPU affinity to a particular core.
+.El
+.It Dv TCP_REMOTE_UDP_ENCAPS_PORT
+Set and get the remote UDP encapsulation port.
+It can only be set on a closed TCP socket.
+.El
+.Pp
+The option level for the
+.Xr setsockopt 2
+call is the protocol number for
+.Tn TCP ,
+available from
+.Xr getprotobyname 3 ,
+or
+.Dv IPPROTO_TCP .
+All options are declared in
+.In netinet/tcp.h .
+.Pp
+Options at the
+.Tn IP
+transport level may be used with
+.Tn TCP ;
+see
+.Xr ip 4 .
+Incoming connection requests that are source-routed are noted,
+and the reverse source route is used in responding.
+.Pp
+The default congestion control algorithm for
+.Tn TCP
+is
+.Xr cc_newreno 4 .
+Other congestion control algorithms can be made available using the
+.Xr mod_cc 4
+framework.
+.Ss MIB (sysctl) Variables
+The
+.Tn TCP
+protocol implements a number of variables in the
+.Va net.inet.tcp
+branch of the
+.Xr sysctl 3
+MIB, which can also be read or modified with
+.Xr sysctl 8 .
+.Bl -tag -width ".Va v6pmtud_blackhole_mss"
+.It Va always_keepalive
+Assume that
+.Dv SO_KEEPALIVE
+is set on all
+.Tn TCP
+connections, the kernel will
+periodically send a packet to the remote host to verify the connection
+is still up.
+.It Va blackhole
+If enabled, disable sending of RST when a connection is attempted
+to a port where there is no socket accepting connections.
+See
+.Xr blackhole 4 .
+.It Va blackhole_local
+See
+.Xr blackhole 4 .
+.It Va cc
+A number of variables for congestion control are under the
+.Va net.inet.tcp.cc
+node.
+See
+.Xr mod_cc 4 .
+.It Va cc.newreno
+Variables for NewReno congestion control are under the
+.Va net.inet.tcp.cc.newreno
+node.
+See
+.Xr cc_newreno 4 .
+.It Va delacktime
+Maximum amount of time, in milliseconds, before a delayed ACK is sent.
+.It Va delayed_ack
+Delay ACK to try and piggyback it onto a data packet or another ACK.
+.It Va do_lrd
+Enable Lost Retransmission Detection for SACK-enabled sessions, disabled by
+default.
+Under severe congestion, a retransmission can be lost which then leads to a
+mandatory Retransmission Timeout (RTO), followed by slow-start.
+LRD will try to resend the repeatedly lost packet, preventing the time-consuming
+RTO and performance reducing slow-start.
+.It Va do_prr
+Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
+described in RFC6937.
+This improves the effectiveness of retransmissions particular in environments
+with ACK thinning or burst loss events, as chances to run out of the ACK clock
+are reduced, preventing lengthy and performance reducing RTO based loss recovery
+(default is true).
+.It Va do_prr_conservative
+While doing Proportional Rate Reduction, remain strictly in a packet conserving
+mode, sending only one new packet for each ACK received.
+Helpful when a misconfigured token bucket traffic policer causes persistent
+high losses leading to RTO, but reduces PRR effectiveness in more common settings
+(default is false).
+.It Va do_tcpdrain
+Flush packets in the
+.Tn TCP
+reassembly queue if the system is low on mbufs.
+.It Va drop_synfin
+Drop TCP packets with both SYN and FIN set.
+.It Va ecn.enable
+Enable support for TCP Explicit Congestion Notification (ECN).
+ECN allows a TCP sender to reduce the transmission rate in order to
+avoid packet drops.
+.Bl -tag -compact
+.It 0
+Disable ECN.
+.It 1
+Allow incoming connections to request ECN.
+Outgoing connections will request ECN.
+.It 2
+Allow incoming connections to request ECN.
+Outgoing connections will not request ECN.
+(default)
+.It 3
+Negotiate on incoming connection for Accurate ECN, ECN, or no ECN.
+Outgoing connections will request Accurate ECN and fall back to
+ECN depending on the capabilities of the server.
+.It 4
+Negotiate on incoming connection for Accurate ECN, ECN, or no ECN.
+Outgoing connections will not request ECN.
+.El
+.It Va ecn.maxretries
+Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
+specific connection.
+This is needed to help with connection establishment
+when a broken firewall is in the network path.
+.It Va fast_finwait2_recycle
+Recycle
+.Tn TCP
+.Dv FIN_WAIT_2
+connections faster when the socket is marked as
+.Dv SBS_CANTRCVMORE
+(no user process has the socket open, data received on
+the socket cannot be read).
+The timeout used here is
+.Va finwait2_timeout .
+.It Va fastopen.acceptany
+When non-zero, all client-supplied TFO cookies will be considered to be valid.
+The default is 0.
+.It Va fastopen.autokey
+When this and
+.Va net.inet.tcp.fastopen.server_enable
+are non-zero, a new key will be automatically generated after this specified
+seconds.
+The default is 120.
+.It Va fastopen.ccache_bucket_limit
+The maximum number of entries in a client cookie cache bucket.
+The default value can be tuned with the
+.Dv TCP_FASTOPEN_CCACHE_BUCKET_LIMIT_DEFAULT
+kernel option or by setting
+.Va net.inet.tcp.fastopen_ccache_bucket_limit
+in the
+.Xr loader 8 .
+.It Va fastopen.ccache_buckets
+The number of client cookie cache buckets.
+Read-only.
+The value can be tuned with the
+.Dv TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT
+kernel option or by setting
+.Va fastopen.ccache_buckets
+in the
+.Xr loader 8 .
+.It Va fastopen.ccache_list
+Print the client cookie cache.
+Read-only.
+.It Va fastopen.client_enable
+When zero, no new active (i.e., client) TFO connections can be created.
+On the transition from enabled to disabled, the client cookie cache is cleared
+and disabled.
+The transition from enabled to disabled does not affect any active TFO
+connections in progress; it only prevents new ones from being established.
+The default is 0.
+.It Va fastopen.keylen
+The key length in bytes.
+Read-only.
+.It Va fastopen.maxkeys
+The maximum number of keys supported.
+Read-only,
+.It Va fastopen.maxpsks
+The maximum number of pre-shared keys supported.
+Read-only.
+.It Va fastopen.numkeys
+The current number of keys installed.
+Read-only.
+.It Va fastopen.numpsks
+The current number of pre-shared keys installed.
+Read-only.
+.It Va fastopen.path_disable_time
+When a failure occurs while trying to create a new active (i.e., client) TFO
+connection, new active connections on the same path, as determined by the tuple
+.Brq client_ip, server_ip, server_port ,
+will be forced to be non-TFO for this many seconds.
+Note that the path disable mechanism relies on state stored in client cookie
+cache entries, so it is possible for the disable time for a given path to be
+reduced if the corresponding client cookie cache entry is reused due to resource
+pressure before the disable period has elapsed.
+The default is
+.Dv TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT .
+.It Va fastopen.psk_enable
+When non-zero, pre-shared key (PSK) mode is enabled for all TFO servers.
+On the transition from enabled to disabled, all installed pre-shared keys are
+removed.
+The default is 0.
+.It Va fastopen.server_enable
+When zero, no new passive (i.e., server) TFO connections can be created.
+On the transition from enabled to disabled, all installed keys and pre-shared
+keys are removed.
+On the transition from disabled to enabled, if
+.Va fastopen.autokey
+is non-zero and there are no keys installed, a new key will be generated
+immediately.
+The transition from enabled to disabled does not affect any passive TFO
+connections in progress; it only prevents new ones from being established.
+The default is 0.
+.It Va fastopen.setkey
+Install a new key by writing
+.Va net.inet.tcp.fastopen.keylen
+bytes to this sysctl.
+.It Va fastopen.setpsk
+Install a new pre-shared key by writing
+.Va net.inet.tcp.fastopen.keylen
+bytes to this sysctl.
+.It Va finwait2_timeout
+Timeout to use for fast recycling of
+.Tn TCP
+.Dv FIN_WAIT_2
+connections
+.Pq Va fast_finwait2_recycle .
+Defaults to 60 seconds.
+.It Va functions_available
+List of available TCP function blocks (TCP stacks).
+.It Va functions_default
+The default TCP function block (TCP stack).
+.It Va functions_inherit_listen_socket_stack
+Determines whether to inherit listen socket's TCP stack or use the current
+system default TCP stack, as defined by
+.Va functions_default .
+Default is true.
+.It Va hostcache
+The TCP host cache is used to cache connection details and metrics to
+improve future performance of connections between the same hosts.
+At the completion of a TCP connection, a host will cache information
+for the connection for some defined period of time.
+There are a number of
+.Va hostcache
+variables under this node.
+See
+.Va hostcache.enable .
+.It Va hostcache.bucketlimit
+The maximum number of entries for the same hash.
+Defaults to 30.
+.It Va hostcache.cachelimit
+Overall entry limit for hostcache.
+Defaults to
+.Va hashsize
+*
+.Va bucketlimit .
+.It Va hostcache.count
+The current number of entries in the host cache.
+.It Va hostcache.enable
+Enable/disable the host cache:
+.Bl -tag -compact
+.It 0
+Disable the host cache.
+.It 1
+Enable the host cache. (default)
+.El
+.It Va hostcache.expire
+Time in seconds, how long a entry should be kept in the
+host cache since last accessed.
+Defaults to 3600 (1 hour).
+.It Va hostcache.hashsize
+Size of TCP hostcache hashtable.
+This number has to be a power of two, or will be rejected.
+Defaults to 512.
+.It Va hostcache.histo
+Provide a Histogram of the hostcache hash utilization.
+.It Va hostcache.list
+Provide a complete list of all current entries in the host
+cache.
+.It Va hostcache.prune
+Time in seconds between pruning expired host cache entries.
+Defaults to 300 (5 minutes).
+.It Va hostcache.purge
+Expire all entires on next pruning of host cache entries.
+Any non-zero setting will be reset to zero, once the purge
+is running.
+.Bl -tag -compact
+.It 0
+Do not purge all entries when pruning the host cache (default).
+.It 1
+Purge all entries when doing the next pruning.
+.It 2
+Purge all entries and also reseed the hash salt.
+.El
+.It Va hostcache.purgenow
+Immediately purge all entries once set to any value.
+Setting this to 2 will also reseed the hash salt.
+.It Va icmp_may_rst
+Certain
+.Tn ICMP
+unreachable messages may abort connections in
+.Tn SYN-SENT
+state.
+.It Va initcwnd_segments
+Enable the ability to specify initial congestion window in number of segments.
+The default value is 10 as suggested by RFC 6928.
+Changing the value on the fly would not affect connections
+using congestion window from the hostcache.
+Caution:
+This regulates the burst of packets allowed to be sent in the first RTT.
+The value should be relative to the link capacity.
+Start with small values for lower-capacity links.
+Large bursts can cause buffer overruns and packet drops if routers have small
+buffers or the link is experiencing congestion.
+.It Va insecure_rst
+Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
+Default is false.
+.It Va insecure_syn
+Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
+Default is false.
+.It Va isn_reseed_interval
+The interval (in seconds) specifying how often the secret data used in
+RFC 1948 initial sequence number calculations should be reseeded.
+By default, this variable is set to zero, indicating that
+no reseeding will occur.
+Reseeding should not be necessary, and will break
+.Dv TIME_WAIT
+recycling for a few minutes.
+.It Va keepcnt
+Number of keepalive probes sent, with no response, before a connection
+is dropped.
+The default is 8 packets.
+.It Va keepidle
+Amount of time, in milliseconds, that the connection must be idle
+before sending keepalive probes (if enabled).
+The default is 7200000 msec (7.2M msec, 2 hours).
+.It Va keepinit
+Timeout, in milliseconds, for new, non-established
+.Tn TCP
+connections.
+The default is 75000 msec (75K msec, 75 sec).
+.It Va keepintvl
+The interval, in milliseconds, between keepalive probes sent to remote
+machines, when no response is received on a
+.Va keepidle
+probe.
+The default is 75000 msec (75K msec, 75 sec).
+.It Va log_in_vain
+Log any connection attempts to ports where there is no socket
+accepting connections.
+The value of 1 limits the logging to
+.Tn SYN
+(connection establishment) packets only.
+A value of 2 results in any
+.Tn TCP
+packets to closed ports being logged.
+Any value not listed above disables the logging
+(default is 0, i.e., the logging is disabled).
+.It Va minmss
+Minimum TCP Maximum Segment Size; used to prevent a denial of service attack
+from an unreasonably low MSS.
+.It Va msl
+The Maximum Segment Lifetime, in milliseconds, for a packet.
+.It Va mssdflt
+The default value used for the TCP Maximum Segment Size
+.Pq Dq MSS
+for IPv4 when no advice to the contrary is received from MSS negotiation.
+.It Va newcwd
+Enable the New Congestion Window Validation mechanism as described in RFC 7661.
+This gently reduces the congestion window during periods, where TCP is
+application limited and the network bandwidth is not utilized completely.
+That prevents self-inflicted packet losses once the application starts to
+transmit data at a higher speed.
+.It Va nolocaltimewait
+Suppress creation of TCP
+.Dv TIME_WAIT
+states for connections in
+which both endpoints are local.
+.It Va path_mtu_discovery
+Enable Path MTU Discovery.
+.It Va pcbcount
+Number of active protocol control blocks
+(read-only).
+.It Va perconn_stats_enable
+Controls the default collection of statistics for all connections using the
+.Xr stats 3
+framework.
+0 disables, 1 enables, 2 enables random sampling across log id connection
+groups with all connections in a group receiving the same setting.
+.It Va perconn_stats_sample_rates
+A CSV list of template_spec=percent key-value pairs which controls the per
+template sampling rates when
+.Xr stats 3
+sampling is enabled.
+.It Va persmax
+Maximum persistence interval, msec.
+.It Va persmin
+Minimum persistence interval, msec.
+.It Va pmtud_blackhole_detection
+Enable automatic path MTU blackhole detection.
+In case of retransmits of MSS sized segments,
+the OS will lower the MSS to check if it's an MTU problem.
+If the current MSS is greater than the configured value to try
+.Po Va net.inet.tcp.pmtud_blackhole_mss
+and
+.Va net.inet.tcp.v6pmtud_blackhole_mss
+.Pc ,
+it will be set to this value, otherwise,
+the MSS will be set to the default values
+.Po Va net.inet.tcp.mssdflt
+and
+.Va net.inet.tcp.v6mssdflt
+.Pc .
+Settings:
+.Bl -tag -compact
+.It 0
+Disable path MTU blackhole detection.
+.It 1
+Enable path MTU blackhole detection for IPv4 and IPv6.
+.It 2
+Enable path MTU blackhole detection only for IPv4.
+.It 3
+Enable path MTU blackhole detection only for IPv6.
+.El
+.It Va pmtud_blackhole_mss
+MSS to try for IPv4 if PMTU blackhole detection is turned on.
+.It Va reass.cursegments
+The current total number of segments present in all reassembly queues.
+.It Va reass.maxqueuelen
+The maximum number of segments allowed in each reassembly queue.
+By default, the system chooses a limit based on each TCP connection's
+receive buffer size and maximum segment size (MSS).
+The actual limit applied to a session's reassembly queue will be the lower of
+the system-calculated automatic limit and the user-specified
+.Va reass.maxqueuelen
+limit.
+.It Va reass.maxsegments
+The maximum limit on the total number of segments across all reassembly
+queues.
+The limit can be adjusted as a tunable.
+.It Va recvbuf_auto
+Enable automatic receive buffer sizing as a connection progresses.
+.It Va recvbuf_max
+Maximum size of automatic receive buffer.
+.It Va recvspace
+Initial
+.Tn TCP
+receive window (buffer size).
+.It Va retries
+Maximum number of consecutive timer based retransmits sent after a data
+segment is lost (default and maximum is 12).
+.It Va rexmit_drop_options
+Drop TCP options from third and later retransmitted SYN segments
+of a connection.
+.It Va rexmit_initial , rexmit_min , rexmit_slop
+Adjust the retransmit timer calculation for
+.Tn TCP .
+The slop is
+typically added to the raw calculation to take into account
+occasional variances that the
+.Tn SRTT
+(smoothed round-trip time)
+is unable to accommodate, while the minimum specifies an
+absolute minimum.
+While a number of
+.Tn TCP
+RFCs suggest a 1
+second minimum, these RFCs tend to focus on streaming behavior,
+and fail to deal with the fact that a 1 second minimum has severe
+detrimental effects over lossy interactive connections, such
+as a 802.11b wireless link, and over very fast but lossy
+connections for those cases not covered by the fast retransmit
+code.
+For this reason, we use 200ms of slop and a near-0
+minimum, which gives us an effective minimum of 200ms (similar to
+.Tn Linux ) .
+The initial value is used before an RTT measurement has been performed.
+.It Va rfc1323
+Implement the window scaling and timestamp options of RFC 1323/RFC 7323
+(default is 1).
+Settings:
+.Bl -tag -compact
+.It 0
+Disable window scaling and timestamp option.
+.It 1
+Enable window scaling and timestamp option.
+.It 2
+Enable only window scaling.
+.It 3
+Enable only timestamp option.
+.El
+.It Va rfc3042
+Enable the Limited Transmit algorithm as described in RFC 3042.
+It helps avoid timeouts on lossy links and also when the congestion window
+is small, as happens on short transfers.
+.It Va rfc3390
+Enable support for RFC 3390, which allows for a variable-sized
+starting congestion window on new connections, depending on the
+maximum segment size.
+This helps throughput in general, but
+particularly affects short transfers and high-bandwidth large
+propagation-delay connections.
+.It Va rfc6675_pipe
+Deprecated and superseded by
+.Va sack.revised
+.It Va sack.enable
+Enable support for RFC 2018, TCP Selective Acknowledgment option,
+which allows the receiver to inform the sender about all successfully
+arrived segments, allowing the sender to retransmit the missing segments
+only.
+.It Va sack.globalholes
+Global number of TCP SACK holes currently allocated.
+.It Va sack.globalmaxholes
+Maximum number of SACK holes per system, across all connections.
+Defaults to 65536.
+.It Va sack.maxholes
+Maximum number of SACK holes per connection.
+Defaults to 128.
+.It Va sack.revised
+Enables three updated mechanisms from RFC6675 (default is true).
+Calculate the bytes in flight using the algorithm described in RFC 6675, and
+is also an improvement when Proportional Rate Reduction is enabled.
+Next, Rescue Retransmission helps timely loss recovery, when the trailing segments
+of a transmission are lost, while no additional data is ready to be sent.
+In case a partial ACK without a SACK block is received during SACK loss
+recovery, the trailing segment is immediately resent, rather than waiting
+for a Retransmission timeout.
+Finally, SACK loss recovery is also engaged, once two segments plus one byte are
+SACKed - even if no traditional duplicate ACKs were observed.
+.It Va sendbuf_auto
+Enable automatic send buffer sizing.
+.It Va sendbuf_auto_lowat
+Modify threshold for auto send buffer growth to account for
+.Dv SO_SNDLOWAT .
+.It Va sendbuf_inc
+Incrementor step size of automatic send buffer.
+.It Va sendbuf_max
+Maximum size of automatic send buffer.
+.It Va sendspace
+Initial
+.Tn TCP
+send window (buffer size).
+.It Va syncache
+Variables under the
+.Va net.inet.tcp.syncache
+node are documented in
+.Xr syncache 4 .
+.It Va syncookies
+Determines whether or not
+.Tn SYN
+cookies should be generated for outbound
+.Tn SYN-ACK
+packets.
+.Tn SYN
+cookies are a great help during
+.Tn SYN
+flood attacks, and are enabled by default.
+(See
+.Xr syncookies 4 . )
+.It Va syncookies_only
+See
+.Xr syncookies 4 .
+.It Va tcbhashsize
+Size of the
+.Tn TCP
+control-block hash table
+(read-only).
+This is tuned using the kernel option
+.Dv TCBHASHSIZE
+or by setting
+.Va net.inet.tcp.tcbhashsize
+in the
+.Xr loader 8 .
+.It Va tolerate_missing_ts
+Tolerate the missing of timestamps (RFC 1323/RFC 7323) for
+.Tn TCP
+segments belonging to
+.Tn TCP
+connections for which support of
+.Tn TCP
+timestamps has been negotiated.
+As of June 2021, several TCP stacks are known to violate RFC 7323, including
+modern widely deployed ones.
+Therefore the default is 1, i.e., the missing of timestamps is tolerated.
+.It Va ts_offset_per_conn
+When initializing the TCP timestamps, use a per connection offset instead of a
+per host pair offset.
+Default is to use per connection offsets as recommended in RFC 7323.
+.It Va tso
+Enable TCP Segmentation Offload.
+.It Va udp_tunneling_overhead
+The overhead taken into account when using UDP encapsulation.
+Since MSS clamping by middleboxes will most likely not work, values larger than
+8 (the size of the UDP header) are also supported.
+Supported values are between 8 and 1024.
+The default is 8.
+.It Va udp_tunneling_port
+The local UDP encapsulation port.
+A value of 0 indicates that UDP encapsulation is disabled.
+The default is 0.
+.It Va v6mssdflt
+The default value used for the TCP Maximum Segment Size
+.Pq Dq MSS
+for IPv6 when no advice to the contrary is received from MSS negotiation.
+.It Va v6pmtud_blackhole_mss
+MSS to try for IPv6 if PMTU blackhole detection is turned on.
+See
+.Va pmtud_blackhole_detection .
+.El
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one;
+.It Bo Er ENOBUFS Bc or Bo Er ENOMEM Bc
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er ETIMEDOUT
+when a connection was dropped
+due to excessive retransmissions;
+.It Bq Er ECONNRESET
+when the remote peer
+forces the connection to be closed;
+.It Bq Er ECONNREFUSED
+when the remote
+peer actively refuses connection establishment (usually because
+no process is listening to the port);
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists;
+.It Bq Er EAFNOSUPPORT
+when an attempt is made to bind or connect a socket to a multicast
+address.
+.It Bq Er EINVAL
+when trying to change TCP function blocks at an invalid point in the session;
+.It Bq Er ENOENT
+when trying to use a TCP function block that is not available;
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr socket 2 ,
+.Xr stats 3 ,
+.Xr sysctl 3 ,
+.Xr blackhole 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr ktls 4 ,
+.Xr mod_cc 4 ,
+.Xr siftr 4 ,
+.Xr syncache 4 ,
+.Xr tcp_bbr 4 ,
+.Xr tcp_rack 4 ,
+.Xr setkey 8 ,
+.Xr sysctl 8 ,
+.Xr tcp_functions 9
+.Rs
+.%A "V. Jacobson"
+.%A "B. Braden"
+.%A "D. Borman"
+.%T "TCP Extensions for High Performance"
+.%O "RFC 1323"
+.Re
+.Rs
+.%A "D. Borman"
+.%A "B. Braden"
+.%A "V. Jacobson"
+.%A "R. Scheffenegger"
+.%T "TCP Extensions for High Performance"
+.%O "RFC 7323"
+.Re
+.Rs
+.%A "A. Heffernan"
+.%T "Protection of BGP Sessions via the TCP MD5 Signature Option"
+.%O "RFC 2385"
+.Re
+.Rs
+.%A "K. Ramakrishnan"
+.%A "S. Floyd"
+.%A "D. Black"
+.%T "The Addition of Explicit Congestion Notification (ECN) to IP"
+.%O "RFC 3168"
+.Re
+.Sh HISTORY
+The
+.Tn TCP
+protocol appeared in
+.Bx 4.2 .
+The RFC 1323 extensions for window scaling and timestamps were added
+in
+.Bx 4.4 .
+The
+.Dv TCP_INFO
+option was introduced in
+.Tn Linux 2.6
+and is
+.Em subject to change .

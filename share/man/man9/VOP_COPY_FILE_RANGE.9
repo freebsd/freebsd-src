@@ -1,0 +1,142 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 30, 2020
+.Dt VOP_COPY_FILE_RANGE 9
+.Os
+.Sh NAME
+.Nm VOP_COPY_FILE_RANGE
+.Nd copy a byte range within a file or from one file to another in a single
+file system or between multiple file systems
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fo VOP_COPY_FILE_RANGE
+.Fa "struct vnode *invp"
+.Fa "off_t *inoff"
+.Fa "struct vnode *outvp"
+.Fa "off_t *outoff"
+.Fa "size_t *len"
+.Fa "unsigned int flags"
+.Fa "struct ucred *incred"
+.Fa "struct ucred *outcred"
+.Fa "struct thread *fsize_td"
+.Fc
+.Sh DESCRIPTION
+This entry point copies a byte range from one regular file to another
+or within one file in a single file system.
+.Fa invp
+and
+.Fa outvp
+can refer to the same file.
+For this case, the byte ranges defined by
+.Fa *inoff ,
+.Fa *outoff and
+.Fa *len
+will not overlap.
+.Pp
+The arguments are:
+.Bl -tag -width ioflag
+.It Fa invp
+The vnode of the input file.
+.It Fa inoff
+A pointer to the file offset for the input file.
+.It Fa outvp
+The vnode of the output file.
+.It Fa outoff
+A pointer to the file offset for the output file.
+.It Fa len
+A pointer to the byte count for the copy.
+.It Fa flags
+Flags, should be set to 0 for now.
+.It Fa incred
+The credentials used to read
+.Fa invp .
+.It Fa outcred
+The credentials used to write
+.Fa outvp .
+.It Fa fsize_td
+The thread pointer to be passed to vn_rlimit_fsize().
+This will be
+.Dv NULL
+for a server thread without limits, such as for the NFS
+server or
+.Dv curthread
+otherwise.
+.El
+.Pp
+On entry and on return, the
+.Fa inoff
+and
+.Fa outoff
+arguments point to the locations of the file offsets.
+These file offsets should be updated by the number of bytes copied.
+The
+.Fa len
+argument points to the location that stores the number of bytes
+to be copied.
+Upon a successful return
+.Fa len
+will be updated to the number of bytes actually copied.
+Normally, this will be the number of bytes requested to be copied,
+however a copy of fewer bytes than requested is permitted.
+This does not necessarily indicate that the copy reached EOF on the input file.
+However, if the value pointed to by the
+.Fa len
+argument is zero upon a successful return,
+it indicates that the offset pointed to by
+.Fa inoff
+is at or beyond EOF on the input file.
+.Sh LOCKS
+The vnode are unlocked on entry and must be unlocked on return.
+The byte ranges for both
+.Fa invp
+and
+.Fa outvp
+should be range locked when this call is done.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EFBIG
+If the copy exceeds the process's file size limit or the maximum file size
+for the file system
+.Fa invp
+and
+.Fa outvp
+reside on.
+.It Bq Er EINTR
+A signal interrupted the VOP call before it could be completed.
+.It Bq Er EIO
+An I/O error occurred while reading/writing the files.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading/writing the files.
+.It Bq Er ENOSPC
+The file system is full.
+.El
+.Sh SEE ALSO
+.Xr vn_rdwr 9 ,
+.Xr vnode 9

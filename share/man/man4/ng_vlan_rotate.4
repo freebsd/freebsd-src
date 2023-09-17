@@ -1,0 +1,250 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019-2021 IKS Service GmbH
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Lutz Donnerhacke <lutz@donnerhacke.de>
+.\"
+.Dd January 26, 2021
+.Dt NG_VLAN_ROTATE 4
+.Os
+.Sh NAME
+.Nm ng_vlan_rotate
+.Nd IEEE 802.1ad VLAN manipulation netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph.h
+.In netgraph/ng_vlan_rotate.h
+.Sh DESCRIPTION
+The
+.Nm
+node type manipulates the order of VLAN tags of frames tagged
+according to the IEEE 802.1ad (an extension of IEEE 802.1Q) standard
+between different hooks.
+.Pp
+Each node has four special hooks,
+.Va original ,
+.Va ordered ,
+.Va excessive ,
+and
+.Va incomplete .
+.Pp
+A frame tagged with an arbitrary number of
+.Dv ETHERTYPE_VLAN ,
+.Dv ETHERTYPE_QINQ ,
+and
+.Dv 0x9100
+tags received on the
+.Va original
+hook will be rearranged to a new order of those tags and is sent out
+the
+.Dq ordered
+hook.
+After successful processing the
+.Va histogram
+counter for the observed stack size increments.
+.Pp
+If it contains fewer VLANs in the stack than the configured
+.Va min
+limit, the frame is sent out to the
+.Va incomplete
+hook and the
+.Va incomplete
+counter increments.
+.Pp
+If there are more VLANs in the stack than the configured
+.Va max
+limit, the frame is sent out to the
+.Va excessive
+hook and the
+.Va excessive
+counter increments.
+.Pp
+If the destination hook is not connected, the frame is dropped and the
+.Va drops
+counter increments.
+.Pp
+For Ethernet frames received on the
+.Va ordered
+hook, the transformation is reversed and is passed to the
+.Va original
+hook.
+Please note that this process is identical to the one described
+above, besides the ordered/original hooks are swapped and the
+transformation is reversed.
+.Pp
+An Ethernet frame received on the
+.Va incomplete
+or
+.Va excessive
+hook is forwarded to the
+.Va original
+hook without any modification.
+.Pp
+This node supports only one operation at the moment: Rotation of the
+VLANs in the stack.
+Setting the configuration parameter
+.Va rot
+to a positive value, the stack will roll up by this amount.
+Negative values will roll down.
+A typical scenario is setting the value to 1 in order to bring the
+innermost VLAN tag to the outmost level.
+Rotation includes the VLAN id, the ether type, and the QOS parameters
+pcp and cfi.
+Typical QOS handling refers to the outmost setting, so be careful to
+keep your QOS intact.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width incomplete
+.It Va original
+Typically this hook would be connected to a
+.Xr ng_ether 4
+node, using the
+.Va lower
+hook connected to a carrier network.
+.It Va ordered
+Typically this hook would be connected to a
+.Xr ng_vlan 4
+type node using the
+.Va downstream
+hook in order to separate services.
+.It Va excessive
+see below.
+.It Va incomplete
+Typically those hooks would be attached to a
+.Xr ng_eiface 4
+type node using the
+.Va ether
+hook for anomaly monitoring purposes.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_VLANROTATE_GET_CONF Pq Ic getconf
+Read the current configuration.
+.It Dv NGM_VLANROTATE_SET_CONF Pq Ic setconf
+Set the current configuration.
+.It Dv NGM_VLANROTATE_GET_STAT Pq Ic getstat
+Read the current statistics.
+.It Dv NGM_VLANROTATE_CLR_STAT Pq Ic clrstat
+Zeroize the statistics.
+.It Dv NGM_VLANROTATE_GETCLR_STAT Pq Ic getclrstat
+Read the current statistics and zeroize it in one step.
+.El
+.Sh EXAMPLES
+The first example demonstrates how to rotate double or triple tagged
+frames so that the innermost C-VLAN can be used as service
+discriminator.
+The single or double tagged frames (C-VLAN removed) are sent out to an
+interface pointing to different infrastucture.
+.Bd -literal
+#!/bin/sh
+
+BNG_IF=ixl3
+VOIP_IF=bge2
+
+ngctl -f- <<EOF
+mkpeer ${BNG_IF}: vlan_rotate lower original
+name ${BNG_IF}:lower rotate
+msg rotate: setconf { min=2 max=3 rot=1 }
+mkpeer rotate: vlan ordered downstream
+name rotate:ordered services
+connect services: ${VOIP_IF} voip lower
+msg services: addfilter { vlan=123 hook="voip" }
+EOF
+.Ed
+.Pp
+Now inject the following sample frame on the
+.Dv BNG_IF
+interface:
+.Bd -literal
+00:00:00:00:01:01 > 00:01:02:03:04:05,
+ ethertype 802.1Q-9100 (0x9100), length 110: vlan 2, p 1,
+ ethertype 802.1Q-QinQ, vlan 101, p 0,
+ ethertype 802.1Q, vlan 123, p 7,
+ ethertype IPv4, (tos 0x0, ttl 64, id 15994, offset 0, flags [none],
+  proto ICMP (1), length 84) 192.168.140.101 > 192.168.140.1:
+  ICMP echo request, id 40234, seq 0, length 64
+.Ed
+.Pp
+The frame ejected on the
+.Va ordered
+hook will look like this:
+.Bd -literal
+00:00:00:00:01:01 > 00:01:02:03:04:05,
+ ethertype 802.1Q (0x8100), length 110: vlan 123, p 7,
+ ethertype 802.1Q-9100, vlan 2, p 1,
+ ethertype 802.1Q-QinQ, vlan 101, p 0,
+ ethertype IPv4, (tos 0x0, ttl 64, id 15994, offset 0, flags [none],
+  proto ICMP (1), length 84) 192.168.140.101 > 192.168.140.1:
+  ICMP echo request, id 40234, seq 0, length 64
+.Ed
+.Pp
+Hence, the frame pushed out to the
+.Dv VOIP_IF
+will have this form:
+.Bd -literal
+00:00:00:00:01:01 > 00:01:02:03:04:05,
+ ethertype 802.1Q-9100, vlan 2, p 1,
+ ethertype 802.1Q-QinQ, vlan 101, p 0,
+ ethertype IPv4, (tos 0x0, ttl 64, id 15994, offset 0, flags [none],
+  proto ICMP (1), length 84) 192.168.140.101 > 192.168.140.1:
+  ICMP echo request, id 40234, seq 0, length 64
+.Ed
+.Pp
+The second example distinguishes between double tagged and single
+tagged frames.
+.Bd -literal
+#!/bin/sh
+
+IN_IF=bge1
+
+ngctl -f- <<EOF
+mkpeer ${IN_IF}: vlan_rotate lower original
+name ${IN_IF}:lower separate
+msg separate: setconf { min=1 max=1 rot=0 }
+mkpeer separate: eiface incomplete ether
+name separate:incomplete untagged
+mkpeer separate: eiface ordered ether
+name separate:ordered tagged
+EOF
+.Ed
+.Pp
+Setting the
+.Va rot
+parameter to zero (or omitting it) does not change
+the order of the tags within the frame.
+Frames with more VLAN tags are dropped.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_eiface 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_vlan 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An Lutz Donnerhacke Aq Mt lutz@donnerhacke.de

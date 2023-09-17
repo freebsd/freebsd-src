@@ -1,0 +1,113 @@
+# Hindi translation of Dialog.
+# This file is distributed under the same license as the dialog package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2007-07-18 11:06+0200\n"
+"Last-Translator: Deepika Mangla <deepika.mangla@gmail.com>\n"
+"Language-Team:  <elinks@knopper.net>\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: 2\n"
+"X-Poedit-Language: Hindi\n"
+"X-Poedit-Country: INDIA\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "हाँ"
+
+#: buttons.c:393
+msgid "No"
+msgstr "नहीं"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "ठीक"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "रद्द करें"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "निर्गम"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "अतिरिक्त"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "मदद"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "महीना"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "वर्ष"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "पुनःनामकरण"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "निर्देशिका"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "संचिका"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "सफल"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "सफल"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "पास"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "सम्पूरित"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "अवरुद्ध"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "सफल "
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "छोड़ दिया"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "प्रगति में है"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "लागू नहीं"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "समग्र प्रगति"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "अनुसन्धान"

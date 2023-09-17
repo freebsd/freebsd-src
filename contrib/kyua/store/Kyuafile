@@ -1,0 +1,15 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="dbtypes_test"}
+atf_test_program{name="exceptions_test"}
+atf_test_program{name="layout_test"}
+atf_test_program{name="metadata_test"}
+atf_test_program{name="migrate_test"}
+atf_test_program{name="read_backend_test"}
+atf_test_program{name="read_transaction_test"}
+atf_test_program{name="schema_inttest"}
+atf_test_program{name="transaction_test"}
+atf_test_program{name="write_backend_test"}
+atf_test_program{name="write_transaction_test"}

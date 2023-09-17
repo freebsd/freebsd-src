@@ -1,0 +1,859 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.Dd January 21, 2023
+.Dt ZIC 8
+.Os
+.Sh NAME
+.Nm zic
+.Nd timezone compiler
+.Sh SYNOPSIS
+.Nm
+.Op Fl -help
+.Op Fl -version
+.Op Fl Dsv
+.Op Fl b Ar slim | fat
+.Op Fl d Ar directory
+.Op Fl g Ar gid
+.Op Fl l Ar localtime
+.Op Fl L Ar leapseconds
+.Op Fl m Ar mode
+.Op Fl p Ar posixrules
+.Oo
+.Fl r
+.Op @ Ns Ar lo Ns
+.Op /@ Ns Ar hi
+.Oc
+.Op Fl R @ Ns Ar hi
+.Op Fl t Ar localtime-link
+.Op Fl u Ar uid
+.Op Ar filename ...
+.Sh DESCRIPTION
+The
+.Nm
+program reads text from the file(s) named on the command line
+and creates the timezone information format (TZif) files
+specified in this input.
+If a
+.Ar filename
+is
+.Dq "-" ,
+standard input is read.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl -version
+Output version information and exit.
+.It Fl -help
+Output short usage message and exit.
+.It Fl b Ar bloat
+Output backward-compatibility data as specified by
+.Ar bloat .
+If
+.Ar bloat
+is
+.Cm fat ,
+generate additional data entries that work around potential bugs or
+incompatibilities in older software, such as software that mishandles
+the 64-bit generated data.
+If
+.Ar bloat
+is
+.Cm slim ,
+keep the output files small; this can help check for the bugs
+and incompatibilities.
+The default is
+.Cm slim ,
+as software that mishandles 64-bit data typically
+mishandles timestamps after the year 2038 anyway.
+Also see the
+.Fl r
+option for another way to alter output size.
+.It Fl D
+Do not create directories.
+.It Fl d Ar directory
+Create time conversion information files in the named directory rather than
+in the standard directory named below.
+.It Fl l Ar timezone
+Use
+.Ar timezone
+as local time.
+The
+.Nm
+utility
+will act as if the input contained a link line of the form
+.Bd -literal -offset indent
+Link	timezone		localtime
+.Ed
+.Pp
+If
+.Ar timezone
+is
+.Ql - ,
+any already-existing link is removed.
+.It Fl L Ar filename
+Read leap second information from the file with the given name.
+If this option is not used,
+no leap second information appears in output files.
+.It Fl p Ar timezone
+Use
+.Ar timezone 's
+rules when handling nonstandard
+TZ strings like
+.Dq "EET\-2EEST"
+that lack transition rules.
+The
+.Nm
+utility
+will act as if the input contained a link line of the form
+.Bd -literal -offset indent
+Link	\fItimezone\fP		posixrules
+.Ed
+.Pp
+Unless
+.Ar timezone
+is
+.Dq "\*-" ,
+this option is obsolete and poorly supported.
+Among other things it should not be used for timestamps after the year 2037,
+and it should not be combined with
+.Fl b Cm slim
+if
+.Ar timezone 's
+transitions are at standard time or Universal Time (UT) instead of local time.
+.Pp
+If
+.Ar timezone
+is
+.Ql - ,
+any already-existing link is removed.
+.It Fl r Oo @ Ns Ar lo Oc Ns Oo /@ Ns Ar hi Oc
+Limit the applicability of output files
+to timestamps in the range from
+.Ar lo
+(inclusive) to
+.Ar hi
+(exclusive), where
+.Ar lo
+and
+.Ar hi
+are possibly signed decimal counts of seconds since the Epoch
+(1970-01-01 00:00:00 UTC).
+Omitted counts default to extreme values.
+The output files use UT offset 0 and abbreviation
+.Dq "\-00"
+in place of the omitted timestamp data.
+For example,
+.Fl r @0
+omits data intended for negative timestamps (i.e., before the Epoch), and
+.Fl r @0/@2147483648
+outputs data intended only for nonnegative timestamps that fit into
+31-bit signed integers.
+Although this option typically reduces the output file's size,
+the size can increase due to the need to represent the timestamp range
+boundaries, particularly if
+.Ar hi
+causes a TZif file to contain explicit entries for
+.Em pre-
+.Ar hi
+transitions rather than concisely representing them
+with an extended POSIX TZ string.
+Also see the
+.Fl b Cm slim
+option for another way to shrink output size.
+.It Fl R @ Ns Ar hi
+Generate redundant trailing explicit transitions for timestamps
+that occur less than
+.Ar hi
+seconds since the Epoch, even though the transitions could be
+more concisely represented via the extended POSIX TZ string.
+This option does not affect the represented timestamps.
+Although it accommodates nonstandard TZif readers
+that ignore the extended POSIX TZ string,
+it increases the size of the altered output files.
+.It Fl t Ar file
+When creating local time information, put the configuration link in
+the named file rather than in the standard location.
+.It Fl v
+Be more verbose, and complain about the following situations:
+.Bl -bullet
+.It
+The input specifies a link to a link,
+something not supported by some older parsers, including
+.Nm
+itself through release 2022e.
+.It
+A year that appears in a data file is outside the range
+of representable years.
+.It
+A time of 24:00 or more appears in the input.
+Pre-1998 versions of
+.Nm
+prohibit 24:00, and pre-2007 versions prohibit times greater than 24:00.
+.It
+A rule goes past the start or end of the month.
+Pre-2004 versions of
+.Nm
+prohibit this.
+.It
+A time zone abbreviation uses a
+.Ql %z
+format.
+Pre-2015 versions of
+.Nm
+do not support this.
+.It
+A timestamp contains fractional seconds.
+Pre-2018 versions of
+.Nm
+do not support this.
+.It
+The input contains abbreviations that are mishandled by pre-2018 versions of
+.Nm
+due to a longstanding coding bug.
+These abbreviations include
+.Dq L
+for
+.Dq Link ,
+.Dq mi
+for
+.Dq min ,
+.Dq Sa
+for
+.Dq Sat ,
+and
+.Dq Su
+for
+.Dq Sun .
+.It
+The output file does not contain all the information about the
+long-term future of a timezone, because the future cannot be summarized as
+an extended POSIX TZ string.
+For example, as of 2023 this problem
+occurs for Morocco's daylight-saving rules, as these rules are based
+on predictions for when Ramadan will be observed, something that
+an extended POSIX TZ string cannot represent.
+.It
+The output contains data that may not be handled properly by client
+code designed for older
+.Nm
+output formats.
+These compatibility issues affect only timestamps
+before 1970 or after the start of 2038.
+.It
+The output contains a truncated leap second table,
+which can cause some older TZif readers to misbehave.
+This can occur if the
+.Fl L
+option is used, and either an Expires line is present or
+the
+.Fl r
+option is also used.
+.It
+The output file contains more than 1200 transitions,
+which may be mishandled by some clients.
+The current reference client supports at most 2000 transitions;
+pre-2014 versions of the reference client support at most 1200
+transitions.
+.It
+A time zone abbreviation has fewer than 3 or more than 6 characters.
+POSIX requires at least 3, and requires implementations to support
+at least 6.
+.It
+An output file name contains a byte that is not an ASCII letter,
+.Dq "\-" ,
+.Dq "/" ,
+or
+.Dq "_" ;
+or it contains a file name component that contains more than 14 bytes
+or that starts with
+.Dq "\-" .
+.El
+.El
+.RE
+.Sh FILES
+Input files use the format described in this section; output files use
+.Xr tzfile 5
+format.
+.Pp
+Input files should be text files, that is, they should be a series of
+zero or more lines, each ending in a newline byte and containing at
+most 2048 bytes counting the newline, and without any NUL bytes.
+The input text's encoding
+is typically UTF-8 or ASCII; it should have a unibyte representation
+for the POSIX Portable Character Set (PPCS)
+\*<https://pubs\*:.opengroup\*:.org/\*:onlinepubs/\*:9699919799/\*:basedefs/\*:V1_chap06\*:.html\*>
+and the encoding's non-unibyte characters should consist entirely of
+non-PPCS bytes.
+Non-PPCS characters typically occur only in comments:
+although output file names and time zone abbreviations can contain
+nearly any character, other software will work better if these are
+limited to the restricted syntax described under the
+.Fl v
+option.
+.Pp
+Input lines are made up of fields.
+Fields are separated from one another by one or more white space characters.
+The white space characters are space, form feed, carriage return, newline,
+tab, and vertical tab.
+Leading and trailing white space on input lines is ignored.
+An unquoted sharp character (\(sh) in the input introduces a comment which extends
+to the end of the line the sharp character appears on.
+White space characters and sharp characters may be enclosed in double quotes
+(\(dq) if they're to be used as part of a field.
+Any line that is blank (after comment stripping) is ignored.
+Nonblank lines are expected to be of one of three types:
+rule lines, zone lines, and link lines.
+.Pp
+Names must be in English and are case insensitive.
+They appear in several contexts, and include month and weekday names
+and keywords such as
+.Dq "maximum" ,
+.Dq "only" ,
+.Dq "Rolling" ,
+and
+.Dq "Zone" .
+A name can be abbreviated by omitting all but an initial prefix; any
+abbreviation must be unambiguous in context.
+.Pp
+A rule line has the form
+.Bd -literal -offset indent
+Rule	NAME	FROM	TO	\-	IN	ON	AT	SAVE	LETTER/S
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Rule	US	1967	1973	\-	Apr	lastSun	2:00w	1:00d	D
+.Ed
+.Pp
+The fields that make up a rule line are:
+.Bl -tag -width "LETTER/S"
+.It NAME
+Gives the name of the rule set that contains this line.
+The name must start with a character that is neither
+an ASCII digit nor
+.Dq \-
+nor
+.Dq + .
+To allow for future extensions,
+an unquoted name should not contain characters from the set
+.Dq Ql "!$%&'()*,/:;<=>?@[\]^`{|}~" .
+.It FROM
+Gives the first year in which the rule applies.
+Any signed integer year can be supplied; the proleptic Gregorian calendar
+is assumed, with year 0 preceding year 1.
+The word
+.Cm minimum
+(or an abbreviation) means the indefinite past.
+The word
+.Cm maximum
+(or an abbreviation) means the indefinite future.
+Rules can describe times that are not representable as time values,
+with the unrepresentable times ignored; this allows rules to be portable
+among hosts with differing time value types.
+.It TO
+Gives the final year in which the rule applies.
+In addition to
+.Cm minimum
+and
+.Cm maximum
+(as above),
+the word
+.Cm only
+(or an abbreviation)
+may be used to repeat the value of the
+.Ar FROM
+field.
+.It \-
+Is a reserved field and should always contain
+.Ql \-
+for compatibility with older versions of
+.Nm .
+It was previously known as the
+.Ar TYPE
+field, which could contain values to allow a
+separate script to further restrict in which
+.Dq types
+of years the rule would apply.
+.It IN
+Names the month in which the rule takes effect.
+Month names may be abbreviated.
+.It ON
+Gives the day on which the rule takes effect.
+Recognized forms include:
+.Bl -tag -compact -width "Sun<=25"
+.It 5
+the fifth of the month
+.It lastSun
+the last Sunday in the month
+.It lastMon
+the last Monday in the month
+.It Sun>=8
+first Sunday on or after the eighth
+.It Sun<=25
+last Sunday on or before the 25th
+.El
+.Pp
+A weekday name (e.g.,
+.Ql "Sunday" )
+or a weekday name preceded by
+.Dq "last"
+(e.g.,
+.Ql "lastSunday" )
+may be abbreviated or spelled out in full.
+There must be no white space characters within the
+.Ar ON
+field.
+The
+.Dq <=
+and
+.Dq >=
+constructs can result in a day in the neighboring month;
+for example, the IN-ON combination
+.Dq "Oct Sun>=31"
+stands for the first Sunday on or after October 31,
+even if that Sunday occurs in November.
+.It AT
+Gives the time of day at which the rule takes effect,
+relative to 00:00, the start of a calendar day.
+Recognized forms include:
+.Bl -tag -compact -width "00:19:32.13"
+.It 2
+time in hours
+.It 2:00
+time in hours and minutes
+.It 01:28:14
+time in hours, minutes, and seconds
+.It 00:19:32.13
+time with fractional seconds
+.It 12:00
+midday, 12 hours after 00:00
+.It 15:00
+3 PM, 15 hours after 00:00
+.It 24:00
+end of day, 24 hours after 00:00
+.It 260:00
+260 hours after 00:00
+.It \-2:30
+2.5 hours before 00:00
+.It \-
+equivalent to 0
+.El
+.Pp
+Although
+.Nm
+rounds times to the nearest integer second
+(breaking ties to the even integer), the fractions may be useful
+to other applications requiring greater precision.
+The source format does not specify any maximum precision.
+Any of these forms may be followed by the letter
+.Ql w
+if the given time is local or
+.Dq "wall clock"
+time,
+.Ql s
+if the given time is standard time without any adjustment for daylight saving,
+or
+.Ql u
+(or
+.Ql g
+or
+.Ql z )
+if the given time is universal time;
+in the absence of an indicator,
+local (wall clock) time is assumed.
+These forms ignore leap seconds; for example,
+if a leap second occurs at 00:59:60 local time,
+.Ql "1:00"
+stands for 3601 seconds after local midnight instead of the usual 3600 seconds.
+The intent is that a rule line describes the instants when a
+clock/calendar set to the type of time specified in the
+.Ar AT
+field would show the specified date and time of day.
+.It SAVE
+Gives the amount of time to be added to local standard time when the rule is in
+effect, and whether the resulting time is standard or daylight saving.
+This field has the same format as the
+.Ar AT
+field
+except with a different set of suffix letters:
+.Ql s
+for standard time and
+.Ql d
+for daylight saving time.
+The suffix letter is typically omitted, and defaults to
+.Ql s
+if the offset is zero and to
+.Ql d
+otherwise.
+Negative offsets are allowed; in Ireland, for example, daylight saving
+time is observed in winter and has a negative offset relative to
+Irish Standard Time.
+The offset is merely added to standard time; for example,
+.Nm
+does not distinguish a 10:30 standard time plus an 0:30
+.Ar SAVE
+from a 10:00 standard time plus a 1:00
+.Ar SAVE .
+.It LETTER/S
+Gives the
+.Dq "variable part"
+(for example, the
+.Dq "S"
+or
+.Dq "D"
+in
+.Dq "EST"
+or
+.Dq "EDT" )
+of time zone abbreviations to be used when this rule is in effect.
+If this field is
+.Ql \- ,
+the variable part is null.
+.El
+.Pp
+A zone line has the form
+.Bd -literal -offset indent
+Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Zone	Asia/Amman	2:00	Jordan	EE%sT	2017 Oct 27 01:00
+.Ed
+.Pp
+The fields that make up a zone line are:
+.Bl -tag -width "STDOFF"
+.It NAME
+The name of the timezone.
+This is the name used in creating the time conversion information file for the
+timezone.
+It should not contain a file name component
+.Dq ".\&"
+or
+.Dq ".." ;
+a file name component is a maximal substring that does not contain
+.Dq "/" .
+.It STDOFF
+The amount of time to add to UT to get standard time,
+without any adjustment for daylight saving.
+This field has the same format as the
+.Ar AT
+and
+.Ar SAVE
+fields of rule lines, except without suffix letters;
+begin the field with a minus sign if time must be subtracted from UT.
+.It RULES
+The name of the rules that apply in the timezone or,
+alternatively, a field in the same format as a rule-line SAVE column,
+giving the amount of time to be added to local standard time
+and whether the resulting time is standard or daylight saving.
+If this field is
+.Ql \-
+then standard time always applies.
+When an amount of time is given, only the sum of standard time and
+this amount matters.
+.It FORMAT
+The format for time zone abbreviations.
+The pair of characters
+.Ql %s
+is used to show where the
+.Dq "variable part"
+of the time zone abbreviation goes.
+Alternatively, a format can use the pair of characters
+.Ql %z
+to stand for the UT offset in the form
+.Ar \(+- hh ,
+.Ar \(+- hhmm ,
+or
+.Ar \(+- hhmmss ,
+using the shortest form that does not lose information, where
+.Ar hh ,
+.Ar mm ,
+and
+.Ar ss
+are the hours, minutes, and seconds east (+) or west (\-) of UT.
+Alternatively,
+a slash (/)
+separates standard and daylight abbreviations.
+To conform to POSIX, a time zone abbreviation should contain only
+alphanumeric ASCII characters,
+.Ql "+"
+and
+.Ql "\-".
+By convention, the time zone abbreviation
+.Ql "\-00"
+is a placeholder that means local time is unspecified.
+.It UNTIL
+The time at which the UT offset or the rule(s) change for a location.
+It takes the form of one to four fields
+.Ar YEAR Op Ar MONTH Op Ar DAY Op Ar TIME .
+If this is specified,
+the time zone information is generated from the given UT offset
+and rule change until the time specified, which is interpreted using
+the rules in effect just before the transition.
+The month, day, and time of day have the same format as the
+.Ar IN ,
+.Ar ON ,
+and
+.Ar AT
+fields of a rule; trailing fields can be omitted, and default to the
+earliest possible value for the missing fields.
+.IP
+The next line must be a
+.Dq "continuation"
+line; this has the same form as a zone line except that the
+string
+.Dq "Zone"
+and the name are omitted, as the continuation line will
+place information starting at the time specified as the
+.Dq "until"
+information in the previous line in the file used by the previous line.
+Continuation lines may contain
+.Dq "until"
+information, just as zone lines do, indicating that the next line is a further
+continuation.
+.El
+.Pp
+If a zone changes at the same instant that a rule would otherwise take
+effect in the earlier zone or continuation line, the rule is ignored.
+A zone or continuation line
+.Ar L
+with a named rule set starts with standard time by default:
+that is, any of
+.Ar L 's
+timestamps preceding
+.Ar L 's
+earliest rule use the rule in effect after
+.Ar L 's
+first transition into standard time.
+In a single zone it is an error if two rules take effect at the same
+instant, or if two zone changes take effect at the same instant.
+.Pp
+If a continuation line subtracts
+.Ar N
+seconds from the UT offset after a transition that would be
+interpreted to be later if using the continuation line's UT offset and
+rules, the
+.Dq "until"
+time of the previous zone or continuation line is interpreted
+according to the continuation line's UT offset and rules, and any rule
+that would otherwise take effect in the next
+.Ar N
+seconds is instead assumed to take effect simultaneously.
+For example:
+.Bd -literal -offset indent
+# Rule	NAME	FROM	TO	\*-	IN	ON	AT	SAVE	LETTER/S
+Rule	US	1967	2006	-	Oct	lastSun	2:00	0	S
+Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
+
+# Zone\0\0NAME	STDOFF	RULES	FORMAT	[UNTIL]
+Zone\0\0America/Menominee	\*-5:00	\*-	EST	1973 Apr 29 2:00
+	\*-6:00	US	C%sT
+.Ed
+Here, an incorrect reading would be there were two clock changes on 1973-04-29,
+the first from 02:00 EST (\-05) to 01:00 CST (\-06),
+and the second an hour later from 02:00 CST (\-06) to 03:00 CDT (\-05).
+However,
+.Nm
+interprets this more sensibly as a single transition from 02:00 CST (\-05) to
+02:00 CDT (\-05).
+.Pp
+A link line has the form
+.Bd -literal -offset indent
+Link	TARGET	LINK-NAME
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Link	Europe/Istanbul	Asia/Istanbul
+.Ed
+.Pp
+The
+.Ar TARGET
+field should appear as the
+.Ar NAME
+field in some zone line or as the
+.Ar LINK-NAME
+field in some link line.
+The
+.Ar LINK-NAME
+field is used as an alternative name for that zone;
+it has the same syntax as a zone line's
+.Ar NAME
+field.
+Links can chain together, although the behavior is unspecified if a
+chain of one or more links does not terminate in a Zone name.
+A link line can appear before the line that defines the link target.
+For example:
+.Bd -literal -offset indent
+Link	Greenwich	G_M_T
+Link	Etc/GMT	Greenwich
+Zone	Etc/GMT\0\00\0\0\-\0\0GMT
+.Ed
+.Pp
+The two links are chained together, and G_M_T, Greenwich, and Etc/GMT
+all name the same zone.
+.Pp
+Except for continuation lines,
+lines may appear in any order in the input.
+However, the behavior is unspecified if multiple zone or link lines
+define the same name.
+.Pp
+The file that describes leap seconds can have leap lines and an
+expiration line.
+Leap lines have the following form:
+.Bd -literal -offset indent
+Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Leap	2016	Dec	31	23:59:60	+	S
+.Ed
+.Pp
+The
+.Ar YEAR ,
+.Ar MONTH ,
+.Ar DAY ,
+and
+.Ar HH:MM:SS
+fields tell when the leap second happened.
+The
+.Ar CORR
+field
+should be
+.Ql "+"
+if a second was added
+or
+.Ql "\-"
+if a second was skipped.
+The
+.Ar R/S
+field
+should be (an abbreviation of)
+.Dq "Stationary"
+if the leap second time given by the other fields should be interpreted as UTC
+or
+(an abbreviation of)
+.Dq "Rolling"
+if the leap second time given by the other fields should be interpreted as
+local (wall clock) time.
+.Pp
+Rolling leap seconds were implemented back when it was not
+clear whether common practice was rolling or stationary,
+with concerns that one would see
+Times Square ball drops where there'd be a
+.Dq "3... 2... 1... leap... Happy New Year"
+countdown, placing the leap second at
+midnight New York time rather than midnight UTC.
+However, this countdown style does not seem to have caught on,
+which means rolling leap seconds are not used in practice;
+also, they are not supported if the
+.Fl r
+option is used.
+.Pp
+The expiration line, if present, has the form:
+.Bd -literal -offset indent
+Expires	YEAR	MONTH	DAY	HH:MM:SS
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Expires	2020	Dec	28	00:00:00
+.Ed
+.Pp
+The
+.Ar YEAR ,
+.Ar MONTH ,
+.Ar DAY ,
+and
+.Ar HH:MM:SS
+fields give the expiration timestamp in UTC for the leap second table.
+.Sh "EXTENDED EXAMPLE"
+Here is an extended example of
+.Nm
+input, intended to illustrate many of its features.
+.Bd -literal -offset indent
+# Rule	NAME	FROM	TO	\-	IN	ON	AT	SAVE	LETTER/S
+Rule	Swiss	1941	1942	\-	May	Mon>=1	1:00	1:00	S
+Rule	Swiss	1941	1942	\-	Oct	Mon>=1	2:00	0	\-
+
+Rule	EU	1977	1980	\-	Apr	Sun>=1	1:00u	1:00	S
+Rule	EU	1977	only	\-	Sep	lastSun	1:00u	0	\-
+Rule	EU	1978	only	\-	Oct	 1	1:00u	0	\-
+Rule	EU	1979	1995	\-	Sep	lastSun	1:00u	0	\-
+Rule	EU	1981	max	\-	Mar	lastSun	1:00u	1:00	S
+Rule	EU	1996	max	\-	Oct	lastSun	1:00u	0	\-
+
+# Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
+Zone	Europe/Zurich	0:34:08	\-	LMT	1853 Jul 16
+		0:29:45.50	\-	BMT	1894 Jun
+		1:00	Swiss	CE%sT	1981
+		1:00	EU	CE%sT
+
+Link	Europe/Zurich	Europe/Vaduz
+.Ed
+.Pp
+In this example, the EU rules are for the European Union
+and for its predecessor organization, the European Communities.
+The timezone is named Europe/Zurich and it has the alias Europe/Vaduz.
+This example says that Zurich was 34 minutes and 8
+seconds east of UT until 1853-07-16 at 00:00, when the legal offset
+was changed to
+7\(de26\(fm22.50\(sd,
+which works out to 0:29:45.50;
+.Nm
+treats this by rounding it to 0:29:46.
+After 1894-06-01 at 00:00 the UT offset became one hour
+and Swiss daylight saving rules (defined with lines beginning with
+.Dq "Rule Swiss")
+apply.
+From 1981 to the present, EU daylight saving rules have
+applied, and the UTC offset has remained at one hour.
+.Pp
+In 1941 and 1942, daylight saving time applied from the first Monday
+in May at 01:00 to the first Monday in October at 02:00.
+The pre-1981 EU daylight-saving rules have no effect
+here, but are included for completeness.
+Since 1981, daylight
+saving has begun on the last Sunday in March at 01:00 UTC.
+Until 1995 it ended the last Sunday in September at 01:00 UTC,
+but this changed to the last Sunday in October starting in 1996.
+.Pp
+For purposes of display,
+.Dq "LMT"
+and
+.Dq "BMT"
+were initially used, respectively.
+Since
+Swiss rules and later EU rules were applied, the time zone abbreviation
+has been CET for standard time and CEST for daylight saving
+time.
+.Sh FILES
+.Bl -tag -width "/usr/share/zoneinfo"
+.It Pa /etc/localtime
+Default local timezone file.
+.It Pa /usr/share/zoneinfo
+Default timezone information directory.
+.El
+.Sh NOTES
+For areas with more than two types of local time,
+you may need to use local standard time in the
+.Ar AT
+field of the earliest transition time's rule to ensure that
+the earliest transition time recorded in the compiled file is correct.
+.Pp
+If,
+for a particular timezone,
+a clock advance caused by the start of daylight saving
+coincides with and is equal to
+a clock retreat caused by a change in UT offset,
+.Nm
+produces a single transition to daylight saving at the new UT offset
+without any change in local (wall clock) time.
+To get separate transitions
+use multiple zone continuation lines
+specifying transition instants using universal time.
+.Sh SEE ALSO
+.Xr tzfile 5 ,
+.Xr zdump 8

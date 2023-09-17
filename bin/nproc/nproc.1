@@ -1,0 +1,60 @@
+.\"-
+.\" * Copyright (c) 2023 Piotr Paweł Stefaniak
+.\"
+.\" * SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 2, 2023
+.Dt NPROC 1
+.Os
+.Sh NAME
+.Nm nproc
+.Nd print the number of processors
+.Sh SYNOPSIS
+.Nm
+.Op Fl -all
+.Op Fl -ignore Ns = Ns Ar count
+.Nm Fl -help
+.Nm Fl -version
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to print the number of processors limited to the
+.Xr cpuset 2
+of the current process, unless the
+.Fl -all
+flag is specified.
+.Pp
+The available flags are:
+.Bl -tag -width Ds
+.It Fl -all
+Count all processors currently online.
+.It Fl -ignore Ns = Ns Ar count
+The result is decreased by
+.Ar count ,
+but never below 1.
+.It Fl -version
+Print the current program version and exit.
+Do not use this option.
+.It Fl -help
+Print usage information and exit.
+.El
+.Sh COMPATIBILITY
+This program is intended to be compatible with nproc as found in GNU coreutils.
+.Sh BUGS
+If HyperThreading is enabled in BIOS and disabled in the kernel, the
+.Fl -all
+option on Linux will still report all possible CPU threads.
+On FreeBSD only active threads will be reported.
+.Sh SEE ALSO
+.Xr cpuset 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+.An -nosplit
+.An Mateusz Guzik Aq Mt mjg@FreeBSD.org
+wrote the program and
+.An Piotr Paweł Stefaniak Aq Mt pstef@FreeBSD.org
+wrote this page.

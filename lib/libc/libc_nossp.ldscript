@@ -1,0 +1,1 @@
+GROUP ( @@SHLIB@@ @@LIBDIR@@/libc_nonshared.a )

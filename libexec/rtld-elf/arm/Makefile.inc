@@ -1,0 +1,2 @@
+
+CFLAGS+=	-mfpu=none

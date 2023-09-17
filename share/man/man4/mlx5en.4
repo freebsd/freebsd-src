@@ -1,0 +1,132 @@
+.\" Copyright (c) 2015 Mellanox Technologies
+.\" Copyright (c) 2021 NVIDIA corporation & affiliates
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS `AS IS' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 20, 2021
+.Dt MLX5EN 4
+.Os
+.Sh NAME
+.Nm mlx5en
+.Nd "NVIDIA Mellanox ConnectX-4/5/6 [Dx/Ex/Lx] based 200Gb, 100Gb, 50Gb, 40Gb, 25Gb and 10Gb ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUXKPI"
+.Cd "options RATELIMIT"
+.Cd "options KERN_TLS"
+.Cd "device xz"
+.Cd "device mlxfw"
+.Cd "device firmware"
+.Cd "device mlx5"
+.Cd "device mlx5en"
+.Ed
+.Pp
+To load the driver as a module at run-time,
+run the following command as root:
+.Bd -literal -offset indent
+kldload mlx5en
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mlx5en_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express Ethernet adapters based on
+ConnectX-4/5/6 [Dx, Ex and Lx variants].
+The driver supports Jumbo Frames, Transmit and Receive checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO),
+HW Large Receive Offload (HW LRO), VLAN tag insertion and extraction,
+VLAN checksum offload, VLAN TSO, hardware rate limiting (TXRTLMT),
+stateless VxLAN hardware offload for receive and transmit,
+HW TLS offload for transmit, Receive Side Steering (RSS) and
+.Xr numa 4
+awareness.
+.Pp
+The network interface name is
+.Dv mce<N>
+which corresponds to a PCI function,
+.Dv mlx_core<N> ,
+where
+.Dv <N>
+is a number starting at zero.
+There is at most one network interface per PCI function.
+.Pp
+For further information and questions related to hardware
+requirements, see
+.Pa https://www.mellanox.com .
+.Sh HARDWARE
+The
+.Nm
+driver supports 200Gb, 100Gb, 50Gb, 40Gb, 25Gb and 10Gb ethernet adapters.
+.Pp
+.Bl -bullet -compact
+.It
+ConnectX-6 supports 10/20/25/40/50/56/100Gb/200Gb/s speeds.
+.It
+ConnectX-5 supports 10/20/25/40/50/56/100Gb/s speeds.
+.It
+ConnectX-4 supports 10/20/25/40/50/56/100Gb/s speeds.
+.It
+ConnectX-4 LX supports 10/25/40/50Gb/s speeds and reduced power consumption.
+.El
+.Sh CONFIGURATION
+The
+.Nm
+network interface is configured using
+.Xr ifconfig 8
+and the
+.Xr sysctl 8
+tree at
+.Dv dev.mce.<N> .
+All configurable entries are also tunables, and can be put directly into the
+.Xr loader.conf 5
+for persistent configuration.
+.Sh SUPPORT
+For general information and support,
+go to the NVIDIA Mellanox networking support website at:
+.Pa https://www.mellanox.com .
+.Pp
+If an issue is identified with this driver using a supported adapter,
+e-mail all the specific information related to the issue to
+.Aq Mt nbu-freebsd-drivers@nvidia.com .
+.Sh SEE ALSO
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An NVIDIA Mellanox networking <nbu-freebsd-drivers@nvidia.com> .

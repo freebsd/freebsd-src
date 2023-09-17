@@ -1,0 +1,2 @@
+
+[ "$(type type)" = "$(type -- type)" ]

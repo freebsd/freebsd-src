@@ -1,0 +1,4 @@
+Do not apply the Relocation Read-Only (RELRO) vulnerability mitigation.
+See also the
+.Va BIND_NOW
+option.

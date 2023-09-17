@@ -1,0 +1,220 @@
+.\" Copyright (c) 2012-2017 Pekka Nikander
+.\" Copyright (c) 2018 Retina b.v.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 10, 2018
+.Dt NG_MACFILTER 4
+.Os
+.Sh NAME
+.Nm ng_macfilter
+.Nd packet filtering netgraph node using ethernet MAC addresses
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_macfilter.h
+.Sh DESCRIPTION
+The
+.Nm macfilter
+allows routing ethernet packets over different hooks based on the sender MAC
+address.
+.Pp
+This processing is done when traffic flows from the
+.Dq ether
+hook through
+.Nm macfilter
+to one of the outgoing hooks.
+Outbound hooks can be added to and remove from
+.Nm macfilter
+and arbitrarily named.
+By default one hook called
+.Dq default
+is present and used for all packets which have no MAC address in the MAC table.
+By adding MAC addresses to the MAC table traffic coming from this host can be
+directed out other hooks.
+.Nm macfilter
+keeps track of packets and bytes from and to this MAC address in the MAC table.
+.Pp
+Packets are not altered in any way.
+If hooks are not connected, packets are
+dropped.
+.Sh HOOKS
+This node type by default has an
+.Dv ether
+hook, to be connected to the
+.Dv lower
+hook of the NIC, and a
+.Dv default
+hook where packets are sent if the MAC adddress is not found in the table.
+.Nm macfilter
+supports up to
+.Dv NG_MACFILTER_UPPER_NUM
+hooks to be connected to the NIC's upper hook.
+Other nodes can be inserted to provide additional processing.
+All outbound can be combined back into one by using
+.Dv ng_one2many .
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width foo
+.It Dv NGM_MACFILTER_RESET Pq Ic reset
+Resets the MAC table in the node.
+.It Dv NGM_MACFILTER_DIRECT Pq Ic direct
+Takes the following argument struct:
+.Bd -literal -offset indent
+struct ngm_macfilter_direct {
+    u_char	ether[ETHER_ADDR_LEN];  	/* MAC address */
+    u_char	hookname[NG_HOOKSIZ];   	/* Upper hook name*/
+};
+.Ed
+The given ethernet MAC address will be forwarded out the named hook.
+.It Dv NGM_MACFILTER_DIRECT_HOOKID Pq Ic directi
+Takes the following argument struct:
+.Bd -literal -offset indent
+struct ngm_macfilter_direct_hookid {
+    u_char	ether[ETHER_ADDR_LEN];  	/* MAC address */
+    u_int16_t	hookid;		        	/* Upper hook hookid */
+};
+.Ed
+The given ethernet MAC address will be forwarded out the hook at id
+.Dv hookid .
+.It Dv NGM_MACFILTER_GET_MACS Pq Ic getmacs
+Returns the list of MAC addresses in the node in the following structure:
+.Bd -literal -offset indent
+struct ngm_macfilter_mac {
+    u_char	ether[ETHER_ADDR_LEN];  	/* MAC address */
+    u_int16_t	hookid;		        	/* Upper hook hookid */
+    u_int64_t	packets_in;			/* packets in from downstream */
+    u_int64_t	bytes_in;			/* bytes in from upstream */
+    u_int64_t	packets_out;			/* packets out towards downstream */
+    u_int64_t	bytes_out;			/* bytes out towards downstream */
+};
+struct ngm_macfilter_macs {
+    u_int32_t   n;                              /* Number of entries in macs */
+    struct ngm_macfilter_mac macs[];            /* Macs table */
+};
+.Ed
+.It Dv NGM_MACFILTER_GETCLR_MACS Pq Ic getclrmacs
+Same as above, but will also atomically clear the
+.Dv packets_in ,
+.Dv bytes_in ,
+.Dv packets_out , and
+.Dv bytes_out
+fields in the table.
+.It Dv NGM_MACFILTER_CLR_STATS Pq Ic clrmacs
+Will clear the per MAC address packet and byte counters.
+.It Dv NGM_MACFILTER_GET_HOOKS Pq Ic gethooks
+Will return a list of hooks and their hookids in an array of the following struct's:
+.Bd -literal -offset indent
+struct ngm_macfilter_hook {
+    u_char	hookname[NG_HOOKSIZ];   	/* Upper hook name*/
+    u_int16_t	hookid;		        	/* Upper hook hookid */
+    u_int32_t   maccnt;                         /* Number of mac addresses associated with hook */
+};
+.Ed
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message or when all have been disconnected.
+.Sh EXAMPLES
+The following netgraph configuration will apply
+.Xr ipfw 8
+tag 42 to each packet that is routed over the
+.Dq accepted
+hook.
+The graph looks like the following:
+.Bd -literal -offset indent
+    /------<one>-[combiner]-<many1>--------\\
+<upper>               |                    <out>
+  /                <many0>                    \\
+[em0]                 |                    [tagger]
+  \\               <default>                   /
+<lower>               |                     <in>
+    \\----<ether>-[macfilter]-<accepted>-----/
+.Ed
+.Pp
+Commands:
+.Bd -literal -offset indent
+  ngctl mkpeer em0: macfilter lower ether
+  ngctl name em0:lower macfilter
+
+  # Funnel both streams back into ether:upper
+  ngctl mkpeer em0: one2many upper one
+  ngctl name em0:upper recombiner
+  # Connect macfilter:default to recombiner:many0
+  ngctl connect macfilter: recombiner: default many0
+  # Connect macfilter:accepted to tagger:in
+  ngctl mkpeer macfilter: tag accepted in
+  ngctl name macfilter:accepted tagger
+  # Connect tagger:out to recombiner:many1
+  ngctl connect tagger: recombiner: out many1
+
+  # Mark tag all traffic through tagger in -> out with an ipfw tag 42
+  ngctl msg tagger: sethookin '{ thisHook="in" ifNotMatch="out" }'
+  ngctl msg tagger: sethookout '{ thisHook="out" tag_cookie=1148380143 tag_id=42 }'
+
+  # Pass traffic from ether:upper / combiner:one via combiner:many0 on to
+  # macfilter:default and on to ether:lower.
+  ngctl msg recombiner: setconfig '{ xmitAlg=3 failAlg=1 enabledLinks=[ 1 1 ] }'
+.Ed
+.Pp
+.Em Note :
+The tag_cookie 1148380143 was retrieved from
+.Dv MTAG_IPFW
+in
+.Pa /usr/include/netinet/ip_var.h .
+.Pp
+The following command can be used to add a MAC address to be output via
+.Dv macfilter:accepted :
+.Bd -literal -offset indent
+  ngctl msg macfilter: direct '{ hookname="known" ether=08:00:27:92:eb:aa }'
+.Ed
+.Pp
+The following command can be used to retrieve the packet and byte counters :
+.Bd -literal -offset indent
+  ngctl msg macfilter: getmacs
+.Ed
+.Pp
+It will return the contents of the MAC table:
+.Bd -literal -offset indent
+  Rec'd response "getmacs" (4) from "[54]:":
+  Args:	{ n=1 macs=[ { ether=08:00:27:92:eb:aa hookid=1 packets_in=3571 bytes_in=592631 packets_out=3437 bytes_out=777142 } ] }
+.Ed
+.Sh SEE ALSO
+.Xr divert 4 ,
+.Xr ipfw 4 ,
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_one2many 4 ,
+.Xr ng_tag 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An -nosplit
+The original version of this code was written by Pekka Nikander, and
+subsequently modified heavily by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
+.Sh BUGS
+None known.

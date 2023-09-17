@@ -1,0 +1,4 @@
+Set this if you do not want to build
+.Xr blacklistd 8
+and
+.Xr blacklistctl 8 .

@@ -1,0 +1,64 @@
+#
+# Marvell SoC support
+#
+
+# SoC support
+options 	SOC_MARVELL_8K
+
+# GPIO / PINCTRL
+device		a37x0_gpio		# Marvell Armada 37x0 GPIO controller
+device		mv_gpio			# Marvell GPIO controller
+device		mvebu_pinctrl		# Marvell Pinmux Controller
+
+# I2C
+device		a37x0_iic		# Armada 37x0 I2C controller
+device		tca64xx			# I2C gpio expander
+device		twsi			# Allwinner/Marvell I2C controller
+
+# Interrupt controllers
+device		mv_cp110_icu		# Marvell CP110 ICU
+device		mv_ap806_gicp		# Marvell AP806 GICP
+device		mv_ap806_sei		# Marvell AP806 SEI
+
+# Real-time clock support
+device		mv_rtc			# Marvell Real-time Clock
+
+# Crypto accelerators
+device		safexcel		# Inside Secure EIP-97
+
+# Thermal sensors
+device		mv_thermal		# Marvell Thermal Sensor Controller
+
+# SPI
+device		a37x0_spi		# Marvell Armada 37x0 SPI Controller
+
+# Serial (COM) ports
+device		uart_mvebu		# Armada 3700 UART driver
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+
+# Ethernet NICs
+device		neta			# Marvell Armada 370/38x/XP/3700 NIC
+
+# Etherswitch devices
+device		etherswitch		# Enable etherswitch support
+device		miiproxy		# Required for etherswitch
+
+# USB support
+device		ehci_mv			# Marvell EHCI USB interface
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
+
+options 	FDT
+device		acpi
+
+# Clocks
+device		a37x0_xtal		# Marvell xtal-clock
+device		a37x0_tbg		# Marvell tbg-clock
+device		a37x0_nb_periph		# Marvell north-bridge peripheral clock
+device		a37x0_sb_periph		# Maravell south-bridge peripheral clock
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/mv"

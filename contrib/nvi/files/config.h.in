@@ -1,0 +1,26 @@
+/* Define when using wide characters */
+#cmakedefine USE_WIDECHAR
+
+/* Define when iconv can be used */
+#cmakedefine USE_ICONV
+
+/* Define when the 2nd argument of iconv(3) is not const */
+#cmakedefine ICONV_TRADITIONAL
+
+/* Define if you have <libutil.h> */
+#cmakedefine HAVE_LIBUTIL_H
+
+/* Define if you have <ncurses.h> */
+#cmakedefine HAVE_NCURSES_H
+
+/* Define if you have <ncursesw/ncurses.h> */
+#cmakedefine HAVE_NCURSESW_NCURSES_H
+
+/* Define if you have <pty.h> */
+#cmakedefine HAVE_PTY_H
+
+/* Define if you have <term.h> */
+#cmakedefine HAVE_TERM_H
+
+/* Define if struct dirent has field d_namlen */
+#cmakedefine HAVE_DIRENT_D_NAMLEN

@@ -1,0 +1,218 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 1, 2022
+.Dt CAP_SYSCTL 3
+.Os
+.Sh NAME
+.Nm cap_sysctl
+.Nd "library for getting or setting system information in capability mode"
+.Sh LIBRARY
+.Lb libcap_sysctl
+.Sh SYNOPSIS
+.In libcasper.h
+.In casper/cap_sysctl.h
+.Ft int
+.Fn cap_sysctl "cap_channel_t *chan" "const int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "const void *newp" "size_t newlen"
+.Ft int
+.Fn cap_sysctlbyname "cap_channel_t *chan" "const char *name" "void *oldp" "size_t *oldlenp" "const void *newp" "size_t newlen"
+.Ft int
+.Fn cap_sysctlnametomib "cap_channel_t *chan" "const char *name" "int *mibp" "size_t *sizep"
+.Ft cap_sysctl_limit_t *
+.Fn cap_sysctl_limit_init "cap_channel_t *chan"
+.Ft cap_sysctl_limit_t *
+.Fn cap_sysctl_limit_name "cap_sysctl_limit_t *limit" "const char *name" "int flags"
+.Ft cap_sysctl_limit_t *
+.Fn cap_sysctl_limit_mib "cap_sysctl_limit_t *limit" "const int *mibp" "u_int miblen" "int flags"
+.Ft int
+.Fn cap_sysctl_limit "cap_sysctl_limit_t *limit"
+.Sh DESCRIPTION
+The
+.Fn cap_sysctl ,
+.Fn cap_sysctlbyname
+and
+.Fn cap_sysctlnametomib
+functions are equivalent to
+.Xr sysctl 3 ,
+.Xr sysctlbyname 3
+and
+.Xr sysctlnametomib 3 ,
+except that they are implemented by the
+.Ql system.sysctl
+.Xr libcasper 3
+service and require a corresponding
+.Xr libcasper 3
+capability.
+.Sh LIMITS
+By default, the
+.Nm
+capability provides unrestricted access to the sysctl namespace.
+Applications typically only require access to a small number of sysctl
+variables; the
+.Fn cap_sysctl_limit
+interface can be used to restrict the sysctls that can be accessed using
+the
+.Nm
+capability.
+.Fn cap_sysctl_limit_init
+returns an opaque limit handle used to store a list of permitted sysctls
+and access rights.
+Rights are encoded using the following flags:
+.Pp
+.Bd -literal -offset indent -compact
+CAP_SYSCTL_READ		allow reads of the sysctl variable
+CAP_SYSCTL_WRITE        allow writes of the sysctl variable
+CAP_SYSCTL_RDWR         allow reads and writes of the sysctl variable
+CAP_RECURSIVE           permit access to any child of the sysctl variable
+.Ed
+.Pp
+The
+.Fn cap_sysctl_limit_name
+function adds the sysctl identified by
+.Ar name
+to the limit list, and
+.Fn cap_sysctl_limit_mib
+function adds the sysctl identified by
+.Ar mibp
+to the limit list.
+The access rights for the sysctl are specified in the
+.Ar flags
+parameter; at least one of
+.Dv CAP_SYSCTL_READ ,
+.Dv CAP_SYSCTL_WRITE
+and
+.Dv CAP_SYSCTL_RDWR
+must be specified.
+.Fn cap_sysctl_limit
+applies a set of sysctl limits to the capability, denying access to sysctl
+variables not belonging to the set.
+It consumes the limit handle.
+After either success or failure, the user must not access the handle again.
+.Pp
+Once a set of limits is applied, subsequent calls to
+.Fn cap_sysctl_limit
+will fail unless the new set is a subset of the current set.
+.Pp
+.Fn cap_sysctlnametomib
+will succeed so long as the named sysctl variable is present in the limit set,
+regardless of its access rights.
+When a sysctl variable name is added to a limit set, its MIB identifier is
+automatically added to the set.
+.Sh EXAMPLES
+The following example first opens a capability to casper, uses this
+capability to create the
+.Nm system.sysctl
+casper service, and then uses the
+.Nm
+capability to get the value of
+.Dv kern.trap_enotcap .
+.Bd -literal
+cap_channel_t *capcas, *capsysctl;
+const char *name = "kern.trap_enotcap";
+void *limit;
+size_t size;
+bool value;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.sysctl service. */
+capsysctl = cap_service_open(capcas, "system.sysctl");
+if (capsysctl == NULL)
+	err(1, "Unable to open system.sysctl service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Create limit for one MIB with read access only. */
+limit = cap_sysctl_limit_init(capsysctl);
+(void)cap_sysctl_limit_name(limit, name, CAP_SYSCTL_READ);
+
+/* Limit system.sysctl. */
+if (cap_sysctl_limit(limit) < 0)
+	err(1, "Unable to set limits");
+
+/* Fetch value. */
+size = sizeof(value);
+if (cap_sysctlbyname(capsysctl, name, &value, &size, NULL, 0) < 0)
+	err(1, "Unable to get value of sysctl");
+
+printf("The value of %s is %d.\\n", name, value);
+
+cap_close(capsysctl);
+.Ed
+.Sh RETURN VALUES
+.Fn cap_sysctl_limit_init
+will return a new limit handle on success or
+.Dv NULL
+on failure, and set
+.Va errno .
+.Fn cap_sysctl_limit_mib
+and
+.Fn cap_sysctl_limit_name
+will return the modified limit handle on success or
+.Dv NULL
+on failure and set
+.Va errno .
+After failure, the caller must not access the limit handle again.
+.Fn cap_sysctl_limit
+will return
+.Dv -1
+on failure and set
+.Va errno .
+.Fn cap_sysctl ,
+.Fn cap_sysctlbyname ,
+and
+.Fn cap_sysctlnametomib
+have the same return values as their non-capability-mode equivalents as
+documented in
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr err 3 ,
+.Xr sysctl 3 ,
+.Xr sysctlbyname 3 ,
+.Xr sysctlnametomib 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh HISTORY
+The
+.Nm cap_sysctl
+service first appeared in
+.Fx 10.3 .
+.Sh AUTHORS
+The
+.Nm cap_sysctl
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

@@ -1,0 +1,222 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2022 NetApp, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 1, 2022
+.Dt BOOTTRACE 4
+.Os
+.Sh NAME
+.Nm boottrace
+.Nd Boot-time, run-time, and shutdown-time tracing facility
+.Sh SYNOPSIS
+.In sys/boottrace.h
+.Sh DESCRIPTION
+.Nm
+is a kernel-userspace interface for capturing trace events
+during system boot and shutdown
+.Pq in particular, one-shot events .
+.Pp
+Event annotations are present in:
+.Bl -bullet -compact
+.It
+the boot and shutdown paths in the
+kernel
+.It
+some key system utilities
+.Po
+.Xr init 8 ,
+.Xr shutdown 8 ,
+.Xr reboot 8
+.Pc
+.It
+.Xr rc 8
+scripts
+.El
+.Pp
+.Nm
+is unconditionally compiled into the kernel and
+disabled by default.
+.Sh EVENT TABLES
+Events are stored in three event tables: boot-time events, run-time events,
+and shutdown-time events.
+.Bl -column "shutdown-time events" ""
+.It Sy Table Name Ta Sy Event Description
+.It boot-time events Ta Boot, kernel initialization, and
+.Xr rc 8
+execution;
+.Xo
+until
+.Xr init 8
+transitions into multi-user mode
+.Xc
+.It run-time events Ta Xo
+From when the system has completed booting (including
+.Xr rc 8
+execution) and
+.Xr init 8
+transitions to multi-user mode
+until the beginning of shutdown procedures
+.Xc
+.It shutdown-time events Ta Xo
+After initialization of a shutdown, a reboot, or a kernel panic
+.Xc
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Nm
+features the following loader tunables:
+.Bl -tag -width indent
+.It Va kern.boottrace.dotrace_kernel
+Set to
+.Ql 1
+to enable tracing of kernel events.
+Default:
+.Ql 1
+.Pq enabled .
+.It Va kern.boottrace.dotrace_user
+Set to
+.Ql 1
+to enable tracing of userspace events.
+Default:
+.Ql 1
+.Pq enabled .
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.boottrace.boottrace
+Create a new trace event and write it to the boot-time table.
+.Pp
+A new trace event consists of a process name and an event description,
+separated by a colon
+.Pq Ql \&: .
+If the colon is missing or if the provided string for the process name is empty,
+the process name is inferred from the invoking process
+.Pq which is its executable name .
+.It Va kern.boottrace.enabled
+Set to
+.Ql 1
+to enable tracing.
+This is a read-only
+.Xr sysctl 8
+variable.
+Default:
+.Ql 0
+.Pq disabled .
+.It Va kern.boottrace.log
+Show the events stored in boot-time and run-time
+tables.
+This
+is an opaque
+.Xr sysctl 8
+variable.
+.It Va kern.boottrace.runtrace
+Same as
+.Va kern.boottrace.boottrace ,
+but write to the run-time table.
+.It Va kern.boottrace.shuttrace
+Same as
+.Va kern.boottrace.boottrace ,
+but write to the shutdown-time table.
+.It Va kern.boottrace.shutdown_trace
+Log shutdown-time events to the console before the system halts.
+.It Va kern.boottrace.shutdown_trace_threshold
+Set a time threshold for logging shutdown-time events in milliseconds.
+An event is ignored
+if the time difference to the previous event is less than
+the threshold value.
+Default:
+.Ql 0
+.Pq logs all events .
+.El
+.Sh EXAMPLES
+Create a new trace event with a process name
+.Dq foo
+and an event description
+.Dq bar
+using
+.Xr sysctl 8 :
+.Bd -literal -offset indent
+sysctl kern.boottrace.boottrace="foo:bar"
+.Ed
+.Pp
+Here is a sample output of
+.Va kern.boottrace.log
+.Po shortened with
+.Dq [...]
+for readability
+.Pc :
+.Bd -literal
+CPU      msecs      delta process                  event                                      PID CPUtime IBlks OBlks
+  0   44872811          0 kernel                   sysinit 0x2100001                            0    0.00     0     0
+  0   44872812          1 kernel                   sysinit 0x2110000                            0    0.00     0     0
+  0   44872812          0 kernel                   sysinit 0x2140000                            0    0.00     0     0
+[...]
+  0   44872817          0 kernel                   sysinit 0x2800000                            0    0.00     0     0
+  0   44873820       1003 kernel                   sysinit 0x2880000                            0    0.00     0     0
+  0   44873820          0 kernel                   sysinit 0x2888000                            0    0.00     0     0
+[...]
+  1   44875735          0 kernel                   sysinit 0xfffffff                            0    0.00     0     0
+  1   44875735          0 swapper                  mi_startup done                              0    0.00     0     0
+  0   44875750         15 init                     init(8) starting...                          1    0.00     0     0
+  0   44875751          1 init                     /etc/rc starting...                          1    0.00     0     0
+  0   44875831         80 boottrace                /etc/rc.d/rctl start                        26    0.00     0     0
+  1   44875839          8 boottrace                /etc/rc.d/rctl done                         26    0.00     2     0
+[...]
+  0   44876446          0 boottrace                /etc/rc.d/netif start                      390    0.00     0     0
+  1   44881116       4670 boottrace                /etc/rc.d/netif done                       390    0.12    34     0
+[...]
+  0   44882866          1 boottrace                /etc/rc.d/securelevel start               1679    0.00     0     0
+  0   44882872          6 boottrace                /etc/rc.d/securelevel done                1679    0.00     0     0
+  1   44882879          7 init                     /etc/rc finished                             1    2.22   743    15
+Total measured time: 10068 msecs
+
+
+CPU      msecs      delta process                  event                                      PID CPUtime IBlks OBlks
+  1   44882880          0 init                     multi-user start                             1    2.22   743    15
+  0   44918215      35335 kldload                  hwpmc.ko: sysinit 0xd800000               1698    0.00     0     0
+Total measured time: 35335 msecs
+.Ed
+.Sh SEE ALSO
+.Xr tslog 4 ,
+.Xr boottrace 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+NetApp created
+.Nm
+to diagnose slow devices and subsystems.
+Once upstreamed,
+.Nm
+was first publicly released with
+.Fx 14.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

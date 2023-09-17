@@ -1,0 +1,857 @@
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" Portions of this documentation were written by Konstantin Belousov
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 15, 2023
+.Dt PROCCTL 2
+.Os
+.Sh NAME
+.Nm procctl
+.Nd control processes
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/procctl.h
+.Ft int
+.Fn procctl "idtype_t idtype" "id_t id" "int cmd" "void *data"
+.Sh DESCRIPTION
+The
+.Fn procctl
+system call provides for control over processes.
+The
+.Fa idtype
+and
+.Fa id
+arguments specify the set of processes to control.
+If multiple processes match the identifier,
+.Nm
+will make a
+.Dq best effort
+to control as many of the selected processes as possible.
+An error is only returned if no selected processes successfully complete
+the request.
+The following identifier types are supported:
+.Bl -tag -width P_PGID
+.It Dv P_PID
+Control the process with the process ID
+.Fa id .
+.Fa id
+zero is a shortcut for the calling process ID.
+.It Dv P_PGID
+Control processes belonging to the process group with the ID
+.Fa id .
+.El
+.Pp
+The control request to perform is specified by the
+.Fa cmd
+argument.
+.Pp
+All status changing requests
+.Dv *_CTL
+require the caller to have the right to debug the target.
+All status query requests
+.DV *_STATUS
+require the caller to have the right to observe the target.
+.Pp
+The following commands are supported:
+.Bl -tag -width PROC_TRAPCAP_STATUS
+.It Dv PROC_ASLR_CTL
+Controls the Address Space Layout Randomization (ASLR) in the program
+images created
+by
+.Xr execve 2
+in the specified process or its descendants that did not changed
+the control nor modified it by other means.
+The
+.Fa data
+parameter must point to the integer variable holding one of the following
+values:
+.Bl -tag -width PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_FORCE_ENABLE
+Request that ASLR is enabled after execution, even if it is disabled
+system-wide.
+The image flag and set-uid might prevent ASLR enablement still.
+.It Dv PROC_ASLR_FORCE_DISABLE
+Request that ASLR is disabled after execution.
+Same notes as for
+.Dv PROC_ASLR_FORCE_ENABLE
+apply.
+.It Dv PROC_ASLR_NOFORCE
+Use the system-wide configured policy for ASLR.
+.El
+.It Dv PROC_ASLR_STATUS
+Returns the current status of ASLR enablement for the target process.
+The
+.Fa data
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_FORCE_ENABLE
+.It Dv PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_NOFORCE
+.El
+.Pp
+If the currently executed image in the process itself has ASLR enabled,
+the
+.Dv PROC_ASLR_ACTIVE
+flag is or-ed with the value listed above.
+.It Dv PROC_PROTMAX_CTL
+Controls implicit application of PROT_MAX protection equal to the
+.Fa prot
+argument of the
+.Xr mmap 2
+syscall, in the target process.
+The
+.Fa data
+parameter must point to the integer variable holding one of the following
+values:
+.Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_FORCE_ENABLE
+Enables implicit PROT_MAX application,
+even if it is disabled system-wide by the sysctl
+.Va vm.imply_prot_max .
+The image flag might still prevent the enablement.
+.It Dv PROC_PROTMAX_FORCE_DISABLE
+Request that implicit application of PROT_MAX be disabled.
+Same notes as for
+.Dv PROC_PROTMAX_FORCE_ENABLE
+apply.
+.It Dv PROC_PROTMAX_NOFORCE
+Use the system-wide configured policy for PROT_MAX.
+.El
+.It Dv PROC_PROTMAX_STATUS
+Returns the current status of implicit PROT_MAX enablement for the
+target process.
+The
+.Fa data
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_FORCE_ENABLE
+.It Dv PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_NOFORCE
+.El
+.Pp
+If the currently executed image in the process itself has implicit PROT_MAX
+application enabled, the
+.Dv PROC_PROTMAX_ACTIVE
+flag is or-ed with the value listed above.
+.It Dv PROC_SPROTECT
+Set process protection state.
+This is used to mark a process as protected from being killed if the system
+exhausts the available memory and swap.
+The
+.Fa data
+parameter must point to an integer containing an operation and zero or more
+optional flags.
+The following operations are supported:
+.Bl -tag -width PPROT_CLEAR
+.It Dv PPROT_SET
+Mark the selected processes as protected.
+.It Dv PPROT_CLEAR
+Clear the protected state of selected processes.
+.El
+.Pp
+The following optional flags are supported:
+.Bl -tag -width PPROT_DESCEND
+.It Dv PPROT_DESCEND
+Apply the requested operation to all child processes of each selected process
+in addition to each selected process.
+.It Dv PPROT_INHERIT
+When used with
+.Dv PPROT_SET ,
+mark all future child processes of each selected process as protected.
+Future child processes will also mark all of their future child processes.
+.El
+.It Dv PROC_REAP_ACQUIRE
+Acquires the reaper status for the current process.
+Reaper status means that children orphaned by the reaper's descendants
+that were forked after the acquisition of reaper status are reparented to the
+reaper process.
+After system initialization,
+.Xr init 8
+is the default reaper.
+.It Dv PROC_REAP_RELEASE
+Release the reaper state for the current process.
+The reaper of the current process becomes the new reaper of the
+current process's descendants.
+.It Dv PROC_REAP_STATUS
+Provides information about the reaper of the specified process,
+or the process itself when it is a reaper.
+The
+.Fa data
+argument must point to a
+.Vt procctl_reaper_status
+structure which is filled in by the syscall on successful return.
+.Bd -literal
+struct procctl_reaper_status {
+	u_int	rs_flags;
+	u_int	rs_children;
+	u_int	rs_descendants;
+	pid_t	rs_reaper;
+	pid_t	rs_pid;
+};
+.Ed
+The
+.Fa rs_flags
+may have the following flags returned:
+.Bl -tag -width REAPER_STATUS_REALINIT
+.It Dv REAPER_STATUS_OWNED
+The specified process has acquired reaper status and has not
+released it.
+When the flag is returned, the specified process
+.Fa id ,
+pid, identifies the reaper, otherwise the
+.Fa rs_reaper
+field of the structure is set to the pid of the reaper
+for the specified process id.
+.It Dv REAPER_STATUS_REALINIT
+The specified process is the root of the reaper tree, i.e.,
+.Xr init 8 .
+.El
+.Pp
+The
+.Fa rs_children
+field returns the number of children of the reaper among the descendants.
+It is possible to have a child whose reaper is not the specified process,
+since the reaper for any existing children is not reset on the
+.Dv PROC_REAP_ACQUIRE
+operation.
+The
+.Fa rs_descendants
+field returns the total number of descendants of the reaper(s),
+not counting descendants of the reaper in the subtree.
+The
+.Fa rs_reaper
+field returns the reaper pid.
+The
+.Fa rs_pid
+returns the pid of one reaper child if there are any descendants.
+.It Dv PROC_REAP_GETPIDS
+Queries the list of descendants of the reaper of the specified process.
+The request takes a pointer to a
+.Vt procctl_reaper_pids
+structure in the
+.Fa data
+parameter.
+.Bd -literal
+struct procctl_reaper_pids {
+	u_int	rp_count;
+	struct procctl_reaper_pidinfo *rp_pids;
+};
+.Ed
+When called, the
+.Fa rp_pids
+field must point to an array of
+.Vt procctl_reaper_pidinfo
+structures, to be filled in on return,
+and the
+.Fa rp_count
+field must specify the size of the array,
+into which no more than
+.Fa rp_count
+elements will be filled in by the kernel.
+.Pp
+The
+.Vt "struct procctl_reaper_pidinfo"
+structure provides some information about one of the reaper's descendants.
+Note that for a descendant that is not a child, it may be incorrectly
+identified because of a race in which the original child process exited
+and the exited process's pid was reused for an unrelated process.
+.Bd -literal
+struct procctl_reaper_pidinfo {
+	pid_t	pi_pid;
+	pid_t	pi_subtree;
+	u_int	pi_flags;
+};
+.Ed
+The
+.Fa pi_pid
+field is the process id of the descendant.
+The
+.Fa pi_subtree
+field provides the pid of the child of the reaper, which is the (grand-)parent
+of the process.
+The
+.Fa pi_flags
+field returns the following flags, further describing the descendant:
+.Bl -tag -width REAPER_PIDINFO_EXITING
+.It Dv REAPER_PIDINFO_VALID
+Set to indicate that the
+.Vt procctl_reaper_pidinfo
+structure was filled in by the kernel.
+Zero-filling the
+.Fa rp_pids
+array and testing the
+.Dv REAPER_PIDINFO_VALID
+flag allows the caller to detect the end
+of the returned array.
+.It Dv REAPER_PIDINFO_CHILD
+The
+.Fa pi_pid
+field identifies the direct child of the reaper.
+.It Dv REAPER_PIDINFO_REAPER
+The reported process is itself a reaper.
+The descendants of the subordinate reaper are not reported.
+.It Dv REAPER_PIDINFO_ZOMBIE
+The reported process is in the zombie state, ready to be reaped.
+.It Dv REAPER_PIDINFO_STOPPED
+The reported process is stopped by a SIGSTOP/SIGTSTP signal.
+.It Dv REAPER_PIDINFO_EXITING
+The reported process is in the process of exiting (but not yet a zombie).
+.El
+.It Dv PROC_REAP_KILL
+Request to deliver a signal to some subset of the descendants of the reaper.
+The
+.Fa data
+parameter must point to a
+.Vt procctl_reaper_kill
+structure, which is used both for parameters and status return.
+.Bd -literal
+struct procctl_reaper_kill {
+	int	rk_sig;
+	u_int	rk_flags;
+	pid_t	rk_subtree;
+	u_int	rk_killed;
+	pid_t	rk_fpid;
+};
+.Ed
+The
+.Fa rk_sig
+field specifies the signal to be delivered.
+Zero is not a valid signal number, unlike for
+.Xr kill 2 .
+The
+.Fa rk_flags
+field further directs the operation.
+It is or-ed from the following flags:
+.Bl -tag -width REAPER_KILL_CHILDREN
+.It Dv REAPER_KILL_CHILDREN
+Deliver the specified signal only to direct children of the reaper.
+.It Dv REAPER_KILL_SUBTREE
+Deliver the specified signal only to descendants that were forked by
+the direct child with pid specified in the
+.Fa rk_subtree
+field.
+.El
+If neither the
+.Dv REAPER_KILL_CHILDREN
+nor the
+.Dv REAPER_KILL_SUBTREE
+flags are specified, all current descendants of the reaper are signalled.
+.Pp
+If a signal was delivered to any process, the return value from the request
+is zero.
+In this case, the
+.Fa rk_killed
+field identifies the number of processes signalled.
+The
+.Fa rk_fpid
+field is set to the pid of the first process for which signal
+delivery failed, e.g., due to permission problems.
+If no such process exists, the
+.Fa rk_fpid
+field is set to -1.
+.It Dv PROC_TRACE_CTL
+Enable or disable tracing of the specified process(es), according to the
+value of the integer argument.
+Tracing includes attachment to the process using the
+.Xr ptrace 2
+and
+.Xr ktrace 2 ,
+debugging sysctls,
+.Xr hwpmc 4 ,
+.Xr dtrace 1 ,
+and core dumping.
+Possible values for the
+.Fa data
+argument are:
+.Bl -tag -width PROC_TRACE_CTL_DISABLE_EXEC
+.It Dv PROC_TRACE_CTL_ENABLE
+Enable tracing, after it was disabled by
+.Dv PROC_TRACE_CTL_DISABLE .
+Only allowed for self.
+.It Dv PROC_TRACE_CTL_DISABLE
+Disable tracing for the specified process.
+Tracing is re-enabled when the process changes the executing
+program with the
+.Xr execve 2
+syscall.
+A child inherits the trace settings from the parent on
+.Xr fork 2 .
+.It Dv PROC_TRACE_CTL_DISABLE_EXEC
+Same as
+.Dv PROC_TRACE_CTL_DISABLE ,
+but the setting persists for the process even after
+.Xr execve 2 .
+.El
+.It Dv PROC_TRACE_STATUS
+Returns the current tracing status for the specified process in
+the integer variable pointed to by
+.Fa data .
+If tracing is disabled,
+.Fa data
+is set to -1.
+If tracing is enabled, but no debugger is attached by the
+.Xr ptrace 2
+syscall,
+.Fa data
+is set to 0.
+If a debugger is attached,
+.Fa data
+is set to the pid of the debugger process.
+.It Dv PROC_TRAPCAP_CTL
+Controls the capability mode sandbox actions for the specified
+sandboxed processes,
+on a return from any syscall which gives either a
+.Er ENOTCAPABLE
+or
+.Er ECAPMODE
+error.
+If the control is enabled, such errors from the syscalls cause
+delivery of the synchronous
+.Dv SIGTRAP
+signal to the thread immediately before returning from the syscalls.
+.Pp
+Possible values for the
+.Fa data
+argument are:
+.Bl -tag -width PROC_TRAPCAP_CTL_DISABLE
+.It Dv PROC_TRAPCAP_CTL_ENABLE
+Enable the
+.Dv SIGTRAP
+signal delivery on capability mode access violations.
+The enabled mode is inherited by the children of the process,
+and is kept after
+.Xr fexecve 2
+calls.
+.It Dv PROC_TRAPCAP_CTL_DISABLE
+Disable the signal delivery on capability mode access violations.
+Note that the global sysctl
+.Dv kern.trap_enotcap
+might still cause the signal to be delivered.
+See
+.Xr capsicum 4 .
+.El
+.Pp
+On signal delivery, the
+.Va si_errno
+member of the
+.Fa siginfo
+signal handler parameter is set to the syscall error value,
+and the
+.Va si_code
+member is set to
+.Dv TRAP_CAP .
+The system call number is stored in the
+.Va si_syscall
+field of the
+.Fa siginfo
+signal handler parameter.
+The other system call parameters can be read from the
+.Fa ucontext_t
+but the system call number is typically stored in the register
+that also contains the return value and so is unavailable in the
+signal handler.
+.Pp
+See
+.Xr capsicum 4
+for more information about the capability mode.
+.It Dv PROC_TRAPCAP_STATUS
+Return the current status of signalling capability mode access
+violations for the specified process.
+The integer value pointed to by the
+.Fa data
+argument is set to the
+.Dv PROC_TRAPCAP_CTL_ENABLE
+value if the process control enables signal delivery, and to
+.Dv PROC_TRAPCAP_CTL_DISABLE
+otherwise.
+.Pp
+See the note about sysctl
+.Dv kern.trap_enotcap
+above, which gives independent global control of signal delivery.
+.It Dv PROC_PDEATHSIG_CTL
+Request the delivery of a signal when the parent of the calling
+process exits.
+.Fa idtype
+must be
+.Dv P_PID
+and
+.Fa id
+must be the either caller's pid or zero, with no difference in effect.
+The value is cleared for child processes
+and when executing set-user-ID or set-group-ID binaries.
+.Fa data
+must point to a value of type
+.Vt int
+indicating the signal
+that should be delivered to the caller.
+Use zero to cancel a previously requested signal delivery.
+.It Dv PROC_PDEATHSIG_STATUS
+Query the current signal number that will be delivered when the parent
+of the calling process exits.
+.Fa idtype
+must be
+.Dv P_PID
+and
+.Fa id
+must be the either caller's pid or zero, with no difference in effect.
+.Fa data
+must point to a memory location that can hold a value of type
+.Vt int .
+If signal delivery has not been requested, it will contain zero
+on return.
+.It Dv PROC_STACKGAP_CTL
+Controls the stack gaps in the specified process.
+A stack gap is the part of the growth area for a
+.Dv MAP_STACK
+mapped region that is reserved and never filled by memory.
+Instead, the process is guaranteed to receive a
+.Dv SIGSEGV
+signal on accessing pages in the gap.
+Gaps protect against stack overflow corrupting memory adjacent
+to the stack.
+.Pp
+The
+.Fa data
+argument must point to an integer variable containing flags.
+The following flags are allowed:
+.Bl -tag -width PROC_STACKGAP_DISABLE_EXEC
+.It Dv PROC_STACKGAP_ENABLE
+This flag is only accepted for consistency with
+.Dv PROC_STACKGAP_STATUS .
+If stack gaps are enabled, the flag is ignored.
+If disabled, the flag causes an
+.Ev EINVAL
+error to be returned.
+After gaps are disabled in a process, they can only be re-enabled when an
+.Xr execve 2
+is performed.
+.It Dv PROC_STACKGAP_DISABLE
+Disable stack gaps for the process.
+For existing stacks, the gap is no longer a reserved part of the growth
+area and can be filled by memory on access.
+.It Dv PROC_STACKGAP_ENABLE_EXEC
+Enable stack gaps for programs started after an
+.Xr execve 2
+by the specified process.
+.It Dv PROC_STACKGAP_DISABLE_EXEC
+Inherit disabled stack gaps state after
+.Xr execve 2 .
+In other words, if the currently executing program has stack gaps disabled,
+they are kept disabled on exec.
+If gaps were enabled, they are kept enabled after exec.
+.El
+.Pp
+The stack gap state is inherited from the parent on
+.Xr fork 2 .
+.It Dv PROC_STACKGAP_STATUS
+Returns the current stack gap state for the specified process.
+.Fa data
+must point to an integer variable, which is used to return a bitmask
+consisting of the following flags:
+.Bl -tag -width PROC_STACKGAP_DISABLE_EXEC
+.It Dv PROC_STACKGAP_ENABLE
+Stack gaps are enabled.
+.It Dv PROC_STACKGAP_DISABLE
+Stack gaps are disabled.
+.It Dv PROC_STACKGAP_ENABLE_EXEC
+Stack gaps are enabled in the process after
+.Xr execve 2 .
+.It Dv PROC_STACKGAP_DISABLE_EXEC
+Stack gaps are disabled in the process after
+.Xr execve 2 .
+.El
+.It Dv PROC_NO_NEW_PRIVS_CTL
+Allows one to ignore the SUID and SGID bits on the program
+images activated by
+.Xr execve 2
+in the specified process and its future descendants.
+The
+.Fa data
+parameter must point to the integer variable holding the following
+value:
+.Bl -tag -width PROC_NO_NEW_PRIVS_ENABLE
+.It Dv PROC_NO_NEW_PRIVS_ENABLE
+Request SUID and SGID bits to be ignored.
+.El
+.Pp
+It is not possible to disable it once it has been enabled.
+.It Dv PROC_NO_NEW_PRIVS_STATUS
+Returns the current status of SUID/SGID enablement for the target process.
+The
+.Fa data
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_NO_NEW_PRIVS_DISABLE
+.It Dv PROC_NO_NEW_PRIVS_ENABLE
+.It Dv PROC_NO_NEW_PRIVS_DISABLE
+.El
+.It Dv PROC_WXMAP_CTL
+Controls the 'write exclusive against execution' permissions for the
+mappings in the process address space.
+It overrides the global settings established by the
+.Dv kern.elf{32/64}.allow_wx
+sysctl,
+and the corresponding bit in the ELF control note, see
+.Xr elfctl 1 .
+.Pp
+The
+.Fa data
+parameter must point to the integer variable holding one of the
+following values:
+.Bl -tag -width PROC_WX_MAPPINGS_DISALLOW_EXEC
+.It Dv PROC_WX_MAPPINGS_PERMIT
+Enable creation of mappings that have both write and execute
+protection attributes, in the specified process' address space.
+.It Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+In the new address space created by
+.Xr execve 2 ,
+disallow creation of mappings that have both write and execute
+permissions.
+.El
+.Pp
+Once creation of writeable and executable mappings is allowed,
+it is impossible (and pointless) to disallow it.
+The only way to ensure the absence of such mappings after they
+were enabled in a given process, is to set the
+.Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+flag and
+.Xr execve 2
+an image.
+.It Dv PROC_WXMAP_STATUS
+Returns the current status of the 'write exclusive against execution'
+enforcement for the specified process.
+The
+.Dv data
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_WX_MAPPINGS_DISALLOW_EXEC
+.It Dv PROC_WX_MAPPINGS_PERMIT
+Creation of simultaneously writable and executable mapping is permitted,
+otherwise the process cannot create such mappings.
+.It Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+After
+.Xr execve 2 ,
+the new address space should disallow creation of simultaneously
+writable and executable mappings.
+.El
+.Pp
+Additionally, if the address space of the process disallows
+creation of simultaneously writable and executable mappings and
+it is guaranteed that no such mapping was created since address space
+creation, the
+.Dv PROC_WXORX_ENFORCE
+flag is set in the returned value.
+.El
+.Sh x86 MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width PROC_KPTI_STATUS
+.It Dv PROC_KPTI_CTL
+AMD64 only.
+Controls the Kernel Page Table Isolation (KPTI) option for the children
+of the specified process.
+For the command to work, the
+.Va vm.pmap.kpti
+tunable must be enabled on boot.
+It is not possible to change the KPTI setting for a running process,
+except at the
+.Xr execve 2 ,
+where the address space is reinitialized.
+.Pp
+The
+.Fa data
+parameter must point to an integer variable containing one of the
+following commands:
+.Bl -tag -width PROC_KPTI_CTL_DISABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
+Enable KPTI after
+.Xr execve 2 .
+.It Dv PROC_KPTI_CTL_DISABLE_ON_EXEC
+Disable KPTI after
+.Xr execve 2 .
+Only root or a process having the
+.Va PRIV_IO
+privilege might use this option.
+.El
+.It Dv PROC_KPTI_STATUS
+Returns the current KPTI status for the specified process.
+.Fa data
+must point to the integer variable, which returns the
+following statuses:
+.Bl -tag -width PROC_KPTI_CTL_DISABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_DISABLE_ON_EXEC
+.El
+.Pp
+The status is or-ed with the
+.Va PROC_KPTI_STATUS_ACTIVE
+in case KPTI is active for the current address space of the process.
+.Sh NOTES
+Disabling tracing on a process should not be considered a security
+feature, as it is bypassable both by the kernel and privileged processes,
+and via other system mechanisms.
+As such, it should not be utilized to reliably protect cryptographic
+keying material or other confidential data.
+.Pp
+Note that processes can trivially bypass the 'no simultaneously
+writable and executable mappings' policy by first marking some mapping
+as writeable and write code to it, then removing write and adding
+execute permission.
+This may be legitimately required by some programs, such as JIT compilers.
+.Sh RETURN VALUES
+If an error occurs, a value of -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn procctl
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa data
+parameter points outside the process's allocated address space.
+.It Bq Er EINVAL
+The
+.Fa cmd
+argument specifies an unsupported command.
+.Pp
+The
+.Fa idtype
+argument specifies an unsupported identifier type.
+.It Bq Er EPERM
+The calling process does not have permission to perform the requested
+operation on any of the selected processes.
+.It Bq Er ESRCH
+No processes matched the requested
+.Fa idtype
+and
+.Fa id .
+.It Bq Er EINVAL
+An invalid operation or flag was passed in
+.Fa data
+for a
+.Dv PROC_SPROTECT
+command.
+.It Bq Er EPERM
+The
+.Fa idtype
+argument is not equal to
+.Dv P_PID ,
+or
+.Fa id
+is not equal to the pid of the calling process, for
+.Dv PROC_REAP_ACQUIRE
+or
+.Dv PROC_REAP_RELEASE
+requests.
+.It Bq Er EINVAL
+Invalid or undefined flags were passed to a
+.Dv PROC_REAP_KILL
+request.
+.It Bq Er EINVAL
+An invalid or zero signal number was requested for a
+.Dv PROC_REAP_KILL
+request.
+.It Bq Er EINVAL
+The
+.Dv PROC_REAP_RELEASE
+request was issued by the
+.Xr init 8
+process.
+.It Bq Er EBUSY
+The
+.Dv PROC_REAP_ACQUIRE
+request was issued by a process that had already acquired reaper status
+and has not yet released it.
+.It Bq Er EBUSY
+The
+.Dv PROC_TRACE_CTL
+request was issued for a process already being traced.
+.It Bq Er EPERM
+The
+.Dv PROC_TRACE_CTL
+request to re-enable tracing of the process
+.Po Dv PROC_TRACE_CTL_ENABLE Pc ,
+or to disable persistence of
+.Dv PROC_TRACE_CTL_DISABLE
+on
+.Xr execve 2
+was issued for a non-current process.
+.It Bq Er EINVAL
+The value of the integer
+.Fa data
+parameter for the
+.Dv PROC_TRACE_CTL
+or
+.Dv PROC_TRAPCAP_CTL
+request is invalid.
+.It Bq Er EINVAL
+The
+.Dv PROC_PDEATHSIG_CTL
+or
+.Dv PROC_PDEATHSIG_STATUS
+request referenced an unsupported
+.Fa id ,
+.Fa idtype
+or invalid signal number.
+.El
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr proccontrol 1 ,
+.Xr protect 1 ,
+.Xr cap_enter 2 ,
+.Xr kill 2 ,
+.Xr ktrace 2 ,
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
+.Xr ptrace 2 ,
+.Xr wait 2 ,
+.Xr capsicum 4 ,
+.Xr hwpmc 4 ,
+.Xr init 8
+.Sh HISTORY
+The
+.Fn procctl
+function appeared in
+.Fx 10.0 .
+.Pp
+The reaper facility is based on a similar feature of Linux and
+DragonflyBSD, and first appeared in
+.Fx 10.2 .
+.Pp
+The
+.Dv PROC_PDEATHSIG_CTL
+facility is based on the prctl(PR_SET_PDEATHSIG, ...) feature of Linux,
+and first appeared in
+.Fx 11.2 .
+.Pp
+The ASLR support was added to system for the checklists compliance in
+.Fx 13.0 .

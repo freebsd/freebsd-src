@@ -1,0 +1,1 @@
+stdin2.txt

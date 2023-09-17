@@ -1,0 +1,192 @@
+.\" Copyright (c) 2000 Sheldon Hearn
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 9, 2022
+.Dt LINUX 4
+.Os
+.Sh NAME
+.Nm linux
+.Nd Linux ABI support
+.Sh SYNOPSIS
+To enable the Linux ABI at boot time, place the following line in
+.Xr rc.conf 5 :
+.Bd -literal -offset indent
+linux_enable="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+kernel module provides limited Linux ABI (application binary interface)
+compatibility, making it possible to run many unmodified Linux applications
+without the need for virtualization or emulation.
+Some of the facilities provided are:
+.Bl -bullet
+.It
+Linux to native system call translation
+.It
+Linux-specific system calls
+.It
+Special signal handling for Linux processes
+.It
+Path translation mechanism
+.It
+Linux-specific virtual file systems
+.El
+.Pp
+The path translation mechanism makes Linux processes look up file paths
+under
+.Va emul_path
+(defaulting to
+.Pa /compat/linux )
+before
+.Pa / .
+For example, when Linux process attempts to open
+.Pa /etc/passwd ,
+it will really access
+.Pa /compat/linux/etc/passwd ,
+unless the latter does not exist.
+This is used to make sure Linux processes load Linux shared libraries
+instead of their similarly-named FreeBSD counterparts, and also
+to provide alternative versions of certain other files and virtual
+file systems.
+.Pp
+To install Linux shared libraries and system files into
+.Pa /compat/linux ,
+either use the
+.Pa emulators/linux_base-c7
+port or package,
+or
+.Xr debootstrap 8
+installed from
+.Pa sysutils/debootstrap .
+.Pp
+To avoid mounting Linux-specific filesystems at startup, add the following
+line to the
+.Xr rc.conf 5
+file:
+.Pp
+.Dl linux_mounts_enable="NO"
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va compat.linux.debug
+Enable debugging messages.
+Set to 0 to silence them.
+Defaults to 3.
+A setting of 1 prints debug messages, tells about unimplemented stuff (only
+once).
+Set to 2 is like 1, but also prints messages about implemented but not tested
+stuff (only once).
+Setting it to 3 or higher is like 2, but no rate limiting of messages.
+.It Va compat.linux.default_openfiles
+Default soft openfiles resource limit for Linux applications.
+Set to -1 to disable the limit.
+Defaults to 1024.
+.It Va compat.linux.emul_path
+Path to the Linux run-time environment.
+Defaults to
+.Pa /compat/linux .
+.It Va compat.linux.osname
+Linux kernel operating system name.
+Defaults to "Linux".
+.It Va compat.linux.osrelease
+Linux kernel operating system release.
+Changing this to something else is discouraged on non-development systems,
+because it may change the way Linux programs work.
+Some versions of GNU libc are known to use different syscalls depending
+on the value of this sysctl.
+.It Va compat.linux.oss_version
+Linux Open Sound System version.
+Defaults to 198144.
+.It Va compat.linux.preserve_vstatus
+When set to 1, it prevents Linux applications from resetting the
+.Xr termios 4
+VSTATUS setting.
+From a user perspective, this makes
+.Va SIGINFO
+work for Linux executables.
+Defaults to 1.
+.It Va compat.linux.setid_allowed
+Enable handling of set-user-ID and set-group-ID mode bits for the new
+process image file when image is to be executed under Linux ABI.
+When set to 0, new Linux images always use credentials of the program
+that issued the
+.Xr execve 2
+call, regardless of the image file mode.
+This might be reasonable or even required, because
+.Fx
+does not emulate the Linux environment completely, and missed features
+may result in security vulnerabilities.
+Defaults to 1.
+.It Va compat.linux32.emulate_i386
+In the x86_64 (amd64) world enable the real i386 Linuxulator behavior.
+For example, when set to 0, Linux uname -m will return "x86_64" even if
+uname itself is a i386 Linux executable. When set to 1, Linux i386
+uname -m will return "i686".
+Defaults to 0.
+.El
+.Sh FILES
+.Bl -tag -width /compat/linux/dev/shm -compact
+.It Pa /compat/linux
+Linux run-time environment
+.It Pa /compat/linux/dev
+device file system, see
+.Xr devfs 5
+.It Pa /compat/linux/dev/fd
+file descriptor file system mounted with the
+.Cm linrdlnk
+option, see
+.Xr fdescfs 5
+.It Pa /compat/linux/dev/shm
+in-memory file system, see
+.Xr tmpfs 5
+.It Pa /compat/linux/proc
+Linux process file system, see
+.Xr linprocfs 5
+.It Pa /compat/linux/sys
+Linux kernel objects file system, see
+.Xr linsysfs 5
+.El
+.Sh SEE ALSO
+.Xr brandelf 1 ,
+.Xr pty 4 ,
+.Xr elf 5 ,
+.Xr fdescfs 5 ,
+.Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
+.Xr tmpfs 5
+.Sh HISTORY
+Linux ABI support first appeared for i386 in
+.Fx 2.1 .
+Support for amd64 binaries first appeared in
+.Fx 10.3 .
+Support for arm64 binaries first appeared in
+.Fx 12.0 .
+.Sh BUGS
+Support for some of the Linux-specific system calls and system call arguments
+is missing.

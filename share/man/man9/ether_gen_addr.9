@@ -1,0 +1,78 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2021 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.Dd June 1, 2021
+.Dt ETHER_GEN_ADDR 9
+.Os
+.Sh NAME
+.Nm ether_gen_addr
+.Nd "generate an arbitrary MAC address for use"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.In net/if_var.h
+.In net/ethernet.h
+.Ft void
+.Fn ether_gen_addr "struct ifnet *ifp" "struct ether_addr *hwaddr"
+.Sh DESCRIPTION
+The
+.Fn ether_gen_addr
+function generates an arbitrary MAC address for use by an ethernet interface
+that does not have an assigned address.
+.Pp
+By default,
+.Nm
+attempts to generate a stable MAC address using the hostid of the jail that
+the
+.Ar ifp
+is being added to.
+During early boot, the hostid may not be set on machines that haven't yet
+populated
+.Pa /etc/hostid ,
+or on machines that do not use
+.Xr loader 8 .
+.Pp
+.Nm
+can fail to derive a MAC address due to memory allocation failure, or because
+the hostid has not been populated.
+In these cases, a locally-administered unicast MAC address will be randomly
+generated and returned via the
+.Ar hwaddr
+parameter.
+.Pp
+If
+.Nm
+succeeds, then it will return a MAC address in the FreeBSD Foundation OUI,
+.Dq 58:9c:fc ,
+via the
+.Ar hwaddr
+parameter.
+.Sh AUTHORS
+This manual page was written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

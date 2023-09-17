@@ -1,0 +1,4 @@
+$ ed.term.c
+$set 8
+1 Unknown switch
+2 Invalid argument

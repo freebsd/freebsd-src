@@ -1,0 +1,300 @@
+.\"	$NetBSD: boot.9,v 1.2 1996/09/24 07:01:26 ghudson Exp $
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
+.\" Copyright (c) 1997
+.\" 	Mike Pritchard.  All rights reserved.
+.\"
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 2021,2023 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"      for the NetBSD Project.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 20, 2023
+.Dt REBOOT 9
+.Os
+.Sh NAME
+.Nm kern_reboot ,
+.Nm shutdown_nice
+.Nd reboot, halt, or power off the system
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.In sys/reboot.h
+.Vt extern int rebooting;
+.Ft void
+.Fn kern_reboot "int howto"
+.Ft void
+.Fn shutdown_nice "int howto"
+.In sys/eventhandler.h
+.Fn EVENTHANDLER_REGISTER "shutdown_pre_sync" "shutdown_fn" "private" "priority"
+.Fn EVENTHANDLER_REGISTER "shutdown_post_sync" "shutdown_fn" "private" "priority"
+.Fn EVENTHANDLER_REGISTER "shutdown_final" "shutdown_fn" "private" "priority"
+.Sh DESCRIPTION
+The
+.Fn kern_reboot
+function handles final system shutdown, and either halts, reboots,
+or powers down the system.
+The exact action to be taken is determined by the flags passed in
+.Fa howto .
+.Pp
+The relevant flags are:
+.Bl -tag -compact -offset indent -width "RB_POWERCYCLE"
+.It Dv RB_HALT
+Halt the system in-place rather than restarting.
+.It Dv RB_POWEROFF
+Power down the system rather than restarting.
+.It Dv RB_POWERCYCLE
+Request a power-cycle in addition to restarting.
+.It Dv RB_NOSYNC
+Do not sync filesystems during shutdown.
+.It Dv RB_DUMP
+Dump kernel memory during shutdown.
+.El
+.Pp
+The
+.Fa howto
+field, and its full list of flags are described in additional detail by
+.Xr reboot 2 .
+.Pp
+.Fn kern_reboot
+performs the following actions:
+.Bl -enum -offset indent
+.It
+Set the
+.Va rebooting
+variable to
+.Dv 1 ,
+indicating that the reboot process has begun and cannot be stopped.
+.It
+Set the
+.Va kdb_active
+variable to
+.Dv 0 ,
+indicating that execution has left the kernel debugger, if it was previously
+active.
+.It
+Unless the
+.Dv RB_NOSYNC
+flag is set in
+.Fa howto ,
+sync and unmount the system's disks by calling
+.Xr vfs_unmountall 9 .
+.It
+If rebooting after a panic
+.Po
+.Dv RB_DUMP
+is set in
+.Fa howto ,
+but
+.Dv RB_HALT
+is not set
+.Pc ,
+initiate a system crash dump via
+.Fn doadump .
+.It
+Print a message indicating that the system is about to be halted
+or rebooted, and a report of the total system uptime.
+.It
+Execute all registered shutdown hooks.
+See
+.Sx SHUTDOWN HOOKS
+below.
+.It
+As a last resort, if none of the shutdown hooks handled the reboot, call the
+machine-dependent
+.Fn cpu_reset
+function.
+In the unlikely case that this is not supported,
+.Fn kern_reboot
+will loop forever at the end of the function.
+This requires a manual reset of the system.
+.El
+.Pp
+.Fn kern_reboot
+may be called from a typical kernel execution context, when the system is
+running normally.
+It may also be called as the final step of a kernel panic, or from the kernel
+debugger.
+Therefore, the code in this function is subject to restrictions described by
+the
+.Sx EXECUTION CONTEXT
+section of the
+.Xr panic 9
+man page.
+.Pp
+The
+.Fn shutdown_nice
+function is the intended path for performing a clean reboot or shutdown when
+the system is operating under normal conditions.
+Calling this function will send a signal to the
+.Xr init 8
+process, instructing it to perform a shutdown.
+When
+.Xr init 8
+has cleanly terminated its children, it will perform the
+.Xr reboot 2
+system call, which in turn calls
+.Fn kern_reboot .
+.Pp
+If
+.Fn shutdown_nice
+is called before the
+.Xr init 8
+process has been spawned, or if the system has panicked or otherwise halted,
+.Fn kern_reboot
+will be called directly.
+.Sh SHUTDOWN HOOKS
+The system defines three separate
+.Xr EVENTHANDLER 9
+events, which are invoked successively during the shutdown procedure.
+These are
+.Va shutdown_pre_sync ,
+.Va shutdown_post_sync ,
+and
+.Va shutdown_final .
+They will be executed unconditionally in the listed order.
+Handler functions registered to any of these events will receive the value of
+.Fa howto
+as their second argument, which may be used to decide what action to take.
+.Pp
+The
+.Va shutdown_pre_sync
+event is invoked before syncing filesystems to disk.
+It enables any action or state transition that must happen before this point to
+take place.
+.Pp
+The
+.Va shutdown_post_sync
+event is invoked at the point immediately after the filesystem sync has
+finished.
+It enables, for example, disk drivers to complete the sync by flushing their
+cache to disk.
+Note that this event still takes place before the optional kernel core dump.
+.Pp
+The
+.Va shutdown_final
+event is invoked as the very last step of
+.Fn kern_reboot .
+Drivers and subsystems such as
+.Xr acpi 4
+can register handlers to this event that will perform the actual reboot,
+power-off, or halt.
+.Pp
+Notably, the
+.Va shutdown_final
+event is also the point at which all kernel modules will have their shutdown
+.Po
+.Dv MOD_SHUTDOWN
+.Pc
+hooks executed, and when the
+.Xr DEVICE_SHUTDOWN 9
+method will be executed recursively on all devices.
+.Pp
+All event handlers, like
+.Fn kern_reboot
+itself, may be run in either normal shutdown context or a kernel panic or
+debugger context.
+Handler functions are expected to take care not to trigger recursive panics.
+.Sh RETURN VALUES
+The
+.Fn kern_reboot
+function does not return.
+.Pp
+The
+.Fn shutdown_nice
+function will usually return to its caller, having initiated the asynchronous
+system shutdown.
+It will not return when called from a panic or debugger context, or during
+early boot.
+.Sh EXAMPLES
+A hypothetical driver, foo(4), defines a
+.Va shutdown_final
+event handler that can handle system power-off by writing to a device register,
+but it does not handle halt or reset.
+.Bd -literal -offset indent
+void
+foo_poweroff_handler(struct void *arg, int howto)
+{
+        struct foo_softc *sc = arg;
+        uint32_t reg;
+
+        if ((howto & RB_POWEROFF) != 0) {
+                reg = FOO_POWEROFF;
+                WRITE4(sc, FOO_POWEROFF_REG, reg);
+        }
+}
+.Ed
+.Pp
+The handler is then registered in the device attach routine:
+.Bd -literal -offset indent
+int
+foo_attach(device_t dev)
+{
+        struct foo_softc *sc;
+
+        ...
+
+        /* Pass the device's software context as the private arg. */
+        EVENTHANDLER_REGISTER(shutdown_final, foo_poweroff_handler, sc,
+            SHUTDOWN_PRI_DEFAULT);
+
+        ...
+}
+.Ed
+.Pp
+This
+.Va shutdown_final
+handler uses the
+.Dv RB_NOSYNC
+flag to detect that a panic or other unusual condition has occurred, and
+returns early:
+.Bd -literal -offset indent
+void
+bar_shutdown_final(struct void *arg, int howto)
+{
+
+        if ((howto & RB_NOSYNC) != 0)
+                return;
+
+        /* Some code that is not panic-safe. */
+        ...
+}
+.Ed
+.Sh SEE ALSO
+.Xr reboot 2 ,
+.Xr init 8 ,
+.Xr DEVICE_SHUTDOWN 9 ,
+.Xr EVENTHANDLER 9 ,
+.Xr module 9 ,
+.Xr panic 9 ,
+.Xr vfs_unmountall 9

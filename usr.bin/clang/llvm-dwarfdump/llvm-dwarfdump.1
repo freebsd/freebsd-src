@@ -1,0 +1,272 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-DWARFDUMP" "1" "2023-05-24" "16" "LLVM"
+.SH NAME
+llvm-dwarfdump \- dump and verify DWARF debug information
+.SH SYNOPSIS
+.sp
+\fBllvm\-dwarfdump\fP [\fIoptions\fP] [\fIfilename ...\fP]
+.SH DESCRIPTION
+.sp
+\fBllvm\-dwarfdump\fP parses DWARF sections in object files,
+archives, and \fI\&.dSYM\fP bundles and prints their contents in
+human\-readable form. Only the .debug_info section is printed unless one of
+the section\-specific options or \fI\%\-\-all\fP is specified.
+.sp
+If no input file is specified, \fIa.out\fP is used instead. If \fI\-\fP is used as the
+input file, \fBllvm\-dwarfdump\fP reads the input from its standard input
+stream.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-a, \-\-all
+Dump all supported DWARF sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch=<arch>
+Dump DWARF debug information for the specified CPU architecture.
+Architectures may be specified by name or by number.  This
+option can be specified multiple times, once for each desired
+architecture.  All CPU architectures will be printed by
+default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-c, \-\-show\-children
+Show a debug info entry\(aqs children when selectively printing with
+the \fI=<offset>\fP argument of \fI\%\-\-debug\-info\fP, or options such
+as \fI\%\-\-find\fP or \fI\%\-\-name\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color
+Use colors in output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f <name>, \-\-find=<name>
+Search for the exact text <name> in the accelerator tables
+and print the matching debug information entries.
+When there is no accelerator tables or the name of the DIE
+you are looking for is not found in the accelerator tables,
+try using the slower but more complete \fI\%\-\-name\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-F, \-\-show\-form
+Show DWARF form types after the DWARF attribute types.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-h, \-\-help
+Show help and usage for this command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help\-list
+Show help and usage for this command without grouping the options
+into categories.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-i, \-\-ignore\-case
+Ignore case distinctions when using \fI\%\-\-name\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-n <name>, \-\-name=<name>
+Find and print all debug info entries whose name
+(\fIDW_AT_name\fP attribute) is <name>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lookup=<address>
+Look up <address> in the debug information and print out the file,
+function, block, and line table details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <path>
+Redirect output to a file specified by <path>, where \fI\-\fP is the
+standard output stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-p, \-\-show\-parents
+Show a debug info entry\(aqs parents when selectively printing with
+the \fI=<offset>\fP argument of \fI\%\-\-debug\-info\fP, or options such
+as \fI\%\-\-find\fP or \fI\%\-\-name\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-parent\-recurse\-depth=<N>
+When displaying debug info entry parents, only show them to a
+maximum depth of <N>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-quiet
+Use with \fI\%\-\-verify\fP to not emit to \fISTDOUT\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r <N>, \-\-recurse\-depth=<N>
+When displaying debug info entries, only show children to a maximum
+depth of <N>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-show\-section\-sizes
+Show the sizes of all debug sections, expressed in bytes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-show\-sources
+Print all source files mentioned in the debug information. Absolute
+paths are given whenever possible.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-statistics
+Collect debug info quality metrics and print the results
+as machine\-readable single\-line JSON output. The output
+format is described in the section below (\fI\%FORMAT OF STATISTICS OUTPUT\fP).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-summarize\-types
+Abbreviate the description of type unit entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x, \-\-regex
+Treat any <name> strings as regular expressions when searching
+with \fI\%\-\-name\fP\&. If \fI\%\-\-ignore\-case\fP is also specified,
+the regular expression becomes case\-insensitive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-u, \-\-uuid
+Show the UUID for each architecture.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-diff
+Dump the output in a format that is more friendly for comparing
+DWARF output from two different files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v, \-\-verbose
+Display verbose information when dumping. This can help to debug
+DWARF issues.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-verify
+Verify the structure of the DWARF information by verifying the
+compile unit chains, DIE relationships graph, address
+ranges, and more.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the tool.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-abbrev, \-\-debug\-addr, \-\-debug\-aranges, \-\-debug\-cu\-index, \-\-debug\-frame [=<offset>], \-\-debug\-gnu\-pubnames, \-\-debug\-gnu\-pubtypes, \-\-debug\-info [=<offset>], \-\-debug\-line [=<offset>], \-\-debug\-line\-str, \-\-debug\-loc [=<offset>], \-\-debug\-loclists [=<offset>], \-\-debug\-macro, \-\-debug\-names, \-\-debug\-pubnames, \-\-debug\-pubtypes, \-\-debug\-ranges, \-\-debug\-rnglists, \-\-debug\-str, \-\-debug\-str\-offsets, \-\-debug\-tu\-index, \-\-debug\-types [=<offset>], \-\-eh\-frame [=<offset>], \-\-gdb\-index, \-\-apple\-names, \-\-apple\-types, \-\-apple\-namespaces, \-\-apple\-objc
+Dump the specified DWARF section by name. Only the
+\fI\&.debug_info\fP section is shown by default. Some entries
+support adding an \fI=<offset>\fP as a way to provide an
+optional offset of the exact entry to dump within the
+respective section. When an offset is provided, only the
+entry at that offset will be dumped, else the entire
+section will be dumped.
+.sp
+The \fI\%\-\-debug\-macro\fP option prints both the .debug_macro and the .debug_macinfo sections.
+.sp
+The \fI\%\-\-debug\-frame\fP and \fI\%\-\-eh\-frame\fP options are aliases, in cases where both sections are present one command outputs both.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from \fI<FILE>\fP\&.
+.UNINDENT
+.SH FORMAT OF STATISTICS OUTPUT
+.sp
+The \fI\%\-\-statistics\fP option generates single\-line JSON output
+representing quality metrics of the processed debug info. These metrics are
+useful to compare changes between two compilers, particularly for judging
+the effect that a change to the compiler has on the debug info quality.
+.sp
+The output is formatted as key\-value pairs. The first pair contains a version
+number. The following naming scheme is used for the keys:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fIvariables\fP ==> local variables and parameters
+.IP \(bu 2
+\fIlocal vars\fP ==> local variables
+.IP \(bu 2
+\fIparams\fP ==> formal parameters
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+For aggregated values, the following keys are used:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fIsum_of_all_variables(...)\fP ==> the sum applied to all variables
+.IP \(bu 2
+\fI#bytes\fP ==> the number of bytes
+.IP \(bu 2
+\fI#variables \- entry values ...\fP ==> the number of variables excluding
+the entry values etc.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-dwarfdump\fP returns 0 if the input files were parsed and dumped
+successfully. Otherwise, it returns 1.
+.SH SEE ALSO
+.sp
+\fBdsymutil(1)\fP
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2023, LLVM Project
+.\" Generated by docutils manpage writer.
+.

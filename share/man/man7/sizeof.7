@@ -1,0 +1,308 @@
+.\"
+.\" Copyright (C) 2022 Jan Schaumann <jschauma@netmeister.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 12, 2022
+.Dt sizeof 7
+.Os
+.Sh NAME
+.Nm sizeof
+operator
+.Nd yield the storage size of the given operand
+.Sh SYNTAX
+.Nm Vt ( type )
+.br
+.Nm Vt expression
+.Sh DESCRIPTION
+The
+.Nm
+operator yields the size of its operand.
+The
+.Nm
+operator cannot be applied to incomplete types and expressions
+with incomplete types (e.g.
+.Vt void ,
+or forward-defined
+.Vt struct foo ),
+and function types.
+.Pp
+The size of primitive (non-derived) data types in C may differ
+across hardware platforms and implementations.
+They are defined by corresponding Application Binary Interface (ABI)
+specifications, see
+.Xr arch 7
+for details about ABI used by
+.Fx .
+It may be necessary or useful for a program to be able
+to determine the storage size of a data type or object
+to account for the platform specifics.
+.Pp
+The unary
+.Nm
+operator yields the storage size of an expression or
+data type in
+.Em char sized units
+(C language bytes).
+As a result,
+.Ql sizeof(char)
+is always guaranteed to be 1.
+(The number of bits per
+.Vt char
+is given by the
+.Dv CHAR_BIT
+definition in the
+.In limits.h
+header; many systems also provide the "number of bits
+per byte" definition as
+.Dv NBBY
+in the
+.In sys/param.h
+header.)
+.Sh EXAMPLES
+Different platforms may use different data models.
+For example, systems on which integers, longs, and
+pointers are using 32 bits (e.g., i386) are referred
+to as using the "ILP32" data model, systems using
+64 bit longs and pointers (e.g., amd64 / x86_64)
+as the "LP64" data model.
+.Pp
+The following examples illustrate the possible results
+of calling
+.Nm
+on an ILP32 vs. an LP64 system:
+.Pp
+When applied to a simple variable or data type,
+.Nm
+returns the storage size of the data type of the object:
+.Bl -column -offset indent \
+    ".Li sizeof(struct flex)" ".Sy Result (ILP32)" ".Sy Result (LP64)"
+.It Sy Object or type \
+ Ta Sy Result (ILP32) \
+ Ta Sy Result (LP64)
+.It Li sizeof(char) \
+ Ta 1 \
+ Ta 1
+.It Li sizeof(int) \
+ Ta 4 \
+ Ta 4
+.It Li sizeof(long) \
+ Ta 4 \
+ Ta 8
+.It Li sizeof(float) \
+ Ta 4 \
+ Ta 4
+.It Li sizeof(double) \
+ Ta 8 \
+ Ta 8
+.It Li sizeof(char *) \
+ Ta 4 \
+ Ta 8
+.El
+.Pp
+For initialized data or uninitialized arrays of a
+fixed size known at compile time,
+.Nm
+will return the correct storage size:
+.Bd -literal -offset indent
+#define DATA "1234567890"
+char buf1[] = "abc";
+char buf2[1024];
+char buf3[1024] = { 'a', 'b', 'c' };
+.Ed
+.Bl -column -offset indent \
+    ".Li sizeof(struct flex)" ".Sy Result"
+.It Sy Object or type \
+ Ta Sy Result
+.It Li sizeof(DATA) \
+ Ta 11
+.It Li sizeof(buf1) \
+ Ta 4
+.It Li sizeof(buf2) \
+ Ta 1024
+.It Li sizeof(buf3) \
+ Ta 1024
+.El
+.Pp
+The examples above are the same for ILP32 and LP64
+platforms, as they are based on character units.
+.Pp
+When applied to a struct or union,
+.Nm
+returns the total number of bytes in the object,
+including any internal or trailing padding used to
+align the object in memory.
+This result may thus be larger than if the storage
+size of each individual member had been added:
+.Bd -literal -offset indent
+struct s1 {
+        char c;
+};
+
+struct s2 {
+        char *s;
+        int i;
+};
+
+struct s3 {
+        char *s;
+        int i;
+        int j;
+};
+
+struct s4 {
+	int i;
+	uint64_t i64;
+};
+
+struct s5 {
+        struct s1 a;
+        struct s2 b;
+        struct s3 c;
+        struct s4 d;
+};
+.Ed
+.Bl -column -offset indent \
+    ".Li sizeof(struct flex)" ".Sy Result (ILP32)  " ".Sy Result (LP64)"
+.It Sy Object or type \
+ Ta Sy Result (ILP32) \
+ Ta Sy Result (LP64)
+.It Li sizeof(struct s1) \
+ Ta 1 \
+ Ta 1
+.It Li sizeof(struct s2) \
+ Ta 8 \
+ Ta 16
+.It Li sizeof(struct s3) \
+ Ta 12 \
+ Ta 16
+.It Li sizeof(struct s4) \
+ Ta 12 \
+ Ta 16
+.It Li sizeof(struct s5) \
+ Ta 36  \
+ Ta 56
+.El
+.Pp
+When applied to a struct containing a flexible array
+member,
+.Nm
+returns the size of the struct
+.Em without
+the array, although again possibly including any
+padding the compiler deemed appropriate:
+.Bd -literal -offset indent
+struct flex {
+        char c;
+        long b;
+        char array[];
+}
+.Ed
+.Bl -column -offset indent \
+    ".Li sizeof(struct flex)" ".Sy Result (ILP32)  " ".Sy Result (LP64)"
+.It Sy Object or type \
+ Ta Sy Result (ILP32) \
+ Ta Sy Result (LP64)
+.It Li sizeof(struct flex) \
+ Ta 8 \
+ Ta 16
+.El
+.Pp
+One of the more common uses of the
+.Nm
+operator is to determine the correct amount of memory
+to allocate:
+.Bd -literal -offset indent
+int *nums = calloc(512, sizeof(int));
+.Ed
+.Pp
+The
+.Nm
+operator can be used to calculate the number of
+elements in an array by dividing the size of the array
+by the size of one of its elements:
+.Bd -literal -offset indent
+int nums[] = { 1, 2, 3, 4, 5 };
+const int howmany = sizeof(nums) / sizeof(nums[0]);
+.Ed
+.Pp
+Many systems provide this shortcut as the macro
+.Dv ntimes()
+via the
+.In sys/param.h
+header file.
+.Sh RESULT
+The result of the
+.Nm
+operator is an unsigned integer type, defined in the
+.Dv stddef.h
+header as a
+.Vt size_t .
+.Sh NOTES
+It is a common mistake to apply
+.Nm
+to a dynamically allocated array:
+.Bd -literal -offset indent
+char *buf;
+if ((buf = malloc(BUFSIZ)) == NULL) {
+        perror("malloc");
+}
+/* Warning: wrong! */
+(void)strncat(buf, input, sizeof(buf) - 1);
+.Ed
+.Pp
+In that case, the operator will return the storage
+size of the pointer (
+.Ql sizeof(char *)
+), not the
+allocated memory.
+.Pp
+.Nm
+determines the
+.Ev size
+of the result of the expression given, but
+.Em does not
+evaluate the expression:
+.Bd -literal -offset indent
+int a = 42;
+printf("%ld - %d\\n", sizeof(a = 10), a); /* Result: "4 - 42" */
+.Ed
+.Pp
+Since it is evaluated by the compiler and not the
+preprocessor, the
+.Nm
+operator cannot be used in a preprocessor expression.
+.Sh SEE ALSO
+.Xr arch 7 ,
+.Xr operator 7
+.Sh STANDARDS
+The
+.Nm
+operator conforms to
+.St -ansiC .
+.Pp
+Handling of flexible array members in structures
+conforms to
+.St -isoC-99 .
+.Sh AUTHORS
+This manual page was written by
+.An Jan Schaumann Aq Mt jschauma@netmeister.org .

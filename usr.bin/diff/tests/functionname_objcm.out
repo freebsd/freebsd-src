@@ -1,0 +1,11 @@
+--- functionname.in
++++ functionname_objcm.in
+@@ -18,7 +18,7 @@ - (long) readOffset:(FILE*)file
+ 		return offset;
+ 	} else {
+ 		int offset;
+-		fread(&offset, sizeof(int), 1, file);
++		fread(&offset-1, sizeof(int), 1, file);
+ 		return offset;
+ 	}
+ }

@@ -1,0 +1,28 @@
+Global: param = twice
+Global: VARNAME = VAR.$${param}
+Var_Parse: ${VARNAME} (eval)
+Global: VAR.${param} = initial-value
+Var_Parse: ${${VARNAME}::=assigned-value} (eval-defined)
+Var_Parse: ${VARNAME}::=assigned-value} (eval-defined)
+Evaluating modifier ${VAR.${param}::...} on value "initial-value"
+Modifier part: "assigned-value"
+Global: VAR.${param} = assigned-value
+Result of ${VAR.${param}::=assigned-value} is ""
+Var_Parse: ${${VARNAME}} != "assigned-value" (eval-defined)
+Var_Parse: ${VARNAME}} != "assigned-value" (eval-defined)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: Bad modifier ":" for variable ""
+mod-assign-empty: value}
+make: Bad modifier ":" for variable ""
+mod-assign-empty: overwritten}
+mod-assign-empty: VAR=overwritten
+make: Unknown modifier ":x"
+
+sysv:y
+make: Unfinished modifier for "ASSIGN" ('}' missing)
+
+ok=word
+make: " echo word; false " returned non-zero status
+err=previous
+exit status 0

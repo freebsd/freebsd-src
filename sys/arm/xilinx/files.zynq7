@@ -1,0 +1,16 @@
+#
+# files.zynq7
+#
+
+arm/xilinx/zy7_machdep.c			standard
+arm/xilinx/zy7_l2cache.c			standard
+arm/xilinx/zy7_slcr.c				standard
+arm/xilinx/zy7_devcfg.c				standard
+arm/xilinx/zy7_mp.c				optional smp
+
+arm/xilinx/zy7_ehci.c 				optional ehci
+arm/xilinx/uart_dev_cdnc.c			optional uart
+arm/xilinx/zy7_gpio.c				optional gpio
+arm/xilinx/zy7_qspi.c				optional zy7_qspi
+arm/xilinx/zy7_spi.c				optional zy7_spi
+

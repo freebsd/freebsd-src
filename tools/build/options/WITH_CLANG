@@ -1,0 +1,1 @@
+Build the Clang C/C++ compiler during the normal phase of the build.

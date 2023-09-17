@@ -1,0 +1,17 @@
+DIRDEPS= \
+	sbin/md5 \
+	usr.bin/awk \
+	usr.bin/cap_mkdb \
+	usr.bin/file2c \
+	usr.bin/lex \
+	usr.bin/mkdep \
+	usr.bin/mkimg \
+	usr.bin/rpcgen \
+	usr.bin/sed \
+	usr.bin/tar \
+	usr.bin/yacc \
+	usr.sbin/makefs \
+	usr.sbin/nmtree \
+
+.include <dirdeps.mk>
+

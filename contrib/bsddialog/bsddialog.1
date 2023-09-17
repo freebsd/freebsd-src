@@ -1,0 +1,764 @@
+.\"
+.\"
+.\" Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 23, 2022
+.Dt BSDDIALOG 1
+.Os
+.Sh NAME
+.Nm bsddialog
+.Nd TUI dialogs
+.Sh SYNOPSIS
+.Nm
+.Fl Fl help
+.Nm
+.Fl Fl version
+.Nm
+.Op Fl Fl option
+.Fl Fl dialog
+.Ar text
+.Ar rows
+.Ar cols
+.Op Ar dialog-argument
+.Nm
+.Fl Fl dialog1
+.Ar ...
+.Oo Fl Fl and-dialog
+.Fl Fl dialog2
+.Ar ...
+.Oc ...
+.Sh DESCRIPTION
+The
+.Nm bsddialog
+utility builds Text User Interface dialogs and widgets: to display messages,
+to get input and to inform about a computation status.
+.Pp
+The options
+.Fl Fl help
+and
+.Fl Fl version
+print the list of options and the version, respectively, then exit.
+.Fl Fl and-dialog
+builds another dialog unless the previous one returns Error, ESC or Cancel.
+.Pp
+.Ar text
+is a message printed inside the dialog.
+.Ar rows
+and
+.Ar cols
+are the height and width, 0 for autosize and -1 for fullscreen.
+.Pp
+The possible input got from the user interface is printed to standard error.
+.Ss Options
+The following options can change the default behavior of the utility and are
+common to some dialog.
+.Bl -tag -width Ds
+.It Fl Fl alternate-screen
+If available set alternate screen mode, see
+.Xr terminfo 5 .
+.It Fl Fl ascii-lines
+Ascii characters to draw lines.
+.It Fl Fl backtitle Ar backtitle
+Title on the top side of the screen.
+.It Fl Fl begin-x Ar x
+Dialog horizontal position, 0 is the left screen side, -1 center.
+.It Fl Fl begin-y Ar y
+Dialog vertical position, 0 is the top screen side, -1 center.
+.It Fl Fl bikeshed
+Random settings.
+Colors.
+Delimiter and margins around the title.
+Buttons always active or TAB to switch focus with input components, see
+.Fl Fl switch-buttons .
+Zero padding with time or date output.
+.It Fl Fl cancel-label Ar label
+Label for the
+.Dq Cancel
+button.
+.It Fl Fl clear-dialog
+Hide the dialog at exit.
+.It Fl Fl clear-screen
+Clear the screen, after the dialog exit if a dialog is built.
+.It Fl Fl colors
+Enable highlights for text, the following sequences are considered escapes:
+.Bl -column -compact
+.It Dq \eZ0
+black.
+.It Dq \eZ1
+red.
+.It Dq \eZ2
+green.
+.It Dq \eZ3
+yellow.
+.It Dq \eZ4
+blue.
+.It Dq \eZ5
+magenta.
+.It Dq \eZ6
+cyan.
+.It Dq \eZ7
+white.
+.It Dq \eZr
+reverse foreground and background.
+.It Dq \eZR
+disable reverse.
+.It Dq \eZb
+bold.
+.It Dq \eZB
+disable bold.
+.It Dq \eZu
+underline.
+.It Dq \eZU
+disable underline.
+.It Dq \eZn
+restore normal text.
+.El
+.It Fl Fl columns-per-row Ar columns
+Try to set the number of columns for a row of text with autosizing; default
+.Dv 10 .
+.It Fl Fl cr-wrap
+Keep new line in
+.Ar text
+also if it constains a
+.Dq \en ,
+see
+.Fl Fl text-unchanged .
+.It Fl Fl date-format Ar format
+String accepted by
+.Xr strftime 3
+to customize the output of
+.Fl Fl datebox
+and
+.Fl Fl calendar
+.It Fl Fl default-button Ar label
+Focus on the button with
+.Ar label
+on startup.
+.It Fl Fl default-item Ar name
+Focus on the item with
+.Ar name ,
+for Checklist, Menu, Radiolist and Treeview.
+.It Fl Fl default-no
+Focus on
+.Dq Cancel
+or
+.Dq \&No
+button on startup.
+.It Fl Fl disable-esc
+Disable ESC key to quit.
+.It Fl Fl esc-return-cancel
+ESC key returns
+.Dq Cancel
+button value.
+.It Fl Fl extra-button
+Add a button with
+.Dq Extra
+label.
+.It Fl Fl extra-label Ar label
+Set
+.Ar label
+for the
+.Dq Extra
+button.
+.It Fl Fl generic-button1 Ar label
+Add a button with
+.Ar label .
+.It Fl Fl generic-button2 Ar label
+Add a button with
+.Ar label .
+.It Fl Fl help-button
+Add a button with
+.Dq Help
+label.
+.It Fl Fl help-label Ar label
+Set
+.Ar label
+for
+.Dq Help
+button.
+.It Fl Fl help-print-name
+Print the name of the focused item if the Help button is pressed also
+with
+.Fl Fl item-bottom-desc .
+.It Fl Fl help-status
+Print also the selected items if the
+.Dq Help
+button is pressed.
+.It Fl Fl hfile Ar filename
+Open
+.Ar filename
+in a Textbox if F1 key is pressed,
+.It Fl Fl hline Ar string
+Dialog subtitle.
+.It Fl Fl hmsg Ar string
+Open a Msgbox with
+.Ar string
+if the F1 key is pressed.
+.It Fl Fl ignore
+Do not exit with unknown options.
+.It Fl Fl insecure
+Print
+.Sq *
+to hide passwords while typing; whitespace otherwise.
+.It Fl Fl item-bottom-desc
+Set a help string for each item of a Checklist, Form, Menu, Mixedform,
+Passwordform, Radiolist and Treeview to display at the bottom screen side.
+.It Fl Fl item-depth
+Specify a margin for items, available for Checklist, Menu and Radiolist.
+.It Fl Fl item-prefix
+Set a string to prefix each item of a Checklist, Menu, Radiolist or Treeview.
+.It Fl Fl load-theme Ar file
+Load theme from
+.Ar file .
+.It Fl Fl max-input Ar size
+Maximum length of the input for
+.Fl Fl inputbox
+ans
+.Fl Fl passwordbox ,
+default 2048.
+.It Fl Fl no-cancel
+Do not show
+.Dq Cancel
+button.
+.It Fl Fl no-descriptions
+Do not display items desciption, for Checklist, Menu, Radiolist or Treeview.
+.It Fl Fl no-lines
+Do not draw borders and lines.
+.It Fl Fl no-names
+Do not display items name, for Checklist, Menu and Radiolist.
+.It Fl Fl no-ok
+Do not draw
+.Dq OK
+button.
+.It Fl Fl no-shadow
+No not draw the shadow of the dialog.
+.It Fl Fl ok-label Ar label
+Set
+.Ar label
+for
+.Dq OK
+button.
+.It Fl Fl normal-screen
+If available set normal screen mode, see
+.Xr terminfo 5 .
+.It Fl Fl output-fd Ar fd
+Print input from user interface to the specified file descriptor.
+.It Fl Fl output-separator Ar sep
+Set a sepator for the items in output, default whitespace.
+.It Fl Fl print-maxsize
+Screen size.
+This option can be used without a dialog.
+.It Fl Fl print-size
+Print Dialog height and widget at exit.
+.It Fl Fl print-version
+Print version.
+This option can be used without a dialog.
+.It Fl Fl quoted
+Quote items in output, default only when necessary.
+.It Fl Fl save-theme Ar file
+Save the current theme.
+This option can be used without a dialog.
+.It Fl Fl separate-output
+Separate selected items with a new line and avoid to quote.
+.It Fl Fl shadow
+Show a pseudo shadow for the dialog, enabled by default.
+.It Fl Fl single-quoted
+Use single quote for items in output.
+.It Fl Fl sleep Ar secs
+Wait
+.Ar secs
+seconds to close the dialog.
+.It Fl Fl stderr
+Print input from user interface to standand error, default.
+.It Fl Fl stdout
+Print input from user interface to standard output.
+.It Fl Fl switch-buttons
+enables focus switching between buttons and input components pressing TAB,
+otherwise buttons are always active and ENTER key closes the dialog.
+Suitable for:
+.Fl Fl form ,
+.Fl Fl inputbox ,
+.Fl Fl mixedform ,
+.Fl Fl passwordbox ,
+.Fl Fl passwordform ,
+.Fl Fl timebox ,
+.Fl Fl calendar
+and
+.Fl Fl datebox .
+.It Fl Fl tab-escape
+Replace
+.Dq \et
+with a tab in
+.Ar text .
+.It Fl Fl tab-len Ar spaces
+Number of spaces to print a TAB in
+.Ar text .
+.It Fl Fl text-unchanged
+By default the
+.Ar text
+is changed before to be printed.
+If it contains at least a
+.Dq \en
+each new line and TAB is converted to a space, subsequent spaces are merged.
+Otherwise new line characters are preserved and a TAB becomes a space.
+This option disable the
+.Ar text
+modification.
+.It Fl Fl theme Ar theme
+Set a graphical style: blackwhite, bsddialog, flat or dialog.
+.It Fl Fl time-format Ar format
+String accepted by
+.Xr strftime 3
+to customize the output of
+.Fl Fl timebox .
+.It Fl Fl title Ar title
+Dialog title.
+.El
+.Ss Dialogs
+The following dialogs are available:
+.Bl -tag -width Ds
+.It Fl Fl calendar Ar text Ar rows Ar cols Op Ar day Ar month Ar year
+Dialog to select a date.
+.It Fl Fl checklist Ar text Ar rows Ar cols Ar menurows Oo Ar name Ar desc \
+Ar status Oc ...
+Checklist to select some item from a list via the SPACE key.
+An item has a
+.Ar name ,
+.Ar desc
+and a default
+.Ar status
+specified by
+.Dq on
+or
+.Dq off .
+The names of the selected items are printed to standard error.
+.Ar menurows
+is the graphical height of the list, 0 for autosize.
+.It Fl Fl datebox Ar text Ar rows Ar cols Op Ar day Ar month Ar year
+Dialog to select a date.
+.It Fl Fl form Ar text Ar rows Ar cols Ar formrows Oo Ar label Ar ylabel \
+Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxletters Oc ...
+Dialog to get a list of strings via forms.
+A form has a
+.Ar label
+at the position
+.Ar ylabel
+and
+.Ar xlabel ,
+a field to get the input at the position
+.Ar yfield
+and
+.Ar xfield
+with graphical length
+.Ar fieldlen ,
+.Ar maxletters
+is the maximum input length.
+The field can be customized, if
+.Ar fieldlen
+is negative the field is read only and its absolute value is the field length.
+If
+.Ar maxletters
+is 0 it is the absolute value of
+.Ar fieldlen .
+.Ar init
+is a default value.
+.Ar formrows
+is the graphical height of the list,
+.Dv 0
+for autosize.
+.It Fl Fl gauge Ar text Ar rows Ar cols Op Ar percentage
+Dialog with a bar to shows
+.Ar percentage ,
+then it waits to read
+.Dq XXX
+from the standard input, then the first string replaces percentage and the
+following strings replace
+.Ar text
+until the next
+.Dq XXX ,
+the loop ends reading
+.Dv EOF .
+.It Fl Fl infobox Ar text Ar rows Ar cols
+Dialog without buttons to display a message and to exit immediately.
+.It Fl Fl inputbox Ar text Ar rows Ar cols Op Ar init
+Dialog to get a string in input,
+.Ar init
+is the default value.
+.It Fl Fl menu Ar text Ar rows Ar cols Ar menurows Oo Ar name desc Oc ...
+Builds a menu to select an item from a list, Space key is equivalent to Enter.
+An item has a
+.Ar name
+and a
+.Ar desc .
+The name of the selected item is printed to standard error.
+.Ar menurows
+is the graphical height of the list, 0 for autosize.
+.It Fl Fl mixedform Ar text Ar rows Ar cols Ar formrows Oo Ar label Ar ylabel \
+Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxletters Ar flag Oc ...
+Dialog to get a list of strings via forms.
+A form has a
+.Ar label
+at the position
+.Ar ylabel
+and
+.Ar xlabel ,
+a field to get the input with graphical length
+.Ar fieldlen
+at the position
+.Ar yfield
+and
+.Ar xfield ,
+.Ar maxletters
+is the maximum input length,
+.Ar init
+is a default value,
+.Ar flag
+can be 0 for normal field, 1 to hide the typed characters and 2 to set the
+field read only.
+.Ar formrows
+is the graphical height of the list,
+.Dv 0
+for autosize.
+.It Fl Fl mixedgauge Ar text Ar rows Ar cols Ar mainperc Oo Ar minilabel \
+Ar miniperc Oc ...
+Dialog to show a main bar to represent
+.Ar mainperc
+from 0 to 100 and some mini bar with a
+.Ar minilabel
+string and a
+.Ar miniperc
+with value from 0 and 100 or negative to print a descriptive string: -1
+.Dq Succeeded ,
+-2
+.Dq Failed ,
+-3
+.Dq Passed ,
+-4
+.Dq Completed ,
+-5
+.Dq Checked ,
+-6
+.Dq Done ,
+-7
+.Dq Skipped ,
+-8
+.Dq \&In Progress ,
+-9
+a blank line,
+-10
+.Dq N/A ,
+-11
+.Dq Pending .
+.It Fl Fl msgbox Ar text Ar rows Ar cols
+Dialog to diplay a message without the
+.Dq Cancel
+button.
+UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to navigate the text.
+.It Fl Fl passwordbox Ar text Ar rows Ar cols Op Ar init
+Dialog to get a password,
+.Ar init
+is the default value.
+.It Fl Fl passwordform Ar text Ar rows Ar cols Ar formrows Oo Ar label \
+Ar ylabel Ar xlabel Ar init Ar yfield Ar xfield  Ar fieldlen Ar maxletters \
+Oc ...
+Dialog to get a list of passwords, equivalent to
+.Fl Fl form
+except typed characters are hidden.
+.It Fl Fl pause Ar text Ar rows Ar cols Ar seconds
+Dialog runs until the timeout in
+.Ar seconds
+expires or a button is pressed.
+.It Fl Fl radiolist Ar text Ar rows Ar cols Ar menurows Oo Ar name Ar desc \
+Ar status Oc ...
+Radiolist to select at most an item from a list via the SPACE key.
+An item has a
+.Ar name ,
+.Ar desc
+and a default
+.Ar status
+specified by
+.Dq on
+or
+.Dq off .
+The name of the selected item is printed to standard error.
+.Ar menurows
+is the graphical height of the list, 0 for autosize.
+.It Fl Fl rangebox Ar text Ar rows Ar cols Ar min Ar max Op Ar init
+Dialog to select a value between
+.Ar min
+and
+.Ar max ,
+.Ar init
+is the default value, the keys UP, DOWN, HOME, END, PAGEUP and PAGEDOWN can
+change it.
+.It Fl Fl textbox Ar file Ar rows Ar cols
+Opens and prints
+.Ar file
+the UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to navigate;
+.Dq OK
+button is renamed
+.Dq EXIT .
+.It Fl Fl timebox Ar text Ar rows Ar cols Op Ar hour Ar min Ar sec
+Dialog to select a time.
+.It Fl Fl treeview Ar text Ar rows Ar cols Ar menurows Oo Ar depth Ar name \
+Ar desc Ar status Oc ...
+Equivalent to Radiolist with
+.Fl Fl  item-depth
+and
+.Fl Fl no-name .
+.It Fl Fl yesno Ar text Ar rows Ar cols
+.Dq Yes-No Question ,
+.Dq OK
+and
+.Dq Cancel
+buttons are renamed
+.Dq Yes
+and
+.Dq \&No .
+UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to navigate the text.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 255 on unsuccessful, otherwise depending on the button or key
+pressed the following values can be returned:
+.Bl -column -compact
+.It 0
+.Dq OK ,
+.Dq Yes
+or
+.Dq Exit
+button.
+.It 1
+.Dq Cancel
+or
+.Dq \&No
+button.
+.It 2
+.Dq Help
+button.
+.It 3
+.Dq Extra
+button.
+.It 4
+Timeout.
+.It 5
+ESC key.
+.It 6
+Generic 1 button.
+.It 7
+Generic 2 button.
+.El
+.Sh EXAMPLES
+Backtitle, title and message:
+.Dl bsddialog --backtitle MESSAGE --title Msgbox --msgbox Message 0 0
+.Pp
+Yes-No Question and theme:
+.Dl bsddialog --theme blackwhite --yesno Question 10 30
+.Pp
+Save a custom theme:
+.Dl bsddialog --save-theme mytheme.txt --infobox \*qSaving theme...\*q 0 0
+.Pp
+Load a custom theme:
+.Dl bsddialog --load-theme mytheme.txt --infobox \*qCustom theme\*q 0 0
+.Pp
+Checklist:
+.Dl bsddialog --checklist Checklist 0 0 3 N1 \&D1 off N2 D2 on N3 D3 off
+.Pp
+Form:
+.Dl bsddialog --form Form 0 0 0 L1: 0 0 X 0 4 20 25 L2: 1 0 Y 1 4 20 25
+.Pp
+Multi-dialog:
+.Dl bsddialog --normal-screen --begin-y 1 --yesno Continue? 0 0  \e \
+--and-dialog --begin-y 10 --infobox Yes 0 0
+.Pp
+Bikeshed:
+.Dl bsddialog --bikeshed --inputbox Example 0 0
+.Pp
+Mixedgauge:
+.Dl bsddialog --sleep 3 --mixedgauge Example 10 30 60 L1 \*q -1\*q L2 30
+.Pp
+Mixedgauge script:
+.Bd -literal -offset indent -compact
+perc=0
+while [ $perc -le 100 ]
+do
+	bsddialog --sleep 1 --title Mixedgauge          \e
+		--mixedgauge "\enExample...\en" 0 0 $perc \e
+		"Hidden"   " -9"                        \e
+		"Label 1"  " -4"                        \e
+		"Label 2"  " -4"                        \e
+		"Label 3"  $perc
+
+	perc=`expr $perc + 20`
+done
+.Ed
+.Pp
+Gauge script:
+.Bd -literal -offset indent -compact
+i=1
+for c in A B C D E F G H
+do
+	sleep 1
+	echo XXX
+	echo "$(expr $(expr $i "*" 100) "/" 8)"
+	echo "[$i/8] Char: $c"
+	echo XXX
+	if [ $i -eq 8 ]
+	then
+		sleep 1
+		echo EOF
+	fi
+	i=`expr $i + 1`
+done | bsddialog --title Gauge --gauge "Starting..." 10 70
+.Ed
+.Sh COMPATIBILITY
+Outdated options are retained for compatibility, properly equivalent options are
+used:
+.Bd -literal -offset indent -compact
+Obsolete                     Equivalent
+--and-widget                 --and-dialog
+--calendar <text> 2 <cols>   --calendar <text> 0 <cols>
+--clear                      --clear-screen
+--defaultno                  --default-no
+--exit-label                 --ok-label
+--help-tags                  --help-print-name
+--item-help                  --item-bottom-desc
+--keep-tite                  --alternate-screen
+--no-items                   --no-descriptions
+--no-label                   --cancel-label
+--no-tags                    --no-names
+--nocancel                   --no-cancel
+--nook                       --no-ok
+--separator                  --output-separator
+--yes-label                  --ok-label
+.Ed
+.Sh SEE ALSO
+.Xr bsddialog 3
+.Sh HISTORY
+The
+.Nm bsddialog
+utility first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+.Nm bsddialog
+was written by
+.An Alfonso Sabato Siciliano
+.Aq Mt asiciliano@FreeBSD.org .
+.Pp
+.Nm bsddialog
+provides a subset of the functionality described in the
+.Nm dialog
+manual.
+The following features were reimplemented:
+.Pp
+Options:
+.Fl Fl and-widget ,
+.Fl Fl ascii-lines ,
+.Fl Fl backtitle ,
+.Fl Fl cancel-label ,
+.Fl Fl clear ,
+.Fl Fl colors ,
+.Fl Fl cr-wrap ,
+.Fl Fl date-format ,
+.Fl Fl defaultno ,
+.Fl Fl default-button ,
+.Fl Fl default-no ,
+.Fl Fl default-item ,
+.Fl Fl exit-label ,
+.Fl Fl extra-button ,
+.Fl Fl extra-label ,
+.Fl Fl help ,
+.Fl Fl help-button ,
+.Fl Fl help-label ,
+.Fl Fl help-status ,
+.Fl Fl help-tags ,
+.Fl Fl hfile ,
+.Fl Fl hline ,
+.Fl Fl ignore ,
+.Fl Fl insecure ,
+.Fl Fl item-help ,
+.Fl Fl keep-tite ,
+.Fl Fl max-input ,
+.Fl Fl no-cancel ,
+.Fl Fl nocancel ,
+.Fl Fl no-items ,
+.Fl Fl no-label ,
+.Fl Fl no-lines ,
+.Fl Fl no-ok ,
+.Fl Fl nook ,
+.Fl Fl no-shadow ,
+.Fl Fl no-tags ,
+.Fl Fl ok-label ,
+.Fl Fl output-fd ,
+.Fl Fl output-separator ,
+.Fl Fl print-maxsize ,
+.Fl Fl print-size ,
+.Fl Fl print-version ,
+.Fl Fl quoted ,
+.Fl Fl separate-output ,
+.Fl Fl separator ,
+.Fl Fl shadow ,
+.Fl Fl single-quoted ,
+.Fl Fl sleep ,
+.Fl Fl stderr ,
+.Fl Fl stdout ,
+.Fl Fl tab-len ,
+.Fl Fl time-format ,
+.Fl Fl title ,
+.Fl Fl version ,
+.Fl Fl yes-label .
+.Pp
+Dialogs:
+.Fl Fl calendar ,
+.Fl Fl checklist ,
+.Fl Fl form ,
+.Fl Fl gauge ,
+.Fl Fl infobox ,
+.Fl Fl inputbox ,
+.Fl Fl menu ,
+.Fl Fl mixedform ,
+.Fl Fl mixedgauge ,
+.Fl Fl msgbox ,
+.Fl Fl passwordbox ,
+.Fl Fl passwordform ,
+.Fl Fl pause ,
+.Fl Fl radiolist ,
+.Fl Fl rangebox ,
+.Fl Fl textbox ,
+.Fl Fl timebox ,
+.Fl Fl treeview ,
+.Fl Fl yesno .
+.Pp
+Some feature differs in input, output, or behavior.
+Compatibility is not a priority for future development.
+.Sh THANKS TO
+.An Baptiste Daroussin
+.Aq Mt bapt@FreeBSD.org ,
+.An \&Ed Maste
+.Aq Mt emaste@FreeBSD.org
+and
+.An Juraj Lutter
+.Aq Mt otis@FreeBSD.org
+for suggestions, help, and testing.

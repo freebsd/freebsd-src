@@ -1,0 +1,6 @@
+# Non-standard builtin.
+
+: &
+p1=$!
+p2=$(jobid)
+[ "${p1:?}" = "${p2:?}" ]

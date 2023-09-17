@@ -1,0 +1,5 @@
+
+.if ${MK_ACPI} != "no"
+SUBDIR+=	acpi
+.endif
+SUBDIR+=	ofwdump

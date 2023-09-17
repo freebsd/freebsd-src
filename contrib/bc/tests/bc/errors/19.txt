@@ -1,0 +1,16 @@
+define i(x) {
+
+i(11)
+ibase
+o(12)`ase
+}
+
+define o(x) {
+ñnbase=x
+	return obage
+}i(11)
+ibase
+_(12)
+obase
+r(15)
+sMale

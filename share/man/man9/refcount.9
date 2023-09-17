@@ -1,0 +1,194 @@
+.\"
+.\" Copyright (c) 2009 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
+.\"
+.\" Parts of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 12, 2022
+.Dt REFCOUNT 9
+.Os
+.Sh NAME
+.Nm refcount ,
+.Nm refcount_init ,
+.Nm refcount_acquire ,
+.Nm refcount_release
+.Nd manage a simple reference counter
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/refcount.h
+.Ft void
+.Fn refcount_init "volatile u_int *count" "u_int value"
+.Ft u_int
+.Fn refcount_load "volatile u_int *count"
+.Ft u_int
+.Fn refcount_acquire "volatile u_int *count"
+.Ft bool
+.Fn refcount_acquire_checked "volatile u_int *count"
+.Ft bool
+.Fn refcount_acquire_if_not_zero "volatile u_int *count"
+.Ft bool
+.Fn refcount_release "volatile u_int *count"
+.Ft bool
+.Fn refcount_release_if_last "volatile u_int *count"
+.Ft bool
+.Fn refcount_release_if_not_last "volatile u_int *count"
+.Sh DESCRIPTION
+The
+.Nm
+functions provide an API to manage a simple reference counter.
+The caller provides the storage for the counter in an unsigned integer.
+A pointer to this integer is passed via
+.Fa count .
+Usually the counter is used to manage the lifetime of an object and is
+stored as a member of the object.
+.Pp
+Currently all functions are implemented as static inline.
+.Pp
+The
+.Fn refcount_init
+function is used to set the initial value of the counter to
+.Fa value .
+It is normally used when creating a reference-counted object.
+.Pp
+The
+.Fn refcount_load
+function returns a snapshot of the counter value.
+This value may immediately become out-of-date in the absence of external
+synchronization.
+.Fn refcount_load
+should be used instead of relying on the properties of the
+.Vt volatile
+qualifier.
+.Pp
+The
+.Fn refcount_acquire
+function is used to acquire a new reference.
+It returns the counter value before the new reference was acquired.
+The caller is responsible for ensuring that it holds a valid reference
+while obtaining a new reference.
+For example,
+if an object is stored on a list and the list holds a reference on the
+object, then holding a lock that protects the list provides sufficient
+protection for acquiring a new reference.
+.Pp
+The
+.Fn refcount_acquire_checked
+variant performs the same operation as
+.Fn refcount_acquire ,
+but additionally checks that the
+.Fa count
+value does not overflow as result of the operation.
+It returns
+.Dv true
+if the reference was sucessfully obtained, and
+.Dv false
+if it was not, due to the overflow.
+.Pp
+The
+.Fn refcount_acquire_if_not_zero
+function is yet another variant of
+.Fn refcount_acquire ,
+which only obtains the reference when some reference already exists.
+In other words,
+.Fa *count
+must be already greater than zero for the function to succeed, in which
+case the return value is
+.Dv true ,
+otherwise
+.Dv false
+is returned.
+.Pp
+The
+.Fn refcount_release
+function is used to release an existing reference.
+The function returns true if the reference being released was
+the last reference;
+otherwise, it returns false.
+.Pp
+The
+.Fn refcount_release_if_last
+and
+.Fn refcount_release_if_not_last
+functions are variants of
+.Fn refcount_release
+which only drop the reference when it is or is not the last reference,
+respectively.
+In other words,
+.Fn refcount_release_if_last
+returns
+.Dv true
+when
+.Fa *count
+is equal to one, in which case it is decremented to zero.
+Otherwise,
+.Fa *count
+is not modified and the function returns
+.Dv false .
+Similarly,
+.Fn refcount_release_if_not_last
+returns
+.Dv true
+when
+.Fa *count
+is greater than one, in which case
+.Fa *count
+is decremented.
+Otherwise, if
+.Fa *count
+is equal to one, the reference is not released and the function returns
+.Dv false .
+.Pp
+Note that these routines do not provide any inter-CPU synchronization or
+data protection for managing the counter.
+The caller is responsible for any additional synchronization needed by
+consumers of any containing objects.
+In addition,
+the caller is also responsible for managing the life cycle of any containing
+objects including explicitly releasing any resources when the last reference
+is released.
+.Pp
+The
+.Fn refcount_release
+unconditionally executes a release fence (see
+.Xr atomic 9 ) before releasing the reference, which
+synchronizes with an acquire fence executed right before
+returning the
+.Dv true
+value.
+This ensures that the destructor, supposedly executed by the caller after
+the last reference was dropped, sees all updates done during the lifetime
+of the object.
+.Sh RETURN VALUES
+The
+.Nm refcount_release
+function returns true when releasing the last reference and false when
+releasing any other reference.
+.Sh HISTORY
+These functions were introduced in
+.Fx 6.0 .

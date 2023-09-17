@@ -1,0 +1,68 @@
+define w() { auto z; return 1; }
+define x() {
+	"x"
+	return (1)
+}
+define y() {
+	"y"
+	return (2)
+}
+define z() {
+	"z"
+	return (3)
+}
+
+define v() { return }
+
+v()
+
+w()
+
+if (x() == y()) { 1 }
+1
+if (x() <= y()) { 2 }
+if (y() >= x()) { 3 }
+if (x() != y()) { 4 }
+if (x() < y()) { 5 }
+if (y() > x()) { 6 }
+
+if (x() == z()) { 11 }
+11
+if (x() <= z()) { 12 }
+if (z() >= x()) { 13 }
+if (x() != z()) { 14 }
+if (x() < z()) { 15 }
+if (z() > x()) { 16 }
+
+x = -10
+while (x <= 0) {
+	x
+	if (x == -5) break;
+	x += 1
+}
+
+define u() {
+	auto a[];
+	return a[H]
+}
+
+u()
+
+if (x == -4) x
+else x - (i += 1) print "true\ÿÿÿlse print "fal"
+
+i = ÿÿÿhile (i -= 2) print "i: ", i += 1, "\n"
+
+a = 5
+
+for (i = 5; i-= 1; --a) print "i: ", i, "; a: ", a, "\n"
+
+define void t(x, y) {
+	print "x: ", x, "; y: ", y, "\n"
+}
+
+t(i++, i++
+i
+
+t(++i, ++i)
+i

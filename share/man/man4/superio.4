@@ -1,0 +1,149 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Andriy Gapon <avg@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 11, 2019
+.Dt SUPERIO 4
+.Os
+.Sh NAME
+.Nm superio
+.Nd Super I/O controller and bus driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device superio"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+superio_load="YES"
+.Ed
+.Sh DESCRIPTION
+Super I/O is an I/O controller that combines various low-bandwidth devices
+that can be functionally unrelated otherwise.
+A typical Super I/O can contain devices such as
+.Pp
+.Bl -bullet -compact
+.It
+a floppy disk controller
+.It
+a parallel port
+.It
+a serial port
+.It
+a PS/2 mouse and keyboard controller
+.It
+a hardware monitoring controller
+.It
+a watchdog timer
+.It
+a controller for general purpose input-output
+.El
+.Pp
+The
+.Nm
+driver provides support for devices residing in the Super I/O controller
+that can only be accessed or discovered using the controller's interface.
+Some of the Super I/O devices have standardized interfaces.
+Such devices either use well-known legacy resources or they are advertised
+via ACPI or both.
+They can be configured either using ISA bus hints or they are auto-configured by
+.Xr acpi 4 .
+The
+.Nm
+driver is not designed to interact with that kind of devices.
+They can be handled by their respective drivers without any knowledge of the
+Super I/O specifics.
+For instance,
+.Xr fdc 4
+provides access to the floppy disk controller.
+.Pp
+There are other Super I/O devices that do not have any standardized interface.
+Drivers for those devices can be written using facilities of the
+.Nm
+driver.
+.Pp
+The driver itself attaches to the ISA bus as all supported controllers are
+accessed via LPC I/O ports.
+.Pp
+The
+.Nm
+driver is unusual as it is both a controller driver for a variety of Super I/O
+controllers and a bus driver for supported devices in those controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports a multitude of Super I/O controllers produced by Nuvoton,
+formerly known as Winbond, and ITE, namely:
+.Pp
+.Bl -bullet -compact
+.It
+Fintek F81803
+.It
+Fintek F81865
+.It
+Nuvoton NCT5104D/NCT6102D/NCT6106D rev. A and B+
+.It
+Nuvoton NCT5585D
+.It
+Nuvoton NCT6116D
+.It
+Nuvoton NCT6775
+.It
+Nuvoton NCT6776
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6791
+.It
+Nuvoton NCT6792
+.It
+Nuvoton NCT6793
+.It
+Nuvoton NCT6795
+.It
+Nuvoton NCT6796D-E
+.It
+Winbond 83627HF/F/HG/G/S/THF/EHF/DHG/UHG/DHG-P
+.It
+Winbond 83637HF
+.It
+Winbond 83667HG/HG-B
+.It
+Winbond 83687THF
+.It
+Winbond 83697HF/UG
+.El
+.Sh SEE ALSO
+.Xr superio 9
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .

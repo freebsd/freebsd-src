@@ -1,0 +1,84 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 The FreeBSD Foundation
+.\"
+.\" This documentation was written by BFF Storage Systems, LLC under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 19, 2019
+.Dt VOP_BMAP 9
+.Os
+.Sh NAME
+.Nm VOP_BMAP
+.Nd Logical to physical block number conversion
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_BMAP "struct vnode *vp" "daddr_t bn" "struct bufobj **bop" "daddr_t *bnp" "int *runp" "int *runb"
+.Sh DESCRIPTION
+This vnode call is used to lookup the physical block number of the file system's
+underlying device where a given logical block of a file is stored.
+Its arguments are:
+.Bl -tag -width type
+.It Fa vp
+The vnode of the file.
+.It Fa bn
+Logical block number within the file identified by
+.Fa vp .
+.It Fa bop
+Return storage for the buffer object associated with the file system's
+underlying device.
+.It Fa bnp
+Return storage for the physical block number.
+.It Fa runp
+Return storage for the number of succeeding logical blocks that may be
+efficiently read at the same time as the requested block.
+This will usually be the number of logical blocks whose physical blocks are
+contiguously allocated.
+However a file system is free to define "efficient" as it see fit.
+.It Fa runb
+Like
+.Fa runp
+but for preceding rather than succeeding blocks.
+.El
+.Pp
+Any of the return arguments may be
+.Dv NULL
+to indicate that the caller does not care about that information.
+.Sh LOCKS
+The vnode will be locked on entry and should remain locked on return.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh HISTORY
+A
+.Fn bmap
+function first appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+This manual page was written by
+.An Alan Somers .

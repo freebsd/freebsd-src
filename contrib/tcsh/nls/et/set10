@@ -1,0 +1,7 @@
+$ ma.setp.c
+$set 10 
+1 setpath: vigane käsk '%s'.\n
+2 setpath: käsule '%s' pole piisavalt argumente.\n
+3 setpath: teel '%s' pole väärtust\n
+4 setpath: %s ei leitud %s's\n
+5 setpath: %d ei ole korrektne positsioon %s's\n

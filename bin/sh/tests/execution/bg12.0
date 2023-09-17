@@ -1,0 +1,11 @@
+
+T=`mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXXXX`
+trap 'rm -rf $T' 0
+cd $T || exit 3
+mkfifo fifo1
+{ trap - INT; : >fifo1; sleep 5 & wait; exit 4; } &
+: <fifo1
+kill -INT "$!"
+wait "$!"
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = INT ]

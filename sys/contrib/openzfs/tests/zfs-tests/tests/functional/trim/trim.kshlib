@@ -1,0 +1,119 @@
+#!/bin/ksh -p
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+
+#
+# Copyright (c) 2019 by Tim Chase. All rights reserved.
+# Copyright (c) 2019 Lawrence Livermore National Security, LLC.
+#
+
+. $STF_SUITE/tests/functional/cli_root/zpool_trim/zpool_trim.kshlib
+
+#
+# Get the actual size on disk for the provided file.
+#
+function get_size_mb
+{
+	du --block-size 1048576 -s "$1" | cut -f1
+}
+
+#
+# Get the number of trim IOs issued for the pool (ind or agg).
+#
+function get_trim_io
+{
+	typeset pool="${1-:$TESTPOOL}"
+	typeset type="${2-:ind}"
+	typeset vdev="${3}"
+	typeset rval
+
+	# Sum the ind or agg columns of the trim request size histogram.
+	case "$type" in
+	"ind")
+		zpool iostat -pr $pool $vdev |
+		    awk '$1 ~ /[0-9].*/ { sum += $12 } END { print sum }'
+		;;
+	"agg")
+		zpool iostat -pr $pool $vdev |
+		    awk '$1 ~ /[0-9].*/ { sum += $13 } END { print sum }'
+		;;
+	*)
+		log_fail "Type must be 'ind' or 'agg'"
+		;;
+	esac
+}
+
+#
+# Verify that trim IOs were send to devices in the pool.
+#
+function verify_trim_io
+{
+	typeset pool="${1:-$TESTPOOL}"
+	typeset type="${2:-ind}"
+	typeset min_trim_ios=${3:-100}
+	typeset vdev="${4}"
+	typeset ios
+
+	ios=$(get_trim_io $pool $type $vdev)
+	if [[ $ios -ge $min_trim_ios ]]; then
+		log_note "Issued $ios $type trim IOs for pool $pool"
+	else
+		log_fail "Too few trim IOs issued $ios/$min_trim_ios"
+	fi
+}
+
+#
+# Run N txgs which should be enough to trim the entire pool.
+#
+function wait_trim_io # pool type txgs
+{
+	typeset pool="${1-:$TESTPOOL}"
+	typeset type="${2-:ind}"
+	typeset txgs=${3:-10}
+	typeset timeout=120
+	typeset stop_time=$(( $(date +%s) + $timeout ))
+
+	typeset -i i=0
+	while [[ $i -lt $txgs ]]; do
+		if [ "$(date +%s)" -ge $stop_time ]; then
+			log_fail "Exceeded trim time limit of ${timeout}s"
+			return
+		fi
+
+		sync_all_pools true
+		((i = i + 1))
+	done
+
+	typeset ios=$(get_trim_io $pool $type)
+	log_note "Waited for $txgs txgs, $ios $type TRIM IOs"
+}
+
+#
+# Verify that file vdevs against a target value.
+#
+function verify_vdevs # op size vdevs
+{
+	typeset tgt_op=$1
+	typeset tgt_size=$2
+	shift 2
+	typeset vdevs=$@
+
+	for vdev in $vdevs; do
+		typeset size=$(get_size_mb $vdev)
+		if test $size $tgt_op $tgt_size; then
+			log_note "Success $vdev is $size MB which is $tgt_op" \
+			    "than $tgt_size MB"
+		else
+			log_fail "Failure $vdev is $size MB which is not" \
+			    "$tgt_op than $tgt_size MB"
+		fi
+	done
+}

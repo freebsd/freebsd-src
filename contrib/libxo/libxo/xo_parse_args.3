@@ -1,0 +1,80 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd November 17, 2020
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_parse_args , xo_set_program
+.Nd detect, parse, and remove arguments for libxo
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_parse_args "int argc" "char **argv"
+.Ft int
+.Fn xo_set_program "const char *name"
+.Sh DESCRIPTION
+The
+.Fn xo_parse_args
+function is used to process command-line arguments, which are
+described in
+.Xr xo_options 7 .
+.Nm libxo
+specific
+options are processed and removed
+from the argument list so the calling application does not
+need to process them.
+If successful, a new value for argc is returned.
+On failure, a message it emitted and -1 is returned.
+.Bd -literal -offset indent
+    argc = xo_parse_args(argc, argv);
+    if (argc < 0)
+        exit(EXIT_FAILURE);
+.Ed
+.Pp
+Following the call to
+.Fn xo_parse_args ,
+the application can process the remaining arguments in a normal manner.
+.Pp
+The
+.Fn xo_set_program
+function sets name of the program as reported by
+functions like
+.Fn xo_failure ,
+.Fn xo_warn ,
+.Fn xo_err ,
+etc.
+The program name is initialized by
+.Fn xo_parse_args ,
+but subsequent calls to
+.Fn xo_set_program
+can override this value.
+.Pp
+Note that the value is not copied, so the memory passed to
+.Fn xo_set_program
+(and
+.Fn xo_parse_args )
+must be maintained by the caller.
+.Pp
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr xo_options 7,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

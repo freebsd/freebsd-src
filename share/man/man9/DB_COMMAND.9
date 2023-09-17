@@ -1,0 +1,180 @@
+.\"-
+.\" Copyright (c) 2008 Guillaume Ballet
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 5, 2023
+.Dt DB_COMMAND 9
+.Os
+.Sh NAME
+.Nm DB_COMMAND ,
+.Nm DB_COMMAND_FLAGS ,
+.Nm DB_SHOW_COMMAND ,
+.Nm DB_SHOW_COMMAND_FLAGS ,
+.Nm DB_SHOW_ALL_COMMAND ,
+.Nm DB_TABLE_COMMAND ,
+.Nm DB_TABLE_COMMAND_FLAGS ,
+.Nm DB_ALIAS ,
+.Nm DB_ALIAS_FLAGS ,
+.Nm DB_SHOW_ALIAS ,
+.Nm DB_SHOW_ALIAS_FLAGS ,
+.Nm DB_SHOW_ALL_ALIAS ,
+.Nm DB_TABLE_ALIAS ,
+.Nm DB_TABLE_ALIAS_FLAGS
+.Nm DB_DECLARE_TABLE ,
+.Nm DB_DEFINE_TABLE ,
+.Nd Extends the ddb command set
+.Sh SYNOPSIS
+.In ddb/ddb.h
+.Fn DB_COMMAND "command_name" "command_function"
+.Fn DB_COMMAND_FLAGS "command_name" "command_function" "flags"
+.Fn DB_SHOW_COMMAND "command_name" "command_function"
+.Fn DB_SHOW_COMMAND_FLAGS "command_name" "command_function" "flags"
+.Fn DB_SHOW_ALL_COMMAND "command_name" "command_function"
+.Fn DB_TABLE_COMMAND "table" "command_name" "command_function"
+.Fn DB_TABLE_COMMAND_FLAGS "table" "command_name" "command_function" "flags"
+.Fn DB_ALIAS "alias_name" "command_function"
+.Fn DB_ALIAS_FLAGS "alias_name" "command_function" "flags"
+.Fn DB_SHOW_ALIAS "alias_name" "command_function"
+.Fn DB_SHOW_ALIAS_FLAGS "alias_name" "command_function" "flags"
+.Fn DB_SHOW_ALL_ALIAS "alias_name" "command_function"
+.Fn DB_TABLE_ALIAS "table" "alias_name" "command_function"
+.Fn DB_TABLE_ALIAS_FLAGS "table" "alias_name" "command_function" "flags"
+.Fn DB_DEFINE_TABLE "parent" "name" "table"
+.Fn DB_DECLARE_TABLE "table"
+.Sh DESCRIPTION
+The
+.Fn DB_COMMAND
+macro adds
+.Fa command_name
+to the list of top-level commands.
+Invoking
+.Fa command_name
+from ddb will call
+.Fa command_function .
+.Pp
+The
+.Fn DB_SHOW_COMMAND
+and
+.Fn DB_SHOW_ALL_COMMAND
+macros are roughly equivalent to
+.Fn DB_COMMAND
+but in these cases,
+.Fa command_name
+is a sub-command of the ddb
+.Sy show
+command and
+.Sy show all
+command, respectively.
+.Pp
+The
+.Fn DB_TABLE_COMMAND
+macro is also similar to
+.Fn DB_COMMAND
+but adds the new command as a sub-command of the ddb command
+.Fa table .
+.Pp
+The
+.Fn DB_ALIAS ,
+.Fn DB_SHOW_ALIAS ,
+.Fn DB_SHOW_ALL_ALIAS ,
+and
+.Fn DB_TABLE_ALIAS
+macros register the existing
+.Fa command_function
+under the alternative command name
+.Fa alias_name .
+.Pp
+The _FLAGS variants of these commands allow the programmer to specify a value
+for the
+.Fa flag
+field of the command structure.
+The possible flag values are defined alongside
+.Ft struct db_command
+in
+.In ddb/ddb.h .
+.Pp
+The general command syntax:
+.Cm command Ns Op Li \&/ Ns Ar modifier
+.Ar address Ns Op , Ns Ar count ,
+translates into the following parameters for
+.Fa command_function :
+.Bl -tag -width Fa -offset indent
+.It Fa addr
+The address passed to the command as an argument.
+.It Fa have_addr
+A boolean value that is true if the addr field is valid.
+.It Fa count
+The number of quad words starting at offset
+.Fa addr
+that the command must process.
+.It Fa modif
+A pointer to the string of modifiers.
+That is, a series of symbols used to pass some options to the command.
+For example, the
+.Sy examine
+command will display words in decimal form if it is passed the modifier "d".
+.El
+.Pp
+The
+.Fn DB_DEFINE_TABLE
+macro adds a new command
+.Fa name
+as a sub-command of the existing command table
+.Fa parent .
+The new command defines a table named
+.Fa table
+which contains sub-commands.
+New commands and aliases can be added to this table by passing
+.Fa table
+as the first argument to one of the DB_TABLE_ macros.
+.Sh EXAMPLES
+In your module, the command is declared as:
+.Bd -literal
+DB_COMMAND(mycmd, my_cmd_func)
+{
+	if (have_addr)
+		db_printf("Calling my command with address %p\\n", addr);
+}
+.Ed
+.Pp
+An alias for this command is declared as:
+.Bd -literal
+DB_ALIAS(mycmd2, my_cmd_func);
+.Ed
+.Pp
+Then, when in ddb:
+.Bd -literal
+.Bf Sy
+db> mycmd 0x1000
+Calling my command with address 0x1000
+db> mycmd2 0x2500
+Calling my command with address 0x2500
+db>
+.Ef
+.Ed
+.Sh SEE ALSO
+.Xr ddb 4
+.Sh AUTHORS
+This manual page was written by
+.An Guillaume Ballet Aq Mt gballet@gmail.com .

@@ -1,0 +1,21 @@
+make: "cond-token-string.mk" line 15: Unknown modifier "Z"
+make: "cond-token-string.mk" line 15: Malformed conditional ("" != "${:Uvalue:Z}")
+make: "cond-token-string.mk" line 25: xvalue is not defined.
+make: "cond-token-string.mk" line 32: Malformed conditional (x${:Uvalue} == "")
+make: "cond-token-string.mk" line 42: Expected.
+CondParser_Eval: "UNDEF"
+make: "cond-token-string.mk" line 52: The string literal "UNDEF" is not empty.
+CondParser_Eval: " "
+make: "cond-token-string.mk" line 61: The string literal " " is not empty, even though it consists of whitespace only.
+CondParser_Eval: "${UNDEF}"
+make: "cond-token-string.mk" line 71: An undefined variable in quotes expands to an empty string, which then evaluates to false.
+CondParser_Eval: "${:Uvalue}"
+make: "cond-token-string.mk" line 77: A nonempty variable expression evaluates to true.
+CondParser_Eval: "${:U}"
+make: "cond-token-string.mk" line 86: An empty variable evaluates to false.
+CondParser_Eval: ("${VAR}")
+CondParser_Eval: "quoted" == quoted
+Comparing "quoted" == "quoted"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

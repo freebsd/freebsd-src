@@ -1,0 +1,99 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/sun8i-h3-ccu.h>
+
+/ {
+	compatible = "allwinner,sun50i-h5";
+};
+
+&{/} {
+	cpu_opp_table: opp_table {
+		       compatible = "operating-points-v2";
+		       opp-shared;
+
+		       opp@408000000 {
+			       opp-hz = /bits/ 64 <408000000>;
+			       opp-microvolt = <1000000 1000000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@648000000 {
+			       opp-hz = /bits/ 64 <648000000>;
+			       opp-microvolt = <1040000 1040000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@816000000 {
+			       opp-hz = /bits/ 64 <816000000>;
+			       opp-microvolt = <1080000 1080000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@912000000 {
+			       opp-hz = /bits/ 64 <912000000>;
+			       opp-microvolt = <1120000 1120000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@960000000 {
+			       opp-hz = /bits/ 64 <960000000>;
+			       opp-microvolt = <1160000 1160000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@1008000000 {
+			       opp-hz = /bits/ 64 <1008000000>;
+			       opp-microvolt = <1200000 1200000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@1056000000 {
+			       opp-hz = /bits/ 64 <1056000000>;
+			       opp-microvolt = <1240000 1240000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@1104000000 {
+			       opp-hz = /bits/ 64 <1104000000>;
+			       opp-microvolt = <1260000 1260000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+
+		       opp@1152000000 {
+			       opp-hz = /bits/ 64 <1152000000>;
+			       opp-microvolt = <1300000 1300000 1300000>;
+			       clock-latency-ns = <244144>; /* 8 32k periods */
+		       };
+	       };
+
+	reg_cpu_fallback: reg_cpu_fallback  {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-cpux-dummy";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+	};
+
+};
+
+&{/cpus/cpu@0} {
+	clocks = <&ccu CLK_CPUX>;
+	clock-names = "cpu";
+	clock-latency = <244144>; /* 8 32k periods */
+	operating-points-v2 = <&cpu_opp_table>;
+	cpu-supply = <&reg_cpu_fallback>;
+	#cooling-cells = <2>;
+};
+
+&{/cpus/cpu@1} {
+	operating-points-v2 = <&cpu_opp_table>;
+};
+
+&{/cpus/cpu@2} {
+	operating-points-v2 = <&cpu_opp_table>;
+};
+
+&{/cpus/cpu@3} {
+	operating-points-v2 = <&cpu_opp_table>;
+};
+

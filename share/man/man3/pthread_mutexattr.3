@@ -1,0 +1,343 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 1, 2021
+.Dt PTHREAD_MUTEXATTR 3
+.Os
+.Sh NAME
+.Nm pthread_mutexattr_init ,
+.Nm pthread_mutexattr_destroy ,
+.Nm pthread_mutexattr_setprioceiling ,
+.Nm pthread_mutexattr_getprioceiling ,
+.Nm pthread_mutexattr_setprotocol ,
+.Nm pthread_mutexattr_getprotocol ,
+.Nm pthread_mutexattr_setpshared ,
+.Nm pthread_mutexattr_getpshared ,
+.Nm pthread_mutexattr_setrobust ,
+.Nm pthread_mutexattr_getrobust ,
+.Nm pthread_mutexattr_settype ,
+.Nm pthread_mutexattr_gettype
+.Nd mutex attribute operations
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_mutexattr_init "pthread_mutexattr_t *attr"
+.Ft int
+.Fn pthread_mutexattr_destroy "pthread_mutexattr_t *attr"
+.Ft int
+.Fo pthread_mutexattr_setprioceiling
+.Fa "pthread_mutexattr_t *attr" "int prioceiling"
+.Fc
+.Ft int
+.Fo pthread_mutexattr_getprioceiling
+.Fa "const pthread_mutexattr_t *attr" "int *prioceiling"
+.Fc
+.Ft int
+.Fn pthread_mutexattr_setprotocol "pthread_mutexattr_t *attr" "int protocol"
+.Ft int
+.Fo pthread_mutexattr_getprotocol
+.Fa "const pthread_mutexattr_t *restrict attr" "int *restrict protocol"
+.Fc
+.Ft int
+.Fo pthread_mutexattr_setpshared
+.Fa "pthread_mutexattr_t *attr" "int shared"
+.Fc
+.Ft int
+.Fo pthread_mutexattr_getpshared
+.Fa "const pthread_mutexattr_t *attr" "int *shared"
+.Fc
+.Ft int
+.Fn pthread_mutexattr_setrobust "pthread_mutexattr_t *attr" "int robust"
+.Ft int
+.Fn pthread_mutexattr_getrobust "pthread_mutexattr_t *attr" "int *robust"
+.Ft int
+.Fn pthread_mutexattr_settype "pthread_mutexattr_t *attr" "int type"
+.Ft int
+.Fo pthread_mutexattr_gettype
+.Fa "const pthread_mutexattr_t *restrict attr" "int *restrict type"
+.Fc
+.Sh DESCRIPTION
+Mutex attributes are used to specify parameters to
+.Fn pthread_mutex_init .
+One attribute object can be used in multiple calls to
+.Fn pthread_mutex_init ,
+with or without modifications between calls.
+.Pp
+The
+.Fn pthread_mutexattr_init
+function initializes
+.Fa attr
+with all the default mutex attributes.
+.Pp
+The
+.Fn pthread_mutexattr_destroy
+function destroys
+.Fa attr .
+.Pp
+The
+.Fn pthread_mutexattr_setprioceiling
+function sets the priority ceiling for the mutex, used
+by threads executed under the
+.Dv PTHREAD_PRIO_PROTECT
+protocol.
+.Pp
+The
+.Fn pthread_mutexattr_setprotocol
+function specifies the protocol to be followed in utilizing mutexes.
+The
+.Fa protocol
+argument can take one of the following values:
+.Bl -tag -width PTHREAD_PRIO_PROTECT
+.It PTHREAD_PRIO_NONE
+Priority and scheduling of the thread owning this mutex is not
+affected by its mutex ownership.
+.It PTHREAD_PRIO_INHERIT
+Request priority-inheritance protocol, where the thread owning the mutex
+is executed at the highest priority among priorities of all threads waiting
+on any mutex owned by this thread.
+.It PTHREAD_PRIO_PROTECT
+Request priority-inheritance protocol, where the thread owning the mutex
+is executed at highest priority among priorities or priority ceilings of
+all threads waiting on any mutex owned by this thread.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setrobust
+function specifies robustness attribute of the mutex.
+Possible values for the
+.Fa robust
+argument are
+.Bl -tag -width PTHREAD_MUTEX_STALLED
+.It PTHREAD_MUTEX_STALLED
+No special actions are taken if the thread owning the mutex is terminated
+without unlocking the mutex lock.
+This can lead to deadlocks if no other thread can unlock the mutex.
+This is the default value.
+.It PTHREAD_MUTEX_ROBUST
+If the process containing the owning thread of a robust mutex, or owning
+thread, terminates while holding the mutex lock, the next thread that
+acquires the mutex is notified about the termination
+by the return value
+.Ev EOWNERDEAD
+from the locking function.
+Then, either
+.Xr pthread_mutex_consistent 3
+can be used to repair the mutex lock state, or
+.Xr pthread_mutex_unlock 3
+can unlock the mutex lock but also put it an unusable state,
+where all further attempts to acquire it result in the
+.Ev ENOTRECOVERABLE
+error.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_settype
+function sets the type of the mutex.
+The type affects the behavior of calls which lock and unlock the mutex.
+The possible values for the
+.Fa type
+argument are
+.Bl -tag -width PTHREAD_MUTEX_ERRORCHECK
+.It PTHREAD_MUTEX_NORMAL
+Both recursive locking, and unlocking when the lock is not owned by the current
+thread, cause an error to be returned from the corresponding functions.
+This matches
+.Dv PTHREAD_MUTEX_ERRORCHECK
+but somewhat contradicts the behavior mandated by POSIX.
+.It PTHREAD_MUTEX_ERRORCHECK
+Both recursive locking, and unlocking when the lock is not owned by the current
+thread, cause an error returned from the corresponding functions.
+.It PTHREAD_MUTEX_RECURSIVE
+Recursive locking is allowed.
+Attempt to unlock when current thread is not an owner of the lock causes
+an error to be returned.
+.It PTHREAD_MUTEX_DEFAULT
+The
+.Fx
+implementation maps this type to
+.Dv PTHREAD_MUTEX_ERRORCHECK
+type.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_get*
+functions copy the value of the attribute that corresponds to each function name
+to the location pointed to by the second function parameter.
+.Sh RETURN VALUES
+If successful, these functions return 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_mutexattr_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Out of memory.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setprioceiling
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa prioceiling .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getprioceiling
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setprotocol
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa protocol .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getprotocol
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setpshared
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa shared .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getpshared
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_settype
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa type .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_gettype
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setrobust
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa robust .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getrobust
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Sh SEE ALSO
+.Xr pthread_mutex_init 3
+.Sh STANDARDS
+The
+.Fn pthread_mutexattr_init
+and
+.Fn pthread_mutexattr_destroy
+functions conform to
+.St -p1003.1-96
+.Pp
+The
+.Fn pthread_mutexattr_setprioceiling ,
+.Fn pthread_mutexattr_getprioceiling ,
+.Fn pthread_mutexattr_setprotocol ,
+.Fn pthread_mutexattr_getprotocol ,
+.Fn pthread_mutexattr_setpshared ,
+.Fn pthread_mutexattr_getpshared ,
+.Fn pthread_mutexattr_settype ,
+and
+.Fn pthread_mutexattr_gettype
+functions conform to
+.St -susv2 .
+The
+.Fn pthread_mutexattr_setrobust
+and
+.Fn pthread_mutexattr_getrobust
+functions conform to
+.St -susv4 .

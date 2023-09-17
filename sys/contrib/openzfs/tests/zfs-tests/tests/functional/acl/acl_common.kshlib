@@ -1,0 +1,259 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or https://opensource.org/licenses/CDDL-1.0.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+#
+# Copyright (c) 2016, 2018 by Delphix. All rights reserved.
+#
+
+. $STF_SUITE/tests/functional/acl/acl.cfg
+. $STF_SUITE/include/libtest.shlib
+
+#
+# Get the given file/directory ACL
+#
+# $1 object -- file or directory
+#
+function get_acl #<obj>
+{
+        typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	ls -vd $obj | awk '(NR != 1) {print $0}'
+}
+
+#
+# Get the given file/directory ACL
+#
+# $1 object -- file or directory
+#
+function get_compact_acl #<obj>
+{
+        typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	ls -Vd $obj | awk '(NR != 1) {print $0}'
+}
+
+#
+# Check the given two files/directories have the same ACLs
+#
+# Return 0, if source object acl is equal to target object acl.
+#
+# $1 source object
+# $2 target object
+#
+function compare_acls #<src> <tgt>
+{
+        typeset src=$1
+        typeset tgt=$2
+
+	(( ${#src} == 0 || ${#tgt} == 0 )) && return 1
+	[[ $src == $tgt ]] && return 0
+
+	typeset tmpsrc=$TEST_BASE_DIR/compare_acls.src.$$
+	typeset tmptgt=$TEST_BASE_DIR/compare_acls.tgt.$$
+
+	get_acl $src > $tmpsrc
+	get_acl $tgt > $tmptgt
+	typeset -i ret=0
+	cmp $tmpsrc $tmptgt > /dev/null
+	ret=$?
+	rm -f $tmpsrc $tmptgt
+
+	if (( ret != 0 )); then
+		return $ret
+	fi
+
+	get_compact_acl $src > $tmpsrc
+	get_compact_acl $tgt > $tmptgt
+	cmp $tmpsrc $tmptgt > /dev/null
+	ret=$?
+	rm -f $tmpsrc $tmptgt
+
+	return $ret
+}
+
+#
+# Check that the given two objects have the same xattrs.
+# Return 0, if their xattrs are equal with each other. Otherwise, return 1.
+#
+# $1 source object
+# $2 target object
+#
+function compare_xattrs #<src> <tgt>
+{
+        typeset src=$1
+        typeset tgt=$2
+
+	(( ${#src} == 0 || ${#tgt} == 0 )) && return 1
+	[[ $src == $tgt ]] && return 0
+
+	typeset tmpsrc=$TEST_BASE_DIR/compare_xattrs.src.$$
+	typeset tmptgt=$TEST_BASE_DIR/compare_xattrs.tgt.$$
+
+	get_xattr $src > $tmpsrc
+	get_xattr $tgt > $tmptgt
+	typeset -i ret=0
+	cmp $tmpsrc $tmptgt > /dev/null
+	ret=$?
+	rm -f $tmpsrc $tmptgt
+
+        return $ret
+}
+
+#
+# Run commands by $ZFS_ACL_CUR_USER
+#
+# $1-n commands and options
+#
+function usr_exec #<commands> [...]
+{
+	chg_usr_exec "$ZFS_ACL_CUR_USER" $@
+}
+
+#
+# Cleanup exist user/group.
+#
+function cleanup_user_group
+{
+	del_user $ZFS_ACL_ADMIN
+
+	del_user $ZFS_ACL_STAFF1
+	del_user $ZFS_ACL_STAFF2
+	del_group $ZFS_ACL_STAFF_GROUP
+
+	del_user $ZFS_ACL_OTHER1
+	del_user $ZFS_ACL_OTHER2
+	del_group $ZFS_ACL_OTHER_GROUP
+
+	return 0
+}
+
+#
+# Clean up testfile and test directory
+#
+function cleanup
+{
+	if [[ -d $TESTDIR ]]; then
+		cd $TESTDIR
+		rm -rf $TESTDIR/*
+	fi
+}
+
+#
+# Get the given file/directory xattr
+#
+# $1 object -- file or directory
+#
+function get_xattr #<obj>
+{
+        typeset obj=$1
+	typeset xattr
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	for xattr in $(runat $obj ls | grep -v 'SUNWattr_r[ow]'); do
+		runat $obj cksum $xattr
+	done
+}
+
+#
+# This function compare two cksum results array.
+#
+# $1 The array name which stored the cksum before operation.
+# $2 The array name which stored the cksum after operation.
+#
+function compare_cksum #<array1> <array2>
+{
+	typeset before=$1
+	typeset after=$2
+	eval typeset -i count=\${#$before[@]}
+
+	typeset -i i=0
+	while (( i < count )); do
+		eval typeset var1=\${$before[$i]}
+		eval typeset var2=\${$after[$i]}
+
+		if [[ $var1 != $var2 ]]; then
+			return 1
+		fi
+
+		(( i += 1 ))
+	done
+
+	return 0
+}
+
+#
+# The function create_files creates the directories and files that the script
+# will operate on to test extended attribute functionality.
+#
+# $1 The base directory in which to create directories and files.
+#
+function create_files #<directory>
+{
+	typeset basedir=$1
+
+	[[ ! -d $basedir ]] && usr_exec mkdir -m 777 $basedir
+	[[ ! -d $RES_DIR  ]] && usr_exec mkdir -m 777 $RES_DIR
+	[[ ! -d $INI_DIR ]] && usr_exec mkdir -m 777 $INI_DIR
+	[[ ! -d $TST_DIR ]] && usr_exec mkdir -m 777 $TST_DIR
+	[[ ! -d $TMP_DIR  ]] && usr_exec mkdir -m 777 $TMP_DIR
+
+	#
+	# Create the original file and its attribute files.
+	#
+	[[ ! -a $RES_DIR/file ]] && \
+		usr_exec file_write -o create -f $RES_DIR/file \
+			-b 1024 -d 0 -c 1
+	[[ ! -a $RES_DIR/attribute ]] && \
+		usr_exec cp $RES_DIR/file $RES_DIR/attribute
+
+	typeset oldpwd=$PWD
+	cd $INI_DIR
+
+	typeset -i i=0
+	while (( i < NUM_FILE )); do
+		typeset dstfile=$INI_DIR/file.$$.$i
+		usr_exec cp $RES_DIR/file $dstfile
+
+		typeset -i j=0
+		while (( j < NUM_ATTR )); do
+			usr_exec runat $dstfile \
+				cp $RES_DIR/attribute ./attribute.$j
+			(( j += 1 ))
+		done
+
+		(( i += 1 ))
+	done
+
+	cd $oldpwd
+}

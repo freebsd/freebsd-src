@@ -1,0 +1,15 @@
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.               nochange
+    var             nochange
+        spool           nochange tags=package=runtime
+            clientmqueue    uname=smmsp gname=smmsp mode=0770 tags=package=sendmail
+            ..
+            mqueue          gname=daemon tags=package=sendmail
+            ..
+        ..
+    ..
+..

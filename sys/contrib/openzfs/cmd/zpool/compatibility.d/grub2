@@ -1,0 +1,14 @@
+# Features which are supported by GRUB2
+async_destroy
+bookmarks
+embedded_data
+empty_bpobj
+enabled_txg
+extensible_dataset
+filesystem_limits
+hole_birth
+large_blocks
+livelist
+lz4_compress
+spacemap_histogram
+zpool_checkpoint

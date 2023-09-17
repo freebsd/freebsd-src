@@ -1,0 +1,31 @@
+static void
+doSomethingThenPrintHello(int test)
+{
+	test = test << 4;
+	if (test % 8 == 6) {
+		return;
+	}
+
+	print("goodbye\n");
+}
+
+
+- (long) readOffset:(FILE*)file
+{
+	if( version >= 11){
+		long offset;
+		fread(&offset, sizeof(long), 1, file);
+		return offset;
+	} else {
+		int offset;
+		fread(&offset, sizeof(int), 1, file);
+		return offset;
+	}
+}
+
++ (BOOL) isEdible:(NSString *)mushroom
+{
+	/* With a solid guide book (such as Phillips 2006) assume we can't eat
+	 * the fungus */
+	return FALSE;
+}

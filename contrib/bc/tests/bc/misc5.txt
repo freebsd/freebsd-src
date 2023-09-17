@@ -1,0 +1,20 @@
+if (1) {}
+else 4
+
+if (0) {}
+else 5
+
+if (1) 6
+else {}
+
+if (0) 7
+else {}
+
+{
+	if (1) if (1)
+}
+print "n\n"
+
+if (1) {
+	print "true\n"
+}

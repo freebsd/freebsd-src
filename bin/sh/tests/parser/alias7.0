@@ -1,0 +1,3 @@
+
+alias echo='echo a'
+[ "`eval echo b`" = "a b" ]

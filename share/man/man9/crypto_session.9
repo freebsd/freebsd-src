@@ -1,0 +1,269 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd June 22, 2020
+.Dt CRYPTO_SESSION 9
+.Os
+.Sh NAME
+.Nm crypto_session
+.Nd state used for symmetric cryptographic services
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Ft struct auth_hash *
+.Fn crypto_auth_hash "const struct crypto_session_params *csp"
+.Ft struct enc_xform *
+.Fn crypto_cipher "const struct crypto_session_params *csp"
+.Ft const struct crypto_session_params *
+.Fn crypto_get_params "crypto_session_t cses"
+.Ft int
+.Fo crypto_newsession
+.Fa "crypto_session_t *cses"
+.Fa "const struct crypto_session_params *csp"
+.Fa "int crid"
+.Fc
+.Ft int
+.Fn crypto_freesession "crypto_session_t cses"
+.Sh DESCRIPTION
+Symmetric cryptographic operations in the kernel are associated with
+cryptographic sessions.
+Sessions hold state shared across multiple requests.
+Active sessions are associated with a single cryptographic driver.
+.Pp
+The
+.Vt crypto_session_t
+type represents an opaque reference to an active session.
+Session objects are allocated and managed by the cryptographic
+framework.
+.Pp
+New sessions are created by
+.Fn crypto_newsession .
+.Fa csp
+describes various parameters associated with the new session such as
+the algorithms to use and any session-wide keys.
+.Fa crid
+can be used to request either a specific cryptographic driver or
+classes of drivers.
+For the latter case,
+.Fa crid
+should be set to a mask of the following values:
+.Bl -tag -width "CRYPTOCAP_F_HARDWARE"
+.It Dv CRYPTOCAP_F_HARDWARE
+Request hardware drivers.
+Hardware drivers do not use the host CPU to perform operations.
+Typically, a separate co-processor performs the operations asynchronously.
+.It Dv CRYPTOCAP_F_SOFTWARE
+Request software drivers.
+Software drivers use the host CPU to perform operations.
+The kernel includes a simple, yet portable implementation of each supported
+algorithm in the
+.Xr cryptosoft 4
+driver.
+Additional software drivers may also be available on architectures which
+provide instructions designed to accelerate cryptographic operations.
+.El
+.Pp
+If both hardware and software drivers are requested,
+hardware drivers are preferred over software drivers.
+Accelerated software drivers are preferred over the baseline software driver.
+If multiple hardware drivers are available,
+the framework will distribute sessions across these drivers in a round-robin
+fashion.
+.Pp
+On success,
+.Fn crypto_newsession
+saves a reference to the newly created session in
+.Fa cses .
+.Pp
+.Fn crypto_freesession
+is used to free the resources associated with the session
+.Fa cses .
+.Pp
+.Fn crypto_auth_hash
+returns a structure describing the baseline software implementation of an
+authentication algorithm requested by
+.Fa csp .
+If
+.Fa csp
+does not specify an authentication algorithm,
+or requests an invalid algorithm,
+.Dv NULL
+is returned.
+.Pp
+.Fn crypto_cipher
+returns a structure describing the baseline software implementation of an
+encryption algorithm requested by
+.Fa csp .
+If
+.Fa csp
+does not specify an encryption algorithm,
+or requests an invalid algorithm,
+.Dv NULL
+is returned.
+.Pp
+.Fn crypto_get_params
+returns a pointer to the session parameters used by
+.Fa cses .
+.Ss Session Parameters
+Session parameters are used to describe the cryptographic operations
+performed by cryptographic requests.
+Parameters are stored in an instance of
+.Vt struct crypto_session_params .
+When initializing parameters to pass to
+.Fn crypto_newsession ,
+the entire structure should first be zeroed.
+Needed fields should then be set leaving unused fields as zero.
+This structure contains the following fields:
+.Bl -tag -width csp_cipher_klen
+.It Fa csp_mode
+Type of operation to perform.
+This field must be set to one of the following:
+.Bl -tag -width CSP_MODE_COMPRESS
+.It Dv CSP_MODE_COMPRESS
+Compress or decompress request payload.
+.Pp
+The compression algorithm is specified in
+.Fa csp_cipher_alg .
+.It Dv CSP_MODE_CIPHER
+Encrypt or decrypt request payload.
+.Pp
+The encryption algorithm is specified in
+.Fa csp_cipher_alg .
+.It Dv CSP_MODE_DIGEST
+Compute or verify a digest, or hash, of request payload.
+.Pp
+The authentication algorithm is specified in
+.Fa csp_auth_alg .
+.It Dv CSP_MODE_AEAD
+Authenticated encryption with additional data.
+Decryption operations require the digest, or tag,
+and fail if it does not match.
+.Pp
+The AEAD algorithm is specified in
+.Fa csp_cipher_alg .
+.It Dv CSP_MODE_ETA
+Encrypt-then-Authenticate.
+In this mode, encryption operations encrypt the payload and then
+compute an authentication digest over the request additional authentication
+data followed by the encrypted payload.
+Decryption operations fail without decrypting the data if the provided digest
+does not match.
+.Pp
+The encryption algorithm is specified in
+.Fa csp_cipher_alg
+and the authentication algorithm is specified in
+.Fa csp_auth_alg .
+.El
+.It Fa csp_flags
+A mask of optional driver features.
+Drivers will only attach to a session if they support all of the
+requested features.
+.Bl -tag -width CSP_F_SEPARATE_OUTPUT
+.It Dv CSP_F_SEPARATE_OUTPUT
+Support requests that use separate input and output buffers.
+Sessions with this flag set permit requests with either a single buffer
+that is modified in-place, or requests with separate input and output
+buffers.
+Sessions without this flag only permit requests with a single buffer that
+is modified in-place.
+.It Dv CSP_F_SEPARATE_AAD
+Support requests that use a separate buffer for AAD rather than providing
+AAD as a region in the input buffer.
+Sessions with this flag set permit requests with AAD passed in either in
+a region of the input buffer or in a single, virtually-contiguous buffer.
+Sessions without this flag only permit requests with AAD passed in as
+a region in the input buffer.
+.It Dv CSP_F_ESN
+Support requests that use a separate buffer for IPsec ESN (Extended Sequence
+Numbers).
+.Pp
+Sessions with this flag set permit requests with IPsec ESN passed in special
+buffer.
+It is required for IPsec ESN support of encrypt and authenticate mode where
+the high-order 32 bits of the sequence number are appended after the Next
+Header (RFC 4303).
+.El
+.It Fa csp_ivlen
+If either the cipher or authentication algorithms require an explicit
+initialization vector (IV) or nonce,
+this specifies the length in bytes.
+All requests for a session use the same IV length.
+.It Fa csp_cipher_alg
+Encryption or compression algorithm.
+.It Fa csp_cipher_klen
+Length of encryption or decryption key in bytes.
+All requests for a session use the same key length.
+.It Fa csp_cipher_key
+Pointer to encryption or decryption key.
+If all requests for a session use request-specific keys,
+this field should be left as
+.Dv NULL .
+This pointer and associated key must remain valid for the duration of the
+crypto session.
+.It Fa csp_auth_alg
+Authentication algorithm.
+.It Fa csp_auth_klen
+Length of authentication key in bytes.
+If the authentication algorithm does not use a key,
+this field should be left as zero.
+.It Fa csp_auth_key
+Pointer to the authentication key.
+If all requests for a session use request-specific keys,
+this field should be left as
+.Dv NULL .
+This pointer and associated key must remain valid for the duration of the
+crypto session.
+.It Fa csp_auth_mlen
+The length in bytes of the digest.
+If zero, the full length of the digest is used.
+If non-zero, the first
+.Fa csp_auth_mlen
+bytes of the digest are used.
+.El
+.Sh RETURN VALUES
+.Fn crypto_newsession
+returns a non-zero value if an error occurs or zero on success.
+.Pp
+.Fn crypto_auth_hash
+and
+.Fn crypto_cipher
+return
+.Dv NULL
+if the request is valid or a pointer to a structure on success.
+.Sh SEE ALSO
+.Xr crypto 7 ,
+.Xr crypto 9 ,
+.Xr crypto_request 9
+.Sh BUGS
+The current implementation of
+.Nm crypto_freesession
+does not provide a way for the caller to know that there are no other
+references to the keys stored in the session's associated parameters.
+This function should probably sleep until any in-flight cryptographic
+operations associated with the session are completed.

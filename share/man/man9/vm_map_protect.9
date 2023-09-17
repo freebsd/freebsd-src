@@ -1,0 +1,137 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Parts of this documentation were written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 23, 2021
+.Dt VM_MAP_PROTECT 9
+.Os
+.Sh NAME
+.Nm vm_map_protect
+.Nd apply protection bits to a virtual memory region
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_protect
+.Fa "vm_map_t map"
+.Fa "vm_offset_t start"
+.Fa "vm_offset_t end"
+.Fa "vm_prot_t new_prot"
+.Fa "vm_prot_t new_maxprot"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_protect
+function sets the protection bits and maximum protection bits of the address
+region bounded by
+.Fa start
+and
+.Fa end
+within the map
+.Fa map .
+.Pp
+If the
+.Fa flags
+argument has the
+.Dv VM_MAP_PROTECT_SET_PROT
+bit set, then the effective protection is set to
+.Fa new_prot .
+.Pp
+If the
+.Fa flags
+argument has the
+.Dv VM_MAP_PROTECT_SET_MAXPROT
+bit set, then the maximum protection is set to
+.Fa new_maxprot .
+Protection bits not included into
+.Fa new_maxprot
+will be cleared from existing entries.
+.Pp
+The values specified by
+.Fa new_prot
+and
+.Fa new_maxprot
+are not allowed to include any protection bits that are not set in existing
+.Va max_protection
+on every entry within the range.
+The operation will fail if this condition is violated.
+For instance, this prevents upgrading a shared mapping of a read-only file
+from read-only to read-write.
+.Pp
+The specified range must not contain sub-maps.
+.Sh IMPLEMENTATION NOTES
+The function acquires a lock on the
+.Fa map
+for the duration, by calling
+.Xr vm_map_lock 9 .
+Also, any in-progress wiring operation on the map affecting the specified
+range will cause
+.Nm
+to sleep, waiting for completion.
+.Sh RETURN VALUES
+.Bl -tag -width "Dv KERN_PROTECTION_FAILURE"
+.It Dv KERN_SUCCESS
+The specified protection bits were set successfully.
+.It Dv KERN_INVALID_ARGUMENT
+A sub-map entry was encountered in the range,
+.It Dv KERN_PROTECTION_FAILURE
+The value of
+.Fa new_prot
+or
+.Fa new_maxprot
+exceed
+.Va max_protection
+for an entry within the range.
+.It Dv KERN_PROTECTION_FAILURE
+The map does not allow simultaneous setting of write and execute permissions,
+but
+.Fa new_prot
+has both
+.Dv VM_PROT_WRITE
+and
+.Dv VM_PROT_EXECUTE
+set.
+.It Dv KERN_RESOURCE_SHORTAGE
+A copy-on-write mapping is transitioned from read-only to
+read-write, and not enough swap space is available to back the
+copied pages.
+.It Dv KERN_OUT_OF_BOUNDS
+Both new protection and new maximum protection updates were requested,
+but the specified
+.Fa new_prot
+is not a subset of
+.Fa new_maxprot .
+.El
+.Sh SEE ALSO
+.Xr vm_map 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

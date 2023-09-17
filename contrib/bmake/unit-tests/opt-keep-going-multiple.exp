@@ -1,0 +1,9 @@
+false fail1
+*** Error code 1 (continuing)
+false fail2
+*** Error code 1 (continuing)
+true succeed
+
+Stop.
+make: stopped in unit-tests
+exit status 1

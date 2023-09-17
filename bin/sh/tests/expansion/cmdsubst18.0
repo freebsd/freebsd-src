@@ -1,0 +1,5 @@
+
+x=X
+unset n
+r=${x+$(echo a)}${x-$(echo b)}${n+$(echo c)}${n-$(echo d)}$(echo e)
+[ "$r" = aXde ]

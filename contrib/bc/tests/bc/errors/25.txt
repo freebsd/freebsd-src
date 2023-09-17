@@ -1,0 +1,4 @@
+define void g(x) {
+	print x
+	return x
+}

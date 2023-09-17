@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Show device mapper dependent / underlying devices.  This is useful for
+# looking up the /dev/sd* devices associated with a dm or multipath device. 
+#
+
+if [ "$1" = "-h" ] ; then
+	echo "Show device mapper dependent (underlying) devices."
+	exit
+fi
+
+# shellcheck disable=SC2154
+dev="$VDEV_PATH"
+
+# If the VDEV path is a symlink, resolve it to a real device
+if [ -L "$dev" ] ; then
+	dev=$(readlink "$dev")
+fi
+
+dev="${dev##*/}"
+val=""
+if [ -d "/sys/class/block/$dev/slaves" ] ; then
+	# ls -C: output in columns, no newlines, two spaces (change to one)
+	# shellcheck disable=SC2012
+	val=$(ls -C "/sys/class/block/$dev/slaves" | tr -s '[:space:]' ' ')
+fi
+
+echo "dm-deps=$val"

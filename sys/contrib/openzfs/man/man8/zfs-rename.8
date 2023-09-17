@@ -1,0 +1,160 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
+.\" Copyright (c) 2011, 2019 by Delphix. All rights reserved.
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
+.\" Copyright (c) 2014 Integros [integros.com]
+.\" Copyright 2019 Richard Laager. All rights reserved.
+.\" Copyright 2018 Nexenta Systems, Inc.
+.\" Copyright 2019 Joyent, Inc.
+.\"
+.Dd March 16, 2022
+.Dt ZFS-RENAME 8
+.Os
+.
+.Sh NAME
+.Nm zfs-rename
+.Nd rename ZFS dataset
+.Sh SYNOPSIS
+.Nm zfs
+.Cm rename
+.Op Fl f
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Nm zfs
+.Cm rename
+.Fl p
+.Op Fl f
+.Ar filesystem Ns | Ns Ar volume
+.Ar filesystem Ns | Ns Ar volume
+.Nm zfs
+.Cm rename
+.Fl u
+.Op Fl f
+.Ar filesystem Ar filesystem
+.Nm zfs
+.Cm rename
+.Fl r
+.Ar snapshot Ar snapshot
+.
+.Sh DESCRIPTION
+.Bl -tag -width ""
+.It Xo
+.Nm zfs
+.Cm rename
+.Op Fl f
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Xc
+.It Xo
+.Nm zfs
+.Cm rename
+.Fl p
+.Op Fl f
+.Ar filesystem Ns | Ns Ar volume
+.Ar filesystem Ns | Ns Ar volume
+.Xc
+.It Xo
+.Nm zfs
+.Cm rename
+.Fl u
+.Op Fl f
+.Ar filesystem
+.Ar filesystem
+.Xc
+Renames the given dataset.
+The new target can be located anywhere in the ZFS hierarchy, with the exception
+of snapshots.
+Snapshots can only be renamed within the parent file system or volume.
+When renaming a snapshot, the parent file system of the snapshot does not need
+to be specified as part of the second argument.
+Renamed file systems can inherit new mount points, in which case they are
+unmounted and remounted at the new mount point.
+.Bl -tag -width "-a"
+.It Fl f
+Force unmount any file systems that need to be unmounted in the process.
+This flag has no effect if used together with the
+.Fl u
+flag.
+.It Fl p
+Creates all the nonexistent parent datasets.
+Datasets created in this manner are automatically mounted according to the
+.Sy mountpoint
+property inherited from their parent.
+.It Fl u
+Do not remount file systems during rename.
+If a file system's
+.Sy mountpoint
+property is set to
+.Sy legacy
+or
+.Sy none ,
+the file system is not unmounted even if this option is not given.
+.El
+.It Xo
+.Nm zfs
+.Cm rename
+.Fl r
+.Ar snapshot Ar snapshot
+.Xc
+Recursively rename the snapshots of all descendent datasets.
+Snapshots are the only dataset that can be renamed recursively.
+.El
+.
+.Sh EXAMPLES
+.\" These are, respectively, examples 10, 15 from zfs.8
+.\" Make sure to update them bidirectionally
+.Ss Example 1 : No Promoting a ZFS Clone
+The following commands illustrate how to test out changes to a file system, and
+then replace the original file system with the changed one, using clones, clone
+promotion, and renaming:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm create Ar pool/project/production
+  populate /pool/project/production with data
+.No # Nm zfs Cm snapshot Ar pool/project/production Ns @ Ns Ar today
+.No # Nm zfs Cm clone Ar pool/project/production@today pool/project/beta
+  make changes to /pool/project/beta and test them
+.No # Nm zfs Cm promote Ar pool/project/beta
+.No # Nm zfs Cm rename Ar pool/project/production pool/project/legacy
+.No # Nm zfs Cm rename Ar pool/project/beta pool/project/production
+  once the legacy version is no longer needed, it can be destroyed
+.No # Nm zfs Cm destroy Ar pool/project/legacy
+.Ed
+.
+.Ss Example 2 : No Performing a Rolling Snapshot
+The following example shows how to maintain a history of snapshots with a
+consistent naming scheme.
+To keep a week's worth of snapshots, the user destroys the oldest snapshot,
+renames the remaining snapshots, and then creates a new snapshot, as follows:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm destroy Fl r Ar pool/users@7daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@6daysago No @ Ns Ar 7daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@5daysago No @ Ns Ar 6daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@4daysago No @ Ns Ar 5daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@3daysago No @ Ns Ar 4daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@2daysago No @ Ns Ar 3daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@yesterday No @ Ns Ar 2daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@today No @ Ns Ar yesterday
+.No # Nm zfs Cm snapshot Fl r Ar pool/users Ns @ Ns Ar today
+.Ed

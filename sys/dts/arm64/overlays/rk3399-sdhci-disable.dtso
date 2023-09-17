@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "rockchip,rk3399";
+};
+
+&{/sdhci@fe330000} {
+	status = "disabled";
+};

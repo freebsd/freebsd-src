@@ -1,0 +1,20 @@
+[Unit]
+Description=Import ZFS pools by device scanning
+Documentation=man:zpool(8)
+DefaultDependencies=no
+Requires=systemd-udev-settle.service
+After=systemd-udev-settle.service
+After=cryptsetup.target
+After=multipathd.service
+Before=zfs-import.target
+ConditionFileNotEmpty=!@sysconfdir@/zfs/zpool.cache
+ConditionPathIsDirectory=/sys/module/zfs
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-@initconfdir@/zfs
+ExecStart=@sbindir@/zpool import -aN -o cachefile=none $ZPOOL_IMPORT_OPTS
+
+[Install]
+WantedBy=zfs-import.target

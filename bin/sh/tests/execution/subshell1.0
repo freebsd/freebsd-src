@@ -1,0 +1,5 @@
+
+(eval "cd /
+v=$(printf %0100000d 1)
+echo \${#v}")
+echo end

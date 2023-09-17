@@ -1,0 +1,75 @@
+.\" Copyright (c) 2019 Ian Lepore <ian@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 10, 2019
+.Dt ARM_DRAIN_WRITEBUF 2
+.Os
+.Sh NAME
+.Nm arm_drain_writebuf
+.Nd drain pending writes from cores and caches
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/sysarch.h
+.Ft int
+.Fn arm_drain_writebuf void
+.Sh DESCRIPTION
+The
+.Nm
+system call causes all pending writes from ARM cores and caches to be
+written out to main memory or memory-mapped I/O registers.
+Not all hardware supports buffered writes; on such systems the
+.Nm
+function is a no-op.
+.Pp
+On ARMv5 systems, this executes a cp15 coprocessor
+.Dq drain write buffer
+operation.
+On ARMv6 and ARMv7 systems, this executes a
+.Dq DSB SY
+synchronization barrier, followed by an L2 cache drain on
+systems where the DSB does not include L2 automatically.
+.Pp
+.Nm
+attempts to wait for the drain operation to complete, but cannot
+guarantee the writes have reached their ultimate destination on all hardware.
+For example, on an ARMv7 system,
+.Nm
+tells the L2 cache controller to drain its buffers, and it waits until
+the controller indicates that operation is complete.
+However, all the L2 controller knows is that the data was accepted for
+delivery by the AXI bus.
+If the ultimate destination of the write is a device on a subordinate
+bus connected to the AXI bus, more buffering or other delays may occur
+on that subordinate bus.
+The only way to be certain a pending write has reached its
+ultimate destination is to issue a read from that destination after
+.Nm
+returns.
+.Sh RETURN VALUES
+The
+.Nm
+system call cannot fail, and always returns 0.
+.Sh AUTHORS
+This man page was written by
+.An Ian Lepore .

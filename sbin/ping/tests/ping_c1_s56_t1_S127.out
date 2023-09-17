@@ -1,0 +1,6 @@
+PING localhost from: 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+
+--- localhost ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms

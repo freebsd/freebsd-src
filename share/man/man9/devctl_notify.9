@@ -1,0 +1,74 @@
+.\"
+.\" Copyright (c) 2020 M Warner Losh
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 22, 2020
+.Dt DEVCTL_NOTIFY 9
+.Os
+.Sh NAME
+.Nm devctl_notify
+.Nd Send a message, via devctl, to userland
+.Sh SYNOPSIS
+.In sys/devctl.h
+.Ft void
+.Fn devctl_notify "const char *system" "const char *subsystem" "const char *type" "const char *data"
+.Sh DESCRIPTION
+Send a notification to user land via
+.Xr devctl 4 .
+See
+.Xr devctl 4
+for the format of these messages.
+.Pp
+The
+.Nm
+function creates a string using the following template:
+.Bd -literal
+snprintf(buffer, sizeof(buffer), "!system=%s subsystem=%s type=%s",
+   system, subsystem, type);
+.Ed
+.Pp
+The
+.Va system ,
+.Va subsystem ,
+and
+.Va type
+pointers cannot be NULL.
+.Pp
+The
+.Va data
+argument may be NULL (for no additions) or a message formatted
+properly for
+.Xr devctl 4 .
+A space will be added to the above template and this argument copied
+verbatim to form the message passed to userland.
+Senders should balance between only passing data that userland can not
+discover itself and sending all the data userland will want to use to
+decide what to do with the message.
+.Pp
+The current total message length limit is just under 1kb.
+Senders should try to remain well below this limit.
+.Sh SEE ALSO
+.Xr devctl 4 ,
+.Xr devd 8
+.Sh AUTHORS
+This manual page was written by
+.An M. Warner Losh

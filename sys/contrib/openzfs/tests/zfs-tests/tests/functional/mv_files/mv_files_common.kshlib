@@ -1,0 +1,152 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or https://opensource.org/licenses/CDDL-1.0.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+#
+# Copyright (c) 2013, 2016 by Delphix. All rights reserved.
+#
+
+. $STF_SUITE/tests/functional/mv_files/mv_files.cfg
+
+function init_setup
+{
+
+	typeset disklist=$1
+
+        create_pool $TESTPOOL "$disklist"
+
+	if ! is_global_zone ; then
+		reexport_pool
+	fi
+
+        rm -rf $TESTDIR  || log_unresolved Could not remove $TESTDIR
+        mkdir -p $TESTDIR || log_unresolved Could not create $TESTDIR
+
+        rm -rf $TESTDIR_TGT  || log_unresolved Could not remove $TESTDIR_TGT
+        mkdir -p $TESTDIR_TGT || log_unresolved Could not create $TESTDIR_TGT
+
+        log_must zfs create $TESTPOOL/$TESTFS
+        log_must zfs set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+
+        log_must zfs create $TESTPOOL/$TESTFS_TGT
+        log_must zfs set mountpoint=$TESTDIR_TGT $TESTPOOL/$TESTFS_TGT
+
+        mkdir -p $OLDDIR || log_unresolved Could not create $OLDDIR
+        mkdir -p $NEWDIR_IN_FS || log_unresolved Could not create $NEWDIR_IN_FS
+        mkdir -p $NEWDIR_ACROSS_FS || log_unresolved Could not create $NEWDIR_ACROSS_FS
+
+}
+
+#
+# Generate given number files in a
+# directory of zfs file system
+# $1 - the directory holds the generated files
+# $2 - number of to-be-generated files
+#
+
+function generate_files
+{
+	typeset -i count
+        typeset -i proc_num=0
+
+	if (( $2 == $MVNUMFILES )); then
+		count=1
+	else
+		count=$MVNUMFILES+1
+	fi
+
+        while (( count <= $2 ))
+        do
+                cp /etc/passwd $1/file_$count \
+                         > /dev/null 2>&1 &
+
+                (( proc_num = proc_num + 1 ))
+
+                if (( proc_num >= GANGPIDS )); then
+                        wait
+                        proc_num=0
+                fi
+
+               (( count = count + 1 ))
+        done
+
+        wait
+}
+
+#
+# Move given number files from one directory to
+# another directory in parallel
+# $1 - source directory
+# $2 - target directory
+#
+function mv_files
+{
+        find $1 -type f -exec mv {} $2 \; > /dev/null 2>&1
+}
+
+#
+# Count the files number after moving, and
+# compare it with the original number
+# $1 - directory that to be operated
+# $2 - original files number
+#
+function count_files
+{
+        (( $(find $1 -type f -print | wc -l) != $2 )) && \
+                log_fail "The file number of target directory"\
+                        "$2 is not equal to that of the source "\
+                        "directory $1"
+
+}
+
+#
+# Running the 'mv' test
+# $1 - old directory
+# $2 - new directory
+#
+function mv_test
+{
+        typeset old=$1
+        typeset new=$2
+
+        typeset -i inc_num=$(( MVNUMFILES + MVNUMINCR ))
+        typeset -i num=0
+
+        for num in $MVNUMFILES $inc_num
+        do
+                generate_files $old $num
+
+                mv_files $old $new
+                count_files $new $num
+
+                mv_files $new $old
+                count_files $old $num
+        done
+
+	typeset dir=$(get_device_dir $DISKS)
+        verify_filesys "$TESTPOOL" "$TESTPOOL/$TESTFS" "$dir"
+
+        return 0
+}

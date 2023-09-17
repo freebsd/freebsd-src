@@ -1,0 +1,52 @@
+.TH LESSECHO 1 "Version 643: 20 Jul 2023"
+.SH NAME
+lessecho \- expand metacharacters
+.SH SYNOPSIS
+.B lessecho
+.I "[-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-a] file ..."
+.SH "DESCRIPTION"
+.B lessecho
+is a program that simply echos its arguments on standard output.
+But any metacharacter in the output is preceded by an "escape"
+character, which by default is a backslash.
+.SH OPTIONS
+A summary of options is included below.
+.TP
+.B \-e\fIx\fP
+Specifies "\fIx\fP", rather than backslash, to be the escape char for metachars.
+If \fIx\fP is "-", no escape char is used and arguments containing metachars
+are surrounded by quotes instead.
+.TP
+.B \-o\fIx\fP
+Specifies "\fIx\fP", rather than double-quote, to be the open quote character,
+which is used if the \-e- option is specified.
+.TP
+.B \-c\fIx\fP
+Specifies "\fIx\fP" to be the close quote character.
+.TP
+.B \-p\fIn\fP
+Specifies "\fIn\fP" to be the open quote character, as an integer.
+.TP
+.B \-d\fIn\fP
+Specifies "\fIn\fP" to be the close quote character, as an integer.
+.TP
+.B \-m\fIx\fP
+Specifies "\fIx\fP" to be a metachar.
+By default, no characters are considered metachars.
+.TP
+.B \-n\fIn\fP
+Specifies "\fIn\fP" to be a metachar, as an integer.
+.TP
+.B \-f\fIn\fP
+Specifies "\fIn\fP" to be the escape char for metachars, as an integer.
+.TP
+.B \-a
+Specifies that all arguments are to be quoted.
+The default is that only arguments containing metacharacters are quoted.
+.SH "SEE ALSO"
+.BR less (1)
+.SH AUTHOR
+This manual page was written by Thomas Schoepf <schoepf@debian.org>,
+for the Debian GNU/Linux system (but may be used by others).
+.PP
+Report bugs at https://github.com/gwsw/less/issues.

@@ -1,0 +1,6 @@
+CondParser_Eval: ${:U12345} > ${:U55555}
+Comparing 12345.000000 > 55555.000000
+CondParser_Eval: "string" != "string"
+Comparing "string" != "string"
+CondParser_Eval: "nonempty"
+exit status 0

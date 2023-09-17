@@ -1,0 +1,45 @@
+
+#------------------------------------------------------------------------------
+# $File: statistics,v 1.3 2022/03/24 15:48:58 christos Exp $
+# statistics:  file(1) magic for statistics related software
+#
+
+# From Remy Rampin
+
+# Stata is a statistical software tool that was created in 1985. While I
+# don't personally use it, data files in its native (proprietary) format
+# are common (.dta files).
+# 
+# Because they are so common, especially in statistical and social
+# sciences, Stata files and SPSS files can be opened by a lot of modern
+# software, for example Python's pandas package provides built-in
+# support for them (read_stata() and read_spss()).
+# 
+# I noticed that the magic database includes an entry for SPSS files but
+# not Stata files. Stata files for Stata 13 and newer (formats 117, 118,
+# and 119) always begin with the string "<stata_dta><header>" as per
+# https://www.stata.com/help.cgi?dta#definition
+# 
+# The format version number always follows, for example:
+#    <stata_dta><header><release>117</release>
+#    <stata_dta><header><release>118</release>
+# 
+# Therefore the following line would do the trick:
+#    0       string  <stata_dta><header>     Stata Data File
+# 
+# (I'm sure the version number could be captured as well but I did not
+# manage this without a regex)
+# 
+# Unfortunately the previous formats (created by Stata before 13, which
+# was released 2013) are harder to recognize. Format 115 starts with the
+# four bytes 0x73010100 or 0x73020100, format 114 with 0x72010100 or
+# 0x72020100, format 113 with 0x71010101 or 0x71020101.
+# 
+# For additional reference, the Library of Congress website has an entry
+# for the Stata Data File Format 118:
+# https://www.loc.gov/preservation/digital/formats/fdd/fdd000471.shtml
+# 
+# Example of those files can be found on Zenodo:
+# https://zenodo.org/search?page=1&size=20&q=&file_type=dta
+0	string	\<stata_dta\>\<header\>\<release\>	Stata Data File
+>&0	regex	[0-9]+					(Release %s)

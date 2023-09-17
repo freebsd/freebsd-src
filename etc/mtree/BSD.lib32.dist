@@ -1,0 +1,25 @@
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    lib32
+        dtrace
+        ..
+        engines-3
+        ..
+        geom
+        ..
+        i18n
+        ..
+        libxo
+            encoder
+            ..
+        ..
+        ossl-modules
+        ..
+        pkgconfig
+        ..
+    ..
+..

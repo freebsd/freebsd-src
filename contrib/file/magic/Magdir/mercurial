@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: mercurial,v 1.5 2019/04/19 00:42:27 christos Exp $
+# mercurial:  file(1) magic for Mercurial changeset bundles
+# https://www.selenic.com/mercurial/wiki/
+#
+# Jesse Glick (jesse.glick@sun.com)
+#
+
+0	string		HG10		Mercurial changeset bundle
+>4	string		UN		(uncompressed)
+>4	string		GZ		(gzip compressed)
+>4	string		BZ		(bzip2 compressed)

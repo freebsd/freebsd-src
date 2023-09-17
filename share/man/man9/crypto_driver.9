@@ -1,0 +1,337 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd April 12, 2021
+.Dt CRYPTO_DRIVER 9
+.Os
+.Sh NAME
+.Nm crypto_driver
+.Nd interface for symmetric cryptographic drivers
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Ft void
+.Fn crypto_copyback "struct cryptop *crp" "int off" "int size" "const void *src"
+.Ft void
+.Fn crypto_copydata "struct cryptop *crp" "int off" "int size" "void *dst"
+.Ft void
+.Fn crypto_done "struct cryptop *crp"
+.Ft int32_t
+.Fn crypto_get_driverid "device_t dev" "size_t session_size" "int flags"
+.Ft void *
+.Fn crypto_get_driver_session "crypto_session_t crypto_session"
+.Ft void
+.Fn crypto_read_iv "struct cryptop *crp" "void *iv"
+.Ft int
+.Fn crypto_unblock "uint32_t driverid" "int what"
+.Ft int
+.Fn crypto_unregister_all "uint32_t driverid"
+.Ft int
+.Fn CRYPTODEV_FREESESSION "device_t dev" "crypto_session_t crypto_session"
+.Ft int
+.Fo CRYPTODEV_NEWSESSION
+.Fa "device_t dev"
+.Fa "crypto_session_t crypto_session"
+.Fa "const struct crypto_session_params *csp"
+.Fc
+.Ft int
+.Fo CRYPTODEV_PROBESESSION
+.Fa "device_t dev"
+.Fa "const struct crypto_session_params *csp"
+.Fc
+.Ft int
+.Fn CRYPTODEV_PROCESS "device_t dev" "struct cryptop *crp" "int flags"
+.Ft void
+.Fo hmac_init_ipad
+.Fa "struct auth_hash *axf"
+.Fa "const char *key"
+.Fa "int klen"
+.Fa "void *auth_ctx"
+.Fc
+.Ft void
+.Fo hmac_init_opad
+.Fa "struct auth_hash *axf"
+.Fa "const char *key"
+.Fa "int klen"
+.Fa "void *auth_ctx"
+.Fc
+.Sh DESCRIPTION
+Symmetric cryptographic drivers process cryptographic requests
+submitted to sessions associated with the driver.
+.Pp
+Cryptographic drivers call
+.Fn crypto_get_driverid
+to register with the cryptographic framework.
+.Fa dev
+is the device used to service requests.
+The
+.Fn CRYPTODEV
+methods are defined in the method table for the device driver attached to
+.Fa dev .
+.Fa session_size
+specifies the size of a driver-specific per-session structure allocated by
+the cryptographic framework.
+.Fa flags
+is a bitmask of properties about the driver.
+Exactly one of
+.Dv CRYPTOCAP_F_SOFTWARE
+or
+.Dv CRYPTOCAP_F_HARDWARE
+must be specified.
+.Dv CRYPTOCAP_F_SOFTWARE
+should be used for drivers which process requests using host CPUs.
+.Dv CRYPTOCAP_F_HARDWARE
+should be used for drivers which process requests on separate co-processors.
+.Dv CRYPTOCAP_F_SYNC
+should be set for drivers which process requests synchronously in
+.Fn CRYPTODEV_PROCESS .
+.Dv CRYPTOCAP_F_ACCEL_SOFTWARE
+should be set for software drivers which use accelerated CPU instructions.
+.Fn crypto_get_driverid
+returns an opaque driver id.
+.Pp
+.Fn crypto_unregister_all
+unregisters a driver from the cryptographic framework.
+If there are any pending operations or open sessions,
+this function will sleep.
+.Fa driverid
+is the value returned by an earlier call to
+.Fn crypto_get_driverid .
+.Pp
+When a new session is created by
+.Fn crypto_newsession ,
+.Fn CRYPTODEV_PROBESESSION
+is invoked by the cryptographic framework on each active driver to
+determine the best driver to use for the session.
+This method should inspect the session parameters in
+.Fa csp .
+If a driver does not support requests described by
+.Fa csp ,
+this method should return an error value.
+If the driver does support requests described by
+.Fa csp ,
+it should return a negative value.
+The framework prefers drivers with the largest negative value,
+similar to
+.Xr DEVICE_PROBE 9 .
+The following values are defined for non-error return values from this
+method:
+.Bl -tag -width "CRYPTODEV_PROBE_ACCEL_SOFTWARE"
+.It Dv CRYPTODEV_PROBE_HARDWARE
+The driver processes requests via a co-processor.
+.It Dv CRYPTODEV_PROBE_ACCEL_SOFTWARE
+The driver processes requests on the host CPU using optimized instructions
+such as AES-NI.
+.It Dv CRYPTODEV_PROBE_SOFTWARE
+The driver processes requests on the host CPU.
+.El
+.Pp
+This method should not sleep.
+.Pp
+Once the framework has chosen a driver for a session,
+the framework invokes the
+.Fn CRYPTODEV_NEWSESSION
+method to initialize driver-specific session state.
+Prior to calling this method,
+the framework allocates a per-session driver-specific data structure.
+This structure is initialized with zeroes,
+and its size is set by the
+.Fa session_size
+passed to
+.Fn crypto_get_driverid .
+This method can retrieve a pointer to this data structure by passing
+.Fa crypto_session
+to
+.Fn crypto_get_driver_session .
+Session parameters are described in
+.Fa csp .
+.Pp
+This method should not sleep.
+.Pp
+.Fn CRYPTODEV_FREESESSION
+is invoked to release any driver-specific state when a session is
+destroyed.
+The per-session driver-specific data structure is explicitly zeroed
+and freed by the framework after this method returns.
+If a driver requires no additional tear-down steps, it can leave
+this method undefined.
+.Pp
+This method should not sleep.
+.Pp
+.Fn CRYPTODEV_PROCESS
+is invoked for each request submitted to an active session.
+This method can either complete a request synchronously or
+schedule it to be completed asynchronously,
+but it must not sleep.
+.Pp
+If this method is not able to complete a request due to insufficient
+resources such as a full command queue,
+it can defer the request by returning
+.Dv ERESTART .
+The request will be queued by the framework and retried once the
+driver releases pending requests via
+.Fn crypto_unblock .
+Any requests submitted to sessions belonging to the driver will also
+be queued until
+.Fn crypto_unblock
+is called.
+.Pp
+If a driver encounters errors while processing a request,
+it should report them via the
+.Fa crp_etype
+field of
+.Fa crp
+rather than returning an error directly.
+.Pp
+.Fa flags
+may be set to
+.Dv CRYPTO_HINT_MORE
+if there are additional requests queued for this driver.
+The driver can use this as a hint to batch completion interrupts.
+Note that these additional requests may be from different sessions.
+.Pp
+.Fn crypto_get_driver_session
+returns a pointer to the driver-specific per-session data structure
+for the session
+.Fa crypto_session .
+This function can be used in the
+.Fn CRYPTODEV_NEWSESSION ,
+.Fn CRYPTODEV_PROCESS ,
+and
+.Fn CRYPTODEV_FREESESSION
+callbacks.
+.Pp
+.Fn crypto_copydata
+copies
+.Fa size
+bytes out of the input buffer for
+.Fa crp
+into a local buffer pointed to by
+.Fa dst .
+The bytes are read starting at an offset of
+.Fa off
+bytes in the request's input buffer.
+.Pp
+.Fn crypto_copyback
+copies
+.Fa size
+bytes from the local buffer pointed to by
+.Fa src
+into the output buffer for
+.Fa crp .
+The bytes are written starting at an offset of
+.Fa off
+bytes in the request's output buffer.
+.Pp
+.Fn crypto_read_iv
+copies the IV or nonce for
+.Fa crp
+into the local buffer pointed to by
+.Fa iv .
+.Pp
+A driver calls
+.Fn crypto_done
+to mark the request
+.Fa crp
+as completed.
+Any errors should be set in
+.Fa crp_etype
+prior to calling this function.
+.Pp
+If a driver defers a request by returning
+.Dv ERESTART
+from
+.Dv CRYPTO_PROCESS ,
+the framework will queue all requests for the driver until the driver calls
+.Fn crypto_unblock
+to indicate that the temporary resource shortage has been relieved.
+For example,
+if a driver returns
+.Dv ERESTART
+due to a full command ring,
+it would invoke
+.Fn crypto_unblock
+from a command completion interrupt that makes a command ring entry available.
+.Fa driverid
+is the value returned by
+.Fn crypto_get_driverid .
+.Fa what
+indicates which types of requests the driver is able to handle again:
+.Bl -tag -width "CRYPTO_SYMQ"
+.It Dv CRYPTO_SYMQ
+indicates that the driver is able to handle symmetric requests passed to
+.Fn CRYPTODEV_PROCESS .
+.El
+.Pp
+.Fn hmac_init_ipad
+prepares an authentication context to generate the inner hash of an HMAC.
+.Fa axf
+is a software implementation of an authentication algorithm such as the
+value returned by
+.Fn crypto_auth_hash .
+.Fa key
+is a pointer to a HMAC key of
+.Fa klen
+bytes.
+.Fa auth_ctx
+points to a valid authentication context for the desired algorithm.
+The function initializes the context with the supplied key.
+.Pp
+.Fn hmac_init_opad
+is similar to
+.Fn hmac_init_ipad
+except that it prepares an authentication context to generate the
+outer hash of an HMAC.
+.Sh RETURN VALUES
+.Fn crypto_apply
+returns the return value from the caller-supplied callback function.
+.Pp
+.Fn crypto_contiguous_subsegment
+returns a pointer to a contiguous segment or
+.Dv NULL .
+.Pp
+.Fn crypto_get_driverid
+returns a driver identifier on success or -1 on error.
+.Pp
+.Fn crypto_unblock ,
+.Fn crypto_unregister_all ,
+.Fn CRYPTODEV_FREESESSION ,
+.Fn CRYPTODEV_NEWSESSION ,
+and
+.Fn CRYPTODEV_PROCESS
+return zero on success or an error on failure.
+.Pp
+.Fn CRYPTODEV_PROBESESSION
+returns a negative value on success or an error on failure.
+.Sh SEE ALSO
+.Xr crypto 7 ,
+.Xr crypto 9 ,
+.Xr crypto_buffer 9 ,
+.Xr crypto_request 9 ,
+.Xr crypto_session 9

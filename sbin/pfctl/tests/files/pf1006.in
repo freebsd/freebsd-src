@@ -1,0 +1,2 @@
+altq on igb0 fairq bandwidth 1Gb queue { qLink }
+queue qLink fairq(default)

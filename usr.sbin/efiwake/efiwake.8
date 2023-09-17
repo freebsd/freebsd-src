@@ -1,0 +1,99 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 Johannes Totz
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 9, 2023
+.Dt EFIWAKE 8
+.Os
+.Sh NAME
+.Nm efiwake
+.Nd manipulate the EFI wake timer
+.Sh SYNOPSIS
+.Nm
+.Nm
+.Fl d
+.Nm
+.Fl e Ar yyyy-mm-ddThh:mm:ss
+.Sh DESCRIPTION
+.Nm
+reports the current value of, disables or enables the EFI wake timer that can
+wake your machine from S3 sleep at a given time.
+.Pp
+If invoked without arguments, the current EFI time and the current value of the
+wake timer will be printed, followed by an
+.Em enabled
+status and a
+.Em pending
+status.
+EFI time is supposed to be in UTC.
+Note that it can be out of sync with kernel time.
+The pending status tells whether the wake timer fired recently; it is cleared
+upon reading.
+.Pp
+If invoked with the
+.Sy -d
+option, the wake timer is reset and disabled.
+.Pp
+If invoked with the
+.Sy -e
+option, the wake timer is set to the given time and date.
+If the date or time is invalid, an error is returned.
+.Pp
+The current EFI time is always printed.
+.Sh EXAMPLES
+Without arguments:
+.Bd -literal -offset indent
+# efiwake
+Current EFI time: 2023-05-04T15:30:45
+EFI wake time: 2023-05-04T10:00:00; enabled=0, pending=1
+.Ed
+.Pp
+Disabling and resetting the wake timer:
+.Bd -literal -offset indent
+# efiwake -d
+Current EFI time: 2023-05-04T15:32:16
+EFI wake time: 2023-05-04T15:32:16; enabled=0, pending=0
+.Ed
+.Pp
+Enabling the wake timer with a valid date:
+.Bd -literal -offset indent
+# efiwake -e 2023-05-04T15:35:00
+Current EFI time: 2023-05-04T15:34:05
+EFI wake time: 2023-05-04T15:35:00; enabled=1, pending=0
+.Ed
+.Pp
+Trying to enable with an invalid date (there is no 31st of April):
+.Bd -literal -offset indent
+# efiwake -e 2023-04-31T15:35:00
+Current EFI time: 2023-05-04T15:35:25
+efiwake: cannot enable EFI wake time: Invalid argument
+.Ed
+.Sh AUTHORS
+.An -nosplit
+The tool and manual page were written by
+.An Johannes Totz Aq Mt jo@bruelltuete.com .
+.Sh BUGS
+The quality of EFI implementations differs widely.
+Corruption of the wake-up date has been observed on real hardware.

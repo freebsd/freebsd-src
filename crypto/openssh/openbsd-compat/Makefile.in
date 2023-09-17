@@ -1,0 +1,122 @@
+sysconfdir=@sysconfdir@
+piddir=@piddir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+
+VPATH=@srcdir@
+CC=@CC@
+LD=@LD@
+CFLAGS=@CFLAGS@
+CFLAGS_NOPIE=@CFLAGS_NOPIE@
+CPPFLAGS=-I. -I.. -I$(srcdir) -I$(srcdir)/.. @CPPFLAGS@ @DEFS@
+PICFLAG=@PICFLAG@
+LIBS=@LIBS@
+AR=@AR@
+RANLIB=@RANLIB@
+INSTALL=@INSTALL@
+LDFLAGS=-L. @LDFLAGS@
+LDFLAGS_NOPIE=-L. -Lopenbsd-compat/ @LDFLAGS_NOPIE@
+
+OPENBSD=arc4random.o \
+	arc4random_uniform.o \
+	base64.o \
+	basename.o \
+	bcrypt_pbkdf.o \
+	bindresvport.o \
+	blowfish.o \
+	daemon.o \
+	dirname.o \
+	explicit_bzero.o \
+	fmt_scaled.o \
+	freezero.o \
+	fnmatch.o \
+	getcwd.o \
+	getgrouplist.o \
+	getopt_long.o \
+	getrrsetbyname.o \
+	glob.o \
+	inet_aton.o \
+	inet_ntoa.o \
+	inet_ntop.o \
+	md5.o \
+	memmem.o \
+	mktemp.o \
+	pwcache.o \
+	readpassphrase.o \
+	reallocarray.o \
+	recallocarray.o \
+	rresvport.o \
+	setenv.o \
+	setproctitle.o \
+	sha1.o \
+	sha2.o \
+	sigact.o \
+	strcasestr.o \
+	strlcat.o \
+	strlcpy.o \
+	strmode.o \
+	strndup.o \
+	strnlen.o \
+	strptime.o \
+	strsep.o \
+	strtoll.o \
+	strtonum.o \
+	strtoull.o \
+	strtoul.o \
+	timingsafe_bcmp.o \
+	vis.o
+
+COMPAT= bsd-asprintf.o \
+	bsd-closefrom.o \
+	bsd-cygwin_util.o \
+	bsd-err.o \
+	bsd-flock.o \
+	bsd-getentropy.o \
+	bsd-getline.o \
+	bsd-getpagesize.o \
+	bsd-getpeereid.o \
+	bsd-malloc.o \
+	bsd-misc.o \
+	bsd-nextstep.o \
+	bsd-openpty.o \
+	bsd-poll.o \
+	bsd-pselect.o \
+	bsd-setres_id.o \
+	bsd-signal.o \
+	bsd-snprintf.o \
+	bsd-statvfs.o \
+	bsd-timegm.o \
+	bsd-waitpid.o \
+	fake-rfc2553.o \
+	getrrsetbyname-ldns.o \
+	kludge-fd_set.o \
+	openssl-compat.o \
+	libressl-api-compat.o \
+	xcrypt.o
+
+PORTS=	port-aix.o \
+	port-irix.o \
+	port-linux.o \
+	port-prngd.o \
+	port-solaris.o \
+	port-net.o \
+	port-uw.o
+
+.c.o:
+	$(CC) $(CFLAGS_NOPIE) $(PICFLAG) $(CPPFLAGS) -c $<
+
+all: libopenbsd-compat.a
+
+$(COMPAT): ../config.h
+$(OPENBSD): ../config.h
+$(PORTS): ../config.h
+
+libopenbsd-compat.a:  $(COMPAT) $(OPENBSD) $(PORTS)
+	$(AR) rv $@ $(COMPAT) $(OPENBSD) $(PORTS)
+	$(RANLIB) $@
+
+clean:
+	rm -f *.o *.a core
+
+distclean: clean
+	rm -f Makefile *~

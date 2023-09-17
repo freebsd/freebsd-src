@@ -1,0 +1,143 @@
+.\"
+.\" Copyright (c) 2020 Henri Hennebert <hlh@restart.be>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 26, 2022
+.Dt RTSX 4
+.Os
+.Sh NAME
+.Nm rtsx
+.Nd Realtek SD card reader
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following
+lines in the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd device mmc
+.Cd device mmcsd
+.Cd device rtsx
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+.Cd mmc_load="YES"
+.Cd mmcsd_load="YES"
+.Cd rtsx_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Realtek SD card reader.
+Driver attaches mmc bus on card insertion and detaches it on card removing.
+.Sh HARDWARE
+The
+.Nm
+driver supports different specification compatible chips.
+The following chips have been verified to work:
+.Pp
+.Bl -bullet -compact
+.It
+RTS5209
+.It
+RTS5227
+.It
+RTS5229
+.It
+RTS522A
+.It
+RTS525A
+.It
+RTS5260
+.It
+RTL8411B
+.El
+.Pp
+It should also work for:
+.Pp
+.Bl -bullet -compact
+.It
+RTS5249
+.It
+RTL8402
+.It
+RTL8411
+.El
+.Sh SEE ALSO
+.Xr mmc 4 ,
+.Xr mmcsd 4
+.Rs
+.%T "SD Specifications, Part 2, SD Host Controller, Simplified Specification"
+.%T "SanDisk Secure Digital Card"
+.Re
+.Sh HISTORY
+The
+.Nm
+driver was ported from
+.Ox
+with modifications found in Linux and
+.Nx .
+.Sh AUTHORS
+.An Henri Hennebert Aq Mt hlh@restart.be
+.An Gary Jennejohn Aq Mt gj@freebsd.org
+.An Jesper Schmitz Mouridsen Aq Mt jsm@FreeBSD.org
+.Sh CONTRIBUTORS
+.An Lutz Bichler Aq Mt Lutz.Bichler@gmail.com
+.Sh DEBUGGING INFORMATION
+.Em dev.rtsx.0.debug_mask
+can be set with the following masks:
+.Bl -bullet
+.It
+0x01 - to show the basic flow of the driver,
+.It
+0x02 - to trace the SD commands,
+.It
+0x04 - to trace the tuning phase.
+.El
+.Sh BUGS
+.Bl -bullet
+.It
+RTS522A on Lenovo T470p, card detection and read-only switch are reversed.
+This is solved by adding in
+.Em loader.conf(5) :
+.Bd -ragged
+.Cd dev.rtsx.0.inversion=1
+.Ed
+.Pp
+The driver tries to automate those exceptions.
+If this automation is wrong, it can be avoided by adding in
+.Em loader.conf(5) :
+.Bd -ragged
+.Cd dev.rtsx.0.inversion=0
+.Ed
+.It
+Mounting a filesystem with write access on a card write protected may involve a kernel crash.
+.It
+Suspend/Resume do not work under MMCCAM.
+.It
+For some chips (e.g. RTS5260) after
+.Cd devctl disable/enable
+or
+.Cd kldunload/kldload
+the driver can't detect a card correctly.
+.El

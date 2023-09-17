@@ -1,0 +1,126 @@
+#------------------------------------------------------------------------------
+# $File: zip,v 1.8 2021/10/24 15:53:56 christos Exp $
+# zip:  file(1) magic for zip files; this is not use
+# Note the version of magic in archive is currently stronger, this is
+# just an example until negative offsets are supported better
+# Note:	All fields unless otherwise noted are unsigned!
+
+# Zip Central Directory record
+0	name		zipcd
+>0	string		PK\001\002	Zip archive data
+!:mime	application/zip
+# no "made by" in local file header with PK\3\4 magic
+>>4	leshort		x		\b, made by
+>>4	use		zipversion
+>>4	use		ziphost
+# inside ./archive 1.151 called "at least" zipversion "to extract"
+>>6	leshort		x		\b, extract using at least
+>>6	use		zipversion
+# This is DOS date like: ledate 21:00:48 19 Dec 2001 != DOS 00:00 1 Jan 2010 ~ 0000213C
+>>12	ulelong		x		\b, last modified
+>>14	lemsdosdate	x		\b, last modified %s
+>>12	lemsdostime	x		%s
+# uncompressed size of 1st entry; FFffFFff means real value stored in ZIP64 record
+>>24	ulelong		!0xFFffFFff	\b, uncompressed size %u
+# inside ./archive 1.151 called "compression method="zipcompression
+>>10	leshort		x		\b, method=
+>>10	use		zipcompression
+
+# URL:		https://en.wikipedia.org/wiki/Zip_(file_format)
+# reference:	https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT (Version: 6.3.9)
+# Zip known compressions
+0	name		zipcompression
+>0	leshort		0		\bstore
+>0	leshort		1		\bShrinking
+>0	leshort		6		\bImploding
+>0	leshort		7		\bTokenizing
+>0	leshort		8		\bdeflate
+>0	leshort		9		\bdeflate64
+>0	leshort		10		\bLibrary imploding
+#>0	leshort		11 		\bReserved by PKWARE
+>0	leshort		12		\bbzip2
+#>0	leshort		13 		\bReserved by PKWARE
+>0	leshort		14		\blzma
+#>0	leshort		15 		\bReserved by PKWARE
+>0	leshort		16		\bCMPSC (IBM z/OS)
+#>0	leshort		17 		\bReserved by PKWARE
+>0	leshort		18		\bIBM TERSE
+>0	leshort		19		\bIBM LZ77 (z/Architecture)
+>0	leshort		20		\bZstd (deprecated)
+>0	leshort		93		\bZstd
+>0	leshort		94		\bMP3
+>0	leshort		95		\bxz
+>0	leshort		96		\bJpeg
+>0	leshort		97		\bWavPack
+>0	leshort		98		\bPPMd
+>0	leshort		99		\bAES Encrypted
+>0	default		x
+>>0	leshort		x		\b[%#x]
+
+# Zip known versions
+0	name		zipversion
+# The lower byte indicates the ZIP version of this file. The value/10 indicates
+# the major version number, and the value mod 10 is the minor version number.
+>0	ubyte/10	x		v%u
+>0	ubyte%10	x		\b.%u
+# >0	leshort		0x09		v0.9
+# >0	leshort		0x0a		v1.0
+# >0	leshort		0x0b		v1.1
+# >0	leshort		0x14		v2.0
+# >0	leshort		0x15		v2.1
+# >0	leshort		0x19		v2.5
+# >0	leshort		0x1b		v2.7
+# >0	leshort		0x2d		v4.5
+# >0	leshort		0x2e		v4.6
+# >0	leshort		0x32		v5.0
+# >0	leshort		0x33		v5.1
+# >0	leshort		0x34		v5.2
+# >0	leshort		0x3d		v6.1
+# >0	leshort		0x3e		v6.2
+# >0	leshort		0x3f		v6.3
+# >0	default		x
+# >>0	leshort		x		v?[%#x]
+
+#	display compatible host system name of ZIP archive
+0	name		ziphost
+# The upper byte indicates the compatibility of the file attribute information.
+# If the file is compatible with MS-DOS (v 2.04g) then this value will be zero.
+#>1	ubyte		0		DOS
+>1	ubyte		1 		Amiga
+>1	ubyte		2		OpenVMS
+>1	ubyte		3		UNIX
+>1	ubyte		4		VM/CMS
+>1	ubyte		6		OS/2
+>1	ubyte		7		Macintosh
+>1	ubyte		11		MVS
+>1	ubyte		13		Acorn Risc
+>1	ubyte		16		BeOS
+>1	ubyte		17		Tandem
+# 9 untested
+>1	ubyte		5		Atari ST
+>1	ubyte		8		Z-System
+>1	ubyte		9		CP/M
+>1	ubyte		10		Windows NTFS
+>1	ubyte		12		VSE
+>1	ubyte		14		VFAT
+>1	ubyte		15		alternate MVS
+>1	ubyte		18		OS/400
+>1	ubyte		19		OS X
+# unused
+#>1	ubyte		>19		unused %#x
+
+# Zip End Of Central Directory record
+# GRR: wrong for ZIP with comment archive
+-22	string		PK\005\006
+#>4	uleshort	!0xFFff		\b, %u disks
+#>6	uleshort	!0xFFff		\b, central directory disk %u
+#>8	uleshort	!0xFFff		\b, %u central directories on this disk
+#>10	uleshort	!0xFFff		\b, %u central directories
+#>12	ulelong		!0xFFffFFff	\b, %u central directory bytes
+# offset of central directory
+#>16	ulelong		x		\b, central directory offset %#x
+>(16.l)	use		zipcd
+# archive comment length n
+#>>20	uleshort	>0		\b, comment length %u
+# archive comment
+>>20	pstring/l	>0		\b, %s

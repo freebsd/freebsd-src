@@ -1,0 +1,19 @@
+#! /dc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nfvfff[]zsm[]zsWx[li]zsPx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]x[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /bin/dc
+0sm[Nx]0s_[]zsWx[li]zs^x[lili100>Nx]0sm[]zsWx[liNx]zsxx[li;rlilix]
+x[liNx]zsxx#! /bin/dc
+0sm[Nx]0sm[]zsWx[li]zsPx[Nxx]0sm[]x[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#!sdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /bin/dc
+0sm[Nx]0s_@]zsWx[li]zs^x[lili100>Nx]0sm[]zsWx[liNx]zsxx[li;rlilix]
+x[liNx]zsxx#! /bin/dc
+0sm[Nx]0sm[]zsWx[li]zsPx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]x[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /bin/dc
+0sm[Nx]0s_[]zsWx[li]zs^x[lili100>Nx]0sm[]zsWx[liNx]zsxx[li;rlilix]
+x[liNx]zsxx#! /bin/dc
+0sm[Nx]0sm[]zsWx[li]zsPx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zWx[li]zsGd[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /Wx[li]zs^x[Nx]0s_[]zsWx[li]zs^x[lili100>Nx]0sm[]zs]0sm[]zsdc

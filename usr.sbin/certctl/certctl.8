@@ -1,0 +1,132 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright 2018 Allan Jude <allanjude@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd July 13, 2022
+.Dt CERTCTL 8
+.Os
+.Sh NAME
+.Nm certctl
+.Nd "tool for managing trusted and untrusted TLS certificates"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ic list
+.Nm
+.Op Fl v
+.Ic untrusted
+.Nm
+.Op Fl nUv
+.Op Fl D Ar destdir
+.Op Fl M Ar metalog
+.Ic rehash
+.Nm
+.Op Fl nv
+.Ic untrust Ar file
+.Nm
+.Op Fl nv
+.Ic trust Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility manages the list of TLS Certificate Authorities that are trusted by
+applications that use OpenSSL.
+.Pp
+Flags:
+.Bl -tag -width 4n
+.It Fl D Ar destdir
+Specify the DESTDIR (overriding values from the environment).
+.It Fl d Ar distbase
+Specify the DISTBASE (overriding values from the environment).
+.It Fl M Ar metalog
+Specify the path of the METALOG file (default: $DESTDIR/METALOG).
+.It Fl n
+No-Op mode, do not actually perform any actions.
+.It Fl v
+Be verbose, print details about actions before performing them.
+.It Fl U
+Unprivileged mode, do not change the ownership of created links.
+Do record the ownership in the METALOG file.
+.El
+.Pp
+Primary command functions:
+.Bl -tag -width untrusted
+.It Ic list
+List all currently trusted certificate authorities.
+.It Ic untrusted
+List all currently untrusted certificates.
+.It Ic rehash
+Rebuild the list of trusted certificate authorities by scanning all directories
+in
+.Ev TRUSTPATH
+and all untrusted certificates in
+.Ev UNTRUSTPATH .
+A symbolic link to each trusted certificate is placed in
+.Ev CERTDESTDIR
+and each untrusted certificate in
+.Ev UNTRUSTDESTDIR .
+.It Ic untrust
+Add the specified file to the untrusted list.
+.It Ic trust
+Remove the specified file from the untrusted list.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width UNTRUSTDESTDIR
+.It Ev DESTDIR
+Alternate destination directory to operate on.
+.It Ev DISTBASE
+Additional path component to include when operating on certificate directories.
+.It Ev TRUSTPATH
+List of paths to search for trusted certificates.
+Default:
+.Pa <DESTDIR><DISTBASE>/usr/share/certs/trusted
+.Pa <DESTDIR><DISTBASE>/usr/local/share/certs
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/certs
+.It Ev UNTRUSTPATH
+List of paths to search for untrusted certificates.
+Default:
+.Pa <DESTDIR><DISTBASE>/usr/share/certs/untrusted
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/untrusted
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/blacklisted
+.It Ev CERTDESTDIR
+Destination directory for symbolic links to trusted certificates.
+Default:
+.Pa <DESTDIR><DISTBASE>/etc/ssl/certs
+.It Ev UNTRUSTDESTDIR
+Destination directory for symbolic links to untrusted certificates.
+Default:
+.Pa <DESTDIR><DISTBASE>/etc/ssl/untrusted
+.It Ev EXTENSIONS
+List of file extensions to read as certificate files.
+Default: *.pem *.crt *.cer *.crl *.0
+.El
+.Sh SEE ALSO
+.Xr openssl 1
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 12.2
+.Sh AUTHORS
+.An Allan Jude Aq Mt allanjude@freebsd.org

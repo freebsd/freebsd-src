@@ -1,0 +1,67 @@
+Files in this directory are used to generate locale source files
+from files in CLDR (Unicode Common Locale Data Repository).
+
+To generate the files, do the following:
+
+	cd /usr/src/tools/tools/locale
+	make obj	(mandatory)
+	make fetch	(download the CLDR source)
+	make extract	(and extract it)
+	make -j16	(-jN recommended)
+	make diff	(check if the changes are reasonable)
+	make install
+
+"make" downloads the necessary files, build them, and install the
+results into /usr/src/share/* as source files for locales.
+
+More details are as follows:
+
+Variables:
+	LOCALESRCDIR
+		Destination path for the generated locale files.
+		Default: ${SRCTOP}/share.
+	TMPDIR
+		Temporary directory.
+		Default: /tmp
+
+Targets:
+	make obj
+		Create a temporary directory for building.
+
+	make clean
+		Clean up the obj directories.  Note that this does not
+		clean up tools or posix locale source files generated
+		from the CLDR files because it takes a long time to generate
+		them and they are not changed as long as using the same
+		CLDR files.  "make clean && make build" will
+		regenerate the locale source files for src/share/*def.
+
+	make cleandir
+		Remove the obj directories completely.
+
+	make tools-test
+		Check if necessary tools are installed or not.
+		If something is missing, install them.
+
+	make fetch
+		Download necessary files from CLDR.
+
+	make build-tools
+		Build a tool to generate locale source files.
+
+	make posix
+		Build POSIX locale source files.
+
+	make build
+		Build locale files.
+
+	make diff
+		Run diff(1) the build results against $LOCALESRCDIR.
+
+	make install
+		Install the build results into $LOCALESRCDIR.
+
+	make widths
+		Generate widths.txt.  Requires pkgconf and utf8proc
+		packages to be installed.
+[EOF]

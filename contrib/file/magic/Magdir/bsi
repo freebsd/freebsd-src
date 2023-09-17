@@ -1,0 +1,10 @@
+# Chiasmus is an encryption standard developed by the German Federal
+# Office for Information Security (Bundesamt fuer Sicherheit in der
+# Informationstechnik).
+
+# https://www.bsi.bund.de/EN/Topics/OtherTopics/Chiasmus/Chiasmus_node.html
+0	string		XIA1\r		Chiasmus Encrypted data
+!:ext xia
+
+0	string	XIS	Chiasmus key
+!:ext xis

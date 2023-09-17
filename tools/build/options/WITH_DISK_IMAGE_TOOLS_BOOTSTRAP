@@ -1,0 +1,6 @@
+Build
+.Xr etdump 1 ,
+.Xr makefs 8
+and
+.Xr mkimg 1
+as bootstrap tools.

@@ -1,0 +1,130 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2000 Jonathan M. Bresler
+.\" All rights reserved.
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 16, 2023
+.Dt KASSERT 9
+.Os
+.Sh NAME
+.Nm KASSERT
+.Nd kernel expression verification macros
+.Sh SYNOPSIS
+.Cd "options INVARIANTS"
+.Pp
+.In sys/param.h
+.In sys/systm.h
+.Fn KASSERT expression msg
+.Fn MPASS expression
+.Sh DESCRIPTION
+Assertions are widely used within the
+.Fx
+kernel to verify programmatic assumptions.
+For violations of run-time assumptions and invariants, it is desirable to fail
+as soon and as loudly as possible.
+Assertions are optional code; for non-recoverable error conditions an explicit
+call to
+.Xr panic 9
+is usually preferred.
+.Pp
+The
+.Fn KASSERT
+macro tests the given boolean
+.Fa expression .
+If
+.Fa expression
+evaluates to
+.Dv false ,
+and the kernel is compiled with
+.Cd "options INVARIANTS" ,
+the
+.Xr panic 9
+function is called.
+This terminates the running system at the point of the error, possibly dropping
+into the kernel debugger or initiating a kernel core dump.
+The second argument,
+.Fa msg ,
+is a
+.Xr printf 9
+format string and its arguments,
+enclosed in parentheses.
+The formatted string will become the panic string.
+.Pp
+In a kernel that is built without
+.Cd "options INVARIANTS" ,
+the assertion macros are defined to be no-ops.
+This eliminates the runtime overhead of widespread assertions from release
+builds of the kernel.
+Therefore, checks which can be performed in a constant amount of time can be
+added as assertions without concern about their performance impact.
+More expensive checks, such as those that output to console, or verify the
+integrity of a chain of objects are generally best hidden behind the
+.Cd DIAGNOSTIC
+kernel option.
+.Pp
+The
+.Fn MPASS
+macro (read as: "must-pass")
+is a convenience wrapper around
+.Fn KASSERT
+that automatically generates a sensible assertion message including file and
+line information.
+.Sh EXAMPLES
+A hypothetical
+.Vt struct foo
+object must not have its 'active' flag set when calling
+.Fn foo_dealloc :
+.Bd -literal -offset indent
+void
+foo_dealloc(struct foo *fp)
+{
+
+	KASSERT((fp->foo_flags & FOO_ACTIVE) == 0,
+	    ("%s: fp %p is still active", __func__, fp));
+	...
+}
+.Ed
+.Pp
+The assertion
+.Bd -literal -offset indent
+MPASS(td == curthread);
+.Ed
+.Pp
+located on line 87 of a file named foo.c would generate the following panic
+message:
+.Bd -literal -offset indent
+panic: Assertion td == curthread failed at foo.c:87
+.Ed
+.Sh SEE ALSO
+.Xr panic 9
+.Sh AUTHORS
+This manual page was written by
+.An Jonathan M. Bresler Aq Mt jmb@FreeBSD.org
+and
+.An Mitchell Horne Aq Mt mhorne@FreeBSD.org .

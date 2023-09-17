@@ -1,0 +1,15 @@
+
+case ! in
+[\!!]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case ! in
+['!'!]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case ! in
+["!"!]) ;;
+*) echo Failed at $LINENO ;;
+esac

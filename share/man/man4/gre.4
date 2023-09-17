@@ -1,0 +1,275 @@
+.\" $NetBSD: gre.4,v 1.28 2002/06/10 02:49:35 itojun Exp $
+.\"
+.\" Copyright 1998 (c) The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Heiko W.Rupp <hwr@pilhuhn.de>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 21, 2020
+.Dt GRE 4
+.Os
+.Sh NAME
+.Nm gre
+.Nd encapsulating network device
+.Sh SYNOPSIS
+To compile the
+driver into the kernel, place the following line in the kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device gre"
+.Ed
+.Pp
+Alternatively, to load the
+driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gre_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+network interface pseudo device encapsulates datagrams
+into IP.
+These encapsulated datagrams are routed to a destination host,
+where they are decapsulated and further routed to their final destination.
+The
+.Dq tunnel
+appears to the inner datagrams as one hop.
+.Pp
+.Nm
+interfaces are dynamically created and destroyed with the
+.Xr ifconfig 8
+.Cm create
+and
+.Cm destroy
+subcommands.
+.Pp
+This driver corresponds to RFC 2784.
+Encapsulated datagrams are prepended an outer datagram and a GRE header.
+The GRE header specifies
+the type of the encapsulated datagram and thus allows for tunneling other
+protocols than IP.
+GRE mode is also the default tunnel mode on Cisco routers.
+.Nm
+also supports Cisco WCCP protocol, both version 1 and version 2.
+.Pp
+The
+.Nm
+interfaces support a number of additional parameters to the
+.Xr ifconfig 8 :
+.Bl -tag -width "enable_csum"
+.It Ar grekey
+Set the GRE key used for outgoing packets.
+A value of 0 disables the key option.
+.It Ar enable_csum
+Enables checksum calculation for outgoing packets.
+.It Ar enable_seq
+Enables use of sequence number field in the GRE header for outgoing packets.
+.It Ar udpencap
+Enables UDP-in-GRE encapsulation (see the
+.Sx GRE-IN-UDP ENCAPSULATION
+Section below for details).
+.It Ar udpport
+Set the source UDP port for outgoing packets.
+A value of 0 disables the persistence of source UDP port for outgoing packets.
+See the
+.Sx GRE-IN-UDP ENCAPSULATION
+Section below for details.
+.El
+.Sh GRE-IN-UDP ENCAPSULATION
+The
+.Nm
+supports GRE in UDP encapsulation as defined in RFC 8086.
+A GRE in UDP tunnel offers the possibility of better performance for
+load-balancing GRE traffic in transit networks.
+Encapsulating GRE in UDP enables use of the UDP source port to provide
+entropy to ECMP hashing.
+.Pp
+The GRE in UDP tunnel uses single value 4754 as UDP destination port.
+The UDP source port contains a 14-bit entropy value that is generated
+by the encapsulator to identify a flow for the encapsulated packet.
+The
+.Ar udpport
+option can be used to disable this behaviour and use single source UDP
+port value.
+The value of
+.Ar udpport
+should be within the ephemeral port range, i.e., 49152 to 65535 by default.
+.Pp
+Note that a GRE in UDP tunnel is unidirectional; the tunnel traffic is not
+expected to be returned back to the UDP source port values used to generate
+entropy.
+This may impact NAPT (Network Address Port Translator) middleboxes.
+If such tunnels are expected to be used on a path with a middlebox,
+the tunnel can be configured either to disable use of the UDP source port
+for entropy or to enable middleboxes to pass packets with UDP source port
+entropy.
+.Sh EXAMPLES
+.Bd -literal
+192.168.1.* --- Router A  -------tunnel-------- Router B --- 192.168.2.*
+                   \\                              /
+                    \\                            /
+                     +------ the Internet ------+
+.Ed
+.Pp
+Assuming router A has the (external) IP address A and the internal address
+192.168.1.1, while router B has external address B and internal address
+192.168.2.1, the following commands will configure the tunnel:
+.Pp
+On router A:
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN inet 192.168.1.1 192.168.2.1
+ifconfig greN inet tunnel A B
+route add -net 192.168.2 -netmask 255.255.255.0 192.168.2.1
+.Ed
+.Pp
+On router B:
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN inet 192.168.2.1 192.168.1.1
+ifconfig greN inet tunnel B A
+route add -net 192.168.1 -netmask 255.255.255.0 192.168.1.1
+.Ed
+.Pp
+In case when internal and external IP addresses are the same,
+different routing tables (FIB) should be used.
+The default FIB will be applied to IP packets before GRE encapsulation.
+After encapsulation GRE interface should set different FIB number to
+outgoing packet.
+Then different FIB will be applied to such encapsulated packets.
+According to this FIB packet should be routed to tunnel endpoint.
+.Bd -literal
+Host X -- Host A (198.51.100.1) ---tunnel--- Cisco D (203.0.113.1) -- Host E
+                   \\                                   /
+                    \\                                 /
+	             +----- Host B ----- Host C -----+
+                       (198.51.100.254)
+.Ed
+.Pp
+On Host A (FreeBSD):
+.Pp
+First of multiple FIBs should be configured via loader.conf:
+.Bd -literal -offset indent
+net.fibs=2
+net.add_addr_allfibs=0
+.Ed
+.Pp
+Then routes to the gateway and remote tunnel endpoint via this gateway
+should be added to the second FIB:
+.Bd -literal -offset indent
+route add -net 198.51.100.0 -netmask 255.255.255.0 -fib 1 -iface em0
+route add -host 203.0.113.1 -fib 1 198.51.100.254
+.Ed
+.Pp
+And GRE tunnel should be configured to change FIB for encapsulated packets:
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN inet 198.51.100.1 203.0.113.1
+ifconfig greN inet tunnel 198.51.100.1 203.0.113.1 tunnelfib 1
+.Ed
+.Sh NOTES
+The MTU of
+.Nm
+interfaces is set to 1476 by default, to match the value used by Cisco routers.
+This may not be an optimal value, depending on the link between the two tunnel
+endpoints.
+It can be adjusted via
+.Xr ifconfig 8 .
+.Pp
+For correct operation, the
+.Nm
+device needs a route to the decapsulating host that does not run over the tunnel,
+as this would be a loop.
+.Pp
+The kernel must be set to forward datagrams by setting the
+.Va net.inet.ip.forwarding
+.Xr sysctl 8
+variable to non-zero.
+.Pp
+By default,
+.Nm
+tunnels may not be nested.
+This behavior may be modified at runtime by setting the
+.Xr sysctl 8
+variable
+.Va net.link.gre.max_nesting
+to the desired level of nesting.
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr me 4 ,
+.Xr netintro 4 ,
+.Xr protocols 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh STANDARDS
+.Rs
+.%A S. Hanks
+.%A "T. Li"
+.%A D. Farinacci
+.%A P. Traina
+.%D October 1994
+.%R RFC 1701
+.%T Generic Routing Encapsulation (GRE)
+.Re
+.Pp
+.Rs
+.%A S. Hanks
+.%A "T. Li"
+.%A D. Farinacci
+.%A P. Traina
+.%D October 1994
+.%R RFC 1702
+.%T Generic Routing Encapsulation over IPv4 networks
+.Re
+.Pp
+.Rs
+.%A D. Farinacci
+.%A "T. Li"
+.%A S. Hanks
+.%A D. Meyer
+.%A P. Traina
+.%D March 2000
+.%R RFC 2784
+.%T Generic Routing Encapsulation (GRE)
+.Re
+.Pp
+.Rs
+.%A G. Dommety
+.%D September 2000
+.%R RFC 2890
+.%T Key and Sequence Number Extensions to GRE
+.Re
+.Sh AUTHORS
+.An Andrey V. Elsukov Aq Mt ae@FreeBSD.org
+.An Heiko W.Rupp Aq Mt hwr@pilhuhn.de
+.Sh BUGS
+The current implementation uses the key only for outgoing packets.
+Incoming packets with a different key or without a key will be treated as if they
+would belong to this interface.
+.Pp
+The sequence number field also used only for outgoing packets.

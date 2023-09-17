@@ -1,0 +1,7 @@
+Global: ASSIGNED = value
+Global: SUBST = # (empty)
+Global: SUBST = value
+Var_Parse: y(ASSIGNED) (eval)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+exit status 0

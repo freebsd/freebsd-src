@@ -1,0 +1,63 @@
+.\"
+.\" Copyright (c) 2021 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 22, 2021
+.Dt BUS_CHILD_PNPINFO 9
+.Os
+.Sh NAME
+.Nm BUS_CHILD_PNPINFO
+.Nd "obtain the plug and play information from a device"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/sbuf.h
+.Ft void
+.Fn BUS_CHILD_PNPINFO "device_t dev" "device_t child" "struct sbuf *sb"
+.Sh DESCRIPTION
+The
+.Fn BUS_CHILD_LOCATION
+method returns the identifying information about the
+.Dv child
+device.
+This information is called the plug and play (pnp) details by some buses.
+This information is a series of key=value pairs.
+The string must be formatted as a space-separated list of key=value pairs.
+Names may only contain alphanumeric characters, underscores ('_') and hyphens ('-').
+Values can contain any non-whitespace characters.
+Values containing whitespace can be quoted with double quotes ('"').
+Double quotes and backslashes in quoted values can be escaped with backslashes ('\').
+.Pp
+The pnpinfo is defined as a series of characteristics of the
+.Dv child
+device that are independent of which drivers are attached, but
+are used to allow drivers to claim a device.
+Typically, plug and play information encodes who made the device, what the model
+number is, and some generic details about the device.
+By convention, only the generic information about the device that's used by
+drivers on that bus to decide on accepting the device is reported.
+Other configuration information (such as the cache burst size) needed for the
+operation of the device, but that doesn't distinguish it broadly from other
+devices is not reported.
+.Sh SEE ALSO
+.Xr bus 9 ,
+.Xr device 9

@@ -1,0 +1,8 @@
+/* Public domain. */
+
+#ifndef _LINUXKPI_LINUX_MEDIA_BUS_FORMAT_H_
+#define _LINUXKPI_LINUX_MEDIA_BUS_FORMAT_H_
+
+#define MEDIA_BUS_FMT_FIXED 1
+
+#endif	/* _LINUXKPI_LINUX_MEDIA_BUS_FORMAT_H_ */

@@ -1,0 +1,50 @@
+
+#------------------------------------------------------------------------------
+# $File: lif,v 1.11 2022/10/19 20:15:16 christos Exp $
+# lif:  file(1) magic for lif
+#
+# (Daniel Quinlan <quinlan@yggdrasil.com>)
+#
+# Modified by:	Joerg Jenderek
+# URL:		https://www.hp9845.net/9845/projects/hpdir/
+#		https://github.com/bug400/lifutils
+# Reference:	https://www.hp9845.net/9845/downloads/manuals/LIF_excerpt_64941-90906_flpRef_Jan84.pdf
+# Note:		called by TrID "HP Logical Interchange Format disk image"
+0	beshort		0x8000
+# GRR: line above is too general as it catches also compressed DEGAS low-res bitmap *.pc1
+# skip many compressed DEGAS low-res bitmap *.pc1 by test for unused bytes
+>14	beshort		=0
+# skip MUNCHIE.PC1 BOARD.PC1 ENEMIES.PC1 by test for low version number
+>>20	ubeshort	<0x0100
+# skip DROID fmt-840-signature-id-1195.adx fmt-840-signature-id-1199.adx by test for ASCII like volume name
+>>>2	ubelong		>0x2020201F
+>>>>0	use		lif-file
+0	name		lif-file
+# LIF ID
+>0	beshort		x		lif file
+!:mime	application/x-lif-disk
+# lif used by Tony Duell LIF utilities; enhanced version by Joachim Siebold use also dat; hpi used by hpdir
+!:ext	lif/hpi/dat
+# volume label; A-Z 0-9 _ ; default are 6 spaces
+>2	string		x		"%.6s"
+#>2	ubelong		x		LABEL=%8.8x
+# version number; 0 for systems without extensions or 1 for model 64000
+>20	ubeshort	x		\b, version %u
+# LIF identifier; 010000 for system 3000
+>12	beshort		!0x1000		\b, LIF identifier %#x
+# directory start address in units like: 2
+>8	ubelong		x		\b, directory
+>8	ubelong		!2		start address %u
+# length of directory like: 2 4 7 10 12 14 (for model 64000) 16 18 20 24 30 50 57 77 80
+>16	ubelong		x		length %u
+# level 1 extensions
+>20	beshort		=0
+>>24	ubequad		!0		\b, for extensions %#llx...
+>20	beshort		>0
+>>24	ubequad		!0		\b, extensions %#llx...
+# word 21-126 reserved for extensions and future use; set to nil
+>42	ubequad		!0		\b, RESERVED %#llx
+# lif first file name for standard directory; 0xffff... means uninitialized
+>8	ubelong		2
+>>512	string		<\xff\xff	\b, 1st file %-.10s
+

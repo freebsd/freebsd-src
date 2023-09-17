@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+#
+
+# Configuration file for release/release.sh to build arm64/aarch64
+# big-iron installation images (not system-on-chip (SoC) images).
+
+TARGET="arm64"
+TARGET_ARCH="aarch64"
+KERNEL="GENERIC"

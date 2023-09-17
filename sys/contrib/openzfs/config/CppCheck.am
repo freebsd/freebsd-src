@@ -1,0 +1,21 @@
+#
+# cppcheck for userspace – nodist_*_SOURCES are kernel code and cppcheck goes crazy on them.
+#
+
+PHONY += cppcheck
+
+CPPCHECKFLAGS  = --std=c99 --quiet --max-configs=1 --error-exitcode=2
+CPPCHECKFLAGS += --inline-suppr -U_KERNEL
+
+CPPCHECKDIRS    =
+CPPCHECKTARGETS =
+
+cppcheck-recursive-%:
+	$(MAKE) -C $(subst cppcheck-recursive-,,$@) cppcheck
+
+_CTGT = $(subst cppcheck-for-,,$@)
+cppcheck-for-%:
+	@[ -n "$($(_CTGT)_SOURCES)$(dist_$(_CTGT)_SOURCES)" ]
+	$(CPPCHECK) -j$(CPU_COUNT) $(CPPCHECKFLAGS) $(patsubst -U%,,$(patsubst -D%,,$(filter-out $(AM_CPPFLAGS_NOCHECK),$(or $($(_CTGT)_CPPFLAGS),$(AM_CPPFLAGS))))) $($(_CTGT)_SOURCES) $(dist_$(_CTGT)_SOURCES)
+
+cppcheck: $(addprefix cppcheck-for-,$(subst -,_,$(subst .,_,$(subst /,_,$(CPPCHECKTARGETS))))) $(addprefix cppcheck-recursive-,$(CPPCHECKDIRS))

@@ -1,0 +1,12 @@
+dep-colon-bug-cross-file.mk
+dep-colon.mk
+dep-double-colon-indep.mk
+dep-double-colon.mk
+dep-duplicate.mk
+dep-exclam.mk
+dep-none.mk
+dep-op-missing.mk
+dep-percent.mk
+dep-var.mk
+dep-wildcards.mk
+exit status 0

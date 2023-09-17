@@ -1,0 +1,4 @@
+
+set -o pipefail
+(exit 42) | : &
+wait %+

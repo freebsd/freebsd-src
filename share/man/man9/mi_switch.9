@@ -1,0 +1,234 @@
+.\"	$NetBSD: ctxsw.9,v 1.2 1996/12/02 00:11:31 tls Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 9, 2023
+.Dt MI_SWITCH 9
+.Os
+.Sh NAME
+.Nm mi_switch ,
+.Nm cpu_switch ,
+.Nm cpu_throw
+.Nd switch to another thread context
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft void
+.Fn mi_switch "int flags"
+.Ft void
+.Fn cpu_switch "struct thread *oldtd" "struct thread *newtd" "struct mtx *lock"
+.Ft void
+.Fn cpu_throw "struct thread *oldtd" "struct thread *newtd"
+.Sh DESCRIPTION
+The
+.Fn mi_switch
+function implements the machine-independent prelude to a thread context
+switch.
+It is the single entry point for every context switch and is called from only
+a few distinguished places in the kernel.
+The context switch is, by necessity, always performed by the switched thread,
+even when the switch is initiated from elsewhere; e.g. preemption requested via
+Inter-Processor Interrupt (IPI).
+.Pp
+The various major uses of
+.Fn mi_switch
+can be enumerated as follows:
+.Bl -enum -offset indent
+.It
+From within a function such as
+.Xr sleepq_wait 9
+or
+.Fn turnstile_wait
+when the current thread
+voluntarily relinquishes the CPU to wait for some resource or lock to become
+available.
+.It
+Involuntary preemption due to arrival of a higher-priority thread.
+.It
+At the tail end of
+.Xr critical_exit 9 ,
+if preemption was deferred due to the critical section.
+.It
+Within the TDA_SCHED AST handler, when rescheduling before the return to
+usermode was requested.
+There are several reasons for this, a notable one coming from
+.Fn sched_clock
+when the running thread has exceeded its time slice.
+.It
+In the signal handling code
+(see
+.Xr issignal 9 )
+if a signal is delivered that causes a process to stop.
+.It
+In
+.Fn thread_suspend_check
+where a thread needs to stop execution due to the suspension state of
+the process as a whole.
+.It
+In
+.Xr kern_yield 9
+when a thread wants to voluntarily relinquish the processor.
+.El
+.Pp
+The
+.Va flags
+argument to
+.Fn mi_switch
+indicates the context switch type.
+One of the following must be passed:
+.Bl -tag -offset indent -width "SWT_REMOTEWAKEIDLE"
+.It Dv SWT_OWEPREEMPT
+Switch due to delayed preemption after exiting a critical section.
+.It Dv SWT_TURNSTILE
+Switch after propagating scheduling priority to the owner of a resource.
+.It Dv SWT_SLEEPQ
+Begin waiting on a
+.Xr sleepqueue 9 .
+.It Dv SWT_RELINQUISH
+Yield call.
+.It Dv SWT_NEEDRESCHED
+Rescheduling was requested.
+.It Dv SWT_IDLE
+Switch from the idle thread.
+.It Dv SWT_IWAIT
+A kernel thread which handles interrupts has finished work and must wait for
+interrupts to schedule additional work.
+.It Dv SWT_SUSPEND
+Thread suspended.
+.It Dv SWT_REMOTEPREEMPT
+Preemption by a higher-priority thread, initiated by a remote processor.
+.It Dv SWT_REMOTEWAKEIDLE
+Idle thread preempted, initiated by a remote processor.
+.It Dv SWT_BIND
+The running thread has been bound to another processor and must be switched
+out.
+.El
+.Pp
+In addition to the switch type, callers must specify the nature of the
+switch by performing a bitwise OR with one of the
+.Dv SW_VOL
+or
+.Dv SW_INVOL
+flags, but not both.
+Respectively, these flags denote whether the context switch is voluntary or
+involuntary on the part of the current thread.
+For an involuntary context switch in which the running thread is
+being preempted, the caller should also pass the
+.Dv SW_PREEMPT
+flag.
+.Pp
+Upon entry to
+.Fn mi_switch ,
+the current thread must be holding its assigned thread lock.
+It may be unlocked as part of the context switch.
+After they have been rescheduled and execution resumes, threads will exit
+.Fn mi_switch
+with their thread lock unlocked.
+.Pp
+.Fn mi_switch
+records the amount of time the current thread has been running before handing
+control over to the scheduler, via
+.Fn sched_switch .
+After selecting a new thread to run, the scheduler will call
+.Fn cpu_switch
+to perform the low-level context switch.
+.Pp
+.Fn cpu_switch
+is the machine-dependent function that performs the actual switch from the
+running thread
+.Fa oldtd
+to the chosen thread
+.Fa newtd .
+First, it saves the context of
+.Fa oldtd
+to its Process Control Block
+.Po
+PCB,
+.Vt struct pcb
+.Pc ,
+pointed at by
+.Va oldtd->td_pcb .
+The function then updates important per-CPU state such as the
+.Dv curthread
+variable, and activates
+.Fa newtd\&'s
+virtual address space using its associated
+.Xr pmap 9
+structure.
+Finally, it reads in the saved context from
+.Fa newtd\&'s
+PCB.
+CPU instruction flow continues in the new thread context, on
+.Fa newtd\&'s
+kernel stack.
+The return from
+.Fn cpu_switch
+can be understood as a completion of the function call initiated by
+.Fa newtd
+when it was previously switched out, at some point in the distant (relative to
+CPU time) past.
+.Pp
+The
+.Fa mtx
+argument to
+.Fn cpu_switch
+is used to pass the mutex which will be stored as
+.Fa oldtd\&'s
+thread lock at the moment that
+.Fa oldtd
+is completely switched out.
+This is an implementation detail of
+.Fn sched_switch .
+.Pp
+.Fn cpu_throw
+is similar to
+.Fn cpu_switch
+except that it does not save the context of the old thread.
+This function is useful when the kernel does not have an old thread
+context to save, such as when CPUs other than the boot CPU perform their
+first task switch, or when the kernel does not care about the state of the
+old thread, such as in
+.Xr thread_exit 9
+when the kernel terminates the current thread and switches into a new
+thread,
+.Fa newtd .
+The
+.Fa oldtd
+argument is unused.
+.Sh SEE ALSO
+.Xr critical_exit 9 ,
+.Xr issignal 9 ,
+.Xr kern_yield 9 ,
+.Xr mutex 9 ,
+.Xr pmap 9 ,
+.Xr sleepqueue 9 ,
+.Xr thread_exit 9

@@ -1,0 +1,120 @@
+#!/bin/sh
+# shellcheck disable=SC2034
+
+command -v getarg >/dev/null || . /lib/dracut-lib.sh || . /usr/lib/dracut/modules.d/99base/dracut-lib.sh
+
+TAB="	"
+
+ZPOOL_IMPORT_OPTS=
+if getargbool 0 zfs_force -y zfs.force -y zfsforce; then
+    warn "ZFS: Will force-import pools if necessary."
+    ZPOOL_IMPORT_OPTS=-f
+fi
+
+_mount_dataset_cb() {
+    # shellcheck disable=SC2154
+    mount -o zfsutil -t zfs "${1}" "${NEWROOT}${2}"
+}
+
+# mount_dataset DATASET
+#   mounts the given zfs dataset.
+mount_dataset() {
+    dataset="${1}"
+    mountpoint="$(zfs get -H -o value mountpoint "${dataset}")"
+    ret=0
+
+    # We need zfsutil for non-legacy mounts and not for legacy mounts.
+    if [ "${mountpoint}" = "legacy" ] ; then
+        mount -t zfs "${dataset}" "${NEWROOT}" || ret=$?
+    else
+        mount -o zfsutil -t zfs "${dataset}" "${NEWROOT}" || ret=$?
+
+        if [ "$ret" = "0" ]; then
+            for_relevant_root_children "${dataset}" _mount_dataset_cb || ret=$?
+        fi
+    fi
+
+    return "${ret}"
+}
+
+# for_relevant_root_children DATASET EXEC
+#   Runs "EXEC dataset mountpoint" for all children of DATASET that are needed for system bringup
+#   Used by zfs-nonroot-necessities.service and friends, too!
+for_relevant_root_children() {
+    dataset="${1}"
+    exec="${2}"
+
+    zfs list -t filesystem -Ho name,mountpoint,canmount -r "${dataset}" |
+        (
+            _ret=0
+            while IFS="${TAB}" read -r dataset mountpoint canmount; do
+                [ "$canmount" != "on" ] && continue
+
+                case "$mountpoint" in
+                    /etc|/bin|/lib|/lib??|/libx32|/usr)
+                        # If these aren't mounted we may not be able to get to the real init at all, or pollute the dataset holding the rootfs
+                        "${exec}" "${dataset}" "${mountpoint}" || _ret=$?
+                        ;;
+                    *)
+                        # Up to the real init to remount everything else it might need
+                        ;;
+                esac
+            done
+            exit "${_ret}"
+        )
+}
+
+# Parse root=, rootfstype=, return them decoded and normalised to zfs:AUTO for auto, plain dset for explicit
+#
+# True if ZFS-on-root, false if we shouldn't
+#
+# Supported values:
+#   root=
+#   root=zfs
+#   root=zfs:
+#   root=zfs:AUTO
+#
+#   root=ZFS=data/set
+#   root=zfs:data/set
+#   root=zfs:ZFS=data/set (as a side-effect; allowed but undocumented)
+#
+#   rootfstype=zfs AND root=data/set <=> root=data/set
+#   rootfstype=zfs AND root=         <=> root=zfs:AUTO
+#
+# '+'es in explicit dataset decoded to ' 's.
+decode_root_args() {
+    if [ -n "$rootfstype" ]; then
+        [ "$rootfstype" = zfs ]
+        return
+    fi
+
+    xroot=$(getarg root=)
+    rootfstype=$(getarg rootfstype=)
+
+    # shellcheck disable=SC2249
+    case "$xroot" in
+        ""|zfs|zfs:|zfs:AUTO)
+            root=zfs:AUTO
+            rootfstype=zfs
+            return 0
+            ;;
+
+        ZFS=*|zfs:*)
+            root="${xroot#zfs:}"
+            root="${root#ZFS=}"
+            root=$(echo "$root" | tr '+' ' ')
+            rootfstype=zfs
+            return 0
+            ;;
+    esac
+
+    if [ "$rootfstype" = "zfs" ]; then
+        case "$xroot" in
+            "") root=zfs:AUTO ;;
+            *)  root=$(echo "$xroot" | tr '+' ' ') ;;
+        esac
+        return 0
+    fi
+
+    return 1
+}

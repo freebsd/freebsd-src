@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+#
+
+EMBEDDED_TARGET_ARCH="aarch64"
+EMBEDDED_TARGET="arm64"
+EMBEDDEDBUILD=1
+EMBEDDEDPORTS="sysutils/u-boot-rock64"
+FAT_SIZE="50m -b 16m"
+FAT_TYPE="16"
+IMAGE_SIZE="5120M"
+KERNEL="GENERIC"
+MD_ARGS="-x 63 -y 255"
+PART_SCHEME="GPT"
+export BOARDNAME="ROCK64"
+
+arm_install_uboot() {
+	UBOOT_DIR="/usr/local/share/u-boot/u-boot-rock64"
+	UBOOT_FILE_1="idbloader.img"
+	UBOOT_FILE_2="u-boot.itb"
+	chroot ${CHROOTDIR} dd if=${UBOOT_DIR}/${UBOOT_FILE_1} \
+		of=/dev/${mddev} bs=512 seek=64 conv=sync
+	chroot ${CHROOTDIR} dd if=${UBOOT_DIR}/${UBOOT_FILE_2} \
+		of=/dev/${mddev} bs=512 seek=16384 conv=sync
+	return 0
+}

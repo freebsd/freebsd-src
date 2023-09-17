@@ -1,0 +1,387 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019-2022 Netflix, Inc
+.\" Copyright (c) 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright 2022 The FreeBSD Foundation, Inc.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 4, 2022
+.Dt LOADER.EFI 8
+.Os
+.Sh NAME
+.Nm loader.efi
+.Nd UEFI kernel loader
+.Sh DESCRIPTION
+On UEFI systems,
+.Nm
+loads the kernel.
+.Pp
+.Xr boot1.efi 8
+is used to load
+.Nm
+when it is placed within a UFS or ZFS file system.
+Alternatively,
+.Nm
+is used directly when configured with
+.Xr efibootmgr 8 ,
+or when placed directly as the default boot program as described in
+.Xr uefi 8 .
+When a system is built using
+.Xr bsdinstall 8 ,
+.Nm
+will be used directly.
+.Ss Console Considerations
+The EFI BIOS provides a generic console.
+In
+.Nm
+this is selected by specifying
+.Dq efi
+using the
+.Dv console
+variable.
+.Nm
+examines the
+.Dv 8be4df61-93ca-11d2-aa0d-00e098032b8c-ConOut
+UEFI environment variable to guess what the
+.Dq efi
+console points to.
+.Nm
+will output its prompts and menus to all the places specified by ConOut.
+However, the
+.Fx
+kernel has a limitation when more than one console is present.
+The kernel outputs to all configured consoles.
+Only the primary console will get the log messages from the
+.Xr rc 8
+system, and prompts for things like
+.Xr geli 8
+passwords.
+If
+.Nm
+finds a video device first, then
+.Nm
+tells the kernel to use the video console as primary.
+Likewise, if a serial device is first in the
+.Dv ConOut
+list, the serial port will be the primary console.
+.Pp
+If there is no
+.Dv ConOut
+variable, both serial and video are attempted.
+.Nm
+uses the
+.Dq efi
+console for the video (which may or may not work) and
+.Dq comconsole
+for the serial on
+.Dv COM1
+at the default baud rate.
+The kernel will use a dual console, with the video console
+primary if a UEFI graphics device is detected, or the serial console
+as primary if not.
+.Pp
+On x86 platforms, if you wish to redirect the loader's output to a serial port
+when the EFI BIOS doesn't support it, or to a serial port that isn't the one the
+EFI BIOS redirects its output to, set
+.Dv console
+to
+.Dq comconsole .
+The default port is
+.Dv COM1
+with an I/O address of 0x3f8.
+.Dv comconsole_port
+is used to set this to a different port address.
+.Dv comconsole_speed
+is used to set the of the serial port (the default is 9600).
+If you have
+.Dv console
+set to
+.Dq efi,comconsole
+you will get output on both the EFI console and the serial port.
+If this causes a doubling of characters, set
+.Dv console
+to
+.Dq efi ,
+since your EFI BIOS is redirecting to the serial port already.
+.Pp
+If your EFI BIOS redirects the serial port, you may need to tell the kernel
+which address to use.
+EFI uses ACPI's UID to identify the serial port, but
+.Nm
+does not have an ACPI parser, so it cannot convert that to an I/O port.
+The
+.Fx
+kernel initializes its consoles before it can decode ACPI resources.
+The
+.Fx
+kernel will look at the
+.Dv hw.uart.console
+variable to set its serial console.
+Its format should be described in
+.Xr uart 4
+but is not.
+Set it to
+.Dq io:0x3f8,br:115200
+with the proper port address.
+PCI or memory mapped ports are beyond the scope of this man page.
+.Pp
+The serial ports are assigned as follows on IBM PC compatible systems:
+.Bl -column -offset indent ".Sy Windows Name" ".Sy I/O Port Address" ".Sy Typical FreeBSD device"
+.It Sy Windows Name Ta Sy I/O Port Address Ta Sy Typical FreeBSD device
+.It COM1 Ta 0x3f8 Ta Pa /dev/uart0
+.It COM2 Ta 0x2f8 Ta Pa /dev/uart1
+.It COM3 Ta 0x3e8 Ta Pa /dev/uart2
+.It COM4 Ta 0x2e8 Ta Pa /dev/uart3
+.El
+Though
+.Dv COM3
+and
+.Dv COM4
+can vary.
+.Pp
+.Ss Primary Console
+The primary console is set using the boot flags.
+These command line arguments set corresponding flags for the kernel.
+These flags can be controlled by setting loader environment variables
+to
+.Dq yes
+or
+.Dq no .
+Boot flags may be set on the command line to the boot command.
+Inside the kernel, the RB_ flags are used to control behavior, sometimes
+in architecturally specific ways and are included to aid in discovery
+of any behavior not covered in this document.
+.Bl -column -offset indent ".Sy boot flag" ".Sy loader variable" ".Sy Kernel RB_ flag"
+.It Sy boot flag Ta Sy loader variable Ta Sy Kernel RB_ flag
+.It Fl a Ta Dv boot_askme Ta Va RB_ASKNAME
+.It Fl c Ta Dv boot_cdrom Ta Va RB_CDROM
+.It Fl d Ta Dv boot_ddb Ta Va RB_KDB
+.It Fl r Ta Dv boot_dfltroot Ta Va RB_DFLTROOT
+.It Fl D Ta Dv boot_multiple Ta Va RB_MULTIPLE
+.It Fl m Ta Dv boot_mute Ta Va RB_MUTE
+.It Fl g Ta Dv boot_gdb Ta Va RB_GDB
+.It Fl h Ta Dv boot_serial Ta Va RB_SERIAL
+.It Fl p Ta Dv boot_pause Ta Va RB_PAUSE
+.It Fl P Ta Dv boot_probe Ta Va RB_PROBE
+.It Fl s Ta Dv boot_single Ta Va RB_SINGLE
+.It Fl v Ta Dv boot_verbose Ta Va RB_VERBOSE
+.El
+And the following flags determine the primary console:
+.Bl -column -offset indent ".Sy Flags" ".Sy Kernel Flags" ".Sy Kernel Consoles" ".Sy Primary Console"
+.It Sy Flags Ta Sy Kernel Flags Ta Sy Kernel Consoles Ta Sy Primary Console
+.It none Ta 0 Ta Video Ta Video
+.It Fl h Ta RB_SERIAL Ta Serial Ta Serial
+.It Fl D Ta RB_MULTIPLE Ta Serial, Video Ta Video
+.It Fl Dh Ta RB_SERIAL | RB_MULTIPLE Ta Serial, Video Ta Serial
+.El
+.Pp
+.Nm
+does not implement the probe
+.Fl P
+functionality where we use the video console if a keyboard is connected and a
+serial console otherwise.
+.Ss Staging Slop
+The kernel must parse the firmware memory map tables to know what memory
+it can use.
+Since it must allocate memory to do this,
+.Nm
+ensures there's extra memory available, called
+.Dq slop ,
+after everything it loads
+.Po
+the kernel, modules and metadata
+.Pc
+for the kernel to bootstrap the memory allocator.
+.Pp
+By default, amd64 reserves 8MB.
+The
+.Ic staging_slop
+command allows for tuning the slop size.
+It takes a single argument, the size of the slop in bytes.
+.Ss amd64 Nocopy
+.Nm
+will load the kernel into memory that is 2MB aligned below 4GB.
+It cannot load to a fixed address because the UEFI firmware may reserve
+arbitrary memory for its use at runtime.
+Prior to
+.Fx 13.1 ,
+kernels retained the old BIOS-boot protocol of loading at exactly 2MB.
+Such kernels must be copied from their loaded location to 2MB prior
+starting them up.
+The
+.Ic copy_staging
+command is used to enable this copying for older kernels.
+It takes a single argument
+which can be one of
+.Bl -tag -width disable
+.It Ar disable
+Force-disable copying staging area to
+.Ad 2M .
+.It Ar enable
+Force-enable copying staging area to
+.Ad 2M .
+.It Ar auto
+Selects the behaviour based on the kernel's capability of boostraping
+from non-2M physical base.
+The kernel reports this capability by exporting the symbol
+.Va kernphys .
+.El
+.Pp
+Arm64 loaders have operated in the
+.Sq nocopy
+mode from their inception, so there is no
+.Ic copy_staging
+command on that platform.
+Riscv, 32-bit arm and arm64 have always loaded at any
+.Ad 2MB
+aligned location, so do not provide
+.Ic copy_staging .
+.Pp
+.Bd -ragged -offset indent
+.Sy Note.
+BIOS loaders on i386 and amd64 put the staging area starting
+at the physical address
+.Ad 2M ,
+then enable paging with identical mapping for the low
+.Ad 1G .
+The initial port of
+.Nm
+followed the same scheme for handing control to the kernel,
+since it avoided modifications for the loader/kernel hand-off protocol,
+and for the kernel page table bootstrap.
+.Pp
+This approach is incompatible with the UEFI specification,
+and as a practical matter, caused troubles on many boards,
+because UEFI firmware is free to use any memory for its own needs.
+Applications like
+.Nm
+must only use memory explicitly allocated using boot interfaces.
+The original way also potentially destroyed UEFI runtime interfaces data.
+.Pp
+Eventually,
+.Nm
+and the kernel were improved to avoid this problem.
+.Ed
+.Ss amd64 Faults
+Because it executes in x86 protected mode, the amd64 version of
+.Nm
+is susceptible to CPU faults due to programmer mistakes and
+memory corruption.
+To make debugging such faults easier, amd64
+.Nm
+can provide detailed reporting of the CPU state at the time
+of the fault.
+.Pp
+The
+.Ic grab_faults
+command installs a handler for faults directly in the IDT,
+avoiding the use of the UEFI debugging interface
+.Fn EFI_DEBUG_SUPPORT_PROTOCOL.RegisterExceptionCallback .
+That interface is left available for advanced debuggers in
+the UEFI environment.
+The
+.Ic ungrab_faults
+command tries to deinstall the fault handler, returning TSS and IDT
+CPU tables to their pre-installation state.
+The
+.Ic fault
+command produces a fault in the
+.Nm
+environment for testing purposes, by executing the
+.Ic ud2
+processor instruction.
+.Sh FILES
+.Bl -tag -width "/boot/loader.efi"
+.It Pa /boot/loader.efi
+The location of the UEFI kernel loader within the system.
+.El
+.Ss EFI System Partition
+.Nm
+is installed on the ESP (EFI System Partition) in one of the following locations:
+.Bl -tag -width "efi/freebsd/loader.efi"
+.It Pa efi/boot/bootXXX.efi
+The default location for any EFI loader
+.Po see
+.Xr uefi 8
+for values to replace
+.Ql XXX
+with
+.Pc .
+.It Pa efi/freebsd/loader.efi
+The location reserved specifically for the
+.Fx
+EFI loader.
+.El
+.Pp
+The default location for the ESP mount point is documented in
+.Xr hier 7 .
+.Sh EXAMPLES
+.Ss Updating loader.efi on the ESP
+The following examples shows how to install a new
+.Nm
+on the ESP.
+.Pp
+First, find the partition of type
+.Dq efi :
+.Bd -literal -offset indent
+# gpart list | grep -Ew '(Name|efi)'
+1. Name: nvd0p1
+   type: efi
+2. Name: nvd0p2
+3. Name: nvd0p3
+4. Name: nvd0p4
+1. Name: nvd0
+.Ed
+.Pp
+The name of the ESP on this system is
+.Pa nvd0p1 .
+.Pp
+Second, let's mount the ESP, copy
+.Nm
+to the special location reserved for
+.Fx
+EFI loaders, and unmount once finished:
+.Bd -literal -offset indent
+# mount_msdosfs /dev/nvd0p1 /boot/efi
+# cp /boot/loader.efi /boot/efi/efi/freebsd/loader.efi
+# umount /boot/efi
+.Ed
+.Sh SEE ALSO
+.Xr loader 8 ,
+.Xr uefi 8
+.Sh BUGS
+Systems that do not have a
+.Dv ConOut
+variable set are not conformant with the standard, and likely have unexpected
+results.
+.Pp
+Non-x86 serial console handling is even more confusing and less well documented.
+.Pp
+Sometimes when the serial port speed isn't set, 9600 is used.
+Other times the result is typically 115200 since the speed remains unchanged
+from the default.

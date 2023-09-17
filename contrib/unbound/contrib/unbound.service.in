@@ -1,0 +1,88 @@
+; For further details about the directives used in this unit file, including
+; the below, please refer to systemd's official documentation, available at
+; https://www.freedesktop.org/software/systemd/man/systemd.exec.html.
+;
+;
+;   - `ProtectSystem=strict` implies we mount the entire file system hierarchy
+;     read-only for the processes invoked by the unit except for the API file
+;     system subtrees /dev, /proc and /sys (which are protected by
+;     PrivateDevices=, ProtectKernelTunables=, ProtectControlGroups=).
+;
+;   - `PrivateTmp=yes` secures access to temporary files of the process, and
+;     makes sharing between processes via /tmp or /var/tmp impossible.
+;
+;   - `ProtectHome=yes` makes the directories /home, /root, and /run/user
+;     inaccessible and empty for processes invoked by the unit.
+;
+;   - `ProtectControlGroups=yes` makes the Linux Control Groups hierarchies
+;     (accessible through /sys/fs/cgroup) read-only to all processes invoked by
+;     the unit. It also implies `MountAPIVFS=yes`.
+;
+;   - `RuntimeDirectory=unbound` creates a /run/unbound directory, owned by the
+;     unit User and Group with read-write permissions (0755) as soon as the
+;     unit starts. This allows unbound to store its pidfile. The directory and
+;     its content are automatically removed by systemd when the unit stops.
+;
+;   - `NoNewPrivileges=yes` ensures that the service process and all its
+;     children can never gain new privileges through execve().
+;
+;   - `RestrictSUIDSGID=yes` ensures that any attempts to set the set-user-ID
+;     (SUID) or set-group-ID (SGID) bits on files or directories will be denied.
+;
+;   - `RestrictRealTime=yes` ensures that any attempts to enable realtime
+;     scheduling in a process invoked by the unit will be denied.
+;
+;   - `RestrictNamespaces=yes` ensures that access to any kind of namespacing
+;     is prohibited.
+;
+;   - `LockPersonality=yes` locks down the personality system call so that the
+;     kernel execution domain may not be changed from the default.
+;
+;
+[Unit]
+Description=Validating, recursive, and caching DNS resolver
+Documentation=man:unbound(8)
+After=network.target
+Before=network-online.target nss-lookup.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+ExecReload=+/bin/kill -HUP $MAINPID
+ExecStart=@UNBOUND_SBIN_DIR@/unbound -d -p
+NotifyAccess=main
+Type=notify
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_SYS_RESOURCE CAP_NET_RAW
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+# This breaks using socket options like 'so-rcvbuf'. Explicitly disable for visibility.
+ProtectKernelTunables=false
+ProtectProc=invisible
+ProtectSystem=strict
+RuntimeDirectory=unbound
+ConfigurationDirectory=unbound
+StateDirectory=unbound
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
+RestrictRealtime=true
+SystemCallArchitectures=native
+SystemCallFilter=~@clock @cpu-emulation @debug @keyring @module mount @obsolete @resources
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=@UNBOUND_RUN_DIR@ @UNBOUND_CHROOT_DIR@
+
+# Below rules are needed when chroot is enabled (usually it's enabled by default).
+# If chroot is disabled like chroot: "" then they may be safely removed.
+TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/dev:ro
+TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/run:ro
+BindReadOnlyPaths=-/run/systemd/notify:@UNBOUND_CHROOT_DIR@/run/systemd/notify
+BindReadOnlyPaths=-/dev/urandom:@UNBOUND_CHROOT_DIR@/dev/urandom
+BindPaths=-/dev/log:@UNBOUND_CHROOT_DIR@/dev/log

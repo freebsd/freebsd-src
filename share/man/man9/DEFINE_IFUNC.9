@@ -1,0 +1,141 @@
+.\" Copyright (c) 2019 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mark Johnston <markj@FreeBSD.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 18, 2019
+.Dt DEFINE_IFUNC 9
+.Os
+.Sh NAME
+.Nm DEFINE_IFUNC
+.Nd define a kernel function with an implementation selected at run-time
+.Sh SYNOPSIS
+.In machine/ifunc.h
+.Fn DEFINE_IFUNC qual ret_type name args
+.Sh DESCRIPTION
+ifuncs are a linker feature which allows the programmer to define functions
+whose implementation is selected at boot-time or module load-time.
+The
+.Nm
+macro can be used to define an ifunc.
+The selection is performed by a resolver function, which returns a pointer
+to the selected function.
+ifunc resolvers are invoked very early during the machine-dependent
+initialization routine, or at load time for dynamically loaded modules.
+Resolution must occur before the first call to an ifunc.
+ifunc resolution is performed after CPU features are enumerated and after the
+kernel's environment is initialized.
+The typical use-case for an ifunc is a routine whose behavior depends on
+optional CPU features.
+For example, newer generations of a given CPU architecture may provide an
+instruction to optimize a common operation.
+To avoid the overhead of testing for the CPU feature each time the operation
+is performed, an ifunc can be used to provide two implementations for the
+operation: one targeting platforms with the extra instruction, and one
+for older platforms.
+.Pp
+Because
+.Nm
+is a macro that defines a dynamically typed function, its usage looks somewhat
+unusual.
+The
+.Ar qual
+parameter is a list of zero or more C function qualifiers to be applied to the
+ifunc.
+This parameter is typically empty or the
+.Dv static
+qualifier.
+.Ar ret_type
+is the return type of the ifunc.
+.Ar name
+is the name of the ifunc.
+.Ar args
+is a parenthesized, comma-separated list of the parameter types of the function,
+as they would appear in a C function declaration.
+.Pp
+The
+.Nm
+usage must be followed by the resolver function body.
+The resolver must return a function with return type
+.Ar ret_type
+and parameter types
+.Ar args .
+The resolver function is defined with the
+.Ql resolver
+gcc-style function attribute, causing the corresponding
+.Xr elf 5
+function symbol to be of type
+.Dv STT_GNU_IFUNC
+instead of
+.Dv STT_FUNC .
+The kernel linker invokes the resolver to process relocations targeting ifunc
+calls and PLT entries referencing such symbols.
+.Sh EXAMPLES
+ifunc resolvers are executed early during boot, before most kernel facilities
+are available.
+They are effectively limited to checking CPU feature flags and tunables.
+.Bd -literal
+static size_t
+fast_strlen(const char *s __unused)
+{
+	size_t len;
+
+	/* Fast, but may not be correct in all cases. */
+	__asm("movq $42,%0\\n" : "=r" (len));
+	return (len);
+}
+
+static size_t
+slow_strlen(const char *s)
+{
+	const char *t;
+
+	for (t = s; *t != '\\0'; t++);
+	return (t - s);
+}
+
+DEFINE_IFUNC(, size_t, strlen, (const char *))
+{
+	int enabled;
+
+	enabled = 1;
+	TUNABLE_INT_FETCH("debug.use_fast_strlen", &enabled);
+	if (enabled && (cpu_features & CPUID_FAST_STRLEN) != 0)
+		return (fast_strlen);
+	else
+		return (slow_strlen);
+}
+.Ed
+.Pp
+This defines a
+.Fn strlen
+function with an optimized implementation for CPUs that advertise support.
+.Sh SEE ALSO
+.Xr elf 5
+.Sh NOTES
+ifuncs are not supported on all architectures.
+They require both toolchain support, to emit function symbols of type
+.Dv STT_GNU_IFUNC ,
+and kernel linker support to invoke ifunc resolvers during boot or
+during module load.

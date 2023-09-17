@@ -1,0 +1,15 @@
+#
+# EC2 support (Graviton, Graviton 2)
+#
+
+# Serial (COM) ports
+device		uart_ns8250
+
+# Ethernet NIC, typically loaded as a module instead
+#device		ena
+
+# Options typically present in AWS /boot/loader.conf that we don't want to
+# enable for GENERIC
+#envvar		hw.broken_txfifo=1
+
+device		acpi

@@ -1,0 +1,8 @@
+# bhyve ps2kbd keyboard layout file
+#   (ru_shift : Russian (shift))
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+
+'*',0xb7;	*  (0x2a)
+
