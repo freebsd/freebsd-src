@@ -441,12 +441,14 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	 * Repeat for Altivec context
 	 */
 
-	if (pcb->pcb_flags & PCB_VEC) {
-		KASSERT(td == curthread,
-			("get_mcontext: fp save not curthread"));
-		critical_enter();
-		save_vec(td);
-		critical_exit();
+	if (pcb->pcb_flags & PCB_VECREGS) {
+		if (pcb->pcb_flags & PCB_VEC) {
+			KASSERT(td == curthread,
+				("get_mcontext: altivec save not curthread"));
+			critical_enter();
+			save_vec(td);
+			critical_exit();
+		}
 		mcp->mc_flags |= _MC_AV_VALID;
 		mcp->mc_vscr  = pcb->pcb_vec.vscr;
 		mcp->mc_vrsave =  pcb->pcb_vec.vrsave;
@@ -543,11 +545,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	}
 
 	if (mcp->mc_flags & _MC_AV_VALID) {
-		if ((pcb->pcb_flags & PCB_VEC) != PCB_VEC) {
-			critical_enter();
-			enable_vec(td);
-			critical_exit();
-		}
+		/* enable_vec() will happen lazily on a fault */
+		pcb->pcb_flags |= PCB_VECREGS;
 		pcb->pcb_vec.vscr = mcp->mc_vscr;
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
