@@ -1202,10 +1202,10 @@ fetch_progress () {
 continuep () {
 	while read -p "Does this look reasonable (y/n)? " CONTINUE; do
 		case "${CONTINUE}" in
-		y*)
+		[yY]*)
 			return 0
 			;;
-		n*)
+		[nN]*)
 			return 1
 			;;
 		esac
