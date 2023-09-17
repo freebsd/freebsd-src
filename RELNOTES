@@ -128,7 +128,7 @@ d198b8774d2c:
 	swap.  See growfs(7).
 
 86edb11e7491:
-	llvm-objump is now always installed as objdump.
+	llvm-objdump is now always installed as objdump.
 
 616f32ea6da7:
 	mta_start_script along with othermta rc.d script has been retired.
