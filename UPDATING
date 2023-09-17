@@ -12,6 +12,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230924:
+	Move standard include files to the clibs-dev package and move clang
+	internal libraries and headers to clang and clang-dev. Upgrading systems
+	installed using pkgbase past this change involves extra steps to allow
+	for these file moves:
+
+		pkg upgrade -y FreeBSD-utilities
+		pkg upgrade -y FreeBSD-utilities-dev
+		pkg upgrade -y
+
 20230824:
 	__FreeBSD_version 1400097 after the branching stable/14 from main.
 
