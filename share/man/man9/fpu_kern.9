@@ -185,7 +185,8 @@ and false otherwise.
 .Sh NOTES
 The
 .Nm
-is currently implemented only for the i386, amd64, and arm64 architectures.
+is currently implemented only for the i386, amd64, arm64, and powerpc
+architectures.
 .Pp
 There is no way to handle floating point exceptions raised from
 kernel mode.
@@ -205,6 +206,8 @@ facitily and this manual page were written by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org .
 The arm64 support was added by
 .An Andrew Turner Aq Mt andrew@FreeBSD.org .
+The powerpc support was added by
+.An Shawn Anastasio Aq Mt sanastasio@raptorengineering.com .
 .Sh BUGS
 .Fn fpu_kern_leave
 should probably have type

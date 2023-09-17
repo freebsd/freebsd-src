@@ -48,7 +48,7 @@ struct pcb {
 	register_t	pcb_toc;		/* toc pointer */
 	register_t	pcb_lr;			/* link register */
 	register_t	pcb_dscr;		/* dscr value */
-	register_t	pcb_fscr;		
+	register_t	pcb_fscr;
 	register_t	pcb_tar;
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
 	jmp_buf		*pcb_onfault;		/* For use during
@@ -56,11 +56,14 @@ struct pcb {
 	int		pcb_flags;
 #define	PCB_FPU		0x1	/* Process uses FPU */
 #define	PCB_FPREGS	0x2	/* Process had FPU registers initialized */
-#define	PCB_VEC		0x4	/* Process had Altivec initialized */
+#define	PCB_VEC		0x4	/* Process uses Altivec */
 #define	PCB_VSX		0x8	/* Process had VSX initialized */
 #define	PCB_CDSCR	0x10	/* Process had Custom DSCR initialized */
 #define	PCB_HTM		0x20	/* Process had HTM initialized */
 #define	PCB_CFSCR	0x40	/* Process had FSCR updated */
+#define	PCB_KERN_FPU    0x80	/* Kernel is using FPU/Vector unit */
+#define	PCB_KERN_FPU_NOSAVE 0x100 /* FPU/Vec state not saved for kernel use */
+#define	PCB_VECREGS     0x200	/* Process had Altivec registers initialized */
 	struct fpu {
 		union {
 #if _BYTE_ORDER == _BIG_ENDIAN
