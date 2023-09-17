@@ -434,7 +434,7 @@ struct tcp_info {
 	u_int32_t	tcpi_dupacks;		/* Consecutive dup ACKs recvd */
 
 	/* Padding to grow without breaking ABI. */
-	u_int32_t	__tcpi_pad[14];		/* Padding. */
+	u_int32_t	__tcpi_pad[10];		/* Padding. */
 };
 
 /*
