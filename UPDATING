@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	Enable splitting out pkgbase manpages into separate packages by
 	default. To disable this, set WITHOUT_MANSPLITPKG=yes in src.conf.
 
+20230911:
+	Move standard include files to the clibs-dev package and move clang
+	internal libraries and headers to clang and clang-dev. Upgrading systems
+	installed using pkgbase past this change involves extra steps to allow
+	for these file moves:
+
+		pkg upgrade -y FreeBSD-utilities
+		pkg upgrade -y FreeBSD-utilities-dev
+		pkg upgrade -y
+
 20230909:
 	Enable vnet sysctl variables to be loader tunable. SYSCTLs which
 	belongs to VNETs can be initialized during early boot or module
