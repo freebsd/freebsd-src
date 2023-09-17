@@ -228,7 +228,7 @@ wired to any particular controller, bus, target, and/or unit instance.
 .Pp
 This also works with
 .Xr nvme 4
-drives as well.
+drives.
 .Bd -literal -offset indent
 hint.nvme.4.at="pci7:0:0"
 hint.scbus.10.at="nvme4"
@@ -240,7 +240,7 @@ hint.nda.11.target="1"
 hint.nda.11.lun="2"
 .Ed
 .Pp
-This assigns the NVMe card living at PCI bus 7 slot 0 function 1 to scbus 10.
+This assigns the NVMe card at PCI bus 7 slot 0 function 1 to scbus 10.
 The target for
 .Xr nda 4
 devices is always 1.
