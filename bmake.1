@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.366 2023/05/10 18:22:33 sjg Exp $
+.\"	$NetBSD: make.1,v 1.371 2023/09/10 21:52:36 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd May 10, 2023
+.Dd September 9, 2023
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -267,6 +267,12 @@ cooperate to avoid overloading the system.
 Specify the maximum number of jobs that
 .Nm
 may have running at any one time.
+If
+.Ar max_jobs
+is a floating point number, or ends with
+.Ql C ,
+then the value is multiplied by the number of CPUs reported online by
+.Xr sysconf 3 .
 The value of
 .Ar max_jobs
 is saved in
@@ -971,6 +977,11 @@ making it easier to track the degree of parallelism being achieved.
 The argument to the
 .Fl j
 option.
+.It Va .MAKE.JOBS.C
+A read-only boolean that indicates whether the
+.Fl j
+option supports use of
+.Ql C .
 .It Va .MAKE.LEVEL
 The recursion depth of
 .Nm .
@@ -1497,6 +1508,10 @@ The value is interpreted as a format string for
 using
 .Xr gmtime 3 ,
 producing the formatted timestamp.
+Note: the
+.Ql %s
+format should only be used with
+.Sq Cm \&:localtime .
 If a
 .Ar timestamp
 value is not provided or is 0, the current time is used.
@@ -2069,7 +2084,7 @@ only evaluates a conditional as far as is necessary to determine its value.
 Parentheses can be used to override the operator precedence.
 The boolean operator
 .Sq Ic \&!
-may be used to logically negate an entire conditional.
+may be used to logically negate an expression, typically a function call.
 It is of higher precedence than
 .Sq Ic \&&& .
 .Pp
@@ -2119,9 +2134,9 @@ may also be an arithmetic or string comparison.
 Variable expansion is performed on both sides of the comparison.
 If both sides are numeric and neither is enclosed in quotes,
 the comparison is done numerically, otherwise lexicographically.
-A string is interpreted as hexadecimal integer if it is preceded by
+A string is interpreted as a hexadecimal integer if it is preceded by
 .Li 0x ,
-otherwise it is a decimal floating-point number;
+otherwise it is interpreted as a decimal floating-point number;
 octal numbers are not supported.
 .Pp
 All comparisons may use the operators
@@ -2142,7 +2157,7 @@ and its numeric value (if any) is not zero.
 When
 .Nm
 is evaluating one of these conditional expressions, and it encounters
-a (whitespace separated) word it doesn't recognize, either the
+a (whitespace-separated) word it doesn't recognize, either the
 .Dq make
 or
 .Dq defined
@@ -2165,12 +2180,13 @@ function is applied.
 .Pp
 If the conditional evaluates to true,
 parsing of the makefile continues as before.
-If it evaluates to false, the following lines are skipped.
-In both cases, this continues until the corresponding
+If it evaluates to false, the following lines until the corresponding
+.Sq Ic .elif
+variant,
 .Sq Ic .else
 or
 .Sq Ic .endif
-is found.
+are skipped.
 .Ss For loops
 For loops are typically used to apply a set of rules to a list of files.
 The syntax of a for loop is:

@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.704 2023/06/23 06:08:56 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.706 2023/08/19 11:09:02 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.704 2023/06/23 06:08:56 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.706 2023/08/19 11:09:02 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -887,14 +887,10 @@ MaybeUpdateMainTarget(void)
 }
 
 static void
-InvalidLineType(const char *line)
+InvalidLineType(const char *line, const char *unexpanded_line)
 {
-	if (strncmp(line, "<<<<<<", 6) == 0 ||
-	    strncmp(line, ">>>>>>", 6) == 0)
-		Parse_Error(PARSE_FATAL,
-		    "Makefile appears to contain unresolved CVS/RCS/??? merge conflicts");
-	else if (line[0] == '.') {
-		const char *dirstart = line + 1;
+	if (unexpanded_line[0] == '.') {
+		const char *dirstart = unexpanded_line + 1;
 		const char *dirend;
 		cpp_skip_whitespace(&dirstart);
 		dirend = dirstart;
@@ -902,8 +898,11 @@ InvalidLineType(const char *line)
 			dirend++;
 		Parse_Error(PARSE_FATAL, "Unknown directive \"%.*s\"",
 		    (int)(dirend - dirstart), dirstart);
-	} else
-		Parse_Error(PARSE_FATAL, "Invalid line type");
+	} else if (strcmp(line, unexpanded_line) == 0)
+		Parse_Error(PARSE_FATAL, "Invalid line '%s'", line);
+	else
+		Parse_Error(PARSE_FATAL, "Invalid line '%s', expanded to '%s'",
+		    unexpanded_line, line);
 }
 
 static void
@@ -1414,7 +1413,8 @@ ParseDependencyTargets(char **pp,
 		       const char *lstart,
 		       ParseSpecial *inout_special,
 		       GNodeType *inout_targetAttr,
-		       SearchPathList **inout_paths)
+		       SearchPathList **inout_paths,
+		       const char *unexpanded_line)
 {
 	char *p = *pp;
 
@@ -1439,7 +1439,7 @@ ParseDependencyTargets(char **pp,
 		}
 
 		if (*p == '\0') {
-			InvalidLineType(lstart);
+			InvalidLineType(lstart, unexpanded_line);
 			return false;
 		}
 
@@ -1649,7 +1649,7 @@ ParseDependencySources(char *p, GNodeType targetAttr,
  * Upon return, the value of the line is unspecified.
  */
 static void
-ParseDependency(char *line)
+ParseDependency(char *line, const char *unexpanded_line)
 {
 	char *p;
 	SearchPathList *paths;	/* search paths to alter when parsing a list
@@ -1666,7 +1666,8 @@ ParseDependency(char *line)
 	targetAttr = OP_NONE;
 	special = SP_NOT;
 
-	if (!ParseDependencyTargets(&p, line, &special, &targetAttr, &paths))
+	if (!ParseDependencyTargets(&p, line, &special, &targetAttr, &paths,
+	    unexpanded_line))
 		goto out;
 
 	if (!Lst_IsEmpty(targets))
@@ -1674,7 +1675,7 @@ ParseDependency(char *line)
 
 	op = ParseDependencyOp(&p);
 	if (op == OP_NONE) {
-		InvalidLineType(line);
+		InvalidLineType(line, unexpanded_line);
 		goto out;
 	}
 	ApplyDependencyOperator(op);
@@ -2964,7 +2965,7 @@ ParseDependencyLine(char *line)
 		Lst_Free(targets);
 	targets = Lst_New();
 
-	ParseDependency(expanded_line);
+	ParseDependency(expanded_line, line);
 	free(expanded_line);
 
 	if (shellcmd != NULL)

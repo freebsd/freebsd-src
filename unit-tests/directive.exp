@@ -1,14 +1,14 @@
 make: "directive.mk" line 10: Unknown directive "indented"
 make: "directive.mk" line 12: Unknown directive "indented"
 make: "directive.mk" line 14: Unknown directive "indented"
-make: "directive.mk" line 21: Unknown directive "info"
+make: "directive.mk" line 19: Unknown directive ""
 Global: .info = # (empty)
 Global: .info = value
-make: "directive.mk" line 33: :=	value
+make: "directive.mk" line 31: :=	value
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0
-make: "directive.mk" line 42: Invalid line type
-make: "directive.mk" line 45: Invalid line type
+make: "directive.mk" line 40: Invalid line 'target-without-colon'
+make: "directive.mk" line 43: Invalid line 'target-without-colon another-target'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1
