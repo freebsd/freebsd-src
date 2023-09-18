@@ -850,9 +850,12 @@ static int mlx5_init_context(struct verbs_device *vdev,
 	context->cmds_supp_uhw = resp.cmds_supp_uhw;
 	context->vendor_cap_flags = 0;
 
-	pthread_mutex_init(&context->qp_table_mutex, NULL);
-	pthread_mutex_init(&context->srq_table_mutex, NULL);
-	pthread_mutex_init(&context->uidx_table_mutex, NULL);
+	if (pthread_mutex_init(&context->qp_table_mutex, NULL))
+		goto err_free_bf;
+	if (pthread_mutex_init(&context->srq_table_mutex, NULL))
+		goto err_qp_table_mutex;
+	if (pthread_mutex_init(&context->uidx_table_mutex, NULL))
+		goto err_srq_table_mutex;
 	for (i = 0; i < MLX5_QP_TABLE_SIZE; ++i)
 		context->qp_table[i].refcnt = 0;
 
@@ -861,7 +864,8 @@ static int mlx5_init_context(struct verbs_device *vdev,
 
 	context->db_list = NULL;
 
-	pthread_mutex_init(&context->db_list_mutex, NULL);
+	if (pthread_mutex_init(&context->db_list_mutex, NULL))
+		goto err_uidx_table_mutex;
 
 	num_sys_page_map = context->tot_uuars / (context->num_uars_per_page * MLX5_NUM_NON_FP_BFREGS_PER_UAR);
 	for (i = 0; i < num_sys_page_map; ++i) {
@@ -872,7 +876,7 @@ static int mlx5_init_context(struct verbs_device *vdev,
 				       cmd_fd, page_size * offset);
 		if (context->uar[i] == MAP_FAILED) {
 			context->uar[i] = NULL;
-			goto err_free_bf;
+			goto err_db_list_mutex;
 		}
 	}
 
@@ -883,7 +887,8 @@ static int mlx5_init_context(struct verbs_device *vdev,
 				context->bfs[bfi].reg = context->uar[i] + MLX5_ADAPTER_PAGE_SIZE * j +
 							MLX5_BF_OFFSET + k * context->bf_reg_size;
 				context->bfs[bfi].need_lock = need_uuar_lock(context, bfi);
-				mlx5_spinlock_init(&context->bfs[bfi].lock);
+				if (mlx5_spinlock_init(&context->bfs[bfi].lock))
+					goto err_bfs_spl;
 				context->bfs[bfi].offset = 0;
 				if (bfi)
 					context->bfs[bfi].buf_size = context->bf_reg_size / 2;
@@ -900,13 +905,15 @@ static int mlx5_init_context(struct verbs_device *vdev,
 		mlx5_map_internal_clock(mdev, ctx);
 	}
 
-	mlx5_spinlock_init(&context->lock32);
+	if (mlx5_spinlock_init(&context->lock32))
+		goto err_bfs_spl;
 
 	context->prefer_bf = get_always_bf();
 	context->shut_up_bf = get_shut_up_bf();
 	mlx5_read_env(&vdev->device, context);
 
-	mlx5_spinlock_init(&context->hugetlb_lock);
+	if (mlx5_spinlock_init(&context->hugetlb_lock))
+		goto err_32_spl;
 	TAILQ_INIT(&context->hugetlb_list);
 
 	context->ibv_ctx.ops = mlx5_ctx_ops;
@@ -944,6 +951,31 @@ static int mlx5_init_context(struct verbs_device *vdev,
 
 	return 0;
 
+err_32_spl:
+	mlx5_spinlock_destroy(&context->lock32);
+
+err_bfs_spl:
+	for (i = 0; i < num_sys_page_map; i++) {
+		for (j = 0; j < context->num_uars_per_page; j++) {
+			for (k = 0; k < NUM_BFREGS_PER_UAR; k++) {
+				bfi = (i * context->num_uars_per_page + j) * NUM_BFREGS_PER_UAR + k;
+				mlx5_spinlock_destroy(&context->bfs[bfi].lock);
+			}
+		}
+	}
+
+err_db_list_mutex:
+	pthread_mutex_destroy(&context->db_list_mutex);
+
+err_uidx_table_mutex:
+	pthread_mutex_destroy(&context->uidx_table_mutex);
+
+err_srq_table_mutex:
+	pthread_mutex_destroy(&context->srq_table_mutex);
+
+err_qp_table_mutex:
+	pthread_mutex_destroy(&context->qp_table_mutex);
+
 err_free_bf:
 	free(context->bfs);
 
@@ -962,6 +994,26 @@ static void mlx5_cleanup_context(struct verbs_device *device,
 	struct mlx5_context *context = to_mctx(ibctx);
 	int page_size = to_mdev(ibctx->device)->page_size;
 	int i;
+	int				j;
+	int				k;
+	int				bfi;
+	int				num_sys_page_map;
+
+	num_sys_page_map = context->tot_uuars / (context->num_uars_per_page * MLX5_NUM_NON_FP_BFREGS_PER_UAR);
+	for (i = 0; i < num_sys_page_map; i++) {
+		for (j = 0; j < context->num_uars_per_page; j++) {
+			for (k = 0; k < NUM_BFREGS_PER_UAR; k++) {
+				bfi = (i * context->num_uars_per_page + j) * NUM_BFREGS_PER_UAR + k;
+				mlx5_spinlock_destroy(&context->bfs[bfi].lock);
+			}
+		}
+	}
+	mlx5_spinlock_destroy(&context->hugetlb_lock);
+	mlx5_spinlock_destroy(&context->lock32);
+	pthread_mutex_destroy(&context->db_list_mutex);
+	pthread_mutex_destroy(&context->uidx_table_mutex);
+	pthread_mutex_destroy(&context->srq_table_mutex);
+	pthread_mutex_destroy(&context->qp_table_mutex);
 
 	free(context->bfs);
 	for (i = 0; i < MLX5_MAX_UARS; ++i) {

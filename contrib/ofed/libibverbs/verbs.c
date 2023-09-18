@@ -455,13 +455,23 @@ struct ibv_cq *__ibv_create_cq(struct ibv_context *context, int cqe, void *cq_co
 			       struct ibv_comp_channel *channel, int comp_vector)
 {
 	struct ibv_cq *cq;
+	int err = 0;
 
 	cq = context->ops.create_cq(context, cqe, channel, comp_vector);
 
-	if (cq)
-		verbs_init_cq(cq, context, channel, cq_context);
+	if (!cq)
+		return NULL;
+
+	err = verbs_init_cq(cq, context, channel, cq_context);
+	if (err)
+		goto err;
 
 	return cq;
+
+err:
+	context->ops.destroy_cq(cq);
+
+	return NULL;
 }
 default_symver(__ibv_create_cq, ibv_create_cq);
 
@@ -529,16 +539,26 @@ struct ibv_srq *__ibv_create_srq(struct ibv_pd *pd,
 		return NULL;
 
 	srq = pd->context->ops.create_srq(pd, srq_init_attr);
-	if (srq) {
-		srq->context          = pd->context;
-		srq->srq_context      = srq_init_attr->srq_context;
-		srq->pd               = pd;
-		srq->events_completed = 0;
-		pthread_mutex_init(&srq->mutex, NULL);
-		pthread_cond_init(&srq->cond, NULL);
-	}
+	if (!srq)
+		return NULL;
+
+	srq->context		  = pd->context;
+	srq->srq_context	  = srq_init_attr->srq_context;
+	srq->pd				  = pd;
+	srq->events_completed = 0;
+	if (pthread_mutex_init(&srq->mutex, NULL))
+		goto err;
+	if (pthread_cond_init(&srq->cond, NULL))
+		goto err_mutex;
 
 	return srq;
+
+err_mutex:
+	pthread_mutex_destroy(&srq->mutex);
+err:
+	pd->context->ops.destroy_srq(srq);
+
+	return NULL;
 }
 default_symver(__ibv_create_srq, ibv_create_srq);
 
@@ -558,6 +578,8 @@ default_symver(__ibv_query_srq, ibv_query_srq);
 
 int __ibv_destroy_srq(struct ibv_srq *srq)
 {
+	pthread_cond_destroy(&srq->cond);
+	pthread_mutex_destroy(&srq->mutex);
 	return srq->context->ops.destroy_srq(srq);
 }
 default_symver(__ibv_destroy_srq, ibv_destroy_srq);

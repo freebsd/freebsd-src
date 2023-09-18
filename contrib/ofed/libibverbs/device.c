@@ -132,12 +132,21 @@ __be64 __ibv_get_device_guid(struct ibv_device *device)
 }
 default_symver(__ibv_get_device_guid, ibv_get_device_guid);
 
-void verbs_init_cq(struct ibv_cq *cq, struct ibv_context *context,
+int verbs_init_cq(struct ibv_cq *cq, struct ibv_context *context,
 		       struct ibv_comp_channel *channel,
 		       void *cq_context)
 {
+	int err = 0;
+
 	cq->context		   = context;
 	cq->channel		   = channel;
+
+	err = pthread_mutex_init(&cq->mutex, NULL);
+	if (err)
+		return err;
+	err = pthread_cond_init(&cq->cond, NULL);
+	if (err)
+		goto err;
 
 	if (cq->channel) {
 		pthread_mutex_lock(&context->mutex);
@@ -148,8 +157,19 @@ void verbs_init_cq(struct ibv_cq *cq, struct ibv_context *context,
 	cq->cq_context		   = cq_context;
 	cq->comp_events_completed  = 0;
 	cq->async_events_completed = 0;
-	pthread_mutex_init(&cq->mutex, NULL);
-	pthread_cond_init(&cq->cond, NULL);
+
+	return err;
+
+err:
+	pthread_mutex_destroy(&cq->mutex);
+
+	return err;
+}
+
+void verbs_cleanup_cq(struct ibv_cq *cq)
+{
+	pthread_cond_destroy(&cq->cond);
+	pthread_mutex_destroy(&cq->mutex);
 }
 
 static struct ibv_cq_ex *
@@ -158,6 +178,7 @@ __lib_ibv_create_cq_ex(struct ibv_context *context,
 {
 	struct verbs_context *vctx = verbs_get_ctx(context);
 	struct ibv_cq_ex *cq;
+	int err = 0;
 
 	if (cq_attr->wc_flags & ~IBV_CREATE_CQ_SUP_WC_FLAGS) {
 		errno = EOPNOTSUPP;
@@ -165,12 +186,20 @@ __lib_ibv_create_cq_ex(struct ibv_context *context,
 	}
 
 	cq = vctx->priv->create_cq_ex(context, cq_attr);
+	if (!cq)
+		return NULL;
 
-	if (cq)
-		verbs_init_cq(ibv_cq_ex_to_cq(cq), context,
-			        cq_attr->channel, cq_attr->cq_context);
+	err = verbs_init_cq(ibv_cq_ex_to_cq(cq), context,
+			    cq_attr->channel, cq_attr->cq_context);
+	if (err)
+		goto err;
 
 	return cq;
+
+err:
+	context->ops.destroy_cq(ibv_cq_ex_to_cq(cq));
+
+	return NULL;
 }
 
 struct ibv_context *__ibv_open_device(struct ibv_device *device)
@@ -198,6 +227,11 @@ struct ibv_context *__ibv_open_device(struct ibv_device *device)
 		context = verbs_device->ops->alloc_context(device, cmd_fd);
 		if (!context)
 			goto err;
+
+		if (pthread_mutex_init(&context->mutex, NULL)) {
+			verbs_device->ops->free_context(context);
+			goto err;
+		}
 	} else {
 		struct verbs_ex_private *priv;
 
@@ -212,8 +246,7 @@ struct ibv_context *__ibv_open_device(struct ibv_device *device)
 		priv = calloc(1, sizeof(*priv));
 		if (!priv) {
 			errno = ENOMEM;
-			free(context_ex);
-			goto err;
+			goto err_context;
 		}
 
 		context_ex->priv = priv;
@@ -221,9 +254,12 @@ struct ibv_context *__ibv_open_device(struct ibv_device *device)
 		context_ex->sz = sizeof(*context_ex);
 
 		context = &context_ex->context;
+		if (pthread_mutex_init(&context->mutex, NULL))
+			goto verbs_err;
+
 		ret = verbs_device->ops->init_context(verbs_device, context, cmd_fd);
 		if (ret)
-			goto verbs_err;
+			goto err_mutex;
 		/*
 		 * In order to maintain backward/forward binary compatibility
 		 * with apps compiled against libibverbs-1.1.8 that use the
@@ -247,12 +283,14 @@ struct ibv_context *__ibv_open_device(struct ibv_device *device)
 
 	context->device = device;
 	context->cmd_fd = cmd_fd;
-	pthread_mutex_init(&context->mutex, NULL);
 
 	return context;
 
+err_mutex:
+	pthread_mutex_destroy(&context->mutex);
 verbs_err:
 	free(context_ex->priv);
+err_context:
 	free(context_ex);
 err:
 	close(cmd_fd);
@@ -267,6 +305,7 @@ int __ibv_close_device(struct ibv_context *context)
 	struct verbs_context *context_ex;
 	struct verbs_device *verbs_device = verbs_get_device(context->device);
 
+	pthread_mutex_destroy(&context->mutex);
 	context_ex = verbs_get_ctx(context);
 	if (context_ex) {
 		verbs_device->ops->uninit_context(verbs_device, context);
@@ -393,3 +432,31 @@ void __ibv_ack_async_event(struct ibv_async_event *event)
 	}
 }
 default_symver(__ibv_ack_async_event, ibv_ack_async_event);
+
+int __ibv_init_wq(struct ibv_wq *wq)
+{
+	int err = 0;
+	wq->events_completed = 0;
+	err = pthread_mutex_init(&wq->mutex, NULL);
+	if (err)
+			return err;
+
+	err = pthread_cond_init(&wq->cond, NULL);
+	if (err)
+			goto err;
+
+	return err;
+
+err:
+	pthread_mutex_destroy(&wq->mutex);
+
+	return err;
+}
+default_symver(__ibv_init_wq, ibv_init_wq);
+
+void __ibv_cleanup_wq(struct ibv_wq *wq)
+{
+	pthread_cond_destroy(&wq->mutex);
+	pthread_mutex_destroy(&wq->mutex);
+}
+default_symver(__ibv_cleanup_wq, ibv_cleanup_wq);

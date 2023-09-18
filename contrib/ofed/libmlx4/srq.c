@@ -172,14 +172,20 @@ int mlx4_alloc_srq_buf(struct ibv_pd *pd, struct ibv_srq_attr *attr,
 	return 0;
 }
 
-void mlx4_init_xsrq_table(struct mlx4_xsrq_table *xsrq_table, int size)
+void mlx4_cleanup_xsrq_table(struct mlx4_xsrq_table *xsrq_table)
 {
+	pthread_mutex_destroy(&xsrq_table->mutex);
+}
+
+int mlx4_init_xsrq_table(struct mlx4_xsrq_table *xsrq_table, int size)
+{
+	int				ret;
 	memset(xsrq_table, 0, sizeof *xsrq_table);
 	xsrq_table->num_xsrq = size;
 	xsrq_table->shift = ffs(size) - 1 - MLX4_XSRQ_TABLE_BITS;
 	xsrq_table->mask = (1 << xsrq_table->shift) - 1;
 
-	pthread_mutex_init(&xsrq_table->mutex, NULL);
+	return pthread_mutex_init(&xsrq_table->mutex, NULL);
 }
 
 struct mlx4_srq *mlx4_find_xsrq(struct mlx4_xsrq_table *xsrq_table, uint32_t srqn)
@@ -257,7 +263,7 @@ struct ibv_srq *mlx4_create_xrc_srq(struct ibv_context *context,
 	srq->ext_srq = 1;
 
 	if (mlx4_alloc_srq_buf(attr_ex->pd, &attr_ex->attr, srq))
-		goto err;
+		goto err_spl;
 
 	srq->db = mlx4_alloc_db(to_mctx(context), MLX4_DB_TYPE_RQ);
 	if (!srq->db)
@@ -290,6 +296,8 @@ err_db:
 err_free:
 	free(srq->wrid);
 	mlx4_free_buf(&srq->buf);
+err_spl:
+	pthread_spin_destroy(&srq->lock);
 err:
 	free(srq);
 	return NULL;
@@ -319,6 +327,7 @@ int mlx4_destroy_xrc_srq(struct ibv_srq *srq)
 	mlx4_free_db(mctx, MLX4_DB_TYPE_RQ, msrq->db);
 	mlx4_free_buf(&msrq->buf);
 	free(msrq->wrid);
+	pthread_spin_destroy(&msrq->lock);
 	free(msrq);
 
 	return 0;

@@ -679,6 +679,7 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 			  struct ibv_create_srq_resp *resp, size_t resp_size)
 {
 	struct verbs_xrcd *vxrcd = NULL;
+	int ret = 0;
 
 	IBV_INIT_CMD_RESP(cmd, cmd_size, CREATE_XSRQ, resp, resp_size);
 
@@ -705,8 +706,17 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 		cmd->cq_handle   = attr_ex->cq->handle;
 	}
 
-	if (write(context->cmd_fd, cmd, cmd_size) != cmd_size)
-		return errno;
+	ret = pthread_mutex_init(&srq->srq.mutex, NULL);
+	if (ret)
+		goto err;
+	ret = pthread_cond_init(&srq->srq.cond, NULL);
+	if (ret)
+		goto err_mutex;
+
+	if (write(context->cmd_fd, cmd, cmd_size) != cmd_size) {
+		ret = errno;
+		goto err_cond;
+	}
 
 	(void) VALGRIND_MAKE_MEM_DEFINED(resp, resp_size);
 
@@ -715,8 +725,6 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 	srq->srq.srq_context      = attr_ex->srq_context;
 	srq->srq.pd               = attr_ex->pd;
 	srq->srq.events_completed = 0;
-	pthread_mutex_init(&srq->srq.mutex, NULL);
-	pthread_cond_init(&srq->srq.cond, NULL);
 
 	/*
 	 * check that the last field is available.
@@ -744,6 +752,12 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 	attr_ex->attr.max_sge = resp->max_sge;
 
 	return 0;
+err_cond:
+	pthread_cond_destroy(&srq->srq.cond);
+err_mutex:
+	pthread_mutex_destroy(&srq->srq.mutex);
+err:
+	return ret;
 }
 
 
@@ -837,6 +851,9 @@ int ibv_cmd_destroy_srq(struct ibv_srq *srq)
 		pthread_cond_wait(&srq->cond, &srq->mutex);
 	pthread_mutex_unlock(&srq->mutex);
 
+	pthread_cond_destroy(&srq->cond);
+	pthread_mutex_destroy(&srq->mutex);
+
 	return 0;
 }
 
@@ -887,6 +904,31 @@ static int create_qp_ex_common(struct verbs_qp *qp,
 	return 0;
 }
 
+static int create_qp_handle_resp_common_cleanup(struct verbs_qp *qp)
+{
+	pthread_cond_destroy(&qp->qp.cond);
+	pthread_mutex_destroy(&qp->qp.mutex);
+}
+
+static int create_qp_handle_resp_common_init(struct verbs_qp *qp)
+{
+	int ret = 0;
+
+	ret = pthread_mutex_init(&qp->qp.mutex, NULL);
+	if (ret)
+		return ret;
+	ret = pthread_cond_init(&qp->qp.cond, NULL);
+	if (ret)
+		goto err;
+
+	return ret;
+
+err:
+	pthread_mutex_destroy(&qp->qp.mutex);
+
+	return ret;
+}
+
 static void create_qp_handle_resp_common(struct ibv_context *context,
 					 struct verbs_qp *qp,
 					 struct ibv_qp_init_attr_ex *qp_attr,
@@ -913,8 +955,6 @@ static void create_qp_handle_resp_common(struct ibv_context *context,
 	qp->qp.qp_type		= qp_attr->qp_type;
 	qp->qp.state		= IBV_QPS_RESET;
 	qp->qp.events_completed = 0;
-	pthread_mutex_init(&qp->qp.mutex, NULL);
-	pthread_cond_init(&qp->qp.cond, NULL);
 
 	qp->comp_mask = 0;
 	if (vext_field_avail(struct verbs_qp, xrcd, vqp_sz) &&
@@ -977,9 +1017,15 @@ int ibv_cmd_create_qp_ex2(struct ibv_context *context,
 		cmd->comp_mask = IBV_CREATE_QP_EX_KERNEL_MASK_IND_TABLE;
 	}
 
+	err = create_qp_handle_resp_common_init(qp);
+	if (err)
+		return err;
+
 	err = write(context->cmd_fd, cmd, cmd_size);
-	if (err != cmd_size)
-		return errno;
+	if (err != cmd_size) {
+		err = errno;
+		goto err;
+	}
 
 	(void)VALGRIND_MAKE_MEM_DEFINED(resp, resp_size);
 
@@ -987,6 +1033,11 @@ int ibv_cmd_create_qp_ex2(struct ibv_context *context,
 				     vqp_sz);
 
 	return 0;
+
+err:
+	create_qp_handle_resp_common_cleanup(qp);
+
+	return err;
 }
 
 int ibv_cmd_create_qp_ex(struct ibv_context *context,
@@ -1008,8 +1059,15 @@ int ibv_cmd_create_qp_ex(struct ibv_context *context,
 	if (err)
 		return err;
 
-	if (write(context->cmd_fd, cmd, cmd_size) != cmd_size)
-		return errno;
+	err = create_qp_handle_resp_common_init(qp);
+	if (err)
+		return err;
+
+	err = write(context->cmd_fd, cmd, cmd_size);
+	if (err != cmd_size) {
+		err = errno;
+		goto err;
+	}
 
 	(void)VALGRIND_MAKE_MEM_DEFINED(resp, resp_size);
 
@@ -1032,6 +1090,11 @@ int ibv_cmd_create_qp_ex(struct ibv_context *context,
 	create_qp_handle_resp_common(context, qp, attr_ex, resp, vxrcd, vqp_sz);
 
 	return 0;
+
+err:
+	create_qp_handle_resp_common_cleanup(qp);
+
+	return err;
 }
 
 int ibv_cmd_create_qp(struct ibv_pd *pd,
@@ -1098,6 +1161,7 @@ int ibv_cmd_open_qp(struct ibv_context *context, struct verbs_qp *qp,
 		    struct ibv_open_qp *cmd, size_t cmd_size,
 		    struct ibv_create_qp_resp *resp, size_t resp_size)
 {
+	int err = 0;
 	struct verbs_xrcd *xrcd;
 	IBV_INIT_CMD_RESP(cmd, cmd_size, OPEN_QP, resp, resp_size);
 
@@ -1115,8 +1179,18 @@ int ibv_cmd_open_qp(struct ibv_context *context, struct verbs_qp *qp,
 	cmd->qpn         = attr->qp_num;
 	cmd->qp_type     = attr->qp_type;
 
-	if (write(context->cmd_fd, cmd, cmd_size) != cmd_size)
-		return errno;
+	err = pthread_mutex_init(&qp->qp.mutex, NULL);
+	if (err)
+		return err;
+	err = pthread_cond_init(&qp->qp.cond, NULL);
+	if (err)
+		goto err_mutex;
+
+	err = write(context->cmd_fd, cmd, cmd_size);
+	if (err != cmd_size) {
+		err = errno;
+		goto err_cond;
+	}
 
 	(void) VALGRIND_MAKE_MEM_DEFINED(resp, resp_size);
 
@@ -1131,8 +1205,6 @@ int ibv_cmd_open_qp(struct ibv_context *context, struct verbs_qp *qp,
 	qp->qp.qp_type	  = attr->qp_type;
 	qp->qp.state	  = IBV_QPS_UNKNOWN;
 	qp->qp.events_completed = 0;
-	pthread_mutex_init(&qp->qp.mutex, NULL);
-	pthread_cond_init(&qp->qp.cond, NULL);
 	qp->comp_mask = 0;
 	if (vext_field_avail(struct verbs_qp, xrcd, vqp_sz)) {
 		qp->comp_mask = VERBS_QP_XRCD;
@@ -1140,6 +1212,13 @@ int ibv_cmd_open_qp(struct ibv_context *context, struct verbs_qp *qp,
 	}
 
 	return 0;
+
+err_cond:
+	pthread_cond_destroy(&qp->qp.cond);
+err_mutex:
+	pthread_mutex_destroy(&qp->qp.mutex);
+
+	return err;
 }
 
 int ibv_cmd_query_qp(struct ibv_qp *qp, struct ibv_qp_attr *attr,
@@ -1643,6 +1722,9 @@ int ibv_cmd_destroy_qp(struct ibv_qp *qp)
 	while (qp->events_completed != resp.events_reported)
 		pthread_cond_wait(&qp->cond, &qp->mutex);
 	pthread_mutex_unlock(&qp->mutex);
+
+	pthread_cond_destroy(&qp->cond);
+	pthread_mutex_destroy(&qp->mutex);
 
 	return 0;
 }
