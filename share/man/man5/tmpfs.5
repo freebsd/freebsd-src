@@ -131,6 +131,10 @@ The default is the mount point's mode.
 Do not use namecache to resolve names to files for the created mount.
 This saves memory, but currently might impair scalability for highly
 used mounts on large machines.
+.It Cm nosymfollow
+Do not follow
+.Xr symlink 7 Ap s
+on the mounted file system.
 .It Cm pgread
 Enable pgcache read for the mount.
 .It Cm size
