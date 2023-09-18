@@ -76,11 +76,28 @@ is received, for interoperability with
 and similar log rotation / archival mechanisms.  If
 .Fl -output-file
 is not specified, this flag is ignored.
-.It Fl S , Fl -syslog
-Enable syslog output.
-This is implicitly applied if other syslog parameters are provided.
-The default values are daemon, notice, and daemon for facility, priority, and
-tag, respectively.
+.It Fl l , Fl -syslog-facility Ar syslog_facility
+These facilities are accepted:
+.Cm auth , authpriv , console , cron , daemon ,
+.Cm ftp , kern , lpr , mail , news , ntp , security ,
+.Cm syslog , user , uucp ,
+and
+local facilities from
+.Cm local0
+to
+.Cm local7 .
+The default is
+.Cm daemon .
+.It Fl m , Fl -output-mask Ar output_mask
+Redirect output from the child process stdout
+.Pq Cm 1 ,
+stderr
+.Pq Cm 2 ,
+or both
+.Pq Cm 3 .
+This value specifies what is sent to syslog and the log file.
+The default is
+.Cm 3 .
 .It Fl o , Fl -output-file Ar output_file
 Append output from the daemonized process to
 .Pa output_file .
@@ -93,34 +110,6 @@ the absolute path needs to be provided to ensure
 .Nm
 can re-open the file after a
 .Dv SIGHUP .
-.It Fl m , Fl -output-mask Ar output_mask
-Redirect output from the child process stdout
-.Pq Cm 1 ,
-stderr
-.Pq Cm 2 ,
-or both
-.Pq Cm 3 .
-This value specifies what is sent to syslog and the log file.
-The default is
-.Cm 3 .
-.It Fl p , Fl -child-pidfile Ar child_pidfile
-Write the ID of the created process into the
-.Ar child_pidfile
-using the
-.Xr pidfile 3
-functionality.
-The program is executed in a spawned child process while the
-.Nm
-waits until it terminates to keep the
-.Ar child_pidfile
-locked and removes it after the process exits.
-The
-.Ar child_pidfile
-owner is the user who runs the
-.Nm
-regardless of whether the
-.Fl -user
-option is used or not.
 .It Fl P , Fl -supervisor-pidfile Ar supervisor_pidfile
 Write the ID of the
 .Nm
@@ -141,18 +130,35 @@ owner is the user who runs the
 regardless of whether the
 .Fl -user
 option is used or not.
-.It Fl r , Fl -restart
-Supervise and restart the program after a one-second delay if it has
-been terminated.
+.It Fl p , Fl -child-pidfile Ar child_pidfile
+Write the ID of the created process into the
+.Ar child_pidfile
+using the
+.Xr pidfile 3
+functionality.
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar child_pidfile
+locked and removes it after the process exits.
+The
+.Ar child_pidfile
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl -user
+option is used or not.
 .It Fl R , Fl -restart-delay Ar restart_delay_seconds
 Supervise and restart the program after the specified delay
 if it has been terminated.
-.It Fl t , Fl -title Ar title
-Set the title for the daemon process.
-The default is the daemonized invocation.
-.It Fl u , Fl -user Ar user
-Login name of the user to execute the program under.
-Requires adequate superuser privileges.
+.It Fl r , Fl -restart
+Supervise and restart the program after a one-second delay if it has
+been terminated.
+.It Fl S , Fl -syslog
+Enable syslog output.
+This is implicitly applied if other syslog parameters are provided.
+The default values are daemon, notice, and daemon for facility, priority, and
+tag, respectively.
 .It Fl s , Fl -syslog-priority Ar syslog_priority
 These priorities are accepted:
 .Cm emerg , alert , crit , err , warning ,
@@ -161,22 +167,16 @@ and
 .Cm debug .
 The default is
 .Cm notice .
-.It Fl l , Fl -syslog-facility Ar syslog_facility
-These facilities are accepted:
-.Cm auth , authpriv , console , cron , daemon ,
-.Cm ftp , kern , lpr , mail , news , ntp , security ,
-.Cm syslog , user , uucp ,
-and
-local facilities from
-.Cm local0
-to
-.Cm local7 .
-The default is
-.Cm daemon .
 .It Fl T , Fl -syslog-tag Ar syslog_tag
 Set the tag which is appended to all syslog messages.
 The default is
 .Cm daemon .
+.It Fl t , Fl -title Ar title
+Set the title for the daemon process.
+The default is the daemonized invocation.
+.It Fl u , Fl -user Ar user
+Login name of the user to execute the program under.
+Requires adequate superuser privileges.
 .El
 .Pp
 If any of the options
