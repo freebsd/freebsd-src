@@ -69,7 +69,9 @@ specified by the other options.
 .It Fl H , Fl -sighup
 Close
 .Pa output_file
-and re-open it when signal SIGHUP is received, for interoperability with
+and re-open it when signal
+.Dv SIGHUP
+is received, for interoperability with
 .Xr newsyslog 1
 and similar log rotation / archival mechanisms.  If
 .Fl -output-file
@@ -89,7 +91,8 @@ and
 .Fl -sighup
 the absolute path needs to be provided to ensure
 .Nm
-can re-open the file after a SIGHUP.
+can re-open the file after a
+.Dv SIGHUP .
 .It Fl m , Fl -output-mask Ar output_mask
 Redirect output from the child process stdout (1), stderr (2), or both (3).
 This value specifies what is sent to syslog and the log file.
@@ -177,7 +180,9 @@ waits until it terminates to keep the pid file(s) locked and removes them
 after the process exits or restarts the program.
 In this case if the monitoring
 .Nm
-receives software termination signal (SIGTERM) it forwards it to the
+receives software termination signal
+.Pq Dv SIGTERM
+it forwards it to the
 spawned process.
 Normally it will cause the child to exit, remove the pidfile(s)
 and then terminate.
