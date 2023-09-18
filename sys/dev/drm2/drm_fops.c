@@ -536,7 +536,7 @@ void
 drm_event_wakeup(struct drm_pending_event *e)
 {
 	struct drm_file *file_priv;
-	struct drm_device *dev;
+	struct drm_device *dev __diagused;
 
 	file_priv = e->file_priv;
 	dev = file_priv->minor->dev;
