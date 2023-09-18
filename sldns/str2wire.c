@@ -357,7 +357,7 @@ rrinternal_get_delims(sldns_rdf_type rdftype, size_t r_cnt, size_t r_max)
 					break;
 	default                       :	break;
 	}
-	return "\n\t "; 
+	return "\n\t ";
 }
 
 /* Syntactic sugar for sldns_rr_new_frm_str_internal */
@@ -448,7 +448,7 @@ rrinternal_parse_unknown(sldns_buffer* strbuf, char* token, size_t token_len,
 			sldns_buffer_position(strbuf));
 	}
 	hex_data_size = (size_t)atoi(token);
-	if(hex_data_size > LDNS_MAX_RDFLEN || 
+	if(hex_data_size > LDNS_MAX_RDFLEN ||
 		*rr_cur_len + hex_data_size > *rr_len) {
 		return RET_ERR(LDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL,
 			sldns_buffer_position(strbuf));
@@ -567,7 +567,7 @@ sldns_parse_rdf_token(sldns_buffer* strbuf, char* token, size_t token_len,
 	/* check if not quoted yet, and we have encountered quotes */
 	if(!*quoted && sldns_rdf_type_maybe_quoted(rdftype) &&
 		slen >= 2 &&
-		(token[0] == '"' || token[0] == '\'') && 
+		(token[0] == '"' || token[0] == '\'') &&
 		(token[slen-1] == '"' || token[slen-1] == '\'')) {
 		/* move token two smaller (quotes) with endnull */
 		memmove(token, token+1, slen-2);
@@ -698,7 +698,7 @@ static int sldns_str2wire_check_svcbparams(uint8_t* rdata, uint16_t rdata_len)
 				mandatory = svcparams[i];
 		}
 
-		/* 4. verify that all the SvcParamKeys in mandatory are present */
+		/* Verify that all the SvcParamKeys in mandatory are present */
 		if(mandatory) {
 			/* Divide by sizeof(uint16_t)*/
 			uint16_t mandatory_nkeys = sldns_read_uint16(mandatory + 2) / sizeof(uint16_t);
@@ -785,7 +785,7 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 			token[2]=='\t')) {
 			was_unknown_rr_format = 1;
 			if((status=rrinternal_parse_unknown(strbuf, token,
-				token_len, rr, rr_len, &rr_cur_len, 
+				token_len, rr, rr_len, &rr_cur_len,
 				pre_data_pos)) != 0)
 				return status;
 		} else if(token_strlen > 0 || quoted) {
@@ -844,7 +844,7 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 	if (rr_type == LDNS_RR_TYPE_SVCB || rr_type == LDNS_RR_TYPE_HTTPS) {
 		size_t rdata_len = rr_cur_len - dname_len - 10;
 		uint8_t *rdata = rr+dname_len + 10;
-		
+
 		/* skip 1st rdata field SvcPriority (uint16_t) */
 		if (rdata_len < sizeof(uint16_t))
 			return LDNS_WIREPARSE_ERR_OK;
@@ -1123,36 +1123,40 @@ sldns_str2wire_svcparam_key_lookup(const char *key, size_t key_len)
 			return key_value;
 
 	} else switch (key_len) {
-	case sizeof("mandatory")-1:
-		if (!strncmp(key, "mandatory", sizeof("mandatory")-1))
-			return SVCB_KEY_MANDATORY;
-		if (!strncmp(key, "echconfig", sizeof("echconfig")-1))
-			return SVCB_KEY_ECH; /* allow "echconfig" as well as "ech" */
+	case 3:
+		if (!strncmp(key, "ech", key_len))
+			return SVCB_KEY_ECH;
 		break;
 
-	case sizeof("alpn")-1:
-		if (!strncmp(key, "alpn", sizeof("alpn")-1))
+	case 4:
+		if (!strncmp(key, "alpn", key_len))
 			return SVCB_KEY_ALPN;
-		if (!strncmp(key, "port", sizeof("port")-1))
+		if (!strncmp(key, "port", key_len))
 			return SVCB_KEY_PORT;
 		break;
 
-	case sizeof("no-default-alpn")-1:
-		if (!strncmp( key  , "no-default-alpn"
-		            , sizeof("no-default-alpn")-1))
-			return SVCB_KEY_NO_DEFAULT_ALPN;
+	case 7:
+		if (!strncmp(key, "dohpath", key_len))
+			return SVCB_KEY_DOHPATH;
 		break;
 
-	case sizeof("ipv4hint")-1:
-		if (!strncmp(key, "ipv4hint", sizeof("ipv4hint")-1))
+	case 8:
+		if (!strncmp(key, "ipv4hint", key_len))
 			return SVCB_KEY_IPV4HINT;
-		if (!strncmp(key, "ipv6hint", sizeof("ipv6hint")-1))
+		if (!strncmp(key, "ipv6hint", key_len))
 			return SVCB_KEY_IPV6HINT;
 		break;
 
-	case sizeof("ech")-1:
-		if (!strncmp(key, "ech", sizeof("ech")-1))
-			return SVCB_KEY_ECH;
+	case 9:
+		if (!strncmp(key, "mandatory", key_len))
+			return SVCB_KEY_MANDATORY;
+		if (!strncmp(key, "echconfig", key_len))
+			return SVCB_KEY_ECH; /* allow "echconfig" as well as "ech" */
+		break;
+
+	case 15:
+		if (!strncmp(key, "no-default-alpn", key_len))
+			return SVCB_KEY_NO_DEFAULT_ALPN;
 		break;
 
 	default:
@@ -1477,7 +1481,7 @@ sldns_str2wire_svcbparam_alpn_value(const char* val,
 	size_t      str_len;
 	size_t      dst_len;
 	size_t      val_len;
-	
+
 	val_len = strlen(val);
 
 	if (val_len > sizeof(unescaped_dst)) {
@@ -1511,7 +1515,34 @@ sldns_str2wire_svcbparam_alpn_value(const char* val,
 	sldns_write_uint16(rd + 2, dst_len);
 	memcpy(rd + 4, unescaped_dst, dst_len);
 	*rd_len = 4 + dst_len;
-	
+
+	return LDNS_WIREPARSE_ERR_OK;
+}
+
+static int
+sldns_str2wire_svcbparam_dohpath_value(const char* val,
+	uint8_t* rd, size_t* rd_len)
+{
+	size_t val_len;
+
+	/* RFC6570#section-2.1
+	 * "The characters outside of expressions in a URI Template string are
+	 * intended to be copied literally"
+	 * Practically this means we do not have to look for "double escapes"
+	 * like in the alpn value list.
+	 */
+
+	val_len = strlen(val);
+
+	if (*rd_len < 4 + val_len) {
+		return LDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
+	}
+
+	sldns_write_uint16(rd, SVCB_KEY_DOHPATH);
+	sldns_write_uint16(rd + 2, val_len);
+	memcpy(rd + 4, val, val_len);
+	*rd_len = 4 + val_len;
+
 	return LDNS_WIREPARSE_ERR_OK;
 }
 
@@ -1535,6 +1566,7 @@ sldns_str2wire_svcparam_value(const char *key, size_t key_len,
 		case SVCB_KEY_PORT:
 		case SVCB_KEY_IPV4HINT:
 		case SVCB_KEY_IPV6HINT:
+		case SVCB_KEY_DOHPATH:
 			return LDNS_WIREPARSE_ERR_SVCB_MISSING_PARAM;
 #endif
 		default:
@@ -1566,6 +1598,8 @@ sldns_str2wire_svcparam_value(const char *key, size_t key_len,
 		return sldns_str2wire_svcbparam_ech_value(val, rd, rd_len);
 	case SVCB_KEY_ALPN:
 		return sldns_str2wire_svcbparam_alpn_value(val, rd, rd_len);
+	case SVCB_KEY_DOHPATH:
+		return sldns_str2wire_svcbparam_dohpath_value(val, rd, rd_len);
 	default:
 		str_len = strlen(val);
 		if (*rd_len < 4 + str_len)
@@ -1593,7 +1627,7 @@ static int sldns_str2wire_svcparam_buf(const char* str, uint8_t* rd, size_t* rd_
 	/* case: key=value */
 	if (eq_pos != NULL && eq_pos[1]) {
 		val_in = eq_pos + 1;
-		
+
 		/* unescape characters and "" blocks */
 		if (*val_in == '"') {
 			val_in++;
@@ -1610,11 +1644,11 @@ static int sldns_str2wire_svcparam_buf(const char* str, uint8_t* rd, size_t* rd_
 		}
 		*val_out = 0;
 
-		return sldns_str2wire_svcparam_value(str, eq_pos - str, 
-		                                         unescaped_val[0] ? unescaped_val : NULL, rd, rd_len);
+		return sldns_str2wire_svcparam_value(str, eq_pos - str,
+		        unescaped_val[0] ? unescaped_val : NULL, rd, rd_len);
 	}
 	/* case: key= */
-	else if (eq_pos != NULL && !(eq_pos[1])) { 
+	else if (eq_pos != NULL && !(eq_pos[1])) {
 		return sldns_str2wire_svcparam_value(str, eq_pos - str, NULL, rd, rd_len);
 	}
 	/* case: key */

@@ -64,6 +64,14 @@ struct sldns_file_parse_state;
 	; 'ede=any' makes the query match any EDNS EDE info-code.
 	;	It also snips the EDE record out of the packet to facilitate
 	;	other matches.
+	; 'client_cookie' makes the query match any DNS Cookie option with
+	;	with a length of 8 octets.
+	;	It also snips the DNS Cookie record out of the packet to
+	;	facilitate other matches.
+	; 'server_cookie' makes the query match any DNS Cookie option with
+	;	with a length of 24 octets.
+	;	It also snips the DNS Cookie record out of the packet to
+	;	facilitate other matches.
 	MATCH [opcode] [qtype] [qname] [serial=<value>] [all] [ttl]
 	MATCH [UDP|TCP] DO
 	MATCH ...
@@ -104,11 +112,11 @@ struct sldns_file_parse_state;
 				; be parsed, ADJUST rules for the answer packet
 				; are ignored. Only copy_id is done.
 	HEX_ANSWER_END
-	HEX_EDNS_BEGIN		; follow with hex data.
+	HEX_EDNSDATA_BEGIN	; follow with hex data.
 				; Raw EDNS data to match against. It must be an 
 				; exact match (all options are matched) and will be 
 				; evaluated only when 'MATCH ednsdata' given.
-	HEX_EDNS_END
+	HEX_EDNSDATA_END
 	ENTRY_END
 
 
@@ -214,6 +222,10 @@ struct entry {
 	uint8_t match_noedns;
 	/** match edns data field given in hex */
 	uint8_t match_ednsdata_raw;
+	/** match an DNS cookie of length 8 */
+	uint8_t match_client_cookie;
+	/** match an DNS cookie of length 24 */
+	uint8_t match_server_cookie;
 	/** match query serial with this value. */
 	uint32_t ixfr_soa_serial;
 	/** match on UDP/TCP */
@@ -235,7 +247,7 @@ struct entry {
 	/** increment the ECS scope copied from the sourcemask by one */
 	uint8_t increment_ecs_scope;
 	/** in seconds */
-	unsigned int sleeptime; 
+	unsigned int sleeptime;
 
 	/** some number that names this entry, line number in file or so */
 	int lineno;

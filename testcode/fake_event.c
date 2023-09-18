@@ -2,24 +2,24 @@
  * testcode/fake_event.c - fake event handling that replays existing scenario.
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
- * 
+ *
  * This software is open source.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * Redistributions of source code must retain the above copyright notice,
  * this list of conditions and the following disclaimer.
- * 
+ *
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * Neither the name of the NLNET LABS nor the names of its contributors may
  * be used to endorse or promote products derived from this software without
  * specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -65,6 +65,7 @@
 #include "sldns/wire2str.h"
 #include "sldns/str2wire.h"
 #include "daemon/remote.h"
+#include "util/timeval_func.h"
 #include <signal.h>
 struct worker;
 struct daemon_remote;
@@ -95,21 +96,7 @@ struct fake_commpoint {
 /** Global variable: the scenario. Saved here for when event_init is done. */
 static struct replay_scenario* saved_scenario = NULL;
 
-/** add timers and the values do not overflow or become negative */
-static void
-timeval_add(struct timeval* d, const struct timeval* add)
-{
-#ifndef S_SPLINT_S
-	d->tv_sec += add->tv_sec;
-	d->tv_usec += add->tv_usec;
-	if(d->tv_usec >= 1000000) {
-		d->tv_usec -= 1000000;
-		d->tv_sec++;
-	}
-#endif
-}
-
-void 
+void
 fake_temp_file(const char* adj, const char* id, char* buf, size_t len)
 {
 #ifdef USE_WINSOCK
@@ -121,13 +108,13 @@ fake_temp_file(const char* adj, const char* id, char* buf, size_t len)
 #endif
 }
 
-void 
+void
 fake_event_init(struct replay_scenario* scen)
 {
 	saved_scenario = scen;
 }
 
-void 
+void
 fake_event_cleanup(void)
 {
 	replay_scenario_delete(saved_scenario);
@@ -172,7 +159,7 @@ repevt_string(enum replay_event_type t)
 }
 
 /** delete a fake pending */
-static void 
+static void
 delete_fake_pending(struct fake_pending* pend)
 {
 	if(!pend)
@@ -200,8 +187,8 @@ delete_replay_answer(struct replay_answer* a)
 /**
  * return: true if pending query matches the now event.
  */
-static int 
-pending_matches_current(struct replay_runtime* runtime, 
+static int
+pending_matches_current(struct replay_runtime* runtime,
 	struct entry** entry, struct fake_pending **pend)
 {
 	struct fake_pending* p;
@@ -233,7 +220,7 @@ pending_matches_current(struct replay_runtime* runtime,
  * @return: true if a match is found.
  */
 static int
-pending_find_match(struct replay_runtime* runtime, struct entry** entry, 
+pending_find_match(struct replay_runtime* runtime, struct entry** entry,
 	struct fake_pending* pend)
 {
 	int timenow = runtime->now->time_step;
@@ -245,7 +232,7 @@ pending_find_match(struct replay_runtime* runtime, struct entry** entry,
 		  (*entry = find_match(p->match, pend->pkt, pend->pkt_len,
 		 	 pend->transport))) {
 			log_info("matched query time %d in range [%d, %d] "
-				"with entry line %d", timenow, 
+				"with entry line %d", timenow,
 				p->start_step, p->end_step, (*entry)->lineno);
 			if(p->addrlen != 0)
 				log_addr(0, "matched ip", &p->addr, p->addrlen);
@@ -266,8 +253,8 @@ pending_find_match(struct replay_runtime* runtime, struct entry** entry,
  * @param pend: if true, the outgoing message that matches is returned.
  * @return: true if pending query matches the now event.
  */
-static int 
-pending_matches_range(struct replay_runtime* runtime, 
+static int
+pending_matches_range(struct replay_runtime* runtime,
 	struct entry** entry, struct fake_pending** pend)
 {
 	struct fake_pending* p = runtime->pending_list;
@@ -405,9 +392,9 @@ answer_callback_from_entry(struct replay_runtime* runtime,
 static void
 answer_check_it(struct replay_runtime* runtime)
 {
-	struct replay_answer* ans = runtime->answer_list, 
+	struct replay_answer* ans = runtime->answer_list,
 		*prev = NULL;
-	log_assert(runtime && runtime->now && 
+	log_assert(runtime && runtime->now &&
 		runtime->now->evt_type == repevt_front_reply);
 	while(ans) {
 		enum transport_type tr = transport_tcp;
@@ -420,7 +407,7 @@ answer_check_it(struct replay_runtime* runtime)
 				ans->pkt_len, tr)) {
 			log_info("testbound matched event entry from line %d",
 				runtime->now->match->lineno);
-			log_info("testbound: do STEP %d %s", 
+			log_info("testbound: do STEP %d %s",
 				runtime->now->time_step,
 				repevt_string(runtime->now->evt_type));
 			if(prev)
@@ -474,7 +461,7 @@ fake_front_query(struct replay_runtime* runtime, struct replay_moment *todo)
 	log_pkt("query pkt", todo->match->reply_list->reply_pkt,
 		todo->match->reply_list->reply_len);
 	/* call the callback for incoming queries */
-	if((*runtime->callback_query)(repinfo.c, runtime->cb_arg, 
+	if((*runtime->callback_query)(repinfo.c, runtime->cb_arg,
 		NETEVENT_NOERROR, &repinfo)) {
 		/* send immediate reply */
 		comm_point_send_reply(&repinfo);
@@ -487,7 +474,7 @@ fake_front_query(struct replay_runtime* runtime, struct replay_moment *todo)
  * Perform callback for fake pending message.
  */
 static void
-fake_pending_callback(struct replay_runtime* runtime, 
+fake_pending_callback(struct replay_runtime* runtime,
 	struct replay_moment* todo, int error)
 {
 	struct fake_pending* p = runtime->pending_list;
@@ -566,7 +553,7 @@ time_passes(struct replay_runtime* runtime, struct replay_moment* mom)
 	timeval_add(&runtime->now_tv, &tv);
 	runtime->now_secs = (time_t)runtime->now_tv.tv_sec;
 #ifndef S_SPLINT_S
-	log_info("elapsed %d.%6.6d  now %d.%6.6d", 
+	log_info("elapsed %d.%6.6d  now %d.%6.6d",
 		(int)tv.tv_sec, (int)tv.tv_usec,
 		(int)runtime->now_tv.tv_sec, (int)runtime->now_tv.tv_usec);
 #endif
@@ -603,7 +590,7 @@ autotrust_check(struct replay_runtime* runtime, struct replay_moment* mom)
 		}
 		strip_end_white(line);
 		expanded = macro_process(runtime->vars, runtime, p->str);
-		if(!expanded) 
+		if(!expanded)
 			fatal_exit("could not expand macro line %d", lineno);
 		if(verbosity >= 7 && strcmp(p->str, expanded) != 0)
 			log_info("expanded '%s' to '%s'", p->str, expanded);
@@ -656,7 +643,7 @@ tempfile_check(struct replay_runtime* runtime, struct replay_moment* mom)
 		}
 		strip_end_white(line);
 		expanded = macro_process(runtime->vars, runtime, p->str);
-		if(!expanded) 
+		if(!expanded)
 			fatal_exit("could not expand macro line %d", lineno);
 		if(verbosity >= 7 && strcmp(p->str, expanded) != 0)
 			log_info("expanded '%s' to '%s'", p->str, expanded);
@@ -746,7 +733,7 @@ do_moment_and_advance(struct replay_runtime* runtime)
 		advance_moment(runtime);
 		return;
 	}
-	log_info("testbound: do STEP %d %s", runtime->now->time_step, 
+	log_info("testbound: do STEP %d %s", runtime->now->time_step,
 		repevt_string(runtime->now->evt_type));
 	switch(runtime->now->evt_type) {
 	case repevt_nothing:
@@ -761,7 +748,7 @@ do_moment_and_advance(struct replay_runtime* runtime)
 		fake_front_query(runtime, mom);
 		break;
 	case repevt_front_reply:
-		if(runtime->answer_list) 
+		if(runtime->answer_list)
 			log_err("testbound: There are unmatched answers.");
 		fatal_exit("testbound: query answer not matched");
 		break;
@@ -810,7 +797,7 @@ do_moment_and_advance(struct replay_runtime* runtime)
 		advance_moment(runtime);
 		break;
 	default:
-		fatal_exit("testbound: unknown event type %d", 
+		fatal_exit("testbound: unknown event type %d",
 			runtime->now->evt_type);
 	}
 }
@@ -831,15 +818,15 @@ run_scenario(struct replay_runtime* runtime)
 		/* else if precoded_range matches pending, do it */
 		/* else do the current moment */
 		if(pending_matches_current(runtime, &entry, &pending)) {
-			log_info("testbound: do STEP %d CHECK_OUT_QUERY", 
+			log_info("testbound: do STEP %d CHECK_OUT_QUERY",
 				runtime->now->time_step);
 			advance_moment(runtime);
 			if(entry->copy_id)
-				answer_callback_from_entry(runtime, entry, 
+				answer_callback_from_entry(runtime, entry,
 				pending);
-		} else if(runtime->answer_list && runtime->now && 
+		} else if(runtime->answer_list && runtime->now &&
 			runtime->now->evt_type == repevt_front_reply) {
-			answer_check_it(runtime);			
+			answer_check_it(runtime);
 			advance_moment(runtime);
 		} else if(pending_matches_range(runtime, &entry, &pending)) {
 			answer_callback_from_entry(runtime, entry, pending);
@@ -870,7 +857,7 @@ run_scenario(struct replay_runtime* runtime)
 
 /*********** Dummy routines ***********/
 
-struct listen_dnsport* 
+struct listen_dnsport*
 listen_create(struct comm_base* base, struct listen_port* ATTR_UNUSED(ports),
 	size_t bufsize, int ATTR_UNUSED(tcp_accept_count),
 	int ATTR_UNUSED(tcp_idle_timeout),
@@ -898,7 +885,7 @@ listen_create(struct comm_base* base, struct listen_port* ATTR_UNUSED(ports),
 	return l;
 }
 
-void 
+void
 listen_delete(struct listen_dnsport* listen)
 {
 	if(!listen)
@@ -907,7 +894,7 @@ listen_delete(struct listen_dnsport* listen)
 	free(listen);
 }
 
-struct comm_base* 
+struct comm_base*
 comm_base_create(int ATTR_UNUSED(sigs))
 {
 	/* we return the runtime structure instead. */
@@ -921,7 +908,7 @@ comm_base_create(int ATTR_UNUSED(sigs))
 	return (struct comm_base*)runtime;
 }
 
-void 
+void
 comm_base_delete(struct comm_base* b)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)b;
@@ -961,7 +948,7 @@ comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv)
 	*tv = &runtime->now_tv;
 }
 
-void 
+void
 comm_base_dispatch(struct comm_base* b)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)b;
@@ -971,7 +958,7 @@ comm_base_dispatch(struct comm_base* b)
 	else	exit(0); /* OK exit when LIBEVENT_SIGNAL_PROBLEM exists */
 }
 
-void 
+void
 comm_base_exit(struct comm_base* b)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)b;
@@ -981,7 +968,7 @@ comm_base_exit(struct comm_base* b)
 	}
 }
 
-struct comm_signal* 
+struct comm_signal*
 comm_signal_create(struct comm_base* base,
         void (*callback)(int, void*), void* cb_arg)
 {
@@ -991,20 +978,20 @@ comm_signal_create(struct comm_base* base,
 	return calloc(1, sizeof(struct comm_signal));
 }
 
-int 
-comm_signal_bind(struct comm_signal* ATTR_UNUSED(comsig), int 
+int
+comm_signal_bind(struct comm_signal* ATTR_UNUSED(comsig), int
 	ATTR_UNUSED(sig))
 {
 	return 1;
 }
 
-void 
+void
 comm_signal_delete(struct comm_signal* comsig)
 {
 	free(comsig);
 }
 
-void 
+void
 comm_point_send_reply(struct comm_reply* repinfo)
 {
 	struct replay_answer* ans = (struct replay_answer*)calloc(1,
@@ -1028,7 +1015,7 @@ comm_point_send_reply(struct comm_reply* repinfo)
 	log_pkt("reply pkt: ", ans->pkt, ans->pkt_len);
 }
 
-void 
+void
 comm_point_drop_reply(struct comm_reply* repinfo)
 {
 	log_info("comm_point_drop_reply fake");
@@ -1038,14 +1025,14 @@ comm_point_drop_reply(struct comm_reply* repinfo)
 	}
 }
 
-struct outside_network* 
-outside_network_create(struct comm_base* base, size_t bufsize, 
-	size_t ATTR_UNUSED(num_ports), char** ATTR_UNUSED(ifs), 
-	int ATTR_UNUSED(num_ifs), int ATTR_UNUSED(do_ip4), 
-	int ATTR_UNUSED(do_ip6), size_t ATTR_UNUSED(num_tcp), 
+struct outside_network*
+outside_network_create(struct comm_base* base, size_t bufsize,
+	size_t ATTR_UNUSED(num_ports), char** ATTR_UNUSED(ifs),
+	int ATTR_UNUSED(num_ifs), int ATTR_UNUSED(do_ip4),
+	int ATTR_UNUSED(do_ip6), size_t ATTR_UNUSED(num_tcp),
 	int ATTR_UNUSED(dscp),
 	struct infra_cache* infra,
-	struct ub_randstate* ATTR_UNUSED(rnd), 
+	struct ub_randstate* ATTR_UNUSED(rnd),
 	int ATTR_UNUSED(use_caps_for_id), int* ATTR_UNUSED(availports),
 	int ATTR_UNUSED(numavailports), size_t ATTR_UNUSED(unwanted_threshold),
 	int ATTR_UNUSED(outgoing_tcp_mss),
@@ -1057,7 +1044,7 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	int ATTR_UNUSED(tcp_auth_query_timeout))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
-	struct outside_network* outnet =  calloc(1, 
+	struct outside_network* outnet =  calloc(1,
 		sizeof(struct outside_network));
 	(void)unwanted_action;
 	if(!outnet)
@@ -1072,7 +1059,7 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	return outnet;
 }
 
-void 
+void
 outside_network_delete(struct outside_network* outnet)
 {
 	if(!outnet)
@@ -1081,12 +1068,12 @@ outside_network_delete(struct outside_network* outnet)
 	free(outnet);
 }
 
-void 
+void
 outside_network_quit_prepare(struct outside_network* ATTR_UNUSED(outnet))
 {
 }
 
-struct pending* 
+struct pending*
 pending_udp_query(struct serviced_query* sq, sldns_buffer* packet,
 	int timeout, comm_point_callback_type* callback, void* callback_arg)
 {
@@ -1128,7 +1115,7 @@ pending_udp_query(struct serviced_query* sq, sldns_buffer* packet,
 			repevt_string(runtime->now->evt_type));
 		advance_moment(runtime);
 		/* still create the pending, because we need it to callback */
-	} 
+	}
 	log_info("testbound: created fake pending");
 	/* add to list */
 	pend->next = runtime->pending_list;
@@ -1178,7 +1165,7 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 			repevt_string(runtime->now->evt_type));
 		advance_moment(runtime);
 		/* still create the pending, because we need it to callback */
-	} 
+	}
 	log_info("testbound: created fake pending");
 	/* add to list */
 	pend->next = runtime->pending_list;
@@ -1202,10 +1189,10 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		sizeof(struct fake_pending));
 	char z[256];
 	log_assert(pend);
-	log_nametypeclass(VERB_OPS, "pending serviced query", 
+	log_nametypeclass(VERB_OPS, "pending serviced query",
 		qinfo->qname, qinfo->qtype, qinfo->qclass);
 	dname_str(zone, z);
-	verbose(VERB_OPS, "pending serviced query zone %s flags%s%s%s%s", 
+	verbose(VERB_OPS, "pending serviced query zone %s flags%s%s%s%s",
 		z, (flags&BIT_RD)?" RD":"", (flags&BIT_CD)?" CD":"",
 		(flags&~(BIT_RD|BIT_CD))?" MORE":"", (dnssec)?" DO":"");
 
@@ -1265,6 +1252,8 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		if(dnssec)
 			edns.bits = EDNS_DO;
 		edns.padding_block_size = 0;
+		edns.cookie_present = 0;
+		edns.cookie_valid = 0;
 		edns.opt_list_in = NULL;
 		edns.opt_list_out = per_upstream_opt_list;
 		edns.opt_list_inplace_cb_out = NULL;
@@ -1301,7 +1290,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 			repevt_string(runtime->now->evt_type));
 		advance_moment(runtime);
 		/* still create the pending, because we need it to callback */
-	} 
+	}
 	log_info("testbound: created fake pending");
 	/* add to list */
 	pend->next = runtime->pending_list;
@@ -1356,7 +1345,7 @@ void listening_ports_free(struct listen_port* list)
 
 struct comm_point* comm_point_create_local(struct comm_base* ATTR_UNUSED(base),
         int ATTR_UNUSED(fd), size_t ATTR_UNUSED(bufsize),
-        comm_point_callback_type* ATTR_UNUSED(callback), 
+        comm_point_callback_type* ATTR_UNUSED(callback),
 	void* ATTR_UNUSED(callback_arg))
 {
 	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
@@ -1368,7 +1357,7 @@ struct comm_point* comm_point_create_local(struct comm_base* ATTR_UNUSED(base),
 
 struct comm_point* comm_point_create_raw(struct comm_base* ATTR_UNUSED(base),
         int ATTR_UNUSED(fd), int ATTR_UNUSED(writing),
-        comm_point_callback_type* ATTR_UNUSED(callback), 
+        comm_point_callback_type* ATTR_UNUSED(callback),
 	void* ATTR_UNUSED(callback_arg))
 {
 	/* no pipe comm possible */
@@ -1379,7 +1368,7 @@ struct comm_point* comm_point_create_raw(struct comm_base* ATTR_UNUSED(base),
 	return (struct comm_point*)fc;
 }
 
-void comm_point_start_listening(struct comm_point* ATTR_UNUSED(c), 
+void comm_point_start_listening(struct comm_point* ATTR_UNUSED(c),
 	int ATTR_UNUSED(newfd), int ATTR_UNUSED(sec))
 {
 	/* no bg write pipe comm possible */
@@ -1424,7 +1413,7 @@ size_t serviced_get_mem(struct serviced_query* ATTR_UNUSED(c))
 }
 
 /* fake for fptr wlist */
-int outnet_udp_cb(struct comm_point* ATTR_UNUSED(c), 
+int outnet_udp_cb(struct comm_point* ATTR_UNUSED(c),
 	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
         struct comm_reply *ATTR_UNUSED(reply_info))
 {
@@ -1432,7 +1421,7 @@ int outnet_udp_cb(struct comm_point* ATTR_UNUSED(c),
 	return 0;
 }
 
-int outnet_tcp_cb(struct comm_point* ATTR_UNUSED(c), 
+int outnet_tcp_cb(struct comm_point* ATTR_UNUSED(c),
 	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
         struct comm_reply *ATTR_UNUSED(reply_info))
 {
@@ -1460,67 +1449,67 @@ void outnet_tcptimer(void* ATTR_UNUSED(arg))
 	log_assert(0);
 }
 
-void comm_point_udp_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(event), 
+void comm_point_udp_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(event),
 	void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_udp_ancil_callback(int ATTR_UNUSED(fd), 
+void comm_point_udp_ancil_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_tcp_accept_callback(int ATTR_UNUSED(fd), 
+void comm_point_tcp_accept_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_tcp_handle_callback(int ATTR_UNUSED(fd), 
+void comm_point_tcp_handle_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_timer_callback(int ATTR_UNUSED(fd), 
+void comm_timer_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_signal_callback(int ATTR_UNUSED(fd), 
+void comm_signal_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_http_handle_callback(int ATTR_UNUSED(fd), 
+void comm_point_http_handle_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_local_handle_callback(int ATTR_UNUSED(fd), 
+void comm_point_local_handle_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_point_raw_handle_callback(int ATTR_UNUSED(fd), 
+void comm_point_raw_handle_callback(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-void comm_base_handle_slow_accept(int ATTR_UNUSED(fd), 
+void comm_base_handle_slow_accept(int ATTR_UNUSED(fd),
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
 
-int serviced_udp_callback(struct comm_point* ATTR_UNUSED(c), 
+int serviced_udp_callback(struct comm_point* ATTR_UNUSED(c),
 	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
         struct comm_reply* ATTR_UNUSED(reply_info))
 {
@@ -1528,7 +1517,7 @@ int serviced_udp_callback(struct comm_point* ATTR_UNUSED(c),
 	return 0;
 }
 
-int serviced_tcp_callback(struct comm_point* ATTR_UNUSED(c), 
+int serviced_tcp_callback(struct comm_point* ATTR_UNUSED(c),
 	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
         struct comm_reply* ATTR_UNUSED(reply_info))
 {
@@ -1561,7 +1550,7 @@ int reuse_id_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 }
 
 /* timers in testbound for autotrust. statistics tested in tdir. */
-struct comm_timer* comm_timer_create(struct comm_base* base, 
+struct comm_timer* comm_timer_create(struct comm_base* base,
 	void (*cb)(void*), void* cb_arg)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
@@ -1589,7 +1578,7 @@ void comm_timer_set(struct comm_timer* timer, struct timeval* tv)
 	struct fake_timer* t = (struct fake_timer*)timer;
 	t->enabled = 1;
 	t->tv = *tv;
-	log_info("fake timer set %d.%6.6d", 
+	log_info("fake timer set %d.%6.6d",
 		(int)t->tv.tv_sec, (int)t->tv.tv_usec);
 	timeval_add(&t->tv, &t->runtime->now_tv);
 }

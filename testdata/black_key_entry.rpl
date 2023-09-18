@@ -7,6 +7,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -568,6 +569,23 @@ www.sub.example.com. IN A
 SECTION ANSWER
 ENTRY_END
 
+; Redo the query without RD to check EDE caching.
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.sub.example.com. IN A
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=7
+REPLY QR RA DO SERVFAIL
+SECTION QUESTION
+www.sub.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
 ; no more outgoing traffic possible.
 STEP 110 QUERY
 ENTRY_BEGIN
@@ -580,6 +598,23 @@ STEP 120 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=7
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+ftp.sub.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 121 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+ftp.sub.example.com. IN A
+ENTRY_END
+
+STEP 122 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=7
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 ftp.sub.example.com. IN A
 SECTION ANSWER

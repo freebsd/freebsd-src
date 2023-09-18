@@ -117,6 +117,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 e.gtld-servers.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+net.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ENTRY_BEGIN
@@ -126,6 +128,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 a.gtld-servers.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+net.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ; no example.net delegation answers yet.
@@ -156,6 +160,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 e.gtld-servers.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+net.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ENTRY_BEGIN
@@ -165,6 +171,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 a.gtld-servers.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+net.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ENTRY_BEGIN
@@ -287,6 +295,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 ns.sub.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+sub.example.com.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 RANGE_END
 
@@ -321,6 +331,8 @@ ADJUST copy_id
 REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ; fine DNSKEY response.
@@ -417,6 +429,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 ns.sub.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+sub.example.com.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ; response to query of interest

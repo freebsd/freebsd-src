@@ -8,6 +8,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -143,10 +144,13 @@ ENTRY_END
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
-REPLY QR NOERROR
+REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 ENTRY_END
 
 RANGE_END
@@ -163,6 +167,23 @@ STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=9
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=9
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER

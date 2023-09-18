@@ -4,6 +4,7 @@ server:
 	val-override-date: "20091113091234"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	rrset-roundrobin: no
 
 forward-zone:
 	name: "."
@@ -44,6 +45,9 @@ REPLY QR NOERROR
 SECTION QUESTION
 www.content.hud.gov. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+content.hud.gov.        86400   IN      NS      drfswitch.hud.gov.
+content.hud.gov.        86400   IN      NS      lanswitch.hud.gov.
 ENTRY_END
 
 ENTRY_BEGIN
@@ -107,6 +111,8 @@ SECTION AUTHORITY
 3RUD2HK5O5KA0IC6BF22C1T4R1BJGJ3R.hud.gov.       86400   IN      RRSIG   NSEC3 7 3 86400 20091204150200 20091104150200 64775 hud.gov. APf75Nx4eY9eHov3T9hduDLuG4TJfVfEUEhSgm7HIZRvSPFgajHz2q+Wy6888G3C0T1Zft1qL2PdHMonK6H1OEE+NiOxroDsZaH+aWZjAsbIO86qQ2xcC+/Z9DsddQtONk0zAqpuYxHSn879rAk/BIKeDukNoBChHCSTy8olUFiYt7XEmjz5AOoc8R5VQhMQi/vmbmC0BoFOemDxxowG2MX27Hj2MbVBEJiT8xioFEk41jsdDI0WQtpnory2NT/UM4kWZdmDdxbpwu2F8oixe3oi4AOI9j3EukoOZT9f0Sx+tCg/I9zLNZJi+VuI5oUlpZkSH5EoUyRgK33eO+KJhQ== ;{id = 64775}
 GO8CPDSLPULIOURE31GBK5JJKA0BKIVN.hud.gov.       86400   IN      NSEC3   1 1 5 abcd  gvfjd9enpjtet8a14uhb8hlrfeon2b72 A RRSIG  ; flags: optout
 GO8CPDSLPULIOURE31GBK5JJKA0BKIVN.hud.gov.       86400   IN      RRSIG   NSEC3 7 3 86400 20091204150200 20091104150200 64775 hud.gov. eQFg/RvJ640k+Fa5yIUZwkx8FvsYSivykYFjc6dOiGt7r3VprfxwGWeYpyjYr/+mzu0ugE5ePDjZWtr5naK3dvqmt7qKk4/nEvVDoUmrg7joIUmeTzami9RB9lzCq2O/ddempQ6jpwfjiIDuEKUxHMpBFpw8QQZnZSZHKKQCDB4pOj8U8J/wNJXCS+SP7plU1hEVroC+QXCOYS8NHY2wFyeuW7A+xvg9tyYp9PH6c5MoNMkRQt36Kdvfk1nk3osktwalJNLmMhDr/vtErFieGGD6E9Ud9Pg70bPF2G5nqwwLDRevy7hIFjaMDHfYrcWc4B5hrUSpGtLJkYog9vsd2w== ;{id = 64775}
+content.hud.gov.        86400   IN      NS      drfswitch.hud.gov.
+content.hud.gov.        86400   IN      NS      lanswitch.hud.gov.
 ENTRY_END
 
 SCENARIO_END

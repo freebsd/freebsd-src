@@ -177,6 +177,8 @@ static int readup_str(char** str, FILE* in)
 	}
 	buf[len] = 0;
 	*str = strdup(buf);
+	if(!*str)
+		fatal_exit("strdup failed: out of memory");
 	return 1;
 }
 

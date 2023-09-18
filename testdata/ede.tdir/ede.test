@@ -68,5 +68,36 @@ then
 	exit 1
 fi
 
+# EDE with CD bit set (EDE but no SERVFAIL)
+dig @127.0.0.1 -p $UNBOUND_PORT cd.dnskey-failures.test +cd > cd_bit_ede.txt
 
-# @TODO DNSSEC indeterminate when implemented
+if ! grep -q -e "NXDOMAIN" cd_bit_ede.txt
+then
+	echo "No NXDOMAIN reply with CD bit set"
+	cat cd_bit_ede.txt
+	exit 1
+fi
+if ! grep -q -e "OPT=15: 00 09" -e "EDE: 9" cd_bit_ede.txt
+then
+	echo "No EDE attached with CD bit set"
+	cat cd_bit_ede.txt
+	exit 1
+fi
+
+# EDE with CD bit set (EDE but no SERVFAIL) for a cached answer
+# Same test as above
+dig @127.0.0.1 -p $UNBOUND_PORT cd.dnskey-failures.test +cd > cd_bit_ede.txt
+
+if ! grep -q -e "NXDOMAIN" cd_bit_ede.txt
+then
+	echo "No NXDOMAIN reply with CD bit set for cached answer"
+	cat cd_bit_ede.txt
+	exit 1
+fi
+if ! grep -q -e "OPT=15: 00 09" -e "EDE: 9" cd_bit_ede.txt
+then
+	echo "No EDE attached with CD bit set for cached answer"
+	cat cd_bit_ede.txt
+	exit 1
+fi
+# TODO DNSSEC indeterminate when implemented

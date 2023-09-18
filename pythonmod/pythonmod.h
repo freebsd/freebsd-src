@@ -82,4 +82,12 @@ int python_inplace_cb_query_generic(
         uint8_t* zone, size_t zonelen, struct regional* region, int id,
         void* python_callback);
 
+/** Declared here for fptr_wlist access. The definition is in interface.i. */
+int python_inplace_cb_query_response(struct module_qstate* qstate,
+    struct dns_msg* response, int id, void* python_callback);
+
+/** Declared here for fptr_wlist access. The definition is in interface.i. */
+int python_inplace_cb_edns_back_parsed_call(struct module_qstate* qstate,
+    int id, void* python_callback);
+
 #endif /* PYTHONMOD_H */

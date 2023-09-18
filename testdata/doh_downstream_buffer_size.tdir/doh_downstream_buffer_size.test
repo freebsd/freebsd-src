@@ -23,15 +23,26 @@ if test "$?" -ne 0; then
 fi
 num=$(grep "ANSWER SEC" outfile | wc -l)
 # 58 byte answers, 500 byte max response buffer -> 8 answers
+
+# Sometimes unbound is scheduled to be able to respond very quickly,
+# before all the queries are sent, and then writes some of the queries
+# back already, emptying the buffer, which then does not overflow.
+# The attempt is to detect this test flakyness with 'mode w' write lines.
+nummodew=$(grep "mode w" unbound.log | wc -l)
+echo "num answers $num and num write events $nummodew"
 if [ $num -eq 8 ]; then
 	echo "content OK"
 else
+    if [ "(" $num -eq 9 -o $num -eq 10 ")" -a $nummodew -eq 2 ]; then
+	echo "skip buffer emptied event"
+    else
 	echo "result contents not OK"
 	echo "> cat logfiles"
 	cat outfile
 	cat unbound.log
 	echo "result contents not OK"
 	exit 1
+    fi
 fi
 echo "OK"
 

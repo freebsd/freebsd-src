@@ -11,6 +11,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -166,8 +167,24 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ede=9
+MATCH all ede=6
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=6
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER

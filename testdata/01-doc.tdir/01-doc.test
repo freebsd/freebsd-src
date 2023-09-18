@@ -34,6 +34,7 @@ fgrep -v -e "ldns-src/" hlist > ilist; mv ilist hlist
 fgrep -v -e "libunbound/python/libunbound_wrap.c" hlist > ilist; mv ilist hlist
 fgrep -v -e "pythonmod/interface.h" hlist > ilist; mv ilist hlist
 fgrep -v -e "dnstap" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/siphash.c" hlist > ilist; mv ilist hlist
 # filter out compat
 fgrep -v -e "compat/" hlist > ilist; mv ilist hlist
 for h in `cat hlist`; do

@@ -5,6 +5,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -154,6 +155,23 @@ STEP 20 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=9
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 21 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 22 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=9
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER

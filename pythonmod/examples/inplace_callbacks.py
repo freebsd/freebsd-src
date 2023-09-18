@@ -34,6 +34,9 @@
  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  POSSIBILITY OF SUCH DAMAGE.
 '''
+
+import os
+
 #Try:
 # - dig @localhost nlnetlabs.nl +ednsopt=65002:
 #       This query *could* be answered from cache. If so, unbound will reply
@@ -242,6 +245,36 @@ def inplace_query_callback(qinfo, flags, qstate, addr, zone, region, **kwargs):
     return True
 
 
+def inplace_query_response_callback(qstate, response, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
+    It will be called after receiving a reply from a backend server.
+
+    :param qstate: module qstate. opt_lists are available here;
+    :param response: struct dns_msg. The reply received from the backend server;
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release.
+    """
+    log_dns_msg(
+        "python: incoming reply from {}{}".format(qstate.reply.addr, os.linesep),
+        response.qinfo, response.rep
+    )
+    return True
+
+
+def inplace_edns_back_parsed_call(qstate, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
+    It will be called after EDNS is parsed on a reply from a backend server..
+
+    :param qstate: module qstate. opt_lists are available here;
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release.
+    """
+    log_info("python: edns parsed")
+    return True
+
+
 def init_standard(id, env):
     """
     New version of the init function.
@@ -279,6 +312,16 @@ def init_standard(id, env):
     # Register the inplace_query_callback function as an inplace callback
     # before sending a query to a backend server.
     if not register_inplace_cb_query(inplace_query_callback, env, id):
+        return False
+
+    # Register the inplace_edns_back_parsed_call function as an inplace callback
+    # for when a reply is received from a backend server.
+    if not register_inplace_cb_query_response(inplace_query_response_callback, env, id):
+        return False
+
+    # Register the inplace_edns_back_parsed_call function as an inplace callback
+    # for when EDNS is parsed on a reply from a backend server.
+    if not register_inplace_cb_edns_back_parsed_call(inplace_edns_back_parsed_call, env, id):
         return False
 
     return True

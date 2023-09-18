@@ -8,6 +8,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	rrset-roundrobin: no
+	harden-unknown-additional: yes
 
 stub-zone:
 	name: "."
@@ -195,10 +196,8 @@ SECTION ADDITIONAL
 open.example.com.      600     IN      A       213.154.224.1
 open.example.com.      600     IN      AAAA    2001:7b8:206:1::53
 open.example.com.      600     IN      AAAA    2001:7b8:206:1::1
-_sip._udp.example.com. 600     IN      SRV     0 0 5060 johnny.example.com.
 open.example.com.       600     IN      RRSIG   A 3 3 600 20070926134150 20070829134150 2854 example.com. MC0CFQCh8bja923UJmg1+sYXMK8WIE4dpgIUQe9sZa0GOcUYSgb2rXoogF8af+Y= ;{id = 2854}
 open.example.com.       600     IN      RRSIG   AAAA 3 3 600 20070926134150 20070829134150 2854 example.com. MC0CFQCRGJgIS6kEVG7aJfovuG/q3cgOWwIUYEIFCnfRQlMIYWF7BKMQoMbdkE0= ;{id = 2854}
-_sip._udp.example.com.  600     IN      RRSIG   SRV 3 4 600 20070926134150 20070829134150 2854 example.com. MCwCFFSRVgOcq1ihVuO6MhCuzWs6SxpVAhRPHHCKy0JxymVkYeFOxTkbVSWMMw== ;{id = 2854}
 ENTRY_END
 
 SCENARIO_END

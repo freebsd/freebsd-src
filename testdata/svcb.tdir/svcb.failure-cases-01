@@ -3,7 +3,7 @@ $TTL 3600
 
 @       SOA     primary admin 0 0 0 0 0
 
-; Here there are multiple instances of the same SvcParamKey in the mandatory list
+; These cases should be base64 encoded but aren't
 
 f21	HTTPS   1 foo.example.com. ech="123"
 f21	HTTPS   1 foo.example.com. echconfig="123"

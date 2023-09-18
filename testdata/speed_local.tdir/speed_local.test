@@ -9,8 +9,11 @@ PRE="../.."
 get_make
 (cd $PRE; $MAKE perf)
 
+# seconds per test
+dur=1
+
 echo "> perf version.server"
-$PRE/perf -d 1 -a "version.server CH TXT -" 127.0.0.1@$UNBOUND_PORT 2>&1 | 
+$PRE/perf -d $dur -a "version.server CH TXT -" 127.0.0.1@$UNBOUND_PORT 2>&1 | 
 tee outfile
 
 echo -n "version-server	" > line.txt
@@ -25,7 +28,7 @@ fi
 
 
 echo "> perf localhost"
-$PRE/perf -d 1 -a "localhost IN A -" 127.0.0.1@$UNBOUND_PORT 2>&1 | 
+$PRE/perf -d $dur -a "localhost IN A -" 127.0.0.1@$UNBOUND_PORT 2>&1 | 
 tee outfile
 
 echo -n "localhost-addr	" >> line.txt

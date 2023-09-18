@@ -39,6 +39,7 @@ REPLY QR NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
+www.example.com. IN A 1.2.3.4
 ; must be scrubbed
 www.burritolovers.com. IN A	10.20.30.40
 SECTION AUTHORITY
@@ -54,6 +55,7 @@ REPLY QR NOERROR
 SECTION QUESTION
 mail.example.com. IN A
 SECTION ANSWER
+mail.example.com. IN A 1.2.3.11
 SECTION AUTHORITY
 ; not pertinent to the query
 www.example.com.	IN NS	ns.example.com.
@@ -78,6 +80,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
+www.example.com. IN A 1.2.3.4
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
@@ -96,6 +99,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 mail.example.com. IN A
 SECTION ANSWER
+mail.example.com. IN A 1.2.3.11
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END

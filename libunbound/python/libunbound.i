@@ -36,6 +36,9 @@
 %begin %{
 /* store state of warning output, restored at later pop */
 #pragma GCC diagnostic push
+/* ignore warnings for pragma below, where for older GCC it can produce a
+   warning if the cast-function-type warning is absent. */
+#pragma GCC diagnostic ignored "-Wpragmas"
 /* ignore gcc8 METH_NOARGS function cast warnings for swig function pointers */
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 %}

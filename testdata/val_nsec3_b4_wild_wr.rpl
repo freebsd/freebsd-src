@@ -129,6 +129,10 @@ SECTION QUESTION
 ns2.example. IN      A
 SECTION ANSWER
 ; nothing to make sure the ns1 server is used for queries.
+SECTION AUTHORITY
+example.       NS      ns1.example.
+example.       NS      ns2.example.
+example. RRSIG   NS 7 1 3600 20150420235959 20051021000000 ( 40430 example.  PVOgtMK1HHeSTau+HwDWC8Ts+6C8qtqd4pQJ qOtdEVgg+MA+ai4fWDEhu3qHJyLcQ9tbD2vv CnMXjtz6SyObxA== )
 ENTRY_END
 
 ENTRY_BEGIN
@@ -139,6 +143,10 @@ SECTION QUESTION
 ns2.example. IN      AAAA
 SECTION ANSWER
 ; nothing to make sure the ns1 server is used for queries.
+SECTION AUTHORITY
+example.       NS      ns1.example.
+example.       NS      ns2.example.
+example. RRSIG   NS 7 1 3600 20150420235959 20051021000000 ( 40430 example.  PVOgtMK1HHeSTau+HwDWC8Ts+6C8qtqd4pQJ qOtdEVgg+MA+ai4fWDEhu3qHJyLcQ9tbD2vv CnMXjtz6SyObxA== )
 ENTRY_END
 
 

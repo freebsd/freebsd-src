@@ -8,6 +8,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	rrset-roundrobin: no
+	harden-unknown-additional: no
 
 stub-zone:
 	name: "."

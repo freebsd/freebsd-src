@@ -4,6 +4,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: no
 	rrset-roundrobin: no
+	access-control: 192.0.0.0/8 allow
 
 rpz:
 	name: "rpz.example.com."
@@ -22,6 +23,11 @@ d.rpz.example.com.	IN	CNAME .
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.3
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.4
 32.4.123.0.10.rpz-ip.rpz.example.com.	CNAME .
+; also test client-ip, and remove it later with an IXFR.
+24.0.5.0.192.rpz-client-ip A 127.0.0.5
+24.0.6.0.192.rpz-client-ip CNAME *.
+32.41.30.20.10.rpz-nsip A 127.0.0.1
+ns.gotham.com.rpz-nsdname A 127.0.0.1
 TEMPFILE_END
 
 stub-zone:
@@ -100,6 +106,42 @@ ENTRY_END
 ENTRY_BEGIN
 MATCH opcode qname qtype
 ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+a.a.	IN	A
+SECTION ANSWER
+a.a.	IN	A	10.0.123.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+foo.com. IN NS
+SECTION ANSWER
+SECTION AUTHORITY
+foo.com. 10 IN NS ns.foo.com.
+SECTION ADDITIONAL
+ns.foo.com. 10 IN A 10.20.30.41
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+gotham.com. IN NS
+SECTION ANSWER
+SECTION AUTHORITY
+gotham.com. 10 IN NS ns.gotham.com.
+SECTION ADDITIONAL
+ns.gotham.com. 10 IN A 10.20.30.42
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
 REPLY QR AA NOERROR
 SECTION QUESTION
 rpz.example.com. IN SOA
@@ -124,6 +166,10 @@ d.rpz.example.com.	IN	CNAME .
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.3
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.4
 32.4.123.0.10.rpz-ip.rpz.example.com.	CNAME .
+24.0.5.0.192.rpz-client-ip.rpz.example.com. A 127.0.0.5
+24.0.6.0.192.rpz-client-ip.rpz.example.com. CNAME *.
+32.41.30.20.10.rpz-nsip.rpz.example.com. A 127.0.0.1
+ns.gotham.com.rpz-nsdname.rpz.example.com. A 127.0.0.1
 rpz.example.com. IN SOA ns.rpz.example.com. hostmaster.rpz.example.com. 2 3600 900 86400 3600
 b.rpz.example.com. TXT "hello from RPZ"
 c.rpz.example.com. TXT "hello from RPZ"
@@ -132,6 +178,78 @@ a.rpz.example.com. CNAME .
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.5
 32.3.123.0.10.rpz-ip.rpz.example.com.	A 10.66.0.6
 rpz.example.com. IN SOA ns.rpz.example.com. hostmaster.rpz.example.com. 2 3600 900 86400 3600
+ENTRY_END
+
+RANGE_END
+
+; ns.foo.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.41
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+ns.foo.com. IN A
+SECTION ANSWER
+ns.foo.com. 10 IN A 10.20.30.41
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+ns.foo.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+foo.com. 10 IN SOA ns.foo.com. root.foo.com. 1 2 3 4 10
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. 10 IN A 10.20.30.42
+ENTRY_END
+
+RANGE_END
+
+; ns.gotham.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.42
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+ns.gotham.com. IN A
+SECTION ANSWER
+ns.gotham.com. 10 IN A 10.20.30.42
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+ns.gotham.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+gotham.com. 10 IN SOA ns.gotham.com. root.gotham.com. 1 2 3 4 10
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR NOERROR AA
+SECTION QUESTION
+www.gotham.com. IN A
+SECTION ANSWER
+www.gotham.com. 10 IN A 10.20.30.43
 ENTRY_END
 
 RANGE_END
@@ -244,7 +362,6 @@ SECTION QUESTION
 d.rpz-ip.	IN	A
 ENTRY_END
 
-
 STEP 15 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
@@ -253,7 +370,74 @@ SECTION QUESTION
 d.rpz-ip.	IN	A
 ENTRY_END
 
-STEP 16 TIME_PASSES ELAPSE 1
+STEP 16 QUERY ADDRESS 192.0.5.1
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.a. IN A
+ENTRY_END
+
+STEP 17 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+a.a. IN A
+SECTION ANSWER
+a.a. IN A 127.0.0.5
+ENTRY_END
+
+STEP 18 QUERY ADDRESS 192.0.6.1
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.a. IN A
+ENTRY_END
+
+STEP 19 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+a.a. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. IN A 127.0.0.1
+ENTRY_END
+
+STEP 22 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.gotham.com. IN A
+ENTRY_END
+
+STEP 23 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+www.gotham.com. IN A
+SECTION ANSWER
+www.gotham.com. IN A 127.0.0.1
+ENTRY_END
+
+STEP 24 TIME_PASSES ELAPSE 1
 STEP 30 TIME_PASSES ELAPSE 3600
 STEP 40 TRAFFIC
 
@@ -374,6 +558,74 @@ SECTION QUESTION
 d.rpz-ip.	IN	A
 SECTION ANSWER
 d.rpz-ip.	IN	A 10.0.123.4
+ENTRY_END
+
+STEP 64 QUERY ADDRESS 192.0.5.1
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.a. IN A
+ENTRY_END
+
+STEP 65 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+a.a. IN A
+SECTION ANSWER
+a.a. IN A 10.0.123.5
+ENTRY_END
+
+STEP 66 QUERY ADDRESS 192.0.6.1
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.a. IN A
+ENTRY_END
+
+STEP 67 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+a.a. IN A
+SECTION ANSWER
+a.a. IN A 10.0.123.5
+ENTRY_END
+
+STEP 68 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+
+STEP 69 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. 10 IN A 10.20.30.42
+ENTRY_END
+
+STEP 70 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.gotham.com. IN A
+ENTRY_END
+
+STEP 71 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.gotham.com. IN A
+SECTION ANSWER
+www.gotham.com. 10 IN A 10.20.30.43
 ENTRY_END
 
 SCENARIO_END

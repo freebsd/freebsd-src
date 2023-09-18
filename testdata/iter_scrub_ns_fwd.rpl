@@ -39,6 +39,7 @@ REPLY RD RA QR NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
+www.example.com. IN A 1.2.3.4
 ; must be scrubbed
 www.burritolovers.com. IN A	10.20.30.40
 SECTION AUTHORITY
@@ -78,6 +79,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
+www.example.com. IN A 1.2.3.4
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END

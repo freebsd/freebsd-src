@@ -6,6 +6,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 forward-zone:
 	name: "."
@@ -89,8 +90,24 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ede=9
+MATCH all ede=10
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN AAAA
+ENTRY_END
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=10
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN AAAA
 SECTION ANSWER

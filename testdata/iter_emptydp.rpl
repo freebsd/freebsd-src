@@ -108,6 +108,8 @@ REPLY QR NOERROR
 SECTION QUESTION
 a.gtld-servers.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+net. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ENTRY_BEGIN
@@ -156,6 +158,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.net. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+example.net. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ; example.com. zone
@@ -180,7 +184,9 @@ REPLY QR NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
-; bogus
+SECTION AUTHORITY
+example.com.   3600    IN      SOA     ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.com.   3600    IN      RRSIG   SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. AC23LvSspto6Zqctz05urK/2OKTnB+7nppMKInYkyjZbZotq2wjJA9s=
 ENTRY_END
 
 ; response to DNSKEY priming query
@@ -261,6 +267,7 @@ SECTION QUESTION
 ns.example.net. IN AAAA
 SECTION ANSWER
 SECTION AUTHORITY
+example.net. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 SECTION ADDITIONAL
 ENTRY_END
 

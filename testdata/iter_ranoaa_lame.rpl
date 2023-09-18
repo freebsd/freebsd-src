@@ -198,6 +198,8 @@ REPLY QR NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 RANGE_END
@@ -235,6 +237,8 @@ REPLY QR NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ENTRY_BEGIN
@@ -243,6 +247,8 @@ ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
 ns.example.net. IN AAAA
+SECTION AUTHORITY
+example.net. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 
 ; the lame response.

@@ -9,6 +9,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -146,11 +147,13 @@ ENTRY_END
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
-REPLY QR NOERROR
+REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
 SECTION AUTHORITY
+example.com.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926135752 20070829135752 2854 example.com. AI+pFL3opyI/Mx3pCwnULbwc99bqXrJjRp4ds1lIBPN9X/Pia3wQdkM=
 ; NSEC here ...
 SECTION ADDITIONAL
 ENTRY_END
@@ -208,11 +211,13 @@ ENTRY_END
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
-REPLY QR NOERROR
+REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.net. IN AAAA
 SECTION ANSWER
 SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+example.net.    3600    IN      RRSIG   NS RSASHA1 2 3600 20070926134150 20070829134150 30899 example.net. E8JX0l4B+cSR5bkHQwOJy1pBmlLMTYCJ8EwfNMU/eCv0YhKwo26rHhn52FGisgv+Nwp7/NbhHqQ+kJgoZC94XA== ;{id = 30899}
 ; NSEC here
 SECTION ADDITIONAL
 ENTRY_END
@@ -226,6 +231,8 @@ SECTION QUESTION
 www.example.net. IN A
 SECTION ANSWER
 SECTION AUTHORITY
+example.net.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+;example.net.	3600	IN	RRSIG	SOA 3 2 3600 20070926135752 20070829135752 2854 example.net. ADNbj4XoTESBEkbFri3OG7SujbOUAoyrxPNHbULhxbvbB48Y0YAwvNY=
 ;www.example.net. IN NSEC	example.net. MX NSEC RRSIG
 ;www.example.net.        3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. Z+3/WKJEqhWoMOQLC7Yb1dTVGaqzmU0bZ2cH9jSfNQZiT0O37yzCNNUmMsW4gsJOh3o61iZ+hxpze3aO3aedqQ== ;{id = 30899}
 SECTION ADDITIONAL
@@ -257,6 +264,23 @@ STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=10
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=10
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER

@@ -50,8 +50,10 @@ SECTION QUESTION
 unsafe.example.com. IN AAAA
 SECTION ANSWER
 ; empty response
+SECTION AUTHORITY
+example.com.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.com.	3600	IN	RRSIG	SOA 5 2 3600 20091012000000 20091010000000 30899 example.com. gJkF06xR3FoD/d+rxcLOwGpT8+DV+nbxED8C6T1qZyhWfKlfpYzISNooKBWD+JQbaGKV/nfm+rT3M0fnIXPpQQ==
 ENTRY_END
-
 
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -88,6 +90,9 @@ SECTION QUESTION
 unsafe.example.org. IN AAAA
 SECTION ANSWER
 ; empty response
+SECTION AUTHORITY
+example.org.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.org.	3600	IN	RRSIG	SOA 5 2 3600 20091012000000 20091010000000 30899 example.org. lYlSk7saPytwcu6Dp3HKYdyCOIlpTm+T8kjf0hnrLgPDZuksUjw/GLB+d6onTDpWLlasHfi0eoAkNvTeuR0+1w==
 ENTRY_END
 
 RANGE_END
@@ -112,6 +117,8 @@ www.example.com.        3600    IN      RRSIG   CNAME 5 3 3600 20091012000000 20
 SECTION AUTHORITY
 unsafe.example.com.     3600    IN      NSEC    v.example.com. NS RRSIG NSEC 
 unsafe.example.com.     3600    IN      RRSIG   NSEC 5 3 3600 20091012000000 20091010000000 30899 example.com. Le9EsRd2MxkOGRCvGtQkXRDAob5ZJOFQlZbDvcWAh5OXVpmcwZmCHctxw/Zyi4LkNYoYCSCc8PiVRrJM3IsGrQ== ;{id = 30899}
+example.com.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.com.	3600	IN	RRSIG	SOA 5 2 3600 20091012000000 20091010000000 30899 example.com. gJkF06xR3FoD/d+rxcLOwGpT8+DV+nbxED8C6T1qZyhWfKlfpYzISNooKBWD+JQbaGKV/nfm+rT3M0fnIXPpQQ==
 ENTRY_END
 
 ; NSEC3
@@ -134,6 +141,8 @@ www.example.org.        3600    IN      RRSIG   CNAME 5 3 3600 20091012000000 20
 SECTION AUTHORITY
 ltchu0548v0cof8f25u2pj4mjf4shcms.example.org.   3600    IN      NSEC3   1 0 1 -  ltchu0548v0cof8f25u2pj4mjf4shcmt NS 
 ltchu0548v0cof8f25u2pj4mjf4shcms.example.org.   3600    IN      RRSIG   NSEC3 5 3 3600 20091012000000 20091010000000 30899 example.org. yxuYgfkg8QTdB5yBMN9Up9GyKu7xjKDScqq95/tsy3lx22tLsdLD9Fojdrq7eB+K7Tr72AejmVJs44v6TmWkZw== ;{id = 30899}
+example.org.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.org.	3600	IN	RRSIG	SOA 5 2 3600 20091012000000 20091010000000 30899 example.org. lYlSk7saPytwcu6Dp3HKYdyCOIlpTm+T8kjf0hnrLgPDZuksUjw/GLB+d6onTDpWLlasHfi0eoAkNvTeuR0+1w==
 ENTRY_END
 
 SCENARIO_END

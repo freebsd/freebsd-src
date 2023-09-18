@@ -109,6 +109,8 @@ SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
 ; no AAAA
+SECTION AUTHORITY
+example.com.    IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 ENTRY_END
 RANGE_END
 

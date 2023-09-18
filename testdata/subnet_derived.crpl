@@ -39,6 +39,7 @@ RANGE_BEGIN 0 100
 		SECTION QUESTION
 			a.gtld-servers.net. IN AAAA
 		SECTION AUTHORITY
+			net. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 		SECTION ADDITIONAL
 			HEX_EDNSDATA_BEGIN
 				;; we expect to receive empty
@@ -111,6 +112,8 @@ RANGE_BEGIN 0 100
 		SECTION QUESTION
 			ns.example.com. IN AAAA
 		SECTION ANSWER
+		SECTION AUTHORITY
+			example.com. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 		SECTION ADDITIONAL
 			HEX_EDNSDATA_BEGIN
 				;; we expect to receive empty

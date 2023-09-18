@@ -76,10 +76,10 @@ void key_cache_delete(struct key_cache* kcache);
  * @param kcache: the key cache.
  * @param kkey: key entry key, assumed malloced in a region, is copied
  * 	to perform update or insertion. Its data pointer is also copied.
- * @param qstate: store errinf reason in case its bad.
+ * @param copy_reason: if the reason string needs to be copied (allocated).
  */
 void key_cache_insert(struct key_cache* kcache, struct key_entry_key* kkey,
-	struct module_qstate* qstate);
+	int copy_reason);
 
 /**
  * Remove an entry from the key cache.

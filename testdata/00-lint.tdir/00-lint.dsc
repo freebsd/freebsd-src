@@ -3,14 +3,14 @@ Version: 1.0
 Description: Put source into lint.
 CreationDate: Wed Jan  3 14:12:02 CET 2007
 Maintainer: dr. W.C.A. Wijngaards
-Category: 
+Category:
 Component:
-CmdDepends: 
-Depends: 
+CmdDepends:
+Depends:
 Help:
-Pre:
+Pre: 00-lint.pre
 Post:
 Test: 00-lint.test
-AuxFiles: 
+AuxFiles:
 Passed:
 Failure:

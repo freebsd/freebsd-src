@@ -5,6 +5,13 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 . ../common.sh
+
+PRE="../.."
+if grep "define USE_CACHEDB 1" $PRE/config.h; then
+    USE_CACHEDB=1
+    echo "USE_CACHEDB=1" >> .tpkg.var.test
+fi
+
 get_random_port 4
 UNBOUND_PORT=$RND_PORT
 FWD_PORT=$(($RND_PORT + 1))
@@ -29,8 +36,9 @@ echo "FWD_EXPIRED_PID=$FWD_EXPIRED_PID" >> .tpkg.var.test
 
 # make config file
 sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@EXPIREDPORT\@/'$FWD_EXPIRED_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values.conf > ub.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@EXPIREDPORT\@/'$FWD_EXPIRED_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values_cachedb.conf > ub_cachedb.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/'                                                                          -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values_downstream_cookies.conf > ub_downstream_cookies.conf
 # start unbound in the background
-PRE="../.."
 $PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
 UNBOUND_PID=$!
 echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test

@@ -5,6 +5,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	trust-anchor-signaling: no
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -145,6 +146,22 @@ SECTION QUESTION
 root-key-sentinel-not-ta-19036.	IN	A
 ENTRY_END
 
+; Redo the query without RD to check EDE caching.
+STEP 23 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+root-key-sentinel-not-ta-19036.	IN	A
+ENTRY_END
+
+STEP 24 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=6
+REPLY QR RA DO SERVFAIL
+SECTION QUESTION
+root-key-sentinel-not-ta-19036.	IN	A
+ENTRY_END
+
 STEP 30 QUERY
 ENTRY_BEGIN
 REPLY RD DO
@@ -157,6 +174,22 @@ STEP 33 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=6
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+root-key-sentinel-is-ta-20326.	IN	A
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 34 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+root-key-sentinel-is-ta-20326.	IN	A
+ENTRY_END
+
+STEP 35 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=6
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 root-key-sentinel-is-ta-20326.	IN	A
 ENTRY_END

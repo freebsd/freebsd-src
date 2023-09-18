@@ -152,6 +152,8 @@ RANGE_BEGIN 31 100
 		REPLY QR NOERROR
 		SECTION QUESTION
 			nameservers.com. IN A
+		SECTION AUTHORITY
+			nameservers.com. IN SOA ns.example.com. root.example.com. 4 14400 3600 604800 3600
 	ENTRY_END
 RANGE_END
 

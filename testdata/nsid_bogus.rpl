@@ -10,6 +10,7 @@ server:
 	minimal-responses: no
 	nsid: "ascii_hopsa kidee"
 	ede: yes
+	access-control: 127.0.0.0/8 allow_snoop
 
 stub-zone:
 	name: "."
@@ -117,6 +118,9 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
+SECTION AUTHORITY
+example.com.   3600    IN      SOA     ns.example.com. root.example.com. 4 1440 0 3600 604800 3600
+example.com.   3600    IN      RRSIG   SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. AC23LvSspto6Zqctz05urK/2OKTnB+7nppMKInYkyjZbZotq2wjJA9s=
 SECTION ADDITIONAL
 ENTRY_END
 
@@ -160,6 +164,35 @@ STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ede=9
 REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+SECTION ADDITIONAL
+	HEX_EDNSDATA_BEGIN
+		00 03             ; Opcode NSID (3)
+		00 0b             ; Length 11
+		68 6F 70 73 61 20 ; "hopsa "
+		6B 69 64 65 65    ; "kidee"
+	HEX_EDNSDATA_END
+ENTRY_END
+
+; Redo the query without RD to check EDE caching.
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+	HEX_EDNSDATA_BEGIN
+		00 03 ; Opcode NSID (3)
+		00 00 ; Length 0
+	HEX_EDNSDATA_END
+ENTRY_END
+
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ede=9
+REPLY QR RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER

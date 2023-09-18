@@ -1589,8 +1589,7 @@ xml_parse_setup(XML_Parser parser, struct xml_data* data, time_t now)
 
 /**
  * Perform XML parsing of the root-anchors file
- * Its format description can be read here
- * https://data.iana.org/root-anchors/draft-icann-dnssec-trust-anchor.txt
+ * Its format description can be found in RFC 7958.
  * It uses libexpat.
  * @param xml: BIO with xml data.
  * @param now: the current time for checking DS validity periods.

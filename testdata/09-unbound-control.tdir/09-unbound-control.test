@@ -199,7 +199,7 @@ query www.example.com.
 cache_dump -c ub.conf
 expect_exit_value 0
 cat cache.dump
-expect_in_cache "10.20.30.40"
+expect_in_cache_dump "10.20.30.40"
 
 control_command -c ub.conf lookup www.example.com
 expect_exit_value 0
@@ -264,6 +264,7 @@ control_command -c ub.conf reload_keep_cache
 expect_exit_value 0
 cache_dump -c ub.conf
 expect_exit_value 0
+cat cache.dump
 expect_in_cache_dump "www.example.com.*10.20.30.40"
 expect_in_cache_dump "msg www.example.com. IN A"
 query www.example.com +nordflag
@@ -291,6 +292,14 @@ fail_in_cache_dump "msg www.example.com. IN A"
 query www.example.com
 expect_answer "10.20.30.40"
 
+# See if this part of the test can be enabled, it needs threads for combined
+# output.
+have_threads="no"
+if grep "define HAVE_PTHREAD 1" $PRE/config.h; then have_threads="yes"; fi
+if grep "define HAVE_SOLARIS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
+if grep "define HAVE_WINDOWS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
+if test "$have_threads" = "yes"; then
+
 teststep "change num-threads and reload_keep_cache - should be empty"
 echo "server: num-threads: 2" >> ub.conf
 control_command -c ub.conf reload_keep_cache
@@ -310,6 +319,12 @@ cache_dump -c ub.conf
 expect_exit_value 0
 expect_in_cache_dump "www.example.com.*10.20.30.40"
 expect_in_cache_dump "msg www.example.com. IN A"
+
+else
+	echo ""
+	echo "> skip test parts that need threads, have_threads=no"
+# end of check for have_threads
+fi
 
 teststep "now stop the server"
 control_command -c ub.conf stop

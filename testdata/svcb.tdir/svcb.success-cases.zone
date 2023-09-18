@@ -45,3 +45,17 @@ s08     HTTPS   0 . ( key11=a key12=a key13=a key14=a key15=a key16=a key17=a ke
 ; maximum alpn size allowed (255 characters)
 
 s09     HTTPS   0 . ( alpn="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+
+; dohpath can be (non-)quoted and MUST contain "?dns"
+; currently there is no validation from Unbound, it can be anything
+; maybe needs changing if Unbound is the primary authoritative for SVCB records.
+; Then SVCB_SEMANTIC_CHECKS parts of the code could be used per authoritative role.
+
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=""
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath="/"
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath="/dns-query{?dns}"
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-query{?abcd}{!abcd}{?dns}
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-query{?abcdabcd?dns?defedf}
+_dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-queryéè{?dns}
