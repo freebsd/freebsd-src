@@ -103,7 +103,7 @@ void	 virtio_read_ivar(device_t dev, int ivar, uintptr_t *val);
 void	 virtio_write_ivar(device_t dev, int ivar, uintptr_t val);
 uint64_t virtio_negotiate_features(device_t dev, uint64_t child_features);
 int	 virtio_finalize_features(device_t dev);
-int	 virtio_alloc_virtqueues(device_t dev, int flags, int nvqs,
+int	 virtio_alloc_virtqueues(device_t dev, int nvqs,
 	     struct vq_alloc_info *info);
 int	 virtio_setup_intr(device_t dev, enum intr_type type);
 bool	 virtio_with_feature(device_t dev, uint64_t feature);

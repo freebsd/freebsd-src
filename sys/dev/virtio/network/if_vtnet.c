@@ -1018,10 +1018,9 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	struct vq_alloc_info *info;
 	struct vtnet_rxq *rxq;
 	struct vtnet_txq *txq;
-	int i, idx, flags, nvqs, error;
+	int i, idx, nvqs, error;
 
 	dev = sc->vtnet_dev;
-	flags = 0;
 
 	nvqs = sc->vtnet_max_vq_pairs * 2;
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
@@ -1059,14 +1058,7 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 		    &sc->vtnet_ctrl_vq, "%s ctrl", device_get_nameunit(dev));
 	}
 
-	/*
-	 * TODO: Enable interrupt binding if this is multiqueue. This will
-	 * only matter when per-virtqueue MSIX is available.
-	 */
-	if (sc->vtnet_flags & VTNET_FLAG_MQ)
-		flags |= 0;
-
-	error = virtio_alloc_virtqueues(dev, flags, nvqs, info);
+	error = virtio_alloc_virtqueues(dev, nvqs, info);
 	free(info, M_TEMP);
 
 	return (error);

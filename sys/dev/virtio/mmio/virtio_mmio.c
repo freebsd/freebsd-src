@@ -76,7 +76,7 @@ static int	vtmmio_finalize_features(device_t);
 static bool	vtmmio_with_feature(device_t, uint64_t);
 static void	vtmmio_set_virtqueue(struct vtmmio_softc *sc,
 		    struct virtqueue *vq, uint32_t size);
-static int	vtmmio_alloc_virtqueues(device_t, int, int,
+static int	vtmmio_alloc_virtqueues(device_t, int,
 		    struct vq_alloc_info *);
 static int	vtmmio_setup_intr(device_t, enum intr_type);
 static void	vtmmio_stop(device_t);
@@ -537,7 +537,7 @@ vtmmio_set_virtqueue(struct vtmmio_softc *sc, struct virtqueue *vq,
 }
 
 static int
-vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
+vtmmio_alloc_virtqueues(device_t dev, int nvqs,
     struct vq_alloc_info *vq_info)
 {
 	struct vtmmio_virtqueue *vqx;

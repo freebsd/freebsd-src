@@ -260,12 +260,11 @@ virtio_finalize_features(device_t dev)
 }
 
 int
-virtio_alloc_virtqueues(device_t dev, int flags, int nvqs,
+virtio_alloc_virtqueues(device_t dev, int nvqs,
     struct vq_alloc_info *info)
 {
 
-	return (VIRTIO_BUS_ALLOC_VIRTQUEUES(device_get_parent(dev), flags,
-	    nvqs, info));
+	return (VIRTIO_BUS_ALLOC_VIRTQUEUES(device_get_parent(dev), nvqs, info));
 }
 
 int
