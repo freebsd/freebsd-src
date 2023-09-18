@@ -94,9 +94,15 @@ the absolute path needs to be provided to ensure
 can re-open the file after a
 .Dv SIGHUP .
 .It Fl m , Fl -output-mask Ar output_mask
-Redirect output from the child process stdout (1), stderr (2), or both (3).
+Redirect output from the child process stdout
+.Pq Cm 1 ,
+stderr
+.Pq Cm 2 ,
+or both
+.Pq Cm 3 .
 This value specifies what is sent to syslog and the log file.
-The default is 3.
+The default is
+.Cm 3 .
 .It Fl p , Fl -child-pidfile Ar child_pidfile
 Write the ID of the created process into the
 .Ar child_pidfile
@@ -148,17 +154,29 @@ The default is the daemonized invocation.
 Login name of the user to execute the program under.
 Requires adequate superuser privileges.
 .It Fl s , Fl -syslog-priority Ar syslog_priority
-These priorities are accepted: emerg, alert, crit, err, warning,
-notice, info, and debug.
-The default is notice.
+These priorities are accepted:
+.Cm emerg , alert , crit , err , warning ,
+.Cm notice , info ,
+and
+.Cm debug .
+The default is
+.Cm notice .
 .It Fl l , Fl -syslog-facility Ar syslog_facility
-These facilities are accepted: auth, authpriv, console, cron, daemon,
-ftp, kern, lpr, mail, news, ntp, security, syslog, user, uucp, and
-local0, ..., local7.
-The default is daemon.
+These facilities are accepted:
+.Cm auth , authpriv , console , cron , daemon ,
+.Cm ftp , kern , lpr , mail , news , ntp , security ,
+.Cm syslog , user , uucp ,
+and
+local facilities from
+.Cm local0
+to
+.Cm local7 .
+The default is
+.Cm daemon .
 .It Fl T , Fl -syslog-tag Ar syslog_tag
 Set the tag which is appended to all syslog messages.
-The default is daemon.
+The default is
+.Cm daemon .
 .El
 .Pp
 If any of the options
