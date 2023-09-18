@@ -109,12 +109,21 @@ mounting
 .Nm
 file systems:
 .Bl -tag -width "maxfilesize"
+.It Cm easize
+Set the maximum memory size used by extended attributes in bytes.
+The default is 16 megabytes.
 .It Cm gid
 Set the group ID of the root inode of the file system.
 The default is the mount point's GID.
-.It Cm uid
-Set the user ID of the root inode of the file system.
-The default is the mount point's UID.
+.It Cm inodes
+Set the maximum number of nodes available to the file system.
+If not specified, the file system chooses a reasonable maximum based on
+the file system size, which can be limited with the
+.Cm size
+option.
+.It Cm maxfilesize
+Set the maximum file size in bytes.
+The default is the maximum possible value.
 .It Cm mode
 Set the mode (in octal notation) of the root inode of the file system.
 The default is the mount point's mode.
@@ -122,12 +131,6 @@ The default is the mount point's mode.
 Do not use namecache to resolve names to files for the created mount.
 This saves memory, but currently might impair scalability for highly
 used mounts on large machines.
-.It Cm inodes
-Set the maximum number of nodes available to the file system.
-If not specified, the file system chooses a reasonable maximum based on
-the file system size, which can be limited with the
-.Cm size
-option.
 .It Cm size
 Set the total file system size in bytes, unless suffixed
 with one of k, m, g, t, or p, which denote byte, kilobyte,
@@ -135,9 +138,9 @@ megabyte, gigabyte, terabyte and petabyte respectively.
 If zero (the default) or a value larger than SIZE_MAX - PAGE_SIZE
 is given, the available amount of memory (including
 main memory and swap space) will be used.
-.It Cm maxfilesize
-Set the maximum file size in bytes.
-The default is the maximum possible value.
+.It Cm uid
+Set the user ID of the root inode of the file system.
+The default is the mount point's UID.
 .El
 .Sh EXAMPLES
 Mount a
