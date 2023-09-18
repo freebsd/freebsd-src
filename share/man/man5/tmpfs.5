@@ -127,6 +127,13 @@ The default is the maximum possible value.
 .It Cm mode
 Set the mode (in octal notation) of the root inode of the file system.
 The default is the mount point's mode.
+.It Cm nomtime
+Disable the tracking of mtime updates caused by writes to the
+shared mapped areas backed by
+.Nm
+files.
+This option removes periodic scans,
+which downgrade read-write-mapped pages to read-only to note the writes.
 .It Cm nonc
 Do not use namecache to resolve names to files for the created mount.
 This saves memory, but currently might impair scalability for highly
