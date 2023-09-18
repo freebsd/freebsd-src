@@ -86,7 +86,7 @@ static int	vtpci_legacy_register_vq_msix(device_t, int idx,
 		    struct vtpci_interrupt *);
 
 static uint64_t	vtpci_legacy_negotiate_features(device_t, uint64_t);
-static int	vtpci_legacy_with_feature(device_t, uint64_t);
+static bool	vtpci_legacy_with_feature(device_t, uint64_t);
 static int	vtpci_legacy_alloc_virtqueues(device_t, int, int,
 		    struct vq_alloc_info *);
 static int	vtpci_legacy_setup_interrupts(device_t, enum intr_type);
@@ -379,7 +379,7 @@ vtpci_legacy_negotiate_features(device_t dev, uint64_t child_features)
 	return (features);
 }
 
-static int
+static bool
 vtpci_legacy_with_feature(device_t dev, uint64_t feature)
 {
 	struct vtpci_legacy_softc *sc;

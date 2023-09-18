@@ -73,7 +73,7 @@ static int	vtmmio_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	vtmmio_write_ivar(device_t, device_t, int, uintptr_t);
 static uint64_t	vtmmio_negotiate_features(device_t, uint64_t);
 static int	vtmmio_finalize_features(device_t);
-static int	vtmmio_with_feature(device_t, uint64_t);
+static bool	vtmmio_with_feature(device_t, uint64_t);
 static void	vtmmio_set_virtqueue(struct vtmmio_softc *sc,
 		    struct virtqueue *vq, uint32_t size);
 static int	vtmmio_alloc_virtqueues(device_t, int, int,
@@ -489,7 +489,7 @@ vtmmio_finalize_features(device_t dev)
 	return (0);
 }
 
-static int
+static bool
 vtmmio_with_feature(device_t dev, uint64_t feature)
 {
 	struct vtmmio_softc *sc;

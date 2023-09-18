@@ -267,7 +267,7 @@ vtpci_negotiate_features(struct vtpci_common *cn,
 	return (features);
 }
 
-int
+bool
 vtpci_with_feature(struct vtpci_common *cn, uint64_t feature)
 {
 	return ((cn->vtpci_features & feature) != 0);

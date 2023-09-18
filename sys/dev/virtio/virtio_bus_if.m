@@ -56,7 +56,7 @@ METHOD int finalize_features {
 	device_t	dev;
 } DEFAULT virtio_bus_default_finalize_features;
 
-METHOD int with_feature {
+METHOD bool with_feature {
 	device_t	dev;
 	uint64_t	feature;
 };

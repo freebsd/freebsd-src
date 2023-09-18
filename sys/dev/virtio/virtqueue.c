@@ -128,7 +128,7 @@ static void	vq_ring_init(struct virtqueue *);
 static void	vq_ring_update_avail(struct virtqueue *, uint16_t);
 static uint16_t	vq_ring_enqueue_segments(struct virtqueue *,
 		    struct vring_desc *, uint16_t, struct sglist *, int, int);
-static int	vq_ring_use_indirect(struct virtqueue *, int);
+static bool	vq_ring_use_indirect(struct virtqueue *, int);
 static void	vq_ring_enqueue_indirect(struct virtqueue *, void *,
 		    struct sglist *, int, int);
 static int	vq_ring_enable_interrupt(struct virtqueue *, uint16_t);
@@ -418,14 +418,14 @@ virtqueue_nfree(struct virtqueue *vq)
 	return (vq->vq_free_cnt);
 }
 
-int
+bool
 virtqueue_empty(struct virtqueue *vq)
 {
 
 	return (vq->vq_nentries == vq->vq_free_cnt);
 }
 
-int
+bool
 virtqueue_full(struct virtqueue *vq)
 {
 
@@ -733,20 +733,20 @@ vq_ring_enqueue_segments(struct virtqueue *vq, struct vring_desc *desc,
 	return (idx);
 }
 
-static int
+static bool
 vq_ring_use_indirect(struct virtqueue *vq, int needed)
 {
 
 	if ((vq->vq_flags & VIRTQUEUE_FLAG_INDIRECT) == 0)
-		return (0);
+		return (false);
 
 	if (vq->vq_max_indirect_size < needed)
-		return (0);
+		return (false);
 
 	if (needed < 2)
-		return (0);
+		return (false);
 
-	return (1);
+	return (true);
 }
 
 static void
