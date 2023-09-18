@@ -51,14 +51,14 @@ Parse_PushInput: file variable-undef-inside.tmp, line 1
 Parse_PushInput: file variable-undef-inside.tmp, line 1
 Parse_PushInput: file variable-not-defined.tmp, line 1
 Parse_PushInput: file variable-not-defined.tmp, line 1
-Parse_PushInput: file if-elif.tmp, line 1
-Parse_PushInput: file if-elif.tmp, line 1
-Parse_PushInput: file if-elif-reuse.tmp, line 1
-Parse_PushInput: file if-elif-reuse.tmp, line 1
-Parse_PushInput: file if-else.tmp, line 1
-Parse_PushInput: file if-else.tmp, line 1
-Parse_PushInput: file if-else-reuse.tmp, line 1
-Parse_PushInput: file if-else-reuse.tmp, line 1
+Parse_PushInput: file elif.tmp, line 1
+Parse_PushInput: file elif.tmp, line 1
+Parse_PushInput: file elif-reuse.tmp, line 1
+Parse_PushInput: file elif-reuse.tmp, line 1
+Parse_PushInput: file else.tmp, line 1
+Parse_PushInput: file else.tmp, line 1
+Parse_PushInput: file else-reuse.tmp, line 1
+Parse_PushInput: file else-reuse.tmp, line 1
 Parse_PushInput: file inner-if-elif-else.tmp, line 1
 Skipping 'inner-if-elif-else.tmp' because 'INNER_IF_ELIF_ELSE' is defined
 Parse_PushInput: file target.tmp, line 1

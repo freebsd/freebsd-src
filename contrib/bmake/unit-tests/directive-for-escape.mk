@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-escape.mk,v 1.20 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-for-escape.mk,v 1.21 2023/06/23 06:11:06 rillig Exp $
 #
 # Test escaping of special characters in the iteration values of a .for loop.
 # These values get expanded later using the :U variable modifier, and this
@@ -44,12 +44,28 @@ VALUES=		$$ $${V} $${V:=-with-modifier} $$(V) $$(V:=-with-modifier)
 .for i in ${VALUES}
 .  info $i
 .endfor
-# expect-2: $
-# expect-3: value
-# expect-4: value-with-modifier
+# expect: .  info ${:U\$}
+# expect-3: $
+# expect: .  info ${:U${V}}
+# expect-5: value
+# expect: .  info ${:U${V:=-with-modifier}}
+# expect-7: value-with-modifier
+# expect: .  info ${:U$(V)}
+# expect-9: value
+# expect: .  info ${:U$(V:=-with-modifier)}
+# expect-11: value-with-modifier
+#
+# Providing the loop items directly has the same effect.
+.for i in $$ $${V} $${V:=-with-modifier} $$(V) $$(V:=-with-modifier)
+.  info $i
+.endfor
+# expect: .  info ${:U\$}
+# expect-3: $
+# expect: .  info ${:U${V}}
 # expect-5: value
 # expect-6: value-with-modifier
-
+# expect-7: value
+# expect-8: value-with-modifier
 
 # Try to cover the code for nested '{}' in ExprLen, without success.
 #
@@ -256,6 +272,22 @@ ${closing-brace}=	<closing-brace>	# alternative interpretation
 .for i in ((( {{{ ))) }}}
 # $i
 .endfor
-.MAKEFLAGS: -d0
 
-all:
+
+# When generating the body of a .for loop, recognizing the expressions is done
+# using simple heuristics.  These can go wrong in ambiguous cases like this.
+# The variable name ',' is unusual as it is not a pronounceable name, but the
+# same principle applies for other names as well.  In this case, the text '$,'
+# is replaced with the expression '${:U1}', even though the text does not
+# represent an expression.
+.for , in 1
+# $$i $i
+# VAR= $$i $i ${a:S,from$,to,}
+VAR= $$i $i ${a:S,from$,to,}
+.endfor
+# expect: # $$i $i
+# expect: # VAR= $$i $i ${a:S,from${:U1}to,}
+# expect: VAR= $$i $i ${a:S,from${:U1}to,}
+#
+# When the above variable is evaluated, make will complain about the
+# unfinished modifier ':S', as it is missing a comma.

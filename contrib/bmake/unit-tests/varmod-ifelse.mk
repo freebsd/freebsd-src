@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.22 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.23 2023/07/01 09:06:34 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -97,11 +97,11 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 .endif
 .MAKEFLAGS: -d0
 
-# As of 2020-12-10, the variable "name" is first expanded, and the result of
+# As of 2020-12-10, the variable "VAR" is first expanded, and the result of
 # this expansion is then taken as the condition.  To force the variable
 # expression in the condition to be evaluated at exactly the right point,
 # the '$' of the intended '${VAR}' escapes from the parser in form of the
-# expression ${:U\$}.  Because of this escaping, the variable "name" and thus
+# expression ${:U\$}.  Because of this escaping, the variable "VAR" and thus
 # the condition ends up as "${VAR} == value", just as intended.
 #
 # This hack does not work for variables from .for loops since these are
@@ -156,15 +156,18 @@ STRING=		string
 NUMBER=		no		# not really a number
 # expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect+2: .
-# expect+1: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+# expect+3: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+# expect: make: Bad conditional expression 'string == "literal" || no >= 10' in 'string == "literal" || no >= 10?yes:no'
+# expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
 # The following situation occasionally occurs with MKINET6 or similar
 # variables.
 NUMBER=		# empty, not really a number either
+# expect: make: Bad conditional expression 'string == "literal" &&  >= 10' in 'string == "literal" &&  >= 10?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
+# expect: make: Bad conditional expression 'string == "literal" ||  >= 10' in 'string == "literal" ||  >= 10?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
@@ -173,13 +176,14 @@ PLUS=		+
 ASTERISK=	*
 EMPTY=		# empty
 # "true" since "+" is not the empty string.
-# expect+1: true
-.info ${${PLUS}		:?true:false}
+# expect+1: <true>
+.info <${${PLUS}		:?true:false}>
 # "false" since the variable named "*" is not defined.
-# expect+1: false
-.info ${${ASTERISK}	:?true:false}
+# expect+1: <false>
+.info <${${ASTERISK}	:?true:false}>
 # syntax error since the condition is completely blank.
-.info ${${EMPTY}	:?true:false}
+# expect+1: <>
+.info <${${EMPTY}	:?true:false}>
 
 
 # Since the condition of the '?:' modifier is expanded before being parsed and
@@ -256,4 +260,34 @@ PRIMES=	2 3 5 7 11
 # with the 'then2' formed the result 'then2,,}}'.
 .  error
 .endif
+
+
+# Since the condition is taken from the variable name of the expression, not
+# from its value, it is evaluated early.  It is possible though to construct
+# conditions that are evaluated lazily, at exactly the right point.  There is
+# no way to escape a '$' directly in the variable name, but there are
+# alternative ways to bring a '$' into the condition.
+#
+#	In an indirect condition using the ':U' modifier, each '$', ':' and
+#	'}' must be escaped as '\$', '\:' and '\}', respectively, but '{' must
+#	not be escaped.
+#
+#	In an indirect condition using a separate variable, each '$' must be
+#	escaped as '$$'.
+#
+# These two forms allow the variables to contain arbitrary characters, as the
+# condition parser does not see them.
+DELAYED=	two
+# expect+1: no
+.info ${ ${:U \${DELAYED\} == "one"}:?yes:no}
+# expect+1: yes
+.info ${ ${:U \${DELAYED\} == "two"}:?yes:no}
+INDIRECT_COND1=	$${DELAYED} == "one"
+# expect+1: no
+.info ${ ${INDIRECT_COND1}:?yes:no}
+INDIRECT_COND2=	$${DELAYED} == "two"
+# expect+1: yes
+.info ${ ${INDIRECT_COND2}:?yes:no}
+
+
 .MAKEFLAGS: -d0

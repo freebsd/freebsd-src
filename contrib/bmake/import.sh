@@ -4,6 +4,7 @@
 
 ECHO=
 GIT=${GIT:-git}
+PAGER=${PAGER:-${LESS:-${MORE:-more}}}
 
 # For consistency...
 Error() {
@@ -80,14 +81,41 @@ grep '^+' $TF.diffs | sed 's,^.,,' | sort > $TF.adds
 grep '^-' $TF.diffs | sed 's,^.,,' | sort > $TF.rms
 comm -13 $TF.adds $TF.rms > $TF.rm
 
+post=$SB/tmp/bmake-post.sh
+
+# this is similar to what generates the mail to bmake-announce
+gen_import_F() {
+    echo Import bmake-$VERSION
+
+    if [ -s $post ]; then
+	last=`sed -n '/ tag/s,.*/,bmake-,p' $post`
+    else
+	last="last import"
+    fi
+    for C in ChangeLog */ChangeLog
+    do
+	$GIT diff --staged $C |
+	    sed -n '/^@@/d;/^\+\+\+/d;/^\+/s,^.,,p' > $TF.C
+	test -s $TF.C || continue
+	echo
+	echo $C since $last
+	echo
+	cat $TF.C
+    done
+}
+
 if [ -z "$ECHO" ]; then
     test -s $TF.rm && xargs rm -f < $TF.rm
     $GIT add -A
-    $GIT diff --staged | tee $SB/tmp/bmake-import.diff
+    gen_import_F > $SB/tmp/bmake-import.F
+    $GIT diff --staged > $SB/tmp/bmake-import.diff
+    $PAGER $SB/tmp/bmake-import.F $SB/tmp/bmake-import.diff
     { echo "$GIT tag -a -m \"Tag bmake/$VERSION\" vendor/NetBSD/bmake/$VERSION"
       echo "echo \"When ready do: $GIT push --follow-tags\""
-    } > $SB/tmp/bmake-post.sh
-    echo "After you commit, run $SB/tmp/bmake-post.sh"
+    } > $post
+    echo "Edit $SB/tmp/bmake-import.F as needed, then:"
+    echo "$GIT commit -F $SB/tmp/bmake-import.F"
+    echo "After you commit, run $post"
 else
     comm -23 $TF.adds $TF.rms > $TF.add
     test -s $TF.rm && { echo Removing:; cat $TF.rm; }

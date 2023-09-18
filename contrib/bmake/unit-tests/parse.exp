@@ -1,6 +1,6 @@
-make: "parse.mk" line 7: Makefile appears to contain unresolved CVS/RCS/??? merge conflicts
-make: "parse.mk" line 14: Makefile appears to contain unresolved CVS/RCS/??? merge conflicts
-make: "parse.mk" line 25: Invalid line type
+make: "parse.mk" line 7: Invalid line '<<<<<< old'
+make: "parse.mk" line 14: Invalid line '>>>>>> new'
+make: "parse.mk" line 25: Invalid line 'one-target ${:U }', expanded to 'one-target  '
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

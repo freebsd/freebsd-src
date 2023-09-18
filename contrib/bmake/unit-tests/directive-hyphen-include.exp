@@ -1,4 +1,4 @@
-make: "directive-hyphen-include-error.inc" line 1: Invalid line type
+make: "directive-hyphen-include-error.inc" line 1: Invalid line 'syntax error'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

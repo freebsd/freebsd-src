@@ -119,7 +119,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.57 2021/10/22 20:32:21 sjg Exp $
+#	$Id: boot-strap,v 1.58 2023/06/27 21:02:19 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -420,7 +420,7 @@ op_build() {
 
 op_test() {
 	[ -x bmake ] || op_build
-	Bmake test "$@" TEST_MAKE=$objdir/bmake || exit 1
+	Bmake test TEST_MAKE=$objdir/bmake "$@" || exit 1
 }
 
 op_clean() {

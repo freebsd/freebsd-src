@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.323 2023/06/20 09:25:33 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.325 2023/09/10 11:52:29 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -193,6 +193,13 @@ typedef unsigned char bool;
 
 #if defined(sun) && (defined(__svr4__) || defined(__SVR4))
 # define POSIX_SIGNALS
+#endif
+
+/*
+ * IRIX defines OP_NONE in sys/fcntl.h
+ */
+#if defined(OP_NONE)
+# undef OP_NONE
 #endif
 
 /*
@@ -1214,8 +1221,8 @@ pp_skip_hspace(char **pp)
 }
 
 #if defined(lint)
-extern void do_not_define_rcsid(void); /* for lint */
-# define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
+void do_not_define_rcsid(void); /* for lint */
+# define MAKE_RCSID(id) void do_not_define_rcsid(void)
 #elif defined(MAKE_NATIVE)
 # include <sys/cdefs.h>
 # ifndef __IDSTRING
@@ -1234,7 +1241,7 @@ extern void do_not_define_rcsid(void); /* for lint */
 # define MAKE_RCSID(id) static volatile char \
 	MAKE_RCSID_CONCAT(rcsid_, __COUNTER__)[] = id
 #elif defined(MAKE_ALL_IN_ONE)
-# define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
+# define MAKE_RCSID(id) void do_not_define_rcsid(void)
 #else
 # define MAKE_RCSID(id) static volatile char rcsid[] = id
 #endif

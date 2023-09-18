@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.87 2022/09/09 20:00:53 sjg Exp $
+dnl	$Id: configure.in,v 1.97 2023/07/25 20:12:32 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ([2.71])
-AC_INIT([bmake],[20220909],[sjg@NetBSD.org])
+AC_INIT([bmake],[20230723],[sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -29,20 +29,32 @@ use_defshell() {
 		DEFSHELL_INDEX=DEFSHELL_INDEX_CSH;;
 	*ksh)
 		DEFSHELL_INDEX=DEFSHELL_INDEX_KSH;;
-	sh|/bin/sh)
+	sh|/bin/sh|*/bsh)
 		DEFSHELL_INDEX=DEFSHELL_INDEX_SH;;
+	*=*)	# eg. sh=/bin/bsh
+		eval `IFS="="; set -- $1; echo name=$1 defshell_path=$2`
+		case "$name" in
+		csh) DEFSHELL_INDEX=DEFSHELL_INDEX_CSH;;
+		ksh) DEFSHELL_INDEX=DEFSHELL_INDEX_KSH;;
+		sh) DEFSHELL_INDEX=DEFSHELL_INDEX_SH;;
+		*) DEFSHELL_INDEX=DEFSHELL_INDEX_CUSTOM;;
+		esac
+		;;
 	*)	DEFSHELL_INDEX=DEFSHELL_INDEX_CUSTOM
 		defshell_path=$1
 		;;
 	esac
-	case "$1" in
-	/bin/*) ;;
-	*/*) defshell_path=$1;;
+	case "$defshell_path,$1" in
+	,/bin/*) ;;
+	,*/*) defshell_path=$1;;
 	esac
 }
 dnl
 AC_ARG_WITH(defshell,
-[  --with-defshell=SHELL  use SHELL by default - must be sh compatible, use sh or ksh to pick the internal definitions],
+[  --with-defshell=[[name=]]SHELL	use SHELL by default
+	optional 'name' can be 'sh' to indicate SHELL is sh compatible
+	eg. --with-defshell=sh=/bin/bsh
+	use just 'sh' or 'ksh' to pick the internal definitions],
 [case "${withval}" in
 yes)   AC_MSG_ERROR(bad value ${withval} given for bmake DEFSHELL) ;;
 no)    ;;
@@ -126,23 +138,22 @@ SCO_SV)	# /bin/sh is not usable
 	;;
 esac
 dnl
-dnl Not everyone groks TZ=Europe/Berlin
-dnl which is used by the localtime tests
+# Not everyone groks TZ=Europe/Berlin
+# which is used by the localtime tests
 echo $ECHO_N "checking whether system has timezone Europe/Berlin... $ECHO_C" >&6
-if test -f /usr/share/zoneinfo/Europe/Berlin; then
+eval `TZ=UTC date '+utc_H=%H utc_d=%d' 2> /dev/null`
+eval `TZ=Europe/Berlin date '+utc1_H=%H utc1_d=%d' 2> /dev/null`
+if test ${utc_d-0} -lt ${utc1_d-0} -o ${utc_H-0} -lt ${utc1_H-0}; then
 	echo yes  >&6
-	# seems a safe bet
 	UTC_1=Europe/Berlin
 else
-	utcH=`TZ=UTC date +%H 2> /dev/null`
-	utc_1H=`TZ=UTC-1 date +%H 2> /dev/null`
-	if test ${utcH-0} -lt ${utc_1H-0}; then
+	eval `TZ=UTC-1 date '+utc1_H=%H utc1_d=%d' 2> /dev/null`
+	if test ${utc_d-0} -lt ${utc1_d-0} -o ${utc_H-0} -lt ${utc1_H-0}; then
 		UTC_1=UTC-1
 		echo no, using UTC-1 >&6
-	else
-		echo no >&6
 	fi
 fi
+test "x$UTC_1" = x && echo no >&6
 dnl
 dnl Add some places to look for compilers
 oldPATH=$PATH
@@ -160,6 +171,10 @@ AC_USE_SYSTEM_EXTENSIONS
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
+# We have to override that on some systems
+case "$OS" in
+IRIX*) ac_INSTALL=$srcdir/install-sh;;
+esac
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl
 dnl
@@ -177,8 +192,8 @@ fi
 echo "Using: BMAKE_PATH_MAX=$bmake_path_max" >&6
 AC_SUBST(bmake_path_max)dnl
 dnl
-dnl if type does not work which(1) had better!
-dnl note we cannot rely on type returning non-zero on failure
+# if type does not work which(1) had better!
+# note we cannot rely on type returning non-zero on failure
 if (type cat) > /dev/null 2>&1; then
 : which
 which() {

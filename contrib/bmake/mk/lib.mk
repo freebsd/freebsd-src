@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.74 2023/04/20 23:45:56 sjg Exp $
+# $Id: lib.mk,v 1.75 2023/09/11 05:20:23 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -604,6 +604,10 @@ realinstall: beforeinstall
 .if !empty(LIB)
 STAGE_LIBDIR?= ${STAGE_OBJTOP}${LIBDIR}
 stage_libs: ${_LIBS}
+
+__libtoken ?= __lib${LIB:C,[^a-zA-Z0-9_],_,g}__
+__libtoken := ${__libtoken}
+COPTS += -D${__libtoken}
 .endif
 
 .include <final.mk>
