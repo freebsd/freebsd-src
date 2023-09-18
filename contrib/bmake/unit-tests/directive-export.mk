@@ -1,4 +1,4 @@
-# $NetBSD: directive-export.mk,v 1.8 2021/02/16 19:01:18 rillig Exp $
+# $NetBSD: directive-export.mk,v 1.9 2023/08/20 20:48:32 rillig Exp $
 #
 # Tests for the .export directive.
 #
@@ -39,6 +39,23 @@ VAR=		value $$ ${INDIRECT}
 EMPTY_SHELL=	${:sh}
 .export EMPTY_SHELL	# only marked for export at this point
 _!=		:;:	# Force the variable to be actually exported.
+
+
+# If the '.export' directive exports a variable whose value contains a '$',
+# the actual export action is deferred until a subprocess is started, assuming
+# that only subprocesses access the environment variables.  The ':localtime'
+# modifier depends on the 'TZ' environment variable, without any subprocess.
+export TZ=${UTC}
+# expect+1: 00:00:00
+.info ${%T:L:localtime=86400}
+INDIRECT_TZ=	${:UAmerica/Los_Angeles}
+TZ=		${INDIRECT_TZ}
+.export TZ
+# expect+1: 00:00:00
+.info ${%T:L:localtime=86400}
+_!=	echo 'force exporting the environment variables'
+# expect+1: 16:00:00
+.info ${%T:L:localtime=86400}
 
 
 all:

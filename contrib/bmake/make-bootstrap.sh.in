@@ -2,6 +2,7 @@
 
 set -e
 
+prefix=@prefix@
 srcdir=@srcdir@
 
 DEFAULT_SYS_PATH="@default_sys_path@"

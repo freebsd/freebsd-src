@@ -157,15 +157,17 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m-j [4m[22mmax_jobs[0m
              Specify the maximum number of jobs that [1mbmake [22mmay have running at
-             any one time.  The value of [4mmax_jobs[24m is saved in [4m.MAKE.JOBS[24m.
-             Turns compatibility mode off, unless the [1m-B [22moption is also speci-
-             fied.  When compatibility mode is off, all commands associated
-             with a target are executed in a single shell invocation as op-
-             posed to the traditional one shell invocation per line.  This can
-             break traditional scripts which change directories on each com-
-             mand invocation and then expect to start with a fresh environment
-             on the next line.  It is more efficient to correct the scripts
-             rather than turn backwards compatibility on.
+             any one time.  If [4mmax_jobs[24m is a floating point number, or ends
+             with `C', then the value is multiplied by the number of CPUs re-
+             ported online by sysconf(3).  The value of [4mmax_jobs[24m is saved in
+             [4m.MAKE.JOBS[24m.  Turns compatibility mode off, unless the [1m-B [22moption
+             is also specified.  When compatibility mode is off, all commands
+             associated with a target are executed in a single shell invoca-
+             tion as opposed to the traditional one shell invocation per line.
+             This can break traditional scripts which change directories on
+             each command invocation and then expect to start with a fresh en-
+             vironment on the next line.  It is more efficient to correct the
+             scripts rather than turn backwards compatibility on.
 
              A job token pool with [4mmax_jobs[24m tokens is used to control the to-
              tal number of jobs running.  Each instance of [1mbmake [22mwill wait for
@@ -625,6 +627,10 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      [4m.MAKE.JOBS[0m
              The argument to the [1m-j [22moption.
 
+     [4m.MAKE.JOBS.C[0m
+             A read-only boolean that indicates whether the [1m-j [22moption supports
+             use of `C'.
+
      [4m.MAKE.LEVEL[0m
              The recursion depth of [1mbmake[22m.  The top-level instance of [1mbmake[0m
              has level 0, and each child make has its parent level plus 1.
@@ -972,8 +978,9 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m:gmtime[22m[[1m=[4m[22mtimestamp[24m]
           The value is interpreted as a format string for strftime(3), using
-          gmtime(3), producing the formatted timestamp.  If a [4mtimestamp[24m value
-          is not provided or is 0, the current time is used.
+          gmtime(3), producing the formatted timestamp.  Note: the `%s' format
+          should only be used with `[1m:localtime[22m'.  If a [4mtimestamp[24m value is not
+          provided or is 0, the current time is used.
 
      [1m:hash[0m
           Computes a 32-bit hash of the value and encodes it as 8 hex digits.
@@ -1313,8 +1320,8 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1mbmake [22monly evaluates a conditional as far as is necessary to determine
      its value.  Parentheses can be used to override the operator precedence.
-     The boolean operator `[1m![22m' may be used to logically negate an entire condi-
-     tional.  It is of higher precedence than `[1m&&[22m'.
+     The boolean operator `[1m![22m' may be used to logically negate an expression,
+     typically a function call.  It is of higher precedence than `[1m&&[22m'.
 
      The value of [4mexpression[24m may be any of the following function call expres-
      sions:
@@ -1346,9 +1353,9 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      [4mExpression[24m may also be an arithmetic or string comparison.  Variable ex-
      pansion is performed on both sides of the comparison.  If both sides are
      numeric and neither is enclosed in quotes, the comparison is done numeri-
-     cally, otherwise lexicographically.  A string is interpreted as hexadeci-
-     mal integer if it is preceded by 0x, otherwise it is a decimal floating-
-     point number; octal numbers are not supported.
+     cally, otherwise lexicographically.  A string is interpreted as a hexa-
+     decimal integer if it is preceded by 0x, otherwise it is interpreted as a
+     decimal floating-point number; octal numbers are not supported.
 
      All comparisons may use the operators `[1m==[22m' and `[1m!=[22m'.  Numeric comparisons
      may also use the operators `[1m<[22m', `[1m<=[22m', `[1m>[22m' and `[1m>=[22m'.
@@ -1358,16 +1365,15 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      any) is not zero.
 
      When [1mbmake [22mis evaluating one of these conditional expressions, and it en-
-     counters a (whitespace separated) word it doesn't recognize, either the
+     counters a (whitespace-separated) word it doesn't recognize, either the
      "make" or "defined" function is applied to it, depending on the form of
      the conditional.  If the form is `[1m.ifdef[22m', `[1m.ifndef[22m' or `[1m.if[22m', the
      "defined" function is applied.  Similarly, if the form is `[1m.ifmake[22m' or
      `[1m.ifnmake[22m', the "make" function is applied.
 
      If the conditional evaluates to true, parsing of the makefile continues
-     as before.  If it evaluates to false, the following lines are skipped.
-     In both cases, this continues until the corresponding `[1m.else[22m' or `[1m.endif[22m'
-     is found.
+     as before.  If it evaluates to false, the following lines until the cor-
+     responding `[1m.elif[22m' variant, `[1m.else[22m' or `[1m.endif[22m' are skipped.
 
    [1mFor loops[0m
      For loops are typically used to apply a set of rules to a list of files.
@@ -1753,4 +1759,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 13.0                     May 10, 2023                     FreeBSD 13.0
+FreeBSD 13.0                   September 9, 2023                  FreeBSD 13.0

@@ -1,18 +1,19 @@
-# $NetBSD: cond-func-empty.mk,v 1.20 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.22 2023/08/11 05:01:12 rillig Exp $
 #
 # Tests for the empty() function in .if conditions, which tests a variable
 # expression for emptiness.
 #
 # Note that the argument in the parentheses is a variable name, not a variable
-# expression, optionally followed by variable modifiers.
+# expression.  That name may be followed by ':...' modifiers.
 #
 
 .undef UNDEF
 EMPTY=	# empty
 SPACE=	${:U }
+ZERO=	0
 WORD=	word
 
-# An undefined variable is empty.
+# An undefined variable counts as empty.
 .if !empty(UNDEF)
 .  error
 .endif
@@ -78,6 +79,17 @@ WORD=	word
 .  error
 .endif
 
+# The variable ZERO has the numeric value 0, but is not empty.  This is a
+# subtle difference between using either 'empty(ZERO)' or the expression
+# '${ZERO}' in a condition.
+.if empty(ZERO)
+.  error
+.elif ${ZERO}
+.  error
+.elif ${ZERO} == ""
+.  error
+.endif
+
 # The following example constructs an expression with the variable name ""
 # and the value " ".  This expression counts as empty since the value contains
 # only whitespace.
@@ -101,7 +113,9 @@ ${:U }=	space
 .  error
 .endif
 
-# The value of the following expression is " word", which is not empty.
+# The value of the following expression is " word", which is not empty.  To be
+# empty, _all_ characters in the expression value have to be whitespace, not
+# only the first.
 .if empty(:U word)
 .  error
 .endif
@@ -128,15 +142,15 @@ ${:U }=	space
 # argument are properly parsed.  Typical use cases for this are .for loops,
 # which are expanded to exactly these ${:U} expressions.
 #
-# If everything goes well, the argument expands to "WORD", and that variable
-# is defined at the beginning of this file.  The surrounding 'W' and 'D'
-# ensure that CondParser_FuncCallEmpty keeps track of the parsing position,
-# both before and after the call to Var_Parse.
+# The argument expands to "WORD", and that variable is defined at the
+# beginning of this file.  The surrounding 'W' and 'D' ensure that
+# CondParser_FuncCallEmpty keeps track of the parsing position, both before
+# and after the call to Var_Parse.
 .if empty(W${:UOR}D)
 .  error
 .endif
 
-# There may be spaces at the outside of the parentheses.
+# There may be spaces outside the parentheses.
 # Spaces inside the parentheses are interpreted as part of the variable name.
 .if ! empty ( WORD )
 .  error
@@ -181,8 +195,8 @@ ${:U WORD }=	variable name with spaces
 # prevent it from doing any harm.
 #
 # The variable expression was expanded though, and this was wrong.  The
-# expansion was done without VARE_WANTRES (called VARF_WANTRES back
-# then) though.  This had the effect that the ${:U1} from the value of VARNAME
+# expansion was done without VARE_WANTRES (called VARF_WANTRES back then)
+# though.  This had the effect that the ${:U1} from the value of VARNAME
 # expanded to an empty string.  This in turn created the seemingly recursive
 # definition VARNAME=${VARNAME}, and that definition was never meant to be
 # expanded.

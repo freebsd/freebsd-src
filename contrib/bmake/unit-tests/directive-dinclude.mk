@@ -1,4 +1,4 @@
-# $NetBSD: directive-dinclude.mk,v 1.2 2022/01/23 21:48:59 rillig Exp $
+# $NetBSD: directive-dinclude.mk,v 1.3 2023/08/19 10:52:13 rillig Exp $
 #
 # Tests for the .dinclude directive, which includes another file,
 # silently skipping it if it cannot be opened.  This is primarily used for
@@ -16,7 +16,7 @@
 .dinclude "${MAKEFILE}/subdir"
 
 # Errors that are not related to opening the file are still reported.
-# expect: make: "directive-dinclude-error.inc" line 1: Invalid line type
+# expect: make: "directive-dinclude-error.inc" line 1: Invalid line 'syntax error'
 _!=	echo 'syntax error' > directive-dinclude-error.inc
 .dinclude "${.CURDIR}/directive-dinclude-error.inc"
 _!=	rm directive-dinclude-error.inc

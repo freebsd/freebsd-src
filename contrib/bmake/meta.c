@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.205 2023/03/28 14:39:31 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.206 2023/08/19 00:09:17 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -939,6 +939,13 @@ meta_ignore(GNode *gn, const char *p)
 	return true;
 
     if (*p == '/') {
+	/* first try the raw path "as is" */
+	if (has_any_prefix(p, &metaIgnorePaths)) {
+#ifdef DEBUG_META_MODE
+	    DEBUG1(META, "meta_oodate: ignoring path: %s\n", p);
+#endif
+	    return true;
+	}
 	cached_realpath(p, fname); /* clean it up */
 	if (has_any_prefix(fname, &metaIgnorePaths)) {
 #ifdef DEBUG_META_MODE

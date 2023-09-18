@@ -11,7 +11,7 @@ Var_Parse: ${:UVAR\(\(\(}=	try2 (eval-defined)
 Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
 Result of ${:UVAR\(\(\(} is "VAR\(\(\(" (eval-defined, defined)
 Global: .ALLTARGETS =  VAR(((=) VAR\(\(\(=
-make: "varname.mk" line 38: Invalid line type
+make: "varname.mk" line 38: Invalid line '${:UVAR\(\(\(}=	try2', expanded to 'VAR\(\(\(=	try2'
 Var_Parse: ${VARNAME} (eval)
 Global: VAR((( = try3
 Global: .MAKEFLAGS =  -r -k -d v -d

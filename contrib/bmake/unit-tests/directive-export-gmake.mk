@@ -1,4 +1,4 @@
-# $NetBSD: directive-export-gmake.mk,v 1.3 2020/11/17 20:16:44 rillig Exp $
+# $NetBSD: directive-export-gmake.mk,v 1.7 2023/08/20 20:48:32 rillig Exp $
 #
 # Tests for the export directive (without leading dot), as in GNU make.
 
@@ -60,5 +60,26 @@ export VAR=an ${UNDEF} variable
 .  error
 .endif
 
-all:
-	@:;
+
+# The body of the .for loop expands to 'export VAR=${:U1}', and the 'export'
+# directive is only recognized if the line does not contain a ':', to allow
+# 'export' to be a regular target.
+.for value in 1
+# XXX: The ':' in this line is inside an expression and should thus not be
+# interpreted as a dependency operator.
+# expect+1: Invalid line 'export VAR=${:U1}'
+export VAR=${value}
+.endfor
+
+
+# The 'export' directive expands expressions, but the expressions must not
+# contain a ':', due to the overly strict parser.  The indirect expressions
+# may contain a ':', though.
+#
+# As a side effect, this test demonstrates that the 'export' directive exports
+# the environment variable immediately, other than the '.export' directive,
+# which defers that action if the variable value contains a '$'.
+INDIRECT_TZ=	${:UAmerica/Los_Angeles}
+export TZ=${INDIRECT_TZ}
+# expect+1: 16:00:00
+.info ${%T:L:localtime=86400}

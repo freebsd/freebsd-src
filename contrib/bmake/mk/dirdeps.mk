@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.162 2023/05/15 17:37:46 sjg Exp $
+# $Id: dirdeps.mk,v 1.165 2023/08/19 17:35:32 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -155,7 +155,7 @@
 #	if any test fails, but without the risk of introducing
 #	circular dependencies.
 
-now_utc ?= ${%s:L:gmtime}
+now_utc ?= ${%s:L:localtime}
 .if !defined(start_utc)
 start_utc := ${now_utc}
 .endif
@@ -415,6 +415,8 @@ DIRDEPS_FILTER += M${_DEP_RELDIR}
 # this is what we run below
 DIRDEP_MAKE ?= ${.MAKE}
 DIRDEP_DIR ?= ${.TARGET:R}
+# we normally want the default target
+DIRDEP_TARGETS ?=
 
 # if you want us to report load averages during build
 # DIRDEP_USE_PRELUDE += ${DIRDEP_LOADAVG_REPORT};
@@ -442,7 +444,7 @@ _DIRDEP_USE:	.USE .MAKE
 		MACHINE_ARCH= NO_SUBDIR=1 ${DIRDEP_USE_ENV} \
 		TARGET_SPEC=${.TARGET:E} \
 		MACHINE=${.TARGET:E} \
-		${DIRDEP_MAKE} -C ${DIRDEP_DIR} || exit 1; \
+		${DIRDEP_MAKE} -C ${DIRDEP_DIR} ${DIRDEP_TARGETS} || exit 1; \
 		break; \
 	done
 
@@ -680,7 +682,7 @@ _build_dirs += ${_machines:@m@${_CURDIR}.$m@}
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: nDIRDEPS=${DIRDEPS:[#]}
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: DIRDEPS='${DIRDEPS}'
+.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: DIRDEPS=${DIRDEPS:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: _machines='${_machines}'
 .endif
 
@@ -712,9 +714,9 @@ __qual_depdirs += ${__hostdpadd}
 
 .if ${_debug_reldir}
 .info DEP_DIRDEPS_FILTER=${DEP_DIRDEPS_FILTER:ts:}
-.info depdirs=${__depdirs:S,^${SRCTOP}/,,}
-.info qualified=${__qual_depdirs:S,^${SRCTOP}/,,}
-.info unqualified=${__unqual_depdirs:S,^${SRCTOP}/,,}
+.info depdirs=${__depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
+.info qualified=${__qual_depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
+.info unqualified=${__unqual_depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 
 # _build_dirs is what we will feed to _DIRDEP_USE
@@ -726,14 +728,14 @@ _build_dirs += \
 
 # qualify everything now
 .if ${_debug_reldir}
-.info _build_dirs=${_build_dirs}
+.info _build_dirs=${_build_dirs:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 # make sure we do not mess with qualifying "host" entries
 _build_dirs := ${_build_dirs:M*.host*:${M_dep_qual_fixes.host:ts:}} \
 	${_build_dirs:N*.host*:${M_dep_qual_fixes:ts:}}
 _build_dirs := ${_build_dirs:O:u}
 .if ${_debug_reldir}
-.info _build_dirs=${_build_dirs}
+.info _build_dirs=${_build_dirs:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 
 .endif				# empty DIRDEPS
@@ -767,7 +769,7 @@ dirdeps: ${_build_all_dirs}
 ${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs:S,^${SRCTOP}/,,}
+.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 
 .if !empty(DIRDEPS_EXPORT_VARS) || !empty(DEP_EXPORT_VARS)

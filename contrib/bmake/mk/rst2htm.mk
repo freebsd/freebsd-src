@@ -1,4 +1,4 @@
-# $Id: rst2htm.mk,v 1.12 2021/05/26 04:20:31 sjg Exp $
+# $Id: rst2htm.mk,v 1.13 2023/09/13 18:55:42 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -16,11 +16,15 @@
 # convert reStructuredText to HTML, using rst2html.py from
 # docutils - http://docutils.sourceforge.net/
 
+# pickup customizations
+.-include <local.rst2htm.mk>
+
 .if empty(TXTSRCS)
 TXTSRCS != 'ls' -1t ${.CURDIR}/*.txt ${.CURDIR}/*.rst 2>/dev/null; echo
 .endif
 RSTSRCS ?= ${TXTSRCS}
 HTMFILES ?= ${RSTSRCS:R:T:O:u:%=%.htm}
+PDFFILES ?= ${RSTSRCS:R:T:O:u:%=%.pdf}
 # can be empty, 4 or 5
 HTML_VERSION ?= 
 RST2HTML ?= rst2html${HTML_VERSION}.py
@@ -37,7 +41,7 @@ RST2PDF_FLAGS ?= ${"${.TARGET:T:M*slides*}":?${RST2PDF_SLIDES_FLAGS}:${RST2PDF_D
 
 RST_SUFFIXES ?= .rst .txt
 
-CLEANFILES += ${HTMFILES}
+CLEANFILES += ${HTMFILES} ${PDFFILES}
 
 html:	${HTMFILES}
 

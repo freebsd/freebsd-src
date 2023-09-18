@@ -1,14 +1,12 @@
 #	$NetBSD: IRIX.sys.mk,v 1.2 2002/12/24 23:03:27 jschauma Exp $
 #	@(#)sys.mk	8.2 (Berkeley) 3/21/94
 
-.if ${.PARSEFILE} == "sys.mk"
 .ifndef ROOT_GROUP
-OS!=		uname -s
-ROOT_GROUP!=	sed -n /:0:/s/:.*//p /etc/group
-.MAKEOVERRIDES+= OS ROOT_GROUP
+OS !=		uname -s
+ROOT_GROUP !=	sed -n '/:0:/{s/:.*//p;q;}' /etc/group
+.export OS ROOT_GROUP
 .endif
 unix ?=		We run ${OS}.
-.endif
 
 .SUFFIXES: .out .a .ln .o .s .S .c ${CXX_SUFFIXES} .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4
@@ -56,11 +54,12 @@ LINK.F ?=	${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
 COMPILE.r ?=	${FC} ${FFLAGS} ${RFLAGS} -c
 LINK.r ?=	${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
 
-INSTALL ?=	${PREFIX}/bin/install-sh
+INSTALL_SH ?=	install-sh
+INSTALL =	${INSTALL_SH}
 
 LEX ?=		lex
 LFLAGS ?=
-LEX.l ?=		${LEX} ${LFLAGS}
+LEX.l ?=	${LEX} ${LFLAGS}
 
 LD ?=		ld
 LDFLAGS ?=

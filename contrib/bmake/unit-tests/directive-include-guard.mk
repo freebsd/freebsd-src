@@ -1,4 +1,4 @@
-# $NetBSD: directive-include-guard.mk,v 1.11 2023/06/21 21:21:52 sjg Exp $
+# $NetBSD: directive-include-guard.mk,v 1.12 2023/08/11 04:56:31 rillig Exp $
 #
 # Tests for multiple-inclusion guards in makefiles.
 #
@@ -112,9 +112,10 @@ LINES.variable-name-mismatch= \
 
 # The variable name '!VARNAME' cannot be used in an '.ifndef' directive, as
 # the '!' would be a negation.  It is syntactically valid in a '.if !defined'
-# condition, but ignored there.  Furthermore, when defining the variable, the
-# character '!' has to be escaped, to prevent it from being interpreted as the
-# '!' dependency operator.
+# condition, but this case is so uncommon that the guard mechanism doesn't
+# accept '!' in the guard variable name. Furthermore, when defining the
+# variable, the character '!' has to be escaped, to prevent it from being
+# interpreted as the '!' dependency operator.
 INCS+=	variable-name-exclamation
 LINES.variable-name-exclamation= \
 	'.if !defined(!VARIABLE_NAME_EXCLAMATION)' \
@@ -189,9 +190,9 @@ LINES.variable-if-indirect= \
 # expect: Parse_PushInput: file variable-if-indirect.tmp, line 1
 
 # The variable name in the guard condition must only contain alphanumeric
-# characters and underscores.  The guard variable is more flexible, it can be
-# defined anywhere, as long as it is defined at the point where the file is
-# included the next time.
+# characters and underscores.  The place where the guard variable is defined
+# is more flexible, as long as the variable is defined at the point where the
+# file is included the next time.
 INCS+=	variable-assign-indirect
 LINES.variable-assign-indirect= \
 	'.ifndef VARIABLE_ASSIGN_INDIRECT' \
@@ -254,9 +255,9 @@ UNDEF_BETWEEN.variable-defined-then-undefined= \
 # expect: Parse_PushInput: file variable-defined-then-undefined.tmp, line 1
 
 # The whole file content must be guarded by a single '.if' conditional, not by
-# several, even if they have the same effect.  This case is not expected to
-# occur in practice, as the two parts would rather be split into separate
-# files.
+# several, as each of these conditionals would require its separate guard.
+# This case is not expected to occur in practice, as the two parts would
+# rather be split into separate files.
 INCS+=	variable-two-times
 LINES.variable-two-times= \
 	'.ifndef VARIABLE_TWO_TIMES_1' \
@@ -324,46 +325,46 @@ LINES.variable-not-defined= \
 # expect: Parse_PushInput: file variable-not-defined.tmp, line 1
 
 # The outermost '.if' must not have an '.elif' branch.
-INCS+=	if-elif
-LINES.if-elif= \
-	'.ifndef IF_ELIF' \
-	'IF_ELIF=' \
+INCS+=	elif
+LINES.elif= \
+	'.ifndef ELIF' \
+	'ELIF=' \
 	'.elif 1' \
 	'.endif'
-# expect: Parse_PushInput: file if-elif.tmp, line 1
-# expect: Parse_PushInput: file if-elif.tmp, line 1
+# expect: Parse_PushInput: file elif.tmp, line 1
+# expect: Parse_PushInput: file elif.tmp, line 1
 
 # When a file with an '.if/.elif/.endif' conditional at the top level is
 # included, it is never optimized, as one of its branches is taken.
-INCS+=	if-elif-reuse
-LINES.if-elif-reuse= \
-	'.ifndef IF_ELIF' \
+INCS+=	elif-reuse
+LINES.elif-reuse= \
+	'.ifndef ELIF' \
 	'syntax error' \
 	'.elif 1' \
 	'.endif'
-# expect: Parse_PushInput: file if-elif-reuse.tmp, line 1
-# expect: Parse_PushInput: file if-elif-reuse.tmp, line 1
+# expect: Parse_PushInput: file elif-reuse.tmp, line 1
+# expect: Parse_PushInput: file elif-reuse.tmp, line 1
 
 # The outermost '.if' must not have an '.else' branch.
-INCS+=	if-else
-LINES.if-else= \
-	'.ifndef IF_ELSE' \
-	'IF_ELSE=' \
+INCS+=	else
+LINES.else= \
+	'.ifndef ELSE' \
+	'ELSE=' \
 	'.else' \
 	'.endif'
-# expect: Parse_PushInput: file if-else.tmp, line 1
-# expect: Parse_PushInput: file if-else.tmp, line 1
+# expect: Parse_PushInput: file else.tmp, line 1
+# expect: Parse_PushInput: file else.tmp, line 1
 
 # When a file with an '.if/.else/.endif' conditional at the top level is
 # included, it is never optimized, as one of its branches is taken.
-INCS+=	if-else-reuse
-LINES.if-else-reuse= \
-	'.ifndef IF_ELSE' \
+INCS+=	else-reuse
+LINES.else-reuse= \
+	'.ifndef ELSE' \
 	'syntax error' \
 	'.else' \
 	'.endif'
-# expect: Parse_PushInput: file if-else-reuse.tmp, line 1
-# expect: Parse_PushInput: file if-else-reuse.tmp, line 1
+# expect: Parse_PushInput: file else-reuse.tmp, line 1
+# expect: Parse_PushInput: file else-reuse.tmp, line 1
 
 # The inner '.if' directives may have an '.elif' or '.else', and it doesn't
 # matter which of their branches are taken.
@@ -451,17 +452,17 @@ LINES.target-indirect-PARSEFILE2= \
 
 # Using plain .PARSEFILE without .PARSEDIR leads to name clashes.  The include
 # guard is the same as in the test case 'target-indirect-PARSEFILE', as the
-# guard name only contains the basename but not the directory name.
+# guard name only contains the basename but not the directory name.  So even
+# without defining the guard variable, the file is considered guarded.
 INCS+=	subdir/target-indirect-PARSEFILE
 LINES.subdir/target-indirect-PARSEFILE= \
 	'.if !target(__$${.PARSEFILE}__)' \
-	'__$${.PARSEFILE}__: .NOTMAIN' \
 	'.endif'
 # expect: Parse_PushInput: file subdir/target-indirect-PARSEFILE.tmp, line 1
 # expect: Skipping 'subdir/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
 
 # Another common form of guard target is __${.PARSEDIR}/${.PARSEFILE}__
-# or __${.PARSEDIR:tA}/${.PARSEFILE}__ to be truely unique.
+# or __${.PARSEDIR:tA}/${.PARSEFILE}__ to be truly unique.
 INCS+=	target-indirect-PARSEDIR-PARSEFILE
 LINES.target-indirect-PARSEDIR-PARSEFILE= \
 	'.if !target(__$${.PARSEDIR}/$${.PARSEFILE}__)' \
@@ -503,7 +504,7 @@ LINES.target-plus= \
 # expect: Parse_PushInput: file target-plus.tmp, line 1
 
 # If the guard target is defined before the file is included the first time,
-# the file is not considered guarded.
+# the file is read once and then considered guarded.
 INCS+=	target-already-defined
 LINES.target-already-defined= \
 	'.if !target(target-already-defined)' \
@@ -529,6 +530,7 @@ LINES.target-name-exclamation= \
 	'.endif'
 # expect: Parse_PushInput: file target-name-exclamation.tmp, line 1
 # expect: Parse_PushInput: file target-name-exclamation.tmp, line 1
+
 
 # Now run all test cases by including each of the files twice and looking at
 # the debug output.  The files that properly guard against multiple inclusion

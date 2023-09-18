@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.593 2023/03/28 14:39:31 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.599 2023/09/10 21:52:36 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.593 2023/03/28 14:39:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.599 2023/09/10 21:52:36 rillig Exp $");
 #if defined(MAKE_NATIVE) && !defined(lint)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -399,21 +399,44 @@ MainParseArgJobsInternal(const char *argvalue)
 }
 
 static void
-MainParseArgJobs(const char *argvalue)
+MainParseArgJobs(const char *arg)
 {
-	char *p;
+	const char *p;
+	char *end;
+	char v[12];
 
 	forceJobs = true;
-	opts.maxJobs = (int)strtol(argvalue, &p, 0);
+	opts.maxJobs = (int)strtol(arg, &end, 0);
+	p = arg + (end - arg);
+#ifdef _SC_NPROCESSORS_ONLN
+	if (*p != '\0') {
+		double d;
+
+		if (*p == 'C') {
+			d = (opts.maxJobs > 0) ? opts.maxJobs : 1;
+		} else if (*p == '.') {
+			d = strtod(arg, &end);
+			p = arg + (end - arg);
+		} else
+			d = 0;
+		if (d > 0) {
+			p = "";
+			opts.maxJobs = (int)sysconf(_SC_NPROCESSORS_ONLN);
+			opts.maxJobs = (int)(d * (double)opts.maxJobs);
+		}
+	}
+#endif
 	if (*p != '\0' || opts.maxJobs < 1) {
 		(void)fprintf(stderr,
-		    "%s: illegal argument to -j -- must be positive integer!\n",
-		    progname);
+		    "%s: argument '%s' to option '-j' "
+		    "must be a positive number\n",
+		    progname, arg);
 		exit(2);	/* Not 1 so -q can distinguish error */
 	}
+	snprintf(v, sizeof(v), "%d", opts.maxJobs);
 	Global_Append(MAKEFLAGS, "-j");
-	Global_Append(MAKEFLAGS, argvalue);
-	Global_Set(".MAKE.JOBS", argvalue);
+	Global_Append(MAKEFLAGS, v);
+	Global_Set(".MAKE.JOBS", v);
 	maxJobTokens = opts.maxJobs;
 }
 
@@ -1386,6 +1409,12 @@ main_Init(int argc, char **argv)
 #endif
 	Global_Set(".MAKE.MAKEFILE_PREFERENCE", MAKEFILE_PREFERENCE_LIST);
 	Global_Set(".MAKE.DEPENDFILE", ".depend");
+	/* Tell makefiles like jobs.mk whether we support -jC */
+#ifdef _SC_NPROCESSORS_ONLN
+	Global_Set_ReadOnly(".MAKE.JOBS.C", "yes");
+#else
+	Global_Set_ReadOnly(".MAKE.JOBS.C", "no");
+#endif
 
 	CmdOpts_Init();
 	allPrecious = false;	/* Remove targets when interrupted */

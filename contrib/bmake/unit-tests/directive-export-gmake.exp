@@ -1,1 +1,5 @@
-exit status 0
+make: "directive-export-gmake.mk" line 71: Invalid line 'export VAR=${:U1}', expanded to 'export VAR=1'
+make: "directive-export-gmake.mk" line 85: 16:00:00
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
