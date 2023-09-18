@@ -131,6 +131,8 @@ The default is the mount point's mode.
 Do not use namecache to resolve names to files for the created mount.
 This saves memory, but currently might impair scalability for highly
 used mounts on large machines.
+.It Cm pgread
+Enable pgcache read for the mount.
 .It Cm size
 Set the total file system size in bytes, unless suffixed
 with one of k, m, g, t, or p, which denote byte, kilobyte,
