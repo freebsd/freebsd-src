@@ -63,7 +63,6 @@ METHOD bool with_feature {
 
 METHOD int alloc_virtqueues {
 	device_t	dev;
-	int		flags;
 	int		nvqs;
 	struct vq_alloc_info *info;
 };

@@ -265,7 +265,7 @@ vtrnd_alloc_virtqueue(struct vtrnd_softc *sc)
 	VQ_ALLOC_INFO_INIT(&vq_info, 0, NULL, sc, &sc->vtrnd_vq,
 	    "%s request", device_get_nameunit(dev));
 
-	return (virtio_alloc_virtqueues(dev, 0, 1, &vq_info));
+	return (virtio_alloc_virtqueues(dev, 1, &vq_info));
 }
 
 static void
