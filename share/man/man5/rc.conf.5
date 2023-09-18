@@ -250,6 +250,11 @@ such as PostgreSQL will not inherit the OOM killer protection.
 .Pp
 This variable has no effect on services running within a
 .Xr jail 8 .
+.It Ao Ar name Ac Ns Va _setup
+.Pq Vt str
+Run the specified setup script right before starting the actual service
+command.
+Useful for automatic configuration file generation.
 .It Ao Ar name Ac Ns Va _umask
 .Pq Vt int
 Run the service using this
