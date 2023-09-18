@@ -47,6 +47,9 @@ struct cpu_quirks {
 	cpu_quirk_install *quirk_install;
 	u_int		midr_mask;
 	u_int		midr_value;
+#define	CPU_QUIRK_POST_DEVICE	(1 << 0)	/* After device attach */
+						/* e.g. needs SMCCC */
+	u_int		flags;
 };
 
 static enum {
@@ -64,32 +67,38 @@ static struct cpu_quirks cpu_quirks[] = {
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A57,0,0),
 		.quirk_install = install_psci_bp_hardening,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A72,0,0),
 		.quirk_install = install_psci_bp_hardening,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A73,0,0),
 		.quirk_install = install_psci_bp_hardening,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
 		.quirk_install = install_psci_bp_hardening,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value =
 		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0,0),
 		.quirk_install = install_psci_bp_hardening,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = 0,
 		.midr_value = 0,
 		.quirk_install = install_ssbd_workaround,
+		.flags = CPU_QUIRK_POST_DEVICE,
 	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
@@ -173,8 +182,8 @@ install_thunderx_bcast_tlbi_workaround(void)
 	}
 }
 
-void
-install_cpu_errata(void)
+static void
+install_cpu_errata_flags(u_int mask, u_int flags)
 {
 	u_int midr;
 	size_t i;
@@ -183,8 +192,43 @@ install_cpu_errata(void)
 
 	for (i = 0; i < nitems(cpu_quirks); i++) {
 		if ((midr & cpu_quirks[i].midr_mask) ==
-		    cpu_quirks[i].midr_value) {
+		    cpu_quirks[i].midr_value &&
+		    (cpu_quirks[i].flags & mask) == flags) {
 			cpu_quirks[i].quirk_install();
 		}
 	}
 }
+
+/*
+ * Install any CPU errata we need. On CPU 0 we only install the errata that
+ * don't depend on device drivers as this is called early in the boot process.
+ * On other CPUs the device drivers have already attached so install all
+ * applicable errata.
+ */
+void
+install_cpu_errata(void)
+{
+	/*
+	 * Only install early CPU errata on CPU 0, device drivers may not
+	 * have attached and some workarounds depend on them, e.g. to query
+	 * SMCCC.
+	 */
+	if (PCPU_GET(cpuid) == 0) {
+		install_cpu_errata_flags(CPU_QUIRK_POST_DEVICE, 0);
+	} else {
+		install_cpu_errata_flags(0, 0);
+	}
+}
+
+/*
+ * Install any errata workarounds that depend on device drivers, e.g. use
+ * SMCCC to install a workaround.
+ */
+static void
+install_cpu_errata_late(void *dummy __unused)
+{
+	MPASS(PCPU_GET(cpuid) == 0);
+	install_cpu_errata_flags(CPU_QUIRK_POST_DEVICE, CPU_QUIRK_POST_DEVICE);
+}
+SYSINIT(install_cpu_errata_late, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
+    install_cpu_errata_late, NULL);
