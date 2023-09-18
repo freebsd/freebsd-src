@@ -1,5 +1,5 @@
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.24 2020/12/11 18:15:43 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.25 2023/05/11 05:07:28 sjg Exp $
 #
 #       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
@@ -113,16 +113,17 @@ tqtdeps := ${DIRDEPS_TARGETS_MACHINE_LIST:@m@${tdeps:M*.$m,*}@:S,/${.MAKE.DEPEND
 .endif
 
 # now work out what we want in DIRDEPS
+DIRDEPS = ${ptdeps}
 .if empty(REQUESTED_MACHINE)
 # we want them all just as found
-DIRDEPS = ${ptdeps} ${mqtdeps} ${tqtdeps}
+DIRDEPS += ${mqtdeps} ${tqtdeps}
 .else
 # we only want those that match REQUESTED_MACHINE/REQUESTED_TARGET_SPEC
 # or REQUESTED_TARGET_SPEC (TARGET_SPEC)
-DIRDEPS = \
-	${ptdeps:@d@$d.${REQUESTED_TARGET_SPEC:U${TARGET_SPEC:U${REQUESTED_MACHINE}}}@} \
+DIRDEPS += \
 	${mqtdeps:M*.${REQUESTED_MACHINE}} \
-	${tqtdeps:M*.${REQUESTED_TARGET_SPEC:U${TARGET_SPEC}}}
+	${tqtdeps:M*.${REQUESTED_TARGET_SPEC:U${TARGET_SPEC}}} \
+
 .endif
 # clean up
 DIRDEPS := ${DIRDEPS:O:u}

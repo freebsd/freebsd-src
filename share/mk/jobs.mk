@@ -1,4 +1,4 @@
-# $Id: jobs.mk,v 1.9 2023/04/27 18:10:27 sjg Exp $
+# $Id: jobs.mk,v 1.14 2023/09/11 16:52:44 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -29,11 +29,14 @@
 #
 #	${MAKE} -j${JOB_MAX} target > ${JOB_LOGDIR}/target.log 2>&1
 #
-# JOB_MAX defaults to 8 but should normally be derrived based on the
-# number of cpus available.  The wrapper script 'mk' makes that easy.
+# JOB_MAX should be something like 1.2 - 1.5 times the number of
+# available CPUs.
+# If bmake sets .MAKE.JOBS.C=yes we can use -jC and
+# JOB_MAX defaults to JOB_MAX_C (default 1.33C).
+# Otherwise we use 8.
 #
 
-now_utc ?= ${%s:L:gmtime}
+now_utc ?= ${%s:L:localtime}
 .if !defined(start_utc)
 start_utc := ${now_utc}
 .endif
@@ -70,14 +73,19 @@ NEWLOG = :
 .endif
 
 .if ${.MAKE.JOBS:U0} > 0
-JOB_MAX= ${.MAKE.JOBS}
+JOB_MAX = ${.MAKE.JOBS}
 .else
 # This should be derrived from number of cpu's
-JOB_MAX?= 8
-JOB_ARGS+= -j${JOB_MAX}
+.if ${.MAKE.JOBS.C:Uno} == "yes"
+# 1.2 - 1.5 times nCPU works well on most machines that support -jC
+JOB_MAX_C ?= 1.33C
+JOB_MAX ?= ${JOB_MAX_C}
+.endif
+JOB_MAX ?= 8
+JOB_ARGS += -j${JOB_MAX}
 .endif
 
-# we need to reset .MAKE.LEVEL to 0 do that
+# we need to reset .MAKE.LEVEL to 0 so that
 # build orchestration works as expected (DIRDEPS_BUILD)
 ${.TARGETS:M*-jobs}:
 	@${NEWLOG} ${JOB_NEWLOG_ARGS} ${JOB_LOG}
