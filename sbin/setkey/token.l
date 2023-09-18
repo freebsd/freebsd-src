@@ -188,6 +188,7 @@ nocyclic-seq	{ return(NOCYCLICSEQ); }
 {hyphen}natt	{ return(F_NATT); }
 {hyphen}natt_mtu { return(F_NATT_MTU); }
 {hyphen}esn	{ return(F_ESN); }
+{hyphen}hwif	{ return(F_HWIF); }
 
 	/* ... */
 any		{ return(ANY); }
