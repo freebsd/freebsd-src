@@ -519,7 +519,9 @@ found:
 		return NULL;
 	}
 
-	pthread_spin_init(&dev->lock, PTHREAD_PROCESS_PRIVATE);
+	if (pthread_spin_init(&dev->lock, PTHREAD_PROCESS_PRIVATE))
+		goto err;
+
 	dev->ibv_dev.ops = &c4iw_dev_ops;
 	dev->chip_version = CHELSIO_CHIP_VERSION(hca_table[i].device >> 8);
 	dev->abi_version = abi_version;
@@ -554,6 +556,11 @@ found:
 }
 
 	return &dev->ibv_dev;
+
+err:
+	free(dev);
+
+	return NULL;
 }
 
 static __attribute__((constructor)) void cxgb4_register_driver(void)

@@ -517,14 +517,23 @@ struct ibv_cq_ex *mlx5dv_create_cq(struct ibv_context *context,
 				      struct mlx5dv_cq_init_attr *mlx5_cq_attr)
 {
 	struct ibv_cq_ex *cq;
+	int err = 0;
 
 	cq = create_cq(context, cq_attr, MLX5_CQ_FLAGS_EXTENDED, mlx5_cq_attr);
 	if (!cq)
 		return NULL;
 
-	verbs_init_cq(ibv_cq_ex_to_cq(cq), context,
+	err = verbs_init_cq(ibv_cq_ex_to_cq(cq), context,
 		      cq_attr->channel, cq_attr->cq_context);
+	if (err)
+		goto err;
+
 	return cq;
+
+err:
+	context->ops.destroy_cq(ibv_cq_ex_to_cq(cq));
+
+	return NULL;
 }
 
 int mlx5_resize_cq(struct ibv_cq *ibcq, int cqe)
@@ -598,13 +607,16 @@ out:
 int mlx5_destroy_cq(struct ibv_cq *cq)
 {
 	int ret;
+	struct mlx5_cq *mcq = to_mcq(cq);
 
 	ret = ibv_cmd_destroy_cq(cq);
 	if (ret)
 		return ret;
 
+	verbs_cleanup_cq(cq);
 	mlx5_free_db(to_mctx(cq->context), to_mcq(cq)->dbrec);
 	mlx5_free_cq_buf(to_mctx(cq->context), to_mcq(cq)->active_buf);
+	mlx5_spinlock_destroy(&mcq->lock);
 	free(to_mcq(cq));
 
 	return 0;
@@ -639,7 +651,7 @@ struct ibv_srq *mlx5_create_srq(struct ibv_pd *pd,
 		fprintf(stderr, "%s-%d:max_wr %d, max_srq_recv_wr %d\n", __func__, __LINE__,
 			attr->attr.max_wr, ctx->max_srq_recv_wr);
 		errno = EINVAL;
-		goto err;
+		goto err_spl;
 	}
 
 	/*
@@ -652,7 +664,7 @@ struct ibv_srq *mlx5_create_srq(struct ibv_pd *pd,
 		fprintf(stderr, "%s-%d:max_wr %d, max_srq_recv_wr %d\n", __func__, __LINE__,
 			attr->attr.max_wr, ctx->max_srq_recv_wr);
 		errno = EINVAL;
-		goto err;
+		goto err_spl;
 	}
 
 	srq->max     = align_queue_size(attr->attr.max_wr + 1);
@@ -661,7 +673,7 @@ struct ibv_srq *mlx5_create_srq(struct ibv_pd *pd,
 
 	if (mlx5_alloc_srq_buf(pd->context, srq)) {
 		fprintf(stderr, "%s-%d:\n", __func__, __LINE__);
-		goto err;
+		goto err_spl;
 	}
 
 	srq->db = mlx5_alloc_dbrec(to_mctx(pd->context));
@@ -708,6 +720,9 @@ err_free:
 	free(srq->wrid);
 	mlx5_free_buf(&srq->buf);
 
+err_spl:
+	mlx5_spinlock_destroy(&srq->lock);
+
 err:
 	free(srq);
 
@@ -749,6 +764,7 @@ int mlx5_destroy_srq(struct ibv_srq *srq)
 	mlx5_free_db(ctx, msrq->db);
 	mlx5_free_buf(&msrq->buf);
 	free(msrq->wrid);
+	mlx5_spinlock_destroy(&msrq->lock);
 	free(msrq);
 
 	return 0;
@@ -1306,14 +1322,16 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
 
 	mlx5_init_qp_indices(qp);
 
-	if (mlx5_spinlock_init(&qp->sq.lock) ||
-	    mlx5_spinlock_init(&qp->rq.lock))
+	if (mlx5_spinlock_init(&qp->sq.lock))
 		goto err_free_qp_buf;
+
+	if (mlx5_spinlock_init(&qp->rq.lock))
+		goto err_sq_spl;
 
 	qp->db = mlx5_alloc_dbrec(ctx);
 	if (!qp->db) {
 		mlx5_dbg(fp, MLX5_DBG_QP, "\n");
-		goto err_free_qp_buf;
+		goto err_rq_spl;
 	}
 
 	qp->db[MLX5_RCV_DBR] = 0;
@@ -1397,6 +1415,12 @@ err_free_uidx:
 
 err_rq_db:
 	mlx5_free_db(to_mctx(context), qp->db);
+
+err_rq_spl:
+	mlx5_spinlock_destroy(&qp->rq.lock);
+
+err_sq_spl:
+	mlx5_spinlock_destroy(&qp->sq.lock);
 
 err_free_qp_buf:
 	mlx5_free_qp_buf(qp);
@@ -1510,6 +1534,8 @@ int mlx5_destroy_qp(struct ibv_qp *ibqp)
 		mlx5_clear_uidx(ctx, qp->rsc.rsn);
 
 	mlx5_free_db(ctx, qp->db);
+	mlx5_spinlock_destroy(&qp->rq.lock);
+	mlx5_spinlock_destroy(&qp->sq.lock);
 	mlx5_free_qp_buf(qp);
 free:
 	free(qp);
@@ -1823,7 +1849,7 @@ mlx5_create_xrc_srq(struct ibv_context *context,
 			__func__, __LINE__, attr->attr.max_wr,
 			ctx->max_srq_recv_wr);
 		errno = EINVAL;
-		goto err;
+		goto err_spl;
 	}
 
 	/*
@@ -1837,7 +1863,7 @@ mlx5_create_xrc_srq(struct ibv_context *context,
 			__func__, __LINE__, attr->attr.max_wr,
 			ctx->max_srq_recv_wr);
 		errno = EINVAL;
-		goto err;
+		goto err_spl;
 	}
 
 	msrq->max     = align_queue_size(attr->attr.max_wr + 1);
@@ -1846,7 +1872,7 @@ mlx5_create_xrc_srq(struct ibv_context *context,
 
 	if (mlx5_alloc_srq_buf(context, msrq)) {
 		fprintf(stderr, "%s-%d:\n", __func__, __LINE__);
-		goto err;
+		goto err_spl;
 	}
 
 	msrq->db = mlx5_alloc_dbrec(ctx);
@@ -1911,6 +1937,9 @@ err_free_db:
 err_free:
 	free(msrq->wrid);
 	mlx5_free_buf(&msrq->buf);
+
+err_spl:
+	mlx5_spinlock_destroy(&msrq->lock);
 
 err:
 	free(msrq);
@@ -2058,9 +2087,13 @@ struct ibv_wq *mlx5_create_wq(struct ibv_context *context,
 		goto err;
 	}
 
+	ret = ibv_init_wq(&rwq->wq);
+	if (ret < 0)
+		goto err;
+
 	rwq->buf_size = ret;
 	if (mlx5_alloc_rwq_buf(context, rwq, ret))
-		goto err;
+		goto err_cleanup_wq;
 
 	mlx5_init_rwq_indices(rwq);
 
@@ -2069,7 +2102,7 @@ struct ibv_wq *mlx5_create_wq(struct ibv_context *context,
 
 	rwq->db = mlx5_alloc_dbrec(ctx);
 	if (!rwq->db)
-		goto err_free_rwq_buf;
+		goto err_spl;
 
 	rwq->db[MLX5_RCV_DBR] = 0;
 	rwq->db[MLX5_SND_DBR] = 0;
@@ -2104,8 +2137,12 @@ err_create:
 	mlx5_clear_uidx(ctx, cmd.drv.user_index);
 err_free_db_rec:
 	mlx5_free_db(to_mctx(context), rwq->db);
+err_spl:
+	mlx5_spinlock_destroy(&rwq->rq.lock);
 err_free_rwq_buf:
 	mlx5_free_rwq_buf(rwq, context);
+err_cleanup_wq:
+	ibv_cleanup_wq(&rwq->wq);
 err:
 	free(rwq);
 	return NULL;
@@ -2150,7 +2187,9 @@ int mlx5_destroy_wq(struct ibv_wq *wq)
 	mlx5_spin_unlock(&to_mcq(wq->cq)->lock);
 	mlx5_clear_uidx(to_mctx(wq->context), rwq->rsc.rsn);
 	mlx5_free_db(to_mctx(wq->context), rwq->db);
+	mlx5_spinlock_destroy(&rwq->rq.lock);
 	mlx5_free_rwq_buf(rwq, wq->context);
+	ibv_cleanup_wq(&rwq->wq);
 	free(rwq);
 
 	return 0;

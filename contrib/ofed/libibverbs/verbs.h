@@ -2166,11 +2166,8 @@ static inline struct ibv_wq *ibv_create_wq(struct ibv_context *context,
 	}
 
 	wq = vctx->create_wq(context, wq_init_attr);
-	if (wq) {
+	if (wq)
 		wq->events_completed = 0;
-		pthread_mutex_init(&wq->mutex, NULL);
-		pthread_cond_init(&wq->cond, NULL);
-	}
 
 	return wq;
 }

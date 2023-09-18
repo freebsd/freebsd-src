@@ -190,7 +190,9 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 		PDBG("%s c4iw_create_cq_resp reserved field modified by kernel\n",
 		     __FUNCTION__);
 
-	pthread_spin_init(&chp->lock, PTHREAD_PROCESS_PRIVATE);
+	ret = pthread_spin_init(&chp->lock, PTHREAD_PROCESS_PRIVATE);
+	if (ret)
+		goto err2;
 #ifdef STALL_DETECTION
 	gettimeofday(&chp->time, NULL);
 #endif
@@ -203,12 +205,12 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 	chp->cq.queue = mmap(NULL, chp->cq.memsize, PROT_READ|PROT_WRITE,
 			     MAP_SHARED, context->cmd_fd, resp.key);
 	if (chp->cq.queue == MAP_FAILED)
-		goto err2;
+		goto err3;
 
 	chp->cq.ugts = mmap(NULL, c4iw_page_size, PROT_WRITE, MAP_SHARED,
 			   context->cmd_fd, resp.gts_key);
 	if (chp->cq.ugts == MAP_FAILED)
-		goto err3;
+		goto err4;
 
 	if (dev_is_t4(chp->rhp))
 		chp->cq.ugts += 1;
@@ -216,7 +218,7 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 		chp->cq.ugts += 5;
 	chp->cq.sw_queue = calloc(chp->cq.size, sizeof *chp->cq.queue);
 	if (!chp->cq.sw_queue)
-		goto err4;
+		goto err5;
 
 	PDBG("%s cqid 0x%x key %" PRIx64 " va %p memsize %lu gts_key %"
 	       PRIx64 " va %p qid_mask 0x%x\n",
@@ -228,10 +230,12 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 	pthread_spin_unlock(&dev->lock);
 	INC_STAT(cq);
 	return &chp->ibv_cq;
-err4:
+err5:
 	munmap(MASKED(chp->cq.ugts), c4iw_page_size);
-err3:
+err4:
 	munmap(chp->cq.queue, chp->cq.memsize);
+err3:
+	pthread_spin_destroy(&chp->lock);
 err2:
 	(void)ibv_cmd_destroy_cq(&chp->ibv_cq);
 err1:
@@ -265,6 +269,7 @@ int c4iw_destroy_cq(struct ibv_cq *ibcq)
 	if (ret) {
 		return ret;
 	}
+	verbs_cleanup_cq(ibcq);
 	munmap(MASKED(chp->cq.ugts), c4iw_page_size);
 	munmap(chp->cq.queue, chp->cq.memsize);
 
@@ -273,6 +278,7 @@ int c4iw_destroy_cq(struct ibv_cq *ibcq)
 	pthread_spin_unlock(&dev->lock);
 
 	free(chp->cq.sw_queue);
+	pthread_spin_destroy(&chp->lock);
 	free(chp);
 	return 0;
 }
@@ -337,38 +343,40 @@ static struct ibv_qp *create_qp_v0(struct ibv_pd *pd,
 	qhp->wq.rq.qid = resp.rqid;
 	qhp->wq.rq.size = resp.rq_size;
 	qhp->wq.rq.memsize = resp.rq_memsize;
-	pthread_spin_init(&qhp->lock, PTHREAD_PROCESS_PRIVATE);
+	ret = pthread_spin_init(&qhp->lock, PTHREAD_PROCESS_PRIVATE);
+	if (ret)
+		goto err3;
 
 	dbva = mmap(NULL, c4iw_page_size, PROT_WRITE, MAP_SHARED,
 		    pd->context->cmd_fd, resp.sq_db_gts_key);
 	if (dbva == MAP_FAILED)
-		goto err3;
+		goto err4;
 
 	qhp->wq.sq.udb = dbva;
 	qhp->wq.sq.queue = mmap(NULL, qhp->wq.sq.memsize,
 			    PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.sq_key);
 	if (qhp->wq.sq.queue == MAP_FAILED)
-		goto err4;
+		goto err5;
 
 	dbva = mmap(NULL, c4iw_page_size, PROT_WRITE, MAP_SHARED,
 		    pd->context->cmd_fd, resp.rq_db_gts_key);
 	if (dbva == MAP_FAILED)
-		goto err5;
+		goto err6;
 	qhp->wq.rq.udb = dbva;
 	qhp->wq.rq.queue = mmap(NULL, qhp->wq.rq.memsize,
 			    PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.rq_key);
 	if (qhp->wq.rq.queue == MAP_FAILED)
-		goto err6;
+		goto err7;
 
 	qhp->wq.sq.sw_sq = calloc(qhp->wq.sq.size, sizeof (struct t4_swsqe));
 	if (!qhp->wq.sq.sw_sq)
-		goto err7;
+		goto err8;
 
 	qhp->wq.rq.sw_rq = calloc(qhp->wq.rq.size, sizeof (uint64_t));
 	if (!qhp->wq.rq.sw_rq)
-		goto err8;
+		goto err9;
 
 	PDBG("%s sq dbva %p sq qva %p sq depth %u sq memsize %lu "
 	       " rq dbva %p rq qva %p rq depth %u rq memsize %lu\n",
@@ -385,16 +393,18 @@ static struct ibv_qp *create_qp_v0(struct ibv_pd *pd,
 	pthread_spin_unlock(&dev->lock);
 	INC_STAT(qp);
 	return &qhp->ibv_qp;
-err8:
+err9:
 	free(qhp->wq.sq.sw_sq);
-err7:
+err8:
 	munmap((void *)qhp->wq.rq.queue, qhp->wq.rq.memsize);
-err6:
+err7:
 	munmap(MASKED(qhp->wq.rq.udb), c4iw_page_size);
-err5:
+err6:
 	munmap((void *)qhp->wq.sq.queue, qhp->wq.sq.memsize);
-err4:
+err5:
 	munmap(MASKED(qhp->wq.sq.udb), c4iw_page_size);
+err4:
+	pthread_spin_destroy(&qhp->lock);
 err3:
 	(void)ibv_cmd_destroy_qp(&qhp->ibv_qp);
 err2:
@@ -448,12 +458,14 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 		fprintf(stderr, "libcxgb4 warning - downlevel iw_cxgb4 driver. "
 			"MA workaround disabled.\n");
 	}
-	pthread_spin_init(&qhp->lock, PTHREAD_PROCESS_PRIVATE);
+	ret = pthread_spin_init(&qhp->lock, PTHREAD_PROCESS_PRIVATE);
+	if (ret)
+		goto err3;
 
 	dbva = mmap(NULL, c4iw_page_size, PROT_WRITE, MAP_SHARED,
 		    pd->context->cmd_fd, resp.sq_db_gts_key);
 	if (dbva == MAP_FAILED)
-		goto err3;
+		goto err4;
 	qhp->wq.sq.udb = dbva;
 	if (!dev_is_t4(qhp->rhp)) {
 		unsigned long segment_offset = 128 * (qhp->wq.sq.qid &
@@ -471,12 +483,12 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 			    PROT_READ|PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.sq_key);
 	if (qhp->wq.sq.queue == MAP_FAILED)
-		goto err4;
+		goto err5;
 
 	dbva = mmap(NULL, c4iw_page_size, PROT_WRITE, MAP_SHARED,
 		    pd->context->cmd_fd, resp.rq_db_gts_key);
 	if (dbva == MAP_FAILED)
-		goto err5;
+		goto err6;
 	qhp->wq.rq.udb = dbva;
 	if (!dev_is_t4(qhp->rhp)) {
 		unsigned long segment_offset = 128 * (qhp->wq.rq.qid &
@@ -493,22 +505,22 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 			    PROT_READ|PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.rq_key);
 	if (qhp->wq.rq.queue == MAP_FAILED)
-		goto err6;
+		goto err7;
 
 	qhp->wq.sq.sw_sq = calloc(qhp->wq.sq.size, sizeof (struct t4_swsqe));
 	if (!qhp->wq.sq.sw_sq)
-		goto err7;
+		goto err8;
 
 	qhp->wq.rq.sw_rq = calloc(qhp->wq.rq.size, sizeof (uint64_t));
 	if (!qhp->wq.rq.sw_rq)
-		goto err8;
+		goto err9;
 
 	if (t4_sq_onchip(&qhp->wq)) {
 		qhp->wq.sq.ma_sync = mmap(NULL, c4iw_page_size, PROT_WRITE,
 					  MAP_SHARED, pd->context->cmd_fd,
 					  resp.ma_sync_key);
 		if (qhp->wq.sq.ma_sync == MAP_FAILED)
-			goto err9;
+			goto err10;
 		qhp->wq.sq.ma_sync += (A_PCIE_MA_SYNC & (c4iw_page_size - 1));
 	}
 
@@ -534,18 +546,20 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 	pthread_spin_unlock(&dev->lock);
 	INC_STAT(qp);
 	return &qhp->ibv_qp;
-err9:
+err10:
 	free(qhp->wq.rq.sw_rq);
-err8:
+err9:
 	free(qhp->wq.sq.sw_sq);
-err7:
+err8:
 	munmap((void *)qhp->wq.rq.queue, qhp->wq.rq.memsize);
-err6:
+err7:
 	munmap(MASKED(qhp->wq.rq.udb), c4iw_page_size);
-err5:
+err6:
 	munmap((void *)qhp->wq.sq.queue, qhp->wq.sq.memsize);
-err4:
+err5:
 	munmap(MASKED(qhp->wq.sq.udb), c4iw_page_size);
+err4:
+	pthread_spin_destroy(&qhp->lock);
 err3:
 	(void)ibv_cmd_destroy_qp(&qhp->ibv_qp);
 err2:
@@ -625,6 +639,7 @@ int c4iw_destroy_qp(struct ibv_qp *ibqp)
 
 	free(qhp->wq.rq.sw_rq);
 	free(qhp->wq.sq.sw_sq);
+	pthread_spin_destroy(&qhp->lock);
 	free(qhp);
 	return 0;
 }

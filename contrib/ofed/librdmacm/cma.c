@@ -502,7 +502,8 @@ static struct cma_id_private *ucma_alloc_id(struct rdma_event_channel *channel,
 		id_priv->id.channel = channel;
 	}
 
-	pthread_mutex_init(&id_priv->mut, NULL);
+	if (pthread_mutex_init(&id_priv->mut, NULL))
+		goto err;
 	if (pthread_cond_init(&id_priv->cond, NULL))
 		goto err;
 

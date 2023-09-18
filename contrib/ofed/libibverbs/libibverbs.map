@@ -136,4 +136,7 @@ IBVERBS_PRIVATE_14 {
 		ibv_query_gid_type;
 		verbs_register_driver;
 		verbs_init_cq;
+		verbs_cleanup_cq;
+		ibv_init_wq;
+		ibv_cleanup_wq;
 };
