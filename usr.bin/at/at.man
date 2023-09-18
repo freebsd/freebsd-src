@@ -1,4 +1,4 @@
-.Dd August 11, 2018
+.Dd September 18, 2023
 .Dt "AT" 1
 .Os
 .Sh NAME
@@ -123,13 +123,6 @@ may be told to run the job today by suffixing the time with
 .Cm today
 and to run the job tomorrow by suffixing the time with
 .Cm tomorrow .
-.Pp
-For example, to run a job at 4pm three days from now, use
-.Ql at 4pm + 3 days ,
-to run a job at 10:00am on July 31, use
-.Ql at 10am Jul 31
-and to run a job at 1am tomorrow, use
-.Ql at 1am tomorrow .
 .Pp
 The
 .Nm at
@@ -328,6 +321,22 @@ deny permission control
 .It Pa _ATJOB_DIR/_LOCKFILE
 job-creation lock file
 .El
+.Sh EXAMPLES
+To run a job at 4pm three days from now, use:
+.Bd -literal -offset indent
+at 4pm + 3 days
+.Ed
+.Pp
+To run a job at 10:00am on July 31, use:
+.Bd -literal -offset indent
+at 10am Jul 31
+.Ed
+.Pp
+To run a job at 1am tomorrow, use:
+.Bd -literal -offset indent
+at 1am tomorrow
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr nice 1 ,
 .Xr sh 1 ,
