@@ -766,7 +766,7 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 	}
 }
 
-int
+static int
 lsiginfo_to_siginfo(struct thread *td, const l_siginfo_t *lsi,
     siginfo_t *si, int sig)
 {
