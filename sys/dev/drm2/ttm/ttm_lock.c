@@ -245,7 +245,7 @@ static void ttm_vt_lock_remove(struct ttm_base_object **p_base)
 {
 	struct ttm_base_object *base = *p_base;
 	struct ttm_lock *lock = container_of(base, struct ttm_lock, base);
-	int ret;
+	int ret __diagused;
 
 	*p_base = NULL;
 	ret = __ttm_vt_unlock(lock);
