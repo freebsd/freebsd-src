@@ -323,6 +323,58 @@ Default:
 Path to a log file for the installation.
 Default:
 .Dq Pa $TMPDIR/bsdinstall_log
+.It Ev BSDINSTALL_SKIP_HARDENING
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm hardening
+target.
+.It Ev BSDINSTALL_SKIP_HOSTNAME
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm hostname
+target.
+.It Ev BSDINSTALL_SKIP_KEYMAP
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm keymap
+target.
+.It Ev BSDINSTALL_SKIP_MANUAL
+If not empty, the
+.Cm auto
+target will not offer to open a shell in the new system
+for final manual modifications.
+.It Ev BSDINSTALL_SKIP_SERVICES
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm services
+target.
+.It Ev BSDINSTALL_SKIP_TIME
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm time
+target.
+.It Ev BSDINSTALL_SKIP_USERS
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm adduser
+target.
+.It Ev BSDINSTALL_SKIP_FINALCONFIG
+If not empty, the
+.Cm auto
+target will not show the final configuration dialog,
+where earlier configuration choices can be revisited.
 .It Ev BSDINSTALL_TMPETC
 Directory where files destined for the new system's
 .Pa /etc
