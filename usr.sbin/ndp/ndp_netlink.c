@@ -230,9 +230,12 @@ print_entry(struct snl_parsed_neigh *neigh, struct snl_parsed_link_simple *link)
 		.sdl_family = AF_LINK,
 		.sdl_type = link->ifi_type,
 		.sdl_len = sizeof(struct sockaddr_dl),
-		.sdl_alen = NLA_DATA_LEN(neigh->nda_lladdr),
 	};
-	memcpy(sdl.sdl_data, NLA_DATA(neigh->nda_lladdr), sdl.sdl_alen);
+
+	if (neigh->nda_lladdr) {
+		sdl.sdl_alen = NLA_DATA_LEN(neigh->nda_lladdr),
+		memcpy(sdl.sdl_data, NLA_DATA(neigh->nda_lladdr), sdl.sdl_alen);
+	}
 
 	addrwidth = strlen(host_buf);
 	if (addrwidth < W_ADDR)
