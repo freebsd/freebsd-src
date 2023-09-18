@@ -1,3 +1,46 @@
+2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* jobs.mk (JOB_MAX): use -jC if we can
+	we actually use JOB_MAX_C which defaults to 1.33C
+
+2023-08-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* now_utc: %s only works with :localtime
+
+2023-07-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-sh: ignore -c as claimed and only insist on
+	a directory for destination when more than one file to copy.
+
+	* sys.mk: when looking for SYS_OS_MK try ${.MAKE.OS} and
+	${.MAKE.OS:S,64,,} early (so we find sys/IRIX.mk for IRIX64)
+
+2023-07-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230711
+
+	* sys.mk: set SYS_MK and INSTALL_SH for systems with incompatible
+	install(1)
+
+	* sys/IRIX.mk:  when setting ROOT_GROUP only match the first :0:
+	set INSTALL to install-sh rather than pathname that may not exist
+	(yet).
+
+2023-07-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: pass DIRDEP_TARGETS to DIRDEP_MAKE
+	normally this is empty - for the default target, but there are
+	use-cases where we might set it to something else.
+
+2023-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230704
+
+	* dirdeps.mk: apply DEBUG_DIRDEPS_LIST_FILTER to lists we output
+	when DEBUG_DIRDEPS is in effect.
+	Eg. DEBUG_DIRDEPS_LIST_FILTER=ts\n
+	can greatly improve readability.
+
 2023-05-25  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* meta.autodep.mk (beforegendirdeps): allow tasks to be done

@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-or.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-op-or.mk,v 1.10 2023/08/15 21:27:09 rillig Exp $
 #
 # Tests for the || operator in .if conditions.
 
@@ -76,5 +76,9 @@ DEF=	defined
 .  error
 .endif
 
-all:
-	@:;
+# The '||' operator must be preceded by whitespace, otherwise it becomes part
+# of the preceding bare word.  The condition is parsed as '"1||" != "" || 0'.
+.if 1|| || 0
+.else
+.  error
+.endif

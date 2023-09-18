@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-numeric-ne.mk,v 1.2 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: cond-cmp-numeric-ne.mk,v 1.3 2023/09/07 05:36:33 rillig Exp $
 #
 # Tests for numeric comparisons with the != operator in .if conditions.
 
@@ -37,7 +37,7 @@
 .  error
 .endif
 
-# As of 2020-08-23, numeric comparison is implemented as parsing both sides
+# Numeric comparison works by parsing both sides
 # as double, and then performing a normal comparison.  The range of double is
 # typically 16 or 17 significant digits, therefore these two numbers seem to
 # be equal.

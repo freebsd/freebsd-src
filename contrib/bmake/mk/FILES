@@ -19,6 +19,7 @@ host.libnames.mk
 inc.mk
 init.mk
 install-mk
+install-sh
 java.mk
 jobs.mk
 ldorder.mk
