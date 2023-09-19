@@ -88,6 +88,8 @@ enum localzone_type {
 	local_zone_inform_redirect,
 	/** resolve normally, even when there is local data */	
 	local_zone_always_transparent,
+	/** resolve normally, even when there is local data but return NODATA for A queries */
+	local_zone_block_a,
 	/** answer with error, even when there is local data */	
 	local_zone_always_refuse,
 	/** answer with nxdomain, even when there is local data */

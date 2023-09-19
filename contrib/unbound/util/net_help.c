@@ -779,8 +779,8 @@ addr_in_common(struct sockaddr_storage* addr1, int net1,
 	return match;
 }
 
-void 
-addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen, 
+void
+addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	char* buf, size_t len)
 {
 	int af = (int)((struct sockaddr_in*)addr)->sin_family;
@@ -792,7 +792,50 @@ addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	}
 }
 
-int 
+int
+prefixnet_is_nat64(int prefixnet)
+{
+	return (prefixnet == 32 || prefixnet == 40 ||
+		prefixnet == 48 || prefixnet == 56 ||
+		prefixnet == 64 || prefixnet == 96);
+}
+
+void
+addr_to_nat64(const struct sockaddr_storage* addr,
+	const struct sockaddr_storage* nat64_prefix,
+	socklen_t nat64_prefixlen, int nat64_prefixnet,
+	struct sockaddr_storage* nat64_addr, socklen_t* nat64_addrlen)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+	struct sockaddr_in6 *sin6;
+	uint8_t *v4_byte;
+
+	/* This needs to be checked by the caller */
+	log_assert(addr->ss_family == AF_INET);
+	/* Current usage is only from config values; prefix lengths enforced
+	 * during config validation */
+	log_assert(prefixnet_is_nat64(nat64_prefixnet));
+
+	*nat64_addr = *nat64_prefix;
+	*nat64_addrlen = nat64_prefixlen;
+
+	sin6 = (struct sockaddr_in6 *)nat64_addr;
+	sin6->sin6_flowinfo = 0;
+	sin6->sin6_port = sin->sin_port;
+
+	nat64_prefixnet = nat64_prefixnet / 8;
+
+	v4_byte = (uint8_t *)&sin->sin_addr.s_addr;
+	for(int i = 0; i < 4; i++) {
+		if(nat64_prefixnet == 8) {
+			/* bits 64...71 are MBZ */
+			sin6->sin6_addr.s6_addr[nat64_prefixnet++] = 0;
+		}
+		sin6->sin6_addr.s6_addr[nat64_prefixnet++] = *v4_byte++;
+	}
+}
+
+int
 addr_is_ip4mapped(struct sockaddr_storage* addr, socklen_t addrlen)
 {
 	/* prefix for ipv4 into ipv6 mapping is ::ffff:x.x.x.x */
@@ -1003,6 +1046,16 @@ listen_sslctx_setup(void* ctxt)
 	/* if we have sha256, set the cipher list to have no known vulns */
 		if(!SSL_CTX_set_cipher_list(ctx, "TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
 			log_crypto_err("could not set cipher list with SSL_CTX_set_cipher_list");
+	}
+#endif
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+	/* ignore errors when peers do not send the mandatory close_notify
+	 * alert on shutdown.
+	 * Relevant for openssl >= 3 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_IGNORE_UNEXPECTED_EOF) &
+		SSL_OP_IGNORE_UNEXPECTED_EOF) != SSL_OP_IGNORE_UNEXPECTED_EOF) {
+		log_crypto_err("could not set SSL_OP_IGNORE_UNEXPECTED_EOF");
+		return 0;
 	}
 #endif
 
@@ -1230,6 +1283,17 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
 		SSL_OP_NO_RENEGOTIATION) != SSL_OP_NO_RENEGOTIATION) {
 		log_crypto_err("could not set SSL_OP_NO_RENEGOTIATION");
+		SSL_CTX_free(ctx);
+		return 0;
+	}
+#endif
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+	/* ignore errors when peers do not send the mandatory close_notify
+	 * alert on shutdown.
+	 * Relevant for openssl >= 3 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_IGNORE_UNEXPECTED_EOF) &
+		SSL_OP_IGNORE_UNEXPECTED_EOF) != SSL_OP_IGNORE_UNEXPECTED_EOF) {
+		log_crypto_err("could not set SSL_OP_IGNORE_UNEXPECTED_EOF");
 		SSL_CTX_free(ctx);
 		return 0;
 	}

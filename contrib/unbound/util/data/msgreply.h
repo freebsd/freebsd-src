@@ -170,8 +170,16 @@ struct reply_info {
 
 	/**
 	 * EDE (rfc8914) code with reason for DNSSEC bogus status.
+	 * Used for caching the EDE.
 	 */
 	sldns_ede_code reason_bogus;
+
+        /**
+         * EDE (rfc8914) NULL-terminated string with human-readable reason
+	 * for DNSSEC bogus status.
+	 * Used for caching the EDE.
+         */
+        char* reason_bogus_str;
 
 	/**
 	 * Number of RRsets in each section.
@@ -240,13 +248,15 @@ struct msgreply_entry {
  * @param ar: ar count
  * @param total: total rrset count (presumably an+ns+ar).
  * @param sec: security status of the reply info.
+ * @param reason_bogus: the Extended DNS Error for DNSSEC bogus status
  * @return the reply_info base struct with the array for putting the rrsets
  * in.  The array has been zeroed.  Returns NULL on malloc failure.
  */
 struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-		time_t ttl, time_t prettl, time_t expttl, size_t an, size_t ns,
-		size_t ar, size_t total, enum sec_status sec);
+	time_t ttl, time_t prettl, time_t expttl, size_t an, size_t ns,
+	size_t ar, size_t total, enum sec_status sec,
+	sldns_ede_code reason_bogus);
 
 /** 
  * Parse wire query into a queryinfo structure, return 0 on parse error. 
@@ -568,6 +578,16 @@ int edns_opt_list_append_ede(struct edns_option** list, struct regional* region,
 	sldns_ede_code code, const char *txt);
 
 /**
+ * Append edns keep alive option to edns options list
+ * @param list: the edns option list to append the edns option to.
+ * @param msec: the duration in msecs for the keep alive.
+ * @param region: region to allocate the new edns option.
+ * @return false on failure.
+ */
+int edns_opt_list_append_keepalive(struct edns_option** list, int msec,
+	struct regional* region);
+
+/**
  * Remove any option found on the edns option list that matches the code.
  * @param list: the list of edns options.
  * @param code: the opt code to remove.
@@ -717,6 +737,12 @@ int inplace_cb_query_response_call(struct module_env* env,
  */
 struct edns_option* edns_opt_copy_region(struct edns_option* list,
 	struct regional* region);
+
+/**
+ * Copy a filtered edns option list allocated to the new region
+ */
+struct edns_option* edns_opt_copy_filter_region(struct edns_option* list,
+	uint16_t* filter_list, size_t filter_list_len, struct regional* region);
 
 /**
  * Copy edns option list allocated with malloc

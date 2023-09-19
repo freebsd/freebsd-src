@@ -352,7 +352,7 @@ update_cache(struct module_qstate *qstate, int id)
 		((struct subnet_qstate*)qstate->minfo[id])->qinfo_hash :
 		query_info_hash(&qstate->qinfo, qstate->query_flags);
 	/* Step 1, general qinfo lookup */
-	struct lruhash_entry *lru_entry = slabhash_lookup(subnet_msg_cache, h,
+	struct lruhash_entry* lru_entry = slabhash_lookup(subnet_msg_cache, h,
 		&qstate->qinfo, 1);
 	int need_to_insert = (lru_entry == NULL);
 	if (!lru_entry) {
@@ -396,7 +396,7 @@ update_cache(struct module_qstate *qstate, int id)
 		log_err("subnetcache: cache insertion failed");
 		return;
 	}
-	
+
 	/* store RRsets */
 	for(i=0; i<rep->rrset_count; i++) {
 		rep->ref[i].key = rep->rrsets[i];
@@ -421,7 +421,7 @@ update_cache(struct module_qstate *qstate, int id)
 
 /** Lookup in cache and reply true iff reply is sent. */
 static int
-lookup_and_reply(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
+lookup_and_reply(struct module_qstate *qstate, int id, struct subnet_qstate *sq, int prefetch)
 {
 	struct lruhash_entry *e;
 	struct module_env *env = qstate->env;
@@ -473,6 +473,10 @@ lookup_and_reply(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 			INET6_SIZE);
 		sq->ecs_client_out.subnet_validdata = 1;
 	}
+
+	if (prefetch && *qstate->env->now >= ((struct reply_info *)node->elem)->prefetch_ttl) {
+		qstate->need_refetch = 1;
+	}
 	return 1;
 }
 
@@ -509,7 +513,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 		 * module_finished */
 		return module_finished;
 	}
-	
+
 	/* We have not asked for subnet data */
 	if (!sq->subnet_sent) {
 		if (s_in->subnet_validdata)
@@ -518,7 +522,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 			cp_edns_bad_response(c_out, c_in);
 		return module_finished;
 	}
-	
+
 	/* subnet sent but nothing came back */
 	if (!s_in->subnet_validdata) {
 		/* The authority indicated no support for edns subnet. As a
@@ -535,11 +539,11 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 			cp_edns_bad_response(c_out, c_in);
 		return module_finished;
 	}
-	
+
 	/* Being here means we have asked for and got a subnet specific 
 	 * answer. Also, the answer from the authority is not yet cached 
 	 * anywhere. */
-	
+
 	/* can we accept response? */
 	if(s_out->subnet_addr_fam != s_in->subnet_addr_fam ||
 		s_out->subnet_source_mask != s_in->subnet_source_mask ||
@@ -779,6 +783,11 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				&qstate->mesh_info->reply_list->query_reply.client_addr,
 				&sq->ecs_client_in, qstate->env->cfg);
 		}
+		else if(qstate->client_addr.ss_family != AF_UNSPEC) {
+			subnet_option_from_ss(
+				&qstate->client_addr,
+				&sq->ecs_client_in, qstate->env->cfg);
+		}
 		
 		if(sq->ecs_client_in.subnet_validdata == 0) {
 			/* No clients are interested in result or we could not
@@ -802,7 +811,9 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 
 		if(!sq->started_no_cache_lookup && !qstate->blacklist) {
 			lock_rw_wrlock(&sne->biglock);
-			if(lookup_and_reply(qstate, id, sq)) {
+			if(qstate->mesh_info->reply_list &&
+				lookup_and_reply(qstate, id, sq,
+				qstate->env->cfg->prefetch)) {
 				sne->num_msg_cache++;
 				lock_rw_unlock(&sne->biglock);
 				verbose(VERB_QUERY, "subnetcache: answered from cache");

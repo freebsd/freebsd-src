@@ -126,13 +126,15 @@ dt_delete(struct dt_env *env);
  * @param rsock: local (service) address/port.
  * @param cptype: comm_udp or comm_tcp.
  * @param qmsg: query message.
+ * @param tstamp: timestamp or NULL if none provided.
  */
 void
 dt_msg_send_client_query(struct dt_env *env,
 			 struct sockaddr_storage *qsock,
 			 struct sockaddr_storage *rsock,
 			 enum comm_point_type cptype,
-			 struct sldns_buffer *qmsg);
+			 struct sldns_buffer *qmsg,
+			 struct timeval* tstamp);
 
 /**
  * Create and send a new dnstap "Message" event of type CLIENT_RESPONSE.

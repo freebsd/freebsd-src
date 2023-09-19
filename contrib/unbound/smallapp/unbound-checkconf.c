@@ -714,7 +714,7 @@ morechecks(struct config_file* cfg)
 			cfg->chrootdir, cfg);
 	}
 #endif
-	/* remove chroot setting so that modules are not stripping pathnames*/
+	/* remove chroot setting so that modules are not stripping pathnames */
 	free(cfg->chrootdir);
 	cfg->chrootdir = NULL;
 

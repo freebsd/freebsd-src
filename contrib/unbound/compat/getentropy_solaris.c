@@ -47,7 +47,7 @@
 #define SHA512_Update SHA512Update
 #define SHA512_Final SHA512Final
 #else
-#include "openssl/sha.h"
+#include <openssl/sha.h>
 #endif
 
 #include <sys/vfs.h>

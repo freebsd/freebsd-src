@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jan 12, 2023" "NLnet Labs" "unbound 1.17.1"
+.TH "unbound.conf" "5" "Aug 30, 2023" "NLnet Labs" "unbound 1.18.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -233,7 +233,8 @@ number).
 .B max\-udp\-size: \fI<number>
 Maximum UDP response size (not applied to TCP response).  65536 disables the
 udp response size maximum, and uses the choice from the client, always.
-Suggested values are 512 to 4096. Default is 4096.
+Suggested values are 512 to 4096. Default is 1232. The default value is the
+same as the default for edns\-buffer\-size.
 .TP
 .B stream\-wait\-size: \fI<number>
 Number of bytes size maximum to use for waiting stream buffers.  Default is
@@ -504,6 +505,14 @@ configured, and finally to 0 if the number of free buffers falls below
 A minimum actual timeout of 200 milliseconds is observed regardless of the
 advertised timeout.
 .TP
+.B sock\-queue\-timeout: \fI<sec>\fR
+UDP queries that have waited in the socket buffer for a long time can be
+dropped. Default is 0, disabled. The time is set in seconds, 3 could be a
+good value to ignore old queries that likely the client does not need a reply
+for any more. This could happen if the host has not been able to service
+the queries for a while, i.e. Unbound is not running, and then is enabled
+again. It uses timestamp socket options.
+.TP
 .B tcp\-upstream: \fI<yes or no>
 Enable or disable whether the upstream queries use TCP only for transport.
 Default is no.  Useful in tunneling scenarios. If set to no you can specify
@@ -692,17 +701,17 @@ This option is experimental at this time.
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a
 classless network block. The action can be \fIdeny\fR, \fIrefuse\fR,
-\fIallow\fR, \fIallow_setrd\fR, \fIallow_snoop\fR, \fIdeny_non_local\fR or
-\fIrefuse_non_local\fR.
+\fIallow\fR, \fIallow_setrd\fR, \fIallow_snoop\fR, \fIallow_cookie\fR,
+\fIdeny_non_local\fR or \fIrefuse_non_local\fR.
 The most specific netblock match is used, if none match \fIrefuse\fR is used.
 The order of the access\-control statements therefore does not matter.
 .IP
-The action \fIdeny\fR stops queries from hosts from that netblock.
+The \fIdeny\fR action stops queries from hosts from that netblock.
 .IP
-The action \fIrefuse\fR stops queries too, but sends a DNS rcode REFUSED
+The \fIrefuse\fR action stops queries too, but sends a DNS rcode REFUSED
 error message back.
 .IP
-The action \fIallow\fR gives access to clients from that netblock.
+The \fIallow\fR action gives access to clients from that netblock.
 It gives only access for recursion clients (which is
 what almost all clients need).  Nonrecursive queries are refused.
 .IP
@@ -722,12 +731,26 @@ may be useful if another DNS server must forward requests for specific
 zones to a resolver DNS server, but only supports stub domains and
 sends queries to the resolver DNS server with the RD bit cleared.
 .IP
-The action \fIallow_snoop\fR gives nonrecursive access too.  This give
+The \fIallow_snoop\fR action gives nonrecursive access too.  This give
 both recursive and non recursive access.  The name \fIallow_snoop\fR refers
 to cache snooping, a technique to use nonrecursive queries to examine
 the cache contents (for malicious acts).  However, nonrecursive queries can
 also be a valuable debugging tool (when you want to examine the cache
 contents). In that case use \fIallow_snoop\fR for your administration host.
+.IP
+The \fIallow_cookie\fR action allows access to UDP queries that contain a
+valid DNS Cookie as specified in RFC 7873 and RFC 9018, when the
+\fBanswer\-cookie\fR option is enabled.
+UDP queries containing only a DNS Client Cookie and no Server Cookie, or an
+invalid DNS Cookie, will receive a BADCOOKIE response including a newly
+generated DNS Cookie, allowing clients to retry with that DNS Cookie.
+The \fIallow_cookie\fR action will also accept requests over stateful
+transports, regardless of the presence of an DNS Cookie and regardless of the
+\fBanswer\-cookie\fR setting.
+If \fBip\-ratelimit\fR is used, clients with a valid DNS Cookie will bypass the
+ratelimit.
+If a ratelimit for such clients is still needed, \fBip\-ratelimit\-cookie\fR
+can be used instead.
 .IP
 By default only localhost is \fIallow\fRed, the rest is \fIrefuse\fRd.
 The default is \fIrefuse\fRd, because that is protocol\-friendly. The DNS
@@ -1018,6 +1041,12 @@ advertised in the DS record.  If no, allows the weakest algorithm to
 validate the zone.  Default is no.  Zone signers must produce zones
 that allow this feature to work, but sometimes they do not, and turning
 this option off avoids that validation failure.
+.TP
+.B harden\-unknown\-additional: \fI<yes or no>
+Harden against unknown records in the authority section and additional
+section. Default is no. If no, such records are copied from the upstream
+and presented to the client together with the answer. If yes, it could
+hamper future protocol developments that want to add records.
 .TP
 .B use\-caps\-for\-id: \fI<yes or no>
 Use 0x20\-encoded random bits in the query to foil spoof attempts.
@@ -1391,10 +1420,10 @@ address space are not validated.  This is usually required whenever
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
 transparent, redirect, nodefault, typetransparent, inform, inform_deny,
-inform_redirect, always_transparent, always_refuse, always_nxdomain, always_null, noview,
-and are explained below. After that the default settings are listed. Use
-local\-data: to enter data into the local zone. Answers for local zones
-are authoritative DNS answers. By default the zones are class IN.
+inform_redirect, always_transparent, block_a, always_refuse, always_nxdomain,
+always_null, noview, and are explained below. After that the default settings
+are listed. Use local\-data: to enter data into the local zone. Answers for
+local zones are authoritative DNS answers. By default the zones are class IN.
 .IP
 If you need more complicated authoritative data, with referrals, wildcards,
 CNAME/DNAME support, or DNSSEC authoritative service, setup a stub\-zone for
@@ -1468,6 +1497,12 @@ Ie. answer queries with fixed data and also log the machines that ask.
 .TP 10
 \h'5'\fIalways_transparent\fR
 Like transparent, but ignores local data and resolves normally.
+.TP 10
+\h'5'\fIblock_a\fR
+Like transparent, but ignores local data and resolves normally all query
+types excluding A. For A queries it unconditionally returns NODATA.
+Useful in cases when there is a need to explicitly force all apps to use
+IPv6 protocol and avoid any queries to IPv4.
 .TP 10
 \h'5'\fIalways_refuse\fR
 Like refuse, but ignores local data and refuses the query.
@@ -1785,11 +1820,27 @@ A value of 0 will disable ratelimiting for domain names that end in this name.
 .TP 5
 .B ip\-ratelimit: \fI<number or 0>
 Enable global ratelimiting of queries accepted per IP address.
-If 0, the default, it is disabled.  This option is experimental at this time.
+This option is experimental at this time.
 The ratelimit is in queries per second that are allowed.  More queries are
 completely dropped and will not receive a reply, SERVFAIL or otherwise.
 IP ratelimiting happens before looking in the cache. This may be useful for
 mitigating amplification attacks.
+Default is 0 (disabled).
+.TP 5
+.B ip\-ratelimit\-cookie: \fI<number or 0>
+Enable global ratelimiting of queries accepted per IP address with a valid DNS
+Cookie.
+This option is experimental at this time.
+The ratelimit is in queries per second that are allowed.
+More queries are completely dropped and will not receive a reply, SERVFAIL or
+otherwise.
+IP ratelimiting happens before looking in the cache.
+This option could be useful in combination with \fIallow_cookie\fR in an
+attempt to mitigate other amplification attacks than UDP reflections (e.g.,
+attacks targeting Unbound itself) which are already handled with DNS Cookies.
+If used, the value is suggested to be higher than \fBip\-ratelimit\fR e.g.,
+tenfold.
+Default is 0 (disabled).
 .TP 5
 .B ip\-ratelimit\-size: \fI<memory size>
 Give the size of the data structure in which the current ongoing rates are
@@ -1857,6 +1908,18 @@ servers set. The default for fast\-server\-permil is 0.
 Set the number of servers that should be used for fast server selection. Only
 use the fastest specified number of servers with the fast\-server\-permil
 option, that turns this on or off. The default is to use the fastest 3 servers.
+.TP 5
+.B answer\-cookie: \fI<yes or no>
+If enabled, Unbound will answer to requests containing DNS Cookies as
+specified in RFC 7873 and RFC 9018.
+Default is no.
+.TP 5
+.B cookie\-secret: \fI<128 bit hex string>
+Server's secret for DNS Cookie generation.
+Useful to explicitly set for servers in an anycast deployment that need to
+share the secret in order to verify each other's Server Cookies.
+An example hex string would be "000102030405060708090a0b0c0d0e0f".
+Default is a 128 bits random secret generated at startup time.
 .TP 5
 .B edns\-client\-string: \fI<IP netblock> <string>
 Include an EDNS0 option containing configured ascii string in queries with
@@ -2091,13 +2154,32 @@ useful when you want immediate changes to be visible.
 Authority zones are configured with \fBauth\-zone:\fR, and each one must
 have a \fBname:\fR.  There can be multiple ones, by listing multiple auth\-zone clauses, each with a different name, pertaining to that part of the namespace.
 The authority zone with the name closest to the name looked up is used.
-Authority zones are processed after \fBlocal\-zones\fR and before
-cache (\fBfor\-downstream:\fR \fIyes\fR), and when used in this manner
-make Unbound respond like an authority server.  Authority zones are also
-processed after cache, just before going to the network to fetch
-information for recursion (\fBfor\-upstream:\fR \fIyes\fR), and when used
-in this manner provide a local copy of an authority server that speeds up
-lookups of that data.
+Authority zones can be processed on two distinct, non-exclusive, configurable
+stages.
+.LP
+With \fBfor\-downstream:\fR \fIyes\fR (default), authority zones are processed
+after \fBlocal\-zones\fR and before cache.
+When used in this manner, Unbound responds like an authority server with no
+further processing other than returning an answer from the zone contents.
+A notable example, in this case, is CNAME records which are returned verbatim
+to downstream clients without further resolution.
+.LP
+With \fBfor\-upstream:\fR \fIyes\fR (default), authority zones are processed
+after the cache lookup, just before going to the network to fetch
+information for recursion.
+When used in this manner they provide a local copy of an authority server
+that speeds up lookups for that data during resolving.
+.LP
+If both options are enabled (default), client queries for an authority zone are
+answered authoritatively from Unbound, while internal queries that require data
+from the authority zone consult the local zone data instead of going to the
+network.
+.LP
+An interesting configuration is \fBfor\-downstream:\fR \fIno\fR,
+\fBfor\-upstream:\fR \fIyes\fR that allows for hyperlocal behavior where both
+client and internal queries consult the local zone data while resolving.
+In this case, the aforementioned CNAME example will result in a thoroughly
+resolved answer.
 .LP
 Authority zones can be read from zonefile.  And can be kept updated via
 AXFR and IXFR.  After update the zonefile is rewritten.  The update mechanism
@@ -2291,6 +2373,21 @@ List domain for which the AAAA records are ignored and the A record is
 used by dns64 processing instead.  Can be entered multiple times, list a
 new domain for which it applies, one per line.  Applies also to names
 underneath the name given.
+.SS "NAT64 Operation"
+.LP
+NAT64 operation allows using a NAT64 prefix for outbound requests to IPv4-only
+servers.  It is controlled by two options in the \fBserver:\fR section:
+.TP
+.B do\-nat64: \fI<yes or no>\fR
+Use NAT64 to reach IPv4-only servers.
+Consider also enabling \fBprefer\-ip6\fR to prefer native IPv6 connections to
+nameservers.
+Default no.
+.TP
+.B nat64\-prefix: \fI<IPv6 prefix>\fR
+Use a specific NAT64 prefix to reach IPv4-only servers.  Defaults to using
+the prefix configured in \fBdns64\-prefix\fR, which in turn defaults to
+64:ff9b::/96.  The prefix length must be one of /32, /40, /48, /56, /64 or /96.
 .SS "DNSCrypt Options"
 .LP
 The
@@ -2585,6 +2682,16 @@ This option defaults to "127.0.0.1".
 .B redis-server-port: \fI<port number>\fR
 The TCP port number of the Redis server.
 This option defaults to 6379.
+.TP
+.B redis-server-path: \fI<unix socket path>\fR
+The unix socket path to connect to the redis server. Off by default, and it
+can be set to "" to turn this off. Unix sockets may have better throughput
+than the IP address option.
+.TP
+.B redis-server-password: \fI"<password>"\fR
+The Redis AUTH password to use for the redis server.
+Only relevant if Redis is configured for client password authorisation.
+Off by default, and it can be set to "" to turn this off.
 .TP
 .B redis-timeout: \fI<msec>\fR
 The period until when Unbound waits for a response from the Redis sever.

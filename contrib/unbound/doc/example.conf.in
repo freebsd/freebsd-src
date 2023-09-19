@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.17.1.
+# See unbound.conf(5) man page, version 1.18.0.
 #
 # this is a comment.
 
@@ -143,8 +143,8 @@ server:
 	# edns-buffer-size: 1232
 
 	# Maximum UDP response size (not applied to TCP response).
-	# Suggested values are 512 to 4096. Default is 4096. 65536 disables it.
-	# max-udp-size: 4096
+	# Suggested values are 512 to 4096. Default is 1232. 65536 disables it.
+	# max-udp-size: 1232
 
 	# max memory to use for stream(tcp and tls) waiting result buffers.
 	# stream-wait-size: 4m
@@ -243,6 +243,18 @@ server:
 	# Enable IPv6, "yes" or "no".
 	# do-ip6: yes
 
+	# If running unbound on an IPv6-only host, domains that only have
+	# IPv4 servers would become unresolveable.  If NAT64 is available in
+	# the network, unbound can use NAT64 to reach these servers with
+	# the following option.  This is NOT needed for enabling DNS64 on a
+	# system that has IPv4 connectivity.
+	# Consider also enabling prefer-ip6 to prefer native IPv6 connections
+	# to nameservers.
+	# do-nat64: no
+
+	# NAT64 prefix.  Defaults to using dns64-prefix value.
+	# nat64-prefix: 64:ff9b::0/96
+
 	# Enable UDP, "yes" or "no".
 	# do-udp: yes
 
@@ -273,6 +285,10 @@ server:
 
 	# Timeout for EDNS TCP keepalive, in msec.
 	# edns-tcp-keepalive-timeout: 120000
+
+	# UDP queries that have waited in the socket buffer for a long time
+	# can be dropped. Default is 0, disabled. In seconds, such as 3.
+	# sock-queue-timeout: 0
 
 	# Use systemd socket activation for UDP, TCP, and control sockets.
 	# use-systemd: no
@@ -502,6 +518,10 @@ server:
 	# advertised in the DS record.  If no, allows the weakest algorithm
 	# to validate the zone.
 	# harden-algo-downgrade: no
+
+	# Harden against unknown records in the authority section and the
+	# additional section.
+	# harden-unknown-additional: no
 
 	# Sent minimum amount of information to upstream servers to enhance
 	# privacy. Only sent minimum required labels of the QNAME and set QTYPE
@@ -810,6 +830,8 @@ server:
 	# o always_transparent, always_refuse, always_nxdomain, always_nodata,
 	#   always_deny resolve in that way but ignore local data for
 	#   that name
+	# o block_a resolves all records normally but returns
+	#   NODATA for A queries and ignores local data for that name
 	# o always_null returns 0.0.0.0 or ::0 for any name in the zone.
 	# o noview breaks out of that view towards global local-zones.
 	#
@@ -1206,6 +1228,10 @@ remote-control:
 #     redis-server-host: 127.0.0.1
 #     # redis server's TCP port
 #     redis-server-port: 6379
+#     # if the server uses a unix socket, set its path, or "" when not used.
+#     # redis-server-path: "/var/lib/redis/redis-server.sock"
+#     # if the server uses an AUTH password, specify here, or "" when not used.
+#     # redis-server-password: ""
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
 #     # set timeout on redis records based on DNS response TTL

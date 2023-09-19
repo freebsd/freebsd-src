@@ -178,6 +178,8 @@ struct lruhash {
 	size_t space_used;
 	/** the amount of space the hash table is maximally allowed to use. */
 	size_t space_max;
+	/** the maximum collisions were detected during the lruhash_insert operations. */
+	size_t max_collisions;
 };
 
 /**
@@ -357,10 +359,11 @@ void bin_delete(struct lruhash* table, struct lruhash_bin* bin);
  * @param bin: hash bin to look into.
  * @param hash: hash value to look for.
  * @param key: key to look for.
+ * @param collisions: how many collisions were found during the search.
  * @return: the entry or NULL if not found.
  */
 struct lruhash_entry* bin_find_entry(struct lruhash* table, 
-	struct lruhash_bin* bin, hashvalue_type hash, void* key);
+	struct lruhash_bin* bin, hashvalue_type hash, void* key, size_t* collisions);
 
 /**
  * Remove entry from bin overflow chain.

@@ -587,16 +587,18 @@ val_verify_new_DNSKEYs(struct regional* region, struct module_env* env,
 		return key_entry_create_rrset(region, 
 			ds_rrset->rk.dname, ds_rrset->rk.dname_len,
 			ntohs(ds_rrset->rk.rrset_class), dnskey_rrset,
-			downprot?sigalg:NULL, *env->now);
+			downprot?sigalg:NULL, LDNS_EDE_NONE, NULL,
+			*env->now);
 	} else if(sec == sec_status_insecure) {
 		return key_entry_create_null(region, ds_rrset->rk.dname,
-			ds_rrset->rk.dname_len, 
+			ds_rrset->rk.dname_len,
 			ntohs(ds_rrset->rk.rrset_class),
-			rrset_get_ttl(ds_rrset), *env->now);
+			rrset_get_ttl(ds_rrset), *reason_bogus, *reason,
+			*env->now);
 	}
 	return key_entry_create_bad(region, ds_rrset->rk.dname,
 		ds_rrset->rk.dname_len, ntohs(ds_rrset->rk.rrset_class),
-		BOGUS_KEY_TTL, *env->now);
+		BOGUS_KEY_TTL, *reason_bogus, *reason, *env->now);
 }
 
 enum sec_status
@@ -694,7 +696,7 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 		has_useful_ta = 1;
 
 		sec = dnskey_verify_rrset(env, ve, dnskey_rrset,
-			ta_dnskey, i, reason, NULL, LDNS_SECTION_ANSWER, qstate);
+			ta_dnskey, i, reason, reason_bogus, LDNS_SECTION_ANSWER, qstate);
 		if(sec == sec_status_secure) {
 			if(!sigalg || algo_needs_set_secure(&needs,
 				(uint8_t)dnskey_get_algo(ta_dnskey, i))) {
@@ -743,16 +745,17 @@ val_verify_new_DNSKEYs_with_ta(struct regional* region, struct module_env* env,
 		return key_entry_create_rrset(region,
 			dnskey_rrset->rk.dname, dnskey_rrset->rk.dname_len,
 			ntohs(dnskey_rrset->rk.rrset_class), dnskey_rrset,
-			downprot?sigalg:NULL, *env->now);
+			downprot?sigalg:NULL, LDNS_EDE_NONE, NULL, *env->now);
 	} else if(sec == sec_status_insecure) {
 		return key_entry_create_null(region, dnskey_rrset->rk.dname,
 			dnskey_rrset->rk.dname_len,
 			ntohs(dnskey_rrset->rk.rrset_class),
-			rrset_get_ttl(dnskey_rrset), *env->now);
+			rrset_get_ttl(dnskey_rrset), *reason_bogus, *reason,
+			*env->now);
 	}
 	return key_entry_create_bad(region, dnskey_rrset->rk.dname,
 		dnskey_rrset->rk.dname_len, ntohs(dnskey_rrset->rk.rrset_class),
-		BOGUS_KEY_TTL, *env->now);
+		BOGUS_KEY_TTL, *reason_bogus, *reason, *env->now);
 }
 
 int
