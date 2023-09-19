@@ -2,6 +2,7 @@
  * Copyright (c) 2020 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/socket.h>

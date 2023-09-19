@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _OPENBSD_COMPAT_H
@@ -113,6 +114,10 @@ ssize_t getline(char **, size_t *, FILE *);
 #define IOCTL_REQ(x)	(x)
 #else
 #define IOCTL_REQ(x)	((int)(x))
+#endif
+
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **, const char *, ...);
 #endif
 
 #endif /* !_OPENBSD_COMPAT_H */
