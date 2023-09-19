@@ -114,6 +114,8 @@ struct mesh_area {
 	size_t stats_dropped;
 	/** stats, number of expired replies sent */
 	size_t ans_expired;
+	/** stats, number of cached replies from cachedb */
+	size_t ans_cachedb;
 	/** number of replies sent */
 	size_t replies_sent;
 	/** sum of waiting times for the replies */
@@ -335,13 +337,13 @@ int mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
  * @param leeway: TTL leeway what to expire earlier for this update.
  * @param rpz_passthru: if true, the rpz passthru was previously found and
  * 	further rpz processing is stopped.
- * @param rep: comm_reply for the client; to be used when subnet is enabled.
+ * @param addr: sockaddr_storage for the client; to be used with subnet.
  * @param opt_list: edns opt_list from the client; to be used when subnet is
  *	enabled.
  */
 void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, time_t leeway, int rpz_passthru,
-	struct comm_reply* rep, struct edns_option* opt_list);
+	struct sockaddr_storage* addr, struct edns_option* opt_list);
 
 /**
  * Handle new event from the wire. A serviced query has returned.
@@ -477,14 +479,6 @@ void mesh_state_delete(struct module_qstate* qstate);
 struct mesh_state* mesh_state_create(struct module_env* env,
 	struct query_info* qinfo, struct respip_client_info* cinfo,
 	uint16_t qflags, int prime, int valrec);
-
-/**
- * Check if the mesh state is unique.
- * A unique mesh state uses it's unique member to point to itself, else NULL.
- * @param mstate: mesh state to check.
- * @return true if the mesh state is unique, false otherwise.
- */
-int mesh_state_is_unique(struct mesh_state* mstate);
 
 /**
  * Make a mesh state unique.

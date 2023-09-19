@@ -153,6 +153,8 @@ struct rate_key {
 
 /** ip ratelimit, 0 is off */
 extern int infra_ip_ratelimit;
+/** ip ratelimit for DNS Cookie clients, 0 is off */
+extern int infra_ip_ratelimit_cookie;
 
 /**
  * key for ip_ratelimit lookups, a source IP.
@@ -419,13 +421,14 @@ int infra_find_ratelimit(struct infra_cache* infra, uint8_t* name,
  *  @param addr: client address
  *  @param addrlen: client address length
  *  @param timenow: what time it is now.
+ *  @param has_cookie: if the request came with a DNS Cookie.
  *  @param backoff: if backoff is enabled.
  *  @param buffer: with query for logging.
  *  @return 1 if it could be incremented. 0 if the increment overshot the
  *  ratelimit and the query should be dropped. */
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
 	struct sockaddr_storage* addr, socklen_t addrlen, time_t timenow,
-	int backoff, struct sldns_buffer* buffer);
+	int has_cookie, int backoff, struct sldns_buffer* buffer);
 
 /**
  * Get memory used by the infra cache.

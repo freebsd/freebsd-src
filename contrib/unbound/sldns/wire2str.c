@@ -159,7 +159,7 @@ static sldns_lookup_table sldns_wireparse_errors_data[] = {
 		"Mandatory SvcParamKey is missing"},
 	{ LDNS_WIREPARSE_ERR_SVCB_MANDATORY_DUPLICATE_KEY,
 		"Keys in SvcParam mandatory MUST be unique" },
-	{ LDNS_WIREPARSE_ERR_SVCB_MANDATORY_IN_MANDATORY, 
+	{ LDNS_WIREPARSE_ERR_SVCB_MANDATORY_IN_MANDATORY,
 		"mandatory MUST not be included as mandatory parameter" },
 	{ LDNS_WIREPARSE_ERR_SVCB_PORT_VALUE_SYNTAX,
 		"Could not parse port SvcParamValue" },
@@ -192,12 +192,45 @@ static sldns_lookup_table sldns_edns_options_data[] = {
 	{ 6, "DHU" },
 	{ 7, "N3U" },
 	{ 8, "edns-client-subnet" },
+	{ 10, "COOKIE" },
 	{ 11, "edns-tcp-keepalive"},
 	{ 12, "Padding" },
 	{ 15, "EDE"},
 	{ 0, NULL}
 };
 sldns_lookup_table* sldns_edns_options = sldns_edns_options_data;
+
+/* From RFC8914 5.2 Table 3, the "Extended DNS Error Codes" registry. */
+static sldns_lookup_table sldns_edns_ede_codes_data[] = {
+	{ LDNS_EDE_NONE, "None" },
+	{ LDNS_EDE_OTHER, "Other Error" },
+	{ LDNS_EDE_UNSUPPORTED_DNSKEY_ALG, "Unsupported DNSKEY Algorithm" },
+	{ LDNS_EDE_UNSUPPORTED_DS_DIGEST, "Unsupported DS Digest Type" },
+	{ LDNS_EDE_STALE_ANSWER, "Stale Answer" },
+	{ LDNS_EDE_FORGED_ANSWER, "Forged Answer" },
+	{ LDNS_EDE_DNSSEC_INDETERMINATE, "DNSSEC Indeterminate" },
+	{ LDNS_EDE_DNSSEC_BOGUS, "DNSSEC Bogus" },
+	{ LDNS_EDE_SIGNATURE_EXPIRED, "Signature Expired" },
+	{ LDNS_EDE_SIGNATURE_NOT_YET_VALID, "Signature Not Yet Valid" },
+	{ LDNS_EDE_DNSKEY_MISSING, "DNSKEY Missing" },
+	{ LDNS_EDE_RRSIGS_MISSING, "RRSIGs Missing" },
+	{ LDNS_EDE_NO_ZONE_KEY_BIT_SET, "No Zone Key Bit Set" },
+	{ LDNS_EDE_NSEC_MISSING, "NSEC Missing" },
+	{ LDNS_EDE_CACHED_ERROR, "Cached Error" },
+	{ LDNS_EDE_NOT_READY, "Not Ready" },
+	{ LDNS_EDE_BLOCKED, "Blocked" },
+	{ LDNS_EDE_CENSORED, "Censored" },
+	{ LDNS_EDE_FILTERED, "Filtered" },
+	{ LDNS_EDE_PROHIBITED, "Prohibited" },
+	{ LDNS_EDE_STALE_NXDOMAIN_ANSWER, "Stale NXDOMAIN Answer" },
+	{ LDNS_EDE_NOT_AUTHORITATIVE, "Not Authoritative" },
+	{ LDNS_EDE_NOT_SUPPORTED, "Not Supported" },
+	{ LDNS_EDE_NO_REACHABLE_AUTHORITY, "No Reachable Authority" },
+	{ LDNS_EDE_NETWORK_ERROR, "Network Error" },
+	{ LDNS_EDE_INVALID_DATA, "Invalid Data" },
+	{ 0, NULL}
+};
+sldns_lookup_table* sldns_edns_ede_codes = sldns_edns_ede_codes_data;
 
 static sldns_lookup_table sldns_tsig_errors_data[] = {
 	{ LDNS_TSIG_ERROR_NOERROR, "NOERROR" },
@@ -224,7 +257,7 @@ sldns_lookup_table* sldns_tsig_errors = sldns_tsig_errors_data;
 /* draft-ietf-dnsop-svcb-https-06: 6. Initial SvcParamKeys */
 const char *svcparamkey_strs[] = {
 	"mandatory", "alpn", "no-default-alpn", "port",
-	"ipv4hint", "ech", "ipv6hint"
+	"ipv4hint", "ech", "ipv6hint", "dohpath"
 };
 
 char* sldns_wire2str_pkt(uint8_t* data, size_t len)
@@ -487,7 +520,7 @@ int sldns_wire2str_rr_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 	uint8_t* rr = *d;
 	size_t rrlen = *dlen, dname_off, rdlen, ordlen;
 	uint16_t rrtype = 0;
-	
+
 	if(*dlen >= 3 && (*d)[0]==0 &&
 		sldns_read_uint16((*d)+1)==LDNS_RR_TYPE_OPT) {
 		/* perform EDNS OPT processing */
@@ -1119,7 +1152,7 @@ static int sldns_wire2str_svcparam_alpn2str(char** s,
 			w += sldns_str_print(s, slen, "%s", ",");
 	}
 	w += sldns_str_print(s, slen, "\"");
-	
+
 	return w;
 }
 
@@ -1139,7 +1172,7 @@ static int sldns_wire2str_svcparam_ech2str(char** s,
 	(*s) += size;
 	(*slen) -= size;
 
-	w += sldns_str_print(s, slen, "\"");	
+	w += sldns_str_print(s, slen, "\"");
 
 	return w + size;
 }
@@ -1162,7 +1195,7 @@ int sldns_wire2str_svcparam_scan(uint8_t** d, size_t* dlen, char** s, size_t* sl
 
 	/* verify that we have data_len data */
 	if (data_len > *dlen)
-		return -1; 
+		return -1;
 
 	written_chars += sldns_print_svcparamkey(s, slen, svcparamkey);
 	if (!data_len) {
@@ -1174,6 +1207,7 @@ int sldns_wire2str_svcparam_scan(uint8_t** d, size_t* dlen, char** s, size_t* sl
 	 	case SVCB_KEY_IPV4HINT:
 	 	case SVCB_KEY_IPV6HINT:
 	 	case SVCB_KEY_MANDATORY:
+	 	case SVCB_KEY_DOHPATH:
 	 		return -1;
 	 	default:
 	 		return written_chars;
@@ -1201,6 +1235,8 @@ int sldns_wire2str_svcparam_scan(uint8_t** d, size_t* dlen, char** s, size_t* sl
 	case SVCB_KEY_ECH:
 		r = sldns_wire2str_svcparam_ech2str(s, slen, data_len, *d);
 		break;
+	case SVCB_KEY_DOHPATH:
+		/* fallthrough */
 	default:
 		r = sldns_str_print(s, slen, "=\"");
 
@@ -1222,7 +1258,7 @@ int sldns_wire2str_svcparam_scan(uint8_t** d, size_t* dlen, char** s, size_t* sl
 	}
 	if (r <= 0)
 		return -1; /* wireformat error */
-	
+
 	written_chars += r;
 	*d    += data_len;
 	*dlen -= data_len;
@@ -1551,7 +1587,7 @@ int sldns_wire2str_nsec_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	unsigned i, bit, window, block_len;
 	uint16_t t;
 	int w = 0;
-	
+
 	/* check for errors */
 	while(pl) {
 		if(pl < 2) return -1;
@@ -2231,6 +2267,52 @@ static int sldns_wire2str_edns_keepalive_print(char** s, size_t* sl,
 	return w;
 }
 
+int sldns_wire2str_edns_ede_print(char** s, size_t* sl,
+	uint8_t* data, size_t len)
+{
+	uint16_t ede_code;
+	int w = 0;
+	sldns_lookup_table *lt;
+	size_t i;
+	int printable;
+
+	if(len < 2) {
+		w += sldns_str_print(s, sl, "malformed ede ");
+		w += print_hex_buf(s, sl, data, len);
+		return w;
+	}
+
+	ede_code = sldns_read_uint16(data);
+	lt = sldns_lookup_by_id(sldns_edns_ede_codes, (int)ede_code);
+	if(lt && lt->name)
+		w += sldns_str_print(s, sl, "%s", lt->name);
+	else 	w += sldns_str_print(s, sl, "%d", (int)ede_code);
+
+	if(len == 2)
+		return w;
+
+	w += sldns_str_print(s, sl, " ");
+
+	/* If it looks like text, show it as text. */
+	printable=1;
+	for(i=2; i<len; i++) {
+		if(isprint((unsigned char)data[i]) || data[i] == '\t')
+			continue;
+		printable = 0;
+		break;
+	}
+	if(printable) {
+		w += sldns_str_print(s, sl, "\"");
+		for(i=2; i<len; i++) {
+			w += str_char_print(s, sl, data[i]);
+		}
+		w += sldns_str_print(s, sl, "\"");
+	} else {
+		w += print_hex_buf(s, sl, data+2, len-2);
+	}
+	return w;
+}
+
 int sldns_wire2str_edns_option_print(char** s, size_t* sl,
 	uint16_t option_code, uint8_t* optdata, size_t optlen)
 {
@@ -2264,6 +2346,9 @@ int sldns_wire2str_edns_option_print(char** s, size_t* sl,
 		break;
 	case LDNS_EDNS_PADDING:
 		w += print_hex_buf(s, sl, optdata, optlen);
+		break;
+	case LDNS_EDNS_EDE:
+		w += sldns_wire2str_edns_ede_print(s, sl, optdata, optlen);
 		break;
 	default:
 		/* unknown option code */

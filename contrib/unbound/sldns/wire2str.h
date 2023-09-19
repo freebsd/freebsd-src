@@ -36,6 +36,8 @@ extern struct sldns_struct_lookup_table* sldns_opcodes;
 extern struct sldns_struct_lookup_table* sldns_edns_flags;
 /** EDNS option codes */
 extern struct sldns_struct_lookup_table* sldns_edns_options;
+/** EDNS EDE codes */
+extern struct sldns_struct_lookup_table* sldns_edns_ede_codes;
 /** error string from wireparse */
 extern struct sldns_struct_lookup_table* sldns_wireparse_errors;
 /** tsig errors are the rcodes with extra (higher) values */
@@ -1018,6 +1020,17 @@ int sldns_wire2str_edns_n3u_print(char** str, size_t* str_len,
  * @return number of characters (except null) needed to print.
  */
 int sldns_wire2str_edns_subnet_print(char** str, size_t* str_len,
+	uint8_t* option_data, size_t option_len);
+
+/**
+ * Print EDNS EDE option data to string. User buffers, moves string pointers.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @param option_data: buffer with EDNS option code data.
+ * @param option_len: length of the data for this option.
+ * @return number of characters (except null) needed to print.
+ */
+int sldns_wire2str_edns_ede_print(char** str, size_t* str_len,
 	uint8_t* option_data, size_t option_len);
 
 /**

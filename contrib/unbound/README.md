@@ -1,6 +1,6 @@
 # Unbound
 
-[![Travis Build Status](https://travis-ci.org/NLnetLabs/unbound.svg?branch=master)](https://travis-ci.org/NLnetLabs/unbound)
+[![Github Build Status](https://github.com/NLnetLabs/unbound/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/NLnetLabs/unbound/actions)
 [![Packaging status](https://repology.org/badge/tiny-repos/unbound.svg)](https://repology.org/project/unbound/versions)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/unbound.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:unbound)
 [![Documentation Status](https://readthedocs.org/projects/unbound/badge/?version=latest)](https://unbound.readthedocs.io/en/latest/?badge=latest)
@@ -17,7 +17,9 @@ You can learn more about Unbound by reading our
 ## Compiling
 
 Make sure you have the C toolchain, OpenSSL and its include files, and libexpat
-installed. Unbound can be compiled and installed using:
+installed.
+If building from the repository source you also need flex and bison installed.
+Unbound can be compiled and installed using:
 
 ```
 ./configure && make && make install
@@ -27,7 +29,7 @@ You can use libevent if you want. libevent is useful when using many (10000)
 outgoing ports. By default max 256 ports are opened at the same time and the
 builtin alternative is equally capable and a little faster.
 
-Use the `--with-libevent=dir` configure option to compile Unbound with libevent
+Use the `--with-libevent` configure option to compile Unbound with libevent
 support.
 
 ## Unbound configuration

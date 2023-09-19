@@ -101,9 +101,11 @@ extern int BLACKLIST_PENALTY;
  * Chosen so that the UNKNOWN_SERVER_NICENESS falls within the band of a 
  * fast server, this causes server exploration as a side benefit. msec. */
 #define RTT_BAND 400
+/** Number of retries for empty nodata packets before it is accepted. */
+#define EMPTY_NODATA_RETRY_COUNT 2
 
 /**
- * Global state for the iterator. 
+ * Global state for the iterator.
  */
 struct iter_env {
 	/** A flag to indicate whether or not we have an IPv6 route */
@@ -111,6 +113,18 @@ struct iter_env {
 
 	/** A flag to indicate whether or not we have an IPv4 route */
 	int supports_ipv4;
+
+	/** A flag to locally apply NAT64 to make IPv4 addrs into IPv6 */
+	int use_nat64;
+
+	/** NAT64 prefix address, cf. dns64_env->prefix_addr */
+	struct sockaddr_storage nat64_prefix_addr;
+
+	/** sizeof(sockaddr_in6) */
+	socklen_t nat64_prefix_addrlen;
+
+	/** CIDR mask length of NAT64 prefix */
+	int nat64_prefix_net;
 
 	/** A set of inetaddrs that should never be queried. */
 	struct iter_donotq* donotq;
@@ -403,6 +417,11 @@ struct iter_qstate {
 	 */
 	int refetch_glue;
 
+	/**
+	 * This flag detects that a completely empty nodata was received,
+	 * already so that it is accepted later. */
+	int empty_nodata_found;
+
 	/** list of pending queries to authoritative servers. */
 	struct outbound_list outlist;
 
@@ -439,7 +458,14 @@ struct iter_qstate {
 	/** true if there have been parse failures of reply packets */
 	int parse_failures;
 	/** a failure printout address for last received answer */
-	struct comm_reply* fail_reply;
+	union {
+		struct in_addr in;
+#ifdef AF_INET6
+		struct in6_addr in6;
+#endif
+	} fail_addr;
+	/** which fail_addr, 0 is nothing, 4 or 6 */
+	int fail_addr_type;
 };
 
 /**

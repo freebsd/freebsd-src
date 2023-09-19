@@ -48,6 +48,7 @@
 #include "util/data/msgparse.h"
 #include "util/data/dname.h"
 #include "util/rbtree.h"
+#include "util/rfc_1982.h"
 #include "util/module.h"
 #include "util/net_help.h"
 #include "util/regional.h"
@@ -77,6 +78,9 @@
 #ifdef HAVE_OPENSSL_ENGINE_H
 #include <openssl/engine.h>
 #endif
+
+/** Maximum number of RRSIG validations for an RRset. */
+#define MAX_VALIDATE_RRSIGS 8
 
 /** return number of rrs in an rrset */
 static size_t
@@ -541,6 +545,8 @@ int algo_needs_missing(struct algo_needs* n)
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param numverified: incremented when the number of RRSIG validations
+ * 	increases.
  * @return secure if any key signs *this* signature. bogus if no key signs it,
  *	unchecked on error, or indeterminate if all keys are not supported by
  *	the crypto library (openssl3+ only).
@@ -551,7 +557,8 @@ dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey, size_t sig_idx,
 	struct rbtree_type** sortree,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int* numverified)
 {
 	/* find matching keys and check them */
 	enum sec_status sec = sec_status_bogus;
@@ -575,6 +582,7 @@ dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve,
 			tag != dnskey_calc_keytag(dnskey, i))
 			continue;
 		numchecked ++;
+		(*numverified)++;
 
 		/* see if key verifies */
 		sec = dnskey_verify_rrset_sig(env->scratch,
@@ -585,6 +593,13 @@ dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve,
 			return sec;
 		else if(sec == sec_status_indeterminate)
 			numindeterminate ++;
+		if(*numverified > MAX_VALIDATE_RRSIGS) {
+			*reason = "too many RRSIG validations";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			verbose(VERB_ALGO, "verify sig: too many RRSIG validations");
+			return sec_status_bogus;
+		}
 	}
 	if(numchecked == 0) {
 		*reason = "signatures from unknown keys";
@@ -608,7 +623,7 @@ enum sec_status
 dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
 	uint8_t* sigalg, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate, int* verified)
 {
 	enum sec_status sec;
 	size_t i, num;
@@ -616,6 +631,7 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 	/* make sure that for all DNSKEY algorithms there are valid sigs */
 	struct algo_needs needs;
 	int alg;
+	*verified = 0;
 
 	num = rrset_get_sigcount(rrset);
 	if(num == 0) {
@@ -640,7 +656,7 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 	for(i=0; i<num; i++) {
 		sec = dnskeyset_verify_rrset_sig(env, ve, *env->now, rrset, 
 			dnskey, i, &sortree, reason, reason_bogus,
-			section, qstate);
+			section, qstate, verified);
 		/* see which algorithm has been fixed up */
 		if(sec == sec_status_secure) {
 			if(!sigalg)
@@ -651,6 +667,13 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 		} else if(sigalg && sec == sec_status_bogus) {
 			algo_needs_set_bogus(&needs,
 				(uint8_t)rrset_get_sig_algo(rrset, i));
+		}
+		if(*verified > MAX_VALIDATE_RRSIGS) {
+			verbose(VERB_QUERY, "rrset failed to verify, too many RRSIG validations");
+			*reason = "too many RRSIG validations";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			return sec_status_bogus;
 		}
 	}
 	if(sigalg && (alg=algo_needs_missing(&needs)) != 0) {
@@ -690,6 +713,7 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 	int buf_canon = 0;
 	uint16_t tag = dnskey_calc_keytag(dnskey, dnskey_idx);
 	int algo = dnskey_get_algo(dnskey, dnskey_idx);
+	int numverified = 0;
 
 	num = rrset_get_sigcount(rrset);
 	if(num == 0) {
@@ -713,14 +737,22 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 		if(sec == sec_status_secure)
 			return sec;
 		numchecked ++;
+		numverified ++;
 		if(sec == sec_status_indeterminate)
 			numindeterminate ++;
+		if(numverified > MAX_VALIDATE_RRSIGS) {
+			verbose(VERB_QUERY, "rrset failed to verify, too many RRSIG validations");
+			*reason = "too many RRSIG validations";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			return sec_status_bogus;
+		}
 	}
 	verbose(VERB_ALGO, "rrset failed to verify: all signatures are bogus");
 	if(!numchecked) {
-		*reason = "signature missing";
+		*reason = "signature for expected key and algorithm missing";
 		if(reason_bogus)
-			*reason_bogus = LDNS_EDE_RRSIGS_MISSING;
+			*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
 	} else if(numchecked == numindeterminate) {
 		verbose(VERB_ALGO, "rrset failed to verify due to algorithm "
 			"refusal by cryptolib");
@@ -1376,44 +1408,6 @@ sigdate_error(const char* str, int32_t expi, int32_t incep, int32_t now)
 	} else
 		log_info("%s expi=%u incep=%u now=%u", str, (unsigned)expi, 
 			(unsigned)incep, (unsigned)now);
-}
-
-/** RFC 1982 comparison, uses unsigned integers, and tries to avoid
- * compiler optimization (eg. by avoiding a-b<0 comparisons),
- * this routine matches compare_serial(), for SOA serial number checks */
-static int
-compare_1982(uint32_t a, uint32_t b)
-{
-	/* for 32 bit values */
-        const uint32_t cutoff = ((uint32_t) 1 << (32 - 1));
-
-        if (a == b) {
-                return 0;
-        } else if ((a < b && b - a < cutoff) || (a > b && a - b > cutoff)) {
-                return -1;
-        } else {
-                return 1;
-        }
-}
-
-/** if we know that b is larger than a, return the difference between them,
- * that is the distance between them. in RFC1982 arith */
-static uint32_t
-subtract_1982(uint32_t a, uint32_t b)
-{
-	/* for 32 bit values */
-        const uint32_t cutoff = ((uint32_t) 1 << (32 - 1));
-
-	if(a == b)
-		return 0;
-	if(a < b && b - a < cutoff) {
-		return b-a;
-	}
-	if(a > b && a - b > cutoff) {
-		return ((uint32_t)0xffffffff) - (a-b-1);
-	}
-	/* wrong case, b smaller than a */
-	return 0;
 }
 
 /** check rrsig dates */

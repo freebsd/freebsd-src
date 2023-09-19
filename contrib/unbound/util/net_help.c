@@ -779,8 +779,8 @@ addr_in_common(struct sockaddr_storage* addr1, int net1,
 	return match;
 }
 
-void 
-addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen, 
+void
+addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	char* buf, size_t len)
 {
 	int af = (int)((struct sockaddr_in*)addr)->sin_family;
@@ -792,7 +792,51 @@ addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	}
 }
 
-int 
+int
+prefixnet_is_nat64(int prefixnet)
+{
+	return (prefixnet == 32 || prefixnet == 40 ||
+		prefixnet == 48 || prefixnet == 56 ||
+		prefixnet == 64 || prefixnet == 96);
+}
+
+void
+addr_to_nat64(const struct sockaddr_storage* addr,
+	const struct sockaddr_storage* nat64_prefix,
+	socklen_t nat64_prefixlen, int nat64_prefixnet,
+	struct sockaddr_storage* nat64_addr, socklen_t* nat64_addrlen)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+	struct sockaddr_in6 *sin6;
+	uint8_t *v4_byte;
+	int i;
+
+	/* This needs to be checked by the caller */
+	log_assert(addr->ss_family == AF_INET);
+	/* Current usage is only from config values; prefix lengths enforced
+	 * during config validation */
+	log_assert(prefixnet_is_nat64(nat64_prefixnet));
+
+	*nat64_addr = *nat64_prefix;
+	*nat64_addrlen = nat64_prefixlen;
+
+	sin6 = (struct sockaddr_in6 *)nat64_addr;
+	sin6->sin6_flowinfo = 0;
+	sin6->sin6_port = sin->sin_port;
+
+	nat64_prefixnet = nat64_prefixnet / 8;
+
+	v4_byte = (uint8_t *)&sin->sin_addr.s_addr;
+	for(i = 0; i < 4; i++) {
+		if(nat64_prefixnet == 8) {
+			/* bits 64...71 are MBZ */
+			sin6->sin6_addr.s6_addr[nat64_prefixnet++] = 0;
+		}
+		sin6->sin6_addr.s6_addr[nat64_prefixnet++] = *v4_byte++;
+	}
+}
+
+int
 addr_is_ip4mapped(struct sockaddr_storage* addr, socklen_t addrlen)
 {
 	/* prefix for ipv4 into ipv6 mapping is ::ffff:x.x.x.x */
@@ -909,6 +953,111 @@ void log_crypto_err_code(const char* str, unsigned long err)
 }
 
 #ifdef HAVE_SSL
+/** Print crypt erro with SSL_get_error want code and err_get_error code */
+static void log_crypto_err_io_code_arg(const char* str, int r,
+	unsigned long err, int err_present)
+{
+	int print_errno = 0, print_crypto_err = 0;
+	const char* inf = NULL;
+
+	switch(r) {
+	case SSL_ERROR_NONE:
+		inf = "no error";
+		break;
+	case SSL_ERROR_ZERO_RETURN:
+		inf = "channel closed";
+		break;
+	case SSL_ERROR_WANT_READ:
+		inf = "want read";
+		break;
+	case SSL_ERROR_WANT_WRITE:
+		inf = "want write";
+		break;
+	case SSL_ERROR_WANT_CONNECT:
+		inf = "want connect";
+		break;
+	case SSL_ERROR_WANT_ACCEPT:
+		inf = "want accept";
+		break;
+	case SSL_ERROR_WANT_X509_LOOKUP:
+		inf = "want X509 lookup";
+		break;
+#ifdef SSL_ERROR_WANT_ASYNC
+	case SSL_ERROR_WANT_ASYNC:
+		inf = "want async";
+		break;
+#endif
+#ifdef SSL_ERROR_WANT_ASYNC_JOB
+	case SSL_ERROR_WANT_ASYNC_JOB:
+		inf = "want async job";
+		break;
+#endif
+#ifdef SSL_ERROR_WANT_CLIENT_HELLO_CB
+	case SSL_ERROR_WANT_CLIENT_HELLO_CB:
+		inf = "want client hello cb";
+		break;
+#endif
+	case SSL_ERROR_SYSCALL:
+		print_errno = 1;
+		inf = "syscall";
+		break;
+	case SSL_ERROR_SSL:
+		print_crypto_err = 1;
+		inf = "SSL, usually protocol, error";
+		break;
+	default:
+		inf = "unknown SSL_get_error result code";
+		print_errno = 1;
+		print_crypto_err = 1;
+	}
+	if(print_crypto_err) {
+		if(print_errno) {
+			char buf[1024];
+			snprintf(buf, sizeof(buf), "%s with errno %s",
+				str, strerror(errno));
+			if(err_present)
+				log_crypto_err_code(buf, err);
+			else	log_crypto_err(buf);
+		} else {
+			if(err_present)
+				log_crypto_err_code(str, err);
+			else	log_crypto_err(str);
+		}
+	} else {
+		if(print_errno) {
+			if(errno == 0)
+				log_err("str: syscall error with errno %s",
+					strerror(errno));
+			else log_err("str: %s", strerror(errno));
+		} else {
+			log_err("str: %s", inf);
+		}
+	}
+}
+#endif /* HAVE_SSL */
+
+void log_crypto_err_io(const char* str, int r)
+{
+#ifdef HAVE_SSL
+	log_crypto_err_io_code_arg(str, r, 0, 0);
+#else
+	(void)str;
+	(void)r;
+#endif /* HAVE_SSL */
+}
+
+void log_crypto_err_io_code(const char* str, int r, unsigned long err)
+{
+#ifdef HAVE_SSL
+	log_crypto_err_io_code_arg(str, r, err, 1);
+#else
+	(void)str;
+	(void)r;
+	(void)err;
+#endif /* HAVE_SSL */
+}
+
+#ifdef HAVE_SSL
 /** log certificate details */
 void
 log_cert(unsigned level, const char* str, void* cert)
@@ -1003,6 +1152,16 @@ listen_sslctx_setup(void* ctxt)
 	/* if we have sha256, set the cipher list to have no known vulns */
 		if(!SSL_CTX_set_cipher_list(ctx, "TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
 			log_crypto_err("could not set cipher list with SSL_CTX_set_cipher_list");
+	}
+#endif
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+	/* ignore errors when peers do not send the mandatory close_notify
+	 * alert on shutdown.
+	 * Relevant for openssl >= 3 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_IGNORE_UNEXPECTED_EOF) &
+		SSL_OP_IGNORE_UNEXPECTED_EOF) != SSL_OP_IGNORE_UNEXPECTED_EOF) {
+		log_crypto_err("could not set SSL_OP_IGNORE_UNEXPECTED_EOF");
+		return 0;
 	}
 #endif
 
@@ -1230,6 +1389,17 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
 		SSL_OP_NO_RENEGOTIATION) != SSL_OP_NO_RENEGOTIATION) {
 		log_crypto_err("could not set SSL_OP_NO_RENEGOTIATION");
+		SSL_CTX_free(ctx);
+		return 0;
+	}
+#endif
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+	/* ignore errors when peers do not send the mandatory close_notify
+	 * alert on shutdown.
+	 * Relevant for openssl >= 3 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_IGNORE_UNEXPECTED_EOF) &
+		SSL_OP_IGNORE_UNEXPECTED_EOF) != SSL_OP_IGNORE_UNEXPECTED_EOF) {
+		log_crypto_err("could not set SSL_OP_IGNORE_UNEXPECTED_EOF");
 		SSL_CTX_free(ctx);
 		return 0;
 	}

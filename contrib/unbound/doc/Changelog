@@ -1,3 +1,476 @@
+2 November 2023: Wouter
+	- Set version number to 1.19.0.
+	- Tag for 1.19.0rc1 release.
+
+1 November 2023: George
+	- Mention flex and bison in README.md when building from repository
+	  source.
+
+1 November 2023: Wouter
+	- Fix SSL compile failure for definition in log_crypto_err_io_code_arg.
+	- Fix SSL compile failure for other missing definitions in
+	  log_crypto_err_io_code_arg.
+	- Fix compilation without openssl, remove unused function warning.
+
+31 October 2023: George
+	- Fix #941: dnscrypt doesn't work after upgrade to 1.18 with
+	  suggestion by dukeartem to also fix the udp_ancil with dnscrypt.
+
+30 October 2023: George
+	- Merge #930 from Stuart Henderson: add void to
+	  log_ident_revert_to_default declaration.
+
+30 October 2023: Wouter
+	- autoconf.
+
+24 October 2023: George
+	- Clearer configure text for missing protobuf-c development libraries.
+
+20 October 2023: Wouter
+	- Merge #951: Cachedb no store. The cachedb-no-store: yes option is
+	  used to stop cachedb from writing messages to the backend storage.
+	  It reads messages when data is available from the backend. The
+	  default is no.
+
+19 October 2023: Wouter
+	- Fix to print detailed errors when an SSL IO routine fails via
+	  SSL_get_error.
+
+18 October 2023: George
+	- Mailing list patches from Daniel Gröber for DNS64 fallback to plain
+	  AAAA when no A record exists for synthesis, and minor DNS64 code
+	  refactoring for better readability.
+	- Fixes for the DNS64 patches.
+	- Update the dns64_lookup.rpl test for the DNS64 fallback patch.
+	- Merge #955 from buevsan: fix ipset wrong behavior.
+	- Update testdata/ipset.tdir test for ipset fix.
+
+17 October 2023: Wouter
+	- Fix #954: Inconsistent RPZ handling for A record returned along with
+	  CNAME.
+
+16 October 2023: George
+	- Expose the script filename in the Python module environment 'mod_env'
+	  instead of the config_file structure which includes the linked list
+	  of scripts in a multi Python module setup; fixes #79.
+	- Expose the configured listening and outgoing interfaces, if any, as
+	  a list of strings in the Python 'config_file' class instead of the
+	  current Swig object proxy; fixes #79.
+	- For multi Python module setups, clean previously parsed module
+	  functions in __main__'s dictionary, if any, so that only current
+	  module functions are registered.
+
+13 October 2023: George
+	- Better fix for infinite loop when reading multiple lines of input on
+	  a broken remote control socket, by treating a zero byte line the
+	  same as transmission end. Addesses #947 and #948.
+
+12 October 2023: Wouter
+	- Merge #944: Disable EDNS DO.
+	  Disable the EDNS DO flag in upstream requests. This can be helpful
+	  for devices that cannot handle DNSSEC information. But it should not
+	  be enabled otherwise, because that would stop DNSSEC validation. The
+	  DNSSEC validation would not work for Unbound itself, and also not
+	  for downstream users. Default is no. The option
+	  is disable-edns-do: no
+
+11 October 2023: George
+	- Fix #850: [FR] Ability to use specific database in Redis, with new
+	  redis-logical-db configuration option.
+
+11 October 2023: Wouter
+	- Fix #949: "could not create control compt".
+	- Fix that cachedb does not warn when serve-expired is disabled about
+	  use of serve-expired-reply-ttl and serve-expired-client-timeout.
+	- Fix for #949: Fix pythonmod/ubmodule-tst.py for Python 3.x.
+
+10 October 2023: George
+	- Fix infinite loop when reading multiple lines of input on a broken
+	  remote control socket. Addesses #947 and #948.
+
+9 October 2023: Wouter
+	- Fix edns subnet so that queries with a source prefix of zero cause
+	  the recursor send no edns subnet option to the upstream.
+	- Fix that printout of EDNS options shows the EDNS cookie option by
+	  name.
+
+4 October 2023: Wouter
+	- Fix #946: Forwarder returns servfail on upstream response noerror no
+	  data.
+
+3 October 2023: George
+	- Merge #881: Generalise the proxy protocol code.
+
+2 October 2023: George
+	- Fix misplaced comment.
+
+22 September 2023: Wouter
+	- Fix #942: 1.18.0 libunbound DNS regression when built without
+	  OpenSSL.
+
+18 September 2023: Wouter
+	- Fix rpz tcp-only action with rpz triggers nsdname and nsip.
+
+15 September 2023: Wouter
+	- Merge #936: Check for c99 with autoconf versions prior to 2.70.
+	- Fix to remove two c99 notations.
+
+14 September 2023: Wouter
+	- Fix authority zone answers for obscured DNAMEs and delegations.
+
+8 September 2023: Wouter
+	- Fix send of udp retries when ENOBUFS is returned. It stops looping
+	  and also waits for the condition to go away. Reported by Florian
+	  Obser.
+
+7 September 2023: Wouter
+	- Fix to scrub resource records of type A and AAAA that have an
+	  inappropriate size. They are removed from responses.
+	- Fix to move msgparse_rrset_remove_rr code to util/msgparse.c.
+	- Fix to add EDE text when RRs have been removed due to length.
+	- Fix to set ede match in unit test for rr length removal.
+	- Fix to print EDE text in readable form in output logs.
+
+6 September 2023: Wouter
+	- Merge #931: Prevent warnings from -Wmissing-prototypes.
+
+31 August 2023: Wouter
+	- Fix autoconf 2.69 warnings in configure.
+	- Fix #927: unbound 1.18.0 make test error. Fix make test without SHA1.
+
+30 August 2023: Wouter
+	- Fix for WKS call to getservbyname that creates allocation on exit
+	  in unit test by testing numbers first and testing from the services
+	  list later.
+
+28 August 2023: Wouter
+	- Fix for version generation race condition that ignored changes.
+
+25 August 2023: Wouter
+	- Fix compile error on NetBSD in util/netevent.h.
+
+23 August 2023: Wouter
+	- Tag for 1.18.0rc1 release. This became the 1.18.0 release on
+	  30 aug 2023, with the fix from 25 aug, fix compile on NetBSD
+	  included. The repository continues with version 1.18.1.
+
+22 August 2023: Wouter
+	- Set version number to 1.18.0.
+
+21 August 2023: Wouter
+	- Debug Windows ci workflow.
+	- Fix windows ci workflow to install bison and flex.
+	- Fix for #925: unbound.service: Main process exited, code=killed,
+	  status=11/SEGV. Fixes cachedb configuration handling.
+	- Fix #923: processQueryResponse() THROWAWAY should be mindful of
+	  fail_reply.
+	- Fix unit test for unbound-control to work when threads are disabled,
+	  and fix cache dump check.
+
+18 August 2023: Wouter
+	- Fix for iter_dec_attempts that could cause a hang, part of
+	  capsforid and qname minimisation, depending on the settings.
+	- Fix uninitialized memory passed in padding bytes of cmsg to sendmsg.
+	- Fix stat_values test to work with dig that enables DNS cookies.
+
+17 August 2023: Wouter
+	- Merge PR #762: Downstream DNS Server Cookies a la RFC7873 and
+	  RFC9018. Create server cookies for clients that send client cookies.
+	  This needs to be explicitly turned on in the config file with:
+	  `answer-cookie: yes`. A `cookie-secret:` can be configured for
+	  anycast setups. Without one, a random cookie secret is generated.
+	  The acl option `allow_cookie` allows queries with either a valid
+	  cookie or over a stateful transport. The statistics output has
+	  `queries_cookie_valid` and `queries_cookie_client` and
+	  `queries_cookie_invalid` information. The `ip\-ratelimit\-cookie:`
+	  value determines a rate limit for queries with cookies, if desired.
+	- Fix regional_alloc_init for potential unaligned source of the copy.
+	- Fix ip_ratelimit test to work with dig that enables DNS cookies.
+
+2 August 2023: George
+	- Move a cache reply callback in worker.c closer to the cache reply
+	  generation.
+
+1 August 2023: George
+	- Merge #911 from natalie-reece: Exclude EDE before other EDNS options
+	  when there isn't enough space.
+	- For #911: Try to trim EXTRA-TEXT (and LDNS_EDE_OTHER options
+	  altogether) before giving up on attaching EDE options.
+	- More braces and formatting for Fix for EDNS EDE size calculation to
+	  avoid future bugs.
+	- Fix to use the now cached EDE, if any, for CD_bit queries.
+
+1 August 2023: Wouter
+	- Fix for EDNS EDE size calculation.
+
+31 July 2023: George
+	- Merge #790 from Tom Carpay: Add support for EDE caching in cachedb
+	  and subnetcache.
+
+31 July 2023: Wouter
+	- iana portlist update.
+
+30 July 2023: George
+	- Merge #759 from Tom Carpay: Add EDE (RFC8914) caching.
+
+28 July 2023: George
+	- Fix unused variable compile warning for kernel timestamps in
+	  netevent.c
+
+21 July 2023: George
+	- Merge #857 from eaglegai: fix potential memory leaks when errors
+	  happen.
+	- For #857: fix mixed declarations and code.
+	- Merge #118 from mibere: Changed verbosity level for Redis init &
+	  deinit.
+	- Merge #390 from Frank Riley: Add missing callbacks to the python
+	  module.
+	- Cleaner failure code for callback functions in interface.i.
+	- Merge #889 from borisVanhoof: Free memory in error case + remove
+	  unused function.
+	- For #889: use netcat-openbsd instead of netcat-traditional.
+	- For #889: Account for num_detached_states before possible
+	  mesh_state_delete when erroring out.
+
+20 July 2023: George
+	- Merge #909 from headshog: Numeric truncation when parsing TYPEXX and
+	  CLASSXX representation.
+	- For #909: Fix return values.
+	- Merge #901 from Sergei Trofimovich: config: improve handling of
+	  unknown modules.
+
+20 July 2023: Wouter
+	- For #909: Fix RR class comparison.
+
+14 July 2023: George
+	- More clear description of the different auth-zone behaviors on the
+	  man page.
+
+13 July 2023: George
+	- Merge #880 from chipitsine: services/authzone.c: remove redundant
+	  check.
+
+11 July 2023: George
+	- Merge #664 from tilan7763: Add prefetch support for subnet cache
+	  entries.
+	- For #664: Easier code flow for subnetcache prefetching.
+	- For #664: Add testcase.
+	- For #664: Rename subnet_prefetch tests to subnet_global_prefetch to
+	  differentiate from the new subnet prefetch support.
+
+3 July 2023: George
+	- Merge #739: Add SVCB dohpath support.
+	- Code cleanup for sldns_str2wire_svcparam_key_lookup.
+	- Merge #802: add validation EDEs to queries where the CD bit is set.
+	- For #802: Cleanup comments and add RCODE check for CD bit test case.
+	- Skip the 00-lint test. splint is not maintained; it either does not
+	  work or produces false positives. Static analysis is handled in the
+	  clang test.
+
+3 July 2023: Wouter
+	- Fix #906: warning: ‘Py_SetProgramName’ is deprecated.
+	- Fix dereference of NULL variable warning in mesh_do_callback.
+
+29 June 2023: George
+	- More fixes for reference counting for python module and clean up
+	  failure code.
+	- Merge #827 from rcmcdonald91: Eliminate unnecessary Python reloading
+	  which causes memory leaks.
+
+29 June 2023: Wouter
+	- Fix python modules with multiple scripts, by incrementing reference
+	  counts.
+
+27 June 2023: George
+	- Merge #892: Add cachedb hit stat. Introduces 'num.query.cachedb' as
+	  a new statistical counter.
+	- Remove warning about unknown cast-function-type warning pragma.
+
+22 June 2023: Wouter
+	- Merge #903: contrib: add yocto compatible init script.
+
+15 June 2023: Philip
+	- Fix for issue #887 (Timeouts to forward servers on BSD based
+	  system with ASLR)
+	- Probably fixes #516 (Stream reuse does not work on Windows) as well
+
+14 June 2023: George
+	- Properly handle all return values of worker_check_request during
+	  early EDE code.
+	- Do not check the incoming request more than once.
+
+12 June 2023: Wouter
+	- Merge #896: Fix: #895: pythonmodule: add all site-packages
+	  directories to sys.path.
+	- Fix #895: python + sysconfig gives ANOTHER path comparing to
+	  distutils.
+	- Fix for uncertain unit test for doh buffer size events.
+
+25 May 2023: Wouter
+	- Fix unbound-dnstap-socket printout when no query is present.
+	- Fix unbound-dnstap-socket time fraction conversion for printout.
+
+19 May 2023: Wouter
+	- Fix RPZ removal of client-ip, nsip, nsdname triggers from IXFR.
+	- Fix to remove unused variables from RPZ clientip data structure.
+
+16 May 2023: Wouter
+	- Fix #888: [FR] Use kernel timestamps for dnstap.
+	- Fix to print debug log for ancillary data with correct IP address.
+
+11 May 2023: Wouter
+	- Fix warning in windows compile, in set_recvtimestamp.
+
+4 May 2023: Wouter
+	- Fix #885: Error: util/configlexer.c: No such file or directory,
+	  adds error messages explaining to install flex and bison.
+	- Fix to remove unused whitespace from acx_nlnetlabs.m4 and config.h.
+	- Fix doxygen in addr_to_nat64 header definition.
+
+1 May 2023: George
+	- Merge #722 from David 'eqvinox' Lamparter: NAT64 support.
+	- For #722: minor fixes, formatting, refactoring.
+
+1 May 2023: Wouter
+	- Fix RPZ IP responses with trigger rpz-drop on cache entries, that
+	  they are dropped.
+
+26 April 2023: Philip
+	- Fix issue #860: Bad interaction with 0 TTL records and serve-expired
+
+26 April 2023: Wouter
+	- Merge #882 from vvfedorenko: Features/dropqueuedpackets, with
+	  sock-queue-timeout option that drops packets that have been in the
+	  socket queue for too long. Added statistics num.queries_timed_out
+	  and query.queue_time_us.max that track the socket queue timeouts.
+	- Fix for #882: small changes, date updated in Copyright for
+	  util/timeval_func.c and util/timeval_func.h. Man page entries and
+	  example entry.
+	- Fix for #882: document variable to stop doxygen warning.
+
+19 April 2023: Wouter
+	- Fix for #878: Invalid IP address in unbound.conf causes Segmentation
+	  Fault on OpenBSD.
+
+14 April 2023: Wouter
+	- Merge #875: change obsolete txt URL in unbound-anchor.c to point
+	  to RFC 7958, and Fix #874.
+
+13 April 2023: Wouter
+	- Fix build badge, from failing travis link to github ci action link.
+
+6 April 2023: Wouter
+	- Fix for #870: Add test case for the qname minimisation and CNAME.
+
+4 April 2023: Wouter
+	- Fix #870: NXDOMAIN instead of NOERROR rcode when asked for existing
+	  CNAME record.
+
+24 March 2023: Philip
+	- Fix issue #676: Unencrypted query is sent when
+	  forward-tls-upstream: yes is used without tls-cert-bundle
+	- Extra consistency check to make sure that when TLS is requested,
+	  either we set up a TLS connection or we return an error.
+
+21 March 2023: Philip
+	- Fix issue #851: reserved identifier violation 
+
+20 March 2023: Wouter
+	- iana portlist update.
+
+17 March 2023: George
+	- Fix #812, fix #846, by using the SSL_OP_IGNORE_UNEXPECTED_EOF option
+	  to ignore the unexpected eof while reading in openssl >= 3.
+
+16 March 2023: Wouter
+	- Fix ssl.h include brackets, instead of quotes.
+
+14 March 2023: Wouter
+	- Fix unbound-dnstap-socket test program to reply the finish frame
+	  over a TLS connection correctly.
+
+23 February 2023: Wouter
+	- Fix for #852: Completion of error handling.
+
+21 February 2023: Philip
+       - Fix #825: Unexpected behavior with client-subnet-always-forward
+         and serve-expired
+
+10 February 2023: George
+	- Clean up iterator/iterator.c::error_response_cache() and allow for
+	  better interaction with serve-expired, prefetch and cached error
+	  responses.
+
+9 February 2023: George
+	- Allow TTL refresh of expired error responses.
+	- Add testcase for refreshing expired error responses.
+
+9 February 2023: Wouter
+	- Fix to ignore entirely empty responses, and try at another authority.
+	  This turns completely empty responses, a type of noerror/nodata into
+	  a servfail, but they do not conform to RFC2308, and the retry can
+	  fetch improved content.
+	- Fix unit tests for spurious empty messages.
+	- Fix consistency of unit test without roundrobin answers for the
+	  cnametooptout unit test.
+	- Fix to git ignore the library symbol file that configure can create.
+
+8 February 2023: Wouter
+	- Fix #841: Unbound won't build with aaaa-filter-iterator.patch.
+
+30 January 2023: George
+	- Add duration variable for speed_local.test.
+
+26 January 2023: Wouter
+	- Fix acx_nlnetlabs.m4 for -Wstrict-prototypes.
+
+23 January 2023: George
+	- Fix #833: [FR] Ability to set the Redis password.
+
+23 January 2023: Wouter
+	- Fix #835: [FR] Ability to use Redis unix sockets.
+
+20 January 2023: Wouter
+	- Merge #819: Added new static zone type block_a to suppress all A
+	  queries for specific zones.
+
+19 January 2023: Wouter
+	- Set max-udp-size default to 1232. This is the same default value as
+	  the default value for edns-buffer-size. It restricts client edns
+	  buffer size choices, and makes unbound behave similar to other DNS
+	  resolvers. The new choice, down from 4096 means it is harder to get
+	  large responses from Unbound. Thanks to Xiang Li, from NISL Lab,
+	  Tsinghua University.
+	- Add harden-unknown-additional option. It removes
+	  unknown records from the authority section and additional section.
+	  Thanks to Xiang Li, from NISL Lab, Tsinghua University.
+	- Set default for harden-unknown-additional to no. So that it does
+	  not hamper future protocol developments.
+	- Fix test for new default.
+
+18 January 2023: Wouter
+	- Fix not following cleared RD flags potentially enables amplification
+	  DDoS attacks, reported by Xiang Li and Wei Xu from NISL Lab,
+	  Tsinghua University. The fix stops query loops, by refusing to send
+	  RD=0 queries to a forwarder, they still get answered from cache.
+
+13 January 2023: Wouter
+	- Merge #826: Аdd a metric about the maximum number of collisions in
+	  lrushah.
+	- Improve documentation for #826, describe the large collisions amount.
+
+9 January 2023: Wouter
+	- Fix python module install path detection.
+	- Fix python version detection in configure.
+
+6 January 2023: Wouter
+	- Fix #823: Response change to NODATA for some ANY queries since
+	  1.12, tested on 1.16.1.
+	- Fix wildcard in hyperlocal zone service degradation, reported
+	  by Sergey Kacheev. This fix is included in 1.17.1rc2.
+	  That became 1.17.1 on 12 Jan 2023, the code repo continues
+	  with 1.17.2. 1.17.1 excludes fix #823, it is included forwards.
+
 5 January 2023: Wouter
 	- Tag for 1.17.1 release.
 
@@ -4426,7 +4899,7 @@
 	- Fix that with openssl 1.1 control-use-cert: no uses less cpu, by
 	  using no encryption over the unix socket.
 
-22 Novenber 2016: Ralph
+22 November 2016: Ralph
 	- Make access-control-tag-data RDATA absolute. This makes the RDATA
 	  origin consistent between local-data and access-control-tag-data.
 	- Fix NSEC ENT wildcard check. Matching wildcard does not have to be a
