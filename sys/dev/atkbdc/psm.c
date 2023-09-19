@@ -297,6 +297,16 @@ enum {
 typedef struct trackpointinfo {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
+	enum {
+		TRACKPOINT_VENDOR_IBM	= 0x01,
+		TRACKPOINT_VENDOR_ALPS	= 0x02,
+		TRACKPOINT_VENDOR_ELAN	= 0x03,
+		TRACKPOINT_VENDOR_NXP	= 0x04,
+		TRACKPOINT_VENDOR_JYT	= 0x05,
+		TRACKPOINT_VENDOR_SYNAPTICS = 0x06,
+		TRACKPOINT_VENDOR_UNKNOWN = 0x07,
+	}	vendor;
+	int	firmware;
 	int	sensitivity;
 	int	inertia;
 	int	uplateau;
@@ -431,7 +441,6 @@ struct psm_softc {		/* Driver status information */
 	gesture_t	gesture;	/* Gesture context */
 	elantechhw_t	elanhw;		/* Elantech hardware information */
 	elantechaction_t elanaction;	/* Elantech action context */
-	int		tphw;		/* TrackPoint hardware information */
 	trackpointinfo_t tpinfo;	/* TrackPoint configuration */
 	mousemode_t	mode;		/* operation mode */
 	mousemode_t	dflt_mode;	/* default operation mode */
@@ -1995,7 +2004,7 @@ psmattach(device_t dev)
 		sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	default:
-		if (sc->synhw.infoMajor >= 4 || sc->tphw > 0)
+		if (sc->synhw.infoMajor >= 4 || sc->tpinfo.sysctl_tree != NULL)
 			sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	}
@@ -6950,7 +6959,7 @@ static int
 enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 {
 	KBDC kbdc = sc->kbdc;
-	int id;
+	int vendor, firmware;
 
 	/*
 	 * If called from enable_synaptics(), make sure that passthrough
@@ -6962,14 +6971,14 @@ enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 	if (sc->synhw.capPassthrough)
 		synaptics_passthrough_on(sc);
 
-	if (send_aux_command(kbdc, 0xe1) != PSM_ACK ||
-	    read_aux_data(kbdc) != 0x01)
+	if (send_aux_command(kbdc, 0xe1) != PSM_ACK)
 		goto no_trackpoint;
-	id = read_aux_data(kbdc);
-	if (id < 0x01)
+	vendor = read_aux_data(kbdc);
+	if (vendor <= 0 || vendor >= TRACKPOINT_VENDOR_UNKNOWN)
 		goto no_trackpoint;
-	if (arg == PROBE)
-		sc->tphw = id;
+	firmware = read_aux_data(kbdc);
+	if (firmware < 0x01)
+		goto no_trackpoint;
 	if (!trackpoint_support)
 		goto no_trackpoint;
 
@@ -6983,9 +6992,13 @@ enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 		 * a guest device.
 		 */
 		if (!sc->synhw.capPassthrough) {
-			sc->hw.hwid = id;
+			sc->hw.hwid = firmware;
 			sc->hw.buttons = 3;
 		}
+		VDLOG(2, sc->dev, LOG_NOTICE, "Trackpoint v=0x%x f=0x%x",
+		    vendor, firmware);
+		sc->tpinfo.vendor = vendor;
+		sc->tpinfo.firmware = firmware;
 	}
 
 	set_trackpoint_parameters(sc);
