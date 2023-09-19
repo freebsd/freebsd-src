@@ -22,7 +22,7 @@ arm/mv/rtc.c			standard
 arm/mv/armadaxp/armadaxp_mp.c	optional	smp
 arm/mv/armadaxp/mptramp.S	optional	smp
 dev/cesa/cesa.c			optional	cesa
-dev/iicbus/twsi/mv_twsi.c	optional	twsi
+dev/iicbus/controller/twsi/mv_twsi.c	optional	twsi
 dev/mge/if_mge.c		optional	mge
 dev/neta/if_mvneta_fdt.c	optional	neta fdt
 dev/neta/if_mvneta.c		optional	neta mdio mii
