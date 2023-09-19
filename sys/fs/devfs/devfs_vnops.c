@@ -1664,6 +1664,10 @@ devfs_revoke(struct vop_revoke_args *ap)
 	dev_lock();
 	cdp->cdp_inuse--;
 	if (!(cdp->cdp_flags & CDP_ACTIVE) && cdp->cdp_inuse == 0) {
+		KASSERT((cdp->cdp_flags & CDP_ON_ACTIVE_LIST) != 0,
+		    ("%s: cdp %p (%s) not on active list",
+		    __func__, cdp, dev->si_name));
+		cdp->cdp_flags &= ~CDP_ON_ACTIVE_LIST;
 		TAILQ_REMOVE(&cdevp_list, cdp, cdp_list);
 		dev_unlock();
 		dev_rel(&cdp->cdp_c);

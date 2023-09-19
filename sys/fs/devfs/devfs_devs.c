@@ -175,6 +175,9 @@ devfs_free(struct cdev *cdev)
 	struct cdev_priv *cdp;
 
 	cdp = cdev2priv(cdev);
+	KASSERT((cdp->cdp_flags & (CDP_ACTIVE | CDP_ON_ACTIVE_LIST)) == 0,
+	    ("%s: cdp %p (%s) still on active list",
+	    __func__, cdp, cdev->si_name));
 	if (cdev->si_cred != NULL)
 		crfree(cdev->si_cred);
 	devfs_free_cdp_inode(cdp->cdp_inode);
@@ -516,6 +519,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 	dev_lock();
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
 		KASSERT(cdp->cdp_dirents != NULL, ("NULL cdp_dirents"));
+		KASSERT((cdp->cdp_flags & CDP_ON_ACTIVE_LIST) != 0,
+		    ("%s: cdp %p (%s) should not be on active list",
+		    __func__, cdp, cdp->cdp_c.si_name));
 
 		/*
 		 * If we are unmounting, or the device has been destroyed,
@@ -547,6 +553,7 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 		if (!(cdp->cdp_flags & CDP_ACTIVE)) {
 			if (cdp->cdp_inuse > 0)
 				continue;
+			cdp->cdp_flags &= ~CDP_ON_ACTIVE_LIST;
 			TAILQ_REMOVE(&cdevp_list, cdp, cdp_list);
 			dev_unlock();
 			dev_rel(&cdp->cdp_c);
@@ -698,7 +705,10 @@ devfs_create(struct cdev *dev)
 
 	dev_lock_assert_locked();
 	cdp = cdev2priv(dev);
-	cdp->cdp_flags |= CDP_ACTIVE;
+	KASSERT((cdp->cdp_flags & CDP_ON_ACTIVE_LIST) == 0,
+	    ("%s: cdp %p (%s) already on active list",
+	    __func__, cdp, dev->si_name));
+	cdp->cdp_flags |= (CDP_ACTIVE | CDP_ON_ACTIVE_LIST);
 	cdp->cdp_inode = alloc_unrl(devfs_inos);
 	dev_refl(dev);
 	TAILQ_INSERT_TAIL(&cdevp_list, cdp, cdp_list);
