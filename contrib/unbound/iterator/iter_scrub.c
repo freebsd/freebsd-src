@@ -346,6 +346,26 @@ soa_in_auth(struct msg_parse* msg)
 	return 0;
 }
 
+/** Check if type is allowed in the authority section */
+static int
+type_allowed_in_authority_section(uint16_t tp)
+{
+	if(tp == LDNS_RR_TYPE_SOA || tp == LDNS_RR_TYPE_NS ||
+		tp == LDNS_RR_TYPE_DS || tp == LDNS_RR_TYPE_NSEC ||
+		tp == LDNS_RR_TYPE_NSEC3)
+		return 1;
+	return 0;
+}
+
+/** Check if type is allowed in the additional section */
+static int
+type_allowed_in_additional_section(uint16_t tp)
+{
+	if(tp == LDNS_RR_TYPE_A || tp == LDNS_RR_TYPE_AAAA)
+		return 1;
+	return 0;
+}
+
 /**
  * This routine normalizes a response. This includes removing "irrelevant"
  * records from the answer and additional sections and (re)synthesizing
@@ -355,11 +375,13 @@ soa_in_auth(struct msg_parse* msg)
  * @param msg: msg to normalize.
  * @param qinfo: original query.
  * @param region: where to allocate synthesized CNAMEs.
+ * @param env: module env with config options.
  * @return 0 on error.
  */
 static int
 scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg, 
-	struct query_info* qinfo, struct regional* region)
+	struct query_info* qinfo, struct regional* region,
+	struct module_env* env)
 {
 	uint8_t* sname = qinfo->qname;
 	size_t snamelen = qinfo->qname_len;
@@ -511,10 +533,18 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 
 	/* Mark additional names from AUTHORITY */
 	while(rrset && rrset->section == LDNS_SECTION_AUTHORITY) {
+		/* protect internals of recursor by making sure to del these */
 		if(rrset->type==LDNS_RR_TYPE_DNAME ||
 			rrset->type==LDNS_RR_TYPE_CNAME ||
 			rrset->type==LDNS_RR_TYPE_A ||
 			rrset->type==LDNS_RR_TYPE_AAAA) {
+			remove_rrset("normalize: removing irrelevant "
+				"RRset:", pkt, msg, prev, &rrset);
+			continue;
+		}
+		/* Allowed list of types in the authority section */
+		if(env->cfg->harden_unknown_additional &&
+			!type_allowed_in_authority_section(rrset->type)) {
 			remove_rrset("normalize: removing irrelevant "
 				"RRset:", pkt, msg, prev, &rrset);
 			continue;
@@ -576,7 +606,6 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	 * found in ANSWER and AUTHORITY. */
 	/* These records have not been marked OK previously */
 	while(rrset && rrset->section == LDNS_SECTION_ADDITIONAL) {
-		/* FIXME: what about other types? */
 		if(rrset->type==LDNS_RR_TYPE_A || 
 			rrset->type==LDNS_RR_TYPE_AAAA) 
 		{
@@ -589,9 +618,17 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				continue;
 			}
 		}
+		/* protect internals of recursor by making sure to del these */
 		if(rrset->type==LDNS_RR_TYPE_DNAME || 
 			rrset->type==LDNS_RR_TYPE_CNAME ||
 			rrset->type==LDNS_RR_TYPE_NS) {
+			remove_rrset("normalize: removing irrelevant "
+				"RRset:", pkt, msg, prev, &rrset);
+			continue;
+		}
+		/* Allowed list of types in the additional section */
+		if(env->cfg->harden_unknown_additional &&
+			!type_allowed_in_additional_section(rrset->type)) {
 			remove_rrset("normalize: removing irrelevant "
 				"RRset:", pkt, msg, prev, &rrset);
 			continue;
@@ -846,7 +883,7 @@ scrub_message(sldns_buffer* pkt, struct msg_parse* msg,
 	}
 
 	/* normalize the response, this cleans up the additional.  */
-	if(!scrub_normalize(pkt, msg, qinfo, region))
+	if(!scrub_normalize(pkt, msg, qinfo, region, env))
 		return 0;
 	/* delete all out-of-zone information */
 	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie))

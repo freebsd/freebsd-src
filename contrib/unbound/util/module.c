@@ -84,8 +84,10 @@ void errinf_ede(struct module_qstate* qstate,
 	const char* str, sldns_ede_code reason_bogus)
 {
 	struct errinf_strlist* p;
-	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str)
+	if(!str || (qstate->env->cfg->val_log_level < 2 &&
+		!qstate->env->cfg->log_servfail)) {
 		return;
+	}
 	p = (struct errinf_strlist*)regional_alloc(qstate->region, sizeof(*p));
 	if(!p) {
 		log_err("malloc failure in validator-error-info string");
@@ -152,15 +154,19 @@ char* errinf_to_str_bogus(struct module_qstate* qstate)
 	return p;
 }
 
+/* Try to find the latest (most specific) dnssec failure */
 sldns_ede_code errinf_to_reason_bogus(struct module_qstate* qstate)
 {
 	struct errinf_strlist* s;
+	sldns_ede_code ede = LDNS_EDE_NONE;
 	for(s=qstate->errinf; s; s=s->next) {
-		if (s->reason_bogus != LDNS_EDE_NONE) {
-			return s->reason_bogus;
-		}
+		if(s->reason_bogus == LDNS_EDE_NONE) continue;
+		if(ede != LDNS_EDE_NONE
+			&& ede != LDNS_EDE_DNSSEC_BOGUS
+			&& s->reason_bogus == LDNS_EDE_DNSSEC_BOGUS) continue;
+		ede = s->reason_bogus;
 	}
-	return LDNS_EDE_NONE;
+	return ede;
 }
 
 char* errinf_to_str_servfail(struct module_qstate* qstate)

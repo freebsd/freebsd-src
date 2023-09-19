@@ -52,8 +52,8 @@
  * unbound was compiled with, otherwise it wouldn't work, the event and
  * event_base structures would be different.
  */
-#ifndef _UB_UNBOUND_EVENT_H
-#define _UB_UNBOUND_EVENT_H
+#ifndef UB_UNBOUND_EVENT_H
+#define UB_UNBOUND_EVENT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -262,4 +262,4 @@ int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 }
 #endif
 
-#endif /* _UB_UNBOUND_H */
+#endif /* UB_UNBOUND_EVENT_H */

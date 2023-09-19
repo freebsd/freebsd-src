@@ -64,8 +64,12 @@ enum acl_access {
 	acl_allow,
 	/** allow full access for all queries, recursion and cache snooping */
 	acl_allow_snoop,
-	/** allow full access for recursion queries and set RD flag regardless of request */
-	acl_allow_setrd
+	/** allow full access for recursion queries and set RD flag regardless
+	 *  of request */
+	acl_allow_setrd,
+	/** allow full access for recursion (+RD) queries if valid cookie
+	 *  present or stateful transport */
+	acl_allow_cookie
 };
 
 /**
