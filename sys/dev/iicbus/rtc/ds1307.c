@@ -48,7 +48,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-#include <dev/iicbus/ds1307reg.h>
+#include <dev/iicbus/rtc/ds1307reg.h>
 
 #include "clock_if.h"
 #include "iicbus_if.h"
