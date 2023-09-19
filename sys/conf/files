@@ -1794,10 +1794,6 @@ dev/ida/ida_pci.c		optional ida pci
 dev/iicbus/acpi_iicbus.c	optional acpi iicbus | acpi compat_linuxkpi
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ads111x.c		optional ads111x
-dev/iicbus/ds1307.c		optional ds1307
-dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
-dev/iicbus/ds1672.c		optional ds1672
-dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/htu21.c		optional htu21
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
@@ -1814,7 +1810,6 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/iicoc_fdt.c		optional iicoc fdt
 dev/iicbus/iicoc_pci.c		optional iicoc pci
-dev/iicbus/isl12xx.c		optional isl12xx
 dev/iicbus/lm75.c		optional lm75
 dev/iicbus/max44009.c		optional max44009
 dev/iicbus/mux/iicmux.c		optional iicmux
@@ -1822,15 +1817,20 @@ dev/iicbus/mux/iicmux_if.m	optional iicmux
 dev/iicbus/mux/iic_gpiomux.c	optional iic_gpiomux fdt
 dev/iicbus/mux/ltc430x.c	optional ltc430x
 dev/iicbus/mux/pca954x.c	optional pca954x iicbus iicmux
-dev/iicbus/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/ofw_iicbus_if.m	optional fdt iicbus
 dev/iicbus/pcf8574.c		optional pcf8574
 dev/iicbus/pcf8591.c		optional pcf8591
-dev/iicbus/rtc8583.c		optional rtc8583
+dev/iicbus/rtc/ds1307.c		optional ds1307
+dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
+dev/iicbus/rtc/ds1672.c		optional ds1672
+dev/iicbus/rtc/ds3231.c		optional ds3231
+dev/iicbus/rtc/isl12xx.c	optional isl12xx
+dev/iicbus/rtc/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
+dev/iicbus/rtc/rtc8583.c	optional rtc8583
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
-dev/iicbus/s35390a.c		optional s35390a
+dev/iicbus/rtc/s35390a.c	optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a fdt
 dev/iicbus/syr827.c		optional syr827 fdt
 dev/iicbus/gpio/tca64xx.c	optional tca64xx fdt gpio
