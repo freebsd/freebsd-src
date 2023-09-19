@@ -2,6 +2,7 @@
  * Copyright (c) 2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/rsa.h>
@@ -9,7 +10,7 @@
 
 #include "fido.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3050200fL
 static EVP_MD *
 rs1_get_EVP_MD(void)
 {
