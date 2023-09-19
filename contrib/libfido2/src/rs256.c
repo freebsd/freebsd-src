@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/bn.h>
@@ -11,7 +12,13 @@
 #include "fido.h"
 #include "fido/rs256.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+#define get0_RSA(x)	EVP_PKEY_get0_RSA((x))
+#else
+#define get0_RSA(x)	EVP_PKEY_get0((x))
+#endif
+
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3050200fL
 static EVP_MD *
 rs256_get_EVP_MD(void)
 {
@@ -128,10 +135,19 @@ rs256_pk_free(rs256_pk_t **pkp)
 int
 rs256_pk_from_ptr(rs256_pk_t *pk, const void *ptr, size_t len)
 {
+	EVP_PKEY *pkey;
+
 	if (len < sizeof(*pk))
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 	memcpy(pk, ptr, sizeof(*pk));
+
+	if ((pkey = rs256_pk_to_EVP_PKEY(pk)) == NULL) {
+		fido_log_debug("%s: rs256_pk_to_EVP_PKEY", __func__);
+		return (FIDO_ERR_INVALID_ARGUMENT);
+	}
+
+	EVP_PKEY_free(pkey);
 
 	return (FIDO_OK);
 }
@@ -162,6 +178,11 @@ rs256_pk_to_EVP_PKEY(const rs256_pk_t *k)
 	/* at this point, n and e belong to rsa */
 	n = NULL;
 	e = NULL;
+
+	if (RSA_bits(rsa) != 2048) {
+		fido_log_debug("%s: invalid key length", __func__);
+		goto fail;
+	}
 
 	if ((pkey = EVP_PKEY_new()) == NULL ||
 	    EVP_PKEY_assign_RSA(pkey, rsa) == 0) {
@@ -225,10 +246,10 @@ rs256_pk_from_RSA(rs256_pk_t *pk, const RSA *rsa)
 int
 rs256_pk_from_EVP_PKEY(rs256_pk_t *pk, const EVP_PKEY *pkey)
 {
-	RSA *rsa;
+	const RSA *rsa;
 
 	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_RSA ||
-	    (rsa = EVP_PKEY_get0(pkey)) == NULL)
+	    (rsa = get0_RSA(pkey)) == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 	return (rs256_pk_from_RSA(pk, rsa));

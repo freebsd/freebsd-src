@@ -1,8 +1,9 @@
 #!/bin/sh -ex
 
-# Copyright (c) 2021 Yubico AB. All rights reserved.
+# Copyright (c) 2021-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 # usage: ./test.sh "$(mktemp -d fido2test-XXXXXXXX)" device
 
@@ -16,6 +17,9 @@
 
 cd "$1"
 DEV="$2"
+TYPE="es256"
+#TYPE="es384"
+#TYPE="eddsa"
 
 make_cred() {
 	sed /^$/d > cred_param << EOF
@@ -24,11 +28,11 @@ $1
 some user name
 $(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)
 EOF
-	fido2-cred -M $2 "${DEV}" > "$3" < cred_param
+	fido2-cred -M $2 "${DEV}" "${TYPE}" > "$3" < cred_param
 }
 
 verify_cred() {
-	fido2-cred -V $1 > cred_out < "$2"
+	fido2-cred -V $1 "${TYPE}" > cred_out < "$2"
 	head -1 cred_out > "$3"
 	tail -n +2 cred_out > "$4"
 }
@@ -44,23 +48,25 @@ EOF
 }
 
 verify_assert() {
-	fido2-assert -V $1 "$2" < "$3"
+	fido2-assert -V $1 "$2" "${TYPE}" < "$3"
 }
 
 dd if=/dev/urandom bs=32 count=1 | base64 > hmac-salt
 
 # u2f
-make_cred no.tld "-u" u2f
-! make_cred no.tld "-ru" /dev/null
-! make_cred no.tld "-uc1" /dev/null
-! make_cred no.tld "-uc2" /dev/null
-verify_cred "--"  u2f u2f-cred u2f-pubkey
-! verify_cred "-h" u2f /dev/null /dev/null
-! verify_cred "-v" u2f /dev/null /dev/null
-verify_cred "-c0" u2f /dev/null /dev/null
-! verify_cred "-c1" u2f /dev/null /dev/null
-! verify_cred "-c2" u2f /dev/null /dev/null
-! verify_cred "-c3" u2f /dev/null /dev/null
+if [ "x${TYPE}" = "xes256" ]; then
+	make_cred no.tld "-u" u2f
+	! make_cred no.tld "-ru" /dev/null
+	! make_cred no.tld "-uc1" /dev/null
+	! make_cred no.tld "-uc2" /dev/null
+	verify_cred "--"  u2f u2f-cred u2f-pubkey
+	! verify_cred "-h" u2f /dev/null /dev/null
+	! verify_cred "-v" u2f /dev/null /dev/null
+	verify_cred "-c0" u2f /dev/null /dev/null
+	! verify_cred "-c1" u2f /dev/null /dev/null
+	! verify_cred "-c2" u2f /dev/null /dev/null
+	! verify_cred "-c3" u2f /dev/null /dev/null
+fi
 
 # wrap (non-resident)
 make_cred no.tld "--" wrap
@@ -105,10 +111,12 @@ verify_cred "-hc0" rk-hs /dev/null /dev/null
 ! verify_cred "-c3" rk-hs /dev/null /dev/null
 
 # u2f
-get_assert no.tld "-u" u2f-cred /dev/null u2f-assert
-! get_assert no.tld "-u -t up=false" u2f-cred /dev/null /dev/null
-verify_assert "--"  u2f-pubkey u2f-assert
-verify_assert "-p"  u2f-pubkey u2f-assert
+if [ "x${TYPE}" = "xes256" ]; then
+	get_assert no.tld "-u" u2f-cred /dev/null u2f-assert
+	! get_assert no.tld "-u -t up=false" u2f-cred /dev/null /dev/null
+	verify_assert "--"  u2f-pubkey u2f-assert
+	verify_assert "-p"  u2f-pubkey u2f-assert
+fi
 
 # wrap (non-resident)
 get_assert no.tld "--" wrap-cred /dev/null wrap-assert

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "fido.h"
@@ -68,10 +69,8 @@ decode_option(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 	fido_opt_array_t	*o = arg;
 	const size_t		 i = o->len;
 
-	if (cbor_isa_float_ctrl(val) == false ||
-	    cbor_float_get_width(val) != CBOR_FLOAT_0 ||
-	    cbor_is_bool(val) == false) {
-		fido_log_debug("%s: cbor type", __func__);
+	if (cbor_decode_bool(val, NULL) < 0) {
+		fido_log_debug("%s: cbor_decode_bool", __func__);
 		return (0); /* ignore */
 	}
 
@@ -237,9 +236,54 @@ decode_algorithms(const cbor_item_t *item, fido_algo_array_t *aa)
 }
 
 static int
+decode_cert(const cbor_item_t *key, const cbor_item_t *val, void *arg)
+{
+	fido_cert_array_t	*c = arg;
+	const size_t		 i = c->len;
+
+	if (cbor_is_int(val) == false) {
+		fido_log_debug("%s: cbor_is_int", __func__);
+		return (0); /* ignore */
+	}
+
+	if (cbor_string_copy(key, &c->name[i]) < 0) {
+		fido_log_debug("%s: cbor_string_copy", __func__);
+		return (0); /* ignore */
+	}
+
+	/* keep name/value and len consistent */
+	c->value[i] = cbor_get_int(val);
+	c->len++;
+
+	return (0);
+}
+
+static int
+decode_certs(const cbor_item_t *item, fido_cert_array_t *c)
+{
+	c->name = NULL;
+	c->value = NULL;
+	c->len = 0;
+
+	if (cbor_isa_map(item) == false ||
+	    cbor_map_is_definite(item) == false) {
+		fido_log_debug("%s: cbor type", __func__);
+		return (-1);
+	}
+
+	c->name = calloc(cbor_map_size(item), sizeof(char *));
+	c->value = calloc(cbor_map_size(item), sizeof(uint64_t));
+	if (c->name == NULL || c->value == NULL)
+		return (-1);
+
+	return (cbor_map_iter(item, c, decode_cert));
+}
+
+static int
 parse_reply_element(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 {
 	fido_cbor_info_t *ci = arg;
+	uint64_t x;
 
 	if (cbor_isa_uint(key) == false ||
 	    cbor_int_get_width(key) != CBOR_INT_8) {
@@ -268,12 +312,33 @@ parse_reply_element(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 		return (decode_string_array(val, &ci->transports));
 	case 10: /* algorithms */
 		return (decode_algorithms(val, &ci->algorithms));
+	case 11: /* maxSerializedLargeBlobArray */
+		return (cbor_decode_uint64(val, &ci->maxlargeblob));
+	case 12: /* forcePINChange */
+		return (cbor_decode_bool(val, &ci->new_pin_reqd));
+	case 13: /* minPINLength */
+		return (cbor_decode_uint64(val, &ci->minpinlen));
 	case 14: /* fwVersion */
 		return (cbor_decode_uint64(val, &ci->fwversion));
 	case 15: /* maxCredBlobLen */
 		return (cbor_decode_uint64(val, &ci->maxcredbloblen));
+	case 16: /* maxRPIDsForSetMinPINLength */
+		return (cbor_decode_uint64(val, &ci->maxrpid_minlen));
+	case 17: /* preferredPlatformUvAttempts */
+		return (cbor_decode_uint64(val, &ci->uv_attempts));
+	case 18: /* uvModality */
+		return (cbor_decode_uint64(val, &ci->uv_modality));
+	case 19: /* certifications */
+		return (decode_certs(val, &ci->certs));
+	case 20: /* remainingDiscoverableCredentials */
+		if (cbor_decode_uint64(val, &x) < 0 || x > INT64_MAX) {
+			fido_log_debug("%s: cbor_decode_uint64", __func__);
+			return (-1);
+		}
+		ci->rk_remaining = (int64_t)x;
+		return (0);
 	default: /* ignore */
-		fido_log_debug("%s: cbor type", __func__);
+		fido_log_debug("%s: cbor type: 0x%02x", __func__, cbor_get_uint8(key));
 		return (0);
 	}
 }
@@ -296,22 +361,31 @@ fido_dev_get_cbor_info_tx(fido_dev_t *dev, int *ms)
 static int
 fido_dev_get_cbor_info_rx(fido_dev_t *dev, fido_cbor_info_t *ci, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	fido_log_debug("%s: dev=%p, ci=%p, ms=%d", __func__, (void *)dev,
 	    (void *)ci, *ms);
 
 	fido_cbor_info_reset(ci);
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	return (cbor_parse_reply(reply, (size_t)reply_len, ci,
-	    parse_reply_element));
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	r = cbor_parse_reply(msg, (size_t)msglen, ci, parse_reply_element);
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 int
@@ -345,7 +419,14 @@ fido_dev_get_cbor_info(fido_dev_t *dev, fido_cbor_info_t *ci)
 fido_cbor_info_t *
 fido_cbor_info_new(void)
 {
-	return (calloc(1, sizeof(fido_cbor_info_t)));
+	fido_cbor_info_t *ci;
+
+	if ((ci = calloc(1, sizeof(fido_cbor_info_t))) == NULL)
+		return (NULL);
+
+	fido_cbor_info_reset(ci);
+
+	return (ci);
 }
 
 void
@@ -357,6 +438,8 @@ fido_cbor_info_reset(fido_cbor_info_t *ci)
 	fido_opt_array_free(&ci->options);
 	fido_byte_array_free(&ci->protocols);
 	fido_algo_array_free(&ci->algorithms);
+	fido_cert_array_free(&ci->certs);
+	ci->rk_remaining = -1;
 }
 
 void
@@ -462,9 +545,45 @@ fido_cbor_info_maxcredidlen(const fido_cbor_info_t *ci)
 }
 
 uint64_t
+fido_cbor_info_maxlargeblob(const fido_cbor_info_t *ci)
+{
+	return (ci->maxlargeblob);
+}
+
+uint64_t
 fido_cbor_info_fwversion(const fido_cbor_info_t *ci)
 {
 	return (ci->fwversion);
+}
+
+uint64_t
+fido_cbor_info_minpinlen(const fido_cbor_info_t *ci)
+{
+	return (ci->minpinlen);
+}
+
+uint64_t
+fido_cbor_info_maxrpid_minpinlen(const fido_cbor_info_t *ci)
+{
+	return (ci->maxrpid_minlen);
+}
+
+uint64_t
+fido_cbor_info_uv_attempts(const fido_cbor_info_t *ci)
+{
+	return (ci->uv_attempts);
+}
+
+uint64_t
+fido_cbor_info_uv_modality(const fido_cbor_info_t *ci)
+{
+	return (ci->uv_modality);
+}
+
+int64_t
+fido_cbor_info_rk_remaining(const fido_cbor_info_t *ci)
+{
+	return (ci->rk_remaining);
 }
 
 const uint8_t *
@@ -501,4 +620,28 @@ fido_cbor_info_algorithm_cose(const fido_cbor_info_t *ci, size_t idx)
 		return (0);
 
 	return (ci->algorithms.ptr[idx].cose);
+}
+
+bool
+fido_cbor_info_new_pin_required(const fido_cbor_info_t *ci)
+{
+	return (ci->new_pin_reqd);
+}
+
+char **
+fido_cbor_info_certs_name_ptr(const fido_cbor_info_t *ci)
+{
+	return (ci->certs.name);
+}
+
+const uint64_t *
+fido_cbor_info_certs_value_ptr(const fido_cbor_info_t *ci)
+{
+	return (ci->certs.value);
+}
+
+size_t
+fido_cbor_info_certs_len(const fido_cbor_info_t *ci)
+{
+	return (ci->certs.len);
 }

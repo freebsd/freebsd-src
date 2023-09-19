@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/hmac.h>
@@ -998,7 +999,13 @@ get_cose_alg(const cbor_item_t *item, int *cose_alg)
 			fido_log_debug("%s: invalid kty/crv", __func__);
 			return (-1);
 		}
-
+		break;
+	case COSE_ES384:
+		if (cose_key.kty != COSE_KTY_EC2 ||
+		    cose_key.crv != COSE_P384) {
+			fido_log_debug("%s: invalid kty/crv", __func__);
+			return (-1);
+		}
 		break;
 	case COSE_EDDSA:
 		if (cose_key.kty != COSE_KTY_OKP ||
@@ -1006,14 +1013,12 @@ get_cose_alg(const cbor_item_t *item, int *cose_alg)
 			fido_log_debug("%s: invalid kty/crv", __func__);
 			return (-1);
 		}
-
 		break;
 	case COSE_RS256:
 		if (cose_key.kty != COSE_KTY_RSA) {
 			fido_log_debug("%s: invalid kty/crv", __func__);
 			return (-1);
 		}
-
 		break;
 	default:
 		fido_log_debug("%s: unknown alg %d", __func__, cose_key.alg);
@@ -1038,6 +1043,12 @@ cbor_decode_pubkey(const cbor_item_t *item, int *type, void *key)
 	case COSE_ES256:
 		if (es256_pk_decode(item, key) < 0) {
 			fido_log_debug("%s: es256_pk_decode", __func__);
+			return (-1);
+		}
+		break;
+	case COSE_ES384:
+		if (es384_pk_decode(item, key) < 0) {
+			fido_log_debug("%s: es384_pk_decode", __func__);
 			return (-1);
 		}
 		break;
@@ -1135,10 +1146,8 @@ decode_cred_extension(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 	}
 
 	if (strcmp(type, "hmac-secret") == 0) {
-		if (cbor_isa_float_ctrl(val) == false ||
-		    cbor_float_get_width(val) != CBOR_FLOAT_0 ||
-		    cbor_is_bool(val) == false) {
-			fido_log_debug("%s: cbor type", __func__);
+		if (cbor_decode_bool(val, NULL) < 0) {
+			fido_log_debug("%s: cbor_decode_bool", __func__);
 			goto out;
 		}
 		if (cbor_ctrl_value(val) == CBOR_CTRL_TRUE)
@@ -1152,10 +1161,8 @@ decode_cred_extension(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 		authdata_ext->mask |= FIDO_EXT_CRED_PROTECT;
 		authdata_ext->prot = cbor_get_uint8(val);
 	} else if (strcmp(type, "credBlob") == 0) {
-		if (cbor_isa_float_ctrl(val) == false ||
-		    cbor_float_get_width(val) != CBOR_FLOAT_0 ||
-		    cbor_is_bool(val) == false) {
-			fido_log_debug("%s: cbor type", __func__);
+		if (cbor_decode_bool(val, NULL) < 0) {
+			fido_log_debug("%s: cbor_decode_bool", __func__);
 			goto out;
 		}
 		if (cbor_ctrl_value(val) == CBOR_CTRL_TRUE)
@@ -1407,8 +1414,9 @@ decode_attstmt_entry(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 			goto out;
 		}
 		attstmt->alg = -(int)cbor_get_int(val) - 1;
-		if (attstmt->alg != COSE_ES256 && attstmt->alg != COSE_RS256 &&
-		    attstmt->alg != COSE_EDDSA && attstmt->alg != COSE_RS1) {
+		if (attstmt->alg != COSE_ES256 && attstmt->alg != COSE_ES384 &&
+		    attstmt->alg != COSE_RS256 && attstmt->alg != COSE_EDDSA &&
+		    attstmt->alg != COSE_RS1) {
 			fido_log_debug("%s: unsupported attstmt->alg=%d",
 			    __func__, attstmt->alg);
 			goto out;
@@ -1615,6 +1623,22 @@ cbor_decode_rp_entity(const cbor_item_t *item, fido_rp_t *rp)
 		fido_log_debug("%s: cbor type", __func__);
 		return (-1);
 	}
+
+	return (0);
+}
+
+int
+cbor_decode_bool(const cbor_item_t *item, bool *v)
+{
+	if (cbor_isa_float_ctrl(item) == false ||
+	    cbor_float_get_width(item) != CBOR_FLOAT_0 ||
+	    cbor_is_bool(item) == false) {
+		fido_log_debug("%s: cbor type", __func__);
+		return (-1);
+	}
+
+	if (v != NULL)
+		*v = cbor_ctrl_value(item) == CBOR_CTRL_TRUE;
 
 	return (0);
 }
