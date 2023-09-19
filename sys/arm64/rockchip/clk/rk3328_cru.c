@@ -636,8 +636,6 @@ static struct rk_clk_pll_rate rk3328_pll_frac_rates[] = {
 };
 
 /* Clock parents */
-#define PLIST(_name) static const char *_name[]
-
 PLIST(pll_src_p) = {"xin24m"};
 PLIST(xin24m_rtc32k_p) = {"xin24m", "clk_rtc32k"};
 
