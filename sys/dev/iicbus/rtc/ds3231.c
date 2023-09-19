@@ -47,7 +47,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-#include <dev/iicbus/ds3231reg.h>
+#include <dev/iicbus/rtc/ds3231reg.h>
 
 #include "clock_if.h"
 #include "iicbus_if.h"
