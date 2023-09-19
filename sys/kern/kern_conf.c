@@ -119,6 +119,8 @@ dev_free_devlocked(struct cdev *cdev)
 	cdp = cdev2priv(cdev);
 	KASSERT((cdp->cdp_flags & CDP_UNREF_DTR) == 0,
 	    ("destroy_dev() was not called after delist_dev(%p)", cdev));
+	KASSERT((cdp->cdp_flags & CDP_ON_ACTIVE_LIST) == 0,
+	    ("%s: cdp %p (%s) on active list", __func__, cdp, cdev->si_name));
 	TAILQ_INSERT_HEAD(&cdevp_free_list, cdp, cdp_list);
 }
 
