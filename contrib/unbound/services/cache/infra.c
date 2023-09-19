@@ -67,6 +67,11 @@ int infra_dp_ratelimit = 0;
  *  in queries per second. */
 int infra_ip_ratelimit = 0;
 
+/** ratelimit value for client ip addresses,
+ *  in queries per second.
+ *  For clients with a valid DNS Cookie. */
+int infra_ip_ratelimit_cookie = 0;
+
 size_t 
 infra_sizefunc(void* k, void* ATTR_UNUSED(d))
 {
@@ -1051,9 +1056,50 @@ infra_get_mem(struct infra_cache* infra)
 	return s;
 }
 
+/* Returns 1 if the limit has not been exceeded, 0 otherwise. */
+static int
+check_ip_ratelimit(struct sockaddr_storage* addr, socklen_t addrlen,
+	struct sldns_buffer* buffer, int premax, int max, int has_cookie)
+{
+	int limit;
+
+	if(has_cookie) limit = infra_ip_ratelimit_cookie;
+	else           limit = infra_ip_ratelimit;
+
+	/* Disabled */
+	if(limit == 0) return 1;
+
+	if(premax <= limit && max > limit) {
+		char client_ip[128], qnm[LDNS_MAX_DOMAINLEN+1+12+12];
+		addr_to_str(addr, addrlen, client_ip, sizeof(client_ip));
+		qnm[0]=0;
+		if(sldns_buffer_limit(buffer)>LDNS_HEADER_SIZE &&
+			LDNS_QDCOUNT(sldns_buffer_begin(buffer))!=0) {
+			(void)sldns_wire2str_rrquestion_buf(
+				sldns_buffer_at(buffer, LDNS_HEADER_SIZE),
+				sldns_buffer_limit(buffer)-LDNS_HEADER_SIZE,
+				qnm, sizeof(qnm));
+			if(strlen(qnm)>0 && qnm[strlen(qnm)-1]=='\n')
+				qnm[strlen(qnm)-1] = 0; /*remove newline*/
+			if(strchr(qnm, '\t'))
+				*strchr(qnm, '\t') = ' ';
+			if(strchr(qnm, '\t'))
+				*strchr(qnm, '\t') = ' ';
+			verbose(VERB_OPS, "ip_ratelimit exceeded %s %d%s %s",
+				client_ip, limit,
+				has_cookie?"(cookie)":"", qnm);
+		} else {
+			verbose(VERB_OPS, "ip_ratelimit exceeded %s %d%s (no query name)",
+				client_ip, limit,
+				has_cookie?"(cookie)":"");
+		}
+	}
+	return (max <= limit);
+}
+
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
 	struct sockaddr_storage* addr, socklen_t addrlen, time_t timenow,
-	int backoff, struct sldns_buffer* buffer)
+	int has_cookie, int backoff, struct sldns_buffer* buffer)
 {
 	int max;
 	struct lruhash_entry* entry;
@@ -1070,31 +1116,8 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 		(*cur)++;
 		max = infra_rate_max(entry->data, timenow, backoff);
 		lock_rw_unlock(&entry->lock);
-
-		if(premax <= infra_ip_ratelimit && max > infra_ip_ratelimit) {
-			char client_ip[128], qnm[LDNS_MAX_DOMAINLEN+1+12+12];
-			addr_to_str(addr, addrlen, client_ip, sizeof(client_ip));
-			qnm[0]=0;
-			if(sldns_buffer_limit(buffer)>LDNS_HEADER_SIZE &&
-				LDNS_QDCOUNT(sldns_buffer_begin(buffer))!=0) {
-				(void)sldns_wire2str_rrquestion_buf(
-					sldns_buffer_at(buffer, LDNS_HEADER_SIZE),
-					sldns_buffer_limit(buffer)-LDNS_HEADER_SIZE,
-					qnm, sizeof(qnm));
-				if(strlen(qnm)>0 && qnm[strlen(qnm)-1]=='\n')
-					qnm[strlen(qnm)-1] = 0; /*remove newline*/
-				if(strchr(qnm, '\t'))
-					*strchr(qnm, '\t') = ' ';
-				if(strchr(qnm, '\t'))
-					*strchr(qnm, '\t') = ' ';
-				verbose(VERB_OPS, "ip_ratelimit exceeded %s %d %s",
-					client_ip, infra_ip_ratelimit, qnm);
-			} else {
-				verbose(VERB_OPS, "ip_ratelimit exceeded %s %d (no query name)",
-					client_ip, infra_ip_ratelimit);
-			}
-		}
-		return (max <= infra_ip_ratelimit);
+		return check_ip_ratelimit(addr, addrlen, buffer, premax, max,
+			has_cookie);
 	}
 
 	/* create */

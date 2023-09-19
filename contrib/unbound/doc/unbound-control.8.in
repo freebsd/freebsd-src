@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Jan 12, 2023" "NLnet Labs" "unbound 1.17.1"
+.TH "unbound-control" "8" "Feb 13, 2024" "NLnet Labs" "unbound 1.19.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -369,6 +369,15 @@ number of queries received by thread
 .I threadX.num.queries_ip_ratelimited
 number of queries rate limited by thread
 .TP
+.I threadX.num.queries_cookie_valid
+number of queries with a valid DNS Cookie by thread
+.TP
+.I threadX.num.queries_cookie_client
+number of queries with a client part only DNS Cookie by thread
+.TP
+.I threadX.num.queries_cookie_invalid
+number of queries with an invalid DNS Cookie by thread
+.TP
 .I threadX.num.cachehits
 number of queries that were successfully answered using a cache lookup
 .TP
@@ -397,6 +406,14 @@ as a cache response was sent.
 .TP
 .I threadX.num.expired
 number of replies that served an expired cache entry.
+.TP
+.I threadX.num.queries_timed_out
+number of queries that are dropped because they waited in the UDP socket buffer
+for too long.
+.TP
+.I threadX.query.queue_time_us.max
+The maximum wait time for packets in the socket buffer, in microseconds. This
+is only reported when sock-queue-timeout is enabled.
 .TP
 .I threadX.num.recursivereplies
 The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
@@ -438,6 +455,18 @@ buffers are full.
 .I total.num.queries
 summed over threads.
 .TP
+.I total.num.queries_ip_ratelimited
+summed over threads.
+.TP
+.I total.num.queries_cookie_valid
+summed over threads.
+.TP
+.I total.num.queries_cookie_client
+summed over threads.
+.TP
+.I total.num.queries_cookie_invalid
+summed over threads.
+.TP
 .I total.num.cachehits
 summed over threads.
 .TP
@@ -461,6 +490,12 @@ summed over threads.
 .TP
 .I total.num.expired
 summed over threads.
+.TP
+.I total.num.queries_timed_out
+summed over threads.
+.TP
+.I total.query.queue_time_us.max
+the maximum of the thread values.
 .TP
 .I total.num.recursivereplies
 summed over threads.
@@ -597,7 +632,7 @@ ratelimiting.
 .TP
 .I num.query.dnscrypt.shared_secret.cachemiss
 The number of dnscrypt queries that did not find a shared secret in the cache.
-The can be use to compute the shared secret hitrate.
+This can be used to compute the shared secret hitrate.
 .TP
 .I num.query.dnscrypt.replay
 The number of dnscrypt queries that found a nonce hit in the nonce cache and
@@ -653,6 +688,18 @@ timing and protocol support information.
 The number of items in the key cache.  These are DNSSEC keys, one item
 per delegation point, and their validation status.
 .TP
+.I msg.cache.max_collisions
+The maximum number of hash table collisions in the msg cache. This is the
+number of hashes that are identical when a new element is inserted in the
+hash table. If the value is very large, like hundreds, something is wrong
+with the performance of the hash table, hash values are incorrect or malicious.
+.TP
+.I rrset.cache.max_collisions
+The maximum number of hash table collisions in the rrset cache. This is the
+number of hashes that are identical when a new element is inserted in the
+hash table. If the value is very large, like hundreds, something is wrong
+with the performance of the hash table, hash values are incorrect or malicious.
+.TP
 .I dnscrypt_shared_secret.cache.count
 The number of items in the shared secret cache. These are precomputed shared
 secrets for a given client public key/server secret key pair. Shared secrets
@@ -692,7 +739,12 @@ Number of queries that got an answer that contained EDNS client subnet data.
 .I num.query.subnet_cache
 Number of queries answered from the edns client subnet cache.  These are
 counted as cachemiss by the main counters, but hit the client subnet
-specific cache, after getting processed by the edns client subnet module.
+specific cache after getting processed by the edns client subnet module.
+.TP
+.I num.query.cachedb
+Number of queries answered from the external cache of cachedb.
+These are counted as cachemiss by the main counters, but hit the cachedb
+external cache after getting processed by the cachedb module.
 .TP
 .I num.rpz.action.<rpz_action>
 Number of queries answered using configured RPZ policy, per RPZ action type.

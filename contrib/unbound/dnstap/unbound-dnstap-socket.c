@@ -61,6 +61,7 @@
 #include "services/listen_dnsport.h"
 #include "sldns/sbuffer.h"
 #include "sldns/wire2str.h"
+#include "sldns/pkthdr.h"
 #ifdef USE_DNSTAP
 #include <protobuf-c/protobuf-c.h>
 #include "dnstap/dnstap.pb-c.h"
@@ -448,6 +449,7 @@ static char* q_of_msg(ProtobufCBinaryData message)
 	char buf[300];
 	/* header, name, type, class minimum to get the query tuple */
 	if(message.len < 12 + 1 + 4 + 4) return NULL;
+	if(LDNS_QDCOUNT(message.data) < 1) return NULL;
 	if(sldns_wire2str_rrquestion_buf(message.data+12, message.len-12,
 		buf, sizeof(buf)) != 0) {
 		/* remove trailing newline, tabs to spaces */
@@ -502,7 +504,7 @@ static char* tv_to_str(protobuf_c_boolean has_time_sec, uint64_t time_sec,
 	time_t time_t_sec;
 	memset(&tv, 0, sizeof(tv));
 	if(has_time_sec) tv.tv_sec = time_sec;
-	if(has_time_nsec) tv.tv_usec = time_nsec;
+	if(has_time_nsec) tv.tv_usec = time_nsec/1000;
 
 	buf[0]=0;
 	time_t_sec = tv.tv_sec;
@@ -706,7 +708,7 @@ static ssize_t ssl_read_bytes(struct tap_data* data, void* buf, size_t len)
 				(data->id?data->id:""));
 			return 0;
 		}
-		log_crypto_err("could not SSL_read");
+		log_crypto_err_io("could not SSL_read", want);
 		if(verbosity) log_info("dnstap client stream closed from %s",
 			(data->id?data->id:""));
 		return 0;
@@ -758,10 +760,11 @@ static int reply_with_accept(struct tap_data* data)
 	fd_set_block(data->fd);
 	if(data->ssl) {
 		if((r=SSL_write(data->ssl, acceptframe, len)) <= 0) {
-			if(SSL_get_error(data->ssl, r) == SSL_ERROR_ZERO_RETURN)
+			int r2;
+			if((r2=SSL_get_error(data->ssl, r)) == SSL_ERROR_ZERO_RETURN)
 				log_err("SSL_write, peer closed connection");
 			else
-				log_err("could not SSL_write");
+				log_crypto_err_io("could not SSL_write", r2);
 			fd_set_nonblock(data->fd);
 			free(acceptframe);
 			return 0;
@@ -789,7 +792,7 @@ static int reply_with_accept(struct tap_data* data)
 
 /** reply with FINISH control frame to bidirectional client,
  * returns 0 on error */
-static int reply_with_finish(int fd)
+static int reply_with_finish(struct tap_data* data)
 {
 #ifdef USE_DNSTAP
 	size_t len = 0;
@@ -799,21 +802,35 @@ static int reply_with_finish(int fd)
 		return 0;
 	}
 
-	fd_set_block(fd);
-	if(send(fd, finishframe, len, 0) == -1) {
-		log_err("send failed: %s", sock_strerror(errno));
-		fd_set_nonblock(fd);
-		free(finishframe);
-		return 0;
+	fd_set_block(data->fd);
+	if(data->ssl) {
+		int r;
+		if((r=SSL_write(data->ssl, finishframe, len)) <= 0) {
+			int r2;
+			if((r2=SSL_get_error(data->ssl, r)) == SSL_ERROR_ZERO_RETURN)
+				log_err("SSL_write, peer closed connection");
+			else
+				log_crypto_err_io("could not SSL_write", r2);
+			fd_set_nonblock(data->fd);
+			free(finishframe);
+			return 0;
+		}
+	} else {
+		if(send(data->fd, finishframe, len, 0) == -1) {
+			log_err("send failed: %s", sock_strerror(errno));
+			fd_set_nonblock(data->fd);
+			free(finishframe);
+			return 0;
+		}
 	}
 	if(verbosity) log_info("sent control frame(finish)");
 
-	fd_set_nonblock(fd);
+	fd_set_nonblock(data->fd);
 	free(finishframe);
 	return 1;
 #else
 	log_err("no dnstap compiled, no reply");
-	(void)fd;
+	(void)data;
 	return 0;
 #endif
 }
@@ -933,7 +950,7 @@ static int tap_handshake(struct tap_data* data)
 #endif /* HAVE_SSL */
 
 /** callback for dnstap listener */
-void dtio_tap_callback(int fd, short ATTR_UNUSED(bits), void* arg)
+void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 {
 	struct tap_data* data = (struct tap_data*)arg;
 	if(verbosity>=3) log_info("tap callback");
@@ -1016,7 +1033,7 @@ void dtio_tap_callback(int fd, short ATTR_UNUSED(bits), void* arg)
 		}
 	} else if(data->len >= 4 && sldns_read_uint32(data->frame) ==
 		FSTRM_CONTROL_FRAME_STOP && data->is_bidirectional) {
-		if(!reply_with_finish(fd)) {
+		if(!reply_with_finish(data)) {
 			tap_data_free(data);
 			return;
 		}

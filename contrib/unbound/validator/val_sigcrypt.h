@@ -260,6 +260,7 @@ uint16_t dnskey_get_flags(struct ub_packed_rrset_key* k, size_t idx);
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param verified: if not NULL the number of RRSIG validations is returned.
  * @return SECURE if one key in the set verifies one rrsig.
  *	UNCHECKED on allocation errors, unsupported algorithms, malformed data,
  *	and BOGUS on verification failures (no keys match any signatures).
@@ -268,7 +269,7 @@ enum sec_status dnskeyset_verify_rrset(struct module_env* env,
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, uint8_t* sigalg,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate);
+	sldns_pkt_section section, struct module_qstate* qstate, int* verified);
 
 
 /** 

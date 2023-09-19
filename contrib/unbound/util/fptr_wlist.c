@@ -131,6 +131,7 @@ fptr_whitelist_comm_timer(void (*fptr)(void*))
 	else if(fptr == &pending_udp_timer_delay_cb) return 1;
 	else if(fptr == &worker_stat_timer_cb) return 1;
 	else if(fptr == &worker_probe_timer_cb) return 1;
+	else if(fptr == &validate_suspend_timer_cb) return 1;
 #ifdef UB_ON_WINDOWS
 	else if(fptr == &wsvc_cron_cb) return 1;
 #endif
@@ -168,7 +169,9 @@ int
 fptr_whitelist_event(void (*fptr)(int, short, void *))
 {
 	if(fptr == &comm_point_udp_callback) return 1;
+#if defined(AF_INET6) && defined(IPV6_PKTINFO) && defined(HAVE_RECVMSG)
 	else if(fptr == &comm_point_udp_ancil_callback) return 1;
+#endif
 	else if(fptr == &comm_point_tcp_accept_callback) return 1;
 	else if(fptr == &comm_point_tcp_handle_callback) return 1;
 	else if(fptr == &comm_timer_callback) return 1;
@@ -659,6 +662,10 @@ int fptr_whitelist_inplace_cb_edns_back_parsed(
 #else
 	(void)fptr;
 #endif
+#ifdef WITH_PYTHONMODULE
+    if(fptr == &python_inplace_cb_edns_back_parsed_call)
+        return 1;
+#endif
 #ifdef WITH_DYNLIBMODULE
     if(fptr == &dynlib_inplace_cb_edns_back_parsed)
             return 1;
@@ -674,6 +681,10 @@ int fptr_whitelist_inplace_cb_query_response(
 		return 1;
 #else
 	(void)fptr;
+#endif
+#ifdef WITH_PYTHONMODULE
+    if(fptr == &python_inplace_cb_query_response)
+        return 1;
 #endif
 #ifdef WITH_DYNLIBMODULE
     if(fptr == &dynlib_inplace_cb_query_response)

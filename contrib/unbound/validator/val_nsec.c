@@ -174,12 +174,14 @@ val_nsec_proves_no_ds(struct ub_packed_rrset_key* nsec,
 
 /** check security status from cache or verify rrset, returns true if secure */
 static int
-nsec_verify_rrset(struct module_env* env, struct val_env* ve, 
-	struct ub_packed_rrset_key* nsec, struct key_entry_key* kkey, 
-	char** reason, struct module_qstate* qstate)
+nsec_verify_rrset(struct module_env* env, struct val_env* ve,
+	struct ub_packed_rrset_key* nsec, struct key_entry_key* kkey,
+	char** reason, sldns_ede_code* reason_bogus,
+	struct module_qstate* qstate)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		nsec->entry.data;
+	int verified = 0;
 	if(!d) return 0;
 	if(d->security == sec_status_secure)
 		return 1;
@@ -187,7 +189,7 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 	if(d->security == sec_status_secure)
 		return 1;
 	d->security = val_verify_rrset_entry(env, ve, nsec, kkey, reason,
-		NULL, LDNS_SECTION_AUTHORITY, qstate);
+		reason_bogus, LDNS_SECTION_AUTHORITY, qstate, &verified);
 	if(d->security == sec_status_secure) {
 		rrset_update_sec_status(env->rrset_cache, nsec, *env->now);
 		return 1;
@@ -199,7 +201,7 @@ enum sec_status
 val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve, 
 	struct query_info* qinfo, struct reply_info* rep, 
 	struct key_entry_key* kkey, time_t* proof_ttl, char** reason,
-	struct module_qstate* qstate)
+	sldns_ede_code* reason_bogus, struct module_qstate* qstate)
 {
 	struct ub_packed_rrset_key* nsec = reply_find_rrset_section_ns(
 		rep, qinfo->qname, qinfo->qname_len, LDNS_RR_TYPE_NSEC, 
@@ -216,7 +218,8 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 	 * 1) this is a delegation point and there is no DS
 	 * 2) this is not a delegation point */
 	if(nsec) {
-		if(!nsec_verify_rrset(env, ve, nsec, kkey, reason, qstate)) {
+		if(!nsec_verify_rrset(env, ve, nsec, kkey, reason,
+			reason_bogus, qstate)) {
 			verbose(VERB_ALGO, "NSEC RRset for the "
 				"referral did not verify.");
 			return sec_status_bogus;
@@ -225,6 +228,7 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 		if(sec == sec_status_bogus) {
 			/* something was wrong. */
 			*reason = "NSEC does not prove absence of DS";
+			*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
 			return sec;
 		} else if(sec == sec_status_insecure) {
 			/* this wasn't a delegation point. */
@@ -246,9 +250,11 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 		if(rep->rrsets[i]->rk.type != htons(LDNS_RR_TYPE_NSEC))
 			continue;
 		if(!nsec_verify_rrset(env, ve, rep->rrsets[i], kkey, reason,
-			qstate)) {
+			reason_bogus, qstate)) {
 			verbose(VERB_ALGO, "NSEC for empty non-terminal "
 				"did not verify.");
+			*reason = "NSEC for empty non-terminal "
+				"did not verify.";
 			return sec_status_bogus;
 		}
 		if(nsec_proves_nodata(rep->rrsets[i], qinfo, &wc)) {

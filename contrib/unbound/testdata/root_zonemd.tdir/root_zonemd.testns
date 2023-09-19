@@ -1,0 +1,9 @@
+# reply to everything
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+example.com. IN SOA
+SECTION ANSWER
+ENTRY_END

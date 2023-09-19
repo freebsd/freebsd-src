@@ -240,4 +240,12 @@ size_t anchor_list_keytags(struct trust_anchor* ta, uint16_t* list, size_t num);
 int anchor_has_keytag(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	size_t namelen, uint16_t dclass, uint16_t keytag);
 
+/**
+ * Find an anchor that is not an insecure point, if any, or there are no
+ * DNSSEC verification anchors if none.
+ * @param anchors: anchor storage
+ * @return trust anchor or NULL. It is locked.
+ */
+struct trust_anchor* anchors_find_any_noninsecure(struct val_anchors* anchors);
+
 #endif /* VALIDATOR_VAL_ANCHOR_H */

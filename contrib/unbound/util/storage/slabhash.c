@@ -242,3 +242,21 @@ size_t count_slabhash_entries(struct slabhash* sh)
 	}
 	return cnt;
 }
+
+void get_slabhash_stats(struct slabhash* sh, long long* num, long long* collisions)
+{
+	size_t slab, cnt = 0, max_collisions = 0;
+
+	for(slab=0; slab<sh->size; slab++) {
+		lock_quick_lock(&sh->array[slab]->lock);
+		cnt += sh->array[slab]->num;
+		if (max_collisions < sh->array[slab]->max_collisions) {
+			max_collisions = sh->array[slab]->max_collisions;
+		}
+		lock_quick_unlock(&sh->array[slab]->lock);
+	}
+	if (num != NULL)
+		*num = cnt;
+	if (collisions != NULL)
+		*collisions = max_collisions;
+}

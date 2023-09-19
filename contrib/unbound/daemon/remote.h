@@ -46,7 +46,7 @@
 #ifndef DAEMON_REMOTE_H
 #define DAEMON_REMOTE_H
 #ifdef HAVE_OPENSSL_SSL_H
-#include "openssl/ssl.h"
+#include <openssl/ssl.h>
 #endif
 struct config_file;
 struct listen_list;

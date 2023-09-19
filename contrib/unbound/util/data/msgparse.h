@@ -72,6 +72,7 @@ struct regional;
 struct edns_option;
 struct config_file;
 struct comm_point;
+struct comm_reply;
 
 /** number of buckets in parse rrset hash table. Must be power of 2. */
 #define PARSE_TABLE_SIZE 32
@@ -217,8 +218,6 @@ struct rr_parse {
  * region.
  */
 struct edns_data {
-	/** if EDNS OPT record was present */
-	int edns_present;
 	/** Extended RCODE */
 	uint8_t ext_rcode;
 	/** The EDNS version number */
@@ -238,7 +237,15 @@ struct edns_data {
 	struct edns_option* opt_list_inplace_cb_out;
 	/** block size to pad */
 	uint16_t padding_block_size;
-};
+	/** if EDNS OPT record was present */
+	unsigned int edns_present   : 1;
+	/** if a cookie was present */
+	unsigned int cookie_present : 1;
+	/** if the cookie validated */
+	unsigned int cookie_valid   : 1;
+	/** if the cookie holds only the client part */
+	unsigned int cookie_client  : 1;
+};	
 
 /**
  * EDNS option
@@ -310,12 +317,15 @@ int skip_pkt_rrs(struct sldns_buffer* pkt, int num);
  *	initialised.
  * @param cfg: the configuration (with nsid value etc.)
  * @param c: commpoint to determine transport (if needed)
+ * @param repinfo: commreply to determine the client address
+ * @param now: current time
  * @param region: region to alloc results in (edns option contents)
  * @return: 0 on success, or an RCODE on error.
  *	RCODE formerr if OPT is badly formatted and so on.
  */
 int parse_edns_from_query_pkt(struct sldns_buffer* pkt, struct edns_data* edns,
-	struct config_file* cfg, struct comm_point* c, struct regional* region);
+	struct config_file* cfg, struct comm_point* c,
+	struct comm_reply* repinfo, time_t now, struct regional* region);
 
 /**
  * Calculate hash value for rrset in packet.
@@ -360,5 +370,23 @@ void msgparse_bucket_remove(struct msg_parse* msg, struct rrset_parse* rrset);
  */
 void log_edns_opt_list(enum verbosity_value level, const char* info_str,
 	struct edns_option* list);
+
+/**
+ * Remove RR from msgparse RRset.
+ * @param str: this string is used for logging if verbose. If NULL, there is
+ *	no logging of the remove.
+ * @param pkt: packet in buffer that is removed from. Used to log the name
+ * 	of the item removed.
+ * @param rrset: RRset that the RR is removed from.
+ * @param prev: previous RR in list, or NULL.
+ * @param rr: RR that is removed.
+ * @param addr: address used for logging, if verbose, or NULL then it is not
+ *	used.
+ * @param addrlen: length of addr, if that is not NULL.
+ * @return true if rrset is entirely bad, it would then need to be removed.
+ */
+int msgparse_rrset_remove_rr(const char* str, struct sldns_buffer* pkt,
+	struct rrset_parse* rrset, struct rr_parse* prev, struct rr_parse* rr,
+	struct sockaddr_storage* addr, socklen_t addrlen);
 
 #endif /* UTIL_DATA_MSGPARSE_H */

@@ -707,6 +707,23 @@ morechecks(struct config_file* cfg)
 		cfg->auto_trust_anchor_file_list, cfg->chrootdir, cfg);
 	check_chroot_filelist_wild("trusted-keys-file",
 		cfg->trusted_keys_file_list, cfg->chrootdir, cfg);
+	if(cfg->disable_edns_do && strstr(cfg->module_conf, "validator")
+		&& (cfg->trust_anchor_file_list
+		|| cfg->trust_anchor_list
+		|| cfg->auto_trust_anchor_file_list
+		|| cfg->trusted_keys_file_list)) {
+		char* key = NULL;
+		if(cfg->auto_trust_anchor_file_list)
+			key = cfg->auto_trust_anchor_file_list->str;
+		if(!key && cfg->trust_anchor_file_list)
+			key = cfg->trust_anchor_file_list->str;
+		if(!key && cfg->trust_anchor_list)
+			key = cfg->trust_anchor_list->str;
+		if(!key && cfg->trusted_keys_file_list)
+			key = cfg->trusted_keys_file_list->str;
+		if(!key) key = "";
+		fatal_exit("disable-edns-do does not allow DNSSEC to work, but the validator module uses a trust anchor %s, turn off disable-edns-do or disable validation", key);
+	}
 #ifdef USE_IPSECMOD
 	if(cfg->ipsecmod_enabled && strstr(cfg->module_conf, "ipsecmod")) {
 		/* only check hook if enabled */
@@ -714,7 +731,7 @@ morechecks(struct config_file* cfg)
 			cfg->chrootdir, cfg);
 	}
 #endif
-	/* remove chroot setting so that modules are not stripping pathnames*/
+	/* remove chroot setting so that modules are not stripping pathnames */
 	free(cfg->chrootdir);
 	cfg->chrootdir = NULL;
 

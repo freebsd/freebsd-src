@@ -332,6 +332,29 @@ void addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	char* buf, size_t len);
 
 /**
+ * Check if the prefix network length is one of the allowed 32, 40, 48, 56, 64,
+ * or 96.
+ * @param prefixnet: prefix network length to check.
+ * @return 1 on success, 0 on failure.
+ */
+int prefixnet_is_nat64(int prefixnet);
+
+/**
+ * Create a NAT64 address from a given address (needs to be IPv4) and a given
+ * NAT64 prefix. The NAT64 prefix net needs to be one of 32, 40, 48, 56, 64, 96.
+ * @param addr: IPv4 address.
+ * @param nat64_prefix: NAT64 prefix.
+ * @param nat64_prefixlen: NAT64 prefix len.
+ * @param nat64_prefixnet: NAT64 prefix mask.
+ * @param nat64_addr: the resulting NAT64 address.
+ * @param nat64_addrlen: the resulting NAT64 address length.
+ */
+void addr_to_nat64(const struct sockaddr_storage* addr,
+	const struct sockaddr_storage* nat64_prefix,
+	socklen_t nat64_prefixlen, int nat64_prefixnet,
+	struct sockaddr_storage* nat64_addr, socklen_t* nat64_addrlen);
+
+/**
  * See if sockaddr is an ipv6 mapped ipv4 address, "::ffff:0.0.0.0"
  * @param addr: address
  * @param addrlen: length of address
@@ -405,6 +428,24 @@ void log_crypto_err(const char* str);
  * @param err: error code from ERR_get_error.
  */
 void log_crypto_err_code(const char* str, unsigned long err);
+
+/**
+ * Log an error from libcrypto that came from SSL_write and so on, with
+ * a value from SSL_get_error, calls log_err. If that fails it logs with
+ * log_crypto_err.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ */
+void log_crypto_err_io(const char* str, int r);
+
+/**
+ * Log an error from libcrypt that came from an I/O routine with the
+ * errcode from ERR_get_error. Calls log_err() and log_crypto_err_code.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ * @param err: error code from ERR_get_error
+ */
+void log_crypto_err_io_code(const char* str, int r, unsigned long err);
 
 /**
  * Log certificate details verbosity, string, of X509 cert
