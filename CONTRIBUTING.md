@@ -75,6 +75,13 @@ submission does not meet the limited scope for pull requests accepted
 here. Sometimes it is easier to review a GitHub pull request than to do the
 review in Phabricator, so that's also allowed.
 
+### Author Name and Email
+
+We require that contributions are associated with a unique identity.
+The author email address should not be `<something>@users.noreply.github.com`.
+Do note that your name and email address will become a permanent and immutable
+part of the public Git history of the FreeBSD source tree.
+
 ## Style
 
 Avoid adding trailing newlines and whitespace. These slow down the integration
