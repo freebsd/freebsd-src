@@ -2,6 +2,7 @@
  * Copyright (c) 2019 Google LLC. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -27,14 +28,58 @@ struct hid_openbsd {
 	const sigset_t *sigmaskp;
 };
 
+static int
+copy_info(fido_dev_info_t *di, const char *path)
+{
+	int fd = -1, ok = -1;
+	struct usb_device_info udi;
+
+	memset(di, 0, sizeof(*di));
+	memset(&udi, 0, sizeof(udi));
+
+	if ((fd = fido_hid_unix_open(path)) == -1)
+		goto fail;
+	if (ioctl(fd, IOCTL_REQ(USB_GET_DEVICEINFO), &udi) == -1) {
+		fido_log_error(errno, "%s: ioctl %s", __func__, path);
+		goto fail;
+	}
+
+	fido_log_debug("%s: %s: bus = 0x%02x, addr = 0x%02x", __func__, path,
+	    udi.udi_bus, udi.udi_addr);
+	fido_log_debug("%s: %s: vendor = \"%s\", product = \"%s\"", __func__,
+	    path, udi.udi_vendor, udi.udi_product);
+	fido_log_debug("%s: %s: productNo = 0x%04x, vendorNo = 0x%04x, "
+	    "releaseNo = 0x%04x", __func__, path, udi.udi_productNo,
+	    udi.udi_vendorNo, udi.udi_releaseNo);
+
+	if ((di->path = strdup(path)) == NULL ||
+	    (di->manufacturer = strdup(udi.udi_vendor)) == NULL ||
+	    (di->product = strdup(udi.udi_product)) == NULL)
+		goto fail;
+
+	di->vendor_id = (int16_t)udi.udi_vendorNo;
+	di->product_id = (int16_t)udi.udi_productNo;
+
+	ok = 0;
+fail:
+	if (fd != -1 && close(fd) == -1)
+		fido_log_error(errno, "%s: close %s", __func__, path);
+
+	if (ok < 0) {
+		free(di->path);
+		free(di->manufacturer);
+		free(di->product);
+		explicit_bzero(di, sizeof(*di));
+	}
+
+	return (ok);
+}
+
 int
 fido_hid_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 {
 	size_t i;
 	char path[64];
-	int fd;
-	struct usb_device_info udi;
-	fido_dev_info_t *di;
 
 	if (ilen == 0)
 		return (FIDO_OK); /* nothing to do */
@@ -44,50 +89,18 @@ fido_hid_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 
 	for (i = *olen = 0; i < MAX_UHID && *olen < ilen; i++) {
 		snprintf(path, sizeof(path), "/dev/fido/%zu", i);
-		if ((fd = fido_hid_unix_open(path)) == -1)
-			continue;
-		memset(&udi, 0, sizeof(udi));
-		if (ioctl(fd, IOCTL_REQ(USB_GET_DEVICEINFO), &udi) == -1) {
-			fido_log_error(errno, "%s: get device info %s",
-			    __func__, path);
-			if (close(fd) == -1)
-				fido_log_error(errno, "%s: close", __func__);
-			continue;
+		if (copy_info(&devlist[*olen], path) == 0) {
+			devlist[*olen].io = (fido_dev_io_t) {
+				fido_hid_open,
+				fido_hid_close,
+				fido_hid_read,
+				fido_hid_write,
+			};
+			++(*olen);
 		}
-		if (close(fd) == -1)
-			fido_log_error(errno, "%s: close", __func__);
-
-		fido_log_debug("%s: %s: bus = 0x%02x, addr = 0x%02x",
-		    __func__, path, udi.udi_bus, udi.udi_addr);
-		fido_log_debug("%s: %s: vendor = \"%s\", product = \"%s\"",
-		    __func__, path, udi.udi_vendor, udi.udi_product);
-		fido_log_debug("%s: %s: productNo = 0x%04x, vendorNo = 0x%04x, "
-		    "releaseNo = 0x%04x", __func__, path, udi.udi_productNo,
-		    udi.udi_vendorNo, udi.udi_releaseNo);
-
-		di = &devlist[*olen];
-		memset(di, 0, sizeof(*di));
-		di->io = (fido_dev_io_t) {
-			fido_hid_open,
-			fido_hid_close,
-			fido_hid_read,
-			fido_hid_write,
-		};
-		if ((di->path = strdup(path)) == NULL ||
-		    (di->manufacturer = strdup(udi.udi_vendor)) == NULL ||
-		    (di->product = strdup(udi.udi_product)) == NULL) {
-			free(di->path);
-			free(di->manufacturer);
-			free(di->product);
-			explicit_bzero(di, sizeof(*di));
-			return FIDO_ERR_INTERNAL;
-		}
-		di->vendor_id = (int16_t)udi.udi_vendorNo;
-		di->product_id = (int16_t)udi.udi_productNo;
-		(*olen)++;
 	}
 
-	return FIDO_OK;
+	return (FIDO_OK);
 }
 
 /*

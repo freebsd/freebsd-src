@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/bn.h>
@@ -10,7 +11,7 @@
 #include "fido.h"
 #include "fido/eddsa.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3070000f
 EVP_PKEY *
 EVP_PKEY_new_raw_public_key(int type, ENGINE *e, const unsigned char *key,
     size_t keylen)
@@ -122,10 +123,19 @@ eddsa_pk_free(eddsa_pk_t **pkp)
 int
 eddsa_pk_from_ptr(eddsa_pk_t *pk, const void *ptr, size_t len)
 {
+	EVP_PKEY *pkey;
+
 	if (len < sizeof(*pk))
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 	memcpy(pk, ptr, sizeof(*pk));
+
+	if ((pkey = eddsa_pk_to_EVP_PKEY(pk)) == NULL) {
+		fido_log_debug("%s: eddsa_pk_to_EVP_PKEY", __func__);
+		return (FIDO_ERR_INVALID_ARGUMENT);
+	}
+
+	EVP_PKEY_free(pkey);
 
 	return (FIDO_OK);
 }
@@ -147,6 +157,8 @@ eddsa_pk_from_EVP_PKEY(eddsa_pk_t *pk, const EVP_PKEY *pkey)
 {
 	size_t len = 0;
 
+	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_ED25519)
+		return (FIDO_ERR_INVALID_ARGUMENT);
 	if (EVP_PKEY_get_raw_public_key(pkey, NULL, &len) != 1 ||
 	    len != sizeof(pk->x))
 		return (FIDO_ERR_INTERNAL);

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <assert.h>
@@ -140,7 +141,7 @@ pack(uint8_t *ptr, size_t len, const struct param *p)
 			goto fail;
 
 	if ((cbor_len = cbor_serialize_alloc(array, &cbor,
-	    &cbor_alloc_len)) > len) {
+	    &cbor_alloc_len)) == 0 || cbor_len > len) {
 		cbor_len = 0;
 		goto fail;
 	}
@@ -163,7 +164,7 @@ size_t
 pack_dummy(uint8_t *ptr, size_t len)
 {
 	struct param dummy;
-	uint8_t blob[4096];
+	uint8_t blob[MAXCORPUS];
 	size_t blob_len;
 
 	memset(&dummy, 0, sizeof(dummy));
@@ -314,6 +315,27 @@ out:
 }
 
 /*
+ * Do a dummy conversion to exercise es384_pk_from_EVP_PKEY().
+ */
+static void
+es384_convert(const es384_pk_t *k)
+{
+	EVP_PKEY *pkey = NULL;
+	es384_pk_t *pk = NULL;
+	int r;
+
+	if ((pkey = es384_pk_to_EVP_PKEY(k)) == NULL ||
+	    (pk = es384_pk_new()) == NULL)
+		goto out;
+
+	r = es384_pk_from_EVP_PKEY(pk, pkey);
+	consume(&r, sizeof(r));
+out:
+	es384_pk_free(&pk);
+	EVP_PKEY_free(pkey);
+}
+
+/*
  * Do a dummy conversion to exercise rs256_pk_from_EVP_PKEY().
  */
 static void
@@ -362,6 +384,7 @@ test(const struct param *p)
 {
 	fido_assert_t *assert = NULL;
 	es256_pk_t *es256_pk = NULL;
+	es384_pk_t *es384_pk = NULL;
 	rs256_pk_t *rs256_pk = NULL;
 	eddsa_pk_t *eddsa_pk = NULL;
 	uint8_t flags;
@@ -397,6 +420,19 @@ test(const struct param *p)
 		pk = rs256_pk;
 
 		rs256_convert(pk);
+
+		break;
+	case 2:
+		cose_alg = COSE_ES384;
+
+		if ((es384_pk = es384_pk_new()) == NULL)
+			return;
+
+		/* XXX reuse p->es256 as es384 */
+		es384_pk_from_ptr(es384_pk, p->es256.body, p->es256.len);
+		pk = es384_pk;
+
+		es384_convert(pk);
 
 		break;
 	default:
@@ -452,6 +488,7 @@ test(const struct param *p)
 
 out:
 	es256_pk_free(&es256_pk);
+	es384_pk_free(&es384_pk);
 	rs256_pk_free(&rs256_pk);
 	eddsa_pk_free(&eddsa_pk);
 

@@ -2,6 +2,7 @@
  * Copyright (c) 2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 /*
@@ -47,7 +48,7 @@ struct tpm_sha256_digest {
 /* Part 2, 10.4.3: TPM2B_DATA */
 PACKED_TYPE(tpm_sha1_data_t,
 struct tpm_sha1_data {
-	uint16_t size; /* sizeof(body */
+	uint16_t size; /* sizeof(body) */
 	uint8_t  body[20];
 })
 

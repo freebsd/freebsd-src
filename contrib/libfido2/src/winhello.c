@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2021-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -84,7 +85,7 @@ webauthn_load(void)
 		fido_log_debug("%s: already loaded", __func__);
 		return -1;
 	}
-	if ((webauthn_handle = LoadLibrary("webauthn.dll")) == NULL) {
+	if ((webauthn_handle = LoadLibrary(TEXT("webauthn.dll"))) == NULL) {
 		fido_log_debug("%s: LoadLibrary", __func__);
 		return -1;
 	}
@@ -354,6 +355,9 @@ pack_cose(WEBAUTHN_COSE_CREDENTIAL_PARAMETER *alg,
 	case COSE_ES256:
 		alg->lAlg = WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256;
 		break;
+	case COSE_ES384:
+		alg->lAlg = WEBAUTHN_COSE_ALGORITHM_ECDSA_P384_WITH_SHA384;
+		break;
 	case COSE_EDDSA:
 		alg->lAlg = -8; /* XXX */;
 		break;
@@ -428,16 +432,48 @@ pack_cred_ext(WEBAUTHN_EXTENSIONS *out, const fido_cred_ext_t *in)
 }
 
 static int
+pack_assert_ext(WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS *out,
+    const fido_assert_ext_t *in)
+{
+	WEBAUTHN_HMAC_SECRET_SALT_VALUES *v;
+	WEBAUTHN_HMAC_SECRET_SALT *s;
+
+	if (in->mask == 0) {
+		return 0; /* nothing to do */
+	}
+	if (in->mask != FIDO_EXT_HMAC_SECRET) {
+		fido_log_debug("%s: mask 0x%x", __func__, in->mask);
+		return -1;
+	}
+	if (in->hmac_salt.ptr == NULL ||
+	    in->hmac_salt.len != WEBAUTHN_CTAP_ONE_HMAC_SECRET_LENGTH) {
+		fido_log_debug("%s: salt %p/%zu", __func__,
+		    (const void *)in->hmac_salt.ptr, in->hmac_salt.len);
+		return -1;
+	}
+	if ((v = calloc(1, sizeof(*v))) == NULL ||
+	    (s = calloc(1, sizeof(*s))) == NULL) {
+		free(v);
+		fido_log_debug("%s: calloc", __func__);
+		return -1;
+	}
+	s->cbFirst = (DWORD)in->hmac_salt.len;
+	s->pbFirst = in->hmac_salt.ptr;
+	v->pGlobalHmacSalt = s;
+	out->pHmacSecretSaltValues = v;
+	out->dwFlags |= WEBAUTHN_AUTHENTICATOR_HMAC_SECRET_VALUES_FLAG;
+	out->dwVersion = WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_6;
+
+	return 0;
+}
+
+static int
 unpack_assert_authdata(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 {
 	int r;
 
-	if (wa->cbAuthenticatorData > SIZE_MAX) {
-		fido_log_debug("%s: cbAuthenticatorData", __func__);
-		return -1;
-	}
 	if ((r = fido_assert_set_authdata_raw(assert, 0, wa->pbAuthenticatorData,
-	    (size_t)wa->cbAuthenticatorData)) != FIDO_OK) {
+	    wa->cbAuthenticatorData)) != FIDO_OK) {
 		fido_log_debug("%s: fido_assert_set_authdata_raw: %s", __func__,
 		    fido_strerr(r));
 		return -1;
@@ -451,12 +487,8 @@ unpack_assert_sig(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 {
 	int r;
 
-	if (wa->cbSignature > SIZE_MAX) {
-		fido_log_debug("%s: cbSignature", __func__);
-		return -1;
-	}
 	if ((r = fido_assert_set_sig(assert, 0, wa->pbSignature,
-	    (size_t)wa->cbSignature)) != FIDO_OK) {
+	    wa->cbSignature)) != FIDO_OK) {
 		fido_log_debug("%s: fido_assert_set_sig: %s", __func__,
 		    fido_strerr(r));
 		return -1;
@@ -468,12 +500,8 @@ unpack_assert_sig(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 static int
 unpack_cred_id(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 {
-	if (wa->Credential.cbId > SIZE_MAX) {
-		fido_log_debug("%s: Credential.cbId", __func__);
-		return -1;
-	}
 	if (fido_blob_set(&assert->stmt[0].id, wa->Credential.pbId,
-	    (size_t)wa->Credential.cbId) < 0) {
+	    wa->Credential.cbId) < 0) {
 		fido_log_debug("%s: fido_blob_set", __func__);
 		return -1;
 	}
@@ -486,12 +514,40 @@ unpack_user_id(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 {
 	if (wa->cbUserId == 0)
 		return 0; /* user id absent */
-	if (wa->cbUserId > SIZE_MAX) {
-		fido_log_debug("%s: cbUserId", __func__);
+	if (fido_blob_set(&assert->stmt[0].user.id, wa->pbUserId,
+	    wa->cbUserId) < 0) {
+		fido_log_debug("%s: fido_blob_set", __func__);
 		return -1;
 	}
-	if (fido_blob_set(&assert->stmt[0].user.id, wa->pbUserId,
-	    (size_t)wa->cbUserId) < 0) {
+
+	return 0;
+}
+
+static int
+unpack_hmac_secret(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
+{
+	if (wa->dwVersion != WEBAUTHN_ASSERTION_VERSION_3) {
+		fido_log_debug("%s: dwVersion %u", __func__,
+		    (unsigned)wa->dwVersion);
+		return 0; /* proceed without hmac-secret */
+	}
+	if (wa->pHmacSecret == NULL ||
+	    wa->pHmacSecret->cbFirst == 0 ||
+	    wa->pHmacSecret->pbFirst == NULL) {
+		fido_log_debug("%s: hmac-secret absent", __func__);
+		return 0; /* proceed without hmac-secret */
+	}
+	if (wa->pHmacSecret->cbSecond != 0 ||
+	    wa->pHmacSecret->pbSecond != NULL) {
+		fido_log_debug("%s: 64-byte hmac-secret", __func__);
+		return 0; /* proceed without hmac-secret */
+	}
+	if (!fido_blob_is_empty(&assert->stmt[0].hmac_secret)) {
+		fido_log_debug("%s: fido_blob_is_empty", __func__);
+		return -1;
+	}
+	if (fido_blob_set(&assert->stmt[0].hmac_secret,
+	    wa->pHmacSecret->pbFirst, wa->pHmacSecret->cbFirst) < 0) {
 		fido_log_debug("%s: fido_blob_set", __func__);
 		return -1;
 	}
@@ -510,11 +566,6 @@ translate_fido_assert(struct winhello_assert *ctx, const fido_assert_t *assert,
 		fido_log_debug("%s: up %d", __func__, assert->up);
 		return FIDO_ERR_UNSUPPORTED_OPTION;
 	}
-	/* not implemented */
-	if (assert->ext.mask) {
-		fido_log_debug("%s: ext 0x%x", __func__, assert->ext.mask);
-		return FIDO_ERR_UNSUPPORTED_EXTENSION;
-	}
 	if ((ctx->rp_id = to_utf16(assert->rp_id)) == NULL) {
 		fido_log_debug("%s: rp_id", __func__);
 		return FIDO_ERR_INTERNAL;
@@ -530,6 +581,10 @@ translate_fido_assert(struct winhello_assert *ctx, const fido_assert_t *assert,
 	if (pack_credlist(&opt->CredentialList, &assert->allow_list) < 0) {
 		fido_log_debug("%s: pack_credlist", __func__);
 		return FIDO_ERR_INTERNAL;
+	}
+	if (pack_assert_ext(opt, &assert->ext) < 0) {
+		fido_log_debug("%s: pack_assert_ext", __func__);
+		return FIDO_ERR_UNSUPPORTED_EXTENSION;
 	}
 	if (set_assert_uv(&opt->dwUserVerificationRequirement, assert->uv,
 	    pin) < 0) {
@@ -568,6 +623,11 @@ translate_winhello_assert(fido_assert_t *assert, const WEBAUTHN_ASSERTION *wa)
 	}
 	if (unpack_user_id(assert, wa) < 0) {
 		fido_log_debug("%s: unpack_user_id", __func__);
+		return FIDO_ERR_INTERNAL;
+	}
+	if (assert->ext.mask & FIDO_EXT_HMAC_SECRET &&
+	    unpack_hmac_secret(assert, wa) < 0) {
+		fido_log_debug("%s: unpack_hmac_secret", __func__);
 		return FIDO_ERR_INTERNAL;
 	}
 
@@ -675,13 +735,12 @@ translate_winhello_cred(fido_cred_t *cred,
 	struct cbor_load_result cbor;
 	int r = FIDO_ERR_INTERNAL;
 
-	if (att->pbAttestationObject == NULL ||
-	    att->cbAttestationObject > SIZE_MAX) {
+	if (att->pbAttestationObject == NULL) {
 		fido_log_debug("%s: pbAttestationObject", __func__);
 		goto fail;
 	}
 	if ((item = cbor_load(att->pbAttestationObject,
-	    (size_t)att->cbAttestationObject, &cbor)) == NULL) {
+	    att->cbAttestationObject, &cbor)) == NULL) {
 		fido_log_debug("%s: cbor_load", __func__);
 		goto fail;
 	}
@@ -742,6 +801,9 @@ winhello_assert_free(struct winhello_assert *ctx)
 
 	free(ctx->rp_id);
 	free(ctx->opt.CredentialList.pCredentials);
+	if (ctx->opt.pHmacSecretSaltValues != NULL)
+		free(ctx->opt.pHmacSecretSaltValues->pGlobalHmacSalt);
+	free(ctx->opt.pHmacSecretSaltValues);
 	free(ctx);
 }
 
@@ -883,7 +945,7 @@ fido_winhello_get_cbor_info(fido_dev_t *dev, fido_cbor_info_t *ci)
 	const char *v[3] = { "U2F_V2", "FIDO_2_0", "FIDO_2_1_PRE" };
 	const char *e[2] = { "credProtect", "hmac-secret" };
 	const char *t[2] = { "nfc", "usb" };
-	const char *o[4] = { "rk", "up", "plat", "clientPin" };
+	const char *o[4] = { "rk", "up", "uv", "plat" };
 
 	(void)dev;
 

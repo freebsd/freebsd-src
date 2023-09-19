@@ -2,6 +2,7 @@
  * Copyright (c) 2018 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 /*
@@ -29,7 +30,7 @@ setpin(const char *path, const char *pin, const char *oldpin)
 		errx(1, "fido_dev_open: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_set_pin(dev, pin, oldpin)) != FIDO_OK)
-		errx(1, "fido_setpin: %s (0x%x)", fido_strerr(r), r);
+		errx(1, "fido_dev_set_pin: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_close(dev)) != FIDO_OK)
 		errx(1, "fido_dev_close: %s (0x%x)", fido_strerr(r), r);

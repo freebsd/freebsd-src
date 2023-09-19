@@ -1,6 +1,7 @@
 # Copyright (c) 2021 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 param(
 	[string]$GPGPath = "C:\Program Files (x86)\GnuPG\bin\gpg.exe",
@@ -66,3 +67,4 @@ Start-Process "${Cygwin}\${Setup}" -Wait -NoNewWindow `
 $Env:PATH = "${Root}\bin\;" + $Env:PATH
 cmake "-DCMAKE_BUILD_TYPE=${Config}" -B "build-${Config}"
 make -C "build-${Config}"
+make -C "build-${Config}" regress

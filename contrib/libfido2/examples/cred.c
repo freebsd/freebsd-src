@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <errno.h>
@@ -34,7 +35,7 @@ static const unsigned char user_id[32] = {
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: cred [-t ecdsa|rsa|eddsa] [-k pubkey] "
+	fprintf(stderr, "usage: cred [-t es256|es384|rs256|eddsa] [-k pubkey] "
 	    "[-ei cred_id] [-P pin] [-T seconds] [-b blobkey] [-hruv] "
 	    "<device>\n");
 	exit(EXIT_FAILURE);
@@ -107,15 +108,23 @@ out:
 	if (key_out != NULL) {
 		/* extract the credential pubkey */
 		if (type == COSE_ES256) {
-			if (write_ec_pubkey(key_out, fido_cred_pubkey_ptr(cred),
+			if (write_es256_pubkey(key_out,
+			    fido_cred_pubkey_ptr(cred),
 			    fido_cred_pubkey_len(cred)) < 0)
-				errx(1, "write_ec_pubkey");
+				errx(1, "write_es256_pubkey");
+		} else if (type == COSE_ES384) {
+			if (write_es384_pubkey(key_out,
+			    fido_cred_pubkey_ptr(cred),
+			    fido_cred_pubkey_len(cred)) < 0)
+				errx(1, "write_es384_pubkey");
 		} else if (type == COSE_RS256) {
-			if (write_rsa_pubkey(key_out, fido_cred_pubkey_ptr(cred),
+			if (write_rs256_pubkey(key_out,
+			    fido_cred_pubkey_ptr(cred),
 			    fido_cred_pubkey_len(cred)) < 0)
-				errx(1, "write_rsa_pubkey");
+				errx(1, "write_rs256_pubkey");
 		} else if (type == COSE_EDDSA) {
-			if (write_eddsa_pubkey(key_out, fido_cred_pubkey_ptr(cred),
+			if (write_eddsa_pubkey(key_out,
+			    fido_cred_pubkey_ptr(cred),
 			    fido_cred_pubkey_len(cred)) < 0)
 				errx(1, "write_eddsa_pubkey");
 		}
@@ -193,9 +202,11 @@ main(int argc, char **argv)
 			rk = true;
 			break;
 		case 't':
-			if (strcmp(optarg, "ecdsa") == 0)
+			if (strcmp(optarg, "es256") == 0)
 				type = COSE_ES256;
-			else if (strcmp(optarg, "rsa") == 0)
+			else if (strcmp(optarg, "es384") == 0)
+				type = COSE_ES384;
+			else if (strcmp(optarg, "rs256") == 0)
 				type = COSE_RS256;
 			else if (strcmp(optarg, "eddsa") == 0)
 				type = COSE_EDDSA;

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "fido.h"
@@ -60,22 +61,31 @@ fail:
 static int
 fido_dev_authkey_rx(fido_dev_t *dev, es256_pk_t *authkey, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	fido_log_debug("%s: dev=%p, authkey=%p, ms=%d", __func__, (void *)dev,
 	    (void *)authkey, *ms);
 
 	memset(authkey, 0, sizeof(*authkey));
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	return (cbor_parse_reply(reply, (size_t)reply_len, authkey,
-	    parse_authkey));
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	r = cbor_parse_reply(msg, (size_t)msglen, authkey, parse_authkey);
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int

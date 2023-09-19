@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/sha.h>
@@ -72,7 +73,7 @@ pad64(const char *pin, fido_blob_t **ppin)
 	size_t	ppin_len;
 
 	pin_len = strlen(pin);
-	if (pin_len < 4 || pin_len > 255) {
+	if (pin_len < 4 || pin_len > 63) {
 		fido_log_debug("%s: invalid pin length", __func__);
 		return (FIDO_ERR_PIN_POLICY_VIOLATION);
 	}
@@ -81,7 +82,8 @@ pad64(const char *pin, fido_blob_t **ppin)
 		return (FIDO_ERR_INTERNAL);
 
 	ppin_len = (pin_len + 63U) & ~63U;
-	if (ppin_len < pin_len || ((*ppin)->ptr = calloc(1, ppin_len)) == NULL) {
+	if (ppin_len < pin_len ||
+	    ((*ppin)->ptr = calloc(1, ppin_len)) == NULL) {
 		fido_blob_free(ppin);
 		return (FIDO_ERR_INTERNAL);
 	}
@@ -284,8 +286,8 @@ uv_token_rx(fido_dev_t *dev, const fido_blob_t *ecdh, fido_blob_t *token,
     int *ms)
 {
 	fido_blob_t	*aes_token = NULL;
-	unsigned char	 reply[FIDO_MAXMSG];
-	int		 reply_len;
+	unsigned char	*msg = NULL;
+	int		 msglen;
 	int		 r;
 
 	if ((aes_token = fido_blob_new()) == NULL) {
@@ -293,14 +295,18 @@ uv_token_rx(fido_dev_t *dev, const fido_blob_t *ecdh, fido_blob_t *token,
 		goto fail;
 	}
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
 		fido_log_debug("%s: fido_rx", __func__);
 		r = FIDO_ERR_RX;
 		goto fail;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, aes_token,
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, aes_token,
 	    parse_uv_token)) != FIDO_OK) {
 		fido_log_debug("%s: parse_uv_token", __func__);
 		goto fail;
@@ -315,6 +321,7 @@ uv_token_rx(fido_dev_t *dev, const fido_blob_t *ecdh, fido_blob_t *token,
 	r = FIDO_OK;
 fail:
 	fido_blob_free(&aes_token);
+	freezero(msg, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -579,25 +586,34 @@ fail:
 static int
 fido_dev_get_pin_retry_count_rx(fido_dev_t *dev, int *retries, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	*retries = 0;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, retries,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto fail;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, retries,
 	    parse_pin_retry_count)) != FIDO_OK) {
 		fido_log_debug("%s: parse_pin_retry_count", __func__);
-		return (r);
+		goto fail;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+fail:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int
@@ -623,25 +639,34 @@ fido_dev_get_retry_count(fido_dev_t *dev, int *retries)
 static int
 fido_dev_get_uv_retry_count_rx(fido_dev_t *dev, int *retries, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	*retries = 0;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, retries,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto fail;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, retries,
 	    parse_uv_retry_count)) != FIDO_OK) {
 		fido_log_debug("%s: parse_uv_retry_count", __func__);
-		return (r);
+		goto fail;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+fail:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int

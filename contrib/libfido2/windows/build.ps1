@@ -1,6 +1,7 @@
-# Copyright (c) 2021 Yubico AB. All rights reserved.
+# Copyright (c) 2021-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 param(
 	[string]$CMakePath = "C:\Program Files\CMake\bin\cmake.exe",
@@ -162,8 +163,8 @@ try {
 	& $CMake ..\..\..\${LIBCBOR} -A "${Arch}" `
 	    -DWITH_EXAMPLES=OFF `
 	    -DBUILD_SHARED_LIBS="${SHARED}" `
-	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
-	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE}" `
+	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} /wd4703" `
+	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} /wd4703" `
 	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
@@ -187,17 +188,15 @@ try {
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
 	& $CMake --build . --config ${Config} --target install --verbose; `
 	    ExitOnError
-	# Patch up zlib's resulting names when built with --config Debug.
-	if ("${Config}" -eq "Debug") {
-		if ("${Type}" -eq "Dynamic") {
-			Copy-Item "${PREFIX}/lib/zlibd.lib" `
-			    -Destination "${PREFIX}/lib/zlib.lib" -Force
-			Copy-Item "${PREFIX}/bin/zlibd1.dll" `
-			    -Destination "${PREFIX}/bin/zlib1.dll" -Force
-		} else {
-			Copy-Item "${PREFIX}/lib/zlibstaticd.lib" `
-			    -Destination "${PREFIX}/lib/zlib.lib" -Force
-		}
+	# Patch up zlib's various names.
+	if ("${Type}" -eq "Dynamic") {
+		((Get-ChildItem -Path "${PREFIX}/lib") -Match "zlib[d]?.lib") |
+		    Copy-Item -Destination "${PREFIX}/lib/zlib1.lib" -Force
+		((Get-ChildItem -Path "${PREFIX}/bin") -Match "zlibd1.dll") |
+		    Copy-Item -Destination "${PREFIX}/bin/zlib1.dll" -Force
+	} else {
+		((Get-ChildItem -Path "${PREFIX}/lib") -Match "zlibstatic[d]?.lib") |
+		    Copy-item -Destination "${PREFIX}/lib/zlib1.lib" -Force
 	}
 } catch {
 	throw "Failed to build zlib"
@@ -220,16 +219,19 @@ try {
 	    -DCRYPTO_INCLUDE_DIRS="${PREFIX}\include" `
 	    -DCRYPTO_LIBRARY_DIRS="${PREFIX}\lib" `
 	    -DCRYPTO_BIN_DIRS="${PREFIX}\bin" `
+	    -DCRYPTO_LIBRARIES="${CRYPTO_LIBRARIES}" `
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} ${Fido2Flags}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} ${Fido2Flags}" `
 	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
+	& $CMake --build . --config ${Config} --target regress --verbose; `
+	    ExitOnError
 	& $CMake --build . --config ${Config} --target install --verbose; `
 	    ExitOnError
 	# Copy DLLs.
 	if ("${SHARED}" -eq "ON") {
-		"cbor.dll", "crypto-47.dll", "zlib1.dll" | `
+		"cbor.dll", "${CRYPTO_LIBRARIES}.dll", "zlib1.dll" | `
 		    %{ Copy-Item "${PREFIX}\bin\$_" `
 		    -Destination "examples\${Config}" }
 	}

@@ -2,6 +2,7 @@
  * Copyright (c) 2018 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <fido.h>
@@ -21,8 +22,8 @@ pin_set(char *path)
 {
 	fido_dev_t *dev = NULL;
 	char prompt[1024];
-	char pin1[1024];
-	char pin2[1024];
+	char pin1[128];
+	char pin2[128];
 	int r;
 	int status = 1;
 
@@ -52,6 +53,11 @@ pin_set(char *path)
 
 	if (strcmp(pin1, pin2) != 0) {
 		fprintf(stderr, "PINs do not match. Try again.\n");
+		goto out;
+	}
+
+	if (strlen(pin1) < 4 || strlen(pin1) > 63) {
+		fprintf(stderr, "invalid PIN length\n");
 		goto out;
 	}
 
@@ -76,9 +82,9 @@ pin_change(char *path)
 {
 	fido_dev_t *dev = NULL;
 	char prompt[1024];
-	char pin0[1024];
-	char pin1[1024];
-	char pin2[1024];
+	char pin0[128];
+	char pin1[128];
+	char pin2[128];
 	int r;
 	int status = 1;
 
@@ -95,6 +101,11 @@ pin_change(char *path)
 
 	if (!readpassphrase(prompt, pin0, sizeof(pin0), RPP_ECHO_OFF)) {
 		warnx("readpassphrase");
+		goto out;
+	}
+
+	if (strlen(pin0) < 4 || strlen(pin0) > 63) {
+		warnx("invalid PIN length");
 		goto out;
 	}
 
@@ -122,6 +133,11 @@ pin_change(char *path)
 
 	if (strcmp(pin1, pin2) != 0) {
 		fprintf(stderr, "PINs do not match. Try again.\n");
+		goto out;
+	}
+
+	if (strlen(pin1) < 4 || strlen(pin1) > 63) {
+		fprintf(stderr, "invalid PIN length\n");
 		goto out;
 	}
 

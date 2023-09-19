@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _MUTATOR_AUX_H
 #define _MUTATOR_AUX_H
+
+#include <sys/types.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,7 +20,7 @@
 #include "../src/fido/credman.h"
 #include "../src/fido/eddsa.h"
 #include "../src/fido/es256.h"
-#include "../src/fido/es256.h"
+#include "../src/fido/es384.h"
 #include "../src/fido/rs256.h"
 #include "../src/netlink.h"
 
@@ -48,8 +51,12 @@
 #define MUTATE_WIREDATA	0x04
 #define MUTATE_ALL	(MUTATE_SEED | MUTATE_PARAM | MUTATE_WIREDATA)
 
-#define MAXSTR	1024
-#define MAXBLOB	3600
+#define MAXSTR		1024
+#define MAXBLOB		3600
+#define MAXCORPUS	8192
+
+#define HID_DEV_HANDLE	0x68696421
+#define NFC_DEV_HANDLE	0x6e666321
 
 struct blob {
 	uint8_t body[MAXBLOB];
@@ -85,6 +92,9 @@ void mutate_string(char *);
 ssize_t fd_read(int, void *, size_t);
 ssize_t fd_write(int, const void *, size_t);
 
+int nfc_read(void *, unsigned char *, size_t, int);
+int nfc_write(void *, const unsigned char *, size_t);
+
 fido_dev_t *open_dev(int);
 void set_wire_data(const uint8_t *, size_t);
 
@@ -93,5 +103,9 @@ void prng_init(unsigned long);
 unsigned long prng_uint32(void);
 
 uint32_t uniform_random(uint32_t);
+
+void set_pcsc_parameters(const struct blob *);
+void set_pcsc_io_functions(int (*)(void *, u_char *, size_t, int),
+    int (*)(void *, const u_char *, size_t), void (*)(const void *, size_t));
 
 #endif /* !_MUTATOR_AUX_H */

@@ -2,6 +2,7 @@
  * Copyright (c) 2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -241,7 +242,7 @@ __wrap_ioctl(int fd, unsigned long request, ...)
 
 	va_start(ap, request);
 
-	switch (request) {
+	switch (IOCTL_REQ(request)) {
 	case IOCTL_REQ(HIDIOCGRDESCSIZE):
 		*va_arg(ap, int *) = (int)report_descriptor->len;
 		break;

@@ -1,3 +1,44 @@
+* Version 1.13.0 (2023-02-20)
+ ** Support for linking against OpenSSL on Windows; gh#668.
+ ** New API calls:
+  - fido_assert_empty_allow_list;
+  - fido_cred_empty_exclude_list.
+ ** fido2-token: fix issue when listing large blobs.
+ ** Improved support for different fuzzing engines.
+
+* Version 1.12.0 (2022-09-22)
+ ** Support for COSE_ES384.
+ ** Support for hidraw(4) on FreeBSD; gh#597.
+ ** Improved support for FIDO 2.1 authenticators.
+ ** New API calls:
+  - es384_pk_free;
+  - es384_pk_from_EC_KEY;
+  - es384_pk_from_EVP_PKEY;
+  - es384_pk_from_ptr;
+  - es384_pk_new;
+  - es384_pk_to_EVP_PKEY;
+  - fido_cbor_info_certs_len;
+  - fido_cbor_info_certs_name_ptr;
+  - fido_cbor_info_certs_value_ptr;
+  - fido_cbor_info_maxrpid_minpinlen;
+  - fido_cbor_info_minpinlen;
+  - fido_cbor_info_new_pin_required;
+  - fido_cbor_info_rk_remaining;
+  - fido_cbor_info_uv_attempts;
+  - fido_cbor_info_uv_modality.
+ ** Documentation and reliability fixes.
+
+* Version 1.11.0 (2022-05-03)
+ ** Experimental PCSC support; enable with -DUSE_PCSC.
+ ** Improved OpenSSL 3.0 compatibility.
+ ** Use RFC1951 raw deflate to compress CTAP 2.1 largeBlobs.
+ ** winhello: advertise "uv" instead of "clientPin".
+ ** winhello: support hmac-secret in fido_dev_get_assert().
+ ** New API calls:
+  - fido_cbor_info_maxlargeblob.
+ ** Documentation and reliability fixes.
+ ** Separate build and regress targets.
+
 * Version 1.10.0 (2022-01-17)
  ** hid_osx: handle devices with paths > 511 bytes; gh#462.
  ** bio: fix CTAP2 canonical CBOR encoding in fido_bio_dev_enroll_*(); gh#480.

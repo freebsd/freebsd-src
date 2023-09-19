@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "fido.h"
@@ -27,6 +28,7 @@ fido_opt_array_free(fido_opt_array_t *oa)
 	free(oa->value);
 	oa->name = NULL;
 	oa->value = NULL;
+	oa->len = 0;
 }
 
 void
@@ -55,6 +57,19 @@ fido_algo_array_free(fido_algo_array_t *aa)
 	free(aa->ptr);
 	aa->ptr = NULL;
 	aa->len = 0;
+}
+
+void
+fido_cert_array_free(fido_cert_array_t *ca)
+{
+	for (size_t i = 0; i < ca->len; i++)
+		free(ca->name[i]);
+
+	free(ca->name);
+	free(ca->value);
+	ca->name = NULL;
+	ca->value = NULL;
+	ca->len = 0;
 }
 
 int

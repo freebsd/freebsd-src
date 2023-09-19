@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/sha.h>
@@ -14,6 +15,7 @@
 
 #include "fido.h"
 #include "fido/es256.h"
+#include "fallthrough.h"
 
 #define U2F_PACE_MS (100)
 
@@ -143,9 +145,9 @@ static int
 send_dummy_register(fido_dev_t *dev, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
+	unsigned char	*reply = NULL;
 	unsigned char	 challenge[SHA256_DIGEST_LENGTH];
 	unsigned char	 application[SHA256_DIGEST_LENGTH];
-	unsigned char	 reply[FIDO_MAXMSG];
 	int		 r;
 
 	/* dummy challenge & application */
@@ -161,6 +163,12 @@ send_dummy_register(fido_dev_t *dev, int *ms)
 		goto fail;
 	}
 
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
 		    iso7816_len(apdu), ms) < 0) {
@@ -168,7 +176,7 @@ send_dummy_register(fido_dev_t *dev, int *ms)
 			r = FIDO_ERR_TX;
 			goto fail;
 		}
-		if (fido_rx(dev, CTAP_CMD_MSG, &reply, sizeof(reply), ms) < 2) {
+		if (fido_rx(dev, CTAP_CMD_MSG, reply, FIDO_MAXMSG, ms) < 2) {
 			fido_log_debug("%s: fido_rx", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
@@ -183,6 +191,7 @@ send_dummy_register(fido_dev_t *dev, int *ms)
 	r = FIDO_OK;
 fail:
 	iso7816_free(&apdu);
+	freezero(reply, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -192,9 +201,9 @@ key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
     int *found, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
+	unsigned char	*reply = NULL;
 	unsigned char	 challenge[SHA256_DIGEST_LENGTH];
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
-	unsigned char	 reply[FIDO_MAXMSG];
 	uint8_t		 key_id_len;
 	int		 r;
 
@@ -228,13 +237,19 @@ key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
 		goto fail;
 	}
 
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
 	if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
 	    iso7816_len(apdu), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
 	}
-	if (fido_rx(dev, CTAP_CMD_MSG, &reply, sizeof(reply), ms) != 2) {
+	if (fido_rx(dev, CTAP_CMD_MSG, reply, FIDO_MAXMSG, ms) != 2) {
 		fido_log_debug("%s: fido_rx", __func__);
 		r = FIDO_ERR_RX;
 		goto fail;
@@ -256,6 +271,7 @@ key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
 	r = FIDO_OK;
 fail:
 	iso7816_free(&apdu);
+	freezero(reply, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -298,8 +314,8 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
     const fido_blob_t *key_id, fido_blob_t *sig, fido_blob_t *ad, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
+	unsigned char	*reply = NULL;
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
-	unsigned char	 reply[FIDO_MAXMSG];
 	int		 reply_len;
 	uint8_t		 key_id_len;
 	int		 r;
@@ -336,6 +352,12 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 		goto fail;
 	}
 
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
 		    iso7816_len(apdu), ms) < 0) {
@@ -343,8 +365,8 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 			r = FIDO_ERR_TX;
 			goto fail;
 		}
-		if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, &reply,
-		    sizeof(reply), ms)) < 2) {
+		if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, reply,
+		    FIDO_MAXMSG, ms)) < 2) {
 			fido_log_debug("%s: fido_rx", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
@@ -364,6 +386,7 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 
 fail:
 	iso7816_free(&apdu);
+	freezero(reply, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -643,7 +666,7 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
-	unsigned char	 reply[FIDO_MAXMSG];
+	unsigned char	*reply = NULL;
 	int		 reply_len;
 	int		 found;
 	int		 r;
@@ -694,6 +717,12 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int *ms)
 		goto fail;
 	}
 
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
 		    iso7816_len(apdu), ms) < 0) {
@@ -701,8 +730,8 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int *ms)
 			r = FIDO_ERR_TX;
 			goto fail;
 		}
-		if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, &reply,
-		    sizeof(reply), ms)) < 2) {
+		if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, reply,
+		    FIDO_MAXMSG, ms)) < 2) {
 			fido_log_debug("%s: fido_rx", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
@@ -721,6 +750,7 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int *ms)
 	}
 fail:
 	iso7816_free(&apdu);
+	freezero(reply, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -804,7 +834,7 @@ u2f_authenticate(fido_dev_t *dev, fido_assert_t *fa, int *ms)
 		    &fa->allow_list.ptr[i], fa, nfound, ms))) {
 		case FIDO_OK:
 			nauth_ok++;
-			/* FALLTHROUGH */
+			FALLTHROUGH
 		case FIDO_ERR_USER_PRESENCE_REQUIRED:
 			nfound++;
 			break;
@@ -834,9 +864,9 @@ u2f_get_touch_begin(fido_dev_t *dev, int *ms)
 	iso7816_apdu_t	*apdu = NULL;
 	const char	*clientdata = FIDO_DUMMY_CLIENTDATA;
 	const char	*rp_id = FIDO_DUMMY_RP_ID;
+	unsigned char	*reply = NULL;
 	unsigned char	 clientdata_hash[SHA256_DIGEST_LENGTH];
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
-	unsigned char	 reply[FIDO_MAXMSG];
 	int		 r;
 
 	memset(&clientdata_hash, 0, sizeof(clientdata_hash));
@@ -858,9 +888,15 @@ u2f_get_touch_begin(fido_dev_t *dev, int *ms)
 		goto fail;
 	}
 
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r =  FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+
 	if (dev->attr.flags & FIDO_CAP_WINK) {
 		fido_tx(dev, CTAP_CMD_WINK, NULL, 0, ms);
-		fido_rx(dev, CTAP_CMD_WINK, &reply, sizeof(reply), ms);
+		fido_rx(dev, CTAP_CMD_WINK, reply, FIDO_MAXMSG, ms);
 	}
 
 	if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
@@ -873,6 +909,7 @@ u2f_get_touch_begin(fido_dev_t *dev, int *ms)
 	r = FIDO_OK;
 fail:
 	iso7816_free(&apdu);
+	freezero(reply, FIDO_MAXMSG);
 
 	return (r);
 }
@@ -880,21 +917,28 @@ fail:
 int
 u2f_get_touch_status(fido_dev_t *dev, int *touched, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*reply;
+	int		 reply_len;
+	int		 r;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, &reply, sizeof(reply),
+	if ((reply = malloc(FIDO_MAXMSG)) == NULL) {
+		fido_log_debug("%s: malloc", __func__);
+		r =  FIDO_ERR_INTERNAL;
+		goto out;
+	}
+
+	if ((reply_len = fido_rx(dev, CTAP_CMD_MSG, reply, FIDO_MAXMSG,
 	    ms)) < 2) {
 		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_OK); /* ignore */
+		r = FIDO_OK; /* ignore */
+		goto out;
 	}
 
 	switch ((reply[reply_len - 2] << 8) | reply[reply_len - 1]) {
 	case SW_CONDITIONS_NOT_SATISFIED:
 		if ((r = u2f_get_touch_begin(dev, ms)) != FIDO_OK) {
 			fido_log_debug("%s: u2f_get_touch_begin", __func__);
-			return (r);
+			goto out;
 		}
 		*touched = 0;
 		break;
@@ -903,8 +947,13 @@ u2f_get_touch_status(fido_dev_t *dev, int *touched, int *ms)
 		break;
 	default:
 		fido_log_debug("%s: unexpected sw", __func__);
-		return (FIDO_ERR_RX);
+		r = FIDO_ERR_RX;
+		goto out;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+out:
+	freezero(reply, FIDO_MAXMSG);
+
+	return (r);
 }

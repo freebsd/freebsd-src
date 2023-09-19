@@ -1,17 +1,43 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
-.\" Use of this source code is governed by a BSD-style
-.\" license that can be found in the LICENSE file.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\"
-.Dd $Mdocdate: May 23 2018 $
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: December 2 2022 $
 .Dt FIDO_CRED_EXCLUDE 3
 .Os
 .Sh NAME
-.Nm fido_cred_exclude
-.Nd appends a credential ID to a credential's list of excluded credentials
+.Nm fido_cred_exclude ,
+.Nm fido_cred_empty_exclude_list
+.Nd manage exclude lists in a FIDO2 credential
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
 .Fn fido_cred_exclude "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_cred_empty_exclude_list "fido_cred_t *cred"
 .Sh DESCRIPTION
 The
 .Fn fido_cred_exclude
@@ -46,9 +72,16 @@ will fail.
 .Pp
 For the format of a FIDO2 credential ID, please refer to the
 Web Authentication (webauthn) standard.
+.Pp
+The
+.Fn fido_cred_empty_exclude_list
+function empties the list of credentials excluded by
+.Fa cred .
 .Sh RETURN VALUES
 The error codes returned by
 .Fn fido_cred_exclude
+and
+.Fn fido_cred_empty_exclude_list
 are defined in
 .In fido/err.h .
 On success,

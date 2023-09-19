@@ -1,11 +1,13 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <fido.h>
 #include <fido/es256.h>
+#include <fido/es384.h>
 #include <fido/rs256.h>
 #include <fido/eddsa.h>
 
@@ -30,9 +32,9 @@ static const unsigned char cd[32] = {
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: assert [-t ecdsa|rsa|eddsa] [-a cred_id] "
-	    "[-h hmac_secret] [-s hmac_salt] [-P pin] [-T seconds] "
-	    "[-b blobkey] [-puv] <pubkey> <device>\n");
+	fprintf(stderr, "usage: assert [-t es256|es384|rs256|eddsa] "
+	    "[-a cred_id] [-h hmac_secret] [-s hmac_salt] [-P pin] "
+	    "[-T seconds] [-b blobkey] [-puv] <pubkey> <device>\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -46,6 +48,7 @@ verify_assert(int type, const unsigned char *authdata_ptr, size_t authdata_len,
 	RSA		*rsa = NULL;
 	EVP_PKEY	*eddsa = NULL;
 	es256_pk_t	*es256_pk = NULL;
+	es384_pk_t	*es384_pk = NULL;
 	rs256_pk_t	*rs256_pk = NULL;
 	eddsa_pk_t	*eddsa_pk = NULL;
 	void		*pk;
@@ -64,6 +67,21 @@ verify_assert(int type, const unsigned char *authdata_ptr, size_t authdata_len,
 			errx(1, "es256_pk_from_EC_KEY");
 
 		pk = es256_pk;
+		EC_KEY_free(ec);
+		ec = NULL;
+
+		break;
+	case COSE_ES384:
+		if ((ec = read_ec_pubkey(key)) == NULL)
+			errx(1, "read_ec_pubkey");
+
+		if ((es384_pk = es384_pk_new()) == NULL)
+			errx(1, "es384_pk_new");
+
+		if (es384_pk_from_EC_KEY(es384_pk, ec) != FIDO_OK)
+			errx(1, "es384_pk_from_EC_KEY");
+
+		pk = es384_pk;
 		EC_KEY_free(ec);
 		ec = NULL;
 
@@ -147,6 +165,7 @@ verify_assert(int type, const unsigned char *authdata_ptr, size_t authdata_len,
 		errx(1, "fido_assert_verify: %s (0x%x)", fido_strerr(r), r);
 
 	es256_pk_free(&es256_pk);
+	es384_pk_free(&es384_pk);
 	rs256_pk_free(&rs256_pk);
 	eddsa_pk_free(&eddsa_pk);
 
@@ -219,9 +238,11 @@ main(int argc, char **argv)
 			body = NULL;
 			break;
 		case 't':
-			if (strcmp(optarg, "ecdsa") == 0)
+			if (strcmp(optarg, "es256") == 0)
 				type = COSE_ES256;
-			else if (strcmp(optarg, "rsa") == 0)
+			else if (strcmp(optarg, "es384") == 0)
+				type = COSE_ES384;
+			else if (strcmp(optarg, "rs256") == 0)
 				type = COSE_RS256;
 			else if (strcmp(optarg, "eddsa") == 0)
 				type = COSE_EDDSA;
