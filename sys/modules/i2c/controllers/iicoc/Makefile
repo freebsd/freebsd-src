@@ -1,4 +1,4 @@
-.PATH:		${SRCTOP}/sys/dev/iicbus
+.PATH:		${SRCTOP}/sys/dev/iicbus/controller/opencores
 
 KMOD		= iicoc
 SRCS		= device_if.h bus_if.h iicbus_if.h \

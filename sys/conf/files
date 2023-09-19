@@ -1804,12 +1804,12 @@ dev/iicbus/iichid.c		optional iichid acpi hid iicbus
 dev/iicbus/iiconf.c		optional iicbus | compat_linuxkpi
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
-dev/iicbus/iicoc.c		optional iicoc
-dev/iicbus/iicoc_fdt.c		optional iicoc fdt
-dev/iicbus/iicoc_pci.c		optional iicoc pci
 dev/iicbus/adc/ad7418.c		optional ad7418
 dev/iicbus/adc/ads111x.c	optional ads111x
 dev/iicbus/adc/pcf8591.c	optional pcf8591
+dev/iicbus/controller/opencores/iicoc.c	optional iicoc
+dev/iicbus/controller/opencores/iicoc_fdt.c	optional iicoc fdt
+dev/iicbus/controller/opencores/iicoc_pci.c	optional iicoc pci
 dev/iicbus/mux/iicmux.c		optional iicmux
 dev/iicbus/mux/iicmux_if.m	optional iicmux
 dev/iicbus/mux/iic_gpiomux.c	optional iic_gpiomux fdt
