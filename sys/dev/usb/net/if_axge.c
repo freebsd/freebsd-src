@@ -28,7 +28,8 @@
 
 #include <sys/cdefs.h>
 /*
- * ASIX Electronics AX88178A/AX88179 USB 2.0/3.0 gigabit ethernet driver.
+ * ASIX Electronics AX88178A/AX88179/AX88179A USB 2.0/3.0 gigabit ethernet
+ * driver.
  */
 
 #include <sys/param.h>
@@ -70,13 +71,15 @@
  */
 
 static const STRUCT_USB_HOST_ID axge_devs[] = {
-#define	AXGE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
-	AXGE_DEV(ASIX, AX88178A),
-	AXGE_DEV(ASIX, AX88179),
-	AXGE_DEV(BELKIN, B2B128),
-	AXGE_DEV(DLINK, DUB1312),
-	AXGE_DEV(LENOVO, GIGALAN),
-	AXGE_DEV(SITECOMEU, LN032),
+#define	AXGE_DEV(v,p,i,...)	\
+	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i), __VA_ARGS__ }
+	AXGE_DEV(ASIX, AX88178A, AXGE_FLAG_178A),
+	AXGE_DEV(ASIX, AX88179, AXGE_FLAG_179, USB_DEV_BCD_LTEQ(0x0100)),
+	AXGE_DEV(ASIX, AX88179, AXGE_FLAG_179A, USB_DEV_BCD_GTEQ(0x0200)),
+	AXGE_DEV(BELKIN, B2B128, AXGE_FLAG_179),
+	AXGE_DEV(DLINK, DUB1312, AXGE_FLAG_179),
+	AXGE_DEV(LENOVO, GIGALAN, AXGE_FLAG_179),
+	AXGE_DEV(SITECOMEU, LN032, AXGE_FLAG_179),
 #undef AXGE_DEV
 };
 
@@ -410,6 +413,24 @@ axge_chip_init(struct axge_softc *sc)
 	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_CLK_SELECT,
 	    AXGE_CLK_SELECT_ACS | AXGE_CLK_SELECT_BCS);
 	uether_pause(&sc->sc_ue, hz / 10);
+
+	if ((sc->sc_flags & AXGE_FLAG_179A) != 0) {
+		/*
+		 * 179A chip has two firmware modes that each use different
+		 * transfer layouts for Ethernet over USB. The newer fw mode has
+		 * larger rx packet headers which seem to
+		 * accomodate for ethernet frames up to 9K length and a VLAN
+		 * field for hardware tagging, but is not backward compatible
+		 * with 178A/179 bulk transfer code due to the change in size
+		 * and field alignments. The other fw mode uses the same packet
+		 * headers as the older 178A/179 chips, which this driver uses.
+		 *
+		 * As we do not currently have VLAN hw tagging or jumbo support
+		 * in this driver anyway, we're ok forcing 179A into its compat
+		 * mode by default.
+		 */
+		axge_write_cmd_1(sc, AXGE_FW_MODE, AXGE_FW_MODE_178A179, 0);
+	}
 }
 
 static void
@@ -550,6 +571,8 @@ axge_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+
+	sc->sc_flags = USB_GET_DRIVER_INFO(uaa);
 
 	iface_index = AXGE_IFACE_IDX;
 	error = usbd_transfer_setup(uaa->device, &iface_index,
