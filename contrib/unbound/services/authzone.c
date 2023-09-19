@@ -1306,8 +1306,8 @@ az_remove_rr(struct auth_zone* z, uint8_t* rr, size_t rr_len,
 		auth_data_delete(node);
 	}
 	if(z->rpz) {
-		rpz_remove_rr(z->rpz, z->namelen, dname, dname_len, rr_type,
-			rr_class, rdata, rdatalen);
+		rpz_remove_rr(z->rpz, z->name, z->namelen, dname, dname_len,
+			rr_type, rr_class, rdata, rdatalen);
 	}
 	return 1;
 }
@@ -5420,6 +5420,8 @@ xfr_transfer_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	edns.opt_list_out = NULL;
 	edns.opt_list_inplace_cb_out = NULL;
 	edns.padding_block_size = 0;
+	edns.cookie_present = 0;
+	edns.cookie_valid = 0;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;
@@ -6613,6 +6615,8 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	edns.opt_list_out = NULL;
 	edns.opt_list_inplace_cb_out = NULL;
 	edns.padding_block_size = 0;
+	edns.cookie_present = 0;
+	edns.cookie_valid = 0;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;
@@ -7510,7 +7514,7 @@ static void add_rrlist_rrsigs_into_data(struct packed_rrset_data* data,
 		size_t j;
 		if(!rrlist[i])
 			continue;
-		if(rrlist[i] && rrlist[i]->type == LDNS_RR_TYPE_ZONEMD &&
+		if(rrlist[i]->type == LDNS_RR_TYPE_ZONEMD &&
 			query_dname_compare(z->name, node->name)==0) {
 			/* omit RRSIGs over type ZONEMD at apex */
 			continue;

@@ -45,8 +45,11 @@
 #include "util/netevent.h"
 #include "util/net_help.h"
 #include "util/regional.h"
+#include "util/rfc_1982.h"
+#include "util/siphash.h"
 #include "util/data/msgparse.h"
 #include "util/data/msgreply.h"
+#include "sldns/sbuffer.h"
 
 #if 0
 /* XXX: remove me */
@@ -133,3 +136,59 @@ edns_string_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
 	return (struct edns_string_addr*)addr_tree_lookup(tree, addr, addrlen);
 }
 
+uint8_t*
+edns_cookie_server_hash(const uint8_t* in, const uint8_t* secret, int v4,
+	uint8_t* hash)
+{
+	v4?siphash(in, 20, secret, hash, 8):siphash(in, 32, secret, hash, 8);
+	return hash;
+}
+
+void
+edns_cookie_server_write(uint8_t* buf, const uint8_t* secret, int v4,
+	uint32_t timestamp)
+{
+	uint8_t hash[8];
+	buf[ 8] = 1;   /* Version */
+	buf[ 9] = 0;   /* Reserved */
+	buf[10] = 0;   /* Reserved */
+	buf[11] = 0;   /* Reserved */
+	sldns_write_uint32(buf + 12, timestamp);
+	(void)edns_cookie_server_hash(buf, secret, v4, hash);
+	memcpy(buf + 16, hash, 8);
+}
+
+enum edns_cookie_val_status
+edns_cookie_server_validate(const uint8_t* cookie, size_t cookie_len,
+	const uint8_t* secret, size_t secret_len, int v4,
+	const uint8_t* hash_input, uint32_t now)
+{
+	uint8_t hash[8];
+	uint32_t timestamp;
+	uint32_t subt_1982 = 0; /* Initialize for the compiler; unused value */
+	int comp_1982;
+	if(cookie_len != 24)
+		/* RFC9018 cookies are 24 bytes long */
+		return COOKIE_STATUS_CLIENT_ONLY;
+	if(secret_len != 16 ||  /* RFC9018 cookies have 16 byte secrets */
+		cookie[8] != 1) /* RFC9018 cookies are cookie version 1 */
+		return COOKIE_STATUS_INVALID;
+	timestamp = sldns_read_uint32(cookie + 12);
+	if((comp_1982 = compare_1982(now, timestamp)) > 0
+		&& (subt_1982 = subtract_1982(timestamp, now)) > 3600)
+		/* Cookie is older than 1 hour (see RFC9018 Section 4.3.) */
+		return COOKIE_STATUS_EXPIRED;
+	if(comp_1982 <= 0 && subtract_1982(now, timestamp) > 300)
+		/* Cookie time is more than 5 minutes in the future.
+		 * (see RFC9018 Section 4.3.) */
+		return COOKIE_STATUS_FUTURE;
+	if(memcmp(edns_cookie_server_hash(hash_input, secret, v4, hash),
+		cookie + 16, 8) != 0)
+		/* Hashes do not match */
+		return COOKIE_STATUS_INVALID;
+	if(comp_1982 > 0 && subt_1982 > 1800)
+		/* Valid cookie but older than 30 minutes, so create a new one
+		 * anyway */
+		return COOKIE_STATUS_VALID_RENEW;
+	return COOKIE_STATUS_VALID;
+}
