@@ -28,12 +28,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 24, 2015
+.Dd October 4, 2023
 .Dt AXGE 4
 .Os
 .Sh NAME
 .Nm axge
-.Nd "ASIX Electronics AX88178A/AX88179 USB Gigabit Ethernet driver"
+.Nd "ASIX Electronics AX88178A/179/179A USB Gigabit Ethernet driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -59,13 +59,13 @@ if_axge_load="YES"
 The
 .Nm
 driver provides support for USB Gigabit Ethernet adapters based on the ASIX
-Electronics AX88179 USB 3.0 and AX88178A USB 2.0 chipsets.
+Electronics AX88179/AX88179A USB 3.0 and AX88178A USB 2.0 chipsets.
 .Pp
-The AX88179 and AX88178A contain a 10/100/1000 Ethernet MAC with a GMII
-interface for interfacing with the Gigabit Ethernet PHY.
+The AX88179, AX88179A and AX88178A contain a 10/100/1000 Ethernet MAC with a
+GMII interface for interfacing with the Gigabit Ethernet PHY.
 .Pp
 These devices will operate with both USB 1.x and USB 2.0 controllers, and the
-AX88179 will operate with USB 3.0 controllers.
+AX88179/AX88179A will operate with USB 3.0 controllers.
 Packets are received and transmitted over separate USB bulk transfer endpoints.
 .Pp
 The
