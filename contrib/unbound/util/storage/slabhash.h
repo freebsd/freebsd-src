@@ -200,6 +200,15 @@ void slabhash_traverse(struct slabhash* table, int wr,
  */
 size_t count_slabhash_entries(struct slabhash* table);
 
+/**
+ * Retrieves number of items in slabhash and the current max collision level
+ * @param table: slabbed hash table.
+ * @param entries_count: where to save the current number of elements.
+ * @param max_collisions: where to save the current max collisions level.
+ */
+void get_slabhash_stats(struct slabhash* table,
+	long long* entries_count, long long* max_collisions);
+
 /* --- test representation --- */
 /** test structure contains test key */
 struct slabhash_testkey {

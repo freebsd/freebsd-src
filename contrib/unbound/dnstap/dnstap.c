@@ -388,12 +388,15 @@ dt_msg_send_client_query(struct dt_env *env,
 			 struct sockaddr_storage *qsock,
 			 struct sockaddr_storage *rsock,
 			 enum comm_point_type cptype,
-			 sldns_buffer *qmsg)
+			 sldns_buffer *qmsg,
+			 struct timeval* tstamp)
 {
 	struct dt_msg dm;
 	struct timeval qtime;
 
-	gettimeofday(&qtime, NULL);
+	if(tstamp)
+		memcpy(&qtime, tstamp, sizeof(qtime));
+	else 	gettimeofday(&qtime, NULL);
 
 	/* type */
 	dt_msg_init(env, &dm, DNSTAP__MESSAGE__TYPE__CLIENT_QUERY);
