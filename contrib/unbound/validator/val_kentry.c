@@ -152,7 +152,7 @@ key_entry_copy_toregion(struct key_entry_key* kkey, struct regional* region)
 }
 
 struct key_entry_key* 
-key_entry_copy(struct key_entry_key* kkey)
+key_entry_copy(struct key_entry_key* kkey, int copy_reason)
 {
 	struct key_entry_key* newk;
 	if(!kkey)
@@ -190,7 +190,7 @@ key_entry_copy(struct key_entry_key* kkey)
 			}
 			packed_rrset_ptr_fixup(newd->rrset_data);
 		}
-		if(d->reason) {
+		if(copy_reason && d->reason && *d->reason != 0) {
 			newd->reason = strdup(d->reason);
 			if(!newd->reason) {
 				free(newd->rrset_data);
@@ -199,6 +199,8 @@ key_entry_copy(struct key_entry_key* kkey)
 				free(newk);
 				return NULL;
 			}
+		} else {
+			newd->reason = NULL;
 		}
 		if(d->algo) {
 			newd->algo = (uint8_t*)strdup((char*)d->algo);
@@ -235,22 +237,6 @@ key_entry_isbad(struct key_entry_key* kkey)
 {
 	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
 	return (int)(d->isbad);
-}
-
-void
-key_entry_set_reason(struct key_entry_key* kkey, char* reason)
-{
-	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
-	d->reason = reason;
-}
-
-void
-key_entry_set_reason_bogus(struct key_entry_key* kkey, sldns_ede_code ede)
-{
-	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
-	if (ede != LDNS_EDE_NONE) { /* reason_bogus init is LDNS_EDE_NONE already */
-		d->reason_bogus = ede;
-	}
 }
 
 char*
@@ -294,6 +280,7 @@ key_entry_setup(struct regional* region,
 struct key_entry_key* 
 key_entry_create_null(struct regional* region,
 	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl,
+	sldns_ede_code reason_bogus, const char* reason,
 	time_t now)
 {
 	struct key_entry_key* k;
@@ -302,8 +289,10 @@ key_entry_create_null(struct regional* region,
 		return NULL;
 	d->ttl = now + ttl;
 	d->isbad = 0;
-	d->reason = NULL;
-	d->reason_bogus = LDNS_EDE_NONE;
+	d->reason = (!reason || *reason == 0)
+		?NULL :(char*)regional_strdup(region, reason);
+		/* On allocation error we don't store the reason string */
+	d->reason_bogus = reason_bogus;
 	d->rrset_type = LDNS_RR_TYPE_DNSKEY;
 	d->rrset_data = NULL;
 	d->algo = NULL;
@@ -313,7 +302,9 @@ key_entry_create_null(struct regional* region,
 struct key_entry_key* 
 key_entry_create_rrset(struct regional* region,
 	uint8_t* name, size_t namelen, uint16_t dclass,
-	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, time_t now)
+	struct ub_packed_rrset_key* rrset, uint8_t* sigalg,
+	sldns_ede_code reason_bogus, const char* reason,
+	time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -323,8 +314,10 @@ key_entry_create_rrset(struct regional* region,
 		return NULL;
 	d->ttl = rd->ttl + now;
 	d->isbad = 0;
-	d->reason = NULL;
-	d->reason_bogus = LDNS_EDE_NONE;
+	d->reason = (!reason || *reason == 0)
+		?NULL :(char*)regional_strdup(region, reason);
+		/* On allocation error we don't store the reason string */
+	d->reason_bogus = reason_bogus;
 	d->rrset_type = ntohs(rrset->rk.type);
 	d->rrset_data = (struct packed_rrset_data*)regional_alloc_init(region,
 		rd, packed_rrset_sizeof(rd));
@@ -341,7 +334,8 @@ key_entry_create_rrset(struct regional* region,
 
 struct key_entry_key* 
 key_entry_create_bad(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl, 
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl,
+	sldns_ede_code reason_bogus, const char* reason,
 	time_t now)
 {
 	struct key_entry_key* k;
@@ -350,8 +344,10 @@ key_entry_create_bad(struct regional* region,
 		return NULL;
 	d->ttl = now + ttl;
 	d->isbad = 1;
-	d->reason = NULL;
-	d->reason_bogus = LDNS_EDE_NONE;
+	d->reason = (!reason || *reason == 0)
+		?NULL :(char*)regional_strdup(region, reason);
+		/* On allocation error we don't store the reason string */
+	d->reason_bogus = reason_bogus;
 	d->rrset_type = LDNS_RR_TYPE_DNSKEY;
 	d->rrset_data = NULL;
 	d->algo = NULL;

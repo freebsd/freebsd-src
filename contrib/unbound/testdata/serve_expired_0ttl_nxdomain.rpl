@@ -1,0 +1,154 @@
+; config options
+server:
+	module-config: "validator iterator"
+	qname-minimisation: "no"
+	minimal-responses: no
+	serve-expired: yes
+	log-servfail: yes
+	ede: yes
+	ede-serve-expired: yes
+
+
+stub-zone:
+	name: "example.com"
+	stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Test serve-expired with NXDOMAIN followed by 0 TTL
+; Scenario overview:
+; - query for 0ttl.example.com. IN A
+; - answer from upstream is NXDOMAIN; will be cached for the SOA negative TTL.
+; - check that the client gets the NXDOMAIN; also cached
+; - query again right after the TTL expired
+; - this time the server answers with a 0 TTL RRset
+; - check that we get the correct answer
+
+; ns.example.com.
+RANGE_BEGIN 0 20
+	ADDRESS 1.2.3.4
+	; response to A query
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR AA NXDOMAIN
+		SECTION QUESTION
+			0ttl.example.com. IN A
+		SECTION AUTHORITY
+			example.com IN SOA ns.example.com dns.example.com 1 7200 3600 2419200 10
+	ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 30 100
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. 10 IN NS
+		SECTION ANSWER
+			example.com. 10 IN NS ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com. 10 IN A 1.2.3.4
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			0ttl.example.com. IN A
+		SECTION ANSWER
+			0ttl.example.com. 0 IN A 5.6.7.8
+		SECTION AUTHORITY
+			example.com. 10 IN NS ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com. 10 IN A 1.2.3.4
+	ENTRY_END
+RANGE_END
+
+; Query with RD flag
+STEP 0 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		0ttl.example.com. IN A
+ENTRY_END
+
+; Check that we get the SERVFAIL (will be cached)
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all
+	REPLY QR RD RA NXDOMAIN
+	SECTION QUESTION
+		0ttl.example.com. IN A
+	SECTION AUTHORITY
+		example.com IN SOA ns.example.com dns.example.com 1 7200 3600 2419200 10
+ENTRY_END
+
+; Query again
+STEP 20 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		0ttl.example.com. IN A
+ENTRY_END
+
+; Check that we get the cached NXDOMAIN
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all
+	REPLY QR RD RA NXDOMAIN
+	SECTION QUESTION
+		0ttl.example.com. IN A
+	SECTION AUTHORITY
+		example.com IN SOA ns.example.com dns.example.com 1 7200 3600 2419200 10
+ENTRY_END
+
+; Wait for the NXDOMAIN to expire
+STEP 31 TIME_PASSES ELAPSE 32
+
+; Query again
+STEP 40 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		0ttl.example.com. IN A
+ENTRY_END
+
+; Check that we get the cached NXDOMAIN
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all
+	REPLY QR RD RA NXDOMAIN
+	SECTION QUESTION
+		0ttl.example.com. IN A
+	SECTION AUTHORITY
+		example.com IN SOA ns.example.com dns.example.com 1 7200 3600 2419200 10
+ENTRY_END
+
+; Query again
+STEP 60 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		0ttl.example.com. IN A
+ENTRY_END
+
+; Check that we got the correct answer
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		0ttl.example.com. IN A
+	SECTION ANSWER
+		0ttl.example.com. 0 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. 10 IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. 10 IN A 1.2.3.4
+ENTRY_END
+
+SCENARIO_END

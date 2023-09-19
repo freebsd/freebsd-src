@@ -482,6 +482,7 @@ int main(int argc, char* argv[])
 		case '?':
 		case 'h':
 		default:
+			ub_ctx_delete(ctx);
 			usage();
 		}
 	}
@@ -495,8 +496,10 @@ int main(int argc, char* argv[])
 	}
 	argc -= optind;
 	argv += optind;
-	if(argc != 1)
+	if(argc != 1) {
+		ub_ctx_delete(ctx);
 		usage();
+	}
 
 #ifdef HAVE_SSL
 #ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS

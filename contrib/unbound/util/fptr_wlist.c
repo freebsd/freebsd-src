@@ -659,6 +659,10 @@ int fptr_whitelist_inplace_cb_edns_back_parsed(
 #else
 	(void)fptr;
 #endif
+#ifdef WITH_PYTHONMODULE
+    if(fptr == &python_inplace_cb_edns_back_parsed_call)
+        return 1;
+#endif
 #ifdef WITH_DYNLIBMODULE
     if(fptr == &dynlib_inplace_cb_edns_back_parsed)
             return 1;
@@ -674,6 +678,10 @@ int fptr_whitelist_inplace_cb_query_response(
 		return 1;
 #else
 	(void)fptr;
+#endif
+#ifdef WITH_PYTHONMODULE
+    if(fptr == &python_inplace_cb_query_response)
+        return 1;
 #endif
 #ifdef WITH_DYNLIBMODULE
     if(fptr == &dynlib_inplace_cb_query_response)
