@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/sha.h>
@@ -200,27 +201,38 @@ parse_largeblob_reply(const cbor_item_t *key, const cbor_item_t *val,
 static int
 largeblob_get_rx(fido_dev_t *dev, fido_blob_t **chunk, int *ms)
 {
-	unsigned char reply[FIDO_MAXMSG];
-	int reply_len, r;
+	unsigned char *msg;
+	int msglen, r;
 
 	*chunk = NULL;
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
+	}
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
 		fido_log_debug("%s: fido_rx", __func__);
-		return FIDO_ERR_RX;
+		r = FIDO_ERR_RX;
+		goto out;
 	}
 	if ((*chunk = fido_blob_new()) == NULL) {
 		fido_log_debug("%s: fido_blob_new", __func__);
-		return FIDO_ERR_INTERNAL;
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, *chunk,
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, *chunk,
 	    parse_largeblob_reply)) != FIDO_OK) {
 		fido_log_debug("%s: parse_largeblob_reply", __func__);
-		fido_blob_free(chunk);
-		return r;
+		goto out;
 	}
 
-	return FIDO_OK;
+	r = FIDO_OK;
+out:
+	if (r != FIDO_OK)
+		fido_blob_free(chunk);
+
+	freezero(msg, FIDO_MAXMSG);
+
+	return r;
 }
 
 static cbor_item_t *

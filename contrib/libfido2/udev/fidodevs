@@ -1,6 +1,7 @@
 # Copyright (c) 2020 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 # After modifying this file, regenerate 70-u2f.rules:
 # ./genrules.awk fidodevs > 70-u2f.rules
@@ -72,6 +73,7 @@ product SILICON		0x8acf	U2F Zero
 product PIDCODES	0x5070	SoloKeys SoloHacker
 product PIDCODES	0x50b0	SoloKeys SoloBoot
 product PIDCODES	0x53c1	SatoshiLabs TREZOR
+product PIDCODES	0xbeee	SoloKeys v2
 
 product GOOGLE		0x5026	Google Titan U2F
 
@@ -113,6 +115,7 @@ product LEDGER		0x4015	Ledger Nano X Legacy
 product HYPERSECU	0x0880	Hypersecu HyperFIDO
 
 product EWBM		0x4a1a	TrustKey Solutions FIDO2 G310
+product EWBM		0x4a2a	TrustKey Solutions FIDO2 G310H/G320H
 product EWBM		0x4c2a	TrustKey Solutions FIDO2 G320
 product EWBM		0x5c2f	eWBM FIDO2 Goldengate G500
 product EWBM		0xa6e9	TrustKey Solutions FIDO2 T120

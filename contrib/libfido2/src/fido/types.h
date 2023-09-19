@@ -1,7 +1,29 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
- * Use of this source code is governed by a BSD-style
- * license that can be found in the LICENSE file.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 
+ *    1. Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _FIDO_TYPES_H
@@ -48,10 +70,14 @@ typedef enum {
 
 typedef void fido_log_handler_t(const char *);
 
+#undef  _FIDO_SIGSET_DEFINED
+#define _FIDO_SIGSET_DEFINED
 #ifdef _WIN32
 typedef int fido_sigset_t;
-#else
+#elif defined(SIG_BLOCK)
 typedef sigset_t fido_sigset_t;
+#else
+#undef _FIDO_SIGSET_DEFINED
 #endif
 
 #ifdef _FIDO_INTERNAL
@@ -68,6 +94,12 @@ typedef struct es256_pk {
 typedef struct es256_sk {
 	unsigned char	d[32];
 } es256_sk_t;
+
+/* COSE ES384 (ECDSA over P-384 with SHA-384) public key */
+typedef struct es384_pk {
+	unsigned char	x[48];
+	unsigned char	y[48];
+} es384_pk_t;
 
 /* COSE RS256 (2048-bit RSA with PKCS1 padding and SHA-256) public key */
 typedef struct rs256_pk {
@@ -101,6 +133,7 @@ typedef struct fido_attcred {
 	int           type;       /* credential's cose algorithm */
 	union {                   /* credential's public key */
 		es256_pk_t es256;
+		es384_pk_t es384;
 		rs256_pk_t rs256;
 		eddsa_pk_t eddsa;
 	} pubkey;
@@ -215,19 +248,33 @@ typedef struct fido_algo_array {
 	size_t len;
 } fido_algo_array_t;
 
+typedef struct fido_cert_array {
+	char **name;
+	uint64_t *value;
+	size_t len;
+} fido_cert_array_t;
+
 typedef struct fido_cbor_info {
-	fido_str_array_t  versions;      /* supported versions: fido2|u2f */
-	fido_str_array_t  extensions;    /* list of supported extensions */
-	fido_str_array_t  transports;    /* list of supported transports */
-	unsigned char     aaguid[16];    /* aaguid */
-	fido_opt_array_t  options;       /* list of supported options */
-	uint64_t          maxmsgsiz;     /* maximum message size */
-	fido_byte_array_t protocols;     /* supported pin protocols */
-	fido_algo_array_t algorithms;    /* list of supported algorithms */
-	uint64_t          maxcredcntlst; /* max number of credentials in list */
-	uint64_t          maxcredidlen;  /* max credential ID length */
-	uint64_t          fwversion;     /* firmware version */
+	fido_str_array_t  versions;       /* supported versions: fido2|u2f */
+	fido_str_array_t  extensions;     /* list of supported extensions */
+	fido_str_array_t  transports;     /* list of supported transports */
+	unsigned char     aaguid[16];     /* aaguid */
+	fido_opt_array_t  options;        /* list of supported options */
+	uint64_t          maxmsgsiz;      /* maximum message size */
+	fido_byte_array_t protocols;      /* supported pin protocols */
+	fido_algo_array_t algorithms;     /* list of supported algorithms */
+	uint64_t          maxcredcntlst;  /* max credentials in list */
+	uint64_t          maxcredidlen;   /* max credential ID length */
+	uint64_t          fwversion;      /* firmware version */
 	uint64_t          maxcredbloblen; /* max credBlob length */
+	uint64_t          maxlargeblob;   /* max largeBlob array length */
+	uint64_t          maxrpid_minlen; /* max rpid in set_pin_minlen_rpid */
+	uint64_t          minpinlen;      /* min pin len enforced */
+	uint64_t          uv_attempts;    /* platform uv attempts */
+	uint64_t          uv_modality;    /* bitmask of supported uv types */
+	int64_t           rk_remaining;   /* remaining resident credentials */
+	bool              new_pin_reqd;   /* new pin required */
+	fido_cert_array_t certs;          /* associated certifications */
 } fido_cbor_info_t;
 
 typedef struct fido_dev_info {
@@ -276,6 +323,7 @@ typedef struct fido_dev fido_dev_t;
 typedef struct fido_dev_info fido_dev_info_t;
 typedef struct es256_pk es256_pk_t;
 typedef struct es256_sk es256_sk_t;
+typedef struct es384_pk es384_pk_t;
 typedef struct rs256_pk rs256_pk_t;
 typedef struct eddsa_pk eddsa_pk_t;
 #endif /* _FIDO_INTERNAL */

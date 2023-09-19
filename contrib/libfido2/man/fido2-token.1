@@ -1,8 +1,31 @@
-.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
-.\" Use of this source code is governed by a BSD-style
-.\" license that can be found in the LICENSE file.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\"
-.Dd $Mdocdate: September 13 2019 $
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: April 11 2022 $
 .Dt FIDO2-TOKEN 1
 .Os
 .Sh NAME
@@ -147,7 +170,7 @@ from
 .Ar device ,
 where
 .Ar key_path
-must hold the blob's base64-encoded encryption key.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
 A PIN or equivalent user-verification gesture is required.
 .It Fl D Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar device
 Deletes a
@@ -189,7 +212,7 @@ from
 .Ar device ,
 where
 .Ar key_path
-must hold the blob's base64-encoded encryption key.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
 The blob is written to
 .Ar blob_path .
 A PIN or equivalent user-verification gesture is required.
@@ -267,29 +290,27 @@ The user will be prompted for the PIN.
 Enables CTAP 2.1 Enterprise Attestation on
 .Ar device .
 .It Fl S Fl b Fl k Ar key_path Ar blob_path Ar device
-Sets
-.Ar blob_path
-as a CTAP 2.1
+Sets a CTAP 2.1
 .Dq largeBlob
 encrypted with
 .Ar key_path
 on
 .Ar device ,
 where
-.Ar blob_path
-holds the blob's plaintext, and
 .Ar key_path
-the blob's base64-encoded encryption.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
+The blob is read from
+.Fa blob_path .
 A PIN or equivalent user-verification gesture is required.
 .It Fl S Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
-Sets
-.Ar blob_path
-as a CTAP 2.1
+Sets a CTAP 2.1
 .Dq largeBlob
 associated with
 .Ar rp_id
 on
 .Ar device .
+The blob is read from
+.Fa blob_path .
 If
 .Ar rp_id
 has multiple credentials enrolled on

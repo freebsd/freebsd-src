@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <assert.h>
@@ -138,7 +139,7 @@ pack(uint8_t *ptr, size_t len, const struct param *p)
 			goto fail;
 
 	if ((cbor_len = cbor_serialize_alloc(array, &cbor,
-	    &cbor_alloc_len)) > len) {
+	    &cbor_alloc_len)) == 0 || cbor_len > len) {
 		cbor_len = 0;
 		goto fail;
 	}
@@ -161,7 +162,7 @@ size_t
 pack_dummy(uint8_t *ptr, size_t len)
 {
 	struct param dummy;
-	uint8_t blob[4096];
+	uint8_t blob[MAXCORPUS];
 	size_t blob_len;
 
 	memset(&dummy, 0, sizeof(dummy));
@@ -223,6 +224,7 @@ dev_get_cbor_info(const struct param *p)
 	fido_cbor_info_t *ci;
 	uint64_t n;
 	uint8_t proto, major, minor, build, flags;
+	bool v;
 
 	set_wire_data(p->info_wire_data.body, p->info_wire_data.len);
 
@@ -276,24 +278,42 @@ dev_get_cbor_info(const struct param *p)
 		consume(&cose, sizeof(cose));
 	}
 
+	for (size_t i = 0; i < fido_cbor_info_certs_len(ci); i++) {
+		char * const *na = fido_cbor_info_certs_name_ptr(ci);
+		const uint64_t *va = fido_cbor_info_certs_value_ptr(ci);
+		consume(na[i], strlen(na[i]));
+		consume(&va[i], sizeof(va[i]));
+	}
+
 	n = fido_cbor_info_maxmsgsiz(ci);
 	consume(&n, sizeof(n));
-
 	n = fido_cbor_info_maxcredbloblen(ci);
 	consume(&n, sizeof(n));
-
 	n = fido_cbor_info_maxcredcntlst(ci);
 	consume(&n, sizeof(n));
-
 	n = fido_cbor_info_maxcredidlen(ci);
 	consume(&n, sizeof(n));
-
+	n = fido_cbor_info_maxlargeblob(ci);
+	consume(&n, sizeof(n));
 	n = fido_cbor_info_fwversion(ci);
+	consume(&n, sizeof(n));
+	n = fido_cbor_info_minpinlen(ci);
+	consume(&n, sizeof(n));
+	n = fido_cbor_info_maxrpid_minpinlen(ci);
+	consume(&n, sizeof(n));
+	n = fido_cbor_info_uv_attempts(ci);
+	consume(&n, sizeof(n));
+	n = fido_cbor_info_uv_modality(ci);
+	consume(&n, sizeof(n));
+	n = (uint64_t)fido_cbor_info_rk_remaining(ci);
 	consume(&n, sizeof(n));
 
 	consume(fido_cbor_info_aaguid_ptr(ci), fido_cbor_info_aaguid_len(ci));
 	consume(fido_cbor_info_protocols_ptr(ci),
 	    fido_cbor_info_protocols_len(ci));
+
+	v = fido_cbor_info_new_pin_required(ci);
+	consume(&v, sizeof(v));
 
 out:
 	fido_dev_close(dev);

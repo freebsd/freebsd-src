@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -374,25 +375,6 @@ disable_sigpipe(int fd)
 	return (0);
 }
 
-static int
-to_uint64(const char *str, uint64_t *out)
-{
-	char *ep;
-	unsigned long long ull;
-
-	errno = 0;
-	ull = strtoull(str, &ep, 10);
-	if (str == ep || *ep != '\0')
-		return (-1);
-	else if (ull == ULLONG_MAX && errno == ERANGE)
-		return (-1);
-	else if (ull > UINT64_MAX)
-		return (-1);
-	*out = (uint64_t)ull;
-
-	return (0);
-}
-
 static io_registry_entry_t
 get_ioreg_entry(const char *path)
 {
@@ -401,8 +383,8 @@ get_ioreg_entry(const char *path)
 	if (strncmp(path, IOREG, strlen(IOREG)) != 0)
 		return (IORegistryEntryFromPath(kIOMainPortDefault, path));
 
-	if (to_uint64(path + strlen(IOREG), &id) == -1) {
-		fido_log_debug("%s: to_uint64", __func__);
+	if (fido_to_uint64(path + strlen(IOREG), 10, &id) == -1) {
+		fido_log_debug("%s: fido_to_uint64", __func__);
 		return (MACH_PORT_NULL);
 	}
 

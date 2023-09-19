@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "fido.h"
@@ -233,25 +234,34 @@ bio_parse_template_array(const cbor_item_t *key, const cbor_item_t *val,
 static int
 bio_rx_template_array(fido_dev_t *dev, fido_bio_template_array_t *ta, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	bio_reset_template_array(ta);
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, ta,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, ta,
 	    bio_parse_template_array)) != FIDO_OK) {
 		fido_log_debug("%s: bio_parse_template_array" , __func__);
-		return (r);
+		goto out;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int
@@ -385,33 +395,43 @@ static int
 bio_rx_enroll_begin(fido_dev_t *dev, fido_bio_template_t *t,
     fido_bio_enroll_t *e, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	bio_reset_template(t);
 
 	e->remaining_samples = 0;
 	e->last_status = 0;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, e,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, e,
 	    bio_parse_enroll_status)) != FIDO_OK) {
 		fido_log_debug("%s: bio_parse_enroll_status", __func__);
-		return (r);
-	}
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, &t->id,
-	    bio_parse_template_id)) != FIDO_OK) {
-		fido_log_debug("%s: bio_parse_template_id", __func__);
-		return (r);
+		goto out;
 	}
 
-	return (FIDO_OK);
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, &t->id,
+	    bio_parse_template_id)) != FIDO_OK) {
+		fido_log_debug("%s: bio_parse_template_id", __func__);
+		goto out;
+	}
+
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int
@@ -487,26 +507,35 @@ fail:
 static int
 bio_rx_enroll_continue(fido_dev_t *dev, fido_bio_enroll_t *e, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	e->remaining_samples = 0;
 	e->last_status = 0;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, e,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, e,
 	    bio_parse_enroll_status)) != FIDO_OK) {
 		fido_log_debug("%s: bio_parse_enroll_status", __func__);
-		return (r);
+		goto out;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int
@@ -654,25 +683,34 @@ bio_parse_info(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 static int
 bio_rx_info(fido_dev_t *dev, fido_bio_info_t *i, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	bio_reset_info(i);
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, i,
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, i,
 	    bio_parse_info)) != FIDO_OK) {
 		fido_log_debug("%s: bio_parse_info" , __func__);
-		return (r);
+		goto out;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int

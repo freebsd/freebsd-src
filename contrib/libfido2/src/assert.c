@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/sha.h>
@@ -160,42 +161,51 @@ fail:
 static int
 fido_dev_get_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
 	fido_assert_reset_rx(assert);
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
+	}
+
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
 		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+		r = FIDO_ERR_RX;
+		goto out;
 	}
 
 	/* start with room for a single assertion */
-	if ((assert->stmt = calloc(1, sizeof(fido_assert_stmt))) == NULL)
-		return (FIDO_ERR_INTERNAL);
-
+	if ((assert->stmt = calloc(1, sizeof(fido_assert_stmt))) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
+	}
 	assert->stmt_len = 0;
 	assert->stmt_cnt = 1;
 
 	/* adjust as needed */
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len, assert,
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, assert,
 	    adjust_assert_count)) != FIDO_OK) {
 		fido_log_debug("%s: adjust_assert_count", __func__);
-		return (r);
+		goto out;
 	}
 
 	/* parse the first assertion */
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len,
-	    &assert->stmt[assert->stmt_len], parse_assert_reply)) != FIDO_OK) {
+	if ((r = cbor_parse_reply(msg, (size_t)msglen, &assert->stmt[0],
+	    parse_assert_reply)) != FIDO_OK) {
 		fido_log_debug("%s: parse_assert_reply", __func__);
-		return (r);
+		goto out;
 	}
+	assert->stmt_len = 1;
 
-	assert->stmt_len++;
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
 
-	return (FIDO_OK);
+	return (r);
 }
 
 static int
@@ -214,30 +224,40 @@ fido_get_next_assert_tx(fido_dev_t *dev, int *ms)
 static int
 fido_get_next_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
-	int		r;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
-	if ((reply_len = fido_rx(dev, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0) {
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
+	}
+
+	if ((msglen = fido_rx(dev, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0) {
 		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+		r = FIDO_ERR_RX;
+		goto out;
 	}
 
 	/* sanity check */
 	if (assert->stmt_len >= assert->stmt_cnt) {
 		fido_log_debug("%s: stmt_len=%zu, stmt_cnt=%zu", __func__,
 		    assert->stmt_len, assert->stmt_cnt);
-		return (FIDO_ERR_INTERNAL);
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	if ((r = cbor_parse_reply(reply, (size_t)reply_len,
+	if ((r = cbor_parse_reply(msg, (size_t)msglen,
 	    &assert->stmt[assert->stmt_len], parse_assert_reply)) != FIDO_OK) {
 		fido_log_debug("%s: parse_assert_reply", __func__);
-		return (r);
+		goto out;
 	}
 
-	return (FIDO_OK);
+	r = FIDO_OK;
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }
 
 static int
@@ -365,17 +385,79 @@ check_extensions(int authdata_ext, int ext)
 	return (0);
 }
 
+static int
+get_es256_hash(fido_blob_t *dgst, const fido_blob_t *clientdata,
+    const fido_blob_t *authdata)
+{
+	const EVP_MD	*md;
+	EVP_MD_CTX	*ctx = NULL;
+
+	if (dgst->len < SHA256_DIGEST_LENGTH ||
+	    (md = EVP_sha256()) == NULL ||
+	    (ctx = EVP_MD_CTX_new()) == NULL ||
+	    EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
+	    EVP_DigestUpdate(ctx, authdata->ptr, authdata->len) != 1 ||
+	    EVP_DigestUpdate(ctx, clientdata->ptr, clientdata->len) != 1 ||
+	    EVP_DigestFinal_ex(ctx, dgst->ptr, NULL) != 1) {
+		EVP_MD_CTX_free(ctx);
+		return (-1);
+	}
+	dgst->len = SHA256_DIGEST_LENGTH;
+
+	EVP_MD_CTX_free(ctx);
+
+	return (0);
+}
+
+static int
+get_es384_hash(fido_blob_t *dgst, const fido_blob_t *clientdata,
+    const fido_blob_t *authdata)
+{
+	const EVP_MD	*md;
+	EVP_MD_CTX	*ctx = NULL;
+
+	if (dgst->len < SHA384_DIGEST_LENGTH ||
+	    (md = EVP_sha384()) == NULL ||
+	    (ctx = EVP_MD_CTX_new()) == NULL ||
+	    EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
+	    EVP_DigestUpdate(ctx, authdata->ptr, authdata->len) != 1 ||
+	    EVP_DigestUpdate(ctx, clientdata->ptr, clientdata->len) != 1 ||
+	    EVP_DigestFinal_ex(ctx, dgst->ptr, NULL) != 1) {
+		EVP_MD_CTX_free(ctx);
+		return (-1);
+	}
+	dgst->len = SHA384_DIGEST_LENGTH;
+
+	EVP_MD_CTX_free(ctx);
+
+	return (0);
+}
+
+static int
+get_eddsa_hash(fido_blob_t *dgst, const fido_blob_t *clientdata,
+    const fido_blob_t *authdata)
+{
+	if (SIZE_MAX - authdata->len < clientdata->len ||
+	    dgst->len < authdata->len + clientdata->len)
+		return (-1);
+
+	memcpy(dgst->ptr, authdata->ptr, authdata->len);
+	memcpy(dgst->ptr + authdata->len, clientdata->ptr, clientdata->len);
+	dgst->len = authdata->len + clientdata->len;
+
+	return (0);
+}
+
 int
 fido_get_signed_hash(int cose_alg, fido_blob_t *dgst,
     const fido_blob_t *clientdata, const fido_blob_t *authdata_cbor)
 {
 	cbor_item_t		*item = NULL;
-	unsigned char		*authdata_ptr = NULL;
-	size_t			 authdata_len;
+	fido_blob_t		 authdata;
 	struct cbor_load_result	 cbor;
-	const EVP_MD		*md = NULL;
-	EVP_MD_CTX		*ctx = NULL;
 	int			 ok = -1;
+
+	fido_log_debug("%s: cose_alg=%d", __func__, cose_alg);
 
 	if ((item = cbor_load(authdata_cbor->ptr, authdata_cbor->len,
 	    &cbor)) == NULL || cbor_isa_bytestring(item) == false ||
@@ -383,40 +465,27 @@ fido_get_signed_hash(int cose_alg, fido_blob_t *dgst,
 		fido_log_debug("%s: authdata", __func__);
 		goto fail;
 	}
+	authdata.ptr = cbor_bytestring_handle(item);
+	authdata.len = cbor_bytestring_length(item);
 
-	authdata_ptr = cbor_bytestring_handle(item);
-	authdata_len = cbor_bytestring_length(item);
-
-	if (cose_alg != COSE_EDDSA) {
-		if (dgst->len < SHA256_DIGEST_LENGTH ||
-		    (md = EVP_sha256()) == NULL ||
-		    (ctx = EVP_MD_CTX_new()) == NULL ||
-		    EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
-		    EVP_DigestUpdate(ctx, authdata_ptr, authdata_len) != 1 ||
-		    EVP_DigestUpdate(ctx, clientdata->ptr, clientdata->len) != 1 ||
-		    EVP_DigestFinal_ex(ctx, dgst->ptr, NULL) != 1) {
-			fido_log_debug("%s: sha256", __func__);
-			goto fail;
-		}
-		dgst->len = SHA256_DIGEST_LENGTH;
-	} else {
-		if (SIZE_MAX - authdata_len < clientdata->len ||
-		    dgst->len < authdata_len + clientdata->len) {
-			fido_log_debug("%s: memcpy", __func__);
-			goto fail;
-		}
-		memcpy(dgst->ptr, authdata_ptr, authdata_len);
-		memcpy(dgst->ptr + authdata_len, clientdata->ptr,
-		    clientdata->len);
-		dgst->len = authdata_len + clientdata->len;
+	switch (cose_alg) {
+	case COSE_ES256:
+	case COSE_RS256:
+		ok = get_es256_hash(dgst, clientdata, &authdata);
+		break;
+	case COSE_ES384:
+		ok = get_es384_hash(dgst, clientdata, &authdata);
+		break;
+	case COSE_EDDSA:
+		ok = get_eddsa_hash(dgst, clientdata, &authdata);
+		break;
+	default:
+		fido_log_debug("%s: unknown cose_alg", __func__);
+		break;
 	}
-
-	ok = 0;
 fail:
 	if (item != NULL)
 		cbor_decref(&item);
-
-	EVP_MD_CTX_free(ctx);
 
 	return (ok);
 }
@@ -480,6 +549,9 @@ fido_assert_verify(const fido_assert_t *assert, size_t idx, int cose_alg,
 	switch (cose_alg) {
 	case COSE_ES256:
 		ok = es256_pk_verify_sig(&dgst, pk, &stmt->sig);
+		break;
+	case COSE_ES384:
+		ok = es384_pk_verify_sig(&dgst, pk, &stmt->sig);
 		break;
 	case COSE_RS256:
 		ok = rs256_pk_verify_sig(&dgst, pk, &stmt->sig);
@@ -601,7 +673,15 @@ fail:
 	free(id.ptr);
 
 	return (r);
+}
 
+int
+fido_assert_empty_allow_list(fido_assert_t *assert)
+{
+	fido_free_blob_array(&assert->allow_list);
+	memset(&assert->allow_list, 0, sizeof(assert->allow_list));
+
+	return (FIDO_OK);
 }
 
 int
@@ -668,15 +748,15 @@ fido_assert_reset_tx(fido_assert_t *assert)
 	fido_blob_reset(&assert->cd);
 	fido_blob_reset(&assert->cdh);
 	fido_blob_reset(&assert->ext.hmac_salt);
-	fido_free_blob_array(&assert->allow_list);
+	fido_assert_empty_allow_list(assert);
 	memset(&assert->ext, 0, sizeof(assert->ext));
-	memset(&assert->allow_list, 0, sizeof(assert->allow_list));
 	assert->rp_id = NULL;
 	assert->up = FIDO_OPT_OMIT;
 	assert->uv = FIDO_OPT_OMIT;
 }
 
-static void fido_assert_reset_extattr(fido_assert_extattr_t *ext)
+static void
+fido_assert_reset_extattr(fido_assert_extattr_t *ext)
 {
 	fido_blob_reset(&ext->hmac_secret_enc);
 	fido_blob_reset(&ext->blob);

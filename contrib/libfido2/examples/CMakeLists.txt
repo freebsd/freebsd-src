@@ -1,6 +1,7 @@
 # Copyright (c) 2018 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 list(APPEND COMPAT_SOURCES
 	../openbsd-compat/clock_gettime.c
@@ -11,17 +12,6 @@ list(APPEND COMPAT_SOURCES
 
 if(WIN32 AND BUILD_SHARED_LIBS AND NOT CYGWIN AND NOT MSYS)
 	list(APPEND COMPAT_SOURCES ../openbsd-compat/posix_win.c)
-endif()
-
-# set the library to link against
-if(BUILD_STATIC_LIBS)
-	# drop -rdynamic
-	set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-	set(_FIDO2_LIBRARY fido2)
-elseif(BUILD_SHARED_LIBS)
-	set(_FIDO2_LIBRARY fido2_shared)
-else()
-	set(_FIDO2_LIBRARY ${CRYPTO_LIBRARIES} fido2)
 endif()
 
 # enable -Wconversion -Wsign-conversion

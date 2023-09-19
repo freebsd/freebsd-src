@@ -1,36 +1,17 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <openssl/sha.h>
 #include "fido.h"
 
 #ifndef TLS
 #define TLS
 #endif
 
-typedef struct dev_manifest_func_node {
-	dev_manifest_func_t manifest_func;
-	struct dev_manifest_func_node *next;
-} dev_manifest_func_node_t;
-
-static TLS dev_manifest_func_node_t *manifest_funcs = NULL;
 static TLS bool disable_u2f_fallback;
-
-static void
-find_manifest_func_node(dev_manifest_func_t f, dev_manifest_func_node_t **curr,
-    dev_manifest_func_node_t **prev)
-{
-	*prev = NULL;
-	*curr = manifest_funcs;
-
-	while (*curr != NULL && (*curr)->manifest_func != f) {
-		*prev = *curr;
-		*curr = (*curr)->next;
-	}
-}
 
 #ifdef FIDO_FUZZ
 static void
@@ -63,13 +44,15 @@ fido_dev_set_option_flags(fido_dev_t *dev, const fido_cbor_info_t *info)
 
 	for (size_t i = 0; i < len; i++)
 		if (strcmp(ptr[i], "clientPin") == 0) {
-			dev->flags |= val[i] ? FIDO_DEV_PIN_SET : FIDO_DEV_PIN_UNSET;
+			dev->flags |= val[i] ?
+			    FIDO_DEV_PIN_SET : FIDO_DEV_PIN_UNSET;
 		} else if (strcmp(ptr[i], "credMgmt") == 0 ||
 			   strcmp(ptr[i], "credentialMgmtPreview") == 0) {
 			if (val[i])
 				dev->flags |= FIDO_DEV_CREDMAN;
 		} else if (strcmp(ptr[i], "uv") == 0) {
-			dev->flags |= val[i] ? FIDO_DEV_UV_SET : FIDO_DEV_UV_UNSET;
+			dev->flags |= val[i] ?
+			    FIDO_DEV_UV_SET : FIDO_DEV_UV_UNSET;
 		} else if (strcmp(ptr[i], "pinUvAuthToken") == 0) {
 			if (val[i])
 				dev->flags |= FIDO_DEV_TOKEN_PERMS;
@@ -257,74 +240,39 @@ fido_dev_open_wait(fido_dev_t *dev, const char *path, int *ms)
 	return (FIDO_OK);
 }
 
-int
-fido_dev_register_manifest_func(const dev_manifest_func_t f)
+static void
+run_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen,
+    const char *type, int (*manifest)(fido_dev_info_t *, size_t, size_t *))
 {
-	dev_manifest_func_node_t *prev, *curr, *n;
+	size_t ndevs = 0;
+	int r;
 
-	find_manifest_func_node(f, &curr, &prev);
-	if (curr != NULL)
-		return (FIDO_OK);
-
-	if ((n = calloc(1, sizeof(*n))) == NULL) {
-		fido_log_debug("%s: calloc", __func__);
-		return (FIDO_ERR_INTERNAL);
-	}
-
-	n->manifest_func = f;
-	n->next = manifest_funcs;
-	manifest_funcs = n;
-
-	return (FIDO_OK);
-}
-
-void
-fido_dev_unregister_manifest_func(const dev_manifest_func_t f)
-{
-	dev_manifest_func_node_t *prev, *curr;
-
-	find_manifest_func_node(f, &curr, &prev);
-	if (curr == NULL)
+	if (*olen >= ilen) {
+		fido_log_debug("%s: skipping %s", __func__, type);
 		return;
-	if (prev != NULL)
-		prev->next = curr->next;
-	else
-		manifest_funcs = curr->next;
-
-	free(curr);
+	}
+	if ((r = manifest(devlist + *olen, ilen - *olen, &ndevs)) != FIDO_OK)
+		fido_log_debug("%s: %s: 0x%x", __func__, type, r);
+	fido_log_debug("%s: found %zu %s device%s", __func__, ndevs, type,
+	    ndevs == 1 ? "" : "s");
+	*olen += ndevs;
 }
 
 int
 fido_dev_info_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 {
-	dev_manifest_func_node_t	*curr = NULL;
-	dev_manifest_func_t		 m_func;
-	size_t				 curr_olen;
-	int				 r;
-
 	*olen = 0;
 
-	if (fido_dev_register_manifest_func(fido_hid_manifest) != FIDO_OK)
-		return (FIDO_ERR_INTERNAL);
-#ifdef NFC_LINUX
-	if (fido_dev_register_manifest_func(fido_nfc_manifest) != FIDO_OK)
-		return (FIDO_ERR_INTERNAL);
+	run_manifest(devlist, ilen, olen, "hid", fido_hid_manifest);
+#ifdef USE_NFC
+	run_manifest(devlist, ilen, olen, "nfc", fido_nfc_manifest);
+#endif
+#ifdef USE_PCSC
+	run_manifest(devlist, ilen, olen, "pcsc", fido_pcsc_manifest);
 #endif
 #ifdef USE_WINHELLO
-	if (fido_dev_register_manifest_func(fido_winhello_manifest) != FIDO_OK)
-		return (FIDO_ERR_INTERNAL);
+	run_manifest(devlist, ilen, olen, "winhello", fido_winhello_manifest);
 #endif
-
-	for (curr = manifest_funcs; curr != NULL; curr = curr->next) {
-		curr_olen = 0;
-		m_func = curr->manifest_func;
-		r = m_func(devlist + *olen, ilen - *olen, &curr_olen);
-		if (r != FIDO_OK)
-			return (r);
-		*olen += curr_olen;
-		if (*olen == ilen)
-			break;
-	}
 
 	return (FIDO_OK);
 }
@@ -345,19 +293,16 @@ fido_dev_open(fido_dev_t *dev, const char *path)
 {
 	int ms = dev->timeout_ms;
 
-#ifdef NFC_LINUX
-	if (strncmp(path, FIDO_NFC_PREFIX, strlen(FIDO_NFC_PREFIX)) == 0) {
-		dev->io_own = true;
-		dev->io = (fido_dev_io_t) {
-			fido_nfc_open,
-			fido_nfc_close,
-			fido_nfc_read,
-			fido_nfc_write,
-		};
-		dev->transport = (fido_dev_transport_t) {
-			fido_nfc_rx,
-			fido_nfc_tx,
-		};
+#ifdef USE_NFC
+	if (fido_is_nfc(path) && fido_dev_set_nfc(dev) < 0) {
+		fido_log_debug("%s: fido_dev_set_nfc", __func__);
+		return FIDO_ERR_INTERNAL;
+	}
+#endif
+#ifdef USE_PCSC
+	if (fido_is_pcsc(path) && fido_dev_set_pcsc(dev) < 0) {
+		fido_log_debug("%s: fido_dev_set_pcsc", __func__);
+		return FIDO_ERR_INTERNAL;
 	}
 #endif
 
@@ -387,7 +332,7 @@ fido_dev_set_sigmask(fido_dev_t *dev, const fido_sigset_t *sigmask)
 	if (dev->io_handle == NULL || sigmask == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-#ifdef NFC_LINUX
+#ifdef USE_NFC
 	if (dev->transport.rx == fido_nfc_rx && dev->io.read == fido_nfc_read)
 		return (fido_nfc_set_sigmask(dev->io_handle, sigmask));
 #endif
@@ -410,106 +355,6 @@ fido_dev_cancel(fido_dev_t *dev)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 	if (fido_tx(dev, CTAP_CMD_CANCEL, NULL, 0, &ms) < 0)
 		return (FIDO_ERR_TX);
-
-	return (FIDO_OK);
-}
-
-int
-fido_dev_get_touch_begin(fido_dev_t *dev)
-{
-	fido_blob_t	 f;
-	cbor_item_t	*argv[9];
-	const char	*clientdata = FIDO_DUMMY_CLIENTDATA;
-	const uint8_t	 user_id = FIDO_DUMMY_USER_ID;
-	unsigned char	 cdh[SHA256_DIGEST_LENGTH];
-	fido_rp_t	 rp;
-	fido_user_t	 user;
-	int		 ms = dev->timeout_ms;
-	int		 r = FIDO_ERR_INTERNAL;
-
-	memset(&f, 0, sizeof(f));
-	memset(argv, 0, sizeof(argv));
-	memset(cdh, 0, sizeof(cdh));
-	memset(&rp, 0, sizeof(rp));
-	memset(&user, 0, sizeof(user));
-
-	if (fido_dev_is_fido2(dev) == false)
-		return (u2f_get_touch_begin(dev, &ms));
-
-	if (SHA256((const void *)clientdata, strlen(clientdata), cdh) != cdh) {
-		fido_log_debug("%s: sha256", __func__);
-		return (FIDO_ERR_INTERNAL);
-	}
-
-	if ((rp.id = strdup(FIDO_DUMMY_RP_ID)) == NULL ||
-	    (user.name = strdup(FIDO_DUMMY_USER_NAME)) == NULL) {
-		fido_log_debug("%s: strdup", __func__);
-		goto fail;
-	}
-
-	if (fido_blob_set(&user.id, &user_id, sizeof(user_id)) < 0) {
-		fido_log_debug("%s: fido_blob_set", __func__);
-		goto fail;
-	}
-
-	if ((argv[0] = cbor_build_bytestring(cdh, sizeof(cdh))) == NULL ||
-	    (argv[1] = cbor_encode_rp_entity(&rp)) == NULL ||
-	    (argv[2] = cbor_encode_user_entity(&user)) == NULL ||
-	    (argv[3] = cbor_encode_pubkey_param(COSE_ES256)) == NULL) {
-		fido_log_debug("%s: cbor encode", __func__);
-		goto fail;
-	}
-
-	if (fido_dev_supports_pin(dev)) {
-		if ((argv[7] = cbor_new_definite_bytestring()) == NULL ||
-		    (argv[8] = cbor_encode_pin_opt(dev)) == NULL) {
-			fido_log_debug("%s: cbor encode", __func__);
-			goto fail;
-		}
-	}
-
-	if (cbor_build_frame(CTAP_CBOR_MAKECRED, argv, nitems(argv), &f) < 0 ||
-	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len, &ms) < 0) {
-		fido_log_debug("%s: fido_tx", __func__);
-		r = FIDO_ERR_TX;
-		goto fail;
-	}
-
-	r = FIDO_OK;
-fail:
-	cbor_vector_free(argv, nitems(argv));
-	free(f.ptr);
-	free(rp.id);
-	free(user.name);
-	free(user.id.ptr);
-
-	return (r);
-}
-
-int
-fido_dev_get_touch_status(fido_dev_t *dev, int *touched, int ms)
-{
-	int r;
-
-	*touched = 0;
-
-	if (fido_dev_is_fido2(dev) == false)
-		return (u2f_get_touch_status(dev, touched, &ms));
-
-	switch ((r = fido_rx_cbor_status(dev, &ms))) {
-	case FIDO_ERR_PIN_AUTH_INVALID:
-	case FIDO_ERR_PIN_INVALID:
-	case FIDO_ERR_PIN_NOT_SET:
-	case FIDO_ERR_SUCCESS:
-		*touched = 1;
-		break;
-	case FIDO_ERR_RX:
-		/* ignore */
-		break;
-	default:
-		fido_log_debug("%s: fido_rx_cbor_status", __func__);
-		return (r);
-	}
 
 	return (FIDO_OK);
 }

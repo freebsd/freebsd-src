@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -23,6 +24,8 @@
 
 #include "../openbsd-compat/openbsd-compat.h"
 #include "extern.h"
+
+#define BOUND (1024UL * 1024UL)
 
 struct rkmap {
 	fido_credman_rp_t  *rp; /* known rps */
@@ -302,32 +305,54 @@ out:
 }
 
 static int
-decompress(const struct blob *plaintext, uint64_t origsiz)
+try_decompress(const struct blob *in, uint64_t origsiz, int wbits)
 {
-	struct blob inflated;
-	u_long ilen, plen;
+	struct blob out;
+	z_stream zs;
+	u_int ilen, olen;
 	int ok = -1;
 
-	memset(&inflated, 0, sizeof(inflated));
+	memset(&zs, 0, sizeof(zs));
+	memset(&out, 0, sizeof(out));
 
-	if (plaintext->len > ULONG_MAX)
+	if (in->len > UINT_MAX || (ilen = (u_int)in->len) > BOUND)
 		return -1;
-	if (origsiz > ULONG_MAX || origsiz > SIZE_MAX)
+	if (origsiz > SIZE_MAX || origsiz > UINT_MAX ||
+	    (olen = (u_int)origsiz) > BOUND)
 		return -1;
-	plen = (u_long)plaintext->len;
-	ilen = (u_long)origsiz;
-	inflated.len = (size_t)origsiz;
-	if ((inflated.ptr = calloc(1, inflated.len)) == NULL)
+	if (inflateInit2(&zs, wbits) != Z_OK)
 		return -1;
-	if (uncompress(inflated.ptr, &ilen, plaintext->ptr, plen) != Z_OK ||
-	    ilen > SIZE_MAX || (size_t)ilen != (size_t)origsiz)
-		goto out;
 
-	ok = 0; /* success */
-out:
-	freezero(inflated.ptr, inflated.len);
+	if ((out.ptr = calloc(1, olen)) == NULL)
+		goto fail;
+
+	out.len = olen;
+	zs.next_in = in->ptr;
+	zs.avail_in = ilen;
+	zs.next_out = out.ptr;
+	zs.avail_out = olen;
+
+	if (inflate(&zs, Z_FINISH) != Z_STREAM_END)
+		goto fail;
+	if (zs.avail_out != 0)
+		goto fail;
+
+	ok = 0;
+fail:
+	if (inflateEnd(&zs) != Z_OK)
+		ok = -1;
+
+	freezero(out.ptr, out.len);
 
 	return ok;
+}
+
+static int
+decompress(const struct blob *plaintext, uint64_t origsiz)
+{
+	if (try_decompress(plaintext, origsiz, MAX_WBITS) == 0) /* rfc1950 */
+		return 0;
+	return try_decompress(plaintext, origsiz, -MAX_WBITS); /* rfc1951 */
 }
 
 static int

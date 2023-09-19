@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <errno.h>
@@ -23,7 +24,7 @@ nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 		return (-1);
 	}
 
-	Sleep(rqtp->tv_nsec / 1000000);
+	Sleep((DWORD)(rqtp->tv_sec * 1000) + (DWORD)(rqtp->tv_nsec / 1000000));
 
 	return (0);
 }

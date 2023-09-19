@@ -2,6 +2,7 @@
  * Copyright (c) 2018 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _EXTERN_H_
@@ -85,7 +86,8 @@ int token_info(int, char **, char *);
 int token_list(int, char **, char *);
 int token_reset(char *);
 int token_set(int, char **, char *);
-int write_ec_pubkey(FILE *, const void *, size_t);
+int write_es256_pubkey(FILE *, const void *, size_t);
+int write_es384_pubkey(FILE *, const void *, size_t);
 int write_rsa_pubkey(FILE *, const void *, size_t);
 int read_file(const char *, u_char **, size_t *);
 int write_file(const char *, const u_char *, size_t);

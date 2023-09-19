@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "fido.h"
@@ -331,14 +332,25 @@ fido_rx(fido_dev_t *d, uint8_t cmd, void *buf, size_t count, int *ms)
 int
 fido_rx_cbor_status(fido_dev_t *d, int *ms)
 {
-	unsigned char	reply[FIDO_MAXMSG];
-	int		reply_len;
+	unsigned char	*msg;
+	int		 msglen;
+	int		 r;
 
-	if ((reply_len = fido_rx(d, CTAP_CMD_CBOR, &reply, sizeof(reply),
-	    ms)) < 0 || (size_t)reply_len < 1) {
-		fido_log_debug("%s: fido_rx", __func__);
-		return (FIDO_ERR_RX);
+	if ((msg = malloc(FIDO_MAXMSG)) == NULL) {
+		r = FIDO_ERR_INTERNAL;
+		goto out;
 	}
 
-	return (reply[0]);
+	if ((msglen = fido_rx(d, CTAP_CMD_CBOR, msg, FIDO_MAXMSG, ms)) < 0 ||
+	    (size_t)msglen < 1) {
+		fido_log_debug("%s: fido_rx", __func__);
+		r = FIDO_ERR_RX;
+		goto out;
+	}
+
+	r = msg[0];
+out:
+	freezero(msg, FIDO_MAXMSG);
+
+	return (r);
 }

@@ -1,6 +1,7 @@
-# Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+# Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 add_definitions(-D_FIDO_INTERNAL)
 
@@ -21,6 +22,7 @@ list(APPEND FIDO_SOURCES
 	eddsa.c
 	err.c
 	es256.c
+	es384.c
 	hid.c
 	info.c
 	io.c
@@ -33,20 +35,28 @@ list(APPEND FIDO_SOURCES
 	rs1.c
 	rs256.c
 	time.c
+	touch.c
 	tpm.c
 	types.c
 	u2f.c
+	util.c
 )
 
 if(FUZZ)
 	list(APPEND FIDO_SOURCES ../fuzz/clock.c)
+	list(APPEND FIDO_SOURCES ../fuzz/pcsc.c)
 	list(APPEND FIDO_SOURCES ../fuzz/prng.c)
-	list(APPEND FIDO_SOURCES ../fuzz/uniform_random.c)
 	list(APPEND FIDO_SOURCES ../fuzz/udev.c)
+	list(APPEND FIDO_SOURCES ../fuzz/uniform_random.c)
 	list(APPEND FIDO_SOURCES ../fuzz/wrap.c)
 endif()
+
 if(NFC_LINUX)
-	list(APPEND FIDO_SOURCES netlink.c nfc_linux.c)
+	list(APPEND FIDO_SOURCES netlink.c nfc.c nfc_linux.c)
+endif()
+
+if(USE_PCSC)
+	list(APPEND FIDO_SOURCES nfc.c pcsc.c)
 endif()
 
 if(USE_HIDAPI)
@@ -75,11 +85,12 @@ else()
 endif()
 
 if(NOT MSVC)
-	set_source_files_properties(${FIDO_SOURCES} PROPERTIES COMPILE_FLAGS
-	    "-Wconversion -Wsign-conversion")
+	set_source_files_properties(${FIDO_SOURCES}
+	    PROPERTIES COMPILE_FLAGS "${EXTRA_CFLAGS}")
 endif()
 
 list(APPEND COMPAT_SOURCES
+	../openbsd-compat/bsd-asprintf.c
 	../openbsd-compat/bsd-getpagesize.c
 	../openbsd-compat/clock_gettime.c
 	../openbsd-compat/endian_win32.c
@@ -93,8 +104,15 @@ list(APPEND COMPAT_SOURCES
 
 if(WIN32)
 	list(APPEND BASE_LIBRARIES wsock32 ws2_32 bcrypt setupapi hid)
+	if(USE_PCSC)
+		list(APPEND BASE_LIBRARIES winscard)
+	endif()
 elseif(APPLE)
-	list(APPEND BASE_LIBRARIES "-framework CoreFoundation" "-framework IOKit")
+	list(APPEND BASE_LIBRARIES "-framework CoreFoundation"
+	    "-framework IOKit")
+	if(USE_PCSC)
+		list(APPEND BASE_LIBRARIES "-framework PCSC")
+	endif()
 endif()
 
 list(APPEND TARGET_LIBRARIES
@@ -104,6 +122,7 @@ list(APPEND TARGET_LIBRARIES
 	${BASE_LIBRARIES}
 	${HIDAPI_LIBRARIES}
 	${ZLIB_LIBRARIES}
+	${PCSC_LIBRARIES}
 )
 
 # static library

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _DUMMY_H
@@ -18,6 +19,8 @@ const char dummy_rp_name[] = "sweet home localhost";
 const char dummy_user_icon[] = "an icon";
 const char dummy_user_name[] = "john smith";
 const char dummy_user_nick[] = "jsmith";
+const char dummy_pcsc_list[] = "reader1\0reader2\0reader3\0\0";
+const char dummy_pcsc_path[] = "pcsc://slot7";
 const uint8_t dummy_id[] = { 0x5e, 0xd2 };
 
 const uint8_t dummy_user_id[] = {

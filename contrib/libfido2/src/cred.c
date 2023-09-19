@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <openssl/sha.h>
@@ -251,7 +252,7 @@ get_signed_hash_u2f(fido_blob_t *dgst, const unsigned char *rp_id,
 	EVP_MD_CTX	*ctx = NULL;
 	int		 ok = -1;
 
-	if (dgst->len != SHA256_DIGEST_LENGTH ||
+	if (dgst->len < SHA256_DIGEST_LENGTH ||
 	    (md = EVP_sha256()) == NULL ||
 	    (ctx = EVP_MD_CTX_new()) == NULL ||
 	    EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
@@ -266,6 +267,7 @@ get_signed_hash_u2f(fido_blob_t *dgst, const unsigned char *rp_id,
 		fido_log_debug("%s: sha256", __func__);
 		goto fail;
 	}
+	dgst->len = SHA256_DIGEST_LENGTH;
 
 	ok = 0;
 fail:
@@ -302,6 +304,9 @@ verify_attstmt(const fido_blob_t *dgst, const fido_attstmt_t *attstmt)
 	case COSE_ES256:
 		ok = es256_verify_sig(dgst, pkey, &attstmt->sig);
 		break;
+	case COSE_ES384:
+		ok = es384_verify_sig(dgst, pkey, &attstmt->sig);
+		break;
 	case COSE_RS256:
 		ok = rs256_verify_sig(dgst, pkey, &attstmt->sig);
 		break;
@@ -327,8 +332,9 @@ fail:
 int
 fido_cred_verify(const fido_cred_t *cred)
 {
-	unsigned char	buf[SHA256_DIGEST_LENGTH];
+	unsigned char	buf[1024]; /* XXX */
 	fido_blob_t	dgst;
+	int		cose_alg;
 	int		r;
 
 	dgst.ptr = buf;
@@ -368,8 +374,11 @@ fido_cred_verify(const fido_cred_t *cred)
 		goto out;
 	}
 
+	if ((cose_alg = cred->attstmt.alg) == COSE_UNSPEC)
+		cose_alg = COSE_ES256; /* backwards compat */
+
 	if (!strcmp(cred->fmt, "packed")) {
-		if (fido_get_signed_hash(COSE_ES256, &dgst, &cred->cdh,
+		if (fido_get_signed_hash(cose_alg, &dgst, &cred->cdh,
 		    &cred->authdata_cbor) < 0) {
 			fido_log_debug("%s: fido_get_signed_hash", __func__);
 			r = FIDO_ERR_INTERNAL;
@@ -480,6 +489,10 @@ fido_cred_verify_self(const fido_cred_t *cred)
 		ok = es256_pk_verify_sig(&dgst, &cred->attcred.pubkey.es256,
 		    &cred->attstmt.sig);
 		break;
+	case COSE_ES384:
+		ok = es384_pk_verify_sig(&dgst, &cred->attcred.pubkey.es384,
+		    &cred->attstmt.sig);
+		break;
 	case COSE_RS256:
 		ok = rs256_pk_verify_sig(&dgst, &cred->attcred.pubkey.rs256,
 		    &cred->attstmt.sig);
@@ -549,11 +562,10 @@ fido_cred_reset_tx(fido_cred_t *cred)
 	free(cred->user.icon);
 	free(cred->user.name);
 	free(cred->user.display_name);
-	fido_free_blob_array(&cred->excl);
+	fido_cred_empty_exclude_list(cred);
 
 	memset(&cred->rp, 0, sizeof(cred->rp));
 	memset(&cred->user, 0, sizeof(cred->user));
-	memset(&cred->excl, 0, sizeof(cred->excl));
 	memset(&cred->ext, 0, sizeof(cred->ext));
 
 	cred->type = 0;
@@ -748,6 +760,15 @@ fido_cred_exclude(fido_cred_t *cred, const unsigned char *id_ptr, size_t id_len)
 
 	list_ptr[cred->excl.len++] = id_blob;
 	cred->excl.ptr = list_ptr;
+
+	return (FIDO_OK);
+}
+
+int
+fido_cred_empty_exclude_list(fido_cred_t *cred)
+{
+	fido_free_blob_array(&cred->excl);
+	memset(&cred->excl, 0, sizeof(cred->excl));
 
 	return (FIDO_OK);
 }
@@ -965,8 +986,10 @@ fido_cred_set_fmt(fido_cred_t *cred, const char *fmt)
 int
 fido_cred_set_type(fido_cred_t *cred, int cose_alg)
 {
-	if ((cose_alg != COSE_ES256 && cose_alg != COSE_RS256 &&
-	    cose_alg != COSE_EDDSA) || cred->type != 0)
+	if (cred->type != 0)
+		return (FIDO_ERR_INVALID_ARGUMENT);
+	if (cose_alg != COSE_ES256 && cose_alg != COSE_ES384 &&
+	    cose_alg != COSE_RS256 && cose_alg != COSE_EDDSA)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 	cred->type = cose_alg;
@@ -1073,6 +1096,9 @@ fido_cred_pubkey_ptr(const fido_cred_t *cred)
 	case COSE_ES256:
 		ptr = &cred->attcred.pubkey.es256;
 		break;
+	case COSE_ES384:
+		ptr = &cred->attcred.pubkey.es384;
+		break;
 	case COSE_RS256:
 		ptr = &cred->attcred.pubkey.rs256;
 		break;
@@ -1095,6 +1121,9 @@ fido_cred_pubkey_len(const fido_cred_t *cred)
 	switch (cred->attcred.type) {
 	case COSE_ES256:
 		len = sizeof(cred->attcred.pubkey.es256);
+		break;
+	case COSE_ES384:
+		len = sizeof(cred->attcred.pubkey.es384);
 		break;
 	case COSE_RS256:
 		len = sizeof(cred->attcred.pubkey.rs256);
