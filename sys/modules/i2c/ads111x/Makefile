@@ -1,5 +1,5 @@
 
-.PATH:		${SRCTOP}/sys/dev/iicbus
+.PATH:		${SRCTOP}/sys/dev/iicbus/adc
 
 KMOD=	ads111x
 SRCS=	ads111x.c

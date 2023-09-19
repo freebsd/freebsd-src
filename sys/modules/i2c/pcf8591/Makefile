@@ -1,5 +1,5 @@
 
-.PATH:	${SRCTOP}/sys/dev/iicbus
+.PATH:	${SRCTOP}/sys/dev/iicbus/adc
 KMOD=	pcf8591
 SRCS=	pcf8591.c
 
