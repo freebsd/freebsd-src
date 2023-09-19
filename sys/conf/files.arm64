@@ -336,7 +336,6 @@ ice_ddp.fw					optional ice_ddp	\
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
 
-dev/iicbus/sy8106a.c				optional sy8106a fdt
 dev/iicbus/controller/twsi/mv_twsi.c		optional twsi fdt
 dev/iicbus/controller/twsi/a10_twsi.c		optional twsi fdt
 dev/iicbus/controller/twsi/twsi.c		optional twsi fdt
