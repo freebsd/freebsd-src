@@ -42,6 +42,10 @@
 #include <arm64/rockchip/clk/rk_clk_pll.h>
 
 /* Macro for defining various types of clocks. */
+
+/* Parent list */
+#define PLIST(_name) static const char *_name[]
+
 /* Pure gate */
 #define	GATE(_idx, _clkname, _pname, _o, _s)				\
 {									\
