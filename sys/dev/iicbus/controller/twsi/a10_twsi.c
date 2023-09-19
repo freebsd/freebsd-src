@@ -41,7 +41,7 @@
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-#include <dev/iicbus/twsi/twsi.h>
+#include <dev/iicbus/controller/twsi/twsi.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 

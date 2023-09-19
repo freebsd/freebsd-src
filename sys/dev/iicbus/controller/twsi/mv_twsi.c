@@ -63,7 +63,7 @@
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
-#include <dev/iicbus/twsi/twsi.h>
+#include <dev/iicbus/controller/twsi/twsi.h>
 
 #include "iicbus_if.h"
 
