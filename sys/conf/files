@@ -1792,8 +1792,6 @@ dev/ida/ida.c			optional ida
 dev/ida/ida_disk.c		optional ida
 dev/ida/ida_pci.c		optional ida pci
 dev/iicbus/acpi_iicbus.c	optional acpi iicbus | acpi compat_linuxkpi
-dev/iicbus/ad7418.c		optional ad7418
-dev/iicbus/ads111x.c		optional ads111x
 dev/iicbus/htu21.c		optional htu21
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
@@ -1812,6 +1810,9 @@ dev/iicbus/iicoc_fdt.c		optional iicoc fdt
 dev/iicbus/iicoc_pci.c		optional iicoc pci
 dev/iicbus/lm75.c		optional lm75
 dev/iicbus/max44009.c		optional max44009
+dev/iicbus/adc/ad7418.c		optional ad7418
+dev/iicbus/adc/ads111x.c	optional ads111x
+dev/iicbus/adc/pcf8591.c	optional pcf8591
 dev/iicbus/mux/iicmux.c		optional iicmux
 dev/iicbus/mux/iicmux_if.m	optional iicmux
 dev/iicbus/mux/iic_gpiomux.c	optional iic_gpiomux fdt
@@ -1820,7 +1821,6 @@ dev/iicbus/mux/pca954x.c	optional pca954x iicbus iicmux
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/ofw_iicbus_if.m	optional fdt iicbus
 dev/iicbus/pcf8574.c		optional pcf8574
-dev/iicbus/pcf8591.c		optional pcf8591
 dev/iicbus/rtc/ds1307.c		optional ds1307
 dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
 dev/iicbus/rtc/ds1672.c		optional ds1672
