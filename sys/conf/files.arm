@@ -93,7 +93,7 @@ dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/video/crtc_if.m		optional	vt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc
-dev/iicbus/twsi/twsi.c		optional	twsi
+dev/iicbus/controller/twsi/twsi.c	optional	twsi
 dev/ofw/ofw_pcib.c		optional	fdt pci
 dev/pci/pci_host_generic.c	optional	pci_host_generic pci
 dev/pci/pci_host_generic_fdt.c	optional	pci_host_generic pci fdt
