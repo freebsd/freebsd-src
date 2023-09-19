@@ -1820,7 +1820,6 @@ dev/iicbus/mux/ltc430x.c	optional ltc430x
 dev/iicbus/mux/pca954x.c	optional pca954x iicbus iicmux
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/ofw_iicbus_if.m	optional fdt iicbus
-dev/iicbus/pcf8574.c		optional pcf8574
 dev/iicbus/rtc/ds1307.c		optional ds1307
 dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
 dev/iicbus/rtc/ds1672.c		optional ds1672
@@ -1831,6 +1830,7 @@ dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
 dev/iicbus/rtc/rtc8583.c	optional rtc8583
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/rtc/s35390a.c	optional s35390a
+dev/iicbus/gpio/pcf8574.c	optional pcf8574
 dev/iicbus/gpio/tca64xx.c	optional tca64xx fdt gpio
 dev/iicbus/pmic/fan53555.c	optional fan53555 fdt | tcs4525 fdt
 dev/iicbus/pmic/silergy/sy8106a.c	optional sy8106a fdt
