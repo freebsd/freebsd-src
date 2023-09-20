@@ -779,6 +779,7 @@ static int
 fuse_vnop_close(struct vop_close_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	struct mount *mp = vnode_mount(vp);
 	struct ucred *cred = ap->a_cred;
 	int fflag = ap->a_fflag;
 	struct thread *td = ap->a_td;
@@ -794,12 +795,30 @@ fuse_vnop_close(struct vop_close_args *ap)
 		return 0;
 
 	err = fuse_flush(vp, cred, pid, fflag);
-	if (err == 0 && (fvdat->flag & FN_ATIMECHANGE)) {
+	if (err == 0 && (fvdat->flag & FN_ATIMECHANGE) && !vfs_isrdonly(mp)) {
 		struct vattr vap;
+		struct fuse_data *data;
+		int dataflags;
+		int access_e = 0;
 
-		VATTR_NULL(&vap);
-		vap.va_atime = fvdat->cached_attrs.va_atime;
-		err = fuse_internal_setattr(vp, &vap, td, NULL);
+		data = fuse_get_mpdata(mp);
+		dataflags = data->dataflags;
+		if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+			struct vattr va;
+
+			fuse_internal_getattr(vp, &va, cred, td);
+			access_e = vaccess(vp->v_type, va.va_mode, va.va_uid,
+			    va.va_gid, VWRITE, cred);
+		}
+		if (access_e == 0) {
+			VATTR_NULL(&vap);
+			vap.va_atime = fvdat->cached_attrs.va_atime;
+			/*
+			 * Ignore errors setting when setting atime.  That
+			 * should not cause close(2) to fail.
+			 */
+			fuse_internal_setattr(vp, &vap, td, NULL);
+		}
 	}
 	/* TODO: close the file handle, if we're sure it's no longer used */
 	if ((fvdat->flag & FN_SIZECHANGE) != 0) {
