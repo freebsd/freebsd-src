@@ -3004,6 +3004,7 @@ vfs_remount_ro(struct mount *mp)
 	struct vnode *vp_covered, *rootvp;
 	int error;
 
+	vfs_op_enter(mp);
 	KASSERT(mp->mnt_lockref > 0,
 	    ("vfs_remount_ro: mp %p is not busied", mp));
 	KASSERT((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0,
@@ -3012,17 +3013,19 @@ vfs_remount_ro(struct mount *mp)
 	rootvp = NULL;
 	vp_covered = mp->mnt_vnodecovered;
 	error = vget(vp_covered, LK_EXCLUSIVE | LK_NOWAIT);
-	if (error != 0)
+	if (error != 0) {
+		vfs_op_exit(mp);
 		return (error);
+	}
 	VI_LOCK(vp_covered);
 	if ((vp_covered->v_iflag & VI_MOUNT) != 0) {
 		VI_UNLOCK(vp_covered);
 		vput(vp_covered);
+		vfs_op_exit(mp);
 		return (EBUSY);
 	}
 	vp_covered->v_iflag |= VI_MOUNT;
 	VI_UNLOCK(vp_covered);
-	vfs_op_enter(mp);
 	vn_seqc_write_begin(vp_covered);
 
 	MNT_ILOCK(mp);
