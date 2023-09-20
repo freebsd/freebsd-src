@@ -31,6 +31,5 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define __ELF_WORD_SIZE 32
 #include <compat/linux/linux_elf.c>

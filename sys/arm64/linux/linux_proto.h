@@ -270,6 +270,16 @@ struct linux_lseek_args {
 	char off_l_[PADL_(l_off_t)]; l_off_t off; char off_r_[PADR_(l_off_t)];
 	char whence_l_[PADL_(l_int)]; l_int whence; char whence_r_[PADR_(l_int)];
 };
+struct linux_write_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+	char nbyte_l_[PADL_(l_size_t)]; l_size_t nbyte; char nbyte_r_[PADR_(l_size_t)];
+};
+struct linux_writev_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char iovp_l_[PADL_(struct iovec *)]; struct iovec * iovp; char iovp_r_[PADR_(struct iovec *)];
+	char iovcnt_l_[PADL_(u_int)]; u_int iovcnt; char iovcnt_r_[PADR_(u_int)];
+};
 struct linux_pread_args {
 	char fd_l_[PADL_(l_uint)]; l_uint fd; char fd_r_[PADR_(l_uint)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
@@ -1254,6 +1264,8 @@ int	linux_vhangup(struct thread *, struct linux_vhangup_args *);
 int	linux_pipe2(struct thread *, struct linux_pipe2_args *);
 int	linux_getdents64(struct thread *, struct linux_getdents64_args *);
 int	linux_lseek(struct thread *, struct linux_lseek_args *);
+int	linux_write(struct thread *, struct linux_write_args *);
+int	linux_writev(struct thread *, struct linux_writev_args *);
 int	linux_pread(struct thread *, struct linux_pread_args *);
 int	linux_pwrite(struct thread *, struct linux_pwrite_args *);
 int	linux_preadv(struct thread *, struct linux_preadv_args *);
@@ -1502,6 +1514,8 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_pipe2	AUE_NULL
 #define	LINUX_SYS_AUE_linux_getdents64	AUE_GETDIRENTRIES
 #define	LINUX_SYS_AUE_linux_lseek	AUE_LSEEK
+#define	LINUX_SYS_AUE_linux_write	AUE_NULL
+#define	LINUX_SYS_AUE_linux_writev	AUE_WRITEV
 #define	LINUX_SYS_AUE_linux_pread	AUE_PREAD
 #define	LINUX_SYS_AUE_linux_pwrite	AUE_PWRITE
 #define	LINUX_SYS_AUE_linux_preadv	AUE_NULL

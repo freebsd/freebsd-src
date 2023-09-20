@@ -1394,7 +1394,6 @@ MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_init.9 \
 	kqueue.9 knlist_init_mtx.9 \
 	kqueue.9 knlist_remove.9 \
-	kqueue.9 knlist_remove_inevent.9 \
 	kqueue.9 knote_fdclose.9 \
 	kqueue.9 KNOTE_LOCKED.9 \
 	kqueue.9 KNOTE_UNLOCKED.9 \

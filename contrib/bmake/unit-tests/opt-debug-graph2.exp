@@ -55,6 +55,7 @@ all             : made-target error-target aborted-target
 .MAKE            = <details omitted>
 .MAKE.DEPENDFILE = <details omitted>
 .MAKE.GID        = <details omitted>
+.MAKE.JOBS.C     = <details omitted>
 .MAKE.LEVEL      = <details omitted>
 .MAKE.MAKEFILES  = <details omitted>
 .MAKE.MAKEFILE_PREFERENCE = <details omitted>

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <fido.h>
@@ -95,6 +96,22 @@ print_opt_array(const char *label, char * const *name, const bool *value,
 }
 
 static void
+print_cert_array(const char *label, char * const *name, const uint64_t *value,
+    size_t len)
+{
+	if (len == 0)
+		return;
+
+	printf("%s: ", label);
+
+	for (size_t i = 0; i < len; i++)
+		printf("%s%s %llu", i > 0 ? ", " : "", name[i],
+		    (unsigned long long)value[i]);
+
+	printf("\n");
+}
+
+static void
 print_algorithms(const fido_cbor_info_t *ci)
 {
 	const char *cose, *type;
@@ -108,14 +125,17 @@ print_algorithms(const fido_cbor_info_t *ci)
 	for (size_t i = 0; i < len; i++) {
 		cose = type = "unknown";
 		switch (fido_cbor_info_algorithm_cose(ci, i)) {
-		case COSE_EDDSA:
-			cose = "eddsa";
-			break;
 		case COSE_ES256:
 			cose = "es256";
 			break;
+		case COSE_ES384:
+			cose = "es384";
+			break;
 		case COSE_RS256:
 			cose = "rs256";
+			break;
+		case COSE_EDDSA:
+			cose = "eddsa";
 			break;
 		}
 		if (fido_cbor_info_algorithm_type(ci, i) != NULL)
@@ -153,6 +173,107 @@ static void
 print_maxcredidlen(uint64_t maxcredidlen)
 {
 	printf("maxcredlen: %d\n", (int)maxcredidlen);
+}
+
+static void
+print_maxlargeblob(uint64_t maxlargeblob)
+{
+	printf("maxlargeblob: %d\n", (int)maxlargeblob);
+}
+
+static void
+print_maxrpid_minpinlen(uint64_t maxrpid)
+{
+	if (maxrpid > 0)
+		printf("maxrpids in minpinlen: %d\n", (int)maxrpid);
+}
+
+static void
+print_minpinlen(uint64_t minpinlen)
+{
+	if (minpinlen > 0)
+		printf("minpinlen: %d\n", (int)minpinlen);
+}
+
+static void
+print_uv_attempts(uint64_t uv_attempts)
+{
+	if (uv_attempts > 0)
+		printf("platform uv attempt(s): %d\n", (int)uv_attempts);
+}
+
+static void
+print_uv_modality(uint64_t uv_modality)
+{
+	uint64_t mode;
+	bool printed = false;
+
+	if (uv_modality == 0)
+		return;
+
+	printf("uv modality: 0x%x (", (int)uv_modality);
+
+	for (size_t i = 0; i < 64; i++) {
+		mode = 1ULL << i;
+		if ((uv_modality & mode) == 0)
+			continue;
+		if (printed)
+			printf(", ");
+		switch (mode) {
+		case FIDO_UV_MODE_TUP:
+			printf("test of user presence");
+			break;
+		case FIDO_UV_MODE_FP:
+			printf("fingerprint check");
+			break;
+		case FIDO_UV_MODE_PIN:
+			printf("pin check");
+			break;
+		case FIDO_UV_MODE_VOICE:
+			printf("voice recognition");
+			break;
+		case FIDO_UV_MODE_FACE:
+			printf("face recognition");
+			break;
+		case FIDO_UV_MODE_LOCATION:
+			printf("location check");
+			break;
+		case FIDO_UV_MODE_EYE:
+			printf("eyeprint check");
+			break;
+		case FIDO_UV_MODE_DRAWN:
+			printf("drawn pattern check");
+			break;
+		case FIDO_UV_MODE_HAND:
+			printf("handprint verification");
+			break;
+		case FIDO_UV_MODE_NONE:
+			printf("none");
+			break;
+		case FIDO_UV_MODE_ALL:
+			printf("all required");
+			break;
+		case FIDO_UV_MODE_EXT_PIN:
+			printf("external pin");
+			break;
+		case FIDO_UV_MODE_EXT_DRAWN:
+			printf("external drawn pattern check");
+			break;
+		default:
+			printf("unknown 0x%llx", (unsigned long long)mode);
+			break;
+		}
+		printed = true;
+	}
+
+	printf(")\n");
+}
+
+static void
+print_rk_remaining(int64_t rk_remaining)
+{
+	if (rk_remaining != -1)
+		printf("remaining rk(s): %d\n", (int)rk_remaining);
 }
 
 static void
@@ -250,6 +371,14 @@ token_info(int argc, char **argv, char *path)
 	    fido_cbor_info_options_value_ptr(ci),
 	    fido_cbor_info_options_len(ci));
 
+	/* print certifications */
+	print_cert_array("certifications", fido_cbor_info_certs_name_ptr(ci),
+	    fido_cbor_info_certs_value_ptr(ci),
+	    fido_cbor_info_certs_len(ci));
+
+	/* print firmware version */
+	print_fwversion(fido_cbor_info_fwversion(ci));
+
 	/* print maximum message size */
 	print_maxmsgsiz(fido_cbor_info_maxmsgsiz(ci));
 
@@ -259,8 +388,17 @@ token_info(int argc, char **argv, char *path)
 	/* print maximum length of a credential ID */
 	print_maxcredidlen(fido_cbor_info_maxcredidlen(ci));
 
-	/* print firmware version */
-	print_fwversion(fido_cbor_info_fwversion(ci));
+	/* print maximum length of serialized largeBlob array */
+	print_maxlargeblob(fido_cbor_info_maxlargeblob(ci));
+
+	/* print maximum number of RP IDs in fido_dev_set_pin_minlen_rpid() */
+	print_maxrpid_minpinlen(fido_cbor_info_maxrpid_minpinlen(ci));
+
+	/* print estimated number of resident credentials */
+	print_rk_remaining(fido_cbor_info_rk_remaining(ci));
+
+	/* print minimum pin length */
+	print_minpinlen(fido_cbor_info_minpinlen(ci));
 
 	/* print supported pin protocols */
 	print_byte_array("pin protocols", fido_cbor_info_protocols_ptr(ci),
@@ -271,10 +409,19 @@ token_info(int argc, char **argv, char *path)
 	else
 		printf("pin retries: %d\n", retrycnt);
 
+	printf("pin change required: %s\n",
+	    fido_cbor_info_new_pin_required(ci) ? "true" : "false");
+
 	if (fido_dev_get_uv_retry_count(dev, &retrycnt) != FIDO_OK)
 		printf("uv retries: undefined\n");
 	else
 		printf("uv retries: %d\n", retrycnt);
+
+	/* print platform uv attempts */
+	print_uv_attempts(fido_cbor_info_uv_attempts(ci));
+
+	/* print supported uv mechanisms */
+	print_uv_modality(fido_cbor_info_uv_modality(ci));
 
 	bio_info(dev);
 

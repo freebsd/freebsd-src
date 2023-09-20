@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  */
 
-
-#include <sys/cdefs.h>
 #include <sys/elf.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
@@ -62,7 +60,7 @@ write(int fd, const void *buf, size_t size)
 	(
 	    "int $0x80"
 	    : "=a"(res)
-	    : "a"(LINUX32_SYS_write), "b"(fd), "c"(buf), "d"(size)
+	    : "a"(LINUX32_SYS_linux_write), "b"(fd), "c"(buf), "d"(size)
 	    : "cc", "memory"
 	);
 	return (res);

@@ -417,6 +417,8 @@
 #define		GITS_BASER_SIZE_MASK	0xFFUL
 
 #define		GITS_BASER_NUM		8
+/* Size of entries in a level 1 indirect table */
+#define		GITS_INDIRECT_L1_ESIZE	8
 
 #define	GITS_TYPER		(0x0008)
 #define		GITS_TYPER_HCC_SHIFT	24
@@ -433,6 +435,7 @@
 		    ((((x) & GITS_TYPER_ITTES_MASK) >> GITS_TYPER_ITTES_SHIFT) + 1)
 
 #define	GITS_TRANSLATER		(0x10040)
+
 /*
  * LPI related
  */

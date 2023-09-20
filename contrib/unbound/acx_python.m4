@@ -17,33 +17,62 @@ AC_DEFUN([AC_PYTHON_DEVEL],[
 		PYTHON_VERSION=`$PYTHON -c "import sys; \
 			print(sys.version.split()[[0]])"`
 	fi
+	# calculate the version number components.
+	[
+	v="$PYTHON_VERSION"
+	PYTHON_VERSION_MAJOR=`echo $v | sed 's/[^0-9].*//'`
+	if test -z "$PYTHON_VERSION_MAJOR"; then PYTHON_VERSION_MAJOR="0"; fi
+	v=`echo $v | sed -e 's/^[0-9]*$//' -e 's/[0-9]*[^0-9]//'`
+	PYTHON_VERSION_MINOR=`echo $v | sed 's/[^0-9].*//'`
+	if test -z "$PYTHON_VERSION_MINOR"; then PYTHON_VERSION_MINOR="0"; fi
+	v=`echo $v | sed -e 's/^[0-9]*$//' -e 's/[0-9]*[^0-9]//'`
+	PYTHON_VERSION_PATCH=`echo $v | sed 's/[^0-9].*//'`
+	if test -z "$PYTHON_VERSION_PATCH"; then PYTHON_VERSION_PATCH="0"; fi
+	]
 
-	# Check if you have sysconfig
-	AC_MSG_CHECKING([for the sysconfig Python module])
-        if ac_sysconfig_result=`$PYTHON -c "import sysconfig" 2>&1`; then
+	# For some systems, sysconfig exists, but has the wrong paths,
+	# on Debian 10, for python 2.7 and 3.7. So, we check the version,
+	# and for older versions try distutils.sysconfig first. For newer
+	# versions>=3.10, where distutils.sysconfig is deprecated, use
+	# sysconfig first and then attempt the other one.
+	py_distutils_first="no"
+	if test $PYTHON_VERSION_MAJOR -lt 3; then
+		py_distutils_first="yes"
+	fi
+	if test $PYTHON_VERSION_MAJOR -eq 3 -a $PYTHON_VERSION_MINOR -lt 10; then
+		py_distutils_first="yes"
+	fi
+
+	# Check if you have the first module
+	if test "$py_distutils_first" = "yes"; then m="distutils"; else m="sysconfig"; fi
+	sysconfig_module=""
+	AC_MSG_CHECKING([for the $m Python module])
+        if ac_modulecheck_result1=`$PYTHON -c "import $m" 2>&1`; then
                 AC_MSG_RESULT([yes])
-		sysconfig_module="sysconfig"
-		# if yes, use sysconfig, because distutils is deprecated.
+		sysconfig_module="$m"
 	else
                 AC_MSG_RESULT([no])
-		# if no, try to use distutils
+	fi
 
-		#
-		# Check if you have distutils, else fail
-		#
-		AC_MSG_CHECKING([for the distutils Python package])
-		if ac_distutils_result=`$PYTHON -c "import distutils" 2>&1`; then
+	# if not found, try the other one.
+	if test -z "$sysconfig_module"; then
+		if test "$py_distutils_first" = "yes"; then m2="sysconfig"; else m2="distutils"; fi
+		AC_MSG_CHECKING([for the $m2 Python module])
+		if ac_modulecheck_result2=`$PYTHON -c "import $m2" 2>&1`; then
 			AC_MSG_RESULT([yes])
+			sysconfig_module="$m2"
 		else
 			AC_MSG_RESULT([no])
-			AC_MSG_ERROR([cannot import Python module "distutils".
-	Please check your Python installation. The error was:
-	$ac_distutils_result])
+			AC_MSG_ERROR([cannot import Python module "$m", or "$m2".
+	Please check your Python installation. The errors are:
+	$m
+	$ac_modulecheck_result1
+	$m2
+	$ac_modulecheck_result2])
 			PYTHON_VERSION=""
 		fi
-
-		sysconfig_module="distutils.sysconfig"
 	fi
+	if test "$sysconfig_module" = "distutils"; then sysconfig_module="distutils.sysconfig"; fi
 
         #
         # Check for Python include path

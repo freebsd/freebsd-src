@@ -340,6 +340,10 @@ free_iter_unr(void *handle)
 }
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
+#ifndef __diagused
+#define	__diagused
+#endif
+
 /*
  * Consistency check function.
  *
@@ -353,7 +357,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 	struct unr *up;
 	struct unrb *ub;
 	int w;
-	u_int y, z;
+	u_int y __diagused, z __diagused;
 
 	y = uh->first;
 	z = 0;

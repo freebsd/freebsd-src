@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.124 2022/08/28 08:58:20 christos Exp $
+# $File: audio,v 1.127 2023/03/05 20:15:49 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -183,42 +183,57 @@
 21	string	BMOD2STM	Screamtracker 2 module sound data
 !:mime	audio/x-mod
 #audio/x-screamtracker-module
+
+1080	string	\!PM!		4-channel Protracker module sound data
+!:mime	audio/x-mod
+#audio/x-protracker-module
+>0	string	>\0		Title: "%s"
+
 1080	string	M.K.		4-channel Protracker module sound data
 !:mime	audio/x-mod
 #audio/x-protracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	M!K!		4-channel Protracker module sound data
 !:mime	audio/x-mod
 #audio/x-protracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	FLT4		4-channel Startracker module sound data
 !:mime	audio/x-mod
 #audio/x-startracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	FLT8		8-channel Startracker module sound data
 !:mime	audio/x-mod
 #audio/x-startracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	4CHN		4-channel Fasttracker module sound data
 !:mime	audio/x-mod
 #audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	6CHN		6-channel Fasttracker module sound data
 !:mime	audio/x-mod
 #audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	8CHN		8-channel Fasttracker module sound data
 !:mime	audio/x-mod
 #audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	CD81		8-channel Octalyser module sound data
 !:mime	audio/x-mod
 #audio/x-octalysertracker-module
 >0	string	>\0		Title: "%s"
+
 1080	string	OKTA		8-channel Octalyzer module sound data
 !:mime	audio/x-mod
 #audio/x-octalysertracker-module
 >0	string	>\0		Title: "%s"
+
 # Not good enough.
 #1082	string	CH
 #>1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data

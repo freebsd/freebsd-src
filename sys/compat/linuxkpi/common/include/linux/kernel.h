@@ -623,12 +623,6 @@ mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
 	return ((q * multiplier) + ((r * multiplier) / divisor));
 }
 
-static inline int64_t
-abs64(int64_t x)
-{
-	return (x < 0 ? -x : x);
-}
-
 typedef struct linux_ratelimit {
 	struct timeval lasttime;
 	int counter;

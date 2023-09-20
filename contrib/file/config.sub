@@ -1219,6 +1219,7 @@ case $cpu-$vendor in
 			| mips64vr4300 | mips64vr4300el \
 			| mips64vr5000 | mips64vr5000el \
 			| mips64vr5900 | mips64vr5900el \
+			| mipsn64eb | mipsn64el \
 			| mipsisa32 | mipsisa32el \
 			| mipsisa32r2 | mipsisa32r2el \
 			| mipsisa32r3 | mipsisa32r3el \

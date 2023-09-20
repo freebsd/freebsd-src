@@ -281,6 +281,7 @@ print_entries_nl(uint32_t ifindex, struct in_addr addr)
 	struct ndmsg *ndmsg = snl_reserve_msg_object(&nw, struct ndmsg);
 	if (ndmsg != NULL) {
 		ndmsg->ndm_family = AF_INET;
+		/* let kernel filter results by interface if provided */
 		ndmsg->ndm_ifindex = ifindex;
 	}
 
@@ -296,6 +297,7 @@ print_entries_nl(uint32_t ifindex, struct in_addr addr)
 
 	while ((hdr = snl_read_reply_multi(&ss_req, nlmsg_seq, &e)) != NULL) {
 		struct snl_parsed_neigh neigh = {};
+		struct sockaddr_in *neighaddr;
 
 		if (!snl_parse_nlmsg(&ss_req, hdr, &snl_rtm_neigh_parser, &neigh))
 			continue;
@@ -306,6 +308,12 @@ print_entries_nl(uint32_t ifindex, struct in_addr addr)
 			if (!get_link_info(&ss_cmd, neigh.nda_ifindex, &link))
 				continue;
 		}
+
+		/* filter results based on host if provided */
+		neighaddr = (struct sockaddr_in *)neigh.nda_dst;
+		if (addr.s_addr &&
+		    (addr.s_addr != neighaddr->sin_addr.s_addr))
+			continue;
 
 		print_entry(&neigh, &link);
 		count++;

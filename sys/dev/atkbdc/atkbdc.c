@@ -147,6 +147,7 @@ atkbdc_getquirks(void)
     char *maker = kern_getenv("smbios.system.maker");
     char *product = kern_getenv("smbios.system.product");
     char *version = kern_getenv("smbios.bios.version");
+    char *reldate = kern_getenv("smbios.bios.reldate");
 
     for (i = 0; i < nitems(quirks); i++)
 	if (QUIRK_STR_EQUAL(quirks[i].bios_vendor, bios_vendor) &&
@@ -154,6 +155,16 @@ atkbdc_getquirks(void)
 	    QUIRK_STR_EQUAL(quirks[i].product, product) &&
 	    QUIRK_STR_MATCH(quirks[i].version, version))
 		return (quirks[i].quirk);
+    /*
+     * Some Chromebooks don't conform to the google comment above so do the
+     * Chromebook workaround for all <= 2018 coreboot systems that have a
+     * 'blank' version.  At least one Acer "Peppy" chromebook has this issue,
+     * with a reldate of 08/13/2014.
+     */
+    if (QUIRK_STR_EQUAL("coreboot", bios_vendor) &&
+	(version != NULL && *version == ' ') &&
+	(reldate != NULL && strlen(reldate) >= 10 && strcmp(reldate + 6, "2018") <= 0))
+	    return (CHROMEBOOK_WORKAROUND);
 
     return (0);
 }

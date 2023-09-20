@@ -6,6 +6,8 @@ NCURSES_MAJOR=	6
 NCURSES_MINOR=	2
 NCURSES_PATCH=	20210220
 
+TINFO_OBJDIR?=	${.OBJDIR:H}/tinfo
+
 CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED
 NCURSES_CFG_H=	${.CURDIR}/ncurses_cfg.h
 
@@ -17,7 +19,7 @@ CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 CFLAGS+=	-I${NCURSES_DIR}/include
 CFLAGS+=	-I${NCURSES_DIR}/ncurses
-CFLAGS+=	-I${.OBJDIR:H}/tinfo/
+CFLAGS+=	-I${TINFO_OBJDIR}
 
 CFLAGS+=	-Wall
 
@@ -27,7 +29,7 @@ CFLAGS+=	-DHAVE_CONFIG_H
 
 # everyone needs this
 .PATH:		${NCURSES_DIR}/include
-.PATH:		${.OBJDIR:H}/tinfo/
+.PATH:		${TINFO_OBJDIR}
 
 # tools and directories
 AWK?=		awk

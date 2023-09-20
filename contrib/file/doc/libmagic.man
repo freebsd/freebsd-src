@@ -1,6 +1,6 @@
-.\" $File: libmagic.man,v 1.45 2019/06/08 22:16:24 christos Exp $
+.\" $File: libmagic.man,v 1.49 2023/07/20 14:32:07 christos Exp $
 .\"
-.\" Copyright (c) Christos Zoulas 2003, 2018.
+.\" Copyright (c) Christos Zoulas 2003, 2018, 2022
 .\" All Rights Reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 8, 2019
+.Dd June 16, 2023
 .Dt LIBMAGIC 3
 .Os
 .Sh NAME
@@ -84,6 +84,8 @@
 .Fn magic_setparam "magic_t cookie" "int param" "const void *value"
 .Ft int
 .Fn magic_version "void"
+.Ft const char *
+.Fn magic_getpath "const char *magicfile" "int action"
 .Sh DESCRIPTION
 These functions
 operate on the magic database file
@@ -143,6 +145,8 @@ Don't report on compression, only report about the uncompressed data.
 Don't check for
 .Dv EMX
 application type (only on EMX).
+.It Dv MAGIC_NO_COMPRESS_FORK
+Don't allow decompressors that use fork.
 .It Dv MAGIC_NO_CHECK_CDF
 Don't get extra information on MS Composite Document Files.
 .It Dv MAGIC_NO_CHECK_COMPRESS
@@ -163,6 +167,8 @@ Don't look for known tokens inside ascii files.
 Don't examine JSON files.
 .It Dv MAGIC_NO_CHECK_CSV
 Don't examine CSV files.
+.It Dv MAGIC_NO_CHECK_SIMH
+Don't examine SIMH tape files.
 .El
 .Pp
 The
@@ -343,6 +349,20 @@ from
 .In magic.h .
 This can be used by client programs to verify that the version they compile
 against is the same as the version that they run against.
+.Pp
+The
+.Fn magic_getpath
+command returns the colon separated list of magic database locations.
+If the
+.Fa filename
+is non-NULL, then it is returned.
+Otherwise, if the
+.Dv MAGIC
+environment variable is defined, then it is returned.
+Otherwise, if
+.Fa action
+is 0 (meaning "file load"), then any user-specific magic database file is included.
+Otherwise, only the system default magic database path is included.
 .Sh RETURN VALUES
 The function
 .Fn magic_open

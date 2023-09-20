@@ -70,8 +70,6 @@ __bsd___iconv_open(const char *out, const char *in, struct _citrus_iconv *handle
 	}
 
 	handle->cv_shared->ci_discard_ilseq = strcasestr(out, "//IGNORE");
-	handle->cv_shared->ci_ilseq_invalid = false;
-	handle->cv_shared->ci_hooks = NULL;
 
 	return ((iconv_t)(void *)handle);
 }

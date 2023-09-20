@@ -542,7 +542,6 @@ STATNODE_COUNTER(negzaps, numnegzaps,
 STATNODE_COUNTER(neghits, numneghits, "Number of cache hits (negative)");
 /* These count for vn_getcwd(), too. */
 STATNODE_COUNTER(fullpathcalls, numfullpathcalls, "Number of fullpath search calls");
-STATNODE_COUNTER(fullpathfail1, numfullpathfail1, "Number of fullpath search errors (ENOTDIR)");
 STATNODE_COUNTER(fullpathfail2, numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(fullpathfail4, numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
@@ -2597,10 +2596,10 @@ cache_enter_time_flags(struct vnode *dvp, struct vnode *vp, struct componentname
 	cache_enter_time(dvp, vp, cnp, tsp, dtsp);
 }
 
-static u_int
-cache_roundup_2(u_int val)
+static u_long
+cache_roundup_2(u_long val)
 {
-	u_int res;
+	u_long res;
 
 	for (res = 1; res <= val; res <<= 1)
 		continue;
@@ -2616,7 +2615,7 @@ nchinittbl(u_long elements, u_long *hashmask)
 
 	hashsize = cache_roundup_2(elements) / 2;
 
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), M_VFSCACHE, M_WAITOK);
+	hashtbl = malloc(hashsize * sizeof(*hashtbl), M_VFSCACHE, M_WAITOK);
 	for (i = 0; i < hashsize; i++)
 		CK_SLIST_INIT(&hashtbl[i]);
 	*hashmask = hashsize - 1;
@@ -2762,7 +2761,7 @@ cache_changesize(u_long newmaxvnodes)
 	struct namecache *ncp;
 	uint32_t hash;
 	u_long newncsize;
-	int i;
+	u_long i;
 
 	newncsize = newmaxvnodes * ncsizefactor;
 	newmaxvnodes = cache_roundup_2(newmaxvnodes * 2);
@@ -3400,14 +3399,7 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 			vp = vp1;
 			continue;
 		}
-		if (vp->v_type != VDIR) {
-			vrele(vp);
-			counter_u64_add(numfullpathfail1, 1);
-			error = ENOTDIR;
-			SDT_PROBE3(vfs, namecache, fullpath, return,
-			    error, vp, NULL);
-			break;
-		}
+		VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 		error = vn_vptocnp(&vp, buf, &buflen);
 		if (error)
 			break;

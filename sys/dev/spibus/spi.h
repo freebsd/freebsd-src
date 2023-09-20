@@ -46,3 +46,9 @@ struct spi_command {
 #else
 #define	SPIBUS_FDT_PNP_INFO(t)
 #endif
+
+#ifdef DEV_ACPI
+#define	SPIBUS_ACPI_PNP_INFO(t)	ACPICOMPAT_PNP_INFO(t, spibus)
+#else
+#define	SPIBUS_ACPI_PNP_INFO(t)
+#endif

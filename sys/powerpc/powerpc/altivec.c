@@ -105,10 +105,11 @@ enable_vec(struct thread *td)
 	 * the thread, initialise the vector registers and VSCR to 0, and
 	 * set the flag to indicate that the vector unit is in use.
 	 */
+	pcb->pcb_flags |= PCB_VEC;
 	tf->srr1 |= PSL_VEC;
-	if (!(pcb->pcb_flags & PCB_VEC)) {
+	if (!(pcb->pcb_flags & PCB_VECREGS)) {
 		memset(&pcb->pcb_vec, 0, sizeof pcb->pcb_vec);
-		pcb->pcb_flags |= PCB_VEC;
+		pcb->pcb_flags |= PCB_VECREGS;
 	}
 
 	/*
@@ -169,4 +170,33 @@ save_vec_nodrop(struct thread *td)
 
 	if (td == PCPU_GET(vecthread))
 		save_vec_int(td);
+}
+
+void
+enable_vec_kern(void)
+{
+	mtmsr(mfmsr() | PSL_VEC);
+}
+
+void
+disable_vec(struct thread *td)
+{
+	register_t msr;
+	struct pcb *pcb;
+	struct trapframe *tf;
+
+	pcb = td->td_pcb;
+	tf = trapframe(td);
+
+	/* Disable PSL_VEC in kernel (if enabled) */
+	msr = mfmsr() & ~PSL_VEC;
+	isync();
+	mtmsr(msr);
+
+	/*
+	 * Disable PSL_VEC in userspace. It will be re-enabled when
+	 * an Altivec instruction is executed.
+	 */
+	tf->srr1 &= ~PSL_VEC;
+	pcb->pcb_flags &= ~PCB_VEC;
 }

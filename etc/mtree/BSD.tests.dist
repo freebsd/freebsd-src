@@ -278,6 +278,8 @@
             ..
         ..
     ..
+    include
+    ..
     lib
         atf
             libatf-c
@@ -1180,6 +1182,8 @@
         rpcbind
         ..
         sa
+        ..
+        syslogd
         ..
     ..
 ..

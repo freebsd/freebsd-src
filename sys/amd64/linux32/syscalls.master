@@ -33,6 +33,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <compat/linux/linux_sysproto.h>
+#include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 
@@ -55,11 +56,11 @@
 		    u_int nbyte
 		);
 	}
-4	AUE_NULL	NOPROTO {
-		int write(
+4	AUE_NULL	STD {
+		int linux_write(
 		    int fd,
 		    char *buf,
-		    u_int nbyte
+		    l_size_t nbyte
 		);
 	}
 5	AUE_OPEN_RWTC	STD {
@@ -768,14 +769,14 @@
 145	AUE_READV	STD  {
 		int linux_readv(
 		    l_ulong fd,
-		    struct l_iovec32 *iovp,
+		    struct iovec32 *iovp,
 		    l_ulong iovcnt
 		);
 	}
 146	AUE_WRITEV	STD  {
 		int linux_writev(
 		    l_ulong fd,
-		    struct l_iovec32 *iovp,
+		    struct iovec32 *iovp,
 		    l_ulong iovcnt
 		);
 	}
@@ -1020,7 +1021,7 @@
 		int linux_sendfile(
 		    l_int out,
 		    l_int in,
-		    l_long *offset,
+		    l_off_t *offset,
 		    l_size_t count
 		);
 	}

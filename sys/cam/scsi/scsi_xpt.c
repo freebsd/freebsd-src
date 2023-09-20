@@ -840,7 +840,7 @@ again:
 		}
 		scsi_report_luns(csio, 5, probedone, MSG_SIMPLE_Q_TAG,
 		    RPL_REPORT_DEFAULT, rp, periph->path->target->rpl_size,
-		    SSD_FULL_SIZE, 60000); break;
+		    SSD_FULL_SIZE, 60000);
 		break;
 	}
 	case PROBE_MODE_SENSE:

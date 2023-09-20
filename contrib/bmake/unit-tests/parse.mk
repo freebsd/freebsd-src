@@ -1,16 +1,16 @@
-# $NetBSD: parse.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: parse.mk,v 1.7 2023/08/19 11:09:02 rillig Exp $
 #
 # Test those parts of the parsing that do not belong in any of the other
 # categories.
 
-# expect+1: Makefile appears to contain unresolved CVS/RCS/??? merge conflicts
+# expect+1: Invalid line '<<<<<< old'
 <<<<<< old
 
 # No diagnostic since the following line is parsed as a variable assignment,
 # even though the variable name is empty.  See also varname-empty.mk.
 ====== middle
 
-# expect+1: Makefile appears to contain unresolved CVS/RCS/??? merge conflicts
+# expect+1: Invalid line '>>>>>> new'
 >>>>>> new
 
 
@@ -21,7 +21,7 @@
 # the expanded line's terminating '\0'.
 #
 # https://bugs.freebsd.org/265119
-# expect+1: Invalid line type
+# expect+1: Invalid line 'one-target ${:U }', expanded to 'one-target  '
 one-target ${:U }
 
 

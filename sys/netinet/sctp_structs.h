@@ -32,7 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifndef _NETINET_SCTP_STRUCTS_H_
 #define _NETINET_SCTP_STRUCTS_H_
 
@@ -957,15 +956,6 @@ struct sctp_association {
 	uint32_t fast_recovery_tsn;
 	uint32_t sat_t3_recovery_tsn;
 	uint32_t tsn_last_delivered;
-	/*
-	 * For the pd-api we should re-write this a bit more efficient. We
-	 * could have multiple sctp_queued_to_read's that we are building at
-	 * once. Now we only do this when we get ready to deliver to the
-	 * socket buffer. Note that we depend on the fact that the struct is
-	 * "stuck" on the read queue until we finish all the pd-api.
-	 */
-	struct sctp_queued_to_read *control_pdapi;
-
 	uint32_t tsn_of_pdapi_last_delivered;
 	uint32_t pdapi_ppid;
 	uint32_t context;

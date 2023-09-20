@@ -71,7 +71,6 @@ basic_body()
 		atf_fail "Failed to connect to syncookie protected echo daemon"
 	fi
 
-
 	# Check that status shows syncookies as being active
 	active=$(syncookie_state alcatraz)
 	if [ "$active" != "active" ];
@@ -81,6 +80,55 @@ basic_body()
 }
 
 basic_cleanup()
+{
+	rm -f inetd-alcatraz.pid
+	pft_cleanup
+}
+
+atf_test_case "basic_v6" "cleanup"
+basic_v6_head()
+{
+	atf_set descr 'Basic syncookie IPv6 test'
+	atf_set require.user root
+}
+
+basic_v6_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	    $(atf_get_srcdir)/echo_inetd.conf
+
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set syncookies always" \
+		"pass in" \
+		"pass out"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8::1
+
+	reply=$(echo foo | nc -N -w 5 2001:db8::1 7)
+	if [ "${reply}" != "foo" ];
+	then
+		atf_fail "Failed to connect to syncookie protected echo daemon"
+	fi
+
+	# Check that status shows syncookies as being active
+	active=$(syncookie_state alcatraz)
+	if [ "$active" != "active" ];
+	then
+		atf_fail "syncookies not active"
+	fi
+}
+
+basic_v6_cleanup()
 {
 	rm -f inetd-alcatraz.pid
 	pft_cleanup
@@ -137,6 +185,57 @@ forward_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "forward_v6" "cleanup"
+forward_v6_head()
+{
+	atf_set descr 'Syncookies for forwarded hosts'
+	atf_set require.user root
+}
+
+forward_v6_body()
+{
+	pft_init
+
+	epair_in=$(vnet_mkepair)
+	epair_out=$(vnet_mkepair)
+
+	vnet_mkjail fwd ${epair_in}b ${epair_out}a
+	vnet_mkjail srv ${epair_out}b
+
+	jexec fwd ifconfig ${epair_in}b inet6 2001:db8::1/64 up no_dad
+	jexec fwd ifconfig ${epair_out}a inet6 2001:db8:1::1/64 up no_dad
+	jexec fwd sysctl net.inet6.ip6.forwarding=1
+
+	jexec srv ifconfig ${epair_out}b inet6 2001:db8:1::2/64 up no_dad
+	jexec srv route -6 add default 2001:db8:1::1
+	jexec srv /usr/sbin/inetd -p inetd-alcatraz.pid \
+	    $(atf_get_srcdir)/echo_inetd.conf
+
+	ifconfig ${epair_in}a inet6 2001:db8::2/64 up no_dad
+	route -6 add -net 2001:db8:1::/64 2001:db8::1
+
+	jexec fwd pfctl -e
+	pft_set_rules fwd \
+		"set syncookies always" \
+		"pass in" \
+		"pass out"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:1::2
+
+	reply=$(echo foo | nc -N -w 5 2001:db8:1::2 7)
+	if [ "${reply}" != "foo" ];
+	then
+		atf_fail "Failed to connect to syncookie protected echo daemon"
+	fi
+}
+
+forward_v6_cleanup()
+{
+	rm -f inetd-alcatraz.pid
+	pft_cleanup
+}
+
 atf_test_case "nostate" "cleanup"
 nostate_head()
 {
@@ -179,6 +278,53 @@ nostate_body()
 }
 
 nostate_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "nostate_v6" "cleanup"
+nostate_v6_head()
+{
+	atf_set descr 'Ensure that we do not create until SYN|ACK'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nostate_v6_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set syncookies always" \
+		"pass in" \
+		"pass out"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8::1
+
+	# Now syn flood to create many states
+	${common_dir}/pft_synflood.py \
+        --ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--count 20
+
+	states=$(jexec alcatraz pfctl -ss | grep tcp)
+	if [ -n "$states" ];
+	then
+		echo "$states"
+		atf_fail "Found unexpected state"
+	fi
+}
+
+nostate_v6_cleanup()
 {
 	pft_cleanup
 }
@@ -337,8 +483,11 @@ port_reuse_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "basic_v6"
 	atf_add_test_case "forward"
+	atf_add_test_case "forward_v6"
 	atf_add_test_case "nostate"
+	atf_add_test_case "nostate_v6"
 	atf_add_test_case "adaptive"
 	atf_add_test_case "limits"
 	atf_add_test_case "port_reuse"

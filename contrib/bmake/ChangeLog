@@ -1,3 +1,81 @@
+2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230909
+	Merge with NetBSD make, pick up
+	o main.c: allow -j to compute a multiple of ncpu
+	If _SC_NPROCESSORS_ONLN is supported; and -j arg is a floating
+	point number or ends in 'C' compute .MAKE.JOBS as a multiple of
+	_SC_NPROCESSORS_ONLN
+	.MAKE.JOBS.C will be "yes" if -jC is supported
+
+2023-08-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230820
+	Merge with NetBSD make, pick up
+	o make.1: note that :localtime is better for %s
+	o parse.c: improve error messages for invalid input.
+	o var.c: fix for %s:L:gmtime - set TZ=UTC and use localtime to get
+	correct result, it is still better to use %s:L:localtime.
+
+2023-08-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230818
+	Merge with NetBSD make, pick up
+	o meta.c: meta_ignore - check raw path against metaIgnorePaths
+	to potentially skip call to realpath.
+	o var.c: be strict when parsing the argument of the ':mtime' modifier
+	o unit-tests/varmod-mtime.mk: document why '${%s:L:localtime}'
+	should be used to get an equivalent value to time(3).
+
+2023-08-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230816
+	Merge with NetBSD make, pick up
+	o cond.c: clean up multiple-inclusion guards
+
+2023-07-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: addd varmod-localtime to BROKEN_TESTS
+	if configure cannot work out how to control TZ.
+	Remove varmod-localtime from BROKEN_TESTS for IRIX*
+
+2023-07-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230723
+
+	* configure.in: fix the test for wether TZ=Europe/Berlin works.
+	Depending on the time of year, if run between 22:00 and 00:00 UTC
+	the check in configure would fail incorrectly.
+	Take the day into account as well.
+
+2023-07-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230711
+	Merge with NetBSD make, pick up
+	o make.1: clean up wording, clarify scope of '!' in conditions
+
+2023-07-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* make-bootstrap.sh.in: set prefix
+	If configure is run using ksh we get unexpanded ${prefix} in
+	DEFAULT_SYS_PATH, by ensuring prefix is set we should still get
+	correct result.
+
+2023-07-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230711
+	bump version for IRIX tweaks
+
+	* make.h: undef OP_NONE if defined
+
+	* unit-tests/Makefile: set BROKEN_TESTS for IRIX
+
+	* configure.in: override INSTALL on IRIX
+
+2023-06-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* boot-strap op_test: ensure we set TEST_MAKE as we want it.
+
 2023-06-22  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230622

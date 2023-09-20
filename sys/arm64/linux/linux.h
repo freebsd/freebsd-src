@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- */
 #ifndef _ARM64_LINUX_H_
 #define	_ARM64_LINUX_H_
 

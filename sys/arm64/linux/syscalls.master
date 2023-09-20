@@ -392,8 +392,8 @@
 		    l_size_t nbyte
 		);
 	}
-64	AUE_NULL	NOPROTO {
-		int write(
+64	AUE_NULL	STD {
+		int linux_write(
 		    int fd,
 		    char *buf,
 		    l_size_t nbyte
@@ -406,8 +406,8 @@
 		    u_int iovcnt
 		);
 	}
-66	AUE_WRITEV	NOPROTO	{
-		int writev(
+66	AUE_WRITEV	STD	{
+		int linux_writev(
 		    int fd,
 		    struct iovec *iovp,
 		    u_int iovcnt

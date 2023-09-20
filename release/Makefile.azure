@@ -4,7 +4,6 @@
 # Makefile for uploading Microsoft Azure disk images.
 #
 
-AZURE_IMG?=		${.OBJDIR}/azure.vhdf
 AZURE_UPLOAD_TGTS=	azure-check-depends \
 			azure-do-upload
 CLEANFILES+=		${AZURE_UPLOAD_TGTS}
@@ -18,8 +17,6 @@ AZURE${VAR}!=	grep -E '^AZURE${VAR}' ${AZURE_UPLOAD_CONF} | awk -F '	' '{print $
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
 SNAPSHOT_DATE!=		date +-${BUILDDATE}
 .endif
-
-AZURE_TARGET:=		${OSRELEASE}${SNAPSHOT_DATE}
 
 START_DATE!=	date -v-1d -I -u
 EXPIRY_DATE!=	date -v+1m -I -u
@@ -38,20 +35,24 @@ azure-check-depends:
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y py38-azure-cli
+	env ASSUME_ALWAYS_YES=yes pkg install -y sysutils/py-azure-cli
 . else
 	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli BATCH=1 all install clean
 . endif
 .endif
 
-azure-do-upload:
+.for _FS in ${AZURE_FSLIST}
+AZURE_IMG_${_FS}=	${.OBJDIR}/azure.${_FS}.vhdf
+AZURE_TARGET_${_FS}=	${OSRELEASE}-${_FS}${SNAPSHOT_DATE}
+
+azure-do-upload-${_FS}:
 	/usr/local/bin/az storage blob upload \
 		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
 		--container-name ${AZURE_STORAGE} --type page \
-		--file ${AZURE_IMG} --name ${AZURE_TARGET}.vhd
+		--file ${AZURE_IMG_${_FS}} --name ${AZURE_TARGET_${_FS}}.vhd
 	@echo "The disk access URL with shared access signature is:"
 	@echo
-	@echo -n https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_STORAGE}/${AZURE_TARGET}.vhd?
+	@echo -n https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_STORAGE}/${AZURE_TARGET_${_FS}}.vhd?
 	@/usr/local/bin/az storage container generate-sas \
 		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
 		--name ${AZURE_STORAGE} \
@@ -67,5 +68,8 @@ azure-do-upload:
 	@echo
 	@echo /usr/local/bin/az storage blob delete \
 		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
-		--container-name ${AZURE_STORAGE} --name ${AZURE_TARGET}.vhd
+		--container-name ${AZURE_STORAGE} --name ${AZURE_TARGET_${_FS}}.vhd
 	@echo
+.endfor
+
+azure-do-upload: azure-do-upload-${VMFS}

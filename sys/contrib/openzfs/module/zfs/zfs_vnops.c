@@ -839,7 +839,6 @@ zfs_get_data(void *arg, uint64_t gen, lr_write_t *lr, char *buf,
 	uint64_t zp_gen;
 
 	ASSERT3P(lwb, !=, NULL);
-	ASSERT3P(zio, !=, NULL);
 	ASSERT3U(size, !=, 0);
 
 	/*
@@ -889,6 +888,7 @@ zfs_get_data(void *arg, uint64_t gen, lr_write_t *lr, char *buf,
 		}
 		ASSERT(error == 0 || error == ENOENT);
 	} else { /* indirect write */
+		ASSERT3P(zio, !=, NULL);
 		/*
 		 * Have to lock the whole block to ensure when it's
 		 * written out and its checksum is being calculated
@@ -917,8 +917,8 @@ zfs_get_data(void *arg, uint64_t gen, lr_write_t *lr, char *buf,
 		}
 #endif
 		if (error == 0)
-			error = dmu_buf_hold(os, object, offset, zgd, &db,
-			    DMU_READ_NO_PREFETCH);
+			error = dmu_buf_hold_noread(os, object, offset, zgd,
+			    &db);
 
 		if (error == 0) {
 			blkptr_t *bp = &lr->lr_blkptr;
@@ -1028,6 +1028,10 @@ zfs_exit_two(zfsvfs_t *zfsvfs1, zfsvfs_t *zfsvfs2, const char *tag)
  *
  * On success, the function return the number of bytes copied in *lenp.
  * Note, it doesn't return how much bytes are left to be copied.
+ * On errors which are caused by any file system limitations or
+ * brt limitations `EINVAL` is returned. In the most cases a user
+ * requested bad parameters, it could be possible to clone the file but
+ * some parameters don't match the requirements.
  */
 int
 zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
@@ -1078,6 +1082,16 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		return (SET_ERROR(EXDEV));
 	}
 
+	/*
+	 * outos and inos belongs to the same storage pool.
+	 * see a few lines above, only one check.
+	 */
+	if (!spa_feature_is_enabled(dmu_objset_spa(outos),
+	    SPA_FEATURE_BLOCK_CLONING)) {
+		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
+		return (SET_ERROR(EOPNOTSUPP));
+	}
+
 	ASSERT(!outzfsvfs->z_replay);
 
 	error = zfs_verify_zp(inzp);
@@ -1086,12 +1100,6 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	if (error != 0) {
 		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
 		return (error);
-	}
-
-	if (!spa_feature_is_enabled(dmu_objset_spa(outos),
-	    SPA_FEATURE_BLOCK_CLONING)) {
-		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
-		return (SET_ERROR(EXDEV));
 	}
 
 	/*
@@ -1164,10 +1172,21 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	inblksz = inzp->z_blksz;
 
 	/*
-	 * We cannot clone into files with different block size.
+	 * We cannot clone into files with different block size if we can't
+	 * grow it (block size is already bigger or more than one block).
 	 */
-	if (inblksz != outzp->z_blksz && outzp->z_size > inblksz) {
-		error = SET_ERROR(EXDEV);
+	if (inblksz != outzp->z_blksz && (outzp->z_size > outzp->z_blksz ||
+	    outzp->z_size > inblksz)) {
+		error = SET_ERROR(EINVAL);
+		goto unlock;
+	}
+
+	/*
+	 * Block size must be power-of-2 if destination offset != 0.
+	 * There can be no multiple blocks of non-power-of-2 size.
+	 */
+	if (outoff != 0 && !ISP2(inblksz)) {
+		error = SET_ERROR(EINVAL);
 		goto unlock;
 	}
 
@@ -1175,7 +1194,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	 * Offsets and len must be at block boundries.
 	 */
 	if ((inoff % inblksz) != 0 || (outoff % inblksz) != 0) {
-		error = SET_ERROR(EXDEV);
+		error = SET_ERROR(EINVAL);
 		goto unlock;
 	}
 	/*
@@ -1183,7 +1202,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	 */
 	if ((len % inblksz) != 0 &&
 	    (len < inzp->z_size - inoff || len < outzp->z_size - outoff)) {
-		error = SET_ERROR(EXDEV);
+		error = SET_ERROR(EINVAL);
 		goto unlock;
 	}
 
@@ -1212,7 +1231,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	gid = KGID_TO_SGID(ZTOGID(outzp));
 	projid = outzp->z_projid;
 
-	bps = kmem_alloc(sizeof (bps[0]) * maxblocks, KM_SLEEP);
+	bps = vmem_alloc(sizeof (bps[0]) * maxblocks, KM_SLEEP);
 
 	/*
 	 * Clone the file in reasonable size chunks.  Each chunk is cloned
@@ -1238,13 +1257,11 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		    &nbps);
 		if (error != 0) {
 			/*
-			 * If we are tyring to clone a block that was created
-			 * in the current transaction group. Return an error,
-			 * so the caller can fallback to just copying the data.
+			 * If we are trying to clone a block that was created
+			 * in the current transaction group, error will be
+			 * EAGAIN here, which we can just return to the caller
+			 * so it can fallback if it likes.
 			 */
-			if (error == EAGAIN) {
-				error = SET_ERROR(EXDEV);
-			}
 			break;
 		}
 		/*
@@ -1330,7 +1347,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		done += size;
 	}
 
-	kmem_free(bps, sizeof (bps[0]) * maxblocks);
+	vmem_free(bps, sizeof (bps[0]) * maxblocks);
 	zfs_znode_update_vfs(outzp);
 
 unlock:
@@ -1352,6 +1369,12 @@ unlock:
 		*inoffp += done;
 		*outoffp += done;
 		*lenp = done;
+	} else {
+		/*
+		 * If we made no progress, there must be a good reason.
+		 * EOF is handled explicitly above, before the loop.
+		 */
+		ASSERT3S(error, !=, 0);
 	}
 
 	zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);

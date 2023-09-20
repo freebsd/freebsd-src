@@ -35,7 +35,7 @@
 #	dtrwait 300 drainwait `sysctl -n kern.drainwait`
 #	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl
 #	initial iflag, lflag and oflag all 0
-#	speed 9600
+#	speed 115200
 #	special chars from <sys/ttydefaults.h>
 #	nothing locked
 # except for serial consoles the initial iflag, lflag and oflag are from
@@ -50,9 +50,9 @@ default() {
 	for i in $*
 	do
 		comcontrol /dev/tty${dc}${i} dtrwait 300 drainwait $drainwait
-		stty < /dev/tty${dc}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/tty${dc}${i}.init -clocal crtscts hupcl 115200 reprint ^R
 		stty < /dev/tty${dc}${i}.lock -clocal -crtscts -hupcl 0
-		stty < /dev/cua${dc}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/cua${dc}${i}.init -clocal crtscts hupcl 115200 reprint ^R
 		stty < /dev/cua${dc}${i}.lock -clocal -crtscts -hupcl 0
 	done
 }

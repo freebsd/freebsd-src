@@ -34,36 +34,114 @@
 #include <vm/_vm_radix.h>
 
 #ifdef _KERNEL
+#include <sys/pctrie.h>
+#include <vm/vm_page.h>
+#include <vm/vm.h>
 
-int		vm_radix_insert(struct vm_radix *rtree, vm_page_t page);
 void		vm_radix_wait(void);
-vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index);
-void		vm_radix_reclaim_allnodes(struct vm_radix *rtree);
-vm_page_t	vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage);
 void		vm_radix_zinit(void);
-
-/*
- * Each search path in the trie terminates at a leaf, which is a pointer to a
- * page marked with a set 1-bit.  A leaf may be associated with a null pointer
- * to indicate no page there.
- */
-#define	VM_RADIX_ISLEAF	0x1
-#define VM_RADIX_NULL (struct vm_radix_node *)VM_RADIX_ISLEAF
+void		*vm_radix_node_alloc(struct pctrie *ptree);
+void		vm_radix_node_free(struct pctrie *ptree, void *node);
+extern smr_t	vm_radix_smr;
 
 static __inline void
 vm_radix_init(struct vm_radix *rtree)
 {
-	rtree->rt_root = VM_RADIX_NULL;
+	pctrie_init(&rtree->rt_trie);
 }
 
 static __inline bool
 vm_radix_is_empty(struct vm_radix *rtree)
 {
-	return (rtree->rt_root == VM_RADIX_NULL);
+	return (pctrie_is_empty(&rtree->rt_trie));
+}
+
+PCTRIE_DEFINE_SMR(VM_RADIX, vm_page, pindex, vm_radix_node_alloc, vm_radix_node_free,
+    vm_radix_smr);
+
+/*
+ * Inserts the key-value pair into the trie.
+ * Panics if the key already exists.
+ */
+static __inline int
+vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
+{
+	return (VM_RADIX_PCTRIE_INSERT(&rtree->rt_trie, page));
+}
+
+/*
+ * Returns the value stored at the index assuming there is an external lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+static __inline vm_page_t
+vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_LOOKUP(&rtree->rt_trie, index));
+}
+
+/*
+ * Returns the value stored at the index without requiring an external lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+static __inline vm_page_t
+vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_LOOKUP_UNLOCKED(&rtree->rt_trie, index));
+}
+
+/*
+ * Returns the page with the least pindex that is greater than or equal to the
+ * specified pindex, or NULL if there are no such pages.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_LOOKUP_GE(&rtree->rt_trie, index));
+}
+
+/*
+ * Returns the page with the greatest pindex that is less than or equal to the
+ * specified pindex, or NULL if there are no such pages.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_LOOKUP_LE(&rtree->rt_trie, index));
+}
+
+/*
+ * Remove the specified index from the trie, and return the value stored at
+ * that index.  If the index is not present, return NULL.
+ */
+static __inline vm_page_t
+vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_REMOVE_LOOKUP(&rtree->rt_trie, index));
+}
+
+/*
+ * Remove and free all the nodes from the radix tree.
+ */
+static __inline void
+vm_radix_reclaim_allnodes(struct vm_radix *rtree)
+{
+	VM_RADIX_PCTRIE_RECLAIM(&rtree->rt_trie);
+}
+
+/*
+ * Replace an existing page in the trie with another one.
+ * Panics if there is not an old page in the trie at the new page's index.
+ */
+static __inline vm_page_t
+vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
+{
+	return (VM_RADIX_PCTRIE_REPLACE(&rtree->rt_trie, newpage));
 }
 
 #endif /* _KERNEL */

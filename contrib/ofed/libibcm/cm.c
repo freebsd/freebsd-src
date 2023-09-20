@@ -232,7 +232,8 @@ static struct cm_id_private *ib_cm_alloc_id(struct ib_cm_device *device,
 	memset(cm_id_priv, 0, sizeof *cm_id_priv);
 	cm_id_priv->id.device = device;
 	cm_id_priv->id.context = context;
-	pthread_mutex_init(&cm_id_priv->mut, NULL);
+	if (pthread_mutex_init(&cm_id_priv->mut, NULL))
+		goto err;
 	if (pthread_cond_init(&cm_id_priv->cond, NULL))
 		goto err;
 

@@ -419,7 +419,11 @@ FBSD_1.7 {
 	_Fork;
 	fspacectl;
 	kqueuex;
+	membarrier;
 	swapoff;
+	timerfd_create;
+	timerfd_gettime;
+	timerfd_settime;
 };
 
 FBSDprivate_1.0 {

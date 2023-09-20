@@ -50,6 +50,8 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 /*
  * Editline and history functions (and glue).
  */
+#include "alias.h"
+#include "exec.h"
 #include "shell.h"
 #include "parser.h"
 #include "var.h"
@@ -620,6 +622,7 @@ static char
 	char **matches = NULL, **rmatches;
 	size_t i = 0, size = 16, uniq;
 	size_t curpos = end - start, lcstring = -1;
+	struct cmdentry e;
 
 	in_command_completion = false;
 	if (start > 0 || memchr("/.~", text[0], 3) != NULL)
@@ -667,6 +670,24 @@ static char
 		if (curpos > bp[0] || memcmp(bp + 2, text, curpos) != 0)
 			continue;
 		rmatches = add_match(matches, ++i, &size, strndup(bp + 2, bp[0]));
+		if (rmatches == NULL)
+			goto out;
+		matches = rmatches;
+	}
+	for (const struct alias *ap = NULL; (ap = iteralias(ap)) != NULL;) {
+		if (strncmp(ap->name, text, curpos) != 0)
+			continue;
+		rmatches = add_match(matches, ++i, &size, strdup(ap->name));
+		if (rmatches == NULL)
+			goto out;
+		matches = rmatches;
+	}
+	for (const void *a = NULL; (a = itercmd(a, &e)) != NULL;) {
+		if (e.cmdtype != CMDFUNCTION)
+			continue;
+		if (strncmp(e.cmdname, text, curpos) != 0)
+			continue;
+		rmatches = add_match(matches, ++i, &size, strdup(e.cmdname));
 		if (rmatches == NULL)
 			goto out;
 		matches = rmatches;

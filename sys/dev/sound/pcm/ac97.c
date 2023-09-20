@@ -38,8 +38,6 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("");
-
 static MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97mixtable_entry {

@@ -973,6 +973,7 @@ driver_t hidbus_driver = {
 
 MODULE_DEPEND(hidbus, hid, 1, 1, 1);
 MODULE_VERSION(hidbus, 1);
+DRIVER_MODULE(hidbus, atopcase, hidbus_driver, 0, 0);
 DRIVER_MODULE(hidbus, hvhid, hidbus_driver, 0, 0);
 DRIVER_MODULE(hidbus, iichid, hidbus_driver, 0, 0);
 DRIVER_MODULE(hidbus, usbhid, hidbus_driver, 0, 0);

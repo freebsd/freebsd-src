@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 12, 2023
+.Dd August 28, 2023
 .Dt PF 4
 .Os
 .Sh NAME
@@ -338,35 +338,40 @@ and
 fields of the
 .Va state
 nvlist from the state table.
-.It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
+.It Dv DIOCKILLSTATESNV Fa "struct pfioc_nv nv"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in
-.Va psk_killed .
+.Va "killed" .
 .Bd -literal
-struct pfioc_state_kill {
-	struct pf_state_cmp	psk_pfcmp;
-	sa_family_t		psk_af;
-	int			psk_proto;
-	struct pf_rule_addr	psk_src;
-	struct pf_rule_addr	psk_dst;
-	char			psk_ifname[IFNAMSIZ];
-	char			psk_label[PF_RULE_LABEL_SIZE];
-	u_int			psk_killed;
+nvlist pf_state_cmp {
+	number			id;
+	number			creatorid;
+	number			direction;
+};
+
+nvlist pf_kill {
+	nvlist pf_state_cmp	cmp;
+	number			af;
+	number			proto;
+	nvlist pf_rule_addr	src;
+	nvlist pf_rule_addr	dst;
+	string			ifname[IFNAMSIZ];
+	string			label[PF_RULE_LABEL_SIZE];
 };
 .Ed
-.It Dv DIOCCLRSTATES Fa "struct pfioc_state_kill *psk"
+.It Dv DIOCCLRSTATESNV Fa "struct pfioc_nv nv"
 Clear all states.
 It works like
-.Dv DIOCKILLSTATES ,
+.Dv DIOCKILLSTATESNV ,
 but ignores the
-.Va psk_af ,
-.Va psk_proto ,
-.Va psk_src ,
+.Va af ,
+.Va proto ,
+.Va src ,
 and
-.Va psk_dst
+.Va dst
 fields of the
-.Vt pfioc_state_kill
-structure.
+.Vt pf_kill
+nvlist.
 .It Dv DIOCSETSTATUSIF Fa "struct pfioc_if *pi"
 Specify the interface for which statistics are accumulated.
 .Bd -literal

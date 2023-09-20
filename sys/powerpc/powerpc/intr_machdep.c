@@ -87,8 +87,6 @@
 
 #include "pic_if.h"
 
-#define	MAX_STRAY_LOG	5
-
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
@@ -129,6 +127,7 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 #endif
 static u_int stray_count;
 
+#define	INTRNAME_LEN	(MAXCOMLEN + 1)
 u_long *intrcnt;
 char *intrnames;
 size_t sintrcnt = sizeof(intrcnt);
@@ -154,8 +153,8 @@ static void
 intrcnt_setname(const char *name, int index)
 {
 
-	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
-	    MAXCOMLEN, name);
+	snprintf(intrnames + INTRNAME_LEN * index, INTRNAME_LEN, "%-*s",
+	    INTRNAME_LEN - 1, name);
 }
 
 static void
@@ -179,10 +178,10 @@ intr_init_sources(void *arg __unused)
 #endif
 	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTR, M_WAITOK |
 	    M_ZERO);
-	intrnames = mallocarray(nintrcnt, MAXCOMLEN + 1, M_INTR, M_WAITOK |
+	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
 	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * (MAXCOMLEN + 1);
+	sintrnames = nintrcnt * INTRNAME_LEN;
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
@@ -660,11 +659,11 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 
 stray:
 	stray_count++;
-	if (stray_count <= MAX_STRAY_LOG) {
+	if (stray_count <= INTR_STRAY_LOG_MAX) {
 		printf("stray irq %d\n", i ? i->irq : -1);
-		if (stray_count >= MAX_STRAY_LOG) {
+		if (stray_count >= INTR_STRAY_LOG_MAX) {
 			printf("got %d stray interrupts, not logging anymore\n",
-			    MAX_STRAY_LOG);
+			    INTR_STRAY_LOG_MAX);
 		}
 	}
 	if (i != NULL)

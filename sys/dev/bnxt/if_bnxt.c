@@ -67,7 +67,7 @@
  * PCI Device ID Table
  */
 
-static pci_vendor_info_t bnxt_vendor_info_array[] =
+static const pci_vendor_info_t bnxt_vendor_info_array[] =
 {
     PVID(BROADCOM_VENDOR_ID, BCM57301,
 	"Broadcom BCM57301 NetXtreme-C 10Gb Ethernet Controller"),
@@ -224,6 +224,7 @@ static uint8_t get_phy_type(struct bnxt_softc *softc);
 static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
 static void bnxt_get_wol_settings(struct bnxt_softc *softc);
 static int bnxt_wol_config(if_ctx_t ctx);
+static bool bnxt_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 /*
  * Device Interface Declaration
@@ -288,6 +289,8 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_shutdown, bnxt_shutdown),
 	DEVMETHOD(ifdi_resume, bnxt_resume),
 
+	DEVMETHOD(ifdi_needs_restart, bnxt_if_needs_restart),
+
 	DEVMETHOD_END
 };
 
@@ -300,7 +303,7 @@ static driver_t bnxt_iflib_driver = {
  */
 
 #define BNXT_DRIVER_VERSION	"2.20.0.1"
-char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
+const char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
@@ -2495,6 +2498,16 @@ bnxt_wol_config(if_ctx_t ctx)
 	}
 
 	return 0;
+}
+
+static bool
+bnxt_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+{
+	switch (event) {
+	case IFLIB_RESTART_VLAN_CONFIG:
+	default:
+		return (false);
+	}
 }
 
 static int

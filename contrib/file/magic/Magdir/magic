@@ -1,10 +1,71 @@
 
 #------------------------------------------------------------------------------
-# $File: magic,v 1.10 2010/11/25 15:00:12 christos Exp $
+# $File: magic,v 1.11 2023/06/27 13:42:49 christos Exp $
 # magic:  file(1) magic for magic files
 #
-0	string/t		#\ Magic	magic text file for file(1) cmd
+# Update:	Joerg Jenderek
+# skip Magicsee_R1.cfg found on retropie starting with # Magicsee R1 one-handed controller
+0	string/t		#\ Magic\ 	magic text file for file(1) cmd
+#!:mime	text/plain
+!:mime	text/x-file
+# no suffix in ../Header
+!:ext	/
+#
+# some samples start with a comment line
+0	ubyte		=0x23
+# many samples start with separator line
+>4	string		--------
+>>0	use		magic-fragment
+# few samples with 1st comment line and without seperator comment line
+>4	default		x
+# few sample with 1st comment line and without seperator comment line and regular expression like: sisu
+>>1	search/112	regex\x09
+>>>0	use		magic-fragment
+>>1	default		x
+# few samples with 1st comment line and without seperator comment line and string value like:
+# blcr bsi selinux ssh (file 3.34) digital gnu wordperfect
+>>>1	search/471	string\x09
+>>>>0	use		magic-fragment
+>>>1	default		x
+# few samples with 1st comment line and without seperator comment line and short value like:
+# (file 3.34) os9 osf1
+>>>>1	search/1716	short\x09
+>>>>>0	use		magic-fragment
+# but many samples start with an empty first line
+0	ubyte		=0x0A
+# many samples sttart with separator comment line
+>4	string		--------
+>>0	use		magic-fragment
+# few samples with 1st empty line and without seperator comment line like: biosig espressif
+>4	default		x
+>>1	search/581	\041:mime
+>>>0	use		magic-fragment
+#	display information (lines) about magic text fragment
+0	name		magic-fragment
+>0	string		x		magic text fragment for file(1) cmd
+!:mime	text/x-file
+# most without suffix but mail.news varied.out varied.script
+!:ext	/news/out/script
+# next lines are mainly for control reasons
+# some (34/339) samples start comment line
+>0	ubyte		!0x0A
+>>0	string		x		\b, 1st line "%s"
+>>>&1	string		x		\b, 2nd line "%s"
+# but most (305/339) samples start with an empty first line
+>0	ubyte		=0x0A
+>>1	string		x		\b, 2nd line "%s"
+>>>&1	string		x		\b, 3rd line "%s"
+#
+# URL:		http://en.wikipedia.org/wiki/File_(command)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mgc.trid.xml
+# Note:		called "magic compiled data (LE)" by TrID
 0	lelong		0xF11E041C	magic binary file for file(1) cmd
+#!:mime	application/octet-stream
+!:mime application/x-file
+!:ext	mgc
 >4	lelong		x		(version %d) (little endian)
 0	belong		0xF11E041C	magic binary file for file(1) cmd
+#!:mime	application/octet-stream
+!:mime application/x-file
+!:ext	mgc
 >4	belong		x		(version %d) (big endian)

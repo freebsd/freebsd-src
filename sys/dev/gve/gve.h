@@ -164,6 +164,7 @@ struct gve_rx_ctx {
 	struct mbuf *mbuf_tail;
 	uint32_t total_size;
 	uint8_t frag_cnt;
+	bool is_tcp;
 	bool drop_pkt;
 };
 

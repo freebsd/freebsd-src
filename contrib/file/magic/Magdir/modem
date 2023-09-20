@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: modem,v 1.10 2021/04/26 15:56:00 christos Exp $
+# $File: modem,v 1.11 2022/10/19 20:15:16 christos Exp $
 # modem:  file(1) magic for modem programs
 #
 # From: Florian La Roche <florian@knorke.saar.de>
@@ -11,6 +11,7 @@
 # Summary: CCITT Group 3 Facsimile in "raw" form (i.e. no header).
 # Modified by: Joerg Jenderek
 # URL: https://de.wikipedia.org/wiki/Fax
+#	http://fileformats.archiveteam.org/wiki/CCITT_Group_3
 # Reference: https://web.archive.org/web/20020628195336/http://www.netnam.vn/unescocourse/computervision/104.htm
 # GRR: EOL of G3 is too general as it catches also TrueType fonts, Postscript PrinterFontMetric, others
 0	short		0x0100
@@ -32,7 +33,10 @@
 # skip MouseTrap/Mt.Defaults with file size 16 found on Golden Orchard Apple II CD Rom
 >>>>>>8		ubequad		!0x2e01010454010203
 # skip PICTUREH.SML found on Golden Orchard Apple II CD Rom
->>>>>>>8	ubequad		!0x5dee74ad1aa56394	raw G3 (Group 3) FAX, byte-padded
+>>>>>>>8	ubequad		!0x5dee74ad1aa56394
+# skip few (5/41) DEGAS mid-res bitmap (GEMINI01.PI2 GEMINI02.PI2 GEMINI03.PI2 CODE_RAM.PI2 TBX_DEMO.PI2)
+# with file size 32034
+>>>>>>>>-0	offset		!32034	raw G3 (Group 3) FAX, byte-padded
 # version 5.25 labeled the entry above "raw G3 data, byte-padded"
 !:mime	image/g3fax
 #!:apple	????TIFF
@@ -43,7 +47,9 @@
 # 16 0-bits near beginning like PicturePuzzler found on Golden Orchard Apple CD Rom
 >2	search/9	\0\0
 # maximal 7 0-bits for pixel sequences or 11 0-bits for EOL in G3
->2	default		x		raw G3 (Group 3) FAX
+>2	default		x
+# skip some (84/1246) MacBinary II/III (Cyberdog2.068k.smi.bin FileMakerPro4.img.bin Hypercard1.25.image.bin UsbStorage1.3.5.smi.bin) with "non random" numbers by versions values 81h/82h + 81h
+>>122	ubeshort&0xFcFf	!0x8081		raw G3 (Group 3) FAX
 # version 5.25 labeled the above entry as "raw G3 data"
 !:mime	image/g3fax
 !:ext	g3

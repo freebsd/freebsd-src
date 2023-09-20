@@ -51,7 +51,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 21, 2022
+.Dd September 18, 2023
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -108,39 +108,61 @@ The following options are available when
 mounting
 .Nm
 file systems:
-.Bl -tag -width "It Cm maxfilesize"
+.Bl -tag -width "maxfilesize"
+.It Cm easize
+Set the maximum memory size used by extended attributes in bytes.
+The default is 16 megabytes.
+.It Cm export
+Accept the
+.Cm export
+option for compatibility with
+.Xr nfsv4 4 .
+This option does nothing.
 .It Cm gid
-Specifies the group ID of the root inode of the file system.
-Defaults to the mount point's GID.
-.It Cm uid
-Specifies the user ID of the root inode of the file system.
-Defaults to the mount point's UID.
-.It Cm mode
-Specifies the mode (in octal notation) of the root inode of the file system.
-Defaults to the mount point's mode.
-.It Cm nonc
-Do not use namecache to resolve names to files for the created mount.
-This saves memory, but currently might impair scalability for highly
-used mounts on large machines.
+Set the group ID of the root inode of the file system.
+The default is the mount point's GID.
 .It Cm inodes
-Specifies the maximum number of nodes available to the file system.
+Set the maximum number of nodes available to the file system.
 If not specified, the file system chooses a reasonable maximum based on
 the file system size, which can be limited with the
 .Cm size
 option.
+.It Cm maxfilesize
+Set the maximum file size in bytes.
+The default is the maximum possible value.
+.It Cm mode
+Set the mode (in octal notation) of the root inode of the file system.
+The default is the mount point's mode.
+.It Cm nomtime
+Disable the tracking of mtime updates caused by writes to the
+shared mapped areas backed by
+.Nm
+files.
+This option removes periodic scans,
+which downgrade read-write-mapped pages to read-only to note the writes.
+.It Cm nonc
+Do not use namecache to resolve names to files for the created mount.
+This saves memory, but currently might impair scalability for highly
+used mounts on large machines.
+.It Cm nosymfollow
+Do not follow
+.Xr symlink 7 Ap s
+on the mounted file system.
+.It Cm pgread
+Enable pgcache read for the mount.
 .It Cm size
-Specifies the total file system size in bytes, unless suffixed
+Set the total file system size in bytes, unless suffixed
 with one of k, m, g, t, or p, which denote byte, kilobyte,
 megabyte, gigabyte, terabyte and petabyte respectively.
 If zero (the default) or a value larger than SIZE_MAX - PAGE_SIZE
 is given, the available amount of memory (including
 main memory and swap space) will be used.
-.It Cm maxfilesize
-Specifies the maximum file size in bytes.
-Defaults to the maximum possible value.
-.It Cm easize
-Specifies the maximum memory size used by extended attributes in bytes.
-Defaults to 16 megabytes.
+.It Cm uid
+Set the user ID of the root inode of the file system.
+The default is the mount point's UID.
+.It Cm union
+Refer to
+.Xr mount 8 .
 .El
 .Sh EXAMPLES
 Mount a

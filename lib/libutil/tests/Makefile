@@ -7,6 +7,7 @@ TAP_TESTS_C+=	trimdomain_test
 TAP_TESTS_C+=	trimdomain-nodomain_test
 ATF_TESTS_C+=	cpuset_test
 ATF_TESTS_C+=	expand_number_test
+ATF_TESTS_C+=	forkpty_test
 
 WARNS?=		2
 LIBADD+=	util

@@ -121,17 +121,14 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
-static void db_print_stack_entry(const char *, db_addr_t, void *);
-
 static void
-db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
+db_print_stack_entry(const char *name, db_addr_t callpc, db_addr_t frame)
 {
 
 	db_printf("%s() at ", name != NULL ? name : "??");
 	db_printsym(callpc, DB_STGY_PROC);
-	if (frame != NULL)
-		db_printf("/frame 0x%lx", (register_t)frame);
+	if (frame != 0)
+		db_printf("/frame %#lx", frame);
 	db_printf("\n");
 }
 
@@ -139,17 +136,20 @@ db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
  * Figure out the next frame up in the call stack.
  */
 static void
-db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
+db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 {
 	struct trapframe *tf;
+	db_addr_t tf_addr;
 	int frame_type;
 	long rip, rsp, rbp;
 	db_expr_t offset;
 	c_db_sym_t sym;
 	const char *name;
 
-	rip = db_get_value((long) &(*fp)->f_retaddr, 8, FALSE);
-	rbp = db_get_value((long) &(*fp)->f_frame, 8, FALSE);
+	rip = db_get_value(*fp + offsetof(struct amd64_frame, f_retaddr), 8,
+	    FALSE);
+	rbp = db_get_value(*fp + offsetof(struct amd64_frame, f_frame), 8,
+	    FALSE);
 
 	/*
 	 * Figure out frame type.  We look at the address just before
@@ -193,50 +193,55 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	 * Normal frames need no special processing.
 	 */
 	if (frame_type == NORMAL) {
-		*ip = (db_addr_t) rip;
-		*fp = (struct amd64_frame *) rbp;
+		*ip = rip;
+		*fp = rbp;
 		return;
 	}
 
-	db_print_stack_entry(name, rip, &(*fp)->f_frame);
+	db_print_stack_entry(name, rip, *fp);
 
 	/*
 	 * Point to base of trapframe which is just above the
 	 * current frame.
 	 */
-	tf = (struct trapframe *)((long)*fp + 16);
+	tf_addr = *fp + 16;
 
-	if (INKERNEL((long) tf)) {
-		rsp = tf->tf_rsp;
-		rip = tf->tf_rip;
-		rbp = tf->tf_rbp;
-		switch (frame_type) {
-		case TRAP:
-			db_printf("--- trap %#r", tf->tf_trapno);
-			break;
-		case SYSCALL:
-			db_printf("--- syscall");
-			db_decode_syscall(td, tf->tf_rax);
-			break;
-		case INTERRUPT:
-			db_printf("--- interrupt");
-			break;
-		default:
-			panic("The moon has moved again.");
-		}
-		db_printf(", rip = %#lr, rsp = %#lr, rbp = %#lr ---\n", rip,
-		    rsp, rbp);
+	if (!__is_aligned(tf_addr, _Alignof(*tf)) || !INKERNEL(tf_addr)) {
+		db_printf("--- invalid trapframe %p\n", (void *)tf_addr);
+		*ip = 0;
+		*fp = 0;
+		return;
 	}
+	tf = (struct trapframe *)tf_addr;
 
-	*ip = (db_addr_t) rip;
-	*fp = (struct amd64_frame *) rbp;
+	rsp = tf->tf_rsp;
+	rip = tf->tf_rip;
+	rbp = tf->tf_rbp;
+	switch (frame_type) {
+	case TRAP:
+		db_printf("--- trap %#r", tf->tf_trapno);
+		break;
+	case SYSCALL:
+		db_printf("--- syscall");
+		db_decode_syscall(td, tf->tf_rax);
+		break;
+	case INTERRUPT:
+		db_printf("--- interrupt");
+		break;
+	default:
+		__assert_unreachable();
+	}
+	db_printf(", rip = %#lr, rsp = %#lr, rbp = %#lr ---\n", rip, rsp, rbp);
+
+	*ip = rip;
+	*fp = rbp;
 }
 
 static int __nosanitizeaddress __nosanitizememory
-db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
+db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
     db_addr_t pc, register_t sp, int count)
 {
-	struct amd64_frame *actframe;
+	db_addr_t actframe;
 	const char *name;
 	db_expr_t offset;
 	c_db_sym_t sym;
@@ -270,7 +275,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 				 * jumped to a bogus location, so try and use
 				 * the return address to find our caller.
 				 */
-				db_print_stack_entry(name, pc, NULL);
+				db_print_stack_entry(name, pc, 0);
 				pc = db_get_value(sp, 8, FALSE);
 				if (db_search_symbol(pc, DB_STGY_PROC,
 				    &offset) == C_DB_SYM_NULL)
@@ -282,20 +287,20 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffffff) == 0xe5894855) {
 					/* pushq %rbp; movq %rsp, %rbp */
-					actframe = (void *)(tf->tf_rsp - 8);
+					actframe = tf->tf_rsp - 8;
 				} else if ((instr & 0xffffff) == 0xe58948) {
 					/* movq %rsp, %rbp */
-					actframe = (void *)tf->tf_rsp;
+					actframe = tf->tf_rsp;
 					if (tf->tf_rbp == 0) {
 						/* Fake frame better. */
 						frame = actframe;
 					}
 				} else if ((instr & 0xff) == 0xc3) {
 					/* ret */
-					actframe = (void *)(tf->tf_rsp - 8);
+					actframe = tf->tf_rsp - 8;
 				} else if (offset == 0) {
 					/* Probably an assembler symbol. */
-					actframe = (void *)(tf->tf_rsp - 8);
+					actframe = tf->tf_rsp - 8;
 				}
 			} else if (name != NULL &&
 			    strcmp(name, "fork_trampoline") == 0) {
@@ -312,20 +317,24 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
-			pc = (db_addr_t)
-			    db_get_value((long)&actframe->f_retaddr, 8, FALSE);
+			pc = db_get_value(actframe +
+			    offsetof(struct amd64_frame, f_retaddr), 8, FALSE);
 			continue;
 		}
 
 		db_nextframe(&frame, &pc, td);
-
-		if (INKERNEL((long)pc) && !INKERNEL((long)frame)) {
-			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
-			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, pc, frame);
+		if (frame == 0)
 			break;
-		}
-		if (!INKERNEL((long) frame)) {
+
+		if (!__is_aligned(frame, _Alignof(struct amd64_frame)) ||
+		    !INKERNEL(frame)) {
+			if (INKERNEL(pc)) {
+				sym = db_search_symbol(pc, DB_STGY_ANY,
+				    &offset);
+				db_symbol_values(sym, &name, NULL);
+				db_print_stack_entry(name, pc, frame);
+				break;
+			}
 			break;
 		}
 	}
@@ -336,14 +345,14 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 void
 db_trace_self(void)
 {
-	struct amd64_frame *frame;
-	db_addr_t callpc;
+	db_addr_t callpc, frame;
 	register_t rbp;
 
 	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
-	frame = (struct amd64_frame *)rbp;
-	callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
-	frame = frame->f_frame;
+	callpc = db_get_value(rbp + offsetof(struct amd64_frame, f_retaddr), 8,
+	    FALSE);
+	frame = db_get_value(rbp + offsetof(struct amd64_frame, f_frame), 8,
+	    FALSE);
 	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 
@@ -355,8 +364,8 @@ db_trace_thread(struct thread *thr, int count)
 
 	ctx = kdb_thr_ctx(thr);
 	tf = thr == kdb_thread ? kdb_frame : NULL;
-	return (db_backtrace(thr, tf, (struct amd64_frame *)ctx->pcb_rbp,
-	    ctx->pcb_rip, ctx->pcb_rsp, count));
+	return (db_backtrace(thr, tf, ctx->pcb_rbp, ctx->pcb_rip, ctx->pcb_rsp,
+	    count));
 }
 
 void

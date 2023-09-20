@@ -200,7 +200,7 @@ virtio_filter_transport_features(uint64_t features)
 	return (features & mask);
 }
 
-int
+bool
 virtio_bus_is_modern(device_t dev)
 {
 	uintptr_t modern;
@@ -260,12 +260,11 @@ virtio_finalize_features(device_t dev)
 }
 
 int
-virtio_alloc_virtqueues(device_t dev, int flags, int nvqs,
+virtio_alloc_virtqueues(device_t dev, int nvqs,
     struct vq_alloc_info *info)
 {
 
-	return (VIRTIO_BUS_ALLOC_VIRTQUEUES(device_get_parent(dev), flags,
-	    nvqs, info));
+	return (VIRTIO_BUS_ALLOC_VIRTQUEUES(device_get_parent(dev), nvqs, info));
 }
 
 int
@@ -275,7 +274,7 @@ virtio_setup_intr(device_t dev, enum intr_type type)
 	return (VIRTIO_BUS_SETUP_INTR(device_get_parent(dev), type));
 }
 
-int
+bool
 virtio_with_feature(device_t dev, uint64_t feature)
 {
 

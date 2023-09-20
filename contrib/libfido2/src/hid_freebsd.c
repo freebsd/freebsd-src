@@ -1,13 +1,18 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbhid.h>
+#if __FreeBSD_version >= 1300500
+#include <dev/hid/hidraw.h>
+#define USE_HIDRAW /* see usbhid(4) and hidraw(4) on FreeBSD 13+ */
+#endif
 
 #include <errno.h>
 #include <unistd.h>
@@ -57,8 +62,60 @@ is_fido(int fd)
 	return (usage_page == 0xf1d0);
 }
 
+#ifdef USE_HIDRAW
 static int
-copy_info(fido_dev_info_t *di, const char *path)
+copy_info_hidraw(fido_dev_info_t *di, const char *path)
+{
+	int			fd = -1;
+	int			ok = -1;
+	struct usb_device_info	udi;
+	struct hidraw_devinfo	devinfo;
+	char			rawname[129];
+
+	memset(di, 0, sizeof(*di));
+	memset(&udi, 0, sizeof(udi));
+	memset(&devinfo, 0, sizeof(devinfo));
+	memset(rawname, 0, sizeof(rawname));
+
+	if ((fd = fido_hid_unix_open(path)) == -1 || is_fido(fd) == 0)
+		goto fail;
+
+	if (ioctl(fd, IOCTL_REQ(USB_GET_DEVICEINFO), &udi) == -1) {
+		if (ioctl(fd, IOCTL_REQ(HIDIOCGRAWINFO), &devinfo) == -1 ||
+		    ioctl(fd, IOCTL_REQ(HIDIOCGRAWNAME(128)), rawname) == -1 ||
+		    (di->path = strdup(path)) == NULL ||
+		    (di->manufacturer = strdup(UHID_VENDOR)) == NULL ||
+		    (di->product = strdup(rawname)) == NULL)
+			goto fail;
+		di->vendor_id = devinfo.vendor;
+		di->product_id = devinfo.product;
+	} else {
+		if ((di->path = strdup(path)) == NULL ||
+		    (di->manufacturer = strdup(udi.udi_vendor)) == NULL ||
+		    (di->product = strdup(udi.udi_product)) == NULL)
+			goto fail;
+		di->vendor_id = (int16_t)udi.udi_vendorNo;
+		di->product_id = (int16_t)udi.udi_productNo;
+	}
+
+	ok = 0;
+fail:
+	if (fd != -1 && close(fd) == -1)
+		fido_log_error(errno, "%s: close %s", __func__, path);
+
+	if (ok < 0) {
+		free(di->path);
+		free(di->manufacturer);
+		free(di->product);
+		explicit_bzero(di, sizeof(*di));
+	}
+
+	return (ok);
+}
+#endif /* USE_HIDRAW */
+
+static int
+copy_info_uhid(fido_dev_info_t *di, const char *path)
 {
 	int			fd = -1;
 	int			ok = -1;
@@ -81,14 +138,13 @@ copy_info(fido_dev_info_t *di, const char *path)
 	    (di->manufacturer = strdup(udi.udi_vendor)) == NULL ||
 	    (di->product = strdup(udi.udi_product)) == NULL)
 		goto fail;
-
 	di->vendor_id = (int16_t)udi.udi_vendorNo;
 	di->product_id = (int16_t)udi.udi_productNo;
 
 	ok = 0;
 fail:
-	if (fd != -1)
-		close(fd);
+	if (fd != -1 && close(fd) == -1)
+		fido_log_error(errno, "%s: close %s", __func__, path);
 
 	if (ok < 0) {
 		free(di->path);
@@ -106,17 +162,35 @@ fido_hid_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 	char	path[64];
 	size_t	i;
 
-	*olen = 0;
-
 	if (ilen == 0)
 		return (FIDO_OK); /* nothing to do */
 
 	if (devlist == NULL || olen == NULL)
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
-	for (i = *olen = 0; i < MAX_UHID && *olen < ilen; i++) {
+	*olen = 0;
+
+#ifdef USE_HIDRAW
+	for (i = 0; i < MAX_UHID && *olen < ilen; i++) {
+		snprintf(path, sizeof(path), "/dev/hidraw%zu", i);
+		if (copy_info_hidraw(&devlist[*olen], path) == 0) {
+			devlist[*olen].io = (fido_dev_io_t) {
+				fido_hid_open,
+				fido_hid_close,
+				fido_hid_read,
+				fido_hid_write,
+			};
+			++(*olen);
+		}
+	}
+	/* hidraw(4) is preferred over uhid(4) */
+	if (*olen != 0)
+		return (FIDO_OK);
+#endif /* USE_HIDRAW */
+
+	for (i = 0; i < MAX_UHID && *olen < ilen; i++) {
 		snprintf(path, sizeof(path), "/dev/uhid%zu", i);
-		if (copy_info(&devlist[*olen], path) == 0) {
+		if (copy_info_uhid(&devlist[*olen], path) == 0) {
 			devlist[*olen].io = (fido_dev_io_t) {
 				fido_hid_open,
 				fido_hid_close,
@@ -153,6 +227,10 @@ fido_hid_open(const char *path)
 	ugd.ugd_data = buf;
 	ugd.ugd_maxlen = sizeof(buf);
 
+	/*
+	 * N.B. if ctx->fd is an hidraw(4) device, the ioctl() below puts it in
+	 * uhid(4) compat mode, which we need to keep fido_hid_write() as-is.
+	 */
 	if ((r = ioctl(ctx->fd, IOCTL_REQ(USB_GET_REPORT_DESC), &ugd) == -1) ||
 	    ugd.ugd_actlen > sizeof(buf) ||
 	    fido_hid_get_report_len(ugd.ugd_data, ugd.ugd_actlen,

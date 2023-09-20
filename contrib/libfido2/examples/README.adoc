@@ -20,8 +20,7 @@ The following definitions are used in the description below:
 
 - <pubkey>
 
-	The file system path of a file containing a NIST P-256 public key in
-	PEM format.
+	The file system path of a file containing a public key in PEM format.
 
 - <blobkey>
 
@@ -48,8 +47,8 @@ The following examples are provided:
 	Configures <pin> as the new PIN of <device>. If [oldpin] is provided,
 	the device's PIN is changed from [oldpin] to <pin>.
 
-- cred [-t ecdsa|rsa|eddsa] [-k pubkey] [-ei cred_id] [-P pin] [-T seconds]
-       [-b blobkey] [-hruv] <device>
+- cred [-t es256|es384|rs256|eddsa] [-k pubkey] [-ei cred_id] [-P pin]
+       [-T seconds] [-b blobkey] [-hruv] <device>
 
 	Creates a new credential on <device> and verify that the credential
 	was signed by the authenticator. The device's attestation certificate
@@ -66,14 +65,16 @@ The following examples are provided:
 	option -b is specified, the credential's "largeBlob" key is stored in
 	<blobkey>.
 
-- assert [-t ecdsa|rsa|eddsa] [-a cred_id] [-h hmac_secret] [-s hmac_salt]
-	 [-P pin] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>
+- assert [-t es256|es384|rs256|eddsa] [-a cred_id] [-h hmac_secret] [-P pin]
+         [-s hmac_salt] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>
 
 	Asks <device> for a FIDO2 assertion corresponding to [cred_id],
 	which may be omitted for resident keys. The obtained assertion
 	is verified using <pubkey>. The -p option requests that the user
-	be present.  User verification may be requested through the -v
-	option. If option -u is specified, the assertion is generated using
+	be present and checks whether the user presence bit was signed by the
+	authenticator. The -v option requests user verification and checks
+	whether the user verification bit was signed by the authenticator.
+	If option -u is specified, the assertion is generated using
 	U2F (CTAP1) instead of FIDO2 (CTAP2) commands. If option -s is
 	specified, a FIDO2 hmac-secret is requested from the authenticator,
 	and the contents of <hmac_salt> are used as the salt. If option -h

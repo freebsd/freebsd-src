@@ -326,6 +326,7 @@
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
 #define	FREEBSD32_SYS_freebsd32_sendfile	393
+#define	FREEBSD32_SYS_mac_syscall	394
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getfsstat	395
 #define	FREEBSD32_SYS_freebsd11_statfs	396
 #define	FREEBSD32_SYS_freebsd11_fstatfs	397
@@ -501,4 +502,8 @@
 #define	FREEBSD32_SYS_sched_getcpu	581
 #define	FREEBSD32_SYS_swapoff	582
 #define	FREEBSD32_SYS_kqueuex	583
-#define	FREEBSD32_SYS_MAXSYSCALL	584
+#define	FREEBSD32_SYS_membarrier	584
+#define	FREEBSD32_SYS_timerfd_create	585
+#define	FREEBSD32_SYS_freebsd32_timerfd_gettime	586
+#define	FREEBSD32_SYS_freebsd32_timerfd_settime	587
+#define	FREEBSD32_SYS_MAXSYSCALL	588

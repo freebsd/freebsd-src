@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
@@ -41,12 +40,14 @@
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysproto.h>
 #include <sys/tty.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #ifdef COMPAT_LINUX32
 #include <compat/freebsd32/freebsd32_misc.h>
+#include <compat/freebsd32/freebsd32_util.h>
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
 #else
@@ -1001,7 +1002,8 @@ linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 	offset = uap->offset;
 #endif
 
-	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, offset));
+	return (linux_enobufs2eagain(td, uap->fd,
+	    kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, offset)));
 }
 
 #define HALF_LONG_BITS ((sizeof(l_long) * NBBY / 2))
@@ -1029,7 +1031,7 @@ linux_preadv(struct thread *td, struct linux_preadv_args *uap)
 	if (offset < 0)
 		return (EINVAL);
 #ifdef COMPAT_LINUX32
-	error = linux32_copyinuio(PTRIN(uap->vec), uap->vlen, &auio);
+	error = freebsd32_copyinuio(PTRIN(uap->vec), uap->vlen, &auio);
 #else
 	error = copyinuio(uap->vec, uap->vlen, &auio);
 #endif
@@ -1056,7 +1058,7 @@ linux_pwritev(struct thread *td, struct linux_pwritev_args *uap)
 	if (offset < 0)
 		return (EINVAL);
 #ifdef COMPAT_LINUX32
-	error = linux32_copyinuio(PTRIN(uap->vec), uap->vlen, &auio);
+	error = freebsd32_copyinuio(PTRIN(uap->vec), uap->vlen, &auio);
 #else
 	error = copyinuio(uap->vec, uap->vlen, &auio);
 #endif
@@ -1064,7 +1066,7 @@ linux_pwritev(struct thread *td, struct linux_pwritev_args *uap)
 		return (error);
 	error = kern_pwritev(td, uap->fd, auio, offset);
 	free(auio, M_IOV);
-	return (error);
+	return (linux_enobufs2eagain(td, uap->fd, error));
 }
 
 int
@@ -1827,4 +1829,49 @@ linux_close_range(struct thread *td, struct linux_close_range_args *args)
 	if ((args->flags & LINUX_CLOSE_RANGE_CLOEXEC) != 0)
 		flags |= CLOSE_RANGE_CLOEXEC;
 	return (kern_close_range(td, flags, args->first, args->last));
+}
+
+int
+linux_enobufs2eagain(struct thread *td, int fd, int error)
+{
+	struct file *fp;
+
+	if (error != ENOBUFS)
+		return (error);
+	if (fget(td, fd, &cap_no_rights, &fp) != 0)
+		return (error);
+	if (fp->f_type == DTYPE_SOCKET && (fp->f_flag & FNONBLOCK) != 0)
+		error = EAGAIN;
+	fdrop(fp, td);
+	return (error);
+}
+
+int
+linux_write(struct thread *td, struct linux_write_args *args)
+{
+	struct write_args bargs = {
+		.fd	= args->fd,
+		.buf	= args->buf,
+		.nbyte	= args->nbyte,
+	};
+
+	return (linux_enobufs2eagain(td, args->fd, sys_write(td, &bargs)));
+}
+
+int
+linux_writev(struct thread *td, struct linux_writev_args *args)
+{
+	struct uio *auio;
+	int error;
+
+#ifdef COMPAT_LINUX32
+	error = freebsd32_copyinuio(PTRIN(args->iovp), args->iovcnt, &auio);
+#else
+	error = copyinuio(args->iovp, args->iovcnt, &auio);
+#endif
+	if (error != 0)
+		return (error);
+	error = kern_writev(td, args->fd, auio);
+	free(auio, M_IOV);
+	return (linux_enobufs2eagain(td, args->fd, error));
 }

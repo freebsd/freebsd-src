@@ -75,7 +75,7 @@
 #include <machine/tlb.h>
 #include <machine/vmparam.h>
 #ifdef __powerpc64__
-#include <vm/vm_radix.h>
+#include <vm/_vm_radix.h>
 #endif
 
 /*

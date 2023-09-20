@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -287,7 +287,7 @@ struct irdma_cm_listener {
 	int backlog;
 	u16 loc_port;
 	u16 vlan_id;
-	u8 loc_mac[ETH_ALEN];
+	u8 loc_mac[ETHER_ADDR_LEN];
 	u8 user_pri;
 	u8 tos;
 	bool qhash_set:1;
@@ -340,8 +340,8 @@ struct irdma_cm_node {
 	u16 mpav2_ird_ord;
 	u16 lsmm_size;
 	u8 pdata_buf[IETF_MAX_PRIV_DATA_LEN];
-	u8 loc_mac[ETH_ALEN];
-	u8 rem_mac[ETH_ALEN];
+	u8 loc_mac[ETHER_ADDR_LEN];
+	u8 rem_mac[ETHER_ADDR_LEN];
 	u8 user_pri;
 	u8 tos;
 	bool ack_rcvd:1;
@@ -357,6 +357,7 @@ struct irdma_cm_node {
 /* Used by internal CM APIs to pass CM information*/
 struct irdma_cm_info {
 	struct iw_cm_id *cm_id;
+	struct irdma_cqp_request *cqp_request;
 	u16 loc_port;
 	u16 rem_port;
 	u32 loc_addr[4];
@@ -407,6 +408,12 @@ struct irdma_cm_core {
 						u8 flags);
 	int (*cm_create_ah)(struct irdma_cm_node *cm_node, bool wait);
 	void (*cm_free_ah)(struct irdma_cm_node *cm_node);
+};
+
+struct irdma_add_mqh_cbs {
+	struct irdma_device *iwdev;
+	struct irdma_cm_info *cm_info;
+	struct irdma_cm_listener *cm_listen_node;
 };
 
 int irdma_schedule_cm_timer(struct irdma_cm_node *cm_node,

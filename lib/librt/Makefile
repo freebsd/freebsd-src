@@ -1,3 +1,4 @@
+SHLIBDIR?=/lib
 
 .include <src.opts.mk>
 

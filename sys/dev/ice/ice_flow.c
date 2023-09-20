@@ -727,15 +727,16 @@ ice_flow_create_xtrct_seq(struct ice_hw *hw,
 	u8 i;
 
 	for (i = 0; i < params->prof->segs_cnt; i++) {
-		u64 match = params->prof->segs[i].match;
+		ice_declare_bitmap(match, ICE_FLOW_FIELD_IDX_MAX);
 		enum ice_flow_field j;
 
-		ice_for_each_set_bit(j, (ice_bitmap_t *)&match,
-				     ICE_FLOW_FIELD_IDX_MAX) {
+		ice_cp_bitmap(match, params->prof->segs[i].match,
+			      ICE_FLOW_FIELD_IDX_MAX);
+		ice_for_each_set_bit(j, match, ICE_FLOW_FIELD_IDX_MAX) {
 			status = ice_flow_xtract_fld(hw, params, i, j);
 			if (status)
 				return status;
-			ice_clear_bit(j, (ice_bitmap_t *)&match);
+			ice_clear_bit(j, match);
 		}
 	}
 
@@ -810,7 +811,10 @@ ice_flow_find_prof_conds(struct ice_hw *hw, enum ice_block blk,
 			for (i = 0; i < segs_cnt; i++)
 				if (segs[i].hdrs != p->segs[i].hdrs ||
 				    ((conds & ICE_FLOW_FIND_PROF_CHK_FLDS) &&
-				     segs[i].match != p->segs[i].match))
+				     (ice_cmp_bitmap(segs[i].match,
+						     p->segs[i].match,
+						     ICE_FLOW_FIELD_IDX_MAX) ==
+				       false)))
 					break;
 
 			/* A match is found if all segments are matched */
@@ -1184,11 +1188,9 @@ ice_flow_set_fld_ext(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		     enum ice_flow_fld_match_type field_type, u16 val_loc,
 		     u16 mask_loc, u16 last_loc)
 {
-	u64 bit = BIT_ULL(fld);
-
-	seg->match |= bit;
+	ice_set_bit(fld, seg->match);
 	if (field_type == ICE_FLOW_FLD_TYPE_RANGE)
-		seg->range |= bit;
+		ice_set_bit(fld, seg->range);
 
 	seg->fields[fld].type = field_type;
 	seg->fields[fld].src.val = val_loc;
@@ -1440,6 +1442,14 @@ ice_rem_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 {
 	enum ice_rss_cfg_hdr_type hdr_type;
 	struct ice_rss_cfg *r, *tmp;
+	u64 seg_match = 0;
+	u16 i;
+
+	/* convert match bitmap to u64 for hash field comparison */
+	ice_for_each_set_bit(i, prof->segs[prof->segs_cnt - 1].match,
+			     ICE_FLOW_FIELD_IDX_MAX) {
+		seg_match |= 1ULL << i;
+	}
 
 	/* Search for RSS hash fields associated to the VSI that match the
 	 * hash configurations associated to the flow profile. If found
@@ -1448,7 +1458,7 @@ ice_rem_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 	hdr_type = ice_get_rss_hdr_type(prof);
 	LIST_FOR_EACH_ENTRY_SAFE(r, tmp, &hw->rss_list_head,
 				 ice_rss_cfg, l_entry)
-		if (r->hash.hash_flds == prof->segs[prof->segs_cnt - 1].match &&
+		if (r->hash.hash_flds == seg_match &&
 		    r->hash.addl_hdrs == prof->segs[prof->segs_cnt - 1].hdrs &&
 		    r->hash.hdr_type == hdr_type) {
 			ice_clear_bit(vsi_handle, r->vsis);
@@ -1473,11 +1483,18 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 {
 	enum ice_rss_cfg_hdr_type hdr_type;
 	struct ice_rss_cfg *r, *rss_cfg;
+	u64 seg_match = 0;
+	u16 i;
+
+	ice_for_each_set_bit(i, prof->segs[prof->segs_cnt - 1].match,
+			     ICE_FLOW_FIELD_IDX_MAX) {
+		seg_match |= 1ULL << i;
+	}
 
 	hdr_type = ice_get_rss_hdr_type(prof);
 	LIST_FOR_EACH_ENTRY(r, &hw->rss_list_head,
 			    ice_rss_cfg, l_entry)
-		if (r->hash.hash_flds == prof->segs[prof->segs_cnt - 1].match &&
+		if (r->hash.hash_flds == seg_match &&
 		    r->hash.addl_hdrs == prof->segs[prof->segs_cnt - 1].hdrs &&
 		    r->hash.hdr_type == hdr_type) {
 			ice_set_bit(vsi_handle, r->vsis);
@@ -1488,7 +1505,7 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 	if (!rss_cfg)
 		return ICE_ERR_NO_MEMORY;
 
-	rss_cfg->hash.hash_flds = prof->segs[prof->segs_cnt - 1].match;
+	rss_cfg->hash.hash_flds = seg_match;
 	rss_cfg->hash.addl_hdrs = prof->segs[prof->segs_cnt - 1].hdrs;
 	rss_cfg->hash.hdr_type = hdr_type;
 	rss_cfg->hash.symm = prof->cfg.symm;

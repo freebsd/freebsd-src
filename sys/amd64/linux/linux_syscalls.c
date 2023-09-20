@@ -7,7 +7,7 @@
 const char *linux_syscallnames[] = {
 #define	nosys	linux_nosys
 	"read",			/* 0 = read */
-	"write",			/* 1 = write */
+	"linux_write",			/* 1 = linux_write */
 	"linux_open",			/* 2 = linux_open */
 	"close",			/* 3 = close */
 	"linux_newstat",			/* 4 = linux_newstat */
@@ -26,7 +26,7 @@ const char *linux_syscallnames[] = {
 	"linux_pread",			/* 17 = linux_pread */
 	"linux_pwrite",			/* 18 = linux_pwrite */
 	"readv",			/* 19 = readv */
-	"writev",			/* 20 = writev */
+	"linux_writev",			/* 20 = linux_writev */
 	"linux_access",			/* 21 = linux_access */
 	"linux_pipe",			/* 22 = linux_pipe */
 	"linux_select",			/* 23 = linux_select */

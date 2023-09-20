@@ -61,7 +61,10 @@ local MSG_FAILSYN_EOLESC = "Stray escape at end of line"
 local MSG_FAILSYN_EOLVAR = "Unescaped $ at end of line"
 local MSG_FAILSYN_BADVAR = "Malformed variable expression at position '%d'"
 
-local MODULEEXPR = '([-%w_]+)'
+-- MODULEEXPR should more or less allow the exact same set of characters as the
+-- env_var entries in the pattern table.  This is perhaps a good target for a
+-- little refactoring.
+local MODULEEXPR = '([%w%d-_.]+)'
 local QVALEXPR = '"(.*)"'
 local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
 local WORDEXPR = "([-%w%d][-%w%d_.]*)"

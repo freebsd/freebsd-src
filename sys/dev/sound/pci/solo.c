@@ -39,8 +39,6 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("");
-
 #define SOLO_DEFAULT_BUFSZ 16384
 #define ABS(x) (((x) < 0)? -(x) : (x))
 

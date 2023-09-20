@@ -139,6 +139,30 @@ typedef enum {
 	ICP_QAT_HW_COMP_20_DISABLE_TOKEN_FUSION_CONTROL_ENABLE
 
 /*****************************************************************************/
+/* LZ4 Block Maximum Size (LBMS). Set by FW , located in upper 32bit */
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_BITPOS 19
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_MASK 0x3
+/*
+ ****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ * @description
+ *      Enumeration of possible LBMS field values
+ *****************************************************************************/
+typedef enum {
+	ICP_QAT_HW_COMP_20_LBMS_LBMS_64KB = 0x0,
+	/* LZ4 Block Maximum Size (LBMS) == 64 KB */
+	ICP_QAT_HW_COMP_20_LBMS_LBMS_256KB = 0x1,
+	/* LZ4 Block Maximum Size (LBMS) == 256 KB */
+	ICP_QAT_HW_COMP_20_LBMS_LBMS_1MB = 0x2,
+	/* LZ4 Block Maximum Size (LBMS) == 1 MB */
+	ICP_QAT_HW_COMP_20_LBMS_LBMS_4MB = 0x3,
+	/* LZ4 Block Maximum Size (LBMS) == 4 MB */
+} icp_qat_hw_comp_20_lbms_t;
+
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_DEFAULT_VAL                         \
+	ICP_QAT_HW_COMP_20_LBMS_LBMS_64KB
+
+/*****************************************************************************/
 /* SCB Mode Reset Mask (Set By FW) , located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_BITPOS 18
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_MASK 0x1
@@ -150,23 +174,24 @@ typedef enum {
  *****************************************************************************/
 typedef enum {
 	ICP_QAT_HW_COMP_20_SCB_MODE_RESET_MASK_RESET_COUNTERS = 0x0,
-	/* iLZ77 mode: Reset LFCT, OBC */
+	/* LZ4 mode: Reset LIBC, LOBC, In iLZ77 mode: Reset LFCT, OBC */
 	ICP_QAT_HW_COMP_20_SCB_MODE_RESET_MASK_RESET_COUNTERS_AND_HISTORY = 0x1,
-	/* iLZ77 mode: Reset LFCT, OBC, HB, HT */
+	/* LZ4 mode: Reset LIBC, LOBC, HB, HT, In iLZ77 mode: Reset LFCT, OBC,
+	   HB, HT */
 } icp_qat_hw_comp_20_scb_mode_reset_mask_t;
 
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_DEFAULT_VAL          \
 	ICP_QAT_HW_COMP_20_SCB_MODE_RESET_MASK_RESET_COUNTERS
 
 /*****************************************************************************/
-/* Lazy - For iLZ77 and Static DEFLATE, Lazy = 102h , located in upper
+/* Lazy - For iLZ77, LZ4, and Static DEFLATE, Lazy = 102h , located in upper
  * 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LAZY_PARAM_BITPOS 9
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LAZY_PARAM_MASK 0x1ff
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LAZY_PARAM_DEFAULT_VAL 258
 
 /*****************************************************************************/
-/* Nice - For iLZ77 and Static DEFLATE, Nice = 103h , located in upper
+/* Nice - For iLZ77, LZ4, and Static DEFLATE, Nice = 103h , located in upper
  * 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_NICE_PARAM_BITPOS 0
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_NICE_PARAM_MASK 0x1ff
@@ -186,8 +211,6 @@ typedef enum {
 typedef enum {
 	ICP_QAT_HW_COMP_20_HBS_CONTROL_HBS_IS_32KB = 0x0,
 	/* 000b - 32KB  */
-	ICP_QAT_HW_COMP_20_HBS_CONTROL_HBS_IS_64KB = 0x1,
-	/* 001b - 64KB */
 } icp_qat_hw_comp_20_hbs_control_t;
 
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HBS_CONTROL_DEFAULT_VAL                  \
@@ -248,9 +271,11 @@ typedef enum {
 	ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_1 = 0x1,
 	/* 0001b - Level 1 (search depth = 2^1 = 2) */
 	ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_6 = 0x3,
-	/* 0011b - Level 6 (search depth = 2^3 = 8) */
+	/* 0001b - Level 6 (search depth = 2^3 = 8) */
 	ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_9 = 0x4,
-	/* 0100b - Level 9 (search depth = 2^4 = 16) */
+	/* 0001b - Level 9 (search depth = 2^4 = 16) */
+	ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_9P = 0x12,
+	/* 0001b - Level 9P (search depth = 2^12 = 4096) */
 } icp_qat_hw_comp_20_search_depth_t;
 
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SEARCH_DEPTH_DEFAULT_VAL                 \
@@ -272,11 +297,36 @@ typedef enum {
 	/* 000 - iLZ77. (Must set Min_Match = 3 bytes and HB size = 32KB.) */
 	ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_DEFLATE = 0x1,
 	/* 001 - Static DEFLATE. (Must set Min_Match = 3 bytes and HB size =
-	   32KB.)  */
+	 * 32KB.)
+	 */
+	ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_LZ4 = 0x2,
+	/* 010 - LZ4. (Must set Min Match = 4 bytes and HB size = 64KB.) */
+	ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_LZ4S = 0x3,
+	/* 011 - LZ4s. (Min_Match and HBSize must be set accordingly.) */
 } icp_qat_hw_comp_20_hw_comp_format_t;
 
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HW_COMP_FORMAT_DEFAULT_VAL               \
 	ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_DEFLATE
+
+/*****************************************************************************/
+/* Min Match (Set By FW to default value), located in lower 32bit */
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS 4
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK 0x1
+/*
+ ****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ * @description
+ *      Enumeration of possible MIN_MATCH_CONTROL field values
+ *****************************************************************************/
+typedef enum {
+	ICP_QAT_HW_COMP_20_MIN_MATCH_CONTROL_MATCH_3B = 0x0,
+	/* 0 - Match 3 B */
+	ICP_QAT_HW_COMP_20_MIN_MATCH_CONTROL_MATCH_4B = 0x1,
+	/* 1 - Match 4 B */
+} icp_qat_hw_comp_20_min_match_control_t;
+
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_DEFAULT_VAL            \
+	ICP_QAT_HW_COMP_20_MIN_MATCH_CONTROL_MATCH_3B
 
 /*****************************************************************************/
 /* Skip Hash Collision (Set By FW to default value), located in lower 32bit */
@@ -382,23 +432,23 @@ typedef enum {
 
 /*****************************************************************************/
 /* Mini CAM Disable (Set By the Driver/ Application), located in upper 32bit */
-#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_BITPOS 30
-#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_MASK 0x1
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_RESERVED4_CONTROL_BITPOS 30
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_RESERVED4_CONTROL_MASK 0x1
 /*
  ****************************************************************************
  * @ingroup icp_qat_hw_defs
  * @description
- *      Enumeration of possible MINI_CAM_CONTROL field values
+ *      Enumeration of possible RESERVED4 field values
  *****************************************************************************/
 typedef enum {
-	ICP_QAT_HW_DECOMP_20_MINI_CAM_CONTROL_ENABLE = 0x0,
+	ICP_QAT_HW_DECOMP_20_RESERVED4_CONTROL_ENABLE = 0x0,
 	/* 0b - Enabled  */
-	ICP_QAT_HW_DECOMP_20_MINI_CAM_CONTROL_DISABLE = 0x1,
+	ICP_QAT_HW_DECOMP_20_RESERVED4_CONTROL_DISABLE = 0x1,
 	/* 1b - Disabled  */
-} icp_qat_hw_decomp_20_mini_cam_control_t;
+} icp_qat_hw_decomp_20_reserved4_control_t;
 
-#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_DEFAULT_VAL           \
-	ICP_QAT_HW_DECOMP_20_MINI_CAM_CONTROL_ENABLE
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_RESERVED4_CONTROL_DEFAULT_VAL          \
+	ICP_QAT_HW_DECOMP_20_RESERVED4_CONTROL_ENABLE
 
 /*****************************************************************************/
 /* History Buffer Size (Set By the Driver/ Application), located in lower 32bit
@@ -420,6 +470,30 @@ typedef enum {
 	ICP_QAT_HW_DECOMP_20_HBS_CONTROL_HBS_IS_32KB
 
 /*****************************************************************************/
+/* LZ4 Block Maximum Size (LBMS). Set by FW , located in lower 32bit */
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_BITPOS 8
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_MASK 0x3
+/*
+ ****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ * @description
+ *      Enumeration of possible LBMS field values
+ *****************************************************************************/
+typedef enum {
+	ICP_QAT_HW_DECOMP_20_LBMS_LBMS_64KB = 0x0,
+	/* LZ4 Block Maximum Size (LBMS) == 64 KB */
+	ICP_QAT_HW_DECOMP_20_LBMS_LBMS_256KB = 0x1,
+	/* LZ4 Block Maximum Size (LBMS) == 256 KB */
+	ICP_QAT_HW_DECOMP_20_LBMS_LBMS_1MB = 0x2,
+	/* LZ4 Block Maximum Size (LBMS) == 1 MB */
+	ICP_QAT_HW_DECOMP_20_LBMS_LBMS_4MB = 0x3,
+	/* LZ4 Block Maximum Size (LBMS) == 4 MB */
+} icp_qat_hw_decomp_20_lbms_t;
+
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_DEFAULT_VAL                       \
+	ICP_QAT_HW_DECOMP_20_LBMS_LBMS_64KB
+
+/*****************************************************************************/
 /* Decompression Format (Set By Driver/Application. Also See CMD ID), located in
  * lower 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_BITPOS 5
@@ -433,10 +507,57 @@ typedef enum {
 typedef enum {
 	ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE = 0x1,
 	/* 001 - Static DEFLATE. (Must set Min_Match = 3 bytes and HB size =
-	   32KB.)  */
+	 * 32KB.)
+	 */
+	ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_LZ4 = 0x2,
+	/* 010 - LZ4. (Must set Min Match = 4 bytes and HB size = 32KB.) */
+	ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_LZ4S = 0x3,
+	/* 011 - LZ4s. (Min_Match and HBSize must be set accordingly.) */
 } icp_qat_hw_decomp_20_hw_comp_format_t;
 
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_DEFAULT_VAL           \
 	ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE
 
-#endif //_ICP_QAT_HW_20_COMP_DEFS_H
+/*****************************************************************************/
+/* Decompression Format (Set By Driver/Application. Also See CMD ID), located in
+ * lower 32bit */
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS 4
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK 0x1
+
+/*
+ ****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ * @description
+ *      Enumeration of possible MIN_MATCH_CONTROL field values
+ *****************************************************************************/
+typedef enum {
+	ICP_QAT_HW_DECOMP_20_MIN_MATCH_CONTROL_MATCH_3B = 0x0,
+	/* 0 - Match 3 B */
+	ICP_QAT_HW_DECOMP_20_MIN_MATCH_CONTROL_MATCH_4B = 0x1,
+	/* 1 - Match 4 B */
+} icp_qat_hw_decomp_20_min_match_control_t;
+
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_DEFAULT_VAL          \
+	ICP_QAT_HW_DECOMP_20_MIN_MATCH_CONTROL_MATCH_3B
+
+/*****************************************************************************/
+/* LZ4 Block Checksum Present, located in lower 32bit */
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LZ4_BLOCK_CHECKSUM_PRESENT_BITPOS 3
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LZ4_BLOCK_CHECKSUM_PRESENT_MASK 0x1
+/*
+ ****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ * @description
+ *      Enumeration of possible LZ4_CHECKSUM_PRESENT field values
+ *****************************************************************************/
+typedef enum {
+	ICP_QAT_HW_DECOMP_20_LZ4_BLOCK_CHKSUM_ABSENT = 0x0,
+	/* the LZ4 Block does not contain the 4-byte checksum  */
+	ICP_QAT_HW_DECOMP_20_LZ4_BLOCK_CHKSUM_PRESENT = 0x1,
+	/* LZ4 Block contains a 4-byte checksum.  */
+} icp_qat_hw_decomp_20_lz4_block_checksum_present_t;
+
+#define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LZ4_BLOCK_CHECKSUM_PRESENT_DEFAULT_VAL \
+	ICP_QAT_HW_DECOMP_20_LZ4_BLOCK_CHKSUM_ABSENT
+
+#endif /* _ICP_QAT_HW_20_COMP_DEFS_H */

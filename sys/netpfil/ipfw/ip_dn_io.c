@@ -865,7 +865,7 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 		dt->if_index = fwa->ifp->if_index;
 		dt->if_idxgen = fwa->ifp->if_idxgen;
 	}
-	/* dt->output tame is updated as we move through */
+	/* dt->output_time is updated as we move through */
 	dt->output_time = V_dn_cfg.curr_time;
 	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
 	return 0;

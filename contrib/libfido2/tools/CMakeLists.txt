@@ -1,6 +1,7 @@
-# Copyright (c) 2018 Yubico AB. All rights reserved.
+# Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 list(APPEND COMPAT_SOURCES
 	../openbsd-compat/bsd-getpagesize.c
@@ -31,7 +32,7 @@ if(NOT MSVC)
 	set_source_files_properties(assert_get.c assert_verify.c base64.c bio.c
 	    config.c cred_make.c cred_verify.c credman.c fido2-assert.c
 	    fido2-cred.c fido2-token.c pin.c token.c util.c
-	    PROPERTIES COMPILE_FLAGS "-Wconversion -Wsign-conversion")
+	    PROPERTIES COMPILE_FLAGS "${EXTRA_CFLAGS}")
 endif()
 
 add_executable(fido2-cred
@@ -64,13 +65,6 @@ add_executable(fido2-token
 	util.c
 	${COMPAT_SOURCES}
 )
-
-# set the library to link against
-if(BUILD_SHARED_LIBS)
-	set(_FIDO2_LIBRARY fido2_shared)
-else()
-	set(_FIDO2_LIBRARY fido2)
-endif()
 
 target_link_libraries(fido2-cred ${CRYPTO_LIBRARIES} ${_FIDO2_LIBRARY})
 target_link_libraries(fido2-assert ${CRYPTO_LIBRARIES} ${_FIDO2_LIBRARY})

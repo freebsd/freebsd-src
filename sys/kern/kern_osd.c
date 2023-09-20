@@ -112,7 +112,7 @@ osd_register(u_int type, osd_destructor_t destructor, osd_method_t *methods)
 	for (i = 0; i < osdm[type].osd_ntslots; i++) {
 		if (osdm[type].osd_destructors[i] == NULL) {
 			OSD_DEBUG("Unused slot found (type=%u, slot=%u).",
-			    type, i);
+			    type, i + 1);
 			break;
 		}
 	}
@@ -166,32 +166,18 @@ osd_deregister(u_int type, u_int slot)
 	LIST_FOREACH_SAFE(osd, &osdm[type].osd_list, osd_next, tosd)
 		do_osd_del(type, osd, slot, 1);
 	mtx_unlock(&osdm[type].osd_list_lock);
+
 	/*
-	 * Set destructor to NULL to free the slot.
+	 * Set destructor to NULL to free the slot.  We don't bother actually
+	 * freeing any memory here because we'll gracefully reuse any freed
+	 * slots, and reallocating the arrays as a smaller chunk of memory isn't
+	 * actually guaranteed to succeed.  As such, we'll err on the side of
+	 * caution and just leave it be since these are generally modestly sized
+	 * allocations.
 	 */
 	osdm[type].osd_destructors[slot - 1] = NULL;
-	if (slot == osdm[type].osd_ntslots) {
-		osdm[type].osd_ntslots--;
-		osdm[type].osd_destructors = realloc(osdm[type].osd_destructors,
-		    sizeof(osd_destructor_t) * osdm[type].osd_ntslots, M_OSD,
-		    M_NOWAIT | M_ZERO);
-		if (osdm[type].osd_nmethods != 0)
-			osdm[type].osd_methods = realloc(osdm[type].osd_methods,
-			    sizeof(osd_method_t) * osdm[type].osd_ntslots *
-			    osdm[type].osd_nmethods, M_OSD, M_NOWAIT | M_ZERO);
-		/*
-		 * We always reallocate to smaller size, so we assume it will
-		 * always succeed.
-		 */
-		KASSERT(osdm[type].osd_destructors != NULL &&
-		    (osdm[type].osd_nmethods == 0 ||
-		     osdm[type].osd_methods != NULL), ("realloc() failed"));
-		OSD_DEBUG("Deregistration of the last slot (type=%u, slot=%u).",
-		    type, slot);
-	} else {
-		OSD_DEBUG("Slot deregistration (type=%u, slot=%u).",
-		    type, slot);
-	}
+	OSD_DEBUG("Slot deregistration (type=%u, slot=%u).", type, slot);
+
 	rm_wunlock(&osdm[type].osd_object_lock);
 	sx_xunlock(&osdm[type].osd_module_lock);
 }

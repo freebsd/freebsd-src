@@ -45,7 +45,7 @@ arm/nvidia/drm2/tegra_bo.c		optional	drm2
 tegra124_xusb_fw.c			optional tegra124_xusb_fw	\
 	dependency	"$S/arm/nvidia/tegra124/files.tegra124"		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk tegra124_xusb.fw:tegra124_xusb_fw -mtegra124_xusb_fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"tegra124_xusb_fw.c"
 tegra124_xusb.fwo			optional tegra124_xusb_fw	\
 	dependency	"tegra124_xusb.fw"				\

@@ -1073,6 +1073,7 @@ _rtld_error(const char *fmt, ...)
 	    fmt, ap);
 	va_end(ap);
 	*lockinfo.dlerror_seen() = 0;
+	dbg("rtld_error: %s", lockinfo.dlerror_loc());
 	LD_UTRACE(UTRACE_RTLD_ERROR, NULL, NULL, 0, 0, lockinfo.dlerror_loc());
 }
 
@@ -5254,13 +5255,13 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
     tls_block_size += pre_size + tls_static_space - TLS_TCB_SIZE - post_size;
 
     /* Allocate whole TLS block */
-    tls_block = malloc_aligned(tls_block_size, maxalign, 0);
+    tls_block = xmalloc_aligned(tls_block_size, maxalign, 0);
     tcb = (Elf_Addr **)(tls_block + pre_size + extra_size);
 
     if (oldtcb != NULL) {
 	memcpy(tls_block, get_tls_block_ptr(oldtcb, tcbsize),
 	    tls_static_space);
-	free_aligned(get_tls_block_ptr(oldtcb, tcbsize));
+	free(get_tls_block_ptr(oldtcb, tcbsize));
 
 	/* Adjust the DTV. */
 	dtv = tcb[0];
@@ -5324,7 +5325,7 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	}
     }
     free(dtv);
-    free_aligned(get_tls_block_ptr(tcb, tcbsize));
+    free(get_tls_block_ptr(tcb, tcbsize));
 }
 
 #endif	/* TLS_VARIANT_I */
@@ -5350,7 +5351,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     size = roundup(tls_static_space, ralign) + roundup(tcbsize, ralign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = malloc_aligned(size, ralign, 0 /* XXX */);
+    tls = xmalloc_aligned(size, ralign, 0 /* XXX */);
     dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
     segbase = (Elf_Addr)(tls + roundup(tls_static_space, ralign));
@@ -5429,11 +5430,11 @@ free_tls(void *tls, size_t tcbsize  __unused, size_t tcbalign)
     for (i = 0; i < dtvsize; i++) {
 	    if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart ||
 	        dtv[i + 2] > tlsend)) {
-		    free_aligned((void *)dtv[i + 2]);
+		    free((void *)dtv[i + 2]);
 	}
     }
 
-    free_aligned((void *)tlsstart);
+    free((void *)tlsstart);
     free((void *)dtv);
 }
 
@@ -5470,7 +5471,7 @@ allocate_module_tls(int index)
 
 	obj->tls_dynamic = true;
 
-	p = malloc_aligned(obj->tlssize, obj->tlsalign, obj->tlspoffset);
+	p = xmalloc_aligned(obj->tlssize, obj->tlsalign, obj->tlspoffset);
 	memcpy(p, obj->tlsinit, obj->tlsinitsize);
 	memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
 	return (p);
@@ -5897,8 +5898,10 @@ distribute_static_tls(Objlist *list, RtldLockState *lockstate)
 		obj = elm->obj;
 		if (obj->marker || !obj->tls_static || obj->static_tls_copied)
 			continue;
+		lock_release(rtld_bind_lock, lockstate);
 		distrib(obj->tlsoffset, obj->tlsinit, obj->tlsinitsize,
 		    obj->tlssize);
+		wlock_acquire(rtld_bind_lock, lockstate);
 		obj->static_tls_copied = true;
 	}
 }

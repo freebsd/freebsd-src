@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)scandir.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd August 23, 2022
+.Dd August 31, 2023
 .Dt SCANDIR 3
 .Os
 .Sh NAME
@@ -48,9 +48,9 @@
 .Fa "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp"
 .Fa "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Fc
-.Ft
+.Ft int
 .Fo scandirat
-.Fa int dirfd
+.Fa "int dirfd"
 .Fa "const char *dirname"
 .Fa "struct dirent ***namelist"
 .Fa "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp"
@@ -60,7 +60,7 @@
 .Fo scandir_b
 .Fa "const char *dirname"
 .Fa "struct dirent ***namelist"
-.Fa "int \*(lp*select\^(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp^select\*(rp\*(lpconst struct dirent *\*(rp"
 .Fa "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Fc
 .Ft int
@@ -186,7 +186,6 @@ functions appeared in
 The
 .Fn scandirat
 and
-.Fn
-versionsort
+.Fn versionsort
 functions were added in
-.Fx 14.0 .
+.Fx 13.2 .

@@ -250,6 +250,7 @@ struct spa {
 	uint64_t	spa_min_ashift;		/* of vdevs in normal class */
 	uint64_t	spa_max_ashift;		/* of vdevs in normal class */
 	uint64_t	spa_min_alloc;		/* of vdevs in normal class */
+	uint64_t	spa_gcd_alloc;		/* of vdevs in normal class */
 	uint64_t	spa_config_guid;	/* config pool guid */
 	uint64_t	spa_load_guid;		/* spa_load initialized guid */
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
@@ -262,6 +263,7 @@ struct spa {
 	 */
 	spa_alloc_t	*spa_allocs;
 	int		spa_alloc_count;
+	int		spa_active_allocator;	/* selectable allocator */
 
 	spa_aux_vdev_t	spa_spares;		/* hot spares */
 	spa_aux_vdev_t	spa_l2cache;		/* L2ARC cache devices */
@@ -466,6 +468,8 @@ extern int param_set_deadman_failmode_common(const char *val);
 extern void spa_set_deadman_synctime(hrtime_t ns);
 extern void spa_set_deadman_ziotime(hrtime_t ns);
 extern const char *spa_history_zone(void);
+extern const char *zfs_active_allocator;
+extern int param_set_active_allocator_common(const char *val);
 
 #ifdef	__cplusplus
 }

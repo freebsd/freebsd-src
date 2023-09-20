@@ -429,7 +429,7 @@ vtgpu_alloc_virtqueue(struct vtgpu_softc *sc)
 	VQ_ALLOC_INFO_INIT(&vq_info[0], 0, NULL, sc, &sc->vtgpu_ctrl_vq,
 	    "%s control", device_get_nameunit(dev));
 
-	return (virtio_alloc_virtqueues(dev, 0, nvqs, vq_info));
+	return (virtio_alloc_virtqueues(dev, nvqs, vq_info));
 }
 
 static int

@@ -53,6 +53,14 @@ extern bool ice_enable_irdma;
  * @brief RDMA peer list node
  *
  * Structure used to store peer entries for each PF in a linked list.
+ * @var ice_rdma_entry::attached
+ * 	check for irdma driver attached
+ * @var ice_rdma_entry::initiated
+ * 	check for irdma driver ready to use
+ * @var ice_rdma_entry::node
+ * 	list node of the RDMA entry
+ * @var ice_rdma_entry::peer
+ * 	pointer to peer
  */
 struct ice_rdma_entry {
 	LIST_ENTRY(ice_rdma_entry) node;
@@ -80,6 +88,15 @@ LIST_HEAD(ice_rdma_peers, ice_rdma_entry);
  * Contains global state shared across all PFs by the device driver, such as
  * the kobject class of the currently connected peer driver, and the linked
  * list of peer entries for each PF.
+ *
+ * @var ice_rdma_state::registered
+ * 	check forr irdma driver registered
+ * @var ice_rdma_state::peer_class
+ * 	kobject class for irdma driver
+ * @var ice_rdma_state::mtx
+ * 	mutex for protecting irdma operations
+ * @var ice_rdma_state::peers
+ * 	list of RDMA entries
  */
 struct ice_rdma_state {
 	bool registered;
@@ -98,4 +115,6 @@ int  ice_rdma_pf_stop(struct ice_softc *sc);
 void ice_rdma_link_change(struct ice_softc *sc, int linkstate, uint64_t baudrate);
 void ice_rdma_notify_dcb_qos_change(struct ice_softc *sc);
 void ice_rdma_dcb_qos_update(struct ice_softc *sc, struct ice_port_info *pi);
+void ice_rdma_notify_pe_intr(struct ice_softc *sc, uint32_t oicr);
+void ice_rdma_notify_reset(struct ice_softc *sc);
 #endif

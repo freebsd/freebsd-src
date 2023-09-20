@@ -43,8 +43,6 @@
 #include <dev/sound/midi/mpu401.h>
 #include "mpufoi_if.h"
 
-SND_DECLARE_FILE("");
-
 /* -------------------------------------------------------------------- */
 
 #define	NUM_G		64	/* use all channels */

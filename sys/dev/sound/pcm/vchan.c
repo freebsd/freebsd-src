@@ -36,8 +36,6 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
 
-SND_DECLARE_FILE("");
-
 /*
  * [ac3 , dts , linear , 0, linear, 0]
  */

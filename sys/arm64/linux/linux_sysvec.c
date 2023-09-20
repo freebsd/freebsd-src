@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define	__ELF_WORD_SIZE	64
 
 #include <sys/param.h>
@@ -45,14 +44,11 @@
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 
-#include <vm/pmap.h>
 #include <vm/vm.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
-#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_elf.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
@@ -107,12 +103,6 @@ static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
-
-/* DTrace init */
-LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
-
-/* DTrace probes */
-LIN_SDT_PROBE_DEFINE0(sysvec, linux_exec_setregs, todo);
 
 LINUX_VDSO_SYM_CHAR(linux_platform);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
@@ -179,19 +169,9 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	/* LINUXTODO: validate */
-	LIN_SDT_PROBE0(sysvec, linux_exec_setregs, todo);
-
 	memset(regs, 0, sizeof(*regs));
-	/* glibc start.S registers function pointer in x0 with atexit. */
-        regs->tf_sp = stack;
-#if 0	/* LINUXTODO: See if this is used. */
-	regs->tf_lr = imgp->entry_addr;
-#else
-        regs->tf_lr = 0xffffffffffffffff;
-#endif
-        regs->tf_elr = imgp->entry_addr;
-
+	regs->tf_sp = stack;
+	regs->tf_elr = imgp->entry_addr;
 	pcb->pcb_tpidr_el0 = 0;
 	pcb->pcb_tpidrro_el0 = 0;
 	WRITE_SPECIALREG(tpidrro_el0, 0);

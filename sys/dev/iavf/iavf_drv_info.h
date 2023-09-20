@@ -66,7 +66,7 @@ const char iavf_driver_version[] = "3.0.26-k";
  * to most-generic entry; e.g. PVIDV_OEM()s for a device ID must come before
  * the PVIDV() for it.
  */
-static pci_vendor_info_t iavf_vendor_info_array[] = {
+static const pci_vendor_info_t iavf_vendor_info_array[] = {
 	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_VF,
 	    "Intel(R) Ethernet Virtual Function 700 Series"),
 	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_X722_VF,

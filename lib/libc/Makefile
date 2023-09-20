@@ -7,12 +7,14 @@ SHLIBDIR?= /lib
 
 LIBC_SRCTOP?= ${.CURDIR}
 
-# Pick the current architecture directory for libc. In general, this is
-# named MACHINE_CPUARCH, but some ABIs are different enough to require
-# their own libc, so allow a directory named MACHINE_ARCH to override this.
-
-.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH:S/powerpc64le/powerpc64/})
-LIBC_ARCH=${MACHINE_ARCH:S/powerpc64le/powerpc64/}
+# Pick the current architecture directory for libc. In general, this is named
+# MACHINE_CPUARCH, but some ABIs are different enough to require their own libc,
+# so allow a directory named MACHINE_ARCH to override this (though treat
+# powerpc64le and powerpc64 the same).
+# Note: This is copeid to msun/Makefile
+M=${MACHINE_ARCH:S/powerpc64le/powerpc64/}
+.if exists(${LIBC_SRCTOP}/${M})
+LIBC_ARCH=${M}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}
 .endif

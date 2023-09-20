@@ -44,6 +44,9 @@ main() {
 		certctl)
 			pkgdeps="caroot openssl"
 			;;
+		clang)
+			pkgdeps="lld clang-dev libcompiler_rt-dev"
+			;;
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.

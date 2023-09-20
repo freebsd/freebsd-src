@@ -497,7 +497,7 @@ static struct ibv_cq_ex *create_cq(struct ibv_context *context,
 	cq_attr->cqe = align_queue_size(cq_attr->cqe + 1);
 
 	if (mlx4_alloc_cq_buf(to_mdev(context->device), &cq->buf, cq_attr->cqe, mctx->cqe_size))
-		goto err;
+		goto err_spl;
 
 	cq->cqe_size = mctx->cqe_size;
 	cq->set_ci_db  = mlx4_alloc_db(to_mctx(context), MLX4_DB_TYPE_CQ);
@@ -534,6 +534,9 @@ err_db:
 
 err_buf:
 	mlx4_free_buf(&cq->buf);
+
+err_spl:
+	pthread_spin_destroy(&cq->lock);
 
 err:
 	free(cq);
@@ -631,6 +634,8 @@ int mlx4_destroy_cq(struct ibv_cq *cq)
 	if (ret)
 		return ret;
 
+	verbs_cleanup_cq(cq);
+	pthread_spin_destroy(&to_mcq(cq)->lock);
 	mlx4_free_db(to_mctx(cq->context), MLX4_DB_TYPE_CQ, to_mcq(cq)->set_ci_db);
 	mlx4_free_buf(&to_mcq(cq)->buf);
 	free(to_mcq(cq));
@@ -663,7 +668,7 @@ struct ibv_srq *mlx4_create_srq(struct ibv_pd *pd,
 	srq->ext_srq = 0;
 
 	if (mlx4_alloc_srq_buf(pd, &attr->attr, srq))
-		goto err;
+		goto err_spl;
 
 	srq->db = mlx4_alloc_db(to_mctx(pd->context), MLX4_DB_TYPE_RQ);
 	if (!srq->db)
@@ -688,6 +693,9 @@ err_db:
 err_free:
 	free(srq->wrid);
 	mlx4_free_buf(&srq->buf);
+
+err_spl:
+	pthread_spin_destroy(&srq->lock);
 
 err:
 	free(srq);
@@ -738,6 +746,7 @@ int mlx4_destroy_srq(struct ibv_srq *srq)
 	mlx4_free_db(to_mctx(srq->context), MLX4_DB_TYPE_RQ, to_msrq(srq)->db);
 	mlx4_free_buf(&to_msrq(srq)->buf);
 	free(to_msrq(srq)->wrid);
+	pthread_spin_destroy(&to_msrq(srq)->lock);
 	free(to_msrq(srq));
 
 	return 0;
@@ -841,14 +850,15 @@ struct ibv_qp *mlx4_create_qp_ex(struct ibv_context *context,
 
 	mlx4_init_qp_indices(qp);
 
-	if (pthread_spin_init(&qp->sq.lock, PTHREAD_PROCESS_PRIVATE) ||
-	    pthread_spin_init(&qp->rq.lock, PTHREAD_PROCESS_PRIVATE))
+	if (pthread_spin_init(&qp->sq.lock, PTHREAD_PROCESS_PRIVATE))
 		goto err_free;
+	if (pthread_spin_init(&qp->rq.lock, PTHREAD_PROCESS_PRIVATE))
+		goto err_sq_spl;
 
 	if (attr->cap.max_recv_sge) {
 		qp->db = mlx4_alloc_db(to_mctx(context), MLX4_DB_TYPE_RQ);
 		if (!qp->db)
-			goto err_free;
+			goto err_rq_spl;
 
 		*qp->db = 0;
 		cmd.db_addr = (uintptr_t) qp->db;
@@ -903,7 +913,10 @@ err_rq_db:
 	pthread_mutex_unlock(&to_mctx(context)->qp_table_mutex);
 	if (attr->cap.max_recv_sge)
 		mlx4_free_db(to_mctx(context), MLX4_DB_TYPE_RQ, qp->db);
-
+err_rq_spl:
+	pthread_spin_destroy(&qp->rq.lock);
+err_sq_spl:
+	pthread_spin_destroy(&qp->sq.lock);
 err_free:
 	free(qp->sq.wrid);
 	if (qp->rq.wqe_cnt)
@@ -1107,6 +1120,9 @@ int mlx4_destroy_qp(struct ibv_qp *ibqp)
 
 	mlx4_unlock_cqs(ibqp);
 	pthread_mutex_unlock(&to_mctx(ibqp->context)->qp_table_mutex);
+
+	pthread_spin_destroy(&qp->rq.lock);
+	pthread_spin_destroy(&qp->sq.lock);
 
 	if (qp->rq.wqe_cnt) {
 		mlx4_free_db(to_mctx(ibqp->context), MLX4_DB_TYPE_RQ, qp->db);

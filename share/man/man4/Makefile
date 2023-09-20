@@ -57,6 +57,7 @@ MAN=	aac.4 \
 	ath_hal.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	${_atopcase.4} \
 	atp.4 \
 	${_atf_test_case.4} \
 	${_atrtc.4} \
@@ -470,7 +471,6 @@ MAN=	aac.4 \
 	rtnetlink.4 \
 	rtsx.4 \
 	rtw88.4 \
-	rtw88fw.4 \
 	rtwn.4 \
 	rtwnfw.4 \
 	rtwn_pci.4 \
@@ -794,6 +794,7 @@ _amdsmb.4=	amdsmb.4
 _amdsmn.4=	amdsmn.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
+_atopcase.4=	atopcase.4
 _bxe.4=		bxe.4
 _bytgpio.4=	bytgpio.4
 _chvgpio.4=	chvgpio.4

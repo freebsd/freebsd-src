@@ -203,6 +203,7 @@ grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2004/04/10"]
 jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
+jbo [label="Joel Bodenmann\njbo@FreeBSD.org\n2023/09/06"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jhixson [label="John Hixson\njhixson@FreeBSD.org\n2018/07/16"]
@@ -791,6 +792,7 @@ tcberner -> adridg
 tcberner -> arrowd
 tcberner -> diizzy
 tcberner -> fernape
+tcberner -> jbo
 tcberner -> joneum
 tcberner -> kai
 tcberner -> lbartoletti
@@ -841,5 +843,7 @@ wxs -> swills
 wxs -> zi
 
 ygy -> yasu
+
+zirias -> jbo
 
 }

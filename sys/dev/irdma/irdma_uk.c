@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -274,7 +274,8 @@ irdma_qp_get_next_send_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx,
 	if (qp->uk_attrs->hw_rev == IRDMA_GEN_1 && wqe_quanta == 1 &&
 	    (IRDMA_RING_CURRENT_HEAD(qp->sq_ring) & 1)) {
 		wqe_0 = qp->sq_base[IRDMA_RING_CURRENT_HEAD(qp->sq_ring)].elem;
-		wqe_0[3] = cpu_to_le64(FIELD_PREP(IRDMAQPSQ_VALID, !qp->swqe_polarity));
+		wqe_0[3] = cpu_to_le64(FIELD_PREP(IRDMAQPSQ_VALID,
+						  qp->swqe_polarity ? 0 : 1));
 	}
 	qp->sq_wrtrk_array[*wqe_idx].wrid = info->wr_id;
 	qp->sq_wrtrk_array[*wqe_idx].wr_len = total_size;
@@ -596,22 +597,6 @@ irdma_uk_send(struct irdma_qp_uk *qp, struct irdma_post_sq_info *info,
 }
 
 /**
- * irdma_set_mw_bind_wqe_gen_1 - set mw bind wqe
- * @wqe: wqe for setting fragment
- * @op_info: info for setting bind wqe values
- */
-static void
-irdma_set_mw_bind_wqe_gen_1(__le64 * wqe,
-			    struct irdma_bind_window *op_info)
-{
-	set_64bit_val(wqe, IRDMA_BYTE_0, (uintptr_t)op_info->va);
-	set_64bit_val(wqe, IRDMA_BYTE_8,
-		      FIELD_PREP(IRDMAQPSQ_PARENTMRSTAG, op_info->mw_stag) |
-		      FIELD_PREP(IRDMAQPSQ_MWSTAG, op_info->mr_stag));
-	set_64bit_val(wqe, IRDMA_BYTE_16, op_info->bind_len);
-}
-
-/**
  * irdma_copy_inline_data_gen_1 - Copy inline data to wqe
  * @wqe: pointer to wqe
  * @sge_list: table of pointers to inline data
@@ -656,22 +641,6 @@ irdma_copy_inline_data_gen_1(u8 *wqe, struct irdma_sge *sge_list,
  */
 static inline u16 irdma_inline_data_size_to_quanta_gen_1(u32 data_size) {
 	return data_size <= 16 ? IRDMA_QP_WQE_MIN_QUANTA : 2;
-}
-
-/**
- * irdma_set_mw_bind_wqe - set mw bind in wqe
- * @wqe: wqe for setting mw bind
- * @op_info: info for setting wqe values
- */
-static void
-irdma_set_mw_bind_wqe(__le64 * wqe,
-		      struct irdma_bind_window *op_info)
-{
-	set_64bit_val(wqe, IRDMA_BYTE_0, (uintptr_t)op_info->va);
-	set_64bit_val(wqe, IRDMA_BYTE_8,
-		      FIELD_PREP(IRDMAQPSQ_PARENTMRSTAG, op_info->mr_stag) |
-		      FIELD_PREP(IRDMAQPSQ_MWSTAG, op_info->mw_stag));
-	set_64bit_val(wqe, IRDMA_BYTE_16, op_info->bind_len);
 }
 
 /**
@@ -1546,14 +1515,12 @@ static const struct irdma_wqe_uk_ops iw_wqe_uk_ops = {
 	.iw_copy_inline_data = irdma_copy_inline_data,
 	.iw_inline_data_size_to_quanta = irdma_inline_data_size_to_quanta,
 	.iw_set_fragment = irdma_set_fragment,
-	.iw_set_mw_bind_wqe = irdma_set_mw_bind_wqe,
 };
 
 static const struct irdma_wqe_uk_ops iw_wqe_uk_ops_gen_1 = {
 	.iw_copy_inline_data = irdma_copy_inline_data_gen_1,
 	.iw_inline_data_size_to_quanta = irdma_inline_data_size_to_quanta_gen_1,
 	.iw_set_fragment = irdma_set_fragment_gen_1,
-	.iw_set_mw_bind_wqe = irdma_set_mw_bind_wqe_gen_1,
 };
 
 /**
@@ -1759,6 +1726,9 @@ irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq)
 		if (polarity != temp)
 			break;
 
+		/* Ensure CQE contents are read after valid bit is checked */
+		rmb();
+
 		get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
 		if ((void *)(irdma_uintptr) comp_ctx == q)
 			set_64bit_val(cqe, IRDMA_BYTE_8, 0);
@@ -1767,48 +1737,6 @@ irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq)
 		if (!cq_head)
 			temp ^= 1;
 	} while (true);
-	return 0;
-}
-
-/**
- * irdma_nop - post a nop
- * @qp: hw qp ptr
- * @wr_id: work request id
- * @signaled: signaled for completion
- * @post_sq: ring doorbell
- */
-int
-irdma_nop(struct irdma_qp_uk *qp, u64 wr_id, bool signaled, bool post_sq)
-{
-	__le64 *wqe;
-	u64 hdr;
-	u32 wqe_idx;
-	struct irdma_post_sq_info info = {0};
-	u16 quanta = IRDMA_QP_WQE_MIN_QUANTA;
-
-	info.push_wqe = qp->push_db ? true : false;
-	info.wr_id = wr_id;
-	wqe = irdma_qp_get_next_send_wqe(qp, &wqe_idx, &quanta, 0, &info);
-	if (!wqe)
-		return -ENOSPC;
-
-	set_64bit_val(wqe, IRDMA_BYTE_0, 0);
-	set_64bit_val(wqe, IRDMA_BYTE_8, 0);
-	set_64bit_val(wqe, IRDMA_BYTE_16, 0);
-
-	hdr = FIELD_PREP(IRDMAQPSQ_OPCODE, IRDMAQP_OP_NOP) |
-	    FIELD_PREP(IRDMAQPSQ_SIGCOMPL, signaled) |
-	    FIELD_PREP(IRDMAQPSQ_VALID, qp->swqe_polarity);
-
-	irdma_wmb();		/* make sure WQE is populated before valid bit is set */
-
-	set_64bit_val(wqe, IRDMA_BYTE_24, hdr);
-
-	if (info.push_wqe)
-		irdma_qp_push_wqe(qp, wqe, quanta, wqe_idx, post_sq);
-	else if (post_sq)
-		irdma_uk_qp_post_wr(qp);
-
 	return 0;
 }
 

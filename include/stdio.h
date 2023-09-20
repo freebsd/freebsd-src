@@ -415,6 +415,7 @@ FILE	*funopen(const void *,
 #define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
 #define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
 
+#if __BSD_VISIBLE
 typedef __ssize_t cookie_read_function_t(void *, char *, size_t);
 typedef __ssize_t cookie_write_function_t(void *, const char *, size_t);
 typedef int cookie_seek_function_t(void *, off64_t *, int);
@@ -426,6 +427,7 @@ typedef struct {
 	cookie_close_function_t	*close;
 } cookie_io_functions_t;
 FILE	*fopencookie(void *, const char *, cookie_io_functions_t);
+#endif
 
 /*
  * Portability hacks.  See <sys/types.h>.

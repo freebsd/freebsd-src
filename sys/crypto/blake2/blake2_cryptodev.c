@@ -29,11 +29,9 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 #include <sys/smp.h>
 
 #include <blake2.h>
@@ -49,26 +47,8 @@ struct blake2_session {
 CTASSERT((size_t)BLAKE2B_KEYBYTES > (size_t)BLAKE2S_KEYBYTES);
 
 struct blake2_softc {
-	bool	dying;
 	int32_t cid;
-	struct rwlock lock;
 };
-
-static struct mtx_padalign *ctx_mtx;
-static struct fpu_kern_ctx **ctx_fpu;
-
-#define ACQUIRE_CTX(i, ctx)					\
-	do {							\
-		(i) = PCPU_GET(cpuid);				\
-		mtx_lock(&ctx_mtx[(i)]);			\
-		(ctx) = ctx_fpu[(i)];				\
-	} while (0)
-#define RELEASE_CTX(i, ctx)					\
-	do {							\
-		mtx_unlock(&ctx_mtx[(i)]);			\
-		(i) = -1;					\
-		(ctx) = NULL;					\
-	} while (0)
 
 static int blake2_cipher_setup(struct blake2_session *ses,
     const struct crypto_session_params *csp);
@@ -94,33 +74,12 @@ blake2_probe(device_t dev)
 	return (0);
 }
 
-static void
-blake2_cleanctx(void)
-{
-	int i;
-
-	/* XXX - no way to return driverid */
-	CPU_FOREACH(i) {
-		if (ctx_fpu[i] != NULL) {
-			mtx_destroy(&ctx_mtx[i]);
-			fpu_kern_free_ctx(ctx_fpu[i]);
-		}
-		ctx_fpu[i] = NULL;
-	}
-	free(ctx_mtx, M_BLAKE2);
-	ctx_mtx = NULL;
-	free(ctx_fpu, M_BLAKE2);
-	ctx_fpu = NULL;
-}
-
 static int
 blake2_attach(device_t dev)
 {
 	struct blake2_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	sc->dying = false;
 
 	sc->cid = crypto_get_driverid(dev, sizeof(struct blake2_session),
 	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC |
@@ -129,23 +88,6 @@ blake2_attach(device_t dev)
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
 	}
-
-	ctx_mtx = malloc(sizeof(*ctx_mtx) * (mp_maxid + 1), M_BLAKE2,
-	    M_WAITOK | M_ZERO);
-	ctx_fpu = malloc(sizeof(*ctx_fpu) * (mp_maxid + 1), M_BLAKE2,
-	    M_WAITOK | M_ZERO);
-
-	CPU_FOREACH(i) {
-#ifdef __amd64__
-		ctx_fpu[i] = fpu_kern_alloc_ctx_domain(
-		    pcpu_find(i)->pc_domain, FPU_KERN_NORMAL);
-#else
-		ctx_fpu[i] = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
-#endif
-		mtx_init(&ctx_mtx[i], "bl2fpumtx", NULL, MTX_DEF | MTX_NEW);
-	}
-
-	rw_init(&sc->lock, "blake2_lock");
 
 	return (0);
 }
@@ -157,14 +99,7 @@ blake2_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	rw_wlock(&sc->lock);
-	sc->dying = true;
-	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
-
-	rw_destroy(&sc->lock);
-
-	blake2_cleanctx();
 
 	return (0);
 }
@@ -195,20 +130,10 @@ static int
 blake2_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
-	struct blake2_softc *sc;
 	struct blake2_session *ses;
 	int error;
 
-	sc = device_get_softc(dev);
-
 	ses = crypto_get_driver_session(cses);
-
-	rw_rlock(&sc->lock);
-	if (sc->dying) {
-		rw_runlock(&sc->lock);
-		return (EINVAL);
-	}
-	rw_runlock(&sc->lock);
 
 	error = blake2_cipher_setup(ses, csp);
 	if (error != 0) {
@@ -332,23 +257,9 @@ blake2_cipher_process(struct blake2_session *ses, struct cryptop *crp)
 	} bctx;
 	char res[BLAKE2B_OUTBYTES], res2[BLAKE2B_OUTBYTES];
 	const struct crypto_session_params *csp;
-	struct fpu_kern_ctx *ctx;
 	const void *key;
-	int ctxidx;
-	bool kt;
 	int error, rc;
 	unsigned klen;
-
-	ctx = NULL;
-	ctxidx = 0;
-	error = EINVAL;
-
-	kt = is_fpu_kern_thread(0);
-	if (!kt) {
-		ACQUIRE_CTX(ctxidx, ctx);
-		fpu_kern_enter(curthread, ctx,
-		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-	}
 
 	csp = crypto_get_params(crp->crp_session);
 	if (crp->crp_auth_key != NULL)
@@ -356,56 +267,59 @@ blake2_cipher_process(struct blake2_session *ses, struct cryptop *crp)
 	else
 		key = csp->csp_auth_key;
 	klen = csp->csp_auth_klen;
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
+
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_BLAKE2B:
 		if (klen > 0)
 			rc = blake2b_init_key(&bctx.sb, ses->mlen, key, klen);
 		else
 			rc = blake2b_init(&bctx.sb, ses->mlen);
-		if (rc != 0)
-			goto out;
+		if (rc != 0) {
+			error = EINVAL;
+			break;
+		}
 		error = crypto_apply(crp, crp->crp_payload_start,
 		    crp->crp_payload_length, blake2b_applicator, &bctx.sb);
 		if (error != 0)
-			goto out;
+			break;
 		rc = blake2b_final(&bctx.sb, res, ses->mlen);
-		if (rc != 0) {
+		if (rc != 0)
 			error = EINVAL;
-			goto out;
-		}
 		break;
 	case CRYPTO_BLAKE2S:
 		if (klen > 0)
 			rc = blake2s_init_key(&bctx.ss, ses->mlen, key, klen);
 		else
 			rc = blake2s_init(&bctx.ss, ses->mlen);
-		if (rc != 0)
-			goto out;
+		if (rc != 0) {
+			error = EINVAL;
+			break;
+		}
 		error = crypto_apply(crp, crp->crp_payload_start,
 		    crp->crp_payload_length, blake2s_applicator, &bctx.ss);
 		if (error != 0)
-			goto out;
+			break;
 		rc = blake2s_final(&bctx.ss, res, ses->mlen);
-		if (rc != 0) {
+		if (rc != 0)
 			error = EINVAL;
-			goto out;
-		}
 		break;
 	default:
-		panic("unreachable");
+		__assert_unreachable();
 	}
+
+	fpu_kern_leave(curthread, NULL);
+
+	if (error != 0)
+		return (error);
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
 		crypto_copydata(crp, crp->crp_digest_start, ses->mlen, res2);
 		if (timingsafe_bcmp(res, res2, ses->mlen) != 0)
-			return (EBADMSG);
+			error = EBADMSG;
 	} else
 		crypto_copyback(crp, crp->crp_digest_start, ses->mlen, res);
 
-out:
-	if (!kt) {
-		fpu_kern_leave(curthread, ctx);
-		RELEASE_CTX(ctxidx, ctx);
-	}
 	return (error);
 }

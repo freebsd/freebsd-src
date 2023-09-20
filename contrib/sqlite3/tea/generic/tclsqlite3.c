@@ -60,6 +60,25 @@
 # include <string.h>
 # include <assert.h>
   typedef unsigned char u8;
+# ifndef SQLITE_PTRSIZE
+#   if defined(__SIZEOF_POINTER__)
+#     define SQLITE_PTRSIZE __SIZEOF_POINTER__
+#   elif defined(i386)     || defined(__i386__)   || defined(_M_IX86) ||    \
+         defined(_M_ARM)   || defined(__arm__)    || defined(__x86)   ||    \
+        (defined(__APPLE__) && defined(__POWERPC__)) ||                     \
+        (defined(__TOS_AIX__) && !defined(__64BIT__))
+#     define SQLITE_PTRSIZE 4
+#   else
+#     define SQLITE_PTRSIZE 8
+#   endif
+# endif /* SQLITE_PTRSIZE */
+# if defined(HAVE_STDINT_H)
+    typedef uintptr_t uptr;
+# elif SQLITE_PTRSIZE==4
+    typedef unsigned int uptr;
+# else
+    typedef sqlite3_uint64 uptr;
+# endif
 #endif
 #include <ctype.h>
 
@@ -680,7 +699,7 @@ static int DbTraceV2Handler(
       pCmd = Tcl_NewStringObj(pDb->zTraceV2, -1);
       Tcl_IncrRefCount(pCmd);
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
-                               Tcl_NewWideIntObj((Tcl_WideInt)pStmt));
+                               Tcl_NewWideIntObj((Tcl_WideInt)(uptr)pStmt));
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
                                Tcl_NewStringObj(zSql, -1));
       Tcl_EvalObjEx(pDb->interp, pCmd, TCL_EVAL_DIRECT);
@@ -695,7 +714,7 @@ static int DbTraceV2Handler(
       pCmd = Tcl_NewStringObj(pDb->zTraceV2, -1);
       Tcl_IncrRefCount(pCmd);
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
-                               Tcl_NewWideIntObj((Tcl_WideInt)pStmt));
+                               Tcl_NewWideIntObj((Tcl_WideInt)(uptr)pStmt));
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
                                Tcl_NewWideIntObj((Tcl_WideInt)ns));
       Tcl_EvalObjEx(pDb->interp, pCmd, TCL_EVAL_DIRECT);
@@ -709,7 +728,7 @@ static int DbTraceV2Handler(
       pCmd = Tcl_NewStringObj(pDb->zTraceV2, -1);
       Tcl_IncrRefCount(pCmd);
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
-                               Tcl_NewWideIntObj((Tcl_WideInt)pStmt));
+                               Tcl_NewWideIntObj((Tcl_WideInt)(uptr)pStmt));
       Tcl_EvalObjEx(pDb->interp, pCmd, TCL_EVAL_DIRECT);
       Tcl_DecrRefCount(pCmd);
       Tcl_ResetResult(pDb->interp);
@@ -721,7 +740,7 @@ static int DbTraceV2Handler(
       pCmd = Tcl_NewStringObj(pDb->zTraceV2, -1);
       Tcl_IncrRefCount(pCmd);
       Tcl_ListObjAppendElement(pDb->interp, pCmd,
-                               Tcl_NewWideIntObj((Tcl_WideInt)db));
+                               Tcl_NewWideIntObj((Tcl_WideInt)(uptr)db));
       Tcl_EvalObjEx(pDb->interp, pCmd, TCL_EVAL_DIRECT);
       Tcl_DecrRefCount(pCmd);
       Tcl_ResetResult(pDb->interp);
@@ -1785,7 +1804,7 @@ static Tcl_Obj *dbEvalColumnValue(DbEvalContext *p, int iCol){
 
 /*
 ** If using Tcl version 8.6 or greater, use the NR functions to avoid
-** recursive evalution of scripts by the [db eval] and [db trans]
+** recursive evaluation of scripts by the [db eval] and [db trans]
 ** commands. Even if the headers used while compiling the extension
 ** are 8.6 or newer, the code still tests the Tcl version at runtime.
 ** This allows stubs-enabled builds to be used with older Tcl libraries.
@@ -2446,7 +2465,7 @@ static int SQLITE_TCLAPI DbObjCmd(
   **
   ** This command usage is equivalent to the sqlite2.x COPY statement,
   ** which imports file data into a table using the PostgreSQL COPY file format:
-  **   $db copy $conflit_algo $table_name $filename \t \\N
+  **   $db copy $conflict_algorithm $table_name $filename \t \\N
   */
   case DB_COPY: {
     char *zTable;               /* Insert data into this table */
@@ -3432,7 +3451,7 @@ deserialize_error:
   ** Start a new transaction (if we are not already in the midst of a
   ** transaction) and execute the TCL script SCRIPT.  After SCRIPT
   ** completes, either commit the transaction or roll it back if SCRIPT
-  ** throws an exception.  Or if no new transation was started, do nothing.
+  ** throws an exception.  Or if no new transaction was started, do nothing.
   ** pass the exception on up the stack.
   **
   ** This command was inspired by Dave Thomas's talk on Ruby at the

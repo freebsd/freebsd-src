@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 14, 2021
+.Dd September 18, 2023
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -69,16 +69,35 @@ specified by the other options.
 .It Fl H , Fl -sighup
 Close
 .Pa output_file
-and re-open it when signal SIGHUP is received, for interoperability with
+and re-open it when signal
+.Dv SIGHUP
+is received, for interoperability with
 .Xr newsyslog 1
 and similar log rotation / archival mechanisms.  If
 .Fl -output-file
 is not specified, this flag is ignored.
-.It Fl S , Fl -syslog
-Enable syslog output.
-This is implicitly applied if other syslog parameters are provided.
-The default values are daemon, notice, and daemon for facility, priority, and
-tag, respectively.
+.It Fl l , Fl -syslog-facility Ar syslog_facility
+These facilities are accepted:
+.Cm auth , authpriv , console , cron , daemon ,
+.Cm ftp , kern , lpr , mail , news , ntp , security ,
+.Cm syslog , user , uucp ,
+and
+local facilities from
+.Cm local0
+to
+.Cm local7 .
+The default is
+.Cm daemon .
+.It Fl m , Fl -output-mask Ar output_mask
+Redirect output from the child process stdout
+.Pq Cm 1 ,
+stderr
+.Pq Cm 2 ,
+or both
+.Pq Cm 3 .
+This value specifies what is sent to syslog and the log file.
+The default is
+.Cm 3 .
 .It Fl o , Fl -output-file Ar output_file
 Append output from the daemonized process to
 .Pa output_file .
@@ -89,29 +108,8 @@ and
 .Fl -sighup
 the absolute path needs to be provided to ensure
 .Nm
-can re-open the file after a SIGHUP.
-.It Fl m , Fl -output-mask Ar output_mask
-Redirect output from the child process stdout (1), stderr (2), or both (3).
-This value specifies what is sent to syslog and the log file.
-The default is 3.
-.It Fl p , Fl -child-pidfile Ar child_pidfile
-Write the ID of the created process into the
-.Ar child_pidfile
-using the
-.Xr pidfile 3
-functionality.
-The program is executed in a spawned child process while the
-.Nm
-waits until it terminates to keep the
-.Ar child_pidfile
-locked and removes it after the process exits.
-The
-.Ar child_pidfile
-owner is the user who runs the
-.Nm
-regardless of whether the
-.Fl -user
-option is used or not.
+can re-open the file after a
+.Dv SIGHUP .
 .It Fl P , Fl -supervisor-pidfile Ar supervisor_pidfile
 Write the ID of the
 .Nm
@@ -132,30 +130,58 @@ owner is the user who runs the
 regardless of whether the
 .Fl -user
 option is used or not.
-.It Fl r , Fl -restart
-Supervise and restart the program after a one-second delay if it has
-been terminated.
+.It Fl p , Fl -child-pidfile Ar child_pidfile
+Write the ID of the created process into the
+.Ar child_pidfile
+using the
+.Xr pidfile 3
+functionality.
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar child_pidfile
+locked and removes it after the process exits.
+The
+.Ar child_pidfile
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl -user
+option is used or not.
 .It Fl R , Fl -restart-delay Ar restart_delay_seconds
 Supervise and restart the program after the specified delay
 if it has been terminated.
+.It Fl r , Fl -restart
+Supervise and restart the program after a one-second delay if it has
+been terminated.
+.It Fl S , Fl -syslog
+Enable syslog output.
+This is implicitly applied if other syslog parameters are provided.
+The default values are daemon, notice, and daemon for facility, priority, and
+tag, respectively.
+.It Fl s , Fl -syslog-priority Ar syslog_priority
+These priorities are accepted:
+.Cm emerg , alert , crit , err , warning ,
+.Cm notice , info ,
+and
+.Cm debug .
+The default is
+.Cm notice .
+.It Fl T , Fl -syslog-tag Ar syslog_tag
+Set the tag which is appended to all syslog messages.
+The default is
+.Cm daemon .
 .It Fl t , Fl -title Ar title
 Set the title for the daemon process.
 The default is the daemonized invocation.
 .It Fl u , Fl -user Ar user
 Login name of the user to execute the program under.
+Environment variables
+.Ev HOME , USER ,
+and
+.Ev SHELL
+are set accordingly.
 Requires adequate superuser privileges.
-.It Fl s , Fl -syslog-priority Ar syslog_priority
-These priorities are accepted: emerg, alert, crit, err, warning,
-notice, info, and debug.
-The default is notice.
-.It Fl l , Fl -syslog-facility Ar syslog_facility
-These facilities are accepted: auth, authpriv, console, cron, daemon,
-ftp, kern, lpr, mail, news, ntp, security, syslog, user, uucp, and
-local0, ..., local7.
-The default is daemon.
-.It Fl T , Fl -syslog-tag Ar syslog_tag
-Set the tag which is appended to all syslog messages.
-The default is daemon.
 .El
 .Pp
 If any of the options
@@ -177,7 +203,9 @@ waits until it terminates to keep the pid file(s) locked and removes them
 after the process exits or restarts the program.
 In this case if the monitoring
 .Nm
-receives software termination signal (SIGTERM) it forwards it to the
+receives software termination signal
+.Pq Dv SIGTERM
+it forwards it to the
 spawned process.
 Normally it will cause the child to exit, remove the pidfile(s)
 and then terminate.

@@ -150,6 +150,9 @@ static int	link_elf_each_function_nameval(linker_file_t,
 static int	link_elf_reloc_local(linker_file_t, bool);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
+#ifdef VIMAGE
+static void	link_elf_propagate_vnets(linker_file_t);
+#endif
 
 static int	elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps,
 		    Elf_Addr *);
@@ -170,6 +173,9 @@ static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_ctf_get,		link_elf_ctf_get),
 	KOBJMETHOD(linker_symtab_get, 		link_elf_symtab_get),
 	KOBJMETHOD(linker_strtab_get, 		link_elf_strtab_get),
+#ifdef VIMAGE
+	KOBJMETHOD(linker_propagate_vnets,	link_elf_propagate_vnets),
+#endif
 	KOBJMETHOD_END
 };
 
@@ -540,7 +546,6 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				}
 				memcpy(vnet_data, ef->progtab[pb].addr,
 				    ef->progtab[pb].size);
-				vnet_data_copy(vnet_data, shdr[i].sh_size);
 				ef->progtab[pb].addr = vnet_data;
 #endif
 			} else if ((ef->progtab[pb].name != NULL &&
@@ -1107,18 +1112,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 					error = EINVAL;
 					goto out;
 				}
-				/* Initialize the per-cpu or vnet area. */
+				/* Initialize the per-cpu area. */
 				if (ef->progtab[pb].addr != (void *)mapbase &&
 				    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
-#ifdef VIMAGE
-				else if (ef->progtab[pb].addr !=
-				    (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
-					vnet_data_copy(ef->progtab[pb].addr,
-					    shdr[i].sh_size);
-#endif
 			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 
@@ -1848,7 +1846,7 @@ link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 		return (0);
 	return (ef->ddbsymcnt);
 }
-    
+
 static long
 link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 {
@@ -1859,3 +1857,25 @@ link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 		return (0);
 	return (ef->ddbstrcnt);
 }
+
+#ifdef VIMAGE
+static void
+link_elf_propagate_vnets(linker_file_t lf)
+{
+	elf_file_t ef = (elf_file_t) lf;
+
+	if (ef->progtab) {
+		for (int i = 0; i < ef->nprogtab; i++) {
+			if (ef->progtab[i].size == 0)
+				continue;
+			if (ef->progtab[i].name == NULL)
+				continue;
+			if (strcmp(ef->progtab[i].name, VNET_SETNAME) == 0) {
+				vnet_data_copy(ef->progtab[i].addr,
+				    ef->progtab[i].size);
+				break;
+			}
+		}
+	}
+}
+#endif

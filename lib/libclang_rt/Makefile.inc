@@ -1,6 +1,7 @@
 
 .include <bsd.compiler.mk>
 
+PACKAGE=	clang
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt
 .include "compiler-rt-vars.mk"
 

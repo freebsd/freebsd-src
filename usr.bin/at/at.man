@@ -1,4 +1,4 @@
-.Dd August 11, 2018
+.Dd September 18, 2023
 .Dt "AT" 1
 .Os
 .Sh NAME
@@ -81,15 +81,15 @@ or
 to run a job at a specific time of day.
 (If that time is already past, the next day is assumed.)
 As an alternative, the following keywords may be specified:
-.Em midnight ,
-.Em noon ,
+.Cm midnight ,
+.Cm noon ,
 or
-.Em teatime
+.Cm teatime
 (4pm)
 and time-of-day may be suffixed with
-.Em AM
+.Cm AM
 or
-.Em PM
+.Cm PM
 for running in the morning or the evening.
 The day on which the job is to be run may also be specified
 by giving a date in the form
@@ -101,34 +101,28 @@ or giving a date of the forms
 .Ar DD.MM.YY ,
 .Ar MM/DD/YYYY ,
 .Ar MM/DD/YY ,
-.Ar MMDDYYYY , or
+.Ar MMDDYYYY ,
+or
 .Ar MMDDYY .
 The specification of a date must follow the specification of
 the time of day.
 Time can also be specified as:
-.Op Em now
-.Em + Ar count \%time-units ,
+.Op Cm now
+.Cm \&+ Ar count \%time-units ,
 where the time-units can be
-.Em minutes ,
-.Em hours ,
-.Em days ,
-.Em weeks ,
-.Em months
+.Cm minutes ,
+.Cm hours ,
+.Cm days ,
+.Cm weeks ,
+.Cm months
 or
-.Em years
+.Cm years
 and
 .Nm
 may be told to run the job today by suffixing the time with
-.Em today
+.Cm today
 and to run the job tomorrow by suffixing the time with
-.Em tomorrow .
-.Pp
-For example, to run a job at 4pm three days from now, use
-.Nm at Ar 4pm + 3 days ,
-to run a job at 10:00am on July 31, use
-.Nm at Ar 10am Jul 31
-and to run a job at 1am tomorrow, use
-.Nm at Ar 1am tomorrow .
+.Cm tomorrow .
 .Pp
 The
 .Nm at
@@ -151,7 +145,7 @@ The working directory, the environment (except for the variables
 .Ev TERMCAP ,
 .Ev DISPLAY
 and
-.Em _ )
+.Ev _ )
 and the
 .Ar umask
 are retained from the time of invocation.
@@ -327,6 +321,22 @@ deny permission control
 .It Pa _ATJOB_DIR/_LOCKFILE
 job-creation lock file
 .El
+.Sh EXAMPLES
+To run a job at 4pm three days from now, use:
+.Bd -literal -offset indent
+at 4pm + 3 days
+.Ed
+.Pp
+To run a job at 10:00am on July 31, use:
+.Bd -literal -offset indent
+at 10am Jul 31
+.Ed
+.Pp
+To run a job at 1am tomorrow, use:
+.Bd -literal -offset indent
+at 1am tomorrow
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr nice 1 ,
 .Xr sh 1 ,

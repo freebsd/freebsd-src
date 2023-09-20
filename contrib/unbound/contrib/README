@@ -55,3 +55,6 @@ distribution but may be helpful.
   contributed by Andreas Schulze.
 * metrics.awk: awk script that can convert unbound-control stats to
   Prometheus metrics format output.
+* unbound.init_yocto: An init script to start and stop the server. Put it
+  in /etc/init.d/unbound to use it. It is for the Yocto Project, in
+  embedded systems, contributed by beni-sandu.

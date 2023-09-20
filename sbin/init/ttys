@@ -45,8 +45,8 @@ ttyu1	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 ttyu2	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 ttyu3	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 # Dumb console
-dcons	"/usr/libexec/getty std.9600"	vt100	off secure
+dcons	"/usr/libexec/getty std.115200"	vt100	off secure
 # Xen Virtual console
 xc0	"/usr/libexec/getty Pc"		xterm	onifconsole secure
 # RISC-V HTIF console
-rcons	"/usr/libexec/getty std.9600"	vt100	onifconsole secure
+rcons	"/usr/libexec/getty std.115200"	vt100	onifconsole secure

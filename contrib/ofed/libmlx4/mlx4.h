@@ -414,7 +414,8 @@ int mlx4_destroy_srq(struct ibv_srq *srq);
 int mlx4_destroy_xrc_srq(struct ibv_srq *srq);
 int mlx4_alloc_srq_buf(struct ibv_pd *pd, struct ibv_srq_attr *attr,
 			struct mlx4_srq *srq);
-void mlx4_init_xsrq_table(struct mlx4_xsrq_table *xsrq_table, int size);
+void mlx4_cleanup_xsrq_table(struct mlx4_xsrq_table *xsrq_table);
+int mlx4_init_xsrq_table(struct mlx4_xsrq_table *xsrq_table, int size);
 struct mlx4_srq *mlx4_find_xsrq(struct mlx4_xsrq_table *xsrq_table, uint32_t srqn);
 int mlx4_store_xsrq(struct mlx4_xsrq_table *xsrq_table, uint32_t srqn,
 		    struct mlx4_srq *srq);

@@ -16,6 +16,7 @@ attach_md()
 {
 	local test_md
 
+	[ -c /dev/mdctl ] || atf_skip "no /dev/mdctl to create md devices"
 	test_md=$(mdconfig -a "$@") || exit
 	echo $test_md >> $TEST_MDS_FILE || exit
 	echo $test_md

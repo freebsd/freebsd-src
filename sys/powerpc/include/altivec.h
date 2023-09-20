@@ -35,5 +35,7 @@
 void    enable_vec(struct thread *);
 void    save_vec(struct thread *);
 void    save_vec_nodrop(struct thread *);
+void    enable_vec_kern(void);
+void    disable_vec(struct thread *td);
 
 #endif	/* _MACHINE_ALTIVEC_H_ */

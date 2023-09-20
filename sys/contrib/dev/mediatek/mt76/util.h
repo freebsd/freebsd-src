@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020,2022 Bjoern A. Zeeb <bz@FreeBSD.org>
+ * Copyright (c) 2020,2022-2023 Bjoern A. Zeeb <bz@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,13 +65,6 @@ mt76_wcid_mask_clear(u32 *mask, u16 bit)
 {
 
 	mask[bit / 32] &= ~BIT(bit % 32);
-}
-
-static inline bool
-mt76_wcid_mask_test(u32 *mask, u16 bit)
-{
-
-	return (mask[bit / 32] & BIT(bit % 32));
 }
 
 /* See, e.g., __mt76_worker_fn for some details. */

@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-and.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-op-and.mk,v 1.8 2023/08/15 21:27:09 rillig Exp $
 #
 # Tests for the && operator in .if conditions.
 
@@ -76,5 +76,9 @@ DEF=	defined
 .  error
 .endif
 
-all:
-	@:;
+# The '&&' operator must be preceded by whitespace, otherwise it becomes part
+# of the preceding bare word.  The condition is parsed as '"1&&" != "" && 1'.
+.if 1&& && 1
+.else
+.  error
+.endif

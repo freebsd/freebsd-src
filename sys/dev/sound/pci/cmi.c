@@ -61,8 +61,6 @@
 #include "mixer_if.h"
 #include "mpufoi_if.h"
 
-SND_DECLARE_FILE("");
-
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6
 #define CMI8338B_PCI_ID   0x010113f6
