@@ -30,7 +30,7 @@
 
 /*
  * Tests for the "default_permissions" mount option.  They must be in their own
- * file so they can be run as an unprivileged user
+ * file so they can be run as an unprivileged user.
  */
 
 extern "C" {
@@ -163,6 +163,7 @@ class Fspacectl: public DefaultPermissions {};
 class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
 class PosixFallocate: public DefaultPermissions {};
+class Read: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
 class Unlink: public DefaultPermissions {};
 class Utimensat: public DefaultPermissions {};
@@ -1237,6 +1238,44 @@ TEST_F(Rename, ok_to_remove_src_because_of_stickiness)
 	expect_rename(0);
 
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+}
+
+// Don't update atime during close after read, if we lack permissions to write
+// that file.
+TEST_F(Read, atime_during_close)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = 100;
+	uint8_t buf[bufsize];
+	const char *CONTENTS = "abcdefgh";
+	ssize_t fsize = sizeof(CONTENTS);
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0755, fsize,
+		1, UINT64_MAX, 0, 0);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, fsize, fsize, CONTENTS);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in.header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, FuseTest::FH);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/* Ensure atime will be different than during lookup */
+	nap();
+
+	ASSERT_EQ(fsize, read(fd, buf, bufsize)) << strerror(errno);
+
+	close(fd);
 }
 
 TEST_F(Setattr, ok)
