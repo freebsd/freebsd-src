@@ -1692,6 +1692,8 @@
 #define	PMBSR_EL1_op2			3
 #define	PMBSR_MSS_SHIFT			0
 #define	PMBSR_MSS_MASK			(UL(0xffff) << PMBSR_MSS_SHIFT)
+#define	PMBSR_MSS_BSC_MASK		(UL(0x3f) << PMBSR_MSS_SHIFT)
+#define	PMBSR_MSS_FSC_MASK		(UL(0x3f) << PMBSR_MSS_SHIFT)
 #define	PMBSR_COLL_SHIFT		16
 #define	PMBSR_COLL			(UL(0x1) << PMBSR_COLL_SHIFT)
 #define	PMBSR_S_SHIFT			17
