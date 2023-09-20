@@ -70,12 +70,11 @@
 
 #define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
-#define	SDHCI_FDT_GENERIC	2
-#define	SDHCI_FDT_XLNX_ZY7	3
-#define	SDHCI_FDT_QUALCOMM	4
-#define	SDHCI_FDT_RK3399	5
-#define	SDHCI_FDT_RK3568	6
-#define	SDHCI_FDT_XLNX_ZMP	7
+#define	SDHCI_FDT_XLNX_ZY7	2
+#define	SDHCI_FDT_QUALCOMM	3
+#define	SDHCI_FDT_RK3399	4
+#define	SDHCI_FDT_RK3568	5
+#define	SDHCI_FDT_XLNX_ZMP	6
 
 #define	RK3399_GRF_EMMCCORE_CON0		0xf000
 #define	 RK3399_CORECFG_BASECLKFREQ		0xff00
@@ -114,11 +113,8 @@
 #define	LOWEST_SET_BIT(mask)	((((mask) - 1) & (mask)) ^ (mask))
 #define	SHIFTIN(x, mask)	((x) * LOWEST_SET_BIT(mask))
 
-#define	EMMCCARDCLK_ID		1000
-
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
-	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
 	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "rockchip,rk3399-sdhci-5.1",	SDHCI_FDT_RK3399 },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
@@ -148,39 +144,40 @@ struct sdhci_fdt_softc {
 	clk_t		clk_ahb;	/* ahb clock */
 	clk_t		clk_core;	/* core clock */
 	phy_t		phy;		/* phy to be used */
+
+	struct syscon	*syscon;	/* Handle to the syscon */
 };
 
-struct rk3399_emmccardclk_sc {
+struct sdhci_exported_clocks_sc {
 	device_t	clkdev;
-	bus_addr_t	reg;
 };
 
 static int
-rk3399_emmccardclk_init(struct clknode *clk, device_t dev)
+sdhci_exported_clocks_init(struct clknode *clk, device_t dev)
 {
 
 	clknode_init_parent_idx(clk, 0);
 	return (0);
 }
 
-static clknode_method_t rk3399_emmccardclk_clknode_methods[] = {
+static clknode_method_t sdhci_exported_clocks_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,	rk3399_emmccardclk_init),
+	CLKNODEMETHOD(clknode_init,	sdhci_exported_clocks_init),
 	CLKNODEMETHOD_END
 };
-DEFINE_CLASS_1(rk3399_emmccardclk_clknode, rk3399_emmccardclk_clknode_class,
-    rk3399_emmccardclk_clknode_methods, sizeof(struct rk3399_emmccardclk_sc),
+DEFINE_CLASS_1(sdhci_exported_clocks_clknode, sdhci_exported_clocks_clknode_class,
+    sdhci_exported_clocks_clknode_methods, sizeof(struct sdhci_exported_clocks_sc),
     clknode_class);
 
 static int
-rk3399_ofw_map(struct clkdom *clkdom, uint32_t ncells,
+sdhci_clock_ofw_map(struct clkdom *clkdom, uint32_t ncells,
     phandle_t *cells, struct clknode **clk)
 {
+	int id = 1; /* Our clock id starts at 1 */
 
-	if (ncells == 0)
-		*clk = clknode_find_by_id(clkdom, EMMCCARDCLK_ID);
-	else
-		return (ERANGE);
+	if (ncells != 0)
+		id = cells[1];
+	*clk = clknode_find_by_id(clkdom, id);
 
 	if (*clk == NULL)
 		return (ENXIO);
@@ -188,30 +185,29 @@ rk3399_ofw_map(struct clkdom *clkdom, uint32_t ncells,
 }
 
 static void
-sdhci_init_rk3399_emmccardclk(device_t dev)
+sdhci_export_clocks(struct sdhci_fdt_softc *sc)
 {
 	struct clknode_init_def def;
-	struct rk3399_emmccardclk_sc *sc;
+	struct sdhci_exported_clocks_sc *clksc;
 	struct clkdom *clkdom;
 	struct clknode *clk;
-	clk_t clk_parent;
 	bus_addr_t paddr;
 	bus_size_t psize;
 	const char **clknames;
 	phandle_t node;
 	int i, nclocks, ncells, error;
 
-	node = ofw_bus_get_node(dev);
+	node = ofw_bus_get_node(sc->dev);
 
 	if (ofw_reg_to_paddr(node, 0, &paddr, &psize, NULL) != 0) {
-		device_printf(dev, "cannot parse 'reg' property\n");
+		device_printf(sc->dev, "cannot parse 'reg' property\n");
 		return;
 	}
 
 	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
 	    "#clock-cells", &ncells);
 	if (error != 0 || ncells != 2) {
-		device_printf(dev, "couldn't find parent clocks\n");
+		device_printf(sc->dev, "couldn't find parent clocks\n");
 		return;
 	}
 
@@ -221,47 +217,31 @@ sdhci_init_rk3399_emmccardclk(device_t dev)
 	if (nclocks <= 0)
 		return;
 
-	if (nclocks != 1) {
-		device_printf(dev, "Having %d clock instead of 1, aborting\n",
-		    nclocks);
-		return;
-	}
+	clkdom = clkdom_create(sc->dev);
+	clkdom_set_ofw_mapper(clkdom, sdhci_clock_ofw_map);
 
-	clkdom = clkdom_create(dev);
-	clkdom_set_ofw_mapper(clkdom, rk3399_ofw_map);
+	for (i = 0; i < nclocks; i++) {
+		memset(&def, 0, sizeof(def));
+		def.id = i + 1; /* Exported clock IDs starts at 1 */
+		def.name = clknames[i];
+		def.parent_names = malloc(sizeof(char *) * 1, M_OFWPROP, M_WAITOK);
+		def.parent_names[0] = clk_get_name(sc->clk_xin);
+		def.parent_cnt = 1;
 
-	memset(&def, 0, sizeof(def));
-	def.id = EMMCCARDCLK_ID;
-	def.name = clknames[0];
-	def.parent_names = malloc(sizeof(char *) * ncells, M_OFWPROP, M_WAITOK);
-	for (i = 0; i < ncells; i++) {
-		error = clk_get_by_ofw_index(dev, 0, i, &clk_parent);
-		if (error != 0) {
-			device_printf(dev, "cannot get clock %d\n", error);
+		clk = clknode_create(clkdom, &sdhci_exported_clocks_clknode_class, &def);
+		if (clk == NULL) {
+			device_printf(sc->dev, "cannot create clknode\n");
 			return;
 		}
-		def.parent_names[i] = clk_get_name(clk_parent);
-		if (bootverbose)
-			device_printf(dev, "clk parent: %s\n",
-			    def.parent_names[i]);
-		clk_release(clk_parent);
+
+		clksc = clknode_get_softc(clk);
+		clksc->clkdev = device_get_parent(sc->dev);
+
+		clknode_register(clkdom, clk);
 	}
-	def.parent_cnt = ncells;
-
-	clk = clknode_create(clkdom, &rk3399_emmccardclk_clknode_class, &def);
-	if (clk == NULL) {
-		device_printf(dev, "cannot create clknode\n");
-		return;
-	}
-
-	sc = clknode_get_softc(clk);
-	sc->reg = paddr;
-	sc->clkdev = device_get_parent(dev);
-
-	clknode_register(clkdom, clk);
 
 	if (clkdom_finit(clkdom) != 0) {
-		device_printf(dev, "cannot finalize clkdom initialization\n");
+		device_printf(sc->dev, "cannot finalize clkdom initialization\n");
 		return;
 	}
 
@@ -270,13 +250,9 @@ sdhci_init_rk3399_emmccardclk(device_t dev)
 }
 
 static int
-sdhci_init_rk3399(device_t dev)
+sdhci_init_clocks(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	struct syscon *grf = NULL;
-	phandle_t node;
-	uint64_t freq;
-	uint32_t mask, val;
 	int error;
 
 	/* Get and activate clocks */
@@ -290,11 +266,6 @@ sdhci_init_rk3399(device_t dev)
 		device_printf(dev, "cannot enable xin clock\n");
 		return (ENXIO);
 	}
-	error = clk_get_freq(sc->clk_xin, &freq);
-	if (error != 0) {
-		device_printf(dev, "cannot get xin clock frequency\n");
-		return (ENXIO);
-	}
 	error = clk_get_by_ofw_name(dev, 0, "clk_ahb", &sc->clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
@@ -306,39 +277,72 @@ sdhci_init_rk3399(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Register clock */
-	sdhci_init_rk3399_emmccardclk(dev);
+	return (0);
+}
+
+static int
+sdhci_init_phy(struct sdhci_fdt_softc *sc)
+{
+	int error;
 
 	/* Enable PHY */
-	error = phy_get_by_ofw_name(dev, 0, "phy_arasan", &sc->phy);
+	error = phy_get_by_ofw_name(sc->dev, 0, "phy_arasan", &sc->phy);
+	if (error == ENOENT)
+		return (0);
 	if (error != 0) {
-		device_printf(dev, "Could not get phy\n");
+		device_printf(sc->dev, "Could not get phy\n");
 		return (ENXIO);
 	}
 	error = phy_enable(sc->phy);
 	if (error != 0) {
-		device_printf(dev, "Could not enable phy\n");
+		device_printf(sc->dev, "Could not enable phy\n");
 		return (ENXIO);
 	}
+
+	return (0);
+}
+
+static int
+sdhci_get_syscon(struct sdhci_fdt_softc *sc)
+{
+	phandle_t node;
+
 	/* Get syscon */
-	node = ofw_bus_get_node(dev);
+	node = ofw_bus_get_node(sc->dev);
 	if (OF_hasprop(node, "arasan,soc-ctl-syscon") &&
-	    syscon_get_by_ofw_property(dev, node,
-	    "arasan,soc-ctl-syscon", &grf) != 0) {
-		device_printf(dev, "cannot get grf driver handle\n");
+	    syscon_get_by_ofw_property(sc->dev, node,
+	    "arasan,soc-ctl-syscon", &sc->syscon) != 0) {
+		device_printf(sc->dev, "cannot get syscon handle\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+sdhci_init_rk3399(device_t dev)
+{
+	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	uint64_t freq;
+	uint32_t mask, val;
+	int error;
+
+	error = clk_get_freq(sc->clk_xin, &freq);
+	if (error != 0) {
+		device_printf(dev, "cannot get xin clock frequency\n");
 		return (ENXIO);
 	}
 
 	/* Disable clock multiplier */
 	mask = RK3399_CORECFG_CLOCKMULTIPLIER;
 	val = 0;
-	SYSCON_WRITE_4(grf, RK3399_GRF_EMMCCORE_CON11, (mask << 16) | val);
+	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON11, (mask << 16) | val);
 
 	/* Set base clock frequency */
 	mask = RK3399_CORECFG_BASECLKFREQ;
 	val = SHIFTIN((freq + (1000000 / 2)) / 1000000,
 	    RK3399_CORECFG_BASECLKFREQ);
-	SYSCON_WRITE_4(grf, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
+	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
 
 	return (0);
 }
@@ -516,9 +520,6 @@ sdhci_fdt_probe(device_t dev)
 		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
 		device_set_desc(dev, "ARMADA38X SDHCI controller");
 		break;
-	case SDHCI_FDT_GENERIC:
-		device_set_desc(dev, "generic fdt SDHCI controller");
-		break;
 	case SDHCI_FDT_QUALCOMM:
 		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 		    SDHCI_QUIRK_BROKEN_SDMA_BOUNDARY;
@@ -566,7 +567,7 @@ sdhci_fdt_attach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 	struct sdhci_slot *slot;
-	int err, slots, rid, i;
+	int err, slots, rid, i, compat;
 
 	sc->dev = dev;
 
@@ -579,24 +580,42 @@ sdhci_fdt_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
-	    SDHCI_FDT_RK3399) {
-		/* Initialize SDHCI */
-		err = sdhci_init_rk3399(dev);
+	compat = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (compat) {
+	case SDHCI_FDT_RK3399:
+	case SDHCI_FDT_XLNX_ZMP:
+		err = sdhci_init_clocks(dev);
 		if (err != 0) {
-			device_printf(dev, "Cannot init RK3399 SDHCI\n");
+			device_printf(dev, "Cannot init clocks\n");
 			return (err);
 		}
-	}
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
-	    SDHCI_FDT_RK3568) {
+		sdhci_export_clocks(sc);
+		if ((err = sdhci_init_phy(sc)) != 0) {
+			device_printf(dev, "Cannot init phy\n");
+			return (err);
+		}
+		if ((err = sdhci_get_syscon(sc)) != 0) {
+			device_printf(dev, "Cannot get syscon handle\n");
+			return (err);
+		}
+		if (compat == SDHCI_FDT_RK3399) {
+			err = sdhci_init_rk3399(dev);
+			if (err != 0) {
+				device_printf(dev, "Cannot init RK3399 SDHCI\n");
+				return (err);
+			}
+		}
+		break;
+	case SDHCI_FDT_RK3568:
 		/* setup & enable clocks */
 		if (clk_get_by_ofw_name(dev, 0, "core", &sc->clk_core)) {
 			device_printf(dev, "cannot get core clock\n");
 			return (ENXIO);
 		}
 		clk_enable(sc->clk_core);
+		break;
+	default:
+		break;
 	}
 
 	/* Scan all slots. */

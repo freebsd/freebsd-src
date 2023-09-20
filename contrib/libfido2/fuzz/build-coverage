@@ -3,6 +3,7 @@
 # Copyright (c) 2019 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 LIBCBOR="$1"
 LIBFIDO2="$2"
@@ -25,7 +26,9 @@ make -C "${LIBCBOR}/build" VERBOSE=1 all install
 # Build libfido2.
 mkdir -p "${LIBFIDO2}/build"
 export CFLAGS="-fprofile-instr-generate -fcoverage-mapping"
+export CFLAGS="${CFLAGS} -fsanitize=fuzzer-no-link"
 export LDFLAGS="${CFLAGS}"
-(cd "${LIBFIDO2}/build" && cmake -DFUZZ=ON -DLIBFUZZER=ON \
-    -DCMAKE_BUILD_TYPE=Debug ..)
+export FUZZ_LDFLAGS="${LDFLAGS} -fsanitize=fuzzer"
+(cd "${LIBFIDO2}/build" && cmake -DFUZZ=ON -DFUZZ_LDFLAGS="${FUZZ_LDFLAGS}" \
+	-DCMAKE_BUILD_TYPE=Debug ..)
 make -C "${LIBFIDO2}/build"

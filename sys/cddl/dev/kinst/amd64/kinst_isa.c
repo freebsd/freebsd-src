@@ -22,7 +22,6 @@
 #include "kinst.h"
 
 #define KINST_PUSHL_RBP		0x55
-#define KINST_POPL_RBP		0x5d
 #define KINST_STI		0xfb
 #define KINST_POPF		0x9d
 
@@ -502,7 +501,7 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 	const char *func;
 	int error, instrsize, n, off;
 	uint8_t *instr, *limit, *tmp;
-	bool push_found, pop_found;
+	bool push_found;
 
 	pd = opaque;
 	func = symval->name;
@@ -521,17 +520,20 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 	 * manipulations since they might correspond to exception handlers.
 	 */
 	tmp = instr;
-	push_found = pop_found = false;
+	push_found = false;
 	while (tmp < limit) {
-		if (*tmp == KINST_PUSHL_RBP)
+		/*
+		 * Checking for 'pop %rbp' as well makes the filtering too
+		 * strict as it would skip functions that never return (e.g.,
+		 * vnlru_proc()).
+		 */
+		if (*tmp == KINST_PUSHL_RBP) {
 			push_found = true;
-		else if (*tmp == KINST_POPL_RBP)
-			pop_found = true;
-		if (push_found && pop_found)
 			break;
+		}
 		tmp += dtrace_instr_size(tmp);
 	}
-	if (!push_found || !pop_found)
+	if (!push_found)
 		return (0);
 
 	n = 0;

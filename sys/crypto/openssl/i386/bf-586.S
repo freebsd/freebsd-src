@@ -6,6 +6,11 @@
 .align	16
 BF_encrypt:
 .L_BF_encrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -356,6 +361,11 @@ BF_encrypt:
 .align	16
 BF_decrypt:
 .L_BF_decrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -706,6 +716,11 @@ BF_decrypt:
 .align	16
 BF_cbc_encrypt:
 .L_BF_cbc_encrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -769,21 +784,56 @@ BF_cbc_encrypt:
 	xorl	%edx,%edx
 	jmp	*%ebp
 .L006ej7:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	6(%esi),%dh
 	shll	$8,%edx
 .L007ej6:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	5(%esi),%dh
 .L008ej5:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	4(%esi),%dl
 .L009ej4:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movl	(%esi),%ecx
 	jmp	.L010ejend
 .L011ej3:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	2(%esi),%ch
 	shll	$8,%ecx
 .L012ej2:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	1(%esi),%ch
 .L013ej1:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	(%esi),%cl
 .L010ejend:
 	xorl	%ecx,%eax
@@ -895,6 +945,23 @@ BF_cbc_encrypt:
 .long	.L006ej7-.L004PIC_point
 .align	64
 .size	BF_cbc_encrypt,.-.L_BF_cbc_encrypt_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #else
 .text
 .globl	BF_encrypt
@@ -902,6 +969,11 @@ BF_cbc_encrypt:
 .align	16
 BF_encrypt:
 .L_BF_encrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1252,6 +1324,11 @@ BF_encrypt:
 .align	16
 BF_decrypt:
 .L_BF_decrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1602,6 +1679,11 @@ BF_decrypt:
 .align	16
 BF_cbc_encrypt:
 .L_BF_cbc_encrypt_begin:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1665,21 +1747,56 @@ BF_cbc_encrypt:
 	xorl	%edx,%edx
 	jmp	*%ebp
 .L006ej7:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	6(%esi),%dh
 	shll	$8,%edx
 .L007ej6:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	5(%esi),%dh
 .L008ej5:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	4(%esi),%dl
 .L009ej4:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movl	(%esi),%ecx
 	jmp	.L010ejend
 .L011ej3:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	2(%esi),%ch
 	shll	$8,%ecx
 .L012ej2:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	1(%esi),%ch
 .L013ej1:
+	#ifdef __CET__
+
+.byte	243,15,30,251
+	#endif
+
 	movb	(%esi),%cl
 .L010ejend:
 	xorl	%ecx,%eax
@@ -1791,4 +1908,21 @@ BF_cbc_encrypt:
 .long	.L006ej7-.L004PIC_point
 .align	64
 .size	BF_cbc_encrypt,.-.L_BF_cbc_encrypt_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
 #endif

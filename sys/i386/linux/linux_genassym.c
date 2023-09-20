@@ -1,7 +1,6 @@
-#include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/assym.h>
 #include <sys/systm.h>
+#include <sys/assym.h>
 
 #include <i386/linux/linux.h>
 #include <compat/linux/linux_mib.h>

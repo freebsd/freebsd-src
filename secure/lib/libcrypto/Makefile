@@ -1,6 +1,8 @@
 
 SHLIBDIR?=	/lib
+.if !defined(LIBCRYPTO_WITHOUT_SUBDIRS)
 SUBDIR=		engines modules
+.endif
 
 .include <bsd.own.mk>
 .include <src.opts.mk>
@@ -41,25 +43,25 @@ SRCS+=	mem_clr.c
 .endif
 
 # aes
-SRCS+=	aes_cbc.c aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
+SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_aarch64)
-SRCS+=	aes_core.c aesv8-armx.S vpaes-armv8.S
+SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
 ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
-SRCS+=	aes_core.c aesni-mb-x86_64.S aesni-sha1-x86_64.S aesni-sha256-x86_64.S
-SRCS+=	aesni-x86_64.S vpaes-x86_64.S
+SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
+SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
 .elif defined(ASM_arm)
-SRCS+=	aes-armv4.S aesv8-armx.S bsaes-armv7.S
+SRCS+=	aes_cbc.c aes-armv4.S aesv8-armx.S bsaes-armv7.S
 .elif defined(ASM_i386)
-SRCS+=	aes_core.c aesni-x86.S vpaes-x86.S
+SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .elif defined(ASM_powerpc)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .elif defined(ASM_powerpc64)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+SRCS+=	aes_cbc.c aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .else
-SRCS+=	aes_core.c
+SRCS+=	aes_cbc.c aes_core.c
 .endif
 
 # asn1
@@ -243,7 +245,7 @@ SRCS+=	eng_rdrand.c eng_table.c tb_asnmth.c tb_cipher.c tb_dh.c tb_digest.c
 SRCS+=	tb_dsa.c tb_eckey.c tb_pkmeth.c tb_rand.c tb_rsa.c
 
 # err
-SRCS+=	err.c err_all.c err_blocks.c err_prn.c
+SRCS+=	err.c err_all.c err_all_legacy.c err_blocks.c err_prn.c
 
 # ess
 SRCS+=	ess_asn1.c ess_err.c ess_lib.c
@@ -474,7 +476,7 @@ SRCS+=	rmd-586.S
 .endif
 
 # rsa
-SRCS+=	rsa_ameth.c rsa_asn1.c rsa_backend.c rsa_chk.c rsa_crpt.c
+SRCS+=	rsa_ameth.c rsa_asn1.c rsa_backend.c rsa_chk.c rsa_crpt.c rsa_depr.c
 SRCS+=	rsa_err.c rsa_gen.c rsa_lib.c rsa_meth.c rsa_mp.c rsa_mp_names.c
 SRCS+=	rsa_none.c rsa_oaep.c rsa_ossl.c rsa_pk1.c rsa_pmeth.c rsa_prn.c
 SRCS+=	rsa_pss.c rsa_saos.c rsa_schemes.c rsa_sign.c rsa_sp800_56b_check.c
@@ -606,17 +608,24 @@ buildinf.h: Makefile
 	echo "static const char compiler_flags[] = \"compiler: ${COMPILER_TYPE}\";" ) \
 	> ${.TARGET}
 
+buildasm cleanasm:
+.for arch in aarch64 amd64 arm i386 powerpc powerpc64 powerpc64le
+	make MK_AUTO_OBJ=no -DWITHOUT_AUTO_ASM -DASM_${arch} \
+	    -f ${.CURDIR}/Makefile.asm -C ${SRCTOP}/sys/crypto/openssl/${arch} \
+	    ${.TARGET:S/build/all/:S/asm$//}
+.endfor
+
 .include <bsd.lib.mk>
 
 PICFLAG+=	-DOPENSSL_PIC
 
 .if defined(ASM_${MACHINE_CPUARCH})
-.PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)
 .PATH:	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
 .elif defined(ASM_${MACHINE_ARCH})
-.PATH:	${SRCTOP}/secure/lib/libcrypto/arch/${MACHINE_ARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_ARCH}
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \

@@ -21,9 +21,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* write */
+	/* linux_write */
 	case 1: {
-		struct write_args *p = params;
+		struct linux_write_args *p = params;
 		iarg[a++] = p->fd; /* int */
 		uarg[a++] = (intptr_t)p->buf; /* char * */
 		iarg[a++] = p->nbyte; /* l_size_t */
@@ -189,9 +189,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* writev */
+	/* linux_writev */
 	case 20: {
-		struct writev_args *p = params;
+		struct linux_writev_args *p = params;
 		iarg[a++] = p->fd; /* int */
 		uarg[a++] = (intptr_t)p->iovp; /* struct iovec * */
 		uarg[a++] = p->iovcnt; /* u_int */
@@ -2778,7 +2778,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* write */
+	/* linux_write */
 	case 1:
 		switch (ndx) {
 		case 0:
@@ -3073,7 +3073,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* writev */
+	/* linux_writev */
 	case 20:
 		switch (ndx) {
 		case 0:
@@ -7198,7 +7198,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* write */
+	/* linux_write */
 	case 1:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -7293,7 +7293,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* writev */
+	/* linux_writev */
 	case 20:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

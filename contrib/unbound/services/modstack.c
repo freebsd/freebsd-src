@@ -120,12 +120,16 @@ modstack_config(struct module_stack* stack, const char* module_conf)
 		stack->mod[i] = module_factory(&module_conf);
 		if(!stack->mod[i]) {
 			char md[256];
+			char * s = md;
 			snprintf(md, sizeof(md), "%s", module_conf);
-			if(strchr(md, ' ')) *(strchr(md, ' ')) = 0;
-			if(strchr(md, '\t')) *(strchr(md, '\t')) = 0;
+			/* Leading spaces are present on errors. */
+			while (*s && isspace((unsigned char)*s))
+				s++;
+			if(strchr(s, ' ')) *(strchr(s, ' ')) = 0;
+			if(strchr(s, '\t')) *(strchr(s, '\t')) = 0;
 			log_err("Unknown value in module-config, module: '%s'."
 				" This module is not present (not compiled in),"
-				" See the list of linked modules with unbound -V", md);
+				" See the list of linked modules with unbound -V", s);
 			return 0;
 		}
 	}

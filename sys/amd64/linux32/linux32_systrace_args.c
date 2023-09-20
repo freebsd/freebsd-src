@@ -33,12 +33,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* write */
+	/* linux_write */
 	case 4: {
-		struct write_args *p = params;
+		struct linux_write_args *p = params;
 		iarg[a++] = p->fd; /* int */
 		uarg[a++] = (intptr_t)p->buf; /* char * */
-		uarg[a++] = p->nbyte; /* u_int */
+		iarg[a++] = p->nbyte; /* l_size_t */
 		*n_args = 3;
 		break;
 	}
@@ -970,7 +970,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 145: {
 		struct linux_readv_args *p = params;
 		iarg[a++] = p->fd; /* l_ulong */
-		uarg[a++] = (intptr_t)p->iovp; /* struct l_iovec32 * */
+		uarg[a++] = (intptr_t)p->iovp; /* struct iovec32 * */
 		iarg[a++] = p->iovcnt; /* l_ulong */
 		*n_args = 3;
 		break;
@@ -979,7 +979,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 146: {
 		struct linux_writev_args *p = params;
 		iarg[a++] = p->fd; /* l_ulong */
-		uarg[a++] = (intptr_t)p->iovp; /* struct l_iovec32 * */
+		uarg[a++] = (intptr_t)p->iovp; /* struct iovec32 * */
 		iarg[a++] = p->iovcnt; /* l_ulong */
 		*n_args = 3;
 		break;
@@ -1297,7 +1297,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sendfile_args *p = params;
 		iarg[a++] = p->out; /* l_int */
 		iarg[a++] = p->in; /* l_int */
-		uarg[a++] = (intptr_t)p->offset; /* l_long * */
+		uarg[a++] = (intptr_t)p->offset; /* l_off_t * */
 		iarg[a++] = p->count; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -3305,7 +3305,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* write */
+	/* linux_write */
 	case 4:
 		switch (ndx) {
 		case 0:
@@ -3315,7 +3315,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 2:
-			p = "u_int";
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -4737,7 +4737,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_ulong";
 			break;
 		case 1:
-			p = "userland struct l_iovec32 *";
+			p = "userland struct iovec32 *";
 			break;
 		case 2:
 			p = "l_ulong";
@@ -4753,7 +4753,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_ulong";
 			break;
 		case 1:
-			p = "userland struct l_iovec32 *";
+			p = "userland struct iovec32 *";
 			break;
 		case 2:
 			p = "l_ulong";
@@ -5287,7 +5287,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 2:
-			p = "userland l_long *";
+			p = "userland l_off_t *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -8584,7 +8584,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* write */
+	/* linux_write */
 	case 4:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

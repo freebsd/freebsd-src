@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: llvm,v 1.9 2019/04/19 00:42:27 christos Exp $
+# $File: llvm,v 1.10 2023/03/11 17:54:17 christos Exp $
 # llvm:  file(1) magic for LLVM byte-codes
 # URL:  https://llvm.org/docs/BitCodeFormat.html
 # From: Al Stone <ahs3@fc.hp.com>
@@ -9,6 +9,7 @@
 0	string	llvc0	LLVM byte-codes, null compression
 0	string	llvc1	LLVM byte-codes, gzip compression
 0	string	llvc2	LLVM byte-codes, bzip2 compression
+0	string	CPCH	LLVM Pre-compiled header file
 
 0	lelong	0x0b17c0de	LLVM bitcode, wrapper
 # Are these Mach-O ABI values?  They appear to be.

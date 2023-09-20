@@ -36,6 +36,7 @@ SRCS.googletest-param-test-test=       \
 LIBADD+=	gtest
 
 CXXFLAGS.clang+=	-Wno-error=missing-variable-declarations
+MK_WERROR.gcc=		no
 
 # XXX: explicitly listing -lpthread is incorrect. src.libnames.mk should be
 #      handling this.

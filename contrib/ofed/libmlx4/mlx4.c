@@ -147,6 +147,7 @@ static int mlx4_init_context(struct verbs_device *v_device,
 	struct ibv_get_context		cmd;
 	struct mlx4_alloc_ucontext_resp resp;
 	int				i;
+	int				ret;
 	struct mlx4_alloc_ucontext_resp_v3 resp_v3;
 	__u16				bf_reg_size;
 	struct mlx4_device              *dev = to_mdev(&v_device->device);
@@ -185,15 +186,22 @@ static int mlx4_init_context(struct verbs_device *v_device,
 	for (i = 0; i < MLX4_PORTS_NUM; ++i)
 		context->port_query_cache[i].valid = 0;
 
-	pthread_mutex_init(&context->qp_table_mutex, NULL);
+	ret = pthread_mutex_init(&context->qp_table_mutex, NULL);
+	if (ret)
+		return ret;
 	for (i = 0; i < MLX4_QP_TABLE_SIZE; ++i)
 		context->qp_table[i].refcnt = 0;
 
 	for (i = 0; i < MLX4_NUM_DB_TYPE; ++i)
 		context->db_list[i] = NULL;
 
-	mlx4_init_xsrq_table(&context->xsrq_table, context->num_qps);
-	pthread_mutex_init(&context->db_list_mutex, NULL);
+	ret = mlx4_init_xsrq_table(&context->xsrq_table, context->num_qps);
+	if (ret)
+		goto err;
+
+	ret = pthread_mutex_init(&context->db_list_mutex, NULL);
+	if (ret)
+		goto err_xsrq;
 
 	context->uar = mmap(NULL, dev->page_size, PROT_WRITE,
 			    MAP_SHARED, cmd_fd, 0);
@@ -212,14 +220,18 @@ static int mlx4_init_context(struct verbs_device *v_device,
 		} else {
 			context->bf_buf_size = bf_reg_size / 2;
 			context->bf_offset   = 0;
-			pthread_spin_init(&context->bf_lock, PTHREAD_PROCESS_PRIVATE);
+			ret = pthread_spin_init(&context->bf_lock, PTHREAD_PROCESS_PRIVATE);
+			if (ret)
+				goto err_db_list;
 		}
 	} else {
 		context->bf_page     = NULL;
 		context->bf_buf_size = 0;
 	}
 
-	pthread_spin_init(&context->uar_lock, PTHREAD_PROCESS_PRIVATE);
+	ret = pthread_spin_init(&context->uar_lock, PTHREAD_PROCESS_PRIVATE);
+	if (ret)
+		goto err_bf_lock;
 	ibv_ctx->ops = mlx4_ctx_ops;
 
 	context->hca_core_clock = NULL;
@@ -248,12 +260,29 @@ static int mlx4_init_context(struct verbs_device *v_device,
 
 	return 0;
 
+err_bf_lock:
+	if (context->bf_buf_size)
+		pthread_spin_destroy(&context->bf_lock);
+err_db_list:
+	pthread_mutex_destroy(&context->db_list_mutex);
+err_xsrq:
+	mlx4_cleanup_xsrq_table(&context->xsrq_table);
+err:
+	pthread_mutex_destroy(&context->qp_table_mutex);
+
+	return ret;
 }
 
 static void mlx4_uninit_context(struct verbs_device *v_device,
 					struct ibv_context *ibv_ctx)
 {
 	struct mlx4_context *context = to_mctx(ibv_ctx);
+
+	pthread_mutex_destroy(&context->qp_table_mutex);
+	mlx4_cleanup_xsrq_table(&context->xsrq_table);
+	pthread_mutex_destroy(&context->db_list_mutex);
+	pthread_spin_destroy(&context->bf_lock);
+	pthread_spin_destroy(&context->uar_lock);
 
 	munmap(context->uar, to_mdev(&v_device->device)->page_size);
 	if (context->bf_page)

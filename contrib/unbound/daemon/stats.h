@@ -126,4 +126,11 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
  */
 void server_stats_insrcode(struct ub_server_stats* stats, struct sldns_buffer* buf);
 
+/**
+ * Add DNS Cookie stats for this query
+ * @param stats: the stats
+ * @param edns: edns record
+ */
+void server_stats_downstream_cookie(struct ub_server_stats* stats,
+	struct edns_data* edns);
 #endif /* DAEMON_STATS_H */

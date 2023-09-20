@@ -52,21 +52,32 @@ show_options()
 		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
 		while read var _ val ; do
-			opt=${var#MK_}
-			if [ $opt = "$prev_opt" ]; then
-				echo "$target: ignoring duplicate option $opt" >&2
-				continue
-			fi
-			prev_opt=$opt
-			case ${val} in
-			yes)
-				echo ${opt} ${target}
+			case $var in
+			MK_*)
+				opt=${var#MK_}
+				if [ $opt = "$prev_opt" ]; then
+					echo "$target: ignoring duplicate option $opt" >&2
+					continue
+				fi
+				prev_opt=$opt
+				case ${val} in
+				yes)
+					echo ${opt} ${target}
+					;;
+				no)
+					echo ${opt}
+					;;
+				*)
+					echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
+					exit 1
+					;;
+				esac
 				;;
-			no)
-				echo ${opt}
+			OPT_*)
+				# ignore
 				;;
 			*)
-				echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
+				echo "make showconfig broken: ${var} ${_} ${val} not MK_ or OPT_" >&2
 				exit 1
 				;;
 			esac
@@ -116,26 +127,58 @@ show()
 		exit 1
 		;;
 	esac
-	requireds=`env -i make -f ${srcdir}/share/mk/src.opts.mk \
+	requireds=`env -i ${make} -f ${srcdir}/share/mk/src.opts.mk \
 	    -V '${__REQUIRED_OPTIONS:ts,}'`
 	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
 	while read var _ val ; do
-		opt=${var#MK_}
-		case ,${requireds}, in
-		*,${opt},*)
-			continue
+		case ${var} in
+		MK_*)
+			opt=${var#MK_}
+			case ,${requireds}, in
+			*,${opt},*)
+				continue
+				;;
+			esac
+			case ${val} in
+			yes)
+				echo ${yes_prefix}_${opt}
+				;;
+			no)
+				echo ${no_prefix}_${opt}
+				;;
+			*)
+				echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
+				exit 1
+				;;
+			esac
 			;;
-		esac
-		case ${val} in
-		yes)
-			echo ${yes_prefix}_${opt}
-			;;
-		no)
-			echo ${no_prefix}_${opt}
+		OPT_*)
+			# ignore
 			;;
 		*)
-			echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
+			echo "make showconfig broken: ${var} ${_} ${val} not MK_ or OPT_" >&2
+			exit 1
+			;;
+		esac
+	done
+}
+
+show_group_options()
+{
+	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
+	    SRCCONF=/dev/null |
+	while read var _ val ; do
+		case ${var} in
+		MK_*)
+			# ignore
+			;;
+		OPT_*)
+			opt=${var#OPT_}
+			echo ${opt}
+			;;
+		*)
+			echo "make showconfig broken: ${var} ${_} ${val} not MK_ or OPT_" >&2
 			exit 1
 			;;
 		esac
@@ -228,7 +271,11 @@ and
 .Va MAKEOBJDIRPREFIX
 as they are environment-only variables.
 .Pp
-The values of variables are ignored regardless of their setting;
+The values of
+.Va WITH_
+and
+.Va WITHOUT_
+variables are ignored regardless of their setting;
 even if they would be set to
 .Dq Li FALSE
 or
@@ -326,6 +373,22 @@ EOF
 		printf "." >&2
 	done
 	printf "\n" >&2
+	cat <<EOF
+.El
+.Pp
+The following options accept a single value from a list of valid values.
+.Bl -tag -width indent
+EOF
+	show_group_options |
+	while read opt ; do
+		if [ ! -f ${opt} ] ; then
+			echo "no description found for ${opt}, skipping" >&2
+			continue
+		fi
+
+		echo ".It Va ${opt}"
+		cat ${opt}
+	done
 	cat <<EOF
 .El
 .Sh FILES

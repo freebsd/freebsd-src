@@ -49,10 +49,6 @@
 #include <dev/sound/pcm/pcm.h>
 #include <dev/sound/version.h>
 
-
-SND_DECLARE_FILE("");
-
-#define	SS_TYPE_MODULE		0
 #define	SS_TYPE_PCM		1
 #define	SS_TYPE_MIDI		2
 #define	SS_TYPE_SEQUENCER	3
@@ -561,8 +557,6 @@ sndstat_create_devs_nvlist(nvlist_t **nvlp)
 		struct snddev_info *d;
 		nvlist_t *di;
 
-		if (ent->dev == NULL)
-			continue;
 		d = device_get_softc(ent->dev);
 		if (!PCM_REGISTERED(d))
 			continue;
@@ -1063,21 +1057,16 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 	const char *devtype;
 	int type, unit;
 
-	if (dev) {
-		unit = device_get_unit(dev);
-		devtype = device_get_name(dev);
-		if (!strcmp(devtype, "pcm"))
-			type = SS_TYPE_PCM;
-		else if (!strcmp(devtype, "midi"))
-			type = SS_TYPE_MIDI;
-		else if (!strcmp(devtype, "sequencer"))
-			type = SS_TYPE_SEQUENCER;
-		else
-			return (EINVAL);
-	} else {
-		type = SS_TYPE_MODULE;
-		unit = -1;
-	}
+	unit = device_get_unit(dev);
+	devtype = device_get_name(dev);
+	if (!strcmp(devtype, "pcm"))
+		type = SS_TYPE_PCM;
+	else if (!strcmp(devtype, "midi"))
+		type = SS_TYPE_MIDI;
+	else if (!strcmp(devtype, "sequencer"))
+		type = SS_TYPE_SEQUENCER;
+	else
+		return (EINVAL);
 
 	ent = malloc(sizeof *ent, M_DEVBUF, M_WAITOK | M_ZERO);
 	ent->dev = dev;
@@ -1109,12 +1098,6 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 }
 
 int
-sndstat_registerfile(char *str)
-{
-	return (sndstat_register(NULL, str, NULL));
-}
-
-int
 sndstat_unregister(device_t dev)
 {
 	struct sndstat_entry *ent;
@@ -1123,26 +1106,6 @@ sndstat_unregister(device_t dev)
 	SNDSTAT_LOCK();
 	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == dev) {
-			TAILQ_REMOVE(&sndstat_devlist, ent, link);
-			free(ent, M_DEVBUF);
-			error = 0;
-			break;
-		}
-	}
-	SNDSTAT_UNLOCK();
-
-	return (error);
-}
-
-int
-sndstat_unregisterfile(char *str)
-{
-	struct sndstat_entry *ent;
-	int error = ENXIO;
-
-	SNDSTAT_LOCK();
-	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
-		if (ent->dev == NULL && ent->str == str) {
 			TAILQ_REMOVE(&sndstat_devlist, ent, link);
 			free(ent, M_DEVBUF);
 			error = 0;
@@ -1177,8 +1140,6 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	/* generate list of installed devices */
 	k = 0;
 	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
-		if (ent->dev == NULL)
-			continue;
 		d = device_get_softc(ent->dev);
 		if (!PCM_REGISTERED(d))
 			continue;
@@ -1226,19 +1187,6 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	if (k == 0)
 		sbuf_printf(s, "No devices installed from userspace.\n");
 
-	/* append any file versions */
-	if (snd_verbose >= 3) {
-		k = 0;
-		TAILQ_FOREACH(ent, &sndstat_devlist, link) {
-			if (ent->dev == NULL && ent->str != NULL) {
-				if (!k++)
-					sbuf_printf(s, "\nFile Versions:\n");
-				sbuf_printf(s, "%s\n", ent->str);
-			}
-		}
-		if (k == 0)
-			sbuf_printf(s, "\nNo file versions.\n");
-	}
 	sbuf_finish(s);
     	return (sbuf_len(s));
 }

@@ -369,17 +369,6 @@ enum ice_rx_dtype {
 #define ICE_START_LLDP_RETRY_WAIT	(2 * hz)
 
 /*
- * The ice_(set|clear)_vsi_promisc() function expects a mask of promiscuous
- * modes to operate on. This mask is the default one for the driver, where
- * promiscuous is enabled/disabled for all types of non-VLAN-tagged/VLAN 0
- * traffic.
- */
-#define ICE_VSI_PROMISC_MASK		(ICE_PROMISC_UCAST_TX | \
-					 ICE_PROMISC_UCAST_RX | \
-					 ICE_PROMISC_MCAST_TX | \
-					 ICE_PROMISC_MCAST_RX)
-
-/*
  * Only certain cluster IDs are valid for the FW debug dump functionality,
  * so define a mask of those here.
  */
@@ -610,6 +599,8 @@ enum ice_state {
 	ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER,
 	ICE_STATE_MULTIPLE_TCS,
 	ICE_STATE_DO_FW_DEBUG_DUMP,
+	ICE_STATE_LINK_ACTIVE_ON_DOWN,
+	ICE_STATE_FIRST_INIT_LINK,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
@@ -906,9 +897,12 @@ int  ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* dat
 int  ice_alloc_intr_tracking(struct ice_softc *sc);
 void ice_free_intr_tracking(struct ice_softc *sc);
 void ice_set_default_local_lldp_mib(struct ice_softc *sc);
+void ice_set_link(struct ice_softc *sc, bool enabled);
+void ice_add_rx_lldp_filter(struct ice_softc *sc);
 void ice_init_health_events(struct ice_softc *sc);
 void ice_cfg_pba_num(struct ice_softc *sc);
 int ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
 u8 ice_dcb_get_tc_map(const struct ice_dcbx_cfg *dcbcfg);
+void ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib);
 
 #endif /* _ICE_LIB_H_ */

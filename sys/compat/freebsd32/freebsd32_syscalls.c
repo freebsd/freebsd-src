@@ -399,7 +399,7 @@ const char *freebsd32_syscallnames[] = {
 	"lchflags",			/* 391 = lchflags */
 	"uuidgen",			/* 392 = uuidgen */
 	"freebsd32_sendfile",			/* 393 = freebsd32_sendfile */
-	"#394",			/* 394 = mac_syscall */
+	"mac_syscall",			/* 394 = mac_syscall */
 	"compat11.freebsd32_getfsstat",		/* 395 = freebsd11 freebsd32_getfsstat */
 	"compat11.statfs",		/* 396 = freebsd11 statfs */
 	"compat11.fstatfs",		/* 397 = freebsd11 fstatfs */
@@ -589,4 +589,8 @@ const char *freebsd32_syscallnames[] = {
 	"sched_getcpu",			/* 581 = sched_getcpu */
 	"swapoff",			/* 582 = swapoff */
 	"kqueuex",			/* 583 = kqueuex */
+	"membarrier",			/* 584 = membarrier */
+	"timerfd_create",			/* 585 = timerfd_create */
+	"freebsd32_timerfd_gettime",			/* 586 = freebsd32_timerfd_gettime */
+	"freebsd32_timerfd_settime",			/* 587 = freebsd32_timerfd_settime */
 };

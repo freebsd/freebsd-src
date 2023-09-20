@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd May 22, 2018
+.Dd September 5, 2023
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -212,6 +212,17 @@ and
 .Cm u
 conversions, this option has no effect.
 For
+.Cm b
+and
+.Cm B
+conversions, a non-zero result has the string
+.Ql 0b
+(or
+.Ql 0B
+for
+.Cm B
+conversions) prepended to it.
+For
 .Cm o
 conversions, the precision of the number is increased to force the first
 character of the output string to a zero.
@@ -245,7 +256,7 @@ For all conversions except
 .Cm n ,
 the converted value is padded on the left with zeros rather than blanks.
 If a precision is given with a numeric conversion
-.Cm ( d , i , o , u , i , x ,
+.Cm ( b , B , d , i , o , u , i , x ,
 and
 .Cm X ) ,
 the
@@ -301,7 +312,7 @@ followed by an
 optional digit string.
 If the digit string is omitted, the precision is taken as zero.
 This gives the minimum number of digits to appear for
-.Cm d , i , o , u , x ,
+.Cm b , B , d , i , o , u , x ,
 and
 .Cm X
 conversions, the number of digits to appear after the decimal-point for
@@ -319,18 +330,20 @@ conversions.
 .It
 An optional length modifier, that specifies the size of the argument.
 The following length modifiers are valid for the
-.Cm d , i , n , o , u , x ,
+.Cm b , B , d , i , n , o , u , x ,
 or
 .Cm X
 conversion:
 .Bl -column ".Cm q Em (deprecated)" ".Vt signed char" ".Vt unsigned long long" ".Vt long long *"
-.It Sy Modifier Ta Cm d , i Ta Cm o , u , x , X Ta Cm n
+.It Sy Modifier Ta Cm d , i Ta Cm b , B , o , u , x , X Ta Cm n
 .It Cm hh Ta Vt "signed char" Ta Vt "unsigned char" Ta Vt "signed char *"
 .It Cm h Ta Vt short Ta Vt "unsigned short" Ta Vt "short *"
 .It Cm l No (ell) Ta Vt long Ta Vt "unsigned long" Ta Vt "long *"
 .It Cm ll No (ell ell) Ta Vt "long long" Ta Vt "unsigned long long" Ta Vt "long long *"
 .It Cm j Ta Vt intmax_t Ta Vt uintmax_t Ta Vt "intmax_t *"
 .It Cm t Ta Vt ptrdiff_t Ta (see note) Ta Vt "ptrdiff_t *"
+.It Cm w Ns Ar N Ta Vt intN_t Ta Vt uintN_t Ta Vt "intN_t *"
+.It Cm wf Ns Ar N Ta Vt int_fastN_t Ta Vt uint_fastN_t Ta Vt "int_fastN_t *"
 .It Cm z Ta (see note) Ta Vt size_t Ta (see note)
 .It Cm q Em (deprecated) Ta Vt quad_t Ta Vt u_quad_t Ta Vt "quad_t *"
 .El
@@ -339,7 +352,7 @@ Note:
 the
 .Cm t
 modifier, when applied to a
-.Cm o , u , x ,
+.Cm b , B , o , u , x ,
 or
 .Cm X
 conversion, indicates that the argument is of an unsigned type
@@ -403,11 +416,16 @@ If a single format directive mixes positional
 and non-positional arguments, the results are undefined.
 .Pp
 The conversion specifiers and their meanings are:
-.Bl -tag -width ".Cm diouxX"
-.It Cm diouxX
+.Bl -tag -width ".Cm bBdiouxX"
+.It Cm bBdiouxX
 The
 .Vt int
-(or appropriate variant) argument is converted to signed decimal
+(or appropriate variant) argument is converted to
+unsigned binary
+.Cm ( b
+and
+.Cm B ) ,
+signed decimal
 .Cm ( d
 and
 .Cm i ) ,

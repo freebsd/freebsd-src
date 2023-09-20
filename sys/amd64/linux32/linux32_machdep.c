@@ -30,32 +30,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/fcntl.h>
-#include <sys/imgact.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reg.h>
 #include <sys/syscallsubr.h>
 
-#include <machine/frame.h>
 #include <machine/md_var.h>
-#include <machine/pcb.h>
-#include <machine/psl.h>
-#include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <x86/ifunc.h>
-
-#include <vm/pmap.h>
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-
-#include <security/audit/audit.h>
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
@@ -63,7 +48,6 @@
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_ipc.h>
-#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
@@ -112,101 +96,16 @@ linux_copyout_rusage(struct rusage *ru, void *uaddr)
 	return (copyout(&lru, uaddr, sizeof(struct l_rusage)));
 }
 
-CTASSERT(sizeof(struct l_iovec32) == 8);
-
-int
-linux32_copyinuio(struct l_iovec32 *iovp, l_ulong iovcnt, struct uio **uiop)
-{
-	struct l_iovec32 iov32;
-	struct iovec *iov;
-	struct uio *uio;
-	uint32_t iovlen;
-	int error, i;
-
-	*uiop = NULL;
-	if (iovcnt > UIO_MAXIOV)
-		return (EINVAL);
-	iovlen = iovcnt * sizeof(struct iovec);
-	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
-	iov = (struct iovec *)(uio + 1);
-	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp[i], &iov32, sizeof(struct l_iovec32));
-		if (error) {
-			free(uio, M_IOV);
-			return (error);
-		}
-		iov[i].iov_base = PTRIN(iov32.iov_base);
-		iov[i].iov_len = iov32.iov_len;
-	}
-	uio->uio_iov = iov;
-	uio->uio_iovcnt = iovcnt;
-	uio->uio_segflg = UIO_USERSPACE;
-	uio->uio_offset = -1;
-	uio->uio_resid = 0;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - uio->uio_resid) {
-			free(uio, M_IOV);
-			return (EINVAL);
-		}
-		uio->uio_resid += iov->iov_len;
-		iov++;
-	}
-	*uiop = uio;
-	return (0);
-}
-
-int
-linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp,
-    int error)
-{
-	struct l_iovec32 iov32;
-	struct iovec *iov;
-	uint32_t iovlen;
-	int i;
-
-	*iovp = NULL;
-	if (iovcnt > UIO_MAXIOV)
-		return (error);
-	iovlen = iovcnt * sizeof(struct iovec);
-	iov = malloc(iovlen, M_IOV, M_WAITOK);
-	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp32[i], &iov32, sizeof(struct l_iovec32));
-		if (error) {
-			free(iov, M_IOV);
-			return (error);
-		}
-		iov[i].iov_base = PTRIN(iov32.iov_base);
-		iov[i].iov_len = iov32.iov_len;
-	}
-	*iovp = iov;
-	return(0);
-
-}
-
 int
 linux_readv(struct thread *td, struct linux_readv_args *uap)
 {
 	struct uio *auio;
 	int error;
 
-	error = linux32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_readv(td, uap->fd, auio);
-	free(auio, M_IOV);
-	return (error);
-}
-
-int
-linux_writev(struct thread *td, struct linux_writev_args *uap)
-{
-	struct uio *auio;
-	int error;
-
-	error = linux32_copyinuio(uap->iovp, uap->iovcnt, &auio);
-	if (error)
-		return (error);
-	error = kern_writev(td, uap->fd, auio);
 	free(auio, M_IOV);
 	return (error);
 }
@@ -408,15 +307,6 @@ linux_set_upcall(struct thread *td, register_t stack)
 }
 
 int
-linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
-{
-
-	return (linux_mmap_common(td, PTROUT(args->addr), args->len, args->prot,
-		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
-		PAGE_SIZE));
-}
-
-int
 linux_mmap(struct thread *td, struct linux_mmap_args *args)
 {
 	int error;
@@ -429,20 +319,6 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 	return (linux_mmap_common(td, linux_args.addr, linux_args.len,
 	    linux_args.prot, linux_args.flags, linux_args.fd,
 	    (uint32_t)linux_args.pgoff));
-}
-
-int
-linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
-{
-
-	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
-}
-
-int
-linux_madvise(struct thread *td, struct linux_madvise_args *uap)
-{
-
-	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
 }
 
 int

@@ -26,16 +26,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 
 #include <machine/md_var.h>
 #include <machine/pcb.h>

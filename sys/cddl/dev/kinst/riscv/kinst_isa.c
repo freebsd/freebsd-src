@@ -448,7 +448,7 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 	kinst_patchval_t *insn, v;
 	uint8_t *instr, *limit;
 	int instrsize, n, off;
-	bool lrsc_block, store_found, ret_found;
+	bool lrsc_block, store_found;
 
 	pd = opaque;
 	func = symval->name;
@@ -464,16 +464,15 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 		return (0);
 
 	/* Check for the usual function prologue. */
+	store_found = false;
 	for (insn = (kinst_patchval_t *)instr;
 	    insn < (kinst_patchval_t *)limit; insn++) {
-		if (dtrace_instr_sdsp(&insn) || dtrace_instr_c_sdsp(&insn))
+		if (dtrace_instr_sdsp(&insn) || dtrace_instr_c_sdsp(&insn)) {
 			store_found = true;
-		else if (dtrace_instr_ret(&insn) || dtrace_instr_c_ret(&insn))
-			ret_found = true;
-		if (store_found && ret_found)
 			break;
+		}
 	}
-	if (!store_found || !ret_found)
+	if (!store_found)
 		return (0);
 
 	n = 0;

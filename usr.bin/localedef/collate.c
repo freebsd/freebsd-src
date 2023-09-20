@@ -272,7 +272,7 @@ new_pri(void)
 		maxpri = maxpri ? maxpri * 2 : 1024;
 		prilist = realloc(prilist, sizeof (collpri_t) * maxpri);
 		if (prilist == NULL) {
-			fprintf(stderr,"out of memory");
+			fprintf(stderr,"out of memory\n");
 			return (-1);
 		}
 		for (i = numpri; i < maxpri; i++) {
@@ -333,7 +333,7 @@ resolve_pri(int32_t ref)
 		if (pri->pass == pass) {
 			/* report a line with the circular symbol */
 			lineno = pri->lineno;
-			fprintf(stderr,"circular reference in order list");
+			fprintf(stderr,"circular reference in order list\n");
 			return (-1);
 		}
 		if ((pri->pri < 0) || (pri->pri >= numpri)) {
@@ -494,7 +494,7 @@ define_collsym(char *name)
 	collsym_t	*sym;
 
 	if ((sym = calloc(1, sizeof(*sym))) == NULL) {
-		fprintf(stderr,"out of memory");
+		fprintf(stderr,"out of memory\n");
 		return;
 	}
 	sym->name = name;
@@ -541,7 +541,7 @@ get_collundef(char *name)
 	if ((ud = RB_FIND(collundefs, &collundefs, &srch)) == NULL) {
 		if (((ud = calloc(1, sizeof(*ud))) == NULL) ||
 		    ((ud->name = strdup(name)) == NULL)) {
-			fprintf(stderr,"out of memory");
+			fprintf(stderr,"out of memory\n");
 			free(ud);
 			return (NULL);
 		}
@@ -565,7 +565,7 @@ get_collchar(wchar_t wc, int create)
 	cc = RB_FIND(collchars, &collchars, &srch);
 	if ((cc == NULL) && create) {
 		if ((cc = calloc(1, sizeof(*cc))) == NULL) {
-			fprintf(stderr, "out of memory");
+			fprintf(stderr, "out of memory\n");
 			return (NULL);
 		}
 		for (i = 0; i < NUM_WT; i++) {
@@ -687,7 +687,7 @@ start_order(int type)
 
 	/* this is used to protect ELLIPSIS processing */
 	if ((lastorder == T_ELLIPSIS) && (type != T_CHAR)) {
-		fprintf(stderr, "character value expected");
+		fprintf(stderr, "character value expected\n");
 	}
 
 	for (i = 0; i < COLL_WEIGHTS_MAX; i++) {
@@ -728,7 +728,7 @@ start_order_char(wchar_t wc)
 		int		i;
 
 		if (wc < ellipsis_start) {
-			fprintf(stderr, "malformed range!");
+			fprintf(stderr, "malformed range!\n");
 			return;
 		}
 		while (ellipsis_start < wc) {
@@ -776,7 +776,7 @@ start_order_ellipsis(void)
 	start_order(T_ELLIPSIS);
 
 	if (lastorder != T_CHAR) {
-		fprintf(stderr, "illegal starting point for range");
+		fprintf(stderr, "illegal starting point for range\n");
 		return;
 	}
 
@@ -792,12 +792,12 @@ define_collelem(char *name, wchar_t *wcs)
 	int		i;
 
 	if (wcslen(wcs) >= COLLATE_STR_LEN) {
-		fprintf(stderr,"expanded collation element too long");
+		fprintf(stderr,"expanded collation element too long\n");
 		return;
 	}
 
 	if ((e = calloc(1, sizeof(*e))) == NULL) {
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 		return;
 	}
 	e->expand = wcs;
@@ -816,7 +816,7 @@ define_collelem(char *name, wchar_t *wcs)
 	/* A character sequence can only reduce to one element. */
 	if ((RB_FIND(elem_by_symbol, &elem_by_symbol, e) != NULL) ||
 	    (RB_FIND(elem_by_expand, &elem_by_expand, e) != NULL)) {
-		fprintf(stderr, "duplicate collating element definition");
+		fprintf(stderr, "duplicate collating element definition\n");
 		free(e);
 		return;
 	}
@@ -932,7 +932,7 @@ add_order_subst(void)
 
 	if (s == NULL) {
 		if ((s = calloc(1, sizeof(*s))) == NULL) {
-			fprintf(stderr,"out of memory");
+			fprintf(stderr,"out of memory\n");
 			return;
 		}
 		s->key = new_pri();
@@ -976,7 +976,7 @@ static void
 add_subst_pri(int32_t ref)
 {
 	if (curr_subst >= COLLATE_STR_LEN) {
-		fprintf(stderr,"substitution string is too long");
+		fprintf(stderr,"substitution string is too long\n");
 		return;
 	}
 	subst_weights[curr_subst] = ref;
@@ -1040,7 +1040,7 @@ add_weight(int32_t ref, int pass)
 		return;
 
 	if ((w = calloc(1, sizeof(*w))) == NULL) {
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 		return;
 	}
 	w->pri = srch.pri;
@@ -1214,7 +1214,7 @@ dump_collate(void)
 		RB_COUNT(temp, substs, &substs[i], n);
 		subst_count[i] = n;
 		if ((st = calloc(n, sizeof(collate_subst_t))) == NULL) {
-			fprintf(stderr, "out of memory");
+			fprintf(stderr, "out of memory\n");
 			return;
 		}
 		n = 0;
@@ -1245,7 +1245,7 @@ dump_collate(void)
 	RB_NUMNODES(collelem_t, elem_by_expand, &elem_by_expand, chain_count);
 	chain = calloc(chain_count, sizeof(collate_chain_t));
 	if (chain == NULL) {
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 		return;
 	}
 	n = 0;
@@ -1265,7 +1265,7 @@ dump_collate(void)
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
 	large = calloc(n, sizeof(collate_large_t));
 	if (large == NULL) {
-		fprintf(stderr, "out of memory");
+		fprintf(stderr, "out of memory\n");
 		return;
 	}
 

@@ -111,8 +111,8 @@ static int	vtpci_modern_register_vq_msix(device_t, int idx,
 
 static uint64_t	vtpci_modern_negotiate_features(device_t, uint64_t);
 static int	vtpci_modern_finalize_features(device_t);
-static int	vtpci_modern_with_feature(device_t, uint64_t);
-static int	vtpci_modern_alloc_virtqueues(device_t, int, int,
+static bool	vtpci_modern_with_feature(device_t, uint64_t);
+static int	vtpci_modern_alloc_virtqueues(device_t, int,
 		    struct vq_alloc_info *);
 static int	vtpci_modern_setup_interrupts(device_t, enum intr_type);
 static void	vtpci_modern_stop(device_t);
@@ -469,7 +469,7 @@ vtpci_modern_finalize_features(device_t dev)
 	return (0);
 }
 
-static int
+static bool
 vtpci_modern_with_feature(device_t dev, uint64_t feature)
 {
 	struct vtpci_modern_softc *sc;
@@ -507,7 +507,7 @@ vtpci_modern_write_features(struct vtpci_modern_softc *sc, uint64_t features)
 }
 
 static int
-vtpci_modern_alloc_virtqueues(device_t dev, int flags, int nvqs,
+vtpci_modern_alloc_virtqueues(device_t dev, int nvqs,
     struct vq_alloc_info *vq_info)
 {
 	struct vtpci_modern_softc *sc;
@@ -524,7 +524,7 @@ vtpci_modern_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		return (E2BIG);
 	}
 
-	return (vtpci_alloc_virtqueues(cn, flags, nvqs, vq_info));
+	return (vtpci_alloc_virtqueues(cn, nvqs, vq_info));
 }
 
 static int

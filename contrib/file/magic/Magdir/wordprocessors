@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.31 2022/08/31 08:00:53 christos Exp $
+# $File: wordprocessors,v 1.34 2023/01/24 20:13:40 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -288,7 +288,65 @@
 >>9	default	x
 >>>9	byte	x	Corel WordPerfect Office: Unknown filetype %d
 # Corel DrawPerfect
+# URL:		http://fileformats.archiveteam.org/wiki/Corel_Presentations
+# Update:	Joerg Jenderek
 >8	byte	15
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-wp-2.trid.xml
+# Note:		called "WordPerfect Presentations (v2)" by TrID and
+#		"Corel Presentation" with version "7-8-9" by DROID via PUID fmt/877
+>>9	byte	10	WordPerfect Presentation
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-drawperfect-shw
+# like: BENEFITS.SHW chartbar.shw chartbul.shw chartgal.shw chartorg.shw fig-demo.shw figurgal.shw mastrgal.shw scuba.shw tutorial.shw
+!:ext		shw
+# pointer to document area like: 10h
+>>>4	ulelong	!0x10	\b, at %#x document area
+# according to TrID this is nil
+>>>12	ulelong	!0	\b, at 0xC %#x
+# search for embedded WP file like in tutorial.shw
+#>>>16	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-wp-3.trid.xml
+# Note:		called "WordPerfect/Corel Presentations (v3)" by TrID and
+#		"Corel Presentation" with version "3" by DROID via PUID fmt/878
+>>9	byte	15	Corel Presentation
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-drawperfect-shw
+# like: FIG_ANIM.SHW presenta.shw
+!:ext		shw
+# pointer to document area like: 1ah
+>>>4	ulelong	!0x1a	\b, at %#x document area
+# according to TrID this is nil
+>>>12	ulelong	!0	\b, at 0xC %#x
+# reserved like: 3
+>>>16	ulelong	!0x3	\b, at 0x10 %#x
+# file size, not including pad characters at EOF
+>>>0x14	ulelong x	\b, %u bytes
+# search for embedded WP file like in foo
+#>>>24	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
+# embedded inside Compound Document variant handled by ./ole2compounddocs
+>>9	byte	16	Corel Presentation (embeded)
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-corelpresentations
+# like: PerfectOffice_MAIN
+!:ext		/
+# pointer to document area like: 1ah
+>>>4	ulelong	!0x1a	\b, at %#x document area
+>>>12	ulelong	!0	\b, at 0xC %#x
+# reserved like: 3
+>>>16	ulelong	!0x3	\b, at 0x10 %#x
+# file size, not including pad characters at EOF
+>>>0x14	ulelong x	\b, %u bytes
+# search for embedded WP file
+#>>>24	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
 >>9	default	x
 >>>9	byte	x	Corel DrawPerfect: Unknown filetype %d
 # Corel LetterPerfect
@@ -378,11 +436,17 @@
 >>8	byte	x	Unknown Corel/Wordperfect product %d,
 >>>9	byte	x	file type %d
 >10	byte	0	\b, v5.
+# version of WP file; 2.1~WP 8.0
+# major version of WP file like: 1 2
 >10	byte	!0	\b, v%d.
+# minor version of WP file like: 0 1
 >11	byte	x	\b%d
 
-# Hangul (Korean) Word Processor File
-0	string	HWP\ Document\ File	Hangul (Korean) Word Processor File 3.0
+# Hancom HWP (Hangul Word Processor)
+# Hangul Word Processor 3.0 through 97 used HWP 3.0 format.
+# URL: https://www.hancom.com/etc/hwpDownload.do
+0	string	HWP\ Document\ File     Hancom HWP (Hangul Word Processor) file, version 3.0
+!:ext	hwp
 
 # CosmicBook, from Benoit Rouits
 0       string  CSBK    Ted Neslson's CosmicBook hypertext file
@@ -430,7 +494,7 @@
 >110	uleshort/256	=0			document
 # https://www.macdisk.com/macsigen.php
 !:apple	ALB3ALD3
-# PT3 for template and no example for PageMaker document/publiction with PM3 extension
+# PT3 for template and no example for PageMaker document/publication with PM3 extension
 !:ext	pm3/pt3
 >110	uleshort/256	=4			document
 !:apple	ALD4ALB4

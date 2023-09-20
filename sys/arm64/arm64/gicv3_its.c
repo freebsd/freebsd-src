@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2016 The FreeBSD Foundation
+ * Copyright (c) 2023 Arm Ltd
  *
  * This software was developed by Andrew Turner under
  * the sponsorship of the FreeBSD Foundation.
@@ -221,7 +222,16 @@ struct its_cmd {
 /* An ITS private table */
 struct its_ptable {
 	vm_offset_t	ptab_vaddr;
-	unsigned long	ptab_size;
+	/* Size of the L1 and L2 tables */
+	size_t		ptab_l1_size;
+	size_t		ptab_l2_size;
+	/* Number of L1 and L2 entries */
+	int		ptab_l1_nidents;
+	int		ptab_l2_nidents;
+
+	int		ptab_page_size;
+	int		ptab_share;
+	bool		ptab_indirect;
 };
 
 /* ITS collection description. */
@@ -246,6 +256,8 @@ struct gicv3_its_softc {
 	cpuset_t	sc_cpus;
 	struct domainset *sc_ds;
 	u_int		gic_irq_cpu;
+	int		sc_devbits;
+	int		sc_dev_table_idx;
 
 	struct its_ptable sc_its_ptab[GITS_BASER_NUM];
 	struct its_col *sc_its_cols[MAXCPU];	/* Per-CPU collections */
@@ -425,14 +437,79 @@ gicv3_its_cmdq_init(struct gicv3_its_softc *sc)
 }
 
 static int
+gicv3_its_table_page_size(struct gicv3_its_softc *sc, int table)
+{
+	uint64_t reg, tmp;
+	int page_size;
+
+	page_size = PAGE_SIZE_64K;
+	reg = gic_its_read_8(sc, GITS_BASER(table));
+
+	while (1) {
+		reg &= GITS_BASER_PSZ_MASK;
+		switch (page_size) {
+		case PAGE_SIZE_4K:	/* 4KB */
+			reg |= GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
+			break;
+		case PAGE_SIZE_16K:	/* 16KB */
+			reg |= GITS_BASER_PSZ_16K << GITS_BASER_PSZ_SHIFT;
+			break;
+		case PAGE_SIZE_64K:	/* 64KB */
+			reg |= GITS_BASER_PSZ_64K << GITS_BASER_PSZ_SHIFT;
+			break;
+		}
+
+		/* Write the new page size */
+		gic_its_write_8(sc, GITS_BASER(table), reg);
+
+		/* Read back to check */
+		tmp = gic_its_read_8(sc, GITS_BASER(table));
+
+		/* The page size is correct */
+		if ((tmp & GITS_BASER_PSZ_MASK) == (reg & GITS_BASER_PSZ_MASK))
+			return (page_size);
+
+		switch (page_size) {
+		default:
+			return (-1);
+		case PAGE_SIZE_16K:
+			page_size = PAGE_SIZE_4K;
+			break;
+		case PAGE_SIZE_64K:
+			page_size = PAGE_SIZE_16K;
+			break;
+		}
+	}
+}
+
+static bool
+gicv3_its_table_supports_indirect(struct gicv3_its_softc *sc, int table)
+{
+	uint64_t reg;
+
+	reg = gic_its_read_8(sc, GITS_BASER(table));
+
+	/* Try setting the indirect flag */
+	reg |= GITS_BASER_INDIRECT;
+	gic_its_write_8(sc, GITS_BASER(table), reg);
+
+	/* Read back to check */
+	reg = gic_its_read_8(sc, GITS_BASER(table));
+	return ((reg & GITS_BASER_INDIRECT) != 0);
+}
+
+
+static int
 gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 {
 	vm_offset_t table;
 	vm_paddr_t paddr;
 	uint64_t cache, reg, share, tmp, type;
-	size_t esize, its_tbl_size, nidents, nitspages, npages;
+	size_t its_tbl_size, nitspages, npages;
+	size_t l1_esize, l2_esize, l1_nidents, l2_nidents;
 	int i, page_size;
 	int devbits;
+	bool indirect;
 
 	if ((sc->sc_its_flags & ITS_FLAGS_ERRATA_CAVIUM_22375) != 0) {
 		/*
@@ -459,21 +536,57 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		devbits = GITS_TYPER_DEVB(gic_its_read_8(sc, GITS_TYPER));
 		cache = GITS_BASER_CACHE_WAWB;
 	}
+	sc->sc_devbits = devbits;
 	share = GITS_BASER_SHARE_IS;
-	page_size = PAGE_SIZE_64K;
 
 	for (i = 0; i < GITS_BASER_NUM; i++) {
 		reg = gic_its_read_8(sc, GITS_BASER(i));
 		/* The type of table */
 		type = GITS_BASER_TYPE(reg);
-		/* The table entry size */
-		esize = GITS_BASER_ESIZE(reg);
+		if (type == GITS_BASER_TYPE_UNIMPL)
+			continue;
 
+		/* The table entry size */
+		l1_esize = GITS_BASER_ESIZE(reg);
+
+		/* Find the tables page size */
+		page_size = gicv3_its_table_page_size(sc, i);
+		if (page_size == -1) {
+			device_printf(dev, "No valid page size for table %d\n",
+			    i);
+			return (EINVAL);
+		}
+
+		indirect = false;
+		l2_nidents = 0;
+		l2_esize = 0;
 		switch(type) {
 		case GITS_BASER_TYPE_DEV:
-			nidents = (1 << devbits);
-			its_tbl_size = esize * nidents;
-			its_tbl_size = roundup2(its_tbl_size, PAGE_SIZE_64K);
+			if (sc->sc_dev_table_idx != -1)
+				device_printf(dev,
+				    "Warning: Multiple device tables found\n");
+
+			sc->sc_dev_table_idx = i;
+			l1_nidents = (1 << devbits);
+			if ((l1_esize * l1_nidents) > (page_size * 2)) {
+				indirect =
+				    gicv3_its_table_supports_indirect(sc, i);
+				if (indirect) {
+					/*
+					 * Each l1 entry is 8 bytes and points
+					 * to an l2 table of size page_size.
+					 * Calculate how many entries this is
+					 * and use this to find how many
+					 * 8 byte l1 idents we need.
+					 */
+					l2_esize = l1_esize;
+					l2_nidents = page_size / l2_esize;
+					l1_nidents = l1_nidents / l2_nidents;
+					l1_esize = GITS_INDIRECT_L1_ESIZE;
+				}
+			}
+			its_tbl_size = l1_esize * l1_nidents;
+			its_tbl_size = roundup2(its_tbl_size, page_size);
 			break;
 		case GITS_BASER_TYPE_VP:
 		case GITS_BASER_TYPE_PP: /* Undocumented? */
@@ -481,6 +594,9 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			its_tbl_size = page_size;
 			break;
 		default:
+			if (bootverbose)
+				device_printf(dev, "Unhandled table type %lx\n",
+				    type);
 			continue;
 		}
 		npages = howmany(its_tbl_size, PAGE_SIZE);
@@ -491,7 +607,13 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		    (1ul << 48) - 1, PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
-		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
+		sc->sc_its_ptab[i].ptab_l1_size = its_tbl_size;
+		sc->sc_its_ptab[i].ptab_l1_nidents = l1_nidents;
+		sc->sc_its_ptab[i].ptab_l2_size = page_size;
+		sc->sc_its_ptab[i].ptab_l2_nidents = l2_nidents;
+
+		sc->sc_its_ptab[i].ptab_indirect = indirect;
+		sc->sc_its_ptab[i].ptab_page_size = page_size;
 
 		paddr = vtophys(table);
 
@@ -501,14 +623,14 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			/* Clear the fields we will be setting */
 			reg &= ~(GITS_BASER_VALID | GITS_BASER_INDIRECT |
 			    GITS_BASER_CACHE_MASK | GITS_BASER_TYPE_MASK |
-			    GITS_BASER_ESIZE_MASK | GITS_BASER_PA_MASK |
+			    GITS_BASER_PA_MASK |
 			    GITS_BASER_SHARE_MASK | GITS_BASER_PSZ_MASK |
 			    GITS_BASER_SIZE_MASK);
 			/* Set the new values */
 			reg |= GITS_BASER_VALID |
+			    (indirect ? GITS_BASER_INDIRECT : 0) |
 			    (cache << GITS_BASER_CACHE_SHIFT) |
 			    (type << GITS_BASER_TYPE_SHIFT) |
-			    ((esize - 1) << GITS_BASER_ESIZE_SHIFT) |
 			    paddr | (share << GITS_BASER_SHARE_SHIFT) |
 			    (nitspages - 1);
 
@@ -540,18 +662,6 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				continue;
 			}
 
-			if ((tmp & GITS_BASER_PSZ_MASK) !=
-			    (reg & GITS_BASER_PSZ_MASK)) {
-				switch (page_size) {
-				case PAGE_SIZE_16K:
-					page_size = PAGE_SIZE_4K;
-					continue;
-				case PAGE_SIZE_64K:
-					page_size = PAGE_SIZE_16K;
-					continue;
-				}
-			}
-
 			if (tmp != reg) {
 				device_printf(dev, "GITS_BASER%d: "
 				    "unable to be updated: %lx != %lx\n",
@@ -559,6 +669,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				return (ENXIO);
 			}
 
+			sc->sc_its_ptab[i].ptab_share = share;
 			/* We should have made all needed changes */
 			break;
 		}
@@ -828,6 +939,7 @@ gicv3_its_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	sc->sc_dev_table_idx = -1;
 	sc->sc_irq_length = gicv3_get_nirqs(dev);
 	sc->sc_irq_base = GIC_FIRST_LPI;
 	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
@@ -1154,6 +1266,82 @@ its_device_find(device_t dev, device_t child)
 	return (its_dev);
 }
 
+static bool
+its_device_alloc(struct gicv3_its_softc *sc, int devid)
+{
+	struct its_ptable *ptable;
+	vm_offset_t l2_table;
+	uint64_t *table;
+	uint32_t index;
+	bool shareable;
+
+	/* No device table */
+	if (sc->sc_dev_table_idx < 0) {
+		if (devid >= (1 << sc->sc_devbits)) {
+			if (bootverbose) {
+				device_printf(sc->dev,
+				    "%s: Device out of range for hardware "
+				    "(%x >= %x)\n", __func__, devid,
+				    1 << sc->sc_devbits);
+			}
+			return (false);
+		}
+		return (true);
+	}
+
+	ptable = &sc->sc_its_ptab[sc->sc_dev_table_idx];
+	/* Check the devid is within the table limit */
+	if (!ptable->ptab_indirect) {
+		if (devid >= ptable->ptab_l1_nidents) {
+			if (bootverbose) {
+				device_printf(sc->dev,
+				    "%s: Device out of range for table "
+				    "(%x >= %x)\n", __func__, devid,
+				    ptable->ptab_l1_nidents);
+			}
+			return (false);
+		}
+
+		return (true);
+	}
+
+	/* Check the devid is within the allocated range */
+	index = devid / ptable->ptab_l2_nidents;
+	if (index >= ptable->ptab_l1_nidents) {
+		if (bootverbose) {
+			device_printf(sc->dev,
+			    "%s: Index out of range for table (%x >= %x)\n",
+			    __func__, index, ptable->ptab_l1_nidents);
+		}
+		return (false);
+	}
+
+	table = (uint64_t *)ptable->ptab_vaddr;
+	/* We have an second level table */
+	if ((table[index] & GITS_BASER_VALID) != 0)
+		return (true);
+
+	shareable = true;
+	if ((ptable->ptab_share & GITS_BASER_SHARE_MASK) == GITS_BASER_SHARE_NS)
+		shareable = false;
+
+	l2_table = (vm_offset_t)contigmalloc_domainset(ptable->ptab_l2_size,
+	    M_GICV3_ITS, sc->sc_ds, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
+	    ptable->ptab_page_size, 0);
+
+	if (!shareable)
+		cpu_dcache_wb_range((vm_offset_t)l2_table,
+		    ptable->ptab_l2_size);
+
+	table[index] = vtophys(l2_table) | GITS_BASER_VALID;
+	if (!shareable)
+		cpu_dcache_wb_range((vm_offset_t)&table[index],
+		    sizeof(table[index]));
+
+	dsb(sy);
+	return (true);
+}
+
 static struct its_dev *
 its_device_get(device_t dev, device_t child, u_int nvecs)
 {
@@ -1178,6 +1366,11 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	its_dev->lpis.lpi_busy = 0;
 	its_dev->lpis.lpi_num = nvecs;
 	its_dev->lpis.lpi_free = nvecs;
+
+	if (!its_device_alloc(sc, its_dev->devid)) {
+		free(its_dev, M_GICV3_ITS);
+		return (NULL);
+	}
 
 	if (vmem_alloc(sc->sc_irq_alloc, nvecs, M_FIRSTFIT | M_NOWAIT,
 	    &irq_base) != 0) {

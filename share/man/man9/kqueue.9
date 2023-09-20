@@ -30,7 +30,7 @@
 .Nm kqfd_register ,
 .Nm knote_fdclose ,
 .Nm knlist_init , knlist_init_mtx ,
-.Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty ,
+.Nm knlist_add , knlist_remove , knlist_empty ,
 .Nm knlist_clear , knlist_delete , knlist_destroy ,
 .Nm KNOTE_LOCKED , KNOTE_UNLOCKED
 .Nd "event delivery subsystem"
@@ -58,8 +58,6 @@
 .Fn knlist_add "struct knlist *knl" "struct knote *kn" "int islocked"
 .Ft void
 .Fn knlist_remove "struct knlist *knl" "struct knote *kn" "int islocked"
-.Ft void
-.Fn knlist_remove_inevent "struct knlist *knl" "struct knote *kn"
 .Ft int
 .Fn knlist_empty "struct knlist *knl"
 .Ft void
@@ -157,8 +155,7 @@ function will be called to detach the
 if the
 .Vt knote
 has not already been detached by a call to
-.Fn knlist_remove ,
-.Fn knlist_remove_inevent
+.Fn knlist_remove
 or
 .Fn knlist_delete .
 The list
@@ -186,16 +183,6 @@ The
 .Va kn_data
 value should be updated as necessary to reflect the current value, such as
 number of bytes available for reading, or buffer space available for writing.
-If the note needs to be removed,
-.Fn knlist_remove_inevent
-must be called.
-The function
-.Fn knlist_remove_inevent
-will remove the note from the list, the
-.Va f_detach
-function will not be called and the
-.Vt knote
-will not be returned as an event.
 .Pp
 Locks
 .Em must not

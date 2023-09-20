@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2022 Dmitry Salychev
+ * Copyright © 2021-2023 Dmitry Salychev
  * Copyright © 2022 Mathew McBride
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/buf_ring.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <net/if.h>
@@ -50,6 +51,7 @@
 #include "dpaa2_io.h"
 #include "dpaa2_mac.h"
 #include "dpaa2_ni_dpkg.h"
+#include "dpaa2_channel.h"
 
 /* Name of the DPAA2 network interface. */
 #define DPAA2_NI_IFNAME		"dpni"
@@ -58,17 +60,13 @@
 #define DPAA2_NI_MAX_RESOURCES	34
 
 #define DPAA2_NI_MSI_COUNT	1  /* MSIs per DPNI */
-#define DPAA2_NI_MAX_CHANNELS	16 /* to distribute ingress traffic to cores */
-#define DPAA2_NI_MAX_TCS	8  /* traffic classes per DPNI */
 #define DPAA2_NI_MAX_POOLS	8  /* buffer pools per DPNI */
 
-/* Maximum number of Rx buffers. */
-#define DPAA2_NI_BUFS_INIT	(50u * DPAA2_SWP_BUFS_PER_CMD)
-#define DPAA2_NI_BUFS_MAX	(1 << 15) /* 15 bits for buffer index max. */
+#define DPAA2_NI_BUFS_INIT	(5u * DPAA2_SWP_BUFS_PER_CMD)
 
 /* Maximum number of buffers allocated per Tx ring. */
 #define DPAA2_NI_BUFS_PER_TX	(1 << 7)
-#define DPAA2_NI_MAX_BPTX	(1 << 8) /* 8 bits for buffer index max. */
+#define DPAA2_NI_MAX_BPTX	(1 << 8)
 
 /* Number of the DPNI statistics counters. */
 #define DPAA2_NI_STAT_COUNTERS	7u
@@ -133,12 +131,30 @@
  */
 #define DPAA2_NI_ENQUEUE_RETRIES	10
 
-enum dpaa2_ni_queue_type {
-	DPAA2_NI_QUEUE_RX = 0,
-	DPAA2_NI_QUEUE_TX,
-	DPAA2_NI_QUEUE_TX_CONF,
-	DPAA2_NI_QUEUE_RX_ERR
-};
+/* Channel storage buffer configuration */
+#define DPAA2_ETH_STORE_FRAMES		16u
+#define DPAA2_ETH_STORE_SIZE \
+	((DPAA2_ETH_STORE_FRAMES + 1) * sizeof(struct dpaa2_dq))
+
+/*
+ * NOTE: Don't forget to update dpaa2_ni_spec in case of any changes in macros!
+ */
+/* DPMCP resources */
+#define DPAA2_NI_MCP_RES_NUM	(1u)
+#define DPAA2_NI_MCP_RID_OFF	(0u)
+#define DPAA2_NI_MCP_RID(rid)	((rid) + DPAA2_NI_MCP_RID_OFF)
+/* DPIO resources (software portals) */
+#define DPAA2_NI_IO_RES_NUM	(16u)
+#define DPAA2_NI_IO_RID_OFF	(DPAA2_NI_MCP_RID_OFF + DPAA2_NI_MCP_RES_NUM)
+#define DPAA2_NI_IO_RID(rid)	((rid) + DPAA2_NI_IO_RID_OFF)
+/* DPBP resources (buffer pools) */
+#define DPAA2_NI_BP_RES_NUM	(1u)
+#define DPAA2_NI_BP_RID_OFF	(DPAA2_NI_IO_RID_OFF + DPAA2_NI_IO_RES_NUM)
+#define DPAA2_NI_BP_RID(rid)	((rid) + DPAA2_NI_BP_RID_OFF)
+/* DPCON resources (channels) */
+#define DPAA2_NI_CON_RES_NUM	(16u)
+#define DPAA2_NI_CON_RID_OFF	(DPAA2_NI_BP_RID_OFF + DPAA2_NI_BP_RES_NUM)
+#define DPAA2_NI_CON_RID(rid)	((rid) + DPAA2_NI_CON_RID_OFF)
 
 enum dpaa2_ni_dest_type {
 	DPAA2_NI_DEST_NONE = 0,
@@ -172,7 +188,7 @@ enum dpaa2_ni_err_action {
 	DPAA2_NI_ERR_SEND_TO_ERROR_QUEUE
 };
 
-struct dpaa2_ni_channel;
+struct dpaa2_channel;
 struct dpaa2_ni_fq;
 
 /**
@@ -201,95 +217,6 @@ struct dpaa2_ni_attr {
 		uint8_t		 fs;
 		uint8_t		 qos;
 	} key_size;
-};
-
-/**
- * @brief Tx ring.
- *
- * fq:		Parent (TxConf) frame queue.
- * fqid:	ID of the logical Tx queue.
- * mbuf_br:	Ring buffer for mbufs to transmit.
- * mbuf_lock:	Lock for the ring buffer.
- */
-struct dpaa2_ni_tx_ring {
-	struct dpaa2_ni_fq	*fq;
-	uint32_t		 fqid;
-	uint32_t		 txid; /* Tx ring index */
-
-	/* Ring buffer for indexes in "buf" array. */
-	struct buf_ring		*idx_br;
-	struct mtx		 lock;
-
-	/* Buffers to DMA load/unload Tx mbufs. */
-	struct dpaa2_buf	 buf[DPAA2_NI_BUFS_PER_TX];
-};
-
-/**
- * @brief A Frame Queue is the basic queuing structure used by the QMan.
- *
- * It comprises a list of frame descriptors (FDs), so it can be thought of
- * as a queue of frames.
- *
- * NOTE: When frames on a FQ are ready to be processed, the FQ is enqueued
- *	 onto a work queue (WQ).
- *
- * fqid:	Frame queue ID, can be used to enqueue/dequeue or execute other
- *		commands on the queue through DPIO.
- * txq_n:	Number of configured Tx queues.
- * tx_fqid:	Frame queue IDs of the Tx queues which belong to the same flowid.
- *		Note that Tx queues are logical queues and not all management
- *		commands are available on these queue types.
- * qdbin:	Queue destination bin. Can be used with the DPIO enqueue
- *		operation based on QDID, QDBIN and QPRI. Note that all Tx queues
- *		with the same flowid have the same destination bin.
- */
-struct dpaa2_ni_fq {
-	int (*consume)(struct dpaa2_ni_channel *,
-	    struct dpaa2_ni_fq *, struct dpaa2_fd *);
-
-	struct dpaa2_ni_channel	*chan;
-	uint32_t		 fqid;
-	uint16_t		 flowid;
-	uint8_t			 tc;
-	enum dpaa2_ni_queue_type type;
-
-	/* Optional fields (for TxConf queue). */
-	struct dpaa2_ni_tx_ring	 tx_rings[DPAA2_NI_MAX_TCS];
-	uint32_t		 tx_qdbin;
-} __aligned(CACHE_LINE_SIZE);
-
-/**
- * @brief QBMan channel to process ingress traffic (Rx, Tx conf).
- *
- * NOTE: Several WQs are organized into a single WQ Channel.
- */
-struct dpaa2_ni_channel {
-	device_t		 ni_dev;
-	device_t		 io_dev;
-	device_t		 con_dev;
-	uint16_t		 id;
-	uint16_t		 flowid;
-
-	/* For debug purposes only! */
-	uint64_t		 tx_frames;
-	uint64_t		 tx_dropped;
-
-	/* Context to configure CDAN. */
-	struct dpaa2_io_notif_ctx ctx;
-
-	/* Channel storage (to keep responses from VDQ command). */
-	struct dpaa2_buf	 store;
-	uint32_t		 store_sz; /* in frames */
-	uint32_t		 store_idx; /* frame index */
-
-	/* Recycled buffers to release back to the pool. */
-	uint32_t		 recycled_n;
-	struct dpaa2_buf	*recycled[DPAA2_SWP_BUFS_PER_CMD];
-
-	/* Frame queues */
-	uint32_t		 rxq_n;
-	struct dpaa2_ni_fq	 rx_queues[DPAA2_NI_MAX_TCS];
-	struct dpaa2_ni_fq	 txc_queue;
 };
 
 /**
@@ -534,7 +461,6 @@ struct dpaa2_ni_softc {
 	uint16_t		 buf_align;
 	uint16_t		 buf_sz;
 
-	/* For debug purposes only! */
 	uint64_t		 rx_anomaly_frames;
 	uint64_t		 rx_single_buf_frames;
 	uint64_t		 rx_sg_buf_frames;
@@ -543,10 +469,8 @@ struct dpaa2_ni_softc {
 	uint64_t		 tx_single_buf_frames;
 	uint64_t		 tx_sg_frames;
 
-	/* Attributes of the DPAA2 network interface. */
 	struct dpaa2_ni_attr	 attr;
 
-	/* For network interface and miibus. */
 	struct ifnet		*ifp;
 	uint32_t		 if_flags;
 	struct mtx		 lock;
@@ -556,37 +480,25 @@ struct dpaa2_ni_softc {
 	struct ifmedia		 fixed_ifmedia;
 	int			 media_status;
 
-	/* DMA resources */
-	bus_dma_tag_t		 bp_dmat;  /* for buffer pool */
-	bus_dma_tag_t		 tx_dmat;  /* for Tx buffers */
-	bus_dma_tag_t		 st_dmat;  /* for channel storage */
 	bus_dma_tag_t		 rxd_dmat; /* for Rx distribution key */
 	bus_dma_tag_t		 qos_dmat; /* for QoS table key */
-	bus_dma_tag_t		 sgt_dmat; /* for scatter/gather tables */
 
-	struct dpaa2_buf	 qos_kcfg; /* QoS table key config. */
-	struct dpaa2_buf	 rxd_kcfg; /* Rx distribution key config. */
+	struct dpaa2_buf	 qos_kcfg; /* QoS table key config */
+	struct dpaa2_buf	 rxd_kcfg; /* Rx distribution key config */
 
-	/* Channels and RxError frame queue */
 	uint32_t		 chan_n;
-	struct dpaa2_ni_channel	*channels[DPAA2_NI_MAX_CHANNELS];
-	struct dpaa2_ni_fq	 rxe_queue; /* one per network interface */
+	struct dpaa2_channel	*channels[DPAA2_MAX_CHANNELS];
+	struct dpaa2_ni_fq	 rxe_queue; /* one per DPNI */
 
-	/* Rx buffers for buffer pool. */
 	struct dpaa2_atomic	 buf_num;
 	struct dpaa2_atomic	 buf_free; /* for sysctl(9) only */
-	struct dpaa2_buf	 buf[DPAA2_NI_BUFS_MAX];
 
-	/* Interrupts */
 	int			 irq_rid[DPAA2_NI_MSI_COUNT];
 	struct resource		*irq_res;
-	void			*intr; /* interrupt handle */
+	void			*intr;
 
-	/* Tasks */
 	struct taskqueue	*bp_taskq;
-	struct task		 bp_task;
 
-	/* Callouts */
 	struct callout		 mii_callout;
 
 	struct {
@@ -594,7 +506,7 @@ struct dpaa2_ni_softc {
 		uint8_t		 addr[ETHER_ADDR_LEN];
 		device_t	 phy_dev;
 		int		 phy_loc;
-	} mac; /* Info about connected DPMAC (if exists). */
+	} mac; /* Info about connected DPMAC (if exists) */
 };
 
 extern struct resource_spec dpaa2_ni_spec[];

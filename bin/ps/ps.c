@@ -168,7 +168,7 @@ static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
 			"%cpu,%mem,command";
 static char Zfmt[] = "label";
 
-#define	PS_ARGS	"AaCcde" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
+#define	PS_ARGS	"AaCcD:de" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
@@ -188,6 +188,8 @@ main(int argc, char *argv[])
 	int fwidthmin, fwidthmax;
 	char errbuf[_POSIX2_LINE_MAX];
 	char fmtbuf[_POSIX2_LINE_MAX];
+	enum { NONE = 0, UP = 1, DOWN = 2, BOTH = 1 | 2 } directions = NONE;
+	struct { int traversed; int initial; } pid_count;
 
 	(void) setlocale(LC_ALL, "");
 	time(&now);			/* Used by routines in print.c. */
@@ -262,6 +264,20 @@ main(int argc, char *argv[])
 		case 'c':
 			cflag = 1;
 			break;
+		case 'D': {
+				size_t len = strlen(optarg);
+
+				if (len <= 2 &&
+					strncasecmp(optarg, "up", len) == 0)
+					directions |= UP;
+				else if (len <= 4 &&
+					strncasecmp(optarg, "down", len) == 0)
+					directions |= DOWN;
+				else if (len <= 4 &&
+					strncasecmp(optarg, "both", len) == 0)
+					directions |= BOTH;
+				break;
+			}
 		case 'd':
 			descendancy = 1;
 			break;
@@ -502,7 +518,7 @@ main(int argc, char *argv[])
 			what = KERN_PROC_PGRP | showthreads;
 			flag = *pgrplist.l.pids;
 			nselectors = 0;
-		} else if (pidlist.count == 1 && !descendancy) {
+		} else if (pidlist.count == 1 && directions == NONE) {
 			what = KERN_PROC_PID | showthreads;
 			flag = *pidlist.l.pids;
 			nselectors = 0;
@@ -537,14 +553,33 @@ main(int argc, char *argv[])
 	if ((kp == NULL && errno != ESRCH) || (kp != NULL && nentries < 0))
 		xo_errx(1, "%s", kvm_geterr(kd));
 	nkept = 0;
-	if (descendancy)
+	pid_count.initial = pidlist.count;
+	if (directions & DOWN)
 		for (elem = 0; elem < pidlist.count; elem++)
-			for (i = 0; i < nentries; i++)
+			for (i = 0; i < nentries; i++) {
+				if (kp[i].ki_ppid == kp[i].ki_pid)
+					continue;
 				if (kp[i].ki_ppid == pidlist.l.pids[elem]) {
 					if (pidlist.count >= pidlist.maxcount)
 						expand_list(&pidlist);
 					pidlist.l.pids[pidlist.count++] = kp[i].ki_pid;
 				}
+			}
+	pid_count.traversed = pidlist.count;
+	if (directions & UP)
+		for (elem = 0; elem < pidlist.count; elem++) {
+			if (elem >= pid_count.initial && elem < pid_count.traversed)
+				continue;
+			for (i = 0; i < nentries; i++) {
+				if (kp[i].ki_ppid == kp[i].ki_pid)
+					continue;
+				if (kp[i].ki_pid == pidlist.l.pids[elem]) {
+					if (pidlist.count >= pidlist.maxcount)
+						expand_list(&pidlist);
+					pidlist.l.pids[pidlist.count++] = kp[i].ki_ppid;
+				}
+			}
+		}
 	if (nentries > 0) {
 		if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
 			xo_errx(1, "malloc failed");
@@ -1456,10 +1491,11 @@ usage(void)
 {
 #define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
-	(void)xo_error("%s\n%s\n%s\n%s\n",
+	(void)xo_error("%s\n%s\n%s\n%s\n%s\n",
 	    "usage: ps [--libxo] " SINGLE_OPTS " [-O fmt | -o fmt]",
 	    "          [-G gid[,gid...]] [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",
+	    "          [-D up | down | both]",
 	    "       ps [--libxo] -L");
 	exit(1);
 }

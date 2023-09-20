@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\" Copyright (c) 2022-2023 Bjoern A. Zeeb
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 22, 2023
+.Dd September 5, 2023
 .Dt RTW88 4
 .Os
 .Sh NAME
 .Nm rtw88
 .Nd Realtek IEEE 802.11n/ac wireless network driver
 .Sh SYNOPSIS
+.Sy The driver is temporary disconnected from the build.
+.Pp
 The driver will auto-load without any user interaction using
 .Xr devmatch 8
 if enabled in
@@ -41,10 +43,6 @@ to manually load the driver as a module at boot time:
 .Bd -literal -offset indent
 kld_list="${kld_list} if_rtw88"
 .Ed
-.Pp
-The driver should automatically load any
-.Xr rtw88fw 4
-firmware needed for the particular chipset.
 .Pp
 It is discouraged to load the driver from
 .Xr loader 8 .
@@ -60,6 +58,20 @@ the following chipsets:
 .It Realtek 802.11ac wireless 8822be (RTL8822BE)
 .It Realtek 802.11ac wireless 8822ce (RTL8822CE)
 .El
+.Pp
+This driver requires firmware to be loaded before it will work.
+The package
+.Pa wifi-firmware-rtw88-kmod
+from the
+.Pa ports/net/wifi-firmware-rtw88-kmod
+port needs to be installed before the driver is loaded.
+Otherwise no
+.Xr wlan 4
+interface can be created using
+.Xr ifconfig 8 .
+One can use
+.Xr fwget 8
+to install the correct firmware package.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
@@ -102,6 +114,7 @@ section above.
 .Sh SEE ALSO
 .Xr rtw88fw 4 ,
 .Xr wlan 4 ,
+.Xr fwget 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Sh HISTORY

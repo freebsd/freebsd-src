@@ -78,8 +78,6 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 			errno = EINVAL;
 			return (-1);
 		}
-		handle->cv_shared->ci_discard_ilseq = true;
-		handle->cv_shared->ci_hooks = NULL;
 		cs->srcbuf_len = cs->dstbuf_len = 0;
 		cs->initialized = true;
 		if (s == NULL)
@@ -110,7 +108,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 		assert(srcleft <= sizeof(cs->srcbuf) &&
 		    dstleft <= sizeof(cs->dstbuf.bytes));
 		err = _citrus_iconv_convert(handle, &src, &srcleft,
-		    &dst, &dstleft, 0, &invlen);
+		    &dst, &dstleft, _CITRUS_ICONV_F_HIDE_INVALID, &invlen);
 		cs->dstbuf_len = (dst - cs->dstbuf.bytes) / sizeof(charXX_t);
 
 		/* Got new character(s). Return the first. */

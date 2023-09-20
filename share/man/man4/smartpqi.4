@@ -1,5 +1,7 @@
-.\" Copyright (c) 2018 Murthy Bhat
-.\" All rights reserved.
+.\" Copyright (C) 2019-2023, Microchip Technology Inc. and its subsidiaries
+.\" Copyright (C) 2016-2018, Microsemi Corporation
+.\" Copyright (C) 2016, PMC-Sierra, Inc.
+.\" Written by John Hall <john.hall@microchip.com>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,25 +24,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$ stable/10/share/man/man4/smartpqi.4 195614 2017-01-11 08:10:18Z jkim $
-.Dd April 6, 2018
+.Dd August 24, 2023
 .Dt SMARTPQI 4
 .Os
 .Sh NAME
 .Nm smartpqi
-.Nd Microsemi smartpqi SCSI driver for PQI controllers
+.Nd "Microchip Smart Storage SCSI driver"
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
+To compile this driver into the kernel, place these lines in the kernel
+configuration file:
 .Bd -ragged -offset indent
 .Cd device pci
 .Cd device scbus
 .Cd device smartpqi
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+The driver can be loaded as a module at boot time by placing this line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 smartpqi_load="YES"
@@ -48,36 +47,33 @@ smartpqi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-SCSI driver provides support for the new generation of PQI controllers from
-Microsemi.
-The
-.Nm
-driver is the first SCSI driver to implement the PQI queuing model.
-.Pp
-The
-.Nm
-driver will replace the aacraid driver for Adaptec Series 9 controllers.
-.Pp
-The
-.Pa /dev/smartpqi?
-device nodes provide access to the management interface of the controller.
-One node exists per installed card.
+driver provides support for Microchip Technology Inc. / Adaptec SmartRaid and
+SmartHBA SATA/SAS/NVME PCIe controllers
 .Sh HARDWARE
 Controllers supported by the
 .Nm
-driver include:
+driver include, but not limited to:
 .Pp
 .Bl -bullet -compact
 .It
 HPE Gen10 Smart Array Controller Family
 .It
-OEM Controllers based on the Microsemi Chipset
+Adaptec SmartRaid and SmartHBA Controllers
+.It
+OEM Controllers based on the Microchip Technology Inc. SmartROC
+and SmartIOC Chipsets
 .El
 .Sh FILES
-.Bl -tag -width /boot/kernel/aac.ko -compact
+.Bl -tag -width /boot/kernel/smartpqi.ko -compact
 .It Pa /dev/smartpqi?
 smartpqi management interface
 .El
+.Sh NOTES
+.Ss Configuration
+To configure a Microchip Smart Storage controller,
+refer to the User Guide for the controller,
+which can be found by searching for the specific controller at
+https://www.microchip.com/design-centers/storage
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr linux 4 ,
@@ -87,17 +83,13 @@ smartpqi management interface
 .Xr loader.conf 5 ,
 .Xr camcontrol 8 ,
 .Xr kldload 8
-.Rs
-.%T "Microsemi Website"
-.%U https://www.microsemi.com/
-.Re
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 11.1 .
 .Sh AUTHORS
-.An Murthy Bhat
-.Aq murthy.bhat@microsemi.com
+.An John Hall
+.Aq john.hall@microchip.com
 .Sh BUGS
 The controller is not actually paused on suspend/resume.

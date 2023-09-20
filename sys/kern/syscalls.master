@@ -3300,7 +3300,6 @@
 581	AUE_NULL	STD|CAPENABLED {
 		int sched_getcpu(void);
 	}
-
 582	AUE_SWAPOFF	STD {
 		int swapoff(
 		    _In_z_ const char *name,
@@ -3312,5 +3311,33 @@
 		    u_int flags
 		);
 	}
+584	AUE_NULL	STD|CAPENABLED {
+		int membarrier(
+		    int cmd,
+		    unsigned flags,
+		    int cpu_id
+		);
+	}
+585	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_create(
+		    int clockid,
+		    int flags
+		);
+	}
+586	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_gettime(
+		    int fd,
+		    _Out_ _Contains_long_timet_ struct itimerspec *curr_value
+		);
+	}
+587	AUE_TIMERFD	STD|CAPENABLED {
+		int timerfd_settime(
+		    int fd,
+		    int flags,
+		    _In_ _Contains_long_timet_ const struct itimerspec *new_value,
+		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
+		);
+	}
+
 
 ; vim: syntax=off

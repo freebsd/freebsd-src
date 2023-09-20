@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,11 +77,10 @@
 #include <vm/pmap.h>
 
 
-
 #include "smartpqi_defines.h"
 #include "smartpqi_structures.h"
 #include "smartpqi_prototypes.h"
 #include "smartpqi_ioctl.h"
+#include "smartpqi_helper.h"
 
-
-#endif // _PQI_INCLUDES_H
+#endif /* _PQI_INCLUDES_H*/

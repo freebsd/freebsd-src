@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1999 Michael Smith <msmith@freebsd.org>
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@freebsd.org>
- * Copyright (c) 1999 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

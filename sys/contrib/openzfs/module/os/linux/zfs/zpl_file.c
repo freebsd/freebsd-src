@@ -301,15 +301,10 @@ zpl_uio_init(zfs_uio_t *uio, struct kiocb *kiocb, struct iov_iter *to,
 #if defined(HAVE_VFS_IOV_ITER)
 	zfs_uio_iov_iter_init(uio, to, pos, count, skip);
 #else
-#ifdef HAVE_IOV_ITER_TYPE
-	zfs_uio_iovec_init(uio, to->iov, to->nr_segs, pos,
-	    iov_iter_type(to) & ITER_KVEC ? UIO_SYSSPACE : UIO_USERSPACE,
+	zfs_uio_iovec_init(uio, zfs_uio_iter_iov(to), to->nr_segs, pos,
+	    zfs_uio_iov_iter_type(to) & ITER_KVEC ?
+	    UIO_SYSSPACE : UIO_USERSPACE,
 	    count, skip);
-#else
-	zfs_uio_iovec_init(uio, to->iov, to->nr_segs, pos,
-	    to->type & ITER_KVEC ? UIO_SYSSPACE : UIO_USERSPACE,
-	    count, skip);
-#endif
 #endif
 }
 
@@ -1257,6 +1252,12 @@ zpl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return (zpl_ioctl_getdosflags(filp, (void *)arg));
 	case ZFS_IOC_SETDOSFLAGS:
 		return (zpl_ioctl_setdosflags(filp, (void *)arg));
+	case ZFS_IOC_COMPAT_FICLONE:
+		return (zpl_ioctl_ficlone(filp, (void *)arg));
+	case ZFS_IOC_COMPAT_FICLONERANGE:
+		return (zpl_ioctl_ficlonerange(filp, (void *)arg));
+	case ZFS_IOC_COMPAT_FIDEDUPERANGE:
+		return (zpl_ioctl_fideduperange(filp, (void *)arg));
 	default:
 		return (-ENOTTY);
 	}
@@ -1283,7 +1284,6 @@ zpl_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 #endif /* CONFIG_COMPAT */
 
-
 const struct address_space_operations zpl_address_space_operations = {
 #ifdef HAVE_VFS_READPAGES
 	.readpages	= zpl_readpages,
@@ -1306,7 +1306,12 @@ const struct address_space_operations zpl_address_space_operations = {
 #endif
 };
 
+#ifdef HAVE_VFS_FILE_OPERATIONS_EXTEND
+const struct file_operations_extend zpl_file_operations = {
+	.kabi_fops = {
+#else
 const struct file_operations zpl_file_operations = {
+#endif
 	.open		= zpl_open,
 	.release	= zpl_release,
 	.llseek		= zpl_llseek,
@@ -1318,7 +1323,11 @@ const struct file_operations zpl_file_operations = {
 	.read_iter	= zpl_iter_read,
 	.write_iter	= zpl_iter_write,
 #ifdef HAVE_VFS_IOV_ITER
+#ifdef HAVE_COPY_SPLICE_READ
+	.splice_read	= copy_splice_read,
+#else
 	.splice_read	= generic_file_splice_read,
+#endif
 	.splice_write	= iter_file_splice_write,
 #endif
 #else
@@ -1333,12 +1342,29 @@ const struct file_operations zpl_file_operations = {
 	.aio_fsync	= zpl_aio_fsync,
 #endif
 	.fallocate	= zpl_fallocate,
+#ifdef HAVE_VFS_COPY_FILE_RANGE
+	.copy_file_range	= zpl_copy_file_range,
+#endif
+#ifdef HAVE_VFS_CLONE_FILE_RANGE
+	.clone_file_range	= zpl_clone_file_range,
+#endif
+#ifdef HAVE_VFS_REMAP_FILE_RANGE
+	.remap_file_range	= zpl_remap_file_range,
+#endif
+#ifdef HAVE_VFS_DEDUPE_FILE_RANGE
+	.dedupe_file_range	= zpl_dedupe_file_range,
+#endif
 #ifdef HAVE_FILE_FADVISE
 	.fadvise	= zpl_fadvise,
 #endif
 	.unlocked_ioctl	= zpl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= zpl_compat_ioctl,
+#endif
+#ifdef HAVE_VFS_FILE_OPERATIONS_EXTEND
+	}, /* kabi_fops */
+	.copy_file_range	= zpl_copy_file_range,
+	.clone_file_range	= zpl_clone_file_range,
 #endif
 };
 

@@ -50,8 +50,6 @@
 
 #include <dev/sound/pci/via8233.h>
 
-SND_DECLARE_FILE("");
-
 #define VIA8233_PCI_ID 0x30591106
 
 #define VIA8233_REV_ID_8233PRE	0x10

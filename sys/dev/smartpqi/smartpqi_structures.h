@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,9 @@
 #ifndef _PQI_STRUCTURES_H
 #define _PQI_STRUCTURES_H
 
+
+#include "smartpqi_defines.h"
+
 struct bmic_host_wellness_driver_version {
 	uint8_t		start_tag[4];
 	uint8_t		driver_version_tag[2];
@@ -35,6 +38,7 @@ struct bmic_host_wellness_driver_version {
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
+
 
 struct bmic_host_wellness_time {
 	uint8_t		start_tag[4];
@@ -52,6 +56,7 @@ struct bmic_host_wellness_time {
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
+
 
 /* As per PQI Spec pqi-2r00a , 6.2.2. */
 
@@ -187,15 +192,17 @@ typedef union pqi_reset_reg {
 /* Memory descriptor for DMA memory allocation */
 typedef struct dma_mem {
 	void			*virt_addr;
-    dma_addr_t 		dma_addr;
+   dma_addr_t 		dma_addr;
 	uint32_t 		size;
 	uint32_t 		align;
-	char 			*tag;
-        bus_dma_tag_t dma_tag;
-        bus_dmamap_t dma_map;
+	char 			tag[32];
+   bus_dma_tag_t dma_tag;
+   bus_dmamap_t dma_map;
 }dma_mem_t;
 
-/* Lock should be 8 byte aligned  */
+/* Lock should be 8 byte aligned
+   TODO : need to apply aligned for lock alone  ?
+*/
 
 #ifndef LOCKFREE_STACK
 
@@ -433,27 +440,6 @@ struct pqi_event {
 	uint32_t	additional_event_id;
 };
 
-typedef struct pqi_vendor_general_request {
-	iu_header_t	header;
-	uint16_t	response_queue_id;
-	uint8_t		work_area[2];
-	uint16_t	request_id;
-	uint16_t	function_code;
-	union {
-		struct {
-			uint16_t	first_section;
-			uint16_t	last_section;
-			uint8_t		reserved1[48];
-		} OS_ATTRIBUTE_PACKED config_table_update;
-
-		struct {
-			uint64_t	buffer_address;
-			uint32_t	buffer_length;
-			uint8_t		reserved2[40];
-		} OS_ATTRIBUTE_PACKED ofa_memory_allocation;
-	} data;
-} OS_ATTRIBUTE_PACKED pqi_vendor_general_request_t;
-
 typedef struct pqi_vendor_general_response {
 	iu_header_t	header;
 	uint16_t	reserved1;
@@ -474,29 +460,30 @@ typedef struct op_q_params
 
 } OS_ATTRIBUTE_PACKED op_q_params;
 
+
 /* "Fixed Format Sense Data" (0x70 or 0x71)  (Table 45 in SPC5) */
 typedef struct sense_data_fixed {
-	uint8_t  response_code : 7;      // Byte 0, 0x70 or 0x71
-	uint8_t  valid : 1;              // Byte 0, bit 7
-	uint8_t  byte_1;                 // Byte 1
-	uint8_t  sense_key : 4;          // Byte 2, bit 0-3 (Key)
-	uint8_t  byte_2_other : 4;       // Byte 2, bit 4-7
-	uint32_t information;            // Byte 3-6, big-endian like block # in CDB
-	uint8_t  addtnl_length;          // Byte 7
-	uint8_t  cmd_specific[4];        // Byte 8-11
-	uint8_t  sense_code;             // Byte 12 (ASC)
-	uint8_t  sense_qual;             // Byte 13 (ASCQ)
-	uint8_t  fru_code;               // Byte 14
-	uint8_t  sense_key_specific[3];  // Byte 15-17
-	uint8_t  addtnl_sense[1];        // Byte 18+
+	uint8_t  response_code : 7;      /* Byte 0, 0x70 or 0x71 */
+	uint8_t  valid : 1;              /* Byte 0, bit 7 */
+	uint8_t  byte_1;                 /* Byte 1 */
+	uint8_t  sense_key : 4;          /* Byte 2, bit 0-3 (Key) */
+	uint8_t  byte_2_other : 4;       /* Byte 2, bit 4-7 */
+	uint32_t information;            /* Byte 3-6, big-endian like block # in CDB */
+	uint8_t  addtnl_length;          /* Byte 7 */
+	uint8_t  cmd_specific[4];        /* Byte 8-11 */
+	uint8_t  sense_code;             /* Byte 12 (ASC) */
+	uint8_t  sense_qual;             /* Byte 13 (ASCQ) */
+	uint8_t  fru_code;               /* Byte 14 */
+	uint8_t  sense_key_specific[3];  /* Byte 15-17 */
+	uint8_t  addtnl_sense[1];        /* Byte 18+ */
 } OS_ATTRIBUTE_PACKED sense_data_fixed_t;
 
 
 /* Generic Sense Data Descriptor (Table 29 in SPC5) */
 typedef struct descriptor_entry
 {
-	uint8_t  desc_type;              // Byte 9/0
-	uint8_t  desc_type_length;       // Byte 10/1
+	uint8_t  desc_type;              /* Byte 9/0 */
+	uint8_t  desc_type_length;       /* Byte 10/1 */
 	union
 	{
 		/* Sense data descriptor specific */
@@ -504,10 +491,10 @@ typedef struct descriptor_entry
 
 		/* Information (Type 0) (Table 31 is SPC5) */
 		struct {
-			uint8_t  byte_2_rsvd : 7;  // Byte 11/2
-			uint8_t  valid : 1;        // Byte 11/2, bit 7
-			uint8_t  byte_3;           // Byte 12/3
-			uint8_t  information[8];   // Byte 13-20/4-11
+			uint8_t  byte_2_rsvd : 7;  /* Byte 11/2 */
+			uint8_t  valid : 1;        /* Byte 11/2, bit 7 */
+			uint8_t  byte_3;           /* Byte 12/3 */
+			uint8_t  information[8];   /* Byte 13-20/4-11 */
 		} OS_ATTRIBUTE_PACKED type_0;
 
 	}u;
@@ -515,15 +502,15 @@ typedef struct descriptor_entry
 
 /* "Descriptor Format Sense Data" (0x72 or 0x73) (Table 28 in SPC5) */
 typedef struct sense_data_descriptor {
-	uint8_t  response_code : 7;      // Byte 0, 0x72 or 0x73
-	uint8_t  byte_0_rsvd: 1;         // Byte 0, bit 7
-	uint8_t  sense_key : 4;          // Byte 1, bit 0-3 (Key)
-	uint8_t  byte_1_other : 4;       // Byte 1, bit 4-7
-	uint8_t  sense_code;             // Byte 2 (ASC)
-	uint8_t  sense_qual;             // Byte 3 (ASCQ)
-	uint8_t  byte4_6[3];             // Byte 4-6
-	uint8_t  more_length;            // Byte 7
-	descriptor_entry_t descriptor_list; // Bytes 8+
+	uint8_t  response_code : 7;      /* Byte 0, 0x72 or 0x73 */
+	uint8_t  byte_0_rsvd: 1;         /* Byte 0, bit 7 */
+	uint8_t  sense_key : 4;          /* Byte 1, bit 0-3 (Key) */
+	uint8_t  byte_1_other : 4;       /* Byte 1, bit 4-7 */
+	uint8_t  sense_code;             /* Byte 2 (ASC) */
+	uint8_t  sense_qual;             /* Byte 3 (ASCQ) */
+	uint8_t  byte4_6[3];             /* Byte 4-6 */
+	uint8_t  more_length;            /* Byte 7 */
+	descriptor_entry_t descriptor_list; /* Bytes 8+ */
 
 } OS_ATTRIBUTE_PACKED sense_data_descriptor_t;
 
@@ -535,20 +522,18 @@ typedef union sense_data_u
 } sense_data_u_t;
 
 
-
-
 /* Driver will use this structure to interpret the error
    info element returned from a failed requests */
 typedef struct raid_path_error_info_elem {
-	uint8_t		data_in_result;		/* !< Byte 0.  See SOP spec Table 77. */
-	uint8_t		data_out_result;	/* !< Byte 1.  See SOP spec Table 78. */
-	uint8_t		reserved[3];		/* !< Bytes 2-4. */
-	uint8_t		status;			/* !< Byte 5. See SAM-5 specification "Status" codes Table 40. Defined in Storport.h */
-	uint16_t	status_qual;		/* !< Bytes 6-7. See SAM-5 specification Table 43. */
-	uint16_t	sense_data_len;		/* !< Bytes 8-9. See SOP specification table 79. */
-	uint16_t	resp_data_len;		/* !< Bytes 10-11. See SOP specification table 79. */
-	uint32_t	data_in_transferred;	/* !< Bytes 12-15. If "dada_in_result = 0x01 (DATA_IN BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-In buffer else Ignored. */
-	uint32_t	data_out_transferred;	/* !< Bytes 16-19. If "data_out_result = 0x01 (DATA_OUT BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-Out buffer else Ignored. */
+	uint8_t  data_in_result;      /* !< Byte 0.  See SOP spec Table 77. */
+	uint8_t  data_out_result;     /* !< Byte 1.  See SOP spec Table 78. */
+	uint8_t  reserved[3];         /* !< Bytes 2-4. */
+	uint8_t  status;              /* !< Byte 5. See SAM-5 specification "Status" codes Table 40.*/
+	uint16_t status_qual;         /* !< Bytes 6-7. See SAM-5 specification Table 43. */
+	uint16_t sense_data_len;      /* !< Bytes 8-9. See SOP specification table 79. */
+	uint16_t resp_data_len;       /* !< Bytes 10-11. See SOP specification table 79. */
+	uint32_t data_in_transferred; /* !< Bytes 12-15. If "dada_in_result = 0x01 (DATA_IN BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-In buffer else Ignored. */
+	uint32_t data_out_transferred;/* !< Bytes 16-19. If "data_out_result = 0x01 (DATA_OUT BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-Out buffer else Ignored. */
 	union
 	{
 		sense_data_u_t sense_data;
@@ -560,22 +545,26 @@ typedef struct raid_path_error_info_elem {
 
 typedef enum error_data_present
 {
-   DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */
-   DATA_PRESENT_RESPONSE_DATA = 1,   /* !< Response data is present in Data buffer. */
-   DATA_PRESENT_SENSE_DATA    = 2    /* !< Sense data is present in Data buffer. */
+	DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */
+	DATA_PRESENT_RESPONSE_DATA = 1,   /* !< Response data is present in Data buffer. */
+	DATA_PRESENT_SENSE_DATA    = 2    /* !< Sense data is present in Data buffer. */
 } error_data_present_t;
 
 typedef struct aio_path_error_info_elem
 {
-	uint8_t		status;			/* !< Byte 0.  See SAM-5 specification "SCSI Status" codes Table 40. Defined in Storport.h */
-	uint8_t		service_resp;		/* !< Byte 1.  SCSI Service Response.  */
-	uint8_t		data_pres;		/* !< Byte 2.  Bits [7:2] reserved. Bits [1:0] - 0=No data, 1=Response data, 2=Sense data. */
-	uint8_t		reserved1;		/* !< Byte 3.  Reserved. */
-	uint32_t	resd_count;		/* !< Bytes 4-7.  The residual data length in bytes. Need the original transfer size and if Status is OverRun or UnderRun. */
-	uint16_t	data_len;		/* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */
-	uint16_t	reserved2;		/* !< Bytes 10.  Reserved. */
-	uint8_t		data[256];		/* !< Bytes 11-267. Response data buffer or Sense data buffer but not both. */
-	uint8_t		padding[8];		/* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */
+	uint8_t  status;        /* !< Byte 0.  See SAM-5 specification "SCSI Status" codes Table 40.*/
+	uint8_t  service_resp;  /* !< Byte 1.  SCSI Service Response.  */
+	uint8_t  data_pres;     /* !< Byte 2.  Bits [7:2] reserved. Bits [1:0] - 0=No data, 1=Response data, 2=Sense data. */
+	uint8_t  reserved1;     /* !< Byte 3.  Reserved. */
+	uint32_t resd_count;    /* !< Bytes 4-7.  The residual data length in bytes. Need the original transfer size and if Status is OverRun or UnderRun. */
+	uint16_t data_len;      /* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */
+	uint16_t reserved2;     /* !< Bytes 10-11.  Reserved. */
+	union
+	{
+		sense_data_u_t sense_data; /* */
+		uint8_t        data[256];  /* !< Bytes 12-267. Response data buffer or Sense data buffer but not both. */
+	};
+	uint8_t  padding[8];    /* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */
 }OS_ATTRIBUTE_PACKED aio_path_error_info_elem_t;
 
 struct init_base_struct {
@@ -603,6 +592,7 @@ typedef struct ib_queue {
 	boolean_t	lockcreated;
 	char		lockname[LOCKNAME_SIZE];
 	OS_PQILOCK_T	lock	OS_ATTRIBUTE_ALIGNED(8);
+	struct dma_mem	 alloc_dma;
 }ib_queue_t;
 
 typedef struct ob_queue {
@@ -618,6 +608,7 @@ typedef struct ob_queue {
 	uint32_t	*pi_virt_addr;
 	dma_addr_t	pi_dma_addr;
 	boolean_t	created;
+	struct dma_mem	 alloc_dma;
 }ob_queue_t;
 
 typedef struct pqisrc_sg_desc{
@@ -670,6 +661,23 @@ typedef struct pqi_device_capabilities {
 
 /* IO path */
 
+typedef struct iu_cmd_flags
+{
+	uint8_t		data_dir : 2;
+	uint8_t		partial : 1;
+	uint8_t		mem_type : 1;
+	uint8_t		fence : 1;
+	uint8_t		encrypt_enable : 1;
+	uint8_t		res2 : 2;
+}OS_ATTRIBUTE_PACKED iu_cmd_flags_t;
+
+typedef struct iu_attr_prio
+{
+	uint8_t		task_attr : 3;
+	uint8_t		cmd_prio : 4;
+	uint8_t		res3 : 1;
+}OS_ATTRIBUTE_PACKED iu_attr_prio_t;
+
 typedef struct pqi_aio_req {
 	iu_header_t	header;
 	uint16_t	response_queue_id;
@@ -678,15 +686,8 @@ typedef struct pqi_aio_req {
 	uint8_t		res1[2];
 	uint32_t	nexus;
 	uint32_t	buf_len;
-	uint8_t		data_dir : 2;
-	uint8_t		partial : 1;
-	uint8_t		mem_type : 1;
-	uint8_t		fence : 1;
-	uint8_t		encrypt_enable : 1;
-	uint8_t		res2 : 2;
-	uint8_t		task_attr : 3;
-	uint8_t		cmd_prio : 4;
-	uint8_t		res3 : 1;
+	iu_cmd_flags_t	cmd_flags;
+	iu_attr_prio_t	attr_prio;
 	uint16_t	encrypt_key_index;
 	uint32_t	encrypt_twk_low;
 	uint32_t	encrypt_twk_high;
@@ -699,6 +700,55 @@ typedef struct pqi_aio_req {
 	sgt_t		sg_desc[4];
 }OS_ATTRIBUTE_PACKED pqi_aio_req_t;
 
+typedef struct pqi_aio_raid1_write_req {
+	iu_header_t	header;
+	uint16_t	response_queue_id;
+	uint8_t		work_area[2];
+	uint16_t	req_id;
+	uint16_t	volume_id;	/* ID of raid volume */
+	uint32_t	nexus_1;	/* 1st drive in RAID 1 */
+	uint32_t	nexus_2;	/* 2nd drive in RAID 1 */
+	uint32_t	nexus_3;	/* 3rd drive in RAID 1 */
+	uint32_t	buf_len;
+	iu_cmd_flags_t	cmd_flags;
+	iu_attr_prio_t	attr_prio;
+	uint16_t	encrypt_key_index;
+	uint8_t		cdb[16];
+	uint16_t	err_idx;
+	uint8_t		num_sg;
+	uint8_t		cdb_len;
+	uint8_t		num_drives;	/* drives in raid1 (2 or 3) */
+	uint8_t		reserved_bytes[3];
+	uint32_t	encrypt_twk_low;
+	uint32_t	encrypt_twk_high;
+	sgt_t		sg_desc[4];
+}OS_ATTRIBUTE_PACKED pqi_aio_raid1_write_req_t;
+
+typedef struct pqi_aio_raid5or6_write_req {
+	iu_header_t	header;
+	uint16_t	response_queue_id;
+	uint8_t		work_area[2];
+	uint16_t	req_id;
+	uint16_t	volume_id;	/* ID of raid volume */
+	uint32_t	data_it_nexus;	/* IT nexus of data drive */
+	uint32_t	p_parity_it_nexus;/* It nexus of p parity disk */
+	uint32_t	q_parity_it_nexus;/* It nexus of q parity disk (R6) */
+	uint32_t	buf_len;
+	iu_cmd_flags_t	cmd_flags;
+	iu_attr_prio_t	attr_prio;
+	uint16_t	encrypt_key_index;
+	uint8_t		cdb[16];
+	uint16_t	err_idx;
+	uint8_t		num_sg;
+	uint8_t		cdb_len;
+	uint8_t		xor_multiplier; /* for generating RAID 6 Q parity */
+	uint8_t		reserved[3];
+	uint32_t	encrypt_twk_low;
+	uint32_t	encrypt_twk_high;
+	uint64_t	row;		/* logical lba / blocks per row */
+	uint8_t		reserved2[8];	/* changed to reserved, used to stripe_lba */
+	sgt_t		sg_desc[3]; 	/* only 3 entries for R5/6 */
+}OS_ATTRIBUTE_PACKED pqi_aio_raid5or6_write_req_t;
 
 typedef struct pqisrc_raid_request {
 	iu_header_t header;
@@ -722,28 +772,43 @@ typedef struct pqisrc_raid_request {
 	uint8_t	reserved4 : 2;
 	uint8_t	additional_cdb_bytes_usage : 3;
 	uint8_t	reserved5 : 3;
-	uint8_t	cdb[16];
-	uint8_t	reserved[12];
+	union
+	{
+		uint8_t	cdb[16];
+		struct
+		{
+			uint8_t	op_code;		/* Byte 0.  SCSI opcode (0x26 or 0x27) */
+			uint8_t	lun_lower;	/* Byte 1 */
+			uint32_t	detail;		/* Byte 2-5 */
+			uint8_t	cmd;			/* Byte 6.  Vendor specific op code. */
+			uint16_t	xfer_len;	/* Byte 7-8 */
+			uint8_t	lun_upper;	/* Byte 9 */
+			uint8_t	unused[6];	/* Bytes 10-15. */
+		}OS_ATTRIBUTE_PACKED bmic_cdb;
+	}OS_ATTRIBUTE_PACKED cmd;
+	uint8_t	reserved[11];
+	uint8_t	ml_device_lun_number;
 	uint32_t timeout_in_sec;
 	sgt_t	sg_descriptors[4];
-} OS_ATTRIBUTE_PACKED pqisrc_raid_req_t;
+}OS_ATTRIBUTE_PACKED pqisrc_raid_req_t;
 
 
 typedef struct pqi_raid_tmf_req {
-        iu_header_t     header;
-        uint16_t        resp_qid;
-        uint8_t         work_area[2];
-        uint16_t        req_id;
-        uint16_t        nexus;
-        uint8_t         res1[2];
-        uint16_t        timeout_in_sec;
-        uint8_t         lun[8];
-        uint16_t        protocol_spec;
-        uint16_t        obq_id_to_manage;
-        uint16_t        req_id_to_manage;
-        uint8_t         tmf;
-        uint8_t         res2 : 7;
-        uint8_t         fence : 1;
+	iu_header_t	header;
+	uint16_t	resp_qid;
+	uint8_t		work_area[2];
+	uint16_t	req_id;
+	uint16_t	nexus;
+	uint8_t		res1[1];
+	uint8_t		ml_device_lun_number;
+	uint16_t	timeout_in_sec;
+	uint8_t		lun[8];
+	uint16_t	protocol_spec;
+	uint16_t	obq_id_to_manage;
+	uint16_t	req_id_to_manage;
+	uint8_t		tmf;
+	uint8_t		res2 : 7;
+	uint8_t		fence : 1;
 } OS_ATTRIBUTE_PACKED pqi_raid_tmf_req_t;
 
 typedef struct pqi_aio_tmf_req {
@@ -788,6 +853,12 @@ struct pqi_enc_info {
 	uint32_t	encrypt_tweak_upper;
 };
 
+typedef uint32_t os_ticks_t;
+
+struct pqi_stream_data {
+	uint64_t	next_lba;
+	os_ticks_t	last_accessed;
+};
 
 typedef struct pqi_scsi_device {
 	device_type_t	devtype;		/* as reported by INQUIRY command */
@@ -810,13 +881,13 @@ typedef struct pqi_scsi_device {
 	uint8_t	device_gone : 1;
 	uint8_t	new_device : 1;
 	uint8_t	volume_offline : 1;
-	uint8_t scsi_rescan : 1;
+	uint8_t	is_nvme : 1;
+	uint8_t	scsi_rescan : 1;
 	uint8_t	vendor[8];		/* bytes 8-15 of inquiry data */
 	uint8_t	model[16];		/* bytes 16-31 of inquiry data */
 	uint64_t	sas_address;
 	uint8_t	raid_level;
 	uint16_t	queue_depth;		/* max. queue_depth for this device */
-	uint16_t	advertised_queue_depth;
 	uint32_t	ioaccel_handle;
 	uint8_t	volume_status;
 	uint8_t	active_path_index;
@@ -827,7 +898,7 @@ typedef struct pqi_scsi_device {
 	int	offload_config;		/* I/O accel RAID offload configured */
 	int	offload_enabled;	/* I/O accel RAID offload enabled */
 	int	offload_enabled_pending;
-	int	offload_to_mirror;	/* Send next I/O accelerator RAID
+	int	*offload_to_mirror;	/* Send next I/O accelerator RAID
 					   offload request to mirror drive. */
 	struct raid_map *raid_map;	/* I/O accelerator RAID map */
 
@@ -838,33 +909,13 @@ typedef struct pqi_scsi_device {
 	boolean_t	path_destroyed;
 	boolean_t	firmware_queue_depth_set;
 	OS_ATOMIC64_T   active_requests;
+	struct pqisrc_softstate *softs;
+	boolean_t schedule_rescan;
+	boolean_t in_remove;
+	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
+	boolean_t is_multi_lun;
+
 }pqi_scsi_dev_t;
-
-typedef struct pqisrc_softstate pqisrc_softstate_t;
-typedef struct pqi_firmware_feature pqi_firmware_feature_t;
-typedef void (*feature_status_fn)(pqisrc_softstate_t *softs,
-	pqi_firmware_feature_t *firmware_feature);
-
-struct pqi_firmware_feature {
-	char			*feature_name;
-	unsigned int		feature_bit;
-	boolean_t		supported;
-	boolean_t		enabled;
-	feature_status_fn	feature_status;
-};
-
-struct pqi_conf_table_firmware_features {
-	struct		pqi_conf_table_section_header header;
-	uint16_t	num_elements;
-	uint8_t		features_supported[];
-};
-
-struct pqi_conf_table_section_info {
-	struct 		pqisrc_softstate *softs;
-	void		*section;
-	uint32_t	section_offset;
-	void 		*section_addr;
-};
 
 struct sense_header_scsi {		/* See SPC-3 section 4.5 */
 	uint8_t response_code;		/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
@@ -876,8 +927,6 @@ struct sense_header_scsi {		/* See SPC-3 section 4.5 */
 	uint8_t byte6;
 	uint8_t additional_length;	/* always 0 for fixed sense format */
 }OS_ATTRIBUTE_PACKED;
-
-
 
 typedef struct report_lun_header {
 	uint32_t list_length;
@@ -924,7 +973,7 @@ typedef struct reportlun_queue_depth_entry {
 
 typedef struct reportlun_queue_depth_data {
         reportlun_header_t header;
-	reportlun_queue_depth_entry_t lun_entries[1]; /* lun list with Queue Depth values for each lun */
+    	reportlun_queue_depth_entry_t lun_entries[1]; /* lun list with Queue Depth values for each lun */
 }OS_ATTRIBUTE_PACKED reportlun_queue_depth_data_t;
 
 typedef struct raidmap_data {
@@ -958,6 +1007,59 @@ typedef struct raid_map {
 	raidmap_data_t dev_data[RAID_MAP_MAX_ENTRIES];
 }OS_ATTRIBUTE_PACKED pqisrc_raid_map_t;
 
+typedef struct aio_row {
+	uint32_t blks_per_row;	/* blocks per row */
+	uint64_t first;		/* first row */
+	uint64_t last;		/* last row */
+	uint32_t offset_first;	/* offset in first row */
+	uint32_t offset_last;	/* offset in last row */
+	uint16_t data_disks;	/* number of data disks per row */
+	uint16_t total_disks;	/* data + parity disks per row. */
+}OS_ATTRIBUTE_PACKED pqisrc_aio_row_t;
+
+typedef struct aio_column {
+	uint32_t first;		/* 1st column of req */
+	uint32_t last;		/* last column of req */
+}OS_ATTRIBUTE_PACKED pqisrc_aio_column_t;
+
+typedef struct aio_block {
+	uint64_t first;		/* 1st block number of req */
+	uint64_t last;		/* last block number of req */
+	uint32_t cnt;		/* total blocks in req	*/
+	uint64_t disk_block;	/* block number of phys disk */
+}OS_ATTRIBUTE_PACKED pqisrc_aio_block_t;
+
+typedef struct aio_r5or6_loc {
+	struct aio_row row;	/* row information */
+	struct aio_column col;	/* column information */
+}OS_ATTRIBUTE_PACKED pqisrc_aio_r5or6_loc_t;
+
+typedef struct aio_map {
+	uint32_t row;
+	uint32_t idx;		/* index into array of handles */
+	uint16_t layout_map_count;
+}OS_ATTRIBUTE_PACKED pqisrc_aio_map_t;
+
+typedef struct aio_disk_group {
+	uint32_t first;		/* first group */
+	uint32_t last;		/* last group */
+	uint32_t cur;		/* current group */
+}OS_ATTRIBUTE_PACKED pqisrc_aio_disk_group_t;
+
+typedef struct aio_req_locator {
+	uint8_t	raid_level;
+	struct raid_map *raid_map;	/* relevant raid map */
+	struct aio_block block;	/* block range and count */
+	struct aio_row row;		/* row range and offset info */
+	struct aio_column col;		/* first/last column info */
+	struct aio_r5or6_loc r5or6;	/* Raid 5/6-specific bits */
+	struct aio_map map;		/* map row, count, and index */
+	struct aio_disk_group group;	/* first, last, and curr group */
+	boolean_t is_write;
+	uint32_t stripesz;
+	uint16_t strip_sz;
+	int offload_to_mirror;
+}OS_ATTRIBUTE_PACKED aio_req_locator_t;
 
 typedef struct bmic_ident_ctrl {
 	uint8_t		conf_ld_count;
@@ -1042,6 +1144,55 @@ typedef struct bmic_identify_physical_device {
 	uint8_t		padding[112];
 }OS_ATTRIBUTE_PACKED bmic_ident_physdev_t;
 
+typedef struct bmic_sense_feature {
+	uint8_t opcode;
+	uint8_t reserved1[1];
+	uint8_t page;
+	uint8_t sub_page;
+	uint8_t reserved2[2];
+	uint8_t cmd;
+	uint16_t transfer_length;
+	uint8_t reserved3[7];
+}OS_ATTRIBUTE_PACKED bmic_sense_feature_t;
+
+typedef struct bmic_sense_feature_buffer_header {
+	uint8_t page;
+	uint8_t sub_page;
+	uint16_t buffer_length;
+} OS_ATTRIBUTE_PACKED bmic_sense_feature_buffer_header_t;
+
+typedef struct bmic_sense_feature_page_header {
+	uint8_t page;
+	uint8_t sub_page;
+	uint16_t total_length; /** Total length of the page.
+	* The length is the same wheteher the request buffer is too short or not.
+	* When printing out the page, only print the buffer length. */
+} OS_ATTRIBUTE_PACKED bmic_sense_feature_page_header_t;
+
+typedef struct bmic_sense_feature_page_io {
+	struct bmic_sense_feature_page_header header;
+	uint8_t flags1;
+} OS_ATTRIBUTE_PACKED bmic_sense_feature_page_io_t;
+
+typedef struct bmic_sense_feature_page_io_aio_subpage {
+	struct bmic_sense_feature_page_header header;
+	uint8_t fw_aio_read_support;
+	uint8_t driver_aio_read_support;
+	uint8_t fw_aio_write_support;
+	uint8_t driver_aio_write_support;
+	uint16_t max_aio_rw_xfer_crypto_sas_sata;	/* in kb */
+	uint16_t max_aio_rw_xfer_crypto_nvme;		/* in kb */
+	uint16_t max_aio_write_raid5_6;			/* in kb */
+	uint16_t max_aio_write_raid1_10_2drv;		/* in kb */
+	uint16_t max_aio_write_raid1_10_3drv;		/* in kb */
+} OS_ATTRIBUTE_PACKED bmic_sense_feature_page_io_aio_subpage_t;
+
+typedef struct bmic_sense_feature_aio_buffer {
+	struct bmic_sense_feature_buffer_header header;
+	struct bmic_sense_feature_page_io_aio_subpage aio_subpage;
+} OS_ATTRIBUTE_PACKED bmic_sense_feature_aio_buffer_t;
+
+
 typedef struct pqisrc_bmic_flush_cache {
 	uint8_t	disable_cache;
 	uint8_t	power_action;
@@ -1067,7 +1218,7 @@ typedef void (*error_callback)(struct pqisrc_softstate *, struct request_contain
 typedef struct request_container_block {
 	void			*req;
 	void			*error_info;
-	REQUEST_STATUS_T	status;
+	int 			status;
 	uint32_t		tag;
 	sgt_t			*sg_chain_virt;
 	dma_addr_t		sg_chain_dma;
@@ -1076,34 +1227,71 @@ typedef struct request_container_block {
 	struct pqisrc_softstate	*softs;
 	success_callback	success_cmp_callback;
 	error_callback		error_cmp_callback;
-	uint8_t			*cdbp;
+	uint8_t			*cdbp; /* points to either the bypass_cdb below or original host cdb */
+	uint8_t		bypass_cdb[16]; /* bypass cmds will use this cdb memory */
 	int			cmdlen;
 	uint32_t		bcount;	/* buffer size in byte */
 	uint32_t		ioaccel_handle;
 	boolean_t 		encrypt_enable;
 	struct pqi_enc_info 	enc_info;
+	uint32_t		row_num;
+	uint32_t		blocks_per_row;
+	uint32_t		raid_map_index;
+	uint32_t		raid_map_row;
 	ib_queue_t		*req_q;
-	int 			path;
+	IO_PATH_T		path;
 	int 			resp_qid;
 	boolean_t		req_pending;
+	uint32_t		it_nexus[PQISRC_MAX_SUPPORTED_MIRRORS];
 	boolean_t		timedout;
 	int			tm_req;
 	int			aio_retry;
+	boolean_t	is_abort_cmd_from_host;		/* true if this is a TMF abort */
+	boolean_t	host_wants_to_abort_this;	/* set to true to ID the request targeted by TMF */
+	uint64_t		submit_time_user_secs;		/* host submit time in user seconds */
+	uint64_t		host_timeout_ms;				/* original host timeout value in msec */
 	int			cm_flags;
 	void			*cm_data; /* pointer to data in kernel space */
 	bus_dmamap_t		cm_datamap;
 	uint32_t		nseg;
 	union ccb		*cm_ccb;
 	sgt_t			*sgt;	/* sg table */
-
 }rcb_t;
 
-typedef struct tid_pool {
-	int 			tid[PQI_MAX_PHYSICALS];
-	int			index;
-}tid_pool_t;
+typedef struct bit_map {
+	boolean_t 			bit_vector[MAX_TARGET_BIT];
+}bit_map_t;
 
-struct pqisrc_softstate {
+typedef enum _io_type
+{
+	UNKNOWN_IO_TYPE, /* IO Type is TBD or cannot be determined */
+	NON_RW_IO_TYPE,  /* IO Type is non-Read/Write opcode (could separate BMIC, etc. if we wanted) */
+	READ_IO_TYPE,    /* IO Type is SCSI Read */
+	WRITE_IO_TYPE,   /* IO Type is SCSI Write */
+} io_type_t;
+
+typedef enum _counter_types
+{
+	UNKNOWN_COUNTER,
+	HBA_COUNTER,
+	RAID0_COUNTER,
+	RAID1_COUNTER,
+	RAID5_COUNTER,
+	RAID6_COUNTER,
+	MAX_IO_COUNTER,
+} counter_types_t;
+
+typedef struct _io_counters
+{
+	OS_ATOMIC64_T raid_read_cnt;
+	OS_ATOMIC64_T raid_write_cnt;
+	OS_ATOMIC64_T aio_read_cnt;
+	OS_ATOMIC64_T aio_write_cnt;
+	OS_ATOMIC64_T raid_non_read_write;
+	OS_ATOMIC64_T aio_non_read_write;
+} io_counters_t;
+
+typedef struct pqisrc_softstate {
 	OS_SPECIFIC_T			os_specific;
 	struct ioa_registers		*ioa_reg;
 	struct pqi_registers		*pqi_reg;
@@ -1120,11 +1308,7 @@ struct pqisrc_softstate {
 	uint16_t			subsysid;	/* sub system id */
 	controller_state_t		ctlr_state;
 	struct dma_mem			err_buf_dma_mem;
-	struct dma_mem			admin_queue_dma_mem;
-	struct dma_mem			op_ibq_dma_mem;
-	struct dma_mem			op_obq_dma_mem;
-	struct dma_mem			event_q_dma_mem;
-	struct dma_mem			sg_dma_desc[PQISRC_MAX_OUTSTANDING_REQ];
+	struct dma_mem			sg_dma_desc[PQISRC_MAX_OUTSTANDING_REQ + 1];
 	ib_queue_t			admin_ib_queue;
 	ob_queue_t			admin_ob_queue;
 	ob_queue_t			event_q;
@@ -1138,12 +1322,14 @@ struct pqisrc_softstate {
 	uint32_t			num_op_obq;
 	uint32_t			num_elem_per_op_ibq;
 	uint32_t			num_elem_per_op_obq;
-	uint32_t			ibq_elem_size;
-	uint32_t			obq_elem_size;
+	uint32_t			max_ibq_elem_size;
+	uint32_t			max_obq_elem_size;
 	pqi_dev_cap_t			pqi_dev_cap;
 	uint16_t			max_ib_iu_length_per_fw;
-	uint16_t			max_ib_iu_length;
-	unsigned			max_sg_per_iu;
+	uint16_t			max_ib_iu_length;		/* should be 1152 */
+	uint16_t			max_spanning_elems;	/* should be 9 spanning elements */
+	unsigned			max_sg_per_single_iu_element;	/* should be 8 */
+	unsigned			max_sg_per_spanning_cmd;	/* should be 68, 67 with AIO writes */
 	uint8_t				ib_spanning_supported : 1;
 	uint8_t				ob_spanning_supported : 1;
 	pqi_event_config_t		event_config;
@@ -1151,6 +1337,7 @@ struct pqisrc_softstate {
 	int				intr_type;
 	int				intr_count;
 	int				num_cpus_online;
+	int				num_devs;
 	boolean_t			share_opq_and_eventq;
 	rcb_t				*rcb;
 #ifndef LOCKFREE_STACK
@@ -1162,27 +1349,117 @@ struct pqisrc_softstate {
 	OS_LOCK_T			devlist_lock	OS_ATTRIBUTE_ALIGNED(8);
 	char				devlist_lock_name[LOCKNAME_SIZE];
 	pqi_scsi_dev_t			*device_list[PQI_MAX_DEVICES][PQI_MAX_MULTILUN];
+	pqi_scsi_dev_t			*dev_list[PQI_MAX_DEVICES];
 	OS_SEMA_LOCK_T			scan_lock;
 	uint8_t				lun_count[PQI_MAX_DEVICES];
 	uint64_t     		target_sas_addr[PQI_MAX_EXT_TARGETS];
+	uint64_t			phys_list_pos;
 	uint64_t			prev_heartbeat_count;
 	uint64_t			*heartbeat_counter_abs_addr;
 	uint64_t			heartbeat_counter_off;
-	uint8_t			*fw_features_section_abs_addr;
-	uint64_t			fw_features_section_off;
 	uint32_t			bus_id;
 	uint32_t			device_id;
 	uint32_t			func_id;
+	uint8_t				adapter_num; /* globally unique adapter number */
 	char 				*os_name;
 	boolean_t			ctrl_online;
 	uint8_t				pqi_reset_quiesce_allowed : 1;
 	boolean_t 			ctrl_in_pqi_mode;
-	tid_pool_t			tid_pool;
+	bit_map_t			bit_map;
 	uint32_t			adapterQDepth;
 	uint32_t 			dma_mem_consumed;
+	boolean_t			adv_aio_capable;
+	boolean_t			aio_raid1_write_bypass;
+	boolean_t			aio_raid5_write_bypass;
+	boolean_t			aio_raid6_write_bypass;
+	boolean_t			enable_stream_detection;
+	uint16_t			max_aio_write_raid5_6; /* bytes */
+	uint16_t			max_aio_write_raid1_10_2drv; /* bytes */
+	uint16_t			max_aio_write_raid1_10_3drv; /* bytes */
+	uint16_t			max_aio_rw_xfer_crypto_nvme; /* bytes */
+	uint16_t 			max_aio_rw_xfer_crypto_sas_sata;	/* bytes */
+	io_counters_t	counters[MAX_IO_COUNTER];
+	boolean_t			log_io_counters;
+	boolean_t			ld_rescan;
+
+#ifdef PQI_NEED_RESCAN_TIMER_FOR_RBOD_HOTPLUG
+	reportlun_data_ext_t *log_dev_list;
+	size_t				log_dev_data_length;
+	uint32_t			num_ptraid_targets;
+#endif
 	boolean_t			timeout_in_passthrough;
 	boolean_t			timeout_in_tmf;
-};
+	boolean_t			sata_unique_wwn;
+	boolean_t			page83id_in_rpl;
+	boolean_t			err_resp_verbose;
+
+#ifdef DEVICE_HINT
+	device_hint			hint;
+#endif
+
+}pqisrc_softstate_t;
+
+struct pqi_config_table {
+	uint8_t	signature[8];		/* "CFGTABLE" */
+	uint32_t	first_section_offset;	/* offset in bytes from the base */
+					/* address of this table to the */
+					/* first section */
+}OS_ATTRIBUTE_PACKED;
+
+struct pqi_config_table_section_header {
+	uint16_t	section_id;		/* as defined by the */
+					/* PQI_CONFIG_TABLE_SECTION_* */
+					/* manifest constants above */
+	uint16_t	next_section_offset;	/* offset in bytes from base */
+					/* address of the table of the */
+					/* next section or 0 if last entry */
+}OS_ATTRIBUTE_PACKED;
+
+struct pqi_config_table_general_info {
+	struct pqi_config_table_section_header header;
+	uint32_t	section_length;		/* size of this section in bytes */
+					/* including the section header */
+	uint32_t	max_outstanding_requests;	/* max. outstanding */
+						/* commands supported by */
+						/* the controller */
+	uint32_t	max_sg_size;		/* max. transfer size of a single */
+					/* command */
+	uint32_t	max_sg_per_request;	/* max. number of scatter-gather */
+					/* entries supported in a single */
+					/* command */
+}OS_ATTRIBUTE_PACKED;
+
+struct pqi_config_table_firmware_features {
+	struct pqi_config_table_section_header header;
+	uint16_t	num_elements;
+	uint8_t	features_supported[];
+/*	u8	features_requested_by_host[]; */
+/*	u8	features_enabled[]; */
+/* The 2 fields below are only valid if the MAX_KNOWN_FEATURE bit is set. */
+/*	uint16_t	firmware_max_known_feature; */
+/*	uint16_t	host_max_known_feature; */
+}OS_ATTRIBUTE_PACKED;
+
+typedef struct pqi_vendor_general_request {
+	iu_header_t	header; /* bytes 0-3 */
+	uint16_t	response_id; /* bytes 4-5 */
+	uint16_t	work; /* bytes 6-7 */
+	uint16_t	request_id;
+	uint16_t	function_code;
+	union {
+		struct {
+			uint16_t	first_section;
+			uint16_t	last_section;
+			uint8_t	reserved[48];
+		} OS_ATTRIBUTE_PACKED config_table_update;
+
+		struct {
+			uint64_t	buffer_address;
+			uint32_t	buffer_length;
+			uint8_t	reserved[40];
+		} OS_ATTRIBUTE_PACKED ofa_memory_allocation;
+	} data;
+}OS_ATTRIBUTE_PACKED pqi_vendor_general_request_t;
 
 typedef struct vpd_logical_volume_status {
 	uint8_t         peripheral_info;

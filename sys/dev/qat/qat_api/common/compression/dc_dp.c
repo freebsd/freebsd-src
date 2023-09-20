@@ -217,6 +217,89 @@ dcDataPlaneParamCheck(const CpaDcDpOpData *pOpData)
 	return CPA_STATUS_SUCCESS;
 }
 
+/**
+ *****************************************************************************
+ * @ingroup cpaDcDp
+ *      Partial-read parameters validation utility.
+ *
+ * @description
+ *      Basic check that all partial-read related parameters provided by
+ *      caller are valid.
+ *
+ * @param[in]       pOpData          Pointer to a structure containing the
+ *                                   request parameters
+ * @param[in]       pPartReadData    Pointer to a structure containing the
+ *                                   partial-read request parameters.
+ *
+ * @retval CPA_STATUS_SUCCESS        Function executed successfully
+ * @retval CPA_STATUS_INVALID_PARAM  Invalid parameter passed in
+ *
+ *****************************************************************************/
+static CpaStatus
+dcDataPlanePartReadCheck(CpaDcDpOpData *pOpData,
+			 CpaDcDpPartialReadData *pPartReadData)
+{
+	sal_compression_service_t *pService = NULL;
+
+	LAC_CHECK_NULL_PARAM(pPartReadData);
+
+	pService = (sal_compression_service_t *)(pOpData->dcInstance);
+
+	if (!isDcGen4x(pService)) {
+		/* Extended features are not supported prior Gen4 */
+		return CPA_STATUS_UNSUPPORTED;
+	}
+
+	if (pOpData->sessDirection == CPA_DC_DIR_COMPRESS) {
+		/* Decompression specific feature */
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	if (pPartReadData->length > pOpData->bufferLenForData) {
+		QAT_UTILS_LOG(
+		    "Partial read data length can not be greater than the destination buffer size\n");
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	return CPA_STATUS_SUCCESS;
+}
+
+/**
+ *****************************************************************************
+ * @ingroup cpaDcDp
+ *      Zero-padding parameters validation utility.
+ *
+ * @description
+ *      Basic check that all zero-padding related parameters provided by
+ *      caller are valid.
+ *
+ * @param[in]       pOpData          Pointer to a structure containing the
+ *                                   request parameters.
+ *
+ * @retval CPA_STATUS_SUCCESS        Function executed successfully
+ * @retval CPA_STATUS_INVALID_PARAM  Invalid parameter passed in
+ * @retval CPA_STATUS_NOT_SUPPORTED  Feature not supported
+ *
+ *****************************************************************************/
+static CpaStatus
+dcDataPlaneZeroPadCheck(CpaDcDpOpData *pOpData)
+{
+	sal_compression_service_t *pService = NULL;
+
+	pService = (sal_compression_service_t *)(pOpData->dcInstance);
+
+	if (!isDcGen4x(pService)) {
+		/* Extended features are not supported prior Gen4 */
+		return CPA_STATUS_UNSUPPORTED;
+	}
+
+	if (pOpData->sessDirection == CPA_DC_DIR_DECOMPRESS) {
+		/* Compression specific feature */
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	return CPA_STATUS_SUCCESS;
+}
 CpaStatus
 cpaDcDpGetSessionSize(CpaInstanceHandle dcInstance,
 		      CpaDcSessionSetupData *pSessionData,
@@ -379,8 +462,60 @@ dcDpWriteRingMsg(CpaDcDpOpData *pOpData, icp_qat_fw_comp_req_t *pCurrentQatMsg)
 	pCurrentQatMsg->comp_pars.out_buffer_sz = pOpData->bufferLenForData;
 }
 
-CpaStatus
-cpaDcDpEnqueueOp(CpaDcDpOpData *pOpData, const CpaBoolean performOpNow)
+/**
+ *****************************************************************************
+ * @ingroup cpaDcDp
+ *
+ * @description
+ *      Updates the request decryptor with optional parameters:
+ *      - partial read specific fields
+ *      - zero-padding specific field
+ *
+ * @param[in]       pOpData          Pointer to a structure containing the
+ *                                   request parameters.
+ * @param[in]       pPartReadData    Pointer to a structure containing the
+ *                                   partial-read request parameters.
+ * @param[in]       zeroPadFlag      Boolean indicator containing the
+ *                                   zero-padding enablement flag.
+ * @param[in]       pCurrentQatMsg   Pointer to current QAT message on the ring.
+ *
+ *****************************************************************************/
+static void
+dcDpUpdateRingMsg(CpaDcDpOpData *pOpData,
+		  CpaDcDpPartialReadData *pPartReadData,
+		  CpaBoolean zeroPadFlag,
+		  icp_qat_fw_comp_req_t *pCurrentQatMsg)
+{
+	sal_compression_service_t *pService = NULL;
+
+	pService = (sal_compression_service_t *)(pOpData->dcInstance);
+	if (!isDcGen4x(pService)) {
+		return;
+	}
+
+	/* Partial read settings */
+	if (NULL != pPartReadData) {
+		pCurrentQatMsg->u1.partial_decompress
+		    .partial_decompress_offset = pPartReadData->dataOffset;
+		pCurrentQatMsg->u1.partial_decompress
+		    .partial_decompress_length = pPartReadData->length;
+		ICP_QAT_FW_COMP_PART_DECOMP_SET(
+		    pCurrentQatMsg->comp_pars.req_par_flags,
+		    ICP_QAT_FW_COMP_PART_DECOMP);
+	}
+	/* Zero padding settings */
+	if (CPA_TRUE == zeroPadFlag) {
+		ICP_QAT_FW_COMP_ZEROPAD_SET(
+		    pCurrentQatMsg->comp_pars.req_par_flags,
+		    ICP_QAT_FW_COMP_ZEROPAD);
+	}
+}
+
+static CpaStatus
+dcDpEnqueueOpBase(CpaDcDpOpData *pOpData,
+		  CpaDcDpPartialReadData *pPartReadData,
+		  CpaBoolean zeroPadFlag,
+		  const CpaBoolean performOpNow)
 {
 	icp_qat_fw_comp_req_t *pCurrentQatMsg = NULL;
 	icp_comms_trans_handle trans_handle = NULL;
@@ -390,6 +525,20 @@ cpaDcDpEnqueueOp(CpaDcDpOpData *pOpData, const CpaBoolean performOpNow)
 	status = dcDataPlaneParamCheck(pOpData);
 	if (CPA_STATUS_SUCCESS != status) {
 		return status;
+	}
+
+	if (NULL != pPartReadData) {
+		status = dcDataPlanePartReadCheck(pOpData, pPartReadData);
+		if (CPA_STATUS_SUCCESS != status) {
+			return status;
+		}
+	}
+
+	if (CPA_TRUE == zeroPadFlag) {
+		status = dcDataPlaneZeroPadCheck(pOpData);
+		if (CPA_STATUS_SUCCESS != status) {
+			return status;
+		}
 	}
 
 	if ((CPA_FALSE == pOpData->compressAndVerify) &&
@@ -422,6 +571,13 @@ cpaDcDpEnqueueOp(CpaDcDpOpData *pOpData, const CpaBoolean performOpNow)
 	}
 
 	dcDpWriteRingMsg(pOpData, pCurrentQatMsg);
+	if (NULL != pPartReadData || CPA_TRUE == zeroPadFlag) {
+		dcDpUpdateRingMsg(pOpData,
+				  pPartReadData,
+				  zeroPadFlag,
+				  pCurrentQatMsg);
+	}
+
 	pSessionDesc->pendingDpStatelessCbCount++;
 
 	if (CPA_TRUE == performOpNow) {
@@ -432,9 +588,36 @@ cpaDcDpEnqueueOp(CpaDcDpOpData *pOpData, const CpaBoolean performOpNow)
 }
 
 CpaStatus
-cpaDcDpEnqueueOpBatch(const Cpa32U numberRequests,
-		      CpaDcDpOpData *pOpData[],
-		      const CpaBoolean performOpNow)
+cpaDcDpEnqueueOp(CpaDcDpOpData *pOpData, const CpaBoolean performOpNow)
+{
+
+	return dcDpEnqueueOpBase(pOpData, NULL, CPA_FALSE, performOpNow);
+}
+
+CpaStatus
+cpaDcDpEnqueueOpWithPartRead(CpaDcDpOpData *pOpData,
+			     CpaDcDpPartialReadData *pPartReadData,
+			     const CpaBoolean performOpNow)
+{
+	return dcDpEnqueueOpBase(pOpData,
+				 pPartReadData,
+				 CPA_FALSE,
+				 performOpNow);
+}
+
+CpaStatus
+cpaDcDpEnqueueOpWithZeroPad(CpaDcDpOpData *pOpData,
+			    const CpaBoolean performOpNow)
+{
+	return dcDpEnqueueOpBase(pOpData, NULL, CPA_TRUE, performOpNow);
+}
+
+static CpaStatus
+dcDpEnqueueOpBatchBase(const Cpa32U numberRequests,
+		       CpaDcDpOpData *pOpData[],
+		       CpaDcDpPartialReadData *pPartData[],
+		       CpaBoolean zeroPadFlag,
+		       const CpaBoolean performOpNow)
 {
 	icp_qat_fw_comp_req_t *pCurrentQatMsg = NULL;
 	icp_comms_trans_handle trans_handle = NULL;
@@ -460,6 +643,21 @@ cpaDcDpEnqueueOpBatch(const Cpa32U numberRequests,
 		status = dcDataPlaneParamCheck(pOpData[i]);
 		if (CPA_STATUS_SUCCESS != status) {
 			return status;
+		}
+
+		if (NULL != pPartData) {
+			status =
+			    dcDataPlanePartReadCheck(pOpData[i], pPartData[i]);
+			if (CPA_STATUS_SUCCESS != status) {
+				return status;
+			}
+		}
+
+		if (CPA_TRUE == zeroPadFlag) {
+			status = dcDataPlaneZeroPadCheck(pOpData[i]);
+			if (CPA_STATUS_SUCCESS != status) {
+				return status;
+			}
 		}
 
 		/* Check that all instance handles and session handles are the
@@ -516,6 +714,18 @@ cpaDcDpEnqueueOpBatch(const Cpa32U numberRequests,
 
 	for (i = 0; i < numberRequests; i++) {
 		dcDpWriteRingMsg(pOpData[i], pCurrentQatMsg);
+		if (pPartData) {
+			dcDpUpdateRingMsg(pOpData[i],
+					  pPartData[i],
+					  CPA_FALSE,
+					  pCurrentQatMsg);
+		}
+		if (CPA_TRUE == zeroPadFlag) {
+			dcDpUpdateRingMsg(pOpData[i],
+					  NULL,
+					  CPA_TRUE,
+					  pCurrentQatMsg);
+		}
 		icp_adf_getQueueNext(trans_handle, (void **)&pCurrentQatMsg);
 	}
 
@@ -526,6 +736,34 @@ cpaDcDpEnqueueOpBatch(const Cpa32U numberRequests,
 	}
 
 	return CPA_STATUS_SUCCESS;
+}
+
+CpaStatus
+cpaDcDpEnqueueOpBatch(const Cpa32U numberRequests,
+		      CpaDcDpOpData *pOpData[],
+		      const CpaBoolean performOpNow)
+{
+	return dcDpEnqueueOpBatchBase(
+	    numberRequests, pOpData, NULL, CPA_FALSE, performOpNow);
+}
+
+CpaStatus
+cpaDcDpEnqueueOpWithPartReadBatch(const Cpa32U numberRequests,
+				  CpaDcDpOpData *pOpData[],
+				  CpaDcDpPartialReadData *pPartReadData[],
+				  const CpaBoolean performOpNow)
+{
+	return dcDpEnqueueOpBatchBase(
+	    numberRequests, pOpData, pPartReadData, CPA_FALSE, performOpNow);
+}
+
+CpaStatus
+cpaDcDpEnqueueOpWithZeroPadBatch(const Cpa32U numberRequests,
+				 CpaDcDpOpData *pOpData[],
+				 const CpaBoolean performOpNow)
+{
+	return dcDpEnqueueOpBatchBase(
+	    numberRequests, pOpData, NULL, CPA_TRUE, performOpNow);
 }
 
 CpaStatus
@@ -562,6 +800,54 @@ cpaDcDpPerformOpNow(CpaInstanceHandle dcInstance)
 	if (CPA_TRUE == icp_adf_queueDataToSend(trans_handle)) {
 		SalQatMsg_updateQueueTail(trans_handle);
 	}
+
+	return CPA_STATUS_SUCCESS;
+}
+
+CpaStatus
+cpaDcDpIsPartReadSupported(const CpaInstanceHandle instanceHandle,
+			   CpaBoolean *flag)
+{
+	sal_compression_service_t *pService = NULL;
+	dc_extd_ftrs_t *pExtendedFtrs = NULL;
+
+	LAC_CHECK_NULL_PARAM(instanceHandle);
+	SAL_CHECK_INSTANCE_TYPE(instanceHandle, SAL_SERVICE_TYPE_COMPRESSION);
+
+	pService = (sal_compression_service_t *)instanceHandle;
+	if (!isDcGen4x(pService)) {
+		*flag = CPA_FALSE;
+		return CPA_STATUS_SUCCESS;
+	}
+
+	pExtendedFtrs = (dc_extd_ftrs_t *)&(
+	    ((sal_service_t *)instanceHandle)->dcExtendedFeatures);
+
+	*flag = (CpaBoolean)pExtendedFtrs->is_part_read;
+
+	return CPA_STATUS_SUCCESS;
+}
+
+CpaStatus
+cpaDcDpIsZeroPadSupported(const CpaInstanceHandle instanceHandle,
+			  CpaBoolean *flag)
+{
+	sal_compression_service_t *pService = NULL;
+	dc_extd_ftrs_t *pExtendedFtrs = NULL;
+
+	LAC_CHECK_NULL_PARAM(instanceHandle);
+	SAL_CHECK_INSTANCE_TYPE(instanceHandle, SAL_SERVICE_TYPE_COMPRESSION);
+
+	pService = (sal_compression_service_t *)instanceHandle;
+	if (!isDcGen4x(pService)) {
+		*flag = CPA_FALSE;
+		return CPA_STATUS_SUCCESS;
+	}
+
+	pExtendedFtrs = (dc_extd_ftrs_t *)&(
+	    ((sal_service_t *)instanceHandle)->dcExtendedFeatures);
+
+	*flag = (CpaBoolean)pExtendedFtrs->is_zero_pad;
 
 	return CPA_STATUS_SUCCESS;
 }

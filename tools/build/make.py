@@ -48,37 +48,96 @@ import sys
 from pathlib import Path
 
 
+# List of targets that are independent of TARGET/TARGET_ARCH and thus do not
+# need them to be set. Keep in the same order as Makefile documents them (if
+# they are documented).
+mach_indep_targets = [
+    "cleanuniverse",
+    "universe",
+    "universe-toolchain",
+    "tinderbox"
+    "worlds",
+    "kernels",
+    "kernel-toolchains",
+    "targets",
+    "toolchains",
+    "makeman",
+    "sysent",
+]
+
+
 def run(cmd, **kwargs):
     cmd = list(map(str, cmd))  # convert all Path objects to str
     debug("Running", cmd)
     subprocess.check_call(cmd, **kwargs)
 
 
+# Always bootstraps in order to control bmake's config to ensure compatibility
 def bootstrap_bmake(source_root, objdir_prefix):
     bmake_source_dir = source_root / "contrib/bmake"
     bmake_build_dir = objdir_prefix / "bmake-build"
     bmake_install_dir = objdir_prefix / "bmake-install"
     bmake_binary = bmake_install_dir / "bin/bmake"
+    bmake_config = bmake_install_dir / ".make-py-config"
 
-    if (bmake_install_dir / "bin/bmake").exists():
+    bmake_source_version = subprocess.run([
+        "sh", "-c", ". \"$0\"/VERSION; echo $_MAKE_VERSION",
+        bmake_source_dir], capture_output=True).stdout.strip()
+    try:
+        bmake_source_version = int(bmake_source_version)
+    except ValueError:
+        sys.exit("Invalid source bmake version '" + bmake_source_version + "'")
+
+    bmake_installed_version = 0
+    if bmake_binary.exists():
+        bmake_installed_version = subprocess.run([
+            bmake_binary, "-r", "-f", "/dev/null", "-V", "MAKE_VERSION"],
+            capture_output=True).stdout.strip()
+        try:
+            bmake_installed_version = int(bmake_installed_version.strip())
+        except ValueError:
+            print("Invalid installed bmake version '" +
+                  bmake_installed_version + "', treating as not present")
+
+    configure_args = [
+        "--with-default-sys-path=.../share/mk:" +
+        str(bmake_install_dir / "share/mk"),
+        "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
+        "--without-filemon", "--prefix=" + str(bmake_install_dir)]
+
+    configure_args_str = ' '.join([shlex.quote(x) for x in configure_args])
+    if bmake_config.exists():
+        last_configure_args_str = bmake_config.read_text()
+    else:
+        last_configure_args_str = ""
+
+    debug("Source bmake version: " + str(bmake_source_version))
+    debug("Installed bmake version: " + str(bmake_installed_version))
+    debug("Configure args: " + configure_args_str)
+    debug("Last configure args: " + last_configure_args_str)
+
+    if bmake_installed_version == bmake_source_version and \
+       configure_args_str == last_configure_args_str:
         return bmake_binary
+
     print("Bootstrapping bmake...")
-    # TODO: check if the host system bmake is new enough and use that instead
-    if not bmake_build_dir.exists():
-        os.makedirs(str(bmake_build_dir))
+    if bmake_build_dir.exists():
+        shutil.rmtree(str(bmake_build_dir))
+    if bmake_install_dir.exists():
+        shutil.rmtree(str(bmake_install_dir))
+
+    os.makedirs(str(bmake_build_dir))
+
     env = os.environ.copy()
     global new_env_vars
     env.update(new_env_vars)
 
-    configure_args = [
-        "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
-        "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
-        "--without-filemon", "--prefix=" + str(bmake_install_dir)]
     run(["sh", bmake_source_dir / "boot-strap"] + configure_args,
         cwd=str(bmake_build_dir), env=env)
-
     run(["sh", bmake_source_dir / "boot-strap", "op=install"] + configure_args,
         cwd=str(bmake_build_dir))
+    bmake_config.write_text(configure_args_str)
+
     print("Finished bootstrapping bmake...")
     return bmake_binary
 
@@ -112,6 +171,7 @@ def check_required_make_env_var(varname, binary_name, bindir):
     if parsed_args.debug:
         run([guess, "--version"])
 
+
 def check_xtool_make_env_var(varname, binary_name):
     # Avoid calling brew --prefix on macOS if all variables are already set:
     if os.getenv(varname):
@@ -121,6 +181,7 @@ def check_xtool_make_env_var(varname, binary_name):
         parsed_args.cross_bindir = default_cross_toolchain()
     return check_required_make_env_var(varname, binary_name,
                                        parsed_args.cross_bindir)
+
 
 def default_cross_toolchain():
     # default to homebrew-installed clang on MacOS if available
@@ -188,7 +249,7 @@ if __name__ == "__main__":
     new_env_vars = {}
     if not sys.platform.startswith("freebsd"):
         if not is_make_var_set("TARGET") or not is_make_var_set("TARGET_ARCH"):
-            if "universe" not in sys.argv and "tinderbox" not in sys.argv:
+            if not set(sys.argv).intersection(set(mach_indep_targets)):
                 sys.exit("TARGET= and TARGET_ARCH= must be set explicitly "
                          "when building on non-FreeBSD")
     if not parsed_args.bootstrap_toolchain:
@@ -249,7 +310,7 @@ if __name__ == "__main__":
             and not is_make_var_set("WITHOUT_CLEAN")):
         # Avoid accidentally deleting all of the build tree and wasting lots of
         # time cleaning directories instead of just doing a rm -rf ${.OBJDIR}
-        want_clean = input("You did not set -DWITHOUT_CLEAN/--clean/--no-clean."
+        want_clean = input("You did not set -DWITHOUT_CLEAN/--(no-)clean."
                            " Did you really mean to do a clean build? y/[N] ")
         if not want_clean.lower().startswith("y"):
             bmake_args.append("-DWITHOUT_CLEAN")

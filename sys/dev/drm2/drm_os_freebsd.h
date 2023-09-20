@@ -304,13 +304,6 @@ ilog2(unsigned long x)
 	return (flsl(x) - 1);
 }
 
-static inline int64_t
-abs64(int64_t x)
-{
-
-	return (x < 0 ? -x : x);
-}
-
 int64_t		timeval_to_ns(const struct timeval *tv);
 struct timeval	ns_to_timeval(const int64_t nsec);
 

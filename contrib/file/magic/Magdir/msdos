@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.158 2022/09/07 11:17:31 christos Exp $
+# $File: msdos,v 1.169 2023/04/17 16:39:19 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -49,29 +49,127 @@
 #
 # Many of the compressed formats were extracted from IDARC 1.23 source code.
 #
+# e_magic
 0	string/b	MZ
-# All non-DOS EXE extensions have the relocation table more than 0x40 bytes into the file.
->0x18	leshort <0x40 MS-DOS executable
+#	TODO
+# FLT:	Syntrillium CoolEdit Filter		https://en.wikipedia.org/wiki/Adobe_Audition
+# FMX64:FileMaker Pro 64-bit plug-in		https://en.wikipedia.org/wiki/FileMaker
+# FMX:	FileMaker Pro 32-bit plug-in		https://en.wikipedia.org/wiki/FileMaker
+# FOD:	WIFE Font Driver
+# GAU:	MS Flight Simulator Gauge
+# IFS:	OS/2 Installable File System		https://en.wikipedia.org/wiki/OS/2
+# MEXW32:MATLAB Windows 32bit compiled function	https://en.wikipedia.org/wiki/MATLAB
+# MEXW64:MATLAB Windows 64bit compiled function	https://en.wikipedia.org/wiki/MATLAB
+# MLL:	Maya plug-in (generic)	       		http://en.wikipedia.org/wiki/Autodesk_Maya
+# PFL:	PhotoFilter plugin			http://photofiltre.free.fr
+# 8*:	PhotoShop plug-in (generic)		http://www.adobe.com/products/photoshop/main.html
+# PLG:	Aston Shell plugin			http://www.astonshell.com/
+# QLB:	Microsoft Basic Quick library		https://en.wikipedia.org/wiki/QuickBASIC
+# SKL:	WinLIFT skin				http://www.zapsolution.com/winlift/index.htm
+# TBK:	Asymetrix ToolBook application		http://www.toolbook.com
+# TBP:	The Bat! plugin	   			http://www.ritlabs.com
+# UPC:	Ultimate Paint Graphics Editor plugin	http://ultimatepaint.j-t-l.com
+# XFM:	Syntrillium Cool Edit Transform Effect	bad http://www.cooledit.com
+# XPL:	X-Plane plugin	      			http://www.xsquawkbox.net/xpsdk/
+# ZAP:	ZoneLabs Zone Alarm data		http://www.zonelabs.com
+#
+# NEXT LINES FOR DEBUGGING!
+# e_cblp; bytes on last page of file
+# e_cp; pages in file
+#>4		uleshort	x	\b, e_cp 0x%x
+# e_lfanew; file address of new exe header
+#>0x3c		ulelong		x	\b, e_lfanew 0x%x
+# e_lfarlc; address of relocation table
+#>0x18		uleshort	x	\b, e_lfarlc=0x%x
+# e_ovno; overlay number. If zero, this is the main executable foo
+#>0x1a		uleshort	!0	\b, e_ovno 0x%x
+#>0x1C		ubequad		!0	\b, e_res 0x%16.16llx
+# e_oemid; often 0
+#>0x24		uleshort	!0	\b, e_oemid 0x%x
+# e_oeminfo; typically zeroes, but 13Dh (WORDSTAR.CNV WPFT5.CNV) 143h (WRITWIN.CNV)
+# 1A3h (DBASE.CNV LOTUS123.CNV RFTDCA.CNV WORDDOS.CNV WORDMAC.CNV WORDWIN1.CNVXLBIFF.CNV)
+#>0x26		uleshort	!0	\b, e_oeminfo 0x%x
+#  e_res2; typically zeroes, but 000006006F082D2Ah SCSICFG.EXE 00009A0300007C03h de.exe
+# 0000CA0000000002h country.exe dosxmgr.exe 421E0A00421EA823h QMC.EXE
+#>0x28		ubequad		!0	\b, e_res2 0x%16.16llx
+# https://web.archive.org/web/20171116024937/http://www.ctyme.com/intr/rb-2939.htm#table1593
+# https://github.com/uxmal/reko/blob/master/src/ImageLoaders/MzExe/ExeImageLoader.cs
+# new exe header magic like: PE NE LE LX W3 W4
+# no examples found for ZM DL MP P2 P3
+#>(0x3c.l)	string		x	\b, at [0x3c] %.2s
+#>(0x3c.l)	ubelong		x	\b, at [0x3c] %#8.8x
+#>(0x3c.l+4)	ubelong		x	\b, at [0x3c+4] %#8.8x
+#
+# Most non-DOS MZ-executable extensions have the relocation table more than 0x40 bytes into the file.
+# http://www.mitec.cz/Downloads/EXE.zip/EXE64.exe	e_lfarlc=0x8ead
+# OS/2 ECS\INSTALL\DETECTEI\PCISCAN.EXE			e_lfarlc=0x1c
+# some EFI apps Shell_Full.efi ext4_x64_signed.efi	e_lfarlc=0
+# Icon library WORD60.ICL				e_lfarlc=0
+# Microsoft compiled help format 2.0 WINWORD.DEV.HXS	e_lfarlc=0
+>0x18	uleshort <0x40
+# check magic of new second header
+# NE executable with low e_lfarlc like: WORD60.ICL
+# ICL:	Icons Library 16-bit			http://fileformats.archiveteam.org/wiki/Icon_library
+>>(0x3c.l)	string	NE	Windows Icons Library 16-bit
+!:mime		image/x-ms-icl
+!:ext		icl
+# handle LX executable with low e_lfarlc like: PCISCAN.EXE
+>>(0x3c.l)	string	LX
+>>>(0x3c.l)	use		lx-executable
+# skip Portable Executable (PE) with low e_lfarlc here, because handled later
+# like: ext4_x64_signed.efi Shell_Full.efi WINWORD.DEV.HXS
+>>(0x3c.l)	string	PE
+# not New Executable (NE) and not PE with low e_lfarlc like:
+# MACCNV55.EXE WORK_RTF.EXE TELE200.EXE NDD.EXE iflash.exe
+>>(0x3c.l)	default	x	MS-DOS executable, MZ for MS-DOS
 !:mime	application/x-dosexec
 # Windows and later versions of DOS will allow .EXEs to be named with a .COM
 # extension, mostly for compatibility's sake.
+# like: EDIT.COM 4DOS.COM CMD8086.COM CMD-FR.COM SYSLINUX.COM
 # URL:		https://en.wikipedia.org/wiki/Personal_NetWare#VLM
 # Reference:	https://mark0.net/download/triddefs_xml.7z/defs/e/exe-vlm-msg.trid.xml
-!:ext	exe/com/vlm
+# also like: BGISRV.DRV
+!:ext	exe/com/vlm/drv
 # These traditional tests usually work but not always.  When test quality support is
 # implemented these can be turned on.
 #>>0x18	leshort	0x1c	(Borland compiler)
 #>>0x18	leshort	0x1e	(MS compiler)
 
 # Maybe it's a PE?
+# URL:		http://fileformats.archiveteam.org/wiki/Portable_Executable
+# Reference:	https://docs.microsoft.com/de-de/windows/win32/debug/pe-format
 >(0x3c.l)	string		PE\0\0	PE
-!:mime	application/x-dosexec
+!:mime	application/vnd.microsoft.portable-executable
+# https://docs.microsoft.com/de-de/windows/win32/debug/pe-format#characteristics
+# DLL Characteristics
+#>>(0x3c.l+22)	uleshort	x	\b, CHARACTERISTICS %#4.4x,
+# 0x0200~IMAGE_FILE_DEBUG_STRIPPED Debugging information is removed from the image file
+# 0x1000~IMAGE_FILE_SYSTEM The image file is a system file, not a user program. 
+# 0x2000~IMAGE_FILE_DLL The image file is a dynamic-link library (DLL)
 >>(0x3c.l+24)	leshort		0x010b	\b32 executable
+# https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#windows-subsystem
+#>>>(0x3c.l+92)	leshort		x	\b, SUBSYSTEM %u
 >>(0x3c.l+24)	leshort		0x020b	\b32+ executable
+#>>>(0x3c.l+92)	leshort		x	\b, SUBSYSTEM %u
 >>(0x3c.l+24)	leshort		0x0107	ROM image
 >>(0x3c.l+24)	default		x	Unknown PE signature
 >>>&0 		leshort		x	%#x
 >>(0x3c.l+22)	leshort&0x2000	>0	(DLL)
+# 0~IMAGE_SUBSYSTEM_UNKNOWN An unknown subsystem
+>>(0x3c.l+92)	leshort		0	(
+# Summary:	Microsoft compiled help *.HXS format 2.0
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Help_2
+# Reference:	http://www.russotto.net/chm/itolitlsformat.html
+#		https://mark0.net/download/triddefs_xml.7z/defs/h/hxs.trid.xml
+# Note:		2 PE sections (.rsrc, .its) implies Microsoft compiled help format; the .its section contains the help content ITOLITLS
+#		verified by command like `pelook.exe -d WINWORD.HXS & pelook.exe -h WINWORD.HXS`
+>>>(0x3c.l+6)	uleshort	=2	\bMicrosoft compiled help format 2.0)
+!:ext	hxs
+# 3 PE sections (.text, .reloc, .rsrc) implies some Control Panel Item like: 
+# CPL:	Control Panel item for WINE 1.7.28	https://www.winehq.org/
+>>>(0x3c.l+6)	uleshort	!2	\bControl Panel Item)
+!:ext	cpl
+# 1~IMAGE_SUBSYSTEM_NATIVE device drivers and native Windows processes 
 >>(0x3c.l+92)	leshort		1
 # Native PEs include ntoskrnl.exe, hal.dll, smss.exe, autochk.exe, and all the
 # drivers in Windows/System32/drivers/*.sys.
@@ -79,6 +177,7 @@
 !:ext	dll/sys
 >>>(0x3c.l+22)	leshort&0x2000	0	(native)
 !:ext	exe/sys
+# 2~IMAGE_SUBSYSTEM_WINDOWS_GUI	The Windows graphical user interface (GUI) subsystem 
 >>(0x3c.l+92)	leshort		2
 >>>(0x3c.l+22)	leshort&0x2000	>0	(GUI)
 # These could probably be at least partially distinguished from one another by
@@ -94,21 +193,72 @@
 # Screen savers typically include code from the scrnsave.lib static library, but
 # that's not guaranteed.
 !:ext	exe/scr
+# 3~IMAGE_SUBSYSTEM_WINDOWS_CUI	The Windows character subsystem 
 >>(0x3c.l+92)	leshort		3
 >>>(0x3c.l+22)	leshort&0x2000	>0	(console)
 !:ext	dll/cpl/tlb/ocx/acm/ax/ime
 >>>(0x3c.l+22)	leshort&0x2000	0	(console)
 !:ext	exe/com
-# https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
->>(0x3c.l+92)	leshort		7	(POSIX)
->>(0x3c.l+92)	leshort		9	(Windows CE)
+# NO Windows Subsystem number 4!
+>>(0x3c.l+92)	leshort		4	(Unknown subsystem 4)
+# 5~IMAGE_SUBSYSTEM_OS2_CUI The OS/2 character subsystem 
+>>(0x3c.l+92)	leshort		5	(OS/2)
+# GRR: No examples found by Joerg Jenderek
+#!:ext	foo-exe-os2
+# NO Windows Subsystem number 6!
+>>(0x3c.l+92)	leshort		6	(Unknown subsystem 6)
+# 7~IMAGE_SUBSYSTEM_POSIX_CUI The Posix character subsystem 
+>>(0x3c.l+92)	leshort		7	(POSIX
+>>>(0x3c.l+22)	leshort&0x2000	>0	\b)
+# like: PSXDLL.DLL
+!:ext	dll
+>>>(0x3c.l+22)	leshort&0x2000	0	\b)
+# like: PAX.EXE
+!:ext	exe
+# 8~IMAGE_SUBSYSTEM_NATIVE_WINDOWS Native Win9x driver 
+>>(0x3c.l+92)	leshort		8	(Win9x)
+# GRR: No examples found by Joerg Jenderek
+#!:ext	foo-exe-win98
+# 9~IMAGE_SUBSYSTEM_WINDOWS_CE_GUI Windows CE
+>>(0x3c.l+92)	leshort		9	(Windows CE
+>>>(0x3c.l+22)	leshort&0x2000	>0	\b)
+# like: MCS9900Ce50.dll Mosiisr99x.dll TMCGPS.DLL
+!:ext	dll
+>>>(0x3c.l+22)	leshort&0x2000	0	\b)
+# like: NNGStart.exe navigator.exe
+!:ext	exe
+# 10~IMAGE_SUBSYSTEM_EFI_APPLICATION An Extensible Firmware Interface (EFI) application 
 >>(0x3c.l+92)	leshort		10	(EFI application)
+# like: bootmgfw.efi grub.efi gdisk_x64.efi Shell_Full.efi shim.efi syslinux.efi
+!:ext	efi
+# 11~IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER An EFI driver with boot services 
 >>(0x3c.l+92)	leshort		11	(EFI boot service driver)
+# like: ext2_x64_signed.efi Fat_x64.efi iso9660_x64_signed.efi
+!:ext	efi
 >>(0x3c.l+92)	leshort		12	(EFI runtime driver)
+# no sample found
+!:ext	efi
+# 13~IMAGE_SUBSYSTEM_EFI_ROM An EFI ROM image
 >>(0x3c.l+92)	leshort		13	(EFI ROM)
+# no sample found
+!:ext	efi
+# 14~IMAGE_SUBSYSTEM_XBOX XBOX 
 >>(0x3c.l+92)	leshort		14	(XBOX)
->>(0x3c.l+92)	leshort		15	(Windows boot application)
->>(0x3c.l+92)	default		x	(Unknown subsystem
+#!:ext	foo-xbox
+# NO Windows Subsystem number 15!
+>>(0x3c.l+92)	leshort		15	(Unknown subsystem 15)
+# 16~IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION Windows boot application
+>>(0x3c.l+92)	leshort		16	(Windows boot application
+>>>(0x3c.l+22)	leshort&0x2000	>0	\b)
+# like: bootvhd.dll bootuwf.dll hvloader.dll tcbloader.dll bootspaces.dll
+!:ext	dll
+>>>(0x3c.l+22)	leshort&0x2000	0	\b)
+# like: bootmgr.efi memtest.efi shellx64.efi memtest.exe winload.exe winresume.exe bootvhd.dll hvloader.dll
+!:ext	efi/exe
+# GRR: the next 2 lines are not executed!
+#>>(0x3c.l+92)	default		x	(Unknown subsystem
+#>>>&0		leshort		x	%#x)
+>>(0x3c.l+92)	leshort		>16	(Unknown subsystem
 >>>&0		leshort		x	%#x)
 >>(0x3c.l+4)	leshort		0x14c	Intel 80386
 >>(0x3c.l+4)	leshort		0x166	MIPS R4000
@@ -136,10 +286,13 @@
 >>(0x3c.l+4)	leshort		0x5032	RISC-V 32-bit
 >>(0x3c.l+4)	leshort		0x5064	RISC-V 64-bit
 >>(0x3c.l+4)	leshort		0x5128	RISC-V 128-bit
+>>(0x3c.l+4)	leshort		0x6232	LoongArch 32-bit
+>>(0x3c.l+4)	leshort		0x6264	LoongArch 64-bit
 >>(0x3c.l+4)	leshort		0x9041	Mitsubishi M32R
 >>(0x3c.l+4)	leshort		0x8664	x86-64
 >>(0x3c.l+4)	leshort		0xaa64	Aarch64
 >>(0x3c.l+4)	leshort		0xc0ee	MSIL
+# GRR: the next 2 lines are not executed!
 >>(0x3c.l+4)	default		x	Unknown processor type
 >>>&0		leshort		x	%#x
 >>(0x3c.l+22)	leshort&0x0200	>0	(stripped to external PDB)
@@ -176,33 +329,134 @@
 >>&(0x3c.l+0xf8)	search/0x100	_winzip_ \b, ZIP self-extracting archive (WinZip)
 >>&(0x3c.l+0xf8)	search/0x100	SharedD \b, Microsoft Installer self-extracting archive
 >>0x30			string		Inno \b, InnoSetup self-extracting archive
+# NumberOfSections; Normal Dynamic Link libraries have a few sections for code, data and resource etc.
+# PE used as container have less sections
+>>(0x3c.l+6)	leshort			>1	\b, %u sections
+# do not display for 1 section to get output like in version 5.43 and to keep output columns low
+#>>(0x3c.l+6)	leshort			=1	\b, %u section
 
 # If the relocation table is 0x40 or more bytes into the file, it's definitely
 # not a DOS EXE.
->0x18  leshort >0x3f
+>0x18	uleshort	>0x3f
 
 # Hmm, not a PE but the relocation table is too high for a traditional DOS exe,
 # must be one of the unusual subformats.
 >>(0x3c.l) string !PE\0\0 MS-DOS executable
-!:mime	application/x-dosexec
+#!:mime	application/x-dosexec
 
 >>(0x3c.l)		string		NE \b, NE
-!:mime	application/x-dosexec
+#!:mime	application/x-dosexec
+!:mime	application/x-ms-ne-executable
+# FOR DEBUGGING!
+# Reference:	https://wiki.osdev.org/NE
+# ProgFlags; Program flags, bitmapped
+#>>>(0x3c.l+0x0C)	ubyte		x	\b, ProgFlags 0x%2.2x
+# >>>(0x3c.l+0x0c)	ubyte&0x03	=0	\b, none
+# >>>(0x3c.l+0x0c)	ubyte&0x03	=1	\b, single shared
+# >>>(0x3c.l+0x0c)	ubyte&0x03	=2	\b, multiple
+# >>>(0x3c.l+0x0c)	ubyte&0x03	=3	\b, (null)
+# >>>(0x3c.l+0x0c)	ubyte		&0x04	\b, Global initialization
+# >>>(0x3c.l+0x0c)	ubyte		&0x08	\b, Protected mode only
+# >>>(0x3c.l+0x0c)	ubyte		&0x10	\b, 8086 instructions
+# >>>(0x3c.l+0x0c)	ubyte		&0x20	\b, 80286 instructions
+# >>>(0x3c.l+0x0c)	ubyte		&0x40	\b, 80386 instructions
+# >>>(0x3c.l+0x0c)	ubyte		&0x80	\b, 80x87 instructions
+# ApplFlags; Application flags, bitmapped
+# https://www.fileformat.info/format/exe/corion-ne.htm
+#>>>(0x3c.l+0x0D)	ubyte		x	\b, ApplFlags 0x%2.2x
+# Application type (bits 0-2); 1~Full screen (not aware of Windows/P.M. API)
+# 2~Compatible with Windows/P.M. API 3~Uses Windows/P.M. API
+#>>>(0x3c.l+0x0D)	ubyte&0x07	=1	\b, Full screen
+#>>>(0x3c.l+0x0D)	ubyte&0x07	=2	\b, Compatible with Windows/P.M. API
+#>>>(0x3c.l+0x0D)	ubyte&0x07	=3	\b, use Windows/P.M. API
+# bit 7; DLL or driver (SS:SP info invalid, CS:IP points at FAR init routine called with AX handle
+#>>>(0x3c.l+0x0D)	ubyte		&0x80	\b, DLL or driver
+# AutoDataSegIndex; automatic data segment index like: 0 2 3 22
+# zero if the SINGLEDATA and MULTIPLEDATA bits are cleared
+#>>>(0x3c.l+0x0e)	uleshort	x	\b, AutoDataSegIndex %u
+# InitHeapSize; intial local heap size like; 0 400h 1400h
+# zero if there is no local allocation
+#>>>(0x3c.l+0x10)	uleshort	!0	\b, InitHeapSize 0x%x
+# InitStackSize; inital stack size like: 0 10h A00h 7D0h A8Ch FA0h 1000h 1388h
+# 1400h (CBT) 1800h 2000h 2800h 2EE0h 2F3Ch 3258h 3E80h 4000h 4E20h 5000h 6000h
+# 6D60h 8000h 40000h
+# zero if the SS register value does not equal the DS register value
+#>>>(0x3c.l+0x12)	uleshort	!0	\b, InitStackSize 0x%x
+# EntryPoint; segment offset value of CS:IP like: 0 10000h 18A84h 11C1Ah 307F1h 
+#>>>(0x3c.l+0x14)	ulelong		!0 	\b, EntryPoint 0x%x
+# InitStack; specifies the segment offset value of stack pointer SS:SP
+# like: 0 20000h 160000h
+#>>>(0x3c.l+0x18)	ulelong		!0	\b, InitStack 0x%x
+# SegCount; number of segments in segment table like: 0 1 2 3 16h
+#>>>(0x3c.l+0x1C)	uleshort	x	\b, SegCount 0x%x
+# ModRefs; number of module references (DLLs) like; 0 1 3
+#>>>(0x3c.l+0x1E)	uleshort	!0	\b, ModRefs %u
+# NoResNamesTabSiz; size in bytes of non-resident names table
+# like: Bh 16h B4h B9h 2Ch 18Fh 16AAh
+#>>>(0x3c.l+0x20)	uleshort	x	\b, NoResNamesTabSiz 0x%x
+# SegTableOffset; offset of Segment table like: 40h
+#>>>(0x3c.l+0x22)	uleshort	!0x40	\b, SegTableOffset 0x%x
+# ResTableOffset; offset of resources table like: 40h 50h 58h F0h
+# 40h for most fonts likedos737.fon FMFONT.FOT but 60h for L1WBASE.FON
+#>>>(0x3c.l+0x24)	uleshort	x 	\b, ResTableOffset 0x%x
+# ResidNamTable; offset of resident names table
+# like: 58h 5Ch 60h 68h 74h 98h 2E3h 2E7h 2F0h
+#>>>(0x3c.l+0x26)	uleshort		x \b, ResidNamTable 0x%x
+# ImportNameTable; offset of imported names table (array of counted strings, terminated with string of length 00h)
+# like: 77h 7Eh 80h C6h A7h ACh 2F8h 3FFh
+#>>>(0x3c.l+0x2a)	uleshort	x	\b, ImportNameTable 0x%x
+# OffStartNonResTab; offset from start of file to non-resident names table
+# like: 110h 11Dh 19Bh 1A5h 3F5h 4C8h 4EEh D93h
+#>>>(0x3c.l+0x2c)	ulelong		x	\b, OffStartNonResTab 0x%x
+# MovEntryCount; number of movable entry points like: 0 4 5 6 16 17 24 312 355 446
+#>>>(0x3c.l+0x30)	uleshort	!0	\b, MovEntryCount %u
+# FileAlnSzShftCnt; log2 of the segment sector size; 4~16 0~9~512 (default)
+#>>>(0x3c.l+0x32)	uleshort	!9 	\b, FileAlnSzShftCnt %u
+# nResTabEntries; number of resource table entries like: 0 2
+#>>>(0x3c.l+0x34)	uleshort	!0	\b, nResTabEntries %u
+# targOS; Target OS; 0~unknown~OS/2 1.0 or MS Windows 1-2
+# OS/2 1.0 like: DTM.DLL SHELL11F.EXE HELPMSG.EXE CREATEDD.EXE
+# or Windows 1.03 - 2.1 like: MSDOSD.EXE KARTEI.EXE KALENDER.EXE
+#>>>(0x3c.l+0x36)	byte		x TARGOS %x
+>>>(0x3c.l+0x36)	byte		0 for OS/2 1.0 or MS Windows 1-2
 >>>(0x3c.l+0x36)	byte		1 for OS/2 1.x
 >>>(0x3c.l+0x36)	byte		2 for MS Windows 3.x
 >>>(0x3c.l+0x36)	byte		3 for MS-DOS
 >>>(0x3c.l+0x36)	byte		4 for Windows 386
 >>>(0x3c.l+0x36)	byte		5 for Borland Operating System Services
+# http://downloads.sourceforge.net/dfendreloaded/D-Fend-Reloaded-1.4.4.zip
+# D-Fend Reloaded/VirtualHD/FREEDOS/DPMILD32.EXE
+# GRR: WHAT OS is this?
+#>>>(0x3c.l+0x36)	byte		6 for TARGET SIX
+# https://en.wikipedia.org/wiki/Phar_Lap_(company)
+>>>(0x3c.l+0x36)	byte		0x81 for MS-DOS, Phar Lap DOS extender, OS/2
+# like: CVP7.EXE
+>>>(0x3c.l+0x36)	byte		0x82 for MS-DOS, Phar Lap DOS extender, Windows
 >>>(0x3c.l+0x36)	default		x
->>>>(0x3c.l+0x36)	byte		x (unknown OS %x)
->>>(0x3c.l+0x36)	byte		0x81 for MS-DOS, Phar Lap DOS extender
+>>>>(0x3c.l+0x36)	ubyte		x (unknown OS %#x)
+# expctwinver; expected Windows version (minor first) like:
+# 0.0~DTM.DLL 203.4~Windows 1.03 GDI.EXE 2.1~TTY.DRV 3.0~dos737.fon FMFONT.FOT THREED.VBX 3.10~GDI.EXE 4.0~(ME) VGAFULL.3GR
+>>>(0x3c.l+0x3F)	ubyte		x	(%u
+>>>(0x3c.l+0x3E)	ubyte		x	\b.%u)
+# OS2EXEFlags; other EXE flags
+# 0~Long filename support 1~2.x protected mode 4~2.x proportional fonts 8~Executable has gangload area
+#>>>(0x3c.l+0x37)	byte		!0	\b, OS2EXEFlags 0x%x
+# retThunkOffset; offset to return thunks or start of gangload area like: 0 34h 58h 246h 
+#>>>(0x3c.l+0x38)	uleshort	!0	\b, retThunkOffset 0x%x
+# segrefthunksoff; offset to segment reference thunks or size of gangload area
+# like: 0 33Eh 39Ah AEEh
+#>>>(0x3c.l+0x3A)	uleshort	!0	\b, segrefthunksoff 0x%x
+# mincodeswap; minimum code swap area size like 0 620Ch
+#>>>(0x3c.l+0x3C)	uleshort	!0 \b, mincodeswap 0x%x
 >>>(0x3c.l+0x0c)	leshort&0x8000	0x8000 (DLL or font)
 # DRV: Driver
 # 3GR: Grabber device driver
 # CPL: Control Panel Item
-# VBX: Visual Basic Extension
-# FON: Bitmap font
+# VBX: Visual Basic Extension		https://en.wikipedia.org/wiki/Visual_Basic
+# FON: Bitmap font			http://fileformats.archiveteam.org/wiki/FON
 # FOT: Font resource file
+# EXE: WINSPOOL.EXE USER.EXE krnl386.exe GDI.EXE
+# CNV: Microsoft Word text conversion	https://www.file-extensions.org/cnv-file-extension-microsoft-word-text-conversion-data
 !:ext	dll/drv/3gr/cpl/vbx/fon/fot
 >>>(0x3c.l+0x0c)	leshort&0x8000	0 (EXE)
 !:ext	exe/scr
@@ -228,8 +482,17 @@
 >>>&(&0x54.l-3)		string		arjsfx \b, ARJ self-extracting archive
 
 # MS Windows system file, supposedly a collection of LE executables
+# like vmm32.vxd WIN386.EXE
 >>(0x3c.l)		string		W3 \b, W3 for MS Windows
-!:mime	application/x-dosexec
+#!:mime	application/x-dosexec
+!:mime	application/x-ms-w3-executable
+!:ext	vxd/exe
+# W4 executable
+>>(0x3c.l)		string		W4 \b, W4 for MS Windows
+#!:mime	application/x-dosexec
+!:mime	application/x-ms-w4-executable
+# windows 98 VMM32.VXD
+!:ext	vxd
 
 >>(0x3c.l)		string		LE\0\0 \b, LE executable
 !:mime	application/x-dosexec
@@ -268,11 +531,19 @@
 !:ext	exe/com
 # header data too small for extended executable
 >2		long	!0
->>0x18		leshort <0x40
+>>0x18		uleshort <0x40
 >>>(4.s*512)	leshort !0x014c
 
 >>>>&(2.s-514)	string	!LE
->>>>>&-2	string	!BW \b, MZ for MS-DOS
+>>>>>&-2	string	!BW
+#>>>>>>(0x3c.l)	string		x	\b, 2ND MAGIC %.2s
+# but some LX executable appear here also like: PCISCAN.EXE
+>>>>>>(0x3c.l)	string	!LX
+# because Portable Executable (PE) already done skip many here like:
+# xcopy32.exe stinger64.exe WimUtil.exe
+# NO such DOS examples found and
+# DOS examples seems to be already handled by e_lfarlc <0x40 like: CMD8086.COM CMD-FR.COM
+>>>>>>>(0x3c.l)	string	!PE	\b, MZ for MS-DOS
 !:mime	application/x-dosexec
 >>>>&(2.s-514)	string	LE \b, LE
 >>>>>0x240	search/0x100	DOS/4G for MS-DOS, DOS4GW DOS extender
@@ -386,6 +657,7 @@
 >0x00	uleshort		x	executable
 #!:mime	application/x-msdownload
 !:mime	application/x-lx-executable
+!:ext	exe
 # byte order: 00h~little-endian non-zero=1~big-endian
 #>0x02	ubyte			=0		(little-endian)
 >0x02	ubyte			!0		(big-endian)
@@ -420,7 +692,7 @@
 >0x0a	leshort			3		for DOS
 # http://www.ctyme.com/intr/rb-2939.htm#Table1610
 # library by module type mask 00038000h (bits 15-17); 
-# 0h ~exectable Program module 
+# 0h ~executable Program module 
 >0x10	ulelong&0x00038000	=0x00000000	(program)
 #!:ext	exe
 # OSF_IS_DLL=8000h			~Library module (DLL)
@@ -468,14 +740,18 @@
 0	string	\xffKEYB\ \ \ \0\0\0\0
 >12	string	\0\0\0\0`\004\360	MS-DOS KEYBoard Layout file
 
-# DOS device driver updated by Joerg Jenderek at May 2011,Mar 2017,Aug 2020
+# DOS device driver updated by Joerg Jenderek at May 2011,Mar 2017,Aug 2020,Mar 2023
 # URL:		http://fileformats.archiveteam.org/wiki/DOS_device_driver
 # Reference:	http://www.delorie.com/djgpp/doc/rbinter/it/46/16.html
-# https://amaus.net/static/S100/IBM/software/DOS/DOS%20techref/CHAPTER.009
+# http://www.o3one.org/hwdocs/bios_doc/dosref22.html
 0	ulequad&0x07a0ffffffff		0xffffffff
 # skip OS/2 INI ./os2
 >4  ubelong   !0x14000000
->>0	use				msdos-driver
+#>>10  ubequad   x		MAYBE_DRIVER_NAME=%16.16llx
+# https://bugs.astron.com/view.php?id=434
+# skip OOXML document fragment 0000.dat where driver name is "empty" instead of "ASCII like"
+>>10  ubequad   !0
+>>>0	use				msdos-driver
 0       name    			msdos-driver		DOS executable (
 #!:mime	application/octet-stream
 !:mime	application/x-dosdriver
@@ -507,8 +783,8 @@
 >>40	search/7			UPX!
 >>40	default				x
 # leading/trailing nulls, zeros or non ASCII characters in 8-byte name field at offset 10 are skipped
-# 1 space char before device driver name to get phrase like "device driver PROTMAN$"
->>>12		ubyte			>0x2E			\b 
+# 1 space char before device driver name to get phrase like "device driver PROTMAN$" "device driver HP-150II" "device driver PC$MOUSE"
+>>>12		ubyte			>0x23			\b 
 >>>>10		ubyte			>0x20
 >>>>>10		ubyte			!0x2E
 >>>>>>10	ubyte			!0x2A			\b%c
@@ -602,11 +878,11 @@
 0       name    msdos-com
 # URL:		http://fileformats.archiveteam.org/wiki/DOS_executable_(.com)
 >0  byte        x               DOS executable (
-# DOS execuable with JuMP 16-bit instruction
+# DOS executable with JuMP 16-bit instruction
 >0	byte			=0xE9
 # check for probably nil padding til offset 64 of Lotus driver name
 >>56		quad		=0
-# check for "long" alpabetical Lotus driver name like:
+# check for "long" alphabetic Lotus driver name like:
 # Diablo "COMPAQ Text Display" "IBM Monochrome Display" "Plantronics ColorPlus"
 >>>24			regex	=^[A-Z][A-Za-z\040]{5,21}	\bLotus driver) %s
 !:mime				application/x-dosexec
@@ -616,7 +892,7 @@
 >>>24			default	x				\bCOM)
 !:mime				application/x-dosexec
 !:ext				com
-# DOS excutable with JuMP 16-bit and without nil padding
+# DOS executable with JuMP 16-bit and without nil padding
 >>56		quad		!0
 # https://wiki.syslinux.org/wiki/index.php?title=Doc/comboot
 # TODO: HOWTO distinguish COMboot from pure DOS executables?
@@ -781,7 +1057,7 @@
 >>1	default	x
 # look for interrupt instruction like in rem.com (DJGPP) LOADER.COM (DR-DOS 7.x)
 >>>3	search/118	\xCD
-# FOR DEBUGGING; possible hexadecimal interupt number like: 10~BANNER.COM 13~bcdw_cl.com 15~poweroff.com (Syslinux)
+# FOR DEBUGGING; possible hexadecimal interrupt number like: 10~BANNER.COM 13~bcdw_cl.com 15~poweroff.com (Syslinux)
 # 1A~BERNDPCI.COM 20~SETENHKB.COM 21~mostly 22~gfxboot.com (Syslinux) 2F~SHUTDOWN.COM (GEMSYS)
 #>>>>&0	ubyte	x			\b, INTERUPT %#x
 # few examples with interrupt 0x13 instruction
@@ -791,7 +1067,7 @@
 # skip Gpt.com Mbr.com (edk2-UDK2018 bootsector) described as "DOS/MBR boot sector" by ./filesystems
 # by check for assembler instructions: mov  es,ax ; mov  ax,07c0h ; mov ds,ax 
 >>>>>3	ubequad	!0x8ec0b8c0078ed88d
-# few COM exectables with interrupt 0x13 instruction like: Bootable CD Wizard executables bcdw_cl.com fdemuoff.com
+# few COM executables with interrupt 0x13 instruction like: Bootable CD Wizard executables bcdw_cl.com fdemuoff.com
 # http://bootcd.narod.ru/bcdw150z_en.zip
 >>>>>>0		use		msdos-com
 # few examples with interrupt 0x16 instruction like flashimg.img
@@ -806,7 +1082,7 @@
 #>>>>>&-1 ubyte	x			\b, INTERUPT %#x
 # like: LOADER.COM SETENHKB.COM banner.com copybs.com gif2raw.com poweroff.com rem.com
 >>>>>0		use		msdos-com
-# few COM executables without interupt instruction like RESTART.COM (DOS 7.10) REBOOT.COM
+# few COM executables without interrupt instruction like RESTART.COM (DOS 7.10) REBOOT.COM
 # or some EUC-KR text files or one Ulead Imaginfo thumbnail
 >>>3	default	x
 # FOR DEBUGGING; 2nd instruction like 0x50 (RESTART.COM) 0x8e (REBOOT.COM)
@@ -1213,15 +1489,82 @@
 0	string/b	Nullsoft\ AVS\ Preset\ 	Winamp plug in
 
 # Windows Metafile .WMF
-0	string/b	\327\315\306\232	Windows metafile
-!:mime	image/wmf
-!:ext	wmf
+# URL: 		http://fileformats.archiveteam.org/wiki/Windows_Metafile
+#		http://en.wikipedia.org/wiki/Windows_Metafile
+# Reference:	https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-WMF/%5bMS-WMF%5d.pdf
+#		http://mark0.net/download/triddefs_xml.7z/defs/w/wmf.trid.xml
+# Note:		called "Windows Metafile" by TrID and
+#		verified by ImageMagick `identify -verbose *.wmf` as WMF (Windows Meta File)
+# META_PLACEABLE Record (Aldus Placeable Metafile signature)
+0	string/b	\327\315\306\232
+# Note:		called "Windows Metafile Image with Placeable File Header" by DROID via PUID x-fmt/119
+#		and verified by XnView `nconvert -info abydos.wmf SPA_FLAG.wmf hardcopy-windows-meta.wmf` as "Windows Placeable metafile"
+# skip failed libreoffice-7.3.2.2 ofz35149-1.wmf with invalid version 2020h and exttextout-2.wmf with invalid version 3a02h
+# and x-fmt-119-signature-id-609.wmf without version instead of 0100h=METAVERSION100 or 0300h=METAVERSION300
+>26	uleshort&0xFDff	=0x0100			Windows metafile
+# HWmf; resource handle to the metafile; When the metafile is on disk, this field MUST contain 0
+# seems to be always true but in failed samples 2020h ofz35149-1.wmf 56f8h exttextout-2.wmf
+>>4	uleshort	!0			\b, resource handle %#x
+# BoundingBox; the rectangle in the playback context measured in logical units for displaying
+# sometimes useful like: hardcopy-windows-meta.wmf (0,0 / 1280,1024)
+# but garbage in x-fmt-119-signature-id-609.wmf (-21589,-21589 / -21589,-21589)
+#>>6	ubequad		x			\b, bounding box %#16.16llx
+# Left; x-coordinate of the upper-left corner of the rectangle
+>>6	leshort		x			\b, bounding box (%d
+# Top; y-coordinate upper-left corner
+>>8	leshort		x			\b,%d
+# Right; x-coordinate lower-right corner
+>>10	leshort		x			/ %d
+# Bottom; y-coordinate lower-right corner
+>>12	leshort		x			\b,%d)
+# Inch; number of logical units per inch like: 72 96 575 576 1000 1200 1439 1440 2540
+>>14	uleshort	x			\b, dpi %u
+# Reserved; field is not used and MUST be set to 0; but ababababh in x-fmt-119-signature-id-609.wmf
+>>16	ulelong		!0			\b, reserved %#x
+# Checksum; checksum for the previous 10 words
+>>20	uleshort	x			\b, checksum %#x
+# META_HEADER Record after META_PLACEABLE Record
+>>22	use		wmf-head
+# GRR:		no example for type 2 (DISKMETAFILE) variant found under few thousands WMF
 0	string/b	\002\000\011\000	Windows metafile
+>0	use		wmf-head
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/w/wmf-16.trid.xml
+# Note:		called "Windows Metafile (old Win 3.x format)" by TrID and
+#		"Windows Metafile Image without Placeable File Header" by DROID via PUID x-fmt/119
+#		verified by XnView `nconvert -info *.wmf` as Windows metafile
+# variant with type=1=MEMORYMETAFILE and valid HeaderSize 9
+0	string/b	\001\000\011\000
+# skip DROID x-fmt-119-signature-id-1228.wmf by looking for content after header (18 bytes=2*011)
+>18	ulelong		>0			Windows metafile
+# GRR: in version 5.44 unequal and not endian variant not working!
+#>18	ulelong		!0			THIS_SHOULD_NOT_HAPPEN
+#>18	long		!0			THIS_SHOULD_NOT_HAPPEN
+>>0	use		wmf-head
+#	display information of Windows metafile header (type, size, objects)
+0	name		wmf-head
+# MetafileType: 0001h=MEMORYMETAFILE~Metafile is stored in memory 0002h=DISKMETAFILE~Metafile is stored on disk
+>0	uleshort	!0x0001			\b, type %#x
+# HeaderSize; the number of WORDs in header record; seems to be always 9 (18 bytes)
+>2	uleshort*2	!18			\b, header size %u
+# MetafileVersion: 0100h=METAVERSION100~DIBs (device-independent bitmaps) not supported 0300h=METAVERSION300~DIBs are supported
+# but in failed samples 2020h ofz35149-1.wmf 3a02h exttextout-2.wmf
+>4	uleshort	=0x0100			\b, DIBs not supported 
+>4	uleshort	=0x0300
+#>4	uleshort	=0x0300			\b, DIBs supported
+# this should not happen!
+>4	default		x			\b, version
+>>4	uleshort	x			%#x
+# Size; the number of WORDs in the entire metafile
+>6	ulelong	x				\b, size %u words
+#>6	ulelong*2	x			\b, size %u bytes
 !:mime	image/wmf
 !:ext	wmf
-0	string/b	\001\000\011\000	Windows metafile
-!:mime	image/wmf
-!:ext	wmf
+# NumberOfObjects: the number of graphics objects like: 0 hardcopy-windows-meta.wmf 1 2 3 4 5 6 7 8 9 12 13 14 16 17 20 27 110 PERSGRID.WMF
+>10	uleshort	x			\b, %u objects
+# MaxRecord: the size of the largest record in the metafile in WORDs like: 78h b0h 1f4h 310h 63fh 1e0022h 3fcc21h
+>12	ulelong		x			\b, largest record size %#x
+# NumberOfMembers: It SHOULD be 0x0000, but 5 TestBitBltStretchBlt.wmf 13 TestPalette.wmf and in failed samples 4254 bitcount-1.wmf 8224 ofz5942-1.wmf 56832 exttextout-2.wmf
+>16	uleshort	!0			\b, %u members
 
 #tz3 files whatever that is (MS Works files)
 0	string/b	\003\001\001\004\070\001\000\000	tz3 ms-works file
@@ -1374,8 +1717,6 @@
 1	string		RDC-meg		MegaDots
 >8	byte		>0x2F		version %c
 >9	byte		>0x2F		\b.%c file
-0	lelong		0x4C
->4	lelong		0x00021401	Windows shortcut file
 
 # .PIF files added by Joerg Jenderek from https://smsoft.ru/en/pifdoc.htm
 # only for windows versions equal or greater 3.0
@@ -1410,17 +1751,6 @@
 #>>&06		string	x			\b:%s
 >0x187	search/0xB55	AUTOEXECBAT\ 4.0\0	\b +AUTOEXEC.BAT
 #>>&06		string	x			\b:%s
-
-# DOS EPS Binary File Header
-# From: Ed Sznyter <ews@Black.Market.NET>
-0	belong		0xC5D0D3C6	DOS EPS Binary File
-!:mime	image/x-eps
->4	long		>0		Postscript starts at byte %d
->>8	long		>0		length %d
->>>12	long		>0		Metafile starts at byte %d
->>>>16	long		>0		length %d
->>>20	long		>0		TIFF starts at byte %d
->>>>24	long		>0		length %d
 
 # Norton Guide (.NG , .HLP) files added by Joerg Jenderek from source NG2HTML.C
 # of http://www.davep.org/norton-guides/ng2h-105.tgz
@@ -1575,6 +1905,12 @@
 >0x2c	default		x
 # look for 1st member name
 >>(16.l+16)	ubyte	x
+# From:		Joerg Jenderek
+# URL:		https://docs.microsoft.com/en-us/windows-hardware/drivers/install/building-device-metadata-packages
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/devicemetadata-ms.trid.xml
+>>>&-1	string 		PackageInfo.xml	\b, Device Metadata Package
+!:mime	application/vnd.ms-cab-compressed
+!:ext	devicemetadata-ms
 # https://en.wikipedia.org/wiki/SNP_file_format
 >>>&-1	string/c 	_accrpt_.snp	\b, Access report snapshot
 !:mime	application/msaccess
@@ -1598,14 +1934,20 @@
 !:ext	msu
 >>>&-1	default		x
 # look at point character of 1st archive member name for file name extension
+# GRR: search range is maybe too large and match point else where like in EN600x64.cab!
 >>>>&-1	search/255 	.
 # http://www.pptfaq.com/FAQ00164_What_is_a_PPZ_file-.htm
 # PPZ were created using Pack & Go feature of PowerPoint versions 97 - 2002
 # packs optional files, a PowerPoint presentation *.ppt with optional PLAYLIST.LST to CAB
->>>>>&0	string/c	ppt\0		\b, PowerPoint Packed and Go
+>>>>>&0	string/c	ppt\0
+>>>>>>28 uleshort	>1		\b, PowerPoint Packed and Go
 !:mime	application/vnd.ms-powerpoint
 #!:mime	application/mspowerpoint
 !:ext	ppz
+# or POWERPNT.PPT packed as POWERPNT.PP_ found on Windows 2000,XP setup CD in directory i386
+>>>>>>28 uleshort	=1		\b, one packed PowerPoint
+!:mime	application/vnd.ms-cab-compressed
+!:ext	pp_
 # https://msdn.microsoft.com/en-us/library/windows/desktop/bb773190(v=vs.85).aspx
 # first member *.theme implies Windows 7 Theme Pack like in CommunityShowcaseAqua3.themepack
 # or Windows 8 Desktop Theme Pack like in PanoramicGlaciers.deskthemepack
@@ -1652,6 +1994,16 @@
 # archive need some output like "single" in version 5.32 to avoid error messages
 >>>>>>>>>30	uleshort	!0x0000	\b, single
 !:mime	application/vnd.ms-cab-compressed
+!:ext	cab
+# first archive name without point character
+>>>>&-1	default		x
+>>>>>28	uleshort	=1	\b, single
+!:mime	application/vnd.ms-cab-compressed
+# on XP_CD\I386\ like: NETWORKS._ PROTOCOL._ QUOTES._ SERVICES._
+!:ext	_
+>>>>>28	uleshort	>1	\b, many
+!:mime	application/vnd.ms-cab-compressed
+# like: HP Envy 6000 printer driver packages Full_x86.cab Full_x64.cab
 !:ext	cab
 # TODO: additional extensions like
 # .xtp	InfoPath Template Part
@@ -1750,9 +2102,9 @@
 # define ifoldCONTINUED_PREV_AND_NEXT  (0xFFFF)
 >8	uleshort	>0		\b, iFolder %#x
 # date stamp for file
-#>10	uleshort	x		\b, date %#x
+>10	lemsdosdate	x		last modified %s
 # time stamp for file
-#>12	uleshort	x		\b, time %#x
+>12	lemsdostime	x		%s
 # attribs is attribute flags for file
 # define  _A_RDONLY       (0x01)  file is read-only
 # define  _A_HIDDEN       (0x02)  file is hidden

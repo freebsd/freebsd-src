@@ -333,6 +333,8 @@
         ..
         mac_bsdextended
         ..
+        mac_grantbylabel
+        ..
         mac_lomac
         ..
         mac_mls

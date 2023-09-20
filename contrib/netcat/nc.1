@@ -42,6 +42,7 @@
 .Op Fl i Ar interval
 .Op Fl -no-tcpopt
 .Op Fl -sctp
+.Op Fl -crlf
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
@@ -104,6 +105,8 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl -crlf
+Convert LF into CRLF when sending data over the network.
 .It Fl D
 Enable debugging on the socket.
 .It Fl d

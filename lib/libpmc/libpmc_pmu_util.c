@@ -572,8 +572,8 @@ pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	return (0);
 }
 
-int
-pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+static int
+pmc_pmu_pmcallocate_md(const char *event_name, struct pmc_op_pmcallocate *pm)
 {
 	const struct pmu_event *pe;
 	struct pmu_event_desc ped;
@@ -604,8 +604,8 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 
 #elif defined(__powerpc64__)
 
-int
-pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+static int
+pmc_pmu_pmcallocate_md(const char *event_name, struct pmc_op_pmcallocate *pm)
 {
 	const struct pmu_event *pe;
 	struct pmu_event_desc ped;
@@ -631,8 +631,8 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 
 #elif defined(__aarch64__)
 
-int
-pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+static int
+pmc_pmu_pmcallocate_md(const char *event_name, struct pmc_op_pmcallocate *pm)
 {
 	const struct pmu_event *pe;
 	struct pmu_event_desc ped;
@@ -649,7 +649,6 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	assert(idx >= 0);
 	pm->pm_ev = idx;
 	pm->pm_md.pm_md_config = ped.ped_event;
-	pm->pm_md.pm_md_flags |= PM_MD_RAW_EVENT;
 	pm->pm_class = PMC_CLASS_ARMV8;
 	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 
@@ -658,9 +657,28 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 
 #else
 
-int
-pmc_pmu_pmcallocate(const char *e __unused, struct pmc_op_pmcallocate *p __unused)
+static int
+pmc_pmu_pmcallocate_md(const char *e __unused, struct pmc_op_pmcallocate *p __unused)
 {
 	return (EOPNOTSUPP);
 }
 #endif
+
+int
+pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+{
+	int error;
+
+	error = pmc_pmu_pmcallocate_md(event_name, pm);
+	if (error != 0) {
+		/* Reset any changes. */
+		pm->pm_ev = 0;
+		pm->pm_caps = 0;
+		pm->pm_class = 0;
+
+		return (error);
+	}
+
+	pm->pm_flags |= PMC_F_EV_PMU;
+	return (0);
+}

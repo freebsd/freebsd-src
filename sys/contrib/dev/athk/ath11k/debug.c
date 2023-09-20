@@ -98,12 +98,12 @@ void __ath11k_dbg(struct ath11k_base *ab, enum ath11k_debug_mask mask,
 
 	if (ath11k_debug_mask & mask)
 #if defined(__linux__)
-		dev_printk(KERN_DEBUG, ab->dev, "%pV", &vaf);
+		dev_printk(KERN_DEBUG, ab->dev, "%s %pV", ath11k_dbg_str(mask), &vaf);
 #elif defined(__FreeBSD__)
 	{
 		char *str;
 		vasprintf(&str, M_KMALLOC, fmt, args);
-		dev_printk(KERN_DEBUG, ab->dev, "%s", str);
+		dev_printk(KERN_DEBUG, ab->dev, "%s %s", ath11k_dbg_str(mask), str);
 		free(str, M_KMALLOC);
 	}
 #endif

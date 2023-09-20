@@ -63,7 +63,7 @@ kproc_start(const void *udata)
 	int error;
 
 	error = kproc_create((void (*)(void *))kp->func, NULL,
-		    kp->global_procpp, 0, 0, "%s", kp->arg0);
+	    kp->global_procpp, 0, 0, "%s", kp->arg0);
 	if (error)
 		panic("kproc_start: %s: error %d", kp->arg0, error);
 }
@@ -78,13 +78,12 @@ kproc_start(const void *udata)
  * flags are flags to fork1 (in unistd.h)
  * fmt and following will be *printf'd into (*newpp)->p_comm (for ps, etc.).
  */
-int
-kproc_create(void (*func)(void *), void *arg,
-    struct proc **newpp, int flags, int pages, const char *fmt, ...)
+static int
+kproc_create1(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, int pages, const char *tdname)
 {
 	struct fork_req fr;
 	int error;
-	va_list ap;
 	struct thread *td;
 	struct proc *p2;
 
@@ -97,21 +96,17 @@ kproc_create(void (*func)(void *), void *arg,
 	fr.fr_pages = pages;
 	fr.fr_procp = &p2;
 	error = fork1(&thread0, &fr);
-	if (error)
-		return error;
+	if (error != 0)
+		return (error);
 
 	/* save a global descriptor, if desired */
 	if (newpp != NULL)
 		*newpp = p2;
 
 	/* set up arg0 for 'ps', et al */
-	va_start(ap, fmt);
-	vsnprintf(p2->p_comm, sizeof(p2->p_comm), fmt, ap);
-	va_end(ap);
+	strcpy(p2->p_comm, tdname);
 	td = FIRST_THREAD_IN_PROC(p2);
-	va_start(ap, fmt);
-	vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
-	va_end(ap);
+	strcpy(td->td_name, tdname);
 #ifdef KTR
 	sched_clear_tdname(td);
 #endif
@@ -134,12 +129,29 @@ kproc_create(void (*func)(void *), void *arg,
 	sched_user_prio(td, PUSER);
 
 	/* Delay putting it on the run queue until now. */
-	if (!(flags & RFSTOPPED))
+	if ((flags & RFSTOPPED) == 0)
 		sched_add(td, SRQ_BORING); 
 	else
 		thread_unlock(td);
 
-	return 0;
+	return (0);
+}
+
+int
+kproc_create(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, int pages, const char *fmt, ...)
+{
+	va_list ap;
+	int error;
+	char tdname[MAXCOMLEN + 1];
+
+	va_start(ap, fmt);
+	vsnprintf(tdname, sizeof(tdname), fmt, ap);
+	va_end(ap);
+	DROP_GIANT();
+	error = kproc_create1(func, arg, newpp, flags, pages, tdname);
+	PICKUP_GIANT();
+	return (error);
 }
 
 void
@@ -188,7 +200,8 @@ kproc_suspend(struct proc *p, int timo)
 	}
 	SIGADDSET(p->p_siglist, SIGSTOP);
 	wakeup(p);
-	return msleep(&p->p_siglist, &p->p_mtx, PPAUSE | PDROP, "suspkp", timo);
+	return (msleep(&p->p_siglist, &p->p_mtx, PPAUSE | PDROP,
+	    "suspkp", timo));
 }
 
 int
@@ -230,11 +243,11 @@ kproc_suspend_check(struct proc *p)
 void
 kthread_start(const void *udata)
 {
-	const struct kthread_desc	*kp = udata;
+	const struct kthread_desc *kp = udata;
 	int error;
 
 	error = kthread_add((void (*)(void *))kp->func, NULL,
-		    NULL, kp->global_threadpp, 0, 0, "%s", kp->arg0);
+	    NULL, kp->global_threadpp, 0, 0, "%s", kp->arg0);
 	if (error)
 		panic("kthread_start: %s: error %d", kp->arg0, error);
 }
@@ -249,11 +262,10 @@ kthread_start(const void *udata)
  *  ** XXX fix this --> flags are flags to fork1 (in unistd.h) 
  * fmt and following will be *printf'd into (*newtd)->td_name (for ps, etc.).
  */
-int
-kthread_add(void (*func)(void *), void *arg, struct proc *p,
-    struct thread **newtdp, int flags, int pages, const char *fmt, ...)
+static int
+kthread_add1(void (*func)(void *), void *arg, struct proc *p,
+    struct thread **newtdp, int flags, int pages, const char *tdname)
 {
-	va_list ap;
 	struct thread *newtd, *oldtd;
 
 	if (!proc0.p_stats)
@@ -269,6 +281,10 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		return (ENOMEM);
 
 	PROC_LOCK(p);
+	if (p->p_state == PRS_ZOMBIE || (p->p_flag2 & P2_WEXIT) != 0) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
 	oldtd = FIRST_THREAD_IN_PROC(p);
 
 	bzero(&newtd->td_startzero,
@@ -277,9 +293,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
 	/* set up arg0 for 'ps', et al */
-	va_start(ap, fmt);
-	vsnprintf(newtd->td_name, sizeof(newtd->td_name), fmt, ap);
-	va_end(ap);
+	strcpy(newtd->td_name, tdname);
 
 	TSTHREAD(newtd, newtd->td_name);
 
@@ -313,13 +327,30 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
 #endif
 	/* Delay putting it on the run queue until now. */
-	if (!(flags & RFSTOPPED)) {
+	if ((flags & RFSTOPPED) == 0) {
 		thread_lock(newtd);
 		sched_add(newtd, SRQ_BORING); 
 	}
 	if (newtdp)
 		*newtdp = newtd;
-	return 0;
+	return (0);
+}
+
+int
+kthread_add(void (*func)(void *), void *arg, struct proc *p,
+    struct thread **newtdp, int flags, int pages, const char *fmt, ...)
+{
+	va_list ap;
+	int error;
+	char tdname[MAXCOMLEN + 1];
+
+	va_start(ap, fmt);
+	vsnprintf(tdname, sizeof(tdname), fmt, ap);
+	va_end(ap);
+	DROP_GIANT();
+	error = kthread_add1(func, arg, p, newtdp, flags, pages, tdname);
+	PICKUP_GIANT();
+	return (error);
 }
 
 void
@@ -451,8 +482,8 @@ kthread_suspend_check(void)
 
 int
 kproc_kthread_add(void (*func)(void *), void *arg,
-            struct proc **procptr, struct thread **tdptr,
-            int flags, int pages, const char *procname, const char *fmt, ...) 
+    struct proc **procptr, struct thread **tdptr,
+    int flags, int pages, const char *procname, const char *fmt, ...)
 {
 	int error;
 	va_list ap;
@@ -461,7 +492,7 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 
 	if (*procptr == NULL) {
 		error = kproc_create(func, arg,
-		    	procptr, flags, pages, "%s", procname);
+		    procptr, flags, pages, "%s", procname);
 		if (error)
 			return (error);
 		td = FIRST_THREAD_IN_PROC(*procptr);
@@ -479,6 +510,6 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 	error = kthread_add(func, arg, *procptr,
-		    tdptr, flags, pages, "%s", buf);
+	    tdptr, flags, pages, "%s", buf);
 	return (error);
 }

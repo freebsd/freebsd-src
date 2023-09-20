@@ -180,9 +180,9 @@ libncursesw.ald: ${.CURDIR}/${STATIC_LDSCRIPT}
 	    -e 's,@@STATICLIB_SUFFIX@@,${_STATICLIB_SUFFIX},g' \
 	    ${.ALLSRC} > ${.TARGET}
 
-lib_gen.c: MKlib_gen.sh ${.OBJDIR:H}/tinfo/curses.h ncurses_dll.h
+lib_gen.c: MKlib_gen.sh ${TINFO_OBJDIR}/curses.h ncurses_dll.h
 	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CPP:N${CCACHE_BIN}} ${CFLAGS}" \
-	       "${AWK}" generated < ${.OBJDIR:H}/tinfo/curses.h >$@
+	       "${AWK}" generated < ${TINFO_OBJDIR}/curses.h >$@
 
 expanded.c: MKexpanded.sh
 	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c

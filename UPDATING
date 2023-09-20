@@ -12,8 +12,8 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
-	FreeBSD 14.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
+	FreeBSD 15.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -26,6 +26,45 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20230914:
+	Enable splitting out pkgbase manpages into separate packages by
+	default. To disable this, set WITHOUT_MANSPLITPKG=yes in src.conf.
+
+20230911:
+	Move standard include files to the clibs-dev package and move clang
+	internal libraries and headers to clang and clang-dev. Upgrading systems
+	installed using pkgbase past this change involves extra steps to allow
+	for these file moves:
+
+		pkg upgrade -y FreeBSD-utilities
+		pkg upgrade -y FreeBSD-utilities-dev
+		pkg upgrade -y
+
+20230909:
+	Enable vnet sysctl variables to be loader tunable. SYSCTLs which
+	belongs to VNETs can be initialized during early boot or module
+	loading if they are marked with CTLFLAG_TUN and there are
+	corresponding kernel environment variables.
+
+20230901:
+	The WITH_INIT_ALL_PATTERN and WITH_INIT_ALL_ZERO build options have
+	been replaced by INIT_ALL=pattern and INIT_ALL=zero respectively.
+
+20230824:
+	FreeBSD 15.0-CURRENT.
+
+20230817:
+	Serial communication (in boot loaders, kernel, and userland) has
+	been changed to default to 115200 bps, in line with common industry
+	practice and typcial firmware serial console redirection
+	configuration.
+
+	Note that the early x86 BIOS bootloader (i.e., boot0sio) does not
+	support rates above 9600 bps and is not changed. boot0sio users may
+	set BOOT_COMCONSOLE_SPEED=9600 to use 9600 for all of the boot
+	components, or use the standard boot0 and have the boot2 stage start
+	with the serial port at 115200.
 
 20230807:
 	Following the general removal of MIPS support, the ath(4) AHB bus-
@@ -181,6 +220,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 
 	after upgrading to restore all the component that were previously
 	installed.
+
+20221002:
+	OPIE has been removed from the base system.  If needed, it can
+	be installed from ports (security/opie) or packages (opie).
+	Otherwise, make sure that your PAM policies do not reference
+	pam_opie or pam_opieaccess.
 
 20220610:
 	LinuxKPI pm.h changes require an update to the latest drm-kmod version

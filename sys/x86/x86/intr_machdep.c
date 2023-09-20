@@ -72,8 +72,6 @@
 
 #include <vm/vm.h>
 
-#define	MAX_STRAY_LOG	5
-
 typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
@@ -95,6 +93,7 @@ u_int num_io_irqs;
 static int assign_cpu;
 #endif
 
+#define	INTRNAME_LEN	(MAXCOMLEN + 1)
 u_long *intrcnt;
 char *intrnames;
 size_t sintrcnt = sizeof(intrcnt);
@@ -189,10 +188,10 @@ intr_init_sources(void *arg)
 #endif
 	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTR, M_WAITOK |
 	    M_ZERO);
-	intrnames = mallocarray(nintrcnt, MAXCOMLEN + 1, M_INTR, M_WAITOK |
+	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
 	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * (MAXCOMLEN + 1);
+	sintrnames = nintrcnt * INTRNAME_LEN;
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
@@ -355,9 +354,9 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	if (intr_event_handle(ie, frame) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
-		if (*isrc->is_straycount < MAX_STRAY_LOG)
+		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
-		else if (*isrc->is_straycount == MAX_STRAY_LOG)
+		else if (*isrc->is_straycount == INTR_STRAY_LOG_MAX)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
@@ -430,8 +429,8 @@ static void
 intrcnt_setname(const char *name, int index)
 {
 
-	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
-	    MAXCOMLEN, name);
+	snprintf(intrnames + INTRNAME_LEN * index, INTRNAME_LEN, "%-*s",
+	    INTRNAME_LEN - 1, name);
 }
 
 static void
@@ -444,14 +443,14 @@ intrcnt_updatename(struct intsrc *is)
 static void
 intrcnt_register(struct intsrc *is)
 {
-	char straystr[MAXCOMLEN + 1];
+	char straystr[INTRNAME_LEN];
 
 	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
 	mtx_lock_spin(&intrcnt_lock);
 	MPASS(intrcnt_index + 2 <= nintrcnt);
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
-	snprintf(straystr, MAXCOMLEN + 1, "stray irq%d",
+	snprintf(straystr, sizeof(straystr), "stray irq%d",
 	    is->is_pic->pic_vector(is));
 	intrcnt_updatename(is);
 	is->is_count = &intrcnt[is->is_index];
@@ -579,10 +578,17 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 /*
  * Support for balancing interrupt sources across CPUs.  For now we just
  * allocate CPUs round-robin.
+ *
+ * XXX If the system has a domain with without any usable CPUs (e.g., where all
+ * APIC IDs are 256 or greater and we do not have an IOMMU) we use
+ * intr_no_domain to fall back to assigning interrupts without regard for
+ * domain.  Once we can rely on the presence of an IOMMU on all x86 platforms
+ * we can revert this.
  */
 
 cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu[MAXMEMDOM];
+static bool intr_no_domain;
 
 static void
 intr_init_cpus(void)
@@ -590,7 +596,15 @@ intr_init_cpus(void)
 	int i;
 
 	for (i = 0; i < vm_ndomains; i++) {
+		if (CPU_OVERLAP(&cpuset_domain[i], &intr_cpus) == 0) {
+			intr_no_domain = true;
+			printf("%s: unable to route interrupts to CPUs in domain %d\n",
+			    __func__, i);
+		}
+
 		current_cpu[i] = 0;
+		if (intr_no_domain && i > 0)
+			continue;
 		if (!CPU_ISSET(current_cpu[i], &intr_cpus) ||
 		    !CPU_ISSET(current_cpu[i], &cpuset_domain[i]))
 			intr_next_cpu(i);
@@ -616,6 +630,8 @@ intr_next_cpu(int domain)
 		return (PCPU_GET(apic_id));
 #endif
 
+	if (intr_no_domain)
+		domain = 0;
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu[domain]];
 	do {
@@ -623,7 +639,8 @@ intr_next_cpu(int domain)
 		if (current_cpu[domain] > mp_maxid)
 			current_cpu[domain] = 0;
 	} while (!CPU_ISSET(current_cpu[domain], &intr_cpus) ||
-	    !CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]));
+	    (!CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]) &&
+	    !intr_no_domain));
 	mtx_unlock_spin(&icu_lock);
 	return (apic_id);
 }

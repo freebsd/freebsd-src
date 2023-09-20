@@ -40,11 +40,9 @@
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/libkern.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -63,27 +61,11 @@
 #include <machine/specialreg.h>
 #include <machine/fpu.h>
 
-static struct mtx_padalign *ctx_mtx;
-static struct fpu_kern_ctx **ctx_fpu;
-
 struct aesni_softc {
 	int32_t cid;
 	bool	has_aes;
 	bool	has_sha;
 };
-
-#define ACQUIRE_CTX(i, ctx)					\
-	do {							\
-		(i) = PCPU_GET(cpuid);				\
-		mtx_lock(&ctx_mtx[(i)]);			\
-		(ctx) = ctx_fpu[(i)];				\
-	} while (0)
-#define RELEASE_CTX(i, ctx)					\
-	do {							\
-		mtx_unlock(&ctx_mtx[(i)]);			\
-		(i) = -1;					\
-		(ctx) = NULL;					\
-	} while (0)
 
 static int aesni_cipher_setup(struct aesni_session *ses,
     const struct crypto_session_params *csp);
@@ -136,30 +118,10 @@ aesni_probe(device_t dev)
 	return (0);
 }
 
-static void
-aesni_cleanctx(void)
-{
-	int i;
-
-	/* XXX - no way to return driverid */
-	CPU_FOREACH(i) {
-		if (ctx_fpu[i] != NULL) {
-			mtx_destroy(&ctx_mtx[i]);
-			fpu_kern_free_ctx(ctx_fpu[i]);
-		}
-		ctx_fpu[i] = NULL;
-	}
-	free(ctx_mtx, M_AESNI);
-	ctx_mtx = NULL;
-	free(ctx_fpu, M_AESNI);
-	ctx_fpu = NULL;
-}
-
 static int
 aesni_attach(device_t dev)
 {
 	struct aesni_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
 
@@ -169,21 +131,6 @@ aesni_attach(device_t dev)
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
-	}
-
-	ctx_mtx = malloc(sizeof *ctx_mtx * (mp_maxid + 1), M_AESNI,
-	    M_WAITOK|M_ZERO);
-	ctx_fpu = malloc(sizeof *ctx_fpu * (mp_maxid + 1), M_AESNI,
-	    M_WAITOK|M_ZERO);
-
-	CPU_FOREACH(i) {
-#ifdef __amd64__
-		ctx_fpu[i] = fpu_kern_alloc_ctx_domain(
-		    pcpu_find(i)->pc_domain, FPU_KERN_NORMAL);
-#else
-		ctx_fpu[i] = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
-#endif
-		mtx_init(&ctx_mtx[i], "anifpumtx", NULL, MTX_DEF|MTX_NEW);
 	}
 
 	detect_cpu_features(&sc->has_aes, &sc->has_sha);
@@ -198,8 +145,6 @@ aesni_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	crypto_unregister_all(sc->cid);
-
-	aesni_cleanctx();
 
 	return (0);
 }
@@ -551,9 +496,9 @@ static int
 aesni_cipher_setup(struct aesni_session *ses,
     const struct crypto_session_params *csp)
 {
-	struct fpu_kern_ctx *ctx;
 	uint8_t *schedbase;
-	int kt, ctxidx, error;
+	int error;
+	bool kt;
 
 	schedbase = (uint8_t *)roundup2((uintptr_t)ses->schedules,
 	    AES_SCHED_ALIGN);
@@ -607,11 +552,10 @@ aesni_cipher_setup(struct aesni_session *ses,
 			ses->mlen = csp->csp_auth_mlen;
 	}
 
-	kt = is_fpu_kern_thread(0) || (csp->csp_cipher_alg == 0);
+	kt = (csp->csp_cipher_alg == 0);
 	if (!kt) {
-		ACQUIRE_CTX(ctxidx, ctx);
-		fpu_kern_enter(curthread, ctx,
-		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
+		fpu_kern_enter(curthread, NULL,
+		    FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 	}
 
 	error = 0;
@@ -620,8 +564,7 @@ aesni_cipher_setup(struct aesni_session *ses,
 		    csp->csp_cipher_klen);
 
 	if (!kt) {
-		fpu_kern_leave(curthread, ctx);
-		RELEASE_CTX(ctxidx, ctx);
+		fpu_kern_leave(curthread, NULL);
 	}
 	return (error);
 }
@@ -630,9 +573,7 @@ static int
 aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 {
 	const struct crypto_session_params *csp;
-	struct fpu_kern_ctx *ctx;
-	int error, ctxidx;
-	bool kt;
+	int error;
 
 	csp = crypto_get_params(crp->crp_session);
 	switch (csp->csp_cipher_alg) {
@@ -653,16 +594,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 		break;
 	}
 
-	ctx = NULL;
-	ctxidx = 0;
-	error = 0;
-	kt = is_fpu_kern_thread(0);
-	if (!kt) {
-		ACQUIRE_CTX(ctxidx, ctx);
-		fpu_kern_enter(curthread, ctx,
-		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-	}
-
 	/* Do work */
 	if (csp->csp_mode == CSP_MODE_ETA) {
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
@@ -679,10 +610,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 	else
 		error = aesni_cipher_crypt(ses, crp, csp);
 
-	if (!kt) {
-		fpu_kern_leave(curthread, ctx);
-		RELEASE_CTX(ctxidx, ctx);
-	}
 	return (error);
 }
 
@@ -746,6 +673,8 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		outbuf = buf;
 		outcopy = allocated;
 	}
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 
 	error = 0;
 	encflag = CRYPTO_OP_IS_ENCRYPT(crp->crp_op);
@@ -819,6 +748,9 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		}
 		break;
 	}
+
+	fpu_kern_leave(curthread, NULL);
+
 	if (outcopy && error == 0)
 		crypto_copyback(crp, CRYPTO_HAS_OUTPUT_BUFFER(crp) ?
 		    crp->crp_payload_output_start : crp->crp_payload_start,
@@ -853,6 +785,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 	else
 		key = csp->csp_auth_key;
 	keylen = csp->csp_auth_klen;
+
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 
 	if (ses->hmac) {
 		uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
@@ -918,6 +852,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 
 		ses->hash_finalize(res, &sctx);
 	}
+
+	fpu_kern_leave(curthread, NULL);
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
 		uint32_t res2[SHA2_256_HASH_LEN / sizeof(uint32_t)];

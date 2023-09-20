@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.30 2021/08/16 10:17:05 christos Exp $
+# $File: c-lang,v 1.32 2023/06/16 19:57:19 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 # The strength is to beat standard HTML
@@ -17,7 +17,7 @@
 >>0	regex	\^class[[:space:]]+
 >>>&0	regex 	\\{[\.\*]\\}(;)?$			\b++
 >>&0	clear	x				source text
-!:strength + 13
+!:strength + 15
 !:mime	text/x-c
 0	search/8192	pragma
 >0	regex	\^#[[:space:]]*pragma	C source text
@@ -88,13 +88,13 @@
 !:strength + 30
 !:mime	text/x-c++
 0	search/8192	protected
->0	regex	\^[[:space:]]*protected:		C++ source text
+>0	regex	\^[[:space:]]*protected:	C++ source text
 !:strength + 30
 !:mime	text/x-c++
 
 # Objective-C
 0	search/8192	#import
->0	regex	\^#import			Objective-C source text
+>0	regex	\^#import[[:space:]]+["<]	Objective-C source text
 !:strength + 25
 !:mime	text/x-objective-c
 

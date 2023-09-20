@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
 .\"
-.Dd April 2, 2022
+.Dd September 5, 2023
 .Dt SCANF 3
 .Os
 .Sh NAME
@@ -141,7 +141,7 @@ The conversion that follows occurs as usual, but no pointer is used;
 the result of the conversion is simply discarded.
 .It Cm hh
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -150,7 +150,7 @@ and the next pointer is a pointer to a
 .Vt int ) .
 .It Cm h
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -159,7 +159,7 @@ and the next pointer is a pointer to a
 .Vt int ) .
 .It Cm l No (ell)
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -185,7 +185,7 @@ and the next pointer is a pointer to an array of
 .Vt char ) .
 .It Cm ll No (ell ell)
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -201,7 +201,7 @@ and the next pointer is a pointer to
 .Vt "long double" .
 .It Cm j
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -210,16 +210,44 @@ and the next pointer is a pointer to a
 .Vt int ) .
 .It Cm t
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
 .Vt ptrdiff_t
 (rather than
 .Vt int ) .
+.It Cm w Ns Ar N
+.Po
+where
+.Ar N
+is 8, 16, 32, or 64
+.Pc
+Indicates that the conversion will be one of
+.Cm bdioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt intN_t
+(rather than
+.Vt int ) .
+.It Cm wf Ns Ar N
+.Po
+where
+.Ar N
+is 8, 16, 32, or 64
+.Pc
+Indicates that the conversion will be one of
+.Cm bdioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt int_fastN_t
+(rather than
+.Vt int ) .
 .It Cm z
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -229,7 +257,7 @@ and the next pointer is a pointer to a
 .It Cm q
 (deprecated.)
 Indicates that the conversion will be one of
-.Cm dioux
+.Cm bdioux
 or
 .Cm n
 and the next pointer is a pointer to a
@@ -273,6 +301,10 @@ matches a single input
 .Ql %
 character.
 No conversion is done, and assignment does not occur.
+.It Cm b , B
+Matches an optionally signed binary integer;
+the next pointer must be a pointer to
+.Vt "unsigned int" .
 .It Cm d
 Matches an optionally signed decimal integer;
 the next pointer must be a pointer to
@@ -281,7 +313,12 @@ the next pointer must be a pointer to
 Matches an optionally signed integer;
 the next pointer must be a pointer to
 .Vt int .
-The integer is read in base 16 if it begins
+The integer is read
+in base 2 if it begins with
+.Ql 0b
+or
+.Ql 0B ,
+in base 16 if it begins
 with
 .Ql 0x
 or

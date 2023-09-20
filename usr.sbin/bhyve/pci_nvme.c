@@ -525,9 +525,9 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->rab   = 4;
 
 	/* FreeBSD OUI */
-	cd->ieee[0] = 0x58;
+	cd->ieee[0] = 0xfc;
 	cd->ieee[1] = 0x9c;
-	cd->ieee[2] = 0xfc;
+	cd->ieee[2] = 0x58;
 
 	cd->mic = 0;
 

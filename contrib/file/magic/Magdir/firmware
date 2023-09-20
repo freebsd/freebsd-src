@@ -1,0 +1,133 @@
+#------------------------------------------------------------------------------
+# $File: firmware,v 1.7 2023/03/11 18:52:03 christos Exp $
+# firmware:  file(1) magic for firmware files
+#
+
+# https://github.com/MatrixEditor/frontier-smart-api/blob/main/docs/firmware-2.0.md#11-header-structure
+# examples: https://github.com/cweiske/frontier-silicon-firmwares
+0	lelong		0x00001176	
+>4	lelong		0x7c		Frontier Silicon firmware download
+>>8	lelong		x		\b, MeOS version %x
+>>12	string/32/T	x		\b, version %s
+>>40	string/64/T	x		\b, customization %s
+
+# HPE iLO firmware update image
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://www.sstic.org/2018/presentation/backdooring_your_server_through_its_bmc_the_hpe_ilo4_case/
+# iLO1 (ilo1*.bin) or iLO2 (ilo2_*.bin) images
+0               string                  \x20\x36\xc1\xce\x60\x37\x62\xf0\x3f\x06\xde\x00\x00\x03\x7f\x00
+>16             ubeshort                =0xCFDD         HPE iLO2 firmware update image
+>16             ubeshort                =0x6444         HPE iLO1 firmware update image
+# iLO3 images (ilo3_*.bin) start directly with image name
+0               string                  iLO3\x20v\x20   HPE iLO3 firmware update image,
+>7              string                  x               version %s
+# iLO4 images (ilo4_*.bin) start with a signature and a certificate
+0               string                  --=</Begin\x20HP\x20Signed
+>75             string                  label_HPBBatch
+>>5828          string                  iLO\x204
+>>>5732         string                  HPIMAGE\x00     HPE iLO4 firmware update image,
+>>>6947         string                  x               version %s
+# iLO5 images (ilo5_*.bin) start with a signature
+>75             string                  label_HPE-HPB-BMC-ILO5-4096
+>>880           string                  HPIMAGE\x00     HPE iLO5 firmware update image,
+>>944           string                  x               version %s
+
+# IBM POWER Secure Boot Container
+# from https://github.com/open-power/skiboot/blob/master/libstb/container.h
+0	belong	0x17082011	POWER Secure Boot Container,
+>4	beshort	x		version %u
+>6	bequad	x		container size %llu
+# These are always zero
+# >14	bequad	x		target HRMOR %llx
+# >22	bequad  x		stack pointer %llx
+>4096	ustring \xFD7zXZ\x00    XZ compressed
+0	belong	0x1bad1bad	POWER boot firmware
+>256	belong	0x48002030	(PHYP entry point)
+
+# ARM Cortex-M vector table
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://developer.arm.com/documentation/100701/0200/Exception-properties
+# Match stack MSB
+3		byte			0x20
+# Function pointers must be in Thumb-mode and before 0x20000000 (4*5 bits match)
+>4		ulelong&0xE0000001	1
+>>8		ulelong&0xE0000001	1
+>>>12		ulelong&0xE0000001	1
+>>>>44		ulelong&0xE0000001	1
+>>>>>56		ulelong&0xE0000001	1
+# Match Cortex-M reserved sections (0x00000000 or 0xFFFFFFFF)
+>>>>>>28	ulelong+1		<2
+>>>>>>>32	ulelong+1		<2
+>>>>>>>>36	ulelong+1		<2
+>>>>>>>>>40	ulelong+1		<2
+>>>>>>>>>>52	ulelong+1		<2	ARM Cortex-M firmware
+>>>>>>>>>>>0	ulelong			>0	\b, initial SP at 0x%08x
+>>>>>>>>>>>4	ulelong^1		x	\b, reset at 0x%08x
+>>>>>>>>>>>8	ulelong^1		x	\b, NMI at 0x%08x
+>>>>>>>>>>>12	ulelong^1		x	\b, HardFault at 0x%08x
+>>>>>>>>>>>44	ulelong^1		x	\b, SVCall at 0x%08x
+>>>>>>>>>>>56	ulelong^1		x	\b, PendSV at 0x%08x
+
+# ESP-IDF partition table entry
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/espressif/esp-idf/blob/v5.0/components/esp_partition/include/esp_partition.h
+0	string		\xAA\x50
+>2	ubyte		<2		ESP-IDF partition table entry
+>>12	string/16	x		\b, label: "%s"
+>>2	ubyte		0
+>>>3	ubyte		0x00		\b, factory app
+>>>3	ubyte		0x10		\b, OTA_0 app
+>>>3	ubyte		0x11		\b, OTA_1 app
+>>>3	ubyte		0x12		\b, OTA_2 app
+>>>3	ubyte		0x13		\b, OTA_3 app
+>>>3	ubyte		0x14		\b, OTA_4 app
+>>>3	ubyte		0x15		\b, OTA_5 app
+>>>3	ubyte		0x16		\b, OTA_6 app
+>>>3	ubyte		0x17		\b, OTA_7 app
+>>>3	ubyte		0x18		\b, OTA_8 app
+>>>3	ubyte		0x19		\b, OTA_9 app
+>>>3	ubyte		0x1A		\b, OTA_10 app
+>>>3	ubyte		0x1B		\b, OTA_11 app
+>>>3	ubyte		0x1C		\b, OTA_12 app
+>>>3	ubyte		0x1D		\b, OTA_13 app
+>>>3	ubyte		0x1E		\b, OTA_14 app
+>>>3	ubyte		0x1F		\b, OTA_15 app
+>>>3	ubyte		0x20		\b, test app
+>>2	ubyte		1
+>>>3	ubyte		0x00		\b, OTA selection data
+>>>3	ubyte		0x01		\b, PHY init data
+>>>3	ubyte		0x02		\b, NVS data
+>>>3	ubyte		0x03		\b, coredump data
+>>>3	ubyte		0x04		\b, NVS keys
+>>>3	ubyte		0x05		\b, emulated eFuse data
+>>>3	ubyte		0x06		\b, undefined data
+>>>3	ubyte		0x80		\b, ESPHTTPD partition
+>>>3	ubyte		0x81		\b, FAT partition
+>>>3	ubyte		0x82		\b, SPIFFS partition
+>>>3	ubyte		0xFF		\b, any data
+>>4	ulelong		x		\b, offset: 0x%X
+>>8	ulelong		x		\b, size: 0x%X
+>>28	ulelong&0x1	1		\b, encrypted
+
+# ESP-IDF application image
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/espressif/esp-idf/blob/v5.0/components/bootloader_support/include/esp_app_format.h
+# Note: Concatenation of esp_image_header_t, esp_image_segment_header_t and esp_app_desc_t
+# 	First segment contains esp_app_desc_t
+0	ubyte		0xE9
+>32	ulelong		0xABCD5432	ESP-IDF application image
+>>12	uleshort	0x0000		for ESP32
+>>12	uleshort	0x0002		for ESP32-S2
+>>12	uleshort	0x0005		for ESP32-C3
+>>12	uleshort	0x0009		for ESP32-S3
+>>12	uleshort	0x000A		for ESP32-H2 Beta1
+>>12	uleshort	0x000C		for ESP32-C2
+>>12	uleshort	0x000D		for ESP32-C6
+>>12	uleshort	0x000E		for ESP32-H2 Beta2
+>>12	uleshort	0x0010		for ESP32-H2
+>>80	string/32	x		\b, project name: "%s"
+>>48	string/32	x		\b, version %s
+>>128	string/16	x		\b, compiled on %s
+>>>112	string/16	x		%s
+>>144	string/32	x		\b, IDF version: %s
+>>4	ulelong		x		\b, entry address: 0x%08X

@@ -52,11 +52,13 @@
 #
 
 TYPE="FreeBSD"
-REVISION="14.0"
-BRANCH="ALPHA1"
+REVISION="15.0"
+BRANCH="CURRENT"
 if [ -n "${BRANCH_OVERRIDE}" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
+unset RELEASE
+unset VERSION
 
 if [ -z "${SYSDIR}" ]; then
 	SYSDIR=$(dirname $0)/..

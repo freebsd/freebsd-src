@@ -28,7 +28,7 @@
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd April 25, 2023
+.Dd August 24, 2023
 .Dt PS 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl -libxo
 .Op Fl aCcdefHhjlmrSTuvwXxZ
 .Op Fl O Ar fmt | Fl o Ar fmt
+.Op Fl D Ar up | down | both
 .Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
 .Op Fl J Ar jid Ns Op , Ns Ar jid Ns Ar ...
 .Op Fl M Ar core
@@ -146,6 +147,18 @@ relative to each other.
 Note that this option has no effect if the
 .Dq command
 column is not the last column displayed.
+.It Fl D
+Expand the list of selected processes based on the process tree.
+.Dq UP
+will add the ancestor processes,
+.Dq DOWN
+will add the descendant processes, and
+.Dq BOTH
+will add both the ancestor and the descendant processes.
+.Fl D
+does not imply
+.Fl d ,
+but works well with it.
 .It Fl e
 Display the environment as well.
 .It Fl f

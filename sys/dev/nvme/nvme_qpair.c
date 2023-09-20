@@ -528,13 +528,16 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 	nvme_free_request(req);
 }
 
-bool
-nvme_qpair_process_completions(struct nvme_qpair *qpair)
+/* Locked version of completion processor */
+static bool
+_nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 	struct nvme_completion	cpl;
-	int done = 0;
+	bool done = false;
 	bool in_panic = dumping || SCHEDULER_STOPPED();
+
+	mtx_assert(&qpair->recovery, MA_OWNED);
 
 	/*
 	 * qpair is not enabled, likely because a controller reset is in
@@ -629,7 +632,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		else
 			tr = NULL;
 
-		done++;
+		done = true;
 		if (tr != NULL) {
 			nvme_qpair_complete_tracker(tr, &cpl, ERROR_PRINT_ALL);
 			qpair->sq_head = cpl.sqhd;
@@ -666,12 +669,35 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		}
 	}
 
-	if (done != 0) {
+	if (done) {
 		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
 		    qpair->cq_hdbl_off, qpair->cq_head);
 	}
 
-	return (done != 0);
+	return (done);
+}
+
+bool
+nvme_qpair_process_completions(struct nvme_qpair *qpair)
+{
+	bool done;
+
+	/*
+	 * Interlock with reset / recovery code. This is an usually uncontended
+	 * to make sure that we drain out of the ISRs before we reset the card
+	 * and to prevent races with the recovery process called from a timeout
+	 * context.
+	 */
+	if (!mtx_trylock(&qpair->recovery)) {
+		qpair->num_recovery_nolock++;
+		return (false);
+	}
+
+	done = _nvme_qpair_process_completions(qpair);
+
+	mtx_unlock(&qpair->recovery);
+
+	return (done);
 }
 
 static void
@@ -699,6 +725,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->ctrlr = ctrlr;
 
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
+	mtx_init(&qpair->recovery, "nvme qpair recovery", NULL, MTX_DEF);
 
 	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
@@ -765,7 +792,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->cpl_bus_addr = queuemem_phys + cmdsz;
 	prpmem_phys = queuemem_phys + cmdsz + cplsz;
 
-	callout_init(&qpair->timer, 1);
+	callout_init_mtx(&qpair->timer, &qpair->recovery, 0);
 	qpair->timer_armed = false;
 	qpair->recovery_state = RECOVERY_WAITING;
 
@@ -903,6 +930,8 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 
 	if (mtx_initialized(&qpair->lock))
 		mtx_destroy(&qpair->lock);
+	if (mtx_initialized(&qpair->recovery))
+		mtx_destroy(&qpair->recovery);
 
 	if (qpair->res) {
 		bus_release_resource(qpair->ctrlr->dev, SYS_RES_IRQ,
@@ -945,87 +974,139 @@ nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 }
 
 static void
+nvme_abort_complete(void *arg, const struct nvme_completion *status)
+{
+	struct nvme_tracker     *tr = arg;
+
+	/*
+	 * If cdw0 == 1, the controller was not able to abort the command
+	 *  we requested.  We still need to check the active tracker array,
+	 *  to cover race where I/O timed out at same time controller was
+	 *  completing the I/O.
+	 */
+	if (status->cdw0 == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
+		/*
+		 * An I/O has timed out, and the controller was unable to
+		 *  abort it for some reason.  Construct a fake completion
+		 *  status, and then complete the I/O's tracker manually.
+		 */
+		nvme_printf(tr->qpair->ctrlr,
+		    "abort command failed, aborting command manually\n");
+		nvme_qpair_manual_complete_tracker(tr,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_ALL);
+	}
+}
+
+static void
 nvme_qpair_timeout(void *arg)
 {
 	struct nvme_qpair	*qpair = arg;
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
 	struct nvme_tracker	*tr;
 	sbintime_t		now;
-	bool			idle;
+	bool			idle = false;
+	bool			needs_reset;
 	uint32_t		csts;
 	uint8_t			cfs;
 
-	mtx_lock(&qpair->lock);
-	idle = TAILQ_EMPTY(&qpair->outstanding_tr);
-again:
+	mtx_assert(&qpair->recovery, MA_OWNED);
+
+	/*
+	 * If the controller has failed, give up. We're never going to change
+	 * state from a failed controller: no further transactions are possible.
+	 * We go ahead and let the timeout expire in many cases for simplicity.
+	 */
+	if (qpair->ctrlr->is_failed) {
+		nvme_printf(ctrlr, "Controller failed, giving up\n");
+		qpair->timer_armed = false;
+		return;
+	}
+
 	switch (qpair->recovery_state) {
 	case RECOVERY_NONE:
-		if (idle)
-			break;
-		now = getsbinuptime();
-		idle = true;
-		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
-			if (tr->deadline == SBT_MAX)
-				continue;
-			idle = false;
-			if (now > tr->deadline) {
-				/*
-				 * We're now passed our earliest deadline. We
-				 * need to do expensive things to cope, but next
-				 * time. Flag that and close the door to any
-				 * further processing.
-				 */
-				qpair->recovery_state = RECOVERY_START;
-				nvme_printf(ctrlr, "RECOVERY_START %jd vs %jd\n",
-				    (uintmax_t)now, (uintmax_t)tr->deadline);
-				break;
-			}
-		}
-		break;
-	case RECOVERY_START:
 		/*
-		 * Read csts to get value of cfs - controller fatal status.
-		 * If no fatal status, try to call the completion routine, and
-		 * if completes transactions, report a missed interrupt and
-		 * return (this may need to be rate limited). Otherwise, if
-		 * aborts are enabled and the controller is not reporting
-		 * fatal status, abort the command. Otherwise, just reset the
-		 * controller and hope for the best.
+		 * Read csts to get value of cfs - controller fatal status.  If
+		 * we are in the hot-plug or controller failed status proceed
+		 * directly to reset. We also bail early if the status reads all
+		 * 1's or the control fatal status bit is now 1. The latter is
+		 * always true when the former is true, but not vice versa.  The
+		 * intent of the code is that if the card is gone (all 1's) or
+		 * we've failed, then try to do a reset (which someitmes
+		 * unwedges a card reading all 1's that's not gone away, but
+		 * usually doesn't).
 		 */
 		csts = nvme_mmio_read_4(ctrlr, csts);
 		cfs = (csts >> NVME_CSTS_REG_CFS_SHIFT) & NVME_CSTS_REG_CFS_MASK;
-		if (cfs) {
-			nvme_printf(ctrlr, "Controller in fatal status, resetting\n");
-			qpair->recovery_state = RECOVERY_RESET;
-			goto again;
+		if (csts == NVME_GONE || cfs == 1)
+			goto do_reset;
+
+		/*
+		 * Process completions. We already have the recovery lock, so
+		 * call the locked version.
+		 */
+		_nvme_qpair_process_completions(qpair);
+
+		/*
+		 * Check to see if we need to timeout any commands. If we do, then
+		 * we also enter a recovery phase.
+		 */
+		now = getsbinuptime();
+		needs_reset = false;
+		idle = true;
+		mtx_lock(&qpair->lock);
+		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
+			/*
+			 * Skip async commands, they are posted to the card for
+			 * an indefinite amount of time and have no deadline.
+			 */
+			if (tr->deadline == SBT_MAX)
+				continue;
+			if (now > tr->deadline) {
+				if (tr->req->cb_fn != nvme_abort_complete &&
+				    ctrlr->enable_aborts) {
+					/*
+					 * This isn't an abort command, ask
+					 * for a hardware abort.
+					 */
+					nvme_ctrlr_cmd_abort(ctrlr, tr->cid,
+					    qpair->id, nvme_abort_complete, tr);
+				} else {
+					/*
+					 * Otherwise we have a live command in
+					 * the card (either one we couldn't
+					 * abort, or aborts weren't enabled).
+					 * The only safe way to proceed is to do
+					 * a reset.
+					 */
+					needs_reset = true;
+				}
+			} else {
+				idle = false;
+			}
 		}
 		mtx_unlock(&qpair->lock);
-		if (nvme_qpair_process_completions(qpair)) {
-			nvme_printf(ctrlr, "Completions present in output without an interrupt\n");
-			qpair->recovery_state = RECOVERY_NONE;
-		} else {
-			nvme_printf(ctrlr, "timeout with nothing complete, resetting\n");
-			qpair->recovery_state = RECOVERY_RESET;
-			mtx_lock(&qpair->lock);
-			goto again;
-		}
-		mtx_lock(&qpair->lock);
-		break;
-	case RECOVERY_RESET:
+		if (!needs_reset)
+			break;
+
 		/*
+		 * We've had a command timeout that we weren't able to abort
+		 *
 		 * If we get here due to a possible surprise hot-unplug event,
 		 * then we let nvme_ctrlr_reset confirm and fail the
 		 * controller.
 		 */
+	do_reset:
 		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
 		    (csts == 0xffffffff) ? " and possible hot unplug" :
 		    (cfs ? " and fatal error status" : ""));
 		nvme_printf(ctrlr, "RECOVERY_WAITING\n");
 		qpair->recovery_state = RECOVERY_WAITING;
 		nvme_ctrlr_reset(ctrlr);
+		idle = false;			/* We want to keep polling */
 		break;
 	case RECOVERY_WAITING:
-		nvme_printf(ctrlr, "waiting\n");
+		nvme_printf(ctrlr, "Waiting for reset to complete\n");
+		idle = false;		/* We want to keep polling */
 		break;
 	}
 
@@ -1037,7 +1118,6 @@ again:
 	} else {
 		qpair->timer_armed = false;
 	}
-	mtx_unlock(&qpair->lock);
 }
 
 /*
@@ -1146,9 +1226,12 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	if (tr == NULL || qpair->recovery_state != RECOVERY_NONE) {
 		/*
-		 * No tracker is available, or the qpair is disabled due to
-		 *  an in-progress controller-level reset or controller
-		 *  failure.
+		 * No tracker is available, or the qpair is disabled due to an
+		 * in-progress controller-level reset or controller failure. If
+		 * we lose the race with recovery_state, then we may add an
+		 * extra request to the queue which will be resubmitted later.
+		 * We only set recovery_state to NONE with qpair->lock also
+		 * held.
 		 */
 
 		if (qpair->ctrlr->is_failed) {
@@ -1210,7 +1293,10 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 static void
 nvme_qpair_enable(struct nvme_qpair *qpair)
 {
-	mtx_assert(&qpair->lock, MA_OWNED);
+	if (mtx_initialized(&qpair->recovery))
+		mtx_assert(&qpair->recovery, MA_OWNED);
+	if (mtx_initialized(&qpair->lock))
+		mtx_assert(&qpair->lock, MA_OWNED);
 
 	qpair->recovery_state = RECOVERY_NONE;
 }
@@ -1261,9 +1347,11 @@ nvme_admin_qpair_enable(struct nvme_qpair *qpair)
 		nvme_printf(qpair->ctrlr,
 		    "done aborting outstanding admin\n");
 
+	mtx_lock(&qpair->recovery);
 	mtx_lock(&qpair->lock);
 	nvme_qpair_enable(qpair);
 	mtx_unlock(&qpair->lock);
+	mtx_unlock(&qpair->recovery);
 }
 
 void
@@ -1290,8 +1378,8 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	if (report)
 		nvme_printf(qpair->ctrlr, "done aborting outstanding i/o\n");
 
+	mtx_lock(&qpair->recovery);
 	mtx_lock(&qpair->lock);
-
 	nvme_qpair_enable(qpair);
 
 	STAILQ_INIT(&temp);
@@ -1310,6 +1398,7 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 		nvme_printf(qpair->ctrlr, "done resubmitting i/o\n");
 
 	mtx_unlock(&qpair->lock);
+	mtx_unlock(&qpair->recovery);
 }
 
 static void
@@ -1317,27 +1406,40 @@ nvme_qpair_disable(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr, *tr_temp;
 
-	mtx_lock(&qpair->lock);
+	if (mtx_initialized(&qpair->recovery))
+		mtx_assert(&qpair->recovery, MA_OWNED);
+	if (mtx_initialized(&qpair->lock))
+		mtx_assert(&qpair->lock, MA_OWNED);
+
 	qpair->recovery_state = RECOVERY_WAITING;
 	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
 		tr->deadline = SBT_MAX;
 	}
-	mtx_unlock(&qpair->lock);
 }
 
 void
 nvme_admin_qpair_disable(struct nvme_qpair *qpair)
 {
+	mtx_lock(&qpair->recovery);
+	mtx_lock(&qpair->lock);
 
 	nvme_qpair_disable(qpair);
 	nvme_admin_qpair_abort_aers(qpair);
+
+	mtx_unlock(&qpair->lock);
+	mtx_unlock(&qpair->recovery);
 }
 
 void
 nvme_io_qpair_disable(struct nvme_qpair *qpair)
 {
+	mtx_lock(&qpair->recovery);
+	mtx_lock(&qpair->lock);
 
 	nvme_qpair_disable(qpair);
+
+	mtx_unlock(&qpair->lock);
+	mtx_unlock(&qpair->recovery);
 }
 
 void

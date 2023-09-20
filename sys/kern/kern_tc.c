@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/timeffc.h>
 #include <sys/timepps.h>
+#include <sys/timerfd.h>
 #include <sys/timetc.h>
 #include <sys/timex.h>
 #include <sys/vdso.h>
@@ -1305,6 +1306,7 @@ tc_setclock(struct timespec *ts)
 
 	/* Avoid rtc_generation == 0, since td_rtcgen == 0 is special. */
 	atomic_add_rel_int(&rtc_generation, 2);
+	timerfd_jumped();
 	sleepq_chains_remove_matching(sleeping_on_old_rtc);
 	if (timestepwarnings) {
 		nanotime(&taft);

@@ -32,7 +32,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifndef COMPAT_FREEBSD32
 #error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"
 #endif
@@ -41,12 +40,10 @@
 
 #include <sys/param.h>
 #include <sys/exec.h>
-#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -58,12 +55,9 @@
 #include <vm/pmap.h>
 #include <vm/vm.h>
 #include <vm/vm_map.h>
-#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
-#include <machine/cpu.h>
 #include <machine/md_var.h>
-#include <machine/pcb.h>
-#include <machine/specialreg.h>
 #include <machine/trap.h>
 
 #include <x86/linux/linux_x86.h>

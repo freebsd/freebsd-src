@@ -102,18 +102,15 @@
 #define HWQUIRK_NONE		0
 #define HWQUIRK_NEEDNULLQS	1
 #define HWQUIRK_RXHANGWAR	2
-#define HWQUIRK_TXCLK		4
-#define HWQUIRK_PCLK		8
 
 static struct ofw_compat_data compat_data[] = {
-	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR | HWQUIRK_TXCLK },
-	{ "cdns,zynqmp-gem",		HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
-	{ "microchip,mpfs-mss-gem",	HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
-	{ "sifive,fu540-c000-gem",	HWQUIRK_PCLK },
-	{ "sifive,fu740-c000-gem",	HWQUIRK_PCLK },
-	{ "cdns,gem",			HWQUIRK_NONE },
-	{ "cdns,macb",			HWQUIRK_NONE },
-	{ "cadence,gem",		HWQUIRK_NONE },
+	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR }, /* Deprecated */
+	{ "cdns,zynqmp-gem",		HWQUIRK_NEEDNULLQS }, /* Deprecated */
+	{ "xlnx,zynq-gem",		HWQUIRK_RXHANGWAR },
+	{ "xlnx,zynqmp-gem",		HWQUIRK_NEEDNULLQS },
+	{ "microchip,mpfs-mss-gem",	HWQUIRK_NEEDNULLQS },
+	{ "sifive,fu540-c000-gem",	HWQUIRK_NONE },
+	{ "sifive,fu740-c000-gem",	HWQUIRK_NONE },
 	{ NULL,				0 }
 };
 
@@ -130,7 +127,11 @@ struct cgem_softc {
 	struct callout		tick_ch;
 	uint32_t		net_ctl_shadow;
 	uint32_t		net_cfg_shadow;
-	clk_t			ref_clk;
+	clk_t			clk_pclk;
+	clk_t			clk_hclk;
+	clk_t			clk_txclk;
+	clk_t			clk_rxclk;
+	clk_t			clk_tsuclk;
 	int			neednullqs;
 	int			phy_contype;
 
@@ -1498,9 +1499,9 @@ cgem_mediachange(struct cgem_softc *sc,	struct mii_data *mii)
 
 	WR4(sc, CGEM_NET_CFG, sc->net_cfg_shadow);
 
-	if (sc->ref_clk != NULL) {
+	if (sc->clk_pclk != NULL) {
 		CGEM_UNLOCK(sc);
-		if (clk_set_freq(sc->ref_clk, ref_clk_freq, 0))
+		if (clk_set_freq(sc->clk_pclk, ref_clk_freq, 0))
 			device_printf(sc->dev, "could not set ref clk to %d\n",
 			    ref_clk_freq);
 		CGEM_LOCK(sc);
@@ -1745,19 +1746,47 @@ cgem_attach(device_t dev)
 		sc->neednullqs = 1;
 	if ((hwquirks & HWQUIRK_RXHANGWAR) != 0)
 		sc->rxhangwar = 1;
-	if ((hwquirks & HWQUIRK_TXCLK) != 0) {
-		if (clk_get_by_ofw_name(dev, 0, "tx_clk", &sc->ref_clk) != 0)
-			device_printf(dev,
-			    "could not retrieve reference clock.\n");
-		else if (clk_enable(sc->ref_clk) != 0)
-			device_printf(dev, "could not enable clock.\n");
+	/*
+	 * Both pclk and hclk are mandatory but we don't have a proper
+	 * clock driver for Zynq so don't make it fatal if we can't
+	 * get them.
+	 */
+	if (clk_get_by_ofw_name(dev, 0, "pclk", &sc->clk_pclk) != 0)
+		device_printf(dev,
+		  "could not retrieve pclk.\n");
+	else {
+		if (clk_enable(sc->clk_pclk) != 0)
+			device_printf(dev, "could not enable pclk.\n");
 	}
-	if ((hwquirks & HWQUIRK_PCLK) != 0) {
-		if (clk_get_by_ofw_name(dev, 0, "pclk", &sc->ref_clk) != 0)
-			device_printf(dev,
-			    "could not retrieve reference clock.\n");
-		else if (clk_enable(sc->ref_clk) != 0)
-			device_printf(dev, "could not enable clock.\n");
+	if (clk_get_by_ofw_name(dev, 0, "hclk", &sc->clk_hclk) != 0)
+		device_printf(dev,
+		  "could not retrieve hclk.\n");
+	else {
+		if (clk_enable(sc->clk_hclk) != 0)
+			device_printf(dev, "could not enable hclk.\n");
+	}
+
+	/* Optional clocks */
+	if (clk_get_by_ofw_name(dev, 0, "tx_clk", &sc->clk_txclk) == 0) {
+		if (clk_enable(sc->clk_txclk) != 0) {
+			device_printf(dev, "could not enable tx_clk.\n");
+			err = ENXIO;
+			goto err_pclk;
+		}
+	}
+	if (clk_get_by_ofw_name(dev, 0, "rx_clk", &sc->clk_rxclk) == 0) {
+		if (clk_enable(sc->clk_rxclk) != 0) {
+			device_printf(dev, "could not enable rx_clk.\n");
+			err = ENXIO;
+			goto err_tx_clk;
+		}
+	}
+	if (clk_get_by_ofw_name(dev, 0, "tsu_clk", &sc->clk_tsuclk) == 0) {
+		if (clk_enable(sc->clk_tsuclk) != 0) {
+			device_printf(dev, "could not enable tsu_clk.\n");
+			err = ENXIO;
+			goto err_rx_clk;
+		}
 	}
 
 	node = ofw_bus_get_node(dev);
@@ -1769,7 +1798,8 @@ cgem_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resources.\n");
-		return (ENOMEM);
+		err = ENOMEM;
+		goto err_tsu_clk;
 	}
 
 	/* Get IRQ resource. */
@@ -1825,7 +1855,7 @@ cgem_attach(device_t dev)
 	if (err) {
 		device_printf(dev, "could not set up dma mem for descs.\n");
 		cgem_detach(dev);
-		return (ENOMEM);
+		goto err;
 	}
 
 	/* Get a MAC address. */
@@ -1842,12 +1872,29 @@ cgem_attach(device_t dev)
 		device_printf(dev, "could not set interrupt handler.\n");
 		ether_ifdetach(ifp);
 		cgem_detach(dev);
-		return (err);
+		goto err;
 	}
 
 	cgem_add_sysctls(dev);
 
 	return (0);
+
+err_tsu_clk:
+	if (sc->clk_tsuclk)
+		clk_release(sc->clk_tsuclk);
+err_rx_clk:
+	if (sc->clk_rxclk)
+		clk_release(sc->clk_rxclk);
+err_tx_clk:
+	if (sc->clk_txclk)
+		clk_release(sc->clk_txclk);
+err_pclk:
+	if (sc->clk_pclk)
+		clk_release(sc->clk_pclk);
+	if (sc->clk_hclk)
+		clk_release(sc->clk_hclk);
+err:
+	return (err);
 }
 
 static int
@@ -1924,12 +1971,18 @@ cgem_detach(device_t dev)
 		sc->mbuf_dma_tag = NULL;
 	}
 
-	if (sc->ref_clk != NULL) {
-		clk_release(sc->ref_clk);
-		sc->ref_clk = NULL;
-	}
-
 	bus_generic_detach(dev);
+
+	if (sc->clk_tsuclk)
+		clk_release(sc->clk_tsuclk);
+	if (sc->clk_rxclk)
+		clk_release(sc->clk_rxclk);
+	if (sc->clk_txclk)
+		clk_release(sc->clk_txclk);
+	if (sc->clk_pclk)
+		clk_release(sc->clk_pclk);
+	if (sc->clk_hclk)
+		clk_release(sc->clk_hclk);
 
 	CGEM_LOCK_DESTROY(sc);
 

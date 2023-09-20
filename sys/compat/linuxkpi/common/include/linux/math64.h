@@ -29,6 +29,7 @@
 #define	_LINUXKPI_LINUX_MATH64_H
 
 #include <sys/stdint.h>
+#include <sys/systm.h>
 
 #define	do_div(n, base) ({			\
 	uint32_t __base = (base);		\
@@ -104,6 +105,54 @@ mul_u64_u32_div(uint64_t x, uint32_t y, uint32_t div)
 	const uint64_t rem = x % div;
 
 	return ((x / div) * y + (rem * y) / div);
+}
+
+static inline uint64_t
+mul_u64_u64_div_u64(uint64_t x, uint64_t y, uint64_t z)
+{
+	uint64_t res, rem;
+	uint64_t x1, y1, y1z;
+
+	res = rem = 0;
+	x1 = x;
+	y1z = y / z;
+	y1 = y - y1z * z;
+
+	/*
+	 * INVARIANT: x * y = res * z + rem + (y1 + y1z * z) * x1
+	 * INVARIANT: y1 < z
+	 * INVARIANT: rem < z
+	 */
+	while (x1 > 0) {
+		/* Handle low bit. */
+		if (x1 & 1) {
+			x1 &= ~1;
+			res += y1z;
+			rem += y1;
+			if ((rem < y1) || (rem >= z)) {
+				res += 1;
+				rem -= z;
+			}
+		}
+
+		/* Shift x1 right and (y1 + y1z * z) left */
+		x1 >>= 1;
+		if ((y1 * 2 < y1) || (y1 * 2 >= z)) {
+			y1z = y1z * 2 + 1;
+			y1 = y1 * 2 - z;
+		} else {
+			y1z *= 2;
+			y1 *= 2;
+		}
+	}
+
+	KASSERT(res * z + rem == x * y, ("%s: res %ju * z %ju + rem %ju != "
+	    "x %ju * y %ju", __func__, (uintmax_t)res, (uintmax_t)z,
+	    (uintmax_t)rem, (uintmax_t)x, (uintmax_t)y));
+	KASSERT(rem < z, ("%s: rem %ju >= z %ju\n", __func__,
+	    (uintmax_t)rem, (uintmax_t)z));
+
+	return (res);
 }
 
 static inline uint64_t

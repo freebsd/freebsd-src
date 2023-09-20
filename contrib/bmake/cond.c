@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.353 2023/06/23 05:21:10 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.354 2023/08/11 04:56:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -92,7 +92,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.353 2023/06/23 05:21:10 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.354 2023/08/11 04:56:31 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -224,17 +224,13 @@ ParseWord(const char **pp, bool doEval)
 		if ((ch == '&' || ch == '|') && paren_depth == 0)
 			break;
 		if (ch == '$') {
-			/*
-			 * Parse the variable expression and install it as
-			 * part of the argument if it's valid. We tell
-			 * Var_Parse to complain on an undefined variable,
-			 * (XXX: but Var_Parse ignores that request)
-			 * so we don't need to do it. Nor do we return an
-			 * error, though perhaps we should.
-			 */
 			VarEvalMode emode = doEval
 			    ? VARE_UNDEFERR
 			    : VARE_PARSE_ONLY;
+			/*
+			 * TODO: make Var_Parse complain about undefined
+			 * variables.
+			 */
 			FStr nestedVal = Var_Parse(&p, SCOPE_CMDLINE, emode);
 			/* TODO: handle errors */
 			Buf_AddStr(&word, nestedVal.str);
@@ -1267,7 +1263,6 @@ Cond_ExtractGuard(const char *line)
 {
 	const char *p, *varname;
 	Substring dir;
-	enum GuardKind kind;
 	Guard *guard;
 
 	p = line + 1;		/* skip the '.' */
@@ -1288,10 +1283,9 @@ Cond_ExtractGuard(const char *line)
 			const char *arg_p = p;
 			free(ParseWord(&p, false));
 			if (strcmp(p, ")") == 0) {
-				char *target = ParseWord(&arg_p, true);
 				guard = bmake_malloc(sizeof(*guard));
 				guard->kind = GK_TARGET;
-				guard->name = target;
+				guard->name = ParseWord(&arg_p, true);
 				return guard;
 			}
 		}
@@ -1302,9 +1296,8 @@ Cond_ExtractGuard(const char *line)
 	return NULL;
 
 found_variable:
-	kind = GK_VARIABLE;
 	guard = bmake_malloc(sizeof(*guard));
-	guard->kind = kind;
+	guard->kind = GK_VARIABLE;
 	guard->name = bmake_strsedup(varname, p);
 	return guard;
 }

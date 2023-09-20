@@ -73,8 +73,6 @@
 #define	mcreg_read_4(_sc, _r)		bus_read_4(&(_sc)->map[1], (_r))
 #define	mcreg_write_4(_sc, _r, _v)	bus_write_4(&(_sc)->map[1], (_r), (_v))
 
-#define COMPARE_TYPE(t, v)		(strncmp((v), (t), strlen((v))) == 0)
-
 #define IORT_DEVICE_NAME		"MCE"
 
 /* MC Registers */
@@ -669,68 +667,6 @@ dpaa2_mc_release_dev(device_t mcdev, device_t dpaa2_dev,
 	mtx_unlock(&sc->mdev_lock);
 
 	return (error);
-}
-
-/**
- * @brief Convert DPAA2 device type to string.
- */
-const char *
-dpaa2_ttos(enum dpaa2_dev_type type)
-{
-	switch (type) {
-	case DPAA2_DEV_MC:
-		return ("mc"); /* NOTE: to print as information only. */
-	case DPAA2_DEV_RC:
-		return ("dprc");
-	case DPAA2_DEV_IO:
-		return ("dpio");
-	case DPAA2_DEV_NI:
-		return ("dpni");
-	case DPAA2_DEV_MCP:
-		return ("dpmcp");
-	case DPAA2_DEV_BP:
-		return ("dpbp");
-	case DPAA2_DEV_CON:
-		return ("dpcon");
-	case DPAA2_DEV_MAC:
-		return ("dpmac");
-	case DPAA2_DEV_MUX:
-		return ("dpdmux");
-	case DPAA2_DEV_SW:
-		return ("dpsw");
-	default:
-		break;
-	}
-	return ("notype");
-}
-
-/**
- * @brief Convert string to DPAA2 device type.
- */
-enum dpaa2_dev_type
-dpaa2_stot(const char *str)
-{
-	if (COMPARE_TYPE(str, "dprc")) {
-		return (DPAA2_DEV_RC);
-	} else if (COMPARE_TYPE(str, "dpio")) {
-		return (DPAA2_DEV_IO);
-	} else if (COMPARE_TYPE(str, "dpni")) {
-		return (DPAA2_DEV_NI);
-	} else if (COMPARE_TYPE(str, "dpmcp")) {
-		return (DPAA2_DEV_MCP);
-	} else if (COMPARE_TYPE(str, "dpbp")) {
-		return (DPAA2_DEV_BP);
-	} else if (COMPARE_TYPE(str, "dpcon")) {
-		return (DPAA2_DEV_CON);
-	} else if (COMPARE_TYPE(str, "dpmac")) {
-		return (DPAA2_DEV_MAC);
-	} else if (COMPARE_TYPE(str, "dpdmux")) {
-		return (DPAA2_DEV_MUX);
-	} else if (COMPARE_TYPE(str, "dpsw")) {
-		return (DPAA2_DEV_SW);
-	}
-
-	return (DPAA2_DEV_NOTYPE);
 }
 
 /**

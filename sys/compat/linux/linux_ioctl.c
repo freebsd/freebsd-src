@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/cdio.h>
@@ -2272,6 +2271,12 @@ linux_ioctl_socket_ifreq(struct thread *td, int fd, u_int cmd,
 	case LINUX_SIOCGIFHWADDR:
 		cmd = SIOCGHWADDR;
 		break;
+	case LINUX_SIOCGIFMETRIC:
+		cmd = SIOCGIFMETRIC;
+		break;
+	case LINUX_SIOCSIFMETRIC:
+		cmd = SIOCSIFMETRIC;
+		break;
 	/*
 	 * XXX This is slightly bogus, but these ioctls are currently
 	 * XXX only used by the aironet (if_an) network driver.
@@ -2283,6 +2288,9 @@ linux_ioctl_socket_ifreq(struct thread *td, int fd, u_int cmd,
 		cmd = SIOCGPRIVATE_1;
 		break;
 	default:
+		LINUX_RATELIMIT_MSG_OPT2(
+		    "ioctl_socket_ifreq fd=%d, cmd=0x%x is not implemented",
+		    fd, cmd);
 		return (ENOIOCTL);
 	}
 

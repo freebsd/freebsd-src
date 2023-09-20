@@ -69,6 +69,14 @@ mk-files
 This section provides a brief description of some of the ``*.mk``
 files.
 
+The makefiles ``lib.mk``, ``prog.mk``, ``init.mk``, ``own.mk``,
+``dep.mk`` and ``man.mk`` are more or less equivalent to ``bsd.*.mk``
+found in BSD, and when installed on non-BSD platforms get symlinked as
+``bsd.*.mk`` as well.
+
+The other makefiles (apart from ``sys.mk``) can be used in conjunction
+with ``bsd.*.mk`` on BSD.
+
 sys.mk
 ------
 
@@ -330,6 +338,9 @@ auto.obj.mk
 Creates object dirs and leverages the ``.OBJDIR`` target introduced
 some years ago to NetBSD make, to use them.
 
+Note that if ``auto.obj.mk`` is to be used it should be included
+early - before bmake has established ``.PATH``, thus we include it
+from ``sys.mk`` rather than ``obj.mk``.
 
 subdir.mk
 ---------
@@ -536,7 +547,6 @@ We have the following makefiles which are relevant to
 
 	share/mk/auto.obj.mk
 	share/mk/dirdeps-cache-update.mk
-	share/mk/dirdeps-only.mk
 	share/mk/dirdeps-options.mk
 	share/mk/dirdeps-targets.mk
 	share/mk/dirdeps.mk
@@ -573,7 +583,7 @@ destination directory, and unless told not to, create ``bsd.*.mk`` links
 for ``lib.mk`` etc.
 
 If you just want to create the ``bsd.*.mk`` links in the directory
-where you unpacked the tar file, you can::
+where you unpacked the tar file, you can use::
 
 	./mk/install-mk ./mk
 
@@ -587,5 +597,5 @@ where you unpacked the tar file, you can::
 .. _`netbsd-meta-mode`: https://www.crufty.net/sjg/docs/netbsd-meta-mode.htm
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.23 2023/05/11 22:55:08 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.25 2023/07/14 23:51:11 sjg Exp $
 :Copyright: Crufty.NET

@@ -629,8 +629,6 @@ int if_vlantrunkinuse(if_t ifp);
 caddr_t if_getlladdr(const if_t ifp);
 struct vnet *if_getvnet(const if_t ifp);
 void *if_gethandle(u_char);
-void if_bpfmtap(if_t ifp, struct mbuf *m);
-void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 int if_transmit(if_t ifp, struct mbuf *m);
 void if_init(if_t ifp, void *ctx);

@@ -5574,7 +5574,7 @@ bxe_tx_start_locked(struct bxe_softc *sc,
         tx_count++;
 
         /* send a copy of the frame to any BPF listeners. */
-        if_etherbpfmtap(ifp, m);
+        ether_bpf_mtap_if(ifp, m);
 
         tx_bd_avail = bxe_tx_avail(sc, fp);
 
@@ -5715,7 +5715,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         tx_count++;
 
         /* send a copy of the frame to any BPF listeners */
-	if_etherbpfmtap(ifp, next);
+        ether_bpf_mtap_if(ifp, next);
 
         drbr_advance(ifp, tx_br);
     }

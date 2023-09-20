@@ -730,9 +730,13 @@ fill_tcp_info_from_tcb(struct adapter *sc, uint64_t *tcb, struct tcp_info *ti)
 	ti->tcpi_snd_ssthresh = GET_TCB_FIELD(tcb, SND_SSTHRESH);
 	ti->tcpi_snd_cwnd = GET_TCB_FIELD(tcb, SND_CWND);
 	ti->tcpi_rcv_nxt = GET_TCB_FIELD(tcb, RCV_NXT);
+	ti->tcpi_rcv_adv = GET_TCB_FIELD(tcb, RCV_ADV);
+	ti->tcpi_dupacks = GET_TCB_FIELD(tcb, T_DUPACKS);
 
 	v = GET_TCB_FIELD(tcb, TX_MAX);
 	ti->tcpi_snd_nxt = v - GET_TCB_FIELD(tcb, SND_NXT_RAW);
+	ti->tcpi_snd_una = v - GET_TCB_FIELD(tcb, SND_UNA_RAW);
+	ti->tcpi_snd_max = v - GET_TCB_FIELD(tcb, SND_MAX_RAW);
 
 	/* Receive window being advertised by us. */
 	ti->tcpi_rcv_wscale = GET_TCB_FIELD(tcb, SND_SCALE);	/* Yes, SND. */
@@ -810,12 +814,12 @@ fill_tcp_info(struct adapter *sc, u_int tid, struct tcp_info *ti)
  * the tcp_info for an offloaded connection.
  */
 static void
-t4_tcp_info(struct toedev *tod, struct tcpcb *tp, struct tcp_info *ti)
+t4_tcp_info(struct toedev *tod, const struct tcpcb *tp, struct tcp_info *ti)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct toepcb *toep = tp->t_toe;
 
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	INP_LOCK_ASSERT(tptoinpcb(tp));
 	MPASS(ti != NULL);
 
 	fill_tcp_info(sc, toep->tid, ti);

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -275,7 +275,8 @@ irdma_qp_get_next_send_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx,
 	if (qp->uk_attrs->hw_rev == IRDMA_GEN_1 && wqe_quanta == 1 &&
 	    (IRDMA_RING_CURRENT_HEAD(qp->sq_ring) & 1)) {
 		wqe_0 = qp->sq_base[IRDMA_RING_CURRENT_HEAD(qp->sq_ring)].elem;
-		wqe_0[3] = htole64(FIELD_PREP(IRDMAQPSQ_VALID, !qp->swqe_polarity));
+		wqe_0[3] = htole64(FIELD_PREP(IRDMAQPSQ_VALID,
+					      qp->swqe_polarity ? 0 : 1));
 	}
 	qp->sq_wrtrk_array[*wqe_idx].wrid = info->wr_id;
 	qp->sq_wrtrk_array[*wqe_idx].wr_len = total_size;
@@ -683,8 +684,8 @@ irdma_set_mw_bind_wqe(__le64 * wqe,
  * @polarity: polarity of wqe valid bit
  */
 static void
-irdma_copy_inline_data(u8 *wqe, struct irdma_sge *sge_list, u32 num_sges,
-		       u8 polarity)
+irdma_copy_inline_data(u8 *wqe, struct irdma_sge *sge_list,
+		       u32 num_sges, u8 polarity)
 {
 	u8 inline_valid = polarity << IRDMA_INLINE_VALID_S;
 	u32 quanta_bytes_remaining = 8;
@@ -1173,7 +1174,7 @@ irdma_repost_rq_wqes(struct irdma_qp_uk *qp, u32 start_idx,
 		     u32 end_idx)
 {
 	__le64 *dst_wqe, *src_wqe;
-	u32 wqe_idx;
+	u32 wqe_idx = 0;
 	u8 wqe_quanta = qp->rq_wqe_size_multiplier;
 	bool flip_polarity;
 	u64 val;
@@ -1480,7 +1481,8 @@ irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 				sw_wqe = qp->sq_base[tail].elem;
 				get_64bit_val(sw_wqe, IRDMA_BYTE_24,
 					      &wqe_qword);
-				info->op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE, wqe_qword);
+				info->op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE,
+							      wqe_qword);
 				IRDMA_RING_SET_TAIL(qp->sq_ring,
 						    tail + qp->sq_wrtrk_array[tail].quanta);
 				if (info->op_type != IRDMAQP_OP_NOP) {
@@ -1834,6 +1836,9 @@ irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq)
 		if (polarity != temp)
 			break;
 
+		/* Ensure CQE contents are read after valid bit is checked */
+		udma_from_device_barrier();
+
 		get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
 		if ((void *)(irdma_uintptr) comp_ctx == q)
 			set_64bit_val(cqe, IRDMA_BYTE_8, 0);
@@ -1842,48 +1847,6 @@ irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq)
 		if (!cq_head)
 			temp ^= 1;
 	} while (true);
-	return 0;
-}
-
-/**
- * irdma_nop - post a nop
- * @qp: hw qp ptr
- * @wr_id: work request id
- * @signaled: signaled for completion
- * @post_sq: ring doorbell
- */
-int
-irdma_nop(struct irdma_qp_uk *qp, u64 wr_id, bool signaled, bool post_sq)
-{
-	__le64 *wqe;
-	u64 hdr;
-	u32 wqe_idx;
-	struct irdma_post_sq_info info = {0};
-	u16 quanta = IRDMA_QP_WQE_MIN_QUANTA;
-
-	info.push_wqe = qp->push_db ? true : false;
-	info.wr_id = wr_id;
-	wqe = irdma_qp_get_next_send_wqe(qp, &wqe_idx, &quanta, 0, &info);
-	if (!wqe)
-		return ENOSPC;
-
-	set_64bit_val(wqe, IRDMA_BYTE_0, 0);
-	set_64bit_val(wqe, IRDMA_BYTE_8, 0);
-	set_64bit_val(wqe, IRDMA_BYTE_16, 0);
-
-	hdr = FIELD_PREP(IRDMAQPSQ_OPCODE, IRDMAQP_OP_NOP) |
-	    FIELD_PREP(IRDMAQPSQ_SIGCOMPL, signaled) |
-	    FIELD_PREP(IRDMAQPSQ_VALID, qp->swqe_polarity);
-
-	udma_to_device_barrier();	/* make sure WQE is populated before valid bit is set */
-
-	set_64bit_val(wqe, IRDMA_BYTE_24, hdr);
-
-	if (info.push_wqe)
-		irdma_qp_push_wqe(qp, wqe, quanta, wqe_idx, post_sq);
-	else if (post_sq)
-		irdma_uk_qp_post_wr(qp);
-
 	return 0;
 }
 

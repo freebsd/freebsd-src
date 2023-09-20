@@ -118,6 +118,7 @@ defer_head()
 {
 	atf_set descr 'Defer mode pfsync test'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 defer_body()

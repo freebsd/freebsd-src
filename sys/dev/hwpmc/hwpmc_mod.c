@@ -3349,7 +3349,8 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	 * Look for valid values for 'pm_flags'.
 	 */
 	if ((flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
-	    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) != 0)
+	    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN |
+	    PMC_F_EV_PMU)) != 0)
 		return (EINVAL);
 
 	/* PMC_F_USERCALLCHAIN is only valid with PMC_F_CALLCHAIN. */
@@ -3821,6 +3822,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		/* No flags currently implemented */
 		if (cl.pm_flags != 0) {
+			pmclog_proc_ignite(pmclog_proc_handle, NULL);
 			error = EINVAL;
 			break;
 		}
@@ -4988,12 +4990,12 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	}
 	PMC_EPOCH_EXIT();
 
-	if (!is_using_hwpmcs)
-		return;
-
 	PMC_GET_SX_XLOCK();
 	PMCDBG3(PRC,EXT,1,"process-exit proc=%p (%d, %s)", p, p->p_pid,
 	    p->p_comm);
+
+	if (!is_using_hwpmcs)
+		goto out;
 
 	/*
 	 * Since this code is invoked by the last thread in an exiting process,
@@ -5115,6 +5117,8 @@ out:
 	 * If the process owned PMCs, free them up and free up memory.
 	 */
 	if ((po = pmc_find_owner_descriptor(p)) != NULL) {
+		if ((po->po_flags & PMC_PO_OWNS_LOGFILE) != 0)
+			pmclog_close(po);
 		pmc_remove_owner(po);
 		pmc_destroy_owner_descriptor(po);
 	}

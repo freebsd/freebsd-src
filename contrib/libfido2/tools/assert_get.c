@@ -2,6 +2,7 @@
  * Copyright (c) 2018 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <fido.h>
@@ -209,8 +210,8 @@ assert_get(int argc, char **argv)
 	fido_dev_t *dev = NULL;
 	fido_assert_t *assert = NULL;
 	struct toggle opt;
-	char pin[1024];
 	char prompt[1024];
+	char pin[128];
 	char *in_path = NULL;
 	char *out_path = NULL;
 	FILE *in_f = NULL;
@@ -284,6 +285,10 @@ assert_get(int argc, char **argv)
 			errx(1, "snprintf");
 		if (!readpassphrase(prompt, pin, sizeof(pin), RPP_ECHO_OFF))
 			errx(1, "readpassphrase");
+		if (strlen(pin) < 4 || strlen(pin) > 63) {
+			explicit_bzero(pin, sizeof(pin));
+			errx(1, "invalid PIN length");
+		}
 		r = fido_dev_get_assert(dev, assert, pin);
 	} else
 		r = fido_dev_get_assert(dev, assert, NULL);

@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -171,6 +170,7 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 
 	if (!LINUX_SIG_VALID(linux_sig))
 		return (EINVAL);
+	sig = linux_to_bsd_signal(linux_sig);
 
 	osa = (linux_osa != NULL) ? &oact : NULL;
 	if (linux_nsa != NULL) {
@@ -181,9 +181,11 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 			linux_ktrsigset(&linux_nsa->lsa_mask,
 			    sizeof(linux_nsa->lsa_mask));
 #endif
+		if ((sig == SIGKILL || sig == SIGSTOP) &&
+		    nsa->sa_handler == SIG_DFL)
+			return (EINVAL);
 	} else
 		nsa = NULL;
-	sig = linux_to_bsd_signal(linux_sig);
 
 	error = kern_sigaction(td, sig, nsa, osa, 0);
 	if (error != 0)
@@ -767,7 +769,7 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 	}
 }
 
-int
+static int
 lsiginfo_to_siginfo(struct thread *td, const l_siginfo_t *lsi,
     siginfo_t *si, int sig)
 {

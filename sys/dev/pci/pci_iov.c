@@ -435,7 +435,7 @@ out:
  * affects all PFs on the device.
  */
 static int
-pci_iov_set_ari(device_t bus)
+pci_iov_set_ari(device_t bus, bool *ari_enabled)
 {
 	device_t lowest;
 	device_t *devlist;
@@ -443,8 +443,10 @@ pci_iov_set_ari(device_t bus)
 	uint16_t iov_ctl;
 
 	/* If ARI is disabled on the downstream port there is nothing to do. */
-	if (!PCIB_ARI_ENABLED(device_get_parent(bus)))
+	if (!PCIB_ARI_ENABLED(device_get_parent(bus))) {
+		*ari_enabled = false;
 		return (0);
+	}
 
 	error = device_get_children(bus, &devlist, &devcount);
 
@@ -480,6 +482,7 @@ pci_iov_set_ari(device_t bus)
 		device_printf(lowest, "failed to enable ARI\n");
 		return (ENXIO);
 	}
+	*ari_enabled = true;
 	return (0);
 }
 
@@ -683,6 +686,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	uint16_t iov_ctl;
 	uint16_t num_vfs, total_vfs;
 	int iov_inited;
+	bool ari_enabled;
 
 	mtx_lock(&Giant);
 	dinfo = cdev->si_drv1;
@@ -713,7 +717,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	if (error != 0)
 		goto out;
 
-	error = pci_iov_set_ari(bus);
+	error = pci_iov_set_ari(bus, &ari_enabled);
 	if (error != 0)
 		goto out;
 
@@ -732,6 +736,11 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	/* We don't yet support allocating extra bus numbers for VFs. */
 	if (pci_get_bus(dev) != PCI_RID2BUS(last_rid)) {
+		error = ENOSPC;
+		goto out;
+	}
+
+	if (!ari_enabled && PCI_RID2SLOT(last_rid) != 0) {
 		error = ENOSPC;
 		goto out;
 	}

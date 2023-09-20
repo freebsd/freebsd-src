@@ -339,7 +339,6 @@ SUBDIR=	\
 	${_rockchip} \
 	rtsx \
 	${_rtw88} \
-	${_rtw88fw} \
 	rtwn \
 	rtwn_pci \
 	rtwn_usb \
@@ -355,6 +354,7 @@ SUBDIR=	\
 	${_sdhci_fdt} \
 	sdhci_pci \
 	sdio \
+	${_sff} \
 	sem \
 	send \
 	${_sfxge} \
@@ -565,10 +565,7 @@ _iwlwifi=	iwlwifi
 _iwlwififw=	iwlwififw
 .endif
 _ossl=		ossl
-_rtw88=		rtw88
-.if ${MK_SOURCELESS_UCODE} != "no"
-_rtw88fw=	rtw88fw
-.endif
+#_rtw88=		rtw88
 _vmware=	vmware
 .endif
 
@@ -678,6 +675,7 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto=	armv8crypto
 _dpaa2=		dpaa2
+_sff=		sff
 _em=		em
 _hyperv=  hyperv
 

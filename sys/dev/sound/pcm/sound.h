@@ -347,20 +347,7 @@ void snd_mtxassert(void *m);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
-int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);
-int sndstat_unregisterfile(char *str);
-
-#define SND_DECLARE_FILE(version) \
-	_SND_DECLARE_FILE(__LINE__, version)
-
-#define _SND_DECLARE_FILE(uniq, version) \
-	__SND_DECLARE_FILE(uniq, version)
-
-#define __SND_DECLARE_FILE(uniq, version) \
-	static char sndstat_vinfo[] = version; \
-	SYSINIT(sdf_ ## uniq, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_registerfile, sndstat_vinfo); \
-	SYSUNINIT(sdf_ ## uniq, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_unregisterfile, sndstat_vinfo);
 
 /* usage of flags in device config entry (config file) */
 #define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */

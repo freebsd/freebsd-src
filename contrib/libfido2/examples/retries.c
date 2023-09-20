@@ -2,6 +2,7 @@
  * Copyright (c) 2018 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 /*
@@ -35,7 +36,7 @@ main(int argc, char **argv)
 		errx(1, "fido_open: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_get_retry_count(dev, &n)) != FIDO_OK)
-		errx(1, "fido_get_retries: %s (0x%x)", fido_strerr(r), r);
+		errx(1, "fido_dev_get_retry_count: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_close(dev)) != FIDO_OK)
 		errx(1, "fido_close: %s (0x%x)", fido_strerr(r), r);

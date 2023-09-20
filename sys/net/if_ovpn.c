@@ -1548,6 +1548,10 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	/* Clear checksum flags in case the real hardware set them. */
 	m->m_pkthdr.csum_flags = 0;
 
+	/* Clear mbuf tags & flags */
+	m_tag_delete_nonpersistent(m);
+	m_clrprotoflags(m);
+
 	/* Ensure we can read the first byte. */
 	m = m_pullup(m, 1);
 	if (m == NULL) {

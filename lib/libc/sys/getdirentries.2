@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
 .\"
-.Dd April 11, 2022
+.Dd September 5, 2023
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -70,12 +70,12 @@ The data in the buffer is a series of
 .Vt dirent
 structures each containing the following entries:
 .Bd -literal -offset indent
-ino_t	d_fileno;
-off_t	d_off;
-uint16_t	d_reclen;
-uint8_t	d_type;
-uint16_t	d_namlen;
-char	d_name[MAXNAMLEN + 1];	/* see below */
+ino_t     d_fileno;
+off_t     d_off;
+uint16_t  d_reclen;
+uint8_t   d_type;
+uint16_t  d_namlen;
+char      d_name[MAXNAMLEN + 1];	/* see below */
 .Ed
 .Pp
 The
@@ -197,7 +197,9 @@ Directory unlinked but still open.
 .El
 .Sh SEE ALSO
 .Xr lseek 2 ,
-.Xr open 2
+.Xr open 2 ,
+.Xr directory 3 ,
+.Xr dir 5
 .Sh HISTORY
 The
 .Fn getdirentries

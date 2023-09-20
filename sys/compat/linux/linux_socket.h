@@ -124,8 +124,7 @@ struct l_ucred {
 	uint32_t	gid;
 };
 
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(__amd64__) && defined(COMPAT_LINUX32))
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 struct linux_accept_args {
 	register_t s;
@@ -158,7 +157,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SENDMMSG		20
 #define	LINUX_SENDFILE		21
 
-#endif /* __i386__ || __arm__ || (__amd64__ && COMPAT_LINUX32) */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /* Socket defines */
 #define	LINUX_SOL_SOCKET	1

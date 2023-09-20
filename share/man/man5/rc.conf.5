@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 11, 2023
+.Dd September 18, 2023
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -250,6 +250,11 @@ such as PostgreSQL will not inherit the OOM killer protection.
 .Pp
 This variable has no effect on services running within a
 .Xr jail 8 .
+.It Ao Ar name Ac Ns Va _setup
+.Pq Vt str
+Run the specified setup script right before starting the actual service
+command.
+Useful for automatic configuration file generation.
 .It Ao Ar name Ac Ns Va _umask
 .Pq Vt int
 Run the service using this
@@ -3990,7 +3995,7 @@ The configuration filename used by
 utility.
 The default value is
 .Pa /etc/jail.conf .
-.Pa /etc/jail. Ns Ao Va jname Ac Ns Pa .conf
+.Pa /etc/jail\&. Ns Ao Va jname Ac Ns Pa .conf
 and
 .Pa /etc/jail.conf.d/ Ns Ao Va jname Ac Ns Pa .conf
 will also be used if

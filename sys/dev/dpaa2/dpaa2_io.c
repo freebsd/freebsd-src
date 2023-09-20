@@ -38,6 +38,8 @@
  * using QBMan.
  */
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -58,6 +60,10 @@
 
 #include <dev/pci/pcivar.h>
 
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
+
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -68,6 +74,7 @@
 #include "dpaa2_cmd_if.h"
 #include "dpaa2_io.h"
 #include "dpaa2_ni.h"
+#include "dpaa2_channel.h"
 
 #define DPIO_IRQ_INDEX		0 /* index of the only DPIO IRQ */
 #define DPIO_POLL_MAX		32
@@ -436,8 +443,14 @@ dpaa2_io_setup_irqs(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Wrap DPIO ID around number of CPUs. */
-	bus_bind_intr(dev, sc->irq_resource, sc->attr.id % mp_ncpus);
+	/* Wrap DPIO ID around number of CPUs/RSS buckets */
+#ifdef RSS
+	sc->cpu = rss_getcpu(sc->attr.id % rss_getnumbuckets());
+#else
+	sc->cpu = sc->attr.id % mp_ncpus;
+#endif
+	CPU_SETOF(sc->cpu, &sc->cpu_mask);
+	bus_bind_intr(dev, sc->irq_resource, sc->cpu);
 
 	/*
 	 * Setup and enable Static Dequeue Command to receive CDANs from
@@ -519,7 +532,9 @@ static void
 dpaa2_io_intr(void *arg)
 {
 	struct dpaa2_io_softc *sc = (struct dpaa2_io_softc *) arg;
+	/* struct dpaa2_ni_softc *nisc = NULL; */
 	struct dpaa2_io_notif_ctx *ctx[DPIO_POLL_MAX];
+	struct dpaa2_channel *chan;
 	struct dpaa2_dq dq;
 	uint32_t idx, status;
 	uint16_t flags;
@@ -554,7 +569,9 @@ dpaa2_io_intr(void *arg)
 	DPAA2_SWP_UNLOCK(sc->swp);
 
 	for (int i = 0; i < cdan_n; i++) {
-		ctx[i]->poll(ctx[i]->channel);
+		chan = (struct dpaa2_channel *)ctx[i]->channel;
+		/* nisc = device_get_softc(chan->ni_dev); */
+		taskqueue_enqueue(chan->cleanup_tq, &chan->cleanup_task);
 	}
 
 	/* Enable software portal interrupts back */

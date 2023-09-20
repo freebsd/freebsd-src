@@ -36,6 +36,7 @@
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #endif
@@ -62,8 +63,7 @@ static int padlock_probesession(device_t, const struct crypto_session_params *);
 static int padlock_newsession(device_t, crypto_session_t cses,
     const struct crypto_session_params *);
 static void padlock_freesession(device_t, crypto_session_t cses);
-static void padlock_freesession_one(struct padlock_softc *sc,
-    struct padlock_session *ses);
+static void padlock_freesession_one(struct padlock_session *ses);
 static int padlock_process(device_t, struct cryptop *crp, int hint __unused);
 
 MALLOC_DEFINE(M_PADLOCK, "padlock_data", "PadLock Data");
@@ -177,28 +177,25 @@ static int
 padlock_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
-	struct padlock_softc *sc = device_get_softc(dev);
-	struct padlock_session *ses = NULL;
+	struct padlock_session *ses;
 	struct thread *td;
 	int error;
 
 	ses = crypto_get_driver_session(cses);
-	ses->ses_fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
 
 	error = padlock_cipher_setup(ses, csp);
 	if (error != 0) {
-		padlock_freesession_one(sc, ses);
+		padlock_freesession_one(ses);
 		return (error);
 	}
 
 	if (csp->csp_mode == CSP_MODE_ETA) {
 		td = curthread;
-		fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
-		    FPU_KERN_KTHR);
+		fpu_kern_enter(td, NULL, FPU_KERN_NORMAL | FPU_KERN_NOCTX);
 		error = padlock_hash_setup(ses, csp);
-		fpu_kern_leave(td, ses->ses_fpu_ctx);
+		fpu_kern_leave(td, NULL);
 		if (error != 0) {
-			padlock_freesession_one(sc, ses);
+			padlock_freesession_one(ses);
 			return (error);
 		}
 	}
@@ -207,21 +204,19 @@ padlock_newsession(device_t dev, crypto_session_t cses,
 }
 
 static void
-padlock_freesession_one(struct padlock_softc *sc, struct padlock_session *ses)
+padlock_freesession_one(struct padlock_session *ses)
 {
 
 	padlock_hash_free(ses);
-	fpu_kern_free_ctx(ses->ses_fpu_ctx);
 }
 
 static void
 padlock_freesession(device_t dev, crypto_session_t cses)
 {
-	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses;
 
 	ses = crypto_get_driver_session(cses);
-	padlock_freesession_one(sc, ses);
+	padlock_freesession_one(ses);
 }
 
 static int

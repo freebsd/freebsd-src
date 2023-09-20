@@ -90,6 +90,7 @@ typedef struct pmap_statistics *pmap_statistics_t;
 #include <machine/pmap.h>
 
 #ifdef _KERNEL
+#include <sys/_cpuset.h>
 struct thread;
 
 /*
@@ -118,6 +119,7 @@ extern vm_offset_t kernel_vm_end;
 #define	PMAP_TS_REFERENCED_MAX	5
 
 void		 pmap_activate(struct thread *td);
+void		 pmap_active_cpus(pmap_t pmap, cpuset_t *res);
 void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		    int advice);
 void		 pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,

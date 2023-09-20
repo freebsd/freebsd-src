@@ -332,6 +332,29 @@ void addr_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
 	char* buf, size_t len);
 
 /**
+ * Check if the prefix network length is one of the allowed 32, 40, 48, 56, 64,
+ * or 96.
+ * @param prefixnet: prefix network length to check.
+ * @return 1 on success, 0 on failure.
+ */
+int prefixnet_is_nat64(int prefixnet);
+
+/**
+ * Create a NAT64 address from a given address (needs to be IPv4) and a given
+ * NAT64 prefix. The NAT64 prefix net needs to be one of 32, 40, 48, 56, 64, 96.
+ * @param addr: IPv4 address.
+ * @param nat64_prefix: NAT64 prefix.
+ * @param nat64_prefixlen: NAT64 prefix len.
+ * @param nat64_prefixnet: NAT64 prefix mask.
+ * @param nat64_addr: the resulting NAT64 address.
+ * @param nat64_addrlen: the resulting NAT64 address length.
+ */
+void addr_to_nat64(const struct sockaddr_storage* addr,
+	const struct sockaddr_storage* nat64_prefix,
+	socklen_t nat64_prefixlen, int nat64_prefixnet,
+	struct sockaddr_storage* nat64_addr, socklen_t* nat64_addrlen);
+
+/**
  * See if sockaddr is an ipv6 mapped ipv4 address, "::ffff:0.0.0.0"
  * @param addr: address
  * @param addrlen: length of address

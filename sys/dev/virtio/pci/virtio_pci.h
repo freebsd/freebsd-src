@@ -117,12 +117,12 @@ int	vtpci_reinit(struct vtpci_common *cn);
 
 uint64_t vtpci_negotiate_features(struct vtpci_common *cn,
 	     uint64_t child_features, uint64_t host_features);
-int	 vtpci_with_feature(struct vtpci_common *cn, uint64_t feature);
+bool	 vtpci_with_feature(struct vtpci_common *cn, uint64_t feature);
 
 int	vtpci_read_ivar(struct vtpci_common *cn, int index, uintptr_t *result);
 int	vtpci_write_ivar(struct vtpci_common *cn, int index, uintptr_t value);
 
-int	vtpci_alloc_virtqueues(struct vtpci_common *cn, int flags, int nvqs,
+int	vtpci_alloc_virtqueues(struct vtpci_common *cn, int nvqs,
 	    struct vq_alloc_info *vq_info);
 int	vtpci_setup_interrupts(struct vtpci_common *cn, enum intr_type type);
 void	vtpci_release_child_resources(struct vtpci_common *cn);

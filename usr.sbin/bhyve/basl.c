@@ -20,6 +20,7 @@
 #include <vmmapi.h>
 
 #include "basl.h"
+#include "config.h"
 #include "qemu_loader.h"
 
 struct basl_table_checksum {
@@ -60,6 +61,7 @@ static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIA
 static struct qemu_loader *basl_loader;
 static struct basl_table *rsdt;
 static struct basl_table *xsdt;
+static bool load_into_memory;
 
 static __inline uint64_t
 basl_le_dec(void *pp, size_t len)
@@ -153,6 +155,16 @@ basl_finish_install_guest_tables(struct basl_table *const table, uint32_t *const
 		return (EFAULT);
 	}
 
+	/* Cause guest BIOS to copy the ACPI table into guest memory. */
+	BASL_EXEC(
+	    qemu_fwcfg_add_file(table->fwcfg_name, table->len, table->data));
+	BASL_EXEC(qemu_loader_alloc(basl_loader, table->fwcfg_name,
+	    table->alignment, QEMU_LOADER_ALLOC_HIGH));
+
+	if (!load_into_memory) {
+		return (0);
+	}
+
 	/*
 	 * Install ACPI tables directly in guest memory for use by guests which
 	 * do not boot via EFI. EFI ROMs provide a pointer to the firmware
@@ -167,12 +179,6 @@ basl_finish_install_guest_tables(struct basl_table *const table, uint32_t *const
 		return (ENOMEM);
 	}
 	memcpy(gva, table->data, table->len);
-
-	/* Cause guest bios to copy the ACPI table into guest memory. */
-	BASL_EXEC(
-	    qemu_fwcfg_add_file(table->fwcfg_name, table->len, table->data));
-	BASL_EXEC(qemu_loader_alloc(basl_loader, table->fwcfg_name,
-	    table->alignment, QEMU_LOADER_ALLOC_HIGH));
 
 	return (0);
 }
@@ -196,6 +202,14 @@ basl_finish_patch_checksums(struct basl_table *const table)
 		assert(checksum->off < table->len);
 		assert(checksum->start < table->len);
 		assert(checksum->start + len <= table->len);
+
+		/* Cause guest BIOS to patch the checksum. */
+		BASL_EXEC(qemu_loader_add_checksum(basl_loader,
+		    table->fwcfg_name, checksum->off, checksum->start, len));
+
+		if (!load_into_memory) {
+			continue;
+		}
 
 		/*
 		 * Install ACPI tables directly in guest memory for use by
@@ -230,10 +244,6 @@ basl_finish_patch_checksums(struct basl_table *const table)
 			sum += *(gva + i);
 		}
 		*checksum_gva = -sum;
-
-		/* Cause guest bios to patch the checksum. */
-		BASL_EXEC(qemu_loader_add_checksum(basl_loader,
-		    table->fwcfg_name, checksum->off, checksum->start, len));
 	}
 
 	return (0);
@@ -278,6 +288,15 @@ basl_finish_patch_pointers(struct basl_table *const table)
 			return (EFAULT);
 		}
 
+		/* Cause guest BIOS to patch the pointer. */
+		BASL_EXEC(
+		    qemu_loader_add_pointer(basl_loader, table->fwcfg_name,
+			src_table->fwcfg_name, pointer->off, pointer->size));
+
+		if (!load_into_memory) {
+			continue;
+		}
+
 		/*
 		 * Install ACPI tables directly in guest memory for use by
 		 * guests which do not boot via EFI. EFI ROMs provide a pointer
@@ -301,11 +320,6 @@ basl_finish_patch_pointers(struct basl_table *const table)
 		val = basl_le_dec(gva + pointer->off, pointer->size);
 		val += BHYVE_ACPI_BASE + src_table->off;
 		basl_le_enc(gva + pointer->off, val, pointer->size);
-
-		/* Cause guest bios to patch the pointer. */
-		BASL_EXEC(
-		    qemu_loader_add_pointer(basl_loader, table->fwcfg_name,
-			src_table->fwcfg_name, pointer->off, pointer->size));
 	}
 
 	return (0);
@@ -337,6 +351,15 @@ basl_finish(void)
 		warnx("%s: no ACPI tables found", __func__);
 		return (EINVAL);
 	}
+
+	/*
+	 * If we install ACPI tables by FwCfg and by memory, Windows will use
+	 * the tables from memory. This can cause issues when using advanced
+	 * features like a TPM log because we aren't able to patch the memory
+	 * tables accordingly.
+	 */
+	load_into_memory = get_config_bool_default("acpi_tables_in_memory",
+	    true);
 
 	/*
 	 * We have to install all tables before we can patch them. Therefore,

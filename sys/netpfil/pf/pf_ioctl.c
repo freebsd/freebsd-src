@@ -1878,20 +1878,6 @@ pf_pooladdr_to_kpooladdr(const struct pf_pooladdr *pool,
 }
 
 static void
-pf_kpool_to_pool(const struct pf_kpool *kpool, struct pf_pool *pool)
-{
-	bzero(pool, sizeof(*pool));
-
-	bcopy(&kpool->key, &pool->key, sizeof(pool->key));
-	bcopy(&kpool->counter, &pool->counter, sizeof(pool->counter));
-
-	pool->tblidx = kpool->tblidx;
-	pool->proxy_port[0] = kpool->proxy_port[0];
-	pool->proxy_port[1] = kpool->proxy_port[1];
-	pool->opts = kpool->opts;
-}
-
-static void
 pf_pool_to_kpool(const struct pf_pool *pool, struct pf_kpool *kpool)
 {
 	_Static_assert(sizeof(pool->key) == sizeof(kpool->key), "");
@@ -1904,107 +1890,6 @@ pf_pool_to_kpool(const struct pf_pool *pool, struct pf_kpool *kpool)
 	kpool->proxy_port[0] = pool->proxy_port[0];
 	kpool->proxy_port[1] = pool->proxy_port[1];
 	kpool->opts = pool->opts;
-}
-
-static void
-pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
-{
-
-	bzero(rule, sizeof(*rule));
-
-	bcopy(&krule->src, &rule->src, sizeof(rule->src));
-	bcopy(&krule->dst, &rule->dst, sizeof(rule->dst));
-
-	for (int i = 0; i < PF_SKIP_COUNT; ++i) {
-		if (rule->skip[i].ptr == NULL)
-			rule->skip[i].nr = -1;
-		else
-			rule->skip[i].nr = krule->skip[i].ptr->nr;
-	}
-
-	strlcpy(rule->label, krule->label[0], sizeof(rule->label));
-	strlcpy(rule->ifname, krule->ifname, sizeof(rule->ifname));
-	strlcpy(rule->qname, krule->qname, sizeof(rule->qname));
-	strlcpy(rule->pqname, krule->pqname, sizeof(rule->pqname));
-	strlcpy(rule->tagname, krule->tagname, sizeof(rule->tagname));
-	strlcpy(rule->match_tagname, krule->match_tagname,
-	    sizeof(rule->match_tagname));
-	strlcpy(rule->overload_tblname, krule->overload_tblname,
-	    sizeof(rule->overload_tblname));
-
-	pf_kpool_to_pool(&krule->rpool, &rule->rpool);
-
-	rule->evaluations = pf_counter_u64_fetch(&krule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		rule->packets[i] = pf_counter_u64_fetch(&krule->packets[i]);
-		rule->bytes[i] = pf_counter_u64_fetch(&krule->bytes[i]);
-	}
-
-	/* kif, anchor, overload_tbl are not copied over. */
-
-	rule->os_fingerprint = krule->os_fingerprint;
-
-	rule->rtableid = krule->rtableid;
-	bcopy(krule->timeout, rule->timeout, sizeof(krule->timeout));
-	rule->max_states = krule->max_states;
-	rule->max_src_nodes = krule->max_src_nodes;
-	rule->max_src_states = krule->max_src_states;
-	rule->max_src_conn = krule->max_src_conn;
-	rule->max_src_conn_rate.limit = krule->max_src_conn_rate.limit;
-	rule->max_src_conn_rate.seconds = krule->max_src_conn_rate.seconds;
-	rule->qid = krule->qid;
-	rule->pqid = krule->pqid;
-	rule->nr = krule->nr;
-	rule->prob = krule->prob;
-	rule->cuid = krule->cuid;
-	rule->cpid = krule->cpid;
-
-	rule->return_icmp = krule->return_icmp;
-	rule->return_icmp6 = krule->return_icmp6;
-	rule->max_mss = krule->max_mss;
-	rule->tag = krule->tag;
-	rule->match_tag = krule->match_tag;
-	rule->scrub_flags = krule->scrub_flags;
-
-	bcopy(&krule->uid, &rule->uid, sizeof(krule->uid));
-	bcopy(&krule->gid, &rule->gid, sizeof(krule->gid));
-
-	rule->rule_flag = krule->rule_flag;
-	rule->action = krule->action;
-	rule->direction = krule->direction;
-	rule->log = krule->log;
-	rule->logif = krule->logif;
-	rule->quick = krule->quick;
-	rule->ifnot = krule->ifnot;
-	rule->match_tag_not = krule->match_tag_not;
-	rule->natpass = krule->natpass;
-
-	rule->keep_state = krule->keep_state;
-	rule->af = krule->af;
-	rule->proto = krule->proto;
-	rule->type = krule->type;
-	rule->code = krule->code;
-	rule->flags = krule->flags;
-	rule->flagset = krule->flagset;
-	rule->min_ttl = krule->min_ttl;
-	rule->allow_opts = krule->allow_opts;
-	rule->rt = krule->rt;
-	rule->return_ttl = krule->return_ttl;
-	rule->tos = krule->tos;
-	rule->set_tos = krule->set_tos;
-	rule->anchor_relative = krule->anchor_relative;
-	rule->anchor_wildcard = krule->anchor_wildcard;
-
-	rule->flush = krule->flush;
-	rule->prio = krule->prio;
-	rule->set_prio[0] = krule->set_prio[0];
-	rule->set_prio[1] = krule->set_prio[1];
-
-	bcopy(&krule->divert, &rule->divert, sizeof(krule->divert));
-
-	rule->u_states_cur = counter_u64_fetch(krule->states_cur);
-	rule->u_states_tot = counter_u64_fetch(krule->states_tot);
-	rule->u_src_nodes = counter_u64_fetch(krule->src_nodes);
 }
 
 static int
@@ -2120,31 +2005,6 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	krule->set_prio[1] = rule->set_prio[1];
 
 	bcopy(&rule->divert, &krule->divert, sizeof(krule->divert));
-
-	return (0);
-}
-
-static int
-pf_state_kill_to_kstate_kill(const struct pfioc_state_kill *psk,
-    struct pf_kstate_kill *kill)
-{
-	int ret;
-
-	bzero(kill, sizeof(*kill));
-
-	bcopy(&psk->psk_pfcmp, &kill->psk_pfcmp, sizeof(kill->psk_pfcmp));
-	kill->psk_af = psk->psk_af;
-	kill->psk_proto = psk->psk_proto;
-	bcopy(&psk->psk_src, &kill->psk_src, sizeof(kill->psk_src));
-	bcopy(&psk->psk_dst, &kill->psk_dst, sizeof(kill->psk_dst));
-	ret = pf_user_strcpy(kill->psk_ifname, psk->psk_ifname,
-	    sizeof(kill->psk_ifname));
-	if (ret != 0)
-		return (ret);
-	ret = pf_user_strcpy(kill->psk_label, psk->psk_label,
-	    sizeof(kill->psk_label));
-	if (ret != 0)
-		return (ret);
 
 	return (0);
 }
@@ -2488,14 +2348,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	if (securelevel_gt(td->td_ucred, 2))
 		switch (cmd) {
 		case DIOCGETRULES:
-		case DIOCGETRULE:
 		case DIOCGETRULENV:
 		case DIOCGETADDRS:
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
 		case DIOCGETSTATENV:
 		case DIOCSETSTATUSIF:
-		case DIOCGETSTATUS:
 		case DIOCGETSTATUSNV:
 		case DIOCCLRSTATUS:
 		case DIOCNATLOOK:
@@ -2557,7 +2415,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
 		case DIOCGETSTATENV:
-		case DIOCGETSTATUS:
 		case DIOCGETSTATUSNV:
 		case DIOCGETSTATES:
 		case DIOCGETSTATESV2:
@@ -2604,11 +2461,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				break; /* dummy operation ok */
 			}
 			return (EACCES);
-		case DIOCGETRULE:
-			if (((struct pfioc_rule *)addr)->action ==
-			    PF_GET_CLR_CNTR)
-				return (EACCES);
-			break;
 		default:
 			return (EACCES);
 		}
@@ -3253,63 +3105,6 @@ DIOCADDRULENV_error:
 		break;
 	}
 
-	case DIOCGETRULE: {
-		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
-		struct pf_kruleset	*ruleset;
-		struct pf_krule		*rule;
-		int			 rs_num;
-
-		pr->anchor[sizeof(pr->anchor) - 1] = 0;
-
-		PF_RULES_WLOCK();
-		ruleset = pf_find_kruleset(pr->anchor);
-		if (ruleset == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		rs_num = pf_get_ruleset_number(pr->rule.action);
-		if (rs_num >= PF_RULESET_MAX) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		if (pr->ticket != ruleset->rules[rs_num].active.ticket) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-		rule = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
-		while ((rule != NULL) && (rule->nr != pr->nr))
-			rule = TAILQ_NEXT(rule, entries);
-		if (rule == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-
-		pf_krule_to_rule(rule, &pr->rule);
-
-		if (pf_kanchor_copyout(ruleset, rule, pr)) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-		pf_addr_copyout(&pr->rule.src.addr);
-		pf_addr_copyout(&pr->rule.dst.addr);
-
-		if (pr->action == PF_GET_CLR_CNTR) {
-			pf_counter_u64_zero(&rule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				pf_counter_u64_zero(&rule->packets[i]);
-				pf_counter_u64_zero(&rule->bytes[i]);
-			}
-			counter_u64_zero(rule->states_tot);
-		}
-		PF_RULES_WUNLOCK();
-		break;
-	}
-
 	case DIOCGETRULENV: {
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvrule = NULL;
@@ -3694,33 +3489,8 @@ DIOCCHANGERULE_error:
 		break;
 	}
 
-	case DIOCCLRSTATES: {
-		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
-		struct pf_kstate_kill	 kill;
-
-		error = pf_state_kill_to_kstate_kill(psk, &kill);
-		if (error)
-			break;
-
-		psk->psk_killed = pf_clear_states(&kill);
-		break;
-	}
-
 	case DIOCCLRSTATESNV: {
 		error = pf_clearstates_nv((struct pfioc_nv *)addr);
-		break;
-	}
-
-	case DIOCKILLSTATES: {
-		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
-		struct pf_kstate_kill	 kill;
-
-		error = pf_state_kill_to_kstate_kill(psk, &kill);
-		if (error)
-			break;
-
-		psk->psk_killed = 0;
-		pf_killstates(&kill, &psk->psk_killed);
 		break;
 	}
 
@@ -3918,39 +3688,6 @@ DIOCGETSTATESV2_full:
 		ps->ps_len = nr * sizeof(struct pf_state_export);
 		free(pstore, M_TEMP);
 
-		break;
-	}
-
-	case DIOCGETSTATUS: {
-		struct pf_status *s = (struct pf_status *)addr;
-
-		PF_RULES_RLOCK();
-		s->running = V_pf_status.running;
-		s->since   = V_pf_status.since;
-		s->debug   = V_pf_status.debug;
-		s->hostid  = V_pf_status.hostid;
-		s->states  = V_pf_status.states;
-		s->src_nodes = V_pf_status.src_nodes;
-
-		for (int i = 0; i < PFRES_MAX; i++)
-			s->counters[i] =
-			    counter_u64_fetch(V_pf_status.counters[i]);
-		for (int i = 0; i < LCNT_MAX; i++)
-			s->lcounters[i] =
-			    counter_u64_fetch(V_pf_status.lcounters[i]);
-		for (int i = 0; i < FCNT_MAX; i++)
-			s->fcounters[i] =
-			    pf_counter_u64_fetch(&V_pf_status.fcounters[i]);
-		for (int i = 0; i < SCNT_MAX; i++)
-			s->scounters[i] =
-			    counter_u64_fetch(V_pf_status.scounters[i]);
-
-		bcopy(V_pf_status.ifname, s->ifname, IFNAMSIZ);
-		bcopy(V_pf_status.pf_chksum, s->pf_chksum,
-		    PF_MD5_DIGEST_LENGTH);
-
-		pfi_update_status(s->ifname, s);
-		PF_RULES_RUNLOCK();
 		break;
 	}
 

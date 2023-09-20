@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +36,7 @@ pqisrc_put_tag(pqi_taglist_t *taglist, uint32_t elem)
 {
 
 	OS_ACQUIRE_SPINLOCK(&(taglist->lock));
-	DBG_FUNC("IN\n");
+/*	DBG_FUNC("IN\n");*/
 
 	ASSERT(taglist->num_elem < taglist->max_elem);
 
@@ -48,7 +48,7 @@ pqisrc_put_tag(pqi_taglist_t *taglist, uint32_t elem)
 
 	OS_RELEASE_SPINLOCK(&taglist->lock);
 
-	DBG_FUNC("OUT\n");
+/*	DBG_FUNC("OUT\n");*/
 }
 
 /*
@@ -101,14 +101,14 @@ pqisrc_init_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist,
 		goto err_out;
 	}
 
-	os_strlcpy(taglist->lockname, "tag_lock",  LOCKNAME_SIZE);
-	ret = os_init_spinlock(softs, &taglist->lock, taglist->lockname);
-	if(ret){
-		DBG_ERR("tag lock initialization failed\n");
-		taglist->lockcreated=false;
-		goto err_lock;
+    os_strlcpy(taglist->lockname, "tag_lock",  LOCKNAME_SIZE);
+    ret = os_init_spinlock(softs, &taglist->lock, taglist->lockname);
+    if(ret){
+        DBG_ERR("tag lock initialization failed\n");
+        taglist->lockcreated=false;
+        goto err_lock;
 	}
-	taglist->lockcreated = true;
+    taglist->lockcreated = true;
 
 	/* indices 1 to max_elem are considered as valid tags */
 	for (i=1; i <= max_elem; i++) {
@@ -120,8 +120,8 @@ pqisrc_init_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist,
 	return ret;
 
 err_lock:
-	os_mem_free(softs, (char *)taglist->elem_array,
-		(taglist->max_elem * sizeof(uint32_t)));
+    os_mem_free(softs, (char *)taglist->elem_array,
+        (taglist->max_elem * sizeof(uint32_t)));
 	taglist->elem_array = NULL;
 err_out:
 	DBG_FUNC("OUT failed\n");
@@ -139,10 +139,10 @@ pqisrc_destroy_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist)
 		(taglist->max_elem * sizeof(uint32_t)));
 	taglist->elem_array = NULL;
 
-	if(taglist->lockcreated==true){
-		os_uninit_spinlock(&taglist->lock);
-		taglist->lockcreated = false;
-	}
+    if(taglist->lockcreated==true){
+        os_uninit_spinlock(&taglist->lock);
+        taglist->lockcreated = false;
+    }
 
 	DBG_FUNC("OUT\n");
 }
@@ -215,7 +215,7 @@ pqisrc_put_tag(lockless_stack_t *stack, uint32_t index)
    union head_list cur_head, new_head;
 
 	DBG_FUNC("IN\n");
- 	DBG_INFO("push tag :%d\n",index);
+ 	DBG_INFO("push tag :%u\n",index);
 
 	if (index >= stack->max_elem) {
 		ASSERT(false);
@@ -264,7 +264,7 @@ pqisrc_get_tag(lockless_stack_t *stack)
  	stack->next_index_array[cur_head.top.index] = 0;
 	stack->num_elem--;
 
-	DBG_INFO("pop tag: %d\n",cur_head.top.index);
+	DBG_INFO("pop tag: %u\n",cur_head.top.index);
  	DBG_FUNC("OUT\n");
 	return cur_head.top.index; /*tag*/
 }

@@ -1565,10 +1565,27 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 void
 pf_normalize_tcp_cleanup(struct pf_kstate *state)
 {
+	/* XXX Note: this also cleans up SCTP. */
 	uma_zfree(V_pf_state_scrub_z, state->src.scrub);
 	uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
+}
+int
+pf_normalize_sctp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
+	    struct pf_state_peer *src, struct pf_state_peer *dst)
+{
+	src->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
+	if (src->scrub == NULL)
+		return (1);
+
+	dst->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
+	if (dst->scrub == NULL) {
+		uma_zfree(V_pf_state_scrub_z, src);
+		return (1);
+	}
+
+	return (0);
 }
 
 int
@@ -2021,11 +2038,13 @@ pf_normalize_mss(struct mbuf *m, int off, struct pf_pdesc *pd)
 }
 
 static int
-pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd)
+pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd,
+    struct pfi_kkif *kif)
 {
 	struct sctp_chunkhdr ch = { };
 	int chunk_off = sizeof(struct sctphdr);
 	int chunk_start;
+	int ret;
 
 	while (off + chunk_off < pd->tot_len) {
 		if (!pf_pull_hdr(m, off + chunk_off, &ch, sizeof(ch), NULL,
@@ -2040,7 +2059,8 @@ pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd)
 		chunk_off += roundup(ntohs(ch.chunk_length), 4);
 
 		switch (ch.chunk_type) {
-		case SCTP_INITIATION: {
+		case SCTP_INITIATION:
+		case SCTP_INITIATION_ACK: {
 			struct sctp_init_chunk init;
 
 			if (!pf_pull_hdr(m, off + chunk_start, &init,
@@ -2064,17 +2084,24 @@ pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd)
 			 * RFC 9260, Section 3.1, INIT chunks MUST have zero
 			 * verification tag.
 			 */
-			if (pd->hdr.sctp.v_tag != 0)
+			if (ch.chunk_type == SCTP_INITIATION &&
+			    pd->hdr.sctp.v_tag != 0)
 				return (PF_DROP);
 
 			pd->sctp_initiate_tag = init.init.initiate_tag;
 
-			pd->sctp_flags |= PFDESC_SCTP_INIT;
+			if (ch.chunk_type == SCTP_INITIATION)
+				pd->sctp_flags |= PFDESC_SCTP_INIT;
+			else
+				pd->sctp_flags |= PFDESC_SCTP_INIT_ACK;
+
+			ret = pf_multihome_scan_init(m, off + chunk_start,
+			    ntohs(init.ch.chunk_length), pd, kif);
+			if (ret != PF_PASS)
+				return (ret);
+
 			break;
 		}
-		case SCTP_INITIATION_ACK:
-			pd->sctp_flags |= PFDESC_SCTP_INIT_ACK;
-			break;
 		case SCTP_ABORT_ASSOCIATION:
 			pd->sctp_flags |= PFDESC_SCTP_ABORT;
 			break;
@@ -2091,6 +2118,14 @@ pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd)
 			break;
 		case SCTP_DATA:
 			pd->sctp_flags |= PFDESC_SCTP_DATA;
+			break;
+		case SCTP_ASCONF:
+			pd->sctp_flags |= PFDESC_SCTP_ASCONF;
+
+			ret = pf_multihome_scan_asconf(m, off + chunk_start,
+			    ntohs(ch.chunk_length), pd, kif);
+			if (ret != PF_PASS)
+				return (ret);
 			break;
 		default:
 			pd->sctp_flags |= PFDESC_SCTP_OTHER;
@@ -2133,7 +2168,7 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 
 	/* Unconditionally scan the SCTP packet, because we need to look for
 	 * things like shutdown and asconf chunks. */
-	if (pf_scan_sctp(m, ipoff, off, pd) != PF_PASS)
+	if (pf_scan_sctp(m, ipoff, off, pd, kif) != PF_PASS)
 		goto sctp_drop;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);

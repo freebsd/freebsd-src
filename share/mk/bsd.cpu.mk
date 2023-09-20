@@ -148,7 +148,9 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 
 ########## i386
 . if ${MACHINE_CPUARCH} == "i386"
-.  if ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
+.  if ${CPUTYPE} == "znver4"
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+.  elif ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
     ${CPUTYPE} == "znver1"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "bdver4"
@@ -229,7 +231,9 @@ MACHINE_CPU = mmx
 MACHINE_CPU += i486
 ########## amd64
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
+.  if ${CPUTYPE} == "znver4"
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3
+.  elif ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
     ${CPUTYPE} == "znver1"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "bdver4"
