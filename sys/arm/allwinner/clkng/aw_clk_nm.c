@@ -136,7 +136,7 @@ static uint64_t
 aw_clk_nm_find_best(struct aw_clk_nm_sc *sc, uint64_t fparent, uint64_t *fout,
     uint32_t *factor_n, uint32_t *factor_m)
 {
-	uint64_t cur, best;
+	uint64_t cur, best = 0;
 	uint32_t m, n, max_m, max_n, min_m, min_n;
 
 	*factor_n = *factor_m = 0;
