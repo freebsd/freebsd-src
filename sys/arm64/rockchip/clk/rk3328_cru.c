@@ -46,6 +46,7 @@
 #include <arm64/rockchip/clk/rk_cru.h>
 
 #define	CRU_CLKSEL_CON(x)	(0x100 + (x) * 0x4)
+#define	CRU_CLKGATE_CON(x)	(0x200 + (x) * 0x4)
 
 /* Registers */
 #define	RK3328_GRF_SOC_CON4	0x410
@@ -250,100 +251,100 @@
 
 static struct rk_cru_gate rk3328_gates[] = {
 	/* CRU_CLKGATE_CON0 */
-	CRU_GATE(0, "core_apll_clk", "apll", 0x200, 0)
-	CRU_GATE(0, "core_dpll_clk", "dpll", 0x200, 1)
-	CRU_GATE(0, "core_gpll_clk", "gpll", 0x200, 2)
+	GATE(0, "core_apll_clk", "apll", 0, 0),
+	GATE(0, "core_dpll_clk", "dpll", 0, 1),
+	GATE(0, "core_gpll_clk", "gpll", 0, 2),
 	/* Bit 3 bus_src_clk_en */
 	/* Bit 4 clk_ddrphy_src_en */
 	/* Bit 5 clk_ddrpd_src_en */
 	/* Bit 6 clk_ddrmon_en */
 	/* Bit 7-8 unused */
 	/* Bit 9 testclk_en */
-	CRU_GATE(SCLK_WIFI, "sclk_wifi", "sclk_wifi_c", 0x200, 10)
-	CRU_GATE(SCLK_RTC32K, "clk_rtc32k", "clk_rtc32k_c", 0x200, 11)
-	CRU_GATE(0, "core_npll_clk", "npll", 0x200, 12)
+	GATE(SCLK_WIFI, "sclk_wifi", "sclk_wifi_c", 0, 10),
+	GATE(SCLK_RTC32K, "clk_rtc32k", "clk_rtc32k_c", 0, 11),
+	GATE(0, "core_npll_clk", "npll", 0, 12),
 	/* Bit 13-15 unused */
 
 	/* CRU_CLKGATE_CON1 */
 	/* Bit 0 unused */
-	CRU_GATE(0, "clk_i2s0_div", "clk_i2s0_div_c", 0x204, 1)
-	CRU_GATE(0, "clk_i2s0_frac", "clk_i2s0_frac_f", 0x204, 2)
-	CRU_GATE(SCLK_I2S0, "clk_i2s0", "clk_i2s0_mux", 0x204, 3)
-	CRU_GATE(0, "clk_i2s1_div", "clk_i2s1_div_c", 0x204, 4)
-	CRU_GATE(0, "clk_i2s1_frac", "clk_i2s1_frac_f", 0x204, 5)
-	CRU_GATE(SCLK_I2S1, "clk_i2s1", "clk_i2s1_mux", 0x204, 6)
-	CRU_GATE(0, "clk_i2s1_out", "clk_i2s1_mux", 0x204, 7)
-	CRU_GATE(0, "clk_i2s2_div", "clk_i2s2_div_c", 0x204, 8)
-	CRU_GATE(0, "clk_i2s2_frac", "clk_i2s2_frac_f", 0x204, 9)
-	CRU_GATE(SCLK_I2S2, "clk_i2s2", "clk_i2s2_mux", 0x204, 10)
-	CRU_GATE(0, "clk_i2s2_out", "clk_i2s2_mux", 0x204, 11)
-	CRU_GATE(0, "clk_spdif_div", "clk_spdif_div_c", 0x204, 12)
-	CRU_GATE(0, "clk_spdif_frac", "clk_spdif_frac_f", 0x204, 13)
-	CRU_GATE(0, "clk_uart0_div", "clk_uart0_div_c", 0x204, 14)
-	CRU_GATE(0, "clk_uart0_frac", "clk_uart0_frac_f", 0x204, 15)
+	GATE(0, "clk_i2s0_div", "clk_i2s0_div_c", 1, 1),
+	GATE(0, "clk_i2s0_frac", "clk_i2s0_frac_f", 1, 2),
+	GATE(SCLK_I2S0, "clk_i2s0", "clk_i2s0_mux", 1, 3),
+	GATE(0, "clk_i2s1_div", "clk_i2s1_div_c", 1, 4),
+	GATE(0, "clk_i2s1_frac", "clk_i2s1_frac_f", 1, 5),
+	GATE(SCLK_I2S1, "clk_i2s1", "clk_i2s1_mux", 1, 6),
+	GATE(0, "clk_i2s1_out", "clk_i2s1_mux", 1, 7),
+	GATE(0, "clk_i2s2_div", "clk_i2s2_div_c", 1, 8),
+	GATE(0, "clk_i2s2_frac", "clk_i2s2_frac_f", 1, 9),
+	GATE(SCLK_I2S2, "clk_i2s2", "clk_i2s2_mux", 1, 10),
+	GATE(0, "clk_i2s2_out", "clk_i2s2_mux", 1, 11),
+	GATE(0, "clk_spdif_div", "clk_spdif_div_c", 1, 12),
+	GATE(0, "clk_spdif_frac", "clk_spdif_frac_f", 1, 13),
+	GATE(0, "clk_uart0_div", "clk_uart0_div_c", 1, 14),
+	GATE(0, "clk_uart0_frac", "clk_uart0_frac_f", 1, 15),
 
 	/* CRU_CLKGATE_CON2 */
-	CRU_GATE(0, "clk_uart1_div", "clk_uart1_div_c", 0x208, 0)
-	CRU_GATE(0, "clk_uart1_frac", "clk_uart1_frac_f", 0x208, 1)
-	CRU_GATE(0, "clk_uart2_div", "clk_uart2_div_c", 0x208, 2)
-	CRU_GATE(0, "clk_uart2_frac", "clk_uart2_frac_f", 0x208, 3)
-	CRU_GATE(SCLK_CRYPTO, "clk_crypto", "clk_crypto_c", 0x208, 4)
-	CRU_GATE(SCLK_TSP, "clk_tsp", "clk_tsp_c", 0x208, 5)
-	CRU_GATE(SCLK_TSADC, "clk_tsadc_src", "clk_tsadc_c", 0x208, 6)
-	CRU_GATE(SCLK_SPI, "clk_spi", "clk_spi_c", 0x208, 7)
-	CRU_GATE(SCLK_PWM, "clk_pwm", "clk_pwm_c", 0x208, 8)
-	CRU_GATE(SCLK_I2C0, "clk_i2c0_src", "clk_i2c0_c", 0x208, 9)
-	CRU_GATE(SCLK_I2C1, "clk_i2c1_src", "clk_i2c1_c", 0x208, 10)
-	CRU_GATE(SCLK_I2C2, "clk_i2c2_src", "clk_i2c2_c", 0x208, 11)
-	CRU_GATE(SCLK_I2C3, "clk_i2c3_src", "clk_i2c3_c", 0x208, 12)
-	CRU_GATE(SCLK_EFUSE, "clk_efuse", "clk_efuse_c", 0x208, 13)
-	CRU_GATE(SCLK_SARADC, "clk_saradc", "clk_saradc_c", 0x208, 14)
-	CRU_GATE(SCLK_PDM, "clk_pdm", "clk_pdm_c", 0x208, 15)
+	GATE(0, "clk_uart1_div", "clk_uart1_div_c", 2, 0),
+	GATE(0, "clk_uart1_frac", "clk_uart1_frac_f", 2, 1),
+	GATE(0, "clk_uart2_div", "clk_uart2_div_c", 2, 2),
+	GATE(0, "clk_uart2_frac", "clk_uart2_frac_f", 2, 3),
+	GATE(SCLK_CRYPTO, "clk_crypto", "clk_crypto_c", 2, 4),
+	GATE(SCLK_TSP, "clk_tsp", "clk_tsp_c", 2, 5),
+	GATE(SCLK_TSADC, "clk_tsadc_src", "clk_tsadc_c", 2, 6),
+	GATE(SCLK_SPI, "clk_spi", "clk_spi_c", 2, 7),
+	GATE(SCLK_PWM, "clk_pwm", "clk_pwm_c", 2, 8),
+	GATE(SCLK_I2C0, "clk_i2c0_src", "clk_i2c0_c", 2, 9),
+	GATE(SCLK_I2C1, "clk_i2c1_src", "clk_i2c1_c", 2, 10),
+	GATE(SCLK_I2C2, "clk_i2c2_src", "clk_i2c2_c", 2, 11),
+	GATE(SCLK_I2C3, "clk_i2c3_src", "clk_i2c3_c", 2, 12),
+	GATE(SCLK_EFUSE, "clk_efuse", "clk_efuse_c", 2, 13),
+	GATE(SCLK_SARADC, "clk_saradc", "clk_saradc_c", 2, 14),
+	GATE(SCLK_PDM, "clk_pdm", "clk_pdm_c", 2, 15),
 
 	/* CRU_CLKGATE_CON3 */
-	CRU_GATE(SCLK_MAC2PHY_SRC, "clk_mac2phy_src", "clk_mac2phy_src_c", 0x20c, 0)
-	CRU_GATE(SCLK_MAC2IO_SRC, "clk_mac2io_src", "clk_mac2io_src_c", 0x20c, 1)
-	CRU_GATE(ACLK_GMAC, "aclk_gmac", "aclk_gmac_c", 0x20c, 2)
+	GATE(SCLK_MAC2PHY_SRC, "clk_mac2phy_src", "clk_mac2phy_src_c", 3, 0),
+	GATE(SCLK_MAC2IO_SRC, "clk_mac2io_src", "clk_mac2io_src_c", 3, 1),
+	GATE(ACLK_GMAC, "aclk_gmac", "aclk_gmac_c", 3, 2),
 	/* Bit 3 gmac_gpll_src_en Unused ? */
 	/* Bit 4 gmac_vpll_src_en Unused ? */
-	CRU_GATE(SCLK_MAC2IO_OUT, "clk_mac2io_out", "clk_mac2io_out_c", 0x20c, 5)
+	GATE(SCLK_MAC2IO_OUT, "clk_mac2io_out", "clk_mac2io_out_c", 3, 5),
 	/* Bit 6-7 unused */
-	CRU_GATE(SCLK_OTP, "clk_otp", "clk_otp_c", 0x20c, 8)
+	GATE(SCLK_OTP, "clk_otp", "clk_otp_c", 3, 8),
 	/* Bit 9-15 unused */
 
 	/* CRU_CLKGATE_CON4 */
-	CRU_GATE(0, "periph_gclk_src", "gpll", 0x210, 0)
-	CRU_GATE(0, "periph_cclk_src", "cpll", 0x210, 1)
-	CRU_GATE(0, "hdmiphy_peri", "hdmiphy", 0x210, 2)
-	CRU_GATE(SCLK_SDMMC, "clk_mmc0_src", "clk_sdmmc_c", 0x210, 3)
-	CRU_GATE(SCLK_SDIO, "clk_sdio_src", "clk_sdio_c", 0x210, 4)
-	CRU_GATE(SCLK_EMMC, "clk_emmc_src", "clk_emmc_c", 0x210, 5)
-	CRU_GATE(SCLK_REF_USB3OTG_SRC, "clk_ref_usb3otg_src", "clk_ref_usb3otg_src_c", 0x210, 6)
-	CRU_GATE(SCLK_USB3OTG_REF, "clk_usb3_otg0_ref", "xin24m", 0x210, 7)
-	CRU_GATE(SCLK_USB3OTG_SUSPEND, "clk_usb3otg_suspend", "clk_usb3otg_suspend_c", 0x210, 8)
+	GATE(0, "periph_gclk_src", "gpll", 4, 0),
+	GATE(0, "periph_cclk_src", "cpll", 4, 1),
+	GATE(0, "hdmiphy_peri", "hdmiphy", 4, 2),
+	GATE(SCLK_SDMMC, "clk_mmc0_src", "clk_sdmmc_c", 4, 3),
+	GATE(SCLK_SDIO, "clk_sdio_src", "clk_sdio_c", 4, 4),
+	GATE(SCLK_EMMC, "clk_emmc_src", "clk_emmc_c", 4, 5),
+	GATE(SCLK_REF_USB3OTG_SRC, "clk_ref_usb3otg_src", "clk_ref_usb3otg_src_c", 4, 6),
+	GATE(SCLK_USB3OTG_REF, "clk_usb3_otg0_ref", "xin24m", 4, 7),
+	GATE(SCLK_USB3OTG_SUSPEND, "clk_usb3otg_suspend", "clk_usb3otg_suspend_c", 4, 8),
 	/* Bit 9 clk_usb3phy_ref_25m_en */
-	CRU_GATE(SCLK_SDMMC_EXT, "clk_sdmmc_ext", "clk_sdmmc_ext_c", 0x210, 10)
+	GATE(SCLK_SDMMC_EXT, "clk_sdmmc_ext", "clk_sdmmc_ext_c", 4, 10),
 	/* Bit 11-15 unused */
 
 	/* CRU_CLKGATE_CON5 */
-	CRU_GATE(ACLK_RGA_PRE, "aclk_rga_pre", "aclk_rga_pre_c", 0x214, 0)
-	CRU_GATE(SCLK_RGA, "sclk_rga", "sclk_rga_c", 0x214, 0)
-	CRU_GATE(ACLK_VIO_PRE, "aclk_vio_pre", "aclk_vio_pre_c", 0x214, 2)
-	CRU_GATE(SCLK_CIF_OUT, "clk_cif_src", "clk_cif_src_c", 0x214, 3)
-	CRU_GATE(SCLK_HDMI_SFC, "clk_hdmi_sfc", "xin24m", 0x214, 4)
-	CRU_GATE(ACLK_VOP_PRE, "aclk_vop_pre", "aclk_vop_pre_c", 0x214, 5)
-	CRU_GATE(DCLK_LCDC_SRC, "vop_dclk_src", "vop_dclk_src_c", 0x214, 6)
+	GATE(ACLK_RGA_PRE, "aclk_rga_pre", "aclk_rga_pre_c", 5, 0),
+	GATE(SCLK_RGA, "sclk_rga", "sclk_rga_c", 5, 0),
+	GATE(ACLK_VIO_PRE, "aclk_vio_pre", "aclk_vio_pre_c", 5, 2),
+	GATE(SCLK_CIF_OUT, "clk_cif_src", "clk_cif_src_c", 5, 3),
+	GATE(SCLK_HDMI_SFC, "clk_hdmi_sfc", "xin24m", 5, 4),
+	GATE(ACLK_VOP_PRE, "aclk_vop_pre", "aclk_vop_pre_c", 5, 5),
+	GATE(DCLK_LCDC_SRC, "vop_dclk_src", "vop_dclk_src_c", 5, 6),
 	/* Bit 7-15 unused */
 
 	/* CRU_CLKGATE_CON6 */
-	CRU_GATE(ACLK_RKVDEC_PRE, "aclk_rkvdec_pre", "aclk_rkvdec_c", 0x218, 0)
-	CRU_GATE(SCLK_VDEC_CABAC, "sclk_cabac", "sclk_cabac_c", 0x218, 1)
-	CRU_GATE(SCLK_VDEC_CORE, "sclk_vdec_core", "sclk_vdec_core_c", 0x218, 2)
-	CRU_GATE(ACLK_RKVENC, "aclk_rkvenc", "aclk_rkvenc_c", 0x218, 3)
-	CRU_GATE(SCLK_VENC_CORE, "sclk_venc", "sclk_venc_c", 0x218, 4)
-	CRU_GATE(ACLK_VPU_PRE, "aclk_vpu_pre", "aclk_vpu_pre_c", 0x218, 5)
-	CRU_GATE(0, "aclk_gpu_pre", "aclk_gpu_pre_c", 0x218, 6)
-	CRU_GATE(SCLK_VENC_DSP, "sclk_venc_dsp", "sclk_venc_dsp_c", 0x218, 7)
+	GATE(ACLK_RKVDEC_PRE, "aclk_rkvdec_pre", "aclk_rkvdec_c", 6, 0),
+	GATE(SCLK_VDEC_CABAC, "sclk_cabac", "sclk_cabac_c", 6, 1),
+	GATE(SCLK_VDEC_CORE, "sclk_vdec_core", "sclk_vdec_core_c", 6, 2),
+	GATE(ACLK_RKVENC, "aclk_rkvenc", "aclk_rkvenc_c", 6, 3),
+	GATE(SCLK_VENC_CORE, "sclk_venc", "sclk_venc_c", 6, 4),
+	GATE(ACLK_VPU_PRE, "aclk_vpu_pre", "aclk_vpu_pre_c", 6, 5),
+	GATE(0, "aclk_gpu_pre", "aclk_gpu_pre_c", 6, 6),
+	GATE(SCLK_VENC_DSP, "sclk_venc_dsp", "sclk_venc_dsp_c", 6, 7),
 	/* Bit 8-15 unused */
 
 	/* CRU_CLKGATE_CON7 */
@@ -355,42 +356,42 @@ static struct rk_cru_gate rk3328_gates[] = {
 	/* Bit 5-15 unused */
 
 	/* CRU_CLKGATE_CON8 */
-	CRU_GATE(ACLK_BUS_PRE, "aclk_bus_pre", "aclk_bus_pre_c", 0x220, 0)
-	CRU_GATE(HCLK_BUS_PRE, "hclk_bus_pre", "hclk_bus_pre_c", 0x220, 1)
-	CRU_GATE(PCLK_BUS_PRE, "pclk_bus_pre", "pclk_bus_pre_c", 0x220, 2)
-	CRU_GATE(0, "pclk_bus", "pclk_bus_pre", 0x220, 3)
-	CRU_GATE(0, "pclk_phy", "pclk_bus_pre", 0x220, 4)
-	CRU_GATE(SCLK_TIMER0, "sclk_timer0", "xin24m", 0x220, 5)
-	CRU_GATE(SCLK_TIMER1, "sclk_timer1", "xin24m", 0x220, 6)
-	CRU_GATE(SCLK_TIMER2, "sclk_timer2", "xin24m", 0x220, 7)
-	CRU_GATE(SCLK_TIMER3, "sclk_timer3", "xin24m", 0x220, 8)
-	CRU_GATE(SCLK_TIMER4, "sclk_timer4", "xin24m", 0x220, 9)
-	CRU_GATE(SCLK_TIMER5, "sclk_timer5", "xin24m", 0x220, 10)
+	GATE(ACLK_BUS_PRE, "aclk_bus_pre", "aclk_bus_pre_c", 8, 0),
+	GATE(HCLK_BUS_PRE, "hclk_bus_pre", "hclk_bus_pre_c", 8, 1),
+	GATE(PCLK_BUS_PRE, "pclk_bus_pre", "pclk_bus_pre_c", 8, 2),
+	GATE(0, "pclk_bus", "pclk_bus_pre", 8, 3),
+	GATE(0, "pclk_phy", "pclk_bus_pre", 8, 4),
+	GATE(SCLK_TIMER0, "sclk_timer0", "xin24m", 8, 5),
+	GATE(SCLK_TIMER1, "sclk_timer1", "xin24m", 8, 6),
+	GATE(SCLK_TIMER2, "sclk_timer2", "xin24m", 8, 7),
+	GATE(SCLK_TIMER3, "sclk_timer3", "xin24m", 8, 8),
+	GATE(SCLK_TIMER4, "sclk_timer4", "xin24m", 8, 9),
+	GATE(SCLK_TIMER5, "sclk_timer5", "xin24m", 8, 10),
 	/* Bit 11-15 unused */
 
 	/* CRU_CLKGATE_CON9 */
-	CRU_GATE(PCLK_GMAC, "pclk_gmac", "aclk_gmac", 0x224, 0)
-	CRU_GATE(SCLK_MAC2PHY_RXTX, "clk_gmac2phy_rx", "clk_mac2phy", 0x224, 1)
-	CRU_GATE(SCLK_MAC2PHY_OUT, "clk_mac2phy_out", "clk_mac2phy_out_c", 0x224, 2)
-	CRU_GATE(SCLK_MAC2PHY_REF, "clk_gmac2phy_ref", "clk_mac2phy", 0x224, 3)
-	CRU_GATE(SCLK_MAC2IO_RX, "clk_gmac2io_rx", "clk_mac2io", 0x224, 4)
-	CRU_GATE(SCLK_MAC2IO_TX, "clk_gmac2io_tx", "clk_mac2io", 0x224, 5)
-	CRU_GATE(SCLK_MAC2IO_REFOUT, "clk_gmac2io_refout", "clk_mac2io", 0x224, 6)
-	CRU_GATE(SCLK_MAC2IO_REF, "clk_gmac2io_ref", "clk_mac2io", 0x224, 7)
+	GATE(PCLK_GMAC, "pclk_gmac", "aclk_gmac", 9, 0),
+	GATE(SCLK_MAC2PHY_RXTX, "clk_gmac2phy_rx", "clk_mac2phy", 9, 1),
+	GATE(SCLK_MAC2PHY_OUT, "clk_mac2phy_out", "clk_mac2phy_out_c", 9, 2),
+	GATE(SCLK_MAC2PHY_REF, "clk_gmac2phy_ref", "clk_mac2phy", 9, 3),
+	GATE(SCLK_MAC2IO_RX, "clk_gmac2io_rx", "clk_mac2io", 9, 4),
+	GATE(SCLK_MAC2IO_TX, "clk_gmac2io_tx", "clk_mac2io", 9, 5),
+	GATE(SCLK_MAC2IO_REFOUT, "clk_gmac2io_refout", "clk_mac2io", 9, 6),
+	GATE(SCLK_MAC2IO_REF, "clk_gmac2io_ref", "clk_mac2io", 9, 7),
 	/* Bit 8-15 unused */
 
 	/* CRU_CLKGATE_CON10 */
-	CRU_GATE(ACLK_PERI, "aclk_peri", "aclk_peri_pre", 0x228, 0)
-	CRU_GATE(HCLK_PERI, "hclk_peri", "hclk_peri_c", 0x228, 1)
-	CRU_GATE(PCLK_PERI, "pclk_peri", "pclk_peri_c", 0x228, 2)
+	GATE(ACLK_PERI, "aclk_peri", "aclk_peri_pre", 10, 0),
+	GATE(HCLK_PERI, "hclk_peri", "hclk_peri_c", 10, 1),
+	GATE(PCLK_PERI, "pclk_peri", "pclk_peri_c", 10, 2),
 	/* Bit 3-15 unused */
 
 	/* CRU_CLKGATE_CON11 */
-	CRU_GATE(HCLK_RKVDEC_PRE, "hclk_rkvdec_pre", "aclk_rkvdec_pre", 0x22C, 0)
+	GATE(HCLK_RKVDEC_PRE, "hclk_rkvdec_pre", "aclk_rkvdec_pre", 11, 0),
 	/* Bit 1-3 unused */
-	CRU_GATE(HCLK_RKVENC, "hclk_rkvenc", "aclk_rkvenc", 0x22C, 4)
+	GATE(HCLK_RKVENC, "hclk_rkvenc", "aclk_rkvenc", 11, 4),
 	/* Bit 5-7 unused */
-	CRU_GATE(HCLK_VPU_PRE, "hclk_vpu_pre", "aclk_vpu_pre", 0x22C, 8)
+	GATE(HCLK_VPU_PRE, "hclk_vpu_pre", "aclk_vpu_pre", 11, 8),
 	/* Bit 9-15 unused */
 
 	/* CRU_CLKGATE_CON12 */
@@ -402,64 +403,64 @@ static struct rk_cru_gate rk3328_gates[] = {
 	/* Bit 2-15 unused */
 
 	/* CRU_CLKGATE_CON14 */
-	CRU_GATE(ACLK_GPU, "aclk_gpu", "aclk_gpu_pre", 0x238, 0)
-	CRU_GATE(0, "aclk_gpu_niu", "aclk_gpu_pre", 0x238, 1)
+	GATE(ACLK_GPU, "aclk_gpu", "aclk_gpu_pre", 14, 0),
+	GATE(0, "aclk_gpu_niu", "aclk_gpu_pre", 14, 1),
 	/* Bit 2-15 unused */
 
 	/* CRU_CLKGATE_CON15*/
 	/* Bit 0 aclk_intmem_en Unused */
 	/* Bit 1 aclk_dmac_bus_en Unused */
 	/* Bit 2 hclk_rom_en Unused */
-	CRU_GATE(HCLK_I2S0_8CH, "hclk_i2s0_8ch", "hclk_bus_pre", 0x23C, 3)
-	CRU_GATE(HCLK_I2S1_8CH, "hclk_i2s1_8ch", "hclk_bus_pre", 0x23C, 4)
-	CRU_GATE(HCLK_I2S2_2CH, "hclk_i2s2_2ch", "hclk_bus_pre", 0x23C, 5)
-	CRU_GATE(HCLK_SPDIF_8CH, "hclk_spdif_8ch", "hclk_bus_pre", 0x23C, 6)
-	CRU_GATE(HCLK_CRYPTO_MST, "hclk_crypto_mst", "hclk_bus_pre", 0x23C, 7)
-	CRU_GATE(HCLK_CRYPTO_SLV, "hclk_crypto_slv", "hclk_bus_pre", 0x23C, 8)
-	CRU_GATE(0, "pclk_efuse", "pclk_bus", 0x23C, 9)
-	CRU_GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus", 0x23C, 10)
-	CRU_GATE(ACLK_DCF, "aclk_dcf", "aclk_bus_pre", 0x23C, 11)
-	CRU_GATE(0, "aclk_bus_niu", "aclk_bus_pre", 0x23C, 12)
-	CRU_GATE(0, "hclk_bus_niu", "hclk_bus_pre", 0x23C, 13)
-	CRU_GATE(0, "pclk_bus_niu", "pclk_bus_pre", 0x23C, 14)
-	CRU_GATE(0, "pclk_phy_niu", "pclk_phy", 0x23C, 14)
+	GATE(HCLK_I2S0_8CH, "hclk_i2s0_8ch", "hclk_bus_pre", 15, 3),
+	GATE(HCLK_I2S1_8CH, "hclk_i2s1_8ch", "hclk_bus_pre", 15, 4),
+	GATE(HCLK_I2S2_2CH, "hclk_i2s2_2ch", "hclk_bus_pre", 15, 5),
+	GATE(HCLK_SPDIF_8CH, "hclk_spdif_8ch", "hclk_bus_pre", 15, 6),
+	GATE(HCLK_CRYPTO_MST, "hclk_crypto_mst", "hclk_bus_pre", 15, 7),
+	GATE(HCLK_CRYPTO_SLV, "hclk_crypto_slv", "hclk_bus_pre", 15, 8),
+	GATE(0, "pclk_efuse", "pclk_bus", 15, 9),
+	GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus", 15, 10),
+	GATE(ACLK_DCF, "aclk_dcf", "aclk_bus_pre", 15, 11),
+	GATE(0, "aclk_bus_niu", "aclk_bus_pre", 15, 12),
+	GATE(0, "hclk_bus_niu", "hclk_bus_pre", 15, 13),
+	GATE(0, "pclk_bus_niu", "pclk_bus_pre", 15, 14),
+	GATE(0, "pclk_phy_niu", "pclk_phy", 15, 14),
 	/* Bit 15 pclk_phy_niu_en */
 
 	/* CRU_CLKGATE_CON16 */
-	CRU_GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0x240, 0)
-	CRU_GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0x240, 1)
-	CRU_GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 0x240, 2)
-	CRU_GATE(PCLK_TIMER, "pclk_timer0", "pclk_bus", 0x240, 3)
-	CRU_GATE(0, "pclk_stimer", "pclk_bus", 0x240, 4)
-	CRU_GATE(PCLK_SPI, "pclk_spi", "pclk_bus", 0x240, 5)
-	CRU_GATE(PCLK_PWM, "pclk_pwm", "pclk_bus", 0x240, 6)
-	CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7)
-	CRU_GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
-	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
-	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus", 0x240, 10)
-	CRU_GATE(PCLK_UART0, "pclk_uart0", "pclk_bus", 0x240, 11)
-	CRU_GATE(PCLK_UART1, "pclk_uart1", "pclk_bus", 0x240, 12)
-	CRU_GATE(PCLK_UART2, "pclk_uart2", "pclk_bus", 0x240, 13)
-	CRU_GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 0x240, 14)
-	CRU_GATE(PCLK_DCF, "pclk_dcf", "pclk_bus", 0x240, 15)
+	GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 16, 0),
+	GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 16, 1),
+	GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 16, 2),
+	GATE(PCLK_TIMER, "pclk_timer0", "pclk_bus", 16, 3),
+	GATE(0, "pclk_stimer", "pclk_bus", 16, 4),
+	GATE(PCLK_SPI, "pclk_spi", "pclk_bus", 16, 5),
+	GATE(PCLK_PWM, "pclk_pwm", "pclk_bus", 16, 6),
+	GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 16, 7),
+	GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 16, 8),
+	GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 16, 9),
+	GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus", 16, 10),
+	GATE(PCLK_UART0, "pclk_uart0", "pclk_bus", 16, 11),
+	GATE(PCLK_UART1, "pclk_uart1", "pclk_bus", 16, 12),
+	GATE(PCLK_UART2, "pclk_uart2", "pclk_bus", 16, 13),
+	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 16, 14),
+	GATE(PCLK_DCF, "pclk_dcf", "pclk_bus", 16, 15),
 
 	/* CRU_CLKGATE_CON17 */
-	CRU_GATE(PCLK_GRF, "pclk_grf", "pclk_bus", 0x244, 0)
+	GATE(PCLK_GRF, "pclk_grf", "pclk_bus", 17, 0),
 	/* Bit 1 unused */
-	CRU_GATE(PCLK_USB3_GRF, "pclk_usb3grf", "pclk_phy", 0x244, 2)
-	CRU_GATE(0, "pclk_ddrphy", "pclk_phy", 0x244, 3)
-	CRU_GATE(0, "pclk_cru", "pclk_bus", 0x244, 4)
-	CRU_GATE(PCLK_ACODECPHY, "pclk_acodecphy", "pclk_phy", 0x244, 5)
-	CRU_GATE(0, "pclk_sgrf", "pclk_bus", 0x244, 6)
-	CRU_GATE(PCLK_HDMIPHY, "pclk_hdmiphy", "pclk_phy", 0x244, 7)
-	CRU_GATE(0, "pclk_vdacphy", "pclk_bus", 0x244, 8)
+	GATE(PCLK_USB3_GRF, "pclk_usb3grf", "pclk_phy", 17, 2),
+	GATE(0, "pclk_ddrphy", "pclk_phy", 17, 3),
+	GATE(0, "pclk_cru", "pclk_bus", 17, 4),
+	GATE(PCLK_ACODECPHY, "pclk_acodecphy", "pclk_phy", 17, 5),
+	GATE(0, "pclk_sgrf", "pclk_bus", 17, 6),
+	GATE(PCLK_HDMIPHY, "pclk_hdmiphy", "pclk_phy", 17, 7),
+	GATE(0, "pclk_vdacphy", "pclk_bus", 17, 8),
 	/* Bit 9 unused */
-	CRU_GATE(0, "pclk_sim", "pclk_bus", 0x244, 10)
-	CRU_GATE(HCLK_TSP, "hclk_tsp", "hclk_bus_pre", 0x244, 11)
-	CRU_GATE(ACLK_TSP, "aclk_tsp", "aclk_bus_pre", 0x244, 12)
+	GATE(0, "pclk_sim", "pclk_bus", 17, 10),
+	GATE(HCLK_TSP, "hclk_tsp", "hclk_bus_pre", 17, 11),
+	GATE(ACLK_TSP, "aclk_tsp", "aclk_bus_pre", 17, 12),
 	/* Bit 13 clk_hsadc_0_tsp_en Depend on a gpio clock ? */
-	CRU_GATE(PCLK_USB2_GRF, "pclk_usb2grf", "pclk_phy", 0x244, 14)
-	CRU_GATE(PCLK_SARADC, "pclk_saradc", "pclk_bus", 0x244, 15)
+	GATE(PCLK_USB2_GRF, "pclk_usb2grf", "pclk_phy", 17, 14),
+	GATE(PCLK_SARADC, "pclk_saradc", "pclk_bus", 17, 15),
 
 	/* CRU_CLKGATE_CON18 */
 	/* Bit 0 unused */
@@ -473,81 +474,81 @@ static struct rk_cru_gate rk3328_gates[] = {
 	/* Bit 8-15 unused */
 
 	/* CRU_CLKGATE_CON19 */
-	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 0x24C, 0)
-	CRU_GATE(HCLK_SDIO, "hclk_sdio", "hclk_peri", 0x24C, 1)
-	CRU_GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri", 0x24C, 2)
+	GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 19, 0),
+	GATE(HCLK_SDIO, "hclk_sdio", "hclk_peri", 19, 1),
+	GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri", 19, 2),
 	/* Bit 3-5 unused */
-	CRU_GATE(HCLK_HOST0, "hclk_host0", "hclk_peri", 0x24C, 6)
-	CRU_GATE(HCLK_HOST0_ARB, "hclk_host0_arg", "hclk_peri", 0x24C, 7)
-	CRU_GATE(HCLK_OTG, "hclk_otg", "hclk_peri", 0x24C, 8)
-	CRU_GATE(HCLK_OTG_PMU, "hclk_otg_pmu", "hclk_peri", 0x24C, 9)
+	GATE(HCLK_HOST0, "hclk_host0", "hclk_peri", 19, 6),
+	GATE(HCLK_HOST0_ARB, "hclk_host0_arg", "hclk_peri", 19, 7),
+	GATE(HCLK_OTG, "hclk_otg", "hclk_peri", 19, 8),
+	GATE(HCLK_OTG_PMU, "hclk_otg_pmu", "hclk_peri", 19, 9),
 	/* Bit 10 unused */
-	CRU_GATE(0, "aclk_peri_niu", "aclk_peri", 0x24C, 11)
-	CRU_GATE(0, "hclk_peri_niu", "hclk_peri", 0x24C, 12)
-	CRU_GATE(0, "pclk_peri_niu", "hclk_peri", 0x24C, 13)
-	CRU_GATE(ACLK_USB3OTG, "aclk_usb3otg", "aclk_peri", 0x24C, 14)
-	CRU_GATE(HCLK_SDMMC_EXT, "hclk_sdmmc_ext", "hclk_peri", 0x24C, 15)
+	GATE(0, "aclk_peri_niu", "aclk_peri", 19, 11),
+	GATE(0, "hclk_peri_niu", "hclk_peri", 19, 12),
+	GATE(0, "pclk_peri_niu", "hclk_peri", 19, 13),
+	GATE(ACLK_USB3OTG, "aclk_usb3otg", "aclk_peri", 19, 14),
+	GATE(HCLK_SDMMC_EXT, "hclk_sdmmc_ext", "hclk_peri", 19, 15),
 
 	/* CRU_CLKGATE_CON20 */
 	/* unused */
 
 	/* CRU_CLKGATE_CON21 */
 	/* Bit 0-1 unused */
-	CRU_GATE(ACLK_VOP, "aclk_vop", "aclk_vop_pre", 0x254, 2)
-	CRU_GATE(HCLK_VOP, "hclk_vop", "hclk_vio_pre", 0x254, 3)
-	CRU_GATE(0, "aclk_vop_niu", "aclk_vop_pre", 0x254, 4)
-	CRU_GATE(0, "hclk_vop_niu", "hclk_vio_pre", 0x254, 5)
-	CRU_GATE(ACLK_IEP, "aclk_iep", "aclk_vio_pre", 0x254, 6)
-	CRU_GATE(HCLK_IEP, "hclk_iep", "hclk_vio_pre", 0x254, 7)
-	CRU_GATE(ACLK_CIF, "aclk_cif", "aclk_vio_pre", 0x254, 8)
-	CRU_GATE(HCLK_CIF, "hclk_cif", "hclk_vio_pre", 0x254, 9)
-	CRU_GATE(ACLK_RGA, "aclk_rga", "aclk_rga_pre", 0x254, 10)
-	CRU_GATE(HCLK_RGA, "hclk_rga", "hclk_vio_pre", 0x254, 11)
-	CRU_GATE(0, "hclk_ahb1tom", "hclk_vio_pre", 0x254, 12)
-	CRU_GATE(0, "pclk_vio_h2p", "hclk_vio_pre", 0x254, 13)
-	CRU_GATE(0, "hclk_vio_h2p", "hclk_vio_pre", 0x254, 14)
-	CRU_GATE(ACLK_HDCP, "aclk_hdcp", "aclk_vio_pre", 0x254, 15)
+	GATE(ACLK_VOP, "aclk_vop", "aclk_vop_pre", 21, 2),
+	GATE(HCLK_VOP, "hclk_vop", "hclk_vio_pre", 21, 3),
+	GATE(0, "aclk_vop_niu", "aclk_vop_pre", 21, 4),
+	GATE(0, "hclk_vop_niu", "hclk_vio_pre", 21, 5),
+	GATE(ACLK_IEP, "aclk_iep", "aclk_vio_pre", 21, 6),
+	GATE(HCLK_IEP, "hclk_iep", "hclk_vio_pre", 21, 7),
+	GATE(ACLK_CIF, "aclk_cif", "aclk_vio_pre", 21, 8),
+	GATE(HCLK_CIF, "hclk_cif", "hclk_vio_pre", 21, 9),
+	GATE(ACLK_RGA, "aclk_rga", "aclk_rga_pre", 21, 10),
+	GATE(HCLK_RGA, "hclk_rga", "hclk_vio_pre", 21, 11),
+	GATE(0, "hclk_ahb1tom", "hclk_vio_pre", 21, 12),
+	GATE(0, "pclk_vio_h2p", "hclk_vio_pre", 21, 13),
+	GATE(0, "hclk_vio_h2p", "hclk_vio_pre", 21, 14),
+	GATE(ACLK_HDCP, "aclk_hdcp", "aclk_vio_pre", 21, 15),
 
 	/* CRU_CLKGATE_CON22 */
-	CRU_GATE(HCLK_HDCP, "hclk_hdcp", "hclk_vio_pre", 0x258, 0)
-	CRU_GATE(0, "hclk_vio_niu", "hclk_vio_pre", 0x258, 1)
-	CRU_GATE(0, "aclk_vio_niu", "aclk_vio_pre", 0x258, 2)
-	CRU_GATE(0, "aclk_rga_niu", "aclk_rga_pre", 0x258, 3)
-	CRU_GATE(PCLK_HDMI, "pclk_hdmi", "hclk_vio_pre", 0x258, 4)
-	CRU_GATE(PCLK_HDCP, "pclk_hdcp", "hclk_vio_pre", 0x258, 5)
+	GATE(HCLK_HDCP, "hclk_hdcp", "hclk_vio_pre", 22, 0),
+	GATE(0, "hclk_vio_niu", "hclk_vio_pre", 22, 1),
+	GATE(0, "aclk_vio_niu", "aclk_vio_pre", 22, 2),
+	GATE(0, "aclk_rga_niu", "aclk_rga_pre", 22, 3),
+	GATE(PCLK_HDMI, "pclk_hdmi", "hclk_vio_pre", 22, 4),
+	GATE(PCLK_HDCP, "pclk_hdcp", "hclk_vio_pre", 22, 5),
 	/* Bit 6-15 unused */
 
 	/* CRU_CLKGATE_CON23 */
-	CRU_GATE(ACLK_VPU, "aclk_vpu", "aclk_vpu_pre", 0x25C, 0)
-	CRU_GATE(HCLK_VPU, "hclk_vpu", "hclk_vpu_pre", 0x25C, 1)
-	CRU_GATE(0, "aclk_vpu_niu", "aclk_vpu_pre", 0x25C, 2)
-	CRU_GATE(0, "hclk_vpu_niu", "hclk_vpu_pre", 0x25C, 3)
+	GATE(ACLK_VPU, "aclk_vpu", "aclk_vpu_pre", 23, 0),
+	GATE(HCLK_VPU, "hclk_vpu", "hclk_vpu_pre", 23, 1),
+	GATE(0, "aclk_vpu_niu", "aclk_vpu_pre", 23, 2),
+	GATE(0, "hclk_vpu_niu", "hclk_vpu_pre", 23, 3),
 	/* Bit 4-15 unused */
 
 	/* CRU_CLKGATE_CON24 */
-	CRU_GATE(ACLK_RKVDEC, "aclk_rkvdec", "aclk_rkvdec_pre", 0x260, 0)
-	CRU_GATE(HCLK_RKVDEC, "hclk_rkvdec", "hclk_rkvdec_pre", 0x260, 1)
-	CRU_GATE(0, "aclk_rkvdec_niu", "aclk_rkvdec_pre", 0x260, 2)
-	CRU_GATE(0, "hclk_rkvdec_niu", "hclk_rkvdec_pre", 0x260, 3)
+	GATE(ACLK_RKVDEC, "aclk_rkvdec", "aclk_rkvdec_pre", 24, 0),
+	GATE(HCLK_RKVDEC, "hclk_rkvdec", "hclk_rkvdec_pre", 24, 1),
+	GATE(0, "aclk_rkvdec_niu", "aclk_rkvdec_pre", 24, 2),
+	GATE(0, "hclk_rkvdec_niu", "hclk_rkvdec_pre", 24, 3),
 	/* Bit 4-15 unused */
 
 	/* CRU_CLKGATE_CON25 */
-	CRU_GATE(0, "aclk_rkvenc_niu", "aclk_rkvenc", 0x264, 0)
-	CRU_GATE(0, "hclk_rkvenc_niu", "hclk_rkvenc", 0x264, 1)
-	CRU_GATE(ACLK_H265, "aclk_h265", "aclk_rkvenc", 0x264, 2)
-	CRU_GATE(PCLK_H265, "pclk_h265", "hclk_rkvenc", 0x264, 3)
-	CRU_GATE(ACLK_H264, "aclk_h264", "aclk_rkvenc", 0x264, 4)
-	CRU_GATE(HCLK_H264, "hclk_h264", "hclk_rkvenc", 0x264, 5)
-	CRU_GATE(0, "aclk_axisram", "hclk_rkvenc", 0x264, 6)
+	GATE(0, "aclk_rkvenc_niu", "aclk_rkvenc", 25, 0),
+	GATE(0, "hclk_rkvenc_niu", "hclk_rkvenc", 25, 1),
+	GATE(ACLK_H265, "aclk_h265", "aclk_rkvenc", 25, 2),
+	GATE(PCLK_H265, "pclk_h265", "hclk_rkvenc", 25, 3),
+	GATE(ACLK_H264, "aclk_h264", "aclk_rkvenc", 25, 4),
+	GATE(HCLK_H264, "hclk_h264", "hclk_rkvenc", 25, 5),
+	GATE(0, "aclk_axisram", "hclk_rkvenc", 25, 6),
 	/* Bit 7-15 unused */
 
 	/* CRU_CLKGATE_CON26 */
-	CRU_GATE(ACLK_MAC2PHY, "aclk_gmac2phy", "aclk_gmac", 0x268, 0)
-	CRU_GATE(PCLK_MAC2PHY, "pclk_gmac2phy", "pclk_gmac", 0x268, 1)
-	CRU_GATE(ACLK_MAC2IO, "aclk_gmac2io", "aclk_gmac", 0x268, 2)
-	CRU_GATE(PCLK_MAC2IO, "pclk_gmac2io", "pclk_gmac", 0x268, 3)
-	CRU_GATE(0, "aclk_gmac_niu", "aclk_gmac", 0x268, 4)
-	CRU_GATE(0, "pclk_gmac_niu", "pclk_gmac", 0x268, 5)
+	GATE(ACLK_MAC2PHY, "aclk_gmac2phy", "aclk_gmac", 26, 0),
+	GATE(PCLK_MAC2PHY, "pclk_gmac2phy", "pclk_gmac", 26, 1),
+	GATE(ACLK_MAC2IO, "aclk_gmac2io", "aclk_gmac", 26, 2),
+	GATE(PCLK_MAC2IO, "pclk_gmac2io", "pclk_gmac", 26, 3),
+	GATE(0, "aclk_gmac_niu", "aclk_gmac", 26, 4),
+	GATE(0, "pclk_gmac_niu", "pclk_gmac", 26, 5),
 	/* Bit 6-15 unused */
 
 	/* CRU_CLKGATE_CON27 */
@@ -555,11 +556,11 @@ static struct rk_cru_gate rk3328_gates[] = {
 	/* Bit 1 clk4x_ddrphy_en */
 
 	/* CRU_CLKGATE_CON28 */
-	CRU_GATE(HCLK_PDM, "hclk_pdm", "hclk_bus_pre", 0x270, 0)
-	CRU_GATE(PCLK_USB3PHY_OTG, "pclk_usb3phy_otg", "pclk_phy", 0x270, 1)
-	CRU_GATE(PCLK_USB3PHY_PIPE, "pclk_usb3phy_pipe", "pclk_phy", 0x270, 2)
-	CRU_GATE(0, "pclk_pmu", "pclk_bus", 0x270, 3)
-	CRU_GATE(0, "pclk_otp", "pclk_bus", 0x270, 4)
+	GATE(HCLK_PDM, "hclk_pdm", "hclk_bus_pre", 28, 0),
+	GATE(PCLK_USB3PHY_OTG, "pclk_usb3phy_otg", "pclk_phy", 28, 1),
+	GATE(PCLK_USB3PHY_PIPE, "pclk_usb3phy_pipe", "pclk_phy", 28, 2),
+	GATE(0, "pclk_pmu", "pclk_bus", 28, 3),
+	GATE(0, "pclk_otp", "pclk_bus", 28, 4)
 	/* Bit 5-15 unused */
 };
 
