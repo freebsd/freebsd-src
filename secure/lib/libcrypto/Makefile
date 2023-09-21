@@ -196,14 +196,14 @@ SRCS+=	des_enc.c fcrypt_b.c
 .endif
 
 # dh
-SRCS+=	dh_ameth.c dh_asn1.c dh_backend.c dh_check.c dh_err.c dh_gen.c
+SRCS+=	dh_ameth.c dh_asn1.c dh_backend.c dh_check.c dh_depr.c dh_err.c dh_gen.c
 SRCS+=	dh_group_params.c dh_kdf.c dh_key.c dh_lib.c dh_meth.c dh_pmeth.c
 SRCS+=	dh_prn.c dh_rfc5114.c
 
 # dsa
-SRCS+=	dsa_ameth.c dsa_asn1.c dsa_backend.c dsa_check.c dsa_err.c dsa_gen.c
-SRCS+=	dsa_key.c dsa_lib.c dsa_meth.c dsa_ossl.c dsa_pmeth.c dsa_prn.c
-SRCS+=	dsa_sign.c dsa_vrf.c
+SRCS+=	dsa_ameth.c dsa_asn1.c dsa_backend.c dsa_check.c dsa_depr.c dsa_err.c
+SRCS+=	dsa_gen.c dsa_key.c dsa_lib.c dsa_meth.c dsa_ossl.c dsa_pmeth.c
+SRCS+=	dsa_prn.c dsa_sign.c dsa_vrf.c
 
 # dso
 SRCS+=	dso_dlfcn.c dso_err.c dso_lib.c
