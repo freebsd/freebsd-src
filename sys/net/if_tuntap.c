@@ -541,6 +541,8 @@ tun_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/* find any existing device, or allocate new unit number */
 	dev = NULL;
 	i = clone_create(&drv->clones, &drv->cdevsw, &unit, &dev, 0);
+	if (i == 0)
+		dev_ref(dev);
 	/* No preexisting struct cdev *, create one */
 	if (i != 0)
 		i = tun_create_device(drv, unit, NULL, &dev, name);
@@ -596,6 +598,8 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&drv->clones, &drv->cdevsw, &u, dev, 0);
+	if (i == 0)
+		dev_ref(*dev);
 	if (i) {
 		if (append_unit) {
 			namelen = snprintf(devname, sizeof(devname), "%s%d",
