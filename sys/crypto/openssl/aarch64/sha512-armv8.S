@@ -56,8 +56,8 @@
 
 // $output is the last argument if it looks like a file (it has an extension)
 // $flavour is the first argument if it doesn't look like a file
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 
 .hidden	OPENSSL_armcap_P
 #endif
@@ -68,13 +68,14 @@
 .type	sha512_block_data_order,%function
 .align	6
 sha512_block_data_order:
+	AARCH64_VALID_CALL_TARGET
 #ifndef	__KERNEL__
 	adrp	x16,OPENSSL_armcap_P
 	ldr	w16,[x16,#:lo12:OPENSSL_armcap_P]
 	tst	w16,#ARMV8_SHA512
 	b.ne	.Lv8_entry
 #endif
-.inst	0xd503233f				// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -1034,7 +1035,7 @@ sha512_block_data_order:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
-.inst	0xd50323bf				// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	sha512_block_data_order,.-sha512_block_data_order
 
@@ -1091,6 +1092,7 @@ sha512_block_data_order:
 .align	6
 sha512_block_armv8:
 .Lv8_entry:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
