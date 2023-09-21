@@ -46,6 +46,8 @@
 
 #include <arm64/rockchip/clk/rk_cru.h>
 
+#define	CRU_CLKGATE_CON(x)	(0x100 + (x) * 0x4)
+
 /* GATES */
 
 #define	PCLK_PMU		20
@@ -58,13 +60,13 @@
 
 static struct rk_cru_gate rk3399_pmu_gates[] = {
 	/* PMUCRU_CLKGATE_CON1 */
-	CRU_GATE(PCLK_PMU, "pclk_pmu", "pclk_pmu_src", 0x104, 0)
-	CRU_GATE(PCLK_GPIO0_PMU, "pclk_gpio0_pmu", "pclk_pmu_src", 0x104, 3)
-	CRU_GATE(PCLK_GPIO1_PMU, "pclk_gpio1_pmu", "pclk_pmu_src", 0x104, 4)
-	CRU_GATE(PCLK_I2C0_PMU, "pclk_i2c0_pmu", "pclk_pmu_src", 0x104, 7)
-	CRU_GATE(PCLK_I2C4_PMU, "pclk_i2c4_pmu", "pclk_pmu_src", 0x104, 8)
-	CRU_GATE(PCLK_I2C8_PMU, "pclk_i2c8_pmu", "pclk_pmu_src", 0x104, 9)
-	CRU_GATE(PCLK_RKPWM_PMU, "pclk_rkpwm_pmu", "pclk_pmu_src", 0x104, 10)
+	GATE(PCLK_PMU, "pclk_pmu", "pclk_pmu_src", 1, 0),
+	GATE(PCLK_GPIO0_PMU, "pclk_gpio0_pmu", "pclk_pmu_src", 1, 3),
+	GATE(PCLK_GPIO1_PMU, "pclk_gpio1_pmu", "pclk_pmu_src", 1, 4),
+	GATE(PCLK_I2C0_PMU, "pclk_i2c0_pmu", "pclk_pmu_src", 1, 7),
+	GATE(PCLK_I2C4_PMU, "pclk_i2c4_pmu", "pclk_pmu_src", 1, 8),
+	GATE(PCLK_I2C8_PMU, "pclk_i2c8_pmu", "pclk_pmu_src", 1, 9),
+	GATE(PCLK_RKPWM_PMU, "pclk_rkpwm_pmu", "pclk_pmu_src", 1, 10)
 };
 
 /*
