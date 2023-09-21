@@ -740,7 +740,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 		type = S_IFREG;
 	} else if (node->type != 0) {
 		type = node->type;
-		if (type == S_IFREG) {
+		if (type == S_IFLNK && node->symlink == NULL) {
+			mtree_error("%s: link type requires link keyword", node->name);
+			return (0);
+		} else if (type == S_IFREG) {
 			/* the named path is the default contents */
 			node->contents = mtree_file_path(node);
 		}
