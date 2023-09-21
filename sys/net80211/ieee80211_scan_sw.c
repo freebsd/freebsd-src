@@ -388,9 +388,10 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 				 *     scan_start method to populate it.
 				 */
 				ss->ss_next = 0;
-				if (ss->ss_last != 0)
+				if (ss->ss_last != 0) {
+					ieee80211_notify_scan_done(vap);
 					ss->ss_ops->scan_restart(ss, vap);
-				else {
+				} else {
 					ss->ss_ops->scan_start(ss, vap);
 #ifdef IEEE80211_DEBUG
 					if (ieee80211_msg_scan(vap))
@@ -857,6 +858,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 		else
 			vap->iv_stats.is_scan_passive++;
 
+		ieee80211_notify_scan_done(vap);
 		ss->ss_ops->scan_restart(ss, vap);	/* XXX? */
 		ieee80211_runtask(ic, &ss_priv->ss_scan_start);
 		IEEE80211_UNLOCK(ic);
