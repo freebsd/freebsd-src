@@ -1,0 +1,8 @@
+# yesexpr
+^(([dD]([aA])?)|([dD])|([yY]([eE][sS])?)|([yY]))
+# noexpr
+^(([nN]([eE])?)|([nN])|([nN]([oO])?)|([nN]))
+# yesstr
+da:d:DA:D:yes:y:YES:Y
+# nostr
+ne:n:NE:N:no:n:NO:N
