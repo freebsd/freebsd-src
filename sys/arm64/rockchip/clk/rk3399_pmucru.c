@@ -46,34 +46,95 @@
 
 #include <arm64/rockchip/clk/rk_cru.h>
 
+#define	CRU_CLKSEL_CON(x)	(0x80 + (x) * 0x4)
 #define	CRU_CLKGATE_CON(x)	(0x100 + (x) * 0x4)
 
-/* GATES */
+#define	PLL_PPLL		1
+#define	SCLK_32K_SUSPEND_PMU	2
+#define	SCLK_SPI3_PMU		3
+#define	SCLK_TIMER12_PMU	4
+#define	SCLK_TIMER13_PMU	5
+#define	SCLK_UART4_PMU		6
+#define	SCLK_PVTM_PMU		7
+#define	SCLK_WIFI_PMU		8
+#define	SCLK_I2C0_PMU		9
+#define	SCLK_I2C4_PMU		10
+#define	SCLK_I2C8_PMU		11
 
+#define	PCLK_PMU_SRC		19
 #define	PCLK_PMU		20
+#define	PCLK_PMUGRF_PMU		21
+#define	PCLK_INTMEM1_PMU	22
 #define	PCLK_GPIO0_PMU		23
 #define	PCLK_GPIO1_PMU		24
+#define	PCLK_SGRF_PMU		25
+#define	PCLK_NOC_PMU		26
 #define	PCLK_I2C0_PMU		27
 #define	PCLK_I2C4_PMU		28
 #define	PCLK_I2C8_PMU		29
 #define	PCLK_RKPWM_PMU		30
+#define	PCLK_SPI3_PMU		31
+#define	PCLK_TIMER_PMU		32
+#define	PCLK_MAILBOX_PMU	33
+#define	PCLK_UART4_PMU		34
+#define	PCLK_WDT_M0_PMU		35
 
+#define	FCLK_CM0S_SRC_PMU	44
+#define	FCLK_CM0S_PMU		45
+#define	SCLK_CM0S_PMU		46
+#define	HCLK_CM0S_PMU		47
+#define	DCLK_CM0S_PMU		48
+#define	PCLK_INTR_ARB_PMU	49
+#define	HCLK_NOC_PMU		50
+
+/* GATES */
 static struct rk_cru_gate rk3399_pmu_gates[] = {
+	/* PMUCRU_CLKGATE_CON0 */
+	/* 0 Reserved */
+	/* 1 fclk_cm0s_pmu_ppll_src_en */
+	GATE(SCLK_SPI3_PMU, "clk_spi3_pmu", "clk_spi3_c", 0, 2),
+	GATE(SCLK_TIMER12_PMU, "clk_timer0_pmu", "clk_timer_sel", 0, 3),
+	GATE(SCLK_TIMER13_PMU, "clk_timer1_pmu", "clk_timer_sel", 0, 4),
+	GATE(SCLK_UART4_PMU, "clk_uart4_pmu", "clk_uart4_sel", 0, 5),
+	GATE(0, "clk_uart4_frac", "clk_uart4_frac_frac", 0, 6),
+	/* 7 clk_pvtm_pmu_en */
+	GATE(SCLK_WIFI_PMU, "clk_wifi_pmu", "clk_wifi_sel", 0, 8),
+	GATE(SCLK_I2C0_PMU, "clk_i2c0_src", "clk_i2c0_div", 0, 9),
+	GATE(SCLK_I2C4_PMU, "clk_i2c4_src", "clk_i2c4_div", 0, 10),
+	GATE(SCLK_I2C8_PMU, "clk_i2c8_src", "clk_i2c8_div", 0, 11),
+	/* 12:15 Reserved */
+
 	/* PMUCRU_CLKGATE_CON1 */
 	GATE(PCLK_PMU, "pclk_pmu", "pclk_pmu_src", 1, 0),
+	/* 1 pclk_pmugrf_en */
+	/* 2 pclk_intmem1_en */
 	GATE(PCLK_GPIO0_PMU, "pclk_gpio0_pmu", "pclk_pmu_src", 1, 3),
 	GATE(PCLK_GPIO1_PMU, "pclk_gpio1_pmu", "pclk_pmu_src", 1, 4),
+	/* 5 pclk_sgrf_en */
+	/* 6 pclk_noc_pmu_en */
 	GATE(PCLK_I2C0_PMU, "pclk_i2c0_pmu", "pclk_pmu_src", 1, 7),
 	GATE(PCLK_I2C4_PMU, "pclk_i2c4_pmu", "pclk_pmu_src", 1, 8),
 	GATE(PCLK_I2C8_PMU, "pclk_i2c8_pmu", "pclk_pmu_src", 1, 9),
-	GATE(PCLK_RKPWM_PMU, "pclk_rkpwm_pmu", "pclk_pmu_src", 1, 10)
+	GATE(PCLK_RKPWM_PMU, "pclk_rkpwm_pmu", "pclk_pmu_src", 1, 10),
+	GATE(PCLK_SPI3_PMU, "pclk_spi3_pmu", "pclk_pmu_src", 1, 11),
+	GATE(PCLK_TIMER_PMU, "pclk_timer_pmu", "pclk_pmu_src", 1, 12),
+	GATE(PCLK_MAILBOX_PMU, "pclk_mailbox_pmu", "pclk_pmu_src", 1, 13),
+	/* 14 pclk_uartm0_en */
+	/* 15 pclk_wdt_m0_pmu_en */
+
+	/* PMUCRU_CLKGATE_CON2 */
+	/* 0 fclk_cm0s_en */
+	/* 1 sclk_cm0s_en */
+	/* 2 hclk_cm0s_en */
+	/* 3 dclk_cm0s_en */
+	/* 4 Reserved */
+	/* 5 hclk_noc_pmu_en */
+	/* 6:15 Reserved */
 };
 
 /*
  * PLLs
  */
-
-#define PLL_PPLL	1
 
 static struct rk_clk_pll_rate rk3399_pll_rates[] = {
 	{
@@ -695,124 +756,72 @@ static struct rk_clk_pll_rate rk3399_pll_rates[] = {
 	{},
 };
 
-static const char *pll_parents[] = {"xin24m"};
+PLIST(xin24m_p) = {"xin24m"};
+PLIST(xin24m_xin32k_p) = {"xin24m", "xin32k"};
+PLIST(xin24m_ppll_p) = {"xin24m", "ppll"};
+PLIST(uart4_p) = {"clk_uart4_c", "clk_uart4_frac", "xin24m"};
+PLIST(wifi_p) = {"clk_wifi_c", "clk_wifi_frac"};
 
 static struct rk_clk_pll_def ppll = {
 	.clkdef = {
 		.id = PLL_PPLL,
 		.name = "ppll",
-		.parent_names = pll_parents,
-		.parent_cnt = nitems(pll_parents),
+		.parent_names = xin24m_p,
+		.parent_cnt = nitems(xin24m_p),
 	},
 	.base_offset = 0x00,
 
 	.rates = rk3399_pll_rates,
 };
 
-static const char *pmu_parents[] = {"ppll"};
-
-#define	PCLK_PMU_SRC			19
-
-static struct rk_clk_composite_def pclk_pmu_src = {
-	.clkdef = {
-		.id = PCLK_PMU_SRC,
-		.name = "pclk_pmu_src",
-		.parent_names = pmu_parents,
-		.parent_cnt = nitems(pmu_parents),
-	},
-	/* PMUCRU_CLKSEL_CON0 */
-	.muxdiv_offset = 0x80,
-
-	.div_shift = 0,
-	.div_width = 5,
-};
-
-#define	SCLK_I2C0_PMU	9
-#define	SCLK_I2C4_PMU	10
-#define	SCLK_I2C8_PMU	11
-
-static struct rk_clk_composite_def i2c0 = {
-	.clkdef = {
-		.id = SCLK_I2C0_PMU,
-		.name = "clk_i2c0_pmu",
-		.parent_names = pmu_parents,
-		.parent_cnt = nitems(pmu_parents),
-	},
-	/* PMUCRU_CLKSEL_CON2 */
-	.muxdiv_offset = 0x88,
-
-	.div_shift = 0,
-	.div_width = 7,
-
-	/* PMUCRU_CLKGATE_CON0 */
-	.gate_offset = 0x100,
-	.gate_shift = 9,
-
-	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
-};
-
-static struct rk_clk_composite_def i2c8 = {
-	.clkdef = {
-		.id = SCLK_I2C8_PMU,
-		.name = "clk_i2c8_pmu",
-		.parent_names = pmu_parents,
-		.parent_cnt = nitems(pmu_parents),
-	},
-	/* PMUCRU_CLKSEL_CON2 */
-	.muxdiv_offset = 0x88,
-
-	.div_shift = 8,
-	.div_width = 7,
-
-	/* PMUCRU_CLKGATE_CON0 */
-	.gate_offset = 0x100,
-	.gate_shift = 11,
-
-	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
-};
-
-static struct rk_clk_composite_def i2c4 = {
-	.clkdef = {
-		.id = SCLK_I2C4_PMU,
-		.name = "clk_i2c4_pmu",
-		.parent_names = pmu_parents,
-		.parent_cnt = nitems(pmu_parents),
-	},
-	/* PMUCRU_CLKSEL_CON3 */
-	.muxdiv_offset = 0x8c,
-
-	.div_shift = 0,
-	.div_width = 7,
-
-	/* PMUCRU_CLKGATE_CON0 */
-	.gate_offset = 0x100,
-	.gate_shift = 10,
-
-	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
-};
-
 static struct rk_clk rk3399_pmu_clks[] = {
+	/* Linked clocks */
+	LINK("xin32k"),
+
 	{
 		.type = RK3399_CLK_PLL,
 		.clk.pll = &ppll
 	},
 
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &pclk_pmu_src
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c0
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c4
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c8
-	},
+	/* PMUCRU_CLKSEL_CON0 */
+	CDIV(PCLK_PMU_SRC, "pclk_pmu_src", "ppll", 0, 0, 0, 5),
+	/* 5:7 Reserved */
+	/* 8:12 cm0s_div */
+	/* 13:14 Reserved */
+	/* 15 cm0s_clk_pll_sel */
+
+	/* PMUCRU_CLKSEL_CON1 */
+	COMP(0, "clk_spi3_c", xin24m_ppll_p, 0, 1, 0, 7, 7, 1),
+	COMP(0, "clk_wifi_c", xin24m_ppll_p, 0, 1, 8, 5, 13, 1),
+	MUX(0, "clk_wifi_sel", wifi_p, 0, 1, 14, 1),
+	MUX(0, "clk_timer_sel", xin24m_xin32k_p, 0, 1, 15, 1),
+
+	/* PMUCRU_CLKSEL_CON2 */
+	CDIV(0, "clk_i2c0_div", "ppll", 0, 2, 0, 7),
+	/* 7 Reserved */
+	CDIV(0, "clk_i2c8_div", "ppll", 0, 2, 8, 7),
+	/* 15 Reserved */
+
+	/* PMUCRU_CLKSEL_CON3 */
+	CDIV(0, "clk_i2c4_div", "ppll", 0, 3, 0, 7),
+	/* 7:15 Reserved */
+
+	/* PMUCRU_CLKSEL_CON4 */
+	/* 0:9 clk_32k_suspend_div */
+	/* 10:14 Reserved */
+	/* 15 clk_32k_suspend_sel */
+
+	/* PMUCRU_CLKSEL_CON5 */
+	COMP(0, "clk_uart4_c", xin24m_ppll_p, 0, 5, 0, 7, 10, 1),
+	/* 7 Reserved */
+	MUX(0, "clk_uart4_sel", uart4_p, 0, 5, 8, 2),
+	/* 11:15 Reserved */
+
+	/* PMUCRU_CLKFRAC_CON0 / PMUCRU_CLKSEL_CON6 */
+	FRACT(0, "clk_uart4_frac_frac", "clk_uart4_sel", 0, 6),
+
+	/* PMUCRU_CLKFRAC_CON1 / PMUCRU_CLKSEL_CON7 */
+	FRACT(0, "clk_wifi_frac", "clk_wifi_c", 0, 7),
 };
 
 static int
