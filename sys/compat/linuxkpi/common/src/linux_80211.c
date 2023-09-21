@@ -2460,24 +2460,32 @@ static void
 lkpi_ic_parent(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
+#ifdef HW_START_STOP
 	struct ieee80211_hw *hw;
 	int error;
+#endif
 	bool start_all;
 
 	IMPROVE();
 
 	lhw = ic->ic_softc;
+#ifdef HW_START_STOP
 	hw = LHW_TO_HW(lhw);
+#endif
 	start_all = false;
 
 	/* IEEE80211_UNLOCK(ic); */
 	LKPI_80211_LHW_LOCK(lhw);
 	if (ic->ic_nrunning > 0) {
+#ifdef HW_START_STOP
 		error = lkpi_80211_mo_start(hw);
 		if (error == 0)
+#endif
 			start_all = true;
 	} else {
+#ifdef HW_START_STOP
 		lkpi_80211_mo_stop(hw);
+#endif
 	}
 	LKPI_80211_LHW_UNLOCK(lhw);
 	/* IEEE80211_LOCK(ic); */
