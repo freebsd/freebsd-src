@@ -107,9 +107,6 @@ SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	PREP_TX_INFO_DURATION	0 /* Let the driver do its thing. */
 #endif
 
-/* c.f. ieee80211_ioctl.c */
-static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
-
 /* This is DSAP | SSAP | CTRL | ProtoID/OrgCode{3}. */
 const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
@@ -269,8 +266,16 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 			sta->deflink.supp_rates[band] |= BIT(i);
 		}
 	}
+	sta->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	IMPROVE("ht, vht, he, ... bandwidth, smps_mode, ..");
 	/* bandwidth = IEEE80211_STA_RX_... */
+
+	/* Link configuration. */
+	IEEE80211_ADDR_COPY(sta->deflink.addr, sta->addr);
+	sta->link[0] = &sta->deflink;
+	for (i = 1; i < nitems(sta->link); i++) {
+		IMPROVE("more links; only link[0] = deflink currently.");
+	}
 
 	/* Deferred TX path. */
 	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
@@ -969,6 +974,23 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	conf->min_def.center_freq2 = 0;
 	IMPROVE("currently 20_NOHT only");
 
+	/* Set bss info (bss_info_changed). */
+	bss_changed = 0;
+	vif->bss_conf.bssid = ni->ni_bssid;
+	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.txpower = ni->ni_txpower;
+	bss_changed |= BSS_CHANGED_TXPOWER;
+	vif->cfg.idle = false;
+	bss_changed |= BSS_CHANGED_IDLE;
+
+	/* vif->bss_conf.basic_rates ? Where exactly? */
+
+	/* Should almost assert it is this. */
+	vif->cfg.assoc = false;
+	vif->cfg.aid = 0;
+
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+
 	error = 0;
 	if (vif->chanctx_conf != NULL) {
 		changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
@@ -988,6 +1010,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		} else {
 			goto out;
 		}
+
+		vif->bss_conf.chanctx_conf = conf;
+
 		/* Assign vif chanctx. */
 		if (error == 0)
 			error = lkpi_80211_mo_assign_vif_chanctx(hw, vif,
@@ -1001,21 +1026,6 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		}
 	}
 	IMPROVE("update radiotap chan fields too");
-
-	/* Set bss info (bss_info_changed). */
-	bss_changed = 0;
-	vif->bss_conf.bssid = ni->ni_bssid;
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.txpower = ni->ni_txpower;
-	bss_changed |= BSS_CHANGED_TXPOWER;
-	vif->cfg.idle = false;
-	bss_changed |= BSS_CHANGED_IDLE;
-
-	/* Should almost assert it is this. */
-	vif->cfg.assoc = false;
-	vif->cfg.aid = 0;
-
-	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
 
 	/* RATES */
 	IMPROVE("bss info: not all needs to come now and rates are missing");
@@ -2131,12 +2141,14 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 		lsta->ni = ni;
 		sta = LSTA_TO_STA(lsta);
 		IEEE80211_ADDR_COPY(sta->addr, lsta->ni->ni_macaddr);
+		IEEE80211_ADDR_COPY(sta->deflink.addr, sta->addr);
 	}
 	lsta = obss->ni_drv_data;
 	if (lsta != NULL) {
 		lsta->ni = obss;
 		sta = LSTA_TO_STA(lsta);
 		IEEE80211_ADDR_COPY(sta->addr, lsta->ni->ni_macaddr);
+		IEEE80211_ADDR_COPY(sta->deflink.addr, sta->addr);
 	}
 
 out:
@@ -2277,6 +2289,9 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 #if 1
 	vif->chanctx_conf = NULL;
 	vif->bss_conf.vif = vif;
+	/* vap->iv_myaddr is not set until net80211::vap_setup or vap_attach. */
+	IEEE80211_ADDR_COPY(vif->bss_conf.addr, mac);
+	vif->bss_conf.link_id = 0;	/* Non-MLO operation. */
 	vif->bss_conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 	vif->bss_conf.use_short_preamble = false;	/* vap->iv_flags IEEE80211_F_SHPREAMBLE */
 	vif->bss_conf.use_short_slot = false;		/* vap->iv_flags IEEE80211_F_SHSLOT */
@@ -2287,15 +2302,13 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vif->cfg.assoc = false;
 	vif->cfg.idle = true;
 	vif->cfg.ps = false;
+	IMPROVE("Check other fields and then figure out whats is left elsewhere of them");
 	/*
 	 * We need to initialize it to something as the bss_info_changed call
 	 * will try to copy from it in iwlwifi and NULL is a panic.
 	 * We will set the proper one in scan_to_auth() before being assoc.
-	 * NB: the logic there with using an array as bssid_override and checking
-	 * for non-NULL later is flawed but in their workflow does not seem to
-	 * matter.
 	 */
-	vif->bss_conf.bssid = zerobssid;
+	vif->bss_conf.bssid = ieee80211broadcastaddr;
 #endif
 #if 0
 	vif->bss_conf.dtim_period = 0; /* IEEE80211_DTIM_DEFAULT ; must stay 0. */
@@ -2305,6 +2318,12 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	if (vif->bss_conf.beacon_int < 16)
 		vif->bss_conf.beacon_int = 16;
 #endif
+
+	/* Link Config */
+	vif->link_conf[0] = &vif->bss_conf;
+	for (i = 0; i < nitems(vif->link_conf); i++) {
+		IMPROVE("more than 1 link one day");
+	}
 
 	/* Setup queue defaults; driver may override in (*add_interface). */
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
