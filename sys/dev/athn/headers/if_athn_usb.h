@@ -392,13 +392,13 @@ struct athn_usb_rx_stream {
 
 struct athn_usb_rx_data {
 	struct athn_usb_softc	*sc;
-	struct usbd_xfer	*xfer;
+	struct usb_xfer	*xfer;
 	uint8_t			*buf;
 };
 
 struct athn_usb_tx_data {
 	struct athn_usb_softc		*sc;
-	struct usbd_xfer		*xfer;
+	struct usb_xfer		*xfer;
 	uint8_t				*buf;
 	TAILQ_ENTRY(athn_usb_tx_data)	next;
 };
@@ -436,9 +436,9 @@ struct athn_usb_softc {
 	int				sc_athn_attached;
 
 	/* USB specific goo. */
-	struct usbd_device		*sc_udev;
-	struct usbd_interface		*sc_iface;
-	struct usb_task			sc_task;
+	struct usb_device		*sc_udev;
+	struct usb_interface	*sc_iface;
+//	struct usb_task			sc_task;
 
 	u_int				flags;
 #define ATHN_USB_FLAG_AR7010	0x01

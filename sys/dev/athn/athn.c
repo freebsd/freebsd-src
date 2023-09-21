@@ -364,8 +364,8 @@ athn_attach(struct athn_softc *sc)
 		//     sc->eep_rev, ether_sprintf(ic->ic_myaddr));
 	}
 
-	timeout_set(&sc->scan_to, athn_next_scan, sc);
-	timeout_set(&sc->calib_to, athn_calib_to, sc);
+//	timeout_set(&sc->scan_to, athn_next_scan, sc);
+//	timeout_set(&sc->calib_to, athn_calib_to, sc);
 
 	sc->amrr.amrr_min_success_threshold =  1;
 	sc->amrr.amrr_max_success_threshold = 15;
@@ -464,8 +464,8 @@ athn_detach(struct athn_softc *sc)
 	struct ifnet *ifp = NULL;
 	int qid;
 
-	timeout_del(&sc->scan_to);
-	timeout_del(&sc->calib_to);
+//	timeout_del(&sc->scan_to);
+//	timeout_del(&sc->calib_to);
 
 	if (!(sc->flags & ATHN_FLAG_USB)) {
 		for (qid = 0; qid < ATHN_QID_COUNT; qid++)
@@ -514,8 +514,8 @@ athn_get_chanlist(struct athn_softc *sc)
 	if (sc->flags & ATHN_FLAG_11G) {
 		for (i = 1; i <= 14; i++) {
 			chan = i;
-			ic->ic_channels[chan].ic_freq =
-			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
+//			ic->ic_channels[chan].ic_freq =
+//			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
 			ic->ic_channels[chan].ic_flags =
 			    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
 			    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
@@ -527,8 +527,8 @@ athn_get_chanlist(struct athn_softc *sc)
 	if (sc->flags & ATHN_FLAG_11A) {
 		for (i = 0; i < nitems(athn_5ghz_chans); i++) {
 			chan = athn_5ghz_chans[i];
-			ic->ic_channels[chan].ic_freq =
-			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
+//			ic->ic_channels[chan].ic_freq =
+//			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
 			ic->ic_channels[chan].ic_flags = IEEE80211_CHAN_A;
 			if (sc->flags & ATHN_FLAG_11N)
 				ic->ic_channels[chan].ic_flags |=
@@ -1480,7 +1480,7 @@ athn_calib_to(void *arg)
 	// 	else
 	// 		ieee80211_iterate_nodes(ic, athn_iter_calib, sc);
 	// }
-	timeout_add_msec(&sc->calib_to, 500);
+//	timeout_add_msec(&sc->calib_to, 500);
 	splx(s);
 }
 
@@ -2567,8 +2567,8 @@ athn_node_alloc(struct ieee80211com *ic)
 	#define    IEEE80211_F_HTON        0x02000000      /* CONF: HT enabled */
 
 	an = malloc(sizeof(struct athn_node), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (an && (ic->ic_flags & IEEE80211_F_HTON))
-		ieee80211_ra_node_init(&an->rn);
+//	if (an && (ic->ic_flags & IEEE80211_F_HTON))
+//		ieee80211_ra_node_init(&an->rn);
 	return (struct ieee80211_node *)an;
 }
 
@@ -2582,10 +2582,10 @@ athn_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
 	int ridx, i, j;
 
 	// TODO implicit declaration of function 'ieee80211_amrr_node_init'
-	 if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
-	 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
-	else if (ic->ic_opmode == IEEE80211_M_STA)
-		ieee80211_ra_node_init(&an->rn);
+//	 if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+//	 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
+//	else if (ic->ic_opmode == IEEE80211_M_STA)
+//		ieee80211_ra_node_init(&an->rn);
 
 	/* Start at lowest available bit-rate, AMRR will raise. */
 	ni->ni_txrate = 0;
@@ -2651,7 +2651,7 @@ athn_media_change(struct ifnet *ifp)
 	uint8_t rate, ridx;
 	int error;
 
-	error = ieee80211_media_change(ifp);
+//	error = ieee80211_media_change(ifp);
 	if (error != ENETRESET)
 		return (error);
 
@@ -2680,8 +2680,8 @@ athn_next_scan(void *arg)
 	int s;
 
 	s = splnet();
-	if (ic->ic_state == IEEE80211_S_SCAN)
-		ieee80211_next_scan(&ic->ic_if);
+//	if (ic->ic_state == IEEE80211_S_SCAN)
+//		ieee80211_next_scan(&ic->ic_if);
 	splx(s);
 }
 
@@ -2693,7 +2693,7 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	uint32_t reg;
 	int error = 0;
 
-	timeout_del(&sc->calib_to);
+//	timeout_del(&sc->calib_to);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -2706,7 +2706,7 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		// error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
 		if (error != 0)
 			return (error);
-		timeout_add_msec(&sc->scan_to, 200);
+//		timeout_add_msec(&sc->scan_to, 200);
 		break;
 	case IEEE80211_S_AUTH:
 		athn_set_led(sc, 0);
@@ -2768,7 +2768,7 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/* XXX Start ANI. */
 
 		athn_start_noisefloor_calib(sc, 1);
-		timeout_add_msec(&sc->calib_to, 500);
+//		timeout_add_msec(&sc->calib_to, 500);
 		break;
 	}
 
@@ -2930,7 +2930,7 @@ athn_start(struct ifnet *ifp)
 		/* Send pending management frames first. */
 		//OpenBSD->FreeBSD prev code:
 		//m = mq_dequeue(&ic->ic_mgtq);
-		m = ml_dequeue(&ic->ic_mgtq.mq_list);
+//		m = ml_dequeue(&ic->ic_mgtq.mq_list);
 		if (m != NULL) {
 			ni = m->m_pkthdr.ph_cookie;
 			goto sendit;
@@ -2940,7 +2940,7 @@ athn_start(struct ifnet *ifp)
 
 		//OpenBSD->FreeBSD prev code:
 		//m = mq_dequeue(&ic->ic_pwrsaveq);
-		m = ml_dequeue(&ic->ic_pwrsaveq.mq_list);
+//		m = ml_dequeue(&ic->ic_pwrsaveq.mq_list);
 		if (m != NULL) {
 			ni = m->m_pkthdr.ph_cookie;
 			goto sendit;
@@ -2956,15 +2956,15 @@ athn_start(struct ifnet *ifp)
 		if (ifp->if_bpf != NULL)
 			bpf_mtap(ifp->if_bpf, m, BPF_DIRECTION_OUT);
 #endif
-		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
-			continue;
+//		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
+//			continue;
  sendit:
 #if NBPFILTER > 0
 		if (ic->ic_rawbpf != NULL)
 			bpf_mtap(ic->ic_rawbpf, m, BPF_DIRECTION_OUT);
 #endif
 		if (sc->ops.tx(sc, m, ni, 0) != 0) {
-			ieee80211_release_node(ic, ni);
+//			ieee80211_release_node(ic, ni);
 			continue;
 		}
 
@@ -2988,7 +2988,7 @@ athn_watchdog(struct ifnet *ifp)
 		}
 	}
 
-	ieee80211_watchdog(ifp);
+//	ieee80211_watchdog(ifp);
 }
 
 void
@@ -3063,9 +3063,9 @@ athn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		ifr = (struct ifreq *)data;
-		error = (cmd == SIOCADDMULTI) ?
-		    ether_addmulti(ifr, &ic->ic_ac) :
-		    ether_delmulti(ifr, &ic->ic_ac);
+//		error = (cmd == SIOCADDMULTI) ?
+//		    ether_addmulti(ifr, &ic->ic_ac) :
+//		    ether_delmulti(ifr, &ic->ic_ac);
 		if (error == ENETRESET) {
 			athn_set_multi(sc);
 			error = 0;
@@ -3073,7 +3073,7 @@ athn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCS80211CHANNEL:
-		error = ieee80211_ioctl(ifp, cmd, data);
+//		error = ieee80211_ioctl(ifp, cmd, data);
 		if (error == ENETRESET &&
 		    ic->ic_opmode == IEEE80211_M_MONITOR) {
 			if ((ifp->if_flags & (IFF_UP | IFF_DRV_RUNNING)) ==
@@ -3083,8 +3083,8 @@ athn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 
-	default:
-		error = ieee80211_ioctl(ifp, cmd, data);
+//	default:
+//		error = ieee80211_ioctl(ifp, cmd, data);
 	}
 
 	if (error == ENETRESET) {
@@ -3186,10 +3186,10 @@ athn_init(struct ifnet *ifp)
 			athn_set_key(ic, NULL, &ic->ic_nw_keys[i]);
 	}
 #endif
-	if (ic->ic_opmode == IEEE80211_M_MONITOR)
-		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
-	else
-		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+//	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+//		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+//	else
+//		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 
 	return (0);
  fail:
@@ -3207,9 +3207,9 @@ athn_stop(struct ifnet *ifp, int disable)
 	ifp->if_flags &= ~IFF_DRV_RUNNING;
 	ifq_clr_oactive();
 
-	timeout_del(&sc->scan_to);
+//	timeout_del(&sc->scan_to);
 
-	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
+//	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
 #ifdef ATHN_BT_COEXISTENCE
 	/* Disable bluetooth coexistence for combo chips. */
