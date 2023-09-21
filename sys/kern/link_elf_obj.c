@@ -547,6 +547,8 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				memcpy(vnet_data, ef->progtab[pb].addr,
 				    ef->progtab[pb].size);
 				ef->progtab[pb].addr = vnet_data;
+				vnet_save_init(ef->progtab[pb].addr,
+				    ef->progtab[pb].size);
 #endif
 			} else if ((ef->progtab[pb].name != NULL &&
 			    strcmp(ef->progtab[pb].name, ".ctors") == 0) ||
@@ -1120,6 +1122,12 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 
+#ifdef VIMAGE
+			if (ef->progtab[pb].addr != (void *)mapbase &&
+			    strcmp(ef->progtab[pb].name, VNET_SETNAME) == 0)
+				vnet_save_init(ef->progtab[pb].addr,
+				    ef->progtab[pb].size);
+#endif
 			/* Update all symbol values with the offset. */
 			for (j = 0; j < ef->ddbsymcnt; j++) {
 				es = &ef->ddbsymtab[j];

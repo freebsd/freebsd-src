@@ -179,6 +179,11 @@ static MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
 VNET_DEFINE_STATIC(char, modspace[VNET_MODMIN] __aligned(__alignof(void *)));
 
 /*
+ * A copy of the initial values of all virtualized global variables.
+ */
+static uintptr_t vnet_init_var;
+
+/*
  * Global lists of subsystem constructor and destructors for vnets.  They are
  * registered via VNET_SYSINIT() and VNET_SYSUNINIT().  Both lists are
  * protected by the vnet_sysinit_sxlock global lock.
@@ -356,6 +361,7 @@ vnet_data_startup(void *dummy __unused)
 	df->vnd_len = VNET_MODMIN;
 	TAILQ_INSERT_HEAD(&vnet_data_free_head, df, vnd_link);
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
+	vnet_init_var = (uintptr_t)malloc(VNET_BYTES, M_VNET_DATA, M_WAITOK);
 }
 SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, NULL);
 
@@ -471,6 +477,33 @@ vnet_data_copy(void *start, int size)
 		memcpy((void *)((uintptr_t)vnet->vnet_data_base +
 		    (uintptr_t)start), start, size);
 	VNET_LIST_RUNLOCK();
+}
+
+/*
+ * Save a copy of the initial values of virtualized global variables.
+ */
+void
+vnet_save_init(void *start, size_t size)
+{
+	MPASS(vnet_init_var != 0);
+	MPASS(VNET_START <= (uintptr_t)start &&
+	    (uintptr_t)start + size <= VNET_STOP);
+	memcpy((void *)(vnet_init_var + ((uintptr_t)start - VNET_START)),
+	    start, size);
+}
+
+/*
+ * Restore the 'master' copies of virtualized global variables to theirs
+ * initial values.
+ */
+void
+vnet_restore_init(void *start, size_t size)
+{
+	MPASS(vnet_init_var != 0);
+	MPASS(VNET_START <= (uintptr_t)start &&
+	    (uintptr_t)start + size <= VNET_STOP);
+	memcpy(start,
+	    (void *)(vnet_init_var + ((uintptr_t)start - VNET_START)), size);
 }
 
 /*

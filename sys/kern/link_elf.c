@@ -506,6 +506,7 @@ link_elf_init(void* arg)
 	TAILQ_INIT(&set_pcpu_list);
 #ifdef VIMAGE
 	TAILQ_INIT(&set_vnet_list);
+	vnet_save_init((void *)VNET_START, VNET_STOP - VNET_START);
 #endif
 }
 
@@ -767,6 +768,7 @@ parse_vnet(elf_file_t ef)
 		return (ENOSPC);
 	}
 	memcpy((void *)ef->vnet_base, (void *)ef->vnet_start, size);
+	vnet_save_init((void *)ef->vnet_base, size);
 	elf_set_add(&set_vnet_list, ef->vnet_start, ef->vnet_stop,
 	    ef->vnet_base);
 

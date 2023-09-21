@@ -38,6 +38,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/kenv.h>
 #include <sys/kernel.h>
@@ -666,6 +667,7 @@ kern_setenv(const char *name, const char *value)
 		kenvp[i + 1] = NULL;
 		mtx_unlock(&kenv_lock);
 	}
+	EVENTHANDLER_INVOKE(setenv, name);
 	return (0);
 }
 
@@ -689,6 +691,7 @@ kern_unsetenv(const char *name)
 		kenvp[i] = NULL;
 		mtx_unlock(&kenv_lock);
 		zfree(oldenv, M_KENV);
+		EVENTHANDLER_INVOKE(unsetenv, name);
 		return (0);
 	}
 	mtx_unlock(&kenv_lock);
