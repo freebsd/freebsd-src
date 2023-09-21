@@ -472,7 +472,6 @@ TEST_F(Read, atime_during_close_eacces)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS = "abcdefgh";
-	struct stat sb;
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
@@ -1377,7 +1376,6 @@ TEST_F(RofsRead, atime_during_close)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS = "abcdefgh";
-	struct stat sb;
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);

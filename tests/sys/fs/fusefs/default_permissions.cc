@@ -1246,7 +1246,6 @@ TEST_F(Read, atime_during_close)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	struct stat sb;
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = 100;
