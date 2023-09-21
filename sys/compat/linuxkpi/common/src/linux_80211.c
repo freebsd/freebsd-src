@@ -2244,9 +2244,11 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct lkpi_vif *lvif;
 	struct ieee80211vap *vap;
 	struct ieee80211_vif *vif;
+	struct ieee80211_tx_queue_params txqp;
 	enum ieee80211_bss_changed changed;
 	size_t len;
 	int error, i;
+	uint16_t ac;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))	/* 1 so far. Add <n> once this works. */
 		return (NULL);
@@ -2345,7 +2347,24 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	changed = 0;
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
 
-	/* conf_tx setup; default WME? */
+	/* Configure tx queues (conf_tx), default WME & send BSS_CHANGED_QOS. */
+	IMPROVE("Hardcoded values; to fix see 802.11-2016, 9.4.2.29 EDCA Parameter Set element");
+	LKPI_80211_LHW_LOCK(lhw);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+
+		bzero(&txqp, sizeof(txqp));
+		txqp.cw_min = 15;
+		txqp.cw_max = 1023;
+		txqp.txop = 0;
+		txqp.aifs = 2;
+		error = lkpi_80211_mo_conf_tx(hw, vif, /* link_id */0, ac, &txqp);
+		if (error != 0)
+			ic_printf(ic, "%s: conf_tx ac %u failed %d\n",
+			    __func__, ac, error);
+	}
+	LKPI_80211_LHW_UNLOCK(lhw);
+	changed = BSS_CHANGED_QOS;
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
 
 	/* Force MC init. */
 	lkpi_update_mcast_filter(ic, true);
