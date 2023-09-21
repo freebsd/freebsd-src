@@ -540,13 +540,16 @@ lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 	struct lkpi_hw *lhw;
 
 	lhw = HW_TO_LHW(hw);
-	if (lhw->ops->bss_info_changed == NULL)
+	if (lhw->ops->link_info_changed == NULL &&
+	    lhw->ops->bss_info_changed == NULL)
 		return;
 
 	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)changed);
-	lhw->ops->bss_info_changed(hw, vif, conf, changed);
+	if (lhw->ops->link_info_changed != NULL)
+		lhw->ops->link_info_changed(hw, vif, conf, changed);
+	else
+		lhw->ops->bss_info_changed(hw, vif, conf, changed);
 }
-
 
 int
 lkpi_80211_mo_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
