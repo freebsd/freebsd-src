@@ -216,15 +216,6 @@ struct rk_cru_gate {
 	uint32_t	shift;
 };
 
-#define	CRU_GATE(idx, clkname, pname, o, s)	\
-	{				\
-		.id = idx,			\
-		.name = clkname,		\
-		.parent_name = pname,		\
-		.offset = o,			\
-		.shift = s,			\
-	},
-
 enum rk_clk_type {
 	RK_CLK_UNDEFINED = 0,
 	RK3066_CLK_PLL,
