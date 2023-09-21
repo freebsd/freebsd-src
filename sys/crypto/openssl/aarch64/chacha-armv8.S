@@ -1,6 +1,6 @@
 /* Do not modify. This file is auto-generated from chacha-armv8.pl. */
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 
 .hidden	OPENSSL_armcap_P
 #endif
@@ -21,6 +21,7 @@
 .type	ChaCha20_ctr32,%function
 .align	5
 ChaCha20_ctr32:
+	AARCH64_SIGN_LINK_REGISTER
 	cbz	x2,.Labort
 	cmp	x2,#192
 	b.lo	.Lshort
@@ -33,7 +34,6 @@ ChaCha20_ctr32:
 #endif
 
 .Lshort:
-.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -245,8 +245,8 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.inst	0xd50323bf			// autiasp
 .Labort:
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .align	4
@@ -302,7 +302,7 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 
@@ -312,8 +312,8 @@ ChaCha20_ctr32:
 .type	ChaCha20_neon,%function
 .align	5
 ChaCha20_neon:
+	AARCH64_SIGN_LINK_REGISTER
 .LChaCha20_neon:
-.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -748,7 +748,7 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .align	4
@@ -880,13 +880,13 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_neon,.-ChaCha20_neon
 .type	ChaCha20_512_neon,%function
 .align	5
 ChaCha20_512_neon:
-.inst	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -2030,6 +2030,6 @@ ChaCha20_512_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_512_neon,.-ChaCha20_512_neon

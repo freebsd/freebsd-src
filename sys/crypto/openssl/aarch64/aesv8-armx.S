@@ -15,6 +15,8 @@
 .align	5
 aes_v8_set_encrypt_key:
 .Lenc_key:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	mov	x3,#-1
@@ -186,7 +188,7 @@ aes_v8_set_encrypt_key:
 .type	aes_v8_set_decrypt_key,%function
 .align	5
 aes_v8_set_decrypt_key:
-.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	bl	.Lenc_key
@@ -220,13 +222,14 @@ aes_v8_set_decrypt_key:
 	eor	x0,x0,x0		// return value
 .Ldec_key_abort:
 	ldp	x29,x30,[sp],#16
-.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	aes_v8_set_decrypt_key,.-aes_v8_set_decrypt_key
 .globl	aes_v8_encrypt
 .type	aes_v8_encrypt,%function
 .align	5
 aes_v8_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	ldr	w3,[x2,#240]
 	ld1	{v0.4s},[x2],#16
 	ld1	{v2.16b},[x0]
@@ -256,6 +259,7 @@ aes_v8_encrypt:
 .type	aes_v8_decrypt,%function
 .align	5
 aes_v8_decrypt:
+	AARCH64_VALID_CALL_TARGET
 	ldr	w3,[x2,#240]
 	ld1	{v0.4s},[x2],#16
 	ld1	{v2.16b},[x0]
@@ -285,6 +289,7 @@ aes_v8_decrypt:
 .type	aes_v8_ecb_encrypt,%function
 .align	5
 aes_v8_ecb_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	subs	x2,x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	.Lecb_big_size
@@ -1031,6 +1036,8 @@ aes_v8_ecb_encrypt:
 .type	aes_v8_cbc_encrypt,%function
 .align	5
 aes_v8_cbc_encrypt:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	subs	x2,x2,#16
@@ -1506,6 +1513,8 @@ aes_v8_cbc_encrypt:
 .type	aes_v8_ctr32_encrypt_blocks,%function
 .align	5
 aes_v8_ctr32_encrypt_blocks:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	ldr	w5,[x3,#240]
@@ -1855,6 +1864,7 @@ aes_v8_ctr32_encrypt_blocks:
 .type	aes_v8_xts_encrypt,%function
 .align	5
 aes_v8_xts_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	.Lxts_enc_big_size
@@ -2496,6 +2506,7 @@ aes_v8_xts_encrypt:
 .type	aes_v8_xts_decrypt,%function
 .align	5
 aes_v8_xts_decrypt:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	.Lxts_dec_big_size
