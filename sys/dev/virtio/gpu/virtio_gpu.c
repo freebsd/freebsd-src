@@ -565,7 +565,7 @@ vtgpu_attach_backing(struct vtgpu_softc *sc)
 	s.req.backing.resource_id = htole32(VTGPU_RESOURCE_ID);
 	s.req.backing.nr_entries = htole32(1);
 
-	s.req.mem[0].addr = htole32(sc->vtgpu_fb_info.fb_pbase);
+	s.req.mem[0].addr = htole64(sc->vtgpu_fb_info.fb_pbase);
 	s.req.mem[0].length = htole32(sc->vtgpu_fb_info.fb_size);
 
 	error = vtgpu_req_resp(sc, &s.req, sizeof(s.req), &s.resp,
