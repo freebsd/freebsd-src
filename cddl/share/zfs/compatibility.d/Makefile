@@ -22,6 +22,7 @@ FILES= \
 	openzfs-2.0-linux \
 	openzfs-2.1-freebsd \
 	openzfs-2.1-linux \
+	openzfs-2.2 \
 	zol-0.6.1 \
 	zol-0.6.4 \
 	zol-0.6.5 \
@@ -42,12 +43,17 @@ LINKS= \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.0 \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.1 \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.2 \
+	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.3 \
+	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.4 \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freenas-11.3 \
 	${FILESDIR}/freenas-11.0	${FILESDIR}/freenas-11.1 \
 	${FILESDIR}/openzfsonosx-1.9.3	${FILESDIR}/openzfsonosx-1.9.4 \
 	${FILESDIR}/openzfs-2.0-freebsd	${FILESDIR}/truenas-12.0 \
 	${FILESDIR}/zol-0.7		${FILESDIR}/ubuntu-18.04 \
-	${FILESDIR}/zol-0.8		${FILESDIR}/ubuntu-20.04
+	${FILESDIR}/zol-0.8		${FILESDIR}/ubuntu-20.04 \
+	${FILESDIR}/openzfs-2.1-linux	${FILESDIR}/ubuntu-22.04 \
+	${FILESDIR}/openzfs-2.2		${FILESDIR}/openzfs-2.2-linux \
+	${FILESDIR}/openzfs-2.2		${FILESDIR}/openzfs-2.2-freebsd
 
 LINKMODE= ${NOBINMODE}
 
