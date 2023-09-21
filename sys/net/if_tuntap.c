@@ -548,6 +548,7 @@ tun_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if (i != 0)
 		i = tun_create_device(drv, unit, NULL, &dev, name);
 	if (i == 0) {
+		dev_ref(dev);
 		tuncreate(dev);
 		struct tuntap_softc *tp = dev->si_drv1;
 		*ifpp = tp->tun_ifp;
@@ -611,8 +612,10 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 
 		i = tun_create_device(drv, u, cred, dev, name);
 	}
-	if (i == 0)
+	if (i == 0) {
+		dev_ref(*dev);
 		if_clone_create(name, namelen, NULL);
+	}
 out:
 	CURVNET_RESTORE();
 }
