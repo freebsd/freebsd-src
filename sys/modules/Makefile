@@ -560,7 +560,7 @@ _mlx5ib=	mlx5ib
     ${MACHINE_CPUARCH} == "i386"
 _ena=		ena
 _gve=		gve
-_iwlwifi=	iwlwifi
+#_iwlwifi=	iwlwifi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _iwlwififw=	iwlwififw
 .endif
