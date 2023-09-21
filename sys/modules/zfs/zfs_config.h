@@ -147,6 +147,9 @@
 /* bio_set_op_attrs is available */
 /* #undef HAVE_BIO_SET_OP_ATTRS */
 
+/* blkdev_get_by_path() exists and takes 4 args */
+/* #undef HAVE_BLKDEV_GET_BY_PATH_4ARG */
+
 /* blkdev_get_by_path() handles ERESTARTSYS */
 /* #undef HAVE_BLKDEV_GET_ERESTARTSYS */
 
@@ -155,6 +158,9 @@
 
 /* blkdev_issue_secure_erase() is available */
 /* #undef HAVE_BLKDEV_ISSUE_SECURE_ERASE */
+
+/* blkdev_put() accepts void* as arg 2 */
+/* #undef HAVE_BLKDEV_PUT_HOLDER */
 
 /* blkdev_reread_part() exists */
 /* #undef HAVE_BLKDEV_REREAD_PART */
@@ -176,6 +182,9 @@
 
 /* blk_cleanup_disk() exists */
 /* #undef HAVE_BLK_CLEANUP_DISK */
+
+/* blk_mode_t is defined */
+/* #undef HAVE_BLK_MODE_T */
 
 /* block multiqueue is available */
 /* #undef HAVE_BLK_MQ */
@@ -216,6 +225,9 @@
 /* BLK_STS_RESV_CONFLICT is defined */
 /* #undef HAVE_BLK_STS_RESV_CONFLICT */
 
+/* Define if release() in block_device_operations takes 1 arg */
+/* #undef HAVE_BLOCK_DEVICE_OPERATIONS_RELEASE_1ARG */
+
 /* Define if revalidate_disk() in block_device_operations */
 /* #undef HAVE_BLOCK_DEVICE_OPERATIONS_REVALIDATE_DISK */
 
@@ -242,6 +254,9 @@
 
 /* copy_from_iter() is available */
 /* #undef HAVE_COPY_FROM_ITER */
+
+/* copy_splice_read exists */
+/* #undef HAVE_COPY_SPLICE_READ */
 
 /* copy_to_iter() is available */
 /* #undef HAVE_COPY_TO_ITER */
@@ -502,6 +517,9 @@
 /* Define to 1 if you have the `issetugid' function. */
 #define HAVE_ISSETUGID 1
 
+/* iter_iov() is available */
+/* #undef HAVE_ITER_IOV */
+
 /* kernel has kernel_fpu_* functions */
 /* #undef HAVE_KERNEL_FPU */
 
@@ -663,6 +681,9 @@
 
 /* register_shrinker is vararg */
 /* #undef HAVE_REGISTER_SHRINKER_VARARG */
+
+/* register_sysctl_table exists */
+/* #undef HAVE_REGISTER_SYSCTL_TABLE */
 
 /* iops->rename2() exists */
 /* #undef HAVE_RENAME2 */
@@ -1074,7 +1095,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.0-FreeBSD_ge96fbdba3"
+#define ZFS_META_ALIAS "zfs-2.2.0-FreeBSD_g62677576a"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1083,7 +1104,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.4"
+#define ZFS_META_KVER_MAX "6.5"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1104,7 +1125,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ge96fbdba3"
+#define ZFS_META_RELEASE "FreeBSD_g62677576a"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.0"
