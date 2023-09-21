@@ -540,7 +540,7 @@ _ipoib=		ipoib
 _iser=		iser
 .endif
 _ipmi=		ipmi
-#_iwlwifi=	iwlwifi
+_iwlwifi=	iwlwifi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _iwlwififw=	iwlwififw
 .endif
@@ -557,7 +557,7 @@ _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
 _ossl=		ossl
-#_rtw88=		rtw88
+_rtw88=		rtw88
 .if ${MK_SOURCELESS_UCODE} != "no"
 _rtw88fw=	rtw88fw
 .endif
