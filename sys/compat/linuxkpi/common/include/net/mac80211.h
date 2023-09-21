@@ -280,19 +280,13 @@ struct ieee80211_bss_conf {
 	bool					eht_su_beamformer;
 	bool					eht_mu_beamformer;
 
-	size_t					ssid_len;
-	uint8_t					ssid[IEEE80211_NWID_LEN];
-	uint16_t				aid;
 	uint16_t				ht_operation_mode;
 	int					arp_addr_cnt;
 	uint16_t				eht_puncturing;
 
 	uint8_t					dtim_period;
 	uint8_t					sync_dtim_count;
-	bool					assoc;
-	bool					idle;
 	bool					qos;
-	bool					ps;
 	bool					twt_broadcast;
 	bool					use_cts_prot;
 	bool					use_short_preamble;
@@ -991,6 +985,8 @@ struct ieee80211_ops {
 	void (*config_iface_filter)(struct ieee80211_hw *, struct ieee80211_vif *, unsigned int, unsigned int);
 
 	void (*bss_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
+        void (*link_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
+
 	int  (*set_rts_threshold)(struct ieee80211_hw *, u32);
 	void (*event_callback)(struct ieee80211_hw *, struct ieee80211_vif *, const struct ieee80211_event *);
 	int  (*get_survey)(struct ieee80211_hw *, int, struct survey_info *);
@@ -1038,7 +1034,6 @@ struct ieee80211_ops {
 
 	int (*set_hw_timestamp)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_set_hw_timestamp *);
 
-        void (*link_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
         void (*vif_cfg_changed)(struct ieee80211_hw *, struct ieee80211_vif *, u64);
 
 	int (*change_vif_links)(struct ieee80211_hw *, struct ieee80211_vif *, u16, u16, struct ieee80211_bss_conf *[IEEE80211_MLD_MAX_NUM_LINKS]);
