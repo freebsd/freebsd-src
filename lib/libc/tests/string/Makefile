@@ -12,6 +12,7 @@ ATF_TESTS_C+=		flsll_test
 ATF_TESTS_C+=		memcmp_test
 ATF_TESTS_C+=		memset_s_test
 ATF_TESTS_C+=		stpncpy_test
+ATF_TESTS_C+=		strcmp2_test
 ATF_TESTS_C+=		strcspn_test
 ATF_TESTS_C+=		strerror2_test
 ATF_TESTS_C+=		strspn_test
@@ -40,6 +41,7 @@ NETBSD_ATF_TESTS_C+=	strpbrk_test
 NETBSD_ATF_TESTS_C+=	strrchr_test
 NETBSD_ATF_TESTS_C+=	swab_test
 
+SRCS.strcmp2_test=	strcmp_test.c
 SRCS.strerror2_test=	strerror_test.c
 
 .include "../Makefile.netbsd-tests"
