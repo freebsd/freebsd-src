@@ -905,8 +905,15 @@ vfs_lookup_cross_mount(struct nameidata *ndp)
 				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
 			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
 				error = vn_lock(dp, LK_UPGRADE);
-				if (error != 0)
+				if (error != 0) {
+					MPASS(error == ENOENT);
+					vrele(dp);
+					if (dp != ndp->ni_dvp)
+						vput(ndp->ni_dvp);
+					else
+						vrele(ndp->ni_dvp);
 					break;
+				}
 				if (dp->v_mountedhere != mp) {
 					continue;
 				}
