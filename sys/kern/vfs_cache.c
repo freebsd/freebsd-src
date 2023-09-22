@@ -985,10 +985,10 @@ SYSCTL_PROC(_vfs_cache, OID_AUTO, nchstats, CTLTYPE_OPAQUE | CTLFLAG_RD |
     "VFS cache effectiveness statistics");
 
 static void
-cache_recalc_neg_min(u_int val)
+cache_recalc_neg_min(void)
 {
 
-	neg_min = (ncsize * val) / 100;
+	neg_min = (ncsize * ncnegminpct) / 100;
 }
 
 static int
@@ -1007,7 +1007,7 @@ sysctl_negminpct(SYSCTL_HANDLER_ARGS)
 	if (val < 0 || val > 99)
 		return (EINVAL);
 	ncnegminpct = val;
-	cache_recalc_neg_min(val);
+	cache_recalc_neg_min();
 	return (0);
 }
 
@@ -2665,7 +2665,7 @@ nchinit(void *dummy __unused)
 	VFS_SMR_ZONE_SET(cache_zone_large_ts);
 
 	ncsize = desiredvnodes * ncsizefactor;
-	cache_recalc_neg_min(ncnegminpct);
+	cache_recalc_neg_min();
 	nchashtbl = nchinittbl(desiredvnodes * 2, &nchash);
 	ncbuckethash = cache_roundup_2(mp_ncpus * mp_ncpus) - 1;
 	if (ncbuckethash < 7) /* arbitrarily chosen to avoid having one lock */
@@ -2809,7 +2809,7 @@ cache_changesize(u_long newmaxvnodes)
 		}
 	}
 	ncsize = newncsize;
-	cache_recalc_neg_min(ncnegminpct);
+	cache_recalc_neg_min();
 	cache_changesize_set_new(new_nchashtbl, new_nchash);
 	cache_unlock_all_buckets();
 	cache_unlock_all_vnodes();
