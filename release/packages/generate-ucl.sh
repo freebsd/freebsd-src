@@ -50,11 +50,11 @@ main() {
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.
-		libcompat-dev|liby-dev)
+		libcompat-dev|libcompiler_rt-dev|liby-dev)
 			outname=${outname%%-dev}
 			_descr="Development Files"
 			;;
-		libcompat-lib32_dev|liby-lib32_dev)
+		libcompat-lib32_dev|libcompiler_rt-lib32_dev|liby-lib32_dev)
 			outname=${outname%%-lib32_dev}
 			_descr="32-bit Libraries, Development Files"
 			;;
