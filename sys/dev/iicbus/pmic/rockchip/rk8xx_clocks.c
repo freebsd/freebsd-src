@@ -112,7 +112,7 @@ rk8xx_attach_clocks(struct rk8xx_softc *sc)
 
 	memset(&clkidef, 0, sizeof(clkidef));
 	clkidef.id = 0;
-	clkidef.name = (nclks = 2) ? clknames[0] : "clk32kout1";
+	clkidef.name = (nclks == 2) ? clknames[0] : "clk32kout1";
 	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_0, &clkidef);
 	if (clk == NULL) {
 		device_printf(sc->dev, "Cannot create '%s'.\n", clkidef.name);
@@ -124,7 +124,7 @@ rk8xx_attach_clocks(struct rk8xx_softc *sc)
 
 	memset(&clkidef, 0, sizeof(clkidef));
 	clkidef.id = 1;
-	clkidef.name = (nclks = 2) ? clknames[1] : "clk32kout2";
+	clkidef.name = (nclks == 2) ? clknames[1] : "clk32kout2";
 	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_1, &clkidef);
 	if (clk == NULL) {
 		device_printf(sc->dev, "Cannot create '%s'.\n", clkidef.name);
