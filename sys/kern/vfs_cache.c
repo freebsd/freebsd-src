@@ -405,7 +405,7 @@ static SYSCTL_NODE(_vfs_cache, OID_AUTO, param, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Name cache parameters");
 
 static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
-SYSCTL_UINT(_vfs_cache_param, OID_AUTO, size, CTLFLAG_RW, &ncsize, 0,
+SYSCTL_UINT(_vfs_cache_param, OID_AUTO, size, CTLFLAG_RD, &ncsize, 0,
     "Total namecache capacity");
 
 u_int ncsizefactor = 2;
