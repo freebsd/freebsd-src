@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 13, 2001
+.Dd September 21, 2023
 .Dt ACL_GET_ENTRY 3
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ The
 function
 is a POSIX.1e call that retrieves a descriptor for an ACL entry
 specified by the argument
-.Fa entry_d
+.Fa entry_id
 within the ACL indicated by the argument
 .Fa acl .
 .Pp
@@ -100,7 +100,7 @@ will be set to indicate the error.
 .Sh ERRORS
 The
 .Fn acl_get_entry
-fails if:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
