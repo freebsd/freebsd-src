@@ -341,8 +341,29 @@ static driver_t athn_usb_driver = {
 	sizeof(struct athn_usb_softc)
 };
 
+/* Temporary to nofiy that the module was loaded */
+static int
+athn_usb_load(struct module *m, int what, void *arg)
+{
+	int error = 0;
+
+	switch (what) {
+	case MOD_LOAD:
+		uprintf("Athn KLD loaded.\n");
+		break;
+	case MOD_UNLOAD:
+		uprintf("Athn KLD unloaded.\n");
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return(error);
+}
+
+
 // Defined in bus.h
-DRIVER_MODULE(athn_usb, uhub, athn_usb_driver, NULL, NULL);
+DRIVER_MODULE(athn_usb, uhub, athn_usb_driver, athn_usb_load, NULL);
 MODULE_VERSION(athn_usb, 1);
 MODULE_DEPEND(athn_usb, usb, 1, 1, 1);
 //MODULE_DEPEND(athn_usb, wlan, 1, 1, 1);
