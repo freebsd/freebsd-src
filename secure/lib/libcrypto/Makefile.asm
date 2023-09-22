@@ -46,6 +46,7 @@ ASM=	${SRCS:R:S/$/.S/} sha256-armv8.S
 
 all:	${ASM}
 	rm -f ${ASM:R:S/$/.s/}
+	${CP} ${LCRYPTO_SRC}/crypto/arm_arch.h arm_arch.h
 
 CLEANFILES=	${ASM}
 .SUFFIXES:	.pl
