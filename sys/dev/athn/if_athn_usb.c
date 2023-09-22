@@ -145,7 +145,7 @@ ar9271_load_ani(struct athn_softc *sc)
 //int		athn_usb_match(struct device *, void *, void *);
 //void		athn_usb_attach(struct device *, struct device *, void *);
 //int		athn_usb_detach(struct device *, int);
-//void		athn_usb_attachhook(struct device *);
+void		athn_usb_attachhook(device_t self);
 int		athn_usb_open_pipes(struct athn_usb_softc *);
 void		athn_usb_close_pipes(struct athn_usb_softc *);
 int		athn_usb_alloc_rx_list(struct athn_usb_softc *);
@@ -324,36 +324,6 @@ tsleep_nsec(const void *ident, int priority, const char *wmesg,
 	return tsleep(ident, priority, wmesg, (int)to_ticks);
 }
 
-/* Temporary to nofiy that the module was loaded */
-static int
-athn_usb_load(struct module *m, int what, void *arg)
-{
-	int err = 0;
-
-	switch (what) {
-	case MOD_LOAD:                /* kldload */
-		uprintf("Athn KLD loaded.\n");
-		break;
-	case MOD_UNLOAD:
-		uprintf("Athn KLD unloaded.\n");
-		break;
-	default:
-		err = EOPNOTSUPP;
-		break;
-	}
-	return(err);
-}
-
-/* Declare this module to the rest of the kernel */
-
-static moduledata_t athn_usb_module = {
-	"athn_mod",
-	athn_usb_load,
-	NULL
-};
-
-DECLARE_MODULE(athn_mod, athn_usb_module, SI_SUB_DRIVERS, SI_ORDER_ANY);
-
 static device_method_t athn_usb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		athn_usb_match),
@@ -436,7 +406,7 @@ athn_usb_attach(device_t self)
 //	if (athn_usb_alloc_tx_cmd(usc) != 0)
 //		return;
 //
-//	config_mountroot(self, athn_usb_attachhook);
+	athn_usb_attachhook(self);
 
 	printf("athn_usb_attach called \n");
 	return 0;
@@ -469,9 +439,9 @@ athn_usb_detach(device_t self)
 }
 
 void
-athn_usb_attachhook(device_t *self)
+athn_usb_attachhook(device_t self)
 {
-	struct athn_usb_softc *usc = (struct athn_usb_softc *)self;
+	struct athn_usb_softc *usc = device_get_softc(self);
 	struct athn_softc *sc = &usc->sc_sc;
 	struct athn_ops *ops = &sc->ops;
 #ifdef notyet
@@ -483,7 +453,7 @@ athn_usb_attachhook(device_t *self)
 	/* Load firmware. */
 	error = athn_usb_load_firmware(usc);
 	if (error != 0) {
-//		printf("%s: could not load firmware\n", sc->sc_dev); // device name?
+//		printf("Could not load firmware\n");
 		return;
 	}
 
@@ -817,23 +787,30 @@ athn_usb_load_firmware(struct athn_usb_softc *usc)
 	u_char *fw, *ptr;
 	size_t fwsize, size;
 	uint32_t addr;
-	int s, mlen, error;
+	int s, mlen;
+	int error = ENXIO;
 
 	const struct firmware *fware = NULL;
 
 	/* Determine which firmware image to load. */
 	if (usc->flags & ATHN_USB_FLAG_AR7010) {
 		dd = usbd_get_device_descriptor(usc->sc_udev);
-		name = "athn-open-ar7010";
+		name = "athn-open-ar7010.bin";
 	} else
-		name = "athn-open-ar9271";
+		name = "athn-open-ar9271.bin";
 	/* Read firmware image from the filesystem. */
 	fware = firmware_get(name);
 	if (fware == NULL) {
-		printf("%s: failed firmware_get of file %s (error %d)\n",
-		    device_get_name(usc->usb_dev), name, error);
+		printf("Failed firmware_get of file %s\n", name);
+		return (error);
+	} else {
+		printf("Success firmware_get of file %s \n", name);
+		printf("Firmware name: %s:\n", fware->name);
+		printf("Firmware version: %u:\n", fware->version);
+		printf("Firmware size: %zu:\n", fware->datasize);
 		return (error);
 	}
+
 	/* Load firmware image. */
 	ptr = fw;
 	addr = AR9271_FIRMWARE >> 8;
