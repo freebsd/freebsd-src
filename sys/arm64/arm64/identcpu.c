@@ -2203,6 +2203,8 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
 	parse_cpu_features();
+	/* We export the CPUID registers */
+	elf_hwcap |= HWCAP_CPUID;
 
 #ifdef COMPAT_FREEBSD32
 	/* Set the default caps and any that need to check multiple fields */
