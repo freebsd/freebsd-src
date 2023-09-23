@@ -125,6 +125,7 @@ static int	sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del,
 		    int recurse);
 static int	sysctl_old_kernel(struct sysctl_req *, const void *, size_t);
 static int	sysctl_new_kernel(struct sysctl_req *, void *, size_t);
+static int	name2oid(const char *, int *, int *, struct sysctl_oid **);
 
 static struct sysctl_oid *
 sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
@@ -136,6 +137,21 @@ sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
 		if (strcmp(oidp->oid_name, name) == 0) {
 			return (oidp);
 		}
+	}
+	return (NULL);
+}
+
+static struct sysctl_oid *
+sysctl_find_oidnamelen(const char *name, size_t len,
+    struct sysctl_oid_list *list)
+{
+	struct sysctl_oid *oidp;
+
+	SYSCTL_ASSERT_LOCKED();
+	SYSCTL_FOREACH(oidp, list) {
+		if (strncmp(oidp->oid_name, name, len) == 0 &&
+		    oidp->oid_name[len] == '\0')
+			return (oidp);
 	}
 	return (NULL);
 }
@@ -1319,21 +1335,26 @@ static SYSCTL_NODE(_sysctl, CTL_SYSCTL_NEXTNOSKIP, nextnoskip, CTLFLAG_RD |
     CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_next, "");
 
 static int
-name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
+name2oid(const char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 {
 	struct sysctl_oid *oidp;
 	struct sysctl_oid_list *lsp = &sysctl__children;
+	const char *n;
 
 	SYSCTL_ASSERT_LOCKED();
 
 	for (*len = 0; *len < CTL_MAXNAME;) {
-		oidp = sysctl_find_oidname(strsep(&name, "."), lsp);
+		n = strchrnul(name, '.');
+		oidp = sysctl_find_oidnamelen(name, n - name, lsp);
 		if (oidp == NULL)
 			return (ENOENT);
 		*oid++ = oidp->oid_number;
 		(*len)++;
 
-		if (name == NULL || *name == '\0') {
+		name = n;
+		if (*name == '.')
+			name++;
+		if (*name == '\0') {
 			if (oidpp)
 				*oidpp = oidp;
 			return (0);
@@ -2909,7 +2930,7 @@ db_show_sysctl_all(int *oid, size_t len, int flags)
  * Show a sysctl by its user facing string
  */
 static int
-db_sysctlbyname(char *name, int flags)
+db_sysctlbyname(const char *name, int flags)
 {
 	struct sysctl_oid *oidp;
 	int oid[CTL_MAXNAME];
