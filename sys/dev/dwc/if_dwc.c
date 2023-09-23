@@ -1488,12 +1488,6 @@ dwc_tick(void *arg)
 	callout_reset(&sc->dwc_callout, hz, dwc_tick, sc);
 }
 
-/*
- * Probe/Attach functions
- */
-
-#define	GPIO_ACTIVE_LOW 1
-
 static int
 dwc_reset_phy(struct dwc_softc *sc)
 {
@@ -1585,6 +1579,10 @@ dwc_clock_init(device_t dev)
 
 	return (0);
 }
+
+/*
+ * Probe/Attach functions
+ */
 
 static int
 dwc_probe(device_t dev)
