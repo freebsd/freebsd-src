@@ -4,7 +4,7 @@
  * Copyright (c) 1999 Bill Paul <wpaul@ctr.columbia.edu>
  * Copyright (c) 2012 ADARA Networks, Inc.
  * All rights reserved.
-  *
+ *
  * Portions of this software were developed by Robert N. M. Watson under
  * contract to ADARA Networks, Inc.
  *
