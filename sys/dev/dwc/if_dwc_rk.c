@@ -38,15 +38,15 @@
 #include <net/if.h>
 #include <net/if_media.h>
 
-#include <dev/dwc/if_dwc.h>
-#include <dev/dwc/if_dwcvar.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>
+
+#include <dev/dwc/if_dwc.h>
+#include <dev/dwc/if_dwcvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "if_dwc_if.h"
 #include "syscon_if.h"
@@ -130,6 +130,7 @@ struct if_dwc_rk_softc {
 	clk_t			aclk_mac;
 	clk_t			pclk_mac;
 	clk_t			clk_stmmaceth;
+	clk_t			clk_mac_speed;
 	/* RMII clocks */
 	clk_t			clk_mac_ref;
 	clk_t			clk_mac_refout;
@@ -391,26 +392,10 @@ static int
 if_dwc_rk_init_clocks(device_t dev)
 {
 	struct if_dwc_rk_softc *sc;
-	int error;
 
 	sc = device_get_softc(dev);
-	error = clk_set_assigned(dev, ofw_bus_get_node(dev));
-	if (error != 0) {
-		device_printf(dev, "clk_set_assigned failed\n");
-		return (error);
-	}
 
 	/* Enable clocks */
-	error = clk_get_by_ofw_name(dev, 0, "stmmaceth", &sc->clk_stmmaceth);
-	if (error != 0) {
-		device_printf(dev, "could not find clock stmmaceth\n");
-		return (error);
-	}
-
-	if (clk_get_by_ofw_name(dev, 0, "mac_clk_rx", &sc->mac_clk_rx) != 0) {
-		device_printf(sc->base.dev, "could not get mac_clk_rx clock\n");
-		sc->mac_clk_rx = NULL;
-	}
 
 	if (clk_get_by_ofw_name(dev, 0, "mac_clk_tx", &sc->mac_clk_tx) != 0) {
 		device_printf(sc->base.dev, "could not get mac_clk_tx clock\n");
@@ -427,7 +412,15 @@ if_dwc_rk_init_clocks(device_t dev)
 		sc->pclk_mac = NULL;
 	}
 
-	if (sc->base.phy_mode == PHY_MODE_RGMII) {
+	/* Optional clock */
+	clk_get_by_ofw_name(dev, 0, "clk_mac_speed", &sc->clk_mac_speed);
+
+	if (sc->base.phy_mode == PHY_MODE_RMII) {
+		if (clk_get_by_ofw_name(dev, 0, "mac_clk_rx", &sc->mac_clk_rx) != 0) {
+			device_printf(sc->base.dev, "could not get mac_clk_rx clock\n");
+			sc->mac_clk_rx = NULL;
+		}
+
 		if (clk_get_by_ofw_name(dev, 0, "clk_mac_ref", &sc->clk_mac_ref) != 0) {
 			device_printf(sc->base.dev, "could not get clk_mac_ref clock\n");
 			sc->clk_mac_ref = NULL;
@@ -470,6 +463,8 @@ if_dwc_rk_init_clocks(device_t dev)
 		clk_enable(sc->pclk_mac);
 	if (sc->mac_clk_tx)
 		clk_enable(sc->mac_clk_tx);
+	if (sc->clk_mac_speed)
+		clk_enable(sc->clk_mac_speed);
 
 	DELAY(50);
 

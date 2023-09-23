@@ -76,6 +76,12 @@ struct dwc_softc {
 	int			stats_harvest_count;
 	int			phy_mode;
 
+	/* clocks and reset */
+	clk_t			clk_stmmaceth;
+	clk_t			clk_pclk;
+	hwreset_t		rst_stmmaceth;
+	hwreset_t		rst_ahb;
+
 	/* RX */
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;

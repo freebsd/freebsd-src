@@ -61,6 +61,9 @@
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+
 #include <dev/dwc/if_dwc.h>
 #include <dev/dwc/if_dwcvar.h>
 #include <dev/mii/mii.h>
@@ -68,9 +71,6 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii_fdt.h>
-
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
 
 #include "if_dwc_if.h"
 #include "gpio_if.h"
@@ -1544,37 +1544,65 @@ dwc_reset_phy(struct dwc_softc *sc)
 }
 
 static int
-dwc_clock_init(device_t dev)
+dwc_clock_init(struct dwc_softc *sc)
 {
-	hwreset_t rst;
-	clk_t clk;
-	int error;
+	int rv;
 	int64_t freq;
 
-	/* Enable clocks */
-	if (clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk) == 0) {
-		error = clk_enable(clk);
-		if (error != 0) {
-			device_printf(dev, "could not enable main clock\n");
-			return (error);
-		}
-		if (bootverbose) {
-			clk_get_freq(clk, &freq);
-			device_printf(dev, "MAC clock(%s) freq: %jd\n",
-					clk_get_name(clk), (intmax_t)freq);
-		}
+	/* Required clock */
+	rv = clk_get_by_ofw_name(sc->dev, 0, "stmmaceth", &sc->clk_stmmaceth);
+	if (rv != 0) {
+		device_printf(sc->dev, "Cannot get GMAC main clock\n");
+		return (ENXIO);
 	}
-	else {
-		device_printf(dev, "could not find clock stmmaceth\n");
+	if ((rv = clk_enable(sc->clk_stmmaceth)) != 0) {
+		device_printf(sc->dev, "could not enable main clock\n");
+		return (rv);
 	}
 
-	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, 0, "stmmaceth", &rst) == 0) {
-		error = hwreset_deassert(rst);
-		if (error != 0) {
-			device_printf(dev, "could not de-assert reset\n");
-			return (error);
-		}
+	/* Optional clock */
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pclk", &sc->clk_pclk);
+	if (rv != 0)
+		return (0);
+	if ((rv = clk_enable(sc->clk_pclk)) != 0) {
+		device_printf(sc->dev, "could not enable peripheral clock\n");
+		return (rv);
+	}
+
+	if (bootverbose) {
+		clk_get_freq(sc->clk_stmmaceth, &freq);
+		device_printf(sc->dev, "MAC clock(%s) freq: %jd\n",
+		    clk_get_name(sc->clk_stmmaceth), (intmax_t)freq);
+	}
+
+	return (0);
+}
+
+static int
+dwc_reset_deassert(struct dwc_softc *sc)
+{
+	int rv;
+
+	/* Required reset */
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "stmmaceth", &sc->rst_stmmaceth);
+	if (rv != 0) {
+		device_printf(sc->dev, "Cannot get GMAC reset\n");
+		return (ENXIO);
+	}
+	rv = hwreset_deassert(sc->rst_stmmaceth);
+	if (rv != 0) {
+		device_printf(sc->dev, "could not de-assert GMAC reset\n");
+		return (rv);
+	}
+
+	/* Optional reset */
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "ahb", &sc->rst_ahb);
+	if (rv != 0)
+		return (0);
+	rv = hwreset_deassert(sc->rst_ahb);
+	if (rv != 0) {
+		device_printf(sc->dev, "could not de-assert AHB reset\n");
+		return (rv);
 	}
 
 	return (0);
@@ -1654,10 +1682,20 @@ dwc_attach(device_t dev)
 	if (OF_hasprop(sc->node, "snps,aal") == 1)
 		aal = true;
 
-	if (IF_DWC_INIT(dev) != 0)
-		return (ENXIO);
+	error = clk_set_assigned(dev, ofw_bus_get_node(dev));
+	if (error != 0) {
+		device_printf(dev, "clk_set_assigned failed\n");
+		return (error);
+	}
 
-	if (dwc_clock_init(dev) != 0)
+	/* Enable main clock */
+	if ((error = dwc_clock_init(sc)) != 0)
+		return (error);
+	/* De-assert main reset */
+	if ((error = dwc_reset_deassert(sc)) != 0)
+		return (error);
+
+	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
 
 	if (bus_alloc_resources(dev, dwc_spec, sc->res)) {
