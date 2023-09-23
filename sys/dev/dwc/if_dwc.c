@@ -1610,6 +1610,7 @@ dwc_attach(device_t dev)
 	bool nopblx8 = false;
 	bool fixed_burst = false;
 	bool mixed_burst = false;
+	bool aal = false;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1650,6 +1651,8 @@ dwc_attach(device_t dev)
 		fixed_burst = true;
 	if (OF_hasprop(sc->node, "snps,mixed-burst") == 1)
 		mixed_burst = true;
+	if (OF_hasprop(sc->node, "snps,aal") == 1)
+		aal = true;
 
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
@@ -1697,6 +1700,8 @@ dwc_attach(device_t dev)
 		reg |= BUS_MODE_FIXEDBURST;
 	if (mixed_burst)
 		reg |= BUS_MODE_MIXEDBURST;
+	if (aal)
+		reg |= BUS_MODE_AAL;
 
 	WRITE4(sc, BUS_MODE, reg);
 
