@@ -42,6 +42,9 @@
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+
 #include <dev/dwc/if_dwc.h>
 #include <dev/dwc/if_dwcvar.h>
 #include <dev/ofw/ofw_bus.h>
