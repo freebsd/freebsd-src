@@ -224,8 +224,11 @@ dev/dpaa2/memac_mdio_common.c			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa
 dev/dpaa2/memac_mdio_fdt.c			optional soc_nxp_ls dpaa2 fdt
 dev/dpaa2/memac_mdio_if.m			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
 
+# Synopsys DesignWare Ethernet Controller
 dev/dwc/if_dwc.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_socfpga soc_intel_stratix10
 dev/dwc/if_dwc_if.m				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_socfpga soc_intel_stratix10
+dev/dwc/if_dwc_rk.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
+dev/dwc/if_dwc_socfpga.c			optional fdt dwc_socfpga
 
 dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls
 dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
@@ -469,7 +472,6 @@ arm/allwinner/h6/h6_padconf.c			optional soc_allwinner_h6 fdt
 arm/allwinner/h6/h6_r_padconf.c			optional soc_allwinner_h6 fdt
 
 # Altera/Intel
-dev/altera/dwc/if_dwc_socfpga.c			optional fdt dwc_socfpga
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10 fdt
 arm64/intel/stratix10-svc.c			optional soc_intel_stratix10 fdt
 
@@ -672,7 +674,6 @@ arm64/rockchip/rk_iodomain.c			optional fdt rk_iodomain
 arm64/rockchip/rk_spi.c				optional fdt rk_spi
 arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt rk_usb2phy soc_rockchip_rk3399 | fdt rk_usb2phy soc_rockchip_rk3568
 arm64/rockchip/rk_typec_phy.c			optional fdt rk_typec_phy soc_rockchip_rk3399
-arm64/rockchip/if_dwc_rk.c			optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
 arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_tsadc.c			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_pwm.c				optional fdt rk_pwm
