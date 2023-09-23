@@ -219,6 +219,7 @@
 
 /* DMA */
 #define	BUS_MODE		0x1000
+#define	 BUS_MODE_MIXEDBURST	(1 << 26)
 #define	 BUS_MODE_EIGHTXPBL	(1 << 24) /* Multiplies PBL by 8 */
 #define	 BUS_MODE_USP		(1 << 23)
 #define	 BUS_MODE_RPBL_SHIFT	17 /* Single block transfer size */
