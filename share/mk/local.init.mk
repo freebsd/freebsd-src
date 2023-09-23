@@ -13,7 +13,7 @@ __${_this}__:
 
 # XXX: This should be combined with external compiler support in Makefile.inc1
 # and local.meta.sys.mk (CROSS_TARGET_FLAGS)
-.if ${MK_SYSROOT} == "yes" && !empty(SYSROOT) && ${MACHINE} != "host"
+.if ${MK_SYSROOT} == "yes" && !empty(SYSROOT) && ${MACHINE:Nhost*} != ""
 CFLAGS_LAST+= --sysroot=${SYSROOT}
 CXXFLAGS_LAST+= --sysroot=${SYSROOT}
 LDADD+= --sysroot=${SYSROOT}
@@ -29,8 +29,8 @@ CFLAGS+= -isystem${ISYSTEM}
 LDADD+= -L${STAGE_LIBDIR}
 .endif
 
-.if ${MACHINE} == "host"
-.if ${.MAKE.DEPENDFILE:E} != "host"
+.if ${MACHINE:Nhost*} == ""
+.if ${.MAKE.DEPENDFILE:E:Nhost*} != ""
 UPDATE_DEPENDFILE?= no
 .endif
 HOST_CFLAGS+= -DHOSTPROG

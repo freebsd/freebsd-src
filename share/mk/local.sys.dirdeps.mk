@@ -43,7 +43,7 @@ LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 
 .-include "local.toolchain.mk"
 
-.if ${.MAKE.LEVEL} > 0 && ${MACHINE} == "host" && ${.MAKE.DEPENDFILE:E} != "host"
+.if ${.MAKE.LEVEL} > 0 && ${MACHINE:Nhost*} == "" && ${.MAKE.DEPENDFILE:E} != "${MACHINE}"
 # we can use this but should not update it.
 UPDATE_DEPENDFILE?= NO
 .endif
@@ -115,15 +115,9 @@ ${var}=		${HOST_${var}}
 .endfor
 .endif
 
-.if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}
-# cross-building
 .if !defined(FREEBSD_REVISION)
 FREEBSD_REVISION!= sed -n '/^REVISION=/{s,.*=,,;s,",,g;p; }' ${SRCTOP}/sys/conf/newvers.sh
 .export FREEBSD_REVISION
-.endif
-CROSS_TARGET_FLAGS?= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
-CFLAGS+= ${CROSS_TARGET_FLAGS}
-ACFLAGS+= ${CROSS_TARGET_FLAGS}
 .endif
 
 # we set these here, rather than local.gendirdeps.mk
@@ -150,7 +144,7 @@ $V?= ${${V:S,DEP_,,}}
 .endfor
 .endif
 
-.if ${MACHINE} == "host" && ${.MAKE.OS} != "FreeBSD"
+.if ${MACHINE:Nhost*} == "" && ${.MAKE.OS} != "FreeBSD"
 # some makefiles expect this
 BOOTSTRAPPING= 0
 .endif
