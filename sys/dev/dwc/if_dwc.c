@@ -1495,43 +1495,47 @@ dwc_tick(void *arg)
 #define	GPIO_ACTIVE_LOW 1
 
 static int
-dwc_reset(device_t dev)
+dwc_reset_phy(struct dwc_softc *sc)
 {
 	pcell_t gpio_prop[4];
 	pcell_t delay_prop[3];
-	phandle_t node, gpio_node;
+	phandle_t gpio_node;
 	device_t gpio;
 	uint32_t pin, flags;
 	uint32_t pin_value;
 
-	node = ofw_bus_get_node(dev);
-	if (OF_getencprop(node, "snps,reset-gpio",
+	/*
+	 * All those properties are deprecated but still used in some DTS.
+	 * The new way to deal with this is to use the generic bindings
+	 * present in the ethernet-phy node.
+	 */
+	if (OF_getencprop(sc->node, "snps,reset-gpio",
 	    gpio_prop, sizeof(gpio_prop)) <= 0)
 		return (0);
 
-	if (OF_getencprop(node, "snps,reset-delays-us",
+	if (OF_getencprop(sc->node, "snps,reset-delays-us",
 	    delay_prop, sizeof(delay_prop)) <= 0) {
-		device_printf(dev,
+		device_printf(sc->dev,
 		    "Wrong property for snps,reset-delays-us");
 		return (ENXIO);
 	}
 
 	gpio_node = OF_node_from_xref(gpio_prop[0]);
 	if ((gpio = OF_device_from_xref(gpio_prop[0])) == NULL) {
-		device_printf(dev,
+		device_printf(sc->dev,
 		    "Can't find gpio controller for phy reset\n");
 		return (ENXIO);
 	}
 
-	if (GPIO_MAP_GPIOS(gpio, node, gpio_node,
+	if (GPIO_MAP_GPIOS(gpio, sc->node, gpio_node,
 	    nitems(gpio_prop) - 1,
 	    gpio_prop + 1, &pin, &flags) != 0) {
-		device_printf(dev, "Can't map gpio for phy reset\n");
+		device_printf(sc->dev, "Can't map gpio for phy reset\n");
 		return (ENXIO);
 	}
 
 	pin_value = GPIO_PIN_LOW;
-	if (OF_hasprop(node, "snps,reset-active-low"))
+	if (OF_hasprop(sc->node, "snps,reset-active-low"))
 		pin_value = GPIO_PIN_HIGH;
 
 	GPIO_PIN_SETFLAGS(gpio, pin, GPIO_PIN_OUTPUT);
@@ -1604,7 +1608,6 @@ dwc_attach(device_t dev)
 	if_t ifp;
 	int error, i;
 	uint32_t reg;
-	phandle_t node;
 	uint32_t txpbl, rxpbl, pbl;
 	bool nopblx8 = false;
 	bool fixed_burst = false;
@@ -1617,8 +1620,8 @@ dwc_attach(device_t dev)
 	sc->mii_clk = IF_DWC_MII_CLK(dev);
 	sc->mactype = IF_DWC_MAC_TYPE(dev);
 
-	node = ofw_bus_get_node(dev);
-	switch (mii_fdt_get_contype(node)) {
+	sc->node = ofw_bus_get_node(dev);
+	switch (mii_fdt_get_contype(sc->node)) {
 	case MII_CONTYPE_RGMII:
 	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
@@ -1636,15 +1639,15 @@ dwc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (OF_getencprop(node, "snps,pbl", &pbl, sizeof(uint32_t)) <= 0)
+	if (OF_getencprop(sc->node, "snps,pbl", &pbl, sizeof(uint32_t)) <= 0)
 		pbl = BUS_MODE_DEFAULT_PBL;
-	if (OF_getencprop(node, "snps,txpbl", &txpbl, sizeof(uint32_t)) <= 0)
+	if (OF_getencprop(sc->node, "snps,txpbl", &txpbl, sizeof(uint32_t)) <= 0)
 		txpbl = pbl;
-	if (OF_getencprop(node, "snps,rxpbl", &rxpbl, sizeof(uint32_t)) <= 0)
+	if (OF_getencprop(sc->node, "snps,rxpbl", &rxpbl, sizeof(uint32_t)) <= 0)
 		rxpbl = pbl;
-	if (OF_hasprop(node, "snps,no-pbl-x8") == 1)
+	if (OF_hasprop(sc->node, "snps,no-pbl-x8") == 1)
 		nopblx8 = true;
-	if (OF_hasprop(node, "snps,fixed-burst") == 1)
+	if (OF_hasprop(sc->node, "snps,fixed-burst") == 1)
 		fixed_burst = true;
 
 	if (IF_DWC_INIT(dev) != 0)
@@ -1662,7 +1665,7 @@ dwc_attach(device_t dev)
 	dwc_get_hwaddr(sc, macaddr);
 
 	/* Reset the PHY if needed */
-	if (dwc_reset(dev) != 0) {
+	if (dwc_reset_phy(sc) != 0) {
 		device_printf(dev, "Can't reset the PHY\n");
 		bus_release_resources(dev, dwc_spec, sc->res);
 		return (ENXIO);
