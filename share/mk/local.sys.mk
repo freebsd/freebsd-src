@@ -95,4 +95,11 @@ META_COOKIE_RM?=
 META_COOKIE_TOUCH?=
 META_DEPS+=	${META_NOPHONY}
 
+.if ${MACHINE:Nhost*:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}
+# cross-building
+CROSS_TARGET_FLAGS?= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
+CFLAGS+= ${CROSS_TARGET_FLAGS}
+ACFLAGS+= ${CROSS_TARGET_FLAGS}
+.endif
+
 .endif

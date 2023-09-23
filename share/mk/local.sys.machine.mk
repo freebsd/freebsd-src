@@ -1,10 +1,11 @@
 
 .-include <site.sys.machine.mk>
 
-PSEUDO_MACHINE_LIST?= common host
+PSEUDO_MACHINE_LIST?= common host host32
 TARGET_MACHINE_LIST?= amd64 arm arm64 i386 powerpc riscv
 
 MACHINE_ARCH_host?= ${_HOST_ARCH}
+MACHINE_ARCH_host32?= ${_HOST_ARCH32}
 
 MACHINE_ARCH_LIST_arm?= armv7 ${EXTRA_ARCHES_arm}
 MACHINE_ARCH_LIST_arm64?= aarch64

@@ -22,7 +22,9 @@ DIRDEPS_FILTER.host = \
 	Ninclude* \
 	Nlib/csu* \
 	Nlib/libc \
+	Nlib/libcompiler_rt \
 	Nlib/[mn]* \
+	Nlib/lib[t]* \
 	Ngnu/lib/lib[a-r]* \
 	Nsecure/lib* \
 	Nusr.bin/xinstall* \
@@ -49,6 +51,8 @@ _need_host_libs+= lib/libmd
 N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host+= ${N_host_libs}
 .endif
+
+DIRDEPS_FILTER.host32 = ${DIRDEPS_FILTER.host}
 
 DIRDEPS_FILTER+= \
 	Nbin/cat.host \
@@ -107,6 +111,7 @@ DIRDEPS += \
 	cddl/usr.bin/ctfmerge.host
 .endif
 
+.if ${DEP_MACHINE:Nhost*} != ""
 # Add in proper libgcc (gnu or LLVM) if not building libcc and libc is needed.
 # Add both gcc_s and gcc_eh as dependencies as the decision to build
 # -static or not is not known here.
@@ -114,6 +119,7 @@ DIRDEPS += \
 DIRDEPS+= \
 	lib/libgcc_eh \
 	lib/libgcc_s
+.endif
 .endif
 
 # Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*

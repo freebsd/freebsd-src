@@ -126,6 +126,8 @@ CHACHA20INCS+=	${SRCTOP}/sys/crypto/chacha20/_chacha.h \
 
 .if ${MACHINE} == "host"
 _host_arch= ${_HOST_ARCH}
+.elif ${MACHINE} == "host32"
+_host_arch= ${_HOST_ARCH32}
 .else
 _host_arch=${MACHINE}
 .endif

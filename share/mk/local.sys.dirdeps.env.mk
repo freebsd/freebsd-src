@@ -24,17 +24,28 @@ BOOT_MACHINE_DIR.$m ?= stand/$m
 .endfor
 
 HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
+HOST_OBJTOP32 ?= ${OBJROOT}${HOST_TARGET32}
 
+.if ${.MAKE.LEVEL} == 0
 .if ${REQUESTED_MACHINE:U${MACHINE}} == "host"
 MACHINE= host
 .if ${TARGET_MACHINE:Uno} == ${HOST_TARGET}
 # not what we want
 TARGET_MACHINE= host
 .endif
+.elif ${REQUESTED_MACHINE:U${MACHINE}} == "host32"
+MACHINE= host32
 .endif
-.if ${MACHINE} == "host"
-OBJTOP := ${HOST_OBJTOP}
+.endif
+
+.if ${MACHINE:Nhost*} == ""
 MACHINE_ARCH= ${MACHINE_ARCH_${MACHINE}}
+.if ${MACHINE} == "host32"
+.MAKE.DEPENDFILE_PREFERENCE= \
+	${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}.host32 \
+	${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}.host \
+	${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}
+.endif
 .endif
 
 
