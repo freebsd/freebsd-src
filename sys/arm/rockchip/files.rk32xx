@@ -2,7 +2,6 @@ kern/kern_clocksource.c			standard
 
 arm/rockchip/rk32xx_machdep.c		standard
 arm/rockchip/rk32xx_mp.c		optional	smp
-arm64/rockchip/if_dwc_rk.c		standard
 arm64/rockchip/rk_i2c.c			standard
 arm64/rockchip/rk_iodomain.c		standard
 arm64/rockchip/rk_gpio.c		standard
@@ -22,6 +21,7 @@ arm64/rockchip/clk/rk_clk_pll.c		standard
 arm64/rockchip/clk/rk_cru.c		standard
 arm64/rockchip/clk/rk3288_cru.c		standard
 
+dev/dwc/if_dwc_rk.c			standard
 dev/iicbus/pmic/act8846.c		standard
 dev/iicbus/pmic/act8846_regulator.c	standard
 dev/iicbus/pmic/fan53555.c		standard

@@ -5,7 +5,6 @@ arm/allwinner/a10_dmac.c		optional	a10_dmac
 arm/allwinner/a31_dmac.c		optional	a31_dmac
 arm/allwinner/a10_sramc.c		optional	SOC_ALLWINNER_A10
 arm/allwinner/aw_gpio.c			optional	gpio
-arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_machdep.c		standard
 arm/allwinner/aw_mmc.c			optional	mmc | mmccam
 arm/allwinner/aw_mp.c			optional	smp
@@ -22,6 +21,7 @@ arm/allwinner/axp81x.c			optional	axp81x
 arm/allwinner/if_awg.c			optional	awg syscon
 arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		optional	a10_dmac | a31_dmac
+dev/dwc/if_dwc_aw.c			optional	dwc
 dev/iicbus/controller/twsi/a10_twsi.c	optional	twsi
 dev/usb/controller/generic_ohci.c	optional	ohci
 dev/usb/controller/generic_usb_if.m	optional	ohci
