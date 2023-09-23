@@ -530,8 +530,6 @@ STATNODE_ULONG(neg, numneg, "Number of negative cache entries");
 STATNODE_ULONG(count, numcache, "Number of cache entries");
 STATNODE_COUNTER(heldvnodes, numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(drops, numdrops, "Number of dropped entries due to reaching the limit");
-STATNODE_COUNTER(dothits, dothits, "Number of '.' hits");
-STATNODE_COUNTER(dotdothits, dotdothits, "Number of '..' hits");
 STATNODE_COUNTER(miss, nummiss, "Number of cache misses");
 STATNODE_COUNTER(misszap, nummisszap, "Number of cache misses we do not want to cache");
 STATNODE_COUNTER(poszaps, numposzaps,
@@ -1782,7 +1780,6 @@ cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cn
 	int ltype;
 
 	*vpp = dvp;
-	counter_u64_add(dothits, 1);
 	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", *vpp);
 	if (tsp != NULL)
 		timespecclear(tsp);
@@ -1827,7 +1824,6 @@ cache_lookup_dotdot(struct vnode *dvp, struct vnode **vpp, struct componentname 
 		return (0);
 	}
 
-	counter_u64_add(dotdothits, 1);
 retry:
 	dvlp = VP2VNODELOCK(dvp);
 	mtx_lock(dvlp);
@@ -5131,7 +5127,6 @@ cache_fplookup_dot(struct cache_fpl *fpl)
 	fpl->tvp = fpl->dvp;
 	fpl->tvp_seqc = fpl->dvp_seqc;
 
-	counter_u64_add(dothits, 1);
 	SDT_PROBE3(vfs, namecache, lookup, hit, fpl->dvp, ".", fpl->dvp);
 
 	error = 0;
@@ -5220,7 +5215,6 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	counter_u64_add(dotdothits, 1);
 	return (0);
 }
 
