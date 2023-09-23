@@ -1649,6 +1649,7 @@ cache_zap_unlocked_bucket(struct namecache *ncp, struct componentname *cnp,
     struct mtx *blp)
 {
 	struct namecache *rncp;
+	struct mtx *rvlp;
 
 	cache_assert_bucket_unlocked(ncp);
 
@@ -1661,14 +1662,24 @@ cache_zap_unlocked_bucket(struct namecache *ncp, struct componentname *cnp,
 		    !bcmp(rncp->nc_name, cnp->cn_nameptr, rncp->nc_nlen))
 			break;
 	}
-	if (rncp != NULL) {
-		cache_zap_locked(rncp);
-		mtx_unlock(blp);
-		cache_unlock_vnodes(dvlp, vlp);
-		atomic_add_long(&zap_bucket_relock_success, 1);
-		return (0);
-	}
 
+	if (rncp == NULL)
+		goto out_mismatch;
+
+	if (!(ncp->nc_flag & NCF_NEGATIVE))
+		rvlp = VP2VNODELOCK(rncp->nc_vp);
+	else
+		rvlp = NULL;
+	if (rvlp != vlp)
+		goto out_mismatch;
+
+	cache_zap_locked(rncp);
+	mtx_unlock(blp);
+	cache_unlock_vnodes(dvlp, vlp);
+	atomic_add_long(&zap_bucket_relock_success, 1);
+	return (0);
+
+out_mismatch:
 	mtx_unlock(blp);
 	cache_unlock_vnodes(dvlp, vlp);
 	return (EAGAIN);
