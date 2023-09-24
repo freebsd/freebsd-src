@@ -945,22 +945,38 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 
+	/*
+	 * nvme_complete_tracker must be called without the qpair lock held. It
+	 * takes the lock to adjust outstanding_tr list, so make sure we don't
+	 * have it yet (since this is a general purpose routine). We take the
+	 * lock to make the list traverse safe, but have to drop the lock to
+	 * complete any AER. We restart the list scan when we do this to make
+	 * this safe. There's interlock with the ISR so we know this tracker
+	 * won't be completed twice.
+	 */
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
+
+	mtx_lock(&qpair->lock);
 	tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	while (tr != NULL) {
 		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
+			mtx_unlock(&qpair->lock);
 			nvme_qpair_manual_complete_tracker(tr,
 			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
 			    ERROR_PRINT_NONE);
+			mtx_lock(&qpair->lock);
 			tr = TAILQ_FIRST(&qpair->outstanding_tr);
 		} else {
 			tr = TAILQ_NEXT(tr, tailq);
 		}
 	}
+	mtx_unlock(&qpair->lock);
 }
 
 void
 nvme_admin_qpair_destroy(struct nvme_qpair *qpair)
 {
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	nvme_admin_qpair_abort_aers(qpair);
 	nvme_qpair_destroy(qpair);
@@ -1010,17 +1026,6 @@ nvme_qpair_timeout(void *arg)
 	uint8_t			cfs;
 
 	mtx_assert(&qpair->recovery, MA_OWNED);
-
-	/*
-	 * If the controller has failed, give up. We're never going to change
-	 * state from a failed controller: no further transactions are possible.
-	 * We go ahead and let the timeout expire in many cases for simplicity.
-	 */
-	if (qpair->ctrlr->is_failed) {
-		nvme_printf(ctrlr, "Controller failed, giving up\n");
-		qpair->timer_armed = false;
-		return;
-	}
 
 	switch (qpair->recovery_state) {
 	case RECOVERY_NONE:
@@ -1107,6 +1112,11 @@ nvme_qpair_timeout(void *arg)
 	case RECOVERY_WAITING:
 		nvme_printf(ctrlr, "Waiting for reset to complete\n");
 		idle = false;		/* We want to keep polling */
+		break;
+	case RECOVERY_FAILED:
+		KASSERT(qpair->ctrlr->is_failed,
+		    ("Recovery state failed w/o failed controller\n"));
+		idle = true;			/* nothing to monitor */
 		break;
 	}
 
@@ -1297,6 +1307,8 @@ nvme_qpair_enable(struct nvme_qpair *qpair)
 		mtx_assert(&qpair->recovery, MA_OWNED);
 	if (mtx_initialized(&qpair->lock))
 		mtx_assert(&qpair->lock, MA_OWNED);
+	KASSERT(qpair->recovery_state != RECOVERY_FAILED,
+	    ("Enabling a failed qpair\n"));
 
 	qpair->recovery_state = RECOVERY_NONE;
 }
@@ -1421,12 +1433,13 @@ void
 nvme_admin_qpair_disable(struct nvme_qpair *qpair)
 {
 	mtx_lock(&qpair->recovery);
-	mtx_lock(&qpair->lock);
 
+	mtx_lock(&qpair->lock);
 	nvme_qpair_disable(qpair);
+	mtx_unlock(&qpair->lock);
+
 	nvme_admin_qpair_abort_aers(qpair);
 
-	mtx_unlock(&qpair->lock);
 	mtx_unlock(&qpair->recovery);
 }
 
@@ -1451,18 +1464,27 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 	if (!mtx_initialized(&qpair->lock))
 		return;
 
+	mtx_lock(&qpair->recovery);
+	qpair->recovery_state = RECOVERY_FAILED;
+	mtx_unlock(&qpair->recovery);
+
 	mtx_lock(&qpair->lock);
 
+	if (!STAILQ_EMPTY(&qpair->queued_req)) {
+		nvme_printf(qpair->ctrlr, "failing queued i/o\n");
+	}
 	while (!STAILQ_EMPTY(&qpair->queued_req)) {
 		req = STAILQ_FIRST(&qpair->queued_req);
 		STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
-		nvme_printf(qpair->ctrlr, "failing queued i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_request(qpair, req, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST);
 		mtx_lock(&qpair->lock);
 	}
 
+	if (!TAILQ_EMPTY(&qpair->outstanding_tr)) {
+		nvme_printf(qpair->ctrlr, "failing outstanding i/o\n");
+	}
 	/* Manually abort each outstanding I/O. */
 	while (!TAILQ_EMPTY(&qpair->outstanding_tr)) {
 		tr = TAILQ_FIRST(&qpair->outstanding_tr);
@@ -1470,7 +1492,6 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 		 * Do not remove the tracker.  The abort_tracker path will
 		 *  do that for us.
 		 */
-		nvme_printf(qpair->ctrlr, "failing outstanding i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, DO_NOT_RETRY, ERROR_PRINT_ALL);
