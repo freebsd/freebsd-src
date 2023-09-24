@@ -4037,7 +4037,7 @@ libkern/strcasecmp.c		standard
 libkern/strcasestr.c		standard
 libkern/strcat.c		standard
 libkern/strchr.c		standard
-libkern/strchrnul.c		optional gdb
+libkern/strchrnul.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
 libkern/strdup.c		standard
