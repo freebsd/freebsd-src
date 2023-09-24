@@ -349,6 +349,9 @@
 /* Define if compiler supports -Wformat-overflow */
 /* #undef HAVE_FORMAT_OVERFLOW */
 
+/* fsync_bdev() is declared in include/blkdev.h */
+/* #undef HAVE_FSYNC_BDEV */
+
 /* fops->fsync() with range */
 /* #undef HAVE_FSYNC_RANGE */
 
@@ -360,6 +363,9 @@
 
 /* generic_fillattr requires struct mnt_idmap* */
 /* #undef HAVE_GENERIC_FILLATTR_IDMAP */
+
+/* generic_fillattr requires struct mnt_idmap* and u32 request_mask */
+/* #undef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK */
 
 /* generic_fillattr requires struct user_namespace* */
 /* #undef HAVE_GENERIC_FILLATTR_USERNS */
@@ -424,6 +430,9 @@
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
 
+/* inode_get_ctime() exists in linux/fs.h */
+/* #undef HAVE_INODE_GET_CTIME */
+
 /* yes */
 /* #undef HAVE_INODE_LOCK_SHARED */
 
@@ -435,6 +444,9 @@
 
 /* inode_owner_or_capable() takes user_ns */
 /* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
+
+/* inode_set_ctime_to_ts() exists in linux/fs.h */
+/* #undef HAVE_INODE_SET_CTIME_TO_TS */
 
 /* inode_set_flags() exists */
 /* #undef HAVE_INODE_SET_FLAGS */
@@ -828,6 +840,9 @@
 /* super_block->s_user_ns exists */
 /* #undef HAVE_SUPER_USER_NS */
 
+/* sync_blockdev() is declared in include/blkdev.h */
+/* #undef HAVE_SYNC_BLOCKDEV */
+
 /* struct kobj_type has default_groups */
 /* #undef HAVE_SYSFS_DEFAULT_GROUPS */
 
@@ -1095,7 +1110,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-FreeBSD_g4647353c8"
+#define ZFS_META_ALIAS "zfs-2.2.99-FreeBSD_g2e2a46e0a"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1125,7 +1140,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g4647353c8"
+#define ZFS_META_RELEASE "FreeBSD_g2e2a46e0a"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
