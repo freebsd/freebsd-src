@@ -118,7 +118,7 @@ fi
 authorarg=
 if [ -n "$author" ]; then
 	# Match user ID in the email portion of author or committer
-	authorarg="--author <${author}@ --committer <${author}@"
+	authorarg="--committer <${author}@"
 fi
 
 # Commits in from_branch after branch point
