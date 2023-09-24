@@ -150,6 +150,7 @@ struct nvme_tracker {
 enum nvme_recovery {
 	RECOVERY_NONE = 0,		/* Normal operations */
 	RECOVERY_WAITING,		/* waiting for the reset to complete */
+	RECOVERY_FAILED,		/* We have failed, no more I/O */
 };
 struct nvme_qpair {
 	struct nvme_controller	*ctrlr;
