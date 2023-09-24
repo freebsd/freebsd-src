@@ -116,7 +116,8 @@ const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 /* IEEE 802.11-05/0257r1 */
 const uint8_t bridge_tunnel_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
-const uint8_t tid_to_mac80211_ac[] = {
+/* IEEE 802.11e Table 20i-UP-to-AC mappings. */
+static const uint8_t ieee80211e_up_to_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
 	IEEE80211_AC_BK,
@@ -242,7 +243,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 			IMPROVE("AP/if we support non-STA here too");
 			ltxq->txq.ac = IEEE80211_AC_VO;
 		} else {
-			ltxq->txq.ac = tid_to_mac80211_ac[tid & 7];
+			ltxq->txq.ac = ieee80211e_up_to_ac[tid & 7];
 		}
 		ltxq->seen_dequeue = false;
 		ltxq->stopped = false;
@@ -3243,7 +3244,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		ac = IEEE80211_AC_BE;
 	} else {
 		skb->priority = tid & IEEE80211_QOS_CTL_TID_MASK;
-		ac = tid_to_mac80211_ac[tid & 7];
+		ac = ieee80211e_up_to_ac[tid & 7];
 	}
 	skb_set_queue_mapping(skb, ac);
 
