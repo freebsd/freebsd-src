@@ -522,7 +522,7 @@ linux_fetch_syscall_args(struct thread *td)
 
 	if (sa->code >= p->p_sysent->sv_size)
 		/* nosys */
-		sa->callp = &p->p_sysent->sv_table[p->p_sysent->sv_size - 1];
+		sa->callp = &nosys_sysent;
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
