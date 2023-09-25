@@ -1,9 +1,8 @@
-
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: ediddevs,v 1.1 2006/05/11 01:49:53 gdamore Exp
+ *	NetBSD: ediddevs,v 1.2 2007/03/07 18:47:13 macallan Exp
  */
 
 /*-
@@ -80,6 +79,16 @@
 #define	EDID_VENDOR_TSB	"Toshiba"
 #define	EDID_VENDOR_VSC	"ViewSonic"
 #define	EDID_VENDOR_ZCM	"Zenith"
+
+/*
+ * List of known products, grouped and sorted by vendor.
+ *
+ * EDID version 1.3 requires that monitors expose the monitor name with
+ * the ASCII descriptor type 0xFC, so for monitors using that block, this
+ * information is redundant, and there is not point in listing them here,
+ * unless it is desired to have a symbolic macro to detect the monitor in
+ * special handling code or somesuch.
+ */
 
 /* Dell  - this exists for now as a sample.  I don't have one of these.  */
 #define	EDID_PRODUCT_DEL_ULTRASCAN14XE_REVA	0x139A		/* Ultrascan 14XE */
