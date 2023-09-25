@@ -74,7 +74,6 @@ DONE
 
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
-# \$FreeBSD\$
 
 files		"${TOP}/conf/files.${UPPER}"
 
@@ -119,9 +118,6 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
  *
  * ${1} driver
  */
-
-#include <sys/cdefs.h>
-__FBSDID("\$FreeBSD\$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -389,8 +385,6 @@ fi
 
 cat >${TOP}/modules/${1}/Makefile <<DONE
 #	${UPPER} Loadable Kernel Module
-#
-# \$FreeBSD\$
 
 .PATH:  \${.CURDIR}/../../dev/${1}
 KMOD    = ${1}
