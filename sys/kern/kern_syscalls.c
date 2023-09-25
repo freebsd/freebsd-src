@@ -61,6 +61,17 @@ lkmressys(struct thread *td, struct nosys_args *args)
 	return (nosys(td, args));
 }
 
+struct sysent nosys_sysent = {
+	.sy_call =	(sy_call_t *)nosys,
+	.sy_systrace_args_func = NULL,
+	.sy_narg =	0,
+	.sy_flags =	SYF_CAPENABLED,
+	.sy_auevent =	AUE_NULL,
+	.sy_entry =	0, /* DTRACE_IDNONE */
+	.sy_return =	0,
+	.sy_thrcnt =	SY_THR_STATIC,
+};
+
 static void
 syscall_thread_drain(struct sysent *se)
 {
@@ -78,19 +89,21 @@ syscall_thread_drain(struct sysent *se)
 }
 
 int
-syscall_thread_enter(struct thread *td, struct sysent *se)
+syscall_thread_enter(struct thread *td, struct sysent **se)
 {
 	uint32_t cnt, oldcnt;
 
-	KASSERT((se->sy_thrcnt & SY_THR_STATIC) == 0,
+	KASSERT(((*se)->sy_thrcnt & SY_THR_STATIC) == 0,
 	    ("%s: not a static syscall", __func__));
 
 	do {
-		oldcnt = se->sy_thrcnt;
-		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0)
-			return (ENOSYS);
+		oldcnt = (*se)->sy_thrcnt;
+		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0) {
+			*se = &nosys_sysent;
+			return (0);
+		}
 		cnt = oldcnt + SY_THR_INCR;
-	} while (atomic_cmpset_acq_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+	} while (atomic_cmpset_acq_32(&(*se)->sy_thrcnt, oldcnt, cnt) == 0);
 	return (0);
 }
 
