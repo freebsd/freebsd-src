@@ -254,7 +254,6 @@ main (int argc, char *argv[])
 		if (dflag && iconvctl(cd, ICONV_SET_FALLBACKS, &fbs) != 0)
 			err(1, NULL);
 		if (cflag) {
-			printf("# $FreeBSD$\n\n");
 			printf("TYPE\t\tROWCOL\n");
 			printf("NAME\t\tUCS/%s\n", argv[0]);
 			printf("%s", citrus_common);
@@ -266,7 +265,6 @@ main (int argc, char *argv[])
 		if (dflag && (iconvctl(cd, ICONV_SET_FALLBACKS, &fbs) != 0))
 			err(1, NULL);
 		if (cflag) {
-			printf("# $FreeBSD$\n\n");
 			printf("TYPE\t\tROWCOL\n");
 			printf("NAME\t\t%s/UCS\n", argv[0]);
 			printf("%s", citrus_common);
