@@ -3,9 +3,6 @@
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: $");
-
 #ifndef _ENIC_H
 #define _ENIC_H
 
