@@ -172,6 +172,7 @@ struct sysentvec {
 #define	SV_SIG_DISCIGN	0x200000	/* Do not discard ignored signals */
 #define	SV_SIG_WAITNDQ	0x400000	/* Wait does not dequeue SIGCHLD */
 #define	SV_DSO_SIG	0x800000	/* Signal trampoline packed in dso */
+#define	SV_SIGSYS	0x1000000	/* SIGSYS for non-existing syscall. NOTE: different value from HEAD */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
