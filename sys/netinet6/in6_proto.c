@@ -278,10 +278,10 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ip6, IPV6CTL_STATS, stats, struct ip6stat,
 	ip6stat,
 	"IP6 statistics (struct ip6stat, netinet6/ip6_var.h)");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
+	CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(ip6_accept_rtadv), 0,
 	"Default value of per-interface flag for accepting ICMPv6 RA messages");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_NO_RADR, no_radr,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_no_radr), 0,
+	CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(ip6_no_radr), 0,
 	"Default value of per-interface flag to control whether routers "
 	"sending ICMPv6 RA messages on that interface are added into the "
 	"default router list");
@@ -334,7 +334,7 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_v6only), 0,
 	"Restrict AF_INET6 sockets to IPv6 addresses only");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL, auto_linklocal,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0,
+	CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(ip6_auto_linklocal), 0,
 	"Default value of per-interface flag for automatically adding an IPv6 "
 	"link-local address to interfaces when attached");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats,
