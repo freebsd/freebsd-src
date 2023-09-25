@@ -2610,7 +2610,8 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	audited = AUDIT_SYSCALL_ENTER(sc, td) != 0;
 
 	if (!sy_thr_static) {
-		error = syscall_thread_enter(td, se);
+		error = syscall_thread_enter(td, &se);
+		sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
 		if (error != 0) {
 			tsr->ts_ret.sr_error = error;
 			return;
