@@ -449,5 +449,16 @@ const char *linux_syscallnames[] = {
 	"linux_process_madvise",			/* 440 = linux_process_madvise */
 	"linux_epoll_pwait2",			/* 441 = linux_epoll_pwait2 */
 	"linux_mount_setattr",			/* 442 = linux_mount_setattr */
-	"#443",			/* 443 = nosys */
+	"linux_quotactl_fd",			/* 443 = linux_quotactl_fd */
+	"linux_landlock_create_ruleset",			/* 444 = linux_landlock_create_ruleset */
+	"linux_landlock_add_rule",			/* 445 = linux_landlock_add_rule */
+	"linux_landlock_restrict_self",			/* 446 = linux_landlock_restrict_self */
+	"linux_memfd_secret",			/* 447 = linux_memfd_secret */
+	"linux_process_mrelease",			/* 448 = linux_process_mrelease */
+	"linux_futex_waitv",			/* 449 = linux_futex_waitv */
+	"linux_set_mempolicy_home_node",			/* 450 = linux_set_mempolicy_home_node */
+	"linux_cachestat",			/* 451 = linux_cachestat */
+	"linux_fchmodat2",			/* 452 = linux_fchmodat2 */
+	"linux_map_shadow_stack",			/* 453 = linux_map_shadow_stack */
+	"#454",			/* 454 = nosys */
 };

@@ -1215,6 +1215,36 @@ struct linux_epoll_pwait2_args {
 struct linux_mount_setattr_args {
 	syscallarg_t dummy;
 };
+struct linux_quotactl_fd_args {
+	syscallarg_t dummy;
+};
+struct linux_landlock_create_ruleset_args {
+	syscallarg_t dummy;
+};
+struct linux_landlock_add_rule_args {
+	syscallarg_t dummy;
+};
+struct linux_landlock_restrict_self_args {
+	syscallarg_t dummy;
+};
+struct linux_memfd_secret_args {
+	syscallarg_t dummy;
+};
+struct linux_process_mrelease_args {
+	syscallarg_t dummy;
+};
+struct linux_futex_waitv_args {
+	syscallarg_t dummy;
+};
+struct linux_set_mempolicy_home_node_args {
+	syscallarg_t dummy;
+};
+struct linux_cachestat_args {
+	syscallarg_t dummy;
+};
+struct linux_fchmodat2_args {
+	syscallarg_t dummy;
+};
 #define	nosys	linux_nosys
 int	linux_setxattr(struct thread *, struct linux_setxattr_args *);
 int	linux_lsetxattr(struct thread *, struct linux_lsetxattr_args *);
@@ -1466,6 +1496,16 @@ int	linux_faccessat2(struct thread *, struct linux_faccessat2_args *);
 int	linux_process_madvise(struct thread *, struct linux_process_madvise_args *);
 int	linux_epoll_pwait2(struct thread *, struct linux_epoll_pwait2_args *);
 int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
+int	linux_quotactl_fd(struct thread *, struct linux_quotactl_fd_args *);
+int	linux_landlock_create_ruleset(struct thread *, struct linux_landlock_create_ruleset_args *);
+int	linux_landlock_add_rule(struct thread *, struct linux_landlock_add_rule_args *);
+int	linux_landlock_restrict_self(struct thread *, struct linux_landlock_restrict_self_args *);
+int	linux_memfd_secret(struct thread *, struct linux_memfd_secret_args *);
+int	linux_process_mrelease(struct thread *, struct linux_process_mrelease_args *);
+int	linux_futex_waitv(struct thread *, struct linux_futex_waitv_args *);
+int	linux_set_mempolicy_home_node(struct thread *, struct linux_set_mempolicy_home_node_args *);
+int	linux_cachestat(struct thread *, struct linux_cachestat_args *);
+int	linux_fchmodat2(struct thread *, struct linux_fchmodat2_args *);
 #define	LINUX_SYS_AUE_linux_setxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lsetxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_fsetxattr	AUE_NULL
@@ -1716,6 +1756,16 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_process_madvise	AUE_NULL
 #define	LINUX_SYS_AUE_linux_epoll_pwait2	AUE_NULL
 #define	LINUX_SYS_AUE_linux_mount_setattr	AUE_NULL
+#define	LINUX_SYS_AUE_linux_quotactl_fd	AUE_NULL
+#define	LINUX_SYS_AUE_linux_landlock_create_ruleset	AUE_NULL
+#define	LINUX_SYS_AUE_linux_landlock_add_rule	AUE_NULL
+#define	LINUX_SYS_AUE_linux_landlock_restrict_self	AUE_NULL
+#define	LINUX_SYS_AUE_linux_memfd_secret	AUE_NULL
+#define	LINUX_SYS_AUE_linux_process_mrelease	AUE_NULL
+#define	LINUX_SYS_AUE_linux_futex_waitv	AUE_NULL
+#define	LINUX_SYS_AUE_linux_set_mempolicy_home_node	AUE_NULL
+#define	LINUX_SYS_AUE_linux_cachestat	AUE_NULL
+#define	LINUX_SYS_AUE_linux_fchmodat2	AUE_NULL
 
 #undef PAD_
 #undef PADL_
