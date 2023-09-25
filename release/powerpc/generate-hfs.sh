@@ -55,7 +55,6 @@ rm loader.tmp
 bzip2 $OUTPUT_FILE
 echo 'HFS boot filesystem created by generate-hfs.sh' > $OUTPUT_FILE.bz2.uu
 echo 'DO NOT EDIT' >> $OUTPUT_FILE.bz2.uu
-echo '$FreeBSD$' >> $OUTPUT_FILE.bz2.uu
 
 uuencode $OUTPUT_FILE.bz2 $OUTPUT_FILE.bz2 >> $OUTPUT_FILE.bz2.uu
 rm $OUTPUT_FILE.bz2
