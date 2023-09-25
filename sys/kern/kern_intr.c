@@ -1433,7 +1433,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	struct thread *td;
 	int phase;
 	int ret;
-	bool filter, thread;
+	bool filter, thread, stray = true;
 
 	td = curthread;
 
@@ -1492,7 +1492,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
 		    ("%s: incorrect return value %#x from %s", __func__, ret,
 		    ih->ih_name));
-		filter = filter || ret == FILTER_HANDLED;
+		filter = filter || !!(ret & FILTER_HANDLED);
+		stray = stray && !(ret & FILTER_STRAY);
 #ifdef HWPMC_HOOKS
 		if (ret & FILTER_SCHEDULE_THREAD)
 			PMC_SOFT_CALL_TF( , , intr, ithread, frame);
@@ -1546,7 +1547,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
 	if (!thread && !filter) {
 		++ie->ie_stray;
-		return (ie->ie_stray);
+		return (stray ? ie->ie_stray : 0);
 	}
 	return (0);
 }
