@@ -17,11 +17,6 @@
  * improvements you might make to this program.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
