@@ -34,8 +34,6 @@ else
 fi
 UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"`
 
-RCS_KEYWORD=FreeBSD
-
 if [ -d ${TOP}/modules/${1} ]; then
 	echo "There appears to already be a module called ${1}"
 	echo -n "Should it be overwritten? [Y]"
@@ -90,7 +88,6 @@ DONE
 #######################################################################
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
-# \$${RCS_KEYWORD}$
 
 files		"${TOP}/conf/files.${UPPER}"
 
@@ -141,9 +138,6 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
  * http://www.daemonnews.org/200008/isa.html is required reading.
  * hopefully it will make it's way into the handbook.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("\$${RCS_KEYWORD}$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -956,8 +950,6 @@ fi
 
 cat >${TOP}/modules/${1}/Makefile <<DONE
 #	${UPPER} Loadable Kernel Module
-#
-# \$${RCS_KEYWORD}: $
 
 .PATH:  \${.CURDIR}/../../dev/${1}
 KMOD    = ${1}
