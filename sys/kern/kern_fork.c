@@ -1056,7 +1056,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	proc_set_cred_init(newproc, td->td_ucred);
+	newproc->p_ucred = crcowget(td->td_ucred);
 
 	/*
 	 * Initialize resource accounting for the child process.
