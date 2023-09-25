@@ -1260,6 +1260,8 @@ struct cfg80211_bss *linuxkpi_cfg80211_get_bss(struct wiphy *,
     const uint8_t *, size_t, enum ieee80211_bss_type, enum ieee80211_privacy);
 void linuxkpi_cfg80211_put_bss(struct wiphy *, struct cfg80211_bss *);
 void linuxkpi_cfg80211_bss_flush(struct wiphy *);
+struct linuxkpi_ieee80211_regdomain *
+    lkpi_get_linuxkpi_ieee80211_regdomain(size_t);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1587,8 +1589,22 @@ regulatory_set_wiphy_regd(struct wiphy *wiphy,
 static __inline int
 regulatory_hint(struct wiphy *wiphy, const uint8_t *alpha2)
 {
-	TODO();
-	return (-ENXIO);
+	struct linuxkpi_ieee80211_regdomain *regd;
+
+	if (wiphy->regd != NULL)
+		return (-EBUSY);
+
+	regd = lkpi_get_linuxkpi_ieee80211_regdomain(0);
+	if (regd == NULL)
+		return (-ENOMEM);
+
+	regd->alpha2[0] = alpha2[0];
+	regd->alpha2[1] = alpha2[1];
+	wiphy->regd = regd;
+
+	IMPROVE("are there flags who is managing? update net8011?");
+
+	return (0);
 }
 
 static __inline const char *

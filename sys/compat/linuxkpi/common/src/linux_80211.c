@@ -3954,6 +3954,16 @@ linuxkpi_ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
+struct linuxkpi_ieee80211_regdomain *
+lkpi_get_linuxkpi_ieee80211_regdomain(size_t n)
+{
+	struct linuxkpi_ieee80211_regdomain *regd;
+
+	regd = kzalloc(sizeof(*regd) + n * sizeof(struct ieee80211_reg_rule),
+	    GFP_KERNEL);
+	return (regd);
+}
+
 int
 linuxkpi_regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
     struct linuxkpi_ieee80211_regdomain *regd)
