@@ -126,7 +126,9 @@ parse_options()
 		if [ -r "$_jconf" ]; then
 			_conf="$_jconf"
 			return 0
-		elif [ -r "$_jconfdir" ]; then
+		elif [ -r "$_jconfdir" ] && ! egrep -q \
+		    '^\s*\.include\s*["'\'']?/etc/jail.conf.d/' "$jail_conf" \
+		    2>/dev/null; then
 			_conf="$_jconfdir"
 			return 0
 		elif [ -r "$jail_conf" ]; then
