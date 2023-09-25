@@ -58,6 +58,12 @@ OLD_FILES+=usr/tests/sys/netinet/tcp6_v4unmapped_bind_test
 OLD_FILES+=usr/share/man/man9/cr_seeothergids.9.gz
 OLD_FILES+=usr/share/man/man9/cr_seeotheruids.9.gz
 
+# 20230925
+OLD_FILES+=usr/share/examples/diskless/ME
+OLD_FILES+=usr/share/examples/diskless/README.BOOTP
+OLD_FILES+=usr/share/examples/diskless/README.TEMPLATING
+OLD_FILES+=usr/share/examples/diskless/clone_root
+
 # 20230906: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/E-Tugra_Certification_Authority.pem
 OLD_FILES+=usr/share/certs/trusted/E-Tugra_Global_Root_CA_ECC_v3.pem
