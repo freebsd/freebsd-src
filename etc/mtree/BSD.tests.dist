@@ -1095,6 +1095,8 @@
         ..
         pr
         ..
+        printenv
+        ..
         printf
         ..
         procstat
