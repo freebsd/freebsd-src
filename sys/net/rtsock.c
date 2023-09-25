@@ -241,7 +241,7 @@ sysctl_route_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
 	return (netisr_setqlimit(&rtsock_nh, qlimit));
 }
 SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
     0, 0, sysctl_route_netisr_maxqlen, "I",
     "maximum routing socket dispatch queue length");
 
