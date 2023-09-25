@@ -32,11 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 /*
  * This is a specially hacked-up version of getnetgrent.c used to parse
  * data from the stored hash table of netgroup info rather than from a

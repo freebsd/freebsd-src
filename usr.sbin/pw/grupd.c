@@ -26,11 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <err.h>
 #include <grp.h>
 #include <libutil.h>
