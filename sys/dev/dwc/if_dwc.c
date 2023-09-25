@@ -63,13 +63,14 @@
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
-#include <dev/dwc/if_dwc.h>
-#include <dev/dwc/if_dwcvar.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii_fdt.h>
+
+#include <dev/dwc/dwc1000_reg.h>
+#include <dev/dwc/if_dwcvar.h>
 
 #include "if_dwc_if.h"
 #include "gpio_if.h"

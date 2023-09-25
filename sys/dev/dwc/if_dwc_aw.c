@@ -36,16 +36,17 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
-
-#include <dev/dwc/if_dwc.h>
-#include <dev/dwc/if_dwcvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/aw_machdep.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
+
+#include <arm/allwinner/aw_machdep.h>
+
+#include <dev/dwc/if_dwcvar.h>
+#include <dev/dwc/dwc1000_reg.h>
 
 #include "if_dwc_if.h"
 

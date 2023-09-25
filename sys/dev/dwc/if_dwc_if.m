@@ -27,7 +27,7 @@
 
 INTERFACE if_dwc;
 
-#include <dev/dwc/if_dwc.h>
+#include <dev/dwc/dwc1000_reg.h>
 
 CODE {
 	static int

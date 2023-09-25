@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
@@ -32,8 +31,8 @@
  * Register names were taken almost as is from the documentation.
  */
 
-#ifndef __IF_DWC_H__
-#define __IF_DWC_H__
+#ifndef __DWC1000_REG_H__
+#define __DWC1000_REG_H__
 
 #define	PHY_MODE_UNKNOWN	0x0
 #define	PHY_MODE_RMII		0x1
@@ -302,4 +301,4 @@
 #define	GMAC_MII_CLK_DIV16		0xe
 #define	GMAC_MII_CLK_DIV18		0xf
 
-#endif	/* __IF_DWC_H__ */
+#endif	/* __DWC1000_REG_H__ */
