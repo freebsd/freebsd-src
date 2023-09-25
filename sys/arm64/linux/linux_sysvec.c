@@ -123,7 +123,7 @@ linux_fetch_syscall_args(struct thread *td)
 	sa->original_code = sa->code;
 	/* LINUXTODO: generic syscall? */
 	if (sa->code >= p->p_sysent->sv_size)
-		sa->callp = &p->p_sysent->sv_table[0];
+		sa->callp = &nosys_sysent;
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
