@@ -48,6 +48,7 @@ TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 ATF_TESTS_C+=	unix_socketpair_test
 ATF_TESTS_C+=	waitpid_nohang
 ATF_TESTS_C+=	pdeathsig
+ATF_TESTS_C+=	sigsys
 
 ATF_TESTS_SH+=	coredump_phnum_test
 ATF_TESTS_SH+=	sonewconn_overflow
