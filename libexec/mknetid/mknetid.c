@@ -55,11 +55,6 @@
 
 #include "hash.h"
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #define LINSIZ 1024
 #define OPSYS "unix"
 
