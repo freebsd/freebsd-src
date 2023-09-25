@@ -210,6 +210,15 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 #define	LHW_TO_HW(_lhw)		(&(_lhw)->hw)
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
 
+struct lkpi_chanctx {
+	bool				added_to_drv;	/* Managed by MO */
+	struct ieee80211_chanctx_conf	conf __aligned(CACHE_LINE_SIZE);
+};
+#define	LCHANCTX_TO_CHANCTX_CONF(_lchanctx)		\
+    (&(_lchanctx)->conf)
+#define	CHANCTX_CONF_TO_LCHANCTX(_conf)			\
+    container_of(_conf, struct lkpi_chanctx, conf)
+
 struct lkpi_wiphy {
 	const struct cfg80211_ops	*ops;
 
