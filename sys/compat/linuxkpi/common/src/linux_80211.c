@@ -917,6 +917,7 @@ static int
 lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct linuxkpi_ieee80211_channel *chan;
+	struct lkpi_chanctx *lchanctx;
 	struct ieee80211_chanctx_conf *conf;
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
@@ -948,11 +949,13 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* Add chanctx (or if exists, change it). */
 	if (vif->chanctx_conf != NULL) {
 		conf = vif->chanctx_conf;
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
 		IMPROVE("diff changes for changed, working on live copy, rcu");
 	} else {
 		/* Keep separate alloc as in Linux this is rcu managed? */
-		conf = malloc(sizeof(*conf) + hw->chanctx_data_size,
+		lchanctx = malloc(sizeof(*lchanctx) + hw->chanctx_data_size,
 		    M_LKPI80211, M_WAITOK | M_ZERO);
+		conf = &lchanctx->conf;
 	}
 
 	conf->rx_chains_dynamic = 1;
@@ -997,7 +1000,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			error = 0;
 		if (error != 0) {
 			lkpi_80211_mo_remove_chanctx(hw, conf);
-			free(conf, M_LKPI80211);
+			lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+			free(lchanctx, M_LKPI80211);
 			goto out;
 		}
 	}
@@ -1169,6 +1173,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
+		struct lkpi_chanctx *lchanctx;
 		struct ieee80211_chanctx_conf *conf;
 
 		conf = vif->chanctx_conf;
@@ -1178,7 +1183,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
-		free(conf, M_LKPI80211);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		free(lchanctx, M_LKPI80211);
 	}
 
 out:
@@ -1446,6 +1452,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
+		struct lkpi_chanctx *lchanctx;
 		struct ieee80211_chanctx_conf *conf;
 
 		conf = vif->chanctx_conf;
@@ -1455,7 +1462,8 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
-		free(conf, M_LKPI80211);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		free(lchanctx, M_LKPI80211);
 	}
 
 	error = EALREADY;
@@ -1905,6 +1913,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
+		struct lkpi_chanctx *lchanctx;
 		struct ieee80211_chanctx_conf *conf;
 
 		conf = vif->chanctx_conf;
@@ -1914,7 +1923,8 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
-		free(conf, M_LKPI80211);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		free(lchanctx, M_LKPI80211);
 	}
 
 	error = EALREADY;
@@ -3948,8 +3958,32 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
 	void *),
     void *arg)
 {
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_chanctx *lchanctx;
 
-	UNIMPLEMENTED;
+	KASSERT(hw != NULL && iterfunc != NULL,
+	    ("%s: hw %p iterfunc %p arg %p\n", __func__, hw, iterfunc, arg));
+
+	lhw = HW_TO_LHW(hw);
+
+	IMPROVE("lchanctx should be its own list somewhere");
+
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
+	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
+
+		vif = LVIF_TO_VIF(lvif);
+		if (vif->chanctx_conf == NULL)
+			continue;
+
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(vif->chanctx_conf);
+		if (!lchanctx->added_to_drv)
+			continue;
+
+		iterfunc(hw, &lchanctx->conf, arg);
+	}
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
 void
