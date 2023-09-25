@@ -490,6 +490,7 @@ lkpi_80211_mo_add_chanctx(struct ieee80211_hw *hw,
     struct ieee80211_chanctx_conf *chanctx_conf)
 {
 	struct lkpi_hw *lhw;
+	struct lkpi_chanctx *lchanctx;
 	int error;
 
 	lhw = HW_TO_LHW(hw);
@@ -500,6 +501,10 @@ lkpi_80211_mo_add_chanctx(struct ieee80211_hw *hw,
 
 	LKPI_80211_TRACE_MO("hw %p chanctx_conf %p", hw, chanctx_conf);
 	error = lhw->ops->add_chanctx(hw, chanctx_conf);
+	if (error == 0) {
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+		lchanctx->added_to_drv = true;
+	}
 
 out:
 	return (error);
@@ -524,6 +529,7 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
     struct ieee80211_chanctx_conf *chanctx_conf)
 {
 	struct lkpi_hw *lhw;
+	struct lkpi_chanctx *lchanctx;
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->remove_chanctx == NULL)
@@ -531,6 +537,8 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 
 	LKPI_80211_TRACE_MO("hw %p chanctx_conf %p", hw, chanctx_conf);
 	lhw->ops->remove_chanctx(hw, chanctx_conf);
+	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+	lchanctx->added_to_drv = false;
 }
 
 void
