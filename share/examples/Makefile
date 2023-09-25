@@ -11,7 +11,6 @@ LDIRS=	BSD_daemon \
 	IPv6 \
 	bootforth \
 	csh \
-	diskless \
 	drivers \
 	etc \
 	find_interface \
@@ -73,13 +72,6 @@ SE_BOOTFORTH= \
 
 SE_DIRS+=	csh
 SE_CSH=	dot.cshrc
-
-SE_DIRS+=	diskless
-SE_DISKLESS= \
-	ME \
-	README.BOOTP \
-	README.TEMPLATING \
-	clone_root
 
 SE_DIRS+=	drivers
 SE_DRIVERS= \

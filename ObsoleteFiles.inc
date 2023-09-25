@@ -51,6 +51,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2023xxxx
+OLD_FILES+=usr/share/examples/diskless/ME
+OLD_FILES+=usr/share/examples/diskless/README.BOOTP
+OLD_FILES+=usr/share/examples/diskless/README.TEMPLATING
+OLD_FILES+=usr/share/examples/diskless/clone_root
+
 # 20230905
 OLD_FILES+=usr/share/doc/legal/realtek_rtw88_firmware.LICENCE
 
