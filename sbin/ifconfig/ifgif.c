@@ -25,11 +25,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>

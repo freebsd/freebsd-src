@@ -27,11 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <rpc/rpc.h>
 #include <rpcsvc/spray.h>
 #include <signal.h>

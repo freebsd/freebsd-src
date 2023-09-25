@@ -29,8 +29,6 @@
 #include <sys/cdefs.h>
 #ifndef lint
 __RCSID("$NetBSD: boot.c,v 1.22 2020/01/11 16:29:07 christos Exp $");
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

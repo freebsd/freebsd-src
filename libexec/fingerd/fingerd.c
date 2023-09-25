@@ -39,8 +39,6 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

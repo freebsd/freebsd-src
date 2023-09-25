@@ -31,8 +31,6 @@
 #if 0
 static char sccsid[] = "@(#)keyserv.c	1.15	94/04/25 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
 /*

@@ -38,11 +38,6 @@
 #include <sys/types.h>
 #include "hash.h"
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 /*
  * This hash function is stolen directly from the
  * Berkeley DB package. It already exists inside libc, but
