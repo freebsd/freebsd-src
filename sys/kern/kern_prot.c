@@ -2195,17 +2195,6 @@ cru2xt(struct thread *td, struct xucred *xcr)
 }
 
 /*
- * Set initial process credentials.
- * Callers are responsible for providing the reference for provided credentials.
- */
-void
-proc_set_cred_init(struct proc *p, struct ucred *newcred)
-{
-
-	p->p_ucred = crcowget(newcred);
-}
-
-/*
  * Change process credentials.
  * Callers are responsible for providing the reference for passed credentials
  * and for freeing old ones.
