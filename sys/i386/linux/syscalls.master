@@ -2293,6 +2293,7 @@
 		    uint32_t sig
 		);
 	}
+; Linux 5.1:
 387-392	AUE_NULL	UNIMPL	nosys
 393	AUE_NULL	STD {
 		int linux_semget(
@@ -2365,7 +2366,6 @@
 		    struct l_msqid_ds *buf
 		);
 	}
-; Linux 5.0:
 403	AUE_NULL	STD {
 		int linux_clock_gettime64(
 		    clockid_t which,
@@ -2518,6 +2518,7 @@
 427	AUE_NULL	STD {
 		int linux_io_uring_register(void);
 	}
+; Linux 5.2:
 428    AUE_NULL		STD {
 		int linux_open_tree(void);
 	}
@@ -2536,6 +2537,7 @@
 433    AUE_NULL		STD {
 		int linux_fspick(void);
 	}
+; Linux 5.3:
 434    AUE_NULL		STD {
 		int linux_pidfd_open(void);
 	}
@@ -2545,6 +2547,7 @@
 		    l_size_t usize
 		);
 	}
+; Linux 5.9:
 436	AUE_CLOSERANGE	STD {
 		int linux_close_range(
 		    l_uint first,
@@ -2552,12 +2555,14 @@
 		    l_uint flags
 		);
 	}
+; Linux 5.6:
 437    AUE_NULL		STD {
 		int linux_openat2(void);
 	}
 438    AUE_NULL		STD {
 		int linux_pidfd_getfd(void);
 	}
+; Linux 5.8:
 439    AUE_NULL		STD {
 		int linux_faccessat2(
 		    l_int dfd,
@@ -2566,9 +2571,11 @@
 		    l_int flags
 		);
 	}
+; Linux 5.10:
 440    AUE_NULL		STD {
 		int linux_process_madvise(void);
 	}
+; Linux 5.11:
 441    AUE_NULL		STD {
 		int linux_epoll_pwait2_64(
 		    l_int epfd,
@@ -2579,9 +2586,48 @@
 		    l_size_t sigsetsize
 		);
 	}
+; Linux 5.12:
 442    AUE_NULL		STD {
 		int linux_mount_setattr(void);
 	}
-; please, keep this line at the end.
-443    AUE_NULL        UNIMPL  nosys
-; vim: syntax=off
+; Linux 5.14:
+443	AUE_NULL		STD {
+		int linux_quotactl_fd(void);
+	}
+; Linux 5.13:
+444	AUE_NULL		STD {
+		int linux_landlock_create_ruleset(void);
+	}
+445	AUE_NULL		STD {
+		int linux_landlock_add_rule(void);
+	}
+446	AUE_NULL		STD {
+		int linux_landlock_restrict_self(void);
+	}
+; Linux 5.14:
+447	AUE_NULL		STD {
+		int linux_memfd_secret(void);
+	}
+; Linux 5.15:
+448	AUE_NULL		STD {
+		int linux_process_mrelease(void);
+	}
+; Linux 5.16:
+449	AUE_NULL		STD {
+		int linux_futex_waitv(void);
+	}
+; Linux 5.17:
+450	AUE_NULL		STD {
+		int linux_set_mempolicy_home_node(void);
+	}
+; Linux 6.5:
+451	AUE_NULL		STD {
+		int linux_cachestat(void);
+	}
+; Linux 6.6:
+452	AUE_NULL		STD {
+		int linux_fchmodat2(void);
+	}
+ ; please, keep this line at the end.
+453	AUE_NULL        UNIMPL  nosys
+ ; vim: syntax=off
