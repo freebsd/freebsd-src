@@ -2238,7 +2238,7 @@ fdinit(void)
  * Build a pwddesc structure from another.
  * Copy the current, root, and jail root vnode references.
  *
- * If pdp is not NULL, return with it shared locked.
+ * If pdp is not NULL and keeplock is true, return with it (exclusively) locked.
  */
 struct pwddesc *
 pdinit(struct pwddesc *pdp, bool keeplock)
